@@ -1,11 +1,11 @@
 // ============================
 // GC — FRONTEND FINAL
 // ============================
-const BUILD = "22-01-2026 FINAL — AUTH OK";
+const BUILD = "22-01-2026 FINAL — AUTH + RLS OK";
 console.log("GC build:", BUILD);
 
 // ============================
-// SUPABASE CONFIG (FINAL)
+// SUPABASE CONFIG (PRODUCTION)
 // ============================
 const SUPABASE_URL = "https://vfrmjfveclfwxcdknlvs.supabase.co";
 const SUPABASE_ANON_KEY =
@@ -15,14 +15,22 @@ const SUPABASE_ANON_KEY =
 // HELPERS
 // ============================
 const el = (id) => document.getElementById(id);
-const setHtml = (id, html) => (el(id).innerHTML = html);
+const setHtml = (id, html) => {
+  const node = el(id);
+  if (node) node.innerHTML = html;
+};
 
+// Mostrar config (apenas leitura)
 setHtml("cfgUrl", SUPABASE_URL);
 setHtml("cfgKey", SUPABASE_ANON_KEY.slice(0, 20) + "…");
 
 // ============================
 // SUPABASE CLIENT
 // ============================
+if (!window.supabase) {
+  alert("Erro: Supabase client não carregado (verifica o <script> no index.html)");
+}
+
 const supabase = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
