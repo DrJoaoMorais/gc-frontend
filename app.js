@@ -13,7 +13,7 @@ if (!window.supabase) {
 }
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-window.sb = sb; // <-- ADICIONADO: expõe o cliente para testes na consola
+window.sb = sb; // debug temporário
 
 // Prova de vida
 setText('cfgUrl', SUPABASE_URL);
