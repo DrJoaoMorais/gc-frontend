@@ -127,29 +127,35 @@
   }
 
   async function loadPatientsForClinic(clinicId){
-    patientsCache = [];
-    document.getElementById('patientsMsg').innerText = "A carregar doentes...";
-    document.getElementById('patientsTable').innerHTML = "";
+  patientsCache = [];
+  document.getElementById('patientsMsg').innerText = "A carregar doentes...";
+  document.getElementById('patientsTable').innerHTML = "";
 
-    // Ajuste de campos:
-    // Vamos buscar id + name (e mais alguns se existirem sem erro).
-    // Se algum campo não existir na tua tabela, o Supabase dá erro.
-    // Por isso começamos minimalista (id, name) para garantir.
-    const { data, error } = await sb
-      .from('patients')
-      .select('id, name, clinic_id')
-      .eq('clinic_id', clinicId)
-      .order('name', { ascending: true });
+  // Buscar doentes via tabela de ligação patient_clinic
+  const { data, error } = await sb
+    .from('patient_clinic')
+    .select('patient_id, patients(id, name)')
+    .eq('clinic_id', clinicId)
+    .order('patients(name)', { ascending: true });
 
-    if(error){
-      document.getElementById('patientsMsg').innerText = "Erro: " + error.message;
-      return;
-    }
-
-    patientsCache = data || [];
-    document.getElementById('patientsMsg').innerText = patientsCache.length + " doentes";
-    renderPatientsTable(patientsCache);
+  if(error){
+    document.getElementById('patientsMsg').innerText = "Erro: " + error.message;
+    return;
   }
+
+  patientsCache = (data || [])
+    .filter(r => r.patients && r.patients.id)
+    .map(r => ({
+      id: r.patients.id,
+      name: r.patients.name
+    }));
+
+  document.getElementById('patientsMsg').innerText =
+    patientsCache.length + " doentes";
+
+  renderPatientsTable(patientsCache);
+}
+
 
   function renderPatientsTable(rows){
     document.getElementById('patientsTable').innerHTML =
