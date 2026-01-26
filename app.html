@@ -64,11 +64,11 @@
 
 <script>
   // === CONFIG ===
-  // Mantém as tuas credenciais atuais. Se já tens isto no teu app.html, confirma se está igual.
   const SUPABASE_URL = "https://vfrmjfveclfwxcdknlvs.supabase.co";
-  const SUPABASE_ANON_KEY = "COLOCA_AQUI_A_TUA_ANON_KEY_SE_NAO_EXISTIR_NO_TEU_FICHEIRO";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmcm1qZnZlY2xmd3hjZGtubHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODM1NTQsImV4cCI6MjA4NDI1OTU1NH0.jSQMR2jar0UxrDeXpYBOvFSj8ucjPWOdaBRKKr543hc";
 
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // IMPORTANTE: usar um nome diferente para não colidir com window.supabase (global do CDN)
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const $ = (id) => document.getElementById(id);
 
@@ -80,10 +80,9 @@
   }
 
   async function requireSession() {
-    const { data, error } = await supabase.auth.getSession();
+    const { data, error } = await sb.auth.getSession();
     if (error) throw error;
     if (!data?.session) {
-      // se não está autenticado, volta ao login
       window.location.href = "/index.html";
       return null;
     }
@@ -93,9 +92,7 @@
   async function loadClinics() {
     showError("");
 
-    // Aqui assumo que já tens uma tabela clinics e que o "doctor" consegue ver todas.
-    // Se no teu projeto a lista vem de outra view, ajustamos depois.
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from("clinics")
       .select("id, name")
       .order("name", { ascending: true });
@@ -121,8 +118,7 @@
     $("patientsList").innerHTML = "";
     $("patientsMeta").textContent = `A carregar doentes de: ${clinicName ?? clinicId}...`;
 
-    // 1) buscar ligações patient_clinic (assumindo colunas: clinic_id, patient_id)
-    const { data: links, error: linkErr } = await supabase
+    const { data: links, error: linkErr } = await sb
       .from("patient_clinic")
       .select("patient_id")
       .eq("clinic_id", clinicId);
@@ -136,9 +132,7 @@
 
     const patientIds = links.map(x => x.patient_id).filter(Boolean);
 
-    // 2) buscar doentes em patients
-    // >>> CORREÇÃO AQUI: usar full_name em vez de name
-    const { data: patients, error: patErr } = await supabase
+    const { data: patients, error: patErr } = await sb
       .from("patients")
       .select("id, full_name, date_of_birth, sns, insurance")
       .in("id", patientIds)
@@ -180,7 +174,7 @@
   }
 
   $("btnLogout").onclick = async () => {
-    await supabase.auth.signOut();
+    await sb.auth.signOut();
     window.location.href = "/index.html";
   };
 
