@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Painel Clínico</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: system-ui; background:#f4f7f9; padding:40px; }
+    h1 { margin-bottom: 10px; }
+    button { padding:8px 14px; margin:6px 0; cursor:pointer; }
+    .row { display:flex; gap:16px; flex-wrap: wrap; }
+    .card { background:#fff; border:1px solid #e6e6e6; border-radius:10px; padding:16px; box-shadow:0 2px 10px rgba(0,0,0,0.05); }
+    .card h2 { margin:0 0 10px 0; }
+    .muted { color:#666; font-size:14px; }
+    table { border-collapse: collapse; width:100%; margin-top:12px; background:#fff; }
+    th, td { border:1px solid #ddd; padding:8px 10px; text-align:left; font-size:14px; }
+    th { background:#f7f7f7; }
+    tr.clickable:hover { background:#f2f8ff; }
+    .pill { display:inline-block; padding:3px 8px; border-radius:999px; background:#eef6ff; color:#0b5bd3; font-size:12px; }
+    input[type="text"]{ padding:10px 12px; border:1px solid #ddd; border-radius:8px; width: 320px; max-width: 100%; }
+    .spacer { height: 16px; }
+  </style>
+</head>
+<body>
+
+  <div class="row" style="justify-content: space-between; align-items: center;">
+    <div>
+      <h1>Painel Clínico</h1>
+      <div class="muted">Lista de Clínicas (RLS) + Lista de Doentes por Clínica</div>
+    </div>
+    <div>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <!-- CLÍNICAS -->
+  <div class="card">
+    <h2>Clínicas</h2>
+    <div id="clinicsMsg" class="muted">A carregar...</div>
+    <div id="clinicsTable"></div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <!-- DOENTES -->
+  <div class="card">
+    <div class="row" style="justify-content: space-between; align-items: center;">
+      <h2>Doentes</h2>
+      <div id="selectedClinic" class="pill">Sem clínica selecionada</div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="row" style="align-items:center;">
+      <input id="patientSearch" type="text" placeholder="Pesquisar por nome..." disabled />
+      <div id="patientsMsg" class="muted">Seleciona uma clínica acima para carregar os doentes.</div>
+    </div>
+
+    <div id="patientsTable"></div>
+  </div>
+
+<script>
+  const SUPABASE_URL = 'https://vfrmjfveclfwxcdknlvs.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmcm1qZnZlY2xmd3hjZGtubHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODM1NTQsImV4cCI6MjA4NDI1OTU1NH0.jSQMR2jar0UxrDeXpYBOvFSj8ucjPWOdaBRKKr543hc';
+
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // Debug temporário (remover no bloco D)
+  window.sb = sb;
+
+  let currentClinicId = null;
+  let currentClinicLabel = null;
+  let patientsCache = [];
+
+  function esc(s){
+    return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+  }
+
+  async function requireSession(){
+    const { data, error } = await sb.auth.getUser();
+    if (error || !data?.user) {
+      window.location.href = "index.html";
+      return false;
+    }
+    return true;
+  }
+
+  async function logout(){
+    await sb.auth.signOut();
+    window.location.href="index.html";
+  }
+
+  async function loadClinics(){
+    document.getElementById('clinicsMsg').innerText = "A carregar...";
+    const { data, error } = await sb.from('clinics').select('id, code, name').order('name', { ascending: true });
+    if(error){
+      document.getElementById('clinicsMsg').innerText = "Erro: " + error.message;
+      return;
+    }
+
+    document.getElementById('clinicsMsg').innerText = data.length + " clínicas";
+    document.getElementById('clinicsTable').innerHTML =
+      "<table><tr><th>ID</th><th>Code</th><th>Nome</th></tr>" +
+      data.map(c => `
+        <tr class="clickable" data-id="${esc(c.id)}" data-label="${esc(c.code)} — ${esc(c.name)}">
+          <td>${esc(c.id)}</td>
+          <td>${esc(c.code)}</td>
+          <td>${esc(c.name)}</td>
+        </tr>
+      `).join('') +
+      "</table>";
+
+    // Click handler: selecionar clínica
+    document.querySelectorAll('#clinicsTable tr.clickable').forEach(tr => {
+      tr.addEventListener('click', async () => {
+        currentClinicId = tr.getAttribute('data-id');
+        currentClinicLabel = tr.getAttribute('data-label');
+        document.getElementById('selectedClinic').innerText = currentClinicLabel;
+
+        document.getElementById('patientSearch').disabled = false;
+        document.getElementById('patientSearch').value = "";
+        await loadPatientsForClinic(currentClinicId);
+      });
+    });
+  }
+
+  async function loadPatientsForClinic(clinicId){
+    patientsCache = [];
+    document.getElementById('patientsMsg').innerText = "A carregar doentes...";
+    document.getElementById('patientsTable').innerHTML = "";
+
+    // Ajuste de campos:
+    // Vamos buscar id + name (e mais alguns se existirem sem erro).
+    // Se algum campo não existir na tua tabela, o Supabase dá erro.
+    // Por isso começamos minimalista (id, name) para garantir.
+    const { data, error } = await sb
+      .from('patients')
+      .select('id, name, clinic_id')
+      .eq('clinic_id', clinicId)
+      .order('name', { ascending: true });
+
+    if(error){
+      document.getElementById('patientsMsg').innerText = "Erro: " + error.message;
+      return;
+    }
+
+    patientsCache = data || [];
+    document.getElementById('patientsMsg').innerText = patientsCache.length + " doentes";
+    renderPatientsTable(patientsCache);
+  }
+
+  function renderPatientsTable(rows){
+    document.getElementById('patientsTable').innerHTML =
+      "<table><tr><th>Nome</th><th>ID</th></tr>" +
+      rows.map(p => `
+        <tr class="clickable" data-patient-id="${esc(p.id)}" data-patient-name="${esc(p.name)}">
+          <td>${esc(p.name)}</td>
+          <td>${esc(p.id)}</td>
+        </tr>
+      `).join('') +
+      "</table>";
+
+    // (Próximo passo: click abre patient_feed do doente)
+  }
+
+  function applyPatientSearch(){
+    const q = (document.getElementById('patientSearch').value || "").trim().toLowerCase();
+    if (!q) { renderPatientsTable(patientsCache); return; }
+    const filtered = patientsCache.filter(p => (p.name || "").toLowerCase().includes(q));
+    renderPatientsTable(filtered);
+  }
+
+  document.getElementById('patientSearch').addEventListener('input', applyPatientSearch);
+
+  (async function init(){
+    const ok = await requireSession();
+    if(!ok) return;
+    await loadClinics();
+  })();
+</script>
+
+</body>
+</html>
