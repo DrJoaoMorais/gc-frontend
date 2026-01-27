@@ -107,7 +107,7 @@ function renderPatientsHeaderIdle() {
   $("patientsHeader").textContent = "Seleciona uma clínica.";
 }
 
-function renderPatientsHeaderForClinic(name, id) {
+function renderPatientsHeaderForClinic(name) {
   $("patientsHeader").innerHTML = `
     <div class="toolbar">
       <div class="muted small">
@@ -139,7 +139,7 @@ async function loadClinics() {
     li.onclick = () => {
       selectedClinicId = c.id;
       selectedClinicName = c.name;
-      renderPatientsHeaderForClinic(c.name, c.id);
+      renderPatientsHeaderForClinic(c.name);
       loadPatientsForClinic(c.id, c.name);
     };
     $("clinicsList").appendChild(li);
@@ -148,7 +148,6 @@ async function loadClinics() {
 
 async function loadPatientsForClinic(clinicId, clinicName) {
   $("patientsList").innerHTML = "";
-
   const meta = $("patientsMeta2");
   if (meta) meta.textContent = "A carregar doentes…";
 
@@ -166,7 +165,7 @@ async function loadPatientsForClinic(clinicId, clinicName) {
 
   const { data: patients, error } = await sb
     .from("patients")
-    .select("full_name, date_of_birth")
+    .select("full_name, date_of_birth, phone")
     .in("id", ids)
     .order("full_name");
 
@@ -176,9 +175,9 @@ async function loadPatientsForClinic(clinicId, clinicName) {
 
   for (const p of patients) {
     const li = document.createElement("li");
-    li.textContent =
-      p.full_name +
-      (p.date_of_birth ? ` • Nasc.: ${p.date_of_birth}` : "");
+    const dob = p.date_of_birth ? ` • Nasc.: ${p.date_of_birth}` : "";
+    const phone = p.phone ? ` • Tel.: ${p.phone}` : "";
+    li.textContent = `${p.full_name ?? "(sem nome)"}${dob}${phone}`;
     $("patientsList").appendChild(li);
   }
 }
@@ -187,15 +186,28 @@ async function loadPatientsForClinic(clinicId, clinicName) {
 
 async function addPatient() {
   try {
+    showError("");
+
+    if (!selectedClinicId) {
+      alert("Seleciona primeiro uma clínica.");
+      return;
+    }
+
     const fullName = prompt("Nome completo do doente:");
-    if (!fullName) return;
+    if (!fullName || !fullName.trim()) return;
 
     const dob = prompt("Data de nascimento (AAAA-MM-DD) ou vazio:");
+    const phone = prompt("Telemóvel (obrigatório):");
+    if (!phone || !phone.trim()) {
+      alert("Telemóvel é obrigatório.");
+      return;
+    }
 
     const payload = {
       p_full_name: fullName.trim(),
       p_clinic_id: selectedClinicId,
-      p_date_of_birth: dob && dob.trim() ? dob.trim() : null
+      p_date_of_birth: dob && dob.trim() ? dob.trim() : null,
+      p_phone: phone.trim()
     };
 
     const { error } = await sb.rpc("create_patient_for_clinic", payload);
