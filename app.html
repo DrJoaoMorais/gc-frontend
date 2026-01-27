@@ -22,6 +22,7 @@
     button:hover { background: #f7f7f7; }
     .pill { display:inline-block; padding: 2px 8px; border: 1px solid #ddd; border-radius: 999px; font-size: 12px; color:#444; }
     .small { font-size: 12px; }
+    .toolbar { display:flex; justify-content: space-between; align-items:center; gap: 12px; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -56,27 +57,46 @@
     <div class="col">
       <div class="box">
         <h2>Doentes</h2>
-        <div id="patientsMeta" class="muted small">Seleciona uma clínica.</div>
+        <div id="patientsHeader" class="muted small">Seleciona uma clínica.</div>
         <ul id="patientsList" class="list"></ul>
       </div>
     </div>
   </div>
 
 <script>
-  // === CONFIG ===
   const SUPABASE_URL = "https://vfrmjfveclfwxcdknlvs.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmcm1qZnZlY2xmd3hjZGtubHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODM1NTQsImV4cCI6MjA4NDI1OTU1NH0.jSQMR2jar0UxrDeXpYBOvFSj8ucjPWOdaBRKKr543hc";
 
-  // IMPORTANTE: usar um nome diferente para não colidir com window.supabase (global do CDN)
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
   const $ = (id) => document.getElementById(id);
 
-  function log(msg) {
-    $("log").textContent = msg;
-  }
+  let selectedClinicId = null;
+  let selectedClinicName = null;
+
+  function log(msg) { $("log").textContent = msg; }
   function showError(err) {
     $("error").textContent = err ? (typeof err === "string" ? err : JSON.stringify(err, null, 2)) : "";
+  }
+
+  function renderPatientsHeaderIdle() {
+    $("patientsHeader").innerHTML = `Seleciona uma clínica.`;
+  }
+
+  function renderPatientsHeaderForClinic(clinicName, clinicId) {
+    $("patientsHeader").innerHTML = `
+      <div class="toolbar">
+        <div class="muted small">
+          Clínica: <strong>${clinicName ?? clinicId}</strong>
+          <span style="opacity:.7">(${clinicId})</span>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button id="btnAddPatient" type="button">Adicionar doente</button>
+        </div>
+      </div>
+      <div class="muted small" style="margin-top:6px;" id="patientsMeta2">A carregar…</div>
+    `;
+    const btn = $("btnAddPatient");
+    if (btn) btn.onclick = () => addPatient();
   }
 
   async function requireSession() {
@@ -101,14 +121,22 @@
 
     const list = $("clinicsList");
     list.innerHTML = "";
-
     $("clinicsMeta").textContent = `${data.length} clínicas`;
 
     for (const c of data) {
       const li = document.createElement("li");
       li.textContent = c.name ?? c.id;
       li.dataset.id = c.id;
-      li.onclick = () => loadPatientsForClinic(c.id, c.name);
+
+      li.onclick = () => {
+        selectedClinicId = c.id;
+        selectedClinicName = c.name ?? c.id;
+
+        renderPatientsHeaderForClinic(selectedClinicName, selectedClinicId);
+        $("patientsList").innerHTML = "";
+        loadPatientsForClinic(selectedClinicId, selectedClinicName);
+      };
+
       list.appendChild(li);
     }
   }
@@ -116,7 +144,9 @@
   async function loadPatientsForClinic(clinicId, clinicName) {
     showError("");
     $("patientsList").innerHTML = "";
-    $("patientsMeta").textContent = `A carregar doentes de: ${clinicName ?? clinicId}...`;
+
+    const meta2 = document.getElementById("patientsMeta2");
+    if (meta2) meta2.textContent = `A carregar doentes de: ${clinicName ?? clinicId}...`;
 
     const { data: links, error: linkErr } = await sb
       .from("patient_clinic")
@@ -126,7 +156,7 @@
     if (linkErr) throw linkErr;
 
     if (!links || links.length === 0) {
-      $("patientsMeta").textContent = `0 doentes (sem ligações em patient_clinic) — clínica: ${clinicName ?? clinicId}`;
+      if (meta2) meta2.textContent = `0 doentes (sem ligações em patient_clinic) — clínica: ${clinicName ?? clinicId}`;
       return;
     }
 
@@ -140,7 +170,7 @@
 
     if (patErr) throw patErr;
 
-    $("patientsMeta").textContent = `${patients.length} doentes — clínica: ${clinicName ?? clinicId}`;
+    if (meta2) meta2.textContent = `${patients.length} doentes — clínica: ${clinicName ?? clinicId}`;
 
     const list = $("patientsList");
     list.innerHTML = "";
@@ -155,6 +185,36 @@
     }
   }
 
+  async function addPatient() {
+    try {
+      showError("");
+
+      if (!selectedClinicId) {
+        alert("Seleciona primeiro uma clínica.");
+        return;
+      }
+
+      const fullName = prompt("Nome completo do doente:");
+      if (!fullName || !fullName.trim()) return;
+
+      const birthDate = prompt("Data de nascimento (AAAA-MM-DD) ou deixar vazio:");
+      const payload = {
+        p_full_name: fullName.trim(),
+        p_clinic_id: selectedClinicId,
+        p_birth_date: birthDate && birthDate.trim() ? birthDate.trim() : null
+      };
+
+      const { error } = await sb.rpc("create_patient_for_clinic", payload);
+      if (error) throw error;
+
+      await loadPatientsForClinic(selectedClinicId, selectedClinicName);
+    } catch (e) {
+      showError(e);
+      console.error(e);
+      alert("Erro ao criar doente. Vê a caixa 'Logs' para detalhes.");
+    }
+  }
+
   async function init() {
     try {
       const session = await requireSession();
@@ -163,6 +223,7 @@
       $("userInfo").textContent = session.user?.email ?? "Sessão ativa";
       log("Sessão ativa. A carregar clínicas…");
 
+      renderPatientsHeaderIdle();
       await loadClinics();
 
       log("Clínicas carregadas. Seleciona uma clínica para ver doentes.");
