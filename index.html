@@ -53,17 +53,6 @@
       cursor: pointer;
     }
     button.secondary { background: #23315f; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-    th, td {
-      border-bottom: 1px solid #243162;
-      padding: 6px;
-      font-size: 13px;
-      text-align: left;
-    }
     .muted {
       opacity: 0.75;
       font-size: 13px;
@@ -85,7 +74,7 @@
     <div class="card">
       <h1>Gestão Clínica — gc.joaomorais.pt</h1>
       <div class="muted">Login Supabase (apenas) → redireciona para /app.html</div>
-      <div class="muted">Build index: <span class="pill">28-01-2026 v1</span></div>
+      <div class="muted">Build index: <span class="pill">28-01-2026 v2</span></div>
     </div>
 
     <div id="authCard" class="card">
@@ -102,23 +91,11 @@
       <div id="authMsg" style="margin-top:10px"></div>
     </div>
 
-    <div class="card">
-      <h1>Config (local)</h1>
-      <div class="muted">SUPABASE_URL: <span id="cfgUrl"></span></div>
-      <div class="muted">SUPABASE_KEY (prefixo): <span id="cfgKey"></span></div>
-      <div class="muted">Página: <span id="where"></span></div>
-    </div>
-
   </div>
-
-  <script>
-    // só para diagnóstico visual (não mexe em nada)
-    document.getElementById("where").textContent = window.location.href;
-  </script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- CACHE-BUST: força carregar app.js novo -->
-  <script src="/app.js?v=20260128-1"></script>
+  <script src="/app.js?v=20260128-2"></script>
 </body>
 </html>
