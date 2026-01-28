@@ -27,6 +27,10 @@
     button:disabled { opacity: .6; cursor: not-allowed; }
     .pill { display:inline-block; padding: 2px 8px; border: 1px solid #ddd; border-radius: 999px; font-size: 12px; background:#fafafa; }
     .toolbar { display:flex; justify-content: space-between; align-items:center; gap:12px; flex-wrap: wrap; }
+
+    #appUI { display:none; }
+    #sessionBox { margin-bottom: 12px; }
+
     input, textarea {
       width: 100%;
       padding: 8px;
@@ -37,12 +41,11 @@
       font-size: 14px;
     }
     textarea { min-height: 90px; resize: vertical; }
+
     .feedItem { border-bottom: 1px solid #eee; padding: 10px 0; }
     .feedMeta { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
     .tag { padding:2px 8px; border:1px solid #ddd; border-radius:999px; font-size:12px; background:#fafafa; }
     .divider { height: 1px; background:#eee; margin: 12px 0; }
-    #appUI { display:none; }
-    #sessionBox { margin-bottom: 12px; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -96,7 +99,6 @@
       <div class="box">
         <h2>Feed clínico</h2>
         <div id="feedHeader" class="muted small">Seleciona um doente.</div>
-
         <div id="contextInfo" class="muted small" style="margin-top:8px;">—</div>
 
         <!-- CONSULTA (SÓ DOCTOR) -->
@@ -134,13 +136,13 @@
           </div>
         </div>
 
-        <!-- NOTAS (TODOS: doctor/physio/secretary) -->
+        <!-- NOTAS (TODOS) -->
         <div id="notesBox" style="display:none; margin-top:10px;">
           <div class="box" style="border-radius: 12px;">
             <div class="toolbar">
               <div>
                 <h3 style="margin:0;">Notas</h3>
-                <div class="muted small">Visíveis a todos os membros da clínica. Cada autor edita/apaga as suas.</div>
+                <div class="muted small">Visíveis a todos. Cada autor edita/apaga as suas.</div>
               </div>
               <div style="display:flex; gap:10px; align-items:center;">
                 <button id="btnResetNote" type="button">Limpar</button>
@@ -165,7 +167,7 @@
             <div class="toolbar">
               <div>
                 <h3 style="margin:0;">Registo de fisioterapia</h3>
-                <div class="muted small">Apenas para fisioterapeuta.</div>
+                <div class="muted small">Apenas fisioterapeuta.</div>
               </div>
               <div style="display:flex; gap:10px; align-items:center;">
                 <button id="btnResetPhysioRecord" type="button">Limpar</button>
@@ -195,7 +197,6 @@
 /* ================= CONFIG ================= */
 const SUPABASE_URL = "https://vfrmjfveclfwxcdknlvs.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmcm1qZnZlY2xmd3hjZGtubHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODM1NTQsImV4cCI6MjA4NDI1OTU1NH0.jSQMR2jar0UxrDeXpYBOvFSj8ucjPWOdaBRKKr543hc";
-
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
 
@@ -204,8 +205,10 @@ let selectedClinicId = null;
 let selectedClinicName = null;
 let selectedPatientId = null;
 let selectedPatientLabel = null;
+
 let currentUserId = null;
-let currentClinicRole = null; // doctor | secretary | physio | null
+let globalUserRole = null;      // de public.profiles.role (ex.: doctor/secretary)
+let currentClinicRole = null;   // doctor/secretary/physio na clínica (ou doctor global)
 
 /* ================= HELPERS ================= */
 function setStatus(msg) { $("status").textContent = msg || "—"; }
@@ -254,7 +257,8 @@ function updateContextInfo() {
   const clinic = selectedClinicName || "—";
   const patient = selectedPatientLabel || "—";
   const role = currentClinicRole || "—";
-  $("contextInfo").innerHTML = `Clínica: <strong>${escapeHtml(clinic)}</strong> &nbsp;|&nbsp; Doente: <strong>${escapeHtml(patient)}</strong> &nbsp;|&nbsp; Role: <strong>${escapeHtml(role)}</strong>`;
+  $("contextInfo").innerHTML =
+    `Clínica: <strong>${escapeHtml(clinic)}</strong> &nbsp;|&nbsp; Doente: <strong>${escapeHtml(patient)}</strong> &nbsp;|&nbsp; Role: <strong>${escapeHtml(role)}</strong>`;
 }
 
 function hideAllActionBoxes() {
@@ -267,8 +271,8 @@ function showBoxesByRole() {
   hideAllActionBoxes();
   if (!selectedClinicId || !selectedPatientId) return;
 
-  // NOTAS: sempre para todos
-  $("notesBox").style.display = "block";
+  // NOTAS: sempre (desde que role esteja determinado)
+  if (currentClinicRole) $("notesBox").style.display = "block";
 
   // CONSULTA: só doctor
   if (currentClinicRole === "doctor") $("startConsultBox").style.display = "block";
@@ -283,7 +287,9 @@ function resetUIOnClinicChange() {
   currentClinicRole = null;
 
   $("patientsList").innerHTML = "";
-  $("patientsHeader").textContent = selectedClinicName ? `Clínica: ${selectedClinicName}` : "Seleciona uma clínica.";
+  $("patientsHeader").textContent = selectedClinicName
+    ? `Clínica: ${selectedClinicName}`
+    : "Seleciona uma clínica.";
 
   $("feedHeader").textContent = "Seleciona um doente.";
   $("feedMeta").textContent = "—";
@@ -291,9 +297,11 @@ function resetUIOnClinicChange() {
   $("contextInfo").textContent = "—";
 
   hideAllActionBoxes();
+
   setMsg("consultMsg", "");
   setMsg("noteMsg", "");
   setMsg("physioRecordMsg", "");
+
   clearConsultFields();
   clearNote();
   clearPhysioRecord();
@@ -331,13 +339,29 @@ async function initSession() {
   return true;
 }
 
+/* ================= GLOBAL ROLE (profiles.role) ================= */
+async function loadGlobalUserRole() {
+  const { data, error } = await sb
+    .from("profiles")
+    .select("role")
+    .eq("id", currentUserId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.role || null;
+}
+
 /* ================= ROLE POR CLÍNICA ================= */
 async function loadMyRoleForClinic(clinicId) {
+  // Doctor global: assume doctor em qualquer clínica (para UI de consulta)
+  if (globalUserRole === "doctor") return "doctor";
+
   const { data, error } = await sb
     .from("clinic_members")
     .select("role_in_clinic")
     .eq("clinic_id", clinicId)
     .eq("user_id", currentUserId)
+    .eq("active", true)
     .maybeSingle();
 
   if (error) throw error;
@@ -365,10 +389,11 @@ async function loadClinics() {
 
         resetUIOnClinicChange();
 
+        // determinar role sempre antes de carregar doentes
         currentClinicRole = await loadMyRoleForClinic(c.id);
         updateContextInfo();
 
-        loadPatientsForClinic(c.id);
+        await loadPatientsForClinic(c.id);
       } catch (e) {
         showError(e);
         setStatus("Erro ao determinar role na clínica.");
@@ -423,7 +448,6 @@ async function loadPatientsForClinic(clinicId) {
 
       updateContextBanner();
       updateContextInfo();
-
       showBoxesByRole();
 
       setMsg("consultMsg", "");
@@ -580,7 +604,7 @@ async function saveNote() {
       clinic_id: selectedClinicId,
       author_user_id: currentUserId,
       author_role: currentClinicRole,
-      note_type: null, // opcional
+      note_type: null,
       content
     };
 
@@ -668,6 +692,14 @@ function resetPhysioRecordForm() {
 async function init() {
   const ok = await initSession();
   if (!ok) return;
+
+  try {
+    globalUserRole = await loadGlobalUserRole(); // <-- FIX essencial para doctor global
+  } catch (e) {
+    // se falhar, não bloqueia UI; apenas reduz capacidade de determinar doctor global
+    console.error("Falha a obter role global:", e);
+    showError(e);
+  }
 
   $("btnSaveConsult").onclick = () => saveConsultation();
   $("btnResetConsult").onclick = () => resetConsultForm();
