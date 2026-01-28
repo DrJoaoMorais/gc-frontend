@@ -7,133 +7,93 @@
 
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 20px; }
+    .hidden { display:none; }
+
     .row { display: flex; gap: 24px; align-items: flex-start; }
     .col { flex: 1; min-width: 320px; }
-    h1 { margin: 0 0 12px; }
-    h2 { margin: 0 0 8px; }
     .box { border: 1px solid #ddd; border-radius: 10px; padding: 12px; }
     .list { list-style: none; padding: 0; margin: 0; }
     .list li { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; }
-    .list li:last-child { border-bottom: none; }
     .list li:hover { background: #f7f7f7; }
-    .muted { color: #666; font-size: 0.95rem; }
-    .error { color: #b00020; white-space: pre-wrap; }
-    .success { color: #0a7a28; }
-    .topbar { display:flex; justify-content: space-between; align-items:center; margin-bottom: 12px; }
-    button { padding: 8px 12px; border-radius: 10px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
-    button:hover { background: #f7f7f7; }
-    button:disabled { opacity: 0.6; cursor: not-allowed; }
-    .pill { display:inline-block; padding: 2px 8px; border: 1px solid #ddd; border-radius: 999px; font-size: 12px; color:#444; }
-    .small { font-size: 12px; }
-    .toolbar { display:flex; justify-content: space-between; align-items:center; gap:12px; }
-    input {
-      width: 100%;
-      padding: 8px;
-      border-radius: 10px;
-      border: 1px solid #ddd;
-      box-sizing: border-box;
-    }
-    .row2 { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .muted { color: #666; }
+    button { padding: 8px 12px; border-radius: 10px; border: 1px solid #ddd; background:#fff; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
-  <div class="topbar">
-    <div>
-      <h1>Painel Clínico</h1>
-      <div class="muted">Clínicas e doentes</div>
-    </div>
-    <div>
-      <span id="userInfo" class="pill">—</span>
-      <button id="btnLogout" style="display:none;">Terminar sessão</button>
-    </div>
+
+<!-- LOADING -->
+<div id="loading" class="box">
+  <div class="muted">A verificar sessão…</div>
+</div>
+
+<!-- LOGIN -->
+<div id="login" class="box hidden">
+  <div class="muted">Sessão não encontrada.</div>
+  <button id="goLogin">Ir para login</button>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+
+  <div class="box" style="margin-bottom:12px;">
+    <strong>Painel Clínico</strong>
+    <button id="logout" style="float:right;">Logout</button>
   </div>
 
-  <div id="sessionBox" class="box">
-    <div id="sessionMsg" class="muted">A verificar sessão…</div>
-    <button id="btnGoLogin" style="display:none; margin-top:10px;">Ir para login</button>
-  </div>
-
-  <div id="appUI" style="display:none;">
-    <div class="row">
-      <div class="col">
-        <div class="box">
-          <h2>Clínicas</h2>
-          <div id="clinicsMeta" class="muted small">—</div>
-          <ul id="clinicsList" class="list"></ul>
-        </div>
-
-        <div style="height:12px"></div>
-
-        <div class="box">
-          <h2>Logs</h2>
-          <div id="log" class="muted small">—</div>
-          <div id="error" class="error"></div>
-        </div>
-      </div>
-
-      <div class="col">
-        <div class="box">
-          <h2>Doentes</h2>
-          <div id="patientsHeader" class="muted small">Seleciona uma clínica.</div>
-          <ul id="patientsList" class="list"></ul>
-        </div>
-      </div>
+  <div class="row">
+    <div class="col box">
+      <h3>Clínicas</h3>
+      <ul id="clinics" class="list"></ul>
+    </div>
+    <div class="col box">
+      <h3>Doentes</h3>
+      <ul id="patients" class="list"></ul>
     </div>
   </div>
+
+</div>
 
 <script>
-const SUPABASE_URL = "https://vfrmjfveclfwxcdknlvs.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmcm1qZnZlY2xmd3hjZGtubHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODM1NTQsImV4cCI6MjA4NDI1OTU1NH0.jSQMR2jar0UxrDeXpYBOvFSj8ucjPWOdaBRKKr543hc";
+const sb = supabase.createClient(
+  "https://vfrmjfveclfwxcdknlvs.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmcm1qZnZlY2xmd3hjZGtubHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODM1NTQsImV4cCI6MjA4NDI1OTU1NH0.jSQMR2jar0UxrDeXpYBOvFSj8ucjPWOdaBRKKr543hc"
+);
 
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const $ = (id) => document.getElementById(id);
-
-function log(msg) { $("log").textContent = msg; }
-function showError(err) {
-  $("error").textContent = err
-    ? (typeof err === "string" ? err : JSON.stringify(err, null, 2))
-    : "";
-}
-
-async function waitForSession() {
-  for (let i = 0; i < 8; i++) {
-    const { data } = await sb.auth.getSession();
-    if (data?.session) return data.session;
-    await new Promise(r => setTimeout(r, 250));
-  }
-  return null;
-}
+const $ = id => document.getElementById(id);
 
 async function init() {
-  const session = await waitForSession();
+  const { data } = await sb.auth.getSession();
 
-  if (!session) {
-    $("sessionMsg").textContent = "Sessão não encontrada.";
-    $("btnGoLogin").style.display = "inline-block";
-    $("btnGoLogin").onclick = () => window.location.href = "/index.html";
+  $("loading").classList.add("hidden");
+
+  if (!data.session) {
+    $("login").classList.remove("hidden");
+    $("goLogin").onclick = () => location.href = "/index.html";
     return;
   }
 
-  // sessão OK
-  $("sessionBox").style.display = "none";
-  $("appUI").style.display = "block";
-  $("btnLogout").style.display = "inline-block";
-  $("userInfo").textContent = session.user.email;
+  $("app").classList.remove("hidden");
 
-  $("btnLogout").onclick = async () => {
+  $("logout").onclick = async () => {
     await sb.auth.signOut();
-    window.location.href = "/index.html";
+    location.href = "/index.html";
   };
 
-  await loadClinics();
-  log("Clínicas carregadas.");
+  loadClinics();
 }
 
-/* ---------- resto do código (loadClinics, loadPatients, addPatient) ---------- */
-/* NÃO MUDOU relativamente à versão que já tens em produção */
+async function loadClinics() {
+  const { data } = await sb.from("clinics").select("id,name");
+  $("clinics").innerHTML = "";
+  data.forEach(c => {
+    const li = document.createElement("li");
+    li.textContent = c.name;
+    $("clinics").appendChild(li);
+  });
+}
 
 init();
 </script>
