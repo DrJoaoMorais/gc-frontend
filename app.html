@@ -25,7 +25,7 @@
     button { padding: 8px 12px; border-radius: 10px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
     button:hover { background: #f7f7f7; }
     button:disabled { opacity: .6; cursor: not-allowed; }
-    .pill { display:inline-block; padding: 2px 8px; border: 1px solid #ddd; border-radius: 999px; font-size: 12px; color:#444; }
+    .pill { display:inline-block; padding: 2px 8px; border: 1px solid #ddd; border-radius: 999px; font-size: 12px; color:#444; background:#fafafa; }
     .toolbar { display:flex; justify-content: space-between; align-items:center; gap:12px; flex-wrap: wrap; }
 
     #appUI { display:none; }
@@ -45,6 +45,7 @@
     .feedItem { border-bottom: 1px solid #eee; padding: 10px 0; }
     .feedMeta { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
     .tag { padding:2px 8px; border:1px solid #ddd; border-radius:999px; font-size:12px; background:#fafafa; }
+    .divider { height: 1px; background:#eee; margin: 12px 0; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -53,7 +54,10 @@
 <body>
 
 <div class="topbar">
-  <h1>Painel Clínico</h1>
+  <div>
+    <h1>Painel Clínico</h1>
+    <div class="muted">Gestão por clínica e doente</div>
+  </div>
   <div>
     <span id="userInfo" class="pill">—</span>
     <button id="btnLogout" style="display:none;">Terminar sessão</button>
@@ -62,7 +66,7 @@
 
 <div id="sessionBox" class="box">
   <div id="sessionMsg" class="muted">A verificar sessão…</div>
-  <button id="btnGoLogin" style="display:none;">Ir para login</button>
+  <button id="btnGoLogin" style="display:none; margin-top:10px;">Ir para login</button>
 </div>
 
 <div id="appUI">
@@ -70,13 +74,23 @@
     <div class="col">
       <div class="box">
         <h2>Clínicas</h2>
+        <div id="clinicsMeta" class="muted small">—</div>
         <ul id="clinicsList" class="list"></ul>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="box">
+        <h2>Estado</h2>
+        <div id="status" class="muted small">—</div>
+        <div id="error" class="error"></div>
       </div>
     </div>
 
     <div class="col">
       <div class="box">
         <h2>Doentes</h2>
+        <div id="patientsHeader" class="muted small">Seleciona uma clínica.</div>
         <ul id="patientsList" class="list"></ul>
       </div>
 
@@ -84,110 +98,374 @@
 
       <div class="box">
         <h2>Feed clínico</h2>
+        <div id="feedHeader" class="muted small">Seleciona um doente.</div>
 
-        <div id="startConsultBox" style="display:none;">
-          <h3>Iniciar consulta</h3>
-          <textarea id="consultHDA" placeholder="HDA"></textarea>
-          <textarea id="consultAssessment" placeholder="Avaliação"></textarea>
-          <textarea id="consultPlan" placeholder="Plano"></textarea>
-          <button id="btnSaveConsult">Guardar</button>
-          <div id="consultMsg" class="small"></div>
+        <!-- Iniciar consulta (só aparece com doente selecionado) -->
+        <div id="startConsultBox" style="display:none; margin-top:10px;">
+          <div class="box" style="border-radius: 12px;">
+            <div class="toolbar">
+              <div>
+                <h3 style="margin:0;">Iniciar consulta</h3>
+                <div id="contextBanner" class="muted small">—</div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <button id="btnResetConsult" type="button">Limpar</button>
+                <button id="btnSaveConsult" type="button">Guardar</button>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div style="margin-top:10px;">
+              <label class="small">História da Doença Atual / Anamnese</label>
+              <textarea id="consultHDA" placeholder="Escreve a HDA/Anamnese…"></textarea>
+            </div>
+
+            <div style="margin-top:10px;">
+              <label class="small">Avaliação</label>
+              <textarea id="consultAssessment" placeholder="Escreve a avaliação…"></textarea>
+            </div>
+
+            <div style="margin-top:10px;">
+              <label class="small">Plano</label>
+              <textarea id="consultPlan" placeholder="Escreve o plano…"></textarea>
+            </div>
+
+            <div id="consultMsg" class="small" style="margin-top:8px;"></div>
+          </div>
         </div>
 
-        <div id="feedList"></div>
+        <div id="feedMeta" class="muted small" style="margin-top:10px;">—</div>
+        <div id="feedList" style="margin-top:10px;"></div>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-const sb = supabase.createClient(
-  "https://vfrmjfveclfwxcdknlvs.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmcm1qZnZlY2xmd3hjZGtubHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODM1NTQsImV4cCI6MjA4NDI1OTU1NH0.jSQMR2jar0UxrDeXpYBOvFSj8ucjPWOdaBRKKr543hc"
-);
+/* ================= CONFIG ================= */
+const SUPABASE_URL = "https://vfrmjfveclfwxcdknlvs.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmcm1qZnZlY2xmd3hjZGtubHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODM1NTQsImV4cCI6MjA4NDI1OTU1NH0.jSQMR2jar0UxrDeXpYBOvFSj8ucjPWOdaBRKKr543hc";
 
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const $ = (id) => document.getElementById(id);
+
+/* ================= ESTADO ================= */
 let selectedClinicId = null;
+let selectedClinicName = null;
 let selectedPatientId = null;
-let userId = null;
+let selectedPatientLabel = null;
+let currentUserId = null;
 
-async function init() {
-  const { data } = await sb.auth.getSession();
-  if (!data.session) return location.href = "/index.html";
-  userId = data.session.user.id;
-  document.getElementById("appUI").style.display = "block";
-  loadClinics();
+/* ================= HELPERS ================= */
+function setStatus(msg) { $("status").textContent = msg || "—"; }
+function showError(err) { $("error").textContent = err ? String(err?.message || err) : ""; }
+
+function setConsultMsg(text, kind) {
+  const el = $("consultMsg");
+  el.textContent = text || "";
+  el.className = "small";
+  if (kind === "error") el.classList.add("error");
+  if (kind === "success") el.classList.add("success");
 }
 
+function escapeHtml(s) {
+  return String(s || "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+}
+
+function fmtDateTime(iso) {
+  try { const d = new Date(iso); return Number.isNaN(d.getTime()) ? iso : d.toLocaleString("pt-PT"); }
+  catch { return iso; }
+}
+
+function todayISO() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+
+function resetUIOnClinicChange() {
+  // estado
+  selectedPatientId = null;
+  selectedPatientLabel = null;
+
+  // UI
+  $("patientsList").innerHTML = "";
+  $("patientsHeader").textContent = selectedClinicName
+    ? `Clínica: ${selectedClinicName}`
+    : "Seleciona uma clínica.";
+
+  $("feedHeader").textContent = "Seleciona um doente.";
+  $("feedMeta").textContent = "—";
+  $("feedList").innerHTML = "";
+
+  $("startConsultBox").style.display = "none";
+  setConsultMsg("");
+  clearConsultFields();
+
+  // desativar guardar até haver doente
+  updateSaveButtonState();
+}
+
+function clearConsultFields() {
+  $("consultHDA").value = "";
+  $("consultAssessment").value = "";
+  $("consultPlan").value = "";
+}
+
+function updateContextBanner() {
+  const clinic = selectedClinicName || "—";
+  const patient = selectedPatientLabel || "—";
+  $("contextBanner").innerHTML = `Clínica: <strong>${escapeHtml(clinic)}</strong> &nbsp;|&nbsp; Doente: <strong>${escapeHtml(patient)}</strong>`;
+}
+
+function updateSaveButtonState() {
+  const btn = $("btnSaveConsult");
+  const ok = !!(selectedClinicId && selectedPatientId && currentUserId);
+  btn.disabled = !ok;
+}
+
+/* ================= AUTH ================= */
+async function initSession() {
+  const { data, error } = await sb.auth.getSession();
+  if (error) {
+    showError(error);
+    $("sessionMsg").textContent = "Erro ao verificar sessão.";
+    $("btnGoLogin").style.display = "inline-block";
+    $("btnGoLogin").onclick = () => location.href = "/index.html";
+    return false;
+  }
+  if (!data?.session) {
+    $("sessionMsg").textContent = "Sessão não encontrada.";
+    $("btnGoLogin").style.display = "inline-block";
+    $("btnGoLogin").onclick = () => location.href = "/index.html";
+    return false;
+  }
+
+  currentUserId = data.session.user.id;
+
+  $("sessionBox").style.display = "none";
+  $("appUI").style.display = "block";
+  $("btnLogout").style.display = "inline-block";
+  $("userInfo").textContent = data.session.user.email;
+
+  $("btnLogout").onclick = async () => {
+    await sb.auth.signOut();
+    location.href = "/index.html";
+  };
+
+  return true;
+}
+
+/* ================= DATA ================= */
 async function loadClinics() {
-  const { data } = await sb.from("clinics").select("id,name");
-  const ul = document.getElementById("clinicsList");
-  ul.innerHTML = "";
-  data.forEach(c => {
+  showError("");
+  const { data, error } = await sb.from("clinics").select("id, name").order("name");
+  if (error) { showError(error); setStatus("Erro ao carregar clínicas."); return; }
+
+  $("clinicsMeta").textContent = `${data.length} clínicas`;
+  $("clinicsList").innerHTML = "";
+
+  for (const c of data) {
     const li = document.createElement("li");
     li.textContent = c.name;
+
     li.onclick = () => {
       selectedClinicId = c.id;
-      loadPatients();
+      selectedClinicName = c.name;
+
+      // ✅ RESET TOTAL quando muda clínica
+      resetUIOnClinicChange();
+
+      // carrega doentes da clínica escolhida
+      loadPatientsForClinic(c.id);
     };
-    ul.appendChild(li);
-  });
+
+    $("clinicsList").appendChild(li);
+  }
+
+  setStatus("Clínicas carregadas.");
 }
 
-async function loadPatients() {
-  const { data: links } = await sb.from("patient_clinic")
+async function loadPatientsForClinic(clinicId) {
+  showError("");
+  $("patientsList").innerHTML = "";
+  $("patientsHeader").textContent = `Clínica: ${selectedClinicName}`;
+
+  const { data: links, error: linkErr } = await sb
+    .from("patient_clinic")
     .select("patient_id")
-    .eq("clinic_id", selectedClinicId);
+    .eq("clinic_id", clinicId);
+
+  if (linkErr) { showError(linkErr); setStatus("Erro ao carregar doentes."); return; }
+  if (!links?.length) { setStatus("0 doentes."); return; }
 
   const ids = links.map(l => l.patient_id);
-  const { data: patients } = await sb.from("patients")
-    .select("id,full_name")
-    .in("id", ids);
 
-  const ul = document.getElementById("patientsList");
-  ul.innerHTML = "";
-  patients.forEach(p => {
+  const { data: patients, error } = await sb
+    .from("patients")
+    .select("id, full_name")
+    .in("id", ids)
+    .order("full_name");
+
+  if (error) { showError(error); setStatus("Erro ao carregar doentes."); return; }
+
+  for (const p of patients) {
     const li = document.createElement("li");
-    li.textContent = p.full_name;
+    const label = p.full_name ?? "(sem nome)";
+    li.textContent = label;
+
     li.onclick = () => {
       selectedPatientId = p.id;
-      document.getElementById("startConsultBox").style.display = "block";
+      selectedPatientLabel = label;
+
+      $("feedHeader").innerHTML = `
+        <div class="toolbar">
+          <div class="muted small">Doente: <strong>${escapeHtml(label)}</strong></div>
+          <button id="btnReloadFeed" type="button">Atualizar</button>
+        </div>
+      `;
+      $("btnReloadFeed").onclick = () => loadFeed();
+
+      // mostrar formulário
+      $("startConsultBox").style.display = "block";
+      updateContextBanner();
+      updateSaveButtonState();
+      setConsultMsg("");
+
+      // carregar feed
       loadFeed();
     };
-    ul.appendChild(li);
-  });
+
+    $("patientsList").appendChild(li);
+  }
+
+  setStatus("Doentes carregados.");
 }
 
 async function loadFeed() {
-  const { data } = await sb.from("patient_feed")
-    .select("*")
-    .eq("patient_id", selectedPatientId)
-    .order("occurred_at", { ascending:false });
+  showError("");
+  $("feedMeta").textContent = "A carregar…";
+  $("feedList").innerHTML = "";
 
-  const div = document.getElementById("feedList");
-  div.innerHTML = data.map(o => `
-    <div class="feedItem">
-      <div class="feedMeta">
-        <span class="tag">${o.item_type}</span>
-        <span class="small">${o.occurred_at}</span>
+  if (!selectedClinicId || !selectedPatientId) {
+    $("feedMeta").textContent = "—";
+    $("feedList").innerHTML = `<div class="muted small">Seleciona um doente.</div>`;
+    return;
+  }
+
+  const { data, error } = await sb
+    .from("patient_feed")
+    .select("item_type, occurred_at, author_role, content, hda, assessment, plan_text")
+    .eq("clinic_id", selectedClinicId)
+    .eq("patient_id", selectedPatientId)
+    .order("occurred_at", { ascending: false })
+    .limit(50);
+
+  if (error) { showError(error); $("feedMeta").textContent = "Erro ao carregar feed."; return; }
+
+  $("feedMeta").textContent = `${data.length} eventos (máx. 50)`;
+
+  if (!data.length) {
+    $("feedList").innerHTML = `<div class="muted small">Sem registos.</div>`;
+    return;
+  }
+
+  $("feedList").innerHTML = data.map(o => {
+    const when = fmtDateTime(o.occurred_at);
+    const body =
+      (o.hda || o.assessment || o.plan_text || o.content)
+        ? `
+          ${o.hda ? `<div style="margin-top:8px;"><div class="muted small">HDA</div><div style="white-space:pre-wrap;">${escapeHtml(o.hda)}</div></div>` : ""}
+          ${o.assessment ? `<div style="margin-top:8px;"><div class="muted small">Avaliação</div><div style="white-space:pre-wrap;">${escapeHtml(o.assessment)}</div></div>` : ""}
+          ${o.plan_text ? `<div style="margin-top:8px;"><div class="muted small">Plano</div><div style="white-space:pre-wrap;">${escapeHtml(o.plan_text)}</div></div>` : ""}
+          ${o.content ? `<div style="margin-top:8px; white-space:pre-wrap;">${escapeHtml(o.content)}</div>` : ""}
+        `
+        : `<div class="muted small" style="margin-top:8px;">Conteúdo restrito</div>`;
+
+    return `
+      <div class="feedItem">
+        <div class="feedMeta">
+          <span class="tag">${escapeHtml(o.item_type || "—")}</span>
+          <span class="tag">${escapeHtml(o.author_role || "—")}</span>
+          <span class="muted small">${escapeHtml(when)}</span>
+        </div>
+        ${body}
       </div>
-      <pre>${o.hda || ""}</pre>
-    </div>
-  `).join("");
+    `;
+  }).join("");
 }
 
-document.getElementById("btnSaveConsult").onclick = async () => {
-  await sb.from("consultations").insert({
-    patient_id: selectedPatientId,
-    clinic_id: selectedClinicId,
-    author_user_id: userId,
-    hda: consultHDA.value,
-    assessment: consultAssessment.value,
-    plan_text: consultPlan.value,
-    report_date: new Date().toISOString().slice(0,10)
-  });
-  document.getElementById("consultMsg").textContent = "Consulta criada";
-  loadFeed();
-};
+/* ================= CONSULTATION (CREATE) ================= */
+async function saveConsultation() {
+  try {
+    showError("");
+    setConsultMsg("");
+
+    if (!selectedClinicId || !selectedPatientId || !currentUserId) {
+      setConsultMsg("Seleciona clínica e doente antes de guardar.", "error");
+      return;
+    }
+
+    const hda = ($("consultHDA").value || "").trim() || null;
+    const assessment = ($("consultAssessment").value || "").trim() || null;
+    const plan_text = ($("consultPlan").value || "").trim() || null;
+
+    const btn = $("btnSaveConsult");
+    btn.disabled = true;
+    btn.textContent = "A guardar…";
+
+    // ✅ Inserir apenas em consultations
+    const payload = {
+      patient_id: selectedPatientId,
+      clinic_id: selectedClinicId,
+      appointment_id: null,
+      author_user_id: currentUserId,
+      hda,
+      assessment,
+      plan_text,
+      report_date: todayISO()
+    };
+
+    const { error } = await sb.from("consultations").insert(payload);
+    if (error) throw error;
+
+    setConsultMsg("✔ Consulta criada com sucesso", "success");
+    clearConsultFields();
+    await loadFeed();
+
+  } catch (e) {
+    showError(e);
+    setConsultMsg("Erro ao guardar. Vê 'Estado'.", "error");
+  } finally {
+    const btn = $("btnSaveConsult");
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Guardar";
+      updateSaveButtonState();
+    }
+  }
+}
+
+function resetConsultForm() {
+  clearConsultFields();
+  setConsultMsg("Limpo.", "success");
+}
+
+/* ================= INIT ================= */
+async function init() {
+  const ok = await initSession();
+  if (!ok) return;
+
+  $("btnSaveConsult").onclick = () => saveConsultation();
+  $("btnResetConsult").onclick = () => resetConsultForm();
+
+  updateSaveButtonState();
+  setStatus("A carregar clínicas…");
+  await loadClinics();
+}
 
 init();
 </script>
