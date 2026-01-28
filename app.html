@@ -111,7 +111,7 @@
             <div class="toolbar">
               <div>
                 <h3 style="margin:0;">Criar doente</h3>
-                <div class="muted small">Cria o doente e liga automaticamente à clínica selecionada.</div>
+                <div class="muted small">Obrigatório: pelo menos 1 identificador (SNS, email ou telefone).</div>
               </div>
               <div class="inline" style="justify-content:flex-end;">
                 <button id="btnResetPatient" type="button">Limpar</button>
@@ -124,6 +124,22 @@
             <div>
               <label class="small">Nome completo</label>
               <input id="patientFullName" placeholder="Ex.: João Silva" />
+            </div>
+
+            <div style="margin-top:10px;" class="inline">
+              <div>
+                <label class="small">SNS</label>
+                <input id="patientSNS" placeholder="Ex.: 123456789" />
+              </div>
+              <div>
+                <label class="small">Telefone</label>
+                <input id="patientPhone" placeholder="Ex.: 9XXXXXXXX" />
+              </div>
+            </div>
+
+            <div style="margin-top:10px;">
+              <label class="small">Email</label>
+              <input id="patientEmail" placeholder="Ex.: email@dominio.pt" />
             </div>
 
             <div id="patientMsg" class="small" style="margin-top:8px;"></div>
@@ -290,7 +306,12 @@ function clearConsultFields() {
 }
 function clearNote() { $("noteContent").value = ""; }
 function clearPhysioRecord() { $("physioRecordContent").value = ""; }
-function clearPatientForm() { $("patientFullName").value = ""; }
+function clearPatientForm() {
+  $("patientFullName").value = "";
+  $("patientSNS").value = "";
+  $("patientEmail").value = "";
+  $("patientPhone").value = "";
+}
 
 function updateContextBanner() {
   const clinic = selectedClinicName || "—";
@@ -317,18 +338,12 @@ function showBoxesByRole() {
   hideAllActionBoxes();
   if (!selectedClinicId || !selectedPatientId) return;
 
-  // NOTAS: sempre
   if (currentClinicRole) $("notesBox").style.display = "block";
-
-  // CONSULTA: só doctor
   if (currentClinicRole === "doctor") $("startConsultBox").style.display = "block";
-
-  // FISIO: só physio
   if (currentClinicRole === "physio") $("physioRecordBox").style.display = "block";
 }
 
 function updateCreatePatientVisibility() {
-  // apenas doctor
   $("createPatientBox").style.display = (selectedClinicId && currentClinicRole === "doctor") ? "block" : "none";
 }
 
@@ -414,7 +429,6 @@ async function loadGlobalUserRole() {
 
 /* ================= ROLE POR CLÍNICA ================= */
 async function loadMyRoleForClinic(clinicId) {
-  // Doctor global
   if (globalUserRole === "doctor") return "doctor";
 
   const { data, error } = await sb
@@ -612,8 +626,20 @@ async function savePatient() {
     }
 
     const full_name = ($("patientFullName").value || "").trim();
+    const sns = ($("patientSNS").value || "").trim();
+    const email = ($("patientEmail").value || "").trim();
+    const phone = ($("patientPhone").value || "").trim();
+
     if (!full_name) {
       setMsg("patientMsg", "O nome completo é obrigatório.", "error");
+      return;
+    }
+
+    // ✅ satisfaz patients_has_identifier_ck:
+    // sns != '' OR email != '' OR phone IS NOT NULL
+    // (nós exigimos phone não vazio para ser mais limpo)
+    if (!sns && !email && !phone) {
+      setMsg("patientMsg", "Preenche pelo menos 1: SNS, email ou telefone.", "error");
       return;
     }
 
@@ -621,16 +647,21 @@ async function savePatient() {
     btn.disabled = true;
     btn.textContent = "A guardar…";
 
-    // 1) criar doente
+    const patientPayload = {
+      full_name,
+      sns: sns || null,
+      email: email || null,
+      phone: phone || null
+    };
+
     const { data: created, error: e1 } = await sb
       .from("patients")
-      .insert({ full_name })
+      .insert(patientPayload)
       .select("id")
       .single();
 
     if (e1) throw e1;
 
-    // 2) ligar à clínica selecionada
     const { error: e2 } = await sb
       .from("patient_clinic")
       .insert({ clinic_id: selectedClinicId, patient_id: created.id });
@@ -640,7 +671,6 @@ async function savePatient() {
     setMsg("patientMsg", "✔ Doente criado e ligado à clínica", "success");
     clearPatientForm();
 
-    // refrescar lista
     await loadPatientsForClinic(selectedClinicId);
 
   } catch (e) {
