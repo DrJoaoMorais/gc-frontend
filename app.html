@@ -27,18 +27,28 @@
     button:disabled { opacity: .6; cursor: not-allowed; }
     .pill { display:inline-block; padding: 2px 8px; border: 1px solid #ddd; border-radius: 999px; font-size: 12px; color:#444; }
     .toolbar { display:flex; justify-content: space-between; align-items:center; gap:12px; }
-    input {
+    input, select, textarea {
       width: 100%;
       padding: 8px;
       border-radius: 10px;
       border: 1px solid #ddd;
       box-sizing: border-box;
+      font-family: inherit;
+      font-size: 14px;
     }
+    textarea { min-height: 90px; resize: vertical; }
     .row2 { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
 
     /* estados */
     #appUI { display:none; }
     #sessionBox { margin-bottom: 12px; }
+
+    /* feed */
+    .feedItem { border-bottom: 1px solid #eee; padding: 10px 0; }
+    .feedTop { display:flex; gap:10px; align-items:center; justify-content: space-between; }
+    .feedMeta { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+    .tag { display:inline-block; padding: 2px 8px; border: 1px solid #ddd; border-radius: 999px; font-size: 12px; color:#444; background:#fafafa; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -88,6 +98,52 @@
           <div id="patientsHeader" class="muted small">Seleciona uma clínica.</div>
           <ul id="patientsList" class="list"></ul>
         </div>
+
+        <div style="height:12px"></div>
+
+        <div class="box">
+          <h2>Feed clínico</h2>
+          <div id="feedHeader" class="muted small">Seleciona um doente.</div>
+          <div id="feedControls" style="display:none; margin-top:10px;">
+            <div class="toolbar" style="gap:10px; align-items:flex-start;">
+              <div style="flex:1;">
+                <label class="small">Filtro por tipo</label>
+                <select id="feedTypeFilter">
+                  <option value="">Todos</option>
+                  <option value="medical_note">medical_note</option>
+                  <option value="physio_note">physio_note</option>
+                  <option value="admin_note">admin_note</option>
+                  <option value="consultation">consultation</option>
+                  <option value="procedure">procedure</option>
+                </select>
+              </div>
+              <div style="flex:1;">
+                <label class="small">Novo registo (tipo)</label>
+                <select id="newObsType">
+                  <option value="medical_note">medical_note</option>
+                  <option value="physio_note">physio_note</option>
+                  <option value="admin_note">admin_note</option>
+                  <option value="consultation">consultation</option>
+                  <option value="procedure">procedure</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="margin-top:10px;">
+              <label class="small">Conteúdo</label>
+              <textarea id="newObsContent" placeholder="Escreve aqui a nota..."></textarea>
+            </div>
+
+            <div class="toolbar" style="justify-content:flex-end; margin-top:10px; gap:10px;">
+              <button id="btnCreateObs">Guardar nota</button>
+            </div>
+
+            <div id="feedMsg" class="small" style="margin-top:8px;"></div>
+          </div>
+
+          <div id="feedMeta" class="muted small" style="margin-top:10px;">—</div>
+          <div id="feedList" style="margin-top:10px;"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -106,15 +162,65 @@ const $ = (id) => document.getElementById(id);
 let selectedClinicId = null;
 let selectedClinicName = null;
 
+let selectedPatientId = null;
+let selectedPatientLabel = null;
+
 /* ================= HELPERS ================= */
 
 function log(msg) { $("log").textContent = msg; }
-function showError(err) {
-  $("error").textContent = err
-    ? (typeof err === "string" ? err : JSON.stringify(err, null, 2))
-    : "";
+
+function isRlsLikely(err) {
+  const msg = String(err?.message || err || "").toLowerCase();
+  return (
+    msg.includes("row level security") ||
+    msg.includes("rls") ||
+    msg.includes("permission denied") ||
+    msg.includes("not allowed") ||
+    msg.includes("new row violates row-level security") ||
+    msg.includes("violates row-level security")
+  );
 }
+
+function formatErrorForUser(err) {
+  if (!err) return "";
+  const msg = String(err?.message || err || "");
+  if (isRlsLikely(err)) {
+    return "Sem permissões (RLS). Confirma se o utilizador pertence a esta clínica e tem o role correto.\n\nDetalhe técnico: " + msg;
+  }
+  return msg;
+}
+
+function showError(err) {
+  $("error").textContent = err ? formatErrorForUser(err) : "";
+}
+
+function setFeedMsg(text, kind) {
+  const box = $("feedMsg");
+  if (!box) return;
+  box.textContent = text || "";
+  box.className = "small";
+  if (kind === "error") box.classList.add("error");
+  if (kind === "success") box.classList.add("success");
+}
+
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function fmtDateTime(iso) {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString("pt-PT");
+  } catch {
+    return iso;
+  }
+}
+
+function escapeHtml(s) {
+  return String(s || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
 
 /* ================= AUTH ================= */
 
@@ -146,19 +252,44 @@ function showAppUI(email) {
 
 function renderPatientsHeaderIdle() {
   $("patientsHeader").textContent = "Seleciona uma clínica.";
+  renderFeedIdle();
 }
 
 function renderPatientsHeaderForClinic(name) {
   $("patientsHeader").innerHTML = `
     <div class="toolbar">
       <div class="muted small">
-        Clínica: <strong>${name}</strong>
+        Clínica: <strong>${escapeHtml(name)}</strong>
       </div>
       <button id="btnAddPatient">Adicionar doente</button>
     </div>
     <div class="muted small" id="patientsMeta2">—</div>
   `;
   $("btnAddPatient").onclick = addPatient;
+  renderFeedIdle();
+}
+
+function renderFeedIdle() {
+  selectedPatientId = null;
+  selectedPatientLabel = null;
+  $("feedHeader").textContent = "Seleciona um doente.";
+  $("feedControls").style.display = "none";
+  $("feedList").innerHTML = "";
+  $("feedMeta").textContent = "—";
+  setFeedMsg("");
+}
+
+function renderFeedHeaderForPatient(label) {
+  $("feedHeader").innerHTML = `
+    <div class="toolbar">
+      <div class="muted small">
+        Doente: <strong>${escapeHtml(label)}</strong>
+      </div>
+      <button id="btnReloadFeed">Atualizar</button>
+    </div>
+  `;
+  $("btnReloadFeed").onclick = () => loadFeedForSelectedPatient();
+  $("feedControls").style.display = "block";
 }
 
 /* ================= DATA ================= */
@@ -180,6 +311,8 @@ async function loadClinics() {
     li.onclick = () => {
       selectedClinicId = c.id;
       selectedClinicName = c.name;
+      selectedPatientId = null;
+      selectedPatientLabel = null;
       renderPatientsHeaderForClinic(c.name);
       loadPatientsForClinic(c.id);
     };
@@ -191,6 +324,9 @@ async function loadPatientsForClinic(clinicId) {
   $("patientsList").innerHTML = "";
   const meta = $("patientsMeta2");
   if (meta) meta.textContent = "A carregar…";
+
+  // limpa feed ao trocar lista
+  renderFeedIdle();
 
   const { data: links, error: linkErr } = await sb
     .from("patient_clinic")
@@ -208,7 +344,7 @@ async function loadPatientsForClinic(clinicId) {
 
   const { data: patients, error } = await sb
     .from("patients")
-    .select("full_name, date_of_birth, phone, sns, id_document_country, id_document_number")
+    .select("id, full_name, date_of_birth, phone, sns, id_document_country, id_document_number")
     .in("id", ids)
     .order("full_name");
 
@@ -223,8 +359,128 @@ async function loadPatientsForClinic(clinicId) {
     const sns = p.sns ? ` • SNS: ${p.sns}` : "";
     const doc = (p.id_document_country && p.id_document_number)
       ? ` • Doc: ${p.id_document_country}-${p.id_document_number}` : "";
-    li.textContent = `${p.full_name ?? "(sem nome)"}${dob}${phone}${sns}${doc}`;
+
+    const label = `${p.full_name ?? "(sem nome)"}${dob}${phone}${sns}${doc}`;
+    li.textContent = label;
+
+    li.onclick = () => {
+      selectedPatientId = p.id;
+      selectedPatientLabel = p.full_name ?? "(sem nome)";
+      renderFeedHeaderForPatient(label);
+      loadFeedForSelectedPatient();
+    };
+
     $("patientsList").appendChild(li);
+  }
+}
+
+async function loadFeedForSelectedPatient() {
+  try {
+    showError("");
+    setFeedMsg("");
+
+    if (!selectedClinicId || !selectedPatientId) {
+      renderFeedIdle();
+      return;
+    }
+
+    const typeFilter = $("feedTypeFilter")?.value || "";
+
+    $("feedMeta").textContent = "A carregar…";
+    $("feedList").innerHTML = "";
+
+    let q = sb
+      .from("observations")
+      .select("id, patient_id, clinic_id, created_at, type, content")
+      .eq("clinic_id", selectedClinicId)
+      .eq("patient_id", selectedPatientId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (typeFilter) q = q.eq("type", typeFilter);
+
+    const { data, error } = await q;
+    if (error) throw error;
+
+    $("feedMeta").textContent = `${data.length} registos (máx. 50)`;
+
+    if (!data || data.length === 0) {
+      $("feedList").innerHTML = `<div class="muted small">Sem registos.</div>`;
+      return;
+    }
+
+    const html = data.map((o) => {
+      const when = fmtDateTime(o.created_at);
+      const t = o.type || "—";
+      const c = escapeHtml(o.content || "");
+      return `
+        <div class="feedItem">
+          <div class="feedTop">
+            <div class="feedMeta">
+              <span class="tag mono">${escapeHtml(t)}</span>
+              <span class="muted small">${escapeHtml(when)}</span>
+            </div>
+          </div>
+          <div style="margin-top:8px; white-space:pre-wrap;">${c}</div>
+        </div>
+      `;
+    }).join("");
+
+    $("feedList").innerHTML = html;
+
+  } catch (e) {
+    showError(e);
+    $("feedMeta").textContent = "Erro ao carregar.";
+    $("feedList").innerHTML = "";
+  }
+}
+
+/* ================= CREATE OBSERVATION ================= */
+
+async function createObservation() {
+  try {
+    showError("");
+    setFeedMsg("");
+
+    if (!selectedClinicId || !selectedPatientId) {
+      setFeedMsg("Seleciona primeiro clínica e doente.", "error");
+      return;
+    }
+
+    const type = ($("newObsType")?.value || "").trim();
+    const content = ($("newObsContent")?.value || "").trim();
+
+    if (!type) { setFeedMsg("Tipo é obrigatório.", "error"); return; }
+    if (!content) { setFeedMsg("Conteúdo é obrigatório.", "error"); return; }
+
+    const btn = $("btnCreateObs");
+    btn.disabled = true;
+    btn.textContent = "A guardar…";
+
+    const payload = {
+      clinic_id: selectedClinicId,
+      patient_id: selectedPatientId,
+      type,
+      content
+    };
+
+    const { error } = await sb.from("observations").insert(payload);
+    if (error) throw error;
+
+    $("newObsContent").value = "";
+    setFeedMsg("✔ Registo guardado", "success");
+
+    await loadFeedForSelectedPatient();
+
+  } catch (e) {
+    showError(e);
+    setFeedMsg("Erro ao guardar. Vê Logs.", "error");
+  } finally {
+    const btn = $("btnCreateObs");
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Guardar nota";
+    }
   }
 }
 
@@ -258,7 +514,7 @@ async function addPatient() {
       <h3 style="margin:0 0 8px;">Novo doente</h3>
 
       <div class="muted small" style="margin-bottom:10px;">
-        Clínica: <strong>${selectedClinicName ?? "—"}</strong>
+        Clínica: <strong>${escapeHtml(selectedClinicName ?? "—")}</strong>
       </div>
 
       <div style="display:grid; gap:10px;">
@@ -472,7 +728,11 @@ async function init() {
     window.location.href = "/index.html";
   };
 
-  // 4) carregar dados
+  // 4) eventos do feed
+  $("feedTypeFilter").onchange = () => loadFeedForSelectedPatient();
+  $("btnCreateObs").onclick = () => createObservation();
+
+  // 5) carregar dados
   renderPatientsHeaderIdle();
   await loadClinics();
   log("Clínicas carregadas.");
