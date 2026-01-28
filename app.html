@@ -26,16 +26,29 @@
     button:hover { background: #f7f7f7; }
     button:disabled { opacity: .6; cursor: not-allowed; }
     .pill { display:inline-block; padding: 2px 8px; border: 1px solid #ddd; border-radius: 999px; font-size: 12px; color:#444; }
-    .toolbar { display:flex; justify-content: space-between; align-items:center; gap:12px; }
+    .toolbar { display:flex; justify-content: space-between; align-items:center; gap:12px; flex-wrap: wrap; }
 
     #appUI { display:none; }
     #sessionBox { margin-bottom: 12px; }
 
+    input, textarea, select {
+      width: 100%;
+      padding: 8px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      box-sizing: border-box;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+
     .feedItem { border-bottom: 1px solid #eee; padding: 10px 0; }
-    .feedTop { display:flex; justify-content: space-between; align-items:center; }
+    .feedTop { display:flex; justify-content: space-between; align-items:center; gap:10px; }
     .feedMeta { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
     .tag { padding:2px 8px; border:1px solid #ddd; border-radius:999px; font-size:12px; background:#fafafa; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+
+    .divider { height: 1px; background:#eee; margin: 12px 0; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -64,7 +77,16 @@
     <div class="col">
       <div class="box">
         <h2>Clínicas</h2>
+        <div id="clinicsMeta" class="muted small">—</div>
         <ul id="clinicsList" class="list"></ul>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="box">
+        <h2>Estado</h2>
+        <div id="status" class="muted small">—</div>
+        <div id="error" class="error"></div>
       </div>
     </div>
 
@@ -80,7 +102,61 @@
       <div class="box">
         <h2>Feed clínico</h2>
         <div id="feedHeader" class="muted small">Seleciona um doente.</div>
-        <div id="feedMeta" class="muted small" style="margin-top:8px;">—</div>
+
+        <!-- Iniciar consulta (só aparece com doente selecionado) -->
+        <div id="startConsultBox" style="display:none; margin-top:10px;">
+          <div class="box" style="border-radius: 12px;">
+            <div class="toolbar">
+              <div>
+                <h3 style="margin:0;">Iniciar consulta</h3>
+                <div class="muted small">Cria consulta em <span class="mono">consultations</span> e evento em <span class="mono">patient_feed</span></div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <button id="btnResetConsult" type="button">Limpar</button>
+                <button id="btnSaveConsult" type="button">Guardar</button>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="toolbar" style="align-items:flex-start;">
+              <div style="flex:1; min-width: 240px;">
+                <label class="small">Data/hora do evento no feed (<span class="mono">occurred_at</span>)</label>
+                <input id="consultOccurredAt" type="datetime-local" />
+                <div class="muted small" style="margin-top:6px;">
+                  O feed mantém esta data mesmo que edites PDFs mais tarde.
+                </div>
+              </div>
+
+              <div style="flex:1; min-width: 240px;">
+                <label class="small">Frase pré-preenchida (editável)</label>
+                <input id="consultTreatmentsLine" type="text" value="R/ 20 sessões de tratamentos de reabilitação com:" />
+                <div class="muted small" style="margin-top:6px;">
+                  (Tratamentos e diagnóstico por autocomplete entram no próximo passo.)
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top:10px;">
+              <label class="small">História da Doença Atual / Anamnese (<span class="mono">hda</span>)</label>
+              <textarea id="consultHDA" placeholder="Escreve a HDA/Anamnese…"></textarea>
+            </div>
+
+            <div style="margin-top:10px;">
+              <label class="small">Avaliação (<span class="mono">assessment</span>)</label>
+              <textarea id="consultAssessment" placeholder="Escreve a avaliação…"></textarea>
+            </div>
+
+            <div style="margin-top:10px;">
+              <label class="small">Plano (<span class="mono">plan_text</span>)</label>
+              <textarea id="consultPlan" placeholder="Escreve o plano…"></textarea>
+            </div>
+
+            <div id="consultMsg" class="small" style="margin-top:8px;"></div>
+          </div>
+        </div>
+
+        <div id="feedMeta" class="muted small" style="margin-top:10px;">—</div>
         <div id="feedList" style="margin-top:10px;"></div>
       </div>
     </div>
@@ -88,15 +164,36 @@
 </div>
 
 <script>
+/* ================= CONFIG ================= */
+
 const SUPABASE_URL = "https://vfrmjfveclfwxcdknlvs.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmcm1qZnZlY2xmd3hjZGtubHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODM1NTQsImV4cCI6MjA4NDI1OTU1NH0.jSQMR2jar0UxrDeXpYBOvFSj8ucjPWOdaBRKKr543hc";
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
 
+/* ================= ESTADO ================= */
+
 let selectedClinicId = null;
+let selectedClinicName = null;
+
 let selectedPatientId = null;
 let selectedPatientLabel = null;
+
+let currentUserId = null;
+
+/* ================= HELPERS ================= */
+
+function setStatus(msg) { $("status").textContent = msg || "—"; }
+function showError(err) { $("error").textContent = err ? String(err?.message || err) : ""; }
+
+function setConsultMsg(text, kind) {
+  const el = $("consultMsg");
+  el.textContent = text || "";
+  el.className = "small";
+  if (kind === "error") el.classList.add("error");
+  if (kind === "success") el.classList.add("success");
+}
 
 function escapeHtml(s) {
   return String(s || "")
@@ -106,20 +203,59 @@ function escapeHtml(s) {
 }
 
 function fmtDate(iso) {
-  const d = new Date(iso);
-  return isNaN(d) ? iso : d.toLocaleDateString("pt-PT");
+  try {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("pt-PT");
+  } catch { return iso; }
+}
+
+function fmtDateTime(iso) {
+  try {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? iso : d.toLocaleString("pt-PT");
+  } catch { return iso; }
+}
+
+function toLocalDatetimeInputValue(d) {
+  // yyyy-MM-ddTHH:mm (local)
+  const pad = (n) => String(n).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const mm = pad(d.getMonth() + 1);
+  const dd = pad(d.getDate());
+  const hh = pad(d.getHours());
+  const mi = pad(d.getMinutes());
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+}
+
+function dateOnlyFromOccurredAt(occurredAtISOorLocal) {
+  // devolve YYYY-MM-DD (para report_date)
+  // datetime-local vem como "YYYY-MM-DDTHH:mm"
+  const s = String(occurredAtISOorLocal || "");
+  if (!s) return null;
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : null;
 }
 
 /* ================= AUTH ================= */
 
 async function initSession() {
-  const { data } = await sb.auth.getSession();
+  const { data, error } = await sb.auth.getSession();
+  if (error) {
+    showError(error);
+    $("sessionMsg").textContent = "Erro ao verificar sessão.";
+    $("btnGoLogin").style.display = "inline-block";
+    $("btnGoLogin").onclick = () => location.href = "/index.html";
+    return;
+  }
+
   if (!data?.session) {
     $("sessionMsg").textContent = "Sessão não encontrada.";
     $("btnGoLogin").style.display = "inline-block";
     $("btnGoLogin").onclick = () => location.href = "/index.html";
     return;
   }
+
+  currentUserId = data.session.user.id;
 
   $("sessionBox").style.display = "none";
   $("appUI").style.display = "block";
@@ -131,65 +267,149 @@ async function initSession() {
     location.href = "/index.html";
   };
 
-  loadClinics();
+  setStatus("Sessão OK. A carregar clínicas…");
+  await loadClinics();
+}
+
+/* ================= UI ================= */
+
+function renderPatientsHeaderIdle() {
+  $("patientsHeader").textContent = "Seleciona uma clínica.";
+  renderFeedIdle();
+}
+
+function renderPatientsHeaderForClinic(name) {
+  $("patientsHeader").innerHTML = `
+    <div class="muted small">Clínica: <strong>${escapeHtml(name)}</strong></div>
+    <div class="muted small" id="patientsMeta2">—</div>
+  `;
+  renderFeedIdle();
+}
+
+function renderFeedIdle() {
+  selectedPatientId = null;
+  selectedPatientLabel = null;
+
+  $("feedHeader").textContent = "Seleciona um doente.";
+  $("feedMeta").textContent = "—";
+  $("feedList").innerHTML = "";
+
+  $("startConsultBox").style.display = "none";
+  setConsultMsg("");
 }
 
 /* ================= DATA ================= */
 
 async function loadClinics() {
-  const { data, error } = await sb.from("clinics").select("id,name").order("name");
-  if (error) return;
+  showError("");
+  const { data, error } = await sb
+    .from("clinics")
+    .select("id, name")
+    .order("name");
 
+  if (error) {
+    showError(error);
+    setStatus("Erro ao carregar clínicas.");
+    return;
+  }
+
+  $("clinicsMeta").textContent = `${data.length} clínicas`;
   $("clinicsList").innerHTML = "";
-  data.forEach(c => {
+
+  for (const c of data) {
     const li = document.createElement("li");
     li.textContent = c.name;
     li.onclick = () => {
       selectedClinicId = c.id;
-      loadPatients(c.id);
+      selectedClinicName = c.name;
+      renderPatientsHeaderForClinic(c.name);
+      loadPatientsForClinic(c.id);
     };
     $("clinicsList").appendChild(li);
-  });
+  }
+
+  setStatus("Clínicas carregadas.");
 }
 
-async function loadPatients(clinicId) {
+async function loadPatientsForClinic(clinicId) {
+  showError("");
   $("patientsList").innerHTML = "";
-  $("patientsHeader").textContent = "A carregar doentes…";
+  const meta = $("patientsMeta2");
+  if (meta) meta.textContent = "A carregar…";
 
-  const { data: links } = await sb
+  renderFeedIdle();
+
+  const { data: links, error: linkErr } = await sb
     .from("patient_clinic")
     .select("patient_id")
     .eq("clinic_id", clinicId);
 
-  if (!links?.length) {
-    $("patientsHeader").textContent = "Sem doentes.";
+  if (linkErr) {
+    showError(linkErr);
+    if (meta) meta.textContent = "Erro ao carregar doentes.";
+    return;
+  }
+
+  if (!links || links.length === 0) {
+    if (meta) meta.textContent = "0 doentes.";
     return;
   }
 
   const ids = links.map(l => l.patient_id);
 
-  const { data: patients } = await sb
+  const { data: patients, error } = await sb
     .from("patients")
     .select("id, full_name")
     .in("id", ids)
     .order("full_name");
 
-  $("patientsHeader").textContent = `${patients.length} doentes`;
+  if (error) {
+    showError(error);
+    if (meta) meta.textContent = "Erro ao carregar doentes.";
+    return;
+  }
 
-  patients.forEach(p => {
+  if (meta) meta.textContent = `${patients.length} doentes`;
+
+  for (const p of patients) {
     const li = document.createElement("li");
-    li.textContent = p.full_name;
+    const label = p.full_name ?? "(sem nome)";
+    li.textContent = label;
+
     li.onclick = () => {
       selectedPatientId = p.id;
-      selectedPatientLabel = p.full_name;
+      selectedPatientLabel = label;
+
+      $("feedHeader").innerHTML = `
+        <div class="toolbar">
+          <div class="muted small">Doente: <strong>${escapeHtml(label)}</strong></div>
+          <button id="btnReloadFeed" type="button">Atualizar</button>
+        </div>
+      `;
+
+      $("btnReloadFeed").onclick = () => loadFeed();
+
+      // mostrar formulário "Iniciar consulta"
+      $("startConsultBox").style.display = "block";
+      prepareConsultFormDefaults();
+
+      // carregar feed
       loadFeed();
     };
+
     $("patientsList").appendChild(li);
-  });
+  }
 }
 
 async function loadFeed() {
-  $("feedHeader").textContent = `Doente: ${selectedPatientLabel}`;
+  showError("");
+  setConsultMsg("");
+
+  if (!selectedClinicId || !selectedPatientId) {
+    renderFeedIdle();
+    return;
+  }
+
   $("feedMeta").textContent = "A carregar…";
   $("feedList").innerHTML = "";
 
@@ -198,14 +418,16 @@ async function loadFeed() {
     .select("item_type, occurred_at, author_role, content, hda, assessment, plan_text")
     .eq("clinic_id", selectedClinicId)
     .eq("patient_id", selectedPatientId)
-    .order("occurred_at", { ascending: false });
+    .order("occurred_at", { ascending: false })
+    .limit(50);
 
   if (error) {
+    showError(error);
     $("feedMeta").textContent = "Erro ao carregar feed.";
     return;
   }
 
-  $("feedMeta").textContent = `${data.length} eventos`;
+  $("feedMeta").textContent = `${data.length} eventos (máx. 50)`;
 
   if (!data.length) {
     $("feedList").innerHTML = `<div class="muted small">Sem registos.</div>`;
@@ -213,35 +435,187 @@ async function loadFeed() {
   }
 
   $("feedList").innerHTML = data.map(o => {
-    const hasContent = o.content || o.hda || o.assessment || o.plan_text;
+    const hasAnyContent =
+      (o.content && String(o.content).trim()) ||
+      (o.hda && String(o.hda).trim()) ||
+      (o.assessment && String(o.assessment).trim()) ||
+      (o.plan_text && String(o.plan_text).trim());
+
+    const when = fmtDateTime(o.occurred_at);
+    const restrictedMsg = `Conteúdo restrito (${fmtDate(o.occurred_at)})`;
+
+    const bodyHtml = hasAnyContent
+      ? `
+        ${o.hda ? `<div style="margin-top:8px;"><div class="muted small">HDA</div><div style="white-space:pre-wrap;">${escapeHtml(o.hda)}</div></div>` : ""}
+        ${o.assessment ? `<div style="margin-top:8px;"><div class="muted small">Avaliação</div><div style="white-space:pre-wrap;">${escapeHtml(o.assessment)}</div></div>` : ""}
+        ${o.plan_text ? `<div style="margin-top:8px;"><div class="muted small">Plano</div><div style="white-space:pre-wrap;">${escapeHtml(o.plan_text)}</div></div>` : ""}
+        ${o.content ? `<div style="margin-top:8px; white-space:pre-wrap;">${escapeHtml(o.content)}</div>` : ""}
+      `
+      : `<div class="muted small" style="margin-top:8px;">${escapeHtml(restrictedMsg)}</div>`;
 
     return `
       <div class="feedItem">
         <div class="feedTop">
           <div class="feedMeta">
-            <span class="tag mono">${escapeHtml(o.item_type)}</span>
-            <span class="tag mono">${escapeHtml(o.author_role)}</span>
-            <span class="muted small">${fmtDate(o.occurred_at)}</span>
+            <span class="tag mono">${escapeHtml(o.item_type || "—")}</span>
+            <span class="tag mono">${escapeHtml(o.author_role || "—")}</span>
+            <span class="muted small">${escapeHtml(when)}</span>
           </div>
         </div>
-        <div style="margin-top:8px;">
-          ${
-            hasContent
-              ? `
-                ${o.hda ? `<div><strong>HDA</strong><br>${escapeHtml(o.hda)}</div>` : ""}
-                ${o.assessment ? `<div style="margin-top:6px;"><strong>Avaliação</strong><br>${escapeHtml(o.assessment)}</div>` : ""}
-                ${o.plan_text ? `<div style="margin-top:6px;"><strong>Plano</strong><br>${escapeHtml(o.plan_text)}</div>` : ""}
-                ${o.content ? `<div style="margin-top:6px;">${escapeHtml(o.content)}</div>` : ""}
-              `
-              : `<div class="muted small">Conteúdo restrito (${fmtDate(o.occurred_at)})</div>`
-          }
-        </div>
+        ${bodyHtml}
       </div>
     `;
   }).join("");
 }
 
-initSession();
+/* ================= CONSULTATION (CREATE) ================= */
+
+function prepareConsultFormDefaults() {
+  // default: agora
+  const now = new Date();
+  $("consultOccurredAt").value = toLocalDatetimeInputValue(now);
+
+  // não apagar automaticamente texto livre; só quando o user clica "Limpar"
+  if (!$("consultHDA").value) $("consultHDA").value = "";
+  if (!$("consultAssessment").value) $("consultAssessment").value = "";
+  if (!$("consultPlan").value) $("consultPlan").value = "";
+  if (!$("consultTreatmentsLine").value) {
+    $("consultTreatmentsLine").value = "R/ 20 sessões de tratamentos de reabilitação com:";
+  }
+  setConsultMsg("");
+}
+
+function resetConsultForm() {
+  $("consultHDA").value = "";
+  $("consultAssessment").value = "";
+  $("consultPlan").value = "";
+  $("consultTreatmentsLine").value = "R/ 20 sessões de tratamentos de reabilitação com:";
+  const now = new Date();
+  $("consultOccurredAt").value = toLocalDatetimeInputValue(now);
+  setConsultMsg("Limpo.", "success");
+}
+
+async function saveConsultation() {
+  try {
+    showError("");
+    setConsultMsg("");
+
+    if (!selectedClinicId || !selectedPatientId) {
+      setConsultMsg("Seleciona primeiro clínica e doente.", "error");
+      return;
+    }
+
+    if (!currentUserId) {
+      setConsultMsg("Sessão inválida (sem utilizador). Faz logout/login.", "error");
+      return;
+    }
+
+    const occurredAtLocal = ($("consultOccurredAt").value || "").trim(); // datetime-local
+    const reportDate = dateOnlyFromOccurredAt(occurredAtLocal);
+
+    if (!occurredAtLocal || !reportDate) {
+      setConsultMsg("Data/hora inválida.", "error");
+      return;
+    }
+
+    // Para o DB: occurred_at como ISO (o browser dá local sem timezone; convertemos para Date)
+    const occurredAtISO = new Date(occurredAtLocal).toISOString();
+
+    const hda = ($("consultHDA").value || "").trim() || null;
+    const assessment = ($("consultAssessment").value || "").trim() || null;
+
+    // plan_text incorpora a “linha de tratamentos” no topo (editável)
+    const treatmentsLine = ($("consultTreatmentsLine").value || "").trim();
+    const planFree = ($("consultPlan").value || "").trim();
+    const plan_text = (treatmentsLine || planFree)
+      ? [treatmentsLine, planFree].filter(Boolean).join("\n")
+      : null;
+
+    const btn = $("btnSaveConsult");
+    btn.disabled = true;
+    btn.textContent = "A guardar…";
+
+    // 1) criar consulta
+    const consultPayload = {
+      patient_id: selectedPatientId,
+      clinic_id: selectedClinicId,
+      appointment_id: null,
+      author_user_id: currentUserId,
+      hda,
+      assessment,
+      plan_text,
+      report_date: reportDate
+    };
+
+    const { data: createdConsult, error: consultErr } = await sb
+      .from("consultations")
+      .insert(consultPayload)
+      .select("id")
+      .single();
+
+    if (consultErr) throw consultErr;
+
+    // 2) criar evento no feed
+    const feedPayload = {
+      item_type: "consultation",
+      item_id: createdConsult.id,
+      patient_id: selectedPatientId,
+      clinic_id: selectedClinicId,
+      occurred_at: occurredAtISO,
+      author_user_id: currentUserId,
+      // author_role idealmente é preenchido/mascarado via backend; deixamos nulo se quiseres controlar por trigger
+      hda,
+      assessment,
+      plan_text,
+      report_date: reportDate,
+      appointment_id: null,
+      content: null,
+      note_type: null
+    };
+
+    const { error: feedErr } = await sb
+      .from("patient_feed")
+      .insert(feedPayload);
+
+    if (feedErr) throw feedErr;
+
+    setConsultMsg("✔ Consulta criada com sucesso", "success");
+
+    // 3) refresh do feed e (opcional) limpar apenas campos clínicos
+    await loadFeed();
+
+  } catch (e) {
+    showError(e);
+    setConsultMsg("Erro ao guardar. Vê 'Estado'.", "error");
+  } finally {
+    const btn = $("btnSaveConsult");
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Guardar";
+    }
+  }
+}
+
+/* ================= INIT ================= */
+
+async function init() {
+  await initSession();
+
+  // botões do formulário (quando existir)
+  const hookButtons = () => {
+    const bSave = $("btnSaveConsult");
+    const bReset = $("btnResetConsult");
+    if (bSave) bSave.onclick = () => saveConsultation();
+    if (bReset) bReset.onclick = () => resetConsultForm();
+  };
+
+  // como o formulário está sempre no DOM, podemos ligar já
+  hookButtons();
+
+  renderPatientsHeaderIdle();
+}
+
+init();
 </script>
 
 </body>
