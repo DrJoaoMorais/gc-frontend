@@ -1,115 +1,71 @@
-// app.js — frontend funcional com login Supabase + criar doente
+// app.js — LOGIN apenas (index.html) → redireciona para /app.html
 
-const SUPABASE_URL = 'https://vfrmjfveclfwxcdknlvs.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmcm1qZnZlY2xmd3hjZGtubHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODM1NTQsImV4cCI6MjA4NDI1OTU1NH0.jSQMR2jar0UxrDeXpYBOvFSj8ucjPWOdaBRKKr543hc';
-
-const el = (id) => document.getElementById(id);
-const setText = (id, text) => el(id).textContent = text;
-const setHtml = (id, html) => el(id).innerHTML = html;
+const SUPABASE_URL = "https://vfrmjfveclfwxcdknlvs.supabase.co";
+const SUPABASE_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmcm1qZnZlY2xmd3hjZGtubHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODM1NTQsImV4cCI6MjA4NDI1OTU1NH0.jSQMR2jar0UxrDeXpYBOvFSj8ucjPWOdaBRKKr543hc";
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const el = (id) => document.getElementById(id);
 
-// estado
-let selectedClinicId = null;
-let selectedClinicName = null;
+function setAuthMsg(msg, isError = false) {
+  const box = el("authMsg");
+  if (!box) return;
+  box.textContent = msg || "";
+  box.style.color = isError ? "#ffb4b4" : "#b8d4ff";
+}
 
-// LOGIN
+// Mostrar config no cartão (opcional)
+(function fillConfig() {
+  if (el("cfgUrl")) el("cfgUrl").textContent = SUPABASE_URL;
+  if (el("cfgKey")) el("cfgKey").textContent = SUPABASE_KEY.slice(0, 12) + "…";
+})();
+
+async function goApp() {
+  // Redireciona SEMPRE para a app real
+  window.location.href = "/app.html";
+}
+
+async function init() {
+  // Se já houver sessão, não mostrar o ecrã azul de login — vai direto para a app
+  const { data, error } = await sb.auth.getSession();
+  if (error) {
+    setAuthMsg("Erro ao verificar sessão: " + error.message, true);
+    return;
+  }
+  if (data?.session) {
+    await goApp();
+  }
+}
+
 async function login() {
-  const email = el('email').value.trim();
-  const password = el('password').value;
+  try {
+    const email = (el("email")?.value || "").trim();
+    const password = el("password")?.value || "";
 
-  const { error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) return alert(error.message);
+    if (!email || !password) {
+      setAuthMsg("Preenche email e password.", true);
+      return;
+    }
 
-  el('authCard').style.display = 'none';
-  el('appCard').style.display = 'block';
+    setAuthMsg("A autenticar…");
 
-  await loadClinics();
-}
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) {
+      setAuthMsg(error.message, true);
+      return;
+    }
 
-// LOGOUT
-async function logout() {
-  await sb.auth.signOut();
-  location.reload();
-}
-
-// CLÍNICAS
-async function loadClinics() {
-  const { data, error } = await sb
-    .from('clinics')
-    .select('id, name')
-    .order('name');
-
-  if (error) return alert(error.message);
-
-  el('clinicsTable').innerHTML =
-    '<ul>' +
-    data.map(c =>
-      `<li style="cursor:pointer;padding:4px"
-          onclick="selectClinic('${c.id}','${c.name.replace(/'/g, '')}')">
-          ${c.name}
-       </li>`
-    ).join('') +
-    '</ul>';
-}
-
-async function selectClinic(id, name) {
-  selectedClinicId = id;
-  selectedClinicName = name;
-
-  setHtml('patientsBox', `
-    <h3>Doentes — ${name}</h3>
-    <button onclick="addPatient()">Adicionar doente</button>
-    <div id="patientsList">A carregar…</div>
-  `);
-
-  await loadPatients();
-}
-
-// LISTAR DOENTES
-async function loadPatients() {
-  const { data, error } = await sb
-    .from('patients')
-    .select('id, full_name')
-    .order('full_name');
-
-  if (error) {
-    el('patientsList').textContent = error.message;
-    return;
+    await goApp();
+  } catch (e) {
+    setAuthMsg(String(e?.message || e), true);
   }
-
-  el('patientsList').innerHTML =
-    data.length === 0
-      ? 'Sem doentes.'
-      : '<ul>' + data.map(p => `<li>${p.full_name}</li>`).join('') + '</ul>';
 }
 
-// CRIAR DOENTE
-async function addPatient() {
-  if (!selectedClinicId) {
-    alert('Seleciona primeiro uma clínica.');
-    return;
-  }
+// Eventos
+if (el("btnLogin")) el("btnLogin").onclick = login;
 
-  const fullName = prompt('Nome completo do doente:');
-  if (!fullName) return;
+// Enter para submeter
+if (el("email")) el("email").addEventListener("keydown", (e) => { if (e.key === "Enter") login(); });
+if (el("password")) el("password").addEventListener("keydown", (e) => { if (e.key === "Enter") login(); });
 
-  const birthDate = prompt('Data de nascimento (AAAA-MM-DD) ou deixar vazio:') || null;
-
-  const { error } = await sb.rpc('create_patient_for_clinic', {
-    p_full_name: fullName,
-    p_clinic_id: selectedClinicId,
-    p_birth_date: birthDate
-  });
-
-  if (error) {
-    alert(error.message);
-    return;
-  }
-
-  await loadPatients();
-}
-
-// eventos
-el('btnLogin').onclick = login;
-el('btnLogout').onclick = logout;
+init();
