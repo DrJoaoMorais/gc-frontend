@@ -18,12 +18,22 @@
     .list li:hover { background: #f7f7f7; }
     .muted { color: #666; font-size: 0.95rem; }
     .error { color: #b00020; white-space: pre-wrap; }
+    .success { color: #0a7a28; }
     .topbar { display:flex; justify-content: space-between; align-items:center; margin-bottom: 12px; }
     button { padding: 8px 12px; border-radius: 10px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
     button:hover { background: #f7f7f7; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
     .pill { display:inline-block; padding: 2px 8px; border: 1px solid #ddd; border-radius: 999px; font-size: 12px; color:#444; }
     .small { font-size: 12px; }
     .toolbar { display:flex; justify-content: space-between; align-items:center; gap:12px; }
+    input {
+      width: 100%;
+      padding: 8px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      box-sizing: border-box;
+    }
+    .row2 { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -115,7 +125,7 @@ function renderPatientsHeaderForClinic(name) {
       </div>
       <button id="btnAddPatient">Adicionar doente</button>
     </div>
-    <div class="muted small" id="patientsMeta2">A carregar…</div>
+    <div class="muted small" id="patientsMeta2">—</div>
   `;
   $("btnAddPatient").onclick = addPatient;
 }
@@ -140,16 +150,16 @@ async function loadClinics() {
       selectedClinicId = c.id;
       selectedClinicName = c.name;
       renderPatientsHeaderForClinic(c.name);
-      loadPatientsForClinic(c.id, c.name);
+      loadPatientsForClinic(c.id);
     };
     $("clinicsList").appendChild(li);
   }
 }
 
-async function loadPatientsForClinic(clinicId, clinicName) {
+async function loadPatientsForClinic(clinicId) {
   $("patientsList").innerHTML = "";
   const meta = $("patientsMeta2");
-  if (meta) meta.textContent = "A carregar doentes…";
+  if (meta) meta.textContent = "A carregar…";
 
   const { data: links } = await sb
     .from("patient_clinic")
@@ -165,7 +175,7 @@ async function loadPatientsForClinic(clinicId, clinicName) {
 
   const { data: patients, error } = await sb
     .from("patients")
-    .select("full_name, date_of_birth, phone")
+    .select("full_name, date_of_birth, phone, sns, id_document_country, id_document_number")
     .in("id", ids)
     .order("full_name");
 
@@ -177,12 +187,15 @@ async function loadPatientsForClinic(clinicId, clinicName) {
     const li = document.createElement("li");
     const dob = p.date_of_birth ? ` • Nasc.: ${p.date_of_birth}` : "";
     const phone = p.phone ? ` • Tel.: ${p.phone}` : "";
-    li.textContent = `${p.full_name ?? "(sem nome)"}${dob}${phone}`;
+    const sns = p.sns ? ` • SNS: ${p.sns}` : "";
+    const doc = (p.id_document_country && p.id_document_number)
+      ? ` • Doc: ${p.id_document_country}-${p.id_document_number}` : "";
+    li.textContent = `${p.full_name ?? "(sem nome)"}${dob}${phone}${sns}${doc}`;
     $("patientsList").appendChild(li);
   }
 }
 
-/* ================= CREATE PATIENT ================= */
+/* ================= CREATE PATIENT (FORM INLINE) ================= */
 
 async function addPatient() {
   try {
@@ -193,30 +206,214 @@ async function addPatient() {
       return;
     }
 
-    const fullName = prompt("Nome completo do doente:");
-    if (!fullName || !fullName.trim()) return;
+    const existing = document.getElementById("addPatientForm");
+    if (existing) { existing.remove(); return; }
 
-    const dob = prompt("Data de nascimento (AAAA-MM-DD) ou vazio:");
-    const phone = prompt("Telemóvel (obrigatório):");
-    if (!phone || !phone.trim()) {
-      alert("Telemóvel é obrigatório.");
+    const patientsBox = document.getElementById("patientsHeader")?.closest(".box");
+    if (!patientsBox) {
+      alert("Erro interno: não encontrei o contentor de 'Doentes'.");
       return;
     }
 
-    const payload = {
-      p_full_name: fullName.trim(),
-      p_clinic_id: selectedClinicId,
-      p_date_of_birth: dob && dob.trim() ? dob.trim() : null,
-      p_phone: phone.trim()
+    const form = document.createElement("div");
+    form.id = "addPatientForm";
+    form.className = "box";
+    form.style.marginTop = "12px";
+
+    form.innerHTML = `
+      <h2 style="margin:0 0 8px;">Novo doente</h2>
+
+      <div class="muted small" style="margin-bottom:10px;">
+        Clínica: <strong>${selectedClinicName ?? "—"}</strong>
+      </div>
+
+      <div style="display:grid; gap:10px;">
+        <label class="small">
+          Nome completo <span class="pill" style="border-color:#b00020; color:#b00020;">obrigatório</span><br>
+          <input id="f_name" type="text" autocomplete="name">
+        </label>
+
+        <label class="small">
+          Telemóvel <span class="pill" style="border-color:#b00020; color:#b00020;">obrigatório</span><br>
+          <input id="f_phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Ex.: 9XXXXXXXX">
+        </label>
+
+        <label class="small">
+          Data de nascimento (AAAA-MM-DD) <span class="muted">(opcional)</span><br>
+          <input id="f_dob" type="text" inputmode="numeric" placeholder="Ex.: 1980-05-27">
+        </label>
+
+        <div class="toolbar" style="justify-content:flex-start; gap:10px;">
+          <button id="f_toggle_foreign" type="button">Estrangeiro (sem SNS)</button>
+        </div>
+
+        <div id="sns_block" style="display:grid; gap:10px;">
+          <label class="small">
+            SNS <span class="pill" style="border-color:#b00020; color:#b00020;">obrigatório</span><br>
+            <input id="f_sns" type="text" inputmode="numeric" placeholder="9 dígitos">
+          </label>
+        </div>
+
+        <div id="foreign_block" style="display:none; gap:10px;">
+          <div class="row2">
+            <label class="small">
+              País do documento <span class="pill" style="border-color:#b00020; color:#b00020;">obrigatório</span><br>
+              <input id="f_doc_country" type="text" placeholder="Ex.: ES, BR, FR">
+            </label>
+
+            <label class="small">
+              Nº documento <span class="pill" style="border-color:#b00020; color:#b00020;">obrigatório</span><br>
+              <input id="f_doc_number" type="text" placeholder="Passaporte/ID">
+            </label>
+          </div>
+        </div>
+
+        <div class="toolbar" style="justify-content:flex-end; gap:10px;">
+          <button id="f_cancel" type="button">Cancelar</button>
+          <button id="f_save" type="button">Guardar</button>
+        </div>
+
+        <div id="f_msg" class="small" style="margin-top:6px;"></div>
+      </div>
+    `;
+
+    patientsBox.appendChild(form);
+
+    const msg = $("f_msg");
+
+    function setMsg(text, kind) {
+      msg.textContent = text || "";
+      msg.className = "small";
+      if (kind === "error") msg.classList.add("error");
+      if (kind === "success") msg.classList.add("success");
+    }
+
+    function isValidISODate(yyyyMmDd) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(yyyyMmDd)) return false;
+      const d = new Date(yyyyMmDd + "T00:00:00Z");
+      if (Number.isNaN(d.getTime())) return false;
+      const y = String(d.getUTCFullYear()).padStart(4, "0");
+      const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(d.getUTCDate()).padStart(2, "0");
+      return `${y}-${m}-${day}` === yyyyMmDd;
+    }
+
+    let isForeign = false;
+
+    function applyMode() {
+      const snsBlock = document.getElementById("sns_block");
+      const foreignBlock = document.getElementById("foreign_block");
+      const toggleBtn = document.getElementById("f_toggle_foreign");
+
+      if (isForeign) {
+        snsBlock.style.display = "none";
+        foreignBlock.style.display = "grid";
+        toggleBtn.textContent = "Português (com SNS)";
+      } else {
+        snsBlock.style.display = "grid";
+        foreignBlock.style.display = "none";
+        toggleBtn.textContent = "Estrangeiro (sem SNS)";
+      }
+    }
+
+    $("f_toggle_foreign").onclick = () => {
+      setMsg("");
+      isForeign = !isForeign;
+      applyMode();
     };
 
-    const { error } = await sb.rpc("create_patient_for_clinic", payload);
-    if (error) throw error;
+    $("f_cancel").onclick = () => form.remove();
 
-    await loadPatientsForClinic(selectedClinicId, selectedClinicName);
+    $("f_save").onclick = async () => {
+      try {
+        setMsg("");
+
+        const fullName = ($("f_name").value || "").trim();
+        const phone = ($("f_phone").value || "").trim();
+        const dobRaw = ($("f_dob").value || "").trim();
+
+        const snsRaw = ($("f_sns")?.value || "").trim();
+        const docCountryRaw = ($("f_doc_country")?.value || "").trim();
+        const docNumberRaw = ($("f_doc_number")?.value || "").trim();
+
+        if (!fullName) { setMsg("Nome completo é obrigatório.", "error"); return; }
+        if (!phone) { setMsg("Telemóvel é obrigatório.", "error"); return; }
+
+        let dob = null;
+        if (dobRaw) {
+          if (!isValidISODate(dobRaw)) {
+            setMsg("Data de nascimento inválida. Usa o formato AAAA-MM-DD.", "error");
+            return;
+          }
+          dob = dobRaw;
+        }
+
+        let sns = null;
+        let id_document_country = null;
+        let id_document_number = null;
+
+        if (!isForeign) {
+          sns = snsRaw;
+          if (!sns) { setMsg("SNS é obrigatório (ou usa o modo Estrangeiro).", "error"); return; }
+        } else {
+          id_document_country = docCountryRaw.toUpperCase();
+          id_document_number = docNumberRaw;
+          if (!id_document_country || !id_document_number) {
+            setMsg("Para estrangeiro: País e Nº documento são obrigatórios.", "error");
+            return;
+          }
+        }
+
+        const btn = $("f_save");
+        btn.disabled = true;
+        btn.textContent = "A guardar…";
+
+        // RPC NOVA (vamos criar no passo seguinte):
+        // create_patient_for_clinic_v2(full_name, clinic_id, dob, phone, sns, doc_country, doc_number)
+        const payload = {
+          p_full_name: fullName,
+          p_clinic_id: selectedClinicId,
+          p_date_of_birth: dob,
+          p_phone: phone,
+          p_sns: sns,
+          p_id_document_country: id_document_country,
+          p_id_document_number: id_document_number
+        };
+
+        const { error: rpcErr } = await sb.rpc("create_patient_for_clinic_v2", payload);
+        if (rpcErr) throw rpcErr;
+
+        await loadPatientsForClinic(selectedClinicId);
+
+        setMsg("✔ Doente criado com sucesso", "success");
+
+        // Limpar campos
+        $("f_name").value = "";
+        $("f_phone").value = "";
+        $("f_dob").value = "";
+        if ($("f_sns")) $("f_sns").value = "";
+        if ($("f_doc_country")) $("f_doc_country").value = "";
+        if ($("f_doc_number")) $("f_doc_number").value = "";
+
+      } catch (e) {
+        showError(e);
+        setMsg("Erro ao criar doente. Vê Logs.", "error");
+      } finally {
+        const btn = document.getElementById("f_save");
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Guardar";
+        }
+      }
+    };
+
+    applyMode();
+    const first = document.getElementById("f_name");
+    if (first) first.focus();
+
   } catch (e) {
     showError(e);
-    alert("Erro ao criar doente. Ver logs.");
+    alert("Erro na UI ao abrir formulário. Ver logs.");
   }
 }
 
