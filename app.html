@@ -99,16 +99,31 @@ function showError(err) {
     ? (typeof err === "string" ? err : JSON.stringify(err, null, 2))
     : "";
 }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 /* ================= AUTH ================= */
 
+/**
+ * Em alguns browsers/cenários, o Supabase demora instantes a restaurar sessão do localStorage.
+ * Esta função espera ~1,5s (6 tentativas) antes de redirecionar para /index.html.
+ */
 async function requireSession() {
-  const { data } = await sb.auth.getSession();
-  if (!data?.session) {
-    window.location.href = "/index.html";
-    return null;
+  log("A verificar sessão…");
+
+  for (let i = 0; i < 6; i++) {
+    const { data, error } = await sb.auth.getSession();
+    if (error) {
+      // se houver erro, não insistimos muito
+      showError(error);
+      break;
+    }
+    if (data?.session) return data.session;
+    await sleep(250);
   }
-  return data.session;
+
+  // Sem sessão após retries -> ir para login
+  window.location.href = "/index.html";
+  return null;
 }
 
 /* ================= UI ================= */
@@ -161,10 +176,12 @@ async function loadPatientsForClinic(clinicId) {
   const meta = $("patientsMeta2");
   if (meta) meta.textContent = "A carregar…";
 
-  const { data: links } = await sb
+  const { data: links, error: linkErr } = await sb
     .from("patient_clinic")
     .select("patient_id")
     .eq("clinic_id", clinicId);
+
+  if (linkErr) throw linkErr;
 
   if (!links || links.length === 0) {
     if (meta) meta.textContent = "0 doentes.";
@@ -368,8 +385,6 @@ async function addPatient() {
         btn.disabled = true;
         btn.textContent = "A guardar…";
 
-        // RPC NOVA (vamos criar no passo seguinte):
-        // create_patient_for_clinic_v2(full_name, clinic_id, dob, phone, sns, doc_country, doc_number)
         const payload = {
           p_full_name: fullName,
           p_clinic_id: selectedClinicId,
@@ -387,7 +402,6 @@ async function addPatient() {
 
         setMsg("✔ Doente criado com sucesso", "success");
 
-        // Limpar campos
         $("f_name").value = "";
         $("f_phone").value = "";
         $("f_dob").value = "";
