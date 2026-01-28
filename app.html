@@ -27,6 +27,7 @@
     button:disabled { opacity: .6; cursor: not-allowed; }
     .pill { display:inline-block; padding: 2px 8px; border: 1px solid #ddd; border-radius: 999px; font-size: 12px; background:#fafafa; }
     .toolbar { display:flex; justify-content: space-between; align-items:center; gap:12px; flex-wrap: wrap; }
+    .divider { height: 1px; background:#eee; margin: 12px 0; }
 
     #appUI { display:none; }
     #sessionBox { margin-bottom: 12px; }
@@ -45,7 +46,9 @@
     .feedItem { border-bottom: 1px solid #eee; padding: 10px 0; }
     .feedMeta { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
     .tag { padding:2px 8px; border:1px solid #ddd; border-radius:999px; font-size:12px; background:#fafafa; }
-    .divider { height: 1px; background:#eee; margin: 12px 0; }
+
+    .inline { display:flex; gap:10px; align-items:center; }
+    .inline > * { flex: 1; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -89,8 +92,46 @@
 
     <div class="col">
       <div class="box">
-        <h2>Doentes</h2>
-        <div id="patientsHeader" class="muted small">Seleciona uma clínica.</div>
+        <div class="toolbar">
+          <h2 style="margin:0;">Doentes</h2>
+          <span id="patientsRolePill" class="pill">Role: —</span>
+        </div>
+
+        <div id="patientsHeader" class="muted small" style="margin-top:6px;">Seleciona uma clínica.</div>
+
+        <!-- Pesquisa -->
+        <div style="margin-top:10px;">
+          <input id="patientSearch" placeholder="Pesquisar doente (nome)..." disabled />
+          <div class="muted small" style="margin-top:6px;">Dica: escreve parte do nome para filtrar a lista.</div>
+        </div>
+
+        <!-- Criar doente (só doctor) -->
+        <div id="createPatientBox" style="display:none; margin-top:12px;">
+          <div class="box" style="border-radius: 12px;">
+            <div class="toolbar">
+              <div>
+                <h3 style="margin:0;">Criar doente</h3>
+                <div class="muted small">Cria o doente e liga automaticamente à clínica selecionada.</div>
+              </div>
+              <div class="inline" style="justify-content:flex-end;">
+                <button id="btnResetPatient" type="button">Limpar</button>
+                <button id="btnSavePatient" type="button">Guardar</button>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div>
+              <label class="small">Nome completo</label>
+              <input id="patientFullName" placeholder="Ex.: João Silva" />
+            </div>
+
+            <div id="patientMsg" class="small" style="margin-top:8px;"></div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
         <ul id="patientsList" class="list"></ul>
       </div>
 
@@ -207,8 +248,11 @@ let selectedPatientId = null;
 let selectedPatientLabel = null;
 
 let currentUserId = null;
-let globalUserRole = null;      // de public.profiles.role (ex.: doctor/secretary)
-let currentClinicRole = null;   // doctor/secretary/physio na clínica (ou doctor global)
+let globalUserRole = null;      // profiles.role (doctor/secretary)
+let currentClinicRole = null;   // doctor/secretary/physio (ou doctor global)
+
+let patientsCache = [];         // [{id, full_name}]
+let patientsFilter = "";
 
 /* ================= HELPERS ================= */
 function setStatus(msg) { $("status").textContent = msg || "—"; }
@@ -246,6 +290,7 @@ function clearConsultFields() {
 }
 function clearNote() { $("noteContent").value = ""; }
 function clearPhysioRecord() { $("physioRecordContent").value = ""; }
+function clearPatientForm() { $("patientFullName").value = ""; }
 
 function updateContextBanner() {
   const clinic = selectedClinicName || "—";
@@ -259,6 +304,7 @@ function updateContextInfo() {
   const role = currentClinicRole || "—";
   $("contextInfo").innerHTML =
     `Clínica: <strong>${escapeHtml(clinic)}</strong> &nbsp;|&nbsp; Doente: <strong>${escapeHtml(patient)}</strong> &nbsp;|&nbsp; Role: <strong>${escapeHtml(role)}</strong>`;
+  $("patientsRolePill").textContent = `Role: ${role}`;
 }
 
 function hideAllActionBoxes() {
@@ -271,7 +317,7 @@ function showBoxesByRole() {
   hideAllActionBoxes();
   if (!selectedClinicId || !selectedPatientId) return;
 
-  // NOTAS: sempre (desde que role esteja determinado)
+  // NOTAS: sempre
   if (currentClinicRole) $("notesBox").style.display = "block";
 
   // CONSULTA: só doctor
@@ -281,10 +327,20 @@ function showBoxesByRole() {
   if (currentClinicRole === "physio") $("physioRecordBox").style.display = "block";
 }
 
+function updateCreatePatientVisibility() {
+  // apenas doctor
+  $("createPatientBox").style.display = (selectedClinicId && currentClinicRole === "doctor") ? "block" : "none";
+}
+
 function resetUIOnClinicChange() {
   selectedPatientId = null;
   selectedPatientLabel = null;
   currentClinicRole = null;
+
+  patientsCache = [];
+  patientsFilter = "";
+  $("patientSearch").value = "";
+  $("patientSearch").disabled = true;
 
   $("patientsList").innerHTML = "";
   $("patientsHeader").textContent = selectedClinicName
@@ -295,6 +351,11 @@ function resetUIOnClinicChange() {
   $("feedMeta").textContent = "—";
   $("feedList").innerHTML = "";
   $("contextInfo").textContent = "—";
+  $("patientsRolePill").textContent = "Role: —";
+
+  $("createPatientBox").style.display = "none";
+  setMsg("patientMsg", "");
+  clearPatientForm();
 
   hideAllActionBoxes();
 
@@ -353,7 +414,7 @@ async function loadGlobalUserRole() {
 
 /* ================= ROLE POR CLÍNICA ================= */
 async function loadMyRoleForClinic(clinicId) {
-  // Doctor global: assume doctor em qualquer clínica (para UI de consulta)
+  // Doctor global
   if (globalUserRole === "doctor") return "doctor";
 
   const { data, error } = await sb
@@ -368,68 +429,16 @@ async function loadMyRoleForClinic(clinicId) {
   return data?.role_in_clinic || null;
 }
 
-/* ================= DATA ================= */
-async function loadClinics() {
-  showError("");
-  const { data, error } = await sb.from("clinics").select("id, name").order("name");
-  if (error) { showError(error); setStatus("Erro ao carregar clínicas."); return; }
+/* ================= PATIENTS UI ================= */
+function renderPatientsList() {
+  const q = (patientsFilter || "").trim().toLowerCase();
+  const filtered = q
+    ? patientsCache.filter(p => String(p.full_name || "").toLowerCase().includes(q))
+    : patientsCache;
 
-  $("clinicsMeta").textContent = `${data.length} clínicas`;
-  $("clinicsList").innerHTML = "";
-
-  for (const c of data) {
-    const li = document.createElement("li");
-    li.textContent = c.name;
-
-    li.onclick = async () => {
-      try {
-        showError("");
-        selectedClinicId = c.id;
-        selectedClinicName = c.name;
-
-        resetUIOnClinicChange();
-
-        // determinar role sempre antes de carregar doentes
-        currentClinicRole = await loadMyRoleForClinic(c.id);
-        updateContextInfo();
-
-        await loadPatientsForClinic(c.id);
-      } catch (e) {
-        showError(e);
-        setStatus("Erro ao determinar role na clínica.");
-      }
-    };
-
-    $("clinicsList").appendChild(li);
-  }
-
-  setStatus("Clínicas carregadas.");
-}
-
-async function loadPatientsForClinic(clinicId) {
-  showError("");
   $("patientsList").innerHTML = "";
-  $("patientsHeader").textContent = `Clínica: ${selectedClinicName}`;
 
-  const { data: links, error: linkErr } = await sb
-    .from("patient_clinic")
-    .select("patient_id")
-    .eq("clinic_id", clinicId);
-
-  if (linkErr) { showError(linkErr); setStatus("Erro ao carregar doentes."); return; }
-  if (!links?.length) { setStatus("0 doentes."); return; }
-
-  const ids = links.map(l => l.patient_id);
-
-  const { data: patients, error } = await sb
-    .from("patients")
-    .select("id, full_name")
-    .in("id", ids)
-    .order("full_name");
-
-  if (error) { showError(error); setStatus("Erro ao carregar doentes."); return; }
-
-  for (const p of patients) {
+  for (const p of filtered) {
     const li = document.createElement("li");
     const label = p.full_name ?? "(sem nome)";
     li.textContent = label;
@@ -460,7 +469,78 @@ async function loadPatientsForClinic(clinicId) {
     $("patientsList").appendChild(li);
   }
 
-  setStatus("Doentes carregados.");
+  setStatus(`Doentes carregados (${filtered.length}/${patientsCache.length}).`);
+}
+
+/* ================= DATA ================= */
+async function loadClinics() {
+  showError("");
+  const { data, error } = await sb.from("clinics").select("id, name").order("name");
+  if (error) { showError(error); setStatus("Erro ao carregar clínicas."); return; }
+
+  $("clinicsMeta").textContent = `${data.length} clínicas`;
+  $("clinicsList").innerHTML = "";
+
+  for (const c of data) {
+    const li = document.createElement("li");
+    li.textContent = c.name;
+
+    li.onclick = async () => {
+      try {
+        showError("");
+        selectedClinicId = c.id;
+        selectedClinicName = c.name;
+
+        resetUIOnClinicChange();
+
+        currentClinicRole = await loadMyRoleForClinic(c.id);
+        updateContextInfo();
+        updateCreatePatientVisibility();
+
+        await loadPatientsForClinic(c.id);
+      } catch (e) {
+        showError(e);
+        setStatus("Erro ao determinar role na clínica.");
+      }
+    };
+
+    $("clinicsList").appendChild(li);
+  }
+
+  setStatus("Clínicas carregadas.");
+}
+
+async function loadPatientsForClinic(clinicId) {
+  showError("");
+  $("patientsHeader").textContent = `Clínica: ${selectedClinicName}`;
+
+  const { data: links, error: linkErr } = await sb
+    .from("patient_clinic")
+    .select("patient_id")
+    .eq("clinic_id", clinicId);
+
+  if (linkErr) { showError(linkErr); setStatus("Erro ao carregar doentes."); return; }
+
+  if (!links?.length) {
+    patientsCache = [];
+    $("patientSearch").disabled = false;
+    renderPatientsList();
+    return;
+  }
+
+  const ids = links.map(l => l.patient_id);
+
+  const { data: patients, error } = await sb
+    .from("patients")
+    .select("id, full_name")
+    .in("id", ids)
+    .order("full_name");
+
+  if (error) { showError(error); setStatus("Erro ao carregar doentes."); return; }
+
+  patientsCache = patients || [];
+  $("patientSearch").disabled = false;
+  renderPatientsList();
 }
 
 async function loadFeed() {
@@ -514,6 +594,70 @@ async function loadFeed() {
       </div>
     `;
   }).join("");
+}
+
+/* ================= CREATE PATIENT (DOCTOR) ================= */
+async function savePatient() {
+  try {
+    showError("");
+    setMsg("patientMsg", "");
+
+    if (currentClinicRole !== "doctor") {
+      setMsg("patientMsg", "Sem permissões para criar doente.", "error");
+      return;
+    }
+    if (!selectedClinicId) {
+      setMsg("patientMsg", "Seleciona uma clínica primeiro.", "error");
+      return;
+    }
+
+    const full_name = ($("patientFullName").value || "").trim();
+    if (!full_name) {
+      setMsg("patientMsg", "O nome completo é obrigatório.", "error");
+      return;
+    }
+
+    const btn = $("btnSavePatient");
+    btn.disabled = true;
+    btn.textContent = "A guardar…";
+
+    // 1) criar doente
+    const { data: created, error: e1 } = await sb
+      .from("patients")
+      .insert({ full_name })
+      .select("id")
+      .single();
+
+    if (e1) throw e1;
+
+    // 2) ligar à clínica selecionada
+    const { error: e2 } = await sb
+      .from("patient_clinic")
+      .insert({ clinic_id: selectedClinicId, patient_id: created.id });
+
+    if (e2) throw e2;
+
+    setMsg("patientMsg", "✔ Doente criado e ligado à clínica", "success");
+    clearPatientForm();
+
+    // refrescar lista
+    await loadPatientsForClinic(selectedClinicId);
+
+  } catch (e) {
+    showError(e);
+    setMsg("patientMsg", "Erro ao criar doente. Vê 'Estado'.", "error");
+  } finally {
+    const btn = $("btnSavePatient");
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Guardar";
+    }
+  }
+}
+
+function resetPatientForm() {
+  clearPatientForm();
+  setMsg("patientMsg", "Limpo.", "success");
 }
 
 /* ================= CONSULTATION (CREATE) — DOCTOR ================= */
@@ -694,12 +838,19 @@ async function init() {
   if (!ok) return;
 
   try {
-    globalUserRole = await loadGlobalUserRole(); // <-- FIX essencial para doctor global
+    globalUserRole = await loadGlobalUserRole();
   } catch (e) {
-    // se falhar, não bloqueia UI; apenas reduz capacidade de determinar doctor global
     console.error("Falha a obter role global:", e);
     showError(e);
   }
+
+  $("patientSearch").addEventListener("input", (ev) => {
+    patientsFilter = ev.target.value || "";
+    renderPatientsList();
+  });
+
+  $("btnSavePatient").onclick = () => savePatient();
+  $("btnResetPatient").onclick = () => resetPatientForm();
 
   $("btnSaveConsult").onclick = () => saveConsultation();
   $("btnResetConsult").onclick = () => resetConsultForm();
