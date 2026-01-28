@@ -32,7 +32,7 @@
     #appUI { display:none; }
     #sessionBox { margin-bottom: 12px; }
 
-    input, textarea {
+    input, textarea, select {
       width: 100%;
       padding: 8px;
       border-radius: 10px;
@@ -40,6 +40,7 @@
       box-sizing: border-box;
       font-family: inherit;
       font-size: 14px;
+      background: #fff;
     }
     textarea { min-height: 90px; resize: vertical; }
 
@@ -49,6 +50,8 @@
 
     .inline { display:flex; gap:10px; align-items:center; }
     .inline > * { flex: 1; }
+
+    .hint { background:#fafafa; border:1px solid #eee; border-radius: 10px; padding: 10px; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -143,6 +146,63 @@
             </div>
 
             <div id="patientMsg" class="small" style="margin-top:8px;"></div>
+          </div>
+        </div>
+
+        <!-- Gerir clínicas do doente (só doctor) -->
+        <div id="manageClinicsBox" style="display:none; margin-top:12px;">
+          <div class="box" style="border-radius: 12px;">
+            <div class="toolbar">
+              <div>
+                <h3 style="margin:0;">Gerir clínicas do doente</h3>
+                <div class="muted small">Ação exclusiva do médico. Atua apenas sobre <code>patient_clinic</code>. O histórico não muda.</div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <button id="btnReloadPatientClinics" type="button">Atualizar</button>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="hint small">
+              <strong>Atenção:</strong>
+              <ol style="margin:6px 0 0 16px; padding:0;">
+                <li>“Mover A→B” desativa a ligação da clínica atual (A) e cria ligação ativa para B.</li>
+                <li>O doente pode desaparecer da lista da clínica A depois do move (é esperado).</li>
+                <li>Os registos antigos mantêm o <code>clinic_id</code> original.</li>
+              </ol>
+            </div>
+
+            <div style="margin-top:10px;">
+              <div class="toolbar">
+                <div class="muted small">Ligações atuais</div>
+                <span id="patientClinicsMeta" class="pill">—</span>
+              </div>
+              <ul id="patientClinicsList" class="list" style="margin-top:8px;"></ul>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="inline">
+              <div>
+                <label class="small">Escolher clínica (destino)</label>
+                <select id="targetClinicSelect"></select>
+                <div class="muted small" style="margin-top:6px;">A clínica atual (onde estás) é “A”.</div>
+              </div>
+              <div>
+                <label class="small">Notas (opcional)</label>
+                <input id="patientClinicNotes" placeholder="Ex.: Transferido por mudança de local" />
+                <div class="muted small" style="margin-top:6px;">Guardado em <code>patient_clinic.notes</code>.</div>
+              </div>
+            </div>
+
+            <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+              <button id="btnAddClinicLink" type="button">Adicionar clínica</button>
+              <button id="btnMoveClinicLink" type="button">Mover A → B</button>
+              <button id="btnRemoveClinicLink" type="button">Remover ligação (na clínica atual)</button>
+            </div>
+
+            <div id="manageClinicsMsg" class="small" style="margin-top:8px;"></div>
           </div>
         </div>
 
@@ -270,6 +330,9 @@ let currentClinicRole = null;   // doctor/secretary/physio (ou doctor global)
 let patientsCache = [];         // [{id, full_name}]
 let patientsFilter = "";
 
+let clinicsCache = [];          // [{id, name}]
+let patientClinicLinks = [];    // [{clinic_id, patient_id, is_active, start_date, end_date, notes}]
+
 /* ================= HELPERS ================= */
 function setStatus(msg) { $("status").textContent = msg || "—"; }
 function showError(err) { $("error").textContent = err ? String(err?.message || err) : ""; }
@@ -312,6 +375,13 @@ function clearPatientForm() {
   $("patientEmail").value = "";
   $("patientPhone").value = "";
 }
+function clearManageClinicsForm() {
+  $("patientClinicNotes").value = "";
+}
+
+function clinicNameById(id) {
+  return clinicsCache.find(c => c.id === id)?.name || id;
+}
 
 function updateContextBanner() {
   const clinic = selectedClinicName || "—";
@@ -347,6 +417,25 @@ function updateCreatePatientVisibility() {
   $("createPatientBox").style.display = (selectedClinicId && currentClinicRole === "doctor") ? "block" : "none";
 }
 
+function updateManageClinicsVisibility() {
+  const show = (currentClinicRole === "doctor" && !!selectedClinicId && !!selectedPatientId);
+  $("manageClinicsBox").style.display = show ? "block" : "none";
+  if (!show) return;
+
+  // preencher dropdown com clínicas (exceto vazias)
+  const sel = $("targetClinicSelect");
+  sel.innerHTML = "";
+  for (const c of clinicsCache) {
+    const opt = document.createElement("option");
+    opt.value = c.id;
+    opt.textContent = c.name;
+    if (c.id === selectedClinicId) opt.textContent = `${c.name} (clínica atual)`;
+    sel.appendChild(opt);
+  }
+  // default: clínica atual (evita move acidental)
+  sel.value = selectedClinicId;
+}
+
 function resetUIOnClinicChange() {
   selectedPatientId = null;
   selectedPatientLabel = null;
@@ -356,6 +445,13 @@ function resetUIOnClinicChange() {
   patientsFilter = "";
   $("patientSearch").value = "";
   $("patientSearch").disabled = true;
+
+  patientClinicLinks = [];
+  $("patientClinicsList").innerHTML = "";
+  $("patientClinicsMeta").textContent = "—";
+  setMsg("manageClinicsMsg", "");
+  clearManageClinicsForm();
+  $("manageClinicsBox").style.display = "none";
 
   $("patientsList").innerHTML = "";
   $("patientsHeader").textContent = selectedClinicName
@@ -457,7 +553,7 @@ function renderPatientsList() {
     const label = p.full_name ?? "(sem nome)";
     li.textContent = label;
 
-    li.onclick = () => {
+    li.onclick = async () => {
       selectedPatientId = p.id;
       selectedPatientLabel = label;
 
@@ -477,6 +573,11 @@ function renderPatientsList() {
       setMsg("noteMsg", "");
       setMsg("physioRecordMsg", "");
 
+      updateManageClinicsVisibility();
+      if (currentClinicRole === "doctor") {
+        await loadPatientClinicLinks(); // carregar ligações e renderizar
+      }
+
       loadFeed();
     };
 
@@ -492,10 +593,11 @@ async function loadClinics() {
   const { data, error } = await sb.from("clinics").select("id, name").order("name");
   if (error) { showError(error); setStatus("Erro ao carregar clínicas."); return; }
 
-  $("clinicsMeta").textContent = `${data.length} clínicas`;
+  clinicsCache = data || [];
+  $("clinicsMeta").textContent = `${clinicsCache.length} clínicas`;
   $("clinicsList").innerHTML = "";
 
-  for (const c of data) {
+  for (const c of clinicsCache) {
     const li = document.createElement("li");
     li.textContent = c.name;
 
@@ -510,6 +612,7 @@ async function loadClinics() {
         currentClinicRole = await loadMyRoleForClinic(c.id);
         updateContextInfo();
         updateCreatePatientVisibility();
+        updateManageClinicsVisibility();
 
         await loadPatientsForClinic(c.id);
       } catch (e) {
@@ -557,6 +660,250 @@ async function loadPatientsForClinic(clinicId) {
   renderPatientsList();
 }
 
+/* ================= PATIENT_CLINIC (DOCTOR) ================= */
+function renderPatientClinicLinks() {
+  const list = $("patientClinicsList");
+  list.innerHTML = "";
+
+  if (!patientClinicLinks.length) {
+    list.innerHTML = `<li class="muted small" style="cursor:default;">Sem ligações.</li>`;
+    $("patientClinicsMeta").textContent = "0";
+    return;
+  }
+
+  const active = patientClinicLinks.filter(x => x.is_active);
+  $("patientClinicsMeta").textContent = `${patientClinicLinks.length} (ativas: ${active.length})`;
+
+  // ordenar: ativas primeiro, depois por nome
+  const sorted = [...patientClinicLinks].sort((a,b) => {
+    const ai = a.is_active ? 0 : 1;
+    const bi = b.is_active ? 0 : 1;
+    if (ai !== bi) return ai - bi;
+    return String(clinicNameById(a.clinic_id)).localeCompare(String(clinicNameById(b.clinic_id)), "pt-PT");
+  });
+
+  for (const link of sorted) {
+    const li = document.createElement("li");
+    li.style.cursor = "default";
+
+    const cname = clinicNameById(link.clinic_id);
+    const badge = link.is_active ? `<span class="tag">ativa</span>` : `<span class="tag">inativa</span>`;
+    const sd = link.start_date ? escapeHtml(link.start_date) : "—";
+    const ed = link.end_date ? escapeHtml(link.end_date) : "—";
+    const notes = link.notes ? `<div class="muted small" style="margin-top:6px; white-space:pre-wrap;">${escapeHtml(link.notes)}</div>` : "";
+
+    li.innerHTML = `
+      <div class="feedMeta">
+        <strong>${escapeHtml(cname)}</strong>
+        ${badge}
+        <span class="muted small">start: ${sd}</span>
+        <span class="muted small">end: ${ed}</span>
+      </div>
+      ${notes}
+    `;
+
+    list.appendChild(li);
+  }
+}
+
+async function loadPatientClinicLinks() {
+  try {
+    showError("");
+    setMsg("manageClinicsMsg", "");
+
+    if (currentClinicRole !== "doctor" || !selectedPatientId) return;
+
+    const { data, error } = await sb
+      .from("patient_clinic")
+      .select("patient_id, clinic_id, is_active, start_date, end_date, notes")
+      .eq("patient_id", selectedPatientId);
+
+    if (error) throw error;
+    patientClinicLinks = data || [];
+    renderPatientClinicLinks();
+
+  } catch (e) {
+    showError(e);
+    setMsg("manageClinicsMsg", "Erro ao carregar ligações do doente. Vê 'Estado'.", "error");
+  }
+}
+
+function hasLinkToClinic(clinicId) {
+  return patientClinicLinks.some(x => x.clinic_id === clinicId);
+}
+
+async function addClinicLink() {
+  try {
+    showError("");
+    setMsg("manageClinicsMsg", "");
+
+    if (currentClinicRole !== "doctor") {
+      setMsg("manageClinicsMsg", "Sem permissões.", "error");
+      return;
+    }
+    if (!selectedPatientId) {
+      setMsg("manageClinicsMsg", "Seleciona um doente.", "error");
+      return;
+    }
+
+    const targetClinicId = $("targetClinicSelect").value;
+    if (!targetClinicId) {
+      setMsg("manageClinicsMsg", "Seleciona a clínica de destino.", "error");
+      return;
+    }
+
+    if (hasLinkToClinic(targetClinicId)) {
+      setMsg("manageClinicsMsg", "Já existe ligação a essa clínica (usa mover ou remove, conforme necessário).", "error");
+      return;
+    }
+
+    const notes = ($("patientClinicNotes").value || "").trim() || null;
+
+    const btn = $("btnAddClinicLink");
+    btn.disabled = true;
+    btn.textContent = "A adicionar…";
+
+    const payload = {
+      patient_id: selectedPatientId,
+      clinic_id: targetClinicId,
+      is_active: true,
+      start_date: todayISO(),
+      end_date: null,
+      notes
+    };
+
+    const { error } = await sb.from("patient_clinic").insert(payload);
+    if (error) throw error;
+
+    setMsg("manageClinicsMsg", "✔ Clínica adicionada ao doente.", "success");
+    clearManageClinicsForm();
+    await loadPatientClinicLinks();
+
+  } catch (e) {
+    showError(e);
+    setMsg("manageClinicsMsg", "Erro ao adicionar clínica. Vê 'Estado'.", "error");
+  } finally {
+    const btn = $("btnAddClinicLink");
+    btn.disabled = false;
+    btn.textContent = "Adicionar clínica";
+  }
+}
+
+async function moveClinicLink() {
+  try {
+    showError("");
+    setMsg("manageClinicsMsg", "");
+
+    if (currentClinicRole !== "doctor") {
+      setMsg("manageClinicsMsg", "Sem permissões.", "error");
+      return;
+    }
+    if (!selectedPatientId || !selectedClinicId) {
+      setMsg("manageClinicsMsg", "Seleciona clínica (A) e doente.", "error");
+      return;
+    }
+
+    const targetClinicId = $("targetClinicSelect").value;
+    if (!targetClinicId) {
+      setMsg("manageClinicsMsg", "Seleciona a clínica de destino.", "error");
+      return;
+    }
+    if (targetClinicId === selectedClinicId) {
+      setMsg("manageClinicsMsg", "Destino (B) não pode ser igual à clínica atual (A).", "error");
+      return;
+    }
+
+    if (hasLinkToClinic(targetClinicId)) {
+      setMsg("manageClinicsMsg", "Já existe ligação a B. Se queres “mover”, remove/desativa primeiro a ligação antiga conforme necessário.", "error");
+      return;
+    }
+
+    const notes = ($("patientClinicNotes").value || "").trim() || null;
+
+    const btn = $("btnMoveClinicLink");
+    btn.disabled = true;
+    btn.textContent = "A mover…";
+
+    // 1) desativar ligação A (se existir)
+    const { error: e1 } = await sb
+      .from("patient_clinic")
+      .update({ is_active: false, end_date: todayISO(), notes })
+      .eq("patient_id", selectedPatientId)
+      .eq("clinic_id", selectedClinicId);
+
+    if (e1) throw e1;
+
+    // 2) criar ligação ativa B
+    const payload = {
+      patient_id: selectedPatientId,
+      clinic_id: targetClinicId,
+      is_active: true,
+      start_date: todayISO(),
+      end_date: null,
+      notes
+    };
+
+    const { error: e2 } = await sb.from("patient_clinic").insert(payload);
+    if (e2) throw e2;
+
+    setMsg("manageClinicsMsg", `✔ Movido: ${escapeHtml(clinicNameById(selectedClinicId))} → ${escapeHtml(clinicNameById(targetClinicId))}`, "success");
+    clearManageClinicsForm();
+
+    // atualizar UI: o doente pode desaparecer da lista da clínica A
+    await loadPatientClinicLinks();
+    await loadPatientsForClinic(selectedClinicId);
+
+  } catch (e) {
+    showError(e);
+    setMsg("manageClinicsMsg", "Erro ao mover. Vê 'Estado'.", "error");
+  } finally {
+    const btn = $("btnMoveClinicLink");
+    btn.disabled = false;
+    btn.textContent = "Mover A → B";
+  }
+}
+
+async function removeClinicLink() {
+  try {
+    showError("");
+    setMsg("manageClinicsMsg", "");
+
+    if (currentClinicRole !== "doctor") {
+      setMsg("manageClinicsMsg", "Sem permissões.", "error");
+      return;
+    }
+    if (!selectedPatientId || !selectedClinicId) {
+      setMsg("manageClinicsMsg", "Seleciona clínica (A) e doente.", "error");
+      return;
+    }
+
+    const btn = $("btnRemoveClinicLink");
+    btn.disabled = true;
+    btn.textContent = "A remover…";
+
+    const { error } = await sb
+      .from("patient_clinic")
+      .delete()
+      .eq("patient_id", selectedPatientId)
+      .eq("clinic_id", selectedClinicId);
+
+    if (error) throw error;
+
+    setMsg("manageClinicsMsg", "✔ Ligação removida na clínica atual.", "success");
+    await loadPatientClinicLinks();
+    await loadPatientsForClinic(selectedClinicId);
+
+  } catch (e) {
+    showError(e);
+    setMsg("manageClinicsMsg", "Erro ao remover ligação. Vê 'Estado'.", "error");
+  } finally {
+    const btn = $("btnRemoveClinicLink");
+    btn.disabled = false;
+    btn.textContent = "Remover ligação (na clínica atual)";
+  }
+}
+
+/* ================= FEED ================= */
 async function loadFeed() {
   showError("");
   $("feedMeta").textContent = "A carregar…";
@@ -635,9 +982,6 @@ async function savePatient() {
       return;
     }
 
-    // ✅ satisfaz patients_has_identifier_ck:
-    // sns != '' OR email != '' OR phone IS NOT NULL
-    // (nós exigimos phone não vazio para ser mais limpo)
     if (!sns && !email && !phone) {
       setMsg("patientMsg", "Preenche pelo menos 1: SNS, email ou telefone.", "error");
       return;
@@ -664,7 +1008,7 @@ async function savePatient() {
 
     const { error: e2 } = await sb
       .from("patient_clinic")
-      .insert({ clinic_id: selectedClinicId, patient_id: created.id });
+      .insert({ clinic_id: selectedClinicId, patient_id: created.id, is_active: true, start_date: todayISO(), end_date: null });
 
     if (e2) throw e2;
 
@@ -890,6 +1234,11 @@ async function init() {
 
   $("btnSavePhysioRecord").onclick = () => savePhysioRecord();
   $("btnResetPhysioRecord").onclick = () => resetPhysioRecordForm();
+
+  $("btnReloadPatientClinics").onclick = () => loadPatientClinicLinks();
+  $("btnAddClinicLink").onclick = () => addClinicLink();
+  $("btnMoveClinicLink").onclick = () => moveClinicLink();
+  $("btnRemoveClinicLink").onclick = () => removeClinicLink();
 
   setStatus("A carregar clínicas…");
   await loadClinics();
