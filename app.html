@@ -27,28 +27,15 @@
     button:disabled { opacity: .6; cursor: not-allowed; }
     .pill { display:inline-block; padding: 2px 8px; border: 1px solid #ddd; border-radius: 999px; font-size: 12px; color:#444; }
     .toolbar { display:flex; justify-content: space-between; align-items:center; gap:12px; }
-    input, select, textarea {
-      width: 100%;
-      padding: 8px;
-      border-radius: 10px;
-      border: 1px solid #ddd;
-      box-sizing: border-box;
-      font-family: inherit;
-      font-size: 14px;
-    }
-    textarea { min-height: 90px; resize: vertical; }
-    .row2 { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
 
-    /* estados */
     #appUI { display:none; }
     #sessionBox { margin-bottom: 12px; }
 
-    /* feed */
     .feedItem { border-bottom: 1px solid #eee; padding: 10px 0; }
-    .feedTop { display:flex; gap:10px; align-items:center; justify-content: space-between; }
+    .feedTop { display:flex; justify-content: space-between; align-items:center; }
     .feedMeta { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
-    .tag { display:inline-block; padding: 2px 8px; border: 1px solid #ddd; border-radius: 999px; font-size: 12px; color:#444; background:#fafafa; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .tag { padding:2px 8px; border:1px solid #ddd; border-radius:999px; font-size:12px; background:#fafafa; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -56,164 +43,60 @@
 
 <body>
 
-  <div class="topbar">
-    <div>
-      <h1>Painel Clínico</h1>
-      <div class="muted">Clínicas e doentes</div>
-    </div>
-    <div>
-      <span id="userInfo" class="pill">—</span>
-      <button id="btnLogout" style="display:none;">Terminar sessão</button>
-    </div>
+<div class="topbar">
+  <div>
+    <h1>Painel Clínico</h1>
+    <div class="muted">Gestão por clínica e doente</div>
   </div>
-
-  <!-- Sessão / Arranque (sem piscar UI intermédia) -->
-  <div id="sessionBox" class="box">
-    <div id="sessionMsg" class="muted">A verificar sessão…</div>
-    <button id="btnGoLogin" style="display:none; margin-top:10px;">Ir para login</button>
+  <div>
+    <span id="userInfo" class="pill">—</span>
+    <button id="btnLogout" style="display:none;">Terminar sessão</button>
   </div>
+</div>
 
-  <!-- UI principal -->
-  <div id="appUI">
-    <div class="row">
-      <div class="col">
-        <div class="box">
-          <h2>Clínicas</h2>
-          <div id="clinicsMeta" class="muted small">—</div>
-          <ul id="clinicsList" class="list"></ul>
-        </div>
+<div id="sessionBox" class="box">
+  <div id="sessionMsg" class="muted">A verificar sessão…</div>
+  <button id="btnGoLogin" style="display:none; margin-top:10px;">Ir para login</button>
+</div>
 
-        <div style="height:12px"></div>
+<div id="appUI">
+  <div class="row">
+    <div class="col">
+      <div class="box">
+        <h2>Clínicas</h2>
+        <ul id="clinicsList" class="list"></ul>
+      </div>
+    </div>
 
-        <div class="box">
-          <h2>Logs</h2>
-          <div id="log" class="muted small">—</div>
-          <div id="error" class="error"></div>
-        </div>
+    <div class="col">
+      <div class="box">
+        <h2>Doentes</h2>
+        <div id="patientsHeader" class="muted small">Seleciona uma clínica.</div>
+        <ul id="patientsList" class="list"></ul>
       </div>
 
-      <div class="col">
-        <div class="box">
-          <h2>Doentes</h2>
-          <div id="patientsHeader" class="muted small">Seleciona uma clínica.</div>
-          <ul id="patientsList" class="list"></ul>
-        </div>
+      <div style="height:12px"></div>
 
-        <div style="height:12px"></div>
-
-        <div class="box">
-          <h2>Feed clínico</h2>
-          <div id="feedHeader" class="muted small">Seleciona um doente.</div>
-          <div id="feedControls" style="display:none; margin-top:10px;">
-            <div class="toolbar" style="gap:10px; align-items:flex-start;">
-              <div style="flex:1;">
-                <label class="small">Filtro por tipo</label>
-                <select id="feedTypeFilter">
-                  <option value="">Todos</option>
-                  <option value="medical_note">medical_note</option>
-                  <option value="physio_note">physio_note</option>
-                  <option value="admin_note">admin_note</option>
-                  <option value="consultation">consultation</option>
-                  <option value="procedure">procedure</option>
-                </select>
-              </div>
-              <div style="flex:1;">
-                <label class="small">Novo registo (tipo)</label>
-                <select id="newObsType">
-                  <option value="medical_note">medical_note</option>
-                  <option value="physio_note">physio_note</option>
-                  <option value="admin_note">admin_note</option>
-                  <option value="consultation">consultation</option>
-                  <option value="procedure">procedure</option>
-                </select>
-              </div>
-            </div>
-
-            <div style="margin-top:10px;">
-              <label class="small">Conteúdo</label>
-              <textarea id="newObsContent" placeholder="Escreve aqui a nota..."></textarea>
-            </div>
-
-            <div class="toolbar" style="justify-content:flex-end; margin-top:10px; gap:10px;">
-              <button id="btnCreateObs">Guardar nota</button>
-            </div>
-
-            <div id="feedMsg" class="small" style="margin-top:8px;"></div>
-          </div>
-
-          <div id="feedMeta" class="muted small" style="margin-top:10px;">—</div>
-          <div id="feedList" style="margin-top:10px;"></div>
-        </div>
+      <div class="box">
+        <h2>Feed clínico</h2>
+        <div id="feedHeader" class="muted small">Seleciona um doente.</div>
+        <div id="feedMeta" class="muted small" style="margin-top:8px;">—</div>
+        <div id="feedList" style="margin-top:10px;"></div>
       </div>
     </div>
   </div>
+</div>
 
 <script>
-/* ================= CONFIG ================= */
-
 const SUPABASE_URL = "https://vfrmjfveclfwxcdknlvs.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmcm1qZnZlY2xmd3hjZGtubHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODM1NTQsImV4cCI6MjA4NDI1OTU1NH0.jSQMR2jar0UxrDeXpYBOvFSj8ucjPWOdaBRKKr543hc";
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
 
-/* ================= ESTADO ================= */
-
 let selectedClinicId = null;
-let selectedClinicName = null;
-
 let selectedPatientId = null;
 let selectedPatientLabel = null;
-
-/* ================= HELPERS ================= */
-
-function log(msg) { $("log").textContent = msg; }
-
-function isRlsLikely(err) {
-  const msg = String(err?.message || err || "").toLowerCase();
-  return (
-    msg.includes("row level security") ||
-    msg.includes("rls") ||
-    msg.includes("permission denied") ||
-    msg.includes("not allowed") ||
-    msg.includes("new row violates row-level security") ||
-    msg.includes("violates row-level security")
-  );
-}
-
-function formatErrorForUser(err) {
-  if (!err) return "";
-  const msg = String(err?.message || err || "");
-  if (isRlsLikely(err)) {
-    return "Sem permissões (RLS). Confirma se o utilizador pertence a esta clínica e tem o role correto.\n\nDetalhe técnico: " + msg;
-  }
-  return msg;
-}
-
-function showError(err) {
-  $("error").textContent = err ? formatErrorForUser(err) : "";
-}
-
-function setFeedMsg(text, kind) {
-  const box = $("feedMsg");
-  if (!box) return;
-  box.textContent = text || "";
-  box.className = "small";
-  if (kind === "error") box.classList.add("error");
-  if (kind === "success") box.classList.add("success");
-}
-
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-function fmtDateTime(iso) {
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return iso;
-    return d.toLocaleString("pt-PT");
-  } catch {
-    return iso;
-  }
-}
 
 function escapeHtml(s) {
   return String(s || "")
@@ -222,523 +105,143 @@ function escapeHtml(s) {
     .replaceAll(">", "&gt;");
 }
 
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? iso : d.toLocaleDateString("pt-PT");
+}
+
 /* ================= AUTH ================= */
 
-async function waitForSession() {
-  // sem redirect automático: ou dá sessão, ou mostra botão "Ir para login"
-  for (let i = 0; i < 8; i++) {
-    const { data, error } = await sb.auth.getSession();
-    if (error) return { session: null, error };
-    if (data?.session) return { session: data.session, error: null };
-    await sleep(250);
+async function initSession() {
+  const { data } = await sb.auth.getSession();
+  if (!data?.session) {
+    $("sessionMsg").textContent = "Sessão não encontrada.";
+    $("btnGoLogin").style.display = "inline-block";
+    $("btnGoLogin").onclick = () => location.href = "/index.html";
+    return;
   }
-  return { session: null, error: null };
-}
 
-function showLoginCTA(message) {
-  $("sessionMsg").textContent = message || "Sessão não encontrada.";
-  $("btnGoLogin").style.display = "inline-block";
-  $("btnGoLogin").onclick = () => window.location.href = "/index.html";
-}
-
-function showAppUI(email) {
   $("sessionBox").style.display = "none";
   $("appUI").style.display = "block";
   $("btnLogout").style.display = "inline-block";
-  $("userInfo").textContent = email || "—";
-}
+  $("userInfo").textContent = data.session.user.email;
 
-/* ================= UI ================= */
+  $("btnLogout").onclick = async () => {
+    await sb.auth.signOut();
+    location.href = "/index.html";
+  };
 
-function renderPatientsHeaderIdle() {
-  $("patientsHeader").textContent = "Seleciona uma clínica.";
-  renderFeedIdle();
-}
-
-function renderPatientsHeaderForClinic(name) {
-  $("patientsHeader").innerHTML = `
-    <div class="toolbar">
-      <div class="muted small">
-        Clínica: <strong>${escapeHtml(name)}</strong>
-      </div>
-      <button id="btnAddPatient">Adicionar doente</button>
-    </div>
-    <div class="muted small" id="patientsMeta2">—</div>
-  `;
-  $("btnAddPatient").onclick = addPatient;
-  renderFeedIdle();
-}
-
-function renderFeedIdle() {
-  selectedPatientId = null;
-  selectedPatientLabel = null;
-  $("feedHeader").textContent = "Seleciona um doente.";
-  $("feedControls").style.display = "none";
-  $("feedList").innerHTML = "";
-  $("feedMeta").textContent = "—";
-  setFeedMsg("");
-}
-
-function renderFeedHeaderForPatient(label) {
-  $("feedHeader").innerHTML = `
-    <div class="toolbar">
-      <div class="muted small">
-        Doente: <strong>${escapeHtml(label)}</strong>
-      </div>
-      <button id="btnReloadFeed">Atualizar</button>
-    </div>
-  `;
-  $("btnReloadFeed").onclick = () => loadFeedForSelectedPatient();
-  $("feedControls").style.display = "block";
+  loadClinics();
 }
 
 /* ================= DATA ================= */
 
 async function loadClinics() {
-  const { data, error } = await sb
-    .from("clinics")
-    .select("id, name")
-    .order("name");
+  const { data, error } = await sb.from("clinics").select("id,name").order("name");
+  if (error) return;
 
-  if (error) throw error;
-
-  $("clinicsMeta").textContent = `${data.length} clínicas`;
   $("clinicsList").innerHTML = "";
-
-  for (const c of data) {
+  data.forEach(c => {
     const li = document.createElement("li");
     li.textContent = c.name;
     li.onclick = () => {
       selectedClinicId = c.id;
-      selectedClinicName = c.name;
-      selectedPatientId = null;
-      selectedPatientLabel = null;
-      renderPatientsHeaderForClinic(c.name);
-      loadPatientsForClinic(c.id);
+      loadPatients(c.id);
     };
     $("clinicsList").appendChild(li);
-  }
+  });
 }
 
-async function loadPatientsForClinic(clinicId) {
+async function loadPatients(clinicId) {
   $("patientsList").innerHTML = "";
-  const meta = $("patientsMeta2");
-  if (meta) meta.textContent = "A carregar…";
+  $("patientsHeader").textContent = "A carregar doentes…";
 
-  // limpa feed ao trocar lista
-  renderFeedIdle();
-
-  const { data: links, error: linkErr } = await sb
+  const { data: links } = await sb
     .from("patient_clinic")
     .select("patient_id")
     .eq("clinic_id", clinicId);
 
-  if (linkErr) throw linkErr;
-
-  if (!links || links.length === 0) {
-    if (meta) meta.textContent = "0 doentes.";
+  if (!links?.length) {
+    $("patientsHeader").textContent = "Sem doentes.";
     return;
   }
 
   const ids = links.map(l => l.patient_id);
 
-  const { data: patients, error } = await sb
+  const { data: patients } = await sb
     .from("patients")
-    .select("id, full_name, date_of_birth, phone, sns, id_document_country, id_document_number")
+    .select("id, full_name")
     .in("id", ids)
     .order("full_name");
 
-  if (error) throw error;
+  $("patientsHeader").textContent = `${patients.length} doentes`;
 
-  if (meta) meta.textContent = `${patients.length} doentes`;
-
-  for (const p of patients) {
+  patients.forEach(p => {
     const li = document.createElement("li");
-    const dob = p.date_of_birth ? ` • Nasc.: ${p.date_of_birth}` : "";
-    const phone = p.phone ? ` • Tel.: ${p.phone}` : "";
-    const sns = p.sns ? ` • SNS: ${p.sns}` : "";
-    const doc = (p.id_document_country && p.id_document_number)
-      ? ` • Doc: ${p.id_document_country}-${p.id_document_number}` : "";
-
-    const label = `${p.full_name ?? "(sem nome)"}${dob}${phone}${sns}${doc}`;
-    li.textContent = label;
-
+    li.textContent = p.full_name;
     li.onclick = () => {
       selectedPatientId = p.id;
-      selectedPatientLabel = p.full_name ?? "(sem nome)";
-      renderFeedHeaderForPatient(label);
-      loadFeedForSelectedPatient();
+      selectedPatientLabel = p.full_name;
+      loadFeed();
     };
-
     $("patientsList").appendChild(li);
-  }
+  });
 }
 
-async function loadFeedForSelectedPatient() {
-  try {
-    showError("");
-    setFeedMsg("");
+async function loadFeed() {
+  $("feedHeader").textContent = `Doente: ${selectedPatientLabel}`;
+  $("feedMeta").textContent = "A carregar…";
+  $("feedList").innerHTML = "";
 
-    if (!selectedClinicId || !selectedPatientId) {
-      renderFeedIdle();
-      return;
-    }
+  const { data, error } = await sb
+    .from("patient_feed")
+    .select("item_type, occurred_at, author_role, content, hda, assessment, plan_text")
+    .eq("clinic_id", selectedClinicId)
+    .eq("patient_id", selectedPatientId)
+    .order("occurred_at", { ascending: false });
 
-    const typeFilter = $("feedTypeFilter")?.value || "";
-
-    $("feedMeta").textContent = "A carregar…";
-    $("feedList").innerHTML = "";
-
-    let q = sb
-      .from("observations")
-      .select("id, patient_id, clinic_id, created_at, type, content")
-      .eq("clinic_id", selectedClinicId)
-      .eq("patient_id", selectedPatientId)
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    if (typeFilter) q = q.eq("type", typeFilter);
-
-    const { data, error } = await q;
-    if (error) throw error;
-
-    $("feedMeta").textContent = `${data.length} registos (máx. 50)`;
-
-    if (!data || data.length === 0) {
-      $("feedList").innerHTML = `<div class="muted small">Sem registos.</div>`;
-      return;
-    }
-
-    const html = data.map((o) => {
-      const when = fmtDateTime(o.created_at);
-      const t = o.type || "—";
-      const c = escapeHtml(o.content || "");
-      return `
-        <div class="feedItem">
-          <div class="feedTop">
-            <div class="feedMeta">
-              <span class="tag mono">${escapeHtml(t)}</span>
-              <span class="muted small">${escapeHtml(when)}</span>
-            </div>
-          </div>
-          <div style="margin-top:8px; white-space:pre-wrap;">${c}</div>
-        </div>
-      `;
-    }).join("");
-
-    $("feedList").innerHTML = html;
-
-  } catch (e) {
-    showError(e);
-    $("feedMeta").textContent = "Erro ao carregar.";
-    $("feedList").innerHTML = "";
+  if (error) {
+    $("feedMeta").textContent = "Erro ao carregar feed.";
+    return;
   }
-}
 
-/* ================= CREATE OBSERVATION ================= */
+  $("feedMeta").textContent = `${data.length} eventos`;
 
-async function createObservation() {
-  try {
-    showError("");
-    setFeedMsg("");
-
-    if (!selectedClinicId || !selectedPatientId) {
-      setFeedMsg("Seleciona primeiro clínica e doente.", "error");
-      return;
-    }
-
-    const type = ($("newObsType")?.value || "").trim();
-    const content = ($("newObsContent")?.value || "").trim();
-
-    if (!type) { setFeedMsg("Tipo é obrigatório.", "error"); return; }
-    if (!content) { setFeedMsg("Conteúdo é obrigatório.", "error"); return; }
-
-    const btn = $("btnCreateObs");
-    btn.disabled = true;
-    btn.textContent = "A guardar…";
-
-    const payload = {
-      clinic_id: selectedClinicId,
-      patient_id: selectedPatientId,
-      type,
-      content
-    };
-
-    const { error } = await sb.from("observations").insert(payload);
-    if (error) throw error;
-
-    $("newObsContent").value = "";
-    setFeedMsg("✔ Registo guardado", "success");
-
-    await loadFeedForSelectedPatient();
-
-  } catch (e) {
-    showError(e);
-    setFeedMsg("Erro ao guardar. Vê Logs.", "error");
-  } finally {
-    const btn = $("btnCreateObs");
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = "Guardar nota";
-    }
+  if (!data.length) {
+    $("feedList").innerHTML = `<div class="muted small">Sem registos.</div>`;
+    return;
   }
-}
 
-/* ================= CREATE PATIENT (FORM INLINE) ================= */
+  $("feedList").innerHTML = data.map(o => {
+    const hasContent = o.content || o.hda || o.assessment || o.plan_text;
 
-async function addPatient() {
-  try {
-    showError("");
-
-    if (!selectedClinicId) {
-      alert("Seleciona primeiro uma clínica.");
-      return;
-    }
-
-    // toggle: se já existe, fecha
-    const existing = document.getElementById("addPatientForm");
-    if (existing) { existing.remove(); return; }
-
-    const patientsBox = document.getElementById("patientsHeader")?.closest(".box");
-    if (!patientsBox) {
-      alert("Erro interno: não encontrei o contentor de 'Doentes'.");
-      return;
-    }
-
-    const form = document.createElement("div");
-    form.id = "addPatientForm";
-    form.className = "box";
-    form.style.marginTop = "12px";
-
-    form.innerHTML = `
-      <h3 style="margin:0 0 8px;">Novo doente</h3>
-
-      <div class="muted small" style="margin-bottom:10px;">
-        Clínica: <strong>${escapeHtml(selectedClinicName ?? "—")}</strong>
-      </div>
-
-      <div style="display:grid; gap:10px;">
-        <label class="small">
-          Nome completo <span class="pill" style="border-color:#b00020; color:#b00020;">obrigatório</span><br>
-          <input id="f_name" type="text" autocomplete="name">
-        </label>
-
-        <label class="small">
-          Telemóvel <span class="pill" style="border-color:#b00020; color:#b00020;">obrigatório</span><br>
-          <input id="f_phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Ex.: 9XXXXXXXX">
-        </label>
-
-        <label class="small">
-          Data de nascimento (AAAA-MM-DD) <span class="muted">(opcional)</span><br>
-          <input id="f_dob" type="text" inputmode="numeric" placeholder="Ex.: 1980-05-27">
-        </label>
-
-        <div class="toolbar" style="justify-content:flex-start; gap:10px;">
-          <button id="f_toggle_foreign" type="button">Estrangeiro (sem SNS)</button>
-        </div>
-
-        <div id="sns_block" style="display:grid; gap:10px;">
-          <label class="small">
-            SNS <span class="pill" style="border-color:#b00020; color:#b00020;">obrigatório</span><br>
-            <input id="f_sns" type="text" inputmode="numeric" placeholder="9 dígitos">
-          </label>
-        </div>
-
-        <div id="foreign_block" style="display:none; gap:10px;">
-          <div class="row2">
-            <label class="small">
-              País do documento <span class="pill" style="border-color:#b00020; color:#b00020;">obrigatório</span><br>
-              <input id="f_doc_country" type="text" placeholder="Ex.: ES, BR, FR">
-            </label>
-
-            <label class="small">
-              Nº documento <span class="pill" style="border-color:#b00020; color:#b00020;">obrigatório</span><br>
-              <input id="f_doc_number" type="text" placeholder="Passaporte/ID">
-            </label>
+    return `
+      <div class="feedItem">
+        <div class="feedTop">
+          <div class="feedMeta">
+            <span class="tag mono">${escapeHtml(o.item_type)}</span>
+            <span class="tag mono">${escapeHtml(o.author_role)}</span>
+            <span class="muted small">${fmtDate(o.occurred_at)}</span>
           </div>
         </div>
-
-        <div class="toolbar" style="justify-content:flex-end; gap:10px;">
-          <button id="f_cancel" type="button">Cancelar</button>
-          <button id="f_save" type="button">Guardar</button>
+        <div style="margin-top:8px;">
+          ${
+            hasContent
+              ? `
+                ${o.hda ? `<div><strong>HDA</strong><br>${escapeHtml(o.hda)}</div>` : ""}
+                ${o.assessment ? `<div style="margin-top:6px;"><strong>Avaliação</strong><br>${escapeHtml(o.assessment)}</div>` : ""}
+                ${o.plan_text ? `<div style="margin-top:6px;"><strong>Plano</strong><br>${escapeHtml(o.plan_text)}</div>` : ""}
+                ${o.content ? `<div style="margin-top:6px;">${escapeHtml(o.content)}</div>` : ""}
+              `
+              : `<div class="muted small">Conteúdo restrito (${fmtDate(o.occurred_at)})</div>`
+          }
         </div>
-
-        <div id="f_msg" class="small" style="margin-top:6px;"></div>
       </div>
     `;
-
-    patientsBox.appendChild(form);
-
-    const msg = $("f_msg");
-
-    function setMsg(text, kind) {
-      msg.textContent = text || "";
-      msg.className = "small";
-      if (kind === "error") msg.classList.add("error");
-      if (kind === "success") msg.classList.add("success");
-    }
-
-    function isValidISODate(yyyyMmDd) {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(yyyyMmDd)) return false;
-      const d = new Date(yyyyMmDd + "T00:00:00Z");
-      if (Number.isNaN(d.getTime())) return false;
-      const y = String(d.getUTCFullYear()).padStart(4, "0");
-      const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-      const day = String(d.getUTCDate()).padStart(2, "0");
-      return `${y}-${m}-${day}` === yyyyMmDd;
-    }
-
-    let isForeign = false;
-
-    function applyMode() {
-      const snsBlock = document.getElementById("sns_block");
-      const foreignBlock = document.getElementById("foreign_block");
-      const toggleBtn = document.getElementById("f_toggle_foreign");
-
-      if (isForeign) {
-        snsBlock.style.display = "none";
-        foreignBlock.style.display = "grid";
-        toggleBtn.textContent = "Português (com SNS)";
-      } else {
-        snsBlock.style.display = "grid";
-        foreignBlock.style.display = "none";
-        toggleBtn.textContent = "Estrangeiro (sem SNS)";
-      }
-    }
-
-    $("f_toggle_foreign").onclick = () => {
-      setMsg("");
-      isForeign = !isForeign;
-      applyMode();
-    };
-
-    $("f_cancel").onclick = () => form.remove();
-
-    $("f_save").onclick = async () => {
-      try {
-        setMsg("");
-
-        const fullName = ($("f_name").value || "").trim();
-        const phone = ($("f_phone").value || "").trim();
-        const dobRaw = ($("f_dob").value || "").trim();
-
-        const snsRaw = ($("f_sns")?.value || "").trim();
-        const docCountryRaw = ($("f_doc_country")?.value || "").trim();
-        const docNumberRaw = ($("f_doc_number")?.value || "").trim();
-
-        if (!fullName) { setMsg("Nome completo é obrigatório.", "error"); return; }
-        if (!phone) { setMsg("Telemóvel é obrigatório.", "error"); return; }
-
-        let dob = null;
-        if (dobRaw) {
-          if (!isValidISODate(dobRaw)) {
-            setMsg("Data de nascimento inválida. Usa o formato AAAA-MM-DD.", "error");
-            return;
-          }
-          dob = dobRaw;
-        }
-
-        let sns = null;
-        let id_document_country = null;
-        let id_document_number = null;
-
-        if (!isForeign) {
-          sns = snsRaw;
-          if (!sns) { setMsg("SNS é obrigatório (ou usa o modo Estrangeiro).", "error"); return; }
-        } else {
-          id_document_country = docCountryRaw.toUpperCase();
-          id_document_number = docNumberRaw;
-          if (!id_document_country || !id_document_number) {
-            setMsg("Para estrangeiro: País e Nº documento são obrigatórios.", "error");
-            return;
-          }
-        }
-
-        const btn = $("f_save");
-        btn.disabled = true;
-        btn.textContent = "A guardar…";
-
-        const payload = {
-          p_full_name: fullName,
-          p_clinic_id: selectedClinicId,
-          p_date_of_birth: dob,
-          p_phone: phone,
-          p_sns: sns,
-          p_id_document_country: id_document_country,
-          p_id_document_number: id_document_number
-        };
-
-        const { error: rpcErr } = await sb.rpc("create_patient_for_clinic_v2", payload);
-        if (rpcErr) throw rpcErr;
-
-        await loadPatientsForClinic(selectedClinicId);
-
-        setMsg("✔ Doente criado com sucesso", "success");
-
-        $("f_name").value = "";
-        $("f_phone").value = "";
-        $("f_dob").value = "";
-        if ($("f_sns")) $("f_sns").value = "";
-        if ($("f_doc_country")) $("f_doc_country").value = "";
-        if ($("f_doc_number")) $("f_doc_number").value = "";
-
-      } catch (e) {
-        showError(e);
-        setMsg("Erro ao criar doente. Vê Logs.", "error");
-      } finally {
-        const btn = document.getElementById("f_save");
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = "Guardar";
-        }
-      }
-    };
-
-    applyMode();
-    const first = document.getElementById("f_name");
-    if (first) first.focus();
-
-  } catch (e) {
-    showError(e);
-    alert("Erro na UI ao abrir formulário. Ver logs.");
-  }
+  }).join("");
 }
 
-/* ================= INIT ================= */
-
-async function init() {
-  // 1) sessão
-  const { session, error } = await waitForSession();
-  if (error) {
-    showError(error);
-    showLoginCTA("Erro ao verificar sessão. Ir para login.");
-    return;
-  }
-  if (!session) {
-    showLoginCTA("Sessão não encontrada.");
-    return;
-  }
-
-  // 2) mostrar UI
-  showAppUI(session.user?.email);
-
-  // 3) logout
-  $("btnLogout").onclick = async () => {
-    await sb.auth.signOut();
-    window.location.href = "/index.html";
-  };
-
-  // 4) eventos do feed
-  $("feedTypeFilter").onchange = () => loadFeedForSelectedPatient();
-  $("btnCreateObs").onclick = () => createObservation();
-
-  // 5) carregar dados
-  renderPatientsHeaderIdle();
-  await loadClinics();
-  log("Clínicas carregadas.");
-}
-
-init();
+initSession();
 </script>
 
 </body>
