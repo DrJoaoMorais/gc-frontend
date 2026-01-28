@@ -52,9 +52,7 @@
       font-weight: 600;
       cursor: pointer;
     }
-    button.secondary {
-      background: #23315f;
-    }
+    button.secondary { background: #23315f; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -70,6 +68,14 @@
       opacity: 0.75;
       font-size: 13px;
     }
+    .pill {
+      display:inline-block;
+      padding: 2px 8px;
+      border: 1px solid #22305f;
+      border-radius: 999px;
+      font-size: 12px;
+      color:#cfe0ff;
+    }
   </style>
 </head>
 
@@ -78,8 +84,8 @@
 
     <div class="card">
       <h1>Gestão Clínica — gc.joaomorais.pt</h1>
-      <div class="muted">UI mínima (sem builds). Login Supabase + teste de RLS.</div>
-      <div class="muted">Build: 22-01-2026 FINAL</div>
+      <div class="muted">Login Supabase (apenas) → redireciona para /app.html</div>
+      <div class="muted">Build index: <span class="pill">28-01-2026 v1</span></div>
     </div>
 
     <div id="authCard" class="card">
@@ -96,23 +102,23 @@
       <div id="authMsg" style="margin-top:10px"></div>
     </div>
 
-    <div id="appCard" class="card" style="display:none">
-      <h1>Clínicas visíveis (teste RLS)</h1>
-      <div id="clinicsMsg" class="muted"></div>
-      <div id="clinicsTable"></div>
-
-      <button id="btnLogout" class="secondary">Logout</button>
-    </div>
-
     <div class="card">
       <h1>Config (local)</h1>
       <div class="muted">SUPABASE_URL: <span id="cfgUrl"></span></div>
       <div class="muted">SUPABASE_KEY (prefixo): <span id="cfgKey"></span></div>
+      <div class="muted">Página: <span id="where"></span></div>
     </div>
 
   </div>
 
+  <script>
+    // só para diagnóstico visual (não mexe em nada)
+    document.getElementById("where").textContent = window.location.href;
+  </script>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="/app.js"></script>
+
+  <!-- CACHE-BUST: força carregar app.js novo -->
+  <script src="/app.js?v=20260128-1"></script>
 </body>
 </html>
