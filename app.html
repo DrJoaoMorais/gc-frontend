@@ -100,7 +100,10 @@
         <h2>Feed clínico</h2>
         <div id="feedHeader" class="muted small">Seleciona um doente.</div>
 
-        <!-- Iniciar consulta (só aparece com doente selecionado) -->
+        <!-- Banner contexto + role -->
+        <div id="contextInfo" class="muted small" style="margin-top:8px;">—</div>
+
+        <!-- Iniciar consulta (SÓ DOCTOR) -->
         <div id="startConsultBox" style="display:none; margin-top:10px;">
           <div class="box" style="border-radius: 12px;">
             <div class="toolbar">
@@ -135,6 +138,56 @@
           </div>
         </div>
 
+        <!-- Nota administrativa (SÓ SECRETARY) -->
+        <div id="adminNoteBox" style="display:none; margin-top:10px;">
+          <div class="box" style="border-radius: 12px;">
+            <div class="toolbar">
+              <div>
+                <h3 style="margin:0;">Nota administrativa</h3>
+                <div class="muted small">Apenas para secretária (note_type=admin).</div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <button id="btnResetAdminNote" type="button">Limpar</button>
+                <button id="btnSaveAdminNote" type="button">Guardar</button>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div style="margin-top:10px;">
+              <label class="small">Conteúdo</label>
+              <textarea id="adminNoteContent" placeholder="Escreve a nota administrativa…"></textarea>
+            </div>
+
+            <div id="adminNoteMsg" class="small" style="margin-top:8px;"></div>
+          </div>
+        </div>
+
+        <!-- Registo de fisioterapia (SÓ PHYSIO) -->
+        <div id="physioRecordBox" style="display:none; margin-top:10px;">
+          <div class="box" style="border-radius: 12px;">
+            <div class="toolbar">
+              <div>
+                <h3 style="margin:0;">Registo de fisioterapia</h3>
+                <div class="muted small">Apenas para fisioterapeuta.</div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <button id="btnResetPhysioRecord" type="button">Limpar</button>
+                <button id="btnSavePhysioRecord" type="button">Guardar</button>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div style="margin-top:10px;">
+              <label class="small">Conteúdo</label>
+              <textarea id="physioRecordContent" placeholder="Escreve o registo de fisioterapia…"></textarea>
+            </div>
+
+            <div id="physioRecordMsg" class="small" style="margin-top:8px;"></div>
+          </div>
+        </div>
+
         <div id="feedMeta" class="muted small" style="margin-top:10px;">—</div>
         <div id="feedList" style="margin-top:10px;"></div>
       </div>
@@ -156,13 +209,17 @@ let selectedClinicName = null;
 let selectedPatientId = null;
 let selectedPatientLabel = null;
 let currentUserId = null;
+let currentUserEmail = null;
+
+// role na clínica selecionada: doctor | secretary | physio | null
+let currentClinicRole = null;
 
 /* ================= HELPERS ================= */
 function setStatus(msg) { $("status").textContent = msg || "—"; }
 function showError(err) { $("error").textContent = err ? String(err?.message || err) : ""; }
 
-function setConsultMsg(text, kind) {
-  const el = $("consultMsg");
+function setMsg(elId, text, kind) {
+  const el = $(elId);
   el.textContent = text || "";
   el.className = "small";
   if (kind === "error") el.classList.add("error");
@@ -186,34 +243,14 @@ function todayISO() {
   return `${y}-${m}-${day}`;
 }
 
-function resetUIOnClinicChange() {
-  // estado
-  selectedPatientId = null;
-  selectedPatientLabel = null;
-
-  // UI
-  $("patientsList").innerHTML = "";
-  $("patientsHeader").textContent = selectedClinicName
-    ? `Clínica: ${selectedClinicName}`
-    : "Seleciona uma clínica.";
-
-  $("feedHeader").textContent = "Seleciona um doente.";
-  $("feedMeta").textContent = "—";
-  $("feedList").innerHTML = "";
-
-  $("startConsultBox").style.display = "none";
-  setConsultMsg("");
-  clearConsultFields();
-
-  // desativar guardar até haver doente
-  updateSaveButtonState();
-}
-
 function clearConsultFields() {
   $("consultHDA").value = "";
   $("consultAssessment").value = "";
   $("consultPlan").value = "";
 }
+
+function clearAdminNote() { $("adminNoteContent").value = ""; }
+function clearPhysioRecord() { $("physioRecordContent").value = ""; }
 
 function updateContextBanner() {
   const clinic = selectedClinicName || "—";
@@ -221,10 +258,49 @@ function updateContextBanner() {
   $("contextBanner").innerHTML = `Clínica: <strong>${escapeHtml(clinic)}</strong> &nbsp;|&nbsp; Doente: <strong>${escapeHtml(patient)}</strong>`;
 }
 
-function updateSaveButtonState() {
-  const btn = $("btnSaveConsult");
-  const ok = !!(selectedClinicId && selectedPatientId && currentUserId);
-  btn.disabled = !ok;
+function updateContextInfo() {
+  const clinic = selectedClinicName || "—";
+  const patient = selectedPatientLabel || "—";
+  const role = currentClinicRole || "—";
+  $("contextInfo").innerHTML = `Clínica: <strong>${escapeHtml(clinic)}</strong> &nbsp;|&nbsp; Doente: <strong>${escapeHtml(patient)}</strong> &nbsp;|&nbsp; Role: <strong>${escapeHtml(role)}</strong>`;
+}
+
+function hideAllActionBoxes() {
+  $("startConsultBox").style.display = "none";
+  $("adminNoteBox").style.display = "none";
+  $("physioRecordBox").style.display = "none";
+}
+
+function showRoleBoxIfAny() {
+  hideAllActionBoxes();
+  if (!selectedClinicId || !selectedPatientId) return;
+
+  if (currentClinicRole === "doctor") $("startConsultBox").style.display = "block";
+  if (currentClinicRole === "secretary") $("adminNoteBox").style.display = "block";
+  if (currentClinicRole === "physio") $("physioRecordBox").style.display = "block";
+}
+
+function resetUIOnClinicChange() {
+  selectedPatientId = null;
+  selectedPatientLabel = null;
+  currentClinicRole = null;
+
+  $("patientsList").innerHTML = "";
+  $("patientsHeader").textContent = selectedClinicName ? `Clínica: ${selectedClinicName}` : "Seleciona uma clínica.";
+
+  $("feedHeader").textContent = "Seleciona um doente.";
+  $("feedMeta").textContent = "—";
+  $("feedList").innerHTML = "";
+
+  $("contextInfo").textContent = "—";
+
+  hideAllActionBoxes();
+  setMsg("consultMsg", "");
+  setMsg("adminNoteMsg", "");
+  setMsg("physioRecordMsg", "");
+  clearConsultFields();
+  clearAdminNote();
+  clearPhysioRecord();
 }
 
 /* ================= AUTH ================= */
@@ -245,11 +321,12 @@ async function initSession() {
   }
 
   currentUserId = data.session.user.id;
+  currentUserEmail = data.session.user.email;
 
   $("sessionBox").style.display = "none";
   $("appUI").style.display = "block";
   $("btnLogout").style.display = "inline-block";
-  $("userInfo").textContent = data.session.user.email;
+  $("userInfo").textContent = currentUserEmail;
 
   $("btnLogout").onclick = async () => {
     await sb.auth.signOut();
@@ -257,6 +334,20 @@ async function initSession() {
   };
 
   return true;
+}
+
+/* ================= ROLE POR CLÍNICA ================= */
+async function loadMyRoleForClinic(clinicId) {
+  // clinic_members_read_by_member permite SELECT aos membros
+  const { data, error } = await sb
+    .from("clinic_members")
+    .select("role")
+    .eq("clinic_id", clinicId)
+    .eq("user_id", currentUserId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.role || null;
 }
 
 /* ================= DATA ================= */
@@ -272,15 +363,24 @@ async function loadClinics() {
     const li = document.createElement("li");
     li.textContent = c.name;
 
-    li.onclick = () => {
-      selectedClinicId = c.id;
-      selectedClinicName = c.name;
+    li.onclick = async () => {
+      try {
+        showError("");
+        selectedClinicId = c.id;
+        selectedClinicName = c.name;
 
-      // ✅ RESET TOTAL quando muda clínica
-      resetUIOnClinicChange();
+        resetUIOnClinicChange();
 
-      // carrega doentes da clínica escolhida
-      loadPatientsForClinic(c.id);
+        // role nesta clínica
+        currentClinicRole = await loadMyRoleForClinic(c.id);
+        updateContextInfo();
+
+        // carrega doentes
+        loadPatientsForClinic(c.id);
+      } catch (e) {
+        showError(e);
+        setStatus("Erro ao determinar role na clínica.");
+      }
     };
 
     $("clinicsList").appendChild(li);
@@ -329,11 +429,15 @@ async function loadPatientsForClinic(clinicId) {
       `;
       $("btnReloadFeed").onclick = () => loadFeed();
 
-      // mostrar formulário
-      $("startConsultBox").style.display = "block";
       updateContextBanner();
-      updateSaveButtonState();
-      setConsultMsg("");
+      updateContextInfo();
+
+      // Mostrar apenas o bloco correto (por role)
+      showRoleBoxIfAny();
+
+      setMsg("consultMsg", "");
+      setMsg("adminNoteMsg", "");
+      setMsg("physioRecordMsg", "");
 
       // carregar feed
       loadFeed();
@@ -398,14 +502,18 @@ async function loadFeed() {
   }).join("");
 }
 
-/* ================= CONSULTATION (CREATE) ================= */
+/* ================= CONSULTATION (CREATE) — DOCTOR ================= */
 async function saveConsultation() {
   try {
     showError("");
-    setConsultMsg("");
+    setMsg("consultMsg", "");
 
+    if (currentClinicRole !== "doctor") {
+      setMsg("consultMsg", "Sem permissões para criar consulta.", "error");
+      return;
+    }
     if (!selectedClinicId || !selectedPatientId || !currentUserId) {
-      setConsultMsg("Seleciona clínica e doente antes de guardar.", "error");
+      setMsg("consultMsg", "Seleciona clínica e doente antes de guardar.", "error");
       return;
     }
 
@@ -417,7 +525,6 @@ async function saveConsultation() {
     btn.disabled = true;
     btn.textContent = "A guardar…";
 
-    // ✅ Inserir apenas em consultations
     const payload = {
       patient_id: selectedPatientId,
       clinic_id: selectedClinicId,
@@ -432,26 +539,139 @@ async function saveConsultation() {
     const { error } = await sb.from("consultations").insert(payload);
     if (error) throw error;
 
-    setConsultMsg("✔ Consulta criada com sucesso", "success");
+    setMsg("consultMsg", "✔ Consulta criada com sucesso", "success");
     clearConsultFields();
     await loadFeed();
 
   } catch (e) {
     showError(e);
-    setConsultMsg("Erro ao guardar. Vê 'Estado'.", "error");
+    setMsg("consultMsg", "Erro ao guardar. Vê 'Estado'.", "error");
   } finally {
     const btn = $("btnSaveConsult");
     if (btn) {
       btn.disabled = false;
       btn.textContent = "Guardar";
-      updateSaveButtonState();
     }
   }
 }
 
 function resetConsultForm() {
   clearConsultFields();
-  setConsultMsg("Limpo.", "success");
+  setMsg("consultMsg", "Limpo.", "success");
+}
+
+/* ================= NOTES — SECRETARY (admin) ================= */
+async function saveAdminNote() {
+  try {
+    showError("");
+    setMsg("adminNoteMsg", "");
+
+    if (currentClinicRole !== "secretary") {
+      setMsg("adminNoteMsg", "Sem permissões para nota administrativa.", "error");
+      return;
+    }
+    if (!selectedClinicId || !selectedPatientId || !currentUserId) {
+      setMsg("adminNoteMsg", "Seleciona clínica e doente antes de guardar.", "error");
+      return;
+    }
+
+    const content = ($("adminNoteContent").value || "").trim();
+    if (!content) {
+      setMsg("adminNoteMsg", "Escreve conteúdo antes de guardar.", "error");
+      return;
+    }
+
+    const btn = $("btnSaveAdminNote");
+    btn.disabled = true;
+    btn.textContent = "A guardar…";
+
+    const payload = {
+      patient_id: selectedPatientId,
+      clinic_id: selectedClinicId,
+      author_user_id: currentUserId,
+      author_role: "secretary",
+      note_type: "admin",
+      content
+    };
+
+    const { error } = await sb.from("notes").insert(payload);
+    if (error) throw error;
+
+    setMsg("adminNoteMsg", "✔ Nota administrativa criada", "success");
+    clearAdminNote();
+    await loadFeed();
+
+  } catch (e) {
+    showError(e);
+    setMsg("adminNoteMsg", "Erro ao guardar. Vê 'Estado'.", "error");
+  } finally {
+    const btn = $("btnSaveAdminNote");
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Guardar";
+    }
+  }
+}
+
+function resetAdminNoteForm() {
+  clearAdminNote();
+  setMsg("adminNoteMsg", "Limpo.", "success");
+}
+
+/* ================= PHYSIO RECORD — PHYSIO ================= */
+async function savePhysioRecord() {
+  try {
+    showError("");
+    setMsg("physioRecordMsg", "");
+
+    if (currentClinicRole !== "physio") {
+      setMsg("physioRecordMsg", "Sem permissões para registo de fisioterapia.", "error");
+      return;
+    }
+    if (!selectedClinicId || !selectedPatientId || !currentUserId) {
+      setMsg("physioRecordMsg", "Seleciona clínica e doente antes de guardar.", "error");
+      return;
+    }
+
+    const content = ($("physioRecordContent").value || "").trim();
+    if (!content) {
+      setMsg("physioRecordMsg", "Escreve conteúdo antes de guardar.", "error");
+      return;
+    }
+
+    const btn = $("btnSavePhysioRecord");
+    btn.disabled = true;
+    btn.textContent = "A guardar…";
+
+    const payload = {
+      patient_id: selectedPatientId,
+      clinic_id: selectedClinicId,
+      author_user_id: currentUserId,
+      content
+    };
+
+    const { error } = await sb.from("physio_records").insert(payload);
+    if (error) throw error;
+
+    setMsg("physioRecordMsg", "✔ Registo de fisioterapia criado", "success");
+    clearPhysioRecord();
+    await loadFeed();
+
+  } catch (e) {
+    showError(e);
+    setMsg("physioRecordMsg", "Erro ao guardar. Vê 'Estado'.", "error");
+  } finally {
+    const btn = $("btnSavePhysioRecord");
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Guardar";
+    }
+  }
+}
+
+function resetPhysioRecordForm() {
+  clearPhysioRecord();
+  setMsg("physioRecordMsg", "Limpo.", "success");
 }
 
 /* ================= INIT ================= */
@@ -462,7 +682,12 @@ async function init() {
   $("btnSaveConsult").onclick = () => saveConsultation();
   $("btnResetConsult").onclick = () => resetConsultForm();
 
-  updateSaveButtonState();
+  $("btnSaveAdminNote").onclick = () => saveAdminNote();
+  $("btnResetAdminNote").onclick = () => resetAdminNoteForm();
+
+  $("btnSavePhysioRecord").onclick = () => savePhysioRecord();
+  $("btnResetPhysioRecord").onclick = () => resetPhysioRecordForm();
+
   setStatus("A carregar clínicas…");
   await loadClinics();
 }
