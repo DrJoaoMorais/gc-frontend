@@ -150,13 +150,15 @@
           </div>
         </div>
 
-        <!-- EDITAR DADOS DO DOENTE (SÓ SECRETARY) -->
+        <!-- EDITAR DADOS DO DOENTE (DOCTOR + SECRETARY) -->
         <div id="editPatientBox" style="display:none; margin-top:12px;">
           <div class="box" style="border-radius: 12px;">
             <div class="toolbar">
               <div>
                 <h3 style="margin:0;">Editar dados do doente</h3>
-                <div class="muted small">Disponível para secretária (via RPC). Alterações ficam na tabela <code>patients</code>.</div>
+                <div class="muted small">
+                  Disponível para médico e secretária (via RPC). Alterações ficam na tabela <code>patients</code>.
+                </div>
               </div>
               <div style="display:flex; gap:10px; align-items:center;">
                 <button id="btnReloadPatientData" type="button">Recarregar</button>
@@ -167,10 +169,9 @@
             <div class="divider"></div>
 
             <div class="hint small">
-              <strong>Regras:</strong>
+              <strong>Regra mínima:</strong>
               <ol style="margin:6px 0 0 16px; padding:0;">
                 <li>O doente tem de ter pelo menos 1 identificador: SNS, email, telefone ou (estrangeiro + país + passaporte).</li>
-                <li>SNS (quando preenchido) é único. Passaporte (país+numero) também é único.</li>
               </ol>
             </div>
 
@@ -519,7 +520,8 @@ function updateManageClinicsVisibility() {
 }
 
 function updateEditPatientVisibility() {
-  const show = (currentClinicRole === "secretary" && !!selectedClinicId && !!selectedPatientId);
+  // ✅ Agora visível para doctor + secretary (ambos via RPC)
+  const show = ((currentClinicRole === "secretary" || currentClinicRole === "doctor") && !!selectedClinicId && !!selectedPatientId);
   $("editPatientBox").style.display = show ? "block" : "none";
   if (!show) {
     setMsg("editPatientMsg", "");
@@ -674,7 +676,8 @@ function renderPatientsList() {
       if (currentClinicRole === "doctor") {
         await loadPatientClinicLinks();
       }
-      if (currentClinicRole === "secretary") {
+      // ✅ carregar dados do doente para o editor (doctor + secretary)
+      if (currentClinicRole === "secretary" || currentClinicRole === "doctor") {
         await loadSelectedPatientData();
       }
 
@@ -761,7 +764,7 @@ async function loadPatientsForClinic(clinicId) {
   renderPatientsList();
 }
 
-/* ================= EDIT PATIENT (SECRETARY via RPC) ================= */
+/* ================= EDIT PATIENT (DOCTOR + SECRETARY via RPC) ================= */
 function normalizeBlank(v) {
   const s = String(v ?? "").trim();
   return s ? s : null;
@@ -788,7 +791,7 @@ async function loadSelectedPatientData() {
     showError("");
     setMsg("editPatientMsg", "");
 
-    if (currentClinicRole !== "secretary" || !selectedPatientId) return;
+    if ((currentClinicRole !== "secretary" && currentClinicRole !== "doctor") || !selectedPatientId) return;
 
     const btn = $("btnReloadPatientData");
     btn.disabled = true;
@@ -828,7 +831,7 @@ async function savePatientEdits() {
     showError("");
     setMsg("editPatientMsg", "");
 
-    if (currentClinicRole !== "secretary") {
+    if (currentClinicRole !== "secretary" && currentClinicRole !== "doctor") {
       setMsg("editPatientMsg", "Sem permissões para editar dados do doente.", "error");
       return;
     }
