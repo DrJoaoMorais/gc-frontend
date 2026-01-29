@@ -52,6 +52,7 @@
     .inline > * { flex: 1; }
 
     .hint { background:#fafafa; border:1px solid #eee; border-radius: 10px; padding: 10px; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -146,6 +147,80 @@
             </div>
 
             <div id="patientMsg" class="small" style="margin-top:8px;"></div>
+          </div>
+        </div>
+
+        <!-- EDITAR DADOS DO DOENTE (SÓ SECRETARY) -->
+        <div id="editPatientBox" style="display:none; margin-top:12px;">
+          <div class="box" style="border-radius: 12px;">
+            <div class="toolbar">
+              <div>
+                <h3 style="margin:0;">Editar dados do doente</h3>
+                <div class="muted small">Disponível para secretária (via RPC). Alterações ficam na tabela <code>patients</code>.</div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <button id="btnReloadPatientData" type="button">Recarregar</button>
+                <button id="btnSavePatientEdits" type="button">Guardar alterações</button>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="hint small">
+              <strong>Regras:</strong>
+              <ol style="margin:6px 0 0 16px; padding:0;">
+                <li>O doente tem de ter pelo menos 1 identificador: SNS, email, telefone ou (estrangeiro + país + passaporte).</li>
+                <li>SNS (quando preenchido) é único. Passaporte (país+numero) também é único.</li>
+              </ol>
+            </div>
+
+            <div style="margin-top:10px;">
+              <label class="small">Nome completo</label>
+              <input id="editFullName" placeholder="Nome completo" />
+            </div>
+
+            <div style="margin-top:10px;" class="inline">
+              <div>
+                <label class="small">Data de nascimento</label>
+                <input id="editDOB" type="date" />
+              </div>
+              <div>
+                <label class="small">Estrangeiro</label>
+                <select id="editIsForeign">
+                  <option value="false">Não</option>
+                  <option value="true">Sim</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="margin-top:10px;" class="inline">
+              <div>
+                <label class="small">SNS</label>
+                <input id="editSNS" placeholder="SNS (se aplicável)" />
+              </div>
+              <div>
+                <label class="small">Telefone</label>
+                <input id="editPhone" placeholder="Telefone" />
+              </div>
+            </div>
+
+            <div style="margin-top:10px;">
+              <label class="small">Email</label>
+              <input id="editEmail" placeholder="Email" />
+            </div>
+
+            <div style="margin-top:10px;" class="inline">
+              <div>
+                <label class="small">País do passaporte (ex.: PT, ES, US)</label>
+                <input id="editPassportCountry" placeholder="PT / ES / US ..." />
+              </div>
+              <div>
+                <label class="small">N.º passaporte</label>
+                <input id="editPassportNumber" placeholder="Número de passaporte" />
+              </div>
+            </div>
+
+            <div id="editPatientMsg" class="small" style="margin-top:8px;"></div>
           </div>
         </div>
 
@@ -375,8 +450,17 @@ function clearPatientForm() {
   $("patientEmail").value = "";
   $("patientPhone").value = "";
 }
-function clearManageClinicsForm() {
-  $("patientClinicNotes").value = "";
+function clearManageClinicsForm() { $("patientClinicNotes").value = ""; }
+
+function clearEditPatientForm() {
+  $("editFullName").value = "";
+  $("editDOB").value = "";
+  $("editSNS").value = "";
+  $("editEmail").value = "";
+  $("editPhone").value = "";
+  $("editIsForeign").value = "false";
+  $("editPassportCountry").value = "";
+  $("editPassportNumber").value = "";
 }
 
 function clinicNameById(id) {
@@ -422,7 +506,6 @@ function updateManageClinicsVisibility() {
   $("manageClinicsBox").style.display = show ? "block" : "none";
   if (!show) return;
 
-  // preencher dropdown com clínicas (exceto vazias)
   const sel = $("targetClinicSelect");
   sel.innerHTML = "";
   for (const c of clinicsCache) {
@@ -432,8 +515,16 @@ function updateManageClinicsVisibility() {
     if (c.id === selectedClinicId) opt.textContent = `${c.name} (clínica atual)`;
     sel.appendChild(opt);
   }
-  // default: clínica atual (evita move acidental)
   sel.value = selectedClinicId;
+}
+
+function updateEditPatientVisibility() {
+  const show = (currentClinicRole === "secretary" && !!selectedClinicId && !!selectedPatientId);
+  $("editPatientBox").style.display = show ? "block" : "none";
+  if (!show) {
+    setMsg("editPatientMsg", "");
+    clearEditPatientForm();
+  }
 }
 
 function resetUIOnClinicChange() {
@@ -467,6 +558,10 @@ function resetUIOnClinicChange() {
   $("createPatientBox").style.display = "none";
   setMsg("patientMsg", "");
   clearPatientForm();
+
+  $("editPatientBox").style.display = "none";
+  setMsg("editPatientMsg", "");
+  clearEditPatientForm();
 
   hideAllActionBoxes();
 
@@ -574,8 +669,13 @@ function renderPatientsList() {
       setMsg("physioRecordMsg", "");
 
       updateManageClinicsVisibility();
+      updateEditPatientVisibility();
+
       if (currentClinicRole === "doctor") {
-        await loadPatientClinicLinks(); // carregar ligações e renderizar
+        await loadPatientClinicLinks();
+      }
+      if (currentClinicRole === "secretary") {
+        await loadSelectedPatientData();
       }
 
       loadFeed();
@@ -613,6 +713,7 @@ async function loadClinics() {
         updateContextInfo();
         updateCreatePatientVisibility();
         updateManageClinicsVisibility();
+        updateEditPatientVisibility();
 
         await loadPatientsForClinic(c.id);
       } catch (e) {
@@ -660,6 +761,139 @@ async function loadPatientsForClinic(clinicId) {
   renderPatientsList();
 }
 
+/* ================= EDIT PATIENT (SECRETARY via RPC) ================= */
+function normalizeBlank(v) {
+  const s = String(v ?? "").trim();
+  return s ? s : null;
+}
+
+function parseFriendlyPatientError(e) {
+  const msg = String(e?.message || e || "");
+  const code = String(e?.code || "");
+  // Postgres unique violation
+  if (code === "23505") {
+    if (msg.includes("patients_sns_unique_not_blank")) return "Já existe um doente com este SNS.";
+    if (msg.includes("patients_passport_unique_not_blank")) return "Já existe um doente com este passaporte (país + número).";
+    return "Já existe um registo duplicado (violação de unicidade).";
+  }
+  // Check constraint
+  if (code === "23514" && msg.includes("patients_has_identifier_ck")) {
+    return "Tem de existir pelo menos 1 identificador: SNS, email, telefone ou (estrangeiro + país + passaporte).";
+  }
+  return null;
+}
+
+async function loadSelectedPatientData() {
+  try {
+    showError("");
+    setMsg("editPatientMsg", "");
+
+    if (currentClinicRole !== "secretary" || !selectedPatientId) return;
+
+    const btn = $("btnReloadPatientData");
+    btn.disabled = true;
+    btn.textContent = "A carregar…";
+
+    const { data, error } = await sb
+      .from("patients")
+      .select("id, full_name, date_of_birth, sns, email, phone, is_foreign, passport_country, passport_number")
+      .eq("id", selectedPatientId)
+      .single();
+
+    if (error) throw error;
+
+    $("editFullName").value = data.full_name ?? "";
+    $("editDOB").value = data.date_of_birth ?? "";
+    $("editSNS").value = data.sns ?? "";
+    $("editEmail").value = data.email ?? "";
+    $("editPhone").value = data.phone ?? "";
+    $("editIsForeign").value = String(!!data.is_foreign);
+    $("editPassportCountry").value = data.passport_country ?? "";
+    $("editPassportNumber").value = data.passport_number ?? "";
+
+    setMsg("editPatientMsg", "Dados carregados.", "success");
+
+  } catch (e) {
+    showError(e);
+    setMsg("editPatientMsg", "Erro ao carregar dados do doente. Vê 'Estado'.", "error");
+  } finally {
+    const btn = $("btnReloadPatientData");
+    btn.disabled = false;
+    btn.textContent = "Recarregar";
+  }
+}
+
+async function savePatientEdits() {
+  try {
+    showError("");
+    setMsg("editPatientMsg", "");
+
+    if (currentClinicRole !== "secretary") {
+      setMsg("editPatientMsg", "Sem permissões para editar dados do doente.", "error");
+      return;
+    }
+    if (!selectedClinicId || !selectedPatientId) {
+      setMsg("editPatientMsg", "Seleciona clínica e doente antes de guardar.", "error");
+      return;
+    }
+
+    const full_name = normalizeBlank($("editFullName").value);
+    const date_of_birth = normalizeBlank($("editDOB").value); // "YYYY-MM-DD" ou null
+    const sns = normalizeBlank($("editSNS").value);
+    const email = normalizeBlank($("editEmail").value);
+    const phone = normalizeBlank($("editPhone").value);
+
+    const is_foreign = ($("editIsForeign").value === "true");
+    const passport_country = normalizeBlank($("editPassportCountry").value);
+    const passport_number = normalizeBlank($("editPassportNumber").value);
+
+    // validação mínima client-side (a BD também valida)
+    if (!full_name) {
+      setMsg("editPatientMsg", "O nome completo é obrigatório.", "error");
+      return;
+    }
+    const hasBasicId = (!!sns || !!email || !!phone);
+    const hasPassportId = (is_foreign && !!passport_country && !!passport_number);
+    if (!hasBasicId && !hasPassportId) {
+      setMsg("editPatientMsg", "Preenche pelo menos 1 identificador: SNS/email/telefone ou (estrangeiro + país + passaporte).", "error");
+      return;
+    }
+
+    const btn = $("btnSavePatientEdits");
+    btn.disabled = true;
+    btn.textContent = "A guardar…";
+
+    const args = {
+      _patient_id: selectedPatientId,
+      _full_name: full_name,
+      _date_of_birth: date_of_birth,
+      _sns: sns,
+      _email: email,
+      _phone: phone,
+      _is_foreign: is_foreign,
+      _passport_country: passport_country,
+      _passport_number: passport_number
+    };
+
+    const { error } = await sb.rpc("update_patient_admin", args);
+    if (error) throw error;
+
+    setMsg("editPatientMsg", "✔ Alterações guardadas com sucesso.", "success");
+
+    // Se o nome mudou, refrescar lista
+    await loadPatientsForClinic(selectedClinicId);
+
+  } catch (e) {
+    showError(e);
+    const friendly = parseFriendlyPatientError(e);
+    setMsg("editPatientMsg", friendly || "Erro ao guardar alterações. Vê 'Estado'.", "error");
+  } finally {
+    const btn = $("btnSavePatientEdits");
+    btn.disabled = false;
+    btn.textContent = "Guardar alterações";
+  }
+}
+
 /* ================= PATIENT_CLINIC (DOCTOR) ================= */
 function renderPatientClinicLinks() {
   const list = $("patientClinicsList");
@@ -674,7 +908,6 @@ function renderPatientClinicLinks() {
   const active = patientClinicLinks.filter(x => x.is_active);
   $("patientClinicsMeta").textContent = `${patientClinicLinks.length} (ativas: ${active.length})`;
 
-  // ordenar: ativas primeiro, depois por nome
   const sorted = [...patientClinicLinks].sort((a,b) => {
     const ai = a.is_active ? 0 : 1;
     const bi = b.is_active ? 0 : 1;
@@ -701,7 +934,6 @@ function renderPatientClinicLinks() {
       </div>
       ${notes}
     `;
-
     list.appendChild(li);
   }
 }
@@ -824,7 +1056,6 @@ async function moveClinicLink() {
     btn.disabled = true;
     btn.textContent = "A mover…";
 
-    // 1) desativar ligação A (se existir)
     const { error: e1 } = await sb
       .from("patient_clinic")
       .update({ is_active: false, end_date: todayISO(), notes })
@@ -833,7 +1064,6 @@ async function moveClinicLink() {
 
     if (e1) throw e1;
 
-    // 2) criar ligação ativa B
     const payload = {
       patient_id: selectedPatientId,
       clinic_id: targetClinicId,
@@ -849,7 +1079,6 @@ async function moveClinicLink() {
     setMsg("manageClinicsMsg", `✔ Movido: ${escapeHtml(clinicNameById(selectedClinicId))} → ${escapeHtml(clinicNameById(targetClinicId))}`, "success");
     clearManageClinicsForm();
 
-    // atualizar UI: o doente pode desaparecer da lista da clínica A
     await loadPatientClinicLinks();
     await loadPatientsForClinic(selectedClinicId);
 
@@ -981,7 +1210,6 @@ async function savePatient() {
       setMsg("patientMsg", "O nome completo é obrigatório.", "error");
       return;
     }
-
     if (!sns && !email && !phone) {
       setMsg("patientMsg", "Preenche pelo menos 1: SNS, email ou telefone.", "error");
       return;
@@ -1014,7 +1242,6 @@ async function savePatient() {
 
     setMsg("patientMsg", "✔ Doente criado e ligado à clínica", "success");
     clearPatientForm();
-
     await loadPatientsForClinic(selectedClinicId);
 
   } catch (e) {
@@ -1225,6 +1452,9 @@ async function init() {
 
   $("btnSavePatient").onclick = () => savePatient();
   $("btnResetPatient").onclick = () => resetPatientForm();
+
+  $("btnReloadPatientData").onclick = () => loadSelectedPatientData();
+  $("btnSavePatientEdits").onclick = () => savePatientEdits();
 
   $("btnSaveConsult").onclick = () => saveConsultation();
   $("btnResetConsult").onclick = () => resetConsultForm();
