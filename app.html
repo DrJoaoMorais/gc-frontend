@@ -1518,48 +1518,57 @@ async function removeClinicLink() {
 }
 
 /* ================= FEED ================= */
-async function loadFeed() {
-  showError("");
-  $("feedMeta").textContent = "A carregar…";
-  $("feedList").innerHTML = "";
+/* ================= FEED ================= */
 
-  if (!selectedClinicId || !selectedPatientId) {
-    $("feedMeta").textContent = "—";
-    $("feedList").innerHTML = `<div class="muted small">Seleciona um doente.</div>`;
+// Paginação do feed
+let FEED_PAGE_SIZE = 50;
+let feedOffset = 0;
+let feedHasMore = false;
+let feedBuffer = []; // acumula itens já carregados para renderizar incrementalmente
+
+function resetFeedPaging() {
+  feedOffset = 0;
+  feedHasMore = false;
+  feedBuffer = [];
+  if ($("feedMoreMeta")) $("feedMoreMeta").textContent = "";
+  if ($("feedMoreBtn")) $("feedMoreBtn").style.display = "none";
+}
+
+function setFeedMoreState({ loading, hasMore, shownCount }) {
+  const btn = $("feedMoreBtn");
+  const meta = $("feedMoreMeta");
+  if (!btn || !meta) return;
+
+  if (loading) {
+    btn.disabled = true;
+    btn.textContent = "A carregar…";
+    btn.style.display = "inline-block";
+    meta.textContent = "";
     return;
   }
 
-  const { data, error } = await sb
-    .from("patient_feed")
-    .select(`
-      item_type,
-      occurred_at,
-      author_role,
-      content,
-      hda,
-      assessment,
-      plan_text,
-      appointment_id
-    `)
-    .eq("clinic_id", selectedClinicId)
-    .eq("patient_id", selectedPatientId)
-    .order("occurred_at", { ascending: false })
-    .limit(50);
+  btn.disabled = false;
+  btn.textContent = "Carregar mais";
 
-  if (error) {
-    showError(error);
-    $("feedMeta").textContent = "Erro ao carregar feed.";
-    return;
+  if (hasMore) {
+    btn.style.display = "inline-block";
+    meta.textContent = shownCount ? `${shownCount} carregados` : "";
+  } else {
+    // Se não há mais, escondemos o botão; meta informa se quiseres manter visível
+    btn.style.display = "none";
+    meta.textContent = shownCount ? `${shownCount} carregados` : "";
   }
+}
 
-  $("feedMeta").textContent = `${data.length} eventos (máx. 50)`;
+function renderFeedFromBuffer() {
+  $("feedMeta").textContent = `${feedBuffer.length} eventos (máx. ${FEED_PAGE_SIZE})`;
 
-  if (!data.length) {
+  if (!feedBuffer.length) {
     $("feedList").innerHTML = `<div class="muted small">Sem registos.</div>`;
     return;
   }
 
-  $("feedList").innerHTML = data.map(o => {
+  $("feedList").innerHTML = feedBuffer.map(o => {
     const when = fmtDateTime(o.occurred_at);
     const hasAppointment = !!o.appointment_id;
 
@@ -1590,6 +1599,86 @@ async function loadFeed() {
     `;
   }).join("");
 }
+
+async function fetchFeedPage() {
+  // Proteções básicas
+  if (!selectedClinicId || !selectedPatientId) return { rows: [], error: null };
+
+  const from = feedOffset;
+  const to = feedOffset + FEED_PAGE_SIZE - 1;
+
+  const { data, error } = await sb
+    .from("patient_feed")
+    .select(`
+      item_type,
+      occurred_at,
+      author_role,
+      content,
+      hda,
+      assessment,
+      plan_text,
+      appointment_id
+    `)
+    .eq("clinic_id", selectedClinicId)
+    .eq("patient_id", selectedPatientId)
+    .order("occurred_at", { ascending: false })
+    .range(from, to);
+
+  return { rows: data || [], error };
+}
+
+async function loadFeed({ reset = true } = {}) {
+  showError("");
+
+  if (reset) {
+    $("feedMeta").textContent = "A carregar…";
+    $("feedList").innerHTML = "";
+    resetFeedPaging();
+  }
+
+  if (!selectedClinicId || !selectedPatientId) {
+    $("feedMeta").textContent = "—";
+    $("feedList").innerHTML = `<div class="muted small">Seleciona um doente.</div>`;
+    resetFeedPaging();
+    return;
+  }
+
+  setFeedMoreState({ loading: true, hasMore: true, shownCount: feedBuffer.length });
+
+  const { rows, error } = await fetchFeedPage();
+
+  if (error) {
+    showError(error);
+    $("feedMeta").textContent = "Erro ao carregar feed.";
+    setFeedMoreState({ loading: false, hasMore: false, shownCount: feedBuffer.length });
+    return;
+  }
+
+  // Acrescenta resultados ao buffer
+  feedBuffer = feedBuffer.concat(rows);
+
+  // Se vieram menos do que a página, acabou
+  feedHasMore = rows.length === FEED_PAGE_SIZE;
+
+  // Avança offset para próxima página
+  feedOffset += rows.length;
+
+  renderFeedFromBuffer();
+
+  setFeedMoreState({ loading: false, hasMore: feedHasMore, shownCount: feedBuffer.length });
+}
+
+// Ligar botão “Carregar mais” (id já existe no HTML)
+(function wireFeedMoreButtonOnce() {
+  const btn = $("feedMoreBtn");
+  if (!btn) return;
+  if (btn.__wired) return;
+  btn.__wired = true;
+  btn.addEventListener("click", async () => {
+    if (!feedHasMore) return;
+    await loadFeed({ reset: false });
+  });
+})();
 /* ================= APPOINTMENTS (LIST + CREATE) ================= */
 let lastAppointmentsRows = [];
 
