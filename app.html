@@ -1550,14 +1550,17 @@ function setFeedMoreState({ loading, hasMore, shownCount }) {
   btn.disabled = false;
   btn.textContent = "Carregar mais";
 
-  if (hasMore) {
-    btn.style.display = "inline-block";
-    meta.textContent = shownCount ? `${shownCount} carregados` : "";
-  } else {
-    // Se não há mais, escondemos o botão; meta informa se quiseres manter visível
-    btn.style.display = "none";
-    meta.textContent = shownCount ? `${shownCount} carregados` : "";
-  }
+ btn.style.display = "inline-block";
+meta.textContent = `Mostrados ${shownCount || 0}`;
+
+if (hasMore) {
+  btn.disabled = false;
+  btn.textContent = "Carregar mais ↓";
+} else {
+  btn.disabled = true;
+  btn.textContent = "Sem mais eventos";
+}
+
 }
 
 function renderFeedFromBuffer() {
