@@ -1526,13 +1526,26 @@ async function loadFeed() {
 
   const { data, error } = await sb
     .from("patient_feed")
-    .select("item_type, occurred_at, author_role, content, hda, assessment, plan_text")
+    .select(`
+      item_type,
+      occurred_at,
+      author_role,
+      content,
+      hda,
+      assessment,
+      plan_text,
+      appointment_id
+    `)
     .eq("clinic_id", selectedClinicId)
     .eq("patient_id", selectedPatientId)
     .order("occurred_at", { ascending: false })
     .limit(50);
 
-  if (error) { showError(error); $("feedMeta").textContent = "Erro ao carregar feed."; return; }
+  if (error) {
+    showError(error);
+    $("feedMeta").textContent = "Erro ao carregar feed.";
+    return;
+  }
 
   $("feedMeta").textContent = `${data.length} eventos (máx. 50)`;
 
@@ -1543,6 +1556,12 @@ async function loadFeed() {
 
   $("feedList").innerHTML = data.map(o => {
     const when = fmtDateTime(o.occurred_at);
+    const hasAppointment = !!o.appointment_id;
+
+    const appointmentTag = hasAppointment
+      ? `<span class="tag" title="Consulta associada a marcação">📅 Marcação</span>`
+      : "";
+
     const body =
       (o.hda || o.assessment || o.plan_text || o.content)
         ? `
@@ -1558,6 +1577,7 @@ async function loadFeed() {
         <div class="feedMeta">
           <span class="tag">${escapeHtml(o.item_type || "—")}</span>
           <span class="tag">${escapeHtml(o.author_role || "—")}</span>
+          ${appointmentTag}
           <span class="muted small">${escapeHtml(when)}</span>
         </div>
         ${body}
@@ -1565,7 +1585,6 @@ async function loadFeed() {
     `;
   }).join("");
 }
-
 /* ================= APPOINTMENTS (LIST + CREATE) ================= */
 let lastAppointmentsRows = [];
 
