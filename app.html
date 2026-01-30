@@ -424,7 +424,7 @@
             (A parte “estrangeiro/passaporte” fica para a criação numa próxima iteração.)
           </div>
 
-          <!-- Criar doente (só doctor) -->
+          <!-- Criar doente (doctor + secretary) -->
           <div id="createPatientBox" style="display:none; margin-top:12px;">
             <div class="box" style="border-radius: 12px;">
               <div class="toolbar">
@@ -466,7 +466,7 @@
           </div>
 
           <div id="createEmptyHint" class="muted small" style="margin-top:10px;">
-            Seleciona uma clínica (e tens de estar como médico).
+            Seleciona uma clínica.
           </div>
         </div>
       </div>
@@ -592,7 +592,7 @@ function setActiveTab(which) {
   if (which === TAB.FEED) $("tabsHint").textContent = "Registos clínicos e notas.";
   if (which === TAB.ADMIN) $("tabsHint").textContent = "Atualizar contactos/identificação.";
   if (which === TAB.CLINICS) $("tabsHint").textContent = "Mover/adicionar/remover clínica (médico).";
-  if (which === TAB.CREATE) $("tabsHint").textContent = "Criar doente (médico).";
+  if (which === TAB.CREATE) $("tabsHint").textContent = "Criar doente (médico/secretária).";
 }
 
 function refreshTabAvailability() {
@@ -600,8 +600,10 @@ function refreshTabAvailability() {
   const hasClinic = !!selectedClinicId;
   const hasPatient = !!selectedPatientId;
 
-  // Doentes e Feed: sempre "clicáveis" mas só fazem sentido com seleções
+  // Doentes: precisa de clínica
   $("tabBtnPatients").disabled = !hasClinic;
+
+  // Feed: precisa de clínica + doente
   $("tabBtnFeed").disabled = !(hasClinic && hasPatient);
 
   // Admin: médico + secretária, mas precisa de doente
@@ -612,8 +614,8 @@ function refreshTabAvailability() {
   const canClinics = (currentClinicRole === "doctor") && hasClinic && hasPatient;
   $("tabBtnClinics").disabled = !canClinics;
 
-  // Criar: só médico e precisa de clínica
-  const canCreate = (currentClinicRole === "doctor") && hasClinic;
+  // Criar: médico + secretária e precisa de clínica
+  const canCreate = (currentClinicRole === "doctor" || currentClinicRole === "secretary") && hasClinic;
   $("tabBtnCreate").disabled = !canCreate;
 
   // hints "empty"
@@ -655,7 +657,7 @@ function showBoxesByRole() {
 
 /* ================= VISIBILIDADE (Formulários) ================= */
 function updateCreatePatientVisibility() {
-  const show = (selectedClinicId && currentClinicRole === "doctor");
+  const show = (selectedClinicId && (currentClinicRole === "doctor" || currentClinicRole === "secretary"));
   $("createPatientBox").style.display = show ? "block" : "none";
 }
 
@@ -1346,13 +1348,13 @@ async function loadFeed() {
   }).join("");
 }
 
-/* ================= CREATE PATIENT (DOCTOR) ================= */
+/* ================= CREATE PATIENT (DOCTOR + SECRETARY) ================= */
 async function savePatient() {
   try {
     showError("");
     setMsg("patientMsg", "");
 
-    if (currentClinicRole !== "doctor") {
+    if (currentClinicRole !== "doctor" && currentClinicRole !== "secretary") {
       setMsg("patientMsg", "Sem permissões para criar doente.", "error");
       return;
     }
