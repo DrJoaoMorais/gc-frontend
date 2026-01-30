@@ -1590,7 +1590,12 @@ function renderFeedFromBuffer() {
         : `<div class="muted small" style="margin-top:8px;">Conteúdo restrito</div>`;
 
     return `
-      <div class="feedItem">
+<div class="feedItem"
+     data-item-type="${escapeHtml(o.item_type || "")}"
+     data-appointment-id="${o.appointment_id || ""}"
+     data-author-role="${escapeHtml(o.author_role || "")}"
+     style="cursor:${o.item_type === 'note' ? 'default' : 'pointer'}">
+
         <div class="feedMeta">
           <span class="tag">${escapeHtml(o.item_type || "—")}</span>
           <span class="tag">${escapeHtml(o.author_role || "—")}</span>
@@ -1682,7 +1687,68 @@ async function loadFeed({ reset = true } = {}) {
     await loadFeed({ reset: false });
   });
 })();
-/* ================= APPOINTMENTS (LIST + CREATE) ================= */
+
+// Navegação a partir do FEED (delegation)
+(function wireFeedNavigationOnce() {
+  const list = $("feedList");
+  if (!list) return;
+  if (list.__wiredNav) return;
+  list.__wiredNav = true;
+
+  list.addEventListener("click", (e) => {
+    const item = e.target.closest(".feedItem");
+    if (!item) return;
+
+    const type = item.getAttribute("data-item-type") || "";
+    const appointmentId = item.getAttribute("data-appointment-id") || "";
+    const authorRole = item.getAttribute("data-author-role") || "";
+
+    // Notas: não navegam
+    if (type === "note") return;
+
+    // Appointment → abrir separador Consultas / Marcações
+    if (type === "appointment") {
+      if (typeof openTab === "function") openTab("Appointments");
+
+      if (appointmentId) {
+        if (typeof selectAppointmentById === "function") {
+          selectAppointmentById(appointmentId);
+        } else {
+          window.__pendingSelectAppointmentId = appointmentId;
+          if (typeof loadAppointments === "function") loadAppointments();
+        }
+      }
+      return;
+    }
+
+    // Consultation → abrir registo clínico do autor
+    if (type === "consultation") {
+      if (typeof openTab === "function") openTab("Appointments");
+
+      // Se existirem handlers específicos, usar
+      if (authorRole === "physio" && typeof openPhysioRecordFromFeed === "function") {
+        openPhysioRecordFromFeed(item);
+        return;
+      }
+
+      if (authorRole === "doctor" && typeof openConsultationFromFeed === "function") {
+        openConsultationFromFeed(item);
+        return;
+      }
+
+      // Fallback: focar marcação associada, se existir
+      if (appointmentId) {
+        if (typeof selectAppointmentById === "function") {
+          selectAppointmentById(appointmentId);
+        } else {
+          window.__pendingSelectAppointmentId = appointmentId;
+          if (typeof loadAppointments === "function") loadAppointments();
+        }
+      }
+      return;
+    }
+  });
+})();
 let lastAppointmentsRows = [];
 
 async function loadLinkedAppointmentsForPatient(appointmentIds) {
