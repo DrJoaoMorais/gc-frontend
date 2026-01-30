@@ -7,25 +7,34 @@
 
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 20px; }
+
     .row { display: flex; gap: 24px; align-items: flex-start; }
     .col { flex: 1; min-width: 320px; }
+
     h1 { margin: 0 0 12px; }
     h2 { margin: 0 0 8px; }
     h3 { margin: 0 0 8px; }
-    .box { border: 1px solid #ddd; border-radius: 10px; padding: 12px; }
+
+    .box { border: 1px solid #ddd; border-radius: 12px; padding: 12px; background: #fff; }
+
     .list { list-style: none; padding: 0; margin: 0; }
     .list li { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; }
     .list li:last-child { border-bottom: none; }
     .list li:hover { background: #f7f7f7; }
+
     .muted { color: #666; font-size: 0.95rem; }
     .small { font-size: 12px; }
     .error { color: #b00020; white-space: pre-wrap; }
     .success { color: #0a7a28; }
+
     .topbar { display:flex; justify-content: space-between; align-items:center; margin-bottom: 12px; }
+
     button { padding: 8px 12px; border-radius: 10px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
     button:hover { background: #f7f7f7; }
     button:disabled { opacity: .6; cursor: not-allowed; }
+
     .pill { display:inline-block; padding: 2px 8px; border: 1px solid #ddd; border-radius: 999px; font-size: 12px; background:#fafafa; }
+
     .toolbar { display:flex; justify-content: space-between; align-items:center; gap:12px; flex-wrap: wrap; }
     .divider { height: 1px; background:#eee; margin: 12px 0; }
 
@@ -53,6 +62,15 @@
 
     .hint { background:#fafafa; border:1px solid #eee; border-radius: 10px; padding: 10px; }
     code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+    /* Tabs */
+    .tabsBar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .tabBtn { border: 1px solid #ddd; background:#fff; }
+    .tabBtn.active { border-color:#333; background:#f3f3f3; }
+    .tabPanel { display:none; }
+    .tabPanel.active { display:block; }
+    .rightHeader { display:flex; justify-content: space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .rightHeader .metaLine { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -78,6 +96,7 @@
 
 <div id="appUI">
   <div class="row">
+    <!-- COLUNA ESQUERDA -->
     <div class="col">
       <div class="box">
         <h2>Clínicas</h2>
@@ -94,293 +113,362 @@
       </div>
     </div>
 
+    <!-- COLUNA DIREITA (Tabs) -->
     <div class="col">
       <div class="box">
-        <div class="toolbar">
-          <h2 style="margin:0;">Doentes</h2>
-          <span id="patientsRolePill" class="pill">Role: —</span>
-        </div>
-
-        <div id="patientsHeader" class="muted small" style="margin-top:6px;">Seleciona uma clínica.</div>
-
-        <!-- Pesquisa -->
-        <div style="margin-top:10px;">
-          <input id="patientSearch" placeholder="Pesquisar doente (nome)..." disabled />
-          <div class="muted small" style="margin-top:6px;">Dica: escreve parte do nome para filtrar a lista.</div>
-        </div>
-
-        <!-- Criar doente (só doctor) -->
-        <div id="createPatientBox" style="display:none; margin-top:12px;">
-          <div class="box" style="border-radius: 12px;">
-            <div class="toolbar">
-              <div>
-                <h3 style="margin:0;">Criar doente</h3>
-                <div class="muted small">Obrigatório: pelo menos 1 identificador (SNS, email ou telefone).</div>
-              </div>
-              <div class="inline" style="justify-content:flex-end;">
-                <button id="btnResetPatient" type="button">Limpar</button>
-                <button id="btnSavePatient" type="button">Guardar</button>
-              </div>
-            </div>
-
-            <div class="divider"></div>
-
-            <div>
-              <label class="small">Nome completo</label>
-              <input id="patientFullName" placeholder="Ex.: João Silva" />
-            </div>
-
-            <div style="margin-top:10px;" class="inline">
-              <div>
-                <label class="small">SNS</label>
-                <input id="patientSNS" placeholder="Ex.: 123456789" />
-              </div>
-              <div>
-                <label class="small">Telefone</label>
-                <input id="patientPhone" placeholder="Ex.: 9XXXXXXXX" />
-              </div>
-            </div>
-
-            <div style="margin-top:10px;">
-              <label class="small">Email</label>
-              <input id="patientEmail" placeholder="Ex.: email@dominio.pt" />
-            </div>
-
-            <div id="patientMsg" class="small" style="margin-top:8px;"></div>
+        <div class="rightHeader">
+          <div>
+            <h2 style="margin:0;">Área do doente</h2>
+            <div id="patientsHeader" class="muted small" style="margin-top:6px;">Seleciona uma clínica.</div>
           </div>
-        </div>
-
-        <!-- EDITAR DADOS DO DOENTE (DOCTOR + SECRETARY) -->
-        <div id="editPatientBox" style="display:none; margin-top:12px;">
-          <div class="box" style="border-radius: 12px;">
-            <div class="toolbar">
-              <div>
-                <h3 style="margin:0;">Editar dados do doente</h3>
-                <div class="muted small">
-                  Disponível para médico e secretária (via RPC). Alterações ficam na tabela <code>patients</code>.
-                </div>
-              </div>
-              <div style="display:flex; gap:10px; align-items:center;">
-                <button id="btnReloadPatientData" type="button">Recarregar</button>
-                <button id="btnSavePatientEdits" type="button">Guardar alterações</button>
-              </div>
-            </div>
-
-            <div class="divider"></div>
-
-            <div class="hint small">
-              <strong>Regra mínima:</strong>
-              <ol style="margin:6px 0 0 16px; padding:0;">
-                <li>O doente tem de ter pelo menos 1 identificador: SNS, email, telefone ou (estrangeiro + país + passaporte).</li>
-              </ol>
-            </div>
-
-            <div style="margin-top:10px;">
-              <label class="small">Nome completo</label>
-              <input id="editFullName" placeholder="Nome completo" />
-            </div>
-
-            <div style="margin-top:10px;" class="inline">
-              <div>
-                <label class="small">Data de nascimento</label>
-                <input id="editDOB" type="date" />
-              </div>
-              <div>
-                <label class="small">Estrangeiro</label>
-                <select id="editIsForeign">
-                  <option value="false">Não</option>
-                  <option value="true">Sim</option>
-                </select>
-              </div>
-            </div>
-
-            <div style="margin-top:10px;" class="inline">
-              <div>
-                <label class="small">SNS</label>
-                <input id="editSNS" placeholder="SNS (se aplicável)" />
-              </div>
-              <div>
-                <label class="small">Telefone</label>
-                <input id="editPhone" placeholder="Telefone" />
-              </div>
-            </div>
-
-            <div style="margin-top:10px;">
-              <label class="small">Email</label>
-              <input id="editEmail" placeholder="Email" />
-            </div>
-
-            <div style="margin-top:10px;" class="inline">
-              <div>
-                <label class="small">País do passaporte (ex.: PT, ES, US)</label>
-                <input id="editPassportCountry" placeholder="PT / ES / US ..." />
-              </div>
-              <div>
-                <label class="small">N.º passaporte</label>
-                <input id="editPassportNumber" placeholder="Número de passaporte" />
-              </div>
-            </div>
-
-            <div id="editPatientMsg" class="small" style="margin-top:8px;"></div>
-          </div>
-        </div>
-
-        <!-- Gerir clínicas do doente (só doctor) -->
-        <div id="manageClinicsBox" style="display:none; margin-top:12px;">
-          <div class="box" style="border-radius: 12px;">
-            <div class="toolbar">
-              <div>
-                <h3 style="margin:0;">Gerir clínicas do doente</h3>
-                <div class="muted small">Ação exclusiva do médico. Atua apenas sobre <code>patient_clinic</code>. O histórico não muda.</div>
-              </div>
-              <div style="display:flex; gap:10px; align-items:center;">
-                <button id="btnReloadPatientClinics" type="button">Atualizar</button>
-              </div>
-            </div>
-
-            <div class="divider"></div>
-
-            <div class="hint small">
-              <strong>Atenção:</strong>
-              <ol style="margin:6px 0 0 16px; padding:0;">
-                <li>“Mover A→B” desativa a ligação da clínica atual (A) e cria ligação ativa para B.</li>
-                <li>O doente pode desaparecer da lista da clínica A depois do move (é esperado).</li>
-                <li>Os registos antigos mantêm o <code>clinic_id</code> original.</li>
-              </ol>
-            </div>
-
-            <div style="margin-top:10px;">
-              <div class="toolbar">
-                <div class="muted small">Ligações atuais</div>
-                <span id="patientClinicsMeta" class="pill">—</span>
-              </div>
-              <ul id="patientClinicsList" class="list" style="margin-top:8px;"></ul>
-            </div>
-
-            <div class="divider"></div>
-
-            <div class="inline">
-              <div>
-                <label class="small">Escolher clínica (destino)</label>
-                <select id="targetClinicSelect"></select>
-                <div class="muted small" style="margin-top:6px;">A clínica atual (onde estás) é “A”.</div>
-              </div>
-              <div>
-                <label class="small">Notas (opcional)</label>
-                <input id="patientClinicNotes" placeholder="Ex.: Transferido por mudança de local" />
-                <div class="muted small" style="margin-top:6px;">Guardado em <code>patient_clinic.notes</code>.</div>
-              </div>
-            </div>
-
-            <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
-              <button id="btnAddClinicLink" type="button">Adicionar clínica</button>
-              <button id="btnMoveClinicLink" type="button">Mover A → B</button>
-              <button id="btnRemoveClinicLink" type="button">Remover ligação (na clínica atual)</button>
-            </div>
-
-            <div id="manageClinicsMsg" class="small" style="margin-top:8px;"></div>
+          <div class="metaLine">
+            <span id="patientsRolePill" class="pill">Role: —</span>
+            <span id="contextInfo" class="pill">Clínica: — | Doente: — | Role: —</span>
           </div>
         </div>
 
         <div class="divider"></div>
 
-        <ul id="patientsList" class="list"></ul>
-      </div>
+        <!-- TABS -->
+        <div class="toolbar">
+          <div class="tabsBar">
+            <button id="tabBtnPatients" class="tabBtn" type="button">Doentes</button>
+            <button id="tabBtnFeed" class="tabBtn" type="button">Feed</button>
+            <button id="tabBtnAdmin" class="tabBtn" type="button">Dados administrativos</button>
+            <button id="tabBtnClinics" class="tabBtn" type="button">Gerir clínicas</button>
+            <button id="tabBtnCreate" class="tabBtn" type="button">Criar doente</button>
+          </div>
+          <span id="tabsHint" class="muted small">—</span>
+        </div>
 
-      <div style="height:12px"></div>
+        <div class="divider"></div>
 
-      <div class="box">
-        <h2>Feed clínico</h2>
-        <div id="feedHeader" class="muted small">Seleciona um doente.</div>
-        <div id="contextInfo" class="muted small" style="margin-top:8px;">—</div>
+        <!-- PANEL: DOENTES -->
+        <div id="tabPanelPatients" class="tabPanel active">
+          <div class="hint small">
+            <strong>Fluxo:</strong>
+            <ol style="margin:6px 0 0 16px; padding:0;">
+              <li>Seleciona a clínica (à esquerda).</li>
+              <li>Seleciona o doente (lista abaixo).</li>
+              <li>Usa os separadores para editar / ver feed / gerir clínicas.</li>
+            </ol>
+          </div>
 
-        <!-- CONSULTA (SÓ DOCTOR) -->
-        <div id="startConsultBox" style="display:none; margin-top:10px;">
-          <div class="box" style="border-radius: 12px;">
-            <div class="toolbar">
-              <div>
-                <h3 style="margin:0;">Iniciar consulta</h3>
-                <div id="contextBanner" class="muted small">—</div>
+          <div style="margin-top:10px;">
+            <input id="patientSearch" placeholder="Pesquisar doente (nome)..." disabled />
+            <div class="muted small" style="margin-top:6px;">Dica: escreve parte do nome para filtrar a lista.</div>
+          </div>
+
+          <div class="divider"></div>
+
+          <ul id="patientsList" class="list"></ul>
+        </div>
+
+        <!-- PANEL: FEED -->
+        <div id="tabPanelFeed" class="tabPanel">
+          <div class="toolbar">
+            <div class="muted small" id="feedHeader">Seleciona um doente.</div>
+            <button id="btnReloadFeedTop" type="button" style="display:none;">Atualizar</button>
+          </div>
+
+          <!-- CONSULTA (SÓ DOCTOR) -->
+          <div id="startConsultBox" style="display:none; margin-top:12px;">
+            <div class="box" style="border-radius: 12px;">
+              <div class="toolbar">
+                <div>
+                  <h3 style="margin:0;">Iniciar consulta</h3>
+                  <div id="contextBanner" class="muted small">—</div>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                  <button id="btnResetConsult" type="button">Limpar</button>
+                  <button id="btnSaveConsult" type="button">Guardar</button>
+                </div>
               </div>
-              <div style="display:flex; gap:10px; align-items:center;">
-                <button id="btnResetConsult" type="button">Limpar</button>
-                <button id="btnSaveConsult" type="button">Guardar</button>
+
+              <div class="divider"></div>
+
+              <div style="margin-top:10px;">
+                <label class="small">História da Doença Atual / Anamnese</label>
+                <textarea id="consultHDA" placeholder="Escreve a HDA/Anamnese…"></textarea>
               </div>
+
+              <div style="margin-top:10px;">
+                <label class="small">Avaliação</label>
+                <textarea id="consultAssessment" placeholder="Escreve a avaliação…"></textarea>
+              </div>
+
+              <div style="margin-top:10px;">
+                <label class="small">Plano</label>
+                <textarea id="consultPlan" placeholder="Escreve o plano…"></textarea>
+              </div>
+
+              <div id="consultMsg" class="small" style="margin-top:8px;"></div>
             </div>
+          </div>
 
-            <div class="divider"></div>
+          <!-- NOTAS (TODOS) -->
+          <div id="notesBox" style="display:none; margin-top:12px;">
+            <div class="box" style="border-radius: 12px;">
+              <div class="toolbar">
+                <div>
+                  <h3 style="margin:0;">Notas</h3>
+                  <div class="muted small">Visíveis a todos. Cada autor edita/apaga as suas.</div>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                  <button id="btnResetNote" type="button">Limpar</button>
+                  <button id="btnSaveNote" type="button">Guardar</button>
+                </div>
+              </div>
 
-            <div style="margin-top:10px;">
-              <label class="small">História da Doença Atual / Anamnese</label>
-              <textarea id="consultHDA" placeholder="Escreve a HDA/Anamnese…"></textarea>
+              <div class="divider"></div>
+
+              <div style="margin-top:10px;">
+                <label class="small">Conteúdo</label>
+                <textarea id="noteContent" placeholder="Escreve a nota…"></textarea>
+              </div>
+
+              <div id="noteMsg" class="small" style="margin-top:8px;"></div>
             </div>
+          </div>
 
-            <div style="margin-top:10px;">
-              <label class="small">Avaliação</label>
-              <textarea id="consultAssessment" placeholder="Escreve a avaliação…"></textarea>
+          <!-- REGISTO FISIO (SÓ PHYSIO) -->
+          <div id="physioRecordBox" style="display:none; margin-top:12px;">
+            <div class="box" style="border-radius: 12px;">
+              <div class="toolbar">
+                <div>
+                  <h3 style="margin:0;">Registo de fisioterapia</h3>
+                  <div class="muted small">Apenas fisioterapeuta.</div>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                  <button id="btnResetPhysioRecord" type="button">Limpar</button>
+                  <button id="btnSavePhysioRecord" type="button">Guardar</button>
+                </div>
+              </div>
+
+              <div class="divider"></div>
+
+              <div style="margin-top:10px;">
+                <label class="small">Conteúdo</label>
+                <textarea id="physioRecordContent" placeholder="Escreve o registo de fisioterapia…"></textarea>
+              </div>
+
+              <div id="physioRecordMsg" class="small" style="margin-top:8px;"></div>
             </div>
+          </div>
 
-            <div style="margin-top:10px;">
-              <label class="small">Plano</label>
-              <textarea id="consultPlan" placeholder="Escreve o plano…"></textarea>
+          <div class="divider"></div>
+
+          <div id="feedMeta" class="muted small">—</div>
+          <div id="feedList" style="margin-top:10px;"></div>
+        </div>
+
+        <!-- PANEL: DADOS ADMIN -->
+        <div id="tabPanelAdmin" class="tabPanel">
+          <div class="hint small">
+            <strong>Objetivo:</strong> permitir atualizar telefone, email, SNS e/ou identificação de estrangeiro (passaporte),
+            respeitando as regras da BD e RLS (via RPC).
+          </div>
+
+          <!-- EDITAR DADOS DO DOENTE (DOCTOR + SECRETARY) -->
+          <div id="editPatientBox" style="display:none; margin-top:12px;">
+            <div class="box" style="border-radius: 12px;">
+              <div class="toolbar">
+                <div>
+                  <h3 style="margin:0;">Editar dados do doente</h3>
+                  <div class="muted small">
+                    Disponível para médico e secretária (via RPC). Alterações ficam na tabela <code>patients</code>.
+                  </div>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                  <button id="btnReloadPatientData" type="button">Recarregar</button>
+                  <button id="btnSavePatientEdits" type="button">Guardar alterações</button>
+                </div>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="hint small">
+                <strong>Regra mínima:</strong>
+                <ol style="margin:6px 0 0 16px; padding:0;">
+                  <li>O doente tem de ter pelo menos 1 identificador: SNS, email, telefone ou (estrangeiro + país + passaporte).</li>
+                </ol>
+              </div>
+
+              <div style="margin-top:10px;">
+                <label class="small">Nome completo</label>
+                <input id="editFullName" placeholder="Nome completo" />
+              </div>
+
+              <div style="margin-top:10px;" class="inline">
+                <div>
+                  <label class="small">Data de nascimento</label>
+                  <input id="editDOB" type="date" />
+                </div>
+                <div>
+                  <label class="small">Estrangeiro</label>
+                  <select id="editIsForeign">
+                    <option value="false">Não</option>
+                    <option value="true">Sim</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style="margin-top:10px;" class="inline">
+                <div>
+                  <label class="small">SNS</label>
+                  <input id="editSNS" placeholder="SNS (se aplicável)" />
+                </div>
+                <div>
+                  <label class="small">Telefone</label>
+                  <input id="editPhone" placeholder="Telefone" />
+                </div>
+              </div>
+
+              <div style="margin-top:10px;">
+                <label class="small">Email</label>
+                <input id="editEmail" placeholder="Email" />
+              </div>
+
+              <div style="margin-top:10px;" class="inline">
+                <div>
+                  <label class="small">País do passaporte (ex.: PT, ES, US)</label>
+                  <input id="editPassportCountry" placeholder="PT / ES / US ..." />
+                </div>
+                <div>
+                  <label class="small">N.º passaporte</label>
+                  <input id="editPassportNumber" placeholder="Número de passaporte" />
+                </div>
+              </div>
+
+              <div id="editPatientMsg" class="small" style="margin-top:8px;"></div>
             </div>
+          </div>
 
-            <div id="consultMsg" class="small" style="margin-top:8px;"></div>
+          <div id="adminEmptyHint" class="muted small" style="margin-top:10px;">
+            Seleciona um doente para editar.
           </div>
         </div>
 
-        <!-- NOTAS (TODOS) -->
-        <div id="notesBox" style="display:none; margin-top:10px;">
-          <div class="box" style="border-radius: 12px;">
-            <div class="toolbar">
-              <div>
-                <h3 style="margin:0;">Notas</h3>
-                <div class="muted small">Visíveis a todos. Cada autor edita/apaga as suas.</div>
+        <!-- PANEL: GERIR CLÍNICAS -->
+        <div id="tabPanelClinics" class="tabPanel">
+          <div class="hint small">
+            <strong>Nota:</strong> esta área é exclusiva do médico e mexe apenas em <code>patient_clinic</code>.
+          </div>
+
+          <!-- Gerir clínicas do doente (só doctor) -->
+          <div id="manageClinicsBox" style="display:none; margin-top:12px;">
+            <div class="box" style="border-radius: 12px;">
+              <div class="toolbar">
+                <div>
+                  <h3 style="margin:0;">Gerir clínicas do doente</h3>
+                  <div class="muted small">Ação exclusiva do médico. Atua apenas sobre <code>patient_clinic</code>. O histórico não muda.</div>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                  <button id="btnReloadPatientClinics" type="button">Atualizar</button>
+                </div>
               </div>
-              <div style="display:flex; gap:10px; align-items:center;">
-                <button id="btnResetNote" type="button">Limpar</button>
-                <button id="btnSaveNote" type="button">Guardar</button>
+
+              <div class="divider"></div>
+
+              <div class="hint small">
+                <strong>Atenção:</strong>
+                <ol style="margin:6px 0 0 16px; padding:0;">
+                  <li>“Mover A→B” desativa a ligação da clínica atual (A) e cria ligação ativa para B.</li>
+                  <li>O doente pode desaparecer da lista da clínica A depois do move (é esperado).</li>
+                  <li>Os registos antigos mantêm o <code>clinic_id</code> original.</li>
+                </ol>
               </div>
+
+              <div style="margin-top:10px;">
+                <div class="toolbar">
+                  <div class="muted small">Ligações atuais</div>
+                  <span id="patientClinicsMeta" class="pill">—</span>
+                </div>
+                <ul id="patientClinicsList" class="list" style="margin-top:8px;"></ul>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="inline">
+                <div>
+                  <label class="small">Escolher clínica (destino)</label>
+                  <select id="targetClinicSelect"></select>
+                  <div class="muted small" style="margin-top:6px;">A clínica atual (onde estás) é “A”.</div>
+                </div>
+                <div>
+                  <label class="small">Notas (opcional)</label>
+                  <input id="patientClinicNotes" placeholder="Ex.: Transferido por mudança de local" />
+                  <div class="muted small" style="margin-top:6px;">Guardado em <code>patient_clinic.notes</code>.</div>
+                </div>
+              </div>
+
+              <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+                <button id="btnAddClinicLink" type="button">Adicionar clínica</button>
+                <button id="btnMoveClinicLink" type="button">Mover A → B</button>
+                <button id="btnRemoveClinicLink" type="button">Remover ligação (na clínica atual)</button>
+              </div>
+
+              <div id="manageClinicsMsg" class="small" style="margin-top:8px;"></div>
             </div>
+          </div>
 
-            <div class="divider"></div>
-
-            <div style="margin-top:10px;">
-              <label class="small">Conteúdo</label>
-              <textarea id="noteContent" placeholder="Escreve a nota…"></textarea>
-            </div>
-
-            <div id="noteMsg" class="small" style="margin-top:8px;"></div>
+          <div id="clinicsEmptyHint" class="muted small" style="margin-top:10px;">
+            Seleciona um doente (e tens de estar como médico).
           </div>
         </div>
 
-        <!-- REGISTO FISIO (SÓ PHYSIO) -->
-        <div id="physioRecordBox" style="display:none; margin-top:10px;">
-          <div class="box" style="border-radius: 12px;">
-            <div class="toolbar">
+        <!-- PANEL: CRIAR DOENTE -->
+        <div id="tabPanelCreate" class="tabPanel">
+          <div class="hint small">
+            <strong>Regra atual:</strong> obrigatório pelo menos 1 identificador (SNS, email ou telefone).
+            (A parte “estrangeiro/passaporte” fica para a criação numa próxima iteração.)
+          </div>
+
+          <!-- Criar doente (só doctor) -->
+          <div id="createPatientBox" style="display:none; margin-top:12px;">
+            <div class="box" style="border-radius: 12px;">
+              <div class="toolbar">
+                <div>
+                  <h3 style="margin:0;">Criar doente</h3>
+                  <div class="muted small">Obrigatório: pelo menos 1 identificador (SNS, email ou telefone).</div>
+                </div>
+                <div class="inline" style="justify-content:flex-end;">
+                  <button id="btnResetPatient" type="button">Limpar</button>
+                  <button id="btnSavePatient" type="button">Guardar</button>
+                </div>
+              </div>
+
+              <div class="divider"></div>
+
               <div>
-                <h3 style="margin:0;">Registo de fisioterapia</h3>
-                <div class="muted small">Apenas fisioterapeuta.</div>
+                <label class="small">Nome completo</label>
+                <input id="patientFullName" placeholder="Ex.: João Silva" />
               </div>
-              <div style="display:flex; gap:10px; align-items:center;">
-                <button id="btnResetPhysioRecord" type="button">Limpar</button>
-                <button id="btnSavePhysioRecord" type="button">Guardar</button>
+
+              <div style="margin-top:10px;" class="inline">
+                <div>
+                  <label class="small">SNS</label>
+                  <input id="patientSNS" placeholder="Ex.: 123456789" />
+                </div>
+                <div>
+                  <label class="small">Telefone</label>
+                  <input id="patientPhone" placeholder="Ex.: 9XXXXXXXX" />
+                </div>
               </div>
+
+              <div style="margin-top:10px;">
+                <label class="small">Email</label>
+                <input id="patientEmail" placeholder="Ex.: email@dominio.pt" />
+              </div>
+
+              <div id="patientMsg" class="small" style="margin-top:8px;"></div>
             </div>
+          </div>
 
-            <div class="divider"></div>
-
-            <div style="margin-top:10px;">
-              <label class="small">Conteúdo</label>
-              <textarea id="physioRecordContent" placeholder="Escreve o registo de fisioterapia…"></textarea>
-            </div>
-
-            <div id="physioRecordMsg" class="small" style="margin-top:8px;"></div>
+          <div id="createEmptyHint" class="muted small" style="margin-top:10px;">
+            Seleciona uma clínica (e tens de estar como médico).
           </div>
         </div>
-
-        <div id="feedMeta" class="muted small" style="margin-top:10px;">—</div>
-        <div id="feedList" style="margin-top:10px;"></div>
       </div>
     </div>
   </div>
@@ -468,6 +556,73 @@ function clinicNameById(id) {
   return clinicsCache.find(c => c.id === id)?.name || id;
 }
 
+/* ================= TABS ================= */
+const TAB = {
+  PATIENTS: "patients",
+  FEED: "feed",
+  ADMIN: "admin",
+  CLINICS: "clinics",
+  CREATE: "create"
+};
+
+function setActiveTab(which) {
+  const mapBtn = {
+    [TAB.PATIENTS]: "tabBtnPatients",
+    [TAB.FEED]: "tabBtnFeed",
+    [TAB.ADMIN]: "tabBtnAdmin",
+    [TAB.CLINICS]: "tabBtnClinics",
+    [TAB.CREATE]: "tabBtnCreate"
+  };
+  const mapPanel = {
+    [TAB.PATIENTS]: "tabPanelPatients",
+    [TAB.FEED]: "tabPanelFeed",
+    [TAB.ADMIN]: "tabPanelAdmin",
+    [TAB.CLINICS]: "tabPanelClinics",
+    [TAB.CREATE]: "tabPanelCreate"
+  };
+
+  for (const k of Object.values(mapBtn)) $(k).classList.remove("active");
+  for (const k of Object.values(mapPanel)) $(k).classList.remove("active");
+
+  $(mapBtn[which]).classList.add("active");
+  $(mapPanel[which]).classList.add("active");
+
+  // dica contextual
+  if (which === TAB.PATIENTS) $("tabsHint").textContent = "Seleciona doente na lista.";
+  if (which === TAB.FEED) $("tabsHint").textContent = "Registos clínicos e notas.";
+  if (which === TAB.ADMIN) $("tabsHint").textContent = "Atualizar contactos/identificação.";
+  if (which === TAB.CLINICS) $("tabsHint").textContent = "Mover/adicionar/remover clínica (médico).";
+  if (which === TAB.CREATE) $("tabsHint").textContent = "Criar doente (médico).";
+}
+
+function refreshTabAvailability() {
+  // Enable/disable tabs conforme contexto
+  const hasClinic = !!selectedClinicId;
+  const hasPatient = !!selectedPatientId;
+
+  // Doentes e Feed: sempre "clicáveis" mas só fazem sentido com seleções
+  $("tabBtnPatients").disabled = !hasClinic;
+  $("tabBtnFeed").disabled = !(hasClinic && hasPatient);
+
+  // Admin: médico + secretária, mas precisa de doente
+  const canAdmin = (currentClinicRole === "doctor" || currentClinicRole === "secretary") && hasClinic && hasPatient;
+  $("tabBtnAdmin").disabled = !canAdmin;
+
+  // Gerir clínicas: só médico e precisa de doente
+  const canClinics = (currentClinicRole === "doctor") && hasClinic && hasPatient;
+  $("tabBtnClinics").disabled = !canClinics;
+
+  // Criar: só médico e precisa de clínica
+  const canCreate = (currentClinicRole === "doctor") && hasClinic;
+  $("tabBtnCreate").disabled = !canCreate;
+
+  // hints "empty"
+  $("adminEmptyHint").style.display = canAdmin ? "none" : "block";
+  $("clinicsEmptyHint").style.display = canClinics ? "none" : "block";
+  $("createEmptyHint").style.display = canCreate ? "none" : "block";
+}
+
+/* ================= CONTEXTO ================= */
 function updateContextBanner() {
   const clinic = selectedClinicName || "—";
   const patient = selectedPatientLabel || "—";
@@ -478,9 +633,9 @@ function updateContextInfo() {
   const clinic = selectedClinicName || "—";
   const patient = selectedPatientLabel || "—";
   const role = currentClinicRole || "—";
-  $("contextInfo").innerHTML =
-    `Clínica: <strong>${escapeHtml(clinic)}</strong> &nbsp;|&nbsp; Doente: <strong>${escapeHtml(patient)}</strong> &nbsp;|&nbsp; Role: <strong>${escapeHtml(role)}</strong>`;
+  $("contextInfo").textContent = `Clínica: ${clinic} | Doente: ${patient} | Role: ${role}`;
   $("patientsRolePill").textContent = `Role: ${role}`;
+  refreshTabAvailability();
 }
 
 function hideAllActionBoxes() {
@@ -498,8 +653,10 @@ function showBoxesByRole() {
   if (currentClinicRole === "physio") $("physioRecordBox").style.display = "block";
 }
 
+/* ================= VISIBILIDADE (Formulários) ================= */
 function updateCreatePatientVisibility() {
-  $("createPatientBox").style.display = (selectedClinicId && currentClinicRole === "doctor") ? "block" : "none";
+  const show = (selectedClinicId && currentClinicRole === "doctor");
+  $("createPatientBox").style.display = show ? "block" : "none";
 }
 
 function updateManageClinicsVisibility() {
@@ -520,7 +677,6 @@ function updateManageClinicsVisibility() {
 }
 
 function updateEditPatientVisibility() {
-  // ✅ Agora visível para doctor + secretary (ambos via RPC)
   const show = ((currentClinicRole === "secretary" || currentClinicRole === "doctor") && !!selectedClinicId && !!selectedPatientId);
   $("editPatientBox").style.display = show ? "block" : "none";
   if (!show) {
@@ -552,10 +708,9 @@ function resetUIOnClinicChange() {
     : "Seleciona uma clínica.";
 
   $("feedHeader").textContent = "Seleciona um doente.";
+  $("btnReloadFeedTop").style.display = "none";
   $("feedMeta").textContent = "—";
   $("feedList").innerHTML = "";
-  $("contextInfo").textContent = "—";
-  $("patientsRolePill").textContent = "Role: —";
 
   $("createPatientBox").style.display = "none";
   setMsg("patientMsg", "");
@@ -566,7 +721,6 @@ function resetUIOnClinicChange() {
   clearEditPatientForm();
 
   hideAllActionBoxes();
-
   setMsg("consultMsg", "");
   setMsg("noteMsg", "");
   setMsg("physioRecordMsg", "");
@@ -574,6 +728,10 @@ function resetUIOnClinicChange() {
   clearConsultFields();
   clearNote();
   clearPhysioRecord();
+
+  updateContextInfo();
+  refreshTabAvailability();
+  setActiveTab(TAB.PATIENTS);
 }
 
 /* ================= AUTH ================= */
@@ -654,13 +812,9 @@ function renderPatientsList() {
       selectedPatientId = p.id;
       selectedPatientLabel = label;
 
-      $("feedHeader").innerHTML = `
-        <div class="toolbar">
-          <div class="muted small">Doente: <strong>${escapeHtml(label)}</strong></div>
-          <button id="btnReloadFeed" type="button">Atualizar</button>
-        </div>
-      `;
-      $("btnReloadFeed").onclick = () => loadFeed();
+      $("feedHeader").innerHTML = `Doente: <strong>${escapeHtml(label)}</strong>`;
+      $("btnReloadFeedTop").style.display = "inline-block";
+      $("btnReloadFeedTop").onclick = () => loadFeed();
 
       updateContextBanner();
       updateContextInfo();
@@ -676,12 +830,12 @@ function renderPatientsList() {
       if (currentClinicRole === "doctor") {
         await loadPatientClinicLinks();
       }
-      // ✅ carregar dados do doente para o editor (doctor + secretary)
       if (currentClinicRole === "secretary" || currentClinicRole === "doctor") {
         await loadSelectedPatientData();
       }
 
-      loadFeed();
+      await loadFeed();
+      setActiveTab(TAB.FEED);
     };
 
     $("patientsList").appendChild(li);
@@ -714,11 +868,16 @@ async function loadClinics() {
 
         currentClinicRole = await loadMyRoleForClinic(c.id);
         updateContextInfo();
+
         updateCreatePatientVisibility();
         updateManageClinicsVisibility();
         updateEditPatientVisibility();
 
         await loadPatientsForClinic(c.id);
+
+        // tab default
+        setActiveTab(TAB.PATIENTS);
+
       } catch (e) {
         showError(e);
         setStatus("Erro ao determinar role na clínica.");
@@ -746,6 +905,7 @@ async function loadPatientsForClinic(clinicId) {
     patientsCache = [];
     $("patientSearch").disabled = false;
     renderPatientsList();
+    refreshTabAvailability();
     return;
   }
 
@@ -762,6 +922,7 @@ async function loadPatientsForClinic(clinicId) {
   patientsCache = patients || [];
   $("patientSearch").disabled = false;
   renderPatientsList();
+  refreshTabAvailability();
 }
 
 /* ================= EDIT PATIENT (DOCTOR + SECRETARY via RPC) ================= */
@@ -773,13 +934,11 @@ function normalizeBlank(v) {
 function parseFriendlyPatientError(e) {
   const msg = String(e?.message || e || "");
   const code = String(e?.code || "");
-  // Postgres unique violation
   if (code === "23505") {
     if (msg.includes("patients_sns_unique_not_blank")) return "Já existe um doente com este SNS.";
     if (msg.includes("patients_passport_unique_not_blank")) return "Já existe um doente com este passaporte (país + número).";
     return "Já existe um registo duplicado (violação de unicidade).";
   }
-  // Check constraint
   if (code === "23514" && msg.includes("patients_has_identifier_ck")) {
     return "Tem de existir pelo menos 1 identificador: SNS, email, telefone ou (estrangeiro + país + passaporte).";
   }
@@ -841,7 +1000,7 @@ async function savePatientEdits() {
     }
 
     const full_name = normalizeBlank($("editFullName").value);
-    const date_of_birth = normalizeBlank($("editDOB").value); // "YYYY-MM-DD" ou null
+    const date_of_birth = normalizeBlank($("editDOB").value);
     const sns = normalizeBlank($("editSNS").value);
     const email = normalizeBlank($("editEmail").value);
     const phone = normalizeBlank($("editPhone").value);
@@ -850,11 +1009,11 @@ async function savePatientEdits() {
     const passport_country = normalizeBlank($("editPassportCountry").value);
     const passport_number = normalizeBlank($("editPassportNumber").value);
 
-    // validação mínima client-side (a BD também valida)
     if (!full_name) {
       setMsg("editPatientMsg", "O nome completo é obrigatório.", "error");
       return;
     }
+
     const hasBasicId = (!!sns || !!email || !!phone);
     const hasPassportId = (is_foreign && !!passport_country && !!passport_number);
     if (!hasBasicId && !hasPassportId) {
@@ -882,8 +1041,6 @@ async function savePatientEdits() {
     if (error) throw error;
 
     setMsg("editPatientMsg", "✔ Alterações guardadas com sucesso.", "success");
-
-    // Se o nome mudou, refrescar lista
     await loadPatientsForClinic(selectedClinicId);
 
   } catch (e) {
@@ -1448,11 +1605,20 @@ async function init() {
     showError(e);
   }
 
+  // Tabs: handlers
+  $("tabBtnPatients").onclick = () => setActiveTab(TAB.PATIENTS);
+  $("tabBtnFeed").onclick = () => setActiveTab(TAB.FEED);
+  $("tabBtnAdmin").onclick = () => setActiveTab(TAB.ADMIN);
+  $("tabBtnClinics").onclick = () => setActiveTab(TAB.CLINICS);
+  $("tabBtnCreate").onclick = () => setActiveTab(TAB.CREATE);
+
+  // Pesquisa
   $("patientSearch").addEventListener("input", (ev) => {
     patientsFilter = ev.target.value || "";
     renderPatientsList();
   });
 
+  // Botões
   $("btnSavePatient").onclick = () => savePatient();
   $("btnResetPatient").onclick = () => resetPatientForm();
 
@@ -1473,8 +1639,12 @@ async function init() {
   $("btnMoveClinicLink").onclick = () => moveClinicLink();
   $("btnRemoveClinicLink").onclick = () => removeClinicLink();
 
+  setActiveTab(TAB.PATIENTS);
   setStatus("A carregar clínicas…");
   await loadClinics();
+
+  refreshTabAvailability();
+  $("tabsHint").textContent = "Seleciona clínica e depois doente.";
 }
 
 init();
