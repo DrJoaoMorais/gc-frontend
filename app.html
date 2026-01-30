@@ -1388,13 +1388,19 @@ async function savePatient() {
       phone: phone || null
     };
 
-    const { data: created, error: e1 } = await sb
-      .from("patients")
-      .insert(patientPayload)
-      .select("id")
-      .single();
+const { data: newPatientId, error: e1 } = await sb.rpc(
+  "create_patient_admin",
+  {
+    _full_name: full_name,
+    _sns: sns || null,
+    _email: email || null,
+    _phone: phone || null
+  }
+);
 
-    if (e1) throw e1;
+if (e1) throw e1;
+
+const created = { id: newPatientId };  
 
     const { error: e2 } = await sb
       .from("patient_clinic")
