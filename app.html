@@ -74,6 +74,10 @@
 
     .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
     @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+
+    /* Appointments selection */
+    .apptCard { border-left: 3px solid transparent; padding-left: 10px; }
+    .apptCard.selected { background:#f3f3f3; border-left-color:#333; border-radius: 10px; padding: 10px; }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -182,8 +186,10 @@
                 <div>
                   <h3 style="margin:0;">Iniciar consulta</h3>
                   <div id="contextBanner" class="muted small">—</div>
+                  <div id="selectedApptBanner" class="muted small" style="margin-top:6px; display:none;"></div>
                 </div>
                 <div style="display:flex; gap:10px; align-items:center;">
+                  <button id="btnUnlinkAppointment" type="button" style="display:none;">Desligar marcação</button>
                   <button id="btnResetConsult" type="button">Limpar</button>
                   <button id="btnSaveConsult" type="button">Guardar</button>
                 </div>
@@ -305,11 +311,10 @@
                 <div>
                   <label class="small">Duração (minutos)</label>
                   <select id="apptDurationMinutes">
-  <option value="15">15</option>
-  <option value="20">20</option>
-  <option value="30">30</option>
-</select>
-
+                    <option value="15">15</option>
+                    <option value="20">20</option>
+                    <option value="30">30</option>
+                  </select>
                   <div class="muted small" style="margin-top:6px;">Sugestão automática por tipo (pode alterar).</div>
                 </div>
 
@@ -339,7 +344,7 @@
               <div class="toolbar">
                 <div>
                   <h3 style="margin:0;">Marcações do doente</h3>
-                  <div class="muted small">Listagem por clínica selecionada.</div>
+                  <div class="muted small">Clica numa marcação para a selecionar e ligar à consulta.</div>
                 </div>
               </div>
 
@@ -591,6 +596,11 @@ let patientsFilter = "";
 let clinicsCache = [];          // [{id, name}]
 let patientClinicLinks = [];    // [{clinic_id, patient_id, is_active, start_date, end_date, notes}]
 
+/* --- ligação marcação → consulta --- */
+let selectedAppointmentId = null;           // id da marcação selecionada
+let selectedAppointmentLabel = null;        // texto curto para banner
+let linkedAppointmentIds = new Set();       // marcações que já têm consulta ligada (consultations.appointment_id)
+
 /* ================= HELPERS ================= */
 function setStatus(msg) { $("status").textContent = msg || "—"; }
 function showError(err) { $("error").textContent = err ? String(err?.message || err) : ""; }
@@ -675,7 +685,6 @@ function initAppointmentFormDefaults() {
 
   const now = new Date();
   now.setSeconds(0, 0);
-  // input datetime-local espera "YYYY-MM-DDTHH:mm"
   const pad = (n) => String(n).padStart(2, "0");
   const v = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
   $("apptStartLocal").value = v;
@@ -686,6 +695,47 @@ function initAppointmentFormDefaults() {
 
 function clearAppointmentForm() {
   initAppointmentFormDefaults();
+}
+
+function setSelectedAppointment(appt) {
+  if (!appt) {
+    selectedAppointmentId = null;
+    selectedAppointmentLabel = null;
+    updateSelectedAppointmentBanner();
+    renderAppointmentsList(lastAppointmentsRows || []);
+    return;
+  }
+  selectedAppointmentId = appt.id;
+  const when = fmtDateTime(appt.start_at);
+  selectedAppointmentLabel = `${appt.procedure_type || "—"} | ${when}`;
+  updateSelectedAppointmentBanner();
+  renderAppointmentsList(lastAppointmentsRows || []);
+}
+
+function updateSelectedAppointmentBanner() {
+  const el = $("selectedApptBanner");
+  const btn = $("btnUnlinkAppointment");
+
+  if (currentClinicRole !== "doctor") {
+    el.style.display = "none";
+    btn.style.display = "none";
+    return;
+  }
+  if (!selectedAppointmentId) {
+    el.style.display = "none";
+    btn.style.display = "none";
+    return;
+  }
+  el.style.display = "block";
+  btn.style.display = "inline-block";
+  el.innerHTML = `Marcação selecionada para ligar: <strong>${escapeHtml(selectedAppointmentLabel || selectedAppointmentId)}</strong>`;
+}
+
+function unlinkSelectedAppointment() {
+  selectedAppointmentId = null;
+  selectedAppointmentLabel = null;
+  updateSelectedAppointmentBanner();
+  renderAppointmentsList(lastAppointmentsRows || []);
 }
 
 /* ================= TABS ================= */
@@ -724,12 +774,11 @@ function setActiveTab(which) {
 
   if (which === TAB.PATIENTS) $("tabsHint").textContent = "Seleciona doente na lista.";
   if (which === TAB.FEED) $("tabsHint").textContent = "Registos clínicos e notas.";
-  if (which === TAB.APPOINTMENTS) $("tabsHint").textContent = "Criar e listar marcações.";
+  if (which === TAB.APPOINTMENTS) $("tabsHint").textContent = "Criar e listar marcações (clica para selecionar).";
   if (which === TAB.ADMIN) $("tabsHint").textContent = "Atualizar contactos/identificação.";
   if (which === TAB.CLINICS) $("tabsHint").textContent = "Mover/adicionar/remover clínica (médico).";
   if (which === TAB.CREATE) $("tabsHint").textContent = "Criar doente (médico/secretária).";
 
-  // Carregar marcações quando entra no tab
   if (which === TAB.APPOINTMENTS) {
     loadAppointments();
   }
@@ -741,8 +790,6 @@ function refreshTabAvailability() {
 
   $("tabBtnPatients").disabled = !hasClinic;
   $("tabBtnFeed").disabled = !(hasClinic && hasPatient);
-
-  // Appointments: qualquer membro que consiga ver o doente na clínica deve conseguir ver a lista
   $("tabBtnAppointments").disabled = !(hasClinic && hasPatient);
 
   const canAdmin = (currentClinicRole === "doctor" || currentClinicRole === "secretary") && hasClinic && hasPatient;
@@ -773,6 +820,7 @@ function updateContextInfo() {
   $("contextInfo").textContent = `Clínica: ${clinic} | Doente: ${patient} | Role: ${role}`;
   $("patientsRolePill").textContent = `Role: ${role}`;
   refreshTabAvailability();
+  updateSelectedAppointmentBanner();
 }
 
 function hideAllActionBoxes() {
@@ -843,6 +891,10 @@ function resetUIOnClinicChange() {
   selectedPatientLabel = null;
   currentClinicRole = null;
 
+  selectedAppointmentId = null;
+  selectedAppointmentLabel = null;
+  linkedAppointmentIds = new Set();
+
   patientsCache = [];
   patientsFilter = "";
   $("patientSearch").value = "";
@@ -865,7 +917,6 @@ function resetUIOnClinicChange() {
   $("feedMeta").textContent = "—";
   $("feedList").innerHTML = "";
 
-  // Appointments
   $("apptsHeader").textContent = "Seleciona um doente.";
   $("apptsMeta").textContent = "—";
   $("apptsList").innerHTML = "";
@@ -974,6 +1025,10 @@ function renderPatientsList() {
       selectedPatientId = p.id;
       selectedPatientLabel = label;
 
+      selectedAppointmentId = null;
+      selectedAppointmentLabel = null;
+      linkedAppointmentIds = new Set();
+
       $("feedHeader").innerHTML = `Doente: <strong>${escapeHtml(label)}</strong>`;
       $("btnReloadFeedTop").style.display = "inline-block";
       $("btnReloadFeedTop").onclick = () => loadFeed();
@@ -998,8 +1053,8 @@ function renderPatientsList() {
       }
 
       initAppointmentFormDefaults();
-      await loadAppointments();   // carregar marcações
-      await loadFeed();           // carregar feed
+      await loadAppointments();
+      await loadFeed();
       setActiveTab(TAB.FEED);
     };
 
@@ -1512,6 +1567,26 @@ async function loadFeed() {
 }
 
 /* ================= APPOINTMENTS (LIST + CREATE) ================= */
+let lastAppointmentsRows = [];
+
+async function loadLinkedAppointmentsForPatient(appointmentIds) {
+  linkedAppointmentIds = new Set();
+  if (!appointmentIds?.length) return;
+
+  const { data, error } = await sb
+    .from("consultations")
+    .select("appointment_id")
+    .eq("clinic_id", selectedClinicId)
+    .eq("patient_id", selectedPatientId)
+    .in("appointment_id", appointmentIds);
+
+  if (error) throw error;
+
+  for (const r of (data || [])) {
+    if (r.appointment_id) linkedAppointmentIds.add(r.appointment_id);
+  }
+}
+
 function renderAppointmentsList(rows) {
   $("apptsList").innerHTML = "";
   const data = rows || [];
@@ -1529,10 +1604,21 @@ function renderAppointmentsList(rows) {
     const st = a.status || "—";
     const dur = (a.duration_minutes != null) ? `${a.duration_minutes} min` : "—";
 
+    const isSelected = (selectedAppointmentId === a.id);
+    const isLinked = linkedAppointmentIds.has(a.id);
+
+    const linkedTag = isLinked ? `<span class="tag">ligada</span>` : ``;
+
+    const canCreateConsultFromAppt = (currentClinicRole === "doctor");
+    const actionBtn = canCreateConsultFromAppt
+      ? `<button type="button" data-act="create-consult" data-id="${escapeHtml(a.id)}" style="margin-top:8px;">Criar consulta a partir desta marcação</button>`
+      : ``;
+
     return `
-      <div class="feedItem">
+      <div class="feedItem apptCard ${isSelected ? "selected" : ""}" data-appt-id="${escapeHtml(a.id)}" style="cursor:pointer;">
         <div class="feedMeta">
           <span class="tag">appointment</span>
+          ${linkedTag}
           <span class="tag">${escapeHtml(st)}</span>
           <span class="muted small">${escapeHtml(when)} → ${escapeHtml(end)}</span>
         </div>
@@ -1540,10 +1626,38 @@ function renderAppointmentsList(rows) {
           <strong>${escapeHtml(typ)}</strong>
           <div class="muted small" style="margin-top:6px;">Duração: ${escapeHtml(dur)}</div>
           <div class="muted small">ID: <code>${escapeHtml(a.id)}</code></div>
+          ${actionBtn}
         </div>
       </div>
     `;
   }).join("");
+
+  // Handlers (delegation)
+  $("apptsList").querySelectorAll("[data-appt-id]").forEach(el => {
+    el.addEventListener("click", (ev) => {
+      const act = ev.target?.getAttribute?.("data-act");
+      const apptId = el.getAttribute("data-appt-id");
+      const appt = (lastAppointmentsRows || []).find(x => x.id === apptId);
+
+      // Botão: criar consulta a partir da marcação
+      if (act === "create-consult") {
+        ev.stopPropagation();
+        if (appt) setSelectedAppointment(appt);
+        setActiveTab(TAB.FEED);
+        // garante que o banner aparece
+        updateSelectedAppointmentBanner();
+        // scroll suave para o bloco "Iniciar consulta"
+        setTimeout(() => {
+          const box = $("startConsultBox");
+          if (box) box.scrollIntoView({ behavior:"smooth", block:"start" });
+        }, 100);
+        return;
+      }
+
+      // Clique normal: selecionar marcação
+      if (appt) setSelectedAppointment(appt);
+    });
+  });
 }
 
 async function loadAppointments() {
@@ -1570,7 +1684,13 @@ async function loadAppointments() {
 
     if (error) throw error;
 
-    renderAppointmentsList(data);
+    lastAppointmentsRows = data || [];
+    const ids = lastAppointmentsRows.map(x => x.id);
+
+    // carregar quais marcações têm consulta ligada
+    await loadLinkedAppointmentsForPatient(ids);
+
+    renderAppointmentsList(lastAppointmentsRows);
 
   } catch (e) {
     showError(e);
@@ -1599,7 +1719,7 @@ async function createAppointment() {
     const duration_minutes = Number($("apptDurationMinutes").value || 0);
     const status = $("apptStatus").value;
 
-    const startLocal = $("apptStartLocal").value; // "YYYY-MM-DDTHH:mm"
+    const startLocal = $("apptStartLocal").value;
     if (!startLocal) {
       setMsg("apptMsg", "Escolhe data/hora de início.", "error");
       return;
@@ -1609,7 +1729,6 @@ async function createAppointment() {
       return;
     }
 
-    // Converte datetime-local (fuso local) → Date
     const start = roundToMinute(new Date(startLocal));
     const end = new Date(start.getTime() + duration_minutes * 60 * 1000);
 
@@ -1738,7 +1857,7 @@ async function saveConsultation() {
     const payload = {
       patient_id: selectedPatientId,
       clinic_id: selectedClinicId,
-      appointment_id: null,
+      appointment_id: selectedAppointmentId || null,   // <-- LIGAÇÃO AQUI
       author_user_id: currentUserId,
       hda,
       assessment,
@@ -1749,8 +1868,13 @@ async function saveConsultation() {
     const { error } = await sb.from("consultations").insert(payload);
     if (error) throw error;
 
-    setMsg("consultMsg", "✔ Consulta criada com sucesso", "success");
+    const linkedMsg = selectedAppointmentId ? " (ligada à marcação selecionada)" : "";
+    setMsg("consultMsg", `✔ Consulta criada com sucesso${linkedMsg}`, "success");
+
+    // após guardar: limpa campos clínicos mas mantém a marcação selecionada (para facilitar sequência)
     clearConsultFields();
+
+    await loadAppointments(); // atualiza badge "ligada"
     await loadFeed();
 
   } catch (e) {
@@ -1936,6 +2060,9 @@ async function init() {
   });
   $("btnCreateAppointment").onclick = () => createAppointment();
   $("btnResetAppointment").onclick = () => { clearAppointmentForm(); setMsg("apptMsg", "Limpo.", "success"); };
+
+  // Link/unlink appointment banner (doctor)
+  $("btnUnlinkAppointment").onclick = () => unlinkSelectedAppointment();
 
   initAppointmentFormDefaults();
 
