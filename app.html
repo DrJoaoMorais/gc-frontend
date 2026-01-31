@@ -1603,12 +1603,22 @@ async function removeClinicLink() {
   function $(id) { return document.getElementById(id); }
 
   const consState = {
-    consultationId: null,
-    diagSelected: [],
-    treatSelected: [],
-    diagPick: null,
-    treatPick: null
-  };
+  consultationId: null,
+
+  // selecionados (mantém o que já tens)
+  diagSelected: [],
+  treatSelected: [],
+
+  // autocomplete (mantém o que já tens)
+  diagPick: null,
+  treatPick: null,
+
+  // ===== A) Lista clicável de tratamentos =====
+  treatAll: [],                 // todos os tratamentos do catálogo
+  treatAllLoaded: false,         // já carregou a lista
+  treatAllError: '',             // erro ao carregar
+  treatFilter: ''                // filtro local (sem acentos)
+};
 
   function setConsStatus(msg, isError = false) {
     const el = $("cons_status");
