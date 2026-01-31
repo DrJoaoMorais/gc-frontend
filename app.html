@@ -1851,22 +1851,23 @@ const consState = {
     if (consState.treatAllLoaded && Array.isArray(consState.treatAll) && consState.treatAll.length) return consState.treatAll;
 
     const { data, error } = await sb
-      .from("treatments_catalog")
-      .select("id,name,treatment_code")
-      .order("name", { ascending: true });
+  .from("treatments_catalog")
+  .select("id,label,treatment_code")
+  .eq("is_active", true)
+  .order("label", { ascending: true });
 
-    if (error) {
-      console.error(error);
-      consState.treatAllError = "Erro a carregar tratamentos.";
-      consState.treatAllLoaded = false;
-      return [];
-    }
+if (error) {
+  console.error(error);
+  consState.treatAllError = "Erro a carregar tratamentos.";
+  consState.treatAllLoaded = false;
+  return [];
+}
 
-    consState.treatAll = (data || []).map(r => ({
-      id: r.id,
-      label: r.name,
-      treatment_code: r.treatment_code || null
-    }));
+consState.treatAll = (data || []).map(r => ({
+  id: r.id,
+  label: r.label,
+  treatment_code: r.treatment_code || null
+}));
 
     consState.treatAllLoaded = true;
     consState.treatAllError = "";
