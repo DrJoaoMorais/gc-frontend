@@ -243,9 +243,8 @@
 <div class="rxLine" style="margin:10px 0;">
   <label class="muted" style="display:block; font-size:12px; margin-bottom:6px;">Prescrição</label>
   <input id="consRehabRxText" type="text"
-         value="${escapeHtml(consState.rehabRxText || '')}"
-         placeholder="R/ 20 sessões de tratamentos de Medicina Física e de Reabilitação"
-         style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+       placeholder="R/ 20 sessões de tratamentos de Medicina Física e de Reabilitação"
+       style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
 </div>
 
 <!-- Pesquisa (opcional) -->
@@ -1825,9 +1824,13 @@ const consState = {
     box.style.display = (data && data.length) ? "block" : "none";
   }
   // Prescrição (linha R/)
-  $("consRehabRxText")?.addEventListener("input", (e) => {
-    consState.rehabRxText = e.target.value || "";
-  });
+  const rx = $("consRehabRxText");
+  if (rx) {
+    rx.value = consState.rehabRxText || "";
+    rx.addEventListener("input", (e) => {
+      consState.rehabRxText = e.target.value || "";
+    });
+  }
 
   $("btnAddTreat")?.addEventListener("click", () => {
     const pick = consState.treatPick;
