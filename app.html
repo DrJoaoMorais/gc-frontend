@@ -2675,7 +2675,72 @@ function resetPhysioRecordForm() {
   clearPhysioRecord();
   setMsg("physioRecordMsg", "Limpo.", "success");
 }
+/* ================= CONSULTA MÉDICA (NOVO BLOCO) ================= */
+async function saveMedicalConsultation() {
+  try {
+    showError("");
 
+    const setConsStatus = (msg, isError = false) => {
+      const el = $("cons_status");
+      if (!el) return;
+      el.textContent = msg || "";
+      el.style.color = isError ? "#b00020" : "#555";
+    };
+
+    if (currentClinicRole !== "doctor") {
+      setConsStatus("Sem permissões para gravar consulta (apenas médico).", true);
+      return;
+    }
+
+    if (!selectedClinicId || !selectedPatientId || !currentUserId) {
+      setConsStatus("Seleciona clínica e doente antes de gravar.", true);
+      return;
+    }
+
+    const report_date = ($("cons_report_date")?.value || todayISO());
+    const hda = ($("cons_hda")?.value || "").trim() || null;
+    const assessment = ($("cons_assessment")?.value || "").trim() || null;
+    const plan_text = ($("cons_plan")?.value || "").trim() || null;
+
+    const btn = $("btnSaveConsultation");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "A gravar…";
+    }
+
+    const payload = {
+      patient_id: selectedPatientId,
+      clinic_id: selectedClinicId,
+      appointment_id: selectedAppointmentId || null,
+      author_user_id: currentUserId,
+      hda,
+      assessment,
+      plan_text,
+      report_date
+    };
+
+    const { error } = await sb.from("consultations").insert(payload);
+    if (error) throw error;
+
+    setConsStatus("✔ Consulta gravada com sucesso.");
+    await loadAppointments();
+    await loadFeed();
+
+  } catch (e) {
+    showError(e);
+    const el = $("cons_status");
+    if (el) {
+      el.textContent = "Erro ao gravar consulta. Vê 'Estado'.";
+      el.style.color = "#b00020";
+    }
+  } finally {
+    const btn = $("btnSaveConsultation");
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Gravar consulta";
+    }
+  }
+}
 /* ================= INIT ================= */
 async function init() {
   const ok = await initSession();
@@ -2710,6 +2775,7 @@ async function init() {
   $("btnSavePatientEdits").onclick = () => savePatientEdits();
 
     if ($("btnSaveConsult")) $("btnSaveConsult").onclick = () => saveConsultation();
+    if ($("btnSaveConsultation")) $("btnSaveConsultation").onclick = () => saveMedicalConsultation();
   if ($("btnResetConsult")) $("btnResetConsult").onclick = () => resetConsultForm();
 
    if ($("btnSaveNote")) $("btnSaveNote").onclick = () => saveNote();
