@@ -888,9 +888,9 @@ function updateContextInfo() {
 }
 
 function hideAllActionBoxes() {
-  $("startConsultBox").style.display = "none";
-  $("notesBox").style.display = "none";
-  $("physioRecordBox").style.display = "none";
+  if ($("startConsultBox")) $("startConsultBox").style.display = "none";
+  if ($("notesBox")) $("notesBox").style.display = "none";
+  if ($("physioRecordBox")) $("physioRecordBox").style.display = "none";
 }
 
 function showBoxesByRole() {
