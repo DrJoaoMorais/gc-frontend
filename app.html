@@ -2686,14 +2686,14 @@ async function init() {
   $("btnReloadPatientData").onclick = () => loadSelectedPatientData();
   $("btnSavePatientEdits").onclick = () => savePatientEdits();
 
-  $("btnSaveConsult").onclick = () => saveConsultation();
-  $("btnResetConsult").onclick = () => resetConsultForm();
+    if ($("btnSaveConsult")) $("btnSaveConsult").onclick = () => saveConsultation();
+  if ($("btnResetConsult")) $("btnResetConsult").onclick = () => resetConsultForm();
 
-  $("btnSaveNote").onclick = () => saveNote();
-  $("btnResetNote").onclick = () => resetNoteForm();
+   if ($("btnSaveNote")) $("btnSaveNote").onclick = () => saveNote();
+  if ($("btnResetNote")) $("btnResetNote").onclick = () => resetNoteForm();
 
-  $("btnSavePhysioRecord").onclick = () => savePhysioRecord();
-  $("btnResetPhysioRecord").onclick = () => resetPhysioRecordForm();
+    if ($("btnSavePhysioRecord")) $("btnSavePhysioRecord").onclick = () => savePhysioRecord();
+  if ($("btnResetPhysioRecord")) $("btnResetPhysioRecord").onclick = () => resetPhysioRecordForm();
 
   $("btnReloadPatientClinics").onclick = () => loadPatientClinicLinks();
   $("btnAddClinicLink").onclick = () => addClinicLink();
@@ -2701,12 +2701,14 @@ async function init() {
   $("btnRemoveClinicLink").onclick = () => removeClinicLink();
 
   // Appointments handlers
-  $("apptProcedureType").addEventListener("change", () => {
-    const t = $("apptProcedureType").value;
-    $("apptDurationMinutes").value = String(defaultDurationByType(t));
-  });
-  $("btnCreateAppointment").onclick = () => createAppointment();
-  $("btnResetAppointment").onclick = () => { clearAppointmentForm(); setMsg("apptMsg", "Limpo.", "success"); };
+    if ($("apptProcedureType")) {
+    $("apptProcedureType").addEventListener("change", () => {
+      const t = $("apptProcedureType").value;
+      $("apptDurationMinutes").value = String(defaultDurationByType(t));
+    });
+  }
+    if ($("btnCreateAppointment")) $("btnCreateAppointment").onclick = () => createAppointment();
+  if ($("btnResetAppointment")) $("btnResetAppointment").onclick = () => { clearAppointmentForm(); setMsg("apptMsg", "Limpo.", "success"); };
 
   // Link/unlink appointment banner (doctor)
   $("btnUnlinkAppointment").onclick = () => unlinkSelectedAppointment();
