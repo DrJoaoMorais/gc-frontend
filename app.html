@@ -1708,7 +1708,8 @@ async function loadFeed({ reset = true } = {}) {
 
     // Appointment → abrir separador Consultas / Marcações
     if (type === "appointment") {
-      if (typeof openTab === "function") openTab("Appointments");
+const btn = $("tabBtnAppointments");
+if (btn) btn.click();
 
       if (appointmentId) {
         if (typeof selectAppointmentById === "function") {
