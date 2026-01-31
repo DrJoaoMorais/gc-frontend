@@ -2774,9 +2774,7 @@ async function init() {
   $("btnReloadPatientData").onclick = () => loadSelectedPatientData();
   $("btnSavePatientEdits").onclick = () => savePatientEdits();
 
-    if ($("btnSaveConsult")) $("btnSaveConsult").onclick = () => saveConsultation();
     if ($("btnSaveConsultation")) $("btnSaveConsultation").onclick = () => saveMedicalConsultation();
-  if ($("btnResetConsult")) $("btnResetConsult").onclick = () => resetConsultForm();
 
    if ($("btnSaveNote")) $("btnSaveNote").onclick = () => saveNote();
   if ($("btnResetNote")) $("btnResetNote").onclick = () => resetNoteForm();
