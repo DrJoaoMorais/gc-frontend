@@ -2786,27 +2786,61 @@ async function saveMedicalConsultation() {
       return;
     }
 
-    const report_date = ($("cons_report_date")?.value || todayISO());
-    const hda = ($("cons_hda")?.value || "").trim() || null;
-    const assessment = ($("cons_assessment")?.value || "").trim() || null;
-    const plan_text = ($("cons_plan")?.value || "").trim() || null;
+    // helper LOCAL: constrói o plan_text com tudo
+function buildPlanTextWithRxDiagTreat() {
+  const basePlan = ($("cons_plan")?.value || "").trim();
+  const rx = ($("consRehabRxText")?.value || "").trim();
 
-    const btn = $("btnSaveConsultation");
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = "A gravar…";
-    }
+  const draft =
+    (typeof window.getMedicalConsultationDraft === "function")
+      ? window.getMedicalConsultationDraft()
+      : null;
 
-    const payload = {
-      patient_id: selectedPatientId,
-      clinic_id: selectedClinicId,
-      appointment_id: selectedAppointmentId || null,
-      author_user_id: currentUserId,
-      hda,
-      assessment,
-      plan_text,
-      report_date
-    };
+  const diag = Array.isArray(draft?.diagSelected) ? draft.diagSelected : [];
+  const treat = Array.isArray(draft?.treatSelected) ? draft.treatSelected : [];
+
+  const diagNames = diag
+    .map(x => (x?.label || x?.name || x?.title || "").toString().trim())
+    .filter(Boolean);
+
+  const treatNames = treat
+    .map(x => (x?.label || x?.name || x?.title || "").toString().trim())
+    .filter(Boolean);
+
+  const parts = [];
+
+  if (basePlan) parts.push(basePlan);
+  if (rx) parts.push(`Prescrição:\n${rx}`);
+  if (diagNames.length) parts.push(`Diagnóstico:\n- ${diagNames.join("\n- ")}`);
+  if (treatNames.length) parts.push(`Tratamentos:\n- ${treatNames.join("\n- ")}`);
+
+  return parts.join("\n\n").trim() || null;
+}
+
+// dados base
+const report_date = ($("cons_report_date")?.value || todayISO());
+const hda = ($("cons_hda")?.value || "").trim() || null;
+const assessment = ($("cons_assessment")?.value || "").trim() || null;
+
+// ✅ AGORA O plan_text TEM TUDO
+const plan_text = buildPlanTextWithRxDiagTreat();
+
+const btn = $("btnSaveConsultation");
+if (btn) {
+  btn.disabled = true;
+  btn.textContent = "A gravar…";
+}
+
+const payload = {
+  patient_id: selectedPatientId,
+  clinic_id: selectedClinicId,
+  appointment_id: selectedAppointmentId || null,
+  author_user_id: currentUserId,
+  hda,
+  assessment,
+  plan_text,
+  report_date
+};
 
     const { error } = await sb.from("consultations").insert(payload);
     if (error) throw error;
