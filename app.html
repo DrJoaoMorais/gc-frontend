@@ -898,7 +898,6 @@ function showBoxesByRole() {
   if (!selectedClinicId || !selectedPatientId) return;
 
   if (currentClinicRole) $("notesBox").style.display = "block";
-  if (currentClinicRole === "doctor") $("startConsultBox").style.display = "block";
   if (currentClinicRole === "physio") $("physioRecordBox").style.display = "block";
 }
 
@@ -1919,12 +1918,79 @@ consState.treatAll = (data || []).map(r => ({
 
   initTreatPickList();
   // Botões (por agora só valida; a gravação entra no passo seguinte)
+    // ================== SAVE / PDF (ponte para o fluxo antigo) ==================
+  function readVal(...ids) {
+    for (const id of ids) {
+      const el = $(id);
+      if (!el) continue;
+      const v = (el.value ?? "").toString();
+      if (v !== "") return v;
+    }
+    return "";
+  }
+
+  function setVal(id, value) {
+    const el = $(id);
+    if (!el) return;
+    el.value = value ?? "";
+    // dispara input para manter estado (se houver listeners)
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  function bridgeToLegacyConsultBox() {
+    // 1) Copiar textos da "Consulta médica" (novo) para o "Iniciar consulta" (antigo)
+    // Nota: isto é robusto: lê consHDA/consAssessment/consPlan se existirem,
+    // senão lê consultHDA/consultAssessment/consultPlan.
+    const hda = readVal("consHDA", "consultHDA");
+    const assessment = readVal("consAssessment", "consultAssessment");
+    const plan = readVal("consPlan", "consultPlan");
+
+    // Escreve SEMPRE nos campos antigos (porque é o save antigo que grava)
+    setVal("consultHDA", hda);
+    setVal("consultAssessment", assessment);
+    setVal("consultPlan", plan);
+
+    // 2) Prescrição (linha R/): garante valor no input (se existir)
+    // (o teu input novo chama-se consRehabRxText)
+    const rx = readVal("consRehabRxText");
+    if (rx) setVal("consRehabRxText", rx);
+  }
+
   $("btnSaveConsultation")?.addEventListener("click", () => {
-    setConsStatus("OK: JS ligado. (gravação entra no próximo passo)");
+    try {
+      bridgeToLegacyConsultBox();
+
+      const legacyBtn = $("btnSaveConsult");
+      if (!legacyBtn) {
+        setConsStatus("Erro: não encontrei o botão antigo 'btnSaveConsult'.", true);
+        return;
+      }
+
+      legacyBtn.click();
+      setConsStatus("A gravar (via fluxo antigo)…");
+    } catch (e) {
+      console.error(e);
+      setConsStatus("Erro ao preparar gravação.", true);
+    }
   });
 
   $("btnCreateConsultationPdf")?.addEventListener("click", () => {
-    setConsStatus("OK: JS ligado. (documento/PDF entra no próximo passo)");
+    try {
+      bridgeToLegacyConsultBox();
+
+      const legacyPdfBtn = $("btnCreateConsultationPdf");
+      // Se o ID do PDF antigo for outro, isto falha e eu ajusto no passo seguinte.
+      if (!legacyPdfBtn) {
+        setConsStatus("Erro: não encontrei o botão antigo de PDF.", true);
+        return;
+      }
+
+      legacyPdfBtn.click();
+      setConsStatus("A gerar PDF (via fluxo antigo)…");
+    } catch (e) {
+      console.error(e);
+      setConsStatus("Erro ao preparar PDF.", true);
+    }
   });
 
 })();
