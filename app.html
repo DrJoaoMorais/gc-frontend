@@ -274,44 +274,7 @@
 <div id="treat_suggestions"
      style="border:1px solid #eee; border-radius:10px; padding:8px; margin-top:8px; display:none;"></div>
 
-  <!-- ================= /CONSULTA MÉDICA (HTML) ================= -->
-          <!-- CONSULTA (SÓ DOCTOR) -->
-          <div id="startConsultBox" style="display:none; margin-top:12px;">
-            <div class="box" style="border-radius: 12px;">
-              <div class="toolbar">
-                <div>
-                  <h3 style="margin:0;">Iniciar consulta</h3>
-                  <div id="contextBanner" class="muted small">—</div>
-                  <div id="selectedApptBanner" class="muted small" style="margin-top:6px; display:none;"></div>
-                </div>
-                <div style="display:flex; gap:10px; align-items:center;">
-                  <button id="btnUnlinkAppointment" type="button" style="display:none;">Desligar marcação</button>
-                  <button id="btnResetConsult" type="button">Limpar</button>
-                  <button id="btnSaveConsult" type="button">Guardar</button>
-                </div>
-              </div>
-
-              <div class="divider"></div>
-
-              <div style="margin-top:10px;">
-                <label class="small">História da Doença Atual / Anamnese</label>
-                <textarea id="consultHDA" placeholder="Escreve a HDA/Anamnese…"></textarea>
-              </div>
-
-              <div style="margin-top:10px;">
-                <label class="small">Avaliação</label>
-                <textarea id="consultAssessment" placeholder="Escreve a avaliação…"></textarea>
-              </div>
-
-              <div style="margin-top:10px;">
-                <label class="small">Plano</label>
-                <textarea id="consultPlan" placeholder="Escreve o plano…"></textarea>
-              </div>
-
-              <div id="consultMsg" class="small" style="margin-top:8px;"></div>
-            </div>
-          </div>
-
+  
           <!-- NOTAS (TODOS) -->
           <div id="notesBox" style="display:none; margin-top:12px;">
             <div class="box" style="border-radius: 12px;">
@@ -2270,19 +2233,7 @@ function renderAppointmentsList(rows) {
       const appt = (lastAppointmentsRows || []).find(x => x.id === apptId);
 
       // Botão: criar consulta a partir da marcação
-      if (act === "create-consult") {
-        ev.stopPropagation();
-        if (appt) setSelectedAppointment(appt);
-        setActiveTab(TAB.FEED);
-        // garante que o banner aparece
-        updateSelectedAppointmentBanner();
-        // scroll suave para o bloco "Iniciar consulta"
-        setTimeout(() => {
-          const box = $("startConsultBox");
-          if (box) box.scrollIntoView({ behavior:"smooth", block:"start" });
-        }, 100);
-        return;
-      }
+      
 
       // Clique normal: selecionar marcação
       if (appt) setSelectedAppointment(appt);
