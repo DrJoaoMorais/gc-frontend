@@ -2012,53 +2012,61 @@ consState.treatAll = (data || []).map(r => ({
     el.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
-  function bridgeToLegacyConsultBox() {
-  // 1) Copiar textos da "Consulta médica" (novo) para o "Iniciar consulta" (antigo)
+function bridgeToLegacyConsultBox() {
+  // 1) Textos base (o que escreves)
   const hda = readVal("cons_hda", "consultHDA");
   const assessment = readVal("cons_assessment", "consultAssessment");
-  let plan = readVal("cons_plan", "consultPlan");
+  let plan = readVal("cons_plan", "consultPlan"); // <- o que escreves no Plano
 
-  // 2) Buscar diagnóstico/tratamentos do estado do bloco novo
-  let extra = "";
-  try {
-    const d = (typeof window.getMedicalConsultationDraft === "function")
-      ? window.getMedicalConsultationDraft()
-      : null;
+  // 2) Buscar rascunho (diag + tratamentos + R/)
+  const d = (typeof window.getMedicalConsultationDraft === "function")
+    ? window.getMedicalConsultationDraft()
+    : { rehabRxText: "", treatSelected: [], diagSelected: [] };
 
-    if (d) {
-      const diag = (d.diagSelected || []).map(x => {
-        const code = x.icd9_code ? ` (ICD-9: ${x.icd9_code})` : "";
-        return `- ${x.label || ""}${code}`;
-      }).filter(Boolean);
+  const lines = [];
 
-      const trt = (d.treatSelected || []).map(x => {
-        const code = x.treatment_code ? ` (${x.treatment_code})` : "";
-        return `- ${x.label || ""}${code}`;
-      }).filter(Boolean);
+  // R/ (sempre que existir)
+  const rx = (d.rehabRxText || "").trim();
+  if (rx) {
+    lines.push("Prescrição:");
+    lines.push(rx);
+  }
 
-      const rx = (d.rehabRxText || "").trim();
+  // Diagnóstico(s)
+  const diag = (d.diagSelected || []).map(x => {
+    const code = x.icd9_code ? ` (ICD-9: ${x.icd9_code})` : "";
+    return `- ${x.label}${code}`;
+  });
+  if (diag.length) {
+    lines.push("Diagnóstico:");
+    lines.push(...diag);
+  }
 
-      if (diag.length || trt.length || rx) {
-        extra += "\n\n—\n";
-        if (diag.length) extra += `Diagnóstico:\n${diag.join("\n")}\n`;
-        if (rx) extra += `\nPrescrição:\n${rx}\n`;
-        if (trt.length) extra += `\nTratamentos:\n${trt.join("\n")}\n`;
-      }
-    }
-  } catch {}
+  // Tratamentos
+  const trt = (d.treatSelected || []).map(x => {
+    const code = x.treatment_code ? ` (${x.treatment_code})` : "";
+    return `- ${x.label}${code}`;
+  });
+  if (trt.length) {
+    lines.push("Tratamentos:");
+    lines.push(...trt);
+  }
 
-  // 3) Anexar ao Plano (é o que vai para o FEED e para o PDF)
-  plan = (plan || "") + extra;
+  // 3) Anexar ao Plano (para FEED + PDF)
+  // regra: mantém o que escreveste e junta o bloco estruturado em baixo
+  const extra = lines.length ? `\n\n---\n${lines.join("\n")}` : "";
+  plan = ((plan || "").trim() + extra).trim();
 
-  // 4) Escrever SEMPRE nos campos antigos (porque é o save antigo que grava)
+  // 4) Escrever nos campos antigos (são estes que o save antigo grava)
   setVal("consultHDA", hda);
   setVal("consultAssessment", assessment);
   setVal("consultPlan", plan);
 
-  // 5) Prescrição (linha R/) no input novo (mantém)
+  // 5) Sincronizar o input novo R/ (mantém — tu queres "tudo")
   const rxNow = readVal("consRehabRxText");
   if (rxNow) setVal("consRehabRxText", rxNow);
 }
+
 
   $("btnSaveConsultation")?.addEventListener("click", () => {
     try {
