@@ -696,10 +696,17 @@ function todayISO() {
 }
 
 function clearConsultFields() {
-  $("consultHDA").value = "";
-  $("consultAssessment").value = "";
-  $("consultPlan").value = "";
+  // Bloco antigo "Iniciar consulta"
+  if ($("consultHDA")) $("consultHDA").value = "";
+  if ($("consultAssessment")) $("consultAssessment").value = "";
+  if ($("consultPlan")) $("consultPlan").value = "";
+
+  // Bloco novo "Consulta médica"
+  if ($("cons_hda")) $("cons_hda").value = "";
+  if ($("cons_assessment")) $("cons_assessment").value = "";
+  if ($("cons_plan")) $("cons_plan").value = "";
 }
+
 function clearNote() { $("noteContent").value = ""; }
 function clearPhysioRecord() { $("physioRecordContent").value = ""; }
 function clearPatientForm() {
