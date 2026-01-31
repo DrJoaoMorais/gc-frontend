@@ -1697,7 +1697,7 @@ async function removeClinicLink() {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from("diagnoses_catalog")
       .select("id,label,icd9_code")
       .eq("is_active", true)
@@ -1764,7 +1764,7 @@ async function removeClinicLink() {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from("treatments_catalog")
       .select("id,label,treatment_code")
       .eq("is_active", true)
