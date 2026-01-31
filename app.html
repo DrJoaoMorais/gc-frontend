@@ -1602,7 +1602,7 @@ async function removeClinicLink() {
 
   function $(id) { return document.getElementById(id); }
 
-  const consState = {
+const consState = {
   consultationId: null,
 
   // selecionados (mantém o que já tens)
@@ -1612,6 +1612,9 @@ async function removeClinicLink() {
   // autocomplete (mantém o que já tens)
   diagPick: null,
   treatPick: null,
+
+  // linha R/ (editável)
+  rehabRxText: 'R/ 20 sessões de tratamentos de Medicina Física e de Reabilitação',
 
   // ===== A) Lista clicável de tratamentos =====
   treatAll: [],                 // todos os tratamentos do catálogo
