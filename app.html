@@ -2711,6 +2711,7 @@ async function init() {
   if ($("btnResetAppointment")) $("btnResetAppointment").onclick = () => { clearAppointmentForm(); setMsg("apptMsg", "Limpo.", "success"); };
 
   // Link/unlink appointment banner (doctor)
+  if ($("btnUnlinkAppointment"))
   $("btnUnlinkAppointment").onclick = () => unlinkSelectedAppointment();
 
   initAppointmentFormDefaults();
