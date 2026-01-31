@@ -178,7 +178,80 @@
             <div class="muted small" id="feedHeader">Seleciona um doente.</div>
             <button id="btnReloadFeedTop" type="button" style="display:none;">Atualizar</button>
           </div>
+  <!-- ================= CONSULTA MÉDICA (HTML) ================= -->
+  <section id="medicalConsultationBox" class="box" style="margin:16px 0;">
+    <h2>Consulta médica</h2>
 
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:start;">
+      <div>
+        <label style="display:block; font-weight:600; margin-bottom:6px;">Data do relatório</label>
+        <input id="cons_report_date" type="date"
+               style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;" />
+      </div>
+
+      <div>
+        <label style="display:block; font-weight:600; margin-bottom:6px;">Ações</label>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button id="btnSaveConsultation" type="button">Gravar consulta</button>
+          <button id="btnCreateConsultationPdf" type="button">Gerar PDF</button>
+        </div>
+        <div id="cons_status" style="margin-top:8px; font-size:12px; color:#555;"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;">
+      <label style="display:block; font-weight:600; margin-bottom:6px;">HDA</label>
+      <textarea id="cons_hda" rows="4"
+                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;"></textarea>
+    </div>
+
+    <div style="margin-top:12px;">
+      <label style="display:block; font-weight:600; margin-bottom:6px;">Avaliação</label>
+      <textarea id="cons_assessment" rows="4"
+                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;"></textarea>
+    </div>
+
+    <div style="margin-top:12px;">
+      <label style="display:block; font-weight:600; margin-bottom:6px;">Plano</label>
+      <textarea id="cons_plan" rows="4"
+                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;"></textarea>
+    </div>
+
+    <hr style="margin:16px 0; border:none; border-top:1px solid #eee;" />
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; align-items:start;">
+      <!-- Diagnósticos -->
+      <div>
+        <h3>Diagnóstico</h3>
+        <div style="display:flex; gap:8px;">
+          <input id="diag_search" type="text" placeholder="Pesquisar diagnóstico…"
+                 style="flex:1; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+          <button id="btnAddDiag" type="button">Adicionar</button>
+        </div>
+        <div id="diag_suggestions"
+             style="border:1px solid #eee; border-radius:10px; padding:8px; margin-top:8px; max-height:160px; overflow:auto; display:none;"></div>
+        <div style="margin-top:10px; font-weight:600;">Selecionados</div>
+        <div id="diag_selected"
+             style="border:1px solid #eee; border-radius:10px; padding:8px; margin-top:6px; min-height:44px;"></div>
+      </div>
+
+      <!-- Tratamentos -->
+      <div>
+        <h3>Tratamentos</h3>
+        <div style="display:flex; gap:8px;">
+          <input id="treat_search" type="text" placeholder="Pesquisar tratamento…"
+                 style="flex:1; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+          <button id="btnAddTreat" type="button">Adicionar</button>
+        </div>
+        <div id="treat_suggestions"
+             style="border:1px solid #eee; border-radius:10px; padding:8px; margin-top:8px; max-height:160px; overflow:auto; display:none;"></div>
+        <div style="margin-top:10px; font-weight:600;">Selecionados</div>
+        <div id="treat_selected"
+             style="border:1px solid #eee; border-radius:10px; padding:8px; margin-top:6px; min-height:44px;"></div>
+      </div>
+    </div>
+  </section>
+  <!-- ================= /CONSULTA MÉDICA (HTML) ================= -->
           <!-- CONSULTA (SÓ DOCTOR) -->
           <div id="startConsultBox" style="display:none; margin-top:12px;">
             <div class="box" style="border-radius: 12px;">
@@ -1518,6 +1591,239 @@ async function removeClinicLink() {
 }
 
 /* ================= FEED ================= */
+/* ================= CONSULTA MÉDICA (JS) =================
+   NOTA: isto é só JS. NÃO inclui <section> nem <script>.
+   É "seguro": se o HTML ainda não existir, não faz nada.
+========================================================== */
+
+(function setupMedicalConsultationJS() {
+  // Se o HTML ainda não foi colocado, sai sem erro.
+  if (!document.getElementById("medicalConsultationBox")) return;
+
+  function $(id) { return document.getElementById(id); }
+
+  const consState = {
+    consultationId: null,
+    diagSelected: [],
+    treatSelected: [],
+    diagPick: null,
+    treatPick: null
+  };
+
+  function setConsStatus(msg, isError = false) {
+    const el = $("cons_status");
+    if (!el) return;
+    el.textContent = msg || "";
+    el.style.color = isError ? "#b00020" : "#555";
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function todayISO() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  // AJUSTA MAIS TARDE se necessário (por agora não mexas)
+  function getSelectedPatientId() { return window.__selectedPatientId || null; }
+  function getSelectedClinicId() { return window.__selectedClinicId || null; }
+  function getSelectedAppointmentId() { return window.__selectedAppointmentId || null; }
+
+  function renderSelectedChips(containerId, items, onRemove) {
+    const box = $(containerId);
+    if (!box) return;
+    box.innerHTML = "";
+    if (!items.length) {
+      box.innerHTML = `<span style="color:#777; font-size:12px;">(vazio)</span>`;
+      return;
+    }
+    items.forEach((it, idx) => {
+      const chip = document.createElement("span");
+      chip.style.display = "inline-flex";
+      chip.style.alignItems = "center";
+      chip.style.gap = "8px";
+      chip.style.padding = "6px 10px";
+      chip.style.margin = "4px 6px 0 0";
+      chip.style.border = "1px solid #ddd";
+      chip.style.borderRadius = "999px";
+      chip.style.fontSize = "12px";
+
+      const code = it.icd9_code ? ` — ICD-9: ${it.icd9_code}` : (it.treatment_code ? ` — ${it.treatment_code}` : "");
+      chip.innerHTML = `<span>${escapeHtml(it.label)}${escapeHtml(code)}</span>`;
+
+      const x = document.createElement("button");
+      x.type = "button";
+      x.textContent = "×";
+      x.style.border = "none";
+      x.style.background = "transparent";
+      x.style.cursor = "pointer";
+      x.style.fontSize = "16px";
+      x.onclick = () => onRemove(idx);
+      chip.appendChild(x);
+
+      box.appendChild(chip);
+    });
+  }
+
+  // Init
+  if ($("cons_report_date") && !$("cons_report_date").value) $("cons_report_date").value = todayISO();
+  renderSelectedChips("diag_selected", consState.diagSelected, () => {});
+  renderSelectedChips("treat_selected", consState.treatSelected, () => {});
+
+  // Diagnósticos — autocomplete
+  let diagTimer = null;
+  $("diag_search")?.addEventListener("input", () => {
+    clearTimeout(diagTimer);
+    diagTimer = setTimeout(loadDiagSuggestions, 250);
+  });
+
+  async function loadDiagSuggestions() {
+    const term = ($("diag_search")?.value || "").trim();
+    const box = $("diag_suggestions");
+    consState.diagPick = null;
+
+    if (!box || term.length < 2) {
+      if (box) { box.style.display = "none"; box.innerHTML = ""; }
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("diagnoses_catalog")
+      .select("id,label,icd9_code")
+      .eq("is_active", true)
+      .ilike("label", `%${term}%`)
+      .order("label", { ascending: true })
+      .limit(20);
+
+    if (error) {
+      console.error(error);
+      setConsStatus("Erro a pesquisar diagnósticos.", true);
+      box.style.display = "none";
+      return;
+    }
+
+    box.innerHTML = "";
+    (data || []).forEach(row => {
+      const item = document.createElement("div");
+      item.style.padding = "8px";
+      item.style.borderRadius = "8px";
+      item.style.cursor = "pointer";
+      item.onmouseenter = () => item.style.background = "#f7f7f7";
+      item.onmouseleave = () => item.style.background = "transparent";
+      item.onclick = () => {
+        consState.diagPick = row;
+        $("diag_search").value = row.label;
+        box.style.display = "none";
+      };
+      const code = row.icd9_code ? ` <span style="color:#777;">(ICD-9: ${escapeHtml(row.icd9_code)})</span>` : "";
+      item.innerHTML = `<div><strong>${escapeHtml(row.label)}</strong>${code}</div>`;
+      box.appendChild(item);
+    });
+
+    box.style.display = (data && data.length) ? "block" : "none";
+  }
+
+  $("btnAddDiag")?.addEventListener("click", () => {
+    const pick = consState.diagPick;
+    if (!pick) { setConsStatus("Seleciona um diagnóstico nas sugestões.", true); return; }
+    if (consState.diagSelected.some(x => x.id === pick.id)) { setConsStatus("Diagnóstico já selecionado.", true); return; }
+    consState.diagSelected.push(pick);
+    consState.diagPick = null;
+    $("diag_search").value = "";
+    renderSelectedChips("diag_selected", consState.diagSelected, (idx) => {
+      consState.diagSelected.splice(idx, 1);
+      renderSelectedChips("diag_selected", consState.diagSelected, arguments.callee);
+    });
+    setConsStatus("Diagnóstico adicionado.");
+  });
+
+  // Tratamentos — autocomplete
+  let treatTimer = null;
+  $("treat_search")?.addEventListener("input", () => {
+    clearTimeout(treatTimer);
+    treatTimer = setTimeout(loadTreatSuggestions, 250);
+  });
+
+  async function loadTreatSuggestions() {
+    const term = ($("treat_search")?.value || "").trim();
+    const box = $("treat_suggestions");
+    consState.treatPick = null;
+
+    if (!box || term.length < 2) {
+      if (box) { box.style.display = "none"; box.innerHTML = ""; }
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("treatments_catalog")
+      .select("id,label,treatment_code")
+      .eq("is_active", true)
+      .ilike("label", `%${term}%`)
+      .order("label", { ascending: true })
+      .limit(20);
+
+    if (error) {
+      console.error(error);
+      setConsStatus("Erro a pesquisar tratamentos.", true);
+      box.style.display = "none";
+      return;
+    }
+
+    box.innerHTML = "";
+    (data || []).forEach(row => {
+      const item = document.createElement("div");
+      item.style.padding = "8px";
+      item.style.borderRadius = "8px";
+      item.style.cursor = "pointer";
+      item.onmouseenter = () => item.style.background = "#f7f7f7";
+      item.onmouseleave = () => item.style.background = "transparent";
+      item.onclick = () => {
+        consState.treatPick = row;
+        $("treat_search").value = row.label;
+        box.style.display = "none";
+      };
+      const code = row.treatment_code ? ` <span style="color:#777;">(${escapeHtml(row.treatment_code)})</span>` : "";
+      item.innerHTML = `<div><strong>${escapeHtml(row.label)}</strong>${code}</div>`;
+      box.appendChild(item);
+    });
+
+    box.style.display = (data && data.length) ? "block" : "none";
+  }
+
+  $("btnAddTreat")?.addEventListener("click", () => {
+    const pick = consState.treatPick;
+    if (!pick) { setConsStatus("Seleciona um tratamento nas sugestões.", true); return; }
+    if (consState.treatSelected.some(x => x.id === pick.id)) { setConsStatus("Tratamento já selecionado.", true); return; }
+    consState.treatSelected.push(pick);
+    consState.treatPick = null;
+    $("treat_search").value = "";
+    renderSelectedChips("treat_selected", consState.treatSelected, (idx) => {
+      consState.treatSelected.splice(idx, 1);
+      renderSelectedChips("treat_selected", consState.treatSelected, arguments.callee);
+    });
+    setConsStatus("Tratamento adicionado.");
+  });
+
+  // Botões (por agora só valida; a gravação entra no passo seguinte)
+  $("btnSaveConsultation")?.addEventListener("click", () => {
+    setConsStatus("OK: JS ligado. (gravação entra no próximo passo)");
+  });
+
+  $("btnCreateConsultationPdf")?.addEventListener("click", () => {
+    setConsStatus("OK: JS ligado. (documento/PDF entra no próximo passo)");
+  });
+
+})();
 /* ================= FEED ================= */
 
 // Paginação do feed
