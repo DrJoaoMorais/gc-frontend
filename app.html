@@ -1156,7 +1156,7 @@ function renderPatientsList() {
   await loadAppointments();
   await loadFeed();
   setActiveTab(TAB.FEED);
-  
+
     };
 
     $("patientsList").appendChild(li);
@@ -1644,6 +1644,35 @@ const consState = {
   treatAllLoaded: false,         // já carregou a lista
   treatAllError: '',             // erro ao carregar
   treatFilter: ''                // filtro local (sem acentos)
+};
+// ✅ FIX: reset externo ao mudar de doente (limpa diagnósticos + tratamentos + UI)
+window.resetMedicalConsultationDraft = function resetMedicalConsultationDraft() {
+  consState.consultationId = null;
+
+  consState.diagSelected = [];
+  consState.treatSelected = [];
+  consState.diagPick = null;
+  consState.treatPick = null;
+
+  consState.rehabRxText = "R/ 20 sessões de tratamentos de Medicina Física e de Reabilitação";
+  consState.treatFilter = "";
+
+  // limpar inputs
+  if (document.getElementById("diag_search")) document.getElementById("diag_search").value = "";
+  if (document.getElementById("treat_search")) document.getElementById("treat_search").value = "";
+  if (document.getElementById("consRehabRxText")) document.getElementById("consRehabRxText").value = consState.rehabRxText;
+
+  // limpar textos da consulta
+  if (document.getElementById("cons_hda")) document.getElementById("cons_hda").value = "";
+  if (document.getElementById("cons_assessment")) document.getElementById("cons_assessment").value = "";
+  if (document.getElementById("cons_plan")) document.getElementById("cons_plan").value = "";
+
+  // re-render chips
+  try { renderSelectedChips("diag_selected", consState.diagSelected, () => {}); } catch {}
+  try { renderSelectedChips("treat_selected", consState.treatSelected, () => {}); } catch {}
+
+  // re-render lista clicável (remove ✓)
+  try { renderTreatPickList(); } catch {}
 };
 
   function setConsStatus(msg, isError = false) {
