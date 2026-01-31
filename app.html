@@ -788,6 +788,9 @@ function updateSelectedAppointmentBanner() {
   const el = $("selectedApptBanner");
   const btn = $("btnUnlinkAppointment");
 
+  // Se o bloco antigo não existir no HTML, sai sem erro.
+  if (!el || !btn) return;
+
   if (currentClinicRole !== "doctor") {
     el.style.display = "none";
     btn.style.display = "none";
@@ -798,6 +801,7 @@ function updateSelectedAppointmentBanner() {
     btn.style.display = "none";
     return;
   }
+
   el.style.display = "block";
   btn.style.display = "inline-block";
   el.innerHTML = `Marcação selecionada para ligar: <strong>${escapeHtml(selectedAppointmentLabel || selectedAppointmentId)}</strong>`;
