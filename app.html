@@ -892,9 +892,12 @@ function refreshTabAvailability() {
 
 /* ================= CONTEXTO ================= */
 function updateContextBanner() {
+  const el = $("contextBanner");
+  if (!el) return;
+
   const clinic = selectedClinicName || "—";
   const patient = selectedPatientLabel || "—";
-  $("contextBanner").innerHTML = `Clínica: <strong>${escapeHtml(clinic)}</strong> &nbsp;|&nbsp; Doente: <strong>${escapeHtml(patient)}</strong>`;
+  el.innerHTML = `Clínica: <strong>${escapeHtml(clinic)}</strong> &nbsp;|&nbsp; Doente: <strong>${escapeHtml(patient)}</strong>`;
 }
 
 function updateContextInfo() {
