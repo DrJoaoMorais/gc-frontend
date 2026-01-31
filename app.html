@@ -1108,40 +1108,55 @@ function renderPatientsList() {
     li.textContent = label;
 
     li.onclick = async () => {
-      selectedPatientId = p.id;
-      selectedPatientLabel = label;
+  selectedPatientId = p.id;
+  selectedPatientLabel = label;
 
-      selectedAppointmentId = null;
-      selectedAppointmentLabel = null;
-      linkedAppointmentIds = new Set();
+  // === FIX DEFINITIVO: reset total ao mudar de doente ===
+  window.__selectedPatientId = selectedPatientId;
+  window.__selectedClinicId = selectedClinicId;
+  window.__selectedAppointmentId = null;
 
-      $("feedHeader").innerHTML = `Doente: <strong>${escapeHtml(label)}</strong>`;
-      $("btnReloadFeedTop").style.display = "inline-block";
-      $("btnReloadFeedTop").onclick = () => loadFeed();
+  selectedAppointmentId = null;
+  selectedAppointmentLabel = null;
+  linkedAppointmentIds = new Set();
 
-      updateContextBanner();
-      updateContextInfo();
-      showBoxesByRole();
+  clearConsultFields();
+  if ($("consRehabRxText")) {
+    $("consRehabRxText").value = 'R/ 20 sessões de tratamentos de Medicina Física e de Reabilitação';
+  }
+  if (typeof window.resetMedicalConsultationDraft === "function") {
+    window.resetMedicalConsultationDraft();
+  }
+  // === FIM DO FIX ===
 
-      setMsg("consultMsg", "");
-      setMsg("noteMsg", "");
-      setMsg("physioRecordMsg", "");
+  $("feedHeader").innerHTML = `Doente: <strong>${escapeHtml(label)}</strong>`;
+  $("btnReloadFeedTop").style.display = "inline-block";
+  $("btnReloadFeedTop").onclick = () => loadFeed();
 
-      updateManageClinicsVisibility();
-      updateEditPatientVisibility();
-      updateAppointmentsVisibility();
+  updateContextBanner();
+  updateContextInfo();
+  showBoxesByRole();
 
-      if (currentClinicRole === "doctor") {
-        await loadPatientClinicLinks();
-      }
-      if (currentClinicRole === "secretary" || currentClinicRole === "doctor") {
-        await loadSelectedPatientData();
-      }
+  setMsg("consultMsg", "");
+  setMsg("noteMsg", "");
+  setMsg("physioRecordMsg", "");
 
-      initAppointmentFormDefaults();
-      await loadAppointments();
-      await loadFeed();
-      setActiveTab(TAB.FEED);
+  updateManageClinicsVisibility();
+  updateEditPatientVisibility();
+  updateAppointmentsVisibility();
+
+  if (currentClinicRole === "doctor") {
+    await loadPatientClinicLinks();
+  }
+  if (currentClinicRole === "secretary" || currentClinicRole === "doctor") {
+    await loadSelectedPatientData();
+  }
+
+  initAppointmentFormDefaults();
+  await loadAppointments();
+  await loadFeed();
+  setActiveTab(TAB.FEED);
+  
     };
 
     $("patientsList").appendChild(li);
