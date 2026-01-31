@@ -671,6 +671,7 @@ function showError(err) { $("error").textContent = err ? String(err?.message || 
 
 function setMsg(elId, text, kind) {
   const el = $(elId);
+  if (!el) return;
   el.textContent = text || "";
   el.className = "small";
   if (kind === "error") el.classList.add("error");
