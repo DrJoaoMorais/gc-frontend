@@ -643,6 +643,14 @@ const SUPABASE_URL = "https://vfrmjfveclfwxcdknlvs.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmcm1qZnZlY2xmd3hjZGtubHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODM1NTQsImV4cCI6MjA4NDI1OTU1NH0.jSQMR2jar0UxrDeXpYBOvFSj8ucjPWOdaBRKKr543hc";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = (id) => document.getElementById(id);
+// Mostrar erros JS no painel "Estado" (sem depender da consola)
+window.addEventListener("error", (e) => {
+  try { showError(e?.error || e?.message || e); } catch {}
+});
+
+window.addEventListener("unhandledrejection", (e) => {
+  try { showError(e?.reason || e); } catch {}
+});
 
 /* ================= ESTADO ================= */
 let selectedClinicId = null;
