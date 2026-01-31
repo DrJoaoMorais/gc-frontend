@@ -1697,13 +1697,7 @@ async function removeClinicLink() {
       return;
     }
 
-    const { data, error } = await sb
-      .from("diagnoses_catalog")
-      .select("id,label,icd9_code")
-      .eq("is_active", true)
-      .ilike("label", `%${term}%`)
-      .order("label", { ascending: true })
-      .limit(20);
+    const { data, error } = await sb.rpc("search_diagnoses", { term });
 
     if (error) {
       console.error(error);
@@ -1764,13 +1758,7 @@ async function removeClinicLink() {
       return;
     }
 
-    const { data, error } = await sb
-      .from("treatments_catalog")
-      .select("id,label,treatment_code")
-      .eq("is_active", true)
-      .ilike("label", `%${term}%`)
-      .order("label", { ascending: true })
-      .limit(20);
+    const { data, error } = await sb.rpc("search_treatments", { term });
 
     if (error) {
       console.error(error);
