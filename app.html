@@ -1647,6 +1647,14 @@ const consState = {
 };
 // ✅ FIX: reset externo ao mudar de doente (limpa diagnósticos + tratamentos + UI)
 window.resetMedicalConsultationDraft = function resetMedicalConsultationDraft() {
+  // ✅ EXPOR rascunho (diagnóstico + tratamentos + R/) para o save/PDF
+window.getMedicalConsultationDraft = function getMedicalConsultationDraft() {
+  return {
+    rehabRxText: consState.rehabRxText || "",
+    treatSelected: Array.isArray(consState.treatSelected) ? consState.treatSelected : [],
+    diagSelected: Array.isArray(consState.diagSelected) ? consState.diagSelected : []
+  };
+};
   consState.consultationId = null;
 
   consState.diagSelected = [];
@@ -2005,23 +2013,52 @@ consState.treatAll = (data || []).map(r => ({
   }
 
   function bridgeToLegacyConsultBox() {
-    // 1) Copiar textos da "Consulta médica" (novo) para o "Iniciar consulta" (antigo)
-    // Nota: isto é robusto: lê consHDA/consAssessment/consPlan se existirem,
-    // senão lê consultHDA/consultAssessment/consultPlan.
-    const hda = readVal("consHDA", "consultHDA");
-    const assessment = readVal("consAssessment", "consultAssessment");
-    const plan = readVal("consPlan", "consultPlan");
+  // 1) Copiar textos da "Consulta médica" (novo) para o "Iniciar consulta" (antigo)
+  const hda = readVal("cons_hda", "consultHDA");
+  const assessment = readVal("cons_assessment", "consultAssessment");
+  let plan = readVal("cons_plan", "consultPlan");
 
-    // Escreve SEMPRE nos campos antigos (porque é o save antigo que grava)
-    setVal("consultHDA", hda);
-    setVal("consultAssessment", assessment);
-    setVal("consultPlan", plan);
+  // 2) Buscar diagnóstico/tratamentos do estado do bloco novo
+  let extra = "";
+  try {
+    const d = (typeof window.getMedicalConsultationDraft === "function")
+      ? window.getMedicalConsultationDraft()
+      : null;
 
-    // 2) Prescrição (linha R/): garante valor no input (se existir)
-    // (o teu input novo chama-se consRehabRxText)
-    const rx = readVal("consRehabRxText");
-    if (rx) setVal("consRehabRxText", rx);
-  }
+    if (d) {
+      const diag = (d.diagSelected || []).map(x => {
+        const code = x.icd9_code ? ` (ICD-9: ${x.icd9_code})` : "";
+        return `- ${x.label || ""}${code}`;
+      }).filter(Boolean);
+
+      const trt = (d.treatSelected || []).map(x => {
+        const code = x.treatment_code ? ` (${x.treatment_code})` : "";
+        return `- ${x.label || ""}${code}`;
+      }).filter(Boolean);
+
+      const rx = (d.rehabRxText || "").trim();
+
+      if (diag.length || trt.length || rx) {
+        extra += "\n\n—\n";
+        if (diag.length) extra += `Diagnóstico:\n${diag.join("\n")}\n`;
+        if (rx) extra += `\nPrescrição:\n${rx}\n`;
+        if (trt.length) extra += `\nTratamentos:\n${trt.join("\n")}\n`;
+      }
+    }
+  } catch {}
+
+  // 3) Anexar ao Plano (é o que vai para o FEED e para o PDF)
+  plan = (plan || "") + extra;
+
+  // 4) Escrever SEMPRE nos campos antigos (porque é o save antigo que grava)
+  setVal("consultHDA", hda);
+  setVal("consultAssessment", assessment);
+  setVal("consultPlan", plan);
+
+  // 5) Prescrição (linha R/) no input novo (mantém)
+  const rxNow = readVal("consRehabRxText");
+  if (rxNow) setVal("consRehabRxText", rxNow);
+}
 
   $("btnSaveConsultation")?.addEventListener("click", () => {
     try {
