@@ -2069,45 +2069,46 @@ function bridgeToLegacyConsultBox() {
 }
 
 
-$("btnCreateConsultationPdf")?.addEventListener("click", (ev) => {
+$("btnCreateConsultationPdf")?.addEventListener("click", async (ev) => {
   try {
-    // evita qualquer comportamento inesperado
     ev?.preventDefault?.();
 
+    // garante que os campos legacy estão sincronizados (mantém o teu comportamento)
     bridgeToLegacyConsultBox();
 
-    // CHAMAR DIRETAMENTE O FLUXO ANTIGO (sem click no próprio botão)
-    // 1) Prioridade: se existir uma função explícita do legacy para gerar PDF, chama-a.
-    if (typeof window.createConsultationPdfLegacy === "function") {
-      setConsStatus("A gerar PDF (via fluxo antigo)…");
-      window.createConsultationPdfLegacy();
+    // 1) garantir que há consulta selecionada (ID)
+    if (!window.DOCS) window.DOCS = {};
+    if (!window.DOCS.selectedConsultationId) {
+      // tenta usar a consulta atualmente aberta no UI novo, se existir
+      if (window.currentConsultationId) {
+        window.DOCS.selectedConsultationId = window.currentConsultationId;
+      }
+    }
+
+    if (!window.DOCS.selectedConsultationId) {
+      setConsStatus("Erro: não há consulta selecionada para gerar documento.", true);
       return;
     }
 
-    // 2) Alternativa: se o legacy tiver um handler global conhecido
-    if (typeof window.createConsultationPdf === "function") {
-      setConsStatus("A gerar PDF (via fluxo antigo)…");
-      window.createConsultationPdf();
+    // 2) criar documento a partir da consulta
+    if (typeof window.createDocumentFromSelectedConsultation !== "function") {
+      setConsStatus("Erro: função legacy createDocumentFromSelectedConsultation não disponível.", true);
       return;
     }
 
-    // 3) Último recurso: tenta disparar o handler legacy por um botão antigo COM OUTRO ID
-    // (se mais tarde o criares). Por agora, não existe no teu HTML.
-if (typeof window.generatePdfAndSave !== "function") {
-  setConsStatus(
-    "Erro: o gerador legacy (generatePdfAndSave) não está disponível.",
-    true
-  );
-  return;
-}
+    setConsStatus("A criar/abrir documento para edição…");
+    await window.createDocumentFromSelectedConsultation();
 
-setConsStatus("A gerar PDF (via fluxo antigo)…");
-window.generatePdfAndSave();
+    // 3) abrir o modal/editor de documentos (para poderes editar antes do PDF)
+    if (typeof window.openDocumentsModal === "function") {
+      await window.openDocumentsModal(window.DOCS.patientId, window.DOCS.clinicId);
+    }
 
-} catch (e) {
-  console.error(e);
-  setConsStatus("Erro ao preparar PDF.", true);
-}
+    setConsStatus("Documento pronto. Edite e depois use “Gerar PDF + Guardar”.");
+  } catch (e) {
+    console.error(e);
+    setConsStatus("Erro ao abrir documento para PDF.", true);
+  }
 });
 
 })();
@@ -2842,6 +2843,7 @@ async function createAppointment() {
   }
 
   $('btnDocCreateFromConsult').addEventListener('click', createDocumentFromSelectedConsultation);
+  window.createDocumentFromSelectedConsultation = createDocumentFromSelectedConsultation;
 
   // --- guardar rascunho
   async function saveDocumentDraft(){
