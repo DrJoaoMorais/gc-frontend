@@ -3060,6 +3060,22 @@ async function savePatient() {
     setMsg("patientMsg", "✔ Doente criado e ligado à clínica", "success");
     clearPatientForm();
     await loadPatientsForClinic(selectedClinicId);
+// === UX: selecionar automaticamente o doente criado e ir para Agendar ===
+try {
+  // selecionar o novo doente
+  selectedPatientId = created.id;
+  window.__selectedPatientId = selectedPatientId;
+
+  // se existir helper para seleção visual, usa-o
+  if (typeof selectPatientById === "function") {
+    selectPatientById(selectedPatientId);
+  }
+
+  // ir diretamente para o separador de Agendamento
+  setActiveTab(TAB.APPOINTMENTS);
+} catch (e) {
+  console.warn("UX pós-criação (auto-agendar) falhou:", e);
+}
 
   } catch (e) {
     showError(e);
