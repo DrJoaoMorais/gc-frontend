@@ -637,10 +637,15 @@ window.addEventListener("unhandledrejection", (e) => {
 });
 
 /* ================= ESTADO ================= */
-let selectedClinicId = null;
-let selectedClinicName = null;
-let selectedPatientId = null;
-let selectedPatientLabel = null;
+window.selectedClinicId = null;
+window.selectedClinicName = null;
+window.selectedPatientId = null;
+window.selectedPatientLabel = null;
+
+/* --- ligação marcação → consulta --- */
+window.selectedAppointmentId = null;
+window.selectedAppointmentLabel = null;
+window.currentConsultationId = null;
 
 let currentUserId = null;
 let globalUserRole = null;      // profiles.role (doctor/secretary)
@@ -652,10 +657,6 @@ let patientsFilter = "";
 let clinicsCache = [];          // [{id, name}]
 let patientClinicLinks = [];    // [{clinic_id, patient_id, is_active, start_date, end_date, notes}]
 
-/* --- ligação marcação → consulta --- */
-let selectedAppointmentId = null;           // id da marcação selecionada
-let selectedAppointmentLabel = null;        // texto curto para banner
-let linkedAppointmentIds = new Set();       // marcações que já têm consulta ligada (consultations.appointment_id)
 
 /* ================= HELPERS ================= */
 function setStatus(msg) { $("status").textContent = msg || "—"; }
