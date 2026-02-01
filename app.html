@@ -2765,13 +2765,17 @@ async function createAppointment() {
 
     await hydrateDocHeaderFromSeed();
 
-    const { data: cons, error: e1 } = await sb
+   const { data: cons, error: e1 } = await sb
       .from('consultations')
       .select('id, hda, assessment, plan_text, report_date, clinic_id, patient_id')
       .eq('id', cid)
       .single();
 
     if (e1) { console.error(e1); alert('Erro ao carregar a consulta.'); return; }
+
+    // FIX: garantir contexto para o PDF (DOCS precisa de patientId + clinicId)
+    window.DOCS.patientId = cons.patient_id;
+    window.DOCS.clinicId  = cons.clinic_id;
 
     const docType = $('docType').value;
     const title = $('docTitle').value || defaultTitleForDocType(docType);
