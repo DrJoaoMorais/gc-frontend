@@ -240,42 +240,37 @@
       <div>
         <h3>Tratamentos</h3>
 
-<!-- Prescrição (linha R/) -->
-<div class="rxLine" style="margin:10px 0;">
-  <label class="muted" style="display:block; font-size:12px; margin-bottom:6px;">Prescrição</label>
-  <input id="consRehabRxText" type="text"
-       placeholder="R/ 20 sessões de tratamentos de Medicina Física e de Reabilitação"
-       style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
-</div>
+        <div class="rxLine" style="margin:10px 0;">
+          <label class="muted" style="display:block; font-size:12px; margin-bottom:6px;">Prescrição</label>
+          <input id="consRehabRxText" type="text"
+                 placeholder="R/ 20 sessões de tratamentos de Medicina Física e de Reabilitação"
+                 style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+        </div>
 
-<!-- Pesquisa (opcional) -->
-<div style="display:flex; gap:8px; margin-bottom:8px;">
-  <input id="treat_search" type="text" placeholder="Pesquisar tratamento…"
-         style="flex:1; padding:10px; border:1px solid #ddd; border-radius:10px;" />
-</div>
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <input id="treat_search" type="text" placeholder="Pesquisar tratamento…"
+                 style="flex:1; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+        </div>
 
-<!-- 2 caixas: Selecionados | Lista clicável -->
-<div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:start;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:start;">
+          <div style="border:1px solid #eee; border-radius:10px; padding:8px;">
+            <div style="margin-top:2px; font-weight:600;">Selecionados</div>
+            <div id="treat_selected" style="margin-top:6px;"></div>
+          </div>
 
-  <!-- Caixa esquerda: Selecionados -->
-  <div style="border:1px solid #eee; border-radius:10px; padding:8px;">
-    <div style="margin-top:2px; font-weight:600;">Selecionados</div>
-    <div id="treat_selected" style="margin-top:6px;"></div>
-  </div>
+          <div style="border:1px solid #eee; border-radius:10px; padding:8px;">
+            <div style="margin-top:2px; font-weight:600;">Todos os tratamentos</div>
+            <div id="consTreatmentsPickMount" style="margin-top:6px;"></div>
+          </div>
+        </div>
 
-  <!-- Caixa direita: Lista clicável (A) -->
-  <div style="border:1px solid #eee; border-radius:10px; padding:8px;">
-    <div style="margin-top:2px; font-weight:600;">Todos os tratamentos</div>
-    <div id="consTreatmentsPickMount" style="margin-top:6px;"></div>
-  </div>
+        <div id="treat_suggestions"
+             style="border:1px solid #eee; border-radius:10px; padding:8px; margin-top:8px; display:none;"></div>
+      </div>
+    </div>
+  </section>
+  <!-- ================= /CONSULTA MÉDICA (HTML) ================= -->
 
-</div>
-
-<!-- Sugestões do autocomplete (mantém, mas fica discreto/abaixo) -->
-<div id="treat_suggestions"
-     style="border:1px solid #eee; border-radius:10px; padding:8px; margin-top:8px; display:none;"></div>
-
-  
           <!-- NOTAS (TODOS) -->
           <div id="notesBox" style="display:none; margin-top:12px;">
             <div class="box" style="border-radius: 12px;">
@@ -1189,6 +1184,20 @@ async function loadClinics() {
         resetUIOnClinicChange();
 
         currentClinicRole = await loadMyRoleForClinic(c.id);
+        // Guardar role global para o UI (evita undefined)
+window.currentClinicRole = currentClinicRole || null;
+
+// UI por role: secretária/fisio não vê Consulta médica nem PDF
+const isDoctor = window.currentClinicRole === "doctor";
+
+// Consulta médica
+const mc = document.getElementById("medicalConsultationBox");
+if (mc) mc.style.display = isDoctor ? "block" : "none";
+
+// PDF (ajusta se usares outro ID)
+const pdfBtn = document.getElementById("btnDocPdfSave") || document.getElementById("btnGeneratePdf");
+if (pdfBtn) pdfBtn.style.display = isDoctor ? "inline-block" : "none";
+
         updateContextInfo();
 
         updateCreatePatientVisibility();
@@ -3172,7 +3181,7 @@ async function saveNote() {
     };
 
     const { data: ins, error } = await sb
-  .from("consultations")
+  .from("notes")
   .insert(payload)
   .select("id")
   .single();
@@ -3371,8 +3380,21 @@ const payload = {
   report_date
 };
 
-    const { error } = await sb.from("consultations").insert(payload);
-    if (error) throw error;
+    const { data: ins, error } = await sb
+  .from("consultations")
+  .insert(payload)
+  .select("id")
+  .single();
+
+if (error) throw error;
+
+// fix: guardar contexto para docs/PDF
+window.currentConsultationId = ins.id;
+window.DOCS = window.DOCS || {};
+window.DOCS.selectedConsultationId = ins.id;
+window.DOCS.patientId = selectedPatientId;
+window.DOCS.clinicId = selectedClinicId;
+
 
     setConsStatus("✔ Consulta gravada com sucesso.");
     await loadAppointments();
@@ -3399,11 +3421,21 @@ async function init() {
   if (!ok) return;
 
   try {
-    globalUserRole = await loadGlobalUserRole();
-  } catch (e) {
-    console.error("Falha a obter role global:", e);
-    showError(e);
-  }
+  globalUserRole = await loadGlobalUserRole();
+} catch (e) {
+  console.error("Falha a obter role global:", e);
+  showError(e);
+}
+
+// Segurança por defeito: se não sabemos a role, bloqueamos ações clínicas
+window.globalUserRole = globalUserRole || null;
+
+// Esconder Consulta médica até termos role de clínica (e por defeito para não-médico)
+try {
+  const mc = document.getElementById("medicalConsultationBox");
+  if (mc) mc.style.display = "none";
+} catch (_) {}
+
 
   // Tabs: handlers
   $("tabBtnPatients").onclick = () => setActiveTab(TAB.PATIENTS);
