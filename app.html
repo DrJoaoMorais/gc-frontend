@@ -2904,15 +2904,25 @@ async function createAppointment() {
   $('btnDocSaveDraft').addEventListener('click', saveDocumentDraft);
 
   // --- gerar PDF + upload + guardar pdf_path
-  async function generatePdfAndSave(){
-    const docId = window.DOCS.currentDocumentId;
-    const pid = window.DOCS.patientId;
-    const clinicId = window.DOCS.clinicId;
-    if (!docId || !pid || !clinicId) { alert('Abra/crie um documento dentro de um doente.'); return; }
+  async function generatePdfAndSave() {
+    const pdfTab = window.open('about:blank', '_blank');
+    if (!pdfTab) {
+      alert('Pop-ups bloqueados. Ative pop-ups para gc.joaomorais.pt e tente novamente.');
+      return;
+    }
+
+    const docId = window.DOCS?.currentDocumentId;
+    const pid = window.DOCS?.patientId;
+    const clinicId = window.DOCS?.clinicId;
+
+    if (!docId || !pid || !clinicId) {
+      alert('Abra/crie um documento dentro de um doente.');
+      return;
+    }
 
     await saveDocumentDraft();
 
-    if (typeof html2pdf === 'undefined') {
+    if (typeof window.html2pdf === 'undefined') {
       alert('html2pdf não carregou. Confirme o script no <head>.');
       return;
     }
@@ -2935,7 +2945,7 @@ async function createAppointment() {
       return;
     }
 
-    const version = window.DOCS.currentVersion || 1;
+    const version = window.DOCS?.currentVersion || 1;
     const path = `clinic/${clinicId}/patient/${pid}/doc/${docId}/v${version}.pdf`;
 
     const { error: upErr } = await sb
@@ -2943,38 +2953,50 @@ async function createAppointment() {
       .from('documents')
       .upload(path, pdfBlob, { contentType: 'application/pdf', upsert: true });
 
-    if (upErr) { console.error(upErr); alert('Erro no upload do PDF (Storage).'); return; }
+    if (upErr) {
+      console.error(upErr);
+      alert('Erro no upload do PDF (Storage).');
+      return;
+    }
 
-    const { error: e2 } = await sb
+    const { error: dbErr } = await sb
       .from('documents')
       .update({ pdf_path: path })
       .eq('id', docId);
 
-    if (e2) { console.error(e2); alert('PDF subiu, mas falhou gravar pdf_path na BD.'); return; }
+    if (dbErr) {
+      console.error(dbErr);
+      alert('PDF subiu, mas falhou gravar pdf_path na BD.');
+      return;
+    }
 
-  await loadDocumentsList();
+    await loadDocumentsList();
 
-// Abrir PDF automaticamente (URL assinada)
-try {
-  const { data: signed, error: sigErr } = await sb
-    .storage
-    .from('documents')
-    .createSignedUrl(path, 60 * 10); // 10 minutos
+    // Abrir PDF automaticamente (URL assinada)
+    try {
+      const { data: signed, error: sigErr } = await sb
+        .storage
+        .from('documents')
+        .createSignedUrl(path, 60 * 10); // 10 minutos
 
-  if (sigErr) throw sigErr;
+      if (sigErr) throw sigErr;
 
-  if (signed?.signedUrl) {
-    window.open(signed.signedUrl, '_blank', 'noopener,noreferrer');
+      const url = signed?.signedUrl;
+      if (!url) throw new Error('signedUrl vazio');
+
+      pdfTab.location.href = url;
+    } catch (e) {
+      console.error('Falha a abrir PDF automaticamente:', e);
+      alert('PDF gerado e guardado, mas falhou abrir automaticamente.');
+      return;
+    }
+
+    alert('PDF gerado e guardado (abriu num novo separador).');
   }
-} catch (e) {
-  console.error('Falha a abrir PDF automaticamente:', e);
-}
 
-alert('PDF gerado e guardado (abriu num novo separador).');
-
-  }
   window.generatePdfAndSave = generatePdfAndSave;
   $('btnDocPdfSave').addEventListener('click', generatePdfAndSave);
+
 
 })();
  /* ================= /DOCUMENTS (JS UI + PDF) ================= */
