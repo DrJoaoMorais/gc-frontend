@@ -2312,6 +2312,7 @@ async function loadFeed({ reset = true } = {}) {
   if (list.__wiredNav) return;
   list.__wiredNav = true;
 
+  // CAPTURE = true para garantir que apanha o clique mesmo que algo interrompa o bubble
   list.addEventListener("click", (e) => {
     const item = e.target.closest(".feedItem");
     if (!item) return;
@@ -2326,8 +2327,8 @@ async function loadFeed({ reset = true } = {}) {
 
     // Appointment → abrir separador Consultas / Marcações
     if (type === "appointment") {
-const btn = $("tabBtnAppointments");
-if (btn) btn.click();
+      const btn = $("tabBtnAppointments");
+      if (btn) btn.click();
 
       if (appointmentId) {
         if (typeof selectAppointmentById === "function") {
@@ -2340,11 +2341,15 @@ if (btn) btn.click();
       return;
     }
 
-    // Consultation → abrir registo clínico do autor
+    // Consultation → armar seleção para Documents + abrir registo clínico do autor
     if (type === "consultation") {
-      window.currentConsultationId = consultationId || "";
+      if (!consultationId) return;
+
+      window.currentConsultationId = consultationId;
       window.DOCS = window.DOCS || {};
-      window.DOCS.selectedConsultationId = consultationId || "";
+      window.DOCS.selectedConsultationId = consultationId;
+
+      console.log("[FEED] selectedConsultationId =", consultationId);
 
       if (typeof openTab === "function") openTab("Appointments");
 
@@ -2370,7 +2375,7 @@ if (btn) btn.click();
       }
       return;
     }
-  });
+  }, { capture: true }); // <-- ISTO É O IMPORTANTE
 })();
 let lastAppointmentsRows = [];
 
