@@ -3030,8 +3030,19 @@ async function saveConsultation() {
       report_date: todayISO()
     };
 
-    const { error } = await sb.from("consultations").insert(payload);
-    if (error) throw error;
+    // INSERT + obter ID criado (necessário para o fluxo Documentos/PDF)
+    const { data: ins, error: insErr } = await sb
+      .from("consultations")
+      .insert(payload)
+      .select("id")
+      .single();
+
+    if (insErr) throw insErr;
+
+    // guardar o ID da consulta recém-criada (para "Gerar PDF" abrir/criar documento ligado)
+    window.currentConsultationId = ins.id;
+    window.DOCS = window.DOCS || {};
+    window.DOCS.selectedConsultationId = ins.id;
 
     const linkedMsg = selectedAppointmentId ? " (ligada à marcação selecionada)" : "";
     setMsg("consultMsg", `✔ Consulta criada com sucesso${linkedMsg}`, "success");
@@ -3053,12 +3064,6 @@ async function saveConsultation() {
     }
   }
 }
-
-function resetConsultForm() {
-  clearConsultFields();
-  setMsg("consultMsg", "Limpo.", "success");
-}
-
 /* ================= NOTES (CREATE) — TODOS ================= */
 async function saveNote() {
   try {
