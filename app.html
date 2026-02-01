@@ -2207,7 +2207,6 @@ function renderFeedFromBuffer() {
       (o.hda || o.assessment || o.plan_text || o.content)
         ? `
           ${o.hda ? `<div style="margin-top:8px;"><div class="muted small">HDA</div><div style="white-space:pre-wrap;">${escapeHtml(o.hda)}</div></div>` : ""}
-          ${o.assessment ? `<div style="margin-top:8px;"><div class="muted small">Avaliação</div><div style="white-space:pre-wrap;">${escapeHtml(o.assessment)}</div></div>` : ""}
           ${o.plan_text ? `<div style="margin-top:8px;"><div class="muted small">Plano</div><div style="white-space:pre-wrap;">${escapeHtml(o.plan_text)}</div></div>` : ""}
           ${o.content ? `<div style="margin-top:8px; white-space:pre-wrap;">${escapeHtml(o.content)}</div>` : ""}
         `
