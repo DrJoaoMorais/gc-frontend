@@ -2952,8 +2952,26 @@ async function createAppointment() {
 
     if (e2) { console.error(e2); alert('PDF subiu, mas falhou gravar pdf_path na BD.'); return; }
 
-    await loadDocumentsList();
-    alert('PDF gerado e guardado.');
+  await loadDocumentsList();
+
+// Abrir PDF automaticamente (URL assinada)
+try {
+  const { data: signed, error: sigErr } = await sb
+    .storage
+    .from('documents')
+    .createSignedUrl(path, 60 * 10); // 10 minutos
+
+  if (sigErr) throw sigErr;
+
+  if (signed?.signedUrl) {
+    window.open(signed.signedUrl, '_blank', 'noopener,noreferrer');
+  }
+} catch (e) {
+  console.error('Falha a abrir PDF automaticamente:', e);
+}
+
+alert('PDF gerado e guardado (abriu num novo separador).');
+
   }
   window.generatePdfAndSave = generatePdfAndSave;
   $('btnDocPdfSave').addEventListener('click', generatePdfAndSave);
