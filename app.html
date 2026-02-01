@@ -2014,7 +2014,7 @@ function bridgeToLegacyConsultBox() {
   // 1) Textos base (o que escreves)
   const hda = readVal("cons_hda", "consultHDA");
   const assessment = readVal("cons_assessment", "consultAssessment");
-  let plan = readVal("cons_plan", "consultPlan"); // <- o que escreves no Plano
+  let plan = ($("consRehabRxText")?.value || "").trim(); // Prescrição (plan_text)
 
   // 2) Buscar rascunho (diag + tratamentos + R/)
   const d = (typeof window.getMedicalConsultationDraft === "function")
