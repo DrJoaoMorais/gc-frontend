@@ -81,6 +81,7 @@
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 </head>
 
 <body>
@@ -2068,24 +2069,46 @@ function bridgeToLegacyConsultBox() {
 }
 
 
-  $("btnCreateConsultationPdf")?.addEventListener("click", () => {
-    try {
-      bridgeToLegacyConsultBox();
+$("btnCreateConsultationPdf")?.addEventListener("click", (ev) => {
+  try {
+    // evita qualquer comportamento inesperado
+    ev?.preventDefault?.();
 
-      const legacyPdfBtn = $("btnCreateConsultationPdf");
-      // Se o ID do PDF antigo for outro, isto falha e eu ajusto no passo seguinte.
-      if (!legacyPdfBtn) {
-        setConsStatus("Erro: não encontrei o botão antigo de PDF.", true);
-        return;
-      }
+    bridgeToLegacyConsultBox();
 
-      legacyPdfBtn.click();
+    // CHAMAR DIRETAMENTE O FLUXO ANTIGO (sem click no próprio botão)
+    // 1) Prioridade: se existir uma função explícita do legacy para gerar PDF, chama-a.
+    if (typeof window.createConsultationPdfLegacy === "function") {
       setConsStatus("A gerar PDF (via fluxo antigo)…");
-    } catch (e) {
-      console.error(e);
-      setConsStatus("Erro ao preparar PDF.", true);
+      window.createConsultationPdfLegacy();
+      return;
     }
-  });
+
+    // 2) Alternativa: se o legacy tiver um handler global conhecido
+    if (typeof window.createConsultationPdf === "function") {
+      setConsStatus("A gerar PDF (via fluxo antigo)…");
+      window.createConsultationPdf();
+      return;
+    }
+
+    // 3) Último recurso: tenta disparar o handler legacy por um botão antigo COM OUTRO ID
+    // (se mais tarde o criares). Por agora, não existe no teu HTML.
+    const legacyPdfBtn = $("btnCreateConsultationPdfLegacy");
+    if (legacyPdfBtn) {
+      setConsStatus("A gerar PDF (via fluxo antigo)…");
+      legacyPdfBtn.click();
+      return;
+    }
+
+    setConsStatus(
+      "Erro: não encontrei a função legacy de gerar PDF (createConsultationPdfLegacy/createConsultationPdf).",
+      true
+    );
+  } catch (e) {
+    console.error(e);
+    setConsStatus("Erro ao preparar PDF.", true);
+  }
+});  
 
 })();
 /* ================= FEED ================= */
@@ -2503,6 +2526,400 @@ async function createAppointment() {
     btn.textContent = "Criar marcação";
   }
 }
+/* ================= DOCUMENTS (JS UI + PDF) ================= */
+(function setupDocumentsUI(){
+  if (window.__docsUIReady) return;
+  window.__docsUIReady = true;
+
+  // --- CSS do modal
+  const css = `
+  .modalBackdrop { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; align-items: center; justify-content: center; z-index: 9999; }
+  .modal { width: min(1000px, 95vw); max-height: 90vh; overflow: auto; background: #fff; border-radius: 12px; border: 1px solid #ddd; padding: 16px; }
+  .modalHeader { display:flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .modalHeader h3 { margin: 0; }
+  .modalActions { display:flex; gap: 8px; flex-wrap: wrap; }
+  .btn { padding: 8px 10px; border: 1px solid #ccc; border-radius: 10px; background: #fff; cursor: pointer; }
+  .btn.primary { border-color: #111; }
+  .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field label { display:block; font-size: 12px; color:#444; margin-bottom:4px; }
+  .field input, .field select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 10px; box-sizing:border-box; }
+  .docList { margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
+  .docRow { display:flex; justify-content: space-between; gap: 12px; padding: 10px; border: 1px solid #eee; border-radius: 10px; margin-bottom: 8px; }
+  .docRow small { color:#666; }
+  .editorWrap { margin-top: 12px; border: 1px solid #ddd; border-radius: 12px; }
+  .editorToolbar { display:flex; gap: 8px; padding: 10px; border-bottom: 1px solid #eee; flex-wrap: wrap; }
+  .editor { padding: 14px; min-height: 360px; outline: none; }
+  .paper { max-width: 800px; margin: 0 auto; }
+  .sigBlock { margin-top: 24px; }
+  `;
+  const style = document.createElement('style');
+  style.textContent = css;
+  document.head.appendChild(style);
+
+  // --- HTML do modal (criado via JS)
+  const wrap = document.createElement('div');
+  wrap.id = 'documentsModalBackdrop';
+  wrap.className = 'modalBackdrop';
+  wrap.innerHTML = `
+    <div class="modal">
+      <div class="modalHeader">
+        <h3>Documentos</h3>
+        <div class="modalActions">
+          <button class="btn" id="btnDocsClose">Fechar</button>
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-top:12px;">
+        <div class="field">
+          <label>Tipo de documento</label>
+          <select id="docType">
+            <option value="report">Relatório</option>
+            <option value="exam_request">Pedido de Exames</option>
+            <option value="declaration">Declaração</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Título</label>
+          <input id="docTitle" placeholder="Ex.: Relatório clínico" />
+        </div>
+
+        <div class="field">
+          <label>Local (clínica)</label>
+          <input id="docClinicLocation" />
+        </div>
+        <div class="field">
+          <label>Data (editável)</label>
+          <input id="docDate" type="date" />
+        </div>
+      </div>
+
+      <div class="modalActions" style="margin-top:12px;">
+        <button class="btn primary" id="btnDocCreateFromConsult">Criar a partir da consulta selecionada</button>
+        <button class="btn" id="btnDocRefresh">Atualizar lista</button>
+      </div>
+
+      <div class="docList" id="documentsList"></div>
+
+      <div class="editorWrap" style="margin-top:12px;">
+        <div class="editorToolbar">
+          <button class="btn" data-cmd="bold"><b>B</b></button>
+          <button class="btn" data-cmd="italic"><i>I</i></button>
+          <button class="btn" data-cmd="underline"><u>U</u></button>
+          <span style="flex:1"></span>
+          <button class="btn primary" id="btnDocSaveDraft">Guardar rascunho</button>
+          <button class="btn primary" id="btnDocPdfSave">Gerar PDF + Guardar</button>
+        </div>
+
+        <div id="docEditor" class="editor" contenteditable="true">
+          <div class="paper">
+            <p>Selecione uma consulta e clique “Criar a partir da consulta selecionada”.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+
+  // --- state global
+  window.DOCS = window.DOCS || {
+    patientId: null,
+    clinicId: null,
+    selectedConsultationId: null,
+    currentDocumentId: null,
+    currentVersion: 1
+  };
+
+  // --- helpers locais
+  const $ = (id) => document.getElementById(id);
+  const escapeHtml = (s) => String(s||'')
+    .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+    .replaceAll('"','&quot;').replaceAll("'","&#039;");
+  const nl2br = (s) => (s||'').replace(/\n/g,'<br/>');
+
+  const pad = (n) => String(n).padStart(2,'0');
+  const isoToday = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  };
+  const formatPtDateLong = (iso) => {
+    const d = new Date(iso + 'T00:00:00');
+    const fmt = new Intl.DateTimeFormat('pt-PT', { day:'numeric', month:'long', year:'numeric' }).format(d);
+    return fmt.replace(/ de ([a-zà-ú]+)/i, (m, mon) => ' de ' + (mon.charAt(0).toUpperCase() + mon.slice(1)));
+  };
+
+  function defaultTitleForDocType(t){
+    if (t === 'exam_request') return 'Pedido de Exames';
+    if (t === 'declaration') return 'Declaração';
+    return 'Relatório';
+  }
+
+  // --- abrir/fechar
+  window.openDocumentsModal = async function(patientId, clinicId){
+    window.DOCS.patientId = patientId;
+    window.DOCS.clinicId = clinicId;
+    window.DOCS.currentDocumentId = null;
+    window.DOCS.currentVersion = 1;
+
+    $('documentsModalBackdrop').style.display = 'flex';
+    $('docTitle').value = '';
+    $('docType').value = 'report';
+
+    await hydrateDocHeaderFromSeed();
+    await loadDocumentsList();
+  };
+
+  function closeDocumentsModal(){ $('documentsModalBackdrop').style.display = 'none'; }
+
+  $('btnDocsClose').addEventListener('click', closeDocumentsModal);
+
+  // toolbar
+  wrap.querySelectorAll('[data-cmd]').forEach(btn => {
+    btn.addEventListener('click', () => document.execCommand(btn.dataset.cmd, false, null));
+  });
+
+  // --- seed (local+data+assinatura) via RPC
+  async function hydrateDocHeaderFromSeed(){
+    const cid = window.DOCS.selectedConsultationId;
+    $('docDate').value = isoToday();
+
+    if (!cid) return;
+
+    const { data, error } = await sb.rpc('document_seed_from_consultation', { p_consultation_id: cid });
+    if (error) { console.error(error); return; }
+    const row = data && data[0] ? data[0] : null;
+    if (!row) return;
+
+    $('docClinicLocation').value = row.clinic_location || '';
+    $('docDate').value = row.doc_date || isoToday();
+  }
+
+  // --- lista documentos
+  async function loadDocumentsList(){
+    const pid = window.DOCS.patientId;
+    const listEl = $('documentsList');
+    listEl.innerHTML = '<small>A carregar…</small>';
+
+    if (!pid) { listEl.innerHTML = '<small>Sem doente selecionado.</small>'; return; }
+
+    const { data, error } = await sb
+      .from('documents')
+      .select('id, title, pdf_path, created_at, version')
+      .eq('patient_id', pid)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) { console.error(error); listEl.innerHTML = '<small>Erro ao carregar documentos.</small>'; return; }
+    if (!data || data.length === 0) { listEl.innerHTML = '<small>Sem documentos.</small>'; return; }
+
+    listEl.innerHTML = data.map(d => {
+      const when = new Date(d.created_at).toLocaleString('pt-PT');
+      const title = (d.title && d.title.trim()) ? d.title : 'Sem título';
+      const hasPdf = !!d.pdf_path;
+      return `
+        <div class="docRow">
+          <div>
+            <div><b>${escapeHtml(title)}</b> <small>(v${d.version || 1})</small></div>
+            <small>${when}</small>
+            <div><small>PDF: ${hasPdf ? 'sim' : 'não'}</small></div>
+          </div>
+          <div class="modalActions">
+            <button class="btn" data-open="${d.id}">Abrir</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('[data-open]').forEach(btn => {
+      btn.addEventListener('click', () => openDocumentForEdit(btn.dataset.open));
+    });
+  }
+
+  $('btnDocRefresh').addEventListener('click', loadDocumentsList);
+
+  // --- abrir documento
+  async function openDocumentForEdit(docId){
+    const { data, error } = await supabase
+      .from('documents')
+      .select('id, title, rendered_html, version, payload')
+      .eq('id', docId)
+      .single();
+
+    if (error) { console.error(error); alert('Erro ao abrir documento.'); return; }
+
+    window.DOCS.currentDocumentId = data.id;
+    window.DOCS.currentVersion = data.version || 1;
+
+    $('docTitle').value = data.title || '';
+    $('docEditor').innerHTML = data.rendered_html || '<div class="paper"></div>';
+
+    const p = data.payload || {};
+    if (p.clinic_location) $('docClinicLocation').value = p.clinic_location;
+    if (p.doc_date) $('docDate').value = p.doc_date;
+    if (p.doc_type) $('docType').value = p.doc_type;
+  }
+
+  // --- criar a partir da consulta
+  async function createDocumentFromSelectedConsultation(){
+    const cid = window.DOCS.selectedConsultationId;
+    if (!cid) { alert('Selecione primeiro uma consulta no FEED.'); return; }
+
+    await hydrateDocHeaderFromSeed();
+
+    const { data: cons, error: e1 } = await sb
+      .from('consultations')
+      .select('id, hda, assessment, plan_text, report_date, clinic_id, patient_id')
+      .eq('id', cid)
+      .single();
+
+    if (e1) { console.error(e1); alert('Erro ao carregar a consulta.'); return; }
+
+    const docType = $('docType').value;
+    const title = $('docTitle').value || defaultTitleForDocType(docType);
+    const clinicLoc = $('docClinicLocation').value || '';
+    const docDate = $('docDate').value || isoToday();
+
+    const headerLine = `${clinicLoc}, ${formatPtDateLong(docDate)}`;
+
+    const html = `
+      <div class="paper">
+        <p>${escapeHtml(headerLine)}</p>
+
+        <h2 style="margin: 18px 0 8px;">${escapeHtml(title)}</h2>
+
+        <h3 style="margin: 14px 0 6px;">História / HDA</h3>
+        <div>${nl2br(escapeHtml(cons.hda || ''))}</div>
+
+        <h3 style="margin: 14px 0 6px;">Avaliação</h3>
+        <div>${nl2br(escapeHtml(cons.assessment || ''))}</div>
+
+        <h3 style="margin: 14px 0 6px;">Plano</h3>
+        <div>${nl2br(escapeHtml(cons.plan_text || ''))}</div>
+
+        <div class="sigBlock">
+          <div style="margin-top: 24px;">__________________________</div>
+          <div style="margin-top: 8px;">João Morais</div>
+          <div>Médico Fisiatra</div>
+          <div>Medicina Desportiva</div>
+          <div>Nº Ordem dos Médicos: 44380</div>
+        </div>
+      </div>
+    `;
+
+    const payload = {
+      doc_type: docType,
+      doc_date: docDate,
+      clinic_location: clinicLoc,
+      source: { consultation_id: cid }
+    };
+
+    const { data: inserted, error: e2 } = await sb
+      .from('documents')
+      .insert([{
+        patient_id: cons.patient_id,
+        observation_id: cons.id,
+        title: title,
+        payload: payload,
+        rendered_html: html,
+        version: 1,
+        parent_document_id: null
+      }])
+      .select('id, version')
+      .single();
+
+    if (e2) { console.error(e2); alert('Erro a criar documento.'); return; }
+
+    window.DOCS.currentDocumentId = inserted.id;
+    window.DOCS.currentVersion = inserted.version || 1;
+
+    $('docEditor').innerHTML = html;
+
+    await loadDocumentsList();
+    alert('Documento criado. Edite e depois “Gerar PDF + Guardar”.');
+  }
+
+  $('btnDocCreateFromConsult').addEventListener('click', createDocumentFromSelectedConsultation);
+
+  // --- guardar rascunho
+  async function saveDocumentDraft(){
+    const docId = window.DOCS.currentDocumentId;
+    if (!docId) { alert('Não há documento aberto.'); return; }
+
+    const title = $('docTitle').value || '';
+    const docType = $('docType').value;
+    const clinicLoc = $('docClinicLocation').value || '';
+    const docDate = $('docDate').value || isoToday();
+    const html = $('docEditor').innerHTML;
+
+    const payload = { doc_type: docType, doc_date: docDate, clinic_location: clinicLoc };
+
+    const { error } = await sb
+      .from('documents')
+      .update({ title: title, rendered_html: html, payload: payload })
+      .eq('id', docId);
+
+    if (error) { console.error(error); alert('Erro ao guardar rascunho.'); return; }
+
+    await loadDocumentsList();
+    alert('Rascunho guardado.');
+  }
+  $('btnDocSaveDraft').addEventListener('click', saveDocumentDraft);
+
+  // --- gerar PDF + upload + guardar pdf_path
+  async function generatePdfAndSave(){
+    const docId = window.DOCS.currentDocumentId;
+    const pid = window.DOCS.patientId;
+    const clinicId = window.DOCS.clinicId;
+    if (!docId || !pid || !clinicId) { alert('Abra/crie um documento dentro de um doente.'); return; }
+
+    await saveDocumentDraft();
+
+    if (typeof html2pdf === 'undefined') {
+      alert('html2pdf não carregou. Confirme o script no <head>.');
+      return;
+    }
+
+    const element = $('docEditor');
+    const opt = {
+      margin: 10,
+      filename: 'documento.pdf',
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    let pdfBlob;
+    try {
+      pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
+    } catch (e) {
+      console.error(e);
+      alert('Falha ao gerar PDF no browser.');
+      return;
+    }
+
+    const version = window.DOCS.currentVersion || 1;
+    const path = `clinic/${clinicId}/patient/${pid}/doc/${docId}/v${version}.pdf`;
+
+    const { error: upErr } = await sb
+      .storage
+      .from('documents')
+      .upload(path, pdfBlob, { contentType: 'application/pdf', upsert: true });
+
+    if (upErr) { console.error(upErr); alert('Erro no upload do PDF (Storage).'); return; }
+
+    const { error: e2 } = await sb
+      .from('documents')
+      .update({ pdf_path: path })
+      .eq('id', docId);
+
+    if (e2) { console.error(e2); alert('PDF subiu, mas falhou gravar pdf_path na BD.'); return; }
+
+    await loadDocumentsList();
+    alert('PDF gerado e guardado.');
+  }
+  $('btnDocPdfSave').addEventListener('click', generatePdfAndSave);
+
+})();
+ /* ================= /DOCUMENTS (JS UI + PDF) ================= */
 
 /* ================= CREATE PATIENT (DOCTOR + SECRETARY) ================= */
 async function savePatient() {
