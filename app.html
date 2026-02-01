@@ -2296,6 +2296,7 @@ async function loadFeed({ reset = true } = {}) {
     const type = item.getAttribute("data-item-type") || "";
     const appointmentId = item.getAttribute("data-appointment-id") || "";
     const authorRole = item.getAttribute("data-author-role") || "";
+    const consultationId = item.getAttribute("data-item-id") || "";
 
     // Notas: não navegam
     if (type === "note") return;
@@ -2318,6 +2319,10 @@ if (btn) btn.click();
 
     // Consultation → abrir registo clínico do autor
     if (type === "consultation") {
+      window.currentConsultationId = consultationId || "";
+      window.DOCS = window.DOCS || {};
+      window.DOCS.selectedConsultationId = consultationId || "";
+
       if (typeof openTab === "function") openTab("Appointments");
 
       // Se existirem handlers específicos, usar
