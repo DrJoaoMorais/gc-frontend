@@ -2068,24 +2068,6 @@ function bridgeToLegacyConsultBox() {
 }
 
 
-  $("btnSaveConsultation")?.addEventListener("click", () => {
-    try {
-      bridgeToLegacyConsultBox();
-
-      const legacyBtn = $("btnSaveConsult");
-      if (!legacyBtn) {
-        setConsStatus("Erro: não encontrei o botão antigo 'btnSaveConsult'.", true);
-        return;
-      }
-
-      legacyBtn.click();
-      setConsStatus("A gravar (via fluxo antigo)…");
-    } catch (e) {
-      console.error(e);
-      setConsStatus("Erro ao preparar gravação.", true);
-    }
-  });
-
   $("btnCreateConsultationPdf")?.addEventListener("click", () => {
     try {
       bridgeToLegacyConsultBox();
