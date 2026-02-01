@@ -2981,24 +2981,31 @@ async function createAppointment() {
 
     await loadDocumentsList();
 
-    // Abrir PDF automaticamente (URL assinada)
-    try {
-      const { data: signed, error: sigErr } = await sb
-        .storage
-        .from('documents')
-        .createSignedUrl(path, 60 * 10); // 10 minutos
+// Abrir PDF automaticamente (URL assinada)
+try {
+  const { data: signed, error: sigErr } = await sb
+    .storage
+    .from('documents')
+    .createSignedUrl(path, 60 * 10); // 10 minutos
 
-      if (sigErr) throw sigErr;
+  if (sigErr) throw sigErr;
 
-      const url = signed?.signedUrl;
-      if (!url) throw new Error('signedUrl vazio');
+  const url = signed?.signedUrl;
+  if (!url) throw new Error('signedUrl vazio');
 
-      pdfTab.location.href = url;
-    } catch (e) {
-      console.error('Falha a abrir PDF automaticamente:', e);
-      alert('PDF gerado e guardado, mas falhou abrir automaticamente.');
-      return;
-    }
+  // Safari/Pop-up blockers: navegar um about:blank após awaits pode falhar silenciosamente
+  if (pdfTab && !pdfTab.closed) {
+    pdfTab.location.replace(url);
+    pdfTab.focus();
+  } else {
+    window.open(url, '_blank');
+  }
+} catch (e) {
+  console.error('Falha a abrir PDF automaticamente:', e);
+  alert('PDF gerado e guardado, mas falhou abrir automaticamente.');
+  return;
+}
+
 
     alert('PDF gerado e guardado (abriu num novo separador).');
   }
