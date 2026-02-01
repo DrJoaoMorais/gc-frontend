@@ -2093,22 +2093,22 @@ $("btnCreateConsultationPdf")?.addEventListener("click", (ev) => {
 
     // 3) Último recurso: tenta disparar o handler legacy por um botão antigo COM OUTRO ID
     // (se mais tarde o criares). Por agora, não existe no teu HTML.
-    const legacyPdfBtn = $("btnCreateConsultationPdfLegacy");
-    if (legacyPdfBtn) {
-      setConsStatus("A gerar PDF (via fluxo antigo)…");
-      legacyPdfBtn.click();
-      return;
-    }
+if (typeof window.generatePdfAndSave !== "function") {
+  setConsStatus(
+    "Erro: o gerador legacy (generatePdfAndSave) não está disponível.",
+    true
+  );
+  return;
+}
 
-    setConsStatus(
-      "Erro: não encontrei a função legacy de gerar PDF (createConsultationPdfLegacy/createConsultationPdf).",
-      true
-    );
-  } catch (e) {
-    console.error(e);
-    setConsStatus("Erro ao preparar PDF.", true);
-  }
-});  
+setConsStatus("A gerar PDF (via fluxo antigo)…");
+window.generatePdfAndSave();
+
+} catch (e) {
+  console.error(e);
+  setConsStatus("Erro ao preparar PDF.", true);
+}
+});
 
 })();
 /* ================= FEED ================= */
