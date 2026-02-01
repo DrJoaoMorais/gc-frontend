@@ -2186,6 +2186,7 @@ function renderFeedFromBuffer() {
     return `
 <div class="feedItem"
      data-item-type="${escapeHtml(o.item_type || "")}"
+     data-item-id="${o.item_id || ""}"
      data-appointment-id="${o.appointment_id || ""}"
      data-author-role="${escapeHtml(o.author_role || "")}"
      style="cursor:${o.item_type === 'note' ? 'default' : 'pointer'}">
@@ -2213,6 +2214,7 @@ async function fetchFeedPage() {
     .from("patient_feed")
     .select(`
       item_type,
+      item_id,
       occurred_at,
       author_role,
       content,
