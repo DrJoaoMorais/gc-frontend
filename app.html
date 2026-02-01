@@ -2854,7 +2854,7 @@ async function createAppointment() {
       .from('documents')
       .insert([{
         patient_id: cons.patient_id,
-        observation_id: cons.id,
+        observation_id: null,
         title: title,
         payload: payload,
         rendered_html: html,
