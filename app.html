@@ -696,7 +696,6 @@ function clearConsultFields() {
   // Bloco novo "Consulta médica"
   if ($("cons_hda")) $("cons_hda").value = "";
   if ($("cons_assessment")) $("cons_assessment").value = "";
-  if ($("cons_plan")) $("cons_plan").value = "";
 }
 
 function clearNote() { $("noteContent").value = ""; }
@@ -1671,7 +1670,6 @@ window.getMedicalConsultationDraft = function getMedicalConsultationDraft() {
   // limpar textos da consulta
   if (document.getElementById("cons_hda")) document.getElementById("cons_hda").value = "";
   if (document.getElementById("cons_assessment")) document.getElementById("cons_assessment").value = "";
-  if (document.getElementById("cons_plan")) document.getElementById("cons_plan").value = "";
 
   // re-render chips
   try { renderSelectedChips("diag_selected", consState.diagSelected, () => {}); } catch {}
