@@ -2916,6 +2916,7 @@ async function createAppointment() {
     await loadDocumentsList();
     alert('PDF gerado e guardado.');
   }
+  window.generatePdfAndSave = generatePdfAndSave;
   $('btnDocPdfSave').addEventListener('click', generatePdfAndSave);
 
 })();
