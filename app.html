@@ -2075,6 +2075,17 @@ $("btnCreateConsultationPdf")?.addEventListener("click", async (ev) => {
 
     // garante que os campos legacy estão sincronizados (mantém o teu comportamento)
     bridgeToLegacyConsultBox();
+// FIX definitivo: garantir sempre um consultationId antes de validar
+window.DOCS = window.DOCS || {};
+
+if (!window.DOCS.selectedConsultationId) {
+  const firstConsult = document.querySelector('.feedItem[data-item-type="consultation"][data-item-id]');
+  const cid = firstConsult?.getAttribute("data-item-id") || "";
+  if (cid) {
+    window.DOCS.selectedConsultationId = cid;
+    window.currentConsultationId = cid;
+  }
+}
 
     // 1) garantir que há consulta selecionada (ID)
     if (!window.DOCS) window.DOCS = {};
@@ -2756,7 +2767,7 @@ async function createAppointment() {
 
   // --- abrir documento
   async function openDocumentForEdit(docId){
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from('documents')
       .select('id, title, rendered_html, version, payload')
       .eq('id', docId)
@@ -3115,8 +3126,21 @@ async function saveNote() {
       content
     };
 
-    const { error } = await sb.from("notes").insert(payload);
-    if (error) throw error;
+    const { data: ins, error } = await sb
+  .from("consultations")
+  .insert(payload)
+  .select("id")
+  .single();
+
+if (error) throw error;
+
+// guardar o ID para o fluxo PDF/documentos
+window.currentConsultationId = ins.id;
+window.DOCS = window.DOCS || {};
+window.DOCS.selectedConsultationId = ins.id;
+window.DOCS.patientId = selectedPatientId;
+window.DOCS.clinicId = selectedClinicId;
+
 
     setMsg("noteMsg", "✔ Nota criada", "success");
     clearNote();
