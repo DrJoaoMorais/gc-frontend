@@ -2085,10 +2085,20 @@ $("btnCreateConsultationPdf")?.addEventListener("click", async (ev) => {
       }
     }
 
-    if (!window.DOCS.selectedConsultationId) {
-      setConsStatus("Erro: não há consulta selecionada para gerar documento.", true);
-      return;
-    }
+   if (!window.DOCS.selectedConsultationId) {
+  // fallback final: tenta apanhar a consulta mais recente no FEED (primeiro item consultation)
+  const firstConsult = document.querySelector('.feedItem[data-item-type="consultation"][data-item-id]');
+  const cid = firstConsult?.getAttribute("data-item-id") || "";
+  if (cid) {
+    window.DOCS.selectedConsultationId = cid;
+    window.currentConsultationId = cid;
+  }
+}
+
+if (!window.DOCS.selectedConsultationId) {
+  setConsStatus("Erro: não há consulta selecionada para gerar documento.", true);
+  return;
+}
 
     // 2) criar documento a partir da consulta
     if (typeof window.createDocumentFromSelectedConsultation !== "function") {
