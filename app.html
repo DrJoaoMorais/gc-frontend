@@ -3501,6 +3501,34 @@ try {
   refreshTabAvailability();
   $("tabsHint").textContent = "Seleciona clínica e depois doente.";
 }
+// ================= FEED: criar consulta a partir de marcação =================
+document.addEventListener("click", async (ev) => {
+  const btn = ev.target.closest('button[data-act="create-consult"]');
+  if (!btn) return;
+
+  const appointmentId = btn.getAttribute("data-id");
+  if (!appointmentId) {
+    alert("Marcação inválida.");
+    return;
+  }
+
+  if (!window.selectedPatientId || !window.selectedClinicId) {
+    alert("Seleciona um doente e uma clínica.");
+    return;
+  }
+
+  // guardar contexto global
+  window.selectedAppointmentId = appointmentId;
+
+  // ir para o FEED (Consulta Médica)
+  setActiveTab(TAB.FEED);
+
+  // focar a Consulta Médica
+  const box = document.getElementById("medicalConsultationBox");
+  if (box) {
+    box.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+});
 
 init();
 </script>
