@@ -2557,8 +2557,8 @@ const res = await fetch(
       clinic_id: selectedClinicId,
       title: `Marcação – ${procedure_type || "Consulta"}`,
       description: procedure_type || "",
-      start_iso: payload.start_at,
-      end_iso: payload.end_at
+      start_iso: start.toISOString(),
+      end_iso: end.toISOString()
     })
   }
 );
