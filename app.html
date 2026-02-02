@@ -3096,13 +3096,12 @@ async function saveConsultation() {
       setMsg("consultMsg", "Sem permissões para criar consulta.", "error");
       return;
     }
-    if (!selectedClinicId || !selectedPatientId || !currentUserId) {
-      setMsg("consultMsg", "Seleciona clínica e doente antes de guardar.", "error");
-      return;
-    }
+   if (!window.selectedClinicId || !window.selectedPatientId || !currentUserId) {
+  setMsg("consultMsg", "Seleciona clínica e doente antes de guardar.", "error");
+  return;
+} 
 
     const hda = ($("consultHDA").value || "").trim() || null;
-    const assessment = ($("consultAssessment").value || "").trim() || null;
     const plan_text = ($("consultPlan").value || "").trim() || null;
 
     const btn = $("btnSaveConsult");
@@ -3110,14 +3109,14 @@ async function saveConsultation() {
     btn.textContent = "A guardar…";
 
     const payload = {
-      patient_id: selectedPatientId,
-      clinic_id: selectedClinicId,
-      appointment_id: selectedAppointmentId || null,   // <-- LIGAÇÃO AQUI
-      author_user_id: currentUserId,
-      hda,
-      plan_text,
-      report_date: todayISO()
-    };
+  patient_id: window.selectedPatientId,
+  clinic_id: window.selectedClinicId,
+  appointment_id: window.selectedAppointmentId || null,
+  author_user_id: currentUserId,
+  hda,
+  plan_text,
+  report_date: todayISO()
+};
 
     // INSERT + obter ID criado (necessário para o fluxo Documentos/PDF)
     const { data: ins, error: insErr } = await sb
