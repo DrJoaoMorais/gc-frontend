@@ -727,6 +727,17 @@ function roundToMinute(d) {
   x.setSeconds(0, 0);
   return x;
 }
+function startLocalToISO(d) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return (
+    d.getFullYear() + "-" +
+    pad(d.getMonth() + 1) + "-" +
+    pad(d.getDate()) + "T" +
+    pad(d.getHours()) + ":" +
+    pad(d.getMinutes()) + ":" +
+    pad(d.getSeconds())
+  );
+}
 
 function defaultDurationByType(t) {
   switch (t) {
@@ -2527,14 +2538,42 @@ async function createAppointment() {
       clinic_id: selectedClinicId,
       patient_id: selectedPatientId,
       procedure_type,
-      start_at: start.toISOString(),
-      end_at: end.toISOString(),
+      start_at: startLocalToISO(start),
+      end_at: startLocalToISO(end),
       duration_minutes,
       status
     };
 
-    const { error } = await sb.from("appointments").insert(payload);
-    if (error) throw error;
+// 1) criar evento no Google Calendar (Edge Function)
+const res = await fetch(
+  "https://vfrmjfveclfwxcdknlvs.supabase.co/functions/v1/google-calendar-sync",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+    },
+    body: JSON.stringify({
+      clinic_id: selectedClinicId,
+      title: `Marcação – ${procedure_type || "Consulta"}`,
+      description: procedure_type || "",
+      start_iso: payload.start_at,
+      end_iso: payload.end_at
+    })
+  }
+);
+
+const ev = await res.json();
+if (!ev?.success || !ev?.google_event_id) {
+  throw new Error("Falha ao criar evento no Google Calendar");
+}
+
+// 2) inserir marcação já com google_event_id
+const payloadWithEvent = { ...payload, google_event_id: ev.google_event_id };
+
+const { error } = await sb.from("appointments").insert(payloadWithEvent);
+if (error) throw error;
+
 
     setMsg("apptMsg", "✔ Marcação criada.", "success");
     await loadAppointments();
