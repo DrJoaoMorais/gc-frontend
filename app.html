@@ -2756,9 +2756,47 @@ async function createAppointment() {
     listEl.querySelectorAll('[data-open]').forEach(btn => {
       btn.addEventListener('click', () => openDocumentForEdit(btn.dataset.open));
     });
+    listEl.querySelectorAll('[data-open-pdf]').forEach(btn => {
+  btn.addEventListener('click', () => openDocumentPdf(btn.dataset.openPdf));
+});
+
   }
 
   $('btnDocRefresh').addEventListener('click', loadDocumentsList);
+  // --- abrir PDF do documento (se existir)
+  async function openDocumentPdf(docId){
+    const { data, error } = await sb
+      .from('documents')
+      .select('id, pdf_path')
+      .eq('id', docId)
+      .single();
+
+    if (error) { console.error(error); alert('Erro ao abrir PDF.'); return; }
+    if (!data?.pdf_path) { alert('Este documento ainda não tem PDF. Gere o PDF primeiro.'); return; }
+
+    try {
+      const { data: signed, error: sigErr } = await sb
+        .storage
+        .from('documents')
+        .createSignedUrl(data.pdf_path, 60 * 10); // 10 min
+
+      if (sigErr) throw sigErr;
+
+      const url = signed?.signedUrl;
+      if (!url) throw new Error('signedUrl vazio');
+
+      const w = window.open(url, '_blank');
+
+      // fallback se o browser bloquear pop-up
+      if (!w) {
+        alert('O browser bloqueou a nova janela. Vou abrir o PDF nesta janela.');
+        window.location.href = url;
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Não foi possível abrir o PDF (signed URL).');
+    }
+  }
 
   // --- abrir documento
   async function openDocumentForEdit(docId){
