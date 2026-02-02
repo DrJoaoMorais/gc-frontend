@@ -2676,20 +2676,25 @@ async function createAppointment() {
     return 'Relatório';
   }
 
-  // --- abrir/fechar
-  window.openDocumentsModal = async function(patientId, clinicId){
-    window.DOCS.patientId = patientId;
-    window.DOCS.clinicId = clinicId;
-    window.DOCS.currentDocumentId = null;
-    window.DOCS.currentVersion = 1;
+// --- abrir/fechar
+window.openDocumentsModal = async function(patientId, clinicId){
+  window.DOCS.patientId = patientId;
+  window.DOCS.clinicId = clinicId;
 
-    $('documentsModalBackdrop').style.display = 'flex';
-    $('docTitle').value = '';
-    $('docType').value = 'report';
+  // limpar editor ao abrir o modal (evita confusão com o último documento aberto)
+  window.DOCS.currentDocumentId = null;
+  window.DOCS.currentVersion = 1;
 
-    await hydrateDocHeaderFromSeed();
-    await loadDocumentsList();
-  };
+  if ($('docTitle')) $('docTitle').value = '';
+  if ($('docEditor')) $('docEditor').innerHTML = '<div class="paper"></div>';
+
+  $('documentsModalBackdrop').style.display = 'flex';
+  $('docType').value = 'report';
+
+  await hydrateDocHeaderFromSeed();
+  await loadDocumentsList();
+};
+
 
   function closeDocumentsModal(){ $('documentsModalBackdrop').style.display = 'none'; }
 
