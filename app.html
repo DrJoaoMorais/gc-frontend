@@ -2746,8 +2746,9 @@ async function createAppointment() {
             <div><small>PDF: ${hasPdf ? 'sim' : 'não'}</small></div>
           </div>
           <div class="modalActions">
-            <button class="btn" data-open="${d.id}">Abrir</button>
-          </div>
+  <button class="btn" data-open="${d.id}">Abrir</button>
+  <button class="btn" data-open-pdf="${d.id}" ${hasPdf ? "" : "disabled"}>Abrir PDF</button>
+</div>
         </div>
       `;
     }).join('');
