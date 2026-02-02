@@ -691,12 +691,10 @@ function todayISO() {
 function clearConsultFields() {
   // Bloco antigo "Iniciar consulta"
   if ($("consultHDA")) $("consultHDA").value = "";
-  if ($("consultAssessment")) $("consultAssessment").value = "";
   if ($("consultPlan")) $("consultPlan").value = "";
 
   // Bloco novo "Consulta médica"
   if ($("cons_hda")) $("cons_hda").value = "";
-  if ($("cons_assessment")) $("cons_assessment").value = "";
 }
 
 function clearNote() { $("noteContent").value = ""; }
@@ -1670,7 +1668,6 @@ window.getMedicalConsultationDraft = function getMedicalConsultationDraft() {
 
   // limpar textos da consulta
   if (document.getElementById("cons_hda")) document.getElementById("cons_hda").value = "";
-  if (document.getElementById("cons_assessment")) document.getElementById("cons_assessment").value = "";
 
   // re-render chips
   try { renderSelectedChips("diag_selected", consState.diagSelected, () => {}); } catch {}
@@ -2012,7 +2009,6 @@ consState.treatAll = (data || []).map(r => ({
 function bridgeToLegacyConsultBox() {
   // 1) Textos base (o que escreves)
   const hda = readVal("cons_hda", "consultHDA");
-  const assessment = readVal("cons_assessment", "consultAssessment");
   let plan = ($("consRehabRxText")?.value || "").trim(); // Prescrição (plan_text)
 
   // 2) Buscar rascunho (diag + tratamentos + R/)
@@ -2056,7 +2052,6 @@ function bridgeToLegacyConsultBox() {
 
   // 4) Escrever nos campos antigos (são estes que o save antigo grava)
   setVal("consultHDA", hda);
-  setVal("consultAssessment", assessment);
   setVal("consultPlan", plan);
 
   // 5) Sincronizar o input novo R/ (mantém — tu queres "tudo")
@@ -2191,7 +2186,7 @@ function renderFeedFromBuffer() {
       : "";
 
     const body =
-      (o.hda || o.assessment || o.plan_text || o.content)
+      (o.hda || o.plan_text || o.content)
         ? `
           ${o.hda ? `<div style="margin-top:8px;"><div class="muted small">HDA</div><div style="white-space:pre-wrap;">${escapeHtml(o.hda)}</div></div>` : ""}
           ${o.plan_text ? `<div style="margin-top:8px;"><div class="muted small">Plano</div><div style="white-space:pre-wrap;">${escapeHtml(o.plan_text)}</div></div>` : ""}
@@ -2795,7 +2790,7 @@ async function createAppointment() {
 
    const { data: cons, error: e1 } = await sb
       .from('consultations')
-      .select('id, hda, assessment, plan_text, report_date, clinic_id, patient_id')
+      .select('id, hda, plan_text, report_date, clinic_id, patient_id')
       .eq('id', cid)
       .single();
 
@@ -2820,9 +2815,6 @@ async function createAppointment() {
 
         <h3 style="margin: 14px 0 6px;">História / HDA</h3>
         <div>${nl2br(escapeHtml(cons.hda || ''))}</div>
-
-        <h3 style="margin: 14px 0 6px;">Avaliação</h3>
-        <div>${nl2br(escapeHtml(cons.assessment || ''))}</div>
 
         <h3 style="margin: 14px 0 6px;">Plano</h3>
         <div>${nl2br(escapeHtml(cons.plan_text || ''))}</div>
@@ -3364,7 +3356,6 @@ const basePlan = ($("consRehabRxText")?.value || "").trim();
 // dados base
 const report_date = ($("cons_report_date")?.value || todayISO());
 const hda = ($("cons_hda")?.value || "").trim() || null;
-const assessment = ($("cons_assessment")?.value || "").trim() || null;
 
 // ✅ AGORA O plan_text TEM TUDO
 const plan_text = buildPlanTextWithRxDiagTreat();
