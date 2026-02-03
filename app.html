@@ -660,8 +660,17 @@ let patientClinicLinks = [];    // [{clinic_id, patient_id, is_active, start_dat
 
 
 /* ================= HELPERS ================= */
-function setStatus(msg) { $("status").textContent = msg || "—"; }
-function showError(err) { $("error").textContent = err ? String(err?.message || err) : ""; }
+function setStatus(msg) {
+  const el = $("status");
+  if (!el) return;
+  el.textContent = msg || "—";
+}
+
+function showError(err) {
+  const el = $("error");
+  if (!el) return;
+  el.textContent = err ? String(err?.message || err) : "";
+}
 
 function setMsg(elId, text, kind) {
   const el = $(elId);
@@ -673,19 +682,26 @@ function setMsg(elId, text, kind) {
 }
 
 function escapeHtml(s) {
-  return String(s || "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+  return String(s || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 function fmtDateTime(iso) {
-  try { const d = new Date(iso); return Number.isNaN(d.getTime()) ? iso : d.toLocaleString("pt-PT"); }
-  catch { return iso; }
+  try {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? iso : d.toLocaleString("pt-PT");
+  } catch {
+    return iso;
+  }
 }
 
 function todayISO() {
   const d = new Date();
   const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
 
@@ -698,15 +714,21 @@ function roundToMinute(d) {
 function startLocalToISO(d) {
   const pad = (n) => String(n).padStart(2, "0");
   return (
-    d.getFullYear() + "-" +
-    pad(d.getMonth() + 1) + "-" +
-    pad(d.getDate()) + "T" +
-    pad(d.getHours()) + ":" +
-    pad(d.getMinutes()) + ":" +
+    d.getFullYear() +
+    "-" +
+    pad(d.getMonth() + 1) +
+    "-" +
+    pad(d.getDate()) +
+    "T" +
+    pad(d.getHours()) +
+    ":" +
+    pad(d.getMinutes()) +
+    ":" +
     pad(d.getSeconds())
   );
 }
 
+/* ---------- APPOINTMENTS helpers ---------- */
 function defaultDurationByType(t) {
   switch (t) {
     case "Primeira Consulta": return 45;
@@ -720,29 +742,9 @@ function defaultDurationByType(t) {
   }
 }
 
-function clearPatientForm() {
-  $("patientFullName").value = "";
-  $("patientSNS").value = "";
-  $("patientEmail").value = "";
-  $("patientPhone").value = "";
-}
-
-function clearEditPatientForm() {
-  $("editFullName").value = "";
-  $("editDOB").value = "";
-  $("editSNS").value = "";
-  $("editEmail").value = "";
-  $("editPhone").value = "";
-  $("editIsForeign").value = "false";
-  $("editPassportCountry").value = "";
-  $("editPassportNumber").value = "";
-}
-
-function clearManageClinicsForm() {
-  $("patientClinicNotes").value = "";
-}
-
 function initAppointmentFormDefaults() {
+  if (!$("apptProcedureType") || !$("apptDurationMinutes") || !$("apptStartLocal") || !$("apptStatus")) return;
+
   const t = $("apptProcedureType").value;
   $("apptDurationMinutes").value = String(defaultDurationByType(t));
 
@@ -756,6 +758,35 @@ function initAppointmentFormDefaults() {
   setMsg("apptMsg", "");
 }
 
+/* ---------- PATIENT/CLINIC UI reset helpers ---------- */
+function clearPatientForm() {
+  if ($("patientFullName")) $("patientFullName").value = "";
+  if ($("patientSNS")) $("patientSNS").value = "";
+  if ($("patientEmail")) $("patientEmail").value = "";
+  if ($("patientPhone")) $("patientPhone").value = "";
+}
+
+function clearEditPatientForm() {
+  if ($("editFullName")) $("editFullName").value = "";
+  if ($("editDOB")) $("editDOB").value = "";
+  if ($("editSNS")) $("editSNS").value = "";
+  if ($("editEmail")) $("editEmail").value = "";
+  if ($("editPhone")) $("editPhone").value = "";
+  if ($("editIsForeign")) $("editIsForeign").value = "false";
+  if ($("editPassportCountry")) $("editPassportCountry").value = "";
+  if ($("editPassportNumber")) $("editPassportNumber").value = "";
+}
+
+function clearManageClinicsForm() {
+  if ($("patientClinicNotes")) $("patientClinicNotes").value = "";
+}
+
+/* ---------- CONSULTATION UI reset helpers ---------- */
+function clearConsultFields() {
+  if ($("consultHDA")) $("consultHDA").value = "";
+  if ($("consultPlan")) $("consultPlan").value = "";
+  if ($("cons_hda")) $("cons_hda").value = "";
+}
 
 /* ================= APPOINTMENTS — MODE ================= */
 function toggleAppointmentFormMode() {
