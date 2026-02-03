@@ -727,9 +727,21 @@ function clearPatientForm() {
   $("patientPhone").value = "";
 }
 
+function clearEditPatientForm() {
+  $("editFullName").value = "";
+  $("editDOB").value = "";
+  $("editSNS").value = "";
+  $("editEmail").value = "";
+  $("editPhone").value = "";
+  $("editIsForeign").value = "false";
+  $("editPassportCountry").value = "";
+  $("editPassportNumber").value = "";
+}
+
 function clearManageClinicsForm() {
   $("patientClinicNotes").value = "";
 }
+
 function initAppointmentFormDefaults() {
   const t = $("apptProcedureType").value;
   $("apptDurationMinutes").value = String(defaultDurationByType(t));
