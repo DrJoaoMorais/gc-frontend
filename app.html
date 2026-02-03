@@ -660,6 +660,8 @@ let patientClinicLinks = [];    // [{clinic_id, patient_id, is_active, start_dat
 
 
 /* ================= HELPERS ================= */
+
+/* ---------- DOM helpers ---------- */
 function setStatus(msg) {
   const el = $("status");
   if (!el) return;
@@ -669,13 +671,28 @@ function setStatus(msg) {
 function showError(err) {
   const el = $("error");
   if (!el) return;
-  el.textContent = err ? String(err?.message || err) : "";
+
+  if (!err) {
+    el.textContent = "";
+    return;
+  }
+
+  // aceita Error, string, object
+  const message =
+    typeof err === "string"
+      ? err
+      : (err && (err.message || err.error_description || err.error || err.msg)) || String(err);
+
+  el.textContent = String(message || "");
 }
 
 function setMsg(elId, text, kind) {
   const el = $(elId);
   if (!el) return;
+
   el.textContent = text || "";
+
+  // normalização de classes (base + estado)
   el.className = "small";
   if (kind === "error") el.classList.add("error");
   if (kind === "success") el.classList.add("success");
@@ -685,15 +702,18 @@ function escapeHtml(s) {
   return String(s || "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
+/* ---------- Date/time helpers ---------- */
 function fmtDateTime(iso) {
   try {
     const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? iso : d.toLocaleString("pt-PT");
+    return Number.isNaN(d.getTime()) ? String(iso || "") : d.toLocaleString("pt-PT");
   } catch {
-    return iso;
+    return String(iso || "");
   }
 }
 
@@ -711,87 +731,131 @@ function roundToMinute(d) {
   return x;
 }
 
+// devolve "YYYY-MM-DDTHH:mm:ss" (sem timezone), consistente com o teu uso atual
 function startLocalToISO(d) {
   const pad = (n) => String(n).padStart(2, "0");
-  return (
-    d.getFullYear() +
-    "-" +
-    pad(d.getMonth() + 1) +
-    "-" +
-    pad(d.getDate()) +
-    "T" +
-    pad(d.getHours()) +
-    ":" +
-    pad(d.getMinutes()) +
-    ":" +
-    pad(d.getSeconds())
-  );
+  try {
+    return (
+      d.getFullYear() +
+      "-" +
+      pad(d.getMonth() + 1) +
+      "-" +
+      pad(d.getDate()) +
+      "T" +
+      pad(d.getHours()) +
+      ":" +
+      pad(d.getMinutes()) +
+      ":" +
+      pad(d.getSeconds())
+    );
+  } catch {
+    return String(d || "");
+  }
 }
 
 /* ---------- APPOINTMENTS helpers ---------- */
 function defaultDurationByType(t) {
   switch (t) {
-    case "Primeira Consulta": return 45;
-    case "Consulta de Reavaliação": return 30;
-    case "Plasma Rico em Plaquetas": return 30;
-    case "Infiltração com Ácido Hialurónico": return 20;
-    case "Teleconsulta": return 20;
-    case "Pedido de Exames Complementares": return 15;
-    case "Renovação de Prescrição": return 10;
-    default: return 30;
+    case "Primeira Consulta":
+      return 45;
+    case "Consulta de Reavaliação":
+      return 30;
+    case "Plasma Rico em Plaquetas":
+      return 30;
+    case "Infiltração com Ácido Hialurónico":
+      return 20;
+    case "Teleconsulta":
+      return 20;
+    case "Pedido de Exames Complementares":
+      return 15;
+    case "Renovação de Prescrição":
+      return 10;
+    default:
+      return 30;
   }
 }
 
 function initAppointmentFormDefaults() {
-  if (!$("apptProcedureType") || !$("apptDurationMinutes") || !$("apptStartLocal") || !$("apptStatus")) return;
+  const elType = $("apptProcedureType");
+  const elDur = $("apptDurationMinutes");
+  const elStart = $("apptStartLocal");
+  const elStatus = $("apptStatus");
 
-  const t = $("apptProcedureType").value;
-  $("apptDurationMinutes").value = String(defaultDurationByType(t));
+  if (!elType || !elDur || !elStart || !elStatus) return;
+
+  const t = elType.value;
+  elDur.value = String(defaultDurationByType(t));
 
   const now = new Date();
   now.setSeconds(0, 0);
-  const pad = (n) => String(n).padStart(2, "0");
-  const v = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  $("apptStartLocal").value = v;
 
-  $("apptStatus").value = "scheduled";
+  const pad = (n) => String(n).padStart(2, "0");
+  const v = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(
+    now.getHours()
+  )}:${pad(now.getMinutes())}`;
+  elStart.value = v;
+
+  elStatus.value = "scheduled";
   setMsg("apptMsg", "");
 }
 
 /* ---------- PATIENT/CLINIC UI reset helpers ---------- */
 function clearPatientForm() {
-  if ($("patientFullName")) $("patientFullName").value = "";
-  if ($("patientSNS")) $("patientSNS").value = "";
-  if ($("patientEmail")) $("patientEmail").value = "";
-  if ($("patientPhone")) $("patientPhone").value = "";
+  const elFullName = $("patientFullName");
+  const elSNS = $("patientSNS");
+  const elEmail = $("patientEmail");
+  const elPhone = $("patientPhone");
+
+  if (elFullName) elFullName.value = "";
+  if (elSNS) elSNS.value = "";
+  if (elEmail) elEmail.value = "";
+  if (elPhone) elPhone.value = "";
 }
 
 function clearEditPatientForm() {
-  if ($("editFullName")) $("editFullName").value = "";
-  if ($("editDOB")) $("editDOB").value = "";
-  if ($("editSNS")) $("editSNS").value = "";
-  if ($("editEmail")) $("editEmail").value = "";
-  if ($("editPhone")) $("editPhone").value = "";
-  if ($("editIsForeign")) $("editIsForeign").value = "false";
-  if ($("editPassportCountry")) $("editPassportCountry").value = "";
-  if ($("editPassportNumber")) $("editPassportNumber").value = "";
+  const elFullName = $("editFullName");
+  const elDOB = $("editDOB");
+  const elSNS = $("editSNS");
+  const elEmail = $("editEmail");
+  const elPhone = $("editPhone");
+  const elIsForeign = $("editIsForeign");
+  const elPassportCountry = $("editPassportCountry");
+  const elPassportNumber = $("editPassportNumber");
+
+  if (elFullName) elFullName.value = "";
+  if (elDOB) elDOB.value = "";
+  if (elSNS) elSNS.value = "";
+  if (elEmail) elEmail.value = "";
+  if (elPhone) elPhone.value = "";
+  if (elIsForeign) elIsForeign.value = "false";
+  if (elPassportCountry) elPassportCountry.value = "";
+  if (elPassportNumber) elPassportNumber.value = "";
 }
 
 function clearManageClinicsForm() {
-  if ($("patientClinicNotes")) $("patientClinicNotes").value = "";
+  const elNotes = $("patientClinicNotes");
+  if (elNotes) elNotes.value = "";
 }
 
 /* ---------- CONSULTATION UI reset helpers ---------- */
 function clearConsultFields() {
-  if ($("consultHDA")) $("consultHDA").value = "";
-  if ($("consultPlan")) $("consultPlan").value = "";
-  if ($("cons_hda")) $("cons_hda").value = "";
+  const elConsultHDA = $("consultHDA");
+  const elConsultPlan = $("consultPlan");
+  const elConsHda = $("cons_hda");
+
+  if (elConsultHDA) elConsultHDA.value = "";
+  if (elConsultPlan) elConsultPlan.value = "";
+  if (elConsHda) elConsHda.value = "";
 }
+
 function clearNote() {
-  if ($("noteContent")) $("noteContent").value = "";
+  const el = $("noteContent");
+  if (el) el.value = "";
 }
+
 function clearPhysioRecord() {
-  if ($("physioRecordContent")) $("physioRecordContent").value = "";
+  const el = $("physioRecordContent");
+  if (el) el.value = "";
 }
 
 /* ================= APPOINTMENTS — MODE ================= */
