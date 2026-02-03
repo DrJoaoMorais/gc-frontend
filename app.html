@@ -3595,6 +3595,116 @@ window.DOCS.clinicId = selectedClinicId;
   }
 }
 /* ================= INIT ================= */
+// ================= APPOINTMENT (UPDATE) =================
+async function updateAppointment() {
+  try {
+    showError("");
+    setMsg("apptMsg", "");
+
+    if (!selectedClinicId || !selectedPatientId) {
+      setMsg("apptMsg", "Seleciona clínica e doente.", "error");
+      return;
+    }
+
+    const canEdit = (currentClinicRole === "doctor" || currentClinicRole === "secretary");
+    if (!canEdit) {
+      setMsg("apptMsg", "Sem permissões para editar marcações nesta clínica.", "error");
+      return;
+    }
+
+    if (!selectedAppointmentId) {
+      setMsg("apptMsg", "Seleciona uma marcação na lista para editar.", "error");
+      return;
+    }
+
+    const appt = (lastAppointmentsRows || []).find(x => x.id === selectedAppointmentId);
+    if (!appt) {
+      setMsg("apptMsg", "Marcação selecionada inválida (recarrega a lista).", "error");
+      return;
+    }
+
+    const procedure_type = $("apptProcedureType").value;
+    const duration_minutes = Number($("apptDurationMinutes").value || 0);
+    const status = $("apptStatus").value;
+
+    const startLocal = $("apptStartLocal").value;
+    if (!startLocal) {
+      setMsg("apptMsg", "Escolhe data/hora de início.", "error");
+      return;
+    }
+    if (!duration_minutes || duration_minutes < 5) {
+      setMsg("apptMsg", "Duração inválida (mínimo 5 min).", "error");
+      return;
+    }
+
+    const start = roundToMinute(new Date(startLocal));
+    const end = new Date(start.getTime() + duration_minutes * 60 * 1000);
+
+    const btn = $("btnUpdateAppointment");
+    btn.disabled = true;
+    btn.textContent = "A guardar…";
+
+    // 1) Atualizar BD
+    const upd = {
+      procedure_type,
+      start_at: startLocalToISO(start),
+      end_at: startLocalToISO(end),
+      duration_minutes,
+      status,
+    };
+
+    const { error: updErr } = await sb
+      .from("appointments")
+      .update(upd)
+      .eq("id", appt.id);
+
+    if (updErr) throw updErr;
+
+    // 2) Atualizar Google Calendar (apenas tipo + horário)
+    if (appt.google_event_id) {
+      const res = await fetch(
+        "https://vfrmjfveclfwxcdknlvs.supabase.co/functions/v1/google-calendar-sync",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            action: "update",
+            clinic_id: selectedClinicId,
+            google_event_id: appt.google_event_id,
+            title: procedure_type || "Marcação",
+            description: procedure_type || "",
+            start_iso: start.toISOString(),
+            end_iso: end.toISOString(),
+          }),
+        }
+      );
+
+      const out = await res.json().catch(() => null);
+      if (!res.ok || !out?.success) {
+        throw new Error(out?.error || `Falha ao atualizar evento no Google Calendar (HTTP ${res.status})`);
+      }
+    }
+
+    setMsg("apptMsg", "✔ Alterações guardadas.", "success");
+    await loadAppointments();
+    await loadFeed();
+
+  } catch (e) {
+    showError(e);
+    setMsg("apptMsg", "Erro ao guardar alterações. Vê 'Estado'.", "error");
+  } finally {
+    const btn = $("btnUpdateAppointment");
+    btn.disabled = false;
+    btn.textContent = "Guardar alterações";
+  }
+}
+
+// ✅ garante que existe globalmente
+window.updateAppointment = updateAppointment;
+
 async function init() {
   const ok = await initSession();
   if (!ok) return;
