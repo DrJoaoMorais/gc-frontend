@@ -660,6 +660,26 @@ let patientClinicLinks = [];    // [{clinic_id, patient_id, is_active, start_dat
 
 
 /* ================= HELPERS ================= */
+// ====== HELPERS em falta (fix crash) ======
+function showError(err) {
+  const el = $("error");
+  if (!el) return;
+  el.textContent = err ? String(err?.message || err) : "";
+}
+
+function defaultDurationByType(t) {
+  switch (t) {
+    case "Primeira Consulta": return 45;
+    case "Consulta de Reavaliação": return 30;
+    case "Plasma Rico em Plaquetas": return 30;
+    case "Infiltração com Ácido Hialurónico": return 20;
+    case "Teleconsulta": return 20;
+    case "Pedido de Exames Complementares": return 15;
+    case "Renovação de Prescrição": return 10;
+    default: return 30;
+  }
+}
+
 function initAppointmentFormDefaults() {
   const t = $("apptProcedureType").value;
   $("apptDurationMinutes").value = String(defaultDurationByType(t));
