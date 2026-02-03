@@ -337,6 +337,7 @@
                 <div style="display:flex; gap:10px; align-items:center;">
                   <button id="btnResetAppointment" type="button">Limpar</button>
                   <button id="btnCreateAppointment" type="button">Criar marcação</button>
+                  <button id="btnUpdateAppointment" type="button" style="display:none;">Guardar alterações</button>
                 </div>
               </div>
 
@@ -774,13 +775,43 @@ function setSelectedAppointment(appt) {
   if (!appt) {
     selectedAppointmentId = null;
     selectedAppointmentLabel = null;
+
+    // limpar formulário
+    $("apptProcedureType").value = "";
+    $("apptDurationMinutes").value = "";
+    $("apptStartLocal").value = "";
+    $("apptStatus").value = "scheduled";
+
+    // botões
+    $("btnCreateAppointment").style.display = "inline-block";
+    $("btnUpdateAppointment").style.display = "none";
+
     updateSelectedAppointmentBanner();
     renderAppointmentsList(lastAppointmentsRows || []);
     return;
   }
+
+  // guardar seleção
   selectedAppointmentId = appt.id;
   const when = fmtDateTime(appt.start_at);
   selectedAppointmentLabel = `${appt.procedure_type || "—"} | ${when}`;
+
+  // 👉 preencher formulário com a marcação selecionada
+  $("apptProcedureType").value = appt.procedure_type || "Primeira Consulta";
+  $("apptDurationMinutes").value = String(appt.duration_minutes || 15);
+  $("apptStartLocal").value = appt.start_at
+  ? (() => {
+      const d = new Date(appt.start_at);
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    })()
+  : "";
+  $("apptStatus").value = appt.status || "scheduled";
+
+  // botões
+  $("btnCreateAppointment").style.display = "none";
+  $("btnUpdateAppointment").style.display = "inline-block";
+
   updateSelectedAppointmentBanner();
   renderAppointmentsList(lastAppointmentsRows || []);
 }
@@ -3628,6 +3659,7 @@ try {
   }
     if ($("btnCreateAppointment")) $("btnCreateAppointment").onclick = () => createAppointment();
   if ($("btnResetAppointment")) $("btnResetAppointment").onclick = () => { clearAppointmentForm(); setMsg("apptMsg", "Limpo.", "success"); };
+  if ($("btnUpdateAppointment")) $("btnUpdateAppointment").onclick = () => updateAppointment();
 
   // Link/unlink appointment banner (doctor)
   if ($("btnUnlinkAppointment"))
