@@ -694,6 +694,10 @@ function defaultDurationByType(t) {
     default: return 30;
   }
 }
+function clearManageClinicsForm() {
+  const el = $("patientClinicNotes");
+  if (el) el.value = "";
+}
 
 function initAppointmentFormDefaults() {
   const t = $("apptProcedureType").value;
