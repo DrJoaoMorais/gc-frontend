@@ -3050,13 +3050,9 @@ window.openDocumentsModal = async function(patientId, clinicId){
       const url = signed?.signedUrl;
       if (!url) throw new Error('signedUrl vazio');
 
-      const w = window.open(url, '_blank');
+ // abrir PDF na mesma janela (Safari / anti pop-up)
+window.location.assign(url);
 
-      // fallback se o browser bloquear pop-up
-      if (!w) {
-        alert('O browser bloqueou a nova janela. Vou abrir o PDF nesta janela.');
-        window.location.href = url;
-      }
     } catch (e) {
       console.error(e);
       alert('Não foi possível abrir o PDF (signed URL).');
