@@ -660,99 +660,6 @@ let patientClinicLinks = [];    // [{clinic_id, patient_id, is_active, start_dat
 
 
 /* ================= HELPERS ================= */
-function setStatus(msg) { $("status").textContent = msg || "—"; }
-function showError(err) { $("error").textContent = err ? String(err?.message || err) : ""; }
-
-function setMsg(elId, text, kind) {
-  const el = $(elId);
-  if (!el) return;
-  el.textContent = text || "";
-  el.className = "small";
-  if (kind === "error") el.classList.add("error");
-  if (kind === "success") el.classList.add("success");
-}
-
-function escapeHtml(s) {
-  return String(s || "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
-}
-
-function fmtDateTime(iso) {
-  try { const d = new Date(iso); return Number.isNaN(d.getTime()) ? iso : d.toLocaleString("pt-PT"); }
-  catch { return iso; }
-}
-
-function todayISO() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${day}`;
-}
-
-function clearConsultFields() {
-  // Bloco antigo "Iniciar consulta"
-  if ($("consultHDA")) $("consultHDA").value = "";
-  if ($("consultPlan")) $("consultPlan").value = "";
-
-  // Bloco novo "Consulta médica"
-  if ($("cons_hda")) $("cons_hda").value = "";
-}
-
-function clearNote() { $("noteContent").value = ""; }
-function clearPhysioRecord() { $("physioRecordContent").value = ""; }
-function clearPatientForm() {
-  $("patientFullName").value = "";
-  $("patientSNS").value = "";
-  $("patientEmail").value = "";
-  $("patientPhone").value = "";
-}
-function clearManageClinicsForm() { $("patientClinicNotes").value = ""; }
-
-function clearEditPatientForm() {
-  $("editFullName").value = "";
-  $("editDOB").value = "";
-  $("editSNS").value = "";
-  $("editEmail").value = "";
-  $("editPhone").value = "";
-  $("editIsForeign").value = "false";
-  $("editPassportCountry").value = "";
-  $("editPassportNumber").value = "";
-}
-
-function clinicNameById(id) {
-  return clinicsCache.find(c => c.id === id)?.name || id;
-}
-
-function roundToMinute(d) {
-  const x = new Date(d);
-  x.setSeconds(0, 0);
-  return x;
-}
-function startLocalToISO(d) {
-  const pad = (n) => String(n).padStart(2, "0");
-  return (
-    d.getFullYear() + "-" +
-    pad(d.getMonth() + 1) + "-" +
-    pad(d.getDate()) + "T" +
-    pad(d.getHours()) + ":" +
-    pad(d.getMinutes()) + ":" +
-    pad(d.getSeconds())
-  );
-}
-
-function defaultDurationByType(t) {
-  switch (t) {
-    case "Primeira Consulta": return 45;
-    case "Consulta de Reavaliação": return 30;
-    case "Plasma Rico em Plaquetas": return 30;
-    case "Infiltração com Ácido Hialurónico": return 20;
-    case "Teleconsulta": return 20;
-    case "Pedido de Exames Complementares": return 15;
-    case "Renovação de Prescrição": return 10;
-    default: return 30;
-  }
-}
-
 function initAppointmentFormDefaults() {
   const t = $("apptProcedureType").value;
   $("apptDurationMinutes").value = String(defaultDurationByType(t));
@@ -767,8 +674,34 @@ function initAppointmentFormDefaults() {
   setMsg("apptMsg", "");
 }
 
+/* ================= APPOINTMENTS — MODE ================= */
+function toggleAppointmentFormMode() {
+  const btnCreate = $("btnCreateAppointment");
+  const btnUpdate = $("btnUpdateAppointment");
+  if (!btnCreate || !btnUpdate) return;
+
+  if (selectedAppointmentId) {
+    btnCreate.style.display = "none";
+    btnUpdate.style.display = "inline-block";
+  } else {
+    btnCreate.style.display = "inline-block";
+    btnUpdate.style.display = "none";
+  }
+}
+
 function clearAppointmentForm() {
+  // Sair do modo edição
+  selectedAppointmentId = null;
+  selectedAppointmentLabel = null;
+
+  // Limpar e repor defaults do formulário
   initAppointmentFormDefaults();
+
+  // Garantir botões corretos
+  toggleAppointmentFormMode();
+
+  updateSelectedAppointmentBanner();
+  renderAppointmentsList(lastAppointmentsRows || []);
 }
 
 function setSelectedAppointment(appt) {
@@ -776,15 +709,15 @@ function setSelectedAppointment(appt) {
     selectedAppointmentId = null;
     selectedAppointmentLabel = null;
 
-    // limpar formulário
+    // limpar formulário (mantemos defaults coerentes)
+    initAppointmentFormDefaults();
     $("apptProcedureType").value = "";
     $("apptDurationMinutes").value = "";
     $("apptStartLocal").value = "";
     $("apptStatus").value = "scheduled";
 
-    // botões
-    $("btnCreateAppointment").style.display = "inline-block";
-    $("btnUpdateAppointment").style.display = "none";
+    // botões (via função única)
+    toggleAppointmentFormMode();
 
     updateSelectedAppointmentBanner();
     renderAppointmentsList(lastAppointmentsRows || []);
@@ -796,21 +729,20 @@ function setSelectedAppointment(appt) {
   const when = fmtDateTime(appt.start_at);
   selectedAppointmentLabel = `${appt.procedure_type || "—"} | ${when}`;
 
-  // 👉 preencher formulário com a marcação selecionada
+  // preencher formulário com a marcação selecionada
   $("apptProcedureType").value = appt.procedure_type || "Primeira Consulta";
   $("apptDurationMinutes").value = String(appt.duration_minutes || 15);
   $("apptStartLocal").value = appt.start_at
-  ? (() => {
-      const d = new Date(appt.start_at);
-      const pad = (n) => String(n).padStart(2, "0");
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    })()
-  : "";
+    ? (() => {
+        const d = new Date(appt.start_at);
+        const pad = (n) => String(n).padStart(2, "0");
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      })()
+    : "";
   $("apptStatus").value = appt.status || "scheduled";
 
-  // botões
-  $("btnCreateAppointment").style.display = "none";
-  $("btnUpdateAppointment").style.display = "inline-block";
+  // botões (via função única)
+  toggleAppointmentFormMode();
 
   updateSelectedAppointmentBanner();
   renderAppointmentsList(lastAppointmentsRows || []);
@@ -842,6 +774,11 @@ function updateSelectedAppointmentBanner() {
 function unlinkSelectedAppointment() {
   selectedAppointmentId = null;
   selectedAppointmentLabel = null;
+
+  // repor modo CRIAR + defaults
+  initAppointmentFormDefaults();
+  toggleAppointmentFormMode();
+
   updateSelectedAppointmentBanner();
   renderAppointmentsList(lastAppointmentsRows || []);
 }
