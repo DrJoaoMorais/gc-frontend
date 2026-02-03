@@ -660,6 +660,12 @@ let patientClinicLinks = [];    // [{clinic_id, patient_id, is_active, start_dat
 
 
 /* ================= HELPERS ================= */
+function setStatus(msg) {
+  const el = $("status");
+  if (!el) return;
+  el.textContent = msg || "—";
+}
+
 function setMsg(elId, text, kind) {
   const el = $(elId);
   if (!el) return;
