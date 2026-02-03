@@ -660,6 +660,76 @@ let patientClinicLinks = [];    // [{clinic_id, patient_id, is_active, start_dat
 
 
 /* ================= HELPERS ================= */
+function setStatus(msg) { $("status").textContent = msg || "—"; }
+function showError(err) { $("error").textContent = err ? String(err?.message || err) : ""; }
+
+function setMsg(elId, text, kind) {
+  const el = $(elId);
+  if (!el) return;
+  el.textContent = text || "";
+  el.className = "small";
+  if (kind === "error") el.classList.add("error");
+  if (kind === "success") el.classList.add("success");
+}
+
+function escapeHtml(s) {
+  return String(s || "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+}
+
+function fmtDateTime(iso) {
+  try { const d = new Date(iso); return Number.isNaN(d.getTime()) ? iso : d.toLocaleString("pt-PT"); }
+  catch { return iso; }
+}
+
+function todayISO() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+
+function roundToMinute(d) {
+  const x = new Date(d);
+  x.setSeconds(0, 0);
+  return x;
+}
+
+function startLocalToISO(d) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return (
+    d.getFullYear() + "-" +
+    pad(d.getMonth() + 1) + "-" +
+    pad(d.getDate()) + "T" +
+    pad(d.getHours()) + ":" +
+    pad(d.getMinutes()) + ":" +
+    pad(d.getSeconds())
+  );
+}
+
+function defaultDurationByType(t) {
+  switch (t) {
+    case "Primeira Consulta": return 45;
+    case "Consulta de Reavaliação": return 30;
+    case "Plasma Rico em Plaquetas": return 30;
+    case "Infiltração com Ácido Hialurónico": return 20;
+    case "Teleconsulta": return 20;
+    case "Pedido de Exames Complementares": return 15;
+    case "Renovação de Prescrição": return 10;
+    default: return 30;
+  }
+}
+
+function clearPatientForm() {
+  $("patientFullName").value = "";
+  $("patientSNS").value = "";
+  $("patientEmail").value = "";
+  $("patientPhone").value = "";
+}
+
+function clearManageClinicsForm() {
+  $("patientClinicNotes").value = "";
+}
 function initAppointmentFormDefaults() {
   const t = $("apptProcedureType").value;
   $("apptDurationMinutes").value = String(defaultDurationByType(t));
@@ -673,6 +743,7 @@ function initAppointmentFormDefaults() {
   $("apptStatus").value = "scheduled";
   setMsg("apptMsg", "");
 }
+
 
 /* ================= APPOINTMENTS — MODE ================= */
 function toggleAppointmentFormMode() {
