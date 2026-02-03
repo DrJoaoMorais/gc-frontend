@@ -660,15 +660,6 @@ let patientClinicLinks = [];    // [{clinic_id, patient_id, is_active, start_dat
 
 
 /* ================= HELPERS ================= */
-function setMsg(elId, text, kind) {
-  const el = $(elId);
-  if (!el) return;
-  el.textContent = text || "";
-  el.className = "small";
-  if (kind === "error") el.classList.add("error");
-  if (kind === "success") el.classList.add("success");
-}
-
 // ====== HELPERS em falta (fix crash) ======
 function showError(err) {
   const el = $("error");
