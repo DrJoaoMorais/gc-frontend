@@ -1298,24 +1298,28 @@ async function loadDashboardDayAppointments(dateObj = new Date()) {
   }
 
   tbody.innerHTML = "";
-  for (const r of rows) {
-    const tr = document.createElement("tr");
 
-    const hora = formatTimeHHMM(r.start_at);
-    const doente = patientMap[r.patient_id] || "—";
-    const tipo = r.procedure_type || "—";
-    const estado = statusLabel(r.status);
+for (const r of rows) {
+  const tr = document.createElement("tr");
 
-    tr.innerHTML = `
-      <td>${hora}</td>
-      <td>${escapeHtml(doente)}</td>
-      <td>${escapeHtml(tipo)}</td>
-      <td>${escapeHtml(estado)}</td>
-      <td class="muted small">—</td>
-      <td class="muted small">—</td>
-    `;
-    tbody.appendChild(tr);
-  }
+  const hora = formatTimeHHMM(r.start_at);
+  const doente = patientMap[r.patient_id] || "—";
+  const tipo = r.procedure_type || "—";
+  const estado = statusLabel(r.status);
+
+  tr.innerHTML = `
+    <td style="padding:8px;">${hora}</td>
+    <td style="padding:8px;">${escapeHtml(doente)}</td>
+    <td style="padding:8px;">${escapeHtml(tipo)}</td>
+    <td style="padding:8px;">${escapeHtml(estado)}</td>
+    <td style="padding:8px;" class="small muted">—</td>
+    <td style="padding:8px;">
+      <button class="btn small">Editar</button>
+    </td>
+  `;
+
+  tbody.appendChild(tr);
+}
 }
 
 /* ================= VISIBILIDADE (Formulários) ================= */
