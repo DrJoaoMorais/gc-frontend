@@ -1171,19 +1171,28 @@ function applyRoleVisibility() {
   allSections.forEach((s) => (s.style.display = "none"));
 
   if (role === "secretary") {
-    // mostra dashboard
-    if (secDashboard) secDashboard.style.display = "";
+  // mostra dashboard
+  if (secDashboard) {
+    secDashboard.style.display = "";
 
-    // esconde a coluna direita (Área do doente) e a lista de clínicas, se existirem
-    const patientsBox = document.querySelector(".rightHeader")?.closest(".box");
-    if (patientsBox) patientsBox.style.display = "none";
-
-    const clinicsBox = document.getElementById("clinicsList")?.closest(".box");
-    if (clinicsBox) clinicsBox.style.display = "none";
-
-    document.body.setAttribute("data-role", "secretary");
-    return;
+    // força dashboard a full-width (corrige largura 0 em layouts com grid/col)
+    secDashboard.style.width = "100%";
+    secDashboard.style.maxWidth = "1200px";
+    secDashboard.style.margin = "0 auto";
+    secDashboard.style.boxSizing = "border-box";
+    secDashboard.style.position = "relative";
   }
+
+  // esconde a coluna direita (Área do doente) e a lista de clínicas, se existirem
+  const patientsBox = document.querySelector(".rightHeader")?.closest(".box");
+  if (patientsBox) patientsBox.style.display = "none";
+
+  const clinicsBox = document.getElementById("clinicsList")?.closest(".box");
+  if (clinicsBox) clinicsBox.style.display = "none";
+
+  document.body.setAttribute("data-role", "secretary");
+  return;
+}
 
   // Médico e outros: reexibir
   allSections.forEach((s) => (s.style.display = ""));
