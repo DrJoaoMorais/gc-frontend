@@ -1339,7 +1339,10 @@ async function loadGlobalUserRole() {
 
 /* ================= ROLE POR CLÍNICA ================= */
 async function loadMyRoleForClinic(clinicId) {
-  if (globalUserRole === "doctor") return "doctor";
+  // Se o utilizador for médico "global", simplifica (opcional, conforme o teu modelo)
+  if ((globalUserRole || "").toLowerCase() === "doctor") return "doctor";
+
+  if (!currentUserId || !clinicId) return null;
 
   const { data, error } = await sb
     .from("clinic_members")
