@@ -1160,6 +1160,42 @@ function updateContextBanner() {
   el.innerHTML = `Clínica: <strong>${escapeHtml(clinic)}</strong> &nbsp;|&nbsp; Doente: <strong>${escapeHtml(patient)}</strong>`;
 }
 
+/* ================= ROLE VISIBILITY (Secretary vs Doctor) ================= */
+function applyRoleVisibility() {
+  const role = (window.currentClinicRole || "").toLowerCase();
+
+  const secDashboard = document.getElementById("secDashboard");
+
+  // esconde todas as secções "sec*"
+  const allSections = Array.from(document.querySelectorAll("section[id^='sec']"));
+  allSections.forEach((s) => (s.style.display = "none"));
+
+  if (role === "secretary") {
+    // mostra dashboard
+    if (secDashboard) secDashboard.style.display = "";
+
+    // esconde a coluna direita (Área do doente) e a lista de clínicas, se existirem
+    const patientsBox = document.querySelector(".rightHeader")?.closest(".box");
+    if (patientsBox) patientsBox.style.display = "none";
+
+    const clinicsBox = document.getElementById("clinicsList")?.closest(".box");
+    if (clinicsBox) clinicsBox.style.display = "none";
+
+    document.body.setAttribute("data-role", "secretary");
+    return;
+  }
+
+  // Médico e outros: reexibir
+  allSections.forEach((s) => (s.style.display = ""));
+
+  const patientsBox = document.querySelector(".rightHeader")?.closest(".box");
+  if (patientsBox) patientsBox.style.display = "";
+
+  const clinicsBox = document.getElementById("clinicsList")?.closest(".box");
+  if (clinicsBox) clinicsBox.style.display = "";
+
+  document.body.setAttribute("data-role", role || "doctor");
+}
 function updateContextInfo() {
   const clinic = selectedClinicName || "—";
   const patient = selectedPatientLabel || "—";
