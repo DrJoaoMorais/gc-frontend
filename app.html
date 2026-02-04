@@ -1172,21 +1172,22 @@ function applyRoleVisibility() {
 
   if (role === "secretary") {
   // mostra dashboard
-  if (secDashboard) {
-    secDashboard.style.display = "";
+  if (secDashboard) secDashboard.style.display = "";
 
-    // força dashboard a full-width (corrige largura 0 em layouts com grid/col)
-    secDashboard.style.width = "100%";
-    secDashboard.style.maxWidth = "1200px";
-    secDashboard.style.margin = "0 auto";
-    secDashboard.style.boxSizing = "border-box";
-    secDashboard.style.position = "relative";
-  }
+  // força dashboard a full-width (corrige largura 0 em layouts com grid/col)
+  secDashboard.style.width = "100%";
+  secDashboard.style.maxWidth = "1200px";
+  secDashboard.style.margin = "0 auto";
+  secDashboard.style.boxSizing = "border-box";
 
-  // esconde a coluna direita (Área do doente) e a lista de clínicas, se existirem
+  // 👉 ESTA É A LINHA QUE FALTAVA (AQUI!)
+  secDashboard.style.position = "relative";
+
+  // esconde a coluna direita (Área do doente)
   const patientsBox = document.querySelector(".rightHeader")?.closest(".box");
   if (patientsBox) patientsBox.style.display = "none";
 
+  // esconde lista de clínicas
   const clinicsBox = document.getElementById("clinicsList")?.closest(".box");
   if (clinicsBox) clinicsBox.style.display = "none";
 
