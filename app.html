@@ -1254,9 +1254,8 @@ async function loadDashboardDayAppointments(dateObj = new Date()) {
   .from("appointments")
   .select("id, start_at, procedure_type, status, patient_id")
   .eq("clinic_id", selectedClinicId)
-  .gte("start_at", start)
-  .lte("start_at", end)
-  .order("start_at", { ascending: true });
+  .order("start_at", { ascending: true })
+  .limit(20);
 
   if (error) {
     tbody.innerHTML = `<tr><td colspan="6" class="muted small">Erro ao carregar marcações.</td></tr>`;
