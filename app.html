@@ -1240,7 +1240,7 @@ async function loadDashboardDayAppointments(dateObj = new Date()) {
   if (role !== "secretary") return;
   if (!selectedClinicId) return;
 
-  const tbody = document.getElementById("dashApptsTbody");
+  const tbody = document.getElementById("secApptsTbody");
   if (!tbody) return;
 
   // limpa tabela
