@@ -1453,6 +1453,7 @@ async function loadClinics() {
         currentClinicRole = await loadMyRoleForClinic(c.id);
         // Guardar role global para o UI (evita undefined)
 window.currentClinicRole = currentClinicRole || null;
+applyRoleVisibility();
 
 // UI por role: secretária/fisio não vê Consulta médica nem PDF
 const isDoctor = window.currentClinicRole === "doctor";
