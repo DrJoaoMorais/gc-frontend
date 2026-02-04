@@ -151,6 +151,121 @@
         </div>
 
         <div class="divider"></div>
+<!-- ================= SECRETARY DASHBOARD (POST-LOGIN) ================= -->
+<section id="secDashboard" style="display:none; padding:16px;">
+  <!-- Top bar -->
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
+    <div>
+      <div style="font-weight:700; font-size:18px;">Agenda</div>
+      <div class="small" id="secContextLine">—</div>
+      <!-- Ex.: "Alfraclinic • Hoje" / "Todas as clínicas • Hoje" (médico) -->
+    </div>
+
+    <div style="display:flex; gap:10px; align-items:center;">
+      <button id="btnSecCreateAppt" class="btn">➕ Marcar consulta</button>
+      <button id="btnSecSearchPatients" class="btn">🔍 Pesquisar doentes</button>
+    </div>
+  </div>
+
+  <!-- Day selector (opcional, pode ficar oculto se não usares já) -->
+  <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+    <label class="small" for="secDay">Dia</label>
+    <input id="secDay" type="date" />
+    <button id="btnSecToday" class="btn small">Hoje</button>
+    <span id="secMsg" class="small"></span>
+  </div>
+
+  <!-- Main split: day table + month calendar -->
+  <div style="display:grid; grid-template-columns: 1.6fr 1fr; gap:14px;">
+    <!-- Day table -->
+    <div class="card" style="padding:12px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <div style="font-weight:700;">Marcações do dia</div>
+        <div class="small" id="secDayCount">—</div>
+      </div>
+
+      <div style="overflow:auto;">
+        <table class="table" style="width:100%; border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="text-align:left; padding:8px;">Hora</th>
+              <th style="text-align:left; padding:8px;">Doente</th>
+              <th style="text-align:left; padding:8px;">Tipo</th>
+              <th style="text-align:left; padding:8px;">Estado</th>
+              <th style="text-align:left; padding:8px;">Notas</th>
+              <th style="text-align:left; padding:8px;">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="secApptsTbody">
+            <!-- JS vai preencher -->
+            <!-- Row template (referência):
+            <tr>
+              <td>09:00</td>
+              <td>Nome do doente</td>
+              <td>Primeira Consulta</td>
+              <td><span class="badge">⏳ Agendada</span></td>
+              <td class="small">Última nota…</td>
+              <td>
+                <button class="btn small">Editar</button>
+                <button class="btn small">Cancelar</button>
+                <button class="btn small">Notas</button>
+              </td>
+            </tr>
+            -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Month calendar -->
+    <div class="card" style="padding:12px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <div style="font-weight:700;">Calendário (mês)</div>
+        <div style="display:flex; gap:8px;">
+          <button id="btnSecPrevMonth" class="btn small">◀</button>
+          <button id="btnSecNextMonth" class="btn small">▶</button>
+        </div>
+      </div>
+      <div class="small" id="secMonthLabel" style="margin-bottom:8px;">—</div>
+
+      <div id="secMonthGrid">
+        <!-- JS vai desenhar o calendário mensal aqui -->
+      </div>
+
+      <div class="small" style="margin-top:10px; opacity:0.8;">
+        Clique num dia para filtrar a tabela e/ou abrir marcação.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= NOTES MODAL (TRANSVERSAL POR DOENTE) ================= -->
+<div id="secNotesModal" class="modal" style="display:none;">
+  <div class="modalContent" style="max-width:780px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+      <div>
+        <div style="font-weight:700;">Notas do doente</div>
+        <div class="small" id="secNotesPatientLine">—</div>
+      </div>
+      <button id="btnSecNotesClose" class="btn small">Fechar</button>
+    </div>
+
+    <div style="margin-top:12px; display:grid; grid-template-columns: 1fr; gap:10px;">
+      <div class="card" style="padding:10px;">
+        <div class="small" style="margin-bottom:6px;">Nova nota</div>
+        <textarea id="secNewNoteText" rows="3" style="width:100%;"></textarea>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+          <button id="btnSecAddNote" class="btn">Guardar nota</button>
+        </div>
+      </div>
+
+      <div class="card" style="padding:10px;">
+        <div style="font-weight:700; margin-bottom:8px;">Histórico</div>
+        <div id="secNotesList" class="small">—</div>
+      </div>
+    </div>
+  </div>
+</div>
 
         <!-- PANEL: DOENTES -->
         <div id="tabPanelPatients" class="tabPanel active">
