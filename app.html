@@ -1171,29 +1171,33 @@ function applyRoleVisibility() {
   allSections.forEach((s) => (s.style.display = "none"));
 
   if (role === "secretary") {
-  // mostra dashboard
-  if (secDashboard) secDashboard.style.display = "";
+    // mostra dashboard
+    if (secDashboard) {
+      secDashboard.style.display = "block";
 
-  // força dashboard a full-width (corrige largura 0 em layouts com grid/col)
-  secDashboard.style.width = "100%";
-  secDashboard.style.maxWidth = "1200px";
-  secDashboard.style.margin = "0 auto";
-  secDashboard.style.boxSizing = "border-box";
+      // força dashboard a full-width (corrige largura 0 em layouts com grid/col)
+      secDashboard.style.width = "100%";
+      secDashboard.style.maxWidth = "1200px";
+      secDashboard.style.margin = "0 auto";
+      secDashboard.style.boxSizing = "border-box";
+      secDashboard.style.position = "relative";
 
-  // 👉 ESTA É A LINHA QUE FALTAVA (AQUI!)
-  secDashboard.style.position = "relative";
+      // 🔴 FIX CRÍTICO: garantir que o parent .box NÃO está hidden
+      const parentBox = secDashboard.closest(".box");
+      if (parentBox) parentBox.style.display = "block";
+    }
 
-  // esconde a coluna direita (Área do doente)
-  const patientsBox = document.querySelector(".rightHeader")?.closest(".box");
-  if (patientsBox) patientsBox.style.display = "none";
+    // esconde a coluna direita (Área do doente)
+    const patientsBox = document.querySelector(".rightHeader")?.closest(".box");
+    if (patientsBox) patientsBox.style.display = "none";
 
-  // esconde lista de clínicas
-  const clinicsBox = document.getElementById("clinicsList")?.closest(".box");
-  if (clinicsBox) clinicsBox.style.display = "none";
+    // esconde lista de clínicas
+    const clinicsBox = document.getElementById("clinicsList")?.closest(".box");
+    if (clinicsBox) clinicsBox.style.display = "none";
 
-  document.body.setAttribute("data-role", "secretary");
-  return;
-}
+    document.body.setAttribute("data-role", "secretary");
+    return;
+  }
 
   // Médico e outros: reexibir
   allSections.forEach((s) => (s.style.display = ""));
@@ -1206,30 +1210,7 @@ function applyRoleVisibility() {
 
   document.body.setAttribute("data-role", role || "doctor");
 }
-function updateContextInfo() {
-  const clinic = selectedClinicName || "—";
-  const patient = selectedPatientLabel || "—";
-  const role = currentClinicRole || "—";
-  $("contextInfo").textContent = `Clínica: ${clinic} | Doente: ${patient} | Role: ${role}`;
-  $("patientsRolePill").textContent = `Role: ${role}`;
-  refreshTabAvailability();
-  updateSelectedAppointmentBanner();
-}
 
-function hideAllActionBoxes() {
-  if ($("startConsultBox")) $("startConsultBox").style.display = "none";
-  if ($("notesBox")) $("notesBox").style.display = "none";
-  if ($("physioRecordBox")) $("physioRecordBox").style.display = "none";
-}
-
-function showBoxesByRole() {
-  hideAllActionBoxes();
-  if (!selectedClinicId || !selectedPatientId) return;
-
-  if (currentClinicRole) $("notesBox").style.display = "block";
-  if (currentClinicRole === "physio") $("physioRecordBox").style.display = "block";
-}
-/* ================= DASHBOARD (SECRETARY) — APPOINTMENTS DO DIA ================= */
 function formatDateYYYYMMDD(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
