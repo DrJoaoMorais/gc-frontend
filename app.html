@@ -1312,7 +1312,6 @@ for (const r of rows) {
   tbody.appendChild(tr);
 }
 }
-
 /* ================= VISIBILIDADE (Formulários) ================= */
 function updateCreatePatientVisibility() {
   const show = (selectedClinicId && (currentClinicRole === "doctor" || currentClinicRole === "secretary"));
@@ -1357,6 +1356,35 @@ function updateAppointmentsVisibility() {
     $("apptsHeader").innerHTML = `Doente: <strong>${escapeHtml(selectedPatientLabel || "—")}</strong> (Clínica: ${escapeHtml(selectedClinicName || "—")})`;
   } else {
     $("apptsHeader").textContent = "Seleciona um doente.";
+  }
+}
+
+/* ================= ACTION BOXES (HIDE) ================= */
+function hideAllActionBoxes() {
+  try {
+    const ids = [
+      "medicalConsultationBox",
+      "documentsBox",
+      "appointmentsBox",
+      "adminDataBox",
+      "manageClinicsBox",
+      "createPatientBox",
+      "editPatientBox",
+      "notesBox",
+      "physioBox"
+    ];
+
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = "none";
+    });
+
+    // fallback: qualquer caixa marcada como actionBox
+    document.querySelectorAll(".actionBox").forEach((el) => {
+      if (el) el.style.display = "none";
+    });
+  } catch (e) {
+    console.warn("hideAllActionBoxes() failed:", e);
   }
 }
 
