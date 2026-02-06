@@ -1166,8 +1166,9 @@ function applyRoleVisibility() {
 
   const secDashboard = document.getElementById("secDashboard");
 
-  // esconde todas as secções "sec*"
-  const allSections = Array.from(document.querySelectorAll("section[id^='sec']"));
+  // esconde todas as secções/áreas "sec*"
+  // ✅ FIX: não assumes <section>; apanha qualquer elemento cujo id comece por "sec"
+  const allSections = Array.from(document.querySelectorAll("[id^='sec']"));
   allSections.forEach((s) => (s.style.display = "none"));
 
   if (role === "secretary") {
@@ -1182,9 +1183,10 @@ function applyRoleVisibility() {
       secDashboard.style.boxSizing = "border-box";
       secDashboard.style.position = "relative";
 
-      // 🔴 FIX CRÍTICO: garantir que o parent .box NÃO está hidden
+      // ✅ FIX: não forces o parent .box para "block" (pode estar em flex/grid)
+      // apenas garante que não fica hidden
       const parentBox = secDashboard.closest(".box");
-      if (parentBox) parentBox.style.display = "block";
+      if (parentBox) parentBox.style.display = "";
     }
 
     // esconde a coluna direita (Área do doente)
@@ -1239,14 +1241,21 @@ async function loadDashboardDayAppointments(dateObj = new Date()) {
 
   const dayStr = formatDateYYYYMMDD(dateObj);
   const start = `${dayStr}T00:00:00`;
-  const end = `${dayStr}T23:59:59`;
+
+  // ✅ FIX: usar intervalo [start, nextDay) em vez de "23:59:59"
+  const next = new Date(dateObj);
+  next.setDate(next.getDate() + 1);
+  const nextDayStr = formatDateYYYYMMDD(next);
+  const endExclusive = `${nextDayStr}T00:00:00`;
 
   const { data, error } = await sb
-  .from("appointments")
-  .select("id, start_at, procedure_type, status, patient_id")
-  .eq("clinic_id", selectedClinicId)
-  .order("start_at", { ascending: true })
-  .limit(20);
+    .from("appointments")
+    .select("id, start_at, procedure_type, status, patient_id")
+    .eq("clinic_id", selectedClinicId)
+    .gte("start_at", start)
+    .lt("start_at", endExclusive)
+    .order("start_at", { ascending: true })
+    .limit(50);
 
   if (error) {
     tbody.innerHTML = `<tr><td colspan="6" class="muted small">Erro ao carregar marcações.</td></tr>`;
@@ -1290,27 +1299,27 @@ async function loadDashboardDayAppointments(dateObj = new Date()) {
 
   tbody.innerHTML = "";
 
-for (const r of rows) {
-  const tr = document.createElement("tr");
+  for (const r of rows) {
+    const tr = document.createElement("tr");
 
-  const hora = formatTimeHHMM(r.start_at);
-  const doente = patientMap[r.patient_id] || "—";
-  const tipo = r.procedure_type || "—";
-  const estado = statusLabel(r.status);
+    const hora = formatTimeHHMM(r.start_at);
+    const doente = patientMap[r.patient_id] || "—";
+    const tipo = r.procedure_type || "—";
+    const estado = statusLabel(r.status);
 
-  tr.innerHTML = `
-    <td style="padding:8px;">${hora}</td>
-    <td style="padding:8px;">${escapeHtml(doente)}</td>
-    <td style="padding:8px;">${escapeHtml(tipo)}</td>
-    <td style="padding:8px;">${escapeHtml(estado)}</td>
-    <td style="padding:8px;" class="small muted">—</td>
-    <td style="padding:8px;">
-      <button class="btn small">Editar</button>
-    </td>
-  `;
+    tr.innerHTML = `
+      <td style="padding:8px;">${hora}</td>
+      <td style="padding:8px;">${escapeHtml(doente)}</td>
+      <td style="padding:8px;">${escapeHtml(tipo)}</td>
+      <td style="padding:8px;">${escapeHtml(estado)}</td>
+      <td style="padding:8px;" class="small muted">—</td>
+      <td style="padding:8px;">
+        <button class="btn small">Editar</button>
+      </td>
+    `;
 
-  tbody.appendChild(tr);
-}
+    tbody.appendChild(tr);
+  }
 }
 /* ================= VISIBILIDADE (Formulários) ================= */
 function updateCreatePatientVisibility() {
@@ -1528,55 +1537,54 @@ function renderPatientsList() {
     li.textContent = label;
 
     li.onclick = async () => {
-  selectedPatientId = p.id;
-  selectedPatientLabel = label;
+      selectedPatientId = p.id;
+      selectedPatientLabel = label;
 
-  // === FIX DEFINITIVO: reset total ao mudar de doente ===
-  window.__selectedPatientId = selectedPatientId;
-  window.__selectedClinicId = selectedClinicId;
-  window.__selectedAppointmentId = null;
+      // === FIX DEFINITIVO: reset total ao mudar de doente ===
+      window.__selectedPatientId = selectedPatientId;
+      window.__selectedClinicId = selectedClinicId;
+      window.__selectedAppointmentId = null;
 
-  selectedAppointmentId = null;
-  selectedAppointmentLabel = null;
-  linkedAppointmentIds = new Set();
+      selectedAppointmentId = null;
+      selectedAppointmentLabel = null;
+      linkedAppointmentIds = new Set();
 
-  clearConsultFields();
-  if ($("consRehabRxText")) {
-    $("consRehabRxText").value = 'R/ 20 sessões de tratamentos de Medicina Física e de Reabilitação';
-  }
-  if (typeof window.resetMedicalConsultationDraft === "function") {
-    window.resetMedicalConsultationDraft();
-  }
-  // === FIM DO FIX ===
+      clearConsultFields();
+      if ($("consRehabRxText")) {
+        $("consRehabRxText").value = 'R/ 20 sessões de tratamentos de Medicina Física e de Reabilitação';
+      }
+      if (typeof window.resetMedicalConsultationDraft === "function") {
+        window.resetMedicalConsultationDraft();
+      }
+      // === FIM DO FIX ===
 
-  $("feedHeader").innerHTML = `Doente: <strong>${escapeHtml(label)}</strong>`;
-  $("btnReloadFeedTop").style.display = "inline-block";
-  $("btnReloadFeedTop").onclick = () => loadFeed();
+      $("feedHeader").innerHTML = `Doente: <strong>${escapeHtml(label)}</strong>`;
+      $("btnReloadFeedTop").style.display = "inline-block";
+      $("btnReloadFeedTop").onclick = () => loadFeed();
 
-  updateContextBanner();
-  updateContextInfo();
-  showBoxesByRole();
+      updateContextBanner();
+      updateContextInfo();
+      showBoxesByRole();
 
-  setMsg("consultMsg", "");
-  setMsg("noteMsg", "");
-  setMsg("physioRecordMsg", "");
+      setMsg("consultMsg", "");
+      setMsg("noteMsg", "");
+      setMsg("physioRecordMsg", "");
 
-  updateManageClinicsVisibility();
-  updateEditPatientVisibility();
-  updateAppointmentsVisibility();
+      updateManageClinicsVisibility();
+      updateEditPatientVisibility();
+      updateAppointmentsVisibility();
 
-  if (currentClinicRole === "doctor") {
-    await loadPatientClinicLinks();
-  }
-  if (currentClinicRole === "secretary" || currentClinicRole === "doctor") {
-    await loadSelectedPatientData();
-  }
+      if (currentClinicRole === "doctor") {
+        await loadPatientClinicLinks();
+      }
+      if (currentClinicRole === "secretary" || currentClinicRole === "doctor") {
+        await loadSelectedPatientData();
+      }
 
-  initAppointmentFormDefaults();
-  await loadAppointments();
-  await loadFeed();
-  setActiveTab(TAB.FEED);
-
+      initAppointmentFormDefaults();
+      await loadAppointments();
+      await loadFeed();
+      setActiveTab(TAB.FEED);
     };
 
     $("patientsList").appendChild(li);
@@ -1609,20 +1617,21 @@ async function loadClinics() {
 
         currentClinicRole = await loadMyRoleForClinic(c.id);
         // Guardar role global para o UI (evita undefined)
-window.currentClinicRole = currentClinicRole || null;
-applyRoleVisibility();
-loadDashboardDayAppointments(new Date());
+        window.currentClinicRole = currentClinicRole || null;
 
-// UI por role: secretária/fisio não vê Consulta médica nem PDF
-const isDoctor = window.currentClinicRole === "doctor";
+        applyRoleVisibility();
+        loadDashboardDayAppointments(new Date());
 
-// Consulta médica
-const mc = document.getElementById("medicalConsultationBox");
-if (mc) mc.style.display = isDoctor ? "block" : "none";
+        // UI por role: secretária/fisio não vê Consulta médica nem PDF
+        const isDoctor = window.currentClinicRole === "doctor";
 
-// PDF (ajusta se usares outro ID)
-const pdfBtn = document.getElementById("btnDocPdfSave") || document.getElementById("btnGeneratePdf");
-if (pdfBtn) pdfBtn.style.display = isDoctor ? "inline-block" : "none";
+        // Consulta médica
+        const mc = document.getElementById("medicalConsultationBox");
+        if (mc) mc.style.display = isDoctor ? "block" : "none";
+
+        // PDF (ajusta se usares outro ID)
+        const pdfBtn = document.getElementById("btnDocPdfSave") || document.getElementById("btnGeneratePdf");
+        if (pdfBtn) pdfBtn.style.display = isDoctor ? "inline-block" : "none";
 
         updateContextInfo();
 
