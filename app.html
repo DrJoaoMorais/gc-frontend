@@ -81,76 +81,26 @@
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+
+  <!-- ===== BLOCO CONFIG BASE (INÍCIO) ===== -->
+  <script>
+    window.SUPABASE_URL = "https://vfrmjfveclfwxcdknlvs.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmcm1qZnZlY2xmd3hjZGtubHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODM1NTQsImV4cCI6MjA4NDI1OTU1NH0.jSQMR2jar0UxrDeXpYBOvFSj8ucjPWOdaBRKKr543hc";
+
+    window.sb = window.supabase.createClient(
+      window.SUPABASE_URL,
+      window.SUPABASE_ANON_KEY
+    );
+
+    window.$ = (id) => document.getElementById(id);
+  </script>
+  <!-- ===== BLOCO CONFIG BASE (FIM) ===== -->
+
 </head>
 
 <body>
 
-<div class="topbar">
-  <div>
-    <h1>Painel Clínico</h1>
-    <div class="muted">Gestão por clínica e doente</div>
-  </div>
-  <div>
-    <span id="userInfo" class="pill">—</span>
-    <button id="btnLogout" style="display:none;">Terminar sessão</button>
-  </div>
-</div>
-
-<div id="sessionBox" class="box">
-  <div id="sessionMsg" class="muted">A verificar sessão…</div>
-  <button id="btnGoLogin" style="display:none; margin-top:10px;">Ir para login</button>
-</div>
-
-<div id="appUI">
-  <div class="row">
-    <!-- COLUNA ESQUERDA -->
-    <div class="col">
-      <div class="box">
-        <h2>Clínicas</h2>
-        <div id="clinicsMeta" class="muted small">—</div>
-        <ul id="clinicsList" class="list"></ul>
-      </div>
-
-      <div style="height:12px"></div>
-
-      <div class="box">
-        <h2>Estado</h2>
-        <div id="status" class="muted small">—</div>
-        <div id="error" class="error"></div>
-      </div>
-    </div>
-
-    <!-- COLUNA DIREITA (Tabs) -->
-    <div class="col">
-      <div class="box">
-        <div class="rightHeader">
-          <div>
-            <h2 style="margin:0;">Área do doente</h2>
-            <div id="patientsHeader" class="muted small" style="margin-top:6px;">Seleciona uma clínica.</div>
-          </div>
-          <div class="metaLine">
-            <span id="patientsRolePill" class="pill">Role: —</span>
-            <span id="contextInfo" class="pill">Clínica: — | Doente: — | Role: —</span>
-          </div>
-        </div>
-
-        <div class="divider"></div>
-
-        <!-- TABS -->
-        <div class="toolbar">
-          <div class="tabsBar">
-            <button id="tabBtnPatients" class="tabBtn" type="button">Doentes</button>
-            <button id="tabBtnFeed" class="tabBtn" type="button">Feed</button>
-            <button id="tabBtnAppointments" class="tabBtn" type="button">Consultas / Marcações</button>
-            <button id="tabBtnAdmin" class="tabBtn" type="button">Dados administrativos</button>
-            <button id="tabBtnClinics" class="tabBtn" type="button">Gerir clínicas</button>
-            <button id="tabBtnCreate" class="tabBtn" type="button">Criar doente</button>
-          </div>
-          <span id="tabsHint" class="muted small">—</span>
-        </div>
-
-        <div class="divider"></div>
 <!-- ================= SECRETARY DASHBOARD (POST-LOGIN) ================= -->
 <section id="secDashboard" style="display:none; padding:16px;">
   <!-- Top bar -->
