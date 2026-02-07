@@ -1,13 +1,21 @@
-// app.js — BOOTSTRAP LIMPO (SEM LOGIN, SEM REDIRECTS)
+// app.js — PRODUÇÃO (redirect para /index.html se não houver sessão)
+//         + MODO DEBUG (opcional) via ?debug=1
 
 (function () {
-  // evita execuções duplas
   if (window.__APP_BOOTED) return;
   window.__APP_BOOTED = true;
 
   function setStatus(msg) {
     const el = document.getElementById("status");
     if (el) el.textContent = msg;
+  }
+
+  function isDebug() {
+    try {
+      return new URLSearchParams(window.location.search).get("debug") === "1";
+    } catch (_) {
+      return false;
+    }
   }
 
   async function initApp() {
@@ -20,7 +28,8 @@
         return;
       }
 
-      // Apenas verificar sessão (SEM redirecionar)
+      setStatus("A verificar sessão…");
+
       const { data, error } = await window.sb.auth.getSession();
       if (error) {
         console.error("[APP] getSession error:", error);
@@ -28,15 +37,23 @@
         return;
       }
 
-      if (!data?.session) {
-        setStatus("Sem sessão ativa (utilizador não autenticado).");
-        console.warn("[APP] sem sessão");
+      const session = data?.session || null;
+
+      if (!session) {
+        if (isDebug()) {
+          console.warn("[APP] sem sessão (DEBUG, sem redirect)");
+          setStatus("Sem sessão ativa (utilizador não autenticado).");
+          return;
+        }
+
+        console.warn("[APP] sem sessão — redirect para /index.html");
+        window.location.replace("/index.html");
         return;
       }
 
       // Sessão válida
+      console.log("[APP] sessão ativa", session.user?.email || "(sem email)");
       setStatus("Sessão ativa. App pronta.");
-      console.log("[APP] sessão ativa", data.session.user.email);
     } catch (e) {
       console.error("[APP] crash:", e);
       setStatus("Erro inesperado na aplicação.");
