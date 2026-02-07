@@ -1,50 +1,79 @@
 /* =========================================================
    Gestão Clínica V2 — app.js (ficheiro completo)
-   Requisitos:
-   - window.sb já criado no app.html (Supabase client)
-   - /app.html exige sessão; sem sessão -> redirect /index.html
-   - Header mínimo: email + botão Logout
+   - Requer window.sb criado no app.html
+   - /app.html exige sessão; sem sessão -> /index.html
+   - Header mínimo: email + role + nº clínicas + Logout
    ========================================================= */
 
 (function () {
   "use strict";
 
-  function $(id) {
-    return document.getElementById(id);
-  }
-
   function hardRedirect(path) {
     window.location.replace(path);
   }
 
-  function renderApp(user) {
-    // Cria UI mínima toda por JS (não exige alterações em app.html)
+  async function fetchMyRole(userId) {
+    // RLS atual permite SELECT apenas da linha do próprio utilizador em clinic_members
+    // Vamos buscar a role “principal” do utilizador.
+    const { data, error } = await window.sb
+      .from("clinic_members")
+      .select("role, clinic_id, is_active")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .limit(1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) return null;
+    return data[0].role || null;
+  }
+
+  async function fetchVisibleClinics() {
+    // RLS em clinics garante que só devolve clínicas onde o user é membro ativo
+    const { data, error } = await window.sb
+      .from("clinics")
+      .select("id, name, slug")
+      .order("name", { ascending: true });
+
+    if (error) throw error;
+    return Array.isArray(data) ? data : [];
+  }
+
+  function renderApp({ email, role, clinics }) {
+    const roleLabel = role ? role : "—";
+    const clinicCount = clinics.length;
+
     document.body.innerHTML = `
       <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px;">
-        <header style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border:1px solid #e5e5e5; border-radius:12px;">
-          <div style="display:flex; flex-direction:column; gap:2px;">
-            <div style="font-size:14px; color:#111;">Sessão ativa</div>
-            <div style="font-size:12px; color:#666;" id="hdrEmail">—</div>
+        <header style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:12px 14px; border:1px solid #e5e5e5; border-radius:12px;">
+          <div style="display:flex; flex-direction:column; gap:4px; min-width: 240px;">
+            <div style="font-size:14px; color:#111; font-weight:600;">Sessão ativa</div>
+            <div style="font-size:12px; color:#444;"><span style="color:#666;">Email:</span> ${escapeHtml(email || "—")}</div>
+            <div style="font-size:12px; color:#444;"><span style="color:#666;">Role:</span> ${escapeHtml(roleLabel)}</div>
+            <div style="font-size:12px; color:#444;"><span style="color:#666;">Clínicas:</span> ${clinicCount}</div>
           </div>
+
           <button id="btnLogout" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
             Logout
           </button>
         </header>
 
         <main style="margin-top:14px; padding:12px 14px; border:1px solid #eee; border-radius:12px;">
-          <div style="font-size:14px; color:#111;">App pronta.</div>
+          <div style="font-size:14px; color:#111; font-weight:600;">Bootstrap OK</div>
           <div style="font-size:12px; color:#666; margin-top:6px;">
-            Próximo: agenda do dia (lista) + filtro por clínica.
+            Próximo passo: Agenda do dia (lista) + filtro por clínica.
+          </div>
+
+          <div style="margin-top:12px; font-size:12px; color:#111;">
+            <div style="font-weight:600; margin-bottom:6px;">Clínicas visíveis</div>
+            <ul style="margin:0; padding-left:18px; color:#444;">
+              ${clinics.map(c => `<li>${escapeHtml(c.name || c.slug || c.id)}</li>`).join("") || "<li>—</li>"}
+            </ul>
           </div>
         </main>
       </div>
     `;
 
-    const email = (user && user.email) ? user.email : "—";
-    const hdrEmail = $("hdrEmail");
-    if (hdrEmail) hdrEmail.textContent = email;
-
-    const btn = $("btnLogout");
+    const btn = document.getElementById("btnLogout");
     if (btn) {
       btn.addEventListener("click", async () => {
         btn.disabled = true;
@@ -61,6 +90,15 @@
         }
       });
     }
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
   }
 
   async function boot() {
@@ -80,13 +118,31 @@
         return;
       }
 
-      renderApp(session.user);
+      const user = session.user;
+      const email = user.email || "—";
+
+      // Carregar role + clínicas (via RLS)
+      let role = null;
+      let clinics = [];
+
+      try {
+        role = await fetchMyRole(user.id);
+      } catch (e) {
+        console.warn("Não foi possível carregar role via clinic_members:", e);
+      }
+
+      try {
+        clinics = await fetchVisibleClinics();
+      } catch (e) {
+        console.warn("Não foi possível carregar clínicas via clinics:", e);
+      }
+
+      renderApp({ email, role, clinics });
     } catch (e) {
       console.error("Boot falhou:", e);
       document.body.textContent = "Erro ao iniciar a app. Abre a consola para detalhe.";
     }
   }
 
-  // Arranque
   boot();
 })();
