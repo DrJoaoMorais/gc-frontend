@@ -1,6 +1,6 @@
 // login.js — LOGIN apenas (index.html) → redireciona para /app.html
 
-const SUPABASE_URL = "https://vfrmjfveclfwxcdknlvs.supabase.co";
+const SUPABASE_URL = "https://nxfnzzcuqzxmzsihbrtp.supabase.co";
 const SUPABASE_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA";
 
