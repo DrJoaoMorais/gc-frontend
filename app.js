@@ -1,51 +1,92 @@
-// app.js — PRODUÇÃO (redirect para /index.html se não houver sessão)
+/* =========================================================
+   Gestão Clínica V2 — app.js (ficheiro completo)
+   Requisitos:
+   - window.sb já criado no app.html (Supabase client)
+   - /app.html exige sessão; sem sessão -> redirect /index.html
+   - Header mínimo: email + botão Logout
+   ========================================================= */
 
 (function () {
-  if (window.__APP_BOOTED) return;
-  window.__APP_BOOTED = true;
+  "use strict";
 
-  function setStatus(msg) {
-    const el = document.getElementById("status");
-    if (el) el.textContent = msg;
+  function $(id) {
+    return document.getElementById(id);
   }
 
-  async function initApp() {
-    try {
-      console.log("[APP] initApp start");
+  function hardRedirect(path) {
+    window.location.replace(path);
+  }
 
-      if (!window.sb) {
-        console.error("[APP] Supabase client (window.sb) não existe");
-        setStatus("Erro: Supabase não inicializado.");
-        return;
-      }
+  function renderApp(user) {
+    // Cria UI mínima toda por JS (não exige alterações em app.html)
+    document.body.innerHTML = `
+      <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px;">
+        <header style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border:1px solid #e5e5e5; border-radius:12px;">
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <div style="font-size:14px; color:#111;">Sessão ativa</div>
+            <div style="font-size:12px; color:#666;" id="hdrEmail">—</div>
+          </div>
+          <button id="btnLogout" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
+            Logout
+          </button>
+        </header>
 
-      setStatus("A verificar sessão…");
+        <main style="margin-top:14px; padding:12px 14px; border:1px solid #eee; border-radius:12px;">
+          <div style="font-size:14px; color:#111;">App pronta.</div>
+          <div style="font-size:12px; color:#666; margin-top:6px;">
+            Próximo: agenda do dia (lista) + filtro por clínica.
+          </div>
+        </main>
+      </div>
+    `;
 
-      const { data, error } = await window.sb.auth.getSession();
-      if (error) {
-        console.error("[APP] getSession error:", error);
-        setStatus("Erro ao verificar sessão.");
-        return;
-      }
+    const email = (user && user.email) ? user.email : "—";
+    const hdrEmail = $("hdrEmail");
+    if (hdrEmail) hdrEmail.textContent = email;
 
-      const session = data?.session || null;
-
-      if (!session) {
-        console.warn("[APP] sem sessão — redirect para /index.html");
-        window.location.replace("/index.html");
-        return;
-      }
-
-      console.log("[APP] sessão ativa", session.user?.email || "(sem email)");
-      setStatus("Sessão ativa. App pronta.");
-    } catch (e) {
-      console.error("[APP] crash:", e);
-      setStatus("Erro inesperado na aplicação.");
+    const btn = $("btnLogout");
+    if (btn) {
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        btn.textContent = "A terminar sessão…";
+        try {
+          const { error } = await window.sb.auth.signOut();
+          if (error) throw error;
+          hardRedirect("/index.html");
+        } catch (e) {
+          console.error("Logout falhou:", e);
+          btn.disabled = false;
+          btn.textContent = "Logout";
+          alert("Não foi possível terminar a sessão. Vê a consola para detalhe.");
+        }
+      });
     }
   }
 
-  window.addEventListener("load", () => {
-    console.log("[APP] window.load");
-    initApp();
-  });
+  async function boot() {
+    try {
+      if (!window.sb || !window.sb.auth || typeof window.sb.auth.getSession !== "function") {
+        console.error("Supabase client não encontrado (window.sb). Confirma app.html.");
+        document.body.textContent = "Erro: Supabase client não encontrado (window.sb).";
+        return;
+      }
+
+      const { data, error } = await window.sb.auth.getSession();
+      if (error) throw error;
+
+      const session = data ? data.session : null;
+      if (!session || !session.user) {
+        hardRedirect("/index.html");
+        return;
+      }
+
+      renderApp(session.user);
+    } catch (e) {
+      console.error("Boot falhou:", e);
+      document.body.textContent = "Erro ao iniciar a app. Abre a consola para detalhe.";
+    }
+  }
+
+  // Arranque
+  boot();
 })();
