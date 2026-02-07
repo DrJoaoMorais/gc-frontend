@@ -18,31 +18,25 @@
       window.SUPABASE_ANON_KEY
     );
 
-    // helper mínimo
     window.$ = (id) => document.getElementById(id);
   </script>
 
   <style>
-    body {
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      margin: 20px;
-    }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 20px; }
     button { padding: 8px 12px; }
     .box { border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
   </style>
 </head>
 
 <body>
-
   <h1>Gestão Clínica V2</h1>
 
   <div class="box">
-    <p id="status">A iniciar…</p>
+    <p id="status">Pronto.</p>
     <button id="btnTest">Testar sessão</button>
   </div>
 
-  <!-- JS DA APP (tudo vai para aqui a partir de agora) -->
-  <script src="./app.js?v=20260207_reset"></script>
-
+  <!-- JS DA APP (aplicação real) -->
+  <script src="/app.js?v=20260207_app"></script>
 </body>
 </html>
