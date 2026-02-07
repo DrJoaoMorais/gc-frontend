@@ -1,7 +1,8 @@
 /* =========================================================
    Gestão Clínica V2 — app.js (ficheiro completo)
    - Auth bootstrap + header + logout
-   - Agenda do dia + filtro por clínica (RLS)
+   - Agenda por dia selecionado (default = hoje) + filtro por clínica (RLS)
+   - Calendário mensal (overlay) para escolher dia
    - Modal marcação: doente obrigatório (pesquisa + novo doente via RPC)
    ========================================================= */
 
@@ -28,12 +29,34 @@
     return `${hh}:${mm}`;
   }
 
-  function fmtDate(d) {
+  function fmtDatePt(d) {
     if (!(d instanceof Date) || isNaN(d.getTime())) return "—";
     const dd = String(d.getDate()).padStart(2, "0");
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const yyyy = String(d.getFullYear());
     return `${dd}-${mm}-${yyyy}`;
+  }
+
+  function fmtDateISO(d) {
+    if (!(d instanceof Date) || isNaN(d.getTime())) return "";
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function parseISODateToLocalStart(dateISO) {
+    // "YYYY-MM-DD" -> Date local at 00:00
+    const [y, m, d] = (dateISO || "").split("-").map(n => parseInt(n, 10));
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d, 0, 0, 0, 0);
+  }
+
+  function isoLocalDayRangeFromISODate(dateStr) {
+    const start = parseISODateToLocalStart(dateStr);
+    if (!start) return null;
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1, 0, 0, 0, 0);
+    return { startISO: start.toISOString(), endISO: end.toISOString(), start, end };
   }
 
   function toLocalInputValue(dateObj) {
@@ -48,13 +71,6 @@
 
   function fromLocalInputValue(v) {
     return new Date(v);
-  }
-
-  function isoLocalDayRange() {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
-    return { startISO: start.toISOString(), endISO: end.toISOString(), start, end };
   }
 
   async function fetchMyRole(userId) {
@@ -91,8 +107,7 @@
     return null;
   }
 
-  async function loadAppointmentsForToday({ clinicId }) {
-    const { startISO, endISO } = isoLocalDayRange();
+  async function loadAppointmentsForRange({ clinicId, startISO, endISO }) {
     let lastErr = null;
 
     for (const col of APPT_TIME_COL_CANDIDATES) {
@@ -118,16 +133,11 @@
     throw lastErr || new Error("Não foi possível carregar appointments: nenhuma coluna de tempo reconhecida.");
   }
 
-  // ---------- Patients: pesquisa ----------
+  // ---------- Patients ----------
   async function searchPatients({ clinicId, q, limit = 12 }) {
-    // Estratégia simples: pesquisar por nome dentro da clínica
-    // 1) buscar patients via join indireto: patient_clinic -> patients
-    // (Como não há view, fazemos em 2 passos: ids na patient_clinic, depois patients.)
-    // Nota: RLS em patient_clinic permite SELECT para membros. Patients_select também restringe por membership.
     const term = (q || "").trim();
     if (!term || term.length < 2) return [];
 
-    // 1) obter patient_ids ativos na clínica (limit mais alto para permitir filtro de nome depois)
     const { data: pcRows, error: pcErr } = await window.sb
       .from("patient_clinic")
       .select("patient_id")
@@ -139,11 +149,9 @@
     const ids = (pcRows || []).map(r => r.patient_id).filter(Boolean);
     if (ids.length === 0) return [];
 
-    // 2) buscar patients e filtrar por full_name ilike
-    // Supabase JS suporta .in() com lista
     const { data: pts, error: pErr } = await window.sb
       .from("patients")
-      .select("id, full_name, dob, sex, phone, email, external_id")
+      .select("id, full_name, dob, phone, email, external_id")
       .in("id", ids)
       .ilike("full_name", `%${term}%`)
       .eq("is_active", true)
@@ -171,15 +179,7 @@
     "Outro"
   ];
 
-  const STATUS_OPTIONS = [
-    "scheduled",
-    "confirmed",
-    "arrived",
-    "done",
-    "cancelled",
-    "no_show"
-  ];
-
+  const STATUS_OPTIONS = ["scheduled", "confirmed", "arrived", "done", "cancelled", "no_show"];
   const DURATION_OPTIONS = [15, 20, 30, 45, 60];
 
   // ---------- Estado ----------
@@ -188,10 +188,12 @@
     role: null,
     clinics: [],
     clinicsById: {},
-    agenda: { rows: [], timeColUsed: "start_at" }
+    agenda: { rows: [], timeColUsed: "start_at" },
+    selectedDayISO: fmtDateISO(new Date()), // default: hoje
+    calMonth: null // Date (1º dia do mês) para o overlay
   };
 
-  // ---------- Render base ----------
+  // ---------- Render shell ----------
   function renderAppShell() {
     document.body.innerHTML = `
       <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px;">
@@ -212,11 +214,19 @@
           <section style="padding:12px 14px; border:1px solid #eee; border-radius:12px;">
             <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
               <div>
-                <div style="font-size:14px; color:#111; font-weight:600;">Agenda do dia</div>
+                <div style="font-size:14px; color:#111; font-weight:600;">Agenda</div>
                 <div style="font-size:12px; color:#666; margin-top:4px;" id="agendaSubtitle">—</div>
               </div>
 
               <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+                <button id="btnCal" title="Calendário" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
+                  Calendário
+                </button>
+
+                <button id="btnToday" title="Voltar a hoje" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
+                  Hoje
+                </button>
+
                 <div style="display:flex; flex-direction:column; gap:4px;">
                   <label for="selClinic" style="font-size:12px; color:#666;">Clínica</label>
                   <select id="selClinic" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; min-width: 240px;"></select>
@@ -245,10 +255,11 @@
     `;
   }
 
-  function renderAgendaSubtitle() {
-    const { start } = isoLocalDayRange();
+  function setAgendaSubtitleForSelectedDay() {
+    const r = isoLocalDayRangeFromISODate(G.selectedDayISO);
     const sub = document.getElementById("agendaSubtitle");
-    if (sub) sub.textContent = `${fmtDate(start)} (00:00–24:00)`;
+    if (!sub || !r) return;
+    sub.textContent = `${fmtDatePt(r.start)} (00:00–24:00)`;
   }
 
   function setAgendaStatus(kind, text) {
@@ -286,7 +297,7 @@
     const timeColUsed = G.agenda.timeColUsed || "start_at";
 
     if (rows.length === 0) {
-      ul.innerHTML = `<li style="padding:10px 0; font-size:12px; color:#666;">Sem marcações para hoje.</li>`;
+      ul.innerHTML = `<li style="padding:10px 0; font-size:12px; color:#666;">Sem marcações para este dia.</li>`;
       return;
     }
 
@@ -340,7 +351,125 @@
     });
   }
 
-  // ---------- Modal helpers ----------
+  // ---------- Calendário mensal overlay ----------
+  function monthLabel(d) {
+    const months = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+    return `${months[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
+  function buildMonthGrid(monthDate /* Date at day 1 */) {
+    const y = monthDate.getFullYear();
+    const m = monthDate.getMonth();
+
+    const first = new Date(y, m, 1, 0, 0, 0, 0);
+    const last = new Date(y, m + 1, 0, 0, 0, 0, 0);
+    const daysInMonth = last.getDate();
+
+    // week starts Monday; JS getDay(): 0=Sun..6=Sat
+    const jsDowFirst = first.getDay();
+    const dowFirstMon0 = (jsDowFirst + 6) % 7; // Mon=0..Sun=6
+
+    const cells = [];
+    // leading blanks
+    for (let i = 0; i < dowFirstMon0; i++) cells.push(null);
+    // month days
+    for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(y, m, d, 0, 0, 0, 0));
+    // trailing blanks to complete 6 rows (42)
+    while (cells.length % 7 !== 0) cells.push(null);
+    while (cells.length < 42) cells.push(null);
+
+    return cells;
+  }
+
+  function openCalendarOverlay() {
+    const root = document.getElementById("modalRoot");
+    if (!root) return;
+
+    const todayISO = fmtDateISO(new Date());
+    const selectedISO = G.selectedDayISO;
+
+    if (!G.calMonth) {
+      const selD = parseISODateToLocalStart(selectedISO) || new Date();
+      G.calMonth = new Date(selD.getFullYear(), selD.getMonth(), 1, 0, 0, 0, 0);
+    }
+
+    const cells = buildMonthGrid(G.calMonth);
+    const weekDays = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+
+    root.innerHTML = `
+      <div id="calOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
+        <div style="background:#fff; width:min(520px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px;">
+          <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
+            <button id="calPrev" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">◀</button>
+            <div style="font-size:14px; font-weight:700; color:#111;" id="calTitle">${escapeHtml(monthLabel(G.calMonth))}</div>
+            <button id="calNext" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">▶</button>
+          </div>
+
+          <div style="margin-top:10px; display:grid; grid-template-columns: repeat(7, 1fr); gap:6px;">
+            ${weekDays.map(w => `<div style="font-size:12px; color:#666; text-align:center; padding:6px 0;">${w}</div>`).join("")}
+            ${cells.map((d) => {
+              if (!d) return `<div></div>`;
+              const iso = fmtDateISO(d);
+              const isToday = (iso === todayISO);
+              const isSelected = (iso === selectedISO);
+
+              const base = "padding:10px 0; border-radius:10px; border:1px solid #eee; text-align:center; cursor:pointer; user-select:none;";
+              const bg = isSelected ? "background:#111; color:#fff; border-color:#111;" :
+                        isToday ? "background:#f2f2f2; color:#111;" :
+                                  "background:#fff; color:#111;";
+              return `<div data-iso="${iso}" style="${base}${bg}">${d.getDate()}</div>`;
+            }).join("")}
+          </div>
+
+          <div style="margin-top:12px; display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
+            <div style="font-size:12px; color:#666;">Clique num dia para abrir a agenda desse dia.</div>
+            <button id="calClose" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">Fechar</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const overlay = document.getElementById("calOverlay");
+    const calClose = document.getElementById("calClose");
+    const calPrev = document.getElementById("calPrev");
+    const calNext = document.getElementById("calNext");
+
+    function close() {
+      // não fecha outros modais; aqui estamos a usar modalRoot para calendário
+      root.innerHTML = "";
+    }
+
+    if (calClose) calClose.addEventListener("click", close);
+    if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "calOverlay") close(); });
+
+    if (calPrev) calPrev.addEventListener("click", () => {
+      G.calMonth = new Date(G.calMonth.getFullYear(), G.calMonth.getMonth() - 1, 1, 0, 0, 0, 0);
+      openCalendarOverlay(); // re-render simples
+    });
+
+    if (calNext) calNext.addEventListener("click", () => {
+      G.calMonth = new Date(G.calMonth.getFullYear(), G.calMonth.getMonth() + 1, 1, 0, 0, 0, 0);
+      openCalendarOverlay(); // re-render simples
+    });
+
+    root.querySelectorAll("[data-iso]").forEach((el) => {
+      el.addEventListener("click", async () => {
+        const iso = el.getAttribute("data-iso");
+        if (!iso) return;
+        G.selectedDayISO = iso;
+
+        // manter o mês focado no selecionado
+        const d = parseISODateToLocalStart(iso);
+        if (d) G.calMonth = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
+
+        close();
+        setAgendaSubtitleForSelectedDay();
+        await refreshAgenda();
+      });
+    });
+  }
+
+  // ---------- Modal marcação (mantém doente obrigatório + novo doente via RPC) ----------
   function closeModal() {
     const root = document.getElementById("modalRoot");
     if (root) root.innerHTML = "";
@@ -372,12 +501,11 @@
       (isEdit && row && row.clinic_id) ? row.clinic_id :
       (selClinic && selClinic.value ? selClinic.value : (G.clinics.length === 1 ? G.clinics[0].id : ""));
 
-    const now = new Date();
-    now.setSeconds(0, 0);
-    const rounded = new Date(now.getTime());
-    rounded.setMinutes(Math.ceil(rounded.getMinutes() / 5) * 5);
+    const selectedDayStart = parseISODateToLocalStart(G.selectedDayISO) || new Date();
 
-    const startInit = isEdit && row && row.start_at ? new Date(row.start_at) : rounded;
+    const startBase = new Date(selectedDayStart.getFullYear(), selectedDayStart.getMonth(), selectedDayStart.getDate(), 9, 0, 0, 0);
+
+    const startInit = isEdit && row && row.start_at ? new Date(row.start_at) : startBase;
     const endInit = isEdit && row && row.end_at ? new Date(row.end_at) : new Date(startInit.getTime() + 20 * 60000);
     const durInit = Math.max(5, Math.round((endInit.getTime() - startInit.getTime()) / 60000));
     const durationBest = DURATION_OPTIONS.includes(durInit) ? durInit : 20;
@@ -385,11 +513,7 @@
     const procInit = isEdit ? (row.procedure_type ?? "") : "";
     const statusInit = isEdit ? (row.status ?? "scheduled") : "scheduled";
 
-    // Patient obrigatório
     const patientIdInit = isEdit ? (row.patient_id ?? "") : "";
-    const patientNameInit = ""; // vamos tentar resolver a partir de search quando abrir (opcional)
-
-    // Title passa a ser auto (mas mostramos campo read-only para transparência)
     const titleInit = isEdit ? (row.title ?? "") : "";
     const notesInit = isEdit ? (row.notes ?? "") : "";
 
@@ -405,7 +529,7 @@
                 ${isEdit ? "Editar marcação" : "Nova marcação"}
               </div>
               <div style="font-size:12px; color:#666; margin-top:4px;">
-                Doente é obrigatório. Duração define o fim (end_at).
+                Dia selecionado: ${escapeHtml(G.selectedDayISO)}. Doente é obrigatório.
               </div>
             </div>
             <button id="btnCloseModal" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">Fechar</button>
@@ -521,9 +645,8 @@
     const mPatientName = document.getElementById("mPatientName");
     const mTitleAuto = document.getElementById("mTitleAuto");
 
-    // preencher clínicas
+    // clínicas
     const clinicOpts = [];
-    if (G.clinics.length === 0) clinicOpts.push(`<option value="">—</option>`);
     for (const c of G.clinics) {
       const label = c.name || c.slug || c.id;
       clinicOpts.push(`<option value="${escapeHtml(c.id)}">${escapeHtml(label)}</option>`);
@@ -539,14 +662,6 @@
     if (mDuration) mDuration.value = String(durationBest);
     if (mProc) mProc.value = procSelectValue;
     if (mNotes) mNotes.value = notesInit;
-
-    function updateProcOtherVisibility() {
-      const v = mProc ? mProc.value : "";
-      const show = (v === "Outro");
-      if (mProcOtherWrap) mProcOtherWrap.style.display = show ? "flex" : "none";
-      if (!show && mProcOther) mProcOther.value = "";
-      updateTitleAuto();
-    }
 
     function getProcedureValue() {
       let proc = (mProc && mProc.value) ? mProc.value : "";
@@ -564,24 +679,27 @@
       if (mTitleAuto) mTitleAuto.value = t || "";
     }
 
-    // setup proc outro
+    function updateProcOtherVisibility() {
+      const v = mProc ? mProc.value : "";
+      const show = (v === "Outro");
+      if (mProcOtherWrap) mProcOtherWrap.style.display = show ? "flex" : "none";
+      if (!show && mProcOther) mProcOther.value = "";
+      updateTitleAuto();
+    }
+
     updateProcOtherVisibility();
     if (procIsOther && mProcOther) {
       mProcOther.value = procInit === "Outro" ? "" : procInit;
       if (mProcOtherWrap) mProcOtherWrap.style.display = "flex";
     }
 
-    // Se em edição já existe patient_id, tentamos mostrar “(ID)” enquanto não buscamos nome
+    // init patient selection for edit
     if (mPatientId) mPatientId.value = patientIdInit || "";
-    if (mPatientSelected) {
-      mPatientSelected.textContent = patientIdInit ? `Selecionado (ID): ${patientIdInit}` : "—";
-    }
-    if (mPatientName) mPatientName.value = patientNameInit || "";
+    if (mPatientSelected) mPatientSelected.textContent = patientIdInit ? `Selecionado (ID): ${patientIdInit}` : "—";
     if (mTitleAuto) mTitleAuto.value = titleInit || "";
 
-    // Pesquisa de doentes
+    // search
     let searchTimer = null;
-
     async function runSearch() {
       const clinicId = mClinic ? mClinic.value : "";
       const term = mPatientQuery ? mPatientQuery.value : "";
@@ -635,7 +753,7 @@
       searchTimer = setTimeout(runSearch, 250);
     }
 
-    // Novo doente (sub-modal simples)
+    // sub-form novo doente (sem sexo)
     function openNewPatientForm() {
       const clinicId = mClinic ? mClinic.value : "";
       if (!clinicId) {
@@ -660,16 +778,6 @@
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">Data nascimento</label>
               <input id="npDob" type="date" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Sexo</label>
-              <select id="npSex" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff;">
-                <option value="">—</option>
-                <option value="M">M</option>
-                <option value="F">F</option>
-                <option value="O">O</option>
-              </select>
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
@@ -703,18 +811,12 @@
         </div>
       `;
 
-      // inserir antes dos botões finais
-      const grid = overlay.querySelector("div[style*='grid-template-columns']");
-      if (grid && grid.parentElement) {
-        grid.parentElement.insertBefore(sub, grid.parentElement.lastElementChild);
-      } else {
-        // fallback
-        overlay.querySelector("div[style*='background:#fff']").appendChild(sub);
-      }
+      // inserir antes do rodapé do modal
+      const modalCard = overlay.querySelector("div[style*='background:#fff']");
+      if (modalCard) modalCard.appendChild(sub);
 
       const npFullName = document.getElementById("npFullName");
       const npDob = document.getElementById("npDob");
-      const npSex = document.getElementById("npSex");
       const npPhone = document.getElementById("npPhone");
       const npEmail = document.getElementById("npEmail");
       const npExternalId = document.getElementById("npExternalId");
@@ -747,7 +849,7 @@
             p_clinic_id: clinicId,
             p_full_name: fullName,
             p_dob: npDob.value ? npDob.value : null,
-            p_sex: npSex.value ? npSex.value : null,
+            p_sex: null,
             p_phone: npPhone.value ? npPhone.value.trim() : null,
             p_email: npEmail.value ? npEmail.value.trim() : null,
             p_external_id: npExternalId.value ? npExternalId.value.trim() : null,
@@ -756,8 +858,6 @@
 
           const created = await rpcCreatePatientForClinic(payload);
 
-          // Tentativa de extrair o patient_id:
-          // Pode devolver UUID diretamente, ou JSON/record. Lidamos com ambos.
           let newPatientId = null;
           let newPatientName = fullName;
 
@@ -768,7 +868,6 @@
           }
 
           if (!newPatientId) {
-            // fallback: pesquisar por nome recém-criado (não ideal, mas evita bloquear)
             const pts = await searchPatients({ clinicId, q: fullName, limit: 5 });
             const exact = pts.find(p => (p.full_name || "").toLowerCase() === fullName.toLowerCase());
             if (exact) newPatientId = exact.id;
@@ -781,7 +880,6 @@
             return;
           }
 
-          // selecionar automaticamente no modal principal
           mPatientId.value = newPatientId;
           mPatientName.value = newPatientName;
           mPatientSelected.textContent = newPatientName;
@@ -800,7 +898,6 @@
     }
 
     async function onSave() {
-      // validações
       if (!mClinic || !mClinic.value) {
         mMsg.style.color = "#b00020";
         mMsg.textContent = "Seleciona a clínica.";
@@ -848,20 +945,13 @@
 
       try {
         if (isEdit) {
-          const { error } = await window.sb
-            .from("appointments")
-            .update(payload)
-            .eq("id", row.id);
+          const { error } = await window.sb.from("appointments").update(payload).eq("id", row.id);
           if (error) throw error;
         } else {
-          const { error } = await window.sb
-            .from("appointments")
-            .insert(payload);
+          const { error } = await window.sb.from("appointments").insert(payload);
           if (error) throw error;
         }
 
-        mMsg.style.color = "#111";
-        mMsg.textContent = "Guardado.";
         closeModal();
         await refreshAgenda();
       } catch (e) {
@@ -872,28 +962,32 @@
       }
     }
 
-    // handlers base
+    // handlers
     if (btnClose) btnClose.addEventListener("click", closeModal);
     if (btnCancel) btnCancel.addEventListener("click", closeModal);
     if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "modalOverlay") closeModal(); });
 
     if (mProc) mProc.addEventListener("change", updateProcOtherVisibility);
     if (mProcOther) mProcOther.addEventListener("input", updateTitleAuto);
+
     if (mClinic) mClinic.addEventListener("change", () => {
-      // limpar seleção de doente ao mudar clínica
-      if (mPatientId) mPatientId.value = "";
-      if (mPatientName) mPatientName.value = "";
-      if (mPatientSelected) mPatientSelected.textContent = "—";
-      if (mPatientResults) mPatientResults.innerHTML = `<div style="font-size:12px; color:#666;">Pesquisar para mostrar resultados.</div>`;
+      // limpar seleção doente ao mudar clínica
+      const pidEl = document.getElementById("mPatientId");
+      const pnEl = document.getElementById("mPatientName");
+      const selEl = document.getElementById("mPatientSelected");
+      const resEl = document.getElementById("mPatientResults");
+      if (pidEl) pidEl.value = "";
+      if (pnEl) pnEl.value = "";
+      if (selEl) selEl.textContent = "—";
+      if (resEl) resEl.innerHTML = `<div style="font-size:12px; color:#666;">Pesquisar para mostrar resultados.</div>`;
       updateTitleAuto();
     });
 
     if (mPatientQuery) mPatientQuery.addEventListener("input", scheduleSearch);
     if (btnNewPatient) btnNewPatient.addEventListener("click", openNewPatientForm);
-
     if (btnSave) btnSave.addEventListener("click", onSave);
 
-    // inicial
+    // init
     updateTitleAuto();
   }
 
@@ -918,22 +1012,28 @@
     });
   }
 
-  // ---------- Agenda refresh ----------
+  // ---------- Refresh agenda ----------
   async function refreshAgenda() {
     const sel = document.getElementById("selClinic");
     const clinicId = sel ? (sel.value || null) : null;
 
-    setAgendaStatus("loading", "A carregar marcações do dia…");
+    const r = isoLocalDayRangeFromISODate(G.selectedDayISO);
+    if (!r) {
+      setAgendaStatus("error", "Dia inválido.");
+      return;
+    }
+
+    setAgendaStatus("loading", "A carregar marcações…");
 
     try {
-      const { data, timeColUsed } = await loadAppointmentsForToday({ clinicId });
+      const { data, timeColUsed } = await loadAppointmentsForRange({ clinicId, startISO: r.startISO, endISO: r.endISO });
       G.agenda.rows = data;
       G.agenda.timeColUsed = timeColUsed || "start_at";
-      setAgendaStatus("ok", `OK: ${data.length} marcação(ões) carregada(s).`);
+      setAgendaStatus("ok", `OK: ${data.length} marcação(ões).`);
       renderAgendaList();
     } catch (e) {
       console.error("Agenda load falhou:", e);
-      setAgendaStatus("error", "Erro ao carregar agenda. Vê a consola para detalhe.");
+      setAgendaStatus("error", "Erro ao carregar agenda. Vê a consola.");
       G.agenda.rows = [];
       renderAgendaList();
     }
@@ -960,27 +1060,15 @@
       G.sessionUser = session.user;
 
       renderAppShell();
-      renderAgendaSubtitle();
       await wireLogout();
 
-      try {
-        G.role = await fetchMyRole(G.sessionUser.id);
-      } catch (e) {
-        console.warn("Não foi possível carregar role via clinic_members:", e);
-        G.role = null;
-      }
-
-      try {
-        G.clinics = await fetchVisibleClinics();
-      } catch (e) {
-        console.warn("Não foi possível carregar clínicas via clinics:", e);
-        G.clinics = [];
-      }
+      try { G.role = await fetchMyRole(G.sessionUser.id); } catch { G.role = null; }
+      try { G.clinics = await fetchVisibleClinics(); } catch { G.clinics = []; }
 
       G.clinicsById = {};
       for (const c of G.clinics) G.clinicsById[c.id] = c;
 
-      // Header
+      // header
       const hdrEmail = document.getElementById("hdrEmail");
       if (hdrEmail) hdrEmail.textContent = G.sessionUser.email || "—";
 
@@ -992,6 +1080,10 @@
 
       renderClinicsSelect(G.clinics);
 
+      // subtitle default: hoje
+      setAgendaSubtitleForSelectedDay();
+
+      // events
       const sel = document.getElementById("selClinic");
       if (sel) sel.addEventListener("change", refreshAgenda);
 
@@ -999,11 +1091,21 @@
       if (btnRefresh) btnRefresh.addEventListener("click", refreshAgenda);
 
       const btnNew = document.getElementById("btnNewAppt");
-      if (btnNew) {
-        btnNew.addEventListener("click", () => openApptModal({ mode: "new", row: null }));
+      if (btnNew) btnNew.addEventListener("click", () => openApptModal({ mode: "new", row: null }));
+
+      const btnCal = document.getElementById("btnCal");
+      if (btnCal) btnCal.addEventListener("click", openCalendarOverlay);
+
+      const btnToday = document.getElementById("btnToday");
+      if (btnToday) {
+        btnToday.addEventListener("click", async () => {
+          G.selectedDayISO = fmtDateISO(new Date());
+          setAgendaSubtitleForSelectedDay();
+          await refreshAgenda();
+        });
       }
 
-      // UI friction: só doctor/secretary podem criar/editar
+      // UI friction (RLS manda)
       if (btnNew && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
         btnNew.disabled = true;
         btnNew.title = "Sem permissão para criar marcações.";
