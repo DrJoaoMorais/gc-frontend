@@ -1190,47 +1190,161 @@ function updateContextInfo() {
 
 /* ================= ROLE VISIBILITY (Secretary vs Doctor) ================= */
 function applyRoleVisibility() {
-  // Roles esperados: "doctor" | "secretary" | "physio" | null
-  const role = (typeof currentClinicRole === "string" ? currentClinicRole : "").toLowerCase();
-  const isDoctor = role === "doctor";
-  const isSecretary = role === "secretary";
-  const isPhysio = role === "physio";
+  const role = (window.currentClinicRole || "").toLowerCase();
 
-  // 1) Mostrar sempre as caixas principais (Clínicas / Área do doente).
-  //    O bug era esconder estas caixas para secretary.
-  const clinicsBox = document.getElementById("clinicsList")?.closest(".box");
-  if (clinicsBox) clinicsBox.style.display = "";
+  const secDashboard = document.getElementById("secDashboard");
 
-  const patientsBox = document.querySelector(".rightHeader")?.closest(".box");
-  if (patientsBox) patientsBox.style.display = "";
-
-  // 2) Se tens secções internas por role, controla-as aqui.
-  //    Mantém a tua abordagem de "allSections", mas sem apagar a UI principal.
-  const allSections = document.querySelectorAll("[data-role-section]");
+  // esconde todas as secções/áreas "sec*"
+  const allSections = Array.from(document.querySelectorAll("[id^='sec']"));
   allSections.forEach((s) => (s.style.display = "none"));
 
-  // IDs típicos (ajusta só se já existirem no teu HTML)
-  const secDashboard = $("secDashboard");
-  const docDashboard = $("docDashboard");
-  const physioDashboard = $("physioDashboard");
+  if (role === "secretary") {
+    // mostra dashboard
+    if (secDashboard) {
+      secDashboard.style.display = "block";
 
-  if (isSecretary) {
-    if (secDashboard) secDashboard.style.display = "block";
-  } else if (isPhysio) {
-    if (physioDashboard) physioDashboard.style.display = "block";
-  } else {
-    // default: doctor (ou sem role definido)
-    if (docDashboard) docDashboard.style.display = "block";
-    // se não tiveres dashboards separados, reativa secções
-    allSections.forEach((s) => (s.style.display = ""));
+      // força dashboard a full-width
+      secDashboard.style.width = "100%";
+      secDashboard.style.maxWidth = "1200px";
+      secDashboard.style.margin = "0 auto";
+      secDashboard.style.boxSizing = "border-box";
+      secDashboard.style.position = "relative";
+
+      // não forces parent .box para "block"
+      const parentBox = secDashboard.closest(".box");
+      if (parentBox) parentBox.style.display = "";
+    }
+
+    // ⚠️ NÃO esconder coluna direita nem lista de clínicas
+    document.body.setAttribute("data-role", "secretary");
+
+    // ✅ chamada segura (não rebenta se a função não existir)
+    try {
+      if (typeof window.loadDashboardDayAppointments === "function") {
+        window.loadDashboardDayAppointments(new Date());
+      }
+    } catch (e) {}
+
+    return;
   }
 
-  // 3) Garante que as caixas de ação (consulta, docs, etc.) seguem o teu estado atual.
-  //    Se existir a tua função, chama-a; caso contrário ignora.
-  try {
-    if (typeof updateRoleVisibility === "function") updateRoleVisibility();
-  } catch (e) {}
+  // Médico e outros: reexibir
+  allSections.forEach((s) => (s.style.display = ""));
+
+  document.body.setAttribute("data-role", role || "doctor");
 }
+
+function formatDateYYYYMMDD(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function formatTimeHHMM(isoString) {
+  if (!isoString) return "—";
+  const dt = new Date(isoString);
+  const hh = String(dt.getHours()).padStart(2, "0");
+  const mm = String(dt.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+/**
+ * ✅ IMPORTANTE: define no window para existir sempre (evita "Can't find variable")
+ */
+window.loadDashboardDayAppointments = async function loadDashboardDayAppointments(dateObj = new Date()) {
+  const role = (window.currentClinicRole || "").toLowerCase();
+  if (role !== "secretary") return;
+  if (!window.selectedClinicId) return;
+
+  const tbody = document.getElementById("secApptsTbody");
+  if (!tbody) return;
+
+  // limpa tabela
+  tbody.innerHTML = `<tr><td colspan="6" class="muted small">A carregar…</td></tr>`;
+
+  const dayStr = formatDateYYYYMMDD(dateObj);
+  const start = `${dayStr}T00:00:00`;
+
+  // usar intervalo [start, nextDay)
+  const next = new Date(dateObj);
+  next.setDate(next.getDate() + 1);
+  const nextDayStr = formatDateYYYYMMDD(next);
+  const endExclusive = `${nextDayStr}T00:00:00`;
+
+  const { data, error } = await sb
+    .from("appointments")
+    .select("id, start_at, procedure_type, status, patient_id")
+    .eq("clinic_id", window.selectedClinicId)
+    .gte("start_at", start)
+    .lt("start_at", endExclusive)
+    .order("start_at", { ascending: true })
+    .limit(50);
+
+  if (error) {
+    tbody.innerHTML = `<tr><td colspan="6" class="muted small">Erro ao carregar marcações.</td></tr>`;
+    showError(error);
+    return;
+  }
+
+  const rows = data || [];
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="muted small">Sem marcações para este dia.</td></tr>`;
+    return;
+  }
+
+  // Mapa patient_id -> nome
+  const patientIds = Array.from(new Set(rows.map(r => r.patient_id).filter(Boolean)));
+  let patientMap = {};
+
+  if (patientIds.length) {
+    const { data: pats, error: pErr } = await sb
+      .from("patients")
+      .select("id, full_name")
+      .in("id", patientIds);
+
+    if (!pErr && pats) {
+      patientMap = Object.fromEntries(pats.map(p => [p.id, p.full_name]));
+    }
+  }
+
+  function statusLabel(s) {
+    const v = (s || "scheduled").toLowerCase();
+    const map = {
+      scheduled: "Agendada",
+      arrived: "Chegou",
+      completed: "Realizada",
+      rescheduled: "Remarcou",
+      missed: "Faltou",
+      cancelled: "Cancelada"
+    };
+    return map[v] || v;
+  }
+
+  tbody.innerHTML = "";
+
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+
+    const hora = formatTimeHHMM(r.start_at);
+    const doente = patientMap[r.patient_id] || "—";
+    const tipo = r.procedure_type || "—";
+    const estado = statusLabel(r.status);
+
+    tr.innerHTML = `
+      <td style="padding:8px;">${hora}</td>
+      <td style="padding:8px;">${escapeHtml(doente)}</td>
+      <td style="padding:8px;">${escapeHtml(tipo)}</td>
+      <td style="padding:8px;">${escapeHtml(estado)}</td>
+      <td style="padding:8px;" class="small muted">—</td>
+      <td style="padding:8px;">
+        <button class="btn small">Editar</button>
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+  }
+};
 
 /* ================= VISIBILIDADE (Formulários) ================= */
 function updateCreatePatientVisibility() {
