@@ -83,19 +83,24 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
 
-  <!-- ===== BLOCO CONFIG BASE (INÍCIO) ===== -->
-  <script>
-    window.SUPABASE_URL = "https://vfrmjfveclfwxcdknlvs.supabase.co";
-    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmcm1qZnZlY2xmd3hjZGtubHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODM1NTQsImV4cCI6MjA4NDI1OTU1NH0.jSQMR2jar0UxrDeXpYBOvFSj8ucjPWOdaBRKKr543hc";
+ <!-- ===== BLOCO CONFIG BASE (INÍCIO) ===== -->
+<script>
+  window.SUPABASE_URL = "https://vfrmjfveclfwxcdknlvs.supabase.co";
+  window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInZmcm1qZnZlY2xmd3hjZGtubHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODM1NTQsImV4cCI6MjA4NDI1OTU1NH0.jSQMR2jar0UxrDeXpYBOvFSj8ucjPWOdaBRKKr543hc";
 
-    window.sb = window.supabase.createClient(
-      window.SUPABASE_URL,
-      window.SUPABASE_ANON_KEY
-    );
+  // cliente Supabase (fonte única)
+  window.sb = window.supabase.createClient(
+    window.SUPABASE_URL,
+    window.SUPABASE_ANON_KEY
+  );
 
-    window.$ = (id) => document.getElementById(id);
-  </script>
-  <!-- ===== BLOCO CONFIG BASE (FIM) ===== -->
+  // alias para código legacy que usa "sb" diretamente
+  var sb = window.sb;
+
+  // helper DOM
+  window.$ = (id) => document.getElementById(id);
+</script>
+<!-- ===== BLOCO CONFIG BASE (FIM) ===== -->
 
 </head>
 
