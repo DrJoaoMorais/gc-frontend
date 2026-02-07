@@ -1155,9 +1155,28 @@ function updateContextBanner() {
   const el = $("contextBanner");
   if (!el) return;
 
-  const clinic = selectedClinicName || "—";
-  const patient = selectedPatientLabel || "—";
-  el.innerHTML = `Clínica: <strong>${escapeHtml(clinic)}</strong> &nbsp;|&nbsp; Doente: <strong>${escapeHtml(patient)}</strong>`;
+  const clinic = (typeof selectedClinicName === "string" && selectedClinicName.trim())
+    ? selectedClinicName.trim()
+    : "—";
+
+  const patient = (typeof selectedPatientLabel === "string" && selectedPatientLabel.trim())
+    ? selectedPatientLabel.trim()
+    : "—";
+
+  // fallback seguro caso escapeHtml não exista
+  const safe = (v) => {
+    try {
+      if (typeof escapeHtml === "function") return escapeHtml(String(v));
+    } catch (e) {}
+    return String(v).replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;");
+  };
+
+  el.innerHTML =
+    `Clínica: <strong>${safe(clinic)}</strong> &nbsp;|&nbsp; Doente: <strong>${safe(patient)}</strong>`;
 }
 
 /* ================= ROLE VISIBILITY (Secretary vs Doctor) ================= */
