@@ -4043,227 +4043,136 @@ window.DOCS.clinicId = selectedClinicId;
     }
   }
 }
-/* ================= INIT ================= */
-// ================= APPOINTMENT (UPDATE) =================
-async function updateAppointment() {
-  try {
-    showError("");
-    setMsg("apptMsg", "");
+/* ================= INIT (SUBSTITUIR ATÉ AO FIM) ================= */
 
-    if (!selectedClinicId || !selectedPatientId) {
-      setMsg("apptMsg", "Seleciona clínica e doente.", "error");
-      return;
-    }
+// garante que existe (é usada em loadLinkedAppointmentsForPatient/renderAppointmentsList)
+let linkedAppointmentIds = new Set();
 
-    const canEdit = (currentClinicRole === "doctor" || currentClinicRole === "secretary");
-    if (!canEdit) {
-      setMsg("apptMsg", "Sem permissões para editar marcações nesta clínica.", "error");
-      return;
-    }
-
-    if (!selectedAppointmentId) {
-      setMsg("apptMsg", "Seleciona uma marcação na lista para editar.", "error");
-      return;
-    }
-
-    const appt = (lastAppointmentsRows || []).find(x => x.id === selectedAppointmentId);
-    if (!appt) {
-      setMsg("apptMsg", "Marcação selecionada inválida (recarrega a lista).", "error");
-      return;
-    }
-
-    const procedure_type = $("apptProcedureType").value;
-    const duration_minutes = Number($("apptDurationMinutes").value || 0);
-    const status = $("apptStatus").value;
-
-    const startLocal = $("apptStartLocal").value;
-    if (!startLocal) {
-      setMsg("apptMsg", "Escolhe data/hora de início.", "error");
-      return;
-    }
-    if (!duration_minutes || duration_minutes < 5) {
-      setMsg("apptMsg", "Duração inválida (mínimo 5 min).", "error");
-      return;
-    }
-
-    const start = roundToMinute(new Date(startLocal));
-    const end = new Date(start.getTime() + duration_minutes * 60 * 1000);
-
-    const btn = $("btnUpdateAppointment");
-    btn.disabled = true;
-    btn.textContent = "A guardar…";
-
-    // 1) Atualizar BD
-    const upd = {
-      procedure_type,
-      start_at: startLocalToISO(start),
-      end_at: startLocalToISO(end),
-      duration_minutes,
-      status,
-    };
-
-    const { error: updErr } = await sb
-      .from("appointments")
-      .update(upd)
-      .eq("id", appt.id);
-
-    if (updErr) throw updErr;
-
-    // 2) Atualizar Google Calendar (apenas tipo + horário)
-    if (appt.google_event_id) {
-      const res = await fetch(
-        "https://vfrmjfveclfwxcdknlvs.supabase.co/functions/v1/google-calendar-sync",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
-            action: "update",
-            clinic_id: selectedClinicId,
-            google_event_id: appt.google_event_id,
-            title: procedure_type || "Marcação",
-            description: procedure_type || "",
-            start_iso: start.toISOString(),
-            end_iso: end.toISOString(),
-          }),
-        }
-      );
-
-      const out = await res.json().catch(() => null);
-      if (!res.ok || !out?.success) {
-        throw new Error(out?.error || `Falha ao atualizar evento no Google Calendar (HTTP ${res.status})`);
-      }
-    }
-
-    setMsg("apptMsg", "✔ Alterações guardadas.", "success");
-    await loadAppointments();
-    await loadFeed();
-
-  } catch (e) {
-    showError(e);
-    setMsg("apptMsg", "Erro ao guardar alterações. Vê 'Estado'.", "error");
-  } finally {
-    const btn = $("btnUpdateAppointment");
-    btn.disabled = false;
-    btn.textContent = "Guardar alterações";
-  }
+// pequeno helper para wire seguro
+function wire(id, evt, fn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener(evt, fn);
 }
 
-// ✅ garante que existe globalmente
-window.updateAppointment = updateAppointment;
+// Ajuste automático duração por tipo
+(function wireProcedureTypeAutoDurationOnce() {
+  const elType = document.getElementById("apptProcedureType");
+  const elDur = document.getElementById("apptDurationMinutes");
+  if (!elType || !elDur) return;
+  if (elType.__wired) return;
+  elType.__wired = true;
+
+  elType.addEventListener("change", () => {
+    elDur.value = String(defaultDurationByType(elType.value));
+  });
+})();
+
+// Dashboard secretária: dia (date input)
+(function wireSecretaryDashboardOnce() {
+  const day = document.getElementById("secDay");
+  const btnToday = document.getElementById("btnSecToday");
+  if (day && !day.value) day.value = todayISO();
+
+  if (day && !day.__wired) {
+    day.__wired = true;
+    day.addEventListener("change", () => {
+      try {
+        const d = new Date(day.value + "T00:00:00");
+        if (typeof window.loadDashboardDayAppointments === "function") {
+          window.loadDashboardDayAppointments(d);
+        }
+      } catch (e) {}
+    });
+  }
+
+  if (btnToday && !btnToday.__wired) {
+    btnToday.__wired = true;
+    btnToday.addEventListener("click", () => {
+      if (day) day.value = todayISO();
+      try {
+        if (typeof window.loadDashboardDayAppointments === "function") {
+          window.loadDashboardDayAppointments(new Date());
+        }
+      } catch (e) {}
+    });
+  }
+})();
 
 async function init() {
   const ok = await initSession();
   if (!ok) return;
 
+  // Role global
   try {
-  globalUserRole = await loadGlobalUserRole();
-} catch (e) {
-  console.error("Falha a obter role global:", e);
-  showError(e);
-}
+    globalUserRole = await loadGlobalUserRole();
+  } catch (e) {
+    console.error("Falha a obter role global:", e);
+    showError(e);
+  }
+  window.globalUserRole = globalUserRole || null;
 
-// Segurança por defeito: se não sabemos a role, bloqueamos ações clínicas
-window.globalUserRole = globalUserRole || null;
+  // Segurança: esconder Consulta médica até termos role por clínica
+  try {
+    const mc = document.getElementById("medicalConsultationBox");
+    if (mc) mc.style.display = "none";
+  } catch (_) {}
 
-// Esconder Consulta médica até termos role de clínica (e por defeito para não-médico)
-try {
-  const mc = document.getElementById("medicalConsultationBox");
-  if (mc) mc.style.display = "none";
-} catch (_) {}
+  // Tabs
+  wire("tabBtnPatients", "click", () => setActiveTab(TAB.PATIENTS));
+  wire("tabBtnFeed", "click", () => setActiveTab(TAB.FEED));
+  wire("tabBtnAppointments", "click", () => setActiveTab(TAB.APPOINTMENTS));
+  wire("tabBtnAdmin", "click", () => setActiveTab(TAB.ADMIN));
+  wire("tabBtnClinics", "click", () => setActiveTab(TAB.CLINICS));
+  wire("tabBtnCreate", "click", () => setActiveTab(TAB.CREATE));
 
-
-  // Tabs: handlers
-  $("tabBtnPatients").onclick = () => setActiveTab(TAB.PATIENTS);
-  $("tabBtnFeed").onclick = () => setActiveTab(TAB.FEED);
-  $("tabBtnAppointments").onclick = () => setActiveTab(TAB.APPOINTMENTS);
-  $("tabBtnAdmin").onclick = () => setActiveTab(TAB.ADMIN);
-  $("tabBtnClinics").onclick = () => setActiveTab(TAB.CLINICS);
-  $("tabBtnCreate").onclick = () => setActiveTab(TAB.CREATE);
-
-  // Pesquisa
-  $("patientSearch").addEventListener("input", (ev) => {
-    patientsFilter = ev.target.value || "";
-    renderPatientsList();
-  });
-
-  // Botões
-  $("btnSavePatient").onclick = () => savePatient();
-  $("btnResetPatient").onclick = () => resetPatientForm();
-
-  $("btnReloadPatientData").onclick = () => loadSelectedPatientData();
-  $("btnSavePatientEdits").onclick = () => savePatientEdits();
-
-    if ($("btnSaveConsultation")) $("btnSaveConsultation").onclick = () => saveMedicalConsultation();
-
-   if ($("btnSaveNote")) $("btnSaveNote").onclick = () => saveNote();
-  if ($("btnResetNote")) $("btnResetNote").onclick = () => resetNoteForm();
-
-    if ($("btnSavePhysioRecord")) $("btnSavePhysioRecord").onclick = () => savePhysioRecord();
-  if ($("btnResetPhysioRecord")) $("btnResetPhysioRecord").onclick = () => resetPhysioRecordForm();
-
-  $("btnReloadPatientClinics").onclick = () => loadPatientClinicLinks();
-  $("btnAddClinicLink").onclick = () => addClinicLink();
-  $("btnMoveClinicLink").onclick = () => moveClinicLink();
-  $("btnRemoveClinicLink").onclick = () => removeClinicLink();
-
-  // Appointments handlers
-    if ($("apptProcedureType")) {
-    $("apptProcedureType").addEventListener("change", () => {
-      const t = $("apptProcedureType").value;
-      $("apptDurationMinutes").value = String(defaultDurationByType(t));
+  // Pesquisa doentes
+  const ps = document.getElementById("patientSearch");
+  if (ps && !ps.__wired) {
+    ps.__wired = true;
+    ps.addEventListener("input", (ev) => {
+      patientsFilter = ev.target.value || "";
+      renderPatientsList();
     });
   }
-    if ($("btnCreateAppointment")) $("btnCreateAppointment").onclick = () => createAppointment();
-  if ($("btnResetAppointment")) $("btnResetAppointment").onclick = () => { clearAppointmentForm(); setMsg("apptMsg", "Limpo.", "success"); };
-  if ($("btnUpdateAppointment")) $("btnUpdateAppointment").onclick = () => updateAppointment();
 
-  // Link/unlink appointment banner (doctor)
-  if ($("btnUnlinkAppointment"))
-  $("btnUnlinkAppointment").onclick = () => unlinkSelectedAppointment();
+  // Criar doente
+  wire("btnSavePatient", "click", () => savePatient());
+  wire("btnResetPatient", "click", () => resetPatientForm());
 
-  initAppointmentFormDefaults();
+  // Editar doente (admin)
+  wire("btnReloadPatientData", "click", () => loadSelectedPatientData());
+  wire("btnSavePatientEdits", "click", () => savePatientEdits());
 
-  setActiveTab(TAB.PATIENTS);
-  setStatus("A carregar clínicas…");
+  // Gerir clínicas do doente (doctor)
+  wire("btnReloadPatientClinics", "click", () => loadPatientClinicLinks());
+  wire("btnAddClinicLink", "click", () => addClinicLink());
+  wire("btnMoveClinicLink", "click", () => moveClinicLink());
+  wire("btnRemoveClinicLink", "click", () => removeClinicLink());
+
+  // Marcações
+  wire("btnResetAppointment", "click", () => clearAppointmentForm());
+  wire("btnCreateAppointment", "click", () => createAppointment());
+  wire("btnUpdateAppointment", "click", () => updateAppointment());
+
+  // Notas
+  wire("btnResetNote", "click", () => resetNoteForm());
+  wire("btnSaveNote", "click", () => saveNote());
+
+  // Registo fisio
+  wire("btnResetPhysioRecord", "click", () => resetPhysioRecordForm());
+  wire("btnSavePhysioRecord", "click", () => savePhysioRecord());
+
+  // ✅ Consulta médica (NOVO): botão certo -> função certa
+  wire("btnSaveConsultation", "click", () => saveMedicalConsultation());
+  // O botão "Gerar PDF" já está ligado dentro do IIFE setupMedicalConsultationJS()
+
+  // Carregar clínicas
   await loadClinics();
 
+  // UI inicial
   refreshTabAvailability();
-  $("tabsHint").textContent = "Seleciona clínica e depois doente.";
+  setActiveTab(TAB.PATIENTS);
 }
-// ================= FEED: criar consulta a partir de marcação =================
-document.addEventListener("click", async (ev) => {
-  const btn = ev.target.closest('button[data-act="create-consult"]');
-  if (!btn) return;
-
-  const appointmentId = btn.getAttribute("data-id");
-  if (!appointmentId) {
-    alert("Marcação inválida.");
-    return;
-  }
-
-  if (!window.selectedPatientId || !window.selectedClinicId) {
-    alert("Seleciona um doente e uma clínica.");
-    return;
-  }
-
-  // guardar contexto global
-  window.selectedAppointmentId = appointmentId;
-
-  // ir para o FEED (Consulta Médica)
-  setActiveTab(TAB.FEED);
-
-  // focar a Consulta Médica
-  const box = document.getElementById("medicalConsultationBox");
-  if (box) {
-    box.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-});
 
 init();
-</script>
-
-</body>
-</html>
