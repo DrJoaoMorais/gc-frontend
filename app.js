@@ -47,7 +47,7 @@
 
   function parseISODateToLocalStart(dateISO) {
     // "YYYY-MM-DD" -> Date local at 00:00
-    const [y, m, d] = (dateISO || "").split("-").map(n => parseInt(n, 10));
+    const [y, m, d] = (dateISO || "").split("-").map((n) => parseInt(n, 10));
     if (!y || !m || !d) return null;
     return new Date(y, m - 1, d, 0, 0, 0, 0);
   }
@@ -146,12 +146,12 @@
       .limit(200);
 
     if (pcErr) throw pcErr;
-    const ids = (pcRows || []).map(r => r.patient_id).filter(Boolean);
+    const ids = (pcRows || []).map((r) => r.patient_id).filter(Boolean);
     if (ids.length === 0) return [];
 
     const { data: pts, error: pErr } = await window.sb
       .from("patients")
-      .select("id, full_name, dob, phone, email, external_id")
+      .select("id, full_name, dob, phone, email, external_id, sns, nif, passport_id")
       .in("id", ids)
       .ilike("full_name", `%${term}%`)
       .eq("is_active", true)
@@ -176,7 +176,7 @@
     "Viscossuplementação",
     "Relatórios",
     "Revalidação de tratamentos",
-    "Outro"
+    "Outro",
   ];
 
   const STATUS_OPTIONS = ["scheduled", "confirmed", "arrived", "done", "cancelled", "no_show"];
@@ -190,7 +190,7 @@
     clinicsById: {},
     agenda: { rows: [], timeColUsed: "start_at" },
     selectedDayISO: fmtDateISO(new Date()), // default: hoje
-    calMonth: null // Date (1º dia do mês) para o overlay
+    calMonth: null, // Date (1º dia do mês) para o overlay
   };
 
   // ---------- Render shell ----------
@@ -266,11 +266,7 @@
     const el = document.getElementById("agendaStatus");
     if (!el) return;
 
-    const color =
-      kind === "loading" ? "#666" :
-      kind === "error" ? "#b00020" :
-      kind === "ok" ? "#111" : "#666";
-
+    const color = kind === "loading" ? "#666" : kind === "error" ? "#b00020" : kind === "ok" ? "#111" : "#666";
     el.innerHTML = `<div style="font-size:12px; color:${color};">${escapeHtml(text)}</div>`;
   }
 
@@ -301,26 +297,28 @@
       return;
     }
 
-    ul.innerHTML = rows.map((r) => {
-      const startVal = r[timeColUsed] ?? r[pickFirstExisting(r, APPT_TIME_COL_CANDIDATES)];
-      const endVal = r[pickFirstExisting(r, APPT_END_COL_CANDIDATES)];
+    ul.innerHTML = rows
+      .map((r) => {
+        const startVal = r[timeColUsed] ?? r[pickFirstExisting(r, APPT_TIME_COL_CANDIDATES)];
+        const endVal = r[pickFirstExisting(r, APPT_END_COL_CANDIDATES)];
 
-      const start = startVal ? new Date(startVal) : null;
-      const end = endVal ? new Date(endVal) : null;
+        const start = startVal ? new Date(startVal) : null;
+        const end = endVal ? new Date(endVal) : null;
 
-      const tStart = fmtTime(start);
-      const tEnd = end ? fmtTime(end) : null;
+        const tStart = fmtTime(start);
+        const tEnd = end ? fmtTime(end) : null;
 
-      const clinicId = r.clinic_id ?? null;
-      const clinicName = clinicId && G.clinicsById[clinicId]
-        ? (G.clinicsById[clinicId].name || G.clinicsById[clinicId].slug || clinicId)
-        : (clinicId || "—");
+        const clinicId = r.clinic_id ?? null;
+        const clinicName =
+          clinicId && G.clinicsById[clinicId]
+            ? G.clinicsById[clinicId].name || G.clinicsById[clinicId].slug || clinicId
+            : clinicId || "—";
 
-      const status = r.status ?? "—";
-      const proc = r.procedure_type ?? "—";
-      const title = r.title ?? "—";
+        const status = r.status ?? "—";
+        const proc = r.procedure_type ?? "—";
+        const title = r.title ?? "—";
 
-      return `
+        return `
         <li data-appt-id="${escapeHtml(r.id)}" style="padding:10px 0; border-bottom:1px solid #f2f2f2; cursor:pointer;">
           <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap;">
             <div style="display:flex; gap:10px; align-items:baseline; flex-wrap:wrap;">
@@ -340,7 +338,8 @@
           </div>
         </li>
       `;
-    }).join("");
+      })
+      .join("");
 
     ul.querySelectorAll("li[data-appt-id]").forEach((li) => {
       li.addEventListener("click", () => {
@@ -353,7 +352,7 @@
 
   // ---------- Calendário mensal overlay ----------
   function monthLabel(d) {
-    const months = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+    const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
     return `${months[d.getMonth()]} ${d.getFullYear()}`;
   }
 
@@ -370,11 +369,8 @@
     const dowFirstMon0 = (jsDowFirst + 6) % 7; // Mon=0..Sun=6
 
     const cells = [];
-    // leading blanks
     for (let i = 0; i < dowFirstMon0; i++) cells.push(null);
-    // month days
     for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(y, m, d, 0, 0, 0, 0));
-    // trailing blanks to complete 6 rows (42)
     while (cells.length % 7 !== 0) cells.push(null);
     while (cells.length < 42) cells.push(null);
 
@@ -394,7 +390,7 @@
     }
 
     const cells = buildMonthGrid(G.calMonth);
-    const weekDays = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+    const weekDays = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
     root.innerHTML = `
       <div id="calOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
@@ -406,19 +402,23 @@
           </div>
 
           <div style="margin-top:10px; display:grid; grid-template-columns: repeat(7, 1fr); gap:6px;">
-            ${weekDays.map(w => `<div style="font-size:12px; color:#666; text-align:center; padding:6px 0;">${w}</div>`).join("")}
-            ${cells.map((d) => {
-              if (!d) return `<div></div>`;
-              const iso = fmtDateISO(d);
-              const isToday = (iso === todayISO);
-              const isSelected = (iso === selectedISO);
+            ${weekDays.map((w) => `<div style="font-size:12px; color:#666; text-align:center; padding:6px 0;">${w}</div>`).join("")}
+            ${cells
+              .map((d) => {
+                if (!d) return `<div></div>`;
+                const iso = fmtDateISO(d);
+                const isToday = iso === todayISO;
+                const isSelected = iso === selectedISO;
 
-              const base = "padding:10px 0; border-radius:10px; border:1px solid #eee; text-align:center; cursor:pointer; user-select:none;";
-              const bg = isSelected ? "background:#111; color:#fff; border-color:#111;" :
-                        isToday ? "background:#f2f2f2; color:#111;" :
-                                  "background:#fff; color:#111;";
-              return `<div data-iso="${iso}" style="${base}${bg}">${d.getDate()}</div>`;
-            }).join("")}
+                const base = "padding:10px 0; border-radius:10px; border:1px solid #eee; text-align:center; cursor:pointer; user-select:none;";
+                const bg = isSelected
+                  ? "background:#111; color:#fff; border-color:#111;"
+                  : isToday
+                    ? "background:#f2f2f2; color:#111;"
+                    : "background:#fff; color:#111;";
+                return `<div data-iso="${iso}" style="${base}${bg}">${d.getDate()}</div>`;
+              })
+              .join("")}
           </div>
 
           <div style="margin-top:12px; display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
@@ -496,11 +496,15 @@
 
     const selClinic = document.getElementById("selClinic");
     const defaultClinicId =
-      (isEdit && row && row.clinic_id) ? row.clinic_id :
-      (selClinic && selClinic.value ? selClinic.value : (G.clinics.length === 1 ? G.clinics[0].id : ""));
+      isEdit && row && row.clinic_id
+        ? row.clinic_id
+        : selClinic && selClinic.value
+          ? selClinic.value
+          : G.clinics.length === 1
+            ? G.clinics[0].id
+            : "";
 
     const selectedDayStart = parseISODateToLocalStart(G.selectedDayISO) || new Date();
-
     const startBase = new Date(selectedDayStart.getFullYear(), selectedDayStart.getMonth(), selectedDayStart.getDate(), 9, 0, 0, 0);
 
     const startInit = isEdit && row && row.start_at ? new Date(row.start_at) : startBase;
@@ -508,19 +512,19 @@
     const durInit = Math.max(5, Math.round((endInit.getTime() - startInit.getTime()) / 60000));
     const durationBest = DURATION_OPTIONS.includes(durInit) ? durInit : 20;
 
-    const procInit = isEdit ? (row.procedure_type ?? "") : "";
-    const statusInit = isEdit ? (row.status ?? "scheduled") : "scheduled";
+    const procInit = isEdit ? row.procedure_type ?? "" : "";
+    const statusInit = isEdit ? row.status ?? "scheduled" : "scheduled";
 
-    const patientIdInit = isEdit ? (row.patient_id ?? "") : "";
-    const titleInit = isEdit ? (row.title ?? "") : "";
-    const notesInit = isEdit ? (row.notes ?? "") : "";
+    const patientIdInit = isEdit ? row.patient_id ?? "" : "";
+    const titleInit = isEdit ? row.title ?? "" : "";
+    const notesInit = isEdit ? row.notes ?? "" : "";
 
-    const procIsOther = procInit && !PROCEDURE_OPTIONS.includes(procInit) ? true : (procInit === "Outro");
-    const procSelectValue = procIsOther ? "Outro" : (procInit || "");
+    const procIsOther = procInit && !PROCEDURE_OPTIONS.includes(procInit) ? true : procInit === "Outro";
+    const procSelectValue = procIsOther ? "Outro" : procInit || "";
 
     root.innerHTML = `
       <div id="modalOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
-        <div style="background:#fff; width:min(820px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px;">
+        <div style="background:#fff; width:min(820px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 86vh; overflow:auto;">
           <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
             <div>
               <div style="font-size:14px; font-weight:700; color:#111;">
@@ -542,7 +546,7 @@
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">Status</label>
               <select id="mStatus" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff;">
-                ${STATUS_OPTIONS.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("")}
+                ${STATUS_OPTIONS.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("")}
               </select>
             </div>
 
@@ -554,7 +558,7 @@
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">Duração (min)</label>
               <select id="mDuration" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff;">
-                ${DURATION_OPTIONS.map(n => `<option value="${n}">${n}</option>`).join("")}
+                ${DURATION_OPTIONS.map((n) => `<option value="${n}">${n}</option>`).join("")}
               </select>
             </div>
 
@@ -581,13 +585,16 @@
               </div>
               <input type="hidden" id="mPatientId" value="" />
               <input type="hidden" id="mPatientName" value="" />
+
+              <!-- ✅ HOST DEDICADO: o sub-form aparece aqui (visível) -->
+              <div id="newPatientHost" style="margin-top:10px;"></div>
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">Tipo de consulta</label>
               <select id="mProc" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff;">
                 <option value="">—</option>
-                ${PROCEDURE_OPTIONS.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("")}
+                ${PROCEDURE_OPTIONS.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("")}
               </select>
             </div>
 
@@ -662,16 +669,16 @@
     if (mNotes) mNotes.value = notesInit;
 
     function getProcedureValue() {
-      let proc = (mProc && mProc.value) ? mProc.value : "";
+      let proc = mProc && mProc.value ? mProc.value : "";
       if (proc === "Outro") {
-        const other = (mProcOther && mProcOther.value) ? mProcOther.value.trim() : "";
+        const other = mProcOther && mProcOther.value ? mProcOther.value.trim() : "";
         proc = other ? other : "Outro";
       }
       return proc;
     }
 
     function updateTitleAuto() {
-      const pname = mPatientName ? (mPatientName.value || "") : "";
+      const pname = mPatientName ? mPatientName.value || "" : "";
       const proc = getProcedureValue();
       const t = makeAutoTitle(pname, proc);
       if (mTitleAuto) mTitleAuto.value = t || "";
@@ -679,7 +686,7 @@
 
     function updateProcOtherVisibility() {
       const v = mProc ? mProc.value : "";
-      const show = (v === "Outro");
+      const show = v === "Outro";
       if (mProcOtherWrap) mProcOtherWrap.style.display = show ? "flex" : "none";
       if (!show && mProcOther) mProcOther.value = "";
       updateTitleAuto();
@@ -698,6 +705,7 @@
 
     // search
     let searchTimer = null;
+
     async function runSearch() {
       const clinicId = mClinic ? mClinic.value : "";
       const term = mPatientQuery ? mPatientQuery.value : "";
@@ -718,25 +726,31 @@
           return;
         }
 
-        mPatientResults.innerHTML = pts.map(p => {
-          const dob = p.dob ? ` • ${p.dob}` : "";
-          const ext = p.external_id ? ` • ${escapeHtml(p.external_id)}` : "";
-          return `
+        mPatientResults.innerHTML = pts
+          .map((p) => {
+            const dob = p.dob ? ` • ${p.dob}` : "";
+            const idBits = [];
+            if (p.sns) idBits.push(`SNS:${p.sns}`);
+            if (p.nif) idBits.push(`NIF:${p.nif}`);
+            if (p.passport_id) idBits.push(`ID:${p.passport_id}`);
+            const idLine = idBits.length ? ` • ${escapeHtml(idBits.join(" / "))}` : (p.external_id ? ` • ${escapeHtml(p.external_id)}` : "");
+            return `
             <div data-pid="${escapeHtml(p.id)}" data-pname="${escapeHtml(p.full_name)}"
                  style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:pointer;">
               <div style="font-size:13px; color:#111; font-weight:600;">${escapeHtml(p.full_name)}</div>
-              <div style="font-size:12px; color:#666;">${escapeHtml(dob)}${ext}</div>
+              <div style="font-size:12px; color:#666;">${escapeHtml(dob)}${idLine}</div>
             </div>
           `;
-        }).join("");
+          })
+          .join("");
 
-        mPatientResults.querySelectorAll("[data-pid]").forEach(el => {
+        mPatientResults.querySelectorAll("[data-pid]").forEach((el) => {
           el.addEventListener("click", () => {
             const pid = el.getAttribute("data-pid");
             const pname = el.getAttribute("data-pname");
             if (mPatientId) mPatientId.value = pid || "";
             if (mPatientName) mPatientName.value = pname || "";
-            if (mPatientSelected) mPatientSelected.textContent = pname ? pname : (pid ? `Selecionado (ID): ${pid}` : "—");
+            if (mPatientSelected) mPatientSelected.textContent = pname ? pname : pid ? `Selecionado (ID): ${pid}` : "—";
             updateTitleAuto();
           });
         });
@@ -752,9 +766,12 @@
     }
 
     /* =========================================================
-       SUB-FORM NOVO DOENTE (ATUALIZADO 1:1 com Supabase novo)
-       - usa SNS/NIF/PASSAPORTE + morada + seguro/apólice
-       - validações mínimas conforme CHECKs/UNIQUE
+       SUB-FORM NOVO DOENTE — RPC nova (17 params)
+       signature:
+       create_patient_for_clinic(
+         uuid,text,date,text,text,text,text,text,
+         text,text,text,text,text,text,text,text,text
+       )
        ========================================================= */
     function openNewPatientForm() {
       const clinicId = mClinic ? mClinic.value : "";
@@ -764,14 +781,18 @@
         return;
       }
 
-      const existing = document.getElementById("subNewPatient");
-      if (existing) existing.remove();
+      const host = document.getElementById("newPatientHost");
+      if (!host) {
+        mMsg.style.color = "#b00020";
+        mMsg.textContent = "Falha UI: newPatientHost não encontrado.";
+        return;
+      }
 
-      const sub = document.createElement("div");
-      sub.id = "subNewPatient";
-      sub.style.marginTop = "10px";
-      sub.innerHTML = `
-        <div style="border:1px solid #eee; border-radius:12px; padding:12px; background:#fafafa;">
+      // limpa anterior (evita duplicados)
+      host.innerHTML = "";
+
+      host.innerHTML = `
+        <div id="subNewPatient" style="border:1px solid #eee; border-radius:12px; padding:12px; background:#fafafa;">
           <div style="font-size:13px; font-weight:700; color:#111;">Novo doente</div>
           <div style="font-size:12px; color:#666; margin-top:4px;">
             Nome obrigatório. Identificação: SNS (9 dígitos) ou NIF (9 dígitos) ou Passaporte/ID (4–20 alfanum).
@@ -786,7 +807,6 @@
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">Data nascimento</label>
               <input id="npDob" type="date" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
-              <div id="npAge" style="font-size:12px; color:#666; margin-top:4px;">Idade: —</div>
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
@@ -860,57 +880,33 @@
         </div>
       `;
 
-      const modalCard = overlay.querySelector("div[style*='background:#fff']");
-      if (modalCard) modalCard.appendChild(sub);
-
       const npFullName = document.getElementById("npFullName");
       const npDob = document.getElementById("npDob");
-      const npAge = document.getElementById("npAge");
       const npPhone = document.getElementById("npPhone");
       const npEmail = document.getElementById("npEmail");
-
       const npSNS = document.getElementById("npSNS");
       const npNIF = document.getElementById("npNIF");
       const npPassport = document.getElementById("npPassport");
-
       const npInsuranceProvider = document.getElementById("npInsuranceProvider");
       const npInsurancePolicy = document.getElementById("npInsurancePolicy");
-
       const npAddress1 = document.getElementById("npAddress1");
       const npPostal = document.getElementById("npPostal");
       const npCity = document.getElementById("npCity");
       const npCountry = document.getElementById("npCountry");
-
       const npNotes = document.getElementById("npNotes");
       const npMsg = document.getElementById("npMsg");
       const npCancel = document.getElementById("npCancel");
       const npCreate = document.getElementById("npCreate");
 
-      function closeSub() {
-        const el = document.getElementById("subNewPatient");
-        if (el) el.remove();
-      }
-
-      npCancel.addEventListener("click", closeSub);
-
       function normalizeDigits(v) {
         return String(v || "").replace(/\D+/g, "");
-      }
-
-      function calcAgeFromDobISO(iso) {
-        const d = iso ? new Date(iso + "T00:00:00") : null;
-        if (!d || isNaN(d.getTime())) return null;
-        const today = new Date();
-        let age = today.getFullYear() - d.getFullYear();
-        const m = today.getMonth() - d.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
-        return age;
       }
 
       function setErr(msg) {
         npMsg.style.color = "#b00020";
         npMsg.textContent = msg;
       }
+
       function setInfo(msg) {
         npMsg.style.color = "#666";
         npMsg.textContent = msg;
@@ -945,15 +941,12 @@
           postal_code: npPostal.value ? npPostal.value.trim() : null,
           city: npCity.value ? npCity.value.trim() : null,
           country: npCountry.value ? npCountry.value.trim() : "PT",
-          notes: npNotes.value ? npNotes.value.trim() : null
+          notes: npNotes.value ? npNotes.value.trim() : null,
         };
       }
 
-      function onAnyInput() {
-        if (npDob && npAge) {
-          const age = calcAgeFromDobISO(npDob.value);
-          npAge.textContent = (age === null) ? "Idade: —" : `Idade: ${age} anos`;
-        }
+      function refreshButtonState() {
+        // normaliza inputs numéricos
         if (npSNS) {
           const d = normalizeDigits(npSNS.value);
           if (npSNS.value !== d) npSNS.value = d;
@@ -974,18 +967,17 @@
       }
 
       [
-        npFullName, npDob, npPhone, npEmail,
-        npSNS, npNIF, npPassport,
-        npInsuranceProvider, npInsurancePolicy,
-        npAddress1, npPostal, npCity, npCountry, npNotes
+        npFullName, npDob, npPhone, npEmail, npSNS, npNIF, npPassport,
+        npInsuranceProvider, npInsurancePolicy, npAddress1, npPostal, npCity, npCountry, npNotes,
       ].forEach((el) => {
         if (!el) return;
-        el.addEventListener("input", onAnyInput);
-        el.addEventListener("change", onAnyInput);
+        el.addEventListener("input", refreshButtonState);
+        el.addEventListener("change", refreshButtonState);
       });
 
-      npCreate.disabled = true;
-      setInfo("Preenche o Nome e um identificador (SNS/NIF/Passaporte).");
+      npCancel.addEventListener("click", () => {
+        host.innerHTML = "";
+      });
 
       npCreate.addEventListener("click", async () => {
         const v = validate();
@@ -998,6 +990,7 @@
         setInfo("A criar…");
 
         try {
+          // ✅ RPC nova (17 argumentos)
           const payload = {
             p_clinic_id: clinicId,
             p_full_name: v.full_name,
@@ -1016,7 +1009,7 @@
             p_city: v.city,
             p_country: v.country,
             p_insurance_provider: v.insurance_provider,
-            p_insurance_policy_number: v.insurance_policy_number
+            p_insurance_policy_number: v.insurance_policy_number,
           };
 
           const newPatientId = await rpcCreatePatientForClinic(payload);
@@ -1032,11 +1025,12 @@
           mPatientSelected.textContent = v.full_name;
           updateTitleAuto();
 
-          closeSub();
+          host.innerHTML = "";
         } catch (e) {
           console.error("Criar doente falhou:", e);
           const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
 
+          // mapeamento simples (se existirem nomes de constraints)
           if (msg.includes("patients_sns_unique_not_null")) setErr("SNS já existe noutro doente.");
           else if (msg.includes("patients_nif_unique_not_null")) setErr("NIF já existe noutro doente.");
           else if (msg.includes("patients_passport_unique_not_null")) setErr("Passaporte/ID já existe noutro doente.");
@@ -1050,7 +1044,10 @@
         }
       });
 
-      onAnyInput();
+      // estado inicial
+      npCreate.disabled = true;
+      setInfo("Preenche o Nome e um identificador (SNS/NIF/Passaporte).");
+      refreshButtonState();
     }
 
     async function onSave() {
@@ -1064,8 +1061,8 @@
         mMsg.textContent = "Define o início.";
         return;
       }
-      const pid = mPatientId ? (mPatientId.value || "") : "";
-      const pname = mPatientName ? (mPatientName.value || "") : "";
+      const pid = mPatientId ? mPatientId.value || "" : "";
+      const pname = mPatientName ? mPatientName.value || "" : "";
       if (!pid) {
         mMsg.style.color = "#b00020";
         mMsg.textContent = "Seleciona um doente.";
@@ -1088,10 +1085,10 @@
         patient_id: pid,
         start_at: times.startAt,
         end_at: times.endAt,
-        status: (mStatus && mStatus.value) ? mStatus.value : "scheduled",
+        status: mStatus && mStatus.value ? mStatus.value : "scheduled",
         procedure_type: proc ? proc : null,
         title: autoTitle,
-        notes: (mNotes && mNotes.value) ? mNotes.value.trim() : null
+        notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
       };
       if (payload.notes === "") payload.notes = null;
 
@@ -1126,18 +1123,23 @@
     if (mProc) mProc.addEventListener("change", updateProcOtherVisibility);
     if (mProcOther) mProcOther.addEventListener("input", updateTitleAuto);
 
-    if (mClinic) mClinic.addEventListener("change", () => {
-      // limpar seleção doente ao mudar clínica
-      const pidEl = document.getElementById("mPatientId");
-      const pnEl = document.getElementById("mPatientName");
-      const selEl = document.getElementById("mPatientSelected");
-      const resEl = document.getElementById("mPatientResults");
-      if (pidEl) pidEl.value = "";
-      if (pnEl) pnEl.value = "";
-      if (selEl) selEl.textContent = "—";
-      if (resEl) resEl.innerHTML = `<div style="font-size:12px; color:#666;">Pesquisar para mostrar resultados.</div>`;
-      updateTitleAuto();
-    });
+    if (mClinic) {
+      mClinic.addEventListener("change", () => {
+        const pidEl = document.getElementById("mPatientId");
+        const pnEl = document.getElementById("mPatientName");
+        const selEl = document.getElementById("mPatientSelected");
+        const resEl = document.getElementById("mPatientResults");
+        const host = document.getElementById("newPatientHost");
+
+        if (pidEl) pidEl.value = "";
+        if (pnEl) pnEl.value = "";
+        if (selEl) selEl.textContent = "—";
+        if (resEl) resEl.innerHTML = `<div style="font-size:12px; color:#666;">Pesquisar para mostrar resultados.</div>`;
+        if (host) host.innerHTML = "";
+
+        updateTitleAuto();
+      });
+    }
 
     if (mPatientQuery) mPatientQuery.addEventListener("input", scheduleSearch);
     if (btnNewPatient) btnNewPatient.addEventListener("click", openNewPatientForm);
@@ -1171,7 +1173,7 @@
   // ---------- Refresh agenda ----------
   async function refreshAgenda() {
     const sel = document.getElementById("selClinic");
-    const clinicId = sel ? (sel.value || null) : null;
+    const clinicId = sel ? sel.value || null : null;
 
     const r = isoLocalDayRangeFromISODate(G.selectedDayISO);
     if (!r) {
@@ -1218,8 +1220,16 @@
       renderAppShell();
       await wireLogout();
 
-      try { G.role = await fetchMyRole(G.sessionUser.id); } catch { G.role = null; }
-      try { G.clinics = await fetchVisibleClinics(); } catch { G.clinics = []; }
+      try {
+        G.role = await fetchMyRole(G.sessionUser.id);
+      } catch {
+        G.role = null;
+      }
+      try {
+        G.clinics = await fetchVisibleClinics();
+      } catch {
+        G.clinics = [];
+      }
 
       G.clinicsById = {};
       for (const c of G.clinics) G.clinicsById[c.id] = c;
