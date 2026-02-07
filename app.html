@@ -4043,6 +4043,7 @@ window.DOCS.clinicId = selectedClinicId;
     }
   }
 }
+
 /* ================= INIT (SUBSTITUIR ATÉ AO FIM) ================= */
 
 // garante que existe (é usada em loadLinkedAppointmentsForPatient/renderAppointmentsList)
@@ -4165,7 +4166,6 @@ async function init() {
 
   // ✅ Consulta médica (NOVO): botão certo -> função certa
   wire("btnSaveConsultation", "click", () => saveMedicalConsultation());
-  // O botão "Gerar PDF" já está ligado dentro do IIFE setupMedicalConsultationJS()
 
   // Carregar clínicas
   await loadClinics();
@@ -4176,3 +4176,10 @@ async function init() {
 }
 
 init();
+
+/* ====== FECHAR O <script> ATUAL AQUI ====== */
+</script>
+
+<!-- ===== BLOCO FINAL DE SCRIPTS (INÍCIO) ===== -->
+<script src="./app.js?v=20260207_1"></script>
+<!-- ===== BLOCO FINAL DE SCRIPTS (FIM) ===== -->
