@@ -8,11 +8,9 @@
    - ✅ Pesquisa no modal também por SNS/NIF/Telefone/Passaporte
    - ✅ Mostrar notas (appointments.notes) na lista da agenda
    - ✅ Agenda mostra Nome do doente + Telefone (patients)
-   - ✅ Linha agenda: Hora | Doente | Tipo | Estado | Clínica | Telefone + Status editável
-   - ✅ NOVO (FIX): Abrir doente com ecrã de detalhe + botão "Editar" + Guardar alterações (update patients)
-   - ✅ MELHORIA (UI): letra maior + reorganização da linha da agenda (como pedido)
-   - ✅ MELHORIA (UI): Nome do doente maior + sem corte (wrap)
-   - ✅ MELHORIA (UI): Estado com destaque + ícones (👤 ⏳ ✅ ❌)
+   - ✅ Linha agenda: Hora | Doente | Tipo | Estado | Clínica | Telefone (alinhado em grelha)
+   - ✅ Estado: pílula com cor + clique para selecionar (o próprio select é o “modelo”)
+   - ✅ UI topo: Calendário/Hoj e à esquerda, Nova marcação maior e mais destacada, Atualizar ao lado do doente selecionado
    ========================================================= */
 
 (function () {
@@ -24,7 +22,7 @@
     fs13: 14,
     fs14: 15,
     fs16: 17,
-    fs18: 19, // ✅ NOVO: para nome do doente (nomes longos PT)
+    fs18: 19, // nome do doente
   };
 
   function hardRedirect(path) {
@@ -64,7 +62,6 @@
   }
 
   function parseISODateToLocalStart(dateISO) {
-    // "YYYY-MM-DD" -> Date local at 00:00
     const [y, m, d] = (dateISO || "").split("-").map((n) => parseInt(n, 10));
     if (!y || !m || !d) return null;
     return new Date(y, m - 1, d, 0, 0, 0, 0);
@@ -95,7 +92,7 @@
     return String(v || "").replace(/\D+/g, "");
   }
 
-  function clipOneLine(s, max = 90) {
+  function clipOneLine(s, max = 110) {
     const t = String(s || "").replace(/\s+/g, " ").trim();
     if (!t) return "";
     if (t.length <= max) return t;
@@ -231,7 +228,9 @@
 
     const { data: pts, error: pErr } = await window.sb
       .from("patients")
-      .select("id, full_name, dob, phone, email, external_id, sns, nif, passport_id, insurance_provider, insurance_policy_number, address_line1, postal_code, city, country, notes")
+      .select(
+        "id, full_name, dob, phone, email, external_id, sns, nif, passport_id, insurance_provider, insurance_policy_number, address_line1, postal_code, city, country, notes"
+      )
       .in("id", ids)
       .eq("is_active", true)
       .or(orStr)
@@ -248,7 +247,6 @@
     return data;
   }
 
-  // Carregar pacientes por IDs (para agenda mostrar Nome/Telefone)
   async function fetchPatientsByIds(patientIds) {
     const ids = Array.from(new Set((patientIds || []).filter(Boolean)));
     if (ids.length === 0) return {};
@@ -264,17 +262,18 @@
         .eq("is_active", true);
 
       if (error) throw error;
-      for (const p of (data || [])) out[p.id] = p;
+      for (const p of data || []) out[p.id] = p;
     }
     return out;
   }
 
-  // ✅ NOVO: carregar 1 doente com campos completos (para editar)
   async function fetchPatientById(patientId) {
     if (!patientId) return null;
     const { data, error } = await window.sb
       .from("patients")
-      .select("id, full_name, dob, phone, email, external_id, sns, nif, passport_id, insurance_provider, insurance_policy_number, address_line1, postal_code, city, country, notes, is_active")
+      .select(
+        "id, full_name, dob, phone, email, external_id, sns, nif, passport_id, insurance_provider, insurance_policy_number, address_line1, postal_code, city, country, notes, is_active"
+      )
       .eq("id", patientId)
       .limit(1);
 
@@ -283,14 +282,15 @@
     return data[0];
   }
 
-  // ✅ NOVO: update doente
   async function updatePatient(patientId, payload) {
     if (!patientId) throw new Error("patientId em falta");
     const { data, error } = await window.sb
       .from("patients")
       .update(payload)
       .eq("id", patientId)
-      .select("id, full_name, dob, phone, email, external_id, sns, nif, passport_id, insurance_provider, insurance_policy_number, address_line1, postal_code, city, country, notes, is_active")
+      .select(
+        "id, full_name, dob, phone, email, external_id, sns, nif, passport_id, insurance_provider, insurance_policy_number, address_line1, postal_code, city, country, notes, is_active"
+      )
       .limit(1);
 
     if (error) throw error;
@@ -312,22 +312,27 @@
   const STATUS_OPTIONS = ["scheduled", "confirmed", "arrived", "done", "cancelled", "no_show"];
   const DURATION_OPTIONS = [15, 20, 30, 45, 60];
 
-  // ✅ NOVO: meta visual de estado (ícone + cores)
+  // ✅ Estado com cores (como pediste)
   function statusMeta(statusRaw) {
     const s = String(statusRaw || "scheduled").toLowerCase();
-    // Paleta discreta mas muito legível
     const map = {
-      scheduled:  { icon: "👤", label: "Marcada",            bg: "#f3f4f6", fg: "#111827", br: "#e5e7eb" },
-      confirmed:  { icon: "👤", label: "Confirmada",         bg: "#eef2ff", fg: "#1e3a8a", br: "#c7d2fe" },
-      arrived:    { icon: "⏳", label: "Chegou (AVISAR)",     bg: "#fff7ed", fg: "#9a3412", br: "#fed7aa" },
-      done:       { icon: "✅", label: "Realizada",          bg: "#ecfdf5", fg: "#065f46", br: "#a7f3d0" },
-      cancelled:  { icon: "❌", label: "Cancelada",          bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
-      no_show:    { icon: "⚠️", label: "Faltou",             bg: "#fffbeb", fg: "#92400e", br: "#fde68a" },
+      // Marcada: azul
+      scheduled: { icon: "👤", label: "Marcada", bg: "#eff6ff", fg: "#1d4ed8", br: "#bfdbfe" },
+      // Confirmada: azul mais forte (ou semelhante)
+      confirmed: { icon: "👤", label: "Confirmada", bg: "#dbeafe", fg: "#1e40af", br: "#93c5fd" },
+      // Chegou: amarelo
+      arrived: { icon: "⏳", label: "Chegou (AVISAR)", bg: "#fffbeb", fg: "#92400e", br: "#fde68a" },
+      // Realizada: verde
+      done: { icon: "✅", label: "Realizada", bg: "#ecfdf5", fg: "#065f46", br: "#a7f3d0" },
+      // Cancelada: vermelho
+      cancelled: { icon: "❌", label: "Cancelada", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
+      // Faltou: vermelho (como pediste)
+      no_show: { icon: "⚠️", label: "Faltou", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
     };
-    return map[s] || { icon: "👤", label: s, bg: "#f3f4f6", fg: "#111827", br: "#e5e7eb" };
+    return map[s] || map.scheduled;
   }
 
-  // ---------- Estado ----------
+  // ---------- Estado global ----------
   let G = {
     sessionUser: null,
     role: null,
@@ -343,6 +348,58 @@
   // ---------- Render shell ----------
   function renderAppShell() {
     document.body.innerHTML = `
+      <style>
+        .gcBtn { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px; }
+        .gcBtn:disabled { opacity:0.6; cursor:not-allowed; }
+        .gcBtnPrimary { padding:11px 14px; border-radius:12px; border:1px solid #111827; background:#111827; color:#fff; cursor:pointer; font-size:${UI.fs13}px; font-weight:800; }
+        .gcBtnPrimary:disabled { opacity:0.6; cursor:not-allowed; }
+        .gcSelect { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; font-size:${UI.fs13}px; }
+        .gcLabel { font-size:${UI.fs12}px; color:#666; }
+        .gcCard { padding:12px 14px; border:1px solid #eee; border-radius:12px; background:#fff; }
+        .gcMutedCard { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fafafa; }
+        .gcGridRow {
+          display:grid;
+          grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 170px 160px;
+          gap:14px;
+          align-items:start;
+          width:100%;
+        }
+        @media (max-width: 1100px){
+          .gcGridRow { grid-template-columns: 110px 1fr; }
+          .gcGridRow > div { min-width: 0 !important; }
+        }
+        .gcPatientLink{
+          display:block;
+          font-size:${UI.fs18}px;
+          line-height:1.15;
+          color:#111;
+          font-weight:950;
+          cursor:pointer;
+          text-decoration:underline;
+          white-space:normal;
+          overflow-wrap:anywhere;
+          word-break:break-word;
+        }
+        .gcCellTitle { font-size:${UI.fs12}px; color:#666; }
+        .gcCellValue { font-size:${UI.fs13}px; color:#111; font-weight:700; margin-top:6px; }
+        /* Estado: o próprio select é o “modelo” */
+        .gcStatusSelect{
+          appearance:none;
+          -webkit-appearance:none;
+          -moz-appearance:none;
+          border-radius:999px;
+          border:1px solid transparent;
+          padding:8px 36px 8px 12px;
+          font-size:${UI.fs13}px;
+          font-weight:900;
+          cursor:pointer;
+          background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+          background-position: calc(100% - 18px) 55%, calc(100% - 12px) 55%;
+          background-size: 6px 6px, 6px 6px;
+          background-repeat:no-repeat;
+        }
+      </style>
+
       <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; font-size:${UI.fs14}px;">
         <header style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:12px 14px; border:1px solid #e5e5e5; border-radius:12px;">
           <div style="display:flex; flex-direction:column; gap:6px; min-width: 260px;">
@@ -352,46 +409,38 @@
             <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Clínicas:</span> <span id="hdrClinicCount">0</span></div>
           </div>
 
-          <button id="btnLogout" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
-            Logout
-          </button>
+          <button id="btnLogout" class="gcBtn">Logout</button>
         </header>
 
         <main style="margin-top:14px;">
-          <section style="padding:12px 14px; border:1px solid #eee; border-radius:12px;">
+          <section class="gcCard">
+            <!-- Topo da Agenda: esquerda (Agenda + Calendário/Hoj e + Nova marcação) | direita (Clínica) -->
             <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-              <div>
-                <div style="font-size:${UI.fs16}px; color:#111; font-weight:800;">Agenda</div>
-                <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;" id="agendaSubtitle">—</div>
+              <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+                <div>
+                  <div style="font-size:${UI.fs16}px; color:#111; font-weight:800;">Agenda</div>
+                  <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;" id="agendaSubtitle">—</div>
+                </div>
+
+                <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; padding-bottom:2px;">
+                  <button id="btnCal" class="gcBtn" title="Calendário">Calendário</button>
+                  <button id="btnToday" class="gcBtn" title="Voltar a hoje">Hoje</button>
+                  <button id="btnNewAppt" class="gcBtnPrimary">Nova marcação</button>
+                </div>
               </div>
 
               <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
-                <button id="btnCal" title="Calendário" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
-                  Calendário
-                </button>
-
-                <button id="btnToday" title="Voltar a hoje" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
-                  Hoje
-                </button>
-
                 <div style="display:flex; flex-direction:column; gap:4px;">
-                  <label for="selClinic" style="font-size:${UI.fs12}px; color:#666;">Clínica</label>
-                  <select id="selClinic" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; min-width: 240px; font-size:${UI.fs13}px;"></select>
+                  <label for="selClinic" class="gcLabel">Clínica</label>
+                  <select id="selClinic" class="gcSelect" style="min-width:240px;"></select>
                 </div>
-
-                <button id="btnNewAppt" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
-                  Nova marcação
-                </button>
-
-                <button id="btnRefreshAgenda" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
-                  Atualizar
-                </button>
               </div>
             </div>
 
-            <div style="margin-top:12px; display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
-              <div style="flex:1; min-width: 320px;">
-                <div style="font-size:${UI.fs12}px; color:#666; margin-bottom:6px;">Pesquisa de doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
+            <!-- Pesquisa + selecionado + botões (Ver doente + Atualizar aqui, como pediste) -->
+            <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 360px; gap:12px; align-items:start;">
+              <div style="min-width: 320px;">
+                <div class="gcLabel" style="margin-bottom:6px;">Pesquisa de doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
                 <input id="pQuickQuery" type="text" placeholder="ex.: Man… | 916… | 123456789"
                   autocomplete="off" autocapitalize="off" spellcheck="false"
                   style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;" />
@@ -400,16 +449,17 @@
                 </div>
               </div>
 
-              <div style="width: 340px; min-width: 280px;">
-                <div style="font-size:${UI.fs12}px; color:#666; margin-bottom:6px;">Selecionado</div>
-                <div id="pQuickSelected" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fafafa; min-height: 42px; display:flex; align-items:center; color:#111; font-size:${UI.fs13}px;">
+              <div style="min-width: 300px;">
+                <div class="gcLabel" style="margin-bottom:6px;">Selecionado</div>
+                <div id="pQuickSelected" class="gcMutedCard" style="min-height: 42px; display:flex; align-items:center; color:#111; font-size:${UI.fs13}px;">
                   —
                 </div>
-                <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-                  <button id="btnQuickOpen" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
-                    Ver doente
-                  </button>
+
+                <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+                  <button id="btnQuickOpen" class="gcBtn">Ver doente</button>
+                  <button id="btnRefreshAgenda" class="gcBtn">Atualizar</button>
                 </div>
+
                 <div id="pQuickMsg" style="margin-top:8px; font-size:${UI.fs12}px; color:#666;"></div>
               </div>
             </div>
@@ -463,7 +513,6 @@
     return G.patientsById && G.patientsById[pid] ? G.patientsById[pid] : null;
   }
 
-  // ✅ Abrir doente: garante fetch completo antes de abrir modal (para poder editar)
   async function openPatientFeedFromAny(patientLike) {
     try {
       const pid = patientLike && patientLike.id ? patientLike.id : null;
@@ -504,7 +553,7 @@
     }
   }
 
-  // ✅ MELHORIA: linha agenda na ordem pedida + letra maior + nome sem corte + estado com destaque
+  // ✅ Agenda alinhada em grelha + Estado clicável com cor (select estilizado)
   function renderAgendaList() {
     const ul = document.getElementById("agendaList");
     if (!ul) return;
@@ -538,83 +587,67 @@
         const meta = statusMeta(status);
 
         const proc = r.procedure_type ?? "—";
-        const notes = r.notes ? clipOneLine(r.notes, 110) : "";
+        const notes = r.notes ? clipOneLine(r.notes, 130) : "";
 
         const p = getPatientForAppointmentRow(r);
         const patientName = p && p.full_name ? p.full_name : (r.patient_id ? `Doente (ID): ${r.patient_id}` : "—");
         const patientPhone = p && p.phone ? p.phone : "—";
 
+        // label amigável dentro do select
+        function optLabel(s) {
+          const m = statusMeta(s);
+          return `${m.icon} ${m.label}`;
+        }
+
         return `
         <li data-appt-id="${escapeHtml(r.id)}" style="padding:10px 0; border-bottom:1px solid #f2f2f2;">
-          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-            <div style="display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; width:100%;">
-
-              <!-- hora -->
-              <div style="font-size:${UI.fs16}px; font-weight:900; color:#111; min-width: 104px; padding-top:2px;">
+          <div class="gcGridRow">
+            <!-- hora -->
+            <div>
+              <div style="font-size:${UI.fs16}px; font-weight:900; color:#111; padding-top:2px;">
                 ${escapeHtml(tStart)}${tEnd ? `–${escapeHtml(tEnd)}` : ""}
               </div>
+            </div>
 
-              <!-- doente (✅ maior + wrap, sem corte) -->
-              <div style="flex: 1 1 320px; min-width: 280px;">
-                <span data-patient-open="1"
-                      style="display:block; font-size:${UI.fs18}px; line-height:1.15; color:#111; font-weight:950; cursor:pointer; text-decoration:underline;
-                             white-space:normal; overflow-wrap:anywhere; word-break:break-word;">
-                  ${escapeHtml(patientName)}
-                </span>
-              </div>
+            <!-- doente -->
+            <div style="min-width: 260px;">
+              <span data-patient-open="1" class="gcPatientLink">${escapeHtml(patientName)}</span>
+              ${notes ? `<div style="margin-top:6px; font-size:${UI.fs12}px; color:#444;">Notas: ${escapeHtml(notes)}</div>` : ""}
+            </div>
 
-              <!-- tipo -->
-              <div style="min-width: 220px;">
-                <div style="font-size:${UI.fs12}px; color:#666;">Tipo</div>
-                <div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(proc)}</div>
-              </div>
+            <!-- tipo -->
+            <div style="min-width: 220px;">
+              <div class="gcCellTitle">Tipo</div>
+              <div class="gcCellValue">${escapeHtml(proc)}</div>
+            </div>
 
-              <!-- estado (✅ destaque + ícone + select editável) -->
-              <div style="min-width: 240px;">
-                <div style="font-size:${UI.fs12}px; color:#666;">Estado</div>
-
-                <div style="margin-top:6px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                  <span style="display:inline-flex; align-items:center; gap:8px; padding:7px 10px; border-radius:999px;
-                               border:1px solid ${escapeHtml(meta.br)}; background:${escapeHtml(meta.bg)}; color:${escapeHtml(meta.fg)};
-                               font-weight:900; font-size:${UI.fs13}px;">
-                    <span aria-hidden="true">${escapeHtml(meta.icon)}</span>
-                    <span>${escapeHtml(meta.label)}</span>
-                  </span>
-
-                  <select data-status-select="1"
-                          style="padding:9px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
-                    ${STATUS_OPTIONS.map((s) => {
-                      const m = statusMeta(s);
-                      // texto com ícone para facilitar na secretária
-                      const optLabel =
-                        s === "scheduled" ? `${m.icon} marcada` :
-                        s === "confirmed" ? `${m.icon} confirmada` :
-                        s === "arrived" ? `${m.icon} chegou` :
-                        s === "done" ? `${m.icon} realizada` :
-                        s === "cancelled" ? `${m.icon} cancelada` :
-                        s === "no_show" ? `${m.icon} faltou` :
-                        `${m.icon} ${s}`;
-                      return `<option value="${escapeHtml(s)}"${s === status ? " selected" : ""}>${escapeHtml(optLabel)}</option>`;
-                    }).join("")}
-                  </select>
-                </div>
-              </div>
-
-              <!-- clínica -->
-              <div style="min-width: 160px;">
-                <div style="font-size:${UI.fs12}px; color:#666;">Clínica</div>
-                <div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(clinicName)}</div>
-              </div>
-
-              <!-- telefone -->
-              <div style="min-width: 160px;">
-                <div style="font-size:${UI.fs12}px; color:#666;">Telefone</div>
-                <div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(patientPhone)}</div>
+            <!-- estado (modelo clicável) -->
+            <div style="min-width: 260px;">
+              <div class="gcCellTitle">Estado</div>
+              <div style="margin-top:6px;">
+                <select data-status-select="1"
+                        class="gcStatusSelect"
+                        style="background:${escapeHtml(meta.bg)}; color:${escapeHtml(meta.fg)}; border-color:${escapeHtml(meta.br)};"
+                        title="Clique para alterar estado">
+                  ${STATUS_OPTIONS.map((s) => {
+                    return `<option value="${escapeHtml(s)}"${s === status ? " selected" : ""}>${escapeHtml(optLabel(s))}</option>`;
+                  }).join("")}
+                </select>
               </div>
             </div>
-          </div>
 
-          ${notes ? `<div style="margin-top:6px; font-size:${UI.fs12}px; color:#444;">Notas: ${escapeHtml(notes)}</div>` : ""}
+            <!-- clínica -->
+            <div style="min-width: 160px;">
+              <div class="gcCellTitle">Clínica</div>
+              <div class="gcCellValue">${escapeHtml(clinicName)}</div>
+            </div>
+
+            <!-- telefone -->
+            <div style="min-width: 160px;">
+              <div class="gcCellTitle">Telefone</div>
+              <div class="gcCellValue">${escapeHtml(patientPhone)}</div>
+            </div>
+          </div>
         </li>
       `;
       })
@@ -623,6 +656,7 @@
     ul.querySelectorAll("li[data-appt-id]").forEach((li) => {
       li.addEventListener("click", (ev) => {
         const t = ev.target;
+
         if (t && (t.getAttribute("data-status-select") === "1" || (t.closest && t.closest("[data-status-select='1']")))) return;
         if (t && (t.getAttribute("data-patient-open") === "1" || (t.closest && t.closest("[data-patient-open='1']")))) return;
 
@@ -731,7 +765,6 @@
     });
   }
 
-  // ---------- Modal Doente (ver + editar) ----------
   function closeModalRoot() {
     const root = document.getElementById("modalRoot");
     if (root) root.innerHTML = "";
@@ -749,7 +782,6 @@
     if (nif && !/^[0-9]{9}$/.test(nif)) return { ok: false, msg: "NIF inválido: tem de ter 9 dígitos." };
     if (pass && !/^[A-Za-z0-9]{4,20}$/.test(pass)) return { ok: false, msg: "Passaporte/ID inválido: 4–20 alfanum." };
 
-    // Mantém a regra: tem de existir pelo menos 1 identificador (SNS / NIF / Passaporte)
     if (!sns && !nif && !pass) return { ok: false, msg: "Identificação obrigatória: SNS ou NIF ou Passaporte/ID." };
 
     return {
@@ -773,6 +805,7 @@
     };
   }
 
+  // ---------- Modal Doente (ver + editar) ----------
   function openPatientViewModal(patient) {
     const root = document.getElementById("modalRoot");
     if (!root) return;
@@ -780,7 +813,6 @@
     const p = patient;
     if (!p) return;
 
-    // estado local do modal
     let editMode = false;
     let working = false;
 
@@ -802,10 +834,10 @@
                 <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">${escapeHtml(topSubtitle)}</div>
               </div>
               <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                <button id="btnToggleEdit" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
+                <button id="btnToggleEdit" class="gcBtn">
                   ${editMode ? "Cancelar edição" : "Editar doente"}
                 </button>
-                <button id="btnClosePView" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">Fechar</button>
+                <button id="btnClosePView" class="gcBtn">Fechar</button>
               </div>
             </div>
 
@@ -938,7 +970,7 @@
             <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
               <div id="peMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
               <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                ${editMode ? `<button id="btnSavePatient" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-weight:700; font-size:${UI.fs13}px;">Guardar</button>` : ""}
+                ${editMode ? `<button id="btnSavePatient" class="gcBtn" style="font-weight:800;">Guardar</button>` : ""}
               </div>
             </div>
           </div>
@@ -1153,9 +1185,9 @@
       <div id="calOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
         <div style="background:#fff; width:min(520px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px;">
           <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
-            <button id="calPrev" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">◀</button>
+            <button id="calPrev" class="gcBtn">◀</button>
             <div style="font-size:${UI.fs14}px; font-weight:800; color:#111;" id="calTitle">${escapeHtml(monthLabel(G.calMonth))}</div>
-            <button id="calNext" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">▶</button>
+            <button id="calNext" class="gcBtn">▶</button>
           </div>
 
           <div style="margin-top:10px; display:grid; grid-template-columns: repeat(7, 1fr); gap:6px;">
@@ -1180,7 +1212,7 @@
 
           <div style="margin-top:12px; display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
             <div style="font-size:${UI.fs12}px; color:#666;">Clique num dia para abrir a agenda desse dia.</div>
-            <button id="calClose" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">Fechar</button>
+            <button id="calClose" class="gcBtn">Fechar</button>
           </div>
         </div>
       </div>
@@ -1245,7 +1277,7 @@
   }
 
   function openApptModal({ mode, row }) {
-    // (mantido igual ao teu ficheiro; sem alterações funcionais)
+    // mantido (igual ao teu ficheiro anterior)
     const root = document.getElementById("modalRoot");
     if (!root) return;
 
@@ -1291,18 +1323,18 @@
                 Dia selecionado: ${escapeHtml(G.selectedDayISO)}. Doente é obrigatório.
               </div>
             </div>
-            <button id="btnCloseModal" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">Fechar</button>
+            <button id="btnCloseModal" class="gcBtn">Fechar</button>
           </div>
 
           <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:${UI.fs12}px; color:#666;">Clínica</label>
-              <select id="mClinic" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; font-size:${UI.fs13}px;"></select>
+              <select id="mClinic" class="gcSelect"></select>
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:${UI.fs12}px; color:#666;">Status</label>
-              <select id="mStatus" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; font-size:${UI.fs13}px;">
+              <select id="mStatus" class="gcSelect">
                 ${STATUS_OPTIONS.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("")}
               </select>
             </div>
@@ -1314,7 +1346,7 @@
 
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:${UI.fs12}px; color:#666;">Duração (min)</label>
-              <select id="mDuration" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; font-size:${UI.fs13}px;">
+              <select id="mDuration" class="gcSelect">
                 ${DURATION_OPTIONS.map((n) => `<option value="${n}">${n}</option>`).join("")}
               </select>
             </div>
@@ -1339,9 +1371,7 @@
                     —
                   </div>
                   <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                    <button id="btnNewPatient" style="flex:1; padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
-                      Novo doente
-                    </button>
+                    <button id="btnNewPatient" class="gcBtn" style="flex:1;">Novo doente</button>
                   </div>
                 </div>
               </div>
@@ -1354,7 +1384,7 @@
 
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:${UI.fs12}px; color:#666;">Tipo de consulta</label>
-              <select id="mProc" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; font-size:${UI.fs13}px;">
+              <select id="mProc" class="gcSelect">
                 <option value="">—</option>
                 ${PROCEDURE_OPTIONS.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("")}
               </select>
@@ -1380,8 +1410,8 @@
           <div style="margin-top:12px; display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;">
             <div id="mMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
             <div style="display:flex; gap:10px;">
-              <button id="btnCancel" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">Cancelar</button>
-              <button id="btnSave" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-weight:800; font-size:${UI.fs13}px;">
+              <button id="btnCancel" class="gcBtn">Cancelar</button>
+              <button id="btnSave" class="gcBtn" style="font-weight:900;">
                 ${isEdit ? "Guardar alterações" : "Criar marcação"}
               </button>
             </div>
@@ -1390,7 +1420,6 @@
       </div>
     `;
 
-    // --- wiring original (sem alterações de lógica) ---
     const overlay = document.getElementById("modalOverlay");
     const btnClose = document.getElementById("btnCloseModal");
     const btnCancel = document.getElementById("btnCancel");
@@ -1528,7 +1557,6 @@
     }
 
     function openNewPatientForm() {
-      // (mantido igual ao teu ficheiro)
       const clinicId = mClinic ? mClinic.value : "";
       if (!clinicId) {
         mMsg.style.color = "#b00020";
@@ -1543,6 +1571,7 @@
         return;
       }
 
+      // Mantido igual ao teu fluxo anterior (form + validação + RPC)
       host.innerHTML = `
         <div id="subNewPatient" style="border:1px solid #eee; border-radius:12px; padding:12px; background:#fafafa;">
           <div style="font-size:${UI.fs13}px; font-weight:800; color:#111;">Novo doente</div>
@@ -1637,14 +1666,13 @@
           <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
             <div id="npMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
             <div style="display:flex; gap:10px;">
-              <button id="npCancel" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">Fechar</button>
-              <button id="npCreate" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-weight:800; font-size:${UI.fs13}px;">Criar doente</button>
+              <button id="npCancel" class="gcBtn">Fechar</button>
+              <button id="npCreate" class="gcBtn" style="font-weight:900;">Criar doente</button>
             </div>
           </div>
         </div>
       `;
 
-      // wiring igual ao teu ficheiro (sem alterações)
       const npFullName = document.getElementById("npFullName");
       const npDob = document.getElementById("npDob");
       const npPhone = document.getElementById("npPhone");
@@ -1663,15 +1691,8 @@
       const npCancel = document.getElementById("npCancel");
       const npCreate = document.getElementById("npCreate");
 
-      function setErr(msg) {
-        npMsg.style.color = "#b00020";
-        npMsg.textContent = msg;
-      }
-
-      function setInfo(msg) {
-        npMsg.style.color = "#666";
-        npMsg.textContent = msg;
-      }
+      function setErr(msg) { npMsg.style.color = "#b00020"; npMsg.textContent = msg; }
+      function setInfo(msg) { npMsg.style.color = "#666"; npMsg.textContent = msg; }
 
       function validate() {
         const fullName = (npFullName.value || "").trim();
@@ -1707,44 +1728,22 @@
       }
 
       function refreshButtonState() {
-        if (npSNS) {
-          const d = normalizeDigits(npSNS.value);
-          if (npSNS.value !== d) npSNS.value = d;
-        }
-        if (npNIF) {
-          const d = normalizeDigits(npNIF.value);
-          if (npNIF.value !== d) npNIF.value = d;
-        }
+        if (npSNS) { const d = normalizeDigits(npSNS.value); if (npSNS.value !== d) npSNS.value = d; }
+        if (npNIF) { const d = normalizeDigits(npNIF.value); if (npNIF.value !== d) npNIF.value = d; }
 
         const v = validate();
-        if (!v.ok) {
-          npCreate.disabled = true;
-          setErr(v.msg);
-        } else {
-          npCreate.disabled = false;
-          setInfo("OK para criar.");
-        }
+        if (!v.ok) { npCreate.disabled = true; setErr(v.msg); }
+        else { npCreate.disabled = false; setInfo("OK para criar."); }
       }
 
-      [
-        npFullName, npDob, npPhone, npEmail, npSNS, npNIF, npPassport,
-        npInsuranceProvider, npInsurancePolicy, npAddress1, npPostal, npCity, npCountry, npNotes,
-      ].forEach((el) => {
-        if (!el) return;
-        el.addEventListener("input", refreshButtonState);
-        el.addEventListener("change", refreshButtonState);
-      });
+      [npFullName, npDob, npPhone, npEmail, npSNS, npNIF, npPassport, npInsuranceProvider, npInsurancePolicy, npAddress1, npPostal, npCity, npCountry, npNotes]
+        .forEach((el) => { if (!el) return; el.addEventListener("input", refreshButtonState); el.addEventListener("change", refreshButtonState); });
 
-      npCancel.addEventListener("click", () => {
-        host.innerHTML = "";
-      });
+      npCancel.addEventListener("click", () => { host.innerHTML = ""; });
 
       npCreate.addEventListener("click", async () => {
         const v = validate();
-        if (!v.ok) {
-          setErr(v.msg);
-          return;
-        }
+        if (!v.ok) { setErr(v.msg); return; }
 
         npCreate.disabled = true;
         setInfo("A criar…");
@@ -1759,7 +1758,6 @@
             p_email: v.email,
             p_external_id: null,
             p_notes: v.notes,
-
             p_sns: v.sns,
             p_nif: v.nif,
             p_passport_id: v.passport_id,
@@ -1867,6 +1865,7 @@
       } catch (e) {
         console.error("Guardar marcação falhou:", e);
         mMsg.style.color = "#b00020";
+        mMsg.text
         mMsg.textContent = "Erro ao guardar. Vê a consola.";
         btnSave.disabled = false;
       }
@@ -1985,16 +1984,8 @@
       renderAppShell();
       await wireLogout();
 
-      try {
-        G.role = await fetchMyRole(G.sessionUser.id);
-      } catch {
-        G.role = null;
-      }
-      try {
-        G.clinics = await fetchVisibleClinics();
-      } catch {
-        G.clinics = [];
-      }
+      try { G.role = await fetchMyRole(G.sessionUser.id); } catch { G.role = null; }
+      try { G.clinics = await fetchVisibleClinics(); } catch { G.clinics = []; }
 
       G.clinicsById = {};
       for (const c of G.clinics) G.clinicsById[c.id] = c;
@@ -2017,34 +2008,4 @@
       if (sel) sel.addEventListener("change", refreshAgenda);
 
       const btnRefresh = document.getElementById("btnRefreshAgenda");
-      if (btnRefresh) btnRefresh.addEventListener("click", refreshAgenda);
-
-      const btnNew = document.getElementById("btnNewAppt");
-      if (btnNew) btnNew.addEventListener("click", () => openApptModal({ mode: "new", row: null }));
-
-      const btnCal = document.getElementById("btnCal");
-      if (btnCal) btnCal.addEventListener("click", openCalendarOverlay);
-
-      const btnToday = document.getElementById("btnToday");
-      if (btnToday) {
-        btnToday.addEventListener("click", async () => {
-          G.selectedDayISO = fmtDateISO(new Date());
-          setAgendaSubtitleForSelectedDay();
-          await refreshAgenda();
-        });
-      }
-
-      if (btnNew && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
-        btnNew.disabled = true;
-        btnNew.title = "Sem permissão para criar marcações.";
-      }
-
-      await refreshAgenda();
-    } catch (e) {
-      console.error("Boot falhou:", e);
-      document.body.textContent = "Erro ao iniciar a app. Abre a consola para detalhe.";
-    }
-  }
-
-  boot();
-})();
+      if (btnRefresh) btnRefresh.add
