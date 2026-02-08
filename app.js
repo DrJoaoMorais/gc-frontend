@@ -7,6 +7,8 @@
    - ✅ NOVO: Pesquisa rápida de doentes na página principal (Nome/SNS/NIF/Telefone/Passaporte)
    - ✅ NOVO: Pesquisa no modal também por SNS/NIF/Telefone/Passaporte
    - ✅ NOVO: Mostrar notas (appointments.notes) na lista da agenda
+   - ✅ FIX: Agenda mostra Nome do doente (patients.full_name) + Telefone (patients.phone)
+   - ✅ FIX: Linha da agenda organizada: Hora | Doente | Tipo | Telefone | Clínica + Status editável
    ========================================================= */
 
 (function () {
@@ -168,18 +170,10 @@
     const term = String(termRaw || "").trim();
     const digits = normalizeDigits(term);
 
-    // Nota: or() usa sintaxe PostgREST; usar %...% para ilike.
-    // Vamos aceitar:
-    // - Nome: full_name ilike %term%
-    // - SNS/NIF: eq digits (quando 9 dígitos)
-    // - Telefone: ilike %digits% (não é único)
-    // - Passaporte/ID: ilike %term%
-    // - Email: ilike %term%
     const parts = [];
 
     if (term.length >= 2) {
-      // nome / email / passaporte
-      const safe = term.replaceAll(",", " "); // evita partir a string do or()
+      const safe = term.replaceAll(",", " ");
       parts.push(`full_name.ilike.%${safe}%`);
       parts.push(`email.ilike.%${safe}%`);
       parts.push(`passport_id.ilike.%${safe}%`);
@@ -187,7 +181,6 @@
     }
 
     if (digits.length >= 3) {
-      // telefone parcial
       parts.push(`phone.ilike.%${digits}%`);
     }
 
@@ -196,13 +189,11 @@
       parts.push(`nif.eq.${digits}`);
     }
 
-    // Se term for alfanum 4–20, também pode ser passaporte/id
     if (/^[A-Za-z0-9]{4,20}$/.test(term)) {
       const safe = term.replaceAll(",", " ");
       parts.push(`passport_id.eq.${safe}`);
     }
 
-    // remover duplicados
     const uniq = [];
     const seen = new Set();
     for (const p of parts) {
@@ -244,6 +235,29 @@
     return data;
   }
 
+  // ✅ NEW: carregar pacientes por IDs (para a agenda mostrar Nome/Telefone sem depender de title)
+  async function fetchPatientsByIds(patientIds) {
+    const ids = Array.from(new Set((patientIds || []).filter(Boolean)));
+    if (ids.length === 0) return {};
+
+    // Supabase tem limite de URL; em ambiente real, é prudente fazer chunking.
+    // Aqui fazemos chunk simples de 150 para segurança.
+    const CHUNK = 150;
+    const out = {};
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const part = ids.slice(i, i + CHUNK);
+      const { data, error } = await window.sb
+        .from("patients")
+        .select("id, full_name, phone, email, sns, nif, passport_id")
+        .in("id", part)
+        .eq("is_active", true);
+
+      if (error) throw error;
+      for (const p of (data || [])) out[p.id] = p;
+    }
+    return out;
+  }
+
   // ---------- Tipos / Status / Duração ----------
   const PROCEDURE_OPTIONS = [
     "Primeira Consulta",
@@ -265,10 +279,12 @@
     clinics: [],
     clinicsById: {},
     agenda: { rows: [], timeColUsed: "start_at" },
-    selectedDayISO: fmtDateISO(new Date()), // default: hoje
-    calMonth: null, // Date (1º dia do mês) para o overlay
+    selectedDayISO: fmtDateISO(new Date()),
+    calMonth: null,
 
-    // Pesquisa rápida de doentes (main page)
+    // ✅ cache patients for agenda
+    patientsById: {},
+
     patientQuick: {
       lastResults: [],
       selected: null,
@@ -329,6 +345,7 @@
               <div style="flex:1; min-width: 320px;">
                 <div style="font-size:12px; color:#666; margin-bottom:6px;">Pesquisa de doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
                 <input id="pQuickQuery" type="text" placeholder="ex.: Man… | 916… | 123456789"
+                  autocomplete="off" autocapitalize="off" spellcheck="false"
                   style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%;" />
                 <div id="pQuickResults" style="margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:180px; overflow:auto;">
                   <div style="font-size:12px; color:#666;">Escreve para pesquisar.</div>
@@ -392,6 +409,41 @@
     if (clinics.length === 1) sel.value = clinics[0].id;
   }
 
+  // ✅ Helper: obter dados do doente para a agenda
+  function getPatientForAppointmentRow(apptRow) {
+    const pid = apptRow && apptRow.patient_id ? apptRow.patient_id : null;
+    if (!pid) return null;
+    return G.patientsById && G.patientsById[pid] ? G.patientsById[pid] : null;
+  }
+
+  // ✅ Helper: abrir "Doente / Feed (placeholder)" — por agora mantém a ficha simples (read-only)
+  function openPatientFeed(patient) {
+    openPatientViewModal(patient);
+  }
+
+  async function updateAppointmentStatus(apptId, newStatus) {
+    if (!apptId) return;
+    const s = String(newStatus || "").trim();
+    if (!s) return;
+
+    // Optimista: atualiza local
+    const idx = (G.agenda.rows || []).findIndex((x) => x && x.id === apptId);
+    if (idx >= 0) {
+      G.agenda.rows[idx].status = s;
+      renderAgendaList();
+    }
+
+    try {
+      const { error } = await window.sb.from("appointments").update({ status: s }).eq("id", apptId);
+      if (error) throw error;
+    } catch (e) {
+      console.error("Update status falhou:", e);
+      // Recarregar para garantir verdade
+      await refreshAgenda();
+      alert("Não foi possível atualizar o estado. Vê a consola para detalhe.");
+    }
+  }
+
   function renderAgendaList() {
     const ul = document.getElementById("agendaList");
     if (!ul) return;
@@ -421,27 +473,50 @@
             ? G.clinicsById[clinicId].name || G.clinicsById[clinicId].slug || clinicId
             : clinicId || "—";
 
-        const status = r.status ?? "—";
+        const status = r.status ?? "scheduled";
         const proc = r.procedure_type ?? "—";
-        const title = r.title ?? "—";
         const notes = r.notes ? clipOneLine(r.notes, 110) : "";
 
+        const p = getPatientForAppointmentRow(r);
+        const patientName = p && p.full_name ? p.full_name : (r.patient_id ? `Doente (ID): ${r.patient_id}` : "—");
+        const patientPhone = p && p.phone ? p.phone : "—";
+
+        // linha organizada: Hora | Doente (clicável) | Tipo | Telefone | Clínica + Status
         return `
-        <li data-appt-id="${escapeHtml(r.id)}" style="padding:10px 0; border-bottom:1px solid #f2f2f2; cursor:pointer;">
-          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-            <div style="display:flex; gap:10px; align-items:baseline; flex-wrap:wrap;">
-              <div style="font-size:14px; font-weight:600; color:#111; min-width: 90px;">
+        <li data-appt-id="${escapeHtml(r.id)}" style="padding:10px 0; border-bottom:1px solid #f2f2f2;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div style="display:flex; gap:14px; align-items:baseline; flex-wrap:wrap;">
+              <div style="font-size:14px; font-weight:700; color:#111; min-width: 96px;">
                 ${escapeHtml(tStart)}${tEnd ? `–${escapeHtml(tEnd)}` : ""}
               </div>
-              <div style="font-size:13px; color:#111;">
-                ${escapeHtml(title)}
+
+              <div style="display:flex; flex-direction:column; gap:2px; min-width: 220px;">
+                <div>
+                  <span data-patient-open="1" style="font-size:13px; color:#111; font-weight:700; cursor:pointer; text-decoration:underline;">
+                    ${escapeHtml(patientName)}
+                  </span>
+                </div>
+                <div style="font-size:12px; color:#666;">
+                  Tel: ${escapeHtml(patientPhone)}
+                </div>
               </div>
-              <div style="font-size:12px; color:#666;">
-                ${escapeHtml(proc)}
+
+              <div style="display:flex; flex-direction:column; gap:2px; min-width: 180px;">
+                <div style="font-size:12px; color:#666;">Tipo</div>
+                <div style="font-size:13px; color:#111;">${escapeHtml(proc)}</div>
               </div>
             </div>
-            <div style="font-size:12px; color:#666;">
-              ${escapeHtml(clinicName)} • ${escapeHtml(status)}
+
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <div style="font-size:12px; color:#666;">${escapeHtml(clinicName)}</div>
+
+              <div style="display:flex; flex-direction:column; gap:4px; min-width: 160px;">
+                <div style="font-size:12px; color:#666;">Estado</div>
+                <select data-status-select="1"
+                        style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
+                  ${STATUS_OPTIONS.map((s) => `<option value="${escapeHtml(s)}"${s === status ? " selected" : ""}>${escapeHtml(s)}</option>`).join("")}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -451,12 +526,51 @@
       })
       .join("");
 
+    // Clique na linha abre modal editar (exceto em zonas com controlo)
     ul.querySelectorAll("li[data-appt-id]").forEach((li) => {
-      li.addEventListener("click", () => {
+      li.addEventListener("click", (ev) => {
+        // não abrir modal se clicou no select de status ou no nome do doente
+        const t = ev.target;
+        if (t && (t.getAttribute("data-status-select") === "1" || t.closest && t.closest("[data-status-select='1']"))) return;
+        if (t && (t.getAttribute("data-patient-open") === "1" || t.closest && t.closest("[data-patient-open='1']"))) return;
+
         const id = li.getAttribute("data-appt-id");
         const row = rows.find((x) => x.id === id);
         if (row) openApptModal({ mode: "edit", row });
       });
+
+      // click no nome do doente -> abrir doente/feed
+      const pLink = li.querySelector("[data-patient-open='1']");
+      if (pLink) {
+        pLink.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+
+          const apptId = li.getAttribute("data-appt-id");
+          const row = rows.find((x) => x.id === apptId);
+          if (!row) return;
+          const p = getPatientForAppointmentRow(row);
+          if (!p) {
+            alert("Não consegui carregar os dados do doente (RLS ou dados em falta).");
+            return;
+          }
+          openPatientFeed(p);
+        });
+      }
+
+      // change do status
+      const sel = li.querySelector("select[data-status-select='1']");
+      if (sel) {
+        sel.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+        });
+        sel.addEventListener("change", async (ev) => {
+          ev.stopPropagation();
+          const apptId = li.getAttribute("data-appt-id");
+          const v = sel.value;
+          await updateAppointmentStatus(apptId, v);
+        });
+      }
     });
   }
 
@@ -546,10 +660,14 @@
         <div style="background:#fff; width:min(720px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 86vh; overflow:auto;">
           <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
             <div>
-              <div style="font-size:14px; font-weight:700; color:#111;">Doente</div>
+              <div style="font-size:14px; font-weight:700; color:#111;">Doente (Feed em construção)</div>
               <div style="font-size:12px; color:#666; margin-top:4px;">${escapeHtml(p.id)}</div>
             </div>
             <button id="btnClosePView" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">Fechar</button>
+          </div>
+
+          <div style="margin-top:10px; font-size:12px; color:#666;">
+            Este ecrã vai evoluir para o <b>Feed do doente</b> (histórico: consultas, fisioterapia, marcações e notas).
           </div>
 
           <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
@@ -568,25 +686,11 @@
               <div style="font-size:13px; color:#111; font-weight:600; margin-top:6px;">${escapeHtml(p.email || "—")}</div>
             </div>
 
-            <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-              <div style="font-size:12px; color:#666;">Seguro</div>
-              <div style="font-size:13px; color:#111; font-weight:600; margin-top:6px;">${escapeHtml(p.insurance_provider || "—")}</div>
-              <div style="font-size:12px; color:#666; margin-top:6px;">Apólice: ${escapeHtml(p.insurance_policy_number || "—")}</div>
-            </div>
-
-            <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-              <div style="font-size:12px; color:#666;">Morada</div>
-              <div style="font-size:13px; color:#111; font-weight:600; margin-top:6px;">
-                ${escapeHtml(p.address_line1 || "—")}
-              </div>
-              <div style="font-size:12px; color:#666; margin-top:6px;">
-                ${escapeHtml([p.postal_code, p.city, p.country].filter(Boolean).join(" • ") || "—")}
-              </div>
-            </div>
-
             <div style="grid-column: 1 / -1; padding:12px; border:1px solid #eee; border-radius:12px;">
-              <div style="font-size:12px; color:#666;">Notas</div>
-              <div style="font-size:13px; color:#111; margin-top:6px; white-space:pre-wrap;">${escapeHtml(p.notes || "—")}</div>
+              <div style="font-size:12px; color:#666;">Próximo passo</div>
+              <div style="font-size:13px; color:#111; margin-top:6px;">
+                Implementar Feed: timeline por doente (marcações + notas + consulta médica + registo fisio + documentos).
+              </div>
             </div>
           </div>
         </div>
@@ -621,7 +725,6 @@
         return;
       }
 
-      // Scope: usa a clínica selecionada; se "Todas", pesquisa no universo visível (RLS filtra).
       const selClinic = document.getElementById("selClinic");
       const clinicId = selClinic && selClinic.value ? selClinic.value : null;
 
@@ -653,7 +756,7 @@
         setQuickPatientMsg("error", "Seleciona um doente primeiro.");
         return;
       }
-      openPatientViewModal(G.patientQuick.selected);
+      openPatientFeed(G.patientQuick.selected);
     });
   }
 
@@ -663,7 +766,7 @@
     return `${months[d.getMonth()]} ${d.getFullYear()}`;
   }
 
-  function buildMonthGrid(monthDate /* Date at day 1 */) {
+  function buildMonthGrid(monthDate) {
     const y = monthDate.getFullYear();
     const m = monthDate.getMonth();
 
@@ -671,9 +774,8 @@
     const last = new Date(y, m + 1, 0, 0, 0, 0, 0);
     const daysInMonth = last.getDate();
 
-    // week starts Monday; JS getDay(): 0=Sun..6=Sat
     const jsDowFirst = first.getDay();
-    const dowFirstMon0 = (jsDowFirst + 6) % 7; // Mon=0..Sun=6
+    const dowFirstMon0 = (jsDowFirst + 6) % 7;
 
     const cells = [];
     for (let i = 0; i < dowFirstMon0; i++) cells.push(null);
@@ -877,6 +979,7 @@
                 <div style="display:flex; flex-direction:column; gap:6px;">
                   <input id="mPatientQuery" type="text"
                     placeholder="Pesquisar por nome / SNS / NIF / telefone / Passaporte-ID (mín. 2 letras)…"
+                    autocomplete="off" autocapitalize="off" spellcheck="false"
                     style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%;" />
                   <div id="mPatientResults" style="border:1px solid #eee; border-radius:10px; padding:8px; max-height:180px; overflow:auto; background:#fff;">
                     <div style="font-size:12px; color:#666;">Pesquisar para mostrar resultados.</div>
@@ -899,7 +1002,6 @@
               <input type="hidden" id="mPatientId" value="" />
               <input type="hidden" id="mPatientName" value="" />
 
-              <!-- HOST sub-form novo doente -->
               <div id="newPatientHost" style="margin-top:10px;"></div>
             </div>
 
@@ -913,7 +1015,8 @@
 
             <div id="mProcOtherWrap" style="display:none; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">Outro (texto)</label>
-              <input id="mProcOther" type="text" placeholder="ex.: Ondas de choque" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              <input id="mProcOther" type="text" placeholder="ex.: Ondas de choque" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
             </div>
 
             <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
@@ -963,7 +1066,6 @@
     const mPatientName = document.getElementById("mPatientName");
     const mTitleAuto = document.getElementById("mTitleAuto");
 
-    // clínicas
     const clinicOpts = [];
     for (const c of G.clinics) {
       const label = c.name || c.slug || c.id;
@@ -1011,12 +1113,10 @@
       if (mProcOtherWrap) mProcOtherWrap.style.display = "flex";
     }
 
-    // init patient selection for edit
     if (mPatientId) mPatientId.value = patientIdInit || "";
     if (mPatientSelected) mPatientSelected.textContent = patientIdInit ? `Selecionado (ID): ${patientIdInit}` : "—";
     if (mTitleAuto) mTitleAuto.value = titleInit || "";
 
-    // search
     let searchTimer = null;
 
     async function runSearch() {
@@ -1081,11 +1181,6 @@
 
     /* =========================================================
        SUB-FORM NOVO DOENTE — RPC nova (17 params)
-       signature:
-       create_patient_for_clinic(
-         uuid,text,date,text,text,text,text,text,
-         text,text,text,text,text,text,text,text,text
-       )
        ========================================================= */
     function openNewPatientForm() {
       const clinicId = mClinic ? mClinic.value : "";
@@ -1102,7 +1197,6 @@
         return;
       }
 
-      // limpa anterior (evita duplicados)
       host.innerHTML = "";
 
       host.innerHTML = `
@@ -1115,7 +1209,8 @@
           <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">Nome completo *</label>
-              <input id="npFullName" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              <input id="npFullName" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
@@ -1125,57 +1220,68 @@
 
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">Telefone</label>
-              <input id="npPhone" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              <input id="npPhone" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">Email</label>
-              <input id="npEmail" type="email" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              <input id="npEmail" type="email" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">SNS (9 dígitos)</label>
-              <input id="npSNS" type="text" inputmode="numeric" placeholder="#########" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              <input id="npSNS" type="text" inputmode="numeric" placeholder="#########" autocomplete="off"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">NIF (9 dígitos)</label>
-              <input id="npNIF" type="text" inputmode="numeric" placeholder="#########" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              <input id="npNIF" type="text" inputmode="numeric" placeholder="#########" autocomplete="off"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">Passaporte/ID (4–20)</label>
-              <input id="npPassport" type="text" placeholder="AB123456" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              <input id="npPassport" type="text" placeholder="AB123456" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">Seguro</label>
-              <input id="npInsuranceProvider" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              <input id="npInsuranceProvider" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">Apólice</label>
-              <input id="npInsurancePolicy" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              <input id="npInsurancePolicy" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
             </div>
 
             <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">Morada</label>
-              <input id="npAddress1" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              <input id="npAddress1" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">Código-postal</label>
-              <input id="npPostal" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              <input id="npPostal" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">Cidade</label>
-              <input id="npCity" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              <input id="npCity" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:12px; color:#666;">País</label>
-              <input id="npCountry" type="text" value="PT" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              <input id="npCountry" type="text" value="PT" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
             </div>
 
             <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
@@ -1299,7 +1405,6 @@
         setInfo("A criar…");
 
         try {
-          // ✅ RPC nova (17 argumentos)
           const payload = {
             p_clinic_id: clinicId,
             p_full_name: v.full_name,
@@ -1352,7 +1457,6 @@
         }
       });
 
-      // estado inicial
       npCreate.disabled = true;
       setInfo("Preenche o Nome e um identificador (SNS/NIF/Passaporte).");
       refreshButtonState();
@@ -1423,7 +1527,6 @@
       }
     }
 
-    // handlers
     if (btnClose) btnClose.addEventListener("click", closeModal);
     if (btnCancel) btnCancel.addEventListener("click", closeModal);
     if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "modalOverlay") closeModal(); });
@@ -1453,7 +1556,6 @@
     if (btnNewPatient) btnNewPatient.addEventListener("click", openNewPatientForm);
     if (btnSave) btnSave.addEventListener("click", onSave);
 
-    // init
     updateTitleAuto();
   }
 
@@ -1493,6 +1595,16 @@
 
     try {
       const { data, timeColUsed } = await loadAppointmentsForRange({ clinicId, startISO: r.startISO, endISO: r.endISO });
+
+      // ✅ carregar pacientes associados para mostrar nome/telefone
+      const patientIds = (data || []).map((x) => x && x.patient_id).filter(Boolean);
+      try {
+        G.patientsById = await fetchPatientsByIds(patientIds);
+      } catch (e) {
+        console.error("Falha ao carregar pacientes para agenda:", e);
+        G.patientsById = {};
+      }
+
       G.agenda.rows = data;
       G.agenda.timeColUsed = timeColUsed || "start_at";
       setAgendaStatus("ok", `OK: ${data.length} marcação(ões).`);
@@ -1501,6 +1613,7 @@
       console.error("Agenda load falhou:", e);
       setAgendaStatus("error", "Erro ao carregar agenda. Vê a consola.");
       G.agenda.rows = [];
+      G.patientsById = {};
       renderAgendaList();
     }
   }
@@ -1542,7 +1655,6 @@
       G.clinicsById = {};
       for (const c of G.clinics) G.clinicsById[c.id] = c;
 
-      // header
       const hdrEmail = document.getElementById("hdrEmail");
       if (hdrEmail) hdrEmail.textContent = G.sessionUser.email || "—";
 
@@ -1554,13 +1666,10 @@
 
       renderClinicsSelect(G.clinics);
 
-      // subtitle default: hoje
       setAgendaSubtitleForSelectedDay();
 
-      // quick patient search
       await wireQuickPatientSearch();
 
-      // events
       const sel = document.getElementById("selClinic");
       if (sel) sel.addEventListener("change", refreshAgenda);
 
@@ -1582,7 +1691,6 @@
         });
       }
 
-      // UI friction (RLS manda)
       if (btnNew && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
         btnNew.disabled = true;
         btnNew.title = "Sem permissão para criar marcações.";
