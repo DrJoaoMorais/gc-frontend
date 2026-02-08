@@ -11,6 +11,8 @@
    - ✅ Linha agenda: Hora | Doente | Tipo | Estado | Clínica | Telefone + Status editável
    - ✅ NOVO (FIX): Abrir doente com ecrã de detalhe + botão "Editar" + Guardar alterações (update patients)
    - ✅ MELHORIA (UI): letra maior + reorganização da linha da agenda (como pedido)
+   - ✅ MELHORIA (UI): Nome do doente maior + sem corte (wrap)
+   - ✅ MELHORIA (UI): Estado com destaque + ícones (👤 ⏳ ✅ ❌)
    ========================================================= */
 
 (function () {
@@ -22,6 +24,7 @@
     fs13: 14,
     fs14: 15,
     fs16: 17,
+    fs18: 19, // ✅ NOVO: para nome do doente (nomes longos PT)
   };
 
   function hardRedirect(path) {
@@ -309,6 +312,21 @@
   const STATUS_OPTIONS = ["scheduled", "confirmed", "arrived", "done", "cancelled", "no_show"];
   const DURATION_OPTIONS = [15, 20, 30, 45, 60];
 
+  // ✅ NOVO: meta visual de estado (ícone + cores)
+  function statusMeta(statusRaw) {
+    const s = String(statusRaw || "scheduled").toLowerCase();
+    // Paleta discreta mas muito legível
+    const map = {
+      scheduled:  { icon: "👤", label: "Marcada",            bg: "#f3f4f6", fg: "#111827", br: "#e5e7eb" },
+      confirmed:  { icon: "👤", label: "Confirmada",         bg: "#eef2ff", fg: "#1e3a8a", br: "#c7d2fe" },
+      arrived:    { icon: "⏳", label: "Chegou (AVISAR)",     bg: "#fff7ed", fg: "#9a3412", br: "#fed7aa" },
+      done:       { icon: "✅", label: "Realizada",          bg: "#ecfdf5", fg: "#065f46", br: "#a7f3d0" },
+      cancelled:  { icon: "❌", label: "Cancelada",          bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
+      no_show:    { icon: "⚠️", label: "Faltou",             bg: "#fffbeb", fg: "#92400e", br: "#fde68a" },
+    };
+    return map[s] || { icon: "👤", label: s, bg: "#f3f4f6", fg: "#111827", br: "#e5e7eb" };
+  }
+
   // ---------- Estado ----------
   let G = {
     sessionUser: null,
@@ -486,7 +504,7 @@
     }
   }
 
-  // ✅ MELHORIA: linha agenda na ordem pedida + letra maior
+  // ✅ MELHORIA: linha agenda na ordem pedida + letra maior + nome sem corte + estado com destaque
   function renderAgendaList() {
     const ul = document.getElementById("agendaList");
     if (!ul) return;
@@ -517,6 +535,8 @@
             : clinicId || "—";
 
         const status = r.status ?? "scheduled";
+        const meta = statusMeta(status);
+
         const proc = r.procedure_type ?? "—";
         const notes = r.notes ? clipOneLine(r.notes, 110) : "";
 
@@ -526,16 +546,19 @@
 
         return `
         <li data-appt-id="${escapeHtml(r.id)}" style="padding:10px 0; border-bottom:1px solid #f2f2f2;">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-            <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div style="display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; width:100%;">
+
               <!-- hora -->
-              <div style="font-size:${UI.fs16}px; font-weight:800; color:#111; min-width: 96px;">
+              <div style="font-size:${UI.fs16}px; font-weight:900; color:#111; min-width: 104px; padding-top:2px;">
                 ${escapeHtml(tStart)}${tEnd ? `–${escapeHtml(tEnd)}` : ""}
               </div>
 
-              <!-- doente -->
-              <div style="min-width: 240px;">
-                <span data-patient-open="1" style="font-size:${UI.fs14}px; color:#111; font-weight:800; cursor:pointer; text-decoration:underline;">
+              <!-- doente (✅ maior + wrap, sem corte) -->
+              <div style="flex: 1 1 320px; min-width: 280px;">
+                <span data-patient-open="1"
+                      style="display:block; font-size:${UI.fs18}px; line-height:1.15; color:#111; font-weight:950; cursor:pointer; text-decoration:underline;
+                             white-space:normal; overflow-wrap:anywhere; word-break:break-word;">
                   ${escapeHtml(patientName)}
                 </span>
               </div>
@@ -543,28 +566,50 @@
               <!-- tipo -->
               <div style="min-width: 220px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">Tipo</div>
-                <div style="font-size:${UI.fs13}px; color:#111; font-weight:600;">${escapeHtml(proc)}</div>
+                <div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(proc)}</div>
               </div>
 
-              <!-- estado -->
-              <div style="min-width: 180px;">
+              <!-- estado (✅ destaque + ícone + select editável) -->
+              <div style="min-width: 240px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">Estado</div>
-                <select data-status-select="1"
-                        style="padding:9px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
-                  ${STATUS_OPTIONS.map((s) => `<option value="${escapeHtml(s)}"${s === status ? " selected" : ""}>${escapeHtml(s)}</option>`).join("")}
-                </select>
+
+                <div style="margin-top:6px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                  <span style="display:inline-flex; align-items:center; gap:8px; padding:7px 10px; border-radius:999px;
+                               border:1px solid ${escapeHtml(meta.br)}; background:${escapeHtml(meta.bg)}; color:${escapeHtml(meta.fg)};
+                               font-weight:900; font-size:${UI.fs13}px;">
+                    <span aria-hidden="true">${escapeHtml(meta.icon)}</span>
+                    <span>${escapeHtml(meta.label)}</span>
+                  </span>
+
+                  <select data-status-select="1"
+                          style="padding:9px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
+                    ${STATUS_OPTIONS.map((s) => {
+                      const m = statusMeta(s);
+                      // texto com ícone para facilitar na secretária
+                      const optLabel =
+                        s === "scheduled" ? `${m.icon} marcada` :
+                        s === "confirmed" ? `${m.icon} confirmada` :
+                        s === "arrived" ? `${m.icon} chegou` :
+                        s === "done" ? `${m.icon} realizada` :
+                        s === "cancelled" ? `${m.icon} cancelada` :
+                        s === "no_show" ? `${m.icon} faltou` :
+                        `${m.icon} ${s}`;
+                      return `<option value="${escapeHtml(s)}"${s === status ? " selected" : ""}>${escapeHtml(optLabel)}</option>`;
+                    }).join("")}
+                  </select>
+                </div>
               </div>
 
               <!-- clínica -->
               <div style="min-width: 160px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">Clínica</div>
-                <div style="font-size:${UI.fs13}px; color:#111; font-weight:600;">${escapeHtml(clinicName)}</div>
+                <div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(clinicName)}</div>
               </div>
 
               <!-- telefone -->
               <div style="min-width: 160px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">Telefone</div>
-                <div style="font-size:${UI.fs13}px; color:#111; font-weight:600;">${escapeHtml(patientPhone)}</div>
+                <div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(patientPhone)}</div>
               </div>
             </div>
           </div>
@@ -667,7 +712,7 @@
         return `
           <div data-pid="${escapeHtml(p.id)}"
                style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:pointer;">
-            <div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.full_name)}</div>
+            <div style="font-size:${UI.fs13}px; color:#111; font-weight:700; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">${escapeHtml(p.full_name)}</div>
             <div style="font-size:${UI.fs12}px; color:#666;">${escapeHtml(line2Parts || "—")}</div>
           </div>
         `;
@@ -1454,7 +1499,7 @@
             return `
             <div data-pid="${escapeHtml(p.id)}" data-pname="${escapeHtml(p.full_name)}"
                  style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:pointer;">
-              <div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.full_name)}</div>
+              <div style="font-size:${UI.fs13}px; color:#111; font-weight:700; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">${escapeHtml(p.full_name)}</div>
               <div style="font-size:${UI.fs12}px; color:#666;">${escapeHtml(idLine || "—")}</div>
             </div>
           `;
