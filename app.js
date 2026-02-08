@@ -9,6 +9,7 @@
    - ✅ Mostrar notas (appointments.notes) na lista da agenda
    - ✅ Agenda mostra Nome do doente + Telefone (patients)
    - ✅ Linha agenda: Hora | Doente | Tipo | Estado | Clínica | Telefone (alinhado em grelha)
+   - ✅ Estado: 1 coluna `status` (appointments) com 5 estados (scheduled/arrived/done/no_show/honoraria_waived)
    - ✅ Estado: pílula com cor + clique para selecionar (o próprio select é o “modelo”)
    - ✅ UI topo: Calendário/Hoj e à esquerda, Nova marcação maior e mais destacada, Atualizar ao lado do doente selecionado
    ========================================================= */
@@ -309,25 +310,19 @@
     "Outro",
   ];
 
-  const STATUS_OPTIONS = ["scheduled", "confirmed", "arrived", "done", "cancelled", "no_show"];
+  // ✅ Decisão FINAL: 1 coluna `status` com 5 estados (sem confirmed/cancelled)
+  const STATUS_OPTIONS = ["scheduled", "arrived", "done", "no_show", "honoraria_waived"];
   const DURATION_OPTIONS = [15, 20, 30, 45, 60];
 
-  // ✅ Estado com cores (como pediste)
+  // ✅ Estado com ícones/cores e labels finais
   function statusMeta(statusRaw) {
     const s = String(statusRaw || "scheduled").toLowerCase();
     const map = {
-      // Marcada: azul
-      scheduled: { icon: "👤", label: "Marcada", bg: "#eff6ff", fg: "#1d4ed8", br: "#bfdbfe" },
-      // Confirmada: azul mais forte (ou semelhante)
-      confirmed: { icon: "👤", label: "Confirmada", bg: "#dbeafe", fg: "#1e40af", br: "#93c5fd" },
-      // Chegou: amarelo
-      arrived: { icon: "⏳", label: "Chegou (AVISAR)", bg: "#fffbeb", fg: "#92400e", br: "#fde68a" },
-      // Realizada: verde
-      done: { icon: "✅", label: "Realizada", bg: "#ecfdf5", fg: "#065f46", br: "#a7f3d0" },
-      // Cancelada: vermelho
-      cancelled: { icon: "❌", label: "Cancelada", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
-      // Faltou: vermelho (como pediste)
-      no_show: { icon: "⚠️", label: "Faltou", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
+      scheduled: { icon: "👤", label: "Marcada", bg: "#eff6ff", fg: "#1d4ed8", br: "#bfdbfe" }, // azul
+      arrived: { icon: "⏳", label: "Chegou / Em espera", bg: "#fffbeb", fg: "#92400e", br: "#fde68a" }, // amarelo (sem AVISAR)
+      done: { icon: "✅", label: "Realizada", bg: "#ecfdf5", fg: "#065f46", br: "#a7f3d0" }, // verde
+      no_show: { icon: "❌", label: "Faltou", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" }, // vermelho
+      honoraria_waived: { icon: "🎁", label: "Honorários dispensados", bg: "#f5f3ff", fg: "#5b21b6", br: "#ddd6fe" }, // roxo discreto
     };
     return map[s] || map.scheduled;
   }
@@ -1277,7 +1272,6 @@
   }
 
   function openApptModal({ mode, row }) {
-    // mantido (igual ao teu ficheiro anterior)
     const root = document.getElementById("modalRoot");
     if (!root) return;
 
@@ -1311,6 +1305,11 @@
     const procIsOther = procInit && !PROCEDURE_OPTIONS.includes(procInit) ? true : procInit === "Outro";
     const procSelectValue = procIsOther ? "Outro" : procInit || "";
 
+    function optLabel(s) {
+      const m = statusMeta(s);
+      return `${m.icon} ${m.label}`;
+    }
+
     root.innerHTML = `
       <div id="modalOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
         <div style="background:#fff; width:min(860px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 86vh; overflow:auto;">
@@ -1333,9 +1332,9 @@
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Status</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">Estado</label>
               <select id="mStatus" class="gcSelect">
-                ${STATUS_OPTIONS.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("")}
+                ${STATUS_OPTIONS.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(optLabel(s))}</option>`).join("")}
               </select>
             </div>
 
@@ -1454,7 +1453,7 @@
       if (G.clinics.length === 1) mClinic.disabled = true;
     }
 
-    if (mStatus) mStatus.value = statusInit;
+    if (mStatus) mStatus.value = STATUS_OPTIONS.includes(statusInit) ? statusInit : "scheduled";
     if (mStart) mStart.value = toLocalInputValue(startInit);
     if (mDuration) mDuration.value = String(durationBest);
     if (mProc) mProc.value = procSelectValue;
@@ -1571,7 +1570,6 @@
         return;
       }
 
-      // Mantido igual ao teu fluxo anterior (form + validação + RPC)
       host.innerHTML = `
         <div id="subNewPatient" style="border:1px solid #eee; border-radius:12px; padding:12px; background:#fafafa;">
           <div style="font-size:${UI.fs13}px; font-weight:800; color:#111;">Novo doente</div>
@@ -1835,12 +1833,14 @@
       const proc = getProcedureValue();
       const autoTitle = makeAutoTitle(pname, proc);
 
+      const statusVal = mStatus && mStatus.value ? String(mStatus.value) : "scheduled";
+
       const payload = {
         clinic_id: mClinic.value,
         patient_id: pid,
         start_at: times.startAt,
         end_at: times.endAt,
-        status: mStatus && mStatus.value ? mStatus.value : "scheduled",
+        status: STATUS_OPTIONS.includes(statusVal) ? statusVal : "scheduled",
         procedure_type: proc ? proc : null,
         title: autoTitle,
         notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
@@ -1865,7 +1865,6 @@
       } catch (e) {
         console.error("Guardar marcação falhou:", e);
         mMsg.style.color = "#b00020";
-        mMsg.text
         mMsg.textContent = "Erro ao guardar. Vê a consola.";
         btnSave.disabled = false;
       }
