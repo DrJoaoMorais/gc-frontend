@@ -2008,4 +2008,34 @@
       if (sel) sel.addEventListener("change", refreshAgenda);
 
       const btnRefresh = document.getElementById("btnRefreshAgenda");
-      if (btnRefresh) btnRefresh.add
+      if (btnRefresh) btnRefresh.addEventListener("click", refreshAgenda);
+
+      const btnNew = document.getElementById("btnNewAppt");
+      if (btnNew) btnNew.addEventListener("click", () => openApptModal({ mode: "new", row: null }));
+
+      const btnCal = document.getElementById("btnCal");
+      if (btnCal) btnCal.addEventListener("click", openCalendarOverlay);
+
+      const btnToday = document.getElementById("btnToday");
+      if (btnToday) {
+        btnToday.addEventListener("click", async () => {
+          G.selectedDayISO = fmtDateISO(new Date());
+          setAgendaSubtitleForSelectedDay();
+          await refreshAgenda();
+        });
+      }
+
+      if (btnNew && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
+        btnNew.disabled = true;
+        btnNew.title = "Sem permissão para criar marcações.";
+      }
+
+      await refreshAgenda();
+    } catch (e) {
+      console.error("Boot falhou:", e);
+      document.body.textContent = "Erro ao iniciar a app. Abre a consola para detalhe.";
+    }
+  }
+
+  boot();
+})();
