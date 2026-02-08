@@ -8,12 +8,21 @@
    - ✅ Pesquisa no modal também por SNS/NIF/Telefone/Passaporte
    - ✅ Mostrar notas (appointments.notes) na lista da agenda
    - ✅ Agenda mostra Nome do doente + Telefone (patients)
-   - ✅ Linha agenda: Hora | Doente | Tipo | Telefone | Clínica + Status editável
+   - ✅ Linha agenda: Hora | Doente | Tipo | Estado | Clínica | Telefone + Status editável
    - ✅ NOVO (FIX): Abrir doente com ecrã de detalhe + botão "Editar" + Guardar alterações (update patients)
+   - ✅ MELHORIA (UI): letra maior + reorganização da linha da agenda (como pedido)
    ========================================================= */
 
 (function () {
   "use strict";
+
+  // ===== UI SCALE (apenas agenda + shell) =====
+  const UI = {
+    fs12: 13,
+    fs13: 14,
+    fs14: 15,
+    fs16: 17,
+  };
 
   function hardRedirect(path) {
     window.location.replace(path);
@@ -316,16 +325,16 @@
   // ---------- Render shell ----------
   function renderAppShell() {
     document.body.innerHTML = `
-      <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px;">
+      <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; font-size:${UI.fs14}px;">
         <header style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:12px 14px; border:1px solid #e5e5e5; border-radius:12px;">
-          <div style="display:flex; flex-direction:column; gap:4px; min-width: 260px;">
-            <div style="font-size:14px; color:#111; font-weight:600;">Sessão ativa</div>
-            <div style="font-size:12px; color:#444;"><span style="color:#666;">Email:</span> <span id="hdrEmail">—</span></div>
-            <div style="font-size:12px; color:#444;"><span style="color:#666;">Role:</span> <span id="hdrRole">—</span></div>
-            <div style="font-size:12px; color:#444;"><span style="color:#666;">Clínicas:</span> <span id="hdrClinicCount">0</span></div>
+          <div style="display:flex; flex-direction:column; gap:6px; min-width: 260px;">
+            <div style="font-size:${UI.fs14}px; color:#111; font-weight:700;">Sessão ativa</div>
+            <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Email:</span> <span id="hdrEmail">—</span></div>
+            <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Role:</span> <span id="hdrRole">—</span></div>
+            <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Clínicas:</span> <span id="hdrClinicCount">0</span></div>
           </div>
 
-          <button id="btnLogout" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
+          <button id="btnLogout" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
             Logout
           </button>
         </header>
@@ -334,29 +343,29 @@
           <section style="padding:12px 14px; border:1px solid #eee; border-radius:12px;">
             <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
               <div>
-                <div style="font-size:14px; color:#111; font-weight:600;">Agenda</div>
-                <div style="font-size:12px; color:#666; margin-top:4px;" id="agendaSubtitle">—</div>
+                <div style="font-size:${UI.fs16}px; color:#111; font-weight:800;">Agenda</div>
+                <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;" id="agendaSubtitle">—</div>
               </div>
 
               <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
-                <button id="btnCal" title="Calendário" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
+                <button id="btnCal" title="Calendário" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
                   Calendário
                 </button>
 
-                <button id="btnToday" title="Voltar a hoje" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
+                <button id="btnToday" title="Voltar a hoje" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
                   Hoje
                 </button>
 
                 <div style="display:flex; flex-direction:column; gap:4px;">
-                  <label for="selClinic" style="font-size:12px; color:#666;">Clínica</label>
-                  <select id="selClinic" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; min-width: 240px;"></select>
+                  <label for="selClinic" style="font-size:${UI.fs12}px; color:#666;">Clínica</label>
+                  <select id="selClinic" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; min-width: 240px; font-size:${UI.fs13}px;"></select>
                 </div>
 
-                <button id="btnNewAppt" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
+                <button id="btnNewAppt" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
                   Nova marcação
                 </button>
 
-                <button id="btnRefreshAgenda" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
+                <button id="btnRefreshAgenda" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
                   Atualizar
                 </button>
               </div>
@@ -364,26 +373,26 @@
 
             <div style="margin-top:12px; display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
               <div style="flex:1; min-width: 320px;">
-                <div style="font-size:12px; color:#666; margin-bottom:6px;">Pesquisa de doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
+                <div style="font-size:${UI.fs12}px; color:#666; margin-bottom:6px;">Pesquisa de doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
                 <input id="pQuickQuery" type="text" placeholder="ex.: Man… | 916… | 123456789"
                   autocomplete="off" autocapitalize="off" spellcheck="false"
-                  style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%;" />
+                  style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;" />
                 <div id="pQuickResults" style="margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:180px; overflow:auto;">
-                  <div style="font-size:12px; color:#666;">Escreve para pesquisar.</div>
+                  <div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>
                 </div>
               </div>
 
               <div style="width: 340px; min-width: 280px;">
-                <div style="font-size:12px; color:#666; margin-bottom:6px;">Selecionado</div>
-                <div id="pQuickSelected" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fafafa; min-height: 42px; display:flex; align-items:center; color:#111;">
+                <div style="font-size:${UI.fs12}px; color:#666; margin-bottom:6px;">Selecionado</div>
+                <div id="pQuickSelected" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fafafa; min-height: 42px; display:flex; align-items:center; color:#111; font-size:${UI.fs13}px;">
                   —
                 </div>
                 <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-                  <button id="btnQuickOpen" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
+                  <button id="btnQuickOpen" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
                     Ver doente
                   </button>
                 </div>
-                <div id="pQuickMsg" style="margin-top:8px; font-size:12px; color:#666;"></div>
+                <div id="pQuickMsg" style="margin-top:8px; font-size:${UI.fs12}px; color:#666;"></div>
               </div>
             </div>
 
@@ -412,7 +421,7 @@
     if (!el) return;
 
     const color = kind === "loading" ? "#666" : kind === "error" ? "#b00020" : kind === "ok" ? "#111" : "#666";
-    el.innerHTML = `<div style="font-size:12px; color:${color};">${escapeHtml(text)}</div>`;
+    el.innerHTML = `<div style="font-size:${UI.fs12}px; color:${color};">${escapeHtml(text)}</div>`;
   }
 
   function renderClinicsSelect(clinics) {
@@ -477,6 +486,7 @@
     }
   }
 
+  // ✅ MELHORIA: linha agenda na ordem pedida + letra maior
   function renderAgendaList() {
     const ul = document.getElementById("agendaList");
     if (!ul) return;
@@ -485,7 +495,7 @@
     const timeColUsed = G.agenda.timeColUsed || "start_at";
 
     if (rows.length === 0) {
-      ul.innerHTML = `<li style="padding:10px 0; font-size:12px; color:#666;">Sem marcações para este dia.</li>`;
+      ul.innerHTML = `<li style="padding:10px 0; font-size:${UI.fs12}px; color:#666;">Sem marcações para este dia.</li>`;
       return;
     }
 
@@ -517,42 +527,49 @@
         return `
         <li data-appt-id="${escapeHtml(r.id)}" style="padding:10px 0; border-bottom:1px solid #f2f2f2;">
           <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-            <div style="display:flex; gap:14px; align-items:baseline; flex-wrap:wrap;">
-              <div style="font-size:14px; font-weight:700; color:#111; min-width: 96px;">
+            <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+              <!-- hora -->
+              <div style="font-size:${UI.fs16}px; font-weight:800; color:#111; min-width: 96px;">
                 ${escapeHtml(tStart)}${tEnd ? `–${escapeHtml(tEnd)}` : ""}
               </div>
 
-              <div style="display:flex; flex-direction:column; gap:2px; min-width: 220px;">
-                <div>
-                  <span data-patient-open="1" style="font-size:13px; color:#111; font-weight:700; cursor:pointer; text-decoration:underline;">
-                    ${escapeHtml(patientName)}
-                  </span>
-                </div>
-                <div style="font-size:12px; color:#666;">
-                  Tel: ${escapeHtml(patientPhone)}
-                </div>
+              <!-- doente -->
+              <div style="min-width: 240px;">
+                <span data-patient-open="1" style="font-size:${UI.fs14}px; color:#111; font-weight:800; cursor:pointer; text-decoration:underline;">
+                  ${escapeHtml(patientName)}
+                </span>
               </div>
 
-              <div style="display:flex; flex-direction:column; gap:2px; min-width: 180px;">
-                <div style="font-size:12px; color:#666;">Tipo</div>
-                <div style="font-size:13px; color:#111;">${escapeHtml(proc)}</div>
+              <!-- tipo -->
+              <div style="min-width: 220px;">
+                <div style="font-size:${UI.fs12}px; color:#666;">Tipo</div>
+                <div style="font-size:${UI.fs13}px; color:#111; font-weight:600;">${escapeHtml(proc)}</div>
               </div>
-            </div>
 
-            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-              <div style="font-size:12px; color:#666;">${escapeHtml(clinicName)}</div>
-
-              <div style="display:flex; flex-direction:column; gap:4px; min-width: 160px;">
-                <div style="font-size:12px; color:#666;">Estado</div>
+              <!-- estado -->
+              <div style="min-width: 180px;">
+                <div style="font-size:${UI.fs12}px; color:#666;">Estado</div>
                 <select data-status-select="1"
-                        style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
+                        style="padding:9px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
                   ${STATUS_OPTIONS.map((s) => `<option value="${escapeHtml(s)}"${s === status ? " selected" : ""}>${escapeHtml(s)}</option>`).join("")}
                 </select>
+              </div>
+
+              <!-- clínica -->
+              <div style="min-width: 160px;">
+                <div style="font-size:${UI.fs12}px; color:#666;">Clínica</div>
+                <div style="font-size:${UI.fs13}px; color:#111; font-weight:600;">${escapeHtml(clinicName)}</div>
+              </div>
+
+              <!-- telefone -->
+              <div style="min-width: 160px;">
+                <div style="font-size:${UI.fs12}px; color:#666;">Telefone</div>
+                <div style="font-size:${UI.fs13}px; color:#111; font-weight:600;">${escapeHtml(patientPhone)}</div>
               </div>
             </div>
           </div>
 
-          ${notes ? `<div style="margin-top:6px; font-size:12px; color:#444;">Notas: ${escapeHtml(notes)}</div>` : ""}
+          ${notes ? `<div style="margin-top:6px; font-size:${UI.fs12}px; color:#444;">Notas: ${escapeHtml(notes)}</div>` : ""}
         </li>
       `;
       })
@@ -633,7 +650,7 @@
     if (!host) return;
 
     if (!results || results.length === 0) {
-      host.innerHTML = `<div style="font-size:12px; color:#666;">Sem resultados.</div>`;
+      host.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Sem resultados.</div>`;
       return;
     }
 
@@ -650,8 +667,8 @@
         return `
           <div data-pid="${escapeHtml(p.id)}"
                style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:pointer;">
-            <div style="font-size:13px; color:#111; font-weight:600;">${escapeHtml(p.full_name)}</div>
-            <div style="font-size:12px; color:#666;">${escapeHtml(line2Parts || "—")}</div>
+            <div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.full_name)}</div>
+            <div style="font-size:${UI.fs12}px; color:#666;">${escapeHtml(line2Parts || "—")}</div>
           </div>
         `;
       })
@@ -735,148 +752,148 @@
           <div style="background:#fff; width:min(920px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 86vh; overflow:auto;">
             <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
               <div>
-                <div style="font-size:14px; font-weight:700; color:#111;">Doente</div>
-                <div style="font-size:12px; color:#666; margin-top:4px;">${escapeHtml(p.id)}</div>
-                <div style="font-size:12px; color:#666; margin-top:4px;">${escapeHtml(topSubtitle)}</div>
+                <div style="font-size:${UI.fs14}px; font-weight:800; color:#111;">Doente</div>
+                <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">${escapeHtml(p.id)}</div>
+                <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">${escapeHtml(topSubtitle)}</div>
               </div>
               <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                <button id="btnToggleEdit" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
+                <button id="btnToggleEdit" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
                   ${editMode ? "Cancelar edição" : "Editar doente"}
                 </button>
-                <button id="btnClosePView" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">Fechar</button>
+                <button id="btnClosePView" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">Fechar</button>
               </div>
             </div>
 
             <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
               <div style="grid-column: 1 / -1; padding:12px; border:1px solid #eee; border-radius:12px; background:#fafafa;">
-                <div style="font-size:13px; font-weight:700; color:#111;">
-                  ${editMode ? `<input id="peFullName" type="text" value="${escapeHtml(p.full_name || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />`
+                <div style="font-size:${UI.fs14}px; font-weight:900; color:#111;">
+                  ${editMode ? `<input id="peFullName" type="text" value="${escapeHtml(p.full_name || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
                              : escapeHtml(p.full_name || "—")}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-                <div style="font-size:12px; color:#666;">Data nascimento</div>
+                <div style="font-size:${UI.fs12}px; color:#666;">Data nascimento</div>
                 <div style="margin-top:6px;">
                   ${editMode
-                    ? `<input id="peDob" type="date" value="${escapeHtml(p.dob ? String(p.dob).slice(0,10) : "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />`
-                    : `<div style="font-size:13px; color:#111; font-weight:600;">${escapeHtml(p.dob ? String(p.dob).slice(0,10) : "—")}</div>`}
+                    ? `<input id="peDob" type="date" value="${escapeHtml(p.dob ? String(p.dob).slice(0,10) : "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.dob ? String(p.dob).slice(0,10) : "—")}</div>`}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-                <div style="font-size:12px; color:#666;">Telefone</div>
+                <div style="font-size:${UI.fs12}px; color:#666;">Telefone</div>
                 <div style="margin-top:6px;">
                   ${editMode
-                    ? `<input id="pePhone" type="text" value="${escapeHtml(p.phone || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />`
-                    : `<div style="font-size:13px; color:#111; font-weight:600;">${escapeHtml(p.phone || "—")}</div>`}
+                    ? `<input id="pePhone" type="text" value="${escapeHtml(p.phone || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.phone || "—")}</div>`}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-                <div style="font-size:12px; color:#666;">Email</div>
+                <div style="font-size:${UI.fs12}px; color:#666;">Email</div>
                 <div style="margin-top:6px;">
                   ${editMode
-                    ? `<input id="peEmail" type="email" value="${escapeHtml(p.email || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />`
-                    : `<div style="font-size:13px; color:#111; font-weight:600;">${escapeHtml(p.email || "—")}</div>`}
+                    ? `<input id="peEmail" type="email" value="${escapeHtml(p.email || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.email || "—")}</div>`}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-                <div style="font-size:12px; color:#666;">SNS (9 dígitos)</div>
+                <div style="font-size:${UI.fs12}px; color:#666;">SNS (9 dígitos)</div>
                 <div style="margin-top:6px;">
                   ${editMode
-                    ? `<input id="peSNS" type="text" inputmode="numeric" value="${escapeHtml(p.sns || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />`
-                    : `<div style="font-size:13px; color:#111; font-weight:600;">${escapeHtml(p.sns || "—")}</div>`}
+                    ? `<input id="peSNS" type="text" inputmode="numeric" value="${escapeHtml(p.sns || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.sns || "—")}</div>`}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-                <div style="font-size:12px; color:#666;">NIF (9 dígitos)</div>
+                <div style="font-size:${UI.fs12}px; color:#666;">NIF (9 dígitos)</div>
                 <div style="margin-top:6px;">
                   ${editMode
-                    ? `<input id="peNIF" type="text" inputmode="numeric" value="${escapeHtml(p.nif || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />`
-                    : `<div style="font-size:13px; color:#111; font-weight:600;">${escapeHtml(p.nif || "—")}</div>`}
+                    ? `<input id="peNIF" type="text" inputmode="numeric" value="${escapeHtml(p.nif || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.nif || "—")}</div>`}
                 </div>
               </div>
 
               <div style="grid-column: 1 / -1; padding:12px; border:1px solid #eee; border-radius:12px;">
-                <div style="font-size:12px; color:#666;">Passaporte/ID</div>
+                <div style="font-size:${UI.fs12}px; color:#666;">Passaporte/ID</div>
                 <div style="margin-top:6px;">
                   ${editMode
-                    ? `<input id="pePassport" type="text" value="${escapeHtml(p.passport_id || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />`
-                    : `<div style="font-size:13px; color:#111; font-weight:600;">${escapeHtml(p.passport_id || "—")}</div>`}
+                    ? `<input id="pePassport" type="text" value="${escapeHtml(p.passport_id || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.passport_id || "—")}</div>`}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-                <div style="font-size:12px; color:#666;">Seguro</div>
+                <div style="font-size:${UI.fs12}px; color:#666;">Seguro</div>
                 <div style="margin-top:6px;">
                   ${editMode
-                    ? `<input id="peInsProv" type="text" value="${escapeHtml(p.insurance_provider || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />`
-                    : `<div style="font-size:13px; color:#111; font-weight:600;">${escapeHtml(p.insurance_provider || "—")}</div>`}
+                    ? `<input id="peInsProv" type="text" value="${escapeHtml(p.insurance_provider || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.insurance_provider || "—")}</div>`}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-                <div style="font-size:12px; color:#666;">Apólice</div>
+                <div style="font-size:${UI.fs12}px; color:#666;">Apólice</div>
                 <div style="margin-top:6px;">
                   ${editMode
-                    ? `<input id="peInsPol" type="text" value="${escapeHtml(p.insurance_policy_number || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />`
-                    : `<div style="font-size:13px; color:#111; font-weight:600;">${escapeHtml(p.insurance_policy_number || "—")}</div>`}
+                    ? `<input id="peInsPol" type="text" value="${escapeHtml(p.insurance_policy_number || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.insurance_policy_number || "—")}</div>`}
                 </div>
               </div>
 
               <div style="grid-column: 1 / -1; padding:12px; border:1px solid #eee; border-radius:12px;">
-                <div style="font-size:12px; color:#666;">Morada</div>
+                <div style="font-size:${UI.fs12}px; color:#666;">Morada</div>
                 <div style="margin-top:6px;">
                   ${editMode
-                    ? `<input id="peAddr" type="text" value="${escapeHtml(p.address_line1 || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />`
-                    : `<div style="font-size:13px; color:#111; font-weight:600;">${escapeHtml(p.address_line1 || "—")}</div>`}
+                    ? `<input id="peAddr" type="text" value="${escapeHtml(p.address_line1 || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.address_line1 || "—")}</div>`}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-                <div style="font-size:12px; color:#666;">Código-postal</div>
+                <div style="font-size:${UI.fs12}px; color:#666;">Código-postal</div>
                 <div style="margin-top:6px;">
                   ${editMode
-                    ? `<input id="pePostal" type="text" value="${escapeHtml(p.postal_code || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />`
-                    : `<div style="font-size:13px; color:#111; font-weight:600;">${escapeHtml(p.postal_code || "—")}</div>`}
+                    ? `<input id="pePostal" type="text" value="${escapeHtml(p.postal_code || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.postal_code || "—")}</div>`}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-                <div style="font-size:12px; color:#666;">Cidade</div>
+                <div style="font-size:${UI.fs12}px; color:#666;">Cidade</div>
                 <div style="margin-top:6px;">
                   ${editMode
-                    ? `<input id="peCity" type="text" value="${escapeHtml(p.city || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />`
-                    : `<div style="font-size:13px; color:#111; font-weight:600;">${escapeHtml(p.city || "—")}</div>`}
+                    ? `<input id="peCity" type="text" value="${escapeHtml(p.city || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.city || "—")}</div>`}
                 </div>
               </div>
 
               <div style="grid-column: 1 / -1; padding:12px; border:1px solid #eee; border-radius:12px;">
-                <div style="font-size:12px; color:#666;">País</div>
+                <div style="font-size:${UI.fs12}px; color:#666;">País</div>
                 <div style="margin-top:6px;">
                   ${editMode
-                    ? `<input id="peCountry" type="text" value="${escapeHtml(p.country || "PT")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />`
-                    : `<div style="font-size:13px; color:#111; font-weight:600;">${escapeHtml(p.country || "—")}</div>`}
+                    ? `<input id="peCountry" type="text" value="${escapeHtml(p.country || "PT")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.country || "—")}</div>`}
                 </div>
               </div>
 
               <div style="grid-column: 1 / -1; padding:12px; border:1px solid #eee; border-radius:12px;">
-                <div style="font-size:12px; color:#666;">Notas</div>
+                <div style="font-size:${UI.fs12}px; color:#666;">Notas</div>
                 <div style="margin-top:6px;">
                   ${editMode
-                    ? `<textarea id="peNotes" rows="3" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical;">${escapeHtml(p.notes || "")}</textarea>`
-                    : `<div style="font-size:13px; color:#111;">${escapeHtml(p.notes || "—")}</div>`}
+                    ? `<textarea id="peNotes" rows="3" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;">${escapeHtml(p.notes || "")}</textarea>`
+                    : `<div style="font-size:${UI.fs13}px; color:#111;">${escapeHtml(p.notes || "—")}</div>`}
                 </div>
               </div>
             </div>
 
             <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-              <div id="peMsg" style="font-size:12px; color:#666;"></div>
+              <div id="peMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
               <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                ${editMode ? `<button id="btnSavePatient" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-weight:600;">Guardar</button>` : ""}
+                ${editMode ? `<button id="btnSavePatient" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-weight:700; font-size:${UI.fs13}px;">Guardar</button>` : ""}
               </div>
             </div>
           </div>
@@ -931,7 +948,6 @@
             notes: document.getElementById("peNotes") ? document.getElementById("peNotes").value : null,
           };
 
-          // normalizar SNS/NIF no input (apenas dígitos)
           const snsEl = document.getElementById("peSNS");
           const nifEl = document.getElementById("peNIF");
           if (snsEl) snsEl.value = normalizeDigits(snsEl.value);
@@ -950,10 +966,8 @@
             const updated = await updatePatient(p.id, v.cleaned);
             if (!updated) throw new Error("Update sem retorno");
 
-            // atualizar o objeto local do modal
             Object.assign(p, updated);
 
-            // atualizar caches para agenda/pesquisa
             if (p.id) {
               G.patientsById[p.id] = Object.assign({}, (G.patientsById[p.id] || {}), {
                 id: p.id,
@@ -964,14 +978,12 @@
                 nif: p.nif,
                 passport_id: p.passport_id,
               });
-              // se for o selecionado na pesquisa rápida, atualizar também
               if (G.patientQuick && G.patientQuick.selected && G.patientQuick.selected.id === p.id) {
                 G.patientQuick.selected = Object.assign({}, G.patientQuick.selected, p);
                 renderQuickPatientSelected();
               }
             }
 
-            // refrescar lista da agenda (para atualizar nome/telefone)
             renderAgendaList();
 
             setMsg("ok", "Guardado.");
@@ -1011,7 +1023,7 @@
     async function run() {
       const term = (input.value || "").trim();
       if (!term || term.length < 2) {
-        resHost.innerHTML = `<div style="font-size:12px; color:#666;">Escreve para pesquisar.</div>`;
+        resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>`;
         setQuickPatientMsg("info", "");
         return;
       }
@@ -1019,7 +1031,7 @@
       const selClinic = document.getElementById("selClinic");
       const clinicId = selClinic && selClinic.value ? selClinic.value : null;
 
-      resHost.innerHTML = `<div style="font-size:12px; color:#666;">A pesquisar…</div>`;
+      resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">A pesquisar…</div>`;
       setQuickPatientMsg("info", "");
 
       try {
@@ -1030,7 +1042,7 @@
         if (pts.length === 0) setQuickPatientMsg("info", "Sem resultados.");
       } catch (e) {
         console.error("Pesquisa rápida de doente falhou:", e);
-        resHost.innerHTML = `<div style="font-size:12px; color:#b00020;">Erro na pesquisa. Vê a consola.</div>`;
+        resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#b00020;">Erro na pesquisa. Vê a consola.</div>`;
         setQuickPatientMsg("error", "Erro na pesquisa.");
       }
     }
@@ -1096,13 +1108,13 @@
       <div id="calOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
         <div style="background:#fff; width:min(520px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px;">
           <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
-            <button id="calPrev" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">◀</button>
-            <div style="font-size:14px; font-weight:700; color:#111;" id="calTitle">${escapeHtml(monthLabel(G.calMonth))}</div>
-            <button id="calNext" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">▶</button>
+            <button id="calPrev" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">◀</button>
+            <div style="font-size:${UI.fs14}px; font-weight:800; color:#111;" id="calTitle">${escapeHtml(monthLabel(G.calMonth))}</div>
+            <button id="calNext" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">▶</button>
           </div>
 
           <div style="margin-top:10px; display:grid; grid-template-columns: repeat(7, 1fr); gap:6px;">
-            ${weekDays.map((w) => `<div style="font-size:12px; color:#666; text-align:center; padding:6px 0;">${w}</div>`).join("")}
+            ${weekDays.map((w) => `<div style="font-size:${UI.fs12}px; color:#666; text-align:center; padding:6px 0;">${w}</div>`).join("")}
             ${cells
               .map((d) => {
                 if (!d) return `<div></div>`;
@@ -1116,14 +1128,14 @@
                   : isToday
                     ? "background:#f2f2f2; color:#111;"
                     : "background:#fff; color:#111;";
-                return `<div data-iso="${iso}" style="${base}${bg}">${d.getDate()}</div>`;
+                return `<div data-iso="${iso}" style="${base}${bg} font-size:${UI.fs13}px;">${d.getDate()}</div>`;
               })
               .join("")}
           </div>
 
           <div style="margin-top:12px; display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
-            <div style="font-size:12px; color:#666;">Clique num dia para abrir a agenda desse dia.</div>
-            <button id="calClose" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">Fechar</button>
+            <div style="font-size:${UI.fs12}px; color:#666;">Clique num dia para abrir a agenda desse dia.</div>
+            <button id="calClose" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">Fechar</button>
           </div>
         </div>
       </div>
@@ -1188,6 +1200,7 @@
   }
 
   function openApptModal({ mode, row }) {
+    // (mantido igual ao teu ficheiro; sem alterações funcionais)
     const root = document.getElementById("modalRoot");
     if (!root) return;
 
@@ -1226,62 +1239,62 @@
         <div style="background:#fff; width:min(860px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 86vh; overflow:auto;">
           <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
             <div>
-              <div style="font-size:14px; font-weight:700; color:#111;">
+              <div style="font-size:${UI.fs14}px; font-weight:800; color:#111;">
                 ${isEdit ? "Editar marcação" : "Nova marcação"}
               </div>
-              <div style="font-size:12px; color:#666; margin-top:4px;">
+              <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
                 Dia selecionado: ${escapeHtml(G.selectedDayISO)}. Doente é obrigatório.
               </div>
             </div>
-            <button id="btnCloseModal" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">Fechar</button>
+            <button id="btnCloseModal" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">Fechar</button>
           </div>
 
           <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Clínica</label>
-              <select id="mClinic" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff;"></select>
+              <label style="font-size:${UI.fs12}px; color:#666;">Clínica</label>
+              <select id="mClinic" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; font-size:${UI.fs13}px;"></select>
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Status</label>
-              <select id="mStatus" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Status</label>
+              <select id="mStatus" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; font-size:${UI.fs13}px;">
                 ${STATUS_OPTIONS.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("")}
               </select>
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Início</label>
-              <input id="mStart" type="datetime-local" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              <label style="font-size:${UI.fs12}px; color:#666;">Início</label>
+              <input id="mStart" type="datetime-local" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Duração (min)</label>
-              <select id="mDuration" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Duração (min)</label>
+              <select id="mDuration" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; font-size:${UI.fs13}px;">
                 ${DURATION_OPTIONS.map((n) => `<option value="${n}">${n}</option>`).join("")}
               </select>
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px; grid-column: 1 / -1;">
-              <label style="font-size:12px; color:#666;">Doente (obrigatório)</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">Doente (obrigatório)</label>
 
               <div style="display:grid; grid-template-columns: 1fr 320px; gap:12px; align-items:start;">
                 <div style="display:flex; flex-direction:column; gap:6px;">
                   <input id="mPatientQuery" type="text"
                     placeholder="Pesquisar por nome / SNS / NIF / telefone / Passaporte-ID (mín. 2 letras)…"
                     autocomplete="off" autocapitalize="off" spellcheck="false"
-                    style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%;" />
+                    style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;" />
                   <div id="mPatientResults" style="border:1px solid #eee; border-radius:10px; padding:8px; max-height:180px; overflow:auto; background:#fff;">
-                    <div style="font-size:12px; color:#666;">Pesquisar para mostrar resultados.</div>
+                    <div style="font-size:${UI.fs12}px; color:#666;">Pesquisar para mostrar resultados.</div>
                   </div>
                 </div>
 
                 <div style="display:flex; flex-direction:column; gap:6px;">
-                  <div style="font-size:12px; color:#666;">Selecionado</div>
-                  <div id="mPatientSelected" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; min-height: 42px; display:flex; align-items:center; color:#111;">
+                  <div style="font-size:${UI.fs12}px; color:#666;">Selecionado</div>
+                  <div id="mPatientSelected" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; min-height: 42px; display:flex; align-items:center; color:#111; font-size:${UI.fs13}px;">
                     —
                   </div>
                   <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                    <button id="btnNewPatient" style="flex:1; padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
+                    <button id="btnNewPatient" style="flex:1; padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">
                       Novo doente
                     </button>
                   </div>
@@ -1295,35 +1308,35 @@
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Tipo de consulta</label>
-              <select id="mProc" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Tipo de consulta</label>
+              <select id="mProc" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; font-size:${UI.fs13}px;">
                 <option value="">—</option>
                 ${PROCEDURE_OPTIONS.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("")}
               </select>
             </div>
 
             <div id="mProcOtherWrap" style="display:none; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Outro (texto)</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">Outro (texto)</label>
               <input id="mProcOther" type="text" placeholder="ex.: Ondas de choque" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
             </div>
 
             <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Título (automático)</label>
-              <input id="mTitleAuto" type="text" disabled style="padding:10px 12px; border-radius:10px; border:1px solid #eee; background:#fafafa;" />
+              <label style="font-size:${UI.fs12}px; color:#666;">Título (automático)</label>
+              <input id="mTitleAuto" type="text" disabled style="padding:10px 12px; border-radius:10px; border:1px solid #eee; background:#fafafa; font-size:${UI.fs13}px;" />
             </div>
 
             <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Notas</label>
-              <textarea id="mNotes" rows="3" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical;"></textarea>
+              <label style="font-size:${UI.fs12}px; color:#666;">Notas</label>
+              <textarea id="mNotes" rows="3" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;"></textarea>
             </div>
           </div>
 
           <div style="margin-top:12px; display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;">
-            <div id="mMsg" style="font-size:12px; color:#666;"></div>
+            <div id="mMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
             <div style="display:flex; gap:10px;">
-              <button id="btnCancel" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">Cancelar</button>
-              <button id="btnSave" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-weight:600;">
+              <button id="btnCancel" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">Cancelar</button>
+              <button id="btnSave" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-weight:800; font-size:${UI.fs13}px;">
                 ${isEdit ? "Guardar alterações" : "Criar marcação"}
               </button>
             </div>
@@ -1332,6 +1345,7 @@
       </div>
     `;
 
+    // --- wiring original (sem alterações de lógica) ---
     const overlay = document.getElementById("modalOverlay");
     const btnClose = document.getElementById("btnCloseModal");
     const btnCancel = document.getElementById("btnCancel");
@@ -1412,19 +1426,19 @@
       const clinicId = mClinic ? mClinic.value : "";
       const term = mPatientQuery ? mPatientQuery.value : "";
       if (!clinicId) {
-        mPatientResults.innerHTML = `<div style="font-size:12px; color:#666;">Seleciona a clínica para pesquisar doentes.</div>`;
+        mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Seleciona a clínica para pesquisar doentes.</div>`;
         return;
       }
       if (!term || term.trim().length < 2) {
-        mPatientResults.innerHTML = `<div style="font-size:12px; color:#666;">Escreve pelo menos 2 caracteres.</div>`;
+        mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve pelo menos 2 caracteres.</div>`;
         return;
       }
 
-      mPatientResults.innerHTML = `<div style="font-size:12px; color:#666;">A pesquisar…</div>`;
+      mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">A pesquisar…</div>`;
       try {
         const pts = await searchPatientsScoped({ clinicId, q: term, limit: 20 });
         if (pts.length === 0) {
-          mPatientResults.innerHTML = `<div style="font-size:12px; color:#666;">Sem resultados.</div>`;
+          mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Sem resultados.</div>`;
           return;
         }
 
@@ -1440,8 +1454,8 @@
             return `
             <div data-pid="${escapeHtml(p.id)}" data-pname="${escapeHtml(p.full_name)}"
                  style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:pointer;">
-              <div style="font-size:13px; color:#111; font-weight:600;">${escapeHtml(p.full_name)}</div>
-              <div style="font-size:12px; color:#666;">${escapeHtml(idLine || "—")}</div>
+              <div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.full_name)}</div>
+              <div style="font-size:${UI.fs12}px; color:#666;">${escapeHtml(idLine || "—")}</div>
             </div>
           `;
           })
@@ -1459,7 +1473,7 @@
         });
       } catch (e) {
         console.error("Pesquisa doente falhou:", e);
-        mPatientResults.innerHTML = `<div style="font-size:12px; color:#b00020;">Erro na pesquisa. Vê a consola.</div>`;
+        mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#b00020;">Erro na pesquisa. Vê a consola.</div>`;
       }
     }
 
@@ -1469,6 +1483,7 @@
     }
 
     function openNewPatientForm() {
+      // (mantido igual ao teu ficheiro)
       const clinicId = mClinic ? mClinic.value : "";
       if (!clinicId) {
         mMsg.style.color = "#b00020";
@@ -1485,105 +1500,106 @@
 
       host.innerHTML = `
         <div id="subNewPatient" style="border:1px solid #eee; border-radius:12px; padding:12px; background:#fafafa;">
-          <div style="font-size:13px; font-weight:700; color:#111;">Novo doente</div>
-          <div style="font-size:12px; color:#666; margin-top:4px;">
+          <div style="font-size:${UI.fs13}px; font-weight:800; color:#111;">Novo doente</div>
+          <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
             Nome obrigatório. Identificação: SNS (9 dígitos) ou NIF (9 dígitos) ou Passaporte/ID (4–20 alfanum).
           </div>
 
           <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Nome completo *</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">Nome completo *</label>
               <input id="npFullName" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Data nascimento</label>
-              <input id="npDob" type="date" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              <label style="font-size:${UI.fs12}px; color:#666;">Data nascimento</label>
+              <input id="npDob" type="date" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Telefone</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">Telefone</label>
               <input id="npPhone" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Email</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">Email</label>
               <input id="npEmail" type="email" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">SNS (9 dígitos)</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">SNS (9 dígitos)</label>
               <input id="npSNS" type="text" inputmode="numeric" placeholder="#########" autocomplete="off"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">NIF (9 dígitos)</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">NIF (9 dígitos)</label>
               <input id="npNIF" type="text" inputmode="numeric" placeholder="#########" autocomplete="off"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Passaporte/ID (4–20)</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">Passaporte/ID (4–20)</label>
               <input id="npPassport" type="text" placeholder="AB123456" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Seguro</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">Seguro</label>
               <input id="npInsuranceProvider" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Apólice</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">Apólice</label>
               <input id="npInsurancePolicy" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
             </div>
 
             <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Morada</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">Morada</label>
               <input id="npAddress1" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Código-postal</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">Código-postal</label>
               <input id="npPostal" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Cidade</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">Cidade</label>
               <input id="npCity" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">País</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">País</label>
               <input id="npCountry" type="text" value="PT" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
             </div>
 
             <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Notas</label>
-              <textarea id="npNotes" rows="2" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical;"></textarea>
+              <label style="font-size:${UI.fs12}px; color:#666;">Notas</label>
+              <textarea id="npNotes" rows="2" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;"></textarea>
             </div>
           </div>
 
           <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-            <div id="npMsg" style="font-size:12px; color:#666;"></div>
+            <div id="npMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
             <div style="display:flex; gap:10px;">
-              <button id="npCancel" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">Fechar</button>
-              <button id="npCreate" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-weight:600;">Criar doente</button>
+              <button id="npCancel" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px;">Fechar</button>
+              <button id="npCreate" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-weight:800; font-size:${UI.fs13}px;">Criar doente</button>
             </div>
           </div>
         </div>
       `;
 
+      // wiring igual ao teu ficheiro (sem alterações)
       const npFullName = document.getElementById("npFullName");
       const npDob = document.getElementById("npDob");
       const npPhone = document.getElementById("npPhone");
@@ -1829,7 +1845,7 @@
         if (pidEl) pidEl.value = "";
         if (pnEl) pnEl.value = "";
         if (selEl) selEl.textContent = "—";
-        if (resEl) resEl.innerHTML = `<div style="font-size:12px; color:#666;">Pesquisar para mostrar resultados.</div>`;
+        if (resEl) resEl.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Pesquisar para mostrar resultados.</div>`;
         if (host) host.innerHTML = "";
 
         updateTitleAuto();
