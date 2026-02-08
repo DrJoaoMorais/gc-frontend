@@ -4,7 +4,8 @@
    - Agenda por dia selecionado (default = hoje) + filtro por clínica (RLS)
    - Calendário mensal (overlay) para escolher dia
    - Modal marcação: doente obrigatório (pesquisa + novo doente via RPC)
-   - ✅ EDIÇÃO DE DOENTE (UI mínima) via RPC update_patient_for_clinic (SECURITY DEFINER)
+   - ✅ Pesquisa rápida de doentes (Nome/SNS/NIF/Telefone) na página principal
+   - ✅ Edição de doente (modal dedicado) via RPC update_patient_for_clinic (se existir)
    ========================================================= */
 
 (function () {
@@ -47,7 +48,6 @@
   }
 
   function parseISODateToLocalStart(dateISO) {
-    // "YYYY-MM-DD" -> Date local at 00:00
     const [y, m, d] = (dateISO || "").split("-").map((n) => parseInt(n, 10));
     if (!y || !m || !d) return null;
     return new Date(y, m - 1, d, 0, 0, 0, 0);
@@ -81,21 +81,6 @@
   function normalizeTrimOrNull(v) {
     const t = String(v ?? "").trim();
     return t ? t : null;
-  }
-
-  function isValidSNS9(v) {
-    const d = normalizeDigits(v);
-    return !d ? true : /^[0-9]{9}$/.test(d);
-  }
-
-  function isValidNIF9(v) {
-    const d = normalizeDigits(v);
-    return !d ? true : /^[0-9]{9}$/.test(d);
-  }
-
-  function isValidPassport(v) {
-    const t = String(v || "").trim();
-    return !t ? true : /^[A-Za-z0-9]{4,20}$/.test(t);
   }
 
   async function fetchMyRole(userId) {
@@ -159,30 +144,55 @@
   }
 
   // ---------- Patients ----------
-  async function searchPatients({ clinicId, q, limit = 12 }) {
-    const term = (q || "").trim();
-    if (!term || term.length < 2) return [];
-
+  async function getActivePatientIdsForClinic(clinicId) {
     const { data: pcRows, error: pcErr } = await window.sb
       .from("patient_clinic")
       .select("patient_id")
       .eq("clinic_id", clinicId)
       .eq("is_active", true)
-      .limit(200);
+      .limit(2000);
 
     if (pcErr) throw pcErr;
     const ids = (pcRows || []).map((r) => r.patient_id).filter(Boolean);
+    return ids;
+  }
+
+  // Pesquisa “inteligente”:
+  // - Nome: prefixo (Man -> Man%)
+  // - SNS/NIF: 9 dígitos (match exato)
+  // - Telefone: contém (pode dar vários)
+  async function searchPatientsSmart({ clinicId, q, limit = 20 }) {
+    const term = (q || "").trim();
+    if (!term || term.length < 2) return [];
+
+    const ids = await getActivePatientIdsForClinic(clinicId);
     if (ids.length === 0) return [];
 
-    const { data: pts, error: pErr } = await window.sb
+    const digits = normalizeDigits(term);
+
+    // Base select (inclui campos úteis para mostrar e editar)
+    let query = window.sb
       .from("patients")
       .select("id, full_name, dob, phone, email, external_id, sns, nif, passport_id, address_line1, postal_code, city, country, insurance_provider, insurance_policy_number, notes")
       .in("id", ids)
-      .ilike("full_name", `%${term}%`)
-      .eq("is_active", true)
-      .order("full_name", { ascending: true })
-      .limit(limit);
+      .eq("is_active", true);
 
+    // Heurística:
+    // - se 9 dígitos -> SNS ou NIF exato (e também tenta telefone contém)
+    // - se >=6 dígitos -> telefone contém
+    // - caso contrário -> nome prefixo + contém (fallback)
+    if (digits && digits.length === 9) {
+      // SNS/NIF exato OU telefone contém
+      query = query.or(`sns.eq.${digits},nif.eq.${digits},phone.ilike.%${digits}%`);
+    } else if (digits && digits.length >= 6) {
+      query = query.or(`phone.ilike.%${digits}%,full_name.ilike.${term}%`);
+    } else {
+      // Nome prefixo + contém (mais amigável)
+      const safe = term.replaceAll(",", " "); // evita quebrar or()
+      query = query.or(`full_name.ilike.${safe}%,full_name.ilike.%${safe}%`);
+    }
+
+    const { data: pts, error: pErr } = await query.order("full_name", { ascending: true }).limit(limit);
     if (pErr) throw pErr;
     return Array.isArray(pts) ? pts : [];
   }
@@ -190,7 +200,6 @@
   async function fetchPatientByIdForClinic({ clinicId, patientId }) {
     if (!clinicId || !patientId) return null;
 
-    // 1) confirma relação patient_clinic (RLS deve proteger, mas validamos)
     const { data: pcRows, error: pcErr } = await window.sb
       .from("patient_clinic")
       .select("patient_id")
@@ -202,7 +211,6 @@
     if (pcErr) throw pcErr;
     if (!pcRows || pcRows.length === 0) return null;
 
-    // 2) busca dados do doente
     const { data: pts, error: pErr } = await window.sb
       .from("patients")
       .select("id, full_name, dob, phone, email, external_id, sns, nif, passport_id, address_line1, postal_code, city, country, insurance_provider, insurance_policy_number, notes, is_active")
@@ -221,6 +229,7 @@
   }
 
   async function rpcUpdatePatientForClinic(payload) {
+    // Nota: esta RPC tem de existir no Supabase. Se não existir, vai dar erro claro na consola.
     const { data, error } = await window.sb.rpc("update_patient_for_clinic", payload);
     if (error) throw error;
     return data;
@@ -247,8 +256,13 @@
     clinics: [],
     clinicsById: {},
     agenda: { rows: [], timeColUsed: "start_at" },
-    selectedDayISO: fmtDateISO(new Date()), // default: hoje
-    calMonth: null, // Date (1º dia do mês) para o overlay
+    selectedDayISO: fmtDateISO(new Date()),
+    calMonth: null,
+
+    // pesquisa rápida
+    patientQuick: {
+      selected: null,
+    },
   };
 
   // ---------- Render shell ----------
@@ -268,7 +282,7 @@
           </button>
         </header>
 
-        <main style="margin-top:14px;">
+        <main style="margin-top:14px; display:grid; grid-template-columns: 1fr; gap:14px;">
           <section style="padding:12px 14px; border:1px solid #eee; border-radius:12px;">
             <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
               <div>
@@ -304,6 +318,45 @@
 
             <div style="margin-top:10px; border-top:1px solid #f0f0f0; padding-top:10px;">
               <ul id="agendaList" style="list-style:none; padding:0; margin:0;"></ul>
+            </div>
+          </section>
+
+          <!-- ✅ Pesquisa rápida de doentes -->
+          <section style="padding:12px 14px; border:1px solid #eee; border-radius:12px;">
+            <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+              <div>
+                <div style="font-size:14px; color:#111; font-weight:600;">Pesquisa rápida de doentes</div>
+                <div style="font-size:12px; color:#666; margin-top:4px;">
+                  Nome (prefixo), SNS, NIF ou Telefone (pode dar múltiplos resultados).
+                </div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+                <input id="pqQuery" type="text" placeholder="Ex.: Man / 9 dígitos (SNS/NIF) / telefone…"
+                  style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; min-width: 320px;" />
+                <button id="pqClear" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
+                  Limpar
+                </button>
+              </div>
+            </div>
+
+            <div id="pqMsg" style="margin-top:10px; font-size:12px; color:#666;"></div>
+
+            <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 320px; gap:12px; align-items:start;">
+              <div id="pqResults" style="border:1px solid #eee; border-radius:12px; padding:10px; min-height: 70px; background:#fff;">
+                <div style="font-size:12px; color:#666;">Escreve para pesquisar.</div>
+              </div>
+
+              <div style="border:1px solid #eee; border-radius:12px; padding:10px; background:#fff;">
+                <div style="font-size:12px; color:#666;">Selecionado</div>
+                <div id="pqSelected" style="margin-top:6px; font-size:13px; color:#111; font-weight:600;">—</div>
+                <div id="pqSelectedMeta" style="margin-top:4px; font-size:12px; color:#666;">—</div>
+
+                <div style="margin-top:10px; display:flex; gap:10px;">
+                  <button id="pqEdit" style="flex:1; padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;" disabled>
+                    Editar doente
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
         </main>
@@ -414,7 +467,7 @@
     return `${months[d.getMonth()]} ${d.getFullYear()}`;
   }
 
-  function buildMonthGrid(monthDate /* Date at day 1 */) {
+  function buildMonthGrid(monthDate) {
     const y = monthDate.getFullYear();
     const m = monthDate.getMonth();
 
@@ -422,9 +475,8 @@
     const last = new Date(y, m + 1, 0, 0, 0, 0, 0);
     const daysInMonth = last.getDate();
 
-    // week starts Monday; JS getDay(): 0=Sun..6=Sat
     const jsDowFirst = first.getDay();
-    const dowFirstMon0 = (jsDowFirst + 6) % 7; // Mon=0..Sun=6
+    const dowFirstMon0 = (jsDowFirst + 6) % 7;
 
     const cells = [];
     for (let i = 0; i < dowFirstMon0; i++) cells.push(null);
@@ -525,7 +577,7 @@
     });
   }
 
-  // ---------- Modal marcação ----------
+  // ---------- Modal helpers ----------
   function closeModal() {
     const root = document.getElementById("modalRoot");
     if (root) root.innerHTML = "";
@@ -546,6 +598,295 @@
     return `${n} — ${p}`;
   }
 
+  // ---------- Modal: Editar doente (dedicado) ----------
+  function openEditPatientModal({ clinicId, patientId }) {
+    const root = document.getElementById("modalRoot");
+    if (!root) return;
+
+    root.innerHTML = `
+      <div id="pModalOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
+        <div style="background:#fff; width:min(860px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 86vh; overflow:auto;">
+          <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+            <div>
+              <div style="font-size:14px; font-weight:700; color:#111;">Editar doente</div>
+              <div style="font-size:12px; color:#666; margin-top:4px;">
+                Clínica: ${escapeHtml((G.clinicsById[clinicId] && (G.clinicsById[clinicId].name || G.clinicsById[clinicId].slug)) || clinicId || "—")}
+              </div>
+            </div>
+            <button id="pBtnClose" style="padding:8px 10px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">Fechar</button>
+          </div>
+
+          <div id="pMsg" style="margin-top:10px; font-size:12px; color:#666;"></div>
+
+          <div style="margin-top:10px; border:1px solid #eee; border-radius:12px; padding:12px; background:#fafafa;">
+            <div style="font-size:12px; color:#666;">
+              Nome obrigatório. Identificação: SNS (9 dígitos) ou NIF (9 dígitos) ou Passaporte/ID (4–20 alfanum).
+            </div>
+
+            <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:12px; color:#666;">Nome completo *</label>
+                <input id="epFullName" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:12px; color:#666;">Data nascimento</label>
+                <input id="epDob" type="text" disabled style="padding:10px 12px; border-radius:10px; border:1px solid #eee; background:#fafafa;" />
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:12px; color:#666;">Telefone</label>
+                <input id="epPhone" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:12px; color:#666;">Email</label>
+                <input id="epEmail" type="email" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:12px; color:#666;">SNS (9 dígitos)</label>
+                <input id="epSNS" type="text" inputmode="numeric" placeholder="#########" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:12px; color:#666;">NIF (9 dígitos)</label>
+                <input id="epNIF" type="text" inputmode="numeric" placeholder="#########" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:12px; color:#666;">Passaporte/ID (4–20)</label>
+                <input id="epPassport" type="text" placeholder="AB123456" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:12px; color:#666;">Seguro</label>
+                <input id="epInsuranceProvider" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:12px; color:#666;">Apólice</label>
+                <input id="epInsurancePolicy" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              </div>
+
+              <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:12px; color:#666;">Morada</label>
+                <input id="epAddress1" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:12px; color:#666;">Código-postal</label>
+                <input id="epPostal" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:12px; color:#666;">Cidade</label>
+                <input id="epCity" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:12px; color:#666;">País</label>
+                <input id="epCountry" type="text" value="PT" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
+              </div>
+
+              <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
+                <label style="font-size:12px; color:#666;">Notas</label>
+                <textarea id="epNotes" rows="2" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical;"></textarea>
+              </div>
+            </div>
+
+            <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+              <div id="epMsg" style="font-size:12px; color:#666;"></div>
+              <div style="display:flex; gap:10px;">
+                <button id="epCancel" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">Cancelar</button>
+                <button id="epSave" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-weight:600;">Guardar doente</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const overlay = document.getElementById("pModalOverlay");
+    const pBtnClose = document.getElementById("pBtnClose");
+    const pMsg = document.getElementById("pMsg");
+
+    const epFullName = document.getElementById("epFullName");
+    const epDob = document.getElementById("epDob");
+    const epPhone = document.getElementById("epPhone");
+    const epEmail = document.getElementById("epEmail");
+    const epSNS = document.getElementById("epSNS");
+    const epNIF = document.getElementById("epNIF");
+    const epPassport = document.getElementById("epPassport");
+    const epInsuranceProvider = document.getElementById("epInsuranceProvider");
+    const epInsurancePolicy = document.getElementById("epInsurancePolicy");
+    const epAddress1 = document.getElementById("epAddress1");
+    const epPostal = document.getElementById("epPostal");
+    const epCity = document.getElementById("epCity");
+    const epCountry = document.getElementById("epCountry");
+    const epNotes = document.getElementById("epNotes");
+    const epMsg = document.getElementById("epMsg");
+    const epCancel = document.getElementById("epCancel");
+    const epSave = document.getElementById("epSave");
+
+    function close() {
+      closeModal();
+    }
+    if (pBtnClose) pBtnClose.addEventListener("click", close);
+    if (epCancel) epCancel.addEventListener("click", close);
+    if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "pModalOverlay") close(); });
+
+    function setTop(kind, msg) {
+      if (!pMsg) return;
+      pMsg.style.color = kind === "error" ? "#b00020" : "#666";
+      pMsg.textContent = msg;
+    }
+
+    function setErr(msg) {
+      epMsg.style.color = "#b00020";
+      epMsg.textContent = msg;
+    }
+    function setInfo(msg) {
+      epMsg.style.color = "#666";
+      epMsg.textContent = msg;
+    }
+
+    function validate() {
+      const fullName = (epFullName.value || "").trim();
+      if (!fullName) return { ok: false, msg: "Nome completo é obrigatório." };
+
+      const sns = normalizeDigits(epSNS.value);
+      const nif = normalizeDigits(epNIF.value);
+      const pass = String(epPassport.value || "").trim();
+
+      if (sns && !/^[0-9]{9}$/.test(sns)) return { ok: false, msg: "SNS inválido: tem de ter 9 dígitos." };
+      if (nif && !/^[0-9]{9}$/.test(nif)) return { ok: false, msg: "NIF inválido: tem de ter 9 dígitos." };
+      if (pass && !/^[A-Za-z0-9]{4,20}$/.test(pass)) return { ok: false, msg: "Passaporte/ID inválido: 4–20 alfanum." };
+
+      if (!sns && !nif && !pass) return { ok: false, msg: "Identificação obrigatória: SNS ou NIF ou Passaporte/ID." };
+
+      return {
+        ok: true,
+        full_name: fullName,
+        sns: sns || null,
+        nif: nif || null,
+        passport_id: pass || null,
+        phone: normalizeTrimOrNull(epPhone.value),
+        email: normalizeTrimOrNull(epEmail.value),
+        address_line1: normalizeTrimOrNull(epAddress1.value),
+        postal_code: normalizeTrimOrNull(epPostal.value),
+        city: normalizeTrimOrNull(epCity.value),
+        country: normalizeTrimOrNull(epCountry.value) || "PT",
+        insurance_provider: normalizeTrimOrNull(epInsuranceProvider.value),
+        insurance_policy_number: normalizeTrimOrNull(epInsurancePolicy.value),
+        notes: normalizeTrimOrNull(epNotes.value),
+      };
+    }
+
+    function refreshState() {
+      if (epSNS) {
+        const d = normalizeDigits(epSNS.value);
+        if (epSNS.value !== d) epSNS.value = d;
+      }
+      if (epNIF) {
+        const d = normalizeDigits(epNIF.value);
+        if (epNIF.value !== d) epNIF.value = d;
+      }
+
+      const v = validate();
+      if (!v.ok) {
+        epSave.disabled = true;
+        setErr(v.msg);
+      } else {
+        epSave.disabled = false;
+        setInfo("OK para guardar.");
+      }
+    }
+
+    [
+      epFullName, epPhone, epEmail, epSNS, epNIF, epPassport,
+      epInsuranceProvider, epInsurancePolicy, epAddress1, epPostal, epCity, epCountry, epNotes
+    ].forEach((el) => {
+      if (!el) return;
+      el.addEventListener("input", refreshState);
+      el.addEventListener("change", refreshState);
+    });
+
+    epSave.addEventListener("click", async () => {
+      const v = validate();
+      if (!v.ok) { setErr(v.msg); return; }
+
+      epSave.disabled = true;
+      setInfo("A guardar…");
+
+      try {
+        await rpcUpdatePatientForClinic({
+          p_clinic_id: clinicId,
+          p_patient_id: patientId,
+          p_full_name: v.full_name,
+          p_sns: v.sns,
+          p_nif: v.nif,
+          p_passport_id: v.passport_id,
+          p_phone: v.phone,
+          p_email: v.email,
+          p_address_line1: v.address_line1,
+          p_postal_code: v.postal_code,
+          p_city: v.city,
+          p_country: v.country,
+          p_insurance_provider: v.insurance_provider,
+          p_insurance_policy_number: v.insurance_policy_number,
+          p_notes: v.notes,
+        });
+
+        setTop("ok", "Doente atualizado.");
+        close();
+      } catch (e) {
+        console.error("Guardar doente falhou:", e);
+        const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
+        setErr(msg.includes("duplicate") ? "Identificador já existe noutro doente." : "Erro ao guardar. Vê a consola.");
+        epSave.disabled = false;
+      }
+    });
+
+    // carregar doente
+    (async () => {
+      try {
+        setTop("ok", "A carregar doente…");
+        const p = await fetchPatientByIdForClinic({ clinicId, patientId });
+        if (!p) {
+          setTop("error", "Doente não encontrado nesta clínica (ou sem permissões).");
+          epSave.disabled = true;
+          return;
+        }
+
+        epFullName.value = p.full_name || "";
+        epDob.value = p.dob ? String(p.dob) : "—";
+        epPhone.value = p.phone || "";
+        epEmail.value = p.email || "";
+        epSNS.value = p.sns || "";
+        epNIF.value = p.nif || "";
+        epPassport.value = p.passport_id || "";
+        epInsuranceProvider.value = p.insurance_provider || "";
+        epInsurancePolicy.value = p.insurance_policy_number || "";
+        epAddress1.value = p.address_line1 || "";
+        epPostal.value = p.postal_code || "";
+        epCity.value = p.city || "";
+        epCountry.value = p.country || "PT";
+        epNotes.value = p.notes || "";
+
+        setTop("ok", "Carregado.");
+        epSave.disabled = true;
+        setInfo("A validar…");
+        refreshState();
+      } catch (e) {
+        console.error("Carregar doente falhou:", e);
+        setTop("error", "Erro ao carregar doente. Vê a consola.");
+        epSave.disabled = true;
+      }
+    })();
+  }
+
+  // ---------- Modal marcação ----------
   function openApptModal({ mode, row }) {
     const root = document.getElementById("modalRoot");
     if (!root) return;
@@ -580,12 +921,9 @@
     const procIsOther = procInit && !PROCEDURE_OPTIONS.includes(procInit) ? true : procInit === "Outro";
     const procSelectValue = procIsOther ? "Outro" : procInit || "";
 
-    // estado local do modal (doente selecionado)
-    let selectedPatientObj = null;
-
     root.innerHTML = `
       <div id="modalOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
-        <div style="background:#fff; width:min(880px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 86vh; overflow:auto;">
+        <div style="background:#fff; width:min(820px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 86vh; overflow:auto;">
           <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
             <div>
               <div style="font-size:14px; font-weight:700; color:#111;">
@@ -634,26 +972,18 @@
                   </div>
                 </div>
 
-                <div style="width: 300px; display:flex; flex-direction:column; gap:6px;">
+                <div style="width: 280px; display:flex; flex-direction:column; gap:6px;">
                   <div style="font-size:12px; color:#666;">Selecionado</div>
                   <div id="mPatientSelected" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; min-height: 42px; display:flex; align-items:center; color:#111;">
                     —
                   </div>
-
-                  <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                    <button id="btnNewPatient" style="flex:1; padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
-                      Novo doente
-                    </button>
-                    <button id="btnEditPatient" style="flex:1; padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;" disabled title="Seleciona um doente">
-                      Editar doente
-                    </button>
-                  </div>
+                  <button id="btnNewPatient" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">
+                    Novo doente
+                  </button>
                 </div>
               </div>
               <input type="hidden" id="mPatientId" value="" />
               <input type="hidden" id="mPatientName" value="" />
-
-              <!-- ✅ HOST DEDICADO: sub-form (novo doente OU editar doente) -->
               <div id="newPatientHost" style="margin-top:10px;"></div>
             </div>
 
@@ -699,7 +1029,6 @@
     const btnCancel = document.getElementById("btnCancel");
     const btnSave = document.getElementById("btnSave");
     const btnNewPatient = document.getElementById("btnNewPatient");
-    const btnEditPatient = document.getElementById("btnEditPatient");
 
     const mClinic = document.getElementById("mClinic");
     const mStatus = document.getElementById("mStatus");
@@ -718,7 +1047,6 @@
     const mPatientName = document.getElementById("mPatientName");
     const mTitleAuto = document.getElementById("mTitleAuto");
 
-    // clínicas
     const clinicOpts = [];
     for (const c of G.clinics) {
       const label = c.name || c.slug || c.id;
@@ -760,64 +1088,17 @@
       updateTitleAuto();
     }
 
-    function setPatientSelected(pObj) {
-      selectedPatientObj = pObj || null;
-
-      const pid = pObj && pObj.id ? pObj.id : "";
-      const pname = pObj && pObj.full_name ? pObj.full_name : "";
-
-      if (mPatientId) mPatientId.value = pid || "";
-      if (mPatientName) mPatientName.value = pname || "";
-
-      if (mPatientSelected) {
-        if (!pObj) {
-          mPatientSelected.textContent = "—";
-        } else {
-          const bits = [];
-          if (pObj.sns) bits.push(`SNS:${pObj.sns}`);
-          if (pObj.nif) bits.push(`NIF:${pObj.nif}`);
-          if (pObj.passport_id) bits.push(`ID:${pObj.passport_id}`);
-          const idLine = bits.length ? ` (${bits.join(" / ")})` : "";
-          mPatientSelected.textContent = `${pObj.full_name || "—"}${idLine}`;
-        }
-      }
-
-      if (btnEditPatient) {
-        btnEditPatient.disabled = !pid;
-        btnEditPatient.title = pid ? "" : "Seleciona um doente";
-      }
-
-      updateTitleAuto();
-    }
-
     updateProcOtherVisibility();
     if (procIsOther && mProcOther) {
       mProcOther.value = procInit === "Outro" ? "" : procInit;
       if (mProcOtherWrap) mProcOtherWrap.style.display = "flex";
     }
 
-    // init patient selection for edit (carregar detalhes)
     if (mPatientId) mPatientId.value = patientIdInit || "";
     if (mPatientSelected) mPatientSelected.textContent = patientIdInit ? `Selecionado (ID): ${patientIdInit}` : "—";
     if (mTitleAuto) mTitleAuto.value = titleInit || "";
-    if (btnEditPatient) {
-      btnEditPatient.disabled = !patientIdInit;
-      btnEditPatient.title = patientIdInit ? "" : "Seleciona um doente";
-    }
 
-    async function hydrateInitialPatientIfNeeded() {
-      if (!patientIdInit) return;
-      const clinicId = mClinic ? mClinic.value : "";
-      if (!clinicId) return;
-      try {
-        const p = await fetchPatientByIdForClinic({ clinicId, patientId: patientIdInit });
-        if (p) setPatientSelected(p);
-      } catch (e) {
-        console.warn("Não consegui carregar detalhes do doente inicial:", e);
-      }
-    }
-
-    // search
+    // search (nome apenas, como tinhas)
     let searchTimer = null;
 
     async function runSearch() {
@@ -834,7 +1115,7 @@
 
       mPatientResults.innerHTML = `<div style="font-size:12px; color:#666;">A pesquisar…</div>`;
       try {
-        const pts = await searchPatients({ clinicId, q: term, limit: 12 });
+        const pts = await searchPatientsSmart({ clinicId, q: term, limit: 12 });
         if (pts.length === 0) {
           mPatientResults.innerHTML = `<div style="font-size:12px; color:#666;">Sem resultados.</div>`;
           return;
@@ -848,10 +1129,8 @@
             if (p.nif) idBits.push(`NIF:${p.nif}`);
             if (p.passport_id) idBits.push(`ID:${p.passport_id}`);
             const idLine = idBits.length ? ` • ${escapeHtml(idBits.join(" / "))}` : (p.external_id ? ` • ${escapeHtml(p.external_id)}` : "");
-            // guarda object completo no dataset (serializado)
-            const payload = escapeHtml(JSON.stringify(p));
             return `
-            <div data-payload="${payload}"
+            <div data-pid="${escapeHtml(p.id)}" data-pname="${escapeHtml(p.full_name)}"
                  style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:pointer;">
               <div style="font-size:13px; color:#111; font-weight:600;">${escapeHtml(p.full_name)}</div>
               <div style="font-size:12px; color:#666;">${escapeHtml(dob)}${idLine}</div>
@@ -860,22 +1139,14 @@
           })
           .join("");
 
-        mPatientResults.querySelectorAll("[data-payload]").forEach((el) => {
+        mPatientResults.querySelectorAll("[data-pid]").forEach((el) => {
           el.addEventListener("click", () => {
-            const raw = el.getAttribute("data-payload");
-            if (!raw) return;
-            try {
-              const p = JSON.parse(raw);
-              setPatientSelected(p);
-            } catch {
-              // fallback: não quebra UI
-              const pid = el.getAttribute("data-pid");
-              const pname = el.getAttribute("data-pname");
-              if (mPatientId) mPatientId.value = pid || "";
-              if (mPatientName) mPatientName.value = pname || "";
-              if (mPatientSelected) mPatientSelected.textContent = pname ? pname : pid ? `Selecionado (ID): ${pid}` : "—";
-              updateTitleAuto();
-            }
+            const pid = el.getAttribute("data-pid");
+            const pname = el.getAttribute("data-pname");
+            if (mPatientId) mPatientId.value = pid || "";
+            if (mPatientName) mPatientName.value = pname || "";
+            if (mPatientSelected) mPatientSelected.textContent = pname ? pname : pid ? `Selecionado (ID): ${pid}` : "—";
+            updateTitleAuto();
           });
         });
       } catch (e) {
@@ -889,19 +1160,6 @@
       searchTimer = setTimeout(runSearch, 250);
     }
 
-    function clearSubFormHost() {
-      const host = document.getElementById("newPatientHost");
-      if (host) host.innerHTML = "";
-    }
-
-    /* =========================================================
-       SUB-FORM NOVO DOENTE — RPC nova (17 params)
-       signature:
-       create_patient_for_clinic(
-         uuid,text,date,text,text,text,text,text,
-         text,text,text,text,text,text,text,text,text
-       )
-       ========================================================= */
     function openNewPatientForm() {
       const clinicId = mClinic ? mClinic.value : "";
       if (!clinicId) {
@@ -917,7 +1175,6 @@
         return;
       }
 
-      // limpa anterior (evita duplicados)
       host.innerHTML = "";
 
       host.innerHTML = `
@@ -1071,7 +1328,6 @@
       }
 
       function refreshButtonState() {
-        // normaliza inputs numéricos
         if (npSNS) {
           const d = normalizeDigits(npSNS.value);
           if (npSNS.value !== d) npSNS.value = d;
@@ -1115,7 +1371,6 @@
         setInfo("A criar…");
 
         try {
-          // ✅ RPC nova (17 argumentos)
           const payload = {
             p_clinic_id: clinicId,
             p_full_name: v.full_name,
@@ -1145,374 +1400,22 @@
             return;
           }
 
-          const createdObj = {
-            id: newPatientId,
-            full_name: v.full_name,
-            dob: v.dob,
-            phone: v.phone,
-            email: v.email,
-            sns: v.sns,
-            nif: v.nif,
-            passport_id: v.passport_id,
-            address_line1: v.address_line1,
-            postal_code: v.postal_code,
-            city: v.city,
-            country: v.country,
-            insurance_provider: v.insurance_provider,
-            insurance_policy_number: v.insurance_policy_number,
-            notes: v.notes,
-          };
+          mPatientId.value = newPatientId;
+          mPatientName.value = v.full_name;
+          mPatientSelected.textContent = v.full_name;
+          updateTitleAuto();
 
-          setPatientSelected(createdObj);
           host.innerHTML = "";
         } catch (e) {
           console.error("Criar doente falhou:", e);
-          const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
-
-          // mapeamento simples (se existirem nomes de constraints)
-          if (msg.includes("patients_sns_unique_not_null")) setErr("SNS já existe noutro doente.");
-          else if (msg.includes("patients_nif_unique_not_null")) setErr("NIF já existe noutro doente.");
-          else if (msg.includes("patients_passport_unique_not_null")) setErr("Passaporte/ID já existe noutro doente.");
-          else if (msg.includes("patients_sns_format_check")) setErr("SNS inválido (9 dígitos).");
-          else if (msg.includes("patients_nif_format_check")) setErr("NIF inválido (9 dígitos).");
-          else if (msg.includes("patients_passport_format_check")) setErr("Passaporte/ID inválido (4–20 alfanum).");
-          else if (msg.includes("patients_sns_or_nif_or_passport_check")) setErr("Identificação obrigatória: SNS/NIF/Passaporte.");
-          else setErr("Erro ao criar doente. Vê a consola.");
-
+          setErr("Erro ao criar doente. Vê a consola.");
           npCreate.disabled = false;
         }
       });
 
-      // estado inicial
       npCreate.disabled = true;
       setInfo("Preenche o Nome e um identificador (SNS/NIF/Passaporte).");
       refreshButtonState();
-    }
-
-    /* =========================================================
-       SUB-FORM EDITAR DOENTE — RPC update_patient_for_clinic
-       ========================================================= */
-    function openEditPatientForm() {
-      const clinicId = mClinic ? mClinic.value : "";
-      const pid = mPatientId ? mPatientId.value || "" : "";
-
-      if (!clinicId) {
-        mMsg.style.color = "#b00020";
-        mMsg.textContent = "Seleciona a clínica antes de editar doente.";
-        return;
-      }
-      if (!pid) {
-        mMsg.style.color = "#b00020";
-        mMsg.textContent = "Seleciona um doente antes de editar.";
-        return;
-      }
-
-      const host = document.getElementById("newPatientHost");
-      if (!host) {
-        mMsg.style.color = "#b00020";
-        mMsg.textContent = "Falha UI: newPatientHost não encontrado.";
-        return;
-      }
-
-      // limpa anterior
-      host.innerHTML = "";
-
-      // valores base (do objeto em memória; se não existir, tenta carregar)
-      const p = selectedPatientObj;
-
-      host.innerHTML = `
-        <div id="subEditPatient" style="border:1px solid #eee; border-radius:12px; padding:12px; background:#fafafa;">
-          <div style="font-size:13px; font-weight:700; color:#111;">Editar doente</div>
-          <div style="font-size:12px; color:#666; margin-top:4px;">
-            Nome obrigatório. Identificação: SNS (9 dígitos) ou NIF (9 dígitos) ou Passaporte/ID (4–20 alfanum).
-          </div>
-
-          <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Nome completo *</label>
-              <input id="epFullName" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Data nascimento</label>
-              <input id="epDob" type="text" disabled style="padding:10px 12px; border-radius:10px; border:1px solid #eee; background:#fafafa;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Telefone</label>
-              <input id="epPhone" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Email</label>
-              <input id="epEmail" type="email" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">SNS (9 dígitos)</label>
-              <input id="epSNS" type="text" inputmode="numeric" placeholder="#########" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">NIF (9 dígitos)</label>
-              <input id="epNIF" type="text" inputmode="numeric" placeholder="#########" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Passaporte/ID (4–20)</label>
-              <input id="epPassport" type="text" placeholder="AB123456" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Seguro</label>
-              <input id="epInsuranceProvider" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Apólice</label>
-              <input id="epInsurancePolicy" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
-            </div>
-
-            <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Morada</label>
-              <input id="epAddress1" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Código-postal</label>
-              <input id="epPostal" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Cidade</label>
-              <input id="epCity" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">País</label>
-              <input id="epCountry" type="text" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd;" />
-            </div>
-
-            <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:12px; color:#666;">Notas</label>
-              <textarea id="epNotes" rows="2" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical;"></textarea>
-            </div>
-          </div>
-
-          <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-            <div id="epMsg" style="font-size:12px; color:#666;"></div>
-            <div style="display:flex; gap:10px;">
-              <button id="epCancel" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer;">Fechar</button>
-              <button id="epSave" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-weight:600;">Guardar doente</button>
-            </div>
-          </div>
-        </div>
-      `;
-
-      const epFullName = document.getElementById("epFullName");
-      const epDob = document.getElementById("epDob");
-      const epPhone = document.getElementById("epPhone");
-      const epEmail = document.getElementById("epEmail");
-      const epSNS = document.getElementById("epSNS");
-      const epNIF = document.getElementById("epNIF");
-      const epPassport = document.getElementById("epPassport");
-      const epInsuranceProvider = document.getElementById("epInsuranceProvider");
-      const epInsurancePolicy = document.getElementById("epInsurancePolicy");
-      const epAddress1 = document.getElementById("epAddress1");
-      const epPostal = document.getElementById("epPostal");
-      const epCity = document.getElementById("epCity");
-      const epCountry = document.getElementById("epCountry");
-      const epNotes = document.getElementById("epNotes");
-      const epMsg = document.getElementById("epMsg");
-      const epCancel = document.getElementById("epCancel");
-      const epSave = document.getElementById("epSave");
-
-      function setErr(msg) {
-        epMsg.style.color = "#b00020";
-        epMsg.textContent = msg;
-      }
-      function setInfo(msg) {
-        epMsg.style.color = "#666";
-        epMsg.textContent = msg;
-      }
-
-      async function loadFreshIfNeeded() {
-        if (selectedPatientObj && selectedPatientObj.id === pid) return selectedPatientObj;
-        const fresh = await fetchPatientByIdForClinic({ clinicId, patientId: pid });
-        if (fresh) setPatientSelected(fresh);
-        return fresh;
-      }
-
-      function fillForm(x) {
-        const p0 = x || {};
-        if (epFullName) epFullName.value = p0.full_name || "";
-        if (epDob) epDob.value = p0.dob ? String(p0.dob) : "—";
-        if (epPhone) epPhone.value = p0.phone || "";
-        if (epEmail) epEmail.value = p0.email || "";
-        if (epSNS) epSNS.value = p0.sns || "";
-        if (epNIF) epNIF.value = p0.nif || "";
-        if (epPassport) epPassport.value = p0.passport_id || "";
-        if (epInsuranceProvider) epInsuranceProvider.value = p0.insurance_provider || "";
-        if (epInsurancePolicy) epInsurancePolicy.value = p0.insurance_policy_number || "";
-        if (epAddress1) epAddress1.value = p0.address_line1 || "";
-        if (epPostal) epPostal.value = p0.postal_code || "";
-        if (epCity) epCity.value = p0.city || "";
-        if (epCountry) epCountry.value = p0.country || "PT";
-        if (epNotes) epNotes.value = p0.notes || "";
-      }
-
-      function validate() {
-        const fullName = (epFullName.value || "").trim();
-        if (!fullName) return { ok: false, msg: "Nome completo é obrigatório." };
-
-        const sns = normalizeDigits(epSNS.value);
-        const nif = normalizeDigits(epNIF.value);
-        const pass = (epPassport.value || "").trim();
-
-        if (sns && !/^[0-9]{9}$/.test(sns)) return { ok: false, msg: "SNS inválido: tem de ter 9 dígitos." };
-        if (nif && !/^[0-9]{9}$/.test(nif)) return { ok: false, msg: "NIF inválido: tem de ter 9 dígitos." };
-        if (pass && !/^[A-Za-z0-9]{4,20}$/.test(pass)) return { ok: false, msg: "Passaporte/ID inválido: 4–20 alfanum." };
-
-        if (!sns && !nif && !pass) return { ok: false, msg: "Identificação obrigatória: SNS ou NIF ou Passaporte/ID." };
-
-        return {
-          ok: true,
-          full_name: fullName,
-          sns: sns || null,
-          nif: nif || null,
-          passport_id: pass || null,
-          phone: normalizeTrimOrNull(epPhone.value),
-          email: normalizeTrimOrNull(epEmail.value),
-          address_line1: normalizeTrimOrNull(epAddress1.value),
-          postal_code: normalizeTrimOrNull(epPostal.value),
-          city: normalizeTrimOrNull(epCity.value),
-          country: normalizeTrimOrNull(epCountry.value) || "PT",
-          insurance_provider: normalizeTrimOrNull(epInsuranceProvider.value),
-          insurance_policy_number: normalizeTrimOrNull(epInsurancePolicy.value),
-          notes: normalizeTrimOrNull(epNotes.value),
-        };
-      }
-
-      function refreshState() {
-        // normaliza numéricos
-        if (epSNS) {
-          const d = normalizeDigits(epSNS.value);
-          if (epSNS.value !== d) epSNS.value = d;
-        }
-        if (epNIF) {
-          const d = normalizeDigits(epNIF.value);
-          if (epNIF.value !== d) epNIF.value = d;
-        }
-
-        const v = validate();
-        if (!v.ok) {
-          epSave.disabled = true;
-          setErr(v.msg);
-        } else {
-          epSave.disabled = false;
-          setInfo("OK para guardar.");
-        }
-      }
-
-      [
-        epFullName, epPhone, epEmail, epSNS, epNIF, epPassport,
-        epInsuranceProvider, epInsurancePolicy, epAddress1, epPostal, epCity, epCountry, epNotes
-      ].forEach((el) => {
-        if (!el) return;
-        el.addEventListener("input", refreshState);
-        el.addEventListener("change", refreshState);
-      });
-
-      epCancel.addEventListener("click", () => {
-        host.innerHTML = "";
-      });
-
-      epSave.addEventListener("click", async () => {
-        const v = validate();
-        if (!v.ok) {
-          setErr(v.msg);
-          return;
-        }
-
-        epSave.disabled = true;
-        setInfo("A guardar…");
-
-        try {
-          const payload = {
-            p_clinic_id: clinicId,
-            p_patient_id: pid,
-            p_full_name: v.full_name,
-            p_sns: v.sns,
-            p_nif: v.nif,
-            p_passport_id: v.passport_id,
-            p_phone: v.phone,
-            p_email: v.email,
-            p_address_line1: v.address_line1,
-            p_postal_code: v.postal_code,
-            p_city: v.city,
-            p_country: v.country,
-            p_insurance_provider: v.insurance_provider,
-            p_insurance_policy_number: v.insurance_policy_number,
-            p_notes: v.notes,
-          };
-
-          await rpcUpdatePatientForClinic(payload);
-
-          // atualiza estado local + UI selecionado
-          const updated = Object.assign({}, (selectedPatientObj && selectedPatientObj.id === pid ? selectedPatientObj : {}), {
-            id: pid,
-            full_name: v.full_name,
-            sns: v.sns,
-            nif: v.nif,
-            passport_id: v.passport_id,
-            phone: v.phone,
-            email: v.email,
-            address_line1: v.address_line1,
-            postal_code: v.postal_code,
-            city: v.city,
-            country: v.country,
-            insurance_provider: v.insurance_provider,
-            insurance_policy_number: v.insurance_policy_number,
-            notes: v.notes,
-          });
-
-          setPatientSelected(updated);
-          host.innerHTML = "";
-          mMsg.style.color = "#111";
-          mMsg.textContent = "Doente atualizado.";
-        } catch (e) {
-          console.error("Editar doente falhou:", e);
-          const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
-
-          // mensagens da RPC (exatas)
-          if (msg.includes("SNS já existe")) setErr("SNS já existe noutro doente.");
-          else if (msg.includes("NIF já existe")) setErr("NIF já existe noutro doente.");
-          else if (msg.includes("Passaporte/ID já existe")) setErr("Passaporte/ID já existe noutro doente.");
-          else if (msg.includes("Nome é obrigatório")) setErr("Nome é obrigatório.");
-          else if (msg.includes("É obrigatório SNS ou NIF ou Passaporte/ID")) setErr("Identificação obrigatória: SNS ou NIF ou Passaporte/ID.");
-          else if (msg.includes("Doente não pertence a esta clínica")) setErr("Doente não pertence a esta clínica.");
-          else if (msg.includes("Sem permissões")) setErr("Sem permissões para editar doente nesta clínica.");
-          else setErr("Erro ao guardar doente. Vê a consola.");
-
-          epSave.disabled = false;
-        }
-      });
-
-      // preencher com dados (carrega se necessário)
-      (async () => {
-        try {
-          const fresh = await loadFreshIfNeeded();
-          fillForm(fresh || p || {});
-          epSave.disabled = true;
-          setInfo("A validar…");
-          refreshState();
-        } catch (e) {
-          console.error("Carregar doente para edição falhou:", e);
-          fillForm(p || {});
-          epSave.disabled = true;
-          setErr("Não consegui carregar dados do doente. Vê a consola.");
-        }
-      })();
     }
 
     async function onSave() {
@@ -1580,7 +1483,6 @@
       }
     }
 
-    // handlers
     if (btnClose) btnClose.addEventListener("click", closeModal);
     if (btnCancel) btnCancel.addEventListener("click", closeModal);
     if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "modalOverlay") closeModal(); });
@@ -1590,42 +1492,171 @@
 
     if (mClinic) {
       mClinic.addEventListener("change", () => {
-        const pidEl = document.getElementById("mPatientId");
-        const pnEl = document.getElementById("mPatientName");
-        const selEl = document.getElementById("mPatientSelected");
-        const resEl = document.getElementById("mPatientResults");
+        if (mPatientId) mPatientId.value = "";
+        if (mPatientName) mPatientName.value = "";
+        if (mPatientSelected) mPatientSelected.textContent = "—";
+        if (mPatientResults) mPatientResults.innerHTML = `<div style="font-size:12px; color:#666;">Pesquisar para mostrar resultados.</div>`;
         const host = document.getElementById("newPatientHost");
-
-        if (pidEl) pidEl.value = "";
-        if (pnEl) pnEl.value = "";
-        if (selEl) selEl.textContent = "—";
-        if (resEl) resEl.innerHTML = `<div style="font-size:12px; color:#666;">Pesquisar para mostrar resultados.</div>`;
         if (host) host.innerHTML = "";
-
-        selectedPatientObj = null;
-        if (btnEditPatient) {
-          btnEditPatient.disabled = true;
-          btnEditPatient.title = "Seleciona um doente";
-        }
-
         updateTitleAuto();
       });
     }
 
     if (mPatientQuery) mPatientQuery.addEventListener("input", scheduleSearch);
-    if (btnNewPatient) btnNewPatient.addEventListener("click", () => {
-      clearSubFormHost();
-      openNewPatientForm();
-    });
-    if (btnEditPatient) btnEditPatient.addEventListener("click", () => {
-      clearSubFormHost();
-      openEditPatientForm();
-    });
+    if (btnNewPatient) btnNewPatient.addEventListener("click", openNewPatientForm);
     if (btnSave) btnSave.addEventListener("click", onSave);
 
-    // init
     updateTitleAuto();
-    hydrateInitialPatientIfNeeded();
+  }
+
+  // ---------- Pesquisa rápida (main) ----------
+  function setPQ(kind, msg) {
+    const el = document.getElementById("pqMsg");
+    if (!el) return;
+    el.style.color = kind === "error" ? "#b00020" : "#666";
+    el.textContent = msg;
+  }
+
+  function renderPQSelected() {
+    const nameEl = document.getElementById("pqSelected");
+    const metaEl = document.getElementById("pqSelectedMeta");
+    const btn = document.getElementById("pqEdit");
+
+    const p = G.patientQuick.selected;
+
+    if (!p) {
+      if (nameEl) nameEl.textContent = "—";
+      if (metaEl) metaEl.textContent = "—";
+      if (btn) btn.disabled = true;
+      return;
+    }
+
+    const bits = [];
+    if (p.sns) bits.push(`SNS:${p.sns}`);
+    if (p.nif) bits.push(`NIF:${p.nif}`);
+    if (p.passport_id) bits.push(`ID:${p.passport_id}`);
+    if (p.phone) bits.push(`Tel:${p.phone}`);
+    if (p.email) bits.push(`Email:${p.email}`);
+
+    if (nameEl) nameEl.textContent = p.full_name || "—";
+    if (metaEl) metaEl.textContent = bits.length ? bits.join(" • ") : "—";
+    if (btn) btn.disabled = false;
+  }
+
+  async function wirePatientQuickSearch() {
+    const input = document.getElementById("pqQuery");
+    const btnClear = document.getElementById("pqClear");
+    const res = document.getElementById("pqResults");
+    const btnEdit = document.getElementById("pqEdit");
+    const selClinic = document.getElementById("selClinic");
+
+    if (!input || !res || !btnEdit) return;
+
+    let t = null;
+
+    function clear() {
+      input.value = "";
+      G.patientQuick.selected = null;
+      renderPQSelected();
+      res.innerHTML = `<div style="font-size:12px; color:#666;">Escreve para pesquisar.</div>`;
+      setPQ("ok", "");
+    }
+
+    async function run() {
+      const clinicId = selClinic ? selClinic.value || "" : "";
+      const term = (input.value || "").trim();
+
+      if (!term || term.length < 2) {
+        res.innerHTML = `<div style="font-size:12px; color:#666;">Escreve pelo menos 2 caracteres.</div>`;
+        setPQ("ok", "");
+        return;
+      }
+
+      if (!clinicId) {
+        res.innerHTML = `<div style="font-size:12px; color:#666;">Seleciona uma clínica para pesquisar.</div>`;
+        setPQ("error", "Pesquisa rápida requer clínica selecionada (não “Todas”).");
+        return;
+      }
+
+      setPQ("ok", "A pesquisar…");
+      res.innerHTML = `<div style="font-size:12px; color:#666;">A pesquisar…</div>`;
+
+      try {
+        const pts = await searchPatientsSmart({ clinicId, q: term, limit: 20 });
+        if (!pts.length) {
+          res.innerHTML = `<div style="font-size:12px; color:#666;">Sem resultados.</div>`;
+          setPQ("ok", "Sem resultados.");
+          return;
+        }
+
+        res.innerHTML = pts.map((p) => {
+          const idBits = [];
+          if (p.sns) idBits.push(`SNS:${p.sns}`);
+          if (p.nif) idBits.push(`NIF:${p.nif}`);
+          if (p.passport_id) idBits.push(`ID:${p.passport_id}`);
+          if (p.phone) idBits.push(`Tel:${p.phone}`);
+          const idLine = idBits.length ? idBits.join(" / ") : "—";
+
+          return `
+            <div data-payload="${escapeHtml(JSON.stringify(p))}"
+                 style="padding:10px; border:1px solid #f0f0f0; border-radius:12px; margin-bottom:10px; cursor:pointer;">
+              <div style="font-size:13px; color:#111; font-weight:700;">${escapeHtml(p.full_name || "—")}</div>
+              <div style="font-size:12px; color:#666; margin-top:4px;">${escapeHtml(idLine)}</div>
+            </div>
+          `;
+        }).join("");
+
+        res.querySelectorAll("[data-payload]").forEach((el) => {
+          el.addEventListener("click", () => {
+            const raw = el.getAttribute("data-payload");
+            if (!raw) return;
+            try {
+              const p = JSON.parse(raw);
+              G.patientQuick.selected = p;
+              renderPQSelected();
+              setPQ("ok", "Selecionado.");
+            } catch {
+              setPQ("error", "Falha ao selecionar (JSON inválido).");
+            }
+          });
+        });
+
+        setPQ("ok", `${pts.length} resultado(s).`);
+      } catch (e) {
+        console.error("Pesquisa rápida falhou:", e);
+        res.innerHTML = `<div style="font-size:12px; color:#b00020;">Erro na pesquisa. Vê a consola.</div>`;
+        setPQ("error", "Erro na pesquisa rápida. Vê a consola.");
+      }
+    }
+
+    function schedule() {
+      if (t) clearTimeout(t);
+      t = setTimeout(run, 250);
+    }
+
+    input.addEventListener("input", schedule);
+    if (btnClear) btnClear.addEventListener("click", clear);
+
+    btnEdit.addEventListener("click", () => {
+      const clinicId = selClinic ? selClinic.value || "" : "";
+      const p = G.patientQuick.selected;
+      if (!clinicId) {
+        setPQ("error", "Seleciona uma clínica antes de editar.");
+        return;
+      }
+      if (!p || !p.id) return;
+      openEditPatientModal({ clinicId, patientId: p.id });
+    });
+
+    // reset quando muda clínica
+    if (selClinic) {
+      selClinic.addEventListener("change", () => {
+        clear();
+      });
+    }
+
+    // estado inicial
+    clear();
   }
 
   // ---------- Logout ----------
@@ -1713,7 +1744,6 @@
       G.clinicsById = {};
       for (const c of G.clinics) G.clinicsById[c.id] = c;
 
-      // header
       const hdrEmail = document.getElementById("hdrEmail");
       if (hdrEmail) hdrEmail.textContent = G.sessionUser.email || "—";
 
@@ -1725,10 +1755,8 @@
 
       renderClinicsSelect(G.clinics);
 
-      // subtitle default: hoje
       setAgendaSubtitleForSelectedDay();
 
-      // events
       const sel = document.getElementById("selClinic");
       if (sel) sel.addEventListener("change", refreshAgenda);
 
@@ -1750,11 +1778,13 @@
         });
       }
 
-      // UI friction (RLS manda)
       if (btnNew && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
         btnNew.disabled = true;
         btnNew.title = "Sem permissão para criar marcações.";
       }
+
+      // ✅ liga pesquisa rápida
+      await wirePatientQuickSearch();
 
       await refreshAgenda();
     } catch (e) {
