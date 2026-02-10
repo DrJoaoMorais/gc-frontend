@@ -17,6 +17,8 @@
 (function () {
   "use strict";
 
+  /* ==== INÍCIO BLOCO 01/08 — Helpers + Formatação + Utilitários ==== */
+
   // ===== UI SCALE (apenas agenda + shell) =====
   const UI = {
     fs12: 13,
@@ -100,6 +102,10 @@
     return t.slice(0, max - 1) + "…";
   }
 
+  /* ==== FIM    BLOCO 01/08 — Helpers + Formatação + Utilitários ==== */
+
+  /* ==== INÍCIO BLOCO 02/08 — Supabase: Role/Clínicas + Agenda (load) ==== */
+
   async function fetchMyRole(userId) {
     const { data, error } = await window.sb
       .from("clinic_members")
@@ -159,6 +165,10 @@
 
     throw lastErr || new Error("Não foi possível carregar appointments: nenhuma coluna de tempo reconhecida.");
   }
+
+  /* ==== FIM    BLOCO 02/08 — Supabase: Role/Clínicas + Agenda (load) ==== */
+
+  /* ==== INÍCIO BLOCO 03/08 — Doentes: Pesquisa/CRUD/RPC ==== */
 
   // ---------- Patients ----------
   async function listPatientIdsForScope({ clinicId }) {
@@ -299,6 +309,10 @@
     return data[0];
   }
 
+  /* ==== FIM    BLOCO 03/08 — Doentes: Pesquisa/CRUD/RPC ==== */
+
+  /* ==== INÍCIO BLOCO 04/08 — Catálogos + Estado global (G) ==== */
+
   // ---------- Tipos / Status / Duração ----------
   const PROCEDURE_OPTIONS = [
     "Primeira Consulta",
@@ -339,6 +353,10 @@
     patientsById: {},
     patientQuick: { lastResults: [], selected: null },
   };
+
+  /* ==== FIM    BLOCO 04/08 — Catálogos + Estado global (G) ==== */
+
+  /* ==== INÍCIO BLOCO 05/08 — Render Shell + Agenda (UI) ==== */
 
   // ---------- Render shell ----------
   function renderAppShell() {
@@ -706,6 +724,9 @@
       }
     });
   }
+
+  /* ==== FIM    BLOCO 05/08 — Render Shell + Agenda (UI) ==== */
+  /* ==== INÍCIO BLOCO 06/08 — Pesquisa rápida + Modais de Doente (ver/editar + novo) ==== */
 
   // ---------- Pesquisa rápida de doentes (main page) ----------
   function setQuickPatientMsg(kind, text) {
@@ -1433,6 +1454,10 @@
       openPatientFeedFromAny(G.patientQuick.selected);
     });
   }
+
+  /* ==== FIM    BLOCO 06/08 — Pesquisa rápida + Modais de Doente (ver/editar + novo) ==== */
+
+  /* ==== INÍCIO BLOCO 07/08 — Calendário overlay + Modal Marcações ==== */
 
   // ---------- Calendário mensal overlay ----------
   function monthLabel(d) {
@@ -2194,6 +2219,10 @@
     updateTitleAuto();
   }
 
+  /* ==== FIM    BLOCO 07/08 — Calendário overlay + Modal Marcações ==== */
+
+  /* ==== INÍCIO BLOCO 08/08 — Logout + Refresh Agenda + Boot ==== */
+
   // ---------- Logout ----------
   async function wireLogout() {
     const btn = document.getElementById("btnLogout");
@@ -2344,4 +2373,6 @@
   }
 
   boot();
+
+  /* ==== FIM    BLOCO 08/08 — Logout + Refresh Agenda + Boot ==== */
 })();
