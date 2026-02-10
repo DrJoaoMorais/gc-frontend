@@ -1694,7 +1694,7 @@
 
 })();
 /* ==== FIM BLOCO 07/08 — Logout + Refresh Agenda + Boot ==== */
-  /* ==== INÍCIO BLOCO 08/08 — Logout + Refresh Agenda + Boot ==== */
+   /* ==== INÍCIO BLOCO 08/08 — Logout + Refresh Agenda + Boot ==== */
 
   // ---------- Logout ----------
   async function wireLogout() {
@@ -1763,22 +1763,6 @@
         return;
       }
 
-      // IMPORTANTÍSSIMO: garantir que existe SEMPRE um window.openCalendarOverlay()
-      // antes de qualquer wiring que referencie calendário.
-      try {
-        if (typeof window.ensureGlobalOpenCalendarOverlay === "function") {
-          window.ensureGlobalOpenCalendarOverlay();
-        } else if (typeof window.openCalendarOverlay !== "function") {
-          // fallback mínimo (não rebenta)
-          window.openCalendarOverlay = function () {
-            console.warn("[Calendário] openCalendarOverlay não está definido.");
-            alert("Calendário indisponível.");
-          };
-        }
-      } catch (e) {
-        console.warn("Calendário: ensureGlobalOpenCalendarOverlay aviso:", e);
-      }
-
       const { data, error } = await window.sb.auth.getSession();
       if (error) throw error;
 
@@ -1792,6 +1776,33 @@
 
       renderAppShell();
       await wireLogout();
+
+      // =========================================================
+      // CRÍTICO: expor no window as implementações reais (se existirem no scope)
+      // - typeof <nome> é seguro mesmo que não exista (não dá ReferenceError)
+      // =========================================================
+      try {
+        if (typeof openApptModal === "function") window.openApptModal = openApptModal;
+      } catch (e) {
+        console.warn("Export openApptModal aviso:", e);
+      }
+      try {
+        if (typeof openCalendarOverlay === "function") window.openCalendarOverlay = openCalendarOverlay;
+      } catch (e) {
+        console.warn("Export openCalendarOverlay aviso:", e);
+      }
+
+      // Garantir fallbacks do BLOCO 07 (se existirem)
+      try {
+        if (typeof window.ensureGlobalOpenApptModal === "function") window.ensureGlobalOpenApptModal();
+      } catch (e) {
+        console.warn("ensureGlobalOpenApptModal aviso:", e);
+      }
+      try {
+        if (typeof window.ensureGlobalOpenCalendarOverlay === "function") window.ensureGlobalOpenCalendarOverlay();
+      } catch (e) {
+        console.warn("ensureGlobalOpenCalendarOverlay aviso:", e);
+      }
 
       try { G.role = await fetchMyRole(G.sessionUser.id); } catch { G.role = null; }
       try { G.clinics = await fetchVisibleClinics(); } catch { G.clinics = []; }
@@ -1816,16 +1827,15 @@
       const sel = document.getElementById("selClinic");
       if (sel) sel.addEventListener("change", refreshAgenda);
 
-      // Refresh (compat: btnRefreshAgenda e/ou btnRefreshAgendaDay/btnRefresh)
       const btnRefresh =
         document.getElementById("btnRefreshAgenda") ||
         document.getElementById("btnRefresh") ||
         document.querySelector('[data-action="refresh-agenda"]');
       if (btnRefresh) btnRefresh.addEventListener("click", refreshAgenda);
 
-      // Nova marcação
+      // Nova marcação — SEMPRE via window.*
       const btnNew = document.getElementById("btnNewAppt");
-      if (btnNew) btnNew.addEventListener("click", () => openApptModal({ mode: "new", row: null }));
+      if (btnNew) btnNew.addEventListener("click", () => window.openApptModal({ mode: "new", row: null }));
 
       // Novo doente (main)
       const btnNewPatientMain = document.getElementById("btnNewPatientMain");
@@ -1837,7 +1847,7 @@
         });
       }
 
-      // Calendário mensal (aceita os 3 padrões)
+      // Calendário mensal — SEMPRE via window.*
       const btnCal =
         document.getElementById("btnCalendar") ||
         document.querySelector('[data-action="open-calendar"]') ||
@@ -1845,7 +1855,6 @@
       if (btnCal) {
         btnCal.addEventListener("click", (e) => {
           e.preventDefault();
-          // CHAMAR SEMPRE via window.* para nunca dar ReferenceError
           window.openCalendarOverlay();
         });
       }
