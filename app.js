@@ -374,9 +374,10 @@
         .gcMutedCard { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fafafa; }
         .gcCardTight { padding:10px 12px; border:1px solid #eee; border-radius:12px; background:#fff; }
 
+        /* ✅ Grelha da agenda: Telefone antes | Clínica no fim (à direita) */
         .gcGridRow {
           display:grid;
-          grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 160px 170px; /* ⬅️ 5ª col: Telefone | 6ª col: Clínica */
+          grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 160px 170px;
           gap:14px;
           align-items:start;
           width:100%;
@@ -385,6 +386,7 @@
           .gcGridRow { grid-template-columns: 110px 1fr; }
           .gcGridRow > div { min-width: 0 !important; }
         }
+
         .gcPatientLink{
           display:block;
           font-size:${UI.fs18}px;
@@ -424,6 +426,7 @@
           gap:12px;
           flex-wrap:wrap;
           margin-top:12px;
+          width:100%;
         }
         .gcToolbarLeft{
           display:flex;
@@ -431,6 +434,7 @@
           gap:10px;
           align-items:flex-end;
           flex-wrap:wrap;
+          flex: 0 0 auto;
         }
 
         /* Zona "pesquisa/selecionado" — modo único */
@@ -438,10 +442,28 @@
           position:relative;
           flex: 1 1 520px;
           min-width: 420px;
-          max-width: 720px;
+          max-width: 680px;
         }
         @media (max-width: 980px){
           .gcPatientTop { flex: 1 1 100%; min-width: 280px; max-width:none; }
+        }
+
+        /* ✅ Clínica no topo encostada à direita */
+        .gcClinicTop {
+          margin-left: auto;     /* <-- isto “empurra” para a direita */
+          flex: 0 0 210px;
+          width: 210px;
+          max-width: 210px;
+        }
+        @media (max-width: 980px){
+          .gcClinicTop { margin-left: 0; flex: 1 1 220px; width:auto; max-width:none; }
+        }
+        #selClinic {
+          width: 210px;
+          max-width: 210px;
+        }
+        @media (max-width: 980px){
+          #selClinic { width: 100%; max-width:none; }
         }
 
         /* Search: dropdown flutuante (não ocupa espaço quando fechado) */
@@ -498,23 +520,6 @@
           display:flex;
           gap:10px;
           flex-wrap:wrap;
-        }
-
-        /* ✅ Topo: seletor de clínica NÃO deve ocupar “meia página” */
-        .gcClinicTop {
-          flex: 0 0 210px;
-          width: 210px;
-          max-width: 210px;
-        }
-        @media (max-width: 980px){
-          .gcClinicTop { flex: 1 1 220px; width:auto; max-width:none; }
-        }
-        #selClinic {
-          width: 210px;
-          max-width: 210px;
-        }
-        @media (max-width: 980px){
-          #selClinic { width: 100%; max-width:none; }
         }
       </style>
 
@@ -809,13 +814,13 @@
               </div>
             </div>
 
-            <!-- ✅ 5ª coluna agora é Telefone -->
+            <!-- ✅ 5ª coluna: Telefone -->
             <div style="min-width: 160px;">
               <div class="gcCellTitle">Telefone</div>
               <div class="gcCellValue">${escapeHtml(patientPhone)}</div>
             </div>
 
-            <!-- ✅ 6ª coluna agora é Clínica (à direita) -->
+            <!-- ✅ 6ª coluna: Clínica (à direita) -->
             <div style="min-width: 170px;">
               <div class="gcCellTitle">Clínica</div>
               <div class="gcCellValue">${escapeHtml(clinicName)}</div>
