@@ -373,6 +373,8 @@
         .gcLabel { font-size:${UI.fs12}px; color:#666; }
         .gcCard { padding:12px 14px; border:1px solid #eee; border-radius:12px; background:#fff; }
         .gcMutedCard { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fafafa; }
+        .gcCardTight { padding:10px 12px; border:1px solid #eee; border-radius:12px; background:#fff; }
+
         .gcGridRow {
           display:grid;
           grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 170px 160px;
@@ -416,29 +418,87 @@
           background-repeat:no-repeat;
         }
 
-        /* Toolbar (linha única) */
+        /* Toolbar compacta (topo) */
         .gcToolbar {
           display:flex;
           align-items:flex-end;
+          gap:12px;
+          flex-wrap:wrap;
+          margin-top:12px;
+        }
+        .gcToolbarLeft{
+          display:flex;
+          flex-direction:row;
           gap:10px;
+          align-items:flex-end;
           flex-wrap:wrap;
         }
-        .gcToolbarBlock {
-          display:flex;
-          flex-direction:column;
-          gap:4px;
-        }
-        .gcSearchWrap {
-          min-width: 360px;
-          max-width: 520px;
-          flex: 1 1 420px;
-        }
-        .gcSelectedWrap {
-          min-width: 320px;
-          flex: 0 0 360px;
+
+        /* Zona "pesquisa/selecionado" — modo único */
+        .gcPatientTop {
+          position:relative;
+          flex: 1 1 520px;
+          min-width: 420px;
+          max-width: 720px;
         }
         @media (max-width: 980px){
-          .gcSearchWrap, .gcSelectedWrap { flex: 1 1 100%; min-width: 280px; }
+          .gcPatientTop { flex: 1 1 100%; min-width: 280px; max-width:none; }
+        }
+
+        /* Search: dropdown flutuante (não ocupa espaço quando fechado) */
+        .gcSearchBox { position:relative; }
+        #pQuickQuery {
+          padding:10px 12px;
+          border-radius:10px;
+          border:1px solid #ddd;
+          width:100%;
+          font-size:${UI.fs13}px;
+        }
+        #pQuickResults {
+          display:none;
+          position:absolute;
+          left:0;
+          right:0;
+          top: calc(100% + 6px);
+          z-index: 30;
+          border:1px solid #eee;
+          border-radius:10px;
+          padding:8px;
+          background:#fff;
+          max-height:220px;
+          overflow:auto;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        }
+        .gcSearchBox:focus-within #pQuickResults { display:block; }
+
+        /* Cartão selecionado (aparece só quando há doente) */
+        #pQuickSelectedWrap { display:none; }
+        #pQuickSelectedWrap.gcShow { display:block; }
+
+        .gcSelectedCard {
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:12px;
+          flex-wrap:wrap;
+          border:1px solid #e5e5e5;
+          border-radius:12px;
+          padding:10px 12px;
+          background:#fafafa;
+        }
+        #pQuickSelected{
+          min-height: 0;
+          border:0;
+          background:transparent;
+          padding:0;
+          font-size:${UI.fs13}px;
+          font-weight:900;
+          color:#111;
+        }
+        .gcSelectedActions{
+          display:flex;
+          gap:10px;
+          flex-wrap:wrap;
         }
       </style>
 
@@ -463,38 +523,45 @@
               </div>
             </div>
 
-            <!-- ✅ Linha única (como no desenho): botões -> pesquisa -> ver/atualizar -> clínica -->
-            <div style="margin-top:12px;" class="gcToolbar">
-              <div class="gcToolbarBlock" style="flex-direction:row; gap:10px; align-items:flex-end;">
+            <!-- Topo compacto: botões (esq) | pesquisa/selecionado (centro) | clínica (dir) -->
+            <div class="gcToolbar">
+              <div class="gcToolbarLeft">
                 <button id="btnCal" class="gcBtn" title="Calendário">Calendário</button>
                 <button id="btnToday" class="gcBtn" title="Voltar a hoje">Hoje</button>
                 <button id="btnNewAppt" class="gcBtnPrimary">Nova marcação</button>
                 <button id="btnNewPatientMain" class="gcBtn" title="Criar novo doente">＋ Novo doente</button>
+                <button id="btnRefreshAgenda" class="gcBtn" title="Atualizar agenda">Atualizar</button>
               </div>
 
-              <div class="gcToolbarBlock gcSearchWrap">
-                <div class="gcLabel">Pesquisa de doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
-                <input id="pQuickQuery" type="text" placeholder="ex.: Man… | 916… | 123456789"
-                  autocomplete="off" autocapitalize="off" spellcheck="false"
-                  style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;" />
-                <div id="pQuickResults" style="margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:180px; overflow:auto;">
-                  <div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>
+              <div class="gcPatientTop">
+                <!-- MODO PESQUISA (único campo) -->
+                <div id="pQuickSearchWrap" class="gcSearchBox">
+                  <div class="gcLabel" style="margin-bottom:6px;">Pesquisar doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
+                  <input id="pQuickQuery" type="text" placeholder="ex.: Man… | 916… | 123456789"
+                    autocomplete="off" autocapitalize="off" spellcheck="false" />
+                  <div id="pQuickResults">
+                    <div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>
+                  </div>
+                </div>
+
+                <!-- MODO SELECIONADO (cartão compacto) -->
+                <div id="pQuickSelectedWrap" style="margin-top:8px;">
+                  <div class="gcSelectedCard">
+                    <div style="display:flex; flex-direction:column; gap:4px; min-width: 240px; flex: 1 1 360px;">
+                      <div class="gcLabel">Doente selecionado</div>
+                      <div id="pQuickSelected">—</div>
+                      <div id="pQuickMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
+                    </div>
+
+                    <div class="gcSelectedActions">
+                      <button id="btnQuickOpen" class="gcBtn">Abrir feed</button>
+                      <button id="btnQuickClear" class="gcBtn">Trocar doente</button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div class="gcToolbarBlock gcSelectedWrap">
-                <div class="gcLabel">Selecionado</div>
-                <div id="pQuickSelected" class="gcMutedCard" style="min-height: 42px; display:flex; align-items:center; color:#111; font-size:${UI.fs13}px;">
-                  —
-                </div>
-                <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-                  <button id="btnQuickOpen" class="gcBtn">Ver doente</button>
-                  <button id="btnRefreshAgenda" class="gcBtn">Atualizar</button>
-                </div>
-                <div id="pQuickMsg" style="margin-top:6px; font-size:${UI.fs12}px; color:#666;"></div>
-              </div>
-
-              <div class="gcToolbarBlock" style="min-width:240px;">
+              <div style="min-width:240px;">
                 <label for="selClinic" class="gcLabel">Clínica</label>
                 <select id="selClinic" class="gcSelect" style="min-width:240px;"></select>
               </div>
@@ -511,6 +578,65 @@
         <div id="modalRoot"></div>
       </div>
     `;
+
+    // --- Lógica mínima local do BLOCO 05/08 (sem mexer em boot) ---
+    // Objetivo: “um campo único” até selecionar; depois mostra cartão + botões, e esconde pesquisa.
+    (function wirePatientTopToggle() {
+      const searchWrap = document.getElementById("pQuickSearchWrap");
+      const selectedWrap = document.getElementById("pQuickSelectedWrap");
+      const selectedBox = document.getElementById("pQuickSelected");
+      const btnClear = document.getElementById("btnQuickClear");
+      const input = document.getElementById("pQuickQuery");
+      const results = document.getElementById("pQuickResults");
+
+      if (!searchWrap || !selectedWrap || !selectedBox) return;
+
+      function normalizeSelectedText() {
+        return String(selectedBox.textContent || "").replace(/\s+/g, " ").trim();
+      }
+
+      function applyState() {
+        const t = normalizeSelectedText();
+        const has = t && t !== "—";
+        if (has) {
+          searchWrap.style.display = "none";
+          selectedWrap.classList.add("gcShow");
+        } else {
+          searchWrap.style.display = "block";
+          selectedWrap.classList.remove("gcShow");
+        }
+      }
+
+      // Observa mudanças no “Selecionado” (o BLOCO 06/08 escreve aqui)
+      try {
+        const obs = new MutationObserver(() => applyState());
+        obs.observe(selectedBox, { childList: true, characterData: true, subtree: true });
+      } catch {}
+
+      // Botão "Trocar doente"
+      if (btnClear) {
+        btnClear.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+
+          // limpar estado (sem tocar noutros blocos)
+          if (G && G.patientQuick) {
+            G.patientQuick.selected = null;
+            G.patientQuick.lastResults = [];
+          }
+
+          selectedBox.textContent = "—";
+          if (input) input.value = "";
+          if (results) results.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>`;
+
+          applyState();
+          if (input) input.focus();
+        });
+      }
+
+      // Estado inicial
+      applyState();
+    })();
   }
 
   function setAgendaSubtitleForSelectedDay() {
@@ -726,7 +852,6 @@
   }
 
   /* ==== FIM    BLOCO 05/08 — Render Shell + Agenda (UI) ==== */
-
  /* ==== INÍCIO BLOCO 06/08 — Pesquisa rápida + Modais de Doente (ver/editar + novo) ==== */
 
   // ---------- Pesquisa rápida de doentes (main page) ----------
