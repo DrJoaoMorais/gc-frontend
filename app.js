@@ -852,7 +852,7 @@
   }
 
   /* ==== FIM    BLOCO 05/08 — Render Shell + Agenda (UI) ==== */
- /* ==== INÍCIO BLOCO 06/08 — Pesquisa rápida + Modais de Doente (ver/editar + novo) ==== */
+   /* ==== INÍCIO BLOCO 06/08 — Pesquisa rápida + Modais de Doente (ver/editar + novo) ==== */
 
   // ---------- Pesquisa rápida de doentes (main page) ----------
   function setQuickPatientMsg(kind, text) {
@@ -863,65 +863,14 @@
     el.textContent = text || "";
   }
 
-  function getSelectedClinicInfo() {
+  function getSelectedClinicLabel() {
     const sel = document.getElementById("selClinic");
-    const clinicId = sel && sel.value ? sel.value : null;
-    const clinicName =
-      clinicId && G.clinicsById && G.clinicsById[clinicId]
-        ? G.clinicsById[clinicId].name || G.clinicsById[clinicId].slug || clinicId
-        : clinicId
-          ? clinicId
-          : "Todas";
-    return { clinicId, clinicName };
-  }
-
-  function primaryIdLabel(p) {
-    if (!p) return "—";
-    if (p.sns) return `SNS: ${p.sns}`;
-    if (p.nif) return `NIF: ${p.nif}`;
-    if (p.phone) return `Tel: ${p.phone}`;
-    if (p.passport_id) return `ID: ${p.passport_id}`;
-    if (p.external_id) return `Ext: ${p.external_id}`;
-    return "—";
-  }
-
-  function setSelectedPatient(p) {
-    G.patientQuick.selected = p || null;
-    updateDashboardMode();
-  }
-
-  function clearSelectedPatient() {
-    G.patientQuick.selected = null;
-    updateDashboardMode();
-  }
-
-  function updateDashboardMode() {
-    const searchWrap = document.querySelector(".gcSearchWrap");
-    const selectedWrap = document.querySelector(".gcSelectedWrap");
-
-    const input = document.getElementById("pQuickQuery");
-    const resHost = document.getElementById("pQuickResults");
-
-    const p = G.patientQuick.selected;
-
-    // UI: quando há doente selecionado -> esconder pesquisa; mostrar cartão
-    if (searchWrap) searchWrap.style.display = p ? "none" : "";
-    if (selectedWrap) selectedWrap.style.display = "";
-
-    if (!p) {
-      // modo pesquisa
-      if (input) input.disabled = false;
-      if (resHost) {
-        resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>`;
-      }
-      renderQuickPatientSelected();
-      setQuickPatientMsg("info", "");
-      return;
-    }
-
-    // modo cartão
-    renderQuickPatientSelected();
-    setQuickPatientMsg("ok", "Doente selecionado.");
+    if (!sel) return "";
+    const v = sel.value || "";
+    if (!v) return "Clínica: Todas";
+    const c = G.clinicsById && G.clinicsById[v] ? G.clinicsById[v] : null;
+    const name = c ? (c.name || c.slug || v) : v;
+    return `Clínica: ${name}`;
   }
 
   function renderQuickPatientSelected() {
@@ -934,74 +883,22 @@
       return;
     }
 
-    const { clinicName } = getSelectedClinicInfo();
-    const idMain = primaryIdLabel(p);
+    const idBits = [];
+    if (p.sns) idBits.push(`SNS:${p.sns}`);
+    else if (p.nif) idBits.push(`NIF:${p.nif}`);
+    else if (p.phone) idBits.push(`Tel:${p.phone}`);
+    else if (p.passport_id) idBits.push(`ID:${p.passport_id}`);
 
-    // Cartão (substitui o texto simples)
-    box.innerHTML = `
-      <div style="display:flex; flex-direction:column; gap:6px; width:100%;">
-        <div style="font-size:${UI.fs14}px; font-weight:950; color:#111; line-height:1.15; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">
-          ${escapeHtml(p.full_name || "—")}
-        </div>
-        <div style="font-size:${UI.fs12}px; color:#444;">
-          <span style="color:#666;">Identificação:</span> ${escapeHtml(idMain)}
-        </div>
-        <div style="font-size:${UI.fs12}px; color:#444;">
-          <span style="color:#666;">Clínica:</span> ${escapeHtml(clinicName)}
-        </div>
+    const extraBits = [];
+    if (p.phone && !idBits.join(" ").includes("Tel:")) extraBits.push(`Tel:${p.phone}`);
+    if (p.email) extraBits.push(p.email);
 
-        <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
-          <button id="btnCardOpenFeed" class="gcBtn">Abrir Feed</button>
-          <button id="btnCardEdit" class="gcBtn">Editar</button>
-          <button id="btnCardNewAppt" class="gcBtn">Nova marcação</button>
-          <button id="btnCardSwap" class="gcBtn">Trocar doente</button>
-        </div>
-      </div>
-    `;
+    const idLine = idBits.length ? idBits.join(" / ") : "";
+    const extraLine = extraBits.length ? extraBits.join(" • ") : "";
+    const clinicLine = getSelectedClinicLabel();
 
-    // wiring botões do cartão
-    const btnOpen = document.getElementById("btnCardOpenFeed");
-    const btnEdit = document.getElementById("btnCardEdit");
-    const btnNewAppt = document.getElementById("btnCardNewAppt");
-    const btnSwap = document.getElementById("btnCardSwap");
-
-    if (btnOpen) {
-      btnOpen.addEventListener("click", () => {
-        openPatientFeedFromAny(p);
-      });
-    }
-
-    if (btnEdit) {
-      btnEdit.addEventListener("click", async () => {
-        try {
-          const full = await fetchPatientById(p.id);
-          if (!full) {
-            alert("Não consegui carregar o doente (RLS ou não existe).");
-            return;
-          }
-          openPatientViewModal(full, { startEdit: true });
-        } catch (e) {
-          console.error("Abrir edição falhou:", e);
-          alert("Erro ao abrir edição. Vê a consola para detalhe.");
-        }
-      });
-    }
-
-    if (btnNewAppt) {
-      btnNewAppt.addEventListener("click", () => {
-        // Sem mexer no BLOCO 07/08, abrimos a marcação normal.
-        // (A seleção do doente continua disponível no modal pela pesquisa.)
-        openApptModal({ mode: "new", row: null });
-      });
-    }
-
-    if (btnSwap) {
-      btnSwap.addEventListener("click", () => {
-        const q = document.getElementById("pQuickQuery");
-        if (q) q.value = "";
-        clearSelectedPatient();
-      });
-    }
+    const parts = [p.full_name, idLine, extraLine, clinicLine].filter(Boolean);
+    box.textContent = parts.join(" • ");
   }
 
   function renderQuickPatientResults(results) {
@@ -1026,7 +923,7 @@
         return `
           <div data-pid="${escapeHtml(p.id)}"
                style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:pointer;">
-            <div style="font-size:${UI.fs13}px; color:#111; font-weight:700; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">${escapeHtml(p.full_name)}</div>
+            <div style="font-size:${UI.fs13}px; color:#111; font-weight:800; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">${escapeHtml(p.full_name)}</div>
             <div style="font-size:${UI.fs12}px; color:#666;">${escapeHtml(line2Parts || "—")}</div>
           </div>
         `;
@@ -1034,11 +931,22 @@
       .join("");
 
     host.querySelectorAll("[data-pid]").forEach((el) => {
+      el.addEventListener("mousedown", (ev) => {
+        // mousedown para não perder o foco antes do clique (dropdown é focus-within)
+        ev.preventDefault();
+      });
       el.addEventListener("click", () => {
         const pid = el.getAttribute("data-pid");
         const p = (results || []).find((x) => x.id === pid);
         if (!p) return;
-        setSelectedPatient(p);
+
+        G.patientQuick.selected = p;
+        renderQuickPatientSelected();
+        setQuickPatientMsg("ok", "Doente selecionado.");
+
+        // fecha “dropdown” ao tirar foco do input
+        const input = document.getElementById("pQuickQuery");
+        if (input) input.blur();
       });
     });
   }
@@ -1084,16 +992,14 @@
   }
 
   // ---------- Modal Doente (ver + editar) ----------
-  function openPatientViewModal(patient, opts) {
+  function openPatientViewModal(patient) {
     const root = document.getElementById("modalRoot");
     if (!root) return;
 
     const p = patient;
     if (!p) return;
 
-    const startEdit = !!(opts && opts.startEdit);
-
-    let editMode = startEdit;
+    let editMode = false;
     let working = false;
 
     function render() {
@@ -1124,154 +1030,125 @@
             <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
               <div style="grid-column: 1 / -1; padding:12px; border:1px solid #eee; border-radius:12px; background:#fafafa;">
                 <div style="font-size:${UI.fs14}px; font-weight:900; color:#111;">
-                  ${
-                    editMode
-                      ? `<input id="peFullName" type="text" value="${escapeHtml(p.full_name || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                      : escapeHtml(p.full_name || "—")
-                  }
+                  ${editMode ? `<input id="peFullName" type="text" value="${escapeHtml(p.full_name || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                             : escapeHtml(p.full_name || "—")}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">Data nascimento</div>
                 <div style="margin-top:6px;">
-                  ${
-                    editMode
-                      ? `<input id="peDob" type="date" value="${escapeHtml(p.dob ? String(p.dob).slice(0,10) : "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                      : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.dob ? String(p.dob).slice(0,10) : "—")}</div>`
-                  }
+                  ${editMode
+                    ? `<input id="peDob" type="date" value="${escapeHtml(p.dob ? String(p.dob).slice(0,10) : "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.dob ? String(p.dob).slice(0,10) : "—")}</div>`}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">Telefone</div>
                 <div style="margin-top:6px;">
-                  ${
-                    editMode
-                      ? `<input id="pePhone" type="text" value="${escapeHtml(p.phone || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                      : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.phone || "—")}</div>`
-                  }
+                  ${editMode
+                    ? `<input id="pePhone" type="text" value="${escapeHtml(p.phone || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.phone || "—")}</div>`}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">Email</div>
                 <div style="margin-top:6px;">
-                  ${
-                    editMode
-                      ? `<input id="peEmail" type="email" value="${escapeHtml(p.email || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                      : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.email || "—")}</div>`
-                  }
+                  ${editMode
+                    ? `<input id="peEmail" type="email" value="${escapeHtml(p.email || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.email || "—")}</div>`}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">SNS (9 dígitos)</div>
                 <div style="margin-top:6px;">
-                  ${
-                    editMode
-                      ? `<input id="peSNS" type="text" inputmode="numeric" value="${escapeHtml(p.sns || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                      : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.sns || "—")}</div>`
-                  }
+                  ${editMode
+                    ? `<input id="peSNS" type="text" inputmode="numeric" value="${escapeHtml(p.sns || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.sns || "—")}</div>`}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">NIF (9 dígitos)</div>
                 <div style="margin-top:6px;">
-                  ${
-                    editMode
-                      ? `<input id="peNIF" type="text" inputmode="numeric" value="${escapeHtml(p.nif || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                      : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.nif || "—")}</div>`
-                  }
+                  ${editMode
+                    ? `<input id="peNIF" type="text" inputmode="numeric" value="${escapeHtml(p.nif || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.nif || "—")}</div>`}
                 </div>
               </div>
 
               <div style="grid-column: 1 / -1; padding:12px; border:1px solid #eee; border-radius:12px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">Passaporte/ID</div>
                 <div style="margin-top:6px;">
-                  ${
-                    editMode
-                      ? `<input id="pePassport" type="text" value="${escapeHtml(p.passport_id || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                      : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.passport_id || "—")}</div>`
-                  }
+                  ${editMode
+                    ? `<input id="pePassport" type="text" value="${escapeHtml(p.passport_id || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.passport_id || "—")}</div>`}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">Seguro</div>
                 <div style="margin-top:6px;">
-                  ${
-                    editMode
-                      ? `<input id="peInsProv" type="text" value="${escapeHtml(p.insurance_provider || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                      : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.insurance_provider || "—")}</div>`
-                  }
+                  ${editMode
+                    ? `<input id="peInsProv" type="text" value="${escapeHtml(p.insurance_provider || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.insurance_provider || "—")}</div>`}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">Apólice</div>
                 <div style="margin-top:6px;">
-                  ${
-                    editMode
-                      ? `<input id="peInsPol" type="text" value="${escapeHtml(p.insurance_policy_number || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                      : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.insurance_policy_number || "—")}</div>`
-                  }
+                  ${editMode
+                    ? `<input id="peInsPol" type="text" value="${escapeHtml(p.insurance_policy_number || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.insurance_policy_number || "—")}</div>`}
                 </div>
               </div>
 
               <div style="grid-column: 1 / -1; padding:12px; border:1px solid #eee; border-radius:12px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">Morada</div>
                 <div style="margin-top:6px;">
-                  ${
-                    editMode
-                      ? `<input id="peAddr" type="text" value="${escapeHtml(p.address_line1 || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                      : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.address_line1 || "—")}</div>`
-                  }
+                  ${editMode
+                    ? `<input id="peAddr" type="text" value="${escapeHtml(p.address_line1 || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.address_line1 || "—")}</div>`}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">Código-postal</div>
                 <div style="margin-top:6px;">
-                  ${
-                    editMode
-                      ? `<input id="pePostal" type="text" value="${escapeHtml(p.postal_code || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                      : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.postal_code || "—")}</div>`
-                  }
+                  ${editMode
+                    ? `<input id="pePostal" type="text" value="${escapeHtml(p.postal_code || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.postal_code || "—")}</div>`}
                 </div>
               </div>
 
               <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">Cidade</div>
                 <div style="margin-top:6px;">
-                  ${
-                    editMode
-                      ? `<input id="peCity" type="text" value="${escapeHtml(p.city || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                      : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.city || "—")}</div>`
-                  }
+                  ${editMode
+                    ? `<input id="peCity" type="text" value="${escapeHtml(p.city || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.city || "—")}</div>`}
                 </div>
               </div>
 
               <div style="grid-column: 1 / -1; padding:12px; border:1px solid #eee; border-radius:12px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">País</div>
                 <div style="margin-top:6px;">
-                  ${
-                    editMode
-                      ? `<input id="peCountry" type="text" value="${escapeHtml(p.country || "PT")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                      : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.country || "—")}</div>`
-                  }
+                  ${editMode
+                    ? `<input id="peCountry" type="text" value="${escapeHtml(p.country || "PT")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
+                    : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(p.country || "—")}</div>`}
                 </div>
               </div>
 
               <div style="grid-column: 1 / -1; padding:12px; border:1px solid #eee; border-radius:12px;">
                 <div style="font-size:${UI.fs12}px; color:#666;">Notas</div>
                 <div style="margin-top:6px;">
-                  ${
-                    editMode
-                      ? `<textarea id="peNotes" rows="3" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;">${escapeHtml(p.notes || "")}</textarea>`
-                      : `<div style="font-size:${UI.fs13}px; color:#111;">${escapeHtml(p.notes || "—")}</div>`
-                  }
+                  ${editMode
+                    ? `<textarea id="peNotes" rows="3" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;">${escapeHtml(p.notes || "")}</textarea>`
+                    : `<div style="font-size:${UI.fs13}px; color:#111;">${escapeHtml(p.notes || "—")}</div>`}
                 </div>
               </div>
             </div>
@@ -1364,10 +1241,9 @@
                 nif: p.nif,
                 passport_id: p.passport_id,
               });
-
               if (G.patientQuick && G.patientQuick.selected && G.patientQuick.selected.id === p.id) {
                 G.patientQuick.selected = Object.assign({}, G.patientQuick.selected, p);
-                updateDashboardMode();
+                renderQuickPatientSelected();
               }
             }
 
@@ -1637,7 +1513,6 @@
             return;
           }
 
-          // Seleciona automaticamente o novo doente (na UI principal)
           const minimal = {
             id: newPatientId,
             full_name: v.full_name,
@@ -1647,9 +1522,11 @@
             nif: v.nif,
             passport_id: v.passport_id,
           };
-          setSelectedPatient(minimal);
 
-          // limpa pesquisa e resultados
+          G.patientQuick.selected = minimal;
+          renderQuickPatientSelected();
+          setQuickPatientMsg("ok", "Novo doente criado e selecionado.");
+
           const q = document.getElementById("pQuickQuery");
           if (q) q.value = "";
           const rHost = document.getElementById("pQuickResults");
@@ -1679,19 +1556,22 @@
     refreshButtonState();
   }
 
-  // ---------- Pesquisa rápida: wiring ----------
+  // ---------- Pesquisa rápida: wiring (compatível com BLOCO 05 “modo único”) ----------
   async function wireQuickPatientSearch() {
     const input = document.getElementById("pQuickQuery");
     const resHost = document.getElementById("pQuickResults");
-    const btnOpenLegacy = document.getElementById("btnQuickOpen"); // mantém compatibilidade com HTML atual
-    if (!input || !resHost) return;
+    const btnOpen = document.getElementById("btnQuickOpen");
+    if (!input || !resHost || !btnOpen) return;
 
     let timer = null;
+    let lastTerm = "";
 
     async function run() {
       const term = (input.value || "").trim();
+      lastTerm = term;
+
       if (!term || term.length < 2) {
-        resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>`;
+        resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve pelo menos 2 caracteres.</div>`;
         setQuickPatientMsg("info", "");
         return;
       }
@@ -1704,6 +1584,10 @@
 
       try {
         const pts = await searchPatientsScoped({ clinicId, q: term, limit: 30 });
+
+        // se o utilizador já escreveu outra coisa entretanto, ignora
+        if (lastTerm !== term) return;
+
         G.patientQuick.lastResults = pts;
         renderQuickPatientResults(pts);
 
@@ -1722,18 +1606,22 @@
 
     input.addEventListener("input", schedule);
 
-    // botão legado "Ver doente" (continua a existir no HTML)
-    if (btnOpenLegacy) {
-      btnOpenLegacy.addEventListener("click", () => {
-        if (!G.patientQuick.selected) {
-          setQuickPatientMsg("error", "Seleciona um doente primeiro.");
-          return;
-        }
-        openPatientFeedFromAny(G.patientQuick.selected);
-      });
-    }
+    // ao focar, se já tiver texto, tenta atualizar resultados
+    input.addEventListener("focus", () => {
+      const term = (input.value || "").trim();
+      if (term.length >= 2) schedule();
+    });
 
-    // quando muda clínica: se já há selecionado, atualiza só a linha da clínica no cartão
+    // “Abrir feed” (por agora abre modal do doente, como está no baseline)
+    btnOpen.addEventListener("click", () => {
+      if (!G.patientQuick.selected) {
+        setQuickPatientMsg("error", "Seleciona um doente primeiro.");
+        return;
+      }
+      openPatientFeedFromAny(G.patientQuick.selected);
+    });
+
+    // quando muda clínica, refresca texto do selecionado (inclui “Clínica: …”)
     const selClinic = document.getElementById("selClinic");
     if (selClinic) {
       selClinic.addEventListener("change", () => {
@@ -1741,12 +1629,11 @@
       });
     }
 
-    // inicial: garantir modo correcto
-    updateDashboardMode();
+    // estado inicial (se houver selecionado por algum motivo)
+    renderQuickPatientSelected();
   }
 
-/* ==== FIM    BLOCO 06/08 — Pesquisa rápida + Modais de Doente (ver/editar + novo) ==== */
-
+  /* ==== FIM    BLOCO 06/08 — Pesquisa rápida + Modais de Doente (ver/editar + novo) ==== */
   /* ==== INÍCIO BLOCO 07/08 — Calendário overlay + Modal Marcações ==== */
 
   // ---------- Calendário mensal overlay ----------
