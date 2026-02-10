@@ -356,344 +356,377 @@
 
   /* ==== FIM    BLOCO 04/08 — Catálogos + Estado global (G) ==== */
 
-  /* ==== INÍCIO BLOCO 05/08 — DASHBOARD: PESQUISA / DOENTE SELECIONADO ==== */
+  /* ==== INÍCIO BLOCO 05/08 — Render Shell + Agenda (UI) ==== */
 
-/*
-  Objetivo (PONTO A):
-  - 1 único campo de pesquisa (ação)
-  - ao selecionar doente: pesquisa desaparece e surge “Cartão do Doente Selecionado” (estado)
-  - botões no cartão: Abrir Feed | Editar | Nova marcação | Trocar doente
-  - manter agenda estável; não mexer no resto
-*/
+  // ---------- Render shell ----------
+  function renderAppShell() {
+    document.body.innerHTML = `
+      <style>
+        .gcBtn { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px; }
+        .gcBtn:disabled { opacity:0.6; cursor:not-allowed; }
 
-function setQuickPatientMsg(kind, text) {
-  const el = document.getElementById("pQuickMsg");
-  if (!el) return;
-  const color = kind === "error" ? "#b00020" : kind === "ok" ? "#111" : "#666";
-  el.style.color = color;
-  el.textContent = text || "";
-}
+        /* Nova marcação: mais suave (menos “preto total”) */
+        .gcBtnPrimary { padding:11px 14px; border-radius:12px; border:1px solid #334155; background:#334155; color:#fff; cursor:pointer; font-size:${UI.fs13}px; font-weight:900; }
+        .gcBtnPrimary:disabled { opacity:0.6; cursor:not-allowed; }
 
-function getSelectedClinicLabel() {
-  const sel = document.getElementById("selClinic");
-  if (!sel) return "—";
-  const v = sel.value || "";
-  if (!v) return "Todas";
-  const opt = sel.querySelector(`option[value="${CSS.escape(v)}"]`);
-  return opt ? (opt.textContent || v) : v;
-}
+        .gcSelect { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; font-size:${UI.fs13}px; }
+        .gcLabel { font-size:${UI.fs12}px; color:#666; }
+        .gcCard { padding:12px 14px; border:1px solid #eee; border-radius:12px; background:#fff; }
+        .gcMutedCard { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fafafa; }
+        .gcGridRow {
+          display:grid;
+          grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 170px 160px;
+          gap:14px;
+          align-items:start;
+          width:100%;
+        }
+        @media (max-width: 1100px){
+          .gcGridRow { grid-template-columns: 110px 1fr; }
+          .gcGridRow > div { min-width: 0 !important; }
+        }
+        .gcPatientLink{
+          display:block;
+          font-size:${UI.fs18}px;
+          line-height:1.15;
+          color:#111;
+          font-weight:950;
+          cursor:pointer;
+          text-decoration:underline;
+          white-space:normal;
+          overflow-wrap:anywhere;
+          word-break:break-word;
+        }
+        .gcCellTitle { font-size:${UI.fs12}px; color:#666; }
+        .gcCellValue { font-size:${UI.fs13}px; color:#111; font-weight:700; margin-top:6px; }
 
-function getPatientMainIdentifier(p) {
-  if (!p) return "—";
-  if (p.sns) return `SNS: ${p.sns}`;
-  if (p.nif) return `NIF: ${p.nif}`;
-  if (p.phone) return `Tel: ${p.phone}`;
-  if (p.passport_id) return `ID: ${p.passport_id}`;
-  return p.id ? `ID: ${p.id}` : "—";
-}
+        /* Estado: o próprio select é o “modelo” */
+        .gcStatusSelect{
+          appearance:none;
+          -webkit-appearance:none;
+          -moz-appearance:none;
+          border-radius:999px;
+          border:1px solid transparent;
+          padding:8px 36px 8px 12px;
+          font-size:${UI.fs13}px;
+          font-weight:900;
+          cursor:pointer;
+          background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+          background-position: calc(100% - 18px) 55%, calc(100% - 12px) 55%;
+          background-size: 6px 6px, 6px 6px;
+          background-repeat:no-repeat;
+        }
 
-function ensureDashboardButtons() {
-  const selectedWrap = document.querySelector(".gcSelectedWrap");
-  if (!selectedWrap) return;
+        /* Toolbar (linha única) */
+        .gcToolbar {
+          display:flex;
+          align-items:flex-end;
+          gap:10px;
+          flex-wrap:wrap;
+        }
+        .gcToolbarBlock {
+          display:flex;
+          flex-direction:column;
+          gap:4px;
+        }
+        .gcSearchWrap {
+          min-width: 360px;
+          max-width: 520px;
+          flex: 1 1 420px;
+        }
+        .gcSelectedWrap {
+          min-width: 320px;
+          flex: 0 0 360px;
+        }
+        @media (max-width: 980px){
+          .gcSearchWrap, .gcSelectedWrap { flex: 1 1 100%; min-width: 280px; }
+        }
+      </style>
 
-  // linha de botões já existe (btnQuickOpen + btnRefreshAgenda). Vamos reaproveitar e adicionar os restantes.
-  const btnOpen = document.getElementById("btnQuickOpen");
-  if (btnOpen) btnOpen.textContent = "Abrir Feed";
-
-  let row = selectedWrap.querySelector("#pQuickActionsRow");
-  if (!row) {
-    // tenta encontrar a linha que já existe; se não existir, cria uma
-    const existingButtonsRow = selectedWrap.querySelector("div[style*='display:flex']") || null;
-    if (existingButtonsRow) {
-      existingButtonsRow.id = "pQuickActionsRow";
-      row = existingButtonsRow;
-    } else {
-      row = document.createElement("div");
-      row.id = "pQuickActionsRow";
-      row.style.marginTop = "8px";
-      row.style.display = "flex";
-      row.style.gap = "10px";
-      row.style.flexWrap = "wrap";
-      selectedWrap.appendChild(row);
-    }
-  }
-
-  function ensureBtn(id, label) {
-    let b = document.getElementById(id);
-    if (!b) {
-      b = document.createElement("button");
-      b.id = id;
-      b.className = "gcBtn";
-      b.textContent = label;
-      row.appendChild(b);
-    } else {
-      b.textContent = label;
-    }
-    return b;
-  }
-
-  // Garantir a ordem e os botões:
-  // Abrir Feed (já existe) | Editar | Nova marcação | Trocar doente | Atualizar (já existe)
-  // Vamos inserir os novos antes do Atualizar, sem mexer no id do refresh.
-  const btnRefresh = document.getElementById("btnRefreshAgenda");
-
-  const btnEdit = ensureBtn("btnQuickEdit", "Editar");
-  const btnNewAppt = ensureBtn("btnQuickNewAppt", "Nova marcação");
-  const btnClear = ensureBtn("btnQuickClear", "Trocar doente");
-
-  // Reordenar no DOM para ficar:
-  // btnQuickOpen, btnQuickEdit, btnQuickNewAppt, btnQuickClear, btnRefreshAgenda
-  const wanted = ["btnQuickOpen", "btnQuickEdit", "btnQuickNewAppt", "btnQuickClear", "btnRefreshAgenda"];
-  wanted.forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) row.appendChild(el);
-  });
-
-  // Garantir que o refresh mantém o label original
-  if (btnRefresh) btnRefresh.textContent = "Atualizar";
-}
-
-function toggleDashboardPatientPickerUI() {
-  const searchWrap = document.querySelector(".gcSearchWrap");
-  const selectedWrap = document.querySelector(".gcSelectedWrap");
-  if (!searchWrap || !selectedWrap) return;
-
-  const hasSelected = !!(G && G.patientQuick && G.patientQuick.selected);
-
-  // regra PONTO A:
-  // - sem selecionado: mostra pesquisa, esconde cartão
-  // - com selecionado: esconde pesquisa, mostra cartão
-  searchWrap.style.display = hasSelected ? "none" : "";
-  selectedWrap.style.display = hasSelected ? "" : "none";
-
-  if (hasSelected) ensureDashboardButtons();
-}
-
-function renderQuickPatientSelected() {
-  const box = document.getElementById("pQuickSelected");
-  if (!box) return;
-
-  const p = G && G.patientQuick ? G.patientQuick.selected : null;
-  if (!p) {
-    box.textContent = "—";
-    toggleDashboardPatientPickerUI();
-    return;
-  }
-
-  const name = p.full_name || "—";
-  const ident = getPatientMainIdentifier(p);
-  const clinic = getSelectedClinicLabel();
-
-  box.innerHTML = `
-    <div style="display:flex; flex-direction:column; gap:4px; width:100%;">
-      <div style="font-size:${UI.fs16}px; font-weight:950; color:#111; line-height:1.15; overflow-wrap:anywhere; word-break:break-word;">
-        ${escapeHtml(name)}
-      </div>
-      <div style="font-size:${UI.fs12}px; color:#444;">
-        <span style="color:#666;">${escapeHtml(ident)}</span>
-        <span style="color:#bbb;"> • </span>
-        <span style="color:#666;">Clínica: ${escapeHtml(clinic)}</span>
-      </div>
-    </div>
-  `;
-
-  toggleDashboardPatientPickerUI();
-}
-
-function renderQuickPatientResults(results) {
-  const host = document.getElementById("pQuickResults");
-  if (!host) return;
-
-  if (!results || results.length === 0) {
-    host.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Sem resultados.</div>`;
-    return;
-  }
-
-  host.innerHTML = results
-    .map((p) => {
-      const idBits = [];
-      if (p.sns) idBits.push(`SNS:${p.sns}`);
-      if (p.nif) idBits.push(`NIF:${p.nif}`);
-      if (p.passport_id) idBits.push(`ID:${p.passport_id}`);
-      const idLine = idBits.length ? idBits.join(" / ") : (p.external_id ? `Ext:${p.external_id}` : "");
-      const phone = p.phone ? `Tel:${p.phone}` : "";
-      const line2Parts = [idLine, phone].filter(Boolean).join(" • ");
-
-      return `
-        <div data-pid="${escapeHtml(p.id)}"
-             style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:pointer;">
-          <div style="font-size:${UI.fs13}px; color:#111; font-weight:700; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">
-            ${escapeHtml(p.full_name)}
+      <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; font-size:${UI.fs14}px;">
+        <header style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:12px 14px; border:1px solid #e5e5e5; border-radius:12px;">
+          <div style="display:flex; flex-direction:column; gap:6px; min-width: 260px;">
+            <div style="font-size:${UI.fs14}px; color:#111; font-weight:700;">Sessão ativa</div>
+            <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Email:</span> <span id="hdrEmail">—</span></div>
+            <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Role:</span> <span id="hdrRole">—</span></div>
+            <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Clínicas:</span> <span id="hdrClinicCount">0</span></div>
           </div>
-          <div style="font-size:${UI.fs12}px; color:#666;">${escapeHtml(line2Parts || "—")}</div>
-        </div>
-      `;
-    })
-    .join("");
 
-  host.querySelectorAll("[data-pid]").forEach((el) => {
-    el.addEventListener("click", () => {
-      const pid = el.getAttribute("data-pid");
-      const p = (results || []).find((x) => x.id === pid);
-      if (!p) return;
+          <button id="btnLogout" class="gcBtn">Logout</button>
+        </header>
 
-      G.patientQuick.selected = p;
+        <main style="margin-top:14px;">
+          <section class="gcCard">
+            <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+              <div>
+                <div style="font-size:${UI.fs16}px; color:#111; font-weight:800;">Agenda</div>
+                <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;" id="agendaSubtitle">—</div>
+              </div>
+            </div>
 
-      // limpar pesquisa e lista (porque “a pesquisa desaparece”)
-      const q = document.getElementById("pQuickQuery");
-      if (q) q.value = "";
-      host.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>`;
+            <!-- ✅ Linha única (como no desenho): botões -> pesquisa -> ver/atualizar -> clínica -->
+            <div style="margin-top:12px;" class="gcToolbar">
+              <div class="gcToolbarBlock" style="flex-direction:row; gap:10px; align-items:flex-end;">
+                <button id="btnCal" class="gcBtn" title="Calendário">Calendário</button>
+                <button id="btnToday" class="gcBtn" title="Voltar a hoje">Hoje</button>
+                <button id="btnNewAppt" class="gcBtnPrimary">Nova marcação</button>
+                <button id="btnNewPatientMain" class="gcBtn" title="Criar novo doente">＋ Novo doente</button>
+              </div>
 
-      renderQuickPatientSelected();
-      setQuickPatientMsg("ok", "Doente selecionado.");
-    });
-  });
-}
+              <div class="gcToolbarBlock gcSearchWrap">
+                <div class="gcLabel">Pesquisa de doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
+                <input id="pQuickQuery" type="text" placeholder="ex.: Man… | 916… | 123456789"
+                  autocomplete="off" autocapitalize="off" spellcheck="false"
+                  style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;" />
+                <div id="pQuickResults" style="margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:180px; overflow:auto;">
+                  <div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>
+                </div>
+              </div>
 
-function clearSelectedPatient() {
-  if (G && G.patientQuick) G.patientQuick.selected = null;
+              <div class="gcToolbarBlock gcSelectedWrap">
+                <div class="gcLabel">Selecionado</div>
+                <div id="pQuickSelected" class="gcMutedCard" style="min-height: 42px; display:flex; align-items:center; color:#111; font-size:${UI.fs13}px;">
+                  —
+                </div>
+                <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
+                  <button id="btnQuickOpen" class="gcBtn">Ver doente</button>
+                  <button id="btnRefreshAgenda" class="gcBtn">Atualizar</button>
+                </div>
+                <div id="pQuickMsg" style="margin-top:6px; font-size:${UI.fs12}px; color:#666;"></div>
+              </div>
 
-  const q = document.getElementById("pQuickQuery");
-  const host = document.getElementById("pQuickResults");
-  const box = document.getElementById("pQuickSelected");
+              <div class="gcToolbarBlock" style="min-width:240px;">
+                <label for="selClinic" class="gcLabel">Clínica</label>
+                <select id="selClinic" class="gcSelect" style="min-width:240px;"></select>
+              </div>
+            </div>
 
-  if (q) q.value = "";
-  if (host) host.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>`;
-  if (box) box.textContent = "—";
+            <div style="margin-top:12px;" id="agendaStatus" aria-live="polite"></div>
 
-  setQuickPatientMsg("info", "");
-  toggleDashboardPatientPickerUI();
-}
+            <div style="margin-top:10px; border-top:1px solid #f0f0f0; padding-top:10px;">
+              <ul id="agendaList" style="list-style:none; padding:0; margin:0;"></ul>
+            </div>
+          </section>
+        </main>
 
-async function openEditSelectedPatient() {
-  try {
-    const p = G && G.patientQuick ? G.patientQuick.selected : null;
-    if (!p || !p.id) {
-      setQuickPatientMsg("error", "Seleciona um doente primeiro.");
-      return;
-    }
-    const full = await fetchPatientById(p.id);
-    if (!full) {
-      alert("Não consegui carregar o doente (RLS ou não existe).");
-      return;
-    }
-    openPatientViewModal(full);
-  } catch (e) {
-    console.error("Editar doente falhou:", e);
-    alert("Erro ao abrir edição do doente. Vê a consola para detalhe.");
-  }
-}
-
-function openNewApptForSelectedPatient() {
-  const p = G && G.patientQuick ? G.patientQuick.selected : null;
-  if (!p || !p.id) {
-    setQuickPatientMsg("error", "Seleciona um doente primeiro.");
-    return;
+        <div id="modalRoot"></div>
+      </div>
+    `;
   }
 
-  // abre modal normal
-  openApptModal({ mode: "new", row: null });
+  function setAgendaSubtitleForSelectedDay() {
+    const r = isoLocalDayRangeFromISODate(G.selectedDayISO);
+    const sub = document.getElementById("agendaSubtitle");
+    if (!sub || !r) return;
+    sub.textContent = `${fmtDatePt(r.start)} (00:00–24:00)`;
+  }
 
-  // tenta pré-preencher o doente (sem tocar no resto do código)
-  setTimeout(() => {
-    const mPatientId = document.getElementById("mPatientId");
-    const mPatientName = document.getElementById("mPatientName");
-    const mPatientSelected = document.getElementById("mPatientSelected");
-    const mTitleAuto = document.getElementById("mTitleAuto");
+  function setAgendaStatus(kind, text) {
+    const el = document.getElementById("agendaStatus");
+    if (!el) return;
 
-    if (mPatientId) mPatientId.value = p.id;
-    if (mPatientName) mPatientName.value = p.full_name || "";
-    if (mPatientSelected) mPatientSelected.textContent = p.full_name ? p.full_name : `Selecionado (ID): ${p.id}`;
+    const color = kind === "loading" ? "#666" : kind === "error" ? "#b00020" : kind === "ok" ? "#111" : "#666";
+    el.innerHTML = `<div style="font-size:${UI.fs12}px; color:${color};">${escapeHtml(text)}</div>`;
+  }
 
-    // título mínimo (o resto do modal pode ajustar)
-    if (mTitleAuto && !mTitleAuto.value) mTitleAuto.value = p.full_name || "";
-  }, 60);
-}
+  function renderClinicsSelect(clinics) {
+    const sel = document.getElementById("selClinic");
+    if (!sel) return;
 
-async function wireQuickPatientSearch() {
-  const input = document.getElementById("pQuickQuery");
-  const resHost = document.getElementById("pQuickResults");
-  const btnOpen = document.getElementById("btnQuickOpen");
-
-  if (!input || !resHost || !btnOpen) return;
-
-  // garantir que os botões extra existem
-  ensureDashboardButtons();
-
-  const btnEdit = document.getElementById("btnQuickEdit");
-  const btnNewAppt = document.getElementById("btnQuickNewAppt");
-  const btnClear = document.getElementById("btnQuickClear");
-
-  // estado inicial: sem selecionado → mostra pesquisa
-  toggleDashboardPatientPickerUI();
-
-  let timer = null;
-
-  async function run() {
-    const term = (input.value || "").trim();
-    if (!term || term.length < 2) {
-      resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>`;
-      setQuickPatientMsg("info", "");
-      return;
+    const opts = [];
+    opts.push(`<option value="">Todas</option>`);
+    for (const c of clinics) {
+      const label = c.name || c.slug || c.id;
+      opts.push(`<option value="${escapeHtml(c.id)}">${escapeHtml(label)}</option>`);
     }
+    sel.innerHTML = opts.join("");
 
-    const selClinic = document.getElementById("selClinic");
-    const clinicId = selClinic && selClinic.value ? selClinic.value : null;
+    if (clinics.length === 1) sel.value = clinics[0].id;
+  }
 
-    resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">A pesquisar…</div>`;
-    setQuickPatientMsg("info", "");
+  function getPatientForAppointmentRow(apptRow) {
+    const pid = apptRow && apptRow.patient_id ? apptRow.patient_id : null;
+    if (!pid) return null;
+    return G.patientsById && G.patientsById[pid] ? G.patientsById[pid] : null;
+  }
+
+  async function openPatientFeedFromAny(patientLike) {
+    try {
+      const pid = patientLike && patientLike.id ? patientLike.id : null;
+      if (!pid) {
+        alert("Doente inválido.");
+        return;
+      }
+      const full = await fetchPatientById(pid);
+      if (!full) {
+        alert("Não consegui carregar o doente (RLS ou não existe).");
+        return;
+      }
+      openPatientViewModal(full);
+    } catch (e) {
+      console.error("openPatientFeed falhou:", e);
+      alert("Erro ao abrir doente. Vê a consola para detalhe.");
+    }
+  }
+
+  async function updateAppointmentStatus(apptId, newStatus) {
+    if (!apptId) return;
+    const s = String(newStatus || "").trim();
+    if (!s) return;
+
+    const idx = (G.agenda.rows || []).findIndex((x) => x && x.id === apptId);
+    if (idx >= 0) {
+      G.agenda.rows[idx].status = s;
+      renderAgendaList();
+    }
 
     try {
-      const pts = await searchPatientsScoped({ clinicId, q: term, limit: 30 });
-      G.patientQuick.lastResults = pts;
-      renderQuickPatientResults(pts);
-
-      if (pts.length === 0) setQuickPatientMsg("info", "Sem resultados.");
+      const { error } = await window.sb.from("appointments").update({ status: s }).eq("id", apptId);
+      if (error) throw error;
     } catch (e) {
-      console.error("Pesquisa rápida de doente falhou:", e);
-      resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#b00020;">Erro na pesquisa. Vê a consola.</div>`;
-      setQuickPatientMsg("error", "Erro na pesquisa.");
+      console.error("Update status falhou:", e);
+      await refreshAgenda();
+      alert("Não foi possível atualizar o estado. Vê a consola para detalhe.");
     }
   }
 
-  function schedule() {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(run, 250);
-  }
+  // ✅ Agenda alinhada em grelha + Estado clicável com cor (select estilizado)
+  function renderAgendaList() {
+    const ul = document.getElementById("agendaList");
+    if (!ul) return;
 
-  input.addEventListener("input", schedule);
+    const rows = G.agenda.rows || [];
+    const timeColUsed = G.agenda.timeColUsed || "start_at";
 
-  // Abrir Feed
-  btnOpen.addEventListener("click", () => {
-    if (!G.patientQuick.selected) {
-      setQuickPatientMsg("error", "Seleciona um doente primeiro.");
+    if (rows.length === 0) {
+      ul.innerHTML = `<li style="padding:10px 0; font-size:${UI.fs12}px; color:#666;">Sem marcações para este dia.</li>`;
       return;
     }
-    openPatientFeedFromAny(G.patientQuick.selected);
-  });
 
-  // Editar
-  if (btnEdit) btnEdit.addEventListener("click", openEditSelectedPatient);
+    ul.innerHTML = rows
+      .map((r) => {
+        const startVal = r[timeColUsed] ?? r[pickFirstExisting(r, APPT_TIME_COL_CANDIDATES)];
+        const endVal = r[pickFirstExisting(r, APPT_END_COL_CANDIDATES)];
 
-  // Nova marcação (pré-preenche doente quando possível)
-  if (btnNewAppt) btnNewAppt.addEventListener("click", openNewApptForSelectedPatient);
+        const start = startVal ? new Date(startVal) : null;
+        const end = endVal ? new Date(endVal) : null;
 
-  // Trocar doente
-  if (btnClear) btnClear.addEventListener("click", clearSelectedPatient);
+        const tStart = fmtTime(start);
+        const tEnd = end ? fmtTime(end) : null;
 
-  // Quando muda a clínica do dashboard: se houver selecionado, atualizar cartão (texto da clínica)
-  const selClinic = document.getElementById("selClinic");
-  if (selClinic) {
-    selClinic.addEventListener("change", () => {
-      if (G && G.patientQuick && G.patientQuick.selected) renderQuickPatientSelected();
+        const clinicId = r.clinic_id ?? null;
+        const clinicName =
+          clinicId && G.clinicsById[clinicId]
+            ? G.clinicsById[clinicId].name || G.clinicsById[clinicId].slug || clinicId
+            : clinicId || "—";
+
+        const status = r.status ?? "scheduled";
+        const meta = statusMeta(status);
+
+        const proc = r.procedure_type ?? "—";
+        const notes = r.notes ? clipOneLine(r.notes, 130) : "";
+
+        const p = getPatientForAppointmentRow(r);
+        const patientName = p && p.full_name ? p.full_name : (r.patient_id ? `Doente (ID): ${r.patient_id}` : "—");
+        const patientPhone = p && p.phone ? p.phone : "—";
+
+        function optLabel(s) {
+          const m = statusMeta(s);
+          return `${m.icon} ${m.label}`;
+        }
+
+        return `
+        <li data-appt-id="${escapeHtml(r.id)}" style="padding:10px 0; border-bottom:1px solid #f2f2f2;">
+          <div class="gcGridRow">
+            <div>
+              <div style="font-size:${UI.fs16}px; font-weight:900; color:#111; padding-top:2px;">
+                ${escapeHtml(tStart)}${tEnd ? `–${escapeHtml(tEnd)}` : ""}
+              </div>
+            </div>
+
+            <div style="min-width: 260px;">
+              <span data-patient-open="1" class="gcPatientLink">${escapeHtml(patientName)}</span>
+              ${notes ? `<div style="margin-top:6px; font-size:${UI.fs12}px; color:#444;">Notas: ${escapeHtml(notes)}</div>` : ""}
+            </div>
+
+            <div style="min-width: 220px;">
+              <div class="gcCellTitle">Tipo</div>
+              <div class="gcCellValue">${escapeHtml(proc)}</div>
+            </div>
+
+            <div style="min-width: 260px;">
+              <div class="gcCellTitle">Estado</div>
+              <div style="margin-top:6px;">
+                <select data-status-select="1"
+                        class="gcStatusSelect"
+                        style="background:${escapeHtml(meta.bg)}; color:${escapeHtml(meta.fg)}; border-color:${escapeHtml(meta.br)};"
+                        title="Clique para alterar estado">
+                  ${STATUS_OPTIONS.map((s) => {
+                    return `<option value="${escapeHtml(s)}"${s === status ? " selected" : ""}>${escapeHtml(optLabel(s))}</option>`;
+                  }).join("")}
+                </select>
+              </div>
+            </div>
+
+            <div style="min-width: 160px;">
+              <div class="gcCellTitle">Clínica</div>
+              <div class="gcCellValue">${escapeHtml(clinicName)}</div>
+            </div>
+
+            <div style="min-width: 160px;">
+              <div class="gcCellTitle">Telefone</div>
+              <div class="gcCellValue">${escapeHtml(patientPhone)}</div>
+            </div>
+          </div>
+        </li>
+      `;
+      })
+      .join("");
+
+    ul.querySelectorAll("li[data-appt-id]").forEach((li) => {
+      li.addEventListener("click", (ev) => {
+        const t = ev.target;
+
+        if (t && (t.getAttribute("data-status-select") === "1" || (t.closest && t.closest("[data-status-select='1']")))) return;
+        if (t && (t.getAttribute("data-patient-open") === "1" || (t.closest && t.closest("[data-patient-open='1']")))) return;
+
+        const id = li.getAttribute("data-appt-id");
+        const row = rows.find((x) => x.id === id);
+        if (row) openApptModal({ mode: "edit", row });
+      });
+
+      const pLink = li.querySelector("[data-patient-open='1']");
+      if (pLink) {
+        pLink.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+
+          const apptId = li.getAttribute("data-appt-id");
+          const row = rows.find((x) => x.id === apptId);
+          if (!row) return;
+
+          if (!row.patient_id) {
+            alert("Marcação sem patient_id.");
+            return;
+          }
+          openPatientFeedFromAny({ id: row.patient_id });
+        });
+      }
+
+      const sel = li.querySelector("select[data-status-select='1']");
+      if (sel) {
+        sel.addEventListener("click", (ev) => ev.stopPropagation());
+        sel.addEventListener("change", async (ev) => {
+          ev.stopPropagation();
+          const apptId = li.getAttribute("data-appt-id");
+          const v = sel.value;
+          await updateAppointmentStatus(apptId, v);
+        });
+      }
     });
   }
 
-  // Se já vier selecionado por algum fluxo (ex.: novo doente criado e selecionado)
-  renderQuickPatientSelected();
-}
+  /* ==== FIM    BLOCO 05/08 — Render Shell + Agenda (UI) ==== */
 
-/* ==== FIM    BLOCO 05/08 — DASHBOARD: PESQUISA / DOENTE SELECIONADO ==== */
   /* ==== INÍCIO BLOCO 06/08 — Pesquisa rápida + Modais de Doente (ver/editar + novo) ==== */
 
   // ---------- Pesquisa rápida de doentes (main page) ----------
