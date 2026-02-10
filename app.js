@@ -355,8 +355,7 @@
   };
 
   /* ==== FIM    BLOCO 04/08 — Catálogos + Estado global (G) ==== */
-
-  /* ==== INÍCIO BLOCO 05/08 — Render Shell + Agenda (UI) ==== */
+/* ==== INÍCIO BLOCO 05/08 — Render Shell + Agenda (UI) ==== */
 
   // ---------- Render shell ----------
   function renderAppShell() {
@@ -377,7 +376,7 @@
 
         .gcGridRow {
           display:grid;
-          grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 170px 160px;
+          grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 160px 170px; /* ⬅️ 5ª col: Telefone | 6ª col: Clínica */
           gap:14px;
           align-items:start;
           width:100%;
@@ -500,6 +499,23 @@
           gap:10px;
           flex-wrap:wrap;
         }
+
+        /* ✅ Topo: seletor de clínica NÃO deve ocupar “meia página” */
+        .gcClinicTop {
+          flex: 0 0 210px;
+          width: 210px;
+          max-width: 210px;
+        }
+        @media (max-width: 980px){
+          .gcClinicTop { flex: 1 1 220px; width:auto; max-width:none; }
+        }
+        #selClinic {
+          width: 210px;
+          max-width: 210px;
+        }
+        @media (max-width: 980px){
+          #selClinic { width: 100%; max-width:none; }
+        }
       </style>
 
       <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; font-size:${UI.fs14}px;">
@@ -561,9 +577,9 @@
                 </div>
               </div>
 
-              <div style="min-width:240px;">
+              <div class="gcClinicTop">
                 <label for="selClinic" class="gcLabel">Clínica</label>
-                <select id="selClinic" class="gcSelect" style="min-width:240px;"></select>
+                <select id="selClinic" class="gcSelect"></select>
               </div>
             </div>
 
@@ -793,14 +809,16 @@
               </div>
             </div>
 
-            <div style="min-width: 160px;">
-              <div class="gcCellTitle">Clínica</div>
-              <div class="gcCellValue">${escapeHtml(clinicName)}</div>
-            </div>
-
+            <!-- ✅ 5ª coluna agora é Telefone -->
             <div style="min-width: 160px;">
               <div class="gcCellTitle">Telefone</div>
               <div class="gcCellValue">${escapeHtml(patientPhone)}</div>
+            </div>
+
+            <!-- ✅ 6ª coluna agora é Clínica (à direita) -->
+            <div style="min-width: 170px;">
+              <div class="gcCellTitle">Clínica</div>
+              <div class="gcCellValue">${escapeHtml(clinicName)}</div>
             </div>
           </div>
         </li>
