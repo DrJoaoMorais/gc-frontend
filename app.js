@@ -1659,765 +1659,661 @@
   /* ==== FIM    BLOCO 06/08 — Pesquisa rápida + Modais de Doente (ver/editar + novo) ==== */
   /* ==== INÍCIO BLOCO 07/08 — Calendário overlay + Modal Marcações ==== */
 
-  // ---------- Calendário mensal overlay ----------
-  function monthLabel(d) {
-    const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-    return `${months[d.getMonth()]} ${d.getFullYear()}`;
-  }
+  function openApptModal({ mode, row }) {
+  const root = document.getElementById("modalRoot");
+  if (!root) return;
 
-  function buildMonthGrid(monthDate) {
-    const y = monthDate.getFullYear();
-    const m = monthDate.getMonth();
+  const isEdit = mode === "edit";
 
-    const first = new Date(y, m, 1, 0, 0, 0, 0);
-    const last = new Date(y, m + 1, 0, 0, 0, 0, 0);
-    const daysInMonth = last.getDate();
+  const selClinic = document.getElementById("selClinic");
+  const defaultClinicId =
+    isEdit && row && row.clinic_id
+      ? row.clinic_id
+      : selClinic && selClinic.value
+        ? selClinic.value
+        : G.clinics.length === 1
+          ? G.clinics[0].id
+          : "";
 
-    const jsDowFirst = first.getDay();
-    const dowFirstMon0 = (jsDowFirst + 6) % 7;
+  const selectedDayStart = parseISODateToLocalStart(G.selectedDayISO) || new Date();
+  const startBase = new Date(
+    selectedDayStart.getFullYear(),
+    selectedDayStart.getMonth(),
+    selectedDayStart.getDate(),
+    9, 0, 0, 0
+  );
 
-    const cells = [];
-    for (let i = 0; i < dowFirstMon0; i++) cells.push(null);
-    for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(y, m, d, 0, 0, 0, 0));
-    while (cells.length % 7 !== 0) cells.push(null);
-    while (cells.length < 42) cells.push(null);
+  const startInit = isEdit && row && row.start_at ? new Date(row.start_at) : startBase;
+  const endInit = isEdit && row && row.end_at ? new Date(row.end_at) : new Date(startInit.getTime() + 20 * 60000);
+  const durInit = Math.max(5, Math.round((endInit.getTime() - startInit.getTime()) / 60000));
+  const durationBest = DURATION_OPTIONS.includes(durInit) ? durInit : 20;
 
-    return cells;
-  }
+  const procInit = isEdit ? (row.procedure_type ?? "") : "";
+  const statusInit = isEdit ? (row.status ?? "scheduled") : "scheduled";
 
-  function openCalendarOverlay() {
-    const root = document.getElementById("modalRoot");
-    if (!root) return;
+  const patientIdInit = isEdit ? (row.patient_id ?? "") : "";
+  const notesInit = isEdit ? (row.notes ?? "") : "";
 
-    const todayISO = fmtDateISO(new Date());
-    const selectedISO = G.selectedDayISO;
+  const procIsOther = procInit && !PROCEDURE_OPTIONS.includes(procInit) ? true : procInit === "Outro";
+  const procSelectValue = procIsOther ? "Outro" : (procInit || "");
 
-    if (!G.calMonth) {
-      const selD = parseISODateToLocalStart(selectedISO) || new Date();
-      G.calMonth = new Date(selD.getFullYear(), selD.getMonth(), 1, 0, 0, 0, 0);
-    }
+  root.innerHTML = `
+    <style>
+      /* Modal: linha compacta + dropdown flutuante do doente */
+      .gcMRow5{
+        display:grid;
+        grid-template-columns: 210px 170px 220px 150px 1fr;
+        gap:12px;
+        align-items:end;
+      }
+      @media (max-width: 980px){
+        .gcMRow5{ grid-template-columns: 1fr 1fr; }
+      }
+      .gcMLabel{ font-size:${UI.fs12}px; color:#666; }
+      .gcMInput{ padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px; }
+      .gcMSelect{ padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; font-size:${UI.fs13}px; }
 
-    const cells = buildMonthGrid(G.calMonth);
-    const weekDays = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+      .gcMPatientBox{ position:relative; }
+      #mPatientResults{
+        display:none;
+        position:absolute;
+        left:0; right:0;
+        top: calc(100% + 6px);
+        z-index: 40;
+        border:1px solid #eee;
+        border-radius:10px;
+        padding:8px;
+        background:#fff;
+        max-height:220px;
+        overflow:auto;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      }
+      .gcMPatientBox:focus-within #mPatientResults{ display:block; }
 
-    root.innerHTML = `
-      <div id="calOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
-        <div style="background:#fff; width:min(520px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px;">
-          <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
-            <button id="calPrev" class="gcBtn">◀</button>
-            <div style="font-size:${UI.fs14}px; font-weight:800; color:#111;" id="calTitle">${escapeHtml(monthLabel(G.calMonth))}</div>
-            <button id="calNext" class="gcBtn">▶</button>
+      .gcMSelectedLine{
+        padding:10px 12px;
+        border-radius:10px;
+        border:1px solid #ddd;
+        background:#fafafa;
+        font-size:${UI.fs13}px;
+        font-weight:800;
+        color:#111;
+        min-height:42px;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+      }
+      .gcMSelectedLine span{ font-weight:900; }
+      .gcMSelectedLine .gcMini{ font-size:${UI.fs12}px; font-weight:700; color:#666; }
+    </style>
+
+    <div id="modalOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
+      <div style="background:#fff; width:min(920px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 86vh; overflow:auto;">
+        <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+          <div>
+            <div style="font-size:${UI.fs14}px; font-weight:800; color:#111;">
+              ${isEdit ? "Editar marcação" : "Nova marcação"}
+            </div>
+            <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
+              Dia selecionado: ${escapeHtml(G.selectedDayISO)}. Doente e tipo de consulta são obrigatórios.
+            </div>
+          </div>
+          <button id="btnCloseModal" class="gcBtn">Fechar</button>
+        </div>
+
+        <!-- Doente: 1 campo com dropdown + linha “Doente: …” -->
+        <div style="margin-top:12px; border:1px solid #eee; border-radius:12px; padding:12px; background:#fafafa;">
+          <div class="gcMLabel" style="margin-bottom:6px;">Pesquisar doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
+
+          <div class="gcMPatientBox">
+            <input id="mPatientQuery" class="gcMInput" type="text"
+              placeholder="ex.: Man… | 916… | 123456789"
+              autocomplete="off" autocapitalize="off" spellcheck="false" style="width:100%;" />
+
+            <div id="mPatientResults">
+              <div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>
+            </div>
           </div>
 
-          <div style="margin-top:10px; display:grid; grid-template-columns: repeat(7, 1fr); gap:6px;">
-            ${weekDays.map((w) => `<div style="font-size:${UI.fs12}px; color:#666; text-align:center; padding:6px 0;">${w}</div>`).join("")}
-            ${cells
-              .map((d) => {
-                if (!d) return `<div></div>`;
-                const iso = fmtDateISO(d);
-                const isToday = iso === todayISO;
-                const isSelected = iso === selectedISO;
-
-                const base = "padding:10px 0; border-radius:10px; border:1px solid #eee; text-align:center; cursor:pointer; user-select:none;";
-                const bg = isSelected
-                  ? "background:#111; color:#fff; border-color:#111;"
-                  : isToday
-                    ? "background:#f2f2f2; color:#111;"
-                    : "background:#fff; color:#111;";
-                return `<div data-iso="${iso}" style="${base}${bg} font-size:${UI.fs13}px;">${d.getDate()}</div>`;
-              })
-              .join("")}
+          <div style="margin-top:10px;" class="gcMSelectedLine">
+            <div>
+              <div class="gcMini">Selecionado</div>
+              <div id="mPatientSelected">—</div>
+            </div>
+            <button id="btnNewPatient" class="gcBtn">Novo doente</button>
           </div>
 
-          <div style="margin-top:12px; display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
-            <div style="font-size:${UI.fs12}px; color:#666;">Clique num dia para abrir a agenda desse dia.</div>
-            <button id="calClose" class="gcBtn">Fechar</button>
+          <input type="hidden" id="mPatientId" value="" />
+          <input type="hidden" id="mPatientName" value="" />
+          <div id="newPatientHost" style="margin-top:10px;"></div>
+        </div>
+
+        <!-- Linha compacta única -->
+        <div style="margin-top:12px;" class="gcMRow5">
+          <div>
+            <label class="gcMLabel">Clínica</label>
+            <select id="mClinic" class="gcMSelect" style="width:100%;"></select>
+          </div>
+
+          <div>
+            <label class="gcMLabel">Status</label>
+            <select id="mStatus" class="gcMSelect" style="width:100%;">
+              ${STATUS_OPTIONS.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("")}
+            </select>
+          </div>
+
+          <div>
+            <label class="gcMLabel">Início</label>
+            <input id="mStart" class="gcMInput" type="datetime-local" style="width:100%;" />
+          </div>
+
+          <div>
+            <label class="gcMLabel">Duração (min)</label>
+            <select id="mDuration" class="gcMSelect" style="width:100%;">
+              ${DURATION_OPTIONS.map((n) => `<option value="${n}">${n}</option>`).join("")}
+            </select>
+          </div>
+
+          <div>
+            <label class="gcMLabel">Tipo de consulta *</label>
+            <select id="mProc" class="gcMSelect" style="width:100%;">
+              <option value="">—</option>
+              ${PROCEDURE_OPTIONS.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("")}
+            </select>
+            <div id="mProcOtherWrap" style="display:none; margin-top:8px;">
+              <input id="mProcOther" class="gcMInput" type="text" placeholder="Outro (texto)"
+                autocomplete="off" autocapitalize="off" spellcheck="false" style="width:100%;" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Notas -->
+        <div style="margin-top:12px;">
+          <label class="gcMLabel">Notas</label>
+          <textarea id="mNotes" rows="3" class="gcMInput" style="width:100%; resize:vertical;"></textarea>
+        </div>
+
+        <div style="margin-top:12px; display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;">
+          <div id="mMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
+          <div style="display:flex; gap:10px;">
+            <button id="btnCancel" class="gcBtn">Cancelar</button>
+            <button id="btnSave" class="gcBtn" style="font-weight:900;">
+              ${isEdit ? "Guardar alterações" : "Criar marcação"}
+            </button>
           </div>
         </div>
       </div>
-    `;
+    </div>
+  `;
 
-    const overlay = document.getElementById("calOverlay");
-    const calClose = document.getElementById("calClose");
-    const calPrev = document.getElementById("calPrev");
-    const calNext = document.getElementById("calNext");
+  const overlay = document.getElementById("modalOverlay");
+  const btnClose = document.getElementById("btnCloseModal");
+  const btnCancel = document.getElementById("btnCancel");
+  const btnSave = document.getElementById("btnSave");
+  const btnNewPatient = document.getElementById("btnNewPatient");
 
-    function close() {
-      root.innerHTML = "";
-    }
+  const mClinic = document.getElementById("mClinic");
+  const mStatus = document.getElementById("mStatus");
+  const mStart = document.getElementById("mStart");
+  const mDuration = document.getElementById("mDuration");
+  const mProc = document.getElementById("mProc");
+  const mProcOtherWrap = document.getElementById("mProcOtherWrap");
+  const mProcOther = document.getElementById("mProcOther");
+  const mNotes = document.getElementById("mNotes");
+  const mMsg = document.getElementById("mMsg");
 
-    if (calClose) calClose.addEventListener("click", close);
-    if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "calOverlay") close(); });
+  const mPatientQuery = document.getElementById("mPatientQuery");
+  const mPatientResults = document.getElementById("mPatientResults");
+  const mPatientSelected = document.getElementById("mPatientSelected");
+  const mPatientId = document.getElementById("mPatientId");
+  const mPatientName = document.getElementById("mPatientName");
 
-    if (calPrev) calPrev.addEventListener("click", () => {
-      G.calMonth = new Date(G.calMonth.getFullYear(), G.calMonth.getMonth() - 1, 1, 0, 0, 0, 0);
-      openCalendarOverlay();
-    });
-
-    if (calNext) calNext.addEventListener("click", () => {
-      G.calMonth = new Date(G.calMonth.getFullYear(), G.calMonth.getMonth() + 1, 1, 0, 0, 0, 0);
-      openCalendarOverlay();
-    });
-
-    root.querySelectorAll("[data-iso]").forEach((el) => {
-      el.addEventListener("click", async () => {
-        const iso = el.getAttribute("data-iso");
-        if (!iso) return;
-        G.selectedDayISO = iso;
-
-        const d = parseISODateToLocalStart(iso);
-        if (d) G.calMonth = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
-
-        close();
-        setAgendaSubtitleForSelectedDay();
-        await refreshAgenda();
-      });
-    });
+  // preencher clínica
+  const clinicOpts = [];
+  for (const c of G.clinics) {
+    const label = c.name || c.slug || c.id;
+    clinicOpts.push(`<option value="${escapeHtml(c.id)}">${escapeHtml(label)}</option>`);
+  }
+  if (mClinic) {
+    mClinic.innerHTML = clinicOpts.join("");
+    if (defaultClinicId) mClinic.value = defaultClinicId;
+    if (G.clinics.length === 1) mClinic.disabled = true;
   }
 
-  // ---------- Modal marcação ----------
+  if (mStatus) mStatus.value = statusInit;
+  if (mStart) mStart.value = toLocalInputValue(startInit);
+  if (mDuration) mDuration.value = String(durationBest);
+  if (mProc) mProc.value = procSelectValue;
+  if (mNotes) mNotes.value = notesInit;
+
+  function getProcedureValue() {
+    let proc = mProc && mProc.value ? mProc.value : "";
+    if (proc === "Outro") {
+      const other = mProcOther && mProcOther.value ? mProcOther.value.trim() : "";
+      proc = other ? other : "Outro";
+    }
+    return proc;
+  }
+
+  function updateProcOtherVisibility() {
+    const v = mProc ? mProc.value : "";
+    const show = v === "Outro";
+    if (mProcOtherWrap) mProcOtherWrap.style.display = show ? "block" : "none";
+    if (!show && mProcOther) mProcOther.value = "";
+    validateForm();
+  }
+
+  function setMsg(kind, txt) {
+    if (!mMsg) return;
+    mMsg.style.color = kind === "error" ? "#b00020" : "#666";
+    mMsg.textContent = txt || "";
+  }
+
+  function validateForm() {
+    const clinicOk = !!(mClinic && mClinic.value);
+    const startOk = !!(mStart && mStart.value);
+    const patientOk = !!(mPatientId && mPatientId.value);
+    const procOk = !!(mProc && mProc.value); // obrigatório
+
+    if (!clinicOk) { btnSave.disabled = true; setMsg("error", "Seleciona a clínica."); return false; }
+    if (!startOk)  { btnSave.disabled = true; setMsg("error", "Define o início."); return false; }
+    if (!patientOk){ btnSave.disabled = true; setMsg("error", "Seleciona um doente."); return false; }
+    if (!procOk)   { btnSave.disabled = true; setMsg("error", "Seleciona o tipo de consulta."); return false; }
+
+    btnSave.disabled = false;
+    setMsg("info", "");
+    return true;
+  }
+
+  // estado inicial do doente (edição)
+  if (mPatientId) mPatientId.value = patientIdInit || "";
+  if (mPatientName) mPatientName.value = "";
+  if (mPatientSelected) mPatientSelected.textContent = patientIdInit ? `Doente: (ID) ${patientIdInit}` : "—";
+
+  // Se estivermos a editar e houver patient_id, tenta buscar nome para mostrar limpo
+  (async function hydratePatientNameIfNeeded() {
+    try {
+      if (!patientIdInit) return;
+      const p = await fetchPatientById(patientIdInit);
+      if (!p) return;
+      if (mPatientName) mPatientName.value = p.full_name || "";
+      if (mPatientSelected) mPatientSelected.textContent = p.full_name ? `Doente: ${p.full_name}` : `Doente: (ID) ${patientIdInit}`;
+      validateForm();
+    } catch {}
+  })();
+
+  let searchTimer = null;
+  let lastTerm = "";
+
+  async function runSearch() {
+    const clinicId = mClinic ? mClinic.value : "";
+    const term = mPatientQuery ? (mPatientQuery.value || "").trim() : "";
+    lastTerm = term;
+
+    if (!clinicId) {
+      mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Seleciona a clínica para pesquisar.</div>`;
+      return;
+    }
+    if (!term || term.length < 2) {
+      mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve pelo menos 2 caracteres.</div>`;
+      return;
+    }
+
+    mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">A pesquisar…</div>`;
+
+    try {
+      const pts = await searchPatientsScoped({ clinicId, q: term, limit: 25 });
+      if (lastTerm !== term) return;
+
+      if (!pts || pts.length === 0) {
+        mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Sem resultados.</div>`;
+        return;
+      }
+
+      mPatientResults.innerHTML = pts.map((p) => {
+        const idBits = [];
+        if (p.sns) idBits.push(`SNS:${p.sns}`);
+        if (p.nif) idBits.push(`NIF:${p.nif}`);
+        if (p.passport_id) idBits.push(`ID:${p.passport_id}`);
+        const phone = p.phone ? `Tel:${p.phone}` : "";
+        const line2 = [idBits.join(" / "), phone].filter(Boolean).join(" • ");
+
+        return `
+          <div data-pid="${escapeHtml(p.id)}" data-pname="${escapeHtml(p.full_name)}"
+               style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:pointer;">
+            <div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.full_name)}</div>
+            <div style="font-size:${UI.fs12}px; color:#666;">${escapeHtml(line2 || "—")}</div>
+          </div>
+        `;
+      }).join("");
+
+      mPatientResults.querySelectorAll("[data-pid]").forEach((el) => {
+        el.addEventListener("mousedown", (ev) => ev.preventDefault()); // não perder focus antes do click
+        el.addEventListener("click", () => {
+          const pid = el.getAttribute("data-pid") || "";
+          const pname = el.getAttribute("data-pname") || "";
+          if (mPatientId) mPatientId.value = pid;
+          if (mPatientName) mPatientName.value = pname;
+          if (mPatientSelected) mPatientSelected.textContent = pname ? `Doente: ${pname}` : `Doente: (ID) ${pid}`;
+
+          // fecha dropdown
+          if (mPatientQuery) mPatientQuery.blur();
+
+          validateForm();
+        });
+      });
+    } catch (e) {
+      console.error("Pesquisa doente falhou:", e);
+      mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#b00020;">Erro na pesquisa. Vê a consola.</div>`;
+    }
+  }
+
+  function scheduleSearch() {
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(runSearch, 250);
+  }
+
   function closeModal() {
     closeModalRoot();
   }
 
-  function calcEndFromStartAndDuration(startLocalStr, durMin) {
-    const s = fromLocalInputValue(startLocalStr);
-    if (!s || isNaN(s.getTime())) return null;
-    const e = new Date(s.getTime() + durMin * 60000);
-    return { startAt: s.toISOString(), endAt: e.toISOString() };
-  }
+  function openNewPatientForm() {
+    const clinicId = mClinic ? mClinic.value : "";
+    if (!clinicId) {
+      setMsg("error", "Seleciona a clínica antes de criar doente.");
+      return;
+    }
 
-  function makeAutoTitle(patientName, procType) {
-    const n = (patientName || "").trim();
-    const p = (procType || "").trim();
-    if (!n) return null;
-    if (!p || p === "—") return n;
-    return `${n} — ${p}`;
-  }
+    const host = document.getElementById("newPatientHost");
+    if (!host) {
+      setMsg("error", "Falha UI: newPatientHost não encontrado.");
+      return;
+    }
 
-  function openApptModal({ mode, row }) {
-    const root = document.getElementById("modalRoot");
-    if (!root) return;
+    host.innerHTML = `
+      <div id="subNewPatient" style="border:1px solid #eee; border-radius:12px; padding:12px; background:#fff;">
+        <div style="font-size:${UI.fs13}px; font-weight:800; color:#111;">Novo doente</div>
+        <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
+          Nome obrigatório. Identificação: SNS (9 dígitos) ou NIF (9 dígitos) ou Passaporte/ID (4–20 alfanum).
+        </div>
 
-    const isEdit = mode === "edit";
-
-    const selClinic = document.getElementById("selClinic");
-    const defaultClinicId =
-      isEdit && row && row.clinic_id
-        ? row.clinic_id
-        : selClinic && selClinic.value
-          ? selClinic.value
-          : G.clinics.length === 1
-            ? G.clinics[0].id
-            : "";
-
-    const selectedDayStart = parseISODateToLocalStart(G.selectedDayISO) || new Date();
-    const startBase = new Date(selectedDayStart.getFullYear(), selectedDayStart.getMonth(), selectedDayStart.getDate(), 9, 0, 0, 0);
-
-    const startInit = isEdit && row && row.start_at ? new Date(row.start_at) : startBase;
-    const endInit = isEdit && row && row.end_at ? new Date(row.end_at) : new Date(startInit.getTime() + 20 * 60000);
-    const durInit = Math.max(5, Math.round((endInit.getTime() - startInit.getTime()) / 60000));
-    const durationBest = DURATION_OPTIONS.includes(durInit) ? durInit : 20;
-
-    const procInit = isEdit ? row.procedure_type ?? "" : "";
-    const statusInit = isEdit ? row.status ?? "scheduled" : "scheduled";
-
-    const patientIdInit = isEdit ? row.patient_id ?? "" : "";
-    const titleInit = isEdit ? row.title ?? "" : "";
-    const notesInit = isEdit ? row.notes ?? "" : "";
-
-    const procIsOther = procInit && !PROCEDURE_OPTIONS.includes(procInit) ? true : procInit === "Outro";
-    const procSelectValue = procIsOther ? "Outro" : procInit || "";
-
-    root.innerHTML = `
-      <div id="modalOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
-        <div style="background:#fff; width:min(860px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 86vh; overflow:auto;">
-          <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
-            <div>
-              <div style="font-size:${UI.fs14}px; font-weight:800; color:#111;">
-                ${isEdit ? "Editar marcação" : "Nova marcação"}
-              </div>
-              <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
-                Dia selecionado: ${escapeHtml(G.selectedDayISO)}. Doente é obrigatório.
-              </div>
-            </div>
-            <button id="btnCloseModal" class="gcBtn">Fechar</button>
+        <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+          <div style="display:flex; flex-direction:column; gap:4px; grid-column: 1 / -1;">
+            <label style="font-size:${UI.fs12}px; color:#666;">Nome completo *</label>
+            <input id="npFullName" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+              style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
           </div>
 
-          <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Clínica</label>
-              <select id="mClinic" class="gcSelect"></select>
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Status</label>
-              <select id="mStatus" class="gcSelect">
-                ${STATUS_OPTIONS.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("")}
-              </select>
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Início</label>
-              <input id="mStart" type="datetime-local" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Duração (min)</label>
-              <select id="mDuration" class="gcSelect">
-                ${DURATION_OPTIONS.map((n) => `<option value="${n}">${n}</option>`).join("")}
-              </select>
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px; grid-column: 1 / -1;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Doente (obrigatório)</label>
-
-              <div style="display:grid; grid-template-columns: 1fr 320px; gap:12px; align-items:start;">
-                <div style="display:flex; flex-direction:column; gap:6px;">
-                  <input id="mPatientQuery" type="text"
-                    placeholder="Pesquisar por nome / SNS / NIF / telefone / Passaporte-ID (mín. 2 letras)…"
-                    autocomplete="off" autocapitalize="off" spellcheck="false"
-                    style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;" />
-                  <div id="mPatientResults" style="border:1px solid #eee; border-radius:10px; padding:8px; max-height:180px; overflow:auto; background:#fff;">
-                    <div style="font-size:${UI.fs12}px; color:#666;">Pesquisar para mostrar resultados.</div>
-                  </div>
-                </div>
-
-                <div style="display:flex; flex-direction:column; gap:6px;">
-                  <div style="font-size:${UI.fs12}px; color:#666;">Selecionado</div>
-                  <div id="mPatientSelected" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; min-height: 42px; display:flex; align-items:center; color:#111; font-size:${UI.fs13}px;">
-                    —
-                  </div>
-                  <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                    <button id="btnNewPatient" class="gcBtn" style="flex:1;">Novo doente</button>
-                  </div>
-                </div>
-              </div>
-
-              <input type="hidden" id="mPatientId" value="" />
-              <input type="hidden" id="mPatientName" value="" />
-
-              <div id="newPatientHost" style="margin-top:10px;"></div>
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Tipo de consulta</label>
-              <select id="mProc" class="gcSelect">
-                <option value="">—</option>
-                ${PROCEDURE_OPTIONS.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("")}
-              </select>
-            </div>
-
-            <div id="mProcOtherWrap" style="display:none; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Outro (texto)</label>
-              <input id="mProcOther" type="text" placeholder="ex.: Ondas de choque" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Título (automático)</label>
-              <input id="mTitleAuto" type="text" disabled style="padding:10px 12px; border-radius:10px; border:1px solid #eee; background:#fafafa; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Notas</label>
-              <textarea id="mNotes" rows="3" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;"></textarea>
-            </div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <label style="font-size:${UI.fs12}px; color:#666;">Data nascimento</label>
+            <input id="npDob" type="date" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
           </div>
 
-          <div style="margin-top:12px; display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;">
-            <div id="mMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
-            <div style="display:flex; gap:10px;">
-              <button id="btnCancel" class="gcBtn">Cancelar</button>
-              <button id="btnSave" class="gcBtn" style="font-weight:900;">
-                ${isEdit ? "Guardar alterações" : "Criar marcação"}
-              </button>
-            </div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <label style="font-size:${UI.fs12}px; color:#666;">Telefone</label>
+            <input id="npPhone" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+              style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <label style="font-size:${UI.fs12}px; color:#666;">Email</label>
+            <input id="npEmail" type="email" autocomplete="off" autocapitalize="off" spellcheck="false"
+              style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <label style="font-size:${UI.fs12}px; color:#666;">SNS (9 dígitos)</label>
+            <input id="npSNS" type="text" inputmode="numeric" placeholder="#########" autocomplete="off"
+              style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <label style="font-size:${UI.fs12}px; color:#666;">NIF (9 dígitos)</label>
+            <input id="npNIF" type="text" inputmode="numeric" placeholder="#########" autocomplete="off"
+              style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:4px; grid-column: 1 / -1;">
+            <label style="font-size:${UI.fs12}px; color:#666;">Passaporte/ID (4–20)</label>
+            <input id="npPassport" type="text" placeholder="AB123456" autocomplete="off" autocapitalize="off" spellcheck="false"
+              style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <label style="font-size:${UI.fs12}px; color:#666;">Seguro</label>
+            <input id="npInsuranceProvider" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+              style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <label style="font-size:${UI.fs12}px; color:#666;">Apólice</label>
+            <input id="npInsurancePolicy" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+              style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+          </div>
+
+          <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
+            <label style="font-size:${UI.fs12}px; color:#666;">Notas</label>
+            <textarea id="npNotes" rows="2" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;"></textarea>
+          </div>
+        </div>
+
+        <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <div id="npMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
+          <div style="display:flex; gap:10px;">
+            <button id="npCancel" class="gcBtn">Fechar</button>
+            <button id="npCreate" class="gcBtn" style="font-weight:900;">Criar doente</button>
           </div>
         </div>
       </div>
     `;
 
-    const overlay = document.getElementById("modalOverlay");
-    const btnClose = document.getElementById("btnCloseModal");
-    const btnCancel = document.getElementById("btnCancel");
-    const btnSave = document.getElementById("btnSave");
-    const btnNewPatient = document.getElementById("btnNewPatient");
+    const npFullName = document.getElementById("npFullName");
+    const npDob = document.getElementById("npDob");
+    const npPhone = document.getElementById("npPhone");
+    const npEmail = document.getElementById("npEmail");
+    const npSNS = document.getElementById("npSNS");
+    const npNIF = document.getElementById("npNIF");
+    const npPassport = document.getElementById("npPassport");
+    const npInsuranceProvider = document.getElementById("npInsuranceProvider");
+    const npInsurancePolicy = document.getElementById("npInsurancePolicy");
+    const npNotes = document.getElementById("npNotes");
+    const npMsg = document.getElementById("npMsg");
+    const npCancel = document.getElementById("npCancel");
+    const npCreate = document.getElementById("npCreate");
 
-    const mClinic = document.getElementById("mClinic");
-    const mStatus = document.getElementById("mStatus");
-    const mStart = document.getElementById("mStart");
-    const mDuration = document.getElementById("mDuration");
-    const mProc = document.getElementById("mProc");
-    const mProcOtherWrap = document.getElementById("mProcOtherWrap");
-    const mProcOther = document.getElementById("mProcOther");
-    const mNotes = document.getElementById("mNotes");
-    const mMsg = document.getElementById("mMsg");
+    function setErr(msg) { npMsg.style.color = "#b00020"; npMsg.textContent = msg; }
+    function setInfo(msg) { npMsg.style.color = "#666"; npMsg.textContent = msg; }
 
-    const mPatientQuery = document.getElementById("mPatientQuery");
-    const mPatientResults = document.getElementById("mPatientResults");
-    const mPatientSelected = document.getElementById("mPatientSelected");
-    const mPatientId = document.getElementById("mPatientId");
-    const mPatientName = document.getElementById("mPatientName");
-    const mTitleAuto = document.getElementById("mTitleAuto");
+    function validateNew() {
+      const fullName = (npFullName.value || "").trim();
+      if (!fullName) return { ok:false, msg:"Nome completo é obrigatório." };
 
-    const clinicOpts = [];
-    for (const c of G.clinics) {
-      const label = c.name || c.slug || c.id;
-      clinicOpts.push(`<option value="${escapeHtml(c.id)}">${escapeHtml(label)}</option>`);
-    }
-    if (mClinic) {
-      mClinic.innerHTML = clinicOpts.join("");
-      if (defaultClinicId) mClinic.value = defaultClinicId;
-      if (G.clinics.length === 1) mClinic.disabled = true;
-    }
+      const sns = normalizeDigits(npSNS.value);
+      const nif = normalizeDigits(npNIF.value);
+      const pass = (npPassport.value || "").trim();
 
-    if (mStatus) mStatus.value = statusInit;
-    if (mStart) mStart.value = toLocalInputValue(startInit);
-    if (mDuration) mDuration.value = String(durationBest);
-    if (mProc) mProc.value = procSelectValue;
-    if (mNotes) mNotes.value = notesInit;
+      if (sns && !/^[0-9]{9}$/.test(sns)) return { ok:false, msg:"SNS inválido: tem de ter 9 dígitos." };
+      if (nif && !/^[0-9]{9}$/.test(nif)) return { ok:false, msg:"NIF inválido: tem de ter 9 dígitos." };
+      if (pass && !/^[A-Za-z0-9]{4,20}$/.test(pass)) return { ok:false, msg:"Passaporte/ID inválido: 4–20 alfanum." };
+      if (!sns && !nif && !pass) return { ok:false, msg:"Identificação obrigatória: SNS ou NIF ou Passaporte/ID." };
 
-    function getProcedureValue() {
-      let proc = mProc && mProc.value ? mProc.value : "";
-      if (proc === "Outro") {
-        const other = mProcOther && mProcOther.value ? mProcOther.value.trim() : "";
-        proc = other ? other : "Outro";
-      }
-      return proc;
+      return {
+        ok:true,
+        full_name: fullName,
+        dob: npDob.value ? npDob.value : null,
+        phone: npPhone.value ? npPhone.value.trim() : null,
+        email: npEmail.value ? npEmail.value.trim() : null,
+        sns: sns || null,
+        nif: nif || null,
+        passport_id: pass || null,
+        insurance_provider: npInsuranceProvider.value ? npInsuranceProvider.value.trim() : null,
+        insurance_policy_number: npInsurancePolicy.value ? npInsurancePolicy.value.trim() : null,
+        notes: npNotes.value ? npNotes.value.trim() : null,
+      };
     }
 
-    function updateTitleAuto() {
-      const pname = mPatientName ? mPatientName.value || "" : "";
-      const proc = getProcedureValue();
-      const t = makeAutoTitle(pname, proc);
-      if (mTitleAuto) mTitleAuto.value = t || "";
+    function refreshNewBtn() {
+      if (npSNS) { const d = normalizeDigits(npSNS.value); if (npSNS.value !== d) npSNS.value = d; }
+      if (npNIF) { const d = normalizeDigits(npNIF.value); if (npNIF.value !== d) npNIF.value = d; }
+      const v = validateNew();
+      if (!v.ok) { npCreate.disabled = true; setErr(v.msg); }
+      else { npCreate.disabled = false; setInfo("OK para criar."); }
     }
 
-    function updateProcOtherVisibility() {
-      const v = mProc ? mProc.value : "";
-      const show = v === "Outro";
-      if (mProcOtherWrap) mProcOtherWrap.style.display = show ? "flex" : "none";
-      if (!show && mProcOther) mProcOther.value = "";
-      updateTitleAuto();
-    }
+    [npFullName, npDob, npPhone, npEmail, npSNS, npNIF, npPassport, npInsuranceProvider, npInsurancePolicy, npNotes]
+      .forEach((el) => { if (!el) return; el.addEventListener("input", refreshNewBtn); el.addEventListener("change", refreshNewBtn); });
 
-    updateProcOtherVisibility();
-    if (procIsOther && mProcOther) {
-      mProcOther.value = procInit === "Outro" ? "" : procInit;
-      if (mProcOtherWrap) mProcOtherWrap.style.display = "flex";
-    }
+    npCancel.addEventListener("click", () => { host.innerHTML = ""; });
 
-    if (mPatientId) mPatientId.value = patientIdInit || "";
-    if (mPatientSelected) mPatientSelected.textContent = patientIdInit ? `Selecionado (ID): ${patientIdInit}` : "—";
-    if (mTitleAuto) mTitleAuto.value = titleInit || "";
+    npCreate.addEventListener("click", async () => {
+      const v = validateNew();
+      if (!v.ok) { setErr(v.msg); return; }
 
-    let searchTimer = null;
+      npCreate.disabled = true;
+      setInfo("A criar…");
 
-    async function runSearch() {
-      const clinicId = mClinic ? mClinic.value : "";
-      const term = mPatientQuery ? mPatientQuery.value : "";
-      if (!clinicId) {
-        mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Seleciona a clínica para pesquisar doentes.</div>`;
-        return;
-      }
-      if (!term || term.trim().length < 2) {
-        mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve pelo menos 2 caracteres.</div>`;
-        return;
-      }
-
-      mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">A pesquisar…</div>`;
       try {
-        const pts = await searchPatientsScoped({ clinicId, q: term, limit: 20 });
-        if (pts.length === 0) {
-          mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Sem resultados.</div>`;
+        const payload = {
+          p_clinic_id: clinicId,
+          p_full_name: v.full_name,
+          p_dob: v.dob,
+          p_sex: null,
+          p_phone: v.phone,
+          p_email: v.email,
+          p_external_id: null,
+          p_notes: v.notes,
+          p_sns: v.sns,
+          p_nif: v.nif,
+          p_passport_id: v.passport_id,
+          p_address_line1: null,
+          p_postal_code: null,
+          p_city: null,
+          p_country: "PT",
+          p_insurance_provider: v.insurance_provider,
+          p_insurance_policy_number: v.insurance_policy_number,
+        };
+
+        const newPatientId = await rpcCreatePatientForClinic(payload);
+        if (!newPatientId) {
+          setErr("Criado, mas não consegui obter o ID. Pesquisa pelo nome e seleciona.");
+          npCreate.disabled = false;
           return;
         }
 
-        mPatientResults.innerHTML = pts
-          .map((p) => {
-            const idBits = [];
-            if (p.sns) idBits.push(`SNS:${p.sns}`);
-            if (p.nif) idBits.push(`NIF:${p.nif}`);
-            if (p.passport_id) idBits.push(`ID:${p.passport_id}`);
-            const phone = p.phone ? `Tel:${p.phone}` : "";
-            const idLine = [idBits.join(" / "), phone].filter(Boolean).join(" • ");
+        if (mPatientId) mPatientId.value = newPatientId;
+        if (mPatientName) mPatientName.value = v.full_name;
+        if (mPatientSelected) mPatientSelected.textContent = `Doente: ${v.full_name}`;
 
-            return `
-            <div data-pid="${escapeHtml(p.id)}" data-pname="${escapeHtml(p.full_name)}"
-                 style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:pointer;">
-              <div style="font-size:${UI.fs13}px; color:#111; font-weight:700; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">${escapeHtml(p.full_name)}</div>
-              <div style="font-size:${UI.fs12}px; color:#666;">${escapeHtml(idLine || "—")}</div>
-            </div>
-          `;
-          })
-          .join("");
-
-        mPatientResults.querySelectorAll("[data-pid]").forEach((el) => {
-          el.addEventListener("click", () => {
-            const pid = el.getAttribute("data-pid");
-            const pname = el.getAttribute("data-pname");
-            if (mPatientId) mPatientId.value = pid || "";
-            if (mPatientName) mPatientName.value = pname || "";
-            if (mPatientSelected) mPatientSelected.textContent = pname ? pname : pid ? `Selecionado (ID): ${pid}` : "—";
-            updateTitleAuto();
-          });
-        });
+        host.innerHTML = "";
+        validateForm();
       } catch (e) {
-        console.error("Pesquisa doente falhou:", e);
-        mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#b00020;">Erro na pesquisa. Vê a consola.</div>`;
+        console.error("Criar doente falhou:", e);
+        const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
+
+        if (msg.includes("patients_sns_unique_not_null")) setErr("SNS já existe noutro doente.");
+        else if (msg.includes("patients_nif_unique_not_null")) setErr("NIF já existe noutro doente.");
+        else if (msg.includes("patients_passport_unique_not_null")) setErr("Passaporte/ID já existe noutro doente.");
+        else if (msg.includes("patients_sns_format_check")) setErr("SNS inválido (9 dígitos).");
+        else if (msg.includes("patients_nif_format_check")) setErr("NIF inválido (9 dígitos).");
+        else if (msg.includes("patients_passport_format_check")) setErr("Passaporte/ID inválido (4–20 alfanum).");
+        else if (msg.includes("patients_sns_or_nif_or_passport_check")) setErr("Identificação obrigatória: SNS/NIF/Passaporte.");
+        else setErr("Erro ao criar doente. Vê a consola.");
+
+        npCreate.disabled = false;
       }
-    }
+    });
 
-    function scheduleSearch() {
-      if (searchTimer) clearTimeout(searchTimer);
-      searchTimer = setTimeout(runSearch, 250);
-    }
-
-    function openNewPatientForm() {
-      const clinicId = mClinic ? mClinic.value : "";
-      if (!clinicId) {
-        mMsg.style.color = "#b00020";
-        mMsg.textContent = "Seleciona a clínica antes de criar doente.";
-        return;
-      }
-
-      const host = document.getElementById("newPatientHost");
-      if (!host) {
-        mMsg.style.color = "#b00020";
-        mMsg.textContent = "Falha UI: newPatientHost não encontrado.";
-        return;
-      }
-
-      host.innerHTML = `
-        <div id="subNewPatient" style="border:1px solid #eee; border-radius:12px; padding:12px; background:#fafafa;">
-          <div style="font-size:${UI.fs13}px; font-weight:800; color:#111;">Novo doente</div>
-          <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
-            Nome obrigatório. Identificação: SNS (9 dígitos) ou NIF (9 dígitos) ou Passaporte/ID (4–20 alfanum).
-          </div>
-
-          <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Nome completo *</label>
-              <input id="npFullName" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Data nascimento</label>
-              <input id="npDob" type="date" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Telefone</label>
-              <input id="npPhone" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Email</label>
-              <input id="npEmail" type="email" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">SNS (9 dígitos)</label>
-              <input id="npSNS" type="text" inputmode="numeric" placeholder="#########" autocomplete="off"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">NIF (9 dígitos)</label>
-              <input id="npNIF" type="text" inputmode="numeric" placeholder="#########" autocomplete="off"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Passaporte/ID (4–20)</label>
-              <input id="npPassport" type="text" placeholder="AB123456" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Seguro</label>
-              <input id="npInsuranceProvider" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Apólice</label>
-              <input id="npInsurancePolicy" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Morada</label>
-              <input id="npAddress1" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Código-postal</label>
-              <input id="npPostal" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Cidade</label>
-              <input id="npCity" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">País</label>
-              <input id="npCountry" type="text" value="PT" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Notas</label>
-              <textarea id="npNotes" rows="2" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;"></textarea>
-            </div>
-          </div>
-
-          <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-            <div id="npMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
-            <div style="display:flex; gap:10px;">
-              <button id="npCancel" class="gcBtn">Fechar</button>
-              <button id="npCreate" class="gcBtn" style="font-weight:900;">Criar doente</button>
-            </div>
-          </div>
-        </div>
-      `;
-
-      const npFullName = document.getElementById("npFullName");
-      const npDob = document.getElementById("npDob");
-      const npPhone = document.getElementById("npPhone");
-      const npEmail = document.getElementById("npEmail");
-      const npSNS = document.getElementById("npSNS");
-      const npNIF = document.getElementById("npNIF");
-      const npPassport = document.getElementById("npPassport");
-      const npInsuranceProvider = document.getElementById("npInsuranceProvider");
-      const npInsurancePolicy = document.getElementById("npInsurancePolicy");
-      const npAddress1 = document.getElementById("npAddress1");
-      const npPostal = document.getElementById("npPostal");
-      const npCity = document.getElementById("npCity");
-      const npCountry = document.getElementById("npCountry");
-      const npNotes = document.getElementById("npNotes");
-      const npMsg = document.getElementById("npMsg");
-      const npCancel = document.getElementById("npCancel");
-      const npCreate = document.getElementById("npCreate");
-
-      function setErr(msg) { npMsg.style.color = "#b00020"; npMsg.textContent = msg; }
-      function setInfo(msg) { npMsg.style.color = "#666"; npMsg.textContent = msg; }
-
-      function validate() {
-        const fullName = (npFullName.value || "").trim();
-        if (!fullName) return { ok: false, msg: "Nome completo é obrigatório." };
-
-        const sns = normalizeDigits(npSNS.value);
-        const nif = normalizeDigits(npNIF.value);
-        const pass = (npPassport.value || "").trim();
-
-        if (sns && !/^[0-9]{9}$/.test(sns)) return { ok: false, msg: "SNS inválido: tem de ter 9 dígitos." };
-        if (nif && !/^[0-9]{9}$/.test(nif)) return { ok: false, msg: "NIF inválido: tem de ter 9 dígitos." };
-        if (pass && !/^[A-Za-z0-9]{4,20}$/.test(pass)) return { ok: false, msg: "Passaporte/ID inválido: 4–20 alfanum." };
-
-        if (!sns && !nif && !pass) return { ok: false, msg: "Identificação obrigatória: SNS ou NIF ou Passaporte/ID." };
-
-        return {
-          ok: true,
-          full_name: fullName,
-          dob: npDob.value ? npDob.value : null,
-          phone: npPhone.value ? npPhone.value.trim() : null,
-          email: npEmail.value ? npEmail.value.trim() : null,
-          sns: sns || null,
-          nif: nif || null,
-          passport_id: pass || null,
-          insurance_provider: npInsuranceProvider.value ? npInsuranceProvider.value.trim() : null,
-          insurance_policy_number: npInsurancePolicy.value ? npInsurancePolicy.value.trim() : null,
-          address_line1: npAddress1.value ? npAddress1.value.trim() : null,
-          postal_code: npPostal.value ? npPostal.value.trim() : null,
-          city: npCity.value ? npCity.value.trim() : null,
-          country: npCountry.value ? npCountry.value.trim() : "PT",
-          notes: npNotes.value ? npNotes.value.trim() : null,
-        };
-      }
-
-      function refreshButtonState() {
-        if (npSNS) { const d = normalizeDigits(npSNS.value); if (npSNS.value !== d) npSNS.value = d; }
-        if (npNIF) { const d = normalizeDigits(npNIF.value); if (npNIF.value !== d) npNIF.value = d; }
-
-        const v = validate();
-        if (!v.ok) { npCreate.disabled = true; setErr(v.msg); }
-        else { npCreate.disabled = false; setInfo("OK para criar."); }
-      }
-
-      [npFullName, npDob, npPhone, npEmail, npSNS, npNIF, npPassport, npInsuranceProvider, npInsurancePolicy, npAddress1, npPostal, npCity, npCountry, npNotes]
-        .forEach((el) => { if (!el) return; el.addEventListener("input", refreshButtonState); el.addEventListener("change", refreshButtonState); });
-
-      npCancel.addEventListener("click", () => { host.innerHTML = ""; });
-
-      npCreate.addEventListener("click", async () => {
-        const v = validate();
-        if (!v.ok) { setErr(v.msg); return; }
-
-        npCreate.disabled = true;
-        setInfo("A criar…");
-
-        try {
-          const payload = {
-            p_clinic_id: clinicId,
-            p_full_name: v.full_name,
-            p_dob: v.dob,
-            p_sex: null,
-            p_phone: v.phone,
-            p_email: v.email,
-            p_external_id: null,
-            p_notes: v.notes,
-            p_sns: v.sns,
-            p_nif: v.nif,
-            p_passport_id: v.passport_id,
-            p_address_line1: v.address_line1,
-            p_postal_code: v.postal_code,
-            p_city: v.city,
-            p_country: v.country,
-            p_insurance_provider: v.insurance_provider,
-            p_insurance_policy_number: v.insurance_policy_number,
-          };
-
-          const newPatientId = await rpcCreatePatientForClinic(payload);
-
-          if (!newPatientId) {
-            setErr("Criado, mas não consegui obter o ID. Pesquisa pelo nome e seleciona.");
-            npCreate.disabled = false;
-            return;
-          }
-
-          mPatientId.value = newPatientId;
-          mPatientName.value = v.full_name;
-          mPatientSelected.textContent = v.full_name;
-          updateTitleAuto();
-
-          host.innerHTML = "";
-        } catch (e) {
-          console.error("Criar doente falhou:", e);
-          const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
-
-          if (msg.includes("patients_sns_unique_not_null")) setErr("SNS já existe noutro doente.");
-          else if (msg.includes("patients_nif_unique_not_null")) setErr("NIF já existe noutro doente.");
-          else if (msg.includes("patients_passport_unique_not_null")) setErr("Passaporte/ID já existe noutro doente.");
-          else if (msg.includes("patients_sns_format_check")) setErr("SNS inválido (9 dígitos).");
-          else if (msg.includes("patients_nif_format_check")) setErr("NIF inválido (9 dígitos).");
-          else if (msg.includes("patients_passport_format_check")) setErr("Passaporte/ID inválido (4–20 alfanum).");
-          else if (msg.includes("patients_sns_or_nif_or_passport_check")) setErr("Identificação obrigatória: SNS/NIF/Passaporte.");
-          else setErr("Erro ao criar doente. Vê a consola.");
-
-          npCreate.disabled = false;
-        }
-      });
-
-      npCreate.disabled = true;
-      setInfo("Preenche o Nome e um identificador (SNS/NIF/Passaporte).");
-      refreshButtonState();
-    }
-
-    async function onSave() {
-      if (!mClinic || !mClinic.value) {
-        mMsg.style.color = "#b00020";
-        mMsg.textContent = "Seleciona a clínica.";
-        return;
-      }
-      if (!mStart || !mStart.value) {
-        mMsg.style.color = "#b00020";
-        mMsg.textContent = "Define o início.";
-        return;
-      }
-      const pid = mPatientId ? mPatientId.value || "" : "";
-      const pname = mPatientName ? mPatientName.value || "" : "";
-      if (!pid) {
-        mMsg.style.color = "#b00020";
-        mMsg.textContent = "Seleciona um doente.";
-        return;
-      }
-
-      const dur = mDuration ? parseInt(mDuration.value, 10) : 20;
-      const times = calcEndFromStartAndDuration(mStart.value, dur);
-      if (!times) {
-        mMsg.style.color = "#b00020";
-        mMsg.textContent = "Data/hora inválida.";
-        return;
-      }
-
-      const proc = getProcedureValue();
-      const autoTitle = makeAutoTitle(pname, proc);
-
-      const payload = {
-        clinic_id: mClinic.value,
-        patient_id: pid,
-        start_at: times.startAt,
-        end_at: times.endAt,
-        status: mStatus && mStatus.value ? mStatus.value : "scheduled",
-        procedure_type: proc ? proc : null,
-        title: autoTitle,
-        notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
-      };
-      if (payload.notes === "") payload.notes = null;
-
-      btnSave.disabled = true;
-      mMsg.style.color = "#666";
-      mMsg.textContent = "A guardar…";
-
-      try {
-        if (isEdit) {
-          const { error } = await window.sb.from("appointments").update(payload).eq("id", row.id);
-          if (error) throw error;
-        } else {
-          const { error } = await window.sb.from("appointments").insert(payload);
-          if (error) throw error;
-        }
-
-        closeModal();
-        await refreshAgenda();
-      } catch (e) {
-        console.error("Guardar marcação falhou:", e);
-        mMsg.style.color = "#b00020";
-        mMsg.textContent = "Erro ao guardar. Vê a consola.";
-        btnSave.disabled = false;
-      }
-    }
-
-    if (btnClose) btnClose.addEventListener("click", closeModal);
-    if (btnCancel) btnCancel.addEventListener("click", closeModal);
-    if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "modalOverlay") closeModal(); });
-
-    if (mProc) mProc.addEventListener("change", updateProcOtherVisibility);
-    if (mProcOther) mProcOther.addEventListener("input", updateTitleAuto);
-
-    if (mClinic) {
-      mClinic.addEventListener("change", () => {
-        const pidEl = document.getElementById("mPatientId");
-        const pnEl = document.getElementById("mPatientName");
-        const selEl = document.getElementById("mPatientSelected");
-        const resEl = document.getElementById("mPatientResults");
-        const host = document.getElementById("newPatientHost");
-
-        if (pidEl) pidEl.value = "";
-        if (pnEl) pnEl.value = "";
-        if (selEl) selEl.textContent = "—";
-        if (resEl) resEl.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Pesquisar para mostrar resultados.</div>`;
-        if (host) host.innerHTML = "";
-
-        updateTitleAuto();
-      });
-    }
-
-    if (mPatientQuery) mPatientQuery.addEventListener("input", scheduleSearch);
-    if (btnNewPatient) btnNewPatient.addEventListener("click", openNewPatientForm);
-    if (btnSave) btnSave.addEventListener("click", onSave);
-
-    updateTitleAuto();
+    npCreate.disabled = true;
+    setInfo("Preenche o Nome e um identificador (SNS/NIF/Passaporte).");
+    refreshNewBtn();
   }
+
+  async function onSave() {
+    if (!validateForm()) return;
+
+    const dur = mDuration ? parseInt(mDuration.value, 10) : 20;
+    const times = calcEndFromStartAndDuration(mStart.value, dur);
+    if (!times) {
+      setMsg("error", "Data/hora inválida.");
+      return;
+    }
+
+    const pid = mPatientId.value;
+    const pname = mPatientName.value || "";
+    const proc = getProcedureValue();
+
+    // título automático mantido internamente (sem campo)
+    const autoTitle = makeAutoTitle(pname, proc);
+
+    const payload = {
+      clinic_id: mClinic.value,
+      patient_id: pid,
+      start_at: times.startAt,
+      end_at: times.endAt,
+      status: mStatus && mStatus.value ? mStatus.value : "scheduled",
+      procedure_type: proc ? proc : null,
+      title: autoTitle, // continua a gravar automaticamente
+      notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
+    };
+    if (payload.notes === "") payload.notes = null;
+
+    btnSave.disabled = true;
+    setMsg("info", "A guardar…");
+
+    try {
+      if (isEdit) {
+        const { error } = await window.sb.from("appointments").update(payload).eq("id", row.id);
+        if (error) throw error;
+      } else {
+        const { error } = await window.sb.from("appointments").insert(payload);
+        if (error) throw error;
+      }
+
+      closeModal();
+      await refreshAgenda();
+    } catch (e) {
+      console.error("Guardar marcação falhou:", e);
+      setMsg("error", "Erro ao guardar. Vê a consola.");
+      btnSave.disabled = false;
+    }
+  }
+
+  // wiring
+  if (btnClose) btnClose.addEventListener("click", closeModal);
+  if (btnCancel) btnCancel.addEventListener("click", closeModal);
+  if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "modalOverlay") closeModal(); });
+
+  if (mProc) mProc.addEventListener("change", updateProcOtherVisibility);
+  if (mProcOther) mProcOther.addEventListener("input", validateForm);
+
+  if (mClinic) {
+    mClinic.addEventListener("change", () => {
+      // limpa seleção de doente quando muda clínica
+      if (mPatientId) mPatientId.value = "";
+      if (mPatientName) mPatientName.value = "";
+      if (mPatientSelected) mPatientSelected.textContent = "—";
+      if (mPatientResults) mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>`;
+      const host = document.getElementById("newPatientHost");
+      if (host) host.innerHTML = "";
+      validateForm();
+    });
+  }
+
+  if (mPatientQuery) {
+    mPatientQuery.addEventListener("input", scheduleSearch);
+    mPatientQuery.addEventListener("focus", () => {
+      const t = (mPatientQuery.value || "").trim();
+      if (t.length >= 2) scheduleSearch();
+    });
+  }
+
+  if (btnNewPatient) btnNewPatient.addEventListener("click", openNewPatientForm);
+  if (btnSave) btnSave.addEventListener("click", onSave);
+
+  updateProcOtherVisibility();
+  validateForm();
+}
 
   /* ==== FIM    BLOCO 07/08 — Calendário overlay + Modal Marcações ==== */
 
