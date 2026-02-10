@@ -1657,7 +1657,44 @@
   }
 
   /* ==== FIM    BLOCO 06/08 — Pesquisa rápida + Modais de Doente (ver/editar + novo) ==== */
-    /* ==== INÍCIO BLOCO 08/08 — Logout + Refresh Agenda + Boot ==== */
+  /* ==== INÍCIO BLOCO 07/08 — Logout + Refresh Agenda + Boot ==== */
+(function () {
+  "use strict";
+
+  // -----------------------------------------------------------
+  // GLOBAL: garantir que existe window.openCalendarOverlay()
+  // sem rebentar o boot por ReferenceError.
+  // NOTA: não faz wiring nem boot aqui — só publica helpers globais.
+  // -----------------------------------------------------------
+  function ensureGlobalOpenCalendarOverlay() {
+    // 1) Se já existe e é função, não mexer.
+    if (typeof window.openCalendarOverlay === "function") return;
+
+    // 2) Tentar mapear para implementações já existentes noutros scopes.
+    const impl =
+      (window.G && typeof window.G.openCalendarOverlay === "function" && window.G.openCalendarOverlay) ||
+      (window.G && window.G.ui && typeof window.G.ui.openCalendarOverlay === "function" && window.G.ui.openCalendarOverlay) ||
+      (typeof window.openCalendar === "function" && window.openCalendar) ||
+      (window.G && typeof window.G.openCalendar === "function" && window.G.openCalendar) ||
+      null;
+
+    // 3) Publicar global estável (fallback não rebenta boot).
+    window.openCalendarOverlay = function () {
+      if (typeof impl === "function") return impl();
+      console.warn("[Calendário] openCalendarOverlay não está definido (fallback ativo).");
+      alert("Calendário indisponível. (Função openCalendarOverlay em falta)");
+    };
+  }
+
+  // Expõe helper (para o BLOCO 08 poder chamar explicitamente)
+  window.ensureGlobalOpenCalendarOverlay = ensureGlobalOpenCalendarOverlay;
+
+  // Garante logo ao carregar (evita ReferenceError em wiring)
+  try { ensureGlobalOpenCalendarOverlay(); } catch (e) { console.warn("ensureGlobalOpenCalendarOverlay aviso:", e); }
+
+})();
+/* ==== FIM BLOCO 07/08 — Logout + Refresh Agenda + Boot ==== */
+  /* ==== INÍCIO BLOCO 08/08 — Logout + Refresh Agenda + Boot ==== */
 
   // ---------- Logout ----------
   async function wireLogout() {
