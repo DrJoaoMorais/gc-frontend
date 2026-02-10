@@ -1657,170 +1657,7 @@
   }
 
   /* ==== FIM    BLOCO 06/08 — Pesquisa rápida + Modais de Doente (ver/editar + novo) ==== */
-  /* ==== INÍCIO BLOCO 07/08 — Logout + Refresh Agenda + Boot ==== */
-(function () {
-  "use strict";
-
-  // -----------------------------------------------------------
-  // COMPAT SHIM (GLOBAL): garantir que "openCalendarOverlay" existe
-  // como global (window.openCalendarOverlay), para evitar:
-  // ReferenceError: Can't find variable: openCalendarOverlay
-  // -----------------------------------------------------------
-  function ensureGlobalOpenCalendarOverlay() {
-    // 1) Se já existe e é função, não mexer.
-    if (typeof window.openCalendarOverlay === "function") return;
-
-    // 2) Tentar mapear para implementações existentes (G.* ou outros nomes).
-    const impl =
-      (window.G && typeof window.G.openCalendarOverlay === "function" && window.G.openCalendarOverlay) ||
-      (typeof window.openCalendar === "function" && window.openCalendar) ||
-      (window.G && typeof window.G.openCalendar === "function" && window.G.openCalendar) ||
-      null;
-
-    // 3) Publicar um global estável (mesmo que seja fallback).
-    window.openCalendarOverlay = function () {
-      if (typeof impl === "function") return impl();
-      console.warn("[Calendário] openCalendarOverlay não está definido (shim ativo).");
-      alert("Calendário indisponível. (Função openCalendarOverlay em falta)");
-    };
-  }
-
-  // -----------------------------------------------------------
-  // Logout
-  // -----------------------------------------------------------
-  async function doLogout() {
-    try {
-      if (window.supabase && window.supabase.auth) {
-        await window.supabase.auth.signOut();
-      }
-    } catch (e) {
-      console.warn("Logout com aviso:", e);
-    } finally {
-      window.location.replace("/index.html");
-    }
-  }
-
-  function wireLogout() {
-    const btn =
-      document.querySelector('[data-action="logout"]') ||
-      document.querySelector("#btnLogout") ||
-      document.querySelector("#logoutBtn") ||
-      document.querySelector("button.logout");
-
-    if (btn) btn.addEventListener("click", (e) => { e.preventDefault(); doLogout(); });
-  }
-
-  // -----------------------------------------------------------
-  // Botões / UI (calendário, hoje, refresh)
-  // -----------------------------------------------------------
-  function wireCalendarButton() {
-    const btn =
-      document.querySelector('[data-action="open-calendar"]') ||
-      document.querySelector("#btnCalendar") ||
-      document.querySelector("#btn-calendar") ||
-      document.querySelector("button[name='calendar']");
-
-    if (!btn) return;
-
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      // garantir shim e chamar SEMPRE via window.*
-      ensureGlobalOpenCalendarOverlay();
-      window.openCalendarOverlay();
-    });
-  }
-
-  function wireTodayButton() {
-    const btn =
-      document.querySelector('[data-action="today"]') ||
-      document.querySelector("#btnToday") ||
-      document.querySelector("#todayBtn");
-
-    if (!btn) return;
-
-    btn.addEventListener("click", async (e) => {
-      e.preventDefault();
-      try {
-        if (typeof window.setSelectedDay === "function") {
-          window.setSelectedDay(new Date());
-        } else if (window.G && typeof window.G.setSelectedDay === "function") {
-          window.G.setSelectedDay(new Date());
-        }
-
-        if (typeof window.refreshAgenda === "function") await window.refreshAgenda();
-        else if (typeof window.refreshAgendaDay === "function") await window.refreshAgendaDay();
-        else if (window.G && typeof window.G.refreshAgenda === "function") await window.G.refreshAgenda();
-      } catch (err) {
-        console.warn("Today/Refresh com aviso:", err);
-      }
-    });
-  }
-
-  function wireRefreshAgenda() {
-    const btn =
-      document.querySelector('[data-action="refresh-agenda"]') ||
-      document.querySelector("#btnRefresh") ||
-      document.querySelector("#refreshBtn");
-
-    if (!btn) return;
-
-    btn.addEventListener("click", async (e) => {
-      e.preventDefault();
-      try {
-        if (typeof window.refreshAgenda === "function") await window.refreshAgenda();
-        else if (typeof window.refreshAgendaDay === "function") await window.refreshAgendaDay();
-        else if (window.G && typeof window.G.refreshAgenda === "function") await window.G.refreshAgenda();
-      } catch (err) {
-        console.warn("Refresh agenda com aviso:", err);
-      }
-    });
-  }
-
-  // -----------------------------------------------------------
-  // BOOT (não inventa fluxo; chama o boot existente se existir)
-  // -----------------------------------------------------------
-  async function bootSafe() {
-    // Garantir o global do calendário antes de qualquer boot (evita ReferenceError)
-    ensureGlobalOpenCalendarOverlay();
-
-    // Se tens um boot “oficial”, respeitamos.
-    if (typeof window.bootApp === "function") return window.bootApp();
-    if (typeof window.initApp === "function") return window.initApp();
-    if (window.G && typeof window.G.bootApp === "function") return window.G.bootApp();
-    if (window.G && typeof window.G.initApp === "function") return window.G.initApp();
-
-    // Fallback mínimo: tentar refresh da agenda
-    if (typeof window.refreshAgenda === "function") return window.refreshAgenda();
-    if (typeof window.refreshAgendaDay === "function") return window.refreshAgendaDay();
-    if (window.G && typeof window.G.refreshAgenda === "function") return window.G.refreshAgenda();
-  }
-
-  document.addEventListener("DOMContentLoaded", function () {
-    try {
-      // Shim global o mais cedo possível
-      ensureGlobalOpenCalendarOverlay();
-
-      wireLogout();
-      wireCalendarButton();
-      wireTodayButton();
-      wireRefreshAgenda();
-
-      Promise.resolve()
-        .then(bootSafe)
-        .catch(function (e) {
-          console.error("Boot falhou:", e);
-          const el = document.querySelector("#appError");
-          if (el) el.textContent = "Erro ao iniciar a app. Abre a consola para detalhe.";
-        });
-    } catch (e) {
-      console.error("Boot falhou:", e);
-      const el = document.querySelector("#appError");
-      if (el) el.textContent = "Erro ao iniciar a app. Abre a consola para detalhe.";
-    }
-  });
-})();
-/* ==== FIM BLOCO 07/08 — Logout + Refresh Agenda + Boot ==== */
-  /* ==== INÍCIO BLOCO 08/08 — Logout + Refresh Agenda + Boot ==== */
+    /* ==== INÍCIO BLOCO 08/08 — Logout + Refresh Agenda + Boot ==== */
 
   // ---------- Logout ----------
   async function wireLogout() {
@@ -1889,6 +1726,22 @@
         return;
       }
 
+      // IMPORTANTÍSSIMO: garantir que existe SEMPRE um window.openCalendarOverlay()
+      // antes de qualquer wiring que referencie calendário.
+      try {
+        if (typeof window.ensureGlobalOpenCalendarOverlay === "function") {
+          window.ensureGlobalOpenCalendarOverlay();
+        } else if (typeof window.openCalendarOverlay !== "function") {
+          // fallback mínimo (não rebenta)
+          window.openCalendarOverlay = function () {
+            console.warn("[Calendário] openCalendarOverlay não está definido.");
+            alert("Calendário indisponível.");
+          };
+        }
+      } catch (e) {
+        console.warn("Calendário: ensureGlobalOpenCalendarOverlay aviso:", e);
+      }
+
       const { data, error } = await window.sb.auth.getSession();
       if (error) throw error;
 
@@ -1926,12 +1779,18 @@
       const sel = document.getElementById("selClinic");
       if (sel) sel.addEventListener("change", refreshAgenda);
 
-      const btnRefresh = document.getElementById("btnRefreshAgenda");
+      // Refresh (compat: btnRefreshAgenda e/ou btnRefreshAgendaDay/btnRefresh)
+      const btnRefresh =
+        document.getElementById("btnRefreshAgenda") ||
+        document.getElementById("btnRefresh") ||
+        document.querySelector('[data-action="refresh-agenda"]');
       if (btnRefresh) btnRefresh.addEventListener("click", refreshAgenda);
 
+      // Nova marcação
       const btnNew = document.getElementById("btnNewAppt");
       if (btnNew) btnNew.addEventListener("click", () => openApptModal({ mode: "new", row: null }));
 
+      // Novo doente (main)
       const btnNewPatientMain = document.getElementById("btnNewPatientMain");
       if (btnNewPatientMain) {
         btnNewPatientMain.addEventListener("click", () => {
@@ -1941,10 +1800,21 @@
         });
       }
 
-      const btnCal = document.getElementById("btnCal");
-      if (btnCal) btnCal.addEventListener("click", openCalendarOverlay);
+      // Calendário mensal (aceita os 3 padrões)
+      const btnCal =
+        document.getElementById("btnCalendar") ||
+        document.querySelector('[data-action="open-calendar"]') ||
+        document.getElementById("btnCal");
+      if (btnCal) {
+        btnCal.addEventListener("click", (e) => {
+          e.preventDefault();
+          // CHAMAR SEMPRE via window.* para nunca dar ReferenceError
+          window.openCalendarOverlay();
+        });
+      }
 
-      const btnToday = document.getElementById("btnToday");
+      // Hoje
+      const btnToday = document.getElementById("btnToday") || document.querySelector('[data-action="today"]');
       if (btnToday) {
         btnToday.addEventListener("click", async () => {
           G.selectedDayISO = fmtDateISO(new Date());
@@ -1958,7 +1828,6 @@
         btnNew.title = "Sem permissão para criar marcações.";
       }
 
-      // Novo doente na página inicial: também só doctor/secretary (por defeito)
       if (btnNewPatientMain && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
         btnNewPatientMain.disabled = true;
         btnNewPatientMain.title = "Sem permissão para criar doentes.";
