@@ -1662,20 +1662,27 @@
   "use strict";
 
   // -----------------------------------------------------------
-  // COMPAT SHIM: garantir que "openCalendarOverlay" existe no scope
-  // (evita: ReferenceError: Can't find variable: openCalendarOverlay)
+  // COMPAT SHIM (GLOBAL): garantir que "openCalendarOverlay" existe
+  // como global (window.openCalendarOverlay), para evitar:
+  // ReferenceError: Can't find variable: openCalendarOverlay
   // -----------------------------------------------------------
-  var openCalendarOverlay =
-    (typeof window.openCalendarOverlay === "function" && window.openCalendarOverlay) ||
-    (window.G && typeof window.G.openCalendarOverlay === "function" && window.G.openCalendarOverlay) ||
-    null;
+  function ensureGlobalOpenCalendarOverlay() {
+    // 1) Se já existe e é função, não mexer.
+    if (typeof window.openCalendarOverlay === "function") return;
 
-  function safeOpenCalendarOverlay() {
-    if (typeof openCalendarOverlay === "function") {
-      return openCalendarOverlay();
-    }
-    console.warn("[Calendário] openCalendarOverlay não está definido.");
-    alert("Calendário indisponível (função openCalendarOverlay em falta). Abre a consola e confirma o nome da função do overlay.");
+    // 2) Tentar mapear para implementações existentes (G.* ou outros nomes).
+    const impl =
+      (window.G && typeof window.G.openCalendarOverlay === "function" && window.G.openCalendarOverlay) ||
+      (typeof window.openCalendar === "function" && window.openCalendar) ||
+      (window.G && typeof window.G.openCalendar === "function" && window.G.openCalendar) ||
+      null;
+
+    // 3) Publicar um global estável (mesmo que seja fallback).
+    window.openCalendarOverlay = function () {
+      if (typeof impl === "function") return impl();
+      console.warn("[Calendário] openCalendarOverlay não está definido (shim ativo).");
+      alert("Calendário indisponível. (Função openCalendarOverlay em falta)");
+    };
   }
 
   // -----------------------------------------------------------
@@ -1713,7 +1720,14 @@
       document.querySelector("#btn-calendar") ||
       document.querySelector("button[name='calendar']");
 
-    if (btn) btn.addEventListener("click", (e) => { e.preventDefault(); safeOpenCalendarOverlay(); });
+    if (!btn) return;
+
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      // garantir shim e chamar SEMPRE via window.*
+      ensureGlobalOpenCalendarOverlay();
+      window.openCalendarOverlay();
+    });
   }
 
   function wireTodayButton() {
@@ -1732,6 +1746,7 @@
         } else if (window.G && typeof window.G.setSelectedDay === "function") {
           window.G.setSelectedDay(new Date());
         }
+
         if (typeof window.refreshAgenda === "function") await window.refreshAgenda();
         else if (typeof window.refreshAgendaDay === "function") await window.refreshAgendaDay();
         else if (window.G && typeof window.G.refreshAgenda === "function") await window.G.refreshAgenda();
@@ -1765,6 +1780,9 @@
   // BOOT (não inventa fluxo; chama o boot existente se existir)
   // -----------------------------------------------------------
   async function bootSafe() {
+    // Garantir o global do calendário antes de qualquer boot (evita ReferenceError)
+    ensureGlobalOpenCalendarOverlay();
+
     // Se tens um boot “oficial”, respeitamos.
     if (typeof window.bootApp === "function") return window.bootApp();
     if (typeof window.initApp === "function") return window.initApp();
@@ -1779,6 +1797,9 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     try {
+      // Shim global o mais cedo possível
+      ensureGlobalOpenCalendarOverlay();
+
       wireLogout();
       wireCalendarButton();
       wireTodayButton();
@@ -1788,7 +1809,6 @@
         .then(bootSafe)
         .catch(function (e) {
           console.error("Boot falhou:", e);
-          // Mantém a tua mensagem padrão se já existir na UI:
           const el = document.querySelector("#appError");
           if (el) el.textContent = "Erro ao iniciar a app. Abre a consola para detalhe.";
         });
