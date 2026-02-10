@@ -1657,7 +1657,7 @@
   }
 
   /* ==== FIM    BLOCO 06/08 — Pesquisa rápida + Modais de Doente (ver/editar + novo) ==== */
-  /* ==== INÍCIO BLOCO 07/08 — Calendário overlay + Modal Marcações ==== */
+  /* ==== INÍCIO BLOCO 07/08 — Logout + Refresh Agenda + Boot ==== */
 
   function openApptModal({ mode, row }) {
   const root = document.getElementById("modalRoot");
@@ -2315,8 +2315,7 @@
   validateForm();
 }
 
-  /* ==== FIM    BLOCO 07/08 — Calendário overlay + Modal Marcações ==== */
-
+  /* ==== FIM BLOCO 07/08 — Logout + Refresh Agenda + Boot ==== */
   /* ==== INÍCIO BLOCO 08/08 — Logout + Refresh Agenda + Boot ==== */
 
   // ---------- Logout ----------
