@@ -356,13 +356,451 @@
 
   /* ==== FIM    BLOCO 04/08 — Catálogos + Estado global (G) ==== */
   /* ==== INÍCIO BLOCO 05/08 — Render Shell + Agenda (UI) ==== */
+
+  // ---------- Render shell ----------
+  function renderAppShell() {
+    // garante G base (sem mexer nos outros blocos)
+    if (!window.G) window.G = {};
+    if (!G.patientQuick) G.patientQuick = { selected: null, lastResults: [] };
+    if (!G.agenda) G.agenda = { rows: [], timeColUsed: "start_at" };
+    if (!G.clinicsById) G.clinicsById = {};
+
+    document.body.innerHTML = `
+      <style>
+        .gcBtn { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px; }
+        .gcBtn:disabled { opacity:0.6; cursor:not-allowed; }
+
+        /* Nova marcação: mais suave (menos “preto total”) */
+        .gcBtnPrimary { padding:11px 14px; border-radius:12px; border:1px solid #334155; background:#334155; color:#fff; cursor:pointer; font-size:${UI.fs13}px; font-weight:900; }
+        .gcBtnPrimary:disabled { opacity:0.6; cursor:not-allowed; }
+
+        .gcSelect { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; font-size:${UI.fs13}px; }
+        .gcLabel { font-size:${UI.fs12}px; color:#666; }
+        .gcCard { padding:12px 14px; border:1px solid #eee; border-radius:12px; background:#fff; }
+        .gcMutedCard { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fafafa; }
+        .gcCardTight { padding:10px 12px; border:1px solid #eee; border-radius:12px; background:#fff; }
+
+        /* ✅ Grelha da agenda: Telefone antes | Clínica no fim (à direita) */
+        .gcGridRow {
+          display:grid;
+          grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 160px 170px;
+          gap:14px;
+          align-items:start;
+          width:100%;
+        }
+        @media (max-width: 1100px){
+          .gcGridRow { grid-template-columns: 110px 1fr; }
+          .gcGridRow > div { min-width: 0 !important; }
+        }
+
+        .gcPatientLink{
+          display:block;
+          font-size:${UI.fs18}px;
+          line-height:1.15;
+          color:#111;
+          font-weight:950;
+          cursor:pointer;
+          text-decoration:underline;
+          white-space:normal;
+          overflow-wrap:anywhere;
+          word-break:break-word;
+        }
+        .gcCellTitle { font-size:${UI.fs12}px; color:#666; }
+        .gcCellValue { font-size:${UI.fs13}px; color:#111; font-weight:700; margin-top:6px; }
+
+        /* Estado: o próprio select é o “modelo” */
+        .gcStatusSelect{
+          appearance:none;
+          -webkit-appearance:none;
+          -moz-appearance:none;
+          border-radius:999px;
+          border:1px solid transparent;
+          padding:8px 36px 8px 12px;
+          font-size:${UI.fs13}px;
+          font-weight:900;
+          cursor:pointer;
+          background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+          background-position: calc(100% - 18px) 55%, calc(100% - 12px) 55%;
+          background-size: 6px 6px, 6px 6px;
+          background-repeat:no-repeat;
+        }
+
+        /* Toolbar compacta (topo) */
+        .gcToolbar {
+          display:flex;
+          align-items:flex-end;
+          gap:12px;
+          flex-wrap:wrap;
+          margin-top:12px;
+          width:100%;
+        }
+        .gcToolbarLeft{
+          display:flex;
+          flex-direction:row;
+          gap:10px;
+          align-items:flex-end;
+          flex-wrap:wrap;
+          flex: 0 0 auto;
+        }
+
+        /* Zona "pesquisa/selecionado" — modo único */
+        .gcPatientTop {
+          position:relative;
+          flex: 1 1 520px;
+          min-width: 420px;
+          max-width: 680px;
+        }
+        @media (max-width: 980px){
+          .gcPatientTop { flex: 1 1 100%; min-width: 280px; max-width:none; }
+        }
+
+        /* ✅ Clínica no topo encostada à direita */
+        .gcClinicTop {
+          margin-left: auto;
+          flex: 0 0 210px;
+          width: 210px;
+          max-width: 210px;
+        }
+        @media (max-width: 980px){
+          .gcClinicTop { margin-left: 0; flex: 1 1 220px; width:auto; max-width:none; }
+        }
+        #selClinic {
+          width: 210px;
+          max-width: 210px;
+        }
+        @media (max-width: 980px){
+          #selClinic { width: 100%; max-width:none; }
+        }
+
+        /* Search: dropdown flutuante (não ocupa espaço quando fechado) */
+        .gcSearchBox { position:relative; }
+        #pQuickQuery {
+          padding:10px 12px;
+          border-radius:10px;
+          border:1px solid #ddd;
+          width:100%;
+          font-size:${UI.fs13}px;
+        }
+        #pQuickResults {
+          display:none;
+          position:absolute;
+          left:0;
+          right:0;
+          top: calc(100% + 6px);
+          z-index: 30;
+          border:1px solid #eee;
+          border-radius:10px;
+          padding:8px;
+          background:#fff;
+          max-height:220px;
+          overflow:auto;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        }
+        .gcSearchBox:focus-within #pQuickResults { display:block; }
+
+        /* Cartão selecionado (aparece só quando há doente) */
+        #pQuickSelectedWrap { display:none; }
+        #pQuickSelectedWrap.gcShow { display:block; }
+
+        .gcSelectedCard {
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:12px;
+          flex-wrap:wrap;
+          border:1px solid #e5e5e5;
+          border-radius:12px;
+          padding:10px 12px;
+          background:#fafafa;
+        }
+        #pQuickSelected{
+          min-height: 0;
+          border:0;
+          background:transparent;
+          padding:0;
+          font-size:${UI.fs13}px;
+          font-weight:900;
+          color:#111;
+        }
+        .gcSelectedActions{
+          display:flex;
+          gap:10px;
+          flex-wrap:wrap;
+        }
+      </style>
+
+      <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; font-size:${UI.fs14}px;">
+        <header style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:12px 14px; border:1px solid #e5e5e5; border-radius:12px;">
+          <div style="display:flex; flex-direction:column; gap:6px; min-width: 260px;">
+            <div style="font-size:${UI.fs14}px; color:#111; font-weight:700;">Sessão ativa</div>
+            <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Email:</span> <span id="hdrEmail">—</span></div>
+            <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Role:</span> <span id="hdrRole">—</span></div>
+            <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Clínicas:</span> <span id="hdrClinicCount">0</span></div>
+          </div>
+
+          <button id="btnLogout" class="gcBtn">Logout</button>
+        </header>
+
+        <main style="margin-top:14px;">
+          <section class="gcCard">
+            <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+              <div>
+                <div style="font-size:${UI.fs16}px; color:#111; font-weight:800;">Agenda</div>
+                <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;" id="agendaSubtitle">—</div>
+              </div>
+            </div>
+
+            <!-- Topo compacto: botões (esq) | pesquisa/selecionado (centro) | clínica (dir) -->
+            <div class="gcToolbar">
+              <div class="gcToolbarLeft">
+                <button id="btnCal" class="gcBtn" title="Calendário">Calendário</button>
+                <button id="btnToday" class="gcBtn" title="Voltar a hoje">Hoje</button>
+                <button id="btnNewAppt" class="gcBtnPrimary">Nova marcação</button>
+                <button id="btnNewPatientMain" class="gcBtn" title="Criar novo doente">＋ Novo doente</button>
+                <button id="btnRefreshAgenda" class="gcBtn" title="Atualizar agenda">Atualizar</button>
+              </div>
+
+              <div class="gcPatientTop">
+                <!-- MODO PESQUISA (único campo) -->
+                <div id="pQuickSearchWrap" class="gcSearchBox">
+                  <div class="gcLabel" style="margin-bottom:6px;">Pesquisar doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
+                  <input id="pQuickQuery" type="text" placeholder="ex.: Man… | 916… | 123456789"
+                    autocomplete="off" autocapitalize="off" spellcheck="false" />
+                  <div id="pQuickResults">
+                    <div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>
+                  </div>
+                </div>
+
+                <!-- MODO SELECIONADO (cartão compacto) -->
+                <div id="pQuickSelectedWrap" style="margin-top:8px;">
+                  <div class="gcSelectedCard">
+                    <div style="display:flex; flex-direction:column; gap:4px; min-width: 240px; flex: 1 1 360px;">
+                      <div class="gcLabel">Doente selecionado</div>
+                      <div id="pQuickSelected">—</div>
+                      <div id="pQuickMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
+                    </div>
+
+                    <div class="gcSelectedActions">
+                      <button id="btnQuickOpen" class="gcBtn">Abrir feed</button>
+                      <button id="btnQuickClear" class="gcBtn">Trocar doente</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="gcClinicTop">
+                <label for="selClinic" class="gcLabel">Clínica</label>
+                <select id="selClinic" class="gcSelect"></select>
+              </div>
+            </div>
+
+            <div style="margin-top:12px;" id="agendaStatus" aria-live="polite"></div>
+
+            <div style="margin-top:10px; border-top:1px solid #f0f0f0; padding-top:10px;">
+              <ul id="agendaList" style="list-style:none; padding:0; margin:0;"></ul>
+            </div>
+          </section>
+        </main>
+
+        <div id="modalRoot"></div>
+      </div>
+    `;
+
+    // --- Lógica local do BLOCO 05/08: handlers seguros + toggle robusto ---
+    (function wireBlock05Handlers() {
+      const $ = (id) => document.getElementById(id);
+
+      const btnCal = $("btnCal");
+      const btnToday = $("btnToday");
+      const btnNewAppt = $("btnNewAppt");
+      const btnNewPatientMain = $("btnNewPatientMain");
+      const btnRefreshAgenda = $("btnRefreshAgenda");
+      const btnQuickOpen = $("btnQuickOpen");
+      const btnQuickClear = $("btnQuickClear");
+
+      const searchWrap = $("pQuickSearchWrap");
+      const selectedWrap = $("pQuickSelectedWrap");
+      const selectedBox = $("pQuickSelected");
+      const input = $("pQuickQuery");
+      const results = $("pQuickResults");
+
+      function safeCall(fnName, arg) {
+        try {
+          const fn = window && typeof window[fnName] === "function" ? window[fnName] : null;
+          if (fn) return fn(arg);
+        } catch {}
+        return null;
+      }
+
+      function selectedExists() {
+        try {
+          if (window.G && G.patientQuick && G.patientQuick.selected && G.patientQuick.selected.id) return true;
+        } catch {}
+        const t = String(selectedBox ? selectedBox.textContent : "").replace(/\s+/g, " ").trim();
+        return !!(t && t !== "—");
+      }
+
+      function applyState() {
+        const has = selectedExists();
+        if (searchWrap) searchWrap.style.display = has ? "none" : "block";
+        if (selectedWrap) {
+          if (has) selectedWrap.classList.add("gcShow");
+          else selectedWrap.classList.remove("gcShow");
+        }
+      }
+
+      // botões topo (não rebentam se estiverem noutro bloco)
+      if (btnCal) btnCal.addEventListener("click", (ev) => { ev.preventDefault(); safeCall("openCalendarOverlay"); });
+      if (btnToday) btnToday.addEventListener("click", (ev) => { ev.preventDefault(); safeCall("goToday"); });
+      if (btnNewAppt) btnNewAppt.addEventListener("click", (ev) => { ev.preventDefault(); safeCall("openApptModal", { mode: "new" }); });
+      if (btnNewPatientMain) btnNewPatientMain.addEventListener("click", (ev) => { ev.preventDefault(); safeCall("openNewPatientMain"); });
+      if (btnRefreshAgenda) btnRefreshAgenda.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        const r = safeCall("refreshAgenda");
+        if (r && typeof r.then === "function") await r;
+      });
+
+      // Abrir feed (usa selected real)
+      if (btnQuickOpen) {
+        btnQuickOpen.addEventListener("click", async (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          try {
+            const sel = (window.G && G.patientQuick) ? G.patientQuick.selected : null;
+            const pid = sel && sel.id ? sel.id : null;
+            if (!pid) { alert("Seleciona um doente primeiro."); return; }
+            if (typeof window.openPatientFeedFromAny === "function") {
+              await window.openPatientFeedFromAny({ id: pid });
+              return;
+            }
+            // fallback: tenta função global alternativa se existir
+            const rr = safeCall("openPatientView", { id: pid });
+            if (!rr) alert("Abrir feed indisponível.");
+          } catch (e) {
+            console.error(e);
+            alert("Erro ao abrir feed. Vê a consola.");
+          }
+        });
+      }
+
+      // Trocar doente
+      if (btnQuickClear) {
+        btnQuickClear.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+
+          try {
+            if (window.G && G.patientQuick) {
+              G.patientQuick.selected = null;
+              G.patientQuick.lastResults = [];
+            }
+          } catch {}
+
+          if (selectedBox) selectedBox.textContent = "—";
+          if (input) input.value = "";
+          if (results) results.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>`;
+
+          applyState();
+          if (input) input.focus();
+        });
+      }
+
+      // Observa mudanças no texto (fallback) e aplica estado
+      try {
+        if (selectedBox) {
+          const obs = new MutationObserver(() => applyState());
+          obs.observe(selectedBox, { childList: true, characterData: true, subtree: true });
+        }
+      } catch {}
+
+      applyState();
+    })();
+  }
+
+  function setAgendaSubtitleForSelectedDay() {
+    if (!window.G) return;
+    const r = isoLocalDayRangeFromISODate(G.selectedDayISO);
+    const sub = document.getElementById("agendaSubtitle");
+    if (!sub || !r) return;
+    sub.textContent = `${fmtDatePt(r.start)} (00:00–24:00)`;
+  }
+
+  function setAgendaStatus(kind, text) {
+    const el = document.getElementById("agendaStatus");
+    if (!el) return;
+
+    const color = kind === "loading" ? "#666" : kind === "error" ? "#b00020" : kind === "ok" ? "#111" : "#666";
+    el.innerHTML = `<div style="font-size:${UI.fs12}px; color:${color};">${escapeHtml(text)}</div>`;
+  }
+
+  function renderClinicsSelect(clinics) {
+    const sel = document.getElementById("selClinic");
+    if (!sel) return;
+
+    const opts = [];
+    opts.push(`<option value="">Todas</option>`);
+    for (const c of clinics) {
+      const label = c.name || c.slug || c.id;
+      opts.push(`<option value="${escapeHtml(c.id)}">${escapeHtml(label)}</option>`);
+    }
+    sel.innerHTML = opts.join("");
+
+    if (clinics.length === 1) sel.value = clinics[0].id;
+  }
+
+  function getPatientForAppointmentRow(apptRow) {
+    const pid = apptRow && apptRow.patient_id ? apptRow.patient_id : null;
+    if (!pid) return null;
+    return (window.G && G.patientsById && G.patientsById[pid]) ? G.patientsById[pid] : null;
+  }
+
+  async function openPatientFeedFromAny(patientLike) {
+    try {
+      const pid = patientLike && patientLike.id ? patientLike.id : null;
+      if (!pid) {
+        alert("Doente inválido.");
+        return;
+      }
+      const full = await fetchPatientById(pid);
+      if (!full) {
+        alert("Não consegui carregar o doente (RLS ou não existe).");
+        return;
+      }
+      openPatientViewModal(full);
+    } catch (e) {
+      console.error("openPatientFeed falhou:", e);
+      alert("Erro ao abrir doente. Vê a consola para detalhe.");
+    }
+  }
+
+  async function updateAppointmentStatus(apptId, newStatus) {
+    if (!apptId) return;
+    const s = String(newStatus || "").trim();
+    if (!s) return;
+
+    const idx = (G.agenda.rows || []).findIndex((x) => x && x.id === apptId);
+    if (idx >= 0) {
+      G.agenda.rows[idx].status = s;
+      renderAgendaList();
+    }
+
+    try {
+      const { error } = await window.sb.from("appointments").update({ status: s }).eq("id", apptId);
+      if (error) throw error;
+    } catch (e) {
+      console.error("Update status falhou:", e);
+      await refreshAgenda();
+      alert("Não foi possível atualizar o estado. Vê a consola para detalhe.");
+    }
+  }
+
   // ✅ Agenda alinhada em grelha + Estado clicável com cor (select estilizado)
   function renderAgendaList() {
     const ul = document.getElementById("agendaList");
     if (!ul) return;
 
-    const rows = G.agenda.rows || [];
-    const timeColUsed = G.agenda.timeColUsed || "start_at";
+    const rows = (window.G && G.agenda && G.agenda.rows) ? G.agenda.rows : [];
+    const timeColUsed = (window.G && G.agenda && G.agenda.timeColUsed) ? G.agenda.timeColUsed : "start_at";
 
     if (rows.length === 0) {
       ul.innerHTML = `<li style="padding:10px 0; font-size:${UI.fs12}px; color:#666;">Sem marcações para este dia.</li>`;
@@ -434,11 +872,13 @@
               </div>
             </div>
 
+            <!-- ✅ 5ª coluna: Telefone -->
             <div style="min-width: 160px;">
               <div class="gcCellTitle">Telefone</div>
               <div class="gcCellValue">${escapeHtml(patientPhone)}</div>
             </div>
 
+            <!-- ✅ 6ª coluna: Clínica (à direita) -->
             <div style="min-width: 170px;">
               <div class="gcCellTitle">Clínica</div>
               <div class="gcCellValue">${escapeHtml(clinicName)}</div>
@@ -459,10 +899,12 @@
         const id = li.getAttribute("data-appt-id");
         const row = rows.find((x) => x.id === id);
 
-        if (row && typeof window.openApptModal === "function") {
-          window.openApptModal({ mode: "edit", row });
-        } else {
-          console.error("openApptModal não disponível.");
+        // chama openApptModal de forma segura (sem rebentar o resto)
+        try {
+          if (row && typeof window.openApptModal === "function") window.openApptModal({ mode: "edit", row });
+        } catch (e) {
+          console.error(e);
+          alert("Editar marcação indisponível.");
         }
       });
 
