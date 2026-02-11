@@ -1657,17 +1657,19 @@
   }
 
   /* ==== FIM    BLOCO 06/08 — Pesquisa rápida + Modais de Doente (ver/editar + novo) ==== */
-  /* ==== INÍCIO BLOCO 07/08 — Logout + Refresh Agenda + Boot ==== */
+/* ==== INÍCIO BLOCO 07/08 — Logout + Refresh Agenda + Boot ==== */
 (function () {
   "use strict";
 
   // ===========================================================
   // OBJETIVO (cirúrgico):
   // 1) Garantir que EXISTE sempre:
-  //    - window.openApptModal  (e global binding openApptModal)
-  //    - window.openCalendarOverlay (e global binding openCalendarOverlay)
-  // 2) Tentar delegar para implementações reais se existirem noutros scopes.
-  // 3) Se não existirem, abrir um modal/overlay por DOM (fallback útil).
+  //    - window.openApptModal
+  //    - window.openCalendarOverlay
+  // 2) Delegar para implementações reais se existirem:
+  //    - em window (caso existam)
+  //    - em window.G (vamos exportar G no BLOCO 08)
+  // 3) Se não existirem, fallback DOM + warning (sem crash)
   // ===========================================================
 
   function resolveFirstFunction(candidates) {
@@ -1690,20 +1692,22 @@
 
   // ---------- CALENDÁRIO ----------
   function ensureGlobalOpenCalendarOverlay() {
-    // Define SEMPRE uma função (nunca undefined)
     window.openCalendarOverlay = function () {
-      // 1) Re-resolver a cada chamada (para apanhar implementações carregadas depois)
+      // Re-resolver a cada chamada (para apanhar implementações definidas depois)
       const impl = resolveFirstFunction([
         window.openCalendarOverlayImpl,
-        window.G && window.G.openCalendarOverlay,
-        window.G && window.G.ui && window.G.ui.openCalendarOverlay,
         window.openCalendarOverlayReal,
         window.openCalendarOverlayInternal,
+
+        // IMPORTANTÍSSIMO: implementações guardadas em G (exportado no BLOCO 08)
+        window.G && window.G.openCalendarOverlay,
+        window.G && window.G.ui && window.G.ui.openCalendarOverlay,
+        window.G && window.G.calendar && window.G.calendar.openCalendarOverlay,
+        window.G && window.G.calendar && window.G.calendar.openOverlay,
       ]);
 
       if (impl) return impl.apply(null, arguments);
 
-      // 2) Fallback por DOM (overlay)
       const ok = openByDom([
         "#calendarOverlay",
         "#calOverlay",
@@ -1720,9 +1724,6 @@
         alert("Calendário indisponível.");
       }
     };
-
-    // Criar também o binding global "openCalendarOverlay" (para calls bare)
-    try { window.openCalendarOverlay = window.openCalendarOverlay; } catch {}
   }
 
   // ---------- MARCAÇÃO ----------
@@ -1730,17 +1731,19 @@
     window.openApptModal = function () {
       const impl = resolveFirstFunction([
         window.openApptModalImpl,
-        window.G && window.G.openApptModal,
-        window.G && window.G.ui && window.G.ui.openApptModal,
         window.openAppointmentModal,
         window.showApptModal,
-        window.G && window.G.showApptModal,
-        window.G && window.G.ui && window.G.ui.showApptModal,
+
+        // IMPORTANTÍSSIMO: implementações guardadas em G (exportado no BLOCO 08)
+        window.G && window.G.openApptModal,
+        window.G && window.G.ui && window.G.ui.openApptModal,
+        window.G && window.G.appt && window.G.appt.openApptModal,
+        window.G && window.G.appointments && window.G.appointments.openApptModal,
+        window.G && window.G.modals && window.G.modals.openApptModal,
       ]);
 
       if (impl) return impl.apply(null, arguments);
 
-      // Fallback por DOM (modal)
       const ok = openByDom([
         "#apptModal",
         "#appointmentModal",
@@ -1757,22 +1760,17 @@
         alert("Nova marcação indisponível.");
       }
     };
-
-    // Criar também o binding global "openApptModal" (para calls bare)
-    try { window.openApptModal = window.openApptModal; } catch {}
   }
 
-  // Expor helpers (caso queiras chamar noutros blocos)
   window.ensureGlobalOpenCalendarOverlay = ensureGlobalOpenCalendarOverlay;
   window.ensureGlobalOpenApptModal = ensureGlobalOpenApptModal;
 
-  // Ativar já (muito cedo)
   try { ensureGlobalOpenCalendarOverlay(); } catch (e) { console.warn("ensureGlobalOpenCalendarOverlay aviso:", e); }
   try { ensureGlobalOpenApptModal(); } catch (e) { console.warn("ensureGlobalOpenApptModal aviso:", e); }
 
 })();
 /* ==== FIM BLOCO 07/08 — Logout + Refresh Agenda + Boot ==== */
-   /* ==== INÍCIO BLOCO 08/08 — Logout + Refresh Agenda + Boot ==== */
+/* ==== INÍCIO BLOCO 08/08 — Logout + Refresh Agenda + Boot ==== */
 
   // ---------- Logout ----------
   async function wireLogout() {
@@ -1793,6 +1791,25 @@
         alert("Não foi possível terminar a sessão. Vê a consola para detalhe.");
       }
     });
+  }
+
+  // =========================================================
+  // CRÍTICO (fix de scope):
+  // - O BLOCO 05 chama openApptModal(...) (bare).
+  // - Em JS strict, se a função não existir no scope, rebenta.
+  // SOLUÇÃO: garantir wrappers no scope deste ficheiro (BLOCO 08),
+  // que delegam SEMPRE para window.* (que o BLOCO 07 garante).
+  // =========================================================
+  function openApptModal(opts) {
+    if (typeof window.openApptModal === "function") return window.openApptModal(opts);
+    console.warn("[Marcação] window.openApptModal em falta (wrapper).");
+    alert("Nova marcação indisponível.");
+  }
+
+  function openCalendarOverlay() {
+    if (typeof window.openCalendarOverlay === "function") return window.openCalendarOverlay();
+    console.warn("[Calendário] window.openCalendarOverlay em falta (wrapper).");
+    alert("Calendário indisponível.");
   }
 
   // ---------- Refresh agenda ----------
@@ -1853,34 +1870,15 @@
       G.sessionUser = session.user;
 
       renderAppShell();
+
+      // CRÍTICO: exportar G para window, para o BLOCO 07 conseguir descobrir G.* (implementações reais)
+      try { window.G = G; } catch (e) { console.warn("Export window.G aviso:", e); }
+
       await wireLogout();
 
-      // =========================================================
-      // CRÍTICO: expor no window as implementações reais (se existirem no scope)
-      // - typeof <nome> é seguro mesmo que não exista (não dá ReferenceError)
-      // =========================================================
-      try {
-        if (typeof openApptModal === "function") window.openApptModal = openApptModal;
-      } catch (e) {
-        console.warn("Export openApptModal aviso:", e);
-      }
-      try {
-        if (typeof openCalendarOverlay === "function") window.openCalendarOverlay = openCalendarOverlay;
-      } catch (e) {
-        console.warn("Export openCalendarOverlay aviso:", e);
-      }
-
       // Garantir fallbacks do BLOCO 07 (se existirem)
-      try {
-        if (typeof window.ensureGlobalOpenApptModal === "function") window.ensureGlobalOpenApptModal();
-      } catch (e) {
-        console.warn("ensureGlobalOpenApptModal aviso:", e);
-      }
-      try {
-        if (typeof window.ensureGlobalOpenCalendarOverlay === "function") window.ensureGlobalOpenCalendarOverlay();
-      } catch (e) {
-        console.warn("ensureGlobalOpenCalendarOverlay aviso:", e);
-      }
+      try { if (typeof window.ensureGlobalOpenApptModal === "function") window.ensureGlobalOpenApptModal(); } catch (e) { console.warn("ensureGlobalOpenApptModal aviso:", e); }
+      try { if (typeof window.ensureGlobalOpenCalendarOverlay === "function") window.ensureGlobalOpenCalendarOverlay(); } catch (e) { console.warn("ensureGlobalOpenCalendarOverlay aviso:", e); }
 
       try { G.role = await fetchMyRole(G.sessionUser.id); } catch { G.role = null; }
       try { G.clinics = await fetchVisibleClinics(); } catch { G.clinics = []; }
@@ -1905,15 +1903,12 @@
       const sel = document.getElementById("selClinic");
       if (sel) sel.addEventListener("change", refreshAgenda);
 
-      const btnRefresh =
-        document.getElementById("btnRefreshAgenda") ||
-        document.getElementById("btnRefresh") ||
-        document.querySelector('[data-action="refresh-agenda"]');
+      const btnRefresh = document.getElementById("btnRefreshAgenda");
       if (btnRefresh) btnRefresh.addEventListener("click", refreshAgenda);
 
-      // Nova marcação — SEMPRE via window.*
+      // Nova marcação — SEMPRE via wrapper (resolve scope + usa window.*)
       const btnNew = document.getElementById("btnNewAppt");
-      if (btnNew) btnNew.addEventListener("click", () => window.openApptModal({ mode: "new", row: null }));
+      if (btnNew) btnNew.addEventListener("click", () => openApptModal({ mode: "new", row: null }));
 
       // Novo doente (main)
       const btnNewPatientMain = document.getElementById("btnNewPatientMain");
@@ -1925,20 +1920,17 @@
         });
       }
 
-      // Calendário mensal — SEMPRE via window.*
-      const btnCal =
-        document.getElementById("btnCalendar") ||
-        document.querySelector('[data-action="open-calendar"]') ||
-        document.getElementById("btnCal");
+      // Calendário mensal — SEMPRE via wrapper (resolve scope + usa window.*)
+      const btnCal = document.getElementById("btnCal");
       if (btnCal) {
         btnCal.addEventListener("click", (e) => {
           e.preventDefault();
-          window.openCalendarOverlay();
+          openCalendarOverlay();
         });
       }
 
       // Hoje
-      const btnToday = document.getElementById("btnToday") || document.querySelector('[data-action="today"]');
+      const btnToday = document.getElementById("btnToday");
       if (btnToday) {
         btnToday.addEventListener("click", async () => {
           G.selectedDayISO = fmtDateISO(new Date());
@@ -1966,5 +1958,5 @@
 
   boot();
 
-  /* ==== FIM    BLOCO 08/08 — Logout + Refresh Agenda + Boot ==== */
-})();
+/* ==== FIM    BLOCO 08/08 — Logout + Refresh Agenda + Boot ==== */
+})(); 
