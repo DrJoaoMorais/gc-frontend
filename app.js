@@ -361,7 +361,6 @@
         .gcLabel { font-size:${UI.fs12}px; color:#666; }
         .gcCard { padding:12px 14px; border:1px solid #eee; border-radius:12px; background:#fff; }
         .gcMutedCard { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fafafa; }
-
         .gcGridRow {
           display:grid;
           grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 170px 160px;
@@ -373,7 +372,6 @@
           .gcGridRow { grid-template-columns: 110px 1fr; }
           .gcGridRow > div { min-width: 0 !important; }
         }
-
         .gcPatientLink{
           display:block;
           font-size:${UI.fs18}px;
@@ -424,36 +422,11 @@
           flex: 1 1 420px;
         }
         .gcSelectedWrap {
-          min-width: 360px;
-          flex: 0 0 420px;
+          min-width: 320px;
+          flex: 0 0 360px;
         }
         @media (max-width: 980px){
           .gcSearchWrap, .gcSelectedWrap { flex: 1 1 100%; min-width: 280px; }
-        }
-
-        /* PONTO A: painel de doente selecionado (compacto) */
-        .gcSelectedCardTop {
-          display:flex;
-          align-items:center;
-          justify-content:space-between;
-          gap:10px;
-          flex-wrap:wrap;
-        }
-        .gcSelectedName {
-          font-size:${UI.fs14}px;
-          font-weight:900;
-          color:#111;
-          white-space:normal;
-          overflow-wrap:anywhere;
-          word-break:break-word;
-        }
-        .gcSelectedSub {
-          margin-top:4px;
-          font-size:${UI.fs12}px;
-          color:#666;
-          white-space:normal;
-          overflow-wrap:anywhere;
-          word-break:break-word;
         }
       </style>
 
@@ -478,7 +451,7 @@
               </div>
             </div>
 
-            <!-- ✅ Linha única: botões -> (Pesquisa OU Selecionado) -> Clínica -->
+            <!-- ✅ Linha única (como no desenho): botões -> pesquisa -> ver/atualizar -> clínica -->
             <div style="margin-top:12px;" class="gcToolbar">
               <div class="gcToolbarBlock" style="flex-direction:row; gap:10px; align-items:flex-end;">
                 <button id="btnCal" class="gcBtn" title="Calendário">Calendário</button>
@@ -487,48 +460,36 @@
                 <button id="btnNewPatientMain" class="gcBtn" title="Criar novo doente">＋ Novo doente</button>
               </div>
 
-              <!-- Painel PESQUISA (fica visível quando NÃO há doente selecionado) -->
-              <div id="pQuickSearchPanel" class="gcToolbarBlock gcSearchWrap">
+              <div class="gcToolbarBlock gcSearchWrap">
                 <div class="gcLabel">Pesquisa de doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
-                <input id="pQuickQuery" type="text" placeholder="ex.: Man… | 916… | 123456789"
-                  autocomplete="off" autocapitalize="off" spellcheck="false"
-                  style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;" />
+                <input
+                  id="pQuickQuery"
+                  name="gc_patient_search"
+                  type="search"
+                  placeholder="ex.: Man… | 916… | 123456789"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  inputmode="search"
+                  data-form-type="other"
+                  style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;"
+                />
                 <div id="pQuickResults" style="margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:180px; overflow:auto;">
                   <div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>
                 </div>
               </div>
 
-              <!-- Painel SELECIONADO (fica visível quando há doente selecionado) -->
-              <div id="pQuickSelectedPanel" class="gcToolbarBlock gcSelectedWrap" style="display:none;">
-                <div class="gcLabel">Doente selecionado</div>
-
-                <div class="gcMutedCard" style="padding:12px;">
-                  <div class="gcSelectedCardTop">
-                    <div style="min-width: 220px; flex:1 1 260px;">
-                      <div id="pQuickSelectedName" class="gcSelectedName">—</div>
-                      <div id="pQuickSelectedMeta" class="gcSelectedSub">—</div>
-                    </div>
-
-                    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-                      <button id="btnQuickSwap" class="gcBtn" title="Trocar doente">Trocar doente</button>
-                      <button id="btnRefreshAgenda" class="gcBtn" title="Atualizar agenda">Atualizar</button>
-                    </div>
-                  </div>
-
-                  <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
-                    <!-- Mantém o ID antigo para não quebrar wiring -->
-                    <button id="btnQuickOpen" class="gcBtn" style="font-weight:900;">Abrir Feed</button>
-
-                    <!-- Novos (vamos ligar no próximo bloco) -->
-                    <button id="btnQuickEdit" class="gcBtn">Editar</button>
-                    <button id="btnQuickNewAppt" class="gcBtn">Nova marcação</button>
-                  </div>
-
-                  <div id="pQuickMsg" style="margin-top:8px; font-size:${UI.fs12}px; color:#666;"></div>
-
-                  <!-- Mantém o ID antigo (compatibilidade); fica escondido -->
-                  <div id="pQuickSelected" style="display:none;">—</div>
+              <div class="gcToolbarBlock gcSelectedWrap">
+                <div class="gcLabel">Selecionado</div>
+                <div id="pQuickSelected" class="gcMutedCard" style="min-height: 42px; display:flex; align-items:center; color:#111; font-size:${UI.fs13}px;">
+                  —
                 </div>
+                <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
+                  <button id="btnQuickOpen" class="gcBtn">Ver doente</button>
+                  <button id="btnRefreshAgenda" class="gcBtn">Atualizar</button>
+                </div>
+                <div id="pQuickMsg" style="margin-top:6px; font-size:${UI.fs12}px; color:#666;"></div>
               </div>
 
               <div class="gcToolbarBlock" style="min-width:240px;">
@@ -551,7 +512,6 @@
   }
 
 /* ==== FIM BLOCO 03/12 — Constantes (procedimentos/status) + estado global + render shell (HTML+CSS) ==== */
-
 /* ==== INÍCIO BLOCO 04/12 — Helpers UI Agenda + abrir doente + update status + renderAgendaList ==== */
 
   function setAgendaSubtitleForSelectedDay() {
