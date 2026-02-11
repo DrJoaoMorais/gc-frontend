@@ -362,10 +362,9 @@
         .gcCard { padding:12px 14px; border:1px solid #eee; border-radius:12px; background:#fff; }
         .gcMutedCard { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fafafa; }
 
-        /* ✅ A grelha base (agenda) */
         .gcGridRow {
           display:grid;
-          grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 160px 240px;
+          grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 170px 160px;
           gap:14px;
           align-items:start;
           width:100%;
@@ -374,10 +373,6 @@
           .gcGridRow { grid-template-columns: 110px 1fr; }
           .gcGridRow > div { min-width: 0 !important; }
         }
-
-        /* ✅ Swap visual Telefone ↔ Clínica (sem mexer no HTML das linhas) */
-        .gcGridRow > div:nth-child(5) { grid-column: 6; } /* Clínica -> última */
-        .gcGridRow > div:nth-child(6) { grid-column: 5; } /* Telefone -> penúltima */
 
         .gcPatientLink{
           display:block;
@@ -391,6 +386,7 @@
           overflow-wrap:anywhere;
           word-break:break-word;
         }
+
         .gcCellTitle { font-size:${UI.fs12}px; color:#666; }
         .gcCellValue { font-size:${UI.fs13}px; color:#111; font-weight:700; margin-top:6px; }
 
@@ -411,26 +407,45 @@
           background-repeat:no-repeat;
         }
 
-        /* ✅ Toolbar alinhada com as colunas da agenda:
-           - botões à esquerda
-           - pesquisa ao centro
-           - seletor de clínica na extrema direita, por cima da coluna "Clínica" */
-        .gcToolbarGrid {
-          display:grid;
-          grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 160px 240px;
-          gap:14px;
-          align-items:end;
-          width:100%;
-          margin-top:12px;
+        /* Toolbar (linha única) */
+        .gcToolbar {
+          display:flex;
+          align-items:flex-end;
+          gap:10px;
+          flex-wrap:wrap;
         }
-        .gcToolbarLeft { grid-column: 1 / span 2; display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
-        .gcToolbarSearch { grid-column: 3 / span 3; display:flex; flex-direction:column; gap:4px; }
-        .gcToolbarClinic { grid-column: 6; display:flex; flex-direction:column; gap:4px; align-items:flex-start; justify-content:flex-end; }
+        .gcToolbarBlock {
+          display:flex;
+          flex-direction:column;
+          gap:4px;
+        }
+        .gcSearchWrap {
+          min-width: 360px;
+          max-width: 520px;
+          flex: 1 1 420px;
+        }
+        @media (max-width: 980px){
+          .gcSearchWrap { flex: 1 1 100%; min-width: 280px; }
+        }
 
-        @media (max-width: 1100px){
-          .gcToolbarGrid { grid-template-columns: 110px 1fr; }
-          .gcToolbarLeft, .gcToolbarSearch, .gcToolbarClinic { grid-column: 1 / -1; }
-          .gcToolbarClinic { align-items:flex-start; }
+        /* =========================================================
+           ✅ FIX: alinhar Estado / Telefone / Clínica na mesma linha
+           - garante "linha de título" igual em todas as colunas
+           - o select do estado passa a ocupar a "linha do valor"
+           ========================================================= */
+        .gcGridRow > div{
+          display:flex;
+          flex-direction:column;
+          justify-content:flex-start;
+        }
+        .gcCellTitle{
+          min-height: 16px;
+          display:flex;
+          align-items:flex-end;
+        }
+        .gcGridRow .gcStatusSelect{
+          margin-top: 6px;
+          align-self:flex-start;
         }
       </style>
 
@@ -455,15 +470,15 @@
               </div>
             </div>
 
-            <div class="gcToolbarGrid">
-              <div class="gcToolbarLeft">
+            <div style="margin-top:12px;" class="gcToolbar">
+              <div class="gcToolbarBlock" style="flex-direction:row; gap:10px; align-items:flex-end;">
                 <button id="btnCal" class="gcBtn" title="Calendário">Calendário</button>
                 <button id="btnToday" class="gcBtn" title="Voltar a hoje">Hoje</button>
                 <button id="btnNewAppt" class="gcBtnPrimary">Nova marcação</button>
                 <button id="btnNewPatientMain" class="gcBtn" title="Criar novo doente">＋ Novo doente</button>
               </div>
 
-              <div class="gcToolbarSearch">
+              <div class="gcToolbarBlock gcSearchWrap">
                 <div class="gcLabel">Pesquisa de doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
                 <input
                   id="pQuickQuery"
@@ -478,12 +493,14 @@
                   data-form-type="other"
                   style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;"
                 />
-                <div id="pQuickResults" style="display:none; margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:180px; overflow:auto;"></div>
+                <div id="pQuickResults" style="margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:180px; overflow:auto;">
+                  <div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>
+                </div>
               </div>
 
-              <div class="gcToolbarClinic">
+              <div class="gcToolbarBlock" style="min-width:240px;">
                 <label for="selClinic" class="gcLabel">Clínica</label>
-                <select id="selClinic" class="gcSelect" style="width:240px; min-width:240px;"></select>
+                <select id="selClinic" class="gcSelect" style="min-width:240px;"></select>
               </div>
             </div>
 
