@@ -1661,36 +1661,114 @@
 (function () {
   "use strict";
 
-  // -----------------------------------------------------------
-  // GLOBAL: garantir que existe window.openCalendarOverlay()
-  // sem rebentar o boot por ReferenceError.
-  // NOTA: não faz wiring nem boot aqui — só publica helpers globais.
-  // -----------------------------------------------------------
-  function ensureGlobalOpenCalendarOverlay() {
-    // 1) Se já existe e é função, não mexer.
-    if (typeof window.openCalendarOverlay === "function") return;
+  // ===========================================================
+  // OBJETIVO (cirúrgico):
+  // 1) Garantir que EXISTE sempre:
+  //    - window.openApptModal  (e global binding openApptModal)
+  //    - window.openCalendarOverlay (e global binding openCalendarOverlay)
+  // 2) Tentar delegar para implementações reais se existirem noutros scopes.
+  // 3) Se não existirem, abrir um modal/overlay por DOM (fallback útil).
+  // ===========================================================
 
-    // 2) Tentar mapear para implementações já existentes noutros scopes.
-    const impl =
-      (window.G && typeof window.G.openCalendarOverlay === "function" && window.G.openCalendarOverlay) ||
-      (window.G && window.G.ui && typeof window.G.ui.openCalendarOverlay === "function" && window.G.ui.openCalendarOverlay) ||
-      (typeof window.openCalendar === "function" && window.openCalendar) ||
-      (window.G && typeof window.G.openCalendar === "function" && window.G.openCalendar) ||
-      null;
-
-    // 3) Publicar global estável (fallback não rebenta boot).
-    window.openCalendarOverlay = function () {
-      if (typeof impl === "function") return impl();
-      console.warn("[Calendário] openCalendarOverlay não está definido (fallback ativo).");
-      alert("Calendário indisponível. (Função openCalendarOverlay em falta)");
-    };
+  function resolveFirstFunction(candidates) {
+    for (const fn of candidates) {
+      if (typeof fn === "function") return fn;
+    }
+    return null;
   }
 
-  // Expõe helper (para o BLOCO 08 poder chamar explicitamente)
-  window.ensureGlobalOpenCalendarOverlay = ensureGlobalOpenCalendarOverlay;
+  function openByDom(selectors) {
+    const el = document.querySelector(selectors.join(","));
+    if (!el) return false;
+    el.style.display = "block";
+    el.style.visibility = "visible";
+    el.removeAttribute("hidden");
+    el.setAttribute("aria-hidden", "false");
+    el.classList.add("open");
+    return true;
+  }
 
-  // Garante logo ao carregar (evita ReferenceError em wiring)
+  // ---------- CALENDÁRIO ----------
+  function ensureGlobalOpenCalendarOverlay() {
+    // Define SEMPRE uma função (nunca undefined)
+    window.openCalendarOverlay = function () {
+      // 1) Re-resolver a cada chamada (para apanhar implementações carregadas depois)
+      const impl = resolveFirstFunction([
+        window.openCalendarOverlayImpl,
+        window.G && window.G.openCalendarOverlay,
+        window.G && window.G.ui && window.G.ui.openCalendarOverlay,
+        window.openCalendarOverlayReal,
+        window.openCalendarOverlayInternal,
+      ]);
+
+      if (impl) return impl.apply(null, arguments);
+
+      // 2) Fallback por DOM (overlay)
+      const ok = openByDom([
+        "#calendarOverlay",
+        "#calOverlay",
+        "#calendar-modal",
+        "#calendarModal",
+        "[data-overlay='calendar']",
+        "[data-modal='calendar']",
+        ".calendar-overlay",
+        ".calendarOverlay",
+      ]);
+
+      if (!ok) {
+        console.warn("[Calendário] openCalendarOverlay não está definido (fallback ativo).");
+        alert("Calendário indisponível.");
+      }
+    };
+
+    // Criar também o binding global "openCalendarOverlay" (para calls bare)
+    try { window.openCalendarOverlay = window.openCalendarOverlay; } catch {}
+  }
+
+  // ---------- MARCAÇÃO ----------
+  function ensureGlobalOpenApptModal() {
+    window.openApptModal = function () {
+      const impl = resolveFirstFunction([
+        window.openApptModalImpl,
+        window.G && window.G.openApptModal,
+        window.G && window.G.ui && window.G.ui.openApptModal,
+        window.openAppointmentModal,
+        window.showApptModal,
+        window.G && window.G.showApptModal,
+        window.G && window.G.ui && window.G.ui.showApptModal,
+      ]);
+
+      if (impl) return impl.apply(null, arguments);
+
+      // Fallback por DOM (modal)
+      const ok = openByDom([
+        "#apptModal",
+        "#appointmentModal",
+        "#modalAppt",
+        "#appt-modal",
+        "[data-modal='appt']",
+        "[data-modal='appointment']",
+        ".appt-modal",
+        ".appointment-modal",
+      ]);
+
+      if (!ok) {
+        console.warn("[Marcação] openApptModal não está definido (fallback ativo).");
+        alert("Nova marcação indisponível.");
+      }
+    };
+
+    // Criar também o binding global "openApptModal" (para calls bare)
+    try { window.openApptModal = window.openApptModal; } catch {}
+  }
+
+  // Expor helpers (caso queiras chamar noutros blocos)
+  window.ensureGlobalOpenCalendarOverlay = ensureGlobalOpenCalendarOverlay;
+  window.ensureGlobalOpenApptModal = ensureGlobalOpenApptModal;
+
+  // Ativar já (muito cedo)
   try { ensureGlobalOpenCalendarOverlay(); } catch (e) { console.warn("ensureGlobalOpenCalendarOverlay aviso:", e); }
+  try { ensureGlobalOpenApptModal(); } catch (e) { console.warn("ensureGlobalOpenApptModal aviso:", e); }
 
 })();
 /* ==== FIM BLOCO 07/08 — Logout + Refresh Agenda + Boot ==== */
