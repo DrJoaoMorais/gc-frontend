@@ -1,3 +1,4 @@
+/* ==== INÍCIO BLOCO 01/12 — Cabeçalho + utilitários base + helpers ==== */
 /* =========================================================
    Gestão Clínica V2 — app.js (ficheiro completo)
    - Auth bootstrap + header + logout
@@ -122,6 +123,8 @@
     if (error) throw error;
     return Array.isArray(data) ? data : [];
   }
+/* ==== FIM BLOCO 01/12 — Cabeçalho + utilitários base + helpers ==== */
+/* ==== INÍCIO BLOCO 02/12 — Agenda (helpers + load) + Patients (scope/search/RPC) ==== */
 
   // ---------- Agenda ----------
   const APPT_TIME_COL_CANDIDATES = ["start_at", "starts_at", "start_time", "start_datetime", "start"];
@@ -299,6 +302,9 @@
     return data[0];
   }
 
+/* ==== FIM BLOCO 02/12 — Agenda (helpers + load) + Patients (scope/search/RPC) ==== */
+/* ==== INÍCIO BLOCO 03/12 — Constantes (procedimentos/status) + estado global + render shell (HTML+CSS) ==== */
+
   // ---------- Tipos / Status / Duração ----------
   const PROCEDURE_OPTIONS = [
     "Primeira Consulta",
@@ -355,6 +361,7 @@
         .gcLabel { font-size:${UI.fs12}px; color:#666; }
         .gcCard { padding:12px 14px; border:1px solid #eee; border-radius:12px; background:#fff; }
         .gcMutedCard { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fafafa; }
+
         .gcGridRow {
           display:grid;
           grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 170px 160px;
@@ -366,6 +373,7 @@
           .gcGridRow { grid-template-columns: 110px 1fr; }
           .gcGridRow > div { min-width: 0 !important; }
         }
+
         .gcPatientLink{
           display:block;
           font-size:${UI.fs18}px;
@@ -416,11 +424,36 @@
           flex: 1 1 420px;
         }
         .gcSelectedWrap {
-          min-width: 320px;
-          flex: 0 0 360px;
+          min-width: 360px;
+          flex: 0 0 420px;
         }
         @media (max-width: 980px){
           .gcSearchWrap, .gcSelectedWrap { flex: 1 1 100%; min-width: 280px; }
+        }
+
+        /* PONTO A: painel de doente selecionado (compacto) */
+        .gcSelectedCardTop {
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:10px;
+          flex-wrap:wrap;
+        }
+        .gcSelectedName {
+          font-size:${UI.fs14}px;
+          font-weight:900;
+          color:#111;
+          white-space:normal;
+          overflow-wrap:anywhere;
+          word-break:break-word;
+        }
+        .gcSelectedSub {
+          margin-top:4px;
+          font-size:${UI.fs12}px;
+          color:#666;
+          white-space:normal;
+          overflow-wrap:anywhere;
+          word-break:break-word;
         }
       </style>
 
@@ -445,7 +478,7 @@
               </div>
             </div>
 
-            <!-- ✅ Linha única (como no desenho): botões -> pesquisa -> ver/atualizar -> clínica -->
+            <!-- ✅ Linha única: botões -> (Pesquisa OU Selecionado) -> Clínica -->
             <div style="margin-top:12px;" class="gcToolbar">
               <div class="gcToolbarBlock" style="flex-direction:row; gap:10px; align-items:flex-end;">
                 <button id="btnCal" class="gcBtn" title="Calendário">Calendário</button>
@@ -454,7 +487,8 @@
                 <button id="btnNewPatientMain" class="gcBtn" title="Criar novo doente">＋ Novo doente</button>
               </div>
 
-              <div class="gcToolbarBlock gcSearchWrap">
+              <!-- Painel PESQUISA (fica visível quando NÃO há doente selecionado) -->
+              <div id="pQuickSearchPanel" class="gcToolbarBlock gcSearchWrap">
                 <div class="gcLabel">Pesquisa de doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
                 <input id="pQuickQuery" type="text" placeholder="ex.: Man… | 916… | 123456789"
                   autocomplete="off" autocapitalize="off" spellcheck="false"
@@ -464,16 +498,37 @@
                 </div>
               </div>
 
-              <div class="gcToolbarBlock gcSelectedWrap">
-                <div class="gcLabel">Selecionado</div>
-                <div id="pQuickSelected" class="gcMutedCard" style="min-height: 42px; display:flex; align-items:center; color:#111; font-size:${UI.fs13}px;">
-                  —
+              <!-- Painel SELECIONADO (fica visível quando há doente selecionado) -->
+              <div id="pQuickSelectedPanel" class="gcToolbarBlock gcSelectedWrap" style="display:none;">
+                <div class="gcLabel">Doente selecionado</div>
+
+                <div class="gcMutedCard" style="padding:12px;">
+                  <div class="gcSelectedCardTop">
+                    <div style="min-width: 220px; flex:1 1 260px;">
+                      <div id="pQuickSelectedName" class="gcSelectedName">—</div>
+                      <div id="pQuickSelectedMeta" class="gcSelectedSub">—</div>
+                    </div>
+
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                      <button id="btnQuickSwap" class="gcBtn" title="Trocar doente">Trocar doente</button>
+                      <button id="btnRefreshAgenda" class="gcBtn" title="Atualizar agenda">Atualizar</button>
+                    </div>
+                  </div>
+
+                  <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+                    <!-- Mantém o ID antigo para não quebrar wiring -->
+                    <button id="btnQuickOpen" class="gcBtn" style="font-weight:900;">Abrir Feed</button>
+
+                    <!-- Novos (vamos ligar no próximo bloco) -->
+                    <button id="btnQuickEdit" class="gcBtn">Editar</button>
+                    <button id="btnQuickNewAppt" class="gcBtn">Nova marcação</button>
+                  </div>
+
+                  <div id="pQuickMsg" style="margin-top:8px; font-size:${UI.fs12}px; color:#666;"></div>
+
+                  <!-- Mantém o ID antigo (compatibilidade); fica escondido -->
+                  <div id="pQuickSelected" style="display:none;">—</div>
                 </div>
-                <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-                  <button id="btnQuickOpen" class="gcBtn">Ver doente</button>
-                  <button id="btnRefreshAgenda" class="gcBtn">Atualizar</button>
-                </div>
-                <div id="pQuickMsg" style="margin-top:6px; font-size:${UI.fs12}px; color:#666;"></div>
               </div>
 
               <div class="gcToolbarBlock" style="min-width:240px;">
@@ -494,6 +549,10 @@
       </div>
     `;
   }
+
+/* ==== FIM BLOCO 03/12 — Constantes (procedimentos/status) + estado global + render shell (HTML+CSS) ==== */
+
+/* ==== INÍCIO BLOCO 04/12 — Helpers UI Agenda + abrir doente + update status + renderAgendaList ==== */
 
   function setAgendaSubtitleForSelectedDay() {
     const r = isoLocalDayRangeFromISODate(G.selectedDayISO);
@@ -707,6 +766,9 @@
     });
   }
 
+/* ==== FIM BLOCO 04/12 — Helpers UI Agenda + abrir doente + update status + renderAgendaList ==== */
+/* ==== INÍCIO BLOCO 05/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
+
   // ---------- Pesquisa rápida de doentes (main page) ----------
   function setQuickPatientMsg(kind, text) {
     const el = document.getElementById("pQuickMsg");
@@ -815,6 +877,9 @@
       },
     };
   }
+
+/* ==== FIM BLOCO 05/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
+/* ==== INÍCIO BLOCO 06/12 — Modal Doente (ver + editar) ==== */
 
   // ---------- Modal Doente (ver + editar) ----------
   function openPatientViewModal(patient) {
@@ -1099,6 +1164,9 @@
     render();
   }
 
+/* ==== FIM BLOCO 06/12 — Modal Doente (ver + editar) ==== */
+/* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
+
   // ---------- Novo doente (modal da página inicial) ----------
   function openNewPatientMainModal({ clinicId }) {
     const root = document.getElementById("modalRoot");
@@ -1382,6 +1450,9 @@
     refreshButtonState();
   }
 
+/* ==== FIM BLOCO 07/12 — Novo doente (modal página inicial) ==== */
+/* ==== INÍCIO BLOCO 08/12 — Pesquisa rápida (wiring) + Calendário mensal overlay ==== */
+
   // ---------- Pesquisa rápida: wiring ----------
   async function wireQuickPatientSearch() {
     const input = document.getElementById("pQuickQuery");
@@ -1549,6 +1620,9 @@
       });
     });
   }
+
+/* ==== FIM BLOCO 08/12 — Pesquisa rápida (wiring) + Calendário mensal overlay ==== */
+/* ==== INÍCIO BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
 
   // ---------- Modal marcação ----------
   function closeModal() {
@@ -2194,6 +2268,9 @@
     updateTitleAuto();
   }
 
+/* ==== FIM BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
+/* ==== INÍCIO BLOCO 10/12 — Logout + Refresh agenda ==== */
+
   // ---------- Logout ----------
   async function wireLogout() {
     const btn = document.getElementById("btnLogout");
@@ -2251,6 +2328,10 @@
       renderAgendaList();
     }
   }
+
+/* ==== FIM BLOCO 10/12 — Logout + Refresh agenda ==== */
+
+/* ==== INÍCIO BLOCO 11/12 — Boot (init da app + wiring de botões) ==== */
 
   // ---------- Boot ----------
   async function boot() {
@@ -2343,5 +2424,11 @@
     }
   }
 
-  boot();
-})();
+/* ==== FIM BLOCO 11/12 — Boot (init da app + wiring de botões) ==== */
+/* ==== INÍCIO BLOCO 12/12 — DOMContentLoaded + fechamento IIFE ==== */
+
+  document.addEventListener("DOMContentLoaded", boot);
+
+})();  // Fim IIFE
+
+/* ==== FIM BLOCO 12/12 — DOMContentLoaded + fechamento IIFE ==== */
