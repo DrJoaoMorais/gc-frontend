@@ -1460,6 +1460,38 @@
       return "";
     }
 
+    function updateActiveVisual() {
+      const els = Array.from(resHost.querySelectorAll("[data-idx]"));
+      els.forEach((el) => {
+        const idx = Number(el.getAttribute("data-idx"));
+        if (idx === activeIdx) el.classList.add("gcQuickItemActive");
+        else el.classList.remove("gcQuickItemActive");
+      });
+
+      // opcional: manter o item ativo visível (scroll)
+      const activeEl = resHost.querySelector(`[data-idx="${activeIdx}"]`);
+      if (activeEl && typeof activeEl.scrollIntoView === "function") {
+        activeEl.scrollIntoView({ block: "nearest" });
+      }
+    }
+
+    function safeOpen(p) {
+      if (!p) return;
+      G.patientQuick.selected = p;
+
+      try {
+        if (typeof openPatientFeedFromAny === "function") {
+          openPatientFeedFromAny(p); // ✅ abre imediatamente
+        } else {
+          setMsg("error", "Função openPatientFeedFromAny não existe (ver consola).");
+          console.error("openPatientFeedFromAny não existe.");
+        }
+      } catch (e) {
+        console.error("Abrir doente falhou:", e);
+        setMsg("error", "Falhou abrir o doente. Vê a consola.");
+      }
+    }
+
     function render(pts) {
       if (!Array.isArray(pts) || pts.length === 0) {
         resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Sem resultados.</div>`;
@@ -1467,7 +1499,8 @@
         return;
       }
 
-      // por defeito, realça o primeiro resultado
+      // por defeito, item 0
+      if (activeIdx < 0) activeIdx = 0;
       activeIdx = Math.max(0, Math.min(activeIdx, pts.length - 1));
 
       resHost.innerHTML = pts.map((p, i) => {
@@ -1484,27 +1517,27 @@
           </div>
         `;
       }).join("");
-
-      // handlers de clique + hover para realce
-      Array.from(resHost.querySelectorAll("[data-idx]")).forEach((el) => {
-        el.addEventListener("mouseenter", () => {
-          const idx = Number(el.getAttribute("data-idx"));
-          if (!Number.isFinite(idx)) return;
-          activeIdx = idx;
-          render(pts);
-        });
-
-        el.addEventListener("click", () => {
-          const idx = Number(el.getAttribute("data-idx"));
-          if (!Number.isFinite(idx)) return;
-          const p = pts[idx];
-          if (!p) return;
-          G.patientQuick.selected = p;
-          setMsg("info", "");
-          openPatientFeedFromAny(p); // ✅ abre imediatamente
-        });
-      });
     }
+
+    // ✅ Event delegation: sem re-render no hover (não mata o click)
+    resHost.addEventListener("mousemove", (ev) => {
+      const item = ev.target && ev.target.closest ? ev.target.closest("[data-idx]") : null;
+      if (!item) return;
+      const idx = Number(item.getAttribute("data-idx"));
+      if (!Number.isFinite(idx)) return;
+      if (idx === activeIdx) return;
+      activeIdx = idx;
+      updateActiveVisual();
+    });
+
+    resHost.addEventListener("click", (ev) => {
+      const item = ev.target && ev.target.closest ? ev.target.closest("[data-idx]") : null;
+      if (!item) return;
+      const idx = Number(item.getAttribute("data-idx"));
+      if (!Number.isFinite(idx)) return;
+      const pts = G.patientQuick.lastResults || [];
+      safeOpen(pts[idx]);
+    });
 
     async function run() {
       const term = (input.value || "").trim();
@@ -1525,7 +1558,6 @@
       try {
         const pts = await searchPatientsScoped({ clinicId, q: term, limit: 30 });
 
-        // guarda
         G.patientQuick.lastResults = Array.isArray(pts) ? pts : [];
         activeIdx = 0;
 
@@ -1555,23 +1587,19 @@
       if (ev.key === "ArrowDown") {
         ev.preventDefault();
         activeIdx = Math.min(pts.length - 1, (activeIdx < 0 ? 0 : activeIdx + 1));
-        render(pts);
+        updateActiveVisual();
         return;
       }
       if (ev.key === "ArrowUp") {
         ev.preventDefault();
         activeIdx = Math.max(0, (activeIdx < 0 ? 0 : activeIdx - 1));
-        render(pts);
+        updateActiveVisual();
         return;
       }
       if (ev.key === "Enter") {
         ev.preventDefault();
         const idx = (activeIdx < 0 ? 0 : activeIdx);
-        const p = pts[idx];
-        if (!p) return;
-        G.patientQuick.selected = p;
-        setMsg("info", "");
-        openPatientFeedFromAny(p); // ✅ abre imediatamente
+        safeOpen(pts[idx]);
         return;
       }
     });
@@ -1660,9 +1688,7 @@
     const calPrev = document.getElementById("calPrev");
     const calNext = document.getElementById("calNext");
 
-    function close() {
-      root.innerHTML = "";
-    }
+    function close() { root.innerHTML = ""; }
 
     if (calClose) calClose.addEventListener("click", close);
     if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "calOverlay") close(); });
