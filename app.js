@@ -361,7 +361,6 @@
         .gcLabel { font-size:${UI.fs12}px; color:#666; }
         .gcCard { padding:12px 14px; border:1px solid #eee; border-radius:12px; background:#fff; }
         .gcMutedCard { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fafafa; }
-
         .gcGridRow {
           display:grid;
           grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 170px 160px;
@@ -373,7 +372,6 @@
           .gcGridRow { grid-template-columns: 110px 1fr; }
           .gcGridRow > div { min-width: 0 !important; }
         }
-
         .gcPatientLink{
           display:block;
           font-size:${UI.fs18}px;
@@ -418,36 +416,14 @@
           flex-direction:column;
           gap:4px;
         }
-
-        /* Pesquisa ocupa mais e não há coluna "Selecionado" */
         .gcSearchWrap {
-          min-width: 420px;
-          max-width: 740px;
-          flex: 1 1 560px;
+          min-width: 360px;
+          max-width: 520px;
+          flex: 1 1 520px;
         }
         @media (max-width: 980px){
           .gcSearchWrap { flex: 1 1 100%; min-width: 280px; }
         }
-
-        /* Resultados clicáveis + realce */
-        .gcQuickItem{
-          border:1px solid #eee;
-          border-radius:10px;
-          padding:10px 10px;
-          background:#fff;
-          cursor:pointer;
-          display:flex;
-          flex-direction:column;
-          gap:4px;
-        }
-        .gcQuickItem:hover{ border-color:#d1d5db; background:#fafafa; }
-        .gcQuickItemActive{
-          border-color:#111 !important;
-          background:#f3f4f6 !important;
-        }
-        .gcQuickName{ font-size:${UI.fs13}px; font-weight:900; color:#111; line-height:1.2; }
-        .gcQuickMeta{ font-size:${UI.fs12}px; color:#555; }
-
       </style>
 
       <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; font-size:${UI.fs14}px;">
@@ -471,7 +447,7 @@
               </div>
             </div>
 
-            <!-- ✅ Linha única: botões -> pesquisa -> clínica (sem "Selecionado/Ver doente/Atualizar") -->
+            <!-- Linha única: botões -> pesquisa -> clínica -->
             <div style="margin-top:12px;" class="gcToolbar">
               <div class="gcToolbarBlock" style="flex-direction:row; gap:10px; align-items:flex-end;">
                 <button id="btnCal" class="gcBtn" title="Calendário">Calendário</button>
@@ -493,16 +469,10 @@
                   spellcheck="false"
                   inputmode="search"
                   data-form-type="other"
-                  data-lpignore="true"
                   style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;"
                 />
-                <div id="pQuickResults" style="margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:220px; overflow:auto;">
-                  <div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar (↑/↓ e Enter também funcionam).</div>
-                </div>
-                <div id="pQuickMsg" style="margin-top:6px; font-size:${UI.fs12}px; color:#666;"></div>
-
-                <!-- Mantemos escondido para não rebentar código antigo (novo doente auto-seleciona) -->
-                <div id="pQuickSelected" style="display:none;"></div>
+                <!-- Resultados: escondido por defeito (só aparece quando há pesquisa) -->
+                <div id="pQuickResults" style="display:none; margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:180px; overflow:auto;"></div>
               </div>
 
               <div class="gcToolbarBlock" style="min-width:240px;">
@@ -1390,14 +1360,12 @@
             passport_id: v.passport_id,
           };
           G.patientQuick.selected = minimal;
-          renderQuickPatientSelected();
-          setQuickPatientMsg("ok", "Novo doente criado e selecionado.");
 
-          // limpa pesquisa e resultados (opcional)
+          // limpa pesquisa e esconde resultados
           const q = document.getElementById("pQuickQuery");
           if (q) q.value = "";
           const rHost = document.getElementById("pQuickResults");
-          if (rHost) rHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>`;
+          if (rHost) { rHost.innerHTML = ""; rHost.style.display = "none"; }
 
           close();
         } catch (e) {
@@ -1432,143 +1400,44 @@
     const resHost = document.getElementById("pQuickResults");
     if (!input || !resHost) return;
 
-    // reduzir autofill agressivo do Safari
-    try { input.setAttribute("autocomplete", "off"); } catch(_) {}
-    try { input.setAttribute("autocorrect", "off"); } catch(_) {}
-    try { input.setAttribute("autocapitalize", "off"); } catch(_) {}
+    // estado inicial: sem resultados visíveis
+    resHost.innerHTML = "";
+    resHost.style.display = "none";
 
     let timer = null;
-    let activeIdx = -1;
-
-    function setMsg(kind, text) {
-      const host = document.getElementById("pQuickMsg");
-      if (!host) return;
-      host.textContent = text || "";
-      host.style.color =
-        kind === "error" ? "#b00020" :
-        kind === "ok" ? "#065f46" :
-        "#666";
-    }
-
-    function pickPrimaryId(p) {
-      const sns = (p && p.sns) ? String(p.sns).trim() : "";
-      const nif = (p && p.nif) ? String(p.nif).trim() : "";
-      const pass = (p && (p.passport_id || p.passportId)) ? String(p.passport_id || p.passportId).trim() : "";
-      if (sns) return `SNS:${sns}`;
-      if (nif) return `NIF:${nif}`;
-      if (pass) return `ID:${pass}`;
-      return "";
-    }
-
-    function updateActiveVisual() {
-      const els = Array.from(resHost.querySelectorAll("[data-idx]"));
-      els.forEach((el) => {
-        const idx = Number(el.getAttribute("data-idx"));
-        if (idx === activeIdx) el.classList.add("gcQuickItemActive");
-        else el.classList.remove("gcQuickItemActive");
-      });
-
-      // opcional: manter o item ativo visível (scroll)
-      const activeEl = resHost.querySelector(`[data-idx="${activeIdx}"]`);
-      if (activeEl && typeof activeEl.scrollIntoView === "function") {
-        activeEl.scrollIntoView({ block: "nearest" });
-      }
-    }
-
-    function safeOpen(p) {
-      if (!p) return;
-      G.patientQuick.selected = p;
-
-      try {
-        if (typeof openPatientFeedFromAny === "function") {
-          openPatientFeedFromAny(p); // ✅ abre imediatamente
-        } else {
-          setMsg("error", "Função openPatientFeedFromAny não existe (ver consola).");
-          console.error("openPatientFeedFromAny não existe.");
-        }
-      } catch (e) {
-        console.error("Abrir doente falhou:", e);
-        setMsg("error", "Falhou abrir o doente. Vê a consola.");
-      }
-    }
-
-    function render(pts) {
-      if (!Array.isArray(pts) || pts.length === 0) {
-        resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Sem resultados.</div>`;
-        activeIdx = -1;
-        return;
-      }
-
-      // por defeito, item 0
-      if (activeIdx < 0) activeIdx = 0;
-      activeIdx = Math.max(0, Math.min(activeIdx, pts.length - 1));
-
-      resHost.innerHTML = pts.map((p, i) => {
-        const name = escapeHtml(p.full_name || p.name || "—");
-        const tel = escapeHtml(p.phone || "");
-        const id = escapeHtml(pickPrimaryId(p));
-        const metaBits = [id, tel ? `Tel:${tel}` : ""].filter(Boolean).join(" · ");
-
-        const cls = i === activeIdx ? "gcQuickItem gcQuickItemActive" : "gcQuickItem";
-        return `
-          <div class="${cls}" data-idx="${i}">
-            <div class="gcQuickName">${name}</div>
-            <div class="gcQuickMeta">${metaBits || "&nbsp;"}</div>
-          </div>
-        `;
-      }).join("");
-    }
-
-    // ✅ Event delegation: sem re-render no hover (não mata o click)
-    resHost.addEventListener("mousemove", (ev) => {
-      const item = ev.target && ev.target.closest ? ev.target.closest("[data-idx]") : null;
-      if (!item) return;
-      const idx = Number(item.getAttribute("data-idx"));
-      if (!Number.isFinite(idx)) return;
-      if (idx === activeIdx) return;
-      activeIdx = idx;
-      updateActiveVisual();
-    });
-
-    resHost.addEventListener("click", (ev) => {
-      const item = ev.target && ev.target.closest ? ev.target.closest("[data-idx]") : null;
-      if (!item) return;
-      const idx = Number(item.getAttribute("data-idx"));
-      if (!Number.isFinite(idx)) return;
-      const pts = G.patientQuick.lastResults || [];
-      safeOpen(pts[idx]);
-    });
 
     async function run() {
       const term = (input.value || "").trim();
+
+      // < 2 chars: não mostrar nada (sem mensagens auxiliares)
       if (!term || term.length < 2) {
-        resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar (↑/↓ e Enter também funcionam).</div>`;
-        setMsg("info", "");
-        G.patientQuick.lastResults = [];
-        activeIdx = -1;
+        resHost.innerHTML = "";
+        resHost.style.display = "none";
         return;
       }
 
       const selClinic = document.getElementById("selClinic");
       const clinicId = selClinic && selClinic.value ? selClinic.value : null;
 
+      resHost.style.display = "block";
       resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">A pesquisar…</div>`;
-      setMsg("info", "");
 
       try {
         const pts = await searchPatientsScoped({ clinicId, q: term, limit: 30 });
+        G.patientQuick.lastResults = pts;
 
-        G.patientQuick.lastResults = Array.isArray(pts) ? pts : [];
-        activeIdx = 0;
+        // render do teu helper existente (cada item deve ser clicável)
+        renderQuickPatientResults(pts);
 
-        render(G.patientQuick.lastResults);
-        if (G.patientQuick.lastResults.length === 0) setMsg("info", "Sem resultados.");
+        // se não há resultados, mostra apenas "Sem resultados."
+        if (!pts || pts.length === 0) {
+          resHost.style.display = "block";
+          resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Sem resultados.</div>`;
+        }
       } catch (e) {
         console.error("Pesquisa rápida de doente falhou:", e);
+        resHost.style.display = "block";
         resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#b00020;">Erro na pesquisa. Vê a consola.</div>`;
-        setMsg("error", "Erro na pesquisa.");
-        G.patientQuick.lastResults = [];
-        activeIdx = -1;
       }
     }
 
@@ -1578,31 +1447,6 @@
     }
 
     input.addEventListener("input", schedule);
-
-    // teclado: ↑/↓ navega, Enter abre
-    input.addEventListener("keydown", (ev) => {
-      const pts = G.patientQuick.lastResults || [];
-      if (!pts.length) return;
-
-      if (ev.key === "ArrowDown") {
-        ev.preventDefault();
-        activeIdx = Math.min(pts.length - 1, (activeIdx < 0 ? 0 : activeIdx + 1));
-        updateActiveVisual();
-        return;
-      }
-      if (ev.key === "ArrowUp") {
-        ev.preventDefault();
-        activeIdx = Math.max(0, (activeIdx < 0 ? 0 : activeIdx - 1));
-        updateActiveVisual();
-        return;
-      }
-      if (ev.key === "Enter") {
-        ev.preventDefault();
-        const idx = (activeIdx < 0 ? 0 : activeIdx);
-        safeOpen(pts[idx]);
-        return;
-      }
-    });
   }
 
   // ---------- Calendário mensal overlay ----------
@@ -1688,7 +1532,9 @@
     const calPrev = document.getElementById("calPrev");
     const calNext = document.getElementById("calNext");
 
-    function close() { root.innerHTML = ""; }
+    function close() {
+      root.innerHTML = "";
+    }
 
     if (calClose) calClose.addEventListener("click", close);
     if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "calOverlay") close(); });
