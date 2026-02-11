@@ -361,6 +361,7 @@
         .gcLabel { font-size:${UI.fs12}px; color:#666; }
         .gcCard { padding:12px 14px; border:1px solid #eee; border-radius:12px; background:#fff; }
         .gcMutedCard { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fafafa; }
+
         .gcGridRow {
           display:grid;
           grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 170px 160px;
@@ -372,6 +373,7 @@
           .gcGridRow { grid-template-columns: 110px 1fr; }
           .gcGridRow > div { min-width: 0 !important; }
         }
+
         .gcPatientLink{
           display:block;
           font-size:${UI.fs18}px;
@@ -416,18 +418,36 @@
           flex-direction:column;
           gap:4px;
         }
+
+        /* Pesquisa ocupa mais e não há coluna "Selecionado" */
         .gcSearchWrap {
-          min-width: 360px;
-          max-width: 520px;
-          flex: 1 1 420px;
-        }
-        .gcSelectedWrap {
-          min-width: 320px;
-          flex: 0 0 360px;
+          min-width: 420px;
+          max-width: 740px;
+          flex: 1 1 560px;
         }
         @media (max-width: 980px){
-          .gcSearchWrap, .gcSelectedWrap { flex: 1 1 100%; min-width: 280px; }
+          .gcSearchWrap { flex: 1 1 100%; min-width: 280px; }
         }
+
+        /* Resultados clicáveis + realce */
+        .gcQuickItem{
+          border:1px solid #eee;
+          border-radius:10px;
+          padding:10px 10px;
+          background:#fff;
+          cursor:pointer;
+          display:flex;
+          flex-direction:column;
+          gap:4px;
+        }
+        .gcQuickItem:hover{ border-color:#d1d5db; background:#fafafa; }
+        .gcQuickItemActive{
+          border-color:#111 !important;
+          background:#f3f4f6 !important;
+        }
+        .gcQuickName{ font-size:${UI.fs13}px; font-weight:900; color:#111; line-height:1.2; }
+        .gcQuickMeta{ font-size:${UI.fs12}px; color:#555; }
+
       </style>
 
       <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; font-size:${UI.fs14}px;">
@@ -451,7 +471,7 @@
               </div>
             </div>
 
-            <!-- ✅ Linha única (como no desenho): botões -> pesquisa -> ver/atualizar -> clínica -->
+            <!-- ✅ Linha única: botões -> pesquisa -> clínica (sem "Selecionado/Ver doente/Atualizar") -->
             <div style="margin-top:12px;" class="gcToolbar">
               <div class="gcToolbarBlock" style="flex-direction:row; gap:10px; align-items:flex-end;">
                 <button id="btnCal" class="gcBtn" title="Calendário">Calendário</button>
@@ -473,23 +493,16 @@
                   spellcheck="false"
                   inputmode="search"
                   data-form-type="other"
+                  data-lpignore="true"
                   style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;"
                 />
-                <div id="pQuickResults" style="margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:180px; overflow:auto;">
-                  <div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>
-                </div>
-              </div>
-
-              <div class="gcToolbarBlock gcSelectedWrap">
-                <div class="gcLabel">Selecionado</div>
-                <div id="pQuickSelected" class="gcMutedCard" style="min-height: 42px; display:flex; align-items:center; color:#111; font-size:${UI.fs13}px;">
-                  —
-                </div>
-                <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-                  <button id="btnQuickOpen" class="gcBtn">Ver doente</button>
-                  <button id="btnRefreshAgenda" class="gcBtn">Atualizar</button>
+                <div id="pQuickResults" style="margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:220px; overflow:auto;">
+                  <div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar (↑/↓ e Enter também funcionam).</div>
                 </div>
                 <div id="pQuickMsg" style="margin-top:6px; font-size:${UI.fs12}px; color:#666;"></div>
+
+                <!-- Mantemos escondido para não rebentar código antigo (novo doente auto-seleciona) -->
+                <div id="pQuickSelected" style="display:none;"></div>
               </div>
 
               <div class="gcToolbarBlock" style="min-width:240px;">
@@ -1417,16 +1430,89 @@
   async function wireQuickPatientSearch() {
     const input = document.getElementById("pQuickQuery");
     const resHost = document.getElementById("pQuickResults");
-    const btnOpen = document.getElementById("btnQuickOpen");
-    if (!input || !resHost || !btnOpen) return;
+    if (!input || !resHost) return;
+
+    // reduzir autofill agressivo do Safari
+    try { input.setAttribute("autocomplete", "off"); } catch(_) {}
+    try { input.setAttribute("autocorrect", "off"); } catch(_) {}
+    try { input.setAttribute("autocapitalize", "off"); } catch(_) {}
 
     let timer = null;
+    let activeIdx = -1;
+
+    function setMsg(kind, text) {
+      const host = document.getElementById("pQuickMsg");
+      if (!host) return;
+      host.textContent = text || "";
+      host.style.color =
+        kind === "error" ? "#b00020" :
+        kind === "ok" ? "#065f46" :
+        "#666";
+    }
+
+    function pickPrimaryId(p) {
+      const sns = (p && p.sns) ? String(p.sns).trim() : "";
+      const nif = (p && p.nif) ? String(p.nif).trim() : "";
+      const pass = (p && (p.passport_id || p.passportId)) ? String(p.passport_id || p.passportId).trim() : "";
+      if (sns) return `SNS:${sns}`;
+      if (nif) return `NIF:${nif}`;
+      if (pass) return `ID:${pass}`;
+      return "";
+    }
+
+    function render(pts) {
+      if (!Array.isArray(pts) || pts.length === 0) {
+        resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Sem resultados.</div>`;
+        activeIdx = -1;
+        return;
+      }
+
+      // por defeito, realça o primeiro resultado
+      activeIdx = Math.max(0, Math.min(activeIdx, pts.length - 1));
+
+      resHost.innerHTML = pts.map((p, i) => {
+        const name = escapeHtml(p.full_name || p.name || "—");
+        const tel = escapeHtml(p.phone || "");
+        const id = escapeHtml(pickPrimaryId(p));
+        const metaBits = [id, tel ? `Tel:${tel}` : ""].filter(Boolean).join(" · ");
+
+        const cls = i === activeIdx ? "gcQuickItem gcQuickItemActive" : "gcQuickItem";
+        return `
+          <div class="${cls}" data-idx="${i}">
+            <div class="gcQuickName">${name}</div>
+            <div class="gcQuickMeta">${metaBits || "&nbsp;"}</div>
+          </div>
+        `;
+      }).join("");
+
+      // handlers de clique + hover para realce
+      Array.from(resHost.querySelectorAll("[data-idx]")).forEach((el) => {
+        el.addEventListener("mouseenter", () => {
+          const idx = Number(el.getAttribute("data-idx"));
+          if (!Number.isFinite(idx)) return;
+          activeIdx = idx;
+          render(pts);
+        });
+
+        el.addEventListener("click", () => {
+          const idx = Number(el.getAttribute("data-idx"));
+          if (!Number.isFinite(idx)) return;
+          const p = pts[idx];
+          if (!p) return;
+          G.patientQuick.selected = p;
+          setMsg("info", "");
+          openPatientFeedFromAny(p); // ✅ abre imediatamente
+        });
+      });
+    }
 
     async function run() {
       const term = (input.value || "").trim();
       if (!term || term.length < 2) {
-        resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>`;
-        setQuickPatientMsg("info", "");
+        resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar (↑/↓ e Enter também funcionam).</div>`;
+        setMsg("info", "");
+        G.patientQuick.lastResults = [];
+        activeIdx = -1;
         return;
       }
 
@@ -1434,18 +1520,23 @@
       const clinicId = selClinic && selClinic.value ? selClinic.value : null;
 
       resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">A pesquisar…</div>`;
-      setQuickPatientMsg("info", "");
+      setMsg("info", "");
 
       try {
         const pts = await searchPatientsScoped({ clinicId, q: term, limit: 30 });
-        G.patientQuick.lastResults = pts;
-        renderQuickPatientResults(pts);
 
-        if (pts.length === 0) setQuickPatientMsg("info", "Sem resultados.");
+        // guarda
+        G.patientQuick.lastResults = Array.isArray(pts) ? pts : [];
+        activeIdx = 0;
+
+        render(G.patientQuick.lastResults);
+        if (G.patientQuick.lastResults.length === 0) setMsg("info", "Sem resultados.");
       } catch (e) {
         console.error("Pesquisa rápida de doente falhou:", e);
         resHost.innerHTML = `<div style="font-size:${UI.fs12}px; color:#b00020;">Erro na pesquisa. Vê a consola.</div>`;
-        setQuickPatientMsg("error", "Erro na pesquisa.");
+        setMsg("error", "Erro na pesquisa.");
+        G.patientQuick.lastResults = [];
+        activeIdx = -1;
       }
     }
 
@@ -1456,12 +1547,33 @@
 
     input.addEventListener("input", schedule);
 
-    btnOpen.addEventListener("click", () => {
-      if (!G.patientQuick.selected) {
-        setQuickPatientMsg("error", "Seleciona um doente primeiro.");
+    // teclado: ↑/↓ navega, Enter abre
+    input.addEventListener("keydown", (ev) => {
+      const pts = G.patientQuick.lastResults || [];
+      if (!pts.length) return;
+
+      if (ev.key === "ArrowDown") {
+        ev.preventDefault();
+        activeIdx = Math.min(pts.length - 1, (activeIdx < 0 ? 0 : activeIdx + 1));
+        render(pts);
         return;
       }
-      openPatientFeedFromAny(G.patientQuick.selected);
+      if (ev.key === "ArrowUp") {
+        ev.preventDefault();
+        activeIdx = Math.max(0, (activeIdx < 0 ? 0 : activeIdx - 1));
+        render(pts);
+        return;
+      }
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        const idx = (activeIdx < 0 ? 0 : activeIdx);
+        const p = pts[idx];
+        if (!p) return;
+        G.patientQuick.selected = p;
+        setMsg("info", "");
+        openPatientFeedFromAny(p); // ✅ abre imediatamente
+        return;
+      }
     });
   }
 
