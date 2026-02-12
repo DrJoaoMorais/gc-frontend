@@ -893,6 +893,7 @@
   }
 
 /* ==== FIM BLOCO 05/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
+
 /* ==== INÍCIO BLOCO 06/12 — Modal Doente (ver + editar) ==== */
 
   // ---------- Modal Doente (FEED shell) ----------
