@@ -748,7 +748,6 @@
 
   // ---------- Pesquisa rápida de doentes (main page) ----------
   function setQuickPatientMsg(kind, text) {
-    // (pode não existir no shell atual; manter seguro)
     const el = document.getElementById("pQuickMsg");
     if (!el) return;
     const color = kind === "error" ? "#b00020" : kind === "ok" ? "#111" : "#666";
@@ -757,7 +756,6 @@
   }
 
   function renderQuickPatientSelected() {
-    // (pode não existir no shell atual; manter seguro)
     const box = document.getElementById("pQuickSelected");
     if (!box) return;
 
@@ -818,21 +816,26 @@
       // guarda seleção
       G.patientQuick.selected = p;
 
-      // ✅ FEEDBACK IMEDIATO: escreve o nome no input e fecha a lista
+      // feedback imediato
       const input = document.getElementById("pQuickQuery");
       if (input) input.value = p.full_name || "";
 
-      // se houver componentes opcionais, atualiza
       renderQuickPatientSelected();
       setQuickPatientMsg("ok", "Doente selecionado.");
 
-      // fecha resultados (para ficar óbvio que selecionou)
+      // fecha resultados
       const hostNow = document.getElementById("pQuickResults");
       if (hostNow) hostNow.style.display = "none";
+
+      // ✅ AÇÃO CERTA: abrir FEED do doente
+      try {
+        openPatientFeedFromAny({ id: pid });
+      } catch (e) {
+        console.error("Abrir FEED a partir da pesquisa falhou:", e);
+      }
     }
 
     host.querySelectorAll("[data-pid]").forEach((el) => {
-      // ✅ mais fiável que click quando existem blur/handlers globais
       el.addEventListener("mousedown", (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
@@ -840,7 +843,6 @@
         selectPid(pid);
       });
 
-      // redundância
       el.addEventListener("click", (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
