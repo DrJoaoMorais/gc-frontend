@@ -316,28 +316,21 @@
     "Outro",
   ];
 
-  // Mantemos lista interna (pode existir histórico com cancelled)
-  const STATUS_OPTIONS_INTERNAL = ["scheduled", "confirmed", "arrived", "done", "cancelled", "no_show"];
-
-  // ✅ Lista VISÍVEL no dropdown (só 5 opções)
-  const STATUS_OPTIONS_UI = ["scheduled", "arrived", "done", "no_show", "confirmed"];
+  // ⚠️ ESSENCIAL: esta constante tem de existir porque é usada no openApptModal + agenda
+  const STATUS_OPTIONS = ["scheduled", "confirmed", "arrived", "done", "cancelled", "no_show"];
 
   const DURATION_OPTIONS = [15, 20, 30, 45, 60];
 
-  // ✅ Labels/ícones conforme pediste
+  // ✅ Estado com cores (mantido como está, para não mexer no que está estável)
   function statusMeta(statusRaw) {
-    const s0 = String(statusRaw || "scheduled").toLowerCase();
-    // normaliza histórico
-    const s = (s0 === "cancelled") ? "no_show" : s0;
-
+    const s = String(statusRaw || "scheduled").toLowerCase();
     const map = {
-      scheduled: { icon: "👤", label: "Primeira consulta", bg: "#eff6ff", fg: "#1d4ed8", br: "#bfdbfe" },
-      arrived:   { icon: "⏳", label: "Chegou", bg: "#fffbeb", fg: "#92400e", br: "#fde68a" },
-      done:      { icon: "✅", label: "Consulta Realizada", bg: "#ecfdf5", fg: "#065f46", br: "#a7f3d0" },
-      no_show:   { icon: "❌", label: "Faltou/Cancelou", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
-      confirmed: { icon: "🎁", label: "Dispensa de honorários", bg: "#ede9fe", fg: "#5b21b6", br: "#ddd6fe" },
-      // fallback (não aparece no UI)
-      cancelled: { icon: "❌", label: "Faltou/Cancelou", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
+      scheduled: { icon: "👤", label: "Marcada", bg: "#eff6ff", fg: "#1d4ed8", br: "#bfdbfe" },
+      confirmed: { icon: "🎁", label: "Dispensa de honorários", bg: "#dbeafe", fg: "#1e40af", br: "#93c5fd" },
+      arrived: { icon: "⏳", label: "Chegou (AVISAR)", bg: "#fffbeb", fg: "#92400e", br: "#fde68a" },
+      done: { icon: "✅", label: "Realizada", bg: "#ecfdf5", fg: "#065f46", br: "#a7f3d0" },
+      cancelled: { icon: "❌", label: "Cancelada", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
+      no_show: { icon: "⚠️", label: "Faltou", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
     };
     return map[s] || map.scheduled;
   }
@@ -362,7 +355,7 @@
         .gcBtn { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px; }
         .gcBtn:disabled { opacity:0.6; cursor:not-allowed; }
 
-        /* Nova marcação: mais suave (menos “preto total”) */
+        /* Nova marcação */
         .gcBtnPrimary { padding:11px 14px; border-radius:12px; border:1px solid #334155; background:#334155; color:#fff; cursor:pointer; font-size:${UI.fs13}px; font-weight:900; }
         .gcBtnPrimary:disabled { opacity:0.6; cursor:not-allowed; }
 
@@ -399,7 +392,6 @@
         .gcCellTitle { font-size:${UI.fs12}px; color:#666; }
         .gcCellValue { font-size:${UI.fs13}px; color:#111; font-weight:700; margin-top:6px; }
 
-        /* Estado: o próprio select é o “modelo” */
         .gcStatusSelect{
           appearance:none;
           -webkit-appearance:none;
@@ -416,7 +408,6 @@
           background-repeat:no-repeat;
         }
 
-        /* Toolbar (linha única) */
         .gcToolbar {
           display:flex;
           align-items:flex-end;
@@ -437,11 +428,6 @@
           .gcSearchWrap { flex: 1 1 100%; min-width: 280px; }
         }
 
-        /* =========================================================
-           ✅ FIX: alinhar Estado / Telefone / Clínica na mesma linha
-           - garante "linha de título" igual em todas as colunas
-           - o select do estado passa a ocupar a "linha do valor"
-           ========================================================= */
         .gcGridRow > div{
           display:flex;
           flex-direction:column;
