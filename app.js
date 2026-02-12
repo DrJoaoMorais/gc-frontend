@@ -748,6 +748,7 @@
 
   // ---------- Pesquisa rápida de doentes (main page) ----------
   function setQuickPatientMsg(kind, text) {
+    // (pode não existir no shell atual; manter seguro)
     const el = document.getElementById("pQuickMsg");
     if (!el) return;
     const color = kind === "error" ? "#b00020" : kind === "ok" ? "#111" : "#666";
@@ -756,6 +757,7 @@
   }
 
   function renderQuickPatientSelected() {
+    // (pode não existir no shell atual; manter seguro)
     const box = document.getElementById("pQuickSelected");
     if (!box) return;
 
@@ -783,6 +785,8 @@
       return;
     }
 
+    const selectedId = G.patientQuick && G.patientQuick.selected ? G.patientQuick.selected.id : null;
+
     host.innerHTML = results
       .map((p) => {
         const idBits = [];
@@ -793,9 +797,13 @@
         const phone = p.phone ? `Tel:${p.phone}` : "";
         const line2Parts = [idLine, phone].filter(Boolean).join(" • ");
 
+        const isSel = selectedId && p.id === selectedId;
+        const bg = isSel ? "background:#f2f2f2;" : "background:#fff;";
+        const br = isSel ? "border:1px solid #cbd5e1;" : "border:1px solid #f0f0f0;";
+
         return `
           <div data-pid="${escapeHtml(p.id)}"
-               style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:pointer;">
+               style="padding:8px; ${br} border-radius:10px; margin-bottom:8px; cursor:pointer; ${bg}">
             <div style="font-size:${UI.fs13}px; color:#111; font-weight:700; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">${escapeHtml(p.full_name)}</div>
             <div style="font-size:${UI.fs12}px; color:#666;">${escapeHtml(line2Parts || "—")}</div>
           </div>
@@ -806,13 +814,25 @@
     function selectPid(pid) {
       const p = (results || []).find((x) => x.id === pid);
       if (!p) return;
+
+      // guarda seleção
       G.patientQuick.selected = p;
+
+      // ✅ FEEDBACK IMEDIATO: escreve o nome no input e fecha a lista
+      const input = document.getElementById("pQuickQuery");
+      if (input) input.value = p.full_name || "";
+
+      // se houver componentes opcionais, atualiza
       renderQuickPatientSelected();
       setQuickPatientMsg("ok", "Doente selecionado.");
+
+      // fecha resultados (para ficar óbvio que selecionou)
+      const hostNow = document.getElementById("pQuickResults");
+      if (hostNow) hostNow.style.display = "none";
     }
 
     host.querySelectorAll("[data-pid]").forEach((el) => {
-      // ✅ Prioridade: mousedown (mais fiável quando existem handlers globais de click/blur)
+      // ✅ mais fiável que click quando existem blur/handlers globais
       el.addEventListener("mousedown", (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
@@ -820,7 +840,7 @@
         selectPid(pid);
       });
 
-      // Redundância: click
+      // redundância
       el.addEventListener("click", (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
