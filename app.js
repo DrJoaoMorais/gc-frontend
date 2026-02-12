@@ -364,6 +364,7 @@
 
         .gcGridRow {
           display:grid;
+          /* ✅ Ordem final: Hora | Doente | Tipo | Estado | Telefone | Clínica */
           grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 170px 160px;
           gap:14px;
           align-items:start;
@@ -428,10 +429,19 @@
           .gcSearchWrap { flex: 1 1 100%; min-width: 280px; }
         }
 
+        /* ✅ Filtro Clínica alinhado com a coluna "Clínica" (última coluna: 160px) */
+        .gcClinicFilterBlock{
+          width:160px;
+          min-width:160px;
+          margin-left:auto; /* encosta à direita dentro da toolbar */
+        }
+        .gcClinicFilterBlock .gcSelect{
+          width:160px;
+          min-width:160px;
+        }
+
         /* =========================================================
            ✅ FIX: alinhar Estado / Telefone / Clínica na mesma linha
-           - garante "linha de título" igual em todas as colunas
-           - o select do estado passa a ocupar a "linha do valor"
            ========================================================= */
         .gcGridRow > div{
           display:flex;
@@ -498,9 +508,9 @@
                 </div>
               </div>
 
-              <div class="gcToolbarBlock" style="min-width:240px;">
+              <div class="gcToolbarBlock gcClinicFilterBlock">
                 <label for="selClinic" class="gcLabel">Clínica</label>
-                <select id="selClinic" class="gcSelect" style="min-width:240px;"></select>
+                <select id="selClinic" class="gcSelect"></select>
               </div>
             </div>
 
@@ -674,14 +684,15 @@
               </div>
             </div>
 
-            <div style="min-width: 160px;">
-              <div class="gcCellTitle">Clínica</div>
-              <div class="gcCellValue">${escapeHtml(clinicName)}</div>
-            </div>
-
+            <!-- ✅ Ordem trocada: Telefone primeiro -->
             <div style="min-width: 160px;">
               <div class="gcCellTitle">Telefone</div>
               <div class="gcCellValue">${escapeHtml(patientPhone)}</div>
+            </div>
+
+            <div style="min-width: 160px;">
+              <div class="gcCellTitle">Clínica</div>
+              <div class="gcCellValue">${escapeHtml(clinicName)}</div>
             </div>
           </div>
         </li>
@@ -792,14 +803,29 @@
       })
       .join("");
 
+    function selectPid(pid) {
+      const p = (results || []).find((x) => x.id === pid);
+      if (!p) return;
+      G.patientQuick.selected = p;
+      renderQuickPatientSelected();
+      setQuickPatientMsg("ok", "Doente selecionado.");
+    }
+
     host.querySelectorAll("[data-pid]").forEach((el) => {
-      el.addEventListener("click", () => {
+      // ✅ Prioridade: mousedown (mais fiável quando existem handlers globais de click/blur)
+      el.addEventListener("mousedown", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
         const pid = el.getAttribute("data-pid");
-        const p = (results || []).find((x) => x.id === pid);
-        if (!p) return;
-        G.patientQuick.selected = p;
-        renderQuickPatientSelected();
-        setQuickPatientMsg("ok", "Doente selecionado.");
+        selectPid(pid);
+      });
+
+      // Redundância: click
+      el.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const pid = el.getAttribute("data-pid");
+        selectPid(pid);
       });
     });
   }
