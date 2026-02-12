@@ -809,14 +809,31 @@
       })
       .join("");
 
-    function selectPid(pid) {
+    // ✅ Event delegation: 1 listener robusto no host
+    // remove listener anterior (se existir)
+    if (host._gcQuickDelegate) {
+      host.removeEventListener("mousedown", host._gcQuickDelegate);
+      host.removeEventListener("click", host._gcQuickDelegate);
+      host._gcQuickDelegate = null;
+    }
+
+    const delegate = async (ev) => {
+      const t = ev.target;
+      const card = t && t.closest ? t.closest("[data-pid]") : null;
+      if (!card) return;
+
+      ev.preventDefault();
+      ev.stopPropagation();
+
+      const pid = card.getAttribute("data-pid");
+      if (!pid) return;
+
       const p = (results || []).find((x) => x.id === pid);
       if (!p) return;
 
-      // guarda seleção
+      // seleção
       G.patientQuick.selected = p;
 
-      // feedback imediato
       const input = document.getElementById("pQuickQuery");
       if (input) input.value = p.full_name || "";
 
@@ -827,29 +844,22 @@
       const hostNow = document.getElementById("pQuickResults");
       if (hostNow) hostNow.style.display = "none";
 
-      // ✅ AÇÃO CERTA: abrir FEED do doente
+      // ✅ abrir FEED (sem silêncio)
       try {
-        openPatientFeedFromAny({ id: pid });
+        if (typeof openPatientFeedFromAny !== "function") {
+          alert("Erro: openPatientFeedFromAny não está disponível (função não encontrada).");
+          return;
+        }
+        await openPatientFeedFromAny({ id: pid });
       } catch (e) {
         console.error("Abrir FEED a partir da pesquisa falhou:", e);
+        alert("Não consegui abrir o Feed a partir da pesquisa. Vê a consola para detalhe.");
       }
-    }
+    };
 
-    host.querySelectorAll("[data-pid]").forEach((el) => {
-      el.addEventListener("mousedown", (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        const pid = el.getAttribute("data-pid");
-        selectPid(pid);
-      });
-
-      el.addEventListener("click", (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        const pid = el.getAttribute("data-pid");
-        selectPid(pid);
-      });
-    });
+    host._gcQuickDelegate = delegate;
+    host.addEventListener("mousedown", delegate);
+    host.addEventListener("click", delegate);
   }
 
   function closeModalRoot() {
