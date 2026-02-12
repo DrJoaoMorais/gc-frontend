@@ -919,11 +919,23 @@
     const p = patient;
     if (!p) return;
 
+    const role = String(G.role || "").toLowerCase();
+
+    const canEditPatient = role === "doctor";
+    const canSeeMedical = role === "doctor";
+    const canSeePhysio = role === "doctor" || role === "physio";
+    const canSeeNotes = role === "doctor" || role === "physio" || role === "secretary";
+
+    const canWritePhysio = role === "doctor" || role === "physio";
+    const canWriteNotesDoctor = role === "doctor";
+    const canWriteNotesPhysio = role === "doctor" || role === "physio";
+    const canWriteNotesAdmin = role === "doctor" || role === "secretary";
+
     let editMode = false;
     let working = false;
 
     // ✅ Tabs do FEED (shell)
-    let activeTab = "medical"; // medical | physio | notes
+    let activeTab = canSeeMedical ? "medical" : (canSeePhysio ? "physio" : "notes");
 
     // ✅ Conteúdo (placeholder, sem BD nesta fase)
     let draft = {
@@ -950,6 +962,10 @@
     }
 
     function renderMedicalTab() {
+      if (!canSeeMedical) {
+        return `<div style="margin-top:12px; font-size:${UI.fs12}px; color:#b00020;">Sem permissão para ver Consulta Médica.</div>`;
+      }
+
       return `
         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
           <button class="gcBtn" id="btnShortcutReports">Relatórios</button>
@@ -984,10 +1000,19 @@
     }
 
     function renderPhysioTab() {
+      if (!canSeePhysio) {
+        return `<div style="margin-top:12px; font-size:${UI.fs12}px; color:#b00020;">Sem permissão para ver Registo FT.</div>`;
+      }
+
+      const ro = canWritePhysio ? "" : "disabled";
+      const roStyle = canWritePhysio ? "" : "opacity:0.7; cursor:not-allowed;";
+
       return `
         <div style="margin-top:12px; padding:12px; border:1px solid #eee; border-radius:12px;">
           <div style="font-size:${UI.fs12}px; color:#666; font-weight:800;">Registo FT</div>
-          <textarea id="ptText" rows="10" style="margin-top:8px; width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;">${escapeHtml(draft.physio_text || "")}</textarea>
+          <textarea id="ptText" rows="10" ${ro}
+            style="margin-top:8px; width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px; ${roStyle}"
+          >${escapeHtml(draft.physio_text || "")}</textarea>
           <div style="margin-top:8px; font-size:${UI.fs12}px; color:#666;">
             (placeholder) Nesta fase não grava em BD. Só estamos a montar o FEED.
           </div>
@@ -996,22 +1021,47 @@
     }
 
     function renderNotesTab() {
+      if (!canSeeNotes) {
+        return `<div style="margin-top:12px; font-size:${UI.fs12}px; color:#b00020;">Sem permissão para ver Notas.</div>`;
+      }
+
+      const dDis = canWriteNotesDoctor ? "" : "disabled";
+      const pDis = canWriteNotesPhysio ? "" : "disabled";
+      const aDis = canWriteNotesAdmin ? "" : "disabled";
+
+      const dStyle = canWriteNotesDoctor ? "" : "opacity:0.7; cursor:not-allowed;";
+      const pStyle = canWriteNotesPhysio ? "" : "opacity:0.7; cursor:not-allowed;";
+      const aStyle = canWriteNotesAdmin ? "" : "opacity:0.7; cursor:not-allowed;";
+
       return `
         <div style="margin-top:12px; display:grid; grid-template-columns: 1fr; gap:12px;">
-          <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-            <div style="font-size:${UI.fs12}px; color:#666; font-weight:800;">Notas — Médico</div>
-            <textarea id="noteDoctor" rows="4" style="margin-top:8px; width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;">${escapeHtml(draft.note_doctor || "")}</textarea>
-          </div>
 
-          <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-            <div style="font-size:${UI.fs12}px; color:#666; font-weight:800;">Notas — Fisioterapeuta</div>
-            <textarea id="notePhysio" rows="4" style="margin-top:8px; width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;">${escapeHtml(draft.note_physio || "")}</textarea>
-          </div>
+          ${role === "doctor" ? `
+            <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
+              <div style="font-size:${UI.fs12}px; color:#666; font-weight:800;">Notas — Médico</div>
+              <textarea id="noteDoctor" rows="4" ${dDis}
+                style="margin-top:8px; width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px; ${dStyle}"
+              >${escapeHtml(draft.note_doctor || "")}</textarea>
+            </div>
+          ` : ""}
 
-          <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-            <div style="font-size:${UI.fs12}px; color:#666; font-weight:800;">Notas — Administrativa</div>
-            <textarea id="noteAdmin" rows="4" style="margin-top:8px; width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;">${escapeHtml(draft.note_admin || "")}</textarea>
-          </div>
+          ${role === "doctor" || role === "physio" ? `
+            <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
+              <div style="font-size:${UI.fs12}px; color:#666; font-weight:800;">Notas — Fisioterapeuta</div>
+              <textarea id="notePhysio" rows="4" ${pDis}
+                style="margin-top:8px; width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px; ${pStyle}"
+              >${escapeHtml(draft.note_physio || "")}</textarea>
+            </div>
+          ` : ""}
+
+          ${role === "doctor" || role === "secretary" ? `
+            <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
+              <div style="font-size:${UI.fs12}px; color:#666; font-weight:800;">Notas — Administrativa</div>
+              <textarea id="noteAdmin" rows="4" ${aDis}
+                style="margin-top:8px; width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px; ${aStyle}"
+              >${escapeHtml(draft.note_admin || "")}</textarea>
+            </div>
+          ` : ""}
 
           <div style="font-size:${UI.fs12}px; color:#666;">
             (placeholder) Permissões e gravação em BD serão tratadas no bloco do FEED.
@@ -1021,12 +1071,6 @@
     }
 
     function render() {
-      const idBits = [];
-      if (p.sns) idBits.push(`SNS: ${p.sns}`);
-      if (p.nif) idBits.push(`NIF: ${p.nif}`);
-      if (p.passport_id) idBits.push(`Passaporte/ID: ${p.passport_id}`);
-      const topSubtitle = idBits.join(" • ") || "—";
-
       // guarda drafts antes de re-render (se os inputs existirem)
       const hdaEl = document.getElementById("medHDA");
       const dxEl = document.getElementById("medDx");
@@ -1044,6 +1088,17 @@
       if (npEl) draft.note_physio = npEl.value;
       if (naEl) draft.note_admin = naEl.value;
 
+      const idBits = [];
+      if (p.sns) idBits.push(`SNS: ${p.sns}`);
+      if (p.nif) idBits.push(`NIF: ${p.nif}`);
+      if (p.passport_id) idBits.push(`Passaporte/ID: ${p.passport_id}`);
+      const topSubtitle = idBits.join(" • ") || "—";
+
+      // se a tab ativa deixou de ser permitida, ajusta
+      if (activeTab === "medical" && !canSeeMedical) activeTab = canSeePhysio ? "physio" : "notes";
+      if (activeTab === "physio" && !canSeePhysio) activeTab = canSeeNotes ? "notes" : "medical";
+      if (activeTab === "notes" && !canSeeNotes) activeTab = canSeeMedical ? "medical" : "physio";
+
       root.innerHTML = `
         <div id="pViewOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
           <div style="background:#fff; width:min(1100px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 88vh; overflow:auto;">
@@ -1057,10 +1112,14 @@
               </div>
 
               <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-                <button id="btnToggleEdit" class="gcBtn" style="font-weight:900;">
-                  ${editMode ? "Cancelar edição" : "Editar"}
-                </button>
-                ${editMode ? `<button id="btnSavePatient" class="gcBtn" style="font-weight:900;">Gravar</button>` : ""}
+                ${canEditPatient ? `
+                  <button id="btnToggleEdit" class="gcBtn" style="font-weight:900;">
+                    ${editMode ? "Cancelar edição" : "Editar"}
+                  </button>
+                  ${editMode ? `<button id="btnSavePatient" class="gcBtn" style="font-weight:900;">Gravar</button>` : ""}
+                ` : `
+                  <div style="font-size:${UI.fs12}px; color:#666; font-weight:800;">Modo: ${escapeHtml(role || "—")}</div>
+                `}
                 <button id="btnClosePView" class="gcBtn">Fechar</button>
               </div>
             </div>
@@ -1073,7 +1132,7 @@
                 <div style="grid-column: 1 / -1;">
                   <div style="font-size:${UI.fs12}px; color:#666;">Nome</div>
                   <div style="margin-top:6px;">
-                    ${editMode
+                    ${editMode && canEditPatient
                       ? `<input id="peFullName" type="text" value="${escapeHtml(p.full_name || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
                       : `<div style="font-size:${UI.fs14}px; font-weight:950; color:#111;">${escapeHtml(p.full_name || "—")}</div>`}
                   </div>
@@ -1082,7 +1141,7 @@
                 <div>
                   <div style="font-size:${UI.fs12}px; color:#666;">SNS</div>
                   <div style="margin-top:6px;">
-                    ${editMode
+                    ${editMode && canEditPatient
                       ? `<input id="peSNS" type="text" inputmode="numeric" value="${escapeHtml(p.sns || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
                       : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.sns || "—")}</div>`}
                   </div>
@@ -1091,7 +1150,7 @@
                 <div>
                   <div style="font-size:${UI.fs12}px; color:#666;">NIF</div>
                   <div style="margin-top:6px;">
-                    ${editMode
+                    ${editMode && canEditPatient
                       ? `<input id="peNIF" type="text" inputmode="numeric" value="${escapeHtml(p.nif || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
                       : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.nif || "—")}</div>`}
                   </div>
@@ -1100,7 +1159,7 @@
                 <div>
                   <div style="font-size:${UI.fs12}px; color:#666;">Passaporte/ID</div>
                   <div style="margin-top:6px;">
-                    ${editMode
+                    ${editMode && canEditPatient
                       ? `<input id="pePassport" type="text" value="${escapeHtml(p.passport_id || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
                       : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.passport_id || "—")}</div>`}
                   </div>
@@ -1109,7 +1168,7 @@
                 <div>
                   <div style="font-size:${UI.fs12}px; color:#666;">Seguro</div>
                   <div style="margin-top:6px;">
-                    ${editMode
+                    ${editMode && canEditPatient
                       ? `<input id="peInsProv" type="text" value="${escapeHtml(p.insurance_provider || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
                       : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.insurance_provider || "—")}</div>`}
                   </div>
@@ -1118,7 +1177,7 @@
                 <div>
                   <div style="font-size:${UI.fs12}px; color:#666;">Apólice</div>
                   <div style="margin-top:6px;">
-                    ${editMode
+                    ${editMode && canEditPatient
                       ? `<input id="peInsPol" type="text" value="${escapeHtml(p.insurance_policy_number || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
                       : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.insurance_policy_number || "—")}</div>`}
                   </div>
@@ -1127,7 +1186,7 @@
                 <div style="grid-column: 1 / -1;">
                   <div style="font-size:${UI.fs12}px; color:#666;">Morada</div>
                   <div style="margin-top:6px;">
-                    ${editMode
+                    ${editMode && canEditPatient
                       ? `<input id="peAddr" type="text" value="${escapeHtml(p.address_line1 || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
                       : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.address_line1 || "—")}</div>`}
                   </div>
@@ -1136,7 +1195,7 @@
                 <div>
                   <div style="font-size:${UI.fs12}px; color:#666;">Telefone</div>
                   <div style="margin-top:6px;">
-                    ${editMode
+                    ${editMode && canEditPatient
                       ? `<input id="pePhone" type="text" value="${escapeHtml(p.phone || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
                       : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.phone || "—")}</div>`}
                   </div>
@@ -1145,7 +1204,7 @@
                 <div>
                   <div style="font-size:${UI.fs12}px; color:#666;">Email</div>
                   <div style="margin-top:6px;">
-                    ${editMode
+                    ${editMode && canEditPatient
                       ? `<input id="peEmail" type="email" value="${escapeHtml(p.email || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
                       : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.email || "—")}</div>`}
                   </div>
@@ -1154,7 +1213,7 @@
                 <div>
                   <div style="font-size:${UI.fs12}px; color:#666;">País</div>
                   <div style="margin-top:6px;">
-                    ${editMode
+                    ${editMode && canEditPatient
                       ? `<input id="peCountry" type="text" value="${escapeHtml(p.country || "PT")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
                       : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.country || "—")}</div>`}
                   </div>
@@ -1163,7 +1222,7 @@
                 <div>
                   <div style="font-size:${UI.fs12}px; color:#666;">Código-postal</div>
                   <div style="margin-top:6px;">
-                    ${editMode
+                    ${editMode && canEditPatient
                       ? `<input id="pePostal" type="text" value="${escapeHtml(p.postal_code || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
                       : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.postal_code || "—")}</div>`}
                   </div>
@@ -1172,7 +1231,7 @@
                 <div>
                   <div style="font-size:${UI.fs12}px; color:#666;">Cidade</div>
                   <div style="margin-top:6px;">
-                    ${editMode
+                    ${editMode && canEditPatient
                       ? `<input id="peCity" type="text" value="${escapeHtml(p.city || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
                       : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.city || "—")}</div>`}
                   </div>
@@ -1181,12 +1240,11 @@
                 <div style="grid-column: 1 / -1;">
                   <div style="font-size:${UI.fs12}px; color:#666;">Notas (Identificação)</div>
                   <div style="margin-top:6px;">
-                    ${editMode
+                    ${editMode && canEditPatient
                       ? `<textarea id="peNotes" rows="2" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;">${escapeHtml(p.notes || "")}</textarea>`
                       : `<div style="font-size:${UI.fs13}px; color:#111;">${escapeHtml(p.notes || "—")}</div>`}
                   </div>
                 </div>
-
               </div>
 
               <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
@@ -1196,9 +1254,9 @@
 
             <!-- Tabs -->
             <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-              <button id="tabMedical" style="${tabBtnStyle(activeTab === "medical")}">Consulta Médica</button>
-              <button id="tabPhysio" style="${tabBtnStyle(activeTab === "physio")}">Registo FT</button>
-              <button id="tabNotes" style="${tabBtnStyle(activeTab === "notes")}">Notas</button>
+              ${canSeeMedical ? `<button id="tabMedical" style="${tabBtnStyle(activeTab === "medical")}">Consulta Médica</button>` : ""}
+              ${canSeePhysio ? `<button id="tabPhysio" style="${tabBtnStyle(activeTab === "physio")}">Registo FT</button>` : ""}
+              ${canSeeNotes ? `<button id="tabNotes" style="${tabBtnStyle(activeTab === "notes")}">Notas</button>` : ""}
             </div>
 
             <!-- Conteúdo -->
@@ -1247,23 +1305,25 @@
       if (btnShortcutExams) btnShortcutExams.addEventListener("click", () => alert("Exames: será implementado no bloco do FEED."));
       if (btnShortcutOther) btnShortcutOther.addEventListener("click", () => alert("Outros: será implementado no bloco do FEED."));
 
-      // Editar/Cancelar
+      // Editar/Cancelar (só doctor)
       if (btnToggle) {
         btnToggle.addEventListener("click", () => {
+          if (!canEditPatient) return;
           if (working) return;
           editMode = !editMode;
           render();
         });
       }
 
-      // Gravar (Identificação) — mantém updatePatient existente
+      // Gravar (Identificação) — só doctor
       if (btnSave) {
         btnSave.addEventListener("click", async () => {
+          if (!canEditPatient) return;
           if (working) return;
 
           const vals = {
             full_name: document.getElementById("peFullName") ? document.getElementById("peFullName").value : "",
-            dob: p.dob ? p.dob : null, // não está no cabeçalho do feed (mantém valor atual)
+            dob: p.dob ? p.dob : null,
             phone: document.getElementById("pePhone") ? document.getElementById("pePhone").value : null,
             email: document.getElementById("peEmail") ? document.getElementById("peEmail").value : null,
             sns: document.getElementById("peSNS") ? document.getElementById("peSNS").value : null,
@@ -1308,8 +1368,6 @@
                 nif: p.nif,
                 passport_id: p.passport_id,
               });
-
-              // se existir UI auxiliar, mantém compatível
               if (G.patientQuick && G.patientQuick.selected && G.patientQuick.selected.id === p.id) {
                 G.patientQuick.selected = Object.assign({}, G.patientQuick.selected, p);
                 renderQuickPatientSelected();
