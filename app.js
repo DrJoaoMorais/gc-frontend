@@ -2016,7 +2016,7 @@
             <button id="btnCloseModal" class="gcBtn">Fechar</button>
           </div>
 
-          <!-- Linha 0: Pesquisa do doente (1 campo) + Novo doente (igual ao dashboard: resultados só quando pesquisamos) -->
+          <!-- Linha 0: Pesquisa do doente (igual ao dashboard: 1 input + lista; sem "Selecionado") -->
           <div style="margin-top:12px; display:flex; flex-direction:column; gap:6px;">
             <label style="font-size:${UI.fs12}px; color:#666;">Doente (obrigatório)</label>
 
@@ -2131,6 +2131,20 @@
     const mPatientId = document.getElementById("mPatientId");
     const mPatientName = document.getElementById("mPatientName");
 
+    // --- helpers de cleanup (evita redefinir closeModal / leaks) ---
+    let _cleanupFns = [];
+    function addCleanup(fn) { if (typeof fn === "function") _cleanupFns.push(fn); }
+    function runCleanup() {
+      const fns = _cleanupFns;
+      _cleanupFns = [];
+      fns.forEach((fn) => { try { fn(); } catch (_) {} });
+    }
+
+    function safeCloseModal() {
+      runCleanup();
+      closeModal();
+    }
+
     const clinicOpts = [];
     for (const c of G.clinics) {
       const label = c.name || c.slug || c.id;
@@ -2177,6 +2191,7 @@
       mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#b00020;">Erro na pesquisa. Vê a consola.</div>`;
     }
 
+    // Render de resultados alinhado com o padrão do dashboard (cards clicáveis + 2.ª linha ids/tel)
     function showResultsList(pts) {
       if (!mPatientResults) return;
 
@@ -2204,8 +2219,8 @@
         el.addEventListener("click", () => {
           const pid = el.getAttribute("data-pid") || "";
           const pname = el.getAttribute("data-pname") || "";
-          setSelectedPatient({ id: pid, name: pname });
 
+          setSelectedPatient({ id: pid, name: pname });
           if (mPatientQuery) mPatientQuery.value = pname; // igual ao dashboard: fica preenchido com o nome
           closeResults();
         });
@@ -2245,21 +2260,19 @@
       return other;
     }
 
-    // Pesquisa (igual ao dashboard: só aparece quando term>=2; fecha ao selecionar; fecha quando limpar)
+    // Pesquisa (padrão dashboard: só aparece quando term>=2; fecha ao selecionar; fecha ao limpar)
     let searchTimer = null;
 
     async function runSearch() {
       const clinicId = mClinic ? (mClinic.value || "") : "";
       const term = (mPatientQuery ? (mPatientQuery.value || "").trim() : "");
 
-      // Regras iguais ao dashboard
       if (!term || term.length < 2) {
         closeResults();
         return;
       }
 
       if (!clinicId) {
-        // no modal a clínica é obrigatória para scope; se não houver, não mostra resultados
         closeResults();
         return;
       }
@@ -2284,13 +2297,23 @@
       searchTimer = setTimeout(runSearch, 250);
     }
 
-    // Fechar resultados ao clicar fora (opcional mas útil)
-    function onDocClick(ev) {
+    // Fechar resultados ao clicar fora
+    function onDocMouseDown(ev) {
       const t = ev.target;
-      const inInput = mPatientQuery && (t === mPatientQuery || (t.closest && t.closest("#mPatientQuery")));
-      const inResults = mPatientResults && (t === mPatientResults || (t.closest && t.closest("#mPatientResults")));
+
+      const inInput =
+        mPatientQuery &&
+        (t === mPatientQuery || (t && t.closest && t.closest("#mPatientQuery")));
+
+      const inResults =
+        mPatientResults &&
+        (t === mPatientResults || (t && t.closest && t.closest("#mPatientResults")));
+
       if (!inInput && !inResults) closeResults();
     }
+
+    document.addEventListener("mousedown", onDocMouseDown);
+    addCleanup(() => document.removeEventListener("mousedown", onDocMouseDown));
 
     function openNewPatientForm() {
       const clinicId = mClinic ? mClinic.value : "";
@@ -2512,7 +2535,6 @@
             return;
           }
 
-          // Seleciona imediatamente e fecha o sub-form
           setSelectedPatient({ id: newPatientId, name: v.full_name });
           if (mPatientQuery) mPatientQuery.value = v.full_name;
           closeResults();
@@ -2609,7 +2631,7 @@
           if (error) throw error;
         }
 
-        closeModal();
+        safeCloseModal();
         await refreshAgenda();
       } catch (e) {
         console.error("Guardar marcação falhou:", e);
@@ -2619,9 +2641,9 @@
       }
     }
 
-    if (btnClose) btnClose.addEventListener("click", closeModal);
-    if (btnCancel) btnCancel.addEventListener("click", closeModal);
-    if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "modalOverlay") closeModal(); });
+    if (btnClose) btnClose.addEventListener("click", safeCloseModal);
+    if (btnCancel) btnCancel.addEventListener("click", safeCloseModal);
+    if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "modalOverlay") safeCloseModal(); });
 
     if (mProc) mProc.addEventListener("change", updateProcOtherVisibility);
 
@@ -2647,16 +2669,6 @@
 
     if (btnNewPatient) btnNewPatient.addEventListener("click", openNewPatientForm);
     if (btnSave) btnSave.addEventListener("click", onSave);
-
-    // clique fora fecha resultados
-    document.addEventListener("mousedown", onDocClick, { passive: true });
-
-    // cleanup quando fecha modal
-    const _oldClose = closeModal;
-    closeModal = function () {
-      document.removeEventListener("mousedown", onDocClick, { passive: true });
-      _oldClose();
-    };
   }
 
 /* ==== FIM BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
