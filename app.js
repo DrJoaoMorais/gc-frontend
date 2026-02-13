@@ -1838,7 +1838,21 @@
     const durationBest = DURATION_OPTIONS.includes(durInit) ? durInit : 20;
 
     const procInit = isEdit ? row.procedure_type ?? "" : "";
-    const statusInit = isEdit ? row.status ?? "scheduled" : "scheduled";
+
+    // ---- Status UI (apenas 1 "Faltou/Cancelada")
+    // BD aceita vários valores (scheduled/arrived/done/cancelled/no_show...),
+    // mas no UI só expomos 4 + mapeamos "cancelled" -> "no_show".
+    const STATUS_UI = [
+      { value: "scheduled", label: "Marcada" },
+      { value: "arrived", label: "Chegou" },
+      { value: "done", label: "Realizada" },
+      { value: "no_show", label: "Faltou/Cancelada" },
+    ];
+    const statusRaw = isEdit ? (row.status ?? "scheduled") : "scheduled";
+    const statusInit =
+      statusRaw === "cancelled" ? "no_show"
+      : STATUS_UI.some((s) => s.value === statusRaw) ? statusRaw
+      : "scheduled";
 
     const patientIdInit = isEdit ? row.patient_id ?? "" : "";
     const titleInit = isEdit ? row.title ?? "" : "";
@@ -1849,11 +1863,11 @@
 
     root.innerHTML = `
       <div id="modalOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
-        <div style="background:#fff; width:min(860px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 86vh; overflow:auto;">
+        <div style="background:#fff; width:min(920px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 86vh; overflow:auto;">
           <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
             <div>
-              <div style="font-size:${UI.fs14}px; font-weight:800; color:#111;">
-                ${isEdit ? "Editar marcação" : "Nova marcação"}
+              <div style="font-size:${UI.fs14}px; font-weight:900; color:#111;">
+                ${isEdit ? "Editar consulta agendada" : "Agendar consulta"}
               </div>
               <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
                 Dia selecionado: ${escapeHtml(G.selectedDayISO)}. Doente é obrigatório.
@@ -1862,19 +1876,70 @@
             <button id="btnCloseModal" class="gcBtn">Fechar</button>
           </div>
 
-          <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <!-- Linha 0: Pesquisa do doente (1 célula) + Novo doente -->
+          <div style="margin-top:12px; display:flex; flex-direction:column; gap:6px;">
+            <label style="font-size:${UI.fs12}px; color:#666;">Doente (obrigatório)</label>
+
+            <div style="display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;">
+              <input id="mPatientQuery" type="text"
+                placeholder="Pesquisar por nome / SNS / NIF / telefone / Passaporte-ID (mín. 2 caracteres)…"
+                autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;" />
+
+              <button id="btnNewPatient" class="gcBtn" style="white-space:nowrap;">
+                ＋ 👤 Novo doente
+              </button>
+            </div>
+
+            <div id="mPatientSelectedLine" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border:1px solid #eee; border-radius:10px; background:#fafafa;">
+              <div style="font-size:${UI.fs12}px; color:#111;">
+                <span style="color:#666;">Selecionado:</span>
+                <span id="mPatientSelectedName" style="font-weight:800;">—</span>
+              </div>
+              <button id="btnClearPatient" class="gcBtn" style="padding:6px 10px;">Limpar</button>
+            </div>
+
+            <div id="mPatientResults" style="border:1px solid #eee; border-radius:10px; padding:8px; max-height:220px; overflow:auto; background:#fff;">
+              <div style="font-size:${UI.fs12}px; color:#666;">Pesquisar para mostrar resultados.</div>
+            </div>
+
+            <input type="hidden" id="mPatientId" value="" />
+            <input type="hidden" id="mPatientName" value="" />
+
+            <div id="newPatientHost" style="margin-top:8px;"></div>
+          </div>
+
+          <!-- Linha 1: Clínica | Tipo | Estado -->
+          <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:${UI.fs12}px; color:#666;">Clínica</label>
               <select id="mClinic" class="gcSelect"></select>
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Status</label>
-              <select id="mStatus" class="gcSelect">
-                ${STATUS_OPTIONS.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("")}
+              <label style="font-size:${UI.fs12}px; color:#666;">Tipo</label>
+              <select id="mProc" class="gcSelect">
+                <option value="">—</option>
+                ${PROCEDURE_OPTIONS.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("")}
               </select>
             </div>
 
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Estado</label>
+              <select id="mStatus" class="gcSelect">
+                ${STATUS_UI.map((s) => `<option value="${escapeHtml(s.value)}">${escapeHtml(s.label)}</option>`).join("")}
+              </select>
+            </div>
+
+            <div id="mProcOtherWrap" style="display:none; flex-direction:column; gap:4px; grid-column: 1 / -1;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Outro (texto)</label>
+              <input id="mProcOther" type="text" placeholder="ex.: Ondas de choque" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            </div>
+          </div>
+
+          <!-- Linha 2: Início | Duração -->
+          <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:${UI.fs12}px; color:#666;">Início</label>
               <input id="mStart" type="datetime-local" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
@@ -1886,61 +1951,12 @@
                 ${DURATION_OPTIONS.map((n) => `<option value="${n}">${n}</option>`).join("")}
               </select>
             </div>
+          </div>
 
-            <div style="display:flex; flex-direction:column; gap:4px; grid-column: 1 / -1;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Doente (obrigatório)</label>
-
-              <div style="display:grid; grid-template-columns: 1fr 320px; gap:12px; align-items:start;">
-                <div style="display:flex; flex-direction:column; gap:6px;">
-                  <input id="mPatientQuery" type="text"
-                    placeholder="Pesquisar por nome / SNS / NIF / telefone / Passaporte-ID (mín. 2 letras)…"
-                    autocomplete="off" autocapitalize="off" spellcheck="false"
-                    style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;" />
-                  <div id="mPatientResults" style="border:1px solid #eee; border-radius:10px; padding:8px; max-height:180px; overflow:auto; background:#fff;">
-                    <div style="font-size:${UI.fs12}px; color:#666;">Pesquisar para mostrar resultados.</div>
-                  </div>
-                </div>
-
-                <div style="display:flex; flex-direction:column; gap:6px;">
-                  <div style="font-size:${UI.fs12}px; color:#666;">Selecionado</div>
-                  <div id="mPatientSelected" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; min-height: 42px; display:flex; align-items:center; color:#111; font-size:${UI.fs13}px;">
-                    —
-                  </div>
-                  <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                    <button id="btnNewPatient" class="gcBtn" style="flex:1;">Novo doente</button>
-                  </div>
-                </div>
-              </div>
-
-              <input type="hidden" id="mPatientId" value="" />
-              <input type="hidden" id="mPatientName" value="" />
-
-              <div id="newPatientHost" style="margin-top:10px;"></div>
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Tipo de consulta</label>
-              <select id="mProc" class="gcSelect">
-                <option value="">—</option>
-                ${PROCEDURE_OPTIONS.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("")}
-              </select>
-            </div>
-
-            <div id="mProcOtherWrap" style="display:none; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Outro (texto)</label>
-              <input id="mProcOther" type="text" placeholder="ex.: Ondas de choque" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Título (automático)</label>
-              <input id="mTitleAuto" type="text" disabled style="padding:10px 12px; border-radius:10px; border:1px solid #eee; background:#fafafa; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Notas</label>
-              <textarea id="mNotes" rows="3" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;"></textarea>
-            </div>
+          <!-- Linha 3: Notas -->
+          <div style="margin-top:12px; display:flex; flex-direction:column; gap:4px;">
+            <label style="font-size:${UI.fs12}px; color:#666;">Notas</label>
+            <textarea id="mNotes" rows="3" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;"></textarea>
           </div>
 
           <div style="margin-top:12px; display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap;">
@@ -1948,7 +1964,7 @@
             <div style="display:flex; gap:10px;">
               <button id="btnCancel" class="gcBtn">Cancelar</button>
               <button id="btnSave" class="gcBtn" style="font-weight:900;">
-                ${isEdit ? "Guardar alterações" : "Criar marcação"}
+                ${isEdit ? "Guardar" : "Agendar"}
               </button>
             </div>
           </div>
@@ -1961,6 +1977,7 @@
     const btnCancel = document.getElementById("btnCancel");
     const btnSave = document.getElementById("btnSave");
     const btnNewPatient = document.getElementById("btnNewPatient");
+    const btnClearPatient = document.getElementById("btnClearPatient");
 
     const mClinic = document.getElementById("mClinic");
     const mStatus = document.getElementById("mStatus");
@@ -1974,10 +1991,9 @@
 
     const mPatientQuery = document.getElementById("mPatientQuery");
     const mPatientResults = document.getElementById("mPatientResults");
-    const mPatientSelected = document.getElementById("mPatientSelected");
     const mPatientId = document.getElementById("mPatientId");
     const mPatientName = document.getElementById("mPatientName");
-    const mTitleAuto = document.getElementById("mTitleAuto");
+    const mPatientSelectedName = document.getElementById("mPatientSelectedName");
 
     const clinicOpts = [];
     for (const c of G.clinics) {
@@ -2005,19 +2021,11 @@
       return proc;
     }
 
-    function updateTitleAuto() {
-      const pname = mPatientName ? mPatientName.value || "" : "";
-      const proc = getProcedureValue();
-      const t = makeAutoTitle(pname, proc);
-      if (mTitleAuto) mTitleAuto.value = t || "";
-    }
-
     function updateProcOtherVisibility() {
       const v = mProc ? mProc.value : "";
       const show = v === "Outro";
       if (mProcOtherWrap) mProcOtherWrap.style.display = show ? "flex" : "none";
       if (!show && mProcOther) mProcOther.value = "";
-      updateTitleAuto();
     }
 
     updateProcOtherVisibility();
@@ -2026,15 +2034,35 @@
       if (mProcOtherWrap) mProcOtherWrap.style.display = "flex";
     }
 
-    if (mPatientId) mPatientId.value = patientIdInit || "";
-    if (mPatientSelected) mPatientSelected.textContent = patientIdInit ? `Selecionado (ID): ${patientIdInit}` : "—";
-    if (mTitleAuto) mTitleAuto.value = titleInit || "";
+    function setSelectedPatient({ id, name }) {
+      if (mPatientId) mPatientId.value = id || "";
+      if (mPatientName) mPatientName.value = name || "";
+      if (mPatientSelectedName) mPatientSelectedName.textContent = name ? name : "—";
+    }
+
+    // Pré-preencher seleção em edição
+    if (patientIdInit) {
+      // Se houver title, tentamos usar o que existir como nome (pode não ser só nome).
+      const displayName = titleInit ? String(titleInit).split(" — ")[0] : "";
+      setSelectedPatient({ id: patientIdInit, name: displayName || `ID: ${patientIdInit}` });
+    } else {
+      setSelectedPatient({ id: "", name: "" });
+    }
+
+    function clearSelectedPatient() {
+      setSelectedPatient({ id: "", name: "" });
+      if (mPatientQuery) mPatientQuery.value = "";
+      if (mPatientResults) {
+        mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Pesquisar para mostrar resultados.</div>`;
+      }
+    }
 
     let searchTimer = null;
 
     async function runSearch() {
       const clinicId = mClinic ? mClinic.value : "";
       const term = mPatientQuery ? mPatientQuery.value : "";
+
       if (!clinicId) {
         mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Seleciona a clínica para pesquisar doentes.</div>`;
         return;
@@ -2062,12 +2090,14 @@
             const idLine = [idBits.join(" / "), phone].filter(Boolean).join(" • ");
 
             return `
-            <div data-pid="${escapeHtml(p.id)}" data-pname="${escapeHtml(p.full_name)}"
-                 style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:pointer;">
-              <div style="font-size:${UI.fs13}px; color:#111; font-weight:700; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">${escapeHtml(p.full_name)}</div>
-              <div style="font-size:${UI.fs12}px; color:#666;">${escapeHtml(idLine || "—")}</div>
-            </div>
-          `;
+              <div data-pid="${escapeHtml(p.id)}" data-pname="${escapeHtml(p.full_name)}"
+                   style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:pointer;">
+                <div style="font-size:${UI.fs13}px; color:#111; font-weight:800; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">
+                  ${escapeHtml(p.full_name)}
+                </div>
+                <div style="font-size:${UI.fs12}px; color:#666;">${escapeHtml(idLine || "—")}</div>
+              </div>
+            `;
           })
           .join("");
 
@@ -2075,10 +2105,7 @@
           el.addEventListener("click", () => {
             const pid = el.getAttribute("data-pid");
             const pname = el.getAttribute("data-pname");
-            if (mPatientId) mPatientId.value = pid || "";
-            if (mPatientName) mPatientName.value = pname || "";
-            if (mPatientSelected) mPatientSelected.textContent = pname ? pname : pid ? `Selecionado (ID): ${pid}` : "—";
-            updateTitleAuto();
+            setSelectedPatient({ id: pid || "", name: pname || "" });
           });
         });
       } catch (e) {
@@ -2109,7 +2136,7 @@
 
       host.innerHTML = `
         <div id="subNewPatient" style="border:1px solid #eee; border-radius:12px; padding:12px; background:#fafafa;">
-          <div style="font-size:${UI.fs13}px; font-weight:800; color:#111;">Novo doente</div>
+          <div style="font-size:${UI.fs13}px; font-weight:900; color:#111;">Novo doente</div>
           <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
             Nome obrigatório. Identificação: SNS (9 dígitos) ou NIF (9 dígitos) ou Passaporte/ID (4–20 alfanum).
           </div>
@@ -2312,11 +2339,7 @@
             return;
           }
 
-          mPatientId.value = newPatientId;
-          mPatientName.value = v.full_name;
-          mPatientSelected.textContent = v.full_name;
-          updateTitleAuto();
-
+          setSelectedPatient({ id: newPatientId, name: v.full_name });
           host.innerHTML = "";
         } catch (e) {
           console.error("Criar doente falhou:", e);
@@ -2351,6 +2374,7 @@
         mMsg.textContent = "Define o início.";
         return;
       }
+
       const pid = mPatientId ? mPatientId.value || "" : "";
       const pname = mPatientName ? mPatientName.value || "" : "";
       if (!pid) {
@@ -2370,12 +2394,15 @@
       const proc = getProcedureValue();
       const autoTitle = makeAutoTitle(pname, proc);
 
+      // Garantia: no UI só existe 1 opção "Faltou/Cancelada" e guardamos SEMPRE "no_show".
+      const statusToSave = (mStatus && mStatus.value) ? mStatus.value : "scheduled";
+
       const payload = {
         clinic_id: mClinic.value,
         patient_id: pid,
         start_at: times.startAt,
         end_at: times.endAt,
-        status: mStatus && mStatus.value ? mStatus.value : "scheduled",
+        status: statusToSave,
         procedure_type: proc ? proc : null,
         title: autoTitle,
         notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
@@ -2410,31 +2437,23 @@
     if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "modalOverlay") closeModal(); });
 
     if (mProc) mProc.addEventListener("change", updateProcOtherVisibility);
-    if (mProcOther) mProcOther.addEventListener("input", updateTitleAuto);
 
     if (mClinic) {
       mClinic.addEventListener("change", () => {
-        const pidEl = document.getElementById("mPatientId");
-        const pnEl = document.getElementById("mPatientName");
-        const selEl = document.getElementById("mPatientSelected");
         const resEl = document.getElementById("mPatientResults");
         const host = document.getElementById("newPatientHost");
 
-        if (pidEl) pidEl.value = "";
-        if (pnEl) pnEl.value = "";
-        if (selEl) selEl.textContent = "—";
+        // ao mudar clínica, limpamos seleção e sub-form
+        clearSelectedPatient();
         if (resEl) resEl.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Pesquisar para mostrar resultados.</div>`;
         if (host) host.innerHTML = "";
-
-        updateTitleAuto();
       });
     }
 
     if (mPatientQuery) mPatientQuery.addEventListener("input", scheduleSearch);
     if (btnNewPatient) btnNewPatient.addEventListener("click", openNewPatientForm);
+    if (btnClearPatient) btnClearPatient.addEventListener("click", clearSelectedPatient);
     if (btnSave) btnSave.addEventListener("click", onSave);
-
-    updateTitleAuto();
   }
 
 /* ==== FIM BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
