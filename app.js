@@ -318,29 +318,23 @@
 
   // ⚠️ ESSENCIAL: usado no openApptModal + na agenda (não pode faltar)
   // Mantém compatibilidade com o que já existe na BD (não mexe em enums/RLS).
-  // Nota: a UI só mostra 5 estados (no_show e cancelled aparecem como “Faltou/Cancelada”).
-  const STATUS_OPTIONS = ["scheduled", "arrived", "done", "no_show", "confirmed", "cancelled"];
+  // ✅ REGRA: só 5 estados visíveis (sem duplicar "Faltou/Cancelada")
+  const STATUS_OPTIONS = ["scheduled", "arrived", "done", "no_show", "confirmed"];
 
   const DURATION_OPTIONS = [15, 20, 30, 45, 60];
 
-  // ✅ Estado com cores (5 estados na UI)
+  // ✅ Estado com cores (mantido)
   function statusMeta(statusRaw) {
     const s = String(statusRaw || "scheduled").toLowerCase();
-
-    const faltouCancelou = { icon: "❌", label: "Faltou/Cancelada", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" };
-
     const map = {
       scheduled: { icon: "👤", label: "Marcada", bg: "#eff6ff", fg: "#1d4ed8", br: "#bfdbfe" },
       arrived:   { icon: "⏳", label: "Chegou", bg: "#fffbeb", fg: "#92400e", br: "#fde68a" },
       done:      { icon: "✅", label: "Realizada", bg: "#ecfdf5", fg: "#065f46", br: "#a7f3d0" },
-
-      // ✅ 1 só estado visual para os dois
-      no_show:   faltouCancelou,
-      cancelled: faltouCancelou,
-
+      no_show:   { icon: "❌", label: "Faltou/Cancelada", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
+      // ✅ compatibilidade: se vier "cancelled" da BD, mostra igual a no_show (sem criar opção duplicada)
+      cancelled: { icon: "❌", label: "Faltou/Cancelada", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
       confirmed: { icon: "🎁", label: "Dispensa de honorários", bg: "#dbeafe", fg: "#1e40af", br: "#93c5fd" },
     };
-
     return map[s] || map.scheduled;
   }
 
@@ -366,6 +360,9 @@
 
         .gcBtnPrimary { padding:11px 14px; border-radius:12px; border:1px solid #334155; background:#334155; color:#fff; cursor:pointer; font-size:${UI.fs13}px; font-weight:900; }
         .gcBtnPrimary:disabled { opacity:0.6; cursor:not-allowed; }
+
+        .gcBtnGreen { padding:10px 12px; border-radius:10px; border:1px solid #15803d; background:#16a34a; color:#fff; cursor:pointer; font-size:${UI.fs13}px; font-weight:900; }
+        .gcBtnGreen:disabled { opacity:0.6; cursor:not-allowed; }
 
         .gcSelect { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; font-size:${UI.fs13}px; }
         .gcLabel { font-size:${UI.fs12}px; color:#666; }
@@ -478,10 +475,11 @@
                 <button id="btnCal" class="gcBtn" title="Calendário">Calendário</button>
                 <button id="btnToday" class="gcBtn" title="Voltar a hoje">Hoje</button>
 
-                <!-- ✅ mantém id="btnNewAppt" (não mexe em wiring/caminhos) -->
+                <!-- ✅ Mantém id / wiring: só muda o texto -->
                 <button id="btnNewAppt" class="gcBtnPrimary">＋ Agendar Consulta 📅</button>
 
-                <button id="btnNewPatientMain" class="gcBtn" title="Criar novo doente">＋ Novo doente</button>
+                <!-- ✅ Verde + ícone, mantém id -->
+                <button id="btnNewPatientMain" class="gcBtnGreen" title="Criar novo doente">＋ Novo Doente 👤</button>
               </div>
 
               <div class="gcToolbarBlock gcSearchWrap">
