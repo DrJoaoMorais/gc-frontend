@@ -917,7 +917,8 @@
     // ✅ Conteúdo (placeholder, sem BD nesta fase)
     let draft = {
       hda: "",
-      diagnosis: "",
+      // ✅ Diagnósticos selecionados (multi)
+      dx_selected: [], // [{id, system, code, label}]
       treatments: "",
       physio_text: "",
       note_doctor: "",
@@ -932,6 +933,20 @@
 
     // ✅ Identificação colapsável
     let idExpanded = false;
+
+    // ✅ Estado interno para pesquisa de diagnósticos (UI)
+    let dx = {
+      q: "",
+      results: [],
+      loading: false,
+      err: "",
+      addOpen: false,
+      addSystem: "local",
+      addCode: "",
+      addLabel: "",
+      addWorking: false,
+      timer: null,
+    };
 
     function clinicLabelById(cid) {
       if (!cid) return "—";
@@ -967,6 +982,168 @@
       }
     }
 
+    // ---------- Diagnósticos: helpers ----------
+    function isDoctor() {
+      return String(G.role || "").toLowerCase() === "doctor";
+    }
+
+    function dxKey(row) {
+      const sys = String(row && row.system ? row.system : "").toLowerCase();
+      const code = String(row && row.code ? row.code : "").trim();
+      return `${sys}::${code}`;
+    }
+
+    function dxAlreadySelected(row) {
+      const k = dxKey(row);
+      return (draft.dx_selected || []).some((x) => dxKey(x) === k);
+    }
+
+    async function searchDiagnosesCatalog(termRaw, limit = 18) {
+      const term = String(termRaw || "").trim();
+      if (!term || term.length < 2) return [];
+
+      // Pesquisa por label e por code (substring)
+      // Nota: em PostgREST, .or() usa sintaxe: "label.ilike.%xx%,code.ilike.%xx%"
+      const safe = term.replaceAll(",", " ");
+      const orStr = `label.ilike.%${safe}%,code.ilike.%${safe}%`;
+
+      const { data, error } = await window.sb
+        .from("diagnoses_catalog")
+        .select("id, system, code, label, is_active")
+        .eq("is_active", true)
+        .or(orStr)
+        .order("code", { ascending: true })
+        .limit(limit);
+
+      if (error) throw error;
+      return Array.isArray(data) ? data : [];
+    }
+
+    async function rpcAddDiagnosisCatalog({ system, code, label, is_active = true }) {
+      const payload = {
+        p_system: system,
+        p_code: code,
+        p_label: label,
+        p_is_active: is_active,
+      };
+      const { data, error } = await window.sb.rpc("add_diagnosis_catalog", payload);
+      if (error) throw error;
+      return data; // row (diagnoses_catalog)
+    }
+
+    function renderDxSelected() {
+      const list = (draft.dx_selected || []);
+      if (list.length === 0) {
+        return `<div style="font-size:${UI.fs12}px; color:#666;">Sem diagnósticos selecionados.</div>`;
+      }
+
+      return `
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          ${list.map((d) => {
+            const sys = escapeHtml(d.system || "—");
+            const code = escapeHtml(d.code || "—");
+            const label = escapeHtml(d.label || "—");
+            return `
+              <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff;">
+                <div style="min-width:0;">
+                  <div style="font-size:${UI.fs13}px; font-weight:900; color:#111;">${code} <span style="font-weight:800; color:#666;">(${sys})</span></div>
+                  <div style="font-size:${UI.fs12}px; color:#111; margin-top:2px; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">${label}</div>
+                </div>
+                <button class="gcBtn" data-dx-remove="${escapeHtml(d.id || dxKey(d))}" style="padding:6px 10px; border-radius:10px;">Remover</button>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      `;
+    }
+
+    function renderDxResults() {
+      if (!dx.q || dx.q.trim().length < 2) {
+        return `<div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar (mín. 2 caracteres).</div>`;
+      }
+      if (dx.loading) {
+        return `<div style="font-size:${UI.fs12}px; color:#666;">A pesquisar…</div>`;
+      }
+      if (dx.err) {
+        return `<div style="font-size:${UI.fs12}px; color:#b00020;">${escapeHtml(dx.err)}</div>`;
+      }
+      if (!dx.results || dx.results.length === 0) {
+        return `<div style="font-size:${UI.fs12}px; color:#666;">Sem resultados.</div>`;
+      }
+
+      return `
+        ${dx.results.map((r) => {
+          const disabled = dxAlreadySelected(r);
+          const sys = escapeHtml(r.system || "—");
+          const code = escapeHtml(r.code || "—");
+          const label = escapeHtml(r.label || "—");
+          return `
+            <div data-dx-pick="1"
+                 data-dx-id="${escapeHtml(r.id)}"
+                 style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:${disabled ? "not-allowed" : "pointer"}; background:${disabled ? "#fafafa" : "#fff"}; opacity:${disabled ? 0.7 : 1};">
+              <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+                <div style="min-width:0;">
+                  <div style="font-size:${UI.fs13}px; color:#111; font-weight:900;">
+                    ${code} <span style="font-weight:800; color:#666;">(${sys})</span>
+                  </div>
+                  <div style="font-size:${UI.fs12}px; color:#111; margin-top:2px; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">
+                    ${label}
+                  </div>
+                </div>
+                <div style="font-size:${UI.fs12}px; color:${disabled ? "#666" : "#111"}; font-weight:800;">
+                  ${disabled ? "Selecionado" : "Adicionar"}
+                </div>
+              </div>
+            </div>
+          `;
+        }).join("")}
+      `;
+    }
+
+    function renderDxAddForm() {
+      if (!isDoctor()) {
+        return `<div style="font-size:${UI.fs12}px; color:#64748b;">Adicionar diagnóstico: disponível apenas para o médico.</div>`;
+      }
+      if (!dx.addOpen) return "";
+
+      return `
+        <div style="margin-top:10px; border:1px dashed #cbd5e1; border-radius:12px; padding:10px; background:#fafafa;">
+          <div style="font-size:${UI.fs12}px; color:#475569; font-weight:900;">Novo diagnóstico (catálogo)</div>
+
+          <div style="margin-top:8px; display:grid; grid-template-columns: 140px 200px 1fr; gap:10px; align-items:end;">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label class="gcLabel">Sistema</label>
+              <select id="dxAddSystem" class="gcSelect">
+                <option value="local" ${dx.addSystem === "local" ? "selected" : ""}>local</option>
+              </select>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label class="gcLabel">Código *</label>
+              <input id="dxAddCode" type="text" value="${escapeHtml(dx.addCode || "")}"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label class="gcLabel">Descrição *</label>
+              <input id="dxAddLabel" type="text" value="${escapeHtml(dx.addLabel || "")}"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            </div>
+          </div>
+
+          <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
+            <div id="dxAddMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
+            <div style="display:flex; gap:10px;">
+              <button id="dxAddCancel" class="gcBtn">Fechar</button>
+              <button id="dxAddSave" class="gcBtn" style="font-weight:900;" ${dx.addWorking ? "disabled" : ""}>
+                ${dx.addWorking ? "A gravar…" : "Adicionar ao catálogo"}
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     function tabBtnStyle(isOn) {
       return `
         padding:10px 12px;
@@ -981,7 +1158,7 @@
     }
 
     function renderMedicalTab() {
-      // ✅ “Escrita primeiro”: HDA grande em cima; dx/tx abaixo (ainda placeholder)
+      // ✅ HDA grande + Diagnóstico com pesquisa incremental + Tratamentos (placeholder)
       return `
         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
           <button class="gcBtn" id="btnShortcutReports">Relatórios</button>
@@ -997,16 +1174,44 @@
         </div>
 
         <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <!-- Diagnóstico -->
           <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-            <div style="font-size:${UI.fs12}px; color:#666; font-weight:900;">Diagnóstico</div>
-            <textarea id="medDx" rows="5"
-              style="margin-top:8px; width:100%; padding:12px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs14}px; line-height:1.35;"
-            >${escapeHtml(draft.diagnosis || "")}</textarea>
-            <div style="margin-top:6px; font-size:${UI.fs12}px; color:#666;">
-              (placeholder) No passo 2 isto passa a pesquisa na tabela de diagnósticos.
+            <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
+              <div style="font-size:${UI.fs12}px; color:#666; font-weight:900;">Diagnóstico</div>
+              <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                ${isDoctor() ? `<button id="dxToggleAdd" class="gcBtn" style="padding:6px 10px; border-radius:10px;">＋ Novo diagnóstico</button>` : ``}
+              </div>
+            </div>
+
+            <div style="margin-top:8px;">
+              <input id="dxSearch" type="search"
+                value="${escapeHtml(dx.q || "")}"
+                placeholder="Pesquisar (código ou descrição) — ex.: 726.31 | Aquiles | capsulite"
+                autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;" />
+              <div id="dxResults"
+                   style="margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:220px; overflow:auto;">
+                ${renderDxResults()}
+              </div>
+
+              <div style="margin-top:10px;">
+                <div style="font-size:${UI.fs12}px; color:#666; font-weight:900;">Selecionados</div>
+                <div id="dxSelected" style="margin-top:8px;">
+                  ${renderDxSelected()}
+                </div>
+              </div>
+
+              <div id="dxAddWrap">
+                ${renderDxAddForm()}
+              </div>
+
+              <div style="margin-top:8px; font-size:${UI.fs12}px; color:#666;">
+                Nota: ainda não grava em BD de consulta. Nesta fase estamos a montar a UI do FEED.
+              </div>
             </div>
           </div>
 
+          <!-- Tratamentos (placeholder) -->
           <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
             <div style="font-size:${UI.fs12}px; color:#666; font-weight:900;">Tratamentos</div>
             <textarea id="medTx" rows="5"
@@ -1081,7 +1286,6 @@
 
       // guarda drafts antes de re-render (se os inputs existirem)
       const hdaEl = document.getElementById("medHDA");
-      const dxEl = document.getElementById("medDx");
       const txEl = document.getElementById("medTx");
       const ptEl = document.getElementById("ptText");
       const ndEl = document.getElementById("noteDoctor");
@@ -1089,17 +1293,18 @@
       const naEl = document.getElementById("noteAdmin");
 
       if (hdaEl) draft.hda = hdaEl.value;
-      if (dxEl) draft.diagnosis = dxEl.value;
       if (txEl) draft.treatments = txEl.value;
       if (ptEl) draft.physio_text = ptEl.value;
       if (ndEl) draft.note_doctor = ndEl.value;
       if (npEl) draft.note_physio = npEl.value;
       if (naEl) draft.note_admin = naEl.value;
 
+      // dx.q pode mudar via input (se existir)
+      const dxSearchEl = document.getElementById("dxSearch");
+      if (dxSearchEl) dx.q = dxSearchEl.value;
+
       const canManageClinics = String(G.role || "").toLowerCase() === "doctor";
-      const activeClinicLabel = activeClinicLoading
-        ? "A carregar…"
-        : clinicLabelById(activeClinicId);
+      const activeClinicLabel = activeClinicLoading ? "A carregar…" : clinicLabelById(activeClinicId);
 
       const primaryId = p.sns ? `SNS ${p.sns}` : (p.nif ? `NIF ${p.nif}` : (p.passport_id ? `ID ${p.passport_id}` : "—"));
 
@@ -1333,6 +1538,19 @@
 
       const btnToggleId = document.getElementById("btnToggleId");
 
+      // Diagnóstico UI refs (só existem no medical tab)
+      const dxSearch = document.getElementById("dxSearch");
+      const dxResults = document.getElementById("dxResults");
+      const dxSelected = document.getElementById("dxSelected");
+      const dxToggleAdd = document.getElementById("dxToggleAdd");
+
+      const dxAddSystem = document.getElementById("dxAddSystem");
+      const dxAddCode = document.getElementById("dxAddCode");
+      const dxAddLabel = document.getElementById("dxAddLabel");
+      const dxAddMsg = document.getElementById("dxAddMsg");
+      const dxAddCancel = document.getElementById("dxAddCancel");
+      const dxAddSave = document.getElementById("dxAddSave");
+
       function setMsg(kind, txt) {
         if (!msgEl) return;
         msgEl.style.color = kind === "error" ? "#b00020" : kind === "ok" ? "#111" : "#666";
@@ -1418,6 +1636,174 @@
           }
         });
       }
+
+      // ---------- Diagnóstico: wiring ----------
+      async function runDxSearchNow() {
+        const term = String(dxSearch && dxSearch.value ? dxSearch.value : "").trim();
+        dx.q = term;
+
+        if (!dxResults) return;
+
+        if (!term || term.length < 2) {
+          dx.loading = false;
+          dx.err = "";
+          dx.results = [];
+          dxResults.innerHTML = renderDxResults();
+          return;
+        }
+
+        dx.loading = true;
+        dx.err = "";
+        dxResults.innerHTML = renderDxResults();
+
+        try {
+          const rows = await searchDiagnosesCatalog(term, 18);
+          dx.results = rows || [];
+          dx.loading = false;
+          dxResults.innerHTML = renderDxResults();
+        } catch (e) {
+          console.error("Dx search falhou:", e);
+          dx.loading = false;
+          dx.err = "Erro na pesquisa. Vê a consola.";
+          dx.results = [];
+          dxResults.innerHTML = renderDxResults();
+        }
+      }
+
+      function scheduleDxSearch() {
+        if (dx.timer) clearTimeout(dx.timer);
+        dx.timer = setTimeout(runDxSearchNow, 250);
+      }
+
+      // Input de pesquisa
+      if (dxSearch) {
+        dxSearch.addEventListener("input", scheduleDxSearch);
+        dxSearch.addEventListener("focus", scheduleDxSearch);
+      }
+
+      // Clique em resultado -> adicionar
+      if (dxResults) {
+        dxResults.addEventListener("click", (ev) => {
+          const t = ev.target;
+          const card = t && t.closest ? t.closest("[data-dx-pick='1']") : null;
+          if (!card) return;
+
+          const id = card.getAttribute("data-dx-id");
+          const row = (dx.results || []).find((r) => String(r.id) === String(id));
+          if (!row) return;
+
+          if (dxAlreadySelected(row)) return;
+
+          draft.dx_selected = (draft.dx_selected || []).concat([{
+            id: row.id,
+            system: row.system,
+            code: row.code,
+            label: row.label,
+          }]);
+
+          if (dxSelected) dxSelected.innerHTML = renderDxSelected();
+        });
+      }
+
+      // Remover selecionado
+      if (dxSelected) {
+        dxSelected.addEventListener("click", (ev) => {
+          const t = ev.target;
+          const rid = t && t.getAttribute ? t.getAttribute("data-dx-remove") : null;
+          if (!rid) return;
+
+          // remove por id quando existe, senão por key fallback
+          draft.dx_selected = (draft.dx_selected || []).filter((x) => {
+            const xid = x && x.id ? String(x.id) : "";
+            if (xid && xid === String(rid)) return false;
+            const k = dxKey(x);
+            return k !== String(rid);
+          });
+
+          dxSelected.innerHTML = renderDxSelected();
+        });
+      }
+
+      // Toggle “Novo diagnóstico”
+      if (dxToggleAdd) {
+        dxToggleAdd.addEventListener("click", () => {
+          if (!isDoctor()) return;
+          dx.addOpen = !dx.addOpen;
+          render();
+        });
+      }
+
+      // Add form wiring (apenas se existir)
+      function setDxAddMsg(kind, txt) {
+        if (!dxAddMsg) return;
+        dxAddMsg.style.color = kind === "error" ? "#b00020" : kind === "ok" ? "#111" : "#666";
+        dxAddMsg.textContent = txt || "";
+      }
+
+      if (dxAddCancel) {
+        dxAddCancel.addEventListener("click", () => {
+          dx.addOpen = false;
+          dx.addCode = "";
+          dx.addLabel = "";
+          render();
+        });
+      }
+
+      if (dxAddSave) {
+        dxAddSave.addEventListener("click", async () => {
+          if (!isDoctor()) return;
+
+          const system = dxAddSystem ? (dxAddSystem.value || "local") : "local";
+          const code = dxAddCode ? String(dxAddCode.value || "").trim() : "";
+          const label = dxAddLabel ? String(dxAddLabel.value || "").trim() : "";
+
+          if (!code) { setDxAddMsg("error", "Código é obrigatório."); return; }
+          if (!label) { setDxAddMsg("error", "Descrição é obrigatória."); return; }
+
+          dx.addWorking = true;
+          setDxAddMsg("info", "A gravar…");
+
+          try {
+            const row = await rpcAddDiagnosisCatalog({ system, code, label, is_active: true });
+
+            // adiciona automaticamente aos selecionados
+            if (row && !dxAlreadySelected(row)) {
+              draft.dx_selected = (draft.dx_selected || []).concat([{
+                id: row.id,
+                system: row.system,
+                code: row.code,
+                label: row.label,
+              }]);
+            }
+
+            // fecha form e refresca pesquisa
+            dx.addOpen = false;
+            dx.addCode = "";
+            dx.addLabel = "";
+            dx.addWorking = false;
+
+            // Atualiza UI (selected + resultados)
+            render();
+          } catch (e) {
+            console.error("add diagnosis falhou:", e);
+            dx.addWorking = false;
+
+            const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
+            if (msg.includes("duplicate")) setDxAddMsg("error", "Já existe um diagnóstico com este sistema+código.");
+            else if (msg.includes("not allowed")) setDxAddMsg("error", "Sem permissão.");
+            else setDxAddMsg("error", "Erro ao adicionar. Vê a consola.");
+          }
+        });
+      }
+
+      // Mantém inputs do add (quando aberto) em dx.*
+      if (dxAddSystem) dx.addSystem = dxAddSystem.value || "local";
+      if (dxAddCode) dx.addCode = dxAddCode.value || "";
+      if (dxAddLabel) dx.addLabel = dxAddLabel.value || "";
+
+      if (dxAddSystem) dxAddSystem.addEventListener("change", () => { dx.addSystem = dxAddSystem.value || "local"; });
+      if (dxAddCode) dxAddCode.addEventListener("input", () => { dx.addCode = dxAddCode.value || ""; });
+      if (dxAddLabel) dxAddLabel.addEventListener("input", () => { dx.addLabel = dxAddLabel.value || ""; });
 
       // Gravar (Identificação) — mantém updatePatient existente
       if (btnSave) {
