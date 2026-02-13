@@ -1837,11 +1837,9 @@
     const durInit = Math.max(5, Math.round((endInit.getTime() - startInit.getTime()) / 60000));
     const durationBest = DURATION_OPTIONS.includes(durInit) ? durInit : 20;
 
-    const procInit = isEdit ? row.procedure_type ?? "" : "";
+    const procInit = isEdit ? (row.procedure_type ?? "") : "";
 
     // ---- Status UI (apenas 1 "Faltou/Cancelada")
-    // BD aceita vários valores (scheduled/arrived/done/cancelled/no_show...),
-    // mas no UI só expomos 4 + mapeamos "cancelled" -> "no_show".
     const STATUS_UI = [
       { value: "scheduled", label: "Marcada" },
       { value: "arrived", label: "Chegou" },
@@ -1854,12 +1852,12 @@
       : STATUS_UI.some((s) => s.value === statusRaw) ? statusRaw
       : "scheduled";
 
-    const patientIdInit = isEdit ? row.patient_id ?? "" : "";
-    const titleInit = isEdit ? row.title ?? "" : "";
-    const notesInit = isEdit ? row.notes ?? "" : "";
+    const patientIdInit = isEdit ? (row.patient_id ?? "") : "";
+    const titleInit = isEdit ? (row.title ?? "") : "";
+    const notesInit = isEdit ? (row.notes ?? "") : "";
 
     const procIsOther = procInit && !PROCEDURE_OPTIONS.includes(procInit) ? true : procInit === "Outro";
-    const procSelectValue = procIsOther ? "Outro" : procInit || "";
+    const procSelectValue = procIsOther ? "Outro" : (procInit || "");
 
     root.innerHTML = `
       <div id="modalOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
@@ -1870,20 +1868,26 @@
                 ${isEdit ? "Editar consulta agendada" : "Agendar consulta"}
               </div>
               <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
-                Dia selecionado: ${escapeHtml(G.selectedDayISO)}. Doente é obrigatório.
+                Dia selecionado: ${escapeHtml(G.selectedDayISO)}. Doente e Tipo são obrigatórios.
               </div>
             </div>
             <button id="btnCloseModal" class="gcBtn">Fechar</button>
           </div>
 
-          <!-- Linha 0: Pesquisa do doente (1 célula) + Novo doente -->
+          <!-- Linha 0: Pesquisa do doente (1 campo) + Novo doente (igual ao dashboard: resultados só quando pesquisamos) -->
           <div style="margin-top:12px; display:flex; flex-direction:column; gap:6px;">
             <label style="font-size:${UI.fs12}px; color:#666;">Doente (obrigatório)</label>
 
             <div style="display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;">
-              <input id="mPatientQuery" type="text"
-                placeholder="Pesquisar por nome / SNS / NIF / telefone / Passaporte-ID (mín. 2 caracteres)…"
-                autocomplete="off" autocapitalize="off" spellcheck="false"
+              <input id="mPatientQuery"
+                type="search"
+                placeholder="ex.: Man… | 916… | 123456789"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+                inputmode="search"
+                data-form-type="other"
                 style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;" />
 
               <button id="btnNewPatient" class="gcBtn" style="white-space:nowrap;">
@@ -1891,16 +1895,8 @@
               </button>
             </div>
 
-            <div id="mPatientSelectedLine" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border:1px solid #eee; border-radius:10px; background:#fafafa;">
-              <div style="font-size:${UI.fs12}px; color:#111;">
-                <span style="color:#666;">Selecionado:</span>
-                <span id="mPatientSelectedName" style="font-weight:800;">—</span>
-              </div>
-              <button id="btnClearPatient" class="gcBtn" style="padding:6px 10px;">Limpar</button>
-            </div>
-
-            <div id="mPatientResults" style="border:1px solid #eee; border-radius:10px; padding:8px; max-height:220px; overflow:auto; background:#fff;">
-              <div style="font-size:${UI.fs12}px; color:#666;">Pesquisar para mostrar resultados.</div>
+            <div id="mPatientResults"
+                 style="display:none; margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:220px; overflow:auto;">
             </div>
 
             <input type="hidden" id="mPatientId" value="" />
@@ -1917,7 +1913,7 @@
             </div>
 
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Tipo</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">Tipo (obrigatório)</label>
               <select id="mProc" class="gcSelect">
                 <option value="">—</option>
                 ${PROCEDURE_OPTIONS.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("")}
@@ -1932,7 +1928,7 @@
             </div>
 
             <div id="mProcOtherWrap" style="display:none; flex-direction:column; gap:4px; grid-column: 1 / -1;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Outro (texto)</label>
+              <label style="font-size:${UI.fs12}px; color:#666;">Outro (texto) *</label>
               <input id="mProcOther" type="text" placeholder="ex.: Ondas de choque" autocomplete="off" autocapitalize="off" spellcheck="false"
                 style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
             </div>
@@ -1977,7 +1973,6 @@
     const btnCancel = document.getElementById("btnCancel");
     const btnSave = document.getElementById("btnSave");
     const btnNewPatient = document.getElementById("btnNewPatient");
-    const btnClearPatient = document.getElementById("btnClearPatient");
 
     const mClinic = document.getElementById("mClinic");
     const mStatus = document.getElementById("mStatus");
@@ -1993,7 +1988,6 @@
     const mPatientResults = document.getElementById("mPatientResults");
     const mPatientId = document.getElementById("mPatientId");
     const mPatientName = document.getElementById("mPatientName");
-    const mPatientSelectedName = document.getElementById("mPatientSelectedName");
 
     const clinicOpts = [];
     for (const c of G.clinics) {
@@ -2012,15 +2006,80 @@
     if (mProc) mProc.value = procSelectValue;
     if (mNotes) mNotes.value = notesInit;
 
-    function getProcedureValue() {
-      let proc = mProc && mProc.value ? mProc.value : "";
-      if (proc === "Outro") {
-        const other = mProcOther && mProcOther.value ? mProcOther.value.trim() : "";
-        proc = other ? other : "Outro";
-      }
-      return proc;
+    function setSelectedPatient({ id, name }) {
+      if (mPatientId) mPatientId.value = id || "";
+      if (mPatientName) mPatientName.value = name || "";
     }
 
+    function closeResults() {
+      if (!mPatientResults) return;
+      mPatientResults.style.display = "none";
+      mPatientResults.innerHTML = "";
+    }
+
+    function showResultsLoading() {
+      if (!mPatientResults) return;
+      mPatientResults.style.display = "block";
+      mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">A pesquisar…</div>`;
+    }
+
+    function showResultsEmpty() {
+      if (!mPatientResults) return;
+      mPatientResults.style.display = "block";
+      mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Sem resultados.</div>`;
+    }
+
+    function showResultsError() {
+      if (!mPatientResults) return;
+      mPatientResults.style.display = "block";
+      mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#b00020;">Erro na pesquisa. Vê a consola.</div>`;
+    }
+
+    function showResultsList(pts) {
+      if (!mPatientResults) return;
+
+      mPatientResults.style.display = "block";
+      mPatientResults.innerHTML = (pts || []).map((p) => {
+        const idBits = [];
+        if (p.sns) idBits.push(`SNS:${p.sns}`);
+        if (p.nif) idBits.push(`NIF:${p.nif}`);
+        if (p.passport_id) idBits.push(`ID:${p.passport_id}`);
+        const phone = p.phone ? `Tel:${p.phone}` : "";
+        const line2 = [idBits.join(" / "), phone].filter(Boolean).join(" • ");
+
+        return `
+          <div data-pid="${escapeHtml(p.id)}" data-pname="${escapeHtml(p.full_name)}"
+               style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:pointer;">
+            <div style="font-size:${UI.fs13}px; color:#111; font-weight:800; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">
+              ${escapeHtml(p.full_name)}
+            </div>
+            <div style="font-size:${UI.fs12}px; color:#666;">${escapeHtml(line2 || "—")}</div>
+          </div>
+        `;
+      }).join("");
+
+      mPatientResults.querySelectorAll("[data-pid]").forEach((el) => {
+        el.addEventListener("click", () => {
+          const pid = el.getAttribute("data-pid") || "";
+          const pname = el.getAttribute("data-pname") || "";
+          setSelectedPatient({ id: pid, name: pname });
+
+          if (mPatientQuery) mPatientQuery.value = pname; // igual ao dashboard: fica preenchido com o nome
+          closeResults();
+        });
+      });
+    }
+
+    // Pré-preencher seleção em edição
+    if (patientIdInit) {
+      const displayName = titleInit ? String(titleInit).split(" — ")[0] : "";
+      setSelectedPatient({ id: patientIdInit, name: displayName || `ID: ${patientIdInit}` });
+      if (mPatientQuery) mPatientQuery.value = displayName || ""; // em edição, mostra o nome se existir
+    } else {
+      setSelectedPatient({ id: "", name: "" });
+    }
+
+    // Proc (obrigatório)
     function updateProcOtherVisibility() {
       const v = mProc ? mProc.value : "";
       const show = v === "Outro";
@@ -2034,89 +2093,61 @@
       if (mProcOtherWrap) mProcOtherWrap.style.display = "flex";
     }
 
-    function setSelectedPatient({ id, name }) {
-      if (mPatientId) mPatientId.value = id || "";
-      if (mPatientName) mPatientName.value = name || "";
-      if (mPatientSelectedName) mPatientSelectedName.textContent = name ? name : "—";
+    function getProcedureValueStrict() {
+      const sel = mProc && mProc.value ? mProc.value : "";
+      if (!sel) return ""; // obrigatório
+      if (sel !== "Outro") return sel;
+
+      const other = mProcOther && mProcOther.value ? mProcOther.value.trim() : "";
+      if (!other) return ""; // Outro exige texto
+      return other;
     }
 
-    // Pré-preencher seleção em edição
-    if (patientIdInit) {
-      // Se houver title, tentamos usar o que existir como nome (pode não ser só nome).
-      const displayName = titleInit ? String(titleInit).split(" — ")[0] : "";
-      setSelectedPatient({ id: patientIdInit, name: displayName || `ID: ${patientIdInit}` });
-    } else {
-      setSelectedPatient({ id: "", name: "" });
-    }
-
-    function clearSelectedPatient() {
-      setSelectedPatient({ id: "", name: "" });
-      if (mPatientQuery) mPatientQuery.value = "";
-      if (mPatientResults) {
-        mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Pesquisar para mostrar resultados.</div>`;
-      }
-    }
-
+    // Pesquisa (igual ao dashboard: só aparece quando term>=2; fecha ao selecionar; fecha quando limpar)
     let searchTimer = null;
 
     async function runSearch() {
-      const clinicId = mClinic ? mClinic.value : "";
-      const term = mPatientQuery ? mPatientQuery.value : "";
+      const clinicId = mClinic ? (mClinic.value || "") : "";
+      const term = (mPatientQuery ? (mPatientQuery.value || "").trim() : "");
+
+      // Regras iguais ao dashboard
+      if (!term || term.length < 2) {
+        closeResults();
+        return;
+      }
 
       if (!clinicId) {
-        mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Seleciona a clínica para pesquisar doentes.</div>`;
-        return;
-      }
-      if (!term || term.trim().length < 2) {
-        mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Escreve pelo menos 2 caracteres.</div>`;
+        // no modal a clínica é obrigatória para scope; se não houver, não mostra resultados
+        closeResults();
         return;
       }
 
-      mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">A pesquisar…</div>`;
+      showResultsLoading();
+
       try {
-        const pts = await searchPatientsScoped({ clinicId, q: term, limit: 20 });
-        if (pts.length === 0) {
-          mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Sem resultados.</div>`;
+        const pts = await searchPatientsScoped({ clinicId, q: term, limit: 30 });
+        if (!pts || pts.length === 0) {
+          showResultsEmpty();
           return;
         }
-
-        mPatientResults.innerHTML = pts
-          .map((p) => {
-            const idBits = [];
-            if (p.sns) idBits.push(`SNS:${p.sns}`);
-            if (p.nif) idBits.push(`NIF:${p.nif}`);
-            if (p.passport_id) idBits.push(`ID:${p.passport_id}`);
-            const phone = p.phone ? `Tel:${p.phone}` : "";
-            const idLine = [idBits.join(" / "), phone].filter(Boolean).join(" • ");
-
-            return `
-              <div data-pid="${escapeHtml(p.id)}" data-pname="${escapeHtml(p.full_name)}"
-                   style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:pointer;">
-                <div style="font-size:${UI.fs13}px; color:#111; font-weight:800; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">
-                  ${escapeHtml(p.full_name)}
-                </div>
-                <div style="font-size:${UI.fs12}px; color:#666;">${escapeHtml(idLine || "—")}</div>
-              </div>
-            `;
-          })
-          .join("");
-
-        mPatientResults.querySelectorAll("[data-pid]").forEach((el) => {
-          el.addEventListener("click", () => {
-            const pid = el.getAttribute("data-pid");
-            const pname = el.getAttribute("data-pname");
-            setSelectedPatient({ id: pid || "", name: pname || "" });
-          });
-        });
+        showResultsList(pts);
       } catch (e) {
-        console.error("Pesquisa doente falhou:", e);
-        mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#b00020;">Erro na pesquisa. Vê a consola.</div>`;
+        console.error("Pesquisa doente (modal) falhou:", e);
+        showResultsError();
       }
     }
 
     function scheduleSearch() {
       if (searchTimer) clearTimeout(searchTimer);
       searchTimer = setTimeout(runSearch, 250);
+    }
+
+    // Fechar resultados ao clicar fora (opcional mas útil)
+    function onDocClick(ev) {
+      const t = ev.target;
+      const inInput = mPatientQuery && (t === mPatientQuery || (t.closest && t.closest("#mPatientQuery")));
+      const inResults = mPatientResults && (t === mPatientResults || (t.closest && t.closest("#mPatientResults")));
+      if (!inInput && !inResults) closeResults();
     }
 
     function openNewPatientForm() {
@@ -2339,7 +2370,10 @@
             return;
           }
 
+          // Seleciona imediatamente e fecha o sub-form
           setSelectedPatient({ id: newPatientId, name: v.full_name });
+          if (mPatientQuery) mPatientQuery.value = v.full_name;
+          closeResults();
           host.innerHTML = "";
         } catch (e) {
           console.error("Criar doente falhou:", e);
@@ -2364,22 +2398,34 @@
     }
 
     async function onSave() {
+      // Clínica obrigatória
       if (!mClinic || !mClinic.value) {
         mMsg.style.color = "#b00020";
         mMsg.textContent = "Seleciona a clínica.";
         return;
       }
+
+      // Início obrigatório
       if (!mStart || !mStart.value) {
         mMsg.style.color = "#b00020";
         mMsg.textContent = "Define o início.";
         return;
       }
 
-      const pid = mPatientId ? mPatientId.value || "" : "";
-      const pname = mPatientName ? mPatientName.value || "" : "";
+      // Doente obrigatório (seleção real via hidden)
+      const pid = mPatientId ? (mPatientId.value || "") : "";
+      const pname = mPatientName ? (mPatientName.value || "") : "";
       if (!pid) {
         mMsg.style.color = "#b00020";
         mMsg.textContent = "Seleciona um doente.";
+        return;
+      }
+
+      // ✅ Tipo obrigatório (e “Outro” exige texto)
+      const proc = getProcedureValueStrict();
+      if (!proc) {
+        mMsg.style.color = "#b00020";
+        mMsg.textContent = "Seleciona o Tipo de consulta (e se for 'Outro', preenche o texto).";
         return;
       }
 
@@ -2391,10 +2437,9 @@
         return;
       }
 
-      const proc = getProcedureValue();
       const autoTitle = makeAutoTitle(pname, proc);
 
-      // Garantia: no UI só existe 1 opção "Faltou/Cancelada" e guardamos SEMPRE "no_show".
+      // UI só tem no_show (mapeamento já feito)
       const statusToSave = (mStatus && mStatus.value) ? mStatus.value : "scheduled";
 
       const payload = {
@@ -2403,7 +2448,7 @@
         start_at: times.startAt,
         end_at: times.endAt,
         status: statusToSave,
-        procedure_type: proc ? proc : null,
+        procedure_type: proc,
         title: autoTitle,
         notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
       };
@@ -2438,22 +2483,38 @@
 
     if (mProc) mProc.addEventListener("change", updateProcOtherVisibility);
 
+    // Se mudar clínica: limpa seleção e fecha resultados + sub-form
     if (mClinic) {
       mClinic.addEventListener("change", () => {
-        const resEl = document.getElementById("mPatientResults");
+        setSelectedPatient({ id: "", name: "" });
+        if (mPatientQuery) mPatientQuery.value = "";
+        closeResults();
         const host = document.getElementById("newPatientHost");
-
-        // ao mudar clínica, limpamos seleção e sub-form
-        clearSelectedPatient();
-        if (resEl) resEl.innerHTML = `<div style="font-size:${UI.fs12}px; color:#666;">Pesquisar para mostrar resultados.</div>`;
         if (host) host.innerHTML = "";
       });
     }
 
-    if (mPatientQuery) mPatientQuery.addEventListener("input", scheduleSearch);
+    if (mPatientQuery) {
+      mPatientQuery.addEventListener("input", () => {
+        // ao escrever, invalida seleção anterior (para não gravar com doente antigo)
+        setSelectedPatient({ id: "", name: "" });
+        scheduleSearch();
+      });
+      mPatientQuery.addEventListener("focus", scheduleSearch);
+    }
+
     if (btnNewPatient) btnNewPatient.addEventListener("click", openNewPatientForm);
-    if (btnClearPatient) btnClearPatient.addEventListener("click", clearSelectedPatient);
     if (btnSave) btnSave.addEventListener("click", onSave);
+
+    // clique fora fecha resultados
+    document.addEventListener("mousedown", onDocClick, { passive: true });
+
+    // cleanup quando fecha modal
+    const _oldClose = closeModal;
+    closeModal = function () {
+      document.removeEventListener("mousedown", onDocClick, { passive: true });
+      _oldClose();
+    };
   }
 
 /* ==== FIM BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
