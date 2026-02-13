@@ -316,21 +316,22 @@
     "Outro",
   ];
 
-  // ⚠️ ESSENCIAL: esta constante tem de existir porque é usada no openApptModal + agenda
-  const STATUS_OPTIONS = ["scheduled", "confirmed", "arrived", "done", "cancelled", "no_show"];
+  // ⚠️ ESSENCIAL: usado no openApptModal + na agenda (não pode faltar)
+  // Mantém compatibilidade com o que já existe na BD (não mexe em enums/RLS).
+  const STATUS_OPTIONS = ["scheduled", "arrived", "done", "no_show", "confirmed", "cancelled"];
 
   const DURATION_OPTIONS = [15, 20, 30, 45, 60];
 
-  // ✅ Estado com cores (mantido como está, para não mexer no que está estável)
+  // ✅ Estado com cores (mantido)
   function statusMeta(statusRaw) {
     const s = String(statusRaw || "scheduled").toLowerCase();
     const map = {
       scheduled: { icon: "👤", label: "Marcada", bg: "#eff6ff", fg: "#1d4ed8", br: "#bfdbfe" },
-      confirmed: { icon: "🎁", label: "Dispensa de honorários", bg: "#dbeafe", fg: "#1e40af", br: "#93c5fd" },
-      arrived: { icon: "⏳", label: "Chegou (AVISAR)", bg: "#fffbeb", fg: "#92400e", br: "#fde68a" },
-      done: { icon: "✅", label: "Realizada", bg: "#ecfdf5", fg: "#065f46", br: "#a7f3d0" },
+      arrived:   { icon: "⏳", label: "Chegou", bg: "#fffbeb", fg: "#92400e", br: "#fde68a" },
+      done:      { icon: "✅", label: "Realizada", bg: "#ecfdf5", fg: "#065f46", br: "#a7f3d0" },
+      no_show:   { icon: "❌", label: "Faltou", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
       cancelled: { icon: "❌", label: "Cancelada", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
-      no_show: { icon: "⚠️", label: "Faltou", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
+      confirmed: { icon: "🎁", label: "Dispensa de honorários", bg: "#dbeafe", fg: "#1e40af", br: "#93c5fd" },
     };
     return map[s] || map.scheduled;
   }
@@ -355,7 +356,6 @@
         .gcBtn { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px; }
         .gcBtn:disabled { opacity:0.6; cursor:not-allowed; }
 
-        /* Nova marcação */
         .gcBtnPrimary { padding:11px 14px; border-radius:12px; border:1px solid #334155; background:#334155; color:#fff; cursor:pointer; font-size:${UI.fs13}px; font-weight:900; }
         .gcBtnPrimary:disabled { opacity:0.6; cursor:not-allowed; }
 
