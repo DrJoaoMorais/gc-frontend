@@ -925,6 +925,45 @@
       note_admin: "",
     };
 
+    // ✅ Gestão de clínica do doente (patient_clinic)
+    let activeClinicId = null;
+    let activeClinicLoading = false;
+    let transferWorking = false;
+
+    function clinicLabelById(cid) {
+      if (!cid) return "—";
+      const c = G.clinicsById && G.clinicsById[cid] ? G.clinicsById[cid] : null;
+      return c ? (c.name || c.display_name || c.slug || cid) : cid;
+    }
+
+    async function fetchActiveClinicForPatient(patientId) {
+      if (!patientId) return null;
+      const { data, error } = await window.sb
+        .from("patient_clinic")
+        .select("clinic_id, is_active")
+        .eq("patient_id", patientId)
+        .eq("is_active", true)
+        .limit(1);
+
+      if (error) throw error;
+      if (!data || data.length === 0) return null;
+      return data[0].clinic_id || null;
+    }
+
+    async function refreshActiveClinic() {
+      if (!p || !p.id) return;
+      activeClinicLoading = true;
+      try {
+        const cid = await fetchActiveClinicForPatient(p.id);
+        activeClinicId = cid;
+      } catch (e) {
+        console.error("refreshActiveClinic falhou:", e);
+        activeClinicId = null;
+      } finally {
+        activeClinicLoading = false;
+      }
+    }
+
     function tabBtnStyle(isOn) {
       return `
         padding:10px 12px;
@@ -1032,6 +1071,11 @@
       if (ndEl) draft.note_doctor = ndEl.value;
       if (npEl) draft.note_physio = npEl.value;
       if (naEl) draft.note_admin = naEl.value;
+
+      const canManageClinics = String(G.role || "").toLowerCase() === "doctor";
+      const activeClinicLabel = activeClinicLoading
+        ? "A carregar…"
+        : clinicLabelById(activeClinicId);
 
       root.innerHTML = `
         <div id="pViewOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
@@ -1176,6 +1220,49 @@
                   </div>
                 </div>
 
+                <!-- ✅ Clínica atual + Transferência (apenas doctor) -->
+                <div style="grid-column: 1 / -1; padding:10px; border:1px dashed #cbd5e1; border-radius:12px; background:#fff;">
+                  <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;">
+                    <div>
+                      <div style="font-size:${UI.fs12}px; color:#64748b; font-weight:900;">Clínica do doente</div>
+                      <div style="margin-top:6px; font-size:${UI.fs13}px; color:#111; font-weight:900;">
+                        Atual: <span id="pcActiveClinicLabel">${escapeHtml(activeClinicLabel)}</span>
+                      </div>
+                      <div style="margin-top:4px; font-size:${UI.fs12}px; color:#64748b;">
+                        (Registo em <code>patient_clinic</code> com <code>is_active=true</code>)
+                      </div>
+                    </div>
+
+                    ${
+                      canManageClinics
+                        ? `
+                          <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+                            <div style="display:flex; flex-direction:column; gap:4px; min-width: 260px;">
+                              <label style="font-size:${UI.fs12}px; color:#666;">Transferir para</label>
+                              <select id="pcToClinic" class="gcSelect" style="min-width:260px;">
+                                ${G.clinics.map((c) => {
+                                  const label = c.name || c.display_name || c.slug || c.id;
+                                  const sel = (c.id === activeClinicId) ? " selected" : "";
+                                  return `<option value="${escapeHtml(c.id)}"${sel}>${escapeHtml(label)}</option>`;
+                                }).join("")}
+                              </select>
+                            </div>
+                            <button id="btnTransferClinic" class="gcBtn" style="font-weight:900;" ${transferWorking ? "disabled" : ""}>
+                              ${transferWorking ? "A transferir…" : "Transferir"}
+                            </button>
+                          </div>
+                        `
+                        : `
+                          <div style="font-size:${UI.fs12}px; color:#64748b; max-width: 420px;">
+                            Transferência de clínica: disponível apenas para o médico.
+                          </div>
+                        `
+                    }
+                  </div>
+
+                  <div id="pcMsg" style="margin-top:8px; font-size:${UI.fs12}px; color:#64748b;"></div>
+                </div>
+
               </div>
 
               <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
@@ -1213,10 +1300,20 @@
       const btnShortcutExams = document.getElementById("btnShortcutExams");
       const btnShortcutOther = document.getElementById("btnShortcutOther");
 
+      const pcMsg = document.getElementById("pcMsg");
+      const btnTransferClinic = document.getElementById("btnTransferClinic");
+      const pcToClinic = document.getElementById("pcToClinic");
+
       function setMsg(kind, txt) {
         if (!msgEl) return;
         msgEl.style.color = kind === "error" ? "#b00020" : kind === "ok" ? "#111" : "#666";
         msgEl.textContent = txt || "";
+      }
+
+      function setPcMsg(kind, txt) {
+        if (!pcMsg) return;
+        pcMsg.style.color = kind === "error" ? "#b00020" : kind === "ok" ? "#111" : "#64748b";
+        pcMsg.textContent = txt || "";
       }
 
       function close() {
@@ -1242,6 +1339,46 @@
           if (working) return;
           editMode = !editMode;
           render();
+        });
+      }
+
+      // ✅ Transferir clínica (apenas doctor)
+      if (btnTransferClinic && pcToClinic) {
+        btnTransferClinic.addEventListener("click", async () => {
+          if (transferWorking) return;
+
+          const toClinicId = pcToClinic.value || null;
+          if (!toClinicId) {
+            setPcMsg("error", "Seleciona a clínica de destino.");
+            return;
+          }
+          if (activeClinicId && toClinicId === activeClinicId) {
+            setPcMsg("error", "O doente já está nesta clínica.");
+            return;
+          }
+
+          transferWorking = true;
+          setPcMsg("info", "A transferir…");
+          render();
+
+          try {
+            const { error } = await window.sb.rpc("transfer_patient_to_clinic", {
+              p_patient_id: p.id,
+              p_to_clinic_id: toClinicId,
+            });
+            if (error) throw error;
+
+            await refreshActiveClinic();
+            setPcMsg("ok", `Transferido para: ${clinicLabelById(activeClinicId)}`);
+            render();
+          } catch (e) {
+            console.error("Transferência de clínica falhou:", e);
+            const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
+            setPcMsg("error", msg.includes("Sem permissão") ? "Sem permissão para transferir para esta clínica." : "Erro na transferência. Vê a consola.");
+            render();
+          } finally {
+            transferWorking = false;
+          }
         });
       }
 
@@ -1298,7 +1435,6 @@
                 passport_id: p.passport_id,
               });
 
-              // se existir UI auxiliar, mantém compatível
               if (G.patientQuick && G.patientQuick.selected && G.patientQuick.selected.id === p.id) {
                 G.patientQuick.selected = Object.assign({}, G.patientQuick.selected, p);
                 renderQuickPatientSelected();
@@ -1329,7 +1465,13 @@
       }
     }
 
+    // 1) render inicial
     render();
+
+    // 2) carregar clínica ativa e re-render
+    refreshActiveClinic().then(() => {
+      try { render(); } catch {}
+    });
   }
 
 /* ==== FIM BLOCO 06/12 — Modal Doente (ver + editar) ==== */
