@@ -305,23 +305,222 @@
 /* ==== FIM BLOCO 02/12 — Agenda (helpers + load) + Patients (scope/search/RPC) ==== */
 /* ==== INÍCIO BLOCO 03/12 — Constantes (procedimentos/status) + estado global + render shell (HTML+CSS) ==== */
 
-  // ✅ Estado com cores (mantido – 5 estados visuais)
+  // ---------- Tipos / Status / Duração ----------
+  const PROCEDURE_OPTIONS = [
+    "Primeira Consulta",
+    "Consulta de Reavaliação",
+    "Plasma Rico em Plaquetas",
+    "Viscossuplementação",
+    "Relatórios",
+    "Revalidação de tratamentos",
+    "Outro",
+  ];
+
+  // ⚠️ ESSENCIAL: usado no openApptModal + na agenda (não pode faltar)
+  // Mantém compatibilidade com o que já existe na BD (não mexe em enums/RLS).
+  // Nota: a UI só mostra 5 estados (no_show e cancelled aparecem como “Faltou/Cancelada”).
+  const STATUS_OPTIONS = ["scheduled", "arrived", "done", "no_show", "confirmed", "cancelled"];
+
+  const DURATION_OPTIONS = [15, 20, 30, 45, 60];
+
+  // ✅ Estado com cores (5 estados na UI)
   function statusMeta(statusRaw) {
     const s = String(statusRaw || "scheduled").toLowerCase();
+
+    const faltouCancelou = { icon: "❌", label: "Faltou/Cancelada", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" };
 
     const map = {
       scheduled: { icon: "👤", label: "Marcada", bg: "#eff6ff", fg: "#1d4ed8", br: "#bfdbfe" },
       arrived:   { icon: "⏳", label: "Chegou", bg: "#fffbeb", fg: "#92400e", br: "#fde68a" },
       done:      { icon: "✅", label: "Realizada", bg: "#ecfdf5", fg: "#065f46", br: "#a7f3d0" },
 
-      // 🔵 Faltou/Cancelada = mesma apresentação visual
-      no_show:   { icon: "❌", label: "Faltou/Cancelada", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
-      cancelled: { icon: "❌", label: "Faltou/Cancelada", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
+      // ✅ 1 só estado visual para os dois
+      no_show:   faltouCancelou,
+      cancelled: faltouCancelou,
 
       confirmed: { icon: "🎁", label: "Dispensa de honorários", bg: "#dbeafe", fg: "#1e40af", br: "#93c5fd" },
     };
 
     return map[s] || map.scheduled;
+  }
+
+  // ---------- Estado global ----------
+  let G = {
+    sessionUser: null,
+    role: null,
+    clinics: [],
+    clinicsById: {},
+    agenda: { rows: [], timeColUsed: "start_at" },
+    selectedDayISO: fmtDateISO(new Date()),
+    calMonth: null,
+    patientsById: {},
+    patientQuick: { lastResults: [], selected: null },
+  };
+
+  // ---------- Render shell ----------
+  function renderAppShell() {
+    document.body.innerHTML = `
+      <style>
+        .gcBtn { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px; }
+        .gcBtn:disabled { opacity:0.6; cursor:not-allowed; }
+
+        .gcBtnPrimary { padding:11px 14px; border-radius:12px; border:1px solid #334155; background:#334155; color:#fff; cursor:pointer; font-size:${UI.fs13}px; font-weight:900; }
+        .gcBtnPrimary:disabled { opacity:0.6; cursor:not-allowed; }
+
+        .gcSelect { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; font-size:${UI.fs13}px; }
+        .gcLabel { font-size:${UI.fs12}px; color:#666; }
+        .gcCard { padding:12px 14px; border:1px solid #eee; border-radius:12px; background:#fff; }
+        .gcMutedCard { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fafafa; }
+
+        .gcGridRow {
+          display:grid;
+          grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 170px 160px;
+          gap:14px;
+          align-items:start;
+          width:100%;
+        }
+        @media (max-width: 1100px){
+          .gcGridRow { grid-template-columns: 110px 1fr; }
+          .gcGridRow > div { min-width: 0 !important; }
+        }
+
+        .gcPatientLink{
+          display:block;
+          font-size:${UI.fs18}px;
+          line-height:1.15;
+          color:#111;
+          font-weight:950;
+          cursor:pointer;
+          text-decoration:underline;
+          white-space:normal;
+          overflow-wrap:anywhere;
+          word-break:break-word;
+        }
+
+        .gcCellTitle { font-size:${UI.fs12}px; color:#666; }
+        .gcCellValue { font-size:${UI.fs13}px; color:#111; font-weight:700; margin-top:6px; }
+
+        .gcStatusSelect{
+          appearance:none;
+          -webkit-appearance:none;
+          -moz-appearance:none;
+          border-radius:999px;
+          border:1px solid transparent;
+          padding:8px 36px 8px 12px;
+          font-size:${UI.fs13}px;
+          font-weight:900;
+          cursor:pointer;
+          background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+          background-position: calc(100% - 18px) 55%, calc(100% - 12px) 55%;
+          background-size: 6px 6px, 6px 6px;
+          background-repeat:no-repeat;
+        }
+
+        .gcToolbar {
+          display:flex;
+          align-items:flex-end;
+          gap:10px;
+          flex-wrap:wrap;
+        }
+        .gcToolbarBlock {
+          display:flex;
+          flex-direction:column;
+          gap:4px;
+        }
+        .gcSearchWrap {
+          min-width: 360px;
+          max-width: 520px;
+          flex: 1 1 420px;
+        }
+        @media (max-width: 980px){
+          .gcSearchWrap { flex: 1 1 100%; min-width: 280px; }
+        }
+
+        .gcGridRow > div{
+          display:flex;
+          flex-direction:column;
+          justify-content:flex-start;
+        }
+        .gcCellTitle{
+          min-height: 16px;
+          display:flex;
+          align-items:flex-end;
+        }
+        .gcGridRow .gcStatusSelect{
+          margin-top: 6px;
+          align-self:flex-start;
+        }
+      </style>
+
+      <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; font-size:${UI.fs14}px;">
+        <header style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:12px 14px; border:1px solid #e5e5e5; border-radius:12px;">
+          <div style="display:flex; flex-direction:column; gap:6px; min-width: 260px;">
+            <div style="font-size:${UI.fs14}px; color:#111; font-weight:700;">Sessão ativa</div>
+            <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Email:</span> <span id="hdrEmail">—</span></div>
+            <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Role:</span> <span id="hdrRole">—</span></div>
+            <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Clínicas:</span> <span id="hdrClinicCount">0</span></div>
+          </div>
+
+          <button id="btnLogout" class="gcBtn">Logout</button>
+        </header>
+
+        <main style="margin-top:14px;">
+          <section class="gcCard">
+            <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+              <div>
+                <div style="font-size:${UI.fs16}px; color:#111; font-weight:800;">Agenda</div>
+                <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;" id="agendaSubtitle">—</div>
+              </div>
+            </div>
+
+            <div style="margin-top:12px;" class="gcToolbar">
+              <div class="gcToolbarBlock" style="flex-direction:row; gap:10px; align-items:flex-end;">
+                <button id="btnCal" class="gcBtn" title="Calendário">Calendário</button>
+                <button id="btnToday" class="gcBtn" title="Voltar a hoje">Hoje</button>
+
+                <!-- ✅ mantém id="btnNewAppt" (não mexe em wiring/caminhos) -->
+                <button id="btnNewAppt" class="gcBtnPrimary">＋ Agendar Consulta 📅</button>
+
+                <button id="btnNewPatientMain" class="gcBtn" title="Criar novo doente">＋ Novo doente</button>
+              </div>
+
+              <div class="gcToolbarBlock gcSearchWrap">
+                <div class="gcLabel">Pesquisa de doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
+                <input
+                  id="pQuickQuery"
+                  name="gc_patient_search"
+                  type="search"
+                  placeholder="ex.: Man… | 916… | 123456789"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  inputmode="search"
+                  data-form-type="other"
+                  style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;"
+                />
+                <div id="pQuickResults" style="margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:180px; overflow:auto;">
+                  <div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>
+                </div>
+              </div>
+
+              <div class="gcToolbarBlock" style="min-width:240px;">
+                <label for="selClinic" class="gcLabel">Clínica</label>
+                <select id="selClinic" class="gcSelect" style="min-width:240px;"></select>
+              </div>
+            </div>
+
+            <div style="margin-top:12px;" id="agendaStatus" aria-live="polite"></div>
+
+            <div style="margin-top:10px; border-top:1px solid #f0f0f0; padding-top:10px;">
+              <ul id="agendaList" style="list-style:none; padding:0; margin:0;"></ul>
+            </div>
+          </section>
+        </main>
+
+        <div id="modalRoot"></div>
+      </div>
+    `;
   }
 
 /* ==== FIM BLOCO 03/12 — Constantes (procedimentos/status) + estado global + render shell (HTML+CSS) ==== */
