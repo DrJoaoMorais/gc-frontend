@@ -668,7 +668,7 @@
                         class="gcStatusSelect"
                         style="background:${escapeHtml(meta.bg)}; color:${escapeHtml(meta.fg)}; border-color:${escapeHtml(meta.br)};"
                         title="Clique para alterar estado">
-                  ${STATUS_OPTIONS_UI.map((s) => {
+                  ${STATUS_OPTIONS.map((s) => {
                     const val = (s === "cancelled") ? "no_show" : s;
                     const sel = (val === String(status).toLowerCase()) ? " selected" : "";
                     return `<option value="${escapeHtml(val)}"${sel}>${escapeHtml(optLabel(val))}</option>`;
