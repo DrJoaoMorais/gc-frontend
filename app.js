@@ -898,162 +898,199 @@
   }
 
 /* ==== FIM BLOCO 05/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
-/* ==== INÍCIO BLOCO 06/12 — Modal Doente (FEED definitivo) ==== */
+/* ==== INÍCIO BLOCO 06/12 — Modal Doente (FASE 1) ==== */
 
 function openPatientViewModal(patient) {
+
   const root = document.getElementById("modalRoot");
   if (!root || !patient) return;
 
   const p = patient;
-
   let activeClinicId = null;
-  let activeClinicLoading = false;
 
   function role() {
     return String(G.role || "").toLowerCase();
   }
 
-  function isDoctor() { return role() === "doctor"; }
-  function isPhysio() { return role() === "physio"; }
-  function isSecretary() { return role() === "secretary"; }
-
-  function clinicLabelById(cid) {
-    if (!cid) return "—";
-    const c = G.clinicsById && G.clinicsById[cid] ? G.clinicsById[cid] : null;
-    return c ? (c.name || c.display_name || c.slug || cid) : cid;
+  function isDoctor() {
+    return role() === "doctor";
   }
 
-  async function fetchActiveClinicForPatient(patientId) {
-    const { data, error } = await window.sb
+  async function fetchActiveClinic() {
+    const { data } = await window.sb
       .from("patient_clinic")
       .select("clinic_id")
-      .eq("patient_id", patientId)
+      .eq("patient_id", p.id)
       .eq("is_active", true)
       .limit(1);
 
-    if (error) throw error;
-    return data && data.length ? data[0].clinic_id : null;
+    activeClinicId = data && data.length ? data[0].clinic_id : null;
   }
 
-  async function refreshActiveClinic() {
-    activeClinicLoading = true;
-    try {
-      activeClinicId = await fetchActiveClinicForPatient(p.id);
-    } catch (e) {
-      console.error(e);
-      activeClinicId = null;
-    } finally {
-      activeClinicLoading = false;
-    }
-  }
-
-  /* =============================
-     FEED – AÇÕES POR ROLE
-  ============================== */
-
-  function renderTopActions() {
-    return `
-      <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-        ${isDoctor() ? `<button id="btnNewConsult" class="gcBtn" style="font-weight:900;">Consulta Médica</button>` : ``}
-        ${isPhysio() ? `<button id="btnNewPhysio" class="gcBtn" style="font-weight:900;">Registo FT</button>` : ``}
-        <button id="btnNewNote" class="gcBtn" style="font-weight:900;">Nota</button>
-      </div>
-    `;
-  }
-
-  /* =============================
-     TIMELINE (estrutura limpa)
-  ============================== */
-
-  function renderTimeline() {
-    return `
-      <div style="margin-top:16px; padding:14px; border:1px solid #e5e5e5; border-radius:12px;">
-        <div style="font-size:${UI.fs12}px; font-weight:900; color:#666;">
-          Timeline (cronológica)
-        </div>
-
-        <div style="margin-top:14px; font-size:${UI.fs13}px; color:#64748b;">
-          Sem registos clínicos.
-        </div>
-      </div>
-    `;
-  }
-
-  /* =============================
-     RENDER PRINCIPAL
-  ============================== */
-
-  function render() {
-
-    const idBits = [];
-    if (p.sns) idBits.push(`SNS: ${p.sns}`);
-    if (p.nif) idBits.push(`NIF: ${p.nif}`);
-    if (p.passport_id) idBits.push(`ID: ${p.passport_id}`);
-
-    const subtitle = idBits.join(" • ") || "—";
-    const primaryId = p.sns ? `SNS ${p.sns}` :
-                      p.nif ? `NIF ${p.nif}` :
-                      p.passport_id ? `ID ${p.passport_id}` : "—";
+  function renderFeed() {
 
     root.innerHTML = `
       <div id="pViewOverlay"
            style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
                   display:flex; align-items:center; justify-content:center; padding:18px;">
 
-        <div style="background:#fff; width:min(1100px, 100%);
+        <div style="background:#fff; width:min(900px, 100%);
                     border-radius:14px; border:1px solid #e5e5e5;
                     padding:16px; max-height:88vh; overflow:auto;">
 
-          <!-- Header -->
-          <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-            <div>
-              <div style="font-size:${UI.fs14}px; font-weight:900;">
-                Feed do Doente
-              </div>
-              <div style="font-size:${UI.fs12}px; color:#666;">
-                ${escapeHtml(subtitle)}
-              </div>
-            </div>
+          <div style="display:flex; justify-content:space-between;">
+            <div style="font-weight:900;">Feed do Doente</div>
             <button id="btnClosePView" class="gcBtn">Fechar</button>
           </div>
 
-          <!-- Identificação -->
-          <div style="margin-top:14px; padding:12px;
-                      border:1px solid #eee; border-radius:12px; background:#fafafa;">
-            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
-              <div style="font-weight:950; font-size:${UI.fs14}px;">
-                ${escapeHtml(p.full_name || "—")}
-              </div>
-              <div style="font-weight:800;">${escapeHtml(primaryId)}</div>
-              ${p.phone ? `<div style="font-weight:800;">Tel: ${escapeHtml(p.phone)}</div>` : ``}
-            </div>
+          <div style="margin-top:12px; font-weight:900;">
+            ${p.full_name || "—"}
           </div>
 
-          ${renderTopActions()}
-          ${renderTimeline()}
+          <div style="margin-top:12px;">
+            ${isDoctor() ? `<button id="btnNewConsult" class="gcBtn" style="font-weight:900;">Consulta Médica</button>` : ``}
+          </div>
+
+          <div style="margin-top:20px; color:#64748b;">
+            Sem registos clínicos.
+          </div>
 
         </div>
       </div>
     `;
 
-    const overlay = document.getElementById("pViewOverlay");
-    const btnClose = document.getElementById("btnClosePView");
+    document.getElementById("btnClosePView")
+      .addEventListener("click", closeModalRoot);
 
-    if (btnClose) btnClose.addEventListener("click", closeModalRoot);
-    if (overlay) overlay.addEventListener("click", (ev) => {
-      if (ev.target.id === "pViewOverlay") closeModalRoot();
-    });
+    if (isDoctor()) {
+      document.getElementById("btnNewConsult")
+        .addEventListener("click", openConsultForm);
+    }
   }
 
-  render();
+  function openConsultForm() {
 
-  refreshActiveClinic().then(() => {
-    try { render(); } catch {}
-  });
+    const today = new Date().toISOString().slice(0, 10);
 
+    root.innerHTML = `
+      <div style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
+                  display:flex; align-items:center; justify-content:center; padding:18px;">
+
+        <div style="background:#fff; width:min(700px,100%);
+                    border-radius:14px; border:1px solid #e5e5e5;
+                    padding:16px;">
+
+          <div style="font-weight:900;">Nova Consulta Médica</div>
+
+          <div style="margin-top:12px;">
+            <label>Data</label>
+            <input type="date" value="${today}" readonly
+              style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;" />
+          </div>
+
+          <div style="margin-top:12px;">
+            <label>HDA</label>
+            <textarea id="consultHDA" rows="5"
+              style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></textarea>
+          </div>
+
+          <div style="margin-top:12px;">
+            <label>Assessment</label>
+            <textarea id="consultAssessment" rows="4"
+              style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></textarea>
+          </div>
+
+          <div style="margin-top:12px;">
+            <label>Plano</label>
+            <textarea id="consultPlan" rows="4"
+              style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></textarea>
+          </div>
+
+          <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:10px;">
+            <button id="btnCancelConsult" class="gcBtn">Cancelar</button>
+            <button id="btnSaveConsult" class="gcBtn" style="font-weight:900;">Gravar</button>
+          </div>
+
+        </div>
+      </div>
+    `;
+
+    document.getElementById("btnCancelConsult")
+      .addEventListener("click", renderFeed);
+
+    document.getElementById("btnSaveConsult")
+      .addEventListener("click", saveConsult);
+  }
+
+  async function saveConsult() {
+
+    try {
+
+      const userRes = await window.sb.auth.getUser();
+      const userId = userRes?.data?.user?.id;
+
+      if (!userId) {
+        alert("Utilizador não autenticado.");
+        return;
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      const now = new Date();
+
+      const hda = document.getElementById("consultHDA").value || "";
+      const assessment = document.getElementById("consultAssessment").value || "";
+      const plan = document.getElementById("consultPlan").value || "";
+
+      const { data: appts } = await window.sb
+        .from("appointments")
+        .select("*")
+        .eq("patient_id", p.id);
+
+      let appointmentId = null;
+
+      if (appts && appts.length) {
+
+        const sameDay = appts.filter(a =>
+          a.start_at && a.start_at.slice(0, 10) === today
+        );
+
+        if (sameDay.length) {
+          sameDay.sort((a, b) =>
+            Math.abs(new Date(a.start_at) - now) -
+            Math.abs(new Date(b.start_at) - now)
+          );
+          appointmentId = sameDay[0].id;
+        }
+      }
+
+      const { error } = await window.sb
+        .from("consultations")
+        .insert({
+          clinic_id: activeClinicId,
+          patient_id: p.id,
+          author_user_id: userId,
+          report_date: today,
+          hda: hda,
+          assessment: assessment,
+          plan_text: plan,
+          appointment_id: appointmentId
+        });
+
+      if (error) throw error;
+
+      alert("Consulta gravada com sucesso.");
+      renderFeed();
+
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao gravar consulta.");
+    }
+  }
+
+  fetchActiveClinic().then(renderFeed);
 }
 
-/* ==== FIM BLOCO 06/12 — Modal Doente (FEED definitivo) ==== */
+/* ==== FIM BLOCO 06/12 — Modal Doente (FASE 1) ==== */
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
   // ---------- Novo doente (modal da página inicial) ----------
