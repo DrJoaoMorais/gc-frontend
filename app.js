@@ -957,7 +957,7 @@ function openPatientViewModal(patient) {
 }
 
 /* ==== Fim BLOCO 06A/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
-/* ==== INICIO BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico catálogo (label/code) + Feed: HDA→Diagnóstico + Autor(display_name) + Save OK) ==== */
+/* ==== INICIO BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico sem acentos (search_text) + Feed: HDA→Diagnóstico + Autor(display_name) + Save OK) ==== */
 
 function openPatientViewModal(patient) {
 
@@ -1134,7 +1134,6 @@ function openPatientViewModal(patient) {
 
   /* ================= DIAGNÓSTICO (CATÁLOGO) — SEM RE-RENDER DURANTE ESCRITA ================= */
   function renderDiagArea() {
-    // chips
     const chips = document.getElementById("diagChips");
     if (chips) {
       if (!selectedDiag.length) {
@@ -1161,11 +1160,9 @@ function openPatientViewModal(patient) {
       }
     }
 
-    // status
     const st = document.getElementById("diagStatus");
     if (st) st.innerHTML = diagLoading ? `<div style="margin-top:6px; color:#64748b;">A pesquisar…</div>` : "";
 
-    // dropdown
     const dd = document.getElementById("diagDropdownHost");
     if (dd) {
       if (!diagLoading && diagResults && diagResults.length) {
@@ -1191,7 +1188,6 @@ function openPatientViewModal(patient) {
       }
     }
 
-    // rebind dentro da área de diagnóstico
     document.querySelectorAll(".diagPick").forEach(el => {
       el.onclick = () => {
         const id = el.getAttribute("data-id");
@@ -1225,11 +1221,15 @@ function openPatientViewModal(patient) {
     diagLoading = true;
     renderDiagArea();
 
+    // Pesquisa SEM acentos:
+    // o utilizador escreve com/sem acentos -> nós pesquisamos em search_text (já normalizado)
+    const needle = clean.toLowerCase();
+
     const { data, error } = await window.sb
       .from("diagnoses_catalog")
       .select("id, code, label")
       .eq("is_active", true)
-      .or(`label.ilike.%${clean}%,code.ilike.%${clean}%`)
+      .ilike("search_text", `%${needle}%`)
       .order("label", { ascending: true })
       .limit(15);
 
@@ -1289,12 +1289,10 @@ function openPatientViewModal(patient) {
               Consulta — ${String(r.report_date || "—")} - ${String(r.author_name || "")}
             </div>
 
-            <!-- 1) HDA -->
             <div style="margin-top:10px; line-height:1.55; font-size:15px;">
               ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
             </div>
 
-            <!-- 2) Diagnóstico -->
             ${r.diagnoses && r.diagnoses.length ? `
               <div style="margin-top:12px;">
                 <div style="font-weight:900;">Diagnósticos:</div>
@@ -1306,7 +1304,7 @@ function openPatientViewModal(patient) {
               </div>
             ` : ``}
 
-            <!-- 3) Tratamentos (próximo passo) -->
+            <!-- Tratamentos (próximo passo) -->
 
           </div>
         `).join("")}
@@ -1329,7 +1327,6 @@ function openPatientViewModal(patient) {
             style="padding:8px; border:1px solid #ddd; border-radius:8px;" />
         </div>
 
-        <!-- Toolbar HDA -->
         <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
           <button id="hBold" class="gcBtn">Negrito</button>
           <button id="hUnder" class="gcBtn">Sublinhar</button>
@@ -1337,7 +1334,6 @@ function openPatientViewModal(patient) {
           <button id="hOL" class="gcBtn">Numeração</button>
         </div>
 
-        <!-- Editor HDA -->
         <div id="hdaEditor"
              contenteditable="true"
              style="margin-top:10px; min-height:240px; padding:12px;
@@ -1346,7 +1342,6 @@ function openPatientViewModal(patient) {
           ${draftHDAHtml || ""}
         </div>
 
-        <!-- Diagnóstico por baixo da HDA -->
         <div style="margin-top:14px;">
           <label>Diagnóstico (catálogo)</label>
 
@@ -1372,8 +1367,6 @@ function openPatientViewModal(patient) {
   }
 
   function bindConsultEvents() {
-
-    // ---------- HDA ----------
     const ed = document.getElementById("hdaEditor");
     if (ed) {
       ed.oninput = () => { draftHDAHtml = ed.innerHTML || ""; };
@@ -1392,15 +1385,14 @@ function openPatientViewModal(patient) {
       if (bBold) bBold.onclick = () => cmd("bold");
       if (bUnder) bUnder.onclick = () => cmd("underline");
       if (bUL) bUL.onclick = () => cmd("insertUnorderedList");
-      if (bOL) bOL.onclick = () => cmd("insertOrderedList");
+      if (bOL) bOL.onclick = () => cmd("insertUnorderedList" && "insertOrderedList");
     }
 
-    // ---------- Diagnóstico (sem re-render geral) ----------
     const diagInput = document.getElementById("diagSearch");
     if (diagInput) {
       diagInput.oninput = (e) => {
         const v = e?.target?.value ?? "";
-        diagQuery = v; // permite apagar/editar
+        diagQuery = v;
         if (diagDebounceT) clearTimeout(diagDebounceT);
         diagDebounceT = setTimeout(() => searchDiagnoses(v), 220);
       };
@@ -1417,23 +1409,17 @@ function openPatientViewModal(patient) {
 
     renderDiagArea();
 
-    // ---------- Botões ----------
     const btnCancel = document.getElementById("btnCancelConsult");
-    if (btnCancel) btnCancel.onclick = () => {
-      creatingConsult = false;
-      render();
-    };
+    if (btnCancel) btnCancel.onclick = () => { creatingConsult = false; render(); };
 
     const btnSave = document.getElementById("btnSaveConsult");
     if (btnSave) {
       btnSave.disabled = !!saving;
       btnSave.onclick = async () => {
-
         if (saving) return;
         saving = true;
         btnSave.disabled = true;
 
-        // snapshot do editor
         if (ed) draftHDAHtml = ed.innerHTML || "";
 
         const ok = await saveConsult();
@@ -1450,28 +1436,18 @@ function openPatientViewModal(patient) {
     }
   }
 
-  /* ================= SAVE ================= */
   async function saveConsult() {
-
     try {
-
       const userRes = await window.sb.auth.getUser();
       const userId = userRes?.data?.user?.id;
 
-      if (!userId) {
-        alert("Utilizador não autenticado.");
-        return false;
-      }
+      if (!userId) { alert("Utilizador não autenticado."); return false; }
 
       const today = new Date().toISOString().slice(0, 10);
       const now = new Date();
 
-      if (!activeClinicId) {
-        alert("Sem clínica ativa associada ao doente.");
-        return false;
-      }
+      if (!activeClinicId) { alert("Sem clínica ativa associada ao doente."); return false; }
 
-      // ligar appointment do mesmo dia (se existir)
       const { data: appts, error: apptErr } = await window.sb
         .from("appointments")
         .select("*")
@@ -1480,7 +1456,6 @@ function openPatientViewModal(patient) {
       if (apptErr) console.error(apptErr);
 
       let appointmentId = null;
-
       if (appts && appts.length) {
         const sameDay = appts.filter(a => a.start_at && a.start_at.slice(0,10) === today);
         if (sameDay.length) {
@@ -1492,7 +1467,6 @@ function openPatientViewModal(patient) {
         }
       }
 
-      // 1) inserir consulta e obter ID
       const { data: ins, error: insErr } = await window.sb
         .from("consultations")
         .insert({
@@ -1508,32 +1482,19 @@ function openPatientViewModal(patient) {
         .select("id")
         .single();
 
-      if (insErr) {
-        console.error(insErr);
-        alert("Erro ao gravar consulta.");
-        return false;
-      }
+      if (insErr) { console.error(insErr); alert("Erro ao gravar consulta."); return false; }
 
       const consultId = ins?.id;
 
-      // 2) inserir diagnósticos (se existirem) — UNIQUE (consultation_id + diagnosis_id)
       if (consultId && selectedDiag && selectedDiag.length) {
-        const rows = selectedDiag.map(x => ({
-          consultation_id: consultId,
-          diagnosis_id: x.id
-        }));
-
+        const rows = selectedDiag.map(x => ({ consultation_id: consultId, diagnosis_id: x.id }));
         const { error: dErr } = await window.sb
           .from("consultation_diagnoses")
           .upsert(rows, { onConflict: "consultation_id,diagnosis_id" });
 
-        if (dErr) {
-          console.error(dErr);
-          alert("Consulta gravada, mas houve erro a gravar diagnósticos.");
-        }
+        if (dErr) { console.error(dErr); alert("Consulta gravada, mas houve erro a gravar diagnósticos."); }
       }
 
-      // reset drafts
       draftHDAHtml = "";
       diagQuery = "";
       diagLoading = false;
@@ -1549,13 +1510,10 @@ function openPatientViewModal(patient) {
     }
   }
 
-  /* ================= MAIN RENDER ================= */
   function render() {
-
     root.innerHTML = `
       <div style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
                   display:flex; align-items:center; justify-content:center; padding:12px;">
-
         <div style="background:#fff; width:min(1400px,96vw);
                     height:92vh; border-radius:14px;
                     border:1px solid #e5e5e5; padding:16px; overflow:auto;">
@@ -1599,12 +1557,9 @@ function openPatientViewModal(patient) {
       }
     }
 
-    if (creatingConsult) {
-      bindConsultEvents();
-    }
+    if (creatingConsult) bindConsultEvents();
   }
 
-  /* ================= BOOT ================= */
   (async function boot() {
     await fetchActiveClinic();
     await loadConsultations();
@@ -1612,7 +1567,7 @@ function openPatientViewModal(patient) {
   })();
 }
 
-/* ==== Fim BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico catálogo (label/code) + Feed: HDA→Diagnóstico + Autor(display_name) + Save OK) ==== */
+/* ==== Fim BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico sem acentos (search_text) + Feed: HDA→Diagnóstico + Autor(display_name) + Save OK) ==== */
 /* ==== FIM BLOCO 06/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
