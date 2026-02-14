@@ -1018,6 +1018,12 @@ function openPatientViewModal(patient) {
 
   let draftHDAHtml = "";         // HDA em HTML (rich text)
 
+  // ---- Identificação (modal interno) ----
+  let identOpen = false;
+  let identMode = "view";        // "view" | "edit"
+  let identSaving = false;
+  let identDraft = {};
+
   // ---- Diagnóstico (catálogo) ----
   let diagQuery = "";
   let diagLoading = false;
@@ -1248,60 +1254,265 @@ function openPatientViewModal(patient) {
     }
   }
 
-  // =========================
-  // ADAPTADOR IDENTIFICAÇÃO
-  // (corrige mismatch de nomes do build)
-  // =========================
-  function callPatientModal(patient, opts) {
-    // 1) nome esperado
-    if (typeof window.openPatientModal === "function") return window.openPatientModal(patient, opts);
-
-    // 2) nomes alternativos (que referiste)
-    if (typeof window.PatientModal === "function") return window.PatientModal(patient, opts);
-
-    if (window.PatientModal && typeof window.PatientModal.open === "function") {
-      return window.PatientModal.open(patient, opts);
-    }
-
-    // debug: listar candidatos reais para encontrarmos o nome exacto
-    try {
-      const candidates = Object.keys(window).filter(k =>
-        /^openPatient/i.test(k) || /Patient.*Modal/i.test(k)
-      );
-      console.warn("[Identificação] Modal não encontrado. Candidatos globais:", candidates);
-    } catch (e) {}
-
-    return null;
-  }
-
-  function callPatientEditModal(patient) {
-    if (typeof window.openPatientEditModal === "function") return window.openPatientEditModal(patient);
-
-    // nome alternativo (como referiste)
-    if (typeof window.openPatientEditModa === "function") return window.openPatientEditModa(patient);
-
-    // fallback: tentar modal genérico em modo edit
-    return callPatientModal(patient, { mode: "edit" });
-  }
+  /* ================= IDENTIFICAÇÃO (MODAL INTERNO) ================= */
 
   function openPatientIdentity(mode) {
-    // mode: "view" | "edit"
-    try {
-      if (mode === "edit") {
-        const r = callPatientEditModal(p);
-        if (r) return r;
-      } else {
-        const r = callPatientModal(p, { mode: "view" });
-        if (r) return r;
+    identMode = mode === "edit" ? "edit" : "view";
+    identOpen = true;
+    identSaving = false;
 
-        // fallback final: reabrir este próprio modal (não ideal, mas não parte)
-        if (typeof window.openPatientViewModal === "function") return window.openPatientViewModal(p);
-      }
+    identDraft = {
+      full_name: p.full_name || "",
+      dob: p.dob || "",
+      sex: p.sex || "",
+      phone: p.phone || "",
+      email: p.email || "",
+      sns: p.sns || "",
+      nif: p.nif || "",
+      passport_id: p.passport_id || "",
+      address_line1: p.address_line1 || "",
+      postal_code: p.postal_code || "",
+      city: p.city || "",
+      country: p.country || "",
+      insurance_provider: p.insurance_provider || "",
+      insurance_policy_number: p.insurance_policy_number || "",
+      notes: p.notes || ""
+    };
 
-      alert("Identificação: modal não ligado neste build (ver consola para nomes disponíveis).");
-    } catch (e) {
-      console.error("[Identificação] Erro:", e);
-      alert("Erro a abrir Identificação (ver consola).");
+    render();
+    bindIdentityEvents();
+  }
+
+  function closeIdentity() {
+    identOpen = false;
+    identSaving = false;
+    render();
+  }
+
+  function renderIdentityModal() {
+    const ro = (identMode !== "edit") ? "readonly" : "";
+    const dis = (identMode !== "edit") ? "disabled" : "";
+    const canEdit = (identMode === "edit");
+
+    return `
+      <div id="identOverlay"
+           style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
+                  display:flex; align-items:center; justify-content:center; padding:12px; z-index:2000;">
+        <div style="background:#fff; width:min(980px,96vw);
+                    max-height:92vh; overflow:auto;
+                    border-radius:14px; border:1px solid #e5e5e5; padding:16px;">
+
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <div style="font-weight:900; font-size:16px;">
+              Identificação do doente ${canEdit ? "(editar)" : "(ver)"}
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button id="btnIdentCloseTop" class="gcBtn">Fechar</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div>
+              <label>Nome completo</label>
+              <input id="id_full_name" ${ro} value="${escAttr(identDraft.full_name)}"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+            <div>
+              <label>Data de nascimento</label>
+              <input id="id_dob" type="date" ${ro} value="${escAttr(identDraft.dob)}"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+
+            <div>
+              <label>Sexo</label>
+              <input id="id_sex" ${ro} value="${escAttr(identDraft.sex)}"
+                     placeholder="M/F/outro"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+            <div>
+              <label>Telefone</label>
+              <input id="id_phone" ${ro} value="${escAttr(identDraft.phone)}"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+
+            <div>
+              <label>Email</label>
+              <input id="id_email" ${ro} value="${escAttr(identDraft.email)}"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+            <div>
+              <label>SNS</label>
+              <input id="id_sns" ${ro} value="${escAttr(identDraft.sns)}"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+
+            <div>
+              <label>NIF</label>
+              <input id="id_nif" ${ro} value="${escAttr(identDraft.nif)}"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+            <div>
+              <label>Passaporte</label>
+              <input id="id_passport_id" ${ro} value="${escAttr(identDraft.passport_id)}"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+
+            <div style="grid-column:1 / -1;">
+              <label>Morada</label>
+              <input id="id_address_line1" ${ro} value="${escAttr(identDraft.address_line1)}"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+
+            <div>
+              <label>Código postal</label>
+              <input id="id_postal_code" ${ro} value="${escAttr(identDraft.postal_code)}"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+            <div>
+              <label>Cidade</label>
+              <input id="id_city" ${ro} value="${escAttr(identDraft.city)}"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+
+            <div>
+              <label>País</label>
+              <input id="id_country" ${ro} value="${escAttr(identDraft.country)}"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+            <div>
+              <label>Seguradora</label>
+              <input id="id_insurance_provider" ${ro} value="${escAttr(identDraft.insurance_provider)}"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+
+            <div>
+              <label>Nº apólice</label>
+              <input id="id_insurance_policy_number" ${ro} value="${escAttr(identDraft.insurance_policy_number)}"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+
+            <div style="grid-column:1 / -1;">
+              <label>Notas</label>
+              <textarea id="id_notes" ${ro}
+                        style="width:100%; min-height:90px; padding:10px; border:1px solid #ddd; border-radius:10px;">${escAttr(identDraft.notes)}</textarea>
+            </div>
+          </div>
+
+          <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <div id="identStatus" style="color:#64748b;">
+              ${identSaving ? "A gravar..." : ""}
+            </div>
+
+            <div style="display:flex; gap:10px;">
+              <button id="btnIdentClose" class="gcBtn">Cancelar</button>
+              <button id="btnIdentSave" class="gcBtn" style="font-weight:900;" ${dis}>
+                Gravar
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    `;
+  }
+
+  function bindIdentityEvents() {
+    const closeTop = document.getElementById("btnIdentCloseTop");
+    if (closeTop) closeTop.onclick = () => closeIdentity();
+
+    const btnClose = document.getElementById("btnIdentClose");
+    if (btnClose) btnClose.onclick = () => closeIdentity();
+
+    // Só bind inputs se estiver aberto
+    if (!identOpen) return;
+
+    function bindVal(id, key) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.oninput = (e) => { identDraft[key] = e?.target?.value ?? ""; };
+    }
+
+    bindVal("id_full_name", "full_name");
+    bindVal("id_dob", "dob");
+    bindVal("id_sex", "sex");
+    bindVal("id_phone", "phone");
+    bindVal("id_email", "email");
+    bindVal("id_sns", "sns");
+    bindVal("id_nif", "nif");
+    bindVal("id_passport_id", "passport_id");
+    bindVal("id_address_line1", "address_line1");
+    bindVal("id_postal_code", "postal_code");
+    bindVal("id_city", "city");
+    bindVal("id_country", "country");
+    bindVal("id_insurance_provider", "insurance_provider");
+    bindVal("id_insurance_policy_number", "insurance_policy_number");
+    bindVal("id_notes", "notes");
+
+    const btnSave = document.getElementById("btnIdentSave");
+    if (btnSave) {
+      btnSave.disabled = identSaving || identMode !== "edit";
+      btnSave.onclick = async () => {
+        if (identSaving || identMode !== "edit") return;
+
+        const name = String(identDraft.full_name || "").trim();
+        if (!name) { alert("Nome completo é obrigatório."); return; }
+
+        identSaving = true;
+        render();
+        bindIdentityEvents();
+
+        try {
+          const payload = {
+            full_name: name,
+            dob: identDraft.dob ? identDraft.dob : null,
+            sex: String(identDraft.sex || "").trim() || null,
+            phone: String(identDraft.phone || "").trim() || null,
+            email: String(identDraft.email || "").trim() || null,
+            sns: String(identDraft.sns || "").trim() || null,
+            nif: String(identDraft.nif || "").trim() || null,
+            passport_id: String(identDraft.passport_id || "").trim() || null,
+            address_line1: String(identDraft.address_line1 || "").trim() || null,
+            postal_code: String(identDraft.postal_code || "").trim() || null,
+            city: String(identDraft.city || "").trim() || null,
+            country: String(identDraft.country || "").trim() || null,
+            insurance_provider: String(identDraft.insurance_provider || "").trim() || null,
+            insurance_policy_number: String(identDraft.insurance_policy_number || "").trim() || null,
+            notes: String(identDraft.notes || "").trim() || null
+          };
+
+          const { data, error } = await window.sb
+            .from("patients")
+            .update(payload)
+            .eq("id", p.id)
+            .select("*")
+            .single();
+
+          if (error) {
+            console.error(error);
+            alert("Erro a gravar Identificação.");
+            identSaving = false;
+            render();
+            bindIdentityEvents();
+            return;
+          }
+
+          // Atualizar objeto p (para o cabeçalho refletir)
+          if (data) {
+            Object.keys(payload).forEach(k => { p[k] = data[k]; });
+          }
+
+          identSaving = false;
+          identOpen = false;
+          render();
+
+        } catch (e) {
+          console.error(e);
+          alert("Erro a gravar Identificação.");
+          identSaving = false;
+          render();
+          bindIdentityEvents();
+        }
+      };
     }
   }
 
@@ -2072,6 +2283,8 @@ function openPatientViewModal(patient) {
 
         </div>
       </div>
+
+      ${identOpen ? renderIdentityModal() : ""}
     `;
 
     document.getElementById("btnClosePView")?.addEventListener("click", closeModalRoot);
@@ -2094,6 +2307,7 @@ function openPatientViewModal(patient) {
     }
 
     if (creatingConsult) bindConsultEvents();
+    if (identOpen) bindIdentityEvents();
   }
 
   (async function boot() {
