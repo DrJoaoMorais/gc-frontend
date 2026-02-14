@@ -1152,7 +1152,6 @@ function openPatientViewModal(patient) {
 
         let tMap = {}; // { treatmentId: {label, code} }
         if (tIds.length) {
-          // Se as colunas forem diferentes, o mapping faz fallback.
           const { data: trs, error: trErr } = await window.sb
             .from("treatments_catalog")
             .select("*")
@@ -1162,7 +1161,7 @@ function openPatientViewModal(patient) {
             console.error(trErr);
           } else {
             (trs || []).forEach(t => {
-              const label = t.label || t.name || t.title || "";
+              const label = sentenceizeLabel(t.label || t.name || t.title || "");
               const code = t.code || t.adse_code || t.proc_code || "";
               tMap[t.id] = { label, code };
             });
@@ -1266,7 +1265,7 @@ function openPatientViewModal(patient) {
     }
   }
 
-  /* ================= DIAGNÓSTICO (CATÁLOGO) — SEM RE-RENDER DURANTE ESCRITA ================= */
+  /* ================= DIAGNÓSTICO (CATÁLOGO) ================= */
   function renderDiagArea() {
     const chips = document.getElementById("diagChips");
     if (chips) {
@@ -1408,26 +1407,45 @@ function openPatientViewModal(patient) {
 
   /* ================= TRATAMENTOS (CATÁLOGO) — DUAL LIST ================= */
 
+  // 2) Formato pedido: "Primeira letra em Maiúsculas" por frase.
+  // - Converte tudo para minúsculas e capitaliza o primeiro carácter e o primeiro após ". ! ?"
+  // - Não altera a BD; só apresentação.
+  function sentenceizeLabel(s) {
+    const raw = String(s || "").trim();
+    if (!raw) return "";
+    let t = raw.toLowerCase();
+
+    // limpar espaços múltiplos
+    t = t.replace(/\s+/g, " ");
+
+    // capitalizar início e depois de pontuação
+    t = t.replace(/(^|[.!?]\s+)([a-zà-ÿ])/g, (m, p1, p2) => p1 + p2.toUpperCase());
+
+    // garantir 1.ª letra maiúscula se começar com letra acentuada
+    t = t.replace(/^([a-zà-ÿ])/, (m, c) => c.toUpperCase());
+
+    return t;
+  }
+
   function normTreatRow(t) {
     return {
       id: t.id,
-      label: t.label || t.name || t.title || "",
+      label: sentenceizeLabel(t.label || t.name || t.title || ""),
       code: t.code || t.adse_code || t.proc_code || "",
     };
   }
 
   async function fetchTreatmentsDefault() {
-    // Mostra 6–7 tratamentos “por defeito” (ativos se existir is_active)
+    // Mostra 7 tratamentos (sem forçar ordem; respeita a ordem "como vem" do catálogo)
     try {
       treatLoading = true;
       renderTreatArea();
 
-      // Tentativa 1: com is_active + order label
+      // Tentativa 1: com is_active
       let res = await window.sb
         .from("treatments_catalog")
         .select("*")
         .eq("is_active", true)
-        .order("label", { ascending: true })
         .limit(7);
 
       if (res?.error) {
@@ -1435,7 +1453,6 @@ function openPatientViewModal(patient) {
         res = await window.sb
           .from("treatments_catalog")
           .select("*")
-          .order("label", { ascending: true })
           .limit(7);
       }
 
@@ -1461,7 +1478,6 @@ function openPatientViewModal(patient) {
     const clean = query.trim();
 
     if (!clean || clean.length < 2) {
-      // volta ao “default list”
       await fetchTreatmentsDefault();
       return;
     }
@@ -1471,7 +1487,6 @@ function openPatientViewModal(patient) {
 
     const needle = clean.toLowerCase();
 
-    // Tentativa 1: search_text
     let data = null, error = null;
 
     try {
@@ -1480,7 +1495,6 @@ function openPatientViewModal(patient) {
         .select("*")
         .eq("is_active", true)
         .ilike("search_text", `%${needle}%`)
-        .order("label", { ascending: true })
         .limit(20);
 
       data = r1.data;
@@ -1488,13 +1502,11 @@ function openPatientViewModal(patient) {
 
       if (error) throw error;
     } catch (e) {
-      // Fallback: label (sem search_text ou sem is_active)
       try {
         const r2 = await window.sb
           .from("treatments_catalog")
           .select("*")
           .ilike("label", `%${needle}%`)
-          .order("label", { ascending: true })
           .limit(20);
 
         data = r2.data;
@@ -1536,10 +1548,9 @@ function openPatientViewModal(patient) {
     const rem = selectedTreat.find(x => String(x.id) === String(id));
     selectedTreat = selectedTreat.filter(x => String(x.id) !== String(id));
 
-    // opcional: recolocar no catálogo (se já havia lista carregada)
+    // recolocar no catálogo mantendo o comportamento simples
     if (rem) {
       treatResults = [{ id: rem.id, label: rem.label || "", code: rem.code || "" }, ...(treatResults || [])];
-      // dedup
       const seen = new Set();
       treatResults = (treatResults || []).filter(x => {
         const k = String(x.id);
@@ -1661,9 +1672,8 @@ function openPatientViewModal(patient) {
                 <ul style="margin:8px 0 0 18px;">
                   ${r.treatments.map(t => `
                     <li>
-                      ${escAttr(t.label || "—")}
+                      ${escAttr(sentenceizeLabel(t.label || "—"))}
                       ${t.code ? ` <span style="color:#64748b;">(${escAttr(t.code)})</span>` : ``}
-                      ${t.qty ? ` <span style="color:#64748b;">— x${Number(t.qty)}</span>` : ``}
                     </li>
                   `).join("")}
                 </ul>
@@ -1729,6 +1739,7 @@ function openPatientViewModal(patient) {
             <input id="prescriptionText"
                    value="${escAttr(prescriptionText)}"
                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+
             <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
               <div style="flex:1; min-width:320px;">
                 <div style="font-weight:900; margin-bottom:6px;">Selecionados</div>
@@ -1830,7 +1841,6 @@ function openPatientViewModal(patient) {
       };
     }
 
-    // Render inicial dos tratamentos (default list)
     renderTreatArea();
     fetchTreatmentsDefault();
 
@@ -1901,7 +1911,7 @@ function openPatientViewModal(patient) {
           report_date: today,
           hda: draftHDAHtml,
           assessment: "",
-          plan_text: "",          // não mexo no “fechado”; prescrição fica só na UI por agora
+          plan_text: "",
           appointment_id: appointmentId
         })
         .select("id")
@@ -1921,7 +1931,7 @@ function openPatientViewModal(patient) {
         if (dErr) { console.error(dErr); alert("Consulta gravada, mas houve erro a gravar diagnósticos."); }
       }
 
-      // Tratamentos (qty obrigatório)
+      // Tratamentos (qty obrigatório, por defeito = 1; não mostramos "x1" no UI)
       if (consultId && selectedTreat && selectedTreat.length) {
         const rows = selectedTreat.map(x => ({
           consultation_id: consultId,
