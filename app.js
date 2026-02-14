@@ -1248,20 +1248,60 @@ function openPatientViewModal(patient) {
     }
   }
 
+  // =========================
+  // ADAPTADOR IDENTIFICAÇÃO
+  // (corrige mismatch de nomes do build)
+  // =========================
+  function callPatientModal(patient, opts) {
+    // 1) nome esperado
+    if (typeof window.openPatientModal === "function") return window.openPatientModal(patient, opts);
+
+    // 2) nomes alternativos (que referiste)
+    if (typeof window.PatientModal === "function") return window.PatientModal(patient, opts);
+
+    if (window.PatientModal && typeof window.PatientModal.open === "function") {
+      return window.PatientModal.open(patient, opts);
+    }
+
+    // debug: listar candidatos reais para encontrarmos o nome exacto
+    try {
+      const candidates = Object.keys(window).filter(k =>
+        /^openPatient/i.test(k) || /Patient.*Modal/i.test(k)
+      );
+      console.warn("[Identificação] Modal não encontrado. Candidatos globais:", candidates);
+    } catch (e) {}
+
+    return null;
+  }
+
+  function callPatientEditModal(patient) {
+    if (typeof window.openPatientEditModal === "function") return window.openPatientEditModal(patient);
+
+    // nome alternativo (como referiste)
+    if (typeof window.openPatientEditModa === "function") return window.openPatientEditModa(patient);
+
+    // fallback: tentar modal genérico em modo edit
+    return callPatientModal(patient, { mode: "edit" });
+  }
+
   function openPatientIdentity(mode) {
     // mode: "view" | "edit"
     try {
       if (mode === "edit") {
-        if (typeof window.openPatientEditModal === "function") return window.openPatientEditModal(p);
-        if (typeof window.openPatientModal === "function") return window.openPatientModal(p, { mode: "edit" });
+        const r = callPatientEditModal(p);
+        if (r) return r;
       } else {
-        if (typeof window.openPatientModal === "function") return window.openPatientModal(p, { mode: "view" });
+        const r = callPatientModal(p, { mode: "view" });
+        if (r) return r;
+
+        // fallback final: reabrir este próprio modal (não ideal, mas não parte)
         if (typeof window.openPatientViewModal === "function") return window.openPatientViewModal(p);
       }
-      alert("Identificação: função ainda não ligada neste build.");
+
+      alert("Identificação: modal não ligado neste build (ver consola para nomes disponíveis).");
     } catch (e) {
-      console.error(e);
-      alert("Erro a abrir Identificação.");
+      console.error("[Identificação] Erro:", e);
+      alert("Erro a abrir Identificação (ver consola).");
     }
   }
 
@@ -1785,7 +1825,7 @@ function openPatientViewModal(patient) {
       if (bBold) bBold.onclick = () => cmd("bold");
       if (bUnder) bUnder.onclick = () => cmd("underline");
       if (bUL) bUL.onclick = () => cmd("insertUnorderedList");
-      if (bOL) bOL.onclick = () => cmd("insertUnorderedList" && "insertOrderedList");
+      if (bOL) bOL.onclick = () => cmd("insertOrderedList");
     }
 
     // Diagnóstico events
