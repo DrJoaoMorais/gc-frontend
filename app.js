@@ -1407,7 +1407,6 @@ function openPatientViewModal(patient) {
 
   /* ================= TRATAMENTOS (CATÁLOGO) — DUAL LIST ================= */
 
-  // Formato: primeira letra maiúscula por frase (apresentação apenas)
   function sentenceizeLabel(s) {
     const raw = String(s || "").trim();
     if (!raw) return "";
@@ -1427,28 +1426,26 @@ function openPatientViewModal(patient) {
   }
 
   async function fetchTreatmentsDefault() {
-    // Mostra 7 tratamentos (ordem por sort_order e depois label)
+    // Mostra TODOS os tratamentos (com scroll no catálogo)
     try {
       treatLoading = true;
       renderTreatArea();
 
-      // Tentativa 1: com is_active
       let res = await window.sb
         .from("treatments_catalog")
         .select("*")
         .eq("is_active", true)
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("label", { ascending: true })
-        .limit(7);
+        .limit(200);
 
       if (res?.error) {
-        // Fallback: sem is_active
         res = await window.sb
           .from("treatments_catalog")
           .select("*")
           .order("sort_order", { ascending: true, nullsFirst: false })
           .order("label", { ascending: true })
-          .limit(7);
+          .limit(200);
       }
 
       const rows = (res?.data || []).map(normTreatRow);
@@ -1492,7 +1489,7 @@ function openPatientViewModal(patient) {
         .ilike("search_text", `%${needle}%`)
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("label", { ascending: true })
-        .limit(20);
+        .limit(200);
 
       data = r1.data;
       error = r1.error;
@@ -1506,7 +1503,7 @@ function openPatientViewModal(patient) {
           .ilike("label", `%${needle}%`)
           .order("sort_order", { ascending: true, nullsFirst: false })
           .order("label", { ascending: true })
-          .limit(20);
+          .limit(200);
 
         data = r2.data;
         error = r2.error;
@@ -1537,7 +1534,6 @@ function openPatientViewModal(patient) {
 
     selectedTreat.push({ id: item.id, code: item.code || "", label: item.label || "", qty: 1 });
 
-    // remover do catálogo visível
     treatResults = (treatResults || []).filter(x => String(x.id) !== String(item.id));
 
     renderTreatArea();
@@ -1547,7 +1543,6 @@ function openPatientViewModal(patient) {
     const rem = selectedTreat.find(x => String(x.id) === String(id));
     selectedTreat = selectedTreat.filter(x => String(x.id) !== String(id));
 
-    // recolocar no catálogo mantendo o comportamento simples
     if (rem) {
       treatResults = [{ id: rem.id, label: rem.label || "", code: rem.code || "" }, ...(treatResults || [])];
       const seen = new Set();
@@ -1629,7 +1624,7 @@ function openPatientViewModal(patient) {
     });
   }
 
-  /* ================= TIMELINE (ORDEM: HDA → Diagnóstico → Tratamento) ================= */
+  /* ================= TIMELINE ================= */
   function renderTimeline() {
 
     if (timelineLoading) return `<div style="color:#64748b;">A carregar registos...</div>`;
@@ -1685,7 +1680,7 @@ function openPatientViewModal(patient) {
     `;
   }
 
-  /* ================= INLINE FORM (HDA, Diagnóstico, Tratamentos) ================= */
+  /* ================= INLINE FORM ================= */
   function renderConsultFormInline() {
     const today = new Date().toISOString().slice(0, 10);
 
@@ -1930,7 +1925,7 @@ function openPatientViewModal(patient) {
         if (dErr) { console.error(dErr); alert("Consulta gravada, mas houve erro a gravar diagnósticos."); }
       }
 
-      // Tratamentos (qty obrigatório, por defeito = 1; não mostramos "x1" no UI)
+      // Tratamentos
       if (consultId && selectedTreat && selectedTreat.length) {
         const rows = selectedTreat.map(x => ({
           consultation_id: consultId,
@@ -1945,7 +1940,7 @@ function openPatientViewModal(patient) {
         if (tErr) { console.error(tErr); alert("Consulta gravada, mas houve erro a gravar tratamentos."); }
       }
 
-      // Auto-update: se a consulta ficou ligada a uma marcação, marcar como "done"
+      // Auto-update marcação
       if (appointmentId) {
         const { error: uErr } = await window.sb
           .from("appointments")
@@ -1955,7 +1950,7 @@ function openPatientViewModal(patient) {
         if (uErr) console.error(uErr);
       }
 
-      // UX: refrescar agenda automaticamente (sem reload da página)
+      // UX: refrescar agenda
       try {
         if (typeof refreshAgenda === "function") {
           await refreshAgenda();
