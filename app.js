@@ -1591,6 +1591,17 @@ function openPatientViewModal(patient) {
         if (uErr) console.error(uErr);
       }
 
+      // UX: refrescar agenda automaticamente (sem reload da página)
+      try {
+        if (typeof refreshAgenda === "function") {
+          await refreshAgenda();
+        } else if (typeof renderAgendaList === "function") {
+          renderAgendaList();
+        }
+      } catch (e) {
+        console.error("refreshAgenda falhou:", e);
+      }
+
       draftHDAHtml = "";
       diagQuery = "";
       diagLoading = false;
