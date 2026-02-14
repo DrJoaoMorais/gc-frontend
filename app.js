@@ -1016,6 +1016,8 @@ function openPatientViewModal(patient) {
   let consultRows = [];          // rows enriquecidas com author_name + diagnoses[] + treatments[]
   let saving = false;
 
+  let lastSavedConsultId = null; // ✅ NOVO: consultId da última consulta gravada
+
   let draftHDAHtml = "";         // HDA em HTML (rich text)
 
   // ---- Identificação (modal interno) ----
@@ -2192,6 +2194,9 @@ function openPatientViewModal(patient) {
 
       const consultId = ins?.id;
 
+      // ✅ NOVO: guardar consultId para mostrar botões “Editar Documento”/“Gerar PDF”
+      lastSavedConsultId = consultId || null;
+
       if (consultId && selectedDiag && selectedDiag.length) {
         const rows = selectedDiag.map(x => ({ consultation_id: consultId, diagnosis_id: x.id }));
         const { error: dErr } = await window.sb
@@ -2289,10 +2294,18 @@ function openPatientViewModal(patient) {
             </div>
           </div>
 
-          <div style="margin-top:12px;">
+          <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
             ${isDoctor() && !creatingConsult ? `
               <button id="btnNewConsult" class="gcBtn" style="font-weight:900;">
                 Consulta Médica
+              </button>` : ``}
+
+            ${isDoctor() && lastSavedConsultId ? `
+              <button id="btnEditDocument" class="gcBtn">
+                Editar Documento
+              </button>
+              <button id="btnGeneratePdf" class="gcBtn" style="font-weight:900;">
+                Gerar PDF
               </button>` : ``}
           </div>
 
@@ -2327,6 +2340,21 @@ function openPatientViewModal(patient) {
       }
     }
 
+    // ✅ NOVO: botões pós-gravação (por agora, apenas stub)
+    const btnEditDoc = document.getElementById("btnEditDocument");
+    if (btnEditDoc) {
+      btnEditDoc.onclick = () => {
+        alert("Editor de Documento será implementado no próximo passo.");
+      };
+    }
+
+    const btnPdf = document.getElementById("btnGeneratePdf");
+    if (btnPdf) {
+      btnPdf.onclick = () => {
+        alert("Geração de PDF será implementada no próximo passo.");
+      };
+    }
+
     if (creatingConsult) bindConsultEvents();
     if (identOpen) bindIdentityEvents();
   }
@@ -2339,7 +2367,7 @@ function openPatientViewModal(patient) {
 }
 
 /* ==== Fim BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico sem acentos (search_text) + Tratamentos (catálogo+seleção+gravação) + Feed completo) ==== */
-/* ==== FIM BLOCO 06/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
+
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
   // ---------- Novo doente (modal da página inicial) ----------
