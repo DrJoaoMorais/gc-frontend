@@ -957,7 +957,7 @@ function openPatientViewModal(patient) {
 }
 
 /* ==== Fim BLOCO 06A/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
-/* ==== INICIO BLOCO 06B/12 — Modal Doente (FASE 2 — Inline + Timeline Consultas) ==== */
+/* ==== INICIO BLOCO 06B/12 — Modal Doente (FASE 2 — Inline + Editor + Timeline Consultas) ==== */
 
 function openPatientViewModal(patient) {
 
@@ -971,16 +971,14 @@ function openPatientViewModal(patient) {
   let creatingConsult = false;
 
   let timelineLoading = false;
-  let consultRows = []; // consultations do doente (FASE 2: só isto)
+  let consultRows = [];
+
+  /* draft do formulário (mantém ao alternar UI) */
+  let draft = { hda: "", assessment: "", plan_text: "" };
 
   /* ================= ROLE ================= */
-  function role() {
-    return String(G.role || "").toLowerCase();
-  }
-
-  function isDoctor() {
-    return role() === "doctor";
-  }
+  function role() { return String(G.role || "").toLowerCase(); }
+  function isDoctor() { return role() === "doctor"; }
 
   /* ================= DATA ================= */
   async function fetchActiveClinic() {
@@ -996,7 +994,6 @@ function openPatientViewModal(patient) {
       activeClinicId = null;
       return;
     }
-
     activeClinicId = data && data.length ? data[0].clinic_id : null;
   }
 
@@ -1020,63 +1017,7 @@ function openPatientViewModal(patient) {
     timelineLoading = false;
   }
 
-  /* ================= MAIN RENDER ================= */
-  function render() {
-
-    root.innerHTML = `
-      <div style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
-                  display:flex; align-items:center; justify-content:center; padding:14px;">
-
-        <div style="background:#fff; width:min(1200px,96vw);
-                    border-radius:14px; border:1px solid #e5e5e5;
-                    padding:16px; max-height:92vh; overflow:auto;">
-
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="font-weight:900;">Feed do Doente</div>
-            <button id="btnClosePView" class="gcBtn">Fechar</button>
-          </div>
-
-          <div style="margin-top:10px; font-weight:900; font-size:18px;">
-            ${p.full_name || "—"}
-          </div>
-
-          <div style="margin-top:12px; display:flex; gap:10px; align-items:center;">
-            ${isDoctor() && !creatingConsult ? `
-              <button id="btnNewConsult" class="gcBtn" style="font-weight:900;">
-                Consulta Médica
-              </button>` : ``}
-            <div style="color:#64748b; font-size:12px;">
-              ${timelineLoading ? "A carregar..." : `Consultas: ${consultRows.length}`}
-            </div>
-          </div>
-
-          ${creatingConsult ? renderConsultFormInline() : ``}
-
-          <div id="timelineArea" style="margin-top:18px;">
-            ${renderTimeline()}
-          </div>
-
-        </div>
-      </div>
-    `;
-
-    document.getElementById("btnClosePView")
-      ?.addEventListener("click", closeModalRoot);
-
-    if (isDoctor() && !creatingConsult) {
-      document.getElementById("btnNewConsult")
-        ?.addEventListener("click", () => {
-          creatingConsult = true;
-          render();
-        });
-    }
-
-    if (creatingConsult) {
-      bindConsultFormEvents();
-    }
-  }
-
-  /* ================= TIMELINE ================= */
+  /* ================= UI HELPERS ================= */
   function esc(s) {
     return String(s ?? "")
       .replaceAll("&", "&amp;")
@@ -1086,85 +1027,305 @@ function openPatientViewModal(patient) {
       .replaceAll("'", "&#039;");
   }
 
-  function renderTimeline() {
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 
+  function getTA(id) { return document.getElementById(id); }
+
+  function withTA(id, fn) {
+    const ta = getTA(id);
+    if (!ta) return;
+    ta.focus();
+    fn(ta);
+  }
+
+  function wrapSelection(ta, before, after) {
+    const v = ta.value || "";
+    const s = ta.selectionStart ?? 0;
+    const e = ta.selectionEnd ?? 0;
+    const sel = v.slice(s, e);
+    const out = v.slice(0, s) + before + sel + after + v.slice(e);
+    ta.value = out;
+    // reposiciona seleção
+    const ns = s + before.length;
+    const ne = ns + sel.length;
+    ta.setSelectionRange(ns, ne);
+  }
+
+  function prefixLines(ta, prefixFn) {
+    const v = ta.value || "";
+    const s = ta.selectionStart ?? 0;
+    const e = ta.selectionEnd ?? 0;
+
+    // expandir para linhas completas
+    const lineStart = v.lastIndexOf("\n", s - 1) + 1;
+    let lineEnd = v.indexOf("\n", e);
+    if (lineEnd === -1) lineEnd = v.length;
+
+    const chunk = v.slice(lineStart, lineEnd);
+    const lines = chunk.split("\n");
+    const newLines = lines.map((ln, i) => prefixFn(ln, i));
+    const replaced = newLines.join("\n");
+
+    const out = v.slice(0, lineStart) + replaced + v.slice(lineEnd);
+    ta.value = out;
+
+    // selecionar o bloco alterado
+    ta.setSelectionRange(lineStart, lineStart + replaced.length);
+  }
+
+  function bindEditorToolbar() {
+    const bar = document.getElementById("consultToolbar");
+    if (!bar) return;
+
+    let fontSize = 15; // default
+
+    function applyFont() {
+      ["consultHDA", "consultAssessment", "consultPlan"].forEach(id => {
+        const ta = getTA(id);
+        if (ta) ta.style.fontSize = fontSize + "px";
+      });
+    }
+
+    bar.querySelectorAll("[data-act]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const act = btn.getAttribute("data-act");
+        const target = btn.getAttribute("data-target");
+
+        if (act === "fs-up") {
+          fontSize = clamp(fontSize + 1, 12, 22);
+          applyFont();
+          return;
+        }
+        if (act === "fs-down") {
+          fontSize = clamp(fontSize - 1, 12, 22);
+          applyFont();
+          return;
+        }
+
+        if (!target) return;
+
+        if (act === "bold") {
+          withTA(target, (ta) => wrapSelection(ta, "**", "**"));
+          syncDraftFromUI();
+          return;
+        }
+
+        if (act === "ul") {
+          withTA(target, (ta) => prefixLines(ta, (ln) => ln.trim() ? `- ${ln}` : ln));
+          syncDraftFromUI();
+          return;
+        }
+
+        if (act === "ol") {
+          withTA(target, (ta) => {
+            let k = 1;
+            prefixLines(ta, (ln) => {
+              if (!ln.trim()) return ln;
+              const out = `${k}. ${ln}`;
+              k += 1;
+              return out;
+            });
+          });
+          syncDraftFromUI();
+          return;
+        }
+      });
+    });
+
+    applyFont();
+  }
+
+  function bindDraftSync() {
+    const a = getTA("consultHDA");
+    const b = getTA("consultAssessment");
+    const c = getTA("consultPlan");
+
+    [a, b, c].forEach(ta => {
+      if (!ta) return;
+      ta.addEventListener("input", syncDraftFromUI);
+    });
+  }
+
+  function syncDraftFromUI() {
+    draft.hda = getTA("consultHDA")?.value || "";
+    draft.assessment = getTA("consultAssessment")?.value || "";
+    draft.plan_text = getTA("consultPlan")?.value || "";
+  }
+
+  /* ================= TIMELINE ================= */
+  function renderTimeline() {
     if (timelineLoading) {
       return `<div style="color:#64748b;">A carregar registos...</div>`;
     }
-
     if (!consultRows || !consultRows.length) {
       return `<div style="color:#64748b;">Sem registos clínicos.</div>`;
     }
 
     return `
-      <div style="display:flex; flex-direction:column; gap:10px;">
-        ${consultRows.map(r => `
-          <div style="border:1px solid #e5e5e5; border-radius:12px; padding:12px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <div style="font-weight:900;">
-                Consulta — ${esc(r.report_date || "—")}
-              </div>
-              <div style="color:#64748b; font-size:12px;">
-                ${r.created_at ? esc(String(r.created_at).slice(11,16)) : ""}
-              </div>
-            </div>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        ${consultRows.map(r => {
+          const hda = (r.hda || "").trim();
+          const ass = (r.assessment || "").trim();
+          const plan = (r.plan_text || "").trim();
 
-            ${r.hda ? `<div style="margin-top:8px;"><div style="font-weight:700;">HDA</div><div style="white-space:pre-wrap;">${esc(r.hda)}</div></div>` : ``}
-            ${r.assessment ? `<div style="margin-top:8px;"><div style="font-weight:700;">Assessment</div><div style="white-space:pre-wrap;">${esc(r.assessment)}</div></div>` : ``}
-            ${r.plan_text ? `<div style="margin-top:8px;"><div style="font-weight:700;">Plano</div><div style="white-space:pre-wrap;">${esc(r.plan_text)}</div></div>` : ``}
-          </div>
-        `).join("")}
+          // leitura “clínica”: preserva quebras e mostra ** ** e listas como texto (por agora)
+          function block(title, txt) {
+            if (!txt) return "";
+            return `
+              <div style="margin-top:10px;">
+                <div style="font-weight:800; margin-bottom:4px;">${esc(title)}</div>
+                <div style="white-space:pre-wrap; line-height:1.45; font-size:15px;">${esc(txt)}</div>
+              </div>
+            `;
+          }
+
+          return `
+            <div style="border:1px solid #e5e5e5; border-radius:14px; padding:14px;">
+              <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
+                <div style="font-weight:900; font-size:16px;">
+                  Consulta — ${esc(r.report_date || "—")}
+                </div>
+                <div style="color:#64748b; font-size:12px;">
+                  ${r.created_at ? esc(String(r.created_at).slice(11,16)) : ""}
+                </div>
+              </div>
+              ${block("HDA", hda)}
+              ${block("Assessment", ass)}
+              ${block("Plano", plan)}
+            </div>
+          `;
+        }).join("")}
       </div>
     `;
   }
 
   /* ================= INLINE FORM ================= */
   function renderConsultFormInline() {
-
     const today = new Date().toISOString().slice(0, 10);
 
     return `
-      <div style="margin-top:16px; padding:14px;
-                  border:1px solid #e5e5e5; border-radius:12px;">
+      <div style="margin-top:14px; padding:14px;
+                  border:1px solid #e5e5e5; border-radius:14px;">
 
-        <div style="font-weight:900;">Nova Consulta Médica</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+          <div style="font-weight:900; font-size:16px;">Nova Consulta Médica</div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="color:#64748b; font-size:12px;">Formatação: **negrito**, listas</div>
+          </div>
+        </div>
+
+        <div style="margin-top:10px; display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+          <div style="min-width:220px;">
+            <label>Data</label>
+            <input type="date" value="${today}" readonly
+              style="width:220px; padding:8px; border:1px solid #ddd; border-radius:10px;" />
+          </div>
+        </div>
+
+        <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <div style="font-weight:800;">Toolbar</div>
+
+          <button class="gcBtn" id="fsDown" data-act="fs-down" style="padding:8px 10px;">A-</button>
+          <button class="gcBtn" id="fsUp" data-act="fs-up" style="padding:8px 10px;">A+</button>
+
+          <div style="width:10px;"></div>
+
+          <button class="gcBtn" data-act="bold" data-target="consultHDA" style="padding:8px 10px;">HDA Negrito</button>
+          <button class="gcBtn" data-act="ul" data-target="consultHDA" style="padding:8px 10px;">HDA • Lista</button>
+          <button class="gcBtn" data-act="ol" data-target="consultHDA" style="padding:8px 10px;">HDA 1. Lista</button>
+
+          <button class="gcBtn" data-act="bold" data-target="consultAssessment" style="padding:8px 10px;">Ass Negrito</button>
+          <button class="gcBtn" data-act="ul" data-target="consultAssessment" style="padding:8px 10px;">Ass • Lista</button>
+          <button class="gcBtn" data-act="ol" data-target="consultAssessment" style="padding:8px 10px;">Ass 1. Lista</button>
+
+          <button class="gcBtn" data-act="bold" data-target="consultPlan" style="padding:8px 10px;">Plano Negrito</button>
+          <button class="gcBtn" data-act="ul" data-target="consultPlan" style="padding:8px 10px;">Plano • Lista</button>
+          <button class="gcBtn" data-act="ol" data-target="consultPlan" style="padding:8px 10px;">Plano 1. Lista</button>
+        </div>
+
+        <div id="consultToolbar" style="display:none;"></div>
 
         <div style="margin-top:12px;">
-          <label>Data</label>
-          <input type="date" value="${today}" readonly
-            style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;" />
+          <label style="font-weight:800;">HDA</label>
+          <textarea id="consultHDA" rows="7"
+            style="width:100%; padding:12px; border:1px solid #ddd; border-radius:12px; line-height:1.5; font-size:15px;">${esc(draft.hda)}</textarea>
         </div>
 
         <div style="margin-top:12px;">
-          <label>HDA</label>
-          <textarea id="consultHDA" rows="5"
-            style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></textarea>
+          <label style="font-weight:800;">Assessment</label>
+          <textarea id="consultAssessment" rows="6"
+            style="width:100%; padding:12px; border:1px solid #ddd; border-radius:12px; line-height:1.5; font-size:15px;">${esc(draft.assessment)}</textarea>
         </div>
 
         <div style="margin-top:12px;">
-          <label>Assessment</label>
-          <textarea id="consultAssessment" rows="4"
-            style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></textarea>
+          <label style="font-weight:800;">Plano</label>
+          <textarea id="consultPlan" rows="6"
+            style="width:100%; padding:12px; border:1px solid #ddd; border-radius:12px; line-height:1.5; font-size:15px;">${esc(draft.plan_text)}</textarea>
         </div>
 
-        <div style="margin-top:12px;">
-          <label>Plano</label>
-          <textarea id="consultPlan" rows="4"
-            style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></textarea>
-        </div>
-
-        <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
+        <div style="margin-top:12px; display:flex; justify-content:flex-end; gap:10px;">
           <button id="btnCancelConsult" class="gcBtn">Cancelar</button>
-          <button id="btnSaveConsult" class="gcBtn" style="font-weight:900;">
-            Gravar
-          </button>
+          <button id="btnSaveConsult" class="gcBtn" style="font-weight:900;">Gravar</button>
         </div>
-
       </div>
     `;
   }
 
   function bindConsultFormEvents() {
+    bindDraftSync();
+
+    // font size controls (A-/A+) — aplica aos 3 textareas
+    let fontSize = 15;
+    function applyFont() {
+      ["consultHDA","consultAssessment","consultPlan"].forEach(id => {
+        const ta = getTA(id);
+        if (ta) ta.style.fontSize = fontSize + "px";
+      });
+    }
+
+    document.getElementById("fsDown")?.addEventListener("click", () => {
+      fontSize = clamp(fontSize - 1, 12, 22);
+      applyFont();
+    });
+    document.getElementById("fsUp")?.addEventListener("click", () => {
+      fontSize = clamp(fontSize + 1, 12, 22);
+      applyFont();
+    });
+
+    // toolbar actions
+    document.querySelectorAll("[data-act][data-target]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const act = btn.getAttribute("data-act");
+        const target = btn.getAttribute("data-target");
+        if (!act || !target) return;
+
+        if (act === "bold") {
+          withTA(target, (ta) => wrapSelection(ta, "**", "**"));
+          syncDraftFromUI();
+          return;
+        }
+        if (act === "ul") {
+          withTA(target, (ta) => prefixLines(ta, (ln) => ln.trim() ? `- ${ln}` : ln));
+          syncDraftFromUI();
+          return;
+        }
+        if (act === "ol") {
+          withTA(target, (ta) => {
+            let k = 1;
+            prefixLines(ta, (ln) => {
+              if (!ln.trim()) return ln;
+              const out = `${k}. ${ln}`;
+              k += 1;
+              return out;
+            });
+          });
+          syncDraftFromUI();
+          return;
+        }
+      });
+    });
+
+    applyFont();
 
     document.getElementById("btnCancelConsult")
       ?.addEventListener("click", () => {
@@ -1174,6 +1335,7 @@ function openPatientViewModal(patient) {
 
     document.getElementById("btnSaveConsult")
       ?.addEventListener("click", async () => {
+        syncDraftFromUI();
         const ok = await saveConsult();
         if (ok) {
           creatingConsult = false;
@@ -1185,9 +1347,7 @@ function openPatientViewModal(patient) {
 
   /* ================= SAVE ================= */
   async function saveConsult() {
-
     try {
-
       const userRes = await window.sb.auth.getUser();
       const userId = userRes?.data?.user?.id;
       if (!userId) {
@@ -1198,9 +1358,9 @@ function openPatientViewModal(patient) {
       const today = new Date().toISOString().slice(0, 10);
       const now = new Date();
 
-      const hda = document.getElementById("consultHDA")?.value || "";
-      const assessment = document.getElementById("consultAssessment")?.value || "";
-      const plan = document.getElementById("consultPlan")?.value || "";
+      const hda = draft.hda || "";
+      const assessment = draft.assessment || "";
+      const plan = draft.plan_text || "";
 
       const { data: appts, error: apptErr } = await window.sb
         .from("appointments")
@@ -1213,7 +1373,6 @@ function openPatientViewModal(patient) {
 
       if (appts && appts.length) {
         const sameDay = appts.filter(a => a.start_at && a.start_at.slice(0,10) === today);
-
         if (sameDay.length) {
           sameDay.sort((a,b) =>
             Math.abs(new Date(a.start_at) - now) -
@@ -1239,12 +1398,71 @@ function openPatientViewModal(patient) {
       if (error) throw error;
 
       alert("Consulta gravada.");
+      // limpa draft para próxima consulta
+      draft = { hda: "", assessment: "", plan_text: "" };
       return true;
 
     } catch (err) {
       console.error(err);
       alert("Erro ao gravar consulta.");
       return false;
+    }
+  }
+
+  /* ================= MAIN RENDER ================= */
+  function render() {
+    root.innerHTML = `
+      <div style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
+                  display:flex; align-items:center; justify-content:center; padding:12px;">
+
+        <div style="background:#fff; width:min(1400px,96vw);
+                    height:92vh; border-radius:14px; border:1px solid #e5e5e5;
+                    padding:16px; overflow:auto;">
+
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-weight:900; font-size:16px;">Feed do Doente</div>
+            <button id="btnClosePView" class="gcBtn">Fechar</button>
+          </div>
+
+          <div style="margin-top:10px; font-weight:900; font-size:18px;">
+            ${p.full_name || "—"}
+          </div>
+
+          <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            ${isDoctor() && !creatingConsult ? `
+              <button id="btnNewConsult" class="gcBtn" style="font-weight:900;">
+                Consulta Médica
+              </button>` : ``}
+            <div style="color:#64748b; font-size:12px;">
+              ${timelineLoading ? "A carregar..." : `Consultas: ${consultRows.length}`}
+            </div>
+          </div>
+
+          ${creatingConsult ? renderConsultFormInline() : ``}
+
+          <div style="margin-top:14px;">
+            ${renderTimeline()}
+          </div>
+
+        </div>
+      </div>
+    `;
+
+    document.getElementById("btnClosePView")
+      ?.addEventListener("click", closeModalRoot);
+
+    if (isDoctor() && !creatingConsult) {
+      document.getElementById("btnNewConsult")
+        ?.addEventListener("click", () => {
+          creatingConsult = true;
+          render();
+          bindConsultFormEvents();
+        });
+    }
+
+    // se já estiver a criar, re-bind
+    if (creatingConsult) {
+      bindConsultFormEvents();
     }
   }
 
@@ -1256,7 +1474,7 @@ function openPatientViewModal(patient) {
   })();
 }
 
-/* ==== Fim BLOCO 06B/12 — Modal Doente (FASE 2 — Inline + Timeline Consultas) ==== */
+/* ==== Fim BLOCO 06B/12 — Modal Doente (FASE 2 — Inline + Editor + Timeline Consultas) ==== */
 /* ==== FIM BLOCO 06/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
