@@ -957,7 +957,7 @@ function openPatientViewModal(patient) {
 }
 
 /* ==== Fim BLOCO 06A/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
-/* ==== INICIO BLOCO 06B/12 — Modal Doente (FASE 2 — HDA Rich + Diagnóstico catálogo + Autor(display_name) + Timeline + Save OK) ==== */
+/* ==== INICIO BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico catálogo (label/code) + Autor(display_name) + Timeline + Save OK) ==== */
 
 function openPatientViewModal(patient) {
 
@@ -979,8 +979,8 @@ function openPatientViewModal(patient) {
   // ---- Diagnóstico (catálogo) ----
   let diagQuery = "";
   let diagLoading = false;
-  let diagResults = [];          // [{id, label}]
-  let selectedDiag = [];         // [{id, label}]
+  let diagResults = [];          // [{id, label, code}]
+  let selectedDiag = [];         // [{id, label, code}]
   let diagDebounceT = null;
 
   /* ================= ROLE ================= */
@@ -1081,21 +1081,12 @@ function openPatientViewModal(patient) {
   }
 
   /* ================= DIAGNÓSTICO (CATÁLOGO) ================= */
-  function normLabel(row) {
-    // tenta extrair uma label sem assumir esquema rígido
-    if (!row) return "";
-    return String(
-      row.label ??
-      row.name ??
-      row.title ??
-      row.description ??
-      row.code ??
-      row.icd ??
-      row.icd10 ??
-      row.icd9 ??
-      row.text ??
-      ""
-    ).trim();
+  function escAttr(s) {
+    return String(s || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
   }
 
   async function searchDiagnoses(q) {
@@ -1106,7 +1097,7 @@ function openPatientViewModal(patient) {
       diagResults = [];
       diagLoading = false;
       render();
-      bindConsultEvents(); // re-ligar handlers do formulário
+      bindConsultEvents();
       return;
     }
 
@@ -1114,14 +1105,18 @@ function openPatientViewModal(patient) {
     render();
     bindConsultEvents();
 
+    // Pesquisa estruturada:
+    // - por label (ILIKE)
+    // - por code (ILIKE)
+    // - apenas ativos
     const { data, error } = await window.sb
       .from("diagnoses_catalog")
-      .select("*")
-      .ilike("name", `%${query}%`)
+      .select("id, code, label")
+      .eq("is_active", true)
+      .or(`label.ilike.%${query}%,code.ilike.%${query}%`)
+      .order("label", { ascending: true })
       .limit(15);
 
-    // Nota: se a coluna "name" não existir, isto falha.
-    // No passo seguinte, se necessário, adaptamos para a coluna certa (label/title/etc).
     if (error) {
       console.error(error);
       diagResults = [];
@@ -1133,12 +1128,13 @@ function openPatientViewModal(patient) {
 
     const rows = (data || []).map(r => ({
       id: r.id,
-      label: normLabel(r) || "(sem nome)"
+      code: r.code || "",
+      label: r.label || ""
     }));
 
     // remover já selecionados
-    const sel = new Set(selectedDiag.map(x => x.id));
-    diagResults = rows.filter(x => !sel.has(x.id));
+    const sel = new Set(selectedDiag.map(x => String(x.id)));
+    diagResults = rows.filter(x => !sel.has(String(x.id)));
 
     diagLoading = false;
     render();
@@ -1147,9 +1143,11 @@ function openPatientViewModal(patient) {
 
   function addDiagnosis(item) {
     if (!item || !item.id) return;
-    if (selectedDiag.some(x => x.id === item.id)) return;
-    selectedDiag.push({ id: item.id, label: item.label || "" });
-    // limpar pesquisa
+    if (selectedDiag.some(x => String(x.id) === String(item.id))) return;
+
+    selectedDiag.push({ id: item.id, code: item.code || "", label: item.label || "" });
+
+    // limpar pesquisa e resultados
     diagQuery = "";
     diagResults = [];
     render();
@@ -1157,7 +1155,7 @@ function openPatientViewModal(patient) {
   }
 
   function removeDiagnosis(id) {
-    selectedDiag = selectedDiag.filter(x => x.id !== id);
+    selectedDiag = selectedDiag.filter(x => String(x.id) !== String(id));
     render();
     bindConsultEvents();
   }
@@ -1187,7 +1185,7 @@ function openPatientViewModal(patient) {
     `;
   }
 
-  /* ================= INLINE FORM (HDA + Diagnóstico) ================= */
+  /* ================= INLINE FORM (HDA primeiro, Diagnóstico por baixo) ================= */
   function renderConsultFormInline() {
     const today = new Date().toISOString().slice(0, 10);
 
@@ -1202,13 +1200,30 @@ function openPatientViewModal(patient) {
             style="padding:8px; border:1px solid #ddd; border-radius:8px;" />
         </div>
 
-        <!-- Diagnóstico (catálogo) -->
-        <div style="margin-top:12px;">
+        <!-- Toolbar HDA -->
+        <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button id="hBold" class="gcBtn">Negrito</button>
+          <button id="hUnder" class="gcBtn">Sublinhar</button>
+          <button id="hUL" class="gcBtn">Lista</button>
+          <button id="hOL" class="gcBtn">Numeração</button>
+        </div>
+
+        <!-- Editor HDA -->
+        <div id="hdaEditor"
+             contenteditable="true"
+             style="margin-top:10px; min-height:240px; padding:12px;
+                    border:1px solid #ddd; border-radius:12px;
+                    line-height:1.6; font-size:16px; overflow:auto;">
+          ${draftHDAHtml || ""}
+        </div>
+
+        <!-- Diagnóstico por baixo da HDA -->
+        <div style="margin-top:14px;">
           <label>Diagnóstico (catálogo)</label>
 
           <div style="position:relative; margin-top:6px;">
             <input id="diagSearch"
-                   value="${String(diagQuery || "").replaceAll('"', "&quot;")}"
+                   value="${escAttr(diagQuery)}"
                    placeholder="Pesquisar (mín. 2 letras)…"
                    style="width:min(720px,100%); padding:10px; border:1px solid #ddd; border-radius:10px;" />
 
@@ -1227,7 +1242,8 @@ function openPatientViewModal(patient) {
                   <div class="diagPick"
                        data-id="${x.id}"
                        style="padding:10px 12px; border-bottom:1px solid #f1f5f9; cursor:pointer;">
-                    ${String(x.label || "—")}
+                    <div style="font-weight:800;">${escAttr(x.label || "—")}</div>
+                    ${x.code ? `<div style="color:#64748b; font-size:12px;">${escAttr(x.code)}</div>` : ``}
                   </div>
                 `).join("")}
               </div>
@@ -1239,7 +1255,10 @@ function openPatientViewModal(patient) {
               ${selectedDiag.map(x => `
                 <div style="display:inline-flex; align-items:center; gap:8px;
                             padding:8px 10px; border:1px solid #e5e5e5; border-radius:999px;">
-                  <div style="font-size:14px;">${String(x.label || "—")}</div>
+                  <div style="font-size:14px;">
+                    ${escAttr(x.label || "—")}
+                    ${x.code ? `<span style="color:#64748b; font-size:12px; margin-left:6px;">${escAttr(x.code)}</span>` : ``}
+                  </div>
                   <button class="diagRemove gcBtn"
                           data-id="${x.id}"
                           style="padding:6px 10px; border-radius:999px;">
@@ -1249,23 +1268,6 @@ function openPatientViewModal(patient) {
               `).join("")}
             </div>
           ` : `<div style="margin-top:8px; color:#64748b;">Sem diagnósticos selecionados.</div>`}
-        </div>
-
-        <!-- Toolbar HDA -->
-        <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button id="hBold" class="gcBtn">Negrito</button>
-          <button id="hUnder" class="gcBtn">Sublinhar</button>
-          <button id="hUL" class="gcBtn">Lista</button>
-          <button id="hOL" class="gcBtn">Numeração</button>
-        </div>
-
-        <!-- Editor HDA -->
-        <div id="hdaEditor"
-             contenteditable="true"
-             style="margin-top:10px; min-height:240px; padding:12px;
-                    border:1px solid #ddd; border-radius:12px;
-                    line-height:1.6; font-size:16px; overflow:auto;">
-          ${draftHDAHtml || ""}
         </div>
 
         <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
@@ -1311,9 +1313,13 @@ function openPatientViewModal(patient) {
       };
 
       diagInput.onfocus = () => {
-        // se já tiver texto, re-dispara pesquisa (sem esperar)
         const v = diagInput.value || "";
         if (String(v).trim().length >= 2) searchDiagnoses(v);
+      };
+
+      diagInput.onkeydown = (ev) => {
+        // evitar submit/side-effects
+        if (ev.key === "Enter") ev.preventDefault();
       };
     }
 
@@ -1339,9 +1345,6 @@ function openPatientViewModal(patient) {
     const btnCancel = document.getElementById("btnCancelConsult");
     if (btnCancel) btnCancel.onclick = () => {
       creatingConsult = false;
-      // reset do draft para próxima vez (opcional)
-      // draftHDAHtml = "";
-      // diagQuery = ""; diagResults = []; selectedDiag = [];
       render();
     };
 
@@ -1392,7 +1395,7 @@ function openPatientViewModal(patient) {
         return false;
       }
 
-      // tentar ligar appointment do mesmo dia
+      // ligar appointment do mesmo dia (se existir)
       const { data: appts, error: apptErr } = await window.sb
         .from("appointments")
         .select("*")
@@ -1437,14 +1440,13 @@ function openPatientViewModal(patient) {
 
       const consultId = ins?.id;
 
-      // 2) inserir diagnósticos (se existirem)
+      // 2) inserir diagnósticos (se existirem) — respeita UNIQUE (consultation_id + diagnosis_id)
       if (consultId && selectedDiag && selectedDiag.length) {
         const rows = selectedDiag.map(x => ({
           consultation_id: consultId,
           diagnosis_id: x.id
         }));
 
-        // tentar upsert para respeitar unique (consultation_id + diagnosis_id)
         const { error: dErr } = await window.sb
           .from("consultation_diagnoses")
           .upsert(rows, { onConflict: "consultation_id,diagnosis_id" });
@@ -1534,7 +1536,7 @@ function openPatientViewModal(patient) {
   })();
 }
 
-/* ==== Fim BLOCO 06B/12 — Modal Doente (FASE 2 — HDA Rich + Diagnóstico catálogo + Autor(display_name) + Timeline + Save OK) ==== */
+/* ==== Fim BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico catálogo (label/code) + Autor(display_name) + Timeline + Save OK) ==== */
 /* ==== FIM BLOCO 06/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
