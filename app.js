@@ -101,6 +101,46 @@
     return t.slice(0, max - 1) + "…";
   }
 
+  // ---- DOB helpers: idade + aniversário ----
+  function parseISODateOnly(isoDate) {
+    // isoDate: "YYYY-MM-DD" (dob vindo do Postgres date)
+    if (!isoDate) return null;
+    const [y, m, d] = String(isoDate).split("-").map(Number);
+    if (!y || !m || !d) return null;
+    return { y, m, d };
+  }
+
+  function calcAgeYears(dobISO, refDate = new Date()) {
+    const dob = parseISODateOnly(dobISO);
+    if (!dob) return null;
+
+    const ry = refDate.getFullYear();
+    const rm = refDate.getMonth() + 1; // 1-12
+    const rd = refDate.getDate(); // 1-31
+
+    let age = ry - dob.y;
+    const hadBirthdayThisYear = rm > dob.m || (rm === dob.m && rd >= dob.d);
+    if (!hadBirthdayThisYear) age -= 1;
+    return age >= 0 ? age : null;
+  }
+
+  function isBirthdayOnDate(dobISO, refDate = new Date()) {
+    const dob = parseISODateOnly(dobISO);
+    if (!dob) return false;
+
+    const rm = refDate.getMonth() + 1;
+    const rd = refDate.getDate();
+
+    // Caso especial: 29/02 — considera 28/02 nos anos não bissextos
+    if (dob.m === 2 && dob.d === 29) {
+      const y = refDate.getFullYear();
+      const isLeap = (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0);
+      if (!isLeap) return rm === 2 && rd === 28;
+    }
+
+    return rm === dob.m && rd === dob.d;
+  }
+
   async function fetchMyRole(userId) {
     const { data, error } = await window.sb
       .from("clinic_members")
