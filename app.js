@@ -957,7 +957,7 @@ function openPatientViewModal(patient) {
 }
 
 /* ==== Fim BLOCO 06A/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
-/* ==== INICIO BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico catálogo (label/code) + Feed com Diagnósticos + Autor(display_name) + Save OK) ==== */
+/* ==== INICIO BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico catálogo (label/code) + Feed: HDA→Diagnóstico + Autor(display_name) + Save OK) ==== */
 
 function openPatientViewModal(patient) {
 
@@ -1042,7 +1042,7 @@ function openPatientViewModal(patient) {
       }
     }
 
-    // 3) Carregar diagnósticos por consulta (sem joins instáveis)
+    // 3) Carregar diagnósticos por consulta (2 queries + mapping)
     const consultIds = rows.map(r => r.id).filter(Boolean);
     let diagByConsult = {}; // { consultId: [ {label, code} ] }
 
@@ -1191,7 +1191,7 @@ function openPatientViewModal(patient) {
       }
     }
 
-    // rebind apenas dentro da área de diagnóstico (chips + dropdown)
+    // rebind dentro da área de diagnóstico
     document.querySelectorAll(".diagPick").forEach(el => {
       el.onclick = () => {
         const id = el.getAttribute("data-id");
@@ -1260,7 +1260,6 @@ function openPatientViewModal(patient) {
 
     selectedDiag.push({ id: item.id, code: item.code || "", label: item.label || "" });
 
-    // limpar input (sem re-render geral)
     const inp = document.getElementById("diagSearch");
     diagQuery = "";
     diagResults = [];
@@ -1275,7 +1274,7 @@ function openPatientViewModal(patient) {
     renderDiagArea();
   }
 
-  /* ================= TIMELINE ================= */
+  /* ================= TIMELINE (ORDEM: HDA → Diagnóstico → Tratamento) ================= */
   function renderTimeline() {
 
     if (timelineLoading) return `<div style="color:#64748b;">A carregar registos...</div>`;
@@ -1290,8 +1289,14 @@ function openPatientViewModal(patient) {
               Consulta — ${String(r.report_date || "—")} - ${String(r.author_name || "")}
             </div>
 
+            <!-- 1) HDA -->
+            <div style="margin-top:10px; line-height:1.55; font-size:15px;">
+              ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
+            </div>
+
+            <!-- 2) Diagnóstico -->
             ${r.diagnoses && r.diagnoses.length ? `
-              <div style="margin-top:10px;">
+              <div style="margin-top:12px;">
                 <div style="font-weight:900;">Diagnósticos:</div>
                 <ul style="margin:8px 0 0 18px;">
                   ${r.diagnoses.map(d => `
@@ -1301,9 +1306,7 @@ function openPatientViewModal(patient) {
               </div>
             ` : ``}
 
-            <div style="margin-top:10px; line-height:1.55; font-size:15px;">
-              ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
-            </div>
+            <!-- 3) Tratamentos (próximo passo) -->
 
           </div>
         `).join("")}
@@ -1397,7 +1400,7 @@ function openPatientViewModal(patient) {
     if (diagInput) {
       diagInput.oninput = (e) => {
         const v = e?.target?.value ?? "";
-        diagQuery = v; // mantém o que escreves (permite apagar)
+        diagQuery = v; // permite apagar/editar
         if (diagDebounceT) clearTimeout(diagDebounceT);
         diagDebounceT = setTimeout(() => searchDiagnoses(v), 220);
       };
@@ -1412,7 +1415,6 @@ function openPatientViewModal(patient) {
       };
     }
 
-    // desenhar área de diagnóstico (chips/dropdown/status)
     renderDiagArea();
 
     // ---------- Botões ----------
@@ -1610,7 +1612,7 @@ function openPatientViewModal(patient) {
   })();
 }
 
-/* ==== Fim BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico catálogo (label/code) + Feed com Diagnósticos + Autor(display_name) + Save OK) ==== */
+/* ==== Fim BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico catálogo (label/code) + Feed: HDA→Diagnóstico + Autor(display_name) + Save OK) ==== */
 /* ==== FIM BLOCO 06/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
