@@ -898,1006 +898,207 @@
   }
 
 /* ==== FIM BLOCO 05/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
-/* ==== INÍCIO BLOCO 06/12 — Modal Doente (ver + editar) ==== */
+/* ==== INÍCIO BLOCO 06/12 — Modal Doente (FEED definitivo) ==== */
 
-  // ---------- Modal Doente (FEED shell) ----------
-  function openPatientViewModal(patient) {
-    const root = document.getElementById("modalRoot");
-    if (!root) return;
+function openPatientViewModal(patient) {
+  const root = document.getElementById("modalRoot");
+  if (!root || !patient) return;
 
-    const p = patient;
-    if (!p) return;
+  const p = patient;
 
-    let editMode = false;
-    let working = false;
+  let editMode = false;
+  let working = false;
 
-    // ✅ Tabs do FEED (shell)
-    let activeTab = "medical"; // medical | physio | notes
+  let activeClinicId = null;
+  let activeClinicLoading = false;
+  let transferWorking = false;
+  let idExpanded = false;
 
-    // ✅ Conteúdo (placeholder, sem BD nesta fase)
-    let draft = {
-      hda: "",
-      // ✅ Diagnósticos selecionados (multi)
-      dx_selected: [], // [{id, system, code, label}]
-      treatments: "",
-      physio_text: "",
-      note_doctor: "",
-      note_physio: "",
-      note_admin: "",
-    };
-
-    // ✅ Gestão de clínica do doente (patient_clinic)
-    let activeClinicId = null;
-    let activeClinicLoading = false;
-    let transferWorking = false;
-
-    // ✅ Identificação colapsável
-    let idExpanded = false;
-
-    // ✅ Estado interno para pesquisa de diagnósticos (UI)
-    let dx = {
-      q: "",
-      results: [],
-      loading: false,
-      err: "",
-      addOpen: false,
-      addSystem: "local",
-      addCode: "",
-      addLabel: "",
-      addWorking: false,
-      timer: null,
-    };
-
-    function clinicLabelById(cid) {
-      if (!cid) return "—";
-      const c = G.clinicsById && G.clinicsById[cid] ? G.clinicsById[cid] : null;
-      return c ? (c.name || c.display_name || c.slug || cid) : cid;
-    }
-
-    async function fetchActiveClinicForPatient(patientId) {
-      if (!patientId) return null;
-      const { data, error } = await window.sb
-        .from("patient_clinic")
-        .select("clinic_id, is_active")
-        .eq("patient_id", patientId)
-        .eq("is_active", true)
-        .limit(1);
-
-      if (error) throw error;
-      if (!data || data.length === 0) return null;
-      return data[0].clinic_id || null;
-    }
-
-    async function refreshActiveClinic() {
-      if (!p || !p.id) return;
-      activeClinicLoading = true;
-      try {
-        const cid = await fetchActiveClinicForPatient(p.id);
-        activeClinicId = cid;
-      } catch (e) {
-        console.error("refreshActiveClinic falhou:", e);
-        activeClinicId = null;
-      } finally {
-        activeClinicLoading = false;
-      }
-    }
-
-    // ---------- Diagnósticos: helpers ----------
-    function isDoctor() {
-      return String(G.role || "").toLowerCase() === "doctor";
-    }
-
-    function dxKey(row) {
-      const sys = String(row && row.system ? row.system : "").toLowerCase();
-      const code = String(row && row.code ? row.code : "").trim();
-      return `${sys}::${code}`;
-    }
-
-    function dxAlreadySelected(row) {
-      const k = dxKey(row);
-      return (draft.dx_selected || []).some((x) => dxKey(x) === k);
-    }
-
-    async function searchDiagnosesCatalog(termRaw, limit = 18) {
-      const term = String(termRaw || "").trim();
-      if (!term || term.length < 2) return [];
-
-      // Pesquisa por label e por code (substring)
-      // Nota: em PostgREST, .or() usa sintaxe: "label.ilike.%xx%,code.ilike.%xx%"
-      const safe = term.replaceAll(",", " ");
-      const orStr = `label.ilike.%${safe}%,code.ilike.%${safe}%`;
-
-      const { data, error } = await window.sb
-        .from("diagnoses_catalog")
-        .select("id, system, code, label, is_active")
-        .eq("is_active", true)
-        .or(orStr)
-        .order("code", { ascending: true })
-        .limit(limit);
-
-      if (error) throw error;
-      return Array.isArray(data) ? data : [];
-    }
-
-    async function rpcAddDiagnosisCatalog({ system, code, label, is_active = true }) {
-      const payload = {
-        p_system: system,
-        p_code: code,
-        p_label: label,
-        p_is_active: is_active,
-      };
-      const { data, error } = await window.sb.rpc("add_diagnosis_catalog", payload);
-      if (error) throw error;
-      return data; // row (diagnoses_catalog)
-    }
-
-    function renderDxSelected() {
-      const list = (draft.dx_selected || []);
-      if (list.length === 0) {
-        return `<div style="font-size:${UI.fs12}px; color:#666;">Sem diagnósticos selecionados.</div>`;
-      }
-
-      return `
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          ${list.map((d) => {
-            const sys = escapeHtml(d.system || "—");
-            const code = escapeHtml(d.code || "—");
-            const label = escapeHtml(d.label || "—");
-            return `
-              <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff;">
-                <div style="min-width:0;">
-                  <div style="font-size:${UI.fs13}px; font-weight:900; color:#111;">${code} <span style="font-weight:800; color:#666;">(${sys})</span></div>
-                  <div style="font-size:${UI.fs12}px; color:#111; margin-top:2px; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">${label}</div>
-                </div>
-                <button class="gcBtn" data-dx-remove="${escapeHtml(d.id || dxKey(d))}" style="padding:6px 10px; border-radius:10px;">Remover</button>
-              </div>
-            `;
-          }).join("")}
-        </div>
-      `;
-    }
-
-    function renderDxResults() {
-      if (!dx.q || dx.q.trim().length < 2) {
-        return `<div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar (mín. 2 caracteres).</div>`;
-      }
-      if (dx.loading) {
-        return `<div style="font-size:${UI.fs12}px; color:#666;">A pesquisar…</div>`;
-      }
-      if (dx.err) {
-        return `<div style="font-size:${UI.fs12}px; color:#b00020;">${escapeHtml(dx.err)}</div>`;
-      }
-      if (!dx.results || dx.results.length === 0) {
-        return `<div style="font-size:${UI.fs12}px; color:#666;">Sem resultados.</div>`;
-      }
-
-      return `
-        ${dx.results.map((r) => {
-          const disabled = dxAlreadySelected(r);
-          const sys = escapeHtml(r.system || "—");
-          const code = escapeHtml(r.code || "—");
-          const label = escapeHtml(r.label || "—");
-          return `
-            <div data-dx-pick="1"
-                 data-dx-id="${escapeHtml(r.id)}"
-                 style="padding:8px; border:1px solid #f0f0f0; border-radius:10px; margin-bottom:8px; cursor:${disabled ? "not-allowed" : "pointer"}; background:${disabled ? "#fafafa" : "#fff"}; opacity:${disabled ? 0.7 : 1};">
-              <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
-                <div style="min-width:0;">
-                  <div style="font-size:${UI.fs13}px; color:#111; font-weight:900;">
-                    ${code} <span style="font-weight:800; color:#666;">(${sys})</span>
-                  </div>
-                  <div style="font-size:${UI.fs12}px; color:#111; margin-top:2px; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">
-                    ${label}
-                  </div>
-                </div>
-                <div style="font-size:${UI.fs12}px; color:${disabled ? "#666" : "#111"}; font-weight:800;">
-                  ${disabled ? "Selecionado" : "Adicionar"}
-                </div>
-              </div>
-            </div>
-          `;
-        }).join("")}
-      `;
-    }
-
-    function renderDxAddForm() {
-      if (!isDoctor()) {
-        return `<div style="font-size:${UI.fs12}px; color:#64748b;">Adicionar diagnóstico: disponível apenas para o médico.</div>`;
-      }
-      if (!dx.addOpen) return "";
-
-      return `
-        <div style="margin-top:10px; border:1px dashed #cbd5e1; border-radius:12px; padding:10px; background:#fafafa;">
-          <div style="font-size:${UI.fs12}px; color:#475569; font-weight:900;">Novo diagnóstico (catálogo)</div>
-
-          <div style="margin-top:8px; display:grid; grid-template-columns: 140px 200px 1fr; gap:10px; align-items:end;">
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label class="gcLabel">Sistema</label>
-              <select id="dxAddSystem" class="gcSelect">
-                <option value="local" ${dx.addSystem === "local" ? "selected" : ""}>local</option>
-              </select>
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label class="gcLabel">Código *</label>
-              <input id="dxAddCode" type="text" value="${escapeHtml(dx.addCode || "")}"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label class="gcLabel">Descrição *</label>
-              <input id="dxAddLabel" type="text" value="${escapeHtml(dx.addLabel || "")}"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-          </div>
-
-          <div style="margin-top:10px; display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
-            <div id="dxAddMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
-            <div style="display:flex; gap:10px;">
-              <button id="dxAddCancel" class="gcBtn">Fechar</button>
-              <button id="dxAddSave" class="gcBtn" style="font-weight:900;" ${dx.addWorking ? "disabled" : ""}>
-                ${dx.addWorking ? "A gravar…" : "Adicionar ao catálogo"}
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    function tabBtnStyle(isOn) {
-      return `
-        padding:10px 12px;
-        border-radius:12px;
-        border:1px solid ${isOn ? "#111" : "#e5e5e5"};
-        background:${isOn ? "#111" : "#fff"};
-        color:${isOn ? "#fff" : "#111"};
-        cursor:pointer;
-        font-size:${UI.fs13}px;
-        font-weight:${isOn ? 900 : 800};
-      `;
-    }
-
-    function renderMedicalTab() {
-      // ✅ HDA grande + Diagnóstico com pesquisa incremental + Tratamentos (placeholder)
-      return `
-        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="gcBtn" id="btnShortcutReports">Relatórios</button>
-          <button class="gcBtn" id="btnShortcutExams">Exames</button>
-          <button class="gcBtn" id="btnShortcutOther">Outros</button>
-        </div>
-
-        <div style="margin-top:12px; padding:12px; border:1px solid #eee; border-radius:12px;">
-          <div style="font-size:${UI.fs12}px; color:#666; font-weight:900;">HDA</div>
-          <textarea id="medHDA" rows="12"
-            style="margin-top:8px; width:100%; padding:12px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs14}px; line-height:1.35;"
-          >${escapeHtml(draft.hda || "")}</textarea>
-        </div>
-
-        <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-          <!-- Diagnóstico -->
-          <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-            <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
-              <div style="font-size:${UI.fs12}px; color:#666; font-weight:900;">Diagnóstico</div>
-              <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                ${isDoctor() ? `<button id="dxToggleAdd" class="gcBtn" style="padding:6px 10px; border-radius:10px;">＋ Novo diagnóstico</button>` : ``}
-              </div>
-            </div>
-
-            <div style="margin-top:8px;">
-              <input id="dxSearch" type="search"
-                value="${escapeHtml(dx.q || "")}"
-                placeholder="Pesquisar (código ou descrição) — ex.: 726.31 | Aquiles | capsulite"
-                autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;" />
-              <div id="dxResults"
-                   style="margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:220px; overflow:auto;">
-                ${renderDxResults()}
-              </div>
-
-              <div style="margin-top:10px;">
-                <div style="font-size:${UI.fs12}px; color:#666; font-weight:900;">Selecionados</div>
-                <div id="dxSelected" style="margin-top:8px;">
-                  ${renderDxSelected()}
-                </div>
-              </div>
-
-              <div id="dxAddWrap">
-                ${renderDxAddForm()}
-              </div>
-
-              <div style="margin-top:8px; font-size:${UI.fs12}px; color:#666;">
-                Nota: ainda não grava em BD de consulta. Nesta fase estamos a montar a UI do FEED.
-              </div>
-            </div>
-          </div>
-
-          <!-- Tratamentos (placeholder) -->
-          <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-            <div style="font-size:${UI.fs12}px; color:#666; font-weight:900;">Tratamentos</div>
-            <textarea id="medTx" rows="5"
-              style="margin-top:8px; width:100%; padding:12px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs14}px; line-height:1.35;"
-            >${escapeHtml(draft.treatments || "")}</textarea>
-            <div style="margin-top:6px; font-size:${UI.fs12}px; color:#666;">
-              (placeholder) No passo 4 isto passa a dual-list baseada na tabela de tratamentos.
-            </div>
-          </div>
-        </div>
-
-        <div style="margin-top:12px; padding:12px; border:1px dashed #cbd5e1; border-radius:12px; background:#fafafa;">
-          <div style="font-size:${UI.fs12}px; color:#475569; font-weight:900;">Timeline (Feed)</div>
-          <div style="margin-top:6px; font-size:${UI.fs12}px; color:#64748b;">
-            (placeholder) Aqui vai aparecer o histórico cronológico: consultas, registos FT, notas e documentos.
-          </div>
-        </div>
-      `;
-    }
-
-    function renderPhysioTab() {
-      return `
-        <div style="margin-top:12px; padding:12px; border:1px solid #eee; border-radius:12px;">
-          <div style="font-size:${UI.fs12}px; color:#666; font-weight:900;">Registo FT</div>
-          <textarea id="ptText" rows="12"
-            style="margin-top:8px; width:100%; padding:12px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs14}px; line-height:1.35;"
-          >${escapeHtml(draft.physio_text || "")}</textarea>
-          <div style="margin-top:8px; font-size:${UI.fs12}px; color:#666;">
-            (placeholder) Nesta fase não grava em BD. Só estamos a montar o FEED.
-          </div>
-        </div>
-      `;
-    }
-
-    function renderNotesTab() {
-      return `
-        <div style="margin-top:12px; display:grid; grid-template-columns: 1fr; gap:12px;">
-          <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-            <div style="font-size:${UI.fs12}px; color:#666; font-weight:900;">Notas — Médico</div>
-            <textarea id="noteDoctor" rows="6"
-              style="margin-top:8px; width:100%; padding:12px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs14}px; line-height:1.35;"
-            >${escapeHtml(draft.note_doctor || "")}</textarea>
-          </div>
-
-          <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-            <div style="font-size:${UI.fs12}px; color:#666; font-weight:900;">Notas — Fisioterapeuta</div>
-            <textarea id="notePhysio" rows="6"
-              style="margin-top:8px; width:100%; padding:12px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs14}px; line-height:1.35;"
-            >${escapeHtml(draft.note_physio || "")}</textarea>
-          </div>
-
-          <div style="padding:12px; border:1px solid #eee; border-radius:12px;">
-            <div style="font-size:${UI.fs12}px; color:#666; font-weight:900;">Notas — Administrativa</div>
-            <textarea id="noteAdmin" rows="6"
-              style="margin-top:8px; width:100%; padding:12px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs14}px; line-height:1.35;"
-            >${escapeHtml(draft.note_admin || "")}</textarea>
-          </div>
-
-          <div style="font-size:${UI.fs12}px; color:#666;">
-            (placeholder) Permissões e gravação em BD serão tratadas no bloco do FEED.
-          </div>
-        </div>
-      `;
-    }
-
-    function render() {
-      const idBits = [];
-      if (p.sns) idBits.push(`SNS: ${p.sns}`);
-      if (p.nif) idBits.push(`NIF: ${p.nif}`);
-      if (p.passport_id) idBits.push(`Passaporte/ID: ${p.passport_id}`);
-      const topSubtitle = idBits.join(" • ") || "—";
-
-      // guarda drafts antes de re-render (se os inputs existirem)
-      const hdaEl = document.getElementById("medHDA");
-      const txEl = document.getElementById("medTx");
-      const ptEl = document.getElementById("ptText");
-      const ndEl = document.getElementById("noteDoctor");
-      const npEl = document.getElementById("notePhysio");
-      const naEl = document.getElementById("noteAdmin");
-
-      if (hdaEl) draft.hda = hdaEl.value;
-      if (txEl) draft.treatments = txEl.value;
-      if (ptEl) draft.physio_text = ptEl.value;
-      if (ndEl) draft.note_doctor = ndEl.value;
-      if (npEl) draft.note_physio = npEl.value;
-      if (naEl) draft.note_admin = naEl.value;
-
-      // dx.q pode mudar via input (se existir)
-      const dxSearchEl = document.getElementById("dxSearch");
-      if (dxSearchEl) dx.q = dxSearchEl.value;
-
-      const canManageClinics = String(G.role || "").toLowerCase() === "doctor";
-      const activeClinicLabel = activeClinicLoading ? "A carregar…" : clinicLabelById(activeClinicId);
-
-      const primaryId = p.sns ? `SNS ${p.sns}` : (p.nif ? `NIF ${p.nif}` : (p.passport_id ? `ID ${p.passport_id}` : "—"));
-
-      root.innerHTML = `
-        <div id="pViewOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
-          <div style="background:#fff; width:min(1100px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 88vh; overflow:auto;">
-
-            <!-- Header -->
-            <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap;">
-              <div style="min-width: 260px;">
-                <div style="font-size:${UI.fs14}px; font-weight:900; color:#111;">Feed do Doente</div>
-                <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">${escapeHtml(p.id)}</div>
-                <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">${escapeHtml(topSubtitle)}</div>
-              </div>
-
-              <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-                <button id="btnToggleEdit" class="gcBtn" style="font-weight:900;">
-                  ${editMode ? "Cancelar edição" : "Editar"}
-                </button>
-                ${editMode ? `<button id="btnSavePatient" class="gcBtn" style="font-weight:900;">Gravar</button>` : ""}
-                <button id="btnClosePView" class="gcBtn">Fechar</button>
-              </div>
-            </div>
-
-            <!-- Identificação (colapsável) -->
-            <div style="margin-top:12px; padding:10px 12px; border:1px solid #eee; border-radius:12px; background:#fafafa;">
-              <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                  <button id="btnToggleId" class="gcBtn" style="padding:6px 10px; border-radius:10px;">
-                    ${idExpanded ? "▾" : "▸"}
-                  </button>
-                  <div style="font-size:${UI.fs14}px; font-weight:950; color:#111;">
-                    ${escapeHtml(p.full_name || "—")}
-                  </div>
-                  <div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">
-                    ${escapeHtml(primaryId)}
-                  </div>
-                  ${p.phone ? `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">Tel: ${escapeHtml(p.phone)}</div>` : ``}
-                </div>
-                <div id="peMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
-              </div>
-
-              <div id="idDetailsWrap" style="display:${idExpanded ? "block" : "none"}; margin-top:10px;">
-                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; align-items:start;">
-
-                  <div>
-                    <div style="font-size:${UI.fs12}px; color:#666;">SNS</div>
-                    <div style="margin-top:6px;">
-                      ${editMode
-                        ? `<input id="peSNS" type="text" inputmode="numeric" value="${escapeHtml(p.sns || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                        : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.sns || "—")}</div>`}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style="font-size:${UI.fs12}px; color:#666;">NIF</div>
-                    <div style="margin-top:6px;">
-                      ${editMode
-                        ? `<input id="peNIF" type="text" inputmode="numeric" value="${escapeHtml(p.nif || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                        : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.nif || "—")}</div>`}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style="font-size:${UI.fs12}px; color:#666;">Passaporte/ID</div>
-                    <div style="margin-top:6px;">
-                      ${editMode
-                        ? `<input id="pePassport" type="text" value="${escapeHtml(p.passport_id || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                        : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.passport_id || "—")}</div>`}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style="font-size:${UI.fs12}px; color:#666;">Telefone</div>
-                    <div style="margin-top:6px;">
-                      ${editMode
-                        ? `<input id="pePhone" type="text" value="${escapeHtml(p.phone || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                        : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.phone || "—")}</div>`}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style="font-size:${UI.fs12}px; color:#666;">Email</div>
-                    <div style="margin-top:6px;">
-                      ${editMode
-                        ? `<input id="peEmail" type="email" value="${escapeHtml(p.email || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                        : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.email || "—")}</div>`}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style="font-size:${UI.fs12}px; color:#666;">País</div>
-                    <div style="margin-top:6px;">
-                      ${editMode
-                        ? `<input id="peCountry" type="text" value="${escapeHtml(p.country || "PT")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                        : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.country || "—")}</div>`}
-                    </div>
-                  </div>
-
-                  <div style="grid-column: 1 / -1;">
-                    <div style="font-size:${UI.fs12}px; color:#666;">Morada</div>
-                    <div style="margin-top:6px;">
-                      ${editMode
-                        ? `<input id="peAddr" type="text" value="${escapeHtml(p.address_line1 || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                        : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.address_line1 || "—")}</div>`}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style="font-size:${UI.fs12}px; color:#666;">Código-postal</div>
-                    <div style="margin-top:6px;">
-                      ${editMode
-                        ? `<input id="pePostal" type="text" value="${escapeHtml(p.postal_code || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                        : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.postal_code || "—")}</div>`}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style="font-size:${UI.fs12}px; color:#666;">Cidade</div>
-                    <div style="margin-top:6px;">
-                      ${editMode
-                        ? `<input id="peCity" type="text" value="${escapeHtml(p.city || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                        : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.city || "—")}</div>`}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style="font-size:${UI.fs12}px; color:#666;">Seguro</div>
-                    <div style="margin-top:6px;">
-                      ${editMode
-                        ? `<input id="peInsProv" type="text" value="${escapeHtml(p.insurance_provider || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                        : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.insurance_provider || "—")}</div>`}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style="font-size:${UI.fs12}px; color:#666;">Apólice</div>
-                    <div style="margin-top:6px;">
-                      ${editMode
-                        ? `<input id="peInsPol" type="text" value="${escapeHtml(p.insurance_policy_number || "")}" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />`
-                        : `<div style="font-size:${UI.fs13}px; color:#111; font-weight:800;">${escapeHtml(p.insurance_policy_number || "—")}</div>`}
-                    </div>
-                  </div>
-
-                  <div style="grid-column: 1 / -1;">
-                    <div style="font-size:${UI.fs12}px; color:#666;">Notas (Identificação)</div>
-                    <div style="margin-top:6px;">
-                      ${editMode
-                        ? `<textarea id="peNotes" rows="2" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;">${escapeHtml(p.notes || "")}</textarea>`
-                        : `<div style="font-size:${UI.fs13}px; color:#111;">${escapeHtml(p.notes || "—")}</div>`}
-                    </div>
-                  </div>
-
-                  <!-- ✅ Clínica atual + Transferência (apenas doctor) -->
-                  <div style="grid-column: 1 / -1; padding:10px; border:1px dashed #cbd5e1; border-radius:12px; background:#fff;">
-                    <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;">
-                      <div>
-                        <div style="font-size:${UI.fs12}px; color:#64748b; font-weight:900;">Clínica do doente</div>
-                        <div style="margin-top:6px; font-size:${UI.fs13}px; color:#111; font-weight:900;">
-                          Atual: <span id="pcActiveClinicLabel">${escapeHtml(activeClinicLabel)}</span>
-                        </div>
-                      </div>
-
-                      ${
-                        canManageClinics
-                          ? `
-                            <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
-                              <div style="display:flex; flex-direction:column; gap:4px; min-width: 260px;">
-                                <label style="font-size:${UI.fs12}px; color:#666;">Transferir para</label>
-                                <select id="pcToClinic" class="gcSelect" style="min-width:260px;">
-                                  ${G.clinics.map((c) => {
-                                    const label = c.name || c.display_name || c.slug || c.id;
-                                    const sel = (c.id === activeClinicId) ? " selected" : "";
-                                    return `<option value="${escapeHtml(c.id)}"${sel}>${escapeHtml(label)}</option>`;
-                                  }).join("")}
-                                </select>
-                              </div>
-                              <button id="btnTransferClinic" class="gcBtn" style="font-weight:900;" ${transferWorking ? "disabled" : ""}>
-                                ${transferWorking ? "A transferir…" : "Transferir"}
-                              </button>
-                            </div>
-                          `
-                          : `
-                            <div style="font-size:${UI.fs12}px; color:#64748b; max-width: 420px;">
-                              Transferência de clínica: disponível apenas para o médico.
-                            </div>
-                          `
-                      }
-                    </div>
-
-                    <div id="pcMsg" style="margin-top:8px; font-size:${UI.fs12}px; color:#64748b;"></div>
-                  </div>
-
-                </div>
-              </div>
-            </div>
-
-            <!-- Tabs -->
-            <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-              <button id="tabMedical" style="${tabBtnStyle(activeTab === "medical")}">Consulta Médica</button>
-              <button id="tabPhysio" style="${tabBtnStyle(activeTab === "physio")}">Registo FT</button>
-              <button id="tabNotes" style="${tabBtnStyle(activeTab === "notes")}">Notas</button>
-            </div>
-
-            <!-- Conteúdo -->
-            <div id="feedBody">
-              ${activeTab === "medical" ? renderMedicalTab() : activeTab === "physio" ? renderPhysioTab() : renderNotesTab()}
-            </div>
-
-          </div>
-        </div>
-      `;
-
-      const overlay = document.getElementById("pViewOverlay");
-      const btnClose = document.getElementById("btnClosePView");
-      const btnToggle = document.getElementById("btnToggleEdit");
-      const btnSave = document.getElementById("btnSavePatient");
-      const msgEl = document.getElementById("peMsg");
-
-      const tabMedical = document.getElementById("tabMedical");
-      const tabPhysio = document.getElementById("tabPhysio");
-      const tabNotes = document.getElementById("tabNotes");
-
-      const btnShortcutReports = document.getElementById("btnShortcutReports");
-      const btnShortcutExams = document.getElementById("btnShortcutExams");
-      const btnShortcutOther = document.getElementById("btnShortcutOther");
-
-      const pcMsg = document.getElementById("pcMsg");
-      const btnTransferClinic = document.getElementById("btnTransferClinic");
-      const pcToClinic = document.getElementById("pcToClinic");
-
-      const btnToggleId = document.getElementById("btnToggleId");
-
-      // Diagnóstico UI refs (só existem no medical tab)
-      const dxSearch = document.getElementById("dxSearch");
-      const dxResults = document.getElementById("dxResults");
-      const dxSelected = document.getElementById("dxSelected");
-      const dxToggleAdd = document.getElementById("dxToggleAdd");
-
-      const dxAddSystem = document.getElementById("dxAddSystem");
-      const dxAddCode = document.getElementById("dxAddCode");
-      const dxAddLabel = document.getElementById("dxAddLabel");
-      const dxAddMsg = document.getElementById("dxAddMsg");
-      const dxAddCancel = document.getElementById("dxAddCancel");
-      const dxAddSave = document.getElementById("dxAddSave");
-
-      function setMsg(kind, txt) {
-        if (!msgEl) return;
-        msgEl.style.color = kind === "error" ? "#b00020" : kind === "ok" ? "#111" : "#666";
-        msgEl.textContent = txt || "";
-      }
-
-      function setPcMsg(kind, txt) {
-        if (!pcMsg) return;
-        pcMsg.style.color = kind === "error" ? "#b00020" : kind === "ok" ? "#111" : "#64748b";
-        pcMsg.textContent = txt || "";
-      }
-
-      function close() {
-        closeModalRoot();
-      }
-
-      if (btnClose) btnClose.addEventListener("click", close);
-      if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "pViewOverlay") close(); });
-
-      // Identificação expand/collapse
-      if (btnToggleId) {
-        btnToggleId.addEventListener("click", () => {
-          idExpanded = !idExpanded;
-          render();
-        });
-      }
-
-      // Tabs
-      if (tabMedical) tabMedical.addEventListener("click", () => { if (!working) { activeTab = "medical"; render(); } });
-      if (tabPhysio) tabPhysio.addEventListener("click", () => { if (!working) { activeTab = "physio"; render(); } });
-      if (tabNotes) tabNotes.addEventListener("click", () => { if (!working) { activeTab = "notes"; render(); } });
-
-      // Atalhos (placeholder)
-      if (btnShortcutReports) btnShortcutReports.addEventListener("click", () => alert("Relatórios: será implementado no bloco do FEED."));
-      if (btnShortcutExams) btnShortcutExams.addEventListener("click", () => alert("Exames: será implementado no bloco do FEED."));
-      if (btnShortcutOther) btnShortcutOther.addEventListener("click", () => alert("Outros: será implementado no bloco do FEED."));
-
-      // Editar/Cancelar
-      if (btnToggle) {
-        btnToggle.addEventListener("click", () => {
-          if (working) return;
-          editMode = !editMode;
-          render();
-        });
-      }
-
-      // ✅ Transferir clínica (apenas doctor)
-      if (btnTransferClinic && pcToClinic) {
-        btnTransferClinic.addEventListener("click", async () => {
-          if (transferWorking) return;
-
-          const toClinicId = pcToClinic.value || null;
-          if (!toClinicId) {
-            setPcMsg("error", "Seleciona a clínica de destino.");
-            return;
-          }
-          if (activeClinicId && toClinicId === activeClinicId) {
-            setPcMsg("error", "O doente já está nesta clínica.");
-            return;
-          }
-
-          transferWorking = true;
-          setPcMsg("info", "A transferir…");
-          render();
-
-          try {
-            const { error } = await window.sb.rpc("transfer_patient_to_clinic", {
-              p_patient_id: p.id,
-              p_to_clinic_id: toClinicId,
-            });
-            if (error) throw error;
-
-            await refreshActiveClinic();
-            setPcMsg("ok", `Transferido para: ${clinicLabelById(activeClinicId)}`);
-            render();
-          } catch (e) {
-            console.error("Transferência de clínica falhou:", e);
-            const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
-            setPcMsg("error", msg.includes("Sem permissão") ? "Sem permissão para transferir para esta clínica." : "Erro na transferência. Vê a consola.");
-            render();
-          } finally {
-            transferWorking = false;
-          }
-        });
-      }
-
-      // ---------- Diagnóstico: wiring ----------
-      async function runDxSearchNow() {
-        const term = String(dxSearch && dxSearch.value ? dxSearch.value : "").trim();
-        dx.q = term;
-
-        if (!dxResults) return;
-
-        if (!term || term.length < 2) {
-          dx.loading = false;
-          dx.err = "";
-          dx.results = [];
-          dxResults.innerHTML = renderDxResults();
-          return;
-        }
-
-        dx.loading = true;
-        dx.err = "";
-        dxResults.innerHTML = renderDxResults();
-
-        try {
-          const rows = await searchDiagnosesCatalog(term, 18);
-          dx.results = rows || [];
-          dx.loading = false;
-          dxResults.innerHTML = renderDxResults();
-        } catch (e) {
-          console.error("Dx search falhou:", e);
-          dx.loading = false;
-          dx.err = "Erro na pesquisa. Vê a consola.";
-          dx.results = [];
-          dxResults.innerHTML = renderDxResults();
-        }
-      }
-
-      function scheduleDxSearch() {
-        if (dx.timer) clearTimeout(dx.timer);
-        dx.timer = setTimeout(runDxSearchNow, 250);
-      }
-
-      // Input de pesquisa
-      if (dxSearch) {
-        dxSearch.addEventListener("input", scheduleDxSearch);
-        dxSearch.addEventListener("focus", scheduleDxSearch);
-      }
-
-      // Clique em resultado -> adicionar
-      if (dxResults) {
-        dxResults.addEventListener("click", (ev) => {
-          const t = ev.target;
-          const card = t && t.closest ? t.closest("[data-dx-pick='1']") : null;
-          if (!card) return;
-
-          const id = card.getAttribute("data-dx-id");
-          const row = (dx.results || []).find((r) => String(r.id) === String(id));
-          if (!row) return;
-
-          if (dxAlreadySelected(row)) return;
-
-          draft.dx_selected = (draft.dx_selected || []).concat([{
-            id: row.id,
-            system: row.system,
-            code: row.code,
-            label: row.label,
-          }]);
-
-          if (dxSelected) dxSelected.innerHTML = renderDxSelected();
-        });
-      }
-
-      // Remover selecionado
-      if (dxSelected) {
-        dxSelected.addEventListener("click", (ev) => {
-          const t = ev.target;
-          const rid = t && t.getAttribute ? t.getAttribute("data-dx-remove") : null;
-          if (!rid) return;
-
-          // remove por id quando existe, senão por key fallback
-          draft.dx_selected = (draft.dx_selected || []).filter((x) => {
-            const xid = x && x.id ? String(x.id) : "";
-            if (xid && xid === String(rid)) return false;
-            const k = dxKey(x);
-            return k !== String(rid);
-          });
-
-          dxSelected.innerHTML = renderDxSelected();
-        });
-      }
-
-      // Toggle “Novo diagnóstico”
-      if (dxToggleAdd) {
-        dxToggleAdd.addEventListener("click", () => {
-          if (!isDoctor()) return;
-          dx.addOpen = !dx.addOpen;
-          render();
-        });
-      }
-
-      // Add form wiring (apenas se existir)
-      function setDxAddMsg(kind, txt) {
-        if (!dxAddMsg) return;
-        dxAddMsg.style.color = kind === "error" ? "#b00020" : kind === "ok" ? "#111" : "#666";
-        dxAddMsg.textContent = txt || "";
-      }
-
-      if (dxAddCancel) {
-        dxAddCancel.addEventListener("click", () => {
-          dx.addOpen = false;
-          dx.addCode = "";
-          dx.addLabel = "";
-          render();
-        });
-      }
-
-      if (dxAddSave) {
-        dxAddSave.addEventListener("click", async () => {
-          if (!isDoctor()) return;
-
-          const system = dxAddSystem ? (dxAddSystem.value || "local") : "local";
-          const code = dxAddCode ? String(dxAddCode.value || "").trim() : "";
-          const label = dxAddLabel ? String(dxAddLabel.value || "").trim() : "";
-
-          if (!code) { setDxAddMsg("error", "Código é obrigatório."); return; }
-          if (!label) { setDxAddMsg("error", "Descrição é obrigatória."); return; }
-
-          dx.addWorking = true;
-          setDxAddMsg("info", "A gravar…");
-
-          try {
-            const row = await rpcAddDiagnosisCatalog({ system, code, label, is_active: true });
-
-            // adiciona automaticamente aos selecionados
-            if (row && !dxAlreadySelected(row)) {
-              draft.dx_selected = (draft.dx_selected || []).concat([{
-                id: row.id,
-                system: row.system,
-                code: row.code,
-                label: row.label,
-              }]);
-            }
-
-            // fecha form e refresca pesquisa
-            dx.addOpen = false;
-            dx.addCode = "";
-            dx.addLabel = "";
-            dx.addWorking = false;
-
-            // Atualiza UI (selected + resultados)
-            render();
-          } catch (e) {
-            console.error("add diagnosis falhou:", e);
-            dx.addWorking = false;
-
-            const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
-            if (msg.includes("duplicate")) setDxAddMsg("error", "Já existe um diagnóstico com este sistema+código.");
-            else if (msg.includes("not allowed")) setDxAddMsg("error", "Sem permissão.");
-            else setDxAddMsg("error", "Erro ao adicionar. Vê a consola.");
-          }
-        });
-      }
-
-      // Mantém inputs do add (quando aberto) em dx.*
-      if (dxAddSystem) dx.addSystem = dxAddSystem.value || "local";
-      if (dxAddCode) dx.addCode = dxAddCode.value || "";
-      if (dxAddLabel) dx.addLabel = dxAddLabel.value || "";
-
-      if (dxAddSystem) dxAddSystem.addEventListener("change", () => { dx.addSystem = dxAddSystem.value || "local"; });
-      if (dxAddCode) dxAddCode.addEventListener("input", () => { dx.addCode = dxAddCode.value || ""; });
-      if (dxAddLabel) dxAddLabel.addEventListener("input", () => { dx.addLabel = dxAddLabel.value || ""; });
-
-      // Gravar (Identificação) — mantém updatePatient existente
-      if (btnSave) {
-        btnSave.addEventListener("click", async () => {
-          if (working) return;
-
-          const vals = {
-            full_name: p.full_name || "",
-            dob: p.dob ? p.dob : null,
-            phone: document.getElementById("pePhone") ? document.getElementById("pePhone").value : null,
-            email: document.getElementById("peEmail") ? document.getElementById("peEmail").value : null,
-            sns: document.getElementById("peSNS") ? document.getElementById("peSNS").value : null,
-            nif: document.getElementById("peNIF") ? document.getElementById("peNIF").value : null,
-            passport_id: document.getElementById("pePassport") ? document.getElementById("pePassport").value : null,
-            insurance_provider: document.getElementById("peInsProv") ? document.getElementById("peInsProv").value : null,
-            insurance_policy_number: document.getElementById("peInsPol") ? document.getElementById("peInsPol").value : null,
-            address_line1: document.getElementById("peAddr") ? document.getElementById("peAddr").value : null,
-            postal_code: document.getElementById("pePostal") ? document.getElementById("pePostal").value : null,
-            city: document.getElementById("peCity") ? document.getElementById("peCity").value : null,
-            country: document.getElementById("peCountry") ? document.getElementById("peCountry").value : null,
-            notes: document.getElementById("peNotes") ? document.getElementById("peNotes").value : null,
-          };
-
-          const snsEl = document.getElementById("peSNS");
-          const nifEl = document.getElementById("peNIF");
-          if (snsEl) snsEl.value = normalizeDigits(snsEl.value);
-          if (nifEl) nifEl.value = normalizeDigits(nifEl.value);
-
-          const v = validatePatientEdit(vals);
-          if (!v.ok) {
-            setMsg("error", v.msg);
-            return;
-          }
-
-          working = true;
-          setMsg("info", "A gravar…");
-
-          try {
-            const updated = await updatePatient(p.id, v.cleaned);
-            if (!updated) throw new Error("Update sem retorno");
-
-            Object.assign(p, updated);
-
-            if (p.id) {
-              G.patientsById[p.id] = Object.assign({}, (G.patientsById[p.id] || {}), {
-                id: p.id,
-                full_name: p.full_name,
-                phone: p.phone,
-                email: p.email,
-                sns: p.sns,
-                nif: p.nif,
-                passport_id: p.passport_id,
-              });
-
-              if (G.patientQuick && G.patientQuick.selected && G.patientQuick.selected.id === p.id) {
-                G.patientQuick.selected = Object.assign({}, G.patientQuick.selected, p);
-                renderQuickPatientSelected();
-              }
-            }
-
-            renderAgendaList();
-
-            setMsg("ok", "Gravado.");
-            editMode = false;
-            render();
-          } catch (e) {
-            console.error("Gravar doente falhou:", e);
-            const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
-
-            if (msg.includes("patients_sns_unique_not_null")) setMsg("error", "SNS já existe noutro doente.");
-            else if (msg.includes("patients_nif_unique_not_null")) setMsg("error", "NIF já existe noutro doente.");
-            else if (msg.includes("patients_passport_unique_not_null")) setMsg("error", "Passaporte/ID já existe noutro doente.");
-            else if (msg.includes("patients_sns_format_check")) setMsg("error", "SNS inválido (9 dígitos).");
-            else if (msg.includes("patients_nif_format_check")) setMsg("error", "NIF inválido (9 dígitos).");
-            else if (msg.includes("patients_passport_format_check")) setMsg("error", "Passaporte/ID inválido (4–20 alfanum).");
-            else if (msg.includes("patients_sns_or_nif_or_passport_check")) setMsg("error", "Identificação obrigatória: SNS/NIF/Passaporte.");
-            else setMsg("error", "Erro ao gravar. Vê a consola.");
-          } finally {
-            working = false;
-          }
-        });
-      }
-    }
-
-    // 1) render inicial
-    render();
-
-    // 2) carregar clínica ativa e re-render
-    refreshActiveClinic().then(() => {
-      try { render(); } catch {}
-    });
+  function role() {
+    return String(G.role || "").toLowerCase();
   }
 
-/* ==== FIM BLOCO 06/12 — Modal Doente (ver + editar) ==== */
+  function isDoctor() { return role() === "doctor"; }
+  function isPhysio() { return role() === "physio"; }
+  function isSecretary() { return role() === "secretary"; }
+
+  function clinicLabelById(cid) {
+    if (!cid) return "—";
+    const c = G.clinicsById && G.clinicsById[cid] ? G.clinicsById[cid] : null;
+    return c ? (c.name || c.display_name || c.slug || cid) : cid;
+  }
+
+  async function fetchActiveClinicForPatient(patientId) {
+    const { data, error } = await window.sb
+      .from("patient_clinic")
+      .select("clinic_id")
+      .eq("patient_id", patientId)
+      .eq("is_active", true)
+      .limit(1);
+
+    if (error) throw error;
+    return data && data.length ? data[0].clinic_id : null;
+  }
+
+  async function refreshActiveClinic() {
+    activeClinicLoading = true;
+    try {
+      activeClinicId = await fetchActiveClinicForPatient(p.id);
+    } catch (e) {
+      console.error(e);
+      activeClinicId = null;
+    } finally {
+      activeClinicLoading = false;
+    }
+  }
+
+  /* =============================
+     FEED – AÇÕES POR ROLE
+  ============================== */
+
+  function renderTopActions() {
+    return `
+      <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+        ${isDoctor() ? `<button id="btnNewConsult" class="gcBtn" style="font-weight:900;">Consulta Médica</button>` : ``}
+        ${isPhysio() ? `<button id="btnNewPhysio" class="gcBtn" style="font-weight:900;">Registo FT</button>` : ``}
+        <button id="btnNewNote" class="gcBtn" style="font-weight:900;">Nota</button>
+      </div>
+    `;
+  }
+
+  /* =============================
+     TIMELINE (placeholder estruturado)
+  ============================== */
+
+  function renderTimelinePlaceholder() {
+    return `
+      <div style="margin-top:16px; padding:14px; border:1px solid #e5e5e5; border-radius:12px;">
+        <div style="font-size:${UI.fs12}px; font-weight:900; color:#666;">
+          Timeline (cronológica)
+        </div>
+
+        <div style="margin-top:12px; display:flex; flex-direction:column; gap:12px;">
+
+          <div style="border:1px solid #eee; border-radius:12px; padding:10px;">
+            <div style="font-weight:900; font-size:${UI.fs13}px;">
+              Consulta realizada em 13-02-2026 — Primeira consulta
+            </div>
+            ${isSecretary() ? `
+              <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
+                Evento clínico registado.
+              </div>
+            ` : `
+              <div style="font-size:${UI.fs12}px; margin-top:6px;">
+                HDA / Diagnóstico / Tratamentos aparecerão aqui.
+              </div>
+            `}
+          </div>
+
+          <div style="border:1px solid #eee; border-radius:12px; padding:10px;">
+            <div style="font-weight:900; font-size:${UI.fs13}px;">
+              Registo FT em 12-02-2026
+            </div>
+            ${isSecretary() ? `
+              <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
+                Registo efetuado.
+              </div>
+            ` : `
+              <div style="font-size:${UI.fs12}px; margin-top:6px;">
+                Conteúdo do registo FT aparecerá aqui.
+              </div>
+            `}
+          </div>
+
+          <div style="border:1px solid #eee; border-radius:12px; padding:10px;">
+            <div style="font-weight:900; font-size:${UI.fs13}px;">
+              Documento PDF gerado — 11-02-2026
+            </div>
+            <div style="margin-top:6px;">
+              <button class="gcBtn">Abrir PDF</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    `;
+  }
+
+  /* =============================
+     RENDER PRINCIPAL
+  ============================== */
+
+  function render() {
+
+    const idBits = [];
+    if (p.sns) idBits.push(`SNS: ${p.sns}`);
+    if (p.nif) idBits.push(`NIF: ${p.nif}`);
+    if (p.passport_id) idBits.push(`ID: ${p.passport_id}`);
+
+    const subtitle = idBits.join(" • ") || "—";
+    const primaryId = p.sns ? `SNS ${p.sns}` :
+                      p.nif ? `NIF ${p.nif}` :
+                      p.passport_id ? `ID ${p.passport_id}` : "—";
+
+    root.innerHTML = `
+      <div id="pViewOverlay"
+           style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
+                  display:flex; align-items:center; justify-content:center; padding:18px;">
+
+        <div style="background:#fff; width:min(1100px, 100%);
+                    border-radius:14px; border:1px solid #e5e5e5;
+                    padding:16px; max-height:88vh; overflow:auto;">
+
+          <!-- Header -->
+          <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div>
+              <div style="font-size:${UI.fs14}px; font-weight:900;">
+                Feed do Doente
+              </div>
+              <div style="font-size:${UI.fs12}px; color:#666;">
+                ${escapeHtml(subtitle)}
+              </div>
+            </div>
+            <button id="btnClosePView" class="gcBtn">Fechar</button>
+          </div>
+
+          <!-- Identificação -->
+          <div style="margin-top:14px; padding:12px;
+                      border:1px solid #eee; border-radius:12px; background:#fafafa;">
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+              <div style="font-weight:950; font-size:${UI.fs14}px;">
+                ${escapeHtml(p.full_name || "—")}
+              </div>
+              <div style="font-weight:800;">${escapeHtml(primaryId)}</div>
+              ${p.phone ? `<div style="font-weight:800;">Tel: ${escapeHtml(p.phone)}</div>` : ``}
+            </div>
+          </div>
+
+          ${renderTopActions()}
+          ${renderTimelinePlaceholder()}
+
+        </div>
+      </div>
+    `;
+
+    const overlay = document.getElementById("pViewOverlay");
+    const btnClose = document.getElementById("btnClosePView");
+
+    if (btnClose) btnClose.addEventListener("click", closeModalRoot);
+    if (overlay) overlay.addEventListener("click", (ev) => {
+      if (ev.target.id === "pViewOverlay") closeModalRoot();
+    });
+
+  }
+
+  render();
+
+  refreshActiveClinic().then(() => {
+    try { render(); } catch {}
+  });
+
+}
+
+/* ==== FIM BLOCO 06/12 — Modal Doente (FEED definitivo) ==== */
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
   // ---------- Novo doente (modal da página inicial) ----------
