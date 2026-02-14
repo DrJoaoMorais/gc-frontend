@@ -957,7 +957,7 @@ function openPatientViewModal(patient) {
 }
 
 /* ==== Fim BLOCO 06A/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
-/* ==== INICIO BLOCO 06B/12 — Modal Doente (FASE 2 — Inline + HDA Rich Text + Timeline + Anti-dup) ==== */
+/* ==== INICIO BLOCO 06B/12 — Modal Doente (FASE 2 — HDA Rich + Autor + Timeline Clean) ==== */
 
 function openPatientViewModal(patient) {
 
@@ -969,31 +969,25 @@ function openPatientViewModal(patient) {
   /* ================= STATE ================= */
   let activeClinicId = null;
   let creatingConsult = false;
-
   let timelineLoading = false;
   let consultRows = [];
-
-  let saving = false;          // evita duplo insert
-  let draftHDAHtml = "";       // HDA em HTML (rich text)
+  let saving = false;
+  let draftHDAHtml = "";
 
   /* ================= ROLE ================= */
   function role() { return String(G.role || "").toLowerCase(); }
   function isDoctor() { return role() === "doctor"; }
 
   /* ================= DATA ================= */
+
   async function fetchActiveClinic() {
-    const { data, error } = await window.sb
+    const { data } = await window.sb
       .from("patient_clinic")
       .select("clinic_id")
       .eq("patient_id", p.id)
       .eq("is_active", true)
       .limit(1);
 
-    if (error) {
-      console.error(error);
-      activeClinicId = null;
-      return;
-    }
     activeClinicId = data && data.length ? data[0].clinic_id : null;
   }
 
@@ -1002,7 +996,16 @@ function openPatientViewModal(patient) {
 
     const { data, error } = await window.sb
       .from("consultations")
-      .select("id, report_date, hda, created_at")
+      .select(`
+        id,
+        report_date,
+        hda,
+        created_at,
+        author_user_id,
+        clinic_members!consultations_author_user_id_fkey (
+          display_name
+        )
+      `)
       .eq("patient_id", p.id)
       .order("report_date", { ascending: false })
       .order("created_at", { ascending: false });
@@ -1017,116 +1020,88 @@ function openPatientViewModal(patient) {
     timelineLoading = false;
   }
 
-  /* ================= SANITIZE HTML (para render seguro) ================= */
+  /* ================= SANITIZE ================= */
+
   function sanitizeHTML(html) {
-    try {
-      const allowed = new Set(["B","STRONG","U","BR","P","DIV","UL","OL","LI"]);
-      const doc = new DOMParser().parseFromString(String(html || ""), "text/html");
+    const allowed = new Set(["B","STRONG","U","BR","P","DIV","UL","OL","LI"]);
+    const doc = new DOMParser().parseFromString(String(html || ""), "text/html");
 
-      // remove scripts/styles
-      doc.querySelectorAll("script,style").forEach(n => n.remove());
+    doc.querySelectorAll("script,style").forEach(n => n.remove());
 
-      // remove atributos e tags não permitidas
-      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT, null);
-      const toFix = [];
-      while (walker.nextNode()) toFix.push(walker.currentNode);
+    const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT, null);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
 
-      toFix.forEach(el => {
-        // remove todos atributos
-        [...el.attributes].forEach(a => el.removeAttribute(a.name));
+    nodes.forEach(el => {
+      [...el.attributes].forEach(a => el.removeAttribute(a.name));
+      if (!allowed.has(el.tagName)) {
+        const text = doc.createTextNode(el.textContent || "");
+        el.replaceWith(text);
+      }
+    });
 
-        // se tag não permitida, substitui por texto
-        if (!allowed.has(el.tagName)) {
-          const text = doc.createTextNode(el.textContent || "");
-          el.replaceWith(text);
-        }
-      });
-
-      return doc.body.innerHTML || "";
-    } catch (e) {
-      console.error(e);
-      // fallback: texto simples escapado
-      return String(html || "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;");
-    }
+    return doc.body.innerHTML || "";
   }
 
   /* ================= TIMELINE ================= */
+
   function renderTimeline() {
-    if (timelineLoading) return `<div style="color:#64748b;">A carregar registos...</div>`;
-    if (!consultRows || !consultRows.length) return `<div style="color:#64748b;">Sem registos clínicos.</div>`;
+
+    if (timelineLoading) return `<div style="color:#64748b;">A carregar...</div>`;
+    if (!consultRows.length) return `<div style="color:#64748b;">Sem registos clínicos.</div>`;
 
     return `
-      <div style="display:flex; flex-direction:column; gap:12px;">
-        ${consultRows.map(r => {
-          const h = sanitizeHTML(r.hda || "");
-          return `
-            <div style="border:1px solid #e5e5e5; border-radius:14px; padding:14px;">
-              <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
-                <div style="font-weight:900; font-size:16px;">
-                  Consulta — ${String(r.report_date || "—")}
-                </div>
-                <div style="color:#64748b; font-size:12px;">
-                  ${r.created_at ? String(r.created_at).slice(11,16) : ""}
-                </div>
-              </div>
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        ${consultRows.map(r => `
+          <div style="border:1px solid #e5e5e5; border-radius:14px; padding:16px;">
 
-              <div style="margin-top:10px;">
-                <div style="font-weight:800; margin-bottom:6px;">HDA</div>
-                <div style="line-height:1.5; font-size:15px; white-space:normal;">
-                  ${h ? h : `<span style="color:#64748b;">—</span>`}
-                </div>
-              </div>
+            <div style="font-weight:900; font-size:16px;">
+              Consulta — ${r.report_date} - ${r.clinic_members?.display_name || ""}
             </div>
-          `;
-        }).join("")}
+
+            <div style="margin-top:8px; line-height:1.55; font-size:15px;">
+              ${sanitizeHTML(r.hda || "")}
+            </div>
+
+          </div>
+        `).join("")}
       </div>
     `;
   }
 
-  /* ================= INLINE FORM (HDA only) ================= */
+  /* ================= FORM ================= */
+
   function renderConsultFormInline() {
+
     const today = new Date().toISOString().slice(0, 10);
 
     return `
-      <div style="margin-top:14px; padding:14px;
-                  border:1px solid #e5e5e5; border-radius:14px;">
+      <div style="margin-top:16px; padding:16px; border:1px solid #e5e5e5; border-radius:14px;">
 
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
-          <div style="font-weight:900; font-size:16px;">Nova Consulta Médica</div>
-          <div style="color:#64748b; font-size:12px;">Só HDA (com formatação)</div>
+        <div style="font-weight:900; font-size:16px;">Nova Consulta Médica</div>
+
+        <div style="margin-top:10px;">
+          <label>Data</label>
+          <input type="date" value="${today}" readonly
+            style="padding:8px; border:1px solid #ddd; border-radius:8px;" />
         </div>
 
-        <div style="margin-top:10px; display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
-          <div style="min-width:220px;">
-            <label>Data</label>
-            <input type="date" value="${today}" readonly
-              style="width:220px; padding:8px; border:1px solid #ddd; border-radius:10px;" />
-          </div>
-        </div>
-
-        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-          <div style="font-weight:800; margin-right:6px;">HDA</div>
-          <button id="hdaBold" class="gcBtn" style="padding:8px 10px;">Negrito</button>
-          <button id="hdaUnder" class="gcBtn" style="padding:8px 10px;">Sublinhar</button>
-          <button id="hdaUL" class="gcBtn" style="padding:8px 10px;">Lista</button>
-          <button id="hdaOL" class="gcBtn" style="padding:8px 10px;">Numeração</button>
-          <div style="width:10px;"></div>
-          <button id="hdaFsDown" class="gcBtn" style="padding:8px 10px;">A-</button>
-          <button id="hdaFsUp" class="gcBtn" style="padding:8px 10px;">A+</button>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button id="hBold" class="gcBtn">Negrito</button>
+          <button id="hUnder" class="gcBtn">Sublinhar</button>
+          <button id="hUL" class="gcBtn">Lista</button>
+          <button id="hOL" class="gcBtn">Numeração</button>
         </div>
 
         <div id="hdaEditor"
              contenteditable="true"
-             style="margin-top:10px; min-height:220px;
-                    padding:12px; border:1px solid #ddd; border-radius:12px;
-                    line-height:1.55; font-size:16px; overflow:auto;">
-          ${draftHDAHtml || ""}
+             style="margin-top:10px; min-height:220px; padding:12px;
+                    border:1px solid #ddd; border-radius:12px;
+                    line-height:1.6; font-size:16px;">
+          ${draftHDAHtml}
         </div>
 
-        <div style="margin-top:12px; display:flex; justify-content:flex-end; gap:10px;">
+        <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
           <button id="btnCancelConsult" class="gcBtn">Cancelar</button>
           <button id="btnSaveConsult" class="gcBtn" style="font-weight:900;">Gravar</button>
         </div>
@@ -1135,37 +1110,23 @@ function openPatientViewModal(patient) {
     `;
   }
 
-  function bindConsultFormEvents() {
+  function bindConsultEvents() {
 
     const ed = document.getElementById("hdaEditor");
     if (!ed) return;
 
-    let fontSize = 16;
-    function applyFont() { ed.style.fontSize = fontSize + "px"; }
-    applyFont();
+    ed.oninput = () => draftHDAHtml = ed.innerHTML || "";
 
-    // guarda draft sempre que edita
-    ed.oninput = () => { draftHDAHtml = ed.innerHTML || ""; };
-
-    function cmd(command) {
+    function cmd(c) {
       ed.focus();
-      try { document.execCommand(command, false, null); } catch (e) {}
+      document.execCommand(c, false, null);
       draftHDAHtml = ed.innerHTML || "";
     }
 
-    document.getElementById("hdaBold").onclick = () => cmd("bold");
-    document.getElementById("hdaUnder").onclick = () => cmd("underline");
-    document.getElementById("hdaUL").onclick = () => cmd("insertUnorderedList");
-    document.getElementById("hdaOL").onclick = () => cmd("insertOrderedList");
-
-    document.getElementById("hdaFsDown").onclick = () => {
-      fontSize = Math.max(12, fontSize - 1);
-      applyFont();
-    };
-    document.getElementById("hdaFsUp").onclick = () => {
-      fontSize = Math.min(22, fontSize + 1);
-      applyFont();
-    };
+    document.getElementById("hBold").onclick = () => cmd("bold");
+    document.getElementById("hUnder").onclick = () => cmd("underline");
+    document.getElementById("hUL").onclick = () => cmd("insertUnorderedList");
+    document.getElementById("hOL").onclick = () => cmd("insertOrderedList");
 
     document.getElementById("btnCancelConsult").onclick = () => {
       creatingConsult = false;
@@ -1173,19 +1134,15 @@ function openPatientViewModal(patient) {
     };
 
     document.getElementById("btnSaveConsult").onclick = async () => {
+
       if (saving) return;
       saving = true;
-
-      const btn = document.getElementById("btnSaveConsult");
-      if (btn) btn.disabled = true;
-
-      // snapshot do editor
-      draftHDAHtml = ed.innerHTML || "";
+      this.disabled = true;
 
       const ok = await saveConsult();
 
       saving = false;
-      if (btn) btn.disabled = false;
+      this.disabled = false;
 
       if (ok) {
         creatingConsult = false;
@@ -1196,40 +1153,16 @@ function openPatientViewModal(patient) {
   }
 
   /* ================= SAVE ================= */
+
   async function saveConsult() {
 
     try {
+
       const userRes = await window.sb.auth.getUser();
       const userId = userRes?.data?.user?.id;
-      if (!userId) {
-        alert("Utilizador não autenticado.");
-        return false;
-      }
+      if (!userId) return false;
 
       const today = new Date().toISOString().slice(0, 10);
-      const now = new Date();
-
-      const hdaHtml = String(draftHDAHtml || "").trim();
-
-      const { data: appts, error: apptErr } = await window.sb
-        .from("appointments")
-        .select("*")
-        .eq("patient_id", p.id);
-
-      if (apptErr) console.error(apptErr);
-
-      let appointmentId = null;
-
-      if (appts && appts.length) {
-        const sameDay = appts.filter(a => a.start_at && a.start_at.slice(0,10) === today);
-        if (sameDay.length) {
-          sameDay.sort((a,b) =>
-            Math.abs(new Date(a.start_at) - now) -
-            Math.abs(new Date(b.start_at) - now)
-          );
-          appointmentId = sameDay[0].id;
-        }
-      }
 
       const { error } = await window.sb
         .from("consultations")
@@ -1238,58 +1171,53 @@ function openPatientViewModal(patient) {
           patient_id: p.id,
           author_user_id: userId,
           report_date: today,
-          hda: hdaHtml,
-          assessment: "",     // compatibilidade: fica vazio
-          plan_text: "",      // compatibilidade: fica vazio
-          appointment_id: appointmentId
+          hda: draftHDAHtml,
+          assessment: "",
+          plan_text: ""
         });
 
       if (error) throw error;
 
-      // reset draft
       draftHDAHtml = "";
-      alert("Consulta gravada.");
       return true;
 
     } catch (err) {
       console.error(err);
-      alert("Erro ao gravar consulta.");
       return false;
     }
   }
 
   /* ================= MAIN RENDER ================= */
+
   function render() {
+
     root.innerHTML = `
       <div style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
                   display:flex; align-items:center; justify-content:center; padding:12px;">
 
         <div style="background:#fff; width:min(1400px,96vw);
-                    height:92vh; border-radius:14px; border:1px solid #e5e5e5;
-                    padding:16px; overflow:auto;">
+                    height:92vh; border-radius:14px;
+                    border:1px solid #e5e5e5; padding:16px; overflow:auto;">
 
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="font-weight:900; font-size:16px;">Feed do Doente</div>
+          <div style="display:flex; justify-content:space-between;">
+            <div style="font-weight:900;">Feed do Doente</div>
             <button id="btnClosePView" class="gcBtn">Fechar</button>
           </div>
 
           <div style="margin-top:10px; font-weight:900; font-size:18px;">
-            ${p.full_name || "—"}
+            ${p.full_name}
           </div>
 
-          <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <div style="margin-top:10px;">
             ${isDoctor() && !creatingConsult ? `
               <button id="btnNewConsult" class="gcBtn" style="font-weight:900;">
                 Consulta Médica
               </button>` : ``}
-            <div style="color:#64748b; font-size:12px;">
-              ${timelineLoading ? "A carregar..." : `Consultas: ${consultRows.length}`}
-            </div>
           </div>
 
-          ${creatingConsult ? renderConsultFormInline() : ``}
+          ${creatingConsult ? renderConsultFormInline() : ""}
 
-          <div style="margin-top:14px;">
+          <div style="margin-top:18px;">
             ${renderTimeline()}
           </div>
 
@@ -1303,16 +1231,15 @@ function openPatientViewModal(patient) {
       document.getElementById("btnNewConsult").onclick = () => {
         creatingConsult = true;
         render();
-        bindConsultFormEvents();
+        bindConsultEvents();
       };
     }
 
-    if (creatingConsult) {
-      bindConsultFormEvents();
-    }
+    if (creatingConsult) bindConsultEvents();
   }
 
   /* ================= BOOT ================= */
+
   (async function boot() {
     await fetchActiveClinic();
     await loadConsultations();
@@ -1320,7 +1247,7 @@ function openPatientViewModal(patient) {
   })();
 }
 
-/* ==== Fim BLOCO 06B/12 — Modal Doente (FASE 2 — Inline + HDA Rich Text + Timeline + Anti-dup) ==== */
+/* ==== Fim BLOCO 06B/12 ==== */
 /* ==== FIM BLOCO 06/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
