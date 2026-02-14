@@ -957,7 +957,7 @@ function openPatientViewModal(patient) {
 }
 
 /* ==== Fim BLOCO 06A/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
-/* ==== INICIO BLOCO 06B/12 — Modal Doente (FASE 2 — Estrutura Inline) ==== */
+/* ==== INICIO BLOCO 06B/12 — Modal Doente (FASE 2 — Inline + Timeline Consultas) ==== */
 
 function openPatientViewModal(patient) {
 
@@ -969,6 +969,9 @@ function openPatientViewModal(patient) {
   /* ================= STATE ================= */
   let activeClinicId = null;
   let creatingConsult = false;
+
+  let timelineLoading = false;
+  let consultRows = []; // consultations do doente (FASE 2: só isto)
 
   /* ================= ROLE ================= */
   function role() {
@@ -997,37 +1000,60 @@ function openPatientViewModal(patient) {
     activeClinicId = data && data.length ? data[0].clinic_id : null;
   }
 
+  async function loadConsultations() {
+    timelineLoading = true;
+
+    const { data, error } = await window.sb
+      .from("consultations")
+      .select("id, report_date, hda, assessment, plan_text, created_at")
+      .eq("patient_id", p.id)
+      .order("report_date", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      consultRows = [];
+    } else {
+      consultRows = data || [];
+    }
+
+    timelineLoading = false;
+  }
+
   /* ================= MAIN RENDER ================= */
   function render() {
 
     root.innerHTML = `
       <div style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
-                  display:flex; align-items:center; justify-content:center; padding:18px;">
+                  display:flex; align-items:center; justify-content:center; padding:14px;">
 
-        <div style="background:#fff; width:min(900px,100%);
+        <div style="background:#fff; width:min(1200px,96vw);
                     border-radius:14px; border:1px solid #e5e5e5;
-                    padding:16px; max-height:88vh; overflow:auto;">
+                    padding:16px; max-height:92vh; overflow:auto;">
 
-          <div style="display:flex; justify-content:space-between;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
             <div style="font-weight:900;">Feed do Doente</div>
             <button id="btnClosePView" class="gcBtn">Fechar</button>
           </div>
 
-          <div style="margin-top:12px; font-weight:900;">
+          <div style="margin-top:10px; font-weight:900; font-size:18px;">
             ${p.full_name || "—"}
           </div>
 
-          <div style="margin-top:12px;">
+          <div style="margin-top:12px; display:flex; gap:10px; align-items:center;">
             ${isDoctor() && !creatingConsult ? `
               <button id="btnNewConsult" class="gcBtn" style="font-weight:900;">
                 Consulta Médica
               </button>` : ``}
+            <div style="color:#64748b; font-size:12px;">
+              ${timelineLoading ? "A carregar..." : `Consultas: ${consultRows.length}`}
+            </div>
           </div>
 
           ${creatingConsult ? renderConsultFormInline() : ``}
 
-          <div id="timelineArea" style="margin-top:20px; color:#64748b;">
-            Sem registos clínicos.
+          <div id="timelineArea" style="margin-top:18px;">
+            ${renderTimeline()}
           </div>
 
         </div>
@@ -1050,13 +1076,55 @@ function openPatientViewModal(patient) {
     }
   }
 
+  /* ================= TIMELINE ================= */
+  function esc(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function renderTimeline() {
+
+    if (timelineLoading) {
+      return `<div style="color:#64748b;">A carregar registos...</div>`;
+    }
+
+    if (!consultRows || !consultRows.length) {
+      return `<div style="color:#64748b;">Sem registos clínicos.</div>`;
+    }
+
+    return `
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        ${consultRows.map(r => `
+          <div style="border:1px solid #e5e5e5; border-radius:12px; padding:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-weight:900;">
+                Consulta — ${esc(r.report_date || "—")}
+              </div>
+              <div style="color:#64748b; font-size:12px;">
+                ${r.created_at ? esc(String(r.created_at).slice(11,16)) : ""}
+              </div>
+            </div>
+
+            ${r.hda ? `<div style="margin-top:8px;"><div style="font-weight:700;">HDA</div><div style="white-space:pre-wrap;">${esc(r.hda)}</div></div>` : ``}
+            ${r.assessment ? `<div style="margin-top:8px;"><div style="font-weight:700;">Assessment</div><div style="white-space:pre-wrap;">${esc(r.assessment)}</div></div>` : ``}
+            ${r.plan_text ? `<div style="margin-top:8px;"><div style="font-weight:700;">Plano</div><div style="white-space:pre-wrap;">${esc(r.plan_text)}</div></div>` : ``}
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
   /* ================= INLINE FORM ================= */
   function renderConsultFormInline() {
 
     const today = new Date().toISOString().slice(0, 10);
 
     return `
-      <div style="margin-top:20px; padding:14px;
+      <div style="margin-top:16px; padding:14px;
                   border:1px solid #e5e5e5; border-radius:12px;">
 
         <div style="font-weight:900;">Nova Consulta Médica</div>
@@ -1069,19 +1137,19 @@ function openPatientViewModal(patient) {
 
         <div style="margin-top:12px;">
           <label>HDA</label>
-          <textarea id="consultHDA" rows="4"
+          <textarea id="consultHDA" rows="5"
             style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></textarea>
         </div>
 
         <div style="margin-top:12px;">
           <label>Assessment</label>
-          <textarea id="consultAssessment" rows="3"
+          <textarea id="consultAssessment" rows="4"
             style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></textarea>
         </div>
 
         <div style="margin-top:12px;">
           <label>Plano</label>
-          <textarea id="consultPlan" rows="3"
+          <textarea id="consultPlan" rows="4"
             style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></textarea>
         </div>
 
@@ -1106,9 +1174,12 @@ function openPatientViewModal(patient) {
 
     document.getElementById("btnSaveConsult")
       ?.addEventListener("click", async () => {
-        await saveConsult();
-        creatingConsult = false;
-        render();
+        const ok = await saveConsult();
+        if (ok) {
+          creatingConsult = false;
+          await loadConsultations();
+          render();
+        }
       });
   }
 
@@ -1121,7 +1192,7 @@ function openPatientViewModal(patient) {
       const userId = userRes?.data?.user?.id;
       if (!userId) {
         alert("Utilizador não autenticado.");
-        return;
+        return false;
       }
 
       const today = new Date().toISOString().slice(0, 10);
@@ -1131,17 +1202,17 @@ function openPatientViewModal(patient) {
       const assessment = document.getElementById("consultAssessment")?.value || "";
       const plan = document.getElementById("consultPlan")?.value || "";
 
-      const { data: appts } = await window.sb
+      const { data: appts, error: apptErr } = await window.sb
         .from("appointments")
         .select("*")
         .eq("patient_id", p.id);
 
+      if (apptErr) console.error(apptErr);
+
       let appointmentId = null;
 
       if (appts && appts.length) {
-        const sameDay = appts.filter(a =>
-          a.start_at && a.start_at.slice(0,10) === today
-        );
+        const sameDay = appts.filter(a => a.start_at && a.start_at.slice(0,10) === today);
 
         if (sameDay.length) {
           sameDay.sort((a,b) =>
@@ -1167,17 +1238,25 @@ function openPatientViewModal(patient) {
 
       if (error) throw error;
 
+      alert("Consulta gravada.");
+      return true;
+
     } catch (err) {
       console.error(err);
       alert("Erro ao gravar consulta.");
+      return false;
     }
   }
 
   /* ================= BOOT ================= */
-  fetchActiveClinic().then(render);
+  (async function boot() {
+    await fetchActiveClinic();
+    await loadConsultations();
+    render();
+  })();
 }
 
-/* ==== Fim BLOCO 06B/12 — Modal Doente (FASE 2 — Estrutura Inline) ==== */
+/* ==== Fim BLOCO 06B/12 — Modal Doente (FASE 2 — Inline + Timeline Consultas) ==== */
 /* ==== FIM BLOCO 06/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
