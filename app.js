@@ -957,7 +957,7 @@ function openPatientViewModal(patient) {
 }
 
 /* ==== Fim BLOCO 06A/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
-/* ==== INICIO BLOCO 06B/12 — Modal Doente (FASE 2 — Inline + Editor + Timeline Consultas) ==== */
+/* ==== INICIO BLOCO 06B/12 — Modal Doente (FASE 2 — Inline + HDA Rich Text + Timeline + Anti-dup) ==== */
 
 function openPatientViewModal(patient) {
 
@@ -973,8 +973,8 @@ function openPatientViewModal(patient) {
   let timelineLoading = false;
   let consultRows = [];
 
-  /* draft do formulário (mantém ao alternar UI) */
-  let draft = { hda: "", assessment: "", plan_text: "" };
+  let saving = false;          // evita duplo insert
+  let draftHDAHtml = "";       // HDA em HTML (rich text)
 
   /* ================= ROLE ================= */
   function role() { return String(G.role || "").toLowerCase(); }
@@ -1002,7 +1002,7 @@ function openPatientViewModal(patient) {
 
     const { data, error } = await window.sb
       .from("consultations")
-      .select("id, report_date, hda, assessment, plan_text, created_at")
+      .select("id, report_date, hda, created_at")
       .eq("patient_id", p.id)
       .order("report_date", { ascending: false })
       .order("created_at", { ascending: false });
@@ -1017,181 +1017,68 @@ function openPatientViewModal(patient) {
     timelineLoading = false;
   }
 
-  /* ================= UI HELPERS ================= */
-  function esc(s) {
-    return String(s ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
+  /* ================= SANITIZE HTML (para render seguro) ================= */
+  function sanitizeHTML(html) {
+    try {
+      const allowed = new Set(["B","STRONG","U","BR","P","DIV","UL","OL","LI"]);
+      const doc = new DOMParser().parseFromString(String(html || ""), "text/html");
 
-  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+      // remove scripts/styles
+      doc.querySelectorAll("script,style").forEach(n => n.remove());
 
-  function getTA(id) { return document.getElementById(id); }
+      // remove atributos e tags não permitidas
+      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT, null);
+      const toFix = [];
+      while (walker.nextNode()) toFix.push(walker.currentNode);
 
-  function withTA(id, fn) {
-    const ta = getTA(id);
-    if (!ta) return;
-    ta.focus();
-    fn(ta);
-  }
+      toFix.forEach(el => {
+        // remove todos atributos
+        [...el.attributes].forEach(a => el.removeAttribute(a.name));
 
-  function wrapSelection(ta, before, after) {
-    const v = ta.value || "";
-    const s = ta.selectionStart ?? 0;
-    const e = ta.selectionEnd ?? 0;
-    const sel = v.slice(s, e);
-    const out = v.slice(0, s) + before + sel + after + v.slice(e);
-    ta.value = out;
-    // reposiciona seleção
-    const ns = s + before.length;
-    const ne = ns + sel.length;
-    ta.setSelectionRange(ns, ne);
-  }
-
-  function prefixLines(ta, prefixFn) {
-    const v = ta.value || "";
-    const s = ta.selectionStart ?? 0;
-    const e = ta.selectionEnd ?? 0;
-
-    // expandir para linhas completas
-    const lineStart = v.lastIndexOf("\n", s - 1) + 1;
-    let lineEnd = v.indexOf("\n", e);
-    if (lineEnd === -1) lineEnd = v.length;
-
-    const chunk = v.slice(lineStart, lineEnd);
-    const lines = chunk.split("\n");
-    const newLines = lines.map((ln, i) => prefixFn(ln, i));
-    const replaced = newLines.join("\n");
-
-    const out = v.slice(0, lineStart) + replaced + v.slice(lineEnd);
-    ta.value = out;
-
-    // selecionar o bloco alterado
-    ta.setSelectionRange(lineStart, lineStart + replaced.length);
-  }
-
-  function bindEditorToolbar() {
-    const bar = document.getElementById("consultToolbar");
-    if (!bar) return;
-
-    let fontSize = 15; // default
-
-    function applyFont() {
-      ["consultHDA", "consultAssessment", "consultPlan"].forEach(id => {
-        const ta = getTA(id);
-        if (ta) ta.style.fontSize = fontSize + "px";
+        // se tag não permitida, substitui por texto
+        if (!allowed.has(el.tagName)) {
+          const text = doc.createTextNode(el.textContent || "");
+          el.replaceWith(text);
+        }
       });
+
+      return doc.body.innerHTML || "";
+    } catch (e) {
+      console.error(e);
+      // fallback: texto simples escapado
+      return String(html || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
     }
-
-    bar.querySelectorAll("[data-act]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const act = btn.getAttribute("data-act");
-        const target = btn.getAttribute("data-target");
-
-        if (act === "fs-up") {
-          fontSize = clamp(fontSize + 1, 12, 22);
-          applyFont();
-          return;
-        }
-        if (act === "fs-down") {
-          fontSize = clamp(fontSize - 1, 12, 22);
-          applyFont();
-          return;
-        }
-
-        if (!target) return;
-
-        if (act === "bold") {
-          withTA(target, (ta) => wrapSelection(ta, "**", "**"));
-          syncDraftFromUI();
-          return;
-        }
-
-        if (act === "ul") {
-          withTA(target, (ta) => prefixLines(ta, (ln) => ln.trim() ? `- ${ln}` : ln));
-          syncDraftFromUI();
-          return;
-        }
-
-        if (act === "ol") {
-          withTA(target, (ta) => {
-            let k = 1;
-            prefixLines(ta, (ln) => {
-              if (!ln.trim()) return ln;
-              const out = `${k}. ${ln}`;
-              k += 1;
-              return out;
-            });
-          });
-          syncDraftFromUI();
-          return;
-        }
-      });
-    });
-
-    applyFont();
-  }
-
-  function bindDraftSync() {
-    const a = getTA("consultHDA");
-    const b = getTA("consultAssessment");
-    const c = getTA("consultPlan");
-
-    [a, b, c].forEach(ta => {
-      if (!ta) return;
-      ta.addEventListener("input", syncDraftFromUI);
-    });
-  }
-
-  function syncDraftFromUI() {
-    draft.hda = getTA("consultHDA")?.value || "";
-    draft.assessment = getTA("consultAssessment")?.value || "";
-    draft.plan_text = getTA("consultPlan")?.value || "";
   }
 
   /* ================= TIMELINE ================= */
   function renderTimeline() {
-    if (timelineLoading) {
-      return `<div style="color:#64748b;">A carregar registos...</div>`;
-    }
-    if (!consultRows || !consultRows.length) {
-      return `<div style="color:#64748b;">Sem registos clínicos.</div>`;
-    }
+    if (timelineLoading) return `<div style="color:#64748b;">A carregar registos...</div>`;
+    if (!consultRows || !consultRows.length) return `<div style="color:#64748b;">Sem registos clínicos.</div>`;
 
     return `
       <div style="display:flex; flex-direction:column; gap:12px;">
         ${consultRows.map(r => {
-          const hda = (r.hda || "").trim();
-          const ass = (r.assessment || "").trim();
-          const plan = (r.plan_text || "").trim();
-
-          // leitura “clínica”: preserva quebras e mostra ** ** e listas como texto (por agora)
-          function block(title, txt) {
-            if (!txt) return "";
-            return `
-              <div style="margin-top:10px;">
-                <div style="font-weight:800; margin-bottom:4px;">${esc(title)}</div>
-                <div style="white-space:pre-wrap; line-height:1.45; font-size:15px;">${esc(txt)}</div>
-              </div>
-            `;
-          }
-
+          const h = sanitizeHTML(r.hda || "");
           return `
             <div style="border:1px solid #e5e5e5; border-radius:14px; padding:14px;">
               <div style="display:flex; justify-content:space-between; gap:12px; align-items:center;">
                 <div style="font-weight:900; font-size:16px;">
-                  Consulta — ${esc(r.report_date || "—")}
+                  Consulta — ${String(r.report_date || "—")}
                 </div>
                 <div style="color:#64748b; font-size:12px;">
-                  ${r.created_at ? esc(String(r.created_at).slice(11,16)) : ""}
+                  ${r.created_at ? String(r.created_at).slice(11,16) : ""}
                 </div>
               </div>
-              ${block("HDA", hda)}
-              ${block("Assessment", ass)}
-              ${block("Plano", plan)}
+
+              <div style="margin-top:10px;">
+                <div style="font-weight:800; margin-bottom:6px;">HDA</div>
+                <div style="line-height:1.5; font-size:15px; white-space:normal;">
+                  ${h ? h : `<span style="color:#64748b;">—</span>`}
+                </div>
+              </div>
             </div>
           `;
         }).join("")}
@@ -1199,7 +1086,7 @@ function openPatientViewModal(patient) {
     `;
   }
 
-  /* ================= INLINE FORM ================= */
+  /* ================= INLINE FORM (HDA only) ================= */
   function renderConsultFormInline() {
     const today = new Date().toISOString().slice(0, 10);
 
@@ -1209,9 +1096,7 @@ function openPatientViewModal(patient) {
 
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
           <div style="font-weight:900; font-size:16px;">Nova Consulta Médica</div>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <div style="color:#64748b; font-size:12px;">Formatação: **negrito**, listas</div>
-          </div>
+          <div style="color:#64748b; font-size:12px;">Só HDA (com formatação)</div>
         </div>
 
         <div style="margin-top:10px; display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
@@ -1222,131 +1107,97 @@ function openPatientViewModal(patient) {
           </div>
         </div>
 
-        <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-          <div style="font-weight:800;">Toolbar</div>
-
-          <button class="gcBtn" id="fsDown" data-act="fs-down" style="padding:8px 10px;">A-</button>
-          <button class="gcBtn" id="fsUp" data-act="fs-up" style="padding:8px 10px;">A+</button>
-
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <div style="font-weight:800; margin-right:6px;">HDA</div>
+          <button id="hdaBold" class="gcBtn" style="padding:8px 10px;">Negrito</button>
+          <button id="hdaUnder" class="gcBtn" style="padding:8px 10px;">Sublinhar</button>
+          <button id="hdaUL" class="gcBtn" style="padding:8px 10px;">Lista</button>
+          <button id="hdaOL" class="gcBtn" style="padding:8px 10px;">Numeração</button>
           <div style="width:10px;"></div>
-
-          <button class="gcBtn" data-act="bold" data-target="consultHDA" style="padding:8px 10px;">HDA Negrito</button>
-          <button class="gcBtn" data-act="ul" data-target="consultHDA" style="padding:8px 10px;">HDA • Lista</button>
-          <button class="gcBtn" data-act="ol" data-target="consultHDA" style="padding:8px 10px;">HDA 1. Lista</button>
-
-          <button class="gcBtn" data-act="bold" data-target="consultAssessment" style="padding:8px 10px;">Ass Negrito</button>
-          <button class="gcBtn" data-act="ul" data-target="consultAssessment" style="padding:8px 10px;">Ass • Lista</button>
-          <button class="gcBtn" data-act="ol" data-target="consultAssessment" style="padding:8px 10px;">Ass 1. Lista</button>
-
-          <button class="gcBtn" data-act="bold" data-target="consultPlan" style="padding:8px 10px;">Plano Negrito</button>
-          <button class="gcBtn" data-act="ul" data-target="consultPlan" style="padding:8px 10px;">Plano • Lista</button>
-          <button class="gcBtn" data-act="ol" data-target="consultPlan" style="padding:8px 10px;">Plano 1. Lista</button>
+          <button id="hdaFsDown" class="gcBtn" style="padding:8px 10px;">A-</button>
+          <button id="hdaFsUp" class="gcBtn" style="padding:8px 10px;">A+</button>
         </div>
 
-        <div id="consultToolbar" style="display:none;"></div>
-
-        <div style="margin-top:12px;">
-          <label style="font-weight:800;">HDA</label>
-          <textarea id="consultHDA" rows="7"
-            style="width:100%; padding:12px; border:1px solid #ddd; border-radius:12px; line-height:1.5; font-size:15px;">${esc(draft.hda)}</textarea>
-        </div>
-
-        <div style="margin-top:12px;">
-          <label style="font-weight:800;">Assessment</label>
-          <textarea id="consultAssessment" rows="6"
-            style="width:100%; padding:12px; border:1px solid #ddd; border-radius:12px; line-height:1.5; font-size:15px;">${esc(draft.assessment)}</textarea>
-        </div>
-
-        <div style="margin-top:12px;">
-          <label style="font-weight:800;">Plano</label>
-          <textarea id="consultPlan" rows="6"
-            style="width:100%; padding:12px; border:1px solid #ddd; border-radius:12px; line-height:1.5; font-size:15px;">${esc(draft.plan_text)}</textarea>
+        <div id="hdaEditor"
+             contenteditable="true"
+             style="margin-top:10px; min-height:220px;
+                    padding:12px; border:1px solid #ddd; border-radius:12px;
+                    line-height:1.55; font-size:16px; overflow:auto;">
+          ${draftHDAHtml || ""}
         </div>
 
         <div style="margin-top:12px; display:flex; justify-content:flex-end; gap:10px;">
           <button id="btnCancelConsult" class="gcBtn">Cancelar</button>
           <button id="btnSaveConsult" class="gcBtn" style="font-weight:900;">Gravar</button>
         </div>
+
       </div>
     `;
   }
 
   function bindConsultFormEvents() {
-    bindDraftSync();
 
-    // font size controls (A-/A+) — aplica aos 3 textareas
-    let fontSize = 15;
-    function applyFont() {
-      ["consultHDA","consultAssessment","consultPlan"].forEach(id => {
-        const ta = getTA(id);
-        if (ta) ta.style.fontSize = fontSize + "px";
-      });
-    }
+    const ed = document.getElementById("hdaEditor");
+    if (!ed) return;
 
-    document.getElementById("fsDown")?.addEventListener("click", () => {
-      fontSize = clamp(fontSize - 1, 12, 22);
-      applyFont();
-    });
-    document.getElementById("fsUp")?.addEventListener("click", () => {
-      fontSize = clamp(fontSize + 1, 12, 22);
-      applyFont();
-    });
-
-    // toolbar actions
-    document.querySelectorAll("[data-act][data-target]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const act = btn.getAttribute("data-act");
-        const target = btn.getAttribute("data-target");
-        if (!act || !target) return;
-
-        if (act === "bold") {
-          withTA(target, (ta) => wrapSelection(ta, "**", "**"));
-          syncDraftFromUI();
-          return;
-        }
-        if (act === "ul") {
-          withTA(target, (ta) => prefixLines(ta, (ln) => ln.trim() ? `- ${ln}` : ln));
-          syncDraftFromUI();
-          return;
-        }
-        if (act === "ol") {
-          withTA(target, (ta) => {
-            let k = 1;
-            prefixLines(ta, (ln) => {
-              if (!ln.trim()) return ln;
-              const out = `${k}. ${ln}`;
-              k += 1;
-              return out;
-            });
-          });
-          syncDraftFromUI();
-          return;
-        }
-      });
-    });
-
+    let fontSize = 16;
+    function applyFont() { ed.style.fontSize = fontSize + "px"; }
     applyFont();
 
-    document.getElementById("btnCancelConsult")
-      ?.addEventListener("click", () => {
-        creatingConsult = false;
-        render();
-      });
+    // guarda draft sempre que edita
+    ed.oninput = () => { draftHDAHtml = ed.innerHTML || ""; };
 
-    document.getElementById("btnSaveConsult")
-      ?.addEventListener("click", async () => {
-        syncDraftFromUI();
-        const ok = await saveConsult();
-        if (ok) {
-          creatingConsult = false;
-          await loadConsultations();
-          render();
-        }
-      });
+    function cmd(command) {
+      ed.focus();
+      try { document.execCommand(command, false, null); } catch (e) {}
+      draftHDAHtml = ed.innerHTML || "";
+    }
+
+    document.getElementById("hdaBold").onclick = () => cmd("bold");
+    document.getElementById("hdaUnder").onclick = () => cmd("underline");
+    document.getElementById("hdaUL").onclick = () => cmd("insertUnorderedList");
+    document.getElementById("hdaOL").onclick = () => cmd("insertOrderedList");
+
+    document.getElementById("hdaFsDown").onclick = () => {
+      fontSize = Math.max(12, fontSize - 1);
+      applyFont();
+    };
+    document.getElementById("hdaFsUp").onclick = () => {
+      fontSize = Math.min(22, fontSize + 1);
+      applyFont();
+    };
+
+    document.getElementById("btnCancelConsult").onclick = () => {
+      creatingConsult = false;
+      render();
+    };
+
+    document.getElementById("btnSaveConsult").onclick = async () => {
+      if (saving) return;
+      saving = true;
+
+      const btn = document.getElementById("btnSaveConsult");
+      if (btn) btn.disabled = true;
+
+      // snapshot do editor
+      draftHDAHtml = ed.innerHTML || "";
+
+      const ok = await saveConsult();
+
+      saving = false;
+      if (btn) btn.disabled = false;
+
+      if (ok) {
+        creatingConsult = false;
+        await loadConsultations();
+        render();
+      }
+    };
   }
 
   /* ================= SAVE ================= */
   async function saveConsult() {
+
     try {
       const userRes = await window.sb.auth.getUser();
       const userId = userRes?.data?.user?.id;
@@ -1358,9 +1209,7 @@ function openPatientViewModal(patient) {
       const today = new Date().toISOString().slice(0, 10);
       const now = new Date();
 
-      const hda = draft.hda || "";
-      const assessment = draft.assessment || "";
-      const plan = draft.plan_text || "";
+      const hdaHtml = String(draftHDAHtml || "").trim();
 
       const { data: appts, error: apptErr } = await window.sb
         .from("appointments")
@@ -1389,17 +1238,17 @@ function openPatientViewModal(patient) {
           patient_id: p.id,
           author_user_id: userId,
           report_date: today,
-          hda: hda,
-          assessment: assessment,
-          plan_text: plan,
+          hda: hdaHtml,
+          assessment: "",     // compatibilidade: fica vazio
+          plan_text: "",      // compatibilidade: fica vazio
           appointment_id: appointmentId
         });
 
       if (error) throw error;
 
+      // reset draft
+      draftHDAHtml = "";
       alert("Consulta gravada.");
-      // limpa draft para próxima consulta
-      draft = { hda: "", assessment: "", plan_text: "" };
       return true;
 
     } catch (err) {
@@ -1448,19 +1297,16 @@ function openPatientViewModal(patient) {
       </div>
     `;
 
-    document.getElementById("btnClosePView")
-      ?.addEventListener("click", closeModalRoot);
+    document.getElementById("btnClosePView")?.addEventListener("click", closeModalRoot);
 
     if (isDoctor() && !creatingConsult) {
-      document.getElementById("btnNewConsult")
-        ?.addEventListener("click", () => {
-          creatingConsult = true;
-          render();
-          bindConsultFormEvents();
-        });
+      document.getElementById("btnNewConsult").onclick = () => {
+        creatingConsult = true;
+        render();
+        bindConsultFormEvents();
+      };
     }
 
-    // se já estiver a criar, re-bind
     if (creatingConsult) {
       bindConsultFormEvents();
     }
@@ -1474,7 +1320,7 @@ function openPatientViewModal(patient) {
   })();
 }
 
-/* ==== Fim BLOCO 06B/12 — Modal Doente (FASE 2 — Inline + Editor + Timeline Consultas) ==== */
+/* ==== Fim BLOCO 06B/12 — Modal Doente (FASE 2 — Inline + HDA Rich Text + Timeline + Anti-dup) ==== */
 /* ==== FIM BLOCO 06/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
