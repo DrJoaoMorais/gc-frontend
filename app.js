@@ -940,14 +940,15 @@
 /* ==== FIM BLOCO 05/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 /* ==== INÍCIO BLOCO 06/12 — Modal Doente (FASE 1) ==== */
 /* ==== INICIO BLOCO 06/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
-
+/* ==== INÍCIO BLOCO 06A/12 — Modal Doente (FASE 1) ==== */
 /*
   BLOCO 06A/12 — Modal Doente (FASE 1)
   - Helpers internos + carregamento de clínica ativa do doente
   - Estrutura modular para preparar FASE 2 (inline + timeline)
+  - IMPORTANTE: NÃO define openPatientViewModal (fica apenas no 06B).
 */
 
-function openPatientViewModal(patient) {
+function openPatientViewModal__stub(patient) {
   const root = document.getElementById("modalRoot");
   if (!root || !patient) return;
 
@@ -996,7 +997,8 @@ function openPatientViewModal(patient) {
   async function saveConsult() {}
 }
 
-/* ==== Fim BLOCO 06A/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
+// NOTE: 06A mantém apenas loaders/state base. A implementação REAL do modal está no 06B (openPatientViewModal).
+/* ==== FIM BLOCO 06A/12 — Modal Doente (FASE 1) ==== */
 /* ==== INICIO BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico sem acentos (search_text) + Feed: HDA→Diagnóstico + Autor(display_name) + Save OK) ==== */
 
 function openPatientViewModal(patient) {
