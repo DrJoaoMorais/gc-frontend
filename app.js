@@ -1172,6 +1172,44 @@ function openPatientViewModal(patient) {
       .replaceAll('"', "&quot;");
   }
 
+  // ===== Cabeçalho do feed (idade por HOJE; 🎂 se faz anos HOJE) =====
+  function ageTextToday() {
+    try {
+      const age = calcAgeYears ? calcAgeYears(p.dob, new Date()) : null;
+      if (age === null || age === undefined) return "—";
+      return `${age} anos`;
+    } catch (e) {
+      return "—";
+    }
+  }
+
+  function birthdayBadgeToday() {
+    try {
+      const isBday = isBirthdayOnDate ? isBirthdayOnDate(p.dob, new Date()) : false;
+      return isBday ? `<span title="Faz anos hoje" style="margin-left:8px;">🎂</span>` : ``;
+    } catch (e) {
+      return ``;
+    }
+  }
+
+  function openPatientIdentity(mode) {
+    // mode: "view" | "edit"
+    // Nota: não assumo nomes; tento vários e faço fallback sem rebentar.
+    try {
+      if (mode === "edit") {
+        if (typeof window.openPatientEditModal === "function") return window.openPatientEditModal(p);
+        if (typeof window.openPatientModal === "function") return window.openPatientModal(p, { mode: "edit" });
+      } else {
+        if (typeof window.openPatientModal === "function") return window.openPatientModal(p, { mode: "view" });
+        if (typeof window.openPatientViewModal === "function") return window.openPatientViewModal(p);
+      }
+      alert("Identificação: função ainda não ligada neste build.");
+    } catch (e) {
+      console.error(e);
+      alert("Erro a abrir Identificação.");
+    }
+  }
+
   /* ================= DIAGNÓSTICO (CATÁLOGO) — SEM RE-RENDER DURANTE ESCRITA ================= */
   function renderDiagArea() {
     const chips = document.getElementById("diagChips");
@@ -1322,11 +1360,17 @@ function openPatientViewModal(patient) {
 
     return `
       <div style="display:flex; flex-direction:column; gap:14px;">
-        ${consultRows.map(r => `
+        ${consultRows.map(r => {
+          const d = r.created_at ? new Date(r.created_at) : null;
+          const when = (d && !isNaN(d.getTime()))
+            ? `${fmtDatePt(d)} às ${fmtTime(d)}`
+            : (r.report_date ? String(r.report_date) : "—");
+
+          return `
           <div style="border:1px solid #e5e5e5; border-radius:14px; padding:16px;">
 
             <div style="font-weight:900; font-size:16px;">
-              Consulta — ${String(r.report_date || "—")} - ${String(r.author_name || "")}
+              Consulta — ${when} - ${escAttr(String(r.author_name || ""))}
             </div>
 
             <div style="margin-top:10px; line-height:1.55; font-size:15px;">
@@ -1337,8 +1381,8 @@ function openPatientViewModal(patient) {
               <div style="margin-top:12px;">
                 <div style="font-weight:900;">Diagnósticos:</div>
                 <ul style="margin:8px 0 0 18px;">
-                  ${r.diagnoses.map(d => `
-                    <li>${escAttr(d.label || "—")}${d.code ? ` <span style="color:#64748b;">(${escAttr(d.code)})</span>` : ``}</li>
+                  ${r.diagnoses.map(dg => `
+                    <li>${escAttr(dg.label || "—")}${dg.code ? ` <span style="color:#64748b;">(${escAttr(dg.code)})</span>` : ``}</li>
                   `).join("")}
                 </ul>
               </div>
@@ -1347,7 +1391,7 @@ function openPatientViewModal(patient) {
             <!-- Tratamentos (próximo passo) -->
 
           </div>
-        `).join("")}
+        `; }).join("")}
       </div>
     `;
   }
@@ -1535,6 +1579,16 @@ function openPatientViewModal(patient) {
         if (dErr) { console.error(dErr); alert("Consulta gravada, mas houve erro a gravar diagnósticos."); }
       }
 
+      // Auto-update: se a consulta ficou ligada a uma marcação, marcar como "done"
+      if (appointmentId) {
+        const { error: uErr } = await window.sb
+          .from("appointments")
+          .update({ status: "done" })
+          .eq("id", appointmentId);
+
+        if (uErr) console.error(uErr);
+      }
+
       draftHDAHtml = "";
       diagQuery = "";
       diagLoading = false;
@@ -1558,16 +1612,32 @@ function openPatientViewModal(patient) {
                     height:92vh; border-radius:14px;
                     border:1px solid #e5e5e5; padding:16px; overflow:auto;">
 
-          <div style="display:flex; justify-content:space-between;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
             <div style="font-weight:900;">Feed do Doente</div>
             <button id="btnClosePView" class="gcBtn">Fechar</button>
           </div>
 
-          <div style="margin-top:10px; font-weight:900; font-size:18px;">
-            ${p.full_name || "—"}
+          <div style="margin-top:12px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div>
+              <div style="font-weight:900; font-size:18px;">
+                ${escAttr(p.full_name || "—")}${birthdayBadgeToday()}
+              </div>
+
+              <div style="margin-top:6px; color:#475569; display:flex; gap:14px; flex-wrap:wrap;">
+                <div><b>SNS:</b> ${escAttr(p.sns || "—")}</div>
+                <div><b>Seguro:</b> ${escAttr(p.insurance_provider || "—")}</div>
+                <div><b>Nº:</b> ${escAttr(p.insurance_policy_number || "—")}</div>
+                <div><b>Idade:</b> ${escAttr(ageTextToday())}</div>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
+              <button id="btnViewIdent" class="gcBtn">Ver Identificação</button>
+              <button id="btnEditIdent" class="gcBtn" style="font-weight:900;">Editar Dados</button>
+            </div>
           </div>
 
-          <div style="margin-top:10px;">
+          <div style="margin-top:12px;">
             ${isDoctor() && !creatingConsult ? `
               <button id="btnNewConsult" class="gcBtn" style="font-weight:900;">
                 Consulta Médica
@@ -1585,6 +1655,12 @@ function openPatientViewModal(patient) {
     `;
 
     document.getElementById("btnClosePView")?.addEventListener("click", closeModalRoot);
+
+    const bView = document.getElementById("btnViewIdent");
+    if (bView) bView.onclick = () => openPatientIdentity("view");
+
+    const bEdit = document.getElementById("btnEditIdent");
+    if (bEdit) bEdit.onclick = () => openPatientIdentity("edit");
 
     if (isDoctor() && !creatingConsult) {
       const btnNew = document.getElementById("btnNewConsult");
