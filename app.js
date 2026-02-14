@@ -1061,13 +1061,23 @@ function openPatientViewModal(patient) {
     activeClinicId = data && data.length ? data[0].clinic_id : null;
   }
 
+  function getTreatOrderFromPlan(planText) {
+    try {
+      const o = JSON.parse(planText || "");
+      const arr = o && Array.isArray(o.treat_order) ? o.treat_order : null;
+      return arr && arr.length ? arr.map(String) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   async function loadConsultations() {
     timelineLoading = true;
 
-    // 1) Buscar consultas
+    // 1) Buscar consultas (inclui plan_text para guardar ordem dos tratamentos)
     const { data, error } = await window.sb
       .from("consultations")
-      .select("id, clinic_id, report_date, hda, created_at, author_user_id")
+      .select("id, clinic_id, report_date, hda, plan_text, created_at, author_user_id")
       .eq("patient_id", p.id)
       .order("report_date", { ascending: false })
       .order("created_at", { ascending: false });
@@ -1143,7 +1153,7 @@ function openPatientViewModal(patient) {
     }
 
     // 4) Carregar tratamentos por consulta
-    let treatByConsult = {}; // { consultId: [ {label, code, qty} ] }
+    let treatByConsult = {}; // { consultId: [ {id, label, code, qty} ] }
 
     if (consultIds.length) {
       const { data: tlinks, error: tErr } = await window.sb
@@ -1181,17 +1191,33 @@ function openPatientViewModal(patient) {
           const tt = tMap[tid];
           if (!tt) return;
           if (!treatByConsult[cid]) treatByConsult[cid] = [];
-          treatByConsult[cid].push({ ...tt, qty: Number(l.qty || 1) });
+          // importante: guardar id para reordenar
+          treatByConsult[cid].push({ id: tid, ...tt, qty: Number(l.qty || 1) });
         });
       }
     }
 
-    consultRows = rows.map(r => ({
-      ...r,
-      author_name: authorMap[r.author_user_id] || "",
-      diagnoses: diagByConsult[r.id] || [],
-      treatments: treatByConsult[r.id] || []
-    }));
+    consultRows = rows.map(r => {
+      const order = getTreatOrderFromPlan(r.plan_text);
+      let treatments = treatByConsult[r.id] || [];
+
+      // Reordenar pela ordem gravada (se existir)
+      if (order && order.length) {
+        const pos = new Map(order.map((id, i) => [String(id), i]));
+        treatments = (treatments || []).slice().sort((a, b) => {
+          const pa = pos.has(String(a.id)) ? pos.get(String(a.id)) : 1e9;
+          const pb = pos.has(String(b.id)) ? pos.get(String(b.id)) : 1e9;
+          return pa - pb;
+        });
+      }
+
+      return ({
+        ...r,
+        author_name: authorMap[r.author_user_id] || "",
+        diagnoses: diagByConsult[r.id] || [],
+        treatments
+      });
+    });
 
     timelineLoading = false;
   }
@@ -1423,7 +1449,6 @@ function openPatientViewModal(patient) {
     const btnClose = document.getElementById("btnIdentClose");
     if (btnClose) btnClose.onclick = () => closeIdentity();
 
-    // Só bind inputs se estiver aberto
     if (!identOpen) return;
 
     function bindVal(id, key) {
@@ -1496,7 +1521,6 @@ function openPatientViewModal(patient) {
             return;
           }
 
-          // Atualizar objeto p (para o cabeçalho refletir)
           if (data) {
             Object.keys(payload).forEach(k => { p[k] = data[k]; });
           }
@@ -1677,7 +1701,6 @@ function openPatientViewModal(patient) {
   }
 
   async function fetchTreatmentsDefault() {
-    // Mostra TODOS os tratamentos (com scroll no catálogo)
     try {
       treatLoading = true;
       renderTreatArea();
@@ -1784,7 +1807,6 @@ function openPatientViewModal(patient) {
     if (selectedTreat.some(x => String(x.id) === String(item.id))) return;
 
     selectedTreat.push({ id: item.id, code: item.code || "", label: item.label || "", qty: 1 });
-
     treatResults = (treatResults || []).filter(x => String(x.id) !== String(item.id));
 
     renderTreatArea();
@@ -2039,7 +2061,6 @@ function openPatientViewModal(patient) {
       if (bOL) bOL.onclick = () => cmd("insertOrderedList");
     }
 
-    // Diagnóstico events
     const diagInput = document.getElementById("diagSearch");
     if (diagInput) {
       diagInput.oninput = (e) => {
@@ -2061,7 +2082,6 @@ function openPatientViewModal(patient) {
 
     renderDiagArea();
 
-    // Tratamentos events
     const pr = document.getElementById("prescriptionText");
     if (pr) {
       pr.oninput = (e) => { prescriptionText = e?.target?.value ?? ""; };
@@ -2147,6 +2167,12 @@ function openPatientViewModal(patient) {
         }
       }
 
+      // Guardar ordem dos tratamentos no plan_text (JSON)
+      const planPayload = {
+        prescriptionText,
+        treat_order: (selectedTreat || []).map(x => x.id)
+      };
+
       const { data: ins, error: insErr } = await window.sb
         .from("consultations")
         .insert({
@@ -2156,7 +2182,7 @@ function openPatientViewModal(patient) {
           report_date: today,
           hda: draftHDAHtml,
           assessment: "",
-          plan_text: "",
+          plan_text: JSON.stringify(planPayload),
           appointment_id: appointmentId
         })
         .select("id")
@@ -2166,7 +2192,6 @@ function openPatientViewModal(patient) {
 
       const consultId = ins?.id;
 
-      // Diagnósticos
       if (consultId && selectedDiag && selectedDiag.length) {
         const rows = selectedDiag.map(x => ({ consultation_id: consultId, diagnosis_id: x.id }));
         const { error: dErr } = await window.sb
@@ -2176,7 +2201,6 @@ function openPatientViewModal(patient) {
         if (dErr) { console.error(dErr); alert("Consulta gravada, mas houve erro a gravar diagnósticos."); }
       }
 
-      // Tratamentos
       if (consultId && selectedTreat && selectedTreat.length) {
         const rows = selectedTreat.map(x => ({
           consultation_id: consultId,
@@ -2191,7 +2215,6 @@ function openPatientViewModal(patient) {
         if (tErr) { console.error(tErr); alert("Consulta gravada, mas houve erro a gravar tratamentos."); }
       }
 
-      // Auto-update marcação
       if (appointmentId) {
         const { error: uErr } = await window.sb
           .from("appointments")
@@ -2201,7 +2224,6 @@ function openPatientViewModal(patient) {
         if (uErr) console.error(uErr);
       }
 
-      // UX: refrescar agenda
       try {
         if (typeof refreshAgenda === "function") {
           await refreshAgenda();
@@ -2212,7 +2234,6 @@ function openPatientViewModal(patient) {
         console.error("refreshAgenda falhou:", e);
       }
 
-      // Reset states
       draftHDAHtml = "";
       diagQuery = "";
       diagLoading = false;
