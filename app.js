@@ -906,13 +906,8 @@ function openPatientViewModal(patient) {
 
   const p = patient;
 
-  let editMode = false;
-  let working = false;
-
   let activeClinicId = null;
   let activeClinicLoading = false;
-  let transferWorking = false;
-  let idExpanded = false;
 
   function role() {
     return String(G.role || "").toLowerCase();
@@ -967,57 +962,18 @@ function openPatientViewModal(patient) {
   }
 
   /* =============================
-     TIMELINE (placeholder estruturado)
+     TIMELINE (estrutura limpa)
   ============================== */
 
-  function renderTimelinePlaceholder() {
+  function renderTimeline() {
     return `
       <div style="margin-top:16px; padding:14px; border:1px solid #e5e5e5; border-radius:12px;">
         <div style="font-size:${UI.fs12}px; font-weight:900; color:#666;">
           Timeline (cronológica)
         </div>
 
-        <div style="margin-top:12px; display:flex; flex-direction:column; gap:12px;">
-
-          <div style="border:1px solid #eee; border-radius:12px; padding:10px;">
-            <div style="font-weight:900; font-size:${UI.fs13}px;">
-              Consulta realizada em 13-02-2026 — Primeira consulta
-            </div>
-            ${isSecretary() ? `
-              <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
-                Evento clínico registado.
-              </div>
-            ` : `
-              <div style="font-size:${UI.fs12}px; margin-top:6px;">
-                HDA / Diagnóstico / Tratamentos aparecerão aqui.
-              </div>
-            `}
-          </div>
-
-          <div style="border:1px solid #eee; border-radius:12px; padding:10px;">
-            <div style="font-weight:900; font-size:${UI.fs13}px;">
-              Registo FT em 12-02-2026
-            </div>
-            ${isSecretary() ? `
-              <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
-                Registo efetuado.
-              </div>
-            ` : `
-              <div style="font-size:${UI.fs12}px; margin-top:6px;">
-                Conteúdo do registo FT aparecerá aqui.
-              </div>
-            `}
-          </div>
-
-          <div style="border:1px solid #eee; border-radius:12px; padding:10px;">
-            <div style="font-weight:900; font-size:${UI.fs13}px;">
-              Documento PDF gerado — 11-02-2026
-            </div>
-            <div style="margin-top:6px;">
-              <button class="gcBtn">Abrir PDF</button>
-            </div>
-          </div>
-
+        <div style="margin-top:14px; font-size:${UI.fs13}px; color:#64748b;">
+          Sem registos clínicos.
         </div>
       </div>
     `;
@@ -1074,7 +1030,7 @@ function openPatientViewModal(patient) {
           </div>
 
           ${renderTopActions()}
-          ${renderTimelinePlaceholder()}
+          ${renderTimeline()}
 
         </div>
       </div>
@@ -1087,7 +1043,6 @@ function openPatientViewModal(patient) {
     if (overlay) overlay.addEventListener("click", (ev) => {
       if (ev.target.id === "pViewOverlay") closeModalRoot();
     });
-
   }
 
   render();
