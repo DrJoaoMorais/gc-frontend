@@ -957,7 +957,7 @@ function openPatientViewModal(patient) {
 }
 
 /* ==== Fim BLOCO 06A/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
-/* ==== INICIO BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico catálogo (label/code) + Autor(display_name) + Timeline + Save OK) ==== */
+/* ==== INICIO BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico catálogo (label/code) + Feed com Diagnósticos + Autor(display_name) + Save OK) ==== */
 
 function openPatientViewModal(patient) {
 
@@ -971,7 +971,7 @@ function openPatientViewModal(patient) {
   let creatingConsult = false;
 
   let timelineLoading = false;
-  let consultRows = [];          // rows já enriquecidas com author_name
+  let consultRows = [];          // rows enriquecidas com author_name + diagnoses[]
   let saving = false;
 
   let draftHDAHtml = "";         // HDA em HTML (rich text)
@@ -1042,9 +1042,53 @@ function openPatientViewModal(patient) {
       }
     }
 
+    // 3) Carregar diagnósticos por consulta (sem joins instáveis)
+    const consultIds = rows.map(r => r.id).filter(Boolean);
+    let diagByConsult = {}; // { consultId: [ {label, code} ] }
+
+    if (consultIds.length) {
+      const { data: links, error: lErr } = await window.sb
+        .from("consultation_diagnoses")
+        .select("consultation_id, diagnosis_id")
+        .in("consultation_id", consultIds);
+
+      if (lErr) {
+        console.error(lErr);
+      } else {
+        const diagIds = [...new Set((links || []).map(x => x.diagnosis_id).filter(Boolean))];
+
+        let diagMap = {}; // { diagId: {label, code} }
+        if (diagIds.length) {
+          const { data: diags, error: dErr } = await window.sb
+            .from("diagnoses_catalog")
+            .select("id, label, code")
+            .in("id", diagIds);
+
+          if (dErr) {
+            console.error(dErr);
+          } else {
+            (diags || []).forEach(d => {
+              diagMap[d.id] = { label: d.label || "", code: d.code || "" };
+            });
+          }
+        }
+
+        (links || []).forEach(l => {
+          const cid = l.consultation_id;
+          const did = l.diagnosis_id;
+          if (!cid || !did) return;
+          const dd = diagMap[did];
+          if (!dd) return;
+          if (!diagByConsult[cid]) diagByConsult[cid] = [];
+          diagByConsult[cid].push(dd);
+        });
+      }
+    }
+
     consultRows = rows.map(r => ({
       ...r,
-      author_name: authorMap[r.author_user_id] || ""
+      author_name: authorMap[r.author_user_id] || "",
+      diagnoses: diagByConsult[r.id] || []
     }));
 
     timelineLoading = false;
@@ -1080,7 +1124,6 @@ function openPatientViewModal(patient) {
     }
   }
 
-  /* ================= DIAGNÓSTICO (CATÁLOGO) ================= */
   function escAttr(s) {
     return String(s || "")
       .replaceAll("&", "&amp;")
@@ -1089,40 +1132,112 @@ function openPatientViewModal(patient) {
       .replaceAll('"', "&quot;");
   }
 
+  /* ================= DIAGNÓSTICO (CATÁLOGO) — SEM RE-RENDER DURANTE ESCRITA ================= */
+  function renderDiagArea() {
+    // chips
+    const chips = document.getElementById("diagChips");
+    if (chips) {
+      if (!selectedDiag.length) {
+        chips.innerHTML = `<div style="margin-top:8px; color:#64748b;">Sem diagnósticos selecionados.</div>`;
+      } else {
+        chips.innerHTML = `
+          <div style="margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;">
+            ${selectedDiag.map(x => `
+              <div style="display:inline-flex; align-items:center; gap:8px;
+                          padding:8px 10px; border:1px solid #e5e5e5; border-radius:999px;">
+                <div style="font-size:14px;">
+                  ${escAttr(x.label || "—")}
+                  ${x.code ? `<span style="color:#64748b; font-size:12px; margin-left:6px;">${escAttr(x.code)}</span>` : ``}
+                </div>
+                <button class="diagRemove gcBtn"
+                        data-id="${x.id}"
+                        style="padding:6px 10px; border-radius:999px;">
+                  ×
+                </button>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
+    }
+
+    // status
+    const st = document.getElementById("diagStatus");
+    if (st) st.innerHTML = diagLoading ? `<div style="margin-top:6px; color:#64748b;">A pesquisar…</div>` : "";
+
+    // dropdown
+    const dd = document.getElementById("diagDropdownHost");
+    if (dd) {
+      if (!diagLoading && diagResults && diagResults.length) {
+        dd.innerHTML = `
+          <div id="diagDropdown"
+               style="position:absolute; z-index:50; left:0; right:0;
+                      max-width:720px;
+                      margin-top:6px; background:#fff; border:1px solid #e5e5e5;
+                      border-radius:12px; box-shadow:0 10px 24px rgba(0,0,0,0.08);
+                      max-height:220px; overflow:auto;">
+            ${diagResults.map(x => `
+              <div class="diagPick"
+                   data-id="${x.id}"
+                   style="padding:10px 12px; border-bottom:1px solid #f1f5f9; cursor:pointer;">
+                <div style="font-weight:800;">${escAttr(x.label || "—")}</div>
+                ${x.code ? `<div style="color:#64748b; font-size:12px;">${escAttr(x.code)}</div>` : ``}
+              </div>
+            `).join("")}
+          </div>
+        `;
+      } else {
+        dd.innerHTML = "";
+      }
+    }
+
+    // rebind apenas dentro da área de diagnóstico (chips + dropdown)
+    document.querySelectorAll(".diagPick").forEach(el => {
+      el.onclick = () => {
+        const id = el.getAttribute("data-id");
+        const item = (diagResults || []).find(x => String(x.id) === String(id));
+        addDiagnosis(item);
+      };
+    });
+
+    document.querySelectorAll(".diagRemove").forEach(el => {
+      el.onclick = (ev) => {
+        ev.preventDefault();
+        const id = el.getAttribute("data-id");
+        removeDiagnosis(id);
+      };
+    });
+  }
+
   async function searchDiagnoses(q) {
-    const query = String(q || "").trim();
+    const query = String(q || "");
     diagQuery = query;
 
-    if (!query || query.length < 2) {
-      diagResults = [];
+    const clean = query.trim();
+
+    if (!clean || clean.length < 2) {
       diagLoading = false;
-      render();
-      bindConsultEvents();
+      diagResults = [];
+      renderDiagArea();
       return;
     }
 
     diagLoading = true;
-    render();
-    bindConsultEvents();
+    renderDiagArea();
 
-    // Pesquisa estruturada:
-    // - por label (ILIKE)
-    // - por code (ILIKE)
-    // - apenas ativos
     const { data, error } = await window.sb
       .from("diagnoses_catalog")
       .select("id, code, label")
       .eq("is_active", true)
-      .or(`label.ilike.%${query}%,code.ilike.%${query}%`)
+      .or(`label.ilike.%${clean}%,code.ilike.%${clean}%`)
       .order("label", { ascending: true })
       .limit(15);
 
     if (error) {
       console.error(error);
-      diagResults = [];
       diagLoading = false;
-      render();
-      bindConsultEvents();
+      diagResults = [];
+      renderDiagArea();
       return;
     }
 
@@ -1132,13 +1247,11 @@ function openPatientViewModal(patient) {
       label: r.label || ""
     }));
 
-    // remover já selecionados
     const sel = new Set(selectedDiag.map(x => String(x.id)));
     diagResults = rows.filter(x => !sel.has(String(x.id)));
 
     diagLoading = false;
-    render();
-    bindConsultEvents();
+    renderDiagArea();
   }
 
   function addDiagnosis(item) {
@@ -1147,17 +1260,19 @@ function openPatientViewModal(patient) {
 
     selectedDiag.push({ id: item.id, code: item.code || "", label: item.label || "" });
 
-    // limpar pesquisa e resultados
+    // limpar input (sem re-render geral)
+    const inp = document.getElementById("diagSearch");
     diagQuery = "";
     diagResults = [];
-    render();
-    bindConsultEvents();
+    if (inp) inp.value = "";
+
+    renderDiagArea();
+    inp?.focus();
   }
 
   function removeDiagnosis(id) {
     selectedDiag = selectedDiag.filter(x => String(x.id) !== String(id));
-    render();
-    bindConsultEvents();
+    renderDiagArea();
   }
 
   /* ================= TIMELINE ================= */
@@ -1174,6 +1289,17 @@ function openPatientViewModal(patient) {
             <div style="font-weight:900; font-size:16px;">
               Consulta — ${String(r.report_date || "—")} - ${String(r.author_name || "")}
             </div>
+
+            ${r.diagnoses && r.diagnoses.length ? `
+              <div style="margin-top:10px;">
+                <div style="font-weight:900;">Diagnósticos:</div>
+                <ul style="margin:8px 0 0 18px;">
+                  ${r.diagnoses.map(d => `
+                    <li>${escAttr(d.label || "—")}${d.code ? ` <span style="color:#64748b;">(${escAttr(d.code)})</span>` : ``}</li>
+                  `).join("")}
+                </ul>
+              </div>
+            ` : ``}
 
             <div style="margin-top:10px; line-height:1.55; font-size:15px;">
               ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
@@ -1221,53 +1347,16 @@ function openPatientViewModal(patient) {
         <div style="margin-top:14px;">
           <label>Diagnóstico (catálogo)</label>
 
-          <div style="position:relative; margin-top:6px;">
+          <div style="position:relative; margin-top:6px; max-width:720px;">
             <input id="diagSearch"
                    value="${escAttr(diagQuery)}"
                    placeholder="Pesquisar (mín. 2 letras)…"
-                   style="width:min(720px,100%); padding:10px; border:1px solid #ddd; border-radius:10px;" />
-
-            ${diagLoading ? `
-              <div style="margin-top:6px; color:#64748b;">A pesquisar…</div>
-            ` : ``}
-
-            ${(!diagLoading && diagResults && diagResults.length) ? `
-              <div id="diagDropdown"
-                   style="position:absolute; z-index:50; left:0; right:0;
-                          max-width:720px;
-                          margin-top:6px; background:#fff; border:1px solid #e5e5e5;
-                          border-radius:12px; box-shadow:0 10px 24px rgba(0,0,0,0.08);
-                          max-height:220px; overflow:auto;">
-                ${diagResults.map(x => `
-                  <div class="diagPick"
-                       data-id="${x.id}"
-                       style="padding:10px 12px; border-bottom:1px solid #f1f5f9; cursor:pointer;">
-                    <div style="font-weight:800;">${escAttr(x.label || "—")}</div>
-                    ${x.code ? `<div style="color:#64748b; font-size:12px;">${escAttr(x.code)}</div>` : ``}
-                  </div>
-                `).join("")}
-              </div>
-            ` : ``}
+                   style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            <div id="diagStatus"></div>
+            <div id="diagDropdownHost" style="position:relative;"></div>
           </div>
 
-          ${selectedDiag && selectedDiag.length ? `
-            <div style="margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;">
-              ${selectedDiag.map(x => `
-                <div style="display:inline-flex; align-items:center; gap:8px;
-                            padding:8px 10px; border:1px solid #e5e5e5; border-radius:999px;">
-                  <div style="font-size:14px;">
-                    ${escAttr(x.label || "—")}
-                    ${x.code ? `<span style="color:#64748b; font-size:12px; margin-left:6px;">${escAttr(x.code)}</span>` : ``}
-                  </div>
-                  <button class="diagRemove gcBtn"
-                          data-id="${x.id}"
-                          style="padding:6px 10px; border-radius:999px;">
-                    ×
-                  </button>
-                </div>
-              `).join("")}
-            </div>
-          ` : `<div style="margin-top:8px; color:#64748b;">Sem diagnósticos selecionados.</div>`}
+          <div id="diagChips"></div>
         </div>
 
         <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
@@ -1303,11 +1392,12 @@ function openPatientViewModal(patient) {
       if (bOL) bOL.onclick = () => cmd("insertOrderedList");
     }
 
-    // ---------- Diagnóstico ----------
+    // ---------- Diagnóstico (sem re-render geral) ----------
     const diagInput = document.getElementById("diagSearch");
     if (diagInput) {
       diagInput.oninput = (e) => {
         const v = e?.target?.value ?? "";
+        diagQuery = v; // mantém o que escreves (permite apagar)
         if (diagDebounceT) clearTimeout(diagDebounceT);
         diagDebounceT = setTimeout(() => searchDiagnoses(v), 220);
       };
@@ -1318,28 +1408,12 @@ function openPatientViewModal(patient) {
       };
 
       diagInput.onkeydown = (ev) => {
-        // evitar submit/side-effects
         if (ev.key === "Enter") ev.preventDefault();
       };
     }
 
-    // clicar num resultado
-    document.querySelectorAll(".diagPick").forEach(el => {
-      el.addEventListener("click", () => {
-        const id = el.getAttribute("data-id");
-        const item = (diagResults || []).find(x => String(x.id) === String(id));
-        addDiagnosis(item);
-      });
-    });
-
-    // remover selecionado
-    document.querySelectorAll(".diagRemove").forEach(el => {
-      el.addEventListener("click", (ev) => {
-        ev.preventDefault();
-        const id = el.getAttribute("data-id");
-        removeDiagnosis(id);
-      });
-    });
+    // desenhar área de diagnóstico (chips/dropdown/status)
+    renderDiagArea();
 
     // ---------- Botões ----------
     const btnCancel = document.getElementById("btnCancelConsult");
@@ -1440,7 +1514,7 @@ function openPatientViewModal(patient) {
 
       const consultId = ins?.id;
 
-      // 2) inserir diagnósticos (se existirem) — respeita UNIQUE (consultation_id + diagnosis_id)
+      // 2) inserir diagnósticos (se existirem) — UNIQUE (consultation_id + diagnosis_id)
       if (consultId && selectedDiag && selectedDiag.length) {
         const rows = selectedDiag.map(x => ({
           consultation_id: consultId,
@@ -1454,13 +1528,13 @@ function openPatientViewModal(patient) {
         if (dErr) {
           console.error(dErr);
           alert("Consulta gravada, mas houve erro a gravar diagnósticos.");
-          // não falhar a consulta
         }
       }
 
       // reset drafts
       draftHDAHtml = "";
       diagQuery = "";
+      diagLoading = false;
       diagResults = [];
       selectedDiag = [];
       alert("Consulta gravada.");
@@ -1536,7 +1610,7 @@ function openPatientViewModal(patient) {
   })();
 }
 
-/* ==== Fim BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico catálogo (label/code) + Autor(display_name) + Timeline + Save OK) ==== */
+/* ==== Fim BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico catálogo (label/code) + Feed com Diagnósticos + Autor(display_name) + Save OK) ==== */
 /* ==== FIM BLOCO 06/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
