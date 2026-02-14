@@ -1407,23 +1407,14 @@ function openPatientViewModal(patient) {
 
   /* ================= TRATAMENTOS (CATÁLOGO) — DUAL LIST ================= */
 
-  // 2) Formato pedido: "Primeira letra em Maiúsculas" por frase.
-  // - Converte tudo para minúsculas e capitaliza o primeiro carácter e o primeiro após ". ! ?"
-  // - Não altera a BD; só apresentação.
+  // Formato: primeira letra maiúscula por frase (apresentação apenas)
   function sentenceizeLabel(s) {
     const raw = String(s || "").trim();
     if (!raw) return "";
     let t = raw.toLowerCase();
-
-    // limpar espaços múltiplos
     t = t.replace(/\s+/g, " ");
-
-    // capitalizar início e depois de pontuação
     t = t.replace(/(^|[.!?]\s+)([a-zà-ÿ])/g, (m, p1, p2) => p1 + p2.toUpperCase());
-
-    // garantir 1.ª letra maiúscula se começar com letra acentuada
     t = t.replace(/^([a-zà-ÿ])/, (m, c) => c.toUpperCase());
-
     return t;
   }
 
@@ -1436,7 +1427,7 @@ function openPatientViewModal(patient) {
   }
 
   async function fetchTreatmentsDefault() {
-    // Mostra 7 tratamentos (sem forçar ordem; respeita a ordem "como vem" do catálogo)
+    // Mostra 7 tratamentos (ordem por sort_order e depois label)
     try {
       treatLoading = true;
       renderTreatArea();
@@ -1446,6 +1437,8 @@ function openPatientViewModal(patient) {
         .from("treatments_catalog")
         .select("*")
         .eq("is_active", true)
+        .order("sort_order", { ascending: true, nullsFirst: false })
+        .order("label", { ascending: true })
         .limit(7);
 
       if (res?.error) {
@@ -1453,6 +1446,8 @@ function openPatientViewModal(patient) {
         res = await window.sb
           .from("treatments_catalog")
           .select("*")
+          .order("sort_order", { ascending: true, nullsFirst: false })
+          .order("label", { ascending: true })
           .limit(7);
       }
 
@@ -1495,6 +1490,8 @@ function openPatientViewModal(patient) {
         .select("*")
         .eq("is_active", true)
         .ilike("search_text", `%${needle}%`)
+        .order("sort_order", { ascending: true, nullsFirst: false })
+        .order("label", { ascending: true })
         .limit(20);
 
       data = r1.data;
@@ -1507,6 +1504,8 @@ function openPatientViewModal(patient) {
           .from("treatments_catalog")
           .select("*")
           .ilike("label", `%${needle}%`)
+          .order("sort_order", { ascending: true, nullsFirst: false })
+          .order("label", { ascending: true })
           .limit(20);
 
         data = r2.data;
@@ -1756,7 +1755,7 @@ function openPatientViewModal(patient) {
                        style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
                 <div id="treatStatus"></div>
                 <div id="treatCatalogBox"
-                     style="margin-top:8px; min-height:120px; padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;">
+                     style="margin-top:8px; min-height:120px; max-height:320px; overflow:auto; padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;">
                 </div>
               </div>
             </div>
