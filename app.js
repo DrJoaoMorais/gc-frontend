@@ -957,32 +957,20 @@ function openPatientViewModal(patient) {
 }
 
 /* ==== Fim BLOCO 06A/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
-/* ==== INICIO BLOCO 06B/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
-
-/*
-  BLOCO 06B/12 — Modal Doente (FASE 1)
-  - Render do Feed (simples)
-  - Formulário de consulta (ainda “substitui o feed” nesta FASE 1)
-  - Save consult + tentativa de ligar appointment do mesmo dia
-*/
-
-(function patchOpenPatientViewModal_Block06B() {
-  // Re-declaramos a função com o corpo completo (mantém 1:1 no app.js)
-  // e substitui a versão “skeleton” do 06A com implementação final.
-  const _orig = window.openPatientViewModal;
-  // se o código não estiver em window, não faz mal; vamos sobrescrever pelo nome global.
-})();
+/* ==== INICIO BLOCO 06B/12 — Modal Doente (FASE 2 — Estrutura Inline) ==== */
 
 function openPatientViewModal(patient) {
+
   const root = document.getElementById("modalRoot");
   if (!root || !patient) return;
 
   const p = patient;
 
-  // ---------- State ----------
+  /* ================= STATE ================= */
   let activeClinicId = null;
+  let creatingConsult = false;
 
-  // ---------- Role helpers ----------
+  /* ================= ROLE ================= */
   function role() {
     return String(G.role || "").toLowerCase();
   }
@@ -991,7 +979,7 @@ function openPatientViewModal(patient) {
     return role() === "doctor";
   }
 
-  // ---------- Data loaders ----------
+  /* ================= DATA ================= */
   async function fetchActiveClinic() {
     const { data, error } = await window.sb
       .from("patient_clinic")
@@ -1009,14 +997,14 @@ function openPatientViewModal(patient) {
     activeClinicId = data && data.length ? data[0].clinic_id : null;
   }
 
-  // ---------- Render: Feed (FASE 1) ----------
-  function renderFeed() {
+  /* ================= MAIN RENDER ================= */
+  function render() {
+
     root.innerHTML = `
-      <div id="pViewOverlay"
-           style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
+      <div style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
                   display:flex; align-items:center; justify-content:center; padding:18px;">
 
-        <div style="background:#fff; width:min(900px, 100%);
+        <div style="background:#fff; width:min(900px,100%);
                     border-radius:14px; border:1px solid #e5e5e5;
                     padding:16px; max-height:88vh; overflow:auto;">
 
@@ -1030,10 +1018,15 @@ function openPatientViewModal(patient) {
           </div>
 
           <div style="margin-top:12px;">
-            ${isDoctor() ? `<button id="btnNewConsult" class="gcBtn" style="font-weight:900;">Consulta Médica</button>` : ``}
+            ${isDoctor() && !creatingConsult ? `
+              <button id="btnNewConsult" class="gcBtn" style="font-weight:900;">
+                Consulta Médica
+              </button>` : ``}
           </div>
 
-          <div style="margin-top:20px; color:#64748b;">
+          ${creatingConsult ? renderConsultFormInline() : ``}
+
+          <div id="timelineArea" style="margin-top:20px; color:#64748b;">
             Sem registos clínicos.
           </div>
 
@@ -1041,75 +1034,91 @@ function openPatientViewModal(patient) {
       </div>
     `;
 
-    const btnClose = document.getElementById("btnClosePView");
-    if (btnClose) btnClose.addEventListener("click", closeModalRoot);
+    document.getElementById("btnClosePView")
+      ?.addEventListener("click", closeModalRoot);
 
-    if (isDoctor()) {
-      const btnNew = document.getElementById("btnNewConsult");
-      if (btnNew) btnNew.addEventListener("click", openConsultForm);
+    if (isDoctor() && !creatingConsult) {
+      document.getElementById("btnNewConsult")
+        ?.addEventListener("click", () => {
+          creatingConsult = true;
+          render();
+        });
+    }
+
+    if (creatingConsult) {
+      bindConsultFormEvents();
     }
   }
 
-  // ---------- Render: Consult form (FASE 1) ----------
-  function openConsultForm() {
+  /* ================= INLINE FORM ================= */
+  function renderConsultFormInline() {
+
     const today = new Date().toISOString().slice(0, 10);
 
-    root.innerHTML = `
-      <div style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
-                  display:flex; align-items:center; justify-content:center; padding:18px;">
+    return `
+      <div style="margin-top:20px; padding:14px;
+                  border:1px solid #e5e5e5; border-radius:12px;">
 
-        <div style="background:#fff; width:min(700px,100%);
-                    border-radius:14px; border:1px solid #e5e5e5;
-                    padding:16px;">
+        <div style="font-weight:900;">Nova Consulta Médica</div>
 
-          <div style="font-weight:900;">Nova Consulta Médica</div>
-
-          <div style="margin-top:12px;">
-            <label>Data</label>
-            <input type="date" value="${today}" readonly
-              style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;" />
-          </div>
-
-          <div style="margin-top:12px;">
-            <label>HDA</label>
-            <textarea id="consultHDA" rows="5"
-              style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></textarea>
-          </div>
-
-          <div style="margin-top:12px;">
-            <label>Assessment</label>
-            <textarea id="consultAssessment" rows="4"
-              style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></textarea>
-          </div>
-
-          <div style="margin-top:12px;">
-            <label>Plano</label>
-            <textarea id="consultPlan" rows="4"
-              style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></textarea>
-          </div>
-
-          <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:10px;">
-            <button id="btnCancelConsult" class="gcBtn">Cancelar</button>
-            <button id="btnSaveConsult" class="gcBtn" style="font-weight:900;">Gravar</button>
-          </div>
-
+        <div style="margin-top:12px;">
+          <label>Data</label>
+          <input type="date" value="${today}" readonly
+            style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;" />
         </div>
+
+        <div style="margin-top:12px;">
+          <label>HDA</label>
+          <textarea id="consultHDA" rows="4"
+            style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></textarea>
+        </div>
+
+        <div style="margin-top:12px;">
+          <label>Assessment</label>
+          <textarea id="consultAssessment" rows="3"
+            style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></textarea>
+        </div>
+
+        <div style="margin-top:12px;">
+          <label>Plano</label>
+          <textarea id="consultPlan" rows="3"
+            style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;"></textarea>
+        </div>
+
+        <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
+          <button id="btnCancelConsult" class="gcBtn">Cancelar</button>
+          <button id="btnSaveConsult" class="gcBtn" style="font-weight:900;">
+            Gravar
+          </button>
+        </div>
+
       </div>
     `;
-
-    const btnCancel = document.getElementById("btnCancelConsult");
-    if (btnCancel) btnCancel.addEventListener("click", renderFeed);
-
-    const btnSave = document.getElementById("btnSaveConsult");
-    if (btnSave) btnSave.addEventListener("click", saveConsult);
   }
 
-  // ---------- Action: Save consult (FASE 1) ----------
+  function bindConsultFormEvents() {
+
+    document.getElementById("btnCancelConsult")
+      ?.addEventListener("click", () => {
+        creatingConsult = false;
+        render();
+      });
+
+    document.getElementById("btnSaveConsult")
+      ?.addEventListener("click", async () => {
+        await saveConsult();
+        creatingConsult = false;
+        render();
+      });
+  }
+
+  /* ================= SAVE ================= */
   async function saveConsult() {
+
     try {
+
       const userRes = await window.sb.auth.getUser();
       const userId = userRes?.data?.user?.id;
-
       if (!userId) {
         alert("Utilizador não autenticado.");
         return;
@@ -1122,22 +1131,20 @@ function openPatientViewModal(patient) {
       const assessment = document.getElementById("consultAssessment")?.value || "";
       const plan = document.getElementById("consultPlan")?.value || "";
 
-      const { data: appts, error: apptErr } = await window.sb
+      const { data: appts } = await window.sb
         .from("appointments")
         .select("*")
         .eq("patient_id", p.id);
 
-      if (apptErr) {
-        console.error(apptErr);
-      }
-
       let appointmentId = null;
 
       if (appts && appts.length) {
-        const sameDay = appts.filter(a => a.start_at && a.start_at.slice(0, 10) === today);
+        const sameDay = appts.filter(a =>
+          a.start_at && a.start_at.slice(0,10) === today
+        );
 
         if (sameDay.length) {
-          sameDay.sort((a, b) =>
+          sameDay.sort((a,b) =>
             Math.abs(new Date(a.start_at) - now) -
             Math.abs(new Date(b.start_at) - now)
           );
@@ -1160,20 +1167,17 @@ function openPatientViewModal(patient) {
 
       if (error) throw error;
 
-      alert("Consulta gravada com sucesso.");
-      renderFeed();
-
     } catch (err) {
       console.error(err);
       alert("Erro ao gravar consulta.");
     }
   }
 
-  // ---------- Boot ----------
-  fetchActiveClinic().then(renderFeed);
+  /* ================= BOOT ================= */
+  fetchActiveClinic().then(render);
 }
 
-/* ==== Fim BLOCO 06B/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
+/* ==== Fim BLOCO 06B/12 — Modal Doente (FASE 2 — Estrutura Inline) ==== */
 /* ==== FIM BLOCO 06/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
