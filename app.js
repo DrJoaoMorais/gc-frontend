@@ -999,7 +999,7 @@ function openPatientViewModal__stub(patient) {
 
 // NOTE: 06A mantém apenas loaders/state base. A implementação REAL do modal está no 06B (openPatientViewModal).
 /* ==== FIM BLOCO 06A/12 — Modal Doente (FASE 1) ==== */
-/* ==== INICIO BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico sem acentos (search_text) + Feed: HDA→Diagnóstico + Autor(display_name) + Save OK) ==== */
+/* ==== INICIO BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico sem acentos (search_text) + Tratamentos (catálogo+seleção+gravação) + Feed completo) ==== */
 
 function openPatientViewModal(patient) {
 
@@ -1013,7 +1013,7 @@ function openPatientViewModal(patient) {
   let creatingConsult = false;
 
   let timelineLoading = false;
-  let consultRows = [];          // rows enriquecidas com author_name + diagnoses[]
+  let consultRows = [];          // rows enriquecidas com author_name + diagnoses[] + treatments[]
   let saving = false;
 
   let draftHDAHtml = "";         // HDA em HTML (rich text)
@@ -1024,6 +1024,14 @@ function openPatientViewModal(patient) {
   let diagResults = [];          // [{id, label, code}]
   let selectedDiag = [];         // [{id, label, code}]
   let diagDebounceT = null;
+
+  // ---- Tratamentos (catálogo) ----
+  let prescriptionText = "R/ 20 Sessões de Tratamentos de Medicina Fisica e de Reabilitação com:";
+  let treatQuery = "";
+  let treatLoading = false;
+  let treatResults = [];         // [{id, label, code}]
+  let selectedTreat = [];        // [{id, label, code, qty}]
+  let treatDebounceT = null;
 
   /* ================= ROLE ================= */
   function role() { return String(G.role || "").toLowerCase(); }
@@ -1084,8 +1092,9 @@ function openPatientViewModal(patient) {
       }
     }
 
-    // 3) Carregar diagnósticos por consulta (2 queries + mapping)
     const consultIds = rows.map(r => r.id).filter(Boolean);
+
+    // 3) Carregar diagnósticos por consulta
     let diagByConsult = {}; // { consultId: [ {label, code} ] }
 
     if (consultIds.length) {
@@ -1127,10 +1136,56 @@ function openPatientViewModal(patient) {
       }
     }
 
+    // 4) Carregar tratamentos por consulta
+    let treatByConsult = {}; // { consultId: [ {label, code, qty} ] }
+
+    if (consultIds.length) {
+      const { data: tlinks, error: tErr } = await window.sb
+        .from("consultation_treatments")
+        .select("consultation_id, treatment_id, qty")
+        .in("consultation_id", consultIds);
+
+      if (tErr) {
+        console.error(tErr);
+      } else {
+        const tIds = [...new Set((tlinks || []).map(x => x.treatment_id).filter(Boolean))];
+
+        let tMap = {}; // { treatmentId: {label, code} }
+        if (tIds.length) {
+          // Se as colunas forem diferentes, o mapping faz fallback.
+          const { data: trs, error: trErr } = await window.sb
+            .from("treatments_catalog")
+            .select("*")
+            .in("id", tIds);
+
+          if (trErr) {
+            console.error(trErr);
+          } else {
+            (trs || []).forEach(t => {
+              const label = t.label || t.name || t.title || "";
+              const code = t.code || t.adse_code || t.proc_code || "";
+              tMap[t.id] = { label, code };
+            });
+          }
+        }
+
+        (tlinks || []).forEach(l => {
+          const cid = l.consultation_id;
+          const tid = l.treatment_id;
+          if (!cid || !tid) return;
+          const tt = tMap[tid];
+          if (!tt) return;
+          if (!treatByConsult[cid]) treatByConsult[cid] = [];
+          treatByConsult[cid].push({ ...tt, qty: Number(l.qty || 1) });
+        });
+      }
+    }
+
     consultRows = rows.map(r => ({
       ...r,
       author_name: authorMap[r.author_user_id] || "",
-      diagnoses: diagByConsult[r.id] || []
+      diagnoses: diagByConsult[r.id] || [],
+      treatments: treatByConsult[r.id] || []
     }));
 
     timelineLoading = false;
@@ -1196,7 +1251,6 @@ function openPatientViewModal(patient) {
 
   function openPatientIdentity(mode) {
     // mode: "view" | "edit"
-    // Nota: não assumo nomes; tento vários e faço fallback sem rebentar.
     try {
       if (mode === "edit") {
         if (typeof window.openPatientEditModal === "function") return window.openPatientEditModal(p);
@@ -1301,8 +1355,6 @@ function openPatientViewModal(patient) {
     diagLoading = true;
     renderDiagArea();
 
-    // Pesquisa SEM acentos:
-    // o utilizador escreve com/sem acentos -> nós pesquisamos em search_text (já normalizado)
     const needle = clean.toLowerCase();
 
     const { data, error } = await window.sb
@@ -1354,6 +1406,219 @@ function openPatientViewModal(patient) {
     renderDiagArea();
   }
 
+  /* ================= TRATAMENTOS (CATÁLOGO) — DUAL LIST ================= */
+
+  function normTreatRow(t) {
+    return {
+      id: t.id,
+      label: t.label || t.name || t.title || "",
+      code: t.code || t.adse_code || t.proc_code || "",
+    };
+  }
+
+  async function fetchTreatmentsDefault() {
+    // Mostra 6–7 tratamentos “por defeito” (ativos se existir is_active)
+    try {
+      treatLoading = true;
+      renderTreatArea();
+
+      // Tentativa 1: com is_active + order label
+      let res = await window.sb
+        .from("treatments_catalog")
+        .select("*")
+        .eq("is_active", true)
+        .order("label", { ascending: true })
+        .limit(7);
+
+      if (res?.error) {
+        // Fallback: sem is_active
+        res = await window.sb
+          .from("treatments_catalog")
+          .select("*")
+          .order("label", { ascending: true })
+          .limit(7);
+      }
+
+      const rows = (res?.data || []).map(normTreatRow);
+
+      const sel = new Set(selectedTreat.map(x => String(x.id)));
+      treatResults = rows.filter(x => !sel.has(String(x.id)));
+
+      treatLoading = false;
+      renderTreatArea();
+    } catch (e) {
+      console.error(e);
+      treatLoading = false;
+      treatResults = [];
+      renderTreatArea();
+    }
+  }
+
+  async function searchTreatments(q) {
+    const query = String(q || "");
+    treatQuery = query;
+
+    const clean = query.trim();
+
+    if (!clean || clean.length < 2) {
+      // volta ao “default list”
+      await fetchTreatmentsDefault();
+      return;
+    }
+
+    treatLoading = true;
+    renderTreatArea();
+
+    const needle = clean.toLowerCase();
+
+    // Tentativa 1: search_text
+    let data = null, error = null;
+
+    try {
+      const r1 = await window.sb
+        .from("treatments_catalog")
+        .select("*")
+        .eq("is_active", true)
+        .ilike("search_text", `%${needle}%`)
+        .order("label", { ascending: true })
+        .limit(20);
+
+      data = r1.data;
+      error = r1.error;
+
+      if (error) throw error;
+    } catch (e) {
+      // Fallback: label (sem search_text ou sem is_active)
+      try {
+        const r2 = await window.sb
+          .from("treatments_catalog")
+          .select("*")
+          .ilike("label", `%${needle}%`)
+          .order("label", { ascending: true })
+          .limit(20);
+
+        data = r2.data;
+        error = r2.error;
+      } catch (e2) {
+        error = e2;
+      }
+    }
+
+    if (error) {
+      console.error(error);
+      treatLoading = false;
+      treatResults = [];
+      renderTreatArea();
+      return;
+    }
+
+    const rows = (data || []).map(normTreatRow);
+    const sel = new Set(selectedTreat.map(x => String(x.id)));
+    treatResults = rows.filter(x => !sel.has(String(x.id)));
+
+    treatLoading = false;
+    renderTreatArea();
+  }
+
+  function addTreatment(item) {
+    if (!item || !item.id) return;
+    if (selectedTreat.some(x => String(x.id) === String(item.id))) return;
+
+    selectedTreat.push({ id: item.id, code: item.code || "", label: item.label || "", qty: 1 });
+
+    // remover do catálogo visível
+    treatResults = (treatResults || []).filter(x => String(x.id) !== String(item.id));
+
+    renderTreatArea();
+  }
+
+  function removeTreatment(id) {
+    const rem = selectedTreat.find(x => String(x.id) === String(id));
+    selectedTreat = selectedTreat.filter(x => String(x.id) !== String(id));
+
+    // opcional: recolocar no catálogo (se já havia lista carregada)
+    if (rem) {
+      treatResults = [{ id: rem.id, label: rem.label || "", code: rem.code || "" }, ...(treatResults || [])];
+      // dedup
+      const seen = new Set();
+      treatResults = (treatResults || []).filter(x => {
+        const k = String(x.id);
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+    }
+
+    renderTreatArea();
+  }
+
+  function renderTreatArea() {
+    const boxSel = document.getElementById("treatSelectedBox");
+    const boxCat = document.getElementById("treatCatalogBox");
+    const st = document.getElementById("treatStatus");
+
+    if (st) st.innerHTML = treatLoading ? `<div style="margin-top:6px; color:#64748b;">A carregar…</div>` : "";
+
+    if (boxSel) {
+      if (!selectedTreat.length) {
+        boxSel.innerHTML = `<div style="color:#64748b;">Sem tratamentos selecionados.</div>`;
+      } else {
+        boxSel.innerHTML = `
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${selectedTreat.map(x => `
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;
+                          padding:10px 12px; border:1px solid #e5e5e5; border-radius:12px;">
+                <div style="display:flex; flex-direction:column;">
+                  <div style="font-weight:900;">${escAttr(x.label || "—")}</div>
+                  ${x.code ? `<div style="color:#64748b; font-size:12px;">${escAttr(x.code)}</div>` : ``}
+                </div>
+                <button class="treatRemove gcBtn" data-id="${x.id}"
+                        style="padding:6px 10px; border-radius:999px;">
+                  ×
+                </button>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
+    }
+
+    if (boxCat) {
+      if (!treatResults || !treatResults.length) {
+        boxCat.innerHTML = `<div style="color:#64748b;">Sem resultados.</div>`;
+      } else {
+        boxCat.innerHTML = `
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${treatResults.map(x => `
+              <div class="treatPick"
+                   data-id="${x.id}"
+                   style="padding:10px 12px; border:1px solid #e5e5e5; border-radius:12px; cursor:pointer;">
+                <div style="font-weight:900;">${escAttr(x.label || "—")}</div>
+                ${x.code ? `<div style="color:#64748b; font-size:12px;">${escAttr(x.code)}</div>` : ``}
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
+    }
+
+    document.querySelectorAll(".treatPick").forEach(el => {
+      el.onclick = () => {
+        const id = el.getAttribute("data-id");
+        const item = (treatResults || []).find(x => String(x.id) === String(id));
+        addTreatment(item);
+      };
+    });
+
+    document.querySelectorAll(".treatRemove").forEach(el => {
+      el.onclick = (ev) => {
+        ev.preventDefault();
+        const id = el.getAttribute("data-id");
+        removeTreatment(id);
+      };
+    });
+  }
+
   /* ================= TIMELINE (ORDEM: HDA → Diagnóstico → Tratamento) ================= */
   function renderTimeline() {
 
@@ -1390,7 +1655,20 @@ function openPatientViewModal(patient) {
               </div>
             ` : ``}
 
-            <!-- Tratamentos (próximo passo) -->
+            ${r.treatments && r.treatments.length ? `
+              <div style="margin-top:12px;">
+                <div style="font-weight:900;">Tratamentos:</div>
+                <ul style="margin:8px 0 0 18px;">
+                  ${r.treatments.map(t => `
+                    <li>
+                      ${escAttr(t.label || "—")}
+                      ${t.code ? ` <span style="color:#64748b;">(${escAttr(t.code)})</span>` : ``}
+                      ${t.qty ? ` <span style="color:#64748b;">— x${Number(t.qty)}</span>` : ``}
+                    </li>
+                  `).join("")}
+                </ul>
+              </div>
+            ` : ``}
 
           </div>
         `; }).join("")}
@@ -1398,7 +1676,7 @@ function openPatientViewModal(patient) {
     `;
   }
 
-  /* ================= INLINE FORM (HDA primeiro, Diagnóstico por baixo) ================= */
+  /* ================= INLINE FORM (HDA, Diagnóstico, Tratamentos) ================= */
   function renderConsultFormInline() {
     const today = new Date().toISOString().slice(0, 10);
 
@@ -1443,6 +1721,37 @@ function openPatientViewModal(patient) {
           <div id="diagChips"></div>
         </div>
 
+        <!-- ===== TRATAMENTOS ===== -->
+        <div style="margin-top:14px;">
+          <label>Tratamentos (catálogo)</label>
+
+          <div style="margin-top:6px; max-width:980px;">
+            <input id="prescriptionText"
+                   value="${escAttr(prescriptionText)}"
+                   style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
+              <div style="flex:1; min-width:320px;">
+                <div style="font-weight:900; margin-bottom:6px;">Selecionados</div>
+                <div id="treatSelectedBox"
+                     style="min-height:120px; padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;">
+                </div>
+              </div>
+
+              <div style="flex:1; min-width:320px;">
+                <div style="font-weight:900; margin-bottom:6px;">Catálogo</div>
+                <input id="treatSearch"
+                       value="${escAttr(treatQuery)}"
+                       placeholder="Pesquisar tratamentos (mín. 2 letras)…"
+                       style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+                <div id="treatStatus"></div>
+                <div id="treatCatalogBox"
+                     style="margin-top:8px; min-height:120px; padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
           <button id="btnCancelConsult" class="gcBtn">Cancelar</button>
           <button id="btnSaveConsult" class="gcBtn" style="font-weight:900;">Gravar</button>
@@ -1474,6 +1783,7 @@ function openPatientViewModal(patient) {
       if (bOL) bOL.onclick = () => cmd("insertUnorderedList" && "insertOrderedList");
     }
 
+    // Diagnóstico events
     const diagInput = document.getElementById("diagSearch");
     if (diagInput) {
       diagInput.oninput = (e) => {
@@ -1494,6 +1804,35 @@ function openPatientViewModal(patient) {
     }
 
     renderDiagArea();
+
+    // Tratamentos events
+    const pr = document.getElementById("prescriptionText");
+    if (pr) {
+      pr.oninput = (e) => { prescriptionText = e?.target?.value ?? ""; };
+    }
+
+    const tInput = document.getElementById("treatSearch");
+    if (tInput) {
+      tInput.oninput = (e) => {
+        const v = e?.target?.value ?? "";
+        treatQuery = v;
+        if (treatDebounceT) clearTimeout(treatDebounceT);
+        treatDebounceT = setTimeout(() => searchTreatments(v), 220);
+      };
+
+      tInput.onfocus = () => {
+        const v = tInput.value || "";
+        if (String(v).trim().length >= 2) searchTreatments(v);
+      };
+
+      tInput.onkeydown = (ev) => {
+        if (ev.key === "Enter") ev.preventDefault();
+      };
+    }
+
+    // Render inicial dos tratamentos (default list)
+    renderTreatArea();
+    fetchTreatmentsDefault();
 
     const btnCancel = document.getElementById("btnCancelConsult");
     if (btnCancel) btnCancel.onclick = () => { creatingConsult = false; render(); };
@@ -1562,7 +1901,7 @@ function openPatientViewModal(patient) {
           report_date: today,
           hda: draftHDAHtml,
           assessment: "",
-          plan_text: "",
+          plan_text: "",          // não mexo no “fechado”; prescrição fica só na UI por agora
           appointment_id: appointmentId
         })
         .select("id")
@@ -1572,6 +1911,7 @@ function openPatientViewModal(patient) {
 
       const consultId = ins?.id;
 
+      // Diagnósticos
       if (consultId && selectedDiag && selectedDiag.length) {
         const rows = selectedDiag.map(x => ({ consultation_id: consultId, diagnosis_id: x.id }));
         const { error: dErr } = await window.sb
@@ -1579,6 +1919,21 @@ function openPatientViewModal(patient) {
           .upsert(rows, { onConflict: "consultation_id,diagnosis_id" });
 
         if (dErr) { console.error(dErr); alert("Consulta gravada, mas houve erro a gravar diagnósticos."); }
+      }
+
+      // Tratamentos (qty obrigatório)
+      if (consultId && selectedTreat && selectedTreat.length) {
+        const rows = selectedTreat.map(x => ({
+          consultation_id: consultId,
+          treatment_id: x.id,
+          qty: Number(x.qty || 1)
+        }));
+
+        const { error: tErr } = await window.sb
+          .from("consultation_treatments")
+          .upsert(rows, { onConflict: "consultation_id,treatment_id" });
+
+        if (tErr) { console.error(tErr); alert("Consulta gravada, mas houve erro a gravar tratamentos."); }
       }
 
       // Auto-update: se a consulta ficou ligada a uma marcação, marcar como "done"
@@ -1602,11 +1957,19 @@ function openPatientViewModal(patient) {
         console.error("refreshAgenda falhou:", e);
       }
 
+      // Reset states
       draftHDAHtml = "";
       diagQuery = "";
       diagLoading = false;
       diagResults = [];
       selectedDiag = [];
+
+      prescriptionText = "R/ 20 Sessões de Tratamentos de Medicina Fisica e de Reabilitação com:";
+      treatQuery = "";
+      treatLoading = false;
+      treatResults = [];
+      selectedTreat = [];
+
       alert("Consulta gravada.");
       return true;
 
@@ -1696,7 +2059,7 @@ function openPatientViewModal(patient) {
   })();
 }
 
-/* ==== Fim BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico sem acentos (search_text) + Feed: HDA→Diagnóstico + Autor(display_name) + Save OK) ==== */
+/* ==== Fim BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico sem acentos (search_text) + Tratamentos (catálogo+seleção+gravação) + Feed completo) ==== */
 /* ==== FIM BLOCO 06/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
