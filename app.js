@@ -899,15 +899,24 @@
 
 /* ==== FIM BLOCO 05/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 /* ==== INÍCIO BLOCO 06/12 — Modal Doente (FASE 1) ==== */
+/* ==== INICIO BLOCO 06/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
+
+/*
+  BLOCO 06A/12 — Modal Doente (FASE 1)
+  - Helpers internos + carregamento de clínica ativa do doente
+  - Estrutura modular para preparar FASE 2 (inline + timeline)
+*/
 
 function openPatientViewModal(patient) {
-
   const root = document.getElementById("modalRoot");
   if (!root || !patient) return;
 
   const p = patient;
+
+  // ---------- State ----------
   let activeClinicId = null;
 
+  // ---------- Role helpers ----------
   function role() {
     return String(G.role || "").toLowerCase();
   }
@@ -916,19 +925,92 @@ function openPatientViewModal(patient) {
     return role() === "doctor";
   }
 
+  // ---------- Data loaders ----------
   async function fetchActiveClinic() {
-    const { data } = await window.sb
+    const { data, error } = await window.sb
       .from("patient_clinic")
       .select("clinic_id")
       .eq("patient_id", p.id)
       .eq("is_active", true)
       .limit(1);
 
+    if (error) {
+      console.error(error);
+      activeClinicId = null;
+      return;
+    }
+
     activeClinicId = data && data.length ? data[0].clinic_id : null;
   }
 
-  function renderFeed() {
+  // ---------- Boot ----------
+  fetchActiveClinic().then(() => {
+    renderFeed();
+  });
 
+  /* === UI + Actions são definidos no BLOCO 06B para manter organização === */
+
+  /* placeholders (mantidos aqui para evitar hoist confuso em edições futuras) */
+  function renderFeed() {}
+  function openConsultForm() {}
+  async function saveConsult() {}
+}
+
+/* ==== Fim BLOCO 06A/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
+/* ==== INICIO BLOCO 06B/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
+
+/*
+  BLOCO 06B/12 — Modal Doente (FASE 1)
+  - Render do Feed (simples)
+  - Formulário de consulta (ainda “substitui o feed” nesta FASE 1)
+  - Save consult + tentativa de ligar appointment do mesmo dia
+*/
+
+(function patchOpenPatientViewModal_Block06B() {
+  // Re-declaramos a função com o corpo completo (mantém 1:1 no app.js)
+  // e substitui a versão “skeleton” do 06A com implementação final.
+  const _orig = window.openPatientViewModal;
+  // se o código não estiver em window, não faz mal; vamos sobrescrever pelo nome global.
+})();
+
+function openPatientViewModal(patient) {
+  const root = document.getElementById("modalRoot");
+  if (!root || !patient) return;
+
+  const p = patient;
+
+  // ---------- State ----------
+  let activeClinicId = null;
+
+  // ---------- Role helpers ----------
+  function role() {
+    return String(G.role || "").toLowerCase();
+  }
+
+  function isDoctor() {
+    return role() === "doctor";
+  }
+
+  // ---------- Data loaders ----------
+  async function fetchActiveClinic() {
+    const { data, error } = await window.sb
+      .from("patient_clinic")
+      .select("clinic_id")
+      .eq("patient_id", p.id)
+      .eq("is_active", true)
+      .limit(1);
+
+    if (error) {
+      console.error(error);
+      activeClinicId = null;
+      return;
+    }
+
+    activeClinicId = data && data.length ? data[0].clinic_id : null;
+  }
+
+  // ---------- Render: Feed (FASE 1) ----------
+  function renderFeed() {
     root.innerHTML = `
       <div id="pViewOverlay"
            style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
@@ -959,17 +1041,17 @@ function openPatientViewModal(patient) {
       </div>
     `;
 
-    document.getElementById("btnClosePView")
-      .addEventListener("click", closeModalRoot);
+    const btnClose = document.getElementById("btnClosePView");
+    if (btnClose) btnClose.addEventListener("click", closeModalRoot);
 
     if (isDoctor()) {
-      document.getElementById("btnNewConsult")
-        .addEventListener("click", openConsultForm);
+      const btnNew = document.getElementById("btnNewConsult");
+      if (btnNew) btnNew.addEventListener("click", openConsultForm);
     }
   }
 
+  // ---------- Render: Consult form (FASE 1) ----------
   function openConsultForm() {
-
     const today = new Date().toISOString().slice(0, 10);
 
     root.innerHTML = `
@@ -1015,17 +1097,16 @@ function openPatientViewModal(patient) {
       </div>
     `;
 
-    document.getElementById("btnCancelConsult")
-      .addEventListener("click", renderFeed);
+    const btnCancel = document.getElementById("btnCancelConsult");
+    if (btnCancel) btnCancel.addEventListener("click", renderFeed);
 
-    document.getElementById("btnSaveConsult")
-      .addEventListener("click", saveConsult);
+    const btnSave = document.getElementById("btnSaveConsult");
+    if (btnSave) btnSave.addEventListener("click", saveConsult);
   }
 
+  // ---------- Action: Save consult (FASE 1) ----------
   async function saveConsult() {
-
     try {
-
       const userRes = await window.sb.auth.getUser();
       const userId = userRes?.data?.user?.id;
 
@@ -1037,22 +1118,23 @@ function openPatientViewModal(patient) {
       const today = new Date().toISOString().slice(0, 10);
       const now = new Date();
 
-      const hda = document.getElementById("consultHDA").value || "";
-      const assessment = document.getElementById("consultAssessment").value || "";
-      const plan = document.getElementById("consultPlan").value || "";
+      const hda = document.getElementById("consultHDA")?.value || "";
+      const assessment = document.getElementById("consultAssessment")?.value || "";
+      const plan = document.getElementById("consultPlan")?.value || "";
 
-      const { data: appts } = await window.sb
+      const { data: appts, error: apptErr } = await window.sb
         .from("appointments")
         .select("*")
         .eq("patient_id", p.id);
 
+      if (apptErr) {
+        console.error(apptErr);
+      }
+
       let appointmentId = null;
 
       if (appts && appts.length) {
-
-        const sameDay = appts.filter(a =>
-          a.start_at && a.start_at.slice(0, 10) === today
-        );
+        const sameDay = appts.filter(a => a.start_at && a.start_at.slice(0, 10) === today);
 
         if (sameDay.length) {
           sameDay.sort((a, b) =>
@@ -1087,10 +1169,12 @@ function openPatientViewModal(patient) {
     }
   }
 
+  // ---------- Boot ----------
   fetchActiveClinic().then(renderFeed);
 }
 
-/* ==== FIM BLOCO 06/12 — Modal Doente (FASE 1) ==== */
+/* ==== Fim BLOCO 06B/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
+/* ==== FIM BLOCO 06/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
   // ---------- Novo doente (modal da página inicial) ----------
