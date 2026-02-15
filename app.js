@@ -1016,7 +1016,7 @@ function openPatientViewModal(patient) {
   let consultRows = [];          // rows enriquecidas com author_name + diagnoses[] + treatments[]
   let saving = false;
 
-  let lastSavedConsultId = null; // ✅ NOVO: consultId da última consulta gravada
+  let lastSavedConsultId = null; // ✅ consultId da última consulta gravada
 
   let draftHDAHtml = "";         // HDA em HTML (rich text)
 
@@ -1040,6 +1040,15 @@ function openPatientViewModal(patient) {
   let treatResults = [];         // [{id, label, code}]
   let selectedTreat = [];        // [{id, label, code, qty}]
   let treatDebounceT = null;
+
+  // ---- Documentos/PDF ----
+  let docOpen = false;
+  let docMode = "edit";          // "edit" | "preview"
+  let docSaving = false;
+  let docDraftHtml = "";         // HTML editável do documento v1
+  let docTitle = "Relatório Médico";
+  let docsLoading = false;
+  let docRows = [];              // [{id, created_at, title, consultation_id, file_path, url, version}]
 
   /* ================= ROLE ================= */
   function role() { return String(G.role || "").toLowerCase(); }
@@ -1070,6 +1079,16 @@ function openPatientViewModal(patient) {
       return arr && arr.length ? arr.map(String) : null;
     } catch (e) {
       return null;
+    }
+  }
+
+  function getPrescriptionTextFromPlan(planText) {
+    try {
+      const o = JSON.parse(planText || "");
+      const t = o && typeof o.prescriptionText === "string" ? o.prescriptionText : "";
+      return t || "";
+    } catch (e) {
+      return "";
     }
   }
 
@@ -1193,7 +1212,6 @@ function openPatientViewModal(patient) {
           const tt = tMap[tid];
           if (!tt) return;
           if (!treatByConsult[cid]) treatByConsult[cid] = [];
-          // importante: guardar id para reordenar
           treatByConsult[cid].push({ id: tid, ...tt, qty: Number(l.qty || 1) });
         });
       }
@@ -1221,7 +1239,78 @@ function openPatientViewModal(patient) {
       });
     });
 
+    // ✅ definir último consultId (para mostrar botões PDF quando abre feed)
+    lastSavedConsultId = consultRows && consultRows.length ? (consultRows[0].id || null) : lastSavedConsultId;
+
     timelineLoading = false;
+  }
+
+  /* ================= DOCUMENTOS (carregar do Supabase) ================= */
+  async function loadDocuments() {
+    docsLoading = true;
+    docRows = [];
+
+    try {
+      // NOTA: Esta query assume colunas comuns. Se a tabela 'documents' tiver nomes diferentes,
+      // vai aparecer erro na consola e o UI continua funcional (apenas sem lista de PDFs).
+      const { data, error } = await window.sb
+        .from("documents")
+        .select("id, created_at, title, consultation_id, clinic_id, file_path, file_name, mime_type, version")
+        .eq("patient_id", p.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error("loadDocuments error:", error);
+        docsLoading = false;
+        return;
+      }
+
+      const rows = data || [];
+
+      // tentar obter URL (signed se bucket privado; public se bucket público)
+      const out = [];
+      for (const r of rows) {
+        let url = "";
+        const path = r.file_path || r.file_name || "";
+        if (path) {
+          try {
+            // tenta signed URL (bucket privado típico para documentos)
+            const s = await window.sb.storage.from("documents").createSignedUrl(path, 60 * 60);
+            if (s?.data?.signedUrl) url = s.data.signedUrl;
+          } catch (e) {
+            // ignore
+          }
+          if (!url) {
+            try {
+              // fallback public URL (se bucket público)
+              const pub = window.sb.storage.from("documents").getPublicUrl(path);
+              url = pub?.data?.publicUrl || "";
+            } catch (e2) {
+              // ignore
+            }
+          }
+        }
+
+        out.push({
+          id: r.id,
+          created_at: r.created_at,
+          title: r.title || "Documento",
+          consultation_id: r.consultation_id || null,
+          clinic_id: r.clinic_id || null,
+          file_path: path,
+          url,
+          version: (r.version !== undefined && r.version !== null) ? r.version : null,
+          mime_type: r.mime_type || "application/pdf"
+        });
+      }
+
+      docRows = out;
+      docsLoading = false;
+    } catch (e) {
+      console.error("loadDocuments exception:", e);
+      docsLoading = false;
+    }
   }
 
   /* ================= SANITIZE HTML (para render seguro) ================= */
@@ -1899,7 +1988,518 @@ function openPatientViewModal(patient) {
     });
   }
 
+  /* ================= DOCUMENTO v1 (HTML + Editor) ================= */
+  function fmtDobPt(d) {
+    try {
+      if (!d) return "—";
+      const dt = new Date(d);
+      if (isNaN(dt.getTime())) return String(d);
+      const dd = String(dt.getDate()).padStart(2, "0");
+      const mm = String(dt.getMonth() + 1).padStart(2, "0");
+      const yy = dt.getFullYear();
+      return `${dd}-${mm}-${yy}`;
+    } catch (e) {
+      return String(d || "—");
+    }
+  }
+
+  function patientAddressCompact() {
+    const a = String(p.address_line1 || "").trim();
+    const pc = String(p.postal_code || "").trim();
+    const city = String(p.city || "").trim();
+
+    let tail = "";
+    if (pc && city) tail = `${pc} ${city}`;
+    else if (pc) tail = pc;
+    else if (city) tail = city;
+
+    // regra: mostrar "2765-273 Estoril" sem escrever "Código postal"
+    const parts = [];
+    if (a) parts.push(a);
+    if (tail) parts.push(tail);
+
+    return parts.join(", ") || "—";
+  }
+
+  async function fetchClinicForPdf() {
+    if (!activeClinicId) return null;
+    try {
+      const { data, error } = await window.sb
+        .from("clinics")
+        .select("id, name, address_line1, address_line2, postal_code, city, phone, email, website, logo_url")
+        .eq("id", activeClinicId)
+        .single();
+
+      if (error) { console.error(error); return null; }
+      return data || null;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  }
+
+  async function fetchCurrentUserDisplayName(userId) {
+    try {
+      const { data, error } = await window.sb
+        .from("clinic_members")
+        .select("display_name")
+        .eq("user_id", userId)
+        .limit(1);
+
+      if (error) { console.error(error); return ""; }
+      const v = data && data.length ? (data[0].display_name || "") : "";
+      return v;
+    } catch (e) {
+      console.error(e);
+      return "";
+    }
+  }
+
+  function buildDocV1Html({ clinic, consult, authorName }) {
+    // Dados do consult
+    const reportDate = consult?.report_date ? String(consult.report_date) : "";
+    const hda = sanitizeHTML(consult?.hda || "");
+    const diags = (consult?.diagnoses || []).slice(0, 3);
+    const trts = (consult?.treatments || []).slice(0, 6);
+
+    const rx = getPrescriptionTextFromPlan(consult?.plan_text || "") || "R/ 20 Sessões de Tratamentos de Medicina Fisica e de Reabilitação com:";
+
+    // Cabeçalho paciente (compacto)
+    const line2Parts = [];
+    if (p.sns) line2Parts.push(`Nº Utente: ${escAttr(p.sns)}`);
+    if (p.insurance_provider) line2Parts.push(`Seguro: ${escAttr(p.insurance_provider)}`);
+    if (p.insurance_policy_number) line2Parts.push(`Nº: ${escAttr(p.insurance_policy_number)}`);
+    if (p.nif) line2Parts.push(`NIF: ${escAttr(p.nif)}`);
+
+    const line2 = line2Parts.join(" | ") || "—";
+
+    const clinicWebsite = (clinic && clinic.website) ? String(clinic.website) : (p.website || "www.joaomorais.pt");
+    const logoUrl = clinic && clinic.logo_url ? String(clinic.logo_url) : "";
+
+    // Layout monocromático com vinheta esquerda (fixa)
+    return `
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>${escAttr(docTitle)}</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 18mm 18mm; }
+  body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:#111; }
+  .page { position: relative; min-height: 1000px; }
+  .vbar { position: fixed; left: 0; top: 0; bottom: 0; width: 10mm; background: #111; }
+  .wrap { margin-left: 6mm; }
+  .header { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; }
+  .h-left { flex: 1; }
+  .h-name { font-weight: 900; font-size: 18px; letter-spacing: 0.2px; }
+  .h-line { margin-top: 4px; font-size: 12.5px; line-height: 1.35; }
+  .h-line b { font-weight: 800; }
+  .logo { width: 140px; max-height: 60px; object-fit: contain; }
+  .sep { height: 1px; background: #111; margin: 10px 0 12px 0; opacity: 0.9; }
+
+  .section { margin-top: 10px; }
+  .stitle { font-weight: 900; font-size: 13px; text-transform: uppercase; letter-spacing: 0.6px; }
+  .sbody { margin-top: 6px; font-size: 13.5px; line-height: 1.6; }
+
+  .rx { margin-top: 8px; font-size: 13.5px; line-height: 1.55; }
+  .rx b { font-weight: 900; }
+
+  .footer { margin-top: 18px; display:flex; justify-content:space-between; align-items:flex-end; gap:12px; }
+  .foot-left { font-size: 12px; }
+  .foot-vbar { width: 90px; height: 6px; background:#111; margin-top:6px; } /* vinheta por baixo do website */
+  .sign { margin-top: 22px; border-top: 1px solid #111; padding-top: 10px; }
+  .sign .name { font-weight: 900; }
+  .sign .meta { font-size: 12px; margin-top: 4px; }
+  /* assinatura ancorada ao fundo da última página */
+  .last-page { min-height: 1000px; display:flex; flex-direction:column; }
+  .push { flex: 1; }
+</style>
+</head>
+<body>
+  <div class="vbar"></div>
+  <div class="wrap">
+
+    <div class="page">
+      <div class="header">
+        <div class="h-left">
+          <div class="h-name">${escAttr(p.full_name || "—")}</div>
+          <div class="h-line">${line2}</div>
+          <div class="h-line"><b>DN:</b> ${escAttr(fmtDobPt(p.dob))} &nbsp; | &nbsp; <b>Morada:</b> ${escAttr(patientAddressCompact())}</div>
+          ${reportDate ? `<div class="h-line"><b>Data:</b> ${escAttr(reportDate)}</div>` : ``}
+        </div>
+        <div>
+          ${logoUrl ? `<img class="logo" src="${escAttr(logoUrl)}" />` : ``}
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="section">
+        <div class="stitle">História clínica</div>
+        <div class="sbody">${hda || `<span style="color:#475569;">—</span>`}</div>
+      </div>
+
+      <div class="section">
+        <div class="stitle">Diagnóstico</div>
+        <div class="sbody">
+          ${diags && diags.length ? `
+            <ul style="margin:6px 0 0 18px; padding:0;">
+              ${diags.map(d => `<li>${escAttr(d.label || "—")}${d.code ? ` <span style="color:#475569;">(${escAttr(d.code)})</span>` : ``}</li>`).join("")}
+            </ul>
+          ` : `<span style="color:#475569;">—</span>`}
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="stitle">Plano terapêutico</div>
+        <div class="rx"><b>${escAttr(rx)}</b></div>
+        <div class="sbody">
+          ${trts && trts.length ? `
+            <ul style="margin:6px 0 0 18px; padding:0;">
+              ${trts.map(t => `<li>${escAttr(sentenceizeLabel(t.label || "—"))}${t.code ? ` <span style="color:#475569;">(${escAttr(t.code)})</span>` : ``}</li>`).join("")}
+            </ul>
+          ` : `<span style="color:#475569;">—</span>`}
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="foot-left">
+          <div>${escAttr(clinicWebsite || "www.joaomorais.pt")}</div>
+          <div class="foot-vbar"></div>
+        </div>
+        <div style="font-size:12px; color:#475569;">
+          ${clinic && clinic.name ? escAttr(clinic.name) : ``}
+        </div>
+      </div>
+    </div>
+
+    <!-- ÚLTIMA PÁGINA: assinatura ancorada ao fundo -->
+    <div class="page last-page">
+      <div class="push"></div>
+      <div class="sign">
+        <div class="name">${escAttr(authorName || "")}</div>
+        <div class="meta">Assinatura</div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
+`;
+  }
+
+  function openDocumentEditor(html) {
+    docDraftHtml = String(html || "");
+    docMode = "edit";
+    docOpen = true;
+    docSaving = false;
+    render();
+    bindDocEvents();
+  }
+
+  function closeDocumentEditor() {
+    docOpen = false;
+    docSaving = false;
+    docMode = "edit";
+    render();
+  }
+
+  function renderDocumentEditorModal() {
+    return `
+      <div id="docOverlay"
+           style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
+                  display:flex; align-items:center; justify-content:center; padding:12px; z-index:2200;">
+        <div style="background:#fff; width:min(1200px,96vw);
+                    max-height:92vh; overflow:auto;
+                    border-radius:14px; border:1px solid #e5e5e5; padding:16px;">
+
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <div style="font-weight:900; font-size:16px;">Documento v1 — ${docMode === "preview" ? "pré-visualização" : "editar HTML"}</div>
+            <div style="display:flex; gap:8px;">
+              <button id="btnDocCloseTop" class="gcBtn">Fechar</button>
+            </div>
+          </div>
+
+          <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+            <div style="flex:1; min-width:260px;">
+              <label>Título</label>
+              <input id="docTitle" value="${escAttr(docTitle)}"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+
+            <div style="display:flex; gap:8px; align-items:flex-end;">
+              <button id="btnDocModeEdit" class="gcBtn">Editar</button>
+              <button id="btnDocModePreview" class="gcBtn" style="font-weight:900;">Pré-visualizar</button>
+            </div>
+          </div>
+
+          ${docMode === "preview" ? `
+            <div style="margin-top:12px; border:1px solid #e5e5e5; border-radius:12px; overflow:hidden;">
+              <iframe id="docPreview" style="width:100%; height:65vh; border:0;"></iframe>
+            </div>
+          ` : `
+            <div style="margin-top:12px;">
+              <textarea id="docHtml"
+                        style="width:100%; height:65vh; padding:12px; border:1px solid #ddd; border-radius:12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size:12px; line-height:1.4;">${escAttr(docDraftHtml)}</textarea>
+            </div>
+          `}
+
+          <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <div id="docStatus" style="color:#64748b;">${docSaving ? "A gerar/upload..." : ""}</div>
+
+            <div style="display:flex; gap:10px;">
+              <button id="btnDocCancel" class="gcBtn">Cancelar</button>
+              <button id="btnDocGeneratePdfNow" class="gcBtn" style="font-weight:900;">
+                Gerar PDF (v1)
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    `;
+  }
+
+  function bindDocEvents() {
+    const btnCloseTop = document.getElementById("btnDocCloseTop");
+    if (btnCloseTop) btnCloseTop.onclick = () => closeDocumentEditor();
+
+    const btnCancel = document.getElementById("btnDocCancel");
+    if (btnCancel) btnCancel.onclick = () => closeDocumentEditor();
+
+    const t = document.getElementById("docTitle");
+    if (t) t.oninput = (e) => { docTitle = e?.target?.value ?? "Relatório Médico"; };
+
+    const bEdit = document.getElementById("btnDocModeEdit");
+    const bPrev = document.getElementById("btnDocModePreview");
+    if (bEdit) bEdit.onclick = () => { docMode = "edit"; render(); bindDocEvents(); };
+    if (bPrev) bPrev.onclick = () => { docMode = "preview"; render(); bindDocEvents(); mountPreviewIframe(); };
+
+    const ta = document.getElementById("docHtml");
+    if (ta) ta.oninput = (e) => { docDraftHtml = e?.target?.value ?? ""; };
+
+    const btnGen = document.getElementById("btnDocGeneratePdfNow");
+    if (btnGen) {
+      btnGen.disabled = !!docSaving;
+      btnGen.onclick = async () => {
+        if (docSaving) return;
+        docSaving = true;
+        render();
+        bindDocEvents();
+        const ok = await generatePdfAndUploadV1();
+        docSaving = false;
+
+        if (ok) {
+          docOpen = false;
+          await loadDocuments();
+          render();
+        } else {
+          render();
+          bindDocEvents();
+        }
+      };
+    }
+
+    if (docMode === "preview") mountPreviewIframe();
+  }
+
+  function mountPreviewIframe() {
+    const iframe = document.getElementById("docPreview");
+    if (!iframe) return;
+    try {
+      const blob = new Blob([String(docDraftHtml || "")], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      iframe.src = url;
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) {} }, 15000);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function htmlToPdfBlob(html, fileName) {
+    // Preferência: html2pdf.js (se já estiver incluído no app.html)
+    if (window.html2pdf) {
+      // html2pdf geralmente produz download; aqui geramos Blob via outputPdf
+      const host = document.createElement("div");
+      host.style.position = "fixed";
+      host.style.left = "-99999px";
+      host.style.top = "0";
+      host.style.width = "210mm";
+      host.innerHTML = html;
+      document.body.appendChild(host);
+
+      try {
+        const opt = {
+          margin: 0,
+          filename: fileName || "documento.pdf",
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+        };
+
+        const worker = window.html2pdf().set(opt).from(host);
+        const pdf = await worker.toPdf().get("pdf");
+        const blob = pdf.output("blob");
+        return blob;
+      } finally {
+        try { document.body.removeChild(host); } catch (e) {}
+      }
+    }
+
+    // Fallback: se não existir html2pdf, não inventamos outra lib
+    alert("Não encontrei html2pdf no frontend. Confirma que a biblioteca está incluída no app.html.");
+    return null;
+  }
+
+  async function uploadPdfToStorage({ blob, path }) {
+    try {
+      const r = await window.sb.storage
+        .from("documents")
+        .upload(path, blob, {
+          contentType: "application/pdf",
+          upsert: true
+        });
+
+      if (r?.error) {
+        console.error("uploadPdf error:", r.error);
+        return { ok: false, error: r.error };
+      }
+
+      return { ok: true };
+    } catch (e) {
+      console.error("uploadPdf exception:", e);
+      return { ok: false, error: e };
+    }
+  }
+
+  async function insertDocumentRowBestEffort(meta) {
+    // ⚠️ Não sabemos aqui o schema exato da tua tabela 'documents'.
+    // Fazemos tentativa com colunas comuns; se falhar, devolvemos erro (upload fica feito).
+    try {
+      const payload = {
+        // comuns:
+        patient_id: meta.patient_id,
+        clinic_id: meta.clinic_id,
+        consultation_id: meta.consultation_id,
+        author_user_id: meta.author_user_id,
+        title: meta.title,
+        file_path: meta.file_path,
+        mime_type: "application/pdf",
+        version: 1,
+        visibility: "doctor" // se a tabela não tiver esta coluna, vai falhar (ok)
+      };
+
+      const { data, error } = await window.sb
+        .from("documents")
+        .insert(payload)
+        .select("id")
+        .single();
+
+      if (error) {
+        console.error("insertDocumentRow error:", error);
+        return { ok: false, error };
+      }
+
+      return { ok: true, id: data?.id || null };
+    } catch (e) {
+      console.error("insertDocumentRow exception:", e);
+      return { ok: false, error: e };
+    }
+  }
+
+  async function generatePdfAndUploadV1() {
+    try {
+      if (!lastSavedConsultId) { alert("Sem consulta gravada para gerar PDF."); return false; }
+
+      const userRes = await window.sb.auth.getUser();
+      const userId = userRes?.data?.user?.id;
+      if (!userId) { alert("Utilizador não autenticado."); return false; }
+
+      // obter a consulta atual do timeline (já enriquecida)
+      const consult = (consultRows || []).find(x => String(x.id) === String(lastSavedConsultId));
+      if (!consult) {
+        alert("Não encontrei a consulta no feed. Atualiza o feed e tenta novamente.");
+        return false;
+      }
+
+      const clinic = await fetchClinicForPdf();
+      const authorName = await fetchCurrentUserDisplayName(userId);
+
+      // construir HTML base (se ainda não tiveres editado)
+      if (!docDraftHtml || docDraftHtml.trim().length < 50) {
+        docDraftHtml = buildDocV1Html({ clinic, consult, authorName });
+      }
+
+      const safeTitle = String(docTitle || "Relatório Médico")
+        .trim()
+        .replace(/[^\p{L}\p{N}\s._-]+/gu, "")
+        .replace(/\s+/g, " ")
+        .slice(0, 80) || "Relatorio";
+
+      const fileName = `${safeTitle}.pdf`;
+
+      const blob = await htmlToPdfBlob(docDraftHtml, fileName);
+      if (!blob) return false;
+
+      const ymd = new Date().toISOString().slice(0,10);
+      const path = `clinic_${activeClinicId}/patient_${p.id}/consult_${consult.id}/v1_${ymd}.pdf`;
+
+      const up = await uploadPdfToStorage({ blob, path });
+      if (!up.ok) {
+        alert("Falhou o upload do PDF para Storage.");
+        return false;
+      }
+
+      // inserir na tabela documents (best effort)
+      const ins = await insertDocumentRowBestEffort({
+        patient_id: p.id,
+        clinic_id: activeClinicId,
+        consultation_id: consult.id,
+        author_user_id: userId,
+        title: safeTitle,
+        file_path: path
+      });
+
+      if (!ins.ok) {
+        alert("PDF gerado e enviado para Storage, mas falhou o registo na tabela documents (ver consola).");
+        return false;
+      }
+
+      alert("PDF (v1) criado com sucesso.");
+      return true;
+    } catch (e) {
+      console.error(e);
+      alert("Erro na geração/upload do PDF.");
+      return false;
+    }
+  }
+
   /* ================= TIMELINE ================= */
+  function renderDocumentsInlineForConsult(consultId) {
+    const docs = (docRows || []).filter(d => d.consultation_id && String(d.consultation_id) === String(consultId));
+    if (!docs.length) return "";
+
+    return `
+      <div style="margin-top:12px;">
+        <div style="font-weight:900;">Documentos:</div>
+        <div style="margin-top:8px; display:flex; flex-direction:column; gap:8px;">
+          ${docs.map(d => `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;
+                        padding:10px 12px; border:1px solid #e5e5e5; border-radius:12px;">
+              <div style="display:flex; flex-direction:column;">
+                <div style="font-weight:900;">${escAttr(d.title || "Documento")}${d.version ? ` <span style="color:#64748b; font-size:12px;">(v${escAttr(d.version)})</span>` : ``}</div>
+                <div style="color:#64748b; font-size:12px;">${d.created_at ? escAttr(String(d.created_at)) : ""}</div>
+              </div>
+              <div style="display:flex; gap:8px;">
+                ${d.url ? `<a class="gcBtn" href="${escAttr(d.url)}" target="_blank" rel="noopener" style="text-decoration:none;">Abrir</a>` : `<button class="gcBtn" disabled>Sem link</button>`}
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
+
   function renderTimeline() {
 
     if (timelineLoading) return `<div style="color:#64748b;">A carregar registos...</div>`;
@@ -1948,6 +2548,8 @@ function openPatientViewModal(patient) {
                 </ul>
               </div>
             ` : ``}
+
+            ${renderDocumentsInlineForConsult(r.id)}
 
           </div>
         `; }).join("")}
@@ -2132,6 +2734,7 @@ function openPatientViewModal(patient) {
         if (ok) {
           creatingConsult = false;
           await loadConsultations();
+          await loadDocuments();
           render();
         }
       };
@@ -2194,7 +2797,7 @@ function openPatientViewModal(patient) {
 
       const consultId = ins?.id;
 
-      // ✅ NOVO: guardar consultId para mostrar botões “Editar Documento”/“Gerar PDF”
+      // ✅ guardar consultId para mostrar botões “Editar Documento”/“Gerar PDF”
       lastSavedConsultId = consultId || null;
 
       if (consultId && selectedDiag && selectedDiag.length) {
@@ -2239,6 +2842,7 @@ function openPatientViewModal(patient) {
         console.error("refreshAgenda falhou:", e);
       }
 
+      // limpar draft (não mexe no consult gravado)
       draftHDAHtml = "";
       diagQuery = "";
       diagLoading = false;
@@ -2261,6 +2865,7 @@ function openPatientViewModal(patient) {
     }
   }
 
+  /* ================= MAIN RENDER ================= */
   function render() {
     root.innerHTML = `
       <div style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
@@ -2294,7 +2899,7 @@ function openPatientViewModal(patient) {
             </div>
           </div>
 
-          <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+          <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
             ${isDoctor() && !creatingConsult ? `
               <button id="btnNewConsult" class="gcBtn" style="font-weight:900;">
                 Consulta Médica
@@ -2307,6 +2912,8 @@ function openPatientViewModal(patient) {
               <button id="btnGeneratePdf" class="gcBtn" style="font-weight:900;">
                 Gerar PDF
               </button>` : ``}
+
+            ${docsLoading ? `<div style="color:#64748b;">A carregar PDFs…</div>` : ``}
           </div>
 
           ${creatingConsult ? renderConsultFormInline() : ""}
@@ -2319,6 +2926,8 @@ function openPatientViewModal(patient) {
       </div>
 
       ${identOpen ? renderIdentityModal() : ""}
+
+      ${docOpen ? renderDocumentEditorModal() : ""}
     `;
 
     document.getElementById("btnClosePView")?.addEventListener("click", closeModalRoot);
@@ -2340,28 +2949,51 @@ function openPatientViewModal(patient) {
       }
     }
 
-    // ✅ NOVO: botões pós-gravação (por agora, apenas stub)
     const btnEditDoc = document.getElementById("btnEditDocument");
     if (btnEditDoc) {
-      btnEditDoc.onclick = () => {
-        alert("Editor de Documento será implementado no próximo passo.");
+      btnEditDoc.onclick = async () => {
+        // abre editor já com HTML base gerado
+        const userRes = await window.sb.auth.getUser();
+        const userId = userRes?.data?.user?.id;
+
+        const consult = (consultRows || []).find(x => String(x.id) === String(lastSavedConsultId));
+        if (!consult) { alert("Consulta não encontrada."); return; }
+
+        const clinic = await fetchClinicForPdf();
+        const authorName = userId ? await fetchCurrentUserDisplayName(userId) : "";
+
+        const html = buildDocV1Html({ clinic, consult, authorName });
+        openDocumentEditor(html);
       };
     }
 
     const btnPdf = document.getElementById("btnGeneratePdf");
     if (btnPdf) {
-      btnPdf.onclick = () => {
-        alert("Geração de PDF será implementada no próximo passo.");
+      btnPdf.onclick = async () => {
+        // gerar sem abrir editor, mas usa docDraft se existir
+        docSaving = true;
+        render();
+        const ok = await generatePdfAndUploadV1();
+        docSaving = false;
+
+        if (ok) {
+          await loadDocuments();
+          render();
+        } else {
+          render();
+        }
       };
     }
 
     if (creatingConsult) bindConsultEvents();
     if (identOpen) bindIdentityEvents();
+    if (docOpen) bindDocEvents();
   }
 
   (async function boot() {
     await fetchActiveClinic();
     await loadConsultations();
+    await loadDocuments();
     render();
   })();
 }
