@@ -1043,9 +1043,9 @@ function openPatientViewModal(patient) {
 
   // ---- Documentos/PDF ----
   let docOpen = false;
-  let docMode = "edit";          // "edit" | "preview"
+  let docMode = "visual";        // "visual" | "html" | "preview"
   let docSaving = false;
-  let docDraftHtml = "";         // HTML editável do documento v1 (GUARDADO também na tabela documents.html)
+  let docDraftHtml = "";         // HTML editável do documento v1
   let docTitle = "Relatório Médico";
   let docsLoading = false;
   let docRows = [];              // [{id, created_at, title, consultation_id, storage_path, url, version}]
@@ -1251,10 +1251,9 @@ function openPatientViewModal(patient) {
     docRows = [];
 
     try {
-      // ✅ schema real: id, clinic_id, patient_id, consultation_id, title, html, parent_document_id, version, storage_path, created_at
       const { data, error } = await window.sb
         .from("documents")
-        .select("id, created_at, title, consultation_id, clinic_id, storage_path, version")
+        .select("id, created_at, title, consultation_id, clinic_id, version, storage_path")
         .eq("patient_id", p.id)
         .order("created_at", { ascending: false })
         .limit(50);
@@ -1275,16 +1274,12 @@ function openPatientViewModal(patient) {
           try {
             const s = await window.sb.storage.from("documents").createSignedUrl(path, 60 * 60);
             if (s?.data?.signedUrl) url = s.data.signedUrl;
-          } catch (e) {
-            // ignore
-          }
+          } catch (e) {}
           if (!url) {
             try {
               const pub = window.sb.storage.from("documents").getPublicUrl(path);
               url = pub?.data?.publicUrl || "";
-            } catch (e2) {
-              // ignore
-            }
+            } catch (e2) {}
           }
         }
 
@@ -2065,9 +2060,10 @@ function openPatientViewModal(patient) {
 
     const line2 = line2Parts.join(" | ") || "—";
 
-    const clinicWebsite = (clinic && clinic.website) ? String(clinic.website) : (p.website || "www.joaomorais.pt");
+    const clinicWebsite = (clinic && clinic.website) ? String(clinic.website) : "www.joaomorais.pt";
     const logoUrl = clinic && clinic.logo_url ? String(clinic.logo_url) : "";
 
+    // ✅ Ajuste: barra lateral mais fina e sem sobrepor o texto
     return `
 <!doctype html>
 <html>
@@ -2078,8 +2074,8 @@ function openPatientViewModal(patient) {
   @page { size: A4; margin: 18mm 16mm 18mm 18mm; }
   body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:#111; }
   .page { position: relative; min-height: 1000px; }
-  .vbar { position: fixed; left: 0; top: 0; bottom: 0; width: 10mm; background: #111; }
-  .wrap { margin-left: 6mm; }
+  .vbar { position: fixed; left: 0; top: 0; bottom: 0; width: 6mm; background: #111; }
+  .wrap { margin-left: 10mm; }
   .header { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; }
   .h-left { flex: 1; }
   .h-name { font-weight: 900; font-size: 18px; letter-spacing: 0.2px; }
@@ -2179,7 +2175,7 @@ function openPatientViewModal(patient) {
 
   function openDocumentEditor(html) {
     docDraftHtml = String(html || "");
-    docMode = "edit";
+    docMode = "visual";
     docOpen = true;
     docSaving = false;
     render();
@@ -2189,12 +2185,11 @@ function openPatientViewModal(patient) {
   function closeDocumentEditor() {
     docOpen = false;
     docSaving = false;
-    docMode = "edit";
+    docMode = "visual";
     render();
   }
 
   function renderDocumentEditorModal() {
-    // ✅ textarea sem conteúdo inline (para não escapar HTML); o valor é colocado em bindDocEvents()
     return `
       <div id="docOverlay"
            style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
@@ -2204,7 +2199,9 @@ function openPatientViewModal(patient) {
                     border-radius:14px; border:1px solid #e5e5e5; padding:16px;">
 
           <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-            <div style="font-weight:900; font-size:16px;">Documento v1 — ${docMode === "preview" ? "pré-visualização" : "editar HTML"}</div>
+            <div style="font-weight:900; font-size:16px;">
+              Documento v1 — ${docMode === "preview" ? "pré-visualização" : (docMode === "html" ? "editar HTML" : "editor visual")}
+            </div>
             <div style="display:flex; gap:8px;">
               <button id="btnDocCloseTop" class="gcBtn">Fechar</button>
             </div>
@@ -2218,24 +2215,32 @@ function openPatientViewModal(patient) {
             </div>
 
             <div style="display:flex; gap:8px; align-items:flex-end;">
-              <button id="btnDocModeEdit" class="gcBtn">Editar</button>
-              <button id="btnDocModePreview" class="gcBtn" style="font-weight:900;">Pré-visualizar</button>
+              <button id="btnDocModeVisual" class="gcBtn" ${docMode === "visual" ? `style="font-weight:900;"` : ``}>Editor</button>
+              <button id="btnDocModeHtml" class="gcBtn" ${docMode === "html" ? `style="font-weight:900;"` : ``}>HTML</button>
+              <button id="btnDocModePreview" class="gcBtn" ${docMode === "preview" ? `style="font-weight:900;"` : ``}>Pré-visualizar</button>
             </div>
           </div>
 
-          ${docMode === "preview" ? `
-            <div style="margin-top:12px; border:1px solid #e5e5e5; border-radius:12px; overflow:hidden;">
-              <iframe id="docPreview" style="width:100%; height:65vh; border:0;"></iframe>
-            </div>
-          ` : `
+          ${docMode === "html" ? `
             <div style="margin-top:12px;">
               <textarea id="docHtml"
-                        style="width:100%; height:65vh; padding:12px; border:1px solid #ddd; border-radius:12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size:12px; line-height:1.4;"></textarea>
+                        style="width:100%; height:65vh; padding:12px; border:1px solid #ddd; border-radius:12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size:12px; line-height:1.4;">${escAttr(docDraftHtml)}</textarea>
             </div>
+          ` : `
+            <div style="margin-top:12px; border:1px solid #e5e5e5; border-radius:12px; overflow:hidden;">
+              <iframe id="docFrame" style="width:100%; height:65vh; border:0; background:#fff;"></iframe>
+            </div>
+            ${docMode === "visual" ? `
+              <div style="margin-top:8px; color:#64748b; font-size:12px;">
+                Dica: escreve diretamente no documento. Para listas, usa Enter e “- ” (hífen + espaço) ou copia/cola texto.
+              </div>
+            ` : ``}
           `}
 
           <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
-            <div id="docStatus" style="color:#64748b;">${docSaving ? "A gerar/upload..." : ""}</div>
+            <div id="docStatus" style="color:${docSaving ? "#111" : "#64748b"};">
+              ${docSaving ? "A gerar/upload..." : ""}
+            </div>
 
             <div style="display:flex; gap:10px;">
               <button id="btnDocCancel" class="gcBtn">Cancelar</button>
@@ -2250,6 +2255,42 @@ function openPatientViewModal(patient) {
     `;
   }
 
+  function mountDocFrame() {
+    const iframe = document.getElementById("docFrame");
+    if (!iframe) return;
+
+    // srcdoc para evitar ObjectURL e permitir edição
+    iframe.srcdoc = String(docDraftHtml || "");
+
+    iframe.onload = () => {
+      try {
+        const d = iframe.contentDocument;
+        if (!d) return;
+
+        if (docMode === "visual") {
+          d.designMode = "on";
+          d.body.style.outline = "none";
+        } else {
+          try { d.designMode = "off"; } catch (e) {}
+        }
+      } catch (e) {
+        console.error("mountDocFrame error:", e);
+      }
+    };
+  }
+
+  function syncDocFromFrame() {
+    const iframe = document.getElementById("docFrame");
+    if (!iframe) return;
+    try {
+      const d = iframe.contentDocument;
+      if (!d) return;
+      docDraftHtml = "<!doctype html>\n" + (d.documentElement ? d.documentElement.outerHTML : String(docDraftHtml || ""));
+    } catch (e) {
+      console.error("syncDocFromFrame error:", e);
+    }
+  }
+
   function bindDocEvents() {
     const btnCloseTop = document.getElementById("btnDocCloseTop");
     if (btnCloseTop) btnCloseTop.onclick = () => closeDocumentEditor();
@@ -2260,28 +2301,41 @@ function openPatientViewModal(patient) {
     const t = document.getElementById("docTitle");
     if (t) t.oninput = (e) => { docTitle = e?.target?.value ?? "Relatório Médico"; };
 
-    const bEdit = document.getElementById("btnDocModeEdit");
+    const bVis = document.getElementById("btnDocModeVisual");
+    const bHtml = document.getElementById("btnDocModeHtml");
     const bPrev = document.getElementById("btnDocModePreview");
-    if (bEdit) bEdit.onclick = () => { docMode = "edit"; render(); bindDocEvents(); };
-    if (bPrev) bPrev.onclick = () => { docMode = "preview"; render(); bindDocEvents(); mountPreviewIframe(); };
+
+    if (bVis) bVis.onclick = () => {
+      // se vinha do HTML, já está em docDraftHtml
+      docMode = "visual";
+      render(); bindDocEvents(); mountDocFrame();
+    };
+    if (bHtml) bHtml.onclick = () => {
+      // se vinha do visual/preview, sincroniza o que está no iframe
+      if (docMode !== "html") syncDocFromFrame();
+      docMode = "html";
+      render(); bindDocEvents();
+    };
+    if (bPrev) bPrev.onclick = () => {
+      // garantir que preview mostra a versão atual
+      if (docMode !== "html") syncDocFromFrame();
+      docMode = "preview";
+      render(); bindDocEvents(); mountDocFrame();
+    };
 
     const ta = document.getElementById("docHtml");
-    if (ta) {
-      // ✅ colocar conteúdo real no editor
-      if (ta.value !== String(docDraftHtml || "")) ta.value = String(docDraftHtml || "");
-      ta.oninput = (e) => { docDraftHtml = e?.target?.value ?? ""; };
-    }
+    if (ta) ta.oninput = (e) => { docDraftHtml = e?.target?.value ?? ""; };
 
     const btnGen = document.getElementById("btnDocGeneratePdfNow");
     if (btnGen) {
       btnGen.disabled = !!docSaving;
       btnGen.onclick = async () => {
         if (docSaving) return;
-        // garantir que o draft apanha o valor final
-        const ta2 = document.getElementById("docHtml");
-        if (ta2) docDraftHtml = ta2.value || "";
-
         docSaving = true;
+
+        // sincronizar o conteúdo antes de gerar PDF
+        if (docMode !== "html") syncDocFromFrame();
+
         render();
         bindDocEvents();
         const ok = await generatePdfAndUploadV1();
@@ -2294,65 +2348,37 @@ function openPatientViewModal(patient) {
         } else {
           render();
           bindDocEvents();
+          if (docMode !== "html") mountDocFrame();
         }
       };
     }
 
-    if (docMode === "preview") mountPreviewIframe();
-  }
-
-  function mountPreviewIframe() {
-    const iframe = document.getElementById("docPreview");
-    if (!iframe) return;
-    try {
-      const blob = new Blob([String(docDraftHtml || "")], { type: "text/html;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      iframe.src = url;
-      setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) {} }, 15000);
-    } catch (e) {
-      console.error(e);
-    }
+    if (docMode !== "html") mountDocFrame();
   }
 
   async function htmlToPdfBlob(html, fileName) {
     if (window.html2pdf) {
       const host = document.createElement("div");
       host.style.position = "fixed";
-      host.style.left = "0";
+      host.style.left = "-99999px";
       host.style.top = "0";
       host.style.width = "210mm";
-      host.style.background = "#fff";
-      host.style.zIndex = "0";
-      host.style.pointerEvents = "none";
-      host.style.opacity = "1";
-      host.style.transform = "none";
-      host.innerHTML = String(html || "");
-
+      host.innerHTML = html;
       document.body.appendChild(host);
 
       try {
-        try { window.scrollTo(0, 0); } catch (_) {}
-
         const opt = {
           margin: 0,
           filename: fileName || "documento.pdf",
           image: { type: "jpeg", quality: 0.98 },
-          pagebreak: { mode: ["css", "legacy"] },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: "#ffffff",
-            windowWidth: Math.max(host.scrollWidth, host.offsetWidth, 800),
-            windowHeight: Math.max(host.scrollHeight, host.offsetHeight, 1100),
-            scrollX: 0,
-            scrollY: 0
-          },
+          html2canvas: { scale: 2, useCORS: true },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
         };
 
         const worker = window.html2pdf().set(opt).from(host);
         const pdf = await worker.toPdf().get("pdf");
-        return pdf.output("blob");
+        const blob = pdf.output("blob");
+        return blob;
       } finally {
         try { document.body.removeChild(host); } catch (e) {}
       }
@@ -2364,11 +2390,13 @@ function openPatientViewModal(patient) {
 
   async function uploadPdfToStorage({ blob, path }) {
     try {
+      // ✅ upsert:false para não precisar de UPDATE policy; path é sempre único
       const r = await window.sb.storage
         .from("documents")
         .upload(path, blob, {
           contentType: "application/pdf",
-          upsert: true
+          upsert: false,
+          cacheControl: "3600"
         });
 
       if (r?.error) {
@@ -2383,13 +2411,38 @@ function openPatientViewModal(patient) {
     }
   }
 
+  function safeText(s) {
+    return String(s || "")
+      .trim()
+      .replace(/[^\p{L}\p{N}\s._-]+/gu, "")
+      .replace(/\s+/g, " ")
+      .slice(0, 80) || "Relatorio";
+  }
+
+  async function getNextDocVersionForConsult(consultId) {
+    try {
+      const { data, error } = await window.sb
+        .from("documents")
+        .select("version")
+        .eq("consultation_id", consultId)
+        .order("version", { ascending: false })
+        .limit(1);
+
+      if (error) { console.error("getNextDocVersion error:", error); return 1; }
+      const last = data && data.length ? Number(data[0].version || 0) : 0;
+      return (isFinite(last) ? last + 1 : 1);
+    } catch (e) {
+      console.error("getNextDocVersion exception:", e);
+      return 1;
+    }
+  }
+
   async function insertDocumentRow(meta) {
-    // ✅ schema real: clinic_id, patient_id, consultation_id, title, html, parent_document_id, version, storage_path
     try {
       const payload = {
         clinic_id: meta.clinic_id,
         patient_id: meta.patient_id,
-        consultation_id: meta.consultation_id,
+        consultation_id: meta.consultation_id || null,
         title: meta.title,
         html: meta.html || "",
         parent_document_id: meta.parent_document_id || null,
@@ -2436,39 +2489,41 @@ function openPatientViewModal(patient) {
         docDraftHtml = buildDocV1Html({ clinic, consult, authorName });
       }
 
-      const safeTitle = String(docTitle || "Relatório Médico")
-        .trim()
-        .replace(/[^\p{L}\p{N}\s._-]+/gu, "")
-        .replace(/\s+/g, " ")
-        .slice(0, 80) || "Relatorio";
-
-      const fileName = `${safeTitle}.pdf`;
+      const titleSafe = safeText(docTitle || "Relatório Médico");
+      const fileName = `${titleSafe}.pdf`;
 
       const blob = await htmlToPdfBlob(docDraftHtml, fileName);
       if (!blob) return false;
 
-      const ymd = new Date().toISOString().slice(0,10);
-      const path = `clinic_${activeClinicId}/patient_${p.id}/consult_${consult.id}/v1_${ymd}.pdf`;
+      if (!activeClinicId) { alert("Sem clínica ativa (patient_clinic)."); return false; }
+
+      const version = await getNextDocVersionForConsult(consult.id);
+
+      const ymd = new Date().toISOString().slice(0, 10);
+      const hms = new Date().toISOString().slice(11,19).replaceAll(":", "");
+      const path = `clinic_${activeClinicId}/patient_${p.id}/consult_${consult.id}/v${version}_${ymd}_${hms}.pdf`;
 
       const up = await uploadPdfToStorage({ blob, path });
       if (!up.ok) {
-        alert("Falhou o upload do PDF para Storage.");
+        const msg = String(up.error?.message || up.error?.error || up.error || "erro desconhecido");
+        alert(`Falhou o upload do PDF para Storage.\nDetalhe: ${msg}`);
         return false;
       }
 
       const ins = await insertDocumentRow({
-        patient_id: p.id,
         clinic_id: activeClinicId,
+        patient_id: p.id,
         consultation_id: consult.id,
-        title: safeTitle,
+        title: titleSafe,
         html: String(docDraftHtml || ""),
         parent_document_id: null,
-        version: 1,
+        version,
         storage_path: path
       });
 
       if (!ins.ok) {
-        alert("PDF gerado e enviado para Storage, mas falhou o registo na tabela documents (ver consola).");
+        const msg = String(ins.error?.message || ins.error?.error || ins.error || "erro desconhecido");
+        alert(`PDF enviado para Storage, mas falhou o registo na tabela documents.\nDetalhe: ${msg}`);
         return false;
       }
 
@@ -2802,6 +2857,7 @@ function openPatientViewModal(patient) {
       if (insErr) { console.error(insErr); alert("Erro ao gravar consulta."); return false; }
 
       const consultId = ins?.id;
+
       lastSavedConsultId = consultId || null;
 
       if (consultId && selectedDiag && selectedDiag.length) {
