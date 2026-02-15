@@ -1045,10 +1045,10 @@ function openPatientViewModal(patient) {
   let docOpen = false;
   let docMode = "edit";          // "edit" | "preview"
   let docSaving = false;
-  let docDraftHtml = "";         // HTML editável do documento v1
+  let docDraftHtml = "";         // HTML editável do documento v1 (GUARDADO também na tabela documents.html)
   let docTitle = "Relatório Médico";
   let docsLoading = false;
-  let docRows = [];              // [{id, created_at, title, consultation_id, clinic_id, storage_path, url, version, parent_document_id}]
+  let docRows = [];              // [{id, created_at, title, consultation_id, storage_path, url, version}]
 
   /* ================= ROLE ================= */
   function role() { return String(G.role || "").toLowerCase(); }
@@ -1245,22 +1245,17 @@ function openPatientViewModal(patient) {
     timelineLoading = false;
   }
 
-  /* ================= DOCUMENTOS (carregar da tabela public.documents + signed url) ================= */
+  /* ================= DOCUMENTOS (carregar do Supabase) ================= */
   async function loadDocuments() {
     docsLoading = true;
     docRows = [];
 
     try {
-      if (!activeClinicId) {
-        docsLoading = false;
-        return;
-      }
-
+      // ✅ schema real: id, clinic_id, patient_id, consultation_id, title, html, parent_document_id, version, storage_path, created_at
       const { data, error } = await window.sb
         .from("documents")
-        .select("id, created_at, title, consultation_id, clinic_id, storage_path, version, parent_document_id")
+        .select("id, created_at, title, consultation_id, clinic_id, storage_path, version")
         .eq("patient_id", p.id)
-        .eq("clinic_id", activeClinicId)
         .order("created_at", { ascending: false })
         .limit(50);
 
@@ -1278,7 +1273,7 @@ function openPatientViewModal(patient) {
         const path = r.storage_path || "";
         if (path) {
           try {
-            const s = await window.sb.storage.from("documents").createSignedUrl(path, 60 * 60); // 1h
+            const s = await window.sb.storage.from("documents").createSignedUrl(path, 60 * 60);
             if (s?.data?.signedUrl) url = s.data.signedUrl;
           } catch (e) {
             // ignore
@@ -1301,8 +1296,7 @@ function openPatientViewModal(patient) {
           clinic_id: r.clinic_id || null,
           storage_path: path,
           url,
-          version: (r.version !== undefined && r.version !== null) ? r.version : null,
-          parent_document_id: r.parent_document_id || null
+          version: (r.version !== undefined && r.version !== null) ? r.version : null
         });
       }
 
@@ -2200,6 +2194,7 @@ function openPatientViewModal(patient) {
   }
 
   function renderDocumentEditorModal() {
+    // ✅ textarea sem conteúdo inline (para não escapar HTML); o valor é colocado em bindDocEvents()
     return `
       <div id="docOverlay"
            style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
@@ -2235,7 +2230,7 @@ function openPatientViewModal(patient) {
           ` : `
             <div style="margin-top:12px;">
               <textarea id="docHtml"
-                        style="width:100%; height:65vh; padding:12px; border:1px solid #ddd; border-radius:12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size:12px; line-height:1.4;">${escAttr(docDraftHtml)}</textarea>
+                        style="width:100%; height:65vh; padding:12px; border:1px solid #ddd; border-radius:12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size:12px; line-height:1.4;"></textarea>
             </div>
           `}
 
@@ -2271,13 +2266,21 @@ function openPatientViewModal(patient) {
     if (bPrev) bPrev.onclick = () => { docMode = "preview"; render(); bindDocEvents(); mountPreviewIframe(); };
 
     const ta = document.getElementById("docHtml");
-    if (ta) ta.oninput = (e) => { docDraftHtml = e?.target?.value ?? ""; };
+    if (ta) {
+      // ✅ colocar conteúdo real no editor
+      if (ta.value !== String(docDraftHtml || "")) ta.value = String(docDraftHtml || "");
+      ta.oninput = (e) => { docDraftHtml = e?.target?.value ?? ""; };
+    }
 
     const btnGen = document.getElementById("btnDocGeneratePdfNow");
     if (btnGen) {
       btnGen.disabled = !!docSaving;
       btnGen.onclick = async () => {
         if (docSaving) return;
+        // garantir que o draft apanha o valor final
+        const ta2 = document.getElementById("docHtml");
+        if (ta2) docDraftHtml = ta2.value || "";
+
         docSaving = true;
         render();
         bindDocEvents();
@@ -2315,25 +2318,41 @@ function openPatientViewModal(patient) {
     if (window.html2pdf) {
       const host = document.createElement("div");
       host.style.position = "fixed";
-      host.style.left = "-99999px";
+      host.style.left = "0";
       host.style.top = "0";
       host.style.width = "210mm";
-      host.innerHTML = html;
+      host.style.background = "#fff";
+      host.style.zIndex = "0";
+      host.style.pointerEvents = "none";
+      host.style.opacity = "1";
+      host.style.transform = "none";
+      host.innerHTML = String(html || "");
+
       document.body.appendChild(host);
 
       try {
+        try { window.scrollTo(0, 0); } catch (_) {}
+
         const opt = {
           margin: 0,
           filename: fileName || "documento.pdf",
           image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
+          pagebreak: { mode: ["css", "legacy"] },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            windowWidth: Math.max(host.scrollWidth, host.offsetWidth, 800),
+            windowHeight: Math.max(host.scrollHeight, host.offsetHeight, 1100),
+            scrollX: 0,
+            scrollY: 0
+          },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
         };
 
         const worker = window.html2pdf().set(opt).from(host);
         const pdf = await worker.toPdf().get("pdf");
-        const blob = pdf.output("blob");
-        return blob;
+        return pdf.output("blob");
       } finally {
         try { document.body.removeChild(host); } catch (e) {}
       }
@@ -2364,45 +2383,15 @@ function openPatientViewModal(patient) {
     }
   }
 
-  // ✅ calcula version e parent_document_id para (consultation_id + title)
-  async function getNextDocVersionMeta({ consultation_id, title }) {
-    try {
-      const { data, error } = await window.sb
-        .from("documents")
-        .select("id, version, parent_document_id")
-        .eq("patient_id", p.id)
-        .eq("clinic_id", activeClinicId)
-        .eq("consultation_id", consultation_id)
-        .eq("title", title)
-        .order("version", { ascending: false })
-        .limit(1);
-
-      if (error) {
-        console.error("getNextDocVersionMeta error:", error);
-        return { nextVersion: 1, parentId: null };
-      }
-
-      const last = data && data.length ? data[0] : null;
-      if (!last) return { nextVersion: 1, parentId: null };
-
-      const lastV = Number(last.version || 1);
-      const parentId = last.parent_document_id ? String(last.parent_document_id) : String(last.id);
-      return { nextVersion: Math.max(1, lastV + 1), parentId };
-    } catch (e) {
-      console.error("getNextDocVersionMeta exception:", e);
-      return { nextVersion: 1, parentId: null };
-    }
-  }
-
   async function insertDocumentRow(meta) {
-    // meta: { patient_id, clinic_id, consultation_id, title, html, version, parent_document_id, storage_path }
+    // ✅ schema real: clinic_id, patient_id, consultation_id, title, html, parent_document_id, version, storage_path
     try {
       const payload = {
         clinic_id: meta.clinic_id,
         patient_id: meta.patient_id,
-        consultation_id: meta.consultation_id || null,
+        consultation_id: meta.consultation_id,
         title: meta.title,
-        html: meta.html,
+        html: meta.html || "",
         parent_document_id: meta.parent_document_id || null,
         version: Number(meta.version || 1),
         storage_path: meta.storage_path || null
@@ -2434,8 +2423,6 @@ function openPatientViewModal(patient) {
       const userId = userRes?.data?.user?.id;
       if (!userId) { alert("Utilizador não autenticado."); return false; }
 
-      if (!activeClinicId) { alert("Sem clínica ativa associada ao doente."); return false; }
-
       const consult = (consultRows || []).find(x => String(x.id) === String(lastSavedConsultId));
       if (!consult) {
         alert("Não encontrei a consulta no feed. Atualiza o feed e tenta novamente.");
@@ -2455,18 +2442,13 @@ function openPatientViewModal(patient) {
         .replace(/\s+/g, " ")
         .slice(0, 80) || "Relatorio";
 
-      // ✅ versão e parent_document_id calculados ANTES (para nome do ficheiro e linha DB)
-      const vm = await getNextDocVersionMeta({ consultation_id: consult.id, title: safeTitle });
-      const version = vm.nextVersion;
-      const parentId = vm.parentId;
-
       const fileName = `${safeTitle}.pdf`;
 
       const blob = await htmlToPdfBlob(docDraftHtml, fileName);
       if (!blob) return false;
 
-      const ymd = new Date().toISOString().slice(0, 10);
-      const path = `clinic_${activeClinicId}/patient_${p.id}/consult_${consult.id}/v${version}_${ymd}.pdf`;
+      const ymd = new Date().toISOString().slice(0,10);
+      const path = `clinic_${activeClinicId}/patient_${p.id}/consult_${consult.id}/v1_${ymd}.pdf`;
 
       const up = await uploadPdfToStorage({ blob, path });
       if (!up.ok) {
@@ -2474,15 +2456,14 @@ function openPatientViewModal(patient) {
         return false;
       }
 
-      // ✅ registar em public.documents com schema real
       const ins = await insertDocumentRow({
         patient_id: p.id,
         clinic_id: activeClinicId,
         consultation_id: consult.id,
         title: safeTitle,
         html: String(docDraftHtml || ""),
-        parent_document_id: parentId,
-        version,
+        parent_document_id: null,
+        version: 1,
         storage_path: path
       });
 
@@ -2491,7 +2472,7 @@ function openPatientViewModal(patient) {
         return false;
       }
 
-      alert(`PDF (v${version}) criado com sucesso.`);
+      alert("PDF (v1) criado com sucesso.");
       return true;
     } catch (e) {
       console.error(e);
@@ -2513,13 +2494,8 @@ function openPatientViewModal(patient) {
             <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;
                         padding:10px 12px; border:1px solid #e5e5e5; border-radius:12px;">
               <div style="display:flex; flex-direction:column;">
-                <div style="font-weight:900;">
-                  ${escAttr(d.title || "Documento")}
-                  ${d.version ? ` <span style="color:#64748b; font-size:12px;">(v${escAttr(d.version)})</span>` : ``}
-                </div>
-                <div style="color:#64748b; font-size:12px;">
-                  ${d.created_at ? escAttr(String(d.created_at)) : ""}
-                </div>
+                <div style="font-weight:900;">${escAttr(d.title || "Documento")}${d.version ? ` <span style="color:#64748b; font-size:12px;">(v${escAttr(d.version)})</span>` : ``}</div>
+                <div style="color:#64748b; font-size:12px;">${d.created_at ? escAttr(String(d.created_at)) : ""}</div>
               </div>
               <div style="display:flex; gap:8px;">
                 ${d.url ? `<a class="gcBtn" href="${escAttr(d.url)}" target="_blank" rel="noopener" style="text-decoration:none;">Abrir</a>` : `<button class="gcBtn" disabled>Sem link</button>`}
@@ -2633,6 +2609,7 @@ function openPatientViewModal(patient) {
           <div id="diagChips"></div>
         </div>
 
+        <!-- ===== TRATAMENTOS ===== -->
         <div style="margin-top:14px;">
           <label>Tratamentos (catálogo)</label>
 
@@ -2825,7 +2802,6 @@ function openPatientViewModal(patient) {
       if (insErr) { console.error(insErr); alert("Erro ao gravar consulta."); return false; }
 
       const consultId = ins?.id;
-
       lastSavedConsultId = consultId || null;
 
       if (consultId && selectedDiag && selectedDiag.length) {
