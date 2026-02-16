@@ -1435,7 +1435,7 @@ function openPatientViewModal(patient) {
               Identificação do doente ${canEdit ? "(editar)" : "(ver)"}
             </div>
             <div style="display:flex; gap:8px;">
-              <button id="btnIdentCloseTop" class="gcBtn">Fechar</button>
+              <button id="btnIdentCloseTop" class="gcBtn" type="button">Fechar</button>
             </div>
           </div>
 
@@ -1532,8 +1532,8 @@ function openPatientViewModal(patient) {
             </div>
 
             <div style="display:flex; gap:10px;">
-              <button id="btnIdentClose" class="gcBtn">Cancelar</button>
-              <button id="btnIdentSave" class="gcBtn" style="font-weight:900;" ${dis}>
+              <button id="btnIdentClose" class="gcBtn" type="button">Cancelar</button>
+              <button id="btnIdentSave" class="gcBtn" style="font-weight:900;" ${dis} type="button">
                 Gravar
               </button>
             </div>
@@ -1657,7 +1657,7 @@ function openPatientViewModal(patient) {
                   ${x.code ? `<span style="color:#64748b; font-size:12px; margin-left:6px;">${escAttr(x.code)}</span>` : ``}
                 </div>
                 <button class="diagRemove gcBtn" data-id="${x.id}"
-                        style="padding:6px 10px; border-radius:999px;">×</button>
+                        style="padding:6px 10px; border-radius:999px;" type="button">×</button>
               </div>
             `).join("")}
           </div>
@@ -1933,7 +1933,7 @@ function openPatientViewModal(patient) {
                   ${x.code ? `<div style="color:#64748b; font-size:12px;">${escAttr(x.code)}</div>` : ``}
                 </div>
                 <button class="treatRemove gcBtn" data-id="${x.id}"
-                        style="padding:6px 10px; border-radius:999px;">×</button>
+                        style="padding:6px 10px; border-radius:999px;" type="button">×</button>
               </div>
             `).join("")}
           </div>
@@ -2190,7 +2190,7 @@ function openPatientViewModal(patient) {
               Documento v1 — ${docMode === "preview" ? "pré-visualização" : (docMode === "html" ? "editar HTML" : "editor visual")}
             </div>
             <div style="display:flex; gap:8px;">
-              <button id="btnDocCloseTop" class="gcBtn">Fechar</button>
+              <button id="btnDocCloseTop" class="gcBtn" type="button">Fechar</button>
             </div>
           </div>
 
@@ -2202,9 +2202,9 @@ function openPatientViewModal(patient) {
             </div>
 
             <div style="display:flex; gap:8px; align-items:flex-end;">
-              <button id="btnDocModeVisual" class="gcBtn" ${docMode === "visual" ? `style="font-weight:900;"` : ``}>Editor</button>
-              <button id="btnDocModeHtml" class="gcBtn" ${docMode === "html" ? `style="font-weight:900;"` : ``}>HTML</button>
-              <button id="btnDocModePreview" class="gcBtn" ${docMode === "preview" ? `style="font-weight:900;"` : ``}>Pré-visualizar</button>
+              <button id="btnDocModeVisual" class="gcBtn" ${docMode === "visual" ? `style="font-weight:900;"` : ``} type="button">Editor</button>
+              <button id="btnDocModeHtml" class="gcBtn" ${docMode === "html" ? `style="font-weight:900;"` : ``} type="button">HTML</button>
+              <button id="btnDocModePreview" class="gcBtn" ${docMode === "preview" ? `style="font-weight:900;"` : ``} type="button">Pré-visualizar</button>
             </div>
           </div>
 
@@ -2232,8 +2232,8 @@ function openPatientViewModal(patient) {
             </div>
 
             <div style="display:flex; gap:10px;">
-              <button id="btnDocCancel" class="gcBtn">Cancelar</button>
-              <button id="btnDocGeneratePdfNow" class="gcBtn" style="font-weight:900;">
+              <button id="btnDocCancel" class="gcBtn" type="button">Cancelar</button>
+              <button id="btnDocGeneratePdfNow" class="gcBtn" style="font-weight:900;" type="button">
                 Gerar PDF (v1)
               </button>
             </div>
@@ -2622,7 +2622,7 @@ function openPatientViewModal(patient) {
                 </div>
               </div>
               <div style="display:flex; gap:8px;">
-                ${d.url ? `<a class="gcBtn" href="${escAttr(d.url)}" target="_blank" rel="noopener" style="text-decoration:none;">Abrir</a>` : `<button class="gcBtn" disabled>Sem link</button>`}
+                ${d.url ? `<a class="gcBtn" href="${escAttr(d.url)}" target="_blank" rel="noopener" style="text-decoration:none;">Abrir</a>` : `<button class="gcBtn" disabled type="button">Sem link</button>`}
               </div>
             </div>
           `).join("")}
@@ -2697,10 +2697,10 @@ function openPatientViewModal(patient) {
         </div>
 
         <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button id="hBold" class="gcBtn">Negrito</button>
-          <button id="hUnder" class="gcBtn">Sublinhar</button>
-          <button id="hUL" class="gcBtn">Lista</button>
-          <button id="hOL" class="gcBtn">Numeração</button>
+          <button id="hBold" class="gcBtn" type="button">Negrito</button>
+          <button id="hUnder" class="gcBtn" type="button">Sublinhar</button>
+          <button id="hUL" class="gcBtn" type="button">Lista</button>
+          <button id="hOL" class="gcBtn" type="button">Numeração</button>
         </div>
 
         <div id="hdaEditor" contenteditable="true"
@@ -2751,28 +2751,109 @@ function openPatientViewModal(patient) {
         </div>
 
         <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
-          <button id="btnCancelConsult" class="gcBtn">Cancelar</button>
-          <button id="btnSaveConsult" class="gcBtn" style="font-weight:900;">Gravar</button>
+          <button id="btnCancelConsult" class="gcBtn" type="button">Cancelar</button>
+          <button id="btnSaveConsult" class="gcBtn" style="font-weight:900;" type="button">Gravar</button>
         </div>
       </div>
     `;
   }
 
+  /* ================= HDA RICH TOOLBAR (FIX) ================= */
+  function setupHdaToolbar(editorEl) {
+    if (!editorEl) return { cmd: () => {} };
+
+    let lastRange = null;
+
+    const isRangeInsideEditor = (r) => {
+      try {
+        if (!r) return false;
+        const c = r.commonAncestorContainer;
+        const node = (c && c.nodeType === 1) ? c : c?.parentNode;
+        return node ? editorEl.contains(node) : false;
+      } catch (_) { return false; }
+    };
+
+    const saveSelection = () => {
+      try {
+        const sel = window.getSelection ? window.getSelection() : null;
+        if (!sel || sel.rangeCount === 0) return;
+        const r = sel.getRangeAt(0);
+        if (isRangeInsideEditor(r)) lastRange = r.cloneRange();
+      } catch (_) {}
+    };
+
+    const restoreSelection = () => {
+      try {
+        editorEl.focus();
+        const sel = window.getSelection ? window.getSelection() : null;
+        if (!sel) return;
+
+        sel.removeAllRanges();
+
+        if (lastRange && isRangeInsideEditor(lastRange)) {
+          sel.addRange(lastRange);
+          return;
+        }
+
+        // fallback: cursor no fim
+        const r = document.createRange();
+        r.selectNodeContents(editorEl);
+        r.collapse(false);
+        sel.addRange(r);
+      } catch (_) {}
+    };
+
+    // Atualiza range quando o utilizador mexe no texto
+    editorEl.addEventListener("mouseup", saveSelection);
+    editorEl.addEventListener("keyup", saveSelection);
+    editorEl.addEventListener("touchend", saveSelection);
+    editorEl.addEventListener("input", saveSelection);
+
+    const cmd = (command) => {
+      restoreSelection();
+      try { document.execCommand(command, false, null); } catch (_) {}
+      saveSelection();
+    };
+
+    return { cmd, saveSelection, restoreSelection };
+  }
+
   function bindConsultEvents() {
     const ed = document.getElementById("hdaEditor");
+
+    // Toolbar FIX (guardamos/restauramos seleção)
+    const toolbar = setupHdaToolbar(ed);
+
     if (ed) {
       ed.oninput = () => { draftHDAHtml = ed.innerHTML || ""; };
 
-      function cmd(c) {
-        ed.focus();
-        try { document.execCommand(c, false, null); } catch (e) {}
-        draftHDAHtml = ed.innerHTML || "";
-      }
+      // Evita perder seleção ao clicar nos botões (mousedown)
+      const preventMouseDown = (id) => {
+        const b = document.getElementById(id);
+        if (!b) return;
+        b.addEventListener("mousedown", (e) => { e.preventDefault(); });
+      };
+      preventMouseDown("hBold");
+      preventMouseDown("hUnder");
+      preventMouseDown("hUL");
+      preventMouseDown("hOL");
 
-      document.getElementById("hBold")?.addEventListener("click", () => cmd("bold"));
-      document.getElementById("hUnder")?.addEventListener("click", () => cmd("underline"));
-      document.getElementById("hUL")?.addEventListener("click", () => cmd("insertUnorderedList"));
-      document.getElementById("hOL")?.addEventListener("click", () => cmd("insertOrderedList"));
+      document.getElementById("hBold")?.addEventListener("click", () => {
+        toolbar.cmd("bold");
+        draftHDAHtml = ed.innerHTML || "";
+      });
+      document.getElementById("hUnder")?.addEventListener("click", () => {
+        toolbar.cmd("underline");
+        draftHDAHtml = ed.innerHTML || "";
+      });
+      document.getElementById("hUL")?.addEventListener("click", () => {
+        toolbar.cmd("insertUnorderedList");
+        draftHDAHtml = ed.innerHTML || "";
+      });
+      document.getElementById("hOL")?.addEventListener("click", () => {
+        toolbar.cmd("insertOrderedList");
+        draftHDAHtml = ed.innerHTML || "";
+      });
     }
 
     const diagInput = document.getElementById("diagSearch");
@@ -2967,7 +3048,7 @@ function openPatientViewModal(patient) {
 
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <div style="font-weight:900;">Feed do Doente</div>
-            <button id="btnClosePView" class="gcBtn">Fechar</button>
+            <button id="btnClosePView" class="gcBtn" type="button">Fechar</button>
           </div>
 
           <div style="margin-top:12px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
@@ -2985,19 +3066,19 @@ function openPatientViewModal(patient) {
             </div>
 
             <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
-              <button id="btnViewIdent" class="gcBtn">Ver Identificação</button>
-              <button id="btnEditIdent" class="gcBtn" style="font-weight:900;">Editar Dados</button>
+              <button id="btnViewIdent" class="gcBtn" type="button">Ver Identificação</button>
+              <button id="btnEditIdent" class="gcBtn" style="font-weight:900;" type="button">Editar Dados</button>
             </div>
           </div>
 
           <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
             ${isDoctor() && !creatingConsult ? `
-              <button id="btnNewConsult" class="gcBtn" style="font-weight:900;">Consulta Médica</button>
+              <button id="btnNewConsult" class="gcBtn" style="font-weight:900;" type="button">Consulta Médica</button>
             ` : ``}
 
             ${isDoctor() && lastSavedConsultId ? `
-              <button id="btnEditDocument" class="gcBtn">Editar Documento</button>
-              <button id="btnGeneratePdf" class="gcBtn" style="font-weight:900;">Gerar PDF</button>
+              <button id="btnEditDocument" class="gcBtn" type="button">Editar Documento</button>
+              <button id="btnGeneratePdf" class="gcBtn" style="font-weight:900;" type="button">Gerar PDF</button>
             ` : ``}
 
             ${docsLoading ? `<div style="color:#64748b;">A carregar PDFs…</div>` : ``}
