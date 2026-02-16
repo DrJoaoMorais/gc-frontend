@@ -2063,7 +2063,6 @@ function openPatientViewModal(patient) {
     const clinicWebsite = (clinic && clinic.website) ? String(clinic.website) : "www.joaomorais.pt";
     const logoUrl = clinic && clinic.logo_url ? String(clinic.logo_url) : "";
 
-    // ✅ Ajuste: barra lateral mais fina e sem sobrepor o texto
     return `
 <!doctype html>
 <html>
@@ -2259,7 +2258,6 @@ function openPatientViewModal(patient) {
     const iframe = document.getElementById("docFrame");
     if (!iframe) return;
 
-    // srcdoc para evitar ObjectURL e permitir edição
     iframe.srcdoc = String(docDraftHtml || "");
 
     iframe.onload = () => {
@@ -2306,18 +2304,15 @@ function openPatientViewModal(patient) {
     const bPrev = document.getElementById("btnDocModePreview");
 
     if (bVis) bVis.onclick = () => {
-      // se vinha do HTML, já está em docDraftHtml
       docMode = "visual";
       render(); bindDocEvents(); mountDocFrame();
     };
     if (bHtml) bHtml.onclick = () => {
-      // se vinha do visual/preview, sincroniza o que está no iframe
       if (docMode !== "html") syncDocFromFrame();
       docMode = "html";
       render(); bindDocEvents();
     };
     if (bPrev) bPrev.onclick = () => {
-      // garantir que preview mostra a versão atual
       if (docMode !== "html") syncDocFromFrame();
       docMode = "preview";
       render(); bindDocEvents(); mountDocFrame();
@@ -2338,7 +2333,7 @@ function openPatientViewModal(patient) {
 
         render();
         bindDocEvents();
-        const ok = await generatePdfAndUploadV1();
+        const ok = await generatePdfAndUploadV1({ source: "editor" });
         docSaving = false;
 
         if (ok) {
@@ -2356,41 +2351,109 @@ function openPatientViewModal(patient) {
     if (docMode !== "html") mountDocFrame();
   }
 
+  /* ================= PDF HELPERS (anti-branco + consistência) ================= */
+
+  async function waitForImagesInElement(el, timeoutMs) {
+    const imgs = Array.from(el.querySelectorAll("img"));
+    if (!imgs.length) return true;
+
+    const t0 = Date.now();
+    const perImg = imgs.map(img => {
+      try { img.crossOrigin = "anonymous"; } catch (e) {}
+      if (img.complete && img.naturalWidth > 0) return Promise.resolve(true);
+
+      return new Promise(resolve => {
+        const done = () => resolve(true);
+        const fail = () => resolve(false);
+        img.addEventListener("load", done, { once: true });
+        img.addEventListener("error", fail, { once: true });
+      });
+    });
+
+    const timeLeft = Math.max(250, (timeoutMs || 3000) - (Date.now() - t0));
+    const all = Promise.all(perImg).then(() => true).catch(() => true);
+
+    return Promise.race([
+      all,
+      new Promise(resolve => setTimeout(() => resolve(false), timeLeft))
+    ]);
+  }
+
   async function htmlToPdfBlob(html, fileName) {
-    if (window.html2pdf) {
-      const host = document.createElement("div");
-      host.style.position = "fixed";
-      host.style.left = "-99999px";
-      host.style.top = "0";
-      host.style.width = "210mm";
-      host.innerHTML = html;
-      document.body.appendChild(host);
-
-      try {
-        const opt = {
-          margin: 0,
-          filename: fileName || "documento.pdf",
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-        };
-
-        const worker = window.html2pdf().set(opt).from(host);
-        const pdf = await worker.toPdf().get("pdf");
-        const blob = pdf.output("blob");
-        return blob;
-      } finally {
-        try { document.body.removeChild(host); } catch (e) {}
-      }
+    if (!window.html2pdf) {
+      alert("Não encontrei html2pdf no frontend. Confirma que a biblioteca está incluída no app.html.");
+      return null;
     }
 
-    alert("Não encontrei html2pdf no frontend. Confirma que a biblioteca está incluída no app.html.");
-    return null;
+    // ✅ host NO viewport (invisível por opacity), para evitar canvas branco
+    const host = document.createElement("div");
+    host.setAttribute("data-pdf-host", "1");
+    host.style.position = "fixed";
+    host.style.left = "0";
+    host.style.top = "0";
+    host.style.width = "210mm";
+    host.style.background = "#fff";
+    host.style.opacity = "0";
+    host.style.pointerEvents = "none";
+    host.style.zIndex = "-1";
+    host.style.transform = "translateZ(0)";
+    host.style.webkitTransform = "translateZ(0)";
+    host.innerHTML = html;
+
+    document.body.appendChild(host);
+
+    try {
+      // esperar (um pouco) por imagens, para reduzir PDFs “vazios”/parciais
+      await waitForImagesInElement(host, 2500);
+
+      const opt = {
+        margin: 0,
+        filename: fileName || "documento.pdf",
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: "#ffffff",
+          scrollX: 0,
+          scrollY: 0
+        },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+      };
+
+      const worker = window.html2pdf().set(opt).from(host);
+      const pdf = await worker.toPdf().get("pdf");
+
+      // output blob (jsPDF)
+      const blob = pdf.output("blob");
+
+      if (!blob || !blob.size) {
+        console.error("PDF blob inválido/0 bytes");
+        return null;
+      }
+
+      // alguns browsers podem não marcar type
+      if (!blob.type || blob.type === "application/octet-stream") {
+        try {
+          return new Blob([blob], { type: "application/pdf" });
+        } catch (e) {}
+      }
+
+      return blob;
+    } catch (e) {
+      console.error("htmlToPdfBlob error:", e);
+      return null;
+    } finally {
+      try { document.body.removeChild(host); } catch (e) {}
+    }
   }
 
   async function uploadPdfToStorage({ blob, path }) {
     try {
-      // ✅ upsert:false para não precisar de UPDATE policy; path é sempre único
+      if (!blob || !blob.size) {
+        return { ok: false, error: { message: "Blob PDF inválido (0 bytes)." } };
+      }
+
       const r = await window.sb.storage
         .from("documents")
         .upload(path, blob, {
@@ -2468,15 +2531,21 @@ function openPatientViewModal(patient) {
     }
   }
 
-  async function generatePdfAndUploadV1() {
+  function getCurrentConsultById(cid) {
+    return (consultRows || []).find(x => String(x.id) === String(cid)) || null;
+  }
+
+  async function generatePdfAndUploadV1(opts) {
     try {
+      const source = opts && opts.source ? String(opts.source) : "unknown";
+
       if (!lastSavedConsultId) { alert("Sem consulta gravada para gerar PDF."); return false; }
 
       const userRes = await window.sb.auth.getUser();
       const userId = userRes?.data?.user?.id;
       if (!userId) { alert("Utilizador não autenticado."); return false; }
 
-      const consult = (consultRows || []).find(x => String(x.id) === String(lastSavedConsultId));
+      const consult = getCurrentConsultById(lastSavedConsultId);
       if (!consult) {
         alert("Não encontrei a consulta no feed. Atualiza o feed e tenta novamente.");
         return false;
@@ -2485,15 +2554,30 @@ function openPatientViewModal(patient) {
       const clinic = await fetchClinicForPdf();
       const authorName = await fetchCurrentUserDisplayName(userId);
 
-      if (!docDraftHtml || docDraftHtml.trim().length < 50) {
+      // ✅ CONSISTÊNCIA: se vier do botão fora do editor, reconstrói SEMPRE do estado do consult
+      if (source !== "editor") {
         docDraftHtml = buildDocV1Html({ clinic, consult, authorName });
+      } else {
+        // editor: se vazio, volta a construir
+        if (!docDraftHtml || docDraftHtml.trim().length < 50) {
+          docDraftHtml = buildDocV1Html({ clinic, consult, authorName });
+        }
       }
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
       const fileName = `${titleSafe}.pdf`;
 
       const blob = await htmlToPdfBlob(docDraftHtml, fileName);
-      if (!blob) return false;
+      if (!blob) {
+        alert("Falhou a geração do PDF (blob inválido).");
+        return false;
+      }
+
+      if (!blob.size || blob.size < 2000) {
+        console.error("PDF pequeno/suspeito:", blob.size);
+        alert("PDF gerado inválido (muito pequeno).");
+        return false;
+      }
 
       if (!activeClinicId) { alert("Sem clínica ativa (patient_clinic)."); return false; }
 
@@ -3014,7 +3098,7 @@ function openPatientViewModal(patient) {
         const userRes = await window.sb.auth.getUser();
         const userId = userRes?.data?.user?.id;
 
-        const consult = (consultRows || []).find(x => String(x.id) === String(lastSavedConsultId));
+        const consult = getCurrentConsultById(lastSavedConsultId);
         if (!consult) { alert("Consulta não encontrada."); return; }
 
         const clinic = await fetchClinicForPdf();
@@ -3030,7 +3114,7 @@ function openPatientViewModal(patient) {
       btnPdf.onclick = async () => {
         docSaving = true;
         render();
-        const ok = await generatePdfAndUploadV1();
+        const ok = await generatePdfAndUploadV1({ source: "quick" });
         docSaving = false;
 
         if (ok) {
