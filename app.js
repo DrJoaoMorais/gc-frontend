@@ -991,35 +991,23 @@
   }
 
 /* ==== FIM BLOCO 05/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
-/* ==== INÍCIO BLOCO 06/12 — Modal Doente (FASE 1) ==== */
-/* ==== INICIO BLOCO 06/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
-/* ==== INÍCIO BLOCO 06A/12 — Modal Doente (FASE 1) ==== */
-/*
-  BLOCO 06A/12 — Modal Doente (FASE 1)
-  - Helpers internos + carregamento de clínica ativa do doente
-  - Estrutura modular para preparar FASE 2 (inline + timeline)
-  - IMPORTANTE: NÃO define openPatientViewModal (fica apenas no 06B).
-*/
+/* ==== INÍCIO BLOCO 06/12 — Modal Doente (06A + 06B + 06C + 06D) ==== */
 
+/* ==== INÍCIO BLOCO 06A/12 — Stub (mantido; não usado) ==== */
+/*
+  06A/12 — Mantido apenas como “stub” histórico.
+  IMPORTANTE: O modal REAL é o openPatientViewModal (06B+06C+06D).
+*/
 function openPatientViewModal__stub(patient) {
   const root = document.getElementById("modalRoot");
   if (!root || !patient) return;
-
   const p = patient;
 
-  // ---------- State ----------
   let activeClinicId = null;
 
-  // ---------- Role helpers ----------
-  function role() {
-    return String(G.role || "").toLowerCase();
-  }
+  function role() { return String(G.role || "").toLowerCase(); }
+  function isDoctor() { return role() === "doctor"; }
 
-  function isDoctor() {
-    return role() === "doctor";
-  }
-
-  // ---------- Data loaders ----------
   async function fetchActiveClinic() {
     const { data, error } = await window.sb
       .from("patient_clinic")
@@ -1028,31 +1016,20 @@ function openPatientViewModal__stub(patient) {
       .eq("is_active", true)
       .limit(1);
 
-    if (error) {
-      console.error(error);
-      activeClinicId = null;
-      return;
-    }
-
+    if (error) { console.error(error); activeClinicId = null; return; }
     activeClinicId = data && data.length ? data[0].clinic_id : null;
   }
 
-  // ---------- Boot ----------
-  fetchActiveClinic().then(() => {
-    renderFeed();
-  });
+  fetchActiveClinic().then(() => { renderFeed(); });
 
-  /* === UI + Actions são definidos no BLOCO 06B para manter organização === */
-
-  /* placeholders (mantidos aqui para evitar hoist confuso em edições futuras) */
   function renderFeed() {}
   function openConsultForm() {}
   async function saveConsult() {}
 }
+/* ==== FIM BLOCO 06A/12 — Stub ==== */
 
-// NOTE: 06A mantém apenas loaders/state base. A implementação REAL do modal está no 06B (openPatientViewModal).
-/* ==== FIM BLOCO 06A/12 — Modal Doente (FASE 1) ==== */
-/* ==== INICIO BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico sem acentos (search_text) + Tratamentos (catálogo+seleção+gravação) + Feed completo) ==== */
+
+/* ==== INÍCIO BLOCO 06B/12 — Modal Doente (dados + diagnóstico + tratamentos + documento/PDF) ==== */
 
 function openPatientViewModal(patient) {
 
@@ -1069,7 +1046,7 @@ function openPatientViewModal(patient) {
   let consultRows = [];          // rows enriquecidas com author_name + diagnoses[] + treatments[]
   let saving = false;
 
-  let lastSavedConsultId = null; // ✅ consultId da última consulta gravada
+  let lastSavedConsultId = null; // consultId da última consulta gravada
 
   let draftHDAHtml = "";         // HDA em HTML (rich text)
 
@@ -1106,6 +1083,15 @@ function openPatientViewModal(patient) {
   /* ================= ROLE ================= */
   function role() { return String(G.role || "").toLowerCase(); }
   function isDoctor() { return role() === "doctor"; }
+
+  /* ================= SAFE CLOSE (FIX) ================= */
+  // FIX: se closeModalRoot não existir (ou não estiver no scope), não rebenta.
+  const closeModalSafe = () => {
+    try {
+      if (typeof closeModalRoot === "function") return closeModalRoot();
+    } catch (e) {}
+    try { root.innerHTML = ""; } catch (e2) {}
+  };
 
   /* ================= DATA ================= */
   async function fetchActiveClinic() {
@@ -1148,7 +1134,6 @@ function openPatientViewModal(patient) {
   async function loadConsultations() {
     timelineLoading = true;
 
-    // 1) Buscar consultas (inclui plan_text para guardar ordem dos tratamentos)
     const { data, error } = await window.sb
       .from("consultations")
       .select("id, clinic_id, report_date, hda, plan_text, created_at, author_user_id")
@@ -1165,9 +1150,8 @@ function openPatientViewModal(patient) {
 
     const rows = data || [];
 
-    // 2) Mapear author_user_id -> display_name (via clinic_members)
+    // author_user_id -> display_name
     const authorIds = [...new Set(rows.map(r => r.author_user_id).filter(Boolean))];
-
     let authorMap = {};
     if (authorIds.length) {
       const { data: cms, error: cmErr } = await window.sb
@@ -1175,18 +1159,14 @@ function openPatientViewModal(patient) {
         .select("user_id, display_name")
         .in("user_id", authorIds);
 
-      if (cmErr) {
-        console.error(cmErr);
-      } else {
-        (cms || []).forEach(x => { authorMap[x.user_id] = x.display_name || ""; });
-      }
+      if (cmErr) console.error(cmErr);
+      else (cms || []).forEach(x => { authorMap[x.user_id] = x.display_name || ""; });
     }
 
     const consultIds = rows.map(r => r.id).filter(Boolean);
 
-    // 3) Carregar diagnósticos por consulta
-    let diagByConsult = {}; // { consultId: [ {label, code} ] }
-
+    // diagnósticos por consulta
+    let diagByConsult = {};
     if (consultIds.length) {
       const { data: links, error: lErr } = await window.sb
         .from("consultation_diagnoses")
@@ -1198,20 +1178,15 @@ function openPatientViewModal(patient) {
       } else {
         const diagIds = [...new Set((links || []).map(x => x.diagnosis_id).filter(Boolean))];
 
-        let diagMap = {}; // { diagId: {label, code} }
+        let diagMap = {};
         if (diagIds.length) {
           const { data: diags, error: dErr } = await window.sb
             .from("diagnoses_catalog")
             .select("id, label, code")
             .in("id", diagIds);
 
-          if (dErr) {
-            console.error(dErr);
-          } else {
-            (diags || []).forEach(d => {
-              diagMap[d.id] = { label: d.label || "", code: d.code || "" };
-            });
-          }
+          if (dErr) console.error(dErr);
+          else (diags || []).forEach(d => { diagMap[d.id] = { label: d.label || "", code: d.code || "" }; });
         }
 
         (links || []).forEach(l => {
@@ -1226,9 +1201,8 @@ function openPatientViewModal(patient) {
       }
     }
 
-    // 4) Carregar tratamentos por consulta
-    let treatByConsult = {}; // { consultId: [ {id, label, code, qty} ] }
-
+    // tratamentos por consulta
+    let treatByConsult = {};
     if (consultIds.length) {
       const { data: tlinks, error: tErr } = await window.sb
         .from("consultation_treatments")
@@ -1240,7 +1214,7 @@ function openPatientViewModal(patient) {
       } else {
         const tIds = [...new Set((tlinks || []).map(x => x.treatment_id).filter(Boolean))];
 
-        let tMap = {}; // { treatmentId: {label, code} }
+        let tMap = {};
         if (tIds.length) {
           const { data: trs, error: trErr } = await window.sb
             .from("treatments_catalog")
@@ -1274,7 +1248,6 @@ function openPatientViewModal(patient) {
       const order = getTreatOrderFromPlan(r.plan_text);
       let treatments = treatByConsult[r.id] || [];
 
-      // Reordenar pela ordem gravada (se existir)
       if (order && order.length) {
         const pos = new Map(order.map((id, i) => [String(id), i]));
         treatments = (treatments || []).slice().sort((a, b) => {
@@ -1292,13 +1265,13 @@ function openPatientViewModal(patient) {
       });
     });
 
-    // ✅ definir último consultId (para mostrar botões PDF quando abre feed)
+    // último consultId
     lastSavedConsultId = consultRows && consultRows.length ? (consultRows[0].id || null) : lastSavedConsultId;
 
     timelineLoading = false;
   }
 
-  /* ================= DOCUMENTOS (carregar do Supabase) ================= */
+  /* ================= DOCUMENTOS ================= */
   async function loadDocuments() {
     docsLoading = true;
     docRows = [];
@@ -1318,8 +1291,8 @@ function openPatientViewModal(patient) {
       }
 
       const rows = data || [];
-
       const out = [];
+
       for (const r of rows) {
         let url = "";
         const path = r.storage_path || "";
@@ -1356,7 +1329,7 @@ function openPatientViewModal(patient) {
     }
   }
 
-  /* ================= SANITIZE HTML (para render seguro) ================= */
+  /* ================= SANITIZE/ESC ================= */
   function sanitizeHTML(html) {
     try {
       const allowed = new Set(["B","STRONG","U","BR","P","DIV","UL","OL","LI"]);
@@ -1394,28 +1367,23 @@ function openPatientViewModal(patient) {
       .replaceAll('"', "&quot;");
   }
 
-  // ===== Cabeçalho do feed (idade por HOJE; 🎂 se faz anos HOJE) =====
+  /* ================= CABEÇALHO (idade/🎂) ================= */
   function ageTextToday() {
     try {
       const age = calcAgeYears ? calcAgeYears(p.dob, new Date()) : null;
       if (age === null || age === undefined) return "—";
       return `${age} anos`;
-    } catch (e) {
-      return "—";
-    }
+    } catch (e) { return "—"; }
   }
 
   function birthdayBadgeToday() {
     try {
       const isBday = isBirthdayOnDate ? isBirthdayOnDate(p.dob, new Date()) : false;
       return isBday ? `<span title="Faz anos hoje" style="margin-left:8px;">🎂</span>` : ``;
-    } catch (e) {
-      return ``;
-    }
+    } catch (e) { return ``; }
   }
 
-  /* ================= IDENTIFICAÇÃO (MODAL INTERNO) ================= */
-
+  /* ================= IDENTIFICAÇÃO (MODAL) ================= */
   function openPatientIdentity(mode) {
     identMode = mode === "edit" ? "edit" : "view";
     identOpen = true;
@@ -1655,9 +1623,7 @@ function openPatientViewModal(patient) {
             return;
           }
 
-          if (data) {
-            Object.keys(payload).forEach(k => { p[k] = data[k]; });
-          }
+          if (data) Object.keys(payload).forEach(k => { p[k] = data[k]; });
 
           identSaving = false;
           identOpen = false;
@@ -1674,7 +1640,7 @@ function openPatientViewModal(patient) {
     }
   }
 
-  /* ================= DIAGNÓSTICO (CATÁLOGO) ================= */
+  /* ================= DIAGNÓSTICO ================= */
   function renderDiagArea() {
     const chips = document.getElementById("diagChips");
     if (chips) {
@@ -1690,11 +1656,8 @@ function openPatientViewModal(patient) {
                   ${escAttr(x.label || "—")}
                   ${x.code ? `<span style="color:#64748b; font-size:12px; margin-left:6px;">${escAttr(x.code)}</span>` : ``}
                 </div>
-                <button class="diagRemove gcBtn"
-                        data-id="${x.id}"
-                        style="padding:6px 10px; border-radius:999px;">
-                  ×
-                </button>
+                <button class="diagRemove gcBtn" data-id="${x.id}"
+                        style="padding:6px 10px; border-radius:999px;">×</button>
               </div>
             `).join("")}
           </div>
@@ -1711,13 +1674,12 @@ function openPatientViewModal(patient) {
         dd.innerHTML = `
           <div id="diagDropdown"
                style="position:absolute; z-index:50; left:0; right:0;
-                      max-width:720px;
-                      margin-top:6px; background:#fff; border:1px solid #e5e5e5;
-                      border-radius:12px; box-shadow:0 10px 24px rgba(0,0,0,0.08);
+                      max-width:720px; margin-top:6px; background:#fff;
+                      border:1px solid #e5e5e5; border-radius:12px;
+                      box-shadow:0 10px 24px rgba(0,0,0,0.08);
                       max-height:220px; overflow:auto;">
             ${diagResults.map(x => `
-              <div class="diagPick"
-                   data-id="${x.id}"
+              <div class="diagPick" data-id="${x.id}"
                    style="padding:10px 12px; border-bottom:1px solid #f1f5f9; cursor:pointer;">
                 <div style="font-weight:800;">${escAttr(x.label || "—")}</div>
                 ${x.code ? `<div style="color:#64748b; font-size:12px;">${escAttr(x.code)}</div>` : ``}
@@ -1725,9 +1687,7 @@ function openPatientViewModal(patient) {
             `).join("")}
           </div>
         `;
-      } else {
-        dd.innerHTML = "";
-      }
+      } else dd.innerHTML = "";
     }
 
     document.querySelectorAll(".diagPick").forEach(el => {
@@ -1752,7 +1712,6 @@ function openPatientViewModal(patient) {
     diagQuery = query;
 
     const clean = query.trim();
-
     if (!clean || clean.length < 2) {
       diagLoading = false;
       diagResults = [];
@@ -1781,12 +1740,7 @@ function openPatientViewModal(patient) {
       return;
     }
 
-    const rows = (data || []).map(r => ({
-      id: r.id,
-      code: r.code || "",
-      label: r.label || ""
-    }));
-
+    const rows = (data || []).map(r => ({ id: r.id, code: r.code || "", label: r.label || "" }));
     const sel = new Set(selectedDiag.map(x => String(x.id)));
     diagResults = rows.filter(x => !sel.has(String(x.id)));
 
@@ -1814,8 +1768,7 @@ function openPatientViewModal(patient) {
     renderDiagArea();
   }
 
-  /* ================= TRATAMENTOS (CATÁLOGO) — DUAL LIST ================= */
-
+  /* ================= TRATAMENTOS ================= */
   function sentenceizeLabel(s) {
     const raw = String(s || "").trim();
     if (!raw) return "";
@@ -1857,7 +1810,6 @@ function openPatientViewModal(patient) {
       }
 
       const rows = (res?.data || []).map(normTreatRow);
-
       const sel = new Set(selectedTreat.map(x => String(x.id)));
       treatResults = rows.filter(x => !sel.has(String(x.id)));
 
@@ -1876,7 +1828,6 @@ function openPatientViewModal(patient) {
     treatQuery = query;
 
     const clean = query.trim();
-
     if (!clean || clean.length < 2) {
       await fetchTreatmentsDefault();
       return;
@@ -1886,7 +1837,6 @@ function openPatientViewModal(patient) {
     renderTreatArea();
 
     const needle = clean.toLowerCase();
-
     let data = null, error = null;
 
     try {
@@ -1901,7 +1851,6 @@ function openPatientViewModal(patient) {
 
       data = r1.data;
       error = r1.error;
-
       if (error) throw error;
     } catch (e) {
       try {
@@ -1942,7 +1891,6 @@ function openPatientViewModal(patient) {
 
     selectedTreat.push({ id: item.id, code: item.code || "", label: item.label || "", qty: 1 });
     treatResults = (treatResults || []).filter(x => String(x.id) !== String(item.id));
-
     renderTreatArea();
   }
 
@@ -1985,9 +1933,7 @@ function openPatientViewModal(patient) {
                   ${x.code ? `<div style="color:#64748b; font-size:12px;">${escAttr(x.code)}</div>` : ``}
                 </div>
                 <button class="treatRemove gcBtn" data-id="${x.id}"
-                        style="padding:6px 10px; border-radius:999px;">
-                  ×
-                </button>
+                        style="padding:6px 10px; border-radius:999px;">×</button>
               </div>
             `).join("")}
           </div>
@@ -2002,8 +1948,7 @@ function openPatientViewModal(patient) {
         boxCat.innerHTML = `
           <div style="display:flex; flex-direction:column; gap:8px;">
             ${treatResults.map(x => `
-              <div class="treatPick"
-                   data-id="${x.id}"
+              <div class="treatPick" data-id="${x.id}"
                    style="padding:10px 12px; border:1px solid #e5e5e5; border-radius:12px; cursor:pointer;">
                 <div style="font-weight:900;">${escAttr(x.label || "—")}</div>
                 ${x.code ? `<div style="color:#64748b; font-size:12px;">${escAttr(x.code)}</div>` : ``}
@@ -2031,7 +1976,7 @@ function openPatientViewModal(patient) {
     });
   }
 
-  /* ================= DOCUMENTO v1 (HTML + Editor) ================= */
+  /* ================= DOCUMENTO v1 (HTML + Editor + PDF) ================= */
   function fmtDobPt(d) {
     try {
       if (!d) return "—";
@@ -2041,9 +1986,7 @@ function openPatientViewModal(patient) {
       const mm = String(dt.getMonth() + 1).padStart(2, "0");
       const yy = dt.getFullYear();
       return `${dd}-${mm}-${yy}`;
-    } catch (e) {
-      return String(d || "—");
-    }
+    } catch (e) { return String(d || "—"); }
   }
 
   function patientAddressCompact() {
@@ -2074,10 +2017,7 @@ function openPatientViewModal(patient) {
 
       if (error) { console.error(error); return null; }
       return data || null;
-    } catch (e) {
-      console.error(e);
-      return null;
-    }
+    } catch (e) { console.error(e); return null; }
   }
 
   async function fetchCurrentUserDisplayName(userId) {
@@ -2091,10 +2031,7 @@ function openPatientViewModal(patient) {
       if (error) { console.error(error); return ""; }
       const v = data && data.length ? (data[0].display_name || "") : "";
       return v;
-    } catch (e) {
-      console.error(e);
-      return "";
-    }
+    } catch (e) { console.error(e); return ""; }
   }
 
   function buildDocV1Html({ clinic, consult, authorName }) {
@@ -2103,7 +2040,8 @@ function openPatientViewModal(patient) {
     const diags = (consult?.diagnoses || []).slice(0, 3);
     const trts = (consult?.treatments || []).slice(0, 6);
 
-    const rx = getPrescriptionTextFromPlan(consult?.plan_text || "") || "R/ 20 Sessões de Tratamentos de Medicina Fisica e de Reabilitação com:";
+    const rx = getPrescriptionTextFromPlan(consult?.plan_text || "") ||
+      "R/ 20 Sessões de Tratamentos de Medicina Fisica e de Reabilitação com:";
 
     const line2Parts = [];
     if (p.sns) line2Parts.push(`Nº Utente: ${escAttr(p.sns)}`);
@@ -2112,7 +2050,6 @@ function openPatientViewModal(patient) {
     if (p.nif) line2Parts.push(`NIF: ${escAttr(p.nif)}`);
 
     const line2 = line2Parts.join(" | ") || "—";
-
     const clinicWebsite = (clinic && clinic.website) ? String(clinic.website) : "www.joaomorais.pt";
     const logoUrl = clinic && clinic.logo_url ? String(clinic.logo_url) : "";
 
@@ -2165,9 +2102,7 @@ function openPatientViewModal(patient) {
           <div class="h-line"><b>DN:</b> ${escAttr(fmtDobPt(p.dob))} &nbsp; | &nbsp; <b>Morada:</b> ${escAttr(patientAddressCompact())}</div>
           ${reportDate ? `<div class="h-line"><b>Data:</b> ${escAttr(reportDate)}</div>` : ``}
         </div>
-        <div>
-          ${logoUrl ? `<img class="logo" src="${escAttr(logoUrl)}" />` : ``}
-        </div>
+        <div>${logoUrl ? `<img class="logo" src="${escAttr(logoUrl)}" />` : ``}</div>
       </div>
 
       <div class="sep"></div>
@@ -2276,7 +2211,9 @@ function openPatientViewModal(patient) {
           ${docMode === "html" ? `
             <div style="margin-top:12px;">
               <textarea id="docHtml"
-                        style="width:100%; height:65vh; padding:12px; border:1px solid #ddd; border-radius:12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size:12px; line-height:1.4;">${escAttr(docDraftHtml)}</textarea>
+                        style="width:100%; height:65vh; padding:12px; border:1px solid #ddd; border-radius:12px;
+                               font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+                               font-size:12px; line-height:1.4;">${escAttr(docDraftHtml)}</textarea>
             </div>
           ` : `
             <div style="margin-top:12px; border:1px solid #e5e5e5; border-radius:12px; overflow:hidden;">
@@ -2330,7 +2267,6 @@ function openPatientViewModal(patient) {
     };
   }
 
-  // ✅ Robustez: sincroniza SEMPRE do iframe para docDraftHtml antes de PDF
   function syncDocFromFrame() {
     const iframe = document.getElementById("docFrame");
     if (!iframe) return;
@@ -2343,25 +2279,15 @@ function openPatientViewModal(patient) {
       }
 
       let html = "";
-      try {
-        html = d.documentElement.outerHTML || "";
-      } catch (e) {
-        html = "";
-      }
+      try { html = d.documentElement.outerHTML || ""; } catch (e) { html = ""; }
 
       if (!html || html.trim().length < 50) {
         const inner = d.documentElement.innerHTML || "";
-        if (inner && inner.trim().length >= 10) {
-          html = `<html>${inner}</html>`;
-        }
+        if (inner && inner.trim().length >= 10) html = `<html>${inner}</html>`;
       }
 
-      if (html && !/<!doctype/i.test(html)) {
-        html = "<!doctype html>\n" + html;
-      }
-
+      if (html && !/<!doctype/i.test(html)) html = "<!doctype html>\n" + html;
       docDraftHtml = String(html || "").trim();
-      console.log("syncDocFromFrame OK. HTML length:", docDraftHtml.length);
 
     } catch (e) {
       console.error("syncDocFromFrame: erro crítico:", e);
@@ -2369,11 +2295,8 @@ function openPatientViewModal(patient) {
   }
 
   function bindDocEvents() {
-    const btnCloseTop = document.getElementById("btnDocCloseTop");
-    if (btnCloseTop) btnCloseTop.onclick = () => closeDocumentEditor();
-
-    const btnCancel = document.getElementById("btnDocCancel");
-    if (btnCancel) btnCancel.onclick = () => closeDocumentEditor();
+    document.getElementById("btnDocCloseTop")?.addEventListener("click", closeDocumentEditor);
+    document.getElementById("btnDocCancel")?.addEventListener("click", closeDocumentEditor);
 
     const t = document.getElementById("docTitle");
     if (t) t.oninput = (e) => { docTitle = e?.target?.value ?? "Relatório Médico"; };
@@ -2382,20 +2305,9 @@ function openPatientViewModal(patient) {
     const bHtml = document.getElementById("btnDocModeHtml");
     const bPrev = document.getElementById("btnDocModePreview");
 
-    if (bVis) bVis.onclick = () => {
-      docMode = "visual";
-      render(); bindDocEvents(); mountDocFrame();
-    };
-    if (bHtml) bHtml.onclick = () => {
-      if (docMode !== "html") syncDocFromFrame();
-      docMode = "html";
-      render(); bindDocEvents();
-    };
-    if (bPrev) bPrev.onclick = () => {
-      if (docMode !== "html") syncDocFromFrame();
-      docMode = "preview";
-      render(); bindDocEvents(); mountDocFrame();
-    };
+    if (bVis) bVis.onclick = () => { docMode = "visual"; render(); bindDocEvents(); mountDocFrame(); };
+    if (bHtml) bHtml.onclick = () => { if (docMode !== "html") syncDocFromFrame(); docMode = "html"; render(); bindDocEvents(); };
+    if (bPrev) bPrev.onclick = () => { if (docMode !== "html") syncDocFromFrame(); docMode = "preview"; render(); bindDocEvents(); mountDocFrame(); };
 
     const ta = document.getElementById("docHtml");
     if (ta) ta.oninput = (e) => { docDraftHtml = e?.target?.value ?? ""; };
@@ -2430,31 +2342,19 @@ function openPatientViewModal(patient) {
   }
 
   async function htmlToPdfBlob(html, fileName) {
-    console.log("PDF: iniciar geração para:", fileName, "html length:", (html || "").length);
-
-    if (!html || String(html).trim().length < 300) {
-      console.error("PDF: HTML parece curto/vazio. length:", (html || "").length);
-    }
-
     if (!window.html2pdf) {
       alert("Não encontrei html2pdf no frontend. Confirma que a biblioteca está incluída no app.html.");
       return null;
     }
 
-    // ---------- Helpers internos ----------
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
 
     async function waitFonts() {
-      try {
-        if (document.fonts && document.fonts.ready) {
-          await document.fonts.ready;
-        }
-      } catch (_) {}
+      try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (_) {}
     }
 
     async function imgToDataUrl(src) {
-      // devolve { ok, dataUrl } ou { ok:false, error }
       try {
         const res = await fetch(src, { mode: "cors", credentials: "omit", cache: "no-store" });
         if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
@@ -2473,51 +2373,36 @@ function openPatientViewModal(patient) {
 
     async function inlineOrDropImages(container) {
       const imgs = Array.from(container.querySelectorAll("img"));
-      if (!imgs.length) return { inlined: 0, dropped: 0, total: 0 };
-
-      let inlined = 0, dropped = 0;
+      if (!imgs.length) return;
 
       for (const img of imgs) {
         const src = String(img.getAttribute("src") || "").trim();
         if (!src) continue;
-
-        // já está embutido
         if (src.startsWith("data:")) continue;
 
-        // tentar embutir (resolve 403/CORS se o fetch for possível)
         const r = await imgToDataUrl(src);
-
         if (r.ok && r.dataUrl && r.dataUrl.startsWith("data:")) {
           img.setAttribute("src", r.dataUrl);
           img.setAttribute("crossorigin", "anonymous");
-          inlined += 1;
         } else {
-          // falhou (ex.: 403) — remove para não abortar captura
-          console.warn("PDF: IMG BLOQUEADA (removida):", src, "motivo:", r.error);
-          // manter espaço mínimo para não rebentar layout
           const ph = document.createElement("div");
           ph.style.width = (img.style.width || img.getAttribute("width") || "140px");
           ph.style.height = (img.style.height || img.getAttribute("height") || "60px");
           ph.style.display = "inline-block";
           ph.style.background = "transparent";
           img.replaceWith(ph);
-          dropped += 1;
         }
       }
-
-      return { inlined, dropped, total: imgs.length };
     }
 
     async function waitImages(container, timeoutMs = 2500) {
-      // espera imagens (após inline) finalizarem layout
       const t0 = Date.now();
       const imgs = Array.from(container.querySelectorAll("img"));
 
       while (Date.now() - t0 < timeoutMs) {
         const pending = imgs.filter(im => {
-          try {
-            return !im.complete || (im.naturalWidth === 0 && im.naturalHeight === 0);
-          } catch (_) { return false; }
+          try { return !im.complete || (im.naturalWidth === 0 && im.naturalHeight === 0); }
+          catch (_) { return false; }
         });
         if (!pending.length) return true;
         await sleep(120);
@@ -2525,7 +2410,6 @@ function openPatientViewModal(patient) {
       return false;
     }
 
-    // ---------- Host: dentro do viewport (não “-10000px”) ----------
     const host = document.createElement("div");
     host.style.position = "fixed";
     host.style.left = "0";
@@ -2535,10 +2419,7 @@ function openPatientViewModal(patient) {
     host.style.background = "#ffffff";
     host.style.pointerEvents = "none";
     host.style.zIndex = "-1";
-    // importante: manter no viewport mas invisível
     host.style.opacity = "0.01";
-
-    // isolar: evitar que CSS global do app interfira
     host.style.all = "initial";
     host.style.display = "block";
     host.style.contain = "layout paint style";
@@ -2547,26 +2428,12 @@ function openPatientViewModal(patient) {
     document.body.appendChild(host);
 
     try {
-      // 1) dar tempo ao browser para pintar/layout
-      await raf();
-      await raf();
-      await sleep(80);
-
-      // 2) esperar fonts
+      await raf(); await raf(); await sleep(80);
       await waitFonts();
+      await inlineOrDropImages(host);
+      await waitImages(host, 3000);
+      await raf(); await sleep(60);
 
-      // 3) resolver o principal: imagens bloqueadas (403) → inline ou remove
-      const imgStat = await inlineOrDropImages(host);
-      console.log("PDF: imagens:", imgStat);
-
-      // 4) esperar imagens e layout estabilizarem
-      const imgsOk = await waitImages(host, 3000);
-      if (!imgsOk) console.warn("PDF: timeout a esperar imagens.");
-
-      await raf();
-      await sleep(60);
-
-      // 5) gerar PDF
       const opt = {
         margin: 0,
         filename: fileName || "documento.pdf",
@@ -2576,7 +2443,7 @@ function openPatientViewModal(patient) {
           useCORS: true,
           allowTaint: false,
           backgroundColor: "#ffffff",
-          logging: true,
+          logging: false,
           scrollX: 0,
           scrollY: 0,
           windowWidth: host.scrollWidth || host.clientWidth || 800,
@@ -2585,19 +2452,9 @@ function openPatientViewModal(patient) {
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
       };
 
-      let pdf;
-      try {
-        const worker = window.html2pdf().set(opt).from(host);
-        pdf = await worker.toPdf().get("pdf");
-      } catch (e) {
-        console.error("PDF: ERRO html2pdf/toPdf:", e);
-        throw e;
-      }
-
-      const blob = pdf.output("blob");
-      try { console.log("PDF: blob size:", blob?.size || 0); } catch (e) {}
-
-      return blob;
+      const worker = window.html2pdf().set(opt).from(host);
+      const pdf = await worker.toPdf().get("pdf");
+      return pdf.output("blob");
 
     } finally {
       try { document.body.removeChild(host); } catch (e) {}
@@ -2606,20 +2463,11 @@ function openPatientViewModal(patient) {
 
   async function uploadPdfToStorage({ blob, path }) {
     try {
-      // ✅ upsert:false para evitar necessidade de UPDATE policy
       const r = await window.sb.storage
         .from("documents")
-        .upload(path, blob, {
-          contentType: "application/pdf",
-          upsert: false,
-          cacheControl: "3600"
-        });
+        .upload(path, blob, { contentType: "application/pdf", upsert: false, cacheControl: "3600" });
 
-      if (r?.error) {
-        console.error("uploadPdf error:", r.error);
-        return { ok: false, error: r.error };
-      }
-
+      if (r?.error) { console.error("uploadPdf error:", r.error); return { ok: false, error: r.error }; }
       return { ok: true };
     } catch (e) {
       console.error("uploadPdf exception:", e);
@@ -2672,11 +2520,7 @@ function openPatientViewModal(patient) {
         .select("id")
         .single();
 
-      if (error) {
-        console.error("insertDocumentRow error:", error);
-        return { ok: false, error };
-      }
-
+      if (error) { console.error("insertDocumentRow error:", error); return { ok: false, error }; }
       return { ok: true, id: data?.id || null };
     } catch (e) {
       console.error("insertDocumentRow exception:", e);
@@ -2693,17 +2537,13 @@ function openPatientViewModal(patient) {
       if (!userId) { alert("Utilizador não autenticado."); return false; }
 
       const consult = (consultRows || []).find(x => String(x.id) === String(lastSavedConsultId));
-      if (!consult) {
-        alert("Não encontrei a consulta no feed. Atualiza o feed e tenta novamente.");
-        return false;
-      }
+      if (!consult) { alert("Não encontrei a consulta no feed. Atualiza o feed e tenta novamente."); return false; }
 
       const clinic = await fetchClinicForPdf();
       const authorName = await fetchCurrentUserDisplayName(userId);
 
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
-      // Safety net
       if (!docDraftHtml || docDraftHtml.trim().length < 300) {
         docDraftHtml = buildDocV1Html({ clinic, consult, authorName });
       }
@@ -2713,18 +2553,13 @@ function openPatientViewModal(patient) {
 
       const blob = await htmlToPdfBlob(docDraftHtml, fileName);
       if (!blob) return false;
-
-      if (blob.size === 0) {
-        alert("PDF gerado com 0 bytes (em branco). Reabre o documento e tenta novamente.");
-        return false;
-      }
+      if (blob.size === 0) { alert("PDF gerado com 0 bytes (em branco). Reabre o documento e tenta novamente."); return false; }
 
       if (!activeClinicId) { alert("Sem clínica ativa (patient_clinic)."); return false; }
 
       const version = await getNextDocVersionForConsult(consult.id);
-
       const ymd = new Date().toISOString().slice(0, 10);
-      const hms = new Date().toISOString().slice(11,19).replaceAll(":", "");
+      const hms = new Date().toISOString().slice(11, 19).replaceAll(":", "");
       const path = `clinic_${activeClinicId}/patient_${p.id}/consult_${consult.id}/v${version}_${ymd}_${hms}.pdf`;
 
       const up = await uploadPdfToStorage({ blob, path });
@@ -2753,6 +2588,7 @@ function openPatientViewModal(patient) {
 
       alert("PDF (v1) criado com sucesso.");
       return true;
+
     } catch (e) {
       console.error(e);
       alert("Erro na geração/upload do PDF.");
@@ -2760,11 +2596,11 @@ function openPatientViewModal(patient) {
     }
   }
 
-/* ==== FIM BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico sem acentos (search_text) + Tratamentos (catálogo+seleção+gravação) + Feed completo) ==== */
+/* ==== FIM BLOCO 06B/12 ==== */
 
-/* ==== INICIO BLOCO 06C/12 — Timeline + Form Consulta + Gravação (consultations + diagnoses + treatments) ==== */
 
-  /* ================= TIMELINE ================= */
+/* ==== INÍCIO BLOCO 06C/12 — Timeline + Form Consulta + Gravação ==== */
+
   function renderDocumentsInlineForConsult(consultId) {
     const docs = (docRows || []).filter(d => d.consultation_id && String(d.consultation_id) === String(consultId));
     if (!docs.length) return "";
@@ -2777,8 +2613,13 @@ function openPatientViewModal(patient) {
             <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;
                         padding:10px 12px; border:1px solid #e5e5e5; border-radius:12px;">
               <div style="display:flex; flex-direction:column;">
-                <div style="font-weight:900;">${escAttr(d.title || "Documento")}${d.version ? ` <span style="color:#64748b; font-size:12px;">(v${escAttr(d.version)})</span>` : ``}</div>
-                <div style="color:#64748b; font-size:12px;">${d.created_at ? escAttr(String(d.created_at)) : ""}</div>
+                <div style="font-weight:900;">
+                  ${escAttr(d.title || "Documento")}
+                  ${d.version ? ` <span style="color:#64748b; font-size:12px;">(v${escAttr(d.version)})</span>` : ``}
+                </div>
+                <div style="color:#64748b; font-size:12px;">
+                  ${d.created_at ? escAttr(String(d.created_at)) : ""}
+                </div>
               </div>
               <div style="display:flex; gap:8px;">
                 ${d.url ? `<a class="gcBtn" href="${escAttr(d.url)}" target="_blank" rel="noopener" style="text-decoration:none;">Abrir</a>` : `<button class="gcBtn" disabled>Sem link</button>`}
@@ -2803,62 +2644,56 @@ function openPatientViewModal(patient) {
             : (r.report_date ? String(r.report_date) : "—");
 
           return `
-          <div style="border:1px solid #e5e5e5; border-radius:14px; padding:16px;">
-
-            <div style="font-weight:900; font-size:16px;">
-              Consulta — ${when} - ${escAttr(String(r.author_name || ""))}
-            </div>
-
-            <div style="margin-top:10px; line-height:1.55; font-size:15px;">
-              ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
-            </div>
-
-            ${r.diagnoses && r.diagnoses.length ? `
-              <div style="margin-top:12px;">
-                <div style="font-weight:900;">Diagnósticos:</div>
-                <ul style="margin:8px 0 0 18px;">
-                  ${r.diagnoses.map(dg => `
-                    <li>${escAttr(dg.label || "—")}${dg.code ? ` <span style="color:#64748b;">(${escAttr(dg.code)})</span>` : ``}</li>
-                  `).join("")}
-                </ul>
+            <div style="border:1px solid #e5e5e5; border-radius:14px; padding:16px;">
+              <div style="font-weight:900; font-size:16px;">
+                Consulta — ${when} - ${escAttr(String(r.author_name || ""))}
               </div>
-            ` : ``}
 
-            ${r.treatments && r.treatments.length ? `
-              <div style="margin-top:12px;">
-                <div style="font-weight:900;">Tratamentos:</div>
-                <ul style="margin:8px 0 0 18px;">
-                  ${r.treatments.map(t => `
-                    <li>
-                      ${escAttr(sentenceizeLabel(t.label || "—"))}
-                      ${t.code ? ` <span style="color:#64748b;">(${escAttr(t.code)})</span>` : ``}
-                    </li>
-                  `).join("")}
-                </ul>
+              <div style="margin-top:10px; line-height:1.55; font-size:15px;">
+                ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
               </div>
-            ` : ``}
 
-            ${renderDocumentsInlineForConsult(r.id)}
+              ${r.diagnoses && r.diagnoses.length ? `
+                <div style="margin-top:12px;">
+                  <div style="font-weight:900;">Diagnósticos:</div>
+                  <ul style="margin:8px 0 0 18px;">
+                    ${r.diagnoses.map(dg => `
+                      <li>${escAttr(dg.label || "—")}${dg.code ? ` <span style="color:#64748b;">(${escAttr(dg.code)})</span>` : ``}</li>
+                    `).join("")}
+                  </ul>
+                </div>
+              ` : ``}
 
-          </div>
-        `; }).join("")}
+              ${r.treatments && r.treatments.length ? `
+                <div style="margin-top:12px;">
+                  <div style="font-weight:900;">Tratamentos:</div>
+                  <ul style="margin:8px 0 0 18px;">
+                    ${r.treatments.map(t => `
+                      <li>${escAttr(sentenceizeLabel(t.label || "—"))}${t.code ? ` <span style="color:#64748b;">(${escAttr(t.code)})</span>` : ``}</li>
+                    `).join("")}
+                  </ul>
+                </div>
+              ` : ``}
+
+              ${renderDocumentsInlineForConsult(r.id)}
+            </div>
+          `;
+        }).join("")}
       </div>
     `;
   }
 
-  /* ================= INLINE FORM ================= */
   function renderConsultFormInline() {
     const today = new Date().toISOString().slice(0, 10);
 
     return `
       <div style="margin-top:16px; padding:16px; border:1px solid #e5e5e5; border-radius:14px;">
-
         <div style="font-weight:900; font-size:16px;">Nova Consulta Médica</div>
 
         <div style="margin-top:10px;">
           <label>Data</label>
           <input type="date" value="${today}" readonly
-            style="padding:8px; border:1px solid #ddd; border-radius:8px;" />
+                 style="padding:8px; border:1px solid #ddd; border-radius:8px;" />
         </div>
 
         <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
@@ -2868,8 +2703,7 @@ function openPatientViewModal(patient) {
           <button id="hOL" class="gcBtn">Numeração</button>
         </div>
 
-        <div id="hdaEditor"
-             contenteditable="true"
+        <div id="hdaEditor" contenteditable="true"
              style="margin-top:10px; min-height:240px; padding:12px;
                     border:1px solid #ddd; border-radius:12px;
                     line-height:1.6; font-size:16px; overflow:auto;">
@@ -2878,16 +2712,13 @@ function openPatientViewModal(patient) {
 
         <div style="margin-top:14px;">
           <label>Diagnóstico (catálogo)</label>
-
           <div style="position:relative; margin-top:6px; max-width:720px;">
-            <input id="diagSearch"
-                   value="${escAttr(diagQuery)}"
+            <input id="diagSearch" value="${escAttr(diagQuery)}"
                    placeholder="Pesquisar (mín. 2 letras)…"
                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
             <div id="diagStatus"></div>
             <div id="diagDropdownHost" style="position:relative;"></div>
           </div>
-
           <div id="diagChips"></div>
         </div>
 
@@ -2895,28 +2726,25 @@ function openPatientViewModal(patient) {
           <label>Tratamentos (catálogo)</label>
 
           <div style="margin-top:6px; max-width:980px;">
-            <input id="prescriptionText"
-                   value="${escAttr(prescriptionText)}"
+            <input id="prescriptionText" value="${escAttr(prescriptionText)}"
                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
 
             <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
               <div style="flex:1; min-width:320px;">
                 <div style="font-weight:900; margin-bottom:6px;">Selecionados</div>
                 <div id="treatSelectedBox"
-                     style="min-height:120px; padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;">
-                </div>
+                     style="min-height:120px; padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;"></div>
               </div>
 
               <div style="flex:1; min-width:320px;">
                 <div style="font-weight:900; margin-bottom:6px;">Catálogo</div>
-                <input id="treatSearch"
-                       value="${escAttr(treatQuery)}"
+                <input id="treatSearch" value="${escAttr(treatQuery)}"
                        placeholder="Pesquisar tratamentos (mín. 2 letras)…"
                        style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
                 <div id="treatStatus"></div>
                 <div id="treatCatalogBox"
-                     style="margin-top:8px; min-height:120px; max-height:320px; overflow:auto; padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;">
-                </div>
+                     style="margin-top:8px; min-height:120px; max-height:320px; overflow:auto;
+                            padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;"></div>
               </div>
             </div>
           </div>
@@ -2926,7 +2754,6 @@ function openPatientViewModal(patient) {
           <button id="btnCancelConsult" class="gcBtn">Cancelar</button>
           <button id="btnSaveConsult" class="gcBtn" style="font-weight:900;">Gravar</button>
         </div>
-
       </div>
     `;
   }
@@ -2942,15 +2769,10 @@ function openPatientViewModal(patient) {
         draftHDAHtml = ed.innerHTML || "";
       }
 
-      const bBold = document.getElementById("hBold");
-      const bUnder = document.getElementById("hUnder");
-      const bUL = document.getElementById("hUL");
-      const bOL = document.getElementById("hOL");
-
-      if (bBold) bBold.onclick = () => cmd("bold");
-      if (bUnder) bUnder.onclick = () => cmd("underline");
-      if (bUL) bUL.onclick = () => cmd("insertUnorderedList");
-      if (bOL) bOL.onclick = () => cmd("insertOrderedList");
+      document.getElementById("hBold")?.addEventListener("click", () => cmd("bold"));
+      document.getElementById("hUnder")?.addEventListener("click", () => cmd("underline"));
+      document.getElementById("hUL")?.addEventListener("click", () => cmd("insertUnorderedList"));
+      document.getElementById("hOL")?.addEventListener("click", () => cmd("insertOrderedList"));
     }
 
     const diagInput = document.getElementById("diagSearch");
@@ -2961,23 +2783,17 @@ function openPatientViewModal(patient) {
         if (diagDebounceT) clearTimeout(diagDebounceT);
         diagDebounceT = setTimeout(() => searchDiagnoses(v), 220);
       };
-
       diagInput.onfocus = () => {
         const v = diagInput.value || "";
         if (String(v).trim().length >= 2) searchDiagnoses(v);
       };
-
-      diagInput.onkeydown = (ev) => {
-        if (ev.key === "Enter") ev.preventDefault();
-      };
+      diagInput.onkeydown = (ev) => { if (ev.key === "Enter") ev.preventDefault(); };
     }
 
     renderDiagArea();
 
     const pr = document.getElementById("prescriptionText");
-    if (pr) {
-      pr.oninput = (e) => { prescriptionText = e?.target?.value ?? ""; };
-    }
+    if (pr) pr.oninput = (e) => { prescriptionText = e?.target?.value ?? ""; };
 
     const tInput = document.getElementById("treatSearch");
     if (tInput) {
@@ -2987,22 +2803,22 @@ function openPatientViewModal(patient) {
         if (treatDebounceT) clearTimeout(treatDebounceT);
         treatDebounceT = setTimeout(() => searchTreatments(v), 220);
       };
-
       tInput.onfocus = () => {
         const v = tInput.value || "";
         if (String(v).trim().length >= 2) searchTreatments(v);
       };
-
-      tInput.onkeydown = (ev) => {
-        if (ev.key === "Enter") ev.preventDefault();
-      };
+      tInput.onkeydown = (ev) => { if (ev.key === "Enter") ev.preventDefault(); };
     }
 
     renderTreatArea();
-    fetchTreatmentsDefault();
 
-    const btnCancel = document.getElementById("btnCancelConsult");
-    if (btnCancel) btnCancel.onclick = () => { creatingConsult = false; render(); };
+    // FIX: não recarregar catálogo SEMPRE; só se estiver vazio
+    if (!treatResults || !treatResults.length) fetchTreatmentsDefault();
+
+    document.getElementById("btnCancelConsult")?.addEventListener("click", () => {
+      creatingConsult = false;
+      render();
+    });
 
     const btnSave = document.getElementById("btnSaveConsult");
     if (btnSave) {
@@ -3033,7 +2849,6 @@ function openPatientViewModal(patient) {
     try {
       const userRes = await window.sb.auth.getUser();
       const userId = userRes?.data?.user?.id;
-
       if (!userId) { alert("Utilizador não autenticado."); return false; }
 
       const today = new Date().toISOString().slice(0, 10);
@@ -3050,12 +2865,9 @@ function openPatientViewModal(patient) {
 
       let appointmentId = null;
       if (appts && appts.length) {
-        const sameDay = appts.filter(a => a.start_at && a.start_at.slice(0,10) === today);
+        const sameDay = appts.filter(a => a.start_at && a.start_at.slice(0, 10) === today);
         if (sameDay.length) {
-          sameDay.sort((a,b) =>
-            Math.abs(new Date(a.start_at) - now) -
-            Math.abs(new Date(b.start_at) - now)
-          );
+          sameDay.sort((a, b) => Math.abs(new Date(a.start_at) - now) - Math.abs(new Date(b.start_at) - now));
           appointmentId = sameDay[0].id;
         }
       }
@@ -3083,7 +2895,6 @@ function openPatientViewModal(patient) {
       if (insErr) { console.error(insErr); alert("Erro ao gravar consulta."); return false; }
 
       const consultId = ins?.id;
-
       lastSavedConsultId = consultId || null;
 
       if (consultId && selectedDiag && selectedDiag.length) {
@@ -3119,26 +2930,17 @@ function openPatientViewModal(patient) {
       }
 
       try {
-        if (typeof refreshAgenda === "function") {
-          await refreshAgenda();
-        } else if (typeof renderAgendaList === "function") {
-          renderAgendaList();
-        }
+        if (typeof refreshAgenda === "function") await refreshAgenda();
+        else if (typeof renderAgendaList === "function") renderAgendaList();
       } catch (e) {
         console.error("refreshAgenda falhou:", e);
       }
 
+      // reset estado
       draftHDAHtml = "";
-      diagQuery = "";
-      diagLoading = false;
-      diagResults = [];
-      selectedDiag = [];
-
+      diagQuery = ""; diagLoading = false; diagResults = []; selectedDiag = [];
       prescriptionText = "R/ 20 Sessões de Tratamentos de Medicina Fisica e de Reabilitação com:";
-      treatQuery = "";
-      treatLoading = false;
-      treatResults = [];
-      selectedTreat = [];
+      treatQuery = ""; treatLoading = false; treatResults = []; selectedTreat = [];
 
       alert("Consulta gravada.");
       return true;
@@ -3150,12 +2952,11 @@ function openPatientViewModal(patient) {
     }
   }
 
-/* ==== FIM BLOCO 06C/12 — Timeline + Form Consulta + Gravação (consultations + diagnoses + treatments) ==== */
+/* ==== FIM BLOCO 06C/12 ==== */
 
 
-/* ==== INICIO BLOCO 06D/12 — Render + Wiring Botões + Boot ==== */
+/* ==== INÍCIO BLOCO 06D/12 — Render + Wiring + Boot ==== */
 
-  /* ================= MAIN RENDER ================= */
   function render() {
     root.innerHTML = `
       <div style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
@@ -3191,17 +2992,13 @@ function openPatientViewModal(patient) {
 
           <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
             ${isDoctor() && !creatingConsult ? `
-              <button id="btnNewConsult" class="gcBtn" style="font-weight:900;">
-                Consulta Médica
-              </button>` : ``}
+              <button id="btnNewConsult" class="gcBtn" style="font-weight:900;">Consulta Médica</button>
+            ` : ``}
 
             ${isDoctor() && lastSavedConsultId ? `
-              <button id="btnEditDocument" class="gcBtn">
-                Editar Documento
-              </button>
-              <button id="btnGeneratePdf" class="gcBtn" style="font-weight:900;">
-                Gerar PDF
-              </button>` : ``}
+              <button id="btnEditDocument" class="gcBtn">Editar Documento</button>
+              <button id="btnGeneratePdf" class="gcBtn" style="font-weight:900;">Gerar PDF</button>
+            ` : ``}
 
             ${docsLoading ? `<div style="color:#64748b;">A carregar PDFs…</div>` : ``}
           </div>
@@ -3216,27 +3013,20 @@ function openPatientViewModal(patient) {
       </div>
 
       ${identOpen ? renderIdentityModal() : ""}
-
       ${docOpen ? renderDocumentEditorModal() : ""}
     `;
 
-    document.getElementById("btnClosePView")?.addEventListener("click", closeModalRoot);
+    document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
 
-    const bView = document.getElementById("btnViewIdent");
-    if (bView) bView.onclick = () => openPatientIdentity("view");
-
-    const bEdit = document.getElementById("btnEditIdent");
-    if (bEdit) bEdit.onclick = () => openPatientIdentity("edit");
+    document.getElementById("btnViewIdent")?.addEventListener("click", () => openPatientIdentity("view"));
+    document.getElementById("btnEditIdent")?.addEventListener("click", () => openPatientIdentity("edit"));
 
     if (isDoctor() && !creatingConsult) {
-      const btnNew = document.getElementById("btnNewConsult");
-      if (btnNew) {
-        btnNew.onclick = () => {
-          creatingConsult = true;
-          render();
-          bindConsultEvents();
-        };
-      }
+      document.getElementById("btnNewConsult")?.addEventListener("click", () => {
+        creatingConsult = true;
+        render();
+        bindConsultEvents();
+      });
     }
 
     const btnEditDoc = document.getElementById("btnEditDocument");
@@ -3250,7 +3040,6 @@ function openPatientViewModal(patient) {
 
         const clinic = await fetchClinicForPdf();
         const authorName = userId ? await fetchCurrentUserDisplayName(userId) : "";
-
         const html = buildDocV1Html({ clinic, consult, authorName });
         openDocumentEditor(html);
       };
@@ -3279,14 +3068,20 @@ function openPatientViewModal(patient) {
   }
 
   (async function boot() {
-    await fetchActiveClinic();
-    await loadConsultations();
-    await loadDocuments();
+    try {
+      await fetchActiveClinic();
+      await loadConsultations();
+      await loadDocuments();
+    } catch (e) {
+      console.error("boot modal falhou:", e);
+    }
     render();
   })();
-}
 
-/* ==== FIM BLOCO 06D/12 — Render + Wiring Botões + Boot ==== */
+} // <-- fecha openPatientViewModal
+
+/* ==== FIM BLOCO 06D/12 ==== */
+/* ==== FIM BLOCO 06/12 — Modal Doente (06A+06B+06C+06D) ==== */
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
   // ---------- Novo doente (modal da página inicial) ----------
