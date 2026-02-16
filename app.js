@@ -163,6 +163,59 @@
     if (error) throw error;
     return Array.isArray(data) ? data : [];
   }
+
+  /* ==== DEBUG PDF / PROMISES — INÍCIO (BLOCO 01/12) ==== */
+  (function setupGlobalDebugHooks() {
+    if (window.__GC_DEBUG_HOOKS_INSTALLED__) return;
+    window.__GC_DEBUG_HOOKS_INSTALLED__ = true;
+
+    function safeLog(...args) {
+      try { console.log(...args); } catch (_) {}
+    }
+
+    // Promises rejeitadas que não são apanhadas (é o teu "Uncaught (in promise) Object")
+    window.addEventListener("unhandledrejection", (ev) => {
+      const r = ev.reason;
+      safeLog("❌ UNHANDLED_REJECTION:", r);
+
+      // Extrair o máximo possível (muitos libs rejeitam com objecto “opaco”)
+      try {
+        if (r && typeof r === "object") {
+          safeLog("   keys:", Object.keys(r));
+          safeLog("   json:", JSON.stringify(r, Object.getOwnPropertyNames(r), 2));
+        }
+      } catch (e) {
+        safeLog("   (não foi possível stringify reason):", e);
+      }
+
+      // stack/message quando existe (Error real)
+      try {
+        safeLog("   message:", r?.message);
+        safeLog("   stack:", r?.stack);
+      } catch (_) {}
+
+      // Algumas libs escondem detalhes em campos específicos
+      try {
+        safeLog("   name:", r?.name);
+        safeLog("   cause:", r?.cause);
+        safeLog("   toString:", String(r));
+      } catch (_) {}
+    });
+
+    // Erros JS “normais”
+    window.addEventListener("error", (ev) => {
+      safeLog("❌ WINDOW_ERROR:", ev.message, "at", ev.filename + ":" + ev.lineno + ":" + ev.colno);
+      if (ev.error) {
+        safeLog("   error:", ev.error);
+        safeLog("   stack:", ev.error.stack);
+      }
+    });
+
+    // Confirmar que o hook ficou ativo
+    safeLog("✅ Debug hooks ativos (unhandledrejection + window.error)");
+  })();
+  /* ==== DEBUG PDF / PROMISES — FIM ==== */
+
 /* ==== FIM BLOCO 01/12 — Cabeçalho + utilitários base + helpers ==== */
 /* ==== INÍCIO BLOCO 02/12 — Agenda (helpers + load) + Patients (scope/search/RPC) ==== */
 
