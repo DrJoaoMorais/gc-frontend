@@ -2436,40 +2436,172 @@ function openPatientViewModal(patient) {
       console.error("PDF: HTML parece curto/vazio. length:", (html || "").length);
     }
 
-    if (window.html2pdf) {
-      const host = document.createElement("div");
-      host.style.position = "fixed";
-      host.style.left = "-10000px";
-      host.style.top = "0";
-      host.style.width = "210mm";
-      host.style.pointerEvents = "none";
-      host.style.opacity = "1";
-      host.innerHTML = html;
-      document.body.appendChild(host);
+    if (!window.html2pdf) {
+      alert("Não encontrei html2pdf no frontend. Confirma que a biblioteca está incluída no app.html.");
+      return null;
+    }
 
+    // ---------- Helpers internos ----------
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
+
+    async function waitFonts() {
       try {
-        const opt = {
-          margin: 0,
-          filename: fileName || "documento.pdf",
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
-        };
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
+      } catch (_) {}
+    }
 
-        const worker = window.html2pdf().set(opt).from(host);
-        const pdf = await worker.toPdf().get("pdf");
-        const blob = pdf.output("blob");
-
-        try { console.log("PDF: blob size:", blob?.size || 0); } catch (e) {}
-
-        return blob;
-      } finally {
-        try { document.body.removeChild(host); } catch (e) {}
+    async function imgToDataUrl(src) {
+      // devolve { ok, dataUrl } ou { ok:false, error }
+      try {
+        const res = await fetch(src, { mode: "cors", credentials: "omit", cache: "no-store" });
+        if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
+        const blob = await res.blob();
+        const dataUrl = await new Promise((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onload = () => resolve(fr.result);
+          fr.onerror = () => reject(new Error("FileReader error"));
+          fr.readAsDataURL(blob);
+        });
+        return { ok: true, dataUrl: String(dataUrl || "") };
+      } catch (e) {
+        return { ok: false, error: e?.message || String(e) };
       }
     }
 
-    alert("Não encontrei html2pdf no frontend. Confirma que a biblioteca está incluída no app.html.");
-    return null;
+    async function inlineOrDropImages(container) {
+      const imgs = Array.from(container.querySelectorAll("img"));
+      if (!imgs.length) return { inlined: 0, dropped: 0, total: 0 };
+
+      let inlined = 0, dropped = 0;
+
+      for (const img of imgs) {
+        const src = String(img.getAttribute("src") || "").trim();
+        if (!src) continue;
+
+        // já está embutido
+        if (src.startsWith("data:")) continue;
+
+        // tentar embutir (resolve 403/CORS se o fetch for possível)
+        const r = await imgToDataUrl(src);
+
+        if (r.ok && r.dataUrl && r.dataUrl.startsWith("data:")) {
+          img.setAttribute("src", r.dataUrl);
+          img.setAttribute("crossorigin", "anonymous");
+          inlined += 1;
+        } else {
+          // falhou (ex.: 403) — remove para não abortar captura
+          console.warn("PDF: IMG BLOQUEADA (removida):", src, "motivo:", r.error);
+          // manter espaço mínimo para não rebentar layout
+          const ph = document.createElement("div");
+          ph.style.width = (img.style.width || img.getAttribute("width") || "140px");
+          ph.style.height = (img.style.height || img.getAttribute("height") || "60px");
+          ph.style.display = "inline-block";
+          ph.style.background = "transparent";
+          img.replaceWith(ph);
+          dropped += 1;
+        }
+      }
+
+      return { inlined, dropped, total: imgs.length };
+    }
+
+    async function waitImages(container, timeoutMs = 2500) {
+      // espera imagens (após inline) finalizarem layout
+      const t0 = Date.now();
+      const imgs = Array.from(container.querySelectorAll("img"));
+
+      while (Date.now() - t0 < timeoutMs) {
+        const pending = imgs.filter(im => {
+          try {
+            return !im.complete || (im.naturalWidth === 0 && im.naturalHeight === 0);
+          } catch (_) { return false; }
+        });
+        if (!pending.length) return true;
+        await sleep(120);
+      }
+      return false;
+    }
+
+    // ---------- Host: dentro do viewport (não “-10000px”) ----------
+    const host = document.createElement("div");
+    host.style.position = "fixed";
+    host.style.left = "0";
+    host.style.top = "0";
+    host.style.width = "210mm";
+    host.style.maxWidth = "210mm";
+    host.style.background = "#ffffff";
+    host.style.pointerEvents = "none";
+    host.style.zIndex = "-1";
+    // importante: manter no viewport mas invisível
+    host.style.opacity = "0.01";
+
+    // isolar: evitar que CSS global do app interfira
+    host.style.all = "initial";
+    host.style.display = "block";
+    host.style.contain = "layout paint style";
+
+    host.innerHTML = html;
+    document.body.appendChild(host);
+
+    try {
+      // 1) dar tempo ao browser para pintar/layout
+      await raf();
+      await raf();
+      await sleep(80);
+
+      // 2) esperar fonts
+      await waitFonts();
+
+      // 3) resolver o principal: imagens bloqueadas (403) → inline ou remove
+      const imgStat = await inlineOrDropImages(host);
+      console.log("PDF: imagens:", imgStat);
+
+      // 4) esperar imagens e layout estabilizarem
+      const imgsOk = await waitImages(host, 3000);
+      if (!imgsOk) console.warn("PDF: timeout a esperar imagens.");
+
+      await raf();
+      await sleep(60);
+
+      // 5) gerar PDF
+      const opt = {
+        margin: 0,
+        filename: fileName || "documento.pdf",
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          allowTaint: false,
+          backgroundColor: "#ffffff",
+          logging: true,
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: host.scrollWidth || host.clientWidth || 800,
+          windowHeight: host.scrollHeight || host.clientHeight || 1100
+        },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+      };
+
+      let pdf;
+      try {
+        const worker = window.html2pdf().set(opt).from(host);
+        pdf = await worker.toPdf().get("pdf");
+      } catch (e) {
+        console.error("PDF: ERRO html2pdf/toPdf:", e);
+        throw e;
+      }
+
+      const blob = pdf.output("blob");
+      try { console.log("PDF: blob size:", blob?.size || 0); } catch (e) {}
+
+      return blob;
+
+    } finally {
+      try { document.body.removeChild(host); } catch (e) {}
+    }
   }
 
   async function uploadPdfToStorage({ blob, path }) {
@@ -2629,7 +2761,6 @@ function openPatientViewModal(patient) {
   }
 
 /* ==== FIM BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico sem acentos (search_text) + Tratamentos (catálogo+seleção+gravação) + Feed completo) ==== */
-
 
 /* ==== INICIO BLOCO 06C/12 — Timeline + Form Consulta + Gravação (consultations + diagnoses + treatments) ==== */
 
