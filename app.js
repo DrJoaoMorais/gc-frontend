@@ -2063,7 +2063,6 @@ function openPatientViewModal(patient) {
     const clinicWebsite = (clinic && clinic.website) ? String(clinic.website) : "www.joaomorais.pt";
     const logoUrl = clinic && clinic.logo_url ? String(clinic.logo_url) : "";
 
-    // ✅ Ajuste: barra lateral mais fina e sem sobrepor o texto
     return `
 <!doctype html>
 <html>
@@ -2259,7 +2258,6 @@ function openPatientViewModal(patient) {
     const iframe = document.getElementById("docFrame");
     if (!iframe) return;
 
-    // srcdoc para evitar ObjectURL e permitir edição
     iframe.srcdoc = String(docDraftHtml || "");
 
     iframe.onload = () => {
@@ -2279,7 +2277,7 @@ function openPatientViewModal(patient) {
     };
   }
 
-  // ✅ MAIS ROBUSTO: sincroniza do iframe para docDraftHtml (evita HTML curto/sem body)
+  // ✅ Robustez: sincroniza SEMPRE do iframe para docDraftHtml antes de PDF
   function syncDocFromFrame() {
     const iframe = document.getElementById("docFrame");
     if (!iframe) return;
@@ -2298,7 +2296,6 @@ function openPatientViewModal(patient) {
         html = "";
       }
 
-      // Fallback: construir a partir do innerHTML do <html>
       if (!html || html.trim().length < 50) {
         const inner = d.documentElement.innerHTML || "";
         if (inner && inner.trim().length >= 10) {
@@ -2306,7 +2303,6 @@ function openPatientViewModal(patient) {
         }
       }
 
-      // Normalizar com doctype
       if (html && !/<!doctype/i.test(html)) {
         html = "<!doctype html>\n" + html;
       }
@@ -2315,7 +2311,7 @@ function openPatientViewModal(patient) {
       console.log("syncDocFromFrame OK. HTML length:", docDraftHtml.length);
 
     } catch (e) {
-      console.error("syncDocFromFrame: erro crítico na sincronização do iframe:", e);
+      console.error("syncDocFromFrame: erro crítico:", e);
     }
   }
 
@@ -2358,7 +2354,6 @@ function openPatientViewModal(patient) {
         if (docSaving) return;
         docSaving = true;
 
-        // sincronizar o conteúdo antes de gerar PDF
         if (docMode !== "html") syncDocFromFrame();
 
         render();
@@ -2391,11 +2386,11 @@ function openPatientViewModal(patient) {
     if (window.html2pdf) {
       const host = document.createElement("div");
       host.style.position = "fixed";
-      host.style.left = "-10000px";     // ✅ menos extremo; mantém renderização
+      host.style.left = "-10000px";
       host.style.top = "0";
       host.style.width = "210mm";
       host.style.pointerEvents = "none";
-      host.style.opacity = "1";         // ✅ evitar opacity:0 (alguns motores ignoram)
+      host.style.opacity = "1";
       host.innerHTML = html;
       document.body.appendChild(host);
 
@@ -2404,7 +2399,7 @@ function openPatientViewModal(patient) {
           margin: 0,
           filename: fileName || "documento.pdf",
           image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
         };
 
@@ -2412,9 +2407,7 @@ function openPatientViewModal(patient) {
         const pdf = await worker.toPdf().get("pdf");
         const blob = pdf.output("blob");
 
-        try {
-          console.log("PDF: blob size:", blob?.size || 0);
-        } catch (e) {}
+        try { console.log("PDF: blob size:", blob?.size || 0); } catch (e) {}
 
         return blob;
       } finally {
@@ -2428,7 +2421,7 @@ function openPatientViewModal(patient) {
 
   async function uploadPdfToStorage({ blob, path }) {
     try {
-      // ✅ upsert:false para não precisar de UPDATE policy; path é sempre único
+      // ✅ upsert:false para evitar necessidade de UPDATE policy
       const r = await window.sb.storage
         .from("documents")
         .upload(path, blob, {
@@ -2523,12 +2516,9 @@ function openPatientViewModal(patient) {
       const clinic = await fetchClinicForPdf();
       const authorName = await fetchCurrentUserDisplayName(userId);
 
-      // ✅ se estivermos com editor aberto e não for modo HTML, tenta sincronizar primeiro
-      if (docOpen && docMode !== "html") {
-        syncDocFromFrame();
-      }
+      if (docOpen && docMode !== "html") syncDocFromFrame();
 
-      // ✅ Safety net: se HTML estiver curto (típico de sync falhada), reconstruir template v1
+      // Safety net
       if (!docDraftHtml || docDraftHtml.trim().length < 300) {
         docDraftHtml = buildDocV1Html({ clinic, consult, authorName });
       }
@@ -2539,7 +2529,6 @@ function openPatientViewModal(patient) {
       const blob = await htmlToPdfBlob(docDraftHtml, fileName);
       if (!blob) return false;
 
-      // ✅ se blob vier 0 bytes, não vale a pena tentar Storage
       if (blob.size === 0) {
         alert("PDF gerado com 0 bytes (em branco). Reabre o documento e tenta novamente.");
         return false;
@@ -2586,6 +2575,11 @@ function openPatientViewModal(patient) {
     }
   }
 
+/* ==== FIM BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico sem acentos (search_text) + Tratamentos (catálogo+seleção+gravação) + Feed completo) ==== */
+
+
+/* ==== INICIO BLOCO 06C/12 — Timeline + Form Consulta + Gravação (consultations + diagnoses + treatments) ==== */
+
   /* ================= TIMELINE ================= */
   function renderDocumentsInlineForConsult(consultId) {
     const docs = (docRows || []).filter(d => d.consultation_id && String(d.consultation_id) === String(consultId));
@@ -2613,7 +2607,6 @@ function openPatientViewModal(patient) {
   }
 
   function renderTimeline() {
-
     if (timelineLoading) return `<div style="color:#64748b;">A carregar registos...</div>`;
     if (!consultRows || !consultRows.length) return `<div style="color:#64748b;">Sem registos clínicos.</div>`;
 
@@ -2714,7 +2707,6 @@ function openPatientViewModal(patient) {
           <div id="diagChips"></div>
         </div>
 
-        <!-- ===== TRATAMENTOS ===== -->
         <div style="margin-top:14px;">
           <label>Tratamentos (catálogo)</label>
 
@@ -2974,6 +2966,11 @@ function openPatientViewModal(patient) {
     }
   }
 
+/* ==== FIM BLOCO 06C/12 — Timeline + Form Consulta + Gravação (consultations + diagnoses + treatments) ==== */
+
+
+/* ==== INICIO BLOCO 06D/12 — Render + Wiring Botões + Boot ==== */
+
   /* ================= MAIN RENDER ================= */
   function render() {
     root.innerHTML = `
@@ -3105,7 +3102,7 @@ function openPatientViewModal(patient) {
   })();
 }
 
-/* ==== Fim BLOCO 06B/12 — Modal Doente (HDA Rich + Diagnóstico sem acentos (search_text) + Tratamentos (catálogo+seleção+gravação) + Feed completo) ==== */
+/* ==== FIM BLOCO 06D/12 — Render + Wiring Botões + Boot ==== */
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
   // ---------- Novo doente (modal da página inicial) ----------
