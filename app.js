@@ -2279,10 +2279,9 @@ function openPatientViewModal(patient) {
   async function loadConsultations() {
     timelineLoading = true;
 
-    // ✅ Passa a trazer author_display_name diretamente da linha da consulta (não depende de clinic_members/RLS)
     const { data, error } = await window.sb
       .from("consultations")
-      .select("id, clinic_id, report_date, hda, plan_text, created_at, author_user_id, author_display_name")
+      .select("id, clinic_id, report_date, hda, plan_text, created_at, author_user_id")
       .eq("patient_id", p.id)
       .order("report_date", { ascending: false })
       .order("created_at", { ascending: false });
@@ -2295,6 +2294,18 @@ function openPatientViewModal(patient) {
     }
 
     const rows = data || [];
+
+    const authorIds = [...new Set(rows.map(r => r.author_user_id).filter(Boolean))];
+    let authorMap = {};
+    if (authorIds.length) {
+      const { data: cms, error: cmErr } = await window.sb
+        .from("clinic_members")
+        .select("user_id, display_name")
+        .in("user_id", authorIds);
+
+      if (cmErr) console.error(cmErr);
+      else (cms || []).forEach(x => { authorMap[x.user_id] = x.display_name || ""; });
+    }
 
     const consultIds = rows.map(r => r.id).filter(Boolean);
 
@@ -2390,8 +2401,7 @@ function openPatientViewModal(patient) {
 
       return ({
         ...r,
-        // ✅ autor vem da própria consulta
-        author_name: (r.author_display_name || "").trim(),
+        author_name: authorMap[r.author_user_id] || "",
         diagnoses: diagByConsult[r.id] || [],
         treatments
       });
@@ -2436,13 +2446,6 @@ function openPatientViewModal(patient) {
     if (timelineLoading) return `<div style="color:#64748b;">A carregar registos...</div>`;
     if (!consultRows || !consultRows.length) return `<div style="color:#64748b;">Sem registos clínicos.</div>`;
 
-    // Roles:
-    // - doctor: vê tudo
-    // - physio: vê cabeçalho + conteúdo (como está hoje) -> só corrigimos autor
-    // - secretary: só cabeçalho (sem conteúdo clínico)
-    const rRole = String(G.role || "").toLowerCase();
-    const isSecretary = rRole === "secretary";
-
     return `
       <div style="display:flex; flex-direction:column; gap:14px;">
         ${consultRows.map(r => {
@@ -2451,44 +2454,39 @@ function openPatientViewModal(patient) {
             ? `${fmtDatePt(d)} às ${fmtTime(d)}`
             : (r.report_date ? String(r.report_date) : "—");
 
-          const author = (r.author_name || "").trim();
-          const authorTxt = author ? author : "—";
-
           return `
             <div style="border:1px solid #e5e5e5; border-radius:14px; padding:16px;">
               <div style="font-weight:900; font-size:16px;">
-                Consulta — ${when} - ${escAttr(authorTxt)}
+                Consulta — ${when} - ${escAttr(String(r.author_name || ""))}
               </div>
 
-              ${isSecretary ? `` : `
-                <div style="margin-top:10px; line-height:1.55; font-size:15px;">
-                  ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
+              <div style="margin-top:10px; line-height:1.55; font-size:15px;">
+                ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
+              </div>
+
+              ${r.diagnoses && r.diagnoses.length ? `
+                <div style="margin-top:12px;">
+                  <div style="font-weight:900;">Diagnósticos:</div>
+                  <ul style="margin:8px 0 0 18px;">
+                    ${r.diagnoses.map(dg => `
+                      <li>${escAttr(dg.label || "—")}${dg.code ? ` <span style="color:#64748b;">(${escAttr(dg.code)})</span>` : ``}</li>
+                    `).join("")}
+                  </ul>
                 </div>
+              ` : ``}
 
-                ${r.diagnoses && r.diagnoses.length ? `
-                  <div style="margin-top:12px;">
-                    <div style="font-weight:900;">Diagnósticos:</div>
-                    <ul style="margin:8px 0 0 18px;">
-                      ${r.diagnoses.map(dg => `
-                        <li>${escAttr(dg.label || "—")}${dg.code ? ` <span style="color:#64748b;">(${escAttr(dg.code)})</span>` : ``}</li>
-                      `).join("")}
-                    </ul>
-                  </div>
-                ` : ``}
+              ${r.treatments && r.treatments.length ? `
+                <div style="margin-top:12px;">
+                  <div style="font-weight:900;">Tratamentos:</div>
+                  <ul style="margin:8px 0 0 18px;">
+                    ${r.treatments.map(t => `
+                      <li>${escAttr(sentenceizeLabel(t.label || "—"))}${t.code ? ` <span style="color:#64748b;">(${escAttr(t.code)})</span>` : ``}</li>
+                    `).join("")}
+                  </ul>
+                </div>
+              ` : ``}
 
-                ${r.treatments && r.treatments.length ? `
-                  <div style="margin-top:12px;">
-                    <div style="font-weight:900;">Tratamentos:</div>
-                    <ul style="margin:8px 0 0 18px;">
-                      ${r.treatments.map(t => `
-                        <li>${escAttr(sentenceizeLabel(t.label || "—"))}${t.code ? ` <span style="color:#64748b;">(${escAttr(t.code)})</span>` : ``}</li>
-                      `).join("")}
-                    </ul>
-                  </div>
-                ` : ``}
-
-                ${renderDocumentsInlineForConsult(r.id)}
-              `}
+              ${renderDocumentsInlineForConsult(r.id)}
             </div>
           `;
         }).join("")}
