@@ -1842,10 +1842,9 @@ function openPatientViewModal(patient) {
   }
 
   async function getVinhetaDataUrlBestEffort() {
-    // cache
     if (_vinhetaDataUrlCache && _vinhetaDataUrlCache.startsWith("data:")) return _vinhetaDataUrlCache;
 
-    // 1) tentar download autenticado (melhor quando policies deixam)
+    // 1) tentar download autenticado
     try {
       const dl = await window.sb.storage.from(VINHETA_BUCKET).download(VINHETA_PATH);
       if (!dl?.error && dl?.data) {
@@ -1861,7 +1860,7 @@ function openPatientViewModal(patient) {
       console.warn("vinheta download exception:", e);
     }
 
-    // 2) fallback: signed URL + fetch -> dataURL (funciona mesmo quando download está bloqueado)
+    // 2) fallback: signed URL + fetch -> dataURL
     try {
       const s = await window.sb.storage.from(VINHETA_BUCKET).createSignedUrl(VINHETA_PATH, 60 * 60);
       const url = s?.data?.signedUrl ? String(s.data.signedUrl) : "";
@@ -2072,7 +2071,6 @@ function openPatientViewModal(patient) {
 <meta charset="utf-8" />
 <title>${escAttr(docTitle || "Relatório Médico")}</title>
 <style>
-  /* html2canvas ignora @page margin; por isso usamos container com padding real */
   body { margin:0; background:#fff; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:#111; }
   * { box-sizing:border-box; }
 
@@ -2084,7 +2082,6 @@ function openPatientViewModal(patient) {
 
   .top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
   .clinicName { font-weight:900; font-size:16px; }
-  .clinicLine { margin-top:3px; font-size:12.5px; line-height:1.35; }
   .logo { width: 120px; height:auto; max-height:60px; object-fit:contain; display:block; }
 
   .hr { height:1px; background:#111; margin: 10px 0 14px 0; }
@@ -2366,7 +2363,7 @@ function openPatientViewModal(patient) {
     if (docMode !== "html") mountDocFrame();
   }
 
-  // ---- PDF helpers (margens reais já estão no HTML; aqui mantemos) ----
+  // ✅ PDF helpers — fix Safari: host VISÍVEL fora do ecrã (evita PDF branco)
   async function htmlToPdfBlob(html, fileName) {
     if (!window.html2pdf) {
       alert("Não encontrei html2pdf no frontend. Confirma que a biblioteca está incluída no app.html.");
@@ -2380,7 +2377,7 @@ function openPatientViewModal(patient) {
       try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (_) {}
     }
 
-    async function waitImages(container, timeoutMs = 3500) {
+    async function waitImages(container, timeoutMs = 6000) {
       const t0 = Date.now();
       const imgs = Array.from(container.querySelectorAll("img"));
 
@@ -2390,30 +2387,30 @@ function openPatientViewModal(patient) {
           catch (_) { return false; }
         });
         if (!pending.length) return true;
-        await sleep(120);
+        await sleep(150);
       }
       return false;
     }
 
     const host = document.createElement("div");
     host.style.position = "fixed";
-    host.style.left = "0";
+    host.style.left = "-10000px";
     host.style.top = "0";
     host.style.width = "210mm";
     host.style.background = "#ffffff";
+    host.style.opacity = "1";
+    host.style.zIndex = "2147483647";
     host.style.pointerEvents = "none";
-    host.style.zIndex = "-1";
-    host.style.opacity = "0.01";
     host.style.display = "block";
 
     host.innerHTML = html;
     document.body.appendChild(host);
 
     try {
-      await raf(); await raf(); await sleep(120);
+      await raf(); await raf(); await sleep(200);
       await waitFonts();
-      await waitImages(host, 4000);
-      await raf(); await sleep(80);
+      await waitImages(host, 6500);
+      await raf(); await sleep(160);
 
       const opt = {
         margin: 0,
@@ -2523,7 +2520,6 @@ function openPatientViewModal(patient) {
       const clinic = await fetchClinicForPdf();
       const authorName = await fetchCurrentUserDisplayName(userId);
 
-      // ✅ vinheta garantida (dataURL) com fallback
       const vinhetaDataUrl = await getVinhetaDataUrlBestEffort();
 
       if (docOpen && docMode !== "html") syncDocFromFrame();
