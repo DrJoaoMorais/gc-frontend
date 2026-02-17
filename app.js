@@ -2493,7 +2493,6 @@ function openPatientViewModal(patient) {
   async function loadConsultations() {
     timelineLoading = true;
 
-    // ✅ Carregar author_display_name (novo) + manter author_user_id (fallback)
     const { data, error } = await window.sb
       .from("consultations")
       .select("id, clinic_id, report_date, hda, plan_text, created_at, author_user_id, author_display_name")
@@ -2510,156 +2509,89 @@ function openPatientViewModal(patient) {
 
     const rows = data || [];
 
-    // Fallback (para consultas antigas ou se author_display_name vier vazio)
-    const authorIds = [...new Set(rows.map(r => r.author_user_id).filter(Boolean))];
-    let authorMap = {};
-    if (authorIds.length) {
-      const { data: cms, error: cmErr } = await window.sb
-        .from("clinic_members")
-        .select("user_id, display_name")
-        .in("user_id", authorIds);
-
-      if (cmErr) console.error(cmErr);
-      else (cms || []).forEach(x => { authorMap[x.user_id] = x.display_name || ""; });
+    // 🔎 DEBUG
+    console.log("[GC] consultations rows sample:", (rows || []).slice(0, 3));
+    if (rows && rows[0]) {
+      console.log("[GC] first author_display_name:", rows[0].author_display_name);
+      console.log("[GC] first author_user_id:", rows[0].author_user_id);
     }
 
     const consultIds = rows.map(r => r.id).filter(Boolean);
 
     let diagByConsult = {};
     if (consultIds.length) {
-      const { data: links, error: lErr } = await window.sb
+      const { data: links } = await window.sb
         .from("consultation_diagnoses")
         .select("consultation_id, diagnosis_id")
         .in("consultation_id", consultIds);
 
-      if (lErr) {
-        console.error(lErr);
-      } else {
-        const diagIds = [...new Set((links || []).map(x => x.diagnosis_id).filter(Boolean))];
+      const diagIds = [...new Set((links || []).map(x => x.diagnosis_id).filter(Boolean))];
 
-        let diagMap = {};
-        if (diagIds.length) {
-          const { data: diags, error: dErr } = await window.sb
-            .from("diagnoses_catalog")
-            .select("id, label, code")
-            .in("id", diagIds);
+      let diagMap = {};
+      if (diagIds.length) {
+        const { data: diags } = await window.sb
+          .from("diagnoses_catalog")
+          .select("id, label, code")
+          .in("id", diagIds);
 
-          if (dErr) console.error(dErr);
-          else (diags || []).forEach(d => { diagMap[d.id] = { label: d.label || "", code: d.code || "" }; });
-        }
-
-        (links || []).forEach(l => {
-          const cid = l.consultation_id;
-          const did = l.diagnosis_id;
-          if (!cid || !did) return;
-          const dd = diagMap[did];
-          if (!dd) return;
-          if (!diagByConsult[cid]) diagByConsult[cid] = [];
-          diagByConsult[cid].push(dd);
+        (diags || []).forEach(d => {
+          diagMap[d.id] = { label: d.label || "", code: d.code || "" };
         });
       }
+
+      (links || []).forEach(l => {
+        const cid = l.consultation_id;
+        const did = l.diagnosis_id;
+        if (!cid || !did) return;
+        const dd = diagMap[did];
+        if (!dd) return;
+        if (!diagByConsult[cid]) diagByConsult[cid] = [];
+        diagByConsult[cid].push(dd);
+      });
     }
 
     let treatByConsult = {};
     if (consultIds.length) {
-      const { data: tlinks, error: tErr } = await window.sb
+      const { data: tlinks } = await window.sb
         .from("consultation_treatments")
         .select("consultation_id, treatment_id, qty")
         .in("consultation_id", consultIds);
 
-      if (tErr) {
-        console.error(tErr);
-      } else {
-        const tIds = [...new Set((tlinks || []).map(x => x.treatment_id).filter(Boolean))];
+      const tIds = [...new Set((tlinks || []).map(x => x.treatment_id).filter(Boolean))];
 
-        let tMap = {};
-        if (tIds.length) {
-          const { data: trs, error: trErr } = await window.sb
-            .from("treatments_catalog")
-            .select("*")
-            .in("id", tIds);
+      let tMap = {};
+      if (tIds.length) {
+        const { data: trs } = await window.sb
+          .from("treatments_catalog")
+          .select("*")
+          .in("id", tIds);
 
-          if (trErr) {
-            console.error(trErr);
-          } else {
-            (trs || []).forEach(t => {
-              const label = sentenceizeLabel(t.label || t.name || t.title || "");
-              const code = t.code || t.adse_code || t.proc_code || "";
-              tMap[t.id] = { label, code };
-            });
-          }
-        }
-
-        (tlinks || []).forEach(l => {
-          const cid = l.consultation_id;
-          const tid = l.treatment_id;
-          if (!cid || !tid) return;
-          const tt = tMap[tid];
-          if (!tt) return;
-          if (!treatByConsult[cid]) treatByConsult[cid] = [];
-          treatByConsult[cid].push({ id: tid, ...tt, qty: Number(l.qty || 1) });
+        (trs || []).forEach(t => {
+          const label = sentenceizeLabel(t.label || t.name || t.title || "");
+          const code = t.code || t.adse_code || t.proc_code || "";
+          tMap[t.id] = { label, code };
         });
       }
+
+      (tlinks || []).forEach(l => {
+        const cid = l.consultation_id;
+        const tid = l.treatment_id;
+        if (!cid || !tid) return;
+        const tt = tMap[tid];
+        if (!tt) return;
+        if (!treatByConsult[cid]) treatByConsult[cid] = [];
+        treatByConsult[cid].push({ id: tid, ...tt, qty: Number(l.qty || 1) });
+      });
     }
 
-    consultRows = rows.map(r => {
-      const order = getTreatOrderFromPlan(r.plan_text);
-      let treatments = treatByConsult[r.id] || [];
-
-      if (order && order.length) {
-        const pos = new Map(order.map((id, i) => [String(id), i]));
-        treatments = (treatments || []).slice().sort((a, b) => {
-          const pa = pos.has(String(a.id)) ? pos.get(String(a.id)) : 1e9;
-          const pb = pos.has(String(b.id)) ? pos.get(String(b.id)) : 1e9;
-          return pa - pb;
-        });
-      }
-
-      const a1 = (r.author_display_name || "").trim();
-      const a2 = (authorMap[r.author_user_id] || "").trim();
-
-      return ({
-        ...r,
-        // ✅ autor final (funciona em médico/fisio/secretária)
-        author_name: a1 || a2 || "",
-        diagnoses: diagByConsult[r.id] || [],
-        treatments
-      });
-    });
-
-    lastSavedConsultId = consultRows && consultRows.length ? (consultRows[0].id || null) : lastSavedConsultId;
+    consultRows = rows.map(r => ({
+      ...r,
+      author_name: (r.author_display_name || "").trim(),
+      diagnoses: diagByConsult[r.id] || [],
+      treatments: treatByConsult[r.id] || []
+    }));
 
     timelineLoading = false;
-  }
-
-  function renderDocumentsInlineForConsult(consultId) {
-    const docs = (docRows || []).filter(d => d.consultation_id && String(d.consultation_id) === String(consultId));
-    if (!docs.length) return "";
-
-    return `
-      <div style="margin-top:12px;">
-        <div style="font-weight:900;">Documentos:</div>
-        <div style="margin-top:8px; display:flex; flex-direction:column; gap:8px;">
-          ${docs.map(d => `
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;
-                        padding:10px 12px; border:1px solid #e5e5e5; border-radius:12px;">
-              <div style="display:flex; flex-direction:column;">
-                <div style="font-weight:900;">
-                  ${escAttr(d.title || "Documento")}
-                  ${d.version ? ` <span style="color:#64748b; font-size:12px;">(v${escAttr(d.version)})</span>` : ``}
-                </div>
-                <div style="color:#64748b; font-size:12px;">
-                  ${d.created_at ? escAttr(String(d.created_at)) : ""}
-                </div>
-              </div>
-              <div style="display:flex; gap:8px;">
-                ${d.url ? `<a class="gcBtn" href="${escAttr(d.url)}" target="_blank" rel="noopener" style="text-decoration:none;">Abrir</a>` : `<button class="gcBtn" disabled>Sem link</button>`}
-              </div>
-            </div>
-          `).join("")}
-        </div>
-      </div>
-    `;
   }
 
   function renderTimeline() {
@@ -2689,30 +2621,6 @@ function openPatientViewModal(patient) {
                 <div style="margin-top:10px; line-height:1.55; font-size:15px;">
                   ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
                 </div>
-
-                ${r.diagnoses && r.diagnoses.length ? `
-                  <div style="margin-top:12px;">
-                    <div style="font-weight:900;">Diagnósticos:</div>
-                    <ul style="margin:8px 0 0 18px;">
-                      ${r.diagnoses.map(dg => `
-                        <li>${escAttr(dg.label || "—")}${dg.code ? ` <span style="color:#64748b;">(${escAttr(dg.code)})</span>` : ``}</li>
-                      `).join("")}
-                    </ul>
-                  </div>
-                ` : ``}
-
-                ${r.treatments && r.treatments.length ? `
-                  <div style="margin-top:12px;">
-                    <div style="font-weight:900;">Tratamentos:</div>
-                    <ul style="margin:8px 0 0 18px;">
-                      ${r.treatments.map(t => `
-                        <li>${escAttr(sentenceizeLabel(t.label || "—"))}${t.code ? ` <span style="color:#64748b;">(${escAttr(t.code)})</span>` : ``}</li>
-                      `).join("")}
-                    </ul>
-                  </div>
-                ` : ``}
-
-                ${renderDocumentsInlineForConsult(r.id)}
               `}
             </div>
           `;
@@ -2722,6 +2630,7 @@ function openPatientViewModal(patient) {
   }
 
 /* ==== FIM BLOCO 06G/12 ==== */
+
 
 /* ==== INÍCIO BLOCO 06H/12 — Consulta médica (UI HDA + bind) ==== */
 
