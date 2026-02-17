@@ -396,219 +396,6 @@
   }
 
 /* ==== FIM BLOCO 02/12 — Agenda (helpers + load) + Patients (scope/search/RPC) ==== */
-/* ==== INÍCIO BLOCO 03/12 — Constantes (procedimentos/status) + estado global + render shell (HTML+CSS) ==== */
-
-  // ---------- Tipos / Status / Duração ----------
-  const PROCEDURE_OPTIONS = [
-    "Primeira Consulta",
-    "Consulta de Reavaliação",
-    "Plasma Rico em Plaquetas",
-    "Viscossuplementação",
-    "Relatórios",
-    "Revalidação de tratamentos",
-    "Outro",
-  ];
-
-  // ✅ BD atualizada: apenas 5 estados permitidos
-  // scheduled | arrived | done | no_show | confirmed
-  // (cancelled foi migrado para no_show)
-  const STATUS_OPTIONS = ["scheduled", "arrived", "done", "no_show", "confirmed"];
-
-  const DURATION_OPTIONS = [15, 20, 30, 45, 60];
-
-  // ✅ Estado com cores (5 estados)
-  function statusMeta(statusRaw) {
-    const s = String(statusRaw || "scheduled").toLowerCase();
-    const map = {
-      scheduled: { icon: "👤", label: "Marcada", bg: "#eff6ff", fg: "#1d4ed8", br: "#bfdbfe" },
-      arrived:   { icon: "⏳", label: "Chegou", bg: "#fffbeb", fg: "#92400e", br: "#fde68a" },
-      done:      { icon: "✅", label: "Realizada", bg: "#ecfdf5", fg: "#065f46", br: "#a7f3d0" },
-      no_show:   { icon: "❌", label: "Faltou/Cancelada", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
-      confirmed: { icon: "🎁", label: "Dispensa de honorários", bg: "#dbeafe", fg: "#1e40af", br: "#93c5fd" },
-    };
-    return map[s] || map.scheduled;
-  }
-
-  // ---------- Estado global ----------
-  let G = {
-    sessionUser: null,
-    role: null,
-    clinics: [],
-    clinicsById: {},
-    agenda: { rows: [], timeColUsed: "start_at" },
-    selectedDayISO: fmtDateISO(new Date()),
-    calMonth: null,
-    patientsById: {},
-    patientQuick: { lastResults: [], selected: null },
-  };
-
-  // ---------- Render shell ----------
-  function renderAppShell() {
-    document.body.innerHTML = `
-      <style>
-        .gcBtn { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px; }
-        .gcBtn:disabled { opacity:0.6; cursor:not-allowed; }
-
-        .gcBtnPrimary { padding:11px 14px; border-radius:12px; border:1px solid #334155; background:#334155; color:#fff; cursor:pointer; font-size:${UI.fs13}px; font-weight:900; }
-        .gcBtnPrimary:disabled { opacity:0.6; cursor:not-allowed; }
-
-        .gcSelect { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; font-size:${UI.fs13}px; }
-        .gcLabel { font-size:${UI.fs12}px; color:#666; }
-        .gcCard { padding:12px 14px; border:1px solid #eee; border-radius:12px; background:#fff; }
-        .gcMutedCard { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fafafa; }
-
-        .gcGridRow {
-          display:grid;
-          grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 170px 160px;
-          gap:14px;
-          align-items:start;
-          width:100%;
-        }
-        @media (max-width: 1100px){
-          .gcGridRow { grid-template-columns: 110px 1fr; }
-          .gcGridRow > div { min-width: 0 !important; }
-        }
-
-        .gcPatientLink{
-          display:block;
-          font-size:${UI.fs18}px;
-          line-height:1.15;
-          color:#111;
-          font-weight:950;
-          cursor:pointer;
-          text-decoration:underline;
-          white-space:normal;
-          overflow-wrap:anywhere;
-          word-break:break-word;
-        }
-
-        .gcCellTitle { font-size:${UI.fs12}px; color:#666; }
-        .gcCellValue { font-size:${UI.fs13}px; color:#111; font-weight:700; margin-top:6px; }
-
-        .gcStatusSelect{
-          appearance:none;
-          -webkit-appearance:none;
-          -moz-appearance:none;
-          border-radius:999px;
-          border:1px solid transparent;
-          padding:8px 36px 8px 12px;
-          font-size:${UI.fs13}px;
-          font-weight:900;
-          cursor:pointer;
-          background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
-          background-position: calc(100% - 18px) 55%, calc(100% - 12px) 55%;
-          background-size: 6px 6px, 6px 6px;
-          background-repeat:no-repeat;
-        }
-
-        .gcToolbar {
-          display:flex;
-          align-items:flex-end;
-          gap:10px;
-          flex-wrap:wrap;
-        }
-        .gcToolbarBlock {
-          display:flex;
-          flex-direction:column;
-          gap:4px;
-        }
-        .gcSearchWrap {
-          min-width: 360px;
-          max-width: 520px;
-          flex: 1 1 420px;
-        }
-        @media (max-width: 980px){
-          .gcSearchWrap { flex: 1 1 100%; min-width: 280px; }
-        }
-
-        .gcGridRow > div{
-          display:flex;
-          flex-direction:column;
-          justify-content:flex-start;
-        }
-        .gcCellTitle{
-          min-height: 16px;
-          display:flex;
-          align-items:flex-end;
-        }
-        .gcGridRow .gcStatusSelect{
-          margin-top: 6px;
-          align-self:flex-start;
-        }
-      </style>
-
-      <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; font-size:${UI.fs14}px;">
-        <header style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:12px 14px; border:1px solid #e5e5e5; border-radius:12px;">
-          <div style="display:flex; flex-direction:column; gap:6px; min-width: 260px;">
-            <div style="font-size:${UI.fs14}px; color:#111; font-weight:700;">Sessão ativa</div>
-            <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Email:</span> <span id="hdrEmail">—</span></div>
-            <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Role:</span> <span id="hdrRole">—</span></div>
-            <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Clínicas:</span> <span id="hdrClinicCount">0</span></div>
-          </div>
-
-          <button id="btnLogout" class="gcBtn">Logout</button>
-        </header>
-
-        <main style="margin-top:14px;">
-          <section class="gcCard">
-            <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-              <div>
-                <div style="font-size:${UI.fs16}px; color:#111; font-weight:800;">Agenda</div>
-                <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;" id="agendaSubtitle">—</div>
-              </div>
-            </div>
-
-            <div style="margin-top:12px;" class="gcToolbar">
-              <div class="gcToolbarBlock" style="flex-direction:row; gap:10px; align-items:flex-end;">
-                <button id="btnCal" class="gcBtn" title="Calendário">Calendário</button>
-                <button id="btnToday" class="gcBtn" title="Voltar a hoje">Hoje</button>
-
-                <!-- ✅ Alteração 1: texto do botão -->
-                <button id="btnNewAppt" class="gcBtnPrimary">+ Agendar Consulta 📅</button>
-
-                <button id="btnNewPatientMain" class="gcBtn" title="Criar novo doente">＋ Novo doente</button>
-              </div>
-
-              <div class="gcToolbarBlock gcSearchWrap">
-                <div class="gcLabel">Pesquisa de doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
-                <input
-                  id="pQuickQuery"
-                  name="gc_patient_search"
-                  type="search"
-                  placeholder="ex.: Man… | 916… | 123456789"
-                  autocomplete="off"
-                  autocorrect="off"
-                  autocapitalize="off"
-                  spellcheck="false"
-                  inputmode="search"
-                  data-form-type="other"
-                  style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;"
-                />
-                <div id="pQuickResults" style="margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:180px; overflow:auto;">
-                  <div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>
-                </div>
-              </div>
-
-              <div class="gcToolbarBlock" style="min-width:240px;">
-                <label for="selClinic" class="gcLabel">Clínica</label>
-                <select id="selClinic" class="gcSelect" style="min-width:240px;"></select>
-              </div>
-            </div>
-
-            <div style="margin-top:12px;" id="agendaStatus" aria-live="polite"></div>
-
-            <div style="margin-top:10px; border-top:1px solid #f0f0f0; padding-top:10px;">
-              <ul id="agendaList" style="list-style:none; padding:0; margin:0;"></ul>
-            </div>
-          </section>
-        </main>
-
-        <div id="modalRoot"></div>
-      </div>
-    `;
-  }
-
-/* ==== FIM BLOCO 03/12 — Constantes (procedimentos/status) + estado global + render shell (HTML+CSS) ==== */
 /* ==== INÍCIO BLOCO 04/12 — Helpers UI Agenda + abrir doente + update status + renderAgendaList ==== */
 
   function setAgendaSubtitleForSelectedDay() {
@@ -752,12 +539,22 @@
               ${notes ? `<div style="margin-top:6px; font-size:${UI.fs12}px; color:#444;">Notas: ${escapeHtml(notes)}</div>` : ""}
             </div>
 
-            <div style="min-width: 220px;">
+            <div>
               <div class="gcCellTitle">Tipo</div>
-              <div class="gcCellValue">${escapeHtml(proc)}</div>
+              <div class="gcCellValue gcOneLine" title="${escapeHtml(proc)}">${escapeHtml(proc)}</div>
             </div>
 
-            <div style="min-width: 260px;">
+            <div>
+              <div class="gcCellTitle">Telefone</div>
+              <div class="gcCellValue gcOneLine" title="${escapeHtml(patientPhone)}">${escapeHtml(patientPhone)}</div>
+            </div>
+
+            <div>
+              <div class="gcCellTitle">Clínica</div>
+              <div class="gcCellValue gcOneLine" title="${escapeHtml(clinicName)}">${escapeHtml(clinicName)}</div>
+            </div>
+
+            <div>
               <div class="gcCellTitle">Estado</div>
               <div style="margin-top:6px;">
                 <select data-status-select="1"
@@ -771,16 +568,6 @@
                   }).join("")}
                 </select>
               </div>
-            </div>
-
-            <div style="min-width: 160px;">
-              <div class="gcCellTitle">Telefone</div>
-              <div class="gcCellValue">${escapeHtml(patientPhone)}</div>
-            </div>
-
-            <div style="min-width: 160px;">
-              <div class="gcCellTitle">Clínica</div>
-              <div class="gcCellValue">${escapeHtml(clinicName)}</div>
             </div>
           </div>
         </li>
@@ -832,6 +619,7 @@
   }
 
 /* ==== FIM BLOCO 04/12 — Helpers UI Agenda + abrir doente + update status + renderAgendaList ==== */
+
 /* ==== INÍCIO BLOCO 05/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 
   // ---------- Pesquisa rápida de doentes (main page) ----------
@@ -2491,9 +2279,10 @@ function openPatientViewModal(patient) {
   async function loadConsultations() {
     timelineLoading = true;
 
+    // ✅ Passa a trazer author_display_name diretamente da linha da consulta (não depende de clinic_members/RLS)
     const { data, error } = await window.sb
       .from("consultations")
-      .select("id, clinic_id, report_date, hda, plan_text, created_at, author_user_id")
+      .select("id, clinic_id, report_date, hda, plan_text, created_at, author_user_id, author_display_name")
       .eq("patient_id", p.id)
       .order("report_date", { ascending: false })
       .order("created_at", { ascending: false });
@@ -2506,18 +2295,6 @@ function openPatientViewModal(patient) {
     }
 
     const rows = data || [];
-
-    const authorIds = [...new Set(rows.map(r => r.author_user_id).filter(Boolean))];
-    let authorMap = {};
-    if (authorIds.length) {
-      const { data: cms, error: cmErr } = await window.sb
-        .from("clinic_members")
-        .select("user_id, display_name")
-        .in("user_id", authorIds);
-
-      if (cmErr) console.error(cmErr);
-      else (cms || []).forEach(x => { authorMap[x.user_id] = x.display_name || ""; });
-    }
 
     const consultIds = rows.map(r => r.id).filter(Boolean);
 
@@ -2613,7 +2390,8 @@ function openPatientViewModal(patient) {
 
       return ({
         ...r,
-        author_name: authorMap[r.author_user_id] || "",
+        // ✅ autor vem da própria consulta
+        author_name: (r.author_display_name || "").trim(),
         diagnoses: diagByConsult[r.id] || [],
         treatments
       });
@@ -2658,6 +2436,13 @@ function openPatientViewModal(patient) {
     if (timelineLoading) return `<div style="color:#64748b;">A carregar registos...</div>`;
     if (!consultRows || !consultRows.length) return `<div style="color:#64748b;">Sem registos clínicos.</div>`;
 
+    // Roles:
+    // - doctor: vê tudo
+    // - physio: vê cabeçalho + conteúdo (como está hoje) -> só corrigimos autor
+    // - secretary: só cabeçalho (sem conteúdo clínico)
+    const rRole = String(G.role || "").toLowerCase();
+    const isSecretary = rRole === "secretary";
+
     return `
       <div style="display:flex; flex-direction:column; gap:14px;">
         ${consultRows.map(r => {
@@ -2666,39 +2451,44 @@ function openPatientViewModal(patient) {
             ? `${fmtDatePt(d)} às ${fmtTime(d)}`
             : (r.report_date ? String(r.report_date) : "—");
 
+          const author = (r.author_name || "").trim();
+          const authorTxt = author ? author : "—";
+
           return `
             <div style="border:1px solid #e5e5e5; border-radius:14px; padding:16px;">
               <div style="font-weight:900; font-size:16px;">
-                Consulta — ${when} - ${escAttr(String(r.author_name || ""))}
+                Consulta — ${when} - ${escAttr(authorTxt)}
               </div>
 
-              <div style="margin-top:10px; line-height:1.55; font-size:15px;">
-                ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
-              </div>
-
-              ${r.diagnoses && r.diagnoses.length ? `
-                <div style="margin-top:12px;">
-                  <div style="font-weight:900;">Diagnósticos:</div>
-                  <ul style="margin:8px 0 0 18px;">
-                    ${r.diagnoses.map(dg => `
-                      <li>${escAttr(dg.label || "—")}${dg.code ? ` <span style="color:#64748b;">(${escAttr(dg.code)})</span>` : ``}</li>
-                    `).join("")}
-                  </ul>
+              ${isSecretary ? `` : `
+                <div style="margin-top:10px; line-height:1.55; font-size:15px;">
+                  ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
                 </div>
-              ` : ``}
 
-              ${r.treatments && r.treatments.length ? `
-                <div style="margin-top:12px;">
-                  <div style="font-weight:900;">Tratamentos:</div>
-                  <ul style="margin:8px 0 0 18px;">
-                    ${r.treatments.map(t => `
-                      <li>${escAttr(sentenceizeLabel(t.label || "—"))}${t.code ? ` <span style="color:#64748b;">(${escAttr(t.code)})</span>` : ``}</li>
-                    `).join("")}
-                  </ul>
-                </div>
-              ` : ``}
+                ${r.diagnoses && r.diagnoses.length ? `
+                  <div style="margin-top:12px;">
+                    <div style="font-weight:900;">Diagnósticos:</div>
+                    <ul style="margin:8px 0 0 18px;">
+                      ${r.diagnoses.map(dg => `
+                        <li>${escAttr(dg.label || "—")}${dg.code ? ` <span style="color:#64748b;">(${escAttr(dg.code)})</span>` : ``}</li>
+                      `).join("")}
+                    </ul>
+                  </div>
+                ` : ``}
 
-              ${renderDocumentsInlineForConsult(r.id)}
+                ${r.treatments && r.treatments.length ? `
+                  <div style="margin-top:12px;">
+                    <div style="font-weight:900;">Tratamentos:</div>
+                    <ul style="margin:8px 0 0 18px;">
+                      ${r.treatments.map(t => `
+                        <li>${escAttr(sentenceizeLabel(t.label || "—"))}${t.code ? ` <span style="color:#64748b;">(${escAttr(t.code)})</span>` : ``}</li>
+                      `).join("")}
+                    </ul>
+                  </div>
+                ` : ``}
+
+                ${renderDocumentsInlineForConsult(r.id)}
+              `}
             </div>
           `;
         }).join("")}
