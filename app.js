@@ -2671,7 +2671,7 @@ function openPatientViewModal(patient) {
           return `
             <div style="border:1px solid #e5e5e5; border-radius:14px; padding:16px;">
               <div style="font-weight:900; font-size:16px;">
-                Consulta — ${when} - ${escAttr(String(r.author_name || ""))}
+                Consulta — ${when}${r.author_display_name ? ` - ${escAttr(r.author_display_name)}` : ""}
               </div>
 
               <div style="margin-top:10px; line-height:1.55; font-size:15px;">
