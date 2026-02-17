@@ -1808,6 +1808,32 @@ function openPatientViewModal(patient) {
 
 /* ==== INÍCIO BLOCO 06F/12 — Documentos/PDF (load + editor + gerar/upload) ==== */
 
+  // ✅ Vinheta global (igual para todas as clínicas)
+  const VINHETA_BUCKET = "clinic-assets";
+  const VINHETA_PATH = "vinheta/dr-joao-morais-vinheta.png";
+  let _vinhetaSignedCache = { url: "", expAt: 0 };
+
+  async function getVinhetaSignedUrl() {
+    try {
+      const now = Date.now();
+      if (_vinhetaSignedCache.url && _vinhetaSignedCache.expAt && now < _vinhetaSignedCache.expAt) {
+        return _vinhetaSignedCache.url;
+      }
+
+      const s = await window.sb.storage
+        .from(VINHETA_BUCKET)
+        .createSignedUrl(VINHETA_PATH, 60 * 60); // 1h
+
+      const url = s?.data?.signedUrl ? String(s.data.signedUrl) : "";
+      _vinhetaSignedCache = { url, expAt: now + (55 * 60 * 1000) }; // cache 55 min
+      return url;
+    } catch (e) {
+      console.error("getVinhetaSignedUrl error:", e);
+      _vinhetaSignedCache = { url: "", expAt: 0 };
+      return "";
+    }
+  }
+
   async function loadDocuments() {
     docsLoading = true;
     docRows = [];
@@ -1922,198 +1948,137 @@ function openPatientViewModal(patient) {
     } catch (e) { console.error(e); return ""; }
   }
 
-  // ✅ PDF v1 alinhado ao modelo + campos condicionais + dx/tx sem limites + assinatura única (anti "página sozinha")
-  function buildDocV1Html({ clinic, consult, authorName }) {
-
-    function fmtDatePt(d) {
-      try {
-        if (!d) return "";
-        const dt = new Date(d);
-        if (isNaN(dt.getTime())) return String(d);
-        const dd = String(dt.getDate()).padStart(2, "0");
-        const mm = String(dt.getMonth() + 1).padStart(2, "0");
-        const yy = dt.getFullYear();
-        return `${dd}-${mm}-${yy}`;
-      } catch (_) { return String(d || ""); }
-    }
-
-    const reportDatePt = consult?.report_date ? fmtDatePt(consult.report_date) : "";
-
+  function buildDocV1Html({ clinic, consult, authorName, vinhetaUrl }) {
+    const reportDate = consult?.report_date ? String(consult.report_date) : "";
     const hda = sanitizeHTML(consult?.hda || "");
 
-    // ✅ SEM LIMITES
-    const diags = Array.isArray(consult?.diagnoses) ? consult.diagnoses : [];
-    const trts  = Array.isArray(consult?.treatments) ? consult.treatments : [];
+    // ⚠️ Mantive os teus limites aqui para não introduzir mudanças fora do pedido “vinheta global”.
+    // Quando fecharmos o layout, mudamos para "todos" (sem slice).
+    const diags = (consult?.diagnoses || []).slice(0, 3);
+    const trts = (consult?.treatments || []).slice(0, 6);
 
     const rx = getPrescriptionTextFromPlan(consult?.plan_text || "") ||
-      "R/ Prescrevem-se 20 sessões de tratamentos de Medicina Física e de Reabilitação com:";
+      "R/ 20 Sessões de Tratamentos de Medicina Fisica e de Reabilitação com:";
 
-    // Cabeçalho (só campos preenchidos)
-    const lineParts = [];
-    if (p.sns) lineParts.push(`Nº Utente: ${escAttr(p.sns)}`);
-    if (p.insurance_provider) lineParts.push(`Seguro: ${escAttr(p.insurance_provider)}`);
-    if (p.insurance_policy_number) lineParts.push(`Nº: ${escAttr(p.insurance_policy_number)}`);
-    if (p.nif) lineParts.push(`NIF: ${escAttr(p.nif)}`);
-    if (p.dob) lineParts.push(`DN: ${escAttr(fmtDobPt(p.dob))}`);
+    const line2Parts = [];
+    if (p.sns) line2Parts.push(`Nº Utente: ${escAttr(p.sns)}`);
+    if (p.insurance_provider) line2Parts.push(`Seguro: ${escAttr(p.insurance_provider)}`);
+    if (p.insurance_policy_number) line2Parts.push(`Nº: ${escAttr(p.insurance_policy_number)}`);
+    if (p.nif) line2Parts.push(`NIF: ${escAttr(p.nif)}`);
 
-    const line2 = lineParts.join(" | ");
-
-    const addrCompact = patientAddressCompact();
-    const addrLine = (addrCompact && addrCompact !== "—") ? `Morada: ${escAttr(addrCompact)}` : "";
-
-    // Logo por clínica: vem de clinics.logo_url (já tens no select)
-    const logoUrl = (clinic && clinic.logo_url) ? String(clinic.logo_url).trim() : "";
-
-    // Website fixo (como combinámos no modelo)
-    const website = "www.joaomorais.pt";
-
-    // Vinheta: fica preparada para uso por URL (quando me deres o path/URL colocamos aqui)
-    // Se tiveres um campo na clinics com URL da vinheta, chama-lhe "vinheta_url" (opcional).
-    const vinhetaUrl = (clinic && clinic.vinheta_url) ? String(clinic.vinheta_url).trim() : "";
-
-    // Localidade = city da clínica
-    const locality = (clinic && clinic.city) ? String(clinic.city).trim() : "";
-    const localityDate = [locality, reportDatePt].filter(Boolean).join(", ");
-
-    function renderDiagList(items) {
-      if (!items || !items.length) return `<span style="color:#64748b;">—</span>`;
-      return `
-        <ul class="list">
-          ${items.map(d => {
-            const lbl = escAttr(d?.label || "—");
-            const code = d?.code ? ` <span class="code">(${escAttr(d.code)})</span>` : ``;
-            return `<li>${lbl}${code}</li>`;
-          }).join("")}
-        </ul>
-      `;
-    }
-
-    function renderTreatList(items) {
-      if (!items || !items.length) return `<span style="color:#64748b;">—</span>`;
-      return `
-        <ul class="list">
-          ${items.map(t => {
-            const lbl = escAttr(sentenceizeLabel(t?.label || "—"));
-            const code = t?.code ? ` <span class="code">(${escAttr(t.code)})</span>` : ``;
-            return `<li>${lbl}${code}</li>`;
-          }).join("")}
-        </ul>
-      `;
-    }
+    const line2 = line2Parts.join(" | ") || "—";
+    const clinicWebsite = (clinic && clinic.website) ? String(clinic.website) : "www.joaomorais.pt";
+    const logoUrl = clinic && clinic.logo_url ? String(clinic.logo_url) : "";
 
     return `
 <!doctype html>
 <html>
 <head>
 <meta charset="utf-8" />
-<title>${escAttr(docTitle || "Relatório Médico")}</title>
+<title>${escAttr(docTitle)}</title>
 <style>
   @page { size: A4; margin: 18mm 16mm 18mm 18mm; }
-
   body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:#111; }
-  .top { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; }
+  .page { position: relative; min-height: 1000px; }
+  .vbar { position: fixed; left: 0; top: 0; bottom: 0; width: 6mm; background: #111; }
+  .wrap { margin-left: 10mm; }
+  .header { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; }
+  .h-left { flex: 1; }
+  .h-name { font-weight: 900; font-size: 18px; letter-spacing: 0.2px; }
+  .h-line { margin-top: 4px; font-size: 12.5px; line-height: 1.35; }
+  .h-line b { font-weight: 800; }
   .logo { width: 140px; max-height: 60px; object-fit: contain; }
-  .clinicName { font-weight:900; font-size:14px; }
-  .clinicLine { margin-top:4px; font-size:12px; line-height:1.35; color:#111; }
-
-  .pname { margin-top:10px; font-weight:900; font-size:16px; }
-  .pline { margin-top:4px; font-size:12.5px; line-height:1.35; }
-  .muted { color:#64748b; }
-
   .sep { height: 1px; background: #111; margin: 10px 0 12px 0; opacity: 0.9; }
 
-  .section { margin-top: 12px; }
-  .stitle { font-weight: 900; font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; }
+  .section { margin-top: 10px; }
+  .stitle { font-weight: 900; font-size: 13px; text-transform: uppercase; letter-spacing: 0.6px; }
   .sbody { margin-top: 6px; font-size: 13.5px; line-height: 1.6; }
 
-  /* listas (dx/tx + hda) */
-  .list { margin:6px 0 0 18px; padding:0; }
-  .list li { margin: 2px 0; }
-  .code { color:#64748b; }
+  .rx { margin-top: 8px; font-size: 13.5px; line-height: 1.55; }
+  .rx b { font-weight: 900; }
 
-  .hda ul, .hda ol { margin:6px 0 6px 18px; }
-  .hda li { margin:2px 0; }
+  .footer { margin-top: 18px; display:flex; justify-content:space-between; align-items:flex-end; gap:12px; }
+  .foot-left { font-size: 12px; }
+  .foot-vbar { width: 90px; height: 6px; background:#111; margin-top:6px; }
+  .sign { margin-top: 22px; border-top: 1px solid #111; padding-top: 10px; }
+  .sign .name { font-weight: 900; }
+  .sign .meta { font-size: 12px; margin-top: 4px; }
+  .last-page { min-height: 1000px; display:flex; flex-direction:column; }
+  .push { flex: 1; }
 
-  /* Bloco final único (website + vinheta + localidade/data + assinatura)
-     para não ficar assinatura sozinha e para não repetir em páginas diferentes */
-  .signBlock { margin-top: 18px; page-break-inside: avoid; break-inside: avoid; }
-  .footRow { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; }
-  .website { font-size:12px; font-weight:800; }
-  .vinheta { width: 120px; max-height: 36px; object-fit:contain; }
-  .locDate { margin-top:12px; font-size:12px; text-align:right; }
-
-  .sigLine { margin-top:10px; border-top: 1px solid #111; padding-top: 10px; display:flex; justify-content:flex-end; }
-  .sigBox { min-width: 280px; text-align:left; }
-  .sigName { font-weight: 900; margin-top: 6px; }
-  .sigMeta { font-size: 12px; margin-top: 3px; }
+  /* Vinheta (global) — lado direito por baixo do website */
+  .vinheta { width: 120px; max-height: 36px; object-fit: contain; }
 </style>
 </head>
-
 <body>
+  <div class="vbar"></div>
+  <div class="wrap">
 
-  <div class="top">
-    <div style="flex:1;">
-      ${clinic?.name ? `<div class="clinicName">${escAttr(clinic.name)}</div>` : ``}
-      ${(clinic?.address_line1 || clinic?.postal_code || clinic?.city || clinic?.phone) ? `
-        <div class="clinicLine">
-          ${[
-            [clinic?.address_line1, clinic?.address_line2].filter(Boolean).join(" "),
-            [clinic?.postal_code, clinic?.city].filter(Boolean).join(" "),
-            clinic?.phone ? `Tel: ${escAttr(clinic.phone)}` : ""
-          ].filter(Boolean).join(" | ")}
+    <div class="page">
+      <div class="header">
+        <div class="h-left">
+          <div class="h-name">${escAttr(p.full_name || "—")}</div>
+          <div class="h-line">${line2}</div>
+          <div class="h-line"><b>DN:</b> ${escAttr(fmtDobPt(p.dob))} &nbsp; | &nbsp; <b>Morada:</b> ${escAttr(patientAddressCompact())}</div>
+          ${reportDate ? `<div class="h-line"><b>Data:</b> ${escAttr(reportDate)}</div>` : ``}
         </div>
-      ` : ``}
-    </div>
+        <div>${logoUrl ? `<img class="logo" src="${escAttr(logoUrl)}" />` : ``}</div>
+      </div>
 
-    <div>
-      ${logoUrl ? `<img class="logo" src="${escAttr(logoUrl)}" />` : ``}
-    </div>
-  </div>
+      <div class="sep"></div>
 
-  <div class="pname">${escAttr(p.full_name || "—")}</div>
+      <div class="section">
+        <div class="stitle">História clínica</div>
+        <div class="sbody">${hda || `<span style="color:#475569;">—</span>`}</div>
+      </div>
 
-  ${line2 ? `<div class="pline">${line2}</div>` : ``}
-  ${addrLine ? `<div class="pline">${addrLine}</div>` : ``}
+      <div class="section">
+        <div class="stitle">Diagnóstico</div>
+        <div class="sbody">
+          ${diags && diags.length ? `
+            <ul style="margin:6px 0 0 18px; padding:0;">
+              ${diags.map(d => `<li>${escAttr(d.label || "—")}${d.code ? ` <span style="color:#475569;">(${escAttr(d.code)})</span>` : ``}</li>`).join("")}
+            </ul>
+          ` : `<span style="color:#475569;">—</span>`}
+        </div>
+      </div>
 
-  <div class="sep"></div>
+      <div class="section">
+        <div class="stitle">Plano terapêutico</div>
+        <div class="rx"><b>${escAttr(rx)}</b></div>
+        <div class="sbody">
+          ${trts && trts.length ? `
+            <ul style="margin:6px 0 0 18px; padding:0;">
+              ${trts.map(t => `<li>${escAttr(sentenceizeLabel(t.label || "—"))}${t.code ? ` <span style="color:#475569;">(${escAttr(t.code)})</span>` : ``}</li>`).join("")}
+            </ul>
+          ` : `<span style="color:#475569;">—</span>`}
+        </div>
+      </div>
 
-  <div class="section">
-    <div class="stitle">Anamnese / HDA</div>
-    <div class="sbody hda">${hda || `<span class="muted">—</span>`}</div>
-  </div>
+      <div class="footer">
+        <div class="foot-left">
+          <div>${escAttr(clinicWebsite || "www.joaomorais.pt")}</div>
+          <div class="foot-vbar"></div>
+        </div>
 
-  <div class="section">
-    <div class="stitle">Diagnóstico</div>
-    <div class="sbody">${renderDiagList(diags)}</div>
-  </div>
-
-  <div class="section">
-    <div class="stitle">Plano terapêutico</div>
-    <div class="sbody">
-      <div style="font-weight:900; margin-bottom:6px;">${escAttr(rx)}</div>
-      ${renderTreatList(trts)}
-    </div>
-  </div>
-
-  <div class="signBlock">
-    <div class="footRow">
-      <div class="website">${escAttr(website)}</div>
-      <div>
-        ${vinhetaUrl ? `<img class="vinheta" src="${escAttr(vinhetaUrl)}" />` : ``}
+        <div style="text-align:right;">
+          ${vinhetaUrl ? `<img class="vinheta" src="${escAttr(vinhetaUrl)}" />` : ``}
+          <div style="font-size:12px; color:#475569; margin-top:6px;">
+            ${clinic && clinic.name ? escAttr(clinic.name) : ``}
+          </div>
+        </div>
       </div>
     </div>
 
-    ${localityDate ? `<div class="locDate">${escAttr(localityDate)}</div>` : ``}
-
-    <div class="sigLine">
-      <div class="sigBox">
-        <div>_______________________________</div>
-        <div class="sigName">${escAttr(authorName || "")}</div>
-        <div class="sigMeta">Assinatura</div>
+    <div class="page last-page">
+      <div class="push"></div>
+      <div class="sign">
+        <div class="name">${escAttr(authorName || "")}</div>
+        <div class="meta">Assinatura</div>
       </div>
     </div>
-  </div>
 
+  </div>
 </body>
 </html>
 `;
@@ -2502,10 +2467,13 @@ function openPatientViewModal(patient) {
       const clinic = await fetchClinicForPdf();
       const authorName = await fetchCurrentUserDisplayName(userId);
 
+      // ✅ Vinheta global (signed URL)
+      const vinhetaUrl = await getVinhetaSignedUrl();
+
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
       if (!docDraftHtml || docDraftHtml.trim().length < 300) {
-        docDraftHtml = buildDocV1Html({ clinic, consult, authorName });
+        docDraftHtml = buildDocV1Html({ clinic, consult, authorName, vinhetaUrl });
       }
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
