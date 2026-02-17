@@ -1812,7 +1812,8 @@ function openPatientViewModal(patient) {
   const VINHETA_BUCKET = "clinic-assets";
   const VINHETA_PATH = "vinheta/dr-joao-morais-vinheta.png";
 
-  let _vinhetaDataUrlCache = ""; // cache simples em memória
+  let _vinhetaDataUrlCache = "";
+  let _clinicLogoDataUrlCache = {}; // por clinic_id
 
   async function blobToDataUrl(blob) {
     try {
@@ -1841,43 +1842,89 @@ function openPatientViewModal(patient) {
     }
   }
 
-  async function getVinhetaDataUrlBestEffort() {
-    if (_vinhetaDataUrlCache && _vinhetaDataUrlCache.startsWith("data:")) return _vinhetaDataUrlCache;
+  async function storageToDataUrlBestEffort(bucket, path) {
+    if (!bucket || !path) return "";
 
-    // 1) tentar download autenticado
+    // 1) download autenticado
     try {
-      const dl = await window.sb.storage.from(VINHETA_BUCKET).download(VINHETA_PATH);
+      const dl = await window.sb.storage.from(bucket).download(path);
       if (!dl?.error && dl?.data) {
         const d = await blobToDataUrl(dl.data);
-        if (d && d.startsWith("data:")) {
-          _vinhetaDataUrlCache = d;
-          return d;
-        }
+        if (d && d.startsWith("data:")) return d;
       } else if (dl?.error) {
-        console.warn("vinheta download blocked:", dl.error);
+        console.warn("storage download blocked:", bucket, path, dl.error);
       }
     } catch (e) {
-      console.warn("vinheta download exception:", e);
+      console.warn("storage download exception:", bucket, path, e);
     }
 
-    // 2) fallback: signed URL + fetch -> dataURL
+    // 2) signed url + fetch -> dataURL
     try {
-      const s = await window.sb.storage.from(VINHETA_BUCKET).createSignedUrl(VINHETA_PATH, 60 * 60);
+      const s = await window.sb.storage.from(bucket).createSignedUrl(path, 60 * 60);
       const url = s?.data?.signedUrl ? String(s.data.signedUrl) : "";
       if (url) {
         const d = await fetchUrlToDataUrl(url);
-        if (d && d.startsWith("data:")) {
-          _vinhetaDataUrlCache = d;
-          return d;
-        }
+        if (d && d.startsWith("data:")) return d;
       } else if (s?.error) {
-        console.warn("vinheta signedUrl error:", s.error);
+        console.warn("storage signedUrl error:", bucket, path, s.error);
       }
     } catch (e) {
-      console.warn("vinheta signedUrl exception:", e);
+      console.warn("storage signedUrl exception:", bucket, path, e);
     }
 
     return "";
+  }
+
+  async function getVinhetaDataUrl() {
+    if (_vinhetaDataUrlCache && _vinhetaDataUrlCache.startsWith("data:")) return _vinhetaDataUrlCache;
+    const d = await storageToDataUrlBestEffort(VINHETA_BUCKET, VINHETA_PATH);
+    if (d && d.startsWith("data:")) _vinhetaDataUrlCache = d;
+    return _vinhetaDataUrlCache || "";
+  }
+
+  // ✅ Logo da clínica: tenta converter qualquer URL em dataURL (evita CORS/taint no Safari)
+  async function getClinicLogoDataUrl(clinic) {
+    try {
+      const cid = String(clinic?.id || "");
+      if (cid && _clinicLogoDataUrlCache[cid] && _clinicLogoDataUrlCache[cid].startsWith("data:")) {
+        return _clinicLogoDataUrlCache[cid];
+      }
+
+      const raw = String(clinic?.logo_url || "").trim();
+      if (!raw) return "";
+
+      // Se já for dataURL, usar
+      if (raw.startsWith("data:")) {
+        if (cid) _clinicLogoDataUrlCache[cid] = raw;
+        return raw;
+      }
+
+      // Se for "bucket:path" (opcional), tenta storage direto
+      // formato suportado: "clinic-assets:logos/alfraclinic.png"
+      if (raw.includes(":") && !raw.startsWith("http")) {
+        const [b, ...rest] = raw.split(":");
+        const pth = rest.join(":");
+        const d = await storageToDataUrlBestEffort(b, pth);
+        if (d && d.startsWith("data:")) {
+          if (cid) _clinicLogoDataUrlCache[cid] = d;
+          return d;
+        }
+      }
+
+      // Caso comum: URL http(s) -> fetch -> dataURL
+      if (raw.startsWith("http")) {
+        const d = await fetchUrlToDataUrl(raw);
+        if (d && d.startsWith("data:")) {
+          if (cid) _clinicLogoDataUrlCache[cid] = d;
+          return d;
+        }
+      }
+
+      return "";
+    } catch (e) {
+      console.warn("getClinicLogoDataUrl exception:", e);
+      return "";
+    }
   }
 
   async function loadDocuments() {
@@ -1994,8 +2041,7 @@ function openPatientViewModal(patient) {
     } catch (e) { console.error(e); return ""; }
   }
 
-  // ✅ PDF v1 — A4 com margens reais via container (evita texto cortado no html2canvas)
-  function buildDocV1Html({ clinic, consult, authorName, vinhetaDataUrl }) {
+  function buildDocV1Html({ clinic, consult, authorName, vinhetaDataUrl, clinicLogoDataUrl }) {
 
     function fmtDatePt(d) {
       try {
@@ -2032,7 +2078,6 @@ function openPatientViewModal(patient) {
     const addrOk = addr && addr !== "—";
 
     const clinicName = String(clinic?.name || "").trim();
-    const logoUrl = String(clinic?.logo_url || "").trim();
 
     const website = "www.joaomorais.pt";
     const locality = String(clinic?.city || "").trim();
@@ -2078,6 +2123,7 @@ function openPatientViewModal(patient) {
     width: 210mm;
     min-height: 297mm;
     padding: 18mm 18mm 18mm 18mm;
+    background:#fff;
   }
 
   .top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
@@ -2127,7 +2173,7 @@ function openPatientViewModal(patient) {
         ${clinicName ? `<div class="clinicName">${escAttr(clinicName)}</div>` : ``}
       </div>
       <div>
-        ${logoUrl ? `<img class="logo" src="${escAttr(logoUrl)}" />` : ``}
+        ${clinicLogoDataUrl ? `<img class="logo" src="${escAttr(clinicLogoDataUrl)}" />` : ``}
       </div>
     </div>
 
@@ -2363,7 +2409,7 @@ function openPatientViewModal(patient) {
     if (docMode !== "html") mountDocFrame();
   }
 
-  // ✅ PDF helpers — fix Safari: host VISÍVEL fora do ecrã (evita PDF branco)
+  // ✅ PDF helpers — Safari fix: host ON-SCREEN + imagens em dataURL + allowTaint true/useCORS false
   async function htmlToPdfBlob(html, fileName) {
     if (!window.html2pdf) {
       alert("Não encontrei html2pdf no frontend. Confirma que a biblioteca está incluída no app.html.");
@@ -2377,29 +2423,29 @@ function openPatientViewModal(patient) {
       try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (_) {}
     }
 
-    async function waitImages(container, timeoutMs = 6000) {
+    async function waitImages(container, timeoutMs = 7000) {
       const t0 = Date.now();
       const imgs = Array.from(container.querySelectorAll("img"));
-
       while (Date.now() - t0 < timeoutMs) {
         const pending = imgs.filter(im => {
           try { return !im.complete || (im.naturalWidth === 0 && im.naturalHeight === 0); }
           catch (_) { return false; }
         });
         if (!pending.length) return true;
-        await sleep(150);
+        await sleep(160);
       }
       return false;
     }
 
+    // Host visível (Safari às vezes dá branco com offscreen)
     const host = document.createElement("div");
     host.style.position = "fixed";
-    host.style.left = "-10000px";
+    host.style.left = "0";
     host.style.top = "0";
     host.style.width = "210mm";
     host.style.background = "#ffffff";
     host.style.opacity = "1";
-    host.style.zIndex = "2147483647";
+    host.style.zIndex = "2147483000"; // por trás do teu overlay (z=2200) mas acima do body
     host.style.pointerEvents = "none";
     host.style.display = "block";
 
@@ -2407,10 +2453,10 @@ function openPatientViewModal(patient) {
     document.body.appendChild(host);
 
     try {
-      await raf(); await raf(); await sleep(200);
+      await raf(); await raf(); await sleep(220);
       await waitFonts();
-      await waitImages(host, 6500);
-      await raf(); await sleep(160);
+      await waitImages(host, 7500);
+      await raf(); await sleep(200);
 
       const opt = {
         margin: 0,
@@ -2418,8 +2464,8 @@ function openPatientViewModal(patient) {
         image: { type: "jpeg", quality: 0.98 },
         html2canvas: {
           scale: 2,
-          useCORS: true,
-          allowTaint: false,
+          useCORS: false,
+          allowTaint: true,
           backgroundColor: "#ffffff",
           logging: false,
           scrollX: 0,
@@ -2430,9 +2476,15 @@ function openPatientViewModal(patient) {
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
       };
 
-      const worker = window.html2pdf().set(opt).from(host);
-      const pdf = await worker.toPdf().get("pdf");
-      return pdf.output("blob");
+      try {
+        const worker = window.html2pdf().set(opt).from(host);
+        const pdf = await worker.toPdf().get("pdf");
+        return pdf.output("blob");
+      } catch (err) {
+        console.error("html2pdf failed:", err);
+        alert("Falha interna ao gerar PDF (html2pdf/html2canvas). Ver consola.");
+        return null;
+      }
 
     } finally {
       try { document.body.removeChild(host); } catch (e) {}
@@ -2520,12 +2572,18 @@ function openPatientViewModal(patient) {
       const clinic = await fetchClinicForPdf();
       const authorName = await fetchCurrentUserDisplayName(userId);
 
-      const vinhetaDataUrl = await getVinhetaDataUrlBestEffort();
+      // ✅ converter TUDO para dataURL antes do html2canvas (evita PDF branco no Safari)
+      const vinhetaDataUrl = await getVinhetaDataUrl();
+      const clinicLogoDataUrl = await getClinicLogoDataUrl(clinic);
 
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
+      // Forçar rebuild base quando o draft é pequeno ou quando queremos garantir assets em dataURL
       if (!docDraftHtml || docDraftHtml.trim().length < 300) {
-        docDraftHtml = buildDocV1Html({ clinic, consult, authorName, vinhetaDataUrl });
+        docDraftHtml = buildDocV1Html({ clinic, consult, authorName, vinhetaDataUrl, clinicLogoDataUrl });
+      } else {
+        // mesmo com draft manual, se tiver imagens externas, o Safari pode "taint":
+        // para já, não mexemos no draft editado; se continuar branco, no passo seguinte forçamos replace de <img src="http">
       }
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
@@ -2533,7 +2591,7 @@ function openPatientViewModal(patient) {
 
       const blob = await htmlToPdfBlob(docDraftHtml, fileName);
       if (!blob) return false;
-      if (blob.size === 0) { alert("PDF gerado com 0 bytes (em branco). Reabre o documento e tenta novamente."); return false; }
+      if (blob.size === 0) { alert("PDF gerado com 0 bytes (em branco)."); return false; }
 
       if (!activeClinicId) { alert("Sem clínica ativa (patient_clinic)."); return false; }
 
