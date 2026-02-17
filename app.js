@@ -1808,30 +1808,39 @@ function openPatientViewModal(patient) {
 
 /* ==== INÍCIO BLOCO 06F/12 — Documentos/PDF (load + editor + gerar/upload) ==== */
 
-  // ✅ Vinheta global (igual para todas as clínicas)
+  // ✅ Vinheta global (igual para todas as clínicas) — Storage path confirmado
   const VINHETA_BUCKET = "clinic-assets";
   const VINHETA_PATH = "vinheta/dr-joao-morais-vinheta.png";
-  let _vinhetaSignedCache = { url: "", expAt: 0 };
+  let _vinhetaDataUrlCache = ""; // cache simples em memória
 
-  async function getVinhetaSignedUrl() {
+  async function storageObjectToDataUrl(bucket, path) {
     try {
-      const now = Date.now();
-      if (_vinhetaSignedCache.url && _vinhetaSignedCache.expAt && now < _vinhetaSignedCache.expAt) {
-        return _vinhetaSignedCache.url;
+      const dl = await window.sb.storage.from(bucket).download(path);
+      if (dl?.error) {
+        console.error("storageObjectToDataUrl download error:", dl.error);
+        return "";
       }
+      const blob = dl?.data;
+      if (!blob) return "";
 
-      const s = await window.sb.storage
-        .from(VINHETA_BUCKET)
-        .createSignedUrl(VINHETA_PATH, 60 * 60); // 1h
-
-      const url = s?.data?.signedUrl ? String(s.data.signedUrl) : "";
-      _vinhetaSignedCache = { url, expAt: now + (55 * 60 * 1000) }; // cache 55 min
-      return url;
+      const dataUrl = await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result);
+        fr.onerror = () => reject(new Error("FileReader error"));
+        fr.readAsDataURL(blob);
+      });
+      return String(dataUrl || "");
     } catch (e) {
-      console.error("getVinhetaSignedUrl error:", e);
-      _vinhetaSignedCache = { url: "", expAt: 0 };
+      console.error("storageObjectToDataUrl exception:", e);
       return "";
     }
+  }
+
+  async function getVinhetaDataUrl() {
+    if (_vinhetaDataUrlCache && _vinhetaDataUrlCache.startsWith("data:")) return _vinhetaDataUrlCache;
+    const d = await storageObjectToDataUrl(VINHETA_BUCKET, VINHETA_PATH);
+    if (d && d.startsWith("data:")) _vinhetaDataUrlCache = d;
+    return _vinhetaDataUrlCache || "";
   }
 
   async function loadDocuments() {
@@ -1948,137 +1957,221 @@ function openPatientViewModal(patient) {
     } catch (e) { console.error(e); return ""; }
   }
 
-  function buildDocV1Html({ clinic, consult, authorName, vinhetaUrl }) {
-    const reportDate = consult?.report_date ? String(consult.report_date) : "";
+  // ✅ PDF v1 — layout limpo igual ao modelo + vinheta garantida (dataURL)
+  // ⚠️ Não mexe em dx/tx: assume que consult.diagnoses / consult.treatments já trazem tudo.
+  function buildDocV1Html({ clinic, consult, authorName, vinhetaDataUrl }) {
+
+    function fmtDatePt(d) {
+      try {
+        if (!d) return "";
+        const dt = new Date(d);
+        if (isNaN(dt.getTime())) return String(d);
+        const dd = String(dt.getDate()).padStart(2, "0");
+        const mm = String(dt.getMonth() + 1).padStart(2, "0");
+        const yy = dt.getFullYear();
+        return `${dd}-${mm}-${yy}`;
+      } catch (_) { return String(d || ""); }
+    }
+
+    const reportDatePt = consult?.report_date ? fmtDatePt(consult.report_date) : "";
+
     const hda = sanitizeHTML(consult?.hda || "");
 
-    // ⚠️ Mantive os teus limites aqui para não introduzir mudanças fora do pedido “vinheta global”.
-    // Quando fecharmos o layout, mudamos para "todos" (sem slice).
-    const diags = (consult?.diagnoses || []).slice(0, 3);
-    const trts = (consult?.treatments || []).slice(0, 6);
+    // ✅ SEM LIMITES (mantém como está no teu sistema atual)
+    const diags = Array.isArray(consult?.diagnoses) ? consult.diagnoses : [];
+    const trts  = Array.isArray(consult?.treatments) ? consult.treatments : [];
 
     const rx = getPrescriptionTextFromPlan(consult?.plan_text || "") ||
-      "R/ 20 Sessões de Tratamentos de Medicina Fisica e de Reabilitação com:";
+      "R/ 20 Sessões de Medicina Física e de Reabilitação com:";
 
-    const line2Parts = [];
-    if (p.sns) line2Parts.push(`Nº Utente: ${escAttr(p.sns)}`);
-    if (p.insurance_provider) line2Parts.push(`Seguro: ${escAttr(p.insurance_provider)}`);
-    if (p.insurance_policy_number) line2Parts.push(`Nº: ${escAttr(p.insurance_policy_number)}`);
-    if (p.nif) line2Parts.push(`NIF: ${escAttr(p.nif)}`);
+    // Cabeçalho do doente — só aparece o que existe
+    const name = String(p.full_name || "").trim() || "—";
 
-    const line2 = line2Parts.join(" | ") || "—";
-    const clinicWebsite = (clinic && clinic.website) ? String(clinic.website) : "www.joaomorais.pt";
-    const logoUrl = clinic && clinic.logo_url ? String(clinic.logo_url) : "";
+    const lineParts = [];
+    if (p.sns) lineParts.push(`<b>Nº Utente:</b> ${escAttr(p.sns)}`);
+    if (p.insurance_provider) lineParts.push(`<b>${escAttr(p.insurance_provider)}${p.insurance_policy_number ? ":" : ""}</b> ${p.insurance_policy_number ? escAttr(p.insurance_policy_number) : ""}`.trim());
+    if (p.nif) lineParts.push(`<b>NIF:</b> ${escAttr(p.nif)}`);
+    if (p.dob) lineParts.push(`<b>DN:</b> ${escAttr(fmtDobPt(p.dob))}`);
+    const line2 = lineParts.join("&nbsp;&nbsp;&nbsp;");
+
+    const addr = patientAddressCompact();
+    const addrRight = [];
+    if (p.postal_code) addrRight.push(escAttr(String(p.postal_code)));
+    if (p.city) addrRight.push(escAttr(String(p.city)));
+    const addrRightTxt = addrRight.join(" ");
+
+    const clinicName = String(clinic?.name || "").trim();
+    const clinicTopParts = [];
+    const addrClinic = String(clinic?.address_line1 || "").trim();
+    const pcClinic = String(clinic?.postal_code || "").trim();
+    const cityClinic = String(clinic?.city || "").trim();
+    const phoneClinic = String(clinic?.phone || "").trim();
+
+    if (addrClinic) clinicTopParts.push(escAttr(addrClinic));
+    if (pcClinic || cityClinic) clinicTopParts.push(escAttr([pcClinic, cityClinic].filter(Boolean).join(" ")));
+    if (phoneClinic) clinicTopParts.push(`Tel: ${escAttr(phoneClinic)}`);
+
+    const logoUrl = String(clinic?.logo_url || "").trim();
+
+    const website = "www.joaomorais.pt";
+    const locality = String(clinic?.city || "").trim();
+    const localityDate = [locality, reportDatePt].filter(Boolean).join(", ");
+
+    function renderList(items) {
+      if (!items || !items.length) return `<span class="muted">—</span>`;
+      return `
+        <ul class="list">
+          ${items.map(x => {
+            const lbl = escAttr(x?.label || "—");
+            const code = x?.code ? ` <span class="code">(${escAttr(x.code)})</span>` : ``;
+            return `<li>${lbl}${code}</li>`;
+          }).join("")}
+        </ul>
+      `;
+    }
+
+    function renderTreatList(items) {
+      if (!items || !items.length) return `<span class="muted">—</span>`;
+      return `
+        <ul class="list">
+          ${items.map(x => {
+            const lbl = escAttr(sentenceizeLabel(x?.label || "—"));
+            const code = x?.code ? ` <span class="code">(${escAttr(x.code)})</span>` : ``;
+            return `<li>${lbl}${code}</li>`;
+          }).join("")}
+        </ul>
+      `;
+    }
 
     return `
 <!doctype html>
 <html>
 <head>
 <meta charset="utf-8" />
-<title>${escAttr(docTitle)}</title>
+<title>${escAttr(docTitle || "Relatório Médico")}</title>
 <style>
-  @page { size: A4; margin: 18mm 16mm 18mm 18mm; }
-  body { font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:#111; }
-  .page { position: relative; min-height: 1000px; }
-  .vbar { position: fixed; left: 0; top: 0; bottom: 0; width: 6mm; background: #111; }
-  .wrap { margin-left: 10mm; }
-  .header { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; }
-  .h-left { flex: 1; }
-  .h-name { font-weight: 900; font-size: 18px; letter-spacing: 0.2px; }
-  .h-line { margin-top: 4px; font-size: 12.5px; line-height: 1.35; }
-  .h-line b { font-weight: 800; }
-  .logo { width: 140px; max-height: 60px; object-fit: contain; }
-  .sep { height: 1px; background: #111; margin: 10px 0 12px 0; opacity: 0.9; }
+  @page { size: A4; margin: 18mm 18mm 18mm 18mm; }
 
-  .section { margin-top: 10px; }
-  .stitle { font-weight: 900; font-size: 13px; text-transform: uppercase; letter-spacing: 0.6px; }
-  .sbody { margin-top: 6px; font-size: 13.5px; line-height: 1.6; }
+  body {
+    font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    color:#111;
+  }
 
-  .rx { margin-top: 8px; font-size: 13.5px; line-height: 1.55; }
-  .rx b { font-weight: 900; }
+  .top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .clinicName { font-weight:900; font-size:16px; }
+  .clinicLine { margin-top:3px; font-size:12.5px; line-height:1.35; }
+  .logo { width: 120px; max-height: 55px; object-fit: contain; }
 
-  .footer { margin-top: 18px; display:flex; justify-content:space-between; align-items:flex-end; gap:12px; }
-  .foot-left { font-size: 12px; }
-  .foot-vbar { width: 90px; height: 6px; background:#111; margin-top:6px; }
-  .sign { margin-top: 22px; border-top: 1px solid #111; padding-top: 10px; }
-  .sign .name { font-weight: 900; }
-  .sign .meta { font-size: 12px; margin-top: 4px; }
-  .last-page { min-height: 1000px; display:flex; flex-direction:column; }
-  .push { flex: 1; }
+  .hr { height:1px; background:#111; margin: 10px 0 14px 0; }
 
-  /* Vinheta (global) — lado direito por baixo do website */
-  .vinheta { width: 120px; max-height: 36px; object-fit: contain; }
+  .title { text-align:center; font-weight:900; font-size:22px; margin: 2px 0 12px 0; }
+
+  .row { margin-top:6px; font-size:13.5px; line-height:1.35; }
+  .label { font-weight:900; }
+  .muted { color:#64748b; }
+
+  .section { margin-top:18px; }
+  .stitle { font-weight:900; font-size:16px; margin-bottom:6px; }
+
+  /* HDA HTML */
+  .hda { font-size:14px; line-height:1.6; }
+  .hda ul, .hda ol { margin: 6px 0 6px 18px; padding:0; }
+  .hda li { margin: 2px 0; }
+
+  /* Listas dx/tx */
+  .list { margin: 6px 0 0 18px; padding:0; font-size:14px; line-height:1.55; }
+  .list li { margin: 2px 0; }
+  .code { color:#64748b; }
+
+  /* Rodapé (bloco único, anti "assinatura sozinha") */
+  .footerBlock { margin-top:22px; page-break-inside: avoid; break-inside: avoid; }
+  .hr2 { height:1px; background:#111; margin: 18px 0 10px 0; }
+
+  .footRow { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .web { font-size:14px; font-weight:700; }
+  .vinheta { margin-top:8px; width: 140px; max-height: 40px; object-fit:contain; }
+
+  .locDate { text-align:right; font-size:14px; margin-top:2px; }
+
+  .sig { margin-top:14px; display:flex; justify-content:flex-end; }
+  .sigBox { width: 360px; text-align:center; }
+  .sigLine { border-top:1px solid #111; padding-top:10px; }
+  .sigName { font-weight:900; font-size:18px; margin-top:6px; }
+  .sigRole { font-size:14px; margin-top:2px; }
 </style>
 </head>
+
 <body>
-  <div class="vbar"></div>
-  <div class="wrap">
 
-    <div class="page">
-      <div class="header">
-        <div class="h-left">
-          <div class="h-name">${escAttr(p.full_name || "—")}</div>
-          <div class="h-line">${line2}</div>
-          <div class="h-line"><b>DN:</b> ${escAttr(fmtDobPt(p.dob))} &nbsp; | &nbsp; <b>Morada:</b> ${escAttr(patientAddressCompact())}</div>
-          ${reportDate ? `<div class="h-line"><b>Data:</b> ${escAttr(reportDate)}</div>` : ``}
-        </div>
-        <div>${logoUrl ? `<img class="logo" src="${escAttr(logoUrl)}" />` : ``}</div>
+  <div class="top">
+    <div style="flex:1;">
+      ${clinicName ? `<div class="clinicName">${escAttr(clinicName)}</div>` : ``}
+      ${clinicTopParts.length ? `<div class="clinicLine">${clinicTopParts.join(" | ")}</div>` : ``}
+    </div>
+    <div>
+      ${logoUrl ? `<img class="logo" src="${escAttr(logoUrl)}" />` : ``}
+    </div>
+  </div>
+
+  <div class="hr"></div>
+
+  <div class="title">Relatório Médico</div>
+
+  <div class="row"><span class="label">Nome:</span> ${escAttr(name)}</div>
+
+  ${line2 ? `<div class="row">${line2}</div>` : ``}
+
+  ${(addr && addr !== "—") ? `
+    <div class="row">
+      <span class="label">Morada:</span>
+      ${escAttr(String(p.address_line1 || "").trim() || "—")}
+      <span style="display:inline-block; min-width:18px;"></span>
+      ${addrRightTxt ? escAttr(addrRightTxt) : ``}
+    </div>
+  ` : ``}
+
+  <div class="hr" style="margin-top:14px; opacity:0.5;"></div>
+
+  <div class="section">
+    <div class="stitle">Anamnese / HDA</div>
+    <div class="hda">${hda && String(hda).trim() ? hda : `<span class="muted">—</span>`}</div>
+  </div>
+
+  <div class="section">
+    <div class="stitle">Diagnóstico</div>
+    ${renderList(diags)}
+  </div>
+
+  <div class="section">
+    <div class="stitle">Prescrição de Tratamento</div>
+    <div style="font-size:14px; margin-top:2px;">${escAttr(rx)}</div>
+    ${renderTreatList(trts)}
+  </div>
+
+  <div class="footerBlock">
+    <div class="hr2"></div>
+
+    <div class="footRow">
+      <div>
+        <div class="web">${escAttr(website)}</div>
+        ${vinhetaDataUrl ? `<img class="vinheta" src="${escAttr(vinhetaDataUrl)}" />` : ``}
       </div>
 
-      <div class="sep"></div>
+      <div style="flex:1;">
+        ${localityDate ? `<div class="locDate">${escAttr(localityDate)}</div>` : ``}
 
-      <div class="section">
-        <div class="stitle">História clínica</div>
-        <div class="sbody">${hda || `<span style="color:#475569;">—</span>`}</div>
-      </div>
-
-      <div class="section">
-        <div class="stitle">Diagnóstico</div>
-        <div class="sbody">
-          ${diags && diags.length ? `
-            <ul style="margin:6px 0 0 18px; padding:0;">
-              ${diags.map(d => `<li>${escAttr(d.label || "—")}${d.code ? ` <span style="color:#475569;">(${escAttr(d.code)})</span>` : ``}</li>`).join("")}
-            </ul>
-          ` : `<span style="color:#475569;">—</span>`}
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="stitle">Plano terapêutico</div>
-        <div class="rx"><b>${escAttr(rx)}</b></div>
-        <div class="sbody">
-          ${trts && trts.length ? `
-            <ul style="margin:6px 0 0 18px; padding:0;">
-              ${trts.map(t => `<li>${escAttr(sentenceizeLabel(t.label || "—"))}${t.code ? ` <span style="color:#475569;">(${escAttr(t.code)})</span>` : ``}</li>`).join("")}
-            </ul>
-          ` : `<span style="color:#475569;">—</span>`}
-        </div>
-      </div>
-
-      <div class="footer">
-        <div class="foot-left">
-          <div>${escAttr(clinicWebsite || "www.joaomorais.pt")}</div>
-          <div class="foot-vbar"></div>
-        </div>
-
-        <div style="text-align:right;">
-          ${vinhetaUrl ? `<img class="vinheta" src="${escAttr(vinhetaUrl)}" />` : ``}
-          <div style="font-size:12px; color:#475569; margin-top:6px;">
-            ${clinic && clinic.name ? escAttr(clinic.name) : ``}
+        <div class="sig">
+          <div class="sigBox">
+            <div class="sigLine"></div>
+            <div class="sigName">João Miguel Guerreiro de Morais</div>
+            <div class="sigRole">Médico Fisiatra</div>
+            <div class="sigRole">Sports Medicine &amp; Rehabilitation</div>
           </div>
         </div>
       </div>
     </div>
-
-    <div class="page last-page">
-      <div class="push"></div>
-      <div class="sign">
-        <div class="name">${escAttr(authorName || "")}</div>
-        <div class="meta">Assinatura</div>
-      </div>
-    </div>
-
   </div>
+
 </body>
 </html>
 `;
@@ -2143,11 +2236,6 @@ function openPatientViewModal(patient) {
             <div style="margin-top:12px; border:1px solid #e5e5e5; border-radius:12px; overflow:hidden;">
               <iframe id="docFrame" style="width:100%; height:65vh; border:0; background:#fff;"></iframe>
             </div>
-            ${docMode === "visual" ? `
-              <div style="margin-top:8px; color:#64748b; font-size:12px;">
-                Dica: escreve diretamente no documento. Para listas, usa Enter e “- ” (hífen + espaço) ou copia/cola texto.
-              </div>
-            ` : ``}
           `}
 
           <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
@@ -2467,13 +2555,13 @@ function openPatientViewModal(patient) {
       const clinic = await fetchClinicForPdf();
       const authorName = await fetchCurrentUserDisplayName(userId);
 
-      // ✅ Vinheta global (signed URL)
-      const vinhetaUrl = await getVinhetaSignedUrl();
+      // ✅ Vinheta garantida (dataURL via storage.download)
+      const vinhetaDataUrl = await getVinhetaDataUrl();
 
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
       if (!docDraftHtml || docDraftHtml.trim().length < 300) {
-        docDraftHtml = buildDocV1Html({ clinic, consult, authorName, vinhetaUrl });
+        docDraftHtml = buildDocV1Html({ clinic, consult, authorName, vinhetaDataUrl });
       }
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
