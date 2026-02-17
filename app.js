@@ -2493,9 +2493,10 @@ function openPatientViewModal(patient) {
   async function loadConsultations() {
     timelineLoading = true;
 
+    // ✅ Carregar author_display_name (novo) + manter author_user_id (fallback)
     const { data, error } = await window.sb
       .from("consultations")
-      .select("id, clinic_id, report_date, hda, plan_text, created_at, author_user_id")
+      .select("id, clinic_id, report_date, hda, plan_text, created_at, author_user_id, author_display_name")
       .eq("patient_id", p.id)
       .order("report_date", { ascending: false })
       .order("created_at", { ascending: false });
@@ -2509,6 +2510,7 @@ function openPatientViewModal(patient) {
 
     const rows = data || [];
 
+    // Fallback (para consultas antigas ou se author_display_name vier vazio)
     const authorIds = [...new Set(rows.map(r => r.author_user_id).filter(Boolean))];
     let authorMap = {};
     if (authorIds.length) {
@@ -2613,9 +2615,13 @@ function openPatientViewModal(patient) {
         });
       }
 
+      const a1 = (r.author_display_name || "").trim();
+      const a2 = (authorMap[r.author_user_id] || "").trim();
+
       return ({
         ...r,
-        author_name: authorMap[r.author_user_id] || "",
+        // ✅ autor final (funciona em médico/fisio/secretária)
+        author_name: a1 || a2 || "",
         diagnoses: diagByConsult[r.id] || [],
         treatments
       });
@@ -2660,6 +2666,9 @@ function openPatientViewModal(patient) {
     if (timelineLoading) return `<div style="color:#64748b;">A carregar registos...</div>`;
     if (!consultRows || !consultRows.length) return `<div style="color:#64748b;">Sem registos clínicos.</div>`;
 
+    const rRole = String(G.role || "").toLowerCase();
+    const isSecretary = rRole === "secretary";
+
     return `
       <div style="display:flex; flex-direction:column; gap:14px;">
         ${consultRows.map(r => {
@@ -2668,39 +2677,43 @@ function openPatientViewModal(patient) {
             ? `${fmtDatePt(d)} às ${fmtTime(d)}`
             : (r.report_date ? String(r.report_date) : "—");
 
+          const authorTxt = (r.author_name || "").trim();
+
           return `
             <div style="border:1px solid #e5e5e5; border-radius:14px; padding:16px;">
               <div style="font-weight:900; font-size:16px;">
-                Consulta — ${when}${r.author_display_name ? ` - ${escAttr(r.author_display_name)}` : ""}
+                Consulta — ${when}${authorTxt ? ` - ${escAttr(authorTxt)}` : ``}
               </div>
 
-              <div style="margin-top:10px; line-height:1.55; font-size:15px;">
-                ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
-              </div>
-
-              ${r.diagnoses && r.diagnoses.length ? `
-                <div style="margin-top:12px;">
-                  <div style="font-weight:900;">Diagnósticos:</div>
-                  <ul style="margin:8px 0 0 18px;">
-                    ${r.diagnoses.map(dg => `
-                      <li>${escAttr(dg.label || "—")}${dg.code ? ` <span style="color:#64748b;">(${escAttr(dg.code)})</span>` : ``}</li>
-                    `).join("")}
-                  </ul>
+              ${isSecretary ? `` : `
+                <div style="margin-top:10px; line-height:1.55; font-size:15px;">
+                  ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
                 </div>
-              ` : ``}
 
-              ${r.treatments && r.treatments.length ? `
-                <div style="margin-top:12px;">
-                  <div style="font-weight:900;">Tratamentos:</div>
-                  <ul style="margin:8px 0 0 18px;">
-                    ${r.treatments.map(t => `
-                      <li>${escAttr(sentenceizeLabel(t.label || "—"))}${t.code ? ` <span style="color:#64748b;">(${escAttr(t.code)})</span>` : ``}</li>
-                    `).join("")}
-                  </ul>
-                </div>
-              ` : ``}
+                ${r.diagnoses && r.diagnoses.length ? `
+                  <div style="margin-top:12px;">
+                    <div style="font-weight:900;">Diagnósticos:</div>
+                    <ul style="margin:8px 0 0 18px;">
+                      ${r.diagnoses.map(dg => `
+                        <li>${escAttr(dg.label || "—")}${dg.code ? ` <span style="color:#64748b;">(${escAttr(dg.code)})</span>` : ``}</li>
+                      `).join("")}
+                    </ul>
+                  </div>
+                ` : ``}
 
-              ${renderDocumentsInlineForConsult(r.id)}
+                ${r.treatments && r.treatments.length ? `
+                  <div style="margin-top:12px;">
+                    <div style="font-weight:900;">Tratamentos:</div>
+                    <ul style="margin:8px 0 0 18px;">
+                      ${r.treatments.map(t => `
+                        <li>${escAttr(sentenceizeLabel(t.label || "—"))}${t.code ? ` <span style="color:#64748b;">(${escAttr(t.code)})</span>` : ``}</li>
+                      `).join("")}
+                    </ul>
+                  </div>
+                ` : ``}
+
+                ${renderDocumentsInlineForConsult(r.id)}
+              `}
             </div>
           `;
         }).join("")}
@@ -2709,7 +2722,6 @@ function openPatientViewModal(patient) {
   }
 
 /* ==== FIM BLOCO 06G/12 ==== */
-
 
 /* ==== INÍCIO BLOCO 06H/12 — Consulta médica (UI HDA + bind) ==== */
 
