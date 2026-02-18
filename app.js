@@ -1805,12 +1805,28 @@ function openPatientViewModal(patient) {
 
 /* ==== FIM BLOCO 06E/12 ==== */
 
-
 /* ==== INÍCIO BLOCO 06F/12 — Documentos/PDF (load + editor + gerar/upload) ==== */
 
   // ✅ Vinheta global (igual para todas as clínicas) — Storage path confirmado
   const VINHETA_BUCKET = "clinic-assets";
   const VINHETA_PATH = "vinheta/dr-joao-morais-vinheta.png";
+
+  // ✅ Proxy PDF (Cloudflare Worker público)
+  const PDF_PROXY_URL = "https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf";
+
+  // Token: tenta encontrar em variáveis globais (para não “inventar” onde guardaste)
+  // Se o proxy exigir token e isto vier vazio, vai dar 401/403 — eu ajusto no passo seguinte.
+  function getPdfProxyToken() {
+    try {
+      const t =
+        (typeof window !== "undefined" && (window.PDF_TOKEN || window.pdf_token)) ||
+        (typeof G !== "undefined" && (G.PDF_TOKEN || G.pdf_token)) ||
+        "";
+      return String(t || "").trim();
+    } catch (_) {
+      return "";
+    }
+  }
 
   let _vinhetaDataUrlCache = "";
   let _clinicLogoDataUrlCache = {}; // por clinic_id
@@ -2409,85 +2425,50 @@ function openPatientViewModal(patient) {
     if (docMode !== "html") mountDocFrame();
   }
 
-  // ✅ PDF helpers — Safari fix: host ON-SCREEN + imagens em dataURL + allowTaint true/useCORS false
+  // ✅ PDF via Worker (proxy -> upstream puppeteer)
   async function htmlToPdfBlob(html, fileName) {
-    if (!window.html2pdf) {
-      alert("Não encontrei html2pdf no frontend. Confirma que a biblioteca está incluída no app.html.");
-      return null;
-    }
-
-    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-    const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
-
-    async function waitFonts() {
-      try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (_) {}
-    }
-
-    async function waitImages(container, timeoutMs = 7000) {
-      const t0 = Date.now();
-      const imgs = Array.from(container.querySelectorAll("img"));
-      while (Date.now() - t0 < timeoutMs) {
-        const pending = imgs.filter(im => {
-          try { return !im.complete || (im.naturalWidth === 0 && im.naturalHeight === 0); }
-          catch (_) { return false; }
-        });
-        if (!pending.length) return true;
-        await sleep(160);
-      }
-      return false;
-    }
-
-    // Host visível (Safari às vezes dá branco com offscreen)
-    const host = document.createElement("div");
-    host.style.position = "fixed";
-    host.style.left = "0";
-    host.style.top = "0";
-    host.style.width = "210mm";
-    host.style.background = "#ffffff";
-    host.style.opacity = "1";
-    host.style.zIndex = "2147483000"; // por trás do teu overlay (z=2200) mas acima do body
-    host.style.pointerEvents = "none";
-    host.style.display = "block";
-
-    host.innerHTML = html;
-    document.body.appendChild(host);
-
     try {
-      await raf(); await raf(); await sleep(220);
-      await waitFonts();
-      await waitImages(host, 7500);
-      await raf(); await sleep(200);
+      const token = getPdfProxyToken();
 
-      const opt = {
-        margin: 0,
-        filename: fileName || "documento.pdf",
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: false,
-          allowTaint: true,
-          backgroundColor: "#ffffff",
-          logging: false,
-          scrollX: 0,
-          scrollY: 0,
-          windowWidth: host.scrollWidth || host.clientWidth || 800,
-          windowHeight: host.scrollHeight || host.clientHeight || 1100
-        },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+      const payload = {
+        html: String(html || ""),
+        fileName: String(fileName || "documento.pdf")
       };
 
-      try {
-        const worker = window.html2pdf().set(opt).from(host);
-        const pdf = await worker.toPdf().get("pdf");
-        return pdf.output("blob");
-      } catch (err) {
-        console.error("html2pdf failed:", err);
-        alert("Falha interna ao gerar PDF (html2pdf/html2canvas). Ver consola.");
+      const headers = { "Content-Type": "application/json" };
+      // Se o proxy estiver configurado para exigir token, enviamos.
+      if (token) headers["X-PDF-TOKEN"] = token;
+
+      const res = await fetch(PDF_PROXY_URL, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+        // Origin é automático no browser; credenciais omitidas
+        credentials: "omit",
+        cache: "no-store"
+      });
+
+      if (!res.ok) {
+        let detail = "";
+        try { detail = await res.text(); } catch (_) { detail = ""; }
+        console.error("PDF proxy error:", res.status, detail);
+        alert(`Falha ao gerar PDF no servidor.\nHTTP ${res.status}\n${detail ? detail.slice(0, 400) : ""}`);
         return null;
       }
 
-    } finally {
-      try { document.body.removeChild(host); } catch (e) {}
+      const blob = await res.blob();
+      if (!blob || !blob.size) {
+        alert("PDF recebido vazio.");
+        return null;
+      }
+
+      // Garantir type
+      const out = (blob.type && blob.type.includes("pdf")) ? blob : new Blob([blob], { type: "application/pdf" });
+      return out;
+    } catch (e) {
+      console.error("htmlToPdfBlob (proxy) exception:", e);
+      alert("Erro ao chamar o gerador de PDF (proxy). Ver consola.");
+      return null;
     }
   }
 
@@ -2572,18 +2553,15 @@ function openPatientViewModal(patient) {
       const clinic = await fetchClinicForPdf();
       const authorName = await fetchCurrentUserDisplayName(userId);
 
-      // ✅ converter TUDO para dataURL antes do html2canvas (evita PDF branco no Safari)
+      // ✅ converter assets para dataURL para embutir no HTML (reduz problemas CORS)
       const vinhetaDataUrl = await getVinhetaDataUrl();
       const clinicLogoDataUrl = await getClinicLogoDataUrl(clinic);
 
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
-      // Forçar rebuild base quando o draft é pequeno ou quando queremos garantir assets em dataURL
+      // Rebuild base quando draft é curto
       if (!docDraftHtml || docDraftHtml.trim().length < 300) {
         docDraftHtml = buildDocV1Html({ clinic, consult, authorName, vinhetaDataUrl, clinicLogoDataUrl });
-      } else {
-        // mesmo com draft manual, se tiver imagens externas, o Safari pode "taint":
-        // para já, não mexemos no draft editado; se continuar branco, no passo seguinte forçamos replace de <img src="http">
       }
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
