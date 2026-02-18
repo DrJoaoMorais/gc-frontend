@@ -1815,7 +1815,7 @@ function openPatientViewModal(patient) {
   const PDF_PROXY_URL = "https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf";
 
   // Token: tenta encontrar em variáveis globais (para não “inventar” onde guardaste)
-  // Se o proxy exigir token e isto vier vazio, vai dar 401/403 — eu ajusto no passo seguinte.
+  // Se o proxy exigir token e isto vier vazio, vai dar 401/403 — ajustamos depois.
   function getPdfProxyToken() {
     try {
       const t =
@@ -1830,6 +1830,10 @@ function openPatientViewModal(patient) {
 
   let _vinhetaDataUrlCache = "";
   let _clinicLogoDataUrlCache = {}; // por clinic_id
+
+  // ✅ caches para URL (signed) — para proxy (evitar payload grande)
+  let _vinhetaSignedUrlCache = "";
+  let _clinicLogoSignedUrlCache = {}; // por clinic_id
 
   async function blobToDataUrl(blob) {
     try {
@@ -1891,6 +1895,7 @@ function openPatientViewModal(patient) {
     return "";
   }
 
+  // ✅ PARA HTML2PDF local (mantido)
   async function getVinhetaDataUrl() {
     if (_vinhetaDataUrlCache && _vinhetaDataUrlCache.startsWith("data:")) return _vinhetaDataUrlCache;
     const d = await storageToDataUrlBestEffort(VINHETA_BUCKET, VINHETA_PATH);
@@ -1898,7 +1903,21 @@ function openPatientViewModal(patient) {
     return _vinhetaDataUrlCache || "";
   }
 
-  // ✅ Logo da clínica: tenta converter qualquer URL em dataURL (evita CORS/taint no Safari)
+  // ✅ PARA PROXY (evitar base64 no HTML)
+  async function getVinhetaSignedUrl() {
+    if (_vinhetaSignedUrlCache) return _vinhetaSignedUrlCache;
+    try {
+      const s = await window.sb.storage.from(VINHETA_BUCKET).createSignedUrl(VINHETA_PATH, 60 * 60);
+      const url = s?.data?.signedUrl ? String(s.data.signedUrl) : "";
+      if (url) _vinhetaSignedUrlCache = url;
+      return _vinhetaSignedUrlCache || "";
+    } catch (e) {
+      console.warn("getVinhetaSignedUrl exception:", e);
+      return "";
+    }
+  }
+
+  // ✅ Logo da clínica: tenta converter qualquer URL em dataURL (mantido para local)
   async function getClinicLogoDataUrl(clinic) {
     try {
       const cid = String(clinic?.id || "");
@@ -1909,14 +1928,11 @@ function openPatientViewModal(patient) {
       const raw = String(clinic?.logo_url || "").trim();
       if (!raw) return "";
 
-      // Se já for dataURL, usar
       if (raw.startsWith("data:")) {
         if (cid) _clinicLogoDataUrlCache[cid] = raw;
         return raw;
       }
 
-      // Se for "bucket:path" (opcional), tenta storage direto
-      // formato suportado: "clinic-assets:logos/alfraclinic.png"
       if (raw.includes(":") && !raw.startsWith("http")) {
         const [b, ...rest] = raw.split(":");
         const pth = rest.join(":");
@@ -1927,7 +1943,6 @@ function openPatientViewModal(patient) {
         }
       }
 
-      // Caso comum: URL http(s) -> fetch -> dataURL
       if (raw.startsWith("http")) {
         const d = await fetchUrlToDataUrl(raw);
         if (d && d.startsWith("data:")) {
@@ -1940,6 +1955,63 @@ function openPatientViewModal(patient) {
     } catch (e) {
       console.warn("getClinicLogoDataUrl exception:", e);
       return "";
+    }
+  }
+
+  // ✅ PARA PROXY: devolve URL curta (signed se necessário)
+  async function getClinicLogoSignedUrl(clinic) {
+    try {
+      const cid = String(clinic?.id || "");
+      if (cid && _clinicLogoSignedUrlCache[cid]) return _clinicLogoSignedUrlCache[cid];
+
+      const raw = String(clinic?.logo_url || "").trim();
+      if (!raw) return "";
+
+      // se já for http(s), usar direto (é curto)
+      if (raw.startsWith("http")) {
+        if (cid) _clinicLogoSignedUrlCache[cid] = raw;
+        return raw;
+      }
+
+      // se for "bucket:path", criar signed url (curto)
+      if (raw.includes(":") && !raw.startsWith("http")) {
+        const [b, ...rest] = raw.split(":");
+        const pth = rest.join(":");
+        const s = await window.sb.storage.from(b).createSignedUrl(pth, 60 * 60);
+        const url = s?.data?.signedUrl ? String(s.data.signedUrl) : "";
+        if (url && cid) _clinicLogoSignedUrlCache[cid] = url;
+        return url || "";
+      }
+
+      // se for dataURL, não usar (é enorme)
+      if (raw.startsWith("data:")) return "";
+
+      return "";
+    } catch (e) {
+      console.warn("getClinicLogoSignedUrl exception:", e);
+      return "";
+    }
+  }
+
+  // ✅ Se vier do editor com <img src="data:..."> muito grande, substitui por URLs
+  function rewriteLargeDataImageSrcs(html, vinhetaUrl, logoUrl) {
+    try {
+      let out = String(html || "");
+      // substitui qualquer data:image grande por vazio (fallback) e depois tenta repor vinheta/logo se existirem placeholders
+      // 1) remover data:image (muito grande)
+      out = out.replace(/src="data:image\/[^"]{2000,}"/g, 'src=""');
+
+      // 2) repor vinheta/logo se existirem as classes definidas no template
+      if (vinhetaUrl) {
+        out = out.replace(/<img([^>]*class="vinheta"[^>]*)src="[^"]*"/g, `<img$1src="${escAttr(vinhetaUrl)}"`);
+      }
+      if (logoUrl) {
+        out = out.replace(/<img([^>]*class="logo"[^>]*)src="[^"]*"/g, `<img$1src="${escAttr(logoUrl)}"`);
+      }
+      return out;
+    } catch (e) {
+      console.warn("rewriteLargeDataImageSrcs exception:", e);
+      return String(html || "");
     }
   }
 
@@ -2057,7 +2129,7 @@ function openPatientViewModal(patient) {
     } catch (e) { console.error(e); return ""; }
   }
 
-  function buildDocV1Html({ clinic, consult, authorName, vinhetaDataUrl, clinicLogoDataUrl }) {
+  function buildDocV1Html({ clinic, consult, authorName, vinhetaSrc, clinicLogoSrc }) {
 
     function fmtDatePt(d) {
       try {
@@ -2189,7 +2261,7 @@ function openPatientViewModal(patient) {
         ${clinicName ? `<div class="clinicName">${escAttr(clinicName)}</div>` : ``}
       </div>
       <div>
-        ${clinicLogoDataUrl ? `<img class="logo" src="${escAttr(clinicLogoDataUrl)}" />` : ``}
+        ${clinicLogoSrc ? `<img class="logo" src="${escAttr(clinicLogoSrc)}" />` : ``}
       </div>
     </div>
 
@@ -2225,7 +2297,7 @@ function openPatientViewModal(patient) {
       <div class="footRow">
         <div>
           <div class="web">${escAttr(website)}</div>
-          ${vinhetaDataUrl ? `<img class="vinheta" src="${escAttr(vinhetaDataUrl)}" />` : ``}
+          ${vinhetaSrc ? `<img class="vinheta" src="${escAttr(vinhetaSrc)}" />` : ``}
         </div>
 
         <div style="flex:1;">
@@ -2436,14 +2508,12 @@ function openPatientViewModal(patient) {
       };
 
       const headers = { "Content-Type": "application/json" };
-      // Se o proxy estiver configurado para exigir token, enviamos.
       if (token) headers["X-PDF-TOKEN"] = token;
 
       const res = await fetch(PDF_PROXY_URL, {
         method: "POST",
         headers,
         body: JSON.stringify(payload),
-        // Origin é automático no browser; credenciais omitidas
         credentials: "omit",
         cache: "no-store"
       });
@@ -2462,7 +2532,6 @@ function openPatientViewModal(patient) {
         return null;
       }
 
-      // Garantir type
       const out = (blob.type && blob.type.includes("pdf")) ? blob : new Blob([blob], { type: "application/pdf" });
       return out;
     } catch (e) {
@@ -2553,15 +2622,26 @@ function openPatientViewModal(patient) {
       const clinic = await fetchClinicForPdf();
       const authorName = await fetchCurrentUserDisplayName(userId);
 
-      // ✅ converter assets para dataURL para embutir no HTML (reduz problemas CORS)
-      const vinhetaDataUrl = await getVinhetaDataUrl();
-      const clinicLogoDataUrl = await getClinicLogoDataUrl(clinic);
+      // ✅ PARA PROXY: usar URLs (signed) — evita 413 por HTML enorme
+      const vinhetaUrl = await getVinhetaSignedUrl();
+      const logoUrl = await getClinicLogoSignedUrl(clinic);
 
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
-      // Rebuild base quando draft é curto
+      // Se o draft veio do editor, pode trazer dataURLs enormes -> rewrite para URLs
+      if (docDraftHtml && docDraftHtml.includes('src="data:image')) {
+        docDraftHtml = rewriteLargeDataImageSrcs(docDraftHtml, vinhetaUrl, logoUrl);
+      }
+
+      // Rebuild base quando draft é curto (ou vazio)
       if (!docDraftHtml || docDraftHtml.trim().length < 300) {
-        docDraftHtml = buildDocV1Html({ clinic, consult, authorName, vinhetaDataUrl, clinicLogoDataUrl });
+        docDraftHtml = buildDocV1Html({
+          clinic,
+          consult,
+          authorName,
+          vinhetaSrc: vinhetaUrl,
+          clinicLogoSrc: logoUrl
+        });
       }
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
@@ -2613,7 +2693,6 @@ function openPatientViewModal(patient) {
   }
 
 /* ==== FIM BLOCO 06F/12 ==== */
-
 
 /* ==== INÍCIO BLOCO 06G/12 — Timeline (load + render) ==== */
 
