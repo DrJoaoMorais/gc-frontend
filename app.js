@@ -1812,12 +1812,13 @@ function openPatientViewModal(patient) {
   // =========================================================
   const PDF_PROXY_URL = "https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf";
 
-  // Vinheta global (bucket clinic-assets)
-  const VINHETA_BUCKET = "clinic-assets";
-  const VINHETA_PATH = "vinheta/dr-joao-morais-vinheta.png";
+  // Vinheta (Supabase Storage)
+  // ✅ Opção 1: vinheta privada -> converter para dataURL (base64) no browser
+  const VINHETA_BUCKET = "clinic-private";
+  const VINHETA_PATH = "vinheta/vinheta_600dpi.png";
 
   // =========================================================
-  // HELPERS — Signed URL / Proxy call / safety
+  // HELPERS — Signed URL / Base64 / Proxy call / safety
   // =========================================================
   function safeText(s) {
     return String(s || "")
@@ -1834,6 +1835,34 @@ function openPatientViewModal(patient) {
       return s?.data?.signedUrl ? String(s.data.signedUrl) : "";
     } catch (e) {
       console.warn("storageSignedUrl error:", e);
+      return "";
+    }
+  }
+
+  // ✅ Converte URL (signed/public) em data URL base64 (para o Worker NÃO fazer fetch externo)
+  async function urlToDataUrl(url, fallbackMime = "image/png") {
+    try {
+      if (!url) return "";
+      const res = await fetch(url, { method: "GET", cache: "no-store" });
+      if (!res.ok) throw new Error(`urlToDataUrl fetch ${res.status}`);
+      const blob = await res.blob();
+
+      const mime = blob.type && String(blob.type).includes("/") ? blob.type : fallbackMime;
+
+      const dataUrl = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result || ""));
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+      });
+
+      // garantir mime coerente (alguns browsers colocam application/octet-stream)
+      if (dataUrl && dataUrl.startsWith("data:application/octet-stream")) {
+        return dataUrl.replace("data:application/octet-stream", `data:${mime}`);
+      }
+      return dataUrl;
+    } catch (e) {
+      console.warn("urlToDataUrl error:", e);
       return "";
     }
   }
@@ -1975,12 +2004,7 @@ function openPatientViewModal(patient) {
   }
 
   // =========================================================
-  // HTML TEMPLATE — v1 (usa URLs, NÃO base64)
-  // Depende de helpers globais já existentes:
-  // - escAttr()
-  // - sanitizeHTML()
-  // - sentenceizeLabel()
-  // - getPrescriptionTextFromPlan()
+  // HTML TEMPLATE — v1
   // =========================================================
   function buildDocV1Html({ clinic, consult, authorName, vinhetaUrl, clinicLogoUrl }) {
 
@@ -2406,8 +2430,11 @@ function openPatientViewModal(patient) {
       const clinic = await fetchClinicForPdf();
       const authorName = await fetchCurrentUserDisplayName(userId);
 
-      const vinhetaUrl = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
+      // ✅ VINHETA: signed url -> dataURL (base64) para evitar falha no Worker
+      const vinhetaSigned = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
+      const vinhetaDataUrl = await urlToDataUrl(vinhetaSigned, "image/png");
 
+      // ✅ LOGO: mantém público (http...) ou bucket:path (signed url) — não mexemos nisto
       let clinicLogoUrl = "";
       const rawLogo = String(clinic?.logo_url || "").trim();
       if (rawLogo.startsWith("http")) {
@@ -2421,7 +2448,17 @@ function openPatientViewModal(patient) {
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
       if (!docDraftHtml || docDraftHtml.trim().length < 300) {
-        docDraftHtml = buildDocV1Html({ clinic, consult, authorName, vinhetaUrl, clinicLogoUrl });
+        docDraftHtml = buildDocV1Html({
+          clinic,
+          consult,
+          authorName,
+          vinhetaUrl: vinhetaDataUrl || "",     // ✅ dataURL (preferido)
+          clinicLogoUrl
+        });
+      } else {
+        // Mesmo que já exista HTML do editor, tentamos garantir vinheta embebida
+        // (se o docDraftHtml já tiver vinheta, não forçamos substituição aqui)
+        // Mantemos comportamento atual.
       }
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
