@@ -1811,154 +1811,37 @@ function openPatientViewModal(patient) {
   const VINHETA_BUCKET = "clinic-assets";
   const VINHETA_PATH = "vinheta/dr-joao-morais-vinheta.png";
 
-  // ✅ Proxy PDF (Cloudflare Worker público)
-  const PDF_PROXY_URL = "https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf";
+  // ⚠️ IMPORTANTE:
+  // - Para PDF no servidor (proxy/puppeteer): usar URLs (signed) e NUNCA data:image (base64)
+  // - Base64 aumenta brutalmente o HTML -> 413 no proxy
+  // - O editor pode “guardar” HTML com data:image; por isso limpamos/reconstruímos antes de enviar.
 
-  // Token: tenta encontrar em variáveis globais (para não “inventar” onde guardaste)
-  // Se o proxy exigir token e isto vier vazio, vai dar 401/403 — ajustamos depois.
-  function getPdfProxyToken() {
+  let _vinhetaSignedUrlCache = "";       // string
+  let _clinicLogoSignedUrlCache = {};    // { [clinicId]: string }
+
+  async function storageSignedUrl(bucket, path, ttlSec = 60 * 60) {
     try {
-      const t =
-        (typeof window !== "undefined" && (window.PDF_TOKEN || window.pdf_token)) ||
-        (typeof G !== "undefined" && (G.PDF_TOKEN || G.pdf_token)) ||
-        "";
-      return String(t || "").trim();
-    } catch (_) {
+      if (!bucket || !path) return "";
+      const s = await window.sb.storage.from(bucket).createSignedUrl(path, ttlSec);
+      return s?.data?.signedUrl ? String(s.data.signedUrl) : "";
+    } catch (e) {
+      console.warn("storageSignedUrl error:", e);
       return "";
     }
   }
 
-  let _vinhetaDataUrlCache = "";
-  let _clinicLogoDataUrlCache = {}; // por clinic_id
-
-  // ✅ caches para URL (signed) — para proxy (evitar payload grande)
-  let _vinhetaSignedUrlCache = "";
-  let _clinicLogoSignedUrlCache = {}; // por clinic_id
-
-  async function blobToDataUrl(blob) {
-    try {
-      const dataUrl = await new Promise((resolve, reject) => {
-        const fr = new FileReader();
-        fr.onload = () => resolve(fr.result);
-        fr.onerror = () => reject(new Error("FileReader error"));
-        fr.readAsDataURL(blob);
-      });
-      return String(dataUrl || "");
-    } catch (e) {
-      console.error("blobToDataUrl error:", e);
-      return "";
-    }
-  }
-
-  async function fetchUrlToDataUrl(url) {
-    try {
-      const res = await fetch(url, { mode: "cors", credentials: "omit", cache: "no-store" });
-      if (!res.ok) return "";
-      const b = await res.blob();
-      return await blobToDataUrl(b);
-    } catch (e) {
-      console.error("fetchUrlToDataUrl error:", e);
-      return "";
-    }
-  }
-
-  async function storageToDataUrlBestEffort(bucket, path) {
-    if (!bucket || !path) return "";
-
-    // 1) download autenticado
-    try {
-      const dl = await window.sb.storage.from(bucket).download(path);
-      if (!dl?.error && dl?.data) {
-        const d = await blobToDataUrl(dl.data);
-        if (d && d.startsWith("data:")) return d;
-      } else if (dl?.error) {
-        console.warn("storage download blocked:", bucket, path, dl.error);
-      }
-    } catch (e) {
-      console.warn("storage download exception:", bucket, path, e);
-    }
-
-    // 2) signed url + fetch -> dataURL
-    try {
-      const s = await window.sb.storage.from(bucket).createSignedUrl(path, 60 * 60);
-      const url = s?.data?.signedUrl ? String(s.data.signedUrl) : "";
-      if (url) {
-        const d = await fetchUrlToDataUrl(url);
-        if (d && d.startsWith("data:")) return d;
-      } else if (s?.error) {
-        console.warn("storage signedUrl error:", bucket, path, s.error);
-      }
-    } catch (e) {
-      console.warn("storage signedUrl exception:", bucket, path, e);
-    }
-
-    return "";
-  }
-
-  // ✅ PARA HTML2PDF local (mantido)
-  async function getVinhetaDataUrl() {
-    if (_vinhetaDataUrlCache && _vinhetaDataUrlCache.startsWith("data:")) return _vinhetaDataUrlCache;
-    const d = await storageToDataUrlBestEffort(VINHETA_BUCKET, VINHETA_PATH);
-    if (d && d.startsWith("data:")) _vinhetaDataUrlCache = d;
-    return _vinhetaDataUrlCache || "";
-  }
-
-  // ✅ PARA PROXY (evitar base64 no HTML)
+  // ✅ Vinheta: sempre signed URL
   async function getVinhetaSignedUrl() {
     if (_vinhetaSignedUrlCache) return _vinhetaSignedUrlCache;
-    try {
-      const s = await window.sb.storage.from(VINHETA_BUCKET).createSignedUrl(VINHETA_PATH, 60 * 60);
-      const url = s?.data?.signedUrl ? String(s.data.signedUrl) : "";
-      if (url) _vinhetaSignedUrlCache = url;
-      return _vinhetaSignedUrlCache || "";
-    } catch (e) {
-      console.warn("getVinhetaSignedUrl exception:", e);
-      return "";
-    }
+    const url = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 60 * 60);
+    if (url) _vinhetaSignedUrlCache = url;
+    return _vinhetaSignedUrlCache || "";
   }
 
-  // ✅ Logo da clínica: tenta converter qualquer URL em dataURL (mantido para local)
-  async function getClinicLogoDataUrl(clinic) {
-    try {
-      const cid = String(clinic?.id || "");
-      if (cid && _clinicLogoDataUrlCache[cid] && _clinicLogoDataUrlCache[cid].startsWith("data:")) {
-        return _clinicLogoDataUrlCache[cid];
-      }
-
-      const raw = String(clinic?.logo_url || "").trim();
-      if (!raw) return "";
-
-      if (raw.startsWith("data:")) {
-        if (cid) _clinicLogoDataUrlCache[cid] = raw;
-        return raw;
-      }
-
-      if (raw.includes(":") && !raw.startsWith("http")) {
-        const [b, ...rest] = raw.split(":");
-        const pth = rest.join(":");
-        const d = await storageToDataUrlBestEffort(b, pth);
-        if (d && d.startsWith("data:")) {
-          if (cid) _clinicLogoDataUrlCache[cid] = d;
-          return d;
-        }
-      }
-
-      if (raw.startsWith("http")) {
-        const d = await fetchUrlToDataUrl(raw);
-        if (d && d.startsWith("data:")) {
-          if (cid) _clinicLogoDataUrlCache[cid] = d;
-          return d;
-        }
-      }
-
-      return "";
-    } catch (e) {
-      console.warn("getClinicLogoDataUrl exception:", e);
-      return "";
-    }
-  }
-
-  // ✅ PARA PROXY: devolve URL curta (signed se necessário)
+  // ✅ Logo da clínica:
+  // - Se clinic.logo_url for "bucket:path" => signed URL
+  // - Se for http(s) => usa como está (idealmente já com permissões/sem CORS para puppeteer)
+  // - Se vazio => ""
   async function getClinicLogoSignedUrl(clinic) {
     try {
       const cid = String(clinic?.id || "");
@@ -1967,54 +1850,31 @@ function openPatientViewModal(patient) {
       const raw = String(clinic?.logo_url || "").trim();
       if (!raw) return "";
 
-      // se já for http(s), usar direto (é curto)
-      if (raw.startsWith("http")) {
+      // já é URL
+      if (raw.startsWith("http://") || raw.startsWith("https://")) {
         if (cid) _clinicLogoSignedUrlCache[cid] = raw;
         return raw;
       }
 
-      // se for "bucket:path", criar signed url (curto)
-      if (raw.includes(":") && !raw.startsWith("http")) {
+      // formato "bucket:path"
+      if (raw.includes(":")) {
         const [b, ...rest] = raw.split(":");
         const pth = rest.join(":");
-        const s = await window.sb.storage.from(b).createSignedUrl(pth, 60 * 60);
-        const url = s?.data?.signedUrl ? String(s.data.signedUrl) : "";
-        if (url && cid) _clinicLogoSignedUrlCache[cid] = url;
-        return url || "";
+        const url = await storageSignedUrl(b, pth, 60 * 60);
+        if (url) {
+          if (cid) _clinicLogoSignedUrlCache[cid] = url;
+          return url;
+        }
       }
-
-      // se for dataURL, não usar (é enorme)
-      if (raw.startsWith("data:")) return "";
 
       return "";
     } catch (e) {
-      console.warn("getClinicLogoSignedUrl exception:", e);
+      console.warn("getClinicLogoSignedUrl error:", e);
       return "";
     }
   }
 
-  // ✅ Se vier do editor com <img src="data:..."> muito grande, substitui por URLs
-  function rewriteLargeDataImageSrcs(html, vinhetaUrl, logoUrl) {
-    try {
-      let out = String(html || "");
-      // substitui qualquer data:image grande por vazio (fallback) e depois tenta repor vinheta/logo se existirem placeholders
-      // 1) remover data:image (muito grande)
-      out = out.replace(/src="data:image\/[^"]{2000,}"/g, 'src=""');
-
-      // 2) repor vinheta/logo se existirem as classes definidas no template
-      if (vinhetaUrl) {
-        out = out.replace(/<img([^>]*class="vinheta"[^>]*)src="[^"]*"/g, `<img$1src="${escAttr(vinhetaUrl)}"`);
-      }
-      if (logoUrl) {
-        out = out.replace(/<img([^>]*class="logo"[^>]*)src="[^"]*"/g, `<img$1src="${escAttr(logoUrl)}"`);
-      }
-      return out;
-    } catch (e) {
-      console.warn("rewriteLargeDataImageSrcs exception:", e);
-      return String(html || "");
-    }
-  }
-
+  // ---- Documents list ----
   async function loadDocuments() {
     docsLoading = true;
     docRows = [];
@@ -2129,7 +1989,7 @@ function openPatientViewModal(patient) {
     } catch (e) { console.error(e); return ""; }
   }
 
-  function buildDocV1Html({ clinic, consult, authorName, vinhetaSrc, clinicLogoSrc }) {
+  function buildDocV1Html({ clinic, consult, authorName, vinhetaUrl, clinicLogoUrl }) {
 
     function fmtDatePt(d) {
       try {
@@ -2206,45 +2066,28 @@ function openPatientViewModal(patient) {
 <style>
   body { margin:0; background:#fff; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:#111; }
   * { box-sizing:border-box; }
-
-  .a4 {
-    width: 210mm;
-    min-height: 297mm;
-    padding: 18mm 18mm 18mm 18mm;
-    background:#fff;
-  }
-
+  .a4 { width: 210mm; min-height: 297mm; padding: 18mm; background:#fff; }
   .top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
   .clinicName { font-weight:900; font-size:16px; }
   .logo { width: 120px; height:auto; max-height:60px; object-fit:contain; display:block; }
-
   .hr { height:1px; background:#111; margin: 10px 0 14px 0; }
-
   .title { text-align:center; font-weight:900; font-size:22px; margin: 2px 0 12px 0; }
-
   .row { margin-top:6px; font-size:13.5px; line-height:1.35; }
   .muted { color:#64748b; }
-
   .section { margin-top:18px; }
   .stitle { font-weight:900; font-size:16px; margin-bottom:6px; }
-
   .hda { font-size:14px; line-height:1.6; }
   .hda ul, .hda ol { margin: 6px 0 6px 18px; padding:0; }
   .hda li { margin: 2px 0; }
-
   .list { margin: 6px 0 0 18px; padding:0; font-size:14px; line-height:1.55; }
   .list li { margin: 2px 0; }
   .code { color:#64748b; }
-
   .footerBlock { margin-top:22px; page-break-inside: avoid; break-inside: avoid; }
   .hr2 { height:1px; background:#111; margin: 18px 0 10px 0; }
-
   .footRow { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
   .web { font-size:14px; font-weight:700; }
   .vinheta { margin-top:8px; width: 140px; height:auto; max-height:42px; object-fit:contain; display:block; }
-
   .locDate { text-align:right; font-size:14px; margin-top:2px; }
-
   .sig { margin-top:14px; display:flex; justify-content:flex-end; }
   .sigBox { width: 360px; text-align:center; }
   .sigLine { border-top:1px solid #111; padding-top:10px; }
@@ -2255,18 +2098,16 @@ function openPatientViewModal(patient) {
 
 <body>
   <div class="a4">
-
     <div class="top">
       <div style="flex:1;">
         ${clinicName ? `<div class="clinicName">${escAttr(clinicName)}</div>` : ``}
       </div>
       <div>
-        ${clinicLogoSrc ? `<img class="logo" src="${escAttr(clinicLogoSrc)}" />` : ``}
+        ${clinicLogoUrl ? `<img class="logo" src="${escAttr(clinicLogoUrl)}" />` : ``}
       </div>
     </div>
 
     <div class="hr"></div>
-
     <div class="title">Relatório Médico</div>
 
     <div class="row"><b>Nome:</b> ${escAttr(name)}</div>
@@ -2297,7 +2138,7 @@ function openPatientViewModal(patient) {
       <div class="footRow">
         <div>
           <div class="web">${escAttr(website)}</div>
-          ${vinhetaSrc ? `<img class="vinheta" src="${escAttr(vinhetaSrc)}" />` : ``}
+          ${vinhetaUrl ? `<img class="vinheta" src="${escAttr(vinhetaUrl)}" />` : ``}
         </div>
 
         <div style="flex:1;">
@@ -2384,7 +2225,7 @@ function openPatientViewModal(patient) {
 
           <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
             <div id="docStatus" style="color:${docSaving ? "#111" : "#64748b"};">
-              ${docSaving ? "A gerar/upload..." : ""}
+              ${docSaving ? "A gerar..." : ""}
             </div>
 
             <div style="display:flex; gap:10px;">
@@ -2429,24 +2270,15 @@ function openPatientViewModal(patient) {
 
     try {
       const d = iframe.contentDocument || iframe.contentWindow?.document;
-      if (!d || !d.documentElement) {
-        console.warn("syncDocFromFrame: iframe sem documentElement (ainda a carregar?).");
-        return;
-      }
+      if (!d || !d.documentElement) return;
 
       let html = "";
       try { html = d.documentElement.outerHTML || ""; } catch (e) { html = ""; }
 
-      if (!html || html.trim().length < 50) {
-        const inner = d.documentElement.innerHTML || "";
-        if (inner && inner.trim().length >= 10) html = `<html>${inner}</html>`;
-      }
-
       if (html && !/<!doctype/i.test(html)) html = "<!doctype html>\n" + html;
       docDraftHtml = String(html || "").trim();
-
     } catch (e) {
-      console.error("syncDocFromFrame: erro crítico:", e);
+      console.error("syncDocFromFrame error:", e);
     }
   }
 
@@ -2479,7 +2311,8 @@ function openPatientViewModal(patient) {
 
         render();
         bindDocEvents();
-        const ok = await generatePdfAndUploadV1();
+
+        const ok = await generatePdfAndUploadV1_Server();
         docSaving = false;
 
         if (ok) {
@@ -2495,64 +2328,6 @@ function openPatientViewModal(patient) {
     }
 
     if (docMode !== "html") mountDocFrame();
-  }
-
-  // ✅ PDF via Worker (proxy -> upstream puppeteer)
-  async function htmlToPdfBlob(html, fileName) {
-    try {
-      const token = getPdfProxyToken();
-
-      const payload = {
-        html: String(html || ""),
-        fileName: String(fileName || "documento.pdf")
-      };
-
-      const headers = { "Content-Type": "application/json" };
-      if (token) headers["X-PDF-TOKEN"] = token;
-
-      const res = await fetch(PDF_PROXY_URL, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-        credentials: "omit",
-        cache: "no-store"
-      });
-
-      if (!res.ok) {
-        let detail = "";
-        try { detail = await res.text(); } catch (_) { detail = ""; }
-        console.error("PDF proxy error:", res.status, detail);
-        alert(`Falha ao gerar PDF no servidor.\nHTTP ${res.status}\n${detail ? detail.slice(0, 400) : ""}`);
-        return null;
-      }
-
-      const blob = await res.blob();
-      if (!blob || !blob.size) {
-        alert("PDF recebido vazio.");
-        return null;
-      }
-
-      const out = (blob.type && blob.type.includes("pdf")) ? blob : new Blob([blob], { type: "application/pdf" });
-      return out;
-    } catch (e) {
-      console.error("htmlToPdfBlob (proxy) exception:", e);
-      alert("Erro ao chamar o gerador de PDF (proxy). Ver consola.");
-      return null;
-    }
-  }
-
-  async function uploadPdfToStorage({ blob, path }) {
-    try {
-      const r = await window.sb.storage
-        .from("documents")
-        .upload(path, blob, { contentType: "application/pdf", upsert: false, cacheControl: "3600" });
-
-      if (r?.error) { console.error("uploadPdf error:", r.error); return { ok: false, error: r.error }; }
-      return { ok: true };
-    } catch (e) {
-      console.error("uploadPdf exception:", e);
-      return { ok: false, error: e };
-    }
   }
 
   function safeText(s) {
@@ -2578,6 +2353,20 @@ function openPatientViewModal(patient) {
     } catch (e) {
       console.error("getNextDocVersion exception:", e);
       return 1;
+    }
+  }
+
+  async function uploadPdfToStorage({ blob, path }) {
+    try {
+      const r = await window.sb.storage
+        .from("documents")
+        .upload(path, blob, { contentType: "application/pdf", upsert: false, cacheControl: "3600" });
+
+      if (r?.error) { console.error("uploadPdf error:", r.error); return { ok: false, error: r.error }; }
+      return { ok: true };
+    } catch (e) {
+      console.error("uploadPdf exception:", e);
+      return { ok: false, error: e };
     }
   }
 
@@ -2608,7 +2397,36 @@ function openPatientViewModal(patient) {
     }
   }
 
-  async function generatePdfAndUploadV1() {
+  // ---- Limpeza defensiva: se existir base64, NÃO enviar; reconstruir HTML limpo ----
+  function htmlHasDataImages(html) {
+    const s = String(html || "");
+    return /src=["']data:image\//i.test(s);
+  }
+
+  // ✅ Geração no servidor via proxy
+  async function htmlToPdfBlob_Server(html, fileName) {
+    const token = String(window.G?.pdfToken || window.PDF_TOKEN || "").trim(); // se tiveres isto no teu G; se não, mantém vazio e o proxy usa env.PDF_TOKEN
+    const res = await fetch("https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(token ? { "x-pdf-token": token } : {})
+      },
+      body: JSON.stringify({ html, fileName: fileName || "documento.pdf" }),
+    });
+
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "");
+      console.error("PDF proxy error:", res.status, msg);
+      alert(`Falha ao gerar PDF no servidor.\nHTTP ${res.status}\n${msg || ""}`);
+      return null;
+    }
+
+    const blob = await res.blob();
+    return blob;
+  }
+
+  async function generatePdfAndUploadV1_Server() {
     try {
       if (!lastSavedConsultId) { alert("Sem consulta gravada para gerar PDF."); return false; }
 
@@ -2619,39 +2437,36 @@ function openPatientViewModal(patient) {
       const consult = (consultRows || []).find(x => String(x.id) === String(lastSavedConsultId));
       if (!consult) { alert("Não encontrei a consulta no feed. Atualiza o feed e tenta novamente."); return false; }
 
+      if (!activeClinicId) { alert("Sem clínica ativa (patient_clinic)."); return false; }
+
       const clinic = await fetchClinicForPdf();
       const authorName = await fetchCurrentUserDisplayName(userId);
 
-      // ✅ PARA PROXY: usar URLs (signed) — evita 413 por HTML enorme
       const vinhetaUrl = await getVinhetaSignedUrl();
-      const logoUrl = await getClinicLogoSignedUrl(clinic);
+      const clinicLogoUrl = await getClinicLogoSignedUrl(clinic);
 
+      // Se o draft tiver base64, ignora-o e reconstrói
+      let html = "";
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
-      // Se o draft veio do editor, pode trazer dataURLs enormes -> rewrite para URLs
-      if (docDraftHtml && docDraftHtml.includes('src="data:image')) {
-        docDraftHtml = rewriteLargeDataImageSrcs(docDraftHtml, vinhetaUrl, logoUrl);
+      if (docDraftHtml && docDraftHtml.trim().length > 200 && !htmlHasDataImages(docDraftHtml)) {
+        html = String(docDraftHtml);
+      } else {
+        html = buildDocV1Html({ clinic, consult, authorName, vinhetaUrl, clinicLogoUrl });
+        docDraftHtml = html; // mantém coerência para preview/editor
       }
 
-      // Rebuild base quando draft é curto (ou vazio)
-      if (!docDraftHtml || docDraftHtml.trim().length < 300) {
-        docDraftHtml = buildDocV1Html({
-          clinic,
-          consult,
-          authorName,
-          vinhetaSrc: vinhetaUrl,
-          clinicLogoSrc: logoUrl
-        });
+      // Defesa final: nunca enviar base64
+      if (htmlHasDataImages(html)) {
+        html = buildDocV1Html({ clinic, consult, authorName, vinhetaUrl, clinicLogoUrl });
       }
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
       const fileName = `${titleSafe}.pdf`;
 
-      const blob = await htmlToPdfBlob(docDraftHtml, fileName);
+      const blob = await htmlToPdfBlob_Server(html, fileName);
       if (!blob) return false;
       if (blob.size === 0) { alert("PDF gerado com 0 bytes (em branco)."); return false; }
-
-      if (!activeClinicId) { alert("Sem clínica ativa (patient_clinic)."); return false; }
 
       const version = await getNextDocVersionForConsult(consult.id);
       const ymd = new Date().toISOString().slice(0, 10);
@@ -2670,7 +2485,7 @@ function openPatientViewModal(patient) {
         patient_id: p.id,
         consultation_id: consult.id,
         title: titleSafe,
-        html: String(docDraftHtml || ""),
+        html: String(html || ""),
         parent_document_id: null,
         version,
         storage_path: path
