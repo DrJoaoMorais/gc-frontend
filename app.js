@@ -3227,8 +3227,7 @@ function openPatientViewModal(patient) {
             ` : ``}
 
             ${isDoctor() && lastSavedConsultId ? `
-              <button id="btnEditDocument" class="gcBtn">Editar Documento</button>
-              <button id="btnGeneratePdf" class="gcBtn" style="font-weight:900;">Gerar PDF</button>
+              <button id="btnEditDocument" class="gcBtn" style="font-weight:900;">Editar Documento</button>
             ` : ``}
 
             ${docsLoading ? `<div style="color:#64748b;">A carregar PDFs…</div>` : ``}
@@ -3271,25 +3270,12 @@ function openPatientViewModal(patient) {
 
         const clinic = await fetchClinicForPdf();
         const authorName = userId ? await fetchCurrentUserDisplayName(userId) : "";
+
+        // Nota: o buildDocV1Html aceita vinheta/logo em dataURL quando usado pelo gerador,
+        // mas para o editor basta o HTML base (se quiseres, podemos enriquecer depois).
         const html = buildDocV1Html({ clinic, consult, authorName });
+
         openDocumentEditor(html);
-      };
-    }
-
-    const btnPdf = document.getElementById("btnGeneratePdf");
-    if (btnPdf) {
-      btnPdf.onclick = async () => {
-        docSaving = true;
-        render();
-        const ok = await generatePdfAndUploadV1();
-        docSaving = false;
-
-        if (ok) {
-          await loadDocuments();
-          render();
-        } else {
-          render();
-        }
       };
     }
 
@@ -3312,6 +3298,7 @@ function openPatientViewModal(patient) {
 } // <-- fecha openPatientViewModal
 
 /* ==== FIM BLOCO 06J/12 ==== */
+
 /* ==== FIM BLOCO 06/12 — Modal Doente (06A–06J) ==== */
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
