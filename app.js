@@ -1462,7 +1462,177 @@ function openPatientViewModal(patient) {
 /* ==== FIM BLOCO 06C/12 ==== */
 
 
-/* ==== INÍCIO BLOCO 06D/12 — Diagnósticos (pesquisa catálogo + chips) ==== */
+/* ==== INÍCIO BLOCO 06D/12 — Diagnósticos (pesquisa catálogo + chips + adicionar ao catálogo) ==== */
+
+  // ---- Mini-modal: adicionar diagnóstico ao catálogo ----
+  let diagAddOpen = false;
+  let diagAddSaving = false;
+  let diagAddErr = "";
+  let diagAddSystem = "local";
+  let diagAddCode = "";
+  let diagAddLabel = "";
+
+  function ensureDiagAddHost() {
+    let host = document.getElementById("diagAddModalHost");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "diagAddModalHost";
+      document.body.appendChild(host);
+    }
+    return host;
+  }
+
+  function openDiagAddModal(prefillLabel = "", prefillCode = "") {
+    diagAddErr = "";
+    diagAddSystem = "local";
+    diagAddLabel = String(prefillLabel || "").trim();
+    diagAddCode = String(prefillCode || "").trim();
+    diagAddOpen = true;
+    diagAddSaving = false;
+    renderDiagAddModal();
+    setTimeout(() => {
+      document.getElementById("diagAddLabel")?.focus();
+    }, 0);
+  }
+
+  function closeDiagAddModal() {
+    diagAddOpen = false;
+    diagAddSaving = false;
+    diagAddErr = "";
+    renderDiagAddModal();
+  }
+
+  function renderDiagAddModal() {
+    const host = ensureDiagAddHost();
+    if (!diagAddOpen) {
+      host.innerHTML = "";
+      return;
+    }
+
+    host.innerHTML = `
+      <div style="position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,0.45);
+                  display:flex; align-items:center; justify-content:center; padding:16px;">
+        <div style="width: min(720px, 96vw); background:#fff; border:1px solid #e5e5e5; border-radius:16px;
+                    box-shadow:0 18px 44px rgba(0,0,0,0.18); overflow:hidden;">
+          <div style="padding:14px 16px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between;">
+            <div style="font-weight:900;">Adicionar diagnóstico ao catálogo</div>
+            <button id="diagAddClose" class="gcBtn" style="padding:8px 10px; border-radius:10px;">Fechar</button>
+          </div>
+
+          <div style="padding:16px;">
+            ${diagAddErr ? `<div style="margin-bottom:10px; padding:10px 12px; border:1px solid #fecaca; background:#fff1f2; color:#991b1b; border-radius:12px;">
+              ${escAttr(diagAddErr)}
+            </div>` : ``}
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+              <div>
+                <div style="font-size:12px; color:#64748b; margin-bottom:6px;">Sistema</div>
+                <input id="diagAddSystem" value="${escAttr(diagAddSystem)}"
+                       class="gcInput" style="width:100%;" />
+                <div style="font-size:11px; color:#94a3b8; margin-top:6px;">Ex.: local</div>
+              </div>
+              <div>
+                <div style="font-size:12px; color:#64748b; margin-bottom:6px;">Código</div>
+                <input id="diagAddCode" value="${escAttr(diagAddCode)}"
+                       class="gcInput" style="width:100%;" />
+                <div style="font-size:11px; color:#94a3b8; margin-top:6px;">Obrigatório (podes usar um código interno)</div>
+              </div>
+            </div>
+
+            <div style="margin-top:10px;">
+              <div style="font-size:12px; color:#64748b; margin-bottom:6px;">Designação</div>
+              <input id="diagAddLabel" value="${escAttr(diagAddLabel)}"
+                     class="gcInput" style="width:100%;" />
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;">
+              <button id="diagAddCancel" class="gcBtn" style="padding:10px 12px; border-radius:12px;">Cancelar</button>
+              <button id="diagAddSave" class="gcBtnPrimary" style="padding:10px 12px; border-radius:12px; min-width:140px;">
+                ${diagAddSaving ? "A gravar…" : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById("diagAddClose")?.addEventListener("click", (ev) => { ev.preventDefault(); closeDiagAddModal(); });
+    document.getElementById("diagAddCancel")?.addEventListener("click", (ev) => { ev.preventDefault(); closeDiagAddModal(); });
+
+    document.getElementById("diagAddSave")?.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      await saveDiagToCatalog();
+    });
+
+    // Enter para guardar (se não estiver a gravar)
+    ["diagAddSystem","diagAddCode","diagAddLabel"].forEach(id => {
+      document.getElementById(id)?.addEventListener("keydown", async (e) => {
+        if (e.key === "Enter" && !diagAddSaving) {
+          e.preventDefault();
+          await saveDiagToCatalog();
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeDiagAddModal();
+        }
+      });
+    });
+  }
+
+  async function saveDiagToCatalog() {
+    if (diagAddSaving) return;
+
+    const sys = String(document.getElementById("diagAddSystem")?.value || "").trim();
+    const code = String(document.getElementById("diagAddCode")?.value || "").trim();
+    const label = String(document.getElementById("diagAddLabel")?.value || "").trim();
+
+    if (!sys) { diagAddErr = "Sistema obrigatório."; renderDiagAddModal(); return; }
+    if (!code) { diagAddErr = "Código obrigatório."; renderDiagAddModal(); return; }
+    if (!label) { diagAddErr = "Designação obrigatória."; renderDiagAddModal(); return; }
+
+    diagAddSaving = true;
+    diagAddErr = "";
+    renderDiagAddModal();
+
+    try {
+      const { data, error } = await window.sb.rpc("add_diagnosis_catalog", {
+        p_system: sys,
+        p_code: code,
+        p_label: label,
+        p_is_active: true
+      });
+
+      if (error) {
+        const msg = String(error.message || error.details || error.hint || "Erro ao adicionar diagnóstico.");
+        diagAddErr = msg;
+        diagAddSaving = false;
+        renderDiagAddModal();
+        return;
+      }
+
+      // data deve ser a row (RETURNS diagnoses_catalog)
+      const row = data || null;
+      if (row && row.id) {
+        // selecionar automaticamente
+        addDiagnosis({ id: row.id, code: row.code || code, label: row.label || label });
+      }
+
+      // limpar pesquisa/fechar
+      closeDiagAddModal();
+      diagQuery = "";
+      diagResults = [];
+      const inp = document.getElementById("diagSearch");
+      if (inp) inp.value = "";
+      renderDiagArea();
+      inp?.focus();
+
+    } catch (e) {
+      console.error(e);
+      diagAddErr = "Erro inesperado ao adicionar diagnóstico.";
+      diagAddSaving = false;
+      renderDiagAddModal();
+    }
+  }
 
   function renderDiagArea() {
     const chips = document.getElementById("diagChips");
@@ -1493,24 +1663,41 @@ function openPatientViewModal(patient) {
 
     const dd = document.getElementById("diagDropdownHost");
     if (dd) {
-      if (!diagLoading && diagResults && diagResults.length) {
+      const clean = String(diagQuery || "").trim();
+      const canAdd = (!diagLoading && clean.length >= 2);
+
+      const hasResults = (!diagLoading && diagResults && diagResults.length);
+      if (hasResults || canAdd) {
         dd.innerHTML = `
           <div id="diagDropdown"
                style="position:absolute; z-index:50; left:0; right:0;
                       max-width:720px; margin-top:6px; background:#fff;
                       border:1px solid #e5e5e5; border-radius:12px;
                       box-shadow:0 10px 24px rgba(0,0,0,0.08);
-                      max-height:220px; overflow:auto;">
-            ${diagResults.map(x => `
+                      max-height:260px; overflow:auto;">
+            ${hasResults ? diagResults.map(x => `
               <div class="diagPick" data-id="${x.id}"
                    style="padding:10px 12px; border-bottom:1px solid #f1f5f9; cursor:pointer;">
                 <div style="font-weight:800;">${escAttr(x.label || "—")}</div>
                 ${x.code ? `<div style="color:#64748b; font-size:12px;">${escAttr(x.code)}</div>` : ``}
               </div>
-            `).join("")}
+            `).join("") : ``}
+
+            ${canAdd ? `
+              <div class="diagAddNew"
+                   data-label="${escAttr(clean)}"
+                   style="padding:10px 12px; cursor:pointer; background:#f8fafc; border-top:1px solid #e2e8f0;">
+                <div style="font-weight:900;">Não encontro → Adicionar ao catálogo</div>
+                <div style="color:#64748b; font-size:12px; margin-top:2px;">
+                  ${escAttr(clean)}
+                </div>
+              </div>
+            ` : ``}
           </div>
         `;
-      } else dd.innerHTML = "";
+      } else {
+        dd.innerHTML = "";
+      }
     }
 
     document.querySelectorAll(".diagPick").forEach(el => {
@@ -1526,6 +1713,15 @@ function openPatientViewModal(patient) {
         ev.preventDefault();
         const id = el.getAttribute("data-id");
         removeDiagnosis(id);
+      };
+    });
+
+    document.querySelectorAll(".diagAddNew").forEach(el => {
+      el.onclick = (ev) => {
+        ev.preventDefault();
+        const label = String(el.getAttribute("data-label") || "").trim();
+        // Por defeito, preenche label; código fica vazio (obrigatório → o utilizador decide)
+        openDiagAddModal(label, "");
       };
     });
   }
@@ -1594,7 +1790,144 @@ function openPatientViewModal(patient) {
 /* ==== FIM BLOCO 06D/12 ==== */
 
 
-/* ==== INÍCIO BLOCO 06E/12 — Tratamentos (catálogo + dual list) ==== */
+/* ==== INÍCIO BLOCO 06E/12 — Tratamentos (catálogo + dual list + adicionar ao catálogo) ==== */
+
+  // ---- Mini-modal: adicionar tratamento ao catálogo ----
+  let treatAddOpen = false;
+  let treatAddSaving = false;
+  let treatAddErr = "";
+  let treatAddCode = "";
+  let treatAddLabel = "";
+
+  function ensureTreatAddHost() {
+    let host = document.getElementById("treatAddModalHost");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "treatAddModalHost";
+      document.body.appendChild(host);
+    }
+    return host;
+  }
+
+  function openTreatAddModal(prefillLabel = "") {
+    treatAddErr = "";
+    treatAddLabel = String(prefillLabel || "").trim();
+    treatAddCode = "";
+    treatAddOpen = true;
+    treatAddSaving = false;
+    renderTreatAddModal();
+    setTimeout(() => {
+      document.getElementById("treatAddLabel")?.focus();
+    }, 0);
+  }
+
+  function closeTreatAddModal() {
+    treatAddOpen = false;
+    treatAddSaving = false;
+    treatAddErr = "";
+    renderTreatAddModal();
+  }
+
+  function renderTreatAddModal() {
+    const host = ensureTreatAddHost();
+    if (!treatAddOpen) {
+      host.innerHTML = "";
+      return;
+    }
+
+    host.innerHTML = `
+      <div style="position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,0.45);
+                  display:flex; align-items:center; justify-content:center; padding:16px;">
+        <div style="width: min(720px, 96vw); background:#fff; border:1px solid #e5e5e5; border-radius:16px;
+                    box-shadow:0 18px 44px rgba(0,0,0,0.18); overflow:hidden;">
+          <div style="padding:14px 16px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between;">
+            <div style="font-weight:900;">Adicionar tratamento ao catálogo</div>
+            <button id="treatAddClose" class="gcBtn" style="padding:8px 10px; border-radius:10px;">Fechar</button>
+          </div>
+
+          <div style="padding:16px;">
+            ${treatAddErr ? `<div style="margin-bottom:10px; padding:10px 12px; border:1px solid #fecaca; background:#fff1f2; color:#991b1b; border-radius:12px;">
+              ${escAttr(treatAddErr)}
+            </div>` : ``}
+
+            <div>
+              <div style="font-size:12px; color:#64748b; margin-bottom:6px;">Código</div>
+              <input id="treatAddCode" value="${escAttr(treatAddCode)}"
+                     class="gcInput" style="width:100%;" />
+            </div>
+
+            <div style="margin-top:10px;">
+              <div style="font-size:12px; color:#64748b; margin-bottom:6px;">Designação</div>
+              <input id="treatAddLabel" value="${escAttr(treatAddLabel)}"
+                     class="gcInput" style="width:100%;" />
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;">
+              <button id="treatAddCancel" class="gcBtn" style="padding:10px 12px; border-radius:12px;">Cancelar</button>
+              <button id="treatAddSave" class="gcBtnPrimary" style="padding:10px 12px; border-radius:12px; min-width:140px;">
+                ${treatAddSaving ? "A gravar…" : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById("treatAddClose")?.onclick = (e) => { e.preventDefault(); closeTreatAddModal(); };
+    document.getElementById("treatAddCancel")?.onclick = (e) => { e.preventDefault(); closeTreatAddModal(); };
+
+    document.getElementById("treatAddSave")?.onclick = async (e) => {
+      e.preventDefault();
+      await saveTreatToCatalog();
+    };
+
+    ["treatAddCode","treatAddLabel"].forEach(id => {
+      document.getElementById(id)?.addEventListener("keydown", async (e) => {
+        if (e.key === "Enter" && !treatAddSaving) {
+          e.preventDefault();
+          await saveTreatToCatalog();
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeTreatAddModal();
+        }
+      });
+    });
+  }
+
+  async function saveTreatToCatalog() {
+    if (treatAddSaving) return;
+
+    const code = String(document.getElementById("treatAddCode")?.value || "").trim();
+    const label = String(document.getElementById("treatAddLabel")?.value || "").trim();
+
+    if (!code) { treatAddErr = "Código obrigatório."; renderTreatAddModal(); return; }
+    if (!label) { treatAddErr = "Designação obrigatória."; renderTreatAddModal(); return; }
+
+    treatAddSaving = true;
+    treatAddErr = "";
+    renderTreatAddModal();
+
+    const { data, error } = await window.sb.rpc("add_treatment_catalog", {
+      p_code: code,
+      p_label: label,
+      p_is_active: true,
+      p_sort_order: null
+    });
+
+    if (error) {
+      treatAddErr = String(error.message || "Erro ao adicionar tratamento.");
+      treatAddSaving = false;
+      renderTreatAddModal();
+      return;
+    }
+
+    if (data?.id) {
+      addTreatment(normTreatRow(data));
+    }
+
+    closeTreatAddModal();
+  }
 
   function sentenceizeLabel(s) {
     const raw = String(s || "").trim();
@@ -1610,44 +1943,28 @@ function openPatientViewModal(patient) {
     return {
       id: t.id,
       label: sentenceizeLabel(t.label || t.name || t.title || ""),
-      code: t.code || t.adse_code || t.proc_code || "",
+      code: t.code || "",
     };
   }
 
   async function fetchTreatmentsDefault() {
-    try {
-      treatLoading = true;
-      renderTreatArea();
+    treatLoading = true;
+    renderTreatArea();
 
-      let res = await window.sb
-        .from("treatments_catalog")
-        .select("*")
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true, nullsFirst: false })
-        .order("label", { ascending: true })
-        .limit(200);
+    const res = await window.sb
+      .from("treatments_catalog")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true, nullsFirst: false })
+      .order("label", { ascending: true })
+      .limit(200);
 
-      if (res?.error) {
-        res = await window.sb
-          .from("treatments_catalog")
-          .select("*")
-          .order("sort_order", { ascending: true, nullsFirst: false })
-          .order("label", { ascending: true })
-          .limit(200);
-      }
+    const rows = (res?.data || []).map(normTreatRow);
+    const sel = new Set(selectedTreat.map(x => String(x.id)));
+    treatResults = rows.filter(x => !sel.has(String(x.id)));
 
-      const rows = (res?.data || []).map(normTreatRow);
-      const sel = new Set(selectedTreat.map(x => String(x.id)));
-      treatResults = rows.filter(x => !sel.has(String(x.id)));
-
-      treatLoading = false;
-      renderTreatArea();
-    } catch (e) {
-      console.error(e);
-      treatLoading = false;
-      treatResults = [];
-      renderTreatArea();
-    }
+    treatLoading = false;
+    renderTreatArea();
   }
 
   async function searchTreatments(q) {
@@ -1663,46 +1980,13 @@ function openPatientViewModal(patient) {
     treatLoading = true;
     renderTreatArea();
 
-    const needle = clean.toLowerCase();
-    let data = null, error = null;
-
-    try {
-      const r1 = await window.sb
-        .from("treatments_catalog")
-        .select("*")
-        .eq("is_active", true)
-        .ilike("search_text", `%${needle}%`)
-        .order("sort_order", { ascending: true, nullsFirst: false })
-        .order("label", { ascending: true })
-        .limit(200);
-
-      data = r1.data;
-      error = r1.error;
-      if (error) throw error;
-    } catch (e) {
-      try {
-        const r2 = await window.sb
-          .from("treatments_catalog")
-          .select("*")
-          .ilike("label", `%${needle}%`)
-          .order("sort_order", { ascending: true, nullsFirst: false })
-          .order("label", { ascending: true })
-          .limit(200);
-
-        data = r2.data;
-        error = r2.error;
-      } catch (e2) {
-        error = e2;
-      }
-    }
-
-    if (error) {
-      console.error(error);
-      treatLoading = false;
-      treatResults = [];
-      renderTreatArea();
-      return;
-    }
+    const { data } = await window.sb
+      .from("treatments_catalog")
+      .select("*")
+      .ilike("label", `%${clean}%`)
+      .order("sort_order", { ascending: true, nullsFirst: false })
+      .order("label", { ascending: true })
+      .limit(200);
 
     const rows = (data || []).map(normTreatRow);
     const sel = new Set(selectedTreat.map(x => String(x.id)));
@@ -1713,7 +1997,7 @@ function openPatientViewModal(patient) {
   }
 
   function addTreatment(item) {
-    if (!item || !item.id) return;
+    if (!item?.id) return;
     if (selectedTreat.some(x => String(x.id) === String(item.id))) return;
 
     selectedTreat.push({ id: item.id, code: item.code || "", label: item.label || "", qty: 1 });
@@ -1722,20 +2006,7 @@ function openPatientViewModal(patient) {
   }
 
   function removeTreatment(id) {
-    const rem = selectedTreat.find(x => String(x.id) === String(id));
     selectedTreat = selectedTreat.filter(x => String(x.id) !== String(id));
-
-    if (rem) {
-      treatResults = [{ id: rem.id, label: rem.label || "", code: rem.code || "" }, ...(treatResults || [])];
-      const seen = new Set();
-      treatResults = (treatResults || []).filter(x => {
-        const k = String(x.id);
-        if (seen.has(k)) return false;
-        seen.add(k);
-        return true;
-      });
-    }
-
     renderTreatArea();
   }
 
@@ -1769,21 +2040,29 @@ function openPatientViewModal(patient) {
     }
 
     if (boxCat) {
-      if (!treatResults || !treatResults.length) {
-        boxCat.innerHTML = `<div style="color:#64748b;">Sem resultados.</div>`;
-      } else {
-        boxCat.innerHTML = `
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            ${treatResults.map(x => `
-              <div class="treatPick" data-id="${x.id}"
-                   style="padding:10px 12px; border:1px solid #e5e5e5; border-radius:12px; cursor:pointer;">
-                <div style="font-weight:900;">${escAttr(x.label || "—")}</div>
-                ${x.code ? `<div style="color:#64748b; font-size:12px;">${escAttr(x.code)}</div>` : ``}
-              </div>
-            `).join("")}
-          </div>
-        `;
-      }
+      const clean = String(treatQuery || "").trim();
+      const canAdd = clean.length >= 2 && (!treatResults || !treatResults.length);
+
+      boxCat.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          ${(treatResults || []).map(x => `
+            <div class="treatPick" data-id="${x.id}"
+                 style="padding:10px 12px; border:1px solid #e5e5e5; border-radius:12px; cursor:pointer;">
+              <div style="font-weight:900;">${escAttr(x.label || "—")}</div>
+              ${x.code ? `<div style="color:#64748b; font-size:12px;">${escAttr(x.code)}</div>` : ``}
+            </div>
+          `).join("")}
+
+          ${canAdd ? `
+            <div class="treatAddNew"
+                 data-label="${escAttr(clean)}"
+                 style="padding:10px 12px; border:1px dashed #cbd5e1; border-radius:12px; cursor:pointer; background:#f8fafc;">
+              <div style="font-weight:900;">Não encontro → Adicionar ao catálogo</div>
+              <div style="color:#64748b; font-size:12px;">${escAttr(clean)}</div>
+            </div>
+          ` : ``}
+        </div>
+      `;
     }
 
     document.querySelectorAll(".treatPick").forEach(el => {
@@ -1799,6 +2078,14 @@ function openPatientViewModal(patient) {
         ev.preventDefault();
         const id = el.getAttribute("data-id");
         removeTreatment(id);
+      };
+    });
+
+    document.querySelectorAll(".treatAddNew").forEach(el => {
+      el.onclick = (ev) => {
+        ev.preventDefault();
+        const label = String(el.getAttribute("data-label") || "").trim();
+        openTreatAddModal(label);
       };
     });
   }
