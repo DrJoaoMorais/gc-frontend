@@ -1789,145 +1789,14 @@ function openPatientViewModal(patient) {
 
 /* ==== FIM BLOCO 06D/12 ==== */
 
-/* ==== INÍCIO BLOCO 06E/12 — Tratamentos (catálogo + dual list + adicionar ao catálogo) ==== */
-
-  // ---- Mini-modal: adicionar tratamento ao catálogo ----
-  let treatAddOpen = false;
-  let treatAddSaving = false;
-  let treatAddErr = "";
-  let treatAddCode = "";
-  let treatAddLabel = "";
-
-  function ensureTreatAddHost() {
-    let host = document.getElementById("treatAddModalHost");
-    if (!host) {
-      host = document.createElement("div");
-      host.id = "treatAddModalHost";
-      document.body.appendChild(host);
-    }
-    return host;
-  }
-
-  function openTreatAddModal(prefillLabel = "") {
-    treatAddErr = "";
-    treatAddLabel = String(prefillLabel || "").trim();
-    treatAddCode = "";
-    treatAddOpen = true;
-    treatAddSaving = false;
-    renderTreatAddModal();
-    setTimeout(() => {
-      const inp = document.getElementById("treatAddLabel");
-      if (inp) inp.focus();
-    }, 0);
-  }
-
-  function closeTreatAddModal() {
-    treatAddOpen = false;
-    treatAddSaving = false;
-    treatAddErr = "";
-    renderTreatAddModal();
-  }
-
-  function renderTreatAddModal() {
-    const host = ensureTreatAddHost();
-    if (!treatAddOpen) {
-      host.innerHTML = "";
-      return;
-    }
-
-    host.innerHTML = `
-      <div style="position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,0.45);
-                  display:flex; align-items:center; justify-content:center; padding:16px;">
-        <div style="width:min(720px,96vw); background:#fff; border:1px solid #e5e5e5; border-radius:16px;
-                    box-shadow:0 18px 44px rgba(0,0,0,0.18); overflow:hidden;">
-          <div style="padding:14px 16px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between;">
-            <div style="font-weight:900;">Adicionar tratamento ao catálogo</div>
-            <button id="treatAddClose" class="gcBtn">Fechar</button>
-          </div>
-
-          <div style="padding:16px;">
-            ${treatAddErr ? `
-              <div style="margin-bottom:10px; padding:10px; border:1px solid #fecaca; background:#fff1f2; color:#991b1b; border-radius:12px;">
-                ${escAttr(treatAddErr)}
-              </div>` : ``}
-
-            <div>
-              <div style="font-size:12px; color:#64748b;">Código</div>
-              <input id="treatAddCode" value="${escAttr(treatAddCode)}" class="gcInput" style="width:100%;" />
-            </div>
-
-            <div style="margin-top:10px;">
-              <div style="font-size:12px; color:#64748b;">Designação</div>
-              <input id="treatAddLabel" value="${escAttr(treatAddLabel)}" class="gcInput" style="width:100%;" />
-            </div>
-
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:14px;">
-              <button id="treatAddCancel" class="gcBtn">Cancelar</button>
-              <button id="treatAddSave" class="gcBtnPrimary">
-                ${treatAddSaving ? "A gravar…" : "Guardar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    const closeBtn = document.getElementById("treatAddClose");
-    if (closeBtn) closeBtn.onclick = (e) => { e.preventDefault(); closeTreatAddModal(); };
-
-    const cancelBtn = document.getElementById("treatAddCancel");
-    if (cancelBtn) cancelBtn.onclick = (e) => { e.preventDefault(); closeTreatAddModal(); };
-
-    const saveBtn = document.getElementById("treatAddSave");
-    if (saveBtn) saveBtn.onclick = async (e) => {
-      e.preventDefault();
-      await saveTreatToCatalog();
-    };
-  }
-
-  async function saveTreatToCatalog() {
-    if (treatAddSaving) return;
-
-    const code = String(document.getElementById("treatAddCode")?.value || "").trim();
-    const label = String(document.getElementById("treatAddLabel")?.value || "").trim();
-
-    if (!code) { treatAddErr = "Código obrigatório."; renderTreatAddModal(); return; }
-    if (!label) { treatAddErr = "Designação obrigatória."; renderTreatAddModal(); return; }
-
-    treatAddSaving = true;
-    treatAddErr = "";
-    renderTreatAddModal();
-
-    const { data, error } = await window.sb.rpc("add_treatment_catalog", {
-      p_code: code,
-      p_label: label,
-      p_is_active: true,
-      p_sort_order: null
-    });
-
-    if (error) {
-      treatAddErr = String(error.message || "Erro ao adicionar tratamento.");
-      treatAddSaving = false;
-      renderTreatAddModal();
-      return;
-    }
-
-    if (data?.id) {
-      addTreatment({
-        id: data.id,
-        label: sentenceizeLabel(data.label),
-        code: data.code || ""
-      });
-    }
-
-    closeTreatAddModal();
-  }
+/* ==== INÍCIO BLOCO 06E/12 — Tratamentos (catálogo + dual list) ==== */
 
   function sentenceizeLabel(s) {
     const raw = String(s || "").trim();
     if (!raw) return "";
     let t = raw.toLowerCase();
     t = t.replace(/\s+/g, " ");
+    t = t.replace(/(^|[.!?]\s+)([a-zà-ÿ])/g, (m, p1, p2) => p1 + p2.toUpperCase());
     t = t.replace(/^([a-zà-ÿ])/, (m, c) => c.toUpperCase());
     return t;
   }
@@ -1935,35 +1804,52 @@ function openPatientViewModal(patient) {
   function normTreatRow(t) {
     return {
       id: t.id,
-      label: sentenceizeLabel(t.label || ""),
-      code: t.code || "",
+      label: sentenceizeLabel(t.label || t.name || t.title || ""),
+      code: t.code || t.adse_code || t.proc_code || "",
     };
   }
 
   async function fetchTreatmentsDefault() {
-    treatLoading = true;
-    renderTreatArea();
+    try {
+      treatLoading = true;
+      renderTreatArea();
 
-    const { data } = await window.sb
-      .from("treatments_catalog")
-      .select("*")
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true })
-      .order("label", { ascending: true })
-      .limit(200);
+      let res = await window.sb
+        .from("treatments_catalog")
+        .select("*")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true, nullsFirst: false })
+        .order("label", { ascending: true })
+        .limit(200);
 
-    const rows = (data || []).map(normTreatRow);
-    const sel = new Set(selectedTreat.map(x => String(x.id)));
-    treatResults = rows.filter(x => !sel.has(String(x.id)));
+      if (res?.error) {
+        res = await window.sb
+          .from("treatments_catalog")
+          .select("*")
+          .order("sort_order", { ascending: true, nullsFirst: false })
+          .order("label", { ascending: true })
+          .limit(200);
+      }
 
-    treatLoading = false;
-    renderTreatArea();
+      const rows = (res?.data || []).map(normTreatRow);
+      const sel = new Set(selectedTreat.map(x => String(x.id)));
+      treatResults = rows.filter(x => !sel.has(String(x.id)));
+
+      treatLoading = false;
+      renderTreatArea();
+    } catch (e) {
+      console.error(e);
+      treatLoading = false;
+      treatResults = [];
+      renderTreatArea();
+    }
   }
 
   async function searchTreatments(q) {
-    const clean = String(q || "").trim();
-    treatQuery = clean;
+    const query = String(q || "");
+    treatQuery = query;
 
+    const clean = query.trim();
     if (!clean || clean.length < 2) {
       await fetchTreatmentsDefault();
       return;
@@ -1972,13 +1858,46 @@ function openPatientViewModal(patient) {
     treatLoading = true;
     renderTreatArea();
 
-    const { data } = await window.sb
-      .from("treatments_catalog")
-      .select("*")
-      .ilike("label", `%${clean}%`)
-      .order("sort_order", { ascending: true })
-      .order("label", { ascending: true })
-      .limit(200);
+    const needle = clean.toLowerCase();
+    let data = null, error = null;
+
+    try {
+      const r1 = await window.sb
+        .from("treatments_catalog")
+        .select("*")
+        .eq("is_active", true)
+        .ilike("search_text", `%${needle}%`)
+        .order("sort_order", { ascending: true, nullsFirst: false })
+        .order("label", { ascending: true })
+        .limit(200);
+
+      data = r1.data;
+      error = r1.error;
+      if (error) throw error;
+    } catch (e) {
+      try {
+        const r2 = await window.sb
+          .from("treatments_catalog")
+          .select("*")
+          .ilike("label", `%${needle}%`)
+          .order("sort_order", { ascending: true, nullsFirst: false })
+          .order("label", { ascending: true })
+          .limit(200);
+
+        data = r2.data;
+        error = r2.error;
+      } catch (e2) {
+        error = e2;
+      }
+    }
+
+    if (error) {
+      console.error(error);
+      treatLoading = false;
+      treatResults = [];
+      renderTreatArea();
+      return;
+    }
 
     const rows = (data || []).map(normTreatRow);
     const sel = new Set(selectedTreat.map(x => String(x.id)));
@@ -1989,7 +1908,7 @@ function openPatientViewModal(patient) {
   }
 
   function addTreatment(item) {
-    if (!item?.id) return;
+    if (!item || !item.id) return;
     if (selectedTreat.some(x => String(x.id) === String(item.id))) return;
 
     selectedTreat.push({ id: item.id, code: item.code || "", label: item.label || "", qty: 1 });
@@ -1998,44 +1917,85 @@ function openPatientViewModal(patient) {
   }
 
   function removeTreatment(id) {
+    const rem = selectedTreat.find(x => String(x.id) === String(id));
     selectedTreat = selectedTreat.filter(x => String(x.id) !== String(id));
+
+    if (rem) {
+      treatResults = [{ id: rem.id, label: rem.label || "", code: rem.code || "" }, ...(treatResults || [])];
+      const seen = new Set();
+      treatResults = (treatResults || []).filter(x => {
+        const k = String(x.id);
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+    }
+
     renderTreatArea();
   }
 
   function renderTreatArea() {
     const boxSel = document.getElementById("treatSelectedBox");
     const boxCat = document.getElementById("treatCatalogBox");
+    const st = document.getElementById("treatStatus");
+
+    if (st) st.innerHTML = treatLoading ? `<div style="margin-top:6px; color:#64748b;">A carregar…</div>` : "";
 
     if (boxSel) {
       if (!selectedTreat.length) {
         boxSel.innerHTML = `<div style="color:#64748b;">Sem tratamentos selecionados.</div>`;
       } else {
-        boxSel.innerHTML = selectedTreat.map(x => `
-          <div style="padding:10px; border:1px solid #e5e5e5; border-radius:12px; margin-bottom:8px;">
-            <strong>${escAttr(x.label)}</strong>
-            ${x.code ? `<div style="font-size:12px; color:#64748b;">${escAttr(x.code)}</div>` : ``}
+        boxSel.innerHTML = `
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${selectedTreat.map(x => `
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;
+                          padding:10px 12px; border:1px solid #e5e5e5; border-radius:12px;">
+                <div style="display:flex; flex-direction:column;">
+                  <div style="font-weight:900;">${escAttr(x.label || "—")}</div>
+                  ${x.code ? `<div style="color:#64748b; font-size:12px;">${escAttr(x.code)}</div>` : ``}
+                </div>
+                <button class="treatRemove gcBtn" data-id="${x.id}"
+                        style="padding:6px 10px; border-radius:999px;">×</button>
+              </div>
+            `).join("")}
           </div>
-        `).join("");
+        `;
       }
     }
 
     if (boxCat) {
-      boxCat.innerHTML = (treatResults || []).map(x => `
-        <div class="treatPick" data-id="${x.id}"
-             style="padding:10px; border:1px solid #e5e5e5; border-radius:12px; margin-bottom:8px; cursor:pointer;">
-          <strong>${escAttr(x.label)}</strong>
-          ${x.code ? `<div style="font-size:12px; color:#64748b;">${escAttr(x.code)}</div>` : ``}
-        </div>
-      `).join("");
-
-      document.querySelectorAll(".treatPick").forEach(el => {
-        el.onclick = () => {
-          const id = el.getAttribute("data-id");
-          const item = treatResults.find(x => String(x.id) === String(id));
-          addTreatment(item);
-        };
-      });
+      if (!treatResults || !treatResults.length) {
+        boxCat.innerHTML = `<div style="color:#64748b;">Sem resultados.</div>`;
+      } else {
+        boxCat.innerHTML = `
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${treatResults.map(x => `
+              <div class="treatPick" data-id="${x.id}"
+                   style="padding:10px 12px; border:1px solid #e5e5e5; border-radius:12px; cursor:pointer;">
+                <div style="font-weight:900;">${escAttr(x.label || "—")}</div>
+                ${x.code ? `<div style="color:#64748b; font-size:12px;">${escAttr(x.code)}</div>` : ``}
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
     }
+
+    document.querySelectorAll(".treatPick").forEach(el => {
+      el.onclick = () => {
+        const id = el.getAttribute("data-id");
+        const item = (treatResults || []).find(x => String(x.id) === String(id));
+        addTreatment(item);
+      };
+    });
+
+    document.querySelectorAll(".treatRemove").forEach(el => {
+      el.onclick = (ev) => {
+        ev.preventDefault();
+        const id = el.getAttribute("data-id");
+        removeTreatment(id);
+      };
+    });
   }
 
 /* ==== FIM BLOCO 06E/12 ==== */
