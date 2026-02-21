@@ -3066,105 +3066,33 @@ function openPatientViewModal(patient) {
 
   function bindConsultEvents() {
 
-    // =========================
-    // HDA editor: manter seleção/caret para execCommand
-    // =========================
     const ed = document.getElementById("hdaEditor");
 
-    // guardamos a última seleção do editor
-    let hdaLastRange = null;
-
-    function isRangeInsideEditor(range) {
-      try {
-        if (!range || !ed) return false;
-        const sc = range.startContainer;
-        const ec = range.endContainer;
-        return ed.contains(sc) && ed.contains(ec);
-      } catch (e) {
-        return false;
-      }
-    }
-
-    function saveSelectionFromEditor() {
-      try {
-        if (!ed) return;
-        const sel = window.getSelection ? window.getSelection() : null;
-        if (!sel || sel.rangeCount === 0) return;
-        const r = sel.getRangeAt(0);
-        if (isRangeInsideEditor(r)) hdaLastRange = r.cloneRange();
-      } catch (e) {}
-    }
-
-    function restoreSelectionToEditor() {
-      try {
-        if (!ed) return;
-        ed.focus();
-
-        const sel = window.getSelection ? window.getSelection() : null;
-        if (!sel) return;
-
-        sel.removeAllRanges();
-
-        if (hdaLastRange && isRangeInsideEditor(hdaLastRange)) {
-          sel.addRange(hdaLastRange);
-        } else {
-          // fallback: colocar cursor no fim
-          const r = document.createRange();
-          r.selectNodeContents(ed);
-          r.collapse(false);
-          sel.addRange(r);
-          hdaLastRange = r.cloneRange();
-        }
-      } catch (e) {}
-    }
-
-    function cmd(command) {
-      if (!ed) return;
-      restoreSelectionToEditor();
-      try { document.execCommand(command, false, null); } catch (e) {}
-      saveSelectionFromEditor();
-      draftHDAHtml = ed.innerHTML || "";
-    }
-
     if (ed) {
-      // Atualização do draft
-      ed.oninput = () => { draftHDAHtml = ed.innerHTML || ""; saveSelectionFromEditor(); };
+      ed.oninput = () => { draftHDAHtml = ed.innerHTML || ""; };
 
-      // Guardar seleção quando o utilizador clica/seleciona dentro do editor
-      ed.addEventListener("mouseup", saveSelectionFromEditor);
-      ed.addEventListener("keyup", saveSelectionFromEditor);
-      ed.addEventListener("focus", saveSelectionFromEditor);
-      ed.addEventListener("blur", saveSelectionFromEditor);
+      function cmd(command) {
+        ed.focus();
+        try { document.execCommand(command, false, null); } catch (e) {}
+        draftHDAHtml = ed.innerHTML || "";
+      }
 
-      // Foco inicial e seleção (para evitar “parece que seleciona mas não escreve” após render)
-      setTimeout(() => {
-        try {
-          ed.focus();
-          saveSelectionFromEditor();
-        } catch (e) {}
-      }, 0);
-
-      // IMPORTANTE: usar mousedown para não perder seleção ao clicar nos botões
-      const bindCmdBtn = (id, command) => {
+      const bindCmd = (id, command) => {
         const b = document.getElementById(id);
         if (!b) return;
+
         b.addEventListener("mousedown", (ev) => {
-          ev.preventDefault(); // impede blur do editor
+          ev.preventDefault();   // mantém foco no editor
           cmd(command);
         });
-        // bloqueia também click por segurança
-        b.addEventListener("click", (ev) => { ev.preventDefault(); });
       };
 
-      bindCmdBtn("hBold", "bold");
-      bindCmdBtn("hUnder", "underline");
-      bindCmdBtn("hUL", "insertUnorderedList");
-      bindCmdBtn("hOL", "insertOrderedList");
+      bindCmd("hBold", "bold");
+      bindCmd("hUnder", "underline");
+      bindCmd("hUL", "insertUnorderedList");
+      bindCmd("hOL", "insertOrderedList");
     }
 
-    // =========================
-    // Diagnósticos
-    // =========================
     const diagInput = document.getElementById("diagSearch");
     if (diagInput) {
       diagInput.oninput = (e) => {
@@ -3182,9 +3110,6 @@ function openPatientViewModal(patient) {
 
     renderDiagArea();
 
-    // =========================
-    // Tratamentos
-    // =========================
     const pr = document.getElementById("prescriptionText");
     if (pr) pr.oninput = (e) => { prescriptionText = e?.target?.value ?? ""; };
 
@@ -3207,9 +3132,6 @@ function openPatientViewModal(patient) {
 
     if (!treatResults || !treatResults.length) fetchTreatmentsDefault();
 
-    // =========================
-    // Cancelar / Gravar
-    // =========================
     document.getElementById("btnCancelConsult")?.addEventListener("click", () => {
       creatingConsult = false;
       render();
