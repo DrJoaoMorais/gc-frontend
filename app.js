@@ -3150,7 +3150,6 @@ function openPatientViewModal(patient) {
         inOL = !!ol;
       }
 
-      // Se estiver em OL, desliga UL (e vice-versa)
       if (inOL) inUL = false;
 
       setBtnActive(btnUL, !!inUL);
@@ -3184,13 +3183,11 @@ function openPatientViewModal(patient) {
         if (!ed) return;
         ed.focus();
 
-        // Se não temos range guardado, não inventamos nada: deixamos o caret onde está.
         if (!hdaLastRange) return;
 
         const sel = window.getSelection ? window.getSelection() : null;
         if (!sel) return;
 
-        // Só restaurar se continuar válido dentro do editor
         if (!rangeInsideEditor(hdaLastRange)) return;
 
         sel.removeAllRanges();
@@ -3215,17 +3212,10 @@ function openPatientViewModal(patient) {
         updateToolbarState();
       };
 
-      // Capturar seleção enquanto o utilizador trabalha
+      // Eventos do próprio editor (sem listener global em document)
       ed.addEventListener("mouseup", () => { captureSelection(); updateToolbarState(); });
       ed.addEventListener("keyup",  () => { captureSelection(); updateToolbarState(); });
       ed.addEventListener("focus",  () => { captureSelection(); updateToolbarState(); });
-
-      // Captura global: cobre casos em que o caret muda sem keyup/mouseup
-      const onSelChange = () => {
-        captureSelection();
-        updateToolbarState();
-      };
-      document.addEventListener("selectionchange", onSelChange);
 
       // Foco inicial e estado inicial
       setTimeout(() => {
@@ -3240,7 +3230,7 @@ function openPatientViewModal(patient) {
         if (!b) return;
 
         b.addEventListener("mousedown", (ev) => {
-          ev.preventDefault(); // impede blur do editor e perda do caret
+          ev.preventDefault();
           execCmd(command);
         });
 
