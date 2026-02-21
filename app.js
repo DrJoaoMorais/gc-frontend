@@ -3195,6 +3195,37 @@ function openPatientViewModal(patient) {
       } catch (_) {}
     }
 
+    // ✅ Quebra de linha manual (Chrome): não depende do comportamento default do contenteditable
+    function insertLineBreakManual() {
+      if (!ed) return;
+      try { ed.focus(); } catch (_) {}
+
+      const sel = window.getSelection ? window.getSelection() : null;
+      if (!sel || sel.rangeCount === 0) return;
+
+      const r = sel.getRangeAt(0);
+      if (!rangeInsideEditor(r)) return;
+
+      // Apaga seleção (se existir)
+      try { r.deleteContents(); } catch (_) {}
+
+      const br = document.createElement("br");
+      r.insertNode(br);
+
+      // Move caret para depois do <br>
+      try {
+        const rr = document.createRange();
+        rr.setStartAfter(br);
+        rr.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(rr);
+      } catch (_) {}
+
+      captureSelection();
+      draftHDAHtml = ed.innerHTML || "";
+      updateToolbarState();
+    }
+
     function execCmd(command) {
       if (!ed) return;
       restoreSelectionIfAny();
@@ -3212,7 +3243,18 @@ function openPatientViewModal(patient) {
         updateToolbarState();
       };
 
-      // Eventos do próprio editor (sem listener global em document)
+      // ✅ Enter/Shift+Enter no próprio editor
+      ed.addEventListener("keydown", (ev) => {
+        if (!ev) return;
+        if (ev.key === "Enter") {
+          // Força quebra de linha no Chrome mesmo que haja preventDefault algures
+          ev.preventDefault();
+          ev.stopPropagation();
+          insertLineBreakManual();
+        }
+      });
+
+      // Eventos do próprio editor
       ed.addEventListener("mouseup", () => { captureSelection(); updateToolbarState(); });
       ed.addEventListener("keyup",  () => { captureSelection(); updateToolbarState(); });
       ed.addEventListener("focus",  () => { captureSelection(); updateToolbarState(); });
