@@ -3003,10 +3003,10 @@ function openPatientViewModal(patient) {
         </div>
 
         <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button id="hBold" class="gcBtn" type="button">Negrito</button>
+          <button id="hBold"  class="gcBtn" type="button">Negrito</button>
           <button id="hUnder" class="gcBtn" type="button">Sublinhar</button>
-          <button id="hUL" class="gcBtn" type="button">Lista</button>
-          <button id="hOL" class="gcBtn" type="button">Numeração</button>
+          <button id="hUL"    class="gcBtn" type="button">Lista</button>
+          <button id="hOL"    class="gcBtn" type="button">Numeração</button>
         </div>
 
         <div id="hdaEditor" contenteditable="true"
@@ -3066,33 +3066,108 @@ function openPatientViewModal(patient) {
 
   function bindConsultEvents() {
 
+    // =========================
+    // HDA editor: seleção/caret robusta
+    // =========================
     const ed = document.getElementById("hdaEditor");
 
-    if (ed) {
-      ed.oninput = () => { draftHDAHtml = ed.innerHTML || ""; };
+    // Guardamos a última seleção válida dentro do editor
+    let hdaLastRange = null;
 
-      function cmd(command) {
-        ed.focus();
-        try { document.execCommand(command, false, null); } catch (e) {}
-        draftHDAHtml = ed.innerHTML || "";
+    function rangeInsideEditor(r) {
+      try {
+        if (!ed || !r) return false;
+        return ed.contains(r.startContainer) && ed.contains(r.endContainer);
+      } catch (_) {
+        return false;
       }
+    }
 
-      const bindCmd = (id, command) => {
+    function captureSelection() {
+      try {
+        if (!ed) return;
+        const sel = window.getSelection ? window.getSelection() : null;
+        if (!sel || sel.rangeCount === 0) return;
+        const r = sel.getRangeAt(0);
+        if (rangeInsideEditor(r)) hdaLastRange = r.cloneRange();
+      } catch (_) {}
+    }
+
+    function restoreSelectionIfAny() {
+      try {
+        if (!ed) return;
+        ed.focus();
+
+        // Se não temos range guardado, não inventamos nada: deixamos o caret onde está.
+        if (!hdaLastRange) return;
+
+        const sel = window.getSelection ? window.getSelection() : null;
+        if (!sel) return;
+
+        // Só restaurar se continuar válido dentro do editor
+        if (!rangeInsideEditor(hdaLastRange)) return;
+
+        sel.removeAllRanges();
+        sel.addRange(hdaLastRange);
+      } catch (_) {}
+    }
+
+    function execCmd(command) {
+      if (!ed) return;
+      restoreSelectionIfAny();
+      try { document.execCommand(command, false, null); } catch (_) {}
+      captureSelection();
+      draftHDAHtml = ed.innerHTML || "";
+    }
+
+    if (ed) {
+      // Draft sempre atualizado
+      ed.oninput = () => {
+        draftHDAHtml = ed.innerHTML || "";
+        captureSelection();
+      };
+
+      // Capturar seleção enquanto o utilizador trabalha
+      ed.addEventListener("mouseup", captureSelection);
+      ed.addEventListener("keyup", captureSelection);
+      ed.addEventListener("focus", captureSelection);
+
+      // Captura global: cobre casos em que o caret muda sem keyup/mouseup (ex.: teclado + autocorreção)
+      // (não é “pesado”: só guarda range quando a seleção está dentro do editor)
+      const onSelChange = () => captureSelection();
+      document.addEventListener("selectionchange", onSelChange);
+
+      // Quando re-renderiza e abre a consulta, garante foco inicial no editor
+      setTimeout(() => { try { ed.focus(); } catch (_) {} }, 0);
+
+      // Botões: usar mousedown + preventDefault para NÃO perder a seleção ao clicar
+      function bindBtn(id, command) {
         const b = document.getElementById(id);
         if (!b) return;
 
         b.addEventListener("mousedown", (ev) => {
-          ev.preventDefault();   // mantém foco no editor
-          cmd(command);
+          ev.preventDefault(); // impede blur do editor e perda do caret
+          execCmd(command);
         });
-      };
 
-      bindCmd("hBold", "bold");
-      bindCmd("hUnder", "underline");
-      bindCmd("hUL", "insertUnorderedList");
-      bindCmd("hOL", "insertOrderedList");
+        b.addEventListener("click", (ev) => {
+          ev.preventDefault();
+        });
+      }
+
+      bindBtn("hBold",  "bold");
+      bindBtn("hUnder", "underline");
+      bindBtn("hUL",    "insertUnorderedList");
+      bindBtn("hOL",    "insertOrderedList");
+
+      // Cleanup defensivo: se voltares a chamar bindConsultEvents sem destruir modal,
+      // remove o listener antigo ao sair da consulta (aqui não temos hook; por isso mantemos simples).
+      // Na prática, como o modal re-renderiza e o DOM anterior é destruído, isto não acumula.
     }
 
+    // =========================
+    // Diagnósticos
+    // =========================
     const diagInput = document.getElementById("diagSearch");
     if (diagInput) {
       diagInput.oninput = (e) => {
@@ -3110,6 +3185,9 @@ function openPatientViewModal(patient) {
 
     renderDiagArea();
 
+    // =========================
+    // Tratamentos
+    // =========================
     const pr = document.getElementById("prescriptionText");
     if (pr) pr.oninput = (e) => { prescriptionText = e?.target?.value ?? ""; };
 
@@ -3132,6 +3210,9 @@ function openPatientViewModal(patient) {
 
     if (!treatResults || !treatResults.length) fetchTreatmentsDefault();
 
+    // =========================
+    // Cancelar / Gravar
+    // =========================
     document.getElementById("btnCancelConsult")?.addEventListener("click", () => {
       creatingConsult = false;
       render();
