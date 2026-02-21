@@ -3003,10 +3003,10 @@ function openPatientViewModal(patient) {
         </div>
 
         <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button id="hBold" class="gcBtn">Negrito</button>
-          <button id="hUnder" class="gcBtn">Sublinhar</button>
-          <button id="hUL" class="gcBtn">Lista</button>
-          <button id="hOL" class="gcBtn">Numeração</button>
+          <button id="hBold" class="gcBtn" type="button">Negrito</button>
+          <button id="hUnder" class="gcBtn" type="button">Sublinhar</button>
+          <button id="hUL" class="gcBtn" type="button">Lista</button>
+          <button id="hOL" class="gcBtn" type="button">Numeração</button>
         </div>
 
         <div id="hdaEditor" contenteditable="true"
@@ -3057,30 +3057,114 @@ function openPatientViewModal(patient) {
         </div>
 
         <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
-          <button id="btnCancelConsult" class="gcBtn">Cancelar</button>
-          <button id="btnSaveConsult" class="gcBtn" style="font-weight:900;">Gravar</button>
+          <button id="btnCancelConsult" class="gcBtn" type="button">Cancelar</button>
+          <button id="btnSaveConsult" class="gcBtn" type="button" style="font-weight:900;">Gravar</button>
         </div>
       </div>
     `;
   }
 
   function bindConsultEvents() {
+
+    // =========================
+    // HDA editor: manter seleção/caret para execCommand
+    // =========================
     const ed = document.getElementById("hdaEditor");
-    if (ed) {
-      ed.oninput = () => { draftHDAHtml = ed.innerHTML || ""; };
 
-      function cmd(c) {
-        ed.focus();
-        try { document.execCommand(c, false, null); } catch (e) {}
-        draftHDAHtml = ed.innerHTML || "";
+    // guardamos a última seleção do editor
+    let hdaLastRange = null;
+
+    function isRangeInsideEditor(range) {
+      try {
+        if (!range || !ed) return false;
+        const sc = range.startContainer;
+        const ec = range.endContainer;
+        return ed.contains(sc) && ed.contains(ec);
+      } catch (e) {
+        return false;
       }
-
-      document.getElementById("hBold")?.addEventListener("click", () => cmd("bold"));
-      document.getElementById("hUnder")?.addEventListener("click", () => cmd("underline"));
-      document.getElementById("hUL")?.addEventListener("click", () => cmd("insertUnorderedList"));
-      document.getElementById("hOL")?.addEventListener("click", () => cmd("insertOrderedList"));
     }
 
+    function saveSelectionFromEditor() {
+      try {
+        if (!ed) return;
+        const sel = window.getSelection ? window.getSelection() : null;
+        if (!sel || sel.rangeCount === 0) return;
+        const r = sel.getRangeAt(0);
+        if (isRangeInsideEditor(r)) hdaLastRange = r.cloneRange();
+      } catch (e) {}
+    }
+
+    function restoreSelectionToEditor() {
+      try {
+        if (!ed) return;
+        ed.focus();
+
+        const sel = window.getSelection ? window.getSelection() : null;
+        if (!sel) return;
+
+        sel.removeAllRanges();
+
+        if (hdaLastRange && isRangeInsideEditor(hdaLastRange)) {
+          sel.addRange(hdaLastRange);
+        } else {
+          // fallback: colocar cursor no fim
+          const r = document.createRange();
+          r.selectNodeContents(ed);
+          r.collapse(false);
+          sel.addRange(r);
+          hdaLastRange = r.cloneRange();
+        }
+      } catch (e) {}
+    }
+
+    function cmd(command) {
+      if (!ed) return;
+      restoreSelectionToEditor();
+      try { document.execCommand(command, false, null); } catch (e) {}
+      saveSelectionFromEditor();
+      draftHDAHtml = ed.innerHTML || "";
+    }
+
+    if (ed) {
+      // Atualização do draft
+      ed.oninput = () => { draftHDAHtml = ed.innerHTML || ""; saveSelectionFromEditor(); };
+
+      // Guardar seleção quando o utilizador clica/seleciona dentro do editor
+      ed.addEventListener("mouseup", saveSelectionFromEditor);
+      ed.addEventListener("keyup", saveSelectionFromEditor);
+      ed.addEventListener("focus", saveSelectionFromEditor);
+      ed.addEventListener("blur", saveSelectionFromEditor);
+
+      // Foco inicial e seleção (para evitar “parece que seleciona mas não escreve” após render)
+      setTimeout(() => {
+        try {
+          ed.focus();
+          saveSelectionFromEditor();
+        } catch (e) {}
+      }, 0);
+
+      // IMPORTANTE: usar mousedown para não perder seleção ao clicar nos botões
+      const bindCmdBtn = (id, command) => {
+        const b = document.getElementById(id);
+        if (!b) return;
+        b.addEventListener("mousedown", (ev) => {
+          ev.preventDefault(); // impede blur do editor
+          cmd(command);
+        });
+        // bloqueia também click por segurança
+        b.addEventListener("click", (ev) => { ev.preventDefault(); });
+      };
+
+      bindCmdBtn("hBold", "bold");
+      bindCmdBtn("hUnder", "underline");
+      bindCmdBtn("hUL", "insertUnorderedList");
+      bindCmdBtn("hOL", "insertOrderedList");
+    }
+
+    // =========================
+    // Diagnósticos
+    // =========================
     const diagInput = document.getElementById("diagSearch");
     if (diagInput) {
       diagInput.oninput = (e) => {
@@ -3098,6 +3182,9 @@ function openPatientViewModal(patient) {
 
     renderDiagArea();
 
+    // =========================
+    // Tratamentos
+    // =========================
     const pr = document.getElementById("prescriptionText");
     if (pr) pr.oninput = (e) => { prescriptionText = e?.target?.value ?? ""; };
 
@@ -3120,6 +3207,9 @@ function openPatientViewModal(patient) {
 
     if (!treatResults || !treatResults.length) fetchTreatmentsDefault();
 
+    // =========================
+    // Cancelar / Gravar
+    // =========================
     document.getElementById("btnCancelConsult")?.addEventListener("click", () => {
       creatingConsult = false;
       render();
@@ -3151,7 +3241,6 @@ function openPatientViewModal(patient) {
   }
 
 /* ==== FIM BLOCO 06H/12 ==== */
-
 
 /* ==== INÍCIO BLOCO 06I/12 — saveConsult (insert + upsert ligações + reset) ==== */
 
