@@ -2989,175 +2989,384 @@ function openPatientViewModal(patient) {
 
 /* ==== INÍCIO BLOCO 06H/12 — Consulta médica (UI HDA + bind) ==== */
 
-function renderConsultFormInline() {
-  const today = new Date().toISOString().slice(0, 10);
+  function renderConsultFormInline() {
+    const today = new Date().toISOString().slice(0, 10);
 
-  return `
-    <div style="margin-top:16px; padding:16px; border:1px solid #e5e5e5; border-radius:14px;">
+    return `
+      <div style="margin-top:16px; padding:16px; border:1px solid #e5e5e5; border-radius:14px;">
 
-      <style>
-        .gcBtn.gcBtnActive {
-          border-color:#111 !important;
-          background:rgba(0,0,0,0.05);
+        <style>
+          /* Destaque de botões ativos no editor HDA */
+          .gcBtn.gcBtnActive {
+            border-color: #111 !important;
+            box-shadow: 0 0 0 2px rgba(0,0,0,0.08);
+            background: rgba(0,0,0,0.04);
+          }
+        </style>
+
+        <div style="font-weight:900; font-size:16px;">Nova Consulta Médica</div>
+
+        <div style="margin-top:10px;">
+          <label>Data</label>
+          <input type="date" value="${today}" readonly
+                 style="padding:8px; border:1px solid #ddd; border-radius:8px;" />
+        </div>
+
+        <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button id="hBold"  class="gcBtn" type="button" aria-pressed="false">Negrito</button>
+          <button id="hUnder" class="gcBtn" type="button" aria-pressed="false">Sublinhar</button>
+          <button id="hUL"    class="gcBtn" type="button" aria-pressed="false">Lista</button>
+          <button id="hOL"    class="gcBtn" type="button" aria-pressed="false">Numeração</button>
+        </div>
+
+        <div id="hdaEditor" contenteditable="true"
+             style="margin-top:10px; min-height:240px; padding:12px;
+                    border:1px solid #ddd; border-radius:12px;
+                    line-height:1.6; font-size:16px; overflow:auto;">
+          ${draftHDAHtml || ""}
+        </div>
+
+        <div style="margin-top:14px;">
+          <label>Diagnóstico (catálogo)</label>
+          <div style="position:relative; margin-top:6px; max-width:720px;">
+            <input id="diagSearch" value="${escAttr(diagQuery)}"
+                   placeholder="Pesquisar (mín. 2 letras)…"
+                   style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            <div id="diagStatus"></div>
+            <div id="diagDropdownHost" style="position:relative;"></div>
+          </div>
+          <div id="diagChips"></div>
+        </div>
+
+        <div style="margin-top:14px;">
+          <label>Tratamentos (catálogo)</label>
+
+          <div style="margin-top:6px; max-width:980px;">
+            <input id="prescriptionText" value="${escAttr(prescriptionText)}"
+                   style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+
+            <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
+              <div style="flex:1; min-width:320px;">
+                <div style="font-weight:900; margin-bottom:6px;">Selecionados</div>
+                <div id="treatSelectedBox"
+                     style="min-height:120px; padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;"></div>
+              </div>
+
+              <div style="flex:1; min-width:320px;">
+                <div style="font-weight:900; margin-bottom:6px;">Catálogo</div>
+                <input id="treatSearch" value="${escAttr(treatQuery)}"
+                       placeholder="Pesquisar tratamentos (mín. 2 letras)…"
+                       style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+                <div id="treatStatus"></div>
+                <div id="treatCatalogBox"
+                     style="margin-top:8px; min-height:120px; max-height:320px; overflow:auto;
+                            padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
+          <button id="btnCancelConsult" class="gcBtn" type="button">Cancelar</button>
+          <button id="btnSaveConsult" class="gcBtn" type="button" style="font-weight:900;">Gravar</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function bindConsultEvents() {
+
+    // =========================
+    // HDA editor: seleção/caret + toolbar "ativo"
+    // =========================
+    const ed = document.getElementById("hdaEditor");
+
+    const btnBold  = document.getElementById("hBold");
+    const btnUnder = document.getElementById("hUnder");
+    const btnUL    = document.getElementById("hUL");
+    const btnOL    = document.getElementById("hOL");
+
+    function setBtnActive(btn, active) {
+      if (!btn) return;
+      btn.classList.toggle("gcBtnActive", !!active);
+      try { btn.setAttribute("aria-pressed", active ? "true" : "false"); } catch (_) {}
+    }
+
+    function safeQueryState(cmd) {
+      try {
+        if (!document.queryCommandSupported) return null;
+        if (document.queryCommandSupported(cmd) === false) return null;
+      } catch (_) {}
+      try { return !!document.queryCommandState(cmd); } catch (_) { return null; }
+    }
+
+    function closestTag(node, tagName) {
+      const tag = String(tagName || "").toUpperCase();
+      let n = node;
+      while (n && n !== document && n !== ed) {
+        if (n.nodeType === 1 && n.tagName === tag) return n;
+        n = n.parentNode;
+      }
+      return null;
+    }
+
+    function updateToolbarState() {
+      if (!ed) return;
+
+      const sel = window.getSelection ? window.getSelection() : null;
+      if (!sel || sel.rangeCount === 0) {
+        setBtnActive(btnBold,  false);
+        setBtnActive(btnUnder, false);
+        setBtnActive(btnUL,    false);
+        setBtnActive(btnOL,    false);
+        return;
+      }
+
+      let r = null;
+      try { r = sel.getRangeAt(0); } catch (_) {}
+      if (!r || !ed.contains(r.startContainer) || !ed.contains(r.endContainer)) {
+        setBtnActive(btnBold,  false);
+        setBtnActive(btnUnder, false);
+        setBtnActive(btnUL,    false);
+        setBtnActive(btnOL,    false);
+        return;
+      }
+
+      // Bold / Underline
+      const isBold  = safeQueryState("bold");
+      const isUnder = safeQueryState("underline");
+      setBtnActive(btnBold,  isBold === null ? false : isBold);
+      setBtnActive(btnUnder, isUnder === null ? false : isUnder);
+
+      // List / OrderedList: tentar queryCommandState; fallback DOM (UL/OL)
+      let inUL = safeQueryState("insertUnorderedList");
+      let inOL = safeQueryState("insertOrderedList");
+
+      if (inUL === null || inOL === null) {
+        const n = r.startContainer;
+        const ul = closestTag(n, "UL");
+        const ol = closestTag(n, "OL");
+        inUL = !!ul;
+        inOL = !!ol;
+      }
+
+      if (inOL) inUL = false;
+
+      setBtnActive(btnUL, !!inUL);
+      setBtnActive(btnOL, !!inOL);
+    }
+
+    // Guardamos a última seleção válida dentro do editor
+    let hdaLastRange = null;
+
+    function rangeInsideEditor(r) {
+      try {
+        if (!ed || !r) return false;
+        return ed.contains(r.startContainer) && ed.contains(r.endContainer);
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function captureSelection() {
+      try {
+        if (!ed) return;
+        const sel = window.getSelection ? window.getSelection() : null;
+        if (!sel || sel.rangeCount === 0) return;
+        const r = sel.getRangeAt(0);
+        if (rangeInsideEditor(r)) hdaLastRange = r.cloneRange();
+      } catch (_) {}
+    }
+
+    function restoreSelectionIfAny() {
+      try {
+        if (!ed) return;
+        ed.focus();
+
+        if (!hdaLastRange) return;
+
+        const sel = window.getSelection ? window.getSelection() : null;
+        if (!sel) return;
+
+        if (!rangeInsideEditor(hdaLastRange)) return;
+
+        sel.removeAllRanges();
+        sel.addRange(hdaLastRange);
+      } catch (_) {}
+    }
+
+    // ✅ Quebra de linha manual (Chrome): não depende do comportamento default do contenteditable
+    function insertLineBreakManual() {
+      if (!ed) return;
+      try { ed.focus(); } catch (_) {}
+
+      const sel = window.getSelection ? window.getSelection() : null;
+      if (!sel || sel.rangeCount === 0) return;
+
+      const r = sel.getRangeAt(0);
+      if (!rangeInsideEditor(r)) return;
+
+      // Apaga seleção (se existir)
+      try { r.deleteContents(); } catch (_) {}
+
+      const br = document.createElement("br");
+      r.insertNode(br);
+
+      // Move caret para depois do <br>
+      try {
+        const rr = document.createRange();
+        rr.setStartAfter(br);
+        rr.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(rr);
+      } catch (_) {}
+
+      captureSelection();
+      draftHDAHtml = ed.innerHTML || "";
+      updateToolbarState();
+    }
+
+    function execCmd(command) {
+      if (!ed) return;
+      restoreSelectionIfAny();
+      try { document.execCommand(command, false, null); } catch (_) {}
+      captureSelection();
+      draftHDAHtml = ed.innerHTML || "";
+      updateToolbarState();
+    }
+
+    if (ed) {
+      // Draft sempre atualizado
+      ed.oninput = () => {
+        draftHDAHtml = ed.innerHTML || "";
+        captureSelection();
+        updateToolbarState();
+      };
+
+      // ✅ Enter/Shift+Enter no próprio editor
+      ed.addEventListener("keydown", (ev) => {
+        if (!ev) return;
+        if (ev.key === "Enter") {
+          // Força quebra de linha no Chrome mesmo que haja preventDefault algures
+          ev.preventDefault();
+          ev.stopPropagation();
+          insertLineBreakManual();
         }
-      </style>
+      });
 
-      <div style="font-weight:900; font-size:16px;">Nova Consulta Médica</div>
+      // Eventos do próprio editor
+      ed.addEventListener("mouseup", () => { captureSelection(); updateToolbarState(); });
+      ed.addEventListener("keyup",  () => { captureSelection(); updateToolbarState(); });
+      ed.addEventListener("focus",  () => { captureSelection(); updateToolbarState(); });
 
-      <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
-        <button id="hBold"  class="gcBtn" type="button">Negrito</button>
-        <button id="hUnder" class="gcBtn" type="button">Sublinhar</button>
-        <button id="hUL"    class="gcBtn" type="button">Lista</button>
-        <button id="hOL"    class="gcBtn" type="button">Numeração</button>
-      </div>
+      // Foco inicial e estado inicial
+      setTimeout(() => {
+        try { ed.focus(); } catch (_) {}
+        captureSelection();
+        updateToolbarState();
+      }, 0);
 
-      <div id="hdaEditor" contenteditable="true"
-           style="margin-top:10px; min-height:240px; padding:12px;
-                  border:1px solid #ddd; border-radius:12px;
-                  line-height:1.6; font-size:16px; overflow:auto;">
-        ${draftHDAHtml || ""}
-      </div>
+      // Botões: usar mousedown + preventDefault para NÃO perder a seleção ao clicar
+      function bindBtn(id, command) {
+        const b = document.getElementById(id);
+        if (!b) return;
 
-      <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
-        <button id="btnCancelConsult" class="gcBtn" type="button">Cancelar</button>
-        <button id="btnSaveConsult" class="gcBtn" type="button" style="font-weight:900;">Gravar</button>
-      </div>
-    </div>
-  `;
-}
+        b.addEventListener("mousedown", (ev) => {
+          ev.preventDefault();
+          execCmd(command);
+        });
 
-function bindConsultEvents() {
+        b.addEventListener("click", (ev) => {
+          ev.preventDefault();
+        });
+      }
 
-  const ed = document.getElementById("hdaEditor");
-  const btnBold  = document.getElementById("hBold");
-  const btnUnder = document.getElementById("hUnder");
-  const btnUL    = document.getElementById("hUL");
-  const btnOL    = document.getElementById("hOL");
+      bindBtn("hBold",  "bold");
+      bindBtn("hUnder", "underline");
+      bindBtn("hUL",    "insertUnorderedList");
+      bindBtn("hOL",    "insertOrderedList");
+    }
 
-  function updateDraft() {
-    draftHDAHtml = ed.innerHTML || "";
-  }
+    // =========================
+    // Diagnósticos
+    // =========================
+    const diagInput = document.getElementById("diagSearch");
+    if (diagInput) {
+      diagInput.oninput = (e) => {
+        const v = e?.target?.value ?? "";
+        diagQuery = v;
+        if (diagDebounceT) clearTimeout(diagDebounceT);
+        diagDebounceT = setTimeout(() => searchDiagnoses(v), 220);
+      };
+      diagInput.onfocus = () => {
+        const v = diagInput.value || "";
+        if (String(v).trim().length >= 2) searchDiagnoses(v);
+      };
+      diagInput.onkeydown = (ev) => { if (ev.key === "Enter") ev.preventDefault(); };
+    }
 
-  function getSelectionRange() {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return null;
-    const r = sel.getRangeAt(0);
-    if (!ed.contains(r.startContainer)) return null;
-    return r;
-  }
+    renderDiagArea();
 
-  function insertLineBreak() {
-    const r = getSelectionRange();
-    if (!r) return;
-    r.deleteContents();
-    const br = document.createElement("br");
-    r.insertNode(br);
-    r.setStartAfter(br);
-    r.collapse(true);
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(r);
-    updateDraft();
-  }
+    // =========================
+    // Tratamentos
+    // =========================
+    const pr = document.getElementById("prescriptionText");
+    if (pr) pr.oninput = (e) => { prescriptionText = e?.target?.value ?? ""; };
 
-  function wrapSelectionInList(type) {
-    const r = getSelectionRange();
-    if (!r) return;
+    const tInput = document.getElementById("treatSearch");
+    if (tInput) {
+      tInput.oninput = (e) => {
+        const v = e?.target?.value ?? "";
+        treatQuery = v;
+        if (treatDebounceT) clearTimeout(treatDebounceT);
+        treatDebounceT = setTimeout(() => searchTreatments(v), 220);
+      };
+      tInput.onfocus = () => {
+        const v = tInput.value || "";
+        if (String(v).trim().length >= 2) searchTreatments(v);
+      };
+      tInput.onkeydown = (ev) => { if (ev.key === "Enter") ev.preventDefault(); };
+    }
 
-    const sel = window.getSelection();
-    const text = sel.toString();
+    renderTreatArea();
 
-    // Se não há seleção, cria item vazio
-    const lines = text ? text.split("\n") : [""];
+    if (!treatResults || !treatResults.length) fetchTreatmentsDefault();
 
-    const list = document.createElement(type);
-    lines.forEach(line => {
-      const li = document.createElement("li");
-      li.textContent = line || "";
-      list.appendChild(li);
+    // =========================
+    // Cancelar / Gravar
+    // =========================
+    document.getElementById("btnCancelConsult")?.addEventListener("click", () => {
+      creatingConsult = false;
+      render();
     });
 
-    r.deleteContents();
-    r.insertNode(list);
+    const btnSave = document.getElementById("btnSaveConsult");
+    if (btnSave) {
+      btnSave.disabled = !!saving;
+      btnSave.onclick = async () => {
+        if (saving) return;
+        saving = true;
+        btnSave.disabled = true;
 
-    updateDraft();
-  }
+        if (ed) draftHDAHtml = ed.innerHTML || "";
 
-  function removeListIfInside(type) {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return false;
+        const ok = await saveConsult();
 
-    let node = sel.getRangeAt(0).startContainer;
-    while (node && node !== ed) {
-      if (node.nodeType === 1 && node.tagName === type.toUpperCase()) {
-        const parent = node.parentNode;
-        while (node.firstChild) {
-          parent.insertBefore(node.firstChild, node);
+        saving = false;
+        btnSave.disabled = false;
+
+        if (ok) {
+          creatingConsult = false;
+          await loadConsultations();
+          await loadDocuments();
+          render();
         }
-        parent.removeChild(node);
-        updateDraft();
-        return true;
-      }
-      node = node.parentNode;
+      };
     }
-    return false;
   }
-
-  // Enter manual
-  ed.addEventListener("keydown", (ev) => {
-    if (ev.key === "Enter") {
-      ev.preventDefault();
-      insertLineBreak();
-    }
-  });
-
-  // Bold / Underline mantêm execCommand
-  btnBold.addEventListener("mousedown", e => {
-    e.preventDefault();
-    document.execCommand("bold");
-    updateDraft();
-  });
-
-  btnUnder.addEventListener("mousedown", e => {
-    e.preventDefault();
-    document.execCommand("underline");
-    updateDraft();
-  });
-
-  // Lista manual
-  btnUL.addEventListener("mousedown", e => {
-    e.preventDefault();
-    if (!removeListIfInside("ul")) {
-      wrapSelectionInList("ul");
-    }
-  });
-
-  btnOL.addEventListener("mousedown", e => {
-    e.preventDefault();
-    if (!removeListIfInside("ol")) {
-      wrapSelectionInList("ol");
-    }
-  });
-
-  document.getElementById("btnCancelConsult")?.addEventListener("click", () => {
-    creatingConsult = false;
-    render();
-  });
-
-  document.getElementById("btnSaveConsult")?.addEventListener("click", async () => {
-    if (ed) draftHDAHtml = ed.innerHTML || "";
-    const ok = await saveConsult();
-    if (ok) {
-      creatingConsult = false;
-      await loadConsultations();
-      await loadDocuments();
-      render();
-    }
-  });
-
-}
 
 /* ==== FIM BLOCO 06H/12 ==== */
+
 
 /* ==== INÍCIO BLOCO 06I/12 — saveConsult (insert + upsert ligações + reset) ==== */
 
