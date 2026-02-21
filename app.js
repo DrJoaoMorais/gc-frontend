@@ -2994,6 +2994,16 @@ function openPatientViewModal(patient) {
 
     return `
       <div style="margin-top:16px; padding:16px; border:1px solid #e5e5e5; border-radius:14px;">
+
+        <style>
+          /* Destaque de botões ativos no editor HDA */
+          .gcBtn.gcBtnActive {
+            border-color: #111 !important;
+            box-shadow: 0 0 0 2px rgba(0,0,0,0.08);
+            background: rgba(0,0,0,0.04);
+          }
+        </style>
+
         <div style="font-weight:900; font-size:16px;">Nova Consulta Médica</div>
 
         <div style="margin-top:10px;">
@@ -3003,10 +3013,10 @@ function openPatientViewModal(patient) {
         </div>
 
         <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button id="hBold"  class="gcBtn" type="button">Negrito</button>
-          <button id="hUnder" class="gcBtn" type="button">Sublinhar</button>
-          <button id="hUL"    class="gcBtn" type="button">Lista</button>
-          <button id="hOL"    class="gcBtn" type="button">Numeração</button>
+          <button id="hBold"  class="gcBtn" type="button" aria-pressed="false">Negrito</button>
+          <button id="hUnder" class="gcBtn" type="button" aria-pressed="false">Sublinhar</button>
+          <button id="hUL"    class="gcBtn" type="button" aria-pressed="false">Lista</button>
+          <button id="hOL"    class="gcBtn" type="button" aria-pressed="false">Numeração</button>
         </div>
 
         <div id="hdaEditor" contenteditable="true"
@@ -3067,9 +3077,85 @@ function openPatientViewModal(patient) {
   function bindConsultEvents() {
 
     // =========================
-    // HDA editor: seleção/caret robusta
+    // HDA editor: seleção/caret + toolbar "ativo"
     // =========================
     const ed = document.getElementById("hdaEditor");
+
+    const btnBold  = document.getElementById("hBold");
+    const btnUnder = document.getElementById("hUnder");
+    const btnUL    = document.getElementById("hUL");
+    const btnOL    = document.getElementById("hOL");
+
+    function setBtnActive(btn, active) {
+      if (!btn) return;
+      btn.classList.toggle("gcBtnActive", !!active);
+      try { btn.setAttribute("aria-pressed", active ? "true" : "false"); } catch (_) {}
+    }
+
+    function safeQueryState(cmd) {
+      try {
+        if (!document.queryCommandSupported) return null;
+        if (document.queryCommandSupported(cmd) === false) return null;
+      } catch (_) {}
+      try { return !!document.queryCommandState(cmd); } catch (_) { return null; }
+    }
+
+    function closestTag(node, tagName) {
+      const tag = String(tagName || "").toUpperCase();
+      let n = node;
+      while (n && n !== document && n !== ed) {
+        if (n.nodeType === 1 && n.tagName === tag) return n;
+        n = n.parentNode;
+      }
+      return null;
+    }
+
+    function updateToolbarState() {
+      if (!ed) return;
+
+      const sel = window.getSelection ? window.getSelection() : null;
+      if (!sel || sel.rangeCount === 0) {
+        setBtnActive(btnBold,  false);
+        setBtnActive(btnUnder, false);
+        setBtnActive(btnUL,    false);
+        setBtnActive(btnOL,    false);
+        return;
+      }
+
+      let r = null;
+      try { r = sel.getRangeAt(0); } catch (_) {}
+      if (!r || !ed.contains(r.startContainer) || !ed.contains(r.endContainer)) {
+        setBtnActive(btnBold,  false);
+        setBtnActive(btnUnder, false);
+        setBtnActive(btnUL,    false);
+        setBtnActive(btnOL,    false);
+        return;
+      }
+
+      // Bold / Underline
+      const isBold  = safeQueryState("bold");
+      const isUnder = safeQueryState("underline");
+      setBtnActive(btnBold,  isBold === null ? false : isBold);
+      setBtnActive(btnUnder, isUnder === null ? false : isUnder);
+
+      // List / OrderedList: tentar queryCommandState; fallback DOM (UL/OL)
+      let inUL = safeQueryState("insertUnorderedList");
+      let inOL = safeQueryState("insertOrderedList");
+
+      if (inUL === null || inOL === null) {
+        const n = r.startContainer;
+        const ul = closestTag(n, "UL");
+        const ol = closestTag(n, "OL");
+        inUL = !!ul;
+        inOL = !!ol;
+      }
+
+      // Se estiver em OL, desliga UL (e vice-versa)
+      if (inOL) inUL = false;
+
+      setBtnActive(btnUL, !!inUL);
+      setBtnActive(btnOL, !!inOL);
+    }
 
     // Guardamos a última seleção válida dentro do editor
     let hdaLastRange = null;
@@ -3118,6 +3204,7 @@ function openPatientViewModal(patient) {
       try { document.execCommand(command, false, null); } catch (_) {}
       captureSelection();
       draftHDAHtml = ed.innerHTML || "";
+      updateToolbarState();
     }
 
     if (ed) {
@@ -3125,20 +3212,27 @@ function openPatientViewModal(patient) {
       ed.oninput = () => {
         draftHDAHtml = ed.innerHTML || "";
         captureSelection();
+        updateToolbarState();
       };
 
       // Capturar seleção enquanto o utilizador trabalha
-      ed.addEventListener("mouseup", captureSelection);
-      ed.addEventListener("keyup", captureSelection);
-      ed.addEventListener("focus", captureSelection);
+      ed.addEventListener("mouseup", () => { captureSelection(); updateToolbarState(); });
+      ed.addEventListener("keyup",  () => { captureSelection(); updateToolbarState(); });
+      ed.addEventListener("focus",  () => { captureSelection(); updateToolbarState(); });
 
-      // Captura global: cobre casos em que o caret muda sem keyup/mouseup (ex.: teclado + autocorreção)
-      // (não é “pesado”: só guarda range quando a seleção está dentro do editor)
-      const onSelChange = () => captureSelection();
+      // Captura global: cobre casos em que o caret muda sem keyup/mouseup
+      const onSelChange = () => {
+        captureSelection();
+        updateToolbarState();
+      };
       document.addEventListener("selectionchange", onSelChange);
 
-      // Quando re-renderiza e abre a consulta, garante foco inicial no editor
-      setTimeout(() => { try { ed.focus(); } catch (_) {} }, 0);
+      // Foco inicial e estado inicial
+      setTimeout(() => {
+        try { ed.focus(); } catch (_) {}
+        captureSelection();
+        updateToolbarState();
+      }, 0);
 
       // Botões: usar mousedown + preventDefault para NÃO perder a seleção ao clicar
       function bindBtn(id, command) {
@@ -3159,10 +3253,6 @@ function openPatientViewModal(patient) {
       bindBtn("hUnder", "underline");
       bindBtn("hUL",    "insertUnorderedList");
       bindBtn("hOL",    "insertOrderedList");
-
-      // Cleanup defensivo: se voltares a chamar bindConsultEvents sem destruir modal,
-      // remove o listener antigo ao sair da consulta (aqui não temos hook; por isso mantemos simples).
-      // Na prática, como o modal re-renderiza e o DOM anterior é destruído, isto não acumula.
     }
 
     // =========================
