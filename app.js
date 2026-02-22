@@ -2799,7 +2799,7 @@ function openPatientViewModal(patient) {
 /* ==== INÍCIO BLOCO 06G/12 — Timeline (load + render + physio_records) ==== */
 
   // =========================================================
-  // Estado local (timeline) — SEM TDZ (não usar let x = x || ...)
+  // Estado local (timeline) — SEM TDZ
   // =========================================================
   window.__gcPhysioState = window.__gcPhysioState || {
     rows: [],
@@ -2815,8 +2815,24 @@ function openPatientViewModal(patient) {
   // Quill instância do composer (global)
   window.__gcPhysioQuill = window.__gcPhysioQuill || null;
 
-  function __gcGetUid() {
-    return (G && (G.user?.id || G.user?.user_id || G.user_id || G.uid || G.userId)) || null;
+  // Cache UID (para render rápido)
+  window.__gcAuthUid = window.__gcAuthUid || null;
+
+  async function __gcGetUidAsync() {
+    try {
+      const { data, error } = await window.sb.auth.getUser();
+      if (error) { console.error(error); return null; }
+      const uid = data?.user?.id || null;
+      window.__gcAuthUid = uid;
+      return uid;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  }
+
+  function __gcGetUidCached() {
+    return window.__gcAuthUid || null;
   }
 
   function __gcRole() {
@@ -2942,7 +2958,7 @@ function openPatientViewModal(patient) {
     }
 
     // =========================
-    // DOCTOR / PHYSIO: consulta completa (como já tinhas)
+    // DOCTOR / PHYSIO: consulta completa
     // =========================
     const { data, error } = await window.sb
       .from("consultations")
@@ -3078,7 +3094,7 @@ function openPatientViewModal(patient) {
 
     lastSavedConsultId = consultRows && consultRows.length ? (consultRows[0].id || null) : lastSavedConsultId;
 
-    // ===== NOVO: carregar registos de fisioterapia em conjunto =====
+    // ===== carregar registos de fisioterapia =====
     await loadPhysioRecords();
 
     timelineLoading = false;
@@ -3120,7 +3136,7 @@ function openPatientViewModal(patient) {
 
     if (!s.composerOpen) {
       return `
-        <div style="display:flex; justify-content:flex-end;">
+        <div style="display:flex; justify-content:flex-start;">
           <button id="btnAddPhysioRecord" class="gcBtn" type="button" style="font-weight:900;">+ Registo Fisioterapia</button>
         </div>
       `;
@@ -3130,6 +3146,12 @@ function openPatientViewModal(patient) {
 
     return `
       <div style="border:1px solid #e5e5e5; border-radius:14px; padding:14px;">
+        <style>
+          /* mais espaço para escrever (≈ 10 linhas) */
+          #physioQuillEditor .ql-container.ql-snow { min-height: 320px; }
+          #physioQuillEditor .ql-editor { line-height: 1.6; font-size: 16px; }
+        </style>
+
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
           <div style="font-weight:900; font-size:15px;">${title}</div>
           <div style="display:flex; gap:8px;">
@@ -3165,7 +3187,7 @@ function openPatientViewModal(patient) {
       : (r.created_at ? String(r.created_at) : "—");
 
     const authorTxt = (r.author_name || "").trim();
-    const uid = __gcGetUid();
+    const uid = __gcGetUidCached();
     const canEdit = __gcIsPhysio() && uid && String(r.author_user_id) === String(uid);
 
     return `
@@ -3195,7 +3217,6 @@ function openPatientViewModal(patient) {
 
     const isSecretary = __gcIsSecretary();
 
-    // secretária: mantém comportamento atual
     if (isSecretary) {
       if (!consultRows || !consultRows.length) return `<div style="color:#64748b;">Sem registos clínicos.</div>`;
 
@@ -3222,26 +3243,17 @@ function openPatientViewModal(patient) {
 
     const s = __ps();
 
-    // doctor/physio: timeline combinada (consultas + fisio)
     const items = [];
 
     (s.rows || []).forEach(r => {
-      items.push({
-        type: "physio",
-        ts: r.created_at ? new Date(r.created_at).getTime() : 0,
-        row: r
-      });
+      items.push({ type: "physio", ts: r.created_at ? new Date(r.created_at).getTime() : 0, row: r });
     });
 
     (consultRows || []).forEach(r => {
       const t = r.created_at ? new Date(r.created_at).getTime()
         : (r.report_date ? new Date(String(r.report_date)).getTime() : 0);
 
-      items.push({
-        type: "consult",
-        ts: isNaN(t) ? 0 : t,
-        row: r
-      });
+      items.push({ type: "consult", ts: isNaN(t) ? 0 : t, row: r });
     });
 
     items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
@@ -3260,9 +3272,7 @@ function openPatientViewModal(patient) {
         ${__gcRenderPhysioComposer()}
 
         ${items.map(it => {
-          if (it.type === "physio") {
-            return __gcRenderPhysioItem(it.row);
-          }
+          if (it.type === "physio") return __gcRenderPhysioItem(it.row);
 
           const r = it.row;
           const d = r.created_at ? new Date(r.created_at) : null;
@@ -3323,6 +3333,7 @@ function openPatientViewModal(patient) {
 
       if (t && t.id === "btnAddPhysioRecord") {
         ev.preventDefault();
+        await __gcGetUidAsync(); // garante cache uid
         s.composerOpen = true;
         s.editingId = null;
         s.draftHtml = "";
@@ -3347,7 +3358,7 @@ function openPatientViewModal(patient) {
 
         if (!__gcIsPhysio()) return;
 
-        const uid = __gcGetUid();
+        const uid = await __gcGetUidAsync();
         if (!uid) { alert("Sem utilizador autenticado."); return; }
 
         try {
@@ -3408,7 +3419,7 @@ function openPatientViewModal(patient) {
         const id = actionBtn.getAttribute("data-physio-id");
         if (!action || !id) return;
 
-        const uid = __gcGetUid();
+        const uid = await __gcGetUidAsync();
         if (!__gcIsPhysio() || !uid) return;
 
         const row = (__ps().rows || []).find(x => String(x.id) === String(id));
