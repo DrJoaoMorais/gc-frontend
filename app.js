@@ -3162,7 +3162,7 @@ function openPatientViewModal(patient) {
   function bindConsultEvents() {
 
     // =========================
-    // HDA editor: seleção/caret + toolbar "ativo" (motor isolado estilo sandbox)
+    // HDA editor: seleção/caret + comandos (robusto)
     // =========================
     const ed = document.getElementById("hdaEditor");
     const toolbar = document.getElementById("hdaToolbar");
@@ -3171,6 +3171,45 @@ function openPatientViewModal(patient) {
     const btnUnder = document.getElementById("hUnder");
     const btnUL    = document.getElementById("hUL");
     const btnOL    = document.getElementById("hOL");
+
+    // Guardar seleção de forma global (para sobreviver ao clique na toolbar)
+    // Nota: selectionchange apanha SHIFT+setas, mouse, etc.
+    if (!window.__gcHdaSelHookInstalled) {
+      window.__gcHdaSelHookInstalled = true;
+      window.__gcHdaLastRange = null;
+
+      document.addEventListener("selectionchange", () => {
+        try {
+          const editorNow = document.getElementById("hdaEditor");
+          if (!editorNow) return;
+
+          const sel = window.getSelection ? window.getSelection() : null;
+          if (!sel || sel.rangeCount === 0) return;
+
+          const r = sel.getRangeAt(0);
+          const inside = editorNow.contains(r.startContainer) && editorNow.contains(r.endContainer);
+          if (inside) window.__gcHdaLastRange = r.cloneRange();
+        } catch (_) {}
+      });
+    }
+
+    function restoreSelection() {
+      try {
+        if (!ed) return;
+        ed.focus();
+
+        const r = window.__gcHdaLastRange;
+        if (!r) return;
+
+        // garantir que ainda é aplicável ao editor atual
+        if (!ed.contains(r.startContainer) || !ed.contains(r.endContainer)) return;
+
+        const sel = window.getSelection ? window.getSelection() : null;
+        if (!sel) return;
+        sel.removeAllRanges();
+        sel.addRange(r);
+      } catch (_) {}
+    }
 
     function setBtnActive(btn, active) {
       if (!btn) return;
@@ -3186,62 +3225,25 @@ function openPatientViewModal(patient) {
       try { return !!document.queryCommandState(cmd); } catch (_) { return null; }
     }
 
-    // Guardar/restaurar seleção (range) — crítico para listas/numeração
-    let hdaLastRange = null;
-
-    function rangeInsideEditor(r) {
-      try {
-        if (!ed || !r) return false;
-        return ed.contains(r.startContainer) && ed.contains(r.endContainer);
-      } catch (_) {
-        return false;
-      }
-    }
-
-    function captureSelection() {
-      try {
-        if (!ed) return;
-        const sel = window.getSelection ? window.getSelection() : null;
-        if (!sel || sel.rangeCount === 0) return;
-        const r = sel.getRangeAt(0);
-        if (rangeInsideEditor(r)) hdaLastRange = r.cloneRange();
-      } catch (_) {}
-    }
-
-    function restoreSelectionIfAny() {
-      try {
-        if (!ed) return;
-        ed.focus();
-        if (!hdaLastRange) return;
-
-        const sel = window.getSelection ? window.getSelection() : null;
-        if (!sel) return;
-        if (!rangeInsideEditor(hdaLastRange)) return;
-
-        sel.removeAllRanges();
-        sel.addRange(hdaLastRange);
-      } catch (_) {}
-    }
-
     function updateToolbarState() {
       if (!ed) return;
 
       const sel = window.getSelection ? window.getSelection() : null;
       if (!sel || sel.rangeCount === 0) {
-        setBtnActive(btnBold,  false);
+        setBtnActive(btnBold, false);
         setBtnActive(btnUnder, false);
-        setBtnActive(btnUL,    false);
-        setBtnActive(btnOL,    false);
+        setBtnActive(btnUL, false);
+        setBtnActive(btnOL, false);
         return;
       }
 
       let r = null;
       try { r = sel.getRangeAt(0); } catch (_) {}
       if (!r || !ed.contains(r.startContainer) || !ed.contains(r.endContainer)) {
-        setBtnActive(btnBold,  false);
+        setBtnActive(btnBold, false);
         setBtnActive(btnUnder, false);
-        setBtnActive(btnUL,    false);
-        setBtnActive(btnOL,    false);
+        setBtnActive(btnUL, false);
+        setBtnActive(btnOL, false);
         return;
       }
 
@@ -3253,16 +3255,16 @@ function openPatientViewModal(patient) {
       let inUL = safeQueryState("insertUnorderedList");
       let inOL = safeQueryState("insertOrderedList");
 
-      // fallback DOM (se queryCommandState falhar)
       if (inUL === null || inOL === null) {
+        // fallback DOM
         let n = r.startContainer;
+        let ul = false, ol = false;
         while (n && n !== ed && n !== document) {
-          if (n.nodeType === 1 && n.tagName === "UL") inUL = true;
-          if (n.nodeType === 1 && n.tagName === "OL") inOL = true;
+          if (n.nodeType === 1 && n.tagName === "UL") ul = true;
+          if (n.nodeType === 1 && n.tagName === "OL") ol = true;
           n = n.parentNode;
         }
-        inUL = !!inUL;
-        inOL = !!inOL;
+        inUL = ul; inOL = ol;
       }
 
       if (inOL) inUL = false;
@@ -3273,59 +3275,48 @@ function openPatientViewModal(patient) {
 
     function execCmd(command) {
       if (!ed) return;
-      restoreSelectionIfAny();
+      restoreSelection();
       try { document.execCommand(command, false, null); } catch (_) {}
-      captureSelection();
+      // atualizar draft e estado
       draftHDAHtml = ed.innerHTML || "";
       updateToolbarState();
     }
 
     if (ed) {
-      // Draft sempre atualizado
+      // NÃO interceptar Enter (opção A) — deixa o browser gerir parágrafos e listas
       ed.addEventListener("input", () => {
         draftHDAHtml = ed.innerHTML || "";
-        captureSelection();
         updateToolbarState();
       });
 
-      // IMPORTANTÍSSIMO: NÃO interceptar Enter (opção A)
-      // (deixamos o comportamento nativo do browser para parágrafos/listas)
+      ed.addEventListener("keyup",  () => updateToolbarState());
+      ed.addEventListener("mouseup", () => updateToolbarState());
+      ed.addEventListener("focus",  () => updateToolbarState());
 
-      // Capturar seleção em interações típicas
-      ed.addEventListener("mouseup", () => { captureSelection(); updateToolbarState(); });
-      ed.addEventListener("keyup",  () => { captureSelection(); updateToolbarState(); });
-      ed.addEventListener("focus",  () => { captureSelection(); updateToolbarState(); });
-      ed.addEventListener("keydown", () => { captureSelection(); });
-
-      // Toolbar: guardar seleção no mousedown antes do editor perder foco
-      if (toolbar) {
-        toolbar.addEventListener("mousedown", (ev) => {
-          const btn = ev.target.closest("button");
-          if (!btn) return;
-          ev.preventDefault();
-          captureSelection();
-        });
-      }
-
-      // Bind botões (click basta; o mousedown do toolbar já protege seleção)
-      function bindBtnClick(id, command) {
+      // Toolbar: usar POINTERDOWN (mais cedo que click) para evitar colapso de seleção
+      function bindBtnPointerDown(id, command) {
         const b = document.getElementById(id);
         if (!b) return;
-        b.addEventListener("click", (ev) => {
+
+        b.addEventListener("pointerdown", (ev) => {
+          // impedir que o browser colapse a seleção ao focar o botão
           ev.preventDefault();
+          ev.stopPropagation();
           execCmd(command);
         });
+
+        // segurança extra: evitar comportamento default em click
+        b.addEventListener("click", (ev) => { ev.preventDefault(); });
       }
 
-      bindBtnClick("hBold",  "bold");
-      bindBtnClick("hUnder", "underline");
-      bindBtnClick("hUL",    "insertUnorderedList");
-      bindBtnClick("hOL",    "insertOrderedList");
+      bindBtnPointerDown("hBold",  "bold");
+      bindBtnPointerDown("hUnder", "underline");
+      bindBtnPointerDown("hUL",    "insertUnorderedList");
+      bindBtnPointerDown("hOL",    "insertOrderedList");
 
       // Estado inicial
       setTimeout(() => {
         try { ed.focus(); } catch (_) {}
-        captureSelection();
         updateToolbarState();
       }, 0);
     }
@@ -3409,7 +3400,6 @@ function openPatientViewModal(patient) {
   }
 
 /* ==== FIM BLOCO 06H/12 ==== */
-
 
 /* ==== INÍCIO BLOCO 06I/12 — saveConsult (insert + upsert ligações + reset) ==== */
 
