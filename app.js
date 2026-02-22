@@ -2740,13 +2740,17 @@ function openPatientViewModal(patient) {
 
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
-      docDraftHtml = buildDocV1Html({
-  clinic,
-  consult,
-  authorName,
-  vinhetaUrl: vinhetaDataUrl || "",
-  clinicLogoUrl: clinicLogoUrl || ""
-});
+      if (!docDraftHtml || docDraftHtml.trim().length < 300) {
+  docDraftHtml = buildDocV1Html({
+    clinic,
+    consult,
+    authorName,
+    vinhetaUrl: vinhetaDataUrl || "",
+    clinicLogoUrl: clinicLogoUrl || ""
+  });
+} else {
+  // Mantemos comportamento atual do editor (não forçamos substituições aqui)
+}
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
 
