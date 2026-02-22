@@ -2798,22 +2798,24 @@ function openPatientViewModal(patient) {
 
 /* ==== INÍCIO BLOCO 06G/12 — Timeline (load + render + physio_records) ==== */
 
-  // ===== Estado local (timeline) =====
-  // (mantém nomes existentes; adiciona physioRows)
-  let physioRows = physioRows || [];
-  let physioLoading = false;
+  // =========================================================
+  // Estado local (timeline) — SEM TDZ (não usar let x = x || ...)
+  // =========================================================
+  window.__gcPhysioState = window.__gcPhysioState || {
+    rows: [],
+    loading: false,
+    composerOpen: false,
+    editingId: null,
+    draftHtml: "",
+    saving: false
+  };
 
-  // Composer (novo registo / editar)
-  let physioComposerOpen = physioComposerOpen || false;
-  let physioEditingId = physioEditingId || null;          // uuid do physio_record em edição
-  let physioDraftHtml = physioDraftHtml || "";            // HTML (Quill)
-  let physioSaving = physioSaving || false;
+  function __ps() { return window.__gcPhysioState; }
 
-  // Quill instância do composer
+  // Quill instância do composer (global)
   window.__gcPhysioQuill = window.__gcPhysioQuill || null;
 
   function __gcGetUid() {
-    // tenta várias convenções
     return (G && (G.user?.id || G.user?.user_id || G.user_id || G.uid || G.userId)) || null;
   }
 
@@ -2827,7 +2829,6 @@ function openPatientViewModal(patient) {
 
   function __gcGuessClinicIdForPhysioRecord() {
     // Ordem de preferência:
-    // 1) se existir função utilitária global
     try {
       if (typeof getActiveClinicId === "function") {
         const x = getActiveClinicId();
@@ -2842,13 +2843,13 @@ function openPatientViewModal(patient) {
       }
     } catch (_) {}
 
-    // 2) usar clinic_id da consulta mais recente (se existir)
+    // clinic_id da consulta mais recente (se existir)
     try {
       const cid = consultRows && consultRows.length ? (consultRows[0].clinic_id || null) : null;
       if (cid) return cid;
     } catch (_) {}
 
-    // 3) fallback: se houver activeClinicId global
+    // fallback
     try {
       const cid = window.activeClinicId || G.activeClinicId || null;
       if (cid) return cid;
@@ -2858,14 +2859,15 @@ function openPatientViewModal(patient) {
   }
 
   async function loadPhysioRecords() {
+    const s = __ps();
     const rRole = __gcRole();
     const isSecretary = rRole === "secretary";
     if (isSecretary) {
-      physioRows = [];
+      s.rows = [];
       return;
     }
 
-    physioLoading = true;
+    s.loading = true;
 
     const { data, error } = await window.sb
       .from("physio_records")
@@ -2875,8 +2877,8 @@ function openPatientViewModal(patient) {
 
     if (error) {
       console.error(error);
-      physioRows = [];
-      physioLoading = false;
+      s.rows = [];
+      s.loading = false;
       return;
     }
 
@@ -2895,12 +2897,12 @@ function openPatientViewModal(patient) {
       else (cms || []).forEach(x => { authorMap[x.user_id] = (x.display_name || "").trim(); });
     }
 
-    physioRows = rows.map(r => ({
+    s.rows = rows.map(r => ({
       ...r,
       author_name: (authorMap[r.author_user_id] || "").trim()
     }));
 
-    physioLoading = false;
+    s.loading = false;
   }
 
   async function loadConsultations() {
@@ -2920,7 +2922,7 @@ function openPatientViewModal(patient) {
       if (error) {
         console.error(error);
         consultRows = [];
-        physioRows = []; // secretária não vê registos fisio
+        __ps().rows = []; // secretária não vê registos fisio
         timelineLoading = false;
         return;
       }
@@ -2934,7 +2936,7 @@ function openPatientViewModal(patient) {
         hda: "" // não existe para secretária
       }));
 
-      physioRows = []; // secretária não vê registos fisio
+      __ps().rows = []; // secretária não vê registos fisio
       timelineLoading = false;
       return;
     }
@@ -3113,9 +3115,10 @@ function openPatientViewModal(patient) {
   }
 
   function __gcRenderPhysioComposer() {
+    const s = __ps();
     if (!__gcIsPhysio()) return ""; // só physio cria/edita
 
-    if (!physioComposerOpen) {
+    if (!s.composerOpen) {
       return `
         <div style="display:flex; justify-content:flex-end;">
           <button id="btnAddPhysioRecord" class="gcBtn" type="button" style="font-weight:900;">+ Registo Fisioterapia</button>
@@ -3123,7 +3126,7 @@ function openPatientViewModal(patient) {
       `;
     }
 
-    const title = physioEditingId ? "Editar Registo de Fisioterapia" : "Novo Registo de Fisioterapia";
+    const title = s.editingId ? "Editar Registo de Fisioterapia" : "Novo Registo de Fisioterapia";
 
     return `
       <div style="border:1px solid #e5e5e5; border-radius:14px; padding:14px;">
@@ -3150,10 +3153,6 @@ function openPatientViewModal(patient) {
             </span>
           </div>
           <div id="physioQuillEditor"></div>
-        </div>
-
-        <div style="margin-top:8px; color:#64748b; font-size:12px;">
-          Dicionário: usa o do Chrome (pt-PT). Colar texto é suportado.
         </div>
       </div>
     `;
@@ -3221,10 +3220,12 @@ function openPatientViewModal(patient) {
       `;
     }
 
+    const s = __ps();
+
     // doctor/physio: timeline combinada (consultas + fisio)
     const items = [];
 
-    (physioRows || []).forEach(r => {
+    (s.rows || []).forEach(r => {
       items.push({
         type: "physio",
         ts: r.created_at ? new Date(r.created_at).getTime() : 0,
@@ -3246,7 +3247,6 @@ function openPatientViewModal(patient) {
     items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
     if (!items.length) {
-      // ainda assim mostrar composer se for physio
       return `
         <div style="display:flex; flex-direction:column; gap:14px;">
           ${__gcRenderPhysioComposer()}
@@ -3317,77 +3317,60 @@ function openPatientViewModal(patient) {
     if (window.__gcPhysioTimelineHooksInstalled) return;
     window.__gcPhysioTimelineHooksInstalled = true;
 
-    // Click handler (delegation)
     document.addEventListener("click", async (ev) => {
       const t = ev.target;
+      const s = __ps();
 
-      // Abrir composer
       if (t && t.id === "btnAddPhysioRecord") {
         ev.preventDefault();
-        physioComposerOpen = true;
-        physioEditingId = null;
-        physioDraftHtml = "";
+        s.composerOpen = true;
+        s.editingId = null;
+        s.draftHtml = "";
         window.__gcPhysioQuill = null;
         render();
         return;
       }
 
-      // Cancelar
       if (t && t.id === "btnCancelPhysioComposer") {
         ev.preventDefault();
-        physioComposerOpen = false;
-        physioEditingId = null;
-        physioDraftHtml = "";
+        s.composerOpen = false;
+        s.editingId = null;
+        s.draftHtml = "";
         window.__gcPhysioQuill = null;
         render();
         return;
       }
 
-      // Guardar
       if (t && t.id === "btnSavePhysioRecord") {
         ev.preventDefault();
-        if (physioSaving) return;
+        if (s.saving) return;
 
-        // só physio
         if (!__gcIsPhysio()) return;
 
         const uid = __gcGetUid();
-        if (!uid) {
-          alert("Sem utilizador autenticado.");
-          return;
-        }
+        if (!uid) { alert("Sem utilizador autenticado."); return; }
 
-        // ler HTML atual
         try {
           const q = window.__gcPhysioQuill;
-          if (q && q.root) physioDraftHtml = q.root.innerHTML || "";
+          if (q && q.root) s.draftHtml = q.root.innerHTML || "";
         } catch (_) {}
 
-        const html = String(physioDraftHtml || "").trim();
-        if (!html || html === "<p><br></p>") {
-          alert("Registo vazio.");
-          return;
-        }
+        const html = String(s.draftHtml || "").trim();
+        if (!html || html === "<p><br></p>") { alert("Registo vazio."); return; }
 
         const clinicId = __gcGuessClinicIdForPhysioRecord();
-        if (!clinicId) {
-          alert("Sem clinic_id ativo para gravar o registo.");
-          return;
-        }
+        if (!clinicId) { alert("Sem clinic_id ativo para gravar o registo."); return; }
 
-        physioSaving = true;
+        s.saving = true;
 
         try {
-          if (physioEditingId) {
-            // UPDATE (RLS garante: só autor physio)
+          if (s.editingId) {
             const { error } = await window.sb
               .from("physio_records")
               .update({ content: html })
-              .eq("id", physioEditingId);
-
+              .eq("id", s.editingId);
             if (error) throw error;
           } else {
-            // INSERT (RLS garante: só physio + author_user_id=auth.uid)
             const { error } = await window.sb
               .from("physio_records")
               .insert([{
@@ -3396,14 +3379,12 @@ function openPatientViewModal(patient) {
                 author_user_id: uid,
                 content: html
               }]);
-
             if (error) throw error;
           }
 
-          // refresh
-          physioComposerOpen = false;
-          physioEditingId = null;
-          physioDraftHtml = "";
+          s.composerOpen = false;
+          s.editingId = null;
+          s.draftHtml = "";
           window.__gcPhysioQuill = null;
 
           await loadPhysioRecords();
@@ -3413,13 +3394,12 @@ function openPatientViewModal(patient) {
           console.error(e);
           alert("Erro a gravar registo de fisioterapia.");
         } finally {
-          physioSaving = false;
+          s.saving = false;
         }
 
         return;
       }
 
-      // Editar/apagar (apenas author physio)
       const actionBtn = t && t.closest ? t.closest("[data-physio-action]") : null;
       if (actionBtn) {
         ev.preventDefault();
@@ -3431,14 +3411,14 @@ function openPatientViewModal(patient) {
         const uid = __gcGetUid();
         if (!__gcIsPhysio() || !uid) return;
 
-        const row = (physioRows || []).find(x => String(x.id) === String(id));
+        const row = (__ps().rows || []).find(x => String(x.id) === String(id));
         if (!row) return;
         if (String(row.author_user_id) !== String(uid)) return;
 
         if (action === "edit") {
-          physioComposerOpen = true;
-          physioEditingId = row.id;
-          physioDraftHtml = String(row.content || "");
+          s.composerOpen = true;
+          s.editingId = row.id;
+          s.draftHtml = String(row.content || "");
           window.__gcPhysioQuill = null;
           render();
           return;
@@ -3466,14 +3446,12 @@ function openPatientViewModal(patient) {
       }
     });
 
-    // MutationObserver: inicializar Quill sempre que composer aparece
     const obs = new MutationObserver(() => {
       try {
         const host = document.getElementById("physioQuillEditor");
         const tb = document.getElementById("physioQuillToolbar");
         if (!host || !tb) return;
 
-        // já inicializado?
         if (window.__gcPhysioQuill) return;
         if (!window.Quill) return;
 
@@ -3482,13 +3460,12 @@ function openPatientViewModal(patient) {
           modules: { toolbar: tb }
         });
 
-        // dicionário/idioma
         q.root.setAttribute("spellcheck", "true");
         q.root.setAttribute("lang", "pt-PT");
         q.root.setAttribute("autocapitalize", "sentences");
 
-        // carregar rascunho (novo ou edição)
-        const initialHtml = String(physioDraftHtml || "");
+        const s = __ps();
+        const initialHtml = String(s.draftHtml || "");
         if (initialHtml.trim().length) {
           try { q.clipboard.dangerouslyPasteHTML(initialHtml); }
           catch (_) { q.setText(initialHtml); }
@@ -3497,10 +3474,10 @@ function openPatientViewModal(patient) {
         }
 
         q.on("text-change", () => {
-          physioDraftHtml = q.root.innerHTML || "";
+          s.draftHtml = q.root.innerHTML || "";
         });
 
-        physioDraftHtml = q.root.innerHTML || "";
+        s.draftHtml = q.root.innerHTML || "";
         window.__gcPhysioQuill = q;
       } catch (_) {}
     });
@@ -3508,7 +3485,6 @@ function openPatientViewModal(patient) {
     obs.observe(document.body, { childList: true, subtree: true });
   }
 
-  // instalar hooks imediatamente quando este bloco é carregado
   __gcInstallPhysioTimelineHooksOnce();
 
 /* ==== FIM BLOCO 06G/12 ==== */
