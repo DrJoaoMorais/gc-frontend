@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Editor Sandbox — Gestão Clínica</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 20px; }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    .card { border: 1px solid #e5e5e5; border-radius: 14px; padding: 14px; }
+    .toolbar {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      border: 1px solid #e5e5e5; border-radius: 12px; padding: 10px;
+      background: #fafafa;
+      position: sticky; top: 10px;
+    }
+    .btn {
+      border: 1px solid #d0d0d0; background: #fff; border-radius: 10px;
+      padding: 8px 10px; cursor: pointer; font-weight: 700;
+      user-select: none;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn.active { border-color: #111; box-shadow: 0 0 0 2px rgba(0,0,0,0.08); background: rgba(0,0,0,0.04); }
+    .hint { color: #555; font-size: 13px; margin-top: 10px; }
+    .editor {
+      margin-top: 12px;
+      border: 1px solid #e5e5e5; border-radius: 14px;
+      padding: 12px; min-height: 220px;
+      outline: none;
+      line-height: 1.4;
+      background: #fff;
+      white-space: normal;
+    }
+    /* Garantir que listas aparecem (muitas regressões vêm daqui) */
+    .editor ul, .editor ol {
+      margin: 0.2em 0 0.2em 1.2em;
+      padding-left: 1.2em;
+      list-style-position: outside;
+    }
+    .editor li { margin: 0.1em 0; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+    pre {
+      white-space: pre-wrap; word-break: break-word;
+      background: #0b0b0b; color: #f5f5f5;
+      padding: 12px; border-radius: 14px; min-height: 220px;
+      margin: 0;
+    }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+    .small { font-size: 12px; color: #666; }
+    .ok { font-weight: 800; }
+    .danger { font-weight: 900; color: #8a0000; }
+    .pill { padding: 4px 10px; border-radius: 999px; border: 1px solid #e5e5e5; background: #fff; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2 style="margin:0 0 10px 0;">Editor Sandbox</h2>
+    <div class="card">
+      <div class="toolbar" id="toolbar">
+        <span class="pill small">Comandos</span>
+        <button class="btn" data-cmd="bold" title="Negrito (Ctrl/Cmd+B)"><b>B</b></button>
+        <button class="btn" data-cmd="underline" title="Sublinhar (Ctrl/Cmd+U)"><u>U</u></button>
+        <button class="btn" data-cmd="insertUnorderedList" title="Lista (bullets)">• Lista</button>
+        <button class="btn" data-cmd="insertOrderedList" title="Numeração">1. Num</button>
+
+        <span style="flex:1"></span>
+
+        <button class="btn" id="btnSanitize" title="Aplicar limpeza/normalização ao HTML">Sanitizar</button>
+        <button class="btn" id="btnClear" title="Limpar editor">Limpar</button>
+        <span class="pill small">Estado: <span id="state" class="ok">pronto</span></span>
+      </div>
+
+      <div class="hint">
+        Teste mínimo: escrever 2 linhas → selecionar → clicar “• Lista” e “1. Num”.
+        Depois: clicar dentro do texto e alternar lista/numeração. O HTML deve mostrar <code>&lt;ul&gt;/&lt;ol&gt;</code> e <code>&lt;li&gt;</code>.
+      </div>
+
+      <div id="editor" class="editor" contenteditable="true" spellcheck="false"></div>
+
+      <div class="grid">
+        <div>
+          <div class="row" style="margin:6px 0 8px 0;">
+            <span class="pill small">HTML guardado</span>
+            <span class="small">(atualiza em tempo real)</span>
+          </div>
+          <pre id="outHtml"></pre>
+        </div>
+        <div>
+          <div class="row" style="margin:6px 0 8px 0;">
+            <span class="pill small">Texto simples</span>
+            <span class="small">(para comparação)</span>
+          </div>
+          <pre id="outText"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const editor = document.getElementById('editor');
+  const toolbar = document.getElementById('toolbar');
+  const outHtml = document.getElementById('outHtml');
+  const outText = document.getElementById('outText');
+  const state = document.getElementById('state');
+  const btnSanitize = document.getElementById('btnSanitize');
+  const btnClear = document.getElementById('btnClear');
+
+  // Guardar/restaurar seleção — isto é o que costuma faltar quando listas falham
+  let savedRange = null;
+
+  function setStateOk(msg){ state.textContent = msg || 'pronto'; state.className = 'ok'; }
+  function setStateBad(msg){ state.textContent = msg || 'erro'; state.className = 'danger'; }
+
+  function saveSelection() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const r = sel.getRangeAt(0);
+    // Só guardar se a seleção estiver dentro do editor
+    if (!editor.contains(r.commonAncestorContainer)) return;
+    savedRange = r.cloneRange();
+  }
+
+  function restoreSelection() {
+    if (!savedRange) return;
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(savedRange);
+  }
+
+  // Atualização do preview
+  function updateOutputs() {
+    outHtml.textContent = editor.innerHTML || '';
+    outText.textContent = editor.innerText || '';
+  }
+
+  // Comando robusto: restaurar seleção, focar editor, executar comando
+  function applyCmd(cmd) {
+    try {
+      editor.focus();
+      restoreSelection();
+
+      // execCommand ainda é o mais estável para listas em contenteditable simples
+      document.execCommand(cmd, false, null);
+
+      // Guardar seleção após comando
+      saveSelection();
+      updateOutputs();
+      setStateOk('ok');
+    } catch (e) {
+      console.error(e);
+      setStateBad('falhou');
+    }
+  }
+
+  // Evitar perda de seleção quando clicas nos botões:
+  // mouse down no toolbar guarda seleção antes do blur do editor.
+  toolbar.addEventListener('mousedown', (ev) => {
+    // Só interessa para botões
+    const btn = ev.target.closest('button');
+    if (!btn) return;
+    // impedir que o mousedown retire foco "estranho"
+    ev.preventDefault();
+    saveSelection();
+  });
+
+  toolbar.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button');
+    if (!btn) return;
+
+    if (btn.id === 'btnSanitize') return;
+    if (btn.id === 'btnClear') return;
+
+    const cmd = btn.getAttribute('data-cmd');
+    if (!cmd) return;
+    applyCmd(cmd);
+  });
+
+  // Guardar seleção quando o utilizador interage com o editor
+  editor.addEventListener('keyup', () => { saveSelection(); updateOutputs(); });
+  editor.addEventListener('mouseup', () => { saveSelection(); updateOutputs(); });
+  editor.addEventListener('input', () => { saveSelection(); updateOutputs(); });
+
+  // Atalhos (opcional, mas útil)
+  editor.addEventListener('keydown', (ev) => {
+    const isMac = navigator.platform.toLowerCase().includes('mac');
+    const mod = isMac ? ev.metaKey : ev.ctrlKey;
+
+    if (mod && (ev.key === 'b' || ev.key === 'B')) { ev.preventDefault(); applyCmd('bold'); }
+    if (mod && (ev.key === 'u' || ev.key === 'U')) { ev.preventDefault(); applyCmd('underline'); }
+  });
+
+  // Sanitização mínima com whitelist (para “definitivo”)
+  // Mantém apenas tags essenciais e remove atributos perigosos.
+  const ALLOWED = new Set(['B','STRONG','U','UL','OL','LI','P','BR','DIV']);
+  function sanitizeHtml(html) {
+    const doc = new DOMParser().parseFromString('<div>' + (html || '') + '</div>', 'text/html');
+    const root = doc.body.firstChild;
+
+    function walk(node) {
+      // Remover comentários
+      if (node.nodeType === Node.COMMENT_NODE) { node.remove(); return; }
+
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const tag = node.tagName.toUpperCase();
+
+        // Remover scripts/styles e tags não permitidas
+        if (!ALLOWED.has(tag)) {
+          // Trocar por conteúdo de texto/filhos (unwrap)
+          const parent = node.parentNode;
+          while (node.firstChild) parent.insertBefore(node.firstChild, node);
+          node.remove();
+          return;
+        }
+
+        // Remover todos os atributos (segurança)
+        [...node.attributes].forEach(a => node.removeAttribute(a.name));
+      }
+
+      // Continuar
+      const children = [...node.childNodes];
+      children.forEach(walk);
+    }
+
+    walk(root);
+
+    // Normalização: evitar div vazios sucessivos
+    let cleaned = root.innerHTML;
+
+    // Remover múltiplos <div><br></div> repetidos
+    cleaned = cleaned.replace(/(<div><br><\/div>){3,}/g, '<div><br></div><div><br></div>');
+
+    return cleaned;
+  }
+
+  btnSanitize.addEventListener('click', () => {
+    try {
+      const cleaned = sanitizeHtml(editor.innerHTML);
+      editor.innerHTML = cleaned;
+      // recolocar cursor no fim
+      editor.focus();
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      saveSelection();
+      updateOutputs();
+      setStateOk('sanitizado');
+    } catch (e) {
+      console.error(e);
+      setStateBad('sanitizar falhou');
+    }
+  });
+
+  btnClear.addEventListener('click', () => {
+    editor.innerHTML = '';
+    editor.focus();
+    savedRange = null;
+    updateOutputs();
+    setStateOk('limpo');
+  });
+
+  // Inicial
+  editor.innerHTML = '<div>Escreve aqui…</div><div>Seleciona texto e testa listas/numeração.</div>';
+  editor.focus();
+  // cursor fim
+  const r = document.createRange();
+  r.selectNodeContents(editor);
+  r.collapse(false);
+  const s = window.getSelection();
+  s.removeAllRanges();
+  s.addRange(r);
+  saveSelection();
+  updateOutputs();
+})();
+</script>
+</body>
+</html>

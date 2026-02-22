@@ -3079,6 +3079,14 @@ function openPatientViewModal(patient) {
             box-shadow: 0 0 0 2px rgba(0,0,0,0.08);
             background: rgba(0,0,0,0.04);
           }
+
+          /* CRÍTICO: garantir que UL/OL aparecem dentro do editor (evita resets globais) */
+          #hdaEditor ul, #hdaEditor ol {
+            margin: 0.2em 0 0.2em 1.2em;
+            padding-left: 1.2em;
+            list-style-position: outside;
+          }
+          #hdaEditor li { margin: 0.1em 0; }
         </style>
 
         <div style="font-weight:900; font-size:16px;">Nova Consulta Médica</div>
@@ -3089,7 +3097,7 @@ function openPatientViewModal(patient) {
                  style="padding:8px; border:1px solid #ddd; border-radius:8px;" />
         </div>
 
-        <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+        <div id="hdaToolbar" style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
           <button id="hBold"  class="gcBtn" type="button" aria-pressed="false">Negrito</button>
           <button id="hUnder" class="gcBtn" type="button" aria-pressed="false">Sublinhar</button>
           <button id="hUL"    class="gcBtn" type="button" aria-pressed="false">Lista</button>
@@ -3099,7 +3107,7 @@ function openPatientViewModal(patient) {
         <div id="hdaEditor" contenteditable="true"
              style="margin-top:10px; min-height:240px; padding:12px;
                     border:1px solid #ddd; border-radius:12px;
-                    line-height:1.6; font-size:16px; overflow:auto;">
+                    line-height:1.6; font-size:16px; overflow:auto; white-space:normal; outline:none;">
           ${draftHDAHtml || ""}
         </div>
 
@@ -3154,9 +3162,10 @@ function openPatientViewModal(patient) {
   function bindConsultEvents() {
 
     // =========================
-    // HDA editor: seleção/caret + toolbar "ativo"
+    // HDA editor: seleção/caret + toolbar "ativo" (motor isolado estilo sandbox)
     // =========================
     const ed = document.getElementById("hdaEditor");
+    const toolbar = document.getElementById("hdaToolbar");
 
     const btnBold  = document.getElementById("hBold");
     const btnUnder = document.getElementById("hUnder");
@@ -3177,63 +3186,7 @@ function openPatientViewModal(patient) {
       try { return !!document.queryCommandState(cmd); } catch (_) { return null; }
     }
 
-    function closestTag(node, tagName) {
-      const tag = String(tagName || "").toUpperCase();
-      let n = node;
-      while (n && n !== document && n !== ed) {
-        if (n.nodeType === 1 && n.tagName === tag) return n;
-        n = n.parentNode;
-      }
-      return null;
-    }
-
-    function updateToolbarState() {
-      if (!ed) return;
-
-      const sel = window.getSelection ? window.getSelection() : null;
-      if (!sel || sel.rangeCount === 0) {
-        setBtnActive(btnBold,  false);
-        setBtnActive(btnUnder, false);
-        setBtnActive(btnUL,    false);
-        setBtnActive(btnOL,    false);
-        return;
-      }
-
-      let r = null;
-      try { r = sel.getRangeAt(0); } catch (_) {}
-      if (!r || !ed.contains(r.startContainer) || !ed.contains(r.endContainer)) {
-        setBtnActive(btnBold,  false);
-        setBtnActive(btnUnder, false);
-        setBtnActive(btnUL,    false);
-        setBtnActive(btnOL,    false);
-        return;
-      }
-
-      // Bold / Underline
-      const isBold  = safeQueryState("bold");
-      const isUnder = safeQueryState("underline");
-      setBtnActive(btnBold,  isBold === null ? false : isBold);
-      setBtnActive(btnUnder, isUnder === null ? false : isUnder);
-
-      // List / OrderedList: tentar queryCommandState; fallback DOM (UL/OL)
-      let inUL = safeQueryState("insertUnorderedList");
-      let inOL = safeQueryState("insertOrderedList");
-
-      if (inUL === null || inOL === null) {
-        const n = r.startContainer;
-        const ul = closestTag(n, "UL");
-        const ol = closestTag(n, "OL");
-        inUL = !!ul;
-        inOL = !!ol;
-      }
-
-      if (inOL) inUL = false;
-
-      setBtnActive(btnUL, !!inUL);
-      setBtnActive(btnOL, !!inOL);
-    }
-
-    // Guardamos a última seleção válida dentro do editor
+    // Guardar/restaurar seleção (range) — crítico para listas/numeração
     let hdaLastRange = null;
 
     function rangeInsideEditor(r) {
@@ -3259,12 +3212,10 @@ function openPatientViewModal(patient) {
       try {
         if (!ed) return;
         ed.focus();
-
         if (!hdaLastRange) return;
 
         const sel = window.getSelection ? window.getSelection() : null;
         if (!sel) return;
-
         if (!rangeInsideEditor(hdaLastRange)) return;
 
         sel.removeAllRanges();
@@ -3272,35 +3223,52 @@ function openPatientViewModal(patient) {
       } catch (_) {}
     }
 
-    // ✅ Quebra de linha manual (Chrome): não depende do comportamento default do contenteditable
-    function insertLineBreakManual() {
+    function updateToolbarState() {
       if (!ed) return;
-      try { ed.focus(); } catch (_) {}
 
       const sel = window.getSelection ? window.getSelection() : null;
-      if (!sel || sel.rangeCount === 0) return;
+      if (!sel || sel.rangeCount === 0) {
+        setBtnActive(btnBold,  false);
+        setBtnActive(btnUnder, false);
+        setBtnActive(btnUL,    false);
+        setBtnActive(btnOL,    false);
+        return;
+      }
 
-      const r = sel.getRangeAt(0);
-      if (!rangeInsideEditor(r)) return;
+      let r = null;
+      try { r = sel.getRangeAt(0); } catch (_) {}
+      if (!r || !ed.contains(r.startContainer) || !ed.contains(r.endContainer)) {
+        setBtnActive(btnBold,  false);
+        setBtnActive(btnUnder, false);
+        setBtnActive(btnUL,    false);
+        setBtnActive(btnOL,    false);
+        return;
+      }
 
-      // Apaga seleção (se existir)
-      try { r.deleteContents(); } catch (_) {}
+      const isBold  = safeQueryState("bold");
+      const isUnder = safeQueryState("underline");
+      setBtnActive(btnBold,  isBold === null ? false : isBold);
+      setBtnActive(btnUnder, isUnder === null ? false : isUnder);
 
-      const br = document.createElement("br");
-      r.insertNode(br);
+      let inUL = safeQueryState("insertUnorderedList");
+      let inOL = safeQueryState("insertOrderedList");
 
-      // Move caret para depois do <br>
-      try {
-        const rr = document.createRange();
-        rr.setStartAfter(br);
-        rr.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(rr);
-      } catch (_) {}
+      // fallback DOM (se queryCommandState falhar)
+      if (inUL === null || inOL === null) {
+        let n = r.startContainer;
+        while (n && n !== ed && n !== document) {
+          if (n.nodeType === 1 && n.tagName === "UL") inUL = true;
+          if (n.nodeType === 1 && n.tagName === "OL") inOL = true;
+          n = n.parentNode;
+        }
+        inUL = !!inUL;
+        inOL = !!inOL;
+      }
 
-      captureSelection();
-      draftHDAHtml = ed.innerHTML || "";
-      updateToolbarState();
+      if (inOL) inUL = false;
+
+      setBtnActive(btnUL, !!inUL);
+      setBtnActive(btnOL, !!inOL);
     }
 
     function execCmd(command) {
@@ -3314,54 +3282,52 @@ function openPatientViewModal(patient) {
 
     if (ed) {
       // Draft sempre atualizado
-      ed.oninput = () => {
+      ed.addEventListener("input", () => {
         draftHDAHtml = ed.innerHTML || "";
         captureSelection();
         updateToolbarState();
-      };
-
-      // ✅ Enter/Shift+Enter no próprio editor
-      ed.addEventListener("keydown", (ev) => {
-        if (!ev) return;
-        if (ev.key === "Enter") {
-          // Força quebra de linha no Chrome mesmo que haja preventDefault algures
-          ev.preventDefault();
-          ev.stopPropagation();
-          insertLineBreakManual();
-        }
       });
 
-      // Eventos do próprio editor
+      // IMPORTANTÍSSIMO: NÃO interceptar Enter (opção A)
+      // (deixamos o comportamento nativo do browser para parágrafos/listas)
+
+      // Capturar seleção em interações típicas
       ed.addEventListener("mouseup", () => { captureSelection(); updateToolbarState(); });
       ed.addEventListener("keyup",  () => { captureSelection(); updateToolbarState(); });
       ed.addEventListener("focus",  () => { captureSelection(); updateToolbarState(); });
+      ed.addEventListener("keydown", () => { captureSelection(); });
 
-      // Foco inicial e estado inicial
+      // Toolbar: guardar seleção no mousedown antes do editor perder foco
+      if (toolbar) {
+        toolbar.addEventListener("mousedown", (ev) => {
+          const btn = ev.target.closest("button");
+          if (!btn) return;
+          ev.preventDefault();
+          captureSelection();
+        });
+      }
+
+      // Bind botões (click basta; o mousedown do toolbar já protege seleção)
+      function bindBtnClick(id, command) {
+        const b = document.getElementById(id);
+        if (!b) return;
+        b.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          execCmd(command);
+        });
+      }
+
+      bindBtnClick("hBold",  "bold");
+      bindBtnClick("hUnder", "underline");
+      bindBtnClick("hUL",    "insertUnorderedList");
+      bindBtnClick("hOL",    "insertOrderedList");
+
+      // Estado inicial
       setTimeout(() => {
         try { ed.focus(); } catch (_) {}
         captureSelection();
         updateToolbarState();
       }, 0);
-
-      // Botões: usar mousedown + preventDefault para NÃO perder a seleção ao clicar
-      function bindBtn(id, command) {
-        const b = document.getElementById(id);
-        if (!b) return;
-
-        b.addEventListener("mousedown", (ev) => {
-          ev.preventDefault();
-          execCmd(command);
-        });
-
-        b.addEventListener("click", (ev) => {
-          ev.preventDefault();
-        });
-      }
-
-      bindBtn("hBold",  "bold");
-      bindBtn("hUnder", "underline");
-      bindBtn("hUL",    "insertUnorderedList");
-      bindBtn("hOL",    "insertOrderedList");
     }
 
     // =========================
