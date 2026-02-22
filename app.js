@@ -691,7 +691,7 @@
     }
   }
 
-  // ✅ Agenda alinhada em grelha + Estado clicável com cor (select estilizado)
+  // ✅ Agenda em grelha com cabeçalho único + 1 linha por marcação (sem labels repetidos)
   function renderAgendaList() {
     const ul = document.getElementById("agendaList");
     if (!ul) return;
@@ -704,90 +704,176 @@
       return;
     }
 
-    ul.innerHTML = rows
-      .map((r) => {
-        const startVal = r[timeColUsed] ?? r[pickFirstExisting(r, APPT_TIME_COL_CANDIDATES)];
-        const endVal = r[pickFirstExisting(r, APPT_END_COL_CANDIDATES)];
+    const header = `
+      <li style="padding:8px 0 10px 0; border-bottom:1px solid #ededed;">
+        <div class="gcAgendaGrid gcAgendaHeader">
+          <div class="gcAgendaH">Horário</div>
+          <div class="gcAgendaH">Nome</div>
+          <div class="gcAgendaH">Tipo</div>
+          <div class="gcAgendaH">Estado</div>
+          <div class="gcAgendaH">Telefone</div>
+          <div class="gcAgendaH">Clínica</div>
+        </div>
 
-        const start = startVal ? new Date(startVal) : null;
-        const end = endVal ? new Date(endVal) : null;
+        <style>
+          /* Cabeçalho + linhas (escopo local do render) */
+          .gcAgendaGrid{
+            display:grid;
+            grid-template-columns: 110px 1.8fr 1.2fr 160px 120px 140px; /* Horário | Nome | Tipo | Estado | Telefone | Clínica */
+            column-gap: 16px;
+            align-items: center;
+            width:100%;
+          }
 
-        const tStart = fmtTime(start);
-        const tEnd = end ? fmtTime(end) : null;
+          .gcAgendaHeader .gcAgendaH{
+            font-size:${UI.fs12}px;
+            color:#666;
+            font-weight:700;
+            letter-spacing:.2px;
+            text-transform:none;
+          }
 
-        const clinicId = r.clinic_id ?? null;
-        const clinicName =
-          clinicId && G.clinicsById[clinicId]
-            ? G.clinicsById[clinicId].name || G.clinicsById[clinicId].slug || clinicId
-            : clinicId || "—";
+          .gcAgendaRow{
+            padding:10px 0;
+            border-bottom:1px solid #f2f2f2;
+          }
 
-        // ✅ normaliza histórico: cancelled aparece como no_show no UI
-        const statusRaw = r.status ?? "scheduled";
-        const status = (String(statusRaw).toLowerCase() === "cancelled") ? "no_show" : statusRaw;
+          .gcAgendaRow:hover{
+            background:#f8f8f8;
+            border-radius:10px;
+          }
 
-        const meta = statusMeta(status);
+          .gcAgendaTime{
+            font-size:${UI.fs14}px;
+            font-weight:800;
+            color:#111;
+            white-space:nowrap;
+          }
 
-        const proc = r.procedure_type ?? "—";
-        const notes = r.notes ? clipOneLine(r.notes, 130) : "";
+          .gcAgendaNameWrap{
+            min-width: 0; /* permite ellipsis */
+            display:flex;
+            align-items:center;
+            gap:10px;
+          }
 
-        const p = getPatientForAppointmentRow(r);
-        const patientName = p && p.full_name ? p.full_name : (r.patient_id ? `Doente (ID): ${r.patient_id}` : "—");
-        const patientPhone = p && p.phone ? p.phone : "—";
+          .gcAgendaNameText{
+            min-width: 0;
+            font-size:${UI.fs14}px;
+            font-weight:800;
+            color:#111;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+          }
 
-        function optLabel(s) {
-          const m = statusMeta(s);
-          return `${m.icon} ${m.label}`;
-        }
+          .gcAgendaNotesInline{
+            min-width: 0;
+            font-size:${UI.fs12}px;
+            color:#666;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+          }
 
-        return `
-        <li data-appt-id="${escapeHtml(r.id)}" style="padding:10px 0; border-bottom:1px solid #f2f2f2;">
-          <div class="gcGridRow">
-            <div>
-              <div style="font-size:${UI.fs16}px; font-weight:900; color:#111; padding-top:2px;">
-                ${escapeHtml(tStart)}${tEnd ? `–${escapeHtml(tEnd)}` : ""}
-              </div>
+          .gcAgendaCell{
+            min-width:0;
+            font-size:${UI.fs12}px;
+            color:#111;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+          }
+
+          /* Estado: largura fixa + select não rebenta */
+          .gcAgendaStatusWrap{ min-width:0; }
+          .gcStatusSelect{
+            width:100%;
+            max-width:100%;
+            min-width:0;
+            font-size:${UI.fs12}px;
+            font-weight:800;
+            padding:6px 10px;
+            border-radius:999px;
+            border:1px solid #ddd;
+            outline:none;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+          }
+        </style>
+      </li>
+    `;
+
+    const body = rows.map((r) => {
+      const startVal = r[timeColUsed] ?? r[pickFirstExisting(r, APPT_TIME_COL_CANDIDATES)];
+      const endVal = r[pickFirstExisting(r, APPT_END_COL_CANDIDATES)];
+
+      const start = startVal ? new Date(startVal) : null;
+      const end = endVal ? new Date(endVal) : null;
+
+      const tStart = fmtTime(start);
+      const tEnd = end ? fmtTime(end) : null;
+
+      const clinicId = r.clinic_id ?? null;
+      const clinicName =
+        clinicId && G.clinicsById[clinicId]
+          ? G.clinicsById[clinicId].name || G.clinicsById[clinicId].slug || clinicId
+          : clinicId || "—";
+
+      // ✅ normaliza histórico: cancelled aparece como no_show no UI
+      const statusRaw = r.status ?? "scheduled";
+      const status = (String(statusRaw).toLowerCase() === "cancelled") ? "no_show" : statusRaw;
+      const meta = statusMeta(status);
+
+      const proc = r.procedure_type ?? "—";
+      const notes = r.notes ? clipOneLine(r.notes, 90) : "";
+
+      const p = getPatientForAppointmentRow(r);
+      const patientName = p && p.full_name ? p.full_name : (r.patient_id ? `Doente (ID): ${r.patient_id}` : "—");
+      const patientPhone = p && p.phone ? p.phone : "—";
+
+      function optLabel(s) {
+        const m = statusMeta(s);
+        return `${m.icon} ${m.label}`;
+      }
+
+      const timeTxt = `${tStart}${tEnd ? `–${tEnd}` : ""}`;
+
+      return `
+        <li data-appt-id="${escapeHtml(r.id)}" class="gcAgendaRow">
+          <div class="gcAgendaGrid">
+            <div class="gcAgendaTime">${escapeHtml(timeTxt)}</div>
+
+            <div class="gcAgendaNameWrap" title="${escapeHtml(notes ? `Notas: ${notes}` : "")}">
+              <span data-patient-open="1" class="gcPatientLink gcAgendaNameText">${escapeHtml(patientName)}</span>
+              ${notes ? `<span class="gcAgendaNotesInline">· ${escapeHtml(notes)}</span>` : ``}
             </div>
 
-            <div style="min-width: 260px;">
-              <span data-patient-open="1" class="gcPatientLink">${escapeHtml(patientName)}</span>
-              ${notes ? `<div style="margin-top:6px; font-size:${UI.fs12}px; color:#444;">Notas: ${escapeHtml(notes)}</div>` : ""}
+            <div class="gcAgendaCell" title="${escapeHtml(proc)}">${escapeHtml(proc)}</div>
+
+            <div class="gcAgendaStatusWrap">
+              <select data-status-select="1"
+                      class="gcStatusSelect"
+                      style="background:${escapeHtml(meta.bg)}; color:${escapeHtml(meta.fg)}; border-color:${escapeHtml(meta.br)};"
+                      title="Clique para alterar estado">
+                ${STATUS_OPTIONS.map((s) => {
+                  const val = (s === "cancelled") ? "no_show" : s;
+                  const sel = (val === String(status).toLowerCase()) ? " selected" : "";
+                  return `<option value="${escapeHtml(val)}"${sel}>${escapeHtml(optLabel(val))}</option>`;
+                }).join("")}
+              </select>
             </div>
 
-            <div>
-              <div class="gcCellTitle">Tipo</div>
-              <div class="gcCellValue gcOneLine" title="${escapeHtml(proc)}">${escapeHtml(proc)}</div>
-            </div>
+            <div class="gcAgendaCell" title="${escapeHtml(patientPhone)}">${escapeHtml(patientPhone)}</div>
 
-            <div>
-              <div class="gcCellTitle">Telefone</div>
-              <div class="gcCellValue gcOneLine" title="${escapeHtml(patientPhone)}">${escapeHtml(patientPhone)}</div>
-            </div>
-
-            <div>
-              <div class="gcCellTitle">Clínica</div>
-              <div class="gcCellValue gcOneLine" title="${escapeHtml(clinicName)}">${escapeHtml(clinicName)}</div>
-            </div>
-
-            <div>
-              <div class="gcCellTitle">Estado</div>
-              <div style="margin-top:6px;">
-                <select data-status-select="1"
-                        class="gcStatusSelect"
-                        style="background:${escapeHtml(meta.bg)}; color:${escapeHtml(meta.fg)}; border-color:${escapeHtml(meta.br)};"
-                        title="Clique para alterar estado">
-                  ${STATUS_OPTIONS.map((s) => {
-                    const val = (s === "cancelled") ? "no_show" : s;
-                    const sel = (val === String(status).toLowerCase()) ? " selected" : "";
-                    return `<option value="${escapeHtml(val)}"${sel}>${escapeHtml(optLabel(val))}</option>`;
-                  }).join("")}
-                </select>
-              </div>
-            </div>
+            <div class="gcAgendaCell" title="${escapeHtml(clinicName)}">${escapeHtml(clinicName)}</div>
           </div>
         </li>
       `;
-      })
-      .join("");
+    }).join("");
+
+    ul.innerHTML = header + body;
 
     ul.querySelectorAll("li[data-appt-id]").forEach((li) => {
       li.addEventListener("click", (ev) => {
