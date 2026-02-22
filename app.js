@@ -409,14 +409,10 @@
     "Outro",
   ];
 
-  // ✅ BD atualizada: apenas 5 estados permitidos
-  // scheduled | arrived | done | no_show | confirmed
-  // (cancelled foi migrado para no_show)
   const STATUS_OPTIONS = ["scheduled", "arrived", "done", "no_show", "confirmed"];
 
   const DURATION_OPTIONS = [15, 20, 30, 45, 60];
 
-  // ✅ Estado com cores (5 estados)
   function statusMeta(statusRaw) {
     const s = String(statusRaw || "scheduled").toLowerCase();
     const map = {
@@ -429,9 +425,6 @@
     return map[s] || map.scheduled;
   }
 
-  // ---------- Estado global ----------
-  // ✅ FIX CRÍTICO: garantir que G existe no scope do boot()
-  // (var -> global; também expõe em window.G)
   var G = window.G = {
     sessionUser: null,
     role: null,
@@ -444,60 +437,69 @@
     patientQuick: { lastResults: [], selected: null },
   };
 
-  // ---------- Render shell ----------
   function renderAppShell() {
     document.body.innerHTML = `
       <style>
-        .gcBtn { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:${UI.fs13}px; }
+        .gcBtn { 
+          padding:10px 12px; 
+          border-radius:10px; 
+          border:1px solid #ddd; 
+          background:#fff; 
+          cursor:pointer; 
+          font-size:${UI.fs13}px; 
+        }
         .gcBtn:disabled { opacity:0.6; cursor:not-allowed; }
 
-        .gcBtnPrimary { padding:11px 14px; border-radius:12px; border:1px solid #334155; background:#334155; color:#fff; cursor:pointer; font-size:${UI.fs13}px; font-weight:900; }
+        /* ✅ Botão primário suavizado (menos agressivo) */
+        .gcBtnPrimary { 
+          padding:10px 13px; 
+          border-radius:11px; 
+          border:1px solid #475569; 
+          background:#475569; 
+          color:#fff; 
+          cursor:pointer; 
+          font-size:${UI.fs13}px; 
+          font-weight:700; 
+        }
+        .gcBtnPrimary:hover {
+          filter: brightness(0.96);
+        }
         .gcBtnPrimary:disabled { opacity:0.6; cursor:not-allowed; }
 
-        .gcSelect { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff; font-size:${UI.fs13}px; }
+        .gcSelect { 
+          padding:10px 12px; 
+          border-radius:10px; 
+          border:1px solid #ddd; 
+          background:#fff; 
+          font-size:${UI.fs13}px; 
+        }
+
         .gcLabel { font-size:${UI.fs12}px; color:#666; }
-        .gcCard { padding:12px 14px; border:1px solid #eee; border-radius:12px; background:#fff; }
-        .gcMutedCard { padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fafafa; }
 
-        .gcGridRow {
-          display:grid;
-          grid-template-columns: 110px minmax(260px, 1.6fr) 240px 280px 170px 160px;
-          gap:14px;
-          align-items:start;
-          width:100%;
-        }
-        @media (max-width: 1100px){
-          .gcGridRow { grid-template-columns: 110px 1fr; }
-          .gcGridRow > div { min-width: 0 !important; }
+        .gcCard { 
+          padding:12px 14px; 
+          border:1px solid #eee; 
+          border-radius:12px; 
+          background:#fff; 
         }
 
-        .gcPatientLink{
-          display:block;
-          font-size:${UI.fs18}px;
-          line-height:1.15;
-          color:#111;
-          font-weight:950;
-          cursor:pointer;
-          text-decoration:underline;
-          white-space:normal;
-          overflow-wrap:anywhere;
-          word-break:break-word;
+        .gcMutedCard { 
+          padding:10px 12px; 
+          border-radius:10px; 
+          border:1px solid #ddd; 
+          background:#fafafa; 
         }
-
-        .gcCellTitle { font-size:${UI.fs12}px; color:#666; }
-        .gcCellValue { font-size:${UI.fs13}px; color:#111; font-weight:700; margin-top:6px; }
 
         .gcStatusSelect{
           appearance:none;
-          -webkit-appearance:none;
-          -moz-appearance:none;
           border-radius:999px;
           border:1px solid transparent;
           padding:8px 36px 8px 12px;
           font-size:${UI.fs13}px;
           font-weight:900;
           cursor:pointer;
-          background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+          background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), 
+                            linear-gradient(135deg, currentColor 50%, transparent 50%);
           background-position: calc(100% - 18px) 55%, calc(100% - 12px) 55%;
           background-size: 6px 6px, 6px 6px;
           background-repeat:no-repeat;
@@ -509,33 +511,24 @@
           gap:10px;
           flex-wrap:wrap;
         }
+
         .gcToolbarBlock {
           display:flex;
           flex-direction:column;
           gap:4px;
         }
+
         .gcSearchWrap {
           min-width: 360px;
           max-width: 520px;
           flex: 1 1 420px;
         }
-        @media (max-width: 980px){
-          .gcSearchWrap { flex: 1 1 100%; min-width: 280px; }
-        }
 
-        .gcGridRow > div{
-          display:flex;
-          flex-direction:column;
-          justify-content:flex-start;
-        }
-        .gcCellTitle{
-          min-height: 16px;
-          display:flex;
-          align-items:flex-end;
-        }
-        .gcGridRow .gcStatusSelect{
-          margin-top: 6px;
-          align-self:flex-start;
+        @media (max-width: 980px){
+          .gcSearchWrap { 
+            flex: 1 1 100%; 
+            min-width: 280px; 
+          }
         }
       </style>
 
@@ -562,25 +555,20 @@
 
             <div style="margin-top:12px;" class="gcToolbar">
               <div class="gcToolbarBlock" style="flex-direction:row; gap:10px; align-items:flex-end;">
-                <button id="btnCal" class="gcBtn" title="Calendário">Calendário</button>
-                <button id="btnToday" class="gcBtn" title="Voltar a hoje">Hoje</button>
-                <button id="btnNewAppt" class="gcBtnPrimary">+ Agendar Consulta 📅</button>
-                <button id="btnNewPatientMain" class="gcBtn" title="Criar novo doente">＋ Novo doente</button>
+                <button id="btnCal" class="gcBtn">Calendário</button>
+                <button id="btnToday" class="gcBtn">Hoje</button>
+                <button id="btnNewAppt" class="gcBtnPrimary">+ Agendar Consulta</button>
+                <button id="btnNewPatientMain" class="gcBtn">＋ Novo doente</button>
               </div>
 
               <div class="gcToolbarBlock gcSearchWrap">
                 <div class="gcLabel">Pesquisa de doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
                 <input
                   id="pQuickQuery"
-                  name="gc_patient_search"
                   type="search"
                   placeholder="ex.: Man… | 916… | 123456789"
                   autocomplete="off"
-                  autocorrect="off"
-                  autocapitalize="off"
                   spellcheck="false"
-                  inputmode="search"
-                  data-form-type="other"
                   style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;"
                 />
                 <div id="pQuickResults" style="margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:180px; overflow:auto;">
@@ -594,7 +582,7 @@
               </div>
             </div>
 
-            <div style="margin-top:12px;" id="agendaStatus" aria-live="polite"></div>
+            <div style="margin-top:12px;" id="agendaStatus"></div>
 
             <div style="margin-top:10px; border-top:1px solid #f0f0f0; padding-top:10px;">
               <ul id="agendaList" style="list-style:none; padding:0; margin:0;"></ul>
@@ -607,7 +595,7 @@
     `;
   }
 
-/* ==== FIM BLOCO 03/12 — Constantes (procedimentos/status) + estado global + render shell (HTML+CSS) ==== */
+/* ==== FIM BLOCO 03/12 ==== */
 
 
 /* ==== INÍCIO BLOCO 04/12 — Helpers UI Agenda + abrir doente + update status + renderAgendaList ==== */
