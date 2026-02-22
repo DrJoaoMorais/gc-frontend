@@ -557,7 +557,7 @@
               <div class="gcToolbarBlock" style="flex-direction:row; gap:10px; align-items:flex-end;">
                 <button id="btnCal" class="gcBtn">Calendário</button>
                 <button id="btnToday" class="gcBtn">Hoje</button>
-                <button id="btnNewAppt" class="gcBtnPrimary">+ Agendar Consulta 📅</button>
+                <button id="btnNewAppt" class="gcBtnPrimary">Agendar Consulta 📅</button>
                 <button id="btnNewPatientMain" class="gcBtn">＋ Novo doente</button>
               </div>
 
