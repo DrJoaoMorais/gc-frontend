@@ -3063,239 +3063,222 @@ function openPatientViewModal(patient) {
 
 /* ==== FIM BLOCO 06G/12 ==== */
 
+/* ==== INÍCIO BLOCO 06H/12 — Consulta médica (UI HDA + Quill + Spellcheck) ==== */
 
-/* ==== INÍCIO BLOCO 06H/12 — Consulta médica (UI HDA + Quill) ==== */
+function renderConsultFormInline() {
+  const today = new Date().toISOString().slice(0, 10);
 
-  function renderConsultFormInline() {
-    const today = new Date().toISOString().slice(0, 10);
+  return `
+    <div style="margin-top:16px; padding:16px; border:1px solid #e5e5e5; border-radius:14px;">
 
-    return `
-      <div style="margin-top:16px; padding:16px; border:1px solid #e5e5e5; border-radius:14px;">
+      <style>
+        .gcQuillWrap { margin-top: 10px; }
 
-        <style>
-          /* Quill: ajustes mínimos para integrar no teu UI */
-          .gcQuillWrap { margin-top: 10px; }
-          .gcQuillWrap .ql-toolbar.ql-snow {
-            border: 1px solid #ddd;
-            border-radius: 12px 12px 0 0;
-          }
-          .gcQuillWrap .ql-container.ql-snow {
-            border: 1px solid #ddd;
-            border-top: none;
-            border-radius: 0 0 12px 12px;
-            min-height: 240px;
-            font-size: 16px;
-          }
-          .gcQuillWrap .ql-editor {
-            line-height: 1.6;
-          }
-        </style>
+        .gcQuillWrap .ql-toolbar.ql-snow {
+          border: 1px solid #ddd;
+          border-radius: 12px 12px 0 0;
+        }
 
-        <div style="font-weight:900; font-size:16px;">Nova Consulta Médica</div>
+        .gcQuillWrap .ql-container.ql-snow {
+          border: 1px solid #ddd;
+          border-top: none;
+          border-radius: 0 0 12px 12px;
+          min-height: 240px;
+          font-size: 16px;
+        }
 
-        <div style="margin-top:10px;">
-          <label>Data</label>
-          <input type="date" value="${today}" readonly
-                 style="padding:8px; border:1px solid #ddd; border-radius:8px;" />
+        .gcQuillWrap .ql-editor {
+          line-height: 1.6;
+        }
+      </style>
+
+      <div style="font-weight:900; font-size:16px;">Nova Consulta Médica</div>
+
+      <div style="margin-top:10px;">
+        <label>Data</label>
+        <input type="date" value="${today}" readonly
+               style="padding:8px; border:1px solid #ddd; border-radius:8px;" />
+      </div>
+
+      <div class="gcQuillWrap">
+        <div id="hdaQuillToolbar">
+          <span class="ql-formats">
+            <button class="ql-bold"></button>
+            <button class="ql-underline"></button>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-list" value="ordered"></button>
+            <button class="ql-list" value="bullet"></button>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-clean"></button>
+          </span>
         </div>
 
-        <div class="gcQuillWrap">
-          <!-- Toolbar Quill (B=preparado, inclui listas/numeração e mais opções futuras) -->
-          <div id="hdaQuillToolbar">
-            <span class="ql-formats">
-              <button class="ql-bold" aria-label="Negrito"></button>
-              <button class="ql-underline" aria-label="Sublinhar"></button>
-            </span>
-            <span class="ql-formats">
-              <button class="ql-list" value="ordered" aria-label="Numeração"></button>
-              <button class="ql-list" value="bullet" aria-label="Lista"></button>
-            </span>
-            <span class="ql-formats">
-              <button class="ql-clean" aria-label="Limpar formatação"></button>
-            </span>
-          </div>
+        <div id="hdaQuillEditor"></div>
+      </div>
 
-          <!-- Editor Quill -->
-          <div id="hdaQuillEditor"></div>
+      <div style="margin-top:14px;">
+        <label>Diagnóstico (catálogo)</label>
+        <div style="position:relative; margin-top:6px; max-width:720px;">
+          <input id="diagSearch" value="${escAttr(diagQuery)}"
+                 placeholder="Pesquisar (mín. 2 letras)…"
+                 style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+          <div id="diagStatus"></div>
+          <div id="diagDropdownHost" style="position:relative;"></div>
         </div>
+        <div id="diagChips"></div>
+      </div>
 
-        <div style="margin-top:14px;">
-          <label>Diagnóstico (catálogo)</label>
-          <div style="position:relative; margin-top:6px; max-width:720px;">
-            <input id="diagSearch" value="${escAttr(diagQuery)}"
-                   placeholder="Pesquisar (mín. 2 letras)…"
-                   style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
-            <div id="diagStatus"></div>
-            <div id="diagDropdownHost" style="position:relative;"></div>
-          </div>
-          <div id="diagChips"></div>
-        </div>
+      <div style="margin-top:14px;">
+        <label>Tratamentos (catálogo)</label>
 
-        <div style="margin-top:14px;">
-          <label>Tratamentos (catálogo)</label>
+        <div style="margin-top:6px; max-width:980px;">
+          <input id="prescriptionText" value="${escAttr(prescriptionText)}"
+                 style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
 
-          <div style="margin-top:6px; max-width:980px;">
-            <input id="prescriptionText" value="${escAttr(prescriptionText)}"
-                   style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+          <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:320px;">
+              <div style="font-weight:900; margin-bottom:6px;">Selecionados</div>
+              <div id="treatSelectedBox"
+                   style="min-height:120px; padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;"></div>
+            </div>
 
-            <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
-              <div style="flex:1; min-width:320px;">
-                <div style="font-weight:900; margin-bottom:6px;">Selecionados</div>
-                <div id="treatSelectedBox"
-                     style="min-height:120px; padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;"></div>
-              </div>
-
-              <div style="flex:1; min-width:320px;">
-                <div style="font-weight:900; margin-bottom:6px;">Catálogo</div>
-                <input id="treatSearch" value="${escAttr(treatQuery)}"
-                       placeholder="Pesquisar tratamentos (mín. 2 letras)…"
-                       style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
-                <div id="treatStatus"></div>
-                <div id="treatCatalogBox"
-                     style="margin-top:8px; min-height:120px; max-height:320px; overflow:auto;
-                            padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;"></div>
-              </div>
+            <div style="flex:1; min-width:320px;">
+              <div style="font-weight:900; margin-bottom:6px;">Catálogo</div>
+              <input id="treatSearch" value="${escAttr(treatQuery)}"
+                     placeholder="Pesquisar tratamentos (mín. 2 letras)…"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+              <div id="treatStatus"></div>
+              <div id="treatCatalogBox"
+                   style="margin-top:8px; min-height:120px; max-height:320px; overflow:auto;
+                          padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;"></div>
             </div>
           </div>
         </div>
-
-        <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
-          <button id="btnCancelConsult" class="gcBtn" type="button">Cancelar</button>
-          <button id="btnSaveConsult" class="gcBtn" type="button" style="font-weight:900;">Gravar</button>
-        </div>
       </div>
-    `;
-  }
 
-  function bindConsultEvents() {
-    // =========================
-    // HDA editor com Quill
-    // =========================
-    const qRoot = document.getElementById("hdaQuillEditor");
-    const qToolbar = document.getElementById("hdaQuillToolbar");
+      <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
+        <button id="btnCancelConsult" class="gcBtn" type="button">Cancelar</button>
+        <button id="btnSaveConsult" class="gcBtn" type="button" style="font-weight:900;">Gravar</button>
+      </div>
+    </div>
+  `;
+}
 
-    // Guardar instância global para reuso/depuração
-    window.__gcQuillHDA = null;
+function bindConsultEvents() {
 
-    if (qRoot && window.Quill) {
-      // Criar Quill
-      const quill = new window.Quill(qRoot, {
-        theme: "snow",
-        modules: {
-          toolbar: qToolbar
-        }
-      });
+  const qRoot = document.getElementById("hdaQuillEditor");
+  const qToolbar = document.getElementById("hdaQuillToolbar");
 
-      window.__gcQuillHDA = quill;
+  window.__gcQuillHDA = null;
 
-      // Carregar draft existente (HTML) no editor
-      // Preferimos colar como HTML para preservar formatação já guardada
-      const initialHtml = String(draftHDAHtml || "");
-      if (initialHtml.trim().length) {
-        try {
-          quill.clipboard.dangerouslyPasteHTML(initialHtml);
-        } catch (_) {
-          // fallback simples
-          quill.setText(initialHtml);
-        }
-      } else {
-        quill.setText("");
-      }
+  if (qRoot && window.Quill) {
 
-      // Atualizar draft em tempo real
-      quill.on("text-change", () => {
-        try {
-          draftHDAHtml = quill.root.innerHTML || "";
-        } catch (_) {
-          draftHDAHtml = qRoot.innerHTML || "";
-        }
-      });
-
-      // Garantir que draft está definido imediatamente
-      try { draftHDAHtml = quill.root.innerHTML || ""; } catch (_) {}
-    }
-
-    // =========================
-    // Diagnósticos
-    // =========================
-    const diagInput = document.getElementById("diagSearch");
-    if (diagInput) {
-      diagInput.oninput = (e) => {
-        const v = e?.target?.value ?? "";
-        diagQuery = v;
-        if (diagDebounceT) clearTimeout(diagDebounceT);
-        diagDebounceT = setTimeout(() => searchDiagnoses(v), 220);
-      };
-      diagInput.onfocus = () => {
-        const v = diagInput.value || "";
-        if (String(v).trim().length >= 2) searchDiagnoses(v);
-      };
-      diagInput.onkeydown = (ev) => { if (ev.key === "Enter") ev.preventDefault(); };
-    }
-
-    renderDiagArea();
-
-    // =========================
-    // Tratamentos
-    // =========================
-    const pr = document.getElementById("prescriptionText");
-    if (pr) pr.oninput = (e) => { prescriptionText = e?.target?.value ?? ""; };
-
-    const tInput = document.getElementById("treatSearch");
-    if (tInput) {
-      tInput.oninput = (e) => {
-        const v = e?.target?.value ?? "";
-        treatQuery = v;
-        if (treatDebounceT) clearTimeout(treatDebounceT);
-        treatDebounceT = setTimeout(() => searchTreatments(v), 220);
-      };
-      tInput.onfocus = () => {
-        const v = tInput.value || "";
-        if (String(v).trim().length >= 2) searchTreatments(v);
-      };
-      tInput.onkeydown = (ev) => { if (ev.key === "Enter") ev.preventDefault(); };
-    }
-
-    renderTreatArea();
-
-    if (!treatResults || !treatResults.length) fetchTreatmentsDefault();
-
-    // =========================
-    // Cancelar / Gravar
-    // =========================
-    document.getElementById("btnCancelConsult")?.addEventListener("click", () => {
-      creatingConsult = false;
-      render();
+    const quill = new window.Quill(qRoot, {
+      theme: "snow",
+      modules: { toolbar: qToolbar }
     });
 
-    const btnSave = document.getElementById("btnSaveConsult");
-    if (btnSave) {
-      btnSave.disabled = !!saving;
-      btnSave.onclick = async () => {
-        if (saving) return;
-        saving = true;
-        btnSave.disabled = true;
+    // 🔎 ATIVAR DICIONÁRIO (Chrome)
+    quill.root.setAttribute("spellcheck", "true");
+    quill.root.setAttribute("lang", "pt-PT");
+    quill.root.setAttribute("autocapitalize", "sentences");
 
-        // Garantir que draft reflete o que está no editor
-        try {
-          const quill = window.__gcQuillHDA;
-          if (quill && quill.root) draftHDAHtml = quill.root.innerHTML || "";
-        } catch (_) {}
+    window.__gcQuillHDA = quill;
 
-        const ok = await saveConsult();
-
-        saving = false;
-        btnSave.disabled = false;
-
-        if (ok) {
-          creatingConsult = false;
-          await loadConsultations();
-          await loadDocuments();
-          render();
-        }
-      };
+    const initialHtml = String(draftHDAHtml || "");
+    if (initialHtml.trim().length) {
+      try {
+        quill.clipboard.dangerouslyPasteHTML(initialHtml);
+      } catch (_) {
+        quill.setText(initialHtml);
+      }
+    } else {
+      quill.setText("");
     }
+
+    quill.on("text-change", () => {
+      draftHDAHtml = quill.root.innerHTML || "";
+    });
+
+    draftHDAHtml = quill.root.innerHTML || "";
   }
+
+  // ===== Diagnósticos =====
+  const diagInput = document.getElementById("diagSearch");
+  if (diagInput) {
+    diagInput.oninput = (e) => {
+      const v = e?.target?.value ?? "";
+      diagQuery = v;
+      if (diagDebounceT) clearTimeout(diagDebounceT);
+      diagDebounceT = setTimeout(() => searchDiagnoses(v), 220);
+    };
+    diagInput.onfocus = () => {
+      const v = diagInput.value || "";
+      if (String(v).trim().length >= 2) searchDiagnoses(v);
+    };
+    diagInput.onkeydown = (ev) => { if (ev.key === "Enter") ev.preventDefault(); };
+  }
+
+  renderDiagArea();
+
+  // ===== Tratamentos =====
+  const pr = document.getElementById("prescriptionText");
+  if (pr) pr.oninput = (e) => { prescriptionText = e?.target?.value ?? ""; };
+
+  const tInput = document.getElementById("treatSearch");
+  if (tInput) {
+    tInput.oninput = (e) => {
+      const v = e?.target?.value ?? "";
+      treatQuery = v;
+      if (treatDebounceT) clearTimeout(treatDebounceT);
+      treatDebounceT = setTimeout(() => searchTreatments(v), 220);
+    };
+    tInput.onfocus = () => {
+      const v = tInput.value || "";
+      if (String(v).trim().length >= 2) searchTreatments(v);
+    };
+    tInput.onkeydown = (ev) => { if (ev.key === "Enter") ev.preventDefault(); };
+  }
+
+  renderTreatArea();
+
+  if (!treatResults || !treatResults.length) fetchTreatmentsDefault();
+
+  // ===== Cancelar / Gravar =====
+  document.getElementById("btnCancelConsult")?.addEventListener("click", () => {
+    creatingConsult = false;
+    render();
+  });
+
+  const btnSave = document.getElementById("btnSaveConsult");
+  if (btnSave) {
+    btnSave.disabled = !!saving;
+    btnSave.onclick = async () => {
+      if (saving) return;
+      saving = true;
+      btnSave.disabled = true;
+
+      try {
+        const quill = window.__gcQuillHDA;
+        if (quill && quill.root) draftHDAHtml = quill.root.innerHTML || "";
+      } catch (_) {}
+
+      const ok = await saveConsult();
+
+      saving = false;
+      btnSave.disabled = false;
+
+      if (ok) {
+        creatingConsult = false;
+        await loadConsultations();
+        await loadDocuments();
+        render();
+      }
+    };
+  }
+}
 
 /* ==== FIM BLOCO 06H/12 ==== */
 
