@@ -719,7 +719,7 @@
           /* Cabeçalho + linhas (escopo local do render) */
           .gcAgendaGrid{
             display:grid;
-            grid-template-columns: 110px 1.8fr 1.2fr 160px 120px 140px; /* Horário | Nome | Tipo | Estado | Telefone | Clínica */
+            grid-template-columns: 110px 2.4fr 0.9fr 160px 120px 140px; /* +Nome, -Tipo */
             column-gap: 16px;
             align-items: center;
             width:100%;
@@ -751,7 +751,7 @@
           }
 
           .gcAgendaNameWrap{
-            min-width: 0; /* permite ellipsis */
+            min-width: 0;
           }
 
           .gcAgendaNameText{
@@ -785,7 +785,11 @@
             text-overflow:ellipsis;
           }
 
-          /* Estado: largura fixa + select não rebenta */
+          /* ligeiro “empurrão” do Tipo para a direita */
+          .gcAgendaCellType{
+            padding-left: 8px;
+          }
+
           .gcAgendaStatusWrap{ min-width:0; }
           .gcStatusSelect{
             width:100%;
@@ -821,7 +825,6 @@
           ? G.clinicsById[clinicId].name || G.clinicsById[clinicId].slug || clinicId
           : clinicId || "—";
 
-      // ✅ normaliza histórico: cancelled aparece como no_show no UI
       const statusRaw = r.status ?? "scheduled";
       const status = (String(statusRaw).toLowerCase() === "cancelled") ? "no_show" : statusRaw;
       const meta = statusMeta(status);
@@ -850,7 +853,7 @@
               ${notes ? `<span class="gcAgendaNotesBelow">Notas: ${escapeHtml(notes)}</span>` : ``}
             </div>
 
-            <div class="gcAgendaCell" title="${escapeHtml(proc)}">${escapeHtml(proc)}</div>
+            <div class="gcAgendaCell gcAgendaCellType" title="${escapeHtml(proc)}">${escapeHtml(proc)}</div>
 
             <div class="gcAgendaStatusWrap">
               <select data-status-select="1"
