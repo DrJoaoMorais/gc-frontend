@@ -3147,9 +3147,16 @@ function openPatientViewModal(patient) {
     return `
       <div style="border:1px solid #e5e5e5; border-radius:14px; padding:14px;">
         <style>
-          /* mais espaço para escrever (≈ 10 linhas) */
-          #physioQuillEditor .ql-container.ql-snow { min-height: 320px; }
-          #physioQuillEditor .ql-editor { line-height: 1.6; font-size: 16px; }
+          /* ===== Editor fisio: altura ~10 linhas + mais compacto ===== */
+          /* No Quill, #physioQuillEditor vira o .ql-container */
+          #physioQuillEditor.ql-container.ql-snow {
+            min-height: 320px;
+          }
+          #physioQuillEditor .ql-editor {
+            min-height: 320px;
+            line-height: 1.35;
+            font-size: 15px;
+          }
         </style>
 
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
@@ -3191,7 +3198,12 @@ function openPatientViewModal(patient) {
     const canEdit = __gcIsPhysio() && uid && String(r.author_user_id) === String(uid);
 
     return `
-      <div style="border:1px solid #e5e5e5; border-radius:14px; padding:16px;">
+      <div style="
+        border:1px solid #e5e5e5;
+        border-radius:14px;
+        padding:16px;
+        background:#f1f5f9; /* fundo discreto (azul-acinzentado muito claro) */
+      ">
         <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
           <div style="font-weight:900; font-size:16px;">
             Fisioterapia — ${when}${authorTxt ? ` - ${escAttr(authorTxt)}` : ``}
@@ -3205,7 +3217,11 @@ function openPatientViewModal(patient) {
           ` : ``}
         </div>
 
-        <div style="margin-top:10px; line-height:1.55; font-size:15px;">
+        <div style="
+          margin-top:8px;
+          line-height:1.35; /* mais compacto */
+          font-size:15px;
+        ">
           ${sanitizeHTML(r.content || "") || `<span style="color:#64748b;">—</span>`}
         </div>
       </div>
@@ -3474,6 +3490,16 @@ function openPatientViewModal(patient) {
         q.root.setAttribute("spellcheck", "true");
         q.root.setAttribute("lang", "pt-PT");
         q.root.setAttribute("autocapitalize", "sentences");
+
+        // ===== Garantir altura + compactação (definitivo) =====
+        try {
+          // container (host) já é .ql-container
+          host.style.minHeight = "320px";
+          // editor interno
+          q.root.style.minHeight = "320px";
+          q.root.style.lineHeight = "1.35";
+          q.root.style.fontSize = "15px";
+        } catch (_) {}
 
         const s = __ps();
         const initialHtml = String(s.draftHtml || "");
