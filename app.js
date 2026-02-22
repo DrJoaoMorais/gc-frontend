@@ -4187,17 +4187,14 @@ function openPatientViewModal(patient) {
 
     const procInit = isEdit ? (row.procedure_type ?? "") : "";
 
-    // ---- Status UI (apenas 1 "Faltou/Cancelada")
-    const STATUS_UI = [
-      { value: "scheduled", label: "Marcada" },
-      { value: "arrived", label: "Chegou" },
-      { value: "done", label: "Realizada" },
-      { value: "no_show", label: "Faltou/Cancelada" },
-    ];
+    // ---- Status (fonte única) — usa STATUS_OPTIONS + statusMeta (igual à Agenda)
+    // Normalização: "cancelled" aparece sempre como "no_show"
     const statusRaw = isEdit ? (row.status ?? "scheduled") : "scheduled";
-    const statusInit =
-      statusRaw === "cancelled" ? "no_show"
-      : STATUS_UI.some((s) => s.value === statusRaw) ? statusRaw
+    const statusNorm = (String(statusRaw).toLowerCase() === "cancelled") ? "no_show" : String(statusRaw || "scheduled").toLowerCase();
+
+    // Se por algum motivo vier um valor fora de STATUS_OPTIONS, cai para scheduled.
+    const statusInit = (Array.isArray(STATUS_OPTIONS) && STATUS_OPTIONS.map((x) => String(x).toLowerCase()).includes(statusNorm))
+      ? statusNorm
       : "scheduled";
 
     const patientIdInit = isEdit ? (row.patient_id ?? "") : "";
@@ -4206,6 +4203,11 @@ function openPatientViewModal(patient) {
 
     const procIsOther = procInit && !PROCEDURE_OPTIONS.includes(procInit) ? true : procInit === "Outro";
     const procSelectValue = procIsOther ? "Outro" : (procInit || "");
+
+    function optLabel(s) {
+      const m = statusMeta(s);
+      return `${m.icon} ${m.label}`;
+    }
 
     root.innerHTML = `
       <div id="modalOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
@@ -4271,7 +4273,11 @@ function openPatientViewModal(patient) {
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:${UI.fs12}px; color:#666;">Estado</label>
               <select id="mStatus" class="gcSelect">
-                ${STATUS_UI.map((s) => `<option value="${escapeHtml(s.value)}">${escapeHtml(s.label)}</option>`).join("")}
+                ${STATUS_OPTIONS.map((s) => {
+                  const val = (s === "cancelled") ? "no_show" : String(s).toLowerCase();
+                  const m = statusMeta(val);
+                  return `<option value="${escapeHtml(val)}">${escapeHtml(optLabel(val))}</option>`;
+                }).join("")}
               </select>
             </div>
 
@@ -4362,6 +4368,7 @@ function openPatientViewModal(patient) {
       if (G.clinics.length === 1) mClinic.disabled = true;
     }
 
+    // ✅ aplica init (mantém default scheduled na criação; edição respeita o atual)
     if (mStatus) mStatus.value = statusInit;
     if (mStart) mStart.value = toLocalInputValue(startInit);
     if (mDuration) mDuration.value = String(durationBest);
@@ -4809,7 +4816,7 @@ function openPatientViewModal(patient) {
 
       const autoTitle = makeAutoTitle(pname, proc);
 
-      // UI só tem no_show (mapeamento já feito)
+      // ✅ mantém coerência: UI guarda sempre o valor (no_show incluído)
       const statusToSave = (mStatus && mStatus.value) ? mStatus.value : "scheduled";
 
       const payload = {
@@ -4878,6 +4885,7 @@ function openPatientViewModal(patient) {
   }
 
 /* ==== FIM BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
+
 /* ==== INÍCIO BLOCO 10/12 — Logout + Refresh agenda ==== */
 
   // ---------- Logout ----------
