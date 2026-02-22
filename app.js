@@ -2276,6 +2276,7 @@ function openPatientViewModal(patient) {
   }
 
   // =========================================================
+  // =========================================================
   // HTML TEMPLATE — v1
   // =========================================================
   function buildDocV1Html({ clinic, consult, authorName, vinhetaUrl, clinicLogoUrl }) {
@@ -2313,8 +2314,6 @@ function openPatientViewModal(patient) {
     const addr = patientAddressCompact();
     const addrOk = addr && addr !== "—";
 
-    const clinicName = String(clinic?.name || "").trim();
-    const website = "www.joaomorais.pt";
     const locality = String(clinic?.city || "").trim();
     const localityDate = [locality, reportDatePt].filter(Boolean).join(", ");
 
@@ -2349,34 +2348,39 @@ function openPatientViewModal(patient) {
 <html>
 <head>
 <meta charset="utf-8" />
-<title>${escAttr(docTitle || "Relatório Médico")}</title>
+<title>Relatório Médico</title>
 <style>
-  body { margin:0; background:#fff; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:#111; }
+  body { margin:0; background:#fff; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:#111; }
   * { box-sizing:border-box; }
-  .a4 { width: 210mm; min-height: 297mm; padding: 18mm; background:#fff; }
+  .a4 { width:210mm; min-height:297mm; padding:18mm; background:#fff; }
+
   .top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
-  .clinicName { font-weight:900; font-size:16px; }
-  .logo { width: 120px; height:auto; max-height:60px; object-fit:contain; display:block; }
-  .hr { height:1px; background:#111; margin: 10px 0 14px 0; }
-  .title { text-align:center; font-weight:900; font-size:22px; margin: 2px 0 12px 0; }
+  .topLeft { font-size:13.5px; line-height:1.4; }
+  .logo { width:120px; height:auto; max-height:60px; object-fit:contain; display:block; }
+
+  .hr { height:1px; background:#111; margin:10px 0 14px 0; }
+  .title { text-align:center; font-weight:900; font-size:22px; margin:2px 0 12px 0; }
   .row { margin-top:6px; font-size:13.5px; line-height:1.35; }
   .muted { color:#64748b; }
   .section { margin-top:18px; }
   .stitle { font-weight:900; font-size:16px; margin-bottom:6px; }
   .hda { font-size:14px; line-height:1.6; }
-  .hda ul, .hda ol { margin: 6px 0 6px 18px; padding:0; }
-  .hda li { margin: 2px 0; }
-  .list { margin: 6px 0 0 18px; padding:0; font-size:14px; line-height:1.55; }
-  .list li { margin: 2px 0; }
+  .hda ul, .hda ol { margin:6px 0 6px 18px; padding:0; }
+  .hda li { margin:2px 0; }
+  .list { margin:6px 0 0 18px; padding:0; font-size:14px; line-height:1.55; }
+  .list li { margin:2px 0; }
   .code { color:#64748b; }
-  .footerBlock { margin-top:22px; page-break-inside: avoid; break-inside: avoid; }
-  .hr2 { height:1px; background:#111; margin: 18px 0 10px 0; }
+
+  .footerBlock { margin-top:22px; page-break-inside:avoid; break-inside:avoid; }
+  .hr2 { height:1px; background:#111; margin:18px 0 10px 0; }
   .footRow { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+
   .web { font-size:14px; font-weight:700; }
-  .vinheta { margin-top:8px; width: 140px; height:auto; max-height:42px; object-fit:contain; display:block; }
+  .vinheta { margin-top:8px; width:3.2cm; height:2cm; object-fit:contain; display:block; }
+
   .locDate { text-align:right; font-size:14px; margin-top:2px; }
   .sig { margin-top:14px; display:flex; justify-content:flex-end; }
-  .sigBox { width: 360px; text-align:center; }
+  .sigBox { width:360px; text-align:center; }
   .sigLine { border-top:1px solid #111; padding-top:10px; }
   .sigName { font-weight:900; font-size:18px; margin-top:6px; }
   .sigRole { font-size:14px; margin-top:2px; }
@@ -2386,8 +2390,9 @@ function openPatientViewModal(patient) {
   <div class="a4">
 
     <div class="top">
-      <div style="flex:1;">
-        ${clinicName ? `<div class="clinicName">${escAttr(clinicName)}</div>` : ``}
+      <div class="topLeft">
+        <div>${escAttr(clinic?.website || "www.JoaoMorais.pt")}</div>
+        <div>${escAttr(clinic?.phone || "")}</div>
       </div>
       <div>
         ${clinicLogoUrl ? `<img class="logo" src="${escAttr(clinicLogoUrl)}" />` : ``}
@@ -2424,7 +2429,7 @@ function openPatientViewModal(patient) {
 
       <div class="footRow">
         <div>
-          <div class="web">${escAttr(website)}</div>
+          <div class="web">www.JoaoMorais.pt</div>
           ${vinhetaUrl ? `<img class="vinheta" src="${escAttr(vinhetaUrl)}" />` : ``}
         </div>
 
@@ -2434,7 +2439,7 @@ function openPatientViewModal(patient) {
           <div class="sig">
             <div class="sigBox">
               <div class="sigLine"></div>
-              <div class="sigName">João Miguel Guerreiro de Morais</div>
+              <div class="sigName">Dr. João Morais</div>
               <div class="sigRole">Médico Fisiatra</div>
               <div class="sigRole">Sports Medicine &amp; Rehabilitation</div>
             </div>
@@ -2448,7 +2453,7 @@ function openPatientViewModal(patient) {
 </html>
 `;
   }
-
+  
   // =========================================================
   // EDITOR — open/render/bind
   // =========================================================
