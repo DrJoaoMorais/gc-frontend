@@ -752,12 +752,10 @@
 
           .gcAgendaNameWrap{
             min-width: 0; /* permite ellipsis */
-            display:flex;
-            align-items:center;
-            gap:10px;
           }
 
           .gcAgendaNameText{
+            display:block;
             min-width: 0;
             font-size:${UI.fs14}px;
             font-weight:800;
@@ -767,8 +765,10 @@
             text-overflow:ellipsis;
           }
 
-          .gcAgendaNotesInline{
-            min-width: 0;
+          .gcAgendaNotesBelow{
+            display:block;
+            margin-top:4px;
+            min-width:0;
             font-size:${UI.fs12}px;
             color:#666;
             white-space:nowrap;
@@ -827,7 +827,7 @@
       const meta = statusMeta(status);
 
       const proc = r.procedure_type ?? "—";
-      const notes = r.notes ? clipOneLine(r.notes, 90) : "";
+      const notes = r.notes ? clipOneLine(r.notes, 140) : "";
 
       const p = getPatientForAppointmentRow(r);
       const patientName = p && p.full_name ? p.full_name : (r.patient_id ? `Doente (ID): ${r.patient_id}` : "—");
@@ -845,9 +845,9 @@
           <div class="gcAgendaGrid">
             <div class="gcAgendaTime">${escapeHtml(timeTxt)}</div>
 
-            <div class="gcAgendaNameWrap" title="${escapeHtml(notes ? `Notas: ${notes}` : "")}">
+            <div class="gcAgendaNameWrap">
               <span data-patient-open="1" class="gcPatientLink gcAgendaNameText">${escapeHtml(patientName)}</span>
-              ${notes ? `<span class="gcAgendaNotesInline">· ${escapeHtml(notes)}</span>` : ``}
+              ${notes ? `<span class="gcAgendaNotesBelow">Notas: ${escapeHtml(notes)}</span>` : ``}
             </div>
 
             <div class="gcAgendaCell" title="${escapeHtml(proc)}">${escapeHtml(proc)}</div>
