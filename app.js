@@ -2076,7 +2076,6 @@ function openPatientViewModal(patient) {
   }
 
 /* ==== FIM BLOCO 06E/12 ==== */
-
 /* ==== INÍCIO BLOCO 06F/12 — Documentos/PDF (load + editor + gerar/upload via Proxy+Worker) ==== */
 
   // =========================================================
@@ -2281,6 +2280,15 @@ function openPatientViewModal(patient) {
   // =========================================================
   function buildDocV1Html({ clinic, consult, authorName, vinhetaUrl, clinicLogoUrl }) {
 
+    // Escape seguro para src="" (preserva data:image/... sem “limpezas” agressivas)
+    function escUrlAttr(u) {
+      return String(u || "")
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
     function fmtDatePt(d) {
       try {
         if (!d) return "";
@@ -2395,7 +2403,7 @@ function openPatientViewModal(patient) {
         <div>${escAttr(clinic?.phone || "")}</div>
       </div>
       <div>
-        ${clinicLogoUrl ? `<img class="logo" src="${escAttr(clinicLogoUrl)}" />` : ``}
+        ${clinicLogoUrl ? `<img class="logo" src="${escUrlAttr(clinicLogoUrl)}" />` : ``}
       </div>
     </div>
 
@@ -2430,7 +2438,7 @@ function openPatientViewModal(patient) {
       <div class="footRow">
         <div>
           <div class="web">www.JoaoMorais.pt</div>
-          ${vinhetaUrl ? `<img class="vinheta" src="${escAttr(vinhetaUrl)}" />` : ``}
+          ${vinhetaUrl ? `<img class="vinheta" src="${escUrlAttr(vinhetaUrl)}" />` : ``}
         </div>
 
         <div style="flex:1;">
@@ -2453,7 +2461,7 @@ function openPatientViewModal(patient) {
 </html>
 `;
   }
-  
+
   // =========================================================
   // EDITOR — open/render/bind
   // =========================================================
@@ -2711,16 +2719,24 @@ function openPatientViewModal(patient) {
       const vinhetaSigned = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
       const vinhetaDataUrl = await urlToDataUrl(vinhetaSigned, "image/png");
 
-      // ✅ LOGO: mantém público (http...) ou bucket:path (signed url) — não mexemos nisto
+      // ✅ LOGO: SEMPRE dataURL (base64), para o Worker não depender de fetch externo
       let clinicLogoUrl = "";
       const rawLogo = String(clinic?.logo_url || "").trim();
-      if (rawLogo.startsWith("http")) {
+
+      if (rawLogo.startsWith("data:")) {
         clinicLogoUrl = rawLogo;
+      } else if (rawLogo.startsWith("http")) {
+        clinicLogoUrl = await urlToDataUrl(rawLogo, "image/png");
       } else if (rawLogo.includes(":") && !rawLogo.startsWith("data:")) {
         const [b, ...rest] = rawLogo.split(":");
         const pth = rest.join(":");
-        clinicLogoUrl = await storageSignedUrl(b, pth, 3600);
+        const signed = await storageSignedUrl(b, pth, 3600);
+        clinicLogoUrl = await urlToDataUrl(signed, "image/png");
       }
+
+      // Debug (não quebra nada; só ajuda)
+      if (!vinhetaDataUrl) console.warn("PDF: vinhetaDataUrl vazio — vinheta não será injetada.");
+      if (!clinicLogoUrl) console.warn("PDF: clinicLogoUrl vazio — logo não será injetado. rawLogo=", rawLogo);
 
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
@@ -2729,13 +2745,11 @@ function openPatientViewModal(patient) {
           clinic,
           consult,
           authorName,
-          vinhetaUrl: vinhetaDataUrl || "",     // ✅ dataURL (preferido)
-          clinicLogoUrl
+          vinhetaUrl: vinhetaDataUrl || "",
+          clinicLogoUrl: clinicLogoUrl || ""
         });
       } else {
-        // Mesmo que já exista HTML do editor, tentamos garantir vinheta embebida
-        // (se o docDraftHtml já tiver vinheta, não forçamos substituição aqui)
-        // Mantemos comportamento atual.
+        // Mantemos comportamento atual do editor (não forçamos substituições aqui)
       }
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
