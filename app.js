@@ -3064,7 +3064,7 @@ function openPatientViewModal(patient) {
 /* ==== FIM BLOCO 06G/12 ==== */
 
 
-/* ==== INÍCIO BLOCO 06H/12 — Consulta médica (UI HDA + bind) ==== */
+/* ==== INÍCIO BLOCO 06H/12 — Consulta médica (UI HDA + Quill) ==== */
 
   function renderConsultFormInline() {
     const today = new Date().toISOString().slice(0, 10);
@@ -3073,20 +3073,22 @@ function openPatientViewModal(patient) {
       <div style="margin-top:16px; padding:16px; border:1px solid #e5e5e5; border-radius:14px;">
 
         <style>
-          /* Destaque de botões ativos no editor HDA */
-          .gcBtn.gcBtnActive {
-            border-color: #111 !important;
-            box-shadow: 0 0 0 2px rgba(0,0,0,0.08);
-            background: rgba(0,0,0,0.04);
+          /* Quill: ajustes mínimos para integrar no teu UI */
+          .gcQuillWrap { margin-top: 10px; }
+          .gcQuillWrap .ql-toolbar.ql-snow {
+            border: 1px solid #ddd;
+            border-radius: 12px 12px 0 0;
           }
-
-          /* CRÍTICO: garantir que UL/OL aparecem dentro do editor (evita resets globais) */
-          #hdaEditor ul, #hdaEditor ol {
-            margin: 0.2em 0 0.2em 1.2em;
-            padding-left: 1.2em;
-            list-style-position: outside;
+          .gcQuillWrap .ql-container.ql-snow {
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+            min-height: 240px;
+            font-size: 16px;
           }
-          #hdaEditor li { margin: 0.1em 0; }
+          .gcQuillWrap .ql-editor {
+            line-height: 1.6;
+          }
         </style>
 
         <div style="font-weight:900; font-size:16px;">Nova Consulta Médica</div>
@@ -3097,18 +3099,24 @@ function openPatientViewModal(patient) {
                  style="padding:8px; border:1px solid #ddd; border-radius:8px;" />
         </div>
 
-        <div id="hdaToolbar" style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
-          <button id="hBold"  class="gcBtn" type="button" aria-pressed="false">Negrito</button>
-          <button id="hUnder" class="gcBtn" type="button" aria-pressed="false">Sublinhar</button>
-          <button id="hUL"    class="gcBtn" type="button" aria-pressed="false">Lista</button>
-          <button id="hOL"    class="gcBtn" type="button" aria-pressed="false">Numeração</button>
-        </div>
+        <div class="gcQuillWrap">
+          <!-- Toolbar Quill (B=preparado, inclui listas/numeração e mais opções futuras) -->
+          <div id="hdaQuillToolbar">
+            <span class="ql-formats">
+              <button class="ql-bold" aria-label="Negrito"></button>
+              <button class="ql-underline" aria-label="Sublinhar"></button>
+            </span>
+            <span class="ql-formats">
+              <button class="ql-list" value="ordered" aria-label="Numeração"></button>
+              <button class="ql-list" value="bullet" aria-label="Lista"></button>
+            </span>
+            <span class="ql-formats">
+              <button class="ql-clean" aria-label="Limpar formatação"></button>
+            </span>
+          </div>
 
-        <div id="hdaEditor" contenteditable="true"
-             style="margin-top:10px; min-height:240px; padding:12px;
-                    border:1px solid #ddd; border-radius:12px;
-                    line-height:1.6; font-size:16px; overflow:auto; white-space:normal; outline:none;">
-          ${draftHDAHtml || ""}
+          <!-- Editor Quill -->
+          <div id="hdaQuillEditor"></div>
         </div>
 
         <div style="margin-top:14px;">
@@ -3160,165 +3168,51 @@ function openPatientViewModal(patient) {
   }
 
   function bindConsultEvents() {
-
     // =========================
-    // HDA editor: seleção/caret + comandos (robusto)
+    // HDA editor com Quill
     // =========================
-    const ed = document.getElementById("hdaEditor");
-    const toolbar = document.getElementById("hdaToolbar");
+    const qRoot = document.getElementById("hdaQuillEditor");
+    const qToolbar = document.getElementById("hdaQuillToolbar");
 
-    const btnBold  = document.getElementById("hBold");
-    const btnUnder = document.getElementById("hUnder");
-    const btnUL    = document.getElementById("hUL");
-    const btnOL    = document.getElementById("hOL");
+    // Guardar instância global para reuso/depuração
+    window.__gcQuillHDA = null;
 
-    // Guardar seleção de forma global (para sobreviver ao clique na toolbar)
-    // Nota: selectionchange apanha SHIFT+setas, mouse, etc.
-    if (!window.__gcHdaSelHookInstalled) {
-      window.__gcHdaSelHookInstalled = true;
-      window.__gcHdaLastRange = null;
-
-      document.addEventListener("selectionchange", () => {
-        try {
-          const editorNow = document.getElementById("hdaEditor");
-          if (!editorNow) return;
-
-          const sel = window.getSelection ? window.getSelection() : null;
-          if (!sel || sel.rangeCount === 0) return;
-
-          const r = sel.getRangeAt(0);
-          const inside = editorNow.contains(r.startContainer) && editorNow.contains(r.endContainer);
-          if (inside) window.__gcHdaLastRange = r.cloneRange();
-        } catch (_) {}
-      });
-    }
-
-    function restoreSelection() {
-      try {
-        if (!ed) return;
-        ed.focus();
-
-        const r = window.__gcHdaLastRange;
-        if (!r) return;
-
-        // garantir que ainda é aplicável ao editor atual
-        if (!ed.contains(r.startContainer) || !ed.contains(r.endContainer)) return;
-
-        const sel = window.getSelection ? window.getSelection() : null;
-        if (!sel) return;
-        sel.removeAllRanges();
-        sel.addRange(r);
-      } catch (_) {}
-    }
-
-    function setBtnActive(btn, active) {
-      if (!btn) return;
-      btn.classList.toggle("gcBtnActive", !!active);
-      try { btn.setAttribute("aria-pressed", active ? "true" : "false"); } catch (_) {}
-    }
-
-    function safeQueryState(cmd) {
-      try {
-        if (!document.queryCommandSupported) return null;
-        if (document.queryCommandSupported(cmd) === false) return null;
-      } catch (_) {}
-      try { return !!document.queryCommandState(cmd); } catch (_) { return null; }
-    }
-
-    function updateToolbarState() {
-      if (!ed) return;
-
-      const sel = window.getSelection ? window.getSelection() : null;
-      if (!sel || sel.rangeCount === 0) {
-        setBtnActive(btnBold, false);
-        setBtnActive(btnUnder, false);
-        setBtnActive(btnUL, false);
-        setBtnActive(btnOL, false);
-        return;
-      }
-
-      let r = null;
-      try { r = sel.getRangeAt(0); } catch (_) {}
-      if (!r || !ed.contains(r.startContainer) || !ed.contains(r.endContainer)) {
-        setBtnActive(btnBold, false);
-        setBtnActive(btnUnder, false);
-        setBtnActive(btnUL, false);
-        setBtnActive(btnOL, false);
-        return;
-      }
-
-      const isBold  = safeQueryState("bold");
-      const isUnder = safeQueryState("underline");
-      setBtnActive(btnBold,  isBold === null ? false : isBold);
-      setBtnActive(btnUnder, isUnder === null ? false : isUnder);
-
-      let inUL = safeQueryState("insertUnorderedList");
-      let inOL = safeQueryState("insertOrderedList");
-
-      if (inUL === null || inOL === null) {
-        // fallback DOM
-        let n = r.startContainer;
-        let ul = false, ol = false;
-        while (n && n !== ed && n !== document) {
-          if (n.nodeType === 1 && n.tagName === "UL") ul = true;
-          if (n.nodeType === 1 && n.tagName === "OL") ol = true;
-          n = n.parentNode;
+    if (qRoot && window.Quill) {
+      // Criar Quill
+      const quill = new window.Quill(qRoot, {
+        theme: "snow",
+        modules: {
+          toolbar: qToolbar
         }
-        inUL = ul; inOL = ol;
-      }
-
-      if (inOL) inUL = false;
-
-      setBtnActive(btnUL, !!inUL);
-      setBtnActive(btnOL, !!inOL);
-    }
-
-    function execCmd(command) {
-      if (!ed) return;
-      restoreSelection();
-      try { document.execCommand(command, false, null); } catch (_) {}
-      // atualizar draft e estado
-      draftHDAHtml = ed.innerHTML || "";
-      updateToolbarState();
-    }
-
-    if (ed) {
-      // NÃO interceptar Enter (opção A) — deixa o browser gerir parágrafos e listas
-      ed.addEventListener("input", () => {
-        draftHDAHtml = ed.innerHTML || "";
-        updateToolbarState();
       });
 
-      ed.addEventListener("keyup",  () => updateToolbarState());
-      ed.addEventListener("mouseup", () => updateToolbarState());
-      ed.addEventListener("focus",  () => updateToolbarState());
+      window.__gcQuillHDA = quill;
 
-      // Toolbar: usar POINTERDOWN (mais cedo que click) para evitar colapso de seleção
-      function bindBtnPointerDown(id, command) {
-        const b = document.getElementById(id);
-        if (!b) return;
-
-        b.addEventListener("pointerdown", (ev) => {
-          // impedir que o browser colapse a seleção ao focar o botão
-          ev.preventDefault();
-          ev.stopPropagation();
-          execCmd(command);
-        });
-
-        // segurança extra: evitar comportamento default em click
-        b.addEventListener("click", (ev) => { ev.preventDefault(); });
+      // Carregar draft existente (HTML) no editor
+      // Preferimos colar como HTML para preservar formatação já guardada
+      const initialHtml = String(draftHDAHtml || "");
+      if (initialHtml.trim().length) {
+        try {
+          quill.clipboard.dangerouslyPasteHTML(initialHtml);
+        } catch (_) {
+          // fallback simples
+          quill.setText(initialHtml);
+        }
+      } else {
+        quill.setText("");
       }
 
-      bindBtnPointerDown("hBold",  "bold");
-      bindBtnPointerDown("hUnder", "underline");
-      bindBtnPointerDown("hUL",    "insertUnorderedList");
-      bindBtnPointerDown("hOL",    "insertOrderedList");
+      // Atualizar draft em tempo real
+      quill.on("text-change", () => {
+        try {
+          draftHDAHtml = quill.root.innerHTML || "";
+        } catch (_) {
+          draftHDAHtml = qRoot.innerHTML || "";
+        }
+      });
 
-      // Estado inicial
-      setTimeout(() => {
-        try { ed.focus(); } catch (_) {}
-        updateToolbarState();
-      }, 0);
+      // Garantir que draft está definido imediatamente
+      try { draftHDAHtml = quill.root.innerHTML || ""; } catch (_) {}
     }
 
     // =========================
@@ -3382,7 +3276,11 @@ function openPatientViewModal(patient) {
         saving = true;
         btnSave.disabled = true;
 
-        if (ed) draftHDAHtml = ed.innerHTML || "";
+        // Garantir que draft reflete o que está no editor
+        try {
+          const quill = window.__gcQuillHDA;
+          if (quill && quill.root) draftHDAHtml = quill.root.innerHTML || "";
+        } catch (_) {}
 
         const ok = await saveConsult();
 
