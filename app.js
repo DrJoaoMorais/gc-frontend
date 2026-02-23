@@ -2752,15 +2752,6 @@ function openPatientViewModal(patient) {
       // Se o editor estiver aberto em modo visual/preview, puxar alterações para docDraftHtml
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
-      // ✅✅ CORREÇÃO: FORÇAR SEMPRE reconstrução do HTML com logo + vinheta
-      // Isto evita ficar preso a um docDraftHtml antigo (sem <img ...>) do editor.
-      docDraftHtml = buildDocV1Html({
-        clinic,
-        consult,
-        authorName,
-        vinhetaUrl: vinhetaDataUrl || "",
-        clinicLogoUrl: clinicLogoUrl || ""
-      });
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
 
