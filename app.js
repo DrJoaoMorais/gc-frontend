@@ -2728,11 +2728,11 @@ function openPatientViewModal(patient) {
       const clinic = await fetchClinicForPdf();
       const authorName = await fetchCurrentUserDisplayName(userId);
 
-      // ✅ VINHETA: signed url -> dataURL (base64)
+      // ✅ VINHETA: signed url -> dataURL (base64) para evitar falha no Worker
       const vinhetaSigned = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
       const vinhetaDataUrl = await urlToDataUrl(vinhetaSigned, "image/png");
 
-      // ✅ LOGO: dataURL (base64)
+      // ✅ LOGO: SEMPRE dataURL (base64), para o Worker não depender de fetch externo
       let clinicLogoUrl = "";
       const rawLogo = String(clinic?.logo_url || "").trim();
 
@@ -2747,21 +2747,16 @@ function openPatientViewModal(patient) {
         clinicLogoUrl = await urlToDataUrl(signed, "image/png");
       }
 
-      // Debug
+      // Debug (não quebra nada; só ajuda)
       if (!vinhetaDataUrl) console.warn("PDF: vinhetaDataUrl vazio — vinheta não será injetada.");
       if (!clinicLogoUrl) console.warn("PDF: clinicLogoUrl vazio — logo não será injetado. rawLogo=", rawLogo);
 
       // Se o editor estiver aberto em modo visual/preview, puxar alterações para docDraftHtml
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
-      // ======================================================
-      // ✅✅ CORREÇÃO 413: gerar HTML para PDF com “degradação”
-      // ======================================================
-      // Limite prático para evitar 413 no proxy (ajusta se quiseres)
-      const MAX_PDF_HTML_CHARS = 240000; // ~240k chars costuma ficar seguro
-
-      // 1) tentar com logo+vinheta
-      let pdfHtml = buildDocV1Html({
+      // ✅✅ CORREÇÃO: FORÇAR SEMPRE reconstrução do HTML com logo + vinheta
+      // Isto evita ficar preso a um docDraftHtml antigo (sem <img ...>) do editor.
+      docDraftHtml = buildDocV1Html({
         clinic,
         consult,
         authorName,
@@ -2769,38 +2764,11 @@ function openPatientViewModal(patient) {
         clinicLogoUrl: clinicLogoUrl || ""
       });
 
-      // 2) se exceder limite, remover vinheta e reconstruir
-      if ((pdfHtml || "").length > MAX_PDF_HTML_CHARS) {
-        console.warn("PDF: HTML grande demais (logo+vinheta). A remover vinheta para evitar 413.", (pdfHtml || "").length);
-        pdfHtml = buildDocV1Html({
-          clinic,
-          consult,
-          authorName,
-          vinhetaUrl: "",            // remove vinheta
-          clinicLogoUrl: clinicLogoUrl || ""
-        });
-      }
-
-      // 3) se ainda exceder, remover também o logo
-      if ((pdfHtml || "").length > MAX_PDF_HTML_CHARS) {
-        console.warn("PDF: HTML ainda grande (logo). A remover logo para evitar 413.", (pdfHtml || "").length);
-        pdfHtml = buildDocV1Html({
-          clinic,
-          consult,
-          authorName,
-          vinhetaUrl: "",
-          clinicLogoUrl: ""          // remove logo
-        });
-      }
-
-      // Mantemos docDraftHtml para o editor, mas o PDF vai sempre com pdfHtml
-      docDraftHtml = String(docDraftHtml || "");
-
       const titleSafe = safeText(docTitle || "Relatório Médico");
 
       let blob;
       try {
-        blob = await renderPdfViaProxy(pdfHtml);
+        blob = await renderPdfViaProxy(docDraftHtml);
       } catch (e) {
         console.error("renderPdfViaProxy falhou:", e);
         alert(`Falha ao gerar PDF no servidor.\n${String(e?.message || e)}`);
@@ -2824,13 +2792,12 @@ function openPatientViewModal(patient) {
         return false;
       }
 
-      // ✅ Guardar na DB o HTML usado no PDF (não o do editor), para consistência
       const ins = await insertDocumentRow({
         clinic_id: activeClinicId,
         patient_id: p.id,
         consultation_id: consult.id,
         title: titleSafe,
-        html: String(pdfHtml || ""),
+        html: String(docDraftHtml || ""),
         parent_document_id: null,
         version,
         storage_path: path
