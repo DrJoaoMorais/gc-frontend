@@ -2086,7 +2086,7 @@ function openPatientViewModal(patient) {
   // Vinheta (Supabase Storage)
   // ✅ Nota: no Storage o ficheiro tem "_" no nome (print): "_vinheta_600dpi.png"
   const VINHETA_BUCKET = "clinic-private";
-  const VINHETA_PATH = "vinheta/_vinheta_600dpi.png";
+  const VINHETA_PATH = "vinheta/vinheta_600dpi.png";
 
   // Flag para forçar rebuild do HTML (usado no 06Fb/06Fc)
   let docForceRebuildOnce = false;
