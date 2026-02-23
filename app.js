@@ -2729,8 +2729,7 @@ function openPatientViewModal(patient) {
       const authorName = await fetchCurrentUserDisplayName(userId);
 
       // ✅ VINHETA: signed url -> dataURL (base64) para evitar falha no Worker
-      const vinhetaSigned = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
-      const vinhetaDataUrl = await urlToDataUrl(vinhetaSigned, "image/png");
+      
 
       // ✅ LOGO: SEMPRE dataURL (base64), para o Worker não depender de fetch externo
       let clinicLogoUrl = "";
@@ -2748,7 +2747,6 @@ function openPatientViewModal(patient) {
       }
 
       // Debug (não quebra nada; só ajuda)
-      if (!vinhetaDataUrl) console.warn("PDF: vinhetaDataUrl vazio — vinheta não será injetada.");
       if (!clinicLogoUrl) console.warn("PDF: clinicLogoUrl vazio — logo não será injetado. rawLogo=", rawLogo);
 
       // Se o editor estiver aberto em modo visual/preview, puxar alterações para docDraftHtml
