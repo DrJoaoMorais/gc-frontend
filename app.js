@@ -2751,19 +2751,18 @@ function openPatientViewModal(patient) {
       if (!vinhetaDataUrl) console.warn("PDF: vinhetaDataUrl vazio — vinheta não será injetada.");
       if (!clinicLogoUrl) console.warn("PDF: clinicLogoUrl vazio — logo não será injetado. rawLogo=", rawLogo);
 
+      // Se o editor estiver aberto em modo visual/preview, puxar alterações para docDraftHtml
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
-      if (!docDraftHtml || docDraftHtml.trim().length < 300) {
-        docDraftHtml = buildDocV1Html({
-          clinic,
-          consult,
-          authorName,
-          vinhetaUrl: vinhetaDataUrl || "",
-          clinicLogoUrl: clinicLogoUrl || ""
-        });
-      } else {
-        // Mantemos comportamento atual do editor (não forçamos substituições aqui)
-      }
+      // ✅✅ CORREÇÃO: FORÇAR SEMPRE reconstrução do HTML com logo + vinheta
+      // Isto evita ficar preso a um docDraftHtml antigo (sem <img ...>) do editor.
+      docDraftHtml = buildDocV1Html({
+        clinic,
+        consult,
+        authorName,
+        vinhetaUrl: vinhetaDataUrl || "",
+        clinicLogoUrl: clinicLogoUrl || ""
+      });
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
 
