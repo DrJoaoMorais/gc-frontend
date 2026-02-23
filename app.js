@@ -2844,6 +2844,9 @@ function openPatientViewModal(patient) {
   // Cache UID (para render rápido)
   window.__gcAuthUid = window.__gcAuthUid || null;
 
+  // Notas da agenda (view agenda_notes_v1)
+  let agendaNoteRows = [];
+
   async function __gcGetUidAsync() {
     try {
       const { data, error } = await window.sb.auth.getUser();
@@ -2900,6 +2903,31 @@ function openPatientViewModal(patient) {
     return null;
   }
 
+  async function loadAgendaNotes() {
+    try {
+      // Nota da agenda é administrativa (não clínica) — pode aparecer também para secretária
+      const { data, error } = await window.sb
+        .from("agenda_notes_v1")
+        .select("appointment_id, clinic_id, patient_id, start_at, end_at, status, procedure_type, title, notes, created_by, created_at, updated_at")
+        .eq("patient_id", p.id)
+        .order("start_at", { ascending: false });
+
+      if (error) {
+        console.error(error);
+        agendaNoteRows = [];
+        return;
+      }
+
+      agendaNoteRows = (data || []).map(r => ({
+        ...r,
+        notes: String(r.notes || "").trim()
+      })).filter(r => r.notes && r.notes.length);
+    } catch (e) {
+      console.error(e);
+      agendaNoteRows = [];
+    }
+  }
+
   async function loadPhysioRecords() {
     const s = __ps();
     const rRole = __gcRole();
@@ -2952,6 +2980,9 @@ function openPatientViewModal(patient) {
 
     const rRole = String(G.role || "").toLowerCase();
     const isSecretary = rRole === "secretary";
+
+    // ===== carregar notas da agenda (para todos) =====
+    await loadAgendaNotes();
 
     // =========================
     // SECRETÁRIA: só cabeçalhos via RPC (sem conteúdo clínico)
@@ -3254,17 +3285,63 @@ function openPatientViewModal(patient) {
     `;
   }
 
+  function __gcRenderAgendaNoteItem(r) {
+    const d = r.start_at ? new Date(r.start_at) : null;
+    const when = (d && !isNaN(d.getTime()))
+      ? `${fmtDatePt(d)} às ${fmtTime(d)}`
+      : (r.start_at ? String(r.start_at) : "—");
+
+    const title = (r.title || r.procedure_type || "").trim();
+
+    return `
+      <div style="
+        border:1px solid #e5e5e5;
+        border-radius:14px;
+        padding:16px;
+        background:#fff7ed; /* laranja muito claro (administrativo) */
+      ">
+        <div style="font-weight:900; font-size:16px;">
+          Nota da agenda — ${when}${title ? ` <span style="color:#64748b; font-weight:700;">(${escAttr(title)})</span>` : ``}
+        </div>
+
+        <div style="margin-top:8px; line-height:1.45; font-size:15px;">
+          ${escAttr(String(r.notes || "").trim()) || `<span style="color:#64748b;">—</span>`}
+        </div>
+      </div>
+    `;
+  }
+
   function renderTimeline() {
     if (timelineLoading) return `<div style="color:#64748b;">A carregar registos...</div>`;
 
     const isSecretary = __gcIsSecretary();
 
     if (isSecretary) {
-      if (!consultRows || !consultRows.length) return `<div style="color:#64748b;">Sem registos clínicos.</div>`;
+      const items = [];
+
+      (agendaNoteRows || []).forEach(r => {
+        const t = r.start_at ? new Date(r.start_at).getTime() : 0;
+        items.push({ type: "agenda_note", ts: isNaN(t) ? 0 : t, row: r });
+      });
+
+      (consultRows || []).forEach(r => {
+        const d = r.created_at ? new Date(r.created_at) : null;
+        const t = (d && !isNaN(d.getTime())) ? d.getTime()
+          : (r.report_date ? new Date(String(r.report_date)).getTime() : 0);
+
+        items.push({ type: "consult_header", ts: isNaN(t) ? 0 : t, row: r });
+      });
+
+      items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+      if (!items.length) return `<div style="color:#64748b;">Sem registos.</div>`;
 
       return `
         <div style="display:flex; flex-direction:column; gap:14px;">
-          ${consultRows.map(r => {
+          ${items.map(it => {
+            if (it.type === "agenda_note") return __gcRenderAgendaNoteItem(it.row);
+
+            const r = it.row;
             const d = r.created_at ? new Date(r.created_at) : null;
             const when = (d && !isNaN(d.getTime()))
               ? `${fmtDatePt(d)} às ${fmtTime(d)}`
@@ -3286,6 +3363,11 @@ function openPatientViewModal(patient) {
     const s = __ps();
 
     const items = [];
+
+    (agendaNoteRows || []).forEach(r => {
+      const t = r.start_at ? new Date(r.start_at).getTime() : 0;
+      items.push({ type: "agenda_note", ts: isNaN(t) ? 0 : t, row: r });
+    });
 
     (s.rows || []).forEach(r => {
       items.push({ type: "physio", ts: r.created_at ? new Date(r.created_at).getTime() : 0, row: r });
@@ -3314,6 +3396,7 @@ function openPatientViewModal(patient) {
         ${__gcRenderPhysioComposer()}
 
         ${items.map(it => {
+          if (it.type === "agenda_note") return __gcRenderAgendaNoteItem(it.row);
           if (it.type === "physio") return __gcRenderPhysioItem(it.row);
 
           const r = it.row;
