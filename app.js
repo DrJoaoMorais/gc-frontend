@@ -597,7 +597,6 @@
 
 /* ==== FIM BLOCO 03/12 ==== */
 
-
 /* ==== INÍCIO BLOCO 04/12 — Helpers UI Agenda + abrir doente + update status + renderAgendaList ==== */
 
   function setAgendaSubtitleForSelectedDay() {
@@ -676,6 +675,152 @@
       console.error("Update status falhou:", e);
       await refreshAgenda();
       alert("Não foi possível atualizar o estado. Vê a consola para detalhe.");
+    }
+  }
+
+  function __gcGetSelectedDayLabelForPrint() {
+    try {
+      const iso = String(G.selectedDayISO || "").trim(); // YYYY-MM-DD
+      if (!iso) return "";
+      const d = new Date(`${iso}T00:00:00`);
+      if (isNaN(d.getTime())) return iso;
+      return fmtDatePt(d);
+    } catch (_) {
+      return String(G.selectedDayISO || "");
+    }
+  }
+
+  function __gcBuildAgendaPrintHtml(rows) {
+    const dayLabel = __gcGetSelectedDayLabelForPrint();
+    const clinicFilter = (() => {
+      try {
+        const cid = document.getElementById("selClinic")?.value || "";
+        if (!cid) return "Todas as clínicas";
+        const c = G.clinicsById && G.clinicsById[cid] ? G.clinicsById[cid] : null;
+        return (c && (c.name || c.slug)) ? (c.name || c.slug) : cid;
+      } catch (_) {
+        return "";
+      }
+    })();
+
+    const timeColUsed = G.agenda.timeColUsed || "start_at";
+
+    const rowsHtml = (rows || []).map((r) => {
+      const startVal = r[timeColUsed] ?? r[pickFirstExisting(r, APPT_TIME_COL_CANDIDATES)];
+      const endVal = r[pickFirstExisting(r, APPT_END_COL_CANDIDATES)];
+
+      const start = startVal ? new Date(startVal) : null;
+      const end = endVal ? new Date(endVal) : null;
+
+      const tStart = fmtTime(start);
+      const tEnd = end ? fmtTime(end) : null;
+      const timeTxt = `${tStart}${tEnd ? `–${tEnd}` : ""}`;
+
+      const clinicId = r.clinic_id ?? null;
+      const clinicName =
+        clinicId && G.clinicsById[clinicId]
+          ? G.clinicsById[clinicId].name || G.clinicsById[clinicId].slug || clinicId
+          : clinicId || "—";
+
+      const proc = r.procedure_type ?? "—";
+
+      const statusRaw = r.status ?? "scheduled";
+      const status = (String(statusRaw).toLowerCase() === "cancelled") ? "no_show" : statusRaw;
+      const meta = statusMeta(status);
+      const statusTxt = `${meta.icon} ${meta.label}`;
+
+      const p = getPatientForAppointmentRow(r);
+      const patientName = p && p.full_name ? p.full_name : (r.patient_id ? `Doente (ID): ${r.patient_id}` : "—");
+      const patientPhone = p && p.phone ? p.phone : "—";
+
+      const notes = r.notes ? clipOneLine(r.notes, 200) : "";
+
+      return `
+        <tr>
+          <td class="c-time">${escapeHtml(timeTxt)}</td>
+          <td class="c-name">${escapeHtml(patientName)}</td>
+          <td class="c-type">${escapeHtml(proc)}</td>
+          <td class="c-status">${escapeHtml(statusTxt)}</td>
+          <td class="c-phone">${escapeHtml(patientPhone)}</td>
+          <td class="c-clinic">${escapeHtml(clinicName)}</td>
+          <td class="c-notes">${notes ? escapeHtml(notes) : ""}</td>
+        </tr>
+      `;
+    }).join("");
+
+    const safeTitle = `Agenda — ${dayLabel || "Dia"} — ${clinicFilter || ""}`.trim();
+
+    return `
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${escapeHtml(safeTitle)}</title>
+  <style>
+    body{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 24px; color:#111; }
+    h1{ font-size:18px; margin:0 0 6px 0; font-weight:900; }
+    .sub{ color:#555; font-size:12px; margin:0 0 14px 0; }
+    table{ width:100%; border-collapse:collapse; }
+    th, td{ border:1px solid #e5e5e5; padding:8px 10px; font-size:12px; vertical-align:top; }
+    th{ background:#f6f6f6; text-align:left; font-weight:800; }
+    .c-time{ width:90px; white-space:nowrap; font-weight:800; }
+    .c-status{ width:130px; white-space:nowrap; }
+    .c-phone{ width:120px; white-space:nowrap; }
+    .c-clinic{ width:150px; }
+    .c-type{ width:150px; }
+    .c-notes{ width:220px; }
+    @media print{
+      body{ margin: 10mm; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Agenda do dia — ${escapeHtml(dayLabel || "—")}</h1>
+  <div class="sub">${escapeHtml(clinicFilter || "")}</div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Horário</th>
+        <th>Nome</th>
+        <th>Tipo</th>
+        <th>Estado</th>
+        <th>Telefone</th>
+        <th>Clínica</th>
+        <th>Notas</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHtml || ""}
+    </tbody>
+  </table>
+</body>
+</html>
+    `;
+  }
+
+  function __gcPrintAgendaDay() {
+    try {
+      const rows = G.agenda.rows || [];
+      if (!rows.length) { alert("Sem marcações para imprimir."); return; }
+
+      const html = __gcBuildAgendaPrintHtml(rows);
+      const w = window.open("", "_blank");
+      if (!w) { alert("Pop-up bloqueado. Permite pop-ups para imprimir."); return; }
+
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+
+      // garantir render antes do print
+      w.focus();
+      setTimeout(() => {
+        try { w.print(); } catch (_) {}
+      }, 250);
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao preparar impressão. Vê a consola para detalhe.");
     }
   }
 
@@ -793,6 +938,14 @@
             overflow:hidden;
             text-overflow:ellipsis;
           }
+
+          .gcAgendaFooter{
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px dashed #e5e5e5;
+            display:flex;
+            justify-content:flex-end;
+          }
         </style>
       </li>
     `;
@@ -864,8 +1017,19 @@
       `;
     }).join("");
 
-    ul.innerHTML = header + body;
+    const footer = `
+      <li style="padding:10px 0 0 0;">
+        <div class="gcAgendaFooter">
+          <button id="btnPrintAgendaDay" class="gcBtn" type="button" style="font-weight:900;">
+            Imprimir lista do dia
+          </button>
+        </div>
+      </li>
+    `;
 
+    ul.innerHTML = header + body + footer;
+
+    // handlers linhas
     ul.querySelectorAll("li[data-appt-id]").forEach((li) => {
       li.addEventListener("click", (ev) => {
         const t = ev.target;
@@ -907,6 +1071,16 @@
         });
       }
     });
+
+    // handler impressão
+    const btn = document.getElementById("btnPrintAgendaDay");
+    if (btn) {
+      btn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        __gcPrintAgendaDay();
+      });
+    }
   }
 
 /* ==== FIM BLOCO 04/12 — Helpers UI Agenda + abrir doente + update status + renderAgendaList ==== */
