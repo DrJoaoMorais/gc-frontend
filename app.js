@@ -2728,30 +2728,49 @@ function openPatientViewModal(patient) {
       const clinic = await fetchClinicForPdf();
       const authorName = await fetchCurrentUserDisplayName(userId);
 
-      // ✅ VINHETA: signed url -> dataURL (base64) para evitar falha no Worker
-      
+      // ✅ VINHETA: usar signed URL CURTA (NÃO base64)
+      let vinhetaUrl = "";
+      try {
+        vinhetaUrl = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
+      } catch (e) {
+        console.warn("PDF: vinheta signed url falhou:", e);
+        vinhetaUrl = "";
+      }
 
-      // ✅ LOGO: SEMPRE dataURL (base64), para o Worker não depender de fetch externo
+      // ✅ LOGO: usar URL direta (NÃO base64) — evita 413
       let clinicLogoUrl = "";
       const rawLogo = String(clinic?.logo_url || "").trim();
 
       if (rawLogo.startsWith("data:")) {
+        // permitido, mas pode rebentar payload; mantemos por compatibilidade
         clinicLogoUrl = rawLogo;
       } else if (rawLogo.startsWith("http")) {
-        clinicLogoUrl = await urlToDataUrl(rawLogo, "image/png");
+        clinicLogoUrl = rawLogo; // ✅ URL pública curta
       } else if (rawLogo.includes(":") && !rawLogo.startsWith("data:")) {
+        // formato "bucket:path" (se algum dia usares)
         const [b, ...rest] = rawLogo.split(":");
         const pth = rest.join(":");
-        const signed = await storageSignedUrl(b, pth, 3600);
-        clinicLogoUrl = await urlToDataUrl(signed, "image/png");
+        clinicLogoUrl = await storageSignedUrl(b, pth, 3600);
+      } else {
+        clinicLogoUrl = "";
       }
 
-      // Debug (não quebra nada; só ajuda)
       if (!clinicLogoUrl) console.warn("PDF: clinicLogoUrl vazio — logo não será injetado. rawLogo=", rawLogo);
 
       // Se o editor estiver aberto em modo visual/preview, puxar alterações para docDraftHtml
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
+      // ✅ Se o HTML estiver vazio (o 06Fb força isto), reconstruir com template e assets
+      if (!String(docDraftHtml || "").trim() || docForceRebuildOnce) {
+        docDraftHtml = buildDocV1Html({
+          clinic,
+          consult,
+          authorName,
+          vinhetaUrl,
+          clinicLogoUrl
+        });
+        docForceRebuildOnce = false;
+      }
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
 
