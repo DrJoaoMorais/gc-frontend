@@ -2085,7 +2085,6 @@ function openPatientViewModal(patient) {
   const PDF_PROXY_URL = "https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf";
 
   // Vinheta (Supabase Storage)
-  // ✅ Nota: no Storage o ficheiro tem "_" no nome (print): "_vinheta_600dpi.png"
   const VINHETA_BUCKET = "clinic-private";
   const VINHETA_PATH = "vinheta/vinheta_600dpi.png";
 
@@ -2114,7 +2113,7 @@ function openPatientViewModal(patient) {
     }
   }
 
-  // ✅ Converte URL (signed/public) em data URL base64 (para o Worker NÃO fazer fetch externo)
+  // (mantido; pode ser útil noutros pontos)
   async function urlToDataUrl(url, fallbackMime = "image/png") {
     try {
       if (!url) return "";
@@ -2131,7 +2130,6 @@ function openPatientViewModal(patient) {
         r.readAsDataURL(blob);
       });
 
-      // garantir mime coerente (alguns browsers colocam application/octet-stream)
       if (dataUrl && dataUrl.startsWith("data:application/octet-stream")) {
         return dataUrl.replace("data:application/octet-stream", `data:${mime}`);
       }
@@ -2283,7 +2281,6 @@ function openPatientViewModal(patient) {
   // =========================================================
   function buildDocV1Html({ clinic, consult, authorName, vinhetaUrl, clinicLogoUrl }) {
 
-    // Escape seguro para src="" (preserva data:image/... sem “limpezas” agressivas)
     function escUrlAttr(u) {
       return String(u || "")
         .replace(/&/g, "&amp;")
@@ -2327,6 +2324,9 @@ function openPatientViewModal(patient) {
 
     const locality = String(clinic?.city || "").trim();
     const localityDate = [locality, reportDatePt].filter(Boolean).join(", ");
+
+    // ✅ LOGO: usa SEMPRE URL curta; fallback direto ao logo_url da clínica
+    const logoSrc = String(clinicLogoUrl || clinic?.logo_url || "").trim();
 
     function renderDiagList(items) {
       if (!items || !items.length) return `<span class="muted">—</span>`;
@@ -2406,7 +2406,7 @@ function openPatientViewModal(patient) {
         <div>${escAttr(clinic?.phone || "")}</div>
       </div>
       <div>
-        ${clinicLogoUrl ? `<img class="logo" src="${escUrlAttr(clinicLogoUrl)}" />` : ``}
+        ${logoSrc ? `<img class="logo" src="${escUrlAttr(logoSrc)}" />` : ``}
       </div>
     </div>
 
@@ -2727,32 +2727,37 @@ function openPatientViewModal(patient) {
       if (!activeClinicId) { alert("Sem clínica ativa (patient_clinic)."); return false; }
 
       const clinic = await fetchClinicForPdf();
+      if (!clinic) { alert("Não consegui carregar dados da clínica (clinics)."); return false; }
+
       const authorName = await fetchCurrentUserDisplayName(userId);
 
-      // ✅ VINHETA: signed url -> dataURL (base64) para evitar falha no Worker
-      
-
-      // ✅ LOGO: SEMPRE dataURL (base64), para o Worker não depender de fetch externo
-      let clinicLogoUrl = "";
-      const rawLogo = String(clinic?.logo_url || "").trim();
-
-      if (rawLogo.startsWith("data:")) {
-        clinicLogoUrl = rawLogo;
-      } else if (rawLogo.startsWith("http")) {
-        clinicLogoUrl = await urlToDataUrl(rawLogo, "image/png");
-      } else if (rawLogo.includes(":") && !rawLogo.startsWith("data:")) {
-        const [b, ...rest] = rawLogo.split(":");
-        const pth = rest.join(":");
-        const signed = await storageSignedUrl(b, pth, 3600);
-        clinicLogoUrl = await urlToDataUrl(signed, "image/png");
+      // ✅ VINHETA: signed URL curta (NÃO base64)
+      let vinhetaUrl = "";
+      try {
+        vinhetaUrl = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
+      } catch (e) {
+        console.warn("PDF: vinheta signed url falhou:", e);
+        vinhetaUrl = "";
       }
 
-      // Debug (não quebra nada; só ajuda)
-      if (!clinicLogoUrl) console.warn("PDF: clinicLogoUrl vazio — logo não será injetado. rawLogo=", rawLogo);
+      // ✅ LOGO: usar URL curta (public) diretamente da clínica (NÃO base64)
+      // (o buildDocV1Html também faz fallback ao clinic.logo_url)
+      let clinicLogoUrl = "";
+      const rawLogo = String(clinic?.logo_url || "").trim();
+      if (rawLogo.startsWith("http") || rawLogo.startsWith("data:")) clinicLogoUrl = rawLogo;
 
       // Se o editor estiver aberto em modo visual/preview, puxar alterações para docDraftHtml
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
+      // ✅ FUNDAMENTAL: forçar SEMPRE rebuild com template antes de renderizar
+      // evita enviar HTML “antigo” do editor sem o <img> do logo
+      docDraftHtml = buildDocV1Html({
+        clinic,
+        consult,
+        authorName,
+        vinhetaUrl,
+        clinicLogoUrl
+      });
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
 
