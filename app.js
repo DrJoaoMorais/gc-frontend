@@ -2645,195 +2645,398 @@ function openPatientViewModal(patient) {
 
 /* ==== FIM BLOCO 06Fb/12 ==== */
 
-/* ==== INÍCIO BLOCO 06Fc/12 — Documentos/PDF (STORAGE + GENERATE + EXPORTS) ==== */
+/* ==== INÍCIO BLOCO 06Fa/12 — Documentos/PDF (CONFIG + HELPERS + LOAD + CLINIC + TEMPLATE) ==== */
 
   // =========================================================
-  // STORAGE — upload + documents row
+  // CONFIG — PDF via Proxy (Worker com Puppeteer)
   // =========================================================
-  async function uploadPdfToStorage({ blob, path }) {
+  const PDF_PROXY_URL = "https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf";
+
+  // Vinheta (Supabase Storage)
+  // ✅ Nota: no Storage o ficheiro tem "_" no nome (print): "_vinheta_600dpi.png"
+  const VINHETA_BUCKET = "clinic-private";
+  const VINHETA_PATH = "vinheta/vinheta_600dpi.png";
+
+  // Flag para forçar rebuild do HTML (usado no 06Fb/06Fc)
+  let docForceRebuildOnce = false;
+
+  // =========================================================
+  // HELPERS — Signed URL / Base64 / Proxy call / safety
+  // =========================================================
+  function safeText(s) {
+    return String(s || "")
+      .trim()
+      .replace(/[^\p{L}\p{N}\s._-]+/gu, "")
+      .replace(/\s+/g, " ")
+      .slice(0, 80) || "Relatorio";
+  }
+
+  async function storageSignedUrl(bucket, path, expiresSec = 3600) {
     try {
-      const r = await window.sb.storage
-        .from("documents")
-        .upload(path, blob, { contentType: "application/pdf", upsert: false, cacheControl: "3600" });
-
-      if (r?.error) { console.error("uploadPdf error:", r.error); return { ok: false, error: r.error }; }
-      return { ok: true };
+      if (!bucket || !path) return "";
+      const s = await window.sb.storage.from(bucket).createSignedUrl(path, expiresSec);
+      return s?.data?.signedUrl ? String(s.data.signedUrl) : "";
     } catch (e) {
-      console.error("uploadPdf exception:", e);
-      return { ok: false, error: e };
+      console.warn("storageSignedUrl error:", e);
+      return "";
     }
   }
 
-  async function insertDocumentRow(meta) {
+  // ✅ Converte URL (signed/public) em data URL base64 (para o Worker NÃO fazer fetch externo)
+  async function urlToDataUrl(url, fallbackMime = "image/png") {
     try {
-      const payload = {
-        clinic_id: meta.clinic_id,
-        patient_id: meta.patient_id,
-        consultation_id: meta.consultation_id || null,
-        title: meta.title,
-        html: meta.html || "",
-        parent_document_id: meta.parent_document_id || null,
-        version: Number(meta.version || 1),
-        storage_path: meta.storage_path || null
-      };
+      if (!url) return "";
+      const res = await fetch(url, { method: "GET", cache: "no-store" });
+      if (!res.ok) throw new Error(`urlToDataUrl fetch ${res.status}`);
+      const blob = await res.blob();
 
-      const { data, error } = await window.sb
-        .from("documents")
-        .insert(payload)
-        .select("id")
-        .single();
+      const mime = blob.type && String(blob.type).includes("/") ? blob.type : fallbackMime;
 
-      if (error) { console.error("insertDocumentRow error:", error); return { ok: false, error }; }
-      return { ok: true, id: data?.id || null };
-    } catch (e) {
-      console.error("insertDocumentRow exception:", e);
-      return { ok: false, error: e };
-    }
-  }
-
-  async function getNextDocVersionForConsult(consultId) {
-    try {
-      const { data, error } = await window.sb
-        .from("documents")
-        .select("version")
-        .eq("consultation_id", consultId)
-        .order("version", { ascending: false })
-        .limit(1);
-
-      if (error) { console.error("getNextDocVersion error:", error); return 1; }
-      const last = data && data.length ? Number(data[0].version || 0) : 0;
-      return (isFinite(last) ? last + 1 : 1);
-    } catch (e) {
-      console.error("getNextDocVersion exception:", e);
-      return 1;
-    }
-  }
-
-  // =========================================================
-  // MAIN — generate via Proxy/Worker + upload + insert
-  // =========================================================
-  async function generatePdfAndUploadV1() {
-    try {
-      if (!lastSavedConsultId) { alert("Sem consulta gravada para gerar PDF."); return false; }
-
-      const userRes = await window.sb.auth.getUser();
-      const userId = userRes?.data?.user?.id;
-      if (!userId) { alert("Utilizador não autenticado."); return false; }
-
-      const consult = (consultRows || []).find(x => String(x.id) === String(lastSavedConsultId));
-      if (!consult) { alert("Não encontrei a consulta no feed. Atualiza o feed e tenta novamente."); return false; }
-
-      if (!activeClinicId) { alert("Sem clínica ativa (patient_clinic)."); return false; }
-
-      const clinic = await fetchClinicForPdf();
-      const authorName = await fetchCurrentUserDisplayName(userId);
-
-      // ✅ VINHETA: usar signed URL CURTA (NÃO base64)
-      let vinhetaUrl = "";
-      try {
-        vinhetaUrl = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
-      } catch (e) {
-        console.warn("PDF: vinheta signed url falhou:", e);
-        vinhetaUrl = "";
-      }
-
-      // ✅ LOGO: usar URL direta (NÃO base64) — evita 413
-      let clinicLogoUrl = "";
-      const rawLogo = String(clinic?.logo_url || "").trim();
-
-      if (rawLogo.startsWith("data:")) {
-        // permitido, mas pode rebentar payload; mantemos por compatibilidade
-        clinicLogoUrl = rawLogo;
-      } else if (rawLogo.startsWith("http")) {
-        clinicLogoUrl = rawLogo; // ✅ URL pública curta
-      } else if (rawLogo.includes(":") && !rawLogo.startsWith("data:")) {
-        // formato "bucket:path" (se algum dia usares)
-        const [b, ...rest] = rawLogo.split(":");
-        const pth = rest.join(":");
-        clinicLogoUrl = await storageSignedUrl(b, pth, 3600);
-      } else {
-        clinicLogoUrl = "";
-      }
-
-      if (!clinicLogoUrl) console.warn("PDF: clinicLogoUrl vazio — logo não será injetado. rawLogo=", rawLogo);
-
-      // Se o editor estiver aberto em modo visual/preview, puxar alterações para docDraftHtml
-      if (docOpen && docMode !== "html") syncDocFromFrame();
-
-      // ✅ Se o HTML estiver vazio (o 06Fb força isto), reconstruir com template e assets
-      if (!String(docDraftHtml || "").trim() || docForceRebuildOnce) {
-        docDraftHtml = buildDocV1Html({
-          clinic,
-          consult,
-          authorName,
-          vinhetaUrl,
-          clinicLogoUrl
-        });
-        docForceRebuildOnce = false;
-      }
-
-      const titleSafe = safeText(docTitle || "Relatório Médico");
-
-      let blob;
-      try {
-        blob = await renderPdfViaProxy(docDraftHtml);
-      } catch (e) {
-        console.error("renderPdfViaProxy falhou:", e);
-        alert(`Falha ao gerar PDF no servidor.\n${String(e?.message || e)}`);
-        return false;
-      }
-
-      if (!blob || blob.size < 5000) {
-        alert("PDF inválido ou demasiado pequeno (provável branco).");
-        return false;
-      }
-
-      const version = await getNextDocVersionForConsult(consult.id);
-      const ymd = new Date().toISOString().slice(0, 10);
-      const hms = new Date().toISOString().slice(11, 19).replaceAll(":", "");
-      const path = `clinic_${activeClinicId}/patient_${p.id}/consult_${consult.id}/v${version}_${ymd}_${hms}.pdf`;
-
-      const up = await uploadPdfToStorage({ blob, path });
-      if (!up.ok) {
-        const msg = String(up.error?.message || up.error?.error || up.error || "erro desconhecido");
-        alert(`Falhou o upload do PDF para Storage.\nDetalhe: ${msg}`);
-        return false;
-      }
-
-      const ins = await insertDocumentRow({
-        clinic_id: activeClinicId,
-        patient_id: p.id,
-        consultation_id: consult.id,
-        title: titleSafe,
-        html: String(docDraftHtml || ""),
-        parent_document_id: null,
-        version,
-        storage_path: path
+      const dataUrl = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result || ""));
+        r.onerror = reject;
+        r.readAsDataURL(blob);
       });
 
-      if (!ins.ok) {
-        const msg = String(ins.error?.message || ins.error?.error || ins.error || "erro desconhecido");
-        alert(`PDF enviado para Storage, mas falhou o registo na tabela documents.\nDetalhe: ${msg}`);
-        return false;
+      // garantir mime coerente (alguns browsers colocam application/octet-stream)
+      if (dataUrl && dataUrl.startsWith("data:application/octet-stream")) {
+        return dataUrl.replace("data:application/octet-stream", `data:${mime}`);
       }
-
-      alert("PDF (v1) criado com sucesso.");
-      return true;
-
+      return dataUrl;
     } catch (e) {
-      console.error("generatePdfAndUploadV1 exception:", e);
-      alert("Erro na geração/upload do PDF.");
-      return false;
+      console.warn("urlToDataUrl error:", e);
+      return "";
     }
   }
 
-  // Export seguro (apenas 2 nomes)
-  try {
-    window.generatePdfAndUploadV1 = generatePdfAndUploadV1;
-    window.openDocumentEditor = openDocumentEditor;
-  } catch (e) {}
+  async function renderPdfViaProxy(html) {
+    const res = await fetch(PDF_PROXY_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ html: String(html || "") })
+    });
 
-/* ==== FIM BLOCO 06Fc/12 ==== */
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "");
+      throw new Error(`Proxy error ${res.status}: ${msg || "sem detalhe"}`);
+    }
+
+    const buf = await res.arrayBuffer();
+    return new Blob([buf], { type: "application/pdf" });
+  }
+
+  // =========================================================
+  // DOCUMENTS — load list
+  // =========================================================
+  async function loadDocuments() {
+    docsLoading = true;
+    docRows = [];
+
+    try {
+      const { data, error } = await window.sb
+        .from("documents")
+        .select("id, created_at, title, consultation_id, clinic_id, version, storage_path")
+        .eq("patient_id", p.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error("loadDocuments error:", error);
+        docsLoading = false;
+        return;
+      }
+
+      const rows = data || [];
+      const out = [];
+
+      for (const r of rows) {
+        let url = "";
+        const path = r.storage_path || "";
+        if (path) {
+          try {
+            const s = await window.sb.storage.from("documents").createSignedUrl(path, 60 * 60);
+            if (s?.data?.signedUrl) url = s.data.signedUrl;
+          } catch (e) {}
+        }
+
+        out.push({
+          id: r.id,
+          created_at: r.created_at,
+          title: r.title || "Documento",
+          consultation_id: r.consultation_id || null,
+          clinic_id: r.clinic_id || null,
+          storage_path: path,
+          url,
+          version: (r.version !== undefined && r.version !== null) ? r.version : null
+        });
+      }
+
+      docRows = out;
+      docsLoading = false;
+    } catch (e) {
+      console.error("loadDocuments exception:", e);
+      docsLoading = false;
+    }
+  }
+
+  // =========================================================
+  // CLINIC / USER HELPERS
+  // =========================================================
+  async function fetchClinicForPdf() {
+    if (!activeClinicId) return null;
+    try {
+      const { data, error } = await window.sb
+        .from("clinics")
+        .select("id, name, address_line1, address_line2, postal_code, city, phone, email, website, logo_url")
+        .eq("id", activeClinicId)
+        .single();
+
+      if (error) { console.error("fetchClinicForPdf error:", error); return null; }
+      return data || null;
+    } catch (e) {
+      console.error("fetchClinicForPdf exception:", e);
+      return null;
+    }
+  }
+
+  async function fetchCurrentUserDisplayName(userId) {
+    try {
+      const { data, error } = await window.sb
+        .from("clinic_members")
+        .select("display_name")
+        .eq("user_id", userId)
+        .limit(1);
+
+      if (error) { console.error("fetchCurrentUserDisplayName error:", error); return ""; }
+      const v = data && data.length ? (data[0].display_name || "") : "";
+      return v;
+    } catch (e) {
+      console.error("fetchCurrentUserDisplayName exception:", e);
+      return "";
+    }
+  }
+
+  function fmtDobPt(d) {
+    try {
+      if (!d) return "—";
+      const dt = new Date(d);
+      if (isNaN(dt.getTime())) return String(d);
+      const dd = String(dt.getDate()).padStart(2, "0");
+      const mm = String(dt.getMonth() + 1).padStart(2, "0");
+      const yy = dt.getFullYear();
+      return `${dd}-${mm}-${yy}`;
+    } catch (e) { return String(d || "—"); }
+  }
+
+  function patientAddressCompact() {
+    const a = String(p.address_line1 || "").trim();
+    const pc = String(p.postal_code || "").trim();
+    const city = String(p.city || "").trim();
+
+    let tail = "";
+    if (pc && city) tail = `${pc} ${city}`;
+    else if (pc) tail = pc;
+    else if (city) tail = city;
+
+    const parts = [];
+    if (a) parts.push(a);
+    if (tail) parts.push(tail);
+
+    return parts.join(", ") || "—";
+  }
+
+  // =========================================================
+  // HTML TEMPLATE — v1
+  // =========================================================
+  function buildDocV1Html({ clinic, consult, authorName, vinhetaUrl, clinicLogoUrl }) {
+
+    // Escape seguro para src="" (preserva data:image/... sem “limpezas” agressivas)
+    function escUrlAttr(u) {
+      return String(u || "")
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function fmtDatePt(d) {
+      try {
+        if (!d) return "";
+        const dt = new Date(d);
+        if (isNaN(dt.getTime())) return String(d);
+        const dd = String(dt.getDate()).padStart(2, "0");
+        const mm = String(dt.getMonth() + 1).padStart(2, "0");
+        const yy = dt.getFullYear();
+        return `${dd}-${mm}-${yy}`;
+      } catch (_) { return String(d || ""); }
+    }
+
+    const reportDatePt = consult?.report_date ? fmtDatePt(consult.report_date) : "";
+    const hda = sanitizeHTML(consult?.hda || "");
+    const diags = Array.isArray(consult?.diagnoses) ? consult.diagnoses : [];
+    const trts  = Array.isArray(consult?.treatments) ? consult.treatments : [];
+
+    const rx = getPrescriptionTextFromPlan(consult?.plan_text || "") ||
+      "R/ 20 Sessões de Medicina Física e de Reabilitação com:";
+
+    const name = String(p.full_name || "").trim() || "—";
+
+    const lineParts = [];
+    if (p.sns) lineParts.push(`<b>Nº Utente:</b> ${escAttr(p.sns)}`);
+    if (p.dob) lineParts.push(`<b>DN:</b> ${escAttr(fmtDobPt(p.dob))}`);
+    if (p.nif) lineParts.push(`<b>NIF:</b> ${escAttr(p.nif)}`);
+    if (p.insurance_provider) lineParts.push(`<b>Seguro:</b> ${escAttr(p.insurance_provider)}`);
+    if (p.insurance_policy_number) lineParts.push(`<b>Nº:</b> ${escAttr(p.insurance_policy_number)}`);
+    const line2 = lineParts.join("&nbsp;&nbsp;&nbsp;");
+
+    const addr = patientAddressCompact();
+    const addrOk = addr && addr !== "—";
+
+    const locality = String(clinic?.city || "").trim();
+    const localityDate = [locality, reportDatePt].filter(Boolean).join(", ");
+
+    // ✅ FIX: fallback direto ao clinic.logo_url
+    const logoSrc = String(clinicLogoUrl || clinic?.logo_url || "").trim();
+
+    function renderDiagList(items) {
+      if (!items || !items.length) return `<span class="muted">—</span>`;
+      return `
+        <ul class="list">
+          ${items.map(d => {
+            const lbl = escAttr(d?.label || "—");
+            const code = d?.code ? ` <span class="code">(${escAttr(d.code)})</span>` : ``;
+            return `<li>${lbl}${code}</li>`;
+          }).join("")}
+        </ul>
+      `;
+    }
+
+    function renderTreatList(items) {
+      if (!items || !items.length) return `<span class="muted">—</span>`;
+      return `
+        <ul class="list">
+          ${items.map(t => {
+            const lbl = escAttr(sentenceizeLabel(t?.label || "—"));
+            const code = t?.code ? ` <span class="code">(${escAttr(t.code)})</span>` : ``;
+            return `<li>${lbl}${code}</li>`;
+          }).join("")}
+        </ul>
+      `;
+    }
+
+    return `
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Relatório Médico</title>
+<style>
+  body { margin:0; background:#fff; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:#111; }
+  * { box-sizing:border-box; }
+  .a4 { width:210mm; min-height:297mm; padding:18mm; background:#fff; }
+
+  .top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .topLeft { font-size:13.5px; line-height:1.4; }
+  .logo { width:120px; height:auto; max-height:60px; object-fit:contain; display:block; }
+
+  .hr { height:1px; background:#111; margin:10px 0 14px 0; }
+  .title { text-align:center; font-weight:900; font-size:22px; margin:2px 0 12px 0; }
+  .row { margin-top:6px; font-size:13.5px; line-height:1.35; }
+  .muted { color:#64748b; }
+  .section { margin-top:18px; }
+  .stitle { font-weight:900; font-size:16px; margin-bottom:6px; }
+  .hda { font-size:14px; line-height:1.6; }
+  .hda ul, .hda ol { margin:6px 0 6px 18px; padding:0; }
+  .hda li { margin:2px 0; }
+  .list { margin:6px 0 0 18px; padding:0; font-size:14px; line-height:1.55; }
+  .list li { margin:2px 0; }
+  .code { color:#64748b; }
+
+  .footerBlock { margin-top:22px; page-break-inside:avoid; break-inside:avoid; }
+  .hr2 { height:1px; background:#111; margin:18px 0 10px 0; }
+  .footRow { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+
+  .web { font-size:14px; font-weight:700; }
+  .vinheta { margin-top:8px; width:3.2cm; height:2cm; object-fit:contain; display:block; }
+
+  .locDate { text-align:right; font-size:14px; margin-top:2px; }
+  .sig { margin-top:14px; display:flex; justify-content:flex-end; }
+  .sigBox { width:360px; text-align:center; }
+  .sigLine { border-top:1px solid #111; padding-top:10px; }
+  .sigName { font-weight:900; font-size:18px; margin-top:6px; }
+  .sigRole { font-size:14px; margin-top:2px; }
+</style>
+</head>
+<body>
+  <div class="a4">
+
+    <div class="top">
+      <div class="topLeft">
+        <div>${escAttr(clinic?.website || "www.JoaoMorais.pt")}</div>
+        <div>${escAttr(clinic?.phone || "")}</div>
+      </div>
+      <div>
+        ${logoSrc ? `<img class="logo" src="${escUrlAttr(logoSrc)}" />` : ``}
+      </div>
+    </div>
+
+    <div class="hr"></div>
+    <div class="title">Relatório Médico</div>
+
+    <div class="row"><b>Nome:</b> ${escAttr(name)}</div>
+    ${line2 ? `<div class="row">${line2}</div>` : ``}
+    ${addrOk ? `<div class="row"><b>Morada:</b> ${escAttr(addr)}</div>` : ``}
+
+    <div class="hr" style="margin-top:14px; opacity:0.5;"></div>
+
+    <div class="section">
+      <div class="stitle">Anamnese / HDA</div>
+      <div class="hda">${hda && String(hda).trim() ? hda : `<span class="muted">—</span>`}</div>
+    </div>
+
+    <div class="section">
+      <div class="stitle">Diagnóstico</div>
+      ${renderDiagList(diags)}
+    </div>
+
+    <div class="section">
+      <div class="stitle">Prescrição de Tratamento</div>
+      <div style="font-size:14px; margin-top:2px;">${escAttr(rx)}</div>
+      ${renderTreatList(trts)}
+    </div>
+
+    <div class="footerBlock">
+      <div class="hr2"></div>
+
+      <div class="footRow">
+        <div>
+          <div class="web">www.JoaoMorais.pt</div>
+          ${vinhetaUrl ? `<img class="vinheta" src="${escUrlAttr(vinhetaUrl)}" />` : ``}
+        </div>
+
+        <div style="flex:1;">
+          ${localityDate ? `<div class="locDate">${escAttr(localityDate)}</div>` : ``}
+
+          <div class="sig">
+            <div class="sigBox">
+              <div class="sigLine"></div>
+              <div class="sigName">Dr. João Morais</div>
+              <div class="sigRole">Médico Fisiatra</div>
+              <div class="sigRole">Sports Medicine &amp; Rehabilitation</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
+`;
+  }
+
+/* ==== FIM BLOCO 06Fa/12 ==== */
 
 /* ==== INÍCIO BLOCO 06G/12 — Timeline (load + render + physio_records) ==== */
 
