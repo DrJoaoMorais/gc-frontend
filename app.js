@@ -2389,7 +2389,7 @@ function openPatientViewModal(patient) {
   .web { font-size:14px; font-weight:700; }
   .vinheta { margin-top:8px; width:3.2cm; height:2cm; object-fit:contain; display:block; }
 
-  .locDate { text-align:right; font-size:14px; margin-top:8px; }
+  .locDate { text-align:right; font-size:14px; margin-top:14px; }
   .sig { margin-top:14px; display:flex; justify-content:flex-end; }
   .sigBox { width:360px; text-align:center; }
   .sigLine { border-top:1px solid #111; padding-top:10px; }
