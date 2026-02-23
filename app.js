@@ -2969,6 +2969,9 @@ function openPatientViewModal(patient) {
 </style>
 </head>
 <body>
+  <!-- GC_DOC_V1_DEBUG 23-02-2026 -->
+  <!-- logoSrc=${escUrlAttr(logoSrc)} -->
+
   <div class="a4">
 
     <div class="top">
