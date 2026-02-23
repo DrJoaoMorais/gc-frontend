@@ -2076,7 +2076,7 @@ function openPatientViewModal(patient) {
   }
 
 /* ==== FIM BLOCO 06E/12 ==== */
-/* ==== INÍCIO BLOCO 06F/12 — Documentos/PDF (load + editor + gerar/upload via Proxy+Worker) ==== */
+/* ==== INÍCIO BLOCO 06Fa/12 — Documentos/PDF (CONFIG + HELPERS + LOAD + CLINIC + TEMPLATE) ==== */
 
   // =========================================================
   // CONFIG — PDF via Proxy (Worker com Puppeteer)
@@ -2275,7 +2275,6 @@ function openPatientViewModal(patient) {
   }
 
   // =========================================================
-  // =========================================================
   // HTML TEMPLATE — v1
   // =========================================================
   function buildDocV1Html({ clinic, consult, authorName, vinhetaUrl, clinicLogoUrl }) {
@@ -2462,6 +2461,10 @@ function openPatientViewModal(patient) {
 `;
   }
 
+/* ==== FIM BLOCO 06Fa/12 ==== */
+
+/* ==== INÍCIO BLOCO 06Fb/12 — Documentos/PDF (EDITOR + BIND) ==== */
+
   // =========================================================
   // EDITOR — open/render/bind
   // =========================================================
@@ -2610,6 +2613,9 @@ function openPatientViewModal(patient) {
         if (docSaving) return;
         docSaving = true;
 
+        // ✅ CORREÇÃO MÍNIMA: evita reutilização de HTML antigo sem imagens
+        docDraftHtml = "";
+
         if (docMode !== "html") syncDocFromFrame();
 
         render();
@@ -2633,6 +2639,10 @@ function openPatientViewModal(patient) {
 
     if (docMode !== "html") mountDocFrame();
   }
+
+/* ==== FIM BLOCO 06Fb/12 ==== */
+
+/* ==== INÍCIO BLOCO 06Fc/12 — Documentos/PDF (STORAGE + GENERATE + EXPORTS) ==== */
 
   // =========================================================
   // STORAGE — upload + documents row
@@ -2741,16 +2751,16 @@ function openPatientViewModal(patient) {
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
       if (!docDraftHtml || docDraftHtml.trim().length < 300) {
-  docDraftHtml = buildDocV1Html({
-    clinic,
-    consult,
-    authorName,
-    vinhetaUrl: vinhetaDataUrl || "",
-    clinicLogoUrl: clinicLogoUrl || ""
-  });
-} else {
-  // Mantemos comportamento atual do editor (não forçamos substituições aqui)
-}
+        docDraftHtml = buildDocV1Html({
+          clinic,
+          consult,
+          authorName,
+          vinhetaUrl: vinhetaDataUrl || "",
+          clinicLogoUrl: clinicLogoUrl || ""
+        });
+      } else {
+        // Mantemos comportamento atual do editor (não forçamos substituições aqui)
+      }
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
 
@@ -2813,7 +2823,7 @@ function openPatientViewModal(patient) {
     window.openDocumentEditor = openDocumentEditor;
   } catch (e) {}
 
-/* ==== FIM BLOCO 06F/12 ==== */
+/* ==== FIM BLOCO 06Fc/12 ==== */
 
 /* ==== INÍCIO BLOCO 06G/12 — Timeline (load + render + physio_records) ==== */
 
