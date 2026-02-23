@@ -2084,9 +2084,12 @@ function openPatientViewModal(patient) {
   const PDF_PROXY_URL = "https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf";
 
   // Vinheta (Supabase Storage)
-  // ✅ Opção 1: vinheta privada -> converter para dataURL (base64) no browser
+  // ✅ Nota: no Storage o ficheiro tem "_" no nome (print): "_vinheta_600dpi.png"
   const VINHETA_BUCKET = "clinic-private";
-  const VINHETA_PATH = "vinheta/vinheta_600dpi.png";
+  const VINHETA_PATH = "vinheta/_vinheta_600dpi.png";
+
+  // Flag para forçar rebuild do HTML (usado no 06Fb/06Fc)
+  let docForceRebuildOnce = false;
 
   // =========================================================
   // HELPERS — Signed URL / Base64 / Proxy call / safety
