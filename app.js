@@ -2549,10 +2549,10 @@ function openPatientViewModal(patient) {
   .muted { color:#64748b; }
   .section { margin-top:18px; }
   .stitle { font-weight:900; font-size:16px; margin-bottom:6px; }
-  .hda { font-size:14px; line-height:1.6; }
+  .hda { font-size:14px; line-height:1.2; }
   .hda ul, .hda ol { margin:6px 0 6px 18px; padding:0; }
   .hda li { margin:2px 0; }
-  .list { margin:6px 0 0 18px; padding:0; font-size:14px; line-height:1.55; }
+  .list { margin:6px 0 0 18px; padding:0; font-size:14px; line-height:1.4; }
   .list li { margin:2px 0; }
   .code { color:#64748b; }
 
@@ -2566,7 +2566,7 @@ function openPatientViewModal(patient) {
   .locDate { text-align:right; font-size:14px; margin-top:14px; }
   .sig { margin-top:14px; display:flex; justify-content:flex-end; }
   .sigBox { width:360px; text-align:center; }
-  .sigLine { border-top:1px solid #111; padding-top:10px; }
+  .sigLine { border-top:1px solid #111; padding-top:18px; }
   .sigName { font-weight:900; font-size:18px; margin-top:6px; }
   .sigRole { font-size:14px; margin-top:2px; }
 </style>
