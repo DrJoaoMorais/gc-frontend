@@ -2885,6 +2885,16 @@ function openPatientViewModal(patient) {
   }
 
   // =========================================================
+  // HELPERS — aplicar assets ao HTML (sem reconstruir template)
+  // =========================================================
+  function applyPdfAssetsToHtml(html, { clinicLogoUrl, vinhetaUrl }) {
+    let out = String(html || "");
+    if (clinicLogoUrl) out = out.replaceAll("__CLINIC_LOGO_URL__", clinicLogoUrl);
+    if (vinhetaUrl) out = out.replaceAll("__VINHETA_URL__", vinhetaUrl);
+    return out;
+  }
+
+  // =========================================================
   // MAIN — generate via Proxy/Worker + upload + insert
   // =========================================================
   async function generatePdfAndUploadV1() {
@@ -2915,7 +2925,6 @@ function openPatientViewModal(patient) {
       }
 
       // ✅ LOGO: usar URL curta (public) diretamente da clínica (NÃO base64)
-      // (o buildDocV1Html também faz fallback ao clinic.logo_url)
       let clinicLogoUrl = "";
       const rawLogo = String(clinic?.logo_url || "").trim();
       if (rawLogo.startsWith("http") || rawLogo.startsWith("data:")) clinicLogoUrl = rawLogo;
@@ -2923,15 +2932,21 @@ function openPatientViewModal(patient) {
       // Se o editor estiver aberto em modo visual/preview, puxar alterações para docDraftHtml
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
-      // ✅ FUNDAMENTAL: forçar SEMPRE rebuild com template antes de renderizar
-      // evita enviar HTML “antigo” do editor sem o <img> do logo
-      docDraftHtml = buildDocV1Html({
-        clinic,
-        consult,
-        authorName,
-        vinhetaUrl,
-        clinicLogoUrl
-      });
+      // ✅ REGRA (Opção 2):
+      // - O PDF deve refletir o que está no editor (docDraftHtml).
+      // - Só cria template se NÃO houver qualquer conteúdo (caso raro).
+      const draftNow = String(docDraftHtml || "").trim();
+      if (!draftNow || draftNow.length < 80) {
+        docDraftHtml = buildDocV1Html({
+          clinic,
+          consult,
+          authorName,
+          vinhetaUrl,
+          clinicLogoUrl
+        });
+      } else {
+        docDraftHtml = applyPdfAssetsToHtml(draftNow, { clinicLogoUrl, vinhetaUrl });
+      }
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
 
@@ -2961,12 +2976,13 @@ function openPatientViewModal(patient) {
         return false;
       }
 
+      // ✅ Opção 2: NÃO guardar HTML (documento não editável). Guardamos só PDF + metadata.
       const ins = await insertDocumentRow({
         clinic_id: activeClinicId,
         patient_id: p.id,
         consultation_id: consult.id,
         title: titleSafe,
-        html: String(docDraftHtml || ""),
+        html: "",                 // ⬅️ não persistimos o draft editado
         parent_document_id: null,
         version,
         storage_path: path
