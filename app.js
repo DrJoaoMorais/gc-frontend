@@ -2885,6 +2885,20 @@ function openPatientViewModal(patient) {
   }
 
   // =========================================================
+  // HELPERS — aplicar assets ao HTML (sem reconstruir template)
+  // =========================================================
+  function applyPdfAssetsToHtml(html, { clinicLogoUrl, vinhetaUrl }) {
+    let out = String(html || "");
+
+    // Se o template/editor tiver placeholders explícitos, substitui.
+    // (Se não existirem, não mexe em nada — preserva 100% as tuas edições.)
+    if (clinicLogoUrl) out = out.replaceAll("__CLINIC_LOGO_URL__", clinicLogoUrl);
+    if (vinhetaUrl) out = out.replaceAll("__VINHETA_URL__", vinhetaUrl);
+
+    return out;
+  }
+
+  // =========================================================
   // MAIN — generate via Proxy/Worker + upload + insert
   // =========================================================
   async function generatePdfAndUploadV1() {
@@ -2923,15 +2937,24 @@ function openPatientViewModal(patient) {
       // Se o editor estiver aberto em modo visual/preview, puxar alterações para docDraftHtml
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
-      // ✅ FUNDAMENTAL: forçar SEMPRE rebuild com template antes de renderizar
-      // evita enviar HTML “antigo” do editor sem o <img> do logo
-      docDraftHtml = buildDocV1Html({
-        clinic,
-        consult,
-        authorName,
-        vinhetaUrl,
-        clinicLogoUrl
-      });
+      // ✅ REGRA NOVA (crítica):
+      // - Se já tens docDraftHtml (editado por ti), o PDF tem de usar ESSE HTML (fonte da verdade).
+      // - Só faz rebuild do template se NÃO houver draft (primeira geração / draft vazio).
+      const draftNow = String(docDraftHtml || "").trim();
+      const needsRebuild = (!draftNow || draftNow.length < 80);
+
+      if (needsRebuild) {
+        docDraftHtml = buildDocV1Html({
+          clinic,
+          consult,
+          authorName,
+          vinhetaUrl,
+          clinicLogoUrl
+        });
+      } else {
+        // Mantém exatamente o que editaste e apenas tenta “injetar” URLs se houver placeholders
+        docDraftHtml = applyPdfAssetsToHtml(draftNow, { clinicLogoUrl, vinhetaUrl });
+      }
 
       const titleSafe = safeText(docTitle || "Relatório Médico");
 
