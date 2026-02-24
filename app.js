@@ -2565,8 +2565,8 @@ function openPatientViewModal(patient) {
   .hda ul, .hda ol { margin:6px 0 6px 18px; padding:0; }
   .hda li { margin:2px 0; }
 
-  .list { margin:6px 0 0 18px; padding:0; font-size:14px; line-height:1.55; }
-  .list li { margin:2px 0; }
+  .list { margin:8px 0 0 18px; padding:0; font-size:14px; line-height:1.35; }
+  .list li { margin:6px 0; }
   .code { color:#64748b; }
 
   .footerBlock { margin-top:22px; page-break-inside:avoid; break-inside:avoid; }
