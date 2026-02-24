@@ -2561,7 +2561,7 @@ function openPatientViewModal(patient) {
   .footRow { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
 
   .web { font-size:14px; font-weight:700; }
-  .vinheta { margin-top:8px; width:3.2cm; height:2cm; object-fit:contain; display:block; }
+  .vinheta { margin-top:8px; width:3.9cm; height:2.4cm; object-fit:contain; display:block; }
 
   .locDate { text-align:right; font-size:14px; margin-top:14px; }
   .sig { margin-top:14px; display:flex; justify-content:flex-end; }
@@ -2885,12 +2885,25 @@ function openPatientViewModal(patient) {
   }
 
   // =========================================================
-  // HELPERS — aplicar assets ao HTML (sem reconstruir template)
+  // HELPERS — aplicar assets ao HTML (SEM reconstruir template)
   // =========================================================
   function applyPdfAssetsToHtml(html, { clinicLogoUrl, vinhetaUrl }) {
     let out = String(html || "");
+
+    // placeholders (se existirem)
     if (clinicLogoUrl) out = out.replaceAll("__CLINIC_LOGO_URL__", clinicLogoUrl);
     if (vinhetaUrl) out = out.replaceAll("__VINHETA_URL__", vinhetaUrl);
+
+    // ✅ VINHETA LEVE:
+    // Só atualiza o src se já existir <img class="vinheta"> no HTML.
+    // Não insere nova imagem. Não reconstrói template.
+    if (vinhetaUrl && out.includes('class="vinheta"')) {
+      out = out.replace(
+        /(<img\b[^>]*class="vinheta"[^>]*\bsrc=")[^"]*(")/i,
+        `$1${vinhetaUrl}$2`
+      );
+    }
+
     return out;
   }
 
@@ -2915,7 +2928,7 @@ function openPatientViewModal(patient) {
 
       const authorName = await fetchCurrentUserDisplayName(userId);
 
-      // ✅ VINHETA: signed URL curta (NÃO base64)
+      // VINHETA — signed URL curta
       let vinhetaUrl = "";
       try {
         vinhetaUrl = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
@@ -2924,18 +2937,19 @@ function openPatientViewModal(patient) {
         vinhetaUrl = "";
       }
 
-      // ✅ LOGO: usar URL curta (public) diretamente da clínica (NÃO base64)
+      // LOGO
       let clinicLogoUrl = "";
       const rawLogo = String(clinic?.logo_url || "").trim();
       if (rawLogo.startsWith("http") || rawLogo.startsWith("data:")) clinicLogoUrl = rawLogo;
 
-      // Se o editor estiver aberto em modo visual/preview, puxar alterações para docDraftHtml
+      // Sincronizar editor visual
       if (docOpen && docMode !== "html") syncDocFromFrame();
 
-      // ✅ REGRA (Opção 2):
-      // - O PDF deve refletir o que está no editor (docDraftHtml).
-      // - Só cria template se NÃO houver qualquer conteúdo (caso raro).
+      // REGRA:
+      // PDF = HTML atual do editor
+      // Só rebuild se não houver conteúdo
       const draftNow = String(docDraftHtml || "").trim();
+
       if (!draftNow || draftNow.length < 80) {
         docDraftHtml = buildDocV1Html({
           clinic,
@@ -2976,13 +2990,12 @@ function openPatientViewModal(patient) {
         return false;
       }
 
-      // ✅ Opção 2: NÃO guardar HTML (documento não editável). Guardamos só PDF + metadata.
       const ins = await insertDocumentRow({
         clinic_id: activeClinicId,
         patient_id: p.id,
         consultation_id: consult.id,
         title: titleSafe,
-        html: "",                 // ⬅️ não persistimos o draft editado
+        html: "",   // continua Opção 2 (não guardar HTML editado)
         parent_document_id: null,
         version,
         storage_path: path
@@ -3004,7 +3017,6 @@ function openPatientViewModal(patient) {
     }
   }
 
-  // Export seguro (apenas 2 nomes)
   try {
     window.generatePdfAndUploadV1 = generatePdfAndUploadV1;
     window.openDocumentEditor = openDocumentEditor;
