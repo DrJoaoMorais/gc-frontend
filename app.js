@@ -2545,14 +2545,27 @@ function openPatientViewModal(patient) {
 
   .hr { height:1px; background:#111; margin:10px 0 14px 0; }
   .title { text-align:center; font-weight:900; font-size:22px; margin:2px 0 12px 0; }
-  .row { margin-top:4px; font-size:13.5px; line-height:1.3; }
+  .row { margin-top:6px; font-size:13.5px; line-height:1.35; }
   .muted { color:#64748b; }
-  .section { margin-top:14px; }
+
+  /* ✅ Secções: evita quebras a meio */
+  .section { 
+    margin-top:18px; 
+    page-break-inside: avoid; 
+    break-inside: avoid; 
+  }
+
   .stitle { font-weight:900; font-size:16px; margin-bottom:6px; }
-  .hda { font-size:14px; line-height:1.0; }
+
+  /* ✅ HDA: espaçamento lógico (line-height 1.2) + controlar margens dos <p> do Quill */
+  .hda { font-size:14px; line-height:1.2; }
+  .hda p { margin: 0 0 6px 0; }
+  .hda p:last-child { margin-bottom: 0; }
+
   .hda ul, .hda ol { margin:6px 0 6px 18px; padding:0; }
   .hda li { margin:2px 0; }
-  .list { margin:4px 0 0 18px; padding:0; font-size:14px; line-height:1.2; }
+
+  .list { margin:6px 0 0 18px; padding:0; font-size:14px; line-height:1.55; }
   .list li { margin:2px 0; }
   .code { color:#64748b; }
 
@@ -2561,12 +2574,14 @@ function openPatientViewModal(patient) {
   .footRow { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
 
   .web { font-size:14px; font-weight:700; }
-  .vinheta { margin-top:8px; width:3.9cm; height:2.4cm; object-fit:contain; display:block; }
 
-  .locDate { text-align:right; font-size:14px; margin-top:18px; }
-  .sig { margin-top:28px; display:flex; justify-content:flex-end; }
+  /* ✅ VINHETA (4cm x 2.5cm) */
+  .vinheta { margin-top:8px; width:4cm; height:2.5cm; object-fit:contain; display:block; }
+
+  .locDate { text-align:right; font-size:14px; margin-top:14px; }
+  .sig { margin-top:14px; display:flex; justify-content:flex-end; }
   .sigBox { width:360px; text-align:center; }
-  .sigLine { border-top:1px solid #111; padding-top:18px; }
+  .sigLine { border-top:1px solid #111; padding-top:10px; }
   .sigName { font-weight:900; font-size:18px; margin-top:6px; }
   .sigRole { font-size:14px; margin-top:2px; }
 </style>
