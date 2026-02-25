@@ -142,6 +142,17 @@
   }
 
   async function fetchMyRole(userId) {
+    // 1) Superadmin (via função SQL SECURITY DEFINER) tem precedência
+    try {
+      const { data: isSa, error: eSa } = await window.sb.rpc("is_superadmin");
+      if (eSa) throw eSa;
+      if (isSa === true) return "superadmin";
+    } catch (e) {
+      // Não bloqueia: cai para clinic_members
+      try { console.warn("fetchMyRole: rpc(is_superadmin) falhou, a usar clinic_members:", e); } catch (_) {}
+    }
+
+    // 2) Papel operacional por clínica (como estava)
     const { data, error } = await window.sb
       .from("clinic_members")
       .select("role, clinic_id, is_active")
@@ -217,6 +228,7 @@
   /* ==== DEBUG PDF / PROMISES — FIM ==== */
 
 /* ==== FIM BLOCO 01/12 — Cabeçalho + utilitários base + helpers ==== */
+
 /* ==== INÍCIO BLOCO 02/12 — Agenda (helpers + load) + Patients (scope/search/RPC) ==== */
 
   // ---------- Agenda ----------
