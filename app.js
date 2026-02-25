@@ -5291,17 +5291,10 @@ function bindConsultEvents() {
       bApplyTo.addEventListener("change", () => {
         const v = String(bApplyTo.value || "selected").toLowerCase();
         if (bClinicsWrap) bClinicsWrap.style.display = (v === "global") ? "none" : "flex";
-        // ✅ segurança: se global, não dependemos de seleções antigas
-        if (v === "global") {
-          try { __selectedClinicIds.clear(); } catch (_) {}
-        }
       });
       // init display
       const v0 = String(bApplyTo.value || "selected").toLowerCase();
       if (bClinicsWrap) bClinicsWrap.style.display = (v0 === "global") ? "none" : "flex";
-      if (v0 === "global") {
-        try { __selectedClinicIds.clear(); } catch (_) {}
-      }
     }
 
     // apagar bloqueio (edição)
@@ -5779,7 +5772,18 @@ function bindConsultEvents() {
           if (!dateTo) throw new Error("Até em falta.");
           if (__gcCmpYYYYMMDD(dateFrom, dateTo) > 0) throw new Error("Intervalo de datas inválido.");
 
-          const applyTo = String(bApplyTo?.value || "selected").toLowerCase();
+          // ✅ NOVO: se o utilizador marcou “Selecionar todas as clínicas” e é superadmin,
+          // tratamos como GLOBAL (clinic_id = null) para NÃO criar 1 bloqueio por clínica.
+          const applyToRaw = String(bApplyTo?.value || "selected").toLowerCase();
+          const idsSelected = Array.from(__selectedClinicIds || []).map(String);
+
+          const allClinicsCount = Array.isArray(G.clinics) ? G.clinics.length : 0;
+          const allSelected = allClinicsCount > 0 && idsSelected.length === allClinicsCount;
+
+          let applyTo = applyToRaw;
+          if (applyToRaw === "selected" && allSelected && isSuperadmin) {
+            applyTo = "global";
+          }
 
           // 1) Determinar alvos (global vs clínicas)
           let targetClinicIds = [];
@@ -5788,15 +5792,13 @@ function bindConsultEvents() {
             if (!isSuperadmin) throw new Error("Global: apenas superadmin.");
             targetClinicIds = [null]; // clinic_id null = global
           } else {
-            const ids = Array.from(__selectedClinicIds || []);
-            if (!ids.length) throw new Error("Seleciona pelo menos uma clínica.");
-            targetClinicIds = ids;
+            if (!idsSelected.length) throw new Error("Seleciona pelo menos uma clínica.");
+            targetClinicIds = idsSelected;
           }
 
           // 2) Expandir intervalo de dias em linhas por dia
           const rowsToInsert = [];
           let d = dateFrom;
-
           while (__gcCmpYYYYMMDD(d, dateTo) <= 0) {
             const sIso = __gcLocalDateTimeToIso(d, timeFrom);
             const eIso = __gcLocalDateTimeToIso(d, timeTo);
@@ -5804,10 +5806,9 @@ function bindConsultEvents() {
             if (!sIso || !eIso) throw new Error("Data/hora inválida no bloqueio.");
             if (new Date(eIso).getTime() <= new Date(sIso).getTime()) throw new Error("Hora 'Às' tem de ser depois de 'Das'.");
 
-            // ✅ GLOBAL: 1 linha por dia, SEM loop por clínicas
-            if (applyTo === "global") {
+            for (const t of targetClinicIds) {
               rowsToInsert.push({
-                clinic_id: null,
+                clinic_id: (t === null) ? null : String(t),
                 patient_id: null,
                 start_at: sIso,
                 end_at: eIso,
@@ -5817,20 +5818,6 @@ function bindConsultEvents() {
                 notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
                 mode: "bloqueio",
               });
-            } else {
-              for (const t of targetClinicIds) {
-                rowsToInsert.push({
-                  clinic_id: String(t),
-                  patient_id: null,
-                  start_at: sIso,
-                  end_at: eIso,
-                  status: "confirmed",
-                  procedure_type: null,
-                  title: "BLOQUEIO",
-                  notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
-                  mode: "bloqueio",
-                });
-              }
             }
 
             d = __gcAddDaysYYYYMMDD(d, 1);
