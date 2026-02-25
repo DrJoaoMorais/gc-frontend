@@ -742,10 +742,14 @@
       const timeTxt = `${tStart}${tEnd ? `–${tEnd}` : ""}`;
 
       const clinicId = r.clinic_id ?? null;
-      const clinicName =
-        clinicId && G.clinicsById[clinicId]
-          ? G.clinicsById[clinicId].name || G.clinicsById[clinicId].slug || clinicId
-          : clinicId || "—";
+const isGlobalBlock = String(r?.mode || "").toLowerCase() === "bloqueio" && !clinicId;
+
+const clinicName =
+  isGlobalBlock
+    ? "GLOBAL"
+    : (clinicId && G.clinicsById[clinicId]
+        ? G.clinicsById[clinicId].name || G.clinicsById[clinicId].slug || clinicId
+        : clinicId || "—");
 
       const proc = r.procedure_type ?? "—";
 
