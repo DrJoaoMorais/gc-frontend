@@ -242,9 +242,11 @@
           .lt(col, endISO)
           .order(col, { ascending: true });
 
-        // ✅ CORREÇÃO: incluir bloqueios globais (clinic_id IS NULL)
+        // ✅ IMPORTANTE:
+        // Se estás a filtrar por clínica, tens de incluir também bloqueios globais:
+        // (clinic_id = clinicId) OR (clinic_id IS NULL AND mode = 'bloqueio')
         if (clinicId) {
-          q = q.or(`clinic_id.eq.${clinicId},clinic_id.is.null`);
+          q = q.or(`clinic_id.eq.${clinicId},and(clinic_id.is.null,mode.eq.bloqueio)`);
         }
 
         const { data, error } = await q;
@@ -398,7 +400,7 @@
     return data[0];
   }
 
-/* ==== FIM BLOCO 02/12 ==== */
+/* ==== FIM BLOCO 02/12 — Agenda (helpers + load) + Patients (scope/search/RPC) ==== */
 
 /* ==== INÍCIO BLOCO 03/12 — Constantes (procedimentos/status) + estado global + render shell (HTML+CSS) ==== */
 
