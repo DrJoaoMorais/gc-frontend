@@ -4862,6 +4862,21 @@ function bindConsultEvents() {
     const procIsOther = procInit && !PROCEDURE_OPTIONS.includes(procInit) ? true : procInit === "Outro";
     const procSelectValue = procIsOther ? "Outro" : (procInit || "");
 
+    // mode do appointment (presencial/video/bloqueio)
+    const apptModeInit = isEdit ? String(row?.mode || "presencial").toLowerCase() : "presencial";
+
+    // permissões: só médico/superadmin cria/edita bloqueios
+    const canManageBlocks = !!(public.is_superadmin ? public.is_superadmin() : false); // fallback (não existe no FE)
+    const isSuperadmin = String(G.role || "").toLowerCase() === "superadmin";
+    const isDoctor = String(G.role || "").toLowerCase() === "doctor";
+    const canCreateBlocks = isSuperadmin || isDoctor;
+
+    // Bloqueio global quando clinic_id é null
+    const isBlockEdit = isEdit && String(row?.mode || "").toLowerCase() === "bloqueio";
+    const blockScopeInit = isBlockEdit
+      ? (row?.clinic_id ? "clinic" : "global")
+      : "clinic";
+
     function optLabel(s) {
       const m = statusMeta(s);
       return `${m.icon} ${m.label}`;
@@ -4873,17 +4888,39 @@ function bindConsultEvents() {
           <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
             <div>
               <div style="font-size:${UI.fs14}px; font-weight:900; color:#111;">
-                ${isEdit ? "Editar consulta agendada" : "Agendar consulta"}
+                ${isEdit ? "Editar marcação" : "Nova marcação"}
               </div>
               <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
-                Dia selecionado: ${escapeHtml(G.selectedDayISO)}. Doente e Tipo são obrigatórios.
+                Dia selecionado: ${escapeHtml(G.selectedDayISO)}.
               </div>
             </div>
             <button id="btnCloseModal" class="gcBtn">Fechar</button>
           </div>
 
-          <!-- Linha 0: Pesquisa do doente (igual ao dashboard: 1 input + lista; sem "Selecionado") -->
-          <div style="margin-top:12px; display:flex; flex-direction:column; gap:6px;">
+          <!-- Linha 0: Tipo de registo (Consulta vs Bloqueio) -->
+          <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:end;">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Tipo de registo</label>
+              <select id="mMode" class="gcSelect" ${(!canCreateBlocks && apptModeInit === "bloqueio") ? "disabled" : ""}>
+                <option value="presencial">Consulta presencial</option>
+                <option value="video">Vídeo-consulta</option>
+                ${canCreateBlocks ? `<option value="bloqueio">Bloqueio de agenda</option>` : ``}
+              </select>
+              ${(!canCreateBlocks) ? `<div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">Bloqueios: apenas médico/superadmin.</div>` : ``}
+            </div>
+
+            <!-- Escopo do bloqueio: clínica vs global (apenas quando mode=bloqueio) -->
+            <div id="mBlockScopeWrap" style="display:none; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Âmbito do bloqueio</label>
+              <select id="mBlockScope" class="gcSelect">
+                <option value="clinic">Apenas esta clínica</option>
+                <option value="global">Todas as clínicas (global)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Linha 1: Pesquisa do doente (igual ao dashboard: 1 input + lista; sem "Selecionado") -->
+          <div id="mPatientWrap" style="margin-top:12px; display:flex; flex-direction:column; gap:6px;">
             <label style="font-size:${UI.fs12}px; color:#666;">Doente (obrigatório)</label>
 
             <div style="display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;">
@@ -4913,14 +4950,14 @@ function bindConsultEvents() {
             <div id="newPatientHost" style="margin-top:8px;"></div>
           </div>
 
-          <!-- Linha 1: Clínica | Tipo | Estado -->
+          <!-- Linha 2: Clínica | Tipo | Estado -->
           <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:${UI.fs12}px; color:#666;">Clínica</label>
               <select id="mClinic" class="gcSelect"></select>
             </div>
 
-            <div style="display:flex; flex-direction:column; gap:4px;">
+            <div id="mProcWrap" style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:${UI.fs12}px; color:#666;">Tipo (obrigatório)</label>
               <select id="mProc" class="gcSelect">
                 <option value="">—</option>
@@ -4928,7 +4965,7 @@ function bindConsultEvents() {
               </select>
             </div>
 
-            <div style="display:flex; flex-direction:column; gap:4px;">
+            <div id="mStatusWrap" style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:${UI.fs12}px; color:#666;">Estado</label>
               <select id="mStatus" class="gcSelect">
                 ${STATUS_OPTIONS.map((s) => {
@@ -4946,7 +4983,7 @@ function bindConsultEvents() {
             </div>
           </div>
 
-          <!-- Linha 2: Início | Duração -->
+          <!-- Linha 3: Início | Duração -->
           <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:${UI.fs12}px; color:#666;">Início</label>
@@ -4961,9 +4998,9 @@ function bindConsultEvents() {
             </div>
           </div>
 
-          <!-- Linha 3: Notas -->
+          <!-- Linha 4: Notas / Motivo -->
           <div style="margin-top:12px; display:flex; flex-direction:column; gap:4px;">
-            <label style="font-size:${UI.fs12}px; color:#666;">Notas</label>
+            <label id="mNotesLabel" style="font-size:${UI.fs12}px; color:#666;">Notas</label>
             <textarea id="mNotes" rows="3" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;"></textarea>
           </div>
 
@@ -4972,7 +5009,7 @@ function bindConsultEvents() {
             <div style="display:flex; gap:10px;">
               <button id="btnCancel" class="gcBtn">Cancelar</button>
               <button id="btnSave" class="gcBtn" style="font-weight:900;">
-                ${isEdit ? "Guardar" : "Agendar"}
+                ${isEdit ? "Guardar" : "Guardar"}
               </button>
             </div>
           </div>
@@ -4986,16 +5023,24 @@ function bindConsultEvents() {
     const btnSave = document.getElementById("btnSave");
     const btnNewPatient = document.getElementById("btnNewPatient");
 
+    const mMode = document.getElementById("mMode");
+    const mBlockScopeWrap = document.getElementById("mBlockScopeWrap");
+    const mBlockScope = document.getElementById("mBlockScope");
+
     const mClinic = document.getElementById("mClinic");
     const mStatus = document.getElementById("mStatus");
     const mStart = document.getElementById("mStart");
     const mDuration = document.getElementById("mDuration");
     const mProc = document.getElementById("mProc");
+    const mProcWrap = document.getElementById("mProcWrap");
+    const mStatusWrap = document.getElementById("mStatusWrap");
     const mProcOtherWrap = document.getElementById("mProcOtherWrap");
     const mProcOther = document.getElementById("mProcOther");
     const mNotes = document.getElementById("mNotes");
+    const mNotesLabel = document.getElementById("mNotesLabel");
     const mMsg = document.getElementById("mMsg");
 
+    const mPatientWrap = document.getElementById("mPatientWrap");
     const mPatientQuery = document.getElementById("mPatientQuery");
     const mPatientResults = document.getElementById("mPatientResults");
     const mPatientId = document.getElementById("mPatientId");
@@ -5026,12 +5071,22 @@ function bindConsultEvents() {
       if (G.clinics.length === 1) mClinic.disabled = true;
     }
 
-    // ✅ aplica init (mantém default scheduled na criação; edição respeita o atual)
+    // init
     if (mStatus) mStatus.value = statusInit;
     if (mStart) mStart.value = toLocalInputValue(startInit);
     if (mDuration) mDuration.value = String(durationBest);
     if (mProc) mProc.value = procSelectValue;
     if (mNotes) mNotes.value = notesInit;
+
+    // init mode/scope
+    if (mMode) {
+      mMode.value = apptModeInit;
+      if (isEdit && apptModeInit === "bloqueio" && !canCreateBlocks) {
+        // não deve acontecer, mas protege UI
+        mMode.disabled = true;
+      }
+    }
+    if (mBlockScope) mBlockScope.value = blockScopeInit;
 
     function setSelectedPatient({ id, name }) {
       if (mPatientId) mPatientId.value = id || "";
@@ -5098,11 +5153,11 @@ function bindConsultEvents() {
       });
     }
 
-    // Pré-preencher seleção em edição
+    // Pré-preencher seleção em edição (consulta normal)
     if (patientIdInit) {
       const displayName = titleInit ? String(titleInit).split(" — ")[0] : "";
       setSelectedPatient({ id: patientIdInit, name: displayName || `ID: ${patientIdInit}` });
-      if (mPatientQuery) mPatientQuery.value = displayName || ""; // em edição, mostra o nome se existir
+      if (mPatientQuery) mPatientQuery.value = displayName || "";
     } else {
       setSelectedPatient({ id: "", name: "" });
     }
@@ -5123,18 +5178,47 @@ function bindConsultEvents() {
 
     function getProcedureValueStrict() {
       const sel = mProc && mProc.value ? mProc.value : "";
-      if (!sel) return ""; // obrigatório
+      if (!sel) return "";
       if (sel !== "Outro") return sel;
 
       const other = mProcOther && mProcOther.value ? mProcOther.value.trim() : "";
-      if (!other) return ""; // Outro exige texto
+      if (!other) return "";
       return other;
     }
 
-    // Pesquisa (padrão dashboard: só aparece quando term>=2; fecha ao selecionar; fecha ao limpar)
+    // UI toggle: bloqueio vs consulta
+    function applyModeUi() {
+      const v = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
+      const isBlock = v === "bloqueio";
+
+      if (mBlockScopeWrap) mBlockScopeWrap.style.display = isBlock ? "flex" : "none";
+
+      if (mPatientWrap) mPatientWrap.style.display = isBlock ? "none" : "flex";
+      if (mProcWrap) mProcWrap.style.display = isBlock ? "none" : "flex";
+      if (mStatusWrap) mStatusWrap.style.display = isBlock ? "none" : "flex";
+
+      if (mNotesLabel) mNotesLabel.textContent = isBlock ? "Motivo do bloqueio (opcional)" : "Notas";
+
+      if (isBlock) {
+        // limpar seleção do doente para não gravar lixo
+        setSelectedPatient({ id: "", name: "" });
+        if (mPatientQuery) mPatientQuery.value = "";
+        closeResults();
+        const host = document.getElementById("newPatientHost");
+        if (host) host.innerHTML = "";
+      }
+    }
+
+    applyModeUi();
+    if (mMode) mMode.addEventListener("change", applyModeUi);
+
+    // Pesquisa (só quando não é bloqueio)
     let searchTimer = null;
 
     async function runSearch() {
+      const vMode = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
+      if (vMode === "bloqueio") return;
+
       const clinicId = mClinic ? (mClinic.value || "") : "";
       const term = (mPatientQuery ? (mPatientQuery.value || "").trim() : "");
 
@@ -5168,7 +5252,6 @@ function bindConsultEvents() {
       searchTimer = setTimeout(runSearch, 250);
     }
 
-    // Fechar resultados ao clicar fora
     function onDocMouseDown(ev) {
       const t = ev.target;
 
@@ -5432,35 +5515,52 @@ function bindConsultEvents() {
       refreshButtonState();
     }
 
+    // Proc (obrigatório) — apenas para consultas
+    function updateProcOtherVisibility() {
+      const v = mProc ? mProc.value : "";
+      const show = v === "Outro";
+      if (mProcOtherWrap) mProcOtherWrap.style.display = show ? "flex" : "none";
+      if (!show && mProcOther) mProcOther.value = "";
+    }
+
+    if (mProc) mProc.addEventListener("change", updateProcOtherVisibility);
+    updateProcOtherVisibility();
+
+    // Se mudar clínica: limpa seleção e fecha resultados + sub-form (só se for consulta)
+    if (mClinic) {
+      mClinic.addEventListener("change", () => {
+        const vMode = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
+        if (vMode === "bloqueio") return;
+
+        setSelectedPatient({ id: "", name: "" });
+        if (mPatientQuery) mPatientQuery.value = "";
+        closeResults();
+        const host = document.getElementById("newPatientHost");
+        if (host) host.innerHTML = "";
+      });
+    }
+
+    // Pesquisa (só quando não é bloqueio)
+    if (mPatientQuery) {
+      mPatientQuery.addEventListener("input", () => {
+        const vMode = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
+        if (vMode === "bloqueio") return;
+        setSelectedPatient({ id: "", name: "" });
+        scheduleSearch();
+      });
+      mPatientQuery.addEventListener("focus", scheduleSearch);
+    }
+
+    if (btnNewPatient) btnNewPatient.addEventListener("click", openNewPatientForm);
+
     async function onSave() {
-      // Clínica obrigatória
-      if (!mClinic || !mClinic.value) {
-        mMsg.style.color = "#b00020";
-        mMsg.textContent = "Seleciona a clínica.";
-        return;
-      }
+      const vMode = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
+      const isBlock = vMode === "bloqueio";
 
       // Início obrigatório
       if (!mStart || !mStart.value) {
         mMsg.style.color = "#b00020";
         mMsg.textContent = "Define o início.";
-        return;
-      }
-
-      // Doente obrigatório (seleção real via hidden)
-      const pid = mPatientId ? (mPatientId.value || "") : "";
-      const pname = mPatientName ? (mPatientName.value || "") : "";
-      if (!pid) {
-        mMsg.style.color = "#b00020";
-        mMsg.textContent = "Seleciona um doente.";
-        return;
-      }
-
-      // ✅ Tipo obrigatório (e “Outro” exige texto)
-      const proc = getProcedureValueStrict();
-      if (!proc) {
-        mMsg.style.color = "#b00020";
-        mMsg.textContent = "Seleciona o Tipo de consulta (e se for 'Outro', preenche o texto).";
         return;
       }
 
@@ -5472,22 +5572,86 @@ function bindConsultEvents() {
         return;
       }
 
-      const autoTitle = makeAutoTitle(pname, proc);
+      let payload = null;
 
-      // ✅ mantém coerência: UI guarda sempre o valor (no_show incluído)
-      const statusToSave = (mStatus && mStatus.value) ? mStatus.value : "scheduled";
+      if (isBlock) {
+        if (!canCreateBlocks) {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Sem permissões para criar bloqueios.";
+          return;
+        }
 
-      const payload = {
-        clinic_id: mClinic.value,
-        patient_id: pid,
-        start_at: times.startAt,
-        end_at: times.endAt,
-        status: statusToSave,
-        procedure_type: proc,
-        title: autoTitle,
-        notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
-      };
-      if (payload.notes === "") payload.notes = null;
+        const scope = mBlockScope ? String(mBlockScope.value || "clinic").toLowerCase() : "clinic";
+        const clinicIdToSave = (scope === "global") ? null : (mClinic ? (mClinic.value || null) : null);
+
+        if (scope === "clinic" && !clinicIdToSave) {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Seleciona a clínica do bloqueio.";
+          return;
+        }
+
+        payload = {
+          clinic_id: clinicIdToSave,
+          patient_id: null,
+          start_at: times.startAt,
+          end_at: times.endAt,
+          status: "confirmed", // permitido; UI ignora em bloqueio
+          procedure_type: null,
+          title: "BLOQUEIO",
+          notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
+          mode: "bloqueio",
+        };
+      } else {
+        // Clínica obrigatória
+        if (!mClinic || !mClinic.value) {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Seleciona a clínica.";
+          return;
+        }
+
+        // Doente obrigatório
+        const pid = mPatientId ? (mPatientId.value || "") : "";
+        const pname = mPatientName ? (mPatientName.value || "") : "";
+        if (!pid) {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Seleciona um doente.";
+          return;
+        }
+
+        // Tipo obrigatório (e “Outro” exige texto)
+        const proc = (() => {
+          const sel = mProc && mProc.value ? mProc.value : "";
+          if (!sel) return "";
+          if (sel !== "Outro") return sel;
+          const other = mProcOther && mProcOther.value ? mProcOther.value.trim() : "";
+          if (!other) return "";
+          return other;
+        })();
+
+        if (!proc) {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Seleciona o Tipo de consulta (e se for 'Outro', preenche o texto).";
+          return;
+        }
+
+        const autoTitle = makeAutoTitle(pname, proc);
+
+        const statusToSave = (mStatus && mStatus.value) ? mStatus.value : "scheduled";
+
+        payload = {
+          clinic_id: mClinic.value,
+          patient_id: pid,
+          start_at: times.startAt,
+          end_at: times.endAt,
+          status: statusToSave,
+          procedure_type: proc,
+          title: autoTitle,
+          notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
+          mode: (vMode === "video") ? "video" : "presencial",
+        };
+      }
+
+      if (payload && payload.notes === "") payload.notes = null;
 
       btnSave.disabled = true;
       mMsg.style.color = "#666";
@@ -5506,8 +5670,19 @@ function bindConsultEvents() {
         await refreshAgenda();
       } catch (e) {
         console.error("Guardar marcação falhou:", e);
-        mMsg.style.color = "#b00020";
-        mMsg.textContent = "Erro ao guardar. Vê a consola.";
+        const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
+
+        // Mensagem mais útil quando é bloqueio/overlap
+        if (msg.toLowerCase().includes("existe bloqueio")) {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Não permitido: existe um bloqueio nesse intervalo.";
+        } else if (msg.toLowerCase().includes("bloqueio") && msg.toLowerCase().includes("sobrepõe")) {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Não permitido: o bloqueio sobrepõe uma marcação existente.";
+        } else {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Erro ao guardar. Vê a consola.";
+        }
         btnSave.disabled = false;
       }
     }
@@ -5516,29 +5691,6 @@ function bindConsultEvents() {
     if (btnCancel) btnCancel.addEventListener("click", safeCloseModal);
     if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "modalOverlay") safeCloseModal(); });
 
-    if (mProc) mProc.addEventListener("change", updateProcOtherVisibility);
-
-    // Se mudar clínica: limpa seleção e fecha resultados + sub-form
-    if (mClinic) {
-      mClinic.addEventListener("change", () => {
-        setSelectedPatient({ id: "", name: "" });
-        if (mPatientQuery) mPatientQuery.value = "";
-        closeResults();
-        const host = document.getElementById("newPatientHost");
-        if (host) host.innerHTML = "";
-      });
-    }
-
-    if (mPatientQuery) {
-      mPatientQuery.addEventListener("input", () => {
-        // ao escrever, invalida seleção anterior (para não gravar com doente antigo)
-        setSelectedPatient({ id: "", name: "" });
-        scheduleSearch();
-      });
-      mPatientQuery.addEventListener("focus", scheduleSearch);
-    }
-
-    if (btnNewPatient) btnNewPatient.addEventListener("click", openNewPatientForm);
     if (btnSave) btnSave.addEventListener("click", onSave);
   }
 
