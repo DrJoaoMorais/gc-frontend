@@ -142,17 +142,20 @@
   }
 
   async function fetchMyRole(userId) {
-    // 1) Superadmin (via função SQL SECURITY DEFINER) tem precedência
+    // ✅ Guardar flag de superadmin SEM mudar o role operacional
+    // (evita bloquear UI/permissions que esperam doctor/secretary/physio)
+    window.__GC_IS_SUPERADMIN__ = false;
     try {
       const { data: isSa, error: eSa } = await window.sb.rpc("is_superadmin");
       if (eSa) throw eSa;
-      if (isSa === true) return "superadmin";
+      window.__GC_IS_SUPERADMIN__ = (isSa === true);
     } catch (e) {
-      // Não bloqueia: cai para clinic_members
-      try { console.warn("fetchMyRole: rpc(is_superadmin) falhou, a usar clinic_members:", e); } catch (_) {}
+      // não bloqueia
+      try { console.warn("fetchMyRole: rpc(is_superadmin) falhou:", e); } catch (_) {}
+      window.__GC_IS_SUPERADMIN__ = false;
     }
 
-    // 2) Papel operacional por clínica (como estava)
+    // Role “operacional” vem de clinic_members (como tinhas)
     const { data, error } = await window.sb
       .from("clinic_members")
       .select("role, clinic_id, is_active")
@@ -184,12 +187,10 @@
       try { console.log(...args); } catch (_) {}
     }
 
-    // Promises rejeitadas que não são apanhadas (é o teu "Uncaught (in promise) Object")
     window.addEventListener("unhandledrejection", (ev) => {
       const r = ev.reason;
       safeLog("❌ UNHANDLED_REJECTION:", r);
 
-      // Extrair o máximo possível (muitos libs rejeitam com objecto “opaco”)
       try {
         if (r && typeof r === "object") {
           safeLog("   keys:", Object.keys(r));
@@ -199,13 +200,11 @@
         safeLog("   (não foi possível stringify reason):", e);
       }
 
-      // stack/message quando existe (Error real)
       try {
         safeLog("   message:", r?.message);
         safeLog("   stack:", r?.stack);
       } catch (_) {}
 
-      // Algumas libs escondem detalhes em campos específicos
       try {
         safeLog("   name:", r?.name);
         safeLog("   cause:", r?.cause);
@@ -213,7 +212,6 @@
       } catch (_) {}
     });
 
-    // Erros JS “normais”
     window.addEventListener("error", (ev) => {
       safeLog("❌ WINDOW_ERROR:", ev.message, "at", ev.filename + ":" + ev.lineno + ":" + ev.colno);
       if (ev.error) {
@@ -222,7 +220,6 @@
       }
     });
 
-    // Confirmar que o hook ficou ativo
     safeLog("✅ Debug hooks ativos (unhandledrejection + window.error)");
   })();
   /* ==== DEBUG PDF / PROMISES — FIM ==== */
