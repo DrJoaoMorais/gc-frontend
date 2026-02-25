@@ -5291,10 +5291,17 @@ function bindConsultEvents() {
       bApplyTo.addEventListener("change", () => {
         const v = String(bApplyTo.value || "selected").toLowerCase();
         if (bClinicsWrap) bClinicsWrap.style.display = (v === "global") ? "none" : "flex";
+        // ✅ segurança: se global, não dependemos de seleções antigas
+        if (v === "global") {
+          try { __selectedClinicIds.clear(); } catch (_) {}
+        }
       });
       // init display
       const v0 = String(bApplyTo.value || "selected").toLowerCase();
       if (bClinicsWrap) bClinicsWrap.style.display = (v0 === "global") ? "none" : "flex";
+      if (v0 === "global") {
+        try { __selectedClinicIds.clear(); } catch (_) {}
+      }
     }
 
     // apagar bloqueio (edição)
@@ -5775,20 +5782,21 @@ function bindConsultEvents() {
           const applyTo = String(bApplyTo?.value || "selected").toLowerCase();
 
           // 1) Determinar alvos (global vs clínicas)
-          let targets = [];
+          let targetClinicIds = [];
 
           if (applyTo === "global") {
             if (!isSuperadmin) throw new Error("Global: apenas superadmin.");
-            targets = [null]; // clinic_id null = global
+            targetClinicIds = [null]; // clinic_id null = global
           } else {
             const ids = Array.from(__selectedClinicIds || []);
             if (!ids.length) throw new Error("Seleciona pelo menos uma clínica.");
-            targets = ids;
+            targetClinicIds = ids;
           }
 
           // 2) Expandir intervalo de dias em linhas por dia
           const rowsToInsert = [];
           let d = dateFrom;
+
           while (__gcCmpYYYYMMDD(d, dateTo) <= 0) {
             const sIso = __gcLocalDateTimeToIso(d, timeFrom);
             const eIso = __gcLocalDateTimeToIso(d, timeTo);
@@ -5796,9 +5804,10 @@ function bindConsultEvents() {
             if (!sIso || !eIso) throw new Error("Data/hora inválida no bloqueio.");
             if (new Date(eIso).getTime() <= new Date(sIso).getTime()) throw new Error("Hora 'Às' tem de ser depois de 'Das'.");
 
-            for (const t of targets) {
+            // ✅ GLOBAL: 1 linha por dia, SEM loop por clínicas
+            if (applyTo === "global") {
               rowsToInsert.push({
-                clinic_id: (t === null) ? null : String(t),
+                clinic_id: null,
                 patient_id: null,
                 start_at: sIso,
                 end_at: eIso,
@@ -5808,6 +5817,20 @@ function bindConsultEvents() {
                 notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
                 mode: "bloqueio",
               });
+            } else {
+              for (const t of targetClinicIds) {
+                rowsToInsert.push({
+                  clinic_id: String(t),
+                  patient_id: null,
+                  start_at: sIso,
+                  end_at: eIso,
+                  status: "confirmed",
+                  procedure_type: null,
+                  title: "BLOQUEIO",
+                  notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
+                  mode: "bloqueio",
+                });
+              }
             }
 
             d = __gcAddDaysYYYYMMDD(d, 1);
@@ -5815,7 +5838,6 @@ function bindConsultEvents() {
 
           if (isEdit && row?.id) {
             // Edição simples: edita apenas a linha actual (mantém compatibilidade)
-            // Se quiseres “editar em lote” depois, fazemos (mas não agora).
             const first = rowsToInsert[0] || null;
             if (!first) throw new Error("Sem dados para guardar.");
             const { error } = await window.sb.from("appointments").update(first).eq("id", row.id);
