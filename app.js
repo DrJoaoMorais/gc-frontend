@@ -242,7 +242,10 @@
           .lt(col, endISO)
           .order(col, { ascending: true });
 
-        if (clinicId) q = q.eq("clinic_id", clinicId);
+        // ✅ CORREÇÃO: incluir bloqueios globais (clinic_id IS NULL)
+        if (clinicId) {
+          q = q.or(`clinic_id.eq.${clinicId},clinic_id.is.null`);
+        }
 
         const { data, error } = await q;
         if (error) throw error;
@@ -395,7 +398,8 @@
     return data[0];
   }
 
-/* ==== FIM BLOCO 02/12 — Agenda (helpers + load) + Patients (scope/search/RPC) ==== */
+/* ==== FIM BLOCO 02/12 ==== */
+
 /* ==== INÍCIO BLOCO 03/12 — Constantes (procedimentos/status) + estado global + render shell (HTML+CSS) ==== */
 
   // ---------- Tipos / Status / Duração ----------
