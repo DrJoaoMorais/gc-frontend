@@ -4929,7 +4929,7 @@ function bindConsultEvents() {
     const apptModeInit = isEdit ? String(row?.mode || "presencial").toLowerCase() : "presencial";
 
     // permissões
-    const isSuperadmin = String(G.role || "").toLowerCase() === "superadmin";
+    const isSuperadmin = !!window.__GC_IS_SUPERADMIN__;
     const isDoctor = String(G.role || "").toLowerCase() === "doctor";
     const canCreateBlocks = isSuperadmin || isDoctor;
 
