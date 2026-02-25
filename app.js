@@ -4899,11 +4899,10 @@ function bindConsultEvents() {
           <!-- Linha 0: Tipo de registo (Consulta vs Bloqueio) -->
           <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:end;">
             <div style="display:flex; flex-direction:column; gap:4px;">
-              <label style="font-size:${UI.fs12}px; color:#666;">Tipo de registo</label>
-              <select id="mMode" class="gcSelect" ${(!canCreateBlocks && apptModeInit === "bloqueio") ? "disabled" : ""}>
-                <option value="presencial">Consulta presencial</option>
-                <option value="video">Vídeo-consulta</option>
-                ${canCreateBlocks ? `<option value="bloqueio">Bloqueio de agenda</option>` : ``}
+              <label style="font-size:${UI.fs12}px; color:#666;">Ação</label>
+              <select id="mMode" class="gcSelect">
+              <option value="presencial">Agendar consulta</option>
+              ${canCreateBlocks ? `<option value="bloqueio">Realizar bloqueio</option>` : ``}
               </select>
               ${(!canCreateBlocks) ? `<div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">Bloqueios: apenas médico/superadmin.</div>` : ``}
             </div>
