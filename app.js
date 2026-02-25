@@ -635,6 +635,17 @@
     return G.patientsById && G.patientsById[pid] ? G.patientsById[pid] : null;
   }
 
+  // ✅ Meta do "estado" com prioridade ao mode (bloqueio NÃO depende de status)
+  function apptStatusMeta(apptRow) {
+    try {
+      const mode = String(apptRow?.mode || "").toLowerCase();
+      if (mode === "bloqueio") {
+        return { icon: "⛔", label: "Bloqueio", bg: "#f3f4f6", fg: "#111827", br: "#d1d5db" };
+      }
+    } catch (_) {}
+    return statusMeta(apptRow?.status ?? "scheduled");
+  }
+
   async function openPatientFeedFromAny(patientLike) {
     try {
       const pid = patientLike && patientLike.id ? patientLike.id : null;
@@ -659,10 +670,20 @@
     const raw = String(newStatus || "").trim().toLowerCase();
     if (!raw) return;
 
+    const idx = (G.agenda.rows || []).findIndex((x) => x && x.id === apptId);
+    if (idx >= 0) {
+      // ✅ Bloqueios não permitem mudança de "status"
+      const row = G.agenda.rows[idx];
+      if (String(row?.mode || "").toLowerCase() === "bloqueio") {
+        alert("Este registo é um bloqueio. Não é permitido alterar o estado.");
+        renderAgendaList();
+        return;
+      }
+    }
+
     // ✅ Regra fechada: “Faltou/Cancelou” grava SEMPRE no_show
     const s = (raw === "cancelled") ? "no_show" : raw;
 
-    const idx = (G.agenda.rows || []).findIndex((x) => x && x.id === apptId);
     if (idx >= 0) {
       G.agenda.rows[idx].status = s;
       renderAgendaList();
@@ -696,7 +717,7 @@
       try {
         const cid = document.getElementById("selClinic")?.value || "";
         if (!cid) return "Todas as clínicas";
-        const c = G.clinicsById && G.clinicsById[cid] ? G.clinicsById[cid] : null;
+        const c = G.clinicsById && G.clinicsById[cid] ? G.clinicsById[ cid ] : null;
         return (c && (c.name || c.slug)) ? (c.name || c.slug) : cid;
       } catch (_) {
         return "";
@@ -724,9 +745,7 @@
 
       const proc = r.procedure_type ?? "—";
 
-      const statusRaw = r.status ?? "scheduled";
-      const status = (String(statusRaw).toLowerCase() === "cancelled") ? "no_show" : statusRaw;
-      const meta = statusMeta(status);
+      const meta = apptStatusMeta(r);
       const statusTxt = `${meta.icon} ${meta.label}`;
 
       const p = getPatientForAppointmentRow(r);
@@ -938,6 +957,10 @@
             overflow:hidden;
             text-overflow:ellipsis;
           }
+          .gcStatusSelect:disabled{
+            opacity: 0.75;
+            cursor: not-allowed;
+          }
 
           .gcAgendaFooter{
             margin-top: 12px;
@@ -966,9 +989,7 @@
           ? G.clinicsById[clinicId].name || G.clinicsById[clinicId].slug || clinicId
           : clinicId || "—";
 
-      const statusRaw = r.status ?? "scheduled";
-      const status = (String(statusRaw).toLowerCase() === "cancelled") ? "no_show" : statusRaw;
-      const meta = statusMeta(status);
+      const meta = apptStatusMeta(r);
 
       const proc = r.procedure_type ?? "—";
       const notes = r.notes ? clipOneLine(r.notes, 140) : "";
@@ -977,6 +998,8 @@
       const patientName = p && p.full_name ? p.full_name : (r.patient_id ? `Doente (ID): ${r.patient_id}` : "—");
       const patientPhone = p && p.phone ? p.phone : "—";
 
+      const isBlock = String(r?.mode || "").toLowerCase() === "bloqueio";
+
       function optLabel(s) {
         const m = statusMeta(s);
         return `${m.icon} ${m.label}`;
@@ -984,29 +1007,47 @@
 
       const timeTxt = `${tStart}${tEnd ? `–${tEnd}` : ""}`;
 
+      // ✅ Para bloqueio: selector desativado e com label "Bloqueio"
+      const statusSelectHtml = isBlock
+        ? `
+          <select data-status-select="1"
+                  class="gcStatusSelect"
+                  disabled
+                  style="background:${escapeHtml(meta.bg)}; color:${escapeHtml(meta.fg)}; border-color:${escapeHtml(meta.br)};"
+                  title="Bloqueio (não editável)">
+            <option value="bloqueio" selected>${escapeHtml(meta.icon + " " + meta.label)}</option>
+          </select>
+        `
+        : `
+          <select data-status-select="1"
+                  class="gcStatusSelect"
+                  style="background:${escapeHtml(meta.bg)}; color:${escapeHtml(meta.fg)}; border-color:${escapeHtml(meta.br)};"
+                  title="Clique para alterar estado">
+            ${STATUS_OPTIONS.map((s) => {
+              const val = (s === "cancelled") ? "no_show" : s;
+              const sel = (val === String(r.status ?? "scheduled").toLowerCase()) ? " selected" : "";
+              return `<option value="${escapeHtml(val)}"${sel}>${escapeHtml(optLabel(val))}</option>`;
+            }).join("")}
+          </select>
+        `;
+
       return `
         <li data-appt-id="${escapeHtml(r.id)}" class="gcAgendaRow">
           <div class="gcAgendaGrid">
             <div class="gcAgendaTime">${escapeHtml(timeTxt)}</div>
 
             <div class="gcAgendaNameWrap">
-              <span data-patient-open="1" class="gcPatientLink gcAgendaNameText">${escapeHtml(patientName)}</span>
+              ${isBlock
+                ? `<span class="gcAgendaNameText">${escapeHtml("—")}</span>`
+                : `<span data-patient-open="1" class="gcPatientLink gcAgendaNameText">${escapeHtml(patientName)}</span>`
+              }
               ${notes ? `<span class="gcAgendaNotesBelow">Notas: ${escapeHtml(notes)}</span>` : ``}
             </div>
 
             <div class="gcAgendaCell gcAgendaCellType" title="${escapeHtml(proc)}">${escapeHtml(proc)}</div>
 
             <div class="gcAgendaStatusWrap">
-              <select data-status-select="1"
-                      class="gcStatusSelect"
-                      style="background:${escapeHtml(meta.bg)}; color:${escapeHtml(meta.fg)}; border-color:${escapeHtml(meta.br)};"
-                      title="Clique para alterar estado">
-                ${STATUS_OPTIONS.map((s) => {
-                  const val = (s === "cancelled") ? "no_show" : s;
-                  const sel = (val === String(status).toLowerCase()) ? " selected" : "";
-                  return `<option value="${escapeHtml(val)}"${sel}>${escapeHtml(optLabel(val))}</option>`;
-                }).join("")}
-              </select>
+              ${statusSelectHtml}
             </div>
 
             <div class="gcAgendaCell" title="${escapeHtml(patientPhone)}">${escapeHtml(patientPhone)}</div>
