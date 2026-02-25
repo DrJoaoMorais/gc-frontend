@@ -4866,7 +4866,6 @@ function bindConsultEvents() {
     const apptModeInit = isEdit ? String(row?.mode || "presencial").toLowerCase() : "presencial";
 
     // permissões: só médico/superadmin cria/edita bloqueios
-    const canManageBlocks = !!(public.is_superadmin ? public.is_superadmin() : false); // fallback (não existe no FE)
     const isSuperadmin = String(G.role || "").toLowerCase() === "superadmin";
     const isDoctor = String(G.role || "").toLowerCase() === "doctor";
     const canCreateBlocks = isSuperadmin || isDoctor;
