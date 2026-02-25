@@ -4872,108 +4872,32 @@ function bindConsultEvents() {
     const procIsOther = procInit && !PROCEDURE_OPTIONS.includes(procInit) ? true : procInit === "Outro";
     const procSelectValue = procIsOther ? "Outro" : (procInit || "");
 
-    // mode do appointment (presencial/bloqueio) — aqui NÃO usamos "video" para não duplicar
+    // mode do appointment (presencial/bloqueio)
     const apptModeInit = isEdit ? String(row?.mode || "presencial").toLowerCase() : "presencial";
 
     // permissões: só médico/superadmin cria/edita bloqueios
-    const role = String(G.role || "").toLowerCase();
-    const isSuperadmin = role === "superadmin";
-    const isDoctor = role === "doctor";
+    const isSuperadmin = String(G.role || "").toLowerCase() === "superadmin";
+    const isDoctor = String(G.role || "").toLowerCase() === "doctor";
     const canCreateBlocks = isSuperadmin || isDoctor;
 
-    // global blocks: só superadmin (por causa das policies com clinic_id null)
-    const canCreateGlobalBlocks = isSuperadmin;
-
+    // Bloqueio global quando clinic_id é null
     const isBlockEdit = isEdit && String(row?.mode || "").toLowerCase() === "bloqueio";
-
-    // Âmbito inicial do bloqueio (só em edição ou se escolher)
     const blockScopeInit = isBlockEdit
-      ? (row?.clinic_id ? "selected" : "global")
-      : "selected";
+      ? (row?.clinic_id ? "clinic" : "global")
+      : "clinic";
 
     function optLabel(s) {
       const m = statusMeta(s);
       return `${m.icon} ${m.label}`;
     }
 
-    // Helpers para bloqueios por datas/horas
-    function pad2(n) { return String(n).padStart(2, "0"); }
-
-    function toDateInputValue(d) {
-      try {
-        const x = (d instanceof Date) ? d : new Date(d);
-        if (isNaN(x.getTime())) return "";
-        return `${x.getFullYear()}-${pad2(x.getMonth() + 1)}-${pad2(x.getDate())}`;
-      } catch (_) {
-        return "";
-      }
-    }
-
-    function toTimeInputValue(d) {
-      try {
-        const x = (d instanceof Date) ? d : new Date(d);
-        if (isNaN(x.getTime())) return "09:00";
-        return `${pad2(x.getHours())}:${pad2(x.getMinutes())}`;
-      } catch (_) {
-        return "09:00";
-      }
-    }
-
-    function localDateTimeFromDateAndTime(dateStr, timeStr) {
-      const ds = String(dateStr || "").trim(); // YYYY-MM-DD
-      const ts = String(timeStr || "").trim(); // HH:MM
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(ds)) return null;
-      if (!/^\d{2}:\d{2}$/.test(ts)) return null;
-
-      const [Y, M, D] = ds.split("-").map((x) => parseInt(x, 10));
-      const [h, m] = ts.split(":").map((x) => parseInt(x, 10));
-      const dt = new Date(Y, (M - 1), D, h, m, 0, 0);
-      if (isNaN(dt.getTime())) return null;
-      return dt;
-    }
-
-    function addDays(dateObj, n) {
-      const d = new Date(dateObj.getTime());
-      d.setDate(d.getDate() + n);
-      return d;
-    }
-
-    function startOfDayLocal(dateObj) {
-      return new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate(), 0, 0, 0, 0);
-    }
-
-    function nextDayStartLocal(dateObj) {
-      const s = startOfDayLocal(dateObj);
-      return addDays(s, 1);
-    }
-
-    // UI: sugestões de bloqueio (título)
-    function buildBlockTitle({ isGlobal, clinicNames, dateFrom, dateTo, timeFrom, timeTo, isFullDay }) {
-      try {
-        const rangeDay = (dateFrom && dateTo && dateFrom !== dateTo) ? `${dateFrom}→${dateTo}` : (dateFrom || "");
-        const rangeTime = isFullDay ? "Dia completo" : `${timeFrom || ""}–${timeTo || ""}`;
-        if (isGlobal) return `BLOQUEIO GLOBAL — ${rangeDay} — ${rangeTime}`.trim();
-        if (clinicNames && clinicNames.length === 1) return `BLOQUEIO — ${clinicNames[0]} — ${rangeDay} — ${rangeTime}`.trim();
-        if (clinicNames && clinicNames.length > 1) return `BLOQUEIO — ${clinicNames.length} clínicas — ${rangeDay} — ${rangeTime}`.trim();
-        return `BLOQUEIO — ${rangeDay} — ${rangeTime}`.trim();
-      } catch (_) {
-        return "BLOQUEIO";
-      }
-    }
-
-    // Inicialização default dos campos de bloqueio
-    const blockDateFromInit = isEdit && row?.start_at ? toDateInputValue(new Date(row.start_at)) : (G.selectedDayISO || toDateInputValue(new Date()));
-    const blockDateToInit = isEdit && row?.end_at ? toDateInputValue(new Date(row.end_at)) : blockDateFromInit;
-    const blockTimeFromInit = isEdit && row?.start_at ? toTimeInputValue(new Date(row.start_at)) : "14:00";
-    const blockTimeToInit = isEdit && row?.end_at ? toTimeInputValue(new Date(row.end_at)) : "19:00";
-
     root.innerHTML = `
       <div id="modalOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
-        <div style="background:#fff; width:min(980px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 86vh; overflow:auto;">
+        <div style="background:#fff; width:min(920px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 86vh; overflow:auto;">
           <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
             <div>
               <div style="font-size:${UI.fs14}px; font-weight:900; color:#111;">
-                ${isEdit ? (isBlockEdit ? "Editar bloqueio" : "Editar marcação") : "Nova marcação"}
+                ${isEdit ? (String(apptModeInit)==="bloqueio" ? "Editar bloqueio" : "Editar marcação") : "Nova marcação"}
               </div>
               <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
                 Dia selecionado: ${escapeHtml(G.selectedDayISO)}.
@@ -4983,7 +4907,7 @@ function bindConsultEvents() {
           </div>
 
           <!-- Linha 0: Ação (Consulta vs Bloqueio) -->
-          <div style="margin-top:12px; display:grid; grid-template-columns: 1fr; gap:12px; align-items:end;">
+          <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:end;">
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:${UI.fs12}px; color:#666;">Ação</label>
               <select id="mMode" class="gcSelect">
@@ -4992,77 +4916,18 @@ function bindConsultEvents() {
               </select>
               ${(!canCreateBlocks) ? `<div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">Bloqueios: apenas médico/superadmin.</div>` : ``}
             </div>
-          </div>
 
-          <!-- ===== BLOQUEIOS: UI rápida (dia/período + De/Até + Das/Às + clínicas) ===== -->
-          <div id="mBlockWrap" style="display:none; margin-top:12px; border:1px solid #eee; border-radius:12px; padding:12px; background:#fafafa;">
-            <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center;">
-              <div style="font-weight:900; font-size:${UI.fs13}px; color:#111;">Bloqueio</div>
-
-              ${isEdit && isBlockEdit && canCreateBlocks ? `
-                <button id="btnDeleteBlock" class="gcBtn" type="button" style="font-weight:900;">
-                  Apagar bloqueio
-                </button>
-              ` : ``}
-            </div>
-
-            <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
-              <button id="btnBlockDay" class="gcBtn" type="button" style="font-weight:900;">Bloquear dia</button>
-              <button id="btnBlockPeriod" class="gcBtn" type="button">Bloquear período</button>
-            </div>
-
-            <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px;">
-              <div style="display:flex; flex-direction:column; gap:4px;">
-                <label style="font-size:${UI.fs12}px; color:#666;">Datas De</label>
-                <input id="bDateFrom" type="date" value="${escapeHtml(blockDateFromInit)}"
-                  style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-              </div>
-
-              <div style="display:flex; flex-direction:column; gap:4px;">
-                <label style="font-size:${UI.fs12}px; color:#666;">Até</label>
-                <input id="bDateTo" type="date" value="${escapeHtml(blockDateToInit)}"
-                  style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-              </div>
-
-              <div style="display:flex; flex-direction:column; gap:4px;">
-                <label style="font-size:${UI.fs12}px; color:#666;">Das</label>
-                <input id="bTimeFrom" type="time" value="${escapeHtml(blockTimeFromInit)}"
-                  style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-              </div>
-
-              <div style="display:flex; flex-direction:column; gap:4px;">
-                <label style="font-size:${UI.fs12}px; color:#666;">Às</label>
-                <input id="bTimeTo" type="time" value="${escapeHtml(blockTimeToInit)}"
-                  style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-              </div>
-            </div>
-
-            <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-              <div style="display:flex; flex-direction:column; gap:4px;">
-                <label style="font-size:${UI.fs12}px; color:#666;">Aplicar a</label>
-
-                <select id="bScope" class="gcSelect">
-                  <option value="selected">Selecionar clínicas</option>
-                  ${canCreateGlobalBlocks ? `<option value="global">Todas as clínicas (global)</option>` : ``}
-                </select>
-
-                ${(!canCreateGlobalBlocks) ? `<div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">Global: apenas superadmin.</div>` : ``}
-              </div>
-
-              <div id="bClinicsWrap" style="display:flex; flex-direction:column; gap:6px;">
-                <label style="font-size:${UI.fs12}px; color:#666;">Clínicas</label>
-                <div id="bClinicsList"
-                     style="border:1px solid #e5e5e5; border-radius:10px; background:#fff; padding:10px; max-height:170px; overflow:auto;">
-                </div>
-                <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                  <button id="btnClinicsAll" class="gcBtn" type="button">Selecionar todas</button>
-                  <button id="btnClinicsNone" class="gcBtn" type="button">Limpar</button>
-                </div>
-              </div>
+            <!-- Âmbito do bloqueio (apenas quando mode=bloqueio) -->
+            <div id="mBlockScopeWrap" style="display:none; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Âmbito do bloqueio</label>
+              <select id="mBlockScope" class="gcSelect">
+                <option value="clinic">Apenas esta clínica</option>
+                <option value="global">Todas as clínicas (global)</option>
+              </select>
             </div>
           </div>
 
-          <!-- Linha 1: Pesquisa do doente (consulta) -->
+          <!-- Linha 1: Pesquisa do doente (apenas para consulta) -->
           <div id="mPatientWrap" style="margin-top:12px; display:flex; flex-direction:column; gap:6px;">
             <label style="font-size:${UI.fs12}px; color:#666;">Doente (obrigatório)</label>
 
@@ -5093,8 +4958,8 @@ function bindConsultEvents() {
             <div id="newPatientHost" style="margin-top:8px;"></div>
           </div>
 
-          <!-- Linha 2: Clínica | Tipo | Estado (consulta) -->
-          <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
+          <!-- Linha 2: Clínica | Tipo | Estado (APENAS consulta; no bloqueio vai esconder) -->
+          <div id="mConsultMetaWrap" style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:${UI.fs12}px; color:#666;">Clínica</label>
               <select id="mClinic" class="gcSelect"></select>
@@ -5126,7 +4991,7 @@ function bindConsultEvents() {
             </div>
           </div>
 
-          <!-- Linha 3: Início | Duração (consulta) -->
+          <!-- Linha 3: Início | Duração -->
           <div id="mTimeWrap" style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
             <div style="display:flex; flex-direction:column; gap:4px;">
               <label style="font-size:${UI.fs12}px; color:#666;">Início</label>
@@ -5167,21 +5032,10 @@ function bindConsultEvents() {
     const btnNewPatient = document.getElementById("btnNewPatient");
 
     const mMode = document.getElementById("mMode");
+    const mBlockScopeWrap = document.getElementById("mBlockScopeWrap");
+    const mBlockScope = document.getElementById("mBlockScope");
 
-    const mBlockWrap = document.getElementById("mBlockWrap");
-    const btnDeleteBlock = document.getElementById("btnDeleteBlock");
-    const btnBlockDay = document.getElementById("btnBlockDay");
-    const btnBlockPeriod = document.getElementById("btnBlockPeriod");
-    const bDateFrom = document.getElementById("bDateFrom");
-    const bDateTo = document.getElementById("bDateTo");
-    const bTimeFrom = document.getElementById("bTimeFrom");
-    const bTimeTo = document.getElementById("bTimeTo");
-    const bScope = document.getElementById("bScope");
-    const bClinicsWrap = document.getElementById("bClinicsWrap");
-    const bClinicsList = document.getElementById("bClinicsList");
-    const btnClinicsAll = document.getElementById("btnClinicsAll");
-    const btnClinicsNone = document.getElementById("btnClinicsNone");
-
+    const mConsultMetaWrap = document.getElementById("mConsultMetaWrap");
     const mClinic = document.getElementById("mClinic");
     const mStatus = document.getElementById("mStatus");
     const mStart = document.getElementById("mStart");
@@ -5201,7 +5055,7 @@ function bindConsultEvents() {
     const mPatientId = document.getElementById("mPatientId");
     const mPatientName = document.getElementById("mPatientName");
 
-    // --- helpers de cleanup (evita redefinir closeModal / leaks) ---
+    // --- helpers de cleanup (evita leaks) ---
     let _cleanupFns = [];
     function addCleanup(fn) { if (typeof fn === "function") _cleanupFns.push(fn); }
     function runCleanup() {
@@ -5215,7 +5069,6 @@ function bindConsultEvents() {
       closeModal();
     }
 
-    // preencher clínicas no select da consulta
     const clinicOpts = [];
     for (const c of G.clinics) {
       const label = c.name || c.slug || c.id;
@@ -5227,96 +5080,21 @@ function bindConsultEvents() {
       if (G.clinics.length === 1) mClinic.disabled = true;
     }
 
-    // init consulta
+    // init
     if (mStatus) mStatus.value = statusInit;
     if (mStart) mStart.value = toLocalInputValue(startInit);
     if (mDuration) mDuration.value = String(durationBest);
     if (mProc) mProc.value = procSelectValue;
     if (mNotes) mNotes.value = notesInit;
 
-    // init modo
+    // init mode/scope
     if (mMode) {
       mMode.value = apptModeInit;
-      if (isEdit && isBlockEdit && !canCreateBlocks) {
-        mMode.disabled = true; // proteção UI
+      if (isEdit && apptModeInit === "bloqueio" && !canCreateBlocks) {
+        mMode.disabled = true;
       }
     }
-
-    // init scope bloqueio
-    if (bScope) {
-      bScope.value = blockScopeInit;
-      if (!canCreateGlobalBlocks) {
-        // se não for superadmin, força selected
-        bScope.value = "selected";
-      }
-    }
-
-    // checklist de clínicas (para bloqueio "selected")
-    function renderBlockClinicsChecklist() {
-      if (!bClinicsList) return;
-      const selected = window.__gcBlockClinicSel || new Set();
-
-      bClinicsList.innerHTML = (G.clinics || []).map((c) => {
-        const label = c.name || c.slug || c.id;
-        const checked = selected.has(String(c.id)) ? "checked" : "";
-        return `
-          <label style="display:flex; gap:10px; align-items:center; padding:6px 4px; border-bottom:1px solid #f2f2f2;">
-            <input type="checkbox" data-bclinic="1" value="${escapeHtml(c.id)}" ${checked} />
-            <span style="font-size:${UI.fs13}px; color:#111; font-weight:700;">${escapeHtml(label)}</span>
-          </label>
-        `;
-      }).join("");
-
-      bClinicsList.querySelectorAll("input[data-bclinic='1']").forEach((cb) => {
-        cb.addEventListener("change", () => {
-          const id = cb.value;
-          if (!id) return;
-          if (cb.checked) selected.add(String(id));
-          else selected.delete(String(id));
-          window.__gcBlockClinicSel = selected;
-        });
-      });
-    }
-
-    // default seleção de clínicas no bloqueio
-    window.__gcBlockClinicSel = window.__gcBlockClinicSel || new Set();
-    (function initBlockClinicSel() {
-      const s = window.__gcBlockClinicSel;
-      if (isEdit && isBlockEdit) {
-        // em edição: se for global -> vazio; se for clinic -> esse id
-        s.clear();
-        if (row?.clinic_id) s.add(String(row.clinic_id));
-      } else {
-        // em criação: default para a clínica selecionada (se houver), senão a primeira
-        if (s.size === 0) {
-          if (defaultClinicId) s.add(String(defaultClinicId));
-          else if (G.clinics && G.clinics.length) s.add(String(G.clinics[0].id));
-        }
-      }
-    })();
-
-    renderBlockClinicsChecklist();
-
-    if (btnClinicsAll) {
-      btnClinicsAll.addEventListener("click", (ev) => {
-        ev.preventDefault();
-        const s = window.__gcBlockClinicSel || new Set();
-        s.clear();
-        (G.clinics || []).forEach((c) => s.add(String(c.id)));
-        window.__gcBlockClinicSel = s;
-        renderBlockClinicsChecklist();
-      });
-    }
-
-    if (btnClinicsNone) {
-      btnClinicsNone.addEventListener("click", (ev) => {
-        ev.preventDefault();
-        const s = window.__gcBlockClinicSel || new Set();
-        s.clear();
-        window.__gcBlockClinicSel = s;
-        renderBlockClinicsChecklist();
-      });
-    }
+    if (mBlockScope) mBlockScope.value = blockScopeInit;
 
     function setSelectedPatient({ id, name }) {
       if (mPatientId) mPatientId.value = id || "";
@@ -5347,6 +5125,7 @@ function bindConsultEvents() {
       mPatientResults.innerHTML = `<div style="font-size:${UI.fs12}px; color:#b00020;">Erro na pesquisa. Vê a consola.</div>`;
     }
 
+    // Render resultados (cards)
     function showResultsList(pts) {
       if (!mPatientResults) return;
 
@@ -5391,7 +5170,7 @@ function bindConsultEvents() {
       setSelectedPatient({ id: "", name: "" });
     }
 
-    // Proc (obrigatório) — apenas para consultas
+    // Proc (obrigatório)
     function updateProcOtherVisibility() {
       const v = mProc ? mProc.value : "";
       const show = v === "Outro";
@@ -5399,27 +5178,30 @@ function bindConsultEvents() {
       if (!show && mProcOther) mProcOther.value = "";
     }
 
-    if (mProc) mProc.addEventListener("change", updateProcOtherVisibility);
     updateProcOtherVisibility();
+    if (procIsOther && mProcOther) {
+      mProcOther.value = procInit === "Outro" ? "" : procInit;
+      if (mProcOtherWrap) mProcOtherWrap.style.display = "flex";
+    }
 
     // UI toggle: bloqueio vs consulta
     function applyModeUi() {
       const v = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
       const isBlock = v === "bloqueio";
 
-      if (mBlockWrap) mBlockWrap.style.display = isBlock ? "block" : "none";
+      if (mBlockScopeWrap) mBlockScopeWrap.style.display = isBlock ? "flex" : "none";
 
+      // ✅ no bloqueio: escondemos tudo o que é consulta (inclui a “Clínica” de baixo)
       if (mPatientWrap) mPatientWrap.style.display = isBlock ? "none" : "flex";
-      if (mProcWrap) mProcWrap.style.display = isBlock ? "none" : "flex";
-      if (mStatusWrap) mStatusWrap.style.display = isBlock ? "none" : "flex";
+      if (mConsultMetaWrap) mConsultMetaWrap.style.display = isBlock ? "none" : "grid";
 
-      // em bloqueio, a referência temporal é feita pelos inputs De/Até + Das/Às (não pelo datetime-local/duração)
       const timeWrap = document.getElementById("mTimeWrap");
-      if (timeWrap) timeWrap.style.display = isBlock ? "none" : "grid";
+      if (timeWrap) timeWrap.style.display = "grid"; // mantém (início/duração serve para ambos)
 
       if (mNotesLabel) mNotesLabel.textContent = isBlock ? "Motivo do bloqueio (opcional)" : "Notas";
 
       if (isBlock) {
+        // limpar seleção do doente para não gravar lixo
         setSelectedPatient({ id: "", name: "" });
         if (mPatientQuery) mPatientQuery.value = "";
         closeResults();
@@ -5431,34 +5213,19 @@ function bindConsultEvents() {
     applyModeUi();
     if (mMode) mMode.addEventListener("change", applyModeUi);
 
-    function applyBlockScopeUi() {
-      if (!bScope) return;
-      const sc = String(bScope.value || "selected").toLowerCase();
-      const isGlobal = sc === "global";
-      if (bClinicsWrap) bClinicsWrap.style.display = isGlobal ? "none" : "flex";
-      if (isGlobal && !canCreateGlobalBlocks) {
-        bScope.value = "selected";
-        if (bClinicsWrap) bClinicsWrap.style.display = "flex";
-      }
+    // Se mudar clínica: limpa seleção e fecha resultados + sub-form (só se for consulta)
+    if (mClinic) {
+      mClinic.addEventListener("change", () => {
+        const vMode = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
+        if (vMode === "bloqueio") return;
+
+        setSelectedPatient({ id: "", name: "" });
+        if (mPatientQuery) mPatientQuery.value = "";
+        closeResults();
+        const host = document.getElementById("newPatientHost");
+        if (host) host.innerHTML = "";
+      });
     }
-
-    if (bScope) bScope.addEventListener("change", applyBlockScopeUi);
-    applyBlockScopeUi();
-
-    // Botões rápidos: dia completo vs período
-    function setBlockFullDay() {
-      if (bTimeFrom) bTimeFrom.value = "00:00";
-      if (bTimeTo) bTimeTo.value = "00:00"; // usamos end = next day 00:00 em full-day
-      // manter dateFrom/dateTo como está (podes escolher intervalo de dias)
-    }
-
-    function setBlockPeriod() {
-      if (bTimeFrom && (!bTimeFrom.value || bTimeFrom.value === "00:00")) bTimeFrom.value = "14:00";
-      if (bTimeTo && (!bTimeTo.value || bTimeTo.value === "00:00")) bTimeTo.value = "19:00";
-    }
-
-    if (btnBlockDay) btnBlockDay.addEventListener("click", (ev) => { ev.preventDefault(); setBlockFullDay(); });
-    if (btnBlockPeriod) btnBlockPeriod.addEventListener("click", (ev) => { ev.preventDefault(); setBlockPeriod(); });
 
     // Pesquisa (só quando não é bloqueio)
     let searchTimer = null;
@@ -5517,6 +5284,7 @@ function bindConsultEvents() {
     document.addEventListener("mousedown", onDocMouseDown);
     addCleanup(() => document.removeEventListener("mousedown", onDocMouseDown));
 
+    // Novo doente (igual ao teu)
     function openNewPatientForm() {
       const clinicId = mClinic ? mClinic.value : "";
       if (!clinicId) {
@@ -5763,21 +5531,17 @@ function bindConsultEvents() {
       refreshButtonState();
     }
 
-    // Se mudar clínica (consulta): limpa seleção e fecha resultados + sub-form
-    if (mClinic) {
-      mClinic.addEventListener("change", () => {
-        const vMode = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
-        if (vMode === "bloqueio") return;
-
-        setSelectedPatient({ id: "", name: "" });
-        if (mPatientQuery) mPatientQuery.value = "";
-        closeResults();
-        const host = document.getElementById("newPatientHost");
-        if (host) host.innerHTML = "";
-      });
+    // Proc (obrigatório) — apenas para consultas
+    function updateProcOtherVisibility2() {
+      const v = mProc ? mProc.value : "";
+      const show = v === "Outro";
+      if (mProcOtherWrap) mProcOtherWrap.style.display = show ? "flex" : "none";
+      if (!show && mProcOther) mProcOther.value = "";
     }
 
-    // Pesquisa (consulta)
+    if (mProc) mProc.addEventListener("change", updateProcOtherVisibility2);
+    updateProcOtherVisibility2();
+
     if (mPatientQuery) {
       mPatientQuery.addEventListener("input", () => {
         const vMode = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
@@ -5788,323 +5552,61 @@ function bindConsultEvents() {
       mPatientQuery.addEventListener("focus", scheduleSearch);
     }
 
-    if (btnNewPatient) btnNewPatient.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      const vMode = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
-      if (vMode === "bloqueio") return;
-      openNewPatientForm();
-    });
-
-    async function deleteBlock() {
-      if (!isEdit || !isBlockEdit) return;
-      if (!canCreateBlocks) return;
-
-      if (!confirm("Apagar este bloqueio?")) return;
-
-      try {
-        const { error } = await window.sb.from("appointments").delete().eq("id", row.id);
-        if (error) throw error;
-
-        safeCloseModal();
-        await refreshAgenda();
-      } catch (e) {
-        console.error("Apagar bloqueio falhou:", e);
-        alert("Não foi possível apagar o bloqueio. Vê a consola.");
-      }
-    }
-
-    if (btnDeleteBlock) {
-      btnDeleteBlock.addEventListener("click", (ev) => {
-        ev.preventDefault();
-        deleteBlock();
-      });
-    }
+    if (btnNewPatient) btnNewPatient.addEventListener("click", openNewPatientForm);
 
     async function onSave() {
       const vMode = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
       const isBlock = vMode === "bloqueio";
 
-      btnSave.disabled = true;
-      mMsg.style.color = "#666";
-      mMsg.textContent = "A guardar…";
+      // Início obrigatório
+      if (!mStart || !mStart.value) {
+        mMsg.style.color = "#b00020";
+        mMsg.textContent = "Define o início.";
+        return;
+      }
 
-      try {
-        if (isBlock) {
-          if (!canCreateBlocks) {
-            mMsg.style.color = "#b00020";
-            mMsg.textContent = "Sem permissões para criar bloqueios.";
-            btnSave.disabled = false;
-            return;
-          }
+      const dur = mDuration ? parseInt(mDuration.value, 10) : 20;
+      const times = calcEndFromStartAndDuration(mStart.value, dur);
+      if (!times) {
+        mMsg.style.color = "#b00020";
+        mMsg.textContent = "Data/hora inválida.";
+        return;
+      }
 
-          // Em edição, só permitimos editar 1 bloqueio (não multi-clínica/multi-dias)
-          if (isEdit && isBlockEdit) {
-            const df = bDateFrom ? String(bDateFrom.value || "") : "";
-            const dt = bDateTo ? String(bDateTo.value || "") : "";
-            const tf = bTimeFrom ? String(bTimeFrom.value || "") : "";
-            const tt = bTimeTo ? String(bTimeTo.value || "") : "";
+      let payload = null;
 
-            const scope = bScope ? String(bScope.value || "selected").toLowerCase() : "selected";
-            if (scope === "global" && !canCreateGlobalBlocks) {
-              mMsg.style.color = "#b00020";
-              mMsg.textContent = "Global: apenas superadmin.";
-              btnSave.disabled = false;
-              return;
-            }
-
-            // valida 1 dia
-            if (!df || !dt || df !== dt) {
-              mMsg.style.color = "#b00020";
-              mMsg.textContent = "Em edição: usa apenas 1 dia (De=Até). Para intervalos, apaga e cria novo bloqueio.";
-              btnSave.disabled = false;
-              return;
-            }
-
-            const isFullDay = (tf === "00:00" && tt === "00:00");
-
-            const d0 = localDateTimeFromDateAndTime(df, "00:00");
-            if (!d0) {
-              mMsg.style.color = "#b00020";
-              mMsg.textContent = "Data inválida.";
-              btnSave.disabled = false;
-              return;
-            }
-
-            let startDT = null;
-            let endDT = null;
-
-            if (isFullDay) {
-              startDT = startOfDayLocal(d0);
-              endDT = nextDayStartLocal(d0);
-            } else {
-              startDT = localDateTimeFromDateAndTime(df, tf);
-              endDT = localDateTimeFromDateAndTime(df, tt);
-              if (!startDT || !endDT) {
-                mMsg.style.color = "#b00020";
-                mMsg.textContent = "Hora inválida.";
-                btnSave.disabled = false;
-                return;
-              }
-              if (endDT.getTime() <= startDT.getTime()) {
-                mMsg.style.color = "#b00020";
-                mMsg.textContent = "O 'Às' tem de ser depois do 'Das' (no mesmo dia).";
-                btnSave.disabled = false;
-                return;
-              }
-            }
-
-            // alvo: global OU 1 clínica (em edição)
-            let clinicIdToSave = null;
-            let clinicNames = [];
-            if (scope === "global") {
-              clinicIdToSave = null;
-            } else {
-              const s = window.__gcBlockClinicSel || new Set();
-              const ids = Array.from(s);
-              if (ids.length !== 1) {
-                mMsg.style.color = "#b00020";
-                mMsg.textContent = "Em edição: seleciona apenas 1 clínica. Para múltiplas, apaga e cria novamente.";
-                btnSave.disabled = false;
-                return;
-              }
-              clinicIdToSave = ids[0];
-              const c = (G.clinicsById && G.clinicsById[clinicIdToSave]) ? (G.clinicsById[clinicIdToSave].name || G.clinicsById[clinicIdToSave].slug || clinicIdToSave) : clinicIdToSave;
-              clinicNames = [c];
-            }
-
-            const title = buildBlockTitle({
-              isGlobal: scope === "global",
-              clinicNames,
-              dateFrom: df,
-              dateTo: df,
-              timeFrom: tf,
-              timeTo: tt,
-              isFullDay
-            });
-
-            const payload = {
-              clinic_id: clinicIdToSave,
-              patient_id: null,
-              start_at: startDT.toISOString(),
-              end_at: endDT.toISOString(),
-              status: "confirmed",
-              procedure_type: null,
-              title,
-              notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
-              mode: "bloqueio",
-            };
-            if (payload.notes === "") payload.notes = null;
-
-            const { error } = await window.sb.from("appointments").update(payload).eq("id", row.id);
-            if (error) throw error;
-
-            safeCloseModal();
-            await refreshAgenda();
-            return;
-          }
-
-          // ===== CRIAÇÃO DE BLOQUEIOS (pode ser multi-dia e/ou multi-clínica) =====
-          const df = bDateFrom ? String(bDateFrom.value || "") : "";
-          const dt = bDateTo ? String(bDateTo.value || "") : "";
-          const tf = bTimeFrom ? String(bTimeFrom.value || "") : "";
-          const tt = bTimeTo ? String(bTimeTo.value || "") : "";
-
-          if (!df || !dt) {
-            mMsg.style.color = "#b00020";
-            mMsg.textContent = "Define as datas (De/Até).";
-            btnSave.disabled = false;
-            return;
-          }
-
-          const dFrom0 = localDateTimeFromDateAndTime(df, "00:00");
-          const dTo0 = localDateTimeFromDateAndTime(dt, "00:00");
-          if (!dFrom0 || !dTo0) {
-            mMsg.style.color = "#b00020";
-            mMsg.textContent = "Datas inválidas.";
-            btnSave.disabled = false;
-            return;
-          }
-
-          if (dTo0.getTime() < dFrom0.getTime()) {
-            mMsg.style.color = "#b00020";
-            mMsg.textContent = "A data 'Até' tem de ser igual ou posterior à data 'De'.";
-            btnSave.disabled = false;
-            return;
-          }
-
-          const scope = bScope ? String(bScope.value || "selected").toLowerCase() : "selected";
-          const isGlobal = scope === "global";
-
-          if (isGlobal && !canCreateGlobalBlocks) {
-            mMsg.style.color = "#b00020";
-            mMsg.textContent = "Global: apenas superadmin.";
-            btnSave.disabled = false;
-            return;
-          }
-
-          // clínicas alvo
-          let clinicIds = [];
-          let clinicNames = [];
-
-          if (isGlobal) {
-            clinicIds = [null];
-            clinicNames = [];
-          } else {
-            const s = window.__gcBlockClinicSel || new Set();
-            clinicIds = Array.from(s).filter(Boolean).map(String);
-            if (clinicIds.length === 0) {
-              mMsg.style.color = "#b00020";
-              mMsg.textContent = "Seleciona pelo menos uma clínica para o bloqueio.";
-              btnSave.disabled = false;
-              return;
-            }
-            clinicNames = clinicIds.map((id) => {
-              const c = (G.clinicsById && G.clinicsById[id]) ? (G.clinicsById[id].name || G.clinicsById[id].slug || id) : id;
-              return c;
-            });
-          }
-
-          // full day = 00:00→00:00 (next day)
-          const isFullDay = (tf === "00:00" && tt === "00:00");
-
-          if (!isFullDay) {
-            if (!tf || !tt) {
-              mMsg.style.color = "#b00020";
-              mMsg.textContent = "Define as horas (Das/Às) ou usa 'Bloquear dia'.";
-              btnSave.disabled = false;
-              return;
-            }
-          }
-
-          // construir todos os intervalos (1 por dia, inclusive)
-          const blocks = [];
-
-          for (let d = startOfDayLocal(dFrom0); d.getTime() <= startOfDayLocal(dTo0).getTime(); d = addDays(d, 1)) {
-            const dayStr = toDateInputValue(d);
-
-            let startDT = null;
-            let endDT = null;
-
-            if (isFullDay) {
-              startDT = startOfDayLocal(d);
-              endDT = nextDayStartLocal(d);
-            } else {
-              startDT = localDateTimeFromDateAndTime(dayStr, tf);
-              endDT = localDateTimeFromDateAndTime(dayStr, tt);
-              if (!startDT || !endDT) continue;
-              if (endDT.getTime() <= startDT.getTime()) {
-                mMsg.style.color = "#b00020";
-                mMsg.textContent = "O 'Às' tem de ser depois do 'Das' (no mesmo dia).";
-                btnSave.disabled = false;
-                return;
-              }
-            }
-
-            for (const cid of clinicIds) {
-              const title = buildBlockTitle({
-                isGlobal,
-                clinicNames,
-                dateFrom: df,
-                dateTo: dt,
-                timeFrom: tf,
-                timeTo: tt,
-                isFullDay
-              });
-
-              blocks.push({
-                clinic_id: cid,
-                patient_id: null,
-                start_at: startDT.toISOString(),
-                end_at: endDT.toISOString(),
-                status: "confirmed",
-                procedure_type: null,
-                title,
-                notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
-                mode: "bloqueio",
-              });
-            }
-          }
-
-          blocks.forEach((b) => { if (b.notes === "") b.notes = null; });
-
-          if (!blocks.length) {
-            mMsg.style.color = "#b00020";
-            mMsg.textContent = "Não consegui gerar intervalos de bloqueio (verifica datas/horas).";
-            btnSave.disabled = false;
-            return;
-          }
-
-          const { error } = await window.sb.from("appointments").insert(blocks);
-          if (error) throw error;
-
-          safeCloseModal();
-          await refreshAgenda();
+      if (isBlock) {
+        if (!canCreateBlocks) {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Sem permissões para criar bloqueios.";
           return;
         }
 
-        // ===== CONSULTA (agendar/editar) =====
+        const scope = mBlockScope ? String(mBlockScope.value || "clinic").toLowerCase() : "clinic";
+        const clinicIdToSave = (scope === "global") ? null : (mClinic ? (mClinic.value || null) : null);
+
+        if (scope === "clinic" && !clinicIdToSave) {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Seleciona a clínica do bloqueio.";
+          return;
+        }
+
+        payload = {
+          clinic_id: clinicIdToSave,
+          patient_id: null,
+          start_at: times.startAt,
+          end_at: times.endAt,
+          status: "confirmed",
+          procedure_type: null,
+          title: "BLOQUEIO",
+          notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
+          mode: "bloqueio",
+        };
+      } else {
         // Clínica obrigatória
         if (!mClinic || !mClinic.value) {
           mMsg.style.color = "#b00020";
           mMsg.textContent = "Seleciona a clínica.";
-          btnSave.disabled = false;
-          return;
-        }
-
-        // Início obrigatório
-        if (!mStart || !mStart.value) {
-          mMsg.style.color = "#b00020";
-          mMsg.textContent = "Define o início.";
-          btnSave.disabled = false;
-          return;
-        }
-
-        const dur = mDuration ? parseInt(mDuration.value, 10) : 20;
-        const times = calcEndFromStartAndDuration(mStart.value, dur);
-        if (!times) {
-          mMsg.style.color = "#b00020";
-          mMsg.textContent = "Data/hora inválida.";
-          btnSave.disabled = false;
           return;
         }
 
@@ -6114,7 +5616,6 @@ function bindConsultEvents() {
         if (!pid) {
           mMsg.style.color = "#b00020";
           mMsg.textContent = "Seleciona um doente.";
-          btnSave.disabled = false;
           return;
         }
 
@@ -6131,14 +5632,13 @@ function bindConsultEvents() {
         if (!proc) {
           mMsg.style.color = "#b00020";
           mMsg.textContent = "Seleciona o Tipo de consulta (e se for 'Outro', preenche o texto).";
-          btnSave.disabled = false;
           return;
         }
 
         const autoTitle = makeAutoTitle(pname, proc);
         const statusToSave = (mStatus && mStatus.value) ? mStatus.value : "scheduled";
 
-        const payload = {
+        payload = {
           clinic_id: mClinic.value,
           patient_id: pid,
           start_at: times.startAt,
@@ -6149,8 +5649,15 @@ function bindConsultEvents() {
           notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
           mode: "presencial",
         };
-        if (payload.notes === "") payload.notes = null;
+      }
 
+      if (payload && payload.notes === "") payload.notes = null;
+
+      btnSave.disabled = true;
+      mMsg.style.color = "#666";
+      mMsg.textContent = "A guardar…";
+
+      try {
         if (isEdit) {
           const { error } = await window.sb.from("appointments").update(payload).eq("id", row.id);
           if (error) throw error;
@@ -6162,12 +5669,15 @@ function bindConsultEvents() {
         safeCloseModal();
         await refreshAgenda();
       } catch (e) {
-        console.error("Guardar falhou:", e);
+        console.error("Guardar marcação falhou:", e);
         const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
 
         if (msg.toLowerCase().includes("existe bloqueio")) {
           mMsg.style.color = "#b00020";
           mMsg.textContent = "Não permitido: existe um bloqueio nesse intervalo.";
+        } else if (msg.toLowerCase().includes("bloqueio") && msg.toLowerCase().includes("sobrepõe")) {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Não permitido: o bloqueio sobrepõe uma marcação existente.";
         } else {
           mMsg.style.color = "#b00020";
           mMsg.textContent = "Erro ao guardar. Vê a consola.";
@@ -6180,14 +5690,7 @@ function bindConsultEvents() {
     if (btnCancel) btnCancel.addEventListener("click", safeCloseModal);
     if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "modalOverlay") safeCloseModal(); });
 
-    if (btnSave) btnSave.addEventListener("click", (ev) => { ev.preventDefault(); onSave(); });
-
-    // Ajustes finais ao abrir:
-    // - se for edição de bloqueio, força UI para bloqueio
-    if (isEdit && isBlockEdit && mMode) {
-      mMode.value = "bloqueio";
-      applyModeUi();
-    }
+    if (btnSave) btnSave.addEventListener("click", onSave);
   }
 
 /* ==== FIM BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
