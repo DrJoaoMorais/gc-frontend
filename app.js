@@ -2597,7 +2597,12 @@ function openPatientViewModal(patient) {
 <style>
   body { margin:0; background:#fff; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:#111; }
   * { box-sizing:border-box; }
-  .a4 { width:210mm; min-height:297mm; padding:18mm; background:#fff; }
+
+  /* ✅ Paginação mais previsível */
+  @page { size: A4; margin: 16mm; }
+
+  /* ✅ Container A4 (sem min-height a forçar “página vazia”) */
+  .a4 { width:210mm; background:#fff; }
 
   .top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
   .topLeft { font-size:13.5px; line-height:1.4; }
@@ -2608,14 +2613,19 @@ function openPatientViewModal(patient) {
   .row { margin-top:6px; font-size:13.5px; line-height:1.35; }
   .muted { color:#64748b; }
 
-  /* ✅ Secções: evita quebras a meio */
-  .section { 
-    margin-top:18px; 
-    page-break-inside: avoid; 
-    break-inside: avoid; 
+  /* ✅ Secções: permitir quebra (evita empurrar secção inteira para nova página) */
+  .section {
+    margin-top:18px;
+    page-break-inside: auto;
+    break-inside: auto;
   }
 
-  .stitle { font-weight:900; font-size:16px; margin-bottom:6px; }
+  /* ✅ Evitar o título de secção ficar “órfão” no fim da página */
+  .stitle {
+    font-weight:900; font-size:16px; margin-bottom:6px;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
 
   /* ✅ HDA: espaçamento lógico (line-height 1.2) + controlar margens dos <p> do Quill */
   .hda { font-size:14px; line-height:1.2; }
@@ -2629,8 +2639,9 @@ function openPatientViewModal(patient) {
   .list li { margin:6px 0; }
   .code { color:#64748b; }
 
-  .footerBlock { margin-top:22px; page-break-inside:avoid; break-inside:avoid; }
-  .hr2 { height:1px; background:#111; margin:18px 0 10px 0; }
+  /* ✅ Rodapé: permitir quebra (evita “assinatura isolada em página nova”) */
+  .footerBlock { margin-top:22px; page-break-inside:auto; break-inside:auto; }
+  .hr2 { height:1px; background:#111; margin:16px 0 10px 0; }
   .footRow { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
 
   .web { font-size:14px; font-weight:700; }
@@ -2640,7 +2651,10 @@ function openPatientViewModal(patient) {
 
   .locDate { text-align:right; font-size:14px; margin-top:14px; }
   .sig { margin-top:14px; display:flex; justify-content:flex-end; }
-  .sigBox { width:360px; text-align:center; }
+
+  /* ✅ Evitar a CAIXA da assinatura ser partida */
+  .sigBox { width:360px; text-align:center; page-break-inside:avoid; break-inside:avoid; }
+
   .sigLine { border-top:1px solid #111; padding-top:10px; }
   .sigName { font-weight:900; font-size:18px; margin-top:6px; }
   .sigRole { font-size:14px; margin-top:2px; }
