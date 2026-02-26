@@ -611,7 +611,6 @@
   }
 
 /* ==== FIM BLOCO 03/12 ==== */
-
 /* ==== INÍCIO BLOCO 04/12 — Helpers UI Agenda + abrir doente + update status + renderAgendaList ==== */
 
   function setAgendaSubtitleForSelectedDay() {
@@ -726,6 +725,63 @@
     }
   }
 
+  // ✅ Helpers — Identificação (apenas campos preenchidos; nomes de colunas tolerantes)
+  function __gcGetFirst(p, keys) {
+    try {
+      for (const k of (keys || [])) {
+        if (!k) continue;
+        const v = p && Object.prototype.hasOwnProperty.call(p, k) ? p[k] : undefined;
+        if (v !== undefined && v !== null && String(v).trim() !== "") return v;
+      }
+    } catch (_) {}
+    return "";
+  }
+
+  function __gcBuildPatientIdHtml(p) {
+    try {
+      if (!p) return "";
+
+      const parts = [];
+
+      const dob = __gcGetFirst(p, ["date_of_birth", "birth_date", "dob", "birthdate"]);
+      const email = __gcGetFirst(p, ["email", "mail"]);
+      const sns = __gcGetFirst(p, ["sns", "sns_number", "health_number"]);
+      const nif = __gcGetFirst(p, ["nif", "tax_id"]);
+      const passport = __gcGetFirst(p, ["passport", "passport_no", "passport_number"]);
+
+      const insurer = __gcGetFirst(p, ["insurer", "seguradora", "insurance", "insurance_company"]);
+      const policy = __gcGetFirst(p, ["policy_number", "policy_no", "apolice", "apolice_no", "insurance_policy"]);
+
+      const address = __gcGetFirst(p, ["address", "morada"]);
+      const postal = __gcGetFirst(p, ["postal_code", "postcode", "codigo_postal"]);
+      const city = __gcGetFirst(p, ["city", "cidade"]);
+      const country = __gcGetFirst(p, ["country", "pais"]);
+
+      const notes = __gcGetFirst(p, ["notes", "nota", "notas"]);
+
+      // só adiciona se existir
+      if (dob) parts.push(`<div class="idline"><b>DN:</b> ${escapeHtml(String(dob))}</div>`);
+      if (email) parts.push(`<div class="idline"><b>Email:</b> ${escapeHtml(String(email))}</div>`);
+      if (sns) parts.push(`<div class="idline"><b>SNS:</b> ${escapeHtml(String(sns))}</div>`);
+      if (nif) parts.push(`<div class="idline"><b>NIF:</b> ${escapeHtml(String(nif))}</div>`);
+      if (passport) parts.push(`<div class="idline"><b>Passaporte:</b> ${escapeHtml(String(passport))}</div>`);
+
+      if (insurer) parts.push(`<div class="idline"><b>Seguradora:</b> ${escapeHtml(String(insurer))}</div>`);
+      if (policy) parts.push(`<div class="idline"><b>Nº apólice:</b> ${escapeHtml(String(policy))}</div>`);
+
+      if (address) parts.push(`<div class="idline"><b>Morada:</b> ${escapeHtml(String(address))}</div>`);
+      if (postal) parts.push(`<div class="idline"><b>CP:</b> ${escapeHtml(String(postal))}</div>`);
+      if (city) parts.push(`<div class="idline"><b>Cidade:</b> ${escapeHtml(String(city))}</div>`);
+      if (country) parts.push(`<div class="idline"><b>País:</b> ${escapeHtml(String(country))}</div>`);
+
+      if (notes) parts.push(`<div class="idline"><b>Notas:</b> ${escapeHtml(String(notes))}</div>`);
+
+      return parts.join("");
+    } catch (_) {
+      return "";
+    }
+  }
+
   function __gcBuildAgendaPrintHtml(rows) {
     const dayLabel = __gcGetSelectedDayLabelForPrint();
     const clinicFilter = (() => {
@@ -753,14 +809,14 @@
       const timeTxt = `${tStart}${tEnd ? `–${tEnd}` : ""}`;
 
       const clinicId = r.clinic_id ?? null;
-const isGlobalBlock = String(r?.mode || "").toLowerCase() === "bloqueio" && !clinicId;
+      const isGlobalBlock = String(r?.mode || "").toLowerCase() === "bloqueio" && !clinicId;
 
-const clinicName =
-  isGlobalBlock
-    ? "GLOBAL"
-    : (clinicId && G.clinicsById[clinicId]
-        ? G.clinicsById[clinicId].name || G.clinicsById[clinicId].slug || clinicId
-        : clinicId || "—");
+      const clinicName =
+        isGlobalBlock
+          ? "GLOBAL"
+          : (clinicId && G.clinicsById[clinicId]
+              ? G.clinicsById[clinicId].name || G.clinicsById[clinicId].slug || clinicId
+              : clinicId || "—");
 
       const proc = r.procedure_type ?? "—";
 
@@ -773,6 +829,8 @@ const clinicName =
 
       const notes = r.notes ? clipOneLine(r.notes, 200) : "";
 
+      const idHtml = __gcBuildPatientIdHtml(p);
+
       return `
         <tr>
           <td class="c-time">${escapeHtml(timeTxt)}</td>
@@ -781,6 +839,7 @@ const clinicName =
           <td class="c-status">${escapeHtml(statusTxt)}</td>
           <td class="c-phone">${escapeHtml(patientPhone)}</td>
           <td class="c-clinic">${escapeHtml(clinicName)}</td>
+          <td class="c-id">${idHtml || ""}</td>
           <td class="c-notes">${notes ? escapeHtml(notes) : ""}</td>
         </tr>
       `;
@@ -807,9 +866,15 @@ const clinicName =
     .c-phone{ width:120px; white-space:nowrap; }
     .c-clinic{ width:150px; }
     .c-type{ width:150px; }
+    .c-id{ width:300px; }
     .c-notes{ width:220px; }
+
+    .idline{ font-size:11px; line-height:1.25; margin:0 0 4px 0; }
+    .idline b{ font-weight:900; }
+
     @media print{
       body{ margin: 10mm; }
+      .idline{ margin-bottom:3px; }
     }
   </style>
 </head>
@@ -826,6 +891,7 @@ const clinicName =
         <th>Estado</th>
         <th>Telefone</th>
         <th>Clínica</th>
+        <th>Identificação</th>
         <th>Notas</th>
       </tr>
     </thead>
@@ -1143,7 +1209,7 @@ const clinicName =
     }
   }
 
-/* ==== FIM BLOCO 04/12 — Helpers UI Agenda + abrir doente + update status + renderAgendaList ==== */
+/* ==== FIM BLOCO 04/12 ==== */
 
 /* ==== INÍCIO BLOCO 05/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 
