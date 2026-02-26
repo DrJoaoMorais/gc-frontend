@@ -725,8 +725,10 @@
     }
   }
 
-  // ✅ Helpers — Identificação (apenas campos preenchidos; nomes de colunas tolerantes)
-  function __gcGetFirst(p, keys) {
+  // =========================================================
+  // ✅ PRINT — Identificação do doente (apenas campos preenchidos)
+  // =========================================================
+  function __gcGetFirstPatientField(p, keys) {
     try {
       for (const k of (keys || [])) {
         if (!k) continue;
@@ -743,23 +745,26 @@
 
       const parts = [];
 
-      const dob = __gcGetFirst(p, ["date_of_birth", "birth_date", "dob", "birthdate"]);
-      const email = __gcGetFirst(p, ["email", "mail"]);
-      const sns = __gcGetFirst(p, ["sns", "sns_number", "health_number"]);
-      const nif = __gcGetFirst(p, ["nif", "tax_id"]);
-      const passport = __gcGetFirst(p, ["passport", "passport_no", "passport_number"]);
+      // Datas / IDs
+      const dob = __gcGetFirstPatientField(p, ["date_of_birth", "birth_date", "dob", "birthdate", "data_nascimento"]);
+      const email = __gcGetFirstPatientField(p, ["email", "mail"]);
+      const sns = __gcGetFirstPatientField(p, ["sns", "sns_number", "health_number", "num_sns"]);
+      const nif = __gcGetFirstPatientField(p, ["nif", "tax_id"]);
+      const passport = __gcGetFirstPatientField(p, ["passport", "passport_no", "passport_number", "passaporte"]);
 
-      const insurer = __gcGetFirst(p, ["insurer", "seguradora", "insurance", "insurance_company"]);
-      const policy = __gcGetFirst(p, ["policy_number", "policy_no", "apolice", "apolice_no", "insurance_policy"]);
+      // Seguro
+      const insurer = __gcGetFirstPatientField(p, ["insurer", "seguradora", "insurance", "insurance_company"]);
+      const policy = __gcGetFirstPatientField(p, ["policy_number", "policy_no", "apolice", "apolice_no", "insurance_policy", "numero_apolice"]);
 
-      const address = __gcGetFirst(p, ["address", "morada"]);
-      const postal = __gcGetFirst(p, ["postal_code", "postcode", "codigo_postal"]);
-      const city = __gcGetFirst(p, ["city", "cidade"]);
-      const country = __gcGetFirst(p, ["country", "pais"]);
+      // Morada / Localidade
+      const address = __gcGetFirstPatientField(p, ["morada", "address"]);
+      const locality = __gcGetFirstPatientField(p, ["localidade", "city", "cidade"]);
+      const postal = __gcGetFirstPatientField(p, ["codigo_postal", "postal_code", "postcode"]);
+      const country = __gcGetFirstPatientField(p, ["pais", "country"]);
 
-      const notes = __gcGetFirst(p, ["notes", "nota", "notas"]);
+      // Notas administrativas (se existir)
+      const notes = __gcGetFirstPatientField(p, ["notes", "nota", "notas"]);
 
-      // só adiciona se existir
       if (dob) parts.push(`<div class="idline"><b>DN:</b> ${escapeHtml(String(dob))}</div>`);
       if (email) parts.push(`<div class="idline"><b>Email:</b> ${escapeHtml(String(email))}</div>`);
       if (sns) parts.push(`<div class="idline"><b>SNS:</b> ${escapeHtml(String(sns))}</div>`);
@@ -770,8 +775,8 @@
       if (policy) parts.push(`<div class="idline"><b>Nº apólice:</b> ${escapeHtml(String(policy))}</div>`);
 
       if (address) parts.push(`<div class="idline"><b>Morada:</b> ${escapeHtml(String(address))}</div>`);
-      if (postal) parts.push(`<div class="idline"><b>CP:</b> ${escapeHtml(String(postal))}</div>`);
-      if (city) parts.push(`<div class="idline"><b>Cidade:</b> ${escapeHtml(String(city))}</div>`);
+      if (locality) parts.push(`<div class="idline"><b>Localidade:</b> ${escapeHtml(String(locality))}</div>`);
+      if (postal) parts.push(`<div class="idline"><b>Código postal:</b> ${escapeHtml(String(postal))}</div>`);
       if (country) parts.push(`<div class="idline"><b>País:</b> ${escapeHtml(String(country))}</div>`);
 
       if (notes) parts.push(`<div class="idline"><b>Notas:</b> ${escapeHtml(String(notes))}</div>`);
@@ -828,7 +833,6 @@
       const patientPhone = p && p.phone ? p.phone : "—";
 
       const notes = r.notes ? clipOneLine(r.notes, 200) : "";
-
       const idHtml = __gcBuildPatientIdHtml(p);
 
       return `
@@ -866,7 +870,7 @@
     .c-phone{ width:120px; white-space:nowrap; }
     .c-clinic{ width:150px; }
     .c-type{ width:150px; }
-    .c-id{ width:300px; }
+    .c-id{ width:320px; }
     .c-notes{ width:220px; }
 
     .idline{ font-size:11px; line-height:1.25; margin:0 0 4px 0; }
