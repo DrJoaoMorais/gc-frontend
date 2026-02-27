@@ -366,9 +366,14 @@
     const out = {};
     for (let i = 0; i < ids.length; i += CHUNK) {
       const part = ids.slice(i, i + CHUNK);
+
+      // ✅ ESTE SELECT alimenta G.patientsById (agenda + impressão)
+      // Tem de incluir os campos administrativos.
       const { data, error } = await window.sb
         .from("patients")
-        .select("id, full_name, phone, email, sns, nif, passport_id")
+        .select(
+          "id, full_name, dob, phone, email, external_id, sns, nif, passport_id, insurance_provider, insurance_policy_number, address_line1, postal_code, city, country, notes"
+        )
         .in("id", part)
         .eq("is_active", true);
 
