@@ -784,26 +784,36 @@
       const insurer = p && p.insurance_provider ? p.insurance_provider : "";
       const policy = p && p.insurance_policy_number ? p.insurance_policy_number : "";
 
-      const notes = r.notes ? clipOneLine(r.notes, 200) : "";
+      // ✅ Morada numa linha: "Rua..., 2000-000 Cidade"
+      const addrLine = (() => {
+        const a = String(address || "").trim();
+        const pc = String(postal || "").trim();
+        const c = String(city || "").trim();
+        const tail = `${pc}${pc && c ? " " : ""}${c}`.trim();
+        return `${a}${a && tail ? ", " : ""}${tail}`.trim();
+      })();
+
+      // ✅ Seguro numa linha: "Seguradora - nº"
+      const insLine = (() => {
+        const i = String(insurer || "").trim();
+        const pol = String(policy || "").trim();
+        if (!i && !pol) return "";
+        return `${i}${i && pol ? " - " : ""}${pol}`.trim();
+      })();
 
       return `
         <tr>
           <td class="c-time">${escapeHtml(timeTxt)}</td>
-          <td class="c-name">${escapeHtml(patientName)}</td>
+          <td class="c-name" title="${escapeHtml(patientName)}">${escapeHtml(patientName)}</td>
           <td class="c-type">${escapeHtml(proc)}</td>
           <td class="c-status">${escapeHtml(statusTxt)}</td>
           <td class="c-phone">${escapeHtml(patientPhone)}</td>
           <td class="c-clinic">${escapeHtml(clinicName)}</td>
 
           <td class="c-nif">${escapeHtml(nif || "—")}</td>
-          <td class="c-addr">${escapeHtml(address || "—")}</td>
-          <td class="c-post">${escapeHtml(postal || "—")}</td>
-          <td class="c-city">${escapeHtml(city || "—")}</td>
+          <td class="c-addr" title="${escapeHtml(addrLine || "—")}">${escapeHtml(addrLine || "—")}</td>
           <td class="c-sns">${escapeHtml(sns || "—")}</td>
-          <td class="c-ins">${escapeHtml(insurer || "—")}</td>
-          <td class="c-pol">${escapeHtml(policy || "—")}</td>
-
-          <td class="c-notes">${notes ? escapeHtml(notes) : ""}</td>
+          <td class="c-ins" title="${escapeHtml(insLine || "—")}">${escapeHtml(insLine || "—")}</td>
         </tr>
       `;
     }).join("");
@@ -821,26 +831,36 @@
     body{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 24px; color:#111; }
     h1{ font-size:18px; margin:0 0 6px 0; font-weight:900; }
     .sub{ color:#555; font-size:12px; margin:0 0 14px 0; }
-    table{ width:100%; border-collapse:collapse; }
-    th, td{ border:1px solid #e5e5e5; padding:8px 10px; font-size:12px; vertical-align:top; }
+    table{ width:100%; border-collapse:collapse; table-layout:fixed; }
+    th, td{ border:1px solid #e5e5e5; padding:7px 8px; font-size:12px; vertical-align:top; }
     th{ background:#f6f6f6; text-align:left; font-weight:800; }
 
-    .c-time{ width:90px; white-space:nowrap; font-weight:800; }
-    .c-name{ width:220px; }
-    .c-type{ width:150px; }
-    .c-status{ width:130px; white-space:nowrap; }
-    .c-phone{ width:120px; white-space:nowrap; }
-    .c-clinic{ width:150px; }
-
-    .c-nif{ width:95px; white-space:nowrap; }
-    .c-addr{ width:220px; }
-    .c-post{ width:110px; white-space:nowrap; }
-    .c-city{ width:140px; }
-    .c-sns{ width:110px; white-space:nowrap; }
+    /* ✅ mais compacto */
+    .c-time{ width:70px; white-space:nowrap; font-weight:800; }
+    .c-type{ width:110px; }
+    .c-status{ width:120px; white-space:nowrap; }
+    .c-phone{ width:100px; white-space:nowrap; }
+    .c-clinic{ width:90px; }
+    .c-nif{ width:90px; white-space:nowrap; }
+    .c-sns{ width:95px; white-space:nowrap; }
     .c-ins{ width:160px; }
-    .c-pol{ width:130px; white-space:nowrap; }
 
-    .c-notes{ width:220px; }
+    /* ✅ Nome 1 linha */
+    .c-name{
+      width:210px;
+      font-weight:800;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    /* ✅ Morada+CP+Localidade 1 linha */
+    .c-addr{
+      width:280px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
 
     @media print{
       body{ margin: 10mm; }
@@ -860,16 +880,10 @@
         <th>Estado</th>
         <th>Telefone</th>
         <th>Clínica</th>
-
         <th>NIF</th>
-        <th>Morada</th>
-        <th>Código postal</th>
-        <th>Localidade</th>
+        <th>Morada (CP Localidade)</th>
         <th>SNS</th>
         <th>Seguro</th>
-        <th>Nº seguro</th>
-
-        <th>Notas</th>
       </tr>
     </thead>
     <tbody>
