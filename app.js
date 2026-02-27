@@ -725,75 +725,13 @@
     }
   }
 
-  // =========================================================
-  // ✅ PRINT — Identificação do doente (apenas campos preenchidos)
-  // =========================================================
-  function __gcGetFirstPatientField(p, keys) {
-    try {
-      for (const k of (keys || [])) {
-        if (!k) continue;
-        const v = p && Object.prototype.hasOwnProperty.call(p, k) ? p[k] : undefined;
-        if (v !== undefined && v !== null && String(v).trim() !== "") return v;
-      }
-    } catch (_) {}
-    return "";
-  }
-
-  function __gcBuildPatientIdHtml(p) {
-    try {
-      if (!p) return "";
-
-      const parts = [];
-
-      // Datas / IDs
-      const dob = __gcGetFirstPatientField(p, ["date_of_birth", "birth_date", "dob", "birthdate", "data_nascimento"]);
-      const email = __gcGetFirstPatientField(p, ["email", "mail"]);
-      const sns = __gcGetFirstPatientField(p, ["sns", "sns_number", "health_number", "num_sns"]);
-      const nif = __gcGetFirstPatientField(p, ["nif", "tax_id"]);
-      const passport = __gcGetFirstPatientField(p, ["passport", "passport_no", "passport_number", "passaporte"]);
-
-      // Seguro
-      const insurer = __gcGetFirstPatientField(p, ["insurer", "seguradora", "insurance", "insurance_company"]);
-      const policy = __gcGetFirstPatientField(p, ["policy_number", "policy_no", "apolice", "apolice_no", "insurance_policy", "numero_apolice"]);
-
-      // Morada / Localidade
-      const address = __gcGetFirstPatientField(p, ["morada", "address"]);
-      const locality = __gcGetFirstPatientField(p, ["localidade", "city", "cidade"]);
-      const postal = __gcGetFirstPatientField(p, ["codigo_postal", "postal_code", "postcode"]);
-      const country = __gcGetFirstPatientField(p, ["pais", "country"]);
-
-      // Notas administrativas (se existir)
-      const notes = __gcGetFirstPatientField(p, ["notes", "nota", "notas"]);
-
-      if (dob) parts.push(`<div class="idline"><b>DN:</b> ${escapeHtml(String(dob))}</div>`);
-      if (email) parts.push(`<div class="idline"><b>Email:</b> ${escapeHtml(String(email))}</div>`);
-      if (sns) parts.push(`<div class="idline"><b>SNS:</b> ${escapeHtml(String(sns))}</div>`);
-      if (nif) parts.push(`<div class="idline"><b>NIF:</b> ${escapeHtml(String(nif))}</div>`);
-      if (passport) parts.push(`<div class="idline"><b>Passaporte:</b> ${escapeHtml(String(passport))}</div>`);
-
-      if (insurer) parts.push(`<div class="idline"><b>Seguradora:</b> ${escapeHtml(String(insurer))}</div>`);
-      if (policy) parts.push(`<div class="idline"><b>Nº apólice:</b> ${escapeHtml(String(policy))}</div>`);
-
-      if (address) parts.push(`<div class="idline"><b>Morada:</b> ${escapeHtml(String(address))}</div>`);
-      if (locality) parts.push(`<div class="idline"><b>Localidade:</b> ${escapeHtml(String(locality))}</div>`);
-      if (postal) parts.push(`<div class="idline"><b>Código postal:</b> ${escapeHtml(String(postal))}</div>`);
-      if (country) parts.push(`<div class="idline"><b>País:</b> ${escapeHtml(String(country))}</div>`);
-
-      if (notes) parts.push(`<div class="idline"><b>Notas:</b> ${escapeHtml(String(notes))}</div>`);
-
-      return parts.join("");
-    } catch (_) {
-      return "";
-    }
-  }
-
   function __gcBuildAgendaPrintHtml(rows) {
     const dayLabel = __gcGetSelectedDayLabelForPrint();
     const clinicFilter = (() => {
       try {
         const cid = document.getElementById("selClinic")?.value || "";
         if (!cid) return "Todas as clínicas";
-        const c = G.clinicsById && G.clinicsById[cid] ? G.clinicsById[ cid ] : null;
+        const c = G.clinicsById && G.clinicsById[cid] ? G.clinicsById[cid] : null;
         return (c && (c.name || c.slug)) ? (c.name || c.slug) : cid;
       } catch (_) {
         return "";
@@ -832,8 +770,16 @@
       const patientName = p && p.full_name ? p.full_name : (r.patient_id ? `Doente (ID): ${r.patient_id}` : "—");
       const patientPhone = p && p.phone ? p.phone : "—";
 
+      // ✅ Campos administrativos (patients)
+      const nif = p && p.nif ? p.nif : "";
+      const sns = p && p.sns ? p.sns : "";
+      const address = p && p.address_line1 ? p.address_line1 : "";
+      const postal = p && p.postal_code ? p.postal_code : "";
+      const city = p && p.city ? p.city : "";
+      const insurer = p && p.insurance_provider ? p.insurance_provider : "";
+      const policy = p && p.insurance_policy_number ? p.insurance_policy_number : "";
+
       const notes = r.notes ? clipOneLine(r.notes, 200) : "";
-      const idHtml = __gcBuildPatientIdHtml(p);
 
       return `
         <tr>
@@ -843,7 +789,15 @@
           <td class="c-status">${escapeHtml(statusTxt)}</td>
           <td class="c-phone">${escapeHtml(patientPhone)}</td>
           <td class="c-clinic">${escapeHtml(clinicName)}</td>
-          <td class="c-id">${idHtml || ""}</td>
+
+          <td class="c-nif">${escapeHtml(nif || "—")}</td>
+          <td class="c-addr">${escapeHtml(address || "—")}</td>
+          <td class="c-post">${escapeHtml(postal || "—")}</td>
+          <td class="c-city">${escapeHtml(city || "—")}</td>
+          <td class="c-sns">${escapeHtml(sns || "—")}</td>
+          <td class="c-ins">${escapeHtml(insurer || "—")}</td>
+          <td class="c-pol">${escapeHtml(policy || "—")}</td>
+
           <td class="c-notes">${notes ? escapeHtml(notes) : ""}</td>
         </tr>
       `;
@@ -865,20 +819,26 @@
     table{ width:100%; border-collapse:collapse; }
     th, td{ border:1px solid #e5e5e5; padding:8px 10px; font-size:12px; vertical-align:top; }
     th{ background:#f6f6f6; text-align:left; font-weight:800; }
+
     .c-time{ width:90px; white-space:nowrap; font-weight:800; }
+    .c-name{ width:220px; }
+    .c-type{ width:150px; }
     .c-status{ width:130px; white-space:nowrap; }
     .c-phone{ width:120px; white-space:nowrap; }
     .c-clinic{ width:150px; }
-    .c-type{ width:150px; }
-    .c-id{ width:320px; }
-    .c-notes{ width:220px; }
 
-    .idline{ font-size:11px; line-height:1.25; margin:0 0 4px 0; }
-    .idline b{ font-weight:900; }
+    .c-nif{ width:95px; white-space:nowrap; }
+    .c-addr{ width:220px; }
+    .c-post{ width:110px; white-space:nowrap; }
+    .c-city{ width:140px; }
+    .c-sns{ width:110px; white-space:nowrap; }
+    .c-ins{ width:160px; }
+    .c-pol{ width:130px; white-space:nowrap; }
+
+    .c-notes{ width:220px; }
 
     @media print{
       body{ margin: 10mm; }
-      .idline{ margin-bottom:3px; }
     }
   </style>
 </head>
@@ -895,7 +855,15 @@
         <th>Estado</th>
         <th>Telefone</th>
         <th>Clínica</th>
-        <th>Identificação</th>
+
+        <th>NIF</th>
+        <th>Morada</th>
+        <th>Código postal</th>
+        <th>Localidade</th>
+        <th>SNS</th>
+        <th>Seguro</th>
+        <th>Nº seguro</th>
+
         <th>Notas</th>
       </tr>
     </thead>
