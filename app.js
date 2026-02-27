@@ -1181,7 +1181,7 @@
     }
   }
 
-/* ==== FIM BLOCO 04/12 ==== */s
+/* ==== FIM BLOCO 04/12 ==== */
 
 /* ==== INÍCIO BLOCO 05/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 
