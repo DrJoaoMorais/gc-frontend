@@ -4901,6 +4901,134 @@ function bindConsultEvents() {
     return `${n} — ${p}`;
   }
 
+  // =========================================================
+  // TRANSFERÊNCIA AUTOMÁTICA DE DOENTE ENTRE CLÍNICAS
+  // - Só acontece depois do utilizador selecionar o doente (patient_id)
+  // - Se clínica ativa do doente != clínica escolhida na marcação:
+  //     pop-up com identificadores (SNS/NIF/Tel/DN) para confirmar
+  //     e, se aceitar, atualiza patient_clinic (is_active)
+  // =========================================================
+
+  async function fetchPatientIdentifiers(patientId) {
+    try {
+      const { data, error } = await window.sb
+        .from("patients")
+        .select("full_name, sns, nif, passport_id, phone, dob")
+        .eq("id", patientId)
+        .limit(1);
+
+      if (error) throw error;
+      const p = (data && data.length) ? data[0] : null;
+      return p || null;
+    } catch (e) {
+      console.warn("fetchPatientIdentifiers falhou:", e);
+      return null; // não bloqueia
+    }
+  }
+
+  async function fetchActiveClinicForPatient(patientId) {
+    try {
+      const { data, error } = await window.sb
+        .from("patient_clinic")
+        .select("clinic_id, is_active")
+        .eq("patient_id", patientId)
+        .eq("is_active", true)
+        .limit(1);
+
+      if (error) throw error;
+      const r = (data && data.length) ? data[0] : null;
+      return r ? (r.clinic_id || null) : null;
+    } catch (e) {
+      console.warn("fetchActiveClinicForPatient falhou:", e);
+      return null; // não bloqueia
+    }
+  }
+
+  function buildTransferConfirmText({ patient, fromClinicName, toClinicName }) {
+    const name = (patient?.full_name || "").trim() || "—";
+    const parts = [];
+
+    const sns = patient?.sns ? `SNS: ${patient.sns}` : "";
+    const nif = patient?.nif ? `NIF: ${patient.nif}` : "";
+    const tel = patient?.phone ? `Tel: ${patient.phone}` : "";
+    const pid = patient?.passport_id ? `ID: ${patient.passport_id}` : "";
+    const dob = patient?.dob ? `DN: ${patient.dob}` : ""; // vem YYYY-MM-DD; ok para confirmação
+
+    const idLine = [sns, nif, tel, pid, dob].filter(Boolean).join("  |  ");
+
+    parts.push(`Confirme que é o doente correto:`);
+    parts.push(`${name}`);
+    if (idLine) parts.push(idLine);
+    parts.push("");
+    parts.push(`Este doente está ativo em: ${fromClinicName || "—"}`);
+    parts.push(`Pretende transferir para: ${toClinicName || "—"} ?`);
+    parts.push("");
+    parts.push(`(Isto atualiza automaticamente a clínica ativa do doente.)`);
+
+    return parts.join("\n");
+  }
+
+  async function ensurePatientActiveInClinic({ patientId, targetClinicId }) {
+    // 1) Desativar qualquer ligação ativa que não seja a target
+    const { error: eOff } = await window.sb
+      .from("patient_clinic")
+      .update({ is_active: false })
+      .eq("patient_id", patientId)
+      .eq("is_active", true)
+      .neq("clinic_id", targetClinicId);
+
+    if (eOff) throw eOff;
+
+    // 2) Tentar reativar se já existir linha para target
+    const { data: upd, error: eOn } = await window.sb
+      .from("patient_clinic")
+      .update({ is_active: true })
+      .eq("patient_id", patientId)
+      .eq("clinic_id", targetClinicId)
+      .select("id");
+
+    if (eOn) throw eOn;
+
+    if (upd && upd.length) return true;
+
+    // 3) Se não existia, criar nova
+    const { error: eIns } = await window.sb
+      .from("patient_clinic")
+      .insert({
+        patient_id: patientId,
+        clinic_id: targetClinicId,
+        is_active: true,
+        created_by: (G && G.sessionUser && G.sessionUser.id) ? G.sessionUser.id : null
+      });
+
+    if (eIns) throw eIns;
+    return true;
+  }
+
+  async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
+    // Se não conseguir verificar, não bloqueia a marcação (fail-open controlado)
+    const activeClinicId = await fetchActiveClinicForPatient(patientId);
+    if (!activeClinicId) return { changed: false };
+
+    if (String(activeClinicId) === String(targetClinicId)) return { changed: false };
+
+    const fromClinicName = (G.clinicsById && G.clinicsById[activeClinicId])
+      ? (G.clinicsById[activeClinicId].name || G.clinicsById[activeClinicId].slug || activeClinicId)
+      : activeClinicId;
+
+    const toClinicName = (G.clinicsById && G.clinicsById[targetClinicId])
+      ? (G.clinicsById[targetClinicId].name || G.clinicsById[targetClinicId].slug || targetClinicId)
+      : targetClinicId;
+
+    const patient = await fetchPatientIdentifiers(patientId);
+
+    const ok = confirm(buildTransferConfirmText({ patient, fromClinicName, toClinicName }));
+    if (!ok) return { changed: false, cancelled: true };
+
+    await ensurePatientActiveInClinic({ patientId, targetClinicId });
+    return { changed: true };
+  }
+
   // ---- helpers bloqueio (datas/horas) ----
   function __gcPad2(n) { return String(n).padStart(2, "0"); }
 
@@ -5834,8 +5962,6 @@ function bindConsultEvents() {
           if (!dateTo) throw new Error("Até em falta.");
           if (__gcCmpYYYYMMDD(dateFrom, dateTo) > 0) throw new Error("Intervalo de datas inválido.");
 
-          // ✅ NOVO: se o utilizador marcou “Selecionar todas as clínicas” e é superadmin,
-          // tratamos como GLOBAL (clinic_id = null) para NÃO criar 1 bloqueio por clínica.
           const applyToRaw = String(bApplyTo?.value || "selected").toLowerCase();
           const idsSelected = Array.from(__selectedClinicIds || []).map(String);
 
@@ -5847,18 +5973,16 @@ function bindConsultEvents() {
             applyTo = "global";
           }
 
-          // 1) Determinar alvos (global vs clínicas)
           let targetClinicIds = [];
 
           if (applyTo === "global") {
             if (!isSuperadmin) throw new Error("Global: apenas superadmin.");
-            targetClinicIds = [null]; // clinic_id null = global
+            targetClinicIds = [null];
           } else {
             if (!idsSelected.length) throw new Error("Seleciona pelo menos uma clínica.");
             targetClinicIds = idsSelected;
           }
 
-          // 2) Expandir intervalo de dias em linhas por dia
           const rowsToInsert = [];
           let d = dateFrom;
           while (__gcCmpYYYYMMDD(d, dateTo) <= 0) {
@@ -5886,7 +6010,6 @@ function bindConsultEvents() {
           }
 
           if (isEdit && row?.id) {
-            // Edição simples: edita apenas a linha actual (mantém compatibilidade)
             const first = rowsToInsert[0] || null;
             if (!first) throw new Error("Sem dados para guardar.");
             const { error } = await window.sb.from("appointments").update(first).eq("id", row.id);
@@ -5902,7 +6025,7 @@ function bindConsultEvents() {
         }
 
         // ======================
-        // CONSULTA (como estava)
+        // CONSULTA (com transferência automática opcional)
         // ======================
         if (!mClinic || !mClinic.value) throw new Error("Seleciona a clínica.");
 
@@ -5925,6 +6048,17 @@ function bindConsultEvents() {
         const dur = mDuration ? parseInt(mDuration.value, 10) : 20;
         const times = calcEndFromStartAndDuration(mStart.value, dur);
         if (!times) throw new Error("Data/hora inválida.");
+
+        // ✅ NOVO: antes de gravar, verificar se o doente está ativo na clínica escolhida
+        // Se não estiver, pede confirmação com identificadores e transfere automaticamente.
+        const tRes = await maybeTransferPatientToClinic({ patientId: pid, targetClinicId: mClinic.value });
+        if (tRes && tRes.cancelled) {
+          // utilizador cancelou a transferência -> não grava a marcação
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Operação cancelada (transferência não confirmada).";
+          btnSave.disabled = false;
+          return;
+        }
 
         const autoTitle = makeAutoTitle(pname, proc);
         const statusToSave = (mStatus && mStatus.value) ? mStatus.value : "scheduled";
