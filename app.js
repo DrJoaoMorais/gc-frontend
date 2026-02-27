@@ -784,7 +784,7 @@
       const insurer = p && p.insurance_provider ? p.insurance_provider : "";
       const policy = p && p.insurance_policy_number ? p.insurance_policy_number : "";
 
-      // ✅ Morada numa linha: "Rua..., 2000-000 Cidade"
+      // ✅ Morada numa linha base: "Rua..., 2000-000 Cidade"
       const addrLine = (() => {
         const a = String(address || "").trim();
         const pc = String(postal || "").trim();
@@ -804,16 +804,16 @@
       return `
         <tr>
           <td class="c-time">${escapeHtml(timeTxt)}</td>
-          <td class="c-name" title="${escapeHtml(patientName)}">${escapeHtml(patientName)}</td>
+          <td class="c-name">${escapeHtml(patientName)}</td>
           <td class="c-type">${escapeHtml(proc)}</td>
           <td class="c-status">${escapeHtml(statusTxt)}</td>
           <td class="c-phone">${escapeHtml(patientPhone)}</td>
           <td class="c-clinic">${escapeHtml(clinicName)}</td>
 
           <td class="c-nif">${escapeHtml(nif || "—")}</td>
-          <td class="c-addr" title="${escapeHtml(addrLine || "—")}">${escapeHtml(addrLine || "—")}</td>
+          <td class="c-addr">${escapeHtml(addrLine || "—")}</td>
           <td class="c-sns">${escapeHtml(sns || "—")}</td>
-          <td class="c-ins" title="${escapeHtml(insLine || "—")}">${escapeHtml(insLine || "—")}</td>
+          <td class="c-ins">${escapeHtml(insLine || "—")}</td>
         </tr>
       `;
     }).join("");
@@ -828,42 +828,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${escapeHtml(safeTitle)}</title>
   <style>
-    body{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 24px; color:#111; }
+    body{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; margin:24px; color:#111; }
     h1{ font-size:18px; margin:0 0 6px 0; font-weight:900; }
     .sub{ color:#555; font-size:12px; margin:0 0 14px 0; }
+
+    /* ✅ Permitir wrap e leitura */
     table{ width:100%; border-collapse:collapse; table-layout:fixed; }
-    th, td{ border:1px solid #e5e5e5; padding:7px 8px; font-size:12px; vertical-align:top; }
+    th, td{ border:1px solid #e5e5e5; padding:7px 8px; font-size:12px; vertical-align:top; line-height:1.25; }
     th{ background:#f6f6f6; text-align:left; font-weight:800; }
 
-    /* ✅ mais compacto */
+    /* Colunas “curtas” */
     .c-time{ width:70px; white-space:nowrap; font-weight:800; }
-    .c-type{ width:110px; }
-    .c-status{ width:120px; white-space:nowrap; }
-    .c-phone{ width:100px; white-space:nowrap; }
-    .c-clinic{ width:90px; }
+    .c-type{ width:95px; }
+    .c-status{ width:110px; white-space:nowrap; }
+    .c-phone{ width:95px; white-space:nowrap; }
+    .c-clinic{ width:80px; }
     .c-nif{ width:90px; white-space:nowrap; }
     .c-sns{ width:95px; white-space:nowrap; }
     .c-ins{ width:160px; }
 
-    /* ✅ Nome 1 linha */
+    /* ✅ Nome e Morada: 2+ linhas quando necessário (sem reticências) */
     .c-name{
-      width:210px;
+      width:240px;
       font-weight:800;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
+      white-space:normal;
+      overflow:visible;
+      text-overflow:clip;
+      word-break:break-word;
+      overflow-wrap:anywhere;
     }
 
-    /* ✅ Morada+CP+Localidade 1 linha */
     .c-addr{
-      width:280px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
+      width:320px;
+      white-space:normal;
+      overflow:visible;
+      text-overflow:clip;
+      word-break:break-word;
+      overflow-wrap:anywhere;
     }
 
     @media print{
-      body{ margin: 10mm; }
+      body{ margin:10mm; }
     }
   </style>
 </head>
@@ -908,7 +913,6 @@
       w.document.write(html);
       w.document.close();
 
-      // garantir render antes do print
       w.focus();
       setTimeout(() => {
         try { w.print(); } catch (_) {}
@@ -944,15 +948,13 @@
         </div>
 
         <style>
-          /* Cabeçalho + linhas (escopo local do render) */
           .gcAgendaGrid{
             display:grid;
-            grid-template-columns: 110px 2.4fr 0.9fr 160px 120px 140px; /* +Nome, -Tipo */
+            grid-template-columns: 110px 2.4fr 0.9fr 160px 120px 140px;
             column-gap: 16px;
             align-items: center;
             width:100%;
           }
-
           .gcAgendaHeader .gcAgendaH{
             font-size:${UI.fs12}px;
             color:#666;
@@ -960,31 +962,24 @@
             letter-spacing:.2px;
             text-transform:none;
           }
-
           .gcAgendaRow{
             padding:10px 0;
             border-bottom:1px solid #f2f2f2;
           }
-
           .gcAgendaRow:hover{
             background:#f8f8f8;
             border-radius:10px;
           }
-
           .gcAgendaTime{
             font-size:${UI.fs14}px;
             font-weight:800;
             color:#111;
             white-space:nowrap;
           }
-
-          .gcAgendaNameWrap{
-            min-width: 0;
-          }
-
+          .gcAgendaNameWrap{ min-width:0; }
           .gcAgendaNameText{
             display:block;
-            min-width: 0;
+            min-width:0;
             font-size:${UI.fs14}px;
             font-weight:800;
             color:#111;
@@ -992,7 +987,6 @@
             overflow:hidden;
             text-overflow:ellipsis;
           }
-
           .gcAgendaNotesBelow{
             display:block;
             margin-top:4px;
@@ -1003,7 +997,6 @@
             overflow:hidden;
             text-overflow:ellipsis;
           }
-
           .gcAgendaCell{
             min-width:0;
             font-size:${UI.fs12}px;
@@ -1012,12 +1005,7 @@
             overflow:hidden;
             text-overflow:ellipsis;
           }
-
-          /* ligeiro “empurrão” do Tipo para a direita */
-          .gcAgendaCellType{
-            padding-left: 8px;
-          }
-
+          .gcAgendaCellType{ padding-left:8px; }
           .gcAgendaStatusWrap{ min-width:0; }
           .gcStatusSelect{
             width:100%;
@@ -1033,15 +1021,11 @@
             overflow:hidden;
             text-overflow:ellipsis;
           }
-          .gcStatusSelect:disabled{
-            opacity: 0.75;
-            cursor: not-allowed;
-          }
-
+          .gcStatusSelect:disabled{ opacity:0.75; cursor:not-allowed; }
           .gcAgendaFooter{
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px dashed #e5e5e5;
+            margin-top:12px;
+            padding-top:12px;
+            border-top:1px dashed #e5e5e5;
             display:flex;
             justify-content:flex-end;
           }
@@ -1083,7 +1067,6 @@
 
       const timeTxt = `${tStart}${tEnd ? `–${tEnd}` : ""}`;
 
-      // ✅ Para bloqueio: selector desativado e com label "Bloqueio"
       const statusSelectHtml = isBlock
         ? `
           <select data-status-select="1"
@@ -1146,7 +1129,6 @@
 
     ul.innerHTML = header + body + footer;
 
-    // handlers linhas
     ul.querySelectorAll("li[data-appt-id]").forEach((li) => {
       li.addEventListener("click", (ev) => {
         const t = ev.target;
@@ -1189,7 +1171,6 @@
       }
     });
 
-    // handler impressão
     const btn = document.getElementById("btnPrintAgendaDay");
     if (btn) {
       btn.addEventListener("click", (ev) => {
@@ -1200,7 +1181,7 @@
     }
   }
 
-/* ==== FIM BLOCO 04/12 ==== */
+/* ==== FIM BLOCO 04/12 ==== */s
 
 /* ==== INÍCIO BLOCO 05/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 
