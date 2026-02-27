@@ -155,17 +155,27 @@
       window.__GC_IS_SUPERADMIN__ = false;
     }
 
-    // Role “operacional” vem de clinic_members (como tinhas)
+    // ✅ Fonte de verdade: user_clinics (multi-clínica)
     const { data, error } = await window.sb
-      .from("clinic_members")
+      .from("user_clinics")
       .select("role, clinic_id, is_active")
       .eq("user_id", userId)
-      .eq("is_active", true)
-      .limit(1);
+      .eq("is_active", true);
 
     if (error) throw error;
-    if (!data || data.length === 0) return null;
-    return data[0].role || null;
+
+    const rows = Array.isArray(data) ? data : [];
+
+    // Guardar para UI (contagem/IDs)
+    window.__GC_MY_CLINIC_IDS__ = rows.map(r => r.clinic_id).filter(Boolean);
+    window.__GC_MY_CLINICS_COUNT__ = window.__GC_MY_CLINIC_IDS__.length;
+
+    // Role “operacional” (prioridade)
+    const roles = rows.map(r => String(r.role || "").trim()).filter(Boolean);
+    if (roles.includes("doctor")) return "doctor";
+    if (roles.includes("physio")) return "physio";
+    if (roles.includes("secretary")) return "secretary";
+    return null;
   }
 
   async function fetchVisibleClinics() {
