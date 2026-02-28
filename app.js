@@ -489,8 +489,8 @@
     "🩸 Plasma Rico em Plaquetas",
     "💉 Viscossuplementação",
     "🎥 Teleconsulta",
-    "🧾 Revalidação de tratamentos",
-    "📝 Relatórios",
+    "📑 Revalidação de tratamentos",
+    "📄 Relatórios",
     "📌Outro",
   ];
 
