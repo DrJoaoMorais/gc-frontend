@@ -484,14 +484,14 @@
 
   // ---------- Tipos / Status / Duração ----------
   const PROCEDURE_OPTIONS = [
-    "Primeira Consulta",
-    "Consulta de Reavaliação",
-    "Plasma Rico em Plaquetas",
-    "Viscossuplementação",
-    "Teleconsulta",
-    "Revalidação de tratamentos",
-    "Relatórios",
-    "Outro",
+    "🆕 Primeira Consulta",
+    "🔁 Consulta de Reavaliação",
+    "🩸 Plasma Rico em Plaquetas",
+    "💉 Viscossuplementação",
+    "🎥 Teleconsulta",
+    "📋 Revalidação de tratamentos",
+    "📝 Relatórios",
+    "📌Outro",
   ];
 
   const STATUS_OPTIONS = ["scheduled", "arrived", "done", "no_show", "confirmed"];
