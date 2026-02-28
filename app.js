@@ -363,11 +363,65 @@
   }
 
   async function rpcCreatePatientForClinic(payload) {
-    const { data, error } = await window.sb.rpc("create_patient_for_clinic", payload);
-    if (error) throw error;
-    return data;
+  const { data, error } = await window.sb.rpc("create_patient_for_clinic_v2", payload);
+  if (error) throw error;
+
+  // data = { patient_id, action }
+  const patientId = data?.patient_id || null;
+  const action = data?.action || "created";
+
+  if (!patientId) throw new Error("RPC create_patient_for_clinic_v2 devolveu patient_id vazio");
+
+  if (action === "reused_transferred") {
+    const ok = confirm(
+      "Este doente já existia noutra clínica.\n\n" +
+      "Confirmas a transferência para a clínica atual?"
+    );
+
+    if (!ok) {
+      // Reverter: manter a clínica anterior ativa (a função já desativou as anteriores).
+      // Como não sabemos qual era a anterior aqui, fazemos uma reversão segura:
+      // - desativar esta clínica
+      // - reativar a mais recente anterior (created_at desc) para este doente
+      const clinicId = payload?.p_clinic_id || payload?.clinic_id || null;
+      try {
+        if (clinicId) {
+          await window.sb
+            .from("patient_clinic")
+            .update({ is_active: false })
+            .eq("patient_id", patientId)
+            .eq("clinic_id", clinicId);
+        }
+
+        const { data: prevRows } = await window.sb
+          .from("patient_clinic")
+          .select("id, clinic_id, created_at")
+          .eq("patient_id", patientId)
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        const prev = (prevRows || []).find(r => r.clinic_id !== clinicId);
+        if (prev?.clinic_id) {
+          await window.sb
+            .from("patient_clinic")
+            .update({ is_active: true })
+            .eq("patient_id", patientId)
+            .eq("clinic_id", prev.clinic_id);
+        }
+      } catch (e) {
+        console.warn("Reversão de transferência falhou:", e);
+      }
+
+      // Cancelar criação/marcação
+      throw new Error("TRANSFER_CANCELLED");
+    }
   }
 
+  // Para manter compatibilidade com o resto do código:
+  // - antes devolvia UUID direto
+  // - agora devolvemos só o UUID
+  return patientId;
+}
   async function fetchPatientsByIds(patientIds) {
     const ids = Array.from(new Set((patientIds || []).filter(Boolean)));
     if (ids.length === 0) return {};
