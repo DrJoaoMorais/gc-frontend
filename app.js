@@ -4957,6 +4957,69 @@ function bindConsultEvents() {
   }
 
   // =========================================================
+  // GCAL — sync automático (fire-and-forget, não bloqueia Guardar)
+  // - procura URL em variáveis globais; se não existir, faz skip (com log)
+  // - envia POST { dayISO }
+  // =========================================================
+  function __gcGetGcalSyncDayUrl() {
+    const candidates = [
+      window.__GC_GCAL_SYNC_DAY_URL__,
+      window.__GC_GCAL_SYNC_URL__,
+      window.__GC_GCAL_WORKER_URL__,
+      window.__GC_GCAL_URL__,
+      window.GCAL_WORKER_URL,
+    ].filter(Boolean).map(String);
+
+    if (!candidates.length) return null;
+
+    // aceitar tanto baseURL como URL final
+    const u0 = candidates[0].trim();
+    if (!u0) return null;
+    if (u0.includes("/sync-day")) return u0;
+    return u0.replace(/\/+$/g, "") + "/sync-day";
+  }
+
+  function __gcFireSyncDay(dayISO) {
+    try {
+      const url = __gcGetGcalSyncDayUrl();
+      if (!url) {
+        console.warn("[GCAL] sync skipped (url não configurada). dayISO=", dayISO);
+        return;
+      }
+      const d = String(dayISO || "").slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+        console.warn("[GCAL] sync skipped (dayISO inválido):", dayISO);
+        return;
+      }
+
+      const ctrl = new AbortController();
+      const t = setTimeout(() => { try { ctrl.abort(); } catch (_) {} }, 8000);
+
+      fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ dayISO: d }),
+        signal: ctrl.signal
+      })
+        .then(async (r) => {
+          clearTimeout(t);
+          if (!r.ok) {
+            const txt = await r.text().catch(() => "");
+            console.warn("[GCAL] sync-day falhou:", r.status, txt ? String(txt).slice(0, 200) : "");
+            return;
+          }
+          console.log("[GCAL] sync ok dayISO=", d);
+        })
+        .catch((e) => {
+          clearTimeout(t);
+          console.warn("[GCAL] sync-day erro:", e && (e.message || e));
+        });
+    } catch (e) {
+      console.warn("[GCAL] sync-day exceção:", e && (e.message || e));
+    }
+  }
+
+  // =========================================================
   // TRANSFERÊNCIA AUTOMÁTICA DE DOENTE ENTRE CLÍNICAS
   // - Só acontece depois do utilizador selecionar o doente (patient_id)
   // - Se clínica ativa do doente != clínica escolhida na marcação:
@@ -6069,13 +6132,31 @@ function bindConsultEvents() {
             if (!first) throw new Error("Sem dados para guardar.");
             const { error } = await window.sb.from("appointments").update(first).eq("id", row.id);
             if (error) throw error;
+            console.log("[APPT] update bloqueio ok id=", row.id);
           } else {
             const { error } = await window.sb.from("appointments").insert(rowsToInsert);
             if (error) throw error;
+            console.log("[APPT] insert bloqueio ok rows=", rowsToInsert.length);
           }
 
           safeCloseModal();
           await refreshAgenda();
+
+          // sync: para bloqueios, tenta sync dos dias (limitado; não bloqueia)
+          try {
+            const maxDays = 31;
+            let c = 0;
+            let dd = dateFrom;
+            while (__gcCmpYYYYMMDD(dd, dateTo) <= 0 && c < maxDays) {
+              __gcFireSyncDay(dd);
+              dd = __gcAddDaysYYYYMMDD(dd, 1);
+              c++;
+            }
+            if (__gcCmpYYYYMMDD(dd, dateTo) <= 0) {
+              console.warn("[GCAL] bloqueio >31 dias — sync parcial executado.");
+            }
+          } catch (_) {}
+
           return;
         }
 
@@ -6104,11 +6185,12 @@ function bindConsultEvents() {
         const times = calcEndFromStartAndDuration(mStart.value, dur);
         if (!times) throw new Error("Data/hora inválida.");
 
-        // ✅ NOVO: antes de gravar, verificar se o doente está ativo na clínica escolhida
-        // Se não estiver, pede confirmação com identificadores e transfere automaticamente.
+        // dia (para sync automático)
+        const dayISO = String(mStart.value || "").slice(0, 10);
+
+        // ✅ antes de gravar, verificar se o doente está ativo na clínica escolhida
         const tRes = await maybeTransferPatientToClinic({ patientId: pid, targetClinicId: mClinic.value });
         if (tRes && tRes.cancelled) {
-          // utilizador cancelou a transferência -> não grava a marcação
           mMsg.style.color = "#b00020";
           mMsg.textContent = "Operação cancelada (transferência não confirmada).";
           btnSave.disabled = false;
@@ -6132,16 +6214,37 @@ function bindConsultEvents() {
 
         if (payload && payload.notes === "") payload.notes = null;
 
+        let savedId = null;
+
         if (isEdit) {
-          const { error } = await window.sb.from("appointments").update(payload).eq("id", row.id);
+          const { data, error } = await window.sb
+            .from("appointments")
+            .update(payload)
+            .eq("id", row.id)
+            .select("id")
+            .single();
           if (error) throw error;
+          savedId = data?.id || row.id;
+          console.log("[APPT] update ok id=", savedId);
         } else {
-          const { error } = await window.sb.from("appointments").insert(payload);
+          const { data, error } = await window.sb
+            .from("appointments")
+            .insert(payload)
+            .select("id")
+            .single();
           if (error) throw error;
+          savedId = data?.id || null;
+          console.log("[APPT] insert ok id=", savedId);
         }
 
         safeCloseModal();
+
         await refreshAgenda();
+        console.log("[APPT] refreshAgenda ok");
+
+        // ✅ sync automático (não bloqueia)
+        __gcFireSyncDay(dayISO);
+
       } catch (e) {
         console.error("Guardar falhou:", e);
         const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
