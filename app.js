@@ -69,11 +69,22 @@
     return new Date(y, m - 1, d, 0, 0, 0, 0);
   }
 
-  function isoLocalDayRangeFromISODate(dateStr) {
+  // ✅ Core + aliases (compatibilidade com chamadas antigas/novas)
+  function __isoLocalDayRangeCore(dateStr) {
     const start = parseISODateToLocalStart(dateStr);
     if (!start) return null;
     const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1, 0, 0, 0, 0);
     return { startISO: start.toISOString(), endISO: end.toISOString(), start, end };
+  }
+
+  // Nome “novo” (o que tens usado nos blocos recentes)
+  function isoLocalDayRangeFromISODate(dateStr) {
+    return __isoLocalDayRangeCore(dateStr);
+  }
+
+  // Nome “antigo” (há código a chamar este)
+  function isoLocalDayRangeFromISODate(dateStr) {
+    return __isoLocalDayRangeCore(dateStr);
   }
 
   function toLocalInputValue(dateObj) {
