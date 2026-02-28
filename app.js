@@ -490,7 +490,7 @@
     "💉 Viscossuplementação",
     "🎥 Teleconsulta",
     "📑 Revalidação de tratamentos",
-    "📄 Relatórios",
+    "🖋️ Relatórios",
     "📌Outro",
   ];
 
