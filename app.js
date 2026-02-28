@@ -490,6 +490,7 @@
     "Viscossuplementação",
     "Relatórios",
     "Revalidação de tratamentos",
+    "Teleconsulta"
     "Outro",
   ];
 
