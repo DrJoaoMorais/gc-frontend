@@ -70,21 +70,21 @@
   }
 
   // ✅ Core + aliases (compatibilidade com chamadas antigas/novas)
-  function __isoLocalDayRangeCore(dateStr) {
+  function __gcIsoLocalDayRangeCore(dateStr) {
     const start = parseISODateToLocalStart(dateStr);
     if (!start) return null;
     const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1, 0, 0, 0, 0);
     return { startISO: start.toISOString(), endISO: end.toISOString(), start, end };
   }
 
-  // Nome “novo” (o que tens usado nos blocos recentes)
+  // Nome “canon” (o que tens no BLOCO 01 atualmente)
   function isoLocalDayRangeFromISODate(dateStr) {
-    return __isoLocalDayRangeCore(dateStr);
+    return __gcIsoLocalDayRangeCore(dateStr);
   }
 
-  // Nome “antigo” (há código a chamar este)
+  // ✅ Alias para chamadas que apareceram no código: sem "From"
   function isoLocalDayRangeFromISODate(dateStr) {
-    return __isoLocalDayRangeCore(dateStr);
+    return __gcIsoLocalDayRangeCore(dateStr);
   }
 
   function toLocalInputValue(dateObj) {
