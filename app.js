@@ -4958,8 +4958,6 @@ function bindConsultEvents() {
 
   // =========================================================
   // GCAL — sync automático (fire-and-forget, não bloqueia Guardar)
-  // - procura URL em variáveis globais; se não existir, faz skip (com log)
-  // - envia POST { dayISO }
   // =========================================================
   function __gcGetGcalSyncDayUrl() {
     const candidates = [
@@ -4981,11 +4979,12 @@ function bindConsultEvents() {
   function __gcFireSyncDay(dayISO) {
     try {
       const url = __gcGetGcalSyncDayUrl();
+      const d = String(dayISO || "").slice(0, 10);
+
       if (!url) {
-        console.warn("[GCAL] sync skipped (url não configurada). dayISO=", dayISO);
+        console.warn("[GCAL] sync skipped (url não configurada). dayISO=", d);
         return;
       }
-      const d = String(dayISO || "").slice(0, 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
         console.warn("[GCAL] sync skipped (dayISO inválido):", dayISO);
         return;
@@ -5065,7 +5064,7 @@ function bindConsultEvents() {
     const nif = patient?.nif ? `NIF: ${patient.nif}` : "";
     const tel = patient?.phone ? `Tel: ${patient.phone}` : "";
     const pid = patient?.passport_id ? `ID: ${patient.passport_id}` : "";
-    const dob = patient?.dob ? `DN: ${patient.dob}` : "";
+    const dob = patient?.dob ? `DN: ${patient.dob}` : ""; // YYYY-MM-DD
 
     const idLine = [sns, nif, tel, pid, dob].filter(Boolean).join("  |  ");
 
@@ -5082,6 +5081,7 @@ function bindConsultEvents() {
   }
 
   async function ensurePatientActiveInClinic({ patientId, targetClinicId }) {
+    // 1) Desativar qualquer ligação ativa que não seja a target
     const { error: eOff } = await window.sb
       .from("patient_clinic")
       .update({ is_active: false })
@@ -5091,6 +5091,7 @@ function bindConsultEvents() {
 
     if (eOff) throw eOff;
 
+    // 2) Tentar reativar se já existir linha para target
     const { data: upd, error: eOn } = await window.sb
       .from("patient_clinic")
       .update({ is_active: true })
@@ -5102,6 +5103,7 @@ function bindConsultEvents() {
 
     if (upd && upd.length) return true;
 
+    // 3) Se não existia, criar nova
     const { error: eIns } = await window.sb
       .from("patient_clinic")
       .insert({
@@ -5118,6 +5120,7 @@ function bindConsultEvents() {
   async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
     const activeClinicId = await fetchActiveClinicForPatient(patientId);
     if (!activeClinicId) return { changed: false };
+
     if (String(activeClinicId) === String(targetClinicId)) return { changed: false };
 
     const fromClinicName = (G.clinicsById && G.clinicsById[activeClinicId])
@@ -5207,6 +5210,7 @@ function bindConsultEvents() {
 
     const procInit = isEdit ? (row.procedure_type ?? "") : "";
 
+    // ---- Status (fonte única)
     const statusRaw = isEdit ? (row.status ?? "scheduled") : "scheduled";
     const statusNorm = (String(statusRaw).toLowerCase() === "cancelled") ? "no_show" : String(statusRaw || "scheduled").toLowerCase();
     const statusInit = (Array.isArray(STATUS_OPTIONS) && STATUS_OPTIONS.map((x) => String(x).toLowerCase()).includes(statusNorm))
@@ -5220,20 +5224,23 @@ function bindConsultEvents() {
     const procIsOther = procInit && !PROCEDURE_OPTIONS.includes(procInit) ? true : procInit === "Outro";
     const procSelectValue = procIsOther ? "Outro" : (procInit || "");
 
+    // mode do appointment (presencial/video/bloqueio)
     const apptModeInit = isEdit ? String(row?.mode || "presencial").toLowerCase() : "presencial";
 
+    // permissões
     const isSuperadmin = !!window.__GC_IS_SUPERADMIN__;
     const isDoctor = String(G.role || "").toLowerCase() === "doctor";
     const canCreateBlocks = isSuperadmin || isDoctor;
 
     const isBlockEdit = isEdit && String(row?.mode || "").toLowerCase() === "bloqueio";
-    const canDeleteAppt = isEdit && !isBlockEdit && row?.id;
+    const canDeleteAppt = !!(isEdit && row?.id && !isBlockEdit);
 
     function optLabel(s) {
       const m = statusMeta(s);
       return `${m.icon} ${m.label}`;
     }
 
+    // valores iniciais UI bloqueio
     const bDateFromInit = __gcToDateInput(startInit);
     const bDateToInit = __gcToDateInput(startInit);
     const bTimeFromInit = __gcToTimeInput(startInit);
@@ -5416,7 +5423,9 @@ function bindConsultEvents() {
             <div style="display:flex; gap:10px;">
               ${canDeleteAppt ? `<button id="btnDeleteAppt" class="gcBtn" type="button" style="font-weight:900;">Eliminar marcação</button>` : ``}
               <button id="btnCancel" class="gcBtn">Cancelar</button>
-              <button id="btnSave" class="gcBtn" style="font-weight:900;">Guardar</button>
+              <button id="btnSave" class="gcBtn" style="font-weight:900;">
+                Guardar
+              </button>
             </div>
           </div>
         </div>
@@ -5454,6 +5463,8 @@ function bindConsultEvents() {
     const mStart = document.getElementById("mStart");
     const mDuration = document.getElementById("mDuration");
     const mProc = document.getElementById("mProc");
+    const mProcWrap = document.getElementById("mProcWrap");
+    const mStatusWrap = document.getElementById("mStatusWrap");
     const mProcOtherWrap = document.getElementById("mProcOtherWrap");
     const mProcOther = document.getElementById("mProcOther");
 
@@ -5461,6 +5472,7 @@ function bindConsultEvents() {
     const mNotesLabel = document.getElementById("mNotesLabel");
     const mMsg = document.getElementById("mMsg");
 
+    const mPatientWrap = document.getElementById("mPatientWrap");
     const mPatientQuery = document.getElementById("mPatientQuery");
     const mPatientResults = document.getElementById("mPatientResults");
     const mPatientId = document.getElementById("mPatientId");
@@ -5499,9 +5511,11 @@ function bindConsultEvents() {
     if (mNotes) mNotes.value = notesInit;
 
     // init bloqueio
-    let __blockMode = "period";
+    let __blockMode = "period"; // "day" ou "period"
     const __selectedClinicIds = new Set();
-    try { if (defaultClinicId) __selectedClinicIds.add(String(defaultClinicId)); } catch (_) {}
+    try {
+      if (defaultClinicId) __selectedClinicIds.add(String(defaultClinicId));
+    } catch (_) {}
 
     function __renderClinicsChecklist() {
       if (!bClinicsList) return;
@@ -5529,6 +5543,7 @@ function bindConsultEvents() {
 
     function __applyBlockModeUi() {
       if (!bDateFrom || !bDateTo || !bTimeFrom || !bTimeTo) return;
+
       if (__blockMode === "day") {
         bTimeFrom.value = "00:00";
         bTimeTo.value = "23:59";
@@ -5593,6 +5608,7 @@ function bindConsultEvents() {
           if (error) throw error;
           safeCloseModal();
           await refreshAgenda();
+          __gcFireSyncDay(String(row.start_at || G.selectedDayISO || "").slice(0, 10));
         } catch (e) {
           console.error(e);
           alert("Erro ao apagar bloqueio. Vê a consola para detalhe.");
@@ -5778,11 +5794,235 @@ function bindConsultEvents() {
         return;
       }
 
-      // (mantém exatamente o teu formulário — não alterado aqui)
-      // ... (o resto do teu openNewPatientForm continua igual ao que já tinhas)
-      // Para evitar regressões, não mexo no teu conteúdo aqui.
-      // (Se precisares, voltamos a colar a versão completa deste sub-bloco.)
-      alert("Este bloco mantém o formulário de novo doente igual ao anterior. Se neste momento estiver OK, ignorar este alerta.");
+      host.innerHTML = `
+        <div id="subNewPatient" style="border:1px solid #eee; border-radius:12px; padding:12px; background:#fafafa;">
+          <div style="font-size:${UI.fs13}px; font-weight:900; color:#111;">Novo doente</div>
+          <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
+            Nome obrigatório. Identificação: SNS (9 dígitos) ou NIF (9 dígitos) ou Passaporte/ID (4–20 alfanum).
+          </div>
+
+          <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Nome completo *</label>
+              <input id="npFullName" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Data nascimento</label>
+              <input id="npDob" type="date" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Telefone</label>
+              <input id="npPhone" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Email</label>
+              <input id="npEmail" type="email" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">SNS (9 dígitos)</label>
+              <input id="npSNS" type="text" inputmode="numeric" placeholder="#########" autocomplete="off"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">NIF (9 dígitos)</label>
+              <input id="npNIF" type="text" inputmode="numeric" placeholder="#########" autocomplete="off"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Passaporte/ID (4–20)</label>
+              <input id="npPassport" type="text" placeholder="AB123456" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Seguro</label>
+              <input id="npInsuranceProvider" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Apólice</label>
+              <input id="npInsurancePolicy" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            </div>
+
+            <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Morada</label>
+              <input id="npAddress1" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Código-postal</label>
+              <input id="npPostal" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Cidade</label>
+              <input id="npCity" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">País</label>
+              <input id="npCountry" type="text" value="PT" autocomplete="off" autocapitalize="off" spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            </div>
+
+            <div style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:4px;">
+              <label style="font-size:${UI.fs12}px; color:#666;">Notas</label>
+              <textarea id="npNotes" rows="2" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;"></textarea>
+            </div>
+          </div>
+
+          <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+            <div id="npMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
+            <div style="display:flex; gap:10px;">
+              <button id="npCancel" class="gcBtn">Fechar</button>
+              <button id="npCreate" class="gcBtn" style="font-weight:900;">Criar doente</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const npFullName = document.getElementById("npFullName");
+      const npDob = document.getElementById("npDob");
+      const npPhone = document.getElementById("npPhone");
+      const npEmail = document.getElementById("npEmail");
+      const npSNS = document.getElementById("npSNS");
+      const npNIF = document.getElementById("npNIF");
+      const npPassport = document.getElementById("npPassport");
+      const npInsuranceProvider = document.getElementById("npInsuranceProvider");
+      const npInsurancePolicy = document.getElementById("npInsurancePolicy");
+      const npAddress1 = document.getElementById("npAddress1");
+      const npPostal = document.getElementById("npPostal");
+      const npCity = document.getElementById("npCity");
+      const npCountry = document.getElementById("npCountry");
+      const npNotes = document.getElementById("npNotes");
+      const npMsg = document.getElementById("npMsg");
+      const npCancel = document.getElementById("npCancel");
+      const npCreate = document.getElementById("npCreate");
+
+      function setErr(msg) { npMsg.style.color = "#b00020"; npMsg.textContent = msg; }
+      function setInfo(msg) { npMsg.style.color = "#666"; npMsg.textContent = msg; }
+
+      function validate() {
+        const fullName = (npFullName.value || "").trim();
+        if (!fullName) return { ok: false, msg: "Nome completo é obrigatório." };
+
+        const sns = normalizeDigits(npSNS.value);
+        const nif = normalizeDigits(npNIF.value);
+        const pass = (npPassport.value || "").trim();
+
+        if (sns && !/^[0-9]{9}$/.test(sns)) return { ok: false, msg: "SNS inválido: tem de ter 9 dígitos." };
+        if (nif && !/^[0-9]{9}$/.test(nif)) return { ok: false, msg: "NIF inválido: tem de ter 9 dígitos." };
+        if (pass && !/^[A-Za-z0-9]{4,20}$/.test(pass)) return { ok: false, msg: "Passaporte/ID inválido: 4–20 alfanum." };
+
+        if (!sns && !nif && !pass) return { ok: false, msg: "Identificação obrigatória: SNS ou NIF ou Passaporte/ID." };
+
+        return {
+          ok: true,
+          full_name: fullName,
+          dob: npDob.value ? npDob.value : null,
+          phone: npPhone.value ? npPhone.value.trim() : null,
+          email: npEmail.value ? npEmail.value.trim() : null,
+          sns: sns || null,
+          nif: nif || null,
+          passport_id: pass || null,
+          insurance_provider: npInsuranceProvider.value ? npInsuranceProvider.value.trim() : null,
+          insurance_policy_number: npInsurancePolicy.value ? npInsurancePolicy.value.trim() : null,
+          address_line1: npAddress1.value ? npAddress1.value.trim() : null,
+          postal_code: npPostal.value ? npPostal.value.trim() : null,
+          city: npCity.value ? npCity.value.trim() : null,
+          country: npCountry.value ? npCountry.value.trim() : "PT",
+          notes: npNotes.value ? npNotes.value.trim() : null,
+        };
+      }
+
+      function refreshButtonState() {
+        if (npSNS) { const d = normalizeDigits(npSNS.value); if (npSNS.value !== d) npSNS.value = d; }
+        if (npNIF) { const d = normalizeDigits(npNIF.value); if (npNIF.value !== d) npNIF.value = d; }
+
+        const v = validate();
+        if (!v.ok) { npCreate.disabled = true; setErr(v.msg); }
+        else { npCreate.disabled = false; setInfo("OK para criar."); }
+      }
+
+      [npFullName, npDob, npPhone, npEmail, npSNS, npNIF, npPassport, npInsuranceProvider, npInsurancePolicy, npAddress1, npPostal, npCity, npCountry, npNotes]
+        .forEach((el) => { if (!el) return; el.addEventListener("input", refreshButtonState); el.addEventListener("change", refreshButtonState); });
+
+      npCancel.addEventListener("click", () => { host.innerHTML = ""; });
+
+      npCreate.addEventListener("click", async () => {
+        const v = validate();
+        if (!v.ok) { setErr(v.msg); return; }
+
+        npCreate.disabled = true;
+        setInfo("A criar…");
+
+        try {
+          const payload = {
+            p_clinic_id: clinicId,
+            p_full_name: v.full_name,
+            p_dob: v.dob,
+            p_sex: null,
+            p_phone: v.phone,
+            p_email: v.email,
+            p_external_id: null,
+            p_notes: v.notes,
+            p_sns: v.sns,
+            p_nif: v.nif,
+            p_passport_id: v.passport_id,
+            p_address_line1: v.address_line1,
+            p_postal_code: v.postal_code,
+            p_city: v.city,
+            p_country: v.country,
+            p_insurance_provider: v.insurance_provider,
+            p_insurance_policy_number: v.insurance_policy_number,
+          };
+
+          const newPatientId = await rpcCreatePatientForClinic(payload);
+
+          if (!newPatientId) {
+            setErr("Criado, mas não consegui obter o ID. Pesquisa pelo nome e seleciona.");
+            npCreate.disabled = false;
+            return;
+          }
+
+          setSelectedPatient({ id: newPatientId, name: v.full_name });
+          if (mPatientQuery) mPatientQuery.value = v.full_name;
+          closeResults();
+          host.innerHTML = "";
+        } catch (e) {
+          console.error("Criar doente falhou:", e);
+          const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
+
+          if (msg.includes("patients_sns_unique_not_null")) setErr("SNS já existe noutro doente.");
+          else if (msg.includes("patients_nif_unique_not_null")) setErr("NIF já existe noutro doente.");
+          else if (msg.includes("patients_passport_unique_not_null")) setErr("Passaporte/ID já existe noutro doente.");
+          else if (msg.includes("patients_sns_format_check")) setErr("SNS inválido (9 dígitos).");
+          else if (msg.includes("patients_nif_format_check")) setErr("NIF inválido (9 dígitos).");
+          else if (msg.includes("patients_passport_format_check")) setErr("Passaporte/ID inválido (4–20 alfanum).");
+          else if (msg.includes("patients_sns_or_nif_or_passport_check")) setErr("Identificação obrigatória: SNS/NIF/Passaporte.");
+          else setErr("Erro ao criar doente. Vê a consola.");
+
+          npCreate.disabled = false;
+        }
+      });
+
+      npCreate.disabled = true;
+      setInfo("Preenche o Nome e um identificador (SNS/NIF/Passaporte).");
+      refreshButtonState();
     }
 
     if (mClinic) {
@@ -5810,18 +6050,19 @@ function bindConsultEvents() {
 
     if (btnNewPatient) btnNewPatient.addEventListener("click", openNewPatientForm);
 
-    async function onDeleteAppointment() {
-      if (!row?.id) return;
-      const ok = confirm("Eliminar esta marcação?");
-      if (!ok) return;
+    // Eliminar marcação (apenas edição e não bloqueio)
+    async function onDeleteAppt() {
+      if (!canDeleteAppt || !row?.id) return;
+      if (!confirm("Eliminar esta marcação?")) return;
 
       try {
-        btnDeleteAppt && (btnDeleteAppt.disabled = true);
-        btnSave && (btnSave.disabled = true);
+        if (btnDeleteAppt) btnDeleteAppt.disabled = true;
+        if (btnSave) btnSave.disabled = true;
+
         mMsg.style.color = "#666";
         mMsg.textContent = "A eliminar…";
 
-        const dayISO = row?.start_at ? String(row.start_at).slice(0, 10) : String(G.selectedDayISO || "").slice(0, 10);
+        const dayISO = String(row.start_at || G.selectedDayISO || "").slice(0, 10);
 
         const { error } = await window.sb.from("appointments").delete().eq("id", row.id);
         if (error) throw error;
@@ -5832,29 +6073,202 @@ function bindConsultEvents() {
         await refreshAgenda();
         console.log("[APPT] refreshAgenda ok");
 
-        // sync automático (não bloqueia)
         __gcFireSyncDay(dayISO);
-
       } catch (e) {
         console.error("Eliminar falhou:", e);
         const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
         mMsg.style.color = "#b00020";
         mMsg.textContent = msg || "Erro ao eliminar. Vê a consola.";
-        btnDeleteAppt && (btnDeleteAppt.disabled = false);
-        btnSave && (btnSave.disabled = false);
+        if (btnDeleteAppt) btnDeleteAppt.disabled = false;
+        if (btnSave) btnSave.disabled = false;
       }
     }
 
-    if (btnDeleteAppt) btnDeleteAppt.addEventListener("click", onDeleteAppointment);
+    if (btnDeleteAppt) btnDeleteAppt.addEventListener("click", onDeleteAppt);
 
-    // (onSave mantém-se igual ao que já tinhas na última versão com insert/refresh/sync)
-    // Para evitar duplicar aqui 500+ linhas, não altero mais nada neste passo.
-    // Se quiseres, no próximo passo eu volto a colar o BLOCO 09 completo e final, sem placeholders.
+    async function onSave() {
+      const vMode = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
+      const isBlock = vMode === "bloqueio";
+
+      btnSave.disabled = true;
+      mMsg.style.color = "#666";
+      mMsg.textContent = "A guardar…";
+
+      try {
+        if (isBlock) {
+          if (!canCreateBlocks) throw new Error("Sem permissões para criar bloqueios.");
+
+          const dateFrom = bDateFrom?.value || "";
+          const dateTo = bDateTo?.value || "";
+          const timeFrom = bTimeFrom?.value || "00:00";
+          const timeTo = bTimeTo?.value || "23:59";
+
+          if (!dateFrom) throw new Error("Datas De em falta.");
+          if (!dateTo) throw new Error("Até em falta.");
+          if (__gcCmpYYYYMMDD(dateFrom, dateTo) > 0) throw new Error("Intervalo de datas inválido.");
+
+          const applyToRaw = String(bApplyTo?.value || "selected").toLowerCase();
+          const idsSelected = Array.from(__selectedClinicIds || []).map(String);
+
+          const allClinicsCount = Array.isArray(G.clinics) ? G.clinics.length : 0;
+          const allSelected = allClinicsCount > 0 && idsSelected.length === allClinicsCount;
+
+          let applyTo = applyToRaw;
+          if (applyToRaw === "selected" && allSelected && isSuperadmin) {
+            applyTo = "global";
+          }
+
+          let targetClinicIds = [];
+
+          if (applyTo === "global") {
+            if (!isSuperadmin) throw new Error("Global: apenas superadmin.");
+            targetClinicIds = [null];
+          } else {
+            if (!idsSelected.length) throw new Error("Seleciona pelo menos uma clínica.");
+            targetClinicIds = idsSelected;
+          }
+
+          const rowsToInsert = [];
+          let d = dateFrom;
+          while (__gcCmpYYYYMMDD(d, dateTo) <= 0) {
+            const sIso = __gcLocalDateTimeToIso(d, timeFrom);
+            const eIso = __gcLocalDateTimeToIso(d, timeTo);
+
+            if (!sIso || !eIso) throw new Error("Data/hora inválida no bloqueio.");
+            if (new Date(eIso).getTime() <= new Date(sIso).getTime()) throw new Error("Hora 'Às' tem de ser depois de 'Das'.");
+
+            for (const t of targetClinicIds) {
+              rowsToInsert.push({
+                clinic_id: (t === null) ? null : String(t),
+                patient_id: null,
+                start_at: sIso,
+                end_at: eIso,
+                status: "confirmed",
+                procedure_type: null,
+                title: "BLOQUEIO",
+                notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
+                mode: "bloqueio",
+              });
+            }
+
+            d = __gcAddDaysYYYYMMDD(d, 1);
+          }
+
+          if (isEdit && row?.id) {
+            const first = rowsToInsert[0] || null;
+            if (!first) throw new Error("Sem dados para guardar.");
+            const { error } = await window.sb.from("appointments").update(first).eq("id", row.id);
+            if (error) throw error;
+            console.log("[APPT] update block ok id=", row.id);
+          } else {
+            const { error } = await window.sb.from("appointments").insert(rowsToInsert);
+            if (error) throw error;
+            console.log("[APPT] insert block ok n=", rowsToInsert.length);
+          }
+
+          safeCloseModal();
+          await refreshAgenda();
+          console.log("[APPT] refreshAgenda ok");
+          __gcFireSyncDay(String(dateFrom || G.selectedDayISO || "").slice(0, 10));
+          return;
+        }
+
+        // ======================
+        // CONSULTA (com transferência automática opcional)
+        // ======================
+        if (!mClinic || !mClinic.value) throw new Error("Seleciona a clínica.");
+
+        const pid = mPatientId ? (mPatientId.value || "") : "";
+        const pname = mPatientName ? (mPatientName.value || "") : "";
+        if (!pid) throw new Error("Seleciona um doente.");
+
+        const proc = (() => {
+          const sel = mProc && mProc.value ? mProc.value : "";
+          if (!sel) return "";
+          if (sel !== "Outro") return sel;
+          const other = mProcOther && mProcOther.value ? mProcOther.value.trim() : "";
+          if (!other) return "";
+          return other;
+        })();
+        if (!proc) throw new Error("Seleciona o Tipo de consulta (e se for 'Outro', preenche o texto).");
+
+        if (!mStart || !mStart.value) throw new Error("Define o início.");
+
+        const dur = mDuration ? parseInt(mDuration.value, 10) : 20;
+        const times = calcEndFromStartAndDuration(mStart.value, dur);
+        if (!times) throw new Error("Data/hora inválida.");
+
+        const tRes = await maybeTransferPatientToClinic({ patientId: pid, targetClinicId: mClinic.value });
+        if (tRes && tRes.cancelled) {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Operação cancelada (transferência não confirmada).";
+          btnSave.disabled = false;
+          return;
+        }
+
+        const autoTitle = makeAutoTitle(pname, proc);
+        const statusToSave = (mStatus && mStatus.value) ? mStatus.value : "scheduled";
+
+        const payload = {
+          clinic_id: mClinic.value,
+          patient_id: pid,
+          start_at: times.startAt,
+          end_at: times.endAt,
+          status: statusToSave,
+          procedure_type: proc,
+          title: autoTitle,
+          notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
+          mode: "presencial",
+        };
+
+        if (payload && payload.notes === "") payload.notes = null;
+
+        if (isEdit) {
+          const { error } = await window.sb.from("appointments").update(payload).eq("id", row.id);
+          if (error) throw error;
+          console.log("[APPT] update ok id=", row.id);
+        } else {
+          const { data, error } = await window.sb
+            .from("appointments")
+            .insert(payload)
+            .select("id")
+            .limit(1);
+
+          if (error) throw error;
+          const newId = (data && data.length) ? data[0].id : null;
+          console.log("[APPT] insert ok id=", newId);
+        }
+
+        safeCloseModal();
+        await refreshAgenda();
+        console.log("[APPT] refreshAgenda ok");
+
+        // sync automático (não bloqueia)
+        __gcFireSyncDay(String(times.startAt || G.selectedDayISO || "").slice(0, 10));
+
+      } catch (e) {
+        console.error("Guardar falhou:", e);
+        const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
+
+        if (msg.toLowerCase().includes("existe bloqueio")) {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Não permitido: existe um bloqueio nesse intervalo.";
+        } else if (msg.toLowerCase().includes("bloqueio") && msg.toLowerCase().includes("sobrepõe")) {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Não permitido: o bloqueio sobrepõe uma marcação existente.";
+        } else {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = msg || "Erro ao guardar. Vê a consola.";
+        }
+        btnSave.disabled = false;
+      }
+    }
 
     if (btnClose) btnClose.addEventListener("click", safeCloseModal);
     if (btnCancel) btnCancel.addEventListener("click", safeCloseModal);
     if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "modalOverlay") safeCloseModal(); });
-    // btnSave listener mantém-se no teu código (onSave)
+
+    if (btnSave) btnSave.addEventListener("click", onSave);
   }
 
 /* ==== FIM BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
