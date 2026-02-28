@@ -488,7 +488,7 @@
     "Consulta de Reavaliação",
     "Plasma Rico em Plaquetas",
     "Viscossuplementação",
-    "Teleconsulta"
+    "Teleconsulta",
     "Revalidação de tratamentos",
     "Relatórios",
     "Outro",
