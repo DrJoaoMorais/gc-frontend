@@ -250,7 +250,145 @@
     safeLog("✅ Debug hooks ativos (unhandledrejection + window.error)");
   })();
   /* ==== DEBUG PDF / PROMISES — FIM ==== */
+/* ==== INÍCIO SUB-BLOCO — Logout automático por inatividade (30 min) ==== */
+(function setupIdleLogout() {
+  const IDLE_MINUTES = 30;
+  const IDLE_MS = IDLE_MINUTES * 60 * 1000;
 
+  const LS_LAST_ACTIVITY = "gc_last_activity";
+
+  let idleTimer = null;
+  let listenersOn = false;
+
+  function nowMs() { return Date.now(); }
+
+  async function safeSignOut(reason) {
+    try {
+      if (!window.sb || !window.sb.auth) return;
+
+      if (window.__gcSigningOut) return;
+      window.__gcSigningOut = true;
+
+      console.warn("[SEC] Idle logout:", reason || "inactivity");
+
+      await window.sb.auth.signOut();
+
+    } catch (e) {
+      console.error("[SEC] Idle logout error:", e);
+    } finally {
+      window.__gcSigningOut = false;
+    }
+  }
+
+  function markActivity() {
+    try {
+      localStorage.setItem(LS_LAST_ACTIVITY, String(nowMs()));
+    } catch (_) {}
+  }
+
+  function getLastActivityMs() {
+    try {
+      const v = localStorage.getItem(LS_LAST_ACTIVITY);
+      const n = v ? Number(v) : NaN;
+      return Number.isFinite(n) ? n : 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  function clearIdleTimer() {
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+      idleTimer = null;
+    }
+  }
+
+  function scheduleIdleCheck() {
+    clearIdleTimer();
+
+    const last = getLastActivityMs() || nowMs();
+    const elapsed = nowMs() - last;
+    const remaining = Math.max(0, IDLE_MS - elapsed);
+
+    idleTimer = setTimeout(async () => {
+      const last2 = getLastActivityMs() || 0;
+      const elapsed2 = nowMs() - last2;
+
+      if (elapsed2 >= IDLE_MS) {
+        await safeSignOut("30min inactivity");
+      } else {
+        scheduleIdleCheck();
+      }
+    }, remaining);
+  }
+
+  function onAnyActivity() {
+    if (!window.__gcHasSession) return;
+    markActivity();
+    scheduleIdleCheck();
+  }
+
+  function addListeners() {
+    if (listenersOn) return;
+    listenersOn = true;
+
+    const opts = { passive: true, capture: true };
+
+    window.addEventListener("click", onAnyActivity, opts);
+    window.addEventListener("mousemove", onAnyActivity, opts);
+    window.addEventListener("keydown", onAnyActivity, opts);
+    window.addEventListener("scroll", onAnyActivity, opts);
+    window.addEventListener("touchstart", onAnyActivity, opts);
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") onAnyActivity();
+    }, true);
+  }
+
+  function removeListeners() {
+    if (!listenersOn) return;
+    listenersOn = false;
+
+    window.removeEventListener("click", onAnyActivity, true);
+    window.removeEventListener("mousemove", onAnyActivity, true);
+    window.removeEventListener("keydown", onAnyActivity, true);
+    window.removeEventListener("scroll", onAnyActivity, true);
+    window.removeEventListener("touchstart", onAnyActivity, true);
+
+    clearIdleTimer();
+  }
+
+  async function bootstrap() {
+    if (!window.sb || !window.sb.auth) {
+      console.warn("[SEC] Supabase client não encontrado (window.sb)");
+      return;
+    }
+
+    const { data } = await window.sb.auth.getSession();
+    window.__gcHasSession = !!(data && data.session);
+
+    if (window.__gcHasSession) {
+      addListeners();
+      markActivity();
+      scheduleIdleCheck();
+    }
+
+    window.sb.auth.onAuthStateChange((_event, session) => {
+      window.__gcHasSession = !!session;
+
+      if (window.__gcHasSession) {
+        addListeners();
+        markActivity();
+        scheduleIdleCheck();
+      } else {
+        removeListeners();
+      }
+    });
+  }
+
+  bootstrap();
+})();
+/* ==== FIM SUB-BLOCO — Logout automático por inatividade (30 min) ==== */
 /* ==== FIM BLOCO 01/12 — Cabeçalho + utilitários base + helpers ==== */
 
 /* ==== INÍCIO BLOCO 02/12 — Agenda (helpers + load) + Patients (scope/search/RPC) ==== */
