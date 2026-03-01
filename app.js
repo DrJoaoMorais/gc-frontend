@@ -5114,63 +5114,73 @@ function bindConsultEvents() {
   // =========================================================
   // GCAL — sync automático (fire-and-forget, não bloqueia Guardar)
   // =========================================================
-  function __gcGetGcalSyncDayUrl() {
-    const candidates = [
-      window.__GC_GCAL_SYNC_DAY_URL__,
-      window.__GC_GCAL_SYNC_URL__,
-      window.__GC_GCAL_WORKER_URL__,
-      window.__GC_GCAL_URL__,
-      window.GCAL_WORKER_URL,
-    ].filter(Boolean).map(String);
+function __gcFireSyncDay(dayISO) {
+  try {
+    const url = __gcGetGcalSyncDayUrl();
+    const d = String(dayISO || "").slice(0, 10);
 
-    if (!candidates.length) return null;
-
-    const u0 = candidates[0].trim();
-    if (!u0) return null;
-    if (u0.includes("/sync-day")) return u0;
-    return u0.replace(/\/+$/g, "") + "/sync-day";
-  }
-
-  function __gcFireSyncDay(dayISO) {
-    try {
-      const url = __gcGetGcalSyncDayUrl();
-      const d = String(dayISO || "").slice(0, 10);
-
-      if (!url) {
-        console.warn("[GCAL] sync skipped (url não configurada). dayISO=", d);
-        return;
-      }
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-        console.warn("[GCAL] sync skipped (dayISO inválido):", dayISO);
-        return;
-      }
-
-      const ctrl = new AbortController();
-      const t = setTimeout(() => { try { ctrl.abort(); } catch (_) {} }, 8000);
-
-      fetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ dayISO: d }),
-        signal: ctrl.signal
-      })
-        .then(async (r) => {
-          clearTimeout(t);
-          if (!r.ok) {
-            const txt = await r.text().catch(() => "");
-            console.warn("[GCAL] sync-day falhou:", r.status, txt ? String(txt).slice(0, 200) : "");
-            return;
-          }
-          console.log("[GCAL] sync ok dayISO=", d);
-        })
-        .catch((e) => {
-          clearTimeout(t);
-          console.warn("[GCAL] sync-day erro:", e && (e.message || e));
-        });
-    } catch (e) {
-      console.warn("[GCAL] sync-day exceção:", e && (e.message || e));
+    if (!url) {
+      console.warn("[GCAL] sync skipped (url não configurada). dayISO=", d);
+      return;
     }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      console.warn("[GCAL] sync skipped (dayISO inválido):", dayISO);
+      return;
+    }
+
+    // Buscar token atual (Supabase)
+    if (!window.sb || !window.sb.auth) {
+      console.warn("[GCAL] sync skipped (Supabase client indisponível).");
+      return;
+    }
+
+    const ctrl = new AbortController();
+    const t = setTimeout(() => { try { ctrl.abort(); } catch (_) {} }, 8000);
+
+    // Fire-and-forget com token (não bloqueia UI)
+    window.sb.auth.getSession()
+      .then(({ data, error }) => {
+        if (error) throw error;
+        const session = data?.session || null;
+        const token = session?.access_token ? String(session.access_token) : "";
+
+        if (!token) {
+          console.warn("[GCAL] sync skipped (sem sessão/token). dayISO=", d);
+          clearTimeout(t);
+          return null;
+        }
+
+        return fetch(url, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({ dayISO: d }),
+          signal: ctrl.signal
+        });
+      })
+      .then(async (r) => {
+        if (!r) return; // já fez skip
+        clearTimeout(t);
+
+        if (!r.ok) {
+          const txt = await r.text().catch(() => "");
+          console.warn("[GCAL] sync-day falhou:", r.status, txt ? String(txt).slice(0, 300) : "");
+          return;
+        }
+
+        console.log("[GCAL] sync ok dayISO=", d);
+      })
+      .catch((e) => {
+        clearTimeout(t);
+        console.warn("[GCAL] sync-day erro:", e && (e.message || e));
+      });
+
+  } catch (e) {
+    console.warn("[GCAL] sync-day exceção:", e && (e.message || e));
   }
+}
 
   // =========================================================
   // TRANSFERÊNCIA AUTOMÁTICA DE DOENTE ENTRE CLÍNICAS
