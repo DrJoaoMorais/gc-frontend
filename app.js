@@ -5128,57 +5128,48 @@ function __gcFireSyncDay(dayISO) {
       return;
     }
 
-    // Buscar token atual (Supabase)
     if (!window.sb || !window.sb.auth) {
       console.warn("[GCAL] sync skipped (Supabase client indisponível).");
       return;
     }
 
-    const ctrl = new AbortController();
-    const t = setTimeout(() => { try { ctrl.abort(); } catch (_) {} }, 8000);
+    const session = window.sb.auth.getSession
+      ? null
+      : null;
 
-    // Fire-and-forget com token (não bloqueia UI)
-    window.sb.auth.getSession()
-      .then(({ data, error }) => {
-        if (error) throw error;
-        const session = data?.session || null;
-        const token = session?.access_token ? String(session.access_token) : "";
+    // 🔐 Forma correta Supabase v2
+    window.sb.auth.getSession().then(({ data, error }) => {
+      if (error || !data?.session?.access_token) {
+        console.warn("[GCAL] sync skipped (sem sessão/token). dayISO=", d);
+        return;
+      }
 
-        if (!token) {
-          console.warn("[GCAL] sync skipped (sem sessão/token). dayISO=", d);
-          clearTimeout(t);
-          return null;
-        }
+      const token = data.session.access_token;
 
-        return fetch(url, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "authorization": `Bearer ${token}`,
-          },
-          body: JSON.stringify({ dayISO: d }),
-          signal: ctrl.signal
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ dayISO: d })
+      })
+        .then(async (r) => {
+          if (!r.ok) {
+            const txt = await r.text().catch(() => "");
+            console.warn("[GCAL] sync-day falhou:", r.status, txt);
+            return;
+          }
+          console.log("[GCAL] sync ok dayISO=", d);
+        })
+        .catch((e) => {
+          console.warn("[GCAL] sync-day erro:", e?.message || e);
         });
-      })
-      .then(async (r) => {
-        if (!r) return; // já fez skip
-        clearTimeout(t);
 
-        if (!r.ok) {
-          const txt = await r.text().catch(() => "");
-          console.warn("[GCAL] sync-day falhou:", r.status, txt ? String(txt).slice(0, 300) : "");
-          return;
-        }
-
-        console.log("[GCAL] sync ok dayISO=", d);
-      })
-      .catch((e) => {
-        clearTimeout(t);
-        console.warn("[GCAL] sync-day erro:", e && (e.message || e));
-      });
+    });
 
   } catch (e) {
-    console.warn("[GCAL] sync-day exceção:", e && (e.message || e));
+    console.warn("[GCAL] sync-day exceção:", e?.message || e);
   }
 }
 
