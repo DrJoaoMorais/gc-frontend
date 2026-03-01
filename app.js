@@ -18,6 +18,12 @@
 (function () {
   "use strict";
 
+  // =========================================================
+  // CONFIG — Google Calendar Worker (GCAL)
+  // =========================================================
+  // ✅ Troca apenas a URL abaixo pela tua URL real do Worker gc-gcal (sem /sync-day)
+  window.__GC_GCAL_WORKER_URL__ = "https://gc-gcal.dr-joao-morais.workers.dev";
+
   // ===== UI SCALE (apenas agenda + shell) =====
   const UI = {
     fs12: 13,
@@ -77,13 +83,13 @@
     return { startISO: start.toISOString(), endISO: end.toISOString(), start, end };
   }
 
-  // Nome “canon” (o que tens no BLOCO 01 atualmente)
+  // Nome “canon” (o que o resto do ficheiro pode usar)
   function isoLocalDayRangeFromISODate(dateStr) {
     return __gcIsoLocalDayRangeCore(dateStr);
   }
 
-  // ✅ Alias para chamadas que apareceram no código: sem "From"
-  function isoLocalDayRangeFromISODate(dateStr) {
+  // ✅ Alias para variantes que possam existir no código (sem "Date")
+  function isoLocalDayRangeFromISO(dateStr) {
     return __gcIsoLocalDayRangeCore(dateStr);
   }
 
