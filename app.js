@@ -5237,64 +5237,115 @@ function __gcFireSyncDay(dayISO) {
   }
 
   async function ensurePatientActiveInClinic({ patientId, targetClinicId }) {
-    // 1) Desativar qualquer ligação ativa que não seja a target
-    const { error: eOff } = await window.sb
+  // Objetivo:
+  // - respeitar constraint "patient_clinic_one_active_per_patient" (máx. 1 ativa)
+  // - NUNCA deixar o doente sem clínica ativa por erro a meio
+  // Estratégia:
+  // 1) garantir que existe linha destino com is_active=false (não viola constraint)
+  // 2) desativar qualquer ativa atual
+  // 3) ativar destino
+  // 4) se falhar, tentar rollback para a clínica ativa anterior
+
+  const pid = String(patientId || "");
+  const cid = String(targetClinicId || "");
+  if (!pid || !cid) throw new Error("ensurePatientActiveInClinic: patientId/targetClinicId em falta.");
+
+  const prevActiveClinicId = await fetchActiveClinicForPatient(pid);
+
+  // Se já está na clínica destino, nada a fazer
+  if (prevActiveClinicId && String(prevActiveClinicId) === cid) return true;
+
+  async function ensureRowExistsInactive(pId, cId) {
+    // se já existe, não faz nada; se não existe, cria INATIVO (seguro)
+    const { data: exist, error: e0 } = await window.sb
       .from("patient_clinic")
-      .update({ is_active: false })
-      .eq("patient_id", patientId)
-      .eq("is_active", true)
-      .neq("clinic_id", targetClinicId);
+      .select("clinic_id")
+      .eq("patient_id", pId)
+      .eq("clinic_id", cId)
+      .limit(1);
 
-    if (eOff) throw eOff;
+    if (e0) throw e0;
+    if (exist && exist.length) return true;
 
-    // 2) Tentar reativar se já existir linha para target
-    const { data: upd, error: eOn } = await window.sb
-      .from("patient_clinic")
-      .update({ is_active: true })
-      .eq("patient_id", patientId)
-      .eq("clinic_id", targetClinicId)
-      .select("id");
-
-    if (eOn) throw eOn;
-
-    if (upd && upd.length) return true;
-
-    // 3) Se não existia, criar nova
     const { error: eIns } = await window.sb
       .from("patient_clinic")
-      .insert({
-        patient_id: patientId,
-        clinic_id: targetClinicId,
-        is_active: true,
-        created_by: (G && G.sessionUser && G.sessionUser.id) ? G.sessionUser.id : null
-      });
+      .insert({ patient_id: pId, clinic_id: cId, is_active: false });
 
     if (eIns) throw eIns;
     return true;
   }
 
-  async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
-    const activeClinicId = await fetchActiveClinicForPatient(patientId);
-    if (!activeClinicId) return { changed: false };
+  async function setActiveClinic(pId, cId) {
+    // 1) garantir linha destino existe (inativa)
+    await ensureRowExistsInactive(pId, cId);
 
-    if (String(activeClinicId) === String(targetClinicId)) return { changed: false };
+    // 2) desativar qualquer ativa
+    const { error: eOff } = await window.sb
+      .from("patient_clinic")
+      .update({ is_active: false })
+      .eq("patient_id", pId)
+      .eq("is_active", true);
 
-    const fromClinicName = (G.clinicsById && G.clinicsById[activeClinicId])
-      ? (G.clinicsById[activeClinicId].name || G.clinicsById[activeClinicId].slug || activeClinicId)
-      : activeClinicId;
+    if (eOff) throw eOff;
 
-    const toClinicName = (G.clinicsById && G.clinicsById[targetClinicId])
-      ? (G.clinicsById[targetClinicId].name || G.clinicsById[targetClinicId].slug || targetClinicId)
-      : targetClinicId;
+    // 3) ativar destino
+    const { error: eOn } = await window.sb
+      .from("patient_clinic")
+      .update({ is_active: true })
+      .eq("patient_id", pId)
+      .eq("clinic_id", cId);
 
-    const patient = await fetchPatientIdentifiers(patientId);
+    if (eOn) throw eOn;
 
-    const ok = confirm(buildTransferConfirmText({ patient, fromClinicName, toClinicName }));
-    if (!ok) return { changed: false, cancelled: true };
+    // 4) validar
+    const nowActive = await fetchActiveClinicForPatient(pId);
+    if (!nowActive || String(nowActive) !== String(cId)) {
+      throw new Error("Falha ao ativar clínica destino (validação falhou).");
+    }
 
-    await ensurePatientActiveInClinic({ patientId, targetClinicId });
-    return { changed: true };
+    return true;
   }
+
+  try {
+    await setActiveClinic(pid, cid);
+    return true;
+  } catch (e) {
+    // rollback: tentar repor a clínica ativa anterior (se existia)
+    try {
+      if (prevActiveClinicId) {
+        await setActiveClinic(pid, String(prevActiveClinicId));
+      }
+    } catch (_) {
+      // se rollback falhar, pelo menos deixamos log
+    }
+    throw e;
+  }
+}
+
+async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
+  const activeClinicId = await fetchActiveClinicForPatient(patientId);
+
+  // Se não tiver clínica ativa, não fazemos alterações automáticas aqui
+  if (!activeClinicId) return { changed: false, noActive: true };
+
+  if (String(activeClinicId) === String(targetClinicId)) return { changed: false };
+
+  const fromClinicName = (G.clinicsById && G.clinicsById[activeClinicId])
+    ? (G.clinicsById[activeClinicId].name || G.clinicsById[activeClinicId].slug || activeClinicId)
+    : activeClinicId;
+
+  const toClinicName = (G.clinicsById && G.clinicsById[targetClinicId])
+    ? (G.clinicsById[targetClinicId].name || G.clinicsById[targetClinicId].slug || targetClinicId)
+    : targetClinicId;
+
+  const patient = await fetchPatientIdentifiers(patientId);
+
+  const ok = confirm(buildTransferConfirmText({ patient, fromClinicName, toClinicName }));
+  if (!ok) return { changed: false, cancelled: true };
+
+  await ensurePatientActiveInClinic({ patientId, targetClinicId });
+  return { changed: true };
+}
 
   // ---- helpers bloqueio (datas/horas) ----
   function __gcPad2(n) { return String(n).padStart(2, "0"); }
