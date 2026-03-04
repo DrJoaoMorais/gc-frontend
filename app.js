@@ -5114,6 +5114,13 @@ function bindConsultEvents() {
   // =========================================================
   // GCAL — sync automático (fire-and-forget, não bloqueia Guardar)
   // =========================================================
+function __gcGetGcalSyncDayUrl() {
+  return "https://gc-gcal.dr-joao-morais.workers.dev/sync-day";
+}
+
+// =========================================================
+// GCAL — sync automático (fire-and-forget, não bloqueia Guardar)
+// =========================================================
 function __gcFireSyncDay(dayISO) {
   try {
     const url = __gcGetGcalSyncDayUrl();
@@ -5132,10 +5139,6 @@ function __gcFireSyncDay(dayISO) {
       console.warn("[GCAL] sync skipped (Supabase client indisponível).");
       return;
     }
-
-    const session = window.sb.auth.getSession
-      ? null
-      : null;
 
     // 🔐 Forma correta Supabase v2
     window.sb.auth.getSession().then(({ data, error }) => {
