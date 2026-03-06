@@ -5119,56 +5119,69 @@ function __gcGetGcalSyncDayUrl() {
 }
 
 // =========================================================
-// GCAL — sync automático (fire-and-forget, não bloqueia Guardar)
+// GCAL — sync automático (robusto; não bloqueia Guardar)
 // =========================================================
+function __gcNormalizeDayISO(v) {
+  const d = String(v || "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : "";
+}
+
+function __gcUniqueDays(days) {
+  return Array.from(new Set((days || []).map(__gcNormalizeDayISO).filter(Boolean)));
+}
+
 function __gcFireSyncDay(dayISO) {
+  return __gcFireSyncDays([dayISO]);
+}
+
+function __gcFireSyncDays(dayISOs) {
   try {
     const url = __gcGetGcalSyncDayUrl();
-    const d = String(dayISO || "").slice(0, 10);
+    const days = __gcUniqueDays(dayISOs);
 
     if (!url) {
-      console.warn("[GCAL] sync skipped (url não configurada). dayISO=", d);
+      console.warn("[GCAL] sync skipped (url não configurada).");
       return;
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-      console.warn("[GCAL] sync skipped (dayISO inválido):", dayISO);
+    if (!days.length) {
+      console.warn("[GCAL] sync skipped (sem dias válidos).", dayISOs);
       return;
     }
-
     if (!window.sb || !window.sb.auth) {
       console.warn("[GCAL] sync skipped (Supabase client indisponível).");
       return;
     }
 
-    // 🔐 Forma correta Supabase v2
     window.sb.auth.getSession().then(({ data, error }) => {
       if (error || !data?.session?.access_token) {
-        console.warn("[GCAL] sync skipped (sem sessão/token). dayISO=", d);
+        console.warn("[GCAL] sync skipped (sem sessão/token). days=", days);
         return;
       }
 
       const token = data.session.access_token;
 
-      fetch(url, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({ dayISO: d })
-      })
-        .then(async (r) => {
-          if (!r.ok) {
-            const txt = await r.text().catch(() => "");
-            console.warn("[GCAL] sync-day falhou:", r.status, txt);
-            return;
-          }
-          console.log("[GCAL] sync ok dayISO=", d);
+      days.forEach((d) => {
+        fetch(url, {
+          method: "POST",
+          keepalive: true,
+          headers: {
+            "content-type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({ dayISO: d }),
         })
-        .catch((e) => {
-          console.warn("[GCAL] sync-day erro:", e?.message || e);
-        });
-
+          .then(async (r) => {
+            if (!r.ok) {
+              const txt = await r.text().catch(() => "");
+              console.warn("[GCAL] sync-day falhou:", d, r.status, txt);
+              return;
+            }
+            console.log("[GCAL] sync ok dayISO=", d);
+          })
+          .catch((e) => {
+            console.warn("[GCAL] sync-day erro:", d, e?.message || e);
+          });
+      });
     });
 
   } catch (e) {
