@@ -6310,190 +6310,187 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
     if (btnDeleteAppt) btnDeleteAppt.addEventListener("click", onDeleteAppt);
 
     async function onSave() {
-      const vMode = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
-      const isBlock = vMode === "bloqueio";
+  const vMode = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
+  const isBlock = vMode === "bloqueio";
 
-      btnSave.disabled = true;
-      mMsg.style.color = "#666";
-      mMsg.textContent = "A guardar…";
+  btnSave.disabled = true;
+  mMsg.style.color = "#666";
+  mMsg.textContent = "A guardar…";
 
-      try {
-        if (isBlock) {
-          if (!canCreateBlocks) throw new Error("Sem permissões para criar bloqueios.");
+  try {
+    if (isBlock) {
+      if (!canCreateBlocks) throw new Error("Sem permissões para criar bloqueios.");
 
-          const dateFrom = bDateFrom?.value || "";
-          const dateTo = bDateTo?.value || "";
-          const timeFrom = bTimeFrom?.value || "00:00";
-          const timeTo = bTimeTo?.value || "23:59";
+      const dateFrom = bDateFrom?.value || "";
+      const dateTo = bDateTo?.value || "";
+      const timeFrom = bTimeFrom?.value || "00:00";
+      const timeTo = bTimeTo?.value || "23:59";
 
-          if (!dateFrom) throw new Error("Datas De em falta.");
-          if (!dateTo) throw new Error("Até em falta.");
-          if (__gcCmpYYYYMMDD(dateFrom, dateTo) > 0) throw new Error("Intervalo de datas inválido.");
+      if (!dateFrom) throw new Error("Datas De em falta.");
+      if (!dateTo) throw new Error("Até em falta.");
+      if (__gcCmpYYYYMMDD(dateFrom, dateTo) > 0) throw new Error("Intervalo de datas inválido.");
 
-          const applyToRaw = String(bApplyTo?.value || "selected").toLowerCase();
-          const idsSelected = Array.from(__selectedClinicIds || []).map(String);
+      const applyToRaw = String(bApplyTo?.value || "selected").toLowerCase();
+      const idsSelected = Array.from(__selectedClinicIds || []).map(String);
 
-          const allClinicsCount = Array.isArray(G.clinics) ? G.clinics.length : 0;
-          const allSelected = allClinicsCount > 0 && idsSelected.length === allClinicsCount;
+      const allClinicsCount = Array.isArray(G.clinics) ? G.clinics.length : 0;
+      const allSelected = allClinicsCount > 0 && idsSelected.length === allClinicsCount;
 
-          let applyTo = applyToRaw;
-          if (applyToRaw === "selected" && allSelected && isSuperadmin) {
-            applyTo = "global";
-          }
-
-          let targetClinicIds = [];
-
-          if (applyTo === "global") {
-            if (!isSuperadmin) throw new Error("Global: apenas superadmin.");
-            targetClinicIds = [null];
-          } else {
-            if (!idsSelected.length) throw new Error("Seleciona pelo menos uma clínica.");
-            targetClinicIds = idsSelected;
-          }
-
-          const rowsToInsert = [];
-          let d = dateFrom;
-          while (__gcCmpYYYYMMDD(d, dateTo) <= 0) {
-            const sIso = __gcLocalDateTimeToIso(d, timeFrom);
-            const eIso = __gcLocalDateTimeToIso(d, timeTo);
-
-            if (!sIso || !eIso) throw new Error("Data/hora inválida no bloqueio.");
-            if (new Date(eIso).getTime() <= new Date(sIso).getTime()) throw new Error("Hora 'Às' tem de ser depois de 'Das'.");
-
-            for (const t of targetClinicIds) {
-              rowsToInsert.push({
-                clinic_id: (t === null) ? null : String(t),
-                patient_id: null,
-                start_at: sIso,
-                end_at: eIso,
-                status: "confirmed",
-                procedure_type: null,
-                title: "BLOQUEIO",
-                notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
-                mode: "bloqueio",
-              });
-            }
-
-            d = __gcAddDaysYYYYMMDD(d, 1);
-          }
-
-          if (isEdit && row?.id) {
-            const first = rowsToInsert[0] || null;
-            if (!first) throw new Error("Sem dados para guardar.");
-            const { error } = await window.sb.from("appointments").update(first).eq("id", row.id);
-            if (error) throw error;
-            console.log("[APPT] update block ok id=", row.id);
-          } else {
-            const { error } = await window.sb.from("appointments").insert(rowsToInsert);
-            if (error) throw error;
-            console.log("[APPT] insert block ok n=", rowsToInsert.length);
-          }
-
-          safeCloseModal();
-          await refreshAgenda();
-          console.log("[APPT] refreshAgenda ok");
-          __gcFireSyncDay(String(dateFrom || G.selectedDayISO || "").slice(0, 10));
-          return;
-        }
-
-        // ======================
-        // CONSULTA (com transferência automática opcional)
-        // ======================
-        if (!mClinic || !mClinic.value) throw new Error("Seleciona a clínica.");
-
-        const pid = mPatientId ? (mPatientId.value || "") : "";
-        const pname = mPatientName ? (mPatientName.value || "") : "";
-        if (!pid) throw new Error("Seleciona um doente.");
-
-        const proc = (() => {
-          const sel = mProc && mProc.value ? mProc.value : "";
-          if (!sel) return "";
-          if (sel !== "Outro") return sel;
-          const other = mProcOther && mProcOther.value ? mProcOther.value.trim() : "";
-          if (!other) return "";
-          return other;
-        })();
-        if (!proc) throw new Error("Seleciona o Tipo de consulta (e se for 'Outro', preenche o texto).");
-
-        if (!mStart || !mStart.value) throw new Error("Define o início.");
-
-        const dur = mDuration ? parseInt(mDuration.value, 10) : 20;
-        const times = calcEndFromStartAndDuration(mStart.value, dur);
-        if (!times) throw new Error("Data/hora inválida.");
-
-        const tRes = await maybeTransferPatientToClinic({ patientId: pid, targetClinicId: mClinic.value });
-        if (tRes && tRes.cancelled) {
-          mMsg.style.color = "#b00020";
-          mMsg.textContent = "Operação cancelada (transferência não confirmada).";
-          btnSave.disabled = false;
-          return;
-        }
-
-        const autoTitle = makeAutoTitle(pname, proc);
-        const statusToSave = (mStatus && mStatus.value) ? mStatus.value : "scheduled";
-
-        const payload = {
-          clinic_id: mClinic.value,
-          patient_id: pid,
-          start_at: times.startAt,
-          end_at: times.endAt,
-          status: statusToSave,
-          procedure_type: proc,
-          title: autoTitle,
-          notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
-          mode: "presencial",
-        };
-
-        if (payload && payload.notes === "") payload.notes = null;
-
-        if (isEdit) {
-          const { error } = await window.sb.from("appointments").update(payload).eq("id", row.id);
-          if (error) throw error;
-          console.log("[APPT] update ok id=", row.id);
-        } else {
-          const { data, error } = await window.sb
-            .from("appointments")
-            .insert(payload)
-            .select("id")
-            .limit(1);
-
-          if (error) throw error;
-          const newId = (data && data.length) ? data[0].id : null;
-          console.log("[APPT] insert ok id=", newId);
-        }
-
-        safeCloseModal();
-        await refreshAgenda();
-        console.log("[APPT] refreshAgenda ok");
-
-        // sync automático (não bloqueia)
-        __gcFireSyncDay(String(times.startAt || G.selectedDayISO || "").slice(0, 10));
-
-      } catch (e) {
-        console.error("Guardar falhou:", e);
-        const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
-
-        if (msg.toLowerCase().includes("existe bloqueio")) {
-          mMsg.style.color = "#b00020";
-          mMsg.textContent = "Não permitido: existe um bloqueio nesse intervalo.";
-        } else if (msg.toLowerCase().includes("bloqueio") && msg.toLowerCase().includes("sobrepõe")) {
-          mMsg.style.color = "#b00020";
-          mMsg.textContent = "Não permitido: o bloqueio sobrepõe uma marcação existente.";
-        } else {
-          mMsg.style.color = "#b00020";
-          mMsg.textContent = msg || "Erro ao guardar. Vê a consola.";
-        }
-        btnSave.disabled = false;
+      let applyTo = applyToRaw;
+      if (applyToRaw === "selected" && allSelected && isSuperadmin) {
+        applyTo = "global";
       }
+
+      let targetClinicIds = [];
+
+      if (applyTo === "global") {
+        if (!isSuperadmin) throw new Error("Global: apenas superadmin.");
+        targetClinicIds = [null];
+      } else {
+        if (!idsSelected.length) throw new Error("Seleciona pelo menos uma clínica.");
+        targetClinicIds = idsSelected;
+      }
+
+      const rowsToInsert = [];
+      let d = dateFrom;
+      while (__gcCmpYYYYMMDD(d, dateTo) <= 0) {
+        const sIso = __gcLocalDateTimeToIso(d, timeFrom);
+        const eIso = __gcLocalDateTimeToIso(d, timeTo);
+
+        if (!sIso || !eIso) throw new Error("Data/hora inválida no bloqueio.");
+        if (new Date(eIso).getTime() <= new Date(sIso).getTime()) throw new Error("Hora 'Às' tem de ser depois de 'Das'.");
+
+        for (const t of targetClinicIds) {
+          rowsToInsert.push({
+            clinic_id: (t === null) ? null : String(t),
+            patient_id: null,
+            start_at: sIso,
+            end_at: eIso,
+            status: "confirmed",
+            procedure_type: null,
+            title: "BLOQUEIO",
+            notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
+            mode: "bloqueio",
+          });
+        }
+
+        d = __gcAddDaysYYYYMMDD(d, 1);
+      }
+
+      if (isEdit && row?.id) {
+        const first = rowsToInsert[0] || null;
+        if (!first) throw new Error("Sem dados para guardar.");
+        const { error } = await window.sb.from("appointments").update(first).eq("id", row.id);
+        if (error) throw error;
+        console.log("[APPT] update block ok id=", row.id);
+      } else {
+        const { error } = await window.sb.from("appointments").insert(rowsToInsert);
+        if (error) throw error;
+        console.log("[APPT] insert block ok n=", rowsToInsert.length);
+      }
+
+      safeCloseModal();
+      await refreshAgenda();
+      console.log("[APPT] refreshAgenda ok");
+
+      const syncDays = [String(dateFrom || "").slice(0, 10)];
+      if (isEdit && row?.start_at) syncDays.push(String(row.start_at).slice(0, 10));
+      __gcFireSyncDays(syncDays);
+      return;
     }
 
-    if (btnClose) btnClose.addEventListener("click", safeCloseModal);
-    if (btnCancel) btnCancel.addEventListener("click", safeCloseModal);
-    if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "modalOverlay") safeCloseModal(); });
+    // ======================
+    // CONSULTA (com transferência automática opcional)
+    // ======================
+    if (!mClinic || !mClinic.value) throw new Error("Seleciona a clínica.");
 
-    if (btnSave) btnSave.addEventListener("click", onSave);
+    const pid = mPatientId ? (mPatientId.value || "") : "";
+    const pname = mPatientName ? (mPatientName.value || "") : "";
+    if (!pid) throw new Error("Seleciona um doente.");
+
+    const proc = (() => {
+      const sel = mProc && mProc.value ? mProc.value : "";
+      if (!sel) return "";
+      if (sel !== "Outro") return sel;
+      const other = mProcOther && mProcOther.value ? mProcOther.value.trim() : "";
+      if (!other) return "";
+      return other;
+    })();
+    if (!proc) throw new Error("Seleciona o Tipo de consulta (e se for 'Outro', preenche o texto).");
+
+    if (!mStart || !mStart.value) throw new Error("Define o início.");
+
+    const dur = mDuration ? parseInt(mDuration.value, 10) : 20;
+    const times = calcEndFromStartAndDuration(mStart.value, dur);
+    if (!times) throw new Error("Data/hora inválida.");
+
+    const tRes = await maybeTransferPatientToClinic({ patientId: pid, targetClinicId: mClinic.value });
+    if (tRes && tRes.cancelled) {
+      mMsg.style.color = "#b00020";
+      mMsg.textContent = "Operação cancelada (transferência não confirmada).";
+      btnSave.disabled = false;
+      return;
+    }
+
+    const autoTitle = makeAutoTitle(pname, proc);
+    const statusToSave = (mStatus && mStatus.value) ? mStatus.value : "scheduled";
+
+    const payload = {
+      clinic_id: mClinic.value,
+      patient_id: pid,
+      start_at: times.startAt,
+      end_at: times.endAt,
+      status: statusToSave,
+      procedure_type: proc,
+      title: autoTitle,
+      notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
+      mode: "presencial",
+    };
+
+    if (payload && payload.notes === "") payload.notes = null;
+
+    const oldDayISO = isEdit && row?.start_at ? String(row.start_at).slice(0, 10) : "";
+    const newDayISO = String(times.startAt || G.selectedDayISO || "").slice(0, 10);
+
+    if (isEdit) {
+      const { error } = await window.sb.from("appointments").update(payload).eq("id", row.id);
+      if (error) throw error;
+      console.log("[APPT] update ok id=", row.id);
+    } else {
+      const { data, error } = await window.sb
+        .from("appointments")
+        .insert(payload)
+        .select("id")
+        .limit(1);
+
+      if (error) throw error;
+      const newId = (data && data.length) ? data[0].id : null;
+      console.log("[APPT] insert ok id=", newId);
+    }
+
+    safeCloseModal();
+    await refreshAgenda();
+    console.log("[APPT] refreshAgenda ok");
+
+    __gcFireSyncDays([oldDayISO, newDayISO]);
+
+  } catch (e) {
+    console.error("Guardar falhou:", e);
+    const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
+
+    if (msg.toLowerCase().includes("existe bloqueio")) {
+      mMsg.style.color = "#b00020";
+      mMsg.textContent = "Não permitido: existe um bloqueio nesse intervalo.";
+    } else if (msg.toLowerCase().includes("bloqueio") && msg.toLowerCase().includes("sobrepõe")) {
+      mMsg.style.color = "#b00020";
+      mMsg.textContent = "Não permitido: o bloqueio sobrepõe uma marcação existente.";
+    } else {
+      mMsg.style.color = "#b00020";
+      mMsg.textContent = msg || "Erro ao guardar. Vê a consola.";
+    }
+    btnSave.disabled = false;
   }
-
+}
 /* ==== FIM BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
 
 /* ==== INÍCIO BLOCO 10/12 — Logout + Refresh agenda ==== */
