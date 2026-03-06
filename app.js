@@ -6399,7 +6399,7 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
       return;
     }
 
-    // ======================
+        // ======================
     // CONSULTA (com transferência automática opcional)
     // ======================
     if (!mClinic || !mClinic.value) throw new Error("Seleciona a clínica.");
@@ -6490,10 +6490,110 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
     }
     btnSave.disabled = false;
   }
-}
+
+    if (btnSave) btnSave.addEventListener("click", onSave);
+    if (btnCancel) btnCancel.addEventListener("click", safeCloseModal);
+    if (btnClose) btnClose.addEventListener("click", safeCloseModal);
+    if (overlay) {
+      overlay.addEventListener("click", (ev) => {
+        if (ev.target === overlay) safeCloseModal();
+      });
+    }
+  }
 /* ==== FIM BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
 
 /* ==== INÍCIO BLOCO 10/12 — Logout + Refresh agenda ==== */
+
+  let __gcSessionLockActive = false;
+
+  function __gcIsAuthError(err) {
+    const msg = String(
+      (err && (err.message || err.error_description || err.error)) || ""
+    ).toLowerCase();
+
+    const status =
+      err?.status ??
+      err?.statusCode ??
+      err?.code ??
+      err?.response?.status ??
+      null;
+
+    return (
+      status === 401 ||
+      status === 403 ||
+      msg.includes("jwt") ||
+      msg.includes("token") ||
+      msg.includes("auth") ||
+      msg.includes("not logged in") ||
+      msg.includes("session") ||
+      msg.includes("forbidden") ||
+      msg.includes("unauthorized")
+    );
+  }
+
+  function __gcRenderSessionLockedScreen(reasonText) {
+    const reason = String(
+      reasonText || "Sessão expirada por segurança. Volte a iniciar sessão."
+    );
+
+    const root = document.getElementById("appRoot") || document.body;
+    root.innerHTML = `
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#0b1220;color:#e7eefc;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
+        <div style="width:100%;max-width:520px;background:#111a2e;border:1px solid rgba(255,255,255,.10);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:24px 20px;">
+          <div style="font-size:18px;font-weight:800;letter-spacing:.2px;">Sessão bloqueada</div>
+          <div style="margin-top:10px;font-size:14px;line-height:1.5;opacity:.95;">
+            ${reason.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;")}
+          </div>
+          <div style="margin-top:16px;font-size:13px;line-height:1.45;opacity:.82;">
+            Por segurança, a aplicação foi bloqueada para impedir alterações sem autenticação válida.
+          </div>
+          <div style="display:flex;gap:10px;margin-top:18px;">
+            <button id="btnGoLoginNow" style="flex:1;border:0;background:#3b82f6;color:#fff;border-radius:12px;padding:12px 14px;font-size:14px;font-weight:700;cursor:pointer;">
+              Voltar ao login
+            </button>
+            <button id="btnReloadLocked" style="border:1px solid rgba(255,255,255,.18);background:transparent;color:#e7eefc;border-radius:12px;padding:12px 14px;font-size:14px;cursor:pointer;">
+              Recarregar
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const btnGo = document.getElementById("btnGoLoginNow");
+    if (btnGo) btnGo.onclick = () => hardRedirect("/index.html");
+
+    const btnReload = document.getElementById("btnReloadLocked");
+    if (btnReload) btnReload.onclick = () => window.location.reload();
+  }
+
+  async function __gcForceSessionLock(reasonText) {
+    if (__gcSessionLockActive) return;
+    __gcSessionLockActive = true;
+
+    try {
+      if (G && G.authStateSubscription && typeof G.authStateSubscription.unsubscribe === "function") {
+        G.authStateSubscription.unsubscribe();
+      }
+    } catch {}
+
+    try {
+      if (window.sb && window.sb.auth && typeof window.sb.auth.signOut === "function") {
+        await window.sb.auth.signOut();
+      }
+    } catch {}
+
+    try {
+      __gcRenderSessionLockedScreen(reasonText);
+    } catch (e) {
+      console.error("Falha a renderizar ecrã de sessão bloqueada:", e);
+      hardRedirect("/index.html");
+      return;
+    }
+
+    setTimeout(() => {
+      hardRedirect("/index.html");
+    }, 1500);
+  }
 
   // ---------- Logout ----------
   async function wireLogout() {
@@ -6518,6 +6618,8 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
 
   // ---------- Refresh agenda ----------
   async function refreshAgenda() {
+    if (__gcSessionLockActive) return;
+
     const sel = document.getElementById("selClinic");
     const clinicId = sel ? sel.value || null : null;
 
@@ -6530,12 +6632,20 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
     setAgendaStatus("loading", "A carregar marcações…");
 
     try {
-      const { data, timeColUsed } = await loadAppointmentsForRange({ clinicId, startISO: r.startISO, endISO: r.endISO });
+      const { data, timeColUsed } = await loadAppointmentsForRange({
+        clinicId,
+        startISO: r.startISO,
+        endISO: r.endISO
+      });
 
       const patientIds = (data || []).map((x) => x && x.patient_id).filter(Boolean);
       try {
         G.patientsById = await fetchPatientsByIds(patientIds);
       } catch (e) {
+        if (__gcIsAuthError(e)) {
+          await __gcForceSessionLock("Sessão expirada ou inválida. Volte a iniciar sessão.");
+          return;
+        }
         console.error("Falha ao carregar pacientes para agenda:", e);
         G.patientsById = {};
       }
@@ -6545,6 +6655,11 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
       setAgendaStatus("ok", `OK: ${data.length} marcação(ões).`);
       renderAgendaList();
     } catch (e) {
+      if (__gcIsAuthError(e)) {
+        await __gcForceSessionLock("Sessão expirada ou inválida. Volte a iniciar sessão.");
+        return;
+      }
+
       console.error("Agenda load falhou:", e);
       setAgendaStatus("error", "Erro ao carregar agenda. Vê a consola.");
       G.agenda.rows = [];
@@ -6577,13 +6692,34 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
 
       G.sessionUser = session.user;
 
+      if (G && G.authStateSubscription && typeof G.authStateSubscription.unsubscribe === "function") {
+        try { G.authStateSubscription.unsubscribe(); } catch {}
+      }
+
+      const { data: authStateData } = window.sb.auth.onAuthStateChange(async (event, nextSession) => {
+        if (__gcSessionLockActive) return;
+
+        const ev = String(event || "").toUpperCase();
+        const hasUser = !!(nextSession && nextSession.user);
+
+        if (!hasUser || ev === "SIGNED_OUT" || ev === "USER_DELETED") {
+          await __gcForceSessionLock("Sessão terminada. Volte a iniciar sessão para continuar.");
+          return;
+        }
+
+        if (ev === "TOKEN_REFRESHED" || ev === "SIGNED_IN" || ev === "INITIAL_SESSION" || ev === "USER_UPDATED") {
+          G.sessionUser = nextSession.user;
+        }
+      });
+
+      G.authStateSubscription = authStateData && authStateData.subscription
+        ? authStateData.subscription
+        : null;
+
       // ===== MFA Gate (AAL2 obrigatório para TODOS) =====
-      // Referência: AAL1 vs AAL2 e fluxos de MFA TOTP (enroll/challenge/verify/challengeAndVerify)
-      // https://supabase.com/docs/reference/javascript/auth-mfa-getauthenticatorassurancelevel
       async function ensureAAL2() {
         const sb = window.sb;
 
-        // Helpers UI (isolados neste bloco)
         function esc(s) {
           return String(s == null ? "" : s)
             .replace(/&/g, "&amp;")
@@ -6596,7 +6732,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
         function renderMFAScreen({ title, subtitle, qrDataUrl, secret, uri, errorMsg }) {
           const root = document.getElementById("appRoot") || document.body;
 
-          // Full-page minimal UI (não depende do App Shell)
           root.innerHTML = `
             <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#0b1220;color:#e7eefc;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
               <div style="width:100%;max-width:520px;background:#111a2e;border:1px solid rgba(255,255,255,.10);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:20px 18px;">
@@ -6668,23 +6803,18 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
           return aal;
         }
 
-        // Já está AAL2? segue.
         const aal0 = await getAAL();
         if (String(aal0.currentLevel).toLowerCase() === "aal2") return true;
 
-        // Precisamos de MFA
-        // Interpretar (aal1/aal1 = sem factor; aal1/aal2 = tem factor mas falta verificar)
         const { data: factors, error: lfErr } = await sb.auth.mfa.listFactors();
         if (lfErr) throw lfErr;
 
         const totps = (factors && factors.totp) ? factors.totp : [];
-        // Preferir um factor "verified" se existir; caso contrário usar o primeiro TOTP
         let factor = null;
         if (Array.isArray(totps) && totps.length) {
           factor = totps.find(f => String(f.status || "").toLowerCase() === "verified") || totps[0];
         }
 
-        // Se não existir TOTP, fazer enroll e mostrar QR
         if (!factor) {
           const { data: en, error: enErr } = await sb.auth.mfa.enroll({ factorType: "totp" });
           if (enErr) throw enErr;
@@ -6695,7 +6825,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
           const secret = en && en.totp ? en.totp.secret : null;
           const uri = en && en.totp ? en.totp.uri : null;
 
-          // UI + verify loop
           let lastErr = null;
           while (true) {
             renderMFAScreen({
@@ -6742,7 +6871,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
           }
         }
 
-        // Já existe TOTP: pedir apenas o código e verificar
         let lastErr = null;
         while (true) {
           renderMFAScreen({
@@ -6789,15 +6917,28 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
         }
       }
 
-      // Bloquear o boot até garantir AAL2
       await ensureAAL2();
-      // ===== FIM MFA Gate =====
+
+      if (__gcSessionLockActive) return;
 
       renderAppShell();
       await wireLogout();
 
-      try { G.role = await fetchMyRole(G.sessionUser.id); } catch { G.role = null; }
-      try { G.clinics = await fetchVisibleClinics(); } catch { G.clinics = []; }
+      try { G.role = await fetchMyRole(G.sessionUser.id); } catch (e) {
+        if (__gcIsAuthError(e)) {
+          await __gcForceSessionLock("Sessão expirada durante a validação do utilizador.");
+          return;
+        }
+        G.role = null;
+      }
+
+      try { G.clinics = await fetchVisibleClinics(); } catch (e) {
+        if (__gcIsAuthError(e)) {
+          await __gcForceSessionLock("Sessão expirada durante o carregamento das clínicas.");
+          return;
+        }
+        G.clinics = [];
+      }
 
       G.clinicsById = {};
       for (const c of G.clinics) G.clinicsById[c.id] = c;
@@ -6851,7 +6992,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
         btnNew.title = "Sem permissão para criar marcações.";
       }
 
-      // Novo doente na página inicial: também só doctor/secretary (por defeito)
       if (btnNewPatientMain && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
         btnNewPatientMain.disabled = true;
         btnNewPatientMain.title = "Sem permissão para criar doentes.";
@@ -6859,12 +6999,18 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
 
       await refreshAgenda();
     } catch (e) {
+      if (__gcIsAuthError(e)) {
+        await __gcForceSessionLock("Sessão expirada ou inválida. Volte a iniciar sessão.");
+        return;
+      }
+
       console.error("Boot falhou:", e);
       document.body.textContent = "Erro ao iniciar a app. Abre a consola para detalhe.";
     }
   }
 
 /* ==== FIM BLOCO 11/12 — Boot (init da app + wiring de botões) ==== */
+
 /* ==== INÍCIO BLOCO 12/12 — DOMContentLoaded + fechamento IIFE ==== */
 
   document.addEventListener("DOMContentLoaded", boot);
