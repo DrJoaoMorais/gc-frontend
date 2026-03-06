@@ -6500,6 +6500,7 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
       });
     }
   }
+  }
 /* ==== FIM BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
 
 /* ==== INÍCIO BLOCO 10/12 — Logout + Refresh agenda ==== */
