@@ -6490,6 +6490,7 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
     }
     btnSave.disabled = false;
   }
+}
 
     if (btnSave) btnSave.addEventListener("click", onSave);
     if (btnCancel) btnCancel.addEventListener("click", safeCloseModal);
@@ -6499,7 +6500,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
         if (ev.target === overlay) safeCloseModal();
       });
     }
-  }
   }
 /* ==== FIM BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
 
