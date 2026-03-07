@@ -5210,6 +5210,8 @@ async function saveConsult() {
 /* ==== INÍCIO BLOCO 06J/12 — Render + Wiring + Boot (inclui Tel→Clínica no cabeçalho) ==== */
 /* ---- FUNÇÃO 06J.1 — render ---- */
 function render() {
+  console.log("06J render OK");
+  
   root.innerHTML = `
     <div style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
                 display:flex; align-items:center; justify-content:center; padding:12px;">
