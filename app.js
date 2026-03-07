@@ -1871,6 +1871,8 @@ function openPatientViewModal__stub(patient) {
 /* ---- FUNÇÃO 06B.1 — openPatientViewModal ---- */
 function openPatientViewModal(patient) {
 
+  console.log("06B openPatientViewModal OK", patient);
+
   const root = document.getElementById("modalRoot");
   if (!root || !patient) return;
 
@@ -5211,7 +5213,7 @@ async function saveConsult() {
 /* ---- FUNÇÃO 06J.1 — render ---- */
 function render() {
   console.log("06J render OK");
-  
+
   root.innerHTML = `
     <div style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
                 display:flex; align-items:center; justify-content:center; padding:12px;">
