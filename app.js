@@ -4956,107 +4956,123 @@ async function generatePdfAndUploadV1() {
 /* ==== FIM BLOCO 06I/12 — saveConsult (insert + upsert ligações + reset) ==== */
 
 
-/* ==== INÍCIO BLOCO 06J/12 — Render + Wiring + Boot (inclui Tel→Clínica no cabeçalho) ==== */
+/* ---- FUNÇÃO 06J.1 — render ---- */
+function render() {
+  root.innerHTML = `
+    <div style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
+                display:flex; align-items:center; justify-content:center; padding:12px;">
+      <div style="background:#fff; width:min(1400px,96vw);
+                  height:92vh; border-radius:14px;
+                  border:1px solid #e5e5e5; padding:16px; overflow:auto;">
 
-  /* ---- FUNÇÃO 06J.1 — render ---- */
-  function render() {
-    root.innerHTML = `
-      <div style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
-                  display:flex; align-items:center; justify-content:center; padding:12px;">
-        <div style="background:#fff; width:min(1400px,96vw);
-                    height:92vh; border-radius:14px;
-                    border:1px solid #e5e5e5; padding:16px; overflow:auto;">
-
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="font-weight:900;">Feed do Doente</div>
-            <button id="btnClosePView" class="gcBtn">Fechar</button>
-          </div>
-
-          <div style="margin-top:12px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-            <div>
-              <div style="font-weight:900; font-size:18px;">
-                ${escAttr(p.full_name || "—")}${birthdayBadgeToday()}
-              </div>
-
-              <div style="margin-top:6px; color:#475569; display:flex; gap:14px; flex-wrap:wrap;">
-                <div><b>Telefone:</b> ${escAttr(p.phone || "—")}</div>
-                <div><b>Clínica:</b> ${escAttr(activeClinicName || "—")}</div>
-                <div><b>SNS:</b> ${escAttr(p.sns || "—")}</div>
-                <div><b>Seguro:</b> ${escAttr(p.insurance_provider || "—")}</div>
-                <div><b>Nº:</b> ${escAttr(p.insurance_policy_number || "—")}</div>
-                <div><b>Idade:</b> ${escAttr(ageTextToday())}</div>
-              </div>
-            </div>
-
-            <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
-              <button id="btnViewIdent" class="gcBtn">Ver Identificação</button>
-              <button id="btnEditIdent" class="gcBtn" style="font-weight:900;">Editar Dados</button>
-            </div>
-          </div>
-
-          <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-            ${isDoctor() && !creatingConsult ? `
-              <button id="btnNewConsult" class="gcBtn" style="font-weight:900;">Consulta Médica</button>
-            ` : ``}
-
-            ${isDoctor() && lastSavedConsultId ? `
-              <button id="btnEditDocument" class="gcBtn" style="font-weight:900;">Editar Documento</button>
-            ` : ``}
-
-            ${docsLoading ? `<div style="color:#64748b;">A carregar PDFs…</div>` : ``}
-          </div>
-
-          ${creatingConsult ? renderConsultFormInline() : ""}
-
-          <div style="margin-top:18px;">
-            ${renderTimeline()}
-          </div>
-
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-weight:900;">Feed do Doente</div>
+          <button id="btnClosePView" class="gcBtn">Fechar</button>
         </div>
+
+        <div style="margin-top:12px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <div>
+            <div style="font-weight:900; font-size:18px;">
+              ${escAttr(p.full_name || "—")}${birthdayBadgeToday()}
+            </div>
+
+            <div style="margin-top:6px; color:#475569; display:flex; gap:14px; flex-wrap:wrap;">
+              <div><b>Telefone:</b> ${escAttr(p.phone || "—")}</div>
+              <div><b>Clínica:</b> ${escAttr(activeClinicName || "—")}</div>
+              <div><b>SNS:</b> ${escAttr(p.sns || "—")}</div>
+              <div><b>Seguro:</b> ${escAttr(p.insurance_provider || "—")}</div>
+              <div><b>Nº:</b> ${escAttr(p.insurance_policy_number || "—")}</div>
+              <div><b>Idade:</b> ${escAttr(ageTextToday())}</div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
+            <button id="btnViewIdent" class="gcBtn">Ver Identificação</button>
+            <button id="btnEditIdent" class="gcBtn" style="font-weight:900;">Editar Dados</button>
+          </div>
+        </div>
+
+        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          ${isDoctor() && !creatingConsult ? `
+            <button id="btnNewConsult" class="gcBtn" style="font-weight:900;">Consulta Médica</button>
+          ` : ``}
+
+          ${isDoctor() && lastSavedConsultId ? `
+            <button id="btnEditDocument" class="gcBtn" style="font-weight:900;">Editar Documento</button>
+          ` : ``}
+
+          ${docsLoading ? `<div style="color:#64748b;">A carregar PDFs…</div>` : ``}
+        </div>
+
+        ${creatingConsult ? renderConsultFormInline() : ""}
+
+        <div style="margin-top:18px;">
+          ${renderTimeline()}
+        </div>
+
       </div>
+    </div>
 
-      ${identOpen ? renderIdentityModal() : ""}
-      ${docOpen ? renderDocumentEditorModal() : ""}
-    `;
+    ${identOpen ? renderIdentityModal() : ""}
+    ${docOpen ? renderDocumentEditorModal() : ""}
+  `;
 
-    document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
+  document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
 
-    document.getElementById("btnViewIdent")?.addEventListener("click", () => openPatientIdentity("view"));
-    document.getElementById("btnEditIdent")?.addEventListener("click", () => openPatientIdentity("edit"));
+  document.getElementById("btnViewIdent")?.addEventListener("click", () => openPatientIdentity("view"));
+  document.getElementById("btnEditIdent")?.addEventListener("click", () => openPatientIdentity("edit"));
 
-    if (isDoctor() && !creatingConsult) {
-      document.getElementById("btnNewConsult")?.addEventListener("click", () => {
-        creatingConsult = true;
-        render();
-        bindConsultEvents();
-      });
-    }
-
-    const btnEditDoc = document.getElementById("btnEditDocument");
-    if (btnEditDoc) {
-      btnEditDoc.onclick = async () => {
-        const userRes = await window.sb.auth.getUser();
-        const userId = userRes?.data?.user?.id;
-
-        const consult = (consultRows || []).find(x => String(x.id) === String(lastSavedConsultId));
-        if (!consult) { alert("Consulta não encontrada."); return; }
-
-        const clinic = await fetchClinicForPdf();
-        const authorName = userId ? await fetchCurrentUserDisplayName(userId) : "";
-
-        // Nota: o buildDocV1Html aceita vinheta/logo em dataURL quando usado pelo gerador,
-        // mas para o editor basta o HTML base (se quiseres, podemos enriquecer depois).
-        const html = buildDocV1Html({ clinic, consult, authorName });
-
-        openDocumentEditor(html);
-      };
-    }
-
-    if (creatingConsult) bindConsultEvents();
-    if (identOpen) bindIdentityEvents();
-    if (docOpen) bindDocEvents();
+  if (isDoctor() && !creatingConsult) {
+    document.getElementById("btnNewConsult")?.addEventListener("click", () => {
+      creatingConsult = true;
+      render();
+      bindConsultEvents();
+    });
   }
-  /* ---- FIM FUNÇÃO 06J.1 ---- */
+
+  const btnEditDoc = document.getElementById("btnEditDocument");
+  if (btnEditDoc) {
+    btnEditDoc.onclick = async () => {
+      const userRes = await window.sb.auth.getUser();
+      const userId = userRes?.data?.user?.id;
+
+      const consult = (consultRows || []).find(x => String(x.id) === String(lastSavedConsultId));
+      if (!consult) { alert("Consulta não encontrada."); return; }
+
+      const clinic = await fetchClinicForPdf();
+      const authorName = userId ? await fetchCurrentUserDisplayName(userId) : "";
+
+      let vinhetaUrl = "";
+      try {
+        const vinhetaSignedUrl = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
+        console.log("VINHETA signed URL:", vinhetaSignedUrl);
+
+        if (vinhetaSignedUrl) {
+          vinhetaUrl = await urlToDataUrl(vinhetaSignedUrl, "image/png");
+        }
+
+        console.log("VINHETA data URL prefix:", vinhetaUrl ? vinhetaUrl.slice(0, 80) : "(vazia)");
+      } catch (e) {
+        console.warn("Editor: vinheta falhou:", e);
+        vinhetaUrl = "";
+      }
+
+      const html = buildDocV1Html({
+        clinic,
+        consult,
+        authorName,
+        vinhetaUrl
+      });
+
+      openDocumentEditor(html);
+    };
+  }
+
+  if (creatingConsult) bindConsultEvents();
+  if (identOpen) bindIdentityEvents();
+  if (docOpen) bindDocEvents();
+}
+/* ---- FIM FUNÇÃO 06J.1 ---- */
 
   /* ---- FUNÇÃO 06J.2 — boot ---- */
   (async function boot() {
