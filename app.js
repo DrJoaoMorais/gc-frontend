@@ -1009,15 +1009,28 @@
 
 /* ==== FIM BLOCO 03/12 — Constantes (procedimentos/status) + estado global + render shell (HTML+CSS) ==== */
 
-/* ==== INÍCIO BLOCO 04/12 — Helpers UI Agenda + abrir doente + update status + renderAgendaList ==== */
+/* ========================================================
+   BLOCO 04/12 — Helpers UI Agenda + abrir doente + update status + renderAgendaList
+   MAPA DE NAVEGAÇÃO
+   --------------------------------------------------------
+   04A — Helpers UI da agenda
+   04B — Abertura de doente
+   04C — Atualização de estado de marcação
+   04D — Impressão da agenda do dia
+   04E — Render da lista da agenda
+   ======================================================== */
 
+/* ==== INÍCIO BLOCO 04A — Helpers UI da agenda ==== */
+  /* ---- FUNÇÃO 04A.1 — setAgendaSubtitleForSelectedDay ---- */
   function setAgendaSubtitleForSelectedDay() {
     const r = isoLocalDayRangeFromISODate(G.selectedDayISO);
     const sub = document.getElementById("agendaSubtitle");
     if (!sub || !r) return;
     sub.textContent = `${fmtDatePt(r.start)} (00:00–24:00)`;
   }
+  /* ---- FIM FUNÇÃO 04A.1 ---- */
 
+  /* ---- FUNÇÃO 04A.2 — setAgendaStatus ---- */
   function setAgendaStatus(kind, text) {
     const el = document.getElementById("agendaStatus");
     if (!el) return;
@@ -1025,7 +1038,9 @@
     const color = kind === "loading" ? "#666" : kind === "error" ? "#b00020" : kind === "ok" ? "#111" : "#666";
     el.innerHTML = `<div style="font-size:${UI.fs12}px; color:${color};">${escapeHtml(text)}</div>`;
   }
+  /* ---- FIM FUNÇÃO 04A.2 ---- */
 
+  /* ---- FUNÇÃO 04A.3 — renderClinicsSelect ---- */
   function renderClinicsSelect(clinics) {
     const sel = document.getElementById("selClinic");
     if (!sel) return;
@@ -1040,13 +1055,17 @@
 
     if (clinics.length === 1) sel.value = clinics[0].id;
   }
+  /* ---- FIM FUNÇÃO 04A.3 ---- */
 
+  /* ---- FUNÇÃO 04A.4 — getPatientForAppointmentRow ---- */
   function getPatientForAppointmentRow(apptRow) {
     const pid = apptRow && apptRow.patient_id ? apptRow.patient_id : null;
     if (!pid) return null;
     return G.patientsById && G.patientsById[pid] ? G.patientsById[pid] : null;
   }
+  /* ---- FIM FUNÇÃO 04A.4 ---- */
 
+  /* ---- FUNÇÃO 04A.5 — apptStatusMeta ---- */
   // ✅ Meta do "estado" com prioridade ao mode (bloqueio NÃO depende de status)
   function apptStatusMeta(apptRow) {
     try {
@@ -1057,7 +1076,12 @@
     } catch (_) {}
     return statusMeta(apptRow?.status ?? "scheduled");
   }
+  /* ---- FIM FUNÇÃO 04A.5 ---- */
+/* ==== FIM BLOCO 04A — Helpers UI da agenda ==== */
 
+
+/* ==== INÍCIO BLOCO 04B — Abertura de doente ==== */
+  /* ---- FUNÇÃO 04B.1 — openPatientFeedFromAny ---- */
   async function openPatientFeedFromAny(patientLike) {
     try {
       const pid = patientLike && patientLike.id ? patientLike.id : null;
@@ -1076,7 +1100,12 @@
       alert("Erro ao abrir doente. Vê a consola para detalhe.");
     }
   }
+  /* ---- FIM FUNÇÃO 04B.1 ---- */
+/* ==== FIM BLOCO 04B — Abertura de doente ==== */
 
+
+/* ==== INÍCIO BLOCO 04C — Atualização de estado de marcação ==== */
+  /* ---- FUNÇÃO 04C.1 — updateAppointmentStatus ---- */
   async function updateAppointmentStatus(apptId, newStatus) {
     if (!apptId) return;
     const raw = String(newStatus || "").trim().toLowerCase();
@@ -1110,7 +1139,12 @@
       alert("Não foi possível atualizar o estado. Vê a consola para detalhe.");
     }
   }
+  /* ---- FIM FUNÇÃO 04C.1 ---- */
+/* ==== FIM BLOCO 04C — Atualização de estado de marcação ==== */
 
+
+/* ==== INÍCIO BLOCO 04D — Impressão da agenda do dia ==== */
+  /* ---- FUNÇÃO 04D.1 — __gcGetSelectedDayLabelForPrint ---- */
   function __gcGetSelectedDayLabelForPrint() {
     try {
       const iso = String(G.selectedDayISO || "").trim(); // YYYY-MM-DD
@@ -1122,7 +1156,9 @@
       return String(G.selectedDayISO || "");
     }
   }
+  /* ---- FIM FUNÇÃO 04D.1 ---- */
 
+  /* ---- FUNÇÃO 04D.2 — __gcBuildAgendaPrintHtml ---- */
   function __gcBuildAgendaPrintHtml(rows) {
     const dayLabel = __gcGetSelectedDayLabelForPrint();
     const clinicFilter = (() => {
@@ -1292,7 +1328,9 @@
 </html>
     `;
   }
+  /* ---- FIM FUNÇÃO 04D.2 ---- */
 
+  /* ---- FUNÇÃO 04D.3 — __gcPrintAgendaDay ---- */
   function __gcPrintAgendaDay() {
     try {
       const rows = G.agenda.rows || [];
@@ -1315,7 +1353,12 @@
       alert("Erro ao preparar impressão. Vê a consola para detalhe.");
     }
   }
+  /* ---- FIM FUNÇÃO 04D.3 ---- */
+/* ==== FIM BLOCO 04D — Impressão da agenda do dia ==== */
 
+
+/* ==== INÍCIO BLOCO 04E — Render da lista da agenda ==== */
+  /* ---- FUNÇÃO 04E.1 — renderAgendaList ---- */
   // ✅ Agenda em grelha com cabeçalho único + 1 linha por marcação (sem labels repetidos)
   function renderAgendaList() {
     const ul = document.getElementById("agendaList");
@@ -1573,8 +1616,10 @@
       });
     }
   }
+  /* ---- FIM FUNÇÃO 04E.1 ---- */
+/* ==== FIM BLOCO 04E — Render da lista da agenda ==== */
 
-/* ==== FIM BLOCO 04/12 ==== */
+/* ==== FIM BLOCO 04/12 — Helpers UI Agenda + abrir doente + update status + renderAgendaList ==== */
 
 /* ==== INÍCIO BLOCO 05/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
 
