@@ -4293,7 +4293,7 @@ async function generatePdfAndUploadV1() {
   }
   /* ---- FIM FUNÇÃO 06G.19 ---- */
 
- /* ---- FUNÇÃO 06G.20 — renderTimeline ---- */
+/* ---- FUNÇÃO 06G.20 — renderTimeline ---- */
 function renderTimeline() {
   if (timelineLoading) return `<div style="color:#64748b;">A carregar registos...</div>`;
 
@@ -4390,6 +4390,35 @@ function renderTimeline() {
     return linkedNotes.map((n) => __gcRenderAgendaNoteItem(n)).join("");
   }
 
+  function renderConsultActions(r) {
+    if (isSecretary) return "";
+
+    const consultId = r && r.id ? String(r.id) : "";
+    if (!consultId) return "";
+
+    return `
+      <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button
+          class="gcBtn"
+          data-action="edit-consult"
+          data-consult-id="${escAttr(consultId)}"
+          style="font-weight:900;"
+        >
+          Editar Consulta
+        </button>
+
+        <button
+          class="gcBtn"
+          data-action="consult-report"
+          data-consult-id="${escAttr(consultId)}"
+          style="font-weight:900;"
+        >
+          Relatório da Consulta
+        </button>
+      </div>
+    `;
+  }
+
   if (isSecretary) {
     return `
       <div style="display:flex; flex-direction:column; gap:14px;">
@@ -4438,6 +4467,8 @@ function renderTimeline() {
             <div style="font-weight:900; font-size:16px;">
               Consulta — ${when}${authorTxt ? ` - ${escAttr(authorTxt)}` : ``}
             </div>
+
+            ${renderConsultActions(r)}
 
             <div style="margin-top:10px; line-height:1.55; font-size:15px;">
               ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
