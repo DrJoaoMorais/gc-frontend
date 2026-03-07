@@ -5118,22 +5118,16 @@ async function saveConsult() {
     }
 
     if (selectedDiag && selectedDiag.length) {
-      const seenDiagIds = new Set();
-
       const diagRows = selectedDiag
         .filter(x => x && x.id !== undefined && x.id !== null && String(x.id).trim() !== "")
         .map(x => ({
           consultation_id: consultId,
           diagnosis_id: Number(x.id)
         }))
-        .filter(row => {
-          if (!Number.isFinite(row.diagnosis_id)) return false;
-          if (seenDiagIds.has(row.diagnosis_id)) return false;
-          seenDiagIds.add(row.diagnosis_id);
-          return true;
-        });
+        .filter(row => Number.isFinite(row.diagnosis_id));
 
       console.log("DIAG ROWS TO INSERT:", diagRows);
+      console.log("SELECTED DIAG RAW:", selectedDiag);
 
       if (diagRows.length) {
         const { error: dErr } = await window.sb
