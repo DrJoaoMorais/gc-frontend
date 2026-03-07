@@ -5341,6 +5341,19 @@ function render() {
 }
 /* ---- FIM FUNÇÃO 06J.1 ---- */
 
+/* ---- FUNÇÃO 06J.2 — boot ---- */
+(async function boot() {
+  try {
+    await fetchActiveClinic();
+    await loadConsultations();
+    await loadDocuments();
+  } catch (e) {
+    console.error("boot modal falhou:", e);
+  }
+  render();
+})();
+/* ---- FIM FUNÇÃO 06J.2 ---- */
+
 } // <-- fecha openPatientViewModal
 /* ---- FIM FUNÇÃO 06B.1 ---- */
 
