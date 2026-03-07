@@ -1,4 +1,17 @@
-/* ==== INÍCIO BLOCO 01/12 — Cabeçalho + utilitários base + helpers ==== */
+/* ========================================================
+   BLOCO 01/12 — Cabeçalho + utilitários base + helpers
+   MAPA DE NAVEGAÇÃO
+   --------------------------------------------------------
+   01A — Cabeçalho do ficheiro + configuração base
+   01B — Helpers genéricos de string/HTML
+   01C — Helpers de datas/horas
+   01D — Helpers utilitários transversais
+   01E — Helpers DOB (idade + aniversário)
+   01F — Fetch de role e clínicas visíveis
+   01G — Debug hooks globais
+   01H — Logout automático por inatividade
+   ======================================================== */
+/* ==== INÍCIO BLOCO 01A — Cabeçalho do ficheiro + configuração base ==== */
 /* =========================================================
    Gestão Clínica V2 — app.js (ficheiro completo)
    - Auth bootstrap + header + logout
@@ -18,12 +31,15 @@
 (function () {
   "use strict";
 
+  /* ---- FUNÇÃO/CONFIG 01A.1 — Config Google Calendar Worker ---- */
   // =========================================================
   // CONFIG — Google Calendar Worker (GCAL)
   // =========================================================
   // ✅ Troca apenas a URL abaixo pela tua URL real do Worker gc-gcal (sem /sync-day)
   window.__GC_GCAL_WORKER_URL__ = "https://gc-gcal.dr-joao-morais.workers.dev";
+  /* ---- FIM FUNÇÃO/CONFIG 01A.1 ---- */
 
+  /* ---- FUNÇÃO/CONFIG 01A.2 — UI scale ---- */
   // ===== UI SCALE (apenas agenda + shell) =====
   const UI = {
     fs12: 13,
@@ -32,11 +48,18 @@
     fs16: 17,
     fs18: 19, // nome do doente
   };
+  /* ---- FIM FUNÇÃO/CONFIG 01A.2 ---- */
+/* ==== FIM BLOCO 01A — Cabeçalho do ficheiro + configuração base ==== */
 
+
+/* ==== INÍCIO BLOCO 01B — Helpers genéricos de string/HTML ==== */
+  /* ---- FUNÇÃO 01B.1 — hardRedirect ---- */
   function hardRedirect(path) {
     window.location.replace(path);
   }
+  /* ---- FIM FUNÇÃO 01B.1 ---- */
 
+  /* ---- FUNÇÃO 01B.2 — escapeHtml ---- */
   function escapeHtml(str) {
     return String(str ?? "")
       .replaceAll("&", "&amp;")
@@ -45,14 +68,36 @@
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
   }
+  /* ---- FIM FUNÇÃO 01B.2 ---- */
 
+  /* ---- FUNÇÃO 01B.3 — normalizeDigits ---- */
+  function normalizeDigits(v) {
+    return String(v || "").replace(/\D+/g, "");
+  }
+  /* ---- FIM FUNÇÃO 01B.3 ---- */
+
+  /* ---- FUNÇÃO 01B.4 — clipOneLine ---- */
+  function clipOneLine(s, max = 110) {
+    const t = String(s || "").replace(/\s+/g, " ").trim();
+    if (!t) return "";
+    if (t.length <= max) return t;
+    return t.slice(0, max - 1) + "…";
+  }
+  /* ---- FIM FUNÇÃO 01B.4 ---- */
+/* ==== FIM BLOCO 01B — Helpers genéricos de string/HTML ==== */
+
+
+/* ==== INÍCIO BLOCO 01C — Helpers de datas/horas ==== */
+  /* ---- FUNÇÃO 01C.1 — fmtTime ---- */
   function fmtTime(d) {
     if (!(d instanceof Date) || isNaN(d.getTime())) return "—";
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
     return `${hh}:${mm}`;
   }
+  /* ---- FIM FUNÇÃO 01C.1 ---- */
 
+  /* ---- FUNÇÃO 01C.2 — fmtDatePt ---- */
   function fmtDatePt(d) {
     if (!(d instanceof Date) || isNaN(d.getTime())) return "—";
     const dd = String(d.getDate()).padStart(2, "0");
@@ -60,7 +105,9 @@
     const yyyy = String(d.getFullYear());
     return `${dd}-${mm}-${yyyy}`;
   }
+  /* ---- FIM FUNÇÃO 01C.2 ---- */
 
+  /* ---- FUNÇÃO 01C.3 — fmtDateISO ---- */
   function fmtDateISO(d) {
     if (!(d instanceof Date) || isNaN(d.getTime())) return "";
     const yyyy = d.getFullYear();
@@ -68,31 +115,38 @@
     const dd = String(d.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
   }
+  /* ---- FIM FUNÇÃO 01C.3 ---- */
 
+  /* ---- FUNÇÃO 01C.4 — parseISODateToLocalStart ---- */
   function parseISODateToLocalStart(dateISO) {
     const [y, m, d] = (dateISO || "").split("-").map((n) => parseInt(n, 10));
     if (!y || !m || !d) return null;
     return new Date(y, m - 1, d, 0, 0, 0, 0);
   }
+  /* ---- FIM FUNÇÃO 01C.4 ---- */
 
-  // ✅ Core + aliases (compatibilidade com chamadas antigas/novas)
+  /* ---- FUNÇÃO 01C.5 — __gcIsoLocalDayRangeCore ---- */
   function __gcIsoLocalDayRangeCore(dateStr) {
     const start = parseISODateToLocalStart(dateStr);
     if (!start) return null;
     const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1, 0, 0, 0, 0);
     return { startISO: start.toISOString(), endISO: end.toISOString(), start, end };
   }
+  /* ---- FIM FUNÇÃO 01C.5 ---- */
 
-  // Nome “canon” (o que o resto do ficheiro pode usar)
+  /* ---- FUNÇÃO 01C.6 — isoLocalDayRangeFromISODate ---- */
   function isoLocalDayRangeFromISODate(dateStr) {
     return __gcIsoLocalDayRangeCore(dateStr);
   }
+  /* ---- FIM FUNÇÃO 01C.6 ---- */
 
-  // ✅ Alias para variantes que possam existir no código (sem "Date")
+  /* ---- FUNÇÃO 01C.7 — isoLocalDayRangeFromISO ---- */
   function isoLocalDayRangeFromISO(dateStr) {
     return __gcIsoLocalDayRangeCore(dateStr);
   }
+  /* ---- FIM FUNÇÃO 01C.7 ---- */
 
+  /* ---- FUNÇÃO 01C.8 — toLocalInputValue ---- */
   function toLocalInputValue(dateObj) {
     const d = dateObj instanceof Date ? dateObj : new Date(dateObj);
     const yyyy = d.getFullYear();
@@ -102,23 +156,22 @@
     const mi = String(d.getMinutes()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
   }
+  /* ---- FIM FUNÇÃO 01C.8 ---- */
 
+  /* ---- FUNÇÃO 01C.9 — fromLocalInputValue ---- */
   function fromLocalInputValue(v) {
     return new Date(v);
   }
+  /* ---- FIM FUNÇÃO 01C.9 ---- */
+/* ==== FIM BLOCO 01C — Helpers de datas/horas ==== */
 
-  function normalizeDigits(v) {
-    return String(v || "").replace(/\D+/g, "");
-  }
 
-  function clipOneLine(s, max = 110) {
-    const t = String(s || "").replace(/\s+/g, " ").trim();
-    if (!t) return "";
-    if (t.length <= max) return t;
-    return t.slice(0, max - 1) + "…";
-  }
+/* ==== INÍCIO BLOCO 01D — Helpers utilitários transversais ==== */
+/* ==== FIM BLOCO 01D — Helpers utilitários transversais ==== */
 
-  // ---- DOB helpers: idade + aniversário ----
+
+/* ==== INÍCIO BLOCO 01E — Helpers DOB (idade + aniversário) ==== */
+  /* ---- FUNÇÃO 01E.1 — parseISODateOnly ---- */
   function parseISODateOnly(isoDate) {
     // isoDate: "YYYY-MM-DD" (dob vindo do Postgres date)
     if (!isoDate) return null;
@@ -126,7 +179,9 @@
     if (!y || !m || !d) return null;
     return { y, m, d };
   }
+  /* ---- FIM FUNÇÃO 01E.1 ---- */
 
+  /* ---- FUNÇÃO 01E.2 — calcAgeYears ---- */
   function calcAgeYears(dobISO, refDate = new Date()) {
     const dob = parseISODateOnly(dobISO);
     if (!dob) return null;
@@ -140,7 +195,9 @@
     if (!hadBirthdayThisYear) age -= 1;
     return age >= 0 ? age : null;
   }
+  /* ---- FIM FUNÇÃO 01E.2 ---- */
 
+  /* ---- FUNÇÃO 01E.3 — isBirthdayOnDate ---- */
   function isBirthdayOnDate(dobISO, refDate = new Date()) {
     const dob = parseISODateOnly(dobISO);
     if (!dob) return false;
@@ -157,7 +214,12 @@
 
     return rm === dob.m && rd === dob.d;
   }
+  /* ---- FIM FUNÇÃO 01E.3 ---- */
+/* ==== FIM BLOCO 01E — Helpers DOB (idade + aniversário) ==== */
 
+
+/* ==== INÍCIO BLOCO 01F — Fetch de role e clínicas visíveis ==== */
+  /* ---- FUNÇÃO 01F.1 — fetchMyRole ---- */
   async function fetchMyRole(userId) {
     // ✅ Guardar flag de superadmin SEM mudar o role operacional
     // (evita bloquear UI/permissions que esperam doctor/secretary/physio)
@@ -194,7 +256,9 @@
     if (roles.includes("secretary")) return "secretary";
     return null;
   }
+  /* ---- FIM FUNÇÃO 01F.1 ---- */
 
+  /* ---- FUNÇÃO 01F.2 — fetchVisibleClinics ---- */
   async function fetchVisibleClinics() {
     const { data, error } = await window.sb
       .from("clinics")
@@ -204,8 +268,12 @@
     if (error) throw error;
     return Array.isArray(data) ? data : [];
   }
+  /* ---- FIM FUNÇÃO 01F.2 ---- */
+/* ==== FIM BLOCO 01F — Fetch de role e clínicas visíveis ==== */
 
-  /* ==== DEBUG PDF / PROMISES — INÍCIO (BLOCO 01/12) ==== */
+
+/* ==== INÍCIO BLOCO 01G — Debug hooks globais ==== */
+  /* ---- FUNÇÃO 01G.1 — setupGlobalDebugHooks ---- */
   (function setupGlobalDebugHooks() {
     if (window.__GC_DEBUG_HOOKS_INSTALLED__) return;
     window.__GC_DEBUG_HOOKS_INSTALLED__ = true;
@@ -249,146 +317,151 @@
 
     safeLog("✅ Debug hooks ativos (unhandledrejection + window.error)");
   })();
-  /* ==== DEBUG PDF / PROMISES — FIM ==== */
-/* ==== INÍCIO SUB-BLOCO — Logout automático por inatividade (30 min) ==== */
-(function setupIdleLogout() {
-  const IDLE_MINUTES = 30;
-  const IDLE_MS = IDLE_MINUTES * 60 * 1000;
+  /* ---- FIM FUNÇÃO 01G.1 ---- */
+/* ==== FIM BLOCO 01G — Debug hooks globais ==== */
 
-  const LS_LAST_ACTIVITY = "gc_last_activity";
 
-  let idleTimer = null;
-  let listenersOn = false;
+/* ==== INÍCIO BLOCO 01H — Logout automático por inatividade ==== */
+  /* ---- FUNÇÃO 01H.1 — setupIdleLogout ---- */
+  (function setupIdleLogout() {
+    const IDLE_MINUTES = 30;
+    const IDLE_MS = IDLE_MINUTES * 60 * 1000;
 
-  function nowMs() { return Date.now(); }
+    const LS_LAST_ACTIVITY = "gc_last_activity";
 
-  async function safeSignOut(reason) {
-    try {
-      if (!window.sb || !window.sb.auth) return;
+    let idleTimer = null;
+    let listenersOn = false;
 
-      if (window.__gcSigningOut) return;
-      window.__gcSigningOut = true;
+    function nowMs() { return Date.now(); }
 
-      console.warn("[SEC] Idle logout:", reason || "inactivity");
+    async function safeSignOut(reason) {
+      try {
+        if (!window.sb || !window.sb.auth) return;
 
-      await window.sb.auth.signOut();
+        if (window.__gcSigningOut) return;
+        window.__gcSigningOut = true;
 
-    } catch (e) {
-      console.error("[SEC] Idle logout error:", e);
-    } finally {
-      window.__gcSigningOut = false;
-    }
-  }
+        console.warn("[SEC] Idle logout:", reason || "inactivity");
 
-  function markActivity() {
-    try {
-      localStorage.setItem(LS_LAST_ACTIVITY, String(nowMs()));
-    } catch (_) {}
-  }
+        await window.sb.auth.signOut();
 
-  function getLastActivityMs() {
-    try {
-      const v = localStorage.getItem(LS_LAST_ACTIVITY);
-      const n = v ? Number(v) : NaN;
-      return Number.isFinite(n) ? n : 0;
-    } catch (_) {
-      return 0;
-    }
-  }
-
-  function clearIdleTimer() {
-    if (idleTimer) {
-      clearTimeout(idleTimer);
-      idleTimer = null;
-    }
-  }
-
-  function scheduleIdleCheck() {
-    clearIdleTimer();
-
-    const last = getLastActivityMs() || nowMs();
-    const elapsed = nowMs() - last;
-    const remaining = Math.max(0, IDLE_MS - elapsed);
-
-    idleTimer = setTimeout(async () => {
-      const last2 = getLastActivityMs() || 0;
-      const elapsed2 = nowMs() - last2;
-
-      if (elapsed2 >= IDLE_MS) {
-        await safeSignOut("30min inactivity");
-      } else {
-        scheduleIdleCheck();
+      } catch (e) {
+        console.error("[SEC] Idle logout error:", e);
+      } finally {
+        window.__gcSigningOut = false;
       }
-    }, remaining);
-  }
-
-  function onAnyActivity() {
-    if (!window.__gcHasSession) return;
-    markActivity();
-    scheduleIdleCheck();
-  }
-
-  function addListeners() {
-    if (listenersOn) return;
-    listenersOn = true;
-
-    const opts = { passive: true, capture: true };
-
-    window.addEventListener("click", onAnyActivity, opts);
-    window.addEventListener("mousemove", onAnyActivity, opts);
-    window.addEventListener("keydown", onAnyActivity, opts);
-    window.addEventListener("scroll", onAnyActivity, opts);
-    window.addEventListener("touchstart", onAnyActivity, opts);
-
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") onAnyActivity();
-    }, true);
-  }
-
-  function removeListeners() {
-    if (!listenersOn) return;
-    listenersOn = false;
-
-    window.removeEventListener("click", onAnyActivity, true);
-    window.removeEventListener("mousemove", onAnyActivity, true);
-    window.removeEventListener("keydown", onAnyActivity, true);
-    window.removeEventListener("scroll", onAnyActivity, true);
-    window.removeEventListener("touchstart", onAnyActivity, true);
-
-    clearIdleTimer();
-  }
-
-  async function bootstrap() {
-    if (!window.sb || !window.sb.auth) {
-      console.warn("[SEC] Supabase client não encontrado (window.sb)");
-      return;
     }
 
-    const { data } = await window.sb.auth.getSession();
-    window.__gcHasSession = !!(data && data.session);
+    function markActivity() {
+      try {
+        localStorage.setItem(LS_LAST_ACTIVITY, String(nowMs()));
+      } catch (_) {}
+    }
 
-    if (window.__gcHasSession) {
-      addListeners();
+    function getLastActivityMs() {
+      try {
+        const v = localStorage.getItem(LS_LAST_ACTIVITY);
+        const n = v ? Number(v) : NaN;
+        return Number.isFinite(n) ? n : 0;
+      } catch (_) {
+        return 0;
+      }
+    }
+
+    function clearIdleTimer() {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+    }
+
+    function scheduleIdleCheck() {
+      clearIdleTimer();
+
+      const last = getLastActivityMs() || nowMs();
+      const elapsed = nowMs() - last;
+      const remaining = Math.max(0, IDLE_MS - elapsed);
+
+      idleTimer = setTimeout(async () => {
+        const last2 = getLastActivityMs() || 0;
+        const elapsed2 = nowMs() - last2;
+
+        if (elapsed2 >= IDLE_MS) {
+          await safeSignOut("30min inactivity");
+        } else {
+          scheduleIdleCheck();
+        }
+      }, remaining);
+    }
+
+    function onAnyActivity() {
+      if (!window.__gcHasSession) return;
       markActivity();
       scheduleIdleCheck();
     }
 
-    window.sb.auth.onAuthStateChange((_event, session) => {
-      window.__gcHasSession = !!session;
+    function addListeners() {
+      if (listenersOn) return;
+      listenersOn = true;
+
+      const opts = { passive: true, capture: true };
+
+      window.addEventListener("click", onAnyActivity, opts);
+      window.addEventListener("mousemove", onAnyActivity, opts);
+      window.addEventListener("keydown", onAnyActivity, opts);
+      window.addEventListener("scroll", onAnyActivity, opts);
+      window.addEventListener("touchstart", onAnyActivity, opts);
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") onAnyActivity();
+      }, true);
+    }
+
+    function removeListeners() {
+      if (!listenersOn) return;
+      listenersOn = false;
+
+      window.removeEventListener("click", onAnyActivity, true);
+      window.removeEventListener("mousemove", onAnyActivity, true);
+      window.removeEventListener("keydown", onAnyActivity, true);
+      window.removeEventListener("scroll", onAnyActivity, true);
+      window.removeEventListener("touchstart", onAnyActivity, true);
+
+      clearIdleTimer();
+    }
+
+    async function bootstrap() {
+      if (!window.sb || !window.sb.auth) {
+        console.warn("[SEC] Supabase client não encontrado (window.sb)");
+        return;
+      }
+
+      const { data } = await window.sb.auth.getSession();
+      window.__gcHasSession = !!(data && data.session);
 
       if (window.__gcHasSession) {
         addListeners();
         markActivity();
         scheduleIdleCheck();
-      } else {
-        removeListeners();
       }
-    });
-  }
 
-  bootstrap();
-})();
-/* ==== FIM SUB-BLOCO — Logout automático por inatividade (30 min) ==== */
+      window.sb.auth.onAuthStateChange((_event, session) => {
+        window.__gcHasSession = !!session;
+
+        if (window.__gcHasSession) {
+          addListeners();
+          markActivity();
+          scheduleIdleCheck();
+        } else {
+          removeListeners();
+        }
+      });
+    }
+
+    bootstrap();
+  })();
+  /* ---- FIM FUNÇÃO 01H.1 ---- */
+/* ==== FIM BLOCO 01H — Logout automático por inatividade ==== */
 /* ==== FIM BLOCO 01/12 — Cabeçalho + utilitários base + helpers ==== */
 
 /* ==== INÍCIO BLOCO 02/12 — Agenda (helpers + load) + Patients (scope/search/RPC) ==== */
@@ -5091,6 +5164,8 @@ function bindConsultEvents() {
 
 /* ==== INÍCIO BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
 
+/* ==== INÍCIO BLOCO 09A/12 — Helpers base + GCAL + datas/horas ==== */
+
   // ---------- Modal marcação ----------
   function closeModal() {
     closeModalRoot();
@@ -5111,267 +5186,90 @@ function bindConsultEvents() {
     return `${n} — ${p}`;
   }
 
-  // =========================================================
-  // GCAL — sync automático (fire-and-forget, não bloqueia Guardar)
-  // =========================================================
-function __gcGetGcalSyncDayUrl() {
-  return "https://gc-gcal.dr-joao-morais.workers.dev/sync-day";
-}
+  function __gcGetGcalSyncDayUrl() {
+    return "https://gc-gcal.dr-joao-morais.workers.dev/sync-day";
+  }
 
-// =========================================================
-// GCAL — sync automático (robusto; não bloqueia Guardar)
-// =========================================================
-function __gcNormalizeDayISO(v) {
-  const d = String(v || "").slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : "";
-}
+  function __gcNormalizeDayISO(v) {
+    const d = String(v || "").slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : "";
+  }
 
-function __gcUniqueDays(days) {
-  return Array.from(new Set((days || []).map(__gcNormalizeDayISO).filter(Boolean)));
-}
+  function __gcUniqueDays(days) {
+    return Array.from(new Set((days || []).map(__gcNormalizeDayISO).filter(Boolean)));
+  }
 
-function __gcFireSyncDay(dayISO) {
-  return __gcFireSyncDays([dayISO]);
-}
+  function __gcFireSyncDay(dayISO) {
+    return __gcFireSyncDays([dayISO]);
+  }
 
-function __gcFireSyncDays(dayISOs) {
-  try {
-    const url = __gcGetGcalSyncDayUrl();
-    const days = __gcUniqueDays(dayISOs);
+  function __gcFireSyncDays(dayISOs) {
+    try {
+      const url = __gcGetGcalSyncDayUrl();
+      const days = __gcUniqueDays(dayISOs);
 
-    if (!url) {
-      console.warn("[GCAL] sync skipped (url não configurada).");
-      return;
-    }
-    if (!days.length) {
-      console.warn("[GCAL] sync skipped (sem dias válidos).", dayISOs);
-      return;
-    }
-    if (!window.sb || !window.sb.auth) {
-      console.warn("[GCAL] sync skipped (Supabase client indisponível).");
-      return;
-    }
-
-    window.sb.auth.getSession().then(({ data, error }) => {
-      if (error || !data?.session?.access_token) {
-        console.warn("[GCAL] sync skipped (sem sessão/token). days=", days);
+      if (!url) {
+        console.warn("[GCAL] sync skipped (url não configurada).");
+        return;
+      }
+      if (!days.length) {
+        console.warn("[GCAL] sync skipped (sem dias válidos).", dayISOs);
+        return;
+      }
+      if (!window.sb || !window.sb.auth) {
+        console.warn("[GCAL] sync skipped (Supabase client indisponível).");
         return;
       }
 
-      const token = data.session.access_token;
+      window.sb.auth.getSession().then(({ data, error }) => {
+        if (error || !data?.session?.access_token) {
+          console.warn("[GCAL] sync skipped (sem sessão/token). days=", days);
+          return;
+        }
 
-      days.forEach((d) => {
-        fetch(url, {
-          method: "POST",
-          keepalive: true,
-          headers: {
-            "content-type": "application/json",
-            "Authorization": `Bearer ${token}`,
-          },
-          body: JSON.stringify({ dayISO: d }),
-        })
-          .then(async (r) => {
-            if (!r.ok) {
-              const txt = await r.text().catch(() => "");
-              console.warn("[GCAL] sync-day falhou:", d, r.status, txt);
-              return;
-            }
-            console.log("[GCAL] sync ok dayISO=", d);
+        const token = data.session.access_token;
+
+        days.forEach((d) => {
+          fetch(url, {
+            method: "POST",
+            keepalive: true,
+            headers: {
+              "content-type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify({ dayISO: d }),
           })
-          .catch((e) => {
-            console.warn("[GCAL] sync-day erro:", d, e?.message || e);
-          });
+            .then(async (r) => {
+              if (!r.ok) {
+                const txt = await r.text().catch(() => "");
+                console.warn("[GCAL] sync-day falhou:", d, r.status, txt);
+                return;
+              }
+              console.log("[GCAL] sync ok dayISO=", d);
+            })
+            .catch((e) => {
+              console.warn("[GCAL] sync-day erro:", d, e?.message || e);
+            });
+        });
       });
-    });
 
-  } catch (e) {
-    console.warn("[GCAL] sync-day exceção:", e?.message || e);
-  }
-}
-
-  // =========================================================
-  // TRANSFERÊNCIA AUTOMÁTICA DE DOENTE ENTRE CLÍNICAS
-  // =========================================================
-
-  async function fetchPatientIdentifiers(patientId) {
-    try {
-      const { data, error } = await window.sb
-        .from("patients")
-        .select("full_name, sns, nif, passport_id, phone, dob")
-        .eq("id", patientId)
-        .limit(1);
-
-      if (error) throw error;
-      const p = (data && data.length) ? data[0] : null;
-      return p || null;
     } catch (e) {
-      console.warn("fetchPatientIdentifiers falhou:", e);
-      return null; // não bloqueia
+      console.warn("[GCAL] sync-day exceção:", e?.message || e);
     }
   }
 
-  async function fetchActiveClinicForPatient(patientId) {
-    try {
-      const { data, error } = await window.sb
-        .from("patient_clinic")
-        .select("clinic_id, is_active")
-        .eq("patient_id", patientId)
-        .eq("is_active", true)
-        .limit(1);
-
-      if (error) throw error;
-      const r = (data && data.length) ? data[0] : null;
-      return r ? (r.clinic_id || null) : null;
-    } catch (e) {
-      console.warn("fetchActiveClinicForPatient falhou:", e);
-      return null; // não bloqueia
-    }
+  function __gcPad2(n) {
+    return String(n).padStart(2, "0");
   }
-
-  function buildTransferConfirmText({ patient, fromClinicName, toClinicName }) {
-    const name = (patient?.full_name || "").trim() || "—";
-    const parts = [];
-
-    const sns = patient?.sns ? `SNS: ${patient.sns}` : "";
-    const nif = patient?.nif ? `NIF: ${patient.nif}` : "";
-    const tel = patient?.phone ? `Tel: ${patient.phone}` : "";
-    const pid = patient?.passport_id ? `ID: ${patient.passport_id}` : "";
-    const dob = patient?.dob ? `DN: ${patient.dob}` : ""; // YYYY-MM-DD
-
-    const idLine = [sns, nif, tel, pid, dob].filter(Boolean).join("  |  ");
-
-    parts.push(`Confirme que é o doente correto:`);
-    parts.push(`${name}`);
-    if (idLine) parts.push(idLine);
-    parts.push("");
-    parts.push(`Este doente está ativo em: ${fromClinicName || "—"}`);
-    parts.push(`Pretende transferir para: ${toClinicName || "—"} ?`);
-    parts.push("");
-    parts.push(`(Isto atualiza automaticamente a clínica ativa do doente.)`);
-
-    return parts.join("\n");
-  }
-
-  async function ensurePatientActiveInClinic({ patientId, targetClinicId }) {
-  // Objetivo:
-  // - respeitar constraint "patient_clinic_one_active_per_patient" (máx. 1 ativa)
-  // - NUNCA deixar o doente sem clínica ativa por erro a meio
-  // Estratégia:
-  // 1) garantir que existe linha destino com is_active=false (não viola constraint)
-  // 2) desativar qualquer ativa atual
-  // 3) ativar destino
-  // 4) se falhar, tentar rollback para a clínica ativa anterior
-
-  const pid = String(patientId || "");
-  const cid = String(targetClinicId || "");
-  if (!pid || !cid) throw new Error("ensurePatientActiveInClinic: patientId/targetClinicId em falta.");
-
-  const prevActiveClinicId = await fetchActiveClinicForPatient(pid);
-
-  // Se já está na clínica destino, nada a fazer
-  if (prevActiveClinicId && String(prevActiveClinicId) === cid) return true;
-
-  async function ensureRowExistsInactive(pId, cId) {
-    // se já existe, não faz nada; se não existe, cria INATIVO (seguro)
-    const { data: exist, error: e0 } = await window.sb
-      .from("patient_clinic")
-      .select("clinic_id")
-      .eq("patient_id", pId)
-      .eq("clinic_id", cId)
-      .limit(1);
-
-    if (e0) throw e0;
-    if (exist && exist.length) return true;
-
-    const { error: eIns } = await window.sb
-      .from("patient_clinic")
-      .insert({ patient_id: pId, clinic_id: cId, is_active: false });
-
-    if (eIns) throw eIns;
-    return true;
-  }
-
-  async function setActiveClinic(pId, cId) {
-    // 1) garantir linha destino existe (inativa)
-    await ensureRowExistsInactive(pId, cId);
-
-    // 2) desativar qualquer ativa
-    const { error: eOff } = await window.sb
-      .from("patient_clinic")
-      .update({ is_active: false })
-      .eq("patient_id", pId)
-      .eq("is_active", true);
-
-    if (eOff) throw eOff;
-
-    // 3) ativar destino
-    const { error: eOn } = await window.sb
-      .from("patient_clinic")
-      .update({ is_active: true })
-      .eq("patient_id", pId)
-      .eq("clinic_id", cId);
-
-    if (eOn) throw eOn;
-
-    // 4) validar
-    const nowActive = await fetchActiveClinicForPatient(pId);
-    if (!nowActive || String(nowActive) !== String(cId)) {
-      throw new Error("Falha ao ativar clínica destino (validação falhou).");
-    }
-
-    return true;
-  }
-
-  try {
-    await setActiveClinic(pid, cid);
-    return true;
-  } catch (e) {
-    // rollback: tentar repor a clínica ativa anterior (se existia)
-    try {
-      if (prevActiveClinicId) {
-        await setActiveClinic(pid, String(prevActiveClinicId));
-      }
-    } catch (_) {
-      // se rollback falhar, pelo menos deixamos log
-    }
-    throw e;
-  }
-}
-
-async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
-  const activeClinicId = await fetchActiveClinicForPatient(patientId);
-
-  // Se não tiver clínica ativa, não fazemos alterações automáticas aqui
-  if (!activeClinicId) return { changed: false, noActive: true };
-
-  if (String(activeClinicId) === String(targetClinicId)) return { changed: false };
-
-  const fromClinicName = (G.clinicsById && G.clinicsById[activeClinicId])
-    ? (G.clinicsById[activeClinicId].name || G.clinicsById[activeClinicId].slug || activeClinicId)
-    : activeClinicId;
-
-  const toClinicName = (G.clinicsById && G.clinicsById[targetClinicId])
-    ? (G.clinicsById[targetClinicId].name || G.clinicsById[targetClinicId].slug || targetClinicId)
-    : targetClinicId;
-
-  const patient = await fetchPatientIdentifiers(patientId);
-
-  const ok = confirm(buildTransferConfirmText({ patient, fromClinicName, toClinicName }));
-  if (!ok) return { changed: false, cancelled: true };
-
-  await ensurePatientActiveInClinic({ patientId, targetClinicId });
-  return { changed: true };
-}
-
-  // ---- helpers bloqueio (datas/horas) ----
-  function __gcPad2(n) { return String(n).padStart(2, "0"); }
 
   function __gcToDateInput(d) {
     try {
       const x = (d instanceof Date) ? d : new Date(d);
       if (!x || isNaN(x.getTime())) return "";
       return `${x.getFullYear()}-${__gcPad2(x.getMonth() + 1)}-${__gcPad2(x.getDate())}`;
-    } catch (_) { return ""; }
+    } catch (_) {
+      return "";
+    }
   }
 
   function __gcToTimeInput(d) {
@@ -5379,7 +5277,9 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
       const x = (d instanceof Date) ? d : new Date(d);
       if (!x || isNaN(x.getTime())) return "";
       return `${__gcPad2(x.getHours())}:${__gcPad2(x.getMinutes())}`;
-    } catch (_) { return ""; }
+    } catch (_) {
+      return "";
+    }
   }
 
   function __gcLocalDateTimeToIso(dateYYYYMMDD, timeHHMM) {
@@ -5397,7 +5297,9 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
       if (isNaN(d.getTime())) return dateYYYYMMDD;
       d.setDate(d.getDate() + Number(add || 0));
       return __gcToDateInput(d);
-    } catch (_) { return dateYYYYMMDD; }
+    } catch (_) {
+      return dateYYYYMMDD;
+    }
   }
 
   function __gcCmpYYYYMMDD(a, b) {
@@ -5406,6 +5308,168 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
     if (a > b) return 1;
     return 0;
   }
+
+/* ==== FIM BLOCO 09A/12 — Helpers base + GCAL + datas/horas ==== */
+
+
+/* ==== INÍCIO BLOCO 09B/12 — Transferência automática de doente entre clínicas ==== */
+
+  async function fetchPatientIdentifiers(patientId) {
+    try {
+      const { data, error } = await window.sb
+        .from("patients")
+        .select("full_name, sns, nif, passport_id, phone, dob")
+        .eq("id", patientId)
+        .limit(1);
+
+      if (error) throw error;
+      const p = (data && data.length) ? data[0] : null;
+      return p || null;
+    } catch (e) {
+      console.warn("fetchPatientIdentifiers falhou:", e);
+      return null;
+    }
+  }
+
+  async function fetchActiveClinicForPatient(patientId) {
+    try {
+      const { data, error } = await window.sb
+        .from("patient_clinic")
+        .select("clinic_id, is_active")
+        .eq("patient_id", patientId)
+        .eq("is_active", true)
+        .limit(1);
+
+      if (error) throw error;
+      const r = (data && data.length) ? data[0] : null;
+      return r ? (r.clinic_id || null) : null;
+    } catch (e) {
+      console.warn("fetchActiveClinicForPatient falhou:", e);
+      return null;
+    }
+  }
+
+  function buildTransferConfirmText({ patient, fromClinicName, toClinicName }) {
+    const name = (patient?.full_name || "").trim() || "—";
+    const parts = [];
+
+    const sns = patient?.sns ? `SNS: ${patient.sns}` : "";
+    const nif = patient?.nif ? `NIF: ${patient.nif}` : "";
+    const tel = patient?.phone ? `Tel: ${patient.phone}` : "";
+    const pid = patient?.passport_id ? `ID: ${patient.passport_id}` : "";
+    const dob = patient?.dob ? `DN: ${patient.dob}` : "";
+
+    const idLine = [sns, nif, tel, pid, dob].filter(Boolean).join("  |  ");
+
+    parts.push("Confirme que é o doente correto:");
+    parts.push(`${name}`);
+    if (idLine) parts.push(idLine);
+    parts.push("");
+    parts.push(`Este doente está ativo em: ${fromClinicName || "—"}`);
+    parts.push(`Pretende transferir para: ${toClinicName || "—"} ?`);
+    parts.push("");
+    parts.push("(Isto atualiza automaticamente a clínica ativa do doente.)");
+
+    return parts.join("\n");
+  }
+
+  async function ensurePatientActiveInClinic({ patientId, targetClinicId }) {
+    const pid = String(patientId || "");
+    const cid = String(targetClinicId || "");
+    if (!pid || !cid) {
+      throw new Error("ensurePatientActiveInClinic: patientId/targetClinicId em falta.");
+    }
+
+    const prevActiveClinicId = await fetchActiveClinicForPatient(pid);
+
+    if (prevActiveClinicId && String(prevActiveClinicId) === cid) return true;
+
+    async function ensureRowExistsInactive(pId, cId) {
+      const { data: exist, error: e0 } = await window.sb
+        .from("patient_clinic")
+        .select("clinic_id")
+        .eq("patient_id", pId)
+        .eq("clinic_id", cId)
+        .limit(1);
+
+      if (e0) throw e0;
+      if (exist && exist.length) return true;
+
+      const { error: eIns } = await window.sb
+        .from("patient_clinic")
+        .insert({ patient_id: pId, clinic_id: cId, is_active: false });
+
+      if (eIns) throw eIns;
+      return true;
+    }
+
+    async function setActiveClinic(pId, cId) {
+      await ensureRowExistsInactive(pId, cId);
+
+      const { error: eOff } = await window.sb
+        .from("patient_clinic")
+        .update({ is_active: false })
+        .eq("patient_id", pId)
+        .eq("is_active", true);
+
+      if (eOff) throw eOff;
+
+      const { error: eOn } = await window.sb
+        .from("patient_clinic")
+        .update({ is_active: true })
+        .eq("patient_id", pId)
+        .eq("clinic_id", cId);
+
+      if (eOn) throw eOn;
+
+      const nowActive = await fetchActiveClinicForPatient(pId);
+      if (!nowActive || String(nowActive) !== String(cId)) {
+        throw new Error("Falha ao ativar clínica destino (validação falhou).");
+      }
+
+      return true;
+    }
+
+    try {
+      await setActiveClinic(pid, cid);
+      return true;
+    } catch (e) {
+      try {
+        if (prevActiveClinicId) {
+          await setActiveClinic(pid, String(prevActiveClinicId));
+        }
+      } catch (_) {}
+      throw e;
+    }
+  }
+
+  async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
+    const activeClinicId = await fetchActiveClinicForPatient(patientId);
+
+    if (!activeClinicId) return { changed: false, noActive: true };
+    if (String(activeClinicId) === String(targetClinicId)) return { changed: false };
+
+    const fromClinicName = (G.clinicsById && G.clinicsById[activeClinicId])
+      ? (G.clinicsById[activeClinicId].name || G.clinicsById[activeClinicId].slug || activeClinicId)
+      : activeClinicId;
+
+    const toClinicName = (G.clinicsById && G.clinicsById[targetClinicId])
+      ? (G.clinicsById[targetClinicId].name || G.clinicsById[targetClinicId].slug || targetClinicId)
+      : targetClinicId;
+
+    const patient = await fetchPatientIdentifiers(patientId);
+
+    const ok = confirm(buildTransferConfirmText({ patient, fromClinicName, toClinicName }));
+    if (!ok) return { changed: false, cancelled: true };
+
+    await ensurePatientActiveInClinic({ patientId, targetClinicId });
+    return { changed: true };
+  }
+
+/* ==== FIM BLOCO 09B/12 — Transferência automática de doente entre clínicas ==== */
+
+
+/* ==== INÍCIO BLOCO 09C/12 — openApptModal: render UI + refs DOM + wiring base ==== */
 
   function openApptModal({ mode, row }) {
     const root = document.getElementById("modalRoot");
@@ -5424,7 +5488,12 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
             : "";
 
     const selectedDayStart = parseISODateToLocalStart(G.selectedDayISO) || new Date();
-    const startBase = new Date(selectedDayStart.getFullYear(), selectedDayStart.getMonth(), selectedDayStart.getDate(), 9, 0, 0, 0);
+    const startBase = new Date(
+      selectedDayStart.getFullYear(),
+      selectedDayStart.getMonth(),
+      selectedDayStart.getDate(),
+      9, 0, 0, 0
+    );
 
     const startInit = isEdit && row && row.start_at ? new Date(row.start_at) : startBase;
     const endInit = isEdit && row && row.end_at ? new Date(row.end_at) : new Date(startInit.getTime() + 20 * 60000);
@@ -5433,9 +5502,10 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
 
     const procInit = isEdit ? (row.procedure_type ?? "") : "";
 
-    // ---- Status (fonte única)
     const statusRaw = isEdit ? (row.status ?? "scheduled") : "scheduled";
-    const statusNorm = (String(statusRaw).toLowerCase() === "cancelled") ? "no_show" : String(statusRaw || "scheduled").toLowerCase();
+    const statusNorm = (String(statusRaw).toLowerCase() === "cancelled")
+      ? "no_show"
+      : String(statusRaw || "scheduled").toLowerCase();
     const statusInit = (Array.isArray(STATUS_OPTIONS) && STATUS_OPTIONS.map((x) => String(x).toLowerCase()).includes(statusNorm))
       ? statusNorm
       : "scheduled";
@@ -5447,10 +5517,8 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
     const procIsOther = procInit && !PROCEDURE_OPTIONS.includes(procInit) ? true : procInit === "Outro";
     const procSelectValue = procIsOther ? "Outro" : (procInit || "");
 
-    // mode do appointment (presencial/video/bloqueio)
     const apptModeInit = isEdit ? String(row?.mode || "presencial").toLowerCase() : "presencial";
 
-    // permissões
     const isSuperadmin = !!window.__GC_IS_SUPERADMIN__;
     const isDoctor = String(G.role || "").toLowerCase() === "doctor";
     const canCreateBlocks = isSuperadmin || isDoctor;
@@ -5463,7 +5531,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
       return `${m.icon} ${m.label}`;
     }
 
-    // valores iniciais UI bloqueio
     const bDateFromInit = __gcToDateInput(startInit);
     const bDateToInit = __gcToDateInput(startInit);
     const bTimeFromInit = __gcToTimeInput(startInit);
@@ -5484,7 +5551,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
             <button id="btnCloseModal" class="gcBtn">Fechar</button>
           </div>
 
-          <!-- Ação -->
           <div style="margin-top:12px; display:flex; flex-direction:column; gap:4px;">
             <label style="font-size:${UI.fs12}px; color:#666;">Ação</label>
             <select id="mMode" class="gcSelect">
@@ -5494,9 +5560,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
             ${(!canCreateBlocks) ? `<div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">Bloqueios: apenas médico/superadmin.</div>` : ``}
           </div>
 
-          <!-- =========================
-               BLOQUEIO (UI dedicada)
-               ========================= -->
           <div id="mBlockOnlyWrap" style="display:none; margin-top:14px; border:1px solid #eee; border-radius:14px; padding:14px; background:#fafafa;">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
               <div style="font-weight:900; font-size:${UI.fs13}px;">Bloqueio</div>
@@ -5551,11 +5614,7 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
             </div>
           </div>
 
-          <!-- =========================
-               CONSULTA (UI original)
-               ========================= -->
           <div id="mConsultOnlyWrap" style="display:block;">
-            <!-- Linha 1: Pesquisa do doente -->
             <div id="mPatientWrap" style="margin-top:12px; display:flex; flex-direction:column; gap:6px;">
               <label style="font-size:${UI.fs12}px; color:#666;">Doente (obrigatório)</label>
 
@@ -5586,7 +5645,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
               <div id="newPatientHost" style="margin-top:8px;"></div>
             </div>
 
-            <!-- Linha 2: Clínica | Tipo | Estado -->
             <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
               <div style="display:flex; flex-direction:column; gap:4px;">
                 <label style="font-size:${UI.fs12}px; color:#666;">Clínica</label>
@@ -5619,7 +5677,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
               </div>
             </div>
 
-            <!-- Linha 3: Início | Duração -->
             <div style="margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
               <div style="display:flex; flex-direction:column; gap:4px;">
                 <label style="font-size:${UI.fs12}px; color:#666;">Início</label>
@@ -5635,7 +5692,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
             </div>
           </div>
 
-          <!-- Notas / Motivo (comum; label muda) -->
           <div style="margin-top:12px; display:flex; flex-direction:column; gap:4px;">
             <label id="mNotesLabel" style="font-size:${UI.fs12}px; color:#666;">Notas</label>
             <textarea id="mNotes" rows="3" style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;"></textarea>
@@ -5646,9 +5702,7 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
             <div style="display:flex; gap:10px;">
               ${canDeleteAppt ? `<button id="btnDeleteAppt" class="gcBtn" type="button" style="font-weight:900;">Eliminar marcação</button>` : ``}
               <button id="btnCancel" class="gcBtn">Cancelar</button>
-              <button id="btnSave" class="gcBtn" style="font-weight:900;">
-                Guardar
-              </button>
+              <button id="btnSave" class="gcBtn" style="font-weight:900;">Guardar</button>
             </div>
           </div>
         </div>
@@ -5664,7 +5718,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
 
     const mMode = document.getElementById("mMode");
 
-    // blocos
     const mBlockOnlyWrap = document.getElementById("mBlockOnlyWrap");
     const btnDeleteBlock = document.getElementById("btnDeleteBlock");
     const btnBlockDay = document.getElementById("btnBlockDay");
@@ -5679,7 +5732,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
     const bSelectAll = document.getElementById("bSelectAll");
     const bClearAll = document.getElementById("bClearAll");
 
-    // consulta
     const mConsultOnlyWrap = document.getElementById("mConsultOnlyWrap");
     const mClinic = document.getElementById("mClinic");
     const mStatus = document.getElementById("mStatus");
@@ -5701,9 +5753,10 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
     const mPatientId = document.getElementById("mPatientId");
     const mPatientName = document.getElementById("mPatientName");
 
-    // --- helpers cleanup ---
     let _cleanupFns = [];
-    function addCleanup(fn) { if (typeof fn === "function") _cleanupFns.push(fn); }
+    function addCleanup(fn) {
+      if (typeof fn === "function") _cleanupFns.push(fn);
+    }
     function runCleanup() {
       const fns = _cleanupFns;
       _cleanupFns = [];
@@ -5714,7 +5767,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
       closeModal();
     }
 
-    // preencher clínica no modo consulta
     const clinicOpts = [];
     for (const c of G.clinics) {
       const label = c.name || c.slug || c.id;
@@ -5726,15 +5778,13 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
       if (G.clinics.length === 1) mClinic.disabled = true;
     }
 
-    // init consulta
     if (mStatus) mStatus.value = statusInit;
     if (mStart) mStart.value = toLocalInputValue(startInit);
     if (mDuration) mDuration.value = String(durationBest);
     if (mProc) mProc.value = procSelectValue;
     if (mNotes) mNotes.value = notesInit;
 
-    // init bloqueio
-    let __blockMode = "period"; // "day" ou "period"
+    let __blockMode = "period";
     const __selectedClinicIds = new Set();
     try {
       if (defaultClinicId) __selectedClinicIds.add(String(defaultClinicId));
@@ -5742,7 +5792,7 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
 
     function __renderClinicsChecklist() {
       if (!bClinicsList) return;
-      bClinicsList.innerHTML = (G.clinics || []).map(c => {
+      bClinicsList.innerHTML = (G.clinics || []).map((c) => {
         const cid = String(c.id);
         const label = (c.name || c.slug || c.id);
         const checked = __selectedClinicIds.has(cid) ? "checked" : "";
@@ -5754,7 +5804,7 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
         `;
       }).join("");
 
-      bClinicsList.querySelectorAll("input[type='checkbox'][data-b-cid]").forEach(cb => {
+      bClinicsList.querySelectorAll("input[type='checkbox'][data-b-cid]").forEach((cb) => {
         cb.addEventListener("change", () => {
           const cid = cb.getAttribute("data-b-cid");
           if (!cid) return;
@@ -5786,29 +5836,37 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
     __renderClinicsChecklist();
     __applyBlockModeUi();
 
-    if (bSelectAll) bSelectAll.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      (G.clinics || []).forEach(c => __selectedClinicIds.add(String(c.id)));
-      __renderClinicsChecklist();
-    });
+    if (bSelectAll) {
+      bSelectAll.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        (G.clinics || []).forEach((c) => __selectedClinicIds.add(String(c.id)));
+        __renderClinicsChecklist();
+      });
+    }
 
-    if (bClearAll) bClearAll.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      __selectedClinicIds.clear();
-      __renderClinicsChecklist();
-    });
+    if (bClearAll) {
+      bClearAll.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        __selectedClinicIds.clear();
+        __renderClinicsChecklist();
+      });
+    }
 
-    if (btnBlockDay) btnBlockDay.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      __blockMode = "day";
-      __applyBlockModeUi();
-    });
+    if (btnBlockDay) {
+      btnBlockDay.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        __blockMode = "day";
+        __applyBlockModeUi();
+      });
+    }
 
-    if (btnBlockPeriod) btnBlockPeriod.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      __blockMode = "period";
-      __applyBlockModeUi();
-    });
+    if (btnBlockPeriod) {
+      btnBlockPeriod.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        __blockMode = "period";
+        __applyBlockModeUi();
+      });
+    }
 
     if (bApplyTo) {
       bApplyTo.addEventListener("change", () => {
@@ -5819,7 +5877,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
       if (bClinicsWrap) bClinicsWrap.style.display = (v0 === "global") ? "none" : "flex";
     }
 
-    // apagar bloqueio (edição)
     if (btnDeleteBlock) {
       btnDeleteBlock.addEventListener("click", async (ev) => {
         ev.preventDefault();
@@ -5839,11 +5896,15 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
       });
     }
 
-    // init mode selector
     if (mMode) {
       mMode.value = apptModeInit;
       if (isEdit && apptModeInit === "bloqueio" && !canCreateBlocks) mMode.disabled = true;
     }
+
+/* ==== FIM BLOCO 09C/12 — openApptModal: render UI + refs DOM + wiring base ==== */
+
+
+/* ==== INÍCIO BLOCO 09D/12 — Pesquisa doente + novo doente interno + UI dinâmica ==== */
 
     function setSelectedPatient({ id, name }) {
       if (mPatientId) mPatientId.value = id || "";
@@ -5909,7 +5970,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
       });
     }
 
-    // pré-preencher em edição (consulta normal)
     if (patientIdInit) {
       const displayName = titleInit ? String(titleInit).split(" — ")[0] : "";
       setSelectedPatient({ id: patientIdInit, name: displayName || `ID: ${patientIdInit}` });
@@ -5933,7 +5993,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
       if (mProcOtherWrap) mProcOtherWrap.style.display = "flex";
     }
 
-    // UI toggle geral
     function applyModeUi() {
       const v = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
       const isBlock = v === "bloqueio";
@@ -5955,7 +6014,6 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
     applyModeUi();
     if (mMode) mMode.addEventListener("change", applyModeUi);
 
-    // Pesquisa doente (só consulta)
     let searchTimer = null;
 
     async function runSearch() {
@@ -5965,14 +6023,23 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
       const clinicId = mClinic ? (mClinic.value || "") : "";
       const term = (mPatientQuery ? (mPatientQuery.value || "").trim() : "");
 
-      if (!term || term.length < 2) { closeResults(); return; }
-      if (!clinicId) { closeResults(); return; }
+      if (!term || term.length < 2) {
+        closeResults();
+        return;
+      }
+      if (!clinicId) {
+        closeResults();
+        return;
+      }
 
       showResultsLoading();
 
       try {
         const pts = await searchPatientsScoped({ clinicId, q: term, limit: 30 });
-        if (!pts || pts.length === 0) { showResultsEmpty(); return; }
+        if (!pts || pts.length === 0) {
+          showResultsEmpty();
+          return;
+        }
         showResultsList(pts);
       } catch (e) {
         console.error("Pesquisa doente (modal) falhou:", e);
@@ -6136,8 +6203,15 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
       const npCancel = document.getElementById("npCancel");
       const npCreate = document.getElementById("npCreate");
 
-      function setErr(msg) { npMsg.style.color = "#b00020"; npMsg.textContent = msg; }
-      function setInfo(msg) { npMsg.style.color = "#666"; npMsg.textContent = msg; }
+      function setErr(msg) {
+        npMsg.style.color = "#b00020";
+        npMsg.textContent = msg;
+      }
+
+      function setInfo(msg) {
+        npMsg.style.color = "#666";
+        npMsg.textContent = msg;
+      }
 
       function validate() {
         const fullName = (npFullName.value || "").trim();
@@ -6151,7 +6225,9 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
         if (nif && !/^[0-9]{9}$/.test(nif)) return { ok: false, msg: "NIF inválido: tem de ter 9 dígitos." };
         if (pass && !/^[A-Za-z0-9]{4,20}$/.test(pass)) return { ok: false, msg: "Passaporte/ID inválido: 4–20 alfanum." };
 
-        if (!sns && !nif && !pass) return { ok: false, msg: "Identificação obrigatória: SNS ou NIF ou Passaporte/ID." };
+        if (!sns && !nif && !pass) {
+          return { ok: false, msg: "Identificação obrigatória: SNS ou NIF ou Passaporte/ID." };
+        }
 
         return {
           ok: true,
@@ -6173,22 +6249,42 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
       }
 
       function refreshButtonState() {
-        if (npSNS) { const d = normalizeDigits(npSNS.value); if (npSNS.value !== d) npSNS.value = d; }
-        if (npNIF) { const d = normalizeDigits(npNIF.value); if (npNIF.value !== d) npNIF.value = d; }
+        if (npSNS) {
+          const d = normalizeDigits(npSNS.value);
+          if (npSNS.value !== d) npSNS.value = d;
+        }
+        if (npNIF) {
+          const d = normalizeDigits(npNIF.value);
+          if (npNIF.value !== d) npNIF.value = d;
+        }
 
         const v = validate();
-        if (!v.ok) { npCreate.disabled = true; setErr(v.msg); }
-        else { npCreate.disabled = false; setInfo("OK para criar."); }
+        if (!v.ok) {
+          npCreate.disabled = true;
+          setErr(v.msg);
+        } else {
+          npCreate.disabled = false;
+          setInfo("OK para criar.");
+        }
       }
 
       [npFullName, npDob, npPhone, npEmail, npSNS, npNIF, npPassport, npInsuranceProvider, npInsurancePolicy, npAddress1, npPostal, npCity, npCountry, npNotes]
-        .forEach((el) => { if (!el) return; el.addEventListener("input", refreshButtonState); el.addEventListener("change", refreshButtonState); });
+        .forEach((el) => {
+          if (!el) return;
+          el.addEventListener("input", refreshButtonState);
+          el.addEventListener("change", refreshButtonState);
+        });
 
-      npCancel.addEventListener("click", () => { host.innerHTML = ""; });
+      npCancel.addEventListener("click", () => {
+        host.innerHTML = "";
+      });
 
       npCreate.addEventListener("click", async () => {
         const v = validate();
-        if (!v.ok) { setErr(v.msg); return; }
+        if (!v.ok) {
+          setErr(v.msg);
+          return;
+        }
 
         npCreate.disabled = true;
         setInfo("A criar…");
@@ -6273,7 +6369,11 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
 
     if (btnNewPatient) btnNewPatient.addEventListener("click", openNewPatientForm);
 
-    // Eliminar marcação (apenas edição e não bloqueio)
+/* ==== FIM BLOCO 09D/12 — Pesquisa doente + novo doente interno + UI dinâmica ==== */
+
+
+/* ==== INÍCIO BLOCO 09E/12 — Eliminar + Guardar consulta/bloqueio + wiring final ==== */
+
     async function onDeleteAppt() {
       if (!canDeleteAppt || !row?.id) return;
       if (!confirm("Eliminar esta marcação?")) return;
@@ -6310,187 +6410,187 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
     if (btnDeleteAppt) btnDeleteAppt.addEventListener("click", onDeleteAppt);
 
     async function onSave() {
-  const vMode = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
-  const isBlock = vMode === "bloqueio";
+      const vMode = mMode ? String(mMode.value || "presencial").toLowerCase() : "presencial";
+      const isBlock = vMode === "bloqueio";
 
-  btnSave.disabled = true;
-  mMsg.style.color = "#666";
-  mMsg.textContent = "A guardar…";
+      btnSave.disabled = true;
+      mMsg.style.color = "#666";
+      mMsg.textContent = "A guardar…";
 
-  try {
-    if (isBlock) {
-      if (!canCreateBlocks) throw new Error("Sem permissões para criar bloqueios.");
+      try {
+        if (isBlock) {
+          if (!canCreateBlocks) throw new Error("Sem permissões para criar bloqueios.");
 
-      const dateFrom = bDateFrom?.value || "";
-      const dateTo = bDateTo?.value || "";
-      const timeFrom = bTimeFrom?.value || "00:00";
-      const timeTo = bTimeTo?.value || "23:59";
+          const dateFrom = bDateFrom?.value || "";
+          const dateTo = bDateTo?.value || "";
+          const timeFrom = bTimeFrom?.value || "00:00";
+          const timeTo = bTimeTo?.value || "23:59";
 
-      if (!dateFrom) throw new Error("Datas De em falta.");
-      if (!dateTo) throw new Error("Até em falta.");
-      if (__gcCmpYYYYMMDD(dateFrom, dateTo) > 0) throw new Error("Intervalo de datas inválido.");
+          if (!dateFrom) throw new Error("Datas De em falta.");
+          if (!dateTo) throw new Error("Até em falta.");
+          if (__gcCmpYYYYMMDD(dateFrom, dateTo) > 0) throw new Error("Intervalo de datas inválido.");
 
-      const applyToRaw = String(bApplyTo?.value || "selected").toLowerCase();
-      const idsSelected = Array.from(__selectedClinicIds || []).map(String);
+          const applyToRaw = String(bApplyTo?.value || "selected").toLowerCase();
+          const idsSelected = Array.from(__selectedClinicIds || []).map(String);
 
-      const allClinicsCount = Array.isArray(G.clinics) ? G.clinics.length : 0;
-      const allSelected = allClinicsCount > 0 && idsSelected.length === allClinicsCount;
+          const allClinicsCount = Array.isArray(G.clinics) ? G.clinics.length : 0;
+          const allSelected = allClinicsCount > 0 && idsSelected.length === allClinicsCount;
 
-      let applyTo = applyToRaw;
-      if (applyToRaw === "selected" && allSelected && isSuperadmin) {
-        applyTo = "global";
-      }
+          let applyTo = applyToRaw;
+          if (applyToRaw === "selected" && allSelected && isSuperadmin) {
+            applyTo = "global";
+          }
 
-      let targetClinicIds = [];
+          let targetClinicIds = [];
 
-      if (applyTo === "global") {
-        if (!isSuperadmin) throw new Error("Global: apenas superadmin.");
-        targetClinicIds = [null];
-      } else {
-        if (!idsSelected.length) throw new Error("Seleciona pelo menos uma clínica.");
-        targetClinicIds = idsSelected;
-      }
+          if (applyTo === "global") {
+            if (!isSuperadmin) throw new Error("Global: apenas superadmin.");
+            targetClinicIds = [null];
+          } else {
+            if (!idsSelected.length) throw new Error("Seleciona pelo menos uma clínica.");
+            targetClinicIds = idsSelected;
+          }
 
-      const rowsToInsert = [];
-      let d = dateFrom;
-      while (__gcCmpYYYYMMDD(d, dateTo) <= 0) {
-        const sIso = __gcLocalDateTimeToIso(d, timeFrom);
-        const eIso = __gcLocalDateTimeToIso(d, timeTo);
+          const rowsToInsert = [];
+          let d = dateFrom;
 
-        if (!sIso || !eIso) throw new Error("Data/hora inválida no bloqueio.");
-        if (new Date(eIso).getTime() <= new Date(sIso).getTime()) throw new Error("Hora 'Às' tem de ser depois de 'Das'.");
+          while (__gcCmpYYYYMMDD(d, dateTo) <= 0) {
+            const sIso = __gcLocalDateTimeToIso(d, timeFrom);
+            const eIso = __gcLocalDateTimeToIso(d, timeTo);
 
-        for (const t of targetClinicIds) {
-          rowsToInsert.push({
-            clinic_id: (t === null) ? null : String(t),
-            patient_id: null,
-            start_at: sIso,
-            end_at: eIso,
-            status: "confirmed",
-            procedure_type: null,
-            title: "BLOQUEIO",
-            notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
-            mode: "bloqueio",
-          });
+            if (!sIso || !eIso) throw new Error("Data/hora inválida no bloqueio.");
+            if (new Date(eIso).getTime() <= new Date(sIso).getTime()) {
+              throw new Error("Hora 'Às' tem de ser depois de 'Das'.");
+            }
+
+            for (const t of targetClinicIds) {
+              rowsToInsert.push({
+                clinic_id: (t === null) ? null : String(t),
+                patient_id: null,
+                start_at: sIso,
+                end_at: eIso,
+                status: "confirmed",
+                procedure_type: null,
+                title: "BLOQUEIO",
+                notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
+                mode: "bloqueio",
+              });
+            }
+
+            d = __gcAddDaysYYYYMMDD(d, 1);
+          }
+
+          if (isEdit && row?.id) {
+            const first = rowsToInsert[0] || null;
+            if (!first) throw new Error("Sem dados para guardar.");
+            const { error } = await window.sb.from("appointments").update(first).eq("id", row.id);
+            if (error) throw error;
+            console.log("[APPT] update block ok id=", row.id);
+          } else {
+            const { error } = await window.sb.from("appointments").insert(rowsToInsert);
+            if (error) throw error;
+            console.log("[APPT] insert block ok n=", rowsToInsert.length);
+          }
+
+          safeCloseModal();
+          await refreshAgenda();
+          console.log("[APPT] refreshAgenda ok");
+
+          const syncDays = [String(dateFrom || "").slice(0, 10)];
+          if (isEdit && row?.start_at) syncDays.push(String(row.start_at).slice(0, 10));
+          __gcFireSyncDays(syncDays);
+          return;
         }
 
-        d = __gcAddDaysYYYYMMDD(d, 1);
+        if (!mClinic || !mClinic.value) throw new Error("Seleciona a clínica.");
+
+        const pid = mPatientId ? (mPatientId.value || "") : "";
+        const pname = mPatientName ? (mPatientName.value || "") : "";
+        if (!pid) throw new Error("Seleciona um doente.");
+
+        const proc = (() => {
+          const sel = mProc && mProc.value ? mProc.value : "";
+          if (!sel) return "";
+          if (sel !== "Outro") return sel;
+          const other = mProcOther && mProcOther.value ? mProcOther.value.trim() : "";
+          if (!other) return "";
+          return other;
+        })();
+        if (!proc) throw new Error("Seleciona o Tipo de consulta (e se for 'Outro', preenche o texto).");
+
+        if (!mStart || !mStart.value) throw new Error("Define o início.");
+
+        const dur = mDuration ? parseInt(mDuration.value, 10) : 20;
+        const times = calcEndFromStartAndDuration(mStart.value, dur);
+        if (!times) throw new Error("Data/hora inválida.");
+
+        const tRes = await maybeTransferPatientToClinic({ patientId: pid, targetClinicId: mClinic.value });
+        if (tRes && tRes.cancelled) {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Operação cancelada (transferência não confirmada).";
+          btnSave.disabled = false;
+          return;
+        }
+
+        const autoTitle = makeAutoTitle(pname, proc);
+        const statusToSave = (mStatus && mStatus.value) ? mStatus.value : "scheduled";
+
+        const payload = {
+          clinic_id: mClinic.value,
+          patient_id: pid,
+          start_at: times.startAt,
+          end_at: times.endAt,
+          status: statusToSave,
+          procedure_type: proc,
+          title: autoTitle,
+          notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
+          mode: "presencial",
+        };
+
+        if (payload && payload.notes === "") payload.notes = null;
+
+        const oldDayISO = isEdit && row?.start_at ? String(row.start_at).slice(0, 10) : "";
+        const newDayISO = String(times.startAt || G.selectedDayISO || "").slice(0, 10);
+
+        if (isEdit) {
+          const { error } = await window.sb.from("appointments").update(payload).eq("id", row.id);
+          if (error) throw error;
+          console.log("[APPT] update ok id=", row.id);
+        } else {
+          const { data, error } = await window.sb
+            .from("appointments")
+            .insert(payload)
+            .select("id")
+            .limit(1);
+
+          if (error) throw error;
+          const newId = (data && data.length) ? data[0].id : null;
+          console.log("[APPT] insert ok id=", newId);
+        }
+
+        safeCloseModal();
+        await refreshAgenda();
+        console.log("[APPT] refreshAgenda ok");
+
+        __gcFireSyncDays([oldDayISO, newDayISO]);
+
+      } catch (e) {
+        console.error("Guardar falhou:", e);
+        const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
+
+        if (msg.toLowerCase().includes("existe bloqueio")) {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Não permitido: existe um bloqueio nesse intervalo.";
+        } else if (msg.toLowerCase().includes("bloqueio") && msg.toLowerCase().includes("sobrepõe")) {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = "Não permitido: o bloqueio sobrepõe uma marcação existente.";
+        } else {
+          mMsg.style.color = "#b00020";
+          mMsg.textContent = msg || "Erro ao guardar. Vê a consola.";
+        }
+        btnSave.disabled = false;
       }
-
-      if (isEdit && row?.id) {
-        const first = rowsToInsert[0] || null;
-        if (!first) throw new Error("Sem dados para guardar.");
-        const { error } = await window.sb.from("appointments").update(first).eq("id", row.id);
-        if (error) throw error;
-        console.log("[APPT] update block ok id=", row.id);
-      } else {
-        const { error } = await window.sb.from("appointments").insert(rowsToInsert);
-        if (error) throw error;
-        console.log("[APPT] insert block ok n=", rowsToInsert.length);
-      }
-
-      safeCloseModal();
-      await refreshAgenda();
-      console.log("[APPT] refreshAgenda ok");
-
-      const syncDays = [String(dateFrom || "").slice(0, 10)];
-      if (isEdit && row?.start_at) syncDays.push(String(row.start_at).slice(0, 10));
-      __gcFireSyncDays(syncDays);
-      return;
     }
-
-        // ======================
-    // CONSULTA (com transferência automática opcional)
-    // ======================
-    if (!mClinic || !mClinic.value) throw new Error("Seleciona a clínica.");
-
-    const pid = mPatientId ? (mPatientId.value || "") : "";
-    const pname = mPatientName ? (mPatientName.value || "") : "";
-    if (!pid) throw new Error("Seleciona um doente.");
-
-    const proc = (() => {
-      const sel = mProc && mProc.value ? mProc.value : "";
-      if (!sel) return "";
-      if (sel !== "Outro") return sel;
-      const other = mProcOther && mProcOther.value ? mProcOther.value.trim() : "";
-      if (!other) return "";
-      return other;
-    })();
-    if (!proc) throw new Error("Seleciona o Tipo de consulta (e se for 'Outro', preenche o texto).");
-
-    if (!mStart || !mStart.value) throw new Error("Define o início.");
-
-    const dur = mDuration ? parseInt(mDuration.value, 10) : 20;
-    const times = calcEndFromStartAndDuration(mStart.value, dur);
-    if (!times) throw new Error("Data/hora inválida.");
-
-    const tRes = await maybeTransferPatientToClinic({ patientId: pid, targetClinicId: mClinic.value });
-    if (tRes && tRes.cancelled) {
-      mMsg.style.color = "#b00020";
-      mMsg.textContent = "Operação cancelada (transferência não confirmada).";
-      btnSave.disabled = false;
-      return;
-    }
-
-    const autoTitle = makeAutoTitle(pname, proc);
-    const statusToSave = (mStatus && mStatus.value) ? mStatus.value : "scheduled";
-
-    const payload = {
-      clinic_id: mClinic.value,
-      patient_id: pid,
-      start_at: times.startAt,
-      end_at: times.endAt,
-      status: statusToSave,
-      procedure_type: proc,
-      title: autoTitle,
-      notes: mNotes && mNotes.value ? mNotes.value.trim() : null,
-      mode: "presencial",
-    };
-
-    if (payload && payload.notes === "") payload.notes = null;
-
-    const oldDayISO = isEdit && row?.start_at ? String(row.start_at).slice(0, 10) : "";
-    const newDayISO = String(times.startAt || G.selectedDayISO || "").slice(0, 10);
-
-    if (isEdit) {
-      const { error } = await window.sb.from("appointments").update(payload).eq("id", row.id);
-      if (error) throw error;
-      console.log("[APPT] update ok id=", row.id);
-    } else {
-      const { data, error } = await window.sb
-        .from("appointments")
-        .insert(payload)
-        .select("id")
-        .limit(1);
-
-      if (error) throw error;
-      const newId = (data && data.length) ? data[0].id : null;
-      console.log("[APPT] insert ok id=", newId);
-    }
-
-    safeCloseModal();
-    await refreshAgenda();
-    console.log("[APPT] refreshAgenda ok");
-
-    __gcFireSyncDays([oldDayISO, newDayISO]);
-
-  } catch (e) {
-    console.error("Guardar falhou:", e);
-    const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
-
-    if (msg.toLowerCase().includes("existe bloqueio")) {
-      mMsg.style.color = "#b00020";
-      mMsg.textContent = "Não permitido: existe um bloqueio nesse intervalo.";
-    } else if (msg.toLowerCase().includes("bloqueio") && msg.toLowerCase().includes("sobrepõe")) {
-      mMsg.style.color = "#b00020";
-      mMsg.textContent = "Não permitido: o bloqueio sobrepõe uma marcação existente.";
-    } else {
-      mMsg.style.color = "#b00020";
-      mMsg.textContent = msg || "Erro ao guardar. Vê a consola.";
-    }
-    btnSave.disabled = false;
-  }
-}
 
     if (btnSave) btnSave.addEventListener("click", onSave);
     if (btnCancel) btnCancel.addEventListener("click", safeCloseModal);
@@ -6501,6 +6601,8 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
       });
     }
   }
+
+/* ==== FIM BLOCO 09E/12 — Eliminar + Guardar consulta/bloqueio + wiring final ==== */
 /* ==== FIM BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
 
 /* ==== INÍCIO BLOCO 10/12 — Logout + Refresh agenda ==== */
