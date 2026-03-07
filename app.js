@@ -3949,189 +3949,197 @@ async function generatePdfAndUploadV1() {
   }
   /* ---- FIM FUNÇÃO 06G.14 ---- */
 
-  /* ---- FUNÇÃO 06G.15 — loadConsultations ---- */
-  async function loadConsultations() {
-    timelineLoading = true;
+/* ---- FUNÇÃO 06G.15 — loadConsultations ---- */
+async function loadConsultations() {
+  timelineLoading = true;
 
-    const rRole = String(G.role || "").toLowerCase();
-    const isSecretary = rRole === "secretary";
+  const rRole = String(G.role || "").toLowerCase();
+  const isSecretary = rRole === "secretary";
 
-    // ===== carregar notas da agenda (para todos) =====
-    await loadAgendaNotes();
+  // ===== carregar notas da agenda (para todos) =====
+  await loadAgendaNotes();
 
-    // =========================
-    // SECRETÁRIA: só cabeçalhos via RPC (sem conteúdo clínico)
-    // =========================
-    if (isSecretary) {
-      const { data, error } = await window.sb.rpc("get_consultation_headers_for_patient", {
-        p_patient_id: p.id
-      });
+  // =========================
+  // SECRETÁRIA: só cabeçalhos via RPC (sem conteúdo clínico)
+  // =========================
+  if (isSecretary) {
+    const { data, error } = await window.sb.rpc("get_consultation_headers_for_patient", {
+      p_patient_id: p.id
+    });
 
-      if (error) {
-        console.error(error);
-        consultRows = [];
-        __ps().rows = []; // secretária não vê registos fisio
-        timelineLoading = false;
-        return;
-      }
-
-      const rows = data || [];
-      consultRows = rows.map(r => ({
-        ...r,
-        author_name: (r.author_display_name || "").trim(),
-        diagnoses: [],
-        treatments: [],
-        hda: "" // não existe para secretária
-      }));
-
+    if (error) {
+      console.error(error);
+      consultRows = [];
       __ps().rows = []; // secretária não vê registos fisio
       timelineLoading = false;
       return;
     }
 
-    // =========================
-    // DOCTOR / PHYSIO: consulta completa
-    // =========================
-    const { data, error } = await window.sb
-      .from("consultations")
-      .select("id, clinic_id, report_date, hda, plan_text, created_at, author_user_id, author_display_name")
-      .eq("patient_id", p.id)
-      .order("report_date", { ascending: false })
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error(error);
-      consultRows = [];
-      timelineLoading = false;
-      return;
-    }
-
     const rows = data || [];
+    consultRows = rows.map(r => ({
+      ...r,
+      author_name: (r.author_display_name || "").trim(),
+      diagnoses: [],
+      treatments: [],
+      hda: "" // não existe para secretária
+    }));
 
-    // Fallback extra (consultas antigas sem author_display_name)
-    const authorIds = [...new Set(rows.map(r => r.author_user_id).filter(Boolean))];
-    let authorMap = {};
-    if (authorIds.length) {
-      const { data: cms, error: cmErr } = await window.sb
-        .from("clinic_members")
-        .select("user_id, display_name")
-        .in("user_id", authorIds);
-
-      if (cmErr) console.error(cmErr);
-      else (cms || []).forEach(x => { authorMap[x.user_id] = x.display_name || ""; });
-    }
-
-    const consultIds = rows.map(r => r.id).filter(Boolean);
-
-    let diagByConsult = {};
-    if (consultIds.length) {
-      const { data: links, error: lErr } = await window.sb
-        .from("consultation_diagnoses")
-        .select("consultation_id, diagnosis_id")
-        .in("consultation_id", consultIds);
-
-      if (lErr) {
-        console.error(lErr);
-      } else {
-        const diagIds = [...new Set((links || []).map(x => x.diagnosis_id).filter(Boolean))];
-
-        let diagMap = {};
-        if (diagIds.length) {
-          const { data: diags, error: dErr } = await window.sb
-            .from("diagnoses_catalog")
-            .select("id, label, code")
-            .in("id", diagIds);
-
-          if (dErr) console.error(dErr);
-          else (diags || []).forEach(d => { diagMap[d.id] = { label: d.label || "", code: d.code || "" }; });
-        }
-
-        (links || []).forEach(l => {
-          const cid = l.consultation_id;
-          const did = l.diagnosis_id;
-          if (!cid || !did) return;
-          const dd = diagMap[did];
-          if (!dd) return;
-          if (!diagByConsult[cid]) diagByConsult[cid] = [];
-          diagByConsult[cid].push(dd);
-        });
-      }
-    }
-
-    let treatByConsult = {};
-    if (consultIds.length) {
-      const { data: tlinks, error: tErr } = await window.sb
-        .from("consultation_treatments")
-        .select("consultation_id, treatment_id, qty")
-        .in("consultation_id", consultIds);
-
-      if (tErr) {
-        console.error(tErr);
-      } else {
-        const tIds = [...new Set((tlinks || []).map(x => x.treatment_id).filter(Boolean))];
-
-        let tMap = {};
-        if (tIds.length) {
-          const { data: trs, error: trErr } = await window.sb
-            .from("treatments_catalog")
-            .select("*")
-            .in("id", tIds);
-
-          if (trErr) {
-            console.error(trErr);
-          } else {
-            (trs || []).forEach(t => {
-              const label = sentenceizeLabel(t.label || t.name || t.title || "");
-              const code = t.code || t.adse_code || t.proc_code || "";
-              tMap[t.id] = { label, code };
-            });
-          }
-        }
-
-        (tlinks || []).forEach(l => {
-          const cid = l.consultation_id;
-          const tid = l.treatment_id;
-          if (!cid || !tid) return;
-          const tt = tMap[tid];
-          if (!tt) return;
-          if (!treatByConsult[cid]) treatByConsult[cid] = [];
-          treatByConsult[cid].push({ id: tid, ...tt, qty: Number(l.qty || 1) });
-        });
-      }
-    }
-
-    consultRows = rows.map(r => {
-      const order = getTreatOrderFromPlan(r.plan_text);
-      let treatments = treatByConsult[r.id] || [];
-
-      if (order && order.length) {
-        const pos = new Map(order.map((id, i) => [String(id), i]));
-        treatments = (treatments || []).slice().sort((a, b) => {
-          const pa = pos.has(String(a.id)) ? pos.get(String(a.id)) : 1e9;
-          const pb = pos.has(String(b.id)) ? pos.get(String(b.id)) : 1e9;
-          return pa - pb;
-        });
-      }
-
-      const a1 = (r.author_display_name || "").trim();
-      const a2 = (authorMap[r.author_user_id] || "").trim();
-
-      return ({
-        ...r,
-        author_name: a1 || a2 || "",
-        diagnoses: diagByConsult[r.id] || [],
-        treatments
-      });
-    });
-
-    lastSavedConsultId = consultRows && consultRows.length ? (consultRows[0].id || null) : lastSavedConsultId;
-
-    // ===== carregar registos de fisioterapia =====
-    await loadPhysioRecords();
-
+    __ps().rows = []; // secretária não vê registos fisio
     timelineLoading = false;
+    return;
   }
-  /* ---- FIM FUNÇÃO 06G.15 ---- */
+
+  // =========================
+  // DOCTOR / PHYSIO: consulta completa
+  // =========================
+  const { data, error } = await window.sb
+    .from("consultations")
+    .select("id, clinic_id, report_date, hda, plan_text, created_at, author_user_id, author_display_name")
+    .eq("patient_id", p.id)
+    .order("report_date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error(error);
+    consultRows = [];
+    timelineLoading = false;
+    return;
+  }
+
+  const rows = data || [];
+
+  // Fallback extra (consultas antigas sem author_display_name)
+  const authorIds = [...new Set(rows.map(r => r.author_user_id).filter(Boolean))];
+  let authorMap = {};
+  if (authorIds.length) {
+    const { data: cms, error: cmErr } = await window.sb
+      .from("clinic_members")
+      .select("user_id, display_name")
+      .in("user_id", authorIds);
+
+    if (cmErr) console.error(cmErr);
+    else (cms || []).forEach(x => { authorMap[x.user_id] = x.display_name || ""; });
+  }
+
+  const consultIds = rows.map(r => r.id).filter(Boolean);
+
+  let diagByConsult = {};
+  if (consultIds.length) {
+    const { data: links, error: lErr } = await window.sb
+      .from("consultation_diagnoses")
+      .select("consultation_id, diagnosis_id")
+      .in("consultation_id", consultIds);
+
+    if (lErr) {
+      console.error(lErr);
+    } else {
+      const diagIds = [...new Set((links || []).map(x => x.diagnosis_id).filter(Boolean))];
+
+      let diagMap = {};
+      if (diagIds.length) {
+        const { data: diags, error: dErr } = await window.sb
+          .from("diagnoses_catalog")
+          .select("id, label, code")
+          .in("id", diagIds);
+
+        if (dErr) console.error(dErr);
+        else {
+          (diags || []).forEach(d => {
+            diagMap[d.id] = {
+              id: d.id,
+              label: d.label || "",
+              code: d.code || ""
+            };
+          });
+        }
+      }
+
+      (links || []).forEach(l => {
+        const cid = l.consultation_id;
+        const did = l.diagnosis_id;
+        if (!cid || !did) return;
+        const dd = diagMap[did];
+        if (!dd) return;
+        if (!diagByConsult[cid]) diagByConsult[cid] = [];
+        diagByConsult[cid].push(dd);
+      });
+    }
+  }
+
+  let treatByConsult = {};
+  if (consultIds.length) {
+    const { data: tlinks, error: tErr } = await window.sb
+      .from("consultation_treatments")
+      .select("consultation_id, treatment_id, qty")
+      .in("consultation_id", consultIds);
+
+    if (tErr) {
+      console.error(tErr);
+    } else {
+      const tIds = [...new Set((tlinks || []).map(x => x.treatment_id).filter(Boolean))];
+
+      let tMap = {};
+      if (tIds.length) {
+        const { data: trs, error: trErr } = await window.sb
+          .from("treatments_catalog")
+          .select("*")
+          .in("id", tIds);
+
+        if (trErr) {
+          console.error(trErr);
+        } else {
+          (trs || []).forEach(t => {
+            const label = sentenceizeLabel(t.label || t.name || t.title || "");
+            const code = t.code || t.adse_code || t.proc_code || "";
+            tMap[t.id] = { label, code };
+          });
+        }
+      }
+
+      (tlinks || []).forEach(l => {
+        const cid = l.consultation_id;
+        const tid = l.treatment_id;
+        if (!cid || !tid) return;
+        const tt = tMap[tid];
+        if (!tt) return;
+        if (!treatByConsult[cid]) treatByConsult[cid] = [];
+        treatByConsult[cid].push({ id: tid, ...tt, qty: Number(l.qty || 1) });
+      });
+    }
+  }
+
+  consultRows = rows.map(r => {
+    const order = getTreatOrderFromPlan(r.plan_text);
+    let treatments = treatByConsult[r.id] || [];
+
+    if (order && order.length) {
+      const pos = new Map(order.map((id, i) => [String(id), i]));
+      treatments = (treatments || []).slice().sort((a, b) => {
+        const pa = pos.has(String(a.id)) ? pos.get(String(a.id)) : 1e9;
+        const pb = pos.has(String(b.id)) ? pos.get(String(b.id)) : 1e9;
+        return pa - pb;
+      });
+    }
+
+    const a1 = (r.author_display_name || "").trim();
+    const a2 = (authorMap[r.author_user_id] || "").trim();
+
+    return ({
+      ...r,
+      author_name: a1 || a2 || "",
+      diagnoses: diagByConsult[r.id] || [],
+      treatments
+    });
+  });
+
+  lastSavedConsultId = consultRows && consultRows.length ? (consultRows[0].id || null) : lastSavedConsultId;
+
+  // ===== carregar registos de fisioterapia =====
+  await loadPhysioRecords();
+
+  timelineLoading = false;
+}
+/* ---- FIM FUNÇÃO 06G.15 ---- */
 
   /* ---- FUNÇÃO 06G.16 — renderDocumentsInlineForConsult ---- */
   function renderDocumentsInlineForConsult(consultId) {
