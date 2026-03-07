@@ -1881,6 +1881,8 @@ function openPatientViewModal(patient) {
   let activeClinicName = "";     // ✅ usado no cabeçalho (Telefone → Clínica)
 
   let creatingConsult = false;
+let editingConsultId = null;
+let editingConsultRow = null;
 
   let timelineLoading = false;
   let consultRows = [];          // rows enriquecidas com author_name + diagnoses[] + treatments[]
