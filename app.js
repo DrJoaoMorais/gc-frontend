@@ -5219,44 +5219,63 @@ function render() {
                 display:flex; align-items:center; justify-content:center; padding:12px;">
       <div style="background:#fff; width:min(1400px,96vw);
                   height:92vh; border-radius:14px;
-                  border:1px solid #e5e5e5; padding:16px; overflow:auto;">
+                  border:1px solid #e5e5e5; padding:18px; overflow:auto; box-sizing:border-box;">
 
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div style="font-weight:900;">Feed do Doente</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px;">
+          <div style="font-weight:800; font-size:14px; color:#111827; letter-spacing:0.2px;">
+            Feed do Doente
+          </div>
           <button id="btnClosePView" class="gcBtn">Fechar</button>
         </div>
 
-        <div style="margin-top:12px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-          <div>
-            <div style="font-weight:900; font-size:18px;">
-              ${escAttr(p.full_name || "—")}${birthdayBadgeToday()}
+        <div style="border:1px solid #e5e7eb; border-radius:14px; padding:16px; background:#fcfcfd;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+            <div style="min-width:280px; flex:1;">
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <div style="font-weight:900; font-size:28px; line-height:1.1; color:#111827;">
+                  ${escAttr(p.full_name || "—")}
+                </div>
+                <div>${birthdayBadgeToday()}</div>
+              </div>
+
+              <div style="margin-top:10px; display:flex; gap:10px 18px; flex-wrap:wrap; color:#475569; font-size:14px; line-height:1.45;">
+                <div><span style="font-weight:700; color:#334155;">Telefone:</span> ${escAttr(p.phone || "—")}</div>
+                <div><span style="font-weight:700; color:#334155;">Clínica:</span> ${escAttr(activeClinicName || "—")}</div>
+                <div><span style="font-weight:700; color:#334155;">SNS:</span> ${escAttr(p.sns || "—")}</div>
+                <div><span style="font-weight:700; color:#334155;">Seguro:</span> ${escAttr(p.insurance_provider || "—")}</div>
+                <div><span style="font-weight:700; color:#334155;">Nº:</span> ${escAttr(p.insurance_policy_number || "—")}</div>
+                <div><span style="font-weight:700; color:#334155;">Idade:</span> ${escAttr(ageTextToday())}</div>
+              </div>
             </div>
 
-            <div style="margin-top:6px; color:#475569; display:flex; gap:14px; flex-wrap:wrap;">
-              <div><b>Telefone:</b> ${escAttr(p.phone || "—")}</div>
-              <div><b>Clínica:</b> ${escAttr(activeClinicName || "—")}</div>
-              <div><b>SNS:</b> ${escAttr(p.sns || "—")}</div>
-              <div><b>Seguro:</b> ${escAttr(p.insurance_provider || "—")}</div>
-              <div><b>Nº:</b> ${escAttr(p.insurance_policy_number || "—")}</div>
-              <div><b>Idade:</b> ${escAttr(ageTextToday())}</div>
+            <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
+              <button id="btnViewIdent" class="gcBtn">Ver Identificação</button>
+              <button id="btnEditIdent" class="gcBtn">Editar Dados</button>
             </div>
           </div>
 
-          <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
-            <button id="btnViewIdent" class="gcBtn">Ver Identificação</button>
-            <button id="btnEditIdent" class="gcBtn" style="font-weight:900;">Editar Dados</button>
-          </div>
-        </div>
+          <div style="margin-top:14px; height:1px; background:#e5e7eb;"></div>
 
-        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
           ${isDoctor() && !creatingConsult ? `
-            <button id="btnNewConsult" class="gcBtn" style="font-weight:900;">Consulta Médica</button>
-            <button id="btnMedicalReports" class="gcBtn" style="font-weight:900;">Relatórios</button>
-            <button id="btnComplementaryExams" class="gcBtn" style="font-weight:900;">Exames Complementares Diagnóstico</button>
-            <button id="btnAnalyses" class="gcBtn" style="font-weight:900;">Análises</button>
+            <div style="margin-top:14px;">
+              <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.6px; color:#64748b; margin-bottom:10px;">
+                Ações médicas
+              </div>
+
+              <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                <button id="btnNewConsult" class="gcBtn" style="font-weight:800;">Consulta Médica</button>
+                <button id="btnMedicalReports" class="gcBtn">Relatórios</button>
+                <button id="btnComplementaryExams" class="gcBtn">Exames Complementares Diagnóstico</button>
+                <button id="btnAnalyses" class="gcBtn">Análises</button>
+              </div>
+            </div>
           ` : ``}
 
-          ${docsLoading ? `<div style="color:#64748b;">A carregar PDFs…</div>` : ``}
+          ${docsLoading ? `
+            <div style="margin-top:10px; color:#64748b; font-size:14px;">
+              A carregar PDFs…
+            </div>
+          ` : ``}
         </div>
 
         ${creatingConsult ? renderConsultFormInline() : ""}
