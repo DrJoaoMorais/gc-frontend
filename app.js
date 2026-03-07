@@ -4978,18 +4978,22 @@ function openConsultForEdit(consultId) {
 
 /* ==== INÍCIO BLOCO 06I/12 — saveConsult (insert + upsert ligações + reset) ==== */
 
-  /* ---- FUNÇÃO 06I.1 — saveConsult ---- */
-  async function saveConsult() {
-    try {
-      const userRes = await window.sb.auth.getUser();
-      const userId = userRes?.data?.user?.id;
-      if (!userId) { alert("Utilizador não autenticado."); return false; }
+/* ---- FUNÇÃO 06I.1 — saveConsult ---- */
+async function saveConsult() {
+  try {
+    const userRes = await window.sb.auth.getUser();
+    const userId = userRes?.data?.user?.id;
+    if (!userId) { alert("Utilizador não autenticado."); return false; }
 
-      const today = new Date().toISOString().slice(0, 10);
-      const now = new Date();
+    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const isEditing = !!editingConsultId;
 
-      if (!activeClinicId) { alert("Sem clínica ativa associada ao doente."); return false; }
+    if (!activeClinicId) { alert("Sem clínica ativa associada ao doente."); return false; }
 
+    let appointmentId = null;
+
+    if (!isEditing) {
       const { data: appts, error: apptErr } = await window.sb
         .from("appointments")
         .select("*")
@@ -4997,7 +5001,6 @@ function openConsultForEdit(consultId) {
 
       if (apptErr) console.error(apptErr);
 
-      let appointmentId = null;
       if (appts && appts.length) {
         const sameDay = appts.filter(a => a.start_at && a.start_at.slice(0, 10) === today);
         if (sameDay.length) {
@@ -5005,12 +5008,40 @@ function openConsultForEdit(consultId) {
           appointmentId = sameDay[0].id;
         }
       }
+    }
 
-      const planPayload = {
-        prescriptionText,
-        treat_order: (selectedTreat || []).map(x => x.id)
-      };
+    const planPayload = {
+      prescriptionText,
+      treat_order: (selectedTreat || []).map(x => x.id)
+    };
 
+    let consultId = null;
+
+    if (isEditing) {
+      consultId = editingConsultId;
+
+      const reportDateToKeep =
+        (editingConsultRow && editingConsultRow.report_date)
+          ? String(editingConsultRow.report_date)
+          : today;
+
+      const { error: updErr } = await window.sb
+        .from("consultations")
+        .update({
+          clinic_id: activeClinicId,
+          patient_id: p.id,
+          report_date: reportDateToKeep,
+          hda: draftHDAHtml,
+          plan_text: JSON.stringify(planPayload)
+        })
+        .eq("id", consultId);
+
+      if (updErr) {
+        console.error(updErr);
+        alert("Erro ao atualizar consulta.");
+        return false;
+      }
+    } else {
       const { data: ins, error: insErr } = await window.sb
         .from("consultations")
         .insert({
@@ -5026,65 +5057,114 @@ function openConsultForEdit(consultId) {
         .select("id")
         .single();
 
-      if (insErr) { console.error(insErr); alert("Erro ao gravar consulta."); return false; }
-
-      const consultId = ins?.id;
-      lastSavedConsultId = consultId || null;
-
-      if (consultId && selectedDiag && selectedDiag.length) {
-        const rows = selectedDiag.map(x => ({ consultation_id: consultId, diagnosis_id: x.id }));
-        const { error: dErr } = await window.sb
-          .from("consultation_diagnoses")
-          .upsert(rows, { onConflict: "consultation_id,diagnosis_id" });
-
-        if (dErr) { console.error(dErr); alert("Consulta gravada, mas houve erro a gravar diagnósticos."); }
+      if (insErr) {
+        console.error(insErr);
+        alert("Erro ao gravar consulta.");
+        return false;
       }
 
-      if (consultId && selectedTreat && selectedTreat.length) {
-        const rows = selectedTreat.map(x => ({
-          consultation_id: consultId,
-          treatment_id: x.id,
-          qty: Number(x.qty || 1)
-        }));
+      consultId = ins?.id || null;
+    }
 
-        const { error: tErr } = await window.sb
-          .from("consultation_treatments")
-          .upsert(rows, { onConflict: "consultation_id,treatment_id" });
-
-        if (tErr) { console.error(tErr); alert("Consulta gravada, mas houve erro a gravar tratamentos."); }
-      }
-
-      if (appointmentId) {
-        const { error: uErr } = await window.sb
-          .from("appointments")
-          .update({ status: "done" })
-          .eq("id", appointmentId);
-
-        if (uErr) console.error(uErr);
-      }
-
-      try {
-        if (typeof refreshAgenda === "function") await refreshAgenda();
-        else if (typeof renderAgendaList === "function") renderAgendaList();
-      } catch (e) {
-        console.error("refreshAgenda falhou:", e);
-      }
-
-      draftHDAHtml = "";
-      diagQuery = ""; diagLoading = false; diagResults = []; selectedDiag = [];
-      prescriptionText = "R/ 20 Sessões de Tratamentos de Medicina Fisica e de Reabilitação com:";
-      treatQuery = ""; treatLoading = false; treatResults = []; selectedTreat = [];
-
-      alert("Consulta gravada.");
-      return true;
-
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao gravar consulta.");
+    if (!consultId) {
+      alert("Não foi possível determinar a consulta a gravar.");
       return false;
     }
+
+    lastSavedConsultId = consultId;
+
+    const { error: delDiagErr } = await window.sb
+      .from("consultation_diagnoses")
+      .delete()
+      .eq("consultation_id", consultId);
+
+    if (delDiagErr) {
+      console.error(delDiagErr);
+      alert("Consulta gravada, mas houve erro a limpar diagnósticos antigos.");
+      return false;
+    }
+
+    if (selectedDiag && selectedDiag.length) {
+      const diagRows = selectedDiag.map(x => ({
+        consultation_id: consultId,
+        diagnosis_id: x.id
+      }));
+
+      const { error: dErr } = await window.sb
+        .from("consultation_diagnoses")
+        .insert(diagRows);
+
+      if (dErr) {
+        console.error(dErr);
+        alert("Consulta gravada, mas houve erro a gravar diagnósticos.");
+        return false;
+      }
+    }
+
+    const { error: delTreatErr } = await window.sb
+      .from("consultation_treatments")
+      .delete()
+      .eq("consultation_id", consultId);
+
+    if (delTreatErr) {
+      console.error(delTreatErr);
+      alert("Consulta gravada, mas houve erro a limpar tratamentos antigos.");
+      return false;
+    }
+
+    if (selectedTreat && selectedTreat.length) {
+      const treatRows = selectedTreat.map(x => ({
+        consultation_id: consultId,
+        treatment_id: x.id,
+        qty: Number(x.qty || 1)
+      }));
+
+      const { error: tErr } = await window.sb
+        .from("consultation_treatments")
+        .insert(treatRows);
+
+      if (tErr) {
+        console.error(tErr);
+        alert("Consulta gravada, mas houve erro a gravar tratamentos.");
+        return false;
+      }
+    }
+
+    if (!isEditing && appointmentId) {
+      const { error: uErr } = await window.sb
+        .from("appointments")
+        .update({ status: "done" })
+        .eq("id", appointmentId);
+
+      if (uErr) console.error(uErr);
+    }
+
+    try {
+      if (typeof refreshAgenda === "function") await refreshAgenda();
+      else if (typeof renderAgendaList === "function") renderAgendaList();
+    } catch (e) {
+      console.error("refreshAgenda falhou:", e);
+    }
+
+    editingConsultId = null;
+    editingConsultRow = null;
+
+    draftHDAHtml = "";
+    diagQuery = ""; diagLoading = false; diagResults = []; selectedDiag = [];
+    prescriptionText = "R/ 20 Sessões de Tratamentos de Medicina Fisica e de Reabilitação com:";
+    treatQuery = ""; treatLoading = false; treatResults = []; selectedTreat = [];
+
+    alert(isEditing ? "Consulta atualizada." : "Consulta gravada.");
+    return true;
+
+  } catch (err) {
+    console.error(err);
+    alert("Erro ao gravar consulta.");
+    return false;
   }
-  /* ---- FIM FUNÇÃO 06I.1 ---- */
+}
+/* ---- FIM FUNÇÃO 06I.1 ---- */
+  
 /* ==== FIM BLOCO 06I/12 — saveConsult (insert + upsert ligações + reset) ==== */
 
 /* ==== INÍCIO BLOCO 06J/12 — Render + Wiring + Boot (inclui Tel→Clínica no cabeçalho) ==== */
