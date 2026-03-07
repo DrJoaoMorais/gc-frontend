@@ -4398,23 +4398,33 @@ function renderTimeline() {
 
     return `
       <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-        <button
-          class="gcBtn"
-          data-action="edit-consult"
-          data-consult-id="${escAttr(consultId)}"
-          style="font-weight:900;"
-        >
-          Editar Consulta
-        </button>
+       <button
+  class="gcBtn"
+  data-action="edit-consult"
+  data-consult-id="${escAttr(consultId)}"
+  style="
+    font-weight:900;
+    background:#eef2ff;
+    border:1px solid #c7d2fe;
+    color:#1e3a8a;
+  "
+>
+  Editar Consulta
+</button>
 
-        <button
-          class="gcBtn"
-          data-action="consult-report"
-          data-consult-id="${escAttr(consultId)}"
-          style="font-weight:900;"
-        >
-          Relatório da Consulta
-        </button>
+<button
+  class="gcBtn"
+  data-action="consult-report"
+  data-consult-id="${escAttr(consultId)}"
+  style="
+    font-weight:900;
+    background:#ecfdf5;
+    border:1px solid #a7f3d0;
+    color:#065f46;
+  "
+>
+  Relatório da Consulta
+</button>
       </div>
     `;
   }
