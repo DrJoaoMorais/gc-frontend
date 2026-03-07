@@ -2909,7 +2909,7 @@ function openPatientViewModal(patient) {
   /* ---- FIM FUNÇÃO/CONST 06Fa.2 ---- */
 
   /* ---- FUNÇÃO/CONST 06Fa.3 — VINHETA_PATH ---- */
-  const VINHETA_PATH = "vinheta/vinheta_600dpi.png";
+  const VINHETA_PATH = "vinheta/vinheta_web.png";
   /* ---- FIM FUNÇÃO/CONST 06Fa.3 ---- */
 
   /* ---- FUNÇÃO/STATE 06Fa.4 — docForceRebuildOnce ---- */
