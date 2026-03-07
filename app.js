@@ -5047,11 +5047,11 @@ function render() {
           ${docsLoading ? `<div style="color:#64748b;">A carregar PDFs…</div>` : ``}
         </div>
 
+        ${creatingConsult ? renderConsultFormInline() : ""}
+
         <div style="margin-top:18px;">
           ${renderTimeline()}
         </div>
-
-        ${creatingConsult ? renderConsultFormInline() : ""}
 
       </div>
     </div>
