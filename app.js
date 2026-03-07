@@ -5122,9 +5122,8 @@ async function saveConsult() {
         .filter(x => x && x.id !== undefined && x.id !== null && String(x.id).trim() !== "")
         .map(x => ({
           consultation_id: consultId,
-          diagnosis_id: Number(x.id)
-        }))
-        .filter(row => Number.isFinite(row.diagnosis_id));
+          diagnosis_id: String(x.id)
+        }));
 
       console.log("DIAG ROWS TO INSERT:", diagRows);
       console.log("SELECTED DIAG RAW:", selectedDiag);
