@@ -5575,60 +5575,22 @@ function openPatientViewModal(patient) {
 
 /* ==== FIM BLOCO 08/12 — Pesquisa rápida (wiring) + Calendário mensal overlay ==== */
 
-/* ========================================================
-   BLOCO 09/12 — Modal de marcação
-   MAPA DE NAVEGAÇÃO
-   --------------------------------------------------------
-   09A — Helpers do modal + GCAL + datas/horas
-      09A.1 closeModal
-      09A.2 calcEndFromStartAndDuration
-      09A.3 makeAutoTitle
-      09A.4 __gcGetGcalSyncDayUrl
-      09A.5 __gcNormalizeDayISO
-      09A.6 __gcUniqueDays
-      09A.7 __gcFireSyncDay
-      09A.8 __gcFireSyncDays
-      09A.9 __gcPad2
-      09A.10 __gcToDateInput
-      09A.11 __gcToTimeInput
-      09A.12 __gcLocalDateTimeToIso
-      09A.13 __gcAddDaysYYYYMMDD
-      09A.14 __gcCmpYYYYMMDD
-
-   09B — Transferência automática de doente entre clínicas
-      09B.1 fetchPatientIdentifiers
-      09B.2 fetchActiveClinicForPatient
-      09B.3 buildTransferConfirmText
-      09B.4 ensurePatientActiveInClinic
-      09B.5 maybeTransferPatientToClinic
-
-   09C — openApptModal: render UI + refs DOM + wiring base
-      09C.1 openApptModal
-      09C.2 addCleanup
-      09C.3 runCleanup
-      09C.4 safeCloseModal
-      09C.5 __renderClinicsChecklist
-      09C.6 __applyBlockModeUi
-   ======================================================== */
+/* ==== INÍCIO BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
 
 /* ==== INÍCIO BLOCO 09A/12 — Helpers base + GCAL + datas/horas ==== */
 
-  /* ---- FUNÇÃO 09A.1 — closeModal ---- */
+  // ---------- Modal marcação ----------
   function closeModal() {
     closeModalRoot();
   }
-  /* ---- FIM FUNÇÃO 09A.1 ---- */
 
-  /* ---- FUNÇÃO 09A.2 — calcEndFromStartAndDuration ---- */
   function calcEndFromStartAndDuration(startLocalStr, durMin) {
     const s = fromLocalInputValue(startLocalStr);
     if (!s || isNaN(s.getTime())) return null;
     const e = new Date(s.getTime() + durMin * 60000);
     return { startAt: s.toISOString(), endAt: e.toISOString() };
   }
-  /* ---- FIM FUNÇÃO 09A.2 ---- */
 
-  /* ---- FUNÇÃO 09A.3 — makeAutoTitle ---- */
   function makeAutoTitle(patientName, procType) {
     const n = (patientName || "").trim();
     const p = (procType || "").trim();
@@ -5636,34 +5598,24 @@ function openPatientViewModal(patient) {
     if (!p || p === "—") return n;
     return `${n} — ${p}`;
   }
-  /* ---- FIM FUNÇÃO 09A.3 ---- */
 
-  /* ---- FUNÇÃO 09A.4 — __gcGetGcalSyncDayUrl ---- */
   function __gcGetGcalSyncDayUrl() {
     return "https://gc-gcal.dr-joao-morais.workers.dev/sync-day";
   }
-  /* ---- FIM FUNÇÃO 09A.4 ---- */
 
-  /* ---- FUNÇÃO 09A.5 — __gcNormalizeDayISO ---- */
   function __gcNormalizeDayISO(v) {
     const d = String(v || "").slice(0, 10);
     return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : "";
   }
-  /* ---- FIM FUNÇÃO 09A.5 ---- */
 
-  /* ---- FUNÇÃO 09A.6 — __gcUniqueDays ---- */
   function __gcUniqueDays(days) {
     return Array.from(new Set((days || []).map(__gcNormalizeDayISO).filter(Boolean)));
   }
-  /* ---- FIM FUNÇÃO 09A.6 ---- */
 
-  /* ---- FUNÇÃO 09A.7 — __gcFireSyncDay ---- */
   function __gcFireSyncDay(dayISO) {
     return __gcFireSyncDays([dayISO]);
   }
-  /* ---- FIM FUNÇÃO 09A.7 ---- */
 
-  /* ---- FUNÇÃO 09A.8 — __gcFireSyncDays ---- */
   function __gcFireSyncDays(dayISOs) {
     try {
       const url = __gcGetGcalSyncDayUrl();
@@ -5718,15 +5670,11 @@ function openPatientViewModal(patient) {
       console.warn("[GCAL] sync-day exceção:", e?.message || e);
     }
   }
-  /* ---- FIM FUNÇÃO 09A.8 ---- */
 
-  /* ---- FUNÇÃO 09A.9 — __gcPad2 ---- */
   function __gcPad2(n) {
     return String(n).padStart(2, "0");
   }
-  /* ---- FIM FUNÇÃO 09A.9 ---- */
 
-  /* ---- FUNÇÃO 09A.10 — __gcToDateInput ---- */
   function __gcToDateInput(d) {
     try {
       const x = (d instanceof Date) ? d : new Date(d);
@@ -5736,9 +5684,7 @@ function openPatientViewModal(patient) {
       return "";
     }
   }
-  /* ---- FIM FUNÇÃO 09A.10 ---- */
 
-  /* ---- FUNÇÃO 09A.11 — __gcToTimeInput ---- */
   function __gcToTimeInput(d) {
     try {
       const x = (d instanceof Date) ? d : new Date(d);
@@ -5748,9 +5694,7 @@ function openPatientViewModal(patient) {
       return "";
     }
   }
-  /* ---- FIM FUNÇÃO 09A.11 ---- */
 
-  /* ---- FUNÇÃO 09A.12 — __gcLocalDateTimeToIso ---- */
   function __gcLocalDateTimeToIso(dateYYYYMMDD, timeHHMM) {
     if (!dateYYYYMMDD) return null;
     const t = timeHHMM || "00:00";
@@ -5759,9 +5703,7 @@ function openPatientViewModal(patient) {
     if (isNaN(d.getTime())) return null;
     return d.toISOString();
   }
-  /* ---- FIM FUNÇÃO 09A.12 ---- */
 
-  /* ---- FUNÇÃO 09A.13 — __gcAddDaysYYYYMMDD ---- */
   function __gcAddDaysYYYYMMDD(dateYYYYMMDD, add) {
     try {
       const d = new Date(`${dateYYYYMMDD}T00:00:00`);
@@ -5772,23 +5714,19 @@ function openPatientViewModal(patient) {
       return dateYYYYMMDD;
     }
   }
-  /* ---- FIM FUNÇÃO 09A.13 ---- */
 
-  /* ---- FUNÇÃO 09A.14 — __gcCmpYYYYMMDD ---- */
   function __gcCmpYYYYMMDD(a, b) {
     if (!a || !b) return 0;
     if (a < b) return -1;
     if (a > b) return 1;
     return 0;
   }
-  /* ---- FIM FUNÇÃO 09A.14 ---- */
 
 /* ==== FIM BLOCO 09A/12 — Helpers base + GCAL + datas/horas ==== */
 
 
 /* ==== INÍCIO BLOCO 09B/12 — Transferência automática de doente entre clínicas ==== */
 
-  /* ---- FUNÇÃO 09B.1 — fetchPatientIdentifiers ---- */
   async function fetchPatientIdentifiers(patientId) {
     try {
       const { data, error } = await window.sb
@@ -5805,9 +5743,7 @@ function openPatientViewModal(patient) {
       return null;
     }
   }
-  /* ---- FIM FUNÇÃO 09B.1 ---- */
 
-  /* ---- FUNÇÃO 09B.2 — fetchActiveClinicForPatient ---- */
   async function fetchActiveClinicForPatient(patientId) {
     try {
       const { data, error } = await window.sb
@@ -5825,9 +5761,7 @@ function openPatientViewModal(patient) {
       return null;
     }
   }
-  /* ---- FIM FUNÇÃO 09B.2 ---- */
 
-  /* ---- FUNÇÃO 09B.3 — buildTransferConfirmText ---- */
   function buildTransferConfirmText({ patient, fromClinicName, toClinicName }) {
     const name = (patient?.full_name || "").trim() || "—";
     const parts = [];
@@ -5851,9 +5785,7 @@ function openPatientViewModal(patient) {
 
     return parts.join("\n");
   }
-  /* ---- FIM FUNÇÃO 09B.3 ---- */
 
-  /* ---- FUNÇÃO 09B.4 — ensurePatientActiveInClinic ---- */
   async function ensurePatientActiveInClinic({ patientId, targetClinicId }) {
     const pid = String(patientId || "");
     const cid = String(targetClinicId || "");
@@ -5923,9 +5855,7 @@ function openPatientViewModal(patient) {
       throw e;
     }
   }
-  /* ---- FIM FUNÇÃO 09B.4 ---- */
 
-  /* ---- FUNÇÃO 09B.5 — maybeTransferPatientToClinic ---- */
   async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
     const activeClinicId = await fetchActiveClinicForPatient(patientId);
 
@@ -5948,14 +5878,12 @@ function openPatientViewModal(patient) {
     await ensurePatientActiveInClinic({ patientId, targetClinicId });
     return { changed: true };
   }
-  /* ---- FIM FUNÇÃO 09B.5 ---- */
 
 /* ==== FIM BLOCO 09B/12 — Transferência automática de doente entre clínicas ==== */
 
 
 /* ==== INÍCIO BLOCO 09C/12 — openApptModal: render UI + refs DOM + wiring base ==== */
 
-  /* ---- FUNÇÃO 09C.1 — openApptModal ---- */
   function openApptModal({ mode, row }) {
     const root = document.getElementById("modalRoot");
     if (!root) return;
@@ -6239,27 +6167,18 @@ function openPatientViewModal(patient) {
     const mPatientName = document.getElementById("mPatientName");
 
     let _cleanupFns = [];
-
-    /* ---- FUNÇÃO 09C.2 — addCleanup ---- */
     function addCleanup(fn) {
       if (typeof fn === "function") _cleanupFns.push(fn);
     }
-    /* ---- FIM FUNÇÃO 09C.2 ---- */
-
-    /* ---- FUNÇÃO 09C.3 — runCleanup ---- */
     function runCleanup() {
       const fns = _cleanupFns;
       _cleanupFns = [];
       fns.forEach((fn) => { try { fn(); } catch (_) {} });
     }
-    /* ---- FIM FUNÇÃO 09C.3 ---- */
-
-    /* ---- FUNÇÃO 09C.4 — safeCloseModal ---- */
     function safeCloseModal() {
       runCleanup();
       closeModal();
     }
-    /* ---- FIM FUNÇÃO 09C.4 ---- */
 
     const clinicOpts = [];
     for (const c of G.clinics) {
@@ -6284,7 +6203,6 @@ function openPatientViewModal(patient) {
       if (defaultClinicId) __selectedClinicIds.add(String(defaultClinicId));
     } catch (_) {}
 
-    /* ---- FUNÇÃO 09C.5 — __renderClinicsChecklist ---- */
     function __renderClinicsChecklist() {
       if (!bClinicsList) return;
       bClinicsList.innerHTML = (G.clinics || []).map((c) => {
@@ -6308,9 +6226,7 @@ function openPatientViewModal(patient) {
         });
       });
     }
-    /* ---- FIM FUNÇÃO 09C.5 ---- */
 
-    /* ---- FUNÇÃO 09C.6 — __applyBlockModeUi ---- */
     function __applyBlockModeUi() {
       if (!bDateFrom || !bDateTo || !bTimeFrom || !bTimeTo) return;
 
@@ -6324,7 +6240,6 @@ function openPatientViewModal(patient) {
         if (btnBlockPeriod) btnBlockPeriod.style.fontWeight = "900";
       }
     }
-    /* ---- FIM FUNÇÃO 09C.6 ---- */
 
     if (bDateFrom) bDateFrom.value = bDateFromInit;
     if (bDateTo) bDateTo.value = bDateToInit;
@@ -6398,11 +6313,8 @@ function openPatientViewModal(patient) {
       mMode.value = apptModeInit;
       if (isEdit && apptModeInit === "bloqueio" && !canCreateBlocks) mMode.disabled = true;
     }
-  }
-  /* ---- FIM FUNÇÃO 09C.1 ---- */
 
 /* ==== FIM BLOCO 09C/12 — openApptModal: render UI + refs DOM + wiring base ==== */
-
 
 /* ==== INÍCIO BLOCO 09D/12 — Pesquisa doente + novo doente interno + UI dinâmica ==== */
 
