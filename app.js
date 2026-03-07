@@ -1620,10 +1620,18 @@
 /* ==== FIM BLOCO 04E — Render da lista da agenda ==== */
 
 /* ==== FIM BLOCO 04/12 — Helpers UI Agenda + abrir doente + update status + renderAgendaList ==== */
+/* ========================================================
+   BLOCO 05/12 — Pesquisa rápida (main) + utilitários de modal doente + validação
+   MAPA DE NAVEGAÇÃO
+   --------------------------------------------------------
+   05A — Mensagens e seleção da pesquisa rápida
+   05B — Render dos resultados da pesquisa rápida
+   05C — Utilitários do modal
+   05D — Validação de edição do doente
+   ======================================================== */
 
-/* ==== INÍCIO BLOCO 05/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
-
-  // ---------- Pesquisa rápida de doentes (main page) ----------
+/* ==== INÍCIO BLOCO 05A — Mensagens e seleção da pesquisa rápida ==== */
+  /* ---- FUNÇÃO 05A.1 — setQuickPatientMsg ---- */
   function setQuickPatientMsg(kind, text) {
     const el = document.getElementById("pQuickMsg");
     if (!el) return;
@@ -1631,7 +1639,9 @@
     el.style.color = color;
     el.textContent = text || "";
   }
+  /* ---- FIM FUNÇÃO 05A.1 ---- */
 
+  /* ---- FUNÇÃO 05A.2 — renderQuickPatientSelected ---- */
   function renderQuickPatientSelected() {
     const box = document.getElementById("pQuickSelected");
     if (!box) return;
@@ -1650,7 +1660,12 @@
     const ids = idBits.length ? ` • ${idBits.join(" / ")}` : "";
     box.textContent = `${p.full_name}${ids}${phone}`;
   }
+  /* ---- FIM FUNÇÃO 05A.2 ---- */
+/* ==== FIM BLOCO 05A — Mensagens e seleção da pesquisa rápida ==== */
 
+
+/* ==== INÍCIO BLOCO 05B — Render dos resultados da pesquisa rápida ==== */
+  /* ---- FUNÇÃO 05B.1 — renderQuickPatientResults ---- */
   function renderQuickPatientResults(results) {
     const host = document.getElementById("pQuickResults");
     if (!host) return;
@@ -1738,12 +1753,22 @@
     host.addEventListener("mousedown", delegate);
     host.addEventListener("click", delegate);
   }
+  /* ---- FIM FUNÇÃO 05B.1 ---- */
+/* ==== FIM BLOCO 05B — Render dos resultados da pesquisa rápida ==== */
 
+
+/* ==== INÍCIO BLOCO 05C — Utilitários do modal ==== */
+  /* ---- FUNÇÃO 05C.1 — closeModalRoot ---- */
   function closeModalRoot() {
     const root = document.getElementById("modalRoot");
     if (root) root.innerHTML = "";
   }
+  /* ---- FIM FUNÇÃO 05C.1 ---- */
+/* ==== FIM BLOCO 05C — Utilitários do modal ==== */
 
+
+/* ==== INÍCIO BLOCO 05D — Validação de edição do doente ==== */
+  /* ---- FUNÇÃO 05D.1 — validatePatientEdit ---- */
   function validatePatientEdit(values) {
     const fullName = (values.full_name || "").trim();
     if (!fullName) return { ok: false, msg: "Nome completo é obrigatório." };
@@ -1778,8 +1803,11 @@
       },
     };
   }
+  /* ---- FIM FUNÇÃO 05D.1 ---- */
+/* ==== FIM BLOCO 05D — Validação de edição do doente ==== */
 
 /* ==== FIM BLOCO 05/12 — Pesquisa rápida (main) + utilitários de modal doente + validação ==== */
+
 /* ==== INÍCIO BLOCO 06/12 — Modal Doente (06A–06J) ==== */
 
 /* ==== INÍCIO BLOCO 06A/12 — Stub (mantido; não usado) ==== */
