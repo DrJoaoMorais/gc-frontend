@@ -4998,7 +4998,7 @@ function renderTimeline() {
   /* ---- FIM FUNÇÃO 06I.1 ---- */
 /* ==== FIM BLOCO 06I/12 — saveConsult (insert + upsert ligações + reset) ==== */
 
-
+/* ==== INÍCIO BLOCO 06J/12 — Render + Wiring + Boot (inclui Tel→Clínica no cabeçalho) ==== */
 /* ---- FUNÇÃO 06J.1 — render ---- */
 function render() {
   root.innerHTML = `
@@ -5047,11 +5047,11 @@ function render() {
           ${docsLoading ? `<div style="color:#64748b;">A carregar PDFs…</div>` : ``}
         </div>
 
-        ${creatingConsult ? renderConsultFormInline() : ""}
-
         <div style="margin-top:18px;">
           ${renderTimeline()}
         </div>
+
+        ${creatingConsult ? renderConsultFormInline() : ""}
 
       </div>
     </div>
