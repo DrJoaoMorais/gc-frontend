@@ -5277,6 +5277,46 @@ function render() {
     });
   });
 
+  document.querySelectorAll('[data-action="consult-report"]').forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const consultId = btn.getAttribute("data-consult-id") || "";
+      if (!consultId) return;
+
+      const userRes = await window.sb.auth.getUser();
+      const userId = userRes?.data?.user?.id;
+
+      const consult = (consultRows || []).find(x => String(x.id) === String(consultId));
+      if (!consult) { alert("Consulta não encontrada."); return; }
+
+      const clinic = await fetchClinicForPdf();
+      const authorName = userId ? await fetchCurrentUserDisplayName(userId) : "";
+
+      let vinhetaUrl = "";
+      try {
+        const vinhetaSignedUrl = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
+        console.log("VINHETA signed URL:", vinhetaSignedUrl);
+
+        if (vinhetaSignedUrl) {
+          vinhetaUrl = await urlToDataUrl(vinhetaSignedUrl, "image/png");
+        }
+
+        console.log("VINHETA data URL prefix:", vinhetaUrl ? vinhetaUrl.slice(0, 80) : "(vazia)");
+      } catch (e) {
+        console.warn("Editor: vinheta falhou:", e);
+        vinhetaUrl = "";
+      }
+
+      const html = buildDocV1Html({
+        clinic,
+        consult,
+        authorName,
+        vinhetaUrl
+      });
+
+      openDocumentEditor(html);
+    });
+  });
+
   const btnEditDoc = document.getElementById("btnEditDocument");
   if (btnEditDoc) {
     btnEditDoc.onclick = async () => {
