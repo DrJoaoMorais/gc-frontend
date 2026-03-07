@@ -1810,11 +1810,30 @@
 
 /* ==== INÍCIO BLOCO 06/12 — Modal Doente (06A–06J) ==== */
 
+/* ========================================================
+   BLOCO 06/12 — Modal Doente
+   MAPA DE NAVEGAÇÃO
+   --------------------------------------------------------
+   06A — Stub (mantido; não usado)
+   06B — Bootstrap + State + Helpers base
+   06C — Identificação do doente
+   06D — Diagnósticos
+   06E — Tratamentos
+   06Fa — Documentos/PDF (config + helpers + load + clinic + template)
+   06Fb — Documentos/PDF (editor + bind)
+   06Fc — Documentos/PDF (storage + generate + exports)
+   06G — Timeline (load + render + physio_records)
+   06H — Consulta médica (UI HDA + Quill + spellcheck)
+   06I — saveConsult (insert + upsert ligações + reset)
+   06J — Render + wiring + boot
+   ======================================================== */
+
 /* ==== INÍCIO BLOCO 06A/12 — Stub (mantido; não usado) ==== */
 /*
   06A/12 — Mantido apenas como “stub” histórico.
   IMPORTANTE: O modal REAL é o openPatientViewModal (06B–06J).
 */
+/* ---- FUNÇÃO 06A.1 — openPatientViewModal__stub ---- */
 function openPatientViewModal__stub(patient) {
   const root = document.getElementById("modalRoot");
   if (!root || !patient) return;
@@ -1843,11 +1862,13 @@ function openPatientViewModal__stub(patient) {
   function openConsultForm() {}
   async function saveConsult() {}
 }
-/* ==== FIM BLOCO 06A/12 — Stub ==== */
+/* ---- FIM FUNÇÃO 06A.1 ---- */
+/* ==== FIM BLOCO 06A/12 — Stub (mantido; não usado) ==== */
 
 
 /* ==== INÍCIO BLOCO 06B/12 — Bootstrap + State + Helpers base (role/close/fetch/escape/format) ==== */
 
+/* ---- FUNÇÃO 06B.1 — openPatientViewModal ---- */
 function openPatientViewModal(patient) {
 
   const root = document.getElementById("modalRoot");
@@ -1900,18 +1921,26 @@ function openPatientViewModal(patient) {
   let docRows = [];              // [{id, created_at, title, consultation_id, storage_path, url, version}]
 
   /* ================= ROLE ================= */
+  /* ---- FUNÇÃO 06B.2 — role ---- */
   function role() { return String(G.role || "").toLowerCase(); }
+  /* ---- FIM FUNÇÃO 06B.2 ---- */
+
+  /* ---- FUNÇÃO 06B.3 — isDoctor ---- */
   function isDoctor() { return role() === "doctor"; }
+  /* ---- FIM FUNÇÃO 06B.3 ---- */
 
   /* ================= SAFE CLOSE ================= */
+  /* ---- FUNÇÃO 06B.4 — closeModalSafe ---- */
   const closeModalSafe = () => {
     try {
       if (typeof closeModalRoot === "function") return closeModalRoot();
     } catch (e) {}
     try { root.innerHTML = ""; } catch (e2) {}
   };
+  /* ---- FIM FUNÇÃO 06B.4 ---- */
 
   /* ================= DATA: Clínica ativa (id + nome) ================= */
+  /* ---- FUNÇÃO 06B.5 — fetchActiveClinic ---- */
   async function fetchActiveClinic() {
     const { data, error } = await window.sb
       .from("patient_clinic")
@@ -1946,7 +1975,9 @@ function openPatientViewModal(patient) {
       }
     }
   }
+  /* ---- FIM FUNÇÃO 06B.5 ---- */
 
+  /* ---- FUNÇÃO 06B.6 — getTreatOrderFromPlan ---- */
   function getTreatOrderFromPlan(planText) {
     try {
       const o = JSON.parse(planText || "");
@@ -1956,7 +1987,9 @@ function openPatientViewModal(patient) {
       return null;
     }
   }
+  /* ---- FIM FUNÇÃO 06B.6 ---- */
 
+  /* ---- FUNÇÃO 06B.7 — getPrescriptionTextFromPlan ---- */
   function getPrescriptionTextFromPlan(planText) {
     try {
       const o = JSON.parse(planText || "");
@@ -1966,8 +1999,10 @@ function openPatientViewModal(patient) {
       return "";
     }
   }
+  /* ---- FIM FUNÇÃO 06B.7 ---- */
 
   /* ================= SANITIZE/ESC ================= */
+  /* ---- FUNÇÃO 06B.8 — sanitizeHTML ---- */
   function sanitizeHTML(html) {
     try {
       const allowed = new Set(["B","STRONG","U","BR","P","DIV","UL","OL","LI"]);
@@ -1996,7 +2031,9 @@ function openPatientViewModal(patient) {
         .replaceAll(">", "&gt;");
     }
   }
+  /* ---- FIM FUNÇÃO 06B.8 ---- */
 
+  /* ---- FUNÇÃO 06B.9 — escAttr ---- */
   function escAttr(s) {
     return String(s || "")
       .replaceAll("&", "&amp;")
@@ -2004,8 +2041,10 @@ function openPatientViewModal(patient) {
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;");
   }
+  /* ---- FIM FUNÇÃO 06B.9 ---- */
 
   /* ================= CABEÇALHO (idade/🎂) ================= */
+  /* ---- FUNÇÃO 06B.10 — ageTextToday ---- */
   function ageTextToday() {
     try {
       const age = calcAgeYears ? calcAgeYears(p.dob, new Date()) : null;
@@ -2013,19 +2052,22 @@ function openPatientViewModal(patient) {
       return `${age} anos`;
     } catch (e) { return "—"; }
   }
+  /* ---- FIM FUNÇÃO 06B.10 ---- */
 
+  /* ---- FUNÇÃO 06B.11 — birthdayBadgeToday ---- */
   function birthdayBadgeToday() {
     try {
       const isBday = isBirthdayOnDate ? isBirthdayOnDate(p.dob, new Date()) : false;
       return isBday ? `<span title="Faz anos hoje" style="margin-left:8px;">🎂</span>` : ``;
     } catch (e) { return ``; }
   }
-
-/* ==== FIM BLOCO 06B/12 ==== */
+  /* ---- FIM FUNÇÃO 06B.11 ---- */
+/* ==== FIM BLOCO 06B/12 — Bootstrap + State + Helpers base (role/close/fetch/escape/format) ==== */
 
 
 /* ==== INÍCIO BLOCO 06C/12 — Identificação do doente (modal ver/editar) — SEXO REMOVIDO ==== */
 
+  /* ---- FUNÇÃO 06C.1 — openPatientIdentity ---- */
   function openPatientIdentity(mode) {
     identMode = mode === "edit" ? "edit" : "view";
     identOpen = true;
@@ -2052,13 +2094,17 @@ function openPatientViewModal(patient) {
     render();
     bindIdentityEvents();
   }
+  /* ---- FIM FUNÇÃO 06C.1 ---- */
 
+  /* ---- FUNÇÃO 06C.2 — closeIdentity ---- */
   function closeIdentity() {
     identOpen = false;
     identSaving = false;
     render();
   }
+  /* ---- FIM FUNÇÃO 06C.2 ---- */
 
+  /* ---- FUNÇÃO 06C.3 — renderIdentityModal ---- */
   function renderIdentityModal() {
     const ro = (identMode !== "edit") ? "readonly" : "";
     const dis = (identMode !== "edit") ? "disabled" : "";
@@ -2179,7 +2225,9 @@ function openPatientViewModal(patient) {
       </div>
     `;
   }
+  /* ---- FIM FUNÇÃO 06C.3 ---- */
 
+  /* ---- FUNÇÃO 06C.4 — bindIdentityEvents ---- */
   function bindIdentityEvents() {
     const closeTop = document.getElementById("btnIdentCloseTop");
     if (closeTop) closeTop.onclick = () => closeIdentity();
@@ -2273,8 +2321,8 @@ function openPatientViewModal(patient) {
       };
     }
   }
-
-/* ==== FIM BLOCO 06C/12 ==== */
+  /* ---- FIM FUNÇÃO 06C.4 ---- */
+/* ==== FIM BLOCO 06C/12 — Identificação do doente (modal ver/editar) — SEXO REMOVIDO ==== */
 
 
 /* ==== INÍCIO BLOCO 06D/12 — Diagnósticos (pesquisa catálogo + chips + adicionar ao catálogo) ==== */
@@ -2287,6 +2335,7 @@ function openPatientViewModal(patient) {
   let diagAddCode = "";
   let diagAddLabel = "";
 
+  /* ---- FUNÇÃO 06D.1 — ensureDiagAddHost ---- */
   function ensureDiagAddHost() {
     let host = document.getElementById("diagAddModalHost");
     if (!host) {
@@ -2296,7 +2345,9 @@ function openPatientViewModal(patient) {
     }
     return host;
   }
+  /* ---- FIM FUNÇÃO 06D.1 ---- */
 
+  /* ---- FUNÇÃO 06D.2 — openDiagAddModal ---- */
   function openDiagAddModal(prefillLabel = "", prefillCode = "") {
     diagAddErr = "";
     diagAddSystem = "local";
@@ -2309,14 +2360,18 @@ function openPatientViewModal(patient) {
       document.getElementById("diagAddLabel")?.focus();
     }, 0);
   }
+  /* ---- FIM FUNÇÃO 06D.2 ---- */
 
+  /* ---- FUNÇÃO 06D.3 — closeDiagAddModal ---- */
   function closeDiagAddModal() {
     diagAddOpen = false;
     diagAddSaving = false;
     diagAddErr = "";
     renderDiagAddModal();
   }
+  /* ---- FIM FUNÇÃO 06D.3 ---- */
 
+  /* ---- FUNÇÃO 06D.4 — renderDiagAddModal ---- */
   function renderDiagAddModal() {
     const host = ensureDiagAddHost();
     if (!diagAddOpen) {
@@ -2393,7 +2448,9 @@ function openPatientViewModal(patient) {
       });
     });
   }
+  /* ---- FIM FUNÇÃO 06D.4 ---- */
 
+  /* ---- FUNÇÃO 06D.5 — saveDiagToCatalog ---- */
   async function saveDiagToCatalog() {
     if (diagAddSaving) return;
 
@@ -2448,7 +2505,9 @@ function openPatientViewModal(patient) {
       renderDiagAddModal();
     }
   }
+  /* ---- FIM FUNÇÃO 06D.5 ---- */
 
+  /* ---- FUNÇÃO 06D.6 — renderDiagArea ---- */
   function renderDiagArea() {
     const chips = document.getElementById("diagChips");
     if (chips) {
@@ -2540,7 +2599,9 @@ function openPatientViewModal(patient) {
       };
     });
   }
+  /* ---- FIM FUNÇÃO 06D.6 ---- */
 
+  /* ---- FUNÇÃO 06D.7 — searchDiagnoses ---- */
   async function searchDiagnoses(q) {
     const query = String(q || "");
     diagQuery = query;
@@ -2581,7 +2642,9 @@ function openPatientViewModal(patient) {
     diagLoading = false;
     renderDiagArea();
   }
+  /* ---- FIM FUNÇÃO 06D.7 ---- */
 
+  /* ---- FUNÇÃO 06D.8 — addDiagnosis ---- */
   function addDiagnosis(item) {
     if (!item || !item.id) return;
     if (selectedDiag.some(x => String(x.id) === String(item.id))) return;
@@ -2596,16 +2659,20 @@ function openPatientViewModal(patient) {
     renderDiagArea();
     inp?.focus();
   }
+  /* ---- FIM FUNÇÃO 06D.8 ---- */
 
+  /* ---- FUNÇÃO 06D.9 — removeDiagnosis ---- */
   function removeDiagnosis(id) {
     selectedDiag = selectedDiag.filter(x => String(x.id) !== String(id));
     renderDiagArea();
   }
+  /* ---- FIM FUNÇÃO 06D.9 ---- */
+/* ==== FIM BLOCO 06D/12 — Diagnósticos (pesquisa catálogo + chips + adicionar ao catálogo) ==== */
 
-/* ==== FIM BLOCO 06D/12 ==== */
 
 /* ==== INÍCIO BLOCO 06E/12 — Tratamentos (catálogo + dual list) ==== */
 
+  /* ---- FUNÇÃO 06E.1 — sentenceizeLabel ---- */
   function sentenceizeLabel(s) {
     const raw = String(s || "").trim();
     if (!raw) return "";
@@ -2615,7 +2682,9 @@ function openPatientViewModal(patient) {
     t = t.replace(/^([a-zà-ÿ])/, (m, c) => c.toUpperCase());
     return t;
   }
+  /* ---- FIM FUNÇÃO 06E.1 ---- */
 
+  /* ---- FUNÇÃO 06E.2 — normTreatRow ---- */
   function normTreatRow(t) {
     return {
       id: t.id,
@@ -2623,7 +2692,9 @@ function openPatientViewModal(patient) {
       code: t.code || t.adse_code || t.proc_code || "",
     };
   }
+  /* ---- FIM FUNÇÃO 06E.2 ---- */
 
+  /* ---- FUNÇÃO 06E.3 — fetchTreatmentsDefault ---- */
   async function fetchTreatmentsDefault() {
     try {
       treatLoading = true;
@@ -2659,7 +2730,9 @@ function openPatientViewModal(patient) {
       renderTreatArea();
     }
   }
+  /* ---- FIM FUNÇÃO 06E.3 ---- */
 
+  /* ---- FUNÇÃO 06E.4 — searchTreatments ---- */
   async function searchTreatments(q) {
     const query = String(q || "");
     treatQuery = query;
@@ -2721,7 +2794,9 @@ function openPatientViewModal(patient) {
     treatLoading = false;
     renderTreatArea();
   }
+  /* ---- FIM FUNÇÃO 06E.4 ---- */
 
+  /* ---- FUNÇÃO 06E.5 — addTreatment ---- */
   function addTreatment(item) {
     if (!item || !item.id) return;
     if (selectedTreat.some(x => String(x.id) === String(item.id))) return;
@@ -2730,7 +2805,9 @@ function openPatientViewModal(patient) {
     treatResults = (treatResults || []).filter(x => String(x.id) !== String(item.id));
     renderTreatArea();
   }
+  /* ---- FIM FUNÇÃO 06E.5 ---- */
 
+  /* ---- FUNÇÃO 06E.6 — removeTreatment ---- */
   function removeTreatment(id) {
     const rem = selectedTreat.find(x => String(x.id) === String(id));
     selectedTreat = selectedTreat.filter(x => String(x.id) !== String(id));
@@ -2748,7 +2825,9 @@ function openPatientViewModal(patient) {
 
     renderTreatArea();
   }
+  /* ---- FIM FUNÇÃO 06E.6 ---- */
 
+  /* ---- FUNÇÃO 06E.7 — renderTreatArea ---- */
   function renderTreatArea() {
     const boxSel = document.getElementById("treatSelectedBox");
     const boxCat = document.getElementById("treatCatalogBox");
@@ -2812,26 +2891,35 @@ function openPatientViewModal(patient) {
       };
     });
   }
+  /* ---- FIM FUNÇÃO 06E.7 ---- */
+/* ==== FIM BLOCO 06E/12 — Tratamentos (catálogo + dual list) ==== */
 
-/* ==== FIM BLOCO 06E/12 ==== */
 
 /* ==== INÍCIO BLOCO 06Fa/12 — Documentos/PDF (CONFIG + HELPERS + LOAD + CLINIC + TEMPLATE) ==== */
 
   // =========================================================
   // CONFIG — PDF via Proxy (Worker com Puppeteer)
   // =========================================================
+  /* ---- FUNÇÃO/CONST 06Fa.1 — PDF_PROXY_URL ---- */
   const PDF_PROXY_URL = "https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf";
+  /* ---- FIM FUNÇÃO/CONST 06Fa.1 ---- */
 
-  // Vinheta (Supabase Storage)
+  /* ---- FUNÇÃO/CONST 06Fa.2 — VINHETA_BUCKET ---- */
   const VINHETA_BUCKET = "clinic-private";
-  const VINHETA_PATH = "vinheta/vinheta_600dpi.png";
+  /* ---- FIM FUNÇÃO/CONST 06Fa.2 ---- */
 
-  // Flag para forçar rebuild do HTML (usado no 06Fb/06Fc)
+  /* ---- FUNÇÃO/CONST 06Fa.3 — VINHETA_PATH ---- */
+  const VINHETA_PATH = "vinheta/vinheta_600dpi.png";
+  /* ---- FIM FUNÇÃO/CONST 06Fa.3 ---- */
+
+  /* ---- FUNÇÃO/STATE 06Fa.4 — docForceRebuildOnce ---- */
   let docForceRebuildOnce = false;
+  /* ---- FIM FUNÇÃO/STATE 06Fa.4 ---- */
 
   // =========================================================
   // HELPERS — Signed URL / Base64 / Proxy call / safety
   // =========================================================
+  /* ---- FUNÇÃO 06Fa.5 — safeText ---- */
   function safeText(s) {
     return String(s || "")
       .trim()
@@ -2839,7 +2927,9 @@ function openPatientViewModal(patient) {
       .replace(/\s+/g, " ")
       .slice(0, 80) || "Relatorio";
   }
+  /* ---- FIM FUNÇÃO 06Fa.5 ---- */
 
+  /* ---- FUNÇÃO 06Fa.6 — storageSignedUrl ---- */
   async function storageSignedUrl(bucket, path, expiresSec = 3600) {
     try {
       if (!bucket || !path) return "";
@@ -2850,7 +2940,9 @@ function openPatientViewModal(patient) {
       return "";
     }
   }
+  /* ---- FIM FUNÇÃO 06Fa.6 ---- */
 
+  /* ---- FUNÇÃO 06Fa.7 — urlToDataUrl ---- */
   // (mantido; pode ser útil noutros pontos)
   async function urlToDataUrl(url, fallbackMime = "image/png") {
     try {
@@ -2877,7 +2969,9 @@ function openPatientViewModal(patient) {
       return "";
     }
   }
+  /* ---- FIM FUNÇÃO 06Fa.7 ---- */
 
+  /* ---- FUNÇÃO 06Fa.8 — renderPdfViaProxy ---- */
   async function renderPdfViaProxy(html) {
     const res = await fetch(PDF_PROXY_URL, {
       method: "POST",
@@ -2893,10 +2987,12 @@ function openPatientViewModal(patient) {
     const buf = await res.arrayBuffer();
     return new Blob([buf], { type: "application/pdf" });
   }
+  /* ---- FIM FUNÇÃO 06Fa.8 ---- */
 
   // =========================================================
   // DOCUMENTS — load list
   // =========================================================
+  /* ---- FUNÇÃO 06Fa.9 — loadDocuments ---- */
   async function loadDocuments() {
     docsLoading = true;
     docRows = [];
@@ -2947,10 +3043,12 @@ function openPatientViewModal(patient) {
       docsLoading = false;
     }
   }
+  /* ---- FIM FUNÇÃO 06Fa.9 ---- */
 
   // =========================================================
   // CLINIC / USER HELPERS
   // =========================================================
+  /* ---- FUNÇÃO 06Fa.10 — fetchClinicForPdf ---- */
   async function fetchClinicForPdf() {
     if (!activeClinicId) return null;
     try {
@@ -2967,7 +3065,9 @@ function openPatientViewModal(patient) {
       return null;
     }
   }
+  /* ---- FIM FUNÇÃO 06Fa.10 ---- */
 
+  /* ---- FUNÇÃO 06Fa.11 — fetchCurrentUserDisplayName ---- */
   async function fetchCurrentUserDisplayName(userId) {
     try {
       const { data, error } = await window.sb
@@ -2984,7 +3084,9 @@ function openPatientViewModal(patient) {
       return "";
     }
   }
+  /* ---- FIM FUNÇÃO 06Fa.11 ---- */
 
+  /* ---- FUNÇÃO 06Fa.12 — fmtDobPt ---- */
   function fmtDobPt(d) {
     try {
       if (!d) return "—";
@@ -2996,7 +3098,9 @@ function openPatientViewModal(patient) {
       return `${dd}-${mm}-${yy}`;
     } catch (e) { return String(d || "—"); }
   }
+  /* ---- FIM FUNÇÃO 06Fa.12 ---- */
 
+  /* ---- FUNÇÃO 06Fa.13 — patientAddressCompact ---- */
   function patientAddressCompact() {
     const a = String(p.address_line1 || "").trim();
     const pc = String(p.postal_code || "").trim();
@@ -3013,10 +3117,12 @@ function openPatientViewModal(patient) {
 
     return parts.join(", ") || "—";
   }
+  /* ---- FIM FUNÇÃO 06Fa.13 ---- */
 
   // =========================================================
   // HTML TEMPLATE — v1
   // =========================================================
+  /* ---- FUNÇÃO 06Fa.14 — buildDocV1Html ---- */
   function buildDocV1Html({ clinic, consult, authorName, vinhetaUrl, clinicLogoUrl }) {
 
     function escUrlAttr(u) {
@@ -3231,14 +3337,16 @@ function openPatientViewModal(patient) {
 </html>
 `;
   }
+  /* ---- FIM FUNÇÃO 06Fa.14 ---- */
+/* ==== FIM BLOCO 06Fa/12 — Documentos/PDF (CONFIG + HELPERS + LOAD + CLINIC + TEMPLATE) ==== */
 
-/* ==== FIM BLOCO 06Fa/12 ==== */
 
 /* ==== INÍCIO BLOCO 06Fb/12 — Documentos/PDF (EDITOR + BIND) ==== */
 
   // =========================================================
   // EDITOR — open/render/bind
   // =========================================================
+  /* ---- FUNÇÃO 06Fb.1 — openDocumentEditor ---- */
   function openDocumentEditor(html) {
     docDraftHtml = String(html || "");
     docMode = "visual";
@@ -3247,14 +3355,18 @@ function openPatientViewModal(patient) {
     render();
     bindDocEvents();
   }
+  /* ---- FIM FUNÇÃO 06Fb.1 ---- */
 
+  /* ---- FUNÇÃO 06Fb.2 — closeDocumentEditor ---- */
   function closeDocumentEditor() {
     docOpen = false;
     docSaving = false;
     docMode = "visual";
     render();
   }
+  /* ---- FIM FUNÇÃO 06Fb.2 ---- */
 
+  /* ---- FUNÇÃO 06Fb.3 — renderDocumentEditorModal ---- */
   function renderDocumentEditorModal() {
     return `
       <div id="docOverlay"
@@ -3317,7 +3429,9 @@ function openPatientViewModal(patient) {
       </div>
     `;
   }
+  /* ---- FIM FUNÇÃO 06Fb.3 ---- */
 
+  /* ---- FUNÇÃO 06Fb.4 — mountDocFrame ---- */
   function mountDocFrame() {
     const iframe = document.getElementById("docFrame");
     if (!iframe) return;
@@ -3340,7 +3454,9 @@ function openPatientViewModal(patient) {
       }
     };
   }
+  /* ---- FIM FUNÇÃO 06Fb.4 ---- */
 
+  /* ---- FUNÇÃO 06Fb.5 — syncDocFromFrame ---- */
   function syncDocFromFrame() {
     const iframe = document.getElementById("docFrame");
     if (!iframe) return;
@@ -3358,7 +3474,9 @@ function openPatientViewModal(patient) {
       console.error("syncDocFromFrame error:", e);
     }
   }
+  /* ---- FIM FUNÇÃO 06Fb.5 ---- */
 
+  /* ---- FUNÇÃO 06Fb.6 — bindDocEvents ---- */
   function bindDocEvents() {
     document.getElementById("btnDocCloseTop")?.addEventListener("click", closeDocumentEditor);
     document.getElementById("btnDocCancel")?.addEventListener("click", closeDocumentEditor);
@@ -3410,14 +3528,16 @@ function openPatientViewModal(patient) {
 
     if (docMode !== "html") mountDocFrame();
   }
+  /* ---- FIM FUNÇÃO 06Fb.6 ---- */
+/* ==== FIM BLOCO 06Fb/12 — Documentos/PDF (EDITOR + BIND) ==== */
 
-/* ==== FIM BLOCO 06Fb/12 ==== */
 
 /* ==== INÍCIO BLOCO 06Fc/12 — Documentos/PDF (STORAGE + GENERATE + EXPORTS) ==== */
 
   // =========================================================
   // STORAGE — upload + documents row
   // =========================================================
+  /* ---- FUNÇÃO 06Fc.1 — uploadPdfToStorage ---- */
   async function uploadPdfToStorage({ blob, path }) {
     try {
       const r = await window.sb.storage
@@ -3431,7 +3551,9 @@ function openPatientViewModal(patient) {
       return { ok: false, error: e };
     }
   }
+  /* ---- FIM FUNÇÃO 06Fc.1 ---- */
 
+  /* ---- FUNÇÃO 06Fc.2 — insertDocumentRow ---- */
   async function insertDocumentRow(meta) {
     try {
       const payload = {
@@ -3458,7 +3580,9 @@ function openPatientViewModal(patient) {
       return { ok: false, error: e };
     }
   }
+  /* ---- FIM FUNÇÃO 06Fc.2 ---- */
 
+  /* ---- FUNÇÃO 06Fc.3 — getNextDocVersionForConsult ---- */
   async function getNextDocVersionForConsult(consultId) {
     try {
       const { data, error } = await window.sb
@@ -3476,10 +3600,12 @@ function openPatientViewModal(patient) {
       return 1;
     }
   }
+  /* ---- FIM FUNÇÃO 06Fc.3 ---- */
 
   // =========================================================
   // HELPERS — aplicar assets ao HTML (SEM reconstruir template)
   // =========================================================
+  /* ---- FUNÇÃO 06Fc.4 — applyPdfAssetsToHtml ---- */
   function applyPdfAssetsToHtml(html, { clinicLogoUrl, vinhetaUrl }) {
     let out = String(html || "");
 
@@ -3499,10 +3625,12 @@ function openPatientViewModal(patient) {
 
     return out;
   }
+  /* ---- FIM FUNÇÃO 06Fc.4 ---- */
 
   // =========================================================
   // MAIN — generate via Proxy/Worker + upload + insert
   // =========================================================
+  /* ---- FUNÇÃO 06Fc.5 — generatePdfAndUploadV1 ---- */
   async function generatePdfAndUploadV1() {
     try {
       if (!lastSavedConsultId) { alert("Sem consulta gravada para gerar PDF."); return false; }
@@ -3609,19 +3737,23 @@ function openPatientViewModal(patient) {
       return false;
     }
   }
+  /* ---- FIM FUNÇÃO 06Fc.5 ---- */
 
+  /* ---- FUNÇÃO 06Fc.6 — window exports ---- */
   try {
     window.generatePdfAndUploadV1 = generatePdfAndUploadV1;
     window.openDocumentEditor = openDocumentEditor;
   } catch (e) {}
+  /* ---- FIM FUNÇÃO 06Fc.6 ---- */
+/* ==== FIM BLOCO 06Fc/12 — Documentos/PDF (STORAGE + GENERATE + EXPORTS) ==== */
 
-/* ==== FIM BLOCO 06Fc/12 ==== */
 
 /* ==== INÍCIO BLOCO 06G/12 — Timeline (load + render + physio_records) ==== */
 
   // =========================================================
   // Estado local (timeline) — SEM TDZ
   // =========================================================
+  /* ---- FUNÇÃO/STATE 06G.1 — __gcPhysioState ---- */
   window.__gcPhysioState = window.__gcPhysioState || {
     rows: [],
     loading: false,
@@ -3630,18 +3762,25 @@ function openPatientViewModal(patient) {
     draftHtml: "",
     saving: false
   };
+  /* ---- FIM FUNÇÃO/STATE 06G.1 ---- */
 
+  /* ---- FUNÇÃO 06G.2 — __ps ---- */
   function __ps() { return window.__gcPhysioState; }
+  /* ---- FIM FUNÇÃO 06G.2 ---- */
 
-  // Quill instância do composer (global)
+  /* ---- FUNÇÃO/STATE 06G.3 — __gcPhysioQuill ---- */
   window.__gcPhysioQuill = window.__gcPhysioQuill || null;
+  /* ---- FIM FUNÇÃO/STATE 06G.3 ---- */
 
-  // Cache UID (para render rápido)
+  /* ---- FUNÇÃO/STATE 06G.4 — __gcAuthUid ---- */
   window.__gcAuthUid = window.__gcAuthUid || null;
+  /* ---- FIM FUNÇÃO/STATE 06G.4 ---- */
 
-  // Notas da agenda (view agenda_notes_v1)
+  /* ---- FUNÇÃO/STATE 06G.5 — agendaNoteRows ---- */
   let agendaNoteRows = [];
+  /* ---- FIM FUNÇÃO/STATE 06G.5 ---- */
 
+  /* ---- FUNÇÃO 06G.6 — __gcGetUidAsync ---- */
   async function __gcGetUidAsync() {
     try {
       const { data, error } = await window.sb.auth.getUser();
@@ -3654,19 +3793,33 @@ function openPatientViewModal(patient) {
       return null;
     }
   }
+  /* ---- FIM FUNÇÃO 06G.6 ---- */
 
+  /* ---- FUNÇÃO 06G.7 — __gcGetUidCached ---- */
   function __gcGetUidCached() {
     return window.__gcAuthUid || null;
   }
+  /* ---- FIM FUNÇÃO 06G.7 ---- */
 
+  /* ---- FUNÇÃO 06G.8 — __gcRole ---- */
   function __gcRole() {
     return String(G.role || "").toLowerCase();
   }
+  /* ---- FIM FUNÇÃO 06G.8 ---- */
 
+  /* ---- FUNÇÃO 06G.9 — __gcIsSecretary ---- */
   function __gcIsSecretary() { return __gcRole() === "secretary"; }
-  function __gcIsPhysio() { return __gcRole() === "physio"; }
-  function __gcIsDoctor() { return __gcRole() === "doctor"; }
+  /* ---- FIM FUNÇÃO 06G.9 ---- */
 
+  /* ---- FUNÇÃO 06G.10 — __gcIsPhysio ---- */
+  function __gcIsPhysio() { return __gcRole() === "physio"; }
+  /* ---- FIM FUNÇÃO 06G.10 ---- */
+
+  /* ---- FUNÇÃO 06G.11 — __gcIsDoctor ---- */
+  function __gcIsDoctor() { return __gcRole() === "doctor"; }
+  /* ---- FIM FUNÇÃO 06G.11 ---- */
+
+  /* ---- FUNÇÃO 06G.12 — __gcGuessClinicIdForPhysioRecord ---- */
   function __gcGuessClinicIdForPhysioRecord() {
     // Ordem de preferência:
     try {
@@ -3697,7 +3850,9 @@ function openPatientViewModal(patient) {
 
     return null;
   }
+  /* ---- FIM FUNÇÃO 06G.12 ---- */
 
+  /* ---- FUNÇÃO 06G.13 — loadAgendaNotes ---- */
   async function loadAgendaNotes() {
     try {
       // Nota da agenda é administrativa (não clínica) — pode aparecer também para secretária
@@ -3722,7 +3877,9 @@ function openPatientViewModal(patient) {
       agendaNoteRows = [];
     }
   }
+  /* ---- FIM FUNÇÃO 06G.13 ---- */
 
+  /* ---- FUNÇÃO 06G.14 — loadPhysioRecords ---- */
   async function loadPhysioRecords() {
     const s = __ps();
     const rRole = __gcRole();
@@ -3769,7 +3926,9 @@ function openPatientViewModal(patient) {
 
     s.loading = false;
   }
+  /* ---- FIM FUNÇÃO 06G.14 ---- */
 
+  /* ---- FUNÇÃO 06G.15 — loadConsultations ---- */
   async function loadConsultations() {
     timelineLoading = true;
 
@@ -3951,7 +4110,9 @@ function openPatientViewModal(patient) {
 
     timelineLoading = false;
   }
+  /* ---- FIM FUNÇÃO 06G.15 ---- */
 
+  /* ---- FUNÇÃO 06G.16 — renderDocumentsInlineForConsult ---- */
   function renderDocumentsInlineForConsult(consultId) {
     const docs = (docRows || []).filter(d => d.consultation_id && String(d.consultation_id) === String(consultId));
     if (!docs.length) return "";
@@ -3981,7 +4142,9 @@ function openPatientViewModal(patient) {
       </div>
     `;
   }
+  /* ---- FIM FUNÇÃO 06G.16 ---- */
 
+  /* ---- FUNÇÃO 06G.17 — __gcRenderPhysioComposer ---- */
   function __gcRenderPhysioComposer() {
     const s = __ps();
     if (!__gcIsPhysio()) return ""; // só physio cria/edita
@@ -4038,7 +4201,9 @@ function openPatientViewModal(patient) {
       </div>
     `;
   }
+  /* ---- FIM FUNÇÃO 06G.17 ---- */
 
+  /* ---- FUNÇÃO 06G.18 — __gcRenderPhysioItem ---- */
   function __gcRenderPhysioItem(r) {
     const d = r.created_at ? new Date(r.created_at) : null;
     const when = (d && !isNaN(d.getTime()))
@@ -4079,7 +4244,9 @@ function openPatientViewModal(patient) {
       </div>
     `;
   }
+  /* ---- FIM FUNÇÃO 06G.18 ---- */
 
+  /* ---- FUNÇÃO 06G.19 — __gcRenderAgendaNoteItem ---- */
   function __gcRenderAgendaNoteItem(r) {
     const d = r.start_at ? new Date(r.start_at) : null;
     const when = (d && !isNaN(d.getTime()))
@@ -4105,7 +4272,9 @@ function openPatientViewModal(patient) {
       </div>
     `;
   }
+  /* ---- FIM FUNÇÃO 06G.19 ---- */
 
+  /* ---- FUNÇÃO 06G.20 — renderTimeline ---- */
   function renderTimeline() {
     if (timelineLoading) return `<div style="color:#64748b;">A carregar registos...</div>`;
 
@@ -4241,7 +4410,9 @@ function openPatientViewModal(patient) {
       </div>
     `;
   }
+  /* ---- FIM FUNÇÃO 06G.20 ---- */
 
+  /* ---- FUNÇÃO 06G.21 — __gcInstallPhysioTimelineHooksOnce ---- */
   // ===== Hooks (uma vez): click actions + init Quill via MutationObserver =====
   function __gcInstallPhysioTimelineHooksOnce() {
     if (window.__gcPhysioTimelineHooksInstalled) return;
@@ -4425,17 +4596,19 @@ function openPatientViewModal(patient) {
 
     obs.observe(document.body, { childList: true, subtree: true });
   }
+  /* ---- FIM FUNÇÃO 06G.21 ---- */
 
   __gcInstallPhysioTimelineHooksOnce();
+/* ==== FIM BLOCO 06G/12 — Timeline (load + render + physio_records) ==== */
 
-/* ==== FIM BLOCO 06G/12 ==== */
 
 /* ==== INÍCIO BLOCO 06H/12 — Consulta médica (UI HDA + Quill + Spellcheck) ==== */
 
-function renderConsultFormInline() {
-  const today = new Date().toISOString().slice(0, 10);
+  /* ---- FUNÇÃO 06H.1 — renderConsultFormInline ---- */
+  function renderConsultFormInline() {
+    const today = new Date().toISOString().slice(0, 10);
 
-  return `
+    return `
     <div style="margin-top:16px; padding:16px; border:1px solid #e5e5e5; border-radius:14px;">
 
       <style>
@@ -4531,126 +4704,130 @@ function renderConsultFormInline() {
       </div>
     </div>
   `;
-}
+  }
+  /* ---- FIM FUNÇÃO 06H.1 ---- */
 
-function bindConsultEvents() {
+  /* ---- FUNÇÃO 06H.2 — bindConsultEvents ---- */
+  function bindConsultEvents() {
 
-  const qRoot = document.getElementById("hdaQuillEditor");
-  const qToolbar = document.getElementById("hdaQuillToolbar");
+    const qRoot = document.getElementById("hdaQuillEditor");
+    const qToolbar = document.getElementById("hdaQuillToolbar");
 
-  window.__gcQuillHDA = null;
+    window.__gcQuillHDA = null;
 
-  if (qRoot && window.Quill) {
+    if (qRoot && window.Quill) {
 
-    const quill = new window.Quill(qRoot, {
-      theme: "snow",
-      modules: { toolbar: qToolbar }
-    });
+      const quill = new window.Quill(qRoot, {
+        theme: "snow",
+        modules: { toolbar: qToolbar }
+      });
 
-    // 🔎 ATIVAR DICIONÁRIO (Chrome)
-    quill.root.setAttribute("spellcheck", "true");
-    quill.root.setAttribute("lang", "pt-PT");
-    quill.root.setAttribute("autocapitalize", "sentences");
+      // 🔎 ATIVAR DICIONÁRIO (Chrome)
+      quill.root.setAttribute("spellcheck", "true");
+      quill.root.setAttribute("lang", "pt-PT");
+      quill.root.setAttribute("autocapitalize", "sentences");
 
-    window.__gcQuillHDA = quill;
+      window.__gcQuillHDA = quill;
 
-    const initialHtml = String(draftHDAHtml || "");
-    if (initialHtml.trim().length) {
-      try {
-        quill.clipboard.dangerouslyPasteHTML(initialHtml);
-      } catch (_) {
-        quill.setText(initialHtml);
+      const initialHtml = String(draftHDAHtml || "");
+      if (initialHtml.trim().length) {
+        try {
+          quill.clipboard.dangerouslyPasteHTML(initialHtml);
+        } catch (_) {
+          quill.setText(initialHtml);
+        }
+      } else {
+        quill.setText("");
       }
-    } else {
-      quill.setText("");
+
+      quill.on("text-change", () => {
+        draftHDAHtml = quill.root.innerHTML || "";
+      });
+
+      draftHDAHtml = quill.root.innerHTML || "";
     }
 
-    quill.on("text-change", () => {
-      draftHDAHtml = quill.root.innerHTML || "";
+    // ===== Diagnósticos =====
+    const diagInput = document.getElementById("diagSearch");
+    if (diagInput) {
+      diagInput.oninput = (e) => {
+        const v = e?.target?.value ?? "";
+        diagQuery = v;
+        if (diagDebounceT) clearTimeout(diagDebounceT);
+        diagDebounceT = setTimeout(() => searchDiagnoses(v), 220);
+      };
+      diagInput.onfocus = () => {
+        const v = diagInput.value || "";
+        if (String(v).trim().length >= 2) searchDiagnoses(v);
+      };
+      diagInput.onkeydown = (ev) => { if (ev.key === "Enter") ev.preventDefault(); };
+    }
+
+    renderDiagArea();
+
+    // ===== Tratamentos =====
+    const pr = document.getElementById("prescriptionText");
+    if (pr) pr.oninput = (e) => { prescriptionText = e?.target?.value ?? ""; };
+
+    const tInput = document.getElementById("treatSearch");
+    if (tInput) {
+      tInput.oninput = (e) => {
+        const v = e?.target?.value ?? "";
+        treatQuery = v;
+        if (treatDebounceT) clearTimeout(treatDebounceT);
+        treatDebounceT = setTimeout(() => searchTreatments(v), 220);
+      };
+      tInput.onfocus = () => {
+        const v = tInput.value || "";
+        if (String(v).trim().length >= 2) searchTreatments(v);
+      };
+      tInput.onkeydown = (ev) => { if (ev.key === "Enter") ev.preventDefault(); };
+    }
+
+    renderTreatArea();
+
+    if (!treatResults || !treatResults.length) fetchTreatmentsDefault();
+
+    // ===== Cancelar / Gravar =====
+    document.getElementById("btnCancelConsult")?.addEventListener("click", () => {
+      creatingConsult = false;
+      render();
     });
 
-    draftHDAHtml = quill.root.innerHTML || "";
+    const btnSave = document.getElementById("btnSaveConsult");
+    if (btnSave) {
+      btnSave.disabled = !!saving;
+      btnSave.onclick = async () => {
+        if (saving) return;
+        saving = true;
+        btnSave.disabled = true;
+
+        try {
+          const quill = window.__gcQuillHDA;
+          if (quill && quill.root) draftHDAHtml = quill.root.innerHTML || "";
+        } catch (_) {}
+
+        const ok = await saveConsult();
+
+        saving = false;
+        btnSave.disabled = false;
+
+        if (ok) {
+          creatingConsult = false;
+          await loadConsultations();
+          await loadDocuments();
+          render();
+        }
+      };
+    }
   }
+  /* ---- FIM FUNÇÃO 06H.2 ---- */
+/* ==== FIM BLOCO 06H/12 — Consulta médica (UI HDA + Quill + Spellcheck) ==== */
 
-  // ===== Diagnósticos =====
-  const diagInput = document.getElementById("diagSearch");
-  if (diagInput) {
-    diagInput.oninput = (e) => {
-      const v = e?.target?.value ?? "";
-      diagQuery = v;
-      if (diagDebounceT) clearTimeout(diagDebounceT);
-      diagDebounceT = setTimeout(() => searchDiagnoses(v), 220);
-    };
-    diagInput.onfocus = () => {
-      const v = diagInput.value || "";
-      if (String(v).trim().length >= 2) searchDiagnoses(v);
-    };
-    diagInput.onkeydown = (ev) => { if (ev.key === "Enter") ev.preventDefault(); };
-  }
-
-  renderDiagArea();
-
-  // ===== Tratamentos =====
-  const pr = document.getElementById("prescriptionText");
-  if (pr) pr.oninput = (e) => { prescriptionText = e?.target?.value ?? ""; };
-
-  const tInput = document.getElementById("treatSearch");
-  if (tInput) {
-    tInput.oninput = (e) => {
-      const v = e?.target?.value ?? "";
-      treatQuery = v;
-      if (treatDebounceT) clearTimeout(treatDebounceT);
-      treatDebounceT = setTimeout(() => searchTreatments(v), 220);
-    };
-    tInput.onfocus = () => {
-      const v = tInput.value || "";
-      if (String(v).trim().length >= 2) searchTreatments(v);
-    };
-    tInput.onkeydown = (ev) => { if (ev.key === "Enter") ev.preventDefault(); };
-  }
-
-  renderTreatArea();
-
-  if (!treatResults || !treatResults.length) fetchTreatmentsDefault();
-
-  // ===== Cancelar / Gravar =====
-  document.getElementById("btnCancelConsult")?.addEventListener("click", () => {
-    creatingConsult = false;
-    render();
-  });
-
-  const btnSave = document.getElementById("btnSaveConsult");
-  if (btnSave) {
-    btnSave.disabled = !!saving;
-    btnSave.onclick = async () => {
-      if (saving) return;
-      saving = true;
-      btnSave.disabled = true;
-
-      try {
-        const quill = window.__gcQuillHDA;
-        if (quill && quill.root) draftHDAHtml = quill.root.innerHTML || "";
-      } catch (_) {}
-
-      const ok = await saveConsult();
-
-      saving = false;
-      btnSave.disabled = false;
-
-      if (ok) {
-        creatingConsult = false;
-        await loadConsultations();
-        await loadDocuments();
-        render();
-      }
-    };
-  }
-}
-
-/* ==== FIM BLOCO 06H/12 ==== */
 
 /* ==== INÍCIO BLOCO 06I/12 — saveConsult (insert + upsert ligações + reset) ==== */
 
+  /* ---- FUNÇÃO 06I.1 — saveConsult ---- */
   async function saveConsult() {
     try {
       const userRes = await window.sb.auth.getUser();
@@ -4756,12 +4933,13 @@ function bindConsultEvents() {
       return false;
     }
   }
-
-/* ==== FIM BLOCO 06I/12 ==== */
+  /* ---- FIM FUNÇÃO 06I.1 ---- */
+/* ==== FIM BLOCO 06I/12 — saveConsult (insert + upsert ligações + reset) ==== */
 
 
 /* ==== INÍCIO BLOCO 06J/12 — Render + Wiring + Boot (inclui Tel→Clínica no cabeçalho) ==== */
 
+  /* ---- FUNÇÃO 06J.1 — render ---- */
   function render() {
     root.innerHTML = `
       <div style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
@@ -4859,7 +5037,9 @@ function bindConsultEvents() {
     if (identOpen) bindIdentityEvents();
     if (docOpen) bindDocEvents();
   }
+  /* ---- FIM FUNÇÃO 06J.1 ---- */
 
+  /* ---- FUNÇÃO 06J.2 — boot ---- */
   (async function boot() {
     try {
       await fetchActiveClinic();
@@ -4870,12 +5050,15 @@ function bindConsultEvents() {
     }
     render();
   })();
+  /* ---- FIM FUNÇÃO 06J.2 ---- */
 
 } // <-- fecha openPatientViewModal
+/* ---- FIM FUNÇÃO 06B.1 ---- */
 
-/* ==== FIM BLOCO 06J/12 ==== */
+/* ==== FIM BLOCO 06J/12 — Render + Wiring + Boot (inclui Tel→Clínica no cabeçalho) ==== */
 
 /* ==== FIM BLOCO 06/12 — Modal Doente (06A–06J) ==== */
+
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
   // ---------- Novo doente (modal da página inicial) ----------
