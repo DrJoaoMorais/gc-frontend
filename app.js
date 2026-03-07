@@ -7069,10 +7069,28 @@ function openPatientViewModal(patient) {
    FIM BLOCO 09/12 — Modal marcação
    ======================================================== */
 
-/* ==== INÍCIO BLOCO 10/12 — Logout + Refresh agenda ==== */
+/* ========================================================
+   BLOCO 10/12 — Logout + Refresh agenda
+   MAPA DE NAVEGAÇÃO
+   --------------------------------------------------------
+   10A — Sessão bloqueada / auth guard
+      10A.1 __gcSessionLockActive
+      10A.2 __gcIsAuthError
+      10A.3 __gcRenderSessionLockedScreen
+      10A.4 __gcForceSessionLock
 
-  let __gcSessionLockActive = false;
+   10B — Logout
+      10B.1 wireLogout
 
+   10C — Refresh agenda
+      10C.1 refreshAgenda
+   ======================================================== */
+
+/* ==== INÍCIO BLOCO 10A — Sessão bloqueada / auth guard ==== */
+
+  const __gcSessionLockActive = false;
+
+  /* ---- FUNÇÃO 10A.2 — __gcIsAuthError ---- */
   function __gcIsAuthError(err) {
     const msg = String(
       (err && (err.message || err.error_description || err.error)) || ""
@@ -7097,7 +7115,9 @@ function openPatientViewModal(patient) {
       msg.includes("unauthorized")
     );
   }
+  /* ---- FIM FUNÇÃO 10A.2 ---- */
 
+  /* ---- FUNÇÃO 10A.3 — __gcRenderSessionLockedScreen ---- */
   function __gcRenderSessionLockedScreen(reasonText) {
     const reason = String(
       reasonText || "Sessão expirada por segurança. Volte a iniciar sessão."
@@ -7132,7 +7152,9 @@ function openPatientViewModal(patient) {
     const btnReload = document.getElementById("btnReloadLocked");
     if (btnReload) btnReload.onclick = () => window.location.reload();
   }
+  /* ---- FIM FUNÇÃO 10A.3 ---- */
 
+  /* ---- FUNÇÃO 10A.4 — __gcForceSessionLock ---- */
   async function __gcForceSessionLock(reasonText) {
     if (__gcSessionLockActive) return;
     __gcSessionLockActive = true;
@@ -7161,8 +7183,14 @@ function openPatientViewModal(patient) {
       hardRedirect("/index.html");
     }, 1500);
   }
+  /* ---- FIM FUNÇÃO 10A.4 ---- */
 
-  // ---------- Logout ----------
+/* ==== FIM BLOCO 10A — Sessão bloqueada / auth guard ==== */
+
+
+/* ==== INÍCIO BLOCO 10B — Logout ==== */
+
+  /* ---- FUNÇÃO 10B.1 — wireLogout ---- */
   async function wireLogout() {
     const btn = document.getElementById("btnLogout");
     if (!btn) return;
@@ -7182,8 +7210,14 @@ function openPatientViewModal(patient) {
       }
     });
   }
+  /* ---- FIM FUNÇÃO 10B.1 ---- */
 
-  // ---------- Refresh agenda ----------
+/* ==== FIM BLOCO 10B — Logout ==== */
+
+
+/* ==== INÍCIO BLOCO 10C — Refresh agenda ==== */
+
+  /* ---- FUNÇÃO 10C.1 — refreshAgenda ---- */
   async function refreshAgenda() {
     if (__gcSessionLockActive) return;
 
@@ -7234,12 +7268,31 @@ function openPatientViewModal(patient) {
       renderAgendaList();
     }
   }
+  /* ---- FIM FUNÇÃO 10C.1 ---- */
 
-/* ==== FIM BLOCO 10/12 — Logout + Refresh agenda ==== */
+/* ==== FIM BLOCO 10C — Refresh agenda ==== */
 
-/* ==== INÍCIO BLOCO 11/12 — Boot (init da app + wiring de botões) ==== */
+/* ========================================================
+   FIM BLOCO 10/12 — BLOCO 10/12 — Logout + Refresh agenda MAPA DE NAVEGAÇÃO
+   ======================================================== */
 
-  // ---------- Boot ----------
+/* ========================================================
+   BLOCO 11/12 — Boot (init da app + wiring de botões)
+   MAPA DE NAVEGAÇÃO
+   --------------------------------------------------------
+   11A — Boot principal
+      11A.1 boot
+
+   11B — Boot principal: MFA Gate (AAL2 obrigatório para todos)
+      11B.1 ensureAAL2
+         11B.1a esc
+         11B.1b renderMFAScreen
+         11B.1c getAAL
+   ======================================================== */
+
+/* ==== INÍCIO BLOCO 11A — Boot principal ==== */
+
+  /* ---- FUNÇÃO 11A.1 — boot ---- */
   async function boot() {
     try {
       if (!window.sb || !window.sb.auth || typeof window.sb.auth.getSession !== "function") {
@@ -7283,10 +7336,13 @@ function openPatientViewModal(patient) {
         ? authStateData.subscription
         : null;
 
-      // ===== MFA Gate (AAL2 obrigatório para TODOS) =====
+/* ==== INÍCIO BLOCO 11B — Boot principal: MFA Gate (AAL2 obrigatório para todos) ==== */
+
+      /* ---- FUNÇÃO 11B.1 — ensureAAL2 ---- */
       async function ensureAAL2() {
         const sb = window.sb;
 
+        /* ---- FUNÇÃO 11B.1a — esc ---- */
         function esc(s) {
           return String(s == null ? "" : s)
             .replace(/&/g, "&amp;")
@@ -7295,7 +7351,9 @@ function openPatientViewModal(patient) {
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
         }
+        /* ---- FIM FUNÇÃO 11B.1a ---- */
 
+        /* ---- FUNÇÃO 11B.1b — renderMFAScreen ---- */
         function renderMFAScreen({ title, subtitle, qrDataUrl, secret, uri, errorMsg }) {
           const root = document.getElementById("appRoot") || document.body;
 
@@ -7363,12 +7421,15 @@ function openPatientViewModal(patient) {
           const btnRetry = document.getElementById("btnMFARetry");
           if (btnRetry) btnRetry.onclick = () => window.location.reload();
         }
+        /* ---- FIM FUNÇÃO 11B.1b ---- */
 
+        /* ---- FUNÇÃO 11B.1c — getAAL ---- */
         async function getAAL() {
           const { data: aal, error: aalErr } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
           if (aalErr) throw aalErr;
           return aal;
         }
+        /* ---- FIM FUNÇÃO 11B.1c ---- */
 
         const aal0 = await getAAL();
         if (String(aal0.currentLevel).toLowerCase() === "aal2") return true;
@@ -7483,6 +7544,9 @@ function openPatientViewModal(patient) {
           lastErr = "Verificação concluída, mas a sessão não ficou em AAL2. Recarregue a página.";
         }
       }
+      /* ---- FIM FUNÇÃO 11B.1 ---- */
+
+/* ==== FIM BLOCO 11B — Boot principal: MFA Gate (AAL2 obrigatório para todos) ==== */
 
       await ensureAAL2();
 
@@ -7575,13 +7639,32 @@ function openPatientViewModal(patient) {
       document.body.textContent = "Erro ao iniciar a app. Abre a consola para detalhe.";
     }
   }
+  /* ---- FIM FUNÇÃO 11A.1 ---- */
 
-/* ==== FIM BLOCO 11/12 — Boot (init da app + wiring de botões) ==== */
+/* ==== FIM BLOCO 11A — Boot principal ==== */
 
-/* ==== INÍCIO BLOCO 12/12 — DOMContentLoaded + fechamento IIFE ==== */
+/* ========================================================
+   BLOCO 12/12 — DOMContentLoaded + fechamento IIFE
+   MAPA DE NAVEGAÇÃO
+   --------------------------------------------------------
+   12A — DOMContentLoaded
+      12A.1 document.addEventListener("DOMContentLoaded", boot)
 
+   12B — Fechamento IIFE
+      12B.1 fechamento da IIFE
+   ======================================================== */
+
+/* ==== INÍCIO BLOCO 12A — DOMContentLoaded ==== */
+
+  /* ---- FUNÇÃO 12A.1 — document.addEventListener("DOMContentLoaded", boot) ---- */
   document.addEventListener("DOMContentLoaded", boot);
+  /* ---- FIM FUNÇÃO 12A.1 ---- */
+
+/* ==== FIM BLOCO 12A — DOMContentLoaded ==== */
+
+
+/* ==== INÍCIO BLOCO 12B — Fechamento IIFE ==== */
 
 })();  // Fim IIFE
 
-/* ==== FIM BLOCO 12/12 — DOMContentLoaded + fechamento IIFE ==== */
+/* ==== FIM BLOCO 12B — Fechamento IIFE ==== */
