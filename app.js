@@ -4293,143 +4293,186 @@ async function generatePdfAndUploadV1() {
   }
   /* ---- FIM FUNÇÃO 06G.19 ---- */
 
-  /* ---- FUNÇÃO 06G.20 — renderTimeline ---- */
-  function renderTimeline() {
-    if (timelineLoading) return `<div style="color:#64748b;">A carregar registos...</div>`;
+ /* ---- FUNÇÃO 06G.20 — renderTimeline ---- */
+function renderTimeline() {
+  if (timelineLoading) return `<div style="color:#64748b;">A carregar registos...</div>`;
 
-    const isSecretary = __gcIsSecretary();
+  const isSecretary = __gcIsSecretary();
 
+  const noteRows = Array.isArray(agendaNoteRows) ? agendaNoteRows : [];
+  const consultList = Array.isArray(consultRows) ? consultRows : [];
+  const physioList = Array.isArray(__ps()?.rows) ? __ps().rows : [];
+
+  const notesByAppointmentId = new Map();
+  const linkedNoteIds = new Set();
+
+  noteRows.forEach((r) => {
+    const apptId = r && r.appointment_id ? String(r.appointment_id) : "";
+    if (!apptId) return;
+    if (!notesByAppointmentId.has(apptId)) notesByAppointmentId.set(apptId, []);
+    notesByAppointmentId.get(apptId).push(r);
+  });
+
+  const items = [];
+
+  if (!isSecretary) {
+    physioList.forEach((r) => {
+      const t = r && r.created_at ? new Date(r.created_at).getTime() : 0;
+      items.push({
+        type: "physio",
+        ts: isNaN(t) ? 0 : t,
+        row: r
+      });
+    });
+  }
+
+  consultList.forEach((r) => {
+    const d = r && r.created_at ? new Date(r.created_at) : null;
+    const t = (d && !isNaN(d.getTime()))
+      ? d.getTime()
+      : (r && r.report_date ? new Date(String(r.report_date)).getTime() : 0);
+
+    items.push({
+      type: isSecretary ? "consult_header" : "consult",
+      ts: isNaN(t) ? 0 : t,
+      row: r
+    });
+
+    const apptId = r && r.appointment_id ? String(r.appointment_id) : "";
+    if (!apptId) return;
+
+    const linkedNotes = notesByAppointmentId.get(apptId) || [];
+    linkedNotes.forEach((n) => {
+      if (n && n.id) linkedNoteIds.add(String(n.id));
+    });
+  });
+
+  noteRows.forEach((r) => {
+    const noteId = r && r.id ? String(r.id) : "";
+    if (noteId && linkedNoteIds.has(noteId)) return;
+
+    const t = r && r.start_at ? new Date(r.start_at).getTime() : 0;
+    items.push({
+      type: "agenda_note",
+      ts: isNaN(t) ? 0 : t,
+      row: r
+    });
+  });
+
+  items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+  if (!items.length) {
     if (isSecretary) {
-      const items = [];
-
-      (agendaNoteRows || []).forEach(r => {
-        const t = r.start_at ? new Date(r.start_at).getTime() : 0;
-        items.push({ type: "agenda_note", ts: isNaN(t) ? 0 : t, row: r });
-      });
-
-      (consultRows || []).forEach(r => {
-        const d = r.created_at ? new Date(r.created_at) : null;
-        const t = (d && !isNaN(d.getTime())) ? d.getTime()
-          : (r.report_date ? new Date(String(r.report_date)).getTime() : 0);
-
-        items.push({ type: "consult_header", ts: isNaN(t) ? 0 : t, row: r });
-      });
-
-      items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
-
-      if (!items.length) return `<div style="color:#64748b;">Sem registos.</div>`;
-
-      return `
-        <div style="display:flex; flex-direction:column; gap:14px;">
-          ${items.map(it => {
-            if (it.type === "agenda_note") return __gcRenderAgendaNoteItem(it.row);
-
-            const r = it.row;
-            const d = r.created_at ? new Date(r.created_at) : null;
-            const when = (d && !isNaN(d.getTime()))
-              ? `${fmtDatePt(d)} às ${fmtTime(d)}`
-              : (r.report_date ? String(r.report_date) : "—");
-            const authorTxt = (r.author_name || "").trim();
-
-            return `
-              <div style="border:1px solid #e5e5e5; border-radius:14px; padding:16px;">
-                <div style="font-weight:900; font-size:16px;">
-                  Consulta — ${when}${authorTxt ? ` - ${escAttr(authorTxt)}` : ``}
-                </div>
-              </div>
-            `;
-          }).join("")}
-        </div>
-      `;
-    }
-
-    const s = __ps();
-
-    const items = [];
-
-    (agendaNoteRows || []).forEach(r => {
-      const t = r.start_at ? new Date(r.start_at).getTime() : 0;
-      items.push({ type: "agenda_note", ts: isNaN(t) ? 0 : t, row: r });
-    });
-
-    (s.rows || []).forEach(r => {
-      items.push({ type: "physio", ts: r.created_at ? new Date(r.created_at).getTime() : 0, row: r });
-    });
-
-    (consultRows || []).forEach(r => {
-      const t = r.created_at ? new Date(r.created_at).getTime()
-        : (r.report_date ? new Date(String(r.report_date)).getTime() : 0);
-
-      items.push({ type: "consult", ts: isNaN(t) ? 0 : t, row: r });
-    });
-
-    items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
-
-    if (!items.length) {
-      return `
-        <div style="display:flex; flex-direction:column; gap:14px;">
-          ${__gcRenderPhysioComposer()}
-          <div style="color:#64748b;">Sem registos.</div>
-        </div>
-      `;
+      return `<div style="color:#64748b;">Sem registos.</div>`;
     }
 
     return `
       <div style="display:flex; flex-direction:column; gap:14px;">
         ${__gcRenderPhysioComposer()}
+        <div style="color:#64748b;">Sem registos.</div>
+      </div>
+    `;
+  }
 
-        ${items.map(it => {
+  function renderLinkedAgendaNotesForConsult(consultRow) {
+    const apptId = consultRow && consultRow.appointment_id ? String(consultRow.appointment_id) : "";
+    if (!apptId) return "";
+
+    const linkedNotes = notesByAppointmentId.get(apptId) || [];
+    if (!linkedNotes.length) return "";
+
+    linkedNotes.sort((a, b) => {
+      const ta = a && a.start_at ? new Date(a.start_at).getTime() : 0;
+      const tb = b && b.start_at ? new Date(b.start_at).getTime() : 0;
+      return (tb || 0) - (ta || 0);
+    });
+
+    return linkedNotes.map((n) => __gcRenderAgendaNoteItem(n)).join("");
+  }
+
+  if (isSecretary) {
+    return `
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        ${items.map((it) => {
           if (it.type === "agenda_note") return __gcRenderAgendaNoteItem(it.row);
-          if (it.type === "physio") return __gcRenderPhysioItem(it.row);
 
           const r = it.row;
-          const d = r.created_at ? new Date(r.created_at) : null;
+          const d = r && r.created_at ? new Date(r.created_at) : null;
           const when = (d && !isNaN(d.getTime()))
             ? `${fmtDatePt(d)} às ${fmtTime(d)}`
-            : (r.report_date ? String(r.report_date) : "—");
-
-          const authorTxt = (r.author_name || "").trim();
+            : (r && r.report_date ? String(r.report_date) : "—");
+          const authorTxt = (r && r.author_name ? String(r.author_name) : "").trim();
 
           return `
+            ${renderLinkedAgendaNotesForConsult(r)}
             <div style="border:1px solid #e5e5e5; border-radius:14px; padding:16px;">
               <div style="font-weight:900; font-size:16px;">
                 Consulta — ${when}${authorTxt ? ` - ${escAttr(authorTxt)}` : ``}
               </div>
-
-              <div style="margin-top:10px; line-height:1.55; font-size:15px;">
-                ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
-              </div>
-
-              ${r.diagnoses && r.diagnoses.length ? `
-                <div style="margin-top:12px;">
-                  <div style="font-weight:900;">Diagnósticos:</div>
-                  <ul style="margin:8px 0 0 18px;">
-                    ${r.diagnoses.map(dg => `
-                      <li>${escAttr(dg.label || "—")}${dg.code ? ` <span style="color:#64748b;">(${escAttr(dg.code)})</span>` : ``}</li>
-                    `).join("")}
-                  </ul>
-                </div>
-              ` : ``}
-
-              ${r.treatments && r.treatments.length ? `
-                <div style="margin-top:12px;">
-                  <div style="font-weight:900;">Tratamentos:</div>
-                  <ul style="margin:8px 0 0 18px;">
-                    ${r.treatments.map(t => `
-                      <li>${escAttr(sentenceizeLabel(t.label || "—"))}${t.code ? ` <span style="color:#64748b;">(${escAttr(t.code)})</span>` : ``}</li>
-                    `).join("")}
-                  </ul>
-                </div>
-              ` : ``}
-
-              ${renderDocumentsInlineForConsult(r.id)}
             </div>
           `;
         }).join("")}
       </div>
     `;
   }
-  /* ---- FIM FUNÇÃO 06G.20 ---- */
+
+  return `
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      ${__gcRenderPhysioComposer()}
+
+      ${items.map((it) => {
+        if (it.type === "agenda_note") return __gcRenderAgendaNoteItem(it.row);
+        if (it.type === "physio") return __gcRenderPhysioItem(it.row);
+
+        const r = it.row;
+        const d = r && r.created_at ? new Date(r.created_at) : null;
+        const when = (d && !isNaN(d.getTime()))
+          ? `${fmtDatePt(d)} às ${fmtTime(d)}`
+          : (r && r.report_date ? String(r.report_date) : "—");
+
+        const authorTxt = (r && r.author_name ? String(r.author_name) : "").trim();
+
+        return `
+          ${renderLinkedAgendaNotesForConsult(r)}
+          <div style="border:1px solid #e5e5e5; border-radius:14px; padding:16px;">
+            <div style="font-weight:900; font-size:16px;">
+              Consulta — ${when}${authorTxt ? ` - ${escAttr(authorTxt)}` : ``}
+            </div>
+
+            <div style="margin-top:10px; line-height:1.55; font-size:15px;">
+              ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
+            </div>
+
+            ${r.diagnoses && r.diagnoses.length ? `
+              <div style="margin-top:12px;">
+                <div style="font-weight:900;">Diagnósticos:</div>
+                <ul style="margin:8px 0 0 18px;">
+                  ${r.diagnoses.map(dg => `
+                    <li>${escAttr(dg.label || "—")}${dg.code ? ` <span style="color:#64748b;">(${escAttr(dg.code)})</span>` : ``}</li>
+                  `).join("")}
+                </ul>
+              </div>
+            ` : ``}
+
+            ${r.treatments && r.treatments.length ? `
+              <div style="margin-top:12px;">
+                <div style="font-weight:900;">Tratamentos:</div>
+                <ul style="margin:8px 0 0 18px;">
+                  ${r.treatments.map(t => `
+                    <li>${escAttr(sentenceizeLabel(t.label || "—"))}${t.code ? ` <span style="color:#64748b;">(${escAttr(t.code)})</span>` : ``}</li>
+                  `).join("")}
+                </ul>
+              </div>
+            ` : ``}
+
+            ${renderDocumentsInlineForConsult(r.id)}
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+/* ---- FIM FUNÇÃO 06G.20 ---- */
 
   /* ---- FUNÇÃO 06G.21 — __gcInstallPhysioTimelineHooksOnce ---- */
   // ===== Hooks (uma vez): click actions + init Quill via MutationObserver =====
