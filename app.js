@@ -464,19 +464,43 @@
 /* ==== FIM BLOCO 01H — Logout automático por inatividade ==== */
 /* ==== FIM BLOCO 01/12 — Cabeçalho + utilitários base + helpers ==== */
 
-/* ==== INÍCIO BLOCO 02/12 — Agenda (helpers + load) + Patients (scope/search/RPC) ==== */
+/* ========================================================
+   BLOCO 02/12 — Agenda (helpers + load) + Patients (scope/search/RPC)
+   MAPA DE NAVEGAÇÃO
+   --------------------------------------------------------
+   02A — Constantes e helpers da agenda
+   02B — Load da agenda
+   02C — Scope de doentes por clínica
+   02D — Construção de filtros de pesquisa
+   02E — Pesquisa de doentes
+   02F — RPC de criação/transferência de doente
+   02G — Fetch de doentes por ID
+   02H — Fetch de doente individual
+   02I — Atualização de doente
+   ======================================================== */
 
-  // ---------- Agenda ----------
+/* ==== INÍCIO BLOCO 02A — Constantes e helpers da agenda ==== */
+  /* ---- FUNÇÃO/CONST 02A.1 — APPT_TIME_COL_CANDIDATES ---- */
   const APPT_TIME_COL_CANDIDATES = ["start_at", "starts_at", "start_time", "start_datetime", "start"];
-  const APPT_END_COL_CANDIDATES = ["end_at", "ends_at", "end_time", "end_datetime", "end"];
+  /* ---- FIM FUNÇÃO/CONST 02A.1 ---- */
 
+  /* ---- FUNÇÃO/CONST 02A.2 — APPT_END_COL_CANDIDATES ---- */
+  const APPT_END_COL_CANDIDATES = ["end_at", "ends_at", "end_time", "end_datetime", "end"];
+  /* ---- FIM FUNÇÃO/CONST 02A.2 ---- */
+
+  /* ---- FUNÇÃO 02A.3 — pickFirstExisting ---- */
   function pickFirstExisting(obj, candidates) {
     for (const k of candidates) {
       if (obj && Object.prototype.hasOwnProperty.call(obj, k) && obj[k] != null) return k;
     }
     return null;
   }
+  /* ---- FIM FUNÇÃO 02A.3 ---- */
+/* ==== FIM BLOCO 02A — Constantes e helpers da agenda ==== */
 
+
+/* ==== INÍCIO BLOCO 02B — Load da agenda ==== */
+  /* ---- FUNÇÃO 02B.1 — loadAppointmentsForRange ---- */
   async function loadAppointmentsForRange({ clinicId, startISO, endISO }) {
     let lastErr = null;
 
@@ -507,8 +531,12 @@
 
     throw lastErr || new Error("Não foi possível carregar appointments: nenhuma coluna de tempo reconhecida.");
   }
+  /* ---- FIM FUNÇÃO 02B.1 ---- */
+/* ==== FIM BLOCO 02B — Load da agenda ==== */
 
-  // ---------- Patients ----------
+
+/* ==== INÍCIO BLOCO 02C — Scope de doentes por clínica ==== */
+  /* ---- FUNÇÃO 02C.1 — listPatientIdsForScope ---- */
   async function listPatientIdsForScope({ clinicId }) {
     let q = window.sb
       .from("patient_clinic")
@@ -524,7 +552,12 @@
     const ids = (data || []).map((r) => r.patient_id).filter(Boolean);
     return { ids, rows: data || [] };
   }
+  /* ---- FIM FUNÇÃO 02C.1 ---- */
+/* ==== FIM BLOCO 02C — Scope de doentes por clínica ==== */
 
+
+/* ==== INÍCIO BLOCO 02D — Construção de filtros de pesquisa ==== */
+  /* ---- FUNÇÃO 02D.1 — buildPatientOrFilter ---- */
   function buildPatientOrFilter(termRaw) {
     const term = String(termRaw || "").trim();
     const digits = normalizeDigits(term);
@@ -564,7 +597,12 @@
 
     return uniq.join(",");
   }
+  /* ---- FIM FUNÇÃO 02D.1 ---- */
+/* ==== FIM BLOCO 02D — Construção de filtros de pesquisa ==== */
 
+
+/* ==== INÍCIO BLOCO 02E — Pesquisa de doentes ==== */
+  /* ---- FUNÇÃO 02E.1 — searchPatientsScoped ---- */
   async function searchPatientsScoped({ clinicId, q, limit = 12 }) {
     const term = (q || "").trim();
     if (!term || term.length < 2) return [];
@@ -589,67 +627,78 @@
     if (pErr) throw pErr;
     return Array.isArray(pts) ? pts : [];
   }
+  /* ---- FIM FUNÇÃO 02E.1 ---- */
+/* ==== FIM BLOCO 02E — Pesquisa de doentes ==== */
 
+
+/* ==== INÍCIO BLOCO 02F — RPC de criação/transferência de doente ==== */
+  /* ---- FUNÇÃO 02F.1 — rpcCreatePatientForClinic ---- */
   async function rpcCreatePatientForClinic(payload) {
-  const { data, error } = await window.sb.rpc("create_patient_for_clinic_v2", payload);
-  if (error) throw error;
+    const { data, error } = await window.sb.rpc("create_patient_for_clinic_v2", payload);
+    if (error) throw error;
 
-  // data = { patient_id, action }
-  const patientId = data?.patient_id || null;
-  const action = data?.action || "created";
+    // data = { patient_id, action }
+    const patientId = data?.patient_id || null;
+    const action = data?.action || "created";
 
-  if (!patientId) throw new Error("RPC create_patient_for_clinic_v2 devolveu patient_id vazio");
+    if (!patientId) throw new Error("RPC create_patient_for_clinic_v2 devolveu patient_id vazio");
 
-  if (action === "reused_transferred") {
-    const ok = confirm(
-      "Este doente já existia noutra clínica.\n\n" +
-      "Confirmas a transferência para a clínica atual?"
-    );
+    if (action === "reused_transferred") {
+      const ok = confirm(
+        "Este doente já existia noutra clínica.\n\n" +
+        "Confirmas a transferência para a clínica atual?"
+      );
 
-    if (!ok) {
-      // Reverter: manter a clínica anterior ativa (a função já desativou as anteriores).
-      // Como não sabemos qual era a anterior aqui, fazemos uma reversão segura:
-      // - desativar esta clínica
-      // - reativar a mais recente anterior (created_at desc) para este doente
-      const clinicId = payload?.p_clinic_id || payload?.clinic_id || null;
-      try {
-        if (clinicId) {
-          await window.sb
+      if (!ok) {
+        // Reverter: manter a clínica anterior ativa (a função já desativou as anteriores).
+        // Como não sabemos qual era a anterior aqui, fazemos uma reversão segura:
+        // - desativar esta clínica
+        // - reativar a mais recente anterior (created_at desc) para este doente
+        const clinicId = payload?.p_clinic_id || payload?.clinic_id || null;
+        try {
+          if (clinicId) {
+            await window.sb
+              .from("patient_clinic")
+              .update({ is_active: false })
+              .eq("patient_id", patientId)
+              .eq("clinic_id", clinicId);
+          }
+
+          const { data: prevRows } = await window.sb
             .from("patient_clinic")
-            .update({ is_active: false })
+            .select("id, clinic_id, created_at")
             .eq("patient_id", patientId)
-            .eq("clinic_id", clinicId);
+            .order("created_at", { ascending: false })
+            .limit(5);
+
+          const prev = (prevRows || []).find(r => r.clinic_id !== clinicId);
+          if (prev?.clinic_id) {
+            await window.sb
+              .from("patient_clinic")
+              .update({ is_active: true })
+              .eq("patient_id", patientId)
+              .eq("clinic_id", prev.clinic_id);
+          }
+        } catch (e) {
+          console.warn("Reversão de transferência falhou:", e);
         }
 
-        const { data: prevRows } = await window.sb
-          .from("patient_clinic")
-          .select("id, clinic_id, created_at")
-          .eq("patient_id", patientId)
-          .order("created_at", { ascending: false })
-          .limit(5);
-
-        const prev = (prevRows || []).find(r => r.clinic_id !== clinicId);
-        if (prev?.clinic_id) {
-          await window.sb
-            .from("patient_clinic")
-            .update({ is_active: true })
-            .eq("patient_id", patientId)
-            .eq("clinic_id", prev.clinic_id);
-        }
-      } catch (e) {
-        console.warn("Reversão de transferência falhou:", e);
+        // Cancelar criação/marcação
+        throw new Error("TRANSFER_CANCELLED");
       }
-
-      // Cancelar criação/marcação
-      throw new Error("TRANSFER_CANCELLED");
     }
-  }
 
-  // Para manter compatibilidade com o resto do código:
-  // - antes devolvia UUID direto
-  // - agora devolvemos só o UUID
-  return patientId;
-}
+    // Para manter compatibilidade com o resto do código:
+    // - antes devolvia UUID direto
+    // - agora devolvemos só o UUID
+    return patientId;
+  }
+  /* ---- FIM FUNÇÃO 02F.1 ---- */
+/* ==== FIM BLOCO 02F — RPC de criação/transferência de doente ==== */
+
+
+/* ==== INÍCIO BLOCO 02G — Fetch de doentes por ID ==== */
+  /* ---- FUNÇÃO 02G.1 — fetchPatientsByIds ---- */
   async function fetchPatientsByIds(patientIds) {
     const ids = Array.from(new Set((patientIds || []).filter(Boolean)));
     if (ids.length === 0) return {};
@@ -674,7 +723,12 @@
     }
     return out;
   }
+  /* ---- FIM FUNÇÃO 02G.1 ---- */
+/* ==== FIM BLOCO 02G — Fetch de doentes por ID ==== */
 
+
+/* ==== INÍCIO BLOCO 02H — Fetch de doente individual ==== */
+  /* ---- FUNÇÃO 02H.1 — fetchPatientById ---- */
   async function fetchPatientById(patientId) {
     if (!patientId) return null;
     const { data, error } = await window.sb
@@ -689,7 +743,12 @@
     if (!data || data.length === 0) return null;
     return data[0];
   }
+  /* ---- FIM FUNÇÃO 02H.1 ---- */
+/* ==== FIM BLOCO 02H — Fetch de doente individual ==== */
 
+
+/* ==== INÍCIO BLOCO 02I — Atualização de doente ==== */
+  /* ---- FUNÇÃO 02I.1 — updatePatient ---- */
   async function updatePatient(patientId, payload) {
     if (!patientId) throw new Error("patientId em falta");
     const { data, error } = await window.sb
@@ -705,12 +764,25 @@
     if (!data || data.length === 0) return null;
     return data[0];
   }
+  /* ---- FIM FUNÇÃO 02I.1 ---- */
+/* ==== FIM BLOCO 02I — Atualização de doente ==== */
 
 /* ==== FIM BLOCO 02/12 — Agenda (helpers + load) + Patients (scope/search/RPC) ==== */
 
-/* ==== INÍCIO BLOCO 03/12 — Constantes (procedimentos/status) + estado global + render shell (HTML+CSS) ==== */
+/* ========================================================
+   BLOCO 03/12 — Constantes (procedimentos/status) + estado global + render shell (HTML+CSS)
+   MAPA DE NAVEGAÇÃO
+   --------------------------------------------------------
+   03A — Constantes de procedimentos
+   03B — Constantes de estados/status
+   03C — Constantes de duração
+   03D — Metadata de estado
+   03E — Estado global da app
+   03F — Render shell (HTML + CSS)
+   ======================================================== */
 
-  // ---------- Tipos / Status / Duração ----------
+/* ==== INÍCIO BLOCO 03A — Constantes de procedimentos ==== */
+  /* ---- FUNÇÃO/CONST 03A.1 — PROCEDURE_OPTIONS ---- */
   const PROCEDURE_OPTIONS = [
     "🆕 Primeira Consulta",
     "🔁 Consulta de Reavaliação",
@@ -721,11 +793,26 @@
     "🖋️ Relatórios",
     "📌Outro",
   ];
+  /* ---- FIM FUNÇÃO/CONST 03A.1 ---- */
+/* ==== FIM BLOCO 03A — Constantes de procedimentos ==== */
 
+
+/* ==== INÍCIO BLOCO 03B — Constantes de estados/status ==== */
+  /* ---- FUNÇÃO/CONST 03B.1 — STATUS_OPTIONS ---- */
   const STATUS_OPTIONS = ["scheduled", "arrived", "done", "no_show", "confirmed"];
+  /* ---- FIM FUNÇÃO/CONST 03B.1 ---- */
+/* ==== FIM BLOCO 03B — Constantes de estados/status ==== */
 
+
+/* ==== INÍCIO BLOCO 03C — Constantes de duração ==== */
+  /* ---- FUNÇÃO/CONST 03C.1 — DURATION_OPTIONS ---- */
   const DURATION_OPTIONS = [15, 20, 30, 45, 60];
+  /* ---- FIM FUNÇÃO/CONST 03C.1 ---- */
+/* ==== FIM BLOCO 03C — Constantes de duração ==== */
 
+
+/* ==== INÍCIO BLOCO 03D — Metadata de estado ==== */
+  /* ---- FUNÇÃO 03D.1 — statusMeta ---- */
   function statusMeta(statusRaw) {
     const s = String(statusRaw || "scheduled").toLowerCase();
     const map = {
@@ -737,7 +824,12 @@
     };
     return map[s] || map.scheduled;
   }
+  /* ---- FIM FUNÇÃO 03D.1 ---- */
+/* ==== FIM BLOCO 03D — Metadata de estado ==== */
 
+
+/* ==== INÍCIO BLOCO 03E — Estado global da app ==== */
+  /* ---- FUNÇÃO/STATE 03E.1 — G ---- */
   var G = window.G = {
     sessionUser: null,
     role: null,
@@ -749,7 +841,12 @@
     patientsById: {},
     patientQuick: { lastResults: [], selected: null },
   };
+  /* ---- FIM FUNÇÃO/STATE 03E.1 ---- */
+/* ==== FIM BLOCO 03E — Estado global da app ==== */
 
+
+/* ==== INÍCIO BLOCO 03F — Render shell (HTML + CSS) ==== */
+  /* ---- FUNÇÃO 03F.1 — renderAppShell ---- */
   function renderAppShell() {
     document.body.innerHTML = `
       <style>
@@ -907,8 +1004,11 @@
       </div>
     `;
   }
+  /* ---- FIM FUNÇÃO 03F.1 ---- */
+/* ==== FIM BLOCO 03F — Render shell (HTML + CSS) ==== */
 
-/* ==== FIM BLOCO 03/12 ==== */
+/* ==== FIM BLOCO 03/12 — Constantes (procedimentos/status) + estado global + render shell (HTML+CSS) ==== */
+
 /* ==== INÍCIO BLOCO 04/12 — Helpers UI Agenda + abrir doente + update status + renderAgendaList ==== */
 
   function setAgendaSubtitleForSelectedDay() {
