@@ -5218,17 +5218,17 @@ function render() {
                   border:1px solid #e5e5e5; padding:16px; overflow:auto;">
 
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div style="font-weight:900; font-size:18px;">Feed do Doente</div>
+          <div style="font-weight:900;">Feed do Doente</div>
           <button id="btnClosePView" class="gcBtn">Fechar</button>
         </div>
 
-        <div style="margin-top:14px; display:flex; justify-content:space-between; gap:18px; flex-wrap:wrap; align-items:flex-start;">
-          <div style="flex:1; min-width:320px;">
-            <div style="font-weight:900; font-size:20px; line-height:1.2;">
+        <div style="margin-top:12px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <div>
+            <div style="font-weight:900; font-size:18px;">
               ${escAttr(p.full_name || "—")}${birthdayBadgeToday()}
             </div>
 
-            <div style="margin-top:8px; color:#475569; display:flex; gap:14px; flex-wrap:wrap; line-height:1.5;">
+            <div style="margin-top:6px; color:#475569; display:flex; gap:14px; flex-wrap:wrap;">
               <div><b>Telefone:</b> ${escAttr(p.phone || "—")}</div>
               <div><b>Clínica:</b> ${escAttr(activeClinicName || "—")}</div>
               <div><b>SNS:</b> ${escAttr(p.sns || "—")}</div>
@@ -5239,96 +5239,20 @@ function render() {
           </div>
 
           <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
-            <button
-              id="btnViewIdent"
-              class="gcBtn"
-              style="
-                font-weight:700;
-                background:#ffffff;
-                border:1px solid #d4d4d8;
-                color:#111827;
-              "
-            >
-              Ver Identificação
-            </button>
-
-            <button
-              id="btnEditIdent"
-              class="gcBtn"
-              style="
-                font-weight:800;
-                background:#f8fafc;
-                border:1px solid #cbd5e1;
-                color:#0f172a;
-              "
-            >
-              Editar Dados
-            </button>
+            <button id="btnViewIdent" class="gcBtn">Ver Identificação</button>
+            <button id="btnEditIdent" class="gcBtn" style="font-weight:900;">Editar Dados</button>
           </div>
         </div>
 
-        <div style="margin-top:16px; padding-top:14px; border-top:1px solid #e5e5e5;">
-          <div style="font-size:12px; font-weight:800; letter-spacing:.04em; color:#64748b; text-transform:uppercase; margin-bottom:10px;">
-            Ações médicas
-          </div>
+        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          ${isDoctor() && !creatingConsult ? `
+            <button id="btnNewConsult" class="gcBtn" style="font-weight:900;">Consulta Médica</button>
+            <button id="btnMedicalReports" class="gcBtn" style="font-weight:900;">Relatórios</button>
+            <button id="btnComplementaryExams" class="gcBtn" style="font-weight:900;">Exames Complementares Diagnóstico</button>
+            <button id="btnAnalyses" class="gcBtn" style="font-weight:900;">Análises</button>
+          ` : ``}
 
-          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-            ${isDoctor() && !creatingConsult ? `
-              <button
-                id="btnNewConsult"
-                class="gcBtn"
-                style="
-                  font-weight:800;
-                  background:#eff6ff;
-                  border:1px solid #bfdbfe;
-                  color:#1d4ed8;
-                "
-              >
-                Consulta Médica
-              </button>
-
-              <button
-                id="btnMedicalReports"
-                class="gcBtn"
-                style="
-                  font-weight:700;
-                  background:#ffffff;
-                  border:1px solid #d4d4d8;
-                  color:#111827;
-                "
-              >
-                Relatórios
-              </button>
-
-              <button
-                id="btnComplementaryExams"
-                class="gcBtn"
-                style="
-                  font-weight:700;
-                  background:#ffffff;
-                  border:1px solid #d4d4d8;
-                  color:#111827;
-                "
-              >
-                Exames Complementares Diagnóstico
-              </button>
-
-              <button
-                id="btnAnalyses"
-                class="gcBtn"
-                style="
-                  font-weight:700;
-                  background:#ffffff;
-                  border:1px solid #d4d4d8;
-                  color:#111827;
-                "
-              >
-                Análises
-              </button>
-            ` : ``}
-
-            ${docsLoading ? `<div style="color:#64748b;">A carregar PDFs…</div>` : ``}
-          </div>
+          ${docsLoading ? `<div style="color:#64748b;">A carregar PDFs…</div>` : ``}
         </div>
 
         ${creatingConsult ? renderConsultFormInline() : ""}
