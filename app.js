@@ -5575,22 +5575,35 @@ function openPatientViewModal(patient) {
 
 /* ==== FIM BLOCO 08/12 — Pesquisa rápida (wiring) + Calendário mensal overlay ==== */
 
-/* ==== INÍCIO BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
+/* ========================================================
+   BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save)
+   MAPA DE NAVEGAÇÃO
+   --------------------------------------------------------
+   09A — Helpers base + GCAL + datas/horas
+   09B — Transferência automática de doente entre clínicas
+   09C — openApptModal: render UI + refs DOM + wiring base
+   09D — openApptModal: pesquisa doente + novo doente interno + UI dinâmica
+   09E — openApptModal: eliminar + guardar consulta/bloqueio + wiring final
+   ======================================================== */
 
-/* ==== INÍCIO BLOCO 09A/12 — Helpers base + GCAL + datas/horas ==== */
+/* ==== INÍCIO BLOCO 09A — Helpers base + GCAL + datas/horas ==== */
 
-  // ---------- Modal marcação ----------
+  /* ---- FUNÇÃO 09A.1 — closeModal ---- */
   function closeModal() {
     closeModalRoot();
   }
+  /* ---- FIM FUNÇÃO 09A.1 ---- */
 
+  /* ---- FUNÇÃO 09A.2 — calcEndFromStartAndDuration ---- */
   function calcEndFromStartAndDuration(startLocalStr, durMin) {
     const s = fromLocalInputValue(startLocalStr);
     if (!s || isNaN(s.getTime())) return null;
     const e = new Date(s.getTime() + durMin * 60000);
     return { startAt: s.toISOString(), endAt: e.toISOString() };
   }
+  /* ---- FIM FUNÇÃO 09A.2 ---- */
 
+  /* ---- FUNÇÃO 09A.3 — makeAutoTitle ---- */
   function makeAutoTitle(patientName, procType) {
     const n = (patientName || "").trim();
     const p = (procType || "").trim();
@@ -5598,24 +5611,34 @@ function openPatientViewModal(patient) {
     if (!p || p === "—") return n;
     return `${n} — ${p}`;
   }
+  /* ---- FIM FUNÇÃO 09A.3 ---- */
 
+  /* ---- FUNÇÃO 09A.4 — __gcGetGcalSyncDayUrl ---- */
   function __gcGetGcalSyncDayUrl() {
     return "https://gc-gcal.dr-joao-morais.workers.dev/sync-day";
   }
+  /* ---- FIM FUNÇÃO 09A.4 ---- */
 
+  /* ---- FUNÇÃO 09A.5 — __gcNormalizeDayISO ---- */
   function __gcNormalizeDayISO(v) {
     const d = String(v || "").slice(0, 10);
     return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : "";
   }
+  /* ---- FIM FUNÇÃO 09A.5 ---- */
 
+  /* ---- FUNÇÃO 09A.6 — __gcUniqueDays ---- */
   function __gcUniqueDays(days) {
     return Array.from(new Set((days || []).map(__gcNormalizeDayISO).filter(Boolean)));
   }
+  /* ---- FIM FUNÇÃO 09A.6 ---- */
 
+  /* ---- FUNÇÃO 09A.7 — __gcFireSyncDay ---- */
   function __gcFireSyncDay(dayISO) {
     return __gcFireSyncDays([dayISO]);
   }
+  /* ---- FIM FUNÇÃO 09A.7 ---- */
 
+  /* ---- FUNÇÃO 09A.8 — __gcFireSyncDays ---- */
   function __gcFireSyncDays(dayISOs) {
     try {
       const url = __gcGetGcalSyncDayUrl();
@@ -5670,11 +5693,15 @@ function openPatientViewModal(patient) {
       console.warn("[GCAL] sync-day exceção:", e?.message || e);
     }
   }
+  /* ---- FIM FUNÇÃO 09A.8 ---- */
 
+  /* ---- FUNÇÃO 09A.9 — __gcPad2 ---- */
   function __gcPad2(n) {
     return String(n).padStart(2, "0");
   }
+  /* ---- FIM FUNÇÃO 09A.9 ---- */
 
+  /* ---- FUNÇÃO 09A.10 — __gcToDateInput ---- */
   function __gcToDateInput(d) {
     try {
       const x = (d instanceof Date) ? d : new Date(d);
@@ -5684,7 +5711,9 @@ function openPatientViewModal(patient) {
       return "";
     }
   }
+  /* ---- FIM FUNÇÃO 09A.10 ---- */
 
+  /* ---- FUNÇÃO 09A.11 — __gcToTimeInput ---- */
   function __gcToTimeInput(d) {
     try {
       const x = (d instanceof Date) ? d : new Date(d);
@@ -5694,7 +5723,9 @@ function openPatientViewModal(patient) {
       return "";
     }
   }
+  /* ---- FIM FUNÇÃO 09A.11 ---- */
 
+  /* ---- FUNÇÃO 09A.12 — __gcLocalDateTimeToIso ---- */
   function __gcLocalDateTimeToIso(dateYYYYMMDD, timeHHMM) {
     if (!dateYYYYMMDD) return null;
     const t = timeHHMM || "00:00";
@@ -5703,7 +5734,9 @@ function openPatientViewModal(patient) {
     if (isNaN(d.getTime())) return null;
     return d.toISOString();
   }
+  /* ---- FIM FUNÇÃO 09A.12 ---- */
 
+  /* ---- FUNÇÃO 09A.13 — __gcAddDaysYYYYMMDD ---- */
   function __gcAddDaysYYYYMMDD(dateYYYYMMDD, add) {
     try {
       const d = new Date(`${dateYYYYMMDD}T00:00:00`);
@@ -5714,19 +5747,23 @@ function openPatientViewModal(patient) {
       return dateYYYYMMDD;
     }
   }
+  /* ---- FIM FUNÇÃO 09A.13 ---- */
 
+  /* ---- FUNÇÃO 09A.14 — __gcCmpYYYYMMDD ---- */
   function __gcCmpYYYYMMDD(a, b) {
     if (!a || !b) return 0;
     if (a < b) return -1;
     if (a > b) return 1;
     return 0;
   }
+  /* ---- FIM FUNÇÃO 09A.14 ---- */
 
-/* ==== FIM BLOCO 09A/12 — Helpers base + GCAL + datas/horas ==== */
+/* ==== FIM BLOCO 09A — Helpers base + GCAL + datas/horas ==== */
 
 
-/* ==== INÍCIO BLOCO 09B/12 — Transferência automática de doente entre clínicas ==== */
+/* ==== INÍCIO BLOCO 09B — Transferência automática de doente entre clínicas ==== */
 
+  /* ---- FUNÇÃO 09B.1 — fetchPatientIdentifiers ---- */
   async function fetchPatientIdentifiers(patientId) {
     try {
       const { data, error } = await window.sb
@@ -5743,7 +5780,9 @@ function openPatientViewModal(patient) {
       return null;
     }
   }
+  /* ---- FIM FUNÇÃO 09B.1 ---- */
 
+  /* ---- FUNÇÃO 09B.2 — fetchActiveClinicForPatient ---- */
   async function fetchActiveClinicForPatient(patientId) {
     try {
       const { data, error } = await window.sb
@@ -5761,7 +5800,9 @@ function openPatientViewModal(patient) {
       return null;
     }
   }
+  /* ---- FIM FUNÇÃO 09B.2 ---- */
 
+  /* ---- FUNÇÃO 09B.3 — buildTransferConfirmText ---- */
   function buildTransferConfirmText({ patient, fromClinicName, toClinicName }) {
     const name = (patient?.full_name || "").trim() || "—";
     const parts = [];
@@ -5785,7 +5826,9 @@ function openPatientViewModal(patient) {
 
     return parts.join("\n");
   }
+  /* ---- FIM FUNÇÃO 09B.3 ---- */
 
+  /* ---- FUNÇÃO 09B.4 — ensurePatientActiveInClinic ---- */
   async function ensurePatientActiveInClinic({ patientId, targetClinicId }) {
     const pid = String(patientId || "");
     const cid = String(targetClinicId || "");
@@ -5855,7 +5898,9 @@ function openPatientViewModal(patient) {
       throw e;
     }
   }
+  /* ---- FIM FUNÇÃO 09B.4 ---- */
 
+  /* ---- FUNÇÃO 09B.5 — maybeTransferPatientToClinic ---- */
   async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
     const activeClinicId = await fetchActiveClinicForPatient(patientId);
 
@@ -5878,12 +5923,14 @@ function openPatientViewModal(patient) {
     await ensurePatientActiveInClinic({ patientId, targetClinicId });
     return { changed: true };
   }
+  /* ---- FIM FUNÇÃO 09B.5 ---- */
 
-/* ==== FIM BLOCO 09B/12 — Transferência automática de doente entre clínicas ==== */
+/* ==== FIM BLOCO 09B — Transferência automática de doente entre clínicas ==== */
 
 
-/* ==== INÍCIO BLOCO 09C/12 — openApptModal: render UI + refs DOM + wiring base ==== */
+/* ==== INÍCIO BLOCO 09C — openApptModal: render UI + refs DOM + wiring base ==== */
 
+  /* ---- FUNÇÃO 09C.1 — openApptModal ---- */
   function openApptModal({ mode, row }) {
     const root = document.getElementById("modalRoot");
     if (!root) return;
@@ -6314,9 +6361,10 @@ function openPatientViewModal(patient) {
       if (isEdit && apptModeInit === "bloqueio" && !canCreateBlocks) mMode.disabled = true;
     }
 
-/* ==== FIM BLOCO 09C/12 — openApptModal: render UI + refs DOM + wiring base ==== */
+/* ==== FIM BLOCO 09C — openApptModal: render UI + refs DOM + wiring base ==== */
 
-/* ==== INÍCIO BLOCO 09D/12 — Pesquisa doente + novo doente interno + UI dinâmica ==== */
+
+/* ==== INÍCIO BLOCO 09D — openApptModal: pesquisa doente + novo doente interno + UI dinâmica ==== */
 
     function setSelectedPatient({ id, name }) {
       if (mPatientId) mPatientId.value = id || "";
@@ -6781,10 +6829,10 @@ function openPatientViewModal(patient) {
 
     if (btnNewPatient) btnNewPatient.addEventListener("click", openNewPatientForm);
 
-/* ==== FIM BLOCO 09D/12 — Pesquisa doente + novo doente interno + UI dinâmica ==== */
+/* ==== FIM BLOCO 09D — openApptModal: pesquisa doente + novo doente interno + UI dinâmica ==== */
 
 
-/* ==== INÍCIO BLOCO 09E/12 — Eliminar + Guardar consulta/bloqueio + wiring final ==== */
+/* ==== INÍCIO BLOCO 09E — openApptModal: eliminar + guardar consulta/bloqueio + wiring final ==== */
 
     async function onDeleteAppt() {
       if (!canDeleteAppt || !row?.id) return;
@@ -7013,9 +7061,13 @@ function openPatientViewModal(patient) {
       });
     }
   }
+  /* ---- FIM FUNÇÃO 09C.1 ---- */
 
-/* ==== FIM BLOCO 09E/12 — Eliminar + Guardar consulta/bloqueio + wiring final ==== */
-/* ==== FIM BLOCO 09/12 — Modal marcação (helpers + UI + pesquisa + novo doente interno + save) ==== */
+/* ==== FIM BLOCO 09E — openApptModal: eliminar + guardar consulta/bloqueio + wiring final ==== */
+
+/* ========================================================
+   FIM BLOCO 09/12 — Modal marcação
+   ======================================================== */
 
 /* ==== INÍCIO BLOCO 10/12 — Logout + Refresh agenda ==== */
 
