@@ -5156,11 +5156,21 @@ function render() {
 
   if (isDoctor() && !creatingConsult) {
     document.getElementById("btnNewConsult")?.addEventListener("click", () => {
+      editingConsultId = null;
+      editingConsultRow = null;
       creatingConsult = true;
       render();
       bindConsultEvents();
     });
   }
+
+  document.querySelectorAll('[data-action="edit-consult"]').forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const consultId = btn.getAttribute("data-consult-id") || "";
+      if (!consultId) return;
+      openConsultForEdit(consultId);
+    });
+  });
 
   const btnEditDoc = document.getElementById("btnEditDocument");
   if (btnEditDoc) {
