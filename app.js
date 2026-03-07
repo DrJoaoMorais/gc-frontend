@@ -5247,10 +5247,9 @@ function render() {
         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
           ${isDoctor() && !creatingConsult ? `
             <button id="btnNewConsult" class="gcBtn" style="font-weight:900;">Consulta Médica</button>
-          ` : ``}
-
-          ${isDoctor() && lastSavedConsultId ? `
-            <button id="btnEditDocument" class="gcBtn" style="font-weight:900;">Editar Documento</button>
+            <button id="btnMedicalReports" class="gcBtn" style="font-weight:900;">Relatórios</button>
+            <button id="btnComplementaryExams" class="gcBtn" style="font-weight:900;">Exames Complementares Diagnóstico</button>
+            <button id="btnAnalyses" class="gcBtn" style="font-weight:900;">Análises</button>
           ` : ``}
 
           ${docsLoading ? `<div style="color:#64748b;">A carregar PDFs…</div>` : ``}
@@ -5331,44 +5330,6 @@ function render() {
       openDocumentEditor(html);
     });
   });
-
-  const btnEditDoc = document.getElementById("btnEditDocument");
-  if (btnEditDoc) {
-    btnEditDoc.onclick = async () => {
-      const userRes = await window.sb.auth.getUser();
-      const userId = userRes?.data?.user?.id;
-
-      const consult = (consultRows || []).find(x => String(x.id) === String(lastSavedConsultId));
-      if (!consult) { alert("Consulta não encontrada."); return; }
-
-      const clinic = await fetchClinicForPdf();
-      const authorName = userId ? await fetchCurrentUserDisplayName(userId) : "";
-
-      let vinhetaUrl = "";
-      try {
-        const vinhetaSignedUrl = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
-        console.log("VINHETA signed URL:", vinhetaSignedUrl);
-
-        if (vinhetaSignedUrl) {
-          vinhetaUrl = await urlToDataUrl(vinhetaSignedUrl, "image/png");
-        }
-
-        console.log("VINHETA data URL prefix:", vinhetaUrl ? vinhetaUrl.slice(0, 80) : "(vazia)");
-      } catch (e) {
-        console.warn("Editor: vinheta falhou:", e);
-        vinhetaUrl = "";
-      }
-
-      const html = buildDocV1Html({
-        clinic,
-        consult,
-        authorName,
-        vinhetaUrl
-      });
-
-      openDocumentEditor(html);
-    };
-  }
 
   if (creatingConsult) bindConsultEvents();
   if (identOpen) bindIdentityEvents();
