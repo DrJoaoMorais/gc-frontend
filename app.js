@@ -5059,9 +5059,19 @@ function openPatientViewModal(patient) {
 
 /* ==== FIM BLOCO 06/12 — Modal Doente (06A–06J) ==== */
 
-/* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
+/* ========================================================
+   BLOCO 07/12 — Novo doente (modal página inicial)
+   MAPA DE NAVEGAÇÃO
+   --------------------------------------------------------
+   07A — Abertura e render do modal
+   07B — Estado local e fecho do modal
+   07C — Validação
+   07D — Estado do botão / feedback
+   07E — Criação do doente
+   ======================================================== */
 
-  // ---------- Novo doente (modal da página inicial) ----------
+/* ==== INÍCIO BLOCO 07A — Abertura e render do modal ==== */
+  /* ---- FUNÇÃO 07A.1 — openNewPatientMainModal ---- */
   function openNewPatientMainModal({ clinicId }) {
     const root = document.getElementById("modalRoot");
     if (!root) return;
@@ -5203,16 +5213,30 @@ function openPatientViewModal(patient) {
     const npCity = document.getElementById("npCity");
     const npCountry = document.getElementById("npCountry");
     const npNotes = document.getElementById("npNotes");
+  /* ==== FIM BLOCO 07A — Abertura e render do modal ==== */
 
+
+/* ==== INÍCIO BLOCO 07B — Estado local e fecho do modal ==== */
+    /* ---- FUNÇÃO 07B.1 — setErr ---- */
     function setErr(msg) { if (npMsg) { npMsg.style.color = "#b00020"; npMsg.textContent = msg; } }
-    function setInfo(msg) { if (npMsg) { npMsg.style.color = "#666"; npMsg.textContent = msg; } }
+    /* ---- FIM FUNÇÃO 07B.1 ---- */
 
+    /* ---- FUNÇÃO 07B.2 — setInfo ---- */
+    function setInfo(msg) { if (npMsg) { npMsg.style.color = "#666"; npMsg.textContent = msg; } }
+    /* ---- FIM FUNÇÃO 07B.2 ---- */
+
+    /* ---- FUNÇÃO 07B.3 — close ---- */
     function close() { closeModalRoot(); }
+    /* ---- FIM FUNÇÃO 07B.3 ---- */
 
     if (btnClose) btnClose.addEventListener("click", close);
     if (npCancel) npCancel.addEventListener("click", close);
     if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "npMainOverlay") close(); });
+/* ==== FIM BLOCO 07B — Estado local e fecho do modal ==== */
 
+
+/* ==== INÍCIO BLOCO 07C — Validação ==== */
+    /* ---- FUNÇÃO 07C.1 — validate ---- */
     function validate() {
       const fullName = (npFullName.value || "").trim();
       if (!fullName) return { ok: false, msg: "Nome completo é obrigatório." };
@@ -5245,7 +5269,12 @@ function openPatientViewModal(patient) {
         notes: npNotes.value ? npNotes.value.trim() : null,
       };
     }
+    /* ---- FIM FUNÇÃO 07C.1 ---- */
+/* ==== FIM BLOCO 07C — Validação ==== */
 
+
+/* ==== INÍCIO BLOCO 07D — Estado do botão / feedback ==== */
+    /* ---- FUNÇÃO 07D.1 — refreshButtonState ---- */
     function refreshButtonState() {
       if (npSNS) { const d = normalizeDigits(npSNS.value); if (npSNS.value !== d) npSNS.value = d; }
       if (npNIF) { const d = normalizeDigits(npNIF.value); if (npNIF.value !== d) npNIF.value = d; }
@@ -5254,6 +5283,7 @@ function openPatientViewModal(patient) {
       if (!v.ok) { npCreate.disabled = true; setErr(v.msg); }
       else { npCreate.disabled = false; setInfo("OK para criar."); }
     }
+    /* ---- FIM FUNÇÃO 07D.1 ---- */
 
     [
       npFullName, npDob, npPhone, npEmail, npSNS, npNIF, npPassport,
@@ -5263,7 +5293,10 @@ function openPatientViewModal(patient) {
       el.addEventListener("input", refreshButtonState);
       el.addEventListener("change", refreshButtonState);
     });
+/* ==== FIM BLOCO 07D — Estado do botão / feedback ==== */
 
+
+/* ==== INÍCIO BLOCO 07E — Criação do doente ==== */
     if (npCreate) {
       npCreate.addEventListener("click", async () => {
         const v = validate();
@@ -5341,11 +5374,22 @@ function openPatientViewModal(patient) {
     setInfo("Preenche o Nome e um identificador (SNS/NIF/Passaporte).");
     refreshButtonState();
   }
+  /* ---- FIM FUNÇÃO 07A.1 ---- */
+/* ==== FIM BLOCO 07E — Criação do doente ==== */
 
 /* ==== FIM BLOCO 07/12 — Novo doente (modal página inicial) ==== */
-/* ==== INÍCIO BLOCO 08/12 — Pesquisa rápida (wiring) + Calendário mensal overlay ==== */
 
-  // ---------- Pesquisa rápida: wiring ----------
+/* ========================================================
+   BLOCO 08/12 — Pesquisa rápida (wiring) + Calendário mensal overlay
+   MAPA DE NAVEGAÇÃO
+   --------------------------------------------------------
+   08A — Wiring da pesquisa rápida
+   08B — Helpers do calendário mensal
+   08C — Interface do calendário mensal
+   ======================================================== */
+
+/* ==== INÍCIO BLOCO 08A — Wiring da pesquisa rápida ==== */
+  /* ---- FUNÇÃO 08A.1 — wireQuickPatientSearch ---- */
   async function wireQuickPatientSearch() {
     const input = document.getElementById("pQuickQuery");
     const resHost = document.getElementById("pQuickResults");
@@ -5399,13 +5443,19 @@ function openPatientViewModal(patient) {
 
     input.addEventListener("input", schedule);
   }
+  /* ---- FIM FUNÇÃO 08A.1 ---- */
+/* ==== FIM BLOCO 08A — Wiring da pesquisa rápida ==== */
 
-  // ---------- Calendário mensal overlay ----------
+
+/* ==== INÍCIO BLOCO 08B — Helpers do calendário mensal ==== */
+  /* ---- FUNÇÃO 08B.1 — monthLabel ---- */
   function monthLabel(d) {
     const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
     return `${months[d.getMonth()]} ${d.getFullYear()}`;
   }
+  /* ---- FIM FUNÇÃO 08B.1 ---- */
 
+  /* ---- FUNÇÃO 08B.2 — buildMonthGrid ---- */
   function buildMonthGrid(monthDate) {
     const y = monthDate.getFullYear();
     const m = monthDate.getMonth();
@@ -5425,7 +5475,12 @@ function openPatientViewModal(patient) {
 
     return cells;
   }
+  /* ---- FIM FUNÇÃO 08B.2 ---- */
+/* ==== FIM BLOCO 08B — Helpers do calendário mensal ==== */
 
+
+/* ==== INÍCIO BLOCO 08C — Interface do calendário mensal ==== */
+  /* ---- FUNÇÃO 08C.1 — openCalendarOverlay ---- */
   function openCalendarOverlay() {
     const root = document.getElementById("modalRoot");
     if (!root) return;
@@ -5515,6 +5570,8 @@ function openPatientViewModal(patient) {
       });
     });
   }
+  /* ---- FIM FUNÇÃO 08C.1 ---- */
+/* ==== FIM BLOCO 08C — Interface do calendário mensal ==== */
 
 /* ==== FIM BLOCO 08/12 — Pesquisa rápida (wiring) + Calendário mensal overlay ==== */
 
