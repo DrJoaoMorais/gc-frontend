@@ -5118,19 +5118,33 @@ async function saveConsult() {
     }
 
     if (selectedDiag && selectedDiag.length) {
-      const diagRows = selectedDiag.map(x => ({
-        consultation_id: consultId,
-        diagnosis_id: x.id
-      }));
+      const seenDiagIds = new Set();
 
-      const { error: dErr } = await window.sb
-        .from("consultation_diagnoses")
-        .insert(diagRows);
+      const diagRows = selectedDiag
+        .filter(x => x && x.id !== undefined && x.id !== null && String(x.id).trim() !== "")
+        .map(x => ({
+          consultation_id: consultId,
+          diagnosis_id: Number(x.id)
+        }))
+        .filter(row => {
+          if (!Number.isFinite(row.diagnosis_id)) return false;
+          if (seenDiagIds.has(row.diagnosis_id)) return false;
+          seenDiagIds.add(row.diagnosis_id);
+          return true;
+        });
 
-      if (dErr) {
-        console.error(dErr);
-        alert("Consulta gravada, mas houve erro a gravar diagnósticos.");
-        return false;
+      console.log("DIAG ROWS TO INSERT:", diagRows);
+
+      if (diagRows.length) {
+        const { error: dErr } = await window.sb
+          .from("consultation_diagnoses")
+          .insert(diagRows);
+
+        if (dErr) {
+          console.error("ERRO consultation_diagnoses:", dErr);
+          alert("Consulta gravada, mas houve erro a gravar diagnósticos.");
+          return false;
+        }
       }
     }
 
