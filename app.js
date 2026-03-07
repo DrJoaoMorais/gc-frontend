@@ -3631,113 +3631,132 @@ function openPatientViewModal(patient) {
   // MAIN — generate via Proxy/Worker + upload + insert
   // =========================================================
   /* ---- FUNÇÃO 06Fc.5 — generatePdfAndUploadV1 ---- */
-  async function generatePdfAndUploadV1() {
+async function generatePdfAndUploadV1() {
+  try {
+    if (!lastSavedConsultId) { alert("Sem consulta gravada para gerar PDF."); return false; }
+
+    const userRes = await window.sb.auth.getUser();
+    const userId = userRes?.data?.user?.id;
+    if (!userId) { alert("Utilizador não autenticado."); return false; }
+
+    const consult = (consultRows || []).find(x => String(x.id) === String(lastSavedConsultId));
+    if (!consult) { alert("Não encontrei a consulta no feed. Atualiza o feed e tenta novamente."); return false; }
+
+    if (!activeClinicId) { alert("Sem clínica ativa (patient_clinic)."); return false; }
+
+    const clinic = await fetchClinicForPdf();
+    if (!clinic) { alert("Não consegui carregar dados da clínica (clinics)."); return false; }
+
+    const authorName = await fetchCurrentUserDisplayName(userId);
+
+    // =========================================================
+    // VINHETA — buscar signed URL e converter para DATA URL
+    // =========================================================
+    let vinhetaUrl = "";
     try {
-      if (!lastSavedConsultId) { alert("Sem consulta gravada para gerar PDF."); return false; }
-
-      const userRes = await window.sb.auth.getUser();
-      const userId = userRes?.data?.user?.id;
-      if (!userId) { alert("Utilizador não autenticado."); return false; }
-
-      const consult = (consultRows || []).find(x => String(x.id) === String(lastSavedConsultId));
-      if (!consult) { alert("Não encontrei a consulta no feed. Atualiza o feed e tenta novamente."); return false; }
-
-      if (!activeClinicId) { alert("Sem clínica ativa (patient_clinic)."); return false; }
-
-      const clinic = await fetchClinicForPdf();
-      if (!clinic) { alert("Não consegui carregar dados da clínica (clinics)."); return false; }
-
-      const authorName = await fetchCurrentUserDisplayName(userId);
-
-      // VINHETA — signed URL curta
-      let vinhetaUrl = "";
-      try {
-        vinhetaUrl = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
-      } catch (e) {
-        console.warn("PDF: vinheta signed url falhou:", e);
-        vinhetaUrl = "";
+      const vinhetaSignedUrl = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
+      if (vinhetaSignedUrl) {
+        vinhetaUrl = await urlToDataUrl(vinhetaSignedUrl, "image/png");
       }
-
-      // LOGO
-      let clinicLogoUrl = "";
-      const rawLogo = String(clinic?.logo_url || "").trim();
-      if (rawLogo.startsWith("http") || rawLogo.startsWith("data:")) clinicLogoUrl = rawLogo;
-
-      // Sincronizar editor visual
-      if (docOpen && docMode !== "html") syncDocFromFrame();
-
-      // REGRA:
-      // PDF = HTML atual do editor
-      // Só rebuild se não houver conteúdo
-      const draftNow = String(docDraftHtml || "").trim();
-
-      if (!draftNow || draftNow.length < 80) {
-        docDraftHtml = buildDocV1Html({
-          clinic,
-          consult,
-          authorName,
-          vinhetaUrl,
-          clinicLogoUrl
-        });
-      } else {
-        docDraftHtml = applyPdfAssetsToHtml(draftNow, { clinicLogoUrl, vinhetaUrl });
-      }
-
-      const titleSafe = safeText(docTitle || "Relatório Médico");
-
-      let blob;
-      try {
-        blob = await renderPdfViaProxy(docDraftHtml);
-      } catch (e) {
-        console.error("renderPdfViaProxy falhou:", e);
-        alert(`Falha ao gerar PDF no servidor.\n${String(e?.message || e)}`);
-        return false;
-      }
-
-      if (!blob || blob.size < 5000) {
-        alert("PDF inválido ou demasiado pequeno (provável branco).");
-        return false;
-      }
-
-      const version = await getNextDocVersionForConsult(consult.id);
-      const ymd = new Date().toISOString().slice(0, 10);
-      const hms = new Date().toISOString().slice(11, 19).replaceAll(":", "");
-      const path = `clinic_${activeClinicId}/patient_${p.id}/consult_${consult.id}/v${version}_${ymd}_${hms}.pdf`;
-
-      const up = await uploadPdfToStorage({ blob, path });
-      if (!up.ok) {
-        const msg = String(up.error?.message || up.error?.error || up.error || "erro desconhecido");
-        alert(`Falhou o upload do PDF para Storage.\nDetalhe: ${msg}`);
-        return false;
-      }
-
-      const ins = await insertDocumentRow({
-        clinic_id: activeClinicId,
-        patient_id: p.id,
-        consultation_id: consult.id,
-        title: titleSafe,
-        html: "",   // continua Opção 2 (não guardar HTML editado)
-        parent_document_id: null,
-        version,
-        storage_path: path
-      });
-
-      if (!ins.ok) {
-        const msg = String(ins.error?.message || ins.error?.error || ins.error || "erro desconhecido");
-        alert(`PDF enviado para Storage, mas falhou o registo na tabela documents.\nDetalhe: ${msg}`);
-        return false;
-      }
-
-      alert("PDF (v1) criado com sucesso.");
-      return true;
-
     } catch (e) {
-      console.error("generatePdfAndUploadV1 exception:", e);
-      alert("Erro na geração/upload do PDF.");
+      console.warn("PDF: vinheta signed/data url falhou:", e);
+      vinhetaUrl = "";
+    }
+
+    // =========================================================
+    // LOGO — usar data URL se vier de storage/http; manter data: se já existir
+    // =========================================================
+    let clinicLogoUrl = "";
+    try {
+      const rawLogo = String(clinic?.logo_url || "").trim();
+
+      if (rawLogo.startsWith("data:")) {
+        clinicLogoUrl = rawLogo;
+      } else if (rawLogo.startsWith("http://") || rawLogo.startsWith("https://")) {
+        clinicLogoUrl = await urlToDataUrl(rawLogo, "image/png");
+      } else {
+        clinicLogoUrl = "";
+      }
+    } catch (e) {
+      console.warn("PDF: logo data url falhou:", e);
+      clinicLogoUrl = "";
+    }
+
+    // Sincronizar editor visual
+    if (docOpen && docMode !== "html") syncDocFromFrame();
+
+    // REGRA:
+    // PDF = HTML atual do editor
+    // Só rebuild se não houver conteúdo
+    const draftNow = String(docDraftHtml || "").trim();
+
+    if (!draftNow || draftNow.length < 80) {
+      docDraftHtml = buildDocV1Html({
+        clinic,
+        consult,
+        authorName,
+        vinhetaUrl,
+        clinicLogoUrl
+      });
+    } else {
+      docDraftHtml = applyPdfAssetsToHtml(draftNow, { clinicLogoUrl, vinhetaUrl });
+    }
+
+    const titleSafe = safeText(docTitle || "Relatório Médico");
+
+    let blob;
+    try {
+      blob = await renderPdfViaProxy(docDraftHtml);
+    } catch (e) {
+      console.error("renderPdfViaProxy falhou:", e);
+      alert(`Falha ao gerar PDF no servidor.\n${String(e?.message || e)}`);
       return false;
     }
+
+    if (!blob || blob.size < 5000) {
+      alert("PDF inválido ou demasiado pequeno (provável branco).");
+      return false;
+    }
+
+    const version = await getNextDocVersionForConsult(consult.id);
+    const ymd = new Date().toISOString().slice(0, 10);
+    const hms = new Date().toISOString().slice(11, 19).replaceAll(":", "");
+    const path = `clinic_${activeClinicId}/patient_${p.id}/consult_${consult.id}/v${version}_${ymd}_${hms}.pdf`;
+
+    const up = await uploadPdfToStorage({ blob, path });
+    if (!up.ok) {
+      const msg = String(up.error?.message || up.error?.error || up.error || "erro desconhecido");
+      alert(`Falhou o upload do PDF para Storage.\nDetalhe: ${msg}`);
+      return false;
+    }
+
+    const ins = await insertDocumentRow({
+      clinic_id: activeClinicId,
+      patient_id: p.id,
+      consultation_id: consult.id,
+      title: titleSafe,
+      html: "",
+      parent_document_id: null,
+      version,
+      storage_path: path
+    });
+
+    if (!ins.ok) {
+      const msg = String(ins.error?.message || ins.error?.error || ins.error || "erro desconhecido");
+      alert(`PDF enviado para Storage, mas falhou o registo na tabela documents.\nDetalhe: ${msg}`);
+      return false;
+    }
+
+    alert("PDF (v1) criado com sucesso.");
+    return true;
+
+  } catch (e) {
+    console.error("generatePdfAndUploadV1 exception:", e);
+    alert("Erro na geração/upload do PDF.");
+    return false;
   }
-  /* ---- FIM FUNÇÃO 06Fc.5 ---- */
+}
+/* ---- FIM FUNÇÃO 06Fc.5 ---- */
 
   /* ---- FUNÇÃO 06Fc.6 — window exports ---- */
   try {
