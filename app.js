@@ -4398,35 +4398,60 @@ function renderTimeline() {
     const consultId = r && r.id ? String(r.id) : "";
     if (!consultId) return "";
 
+    let canEdit = false;
+
+    try {
+      const created = r && r.created_at ? new Date(r.created_at).getTime() : null;
+      if (created) {
+        const now = Date.now();
+        const diffHours = (now - created) / (1000 * 60 * 60);
+        canEdit = diffHours <= 24;
+      }
+    } catch (_) {}
+
     return `
       <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
-       <button
-  class="gcBtn"
-  data-action="edit-consult"
-  data-consult-id="${escAttr(consultId)}"
-  style="
-    font-weight:900;
-    background:#eef2ff;
-    border:1px solid #c7d2fe;
-    color:#1e3a8a;
-  "
->
-  Editar Consulta
-</button>
 
-<button
-  class="gcBtn"
-  data-action="consult-report"
-  data-consult-id="${escAttr(consultId)}"
-  style="
-    font-weight:900;
-    background:#ecfdf5;
-    border:1px solid #a7f3d0;
-    color:#065f46;
-  "
->
-  Relatório da Consulta
-</button>
+        ${canEdit ? `
+          <button
+            class="gcBtn"
+            data-action="edit-consult"
+            data-consult-id="${escAttr(consultId)}"
+            style="
+              font-weight:900;
+              background:#eef2ff;
+              border:1px solid #c7d2fe;
+              color:#1e3a8a;
+            "
+          >
+            Editar Consulta
+          </button>
+        ` : `
+          <div style="
+            padding:6px 10px;
+            font-size:13px;
+            color:#64748b;
+            border:1px dashed #cbd5e1;
+            border-radius:8px;
+            background:#f8fafc;
+          ">
+            Edição indisponível (&gt;24h)
+          </div>
+        `}
+
+        <button
+          class="gcBtn"
+          data-action="consult-report"
+          data-consult-id="${escAttr(consultId)}"
+          style="
+            font-weight:900;
+            background:#ecfdf5;
+            border:1px solid #a7f3d0;
+            color:#065f46;
+          "
+        >
+          Relatório da Consulta
+        </button>
       </div>
     `;
   }
