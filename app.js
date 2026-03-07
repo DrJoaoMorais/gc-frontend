@@ -4709,6 +4709,52 @@ function renderTimeline() {
 
 /* ==== INÍCIO BLOCO 06H/12 — Consulta médica (UI HDA + Quill + Spellcheck) ==== */
 
+/* ---- FUNÇÃO 06H.0 — openConsultForEdit ---- */
+function openConsultForEdit(consultId) {
+  const row = (consultRows || []).find(x => String(x.id) === String(consultId));
+  if (!row) {
+    alert("Consulta não encontrada.");
+    return;
+  }
+
+  editingConsultId = row.id || null;
+  editingConsultRow = row || null;
+  creatingConsult = true;
+
+  draftHDAHtml = String(row.hda || "");
+
+  diagQuery = "";
+  diagLoading = false;
+  diagResults = [];
+  selectedDiag = Array.isArray(row.diagnoses)
+    ? row.diagnoses.map(d => ({
+        id: d.id,
+        label: d.label || "",
+        code: d.code || ""
+      }))
+    : [];
+
+  prescriptionText =
+    getPrescriptionTextFromPlan(row.plan_text) ||
+    "R/ 20 Sessões de Tratamentos de Medicina Fisica e de Reabilitação com:";
+
+  treatQuery = "";
+  treatLoading = false;
+  treatResults = [];
+  selectedTreat = Array.isArray(row.treatments)
+    ? row.treatments.map(t => ({
+        id: t.id,
+        label: t.label || "",
+        code: t.code || "",
+        qty: Number(t.qty || 1)
+      }))
+    : [];
+
+  render();
+  bindConsultEvents();
+}
+/* ---- FIM FUNÇÃO 06H.0 ---- */
+
   /* ---- FUNÇÃO 06H.1 — renderConsultFormInline ---- */
   function renderConsultFormInline() {
     const today = new Date().toISOString().slice(0, 10);
