@@ -5265,7 +5265,7 @@ function render() {
               <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
                 <button id="btnNewConsult" class="gcBtn" style="font-weight:800;">Consulta Médica</button>
                 <button id="btnMedicalReports" class="gcBtn">Relatórios</button>
-                <button id="btnComplementaryExams" class="gcBtn">Exames Complementares Diagnóstico</button>
+                <button id="btnComplementaryExams" class="gcBtn">Exames</button>
                 <button id="btnAnalyses" class="gcBtn">Análises</button>
               </div>
             </div>
