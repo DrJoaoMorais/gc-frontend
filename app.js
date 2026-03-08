@@ -8316,14 +8316,7 @@ async function wireLogout() {
       G.clinicsById = {};
       for (const c of G.clinics) G.clinicsById[c.id] = c;
 
-      const hdrEmail = document.getElementById("hdrEmail");
-      if (hdrEmail) hdrEmail.textContent = G.sessionUser.email || "—";
-
-      const hdrRole = document.getElementById("hdrRole");
-      if (hdrRole) hdrRole.textContent = G.role ? G.role : "—";
-
-      const hdrClinicCount = document.getElementById("hdrClinicCount");
-      if (hdrClinicCount) hdrClinicCount.textContent = String(G.clinics.length);
+           hydrateShellHeader();
 
       if (String(G.currentView || "agenda").toLowerCase() === "agenda") {
         renderClinicsSelect(G.clinics);
