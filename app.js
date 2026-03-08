@@ -2092,7 +2092,8 @@ let editingConsultRow = null;
       country: p.country || "",
       insurance_provider: p.insurance_provider || "",
       insurance_policy_number: p.insurance_policy_number || "",
-      notes: p.notes || ""
+      notes: p.notes || "",
+      active_clinic_id: activeClinicId || ""
     };
 
     render();
@@ -2113,6 +2114,10 @@ let editingConsultRow = null;
     const ro = (identMode !== "edit") ? "readonly" : "";
     const dis = (identMode !== "edit") ? "disabled" : "";
     const canEdit = (identMode === "edit");
+    const canManageClinic = role() === "doctor" || role() === "superadmin";
+    const visibleClinics = Array.isArray(G.clinics) ? G.clinics : [];
+    const currentClinicId = String(identDraft.active_clinic_id || activeClinicId || "");
+    const currentClinicName = activeClinicName || "—";
 
     return `
       <div id="identOverlay"
@@ -2129,6 +2134,31 @@ let editingConsultRow = null;
             <div style="display:flex; gap:8px;">
               <button id="btnIdentCloseTop" class="gcBtn">Fechar</button>
             </div>
+          </div>
+
+          <div style="margin-top:12px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#f8fafc;">
+            <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:8px;">
+              Clínica ativa
+            </div>
+
+            ${canManageClinic && canEdit ? `
+              <select id="id_active_clinic"
+                      style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; background:#fff;">
+                <option value="">Selecionar clínica…</option>
+                ${visibleClinics.map((c) => `
+                  <option value="${escAttr(c.id)}" ${String(c.id) === currentClinicId ? "selected" : ""}>
+                    ${escAttr(c.name || c.slug || c.id)}
+                  </option>
+                `).join("")}
+              </select>
+              <div style="margin-top:6px; font-size:12px; color:#64748b;">
+                Alteração de clínica será ligada no passo seguinte.
+              </div>
+            ` : `
+              <div style="padding:10px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; color:#111827;">
+                ${escAttr(currentClinicName)}
+              </div>
+            `}
           </div>
 
           <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
@@ -2261,6 +2291,13 @@ let editingConsultRow = null;
     bindVal("id_insurance_provider", "insurance_provider");
     bindVal("id_insurance_policy_number", "insurance_policy_number");
     bindVal("id_notes", "notes");
+
+    const selClinic = document.getElementById("id_active_clinic");
+    if (selClinic) {
+      selClinic.onchange = (e) => {
+        identDraft.active_clinic_id = e?.target?.value ?? "";
+      };
+    }
 
     const btnSave = document.getElementById("btnIdentSave");
     if (btnSave) {
