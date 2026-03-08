@@ -1011,9 +1011,12 @@
 /* ==== FIM BLOCO 03E — Estado global da app ==== */
 
 
-/* ==== INÍCIO BLOCO 03F — Render shell (HTML + CSS) ==== */
+/* ==== INÍCIO /* ==== INÍCIO BLOCO 03F — Render shell (HTML + CSS) ==== */
   /* ---- FUNÇÃO 03F.1 — renderAppShell ---- */
   function renderAppShell() {
+    const canSeeManagement = String(G.role || "").toLowerCase() === "doctor"
+      || String(G.role || "").toLowerCase() === "superadmin";
+
     document.body.innerHTML = `
       <style>
         .gcBtn { 
@@ -1100,6 +1103,13 @@
           flex: 1 1 420px;
         }
 
+        .gcHeaderActions {
+          display:flex;
+          align-items:center;
+          gap:10px;
+          flex-wrap:wrap;
+        }
+
         @media (max-width: 980px){
           .gcSearchWrap { 
             flex: 1 1 100%; 
@@ -1117,7 +1127,10 @@
             <div style="font-size:${UI.fs12}px; color:#444;"><span style="color:#666;">Clínicas:</span> <span id="hdrClinicCount">0</span></div>
           </div>
 
-          <button id="btnLogout" class="gcBtn">Logout</button>
+          <div class="gcHeaderActions">
+            ${canSeeManagement ? `<button id="btnManagement" class="gcBtn">Gestão</button>` : ``}
+            <button id="btnLogout" class="gcBtn">Logout</button>
+          </div>
         </header>
 
         <main style="margin-top:14px;">
