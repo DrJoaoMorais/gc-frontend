@@ -2069,7 +2069,7 @@ let editingConsultRow = null;
 /* ==== FIM BLOCO 06B/12 — Bootstrap + State + Helpers base (role/close/fetch/escape/format) ==== */
 
 
-/* ==== INÍCIO BLOCO 06C/12 — Identificação do doente (modal ver/editar) — SEXO REMOVIDO ==== */
+//* ==== INÍCIO BLOCO 06C/12 — Identificação do doente (modal ver/editar) — SEXO REMOVIDO ==== */
 
   /* ---- FUNÇÃO 06C.1 — openPatientIdentity ---- */
   function openPatientIdentity(mode) {
@@ -2115,6 +2115,7 @@ let editingConsultRow = null;
     const dis = (identMode !== "edit") ? "disabled" : "";
     const canEdit = (identMode === "edit");
     const canManageClinic = role() === "doctor" || role() === "superadmin";
+    const canOpenEdit = canManageClinic;
     const visibleClinics = Array.isArray(G.clinics) ? G.clinics : [];
     const currentClinicId = String(identDraft.active_clinic_id || activeClinicId || "");
     const currentClinicName = activeClinicName || "—";
@@ -2127,11 +2128,15 @@ let editingConsultRow = null;
                     max-height:92vh; overflow:auto;
                     border-radius:14px; border:1px solid #e5e5e5; padding:16px;">
 
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
             <div style="font-weight:900; font-size:16px;">
               Identificação do doente ${canEdit ? "(editar)" : "(ver)"}
             </div>
-            <div style="display:flex; gap:8px;">
+
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              ${!canEdit && canOpenEdit ? `
+                <button id="btnIdentEditTop" class="gcBtn" style="font-weight:900;">Editar</button>
+              ` : ``}
               <button id="btnIdentCloseTop" class="gcBtn">Fechar</button>
             </div>
           </div>
@@ -2265,6 +2270,11 @@ let editingConsultRow = null;
   function bindIdentityEvents() {
     const closeTop = document.getElementById("btnIdentCloseTop");
     if (closeTop) closeTop.onclick = () => closeIdentity();
+
+    const btnEditTop = document.getElementById("btnIdentEditTop");
+    if (btnEditTop) {
+      btnEditTop.onclick = () => openPatientIdentity("edit");
+    }
 
     const btnClose = document.getElementById("btnIdentClose");
     if (btnClose) btnClose.onclick = () => closeIdentity();
