@@ -7955,23 +7955,237 @@ async function wireLogout() {
    FIM BLOCO 10/12 — BLOCO 10/12 — Logout + Refresh agenda MAPA DE NAVEGAÇÃO
    ======================================================== */
 
-/* ========================================================
+   /* ========================================================
    BLOCO 11/12 — Boot (init da app + wiring de botões)
    MAPA DE NAVEGAÇÃO
    --------------------------------------------------------
-   11A — Boot principal
-      11A.1 boot
+   11A — MFA Gate (AAL2 obrigatório para todos)
+      11A.1 ensureAAL2
+         11A.1a esc
+         11A.1b renderMFAScreen
+         11A.1c getAAL
 
-   11B — Boot principal: MFA Gate (AAL2 obrigatório para todos)
-      11B.1 ensureAAL2
-         11B.1a esc
-         11B.1b renderMFAScreen
-         11B.1c getAAL
+   11B — Boot principal
+      11B.1 boot
    ======================================================== */
 
-/* ==== INÍCIO BLOCO 11A — Boot principal ==== */
 
-  /* ---- FUNÇÃO 11A.1 — boot ---- */
+/* ==== INÍCIO BLOCO 11A — MFA Gate (AAL2 obrigatório para todos) ==== */
+
+  /* ---- FUNÇÃO 11A.1 — ensureAAL2 ---- */
+  async function ensureAAL2() {
+    const sb = window.sb;
+
+    /* ---- FUNÇÃO 11A.1a — esc ---- */
+    function esc(s) {
+      return String(s == null ? "" : s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+    /* ---- FIM FUNÇÃO 11A.1a ---- */
+
+    /* ---- FUNÇÃO 11A.1b — renderMFAScreen ---- */
+    function renderMFAScreen({ title, subtitle, qrDataUrl, secret, uri, errorMsg }) {
+      const root = document.getElementById("appRoot") || document.body;
+
+      root.innerHTML = `
+        <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#0b1220;color:#e7eefc;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
+          <div style="width:100%;max-width:520px;background:#111a2e;border:1px solid rgba(255,255,255,.10);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:20px 18px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div>
+                <div style="font-size:16px;font-weight:700;letter-spacing:.2px;">${esc(title || "Dupla autenticação obrigatória")}</div>
+                <div style="margin-top:4px;font-size:13px;opacity:.9;line-height:1.35;">${esc(subtitle || "Introduza o código da sua app autenticadora para continuar.")}</div>
+              </div>
+              <button id="btnMFALogout" style="border:1px solid rgba(255,255,255,.18);background:transparent;color:#e7eefc;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer;">Sair</button>
+            </div>
+
+            <div style="margin-top:14px;border-top:1px solid rgba(255,255,255,.10);padding-top:14px;">
+              ${qrDataUrl ? `
+                <div style="display:flex;gap:14px;flex-wrap:wrap;">
+                  <div style="background:#fff;border-radius:12px;padding:10px;">
+                    <img alt="QR TOTP" src="${qrDataUrl}" style="display:block;width:170px;height:170px;object-fit:contain;" />
+                  </div>
+                  <div style="flex:1;min-width:240px;">
+                    <div style="font-size:13px;font-weight:700;margin-bottom:6px;">Configuração TOTP</div>
+                    <div style="font-size:12px;opacity:.92;line-height:1.35;">
+                      1) Abra a app autenticadora (Google Authenticator / Microsoft Authenticator / Apple Passwords / 1Password).<br/>
+                      2) Adicione conta por QR code.<br/>
+                      3) Introduza abaixo o código de 6 dígitos.
+                    </div>
+                    ${secret ? `<div style="margin-top:10px;font-size:12px;opacity:.92;"><b>Secret:</b> <span style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">${esc(secret)}</span></div>` : ``}
+                    ${uri ? `<div style="margin-top:6px;font-size:12px;opacity:.92;word-break:break-all;"><b>URI:</b> <span style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">${esc(uri)}</span></div>` : ``}
+                  </div>
+                </div>
+              ` : ``}
+
+              <div style="margin-top:${qrDataUrl ? "14px" : "0"};">
+                <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;">Código (6 dígitos)</label>
+                <input id="inpMFACode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"
+                  style="width:100%;padding:12px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:#e7eefc;font-size:16px;letter-spacing:2px;"
+                />
+                <div style="display:flex;gap:10px;margin-top:10px;">
+                  <button id="btnMFAVerify" style="flex:1;border:0;background:#3b82f6;color:white;border-radius:12px;padding:11px 12px;font-size:14px;font-weight:700;cursor:pointer;">
+                    Verificar e continuar
+                  </button>
+                  <button id="btnMFARetry" style="border:1px solid rgba(255,255,255,.18);background:transparent;color:#e7eefc;border-radius:12px;padding:11px 12px;font-size:14px;cursor:pointer;">
+                    Recarregar
+                  </button>
+                </div>
+                ${errorMsg ? `<div style="margin-top:10px;color:#ffb4b4;font-size:13px;line-height:1.35;">${esc(errorMsg)}</div>` : ``}
+                <div style="margin-top:10px;font-size:12px;opacity:.85;line-height:1.35;">
+                  Sessão atual: <span style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">${esc(G.sessionUser && G.sessionUser.email ? G.sessionUser.email : "—")}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const btnLogout = document.getElementById("btnMFALogout");
+      if (btnLogout) {
+        btnLogout.onclick = async () => {
+          try { await sb.auth.signOut(); } catch {}
+          hardRedirect("/index.html");
+        };
+      }
+
+      const btnRetry = document.getElementById("btnMFARetry");
+      if (btnRetry) btnRetry.onclick = () => window.location.reload();
+    }
+    /* ---- FIM FUNÇÃO 11A.1b ---- */
+
+    /* ---- FUNÇÃO 11A.1c — getAAL ---- */
+    async function getAAL() {
+      const { data: aal, error: aalErr } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aalErr) throw aalErr;
+      return aal;
+    }
+    /* ---- FIM FUNÇÃO 11A.1c ---- */
+
+    const aal0 = await getAAL();
+    if (String(aal0.currentLevel).toLowerCase() === "aal2") return true;
+
+    const { data: factors, error: lfErr } = await sb.auth.mfa.listFactors();
+    if (lfErr) throw lfErr;
+
+    const totps = (factors && factors.totp) ? factors.totp : [];
+    let factor = null;
+    if (Array.isArray(totps) && totps.length) {
+      factor = totps.find(f => String(f.status || "").toLowerCase() === "verified") || totps[0];
+    }
+
+    if (!factor) {
+      const { data: en, error: enErr } = await sb.auth.mfa.enroll({ factorType: "totp" });
+      if (enErr) throw enErr;
+
+      factor = { id: en.id, factor_type: "totp" };
+
+      const qr = en && en.totp ? en.totp.qr_code : null;
+      const secret = en && en.totp ? en.totp.secret : null;
+      const uri = en && en.totp ? en.totp.uri : null;
+
+      let lastErr = null;
+      while (true) {
+        renderMFAScreen({
+          title: "Configurar dupla autenticação (TOTP)",
+          subtitle: "Necessário configurar TOTP para continuar.",
+          qrDataUrl: qr,
+          secret,
+          uri,
+          errorMsg: lastErr
+        });
+
+        const code = await new Promise((resolve) => {
+          const inp = document.getElementById("inpMFACode");
+          const btn = document.getElementById("btnMFAVerify");
+          if (inp) inp.focus();
+
+          const submit = () => {
+            const v = inp ? String(inp.value || "").replace(/\s+/g, "") : "";
+            resolve(v);
+          };
+
+          if (btn) btn.onclick = submit;
+          if (inp) inp.onkeydown = (ev) => { if (ev.key === "Enter") submit(); };
+        });
+
+        if (!/^\d{6}$/.test(code)) {
+          lastErr = "Código inválido. Introduza 6 dígitos.";
+          continue;
+        }
+
+        const { error: cavErr } = await sb.auth.mfa.challengeAndVerify({
+          factorId: factor.id,
+          code
+        });
+        if (cavErr) {
+          lastErr = cavErr.message || "Falha ao verificar MFA. Tente novamente.";
+          continue;
+        }
+
+        const aal1 = await getAAL();
+        if (String(aal1.currentLevel).toLowerCase() === "aal2") return true;
+
+        lastErr = "Verificação concluída, mas a sessão não ficou em AAL2. Recarregue a página.";
+      }
+    }
+
+    let lastErr = null;
+    while (true) {
+      renderMFAScreen({
+        title: "Dupla autenticação obrigatória (TOTP)",
+        subtitle: "Introduza o código da sua app autenticadora para continuar.",
+        qrDataUrl: null,
+        secret: null,
+        uri: null,
+        errorMsg: lastErr
+      });
+
+      const code = await new Promise((resolve) => {
+        const inp = document.getElementById("inpMFACode");
+        const btn = document.getElementById("btnMFAVerify");
+        if (inp) inp.focus();
+
+        const submit = () => {
+          const v = inp ? String(inp.value || "").replace(/\s+/g, "") : "";
+          resolve(v);
+        };
+
+        if (btn) btn.onclick = submit;
+        if (inp) inp.onkeydown = (ev) => { if (ev.key === "Enter") submit(); };
+      });
+
+      if (!/^\d{6}$/.test(code)) {
+        lastErr = "Código inválido. Introduza 6 dígitos.";
+        continue;
+      }
+
+      const { error: cavErr } = await sb.auth.mfa.challengeAndVerify({
+        factorId: factor.id,
+        code
+      });
+      if (cavErr) {
+        lastErr = cavErr.message || "Falha ao verificar MFA. Tente novamente.";
+        continue;
+      }
+
+      const aal2 = await getAAL();
+      if (String(aal2.currentLevel).toLowerCase() === "aal2") return true;
+
+      lastErr = "Verificação concluída, mas a sessão não ficou em AAL2. Recarregue a página.";
+    }
+  }
+  /* ---- FIM FUNÇÃO 11A.1 ---- */
+
+/* ==== FIM BLOCO 11A — MFA Gate (AAL2 obrigatório para todos) ==== */
+
+
+/* ==== INÍCIO BLOCO 11B — Boot principal ==== */
+
+  /* ---- FUNÇÃO 11B.1 — boot ---- */
   async function boot() {
     try {
       if (!window.sb || !window.sb.auth || typeof window.sb.auth.getSession !== "function") {
@@ -8014,218 +8228,6 @@ async function wireLogout() {
       G.authStateSubscription = authStateData && authStateData.subscription
         ? authStateData.subscription
         : null;
-
-/* ==== INÍCIO BLOCO 11B — Boot principal: MFA Gate (AAL2 obrigatório para todos) ==== */
-
-      /* ---- FUNÇÃO 11B.1 — ensureAAL2 ---- */
-      async function ensureAAL2() {
-        const sb = window.sb;
-
-        /* ---- FUNÇÃO 11B.1a — esc ---- */
-        function esc(s) {
-          return String(s == null ? "" : s)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-        }
-        /* ---- FIM FUNÇÃO 11B.1a ---- */
-
-        /* ---- FUNÇÃO 11B.1b — renderMFAScreen ---- */
-        function renderMFAScreen({ title, subtitle, qrDataUrl, secret, uri, errorMsg }) {
-          const root = document.getElementById("appRoot") || document.body;
-
-          root.innerHTML = `
-            <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#0b1220;color:#e7eefc;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
-              <div style="width:100%;max-width:520px;background:#111a2e;border:1px solid rgba(255,255,255,.10);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:20px 18px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                  <div>
-                    <div style="font-size:16px;font-weight:700;letter-spacing:.2px;">${esc(title || "Dupla autenticação obrigatória")}</div>
-                    <div style="margin-top:4px;font-size:13px;opacity:.9;line-height:1.35;">${esc(subtitle || "Introduza o código da sua app autenticadora para continuar.")}</div>
-                  </div>
-                  <button id="btnMFALogout" style="border:1px solid rgba(255,255,255,.18);background:transparent;color:#e7eefc;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer;">Sair</button>
-                </div>
-
-                <div style="margin-top:14px;border-top:1px solid rgba(255,255,255,.10);padding-top:14px;">
-                  ${qrDataUrl ? `
-                    <div style="display:flex;gap:14px;flex-wrap:wrap;">
-                      <div style="background:#fff;border-radius:12px;padding:10px;">
-                        <img alt="QR TOTP" src="${qrDataUrl}" style="display:block;width:170px;height:170px;object-fit:contain;" />
-                      </div>
-                      <div style="flex:1;min-width:240px;">
-                        <div style="font-size:13px;font-weight:700;margin-bottom:6px;">Configuração TOTP</div>
-                        <div style="font-size:12px;opacity:.92;line-height:1.35;">
-                          1) Abra a app autenticadora (Google Authenticator / Microsoft Authenticator / Apple Passwords / 1Password).<br/>
-                          2) Adicione conta por QR code.<br/>
-                          3) Introduza abaixo o código de 6 dígitos.
-                        </div>
-                        ${secret ? `<div style="margin-top:10px;font-size:12px;opacity:.92;"><b>Secret:</b> <span style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">${esc(secret)}</span></div>` : ``}
-                        ${uri ? `<div style="margin-top:6px;font-size:12px;opacity:.92;word-break:break-all;"><b>URI:</b> <span style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">${esc(uri)}</span></div>` : ``}
-                      </div>
-                    </div>
-                  ` : ``}
-
-                  <div style="margin-top:${qrDataUrl ? "14px" : "0"};">
-                    <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;">Código (6 dígitos)</label>
-                    <input id="inpMFACode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"
-                      style="width:100%;padding:12px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:#e7eefc;font-size:16px;letter-spacing:2px;"
-                    />
-                    <div style="display:flex;gap:10px;margin-top:10px;">
-                      <button id="btnMFAVerify" style="flex:1;border:0;background:#3b82f6;color:white;border-radius:12px;padding:11px 12px;font-size:14px;font-weight:700;cursor:pointer;">
-                        Verificar e continuar
-                      </button>
-                      <button id="btnMFARetry" style="border:1px solid rgba(255,255,255,.18);background:transparent;color:#e7eefc;border-radius:12px;padding:11px 12px;font-size:14px;cursor:pointer;">
-                        Recarregar
-                      </button>
-                    </div>
-                    ${errorMsg ? `<div style="margin-top:10px;color:#ffb4b4;font-size:13px;line-height:1.35;">${esc(errorMsg)}</div>` : ``}
-                    <div style="margin-top:10px;font-size:12px;opacity:.85;line-height:1.35;">
-                      Sessão atual: <span style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">${esc(G.sessionUser && G.sessionUser.email ? G.sessionUser.email : "—")}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
-
-          const btnLogout = document.getElementById("btnMFALogout");
-          if (btnLogout) {
-            btnLogout.onclick = async () => {
-              try { await sb.auth.signOut(); } catch {}
-              hardRedirect("/index.html");
-            };
-          }
-
-          const btnRetry = document.getElementById("btnMFARetry");
-          if (btnRetry) btnRetry.onclick = () => window.location.reload();
-        }
-        /* ---- FIM FUNÇÃO 11B.1b ---- */
-
-        /* ---- FUNÇÃO 11B.1c — getAAL ---- */
-        async function getAAL() {
-          const { data: aal, error: aalErr } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
-          if (aalErr) throw aalErr;
-          return aal;
-        }
-        /* ---- FIM FUNÇÃO 11B.1c ---- */
-
-        const aal0 = await getAAL();
-        if (String(aal0.currentLevel).toLowerCase() === "aal2") return true;
-
-        const { data: factors, error: lfErr } = await sb.auth.mfa.listFactors();
-        if (lfErr) throw lfErr;
-
-        const totps = (factors && factors.totp) ? factors.totp : [];
-        let factor = null;
-        if (Array.isArray(totps) && totps.length) {
-          factor = totps.find(f => String(f.status || "").toLowerCase() === "verified") || totps[0];
-        }
-
-        if (!factor) {
-          const { data: en, error: enErr } = await sb.auth.mfa.enroll({ factorType: "totp" });
-          if (enErr) throw enErr;
-
-          factor = { id: en.id, factor_type: "totp" };
-
-          const qr = en && en.totp ? en.totp.qr_code : null;
-          const secret = en && en.totp ? en.totp.secret : null;
-          const uri = en && en.totp ? en.totp.uri : null;
-
-          let lastErr = null;
-          while (true) {
-            renderMFAScreen({
-              title: "Configurar dupla autenticação (TOTP)",
-              subtitle: "Necessário configurar TOTP para continuar.",
-              qrDataUrl: qr,
-              secret,
-              uri,
-              errorMsg: lastErr
-            });
-
-            const code = await new Promise((resolve) => {
-              const inp = document.getElementById("inpMFACode");
-              const btn = document.getElementById("btnMFAVerify");
-              if (inp) inp.focus();
-
-              const submit = () => {
-                const v = inp ? String(inp.value || "").replace(/\s+/g, "") : "";
-                resolve(v);
-              };
-
-              if (btn) btn.onclick = submit;
-              if (inp) inp.onkeydown = (ev) => { if (ev.key === "Enter") submit(); };
-            });
-
-            if (!/^\d{6}$/.test(code)) {
-              lastErr = "Código inválido. Introduza 6 dígitos.";
-              continue;
-            }
-
-            const { error: cavErr } = await sb.auth.mfa.challengeAndVerify({
-              factorId: factor.id,
-              code
-            });
-            if (cavErr) {
-              lastErr = cavErr.message || "Falha ao verificar MFA. Tente novamente.";
-              continue;
-            }
-
-            const aal1 = await getAAL();
-            if (String(aal1.currentLevel).toLowerCase() === "aal2") return true;
-
-            lastErr = "Verificação concluída, mas a sessão não ficou em AAL2. Recarregue a página.";
-          }
-        }
-
-        let lastErr = null;
-        while (true) {
-          renderMFAScreen({
-            title: "Dupla autenticação obrigatória (TOTP)",
-            subtitle: "Introduza o código da sua app autenticadora para continuar.",
-            qrDataUrl: null,
-            secret: null,
-            uri: null,
-            errorMsg: lastErr
-          });
-
-          const code = await new Promise((resolve) => {
-            const inp = document.getElementById("inpMFACode");
-            const btn = document.getElementById("btnMFAVerify");
-            if (inp) inp.focus();
-
-            const submit = () => {
-              const v = inp ? String(inp.value || "").replace(/\s+/g, "") : "";
-              resolve(v);
-            };
-
-            if (btn) btn.onclick = submit;
-            if (inp) inp.onkeydown = (ev) => { if (ev.key === "Enter") submit(); };
-          });
-
-          if (!/^\d{6}$/.test(code)) {
-            lastErr = "Código inválido. Introduza 6 dígitos.";
-            continue;
-          }
-
-          const { error: cavErr } = await sb.auth.mfa.challengeAndVerify({
-            factorId: factor.id,
-            code
-          });
-          if (cavErr) {
-            lastErr = cavErr.message || "Falha ao verificar MFA. Tente novamente.";
-            continue;
-          }
-
-          const aal2 = await getAAL();
-          if (String(aal2.currentLevel).toLowerCase() === "aal2") return true;
-
-          lastErr = "Verificação concluída, mas a sessão não ficou em AAL2. Recarregue a página.";
-        }
-      }
-      /* ---- FIM FUNÇÃO 11B.1 ---- */
-
-/* ==== FIM BLOCO 11B — Boot principal: MFA Gate (AAL2 obrigatório para todos) ==== */
 
       await ensureAAL2();
 
@@ -8318,9 +8320,9 @@ async function wireLogout() {
       document.body.textContent = "Erro ao iniciar a app. Abre a consola para detalhe.";
     }
   }
-  /* ---- FIM FUNÇÃO 11A.1 ---- */
+  /* ---- FIM FUNÇÃO 11B.1 ---- */
 
-/* ==== FIM BLOCO 11A — Boot principal ==== */
+/* ==== FIM BLOCO 11B — Boot principal ==== */
 
 /* ========================================================
    BLOCO 12/12 — DOMContentLoaded + fechamento IIFE
