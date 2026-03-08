@@ -4482,7 +4482,7 @@ function renderTimeline() {
           return `
             ${renderLinkedAgendaNotesForConsult(r)}
             <div style="border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; background:#ffffff;">
-              <div style="background:#f8fafc; border-bottom:1px solid #e5e7eb; padding:12px 16px;">
+              <div style="background:#f9fafb; border-bottom:1px solid #e5e7eb; padding:10px 16px;">
                 <div style="font-weight:900; font-size:15px; color:#0f172a;">Consulta</div>
                 <div style="font-size:13px; color:#475569; margin-top:2px;">
                   ${when}${authorTxt ? ` • ${escAttr(authorTxt)}` : ``}
@@ -4514,7 +4514,7 @@ function renderTimeline() {
         return `
           ${renderLinkedAgendaNotesForConsult(r)}
           <div style="border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; background:#ffffff;">
-            <div style="background:#f8fafc; border-bottom:1px solid #e5e7eb; padding:12px 16px;">
+            <div style="background:#f9fafb; border-bottom:1px solid #e5e7eb; padding:10px 16px;">
               <div style="font-weight:900; font-size:15px; color:#0f172a;">Consulta</div>
               <div style="font-size:13px; color:#475569; margin-top:2px;">
                 ${when}${authorTxt ? ` • ${escAttr(authorTxt)}` : ``}
