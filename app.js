@@ -1016,6 +1016,96 @@
     const canSeeManagement = String(G.role || "").toLowerCase() === "doctor"
       || String(G.role || "").toLowerCase() === "superadmin";
 
+    const currentView = String(G.currentView || "agenda").toLowerCase();
+    const isManagementView = currentView === "management";
+
+    const mainHtml = isManagementView
+      ? `
+        <section class="gcCard">
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div>
+              <div style="font-size:${UI.fs16}px; color:#111; font-weight:800;">Gestão</div>
+              <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
+                Área de gestão em preparação.
+              </div>
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button id="btnBackToAgenda" class="gcBtn">Voltar à Agenda</button>
+            </div>
+          </div>
+
+          <div style="margin-top:14px; display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+            <div class="gcMutedCard">
+              <div style="font-size:${UI.fs12}px; color:#666;">Produção</div>
+              <div style="margin-top:6px; font-size:${UI.fs14}px; font-weight:800; color:#111;">Em construção</div>
+            </div>
+
+            <div class="gcMutedCard">
+              <div style="font-size:${UI.fs12}px; color:#666;">Receita</div>
+              <div style="margin-top:6px; font-size:${UI.fs14}px; font-weight:800; color:#111;">Em construção</div>
+            </div>
+
+            <div class="gcMutedCard">
+              <div style="font-size:${UI.fs12}px; color:#666;">Preços</div>
+              <div style="margin-top:6px; font-size:${UI.fs14}px; font-weight:800; color:#111;">Em construção</div>
+            </div>
+          </div>
+
+          <div style="margin-top:14px; border-top:1px solid #f0f0f0; padding-top:12px;">
+            <div style="font-size:${UI.fs12}px; color:#666;">
+              Nesta fase vamos preparar a estrutura para:
+              Produção clínica, Receita por ato e Tabela de preços.
+            </div>
+          </div>
+        </section>
+      `
+      : `
+        <section class="gcCard">
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div>
+              <div style="font-size:${UI.fs16}px; color:#111; font-weight:800;">Agenda</div>
+              <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;" id="agendaSubtitle">—</div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;" class="gcToolbar">
+            <div class="gcToolbarBlock" style="flex-direction:row; gap:10px; align-items:flex-end;">
+              <button id="btnCal" class="gcBtn">Calendário</button>
+              <button id="btnToday" class="gcBtn">Hoje</button>
+              <button id="btnNewAppt" class="gcBtnPrimary">Agendar Consulta 📅</button>
+              <button id="btnNewPatientMain" class="gcBtn">＋ Novo doente</button>
+            </div>
+
+            <div class="gcToolbarBlock gcSearchWrap">
+              <div class="gcLabel">Pesquisa de doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
+              <input
+                id="pQuickQuery"
+                type="search"
+                placeholder="ex.: Man… | 916… | 123456789"
+                autocomplete="off"
+                spellcheck="false"
+                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;"
+              />
+              <div id="pQuickResults" style="margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:180px; overflow:auto;">
+                <div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>
+              </div>
+            </div>
+
+            <div class="gcToolbarBlock" style="min-width:240px;">
+              <label for="selClinic" class="gcLabel">Clínica</label>
+              <select id="selClinic" class="gcSelect" style="min-width:240px;"></select>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;" id="agendaStatus"></div>
+
+          <div style="margin-top:10px; border-top:1px solid #f0f0f0; padding-top:10px;">
+            <ul id="agendaList" style="list-style:none; padding:0; margin:0;"></ul>
+          </div>
+        </section>
+      `;
+
     document.body.innerHTML = `
       <style>
         .gcBtn { 
@@ -1028,7 +1118,6 @@
         }
         .gcBtn:disabled { opacity:0.6; cursor:not-allowed; }
 
-        /* ✅ Botão primário suavizado (menos agressivo) */
         .gcBtnPrimary { 
           padding:10px 13px; 
           border-radius:11px; 
@@ -1127,55 +1216,13 @@
           </div>
 
           <div class="gcHeaderActions">
-            <button id="btnManagement" class="gcBtn">Gestão</button>
+            ${canSeeManagement ? `<button id="btnManagement" class="gcBtn">Gestão</button>` : ``}
             <button id="btnLogout" class="gcBtn">Logout</button>
           </div>
         </header>
 
         <main style="margin-top:14px;">
-          <section class="gcCard">
-            <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-              <div>
-                <div style="font-size:${UI.fs16}px; color:#111; font-weight:800;">Agenda</div>
-                <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;" id="agendaSubtitle">—</div>
-              </div>
-            </div>
-
-            <div style="margin-top:12px;" class="gcToolbar">
-              <div class="gcToolbarBlock" style="flex-direction:row; gap:10px; align-items:flex-end;">
-                <button id="btnCal" class="gcBtn">Calendário</button>
-                <button id="btnToday" class="gcBtn">Hoje</button>
-                <button id="btnNewAppt" class="gcBtnPrimary">Agendar Consulta 📅</button>
-                <button id="btnNewPatientMain" class="gcBtn">＋ Novo doente</button>
-              </div>
-
-              <div class="gcToolbarBlock gcSearchWrap">
-                <div class="gcLabel">Pesquisa de doente (Nome / SNS / NIF / Telefone / Passaporte-ID)</div>
-                <input
-                  id="pQuickQuery"
-                  type="search"
-                  placeholder="ex.: Man… | 916… | 123456789"
-                  autocomplete="off"
-                  spellcheck="false"
-                  style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; width:100%; font-size:${UI.fs13}px;"
-                />
-                <div id="pQuickResults" style="margin-top:8px; border:1px solid #eee; border-radius:10px; padding:8px; background:#fff; max-height:180px; overflow:auto;">
-                  <div style="font-size:${UI.fs12}px; color:#666;">Escreve para pesquisar.</div>
-                </div>
-              </div>
-
-              <div class="gcToolbarBlock" style="min-width:240px;">
-                <label for="selClinic" class="gcLabel">Clínica</label>
-                <select id="selClinic" class="gcSelect" style="min-width:240px;"></select>
-              </div>
-            </div>
-
-            <div style="margin-top:12px;" id="agendaStatus"></div>
-
-            <div style="margin-top:10px; border-top:1px solid #f0f0f0; padding-top:10px;">
-              <ul id="agendaList" style="list-style:none; padding:0; margin:0;"></ul>
-            </div>
-          </section>
+          ${mainHtml}
         </main>
 
         <div id="modalRoot"></div>
