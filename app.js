@@ -8310,10 +8310,11 @@ async function wireLogout() {
       const hdrClinicCount = document.getElementById("hdrClinicCount");
       if (hdrClinicCount) hdrClinicCount.textContent = String(G.clinics.length);
 
-      renderClinicsSelect(G.clinics);
-      setAgendaSubtitleForSelectedDay();
-
-      await wireQuickPatientSearch();
+      if (String(G.currentView || "agenda").toLowerCase() === "agenda") {
+        renderClinicsSelect(G.clinics);
+        setAgendaSubtitleForSelectedDay();
+        await wireQuickPatientSearch();
+      }
 
       const sel = document.getElementById("selClinic");
       if (sel) sel.addEventListener("change", refreshAgenda);
@@ -8345,16 +8346,107 @@ async function wireLogout() {
         });
       }
 
-      /* ---------- BOTÃO GESTÃO ---------- */
-
       const btnManagement = document.getElementById("btnManagement");
       if (btnManagement) {
-        btnManagement.addEventListener("click", () => {
-          alert("Gestão em construção.");
+        btnManagement.addEventListener("click", async () => {
+          G.currentView = "management";
+          renderAppShell();
+          await wireLogout();
+
+          const hdrEmail2 = document.getElementById("hdrEmail");
+          if (hdrEmail2) hdrEmail2.textContent = G.sessionUser.email || "—";
+
+          const hdrRole2 = document.getElementById("hdrRole");
+          if (hdrRole2) hdrRole2.textContent = G.role ? G.role : "—";
+
+          const hdrClinicCount2 = document.getElementById("hdrClinicCount");
+          if (hdrClinicCount2) hdrClinicCount2.textContent = String(G.clinics.length);
+
+          const btnManagement2 = document.getElementById("btnManagement");
+          if (btnManagement2) {
+            btnManagement2.addEventListener("click", () => {});
+          }
+
+          const btnBack = document.getElementById("btnBackToAgenda");
+          if (btnBack) {
+            btnBack.addEventListener("click", async () => {
+              G.currentView = "agenda";
+              renderAppShell();
+              await wireLogout();
+
+              const hdrEmail3 = document.getElementById("hdrEmail");
+              if (hdrEmail3) hdrEmail3.textContent = G.sessionUser.email || "—";
+
+              const hdrRole3 = document.getElementById("hdrRole");
+              if (hdrRole3) hdrRole3.textContent = G.role ? G.role : "—";
+
+              const hdrClinicCount3 = document.getElementById("hdrClinicCount");
+              if (hdrClinicCount3) hdrClinicCount3.textContent = String(G.clinics.length);
+
+              renderClinicsSelect(G.clinics);
+              setAgendaSubtitleForSelectedDay();
+              await wireQuickPatientSearch();
+
+              const sel2 = document.getElementById("selClinic");
+              if (sel2) sel2.addEventListener("change", refreshAgenda);
+
+              const btnNew2 = document.getElementById("btnNewAppt");
+              if (btnNew2) btnNew2.addEventListener("click", () => openApptModal({ mode: "new", row: null }));
+
+              const btnNewPatientMain2 = document.getElementById("btnNewPatientMain");
+              if (btnNewPatientMain2) {
+                btnNewPatientMain2.addEventListener("click", () => {
+                  const s = document.getElementById("selClinic");
+                  const clinicId = s && s.value ? s.value : null;
+                  openNewPatientMainModal({ clinicId });
+                });
+              }
+
+              const btnCal2 = document.getElementById("btnCal");
+              if (btnCal2) btnCal2.addEventListener("click", openCalendarOverlay);
+
+              const btnToday2 = document.getElementById("btnToday");
+              if (btnToday2) {
+                btnToday2.addEventListener("click", async () => {
+                  G.selectedDayISO = fmtDateISO(new Date());
+                  setAgendaSubtitleForSelectedDay();
+                  await refreshAgenda();
+                });
+              }
+
+              const btnManagement3 = document.getElementById("btnManagement");
+              if (btnManagement3) {
+                btnManagement3.addEventListener("click", async () => {
+                  G.currentView = "management";
+                  renderAppShell();
+                  await wireLogout();
+
+                  const hdrEmail4 = document.getElementById("hdrEmail");
+                  if (hdrEmail4) hdrEmail4.textContent = G.sessionUser.email || "—";
+
+                  const hdrRole4 = document.getElementById("hdrRole");
+                  if (hdrRole4) hdrRole4.textContent = G.role ? G.role : "—";
+
+                  const hdrClinicCount4 = document.getElementById("hdrClinicCount");
+                  if (hdrClinicCount4) hdrClinicCount4.textContent = String(G.clinics.length);
+                });
+              }
+
+              if (btnNew2 && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
+                btnNew2.disabled = true;
+                btnNew2.title = "Sem permissão para criar marcações.";
+              }
+
+              if (btnNewPatientMain2 && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
+                btnNewPatientMain2.disabled = true;
+                btnNewPatientMain2.title = "Sem permissão para criar doentes.";
+              }
+
+              await refreshAgenda();
+            });
+          }
         });
       }
-
-      /* ---------------------------------- */
 
       if (btnNew && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
         btnNew.disabled = true;
@@ -8366,7 +8458,9 @@ async function wireLogout() {
         btnNewPatientMain.title = "Sem permissão para criar doentes.";
       }
 
-      await refreshAgenda();
+      if (String(G.currentView || "agenda").toLowerCase() === "agenda") {
+        await refreshAgenda();
+      }
     } catch (e) {
       if (__gcIsAuthError(e)) {
         await __gcForceSessionLock("Sessão expirada ou inválida. Volte a iniciar sessão.");
