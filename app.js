@@ -4420,7 +4420,7 @@ function renderTimeline() {
     } catch (_) {}
 
     return `
-      <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
 
         ${canEdit ? `
           <button
@@ -4482,10 +4482,21 @@ function renderTimeline() {
           return `
             ${renderLinkedAgendaNotesForConsult(r)}
             <div style="border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; background:#ffffff;">
-              <div style="background:#f9fafb; border-bottom:1px solid #e5e7eb; padding:10px 16px;">
-                <div style="font-weight:900; font-size:15px; color:#0f172a;">Consulta</div>
-                <div style="font-size:13px; color:#475569; margin-top:2px;">
-                  ${when}${authorTxt ? ` • ${escAttr(authorTxt)}` : ``}
+              <div style="
+                background:#f9fafb;
+                border-bottom:1px solid #e5e7eb;
+                padding:10px 16px;
+                display:flex;
+                justify-content:space-between;
+                align-items:flex-start;
+                gap:12px;
+                flex-wrap:wrap;
+              ">
+                <div style="display:flex; flex-direction:column;">
+                  <div style="font-weight:900; font-size:15px; color:#0f172a;">Consulta</div>
+                  <div style="font-size:13px; color:#475569; margin-top:2px;">
+                    ${when}${authorTxt ? ` • ${escAttr(authorTxt)}` : ``}
+                  </div>
                 </div>
               </div>
             </div>
@@ -4514,13 +4525,26 @@ function renderTimeline() {
         return `
           ${renderLinkedAgendaNotesForConsult(r)}
           <div style="border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; background:#ffffff;">
-            <div style="background:#f9fafb; border-bottom:1px solid #e5e7eb; padding:10px 16px;">
-              <div style="font-weight:900; font-size:15px; color:#0f172a;">Consulta</div>
-              <div style="font-size:13px; color:#475569; margin-top:2px;">
-                ${when}${authorTxt ? ` • ${escAttr(authorTxt)}` : ``}
+            <div style="
+              background:#f9fafb;
+              border-bottom:1px solid #e5e7eb;
+              padding:10px 16px;
+              display:flex;
+              justify-content:space-between;
+              align-items:flex-start;
+              gap:12px;
+              flex-wrap:wrap;
+            ">
+              <div style="display:flex; flex-direction:column;">
+                <div style="font-weight:900; font-size:15px; color:#0f172a;">Consulta</div>
+                <div style="font-size:13px; color:#475569; margin-top:2px;">
+                  ${when}${authorTxt ? ` • ${escAttr(authorTxt)}` : ``}
+                </div>
               </div>
 
-              ${renderConsultActions(r)}
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                ${renderConsultActions(r)}
+              </div>
             </div>
 
             <div style="padding:16px;">
