@@ -4877,7 +4877,7 @@ function openConsultForEdit(consultId) {
                      style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
               <div id="treatStatus"></div>
               <div id="treatCatalogBox"
-                   style="margin-top:8px; min-height:120px; max-height:320px; overflow:auto;
+                   style="margin-top:8px; min-height:120px; max-height:220px; overflow:auto;
                           padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;"></div>
             </div>
           </div>
