@@ -8299,6 +8299,17 @@ async function wireLogout() {
         });
       }
 
+      /* ---------- BOTÃO GESTÃO ---------- */
+
+      const btnManagement = document.getElementById("btnManagement");
+      if (btnManagement) {
+        btnManagement.addEventListener("click", () => {
+          alert("Gestão em construção.");
+        });
+      }
+
+      /* ---------------------------------- */
+
       if (btnNew && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
         btnNew.disabled = true;
         btnNew.title = "Sem permissão para criar marcações.";
