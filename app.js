@@ -4428,10 +4428,10 @@ function renderTimeline() {
             data-action="edit-consult"
             data-consult-id="${escAttr(consultId)}"
             style="
-              font-weight:800;
-              background:#eff6ff;
-              border:1px solid #bfdbfe;
-              color:#1d4ed8;
+              font-weight:700;
+              background:#f8fafc;
+              border:1px solid #cbd5e1;
+              color:#334155;
             "
           >
             Editar Consulta
@@ -4455,9 +4455,9 @@ function renderTimeline() {
           data-consult-id="${escAttr(consultId)}"
           style="
             font-weight:800;
-            background:#f0fdf4;
-            border:1px solid #bbf7d0;
-            color:#166534;
+            background:#166534;
+            border:1px solid #166534;
+            color:#ffffff;
           "
         >
           Relatório da Consulta
@@ -4481,9 +4481,12 @@ function renderTimeline() {
 
           return `
             ${renderLinkedAgendaNotesForConsult(r)}
-            <div style="border:1px solid #e5e5e5; border-radius:14px; padding:16px;">
-              <div style="font-weight:900; font-size:16px;">
-                Consulta — ${when}${authorTxt ? ` - ${escAttr(authorTxt)}` : ``}
+            <div style="border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; background:#ffffff;">
+              <div style="background:#f8fafc; border-bottom:1px solid #e5e7eb; padding:12px 16px;">
+                <div style="font-weight:900; font-size:15px; color:#0f172a;">Consulta</div>
+                <div style="font-size:13px; color:#475569; margin-top:2px;">
+                  ${when}${authorTxt ? ` • ${escAttr(authorTxt)}` : ``}
+                </div>
               </div>
             </div>
           `;
@@ -4510,40 +4513,58 @@ function renderTimeline() {
 
         return `
           ${renderLinkedAgendaNotesForConsult(r)}
-          <div style="border:1px solid #e5e5e5; border-radius:14px; padding:16px;">
-            <div style="font-weight:900; font-size:16px;">
-              Consulta — ${when}${authorTxt ? ` - ${escAttr(authorTxt)}` : ``}
+          <div style="border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; background:#ffffff;">
+            <div style="background:#f8fafc; border-bottom:1px solid #e5e7eb; padding:12px 16px;">
+              <div style="font-weight:900; font-size:15px; color:#0f172a;">Consulta</div>
+              <div style="font-size:13px; color:#475569; margin-top:2px;">
+                ${when}${authorTxt ? ` • ${escAttr(authorTxt)}` : ``}
+              </div>
+
+              ${renderConsultActions(r)}
             </div>
 
-            ${renderConsultActions(r)}
+            <div style="padding:16px;">
+              <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:8px;">
+                Anamnese / HDA
+              </div>
 
-            <div style="margin-top:10px; line-height:1.55; font-size:15px;">
-              ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
+              <div style="
+                line-height:1.65;
+                font-size:15px;
+                color:#111827;
+                background:#ffffff;
+              ">
+                ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
+              </div>
+
+              ${r.diagnoses && r.diagnoses.length ? `
+                <div style="margin-top:16px;">
+                  <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:8px;">
+                    Diagnósticos
+                  </div>
+                  <ul style="margin:0 0 0 18px; line-height:1.55;">
+                    ${r.diagnoses.map(dg => `
+                      <li>${escAttr(dg.label || "—")}${dg.code ? ` <span style="color:#64748b;">(${escAttr(dg.code)})</span>` : ``}</li>
+                    `).join("")}
+                  </ul>
+                </div>
+              ` : ``}
+
+              ${r.treatments && r.treatments.length ? `
+                <div style="margin-top:16px;">
+                  <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:8px;">
+                    Tratamentos
+                  </div>
+                  <ul style="margin:0 0 0 18px; line-height:1.55;">
+                    ${r.treatments.map(t => `
+                      <li>${escAttr(sentenceizeLabel(t.label || "—"))}${t.code ? ` <span style="color:#64748b;">(${escAttr(t.code)})</span>` : ``}</li>
+                    `).join("")}
+                  </ul>
+                </div>
+              ` : ``}
+
+              ${renderDocumentsInlineForConsult(r.id)}
             </div>
-
-            ${r.diagnoses && r.diagnoses.length ? `
-              <div style="margin-top:12px;">
-                <div style="font-weight:900;">Diagnósticos:</div>
-                <ul style="margin:8px 0 0 18px;">
-                  ${r.diagnoses.map(dg => `
-                    <li>${escAttr(dg.label || "—")}${dg.code ? ` <span style="color:#64748b;">(${escAttr(dg.code)})</span>` : ``}</li>
-                  `).join("")}
-                </ul>
-              </div>
-            ` : ``}
-
-            ${r.treatments && r.treatments.length ? `
-              <div style="margin-top:12px;">
-                <div style="font-weight:900;">Tratamentos:</div>
-                <ul style="margin:8px 0 0 18px;">
-                  ${r.treatments.map(t => `
-                    <li>${escAttr(sentenceizeLabel(t.label || "—"))}${t.code ? ` <span style="color:#64748b;">(${escAttr(t.code)})</span>` : ``}</li>
-                  `).join("")}
-                </ul>
-              </div>
-            ` : ``}
-
-            ${renderDocumentsInlineForConsult(r.id)}
           </div>
         `;
       }).join("")}
