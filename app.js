@@ -1011,7 +1011,7 @@
 /* ==== FIM BLOCO 03E — Estado global da app ==== */
 
 
-/* ==== INÍCIO /* ==== INÍCIO BLOCO 03F — Render shell (HTML + CSS) ==== */
+/* ==== INÍCIO BLOCO 03F — Render shell (HTML + CSS) ==== */
   /* ---- FUNÇÃO 03F.1 — renderAppShell ---- */
   function renderAppShell() {
     const canSeeManagement = String(G.role || "").toLowerCase() === "doctor"
