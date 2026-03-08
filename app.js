@@ -1232,6 +1232,21 @@
   /* ---- FIM FUNÇÃO 03F.1 ---- */
 /* ==== FIM BLOCO 03F — Render shell (HTML + CSS) ==== */
 
+/* ==== INÍCIO BLOCO 03G — Header shell: preenchimento de sessão ==== */
+  /* ---- FUNÇÃO 03G.1 — hydrateShellHeader ---- */
+  function hydrateShellHeader() {
+    const hdrEmail = document.getElementById("hdrEmail");
+    if (hdrEmail) hdrEmail.textContent = G.sessionUser && G.sessionUser.email ? G.sessionUser.email : "—";
+
+    const hdrRole = document.getElementById("hdrRole");
+    if (hdrRole) hdrRole.textContent = G.role ? G.role : "—";
+
+    const hdrClinicCount = document.getElementById("hdrClinicCount");
+    if (hdrClinicCount) hdrClinicCount.textContent = String(Array.isArray(G.clinics) ? G.clinics.length : 0);
+  }
+  /* ---- FIM FUNÇÃO 03G.1 ---- */
+/* ==== FIM BLOCO 03G — Header shell: preenchimento de sessão ==== */
+
 /* ==== FIM BLOCO 03/12 — Constantes (procedimentos/status) + estado global + render shell (HTML+CSS) ==== */
 
 /* ========================================================
