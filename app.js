@@ -1216,7 +1216,7 @@
           </div>
 
           <div class="gcHeaderActions">
-            ${canSeeManagement ? `<button id="btnManagement" class="gcBtn">Gestão</button>` : ``}
+            <button id="btnManagement" class="gcBtn">Gestão</button>
             <button id="btnLogout" class="gcBtn">Logout</button>
           </div>
         </header>
