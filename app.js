@@ -8246,7 +8246,7 @@ async function wireLogout() {
 
 /* ==== INÍCIO BLOCO 11B — Boot principal ==== */
 
-  /* ---- FUNÇÃO 11B.1 — boot ---- */
+    /* ---- FUNÇÃO 11B.1 — boot ---- */
   async function boot() {
     try {
       if (!window.sb || !window.sb.auth || typeof window.sb.auth.getSession !== "function") {
@@ -8294,10 +8294,9 @@ async function wireLogout() {
 
       if (__gcSessionLockActive) return;
 
-      renderAppShell();
-      await wireLogout();
-
-      try { G.role = await fetchMyRole(G.sessionUser.id); } catch (e) {
+      try {
+        G.role = await fetchMyRole(G.sessionUser.id);
+      } catch (e) {
         if (__gcIsAuthError(e)) {
           await __gcForceSessionLock("Sessão expirada durante a validação do utilizador.");
           return;
@@ -8305,7 +8304,9 @@ async function wireLogout() {
         G.role = null;
       }
 
-      try { G.clinics = await fetchVisibleClinics(); } catch (e) {
+      try {
+        G.clinics = await fetchVisibleClinics();
+      } catch (e) {
         if (__gcIsAuthError(e)) {
           await __gcForceSessionLock("Sessão expirada durante o carregamento das clínicas.");
           return;
@@ -8316,159 +8317,83 @@ async function wireLogout() {
       G.clinicsById = {};
       for (const c of G.clinics) G.clinicsById[c.id] = c;
 
-           hydrateShellHeader();
+      async function renderCurrentView() {
+        renderAppShell();
+        await wireLogout();
+        hydrateShellHeader();
 
-      if (String(G.currentView || "agenda").toLowerCase() === "agenda") {
+        const btnManagement = document.getElementById("btnManagement");
+        if (btnManagement) {
+          btnManagement.addEventListener("click", async () => {
+            if (String(G.currentView || "agenda").toLowerCase() === "management") return;
+            G.currentView = "management";
+            await renderCurrentView();
+          });
+        }
+
+        const btnBack = document.getElementById("btnBackToAgenda");
+        if (btnBack) {
+          btnBack.addEventListener("click", async () => {
+            G.currentView = "agenda";
+            await renderCurrentView();
+          });
+        }
+
+        if (String(G.currentView || "agenda").toLowerCase() !== "agenda") {
+          return;
+        }
+
         renderClinicsSelect(G.clinics);
         setAgendaSubtitleForSelectedDay();
         await wireQuickPatientSearch();
-      }
 
-      const sel = document.getElementById("selClinic");
-      if (sel) sel.addEventListener("change", refreshAgenda);
+        const sel = document.getElementById("selClinic");
+        if (sel) sel.addEventListener("change", refreshAgenda);
 
-      const btnRefresh = document.getElementById("btnRefreshAgenda");
-      if (btnRefresh) btnRefresh.addEventListener("click", refreshAgenda);
+        const btnRefresh = document.getElementById("btnRefreshAgenda");
+        if (btnRefresh) btnRefresh.addEventListener("click", refreshAgenda);
 
-      const btnNew = document.getElementById("btnNewAppt");
-      if (btnNew) btnNew.addEventListener("click", () => openApptModal({ mode: "new", row: null }));
+        const btnNew = document.getElementById("btnNewAppt");
+        if (btnNew) {
+          btnNew.addEventListener("click", () => openApptModal({ mode: "new", row: null }));
+        }
 
-      const btnNewPatientMain = document.getElementById("btnNewPatientMain");
-      if (btnNewPatientMain) {
-        btnNewPatientMain.addEventListener("click", () => {
-          const s = document.getElementById("selClinic");
-          const clinicId = s && s.value ? s.value : null;
-          openNewPatientMainModal({ clinicId });
-        });
-      }
+        const btnNewPatientMain = document.getElementById("btnNewPatientMain");
+        if (btnNewPatientMain) {
+          btnNewPatientMain.addEventListener("click", () => {
+            const s = document.getElementById("selClinic");
+            const clinicId = s && s.value ? s.value : null;
+            openNewPatientMainModal({ clinicId });
+          });
+        }
 
-      const btnCal = document.getElementById("btnCal");
-      if (btnCal) btnCal.addEventListener("click", openCalendarOverlay);
+        const btnCal = document.getElementById("btnCal");
+        if (btnCal) btnCal.addEventListener("click", openCalendarOverlay);
 
-      const btnToday = document.getElementById("btnToday");
-      if (btnToday) {
-        btnToday.addEventListener("click", async () => {
-          G.selectedDayISO = fmtDateISO(new Date());
-          setAgendaSubtitleForSelectedDay();
-          await refreshAgenda();
-        });
-      }
+        const btnToday = document.getElementById("btnToday");
+        if (btnToday) {
+          btnToday.addEventListener("click", async () => {
+            G.selectedDayISO = fmtDateISO(new Date());
+            setAgendaSubtitleForSelectedDay();
+            await refreshAgenda();
+          });
+        }
 
-      const btnManagement = document.getElementById("btnManagement");
-      if (btnManagement) {
-        btnManagement.addEventListener("click", async () => {
-          G.currentView = "management";
-          renderAppShell();
-          await wireLogout();
+        if (btnNew && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
+          btnNew.disabled = true;
+          btnNew.title = "Sem permissão para criar marcações.";
+        }
 
-          const hdrEmail2 = document.getElementById("hdrEmail");
-          if (hdrEmail2) hdrEmail2.textContent = G.sessionUser.email || "—";
+        if (btnNewPatientMain && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
+          btnNewPatientMain.disabled = true;
+          btnNewPatientMain.title = "Sem permissão para criar doentes.";
+        }
 
-          const hdrRole2 = document.getElementById("hdrRole");
-          if (hdrRole2) hdrRole2.textContent = G.role ? G.role : "—";
-
-          const hdrClinicCount2 = document.getElementById("hdrClinicCount");
-          if (hdrClinicCount2) hdrClinicCount2.textContent = String(G.clinics.length);
-
-          const btnManagement2 = document.getElementById("btnManagement");
-          if (btnManagement2) {
-            btnManagement2.addEventListener("click", () => {});
-          }
-
-          const btnBack = document.getElementById("btnBackToAgenda");
-          if (btnBack) {
-            btnBack.addEventListener("click", async () => {
-              G.currentView = "agenda";
-              renderAppShell();
-              await wireLogout();
-
-              const hdrEmail3 = document.getElementById("hdrEmail");
-              if (hdrEmail3) hdrEmail3.textContent = G.sessionUser.email || "—";
-
-              const hdrRole3 = document.getElementById("hdrRole");
-              if (hdrRole3) hdrRole3.textContent = G.role ? G.role : "—";
-
-              const hdrClinicCount3 = document.getElementById("hdrClinicCount");
-              if (hdrClinicCount3) hdrClinicCount3.textContent = String(G.clinics.length);
-
-              renderClinicsSelect(G.clinics);
-              setAgendaSubtitleForSelectedDay();
-              await wireQuickPatientSearch();
-
-              const sel2 = document.getElementById("selClinic");
-              if (sel2) sel2.addEventListener("change", refreshAgenda);
-
-              const btnNew2 = document.getElementById("btnNewAppt");
-              if (btnNew2) btnNew2.addEventListener("click", () => openApptModal({ mode: "new", row: null }));
-
-              const btnNewPatientMain2 = document.getElementById("btnNewPatientMain");
-              if (btnNewPatientMain2) {
-                btnNewPatientMain2.addEventListener("click", () => {
-                  const s = document.getElementById("selClinic");
-                  const clinicId = s && s.value ? s.value : null;
-                  openNewPatientMainModal({ clinicId });
-                });
-              }
-
-              const btnCal2 = document.getElementById("btnCal");
-              if (btnCal2) btnCal2.addEventListener("click", openCalendarOverlay);
-
-              const btnToday2 = document.getElementById("btnToday");
-              if (btnToday2) {
-                btnToday2.addEventListener("click", async () => {
-                  G.selectedDayISO = fmtDateISO(new Date());
-                  setAgendaSubtitleForSelectedDay();
-                  await refreshAgenda();
-                });
-              }
-
-              const btnManagement3 = document.getElementById("btnManagement");
-              if (btnManagement3) {
-                btnManagement3.addEventListener("click", async () => {
-                  G.currentView = "management";
-                  renderAppShell();
-                  await wireLogout();
-
-                  const hdrEmail4 = document.getElementById("hdrEmail");
-                  if (hdrEmail4) hdrEmail4.textContent = G.sessionUser.email || "—";
-
-                  const hdrRole4 = document.getElementById("hdrRole");
-                  if (hdrRole4) hdrRole4.textContent = G.role ? G.role : "—";
-
-                  const hdrClinicCount4 = document.getElementById("hdrClinicCount");
-                  if (hdrClinicCount4) hdrClinicCount4.textContent = String(G.clinics.length);
-                });
-              }
-
-              if (btnNew2 && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
-                btnNew2.disabled = true;
-                btnNew2.title = "Sem permissão para criar marcações.";
-              }
-
-              if (btnNewPatientMain2 && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
-                btnNewPatientMain2.disabled = true;
-                btnNewPatientMain2.title = "Sem permissão para criar doentes.";
-              }
-
-              await refreshAgenda();
-            });
-          }
-        });
-      }
-
-      if (btnNew && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
-        btnNew.disabled = true;
-        btnNew.title = "Sem permissão para criar marcações.";
-      }
-
-      if (btnNewPatientMain && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
-        btnNewPatientMain.disabled = true;
-        btnNewPatientMain.title = "Sem permissão para criar doentes.";
-      }
-
-      if (String(G.currentView || "agenda").toLowerCase() === "agenda") {
         await refreshAgenda();
       }
+
+      await renderCurrentView();
+
     } catch (e) {
       if (__gcIsAuthError(e)) {
         await __gcForceSessionLock("Sessão expirada ou inválida. Volte a iniciar sessão.");
