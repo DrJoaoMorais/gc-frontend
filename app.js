@@ -7511,27 +7511,34 @@ function render() {
 
 /* ==== INÍCIO BLOCO 10B — Logout ==== */
 
-  /* ---- FUNÇÃO 10B.1 — wireLogout ---- */
-  async function wireLogout() {
-    const btn = document.getElementById("btnLogout");
-    if (!btn) return;
+/* ---- FUNÇÃO 10B.1 — wireLogout ---- */
+async function wireLogout() {
+  const btn = document.getElementById("btnLogout");
+  if (!btn) return;
 
-    btn.addEventListener("click", async () => {
-      btn.disabled = true;
-      btn.textContent = "A terminar sessão…";
-      try {
-        const { error } = await window.sb.auth.signOut();
-        if (error) throw error;
-        hardRedirect("/index.html");
-      } catch (e) {
-        console.error("Logout falhou:", e);
-        btn.disabled = false;
-        btn.textContent = "Logout";
-        alert("Não foi possível terminar a sessão. Vê a consola para detalhe.");
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    btn.textContent = "A terminar sessão…";
+
+    try {
+      if (G && G.authStateSubscription && typeof G.authStateSubscription.unsubscribe === "function") {
+        try { G.authStateSubscription.unsubscribe(); } catch {}
       }
-    });
-  }
-  /* ---- FIM FUNÇÃO 10B.1 ---- */
+
+      if (window.sb && window.sb.auth && typeof window.sb.auth.signOut === "function") {
+        await Promise.race([
+          window.sb.auth.signOut(),
+          new Promise((resolve) => setTimeout(resolve, 1200))
+        ]);
+      }
+    } catch (e) {
+      console.error("Logout falhou:", e);
+    } finally {
+      hardRedirect("/index.html");
+    }
+  });
+}
+/* ---- FIM FUNÇÃO 10B.1 ---- */
 
 /* ==== FIM BLOCO 10B — Logout ==== */
 
