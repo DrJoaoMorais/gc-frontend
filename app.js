@@ -2235,7 +2235,7 @@ let editingConsultRow = null;
 /* ==== FIM BLOCO 06B/12 — Bootstrap + State + Helpers base (role/close/fetch/escape/format) ==== */
 
 
-//* ==== INÍCIO BLOCO 06C/12 — Identificação do doente (modal ver/editar) — SEXO REMOVIDO ==== */
+/* ==== INÍCIO BLOCO 06C/12 — Identificação do doente (modal ver/editar) — SEXO REMOVIDO ==== */
 
   /* ---- FUNÇÃO 06C.1 — openPatientIdentity ---- */
   function openPatientIdentity(mode) {
@@ -2243,7 +2243,6 @@ let editingConsultRow = null;
     identOpen = true;
     identSaving = false;
 
-    // ✅ SEXO removido (não existe campo nem payload)
     identDraft = {
       full_name: p.full_name || "",
       dob: p.dob || "",
@@ -2323,7 +2322,7 @@ let editingConsultRow = null;
                 `).join("")}
               </select>
               <div style="margin-top:6px; font-size:12px; color:#64748b;">
-                Alteração de clínica será ligada no passo seguinte.
+                A alteração da clínica ativa será gravada com a identificação.
               </div>
             ` : `
               <div style="padding:10px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; color:#111827;">
@@ -2484,6 +2483,11 @@ let editingConsultRow = null;
         const name = String(identDraft.full_name || "").trim();
         if (!name) { alert("Nome completo é obrigatório."); return; }
 
+        const canManageClinic = role() === "doctor" || role() === "superadmin";
+        const nextClinicId = String(identDraft.active_clinic_id || "").trim();
+        const currentClinicId = String(activeClinicId || "").trim();
+        const clinicChanged = !!(canManageClinic && nextClinicId && nextClinicId !== currentClinicId);
+
         identSaving = true;
         render();
         bindIdentityEvents();
@@ -2524,6 +2528,16 @@ let editingConsultRow = null;
 
           if (data) Object.keys(payload).forEach(k => { p[k] = data[k]; });
 
+          if (clinicChanged) {
+            await ensurePatientActiveInClinic({
+              patientId: p.id,
+              targetClinicId: nextClinicId
+            });
+
+            await fetchActiveClinic();
+            identDraft.active_clinic_id = activeClinicId || nextClinicId || "";
+          }
+
           identSaving = false;
           identOpen = false;
           render();
@@ -2540,7 +2554,6 @@ let editingConsultRow = null;
   }
   /* ---- FIM FUNÇÃO 06C.4 ---- */
 /* ==== FIM BLOCO 06C/12 — Identificação do doente (modal ver/editar) — SEXO REMOVIDO ==== */
-
 
 /* ==== INÍCIO BLOCO 06D/12 — Diagnósticos (pesquisa catálogo + chips + adicionar ao catálogo) ==== */
 
