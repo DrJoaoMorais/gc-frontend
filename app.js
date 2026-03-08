@@ -477,6 +477,7 @@
    02G — Fetch de doentes por ID
    02H — Fetch de doente individual
    02I — Atualização de doente
+   02J — Helpers globais de clínica ativa / transferência
    ======================================================== */
 
 /* ==== INÍCIO BLOCO 02A — Constantes e helpers da agenda ==== */
@@ -766,6 +767,171 @@
   }
   /* ---- FIM FUNÇÃO 02I.1 ---- */
 /* ==== FIM BLOCO 02I — Atualização de doente ==== */
+
+
+/* ==== INÍCIO BLOCO 02J — Helpers globais de clínica ativa / transferência ==== */
+  /* ---- FUNÇÃO 02J.1 — fetchPatientIdentifiers ---- */
+  async function fetchPatientIdentifiers(patientId) {
+    try {
+      const { data, error } = await window.sb
+        .from("patients")
+        .select("full_name, sns, nif, passport_id, phone, dob")
+        .eq("id", patientId)
+        .limit(1);
+
+      if (error) throw error;
+      const p = (data && data.length) ? data[0] : null;
+      return p || null;
+    } catch (e) {
+      console.warn("fetchPatientIdentifiers falhou:", e);
+      return null;
+    }
+  }
+  /* ---- FIM FUNÇÃO 02J.1 ---- */
+
+  /* ---- FUNÇÃO 02J.2 — fetchActiveClinicForPatient ---- */
+  async function fetchActiveClinicForPatient(patientId) {
+    try {
+      const { data, error } = await window.sb
+        .from("patient_clinic")
+        .select("clinic_id, is_active")
+        .eq("patient_id", patientId)
+        .eq("is_active", true)
+        .limit(1);
+
+      if (error) throw error;
+      const r = (data && data.length) ? data[0] : null;
+      return r ? (r.clinic_id || null) : null;
+    } catch (e) {
+      console.warn("fetchActiveClinicForPatient falhou:", e);
+      return null;
+    }
+  }
+  /* ---- FIM FUNÇÃO 02J.2 ---- */
+
+  /* ---- FUNÇÃO 02J.3 — buildTransferConfirmText ---- */
+  function buildTransferConfirmText({ patient, fromClinicName, toClinicName }) {
+    const name = (patient?.full_name || "").trim() || "—";
+    const parts = [];
+
+    const sns = patient?.sns ? `SNS: ${patient.sns}` : "";
+    const nif = patient?.nif ? `NIF: ${patient.nif}` : "";
+    const tel = patient?.phone ? `Tel: ${patient.phone}` : "";
+    const pid = patient?.passport_id ? `ID: ${patient.passport_id}` : "";
+    const dob = patient?.dob ? `DN: ${patient.dob}` : "";
+
+    const idLine = [sns, nif, tel, pid, dob].filter(Boolean).join("  |  ");
+
+    parts.push("Confirme que é o doente correto:");
+    parts.push(`${name}`);
+    if (idLine) parts.push(idLine);
+    parts.push("");
+    parts.push(`Este doente está ativo em: ${fromClinicName || "—"}`);
+    parts.push(`Pretende transferir para: ${toClinicName || "—"} ?`);
+    parts.push("");
+    parts.push("(Isto atualiza automaticamente a clínica ativa do doente.)");
+
+    return parts.join("\n");
+  }
+  /* ---- FIM FUNÇÃO 02J.3 ---- */
+
+  /* ---- FUNÇÃO 02J.4 — ensurePatientActiveInClinic ---- */
+  async function ensurePatientActiveInClinic({ patientId, targetClinicId }) {
+    const pid = String(patientId || "");
+    const cid = String(targetClinicId || "");
+    if (!pid || !cid) {
+      throw new Error("ensurePatientActiveInClinic: patientId/targetClinicId em falta.");
+    }
+
+    const prevActiveClinicId = await fetchActiveClinicForPatient(pid);
+
+    if (prevActiveClinicId && String(prevActiveClinicId) === cid) return true;
+
+    async function ensureRowExistsInactive(pId, cId) {
+      const { data: exist, error: e0 } = await window.sb
+        .from("patient_clinic")
+        .select("clinic_id")
+        .eq("patient_id", pId)
+        .eq("clinic_id", cId)
+        .limit(1);
+
+      if (e0) throw e0;
+      if (exist && exist.length) return true;
+
+      const { error: eIns } = await window.sb
+        .from("patient_clinic")
+        .insert({ patient_id: pId, clinic_id: cId, is_active: false });
+
+      if (eIns) throw eIns;
+      return true;
+    }
+
+    async function setActiveClinic(pId, cId) {
+      await ensureRowExistsInactive(pId, cId);
+
+      const { error: eOff } = await window.sb
+        .from("patient_clinic")
+        .update({ is_active: false })
+        .eq("patient_id", pId)
+        .eq("is_active", true);
+
+      if (eOff) throw eOff;
+
+      const { error: eOn } = await window.sb
+        .from("patient_clinic")
+        .update({ is_active: true })
+        .eq("patient_id", pId)
+        .eq("clinic_id", cId);
+
+      if (eOn) throw eOn;
+
+      const nowActive = await fetchActiveClinicForPatient(pId);
+      if (!nowActive || String(nowActive) !== String(cId)) {
+        throw new Error("Falha ao ativar clínica destino (validação falhou).");
+      }
+
+      return true;
+    }
+
+    try {
+      await setActiveClinic(pid, cid);
+      return true;
+    } catch (e) {
+      try {
+        if (prevActiveClinicId) {
+          await setActiveClinic(pid, String(prevActiveClinicId));
+        }
+      } catch (_) {}
+      throw e;
+    }
+  }
+  /* ---- FIM FUNÇÃO 02J.4 ---- */
+
+  /* ---- FUNÇÃO 02J.5 — maybeTransferPatientToClinic ---- */
+  async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
+    const activeClinicId = await fetchActiveClinicForPatient(patientId);
+
+    if (!activeClinicId) return { changed: false, noActive: true };
+    if (String(activeClinicId) === String(targetClinicId)) return { changed: false };
+
+    const fromClinicName = (G.clinicsById && G.clinicsById[activeClinicId])
+      ? (G.clinicsById[activeClinicId].name || G.clinicsById[activeClinicId].slug || activeClinicId)
+      : activeClinicId;
+
+    const toClinicName = (G.clinicsById && G.clinicsById[targetClinicId])
+      ? (G.clinicsById[targetClinicId].name || G.clinicsById[targetClinicId].slug || targetClinicId)
+      : targetClinicId;
+
+    const patient = await fetchPatientIdentifiers(patientId);
+
+    const ok = confirm(buildTransferConfirmText({ patient, fromClinicName, toClinicName }));
+    if (!ok) return { changed: false, cancelled: true };
+
+    await ensurePatientActiveInClinic({ patientId, targetClinicId });
+    return { changed: true };
+  }
+  /* ---- FIM FUNÇÃO 02J.5 ---- */
+/* ==== FIM BLOCO 02J — Helpers globais de clínica ativa / transferência ==== */
 
 /* ==== FIM BLOCO 02/12 — Agenda (helpers + load) + Patients (scope/search/RPC) ==== */
 
