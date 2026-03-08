@@ -7409,7 +7409,7 @@ function render() {
 
 /* ==== INÍCIO BLOCO 10A — Sessão bloqueada / auth guard ==== */
 
-  const __gcSessionLockActive = false;
+  let __gcSessionLockActive = false;
 
   /* ---- FUNÇÃO 10A.2 — __gcIsAuthError ---- */
   function __gcIsAuthError(err) {
