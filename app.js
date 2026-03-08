@@ -4884,7 +4884,7 @@ function openConsultForEdit(consultId) {
         </div>
       </div>
 
-      <div style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
+      <div style="margin-top:14px; display:flex; justify-content:flex-start; gap:10px;">
         <button id="btnCancelConsult" class="gcBtn" type="button">Cancelar</button>
         <button id="btnSaveConsult" class="gcBtn" type="button" style="font-weight:900;">Gravar</button>
       </div>
