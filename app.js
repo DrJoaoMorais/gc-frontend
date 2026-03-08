@@ -5317,19 +5317,6 @@ function render() {
               >
                 Ver Identificação
               </button>
-
-              <button
-                id="btnEditIdent"
-                class="gcBtn"
-                style="
-                  background:#ffffff;
-                  border:1px solid #d1d5db;
-                  color:#111827;
-                  font-weight:700;
-                "
-              >
-                Editar Dados
-              </button>
             </div>
           </div>
 
@@ -5420,7 +5407,6 @@ function render() {
   document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
 
   document.getElementById("btnViewIdent")?.addEventListener("click", () => openPatientIdentity("view"));
-  document.getElementById("btnEditIdent")?.addEventListener("click", () => openPatientIdentity("edit"));
 
   if (isDoctor() && !creatingConsult) {
     document.getElementById("btnNewConsult")?.addEventListener("click", () => {
