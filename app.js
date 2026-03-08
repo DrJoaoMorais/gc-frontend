@@ -993,7 +993,6 @@
   /* ---- FIM FUNÇÃO 03D.1 ---- */
 /* ==== FIM BLOCO 03D — Metadata de estado ==== */
 
-
 /* ==== INÍCIO BLOCO 03E — Estado global da app ==== */
   /* ---- FUNÇÃO/STATE 03E.1 — G ---- */
   var G = window.G = {
@@ -1006,10 +1005,10 @@
     calMonth: null,
     patientsById: {},
     patientQuick: { lastResults: [], selected: null },
+    currentView: "agenda",
   };
   /* ---- FIM FUNÇÃO/STATE 03E.1 ---- */
 /* ==== FIM BLOCO 03E — Estado global da app ==== */
-
 
 /* ==== INÍCIO BLOCO 03F — Render shell (HTML + CSS) ==== */
   /* ---- FUNÇÃO 03F.1 — renderAppShell ---- */
