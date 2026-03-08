@@ -4428,7 +4428,7 @@ function renderTimeline() {
             data-action="edit-consult"
             data-consult-id="${escAttr(consultId)}"
             style="
-              font-weight:900;
+              font-weight:800;
               background:#eff6ff;
               border:1px solid #bfdbfe;
               color:#1d4ed8;
@@ -4454,7 +4454,7 @@ function renderTimeline() {
           data-action="consult-report"
           data-consult-id="${escAttr(consultId)}"
           style="
-            font-weight:900;
+            font-weight:800;
             background:#f0fdf4;
             border:1px solid #bbf7d0;
             color:#166534;
