@@ -8605,6 +8605,7 @@ function renderExamsPanel() {
   `;
 
   host.appendChild(panel);
+  loadAndRenderExams();
 
   document.getElementById("gcCloseExamsPanel")?.addEventListener("click", closeExamsPanel);
 }
