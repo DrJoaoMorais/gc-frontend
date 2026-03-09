@@ -8702,6 +8702,120 @@ function getExamById(exams, examId) {
 
 /* ==== FIM BLOCO 12D — Helpers de organização dos exames ==== */
 
+/* ==== INÍCIO BLOCO 12E — Render do conteúdo do painel de exames ==== */
+
+/* ---- FUNÇÃO 12E.1 — renderExamGroups ---- */
+function renderExamGroups() {
+
+  const container = document.getElementById("gcExamResults");
+  if (!container) return;
+
+  const exams = examsUiState.exams || [];
+
+  const groups = listExamGroups(exams);
+  const direct = listDirectExams(exams);
+
+  let html = "";
+
+  /* CATEGORIAS */
+
+  if (groups.length) {
+
+    html += `
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.6px;
+                  color:#64748b; text-transform:uppercase; margin-bottom:8px;">
+        Categorias
+      </div>
+    `;
+
+    groups.forEach((g) => {
+
+      html += `
+        <div
+          class="gcExamGroup"
+          data-group="${g}"
+          style="
+            padding:10px 12px;
+            border:1px solid #e2e8f0;
+            border-radius:8px;
+            margin-bottom:8px;
+            cursor:pointer;
+            font-weight:600;
+            background:#ffffff;
+          "
+        >
+          ${g}
+        </div>
+      `;
+
+    });
+
+  }
+
+  /* EXAMES DIRETOS */
+
+  if (direct.length) {
+
+    html += `
+      <div style="font-size:11px; font-weight:800; letter-spacing:0.6px;
+                  color:#64748b; text-transform:uppercase;
+                  margin-top:16px; margin-bottom:8px;">
+        Exames
+      </div>
+    `;
+
+    direct.forEach((exam) => {
+
+      html += `
+        <div
+          class="gcExamDirect"
+          data-exam-id="${exam.id}"
+          style="
+            padding:10px 12px;
+            border:1px solid #e2e8f0;
+            border-radius:8px;
+            margin-bottom:8px;
+            cursor:pointer;
+            background:#ffffff;
+          "
+        >
+          ${exam.exam_name}
+        </div>
+      `;
+
+    });
+
+  }
+
+  container.innerHTML = html;
+
+}
+/* ---- FIM FUNÇÃO 12E.1 ---- */
+
+
+/* ---- FUNÇÃO 12E.2 — loadAndRenderExams ---- */
+async function loadAndRenderExams() {
+
+  try {
+
+    const exams = await loadExamsCatalog();
+
+    examsUiState.exams = exams;
+
+    renderExamGroups();
+
+  } catch (err) {
+
+    console.error("Erro ao carregar exames:", err);
+
+  }
+
+}
+/* ---- FIM FUNÇÃO 12E.2 ---- */
+
+
+/* ==== FIM BLOCO 12E — Render do conteúdo do painel de exames ==== */
+
 /* ========================================================
    BLOCO 13/13 — DOMContentLoaded + fechamento IIFE
    MAPA DE NAVEGAÇÃO
