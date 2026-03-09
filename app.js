@@ -5716,6 +5716,17 @@ function render() {
       render();
       bindConsultEvents();
     });
+
+    document.getElementById("btnComplementaryExams")?.addEventListener("click", async () => {
+      try {
+        const exams = await loadExamsCatalog();
+        console.log("Catálogo de exames carregado:", exams);
+        alert(`Exames carregados: ${exams.length}`);
+      } catch (e) {
+        console.error("Erro ao abrir catálogo de exames:", e);
+        alert("Não foi possível carregar o catálogo de exames.");
+      }
+    });
   }
 
   document.querySelectorAll('[data-action="edit-consult"]').forEach((btn) => {
