@@ -9011,6 +9011,138 @@ function openExamRequest(examId) {
 
 /* ==== FIM BLOCO 12F ==== */
 
+/* ==== INÍCIO BLOCO 12G — HTML do pedido de exame ==== */
+
+/* ---- FUNÇÃO 12G.1 — buildExamRequestHtml ---- */
+function buildExamRequestHtml({ clinic, examName, clinicalInfo, vinhetaUrl, clinicLogoUrl }) {
+
+  function escHtml(v) {
+    return String(v || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function escUrlAttr(u) {
+    return String(u || "")
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function nl2br(v) {
+    return escHtml(v).replace(/\n/g, "<br>");
+  }
+
+  function fmtDatePt(d) {
+    try {
+      const dt = d ? new Date(d) : new Date();
+      const dd = String(dt.getDate()).padStart(2, "0");
+      const mm = String(dt.getMonth() + 1).padStart(2, "0");
+      const yy = dt.getFullYear();
+      return `${dd}-${mm}-${yy}`;
+    } catch (_) {
+      return "";
+    }
+  }
+
+  const locality = String(clinic?.city || "").trim();
+  const localityDate = [locality, fmtDatePt(new Date())].filter(Boolean).join(", ");
+  const logoSrc = String(clinicLogoUrl || clinic?.logo_url || "").trim();
+
+  return `
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Pedido de Exame</title>
+<style>
+  body { margin:0; background:#fff; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:#111; }
+  * { box-sizing:border-box; }
+  @page { size: A4; margin: 16mm; }
+  .a4 { width:210mm; background:#fff; }
+  .top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .topLeft { font-size:13.5px; line-height:1.4; }
+  .logo { width:120px; height:auto; max-height:60px; object-fit:contain; display:block; }
+  .hr { height:1px; background:#111; margin:10px 0 14px 0; }
+  .title { text-align:center; font-weight:900; font-size:22px; margin:2px 0 18px 0; }
+  .bodyText { font-size:15px; line-height:1.45; }
+  .rx { font-weight:800; margin-bottom:12px; }
+  .examName { font-weight:800; font-size:18px; margin-bottom:18px; }
+  .label { font-weight:800; margin-bottom:8px; }
+  .clinicalInfo { min-height:180px; white-space:normal; }
+  .footerBlock { margin-top:28px; page-break-inside:auto; break-inside:auto; }
+  .hr2 { height:1px; background:#111; margin:16px 0 10px 0; }
+  .footRow { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .web { font-size:14px; font-weight:700; }
+  .vinheta { margin-top:8px; width:4cm; height:2.5cm; object-fit:contain; display:block; }
+  .locDate { text-align:right; font-size:14px; margin-top:14px; }
+  .sig { margin-top:14px; display:flex; justify-content:flex-end; }
+  .sigBox { width:360px; text-align:center; page-break-inside:avoid; break-inside:avoid; }
+  .sigLine { border-top:1px solid #111; padding-top:10px; }
+  .sigName { font-weight:900; font-size:18px; margin-top:6px; }
+  .sigRole { font-size:14px; margin-top:2px; }
+</style>
+</head>
+<body>
+  <div class="a4">
+
+    <div class="top">
+      <div class="topLeft">
+        <div>${escHtml(clinic?.website || "www.JoaoMorais.pt")}</div>
+        <div>${escHtml(clinic?.phone || "")}</div>
+      </div>
+      <div>
+        ${logoSrc ? `<img class="logo" src="${escUrlAttr(logoSrc)}" />` : ``}
+      </div>
+    </div>
+
+    <div class="hr"></div>
+    <div class="title">Pedido de Exame</div>
+
+    <div class="bodyText">
+      <div class="rx">R/</div>
+      <div class="examName">${escHtml(examName || "—")}</div>
+
+      <div class="label">Informação clínica</div>
+      <div class="clinicalInfo">${clinicalInfo && String(clinicalInfo).trim() ? nl2br(clinicalInfo) : "—"}</div>
+    </div>
+
+    <div class="footerBlock">
+      <div class="hr2"></div>
+
+      <div class="footRow">
+        <div>
+          <div class="web">www.JoaoMorais.pt</div>
+          ${vinhetaUrl ? `<img class="vinheta" src="${escUrlAttr(vinhetaUrl)}" />` : ``}
+        </div>
+
+        <div style="flex:1;">
+          ${localityDate ? `<div class="locDate">${escHtml(localityDate)}</div>` : ``}
+
+          <div class="sig">
+            <div class="sigBox">
+              <div class="sigLine"></div>
+              <div class="sigName">Dr. João Morais</div>
+              <div class="sigRole">Médico Fisiatra</div>
+              <div class="sigRole">Sports Medicine &amp; Rehabilitation</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
+`;
+}
+/* ---- FIM FUNÇÃO 12G.1 ---- */
+
+/* ==== FIM BLOCO 12G — HTML do pedido de exame ==== */
+
 /* ========================================================
    BLOCO 13/13 — DOMContentLoaded + fechamento IIFE
    MAPA DE NAVEGAÇÃO
