@@ -8790,6 +8790,14 @@ function renderExamGroups() {
     });
   });
 
+  container.querySelectorAll(".gcExamDirect").forEach((el) => {
+    el.addEventListener("click", () => {
+      const examId = el.getAttribute("data-exam-id") || "";
+      if (!examId) return;
+      openExamRequest(examId);
+    });
+  });
+
 }
 /* ---- FIM FUNÇÃO 12E.1 ---- */
 
