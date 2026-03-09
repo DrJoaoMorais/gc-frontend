@@ -8817,6 +8817,69 @@ async function loadAndRenderExams() {
 
 /* ==== FIM BLOCO 12E — Render do conteúdo do painel de exames ==== */
 
+/* ==== INÍCIO BLOCO 12F — Abrir lista de exames de uma categoria ==== */
+
+/* ---- FUNÇÃO 12F.1 — openExamGroup ---- */
+function openExamGroup(groupLabel) {
+
+  examsUiState.selectedGroup = groupLabel;
+  examsUiState.mode = "group";
+
+  const exams = examsUiState.exams || [];
+  const list = listGroupedExams(exams, groupLabel);
+
+  const container = document.getElementById("gcExamResults");
+  if (!container) return;
+
+  let html = `
+    <div style="margin-bottom:12px;">
+      <button
+        id="gcExamBack"
+        class="gcBtn"
+        style="
+          background:#ffffff;
+          border:1px solid #cbd5e1;
+          font-weight:600;
+        "
+      >
+        ← Voltar
+      </button>
+    </div>
+  `;
+
+  list.forEach((exam) => {
+
+    html += `
+      <div
+        class="gcExamItem"
+        data-exam-id="${exam.id}"
+        style="
+          padding:10px 12px;
+          border:1px solid #e2e8f0;
+          border-radius:8px;
+          margin-bottom:8px;
+          cursor:pointer;
+          background:#ffffff;
+        "
+      >
+        ${exam.exam_name}
+      </div>
+    `;
+
+  });
+
+  container.innerHTML = html;
+
+  document.getElementById("gcExamBack")?.addEventListener("click", () => {
+    examsUiState.mode = "groups";
+    renderExamGroups();
+  });
+
+}
+/* ---- FIM FUNÇÃO 12F.1 ---- */
+
+/* ==== FIM BLOCO 12F ==== */
+
 /* ========================================================
    BLOCO 13/13 — DOMContentLoaded + fechamento IIFE
    MAPA DE NAVEGAÇÃO
