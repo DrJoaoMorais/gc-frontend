@@ -8478,6 +8478,7 @@ const examsUiState = {
   exams: [],
   selectedGroup: "",
   selectedExamId: "",
+  clinicalInfo: "",
   mode: "groups" // groups | exam
 };
 /* ---- FIM FUNÇÃO 12B.1 ---- */
@@ -8906,6 +8907,7 @@ function openExamRequest(examId) {
 
   const container = document.getElementById("gcExamResults");
   if (!container) return;
+
   if (!exam) {
     container.innerHTML = `
       <div style="color:#b91c1c; font-weight:600;">
@@ -8914,6 +8916,8 @@ function openExamRequest(examId) {
     `;
     return;
   }
+
+  const savedInfo = String(examsUiState.clinicalInfo || "");
 
   container.innerHTML = `
     <div style="margin-bottom:12px; display:flex; align-items:center; gap:8px;">
@@ -8990,12 +8994,30 @@ function openExamRequest(examId) {
           line-height:1.5;
           box-sizing:border-box;
           resize:vertical;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
         "
-      ></textarea>
+      >${savedInfo}</textarea>
+
+      <div style="margin-top:14px; display:flex; justify-content:flex-end;">
+        <button
+          id="gcGenerateExamPdf"
+          class="gcBtn"
+          style="
+            background:#1e3a8a;
+            border:1px solid #1e3a8a;
+            color:#ffffff;
+            font-weight:800;
+          "
+        >
+          Gerar PDF
+        </button>
+      </div>
     </div>
   `;
 
   document.getElementById("gcExamRequestBack")?.addEventListener("click", () => {
+    examsUiState.clinicalInfo = String(document.getElementById("gcExamClinicalInfo")?.value || "");
+
     if (examsUiState.selectedGroup) {
       openExamGroup(examsUiState.selectedGroup);
       return;
@@ -9004,6 +9026,15 @@ function openExamRequest(examId) {
     examsUiState.mode = "groups";
     examsUiState.selectedExamId = "";
     renderExamGroups();
+  });
+
+  document.getElementById("gcExamClinicalInfo")?.addEventListener("input", (ev) => {
+    examsUiState.clinicalInfo = String(ev.target?.value || "");
+  });
+
+  document.getElementById("gcGenerateExamPdf")?.addEventListener("click", () => {
+    examsUiState.clinicalInfo = String(document.getElementById("gcExamClinicalInfo")?.value || "");
+    alert("Botão Gerar PDF ligado. Falta ainda implementar a geração.");
   });
 
 }
