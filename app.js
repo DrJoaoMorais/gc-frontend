@@ -8493,10 +8493,12 @@ function openExamsPanel() {
 /* ---- FUNÇÃO 12C.2 — closeExamsPanel ---- */
 function closeExamsPanel() {
   examsUiState.isOpen = false;
+
   const panel = document.getElementById("gcExamsPanel");
   if (panel) panel.remove();
 }
 /* ---- FIM FUNÇÃO 12C.2 ---- */
+
 
 /* ---- FUNÇÃO 12C.3 — renderExamsPanel ---- */
 function renderExamsPanel() {
@@ -8506,7 +8508,33 @@ function renderExamsPanel() {
   const oldPanel = document.getElementById("gcExamsPanel");
   if (oldPanel) oldPanel.remove();
 
-  const host = document.querySelector('#btnClosePView')?.closest('div[style*="background:#fff; width:min(1400px,96vw)"]');
+  const btnClose = document.getElementById("btnClosePView");
+  if (!btnClose) {
+    console.error("Botão btnClosePView não encontrado para o painel de exames.");
+    return;
+  }
+
+  let host = btnClose.parentElement;
+  while (host && host.parentElement) {
+    const style = window.getComputedStyle(host);
+
+    const hasWhiteBg =
+      style.backgroundColor === "rgb(255, 255, 255)";
+
+    const hasLargeBox =
+      host.clientWidth >= 900 &&
+      host.clientHeight >= 500;
+
+    const hasScrollableContent =
+      style.overflow === "auto" || style.overflowY === "auto";
+
+    if (hasWhiteBg && hasLargeBox && hasScrollableContent) {
+      break;
+    }
+
+    host = host.parentElement;
+  }
+
   if (!host) {
     console.error("Host do modal do doente não encontrado para o painel de exames.");
     return;
