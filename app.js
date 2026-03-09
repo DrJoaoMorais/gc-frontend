@@ -8504,68 +8504,77 @@ function renderExamsPanel() {
 
   if (!examsUiState.isOpen) return;
 
-  if (document.getElementById("gcExamsPanel")) return;
+  const oldPanel = document.getElementById("gcExamsPanel");
+  if (oldPanel) oldPanel.remove();
+
+  const host = document.querySelector('#btnClosePView')?.closest('div[style*="background:#fff; width:min(1400px,96vw)"]');
+  if (!host) {
+    console.error("Host do modal do doente não encontrado para o painel de exames.");
+    return;
+  }
+
+  host.style.position = "relative";
 
   const panel = document.createElement("div");
-
   panel.id = "gcExamsPanel";
 
-  panel.style.position = "fixed";
+  panel.style.position = "absolute";
   panel.style.top = "0";
   panel.style.right = "0";
   panel.style.width = "420px";
-  panel.style.height = "100vh";
+  panel.style.height = "100%";
   panel.style.background = "#ffffff";
   panel.style.borderLeft = "1px solid #e5e7eb";
   panel.style.boxShadow = "-8px 0 24px rgba(0,0,0,0.08)";
-  panel.style.zIndex = "9999";
+  panel.style.zIndex = "50";
   panel.style.display = "flex";
   panel.style.flexDirection = "column";
+  panel.style.borderTopRightRadius = "14px";
+  panel.style.borderBottomRightRadius = "14px";
 
   panel.innerHTML = `
     <div style="padding:16px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
-      <div style="font-weight:800; font-size:16px;">
+      <div style="font-weight:800; font-size:16px; color:#111827;">
         Pedidos de Exames
       </div>
 
-      <button id="gcCloseExamsPanel"
+      <button
+        id="gcCloseExamsPanel"
+        class="gcBtn"
         style="
           background:#ffffff;
           border:1px solid #d1d5db;
-          padding:6px 10px;
-          border-radius:6px;
-          cursor:pointer;
+          color:#111827;
           font-weight:700;
-        ">
+        "
+      >
         Fechar
       </button>
     </div>
 
-    <div style="padding:16px;">
+    <div style="padding:16px; border-bottom:1px solid #f1f5f9;">
       <input
         id="gcExamSearch"
         type="text"
         placeholder="Pesquisar exame..."
         style="
           width:100%;
-          padding:10px;
+          padding:10px 12px;
           border:1px solid #cbd5e1;
           border-radius:8px;
           font-size:14px;
+          box-sizing:border-box;
         "
       >
     </div>
 
     <div id="gcExamResults" style="flex:1; overflow:auto; padding:16px;">
-      <!-- resultados irão aparecer aqui -->
     </div>
   `;
 
-  document.body.appendChild(panel);
+  host.appendChild(panel);
 
-  document.getElementById("gcCloseExamsPanel")
-    ?.addEventListener("click", closeExamsPanel);
-
+  document.getElementById("gcCloseExamsPanel")?.addEventListener("click", closeExamsPanel);
 }
 /* ---- FIM FUNÇÃO 12C.3 ---- */
 
