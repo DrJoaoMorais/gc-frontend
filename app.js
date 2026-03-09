@@ -9042,14 +9042,15 @@ function openExamRequest(examId) {
         return;
       }
 
-      if (!activeClinicId) {
-        alert("Sem clínica ativa.");
-        return;
-      }
-
       const clinic = await fetchClinicForPdf();
       if (!clinic) {
         alert("Não consegui carregar os dados da clínica.");
+        return;
+      }
+
+      const resolvedClinicId = String(clinic?.id || "").trim();
+      if (!resolvedClinicId) {
+        alert("Sem clínica ativa.");
         return;
       }
 
@@ -9104,7 +9105,7 @@ function openExamRequest(examId) {
         .replace(/^_+|_+$/g, "")
         .slice(0, 80);
 
-      const path = `clinic_${activeClinicId}/patient_${p.id}/exam_requests/${ymd}_${hms}_${safeExamName}.pdf`;
+      const path = `clinic_${resolvedClinicId}/patient_${p.id}/exam_requests/${ymd}_${hms}_${safeExamName}.pdf`;
 
       const up = await uploadPdfToStorage({ blob, path });
       if (!up.ok) {
@@ -9114,7 +9115,7 @@ function openExamRequest(examId) {
       }
 
       const ins = await insertDocumentRow({
-        clinic_id: activeClinicId,
+        clinic_id: resolvedClinicId,
         patient_id: p.id,
         consultation_id: null,
         title: `Pedido de Exame — ${exam.exam_name}`,
