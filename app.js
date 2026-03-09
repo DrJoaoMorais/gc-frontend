@@ -8811,12 +8811,13 @@ async function loadAndRenderExams() {
 
 /* ==== FIM BLOCO 12E — Render do conteúdo do painel de exames ==== */
 
-/* ==== INÍCIO BLOCO 12F — Abrir lista de exames de uma categoria ==== */
+/* ==== INÍCIO BLOCO 12F — Lista de exames por categoria + abertura do pedido ==== */
 
 /* ---- FUNÇÃO 12F.1 — openExamGroup ---- */
 function openExamGroup(groupLabel) {
 
   examsUiState.selectedGroup = groupLabel;
+  examsUiState.selectedExamId = "";
   examsUiState.mode = "group";
 
   const exams = examsUiState.exams || [];
@@ -8826,23 +8827,27 @@ function openExamGroup(groupLabel) {
   if (!container) return;
 
   let html = `
-    <div style="margin-bottom:12px;">
+    <div style="margin-bottom:12px; display:flex; align-items:center; gap:8px;">
       <button
         id="gcExamBack"
         class="gcBtn"
         style="
           background:#ffffff;
           border:1px solid #cbd5e1;
+          color:#0f172a;
           font-weight:600;
         "
       >
         ← Voltar
       </button>
+
+      <div style="font-weight:800; color:#111827;">
+        ${groupLabel}
+      </div>
     </div>
   `;
 
   list.forEach((exam) => {
-
     html += `
       <div
         class="gcExamItem"
@@ -8859,18 +8864,142 @@ function openExamGroup(groupLabel) {
         ${exam.exam_name}
       </div>
     `;
-
   });
 
   container.innerHTML = html;
 
   document.getElementById("gcExamBack")?.addEventListener("click", () => {
     examsUiState.mode = "groups";
+    examsUiState.selectedGroup = "";
+    examsUiState.selectedExamId = "";
     renderExamGroups();
+  });
+
+  container.querySelectorAll(".gcExamItem").forEach((el) => {
+    el.addEventListener("click", () => {
+      const examId = el.getAttribute("data-exam-id") || "";
+      if (!examId) return;
+      openExamRequest(examId);
+    });
   });
 
 }
 /* ---- FIM FUNÇÃO 12F.1 ---- */
+
+
+/* ---- FUNÇÃO 12F.2 — openExamRequest ---- */
+function openExamRequest(examId) {
+
+  examsUiState.selectedExamId = examId;
+  examsUiState.mode = "exam";
+
+  const exams = examsUiState.exams || [];
+  const exam = getExamById(exams, examId);
+
+  const container = document.getElementById("gcExamResults");
+  if (!container) return;
+  if (!exam) {
+    container.innerHTML = `
+      <div style="color:#b91c1c; font-weight:600;">
+        Exame não encontrado.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+      <button
+        id="gcExamRequestBack"
+        class="gcBtn"
+        style="
+          background:#ffffff;
+          border:1px solid #cbd5e1;
+          color:#0f172a;
+          font-weight:600;
+        "
+      >
+        ← Voltar
+      </button>
+    </div>
+
+    <div style="
+      border:1px solid #e2e8f0;
+      border-radius:12px;
+      background:#ffffff;
+      padding:16px;
+    ">
+      <div style="
+        font-size:18px;
+        font-weight:900;
+        color:#111827;
+        margin-bottom:16px;
+      ">
+        Pedido de Exame
+      </div>
+
+      <div style="
+        font-weight:800;
+        color:#111827;
+        margin-bottom:8px;
+      ">
+        R/
+      </div>
+
+      <div style="
+        font-size:16px;
+        font-weight:700;
+        color:#111827;
+        line-height:1.4;
+        margin-bottom:18px;
+      ">
+        ${exam.exam_name}
+      </div>
+
+      <label
+        for="gcExamClinicalInfo"
+        style="
+          display:block;
+          font-size:13px;
+          font-weight:700;
+          color:#334155;
+          margin-bottom:8px;
+        "
+      >
+        Informação clínica
+      </label>
+
+      <textarea
+        id="gcExamClinicalInfo"
+        placeholder="Escreva a informação clínica..."
+        style="
+          width:100%;
+          min-height:180px;
+          padding:12px;
+          border:1px solid #cbd5e1;
+          border-radius:10px;
+          font-size:14px;
+          line-height:1.5;
+          box-sizing:border-box;
+          resize:vertical;
+        "
+      ></textarea>
+    </div>
+  `;
+
+  document.getElementById("gcExamRequestBack")?.addEventListener("click", () => {
+    if (examsUiState.selectedGroup) {
+      openExamGroup(examsUiState.selectedGroup);
+      return;
+    }
+
+    examsUiState.mode = "groups";
+    examsUiState.selectedExamId = "";
+    renderExamGroups();
+  });
+
+}
+/* ---- FIM FUNÇÃO 12F.2 ---- */
 
 /* ==== FIM BLOCO 12F ==== */
 
