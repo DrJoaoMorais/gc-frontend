@@ -8498,7 +8498,6 @@ function closeExamsPanel() {
 }
 /* ---- FIM FUNÇÃO 12C.2 ---- */
 
-
 /* ---- FUNÇÃO 12C.3 — renderExamsPanel ---- */
 function renderExamsPanel() {
 
