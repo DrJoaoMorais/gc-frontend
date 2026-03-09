@@ -8340,8 +8340,9 @@ async function wireLogout() {
         }
 
         if (String(G.currentView || "agenda").toLowerCase() !== "agenda") {
-          return;
-        }
+  await renderManagementView();
+  return;
+}
 
         renderClinicsSelect(G.clinics);
         setAgendaSubtitleForSelectedDay();
