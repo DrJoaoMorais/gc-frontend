@@ -3353,23 +3353,47 @@ let editingConsultRow = null;
   // CLINIC / USER HELPERS
   // =========================================================
   /* ---- FUNÇÃO 06Fa.10 — fetchClinicForPdf ---- */
-  async function fetchClinicForPdf() {
-    if (!activeClinicId) return null;
-    try {
-      const { data, error } = await window.sb
-        .from("clinics")
-        .select("id, name, address_line1, address_line2, postal_code, city, phone, email, website, logo_url")
-        .eq("id", activeClinicId)
-        .single();
+async function fetchClinicForPdf() {
 
-      if (error) { console.error("fetchClinicForPdf error:", error); return null; }
-      return data || null;
-    } catch (e) {
-      console.error("fetchClinicForPdf exception:", e);
+  try {
+
+    let clinicId = "";
+
+    // 1️⃣ tentar usar variável global se existir
+    if (typeof activeClinicId !== "undefined" && activeClinicId) {
+      clinicId = activeClinicId;
+    }
+
+    // 2️⃣ fallback: usar clinic_id do doente atual
+    if (!clinicId && typeof p !== "undefined" && p?.clinic_id) {
+      clinicId = p.clinic_id;
+    }
+
+    if (!clinicId) {
+      console.warn("fetchClinicForPdf: sem clinicId");
       return null;
     }
+
+    const { data, error } = await window.sb
+      .from("clinics")
+      .select("id, name, address_line1, address_line2, postal_code, city, phone, email, website, logo_url")
+      .eq("id", clinicId)
+      .single();
+
+    if (error) {
+      console.error("fetchClinicForPdf error:", error);
+      return null;
+    }
+
+    return data || null;
+
+  } catch (e) {
+    console.error("fetchClinicForPdf exception:", e);
+    return null;
   }
-  /* ---- FIM FUNÇÃO 06Fa.10 ---- */
+
+}
+/* ---- FIM FUNÇÃO 06Fa.10 ---- */
 
   /* ---- FUNÇÃO 06Fa.11 — fetchCurrentUserDisplayName ---- */
   async function fetchCurrentUserDisplayName(userId) {
