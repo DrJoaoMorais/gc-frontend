@@ -8340,7 +8340,6 @@ async function wireLogout() {
         }
 
         if (String(G.currentView || "agenda").toLowerCase() !== "agenda") {
-  await renderManagementView();
   return;
 }
 
