@@ -8469,11 +8469,16 @@ function searchExams(exams, query) {
 
  /* ==== FIM BLOCO 12A — Catálogo de exames ==== */
 
- /* ==== INÍCIO BLOCO 12B — Estado do painel de exames ==== */
+/* ==== INÍCIO BLOCO 12B — Estado do painel de exames ==== */
 
 /* ---- FUNÇÃO 12B.1 — examsUiState ---- */
 const examsUiState = {
-  isOpen: false
+  isOpen: false,
+  query: "",
+  exams: [],
+  selectedGroup: "",
+  selectedExamId: "",
+  mode: "groups" // groups | exam
 };
 /* ---- FIM FUNÇÃO 12B.1 ---- */
 
