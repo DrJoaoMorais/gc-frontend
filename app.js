@@ -8895,7 +8895,6 @@ function openExamGroup(groupLabel) {
 }
 /* ---- FIM FUNÇÃO 12F.1 ---- */
 
-
 /* ---- FUNÇÃO 12F.2 — openExamRequest ---- */
 function openExamRequest(examId) {
 
@@ -9033,92 +9032,121 @@ function openExamRequest(examId) {
   });
 
   document.getElementById("gcGenerateExamPdf")?.addEventListener("click", async () => {
-
-  try {
-
-    examsUiState.clinicalInfo =
-      String(document.getElementById("gcExamClinicalInfo")?.value || "");
-
-    const exams = examsUiState.exams || [];
-    const exam = getExamById(exams, examsUiState.selectedExamId);
-    if (!exam) {
-      alert("Exame não encontrado.");
-      return;
-    }
-
-    const clinic = await fetchClinicForPdf();
-    if (!clinic) {
-      alert("Não consegui carregar dados da clínica.");
-      return;
-    }
-
-    let vinhetaUrl = "";
     try {
-      const vinhetaSignedUrl = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
-      if (vinhetaSignedUrl) {
-        vinhetaUrl = await urlToDataUrl(vinhetaSignedUrl, "image/png");
+      examsUiState.clinicalInfo = String(document.getElementById("gcExamClinicalInfo")?.value || "");
+
+      const exams = examsUiState.exams || [];
+      const exam = getExamById(exams, examsUiState.selectedExamId);
+      if (!exam) {
+        alert("Exame não encontrado.");
+        return;
       }
-    } catch (_) {}
 
-    let clinicLogoUrl = "";
-    try {
-      const rawLogo = String(clinic?.logo_url || "").trim();
-      if (rawLogo.startsWith("data:")) clinicLogoUrl = rawLogo;
-      else if (rawLogo.startsWith("http")) clinicLogoUrl = await urlToDataUrl(rawLogo, "image/png");
-    } catch (_) {}
+      if (!activeClinicId) {
+        alert("Sem clínica ativa.");
+        return;
+      }
 
-    const html = buildExamRequestHtml({
-      clinic,
-      examName: exam.exam_name,
-      clinicalInfo: examsUiState.clinicalInfo,
-      vinhetaUrl,
-      clinicLogoUrl
-    });
+      const clinic = await fetchClinicForPdf();
+      if (!clinic) {
+        alert("Não consegui carregar os dados da clínica.");
+        return;
+      }
 
-    const blob = await renderPdfViaProxy(html);
+      let vinhetaUrl = "";
+      try {
+        const vinhetaSignedUrl = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
+        if (vinhetaSignedUrl) {
+          vinhetaUrl = await urlToDataUrl(vinhetaSignedUrl, "image/png");
+        }
+      } catch (e) {
+        console.warn("Pedido de exame: vinheta falhou:", e);
+        vinhetaUrl = "";
+      }
 
-    if (!blob || blob.size < 5000) {
-      alert("PDF inválido.");
-      return;
+      let clinicLogoUrl = "";
+      try {
+        const rawLogo = String(clinic?.logo_url || "").trim();
+
+        if (rawLogo.startsWith("data:")) {
+          clinicLogoUrl = rawLogo;
+        } else if (rawLogo.startsWith("http://") || rawLogo.startsWith("https://")) {
+          clinicLogoUrl = await urlToDataUrl(rawLogo, "image/png");
+        } else {
+          clinicLogoUrl = "";
+        }
+      } catch (e) {
+        console.warn("Pedido de exame: logo falhou:", e);
+        clinicLogoUrl = "";
+      }
+
+      const html = buildExamRequestHtml({
+        clinic,
+        examName: exam.exam_name,
+        clinicalInfo: examsUiState.clinicalInfo,
+        vinhetaUrl,
+        clinicLogoUrl
+      });
+
+      const blob = await renderPdfViaProxy(html);
+
+      if (!blob || blob.size < 5000) {
+        alert("PDF inválido ou demasiado pequeno.");
+        return;
+      }
+
+      const ymd = new Date().toISOString().slice(0, 10);
+      const hms = new Date().toISOString().slice(11, 19).replaceAll(":", "");
+      const safeExamName = String(exam.exam_name || "exame")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 80);
+
+      const path = `clinic_${activeClinicId}/patient_${p.id}/exam_requests/${ymd}_${hms}_${safeExamName}.pdf`;
+
+      const up = await uploadPdfToStorage({ blob, path });
+      if (!up.ok) {
+        const msg = String(up.error?.message || up.error?.error || up.error || "erro desconhecido");
+        alert(`Falhou o upload do PDF.\nDetalhe: ${msg}`);
+        return;
+      }
+
+      const ins = await insertDocumentRow({
+        clinic_id: activeClinicId,
+        patient_id: p.id,
+        consultation_id: null,
+        title: `Pedido de Exame — ${exam.exam_name}`,
+        html,
+        parent_document_id: null,
+        version: 1,
+        storage_path: path
+      });
+
+      if (!ins.ok) {
+        const msg = String(ins.error?.message || ins.error?.error || ins.error || "erro desconhecido");
+        alert(`PDF criado mas falhou o registo na tabela documents.\nDetalhe: ${msg}`);
+        return;
+      }
+
+      alert("Pedido de exame criado com sucesso.");
+
+      examsUiState.clinicalInfo = "";
+      closeExamsPanel();
+
+      if (typeof loadDocuments === "function") {
+        await loadDocuments();
+      }
+      if (typeof render === "function") {
+        render();
+      }
+
+    } catch (err) {
+      console.error("Gerar PDF pedido de exame falhou:", err);
+      alert("Erro ao gerar pedido de exame.");
     }
-
-    const ymd = new Date().toISOString().slice(0,10);
-    const hms = new Date().toISOString().slice(11,19).replaceAll(":","");
-
-    const path =
-      `clinic_${activeClinicId}/patient_${p.id}/exam_${ymd}_${hms}.pdf`;
-
-    const up = await uploadPdfToStorage({ blob, path });
-
-    if (!up.ok) {
-      alert("Falhou upload do PDF.");
-      return;
-    }
-
-    const ins = await insertDocumentRow({
-      clinic_id: activeClinicId,
-      patient_id: p.id,
-      consultation_id: null,
-      title: `Pedido de Exame — ${exam.exam_name}`,
-      html: "",
-      parent_document_id: null,
-      version: 1,
-      storage_path: path
-    });
-
-    if (!ins.ok) {
-      alert("PDF criado mas falhou registo na tabela documents.");
-      return;
-    }
-
-    alert("Pedido de exame criado com sucesso.");
-
-  } catch (err) {
-    console.error(err);
-    alert("Erro ao gerar pedido de exame.");
-  }
-
-});
+  });
 
 }
 /* ---- FIM FUNÇÃO 12F.2 ---- */
