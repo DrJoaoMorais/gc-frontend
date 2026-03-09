@@ -8409,27 +8409,86 @@ async function wireLogout() {
 /* ==== FIM BLOCO 11B — Boot principal ==== */
 
 /* ========================================================
-   BLOCO 12/12 — DOMContentLoaded + fechamento IIFE
+   BLOCO 12 — Catálogo de exames
    MAPA DE NAVEGAÇÃO
    --------------------------------------------------------
-   12A — DOMContentLoaded
-      12A.1 document.addEventListener("DOMContentLoaded", boot)
-
-   12B — Fechamento IIFE
-      12B.1 fechamento da IIFE
+   12A — Catálogo de exames (load + pesquisa)
+      12A.1 loadExamsCatalog
+      12A.2 searchExams
    ======================================================== */
 
-/* ==== INÍCIO BLOCO 12A — DOMContentLoaded ==== */
 
-  /* ---- FUNÇÃO 12A.1 — document.addEventListener("DOMContentLoaded", boot) ---- */
+/* ==== INÍCIO BLOCO 12A — Catálogo de exames ==== */
+
+/* ---- FUNÇÃO 12A.1 — loadExamsCatalog ---- */
+async function loadExamsCatalog() {
+  try {
+
+    const { data, error } = await window.sb
+      .from("exams_catalog")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+
+    if (error) throw error;
+
+    return data || [];
+
+  } catch (err) {
+
+    console.error("Erro ao carregar catálogo de exames:", err);
+    return [];
+
+  }
+}
+/* ---- FIM FUNÇÃO 12A.1 ---- */
+
+
+/* ---- FUNÇÃO 12A.2 — searchExams ---- */
+function searchExams(exams, query) {
+
+  if (!query || !query.trim()) return exams;
+
+  const q = query.toLowerCase();
+
+  return exams.filter((e) => {
+
+    return (
+      (e.exam_name && e.exam_name.toLowerCase().includes(q)) ||
+      (e.body_region && e.body_region.toLowerCase().includes(q)) ||
+      (e.search_terms && e.search_terms.toLowerCase().includes(q)) ||
+      (e.category && e.category.toLowerCase().includes(q))
+    );
+
+  });
+
+}
+/* ---- FIM FUNÇÃO 12A.2 ---- */
+
+ /* ==== FIM BLOCO 12A — Catálogo de exames ==== */
+
+/* ========================================================
+   BLOCO 13/13 — DOMContentLoaded + fechamento IIFE
+   MAPA DE NAVEGAÇÃO
+   --------------------------------------------------------
+   13A — DOMContentLoaded
+      13A.1 document.addEventListener("DOMContentLoaded", boot)
+
+   13B — Fechamento IIFE
+      13B.1 fechamento da IIFE
+   ======================================================== */
+
+/* ==== INÍCIO BLOCO 13A — DOMContentLoaded ==== */
+
+  /* ---- FUNÇÃO 13A.1 — document.addEventListener("DOMContentLoaded", boot) ---- */
   document.addEventListener("DOMContentLoaded", boot);
-  /* ---- FIM FUNÇÃO 12A.1 ---- */
+  /* ---- FIM FUNÇÃO 13A.1 ---- */
 
-/* ==== FIM BLOCO 12A — DOMContentLoaded ==== */
+/* ==== FIM BLOCO 13A — DOMContentLoaded ==== */
 
 
-/* ==== INÍCIO BLOCO 12B — Fechamento IIFE ==== */
+/* ==== INÍCIO BLOCO 13B — Fechamento IIFE ==== */
 
 })();  // Fim IIFE
 
-/* ==== FIM BLOCO 12B — Fechamento IIFE ==== */
+/* ==== FIM BLOCO 13B — Fechamento IIFE ==== */
