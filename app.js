@@ -8612,6 +8612,95 @@ function renderExamsPanel() {
 
 /* ==== FIM BLOCO 12C — Abertura / fecho do painel de exames ==== */
 
+/* ==== INÍCIO BLOCO 12D — Helpers de organização dos exames ==== */
+
+/* ---- FUNÇÃO 12D.1 — getExamGroupLabel ---- */
+function getExamGroupLabel(exam) {
+  const category = String(exam?.category || "").trim();
+  const subcategory = String(exam?.subcategory || "").trim();
+
+  if (category === "Ecografia" && subcategory === "Osteoarticular") {
+    return "Ecografia Osteoarticular";
+  }
+
+  if (category === "Ecografia" && subcategory === "Partes Moles") {
+    return "Ecografia Partes Moles";
+  }
+
+  if (category === "Radiografia") {
+    return "Radiografia";
+  }
+
+  if (category === "Ressonância Magnética") {
+    return "Ressonância Magnética";
+  }
+
+  if (category === "Tomografia Computorizada") {
+    return "Tomografia Computorizada";
+  }
+
+  if (category === "Densitometria Óssea") {
+    return "Densitometria Óssea";
+  }
+
+  return "";
+}
+/* ---- FIM FUNÇÃO 12D.1 ---- */
+
+
+/* ---- FUNÇÃO 12D.2 — listExamGroups ---- */
+function listExamGroups(exams) {
+  const wantedOrder = [
+    "Ecografia Osteoarticular",
+    "Ecografia Partes Moles",
+    "Radiografia",
+    "Ressonância Magnética",
+    "Tomografia Computorizada",
+    "Densitometria Óssea"
+  ];
+
+  const found = new Set();
+
+  (exams || []).forEach((exam) => {
+    if (exam?.is_direct === true) return;
+
+    const label = getExamGroupLabel(exam);
+    if (label) found.add(label);
+  });
+
+  return wantedOrder.filter((label) => found.has(label));
+}
+/* ---- FIM FUNÇÃO 12D.2 ---- */
+
+
+/* ---- FUNÇÃO 12D.3 — listDirectExams ---- */
+function listDirectExams(exams) {
+  return (exams || [])
+    .filter((exam) => exam?.is_direct === true)
+    .sort((a, b) => Number(a?.sort_order || 0) - Number(b?.sort_order || 0));
+}
+/* ---- FIM FUNÇÃO 12D.3 ---- */
+
+
+/* ---- FUNÇÃO 12D.4 — listGroupedExams ---- */
+function listGroupedExams(exams, groupLabel) {
+  return (exams || [])
+    .filter((exam) => {
+      if (exam?.is_direct === true) return false;
+      return getExamGroupLabel(exam) === groupLabel;
+    })
+    .sort((a, b) => Number(a?.sort_order || 0) - Number(b?.sort_order || 0));
+}
+/* ---- FIM FUNÇÃO 12D.4 ---- */
+
+
+/* ---- FUNÇÃO 12D.5 — getExamById ---- */
+function getExamById(exams, examId) {
+  return (exams || []).find((exam) => String(exam?.id || "") === String(examId || "")) || null;
+}
+/* ---- FIM FUNÇÃO 12D.5 ---- */
+
+/* ==== FIM BLOCO 12D — Helpers de organização dos exames ==== */
 
 /* ========================================================
    BLOCO 13/13 — DOMContentLoaded + fechamento IIFE
