@@ -8719,7 +8719,6 @@ function renderExamGroups() {
   let html = "";
 
   /* CATEGORIAS */
-
   if (groups.length) {
 
     html += `
@@ -8730,7 +8729,6 @@ function renderExamGroups() {
     `;
 
     groups.forEach((g) => {
-
       html += `
         <div
           class="gcExamGroup"
@@ -8748,13 +8746,10 @@ function renderExamGroups() {
           ${g}
         </div>
       `;
-
     });
-
   }
 
   /* EXAMES DIRETOS */
-
   if (direct.length) {
 
     html += `
@@ -8766,7 +8761,6 @@ function renderExamGroups() {
     `;
 
     direct.forEach((exam) => {
-
       html += `
         <div
           class="gcExamDirect"
@@ -8783,12 +8777,18 @@ function renderExamGroups() {
           ${exam.exam_name}
         </div>
       `;
-
     });
-
   }
 
   container.innerHTML = html;
+
+  container.querySelectorAll(".gcExamGroup").forEach((el) => {
+    el.addEventListener("click", () => {
+      const groupLabel = el.getAttribute("data-group") || "";
+      if (!groupLabel) return;
+      openExamGroup(groupLabel);
+    });
+  });
 
 }
 /* ---- FIM FUNÇÃO 12E.1 ---- */
@@ -8798,17 +8798,11 @@ function renderExamGroups() {
 async function loadAndRenderExams() {
 
   try {
-
     const exams = await loadExamsCatalog();
-
     examsUiState.exams = exams;
-
     renderExamGroups();
-
   } catch (err) {
-
     console.error("Erro ao carregar exames:", err);
-
   }
 
 }
