@@ -5717,16 +5717,7 @@ function render() {
       bindConsultEvents();
     });
 
-    document.getElementById("btnComplementaryExams")?.addEventListener("click", async () => {
-      try {
-        const exams = await loadExamsCatalog();
-        console.log("Catálogo de exames carregado:", exams);
-        alert(`Exames carregados: ${exams.length}`);
-      } catch (e) {
-        console.error("Erro ao abrir catálogo de exames:", e);
-        alert("Não foi possível carregar o catálogo de exames.");
-      }
-    });
+    document.getElementById("btnComplementaryExams")?.addEventListener("click", openExamsPanel);
   }
 
   document.querySelectorAll('[data-action="edit-consult"]').forEach((btn) => {
@@ -8477,6 +8468,109 @@ function searchExams(exams, query) {
 /* ---- FIM FUNÇÃO 12A.2 ---- */
 
  /* ==== FIM BLOCO 12A — Catálogo de exames ==== */
+
+ /* ==== INÍCIO BLOCO 12B — Estado do painel de exames ==== */
+
+/* ---- FUNÇÃO 12B.1 — examsUiState ---- */
+const examsUiState = {
+  isOpen: false
+};
+/* ---- FIM FUNÇÃO 12B.1 ---- */
+
+/* ==== FIM BLOCO 12B — Estado do painel de exames ==== */
+
+
+/* ==== INÍCIO BLOCO 12C — Abertura / fecho do painel de exames ==== */
+
+/* ---- FUNÇÃO 12C.1 — openExamsPanel ---- */
+function openExamsPanel() {
+  examsUiState.isOpen = true;
+  renderExamsPanel();
+}
+/* ---- FIM FUNÇÃO 12C.1 ---- */
+
+
+/* ---- FUNÇÃO 12C.2 — closeExamsPanel ---- */
+function closeExamsPanel() {
+  examsUiState.isOpen = false;
+  const panel = document.getElementById("gcExamsPanel");
+  if (panel) panel.remove();
+}
+/* ---- FIM FUNÇÃO 12C.2 ---- */
+
+
+/* ---- FUNÇÃO 12C.3 — renderExamsPanel ---- */
+function renderExamsPanel() {
+
+  if (!examsUiState.isOpen) return;
+
+  if (document.getElementById("gcExamsPanel")) return;
+
+  const panel = document.createElement("div");
+
+  panel.id = "gcExamsPanel";
+
+  panel.style.position = "fixed";
+  panel.style.top = "0";
+  panel.style.right = "0";
+  panel.style.width = "420px";
+  panel.style.height = "100vh";
+  panel.style.background = "#ffffff";
+  panel.style.borderLeft = "1px solid #e5e7eb";
+  panel.style.boxShadow = "-8px 0 24px rgba(0,0,0,0.08)";
+  panel.style.zIndex = "9999";
+  panel.style.display = "flex";
+  panel.style.flexDirection = "column";
+
+  panel.innerHTML = `
+    <div style="padding:16px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
+      <div style="font-weight:800; font-size:16px;">
+        Pedidos de Exames
+      </div>
+
+      <button id="gcCloseExamsPanel"
+        style="
+          background:#ffffff;
+          border:1px solid #d1d5db;
+          padding:6px 10px;
+          border-radius:6px;
+          cursor:pointer;
+          font-weight:700;
+        ">
+        Fechar
+      </button>
+    </div>
+
+    <div style="padding:16px;">
+      <input
+        id="gcExamSearch"
+        type="text"
+        placeholder="Pesquisar exame..."
+        style="
+          width:100%;
+          padding:10px;
+          border:1px solid #cbd5e1;
+          border-radius:8px;
+          font-size:14px;
+        "
+      >
+    </div>
+
+    <div id="gcExamResults" style="flex:1; overflow:auto; padding:16px;">
+      <!-- resultados irão aparecer aqui -->
+    </div>
+  `;
+
+  document.body.appendChild(panel);
+
+  document.getElementById("gcCloseExamsPanel")
+    ?.addEventListener("click", closeExamsPanel);
+
+}
+/* ---- FIM FUNÇÃO 12C.3 ---- */
+
+/* ==== FIM BLOCO 12C — Abertura / fecho do painel de exames ==== */
+
 
 /* ========================================================
    BLOCO 13/13 — DOMContentLoaded + fechamento IIFE
