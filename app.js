@@ -9066,15 +9066,39 @@ function openExamRequest(examId) {
         return;
       }
 
-      const clinic = await fetchClinicForPdf();
-      if (!clinic) {
-        alert("Não consegui carregar os dados da clínica.");
+      if (!p?.id) {
+        alert("Doente sem ID válido.");
         return;
       }
 
-      const resolvedClinicId = String(clinic?.id || "").trim();
+      const { data: patientClinicRow, error: patientClinicError } = await window.sb
+        .from("patient_clinic")
+        .select("clinic_id")
+        .eq("patient_id", p.id)
+        .eq("is_active", true)
+        .single();
+
+      if (patientClinicError || !patientClinicRow?.clinic_id) {
+        console.error("patient_clinic error:", patientClinicError);
+        alert("Não consegui determinar a clínica ativa do doente.");
+        return;
+      }
+
+      const resolvedClinicId = String(patientClinicRow.clinic_id || "").trim();
       if (!resolvedClinicId) {
         alert("Sem clínica ativa.");
+        return;
+      }
+
+      const { data: clinic, error: clinicError } = await window.sb
+        .from("clinics")
+        .select("id, name, address_line1, address_line2, postal_code, city, phone, email, website, logo_url")
+        .eq("id", resolvedClinicId)
+        .single();
+
+      if (clinicError || !clinic) {
+        console.error("clinics error:", clinicError);
+        alert("Não consegui carregar os dados da clínica.");
         return;
       }
 
