@@ -5741,7 +5741,9 @@ function render() {
       bindConsultEvents();
     });
 
-    document.getElementById("btnComplementaryExams")?.addEventListener("click", openExamsPanel);
+    document.getElementById("btnComplementaryExams")?.addEventListener("click", () => {
+  openExamsPanel({ patientId: p.id });
+});
   }
 
   document.querySelectorAll('[data-action="edit-consult"]').forEach((btn) => {
@@ -8503,6 +8505,7 @@ const examsUiState = {
   selectedGroup: "",
   selectedExamId: "",
   clinicalInfo: "",
+  patientId: "",
   mode: "groups" // groups | exam
 };
 /* ---- FIM FUNÇÃO 12B.1 ---- */
@@ -8513,8 +8516,9 @@ const examsUiState = {
 /* ==== INÍCIO BLOCO 12C — Abertura / fecho do painel de exames ==== */
 
 /* ---- FUNÇÃO 12C.1 — openExamsPanel ---- */
-function openExamsPanel() {
+function openExamsPanel(opts = {}) {
   examsUiState.isOpen = true;
+  examsUiState.patientId = String(opts?.patientId || examsUiState.patientId || "");
   renderExamsPanel();
 }
 /* ---- FIM FUNÇÃO 12C.1 ---- */
