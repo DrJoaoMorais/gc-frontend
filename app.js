@@ -4093,6 +4093,10 @@ async function generatePdfAndUploadV1() {
     window.__gc_storageSignedUrl  = storageSignedUrl;
     window.__gc_urlToDataUrl      = urlToDataUrl;
     window.__gc_renderPdfViaProxy = renderPdfViaProxy;
+    window.__gc_uploadPdfToStorage  = uploadPdfToStorage;
+    window.__gc_insertDocumentRow   = insertDocumentRow;
+    window.__gc_VINHETA_BUCKET      = VINHETA_BUCKET;
+    window.__gc_VINHETA_PATH        = VINHETA_PATH;
   } catch (e) {}
   /* ---- FIM FUNÇÃO 06Fc.6 ---- */
 
@@ -8929,16 +8933,12 @@ function openExamGroup(groupLabel) {
 
 /* ---- FUNÇÃO 12F.2 — openExamRequest ---- */
 function openExamRequest(examId) {
-
   examsUiState.selectedExamId = examId;
   examsUiState.mode = "exam";
-
   const exams = examsUiState.exams || [];
   const exam = getExamById(exams, examId);
-
   const container = document.getElementById("gcExamResults");
   if (!container) return;
-
   if (!exam) {
     container.innerHTML = `
       <div style="color:#b91c1c; font-weight:600;">
@@ -8947,9 +8947,7 @@ function openExamRequest(examId) {
     `;
     return;
   }
-
   const savedInfo = String(examsUiState.clinicalInfo || "");
-
   container.innerHTML = `
     <div style="margin-bottom:12px; display:flex; align-items:center; gap:8px;">
       <button
@@ -8965,7 +8963,6 @@ function openExamRequest(examId) {
         ← Voltar
       </button>
     </div>
-
     <div style="
       border:1px solid #e2e8f0;
       border-radius:12px;
@@ -8980,7 +8977,6 @@ function openExamRequest(examId) {
       ">
         Pedido de Exame
       </div>
-
       <div style="
         font-weight:800;
         color:#111827;
@@ -8988,7 +8984,6 @@ function openExamRequest(examId) {
       ">
         R/
       </div>
-
       <div style="
         font-size:16px;
         font-weight:700;
@@ -8998,7 +8993,6 @@ function openExamRequest(examId) {
       ">
         ${exam.exam_name}
       </div>
-
       <label
         for="gcExamClinicalInfo"
         style="
@@ -9011,7 +9005,6 @@ function openExamRequest(examId) {
       >
         Informação clínica
       </label>
-
       <textarea
         id="gcExamClinicalInfo"
         placeholder="Escreva a informação clínica..."
@@ -9028,7 +9021,6 @@ function openExamRequest(examId) {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
         "
       >${savedInfo}</textarea>
-
       <div style="margin-top:14px; display:flex; justify-content:flex-end;">
         <button
           id="gcGenerateExamPdf"
@@ -9048,12 +9040,10 @@ function openExamRequest(examId) {
 
   document.getElementById("gcExamRequestBack")?.addEventListener("click", () => {
     examsUiState.clinicalInfo = String(document.getElementById("gcExamClinicalInfo")?.value || "");
-
     if (examsUiState.selectedGroup) {
       openExamGroup(examsUiState.selectedGroup);
       return;
     }
-
     examsUiState.mode = "groups";
     examsUiState.selectedExamId = "";
     renderExamGroups();
@@ -9065,35 +9055,28 @@ function openExamRequest(examId) {
 
   document.getElementById("gcGenerateExamPdf")?.addEventListener("click", async () => {
     try {
-
       examsUiState.clinicalInfo = String(document.getElementById("gcExamClinicalInfo")?.value || "");
-
       const exams = examsUiState.exams || [];
       const exam = getExamById(exams, examsUiState.selectedExamId);
-
       if (!exam) {
         alert("Exame não encontrado.");
         return;
       }
 
       /* ===== CORREÇÃO: obter patientId do estado ===== */
-
       const patientId = String(examsUiState.patientId || "").trim();
-
       if (!patientId) {
         alert("Doente sem ID válido.");
         return;
       }
 
       /* ===== obter clínica ativa do doente ===== */
-
       const { data: patientClinicRow, error: patientClinicError } = await window.sb
         .from("patient_clinic")
         .select("clinic_id")
         .eq("patient_id", patientId)
         .eq("is_active", true)
         .single();
-
       if (patientClinicError || !patientClinicRow?.clinic_id) {
         console.error("patient_clinic error:", patientClinicError);
         alert("Não consegui determinar a clínica ativa do doente.");
@@ -9101,20 +9084,17 @@ function openExamRequest(examId) {
       }
 
       const resolvedClinicId = String(patientClinicRow.clinic_id || "").trim();
-
       if (!resolvedClinicId) {
         alert("Sem clínica ativa.");
         return;
       }
 
       /* ===== carregar dados da clínica ===== */
-
       const { data: clinic, error: clinicError } = await window.sb
         .from("clinics")
         .select("id, name, address_line1, address_line2, postal_code, city, phone, email, website, logo_url")
         .eq("id", resolvedClinicId)
         .single();
-
       if (clinicError || !clinic) {
         console.error("clinics error:", clinicError);
         alert("Não consegui carregar os dados da clínica.");
@@ -9122,46 +9102,34 @@ function openExamRequest(examId) {
       }
 
       /* ===== vinheta ===== */
-
       let vinhetaUrl = "";
-
       try {
-        const vinhetaSignedUrl = await window.__gc_storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
-
+        const vinhetaSignedUrl = await window.__gc_storageSignedUrl(window.__gc_VINHETA_BUCKET, window.__gc_VINHETA_PATH, 3600);
         if (vinhetaSignedUrl) {
           vinhetaUrl = await window.__gc_urlToDataUrl(vinhetaSignedUrl, "image/png");
         }
-
       } catch (e) {
         console.warn("Pedido de exame: vinheta falhou:", e);
         vinhetaUrl = "";
       }
 
       /* ===== logo clínica ===== */
-
       let clinicLogoUrl = "";
-
       try {
-
         const rawLogo = String(clinic?.logo_url || "").trim();
-
         if (rawLogo.startsWith("data:")) {
           clinicLogoUrl = rawLogo;
-        }
-        else if (rawLogo.startsWith("http://") || rawLogo.startsWith("https://")) {
+        } else if (rawLogo.startsWith("http://") || rawLogo.startsWith("https://")) {
           clinicLogoUrl = await window.__gc_urlToDataUrl(rawLogo, "image/png");
-        }
-        else {
+        } else {
           clinicLogoUrl = "";
         }
-
       } catch (e) {
         console.warn("Pedido de exame: logo falhou:", e);
         clinicLogoUrl = "";
       }
 
       /* ===== gerar HTML ===== */
-
       const html = buildExamRequestHtml({
         clinic,
         examName: exam.exam_name,
@@ -9171,19 +9139,15 @@ function openExamRequest(examId) {
       });
 
       /* ===== gerar PDF ===== */
-
       const blob = await window.__gc_renderPdfViaProxy(html);
-
       if (!blob || blob.size < 5000) {
         alert("PDF inválido ou demasiado pequeno.");
         return;
       }
 
       /* ===== nome do ficheiro ===== */
-
       const ymd = new Date().toISOString().slice(0, 10);
       const hms = new Date().toISOString().slice(11, 19).replaceAll(":", "");
-
       const safeExamName = String(exam.exam_name || "exame")
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
@@ -9192,30 +9156,24 @@ function openExamRequest(examId) {
         .slice(0, 80);
 
       /* ===== caminho storage ===== */
-
       const path =
         `clinic_${resolvedClinicId}/patient_${patientId}/exam_requests/${ymd}_${hms}_${safeExamName}.pdf`;
 
       /* ===== upload ===== */
-
-      const up = await uploadPdfToStorage({ blob, path });
-
+      const up = await window.__gc_uploadPdfToStorage({ blob, path });
       if (!up.ok) {
-
         const msg = String(
           up.error?.message ||
           up.error?.error ||
           up.error ||
           "erro desconhecido"
         );
-
         alert(`Falhou o upload do PDF.\nDetalhe: ${msg}`);
         return;
       }
 
       /* ===== registar documento ===== */
-
-      const ins = await insertDocumentRow({
+      const ins = await window.__gc_insertDocumentRow({
         clinic_id: resolvedClinicId,
         patient_id: patientId,
         consultation_id: null,
@@ -9225,41 +9183,32 @@ function openExamRequest(examId) {
         version: 1,
         storage_path: path
       });
-
       if (!ins.ok) {
-
         const msg = String(
           ins.error?.message ||
           ins.error?.error ||
           ins.error ||
           "erro desconhecido"
         );
-
         alert(`PDF criado mas falhou o registo na tabela documents.\nDetalhe: ${msg}`);
         return;
       }
 
       alert("Pedido de exame criado com sucesso.");
-
       examsUiState.clinicalInfo = "";
-
       closeExamsPanel();
-
       if (typeof loadDocuments === "function") {
         await loadDocuments();
       }
-
       if (typeof render === "function") {
         render();
       }
 
-    }
-    catch (err) {
+    } catch (err) {
       console.error("Gerar PDF pedido de exame falhou:", err);
       alert("Erro ao gerar pedido de exame.");
     }
   });
-
 }
 /* ---- FIM FUNÇÃO 12F.2 ---- */
 
