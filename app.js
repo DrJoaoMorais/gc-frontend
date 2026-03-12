@@ -4038,26 +4038,15 @@ async function generatePdfAndUploadV1() {
       clinicLogoUrl = "";
     }
 
-    // Sincronizar editor visual
-    if (docOpen && docMode !== "html") syncDocFromFrame();
-
-    // REGRA:
-    // PDF = HTML atual do editor
-    // Só rebuild se não houver conteúdo
-    const draftNow = String(docDraftHtml || "").trim();
-
-    if (!draftNow || draftNow.length < 80) {
-      docDraftHtml = buildDocV1Html({
-        clinic,
-        consult,
-        authorName,
-        vinhetaUrl,
-        clinicLogoUrl,
-        signatureUrl
-      });
-    } else {
-      docDraftHtml = applyPdfAssetsToHtml(draftNow, { clinicLogoUrl, vinhetaUrl, signatureUrl });
-    }
+    // Sempre rebuild completo para garantir assinatura e assets actualizados
+    docDraftHtml = buildDocV1Html({
+      clinic,
+      consult,
+      authorName,
+      vinhetaUrl,
+      clinicLogoUrl,
+      signatureUrl
+    });
 
     const titleSafe = safeText(docTitle || "Relatório Médico");
 
