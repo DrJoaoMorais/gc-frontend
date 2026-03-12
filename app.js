@@ -9065,7 +9065,7 @@ function openExamRequest(examId) {
         return;
       }
 
-      /* ===== CORREÇÃO: obter patientId do estado ===== */
+      /* ===== obter patientId do estado ===== */
       const patientId = String(examsUiState.patientId || "").trim();
       if (!patientId) {
         alert("Doente sem ID válido.");
@@ -9178,7 +9178,7 @@ function openExamRequest(examId) {
       const ins = await window.__gc_insertDocumentRow({
         clinic_id: resolvedClinicId,
         patient_id: patientId,
-        consultation_id: null,
+        consultation_id: examsUiState.consultationId || null,
         title: `Pedido de Exame — ${exam.exam_name}`,
         html,
         parent_document_id: null,
@@ -9199,11 +9199,11 @@ function openExamRequest(examId) {
       alert("Pedido de exame criado com sucesso.");
       examsUiState.clinicalInfo = "";
       closeExamsPanel();
-      if (typeof loadDocuments === "function") {
-        await loadDocuments();
+      if (typeof window.__gc_loadDocuments === "function") {
+        await window.__gc_loadDocuments();
       }
-      if (typeof render === "function") {
-        render();
+      if (typeof window.__gc_render === "function") {
+        window.__gc_render();
       }
 
     } catch (err) {
