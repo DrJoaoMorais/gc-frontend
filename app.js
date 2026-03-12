@@ -8514,7 +8514,8 @@ const examsUiState = {
   selectedExamId: "",
   clinicalInfo: "",
   patientId: "",
-  mode: "groups" // groups | exam
+  consultationId: null,
+  mode: "groups"
 };
 /* ---- FIM FUNÇÃO 12B.1 ---- */
 
@@ -8526,7 +8527,8 @@ const examsUiState = {
 /* ---- FUNÇÃO 12C.1 — openExamsPanel ---- */
 function openExamsPanel(opts = {}) {
   examsUiState.isOpen = true;
-  examsUiState.patientId = String(opts?.patientId || examsUiState.patientId || "");
+  examsUiState.patientId     = String(opts?.patientId || examsUiState.patientId || "");
+  examsUiState.consultationId = opts?.consultationId || null;
   renderExamsPanel();
 }
 /* ---- FIM FUNÇÃO 12C.1 ---- */
