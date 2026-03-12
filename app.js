@@ -5166,12 +5166,12 @@ function renderTimeline() {
         window.__gcPhysioQuill = q;
 
         // Fix bold/underline toggle no Quill 1.3.6
-        document.getElementById("physioQuillToolbar")?.querySelector(".ql-bold")?.addEventListener("click", (e) => {
+        document.getElementById("physioQuillToolbar")?.querySelector(".ql-bold")?.addEventListener("mousedown", (e) => {
           e.preventDefault();
           const format = q.getFormat();
           q.format("bold", !format.bold);
         });
-        document.getElementById("physioQuillToolbar")?.querySelector(".ql-underline")?.addEventListener("click", (e) => {
+        document.getElementById("physioQuillToolbar")?.querySelector(".ql-underline")?.addEventListener("mousedown", (e) => {
           e.preventDefault();
           const format = q.getFormat();
           q.format("underline", !format.underline);
@@ -5361,12 +5361,12 @@ function openConsultForEdit(consultId) {
       window.__gcQuillHDA = quill;
 
       // Fix bold/underline toggle no Quill 1.3.6
-      document.getElementById("hdaQuillToolbar")?.querySelector(".ql-bold")?.addEventListener("click", (e) => {
+      document.getElementById("hdaQuillToolbar")?.querySelector(".ql-bold")?.addEventListener("mousedown", (e) => {
         e.preventDefault();
         const format = quill.getFormat();
         quill.format("bold", !format.bold);
       });
-      document.getElementById("hdaQuillToolbar")?.querySelector(".ql-underline")?.addEventListener("click", (e) => {
+      document.getElementById("hdaQuillToolbar")?.querySelector(".ql-underline")?.addEventListener("mousedown", (e) => {
         e.preventDefault();
         const format = quill.getFormat();
         quill.format("underline", !format.underline);
