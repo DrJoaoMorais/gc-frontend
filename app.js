@@ -3959,6 +3959,11 @@ async function fetchClinicForPdf() {
         /(<img\b[^>]*class="sigImg"[^>]*\bsrc=")[^"]*(")/i,
         `$1${signatureUrl}$2`
       );
+    } else if (signatureUrl && out.includes('height:80px')) {
+      out = out.replace(
+        /<div style="height:80px;"><\/div>/,
+        `<div class="sigImgWrap"><img class="sigImg" src="${signatureUrl}" /></div>`
+      );
     }
 
     return out;
