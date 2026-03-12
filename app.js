@@ -9035,7 +9035,7 @@ function openExamRequest(examId) {
             font-weight:800;
           "
         >
-          Gerar PDF
+          Pré-visualizar e Gerar PDF
         </button>
       </div>
     </div>
@@ -9061,17 +9061,10 @@ function openExamRequest(examId) {
       examsUiState.clinicalInfo = String(document.getElementById("gcExamClinicalInfo")?.value || "");
       const exams = examsUiState.exams || [];
       const exam = getExamById(exams, examsUiState.selectedExamId);
-      if (!exam) {
-        alert("Exame não encontrado.");
-        return;
-      }
+      if (!exam) { alert("Exame não encontrado."); return; }
 
-      /* ===== obter patientId do estado ===== */
       const patientId = String(examsUiState.patientId || "").trim();
-      if (!patientId) {
-        alert("Doente sem ID válido.");
-        return;
-      }
+      if (!patientId) { alert("Doente sem ID válido."); return; }
 
       /* ===== obter clínica ativa do doente ===== */
       const { data: patientClinicRow, error: patientClinicError } = await window.sb
@@ -9087,10 +9080,7 @@ function openExamRequest(examId) {
       }
 
       const resolvedClinicId = String(patientClinicRow.clinic_id || "").trim();
-      if (!resolvedClinicId) {
-        alert("Sem clínica ativa.");
-        return;
-      }
+      if (!resolvedClinicId) { alert("Sem clínica ativa."); return; }
 
       /* ===== carregar dados da clínica ===== */
       const { data: clinic, error: clinicError } = await window.sb
@@ -9141,71 +9131,15 @@ function openExamRequest(examId) {
         clinicLogoUrl
       });
 
-      /* ===== gerar PDF ===== */
-      const blob = await window.__gc_renderPdfViaProxy(html);
-      if (!blob || blob.size < 5000) {
-        alert("PDF inválido ou demasiado pequeno.");
-        return;
-      }
+      /* ===== guardar contexto e abrir editor ===== */
+      window.__gc_pendingExamCtx = {
+        patientId,
+        clinicId: resolvedClinicId,
+        consultationId: examsUiState.consultationId || null,
+        examName: exam.exam_name
+      };
 
-      /* ===== nome do ficheiro ===== */
-      const ymd = new Date().toISOString().slice(0, 10);
-      const hms = new Date().toISOString().slice(11, 19).replaceAll(":", "");
-      const safeExamName = String(exam.exam_name || "exame")
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-zA-Z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "")
-        .slice(0, 80);
-
-      /* ===== caminho storage ===== */
-      const path =
-        `clinic_${resolvedClinicId}/patient_${patientId}/exam_requests/${ymd}_${hms}_${safeExamName}.pdf`;
-
-      /* ===== upload ===== */
-      const up = await window.__gc_uploadPdfToStorage({ blob, path });
-      if (!up.ok) {
-        const msg = String(
-          up.error?.message ||
-          up.error?.error ||
-          up.error ||
-          "erro desconhecido"
-        );
-        alert(`Falhou o upload do PDF.\nDetalhe: ${msg}`);
-        return;
-      }
-
-      /* ===== registar documento ===== */
-      const ins = await window.__gc_insertDocumentRow({
-        clinic_id: resolvedClinicId,
-        patient_id: patientId,
-        consultation_id: examsUiState.consultationId || null,
-        title: `Pedido de Exame — ${exam.exam_name}`,
-        html,
-        parent_document_id: null,
-        version: 1,
-        storage_path: path
-      });
-      if (!ins.ok) {
-        const msg = String(
-          ins.error?.message ||
-          ins.error?.error ||
-          ins.error ||
-          "erro desconhecido"
-        );
-        alert(`PDF criado mas falhou o registo na tabela documents.\nDetalhe: ${msg}`);
-        return;
-      }
-
-      alert("Pedido de exame criado com sucesso.");
-      examsUiState.clinicalInfo = "";
-      closeExamsPanel();
-      if (typeof window.__gc_loadDocuments === "function") {
-        await window.__gc_loadDocuments();
-      }
-      if (typeof window.__gc_render === "function") {
-        window.__gc_render();
-      }
+      window.openDocumentEditor(html);
 
     } catch (err) {
       console.error("Gerar PDF pedido de exame falhou:", err);
