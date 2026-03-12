@@ -3743,6 +3743,24 @@ async function fetchClinicForPdf() {
             </div>
           ` : `
             <div style="margin-top:12px; border:1px solid #e5e5e5; border-radius:12px; overflow:hidden;">
+              ${docMode === "visual" ? `
+              <div id="docToolbar" style="display:flex; gap:4px; padding:8px 10px; background:#f8f8f8; border-bottom:1px solid #e5e5e5; flex-wrap:wrap; align-items:center;">
+                <button onclick="(function(){var d=document.getElementById('docFrame').contentDocument;d.execCommand('bold')})()" style="font-weight:900; min-width:32px; padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">B</button>
+                <button onclick="(function(){var d=document.getElementById('docFrame').contentDocument;d.execCommand('italic')})()" style="font-style:italic; min-width:32px; padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">I</button>
+                <button onclick="(function(){var d=document.getElementById('docFrame').contentDocument;d.execCommand('underline')})()" style="text-decoration:underline; min-width:32px; padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">U</button>
+                <div style="width:1px; background:#ddd; height:24px; margin:0 4px;"></div>
+                <select onchange="(function(v){var d=document.getElementById('docFrame').contentDocument;d.execCommand('fontSize',false,v)})(this.value)" style="padding:4px 6px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:13px;">
+                  <option value="">Tamanho</option>
+                  <option value="2">Pequeno</option>
+                  <option value="3">Normal</option>
+                  <option value="4">Médio</option>
+                  <option value="5">Grande</option>
+                  <option value="6">Muito grande</option>
+                </select>
+                <div style="width:1px; background:#ddd; height:24px; margin:0 4px;"></div>
+                <button onclick="(function(){var d=document.getElementById('docFrame').contentDocument;d.execCommand('justifyLeft')})()" style="min-width:32px; padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">≡</button>
+                <button onclick="(function(){var d=document.getElementById('docFrame').contentDocument;d.execCommand('justifyCenter')})()" style="min-width:32px; padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">☰</button>
+              </div>` : ``}
               <iframe id="docFrame" style="width:100%; height:65vh; border:0; background:#fff;"></iframe>
             </div>
           `}
@@ -5146,6 +5164,18 @@ function renderTimeline() {
 
         s.draftHtml = q.root.innerHTML || "";
         window.__gcPhysioQuill = q;
+
+        // Fix bold/underline toggle no Quill 1.3.6
+        document.getElementById("physioQuillToolbar")?.querySelector(".ql-bold")?.addEventListener("click", (e) => {
+          e.preventDefault();
+          const format = q.getFormat();
+          q.format("bold", !format.bold);
+        });
+        document.getElementById("physioQuillToolbar")?.querySelector(".ql-underline")?.addEventListener("click", (e) => {
+          e.preventDefault();
+          const format = q.getFormat();
+          q.format("underline", !format.underline);
+        });
       } catch (_) {}
     });
 
@@ -5329,6 +5359,18 @@ function openConsultForEdit(consultId) {
       quill.root.setAttribute("autocapitalize", "sentences");
 
       window.__gcQuillHDA = quill;
+
+      // Fix bold/underline toggle no Quill 1.3.6
+      document.getElementById("hdaQuillToolbar")?.querySelector(".ql-bold")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        const format = quill.getFormat();
+        quill.format("bold", !format.bold);
+      });
+      document.getElementById("hdaQuillToolbar")?.querySelector(".ql-underline")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        const format = quill.getFormat();
+        quill.format("underline", !format.underline);
+      });
 
       const initialHtml = String(draftHDAHtml || "");
       if (initialHtml.trim().length) {
