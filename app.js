@@ -3592,7 +3592,7 @@ async function fetchClinicForPdf() {
   .vinheta { margin-top:8px; width:4cm; height:2.5cm; object-fit:contain; display:block; }
 
   .locDate { text-align:right; font-size:14px; margin-top:14px; }
-  .sig { margin-top:24px; display:flex; justify-content:flex-end; }
+  .sig { margin-top:40px; display:flex; justify-content:flex-end; }
 
   /* ✅ Evitar a CAIXA da assinatura ser partida */
   .sigBox { width:360px; text-align:center; page-break-inside:avoid; break-inside:avoid; }
@@ -3656,7 +3656,6 @@ async function fetchClinicForPdf() {
 
           <div class="sig">
             <div class="sigBox">
-              ${signatureUrl ? `<div class="sigImgWrap"><img class="sigImg" src="${escUrlAttr(signatureUrl)}" /></div>` : `<div style="height:80px;"></div>`}
               <div class="sigLine"></div>
               <div class="sigName">Dr. João Morais</div>
               <div class="sigRole">Médico Fisiatra</div>
@@ -3954,17 +3953,6 @@ async function fetchClinicForPdf() {
       );
     }
 
-    if (signatureUrl && out.includes('class="sigImg"')) {
-      out = out.replace(
-        /(<img\b[^>]*class="sigImg"[^>]*\bsrc=")[^"]*(")/i,
-        `$1${signatureUrl}$2`
-      );
-    } else if (signatureUrl && out.includes('height:80px')) {
-      out = out.replace(
-        /<div style="height:80px;"><\/div>/,
-        `<div class="sigImgWrap"><img class="sigImg" src="${signatureUrl}" /></div>`
-      );
-    }
 
     return out;
   }
@@ -9282,7 +9270,7 @@ function buildExamRequestHtml({ clinic, examName, clinicalInfo, vinhetaUrl, clin
   .web { font-size:14px; font-weight:700; }
   .vinheta { margin-top:8px; width:4cm; height:2.5cm; object-fit:contain; display:block; }
   .locDate { text-align:right; font-size:14px; margin-top:14px; }
-  .sig { margin-top:24px; display:flex; justify-content:flex-end; }
+  .sig { margin-top:40px; display:flex; justify-content:flex-end; }
   .sigBox { width:360px; text-align:center; page-break-inside:avoid; break-inside:avoid; }
   .sigImgWrap { position:relative; height:80px; display:flex; align-items:flex-end; justify-content:center; margin-bottom:-1px; }
   .sigImg { max-height:80px; max-width:280px; object-fit:contain; display:block; }
@@ -9329,7 +9317,6 @@ function buildExamRequestHtml({ clinic, examName, clinicalInfo, vinhetaUrl, clin
 
           <div class="sig">
             <div class="sigBox">
-              ${signatureUrl ? `<div class="sigImgWrap"><img class="sigImg" src="${escUrlAttr(signatureUrl)}" /></div>` : `<div style="height:80px;"></div>`}
               <div class="sigLine"></div>
               <div class="sigName">Dr. João Morais</div>
               <div class="sigRole">Médico Fisiatra</div>
