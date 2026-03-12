@@ -4086,12 +4086,16 @@ async function generatePdfAndUploadV1() {
 }
 /* ---- FIM FUNÇÃO 06Fc.5 ---- */
 
-  /* ---- FUNÇÃO 06Fc.6 — window exports ---- */
+/* ---- FUNÇÃO 06Fc.6 — window exports ---- */
   try {
     window.generatePdfAndUploadV1 = generatePdfAndUploadV1;
     window.openDocumentEditor = openDocumentEditor;
+    window.__gc_storageSignedUrl  = storageSignedUrl;
+    window.__gc_urlToDataUrl      = urlToDataUrl;
+    window.__gc_renderPdfViaProxy = renderPdfViaProxy;
   } catch (e) {}
   /* ---- FIM FUNÇÃO 06Fc.6 ---- */
+
 /* ==== FIM BLOCO 06Fc/12 — Documentos/PDF (STORAGE + GENERATE + EXPORTS) ==== */
 
 
@@ -9122,10 +9126,10 @@ function openExamRequest(examId) {
       let vinhetaUrl = "";
 
       try {
-        const vinhetaSignedUrl = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
+        const vinhetaSignedUrl = await window.__gc_storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
 
         if (vinhetaSignedUrl) {
-          vinhetaUrl = await urlToDataUrl(vinhetaSignedUrl, "image/png");
+          vinhetaUrl = await window.__gc_urlToDataUrl(vinhetaSignedUrl, "image/png");
         }
 
       } catch (e) {
@@ -9145,7 +9149,7 @@ function openExamRequest(examId) {
           clinicLogoUrl = rawLogo;
         }
         else if (rawLogo.startsWith("http://") || rawLogo.startsWith("https://")) {
-          clinicLogoUrl = await urlToDataUrl(rawLogo, "image/png");
+          clinicLogoUrl = await window.__gc_urlToDataUrl(rawLogo, "image/png");
         }
         else {
           clinicLogoUrl = "";
@@ -9168,7 +9172,7 @@ function openExamRequest(examId) {
 
       /* ===== gerar PDF ===== */
 
-      const blob = await renderPdfViaProxy(html);
+      const blob = await window.__gc_renderPdfViaProxy(html);
 
       if (!blob || blob.size < 5000) {
         alert("PDF inválido ou demasiado pequeno.");
