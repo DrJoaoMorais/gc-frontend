@@ -3216,6 +3216,10 @@ let editingConsultRow = null;
   const VINHETA_PATH = "vinheta/vinheta_web.png";
   /* ---- FIM FUNÇÃO/CONST 06Fa.3 ---- */
 
+  /* ---- FUNÇÃO/CONST 06Fa.3b — SIGNATURE_PATH ---- */
+  const SIGNATURE_PATH = "signatures/signature_dr_joao_morais.png";
+  /* ---- FIM FUNÇÃO/CONST 06Fa.3b ---- */
+
   /* ---- FUNÇÃO/STATE 06Fa.4 — docForceRebuildOnce ---- */
   let docForceRebuildOnce = false;
   /* ---- FIM FUNÇÃO/STATE 06Fa.4 ---- */
@@ -3451,7 +3455,7 @@ async function fetchClinicForPdf() {
   // HTML TEMPLATE — v1
   // =========================================================
   /* ---- FUNÇÃO 06Fa.14 — buildDocV1Html ---- */
-  function buildDocV1Html({ clinic, consult, authorName, vinhetaUrl, clinicLogoUrl }) {
+  function buildDocV1Html({ clinic, consult, authorName, vinhetaUrl, clinicLogoUrl, signatureUrl }) {
 
     function escUrlAttr(u) {
       return String(u || "")
@@ -3588,11 +3592,13 @@ async function fetchClinicForPdf() {
   .vinheta { margin-top:8px; width:4cm; height:2.5cm; object-fit:contain; display:block; }
 
   .locDate { text-align:right; font-size:14px; margin-top:14px; }
-  .sig { margin-top:14px; display:flex; justify-content:flex-end; }
+  .sig { margin-top:40px; display:flex; justify-content:flex-end; }
 
   /* ✅ Evitar a CAIXA da assinatura ser partida */
   .sigBox { width:360px; text-align:center; page-break-inside:avoid; break-inside:avoid; }
 
+  .sigImgWrap { position:relative; height:80px; display:flex; align-items:flex-end; justify-content:center; margin-bottom:-1px; }
+  .sigImg { max-height:80px; max-width:280px; object-fit:contain; display:block; }
   .sigLine { border-top:1px solid #111; padding-top:10px; }
   .sigName { font-weight:900; font-size:18px; margin-top:6px; }
   .sigRole { font-size:14px; margin-top:2px; }
@@ -3650,6 +3656,7 @@ async function fetchClinicForPdf() {
 
           <div class="sig">
             <div class="sigBox">
+              ${signatureUrl ? `<div class="sigImgWrap"><img class="sigImg" src="${escUrlAttr(signatureUrl)}" /></div>` : `<div style="height:80px;"></div>`}
               <div class="sigLine"></div>
               <div class="sigName">Dr. João Morais</div>
               <div class="sigRole">Médico Fisiatra</div>
@@ -3993,6 +4000,20 @@ async function generatePdfAndUploadV1() {
     }
 
     // =========================================================
+    // ASSINATURA — buscar signed URL e converter para DATA URL
+    // =========================================================
+    let signatureUrl = "";
+    try {
+      const signatureSignedUrl = await storageSignedUrl(VINHETA_BUCKET, SIGNATURE_PATH, 3600);
+      if (signatureSignedUrl) {
+        signatureUrl = await urlToDataUrl(signatureSignedUrl, "image/png");
+      }
+    } catch (e) {
+      console.warn("PDF: assinatura signed/data url falhou:", e);
+      signatureUrl = "";
+    }
+
+    // =========================================================
     // LOGO — usar data URL se vier de storage/http; manter data: se já existir
     // =========================================================
     let clinicLogoUrl = "";
@@ -4025,7 +4046,8 @@ async function generatePdfAndUploadV1() {
         consult,
         authorName,
         vinhetaUrl,
-        clinicLogoUrl
+        clinicLogoUrl,
+        signatureUrl
       });
     } else {
       docDraftHtml = applyPdfAssetsToHtml(draftNow, { clinicLogoUrl, vinhetaUrl });
@@ -9252,8 +9274,10 @@ function buildExamRequestHtml({ clinic, examName, clinicalInfo, vinhetaUrl, clin
   .web { font-size:14px; font-weight:700; }
   .vinheta { margin-top:8px; width:4cm; height:2.5cm; object-fit:contain; display:block; }
   .locDate { text-align:right; font-size:14px; margin-top:14px; }
-  .sig { margin-top:14px; display:flex; justify-content:flex-end; }
+  .sig { margin-top:40px; display:flex; justify-content:flex-end; }
   .sigBox { width:360px; text-align:center; page-break-inside:avoid; break-inside:avoid; }
+  .sigImgWrap { position:relative; height:80px; display:flex; align-items:flex-end; justify-content:center; margin-bottom:-1px; }
+  .sigImg { max-height:80px; max-width:280px; object-fit:contain; display:block; }
   .sigLine { border-top:1px solid #111; padding-top:10px; }
   .sigName { font-weight:900; font-size:18px; margin-top:6px; }
   .sigRole { font-size:14px; margin-top:2px; }
@@ -9297,6 +9321,7 @@ function buildExamRequestHtml({ clinic, examName, clinicalInfo, vinhetaUrl, clin
 
           <div class="sig">
             <div class="sigBox">
+              ${signatureUrl ? `<div class="sigImgWrap"><img class="sigImg" src="${escUrlAttr(signatureUrl)}" /></div>` : `<div style="height:80px;"></div>`}
               <div class="sigLine"></div>
               <div class="sigName">Dr. João Morais</div>
               <div class="sigRole">Médico Fisiatra</div>
