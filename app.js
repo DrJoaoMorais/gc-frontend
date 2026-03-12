@@ -3675,15 +3675,16 @@ async function fetchClinicForPdf() {
   // EDITOR — open/render/bind
   // =========================================================
   /* ---- FUNÇÃO 06Fb.1 — openDocumentEditor ---- */
-  function openDocumentEditor(html) {
+  function openDocumentEditor(html, title) {
     docDraftHtml = String(html || "");
+    docTitle = String(title || docTitle || "Relatório Médico");
     docMode = "visual";
     docOpen = true;
     docSaving = false;
     render();
     bindDocEvents();
   }
-  /* ---- FIM FUNÇÃO 06Fb.1 ---- */
+/* ---- FIM FUNÇÃO 06Fb.1 ---- */
 
   /* ---- FUNÇÃO 06Fb.2 — closeDocumentEditor ---- */
   function closeDocumentEditor() {
@@ -9139,7 +9140,7 @@ function openExamRequest(examId) {
         examName: exam.exam_name
       };
 
-      window.openDocumentEditor(html);
+      window.openDocumentEditor(html, `Pedido de Exame — ${exam.exam_name}`);
 
     } catch (err) {
       console.error("Gerar PDF pedido de exame falhou:", err);
