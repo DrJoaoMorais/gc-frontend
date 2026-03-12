@@ -3592,7 +3592,7 @@ async function fetchClinicForPdf() {
   .vinheta { margin-top:8px; width:4cm; height:2.5cm; object-fit:contain; display:block; }
 
   .locDate { text-align:right; font-size:14px; margin-top:14px; }
-  .sig { margin-top:40px; display:flex; justify-content:flex-end; }
+  .sig { margin-top:24px; display:flex; justify-content:flex-end; }
 
   /* ✅ Evitar a CAIXA da assinatura ser partida */
   .sigBox { width:360px; text-align:center; page-break-inside:avoid; break-inside:avoid; }
@@ -3941,17 +3941,12 @@ async function fetchClinicForPdf() {
   // =========================================================
   // HELPERS — aplicar assets ao HTML (SEM reconstruir template)
   // =========================================================
-  /* ---- FUNÇÃO 06Fc.4 — applyPdfAssetsToHtml ---- */
-  function applyPdfAssetsToHtml(html, { clinicLogoUrl, vinhetaUrl }) {
+  function applyPdfAssetsToHtml(html, { clinicLogoUrl, vinhetaUrl, signatureUrl }) {
     let out = String(html || "");
 
-    // placeholders (se existirem)
     if (clinicLogoUrl) out = out.replaceAll("__CLINIC_LOGO_URL__", clinicLogoUrl);
     if (vinhetaUrl) out = out.replaceAll("__VINHETA_URL__", vinhetaUrl);
 
-    // ✅ VINHETA LEVE:
-    // Só atualiza o src se já existir <img class="vinheta"> no HTML.
-    // Não insere nova imagem. Não reconstrói template.
     if (vinhetaUrl && out.includes('class="vinheta"')) {
       out = out.replace(
         /(<img\b[^>]*class="vinheta"[^>]*\bsrc=")[^"]*(")/i,
@@ -3959,9 +3954,15 @@ async function fetchClinicForPdf() {
       );
     }
 
+    if (signatureUrl && out.includes('class="sigImg"')) {
+      out = out.replace(
+        /(<img\b[^>]*class="sigImg"[^>]*\bsrc=")[^"]*(")/i,
+        `$1${signatureUrl}$2`
+      );
+    }
+
     return out;
   }
-  /* ---- FIM FUNÇÃO 06Fc.4 ---- */
 
   // =========================================================
   // MAIN — generate via Proxy/Worker + upload + insert
@@ -4050,7 +4051,7 @@ async function generatePdfAndUploadV1() {
         signatureUrl
       });
     } else {
-      docDraftHtml = applyPdfAssetsToHtml(draftNow, { clinicLogoUrl, vinhetaUrl });
+      docDraftHtml = applyPdfAssetsToHtml(draftNow, { clinicLogoUrl, vinhetaUrl, signatureUrl });
     }
 
     const titleSafe = safeText(docTitle || "Relatório Médico");
@@ -9177,13 +9178,26 @@ function openExamRequest(examId) {
         clinicLogoUrl = "";
       }
 
+      /* ===== assinatura ===== */
+      let signatureUrl = "";
+      try {
+        const signatureSignedUrl = await window.__gc_storageSignedUrl(window.__gc_VINHETA_BUCKET, "signatures/signature_dr_joao_morais.png", 3600);
+        if (signatureSignedUrl) {
+          signatureUrl = await window.__gc_urlToDataUrl(signatureSignedUrl, "image/png");
+        }
+      } catch (e) {
+        console.warn("Pedido de exame: assinatura falhou:", e);
+        signatureUrl = "";
+      }
+
       /* ===== gerar HTML ===== */
       const html = buildExamRequestHtml({
         clinic,
         examName: exam.exam_name,
         clinicalInfo: examsUiState.clinicalInfo,
         vinhetaUrl,
-        clinicLogoUrl
+        clinicLogoUrl,
+        signatureUrl
       });
 
       /* ===== guardar contexto e abrir editor ===== */
@@ -9209,7 +9223,7 @@ function openExamRequest(examId) {
 /* ==== INÍCIO BLOCO 12G — HTML do pedido de exame ==== */
 
 /* ---- FUNÇÃO 12G.1 — buildExamRequestHtml ---- */
-function buildExamRequestHtml({ clinic, examName, clinicalInfo, vinhetaUrl, clinicLogoUrl }) {
+function buildExamRequestHtml({ clinic, examName, clinicalInfo, vinhetaUrl, clinicLogoUrl, signatureUrl }) {
 
   function escHtml(v) {
     return String(v || "")
@@ -9274,7 +9288,7 @@ function buildExamRequestHtml({ clinic, examName, clinicalInfo, vinhetaUrl, clin
   .web { font-size:14px; font-weight:700; }
   .vinheta { margin-top:8px; width:4cm; height:2.5cm; object-fit:contain; display:block; }
   .locDate { text-align:right; font-size:14px; margin-top:14px; }
-  .sig { margin-top:40px; display:flex; justify-content:flex-end; }
+  .sig { margin-top:24px; display:flex; justify-content:flex-end; }
   .sigBox { width:360px; text-align:center; page-break-inside:avoid; break-inside:avoid; }
   .sigImgWrap { position:relative; height:80px; display:flex; align-items:flex-end; justify-content:center; margin-bottom:-1px; }
   .sigImg { max-height:80px; max-width:280px; object-fit:contain; display:block; }
