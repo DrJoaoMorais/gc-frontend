@@ -5750,7 +5750,8 @@ function render() {
     });
 
     document.getElementById("btnComplementaryExams")?.addEventListener("click", () => {
-      openExamsPanel({ patientId: p.id, consultationId: lastSavedConsultId || null });
+      const consultId = lastSavedConsultId || (consultRows && consultRows.length ? consultRows[0].id : null);
+      openExamsPanel({ patientId: p.id, consultationId: consultId || null });
     });
   }
 
