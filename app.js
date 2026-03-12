@@ -4088,19 +4088,17 @@ async function generatePdfAndUploadV1() {
 
 /* ---- FUNÇÃO 06Fc.6 — window exports ---- */
   try {
-    window.generatePdfAndUploadV1   = generatePdfAndUploadV1;
-    window.openDocumentEditor       = openDocumentEditor;
-    window.__gc_storageSignedUrl    = storageSignedUrl;
-    window.__gc_urlToDataUrl        = urlToDataUrl;
-    window.__gc_renderPdfViaProxy   = renderPdfViaProxy;
+    window.generatePdfAndUploadV1 = generatePdfAndUploadV1;
+    window.openDocumentEditor = openDocumentEditor;
+    window.__gc_storageSignedUrl  = storageSignedUrl;
+    window.__gc_urlToDataUrl      = urlToDataUrl;
+    window.__gc_renderPdfViaProxy = renderPdfViaProxy;
     window.__gc_uploadPdfToStorage  = uploadPdfToStorage;
     window.__gc_insertDocumentRow   = insertDocumentRow;
     window.__gc_VINHETA_BUCKET      = VINHETA_BUCKET;
     window.__gc_VINHETA_PATH        = VINHETA_PATH;
-    window.__gc_loadDocuments       = loadDocuments;
-    window.__gc_render              = render;
   } catch (e) {}
-/* ---- FIM FUNÇÃO 06Fc.6 ---- */
+  /* ---- FIM FUNÇÃO 06Fc.6 ---- */
 
 /* ==== FIM BLOCO 06Fc/12 — Documentos/PDF (STORAGE + GENERATE + EXPORTS) ==== */
 
@@ -5752,8 +5750,8 @@ function render() {
     });
 
     document.getElementById("btnComplementaryExams")?.addEventListener("click", () => {
-  openExamsPanel({ patientId: p.id });
-});
+      openExamsPanel({ patientId: p.id, consultationId: lastSavedConsultId || null });
+    });
   }
 
   document.querySelectorAll('[data-action="edit-consult"]').forEach((btn) => {
