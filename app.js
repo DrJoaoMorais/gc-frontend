@@ -4476,37 +4476,69 @@ async function loadConsultations() {
 }
 /* ---- FIM FUNÇÃO 06G.15 ---- */
 
-  /* ---- FUNÇÃO 06G.16 — renderDocumentsInlineForConsult ---- */
+/* ---- FUNÇÃO 06G.16 — renderDocumentsInlineForConsult ---- */
   function renderDocumentsInlineForConsult(consultId) {
     const docs = (docRows || []).filter(d => d.consultation_id && String(d.consultation_id) === String(consultId));
     if (!docs.length) return "";
+
+    function docStyle(title) {
+      const t = String(title || "").toLowerCase();
+      if (t.startsWith("pedido de exame"))
+        return { border: "#bcd4f5", bg: "#f0f6ff", badge: "#1d6db5", label: "Exame" };
+      if (t.startsWith("análise") || t.startsWith("analise"))
+        return { border: "#b8e0c8", bg: "#f0faf4", badge: "#1a7a45", label: "Análise" };
+      if (t.startsWith("relatório") || t.startsWith("relatorio"))
+        return { border: "#e2e8f0", bg: "#f8fafc", badge: "#475569", label: "Relatório" };
+      return { border: "#e2e8f0", bg: "#f8fafc", badge: "#475569", label: "Documento" };
+    }
 
     return `
       <div style="margin-top:12px;">
         <div style="font-weight:900;">Documentos:</div>
         <div style="margin-top:8px; display:flex; flex-direction:column; gap:8px;">
-          ${docs.map(d => `
+          ${docs.map(d => {
+            const s = docStyle(d.title);
+            return `
             <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;
-                        padding:10px 12px; border:1px solid #e5e5e5; border-radius:12px;">
-              <div style="display:flex; flex-direction:column;">
-                <div style="font-weight:900;">
-                  ${escAttr(d.title || "Documento")}
-                  ${d.version ? ` <span style="color:#64748b; font-size:12px;">(v${escAttr(d.version)})</span>` : ``}
+                        padding:10px 12px;
+                        border:1px solid ${s.border};
+                        background:${s.bg};
+                        border-radius:12px;">
+              <div style="display:flex; flex-direction:column; gap:2px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="
+                    font-size:11px;
+                    font-weight:700;
+                    color:${s.badge};
+                    background:${s.border};
+                    padding:2px 8px;
+                    border-radius:20px;
+                    text-transform:uppercase;
+                    letter-spacing:0.4px;
+                  ">${s.label}</span>
+                  <span style="font-weight:900;">
+                    ${escAttr(d.title || "Documento")}
+                    ${d.version ? `<span style="color:#64748b; font-size:12px; font-weight:400;">(v${escAttr(String(d.version))})</span>` : ``}
+                  </span>
                 </div>
-                <div style="color:#64748b; font-size:12px;">
+                <div style="color:#94a3b8; font-size:12px; margin-left:2px;">
                   ${d.created_at ? escAttr(String(d.created_at)) : ""}
                 </div>
               </div>
               <div style="display:flex; gap:8px;">
-                ${d.url ? `<a class="gcBtn" href="${escAttr(d.url)}" target="_blank" rel="noopener" style="text-decoration:none;">Abrir</a>` : `<button class="gcBtn" disabled>Sem link</button>`}
+                ${d.url
+                  ? `<a class="gcBtn" href="${escAttr(d.url)}" target="_blank" rel="noopener" style="text-decoration:none;">Abrir</a>`
+                  : `<button class="gcBtn" disabled>Sem link</button>`
+                }
               </div>
             </div>
-          `).join("")}
+          `;
+          }).join("")}
         </div>
       </div>
     `;
   }
-  /* ---- FIM FUNÇÃO 06G.16 ---- */
+/* ---- FIM FUNÇÃO 06G.16 ---- */
 
   /* ---- FUNÇÃO 06G.17 — __gcRenderPhysioComposer ---- */
   function __gcRenderPhysioComposer() {
