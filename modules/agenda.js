@@ -904,7 +904,7 @@ function buildTransferConfirmText({ patient, fromClinicName, toClinicName }) {
   ].join("\n");
 }
 
-async function ensurePatientActiveInClinic({ patientId, targetClinicId }) {
+export async function ensurePatientActiveInClinic({ patientId, targetClinicId }) {
   const pid = String(patientId || "");
   const cid = String(targetClinicId || "");
   if (!pid || !cid) throw new Error("ensurePatientActiveInClinic: patientId/targetClinicId em falta.");

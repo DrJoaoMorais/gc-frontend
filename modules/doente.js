@@ -29,10 +29,9 @@ import {
   fmtDatePt,
   fmtTime,
   normalizeDigits,
-  closeModalRoot,
-  ensurePatientActiveInClinic,
-  rpcCreatePatientForClinic,
 } from "./helpers.js";
+import { closeModalRoot, ensurePatientActiveInClinic } from "./agenda.js";
+import { rpcCreatePatientForClinic } from "./db.js";
 
 /* ==== INÍCIO BLOCO 06A/12 — Stub (mantido; não usado) ==== */
 function openPatientViewModal__stub(patient) {
