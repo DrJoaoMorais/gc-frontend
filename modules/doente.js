@@ -1862,6 +1862,7 @@ function openPatientViewModal(patient) {
     window.__gc_insertDocumentRow   = insertDocumentRow;
     window.__gc_VINHETA_BUCKET      = VINHETA_BUCKET;
     window.__gc_VINHETA_PATH        = VINHETA_PATH;
+    window.__gc_openPatientViewModal = openPatientViewModal;
   } catch (e) {}
 /* ==== FIM BLOCO 06Fc/12 ==== */
 
