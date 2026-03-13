@@ -11,12 +11,12 @@ import { G }                              from "./state.js";
 import { fetchMyRole, fetchVisibleClinics } from "./auth.js";
 import {
   renderAppShell,
-  renderClinicsSelect,
   hydrateShellHeader
 }                                          from "./shell.js";
 import {
   setAgendaSubtitleForSelectedDay,
-  refreshAgenda
+  refreshAgenda,
+  renderClinicsSelect
 }                                          from "./agenda.js";
 import { openApptModal }                   from "./agenda.js";
 import { openNewPatientMainModal }         from "./doente.js";
