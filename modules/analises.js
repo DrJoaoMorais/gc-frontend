@@ -590,8 +590,6 @@ export function buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatur
   .locDate{text-align:right;font-size:14px;margin-top:14px;}
   .sig{margin-top:60px;display:flex;justify-content:flex-end;}
   .sigBox{width:360px;text-align:center;}
-  .sigImgWrap{height:80px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:-1px;}
-  .sigImg{max-height:80px;max-width:280px;object-fit:contain;display:block;}
   .sigLine{border-top:1px solid #111;padding-top:10px;}
   .sigName{font-weight:900;font-size:18px;margin-top:6px;}
   .sigRole{font-size:14px;margin-top:2px;}
@@ -624,7 +622,7 @@ export function buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatur
         ${localityDate ? `<div class="locDate">${escHtml(localityDate)}</div>` : ""}
         <div class="sig">
           <div class="sigBox">
-            ${signatureUrl ? `<div class="sigImgWrap"><img class="sigImg" src="${escUrl(signatureUrl)}"/></div>` : ""}
+
             <div class="sigLine"></div>
             <div class="sigName">Dr. João Morais</div>
             <div class="sigRole">Médico Fisiatra</div>

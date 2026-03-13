@@ -477,12 +477,6 @@ function openExamRequest(examId) {
         }
       } catch (e) { console.warn("logo falhou:", e); }
 
-      let signatureUrl = "";
-      try {
-        const u = await signedUrl(bucket, "signatures/signature_dr_joao_morais.png", 3600);
-        if (u) signatureUrl = await toDataUrl(u, "image/png");
-      } catch (e) { console.warn("assinatura falhou:", e); }
-
       /* HTML e abrir editor */
       const html = buildExamRequestHtml({
         clinic,
@@ -490,7 +484,7 @@ function openExamRequest(examId) {
         clinicalInfo: examsUiState.clinicalInfo,
         vinhetaUrl,
         clinicLogoUrl,
-        signatureUrl
+        signatureUrl: ""
       });
 
       window.__gc_pendingExamCtx = {
@@ -560,8 +554,6 @@ export function buildExamRequestHtml({ clinic, examName, clinicalInfo, vinhetaUr
   .locDate{text-align:right;font-size:14px;margin-top:14px;}
   .sig{margin-top:40px;display:flex;justify-content:flex-end;}
   .sigBox{width:360px;text-align:center;page-break-inside:avoid;break-inside:avoid;}
-  .sigImgWrap{position:relative;height:80px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:-1px;}
-  .sigImg{max-height:80px;max-width:280px;object-fit:contain;display:block;}
   .sigLine{border-top:1px solid #111;padding-top:10px;}
   .sigName{font-weight:900;font-size:18px;margin-top:6px;}
   .sigRole{font-size:14px;margin-top:2px;}
@@ -598,7 +590,7 @@ export function buildExamRequestHtml({ clinic, examName, clinicalInfo, vinhetaUr
           ${localityDate ? `<div class="locDate">${escHtml(localityDate)}</div>` : ""}
           <div class="sig">
             <div class="sigBox">
-              ${signatureUrl ? `<div class="sigImgWrap"><img class="sigImg" src="${escUrl(signatureUrl)}"/></div>` : ""}
+
               <div class="sigLine"></div>
               <div class="sigName">Dr. João Morais</div>
               <div class="sigRole">Médico Fisiatra</div>
