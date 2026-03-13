@@ -1753,50 +1753,14 @@ function openPatientViewModal(patient) {
       const clinic = await fetchClinicForPdf();
       if (!clinic) { alert("Não consegui carregar dados da clínica (clinics)."); return false; }
 
-      const authorName = await fetchCurrentUserDisplayName(userId);
-
-      let vinhetaUrl = "";
-      try {
-        const vinhetaSignedUrl = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
-        if (vinhetaSignedUrl) {
-          vinhetaUrl = await urlToDataUrl(vinhetaSignedUrl, "image/png");
-        }
-      } catch (e) {
-        console.warn("PDF: vinheta signed/data url falhou:", e);
-        vinhetaUrl = "";
+      // Usa o HTML que já está no editor (pode ser consulta, análises, exames, etc.)
+      // NÃO reconstruir com buildDocV1Html — isso sobrescrevia sempre com o relatório da consulta.
+      if (!docDraftHtml || !docDraftHtml.trim()) {
+        alert("Sem conteúdo no editor para gerar PDF.");
+        return false;
       }
 
-      let signatureUrl = "";
-      try {
-        const signatureSignedUrl = await storageSignedUrl(VINHETA_BUCKET, SIGNATURE_PATH, 3600);
-        if (signatureSignedUrl) {
-          signatureUrl = await urlToDataUrl(signatureSignedUrl, "image/png");
-        }
-      } catch (e) {
-        console.warn("PDF: assinatura signed/data url falhou:", e);
-        signatureUrl = "";
-      }
-
-      let clinicLogoUrl = "";
-      try {
-        const rawLogo = String(clinic?.logo_url || "").trim();
-        if (rawLogo.startsWith("data:")) {
-          clinicLogoUrl = rawLogo;
-        } else if (rawLogo.startsWith("http://") || rawLogo.startsWith("https://")) {
-          clinicLogoUrl = await urlToDataUrl(rawLogo, "image/png");
-        } else {
-          clinicLogoUrl = "";
-        }
-      } catch (e) {
-        console.warn("PDF: logo data url falhou:", e);
-        clinicLogoUrl = "";
-      }
-
-      docDraftHtml = buildDocV1Html({
-        clinic, consult, authorName, vinhetaUrl, clinicLogoUrl, signatureUrl
-      });
-
-      const titleSafe = safeText(docTitle || "Relatório Médico");
+      const titleSafe = safeText(docTitle || "Documento");
 
       let blob;
       try {
