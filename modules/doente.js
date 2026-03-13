@@ -3384,7 +3384,7 @@ function openPatientViewModal(patient) {
 
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
-export function openNewPatientMainModal({ clinicId }) {
+function openNewPatientMainModal({ clinicId }) {
   const root = document.getElementById("modalRoot");
   if (!root) return;
 
