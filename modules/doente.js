@@ -3548,111 +3548,12 @@ function openPatientViewModal(patient) {
       let title = "Relatório";
 
       if (templateId === "prp_tendinopatia") {
-        title = "PRP — Tendinopatia";
-        html = `<!doctype html><html><head><meta charset="utf-8"/><title>${title}</title>
-        <style>${sharedStyles}
-          .ref { font-size:12px; color:#475569; line-height:1.6; }
-          .ref li { margin-bottom:4px; }
-          .evid { background:#f0f9ff; border-left:3px solid #0ea5e9; padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13.5px; }
-        </style></head><body><div class="a4">
-          ${header}
-          <div class="title">Relatório Médico — Pedido de Autorização de Reembolso</div>
-          <div style="text-align:center;font-size:13px;color:#64748b;margin-bottom:12px;">
-            Aplicação de Plasma Rico em Plaquetas (PRP) — Tendinopatia
-          </div>
-          ${patientBlock}
-
-          <div class="section">
-            <div class="stitle">Diagnóstico</div>
-            <p>
-              O/A doente apresenta <span class="field">[localização — ex: tendinopatia da coifa dos rotadores / tendão de Aquiles / tendão rotuliano / epicondilite lateral]</span>,
-              confirmada clinicamente e por imagiologia: <span class="field">[ecografia / RM — descrever achados, ex: tendinose com fibrilhação, rotura parcial &lt;50%]</span>.
-            </p>
-          </div>
-
-          <div class="section">
-            <div class="stitle">História Clínica</div>
-            <p>
-              Queixas com evolução de <span class="field">[duração — ex: 6 meses]</span>,
-              com dor localizada a <span class="field">[localização anatómica]</span>,
-              de características mecânicas, com agravamento à <span class="field">[actividade — ex: elevação do membro / corrida / preensão]</span>.
-              Impacto funcional significativo nas actividades de vida diária <span class="field">[e/ou actividade desportiva]</span>.
-            </p>
-            <p>Escala de dor EVA: <span class="field">[0–10]</span> em repouso e <span class="field">[0–10]</span> em actividade.</p>
-          </div>
-
-          <div class="section">
-            <div class="stitle">Tratamentos Conservadores Realizados (sem resposta adequada)</div>
-            <ul style="margin:8px 0 0 18px;padding:0;">
-              <li>Fisioterapia com exercício excêntrico — <span class="field">[número de sessões / duração]</span></li>
-              <li>Anti-inflamatórios não esteroides (AINEs) — <span class="field">[duração]</span></li>
-              <li>Corticoterapia local — <span class="field">[número de infiltrações / datas]</span> <em>(se aplicável)</em></li>
-              <li>Repouso relativo / modificação da actividade — <span class="field">[duração]</span></li>
-              <li><span class="field">[outros tratamentos realizados]</span></li>
-            </ul>
-          </div>
-
-          <div class="section">
-            <div class="stitle">Justificação Clínica e Evidência Científica para PRP</div>
-            <p>
-              Face à ausência de resposta satisfatória aos tratamentos conservadores optimizados,
-              propõe-se a aplicação de <b>Plasma Rico em Plaquetas (PRP)</b> — terapêutica biológica
-              autóloga, regenerativa, que actua através da libertação de factores de crescimento
-              (PDGF, TGF-β, IGF-1, VEGF) com efeito angiogénico, anti-inflamatório e de
-              estimulação da síntese de colagénio tendinoso.
-            </p>
-            <div class="evid">
-              A evidência científica actual suporta o uso de PRP em tendinopatias crónicas refratárias
-              ao tratamento conservador, com benefício sustentado na redução da dor e melhoria funcional
-              aos 6 e 12 meses de seguimento.
-            </div>
-            <p style="margin-top:10px;font-size:13.5px;"><b>Referências bibliográficas de suporte:</b></p>
-            <ol class="ref">
-              <li>
-                <b>Fitzpatrick J et al.</b> — <em>The Effectiveness of Platelet-Rich Plasma in the Treatment of Tendinopathy: A Meta-analysis of Randomized Controlled Clinical Trials.</em>
-                Am J Sports Med. 2017. — Meta-análise de 18 RCTs (1066 doentes): LR-PRP guiado por ecografia demonstrou eficácia superior; efeito positivo fortemente significativo na redução da dor.
-              </li>
-              <li>
-                <b>Vij N et al.</b> — <em>Platelet-Rich Plasma as a Treatment for Chronic Noncancer Pain.</em>
-                Pain Ther. 2025. — Meta-análise de RCTs: PRP reduziu significativamente a dor vs. corticosteróides (SMD −0.53, p=0.02) e ácido hialurónico (SMD −0.55, p=0.004), com benefício sustentado ≥3 meses.
-              </li>
-              <li>
-                <b>Azadvari M et al.</b> — <em>PRP injections as second-line treatment in chronic tendinopathy failing conservative treatment: systematic review and meta-analysis.</em>
-                Pain Medicine. 2024. — 9 RCTs, 488 doentes: PRP reduziu dor significativamente aos 6 meses (MD −0.83) e 12 meses (MD −1.11) vs. controlo; sem diferença entre tendinopatias do membro superior e inferior.
-              </li>
-              <li>
-                <b>Georgetown Medical Review. 2024.</b> — <em>Evaluating Efficacy of PRP versus Corticosteroids in Management of Tendinopathies.</em>
-                PRP demonstrou superioridade a longo prazo sobre corticosteróides na epicondilite lateral e tendinopatia glútea; menos efeitos adversos e maior custo-efectividade.
-              </li>
-              <li>
-                <b>Kale et al.</b> — <em>Mechanisms, Efficacy, and Clinical Applications of PRP in Tendinopathy: A Comprehensive Review.</em>
-                PMC / Cureus. 2024. — Revisão dos mecanismos biológicos: PRP promove diferenciação de células estaminais tendinosas, síntese de colagénio tipo I e redução da degeneração tendinosa.
-              </li>
-            </ol>
-            <p style="margin-top:12px;">
-              Está prevista a realização de <span class="field">[1 a 3]</span> aplicação(ões) de PRP,
-              sob orientação ecográfica, com intervalo de <span class="field">[4 semanas]</span> entre sessões,
-              associada a programa de reabilitação supervisionada.
-            </p>
-          </div>
-
-          <div class="section">
-            <div class="stitle">Conclusão</div>
-            <p>
-              Solicita-se autorização de reembolso da aplicação de Plasma Rico em Plaquetas (PRP)
-              na patologia acima descrita — <span class="field">[localização]</span> —
-              em doente sem resposta ao tratamento conservador optimizado, com suporte em evidência
-              científica de nível I-II (meta-análises de RCTs, 2024–2025), com perfil de segurança
-              favorável e ausência de efeitos adversos major documentados.
-            </p>
-          </div>
-
-          ${footer}
-        </div></body></html>`;
+        // Mostrar modal de preenchimento antes de gerar o documento
+        await openPrpTendinopatiaModal({ clinic, locality: escAttr(localityDate), vinhetaUrl, websiteHtml, phoneHtml, patientBlock, footer, sharedStyles });
+        return; // openDocumentEditor é chamado dentro do modal
       }
 
-
-      if (templateId === "prp_osteoartrose") {
+            if (templateId === "prp_osteoartrose") {
         title = "PRP — Osteoartrose";
         html = `<!doctype html><html><head><meta charset="utf-8"/><title>${title}</title>
         <style>${sharedStyles}
@@ -3888,6 +3789,288 @@ function openPatientViewModal(patient) {
       console.error("openReportTemplate falhou:", err);
       alert("Erro ao abrir template de relatório.");
     }
+  }
+
+
+  /* ====================================================================
+     PRP TENDINOPATIA — Modal de preenchimento
+     ==================================================================== */
+  function openPrpTendinopatiaModal({ clinic, locality, vinhetaUrl, websiteHtml, phoneHtml, patientBlock, footer, sharedStyles }) {
+    // Remove modal anterior
+    document.getElementById("gcPrpModal")?.remove();
+
+    const overlay = document.createElement("div");
+    overlay.id = "gcPrpModal";
+    Object.assign(overlay.style, {
+      position: "fixed", inset: "0", background: "rgba(0,0,0,0.45)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: "16px", zIndex: "3100",
+      fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif"
+    });
+
+    overlay.innerHTML = `
+      <div style="background:#fff;width:min(780px,100%);max-height:92vh;overflow-y:auto;
+                  border-radius:14px;border:1px solid #e2e8f0;padding:24px;">
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <div style="font-weight:900;font-size:16px;">PRP — Tendinopatia<br>
+            <span style="font-size:12px;font-weight:400;color:#64748b;">Preencha os campos antes de gerar o relatório</span>
+          </div>
+          <button id="gcPrpClose" style="border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px;">Cancelar</button>
+        </div>
+
+        <!-- DIAGNÓSTICO -->
+        <div style="margin-bottom:14px;">
+          <label style="font-weight:700;font-size:13px;display:block;margin-bottom:4px;">Diagnóstico / Localização</label>
+          <input id="prpDiag" type="text" placeholder="ex: Tendinopatia da coifa dos rotadores, tendão de Aquiles, epicondilite lateral..."
+            style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;" />
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <label style="font-weight:700;font-size:13px;display:block;margin-bottom:4px;">Achados imagiológicos (Ecografia / RM)</label>
+          <input id="prpImag" type="text" placeholder="ex: Tendinose com fibrilhação no 1/3 médio, sem rotura completa"
+            style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;" />
+        </div>
+
+        <!-- HDA -->
+        <div style="margin-bottom:14px;">
+          <label style="font-weight:700;font-size:13px;display:block;margin-bottom:4px;">Anamnese / História Clínica (HDA)</label>
+          <textarea id="prpHda" rows="5" placeholder="Escreva ou cole aqui a história clínica do doente..."
+            style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;line-height:1.5;"></textarea>
+        </div>
+
+        <!-- EVA -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+          <div>
+            <label style="font-weight:700;font-size:13px;display:block;margin-bottom:4px;">EVA Repouso (0–10)</label>
+            <input id="prpEvaR" type="number" min="0" max="10" placeholder="ex: 3"
+              style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;" />
+          </div>
+          <div>
+            <label style="font-weight:700;font-size:13px;display:block;margin-bottom:4px;">EVA Actividade (0–10)</label>
+            <input id="prpEvaA" type="number" min="0" max="10" placeholder="ex: 7"
+              style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;" />
+          </div>
+        </div>
+
+        <!-- TRATAMENTOS -->
+        <div style="margin-bottom:14px;">
+          <label style="font-weight:700;font-size:13px;display:block;margin-bottom:8px;">Tratamentos Conservadores Realizados</label>
+
+          <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px;">
+
+            <div style="display:flex;align-items:center;gap:10px;">
+              <input type="checkbox" id="trtFisio" checked style="width:16px;height:16px;flex-shrink:0;" />
+              <label for="trtFisio" style="font-size:13px;flex:1;">Programa de reabilitação estruturado (exercício excêntrico, agentes físicos)</label>
+              <input id="trtFisioDetalhe" type="text" placeholder="sessões / duração"
+                style="width:160px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;" />
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;">
+              <input type="checkbox" id="trtAines" checked style="width:16px;height:16px;flex-shrink:0;" />
+              <label for="trtAines" style="font-size:13px;flex:1;">Anti-inflamatórios não esteroides (AINEs)</label>
+              <select id="trtAinesTipo" style="padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;">
+                <option value="Tópicos e Orais">Tópicos e Orais</option>
+                <option value="Tópicos">Tópicos</option>
+                <option value="Orais">Orais</option>
+                <option value="Orais e IM">Orais e IM</option>
+                <option value="Tópicos, Orais e IM">Tópicos, Orais e IM</option>
+              </select>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;">
+              <input type="checkbox" id="trtCort" style="width:16px;height:16px;flex-shrink:0;" />
+              <label for="trtCort" style="font-size:13px;flex:1;">Corticoterapia local</label>
+              <input id="trtCortDetalhe" type="text" placeholder="nº infiltrações / datas"
+                style="width:160px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;" />
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;">
+              <input type="checkbox" id="trtRepouso" checked style="width:16px;height:16px;flex-shrink:0;" />
+              <label for="trtRepouso" style="font-size:13px;flex:1;">Repouso relativo / modificação da actividade</label>
+              <input id="trtRepousoDetalhe" type="text" placeholder="duração"
+                style="width:160px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;" />
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;">
+              <input type="checkbox" id="trtEswt" style="width:16px;height:16px;flex-shrink:0;" />
+              <label for="trtEswt" style="font-size:13px;flex:1;">Ondas de Choque Extracorpóreas (ESWT)</label>
+              <input id="trtEswtDetalhe" type="text" placeholder="nº sessões / datas"
+                style="width:160px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;" />
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;">
+              <input type="checkbox" id="trtOutros" style="width:16px;height:16px;flex-shrink:0;" />
+              <label for="trtOutros" style="font-size:13px;flex:1;">Outros</label>
+              <input id="trtOutrosDetalhe" type="text" placeholder="descrever"
+                style="width:160px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;" />
+            </div>
+
+          </div>
+        </div>
+
+        <!-- SESSÕES PRP -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+          <div>
+            <label style="font-weight:700;font-size:13px;display:block;margin-bottom:4px;">Nº de aplicações de PRP</label>
+            <select id="prpSessoes" style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="1 a 3" selected>1 a 3</option>
+              <option value="3">3</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-weight:700;font-size:13px;display:block;margin-bottom:4px;">Intervalo entre sessões</label>
+            <select id="prpIntervalo" style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;">
+              <option value="3 a 4 semanas">3 a 4 semanas</option>
+              <option value="4 semanas" selected>4 semanas</option>
+              <option value="4 a 6 semanas">4 a 6 semanas</option>
+              <option value="6 semanas">6 semanas</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;">
+          <button id="gcPrpClose2" style="border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:9px 20px;cursor:pointer;font-size:13px;">Cancelar</button>
+          <button id="gcPrpGerar" style="border:none;background:#1e3a8a;color:#fff;border-radius:8px;padding:9px 24px;cursor:pointer;font-size:13px;font-weight:700;">
+            Gerar Relatório →
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const closeModal = () => document.getElementById("gcPrpModal")?.remove();
+    document.getElementById("gcPrpClose")?.addEventListener("click", closeModal);
+    document.getElementById("gcPrpClose2")?.addEventListener("click", closeModal);
+
+    document.getElementById("gcPrpGerar")?.addEventListener("click", () => {
+      const diag      = document.getElementById("prpDiag")?.value?.trim() || "[localização]";
+      const imag      = document.getElementById("prpImag")?.value?.trim() || "[achados imagiológicos]";
+      const hda       = (document.getElementById("prpHda")?.value?.trim() || "").replace(/\n/g, "<br>");
+      const evaR      = document.getElementById("prpEvaR")?.value || "—";
+      const evaA      = document.getElementById("prpEvaA")?.value || "—";
+      const sessoes   = document.getElementById("prpSessoes")?.value || "1 a 3";
+      const intervalo = document.getElementById("prpIntervalo")?.value || "4 semanas";
+
+      // Build tratamentos list
+      const trts = [];
+      if (document.getElementById("trtFisio")?.checked) {
+        const d = document.getElementById("trtFisioDetalhe")?.value?.trim();
+        trts.push(`Programa de reabilitação estruturado, com exercício excêntrico, agentes físicos${d ? " — " + escAttr(d) : ""}`);
+      }
+      if (document.getElementById("trtAines")?.checked) {
+        const tipo = document.getElementById("trtAinesTipo")?.value || "Tópicos e Orais";
+        trts.push(`Anti-inflamatórios não esteroides (AINEs) — ${escAttr(tipo)}`);
+      }
+      if (document.getElementById("trtCort")?.checked) {
+        const d = document.getElementById("trtCortDetalhe")?.value?.trim();
+        trts.push(`Corticoterapia local${d ? " — " + escAttr(d) : ""}`);
+      }
+      if (document.getElementById("trtRepouso")?.checked) {
+        const d = document.getElementById("trtRepousoDetalhe")?.value?.trim();
+        trts.push(`Repouso relativo / modificação da actividade${d ? " — " + escAttr(d) : ""}`);
+      }
+      if (document.getElementById("trtEswt")?.checked) {
+        const d = document.getElementById("trtEswtDetalhe")?.value?.trim();
+        trts.push(`Ondas de Choque Extracorpóreas (ESWT)${d ? " — " + escAttr(d) : ""}`);
+      }
+      if (document.getElementById("trtOutros")?.checked) {
+        const d = document.getElementById("trtOutrosDetalhe")?.value?.trim();
+        if (d) trts.push(escAttr(d));
+      }
+
+      const trtHtml = trts.map(t => `<li style="margin-bottom:4px;">${t}</li>`).join("");
+
+      const hdaHtml = hda
+        ? `<p>${hda}</p>`
+        : `<p>Queixas com evolução de <span style="color:#1e40af;">[duração]</span>, com dor localizada a <span style="color:#1e40af;">[localização anatómica]</span>, de características mecânicas, com agravamento à <span style="color:#1e40af;">[actividade]</span>. Impacto funcional significativo nas actividades de vida diária.</p>`;
+
+      const vinhetaTag = vinhetaUrl
+        ? `<img style="width:4cm;height:2.5cm;object-fit:contain;display:block;margin-top:8px;" src="${vinhetaUrl}" />`
+        : "";
+
+      const html = `<!doctype html><html><head><meta charset="utf-8"/><title>PRP — Tendinopatia</title>
+      <style>${sharedStyles}
+        .ref { font-size:12px; color:#475569; line-height:1.6; }
+        .ref li { margin-bottom:4px; }
+        .evid { background:#f0f9ff; border-left:3px solid #0ea5e9; padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13.5px; }
+      </style></head><body><div class="a4">
+        <div class="top">
+          <div class="topLeft"><div>${websiteHtml}</div><div>${phoneHtml}</div></div>
+        </div>
+        <div class="hr"></div>
+        <div class="title">Relatório Médico — Pedido de Autorização de Reembolso</div>
+        <div style="text-align:center;font-size:13px;color:#64748b;margin-bottom:12px;">Aplicação de Plasma Rico em Plaquetas (PRP) — Tendinopatia</div>
+        ${patientBlock}
+
+        <div class="section">
+          <div class="stitle">Diagnóstico</div>
+          <p>O/A doente apresenta <b>${escAttr(diag)}</b>, confirmada clinicamente e por imagiologia: ${escAttr(imag)}.</p>
+        </div>
+
+        <div class="section">
+          <div class="stitle">Anamnese / História Clínica</div>
+          ${hdaHtml}
+          <p>Escala de dor EVA: <b>${escAttr(evaR)}</b> em repouso e <b>${escAttr(evaA)}</b> em actividade.</p>
+        </div>
+
+        <div class="section">
+          <div class="stitle">Tratamentos Conservadores Realizados (sem resposta adequada)</div>
+          <ul style="margin:8px 0 0 18px;padding:0;line-height:1.8;">${trtHtml}</ul>
+        </div>
+
+        <div class="section">
+          <div class="stitle">Justificação Clínica e Evidência Científica para PRP</div>
+          <p>Face à ausência de resposta satisfatória aos tratamentos conservadores optimizados,
+          propõe-se a aplicação de <b>Plasma Rico em Plaquetas (PRP)</b> — terapêutica biológica
+          autóloga, regenerativa, que actua através da libertação de factores de crescimento
+          (PDGF, TGF-β, IGF-1, VEGF) com efeito angiogénico, anti-inflamatório e de estimulação
+          da síntese de colagénio tendinoso.</p>
+          <div class="evid">A evidência científica actual suporta o uso de PRP em tendinopatias crónicas refratárias
+          ao tratamento conservador, com benefício sustentado na redução da dor e melhoria funcional
+          aos 6 e 12 meses de seguimento.</div>
+          <p style="margin-top:10px;font-size:13.5px;"><b>Referências bibliográficas de suporte:</b></p>
+          <ol class="ref">
+            <li><b>Fitzpatrick J et al.</b> — <em>The Effectiveness of Platelet-Rich Plasma in the Treatment of Tendinopathy: A Meta-analysis of Randomized Controlled Clinical Trials.</em> Am J Sports Med. 2017. — Meta-análise de 18 RCTs (1066 doentes): LR-PRP guiado por ecografia demonstrou eficácia superior; efeito positivo fortemente significativo na redução da dor.</li>
+            <li><b>Vij N et al.</b> — <em>Platelet-Rich Plasma as a Treatment for Chronic Noncancer Pain.</em> Pain Ther. 2025. — PRP reduziu significativamente a dor vs. corticosteróides (SMD −0.53, p=0.02) e ácido hialurónico (SMD −0.55, p=0.004), com benefício sustentado ≥3 meses.</li>
+            <li><b>Azadvari M et al.</b> — <em>PRP injections as second-line treatment in chronic tendinopathy failing conservative treatment.</em> Pain Medicine. 2024. — 9 RCTs, 488 doentes: redução da dor aos 6 meses (MD −0.83) e 12 meses (MD −1.11) vs. controlo.</li>
+            <li><b>Georgetown Medical Review. 2024.</b> — <em>Evaluating Efficacy of PRP versus Corticosteroids in Management of Tendinopathies.</em> PRP superior a longo prazo; menos efeitos adversos e maior custo-efectividade.</li>
+            <li><b>Kale et al.</b> — <em>Mechanisms, Efficacy, and Clinical Applications of PRP in Tendinopathy.</em> PMC / Cureus. 2024. — PRP promove síntese de colagénio tipo I e redução da degeneração tendinosa.</li>
+          </ol>
+          <p style="margin-top:12px;">Está prevista a realização de <b>${escAttr(sessoes)}</b> aplicação(ões) de PRP, sob orientação ecográfica, com intervalo de <b>${escAttr(intervalo)}</b> entre sessões, associada a programa de reabilitação supervisionada.</p>
+        </div>
+
+        <div class="section">
+          <div class="stitle">Conclusão</div>
+          <p>Solicita-se autorização de reembolso da aplicação de Plasma Rico em Plaquetas (PRP)
+          em <b>${escAttr(diag)}</b> — doente sem resposta ao tratamento conservador optimizado,
+          com suporte em evidência científica de nível I-II (meta-análises de RCTs, 2024–2025),
+          com perfil de segurança favorável e ausência de efeitos adversos major documentados.</p>
+        </div>
+
+        <div class="footerBlock">
+          <div class="hr2"></div>
+          <div class="footRow">
+            <div><div class="web">${websiteHtml}</div>${vinhetaTag}</div>
+            <div style="flex:1;">
+              <div class="locDate">${locality}</div>
+              <div class="sig"><div class="sigBox">
+                <div class="sigLine"></div>
+                <div class="sigName">Dr. João Morais</div>
+                <div class="sigRole">Médico Fisiatra</div>
+                <div class="sigRole">Sports Medicine &amp; Rehabilitation</div>
+              </div></div>
+            </div>
+          </div>
+        </div>
+      </div></body></html>`;
+
+      closeModal();
+      openDocumentEditor(html, "PRP — Tendinopatia");
+    });
   }
 
 } // <-- fecha openPatientViewModal
