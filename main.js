@@ -50,6 +50,7 @@ import {
 
 // Doente
 import {
+  openPatientViewModal,
   openNewPatientMainModal
 }                                           from "./modules/doente.js";
 
