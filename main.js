@@ -200,8 +200,9 @@ if (!window.openDocumentEditor) {
  * refatoradas) podem chamar funções pelo nome global. Expomo-las aqui
  * para manter compatibilidade durante a transição.
  */
-window.openPatientViewModal    = openPatientViewModal;
-window.openNewPatientMainModal = openNewPatientMainModal;
+window.openPatientViewModal      = openPatientViewModal;
+window.__gc_openPatientViewModal = openPatientViewModal;   // ← ponte para agenda.js
+window.openNewPatientMainModal   = openNewPatientMainModal;
 window.openApptModal           = openApptModal;
 window.openExamsPanel          = openExamsPanel;
 window.closeExamsPanel         = closeExamsPanel;
