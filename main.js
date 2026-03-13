@@ -37,7 +37,6 @@ import { fetchMyRole, fetchVisibleClinics } from "./modules/auth.js";
 import { searchPatientsScoped }             from "./modules/db.js";
 import {
   renderAppShell,
-  renderClinicsSelect,
   hydrateShellHeader
 }                                           from "./modules/shell.js";
 
@@ -45,14 +44,13 @@ import {
 import {
   setAgendaSubtitleForSelectedDay,
   refreshAgenda,
-  openApptModal
+  openApptModal,
+  renderClinicsSelect
 }                                           from "./modules/agenda.js";
 
 // Doente
 import {
-  openPatientViewModal,
-  openNewPatientMainModal,
-  renderQuickPatientResults
+  openNewPatientMainModal
 }                                           from "./modules/doente.js";
 
 // Pesquisa + Calendário
