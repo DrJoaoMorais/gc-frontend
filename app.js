@@ -4121,6 +4121,8 @@ async function generatePdfAndUploadV1() {
     window.__gc_insertDocumentRow   = insertDocumentRow;
     window.__gc_VINHETA_BUCKET      = VINHETA_BUCKET;
     window.__gc_VINHETA_PATH        = VINHETA_PATH;
+    window.__gc_SIGNATURE_PATH      = SIGNATURE_PATH;
+    window.__gc_fetchClinicForPdf   = fetchClinicForPdf;
   } catch (e) {}
   /* ---- FIM FUNÇÃO 06Fc.6 ---- */
 
@@ -9832,11 +9834,17 @@ async function gerarAnalisePdf(state) {
   const btn = document.getElementById("gcAnalisesGenPdf");
   if (btn) { btn.textContent = "A gerar…"; btn.disabled = true; }
   try {
-    const clinic = await fetchClinicForPdf();
+    const fetchClinic = window.__gc_fetchClinicForPdf || window.fetchClinicForPdf;
+    const signedUrl   = window.__gc_storageSignedUrl;
+    const toDataUrl   = window.__gc_urlToDataUrl;
+    const bucket      = window.__gc_VINHETA_BUCKET;
+    const vinhetaPath = window.__gc_VINHETA_PATH;
+    const sigPath     = window.__gc_SIGNATURE_PATH;
+    const clinic = await fetchClinic();
     const [vinhetaUrl, logoUrl, signatureUrl] = await Promise.all([
-      (async () => { try { const u = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600); return u ? await urlToDataUrl(u, "image/png") : ""; } catch { return ""; } })(),
-      (async () => { try { const lp = clinic?.logo_url; if (!lp) return ""; const u = await storageSignedUrl(VINHETA_BUCKET, lp, 3600); return u ? await urlToDataUrl(u, "image/png") : ""; } catch { return ""; } })(),
-      (async () => { try { const u = await storageSignedUrl(VINHETA_BUCKET, SIGNATURE_PATH, 3600); return u ? await urlToDataUrl(u, "image/png") : ""; } catch { return ""; } })()
+      (async () => { try { const u = await signedUrl(bucket, vinhetaPath, 3600); return u ? await toDataUrl(u, "image/png") : ""; } catch { return ""; } })(),
+      (async () => { try { const lp = clinic?.logo_url; if (!lp) return ""; const u = await signedUrl(bucket, lp, 3600); return u ? await toDataUrl(u, "image/png") : ""; } catch { return ""; } })(),
+      (async () => { try { const u = await signedUrl(bucket, sigPath, 3600); return u ? await toDataUrl(u, "image/png") : ""; } catch { return ""; } })()
     ]);
     const html = buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatureUrl });
     openDocumentEditor(html, "Pedido de Análises");
