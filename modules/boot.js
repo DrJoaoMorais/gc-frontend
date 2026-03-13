@@ -7,7 +7,7 @@
  * Extraído de app.js bloco 11B
  */
 
-import { G }                              from "./config.js";
+import { G }                              from "./state.js";
 import { fetchMyRole, fetchVisibleClinics } from "./auth.js";
 import {
   renderAppShell,

@@ -11,7 +11,7 @@
  *   helpers.js → hardRedirect  (se existir; caso contrário usa window.location)
  */
 
-import { G } from "./config.js";
+import { G } from "./state.js";
 
 /* ====================================================================
    BLOCO 10A — Sessão bloqueada / auth guard

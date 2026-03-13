@@ -11,7 +11,8 @@
  *   doente.js  → renderQuickPatientResults  (função já exportada em doente.js)
  */
 
-import { G, UI } from "./config.js";
+import { UI } from "./config.js";
+import { G } from "./state.js";
 import {
   fmtDateISO,
   parseISODateToLocalStart,

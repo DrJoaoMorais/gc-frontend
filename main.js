@@ -27,7 +27,8 @@
 /* ── imports ─────────────────────────────────────────────────────────── */
 
 // Módulos de base (sem side-effects — apenas expõem funções/constantes)
-import { G, UI }              from "./modules/config.js";
+import { UI }                 from "./modules/config.js";
+import { G }                   from "./modules/state.js";
 import "./modules/state.js";   // inicializa G se necessário
 import "./modules/helpers.js"; // sem exports diretos necessários aqui
 
