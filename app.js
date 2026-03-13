@@ -644,50 +644,8 @@
 
     if (!patientId) throw new Error("RPC create_patient_for_clinic_v2 devolveu patient_id vazio");
 
-    if (action === "reused_transferred") {
-      const ok = confirm(
-        "Este doente já existia noutra clínica.\n\n" +
-        "Confirmas a transferência para a clínica atual?"
-      );
-
-      if (!ok) {
-        // Reverter: manter a clínica anterior ativa (a função já desativou as anteriores).
-        // Como não sabemos qual era a anterior aqui, fazemos uma reversão segura:
-        // - desativar esta clínica
-        // - reativar a mais recente anterior (created_at desc) para este doente
-        const clinicId = payload?.p_clinic_id || payload?.clinic_id || null;
-        try {
-          if (clinicId) {
-            await window.sb
-              .from("patient_clinic")
-              .update({ is_active: false })
-              .eq("patient_id", patientId)
-              .eq("clinic_id", clinicId);
-          }
-
-          const { data: prevRows } = await window.sb
-            .from("patient_clinic")
-            .select("id, clinic_id, created_at")
-            .eq("patient_id", patientId)
-            .order("created_at", { ascending: false })
-            .limit(5);
-
-          const prev = (prevRows || []).find(r => r.clinic_id !== clinicId);
-          if (prev?.clinic_id) {
-            await window.sb
-              .from("patient_clinic")
-              .update({ is_active: true })
-              .eq("patient_id", patientId)
-              .eq("clinic_id", prev.clinic_id);
-          }
-        } catch (e) {
-          console.warn("Reversão de transferência falhou:", e);
-        }
-
-        // Cancelar criação/marcação
-        throw new Error("TRANSFER_CANCELLED");
-      }
-    }
+    // Doente já existia — foi associado silenciosamente à clínica atual (reused_linked)
+    // Não há transferência, não há confirmação, as outras clínicas não são afetadas
 
     // Para manter compatibilidade com o resto do código:
     // - antes devolvia UUID direto
@@ -3592,7 +3550,7 @@ async function fetchClinicForPdf() {
   .vinheta { margin-top:8px; width:4cm; height:2.5cm; object-fit:contain; display:block; }
 
   .locDate { text-align:right; font-size:14px; margin-top:14px; }
-  .sig { margin-top:40px; display:flex; justify-content:flex-end; }
+  .sig { margin-top:20px; display:flex; justify-content:flex-end; }
 
   /* ✅ Evitar a CAIXA da assinatura ser partida */
   .sigBox { width:360px; text-align:center; page-break-inside:avoid; break-inside:avoid; }
@@ -9312,7 +9270,7 @@ function buildExamRequestHtml({ clinic, examName, clinicalInfo, vinhetaUrl, clin
   .web { font-size:14px; font-weight:700; }
   .vinheta { margin-top:8px; width:4cm; height:2.5cm; object-fit:contain; display:block; }
   .locDate { text-align:right; font-size:14px; margin-top:14px; }
-  .sig { margin-top:40px; display:flex; justify-content:flex-end; }
+  .sig { margin-top:20px; display:flex; justify-content:flex-end; }
   .sigBox { width:360px; text-align:center; page-break-inside:avoid; break-inside:avoid; }
   .sigImgWrap { position:relative; height:80px; display:flex; align-items:flex-end; justify-content:center; margin-bottom:-1px; }
   .sigImg { max-height:80px; max-width:280px; object-fit:contain; display:block; }
