@@ -3283,6 +3283,10 @@ function openPatientViewModal(patient) {
         const consultId = lastSavedConsultId || (consultRows && consultRows.length ? consultRows[0].id : null);
         if (typeof openAnalisesModal === "function") openAnalisesModal({ patientId: p.id, consultationId: consultId || null });
       });
+
+      document.getElementById("btnMedicalReports")?.addEventListener("click", (e) => {
+        openReportsMenu(e.currentTarget);
+      });
     }
 
     document.querySelectorAll('[data-action="edit-consult"]').forEach((btn) => {
@@ -3342,6 +3346,320 @@ function openPatientViewModal(patient) {
     }
     render();
   })();
+
+
+  /* ====================================================================
+     RELATÓRIOS — Menu + Templates PRP / Atestados
+     ==================================================================== */
+
+  function openReportsMenu(anchorBtn) {
+    // Remove menu anterior se existir
+    document.getElementById("gcReportsMenu")?.remove();
+
+    const menu = document.createElement("div");
+    menu.id = "gcReportsMenu";
+    Object.assign(menu.style, {
+      position: "fixed",
+      zIndex: "3000",
+      background: "#fff",
+      border: "1px solid #e2e8f0",
+      borderRadius: "12px",
+      boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+      padding: "8px 0",
+      minWidth: "260px",
+      fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif"
+    });
+
+    const rect = anchorBtn.getBoundingClientRect();
+    menu.style.top  = (rect.bottom + 6) + "px";
+    menu.style.left = rect.left + "px";
+
+    const groups = [
+      {
+        label: "PRP — Reembolso",
+        items: [
+          { id: "prp_tendinopatia", label: "🩹 Tendinopatia" },
+          { id: "prp_osteoartrose", label: "🦴 Osteoartrose" },
+          { id: "prp_rotura",       label: "💪 Rotura Muscular" }
+        ]
+      },
+      {
+        label: "Atestados",
+        items: [
+          { id: "atestado_ef", label: "🏫 Dispensa Educação Física" }
+        ]
+      }
+    ];
+
+    groups.forEach((grp, gi) => {
+      if (gi > 0) {
+        const sep = document.createElement("div");
+        Object.assign(sep.style, { height: "1px", background: "#f1f5f9", margin: "6px 0" });
+        menu.appendChild(sep);
+      }
+
+      const lbl = document.createElement("div");
+      lbl.textContent = grp.label;
+      Object.assign(lbl.style, {
+        padding: "4px 16px 2px",
+        fontSize: "11px",
+        fontWeight: "700",
+        color: "#94a3b8",
+        textTransform: "uppercase",
+        letterSpacing: "0.05em"
+      });
+      menu.appendChild(lbl);
+
+      grp.items.forEach(item => {
+        const btn = document.createElement("button");
+        btn.textContent = item.label;
+        Object.assign(btn.style, {
+          display: "block",
+          width: "100%",
+          textAlign: "left",
+          background: "none",
+          border: "none",
+          padding: "9px 20px",
+          fontSize: "14px",
+          color: "#0f172a",
+          cursor: "pointer",
+          fontFamily: "inherit"
+        });
+        btn.onmouseenter = () => btn.style.background = "#f1f5f9";
+        btn.onmouseleave = () => btn.style.background = "none";
+        btn.addEventListener("click", () => {
+          menu.remove();
+          openReportTemplate(item.id);
+        });
+        menu.appendChild(btn);
+      });
+    });
+
+    document.body.appendChild(menu);
+
+    // Fechar ao clicar fora
+    setTimeout(() => {
+      const close = (ev) => {
+        if (!menu.contains(ev.target) && ev.target !== anchorBtn) {
+          menu.remove();
+          document.removeEventListener("click", close);
+        }
+      };
+      document.addEventListener("click", close);
+    }, 50);
+  }
+
+  async function openReportTemplate(templateId) {
+    try {
+      const clinic      = await fetchClinicForPdf();
+      const locality    = String(clinic?.city || "").trim();
+      const todayPt     = new Date().toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-");
+      const localityDate = [locality, todayPt].filter(Boolean).join(", ");
+
+      const name    = escAttr(String(p?.full_name || "").trim() || "—");
+      const sns     = escAttr(String(p?.sns || "").trim());
+      const nif     = escAttr(String(p?.nif || "").trim());
+      const dobPt   = p?.dob ? escAttr(fmtDobPt(p.dob)) : "";
+
+      const lineParts = [];
+      if (sns)   lineParts.push(`<b>Nº Utente:</b> ${sns}`);
+      if (dobPt) lineParts.push(`<b>DN:</b> ${dobPt}`);
+      if (nif)   lineParts.push(`<b>NIF:</b> ${nif}`);
+      const patientLine2 = lineParts.join("&nbsp;&nbsp;&nbsp;");
+
+      const websiteHtml  = escAttr(clinic?.website || "www.JoaoMorais.pt");
+      const phoneHtml    = escAttr(clinic?.phone || "");
+
+      let vinhetaUrl = "";
+      try {
+        const u = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
+        if (u) vinhetaUrl = await urlToDataUrl(u, "image/png");
+      } catch (_) {}
+
+      const vinhetaTag = vinhetaUrl
+        ? `<img style="width:4cm;height:2.5cm;object-fit:contain;display:block;margin-top:8px;" src="${vinhetaUrl}" />`
+        : "";
+
+      const sharedStyles = `
+        body { margin:0; background:#fff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; color:#111; font-size:14px; line-height:1.5; }
+        * { box-sizing:border-box; }
+        @page { size:A4; margin:16mm; }
+        .a4 { width:210mm; background:#fff; }
+        .top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+        .topLeft { font-size:13.5px; line-height:1.4; }
+        .hr { height:1px; background:#111; margin:10px 0 14px 0; }
+        .title { text-align:center; font-weight:900; font-size:20px; margin:2px 0 12px 0; }
+        .row { margin-top:6px; font-size:13.5px; }
+        .section { margin-top:18px; }
+        .stitle { font-weight:900; font-size:15px; margin-bottom:6px; }
+        .field { background:#f8fafc; border:1.5px dashed #94a3b8; border-radius:6px; padding:6px 10px; margin:6px 0; color:#1e40af; font-style:italic; display:inline-block; min-width:180px; }
+        .footerBlock { margin-top:28px; }
+        .hr2 { height:1px; background:#111; margin:16px 0 10px 0; }
+        .footRow { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+        .web { font-size:14px; font-weight:700; }
+        .locDate { text-align:right; font-size:14px; margin-top:14px; }
+        .sig { margin-top:40px; display:flex; justify-content:flex-end; }
+        .sigBox { width:360px; text-align:center; }
+        .sigLine { border-top:1px solid #111; padding-top:10px; }
+        .sigName { font-weight:900; font-size:17px; margin-top:6px; }
+        .sigRole { font-size:13px; margin-top:2px; }
+      `;
+
+      const header = `
+        <div class="top">
+          <div class="topLeft">
+            <div>${websiteHtml}</div>
+            <div>${phoneHtml}</div>
+          </div>
+        </div>
+        <div class="hr"></div>
+      `;
+
+      const patientBlock = `
+        <div class="row"><b>Nome:</b> ${name}</div>
+        ${patientLine2 ? `<div class="row">${patientLine2}</div>` : ""}
+        <div class="hr" style="margin-top:14px;opacity:0.5;"></div>
+      `;
+
+      const footer = `
+        <div class="footerBlock">
+          <div class="hr2"></div>
+          <div class="footRow">
+            <div>
+              <div class="web">${websiteHtml}</div>
+              ${vinhetaTag}
+            </div>
+            <div style="flex:1;">
+              <div class="locDate">${escAttr(localityDate)}</div>
+              <div class="sig">
+                <div class="sigBox">
+                  <div class="sigLine"></div>
+                  <div class="sigName">Dr. João Morais</div>
+                  <div class="sigRole">Médico Fisiatra</div>
+                  <div class="sigRole">Sports Medicine &amp; Rehabilitation</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      let html = "";
+      let title = "Relatório";
+
+      if (templateId === "prp_tendinopatia") {
+        title = "PRP — Tendinopatia";
+        html = `<!doctype html><html><head><meta charset="utf-8"/><title>${title}</title>
+        <style>${sharedStyles}
+          .ref { font-size:12px; color:#475569; line-height:1.6; }
+          .ref li { margin-bottom:4px; }
+          .evid { background:#f0f9ff; border-left:3px solid #0ea5e9; padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13.5px; }
+        </style></head><body><div class="a4">
+          ${header}
+          <div class="title">Relatório Médico — Pedido de Autorização de Reembolso</div>
+          <div style="text-align:center;font-size:13px;color:#64748b;margin-bottom:12px;">
+            Aplicação de Plasma Rico em Plaquetas (PRP) — Tendinopatia
+          </div>
+          ${patientBlock}
+
+          <div class="section">
+            <div class="stitle">Diagnóstico</div>
+            <p>
+              O/A doente apresenta <span class="field">[localização — ex: tendinopatia da coifa dos rotadores / tendão de Aquiles / tendão rotuliano / epicondilite lateral]</span>,
+              confirmada clinicamente e por imagiologia: <span class="field">[ecografia / RM — descrever achados, ex: tendinose com fibrilhação, rotura parcial &lt;50%]</span>.
+            </p>
+          </div>
+
+          <div class="section">
+            <div class="stitle">História Clínica</div>
+            <p>
+              Queixas com evolução de <span class="field">[duração — ex: 6 meses]</span>,
+              com dor localizada a <span class="field">[localização anatómica]</span>,
+              de características mecânicas, com agravamento à <span class="field">[actividade — ex: elevação do membro / corrida / preensão]</span>.
+              Impacto funcional significativo nas actividades de vida diária <span class="field">[e/ou actividade desportiva]</span>.
+            </p>
+            <p>Escala de dor EVA: <span class="field">[0–10]</span> em repouso e <span class="field">[0–10]</span> em actividade.</p>
+          </div>
+
+          <div class="section">
+            <div class="stitle">Tratamentos Conservadores Realizados (sem resposta adequada)</div>
+            <ul style="margin:8px 0 0 18px;padding:0;">
+              <li>Fisioterapia com exercício excêntrico — <span class="field">[número de sessões / duração]</span></li>
+              <li>Anti-inflamatórios não esteroides (AINEs) — <span class="field">[duração]</span></li>
+              <li>Corticoterapia local — <span class="field">[número de infiltrações / datas]</span> <em>(se aplicável)</em></li>
+              <li>Repouso relativo / modificação da actividade — <span class="field">[duração]</span></li>
+              <li><span class="field">[outros tratamentos realizados]</span></li>
+            </ul>
+          </div>
+
+          <div class="section">
+            <div class="stitle">Justificação Clínica e Evidência Científica para PRP</div>
+            <p>
+              Face à ausência de resposta satisfatória aos tratamentos conservadores optimizados,
+              propõe-se a aplicação de <b>Plasma Rico em Plaquetas (PRP)</b> — terapêutica biológica
+              autóloga, regenerativa, que actua através da libertação de factores de crescimento
+              (PDGF, TGF-β, IGF-1, VEGF) com efeito angiogénico, anti-inflamatório e de
+              estimulação da síntese de colagénio tendinoso.
+            </p>
+            <div class="evid">
+              A evidência científica actual suporta o uso de PRP em tendinopatias crónicas refratárias
+              ao tratamento conservador, com benefício sustentado na redução da dor e melhoria funcional
+              aos 6 e 12 meses de seguimento.
+            </div>
+            <p style="margin-top:10px;font-size:13.5px;"><b>Referências bibliográficas de suporte:</b></p>
+            <ol class="ref">
+              <li>
+                <b>Fitzpatrick J et al.</b> — <em>The Effectiveness of Platelet-Rich Plasma in the Treatment of Tendinopathy: A Meta-analysis of Randomized Controlled Clinical Trials.</em>
+                Am J Sports Med. 2017. — Meta-análise de 18 RCTs (1066 doentes): LR-PRP guiado por ecografia demonstrou eficácia superior; efeito positivo fortemente significativo na redução da dor.
+              </li>
+              <li>
+                <b>Vij N et al.</b> — <em>Platelet-Rich Plasma as a Treatment for Chronic Noncancer Pain.</em>
+                Pain Ther. 2025. — Meta-análise de RCTs: PRP reduziu significativamente a dor vs. corticosteróides (SMD −0.53, p=0.02) e ácido hialurónico (SMD −0.55, p=0.004), com benefício sustentado ≥3 meses.
+              </li>
+              <li>
+                <b>Azadvari M et al.</b> — <em>PRP injections as second-line treatment in chronic tendinopathy failing conservative treatment: systematic review and meta-analysis.</em>
+                Pain Medicine. 2024. — 9 RCTs, 488 doentes: PRP reduziu dor significativamente aos 6 meses (MD −0.83) e 12 meses (MD −1.11) vs. controlo; sem diferença entre tendinopatias do membro superior e inferior.
+              </li>
+              <li>
+                <b>Georgetown Medical Review. 2024.</b> — <em>Evaluating Efficacy of PRP versus Corticosteroids in Management of Tendinopathies.</em>
+                PRP demonstrou superioridade a longo prazo sobre corticosteróides na epicondilite lateral e tendinopatia glútea; menos efeitos adversos e maior custo-efectividade.
+              </li>
+              <li>
+                <b>Kale et al.</b> — <em>Mechanisms, Efficacy, and Clinical Applications of PRP in Tendinopathy: A Comprehensive Review.</em>
+                PMC / Cureus. 2024. — Revisão dos mecanismos biológicos: PRP promove diferenciação de células estaminais tendinosas, síntese de colagénio tipo I e redução da degeneração tendinosa.
+              </li>
+            </ol>
+            <p style="margin-top:12px;">
+              Está prevista a realização de <span class="field">[1 a 3]</span> aplicação(ões) de PRP,
+              sob orientação ecográfica, com intervalo de <span class="field">[4 semanas]</span> entre sessões,
+              associada a programa de reabilitação supervisionada.
+            </p>
+          </div>
+
+          <div class="section">
+            <div class="stitle">Conclusão</div>
+            <p>
+              Solicita-se autorização de reembolso da aplicação de Plasma Rico em Plaquetas (PRP)
+              na patologia acima descrita — <span class="field">[localização]</span> —
+              em doente sem resposta ao tratamento conservador optimizado, com suporte em evidência
+              científica de nível I-II (meta-análises de RCTs, 2024–2025), com perfil de segurança
+              favorável e ausência de efeitos adversos major documentados.
+            </p>
+          </div>
+
+          ${footer}
+        </div></body></html>`;
+      }
+
+      if (html) {
+        openDocumentEditor(html, title);
+      }
+
+    } catch (err) {
+      console.error("openReportTemplate falhou:", err);
+      alert("Erro ao abrir template de relatório.");
+    }
+  }
 
 } // <-- fecha openPatientViewModal
 /* ==== FIM BLOCO 06J/12 ==== */
