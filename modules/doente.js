@@ -21,7 +21,8 @@
    07E  — Criação do doente
    ======================================================== */
 
-import { G, UI } from "./config.js";
+import { UI } from "./config.js";
+import { G } from "./state.js";
 import {
   calcAgeYears,
   isBirthdayOnDate,
