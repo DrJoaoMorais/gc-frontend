@@ -3550,7 +3550,7 @@ async function fetchClinicForPdf() {
   .vinheta { margin-top:8px; width:4cm; height:2.5cm; object-fit:contain; display:block; }
 
   .locDate { text-align:right; font-size:14px; margin-top:14px; }
-  .sig { margin-top:20px; display:flex; justify-content:flex-end; }
+  .sig { margin-top:60px; display:flex; justify-content:flex-end; }
 
   /* ✅ Evitar a CAIXA da assinatura ser partida */
   .sigBox { width:360px; text-align:center; page-break-inside:avoid; break-inside:avoid; }
@@ -9270,7 +9270,7 @@ function buildExamRequestHtml({ clinic, examName, clinicalInfo, vinhetaUrl, clin
   .web { font-size:14px; font-weight:700; }
   .vinheta { margin-top:8px; width:4cm; height:2.5cm; object-fit:contain; display:block; }
   .locDate { text-align:right; font-size:14px; margin-top:14px; }
-  .sig { margin-top:20px; display:flex; justify-content:flex-end; }
+  .sig { margin-top:60px; display:flex; justify-content:flex-end; }
   .sigBox { width:360px; text-align:center; page-break-inside:avoid; break-inside:avoid; }
   .sigImgWrap { position:relative; height:80px; display:flex; align-items:flex-end; justify-content:center; margin-bottom:-1px; }
   .sigImg { max-height:80px; max-width:280px; object-fit:contain; display:block; }
