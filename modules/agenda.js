@@ -515,7 +515,7 @@ function renderQuickPatientSelected() {
 /* ==== 05B — Render dos resultados da pesquisa rápida ==== */
 
 /* ---- 05B.1 — renderQuickPatientResults ---- */
-function renderQuickPatientResults(results) {
+export function renderQuickPatientResults(results) {
   const host = document.getElementById("pQuickResults");
   if (!host) return;
 

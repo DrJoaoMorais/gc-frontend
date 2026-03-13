@@ -20,7 +20,7 @@ import {
 } from "./helpers.js";
 import { setAgendaSubtitleForSelectedDay, refreshAgenda } from "./agenda.js";
 import { searchPatientsScoped } from "./db.js";
-import { renderQuickPatientResults } from "./doente.js";
+import { renderQuickPatientResults } from "./agenda.js";
 
 /* ====================================================================
    BLOCO 08A — Wiring da pesquisa rápida
