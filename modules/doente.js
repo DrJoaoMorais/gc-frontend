@@ -2997,10 +2997,10 @@ function openPatientViewModal(patient) {
       /* Toolbar — botões de formatação */
       document.getElementById("hdaToolbar")?.querySelectorAll("button[data-cmd]").forEach(btn => {
         btn.addEventListener("mousedown", (e) => {
-          e.preventDefault(); /* evitar perda de foco */
+          e.preventDefault(); /* preservar selecção */
+          hdaEditor.focus();  /* garantir foco no editor */
           const cmd = btn.getAttribute("data-cmd");
           if (cmd === "h2" || cmd === "h3") {
-            /* Verificar se já é esse heading — toggle para parágrafo */
             const sel = window.getSelection();
             const block = sel?.anchorNode?.parentElement?.closest("h2,h3,p,div");
             if (block && block.tagName.toLowerCase() === cmd) {
@@ -3034,7 +3034,9 @@ function openPatientViewModal(patient) {
 
       hdaEditor.addEventListener("keyup",   updateToolbarState);
       hdaEditor.addEventListener("mouseup", updateToolbarState);
-      hdaEditor.addEventListener("selectionchange", updateToolbarState);
+      /* selectionchange dispara no document, não no elemento */
+      document.addEventListener("selectionchange", updateToolbarState);
+      hdaEditor.addEventListener("focusin",  updateToolbarState);
     }
 
     /* Converter markdown simples (Claude output) para HTML */
