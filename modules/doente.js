@@ -2802,24 +2802,28 @@ function openPatientViewModal(patient) {
     const today = new Date().toISOString().slice(0, 10);
 
     return `
-    <div style="margin-top:16px; padding:16px; border:1px solid #e5e5e5; border-radius:14px;">
+    <div style="margin-top:16px; padding:16px; border:1px solid #e5e5e5; border-radius:14px; background:#ffffff;">
 
       <style>
         .gcQuillWrap { margin-top: 10px; }
-        .gcQuillWrap .ql-toolbar.ql-snow { border: 1px solid #ddd; border-radius: 12px 12px 0 0; }
-        .gcQuillWrap .ql-container.ql-snow { border: 1px solid #ddd; border-top: none; border-radius: 0 0 12px 12px; min-height: 240px; font-size: 16px; }
-        .gcQuillWrap .ql-editor { line-height: 1.6; }
+        .gcQuillWrap .ql-toolbar.ql-snow { border: 1px solid #ddd; border-radius: 12px 12px 0 0; background:#ffffff; }
+        .gcQuillWrap .ql-container.ql-snow { border: 1px solid #ddd; border-top: none; border-radius: 0 0 12px 12px; min-height: 240px; font-size: 16px; background:#ffffff; }
+        .gcQuillWrap .ql-editor { line-height: 1.6; background:#ffffff; }
       </style>
 
       <div style="font-weight:900; font-size:16px;">Nova Consulta Médica</div>
 
       <div style="margin-top:10px;">
         <label>Data</label>
-        <input type="date" value="${today}" readonly
+        <input type="date" value="${today}"
                style="padding:8px; border:1px solid #ddd; border-radius:8px;" />
       </div>
 
-      <div class="gcQuillWrap">
+      <div style="margin-top:14px;">
+        <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:6px;">
+          Anamnese / História Clínica (HDA)
+        </div>
+        <div class="gcQuillWrap">
         <div id="hdaQuillToolbar">
           <span class="ql-formats">
             <button class="ql-bold"></button>
@@ -2834,6 +2838,7 @@ function openPatientViewModal(patient) {
           </span>
         </div>
         <div id="hdaQuillEditor"></div>
+      </div>
       </div>
 
       <div style="margin-top:14px;">
@@ -2903,13 +2908,17 @@ function openPatientViewModal(patient) {
 
       document.getElementById("hdaQuillToolbar")?.querySelector(".ql-bold")?.addEventListener("mousedown", (e) => {
         e.preventDefault();
-        const format = quill.getFormat();
-        quill.format("bold", !format.bold);
+        const range = quill.getSelection();
+        if (!range) return;
+        const format = quill.getFormat(range);
+        quill.format("bold", !format.bold, "user");
       });
       document.getElementById("hdaQuillToolbar")?.querySelector(".ql-underline")?.addEventListener("mousedown", (e) => {
         e.preventDefault();
-        const format = quill.getFormat();
-        quill.format("underline", !format.underline);
+        const range = quill.getSelection();
+        if (!range) return;
+        const format = quill.getFormat(range);
+        quill.format("underline", !format.underline, "user");
       });
 
       const initialHtml = String(draftHDAHtml || "");

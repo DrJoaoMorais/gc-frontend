@@ -216,7 +216,8 @@ export const ANALISES_CATALOG = [
       "Antigénio específico da próstata total (PSA total)",
       "Antigénio específico da próstata livre (PSA livre)",
       "Microalbuminúria",
-      "Exame sumário de urina"
+      "Exame sumário de urina",
+      "HOMA-IR (índice de resistência à insulina)"
     ]
   },
   {
@@ -351,11 +352,13 @@ export const ANALISES_CATALOG = [
   },
   {
     id: "desportivo_overtraining",
-    label: "Med. Desportiva — Overtraining / RED-S",
+    label: "Med. Desportiva — Overtraining / REDs",
     icon: "⚠️",
     items: [
       "Hemograma com fórmula leucocitária",
       "Ferritina",
+      "Ferro sérico",
+      "Saturação de transferrina",
       "Creatinacinase (CK)",
       "Desidrogenase láctica (LDH)",
       "Mioglobina",
@@ -369,17 +372,25 @@ export const ANALISES_CATALOG = [
       "Triiodotironina livre (T3 livre)",
       "Tiroxina livre (T4 livre)",
       "IGF-1 (fator de crescimento insulínico tipo 1)",
+      "Estradiol (E2)",
+      "LH (hormona luteinizante)",
+      "FSH (hormona folículo-estimulante)",
+      "Prolactina",
+      "Anti-Mülleriano (AMH) — atleta mulher",
       "Glicose em jejum",
       "Insulina em jejum",
+      "HOMA-IR (índice de resistência à insulina)",
       "Ionograma (Sódio, Potássio, Magnésio)",
+      "Zinco",
       "Ureia",
       "Creatinina",
       "Vitamina D (25-hidroxivitamina D)",
       "Vitamina B12",
       "Folato",
-      "SHBG (globulina ligadora de hormonas sexuais)"
+      "SHBG (globulina ligadora de hormonas sexuais)",
+      "NOTA: Solicitar densitometria óssea (DEXA) — via painel de Exames"
     ]
-  }
+  },
 ];
 
 /* ====================================================================

@@ -175,19 +175,82 @@ function renderExamsPanel() {
       </button>
     </div>
 
-    <div style="padding:16px; border-bottom:1px solid #f1f5f9;">
+    <div style="padding:12px 16px; border-bottom:1px solid #f1f5f9;">
       <input id="gcExamSearch" type="text" placeholder="Pesquisar exame..."
         style="width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px;
                font-size:14px; box-sizing:border-box;">
     </div>
 
     <div id="gcExamResults" style="flex:1; overflow:auto; padding:16px;"></div>
+
+    <div id="gcExamSelBarFooter" style="
+      border-top:1px solid #e5e7eb;
+      background:#f8fafc;
+      padding:10px 14px;
+      flex-shrink:0;
+      display:none;">
+    </div>
   `;
 
   host.appendChild(panel);
   loadAndRenderExams();
 
   document.getElementById("gcCloseExamsPanel")?.addEventListener("click", closeExamsPanel);
+
+  /* Pesquisa — filtra em tempo real sobre todos os exames */
+  document.getElementById("gcExamSearch")?.addEventListener("input", (ev) => {
+    const q = String(ev.target?.value || "").trim();
+    if (!q) {
+      examsUiState.mode          = "groups";
+      examsUiState.selectedGroup = "";
+      renderExamGroups();
+      return;
+    }
+    /* Filtrar todos os exames pelo nome */
+    const all     = examsUiState.exams || [];
+    const results = searchExams(all, q);
+    const sel     = examsUiState.selectedExams || [];
+    const container = document.getElementById("gcExamResults");
+    if (!container) return;
+
+    if (!results.length) {
+      container.innerHTML = `<div style="color:#64748b;font-size:13px;padding:8px 0;">Sem resultados para "${q}"</div>`;
+      renderSelectedBar();
+      return;
+    }
+
+    let html = `<div style="font-size:11px;font-weight:800;letter-spacing:0.6px;color:#64748b;text-transform:uppercase;margin-bottom:8px;">Resultados</div>`;
+    results.forEach(exam => {
+      const isSel = sel.includes(exam.id);
+      html += `
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;
+                      border:1px solid ${isSel ? '#1a56db' : '#e2e8f0'};border-radius:8px;
+                      margin-bottom:8px;cursor:pointer;background:${isSel ? '#eff6ff' : '#ffffff'};">
+          <input type="checkbox" data-exam-id="${exam.id}" ${isSel ? "checked" : ""}
+            style="width:15px;height:15px;accent-color:#1a56db;flex-shrink:0;cursor:pointer;">
+          <div>
+            <div style="font-size:13px;font-weight:${isSel ? '700' : '500'};color:#0f172a;line-height:1.4;">
+              ${exam.exam_name}
+            </div>
+            <div style="font-size:11px;color:#94a3b8;">${getExamGroupLabel(exam) || ""}</div>
+          </div>
+        </label>`;
+    });
+    container.innerHTML = html;
+    renderSelectedBar();
+
+    container.querySelectorAll("input[data-exam-id]").forEach(cb => {
+      cb.addEventListener("change", () => {
+        const id  = cb.getAttribute("data-exam-id") || "";
+        if (!id) return;
+        const idx = examsUiState.selectedExams.indexOf(id);
+        if (cb.checked && idx === -1) examsUiState.selectedExams.push(id);
+        if (!cb.checked && idx !== -1) examsUiState.selectedExams.splice(idx, 1);
+        /* Re-disparar o input para refrescar resultados com estilos actualizados */
+        ev.target.dispatchEvent(new Event("input"));
+      });
+    });
+  });
 }
 
 /* ====================================================================
@@ -245,20 +308,20 @@ function getExamById(exams, examId) {
    BLOCO 12E — Render do conteúdo do painel
    ==================================================================== */
 
-function renderSelectedBar(container) {
-  const sel     = examsUiState.selectedExams || [];
-  const exams   = examsUiState.exams || [];
-  const bar     = container.querySelector("#gcExamSelBar");
-  if (!bar) return;
+function renderSelectedBar() {
+  const footer  = document.getElementById("gcExamSelBarFooter");
+  if (!footer) return;
+
+  const sel   = examsUiState.selectedExams || [];
+  const exams = examsUiState.exams || [];
 
   if (!sel.length) {
-    bar.innerHTML = `<span style="font-size:12px;color:#94a3b8;">Nenhum exame seleccionado</span>`;
-    const btn = bar.querySelector("#gcExamGenPdfs");
-    if (btn) btn.remove();
+    footer.style.display = "none";
+    footer.innerHTML = "";
     return;
   }
 
-  /* Agrupar seleccionados por tipo para mostrar quantos PDFs serão gerados */
+  /* Agrupar por tipo */
   const groups = {};
   sel.forEach(id => {
     const ex = getExamById(exams, id);
@@ -269,32 +332,31 @@ function renderSelectedBar(container) {
   });
   const nPdfs = Object.keys(groups).length;
 
-  bar.innerHTML = `
-    <div style="flex:1;">
-      <div style="font-size:12px;font-weight:700;color:#1a56db;margin-bottom:3px;">
-        ${sel.length} exame${sel.length!==1?"s":""} seleccionado${sel.length!==1?"s":""} → ${nPdfs} PDF${nPdfs!==1?"s":""}
-      </div>
-      <div style="font-size:11px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-        ${Object.entries(groups).map(([g, items]) => `${g} (${items.length})`).join(" · ")}
-      </div>
+  footer.style.display = "block";
+  footer.innerHTML = `
+    <div style="font-size:12px;font-weight:700;color:#1a56db;margin-bottom:2px;">
+      ${sel.length} exame${sel.length!==1?"s":""} seleccionado${sel.length!==1?"s":""} → ${nPdfs} PDF${nPdfs!==1?"s":""}
     </div>
-    <div style="display:flex;gap:6px;flex-shrink:0;">
+    <div style="font-size:11px;color:#64748b;margin-bottom:10px;line-height:1.5;">
+      ${Object.entries(groups).map(([g, items]) => `${g} (${items.length})`).join(" · ")}
+    </div>
+    <div style="display:flex;gap:8px;">
       <button id="gcExamClearSel" class="gcBtn"
-        style="font-size:12px;background:#fff;border:1px solid #e5e7eb;color:#64748b;">
+        style="font-size:12px;background:#fff;border:1px solid #e5e7eb;color:#64748b;flex-shrink:0;">
         Limpar
       </button>
       <button id="gcExamGenPdfs" class="gcBtn"
-        style="font-size:12px;background:#1a56db;border:1px solid #1a56db;color:#fff;font-weight:700;">
-        Info Clínica e Gerar
+        style="font-size:12px;background:#1a56db;border:1px solid #1a56db;color:#fff;font-weight:700;flex:1;text-align:center;">
+        Info Clínica e Gerar →
       </button>
     </div>`;
 
-  bar.querySelector("#gcExamClearSel")?.addEventListener("click", () => {
+  footer.querySelector("#gcExamClearSel")?.addEventListener("click", () => {
     examsUiState.selectedExams = [];
     renderExamGroups();
   });
 
-  bar.querySelector("#gcExamGenPdfs")?.addEventListener("click", () => {
+  footer.querySelector("#gcExamGenPdfs")?.addEventListener("click", () => {
     openExamClinicalInfoStep();
   });
 }
@@ -308,13 +370,7 @@ function renderExamGroups() {
   const direct = listDirectExams(exams);
   const sel    = examsUiState.selectedExams || [];
 
-  let html = `
-    <div id="gcExamSelBar"
-      style="display:flex;align-items:center;justify-content:space-between;gap:8px;
-             padding:8px 10px;background:#f0f6ff;border:1px solid #bcd4f5;
-             border-radius:8px;margin-bottom:12px;min-height:44px;">
-      <span style="font-size:12px;color:#94a3b8;">Nenhum exame seleccionado</span>
-    </div>`;
+  let html = ``;
 
   if (groups.length) {
     html += `
@@ -358,7 +414,7 @@ function renderExamGroups() {
   }
 
   container.innerHTML = html;
-  renderSelectedBar(container);
+  renderSelectedBar();
 
   container.querySelectorAll(".gcExamGroup").forEach(el => {
     el.addEventListener("click", () => {
@@ -413,13 +469,6 @@ function openExamGroup(groupLabel) {
         ← Voltar
       </button>
       <div style="font-weight:800;color:#111827;font-size:14px;">${groupLabel}</div>
-    </div>
-
-    <div id="gcExamSelBar"
-      style="display:flex;align-items:center;justify-content:space-between;gap:8px;
-             padding:8px 10px;background:#f0f6ff;border:1px solid #bcd4f5;
-             border-radius:8px;margin-bottom:12px;min-height:44px;">
-      <span style="font-size:12px;color:#94a3b8;">Nenhum exame seleccionado</span>
     </div>`;
 
   list.forEach(exam => {
@@ -437,7 +486,7 @@ function openExamGroup(groupLabel) {
   });
 
   container.innerHTML = html;
-  renderSelectedBar(container);
+  renderSelectedBar();
 
   document.getElementById("gcExamBack")?.addEventListener("click", () => {
     examsUiState.mode          = "groups";
@@ -489,6 +538,8 @@ function openExamClinicalInfoStep() {
   const groupEntries = Object.entries(groups);
   const nPdfs        = groupEntries.length;
   const savedInfo    = String(examsUiState.clinicalInfo || "");
+  const todayIso     = new Date().toISOString().slice(0, 10);
+  const savedDate    = examsUiState.examDate || todayIso;
 
   let summaryHtml = groupEntries.map(([grp, items]) => `
     <div style="padding:8px 10px;border:1px solid #bcd4f5;border-radius:8px;
@@ -511,6 +562,21 @@ function openExamClinicalInfoStep() {
     </div>
 
     <div style="border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;padding:14px;">
+
+      <div style="margin-bottom:12px;">
+        <label for="gcExamDate"
+          style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">
+          Data do pedido
+        </label>
+        <input type="date" id="gcExamDate" value="${savedDate}"
+          style="padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;
+                 font-size:13px;font-family:inherit;color:#0f172a;background:#fff;
+                 cursor:pointer;">
+        <span style="font-size:11px;color:#94a3b8;margin-left:8px;">
+          Pode ser anterior à data de hoje (ex: prescrição retroactiva)
+        </span>
+      </div>
+
       <div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:8px;">
         Exames seleccionados
       </div>
@@ -540,12 +606,17 @@ function openExamClinicalInfoStep() {
   /* Voltar */
   document.getElementById("gcExamCIBack")?.addEventListener("click", () => {
     examsUiState.clinicalInfo = String(document.getElementById("gcExamClinicalInfo")?.value || "");
+    examsUiState.examDate     = String(document.getElementById("gcExamDate")?.value || "");
     if (examsUiState.selectedGroup) {
       openExamGroup(examsUiState.selectedGroup);
     } else {
       examsUiState.mode = "groups";
       renderExamGroups();
     }
+  });
+
+  document.getElementById("gcExamDate")?.addEventListener("change", ev => {
+    examsUiState.examDate = String(ev.target?.value || "");
   });
 
   document.getElementById("gcExamClinicalInfo")?.addEventListener("input", ev => {
@@ -557,6 +628,7 @@ function openExamClinicalInfoStep() {
     const btn = document.getElementById("gcGenerateExamPdf");
     try {
       examsUiState.clinicalInfo = String(document.getElementById("gcExamClinicalInfo")?.value || "");
+      examsUiState.examDate     = String(document.getElementById("gcExamDate")?.value || "");
 
       const patientId = String(examsUiState.patientId || "").trim();
       if (!patientId) { alert("Doente sem ID válido."); return; }
@@ -612,11 +684,13 @@ function openExamClinicalInfoStep() {
 
       /* examName para o título/body: lista dos nomes do grupo */
       const firstExamName = firstExams.map(ex => ex.exam_name).join("\n");
+      const examDate      = examsUiState.examDate || new Date().toISOString().slice(0, 10);
 
       const html = buildExamRequestHtml({
         clinic,
         examName:     firstExamName,
         clinicalInfo: examsUiState.clinicalInfo,
+        examDate,
         vinhetaUrl,
         clinicLogoUrl,
         signatureUrl: ""
@@ -637,6 +711,7 @@ function openExamClinicalInfoStep() {
           examName:     items.map(ex => ex.exam_name).join("\n"),
           clinic,
           clinicalInfo: examsUiState.clinicalInfo,
+          examDate,
           vinhetaUrl,
           clinicLogoUrl,
           patientId,
@@ -677,19 +752,20 @@ function openExamRequest(examId) {
  * buildExamRequestHtml
  * Constrói o HTML A4 para o pedido de exame (usado pelo editor/PDF).
  */
-export function buildExamRequestHtml({ clinic, examName, clinicalInfo, vinhetaUrl, clinicLogoUrl, signatureUrl }) {
+export function buildExamRequestHtml({ clinic, examName, clinicalInfo, examDate, vinhetaUrl, clinicLogoUrl, signatureUrl }) {
   function escHtml(v)  { return String(v||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
   function escUrl(u)   { return String(u||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
   function nl2br(v)    { return escHtml(v).replace(/\n/g,"<br>"); }
   function fmtDate(d)  {
     try {
-      const dt = d ? new Date(d) : new Date();
+      const dt = d ? new Date(d + "T12:00:00") : new Date();
       return `${String(dt.getDate()).padStart(2,"0")}-${String(dt.getMonth()+1).padStart(2,"0")}-${dt.getFullYear()}`;
     } catch (_) { return ""; }
   }
 
   const locality     = String(clinic?.city || "").trim();
-  const localityDate = [locality, fmtDate(new Date())].filter(Boolean).join(", ");
+  const dateToUse    = examDate || new Date().toISOString().slice(0, 10);
+  const localityDate = [locality, fmtDate(dateToUse)].filter(Boolean).join(", ");
   const logoSrc      = String(clinicLogoUrl || clinic?.logo_url || "").trim();
 
   return `<!doctype html>
