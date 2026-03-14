@@ -2871,28 +2871,28 @@ function openPatientViewModal(patient) {
           Anamnese / História Clínica (HDA)
         </div>
         <div style="border:1px solid #ddd; border-radius:12px; overflow:hidden; background:#fff;">
-          <div style="display:flex; gap:4px; padding:7px 10px; background:#f8fafc; border-bottom:1px solid #e5e7eb; flex-wrap:wrap; align-items:center;">
-            <button type="button" title="Negrito"
+          <div id="hdaToolbar" style="display:flex; gap:4px; padding:7px 10px; background:#f8fafc; border-bottom:1px solid #e5e7eb; flex-wrap:wrap; align-items:center;">
+            <button type="button" title="Negrito" data-cmd="bold"
               onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('bold',false,null);})()"
               style="font-weight:900; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">N</button>
-            <button type="button" title="Itálico"
+            <button type="button" title="Itálico" data-cmd="italic"
               onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('italic',false,null);})()"
               style="font-style:italic; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">I</button>
-            <button type="button" title="Sublinhado"
+            <button type="button" title="Sublinhado" data-cmd="underline"
               onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('underline',false,null);})()"
               style="text-decoration:underline; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">S</button>
             <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
-            <button type="button" title="Título"
+            <button type="button" title="Título" data-cmd="h2"
               onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('formatBlock',false,'h2');})()"
               style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; font-weight:700; font-family:inherit;">T1</button>
-            <button type="button" title="Subtítulo"
+            <button type="button" title="Subtítulo" data-cmd="h3"
               onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('formatBlock',false,'h3');})()"
               style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:11px; font-weight:700; font-family:inherit;">T2</button>
             <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
-            <button type="button" title="Lista com pontos"
+            <button type="button" title="Lista com pontos" data-cmd="insertUnorderedList"
               onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('insertUnorderedList',false,null);})()"
               style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">•</button>
-            <button type="button" title="Lista numerada"
+            <button type="button" title="Lista numerada" data-cmd="insertOrderedList"
               onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('insertOrderedList',false,null);})()"
               style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; font-family:inherit;">1.</button>
             <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
@@ -3023,6 +3023,29 @@ function openPatientViewModal(patient) {
         };
         doc.addEventListener("input", resize);
         setTimeout(resize, 100);
+
+        /* Indicador de estado activo nos botões da toolbar */
+        function updateToolbar() {
+          const toolbar = document.getElementById("hdaToolbar");
+          if (!toolbar) return;
+          toolbar.querySelectorAll("button[data-cmd]").forEach(btn => {
+            const cmd = btn.getAttribute("data-cmd");
+            let active = false;
+            try {
+              if (cmd === "bold")               active = doc.queryCommandState("bold");
+              else if (cmd === "italic")        active = doc.queryCommandState("italic");
+              else if (cmd === "underline")     active = doc.queryCommandState("underline");
+              else if (cmd === "insertUnorderedList") active = doc.queryCommandState("insertUnorderedList");
+              else if (cmd === "insertOrderedList")   active = doc.queryCommandState("insertOrderedList");
+            } catch(_) {}
+            btn.style.background  = active ? "#e0eaff" : "#fff";
+            btn.style.borderColor = active ? "#1a56db" : "#e2e8f0";
+            btn.style.color       = active ? "#1a56db" : "";
+          });
+        }
+        doc.addEventListener("selectionchange", updateToolbar);
+        doc.addEventListener("keyup",           updateToolbar);
+        doc.addEventListener("mouseup",         updateToolbar);
 
       } catch(e) { console.error("mountHdaFrame:", e); }
     }
