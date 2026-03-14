@@ -356,14 +356,20 @@ function renderSelectedBar() {
     renderExamGroups();
   });
 
-  footer.querySelector("#gcExamGenPdfs")?.addEventListener("click", () => {
+  footer.querySelector("#gcExamGenPdfs")?.addEventListener("click", async () => {
     /* Guardar infos clínicas dos textareas antes de gerar */
     document.querySelectorAll("textarea[data-exam-info-id]").forEach(ta => {
       const id = ta.getAttribute("data-exam-info-id");
       if (id) examsUiState.clinicalInfoByExam[id] = ta.value;
     });
     examsUiState.examDate = document.getElementById("gcExamFooterDate")?.value || examsUiState.examDate;
-    openExamClinicalInfoStep();
+    try {
+      await openExamClinicalInfoStep();
+    } catch (err) {
+      console.error("openExamClinicalInfoStep falhou:", err);
+      /* Re-renderizar footer para desbloquear o botão */
+      renderSelectedBar();
+    }
   });
 }
 

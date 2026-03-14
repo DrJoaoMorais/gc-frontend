@@ -35,7 +35,7 @@ import {
 } from "./helpers.js";
 import { closeModalRoot, ensurePatientActiveInClinic } from "./agenda.js";
 import { rpcCreatePatientForClinic } from "./db.js";
-import { examsUiState } from "./exames.js";
+import { examsUiState, buildExamRequestHtml } from "./exames.js";
 import { analisesUiState, openAnalisesPanel, closeAnalisesPanel } from "./analises.js";
 
 /* ==== INÍCIO BLOCO 06A/12 — Stub (mantido; não usado) ==== */
@@ -1675,19 +1675,17 @@ function openPatientViewModal(patient) {
           /* Verificar se há mais PDFs de exames na fila */
           const queue = window.__gc_pendingExamQueue;
           if (Array.isArray(queue) && queue.length > 0) {
-            const next = queue.shift(); /* remove e retorna o primeiro */
+            const next = queue.shift();
             window.__gc_pendingExamQueue = queue;
 
-            /* Construir e abrir o próximo PDF da fila */
-            const { buildExamRequestHtml } = await import("./exames.js");
             const nextHtml = buildExamRequestHtml({
-              clinic:       next.clinic,
-              examName:     next.examName,
-              clinicalInfo: next.clinicalInfo || "",
-              examDate:     next.examDate     || "",
-              vinhetaUrl:   next.vinhetaUrl   || "",
+              clinic:        next.clinic,
+              examName:      next.examName,
+              clinicalInfo:  next.clinicalInfo  || "",
+              examDate:      next.examDate      || "",
+              vinhetaUrl:    next.vinhetaUrl    || "",
               clinicLogoUrl: next.clinicLogoUrl || "",
-              signatureUrl: ""
+              signatureUrl:  ""
             });
             window.__gc_pendingExamCtx = {
               patientId:      next.patientId,
