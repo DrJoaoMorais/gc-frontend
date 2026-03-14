@@ -3394,12 +3394,13 @@ function openPatientViewModal(patient) {
     document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
     document.getElementById("btnViewIdent")?.addEventListener("click", () => openPatientIdentity("view"));
 
-    if (isDoctor() && !creatingConsult) {
-      document.getElementById("btnExameObjectivo")?.addEventListener("click", () => {
+    // Exame Objectivo — sempre disponível, independente do estado da consulta
+    document.getElementById("btnExameObjectivo")?.addEventListener("click", () => {
       openExameObjectivoMenu(document.getElementById("btnExameObjectivo"));
     });
 
-    document.getElementById("btnNewConsult")?.addEventListener("click", () => {
+    if (isDoctor() && !creatingConsult) {
+      document.getElementById("btnNewConsult")?.addEventListener("click", () => {
         editingConsultId = null;
         editingConsultRow = null;
         creatingConsult = true;
