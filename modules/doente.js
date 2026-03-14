@@ -2870,32 +2870,34 @@ function openPatientViewModal(patient) {
         <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:6px;">
           Anamnese / História Clínica (HDA)
         </div>
-        <div style="border:1px solid #ddd; border-radius:12px; overflow:hidden; background:#fff;">
-          <div id="hdaToolbar" style="display:flex; gap:4px; padding:7px 10px; background:#f8fafc; border-bottom:1px solid #e5e7eb; flex-wrap:wrap; align-items:center;">
-            <button type="button" id="hdaBtn-bold"      style="font-weight:900; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;" title="Negrito (Ctrl+B)">N</button>
-            <button type="button" id="hdaBtn-italic"    style="font-style:italic; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;" title="Itálico (Ctrl+I)">I</button>
-            <button type="button" id="hdaBtn-underline" style="text-decoration:underline; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;" title="Sublinhado (Ctrl+U)">S</button>
-            <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
-            <button type="button" id="hdaBtn-h2" style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; font-weight:700; font-family:inherit;" title="Título">T1</button>
-            <button type="button" id="hdaBtn-h3" style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:11px; font-weight:700; font-family:inherit;" title="Subtítulo">T2</button>
-            <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
-            <button type="button" id="hdaBtn-bulletList" style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;" title="Lista com pontos">•</button>
-            <button type="button" id="hdaBtn-orderedList" style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; font-family:inherit;" title="Lista numerada">1.</button>
-            <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
-            <button type="button" id="hdaBtn-clear" style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; color:#64748b; font-family:inherit;" title="Limpar formatação">✕</button>
-          </div>
-          <div id="hdaEditor" style="min-height:260px; padding:14px 16px; font-size:15px; line-height:1.65; color:#111827; background:#fff; outline:none; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;"></div>
+        <div class="gcQuillWrap" style="border:1px solid #ddd; border-radius:12px; overflow:hidden;">
           <style>
-            #hdaEditor { cursor:text; }
-            #hdaEditor p { margin:4px 0; }
-            #hdaEditor h2 { font-size:18px; font-weight:800; margin:10px 0 4px; }
-            #hdaEditor h3 { font-size:15px; font-weight:700; margin:8px 0 3px; }
-            #hdaEditor ul, #hdaEditor ol { margin:6px 0 6px 22px; padding:0; }
-            #hdaEditor li { margin:3px 0; }
-            #hdaEditor .ProseMirror { outline:none; min-height:220px; }
-            #hdaEditor .ProseMirror p.is-editor-empty:first-child::before { content:attr(data-placeholder); color:#94a3b8; pointer-events:none; float:left; height:0; }
-            #hdaToolbar button.hda-active { background:#e0eaff !important; border-color:#1a56db !important; color:#1a56db !important; }
+            .gcQuillWrap .ql-toolbar.ql-snow { border:none; border-bottom:1px solid #e5e7eb; border-radius:0; background:#f8fafc; }
+            .gcQuillWrap .ql-container.ql-snow { border:none; }
+            .gcQuillWrap .ql-editor { min-height:240px; font-size:15px; line-height:1.65; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; }
           </style>
+          <div id="hdaQuillToolbar">
+            <span class="ql-formats">
+              <button class="ql-bold"></button>
+              <button class="ql-italic"></button>
+              <button class="ql-underline"></button>
+            </span>
+            <span class="ql-formats">
+              <select class="ql-header">
+                <option value="2">Título</option>
+                <option value="3">Subtítulo</option>
+                <option selected></option>
+              </select>
+            </span>
+            <span class="ql-formats">
+              <button class="ql-list" value="bullet"></button>
+              <button class="ql-list" value="ordered"></button>
+            </span>
+            <span class="ql-formats">
+              <button class="ql-clean"></button>
+            </span>
+          </div>
+          <div id="hdaQuillEditor"></div>
         </div>
 
         <div style="margin-top:16px;">
@@ -2963,117 +2965,26 @@ function openPatientViewModal(patient) {
   }
 
   function bindConsultEvents() {
-    /* ---- Editor HDA — Tiptap ---- */
-    function mountHdaEditor() {
-      const editorEl = document.getElementById("hdaEditor");
-      if (!editorEl) return;
-
-      /* Carregar Tiptap via CDN se ainda não carregado */
-      function initTiptap() {
-        if (window.__gcTiptapEditor) {
-          window.__gcTiptapEditor.destroy();
-          window.__gcTiptapEditor = null;
-        }
-
-        const { Editor, Extension } = window.tiptap || {};
-        const StarterKit = window.tiptapStarterKit?.StarterKit || window.StarterKit;
-        const Underline  = window.tiptapExtensionUnderline?.Underline || window.Underline;
-
-        if (!Editor || !StarterKit) {
-          setTimeout(initTiptap, 100);
-          return;
-        }
-
-        const extensions = [StarterKit];
-        if (Underline) extensions.push(Underline);
-
-        const editor = new Editor({
-          element: editorEl,
-          extensions,
-          content: String(draftHDAHtml || ""),
-          autofocus: false,
-          editorProps: {
-            attributes: {
-              spellcheck: "true",
-              lang: "pt-PT",
-              style: "outline:none; min-height:220px; padding:14px 16px; font-size:15px; line-height:1.65; color:#111827; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;"
-            }
-          },
-          onUpdate: ({ editor }) => {
-            draftHDAHtml = editor.getHTML();
-          },
-          onSelectionUpdate: ({ editor }) => {
-            updateHdaToolbar(editor);
-          },
-          onTransaction: ({ editor }) => {
-            updateHdaToolbar(editor);
-          }
-        });
-
-        window.__gcTiptapEditor = editor;
-        updateHdaToolbar(editor);
-
-        /* Toolbar */
-        const tb = document.getElementById("hdaToolbar");
-        if (tb) {
-          tb.querySelector("#hdaBtn-bold")       ?.addEventListener("mousedown", e => { e.preventDefault(); editor.chain().focus().toggleBold().run(); });
-          tb.querySelector("#hdaBtn-italic")     ?.addEventListener("mousedown", e => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); });
-          tb.querySelector("#hdaBtn-underline")  ?.addEventListener("mousedown", e => { e.preventDefault(); editor.chain().focus().toggleUnderline().run(); });
-          tb.querySelector("#hdaBtn-h2")         ?.addEventListener("mousedown", e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 2 }).run(); });
-          tb.querySelector("#hdaBtn-h3")         ?.addEventListener("mousedown", e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 3 }).run(); });
-          tb.querySelector("#hdaBtn-bulletList") ?.addEventListener("mousedown", e => { e.preventDefault(); editor.chain().focus().toggleBulletList().run(); });
-          tb.querySelector("#hdaBtn-orderedList")?.addEventListener("mousedown", e => { e.preventDefault(); editor.chain().focus().toggleOrderedList().run(); });
-          tb.querySelector("#hdaBtn-clear")      ?.addEventListener("mousedown", e => { e.preventDefault(); editor.chain().focus().unsetAllMarks().clearNodes().run(); });
-        }
-      }
-
-      function updateHdaToolbar(editor) {
-        const tb = document.getElementById("hdaToolbar");
-        if (!tb || !editor) return;
-        const states = {
-          "hdaBtn-bold":        editor.isActive("bold"),
-          "hdaBtn-italic":      editor.isActive("italic"),
-          "hdaBtn-underline":   editor.isActive("underline"),
-          "hdaBtn-h2":          editor.isActive("heading", { level: 2 }),
-          "hdaBtn-h3":          editor.isActive("heading", { level: 3 }),
-          "hdaBtn-bulletList":  editor.isActive("bulletList"),
-          "hdaBtn-orderedList": editor.isActive("orderedList"),
-        };
-        Object.entries(states).forEach(([id, active]) => {
-          const btn = tb.querySelector(`#${id}`);
-          if (!btn) return;
-          btn.classList.toggle("hda-active", active);
-        });
-      }
-
-      /* Carregar scripts Tiptap do CDN */
-      function loadScript(src, cb) {
-        if (document.querySelector(`script[src="${src}"]`)) { cb(); return; }
-        const s = document.createElement("script");
-        s.src = src;
-        s.onload = cb;
-        s.onerror = () => console.error("Falhou carregar:", src);
-        document.head.appendChild(s);
-      }
-
-      const base = "https://cdn.jsdelivr.net/npm/";
-      loadScript(`${base}@tiptap/core@2.4.0/dist/index.umd.js`, () => {
-        /* Mapear exports do UMD para window.tiptap */
-        if (!window.tiptap && window.tiptapCore) window.tiptap = window.tiptapCore;
-        loadScript(`${base}@tiptap/pm@2.4.0/dist/index.umd.js`, () => {
-          loadScript(`${base}@tiptap/starter-kit@2.4.0/dist/index.umd.js`, () => {
-            if (window.tiptapStarterKit?.default) window.StarterKit = window.tiptapStarterKit.default;
-            else if (window.StarterKit === undefined && window.tiptapStarterKit) window.StarterKit = Object.values(window.tiptapStarterKit)[0];
-            loadScript(`${base}@tiptap/extension-underline@2.4.0/dist/index.umd.js`, () => {
-              if (window.tiptapExtensionUnderline?.Underline) window.Underline = window.tiptapExtensionUnderline.Underline;
-              initTiptap();
-            });
-          });
-        });
+    /* ---- Editor HDA — Quill nativo ---- */
+    window.__gcQuillHDA = null;
+    const qRoot    = document.getElementById("hdaQuillEditor");
+    const qToolbar = document.getElementById("hdaQuillToolbar");
+    if (qRoot && window.Quill) {
+      const quill = new window.Quill(qRoot, {
+        theme:   "snow",
+        modules: { toolbar: qToolbar }
       });
+      quill.root.setAttribute("spellcheck",     "true");
+      quill.root.setAttribute("lang",           "pt-PT");
+      quill.root.setAttribute("autocapitalize", "sentences");
+      const initial = String(draftHDAHtml || "").trim();
+      if (initial) {
+        try { quill.clipboard.dangerouslyPasteHTML(initial); }
+        catch(_) { quill.setText(initial); }
+      }
+      quill.on("text-change", () => { draftHDAHtml = quill.root.innerHTML || ""; });
+      window.__gcQuillHDA = quill;
     }
-
-    mountHdaEditor();
 
     const diagInput = document.getElementById("diagSearch");
     if (diagInput) {
@@ -3130,7 +3041,8 @@ function openPatientViewModal(patient) {
     });
 
     document.getElementById("btnCancelConsult")?.addEventListener("click", () => {
-      if (window.__gcTiptapEditor) { window.__gcTiptapEditor.destroy(); window.__gcTiptapEditor = null; }
+      if (window.__gcTiptapEditor) { try { window.__gcTiptapEditor.destroy(); } catch(_){} window.__gcTiptapEditor = null; }
+      window.__gcQuillHDA = null;
       creatingConsult = false;
       render();
     });
@@ -3144,12 +3056,9 @@ function openPatientViewModal(patient) {
         btnSave.disabled = true;
 
         try {
-          const tp = window.__gcTiptapEditor;
-          if (tp) draftHDAHtml = tp.getHTML() || "";
-          else {
-            const el = document.getElementById("hdaEditor");
-            if (el) draftHDAHtml = el.innerHTML || "";
-          }
+        try {
+          const q = window.__gcQuillHDA;
+          if (q) draftHDAHtml = q.root.innerHTML || "";
         } catch (_) {}
 
         const ok = await saveConsult();
