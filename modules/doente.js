@@ -4004,6 +4004,10 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
 /* Ashworth */
 .ash-tbl{border-collapse:collapse;font-size:11px;width:100%}
 .ash-tbl th{background:var(--color-background-secondary);padding:4px 6px;border:0.5px solid var(--color-border-tertiary);font-weight:500;font-size:10px;text-align:center;color:var(--color-text-secondary)}
+.ash-tbl th.ash-e{background:#dbeafe;color:#1d4ed8;font-weight:700}
+.ash-tbl th.ash-d{background:#fee2e2;color:#b91c1c;font-weight:700}
+.ash-tbl td.ash-e{background:#eff6ff}
+.ash-tbl td.ash-d{background:#fff5f5}
 .ash-tbl td{border:0.5px solid var(--color-border-tertiary);padding:2px 4px;text-align:center}
 .ash-tbl td.rl{text-align:left;font-size:10px;color:var(--color-text-secondary);background:var(--color-background-secondary);padding:4px 6px;white-space:nowrap}
 .ash-tbl select{border:none;background:transparent;font-size:11px;color:var(--color-text-primary);cursor:pointer;font-family:var(--font-sans);width:100%}
@@ -4080,6 +4084,10 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
 .mt2 td.nrv{color:var(--color-text-secondary);font-size:11px;font-style:italic}
 .mt2 td.raiz{text-align:center;font-size:11px;font-weight:600;color:var(--color-text-info)}
 .mt2 td.mrc-cell{text-align:center;cursor:pointer;font-size:13px;font-weight:600;min-width:48px;transition:background .15s;user-select:none}
+.mrc-sel{border:1px solid var(--color-border-tertiary);border-radius:6px;padding:3px 4px;font-size:13px;font-weight:600;min-width:52px;text-align:center;cursor:pointer;background:transparent;color:var(--color-text-primary)}
+.mrc-sel-d{background:#fff5f5;border-color:#fca5a5;color:#b91c1c}
+.mrc-sel-e{background:#eff6ff;border-color:#93c5fd;color:#1d4ed8}
+.mrc-sel option{font-weight:600}
 .mt2 td.mrc-cell:hover{filter:brightness(0.92)}
 .mt2 td.mrc-5{background:#dcfce7;color:#166534}
 .mt2 td.mrc-4{background:#fef9c3;color:#713f12}
@@ -4576,20 +4584,20 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
     <div>
       <div class="gl">Tipo de dor</div>
       <div class="rg">
-        <label class="ri"><input type="radio" name="dtipo"> Ausente</label>
-        <label class="ri"><input type="radio" name="dtipo"> Profunda / Maçadora</label>
-        <label class="ri"><input type="radio" name="dtipo"> Ardência / Pressão</label>
-        <label class="ri"><input type="radio" name="dtipo"> Aguda / Lancinante</label>
-        <label class="ri"><input type="radio" name="dtipo"> Choque / Neuropática</label>
-        <label class="ri"><input type="radio" name="dtipo"> Irradiada</label>
+        <label class="ri"><input type="checkbox" name="dtipo"> Ausente</label>
+        <label class="ri"><input type="checkbox" name="dtipo"> Profunda / Maçadora</label>
+        <label class="ri"><input type="checkbox" name="dtipo"> Ardência / Pressão</label>
+        <label class="ri"><input type="checkbox" name="dtipo"> Aguda / Lancinante</label>
+        <label class="ri"><input type="checkbox" name="dtipo"> Choque / Neuropática</label>
+        <label class="ri"><input type="checkbox" name="dtipo"> Irradiada</label>
       </div>
       <div class="gl" style="margin-top:12px">Padrão temporal</div>
       <div class="rg">
-        <label class="ri"><input type="radio" name="dpad"> Contínua</label>
-        <label class="ri"><input type="radio" name="dpad"> Intermitente</label>
-        <label class="ri"><input type="radio" name="dpad"> Ao movimento</label>
-        <label class="ri"><input type="radio" name="dpad"> Em repouso</label>
-        <label class="ri"><input type="radio" name="dpad"> Noturna</label>
+        <label class="ri"><input type="checkbox" name="dpad"> Contínua</label>
+        <label class="ri"><input type="checkbox" name="dpad"> Intermitente</label>
+        <label class="ri"><input type="checkbox" name="dpad"> Ao movimento</label>
+        <label class="ri"><input type="checkbox" name="dpad"> Em repouso</label>
+        <label class="ri"><input type="checkbox" name="dpad"> Noturna</label>
       </div>
     </div>
     <div>
@@ -4715,9 +4723,14 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
         <th colspan="2">TT</th><th colspan="2">Pé/Dedos</th>
       </tr>
       <tr>
-        <th>E</th><th>D</th><th>E</th><th>D</th>
-        <th>E</th><th>D</th><th>E</th><th>D</th>
-        <th>E</th><th>D</th><th>E</th><th>D</th>
+        <th class="ash-e">E</th><th class="ash-d">D</th>
+        <th class="ash-e">E</th><th class="ash-d">D</th>
+        <th class="ash-e">E</th><th class="ash-d">D</th>
+        <th class="ash-e">E</th><th class="ash-d">D</th>
+        <th class="ash-e">E</th><th class="ash-d">D</th>
+        <th class="ash-e">E</th><th class="ash-d">D</th>
+        <th class="ash-e">E</th><th class="ash-d">D</th>
+        <th class="ash-e">E</th><th class="ash-d">D</th>
       </tr>
     </thead>
     <tbody id="ashtbody"></tbody>
@@ -4865,7 +4878,7 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
       <div class="gl" style="margin-bottom:6px;text-align:center;font-size:11px">Membros superiores — ventral / dorsal</div>
       <div style="background:white;border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);padding:6px">
         <svg id="sens-ms" viewBox="0 0 772 520" xmlns="http://www.w3.org/2000/svg"
-             style="width:100%;height:520px;cursor:crosshair;display:block"
+             style="height:460px;width:auto;max-width:100%;height:520px;cursor:crosshair;display:block"
              onclick="addSensClick(event,'ms')"
              onmousemove="moveSensTooltip(event)"
              onmouseleave="hideSensTooltip()">
@@ -4881,7 +4894,7 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
       <div class="gl" style="margin-bottom:6px;text-align:center;font-size:11px">Membros inferiores — anterior / posterior</div>
       <div style="background:white;border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-tertiary);padding:6px">
         <svg id="sens-mi" viewBox="0 0 354 520" xmlns="http://www.w3.org/2000/svg"
-             style="width:100%;height:520px;cursor:crosshair;display:block"
+             style="height:460px;width:auto;max-width:100%;height:520px;cursor:crosshair;display:block"
              onclick="addSensClick(event,'mi')"
              onmousemove="moveSensTooltip(event)"
              onmouseleave="hideSensTooltip()">
@@ -5011,12 +5024,12 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
       <div class="flex-r" style="margin-bottom:7px">
         <span style="font-size:12px;color:var(--color-text-secondary);min-width:120px">Berg (0–56)</span>
         <input class="inp-sm" type="number" min="0" max="56" placeholder="—">
-        <button class="btn-open" onclick="sendPrompt('Quero preencher a Escala de Equilíbrio de Berg completa')">Preencher ↗</button>
+
       </div>
       <div class="flex-r" style="margin-bottom:7px">
         <span style="font-size:12px;color:var(--color-text-secondary);min-width:120px">Tinetti Equil. (0–16)</span>
         <input class="inp-sm" type="number" min="0" max="16" placeholder="—">
-        <button class="btn-open" onclick="sendPrompt('Quero preencher o Teste de Tinetti completo')">Preencher ↗</button>
+
       </div>
       <div class="flex-r">
         <span style="font-size:12px;color:var(--color-text-secondary);min-width:120px">Tinetti Marcha (0–12)</span>
@@ -5052,7 +5065,7 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
 </div>
 
 <div class="bottom-bar">
-  <button class="btn-open" onclick="sendPrompt('Com base neste exame objetivo MFR preenchido, gera um relatório médico formal em texto corrido')">Gerar relatório em texto ↗</button>
+
   <button class="save-btn">Gravar exame objetivo</button>
 </div>
 </div>
@@ -5140,35 +5153,17 @@ var musclesCol = [
 
 function buildMuscleTable(tbodyId, data) {
   var tb = document.getElementById(tbodyId);
+  var sel = '<td><select class="mrc-sel mrc-sel-d"><option value="">—</option><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></td>' +
+            '<td><select class="mrc-sel mrc-sel-e"><option value="">—</option><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></td>';
   data.forEach(function(row) {
     var tr = document.createElement('tr');
-    // estado D e E: índice em mrcLabels (0=nd)
-    tr.dataset.mrcD = '0';
-    tr.dataset.mrcE = '0';
     tr.innerHTML =
       '<td class="mv">' + row[0] + '</td>' +
       '<td class="mus">' + row[1] + '</td>' +
       '<td class="nrv">' + row[2] + '</td>' +
       '<td class="raiz">' + row[3] + '</td>' +
-      '<td class="mrc-cell mrc-nd" data-side="D" title="' + mrcTitles[0] + '">—</td>' +
-      '<td class="mrc-cell mrc-nd" data-side="E" title="' + mrcTitles[0] + '">—</td>';
+      sel;
     tb.appendChild(tr);
-  });
-  // Listener de clique para ciclar valor
-  tb.addEventListener('click', function(e) {
-    var cell = e.target.closest('.mrc-cell');
-    if (!cell) return;
-    var tr = cell.closest('tr');
-    var side = cell.dataset.side;
-    var key = 'mrc' + side;
-    var cur = parseInt(tr.dataset[key]);
-    var next = (cur + 1) % mrcLabels.length;
-    tr.dataset[key] = next;
-    // Remover classes antigas
-    mrcClasses.forEach(function(c){ cell.classList.remove(c); });
-    cell.classList.add(mrcClasses[next]);
-    cell.textContent = mrcLabels[next];
-    cell.title = mrcTitles[next];
   });
 }
 
@@ -5182,7 +5177,7 @@ var atb=document.getElementById('ashtbody');
 ashSegs.forEach(m=>{
   var tr=document.createElement('tr');
   tr.innerHTML='<td class="rl">'+m+'</td>';
-  for(var i=0;i<16;i++){tr.innerHTML+='<td><select><option>—</option><option>0</option><option>1</option><option>1+</option><option>2</option><option>3</option><option>4</option></select></td>';}
+  for(var i=0;i<16;i++){var ac=i%2===0?'ash-e':'ash-d';tr.innerHTML+='<td class="'+ac+'"><select><option>—</option><option>0</option><option>1</option><option>1+</option><option>2</option><option>3</option><option>4</option></select></td>';}
   atb.appendChild(tr);
 });
 
