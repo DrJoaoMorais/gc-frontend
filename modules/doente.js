@@ -1671,8 +1671,37 @@ function openPatientViewModal(patient) {
         docSaving = false;
         if (ok) {
           docOpen = false;
-          await loadDocuments();
-          render();
+
+          /* Verificar se há mais PDFs de exames na fila */
+          const queue = window.__gc_pendingExamQueue;
+          if (Array.isArray(queue) && queue.length > 0) {
+            const next = queue.shift(); /* remove e retorna o primeiro */
+            window.__gc_pendingExamQueue = queue;
+
+            /* Construir e abrir o próximo PDF da fila */
+            const { buildExamRequestHtml } = await import("./exames.js");
+            const nextHtml = buildExamRequestHtml({
+              clinic:       next.clinic,
+              examName:     next.examName,
+              clinicalInfo: next.clinicalInfo || "",
+              examDate:     next.examDate     || "",
+              vinhetaUrl:   next.vinhetaUrl   || "",
+              clinicLogoUrl: next.clinicLogoUrl || "",
+              signatureUrl: ""
+            });
+            window.__gc_pendingExamCtx = {
+              patientId:      next.patientId,
+              clinicId:       next.clinicId,
+              consultationId: next.consultationId || null,
+              examName:       next.grp || next.examName
+            };
+            await loadDocuments();
+            openDocumentEditor(nextHtml, `Pedido de Exame — ${next.grp || ""}`);
+          } else {
+            window.__gc_pendingExamQueue = [];
+            await loadDocuments();
+            render();
+          }
         } else {
           render();
           bindDocEvents();
@@ -1762,22 +1791,23 @@ function openPatientViewModal(patient) {
 
   async function generatePdfAndUploadV1() {
     try {
-      if (!lastSavedConsultId) { alert("Sem consulta gravada para gerar PDF."); return false; }
+      /* Se há contexto de exame, usar esse — senão usar o contexto da consulta */
+      const examCtx = window.__gc_pendingExamCtx || null;
+
+      const targetPatientId      = examCtx?.patientId      || p.id;
+      const targetClinicId       = examCtx?.clinicId       || activeClinicId;
+      const targetConsultationId = examCtx?.consultationId || lastSavedConsultId;
+
+      if (!targetConsultationId) { alert("Sem consulta gravada para gerar PDF."); return false; }
+      if (!targetClinicId)       { alert("Sem clínica ativa."); return false; }
 
       const userRes = await window.sb.auth.getUser();
       const userId = userRes?.data?.user?.id;
       if (!userId) { alert("Utilizador não autenticado."); return false; }
 
-      const consult = (consultRows || []).find(x => String(x.id) === String(lastSavedConsultId));
+      const consult = (consultRows || []).find(x => String(x.id) === String(targetConsultationId));
       if (!consult) { alert("Não encontrei a consulta no feed. Atualiza o feed e tenta novamente."); return false; }
 
-      if (!activeClinicId) { alert("Sem clínica ativa (patient_clinic)."); return false; }
-
-      const clinic = await fetchClinicForPdf();
-      if (!clinic) { alert("Não consegui carregar dados da clínica (clinics)."); return false; }
-
-      // Usa o HTML que já está no editor (pode ser consulta, análises, exames, etc.)
-      // NÃO reconstruir com buildDocV1Html — isso sobrescrevia sempre com o relatório da consulta.
       if (!docDraftHtml || !docDraftHtml.trim()) {
         alert("Sem conteúdo no editor para gerar PDF.");
         return false;
@@ -1802,7 +1832,7 @@ function openPatientViewModal(patient) {
       const version = await getNextDocVersionForConsult(consult.id);
       const ymd = new Date().toISOString().slice(0, 10);
       const hms = new Date().toISOString().slice(11, 19).replaceAll(":", "");
-      const path = `clinic_${activeClinicId}/patient_${p.id}/consult_${consult.id}/v${version}_${ymd}_${hms}.pdf`;
+      const path = `clinic_${targetClinicId}/patient_${targetPatientId}/consult_${consult.id}/v${version}_${ymd}_${hms}.pdf`;
 
       const up = await uploadPdfToStorage({ blob, path });
       if (!up.ok) {
@@ -1812,14 +1842,14 @@ function openPatientViewModal(patient) {
       }
 
       const ins = await insertDocumentRow({
-        clinic_id: activeClinicId,
-        patient_id: p.id,
+        clinic_id:      targetClinicId,
+        patient_id:     targetPatientId,
         consultation_id: consult.id,
-        title: titleSafe,
-        html: "",
+        title:          titleSafe,
+        html:           "",
         parent_document_id: null,
         version,
-        storage_path: path
+        storage_path:   path
       });
 
       if (!ins.ok) {
@@ -1828,7 +1858,10 @@ function openPatientViewModal(patient) {
         return false;
       }
 
-      alert("PDF (v1) criado com sucesso.");
+      /* Limpar contexto de exame após gravação bem-sucedida */
+      window.__gc_pendingExamCtx = null;
+
+      alert("PDF criado com sucesso.");
       return true;
 
     } catch (e) {
