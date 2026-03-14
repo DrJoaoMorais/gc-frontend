@@ -910,9 +910,10 @@ export async function openWeekView() {
     ? `${d0.getDate()}–${d6.getDate()} ${MONTHS_PT[d6.getMonth()]} ${d6.getFullYear()}`
     : "";
 
-  /* Carregar marcações da semana inteira de uma vez */
-  const startISO = `${weekDays[0].iso}T00:00:00.000Z`;
-  const endISO   = `${__gcAddDaysToISO(weekDays[6].iso, 1)}T00:00:00.000Z`;
+  /* Carregar marcações da semana inteira de uma vez.
+     Usar range local (não UTC) para não perder consultas das primeiras horas do dia. */
+  const startISO = `${weekDays[0].iso}T00:00:00`;
+  const endISO   = `${__gcAddDaysToISO(weekDays[6].iso, 1)}T00:00:00`;
   let appts = [];
   try {
     const selClinic = document.getElementById("selClinic");
@@ -931,18 +932,31 @@ export async function openWeekView() {
     byDay[dayISO].push(a);
   }
 
-  /* Slots horários visíveis — 08:00 às 19:40, de 20 em 20 min */
-  const SLOTS = [];
-  for (let h = 8; h < 20; h++) {
-    for (let m = 0; m < 60; m += 20) {
-      SLOTS.push(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`);
-    }
-  }
-
-  /* Encontrar marcações que pertencem a um slot (por hora+minuto local) */
-  function apptSlot(a) {
+  /* Horas presentes na semana — construir lista dinâmica de linhas.
+     Em vez de slots fixos de 20 em 20 min (que perdem marcações às :15, :30, etc.),
+     geramos uma linha por HORA inteira que tenha pelo menos uma marcação,
+     mais as horas-âncora para contexto visual. */
+  const hoursWithAppts = new Set();
+  for (const a of appts) {
     const col = a.start_at || a.starts_at || a.start_time || a.start_datetime || a.start;
-    if (!col) return null;
+    if (!col) continue;
+    hoursWithAppts.add(new Date(col).getHours());
+  }
+  /* Garantir pelo menos 08:00–19:00 como estrutura visual */
+  const minH = hoursWithAppts.size ? Math.min(...hoursWithAppts, 8)  : 8;
+  const maxH = hoursWithAppts.size ? Math.max(...hoursWithAppts, 19) : 19;
+  const HOUR_ROWS = [];
+  for (let h = minH; h <= maxH; h++) HOUR_ROWS.push(h);
+
+  /* Obter hora local de uma marcação */
+  function apptHour(a) {
+    const col = a.start_at || a.starts_at || a.start_time || a.start_datetime || a.start;
+    if (!col) return -1;
+    return new Date(col).getHours();
+  }
+  function apptTimeLabel(a) {
+    const col = a.start_at || a.starts_at || a.start_time || a.start_datetime || a.start;
+    if (!col) return "";
     const d = new Date(col);
     return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
   }
@@ -974,34 +988,37 @@ export async function openWeekView() {
     </th>`;
   }).join("");
 
-  const tbodyRows = SLOTS.map((slot) => {
+  const tbodyRows = HOUR_ROWS.map((h) => {
+    const hourLabel = `${String(h).padStart(2,"0")}:00`;
     const cells = weekDays.map(({ iso }) => {
-      const dayAppts = (byDay[iso] || []).filter(a => apptSlot(a) === slot);
-      if (!dayAppts.length) return `<td style="border-right:1px solid #eee;border-bottom:1px solid #f5f5f5;height:44px;padding:2px;vertical-align:top;"></td>`;
+      /* Todas as marcações desta hora neste dia */
+      const dayAppts = (byDay[iso] || []).filter(a => apptHour(a) === h);
+      if (!dayAppts.length) return `<td style="border-right:1px solid #eee;border-bottom:1px solid #f5f5f5;height:52px;padding:2px;vertical-align:top;"></td>`;
       const inner = dayAppts.map(a => {
         const isBlock = String(a.mode || "").toLowerCase() === "bloqueio";
         if (isBlock) {
-          return `<div style="background:#f3f4f6;border-radius:5px;padding:3px 5px;font-size:10px;color:#9ca3af;height:100%;display:flex;align-items:center;">⛔ Bloqueio</div>`;
+          return `<div style="background:#f3f4f6;border-radius:5px;padding:3px 5px;font-size:10px;color:#9ca3af;display:flex;align-items:center;gap:4px;">⛔ Bloqueio</div>`;
         }
-        const pal = getClinicPalette(a.clinic_id);
-        const p = G.patientsById?.[a.patient_id];
+        const pal  = getClinicPalette(a.clinic_id);
+        const p    = G.patientsById?.[a.patient_id];
         const name = p?.full_name
           ? clipOneLine(p.full_name, 18)
           : (a.title ? clipOneLine(a.title, 18) : "—");
-        const proc = clipOneLine(a.procedure_type || "", 14);
+        const proc  = clipOneLine(a.procedure_type || "", 16);
+        const tLbl  = apptTimeLabel(a);
         return `<div data-week-appt-id="${escapeHtml(a.id)}" data-week-pid="${escapeHtml(a.patient_id || "")}"
           style="background:${pal.light};border-left:3px solid ${pal.color};border-radius:4px;padding:3px 5px;cursor:pointer;margin-bottom:2px;"
-          title="${escapeHtml((p?.full_name || a.title || "") + (proc ? " — " + proc : ""))}">
+          title="${escapeHtml((p?.full_name || a.title || "") + (proc ? " — " + proc : "") + (tLbl ? " (" + tLbl + ")" : ""))}">
+          <div style="font-size:9px;color:${pal.color};opacity:0.75;margin-bottom:1px;">${escapeHtml(tLbl)}</div>
           <div style="font-size:10px;font-weight:700;color:${pal.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(name)}</div>
           ${proc ? `<div style="font-size:9px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(proc)}</div>` : ""}
         </div>`;
       }).join("");
-      return `<td style="border-right:1px solid #eee;border-bottom:1px solid #f5f5f5;height:44px;padding:2px;vertical-align:top;">${inner}</td>`;
+      return `<td style="border-right:1px solid #eee;border-bottom:1px solid #f5f5f5;height:52px;padding:2px;vertical-align:top;overflow:hidden;">${inner}</td>`;
     }).join("");
 
-    const isHour = slot.endsWith(":00");
     return `<tr>
-      <td style="width:44px;padding:2px 4px;border-right:1px solid #eee;border-bottom:1px solid #f5f5f5;font-size:10px;color:#aaa;white-space:nowrap;text-align:right;vertical-align:top;${isHour?"font-weight:700;color:#888;":""}">${isHour ? slot : ""}</td>
+      <td style="width:48px;padding:4px 4px 0;border-right:1px solid #eee;border-bottom:1px solid #f5f5f5;font-size:10px;font-weight:700;color:#888;white-space:nowrap;text-align:right;vertical-align:top;">${hourLabel}</td>
       ${cells}
     </tr>`;
   }).join("");
