@@ -78,6 +78,7 @@ export function renderAppShell() {
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <button id="btnCal"   class="gc-btn">Calendário</button>
+          <button id="btnWeek"  class="gc-btn">Semana</button>
           <button id="btnToday" class="gc-btn">Hoje</button>
           <button id="btnNewAppt" class="gc-btn-primary">＋ Agendar</button>
           <button id="btnNewPatientMain" class="gc-btn">＋ Novo doente</button>

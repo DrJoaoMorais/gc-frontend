@@ -20,7 +20,8 @@ import {
 }                                          from "./agenda.js";
 import { openApptModal }                   from "./agenda.js";
 import { openNewPatientMainModal }         from "./doente.js";
-import { wireQuickPatientSearch, openCalendarOverlay } from "./pesquisa.js";
+import { wireQuickPatientSearch }                      from "./pesquisa.js";
+import { openCalendarOverlay, openWeekView }           from "./agenda.js";
 import { wireLogout, ensureAAL2, __gcForceSessionLock, __gcIsAuthError, __gcSessionLockActive } from "./session.js";
 import { fmtDateISO }                      from "./helpers.js";
 
@@ -176,6 +177,15 @@ async function renderCurrentView() {
   /* Calendário overlay */
   const btnCal = document.getElementById("btnCal");
   if (btnCal) btnCal.addEventListener("click", openCalendarOverlay);
+
+  /* Vista semanal */
+  const btnWeek = document.getElementById("btnWeek");
+  if (btnWeek) {
+    btnWeek.addEventListener("click", () => {
+      G.weekStartISO = null; /* recalcula a partir do dia seleccionado */
+      openWeekView();
+    });
+  }
 
   /* Hoje */
   const btnToday = document.getElementById("btnToday");

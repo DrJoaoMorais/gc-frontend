@@ -38,12 +38,20 @@
    08A — Wiring da pesquisa rápida
       08A.1  wireQuickPatientSearch()
 
+   03A — Paleta de cores por clínica (visual — não afecta BD nem GCAL)
+      03A.1  CLINIC_PALETTE
+      03A.2  getClinicPalette(clinicId)
+      03A.3  __gcWeekStartISO / __gcAddDaysToISO
+
    08B — Helpers do calendário mensal
       08B.1  monthLabel(d)
       08B.2  buildMonthGrid(monthDate)
 
-   08C — Interface do calendário mensal
+   08C — Interface do calendário mensal (com dots reais por clínica)
       08C.1  openCalendarOverlay()
+
+   08D — Vista semanal
+      08D.1  openWeekView()
 
    09A — Helpers GCAL + datas/horas
       09A.1  closeModal()
@@ -98,6 +106,44 @@ function openPatientViewModal(p) { return window.__gc_openPatientViewModal(p); }
 
 /* flag de sessão bloqueada (partilhada com auth.js via window) */
 function isSessionLocked() { return !!window.__gcSessionLockActive; }
+
+
+/* ==== 03A — Paleta de cores por clínica ==== */
+
+/* ---- 03A.1 — CLINIC_PALETTE ---- */
+/* Cores atribuídas ciclicamente por índice de clínica.
+   Não afectam a BD nem a sincronização Google Calendar — são apenas CSS. */
+const CLINIC_PALETTE = [
+  { color: "#1a56db", light: "#dbeafe" },  /* azul   */
+  { color: "#0e9f6e", light: "#d1fae5" },  /* verde   */
+  { color: "#e3a008", light: "#fef3c7" },  /* âmbar   */
+  { color: "#7c3aed", light: "#ede9fe" },  /* violeta */
+  { color: "#e02424", light: "#fee2e2" },  /* vermelho */
+  { color: "#0694a2", light: "#d0f0f3" },  /* ciano   */
+];
+const BLOCK_DOT_COLOR = "#e02424";
+
+/* ---- 03A.2 — getClinicPalette(clinicId) ---- */
+function getClinicPalette(clinicId) {
+  if (!clinicId) return { color: "#888", light: "#f3f4f6" };
+  const idx = (G.clinics || []).findIndex((c) => String(c.id) === String(clinicId));
+  return CLINIC_PALETTE[Math.max(0, idx) % CLINIC_PALETTE.length];
+}
+
+/* ---- 03A.3 — helpers de semana ---- */
+function __gcWeekStartISO(iso) {
+  /* Devolve o ISO da segunda-feira da semana que contém iso */
+  const d = parseISODateToLocalStart(iso) || new Date();
+  const dow = (d.getDay() + 6) % 7; /* 0=Seg … 6=Dom */
+  const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate() - dow, 0, 0, 0, 0);
+  return fmtDateISO(mon);
+}
+function __gcAddDaysToISO(iso, n) {
+  const d = parseISODateToLocalStart(iso);
+  if (!d) return iso;
+  d.setDate(d.getDate() + n);
+  return fmtDateISO(d);
+}
 
 
 /* ==== 04A — Helpers UI da agenda ==== */
@@ -709,7 +755,7 @@ function buildMonthGrid(monthDate) {
 /* ==== 08C — Interface do calendário mensal ==== */
 
 /* ---- 08C.1 — openCalendarOverlay ---- */
-export function openCalendarOverlay() {
+export async function openCalendarOverlay() {
   const root = document.getElementById("modalRoot");
   if (!root) return;
 
@@ -721,35 +767,88 @@ export function openCalendarOverlay() {
     G.calMonth = new Date(selD.getFullYear(), selD.getMonth(), 1, 0, 0, 0, 0);
   }
 
+  /* Carregar marcações do mês para os dots */
+  const y = G.calMonth.getFullYear();
+  const m = G.calMonth.getMonth();
+  const startISO = `${y}-${String(m + 1).padStart(2, "0")}-01T00:00:00.000Z`;
+  const endISO   = `${y}-${String(m + 2).padStart(2, "0")}-01T00:00:00.000Z`;
+  /* dots: { "2026-03-14": [{clinic_id, isBlock}, ...] } */
+  const dots = {};
+  try {
+    const selClinic = document.getElementById("selClinic");
+    const clinicId  = selClinic?.value || null;
+    const { data: appts } = await loadAppointmentsForRange({ clinicId, startISO, endISO });
+    for (const a of (appts || [])) {
+      const col = a.start_at || a.starts_at || a.start_time || a.start_datetime || a.start;
+      if (!col) continue;
+      const dayISO = String(col).slice(0, 10);
+      if (!dots[dayISO]) dots[dayISO] = [];
+      dots[dayISO].push({ clinic_id: a.clinic_id, isBlock: String(a.mode || "").toLowerCase() === "bloqueio" });
+    }
+  } catch (_) { /* dots ficam vazios — não bloqueia abertura */ }
+
   const cells    = buildMonthGrid(G.calMonth);
   const weekDays = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
 
+  /* Legenda: clínicas com pelo menos 1 marcação no mês */
+  const clinicsInMonth = new Set();
+  let hasBlockInMonth  = false;
+  for (const dayDots of Object.values(dots)) {
+    for (const dot of dayDots) {
+      if (dot.isBlock) hasBlockInMonth = true;
+      else if (dot.clinic_id) clinicsInMonth.add(String(dot.clinic_id));
+    }
+  }
+  const legendItems = (G.clinics || [])
+    .filter((c) => clinicsInMonth.has(String(c.id)))
+    .map((c) => {
+      const pal = getClinicPalette(c.id);
+      return `<div style="display:flex;align-items:center;gap:5px;font-size:${UI.fs12}px;color:#555;">
+        <div style="width:9px;height:9px;border-radius:50%;background:${pal.color};flex-shrink:0;"></div>
+        ${escapeHtml(c.name || c.slug || c.id)}
+      </div>`;
+    });
+  if (hasBlockInMonth) legendItems.push(`<div style="display:flex;align-items:center;gap:5px;font-size:${UI.fs12}px;color:#555;"><div style="width:9px;height:9px;border-radius:50%;background:${BLOCK_DOT_COLOR};flex-shrink:0;"></div>Bloqueio</div>`);
+
   root.innerHTML = `
-    <div id="calOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;padding:18px;">
-      <div style="background:#fff;width:min(520px,100%);border-radius:14px;border:1px solid #e5e5e5;padding:14px;">
+    <div id="calOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;padding:18px;z-index:1000;">
+      <div style="background:#fff;width:min(560px,100%);border-radius:14px;border:1px solid #e5e5e5;padding:16px;">
         <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
           <button id="calPrev" class="gcBtn">◀</button>
           <div style="font-size:${UI.fs14}px;font-weight:800;color:#111;" id="calTitle">${escapeHtml(monthLabel(G.calMonth))}</div>
           <button id="calNext" class="gcBtn">▶</button>
         </div>
-        <div style="margin-top:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:6px;">
+        <div style="margin-top:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">
           ${weekDays.map((w) => `<div style="font-size:${UI.fs12}px;color:#666;text-align:center;padding:6px 0;">${w}</div>`).join("")}
           ${cells.map((d) => {
             if (!d) return `<div></div>`;
             const iso        = fmtDateISO(d);
             const isToday    = iso === todayISO;
             const isSelected = iso === selectedISO;
-            const bg = isSelected
-              ? "background:#111;color:#fff;border-color:#111;"
+            const dayDots    = dots[iso] || [];
+            /* máximo 5 dots visíveis */
+            const dotsHtml = dayDots.slice(0, 5).map((dot) => {
+              const bg = dot.isBlock ? BLOCK_DOT_COLOR : getClinicPalette(dot.clinic_id).color;
+              return `<div style="width:6px;height:6px;border-radius:50%;background:${bg};flex-shrink:0;"></div>`;
+            }).join("") + (dayDots.length > 5 ? `<div style="font-size:9px;color:#888;">+${dayDots.length - 5}</div>` : "");
+            const cellBg = isSelected
+              ? "background:#0f2d52;color:#fff;border-color:#0f2d52;"
               : isToday
-                ? "background:#f2f2f2;color:#111;"
-                : "background:#fff;color:#111;";
-            return `<div data-iso="${iso}" style="padding:10px 0;border-radius:10px;border:1px solid #eee;text-align:center;cursor:pointer;user-select:none;${bg}font-size:${UI.fs13}px;">${d.getDate()}</div>`;
+                ? "background:#f0f4ff;color:#111;border-color:#1a56db;"
+                : "background:#fff;color:#111;border-color:#eee;";
+            return `<div data-iso="${iso}" style="padding:6px 4px 4px;border-radius:8px;border:1px solid #eee;cursor:pointer;user-select:none;${cellBg}min-height:52px;">
+              <div style="font-size:${UI.fs13}px;font-weight:${isSelected || isToday ? "800" : "600"};text-align:center;">${d.getDate()}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:2px;justify-content:center;margin-top:4px;">${dotsHtml}</div>
+            </div>`;
           }).join("")}
         </div>
+        ${legendItems.length ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid #f0f0f0;display:flex;flex-wrap:wrap;gap:10px;">${legendItems.join("")}</div>` : ""}
         <div style="margin-top:12px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
           <div style="font-size:${UI.fs12}px;color:#666;">Clique num dia para abrir a agenda desse dia.</div>
-          <button id="calClose" class="gcBtn">Fechar</button>
+          <div style="display:flex;gap:8px;">
+            <button id="calOpenWeek" class="gcBtn">Vista semanal</button>
+            <button id="calClose" class="gcBtn">Fechar</button>
+          </div>
         </div>
       </div>
     </div>`;
@@ -757,6 +856,7 @@ export function openCalendarOverlay() {
   function close() { root.innerHTML = ""; }
 
   document.getElementById("calClose")?.addEventListener("click", close);
+  document.getElementById("calOpenWeek")?.addEventListener("click", () => { close(); openWeekView(); });
   document.getElementById("calOverlay")?.addEventListener("click", (ev) => { if (ev.target.id === "calOverlay") close(); });
   document.getElementById("calPrev")?.addEventListener("click", () => {
     G.calMonth = new Date(G.calMonth.getFullYear(), G.calMonth.getMonth() - 1, 1, 0, 0, 0, 0);
@@ -777,6 +877,208 @@ export function openCalendarOverlay() {
       close();
       setAgendaSubtitleForSelectedDay();
       await refreshAgenda();
+    });
+  });
+}
+
+
+/* ==== 08D — Vista semanal ==== */
+
+/* ---- 08D.1 — openWeekView ---- */
+export async function openWeekView() {
+  const root = document.getElementById("modalRoot");
+  if (!root) return;
+
+  /* Semana actual baseada no dia seleccionado */
+  if (!G.weekStartISO) G.weekStartISO = __gcWeekStartISO(G.selectedDayISO);
+
+  const todayISO = fmtDateISO(new Date());
+
+  /* Gerar os 7 dias da semana (Seg → Dom) */
+  const weekDays = [];
+  const WDAY_NAMES = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+  for (let i = 0; i < 7; i++) {
+    const iso = __gcAddDaysToISO(G.weekStartISO, i);
+    weekDays.push({ iso, label: WDAY_NAMES[i] });
+  }
+
+  /* Label da semana ex.: "10–16 Mar 2026" */
+  const d0 = parseISODateToLocalStart(weekDays[0].iso);
+  const d6 = parseISODateToLocalStart(weekDays[6].iso);
+  const MONTHS_PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  const weekLabel = d0 && d6
+    ? `${d0.getDate()}–${d6.getDate()} ${MONTHS_PT[d6.getMonth()]} ${d6.getFullYear()}`
+    : "";
+
+  /* Carregar marcações da semana inteira de uma vez */
+  const startISO = `${weekDays[0].iso}T00:00:00.000Z`;
+  const endISO   = `${__gcAddDaysToISO(weekDays[6].iso, 1)}T00:00:00.000Z`;
+  let appts = [];
+  try {
+    const selClinic = document.getElementById("selClinic");
+    const clinicId  = selClinic?.value || null;
+    const { data } = await loadAppointmentsForRange({ clinicId, startISO, endISO });
+    appts = data || [];
+  } catch (_) {}
+
+  /* Agrupar marcações por dia */
+  const byDay = {};
+  for (const a of appts) {
+    const col = a.start_at || a.starts_at || a.start_time || a.start_datetime || a.start;
+    if (!col) continue;
+    const dayISO = String(col).slice(0, 10);
+    if (!byDay[dayISO]) byDay[dayISO] = [];
+    byDay[dayISO].push(a);
+  }
+
+  /* Slots horários visíveis — 08:00 às 19:40, de 20 em 20 min */
+  const SLOTS = [];
+  for (let h = 8; h < 20; h++) {
+    for (let m = 0; m < 60; m += 20) {
+      SLOTS.push(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`);
+    }
+  }
+
+  /* Encontrar marcações que pertencem a um slot (por hora+minuto local) */
+  function apptSlot(a) {
+    const col = a.start_at || a.starts_at || a.start_time || a.start_datetime || a.start;
+    if (!col) return null;
+    const d = new Date(col);
+    return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  }
+
+  /* Legenda de clínicas */
+  const clinicsPresent = new Set(appts.filter(a => a.clinic_id && String(a.mode||"") !== "bloqueio").map(a => String(a.clinic_id)));
+  const legendHtml = (G.clinics || [])
+    .filter(c => clinicsPresent.has(String(c.id)))
+    .map(c => {
+      const pal = getClinicPalette(c.id);
+      return `<div style="display:flex;align-items:center;gap:5px;font-size:${UI.fs12}px;color:#555;">
+        <div style="width:9px;height:9px;border-radius:50%;background:${pal.color};flex-shrink:0;"></div>
+        ${escapeHtml(c.name || c.slug || c.id)}</div>`;
+    }).join("");
+
+  /* Construir grelha semanal */
+  const theadCells = weekDays.map(({ iso, label }) => {
+    const d = parseISODateToLocalStart(iso);
+    const isToday = iso === todayISO;
+    const isSelDay = iso === G.selectedDayISO;
+    const numStyle = isToday
+      ? "color:#1a56db;font-weight:900;"
+      : isSelDay
+        ? "color:#0f2d52;font-weight:900;"
+        : "color:#111;font-weight:700;";
+    return `<th style="padding:6px 4px;text-align:center;border-right:1px solid #eee;background:#fafafa;position:sticky;top:0;z-index:2;">
+      <div style="font-size:${UI.fs12}px;color:#888;">${label}</div>
+      <div style="font-size:${UI.fs14}px;${numStyle}">${d ? d.getDate() : ""}</div>
+    </th>`;
+  }).join("");
+
+  const tbodyRows = SLOTS.map((slot) => {
+    const cells = weekDays.map(({ iso }) => {
+      const dayAppts = (byDay[iso] || []).filter(a => apptSlot(a) === slot);
+      if (!dayAppts.length) return `<td style="border-right:1px solid #eee;border-bottom:1px solid #f5f5f5;height:44px;padding:2px;vertical-align:top;"></td>`;
+      const inner = dayAppts.map(a => {
+        const isBlock = String(a.mode || "").toLowerCase() === "bloqueio";
+        if (isBlock) {
+          return `<div style="background:#f3f4f6;border-radius:5px;padding:3px 5px;font-size:10px;color:#9ca3af;height:100%;display:flex;align-items:center;">⛔ Bloqueio</div>`;
+        }
+        const pal = getClinicPalette(a.clinic_id);
+        const p = G.patientsById?.[a.patient_id];
+        const name = p?.full_name
+          ? clipOneLine(p.full_name, 18)
+          : (a.title ? clipOneLine(a.title, 18) : "—");
+        const proc = clipOneLine(a.procedure_type || "", 14);
+        return `<div data-week-appt-id="${escapeHtml(a.id)}" data-week-pid="${escapeHtml(a.patient_id || "")}"
+          style="background:${pal.light};border-left:3px solid ${pal.color};border-radius:4px;padding:3px 5px;cursor:pointer;margin-bottom:2px;"
+          title="${escapeHtml((p?.full_name || a.title || "") + (proc ? " — " + proc : ""))}">
+          <div style="font-size:10px;font-weight:700;color:${pal.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(name)}</div>
+          ${proc ? `<div style="font-size:9px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(proc)}</div>` : ""}
+        </div>`;
+      }).join("");
+      return `<td style="border-right:1px solid #eee;border-bottom:1px solid #f5f5f5;height:44px;padding:2px;vertical-align:top;">${inner}</td>`;
+    }).join("");
+
+    const isHour = slot.endsWith(":00");
+    return `<tr>
+      <td style="width:44px;padding:2px 4px;border-right:1px solid #eee;border-bottom:1px solid #f5f5f5;font-size:10px;color:#aaa;white-space:nowrap;text-align:right;vertical-align:top;${isHour?"font-weight:700;color:#888;":""}">${isHour ? slot : ""}</td>
+      ${cells}
+    </tr>`;
+  }).join("");
+
+  root.innerHTML = `
+    <div id="weekOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;padding:12px;z-index:1000;">
+      <div style="background:#fff;width:min(1100px,100%);border-radius:14px;border:1px solid #e5e5e5;padding:14px;max-height:92vh;display:flex;flex-direction:column;">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-shrink:0;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button id="weekPrev" class="gcBtn">◀</button>
+            <div style="font-size:${UI.fs14}px;font-weight:800;color:#111;">${escapeHtml(weekLabel)}</div>
+            <button id="weekNext" class="gcBtn">▶</button>
+            <button id="weekToday" class="gcBtn" style="margin-left:4px;">Hoje</button>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button id="weekOpenCal" class="gcBtn">Mensal</button>
+            <button id="weekClose" class="gcBtn">Fechar</button>
+          </div>
+        </div>
+        <div style="margin-top:10px;overflow:auto;flex:1;">
+          <table style="border-collapse:collapse;width:100%;table-layout:fixed;">
+            <thead>
+              <tr>
+                <th style="width:44px;background:#fafafa;border-right:1px solid #eee;position:sticky;top:0;z-index:2;"></th>
+                ${theadCells}
+              </tr>
+            </thead>
+            <tbody>${tbodyRows}</tbody>
+          </table>
+        </div>
+        ${legendHtml ? `<div style="margin-top:10px;padding-top:8px;border-top:1px solid #f0f0f0;display:flex;flex-wrap:wrap;gap:10px;flex-shrink:0;">${legendHtml}</div>` : ""}
+        <div style="margin-top:8px;font-size:${UI.fs12}px;color:#888;flex-shrink:0;">Clique numa marcação para abrir o feed do doente.</div>
+      </div>
+    </div>`;
+
+  function close() { root.innerHTML = ""; }
+
+  document.getElementById("weekClose")?.addEventListener("click", close);
+  document.getElementById("weekOpenCal")?.addEventListener("click", () => { close(); openCalendarOverlay(); });
+  document.getElementById("weekOverlay")?.addEventListener("click", (ev) => { if (ev.target.id === "weekOverlay") close(); });
+
+  document.getElementById("weekPrev")?.addEventListener("click", () => {
+    G.weekStartISO = __gcAddDaysToISO(G.weekStartISO, -7);
+    openWeekView();
+  });
+  document.getElementById("weekNext")?.addEventListener("click", () => {
+    G.weekStartISO = __gcAddDaysToISO(G.weekStartISO, 7);
+    openWeekView();
+  });
+  document.getElementById("weekToday")?.addEventListener("click", () => {
+    G.weekStartISO = __gcWeekStartISO(fmtDateISO(new Date()));
+    openWeekView();
+  });
+
+  /* Clique numa marcação → abre feed do doente */
+  root.querySelectorAll("[data-week-appt-id]").forEach((el) => {
+    el.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      const pid = el.getAttribute("data-week-pid");
+      const aid = el.getAttribute("data-week-appt-id");
+      if (pid) {
+        /* Actualizar dia seleccionado para o dia da marcação */
+        const appt = appts.find(a => String(a.id) === String(aid));
+        if (appt) {
+          const col = appt.start_at || appt.starts_at || appt.start_time || appt.start_datetime || appt.start;
+          if (col) {
+            G.selectedDayISO = String(col).slice(0, 10);
+            setAgendaSubtitleForSelectedDay();
+            await refreshAgenda();
+          }
+        }
+        close();
+        await openPatientFeedFromAny({ id: pid });
+      } else if (aid) {
+        const appt = appts.find(a => String(a.id) === String(aid));
+        if (appt) { close(); openApptModal({ mode: "edit", row: appt }); }
+      }
     });
   });
 }
@@ -1688,3 +1990,32 @@ window.__gc_wireQuickPatientSearch          = wireQuickPatientSearch;
 window.__gc_refreshAgenda                   = refreshAgenda;
 window.__gc_openApptModal                   = openApptModal;
 window.__gc_openCalendarOverlay             = openCalendarOverlay;
+window.__gc_openWeekView                    = openWeekView;
+
+
+/* ==== 10D — Wire botões topbar da agenda ==== */
+
+/* ---- 10D.1 — wireAgendaTopbar ---- */
+/* Chamada pelo boot.js após renderAppShell() para ligar btnCal, btnWeek, btnToday, btnNewAppt */
+export function wireAgendaTopbar() {
+  document.getElementById("btnCal")?.addEventListener("click", () => {
+    if (typeof openCalendarOverlay === "function") openCalendarOverlay();
+  });
+
+  document.getElementById("btnWeek")?.addEventListener("click", () => {
+    G.weekStartISO = __gcWeekStartISO(G.selectedDayISO);
+    openWeekView();
+  });
+
+  document.getElementById("btnToday")?.addEventListener("click", async () => {
+    G.selectedDayISO = fmtDateISO(new Date());
+    setAgendaSubtitleForSelectedDay();
+    await refreshAgenda();
+  });
+
+  document.getElementById("btnNewAppt")?.addEventListener("click", () => {
+    openApptModal({ mode: "new", row: null });
+  });
+}
+
+window.__gc_wireAgendaTopbar = wireAgendaTopbar;
