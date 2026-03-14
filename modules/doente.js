@@ -3523,9 +3523,17 @@ function openPatientViewModal(patient) {
         ]
       },
       {
+        label: "Relatório Neurologia",
+        items: [
+          { id: "relatorio_neurologico", label: "🧠 Exame Neurológico" },
+          { id: "paresia_facial",        label: "😐 Paresia Facial Periférica (em breve)" }
+        ]
+      },
+      {
         label: "Atestados",
         items: [
-          { id: "atestado_ef", label: "🏫 Dispensa Educação Física" }
+          { id: "atestado_ef",      label: "🏫 Dispensa Educação Física" },
+          { id: "atestado_doenca",  label: "🏥 Atestado de Doença (em breve)" }
         ]
       }
     ];
@@ -3564,12 +3572,18 @@ function openPatientViewModal(patient) {
           cursor: "pointer",
           fontFamily: "inherit"
         });
-        btn.onmouseenter = () => btn.style.background = "#f1f5f9";
-        btn.onmouseleave = () => btn.style.background = "none";
-        btn.addEventListener("click", () => {
-          menu.remove();
-          openReportTemplate(item.id);
-        });
+        if (item.label.includes("em breve")) {
+          btn.style.color = "#94a3b8";
+          btn.style.cursor = "default";
+          btn.style.opacity = "0.6";
+        } else {
+          btn.onmouseenter = () => btn.style.background = "#f1f5f9";
+          btn.onmouseleave = () => btn.style.background = "none";
+          btn.addEventListener("click", () => {
+            menu.remove();
+            openReportTemplate(item.id);
+          });
+        }
         menu.appendChild(btn);
       });
     });
@@ -3920,6 +3934,11 @@ function openPatientViewModal(patient) {
         </div></body></html>`;
       }
 
+      if (templateId === "relatorio_neurologico") {
+        openRelatorioNeurologicoModal({ patientBlock, footer, sharedStyles, vinhetaUrl, websiteHtml, phoneHtml, localityDate: escAttr(localityDate) });
+        return;
+      }
+
       if (html) {
         openDocumentEditor(html, title);
       }
@@ -3928,6 +3947,56 @@ function openPatientViewModal(patient) {
       console.error("openReportTemplate falhou:", err);
       alert("Erro ao abrir template de relatório.");
     }
+  }
+
+
+  /* ====================================================================
+     RELATÓRIO NEUROLÓGICO — Modal com iframe
+     ==================================================================== */
+  function openRelatorioNeurologicoModal({ patientBlock, footer, sharedStyles, vinhetaUrl, websiteHtml, phoneHtml, localityDate }) {
+    document.getElementById("gcNeuroModal")?.remove();
+
+    const overlay = document.createElement("div");
+    overlay.id = "gcNeuroModal";
+    Object.assign(overlay.style, {
+      position: "fixed", inset: "0", background: "rgba(0,0,0,0.55)",
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      padding: "12px", zIndex: "3100",
+      fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif"
+    });
+
+    // Barra de topo com título e botão fechar
+    const bar = document.createElement("div");
+    Object.assign(bar.style, {
+      width: "min(1100px, 100%)", background: "#fff",
+      borderRadius: "12px 12px 0 0", borderBottom: "1px solid #e2e8f0",
+      padding: "12px 18px", display: "flex",
+      justifyContent: "space-between", alignItems: "center"
+    });
+    bar.innerHTML = `
+      <div style="font-weight:700;font-size:15px;color:#0f172a;">🧠 Relatório Neurológico — MFR</div>
+      <button id="gcNeuroClose" style="border:1px solid #e2e8f0;background:#fff;border-radius:8px;
+        padding:6px 14px;cursor:pointer;font-size:13px;color:#475569;">✕ Fechar</button>
+    `;
+
+    // iframe com o formulário
+    const frame = document.createElement("iframe");
+    Object.assign(frame.style, {
+      width: "min(1100px, 100%)", flex: "1",
+      maxHeight: "calc(92vh - 52px)",
+      border: "none", background: "#fff",
+      borderRadius: "0 0 12px 12px"
+    });
+    // Caminho relativo ao projecto — ajustar se necessário
+    frame.src = "/relatorios/relatorio_neurologico.html";
+
+    overlay.appendChild(bar);
+    overlay.appendChild(frame);
+    document.body.appendChild(overlay);
+
+    document.getElementById("gcNeuroClose").addEventListener("click", () => overlay.remove());
+    overlay.addEventListener("click", (ev) => { if (ev.target === overlay) overlay.remove(); });
   }
 
 
