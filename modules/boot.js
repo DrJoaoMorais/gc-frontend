@@ -115,11 +115,14 @@ export async function boot() {
   }
 }
 
+/* Expor renderCurrentView globalmente para shell.js */
+window.__gc_renderCurrentView = renderCurrentView;
+
 /* ====================================================================
    renderCurrentView — wiring completo da view atual
    ==================================================================== */
 
-async function renderCurrentView() {
+export async function renderCurrentView() {
   renderAppShell();
   await wireLogout();
   hydrateShellHeader();
@@ -202,3 +205,7 @@ async function renderCurrentView() {
 
   await refreshAgenda();
 }
+
+/* Expor renderCurrentView globalmente para shell.js */
+window.__gc_renderCurrentView = renderCurrentView;
+

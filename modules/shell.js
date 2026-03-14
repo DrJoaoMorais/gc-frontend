@@ -253,18 +253,16 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
 
   /* ── Wire sidebar navigation ─────────────────────── */
   document.querySelectorAll("[data-nav]").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const view = btn.getAttribute("data-nav");
       G.currentView = view;
-      renderAppShell();
-      hydrateShellHeader();
-      if (view === "agenda") {
-        if (typeof window.__gc_refreshAgenda === "function") window.__gc_refreshAgenda();
-        if (typeof window.__gc_wireQuickPatientSearch === "function") window.__gc_wireQuickPatientSearch();
-        if (typeof window.__gc_renderClinicsSelect === "function") window.__gc_renderClinicsSelect(G.clinics || []);
-      }
-      if (view === "doentes") {
-        if (typeof window.__gc_wireQuickPatientSearch === "function") window.__gc_wireQuickPatientSearch();
+      // Usa renderCurrentView do boot.js que reconstrói o DOM E rewirea todos os botões
+      if (typeof window.__gc_renderCurrentView === "function") {
+        await window.__gc_renderCurrentView();
+      } else {
+        // Fallback se boot ainda não registou
+        renderAppShell();
+        hydrateShellHeader();
       }
     });
   });
