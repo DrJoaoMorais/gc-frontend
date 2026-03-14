@@ -5080,10 +5080,7 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
 </div>
 
 <div id="gc-toast"></div>
-<div class="bottom-bar">
-  <button type="button" class="pdf-btn" id="gcBtnPdf">Exportar PDF</button>
-  <button type="button" class="save-btn" id="gcBtnGravar">Gravar</button>
-</div>
+<div class="bottom-bar" id="gcBottomBar"></div>
 </div>
 
 <script>
@@ -5484,10 +5481,21 @@ function gcExportPdf() {
 // ---- Ligar botões e auto-restaurar ----
 // Ligar botões — execução imediata (DOM já pronto em Blob URL)
 (function init() {
-  var btnG = document.getElementById('gcBtnGravar');
-  var btnP = document.getElementById('gcBtnPdf');
-  if (btnG) btnG.addEventListener('click', gcGravar);
-  if (btnP) btnP.addEventListener('click', gcExportPdf);
+  // Criar botões aqui — DOM garantidamente pronto
+  var bar = document.getElementById('gcBottomBar');
+  if (bar) {
+    var btnP = document.createElement('button');
+    btnP.type = 'button'; btnP.className = 'pdf-btn'; btnP.id = 'gcBtnPdf';
+    btnP.textContent = 'Exportar PDF';
+    btnP.addEventListener('click', gcExportPdf);
+    bar.appendChild(btnP);
+
+    var btnG = document.createElement('button');
+    btnG.type = 'button'; btnG.className = 'save-btn'; btnG.id = 'gcBtnGravar';
+    btnG.textContent = 'Gravar';
+    btnG.addEventListener('click', gcGravar);
+    bar.appendChild(btnG);
+  }
 
   // Auto-restaurar
   var key = 'gc_neuro_' + (window._gcPatientId || 'draft');
