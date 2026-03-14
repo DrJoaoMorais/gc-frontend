@@ -3056,7 +3056,6 @@ function openPatientViewModal(patient) {
         btnSave.disabled = true;
 
         try {
-        try {
           const q = window.__gcQuillHDA;
           if (q) draftHDAHtml = q.root.innerHTML || "";
         } catch (_) {}
