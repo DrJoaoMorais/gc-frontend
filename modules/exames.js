@@ -210,10 +210,10 @@ function renderExamsPanel() {
       renderExamGroups();
       return;
     }
-    /* Filtrar todos os exames pelo nome */
-    const all     = examsUiState.exams || [];
-    const results = searchExams(all, q);
-    const sel     = examsUiState.selectedExams || [];
+
+    const all       = examsUiState.exams || [];
+    const results   = searchExams(all, q);
+    const sel       = examsUiState.selectedExams || [];
     const container = document.getElementById("gcExamResults");
     if (!container) return;
 
@@ -225,34 +225,16 @@ function renderExamsPanel() {
 
     let html = `<div style="font-size:11px;font-weight:800;letter-spacing:0.6px;color:#64748b;text-transform:uppercase;margin-bottom:8px;">Resultados</div>`;
     results.forEach(exam => {
-      const isSel = sel.includes(exam.id);
-      html += `
-        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;
-                      border:1px solid ${isSel ? '#1a56db' : '#e2e8f0'};border-radius:8px;
-                      margin-bottom:8px;cursor:pointer;background:${isSel ? '#eff6ff' : '#ffffff'};">
-          <input type="checkbox" data-exam-id="${exam.id}" ${isSel ? "checked" : ""}
-            style="width:15px;height:15px;accent-color:#1a56db;flex-shrink:0;cursor:pointer;">
-          <div>
-            <div style="font-size:13px;font-weight:${isSel ? '700' : '500'};color:#0f172a;line-height:1.4;">
-              ${exam.exam_name}
-            </div>
-            <div style="font-size:11px;color:#94a3b8;">${getExamGroupLabel(exam) || ""}</div>
-          </div>
-        </label>`;
+      /* Mostrar o grupo como subtítulo dentro do renderExamRow */
+      const grpLabel = getExamGroupLabel(exam) || "";
+      html += renderExamRow(exam, sel, grpLabel);
     });
     container.innerHTML = html;
     renderSelectedBar();
 
-    container.querySelectorAll("input[data-exam-id]").forEach(cb => {
-      cb.addEventListener("change", () => {
-        const id  = cb.getAttribute("data-exam-id") || "";
-        if (!id) return;
-        const idx = examsUiState.selectedExams.indexOf(id);
-        if (cb.checked && idx === -1) examsUiState.selectedExams.push(id);
-        if (!cb.checked && idx !== -1) examsUiState.selectedExams.splice(idx, 1);
-        /* Re-disparar o input para refrescar resultados com estilos actualizados */
-        ev.target.dispatchEvent(new Event("input"));
-      });
+    /* Re-render dos resultados ao fazer toggle — reutiliza o mesmo listener */
+    bindExamRowEvents(container, () => {
+      ev.target.dispatchEvent(new Event("input"));
     });
   });
 }
@@ -393,7 +375,7 @@ function renderSelectedBar() {
  * renderExamRow — HTML de uma linha de exame com checkbox.
  * Se seleccionado, mostra imediatamente a caixa de info clínica inline.
  */
-function renderExamRow(exam, sel) {
+function renderExamRow(exam, sel, groupSubtitle) {
   const isSel     = sel.includes(exam.id);
   const savedInfo = isSel ? (examsUiState.clinicalInfoByExam[exam.id] || "") : "";
 
@@ -405,9 +387,12 @@ function renderExamRow(exam, sel) {
                     cursor:pointer;user-select:none;">
         <input type="checkbox" data-exam-id="${exam.id}" ${isSel ? "checked" : ""}
           style="width:15px;height:15px;accent-color:#1a56db;flex-shrink:0;cursor:pointer;">
-        <span style="font-size:13px;font-weight:${isSel ? '700' : '500'};color:#0f172a;line-height:1.4;">
-          ${exam.exam_name}
-        </span>
+        <div>
+          <div style="font-size:13px;font-weight:${isSel ? '700' : '500'};color:#0f172a;line-height:1.4;">
+            ${exam.exam_name}
+          </div>
+          ${groupSubtitle ? `<div style="font-size:11px;color:#94a3b8;margin-top:1px;">${groupSubtitle}</div>` : ""}
+        </div>
       </label>
       ${isSel ? `
         <div style="padding:0 12px 10px 37px;">
