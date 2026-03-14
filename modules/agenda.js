@@ -911,15 +911,28 @@ export async function openWeekView() {
     : "";
 
   /* Carregar marcações da semana inteira de uma vez.
-     Usar range local (não UTC) para não perder consultas das primeiras horas do dia. */
-  const startISO = `${weekDays[0].iso}T00:00:00`;
-  const endISO   = `${__gcAddDaysToISO(weekDays[6].iso, 1)}T00:00:00`;
+     Usar isoLocalDayRangeFromISODate (mesmo mecanismo do refreshAgenda) para
+     garantir que o range respeita o fuso horário local. */
+  const rStart = isoLocalDayRangeFromISODate(weekDays[0].iso);
+  const rEnd   = isoLocalDayRangeFromISODate(weekDays[6].iso);
+  const weekRangeStart = rStart?.startISO || `${weekDays[0].iso}T00:00:00.000Z`;
+  const weekRangeEnd   = rEnd?.endISO     || `${__gcAddDaysToISO(weekDays[6].iso, 1)}T00:00:00.000Z`;
+
   let appts = [];
   try {
     const selClinic = document.getElementById("selClinic");
     const clinicId  = selClinic?.value || null;
-    const { data } = await loadAppointmentsForRange({ clinicId, startISO, endISO });
+    const { data } = await loadAppointmentsForRange({ clinicId, startISO: weekRangeStart, endISO: weekRangeEnd });
     appts = data || [];
+  } catch (_) {}
+
+  /* Carregar nomes dos doentes — completa G.patientsById com os que faltam */
+  try {
+    const missingIds = [...new Set(appts.map(a => a.patient_id).filter(pid => pid && !G.patientsById?.[pid]))];
+    if (missingIds.length > 0) {
+      const extra = await fetchPatientsByIds(missingIds);
+      G.patientsById = { ...(G.patientsById || {}), ...extra };
+    }
   } catch (_) {}
 
   /* Agrupar marcações por dia */
