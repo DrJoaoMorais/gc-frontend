@@ -3354,6 +3354,10 @@ function openPatientViewModal(patient) {
                     Consulta Médica
                   </button>
 
+                  <button id="btnExameObjectivo" class="gcBtn gc-action-btn">
+                    Exame Objectivo
+                  </button>
+
                   <button id="btnMedicalReports" class="gcBtn gc-action-btn">
                     Relatórios
                   </button>
@@ -3391,7 +3395,11 @@ function openPatientViewModal(patient) {
     document.getElementById("btnViewIdent")?.addEventListener("click", () => openPatientIdentity("view"));
 
     if (isDoctor() && !creatingConsult) {
-      document.getElementById("btnNewConsult")?.addEventListener("click", () => {
+      document.getElementById("btnExameObjectivo")?.addEventListener("click", () => {
+      openExameObjectivoMenu(document.getElementById("btnExameObjectivo"));
+    });
+
+    document.getElementById("btnNewConsult")?.addEventListener("click", () => {
         editingConsultId = null;
         editingConsultRow = null;
         creatingConsult = true;
@@ -3490,6 +3498,499 @@ function openPatientViewModal(patient) {
   /* ====================================================================
      RELATÓRIOS — Menu + Templates PRP / Atestados
      ==================================================================== */
+
+
+
+    /* ====================================================================
+     EXAME OBJECTIVO — Menu selector
+     ==================================================================== */
+  function openExameObjectivoMenu(anchorBtn) {
+    document.getElementById("gcExObjMenu")?.remove();
+
+    const menu = document.createElement("div");
+    menu.id = "gcExObjMenu";
+    Object.assign(menu.style, {
+      position: "fixed", zIndex: "3000", background: "#fff",
+      border: "1px solid #e2e8f0", borderRadius: "12px",
+      boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+      padding: "8px 0", minWidth: "240px",
+      fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif"
+    });
+    const rect = anchorBtn.getBoundingClientRect();
+    menu.style.top  = (rect.bottom + 6) + "px";
+    menu.style.left = rect.left + "px";
+
+    const grupos = [
+      {
+        label: "Neurológico",
+        items: [
+          { id: "pfp",  label: "😐 Paresia Facial Periférica", ready: true },
+          { id: "neuro_sum", label: "🧠 Neurológico Sumário", ready: false },
+        ]
+      },
+      {
+        label: "Músculo-Esquelético",
+        items: [
+          { id: "ombro",    label: "💪 Ombro",          ready: false },
+          { id: "joelho",   label: "🦵 Joelho",         ready: false },
+          { id: "cervical", label: "🫀 Cervical",       ready: false },
+          { id: "lombar",   label: "🫁 Lombar",         ready: false },
+        ]
+      },
+    ];
+
+    grupos.forEach((grp, gi) => {
+      if (gi > 0) {
+        const sep = document.createElement("div");
+        Object.assign(sep.style, { height: "1px", background: "#f1f5f9", margin: "6px 0" });
+        menu.appendChild(sep);
+      }
+      const lbl = document.createElement("div");
+      lbl.textContent = grp.label;
+      Object.assign(lbl.style, { padding: "4px 16px 2px", fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" });
+      menu.appendChild(lbl);
+
+      grp.items.forEach(item => {
+        const btn = document.createElement("button");
+        btn.textContent = item.label;
+        Object.assign(btn.style, {
+          display: "block", width: "100%", textAlign: "left",
+          background: "none", border: "none", padding: "9px 20px",
+          fontSize: "14px", fontFamily: "inherit",
+          color: item.ready ? "#0f172a" : "#94a3b8",
+          cursor: item.ready ? "pointer" : "default",
+          opacity: item.ready ? "1" : "0.6"
+        });
+        if (item.ready) {
+          btn.onmouseenter = () => btn.style.background = "#f1f5f9";
+          btn.onmouseleave = () => btn.style.background = "none";
+          btn.addEventListener("click", () => { menu.remove(); openExameObjectivoForm(item.id); });
+        }
+        menu.appendChild(btn);
+      });
+    });
+
+    document.body.appendChild(menu);
+    setTimeout(() => {
+      const close = (ev) => {
+        if (!menu.contains(ev.target) && ev.target !== anchorBtn) {
+          menu.remove(); document.removeEventListener("click", close);
+        }
+      };
+      document.addEventListener("click", close);
+    }, 50);
+  }
+
+  function openExameObjectivoForm(formId) {
+    if (formId === "pfp") {
+      const pfpHtml = `<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<title>Paresia Facial Periférica — Exame Objectivo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#0f172a;background:#f8fafc;padding:0}
+.page{max-width:960px;margin:0 auto;padding:16px 20px 80px}
+h1{font-size:18px;font-weight:700;color:#0f172a;margin-bottom:2px}
+.subtitle{font-size:12px;color:#64748b;margin-bottom:20px}
+.sec{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:14px}
+.sec-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#0f172a;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f1f5f9}
+.num{width:22px;height:22px;border-radius:50%;background:#1a56db;color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.gl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;margin-bottom:5px;margin-top:10px}
+.gl:first-child{margin-top:0}
+table.ev{width:100%;border-collapse:collapse;font-size:13px}
+table.ev th{background:#f8fafc;padding:7px 10px;text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:#64748b;border:1px solid #e2e8f0}
+table.ev td{padding:6px 10px;border:1px solid #e2e8f0;vertical-align:top}
+table.ev td:first-child{font-weight:500;color:#374151;width:45%}
+table.ev td select{width:100%;border:1px solid #e2e8f0;border-radius:6px;padding:4px 6px;font-size:12px;background:#fff;color:#0f172a}
+.rg{display:flex;flex-direction:column;gap:4px}
+.ri{display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;padding:3px 0}
+.ri input{width:15px;height:15px;flex-shrink:0;cursor:pointer}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.cols3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+input[type=text],input[type=date],textarea{width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;color:#0f172a;background:#fff}
+textarea{resize:vertical;min-height:60px;line-height:1.5}
+.hb-grid{display:grid;grid-template-columns:auto 1fr;gap:0;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden}
+.hb-row{display:contents}
+.hb-row label{display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer;font-size:13px}
+.hb-row label:last-child{border-bottom:none}
+.hb-grade{background:#f8fafc;padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:700;font-size:13px;color:#1a56db;border-right:1px solid #e2e8f0}
+.hb-grade:last-of-type{border-bottom:none}
+.nota{font-size:11px;color:#94a3b8;margin-top:4px;font-style:italic}
+.bar-acoes{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e2e8f0;padding:10px 20px;display:flex;gap:10px;justify-content:flex-end;z-index:100}
+.btn-copy{padding:9px 22px;border:none;border-radius:8px;background:#1a56db;color:white;font-size:13px;font-weight:600;cursor:pointer}
+.btn-copy:hover{background:#1e40af}
+.btn-pdf{padding:9px 22px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#475569;font-size:13px;font-weight:500;cursor:pointer}
+#toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#0f6e56;color:#fff;padding:9px 20px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200}
+#toast.show{opacity:1}
+@media print{.bar-acoes,#toast{display:none!important}.page{padding-bottom:16px}}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Exame Objectivo — Paresia Facial Periférica</h1>
+  <div class="subtitle">Preencha os campos relevantes · Copie para a consulta no final</div>
+
+  <!-- 1. AVALIAÇÃO INICIAL -->
+  <div class="sec">
+    <div class="sec-title"><div class="num">1</div>Avaliação Inicial</div>
+    <div class="cols2">
+      <div>
+        <div class="gl">Paresia facial desde</div>
+        <input type="date" id="pfp_data_inicio">
+      </div>
+      <div>
+        <div class="gl">Lateralidade</div>
+        <div style="display:flex;gap:10px;margin-top:4px">
+          <label class="ri"><input type="radio" name="pfp_lado"> Direita</label>
+          <label class="ri"><input type="radio" name="pfp_lado"> Esquerda</label>
+        </div>
+      </div>
+    </div>
+    <div class="cols3" style="margin-top:12px">
+      <div>
+        <div class="gl">Recorreu ao SU</div>
+        <div style="display:flex;gap:10px;margin-top:4px">
+          <label class="ri"><input type="radio" name="pfp_su"> Sim</label>
+          <label class="ri"><input type="radio" name="pfp_su"> Não</label>
+        </div>
+      </div>
+      <div>
+        <div class="gl">Aciclovir</div>
+        <div style="display:flex;gap:10px;margin-top:4px">
+          <label class="ri"><input type="radio" name="pfp_aciclo"> Sim</label>
+          <label class="ri"><input type="radio" name="pfp_aciclo"> Não</label>
+        </div>
+      </div>
+      <div>
+        <div class="gl">Corticoterapia</div>
+        <div style="display:flex;gap:10px;margin-top:4px">
+          <label class="ri"><input type="radio" name="pfp_cortico"> Sim</label>
+          <label class="ri"><input type="radio" name="pfp_cortico"> Não</label>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <div class="gl">Medicação actual</div>
+      <input type="text" id="pfp_medicacao" placeholder="ex: Prednisolona 60mg, Aciclovir 800mg 5x/dia...">
+    </div>
+    <div style="margin-top:10px">
+      <div class="gl">Evolução até hoje</div>
+      <textarea id="pfp_evolucao" placeholder="Descreva a evolução clínica desde o início..."></textarea>
+    </div>
+  </div>
+
+  <!-- 2. INSPEÇÃO EM REPOUSO -->
+  <div class="sec">
+    <div class="sec-title"><div class="num">2</div>Inspeção Facial em Repouso</div>
+    <table class="ev">
+      <tr><th>Parâmetro</th><th>Observação</th></tr>
+      <tr><td>Simetria facial</td><td><select><option>—</option><option>Simétrica</option><option>Assimetria facial</option></select></td></tr>
+      <tr><td>Sulco nasolabial</td><td><select><option>—</option><option>Preservado</option><option>Apagado</option></select></td></tr>
+      <tr><td>Comissura labial</td><td><select><option>—</option><option>Simétrica</option><option>Desvio contralateral</option></select></td></tr>
+      <tr><td>Posição da sobrancelha</td><td><select><option>—</option><option>Normal</option><option>Queda</option></select></td></tr>
+      <tr><td>Fenda palpebral</td><td><select><option>—</option><option>Normal</option><option>Aumentada</option></select></td></tr>
+      <tr><td>Lagoftalmo em repouso</td><td><select><option>—</option><option>Ausente</option><option>Presente</option></select></td></tr>
+      <tr><td>Tónus facial</td><td><select><option>—</option><option>Normal</option><option>Hipotonia</option></select></td></tr>
+      <tr><td>Movimentos involuntários</td><td><select><option>—</option><option>Ausentes</option><option>Sincinesias</option><option>Espasmos</option><option>Sincinesias + Espasmos</option></select></td></tr>
+    </table>
+  </div>
+
+  <!-- 3. AVALIAÇÃO MOTORA -->
+  <div class="sec">
+    <div class="sec-title"><div class="num">3</div>Avaliação Motora do Nervo Facial (VII)</div>
+
+    <div class="gl">Região Frontal</div>
+    <table class="ev" style="margin-bottom:10px">
+      <tr><th>Movimento</th><th>Achado</th></tr>
+      <tr><td>Elevação das sobrancelhas</td><td><select><option>—</option><option>Normal</option><option>Diminuída</option><option>Ausente</option></select></td></tr>
+      <tr><td>Formação de rugas frontais</td><td><select><option>—</option><option>Presente</option><option>Reduzida</option><option>Ausente</option></select></td></tr>
+      <tr><td>Simetria frontal</td><td><select><option>—</option><option>Simétrica</option><option>Assimétrica</option></select></td></tr>
+    </table>
+
+    <div class="gl">Região Ocular</div>
+    <table class="ev" style="margin-bottom:10px">
+      <tr><th>Movimento</th><th>Achado</th></tr>
+      <tr><td>Fecho palpebral suave</td><td><select><option>—</option><option>Completo</option><option>Incompleto</option></select></td></tr>
+      <tr><td>Fecho palpebral forçado</td><td><select><option>—</option><option>Completo</option><option>Incompleto</option></select></td></tr>
+      <tr><td>Resistência à abertura</td><td><select><option>—</option><option>Normal</option><option>Diminuída</option></select></td></tr>
+      <tr><td>Lagoftalmo</td><td><select><option>—</option><option>Ausente</option><option>Presente</option></select></td></tr>
+      <tr><td>Sinal de Bell</td><td><select><option>—</option><option>Ausente</option><option>Presente</option></select></td></tr>
+      <tr><td>Piscar espontâneo</td><td><select><option>—</option><option>Normal</option><option>Diminuído</option></select></td></tr>
+    </table>
+
+    <div class="gl">Região Nasal</div>
+    <table class="ev" style="margin-bottom:10px">
+      <tr><th>Movimento</th><th>Achado</th></tr>
+      <tr><td>Dilatação das narinas</td><td><select><option>—</option><option>Simétrica</option><option>Diminuída</option></select></td></tr>
+      <tr><td>Contração nasal</td><td><select><option>—</option><option>Preservada</option><option>Reduzida</option></select></td></tr>
+    </table>
+
+    <div class="gl">Região Oral</div>
+    <table class="ev">
+      <tr><th>Movimento</th><th>Achado</th></tr>
+      <tr><td>Mostrar os dentes</td><td><select><option>—</option><option>Simétrico</option><option>Assimétrico</option></select></td></tr>
+      <tr><td>Sorriso</td><td><select><option>—</option><option>Simétrico</option><option>Assimétrico</option></select></td></tr>
+      <tr><td>Assobiar</td><td><select><option>—</option><option>Preservado</option><option>Incapaz</option></select></td></tr>
+      <tr><td>Insuflar bochechas</td><td><select><option>—</option><option>Mantém ar</option><option>Escape de ar</option></select></td></tr>
+      <tr><td>Depressão da comissura</td><td><select><option>—</option><option>Preservada</option><option>Diminuída</option></select></td></tr>
+    </table>
+  </div>
+
+  <!-- 4. FUNÇÃO OROFACIAL -->
+  <div class="sec">
+    <div class="sec-title"><div class="num">4</div>Função Orofacial</div>
+    <table class="ev">
+      <tr><th>Teste</th><th>Observação</th></tr>
+      <tr><td>Articulação da fala</td><td><select><option>—</option><option>Normal</option><option>Disartria ligeira</option><option>Disartria moderada</option></select></td></tr>
+      <tr><td>Mobilidade labial</td><td><select><option>—</option><option>Preservada</option><option>Diminuída</option></select></td></tr>
+      <tr><td>Retenção de saliva</td><td><select><option>—</option><option>Presente</option><option>Sialorreia</option></select></td></tr>
+      <tr><td>Controlo oral de líquidos</td><td><select><option>—</option><option>Preservado</option><option>Escape</option></select></td></tr>
+    </table>
+  </div>
+
+  <!-- 5. AVALIAÇÃO SENSITIVA -->
+  <div class="sec">
+    <div class="sec-title"><div class="num">5</div>Avaliação Sensitiva <span style="font-size:11px;font-weight:400;color:#94a3b8;margin-left:6px">(habitualmente normal na PFP)</span></div>
+    <table class="ev">
+      <tr><th>Território</th><th>Achado</th></tr>
+      <tr><td>Sensibilidade facial</td><td><select><option>—</option><option>Preservada</option><option>Alterada</option></select></td></tr>
+      <tr><td>Sensibilidade gustativa (2/3 ant. língua)</td><td><select><option>—</option><option>Preservada</option><option>Disgeusia</option><option>Ageusia</option></select></td></tr>
+    </table>
+  </div>
+
+  <!-- 6. AVALIAÇÃO OCULAR -->
+  <div class="sec">
+    <div class="sec-title"><div class="num">6</div>Avaliação Ocular</div>
+    <table class="ev">
+      <tr><th>Parâmetro</th><th>Observação</th></tr>
+      <tr><td>Fecho ocular</td><td><select><option>—</option><option>Completo</option><option>Incompleto</option></select></td></tr>
+      <tr><td>Lagoftalmo</td><td><select><option>—</option><option>Ausente</option><option>Presente — mm: </option></select></td></tr>
+      <tr><td>Lacrimejo</td><td><select><option>—</option><option>Normal</option><option>Diminuído</option><option>Aumentado / Epífora</option></select></td></tr>
+      <tr><td>Hiperemia conjuntival</td><td><select><option>—</option><option>Ausente</option><option>Presente</option></select></td></tr>
+      <tr><td>Risco de queratite</td><td><select><option>—</option><option>Não</option><option>Sim — referenciar</option></select></td></tr>
+    </table>
+  </div>
+
+  <!-- 7. SINCINESIAS -->
+  <div class="sec">
+    <div class="sec-title"><div class="num">7</div>Sincinesias e Contraturas</div>
+    <table class="ev">
+      <tr><th>Achado</th><th>Presença</th></tr>
+      <tr><td>Sincinesia olho-boca</td><td><select><option>—</option><option>Não</option><option>Sim</option></select></td></tr>
+      <tr><td>Sincinesia boca-olho</td><td><select><option>—</option><option>Não</option><option>Sim</option></select></td></tr>
+      <tr><td>Espasmo hemifacial</td><td><select><option>—</option><option>Não</option><option>Sim</option></select></td></tr>
+      <tr><td>Contratura facial</td><td><select><option>—</option><option>Não</option><option>Sim</option></select></td></tr>
+      <tr><td>Síndrome das lágrimas de crocodilo</td><td><select><option>—</option><option>Não</option><option>Sim</option></select></td></tr>
+    </table>
+  </div>
+
+  <!-- 8. HOUSE-BRACKMANN -->
+  <div class="sec">
+    <div class="sec-title"><div class="num">8</div>Escala de House-Brackmann</div>
+    <div class="hb-grid">
+      <div class="hb-grade">I</div><label class="ri" style="border-bottom:1px solid #f1f5f9;padding:8px 12px"><input type="radio" name="hb"> Função normal</label>
+      <div class="hb-grade">II</div><label class="ri" style="border-bottom:1px solid #f1f5f9;padding:8px 12px"><input type="radio" name="hb"> Disfunção ligeira — assimetria mínima em repouso, fecho ocular completo com esforço mínimo</label>
+      <div class="hb-grade">III</div><label class="ri" style="border-bottom:1px solid #f1f5f9;padding:8px 12px"><input type="radio" name="hb"> Disfunção moderada — assimetria evidente, fecho ocular completo com esforço</label>
+      <div class="hb-grade">IV</div><label class="ri" style="border-bottom:1px solid #f1f5f9;padding:8px 12px"><input type="radio" name="hb"> Disfunção moderadamente grave — fecho ocular incompleto, assimetria em repouso</label>
+      <div class="hb-grade">V</div><label class="ri" style="border-bottom:1px solid #f1f5f9;padding:8px 12px"><input type="radio" name="hb"> Disfunção grave — movimento mínimo, assimetria marcada</label>
+      <div class="hb-grade" style="border-bottom:none">VI</div><label class="ri" style="padding:8px 12px"><input type="radio" name="hb"> Paralisia completa — sem movimento</label>
+    </div>
+  </div>
+
+  <!-- 9. AVALIAÇÃO FUNCIONAL -->
+  <div class="sec">
+    <div class="sec-title"><div class="num">9</div>Avaliação Funcional</div>
+    <table class="ev">
+      <tr><th>Função</th><th>Observação</th></tr>
+      <tr><td>Protecção ocular</td><td><select><option>—</option><option>Adequada</option><option>Comprometida</option></select></td></tr>
+      <tr><td>Expressão facial</td><td><select><option>—</option><option>Preservada</option><option>Diminuída</option><option>Ausente</option></select></td></tr>
+      <tr><td>Comunicação não verbal</td><td><select><option>—</option><option>Preservada</option><option>Alterada</option></select></td></tr>
+      <tr><td>Alimentação</td><td><select><option>—</option><option>Normal</option><option>Dificuldade ligeira</option><option>Dificuldade moderada</option></select></td></tr>
+    </table>
+  </div>
+
+  <!-- 10. OBSERVAÇÕES -->
+  <div class="sec">
+    <div class="sec-title"><div class="num">10</div>Observações Adicionais</div>
+    <div class="cols2">
+      <div>
+        <label class="ri"><input type="checkbox" id="pfp_dor_retro"> Dor retroauricular</label>
+        <label class="ri"><input type="checkbox" id="pfp_hiperacusia"> Hiperacusia</label>
+        <label class="ri"><input type="checkbox" id="pfp_viral"> História recente de infecção viral</label>
+        <label class="ri"><input type="checkbox" id="pfp_ramsay"> Vesículas / Síndrome de Ramsay Hunt</label>
+      </div>
+      <div>
+        <label class="ri"><input type="checkbox" id="pfp_trauma"> Traumatismo prévio</label>
+        <label class="ri"><input type="checkbox" id="pfp_recidiva"> Episódio prévio semelhante</label>
+        <label class="ri"><input type="checkbox" id="pfp_central"> Investigar causa central</label>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <div class="gl">Notas clínicas</div>
+      <textarea id="pfp_notas" placeholder="Outras observações relevantes..."></textarea>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<div id="toast">Copiado para a área de transferência</div>
+
+<div class="bar-acoes">
+  <button type="button" class="btn-pdf" id="btnPfpPdf">Exportar PDF</button>
+  <button type="button" class="btn-copy" id="btnPfpCopy">Copiar resumo para consulta</button>
+</div>
+
+<script>
+(function(){
+
+  function val(sel){ 
+    var el = document.querySelector(sel);
+    return el ? el.value : '';
+  }
+  function checked(name){
+    var el = document.querySelector('input[name="'+name+'"]:checked');
+    if(!el) return '';
+    return el.closest('label')?.textContent?.trim() || el.value;
+  }
+  function cb(id){
+    var el = document.getElementById(id);
+    return el && el.checked;
+  }
+  function tableRows(selector){
+    var rows = [];
+    document.querySelectorAll(selector+' table.ev tr').forEach(function(tr){
+      var cells = tr.querySelectorAll('td');
+      if(cells.length < 2) return;
+      var param = cells[0].textContent.trim();
+      var sel = cells[1].querySelector('select');
+      var v = sel ? sel.value : cells[1].textContent.trim();
+      if(v && v !== '—') rows.push('  • '+param+': '+v);
+    });
+    return rows;
+  }
+
+  function gerarResumo(){
+    var lines = [];
+    lines.push('── EXAME OBJECTIVO — PARESIA FACIAL PERIFÉRICA ──');
+    lines.push('');
+
+    // 1. Avaliação inicial
+    var di = val('#pfp_data_inicio');
+    var lado = checked('pfp_lado');
+    var su = checked('pfp_su');
+    var aciclo = checked('pfp_aciclo');
+    var cortico = checked('pfp_cortico');
+    var med = val('#pfp_medicacao');
+    var evol = val('#pfp_evolucao');
+
+    if(di || lado) lines.push('Avaliação Inicial');
+    if(di) lines.push('  • Início: '+di);
+    if(lado) lines.push('  • Lado: '+lado);
+    if(su) lines.push('  • SU: '+su);
+    if(aciclo) lines.push('  • Aciclovir: '+aciclo);
+    if(cortico) lines.push('  • Corticoterapia: '+cortico);
+    if(med) lines.push('  • Medicação: '+med);
+    if(evol) lines.push('  • Evolução: '+evol);
+
+    // Secções de tabelas
+    var secs = [
+      {n:'Inspeção em Repouso', s:'.sec:nth-of-type(2)'},
+      {n:'Avaliação Motora — Frontal', s:'.sec:nth-of-type(3)'},
+      {n:'Função Orofacial', s:'.sec:nth-of-type(4)'},
+      {n:'Avaliação Sensitiva', s:'.sec:nth-of-type(5)'},
+      {n:'Avaliação Ocular', s:'.sec:nth-of-type(6)'},
+      {n:'Sincinesias', s:'.sec:nth-of-type(7)'},
+      {n:'Avaliação Funcional', s:'.sec:nth-of-type(9)'},
+    ];
+
+    // Usar abordagem directa — iterar todas as tabelas
+    var allSecs = document.querySelectorAll('.sec');
+    allSecs.forEach(function(sec, idx){
+      var title = sec.querySelector('.sec-title')?.textContent?.trim() || '';
+      var rows = [];
+      sec.querySelectorAll('table.ev tr').forEach(function(tr){
+        var cells = tr.querySelectorAll('td');
+        if(cells.length < 2) return;
+        var param = cells[0].textContent.trim();
+        var sel = cells[1].querySelector('select');
+        var v = sel ? sel.value : '';
+        if(v && v !== '—') rows.push('  • '+param+': '+v);
+      });
+      if(rows.length){
+        lines.push('');
+        lines.push(title);
+        rows.forEach(function(r){ lines.push(r); });
+      }
+    });
+
+    // House-Brackmann
+    var hb = document.querySelector('input[name="hb"]:checked');
+    if(hb){
+      var hbTxt = hb.closest('label')?.textContent?.trim() || '';
+      // Encontrar o grau
+      var grade = hb.closest('label')?.previousElementSibling?.textContent?.trim() || '';
+      lines.push('');
+      lines.push('House-Brackmann: Grau '+grade+' — '+hbTxt.replace(/^(I+V?|VI?)\\s*—?\\s*/,''));
+    }
+
+    // Observações adicionais
+    var obs = [];
+    if(cb('pfp_dor_retro')) obs.push('dor retroauricular');
+    if(cb('pfp_hiperacusia')) obs.push('hiperacusia');
+    if(cb('pfp_viral')) obs.push('infecção viral recente');
+    if(cb('pfp_ramsay')) obs.push('vesículas / Ramsay Hunt');
+    if(cb('pfp_trauma')) obs.push('traumatismo prévio');
+    if(cb('pfp_recidiva')) obs.push('episódio prévio');
+    if(cb('pfp_central')) obs.push('investigar causa central');
+    var notas = val('#pfp_notas');
+    if(obs.length){ lines.push(''); lines.push('Observações: '+obs.join(', ')); }
+    if(notas){ lines.push('Notas: '+notas); }
+
+    lines.push('');
+    lines.push('─────────────────────────────────────────────────');
+    return lines.join('\\n');
+  }
+
+  document.getElementById('btnPfpCopy').addEventListener('click', function(){
+    var txt = gerarResumo();
+    navigator.clipboard.writeText(txt).then(function(){
+      var t = document.getElementById('toast');
+      t.classList.add('show');
+      setTimeout(function(){ t.classList.remove('show'); }, 2500);
+    }).catch(function(){
+      var ta = document.createElement('textarea');
+      ta.value = txt;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+      var t = document.getElementById('toast');
+      t.classList.add('show');
+      setTimeout(function(){ t.classList.remove('show'); }, 2500);
+    });
+  });
+
+  document.getElementById('btnPfpPdf').addEventListener('click', function(){
+    window.print();
+  });
+
+})();
+</script>
+</body>
+</html>
+`;
+      const blob = new Blob([pfpHtml], { type: "text/html" });
+      const url  = URL.createObjectURL(blob);
+      const win  = window.open(url, "_blank", "width=1000,height=800,scrollbars=yes");
+      // Libertar Blob URL depois de abrir
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      return;
+    }
+    alert("Formulário em desenvolvimento.");
+  }
+
 
   function openReportsMenu(anchorBtn) {
     // Remove menu anterior se existir
