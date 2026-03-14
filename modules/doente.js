@@ -1523,71 +1523,78 @@ function openPatientViewModal(patient) {
            style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
                   display:flex; align-items:center; justify-content:center; padding:12px; z-index:2200;">
         <div style="background:#fff; width:min(1200px,96vw);
-                    max-height:92vh; overflow:auto;
-                    border-radius:14px; border:1px solid #e5e5e5; padding:16px;">
+                    height:92vh; display:flex; flex-direction:column;
+                    border-radius:14px; border:1px solid #e5e5e5; overflow:hidden;">
 
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-            <div style="font-weight:900; font-size:16px;">
-              Documento v1 — ${docMode === "preview" ? "pré-visualização" : (docMode === "html" ? "editar HTML" : "editor visual")}
-            </div>
-            <div style="display:flex; gap:8px;">
+          <!-- HEADER fixo -->
+          <div style="padding:14px 16px; border-bottom:1px solid #e5e5e5; flex-shrink:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+              <div style="font-weight:900; font-size:16px;">
+                Documento v1 — ${docMode === "preview" ? "pré-visualização" : (docMode === "html" ? "editar HTML" : "editor visual")}
+              </div>
               <button id="btnDocCloseTop" class="gcBtn">Fechar</button>
             </div>
+
+            <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+              <div style="flex:1; min-width:260px;">
+                <label>Título</label>
+                <input id="docTitle" value="${escAttr(docTitle)}"
+                       style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+              </div>
+              <div style="display:flex; gap:8px; align-items:flex-end;">
+                <button id="btnDocModeVisual" class="gcBtn" ${docMode === "visual" ? `style="font-weight:900;"` : ``}>Editor</button>
+                <button id="btnDocModeHtml"   class="gcBtn" ${docMode === "html"    ? `style="font-weight:900;"` : ``}>HTML</button>
+                <button id="btnDocModePreview" class="gcBtn" ${docMode === "preview" ? `style="font-weight:900;"` : ``}>Pré-visualizar</button>
+              </div>
+            </div>
           </div>
 
-          <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-            <div style="flex:1; min-width:260px;">
-              <label>Título</label>
-              <input id="docTitle" value="${escAttr(docTitle)}"
-                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
-            </div>
-
-            <div style="display:flex; gap:8px; align-items:flex-end;">
-              <button id="btnDocModeVisual" class="gcBtn" ${docMode === "visual" ? `style="font-weight:900;"` : ``}>Editor</button>
-              <button id="btnDocModeHtml" class="gcBtn" ${docMode === "html" ? `style="font-weight:900;"` : ``}>HTML</button>
-              <button id="btnDocModePreview" class="gcBtn" ${docMode === "preview" ? `style="font-weight:900;"` : ``}>Pré-visualizar</button>
-            </div>
-          </div>
-
-          ${docMode === "html" ? `
-            <div style="margin-top:12px;">
+          <!-- CONTEÚDO com scroll -->
+          <div style="flex:1; overflow:auto; padding:12px 16px;">
+            ${docMode === "html" ? `
               <textarea id="docHtml"
-                        style="width:100%; height:65vh; padding:12px; border:1px solid #ddd; border-radius:12px;
-                               font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-                               font-size:12px; line-height:1.4;">${escAttr(docDraftHtml)}</textarea>
-            </div>
-          ` : `
-            <div style="margin-top:12px; border:1px solid #e5e5e5; border-radius:12px; overflow:hidden;">
-              ${docMode === "visual" ? `
-              <div id="docToolbar" style="display:flex; gap:4px; padding:8px 10px; background:#f8f8f8; border-bottom:1px solid #e5e5e5; flex-wrap:wrap; align-items:center;">
-                <button onclick="(function(){var d=document.getElementById('docFrame').contentDocument;d.execCommand('bold')})()" style="font-weight:900; min-width:32px; padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">B</button>
-                <button onclick="(function(){var d=document.getElementById('docFrame').contentDocument;d.execCommand('italic')})()" style="font-style:italic; min-width:32px; padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">I</button>
-                <button onclick="(function(){var d=document.getElementById('docFrame').contentDocument;d.execCommand('underline')})()" style="text-decoration:underline; min-width:32px; padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">U</button>
-                <div style="width:1px; background:#ddd; height:24px; margin:0 4px;"></div>
-                <select onchange="(function(v){var d=document.getElementById('docFrame').contentDocument;d.execCommand('fontSize',false,v)})(this.value)" style="padding:4px 6px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:13px;">
-                  <option value="">Tamanho</option>
-                  <option value="2">Pequeno</option>
-                  <option value="3">Normal</option>
-                  <option value="4">Médio</option>
-                  <option value="5">Grande</option>
-                  <option value="6">Muito grande</option>
-                </select>
-                <div style="width:1px; background:#ddd; height:24px; margin:0 4px;"></div>
-                <button onclick="(function(){var d=document.getElementById('docFrame').contentDocument;d.execCommand('justifyLeft')})()" style="min-width:32px; padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">≡</button>
-                <button onclick="(function(){var d=document.getElementById('docFrame').contentDocument;d.execCommand('justifyCenter')})()" style="min-width:32px; padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">☰</button>
-              </div>` : ``}
-              <iframe id="docFrame" style="width:100%; height:65vh; border:0; background:#fff;"></iframe>
-            </div>
-          `}
+                        style="width:100%; height:100%; min-height:300px; padding:12px; border:1px solid #ddd; border-radius:12px;
+                               font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Courier New',monospace;
+                               font-size:12px; line-height:1.4; box-sizing:border-box;">${escAttr(docDraftHtml)}</textarea>
+            ` : `
+              <div style="border:1px solid #e5e5e5; border-radius:12px; overflow:hidden; height:100%; display:flex; flex-direction:column;">
+                ${docMode === "visual" ? `
+                <div id="docToolbar" style="display:flex; gap:4px; padding:8px 10px; background:#f8f8f8; border-bottom:1px solid #e5e5e5; flex-wrap:wrap; align-items:center; flex-shrink:0;">
+                  <button onclick="(function(){var d=document.getElementById('docFrame').contentDocument;d.execCommand('bold')})()" style="font-weight:900; min-width:32px; padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">B</button>
+                  <button onclick="(function(){var d=document.getElementById('docFrame').contentDocument;d.execCommand('italic')})()" style="font-style:italic; min-width:32px; padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">I</button>
+                  <button onclick="(function(){var d=document.getElementById('docFrame').contentDocument;d.execCommand('underline')})()" style="text-decoration:underline; min-width:32px; padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">U</button>
+                  <div style="width:1px; background:#ddd; height:24px; margin:0 4px;"></div>
+                  <select onchange="(function(v){var d=document.getElementById('docFrame').contentDocument;d.execCommand('fontSize',false,v)})(this.value)" style="padding:4px 6px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:13px;">
+                    <option value="">Tamanho</option>
+                    <option value="2">Pequeno</option>
+                    <option value="3">Normal</option>
+                    <option value="4">Médio</option>
+                    <option value="5">Grande</option>
+                    <option value="6">Muito grande</option>
+                  </select>
+                  <div style="width:1px; background:#ddd; height:24px; margin:0 4px;"></div>
+                  <button onclick="(function(){var d=document.getElementById('docFrame').contentDocument;d.execCommand('justifyLeft')})()" style="min-width:32px; padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">≡</button>
+                  <button onclick="(function(){var d=document.getElementById('docFrame').contentDocument;d.execCommand('justifyCenter')})()" style="min-width:32px; padding:4px 8px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">☰</button>
+                </div>` : ``}
+                <iframe id="docFrame" style="flex:1; width:100%; border:0; background:#fff; min-height:200px;"></iframe>
+              </div>
+            `}
+          </div>
 
-          <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
-            <div id="docStatus" style="color:${docSaving ? "#111" : "#64748b"};">
-              ${docSaving ? "A gerar/upload..." : ""}
+          <!-- FOOTER fixo — sempre visível -->
+          <div style="padding:12px 16px; border-top:1px solid #e5e5e5; background:#f8fafc;
+                      display:flex; justify-content:space-between; align-items:center; gap:10px; flex-shrink:0;">
+            <div id="docStatus" style="font-size:13px; color:#64748b; display:flex; align-items:center; gap:8px;">
+              ${docSaving ? `
+                <div style="width:16px; height:16px; border:2px solid #cbd5e1; border-top-color:#1a56db;
+                             border-radius:50%; animation:gcSpin 0.7s linear infinite; flex-shrink:0;"></div>
+                <span style="color:#1a56db; font-weight:600;">A gerar PDF…</span>
+              ` : ""}
             </div>
-
             <div style="display:flex; gap:10px;">
               <button id="btnDocCancel" class="gcBtn">Cancelar</button>
-              <button id="btnDocGeneratePdfNow" class="gcBtn" style="font-weight:900;">
+              <button id="btnDocGeneratePdfNow" class="gcBtn"
+                style="font-weight:900; background:#1a56db; border:1px solid #1a56db; color:#fff; padding:8px 20px;">
                 Gerar PDF (v1)
               </button>
             </div>
@@ -1595,6 +1602,9 @@ function openPatientViewModal(patient) {
 
         </div>
       </div>
+      <style>
+        @keyframes gcSpin { to { transform: rotate(360deg); } }
+      </style>
     `;
   }
 
@@ -2833,88 +2843,107 @@ function openPatientViewModal(patient) {
     const today = new Date().toISOString().slice(0, 10);
 
     return `
-    <div style="margin-top:16px; padding:16px; border:1px solid #e5e5e5; border-radius:14px; background:#ffffff;">
+    <div style="margin-top:16px; border:1px solid #e5e5e5; border-radius:14px; background:#ffffff; display:flex; flex-direction:column;">
 
       <style>
-        .gcQuillWrap { margin-top: 10px; }
         .gcQuillWrap .ql-toolbar.ql-snow { border: 1px solid #ddd; border-radius: 12px 12px 0 0; background:#ffffff; }
         .gcQuillWrap .ql-container.ql-snow { border: 1px solid #ddd; border-top: none; border-radius: 0 0 12px 12px; min-height: 240px; font-size: 16px; background:#ffffff; }
         .gcQuillWrap .ql-editor { line-height: 1.6; background:#ffffff; }
       </style>
 
-      <div style="font-weight:900; font-size:16px;">Nova Consulta Médica</div>
-
-      <div style="margin-top:10px;">
-        <label>Data</label>
-        <input type="date" value="${today}"
-               style="padding:8px; border:1px solid #ddd; border-radius:8px;" />
+      <div style="padding:14px 16px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <div style="font-weight:900; font-size:15px; color:#0f172a;">
+          ${editingConsultId ? "Editar Consulta Médica" : "Nova Consulta Médica"}
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:12px; font-weight:700; color:#64748b;">Data</span>
+          <input type="date" id="consultDate" value="${editingConsultRow?.report_date || today}"
+                 style="padding:6px 10px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; color:#0f172a; background:#fff;" />
+        </div>
       </div>
 
-      <div style="margin-top:14px;">
-        <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:6px;">
+      <div style="padding:16px; flex:1;">
+
+        <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:6px;">
           Anamnese / História Clínica (HDA)
         </div>
         <div class="gcQuillWrap">
-        <div id="hdaQuillToolbar">
-          <span class="ql-formats">
-            <button class="ql-bold"></button>
-            <button class="ql-underline"></button>
-          </span>
-          <span class="ql-formats">
-            <button class="ql-list" value="ordered"></button>
-            <button class="ql-list" value="bullet"></button>
-          </span>
-          <span class="ql-formats">
-            <button class="ql-clean"></button>
-          </span>
+          <div id="hdaQuillToolbar">
+            <span class="ql-formats">
+              <button class="ql-bold"></button>
+              <button class="ql-underline"></button>
+            </span>
+            <span class="ql-formats">
+              <button class="ql-list" value="ordered"></button>
+              <button class="ql-list" value="bullet"></button>
+            </span>
+            <span class="ql-formats">
+              <button class="ql-clean"></button>
+            </span>
+          </div>
+          <div id="hdaQuillEditor"></div>
         </div>
-        <div id="hdaQuillEditor"></div>
-      </div>
-      </div>
 
-      <div style="margin-top:14px;">
-        <label>Diagnóstico (catálogo)</label>
-        <div style="position:relative; margin-top:6px; max-width:720px;">
-          <input id="diagSearch" value="${escAttr(diagQuery)}"
-                 placeholder="Pesquisar (mín. 2 letras)…"
-                 style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
-          <div id="diagStatus"></div>
-          <div id="diagDropdownHost" style="position:relative;"></div>
+        <div style="margin-top:16px;">
+          <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:6px;">Diagnóstico (catálogo)</div>
+          <div style="position:relative; max-width:720px;">
+            <input id="diagSearch" value="${escAttr(diagQuery)}"
+                   placeholder="Pesquisar (mín. 2 letras)…"
+                   style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            <div id="diagStatus"></div>
+            <div id="diagDropdownHost" style="position:relative;"></div>
+          </div>
+          <div id="diagChips"></div>
         </div>
-        <div id="diagChips"></div>
-      </div>
 
-      <div style="margin-top:14px;">
-        <label>Tratamentos (catálogo)</label>
-        <div style="margin-top:6px; max-width:980px;">
+        <div style="margin-top:16px;">
+          <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:6px;">Plano terapêutico</div>
           <input id="prescriptionText" value="${escAttr(prescriptionText)}"
                  style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
 
-          <div style="margin-top:6px; display:flex; gap:10px; flex-wrap:wrap;">
-            <div style="flex:1; min-width:320px;">
-              <div style="font-weight:900; margin-bottom:6px;">Selecionados</div>
+          <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
+
+            <div style="flex:1; min-width:320px; display:flex; flex-direction:column;">
+              <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:6px;">Seleccionados</div>
               <div id="treatSelectedBox"
-                   style="min-height:120px; padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;"></div>
+                   style="flex:1; min-height:220px; max-height:300px; overflow:auto;
+                          padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;"></div>
             </div>
 
-            <div style="flex:1; min-width:320px;">
-              <div style="font-weight:900; margin-bottom:6px;">Catálogo</div>
+            <div style="flex:1; min-width:320px; display:flex; flex-direction:column;">
+              <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:6px;">Catálogo</div>
               <input id="treatSearch" value="${escAttr(treatQuery)}"
                      placeholder="Pesquisar tratamentos (mín. 2 letras)…"
                      style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
               <div id="treatStatus"></div>
               <div id="treatCatalogBox"
-                   style="margin-top:8px; min-height:120px; max-height:220px; overflow:auto;
+                   style="margin-top:8px; min-height:160px; max-height:220px; overflow:auto;
                           padding:12px; border:1px solid #e5e5e5; border-radius:12px; background:#fff;"></div>
+              <div style="margin-top:8px; display:flex; gap:6px; align-items:center;">
+                <input id="treatCustomInput"
+                       placeholder="Tratamento livre (não catalogado)…"
+                       style="flex:1; padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:13px;" />
+                <button id="btnAddCustomTreat" class="gcBtn" type="button"
+                  style="padding:8px 12px; font-weight:700; background:#f0f9ff; border:1px solid #bcd4f5; color:#1d6db5; white-space:nowrap; flex-shrink:0;">
+                  + Adicionar
+                </button>
+              </div>
             </div>
+
           </div>
         </div>
+
       </div>
 
-      <div style="margin-top:14px; display:flex; justify-content:flex-start; gap:10px;">
+      <div style="padding:12px 16px; border-top:1px solid #e5e7eb; background:#f8fafc;
+                  border-radius:0 0 14px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <button id="btnSaveConsult" class="gcBtn" type="button"
+          style="font-weight:800; background:#1a56db; border:1px solid #1a56db; color:#ffffff; padding:9px 24px; font-size:14px;">
+          Gravar Consulta
+        </button>
         <button id="btnCancelConsult" class="gcBtn" type="button">Cancelar</button>
-        <button id="btnSaveConsult" class="gcBtn" type="button" style="font-weight:900;">Gravar</button>
       </div>
+
     </div>
   `;
   }
@@ -3005,6 +3034,21 @@ function openPatientViewModal(patient) {
     renderTreatArea();
 
     if (!treatResults || !treatResults.length) fetchTreatmentsDefault();
+
+    /* Tratamento livre — não catalogado */
+    const btnCustom = document.getElementById("btnAddCustomTreat");
+    const inputCustom = document.getElementById("treatCustomInput");
+    function addCustomTreat() {
+      const label = String(inputCustom?.value || "").trim();
+      if (!label) return;
+      const customId = `custom_${Date.now()}`;
+      addTreatment({ id: customId, label, code: "" });
+      if (inputCustom) inputCustom.value = "";
+    }
+    btnCustom?.addEventListener("click", addCustomTreat);
+    inputCustom?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); addCustomTreat(); }
+    });
 
     document.getElementById("btnCancelConsult")?.addEventListener("click", () => {
       creatingConsult = false;
