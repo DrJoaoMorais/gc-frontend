@@ -2872,17 +2872,33 @@ function openPatientViewModal(patient) {
         </div>
         <div style="border:1px solid #ddd; border-radius:12px; overflow:hidden; background:#fff;">
           <div id="hdaToolbar" style="display:flex; gap:4px; padding:7px 10px; background:#f8fafc; border-bottom:1px solid #e5e7eb; flex-wrap:wrap; align-items:center;">
-            <button type="button" data-cmd="bold"        title="Negrito (Ctrl+B)"     style="font-weight:900; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">N</button>
-            <button type="button" data-cmd="italic"      title="Itálico (Ctrl+I)"     style="font-style:italic; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">I</button>
-            <button type="button" data-cmd="underline"   title="Sublinhado (Ctrl+U)"  style="text-decoration:underline; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">S</button>
+            <button type="button" title="Negrito"
+              onclick="(function(){var e=document.getElementById('hdaEditor');if(!e)return;e.focus();document.execCommand('bold',false,null);})()"
+              style="font-weight:900; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">N</button>
+            <button type="button" title="Itálico"
+              onclick="(function(){var e=document.getElementById('hdaEditor');if(!e)return;e.focus();document.execCommand('italic',false,null);})()"
+              style="font-style:italic; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">I</button>
+            <button type="button" title="Sublinhado"
+              onclick="(function(){var e=document.getElementById('hdaEditor');if(!e)return;e.focus();document.execCommand('underline',false,null);})()"
+              style="text-decoration:underline; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">S</button>
             <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
-            <button type="button" data-cmd="h2"          title="Título"               style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; font-weight:700; font-family:inherit;">T1</button>
-            <button type="button" data-cmd="h3"          title="Subtítulo"            style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:11px; font-weight:700; font-family:inherit;">T2</button>
+            <button type="button" title="Título"
+              onclick="(function(){var e=document.getElementById('hdaEditor');if(!e)return;e.focus();document.execCommand('formatBlock',false,'h2');})()"
+              style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; font-weight:700; font-family:inherit;">T1</button>
+            <button type="button" title="Subtítulo"
+              onclick="(function(){var e=document.getElementById('hdaEditor');if(!e)return;e.focus();document.execCommand('formatBlock',false,'h3');})()"
+              style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:11px; font-weight:700; font-family:inherit;">T2</button>
             <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
-            <button type="button" data-cmd="insertUnorderedList" title="Lista com pontos"  style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">•</button>
-            <button type="button" data-cmd="insertOrderedList"   title="Lista numerada"   style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; font-family:inherit;">1.</button>
+            <button type="button" title="Lista com pontos"
+              onclick="(function(){var e=document.getElementById('hdaEditor');if(!e)return;e.focus();document.execCommand('insertUnorderedList',false,null);})()"
+              style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">•</button>
+            <button type="button" title="Lista numerada"
+              onclick="(function(){var e=document.getElementById('hdaEditor');if(!e)return;e.focus();document.execCommand('insertOrderedList',false,null);})()"
+              style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; font-family:inherit;">1.</button>
             <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
-            <button type="button" data-cmd="removeFormat" title="Limpar formatação"   style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; color:#64748b; font-family:inherit;">✕</button>
+            <button type="button" title="Limpar formatação"
+              onclick="(function(){var e=document.getElementById('hdaEditor');if(!e)return;e.focus();document.execCommand('removeFormat',false,null);})()"
+              style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; color:#64748b; font-family:inherit;">✕</button>
           </div>
           <div id="hdaEditor"
                contenteditable="true"
@@ -2961,6 +2977,9 @@ function openPatientViewModal(patient) {
   function bindConsultEvents() {
     /* ---- Editor HDA nativo (contenteditable) ---- */
     const hdaEditor = document.getElementById("hdaEditor");
+    const hdaToolbar = document.getElementById("hdaToolbar");
+
+    console.log("[HDA] bindConsultEvents:", { hdaEditor: !!hdaEditor, hdaToolbar: !!hdaToolbar });
 
     if (hdaEditor) {
       /* Carregar conteúdo inicial */
@@ -2968,6 +2987,8 @@ function openPatientViewModal(patient) {
       if (initialHtml) {
         hdaEditor.innerHTML = initialHtml;
       }
+
+      console.log("[HDA] editor encontrado, contenteditable =", hdaEditor.contentEditable);
 
       /* Guardar HTML ao digitar */
       hdaEditor.addEventListener("input", () => {
@@ -2994,41 +3015,19 @@ function openPatientViewModal(patient) {
         draftHDAHtml = hdaEditor.innerHTML || "";
       });
 
-      /* Toolbar — botões de formatação */
-      document.getElementById("hdaToolbar")?.querySelectorAll("button[data-cmd]").forEach(btn => {
-        btn.addEventListener("mousedown", (e) => {
-          e.preventDefault(); /* preservar selecção */
-          hdaEditor.focus();  /* garantir foco no editor */
-          const cmd = btn.getAttribute("data-cmd");
-          if (cmd === "h2" || cmd === "h3") {
-            const sel = window.getSelection();
-            const block = sel?.anchorNode?.parentElement?.closest("h2,h3,p,div");
-            if (block && block.tagName.toLowerCase() === cmd) {
-              document.execCommand("formatBlock", false, "p");
-            } else {
-              document.execCommand("formatBlock", false, cmd);
-            }
-          } else {
-            document.execCommand(cmd, false, null);
-          }
-          draftHDAHtml = hdaEditor.innerHTML || "";
-          updateToolbarState();
-        });
-      });
+      /* Toolbar — botões com onclick inline, sem necessidade de addEventListener */
 
       /* Actualizar estado activo dos botões */
       function updateToolbarState() {
-        const toolbar = document.getElementById("hdaToolbar");
-        if (!toolbar) return;
-        toolbar.querySelectorAll("button[data-cmd]").forEach(btn => {
-          const cmd = btn.getAttribute("data-cmd");
+        document.querySelectorAll("#hdaToolbar button[title]").forEach(btn => {
+          const title = btn.getAttribute("title") || "";
           let active = false;
-          if (cmd === "bold")      active = document.queryCommandState("bold");
-          if (cmd === "italic")    active = document.queryCommandState("italic");
-          if (cmd === "underline") active = document.queryCommandState("underline");
-          if (cmd === "insertUnorderedList") active = document.queryCommandState("insertUnorderedList");
-          if (cmd === "insertOrderedList")   active = document.queryCommandState("insertOrderedList");
-          btn.classList.toggle("active", active);
+          if (title === "Negrito")    active = document.queryCommandState("bold");
+          if (title === "Itálico")    active = document.queryCommandState("italic");
+          if (title === "Sublinhado") active = document.queryCommandState("underline");
+          btn.style.background    = active ? "#e0eaff" : "#fff";
+          btn.style.borderColor   = active ? "#1a56db" : "#e2e8f0";
+          btn.style.color         = active ? "#1a56db" : "";
         });
       }
 
