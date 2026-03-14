@@ -4005,7 +4005,7 @@ function openPatientViewModal(patient) {
           <label style="font-weight:700;font-size:13px;display:block;margin-bottom:4px;">Quadro clínico / Diagnóstico</label>
           <textarea id="adDiag" rows="3"
             placeholder="ex: quadro clínico agudo caracterizado por febre, tosse e prostração, compatível com síndrome gripal"
-            style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;line-height:1.5;">quadro clínico agudo caracterizado por febre, diarreia e vómitos, situação clínica que condiciona incapacidade temporária e não é compatível com a presença em contexto escolar</textarea>
+            style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;line-height:1.5;"></textarea>
         </div>
 
         <!-- Datas -->
@@ -4021,20 +4021,7 @@ function openPatientViewModal(patient) {
         </div>
 
         <!-- Motivos -->
-        <div style="margin-bottom:20px;">
-          <label style="font-weight:700;font-size:13px;display:block;margin-bottom:6px;">Motivo da dispensa escolar</label>
-          <div style="display:flex;flex-direction:column;gap:6px;">
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-              <input type="checkbox" id="adEstado" checked style="width:15px;height:15px;"> Estado geral do doente
-            </label>
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-              <input type="checkbox" id="adContagio" checked style="width:15px;height:15px;"> Risco de transmissão de doença infecciosa
-            </label>
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-              <input type="checkbox" id="adRecup" style="width:15px;height:15px;"> Necessidade de repouso e recuperação
-            </label>
-          </div>
-        </div>
+
 
         <div style="display:flex;justify-content:flex-end;gap:10px;">
           <button id="gcAtCancel" style="border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:9px 20px;cursor:pointer;font-size:13px;color:#475569;">Cancelar</button>
@@ -4065,13 +4052,7 @@ function openPatientViewModal(patient) {
       const de  = fmtDate(document.getElementById("adDe").value);
       const ate = fmtDate(document.getElementById("adAte").value);
 
-      const motivos = [];
-      if (document.getElementById("adEstado").checked)   motivos.push("pelo estado geral do doente");
-      if (document.getElementById("adContagio").checked) motivos.push("pelo risco de transmissão de doença infecciosa");
-      if (document.getElementById("adRecup").checked)    motivos.push("pela necessidade de repouso e recuperação");
-      const motivoFrase = motivos.length
-        ? "quer " + motivos.slice(0,-1).join(", quer ") + (motivos.length > 1 ? ", quer " : "") + motivos[motivos.length-1]
-        : "pelo estado clínico apresentado";
+
 
       // Linha de identificação do doente
       const idParts = [];
