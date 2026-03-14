@@ -23,6 +23,9 @@
 
 import { UI } from "./config.js";
 import { G } from "./state.js";
+
+// Expor G para uso em closures (closeModalSafe)
+window.__gc_G = G;
 import {
   calcAgeYears,
   isBirthdayOnDate,
@@ -70,8 +73,18 @@ function openPatientViewModal(patient) {
 
   console.log("06B openPatientViewModal OK", patient);
 
-  const root = document.getElementById("modalRoot");
+  // Usar gc-content como contentor principal (página inteira, sem modal)
+  const gcContent = document.querySelector(".gc-content");
+  const root = gcContent || document.getElementById("modalRoot");
   if (!root || !patient) return;
+
+  // Activar sidebar "Doentes"
+  document.querySelectorAll(".gc-nav-btn").forEach(b => b.classList.remove("active"));
+  const navDoentes = document.querySelector('[data-nav="doentes"]');
+  if (navDoentes) navDoentes.classList.add("active");
+
+  // Guardar scroll position
+  if (gcContent) gcContent.scrollTop = 0;
 
   const p = patient;
 
@@ -126,10 +139,18 @@ function openPatientViewModal(patient) {
 
   /* ================= SAFE CLOSE ================= */
   const closeModalSafe = () => {
+    // Voltar à agenda — re-render a view de agenda
     try {
-      if (typeof closeModalRoot === "function") return closeModalRoot();
-    } catch (e) {}
-    try { root.innerHTML = ""; } catch (e2) {}
+      const G_ref = window.__gc_G || (typeof G !== "undefined" ? G : null);
+      if (G_ref) G_ref.currentView = "agenda";
+    } catch (_) {}
+    if (typeof window.__gc_renderCurrentView === "function") {
+      window.__gc_renderCurrentView();
+    } else {
+      // fallback
+      try { root.innerHTML = ""; } catch (_) {}
+      try { if (typeof closeModalRoot === "function") closeModalRoot(); } catch (_) {}
+    }
   };
 
   /* ================= DATA: Clínica ativa ================= */
@@ -3166,21 +3187,16 @@ function openPatientViewModal(patient) {
     console.log("06J render OK");
 
     root.innerHTML = `
-      <div style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
-                  display:flex; align-items:center; justify-content:center; padding:12px;">
-        <div style="background:#fff; width:min(1400px,96vw);
-                    height:92vh; border-radius:14px;
-                    border:1px solid #e5e5e5; padding:18px; overflow:auto; box-sizing:border-box;">
+      <div style="width:100%; min-height:100%;">
 
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px;">
-            <div style="font-weight:800; font-size:14px; color:#111827; letter-spacing:0.2px;">
-              Feed do Doente
-            </div>
-            <button id="btnClosePView" class="gcBtn"
-              style="background:#ffffff; border:1px solid #d1d5db; color:#111827; font-weight:700;">
-              Fechar
-            </button>
-          </div>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <button id="btnClosePView" class="gc-btn"
+            style="display:flex;align-items:center;gap:6px;font-size:13px;">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Voltar à Agenda
+          </button>
+          <div style="font-size:12px;color:#94a3b8;">→ Feed do Doente</div>
+        </div>
 
           <div style="border:1px solid #e5e7eb; border-radius:14px; padding:16px; background:#fcfcfd;">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
@@ -3255,11 +3271,9 @@ function openPatientViewModal(patient) {
             ${renderTimeline()}
           </div>
 
-        </div>
-      </div>
-
       ${identOpen ? renderIdentityModal() : ""}
       ${docOpen ? renderDocumentEditorModal() : ""}
+      </div>
     `;
 
     document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
