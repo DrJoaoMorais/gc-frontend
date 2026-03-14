@@ -2846,9 +2846,12 @@ function openPatientViewModal(patient) {
     <div style="margin-top:16px; border:1px solid #e5e5e5; border-radius:14px; background:#ffffff; display:flex; flex-direction:column;">
 
       <style>
-        .gcQuillWrap .ql-toolbar.ql-snow { border: 1px solid #ddd; border-radius: 12px 12px 0 0; background:#ffffff; }
-        .gcQuillWrap .ql-container.ql-snow { border: 1px solid #ddd; border-top: none; border-radius: 0 0 12px 12px; min-height: 240px; font-size: 16px; background:#ffffff; }
-        .gcQuillWrap .ql-editor { line-height: 1.6; background:#ffffff; }
+        #hdaEditor h2 { font-size:18px; font-weight:800; margin:10px 0 4px; color:#0f172a; }
+        #hdaEditor h3 { font-size:15px; font-weight:700; margin:8px 0 3px; color:#0f172a; }
+        #hdaEditor ul, #hdaEditor ol { margin:6px 0 6px 22px; padding:0; }
+        #hdaEditor li { margin:3px 0; line-height:1.6; }
+        #hdaEditor p  { margin:4px 0; }
+        #hdaToolbar button.active { background:#e0eaff; border-color:#1a56db; color:#1a56db; }
       </style>
 
       <div style="padding:14px 16px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
@@ -2867,21 +2870,28 @@ function openPatientViewModal(patient) {
         <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:6px;">
           Anamnese / História Clínica (HDA)
         </div>
-        <div class="gcQuillWrap">
-          <div id="hdaQuillToolbar">
-            <span class="ql-formats">
-              <button class="ql-bold"></button>
-              <button class="ql-underline"></button>
-            </span>
-            <span class="ql-formats">
-              <button class="ql-list" value="ordered"></button>
-              <button class="ql-list" value="bullet"></button>
-            </span>
-            <span class="ql-formats">
-              <button class="ql-clean"></button>
-            </span>
+        <div style="border:1px solid #ddd; border-radius:12px; overflow:hidden; background:#fff;">
+          <div id="hdaToolbar" style="display:flex; gap:4px; padding:7px 10px; background:#f8fafc; border-bottom:1px solid #e5e7eb; flex-wrap:wrap; align-items:center;">
+            <button type="button" data-cmd="bold"        title="Negrito (Ctrl+B)"     style="font-weight:900; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">N</button>
+            <button type="button" data-cmd="italic"      title="Itálico (Ctrl+I)"     style="font-style:italic; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">I</button>
+            <button type="button" data-cmd="underline"   title="Sublinhado (Ctrl+U)"  style="text-decoration:underline; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">S</button>
+            <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
+            <button type="button" data-cmd="h2"          title="Título"               style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; font-weight:700; font-family:inherit;">T1</button>
+            <button type="button" data-cmd="h3"          title="Subtítulo"            style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:11px; font-weight:700; font-family:inherit;">T2</button>
+            <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
+            <button type="button" data-cmd="insertUnorderedList" title="Lista com pontos"  style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">•</button>
+            <button type="button" data-cmd="insertOrderedList"   title="Lista numerada"   style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; font-family:inherit;">1.</button>
+            <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
+            <button type="button" data-cmd="removeFormat" title="Limpar formatação"   style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; color:#64748b; font-family:inherit;">✕</button>
           </div>
-          <div id="hdaQuillEditor"></div>
+          <div id="hdaEditor"
+               contenteditable="true"
+               spellcheck="true"
+               lang="pt-PT"
+               style="min-height:240px; padding:14px 16px; font-size:15px; line-height:1.65;
+                      color:#111827; outline:none; background:#fff;
+                      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+          </div>
         </div>
 
         <div style="margin-top:16px;">
@@ -2949,51 +2959,131 @@ function openPatientViewModal(patient) {
   }
 
   function bindConsultEvents() {
-    const qRoot = document.getElementById("hdaQuillEditor");
-    const qToolbar = document.getElementById("hdaQuillToolbar");
+    /* ---- Editor HDA nativo (contenteditable) ---- */
+    const hdaEditor = document.getElementById("hdaEditor");
 
-    window.__gcQuillHDA = null;
-
-    if (qRoot && window.Quill) {
-      const quill = new window.Quill(qRoot, {
-        theme: "snow",
-        modules: { toolbar: qToolbar }
-      });
-
-      quill.root.setAttribute("spellcheck", "true");
-      quill.root.setAttribute("lang", "pt-PT");
-      quill.root.setAttribute("autocapitalize", "sentences");
-
-      window.__gcQuillHDA = quill;
-
-      document.getElementById("hdaQuillToolbar")?.querySelector(".ql-bold")?.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        const range = quill.getSelection();
-        if (!range) return;
-        const format = quill.getFormat(range);
-        quill.format("bold", !format.bold, "user");
-      });
-      document.getElementById("hdaQuillToolbar")?.querySelector(".ql-underline")?.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        const range = quill.getSelection();
-        if (!range) return;
-        const format = quill.getFormat(range);
-        quill.format("underline", !format.underline, "user");
-      });
-
-      const initialHtml = String(draftHDAHtml || "");
-      if (initialHtml.trim().length) {
-        try { quill.clipboard.dangerouslyPasteHTML(initialHtml); }
-        catch (_) { quill.setText(initialHtml); }
-      } else {
-        quill.setText("");
+    if (hdaEditor) {
+      /* Carregar conteúdo inicial */
+      const initialHtml = String(draftHDAHtml || "").trim();
+      if (initialHtml) {
+        hdaEditor.innerHTML = initialHtml;
       }
 
-      quill.on("text-change", () => {
-        draftHDAHtml = quill.root.innerHTML || "";
+      /* Guardar HTML ao digitar */
+      hdaEditor.addEventListener("input", () => {
+        draftHDAHtml = hdaEditor.innerHTML || "";
       });
 
-      draftHDAHtml = quill.root.innerHTML || "";
+      /* Converter markdown ao colar (texto do Claude) */
+      hdaEditor.addEventListener("paste", (e) => {
+        const html = e.clipboardData.getData("text/html");
+        /* Se já tem HTML rico (Word, Google Docs, browser), deixar o browser tratar */
+        if (html && html.includes("<b>") || html && html.includes("<strong>") ||
+            html && html.includes("<em>") || html && html.includes("<ul>") ||
+            html && html.includes("<ol>") || html && html.includes("<h")) {
+          /* HTML rico — paste nativo preserva formatação */
+          setTimeout(() => { draftHDAHtml = hdaEditor.innerHTML || ""; }, 0);
+          return;
+        }
+        /* Texto puro ou markdown — converter */
+        const plain = e.clipboardData.getData("text/plain");
+        if (!plain) return;
+        e.preventDefault();
+        const converted = markdownToHtml(plain);
+        document.execCommand("insertHTML", false, converted);
+        draftHDAHtml = hdaEditor.innerHTML || "";
+      });
+
+      /* Toolbar — botões de formatação */
+      document.getElementById("hdaToolbar")?.querySelectorAll("button[data-cmd]").forEach(btn => {
+        btn.addEventListener("mousedown", (e) => {
+          e.preventDefault(); /* evitar perda de foco */
+          const cmd = btn.getAttribute("data-cmd");
+          if (cmd === "h2" || cmd === "h3") {
+            /* Verificar se já é esse heading — toggle para parágrafo */
+            const sel = window.getSelection();
+            const block = sel?.anchorNode?.parentElement?.closest("h2,h3,p,div");
+            if (block && block.tagName.toLowerCase() === cmd) {
+              document.execCommand("formatBlock", false, "p");
+            } else {
+              document.execCommand("formatBlock", false, cmd);
+            }
+          } else {
+            document.execCommand(cmd, false, null);
+          }
+          draftHDAHtml = hdaEditor.innerHTML || "";
+          updateToolbarState();
+        });
+      });
+
+      /* Actualizar estado activo dos botões */
+      function updateToolbarState() {
+        const toolbar = document.getElementById("hdaToolbar");
+        if (!toolbar) return;
+        toolbar.querySelectorAll("button[data-cmd]").forEach(btn => {
+          const cmd = btn.getAttribute("data-cmd");
+          let active = false;
+          if (cmd === "bold")      active = document.queryCommandState("bold");
+          if (cmd === "italic")    active = document.queryCommandState("italic");
+          if (cmd === "underline") active = document.queryCommandState("underline");
+          if (cmd === "insertUnorderedList") active = document.queryCommandState("insertUnorderedList");
+          if (cmd === "insertOrderedList")   active = document.queryCommandState("insertOrderedList");
+          btn.classList.toggle("active", active);
+        });
+      }
+
+      hdaEditor.addEventListener("keyup",   updateToolbarState);
+      hdaEditor.addEventListener("mouseup", updateToolbarState);
+      hdaEditor.addEventListener("selectionchange", updateToolbarState);
+    }
+
+    /* Converter markdown simples (Claude output) para HTML */
+    function markdownToHtml(text) {
+      const lines = text.split("\n");
+      const out = [];
+      let inUl = false, inOl = false;
+
+      lines.forEach(line => {
+        /* Fechar listas abertas se a linha não é item */
+        const isUlItem = /^[\-\*]\s+/.test(line);
+        const isOlItem = /^\d+\.\s+/.test(line);
+
+        if (!isUlItem && inUl) { out.push("</ul>"); inUl = false; }
+        if (!isOlItem && inOl) { out.push("</ol>"); inOl = false; }
+
+        if (/^###\s+/.test(line)) {
+          out.push(`<h3>${inlineMarkdown(line.replace(/^###\s+/, ""))}</h3>`);
+        } else if (/^##\s+/.test(line)) {
+          out.push(`<h2>${inlineMarkdown(line.replace(/^##\s+/, ""))}</h2>`);
+        } else if (/^#\s+/.test(line)) {
+          out.push(`<h2>${inlineMarkdown(line.replace(/^#\s+/, ""))}</h2>`);
+        } else if (isUlItem) {
+          if (!inUl) { out.push("<ul>"); inUl = true; }
+          out.push(`<li>${inlineMarkdown(line.replace(/^[\-\*]\s+/, ""))}</li>`);
+        } else if (isOlItem) {
+          if (!inOl) { out.push("<ol>"); inOl = true; }
+          out.push(`<li>${inlineMarkdown(line.replace(/^\d+\.\s+/, ""))}</li>`);
+        } else if (line.trim() === "") {
+          out.push("<br>");
+        } else {
+          out.push(`<p>${inlineMarkdown(line)}</p>`);
+        }
+      });
+
+      if (inUl) out.push("</ul>");
+      if (inOl) out.push("</ol>");
+      return out.join("");
+    }
+
+    function inlineMarkdown(text) {
+      return text
+        .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
+        .replace(/\*\*(.+?)\*\*/g,     "<strong>$1</strong>")
+        .replace(/__(.+?)__/g,         "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g,         "<em>$1</em>")
+        .replace(/_(.+?)_/g,           "<em>$1</em>")
+        .replace(/~~(.+?)~~/g,         "<s>$1</s>")
+        .replace(/`(.+?)`/g,           "<code>$1</code>");
     }
 
     const diagInput = document.getElementById("diagSearch");
@@ -3064,8 +3154,8 @@ function openPatientViewModal(patient) {
         btnSave.disabled = true;
 
         try {
-          const quill = window.__gcQuillHDA;
-          if (quill && quill.root) draftHDAHtml = quill.root.innerHTML || "";
+          const hdaEl = document.getElementById("hdaEditor");
+          if (hdaEl) draftHDAHtml = hdaEl.innerHTML || "";
         } catch (_) {}
 
         const ok = await saveConsult();
