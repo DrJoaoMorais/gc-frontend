@@ -2872,35 +2872,30 @@ function openPatientViewModal(patient) {
         </div>
         <div style="border:1px solid #ddd; border-radius:12px; overflow:hidden; background:#fff;">
           <div id="hdaToolbar" style="display:flex; gap:4px; padding:7px 10px; background:#f8fafc; border-bottom:1px solid #e5e7eb; flex-wrap:wrap; align-items:center;">
-            <button type="button" title="Negrito" data-cmd="bold"
-              onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('bold',false,null);})()"
-              style="font-weight:900; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">N</button>
-            <button type="button" title="Itálico" data-cmd="italic"
-              onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('italic',false,null);})()"
-              style="font-style:italic; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">I</button>
-            <button type="button" title="Sublinhado" data-cmd="underline"
-              onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('underline',false,null);})()"
-              style="text-decoration:underline; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">S</button>
+            <button type="button" id="hdaBtn-bold"      style="font-weight:900; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;" title="Negrito (Ctrl+B)">N</button>
+            <button type="button" id="hdaBtn-italic"    style="font-style:italic; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;" title="Itálico (Ctrl+I)">I</button>
+            <button type="button" id="hdaBtn-underline" style="text-decoration:underline; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;" title="Sublinhado (Ctrl+U)">S</button>
             <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
-            <button type="button" title="Título" data-cmd="h2"
-              onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('formatBlock',false,'h2');})()"
-              style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; font-weight:700; font-family:inherit;">T1</button>
-            <button type="button" title="Subtítulo" data-cmd="h3"
-              onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('formatBlock',false,'h3');})()"
-              style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:11px; font-weight:700; font-family:inherit;">T2</button>
+            <button type="button" id="hdaBtn-h2" style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; font-weight:700; font-family:inherit;" title="Título">T1</button>
+            <button type="button" id="hdaBtn-h3" style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:11px; font-weight:700; font-family:inherit;" title="Subtítulo">T2</button>
             <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
-            <button type="button" title="Lista com pontos" data-cmd="insertUnorderedList"
-              onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('insertUnorderedList',false,null);})()"
-              style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">•</button>
-            <button type="button" title="Lista numerada" data-cmd="insertOrderedList"
-              onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('insertOrderedList',false,null);})()"
-              style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; font-family:inherit;">1.</button>
+            <button type="button" id="hdaBtn-bulletList" style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;" title="Lista com pontos">•</button>
+            <button type="button" id="hdaBtn-orderedList" style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; font-family:inherit;" title="Lista numerada">1.</button>
             <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
-            <button type="button" title="Limpar formatação"
-              onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('removeFormat',false,null);})()"
-              style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; color:#64748b; font-family:inherit;">✕</button>
+            <button type="button" id="hdaBtn-clear" style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; color:#64748b; font-family:inherit;" title="Limpar formatação">✕</button>
           </div>
-          <iframe id="hdaFrame" style="width:100%; height:280px; border:0; background:#fff; display:block;"></iframe>
+          <div id="hdaEditor" style="min-height:260px; padding:14px 16px; font-size:15px; line-height:1.65; color:#111827; background:#fff; outline:none; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;"></div>
+          <style>
+            #hdaEditor { cursor:text; }
+            #hdaEditor p { margin:4px 0; }
+            #hdaEditor h2 { font-size:18px; font-weight:800; margin:10px 0 4px; }
+            #hdaEditor h3 { font-size:15px; font-weight:700; margin:8px 0 3px; }
+            #hdaEditor ul, #hdaEditor ol { margin:6px 0 6px 22px; padding:0; }
+            #hdaEditor li { margin:3px 0; }
+            #hdaEditor .ProseMirror { outline:none; min-height:220px; }
+            #hdaEditor .ProseMirror p.is-editor-empty:first-child::before { content:attr(data-placeholder); color:#94a3b8; pointer-events:none; float:left; height:0; }
+            #hdaToolbar button.hda-active { background:#e0eaff !important; border-color:#1a56db !important; color:#1a56db !important; }
+          </style>
         </div>
 
         <div style="margin-top:16px;">
@@ -2968,123 +2963,117 @@ function openPatientViewModal(patient) {
   }
 
   function bindConsultEvents() {
-    /* ---- Editor HDA — iframe designMode (igual ao docFrame) ---- */
-    function mountHdaFrame() {
-      const frame = document.getElementById("hdaFrame");
-      if (!frame) return;
-      try {
-        const doc = frame.contentDocument;
-        doc.open();
-        doc.write(`<!doctype html><html><head><meta charset="utf-8">
-          <style>
-            body { margin:0; padding:14px 16px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
-                   font-size:15px; line-height:1.65; color:#111827; background:#fff; min-height:240px; }
-            h2 { font-size:18px; font-weight:800; margin:10px 0 4px; }
-            h3 { font-size:15px; font-weight:700; margin:8px 0 3px; }
-            ul, ol { margin:6px 0 6px 22px; padding:0; }
-            li { margin:3px 0; }
-            p  { margin:4px 0; }
-            * { box-sizing:border-box; }
-          </style>
-        </head><body></body></html>`);
-        doc.close();
-        doc.designMode = "on";
-        doc.body.setAttribute("spellcheck", "true");
-        doc.body.setAttribute("lang", "pt-PT");
+    /* ---- Editor HDA — Tiptap ---- */
+    function mountHdaEditor() {
+      const editorEl = document.getElementById("hdaEditor");
+      if (!editorEl) return;
 
-        /* Conteúdo inicial */
-        const initial = String(draftHDAHtml || "").trim();
-        if (initial) doc.body.innerHTML = initial;
-
-        /* Guardar HTML ao digitar */
-        doc.addEventListener("input", () => {
-          draftHDAHtml = doc.body.innerHTML || "";
-        });
-
-        /* Converter markdown ao colar do Claude */
-        doc.addEventListener("paste", (e) => {
-          const html = e.clipboardData?.getData("text/html") || "";
-          const hasRichHtml = ["<b>","<strong>","<em>","<ul>","<ol>","<h1","<h2","<h3"].some(t => html.includes(t));
-          if (hasRichHtml) {
-            setTimeout(() => { draftHDAHtml = doc.body.innerHTML || ""; }, 0);
-            return;
-          }
-          const plain = e.clipboardData?.getData("text/plain") || "";
-          if (!plain) return;
-          e.preventDefault();
-          const converted = markdownToHtml(plain);
-          doc.execCommand("insertHTML", false, converted);
-          draftHDAHtml = doc.body.innerHTML || "";
-        });
-
-        /* Auto-resize */
-        const resize = () => {
-          try { frame.style.height = Math.max(240, doc.body.scrollHeight + 20) + "px"; } catch(_) {}
-        };
-        doc.addEventListener("input", resize);
-        setTimeout(resize, 100);
-
-        /* Indicador de estado activo nos botões da toolbar */
-        function updateToolbar() {
-          const toolbar = document.getElementById("hdaToolbar");
-          if (!toolbar) return;
-          toolbar.querySelectorAll("button[data-cmd]").forEach(btn => {
-            const cmd = btn.getAttribute("data-cmd");
-            let active = false;
-            try {
-              if (cmd === "bold")               active = doc.queryCommandState("bold");
-              else if (cmd === "italic")        active = doc.queryCommandState("italic");
-              else if (cmd === "underline")     active = doc.queryCommandState("underline");
-              else if (cmd === "insertUnorderedList") active = doc.queryCommandState("insertUnorderedList");
-              else if (cmd === "insertOrderedList")   active = doc.queryCommandState("insertOrderedList");
-            } catch(_) {}
-            btn.style.background  = active ? "#e0eaff" : "#fff";
-            btn.style.borderColor = active ? "#1a56db" : "#e2e8f0";
-            btn.style.color       = active ? "#1a56db" : "";
-          });
+      /* Carregar Tiptap via CDN se ainda não carregado */
+      function initTiptap() {
+        if (window.__gcTiptapEditor) {
+          window.__gcTiptapEditor.destroy();
+          window.__gcTiptapEditor = null;
         }
-        doc.addEventListener("selectionchange", updateToolbar);
-        doc.addEventListener("keyup",           updateToolbar);
-        doc.addEventListener("mouseup",         updateToolbar);
 
-      } catch(e) { console.error("mountHdaFrame:", e); }
-    }
+        const { Editor, Extension } = window.tiptap || {};
+        const StarterKit = window.tiptapStarterKit?.StarterKit || window.StarterKit;
+        const Underline  = window.tiptapExtensionUnderline?.Underline || window.Underline;
 
-    /* Converter markdown (Claude output) para HTML */
-    function markdownToHtml(text) {
-      const lines = text.split("\n");
-      const out = [];
-      let inUl = false, inOl = false;
-      lines.forEach(line => {
-        const isUl = /^[\-\*]\s+/.test(line);
-        const isOl = /^\d+\.\s+/.test(line);
-        if (!isUl && inUl) { out.push("</ul>"); inUl = false; }
-        if (!isOl && inOl) { out.push("</ol>"); inOl = false; }
-        if      (/^###\s+/.test(line)) out.push(`<h3>${inlineMd(line.replace(/^###\s+/,""))}</h3>`);
-        else if (/^##\s+/.test(line))  out.push(`<h2>${inlineMd(line.replace(/^##\s+/,""))}</h2>`);
-        else if (/^#\s+/.test(line))   out.push(`<h2>${inlineMd(line.replace(/^#\s+/,""))}</h2>`);
-        else if (isUl) { if (!inUl) { out.push("<ul>"); inUl=true; } out.push(`<li>${inlineMd(line.replace(/^[\-\*]\s+/,""))}</li>`); }
-        else if (isOl) { if (!inOl) { out.push("<ol>"); inOl=true; } out.push(`<li>${inlineMd(line.replace(/^\d+\.\s+/,""))}</li>`); }
-        else if (line.trim()==="") out.push("<br>");
-        else out.push(`<p>${inlineMd(line)}</p>`);
+        if (!Editor || !StarterKit) {
+          setTimeout(initTiptap, 100);
+          return;
+        }
+
+        const extensions = [StarterKit];
+        if (Underline) extensions.push(Underline);
+
+        const editor = new Editor({
+          element: editorEl,
+          extensions,
+          content: String(draftHDAHtml || ""),
+          autofocus: false,
+          editorProps: {
+            attributes: {
+              spellcheck: "true",
+              lang: "pt-PT",
+              style: "outline:none; min-height:220px; padding:14px 16px; font-size:15px; line-height:1.65; color:#111827; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;"
+            }
+          },
+          onUpdate: ({ editor }) => {
+            draftHDAHtml = editor.getHTML();
+          },
+          onSelectionUpdate: ({ editor }) => {
+            updateHdaToolbar(editor);
+          },
+          onTransaction: ({ editor }) => {
+            updateHdaToolbar(editor);
+          }
+        });
+
+        window.__gcTiptapEditor = editor;
+        updateHdaToolbar(editor);
+
+        /* Toolbar */
+        const tb = document.getElementById("hdaToolbar");
+        if (tb) {
+          tb.querySelector("#hdaBtn-bold")       ?.addEventListener("mousedown", e => { e.preventDefault(); editor.chain().focus().toggleBold().run(); });
+          tb.querySelector("#hdaBtn-italic")     ?.addEventListener("mousedown", e => { e.preventDefault(); editor.chain().focus().toggleItalic().run(); });
+          tb.querySelector("#hdaBtn-underline")  ?.addEventListener("mousedown", e => { e.preventDefault(); editor.chain().focus().toggleUnderline().run(); });
+          tb.querySelector("#hdaBtn-h2")         ?.addEventListener("mousedown", e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 2 }).run(); });
+          tb.querySelector("#hdaBtn-h3")         ?.addEventListener("mousedown", e => { e.preventDefault(); editor.chain().focus().toggleHeading({ level: 3 }).run(); });
+          tb.querySelector("#hdaBtn-bulletList") ?.addEventListener("mousedown", e => { e.preventDefault(); editor.chain().focus().toggleBulletList().run(); });
+          tb.querySelector("#hdaBtn-orderedList")?.addEventListener("mousedown", e => { e.preventDefault(); editor.chain().focus().toggleOrderedList().run(); });
+          tb.querySelector("#hdaBtn-clear")      ?.addEventListener("mousedown", e => { e.preventDefault(); editor.chain().focus().unsetAllMarks().clearNodes().run(); });
+        }
+      }
+
+      function updateHdaToolbar(editor) {
+        const tb = document.getElementById("hdaToolbar");
+        if (!tb || !editor) return;
+        const states = {
+          "hdaBtn-bold":        editor.isActive("bold"),
+          "hdaBtn-italic":      editor.isActive("italic"),
+          "hdaBtn-underline":   editor.isActive("underline"),
+          "hdaBtn-h2":          editor.isActive("heading", { level: 2 }),
+          "hdaBtn-h3":          editor.isActive("heading", { level: 3 }),
+          "hdaBtn-bulletList":  editor.isActive("bulletList"),
+          "hdaBtn-orderedList": editor.isActive("orderedList"),
+        };
+        Object.entries(states).forEach(([id, active]) => {
+          const btn = tb.querySelector(`#${id}`);
+          if (!btn) return;
+          btn.classList.toggle("hda-active", active);
+        });
+      }
+
+      /* Carregar scripts Tiptap do CDN */
+      function loadScript(src, cb) {
+        if (document.querySelector(`script[src="${src}"]`)) { cb(); return; }
+        const s = document.createElement("script");
+        s.src = src;
+        s.onload = cb;
+        s.onerror = () => console.error("Falhou carregar:", src);
+        document.head.appendChild(s);
+      }
+
+      const base = "https://cdn.jsdelivr.net/npm/";
+      loadScript(`${base}@tiptap/core@2.4.0/dist/index.umd.js`, () => {
+        /* Mapear exports do UMD para window.tiptap */
+        if (!window.tiptap && window.tiptapCore) window.tiptap = window.tiptapCore;
+        loadScript(`${base}@tiptap/pm@2.4.0/dist/index.umd.js`, () => {
+          loadScript(`${base}@tiptap/starter-kit@2.4.0/dist/index.umd.js`, () => {
+            if (window.tiptapStarterKit?.default) window.StarterKit = window.tiptapStarterKit.default;
+            else if (window.StarterKit === undefined && window.tiptapStarterKit) window.StarterKit = Object.values(window.tiptapStarterKit)[0];
+            loadScript(`${base}@tiptap/extension-underline@2.4.0/dist/index.umd.js`, () => {
+              if (window.tiptapExtensionUnderline?.Underline) window.Underline = window.tiptapExtensionUnderline.Underline;
+              initTiptap();
+            });
+          });
+        });
       });
-      if (inUl) out.push("</ul>");
-      if (inOl) out.push("</ol>");
-      return out.join("");
     }
 
-    function inlineMd(t) {
-      return t
-        .replace(/\*\*\*(.+?)\*\*\*/g,"<strong><em>$1</em></strong>")
-        .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
-        .replace(/__(.+?)__/g,"<strong>$1</strong>")
-        .replace(/\*(.+?)\*/g,"<em>$1</em>")
-        .replace(/_(.+?)_/g,"<em>$1</em>")
-        .replace(/~~(.+?)~~/g,"<s>$1</s>")
-        .replace(/`(.+?)`/g,"<code>$1</code>");
-    }
-
-    mountHdaFrame();
+    mountHdaEditor();
 
     const diagInput = document.getElementById("diagSearch");
     if (diagInput) {
@@ -3141,6 +3130,7 @@ function openPatientViewModal(patient) {
     });
 
     document.getElementById("btnCancelConsult")?.addEventListener("click", () => {
+      if (window.__gcTiptapEditor) { window.__gcTiptapEditor.destroy(); window.__gcTiptapEditor = null; }
       creatingConsult = false;
       render();
     });
@@ -3154,8 +3144,12 @@ function openPatientViewModal(patient) {
         btnSave.disabled = true;
 
         try {
-          const hdaEl = document.getElementById("hdaFrame");
-          if (hdaEl) draftHDAHtml = hdaEl.contentDocument?.body?.innerHTML || "";
+          const tp = window.__gcTiptapEditor;
+          if (tp) draftHDAHtml = tp.getHTML() || "";
+          else {
+            const el = document.getElementById("hdaEditor");
+            if (el) draftHDAHtml = el.innerHTML || "";
+          }
         } catch (_) {}
 
         const ok = await saveConsult();
