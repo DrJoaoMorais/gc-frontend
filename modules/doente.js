@@ -4362,11 +4362,7 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
     </div>
   </div>
 
-<div class="gc-actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;padding-top:14px;border-top:1px solid #e2e8f0">
-  <div id="gc-toast"></div>
-  <button type="button" class="gc-pdf-btn" id="gc-pdf-btn">Exportar PDF</button>
-  <button type="button" class="gc-save-btn" id="gc-save-btn">Gravar</button>
-</div>
+
 
 </div>
 
@@ -5078,6 +5074,12 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
 
 </div>
 
+<div class="gc-actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;padding-top:14px;border-top:1px solid #e2e8f0">
+  <div id="gc-toast"></div>
+  <button type="button" class="gc-pdf-btn" id="gc-pdf-btn">Exportar PDF</button>
+  <button type="button" class="gc-save-btn" id="gc-save-btn">Gravar</button>
+</div>
+
 <script>
 var selColor='#E24B4A',mcount=0;
 function selType(el){document.querySelectorAll('.li').forEach(i=>i.classList.remove('act'));el.classList.add('act');selColor=el.dataset.color;}
@@ -5346,6 +5348,7 @@ function clearSensMarkers() {
   document.getElementById('sens-markers-mi').innerHTML = '';
   sensMcount = 0;
 }
+
 
 /* ==== GRAVAR + PDF ==== */
 (function(){
