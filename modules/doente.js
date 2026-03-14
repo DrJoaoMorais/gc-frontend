@@ -4099,18 +4099,9 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
 .muscle-block-title{font-size:12px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;padding-bottom:4px;border-bottom:1.5px solid var(--color-border-tertiary)}
 .mrc-chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:500;border:0.5px solid transparent}
 
-/* ---- Impressão ---- */
-@media print {
-  .bottom-bar, .no-print { display:none!important; }
-  body { background:white!important; color:black!important; }
-  .page { max-width:100%; padding:8px; }
-  .sec { page-break-inside:avoid; }
-  select, input[type="number"], textarea { border:1px solid #999!important; }
-}
-/* ---- Botão PDF ---- */
-.pdf-btn{padding:9px 22px;border:none;border-radius:var(--border-radius-md);background:#1a56db;color:white;font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font-sans)}
-.pdf-btn:hover{background:#1e40af}
-/* ---- Toast feedback ---- */
+@media print{.gc-actions{display:none!important}}
+.gc-pdf-btn{padding:9px 22px;border:none;border-radius:8px;background:#1a56db;color:white;font-size:13px;font-weight:500;cursor:pointer}
+.gc-save-btn{padding:9px 22px;border:none;border-radius:8px;background:#1d9e75;color:white;font-size:13px;font-weight:500;cursor:pointer}
 #gc-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 22px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:9999}
 #gc-toast.show{opacity:1}
 </style>
@@ -4371,6 +4362,11 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
     </div>
   </div>
 
+<div class="gc-actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;padding-top:14px;border-top:1px solid #e2e8f0">
+  <div id="gc-toast"></div>
+  <button type="button" class="gc-pdf-btn" id="gc-pdf-btn">Exportar PDF</button>
+  <button type="button" class="gc-save-btn" id="gc-save-btn">Gravar</button>
+</div>
 
 </div>
 
@@ -5079,8 +5075,7 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
   <textarea placeholder="Programa terapêutico, frequência, metas a curto/médio prazo..."></textarea>
 </div>
 
-<div id="gc-toast"></div>
-<div class="bottom-bar" id="gcBottomBar"></div>
+
 </div>
 
 <script>
@@ -5351,6 +5346,78 @@ function clearSensMarkers() {
   document.getElementById('sens-markers-mi').innerHTML = '';
   sensMcount = 0;
 }
+
+/* ==== GRAVAR + PDF ==== */
+(function(){
+  function toast(msg, ok) {
+    var t = document.getElementById('gc-toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.style.background = ok ? '#0f6e56' : '#b91c1c';
+    t.classList.add('show');
+    setTimeout(function(){ t.classList.remove('show'); }, 2800);
+  }
+
+  function serialize() {
+    var d = {};
+    document.querySelectorAll('input,select,textarea').forEach(function(el, i) {
+      var k = el.id || el.name || ('f'+i);
+      if (el.type === 'radio' || el.type === 'checkbox') {
+        d[k + '_' + i] = el.checked;
+      } else {
+        d[k] = el.value;
+      }
+    });
+    return d;
+  }
+
+  function restore(d) {
+    if (!d) return;
+    document.querySelectorAll('input,select,textarea').forEach(function(el, i) {
+      var k = el.id || el.name || ('f'+i);
+      if (el.type === 'radio' || el.type === 'checkbox') {
+        var v = d[k + '_' + i];
+        if (v !== undefined) el.checked = v;
+      } else {
+        if (d[k] !== undefined) el.value = d[k];
+      }
+    });
+  }
+
+  function gravar() {
+    try {
+      var pid = window._gcPatientId || 'draft';
+      var data = serialize();
+      localStorage.setItem('gc_neuro_' + pid, JSON.stringify(data));
+      window.parent.postMessage({ type:'gc_neuro_save', patientId:pid, data:data, ts:new Date().toISOString() }, '*');
+      toast('Guardado', true);
+    } catch(e) {
+      toast('Erro: ' + e.message, false);
+    }
+  }
+
+  function exportPdf() {
+    window.print();
+  }
+
+  // Ligar botões
+  var bs = document.getElementById('gc-save-btn');
+  var bp = document.getElementById('gc-pdf-btn');
+  if (bs) bs.addEventListener('click', gravar);
+  if (bp) bp.addEventListener('click', exportPdf);
+
+  // Receber patientId e restaurar
+  window.addEventListener('message', function(ev) {
+    if (ev.data && ev.data.type === 'gc_set_patient') {
+      window._gcPatientId = ev.data.patientId;
+      try {
+        var raw = localStorage.getItem('gc_neuro_' + ev.data.patientId);
+        if (raw) restore(JSON.parse(raw));
+      } catch(e) {}
+    }
+  });
+})();
+
 </script>
 
 // Dados dermatomais aproximados por posição relativa (x%,y%) por mapa
@@ -5398,128 +5465,6 @@ function selSens(el) {
 }
 
 
-// ---- Utilitário de feedback ----
-function gcToast(msg, cor) {
-  var t = document.getElementById('gc-toast');
-  t.textContent = msg;
-  t.style.background = cor || '#0f172a';
-  t.classList.add('show');
-  setTimeout(function(){ t.classList.remove('show'); }, 2800);
-}
-
-// ---- Serializar todos os campos ----
-function gcSerializar() {
-  var data = {};
-  // Inputs e selects
-  document.querySelectorAll('input[type="text"], input[type="number"], input[type="date"], textarea, select').forEach(function(el, i) {
-    var k = el.id || el.name || ('field_' + i);
-    data[k] = el.value;
-  });
-  // Radios: guardar o checked
-  document.querySelectorAll('input[type="radio"]').forEach(function(el, i) {
-    if (el.name) {
-      if (!data['_radio_' + el.name]) data['_radio_' + el.name] = [];
-      if (el.checked) data['_radio_' + el.name] = el.value || el.closest('label')?.textContent?.trim() || i;
-    }
-  });
-  // Checkboxes
-  document.querySelectorAll('input[type="checkbox"]').forEach(function(el, i) {
-    var k = el.id || el.name || ('cb_' + i);
-    data[k + '_' + i] = el.checked;
-  });
-  return data;
-}
-
-// ---- Restaurar campos guardados ----
-function gcRestaurar(data) {
-  if (!data) return;
-  document.querySelectorAll('input[type="text"], input[type="number"], input[type="date"], textarea, select').forEach(function(el, i) {
-    var k = el.id || el.name || ('field_' + i);
-    if (data[k] !== undefined) el.value = data[k];
-  });
-  document.querySelectorAll('input[type="checkbox"]').forEach(function(el, i) {
-    var k = (el.id || el.name || ('cb_' + i)) + '_' + i;
-    if (data[k] !== undefined) el.checked = data[k];
-  });
-  document.querySelectorAll('input[type="radio"]').forEach(function(el) {
-    if (!el.name) return;
-    var saved = data['_radio_' + el.name];
-    if (saved !== undefined) {
-      var label = el.closest('label')?.textContent?.trim() || '';
-      if (el.value === saved || label === saved) el.checked = true;
-    }
-  });
-}
-
-// ---- Gravar ----
-function gcGravar() {
-  try {
-    var data = gcSerializar();
-    var key = 'gc_neuro_' + (window._gcPatientId || 'draft');
-    localStorage.setItem(key, JSON.stringify(data));
-
-    // postMessage para o doente.js poder gravar no Supabase
-    window.parent.postMessage({
-      type: 'gc_neuro_save',
-      patientId: window._gcPatientId || null,
-      data: data,
-      ts: new Date().toISOString()
-    }, '*');
-
-    gcToast('Exame guardado', '#0f6e56');
-  } catch(e) {
-    console.error('gcGravar erro:', e);
-    gcToast('Erro ao guardar: ' + e.message, '#b91c1c');
-  }
-}
-
-// ---- Exportar PDF ----
-function gcExportPdf() {
-  window.print();
-}
-
-// ---- Ligar botões e auto-restaurar ----
-// Ligar botões — execução imediata (DOM já pronto em Blob URL)
-(function init() {
-  // Criar botões aqui — DOM garantidamente pronto
-  var bar = document.getElementById('gcBottomBar');
-  if (bar) {
-    var btnP = document.createElement('button');
-    btnP.type = 'button'; btnP.className = 'pdf-btn'; btnP.id = 'gcBtnPdf';
-    btnP.textContent = 'Exportar PDF';
-    btnP.addEventListener('click', gcExportPdf);
-    bar.appendChild(btnP);
-
-    var btnG = document.createElement('button');
-    btnG.type = 'button'; btnG.className = 'save-btn'; btnG.id = 'gcBtnGravar';
-    btnG.textContent = 'Gravar';
-    btnG.addEventListener('click', gcGravar);
-    bar.appendChild(btnG);
-  }
-
-  // Auto-restaurar
-  var key = 'gc_neuro_' + (window._gcPatientId || 'draft');
-  try {
-    var raw = localStorage.getItem(key);
-    if (raw) { gcRestaurar(JSON.parse(raw)); }
-  } catch(e) {}
-})();
-
-
-// Receber patientId do doente.js
-window.addEventListener('message', function(ev) {
-  if (ev.data && ev.data.type === 'gc_set_patient') {
-    window._gcPatientId = ev.data.patientId;
-    // Tentar restaurar dados específicos deste doente
-    if (window._gcPatientId) {
-      var key = 'gc_neuro_' + window._gcPatientId;
-      try {
-        var raw = localStorage.getItem(key);
-        if (raw) gcRestaurar(JSON.parse(raw));
-      } catch(e) {}
-    }
-  }
-});
 
 </script>`;
     const blob = new Blob([htmlContent], { type: "text/html" });
