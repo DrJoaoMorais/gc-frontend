@@ -4091,7 +4091,7 @@ function openPatientViewModal(patient) {
           Especialista em Medicina Física e de Reabilitação e Pós-graduado em Medicina Desportiva,
           com Cédula Profissional da Ordem dos Médicos n.º <b>44380</b>,
           atesto por minha honra que ${trat} <b>${name}</b>${idDoente}
-          se encontra doente, estando impedido(a) de frequentar a escola no período
+          se encontra doente${diag ? ", apresentando " + diag : ""}, estando impedido(a) de frequentar a escola no período
           compreendido entre <b>${de}</b> e <b>${ate}</b> (inclusive).
         </p>
 
