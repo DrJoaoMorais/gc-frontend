@@ -3533,7 +3533,7 @@ function openPatientViewModal(patient) {
         label: "Atestados",
         items: [
           { id: "atestado_ef",      label: "🏫 Dispensa Educação Física" },
-          { id: "atestado_doenca",  label: "🏥 Atestado de Doença (em breve)" }
+          { id: "atestado_doenca",  label: "🏥 Atestado de Doença" }
         ]
       }
     ];
@@ -3939,6 +3939,11 @@ function openPatientViewModal(patient) {
         return;
       }
 
+      if (templateId === "atestado_doenca") {
+        openAtestadoDoencaModal({ locality: escAttr(localityDate), vinhetaUrl, websiteHtml, phoneHtml, footer, sharedStyles, name, sns, dobPt, nif });
+        return;
+      }
+
       if (html) {
         openDocumentEditor(html, title);
       }
@@ -3947,6 +3952,198 @@ function openPatientViewModal(patient) {
       console.error("openReportTemplate falhou:", err);
       alert("Erro ao abrir template de relatório.");
     }
+  }
+
+
+  /* ====================================================================
+     ATESTADO DE DOENÇA — Modal de preenchimento
+     ==================================================================== */
+  function openAtestadoDoencaModal({ locality, vinhetaUrl, websiteHtml, phoneHtml, footer, sharedStyles, name, sns, dobPt, nif }) {
+    document.getElementById("gcAtestadoModal")?.remove();
+
+    const overlay = document.createElement("div");
+    overlay.id = "gcAtestadoModal";
+    Object.assign(overlay.style, {
+      position: "fixed", inset: "0", background: "rgba(0,0,0,0.45)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: "16px", zIndex: "3100",
+      fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif"
+    });
+
+    // Datas por defeito: hoje e hoje+3
+    const today = new Date();
+    const todayIso = today.toISOString().slice(0,10);
+    const ateD = new Date(today); ateD.setDate(ateD.getDate()+3);
+    const ateIso = ateD.toISOString().slice(0,10);
+
+    overlay.innerHTML = `
+      <div style="background:#fff;width:min(640px,100%);max-height:92vh;overflow-y:auto;
+                  border-radius:14px;border:1px solid #e2e8f0;padding:26px;">
+
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
+          <div>
+            <div style="font-weight:900;font-size:16px;color:#0f172a;">🏥 Atestado de Doença</div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px;">Preencha e gere o atestado</div>
+          </div>
+          <button id="gcAtClose" style="border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px;">✕</button>
+        </div>
+
+        <!-- Tratamento -->
+        <div style="margin-bottom:14px;">
+          <label style="font-weight:700;font-size:13px;display:block;margin-bottom:6px;">Tratamento</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${["Sra.","Sr.","Jovem","Menor","Menina","Menino"].map(t =>
+              `<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;padding:6px 12px;border:1px solid #e2e8f0;border-radius:8px;">
+                <input type="radio" name="adTrat" value="${t}" ${t==="Menor"?"checked":""}> ${t}
+              </label>`
+            ).join("")}
+          </div>
+        </div>
+
+        <!-- Diagnóstico -->
+        <div style="margin-bottom:14px;">
+          <label style="font-weight:700;font-size:13px;display:block;margin-bottom:4px;">Quadro clínico / Diagnóstico</label>
+          <textarea id="adDiag" rows="3"
+            placeholder="ex: quadro clínico agudo caracterizado por febre, tosse e prostração, compatível com síndrome gripal"
+            style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;line-height:1.5;">quadro clínico agudo caracterizado por febre, diarreia e vómitos, situação clínica que condiciona incapacidade temporária e não é compatível com a presença em contexto escolar</textarea>
+        </div>
+
+        <!-- Datas -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+          <div>
+            <label style="font-weight:700;font-size:13px;display:block;margin-bottom:4px;">Dispensa a partir de</label>
+            <input id="adDe" type="date" value="${todayIso}" style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;" />
+          </div>
+          <div>
+            <label style="font-weight:700;font-size:13px;display:block;margin-bottom:4px;">Até (inclusive)</label>
+            <input id="adAte" type="date" value="${ateIso}" style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;" />
+          </div>
+        </div>
+
+        <!-- Motivos -->
+        <div style="margin-bottom:20px;">
+          <label style="font-weight:700;font-size:13px;display:block;margin-bottom:6px;">Motivo da dispensa escolar</label>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" id="adEstado" checked style="width:15px;height:15px;"> Estado geral do doente
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" id="adContagio" checked style="width:15px;height:15px;"> Risco de transmissão de doença infecciosa
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" id="adRecup" style="width:15px;height:15px;"> Necessidade de repouso e recuperação
+            </label>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;">
+          <button id="gcAtCancel" style="border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:9px 20px;cursor:pointer;font-size:13px;color:#475569;">Cancelar</button>
+          <button id="gcAtGerar" style="border:none;background:#1a56db;color:#fff;border-radius:8px;padding:9px 22px;cursor:pointer;font-size:14px;font-weight:700;">Gerar Atestado</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    document.getElementById("gcAtClose").addEventListener("click", close);
+    document.getElementById("gcAtCancel").addEventListener("click", close);
+    overlay.addEventListener("click", (ev) => { if (ev.target === overlay) close(); });
+
+    document.getElementById("gcAtGerar").addEventListener("click", () => {
+      // Recolher valores
+      const tratEl = overlay.querySelector('input[name="adTrat"]:checked');
+      const trat   = tratEl ? tratEl.value : "Menor";
+      const diag   = (document.getElementById("adDiag").value || "").trim()
+                     || "quadro clínico agudo que condiciona incapacidade temporária";
+
+      const fmtDate = (iso) => {
+        if (!iso) return "__/__/____";
+        const [y,m,d] = iso.split("-");
+        return `${d}/${m}/${y}`;
+      };
+      const de  = fmtDate(document.getElementById("adDe").value);
+      const ate = fmtDate(document.getElementById("adAte").value);
+
+      const motivos = [];
+      if (document.getElementById("adEstado").checked)   motivos.push("pelo estado geral do doente");
+      if (document.getElementById("adContagio").checked) motivos.push("pelo risco de transmissão de doença infecciosa");
+      if (document.getElementById("adRecup").checked)    motivos.push("pela necessidade de repouso e recuperação");
+      const motivoFrase = motivos.length
+        ? "quer " + motivos.slice(0,-1).join(", quer ") + (motivos.length > 1 ? ", quer " : "") + motivos[motivos.length-1]
+        : "pelo estado clínico apresentado";
+
+      // Linha de identificação do doente
+      const idParts = [];
+      if (sns)   idParts.push(`<b>N.º Utente:</b> ${sns}`);
+      if (dobPt) idParts.push(`<b>DN:</b> ${dobPt}`);
+      if (nif)   idParts.push(`<b>NIF:</b> ${nif}`);
+      const idLine = idParts.join("&nbsp;&nbsp;");
+
+      const vinhetaTag = vinhetaUrl
+        ? `<img style="width:4cm;height:2.5cm;object-fit:contain;display:block;margin-top:8px;" src="${vinhetaUrl}" />`
+        : "";
+
+      // Identificação do doente: SNS preferido, senão NIF/CC, senão DN
+      const idPecas = [];
+      if (dobPt) idPecas.push(`nascido(a) em <b>${dobPt}</b>`);
+      if (sns)   idPecas.push(`N.º de Utente <b>${sns}</b>`);
+      else if (nif) idPecas.push(`NIF/CC <b>${nif}</b>`);
+      const idDoente = idPecas.length ? ", " + idPecas.join(", ") : "";
+
+      const title = "Atestado de Doença";
+      const html = `<!doctype html><html><head><meta charset="utf-8"/><title>${title}</title>
+      <style>${sharedStyles}
+        .doc-title{text-align:center;font-weight:900;font-size:17px;margin:4px 0 24px 0;letter-spacing:0.03em;text-transform:uppercase}
+        .body-text{font-size:14px;line-height:1.9;text-align:justify;margin-bottom:16px}
+      </style></head><body><div class="a4">
+
+        <div class="top">
+          <div class="topLeft"><div>${websiteHtml}</div><div>${phoneHtml}</div></div>
+        </div>
+        <div class="hr"></div>
+
+        <div class="doc-title">Declaração Médica</div>
+
+        <p class="body-text">
+          Eu, <b>João Morais</b>, Médico licenciado pela Faculdade de Medicina da Universidade de Coimbra,
+          Especialista em Medicina Física e de Reabilitação e Pós-graduado em Medicina Desportiva,
+          com Cédula Profissional da Ordem dos Médicos n.º <b>44380</b>,
+          atesto por minha honra que ${trat} <b>${name}</b>${idDoente}
+          se encontra doente, estando impedido(a) de frequentar a escola no período
+          compreendido entre <b>${de}</b> e <b>${ate}</b> (inclusive).
+        </p>
+
+        <p class="body-text">
+          Por ser verdade e me ter sido pedido, dato e assino o presente atestado.
+        </p>
+
+        <div class="footerBlock">
+          <div class="hr2"></div>
+          <div class="footRow">
+            <div>
+              <div class="web">${websiteHtml}</div>
+              ${vinhetaTag}
+            </div>
+            <div style="flex:1;">
+              <div class="locDate">${locality}</div>
+              <div class="sig">
+                <div class="sigBox">
+                  <div class="sigLine"></div>
+                  <div class="sigName">Dr. João Morais</div>
+                  <div class="sigRole">Especialista em Medicina Física e de Reabilitação</div>
+                  <div class="sigRole">OM n.º 44380</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div></body></html>`;
+
+      close();
+      openDocumentEditor(html, title);
+    });
   }
 
 
