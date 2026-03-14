@@ -67,6 +67,7 @@ export const examsUiState = {
   exams:          [],
   selectedGroup:  "",
   selectedExamId: "",
+  selectedExams:  [],   /* lista de exam IDs seleccionados — agrupamento automático por tipo */
   clinicalInfo:   "",
   patientId:      "",
   consultationId: null,
@@ -83,9 +84,19 @@ export const examsUiState = {
  * @param {{ patientId?: string, consultationId?: string|null }} opts
  */
 export function openExamsPanel(opts = {}) {
-  examsUiState.isOpen        = true;
-  examsUiState.patientId     = String(opts?.patientId     || examsUiState.patientId || "");
-  examsUiState.consultationId = opts?.consultationId      || null;
+  const prevPatient = examsUiState.patientId;
+  examsUiState.isOpen         = true;
+  examsUiState.patientId      = String(opts?.patientId     || examsUiState.patientId || "");
+  examsUiState.consultationId = opts?.consultationId       || null;
+  examsUiState.__onClose      = opts?.onClose              || null;
+  /* Limpar selecções ao mudar de doente */
+  if (prevPatient && prevPatient !== examsUiState.patientId) {
+    examsUiState.selectedExams  = [];
+    examsUiState.clinicalInfo   = "";
+    examsUiState.selectedExamId = "";
+    examsUiState.selectedGroup  = "";
+    examsUiState.mode           = "groups";
+  }
   renderExamsPanel();
 }
 
@@ -97,6 +108,10 @@ export function closeExamsPanel() {
   examsUiState.isOpen = false;
   const panel = document.getElementById("gcExamsPanel");
   if (panel) panel.remove();
+  if (typeof examsUiState.__onClose === "function") {
+    examsUiState.__onClose();
+    examsUiState.__onClose = null;
+  }
 }
 
 /**
@@ -230,6 +245,60 @@ function getExamById(exams, examId) {
    BLOCO 12E — Render do conteúdo do painel
    ==================================================================== */
 
+function renderSelectedBar(container) {
+  const sel     = examsUiState.selectedExams || [];
+  const exams   = examsUiState.exams || [];
+  const bar     = container.querySelector("#gcExamSelBar");
+  if (!bar) return;
+
+  if (!sel.length) {
+    bar.innerHTML = `<span style="font-size:12px;color:#94a3b8;">Nenhum exame seleccionado</span>`;
+    const btn = bar.querySelector("#gcExamGenPdfs");
+    if (btn) btn.remove();
+    return;
+  }
+
+  /* Agrupar seleccionados por tipo para mostrar quantos PDFs serão gerados */
+  const groups = {};
+  sel.forEach(id => {
+    const ex = getExamById(exams, id);
+    if (!ex) return;
+    const grp = getExamGroupLabel(ex) || ex.exam_name;
+    if (!groups[grp]) groups[grp] = [];
+    groups[grp].push(ex.exam_name);
+  });
+  const nPdfs = Object.keys(groups).length;
+
+  bar.innerHTML = `
+    <div style="flex:1;">
+      <div style="font-size:12px;font-weight:700;color:#1a56db;margin-bottom:3px;">
+        ${sel.length} exame${sel.length!==1?"s":""} seleccionado${sel.length!==1?"s":""} → ${nPdfs} PDF${nPdfs!==1?"s":""}
+      </div>
+      <div style="font-size:11px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+        ${Object.entries(groups).map(([g, items]) => `${g} (${items.length})`).join(" · ")}
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;flex-shrink:0;">
+      <button id="gcExamClearSel" class="gcBtn"
+        style="font-size:12px;background:#fff;border:1px solid #e5e7eb;color:#64748b;">
+        Limpar
+      </button>
+      <button id="gcExamGenPdfs" class="gcBtn"
+        style="font-size:12px;background:#1a56db;border:1px solid #1a56db;color:#fff;font-weight:700;">
+        Info Clínica e Gerar
+      </button>
+    </div>`;
+
+  bar.querySelector("#gcExamClearSel")?.addEventListener("click", () => {
+    examsUiState.selectedExams = [];
+    renderExamGroups();
+  });
+
+  bar.querySelector("#gcExamGenPdfs")?.addEventListener("click", () => {
+    openExamClinicalInfoStep();
+  });
+}
+
 function renderExamGroups() {
   const container = document.getElementById("gcExamResults");
   if (!container) return;
@@ -237,42 +306,59 @@ function renderExamGroups() {
   const exams  = examsUiState.exams || [];
   const groups = listExamGroups(exams);
   const direct = listDirectExams(exams);
+  const sel    = examsUiState.selectedExams || [];
 
-  let html = "";
+  let html = `
+    <div id="gcExamSelBar"
+      style="display:flex;align-items:center;justify-content:space-between;gap:8px;
+             padding:8px 10px;background:#f0f6ff;border:1px solid #bcd4f5;
+             border-radius:8px;margin-bottom:12px;min-height:44px;">
+      <span style="font-size:12px;color:#94a3b8;">Nenhum exame seleccionado</span>
+    </div>`;
 
   if (groups.length) {
     html += `
-      <div style="font-size:11px; font-weight:800; letter-spacing:0.6px;
-                  color:#64748b; text-transform:uppercase; margin-bottom:8px;">
+      <div style="font-size:11px;font-weight:800;letter-spacing:0.6px;
+                  color:#64748b;text-transform:uppercase;margin-bottom:8px;">
         Categorias
       </div>`;
     groups.forEach(g => {
+      const countInGroup = listGroupedExams(exams, g).filter(ex => sel.includes(ex.id)).length;
       html += `
         <div class="gcExamGroup" data-group="${g}"
-          style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px;
-                 margin-bottom:8px; cursor:pointer; font-weight:600; background:#ffffff;">
-          ${g}
+          style="padding:10px 12px;border:1px solid ${countInGroup ? '#1a56db' : '#e2e8f0'};
+                 border-radius:8px;margin-bottom:8px;cursor:pointer;
+                 font-weight:600;background:${countInGroup ? '#eff6ff' : '#ffffff'};
+                 display:flex;align-items:center;justify-content:space-between;">
+          <span>${g}</span>
+          ${countInGroup ? `<span style="font-size:11px;font-weight:700;color:#1a56db;background:#bcd4f5;padding:2px 7px;border-radius:20px;">${countInGroup}</span>` : ""}
         </div>`;
     });
   }
 
   if (direct.length) {
     html += `
-      <div style="font-size:11px; font-weight:800; letter-spacing:0.6px;
-                  color:#64748b; text-transform:uppercase; margin-top:16px; margin-bottom:8px;">
-        Exames
+      <div style="font-size:11px;font-weight:800;letter-spacing:0.6px;
+                  color:#64748b;text-transform:uppercase;margin-top:16px;margin-bottom:8px;">
+        Exames directos
       </div>`;
     direct.forEach(exam => {
+      const isSel = sel.includes(exam.id);
       html += `
-        <div class="gcExamDirect" data-exam-id="${exam.id}"
-          style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px;
-                 margin-bottom:8px; cursor:pointer; background:#ffffff;">
-          ${exam.exam_name}
-        </div>`;
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;
+                      border:1px solid ${isSel ? '#1a56db' : '#e2e8f0'};border-radius:8px;
+                      margin-bottom:8px;cursor:pointer;background:${isSel ? '#eff6ff' : '#ffffff'};">
+          <input type="checkbox" data-exam-id="${exam.id}" ${isSel ? "checked" : ""}
+            style="width:15px;height:15px;accent-color:#1a56db;flex-shrink:0;cursor:pointer;">
+          <span style="font-size:13px;font-weight:${isSel ? '700' : '500'};color:#0f172a;">
+            ${exam.exam_name}
+          </span>
+        </label>`;
     });
   }
 
   container.innerHTML = html;
+  renderSelectedBar(container);
 
   container.querySelectorAll(".gcExamGroup").forEach(el => {
     el.addEventListener("click", () => {
@@ -281,10 +367,14 @@ function renderExamGroups() {
     });
   });
 
-  container.querySelectorAll(".gcExamDirect").forEach(el => {
-    el.addEventListener("click", () => {
-      const examId = el.getAttribute("data-exam-id") || "";
-      if (examId) openExamRequest(examId);
+  container.querySelectorAll("input[data-exam-id]").forEach(cb => {
+    cb.addEventListener("change", () => {
+      const id = cb.getAttribute("data-exam-id") || "";
+      if (!id) return;
+      const idx = examsUiState.selectedExams.indexOf(id);
+      if (cb.checked && idx === -1) examsUiState.selectedExams.push(id);
+      if (!cb.checked && idx !== -1) examsUiState.selectedExams.splice(idx, 1);
+      renderExamGroups();
     });
   });
 }
@@ -310,125 +400,170 @@ function openExamGroup(groupLabel) {
 
   const exams     = examsUiState.exams || [];
   const list      = listGroupedExams(exams, groupLabel);
+  const sel       = examsUiState.selectedExams || [];
   const container = document.getElementById("gcExamResults");
   if (!container) return;
 
+  const countInGroup = list.filter(ex => sel.includes(ex.id)).length;
+
   let html = `
-    <div style="margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+    <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">
       <button id="gcExamBack" class="gcBtn"
-        style="background:#ffffff; border:1px solid #cbd5e1; color:#0f172a; font-weight:600;">
+        style="background:#ffffff;border:1px solid #cbd5e1;color:#0f172a;font-weight:600;">
         ← Voltar
       </button>
-      <div style="font-weight:800; color:#111827;">${groupLabel}</div>
+      <div style="font-weight:800;color:#111827;font-size:14px;">${groupLabel}</div>
+    </div>
+
+    <div id="gcExamSelBar"
+      style="display:flex;align-items:center;justify-content:space-between;gap:8px;
+             padding:8px 10px;background:#f0f6ff;border:1px solid #bcd4f5;
+             border-radius:8px;margin-bottom:12px;min-height:44px;">
+      <span style="font-size:12px;color:#94a3b8;">Nenhum exame seleccionado</span>
     </div>`;
 
   list.forEach(exam => {
+    const isSel = sel.includes(exam.id);
     html += `
-      <div class="gcExamItem" data-exam-id="${exam.id}"
-        style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:8px;
-               margin-bottom:8px; cursor:pointer; background:#ffffff;">
-        ${exam.exam_name}
-      </div>`;
+      <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;
+                    border:1px solid ${isSel ? '#1a56db' : '#e2e8f0'};border-radius:8px;
+                    margin-bottom:8px;cursor:pointer;background:${isSel ? '#eff6ff' : '#ffffff'};">
+        <input type="checkbox" data-exam-id="${exam.id}" ${isSel ? "checked" : ""}
+          style="width:15px;height:15px;accent-color:#1a56db;flex-shrink:0;cursor:pointer;">
+        <span style="font-size:13px;font-weight:${isSel ? '700' : '500'};color:#0f172a;line-height:1.4;">
+          ${exam.exam_name}
+        </span>
+      </label>`;
   });
 
   container.innerHTML = html;
+  renderSelectedBar(container);
 
   document.getElementById("gcExamBack")?.addEventListener("click", () => {
-    examsUiState.mode           = "groups";
-    examsUiState.selectedGroup  = "";
-    examsUiState.selectedExamId = "";
+    examsUiState.mode          = "groups";
+    examsUiState.selectedGroup = "";
     renderExamGroups();
   });
 
-  container.querySelectorAll(".gcExamItem").forEach(el => {
-    el.addEventListener("click", () => {
-      const examId = el.getAttribute("data-exam-id") || "";
-      if (examId) openExamRequest(examId);
+  container.querySelectorAll("input[data-exam-id]").forEach(cb => {
+    cb.addEventListener("change", () => {
+      const id  = cb.getAttribute("data-exam-id") || "";
+      if (!id) return;
+      const idx = examsUiState.selectedExams.indexOf(id);
+      if (cb.checked && idx === -1) examsUiState.selectedExams.push(id);
+      if (!cb.checked && idx !== -1) examsUiState.selectedExams.splice(idx, 1);
+      /* Re-render do grupo para actualizar estilos sem perder scroll */
+      openExamGroup(groupLabel);
     });
   });
 }
 
-function openExamRequest(examId) {
-  examsUiState.selectedExamId = examId;
-  examsUiState.mode           = "exam";
+/**
+ * openExamClinicalInfoStep
+ * Mostra o passo de informação clínica e gera um PDF por grupo de tipo de exame.
+ * Substitui openExamRequest no novo flow multi-select.
+ */
+function openExamClinicalInfoStep() {
+  examsUiState.mode = "clinicalInfo";
 
   const exams     = examsUiState.exams || [];
-  const exam      = getExamById(exams, examId);
+  const sel       = examsUiState.selectedExams || [];
   const container = document.getElementById("gcExamResults");
   if (!container) return;
 
-  if (!exam) {
-    container.innerHTML = `<div style="color:#b91c1c; font-weight:600;">Exame não encontrado.</div>`;
+  if (!sel.length) {
+    renderExamGroups();
     return;
   }
 
-  const savedInfo = String(examsUiState.clinicalInfo || "");
+  /* Agrupar seleccionados por tipo */
+  const groups = {};
+  sel.forEach(id => {
+    const ex = getExamById(exams, id);
+    if (!ex) return;
+    const grp = getExamGroupLabel(ex) || ex.exam_name;
+    if (!groups[grp]) groups[grp] = [];
+    groups[grp].push(ex);
+  });
+
+  const groupEntries = Object.entries(groups);
+  const nPdfs        = groupEntries.length;
+  const savedInfo    = String(examsUiState.clinicalInfo || "");
+
+  let summaryHtml = groupEntries.map(([grp, items]) => `
+    <div style="padding:8px 10px;border:1px solid #bcd4f5;border-radius:8px;
+                background:#f0f6ff;margin-bottom:6px;">
+      <div style="font-size:12px;font-weight:700;color:#1d6db5;margin-bottom:3px;">${grp}</div>
+      <div style="font-size:12px;color:#334155;line-height:1.5;">
+        ${items.map(ex => ex.exam_name).join("<br>")}
+      </div>
+    </div>`).join("");
 
   container.innerHTML = `
-    <div style="margin-bottom:12px; display:flex; align-items:center; gap:8px;">
-      <button id="gcExamRequestBack" class="gcBtn"
-        style="background:#ffffff; border:1px solid #cbd5e1; color:#0f172a; font-weight:600;">
+    <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+      <button id="gcExamCIBack" class="gcBtn"
+        style="background:#ffffff;border:1px solid #cbd5e1;color:#0f172a;font-weight:600;">
         ← Voltar
       </button>
+      <div style="font-weight:800;color:#111827;font-size:13px;">
+        ${nPdfs} PDF${nPdfs!==1?"s":""} a gerar
+      </div>
     </div>
 
-    <div style="border:1px solid #e2e8f0; border-radius:12px; background:#ffffff; padding:16px;">
-      <div style="font-size:18px; font-weight:900; color:#111827; margin-bottom:16px;">
-        Pedido de Exame
+    <div style="border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;padding:14px;">
+      <div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:8px;">
+        Exames seleccionados
       </div>
-      <div style="font-weight:800; color:#111827; margin-bottom:8px;">R/</div>
-      <div style="font-size:16px; font-weight:700; color:#111827; line-height:1.4; margin-bottom:18px;">
-        ${exam.exam_name}
+      ${summaryHtml}
+
+      <div style="margin-top:14px;">
+        <label for="gcExamClinicalInfo"
+          style="display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:6px;">
+          Informação clínica (partilhada por todos os pedidos)
+        </label>
+        <textarea id="gcExamClinicalInfo"
+          placeholder="Escreva a informação clínica..."
+          style="width:100%;min-height:140px;padding:10px 12px;border:1px solid #cbd5e1;
+                 border-radius:10px;font-size:13px;line-height:1.5;box-sizing:border-box;
+                 resize:vertical;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;"
+        >${savedInfo}</textarea>
       </div>
 
-      <label for="gcExamClinicalInfo"
-        style="display:block; font-size:13px; font-weight:700; color:#334155; margin-bottom:8px;">
-        Informação clínica
-      </label>
-      <textarea id="gcExamClinicalInfo"
-        placeholder="Escreva a informação clínica..."
-        style="width:100%; min-height:180px; padding:12px; border:1px solid #cbd5e1;
-               border-radius:10px; font-size:14px; line-height:1.5; box-sizing:border-box;
-               resize:vertical; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;"
-      >${savedInfo}</textarea>
-
-      <div style="margin-top:14px; display:flex; justify-content:flex-end;">
+      <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px;">
         <button id="gcGenerateExamPdf" class="gcBtn"
-          style="background:#1e3a8a; border:1px solid #1e3a8a; color:#ffffff; font-weight:800;">
-          Pré-visualizar e Gerar PDF
+          style="background:#1a56db;border:1px solid #1a56db;color:#ffffff;font-weight:800;">
+          Pré-visualizar e Gerar ${nPdfs} PDF${nPdfs!==1?"s":""}
         </button>
       </div>
     </div>`;
 
-  /* --- Voltar --- */
-  document.getElementById("gcExamRequestBack")?.addEventListener("click", () => {
+  /* Voltar */
+  document.getElementById("gcExamCIBack")?.addEventListener("click", () => {
     examsUiState.clinicalInfo = String(document.getElementById("gcExamClinicalInfo")?.value || "");
     if (examsUiState.selectedGroup) {
       openExamGroup(examsUiState.selectedGroup);
-      return;
+    } else {
+      examsUiState.mode = "groups";
+      renderExamGroups();
     }
-    examsUiState.mode           = "groups";
-    examsUiState.selectedExamId = "";
-    renderExamGroups();
   });
 
-  /* --- Guardar info clínica ao digitar --- */
   document.getElementById("gcExamClinicalInfo")?.addEventListener("input", ev => {
     examsUiState.clinicalInfo = String(ev.target?.value || "");
   });
 
-  /* --- Gerar PDF --- */
+  /* Gerar PDFs agrupados */
   document.getElementById("gcGenerateExamPdf")?.addEventListener("click", async () => {
+    const btn = document.getElementById("gcGenerateExamPdf");
     try {
       examsUiState.clinicalInfo = String(document.getElementById("gcExamClinicalInfo")?.value || "");
 
-      const currentExam = getExamById(examsUiState.exams || [], examsUiState.selectedExamId);
-      if (!currentExam) { alert("Exame não encontrado."); return; }
-
       const patientId = String(examsUiState.patientId || "").trim();
-      if (!patientId)  { alert("Doente sem ID válido."); return; }
+      if (!patientId) { alert("Doente sem ID válido."); return; }
 
-      /* Clínica ativa do doente */
+      if (btn) { btn.textContent = "A carregar…"; btn.disabled = true; }
+
+      /* Clínica */
       const { data: patientClinicRow, error: pcErr } = await window.sb
         .from("patient_clinic")
         .select("clinic_id")
@@ -436,30 +571,22 @@ function openExamRequest(examId) {
         .eq("is_active", true)
         .single();
       if (pcErr || !patientClinicRow?.clinic_id) {
-        console.error("patient_clinic error:", pcErr);
         alert("Não consegui determinar a clínica ativa do doente.");
         return;
       }
+      const resolvedClinicId = String(patientClinicRow.clinic_id).trim();
 
-      const resolvedClinicId = String(patientClinicRow.clinic_id || "").trim();
-      if (!resolvedClinicId) { alert("Sem clínica ativa."); return; }
-
-      /* Dados da clínica */
       const { data: clinic, error: clinicErr } = await window.sb
         .from("clinics")
         .select("id, name, address_line1, address_line2, postal_code, city, phone, email, website, logo_url")
         .eq("id", resolvedClinicId)
         .single();
-      if (clinicErr || !clinic) {
-        console.error("clinics error:", clinicErr);
-        alert("Não consegui carregar os dados da clínica.");
-        return;
-      }
+      if (clinicErr || !clinic) { alert("Não consegui carregar os dados da clínica."); return; }
 
       /* Assets */
-      const bucket      = window.__gc_VINHETA_BUCKET;
-      const signedUrl   = window.__gc_storageSignedUrl;
-      const toDataUrl   = window.__gc_urlToDataUrl;
+      const bucket    = window.__gc_VINHETA_BUCKET;
+      const signedUrl = window.__gc_storageSignedUrl;
+      const toDataUrl = window.__gc_urlToDataUrl;
 
       let vinhetaUrl = "";
       try {
@@ -477,30 +604,69 @@ function openExamRequest(examId) {
         }
       } catch (e) { console.warn("logo falhou:", e); }
 
-      /* HTML e abrir editor */
+      /* Gerar um PDF por grupo — abre o editor para o primeiro;
+         grupos seguintes ficam em fila via window.__gc_pendingExamCtx */
+      const firstGroup  = groupEntries[0];
+      const firstGrpKey = firstGroup[0];
+      const firstExams  = firstGroup[1];
+
+      /* examName para o título/body: lista dos nomes do grupo */
+      const firstExamName = firstExams.map(ex => ex.exam_name).join("\n");
+
       const html = buildExamRequestHtml({
         clinic,
-        examName:     currentExam.exam_name,
+        examName:     firstExamName,
         clinicalInfo: examsUiState.clinicalInfo,
         vinhetaUrl,
         clinicLogoUrl,
         signatureUrl: ""
       });
 
+      /* Contexto para o save do documento */
       window.__gc_pendingExamCtx = {
         patientId,
         clinicId:       resolvedClinicId,
         consultationId: examsUiState.consultationId || null,
-        examName:       currentExam.exam_name
+        examName:       firstExamName
       };
 
-      window.openDocumentEditor(html, `Pedido de Exame — ${currentExam.exam_name}`);
+      /* Se houver mais grupos, guardar fila para o médico gerar um a um */
+      if (groupEntries.length > 1) {
+        window.__gc_pendingExamQueue = groupEntries.slice(1).map(([grp, items]) => ({
+          grp,
+          examName:     items.map(ex => ex.exam_name).join("\n"),
+          clinic,
+          clinicalInfo: examsUiState.clinicalInfo,
+          vinhetaUrl,
+          clinicLogoUrl,
+          patientId,
+          clinicId:       resolvedClinicId,
+          consultationId: examsUiState.consultationId || null
+        }));
+      } else {
+        window.__gc_pendingExamQueue = [];
+      }
+
+      window.openDocumentEditor(html, `Pedido de Exame — ${firstGrpKey}`);
 
     } catch (err) {
       console.error("Gerar PDF pedido de exame falhou:", err);
       alert("Erro ao gerar pedido de exame.");
+      if (btn) { btn.textContent = `Pré-visualizar e Gerar ${nPdfs} PDF${nPdfs!==1?"s":""}`; btn.disabled = false; }
     }
   });
+}
+
+/**
+ * openExamRequest
+ * @deprecated Mantido por compatibilidade. No novo flow, usa openExamClinicalInfoStep.
+ * Se chamado directamente (exame directo único), selecciona e abre o passo de info clínica.
+ */
+function openExamRequest(examId) {
+  if (!examsUiState.selectedExams.includes(examId)) {
+    examsUiState.selectedExams.push(examId);
+  }
+  openExamClinicalInfoStep();
 }
 
 /* ====================================================================

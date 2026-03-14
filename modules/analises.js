@@ -383,28 +383,61 @@ export const ANALISES_CATALOG = [
 ];
 
 /* ====================================================================
-   FUNÇÃO 12H.2 — openAnalisesModal
+   FUNÇÃO 12H.2 — openAnalisesPanel / closeAnalisesPanel / analisesUiState
    ==================================================================== */
 
 /**
- * openAnalisesModal
- * Abre o modal de pedido de análises laboratoriais.
- * @param {{ patientId: string, consultationId: string|null }} opts
+ * Estado global do painel de análises — exportado para doente.js
+ * saber se o painel está aberto (para o estado do botão).
  */
-export function openAnalisesModal({ patientId, consultationId }) {
-  const state = {
-    selected:     {},
-    clinicalInfo: ""
-  };
+export const analisesUiState = {
+  isOpen: false
+};
 
+/**
+ * closeAnalisesPanel
+ * Remove o painel do DOM e actualiza o estado.
+ * @param {Function} [onClose] — callback opcional chamado após fechar
+ */
+export function closeAnalisesPanel(onClose) {
+  analisesUiState.isOpen = false;
+  document.getElementById("gcAnalisesPanel")?.remove();
+  if (typeof onClose === "function") onClose();
+}
+
+/**
+ * openAnalisesPanel
+ * Abre o painel lateral de pedido de análises dentro do feed do doente.
+ * Substituiu openAnalisesModal (position:fixed) por painel lateral
+ * idêntico ao openExamsPanel, sem tapar a timeline.
+ * @param {{ patientId: string, consultationId: string|null, onClose?: Function }} opts
+ */
+export function openAnalisesPanel({ patientId, consultationId, onClose } = {}) {
+  analisesUiState.isOpen = true;
+
+  /* Reutilizar estado se o painel já existia (preserva selecções) */
+  if (!openAnalisesPanel.__state) {
+    openAnalisesPanel.__state = { selected: {}, clinicalInfo: "" };
+  }
+  const state = openAnalisesPanel.__state;
+
+  /* Limpar selecções ao abrir de novo para um doente diferente */
+  if (openAnalisesPanel.__lastPatient !== patientId) {
+    state.selected     = {};
+    state.clinicalInfo = "";
+    openAnalisesPanel.__lastPatient = patientId;
+  }
+
+  /* ---- helpers de estado ---- */
   function toggleGroup(gid) {
     if (state.selected[gid]) {
       delete state.selected[gid];
     } else {
+      /* Ponto 6: ao expandir, selecciona todos por defeito */
       const grp = ANALISES_CATALOG.find(g => g.id === gid);
       state.selected[gid] = new Set(grp.items.map((_, i) => i));
     }
-    renderModal();
+    renderPanel();
   }
 
   function toggleItem(gid, idx) {
@@ -415,14 +448,31 @@ export function openAnalisesModal({ patientId, consultationId }) {
     } else {
       state.selected[gid].add(idx);
     }
-    renderModal();
+    renderPanel();
   }
 
   function totalSelected() {
     return Object.values(state.selected).reduce((acc, s) => acc + s.size, 0);
   }
 
-  function buildModalHtml() {
+  /* ---- construção do host (igual ao exames.js) ---- */
+  function getHost() {
+    const btnClose = document.getElementById("btnClosePView");
+    if (!btnClose) return null;
+    let host = btnClose.parentElement;
+    while (host && host.parentElement) {
+      const style         = window.getComputedStyle(host);
+      const hasWhiteBg    = style.backgroundColor === "rgb(255, 255, 255)";
+      const hasLargeBox   = host.clientWidth >= 900 && host.clientHeight >= 500;
+      const hasScrollable = style.overflow === "auto" || style.overflowY === "auto";
+      if (hasWhiteBg && hasLargeBox && hasScrollable) break;
+      host = host.parentElement;
+    }
+    return host || null;
+  }
+
+  /* ---- HTML do painel ---- */
+  function buildPanelInnerHtml() {
     const hasSelected = totalSelected() > 0;
 
     const groupsHtml = ANALISES_CATALOG.map(grp => {
@@ -445,13 +495,13 @@ export function openAnalisesModal({ patientId, consultationId }) {
       return `
         <div class="gcAnal-group ${isOpen ? "gcAnal-group--open" : ""}">
           <div class="gcAnal-group-header" data-gid="${grp.id}">
-            <div style="display:flex;align-items:center;gap:10px;">
-              <span style="font-size:18px;line-height:1">${grp.icon}</span>
-              <span class="gcAnal-group-label">${grp.label}</span>
-              ${isOpen ? `<span class="gcAnal-badge">${selCount} selecionadas</span>` : ""}
-            </div>
             <div style="display:flex;align-items:center;gap:8px;">
-              ${isOpen ? `<button class="gcAnal-deselect-all" data-gid="${grp.id}">Desselecionar todas</button>` : ""}
+              <span style="font-size:16px;line-height:1">${grp.icon}</span>
+              <span class="gcAnal-group-label">${grp.label}</span>
+              ${isOpen ? `<span class="gcAnal-badge">${selCount} sel.</span>` : ""}
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              ${isOpen ? `<button class="gcAnal-deselect-all" data-gid="${grp.id}">Limpar</button>` : ""}
               <span class="gcAnal-chevron">${isOpen ? "▲" : "▼"}</span>
             </div>
           </div>
@@ -460,108 +510,118 @@ export function openAnalisesModal({ patientId, consultationId }) {
     }).join("");
 
     return `
-      <div id="gcAnalisesModal" style="
-        position:fixed;inset:0;z-index:9999;
-        background:rgba(0,0,0,0.45);
-        display:flex;align-items:center;justify-content:center;
-        padding:16px;">
-        <div style="
-          background:#fff;border-radius:14px;
-          width:100%;max-width:640px;
-          max-height:90vh;display:flex;flex-direction:column;
-          box-shadow:0 20px 60px rgba(0,0,0,0.25);
-          overflow:hidden;">
+      <style>
+        .gcAnal-group{border:1px solid #e2e8f0;border-radius:10px;margin-bottom:7px;overflow:hidden;}
+        .gcAnal-group--open{border-color:#1d9e75;}
+        .gcAnal-group-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;background:#f8fafc;user-select:none;}
+        .gcAnal-group--open .gcAnal-group-header{background:#e8f8f3;}
+        .gcAnal-group-header:hover{background:#f1f5f9;}
+        .gcAnal-group--open .gcAnal-group-header:hover{background:#d4f1e7;}
+        .gcAnal-group-label{font-size:13px;font-weight:600;color:#0f172a;}
+        .gcAnal-badge{font-size:10px;font-weight:700;background:#1d9e75;color:#fff;padding:2px 7px;border-radius:100px;}
+        .gcAnal-chevron{font-size:11px;color:#94a3b8;}
+        .gcAnal-deselect-all{font-size:11px;color:#64748b;background:none;border:1px solid #cbd5e1;border-radius:5px;padding:2px 7px;cursor:pointer;font-family:inherit;}
+        .gcAnal-deselect-all:hover{background:#f1f5f9;}
+        .gcAnal-items{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:8px 12px 10px;border-top:1px solid #e2e8f0;background:#fff;}
+        .gcAnal-item{display:flex;align-items:flex-start;gap:6px;font-size:12px;color:#374151;padding:4px 6px;border-radius:6px;cursor:pointer;border:1px solid transparent;line-height:1.35;}
+        .gcAnal-item:hover{background:#f8fafc;border-color:#e2e8f0;}
+        .gcAnal-item--checked{color:#0f172a;}
+      </style>
 
-          <div style="
-            padding:18px 22px 14px;
-            border-bottom:1px solid #e2e8f0;
-            display:flex;align-items:center;justify-content:space-between;
-            flex-shrink:0;">
-            <div>
-              <div style="font-size:17px;font-weight:700;color:#0f172a;">Pedido de Análises</div>
-              <div style="font-size:12px;color:#64748b;margin-top:2px;">
-                Selecione grupos · desselecione análises individuais se necessário
-              </div>
-            </div>
-            <button id="gcAnalisesClose"
-              style="background:none;border:none;font-size:20px;cursor:pointer;
-                     color:#94a3b8;padding:4px 8px;border-radius:6px;line-height:1;">✕</button>
-          </div>
+      <div style="padding:12px 14px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-weight:800;font-size:15px;color:#111827;">Pedido de Análises</div>
+        <button id="gcAnalisesClose" class="gcBtn"
+          style="background:#ffffff;border:1px solid #d1d5db;color:#111827;font-weight:700;">
+          Fechar
+        </button>
+      </div>
 
-          <div id="gcAnalisesBody" style="overflow-y:auto;padding:16px 20px;flex:1;">
-            <style>
-              .gcAnal-group{border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;overflow:hidden;}
-              .gcAnal-group--open{border-color:#1d9e75;}
-              .gcAnal-group-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;background:#f8fafc;user-select:none;}
-              .gcAnal-group--open .gcAnal-group-header{background:#e8f8f3;}
-              .gcAnal-group-header:hover{background:#f1f5f9;}
-              .gcAnal-group--open .gcAnal-group-header:hover{background:#d4f1e7;}
-              .gcAnal-group-label{font-size:14px;font-weight:600;color:#0f172a;}
-              .gcAnal-badge{font-size:11px;font-weight:600;background:#1d9e75;color:#fff;padding:2px 8px;border-radius:100px;}
-              .gcAnal-chevron{font-size:11px;color:#94a3b8;}
-              .gcAnal-deselect-all{font-size:11px;color:#64748b;background:none;border:1px solid #cbd5e1;border-radius:6px;padding:3px 8px;cursor:pointer;font-family:inherit;}
-              .gcAnal-deselect-all:hover{background:#f1f5f9;}
-              .gcAnal-items{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:10px 14px 12px;border-top:1px solid #e2e8f0;background:#fff;}
-              .gcAnal-item{display:flex;align-items:flex-start;gap:7px;font-size:12.5px;color:#374151;padding:5px 8px;border-radius:6px;cursor:pointer;border:1px solid transparent;line-height:1.35;}
-              .gcAnal-item:hover{background:#f8fafc;border-color:#e2e8f0;}
-              .gcAnal-item--checked{color:#0f172a;}
-            </style>
-            ${groupsHtml}
-          </div>
+      <div style="padding:8px 14px;border-bottom:1px solid #f1f5f9;">
+        <div style="font-size:11px;color:#64748b;">Expanda um grupo · desselecione itens individuais se necessário</div>
+      </div>
 
-          <div style="padding:12px 20px;border-top:1px solid #e2e8f0;flex-shrink:0;">
-            <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;">Informação clínica</div>
-            <textarea id="gcAnalisesCliInfo"
-              placeholder="Ex: Suspeita espondiloartrite, dor lombar crónica…"
-              style="width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:8px 12px;
-                     font-size:13px;resize:vertical;min-height:60px;font-family:inherit;
-                     color:#0f172a;outline:none;"
-            >${state.clinicalInfo}</textarea>
-          </div>
+      <div id="gcAnalisesBody" style="flex:1;overflow-y:auto;padding:12px 14px;">
+        ${groupsHtml}
 
-          <div style="
-            padding:12px 20px 16px;border-top:1px solid #e2e8f0;
-            display:flex;align-items:center;justify-content:space-between;
-            flex-shrink:0;background:#f8fafc;">
-            <div style="font-size:13px;color:#64748b;">
-              ${hasSelected
-                ? `<span style="color:#1d9e75;font-weight:600;">${totalSelected()} análise${totalSelected()!==1?"s":""} selecionada${totalSelected()!==1?"s":""}</span>`
-                : `<span>Nenhum grupo selecionado</span>`}
-            </div>
-            <button id="gcAnalisesGenPdf"
-              ${hasSelected ? "" : "disabled"}
-              style="padding:9px 22px;border:none;border-radius:8px;
-                     background:${hasSelected?"#1d9e75":"#cbd5e1"};
-                     color:${hasSelected?"#fff":"#94a3b8"};
-                     font-size:13px;font-weight:700;
-                     cursor:${hasSelected?"pointer":"not-allowed"};
-                     font-family:inherit;">
-              Gerar PDF
-            </button>
-          </div>
+        <div style="margin-top:12px;">
+          <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:5px;">Informação clínica</div>
+          <textarea id="gcAnalisesCliInfo"
+            placeholder="Ex: Suspeita espondiloartrite, dor lombar crónica…"
+            style="width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;
+                   font-size:13px;resize:vertical;min-height:60px;font-family:inherit;
+                   color:#0f172a;outline:none;box-sizing:border-box;"
+          >${state.clinicalInfo}</textarea>
         </div>
+      </div>
+
+      <div style="padding:10px 14px;border-top:1px solid #e2e8f0;
+                  display:flex;align-items:center;justify-content:space-between;
+                  background:#f8fafc;flex-shrink:0;">
+        <div style="font-size:12px;color:#64748b;">
+          ${hasSelected
+            ? `<span style="color:#1d9e75;font-weight:700;">${totalSelected()} análise${totalSelected()!==1?"s":""} sel.</span>`
+            : `<span>Nenhum grupo seleccionado</span>`}
+        </div>
+        <button id="gcAnalisesGenPdf"
+          ${hasSelected ? "" : "disabled"}
+          style="padding:7px 18px;border:none;border-radius:8px;
+                 background:${hasSelected?"#1d9e75":"#cbd5e1"};
+                 color:${hasSelected?"#fff":"#94a3b8"};
+                 font-size:13px;font-weight:700;
+                 cursor:${hasSelected?"pointer":"not-allowed"};
+                 font-family:inherit;">
+          Gerar PDF
+        </button>
       </div>`;
   }
 
-  function renderModal() {
-    document.getElementById("gcAnalisesModal")?.remove();
-    document.body.insertAdjacentHTML("beforeend", buildModalHtml());
-    bindModalEvents();
+  /* ---- render do painel no DOM ---- */
+  function renderPanel() {
+    /* Guardar clinicalInfo antes de re-renderizar */
+    const existingTa = document.getElementById("gcAnalisesCliInfo");
+    if (existingTa) state.clinicalInfo = existingTa.value;
+
+    let panel = document.getElementById("gcAnalisesPanel");
+    if (!panel) {
+      const host = getHost();
+      if (!host) { console.error("gcAnalisesPanel: host não encontrado"); return; }
+      host.style.position = "relative";
+
+      panel     = document.createElement("div");
+      panel.id  = "gcAnalisesPanel";
+      Object.assign(panel.style, {
+        position:                "absolute",
+        top:                     "0",
+        right:                   "0",
+        width:                   "380px",
+        height:                  "100%",
+        background:              "#ffffff",
+        borderLeft:              "1px solid #e5e7eb",
+        boxShadow:               "-8px 0 24px rgba(0,0,0,0.08)",
+        zIndex:                  "50",
+        display:                 "flex",
+        flexDirection:           "column",
+        borderTopRightRadius:    "14px",
+        borderBottomRightRadius: "14px"
+      });
+      host.appendChild(panel);
+    }
+
+    panel.innerHTML = buildPanelInnerHtml();
+    bindPanelEvents();
   }
 
-  function bindModalEvents() {
+  /* ---- eventos ---- */
+  function bindPanelEvents() {
     document.getElementById("gcAnalisesClose")?.addEventListener("click", () => {
-      document.getElementById("gcAnalisesModal")?.remove();
-    });
-
-    document.getElementById("gcAnalisesModal")?.addEventListener("click", e => {
-      if (e.target.id === "gcAnalisesModal") document.getElementById("gcAnalisesModal")?.remove();
+      closeAnalisesPanel(onClose);
     });
 
     document.querySelectorAll(".gcAnal-group-header").forEach(el => {
       el.addEventListener("click", e => {
         if (e.target.classList.contains("gcAnal-deselect-all")) return;
-        state.clinicalInfo = document.getElementById("gcAnalisesCliInfo")?.value || state.clinicalInfo;
+        const ta = document.getElementById("gcAnalisesCliInfo");
+        if (ta) state.clinicalInfo = ta.value;
         toggleGroup(el.dataset.gid);
       });
     });
@@ -569,16 +629,18 @@ export function openAnalisesModal({ patientId, consultationId }) {
     document.querySelectorAll(".gcAnal-deselect-all").forEach(btn => {
       btn.addEventListener("click", e => {
         e.stopPropagation();
-        state.clinicalInfo = document.getElementById("gcAnalisesCliInfo")?.value || state.clinicalInfo;
+        const ta = document.getElementById("gcAnalisesCliInfo");
+        if (ta) state.clinicalInfo = ta.value;
         delete state.selected[btn.dataset.gid];
-        renderModal();
+        renderPanel();
       });
     });
 
     document.querySelectorAll(".gcAnal-item input[type=checkbox]").forEach(cb => {
       cb.addEventListener("change", e => {
         e.stopPropagation();
-        state.clinicalInfo = document.getElementById("gcAnalisesCliInfo")?.value || state.clinicalInfo;
+        const ta = document.getElementById("gcAnalisesCliInfo");
+        if (ta) state.clinicalInfo = ta.value;
         toggleItem(cb.dataset.gid, parseInt(cb.dataset.idx));
       });
     });
@@ -589,12 +651,22 @@ export function openAnalisesModal({ patientId, consultationId }) {
 
     document.getElementById("gcAnalisesGenPdf")?.addEventListener("click", async () => {
       if (totalSelected() === 0) return;
-      state.clinicalInfo = document.getElementById("gcAnalisesCliInfo")?.value || "";
+      const ta = document.getElementById("gcAnalisesCliInfo");
+      if (ta) state.clinicalInfo = ta.value;
       await gerarAnalisePdf(state);
     });
   }
 
-  renderModal();
+  renderPanel();
+}
+
+/**
+ * openAnalisesModal
+ * @deprecated Mantido por compatibilidade com chamadas antigas via window.openAnalisesModal.
+ * Redireciona para openAnalisesPanel.
+ */
+export function openAnalisesModal(opts = {}) {
+  openAnalisesPanel(opts);
 }
 
 /* ====================================================================
@@ -627,7 +699,7 @@ export async function gerarAnalisePdf(state) {
 
     const html = buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatureUrl });
     window.openDocumentEditor(html, "Pedido de Análises");
-    document.getElementById("gcAnalisesModal")?.remove();
+    closeAnalisesPanel();
 
   } catch (err) {
     console.error("gerarAnalisePdf falhou:", err);

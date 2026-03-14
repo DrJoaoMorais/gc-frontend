@@ -35,6 +35,8 @@ import {
 } from "./helpers.js";
 import { closeModalRoot, ensurePatientActiveInClinic } from "./agenda.js";
 import { rpcCreatePatientForClinic } from "./db.js";
+import { examsUiState } from "./exames.js";
+import { analisesUiState, openAnalisesPanel, closeAnalisesPanel } from "./analises.js";
 
 /* ==== INÍCIO BLOCO 06A/12 — Stub (mantido; não usado) ==== */
 function openPatientViewModal__stub(patient) {
@@ -2213,12 +2215,26 @@ function openPatientViewModal(patient) {
                   </span>
                 </div>
                 <div style="color:#94a3b8; font-size:12px; margin-left:2px;">
-                  ${d.created_at ? escAttr(String(d.created_at)) : ""}
+                  ${(() => { try { const _d = d.created_at ? new Date(d.created_at) : null; return (_d && !isNaN(_d.getTime())) ? `${fmtDatePt(_d)} às ${fmtTime(_d)}` : (d.created_at ? escAttr(String(d.created_at)) : ""); } catch(_) { return d.created_at ? escAttr(String(d.created_at)) : ""; } })()}
                 </div>
               </div>
               <div style="display:flex; gap:8px;">
                 ${d.url
-                  ? `<a class="gcBtn" href="${escAttr(d.url)}" target="_blank" rel="noopener" style="text-decoration:none;">Abrir</a>`
+                  ? (() => {
+                      const _dDate = d.created_at ? new Date(d.created_at) : new Date();
+                      const _ymd = `${_dDate.getFullYear()}-${String(_dDate.getMonth()+1).padStart(2,'0')}-${String(_dDate.getDate()).padStart(2,'0')}`;
+                      const _words = (p.full_name || '').trim().split(/\s+/);
+                      const _initials = (_words.length >= 2
+                        ? (_words[0][0] + _words[_words.length - 1][0])
+                        : (_words[0] ? _words[0].slice(0,2) : 'XX')
+                      ).toUpperCase();
+                      const _clinic = (activeClinicName || '').replace(/[^a-zA-Z0-9À-ÿ]/g, '').slice(0,20) || 'Clinica';
+                      const _dlName = `GCC_${_initials}_${_clinic}_${_ymd}.pdf`;
+                      return `<a class="gcBtn" href="${escAttr(d.url)}" target="_blank" rel="noopener" style="text-decoration:none;">Abrir</a>
+                              <a class="gcBtn" href="${escAttr(d.url)}" download="${escAttr(_dlName)}" rel="noopener"
+                                style="text-decoration:none; background:#f0f9ff; border:1px solid #bae6fd; color:#0369a1; font-weight:700;"
+                                title="${escAttr(_dlName)}">⬇</a>`;
+                    })()
                   : `<button class="gcBtn" disabled>Sem link</button>`
                 }
               </div>
@@ -3187,6 +3203,29 @@ function openPatientViewModal(patient) {
     console.log("06J render OK");
 
     root.innerHTML = `
+      <style>
+        .gc-action-btn {
+          font-weight: 700 !important;
+          background: #ffffff !important;
+          border: 1px solid #cbd5e1 !important;
+          color: #0f172a !important;
+          transition: background 0.12s, border-color 0.12s, color 0.12s;
+        }
+        .gc-action-btn:hover {
+          background: #f1f5f9 !important;
+        }
+        .gc-action-btn--active-primary {
+          background: #1a56db !important;
+          border-color: #1a56db !important;
+          color: #ffffff !important;
+          font-weight: 800 !important;
+        }
+        .gc-action-btn--active-border {
+          background: #eff6ff !important;
+          border-color: #1a56db !important;
+          color: #1a56db !important;
+        }
+      </style>
       <div style="width:100%; min-height:100%;">
 
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
@@ -3234,24 +3273,20 @@ function openPatientViewModal(patient) {
                   Ações médicas
                 </div>
 
-                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-                  <button id="btnNewConsult" class="gcBtn"
-                    style="font-weight:800; background:#1e3a8a; border:1px solid #1e3a8a; color:#ffffff;">
+                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                  <button id="btnNewConsult" class="gcBtn gc-action-btn ${creatingConsult ? 'gc-action-btn--active-primary' : ''}">
                     Consulta Médica
                   </button>
 
-                  <button id="btnMedicalReports" class="gcBtn"
-                    style="background:#ffffff; border:1px solid #cbd5e1; color:#0f172a; font-weight:700;">
+                  <button id="btnMedicalReports" class="gcBtn gc-action-btn">
                     Relatórios
                   </button>
 
-                  <button id="btnComplementaryExams" class="gcBtn"
-                    style="background:#ffffff; border:1px solid #cbd5e1; color:#0f172a; font-weight:700;">
+                  <button id="btnComplementaryExams" class="gcBtn gc-action-btn ${examsUiState?.isOpen ? 'gc-action-btn--active-border' : ''}">
                     Exames
                   </button>
 
-                  <button id="btnAnalyses" class="gcBtn"
-                    style="background:#ffffff; border:1px solid #cbd5e1; color:#0f172a; font-weight:700;">
+                  <button id="btnAnalyses" class="gcBtn gc-action-btn ${analisesUiState?.isOpen ? 'gc-action-btn--active-border' : ''}">
                     Análises
                   </button>
                 </div>
@@ -3290,12 +3325,26 @@ function openPatientViewModal(patient) {
 
       document.getElementById("btnComplementaryExams")?.addEventListener("click", () => {
         const consultId = lastSavedConsultId || (consultRows && consultRows.length ? consultRows[0].id : null);
-        if (typeof openExamsPanel === "function") openExamsPanel({ patientId: p.id, consultationId: consultId || null });
+        if (examsUiState.isOpen) {
+          if (typeof closeExamsPanel === "function") closeExamsPanel();
+          examsUiState.isOpen = false;
+          render();
+        } else {
+          if (typeof openExamsPanel === "function") openExamsPanel({ patientId: p.id, consultationId: consultId || null, onClose: () => { render(); } });
+          render();
+        }
       });
 
       document.getElementById("btnAnalyses")?.addEventListener("click", () => {
         const consultId = lastSavedConsultId || (consultRows && consultRows.length ? consultRows[0].id : null);
-        if (typeof openAnalisesModal === "function") openAnalisesModal({ patientId: p.id, consultationId: consultId || null });
+        if (analisesUiState.isOpen) {
+          closeAnalisesPanel();
+          analisesUiState.isOpen = false;
+          render();
+        } else {
+          openAnalisesPanel({ patientId: p.id, consultationId: consultId || null, onClose: () => { render(); } });
+          render();
+        }
       });
 
       document.getElementById("btnMedicalReports")?.addEventListener("click", (e) => {
