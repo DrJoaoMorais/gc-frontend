@@ -3863,7 +3863,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
     var evol  = document.getElementById('pfp_evol').value.trim();
     if(ini) L.push('Início: '+ini);
     if(lado) L.push('Lado: '+lado);
-    if(su)   L.push('SU: '+su);
+    if(su)   L.push('Serviço de Urgência: '+su);
     if(acicl) L.push('Aciclovir: '+acicl);
     if(cort)  L.push('Corticoterapia: '+cort);
     if(med)   L.push('Medicação: '+med);
@@ -3916,7 +3916,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
 
     L.push('');
     L.push('──────────────────────────────────────────────────');
-    return L.join('\\n');
+    return L.join(String.fromCharCode(10));
   }
 
   document.getElementById('btnCopy').addEventListener('click', function(){
