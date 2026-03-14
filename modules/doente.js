@@ -5081,8 +5081,8 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
 
 <div id="gc-toast"></div>
 <div class="bottom-bar">
-  <button class="pdf-btn" id="gcBtnPdf">Exportar PDF</button>
-  <button class="save-btn" id="gcBtnGravar">Gravar</button>
+  <button type="button" class="pdf-btn" id="gcBtnPdf">Exportar PDF</button>
+  <button type="button" class="save-btn" id="gcBtnGravar">Gravar</button>
 </div>
 </div>
 
@@ -5482,7 +5482,8 @@ function gcExportPdf() {
 }
 
 // ---- Ligar botões e auto-restaurar ----
-document.addEventListener('DOMContentLoaded', function() {
+// Ligar botões — execução imediata (DOM já pronto em Blob URL)
+(function init() {
   var btnG = document.getElementById('gcBtnGravar');
   var btnP = document.getElementById('gcBtnPdf');
   if (btnG) btnG.addEventListener('click', gcGravar);
@@ -5492,14 +5493,9 @@ document.addEventListener('DOMContentLoaded', function() {
   var key = 'gc_neuro_' + (window._gcPatientId || 'draft');
   try {
     var raw = localStorage.getItem(key);
-    if (raw) {
-      gcRestaurar(JSON.parse(raw));
-      console.log('Relatório neurológico restaurado');
-    }
-  } catch(e) {
-    console.warn('gcRestaurar erro:', e);
-  }
-});
+    if (raw) { gcRestaurar(JSON.parse(raw)); }
+  } catch(e) {}
+})();
 
 
 // Receber patientId do doente.js
