@@ -2871,43 +2871,36 @@ function openPatientViewModal(patient) {
           Anamnese / História Clínica (HDA)
         </div>
         <div style="border:1px solid #ddd; border-radius:12px; overflow:hidden; background:#fff;">
-          <div id="hdaToolbar" style="display:flex; gap:4px; padding:7px 10px; background:#f8fafc; border-bottom:1px solid #e5e7eb; flex-wrap:wrap; align-items:center;">
+          <div style="display:flex; gap:4px; padding:7px 10px; background:#f8fafc; border-bottom:1px solid #e5e7eb; flex-wrap:wrap; align-items:center;">
             <button type="button" title="Negrito"
-              onclick="(function(){var e=document.getElementById('hdaEditor');if(!e)return;e.focus();document.execCommand('bold',false,null);})()"
+              onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('bold',false,null);})()"
               style="font-weight:900; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">N</button>
             <button type="button" title="Itálico"
-              onclick="(function(){var e=document.getElementById('hdaEditor');if(!e)return;e.focus();document.execCommand('italic',false,null);})()"
+              onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('italic',false,null);})()"
               style="font-style:italic; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">I</button>
             <button type="button" title="Sublinhado"
-              onclick="(function(){var e=document.getElementById('hdaEditor');if(!e)return;e.focus();document.execCommand('underline',false,null);})()"
+              onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('underline',false,null);})()"
               style="text-decoration:underline; min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:13px; font-family:inherit;">S</button>
             <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
             <button type="button" title="Título"
-              onclick="(function(){var e=document.getElementById('hdaEditor');if(!e)return;e.focus();document.execCommand('formatBlock',false,'h2');})()"
+              onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('formatBlock',false,'h2');})()"
               style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; font-weight:700; font-family:inherit;">T1</button>
             <button type="button" title="Subtítulo"
-              onclick="(function(){var e=document.getElementById('hdaEditor');if(!e)return;e.focus();document.execCommand('formatBlock',false,'h3');})()"
+              onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('formatBlock',false,'h3');})()"
               style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:11px; font-weight:700; font-family:inherit;">T2</button>
             <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
             <button type="button" title="Lista com pontos"
-              onclick="(function(){var e=document.getElementById('hdaEditor');if(!e)return;e.focus();document.execCommand('insertUnorderedList',false,null);})()"
+              onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('insertUnorderedList',false,null);})()"
               style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:14px;">•</button>
             <button type="button" title="Lista numerada"
-              onclick="(function(){var e=document.getElementById('hdaEditor');if(!e)return;e.focus();document.execCommand('insertOrderedList',false,null);})()"
+              onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('insertOrderedList',false,null);})()"
               style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; font-family:inherit;">1.</button>
             <div style="width:1px; background:#e2e8f0; height:20px; margin:0 2px;"></div>
             <button type="button" title="Limpar formatação"
-              onclick="(function(){var e=document.getElementById('hdaEditor');if(!e)return;e.focus();document.execCommand('removeFormat',false,null);})()"
+              onclick="(function(){var d=document.getElementById('hdaFrame').contentDocument;d.execCommand('removeFormat',false,null);})()"
               style="min-width:30px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; cursor:pointer; font-size:12px; color:#64748b; font-family:inherit;">✕</button>
           </div>
-          <div id="hdaEditor"
-               contenteditable="true"
-               spellcheck="true"
-               lang="pt-PT"
-               style="min-height:240px; padding:14px 16px; font-size:15px; line-height:1.65;
-                      color:#111827; outline:none; background:#fff;
-                      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
-          </div>
+          <iframe id="hdaFrame" style="width:100%; height:280px; border:0; background:#fff; display:block;"></iframe>
         </div>
 
         <div style="margin-top:16px;">
@@ -2975,117 +2968,100 @@ function openPatientViewModal(patient) {
   }
 
   function bindConsultEvents() {
-    /* ---- Editor HDA nativo (contenteditable) ---- */
-    const hdaEditor = document.getElementById("hdaEditor");
-    const hdaToolbar = document.getElementById("hdaToolbar");
+    /* ---- Editor HDA — iframe designMode (igual ao docFrame) ---- */
+    function mountHdaFrame() {
+      const frame = document.getElementById("hdaFrame");
+      if (!frame) return;
+      try {
+        const doc = frame.contentDocument;
+        doc.open();
+        doc.write(`<!doctype html><html><head><meta charset="utf-8">
+          <style>
+            body { margin:0; padding:14px 16px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+                   font-size:15px; line-height:1.65; color:#111827; background:#fff; min-height:240px; }
+            h2 { font-size:18px; font-weight:800; margin:10px 0 4px; }
+            h3 { font-size:15px; font-weight:700; margin:8px 0 3px; }
+            ul, ol { margin:6px 0 6px 22px; padding:0; }
+            li { margin:3px 0; }
+            p  { margin:4px 0; }
+            * { box-sizing:border-box; }
+          </style>
+        </head><body></body></html>`);
+        doc.close();
+        doc.designMode = "on";
+        doc.body.setAttribute("spellcheck", "true");
+        doc.body.setAttribute("lang", "pt-PT");
 
-    console.log("[HDA] bindConsultEvents:", { hdaEditor: !!hdaEditor, hdaToolbar: !!hdaToolbar });
+        /* Conteúdo inicial */
+        const initial = String(draftHDAHtml || "").trim();
+        if (initial) doc.body.innerHTML = initial;
 
-    if (hdaEditor) {
-      /* Carregar conteúdo inicial */
-      const initialHtml = String(draftHDAHtml || "").trim();
-      if (initialHtml) {
-        hdaEditor.innerHTML = initialHtml;
-      }
-
-      console.log("[HDA] editor encontrado, contenteditable =", hdaEditor.contentEditable);
-
-      /* Guardar HTML ao digitar */
-      hdaEditor.addEventListener("input", () => {
-        draftHDAHtml = hdaEditor.innerHTML || "";
-      });
-
-      /* Converter markdown ao colar (texto do Claude) */
-      hdaEditor.addEventListener("paste", (e) => {
-        const html = e.clipboardData.getData("text/html");
-        /* Se já tem HTML rico (Word, Google Docs, browser), deixar o browser tratar */
-        if (html && html.includes("<b>") || html && html.includes("<strong>") ||
-            html && html.includes("<em>") || html && html.includes("<ul>") ||
-            html && html.includes("<ol>") || html && html.includes("<h")) {
-          /* HTML rico — paste nativo preserva formatação */
-          setTimeout(() => { draftHDAHtml = hdaEditor.innerHTML || ""; }, 0);
-          return;
-        }
-        /* Texto puro ou markdown — converter */
-        const plain = e.clipboardData.getData("text/plain");
-        if (!plain) return;
-        e.preventDefault();
-        const converted = markdownToHtml(plain);
-        document.execCommand("insertHTML", false, converted);
-        draftHDAHtml = hdaEditor.innerHTML || "";
-      });
-
-      /* Toolbar — botões com onclick inline, sem necessidade de addEventListener */
-
-      /* Actualizar estado activo dos botões */
-      function updateToolbarState() {
-        document.querySelectorAll("#hdaToolbar button[title]").forEach(btn => {
-          const title = btn.getAttribute("title") || "";
-          let active = false;
-          if (title === "Negrito")    active = document.queryCommandState("bold");
-          if (title === "Itálico")    active = document.queryCommandState("italic");
-          if (title === "Sublinhado") active = document.queryCommandState("underline");
-          btn.style.background    = active ? "#e0eaff" : "#fff";
-          btn.style.borderColor   = active ? "#1a56db" : "#e2e8f0";
-          btn.style.color         = active ? "#1a56db" : "";
+        /* Guardar HTML ao digitar */
+        doc.addEventListener("input", () => {
+          draftHDAHtml = doc.body.innerHTML || "";
         });
-      }
 
-      hdaEditor.addEventListener("keyup",   updateToolbarState);
-      hdaEditor.addEventListener("mouseup", updateToolbarState);
-      /* selectionchange dispara no document, não no elemento */
-      document.addEventListener("selectionchange", updateToolbarState);
-      hdaEditor.addEventListener("focusin",  updateToolbarState);
+        /* Converter markdown ao colar do Claude */
+        doc.addEventListener("paste", (e) => {
+          const html = e.clipboardData?.getData("text/html") || "";
+          const hasRichHtml = ["<b>","<strong>","<em>","<ul>","<ol>","<h1","<h2","<h3"].some(t => html.includes(t));
+          if (hasRichHtml) {
+            setTimeout(() => { draftHDAHtml = doc.body.innerHTML || ""; }, 0);
+            return;
+          }
+          const plain = e.clipboardData?.getData("text/plain") || "";
+          if (!plain) return;
+          e.preventDefault();
+          const converted = markdownToHtml(plain);
+          doc.execCommand("insertHTML", false, converted);
+          draftHDAHtml = doc.body.innerHTML || "";
+        });
+
+        /* Auto-resize */
+        const resize = () => {
+          try { frame.style.height = Math.max(240, doc.body.scrollHeight + 20) + "px"; } catch(_) {}
+        };
+        doc.addEventListener("input", resize);
+        setTimeout(resize, 100);
+
+      } catch(e) { console.error("mountHdaFrame:", e); }
     }
 
-    /* Converter markdown simples (Claude output) para HTML */
+    /* Converter markdown (Claude output) para HTML */
     function markdownToHtml(text) {
       const lines = text.split("\n");
       const out = [];
       let inUl = false, inOl = false;
-
       lines.forEach(line => {
-        /* Fechar listas abertas se a linha não é item */
-        const isUlItem = /^[\-\*]\s+/.test(line);
-        const isOlItem = /^\d+\.\s+/.test(line);
-
-        if (!isUlItem && inUl) { out.push("</ul>"); inUl = false; }
-        if (!isOlItem && inOl) { out.push("</ol>"); inOl = false; }
-
-        if (/^###\s+/.test(line)) {
-          out.push(`<h3>${inlineMarkdown(line.replace(/^###\s+/, ""))}</h3>`);
-        } else if (/^##\s+/.test(line)) {
-          out.push(`<h2>${inlineMarkdown(line.replace(/^##\s+/, ""))}</h2>`);
-        } else if (/^#\s+/.test(line)) {
-          out.push(`<h2>${inlineMarkdown(line.replace(/^#\s+/, ""))}</h2>`);
-        } else if (isUlItem) {
-          if (!inUl) { out.push("<ul>"); inUl = true; }
-          out.push(`<li>${inlineMarkdown(line.replace(/^[\-\*]\s+/, ""))}</li>`);
-        } else if (isOlItem) {
-          if (!inOl) { out.push("<ol>"); inOl = true; }
-          out.push(`<li>${inlineMarkdown(line.replace(/^\d+\.\s+/, ""))}</li>`);
-        } else if (line.trim() === "") {
-          out.push("<br>");
-        } else {
-          out.push(`<p>${inlineMarkdown(line)}</p>`);
-        }
+        const isUl = /^[\-\*]\s+/.test(line);
+        const isOl = /^\d+\.\s+/.test(line);
+        if (!isUl && inUl) { out.push("</ul>"); inUl = false; }
+        if (!isOl && inOl) { out.push("</ol>"); inOl = false; }
+        if      (/^###\s+/.test(line)) out.push(`<h3>${inlineMd(line.replace(/^###\s+/,""))}</h3>`);
+        else if (/^##\s+/.test(line))  out.push(`<h2>${inlineMd(line.replace(/^##\s+/,""))}</h2>`);
+        else if (/^#\s+/.test(line))   out.push(`<h2>${inlineMd(line.replace(/^#\s+/,""))}</h2>`);
+        else if (isUl) { if (!inUl) { out.push("<ul>"); inUl=true; } out.push(`<li>${inlineMd(line.replace(/^[\-\*]\s+/,""))}</li>`); }
+        else if (isOl) { if (!inOl) { out.push("<ol>"); inOl=true; } out.push(`<li>${inlineMd(line.replace(/^\d+\.\s+/,""))}</li>`); }
+        else if (line.trim()==="") out.push("<br>");
+        else out.push(`<p>${inlineMd(line)}</p>`);
       });
-
       if (inUl) out.push("</ul>");
       if (inOl) out.push("</ol>");
       return out.join("");
     }
 
-    function inlineMarkdown(text) {
-      return text
-        .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
-        .replace(/\*\*(.+?)\*\*/g,     "<strong>$1</strong>")
-        .replace(/__(.+?)__/g,         "<strong>$1</strong>")
-        .replace(/\*(.+?)\*/g,         "<em>$1</em>")
-        .replace(/_(.+?)_/g,           "<em>$1</em>")
-        .replace(/~~(.+?)~~/g,         "<s>$1</s>")
-        .replace(/`(.+?)`/g,           "<code>$1</code>");
+    function inlineMd(t) {
+      return t
+        .replace(/\*\*\*(.+?)\*\*\*/g,"<strong><em>$1</em></strong>")
+        .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+        .replace(/__(.+?)__/g,"<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g,"<em>$1</em>")
+        .replace(/_(.+?)_/g,"<em>$1</em>")
+        .replace(/~~(.+?)~~/g,"<s>$1</s>")
+        .replace(/`(.+?)`/g,"<code>$1</code>");
     }
+
+    mountHdaFrame();
 
     const diagInput = document.getElementById("diagSearch");
     if (diagInput) {
@@ -3155,8 +3131,8 @@ function openPatientViewModal(patient) {
         btnSave.disabled = true;
 
         try {
-          const hdaEl = document.getElementById("hdaEditor");
-          if (hdaEl) draftHDAHtml = hdaEl.innerHTML || "";
+          const hdaEl = document.getElementById("hdaFrame");
+          if (hdaEl) draftHDAHtml = hdaEl.contentDocument?.body?.innerHTML || "";
         } catch (_) {}
 
         const ok = await saveConsult();
