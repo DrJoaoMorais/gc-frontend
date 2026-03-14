@@ -4098,6 +4098,21 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
 .mt2 td.mrc-nd{background:transparent;color:var(--color-text-tertiary)}
 .muscle-block-title{font-size:12px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;padding-bottom:4px;border-bottom:1.5px solid var(--color-border-tertiary)}
 .mrc-chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:500;border:0.5px solid transparent}
+
+/* ---- Impressão ---- */
+@media print {
+  .bottom-bar, .no-print { display:none!important; }
+  body { background:white!important; color:black!important; }
+  .page { max-width:100%; padding:8px; }
+  .sec { page-break-inside:avoid; }
+  select, input[type="number"], textarea { border:1px solid #999!important; }
+}
+/* ---- Botão PDF ---- */
+.pdf-btn{padding:9px 22px;border:none;border-radius:var(--border-radius-md);background:#1a56db;color:white;font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font-sans)}
+.pdf-btn:hover{background:#1e40af}
+/* ---- Toast feedback ---- */
+#gc-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 22px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:9999}
+#gc-toast.show{opacity:1}
 </style>
 
 <div class="page">
@@ -5064,9 +5079,10 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
   <textarea placeholder="Programa terapêutico, frequência, metas a curto/médio prazo..."></textarea>
 </div>
 
+<div id="gc-toast"></div>
 <div class="bottom-bar">
-
-  <button class="save-btn">Gravar exame objetivo</button>
+  <button class="pdf-btn" onclick="gcExportPdf()">Exportar PDF</button>
+  <button class="save-btn" onclick="gcGravar()">Gravar</button>
 </div>
 </div>
 
@@ -5384,8 +5400,118 @@ function selSens(el) {
   sensCurOpacity = parseFloat(el.dataset.sopacity);
 }
 
-</script>
-`;
+
+// ---- Utilitário de feedback ----
+function gcToast(msg, cor) {
+  var t = document.getElementById('gc-toast');
+  t.textContent = msg;
+  t.style.background = cor || '#0f172a';
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2800);
+}
+
+// ---- Serializar todos os campos ----
+function gcSerializar() {
+  var data = {};
+  // Inputs e selects
+  document.querySelectorAll('input[type="text"], input[type="number"], input[type="date"], textarea, select').forEach(function(el, i) {
+    var k = el.id || el.name || ('field_' + i);
+    data[k] = el.value;
+  });
+  // Radios: guardar o checked
+  document.querySelectorAll('input[type="radio"]').forEach(function(el, i) {
+    if (el.name) {
+      if (!data['_radio_' + el.name]) data['_radio_' + el.name] = [];
+      if (el.checked) data['_radio_' + el.name] = el.value || el.closest('label')?.textContent?.trim() || i;
+    }
+  });
+  // Checkboxes
+  document.querySelectorAll('input[type="checkbox"]').forEach(function(el, i) {
+    var k = el.id || el.name || ('cb_' + i);
+    data[k + '_' + i] = el.checked;
+  });
+  return data;
+}
+
+// ---- Restaurar campos guardados ----
+function gcRestaurar(data) {
+  if (!data) return;
+  document.querySelectorAll('input[type="text"], input[type="number"], input[type="date"], textarea, select').forEach(function(el, i) {
+    var k = el.id || el.name || ('field_' + i);
+    if (data[k] !== undefined) el.value = data[k];
+  });
+  document.querySelectorAll('input[type="checkbox"]').forEach(function(el, i) {
+    var k = (el.id || el.name || ('cb_' + i)) + '_' + i;
+    if (data[k] !== undefined) el.checked = data[k];
+  });
+  document.querySelectorAll('input[type="radio"]').forEach(function(el) {
+    if (!el.name) return;
+    var saved = data['_radio_' + el.name];
+    if (saved !== undefined) {
+      var label = el.closest('label')?.textContent?.trim() || '';
+      if (el.value === saved || label === saved) el.checked = true;
+    }
+  });
+}
+
+// ---- Gravar ----
+function gcGravar() {
+  try {
+    var data = gcSerializar();
+    var key = 'gc_neuro_' + (window._gcPatientId || 'draft');
+    localStorage.setItem(key, JSON.stringify(data));
+
+    // postMessage para o doente.js poder gravar no Supabase
+    window.parent.postMessage({
+      type: 'gc_neuro_save',
+      patientId: window._gcPatientId || null,
+      data: data,
+      ts: new Date().toISOString()
+    }, '*');
+
+    gcToast('Exame guardado', '#0f6e56');
+  } catch(e) {
+    console.error('gcGravar erro:', e);
+    gcToast('Erro ao guardar: ' + e.message, '#b91c1c');
+  }
+}
+
+// ---- Exportar PDF ----
+function gcExportPdf() {
+  window.print();
+}
+
+// ---- Auto-restaurar ao carregar ----
+(function() {
+  var key = 'gc_neuro_' + (window._gcPatientId || 'draft');
+  try {
+    var raw = localStorage.getItem(key);
+    if (raw) {
+      gcRestaurar(JSON.parse(raw));
+      console.log('Relatório neurológico restaurado do localStorage');
+    }
+  } catch(e) {
+    console.warn('gcRestaurar erro:', e);
+  }
+})();
+
+
+// Receber patientId do doente.js
+window.addEventListener('message', function(ev) {
+  if (ev.data && ev.data.type === 'gc_set_patient') {
+    window._gcPatientId = ev.data.patientId;
+    // Tentar restaurar dados específicos deste doente
+    if (window._gcPatientId) {
+      var key = 'gc_neuro_' + window._gcPatientId;
+      try {
+        var raw = localStorage.getItem(key);
+        if (raw) gcRestaurar(JSON.parse(raw));
+      } catch(e) {}
+    }
+  }
+});
+
+</script>`;
     const blob = new Blob([htmlContent], { type: "text/html" });
     const blobUrl = URL.createObjectURL(blob);
 
@@ -5428,8 +5554,47 @@ function selSens(el) {
     overlay.appendChild(frame);
     document.body.appendChild(overlay);
 
+    // Passar patientId ao iframe quando estiver pronto
+    frame.addEventListener("load", () => {
+      try {
+        frame.contentWindow.postMessage({ type: "gc_set_patient", patientId: p?.id || null }, "*");
+      } catch(_) {}
+    });
+
+    // Receber dados gravados do iframe
+    function onNeuroMessage(ev) {
+      if (!ev.data || ev.data.type !== "gc_neuro_save") return;
+      const payload = ev.data;
+      // Guardar em Supabase na tabela patient_documents (ou similar)
+      (async () => {
+        try {
+          const { error } = await window.sb
+            .from("patient_documents")
+            .upsert({
+              patient_id: p?.id,
+              doc_type: "relatorio_neurologico",
+              content: JSON.stringify(payload.data),
+              updated_at: payload.ts
+            }, { onConflict: "patient_id,doc_type" });
+          if (error) console.error("Erro ao guardar relatório neurológico:", error);
+          else console.log("Relatório neurológico guardado no Supabase");
+        } catch(e) {
+          console.error("Erro Supabase relatório neurológico:", e);
+        }
+      })();
+    }
+    window.addEventListener("message", onNeuroMessage);
+
     document.getElementById("gcNeuroClose").addEventListener("click", closeNeuro);
     overlay.addEventListener("click", (ev) => { if (ev.target === overlay) closeNeuro(); });
+
+    // Limpar listener ao fechar
+    function closeNeuroFull() {
+      window.removeEventListener("message", onNeuroMessage);
+      closeNeuro();
+    }
+    document.getElementById("gcNeuroClose").removeEventListener("click", closeNeuro);
+    document.getElementById("gcNeuroClose").addEventListener("click", closeNeuroFull);
   }
 
 
