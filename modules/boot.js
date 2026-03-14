@@ -122,32 +122,30 @@ window.__gc_renderCurrentView = renderCurrentView;
    renderCurrentView — wiring completo da view atual
    ==================================================================== */
 
-export async function renderCurrentView() {
+export export async function renderCurrentView() {
   renderAppShell();
-  await wireLogout();
   hydrateShellHeader();
 
-  /* Botão Gestão */
-  const btnManagement = document.getElementById("btnManagement");
-  if (btnManagement) {
-    btnManagement.addEventListener("click", async () => {
-      if (String(G.currentView || "agenda").toLowerCase() === "management") return;
-      G.currentView = "management";
-      await renderCurrentView();
-    });
-  }
+  /* Sempre re-wirar logout após qualquer render */
+  await wireLogout();
 
-  /* Botão Voltar para Agenda */
-  const btnBack = document.getElementById("btnBackToAgenda");
-  if (btnBack) {
-    btnBack.addEventListener("click", async () => {
-      G.currentView = "agenda";
-      await renderCurrentView();
-    });
+  const view = String(G.currentView || "agenda").toLowerCase();
+
+  /* Vista Doentes — wirar pesquisa */
+  if (view === "doentes") {
+    await wireQuickPatientSearch();
+    const btnNewPatDt = document.getElementById("btnNewPatientMain");
+    if (btnNewPatDt) {
+      btnNewPatDt.addEventListener("click", () => {
+        const s = document.getElementById("selClinic");
+        openNewPatientMainModal({ clinicId: s?.value || null });
+      });
+    }
+    return;
   }
 
   /* Se não é a view de agenda, termina aqui */
-  if (String(G.currentView || "agenda").toLowerCase() !== "agenda") return;
+  if (view !== "agenda") return;
 
   /* ---- View de Agenda ---- */
   renderClinicsSelect(G.clinics);

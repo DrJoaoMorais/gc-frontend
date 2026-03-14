@@ -206,3 +206,8 @@ export function openCalendarOverlay() {
     });
   });
 }
+
+
+/* Expor via window */
+window.__gc_wireQuickPatientSearch = wireQuickPatientSearch;
+window.__gc_openCalendarOverlay = openCalendarOverlay;

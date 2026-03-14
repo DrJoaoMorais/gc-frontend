@@ -124,8 +124,13 @@ export async function wireLogout() {
   if (!btn) return;
 
   btn.addEventListener("click", async () => {
-    btn.disabled    = true;
-    btn.textContent = "A terminar sessão…";
+    btn.disabled = true;
+    // preserve icon if button has no text
+    if (btn.textContent.trim().length < 3) {
+      btn.style.opacity = "0.5";
+    } else {
+      btn.textContent = "A terminar sessão…";
+    }
 
     try {
       if (G?.authStateSubscription?.unsubscribe) {
@@ -320,3 +325,7 @@ function waitForMFACode() {
     if (inp) inp.onkeydown  = ev => { if (ev.key === "Enter") submit(); };
   });
 }
+
+
+/* Expor via window para re-wiring após re-render */
+window.__gc_wireLogout = wireLogout;
