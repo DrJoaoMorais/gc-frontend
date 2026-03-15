@@ -1139,12 +1139,12 @@ function openPatientViewModal(patient) {
           <div style="display:flex; flex-direction:column; gap:8px;">
             ${selectedTreat.map(x => `
               <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;
-                          padding:10px 12px; border:1px solid #e5e5e5; border-radius:12px;">
-                <div style="font-size:13px; color:#374151;">
+                          padding:7px 12px; min-height:40px; border:1px solid #e5e5e5; border-radius:10px;">
+                <div style="font-size:13px; color:#374151; line-height:1.3;">
                   ${x.code ? `<span style="font-weight:700; color:#64748b;">${escAttr(x.code)}</span><span style="color:#cbd5e1;"> — </span>` : ``}${escAttr(x.label || "—")}
                 </div>
                 <button class="treatRemove gcBtn" data-id="${x.id}"
-                        style="padding:6px 10px; border-radius:999px;">×</button>
+                        style="padding:3px 8px; border-radius:999px; flex-shrink:0; font-size:14px;">×</button>
               </div>
             `).join("")}
           </div>
@@ -1160,8 +1160,8 @@ function openPatientViewModal(patient) {
           <div style="display:flex; flex-direction:column; gap:8px;">
             ${treatResults.map(x => `
               <div class="treatPick" data-id="${x.id}"
-                   style="padding:10px 12px; border:1px solid #e5e5e5; border-radius:12px; cursor:pointer;">
-                <div style="font-size:13px; color:#374151;">
+                   style="padding:7px 12px; min-height:40px; display:flex; align-items:center; border:1px solid #e5e5e5; border-radius:10px; cursor:pointer;">
+                <div style="font-size:13px; color:#374151; line-height:1.3;">
                   ${x.code ? `<span style="font-weight:700; color:#64748b;">${escAttr(x.code)}</span><span style="color:#cbd5e1;"> — </span>` : ``}${escAttr(x.label || "—")}
                 </div>
               </div>
@@ -3449,7 +3449,7 @@ function openPatientViewModal(patient) {
         /* ── Patient view layout ── */
         .gc-pv {
           display:flex; gap:0;
-          margin:-16px -20px -20px;
+          margin:-20px -20px -20px;
           min-height:100vh;
           position:relative;
         }
