@@ -85,6 +85,14 @@ function openPatientViewModal(patient) {
   const navDoentes = document.querySelector('[data-nav="doentes"]');
   if (navDoentes) navDoentes.classList.add("active");
 
+  // Highlight the Agenda nav button as "go back" shortcut
+  const navAgenda = document.querySelector('[data-nav="agenda"]');
+  if (navAgenda) {
+    navAgenda.setAttribute("title", "Voltar à Agenda (atalho)");
+    navAgenda.style.setProperty("box-shadow", "inset 2px 0 0 #1a56db", "important");
+    navAgenda.style.opacity = "1";
+  }
+
   // Guardar scroll position
   if (gcContent) gcContent.scrollTop = 0;
 
@@ -141,6 +149,14 @@ function openPatientViewModal(patient) {
 
   /* ================= SAFE CLOSE ================= */
   const closeModalSafe = () => {
+    // Reset agenda nav highlight
+    try {
+      const navAgenda = document.querySelector('[data-nav="agenda"]');
+      if (navAgenda) {
+        navAgenda.style.removeProperty("box-shadow");
+        navAgenda.removeAttribute("title");
+      }
+    } catch (_) {}
     // Voltar à agenda — re-render a view de agenda
     try {
       const G_ref = window.__gc_G || (typeof G !== "undefined" ? G : null);
@@ -3363,118 +3379,170 @@ function openPatientViewModal(patient) {
 
     root.innerHTML = `
       <style>
-        .gc-action-btn {
-          font-weight: 700 !important;
-          background: #ffffff !important;
-          border: 1px solid #cbd5e1 !important;
-          color: #0f172a !important;
-          transition: background 0.12s, border-color 0.12s, color 0.12s;
+        /* ── Patient view layout ── */
+        .gc-pv {
+          display:flex; gap:0;
+          /* Break out of gc-content padding by going full negative */
+          margin:-16px -20px -20px;
+          min-height:calc(100vh - 0px);
         }
-        .gc-action-btn:hover {
-          background: #f1f5f9 !important;
-        }
-        .gc-action-btn--active-primary {
-          background: #1a56db !important;
-          border-color: #1a56db !important;
-          color: #ffffff !important;
-          font-weight: 800 !important;
-        }
-        .gc-action-btn--active-border {
-          background: #eff6ff !important;
-          border-color: #1a56db !important;
-          color: #1a56db !important;
-        }
-      </style>
-      <div style="width:100%; min-height:100%;">
 
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
-          <button id="btnClosePView" class="gc-btn"
-            style="display:flex;align-items:center;gap:6px;font-size:13px;">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Voltar à Agenda
+        /* ── Left action sidebar ── */
+        .gc-pv-sb {
+          width:188px; flex-shrink:0;
+          position:sticky; top:0; align-self:flex-start;
+          height:100vh; overflow-y:auto;
+          background:#f8fafc; border-right:1px solid #e5e7eb;
+          padding:12px 8px 20px;
+          display:flex; flex-direction:column; gap:2px;
+          box-sizing:border-box;
+        }
+
+        /* ── Main feed ── */
+        .gc-pv-feed {
+          flex:1; min-width:0;
+          padding:0 20px 40px;
+          overflow-y:auto;
+        }
+
+        /* ── Patient header strip ── */
+        .gc-pv-header {
+          position:sticky; top:0; z-index:10;
+          background:#fff; border-bottom:1px solid #e5e7eb;
+          padding:10px 0 10px;
+          margin-bottom:16px;
+        }
+        .gc-pv-name {
+          font-weight:900; font-size:20px; line-height:1.15; color:#0f172a;
+          display:flex; align-items:center; gap:6px;
+        }
+        .gc-pv-meta {
+          display:flex; gap:8px 16px; flex-wrap:wrap;
+          font-size:13px; color:#475569; margin-top:4px;
+        }
+        .gc-pv-meta b { color:#334155; font-weight:700; }
+
+        /* ── Sidebar buttons ── */
+        .gc-sb-btn {
+          display:flex; align-items:center; gap:8px;
+          width:100%; text-align:left; padding:7px 10px;
+          border-radius:9px; border:1px solid transparent;
+          background:none; color:#374151; font-size:13px;
+          cursor:pointer; font-family:inherit;
+          transition:background .1s, border-color .1s;
+          white-space:nowrap; overflow:hidden;
+        }
+        .gc-sb-btn:hover { background:#fff; border-color:#e2e8f0; }
+        .gc-sb-btn--active { background:#eff6ff; border-color:#1a56db; color:#1a56db; font-weight:700; }
+        .gc-sb-btn--primary { background:#1a56db; border-color:#1a56db; color:#fff; font-weight:700; }
+        .gc-sb-btn--primary:hover { background:#1749be; }
+        .gc-sb-icon { font-size:15px; flex-shrink:0; line-height:1; }
+        .gc-sb-div { height:1px; background:#e5e7eb; margin:5px 2px; }
+        .gc-sb-lbl {
+          font-size:10px; font-weight:800; text-transform:uppercase;
+          letter-spacing:0.06em; color:#94a3b8; padding:3px 10px 2px; margin-top:3px;
+        }
+        .gc-sb-pname {
+          font-size:12px; font-weight:700; color:#0f2d52;
+          padding:3px 10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+        }
+        .gc-sb-pmeta {
+          font-size:11px; color:#64748b; padding:0 10px 2px; line-height:1.55;
+        }
+
+        /* ── Responsive collapse ── */
+        @media (max-width:680px) {
+          .gc-pv-sb { width:48px; padding:8px 4px; }
+          .gc-sb-btn span:not(.gc-sb-icon) { display:none; }
+          .gc-sb-lbl,.gc-sb-pname,.gc-sb-pmeta { display:none; }
+          .gc-pv-header { padding:8px 0 6px; }
+          .gc-pv-name { font-size:16px; }
+        }
+
+        /* ── Action btn classes (kept for compatibility) ── */
+        .gc-action-btn { font-weight:700!important; background:#ffffff!important; border:1px solid #cbd5e1!important; color:#0f172a!important; }
+        .gc-action-btn--active-primary { background:#1a56db!important; border-color:#1a56db!important; color:#fff!important; font-weight:800!important; }
+        .gc-action-btn--active-border { background:#eff6ff!important; border-color:#1a56db!important; color:#1a56db!important; }
+      </style>
+
+      <div class="gc-pv">
+
+        <!-- ════ SIDEBAR ════ -->
+        <div class="gc-pv-sb">
+
+          <!-- Patient info -->
+          <div class="gc-sb-pname">${escAttr(p.full_name || "—")} ${birthdayBadgeToday()}</div>
+          <div class="gc-sb-pmeta">
+            ${escAttr(activeClinicName || "—")}${p.sns ? '<br>SNS ' + escAttr(p.sns) : ''}${ageTextToday() !== '—' ? '<br>' + escAttr(ageTextToday()) : ''}
+          </div>
+
+          <div class="gc-sb-div"></div>
+
+          ${isDoctor() ? `
+            <div class="gc-sb-lbl">Ações</div>
+
+            <button id="btnNewConsult" class="gc-sb-btn ${creatingConsult ? 'gc-sb-btn--primary' : ''}">
+              <span class="gc-sb-icon">📋</span><span>Consulta</span>
+            </button>
+
+            <button id="btnExameObjectivo" class="gc-sb-btn">
+              <span class="gc-sb-icon">🔍</span><span>Exame Objectivo</span>
+            </button>
+
+            <button id="btnMedicalReports" class="gc-sb-btn">
+              <span class="gc-sb-icon">📄</span><span>Relatórios</span>
+            </button>
+
+            <button id="btnComplementaryExams" class="gc-sb-btn ${examsUiState?.isOpen ? 'gc-sb-btn--active' : ''}">
+              <span class="gc-sb-icon">🧪</span><span>Exames</span>
+            </button>
+
+            <button id="btnAnalyses" class="gc-sb-btn ${analisesUiState?.isOpen ? 'gc-sb-btn--active' : ''}">
+              <span class="gc-sb-icon">🔬</span><span>Análises</span>
+            </button>
+
+            <div class="gc-sb-div"></div>
+          ` : ``}
+
+          <button id="btnViewIdent" class="gc-sb-btn" style="color:#64748b;">
+            <span class="gc-sb-icon">👤</span><span>Identificação</span>
           </button>
-          <div style="font-size:12px;color:#94a3b8;">→ Feed do Doente</div>
+
+          ${docsLoading ? `<div style="font-size:11px;color:#94a3b8;padding:3px 10px;">A carregar…</div>` : ``}
         </div>
 
-          <div style="border:1px solid #e5e7eb; border-radius:14px; padding:16px; background:#fcfcfd;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
-              <div style="min-width:280px; flex:1;">
-                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                  <div style="font-weight:900; font-size:28px; line-height:1.1; color:#111827;">
-                    ${escAttr(p.full_name || "—")}
-                  </div>
-                  <div>${birthdayBadgeToday()}</div>
-                </div>
+        <!-- ════ FEED ════ -->
+        <div class="gc-pv-feed">
 
-                <div style="margin-top:10px; display:flex; gap:10px 18px; flex-wrap:wrap; color:#475569; font-size:14px; line-height:1.45;">
-                  <div><span style="font-weight:700; color:#334155;">Telefone:</span> ${escAttr(p.phone || "—")}</div>
-                  <div><span style="font-weight:700; color:#334155;">Clínica:</span> ${escAttr(activeClinicName || "—")}</div>
-                  <div><span style="font-weight:700; color:#334155;">SNS:</span> ${escAttr(p.sns || "—")}</div>
-                  <div><span style="font-weight:700; color:#334155;">Seguro:</span> ${escAttr(p.insurance_provider || "—")}</div>
-                  <div><span style="font-weight:700; color:#334155;">Nº:</span> ${escAttr(p.insurance_policy_number || "—")}</div>
-                  <div><span style="font-weight:700; color:#334155;">Idade:</span> ${escAttr(ageTextToday())}</div>
-                </div>
-              </div>
-
-              <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
-                <button id="btnViewIdent" class="gcBtn"
-                  style="background:#ffffff; border:1px solid #d1d5db; color:#111827; font-weight:700;">
-                  Ver Identificação
-                </button>
-              </div>
+          <!-- Sticky patient header -->
+          <div class="gc-pv-header">
+            <div class="gc-pv-name">
+              ${escAttr(p.full_name || "—")} ${birthdayBadgeToday()}
             </div>
-
-            <div style="margin-top:14px; height:1px; background:#e5e7eb;"></div>
-
-            ${isDoctor() ? `
-              <div style="margin-top:14px;">
-                <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.6px; color:#64748b; margin-bottom:10px;">
-                  Ações médicas
-                </div>
-
-                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                  <button id="btnNewConsult" class="gcBtn gc-action-btn ${creatingConsult ? 'gc-action-btn--active-primary' : ''}">
-                    Consulta Médica
-                  </button>
-
-                  <button id="btnExameObjectivo" class="gcBtn gc-action-btn">
-                    Exame Objectivo
-                  </button>
-
-                  <button id="btnMedicalReports" class="gcBtn gc-action-btn">
-                    Relatórios
-                  </button>
-
-                  <button id="btnComplementaryExams" class="gcBtn gc-action-btn ${examsUiState?.isOpen ? 'gc-action-btn--active-border' : ''}">
-                    Exames
-                  </button>
-
-                  <button id="btnAnalyses" class="gcBtn gc-action-btn ${analisesUiState?.isOpen ? 'gc-action-btn--active-border' : ''}">
-                    Análises
-                  </button>
-                </div>
-              </div>
-            ` : ``}
-
-            ${docsLoading ? `
-              <div style="margin-top:10px; color:#64748b; font-size:14px;">
-                A carregar PDFs…
-              </div>
-            ` : ``}
+            <div class="gc-pv-meta">
+              <div><b>Clínica:</b> ${escAttr(activeClinicName || "—")}</div>
+              ${p.sns ? `<div><b>SNS:</b> ${escAttr(p.sns)}</div>` : ''}
+              ${p.phone ? `<div><b>Tel:</b> ${escAttr(p.phone)}</div>` : ''}
+              ${p.insurance_provider ? `<div><b>Seguro:</b> ${escAttr(p.insurance_provider)}</div>` : ''}
+              ${p.insurance_policy_number ? `<div><b>Nº apólice:</b> ${escAttr(p.insurance_policy_number)}</div>` : ''}
+              ${ageTextToday() !== '—' ? `<div><b>Idade:</b> ${escAttr(ageTextToday())}</div>` : ''}
+            </div>
           </div>
 
           ${creatingConsult ? renderConsultFormInline() : ""}
 
-          <div style="margin-top:18px;">
+          <div style="margin-top:${creatingConsult ? '16px' : '0'};">
             ${renderTimeline()}
           </div>
 
+        </div>
+
+      </div>
+
       ${identOpen ? renderIdentityModal() : ""}
       ${docOpen ? renderDocumentEditorModal() : ""}
-      </div>
     `;
 
-    document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
     document.getElementById("btnViewIdent")?.addEventListener("click", () => openPatientIdentity("view"));
 
     // Exame Objectivo — sempre disponível, independente do estado da consulta
@@ -4178,6 +4246,7 @@ textarea{resize:vertical;min-height:56px;line-height:1.5}
     });
   });
   function getRF(){return Array.from(document.querySelectorAll('.rf-cb:checked')).map(function(c){return c.dataset.rf;});}
+  window.getRF=getRF;
 })();
 `;
 
@@ -4976,7 +5045,7 @@ window._gerarResumo = function(){
   var td=g('tipo_dor'); if(td) L.push('Dor: '+td);
   var ir=m('irrad'); if(ir.length) L.push('Irradiação: '+ir.join(', '));
   var sn=m('sint_neuro'); if(sn.length) L.push('Sint. neurológicos: '+sn.join(', '));
-  var rf=getRF(); if(rf.length){L.push('');L.push('RED FLAGS: '+rf.join(', '));}
+  var rf=(typeof window.getRF==='function'?window.getRF():[]).filter(function(x){return x;}); if(rf.length){L.push('');L.push('RED FLAGS: '+rf.join(', '));}
   L.push('');L.push('Inspeção/Palpação:');
   [['Postura',g('insp_post')],['Hipercifose',g('insp_cif')],['Paravertebral cerv.',g('palp_par')],['Trapézio',g('palp_trap')],['Facetárias',g('palp_fac')]].forEach(function(p){if(p[1])L.push('  • '+p[0]+': '+p[1]);});
   L.push('');L.push('Mobilidade:');
@@ -5112,7 +5181,7 @@ window._gerarResumo = function(){
   var td=g('tipo_dor'); if(td) L.push('Dor: '+td);
   var ir=m('irrad'); if(ir.length) L.push('Irradiação: '+ir.join(', '));
   var sn=m('sint_neuro'); if(sn.length) L.push('Sint. neurológicos: '+sn.join(', '));
-  var rf=getRF(); if(rf.length){L.push('');L.push('RED FLAGS: '+rf.join(', '));}
+  var rf=(typeof window.getRF==='function'?window.getRF():[]).filter(function(x){return x;}); if(rf.length){L.push('');L.push('RED FLAGS: '+rf.join(', '));}
   L.push('');L.push('Inspeção/Palpação:');
   [['Coluna sagital',m('insp_sag').join(', ')],['Escoliose',g('insp_escol')],['Postura antálgica',g('insp_antal')],['Espinhosas',g('palp_esp')],['Paravertebral',g('palp_par')],['Sacroilíacas',g('palp_si')]].forEach(function(p){if(p[1])L.push('  • '+p[0]+': '+p[1]);});
   L.push('');L.push('Mobilidade:');
@@ -5302,7 +5371,7 @@ window._gerarResumo = function(){
   var loc=v('at_local'); if(loc) L.push('Localiza\u00e7\u00e3o: '+loc);
   var les12=g('at_les12'); if(les12==='Sim') L.push('Les\u00e3o 12m: Sim');
   var fal=g('at_falhou'); if(fal==='Sim') L.push('Falhou treinos: Sim');
-  var reds=getRF(); if(reds.length){L.push('');L.push('RED-S (alerta): '+reds.join(', '));}
+  var reds=(typeof window.getRF==='function'?window.getRF():[]).filter(function(x){return x;}); if(reds.length){L.push('');L.push('RED-S (alerta): '+reds.join(', '));}
   L.push('');L.push('Postura:');
   [['Coluna',m('post_col').join(', ')],['Ombros',m('post_ombros').join(', ')],['Bacia',m('post_bac').join(', ')],['Joelhos',m('post_joe').join(', ')],['P\u00e9',m('post_pe').join(', ')]].forEach(function(p){if(p[1]&&p[1].indexOf('Normal')<0)L.push('  \u2022 '+p[0]+': '+p[1]);});
   L.push('');L.push('Marcha / Mobilidade:');
