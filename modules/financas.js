@@ -50,7 +50,10 @@ async function loadEntidades() {
 /* ---- FA.2 — loadRegistos ---- */
 async function loadRegistos({ mes, ano }) {
   const inicio = `${ano}-${String(mes).padStart(2, "0")}-01`;
-  const fim    = new Date(ano, mes, 1).toISOString().slice(0, 10); // primeiro dia do mês seguinte
+  // Construir fim como string directamente — evita desvio UTC do toISOString()
+  const mesFim = mes === 12 ? 1 : mes + 1;
+  const anoFim = mes === 12 ? ano + 1 : ano;
+  const fim    = `${anoFim}-${String(mesFim).padStart(2, "0")}-01`;
 
   const { data, error } = await window.sb
     .from("registos_financeiros")
