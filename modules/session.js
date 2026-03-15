@@ -116,16 +116,153 @@ export async function __gcForceSessionLock(reasonText) {
    ==================================================================== */
 
 /**
+ * checkPendentesVencidos
+ * Verifica se há consultas pendentes com data no passado.
+ * Devolve array de registos ou [] se não houver.
+ */
+async function checkPendentesVencidos() {
+  try {
+    const hoje = new Date().toISOString().slice(0, 10);
+    const { data, error } = await window.sb
+      .from("registos_financeiros")
+      .select("data, tipo_acto, appt_status, entidades_financeiras(nome), patients(full_name)")
+      .in("appt_status", ["scheduled", "arrived"])
+      .lt("data", hoje)
+      .order("data", { ascending: false })
+      .limit(20);
+    if (error) { console.warn("checkPendentesVencidos:", error); return []; }
+    return data || [];
+  } catch (e) {
+    console.warn("checkPendentesVencidos:", e);
+    return [];
+  }
+}
+
+/**
+ * showPendentesLogoutWarning
+ * Mostra aviso de pendentes antes do logout.
+ * Resolve com true (continuar logout) ou false (cancelar).
+ */
+function showPendentesLogoutWarning(pendentes) {
+  return new Promise(resolve => {
+    document.getElementById("gcPendentesModal")?.remove();
+
+    const overlay = document.createElement("div");
+    overlay.id = "gcPendentesModal";
+    Object.assign(overlay.style, {
+      position: "fixed", inset: "0",
+      background: "rgba(0,0,0,0.5)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: "16px", zIndex: "9999",
+      fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif"
+    });
+
+    const linhas = pendentes.map(r => {
+      const data  = r.data ? new Date(r.data + "T00:00:00").toLocaleDateString("pt-PT") : "—";
+      const ent   = r.entidades_financeiras?.nome || "—";
+      const nome  = r.patients?.full_name || "—";
+      const acto  = r.tipo_acto || "—";
+      const estado = r.appt_status === "arrived" ? "Chegou" : "Marcada";
+      return `<tr>
+        <td style="padding:6px 10px;border-bottom:0.5px solid #f1f5f9;font-size:12px;color:#64748b;">${data}</td>
+        <td style="padding:6px 10px;border-bottom:0.5px solid #f1f5f9;font-size:12px;font-weight:600;">${ent}</td>
+        <td style="padding:6px 10px;border-bottom:0.5px solid #f1f5f9;font-size:12px;">${nome}</td>
+        <td style="padding:6px 10px;border-bottom:0.5px solid #f1f5f9;font-size:12px;color:#64748b;">${acto}</td>
+        <td style="padding:6px 10px;border-bottom:0.5px solid #f1f5f9;">
+          <span style="font-size:11px;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:4px;">${estado}</span>
+        </td>
+      </tr>`;
+    }).join("");
+
+    overlay.innerHTML = `
+      <div style="background:#fff;width:min(680px,100%);border-radius:14px;
+                  border:1px solid #e2e8f0;padding:22px;max-height:90vh;overflow-y:auto;">
+        <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:16px;">
+          <div style="font-size:24px;line-height:1;flex-shrink:0;">⚠️</div>
+          <div>
+            <div style="font-size:15px;font-weight:800;color:#92400e;">
+              ${pendentes.length} consulta(s) por actualizar
+            </div>
+            <div style="font-size:13px;color:#64748b;margin-top:3px;">
+              Estas consultas ficaram em estado pendente. Actualize o estado antes de sair.
+            </div>
+          </div>
+        </div>
+
+        <div style="border:0.5px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:18px;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="background:#f8fafc;">
+                <th style="padding:7px 10px;font-size:10px;font-weight:600;color:#94a3b8;text-align:left;text-transform:uppercase;letter-spacing:.05em;border-bottom:0.5px solid #e2e8f0;">Data</th>
+                <th style="padding:7px 10px;font-size:10px;font-weight:600;color:#94a3b8;text-align:left;text-transform:uppercase;letter-spacing:.05em;border-bottom:0.5px solid #e2e8f0;">Clínica</th>
+                <th style="padding:7px 10px;font-size:10px;font-weight:600;color:#94a3b8;text-align:left;text-transform:uppercase;letter-spacing:.05em;border-bottom:0.5px solid #e2e8f0;">Doente</th>
+                <th style="padding:7px 10px;font-size:10px;font-weight:600;color:#94a3b8;text-align:left;text-transform:uppercase;letter-spacing:.05em;border-bottom:0.5px solid #e2e8f0;">Tipo</th>
+                <th style="padding:7px 10px;font-size:10px;font-weight:600;color:#94a3b8;text-align:left;text-transform:uppercase;letter-spacing:.05em;border-bottom:0.5px solid #e2e8f0;">Estado</th>
+              </tr>
+            </thead>
+            <tbody>${linhas}</tbody>
+          </table>
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button id="gcPendSair"
+            style="padding:9px 18px;border-radius:8px;border:0.5px solid #e2e8f0;
+                   background:#fff;font-size:13px;cursor:pointer;color:#64748b;font-family:inherit;">
+            Sair mesmo assim
+          </button>
+          <button id="gcPendActualizar"
+            style="padding:9px 18px;border-radius:8px;border:none;
+                   background:#1a56db;color:#fff;font-size:13px;font-weight:600;
+                   cursor:pointer;font-family:inherit;">
+            Ir actualizar
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    document.getElementById("gcPendSair").addEventListener("click", () => {
+      overlay.remove();
+      resolve(true); // continuar logout
+    });
+
+    document.getElementById("gcPendActualizar").addEventListener("click", () => {
+      overlay.remove();
+      resolve(false); // cancelar logout — ir para agenda
+    });
+  });
+}
+
+/**
  * wireLogout
  * Liga o botão #btnLogout ao logout do Supabase.
+ * Antes de sair, verifica se há consultas pendentes vencidas.
  */
 export async function wireLogout() {
   const btn = document.getElementById("btnLogout");
   if (!btn) return;
 
   btn.addEventListener("click", async () => {
+    // Verificar pendentes antes de sair
+    const pendentes = await checkPendentesVencidos();
+
+    if (pendentes.length > 0) {
+      const continuar = await showPendentesLogoutWarning(pendentes);
+      if (!continuar) {
+        // Ir para a agenda actualizar
+        try {
+          const G_ref = window.__gc_G || (typeof G !== "undefined" ? G : null);
+          if (G_ref) G_ref.currentView = "agenda";
+          if (typeof window.__gc_renderCurrentView === "function") {
+            window.__gc_renderCurrentView();
+          }
+        } catch (_) {}
+        return;
+      }
+    }
+
     btn.disabled = true;
-    // preserve icon if button has no text
     if (btn.textContent.trim().length < 3) {
       btn.style.opacity = "0.5";
     } else {

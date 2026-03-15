@@ -107,6 +107,41 @@ export async function boot() {
 
     await renderCurrentView();
 
+  // Verificar pendentes em background — sem bloquear o arranque
+  (async () => {
+    try {
+      const hoje = new Date().toISOString().slice(0, 10);
+      const { data } = await window.sb
+        .from("registos_financeiros")
+        .select("id", { count: "exact", head: true })
+        .in("appt_status", ["scheduled", "arrived"])
+        .lt("data", hoje);
+      const count = data?.length ?? 0;
+      if (count > 0) {
+        // Badge no ícone de Rendimentos
+        const btnFin = document.querySelector('[data-nav="financas"]');
+        if (btnFin) {
+          const badge = document.createElement("span");
+          badge.id = "gcPendentesBadge";
+          Object.assign(badge.style, {
+            position: "absolute", top: "6px", right: "6px",
+            background: "#e02424", color: "#fff",
+            fontSize: "10px", fontWeight: "700",
+            width: "16px", height: "16px",
+            borderRadius: "50%", display: "flex",
+            alignItems: "center", justifyContent: "center",
+            lineHeight: "1", pointerEvents: "none"
+          });
+          badge.textContent = count > 9 ? "9+" : String(count);
+          btnFin.style.position = "relative";
+          btnFin.appendChild(badge);
+        }
+      }
+    } catch (e) {
+      console.warn("checkPendentes badge:", e);
+    }
+  })();
+
   } catch (e) {
     if (__gcIsAuthError(e)) {
       await __gcForceSessionLock("Sessão expirada ou inválida. Volte a iniciar sessão.");
