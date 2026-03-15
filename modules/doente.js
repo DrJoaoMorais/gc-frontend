@@ -3449,7 +3449,7 @@ function openPatientViewModal(patient) {
         /* ── Patient view layout ── */
         .gc-pv {
           display:flex; gap:0;
-          margin:-20px -20px -20px;
+          margin:0 -20px -20px;
           min-height:calc(100vh - 52px);
           position:relative;
         }
@@ -3458,7 +3458,7 @@ function openPatientViewModal(patient) {
         .gc-pv-sb {
           width:188px; flex-shrink:0;
           position:sticky; top:0; align-self:flex-start;
-          height:100vh; overflow-y:auto;
+          height:calc(100vh - 52px); overflow-y:auto;
           background:#f8fafc; border-right:1px solid #e5e7eb;
           padding:12px 8px 20px;
           display:flex; flex-direction:column; gap:2px;
@@ -3472,10 +3472,12 @@ function openPatientViewModal(patient) {
           padding:0 20px 40px;
           position:relative;
           background:#ffffff;
+          min-height:calc(100vh - 52px);
         }
 
         /* ── Patient header strip — sticky to page scroll ── */
         .gc-pv-header {
+          position:sticky; top:0; z-index:10;
           background:#fff; border-bottom:2px solid #0f2d52;
           padding:14px 0 10px;
           margin-bottom:16px;
