@@ -3538,33 +3538,50 @@ function openPatientViewModal(patient) {
         <div class="gc-pv-sb">
 
           ${isDoctor() ? `
-            <div class="gc-sb-lbl" style="margin-top:4px;">Ações</div>
+            <div class="gc-sb-lbl" style="margin-top:4px;">Consulta</div>
 
             <button id="btnNewConsult" class="gc-sb-btn ${creatingConsult ? 'gc-sb-btn--primary' : ''}">
-              <span class="gc-sb-icon">📋</span><span>Consulta</span>
+              <span class="gc-sb-icon">📋</span><span>Nova Consulta</span>
             </button>
 
             <button id="btnExameObjectivo" class="gc-sb-btn">
               <span class="gc-sb-icon">🔍</span><span>Exame Objectivo</span>
             </button>
 
+            <div class="gc-sb-div"></div>
+            <div class="gc-sb-lbl">Documentação</div>
+
             <button id="btnMedicalReports" class="gc-sb-btn">
-              <span class="gc-sb-icon">📄</span><span>Relatórios</span>
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 5h5M4.5 7.5h5M4.5 10h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              <span>Relatórios</span>
             </button>
 
             <button id="btnComplementaryExams" class="gc-sb-btn ${examsUiState?.isOpen ? 'gc-sb-btn--active' : ''}">
-              <span class="gc-sb-icon">🧪</span><span>Exames</span>
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="1" y="5" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 5V3.5a3 3 0 016 0V5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="9.5" r="1.2" fill="currentColor"/></svg>
+              <span>Exames</span>
             </button>
 
             <button id="btnAnalyses" class="gc-sb-btn ${analisesUiState?.isOpen ? 'gc-sb-btn--active' : ''}">
-              <span class="gc-sb-icon">🔬</span><span>Análises</span>
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M5 2v6l-2.5 4.5A.8.8 0 003.2 14h9.6a.8.8 0 00.7-1.5L11 8V2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 2h6M4 9.5h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              <span>Análises</span>
+            </button>
+
+            <button id="btnProtocolos" class="gc-sb-btn" style="color:#94a3b8;">
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <span>Protocolos</span>
             </button>
 
             <div class="gc-sb-div"></div>
+            <div class="gc-sb-lbl">Doente</div>
           ` : ``}
 
           <button id="btnViewIdent" class="gc-sb-btn" style="color:#64748b;">
             <span class="gc-sb-icon">👤</span><span>Identificação</span>
+          </button>
+
+          <button id="btnAgendarConsulta" class="gc-sb-btn" style="color:#16a34a;border-color:#d1fae5;background:#f0fdf4;margin-top:4px;">
+            <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="1.5" y="3" width="13" height="11.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 7h13M5 1.5V4M11 1.5V4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M8 9.5v2M7 10.5h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            <span>Agendar Consulta</span>
           </button>
 
           ${docsLoading ? `<div style="font-size:11px;color:#94a3b8;padding:3px 10px;">A carregar…</div>` : ``}
@@ -3607,6 +3624,31 @@ function openPatientViewModal(patient) {
 
     document.getElementById("btnViewIdent")?.addEventListener("click", () => openPatientIdentity("view"));
     document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
+
+    // Agendar Consulta — vai para Agenda com doente pré-seleccionado
+    document.getElementById("btnAgendarConsulta")?.addEventListener("click", () => {
+      try {
+        const G_ref = window.__gc_G || (typeof G !== "undefined" ? G : null);
+        if (G_ref) {
+          G_ref.currentView = "agenda";
+          G_ref.preselectedPatientId = p.id;
+          G_ref.preselectedPatientName = p.full_name || "";
+        }
+        if (typeof window.__gc_renderCurrentView === "function") {
+          window.__gc_renderCurrentView();
+          // Abrir modal de nova marcação após render
+          setTimeout(() => {
+            const btnNew = document.getElementById("btnNewAppt");
+            if (btnNew) btnNew.click();
+          }, 200);
+        }
+      } catch(e) { console.error("Agendar consulta:", e); }
+    });
+
+    // Protocolos — em desenvolvimento
+    document.getElementById("btnProtocolos")?.addEventListener("click", () => {
+      alert("Protocolos — disponível em breve.");
+    });
 
     // Garantir que os contentores ancestrais têm position:relative para os painéis laterais
     try {
