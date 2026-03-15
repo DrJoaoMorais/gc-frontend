@@ -205,6 +205,52 @@ export async function renderFinancas() {
       meses.push({ ano: d.getFullYear(), mes: d.getMonth() + 1 });
     }
 
+    /* ── Dados analíticos ── */
+    const totalGeral = totalEsperado + totalAvencas;
+    const mediaConsulta = realizadas.length > 0 ? Math.round(totalEsperado / realizadas.length) : 0;
+    const valorPerdido  = [...faltas, ...dispensadas].reduce((s, r) => s + Number(r.valor || 0), 0);
+
+    /* Rendimento por entidade */
+    const porEntidade = {};
+    registos.forEach(r => {
+      const ent = r.entidades_financeiras || {};
+      const key = ent.nome || "—";
+      if (!porEntidade[key]) porEntidade[key] = { nome: key, tipo: ent.tipo, valor: 0, count: 0 };
+      if (contaParaTotal(r.appt_status, r.financial_status)) {
+        porEntidade[key].valor += Number(r.valor || 0);
+        porEntidade[key].count++;
+      }
+    });
+    /* Adicionar avenças */
+    avencas.forEach(e => {
+      const key = e.nome;
+      if (!porEntidade[key]) porEntidade[key] = { nome: key, tipo: e.tipo, valor: 0, count: 0 };
+      porEntidade[key].valor += Number(e.avenca_valor || 0);
+      porEntidade[key].isAvenca = true;
+    });
+    const entOrdenadas = Object.values(porEntidade).sort((a, b) => b.valor - a.valor);
+    const maxValEnt = entOrdenadas.length > 0 ? entOrdenadas[0].valor : 1;
+
+    /* Tipos de acto */
+    const porTipo = {};
+    registos.filter(r => contaParaTotal(r.appt_status, r.financial_status)).forEach(r => {
+      const t = r.tipo_acto || "Outro";
+      porTipo[t] = (porTipo[t] || 0) + 1;
+    });
+    const tiposOrdenados = Object.entries(porTipo).sort((a, b) => b[1] - a[1]);
+    const totalTipos = Object.values(porTipo).reduce((s, v) => s + v, 0) || 1;
+    const tipoCores = ["#185FA5","#378ADD","#85B7EB","#B5D4F4","#E6F1FB","#0C447C"];
+
+    /* Consultas por semana */
+    const porSemana = [0, 0, 0, 0];
+    registos.forEach(r => {
+      if (!contaParaTotal(r.appt_status, r.financial_status)) return;
+      if (!r.data) return;
+      const dia = parseInt(r.data.slice(8, 10), 10);
+      const idx = dia <= 7 ? 0 : dia <= 14 ? 1 : dia <= 21 ? 2 : 3;
+      porSemana[idx]++;
+    });
+
     content.innerHTML = `
       <style>
         .fin-metric { background:#f8fafc; border-radius:10px; padding:14px 16px; }
@@ -213,6 +259,8 @@ export async function renderFinancas() {
         .fin-metric-sub { font-size:11px; color:#94a3b8; margin-top:3px; }
         .fin-tab { padding:6px 14px; border-radius:8px; border:0.5px solid #e2e8f0; background:#fff; font-size:12px; font-weight:500; cursor:pointer; color:#64748b; font-family:inherit; }
         .fin-tab.active { background:#0f2d52; color:#fff; border-color:#0f2d52; }
+        .fin-view-tab { padding:7px 16px; border-radius:8px; border:0.5px solid #e2e8f0; background:#fff; font-size:13px; font-weight:500; cursor:pointer; color:#64748b; font-family:inherit; }
+        .fin-view-tab.active { background:#1a56db; color:#fff; border-color:#1a56db; }
         .fin-table { width:100%; border-collapse:collapse; font-size:13px; }
         .fin-table th { font-size:11px; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:.05em; padding:8px 12px; background:#f8fafc; border-bottom:0.5px solid #e2e8f0; text-align:left; }
         .fin-table td { padding:10px 12px; border-bottom:0.5px solid #f1f5f9; vertical-align:middle; color:#0f172a; }
@@ -221,15 +269,22 @@ export async function renderFinancas() {
         .fin-section { background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; overflow:hidden; margin-top:16px; }
         .fin-section-header { padding:12px 16px; border-bottom:0.5px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; }
         .fin-section-title { font-size:13px; font-weight:700; color:#0f172a; }
+        .fin-two-col { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px; }
+        .fin-ent-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+        .fin-ent-row:last-child { margin-bottom:0; }
+        .fin-bar-wrap { flex:1; background:#f1f5f9; border-radius:4px; height:8px; overflow:hidden; }
+        .fin-bar { height:8px; border-radius:4px; }
+        .fin-status-row { display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:0.5px solid #f1f5f9; }
+        .fin-status-row:last-child { border-bottom:none; }
       </style>
 
       <!-- HEADER -->
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
         <div>
           <div style="font-size:18px;font-weight:800;color:#0f2d52;">Rendimentos</div>
-          <div style="font-size:13px;color:#94a3b8;margin-top:2px;">${mesLabel(ano, mes)} — valor esperado</div>
+          <div style="font-size:13px;color:#94a3b8;margin-top:2px;">${mesLabel(ano, mes)}</div>
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
           ${meses.map(m => `
             <button class="fin-tab${m.ano === ano && m.mes === mes ? " active" : ""}"
               data-ano="${m.ano}" data-mes="${m.mes}">
@@ -240,111 +295,223 @@ export async function renderFinancas() {
       </div>
 
       <!-- MÉTRICAS -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;">
         <div class="fin-metric">
           <div class="fin-metric-label">Total esperado</div>
-          <div class="fin-metric-value">${(totalEsperado + totalAvencas).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}</div>
-          <div class="fin-metric-sub">Actos realizados + avenças</div>
+          <div class="fin-metric-value">${totalGeral.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}</div>
+          <div class="fin-metric-sub">Actos + avenças</div>
+        </div>
+        <div class="fin-metric">
+          <div class="fin-metric-label">Consultas realizadas</div>
+          <div class="fin-metric-value">${realizadas.length}</div>
+          <div class="fin-metric-sub">média ${mediaConsulta.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}/cons.</div>
+        </div>
+        <div class="fin-metric">
+          <div class="fin-metric-label">Faltas / dispensas</div>
+          <div class="fin-metric-value" style="color:#e02424;">${faltas.length} / ${dispensadas.length}</div>
+          <div class="fin-metric-sub">perdido: ${valorPerdido.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}</div>
         </div>
         <div class="fin-metric">
           <div class="fin-metric-label">Avenças</div>
           <div class="fin-metric-value">${totalAvencas.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}</div>
           <div class="fin-metric-sub">${avencas.length} entidade(s)</div>
         </div>
-        <div class="fin-metric">
-          <div class="fin-metric-label">Actos realizados</div>
-          <div class="fin-metric-value">${totalEsperado.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}</div>
-          <div class="fin-metric-sub">${realizadas.length} consulta(s)</div>
-        </div>
-        <div class="fin-metric">
-          <div class="fin-metric-label">Faltas</div>
-          <div class="fin-metric-value" style="color:#e02424;">${faltas.length}</div>
-          <div class="fin-metric-sub">${dispensadas.length} dispensa(s)</div>
-        </div>
       </div>
 
-      <!-- REGISTOS DO MÊS -->
-      <div class="fin-section">
-        <div class="fin-section-header">
-          <span class="fin-section-title">Registos — ${mesLabel(ano, mes)}</span>
-          <div style="display:flex;gap:8px;">
-            <button id="btnFinPdfAthletix" class="gc-btn" style="font-size:12px;">PDF Athletix</button>
-            <button id="btnFinNovoRegisto" class="gc-btn-primary" style="font-size:12px;">+ Registo</button>
+      <!-- TABS DE VISTA -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:0.5px solid #e2e8f0;padding-bottom:12px;">
+        <button class="fin-view-tab active" data-view="registos">Registos</button>
+        <button class="fin-view-tab" data-view="analise">Análise</button>
+      </div>
+
+      <!-- VISTA: REGISTOS -->
+      <div id="finVistaRegistos">
+        <div class="fin-section" style="margin-top:0;">
+          <div class="fin-section-header">
+            <span class="fin-section-title">Registos — ${mesLabel(ano, mes)}</span>
+            <div style="display:flex;gap:8px;">
+              <button id="btnFinPdfAthletix" class="gc-btn" style="font-size:12px;">PDF Athletix</button>
+              <button id="btnFinNovoRegisto" class="gc-btn-primary" style="font-size:12px;">+ Registo</button>
+            </div>
           </div>
+          ${registos.length === 0 ? `
+            <div style="padding:32px;text-align:center;color:#94a3b8;font-size:13px;">
+              Sem registos para ${mesLabel(ano, mes)}.
+            </div>
+          ` : `
+            <table class="fin-table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Entidade</th>
+                  <th>Tipo</th>
+                  <th>Acto</th>
+                  <th>Doente</th>
+                  <th>Estado</th>
+                  <th style="text-align:right;">Valor</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                ${registos.map(r => {
+                  const ent   = r.entidades_financeiras || {};
+                  const pat   = r.patients || {};
+                  const conta = contaParaTotal(r.appt_status, r.financial_status);
+                  return `
+                    <tr>
+                      <td style="white-space:nowrap;color:#64748b;">${r.data ? new Date(r.data + "T00:00:00").toLocaleDateString("pt-PT") : "—"}</td>
+                      <td style="font-weight:600;">${escapeHtml(ent.nome || "—")}</td>
+                      <td>${badgeTipo(ent.tipo)}</td>
+                      <td style="color:#64748b;">${escapeHtml(r.tipo_acto || r.periodo || "—")}</td>
+                      <td style="color:#64748b;">${escapeHtml(pat.full_name || "—")}</td>
+                      <td>${badgeStatus(r.appt_status, r.financial_status)}</td>
+                      <td style="text-align:right;font-weight:700;color:${conta ? "#0f2d52" : "#94a3b8"};">
+                        ${conta ? Number(r.valor || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" }) : "—"}
+                      </td>
+                      <td style="text-align:right;">
+                        <button class="gc-btn btnFinEditar" data-id="${r.id}" style="font-size:11px;padding:4px 10px;">Editar</button>
+                      </td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          `}
         </div>
-        ${registos.length === 0 ? `
-          <div style="padding:32px;text-align:center;color:#94a3b8;font-size:13px;">
-            Sem registos para ${mesLabel(ano, mes)}.
+
+        <div class="fin-section">
+          <div class="fin-section-header">
+            <span class="fin-section-title">Avenças activas</span>
           </div>
-        ` : `
           <table class="fin-table">
             <thead>
               <tr>
-                <th>Data</th>
                 <th>Entidade</th>
                 <th>Tipo</th>
-                <th>Acto</th>
-                <th>Doente</th>
-                <th>Estado</th>
-                <th style="text-align:right;">Valor</th>
-                <th></th>
+                <th style="text-align:right;">Valor/mês</th>
               </tr>
             </thead>
             <tbody>
-              ${registos.map(r => {
-                const ent   = r.entidades_financeiras || {};
-                const pat   = r.patients || {};
-                const conta = contaParaTotal(r.appt_status, r.financial_status);
-                return `
+              ${avencas.length === 0
+                ? `<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:24px;">Sem avenças configuradas.</td></tr>`
+                : avencas.map(e => `
                   <tr>
-                    <td style="white-space:nowrap;color:#64748b;">${r.data ? new Date(r.data + "T00:00:00").toLocaleDateString("pt-PT") : "—"}</td>
-                    <td style="font-weight:600;">${escapeHtml(ent.nome || "—")}</td>
-                    <td>${badgeTipo(ent.tipo)}</td>
-                    <td style="color:#64748b;">${escapeHtml(r.tipo_acto || r.periodo || "—")}</td>
-                    <td style="color:#64748b;">${escapeHtml(pat.full_name || "—")}</td>
-                    <td>${badgeStatus(r.appt_status, r.financial_status)}</td>
-                    <td style="text-align:right;font-weight:700;color:${conta ? "#0f2d52" : "#94a3b8"};">
-                      ${conta ? Number(r.valor || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" }) : "—"}
-                    </td>
-                    <td style="text-align:right;">
-                      <button class="gc-btn btnFinEditar" data-id="${r.id}" style="font-size:11px;padding:4px 10px;">Editar</button>
+                    <td style="font-weight:600;">${escapeHtml(e.nome)}</td>
+                    <td>${badgeTipo(e.tipo)}</td>
+                    <td style="text-align:right;font-weight:700;color:#0f2d52;">
+                      ${Number(e.avenca_valor || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
                     </td>
                   </tr>
-                `;
-              }).join("")}
+                `).join("")
+              }
             </tbody>
           </table>
-        `}
+        </div>
       </div>
 
-      <!-- AVENÇAS ACTIVAS -->
-      <div class="fin-section">
-        <div class="fin-section-header">
-          <span class="fin-section-title">Avenças activas</span>
+      <!-- VISTA: ANÁLISE -->
+      <div id="finVistaAnalise" style="display:none;">
+
+        <div class="fin-two-col">
+
+          <!-- Rendimento por entidade -->
+          <div class="fin-section" style="margin-top:0;">
+            <div class="fin-section-header"><span class="fin-section-title">Rendimento por entidade</span></div>
+            <div style="padding:16px;">
+              ${entOrdenadas.length === 0
+                ? `<div style="text-align:center;color:#94a3b8;font-size:13px;padding:16px 0;">Sem dados.</div>`
+                : entOrdenadas.map(e => `
+                  <div class="fin-ent-row">
+                    <div style="font-size:12px;font-weight:600;color:#0f172a;min-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(e.nome)}</div>
+                    <div class="fin-bar-wrap">
+                      <div class="fin-bar" style="width:${Math.round((e.valor / Math.max(maxValEnt, 1)) * 100)}%;background:#185FA5;"></div>
+                    </div>
+                    <div style="font-size:12px;font-weight:600;color:#0f172a;min-width:64px;text-align:right;">${Number(e.valor).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
+                    <div style="font-size:11px;color:#94a3b8;min-width:40px;text-align:right;">${e.isAvenca ? "avença" : e.count + " cons."}</div>
+                  </div>
+                `).join("")
+              }
+            </div>
+          </div>
+
+          <!-- Tipos de acto -->
+          <div class="fin-section" style="margin-top:0;">
+            <div class="fin-section-header"><span class="fin-section-title">Tipos de acto</span></div>
+            <div style="padding:16px;">
+              ${tiposOrdenados.length === 0
+                ? `<div style="text-align:center;color:#94a3b8;font-size:13px;padding:16px 0;">Sem actos registados.</div>`
+                : `
+                  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+                    ${tiposOrdenados.map(([t, n], i) => `
+                      <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:#64748b;">
+                        <span style="width:9px;height:9px;border-radius:2px;background:${tipoCores[i] || "#94a3b8"};display:inline-block;flex-shrink:0;"></span>
+                        ${escapeHtml(t)} ${Math.round((n/totalTipos)*100)}%
+                      </span>
+                    `).join("")}
+                  </div>
+                  <div style="position:relative;width:100%;height:160px;">
+                    <canvas id="finChartTipos"></canvas>
+                  </div>
+                `
+              }
+            </div>
+          </div>
         </div>
-        <table class="fin-table">
-          <thead>
-            <tr>
-              <th>Entidade</th>
-              <th>Tipo</th>
-              <th style="text-align:right;">Valor/mês</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${avencas.length === 0
-              ? `<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:24px;">Sem avenças configuradas.</td></tr>`
-              : avencas.map(e => `
-                <tr>
-                  <td style="font-weight:600;">${escapeHtml(e.nome)}</td>
-                  <td>${badgeTipo(e.tipo)}</td>
-                  <td style="text-align:right;font-weight:700;color:#0f2d52;">
-                    ${Number(e.avenca_valor || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}
-                  </td>
-                </tr>
-              `).join("")
-            }
-          </tbody>
-        </table>
+
+        <div class="fin-two-col">
+
+          <!-- Consultas por semana -->
+          <div class="fin-section" style="margin-top:0;">
+            <div class="fin-section-header"><span class="fin-section-title">Consultas por semana</span></div>
+            <div style="padding:16px;">
+              <div style="position:relative;width:100%;height:160px;">
+                <canvas id="finChartSemanas"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Estado das consultas -->
+          <div class="fin-section" style="margin-top:0;">
+            <div class="fin-section-header"><span class="fin-section-title">Estado das consultas</span></div>
+            <div style="padding:14px 16px;">
+              <div class="fin-status-row">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:8px;height:8px;border-radius:50%;background:#059669;flex-shrink:0;"></div>
+                  <span style="font-size:13px;color:#0f172a;">Realizadas</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:13px;font-weight:700;color:#0f172a;">${realizadas.length}</span>
+                  <span style="font-size:11px;background:#d1fae5;color:#065f46;padding:2px 7px;border-radius:4px;">${realizadas.length + faltas.length + dispensadas.length > 0 ? Math.round((realizadas.length / (realizadas.length + faltas.length + dispensadas.length)) * 100) : 0}%</span>
+                </div>
+              </div>
+              <div class="fin-status-row">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:8px;height:8px;border-radius:50%;background:#DC2626;flex-shrink:0;"></div>
+                  <span style="font-size:13px;color:#0f172a;">Faltou</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:13px;font-weight:700;color:#0f172a;">${faltas.length}</span>
+                  <span style="font-size:11px;background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:4px;">${realizadas.length + faltas.length + dispensadas.length > 0 ? Math.round((faltas.length / (realizadas.length + faltas.length + dispensadas.length)) * 100) : 0}%</span>
+                </div>
+              </div>
+              <div class="fin-status-row">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:8px;height:8px;border-radius:50%;background:#D97706;flex-shrink:0;"></div>
+                  <span style="font-size:13px;color:#0f172a;">Dispensado</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:13px;font-weight:700;color:#0f172a;">${dispensadas.length}</span>
+                  <span style="font-size:11px;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:4px;">${realizadas.length + faltas.length + dispensadas.length > 0 ? Math.round((dispensadas.length / (realizadas.length + faltas.length + dispensadas.length)) * 100) : 0}%</span>
+                </div>
+              </div>
+              <div style="margin-top:14px;padding-top:12px;border-top:0.5px solid #f1f5f9;">
+                <div style="font-size:11px;color:#94a3b8;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em;">Valor perdido</div>
+                <div style="font-size:20px;font-weight:800;color:#A32D2D;">${valorPerdido > 0 ? "−" : ""}${valorPerdido.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
       </div>
     `;
 
@@ -358,6 +525,95 @@ export async function renderFinancas() {
         render();
       });
     });
+
+    /* Tabs de vista (Registos / Análise) */
+    content.querySelectorAll(".fin-view-tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        content.querySelectorAll(".fin-view-tab").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        const v = btn.dataset.view;
+        const elReg = document.getElementById("finVistaRegistos");
+        const elAna = document.getElementById("finVistaAnalise");
+        if (elReg) elReg.style.display = v === "registos" ? "block" : "none";
+        if (elAna) elAna.style.display = v === "analise"  ? "block" : "none";
+        if (v === "analise") renderCharts();
+      });
+    });
+
+    /* Gráficos Chart.js — só renderiza quando a tab Análise está activa */
+    function renderCharts() {
+      /* Destruir instâncias anteriores se existirem */
+      ["finChartTipos","finChartSemanas"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el._chartInstance) { el._chartInstance.destroy(); el._chartInstance = null; }
+      });
+
+      /* Donut — tipos de acto */
+      const cTipos = document.getElementById("finChartTipos");
+      if (cTipos && tiposOrdenados.length > 0) {
+        cTipos._chartInstance = new Chart(cTipos, {
+          type: "doughnut",
+          data: {
+            labels: tiposOrdenados.map(([t]) => t),
+            datasets: [{
+              data: tiposOrdenados.map(([, n]) => n),
+              backgroundColor: tipoCores.slice(0, tiposOrdenados.length),
+              borderWidth: 2,
+              borderColor: "#ffffff"
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            cutout: "62%"
+          }
+        });
+      }
+
+      /* Barras — consultas por semana */
+      const cSemanas = document.getElementById("finChartSemanas");
+      if (cSemanas) {
+        cSemanas._chartInstance = new Chart(cSemanas, {
+          type: "bar",
+          data: {
+            labels: ["S1 (1–7)", "S2 (8–14)", "S3 (15–21)", "S4 (22–31)"],
+            datasets: [{
+              data: porSemana,
+              backgroundColor: "#185FA5",
+              borderRadius: 5,
+              borderSkipped: false
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { font: { size: 11 }, color: "#94a3b8", autoSkip: false }
+              },
+              y: {
+                beginAtZero: true,
+                grid: { color: "#f1f5f9" },
+                ticks: { font: { size: 11 }, color: "#94a3b8", stepSize: 1, precision: 0 }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    /* Carregar Chart.js se ainda não estiver disponível */
+    if (!window.Chart) {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js";
+      s.onload = () => {
+        if (document.getElementById("finVistaAnalise")?.style.display !== "none") renderCharts();
+      };
+      document.head.appendChild(s);
+    }
 
     /* Novo registo */
     document.getElementById("btnFinNovoRegisto")?.addEventListener("click", async () => {
