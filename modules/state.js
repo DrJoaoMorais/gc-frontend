@@ -37,7 +37,8 @@ export const PROCEDURE_OPTIONS = [
 /* ==== 03B — Constantes de estados/status ==== */
 
 /* ---- 03B.1 — STATUS_OPTIONS ---- */
-export const STATUS_OPTIONS = ["scheduled", "arrived", "done", "no_show", "confirmed"];
+/* "confirmed" removido — usado apenas internamente em bloqueios */
+export const STATUS_OPTIONS = ["scheduled", "arrived", "done", "no_show"];
 
 
 /* ==== 03C — Constantes de duração ==== */
@@ -56,7 +57,8 @@ export function statusMeta(statusRaw) {
     arrived:   { icon: "⏳", label: "Chegou",                   bg: "#fffbeb", fg: "#92400e", br: "#fde68a" },
     done:      { icon: "✅", label: "Realizada",                 bg: "#ecfdf5", fg: "#065f46", br: "#a7f3d0" },
     no_show:   { icon: "❌", label: "Faltou/Cancelada",          bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
-    confirmed: { icon: "🎁", label: "Dispensa de honorários",    bg: "#dbeafe", fg: "#1e40af", br: "#93c5fd" },
+    confirmed:             { icon: "✅", label: "Realizada",              bg: "#ecfdf5", fg: "#065f46", br: "#a7f3d0" },
+    honorarios_dispensados:{ icon: "🎁", label: "Dispensa de honorários", bg: "#fef3c7", fg: "#92400e", br: "#fde68a" },
   };
   return map[s] || map.scheduled;
 }
