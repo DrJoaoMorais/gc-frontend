@@ -3473,14 +3473,14 @@ function openPatientViewModal(patient) {
           position:relative;
           background:#ffffff;
           overflow-y:auto;
-          height:100vh;
+          height:calc(100vh - 52px);
         }
 
         /* ── Patient header strip — sticky to page scroll ── */
         .gc-pv-header {
           position:sticky; top:0; z-index:20;
           background:#fff; border-bottom:2px solid #0f2d52;
-          padding:10px 0 10px;
+          padding:14px 0 10px;
           margin-bottom:16px;
           /* pull left/right to cover full feed width */
         }
