@@ -3555,13 +3555,21 @@ function openPatientViewModal(patient) {
       openExameObjectivoMenu(document.getElementById("btnExameObjectivo"));
     });
 
-    if (isDoctor() && !creatingConsult) {
-      document.getElementById("btnNewConsult")?.addEventListener("click", () => {
-        editingConsultId = null;
-        editingConsultRow = null;
-        creatingConsult = true;
-        render();
-        bindConsultEvents();
+    if (isDoctor()) {
+      // Nova consulta — só quando não há consulta aberta
+      if (!creatingConsult) {
+        document.getElementById("btnNewConsult")?.addEventListener("click", () => {
+          editingConsultId = null;
+          editingConsultRow = null;
+          creatingConsult = true;
+          render();
+          bindConsultEvents();
+        });
+      }
+
+      // Relatórios, Exames e Análises — sempre disponíveis
+      document.getElementById("btnMedicalReports")?.addEventListener("click", (e) => {
+        openReportsMenu(e.currentTarget);
       });
 
       document.getElementById("btnComplementaryExams")?.addEventListener("click", () => {
@@ -3586,10 +3594,6 @@ function openPatientViewModal(patient) {
           openAnalisesPanel({ patientId: p.id, consultationId: consultId || null, onClose: () => { render(); } });
           render();
         }
-      });
-
-      document.getElementById("btnMedicalReports")?.addEventListener("click", (e) => {
-        openReportsMenu(e.currentTarget);
       });
     }
 
