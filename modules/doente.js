@@ -2389,6 +2389,99 @@ function openPatientViewModal(patient) {
     `;
   }
 
+  /* ── renderHdaWithCollapsibleExams ──────────────────────────────────────
+     Detecta blocos "── ARTICULAÇÃO — EXAME OBJECTIVO ──" e encapsula-os
+     num <details> colapsável para manter o feed legível.
+     O texto fora dos blocos de exame é renderizado normalmente.
+  ── */
+  function renderHdaWithCollapsibleExams(hda) {
+    if (!hda || !String(hda).trim()) return `<span style="color:#64748b;">—</span>`;
+
+    // Verificar se o HDA contém blocos de exame objectivo (marcadores ── ... EXAME OBJECTIVO ──)
+    const raw = String(hda);
+
+    // O Quill converte o texto em <p>; cada linha de texto fica numa <p>
+    // O marcador de exame é: "── ARTICULAÇÃO — EXAME OBJECTIVO ──" no início de uma linha
+    // Vamos trabalhar sobre o HTML sanitizado
+    const sanitized = sanitizeHTML(raw);
+
+    // Se não houver marcador de exame, renderizar normalmente
+    if (!sanitized.includes('EXAME OBJECTIVO')) {
+      return sanitized;
+    }
+
+    // Separar o HTML em nós: dividir por blocos de exame
+    // Estratégia: encontrar <p>...</p> que contém o marcador de início de exame
+    // e agrupar todas as <p> seguintes até ao próximo bloco normal ou fim.
+    // Fazemos parse simples: split por </p> para obter segmentos.
+    const segments = sanitized.split(/<\/p>/i);
+    let result = '';
+    let inExam = false;
+    let examTitle = '';
+    let examBuffer = '';
+
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      if (!seg.trim()) continue;
+
+      // Extrair texto puro do segmento (sem tags)
+      const textOnly = seg.replace(/<[^>]+>/g, '').trim();
+
+      // Detectar início de bloco de exame: linha com "EXAME OBJECTIVO"
+      const isExamHeader = /──.*EXAME OBJECTIVO.*──/.test(textOnly);
+      // Detectar fim: linha de separador "──────"
+      const isSeparator = /^─{10,}/.test(textOnly);
+
+      if (isExamHeader) {
+        // Fechar bloco anterior se estava aberto
+        if (inExam) {
+          result += _wrapExamBlock(examTitle, examBuffer);
+          examBuffer = '';
+        }
+        inExam = true;
+        // Extrair nome da articulação do título ex: "── OMBRO — EXAME OBJECTIVO ──"
+        const match = textOnly.match(/──\s*([^—]+)\s*—/);
+        examTitle = match ? match[1].trim() : 'Exame Objectivo';
+        // Não adicionar o cabeçalho ao buffer — fica apenas no summary
+      } else if (isSeparator && inExam) {
+        // Fim do bloco
+        result += _wrapExamBlock(examTitle, examBuffer);
+        examBuffer = '';
+        inExam = false;
+      } else if (inExam) {
+        // Linha dentro do bloco de exame
+        const line = seg.trim();
+        if (line) examBuffer += line + '</p>';
+      } else {
+        // Texto normal fora de bloco de exame
+        const line = seg.trim();
+        if (line) result += line + '</p>';
+      }
+    }
+
+    // Fechar bloco aberto no final (sem separador)
+    if (inExam && examBuffer) {
+      result += _wrapExamBlock(examTitle, examBuffer);
+    }
+
+    return result || sanitized;
+  }
+
+  function _wrapExamBlock(title, bodyHtml) {
+    return \`<details style="margin:6px 0; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+      <summary style="cursor:pointer; padding:7px 12px; background:#f8fafc; font-size:12px;
+                      font-weight:700; color:#1a56db; user-select:none; list-style:none;
+                      display:flex; align-items:center; gap:6px;">
+        <span style="font-size:14px;">🔍</span>
+        <span>Exame Objectivo — \${title}</span>
+        <span style="margin-left:auto; font-size:11px; color:#94a3b8;">clique para expandir</span>
+      </summary>
+      <div style="padding:10px 14px; font-size:12px; line-height:1.35; color:#374151; white-space:pre-wrap; font-family:inherit;">
+\${bodyHtml ? bodyHtml.replace(/<p>/gi,'').replace(/<\/p>/gi,'\n').replace(/<br\s*\/?>/gi,'\n') : ''}
+      </div>
+    </details>\`;
+  }
+
   function renderTimeline() {
     if (timelineLoading) return `<div style="color:#64748b;">A carregar registos...</div>`;
 
@@ -2576,8 +2669,8 @@ function openPatientViewModal(patient) {
                 <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:8px;">
                   Anamnese / HDA
                 </div>
-                <div style="line-height:1.65; font-size:15px; color:#111827; background:#ffffff;">
-                  ${sanitizeHTML(r.hda || "") || `<span style="color:#64748b;">—</span>`}
+                <div style="line-height:1.5; font-size:14px; color:#111827; background:#ffffff;">
+                  ${renderHdaWithCollapsibleExams(r.hda || "")}
                 </div>
 
                 ${r.diagnoses && r.diagnoses.length ? `
