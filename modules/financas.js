@@ -978,6 +978,7 @@ function openModalEditarRegisto(registo, entidades, onSave) {
 
     try {
       overlay.querySelector("#finEditBtnGuardar").disabled = true;
+
       await updateRegisto(registo.id, {
         data,
         periodo:          periodoFromDate(data),
@@ -986,6 +987,22 @@ function openModalEditarRegisto(registo, entidades, onSave) {
         appt_status:      apptStatus,
         notas:            notas || null,
       });
+
+      // Sincronizar estado de volta ao appointment correspondente
+      if (registo.appointment_id) {
+        try {
+          await window.sb
+            .from("appointments")
+            .update({
+              status:           apptStatus,
+              financial_status: finStatus
+            })
+            .eq("id", registo.appointment_id);
+        } catch (syncErr) {
+          console.warn("Sync appointment falhou (não crítico):", syncErr);
+        }
+      }
+
       close();
       await onSave();
     } catch (e) {
