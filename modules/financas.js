@@ -586,7 +586,12 @@ ${pendVencidos.length > 0 ? `
                 <td style="color:${dateCor};white-space:nowrap;">${rData ? rData.toLocaleDateString("pt-PT") : "—"}${isFut ? ' <span style="font-size:10px;color:#b0bec5;">(futuro)</span>' : ""}</td>
                 <td style="font-weight:600;color:${isFut?"#94a3b8":"#0f172a"};">${escapeHtml(ent.nome||"—")}</td>
                 <td style="color:${isFut?"#b0bec5":"#64748b"};">${escapeHtml(r.tipo_acto||r.periodo||"—")}</td>
-                <td style="color:${isFut?"#b0bec5":"#64748b"};">${escapeHtml(pat.full_name||"—")}</td>
+                <td>${pat.full_name
+                  ? `<button class="btnFinDoente" data-patient-id="${r.patient_id||""}"
+                      style="background:none;border:none;cursor:pointer;color:${isFut?"#b0bec5":"#1a56db"};font-size:12px;padding:0;text-align:left;text-decoration:underline;font-family:inherit;"
+                      title="Abrir feed do doente">${escapeHtml(pat.full_name)}</button>`
+                  : `<span style="color:#94a3b8;">—</span>`
+                }</td>
                 <td>${badgeStatus(r.appt_status, r.financial_status)}</td>
                 <td style="text-align:right;font-weight:700;color:${conta?"#0f2d52":"#94a3b8"};">${conta ? Number(r.valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"}) : "—"}</td>
                 <td style="text-align:right;"><button class="gc-btn-sm btnFinEditar" data-id="${r.id}" style="${isFut?"opacity:.5":""}">Editar</button></td>
@@ -762,7 +767,11 @@ ${pendVencidos.length > 0 ? `
       const regsFiltrados = selCli
         ? registosFiltrados.filter(r => r.entidade_id === selCli)
         : registosFiltrados;
-      openPdfMensal(regsFiltrados, presencas, entidades, mes, ano);
+      // Avenças: só incluir se clínica seleccionada for a da avença (ou se for todas)
+      const avencasFiltradas = selCli
+        ? entidades.filter(e => e.tipo === "avenca" && e.clinic_id === (entidades.find(x=>x.id===selCli)?.clinic_id))
+        : entidades.filter(e => e.tipo === "avenca");
+      openPdfMensal(regsFiltrados, presencas, avencasFiltradas, mes, ano);
     });
 
     /* PDF por clínica (botão no card) */
@@ -827,6 +836,22 @@ ${pendVencidos.length > 0 ? `
         const id = btn.dataset.id;
         const r  = registosFiltrados.find(x => x.id === id);
         if (r) openModalEditarRegisto(r, entidades, render);
+      });
+    });
+
+    /* Clique no nome do doente → feed do doente */
+    content.querySelectorAll(".btnFinDoente").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const patientId = btn.dataset.patientId;
+        if (!patientId) return;
+        if (typeof window.__gc_openPatientViewModal === "function") {
+          // Buscar dados do doente e abrir feed
+          window.sb.from("patients").select("*").eq("id", patientId).limit(1)
+            .then(({ data }) => {
+              if (data?.[0]) window.__gc_openPatientViewModal(data[0]);
+            })
+            .catch(e => console.error("Abrir doente falhou:", e));
+        }
       });
     });
 
@@ -1429,11 +1454,14 @@ function openModalPresenca({ ent, presenca, onSave }) {
 
 
 /* ---- FD.5 — openPdfMensal ---- */
-function openPdfMensal(registos, presencas, entidades, mes, ano) {
+function openPdfMensal(registos, presencas, avencasOuEntidades, mes, ano) {
   const realizadas = registos.filter(r => contaParaTotal(r.appt_status, r.financial_status));
   const faltas     = registos.filter(r => String(r.appt_status||"").toLowerCase() === "no_show");
   const dispensas  = registos.filter(r => r.financial_status === "honorarios_dispensados");
-  const avencas    = entidades.filter(e => e.tipo === "avenca");
+  // avencasOuEntidades pode ser array de entidades completo ou só as avenças filtradas
+  const avencas    = Array.isArray(avencasOuEntidades) && avencasOuEntidades.length > 0 && avencasOuEntidades[0]?.tipo
+    ? avencasOuEntidades.filter(e => e.tipo === "avenca")
+    : avencasOuEntidades;
   const totalReal  = realizadas.reduce((s,r) => s + Number(r.valor||0), 0);
   const totalAv    = avencas.reduce((s,e) => s + Number(e.avenca_valor||0), 0);
   const totalPres  = presencas.reduce((s,p) => s + Number(p.valor_calculado||0), 0);
