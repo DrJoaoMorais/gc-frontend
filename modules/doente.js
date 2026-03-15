@@ -1140,9 +1140,8 @@ function openPatientViewModal(patient) {
             ${selectedTreat.map(x => `
               <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;
                           padding:10px 12px; border:1px solid #e5e5e5; border-radius:12px;">
-                <div style="display:flex; flex-direction:column;">
-                  <div style="font-weight:900;">${escAttr(x.label || "—")}</div>
-                  ${x.code ? `<div style="color:#64748b; font-size:12px;">${escAttr(x.code)}</div>` : ``}
+                <div style="font-size:13px; color:#374151;">
+                  ${x.code ? `<span style="font-weight:700; color:#64748b;">${escAttr(x.code)}</span><span style="color:#cbd5e1;"> — </span>` : ``}${escAttr(x.label || "—")}
                 </div>
                 <button class="treatRemove gcBtn" data-id="${x.id}"
                         style="padding:6px 10px; border-radius:999px;">×</button>
@@ -1162,8 +1161,9 @@ function openPatientViewModal(patient) {
             ${treatResults.map(x => `
               <div class="treatPick" data-id="${x.id}"
                    style="padding:10px 12px; border:1px solid #e5e5e5; border-radius:12px; cursor:pointer;">
-                <div style="font-weight:900;">${escAttr(x.label || "—")}</div>
-                ${x.code ? `<div style="color:#64748b; font-size:12px;">${escAttr(x.code)}</div>` : ``}
+                <div style="font-size:13px; color:#374151;">
+                  ${x.code ? `<span style="font-weight:700; color:#64748b;">${escAttr(x.code)}</span><span style="color:#cbd5e1;"> — </span>` : ``}${escAttr(x.label || "—")}
+                </div>
               </div>
             `).join("")}
           </div>
@@ -3514,14 +3514,6 @@ function openPatientViewModal(patient) {
           font-size:10px; font-weight:800; text-transform:uppercase;
           letter-spacing:0.06em; color:#94a3b8; padding:3px 10px 2px; margin-top:3px;
         }
-        .gc-sb-pname {
-          font-size:12px; font-weight:700; color:#0f2d52;
-          padding:3px 10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-        }
-        .gc-sb-pmeta {
-          font-size:11px; color:#64748b; padding:0 10px 2px; line-height:1.55;
-        }
-
         /* ── Responsive collapse ── */
         @media (max-width:680px) {
           .gc-pv-sb { width:48px; padding:8px 4px; }
@@ -3545,16 +3537,8 @@ function openPatientViewModal(patient) {
         <!-- ════ SIDEBAR ════ -->
         <div class="gc-pv-sb">
 
-          <!-- Patient info -->
-          <div class="gc-sb-pname">${escAttr(p.full_name || "—")} ${birthdayBadgeToday()}</div>
-          <div class="gc-sb-pmeta">
-            ${escAttr(activeClinicName || "—")}${p.sns ? '<br>SNS ' + escAttr(p.sns) : ''}${ageTextToday() !== '—' ? '<br>' + escAttr(ageTextToday()) : ''}
-          </div>
-
-          <div class="gc-sb-div"></div>
-
           ${isDoctor() ? `
-            <div class="gc-sb-lbl">Ações</div>
+            <div class="gc-sb-lbl" style="margin-top:4px;">Ações</div>
 
             <button id="btnNewConsult" class="gc-sb-btn ${creatingConsult ? 'gc-sb-btn--primary' : ''}">
               <span class="gc-sb-icon">📋</span><span>Consulta</span>
