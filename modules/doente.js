@@ -3755,14 +3755,17 @@ function openPatientViewModal(patient) {
   }
 
   (async function boot() {
+    render(); // render optimista — esqueleto imediato com dados já disponíveis (p, role)
     try {
-      await fetchActiveClinic();
-      await loadConsultations();
-      await loadDocuments();
+      await Promise.all([
+        fetchActiveClinic(),
+        loadConsultations(),
+        loadDocuments()
+      ]);
     } catch (e) {
       console.error("boot modal falhou:", e);
     }
-    render();
+    render(); // render final — clínica activa, consultas e documentos carregados
   })();
 
 
