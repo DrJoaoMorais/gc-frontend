@@ -2389,97 +2389,86 @@ function openPatientViewModal(patient) {
     `;
   }
 
-  /* ── renderHdaWithCollapsibleExams ──────────────────────────────────────
-     Detecta blocos "── ARTICULAÇÃO — EXAME OBJECTIVO ──" e encapsula-os
-     num <details> colapsável para manter o feed legível.
-     O texto fora dos blocos de exame é renderizado normalmente.
+  /* ── renderHdaWithCollapsibleExams ──────────────────────────────────
+     Detecta blocos de exame objectivo pelo marcador:
+       "── ARTICULAÇÃO — EXAME OBJECTIVO ──"
+     e encapsula-os num <details> colapsável no feed.
   ── */
   function renderHdaWithCollapsibleExams(hda) {
-    if (!hda || !String(hda).trim()) return `<span style="color:#64748b;">—</span>`;
+    if (!hda || !String(hda).trim()) return '<span style="color:#64748b;">—</span>';
 
-    // Verificar se o HDA contém blocos de exame objectivo (marcadores ── ... EXAME OBJECTIVO ──)
-    const raw = String(hda);
+    var sanitized = sanitizeHTML(String(hda));
 
-    // O Quill converte o texto em <p>; cada linha de texto fica numa <p>
-    // O marcador de exame é: "── ARTICULAÇÃO — EXAME OBJECTIVO ──" no início de uma linha
-    // Vamos trabalhar sobre o HTML sanitizado
-    const sanitized = sanitizeHTML(raw);
-
-    // Se não houver marcador de exame, renderizar normalmente
-    if (!sanitized.includes('EXAME OBJECTIVO')) {
+    if (sanitized.indexOf('EXAME OBJECTIVO') === -1) {
       return sanitized;
     }
 
-    // Separar o HTML em nós: dividir por blocos de exame
-    // Estratégia: encontrar <p>...</p> que contém o marcador de início de exame
-    // e agrupar todas as <p> seguintes até ao próximo bloco normal ou fim.
-    // Fazemos parse simples: split por </p> para obter segmentos.
-    const segments = sanitized.split(/<\/p>/i);
-    let result = '';
-    let inExam = false;
-    let examTitle = '';
-    let examBuffer = '';
+    // Dividir por </p> para processar linha a linha
+    var parts = sanitized.split('</p>');
+    var result = '';
+    var inExam = false;
+    var examTitle = '';
+    var examLines = [];
 
-    for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i];
+    for (var i = 0; i < parts.length; i++) {
+      var seg = parts[i];
       if (!seg.trim()) continue;
 
-      // Extrair texto puro do segmento (sem tags)
-      const textOnly = seg.replace(/<[^>]+>/g, '').trim();
+      // Texto puro (sem tags HTML)
+      var textOnly = seg.replace(/<[^>]+>/g, '').trim();
 
-      // Detectar início de bloco de exame: linha com "EXAME OBJECTIVO"
-      const isExamHeader = /──.*EXAME OBJECTIVO.*──/.test(textOnly);
-      // Detectar fim: linha de separador "──────"
-      const isSeparator = /^─{10,}/.test(textOnly);
+      var isExamHeader = /──.*EXAME OBJECTIVO.*──/.test(textOnly);
+      var isSeparator  = /^─{10,}/.test(textOnly);
 
       if (isExamHeader) {
         // Fechar bloco anterior se estava aberto
-        if (inExam) {
-          result += _wrapExamBlock(examTitle, examBuffer);
-          examBuffer = '';
+        if (inExam && examLines.length) {
+          result += _wrapExamBlock(examTitle, examLines);
+          examLines = [];
         }
         inExam = true;
-        // Extrair nome da articulação do título ex: "── OMBRO — EXAME OBJECTIVO ──"
-        const match = textOnly.match(/──\s*([^—]+)\s*—/);
-        examTitle = match ? match[1].trim() : 'Exame Objectivo';
-        // Não adicionar o cabeçalho ao buffer — fica apenas no summary
+        // Extrair nome: "── OMBRO — EXAME OBJECTIVO ──" → "OMBRO"
+        var m = textOnly.match(/──\s*([^—]+)\s*—/);
+        examTitle = m ? m[1].trim() : 'Exame Objectivo';
+
       } else if (isSeparator && inExam) {
-        // Fim do bloco
-        result += _wrapExamBlock(examTitle, examBuffer);
-        examBuffer = '';
+        result += _wrapExamBlock(examTitle, examLines);
+        examLines = [];
         inExam = false;
+
       } else if (inExam) {
-        // Linha dentro do bloco de exame
-        const line = seg.trim();
-        if (line) examBuffer += line + '</p>';
+        if (textOnly) examLines.push(textOnly);
+
       } else {
-        // Texto normal fora de bloco de exame
-        const line = seg.trim();
-        if (line) result += line + '</p>';
+        if (seg.trim()) result += seg.trim() + '</p>';
       }
     }
 
-    // Fechar bloco aberto no final (sem separador)
-    if (inExam && examBuffer) {
-      result += _wrapExamBlock(examTitle, examBuffer);
+    // Fechar bloco aberto no fim (sem separador)
+    if (inExam && examLines.length) {
+      result += _wrapExamBlock(examTitle, examLines);
     }
 
     return result || sanitized;
   }
 
-  function _wrapExamBlock(title, bodyHtml) {
-    return \`<details style="margin:6px 0; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
-      <summary style="cursor:pointer; padding:7px 12px; background:#f8fafc; font-size:12px;
-                      font-weight:700; color:#1a56db; user-select:none; list-style:none;
-                      display:flex; align-items:center; gap:6px;">
-        <span style="font-size:14px;">🔍</span>
-        <span>Exame Objectivo — \${title}</span>
-        <span style="margin-left:auto; font-size:11px; color:#94a3b8;">clique para expandir</span>
-      </summary>
-      <div style="padding:10px 14px; font-size:12px; line-height:1.35; color:#374151; white-space:pre-wrap; font-family:inherit;">
-\${bodyHtml ? bodyHtml.replace(/<p>/gi,'').replace(/<\/p>/gi,'\n').replace(/<br\s*\/?>/gi,'\n') : ''}
-      </div>
-    </details>\`;
+  function _wrapExamBlock(title, lines) {
+    var body = lines.join('\n');
+    return (
+      '<details style="margin:5px 0; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' +
+      '<summary style="cursor:pointer; padding:6px 12px; background:#f8fafc; font-size:12px;' +
+      ' font-weight:700; color:#1a56db; user-select:none; list-style:none;' +
+      ' display:flex; align-items:center; gap:6px;">' +
+      '<span>\uD83D\uDD0D</span>' +
+      '<span>Exame Objectivo \u2014 ' + title + '</span>' +
+      '<span style="margin-left:auto; font-size:11px; color:#94a3b8; font-weight:400;">clique para expandir</span>' +
+      '</summary>' +
+      '<div style="padding:8px 14px; font-size:12px; line-height:1.3; color:#374151;' +
+      ' white-space:pre-wrap; font-family:inherit;">' +
+      body +
+      '</div>' +
+      '</details>'
+    );
   }
 
   function renderTimeline() {
