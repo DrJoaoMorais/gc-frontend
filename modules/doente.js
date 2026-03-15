@@ -3579,8 +3579,9 @@ function openPatientViewModal(patient) {
           examsUiState.isOpen = false;
           render();
         } else {
-          if (typeof openExamsPanel === "function") openExamsPanel({ patientId: p.id, consultationId: consultId || null, onClose: () => { render(); } });
-          render();
+          examsUiState.isOpen = true;
+          render(); // re-render para marcar botão como activo
+          if (typeof openExamsPanel === "function") openExamsPanel({ patientId: p.id, consultationId: consultId || null, onClose: () => { examsUiState.isOpen = false; render(); } });
         }
       });
 
@@ -3591,8 +3592,9 @@ function openPatientViewModal(patient) {
           analisesUiState.isOpen = false;
           render();
         } else {
-          openAnalisesPanel({ patientId: p.id, consultationId: consultId || null, onClose: () => { render(); } });
-          render();
+          analisesUiState.isOpen = true;
+          render(); // re-render para marcar botão como activo
+          openAnalisesPanel({ patientId: p.id, consultationId: consultId || null, onClose: () => { analisesUiState.isOpen = false; render(); } });
         }
       });
     }
