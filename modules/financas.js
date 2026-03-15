@@ -214,6 +214,22 @@ export async function renderFinancas() {
       meses.push({ ano: d.getFullYear(), mes: d.getMonth() + 1 });
     }
 
+    /* Pendentes vencidos — data no passado mas ainda em scheduled/arrived */
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+    const pendentesVencidos = pendentes.filter(r => {
+      if (!r.data) return false;
+      const d = new Date(r.data + "T00:00:00");
+      return d < hoje;
+    });
+    // Agrupar pendentes vencidos por entidade
+    const pvPorEntidade = {};
+    pendentesVencidos.forEach(r => {
+      const nome = (r.entidades_financeiras || {}).nome || "—";
+      if (!pvPorEntidade[nome]) pvPorEntidade[nome] = [];
+      pvPorEntidade[nome].push(r);
+    });
+
     /* ── Dados analíticos ── */
     const totalGeral    = totalEsperado + totalAvencas;
     const mediaConsulta = realizadas.length > 0 ? Math.round(totalEsperado / realizadas.length) : 0;
@@ -340,6 +356,29 @@ export async function renderFinancas() {
           <div class="fin-metric-sub">${avencas.length} entidade(s)</div>
         </div>
       </div>
+
+      <!-- AVISO PENDENTES VENCIDOS -->
+      ${pendentesVencidos.length > 0 ? `
+        <div style="background:#fef9ec;border:1px solid #f6c94e;border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;gap:12px;align-items:flex-start;">
+          <div style="font-size:18px;flex-shrink:0;line-height:1;">⚠️</div>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px;">
+              ${pendentesVencidos.length} consulta(s) com data no passado ainda em estado pendente
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              ${Object.entries(pvPorEntidade).map(([nome, rows]) => `
+                <div style="font-size:12px;color:#78350f;">
+                  <span style="font-weight:600;">${escapeHtml(nome)}</span> —
+                  ${rows.map(r => `${new Date(r.data + "T00:00:00").toLocaleDateString("pt-PT")} · ${escapeHtml(r.tipo_acto || "—")} · ${escapeHtml(r.patients?.full_name || "—")}`).join(" | ")}
+                </div>
+              `).join("")}
+            </div>
+            <div style="font-size:11px;color:#92400e;margin-top:6px;">
+              Verifique e actualize o estado destas consultas na agenda.
+            </div>
+          </div>
+        </div>
+      ` : ""}
 
       <!-- TABS DE VISTA -->
       <div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:0.5px solid #e2e8f0;padding-bottom:12px;">
