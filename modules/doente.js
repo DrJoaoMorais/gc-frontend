@@ -2321,7 +2321,8 @@ function openPatientViewModal(patient) {
       <div style="border:1px solid #e5e5e5; border-radius:14px; padding:14px;">
         <style>
           #physioQuillEditor.ql-container.ql-snow { min-height: 320px; }
-          #physioQuillEditor .ql-editor { min-height: 320px; line-height: 1.35; font-size: 15px; }
+          #physioQuillEditor .ql-editor { min-height: 320px; line-height: 1.35; font-size: 14px; }
+          #physioQuillEditor .ql-editor p { margin:0; }
         </style>
 
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
@@ -2948,7 +2949,9 @@ function openPatientViewModal(patient) {
         #hdaEditor h2 { font-size:18px; font-weight:800; margin:10px 0 4px; color:#0f172a; }
         #hdaEditor h3 { font-size:15px; font-weight:700; margin:8px 0 3px; color:#0f172a; }
         #hdaEditor ul, #hdaEditor ol { margin:6px 0 6px 22px; padding:0; }
-        #hdaEditor li { margin:3px 0; line-height:1.6; }
+        #hdaEditor li { margin:1px 0; line-height:1.35; }
+        #hdaEditor p { margin:0; line-height:1.35; }
+        #hdaEditor p + p { margin-top:1px; }
         #hdaEditor p  { margin:4px 0; }
         #hdaToolbar button.active { background:#e0eaff; border-color:#1a56db; color:#1a56db; }
       </style>
@@ -2973,7 +2976,9 @@ function openPatientViewModal(patient) {
           <style>
             .gcQuillWrap .ql-toolbar.ql-snow { border:none; border-bottom:1px solid #e5e7eb; border-radius:0; background:#f8fafc; }
             .gcQuillWrap .ql-container.ql-snow { border:none; }
-            .gcQuillWrap .ql-editor { min-height:240px; font-size:15px; line-height:1.65; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; }
+            .gcQuillWrap .ql-editor { min-height:200px; font-size:14px; line-height:1.35; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; }
+            .gcQuillWrap .ql-editor p { margin:0; }
+            .gcQuillWrap .ql-editor p + p { margin-top:1px; }
           </style>
           <div id="hdaQuillToolbar">
             <span class="ql-formats">
@@ -3408,19 +3413,19 @@ function openPatientViewModal(patient) {
         /* ── Patient header strip ── */
         .gc-pv-header {
           position:sticky; top:0; z-index:10;
-          background:#fff; border-bottom:1px solid #e5e7eb;
+          background:#fff; border-bottom:2px solid #0f2d52;
           padding:10px 0 10px;
           margin-bottom:16px;
         }
         .gc-pv-name {
-          font-weight:900; font-size:20px; line-height:1.15; color:#0f172a;
-          display:flex; align-items:center; gap:6px;
+          font-weight:900; font-size:22px; line-height:1.15; color:#0f2d52;
+          display:flex; align-items:center; gap:8px;
         }
         .gc-pv-meta {
-          display:flex; gap:8px 16px; flex-wrap:wrap;
-          font-size:13px; color:#475569; margin-top:4px;
+          display:flex; gap:4px 14px; flex-wrap:wrap;
+          font-size:13px; color:#475569; margin-top:5px;
         }
-        .gc-pv-meta b { color:#334155; font-weight:700; }
+        .gc-pv-meta b { color:#0f2d52; font-weight:700; }
 
         /* ── Sidebar buttons ── */
         .gc-sb-btn {
@@ -3666,11 +3671,22 @@ function openPatientViewModal(patient) {
       border: "1px solid #e2e8f0", borderRadius: "12px",
       boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
       padding: "8px 0", minWidth: "240px",
-      fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif"
+      fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif",
+      overflowY: "auto"
     });
     const rect = anchorBtn.getBoundingClientRect();
-    menu.style.top  = (rect.bottom + 6) + "px";
-    menu.style.left = rect.left + "px";
+    const spaceBelow = window.innerHeight - rect.bottom - 12;
+    const spaceAbove = rect.top - 12;
+    const menuMaxH = Math.min(Math.max(spaceBelow, spaceAbove) - 8, 520);
+    menu.style.maxHeight = menuMaxH + "px";
+    if (spaceBelow >= spaceAbove || spaceBelow >= 300) {
+      menu.style.top  = (rect.bottom + 6) + "px";
+    } else {
+      menu.style.bottom = (window.innerHeight - rect.top + 6) + "px";
+    }
+    // Horizontal: avoid going off-screen right
+    const leftPos = Math.min(rect.left, window.innerWidth - 260);
+    menu.style.left = Math.max(0, leftPos) + "px";
 
     const grupos = [
       {
