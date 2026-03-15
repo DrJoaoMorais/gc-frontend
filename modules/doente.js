@@ -3624,6 +3624,15 @@ function openPatientViewModal(patient) {
     document.getElementById("btnViewIdent")?.addEventListener("click", () => openPatientIdentity("view"));
     document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
 
+    // Garantir que os contentores ancestrais têm position:relative para os painéis laterais
+    try {
+      const feed = document.querySelector(".gc-pv-feed");
+      if (feed) feed.style.position = "relative";
+      // gc-content também (host fallback para écrans mais estreitos)
+      const gcContent = document.querySelector(".gc-content");
+      if (gcContent) gcContent.style.position = "relative";
+    } catch(_) {}
+
     // Exame Objectivo — sempre disponível, independente do estado da consulta
     document.getElementById("btnExameObjectivo")?.addEventListener("click", () => {
       openExameObjectivoMenu(document.getElementById("btnExameObjectivo"));
@@ -3650,12 +3659,12 @@ function openPatientViewModal(patient) {
         const consultId = lastSavedConsultId || (consultRows && consultRows.length ? consultRows[0].id : null);
         if (examsUiState.isOpen) {
           if (typeof closeExamsPanel === "function") closeExamsPanel();
-          examsUiState.isOpen = false;
-          render();
+          // onClose do closeExamsPanel já chama render()
         } else {
-          examsUiState.isOpen = true;
-          render(); // re-render para marcar botão como activo
-          if (typeof openExamsPanel === "function") openExamsPanel({ patientId: p.id, consultationId: consultId || null, onClose: () => { examsUiState.isOpen = false; render(); } });
+          // Abrir directamente — sem render() antes (destruiria o btnClosePView do DOM)
+          if (typeof openExamsPanel === "function") {
+            openExamsPanel({ patientId: p.id, consultationId: consultId || null, onClose: () => { render(); } });
+          }
         }
       });
 
@@ -3663,12 +3672,10 @@ function openPatientViewModal(patient) {
         const consultId = lastSavedConsultId || (consultRows && consultRows.length ? consultRows[0].id : null);
         if (analisesUiState.isOpen) {
           closeAnalisesPanel();
-          analisesUiState.isOpen = false;
-          render();
+          // onClose do closeAnalisesPanel já chama render()
         } else {
-          analisesUiState.isOpen = true;
-          render(); // re-render para marcar botão como activo
-          openAnalisesPanel({ patientId: p.id, consultationId: consultId || null, onClose: () => { analisesUiState.isOpen = false; render(); } });
+          // Abrir directamente — sem render() antes (destruiria o btnClosePView do DOM)
+          openAnalisesPanel({ patientId: p.id, consultationId: consultId || null, onClose: () => { render(); } });
         }
       });
     }
