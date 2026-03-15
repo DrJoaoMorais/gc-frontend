@@ -87,6 +87,9 @@ import {
   ensureAAL2
 }                                           from "./modules/session.js";
 
+// Finanças
+import { initFinancas }                      from "./modules/financas.js";
+
 // Boot
 import { boot }                             from "./modules/boot.js";
 

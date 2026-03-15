@@ -24,6 +24,7 @@ import { wireQuickPatientSearch }                      from "./pesquisa.js";
 import { openCalendarOverlay, openWeekView }           from "./agenda.js";
 import { wireLogout, ensureAAL2, __gcForceSessionLock, __gcIsAuthError, __gcSessionLockActive } from "./session.js";
 import { fmtDateISO }                      from "./helpers.js";
+import { renderFinancas }                  from "./financas.js";
 
 /* ====================================================================
    BLOCO 11B — Boot principal
@@ -139,6 +140,12 @@ async function renderCurrentView() {
         openNewPatientMainModal({ clinicId: s?.value || null });
       });
     }
+    return;
+  }
+
+  /* Vista Financas */
+  if (view === "financas") {
+    await renderFinancas();
     return;
   }
 

@@ -23,19 +23,23 @@ export function renderAppShell() {
   const iconDoentes = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M3 18c0-3.866 3.134-6 7-6s7 2.134 7 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
   const iconHistorico = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.6"/><path d="M10 6v4.5l3 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const iconGestao = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
-  const iconLogout = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="16 17 21 12 16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const iconLogout   = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="16 17 21 12 16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const iconFinancas = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="5" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M2 9h16" stroke="currentColor" stroke-width="1.6"/><path d="M6 13h2M10 13h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M6 3h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
 
   const navItems = [
     { id: "agenda",     icon: iconAgenda,    label: "Agenda" },
     { id: "doentes",    icon: iconDoentes,   label: "Doentes" },
     { id: "historico",  icon: iconHistorico, label: "Histórico" },
-    ...(canSeeManagement ? [{ id: "management", icon: iconGestao, label: "Gestão" }] : []),
+    ...(canSeeManagement ? [{ id: "financas",   icon: iconFinancas,  label: "Rendimentos" }] : []),
+    ...(canSeeManagement ? [{ id: "management", icon: iconGestao,    label: "Gestão" }] : []),
   ];
 
   /* ── Conteúdo por vista ─────────────────────────── */
   let mainHtml = "";
 
-  if (currentView === "management") {
+  if (currentView === "financas") {
+    mainHtml = `<div id="gcFinancasRoot"></div>`;
+  } else if (currentView === "management") {
     mainHtml = `
       <div class="gc-page-header">
         <div>
