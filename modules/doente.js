@@ -93,6 +93,53 @@ function openPatientViewModal(patient) {
     navAgenda.style.opacity = "1";
   }
 
+  // Hide global topbar (email row) to save vertical space in patient view
+  const __gcTopbarStyle = document.createElement("style");
+  __gcTopbarStyle.id = "__gc-hide-topbar";
+  // Try to identify and hide the topbar by its typical structure
+  // It sits above gc-content, so target its parent container's first child
+  (function() {
+    // Method 1: direct class names
+    const candidates = [
+      ".gc-topbar", ".app-topbar", ".gc-header", ".app-header",
+      "[class*='topbar']", "[class*='top-bar']"
+    ];
+    candidates.forEach(sel => {
+      try { document.querySelectorAll(sel).forEach(el => el.style.setProperty("display","none","important")); } catch(_) {}
+    });
+    // Method 2: find the bar that contains the email text — it's above gc-nav
+    const gcNav = document.querySelector(".gc-nav, .gc-sidebar, nav");
+    if (gcNav && gcNav.parentElement) {
+      const siblings = Array.from(gcNav.parentElement.children);
+      siblings.forEach(el => {
+        if (el !== gcNav && el.textContent.includes("doctor") && el.offsetHeight < 80) {
+          el.style.setProperty("display","none","important");
+          el.dataset.gcHidden = "1";
+        }
+      });
+    }
+    // Method 3: gc-content parent's previous sibling
+    const gcContent = document.querySelector(".gc-content");
+    if (gcContent) {
+      let prev = gcContent.previousElementSibling;
+      while (prev) {
+        if (prev.offsetHeight < 80 && prev.offsetHeight > 0) {
+          prev.style.setProperty("display","none","important");
+          prev.dataset.gcHidden = "1";
+        }
+        prev = prev.previousElementSibling;
+      }
+      gcContent.style.paddingTop = "0";
+      gcContent.style.marginTop = "0";
+    }
+  })();
+  __gcTopbarStyle.textContent = "";
+  if (!document.getElementById("__gc-hide-topbar")) document.head.appendChild(__gcTopbarStyle);
+
+  // Give gc-content full height without topbar
+  const gcCont = document.querySelector(".gc-content");
+  if (gcCont) { gcCont.style.paddingTop = "0"; gcCont.style.marginTop = "0"; }
+
   // Guardar scroll position
   if (gcContent) gcContent.scrollTop = 0;
 
@@ -156,6 +203,21 @@ function openPatientViewModal(patient) {
         navAgenda.style.removeProperty("box-shadow");
         navAgenda.removeAttribute("title");
       }
+    } catch (_) {}
+    // Restore global topbar
+    try {
+      const s = document.getElementById("__gc-hide-topbar");
+      if (s) s.remove();
+      // Restore all elements we hid
+      document.querySelectorAll("[data-gc-hidden='1']").forEach(el => {
+        el.style.removeProperty("display");
+        delete el.dataset.gcHidden;
+      });
+      [".gc-topbar",".app-topbar",".gc-header",".app-header","[class*='topbar']","[class*='top-bar']"].forEach(sel => {
+        try { document.querySelectorAll(sel).forEach(el => el.style.removeProperty("display")); } catch(_) {}
+      });
+      const gcCont = document.querySelector(".gc-content");
+      if (gcCont) { gcCont.style.paddingTop = ""; gcCont.style.marginTop = ""; }
     } catch (_) {}
     // Voltar à agenda — re-render a view de agenda
     try {
@@ -3387,9 +3449,9 @@ function openPatientViewModal(patient) {
         /* ── Patient view layout ── */
         .gc-pv {
           display:flex; gap:0;
-          /* Break out of gc-content padding by going full negative */
           margin:-16px -20px -20px;
-          min-height:calc(100vh - 0px);
+          min-height:100vh;
+          position:relative;
         }
 
         /* ── Left action sidebar ── */
@@ -3401,21 +3463,26 @@ function openPatientViewModal(patient) {
           padding:12px 8px 20px;
           display:flex; flex-direction:column; gap:2px;
           box-sizing:border-box;
+          z-index:10;
         }
 
         /* ── Main feed ── */
         .gc-pv-feed {
           flex:1; min-width:0;
           padding:0 20px 40px;
+          position:relative;
+          background:#ffffff;
           overflow-y:auto;
+          height:100vh;
         }
 
-        /* ── Patient header strip ── */
+        /* ── Patient header strip — sticky to page scroll ── */
         .gc-pv-header {
-          position:sticky; top:0; z-index:10;
+          position:sticky; top:0; z-index:20;
           background:#fff; border-bottom:2px solid #0f2d52;
           padding:10px 0 10px;
           margin-bottom:16px;
+          /* pull left/right to cover full feed width */
         }
         .gc-pv-name {
           font-weight:900; font-size:22px; line-height:1.15; color:#0f2d52;
@@ -3468,6 +3535,9 @@ function openPatientViewModal(patient) {
         .gc-action-btn { font-weight:700!important; background:#ffffff!important; border:1px solid #cbd5e1!important; color:#0f172a!important; }
         .gc-action-btn--active-primary { background:#1a56db!important; border-color:#1a56db!important; color:#fff!important; font-weight:800!important; }
         .gc-action-btn--active-border { background:#eff6ff!important; border-color:#1a56db!important; color:#1a56db!important; }
+
+        /* ── Hide top-bar user info (redundant with sidebar) ── */
+        .gc-topbar-user { display:none !important; }
       </style>
 
       <div class="gc-pv">
@@ -3519,6 +3589,9 @@ function openPatientViewModal(patient) {
         <!-- ════ FEED ════ -->
         <div class="gc-pv-feed">
 
+          <!-- Âncora oculta — exames.js e analises.js precisam deste id para encontrar o host -->
+          <button id="btnClosePView" style="display:none;" aria-hidden="true"></button>
+
           <!-- Sticky patient header -->
           <div class="gc-pv-header">
             <div class="gc-pv-name">
@@ -3549,6 +3622,7 @@ function openPatientViewModal(patient) {
     `;
 
     document.getElementById("btnViewIdent")?.addEventListener("click", () => openPatientIdentity("view"));
+    document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
 
     // Exame Objectivo — sempre disponível, independente do estado da consulta
     document.getElementById("btnExameObjectivo")?.addEventListener("click", () => {
