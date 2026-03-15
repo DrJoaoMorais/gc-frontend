@@ -2025,6 +2025,153 @@ window.__gc_openWeekView                    = openWeekView;
 
 /* ==== 10D — Wire botões topbar da agenda ==== */
 
+/* ---- 10C.2 — openPresencaModal ---- */
+export function openPresencaModal({ selectedDayISO } = {}) {
+  document.getElementById("gcPresAgendaModal")?.remove();
+
+  const hoje = selectedDayISO || new Date().toISOString().slice(0, 10);
+
+  // Carregar entidades externas (FPF, UC)
+  window.sb
+    .from("entidades_financeiras")
+    .select("id, nome, tipo, valor_dia")
+    .in("tipo", ["diaria", "modulo"])
+    .eq("ativa", true)
+    .order("nome")
+    .then(({ data: entidades }) => {
+      const opts = (entidades || []).map(e =>
+        `<option value="${e.id}" data-valor="${e.tipo === "diaria" ? (e.valor_dia || 200) : 0}" data-tipo="${e.tipo}">${e.nome}</option>`
+      ).join("");
+
+      const overlay = document.createElement("div");
+      overlay.id = "gcPresAgendaModal";
+      Object.assign(overlay.style, {
+        position: "fixed", inset: "0", background: "rgba(0,0,0,0.4)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "16px", zIndex: "2000",
+        fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif"
+      });
+
+      overlay.innerHTML = `
+        <div style="background:#fff;width:min(460px,100%);border-radius:14px;border:1px solid #e2e8f0;padding:22px;max-height:90vh;overflow-y:auto;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+            <div>
+              <div style="font-size:15px;font-weight:800;color:#064e3b;">Nova Presença</div>
+              <div style="font-size:12px;color:#64748b;margin-top:2px;">FPF · Universidade Católica · outras actividades</div>
+            </div>
+            <button id="gcPresAgClose" style="border:0.5px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;font-family:inherit;">Fechar</button>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div>
+              <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">Entidade *</label>
+              <select id="gcPresEntidade" style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;">
+                <option value="">— seleccionar —</option>
+                ${opts}
+              </select>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div>
+                <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">Data início *</label>
+                <input id="gcPresIni" type="date" value="${hoje}"
+                  style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;" />
+              </div>
+              <div>
+                <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">Data fim</label>
+                <input id="gcPresFim" type="date" value="${hoje}"
+                  style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;" />
+              </div>
+            </div>
+            <div id="gcPresDiasInfo" style="background:#f0fdf4;border-radius:8px;padding:9px 12px;font-size:13px;color:#064e3b;font-weight:600;text-align:center;">1 dia</div>
+            <div>
+              <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">Descrição</label>
+              <input id="gcPresDesc" type="text" placeholder="ex: Jogo Sub-21 · Estágio · Aula Medicina Desportiva"
+                style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;" />
+            </div>
+            <div>
+              <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">Valor por dia (€)</label>
+              <input id="gcPresValor" type="number" min="0" step="0.01" value="200"
+                style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;" />
+            </div>
+            <div id="gcPresTotalInfo" style="background:#E6F1FB;border-radius:8px;padding:9px 12px;font-size:14px;color:#0C447C;font-weight:700;text-align:right;">
+              Total: 200,00 €
+            </div>
+            <div id="gcPresMsg" style="font-size:12px;color:#b00020;min-height:16px;"></div>
+            <button id="gcPresBtnGuardar" style="width:100%;padding:10px;border:none;background:#064e3b;color:#fff;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Guardar presença</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+
+      const inpIni   = overlay.querySelector("#gcPresIni");
+      const inpFim   = overlay.querySelector("#gcPresFim");
+      const inpVal   = overlay.querySelector("#gcPresValor");
+      const selEnt   = overlay.querySelector("#gcPresEntidade");
+      const divDias  = overlay.querySelector("#gcPresDiasInfo");
+      const divTot   = overlay.querySelector("#gcPresTotalInfo");
+      const msg      = overlay.querySelector("#gcPresMsg");
+
+      function calc() {
+        const d1 = inpIni.value, d2 = inpFim.value;
+        if (!d1 || !d2) return;
+        const dias  = Math.max(1, Math.round((new Date(d2) - new Date(d1)) / 86400000) + 1);
+        const valor = parseFloat(inpVal.value || 0);
+        divDias.textContent = `${dias} dia(s)`;
+        divTot.textContent  = `Total: ${(dias * valor).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}`;
+      }
+
+      selEnt.addEventListener("change", () => {
+        const opt = selEnt.selectedOptions[0];
+        if (opt?.dataset.valor) inpVal.value = opt.dataset.valor;
+        calc();
+      });
+      inpIni.addEventListener("change", calc);
+      inpFim.addEventListener("change", calc);
+      inpVal.addEventListener("input",  calc);
+      calc();
+
+      const close = () => overlay.remove();
+      overlay.querySelector("#gcPresAgClose").addEventListener("click", close);
+      overlay.addEventListener("click", ev => { if (ev.target === overlay) close(); });
+
+      overlay.querySelector("#gcPresBtnGuardar").addEventListener("click", async () => {
+        const entId = selEnt.value;
+        const ini   = inpIni.value;
+        const fim   = inpFim.value || ini;
+        const vdia  = parseFloat(inpVal.value || 0);
+        const desc  = overlay.querySelector("#gcPresDesc").value.trim();
+
+        if (!entId) { msg.textContent = "Seleccione a entidade."; return; }
+        if (!ini)   { msg.textContent = "Indique a data de início."; return; }
+        if (fim < ini) { msg.textContent = "Data fim tem de ser igual ou posterior ao início."; return; }
+
+        try {
+          overlay.querySelector("#gcPresBtnGuardar").disabled = true;
+          await window.sb.from("presencas").insert({
+            entidade_id: entId,
+            data_inicio: ini,
+            data_fim:    fim,
+            tipo:        ini === fim ? "dia" : "intervalo",
+            descricao:   desc || null,
+            valor_dia:   vdia,
+          });
+          close();
+          // Refresh agenda se estiver no dia da presença
+          if (typeof refreshAgenda === "function") await refreshAgenda();
+        } catch (e) {
+          console.error("Presença guardar falhou:", e);
+          msg.textContent = "Erro ao guardar. Vê a consola.";
+          overlay.querySelector("#gcPresBtnGuardar").disabled = false;
+        }
+      });
+    })
+    .catch(e => {
+      console.error("openPresencaModal: erro a carregar entidades:", e);
+      alert("Erro ao carregar entidades. Vê a consola.");
+    });
+}
+
 /* ---- 10D.1 — wireAgendaTopbar ---- */
 /* Chamada pelo boot.js após renderAppShell() para ligar btnCal, btnWeek, btnToday, btnNewAppt */
 export function wireAgendaTopbar() {
@@ -2045,6 +2192,10 @@ export function wireAgendaTopbar() {
 
   document.getElementById("btnNewAppt")?.addEventListener("click", () => {
     openApptModal({ mode: "new", row: null });
+  });
+
+  document.getElementById("btnNewPresenca")?.addEventListener("click", () => {
+    openPresencaModal({ selectedDayISO: G.selectedDayISO });
   });
 }
 

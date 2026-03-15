@@ -379,7 +379,12 @@ export async function renderFinancas() {
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <select id="finSelClinica" style="padding:6px 10px;border:0.5px solid #e2e8f0;border-radius:8px;background:#fff;font-size:12px;color:#0f172a;font-family:inherit;">
       <option value="">Todas as clínicas</option>
-      ${entClinicas.map(e => `<option value="${e.id}" ${clinicaFiltro === e.id ? "selected" : ""}>${escapeHtml(e.nome)}</option>`).join("")}
+      ${entClinicas.map(e => {
+        const clinicaNome = (G.clinicsById && e.clinic_id && G.clinicsById[e.clinic_id]?.name)
+          ? G.clinicsById[e.clinic_id].name
+          : e.nome.split("—")[0].trim();
+        return `<option value="${e.id}" ${clinicaFiltro === e.id ? "selected" : ""}>${escapeHtml(clinicaNome)}</option>`;
+      }).join("")}
     </select>
     <div style="display:flex;background:#f1f5f9;border-radius:8px;padding:3px;gap:2px;">
       ${meses.map(m => `
@@ -558,7 +563,12 @@ ${pendVencidos.length > 0 ? `
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto;">
         <select id="finRegSelClinica" style="padding:5px 9px;border:0.5px solid #e2e8f0;border-radius:7px;background:#fff;font-size:12px;color:#0f172a;font-family:inherit;">
           <option value="">Todas as clínicas</option>
-          ${entClinicas.map(e => `<option value="${e.id}" ${clinicaFiltro===e.id?"selected":""}>${escapeHtml(e.nome)}</option>`).join("")}
+          ${entClinicas.map(e => {
+            const clinicaNome = (G.clinicsById && e.clinic_id && G.clinicsById[e.clinic_id]?.name)
+              ? G.clinicsById[e.clinic_id].name
+              : e.nome.split("—")[0].trim();
+            return `<option value="${e.id}" ${clinicaFiltro===e.id?"selected":""}>${escapeHtml(clinicaNome)}</option>`;
+          }).join("")}
         </select>
         <select id="finRegSelMes" style="padding:5px 9px;border:0.5px solid #e2e8f0;border-radius:7px;background:#fff;font-size:12px;color:#0f172a;font-family:inherit;">
           ${meses.map(m => `<option value="${m.ano}-${m.mes}" ${m.ano===ano&&m.mes===mes?"selected":""}>${mesLabel(m.ano,m.mes)}</option>`).join("")}

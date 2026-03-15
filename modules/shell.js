@@ -85,6 +85,7 @@ export function renderAppShell() {
           <button id="btnWeek"  class="gc-btn">Semana</button>
           <button id="btnToday" class="gc-btn">Hoje</button>
           <button id="btnNewAppt" class="gc-btn-primary">＋ Agendar</button>
+          ${canSeeManagement ? `<button id="btnNewPresenca" class="gc-btn" style="background:#064e3b;color:#fff;border-color:#064e3b;">＋ Presença</button>` : ""}
           <button id="btnNewPatientMain" class="gc-btn">＋ Novo doente</button>
         </div>
       </div>
