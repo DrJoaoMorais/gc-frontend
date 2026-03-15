@@ -2658,9 +2658,10 @@ function openPatientViewModal(patient) {
                 <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:8px;">
                   Anamnese / HDA
                 </div>
-                <div style="line-height:1.5; font-size:14px; color:#111827; background:#ffffff;">
+                <div class="gcHdaFeed" style="font-size:14px; color:#111827;">
                   ${renderHdaWithCollapsibleExams(r.hda || "")}
                 </div>
+                <style>.gcHdaFeed p{margin:0;line-height:1.4;}.gcHdaFeed br{display:none;}.gcHdaFeed p+p{margin-top:2px;}.gcHdaFeed p:empty{display:none;}</style>
 
                 ${r.diagnoses && r.diagnoses.length ? `
                   <div style="margin-top:16px;">
