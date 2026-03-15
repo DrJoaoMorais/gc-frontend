@@ -440,23 +440,28 @@ ${pendVencidos.length > 0 ? `
 
   <!-- Grid de clínicas -->
   <div class="fin-cc-grid">
-    ${entClinicas.map(e => {
+    ${entClinicas.map((e, idx) => {
       const d = dadosPorEntidade(e.id);
       const tipos = Object.entries(d.porTipo).sort((a,b) => b[1].valor - a[1].valor);
+      const cliCores = ["#185FA5","#0F6E56","#854F0B","#534AB7","#993C1D","#27500A"];
+      const cor = cliCores[idx % cliCores.length];
+      const temFaltasOuDisp = Object.values(d.porTipo).some(v => v.falta > 0 || v.disp > 0);
       return `
-      <div class="fin-card">
-        <div class="fin-card-head">
+      <div class="fin-card fin-card-cli" data-entid="${e.id}"
+           style="border-left:3px solid ${cor};border-radius:0 12px 12px 0;cursor:pointer;"
+           title="Clique para ver registos desta clínica">
+        <div class="fin-card-head" style="border-left:none;">
           <div>
             <div style="font-size:13px;font-weight:700;color:#0f172a;">${escapeHtml(e.nome)}</div>
             <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${e.gera_pdf_consulta ? `PDF contabilista a ${Number(e.valor_faturado||0).toFixed(0)}€/cons.` : "Consultas e procedimentos"}</div>
           </div>
           <div style="text-align:right;">
-            <div style="font-size:15px;font-weight:700;color:#0f2d52;">${d.totalEnt.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
+            <div style="font-size:15px;font-weight:700;color:${cor};">${d.totalEnt.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
             <div style="font-size:11px;color:#94a3b8;">realizadas</div>
           </div>
         </div>
         <div style="padding:0;">
-          ${tipos.length === 0 ? `<div style="padding:16px;text-align:center;color:#94a3b8;font-size:12px;">Sem registos</div>` :
+          ${tipos.length === 0 ? `<div style="padding:16px;text-align:center;color:#94a3b8;font-size:12px;">Sem registos — clique para ver detalhes</div>` :
             `<table class="fin-tbl">
               <tbody>
                 ${tipos.map(([tipo, v]) => `
@@ -476,20 +481,20 @@ ${pendVencidos.length > 0 ? `
               </tbody>
             </table>`
           }
-          ${e.gera_pdf_consulta ? `
-          <div style="padding:10px 14px;border-top:0.5px solid #f1f5f9;display:flex;justify-content:flex-end;">
-            <button class="gc-btn-sm btnFinPdfCli" data-entid="${e.id}">Gerar PDF contabilista</button>
-          </div>` : ""}
+          <div style="padding:8px 14px;border-top:0.5px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:11px;color:#94a3b8;">ver registos →</span>
+            ${e.gera_pdf_consulta ? `<button class="gc-btn-sm btnFinPdfCli" data-entid="${e.id}" onclick="event.stopPropagation()">PDF contabilista</button>` : ""}
+          </div>
         </div>
       </div>`;
     }).join("")}
   </div>
 
-  <!-- Entidades externas: FPF, UC, etc. -->
+  <!-- Outras actividades: FPF, UC, etc. -->
   ${entExternas.length > 0 ? `
   <div class="fin-card" style="margin-top:4px;">
     <div class="fin-card-head">
-      <span class="fin-card-title">${entExternas.map(e=>escapeHtml(e.nome)).join(" · ")}</span>
+      <span class="fin-card-title">Outras actividades</span>
       <div style="display:flex;gap:6px;">
         ${entExternas.map(e => `<button class="gc-btn-sm btnFinNovaPresenca" data-entid="${e.id}" data-nome="${escapeHtml(e.nome)}" data-tipo="${e.tipo}">+ ${escapeHtml(e.nome.split(" ")[0])}</button>`).join("")}
       </div>
@@ -521,30 +526,43 @@ ${pendVencidos.length > 0 ? `
 <!-- ════ VISTA: REGISTOS ════ -->
 <div id="finVistaReg" style="display:${vistaActual==="registos"?"block":"none"};">
   <div class="fin-card">
-    <div class="fin-card-head">
-      <span class="fin-card-title">Todos os registos — ${mesLabel(ano, mes)}</span>
-      <div style="display:flex;gap:6px;">
-        <button id="btnFinPdfAthletix" class="gc-btn-sm">PDF Athletix</button>
-        <button id="btnFinNovoRegisto" class="gc-btn-primary" style="font-size:12px;padding:6px 14px;">+ Registo</button>
+    <div class="fin-card-head" style="flex-wrap:wrap;gap:8px;">
+      <span class="fin-card-title">Registos</span>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto;">
+        <select id="finRegSelClinica" style="padding:5px 9px;border:0.5px solid #e2e8f0;border-radius:7px;background:#fff;font-size:12px;color:#0f172a;font-family:inherit;">
+          <option value="">Todas as clínicas</option>
+          ${entClinicas.map(e => `<option value="${e.id}" ${clinicaFiltro===e.id?"selected":""}>${escapeHtml(e.nome)}</option>`).join("")}
+        </select>
+        <select id="finRegSelMes" style="padding:5px 9px;border:0.5px solid #e2e8f0;border-radius:7px;background:#fff;font-size:12px;color:#0f172a;font-family:inherit;">
+          ${meses.map(m => `<option value="${m.ano}-${m.mes}" ${m.ano===ano&&m.mes===mes?"selected":""}>${mesLabel(m.ano,m.mes)}</option>`).join("")}
+        </select>
+        <button id="btnFinPdfSeleccionado" class="gc-btn-primary" style="font-size:12px;padding:6px 14px;">PDF do seleccionado</button>
       </div>
     </div>
     ${registosFiltrados.length === 0
-      ? `<div style="padding:32px;text-align:center;color:#94a3b8;font-size:13px;">Sem registos para ${mesLabel(ano, mes)}.</div>`
+      ? `<div style="padding:32px;text-align:center;color:#94a3b8;font-size:13px;">Sem registos para o período seleccionado.</div>`
       : `<table class="fin-tbl">
           <thead><tr><th>Data</th><th>Entidade</th><th>Acto</th><th>Doente</th><th>Estado</th><th style="text-align:right;">Valor</th><th></th></tr></thead>
           <tbody>
             ${registosFiltrados.map(r => {
-              const ent  = r.entidades_financeiras || {};
-              const pat  = r.patients || {};
+              const ent   = r.entidades_financeiras || {};
+              const pat   = r.patients || {};
               const conta = contaParaTotal(r.appt_status, r.financial_status);
-              return `<tr>
-                <td style="color:#64748b;white-space:nowrap;">${r.data ? new Date(r.data+"T00:00:00").toLocaleDateString("pt-PT") : "—"}</td>
-                <td style="font-weight:600;">${escapeHtml(ent.nome||"—")}</td>
-                <td style="color:#64748b;">${escapeHtml(r.tipo_acto||r.periodo||"—")}</td>
-                <td style="color:#64748b;">${escapeHtml(pat.full_name||"—")}</td>
+              const rData = r.data ? new Date(r.data+"T00:00:00") : null;
+              const isFut = rData && rData > hoje;
+              const isFal = String(r.appt_status||"").toLowerCase() === "no_show";
+              const isDis = r.financial_status === "honorarios_dispensados";
+              // Cor da linha: futuro=cinzento, falta=vermelho claro, dispensa=amarelo claro, normal=branco
+              const rowBg = isFut ? "#f8fafc" : isFal ? "#fff5f5" : isDis ? "#fffbeb" : "#fff";
+              const dateCor = isFut ? "#b0bec5" : "#64748b";
+              return `<tr style="background:${rowBg};">
+                <td style="color:${dateCor};white-space:nowrap;">${rData ? rData.toLocaleDateString("pt-PT") : "—"}${isFut ? ' <span style="font-size:10px;color:#b0bec5;">(futuro)</span>' : ""}</td>
+                <td style="font-weight:600;color:${isFut?"#94a3b8":"#0f172a"};">${escapeHtml(ent.nome||"—")}</td>
+                <td style="color:${isFut?"#b0bec5":"#64748b"};">${escapeHtml(r.tipo_acto||r.periodo||"—")}</td>
+                <td style="color:${isFut?"#b0bec5":"#64748b"};">${escapeHtml(pat.full_name||"—")}</td>
                 <td>${badgeStatus(r.appt_status, r.financial_status)}</td>
                 <td style="text-align:right;font-weight:700;color:${conta?"#0f2d52":"#94a3b8"};">${conta ? Number(r.valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"}) : "—"}</td>
-                <td style="text-align:right;"><button class="gc-btn-sm btnFinEditar" data-id="${r.id}">Editar</button></td>
+                <td style="text-align:right;"><button class="gc-btn-sm btnFinEditar" data-id="${r.id}" style="${isFut?"opacity:.5":""}">Editar</button></td>
               </tr>`;
             }).join("")}
           </tbody>
@@ -555,48 +573,113 @@ ${pendVencidos.length > 0 ? `
 
 <!-- ════ VISTA: ANÁLISE ════ -->
 <div id="finVistaAna" style="display:${vistaActual==="analise"?"block":"none"};">
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-    <div class="fin-card">
-      <div class="fin-card-head"><span class="fin-card-title">Tipos de acto</span></div>
-      <div style="padding:14px;">
-        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-          ${tiposOrdenados.map(([t,n],i) => `<span style="display:flex;align-items:center;gap:4px;font-size:11px;color:#64748b;"><span style="width:9px;height:9px;border-radius:2px;background:${tipoCores[i]||"#94a3b8"};display:inline-block;"></span>${escapeHtml(t)} ${Math.round((n/totalTipos)*100)}%</span>`).join("")}
-        </div>
-        <div style="position:relative;width:100%;height:160px;"><canvas id="finChartTipos"></canvas></div>
-      </div>
-    </div>
-    <div class="fin-card">
-      <div class="fin-card-head"><span class="fin-card-title">Consultas por semana</span></div>
-      <div style="padding:14px;">
-        <div style="position:relative;width:100%;height:180px;"><canvas id="finChartSemanas"></canvas></div>
-      </div>
-    </div>
-  </div>
-  <div class="fin-card">
-    <div class="fin-card-head"><span class="fin-card-title">Estado das consultas</span></div>
+
+  <!-- Comparativo por clínica -->
+  <div class="fin-card" style="margin-bottom:12px;">
+    <div class="fin-card-head"><span class="fin-card-title">Consultas por clínica — ${mesLabel(ano, mes)}</span></div>
     <div style="padding:14px 16px;">
-      ${[
-        {label:"Realizadas", count:realizadas.length, bg:"#d1fae5", fg:"#065f46", dot:"#059669"},
-        {label:"Pendentes",  count:pendentes.length,  bg:"#dbeafe", fg:"#1e40af", dot:"#1a56db"},
-        {label:"Faltou",     count:faltas.length,     bg:"#fee2e2", fg:"#991b1b", dot:"#DC2626"},
-        {label:"Dispensado", count:dispensadas.length,bg:"#fef3c7", fg:"#92400e", dot:"#D97706"},
-      ].map(s => {
-        const total = realizadas.length + pendentes.length + faltas.length + dispensadas.length || 1;
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:0.5px solid #f1f5f9;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div style="width:8px;height:8px;border-radius:50%;background:${s.dot};flex-shrink:0;"></div>
-            <span style="font-size:13px;">${s.label}</span>
+      ${entClinicas.map((e, idx) => {
+        const d = dadosPorEntidade(e.id);
+        const total = d.regs.length || 1;
+        const cliCores = ["#185FA5","#0F6E56","#854F0B","#534AB7","#993C1D","#27500A"];
+        const cor = cliCores[idx % cliCores.length];
+        const done  = Object.values(d.porTipo).reduce((s,v)=>s+v.done,  0);
+        const pend  = Object.values(d.porTipo).reduce((s,v)=>s+v.pend,  0);
+        const falta = Object.values(d.porTipo).reduce((s,v)=>s+v.falta, 0);
+        const disp  = Object.values(d.porTipo).reduce((s,v)=>s+v.disp,  0);
+        const totalAcos = done + pend + falta + disp || 1;
+        return `
+        <div style="margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+            <span style="font-size:12px;font-weight:600;color:#0f172a;">${escapeHtml(e.nome)}</span>
+            <span style="font-size:12px;color:#94a3b8;">${done+pend+falta+disp} actos</span>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:13px;font-weight:700;">${s.count}</span>
-            <span style="font-size:11px;background:${s.bg};color:${s.fg};padding:2px 7px;border-radius:4px;">${Math.round((s.count/total)*100)}%</span>
+          <div style="display:flex;height:18px;border-radius:6px;overflow:hidden;background:#f1f5f9;">
+            ${done  > 0 ? `<div style="width:${Math.round(done/totalAcos*100)}%;background:${cor};opacity:.9;" title="${done} realizadas"></div>` : ""}
+            ${pend  > 0 ? `<div style="width:${Math.round(pend/totalAcos*100)}%;background:#93c5fd;" title="${pend} pendentes"></div>` : ""}
+            ${falta > 0 ? `<div style="width:${Math.round(falta/totalAcos*100)}%;background:#fca5a5;" title="${falta} faltas"></div>` : ""}
+            ${disp  > 0 ? `<div style="width:${Math.round(disp/totalAcos*100)}%;background:#fcd34d;" title="${disp} dispensas"></div>` : ""}
+          </div>
+          <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;">
+            ${done  > 0 ? `<span style="font-size:11px;color:#065f46;">${done} realizadas</span>` : ""}
+            ${pend  > 0 ? `<span style="font-size:11px;color:#1e40af;">${pend} pendentes</span>` : ""}
+            ${falta > 0 ? `<span style="font-size:11px;color:#991b1b;font-weight:600;">${falta} faltas</span>` : ""}
+            ${disp  > 0 ? `<span style="font-size:11px;color:#92400e;font-weight:600;">${disp} dispensas</span>` : ""}
           </div>
         </div>`;
       }).join("")}
-      <div style="margin-top:12px;padding-top:10px;border-top:0.5px solid #f1f5f9;">
-        <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">Valor perdido</div>
-        <div style="font-size:20px;font-weight:700;color:#A32D2D;">${valorPerdido > 0 ? "−" : ""}${valorPerdido.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
+      <div style="display:flex;gap:14px;padding-top:10px;border-top:0.5px solid #f1f5f9;flex-wrap:wrap;">
+        <span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#185FA5;display:inline-block;"></span>Realizadas</span>
+        <span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#93c5fd;display:inline-block;"></span>Pendentes</span>
+        <span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#fca5a5;display:inline-block;"></span>Faltas</span>
+        <span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#fcd34d;display:inline-block;"></span>Dispensas</span>
       </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+
+    <!-- Tipos de acto -->
+    <div class="fin-card">
+      <div class="fin-card-head"><span class="fin-card-title">Tipos de acto realizados</span></div>
+      <div style="padding:14px 16px;">
+        ${tiposOrdenados.length === 0
+          ? `<div style="text-align:center;color:#94a3b8;font-size:12px;padding:16px 0;">Sem actos realizados.</div>`
+          : tiposOrdenados.map(([t,n]) => `
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <div style="font-size:12px;min-width:130px;color:#0f172a;">${escapeHtml(t)}</div>
+              <div style="flex:1;background:#f1f5f9;border-radius:4px;height:8px;overflow:hidden;">
+                <div style="height:8px;border-radius:4px;background:#0f2d52;width:${Math.round((n/totalTipos)*100)}%;"></div>
+              </div>
+              <div style="font-size:12px;font-weight:600;color:#0f2d52;min-width:28px;text-align:right;">${n}</div>
+              <div style="font-size:11px;color:#94a3b8;min-width:30px;text-align:right;">${Math.round((n/totalTipos)*100)}%</div>
+            </div>
+          `).join("")
+        }
+      </div>
+    </div>
+
+    <!-- Faltas e dispensas em destaque -->
+    <div class="fin-card">
+      <div class="fin-card-head"><span class="fin-card-title">Faltas e dispensas</span></div>
+      <div style="padding:14px 16px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+          <div style="background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:28px;font-weight:700;color:#DC2626;">${faltas.length}</div>
+            <div style="font-size:11px;color:#991b1b;margin-top:2px;">Faltas</div>
+            <div style="font-size:11px;color:#ef4444;margin-top:4px;">${faltas.reduce((s,r)=>s+Number(r.valor||0),0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})} perdido</div>
+          </div>
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:28px;font-weight:700;color:#D97706;">${dispensadas.length}</div>
+            <div style="font-size:11px;color:#92400e;margin-top:2px;">Dispensas de honorários</div>
+            <div style="font-size:11px;color:#d97706;margin-top:4px;">${dispensadas.reduce((s,r)=>s+Number(r.valor||0),0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})} dispensado</div>
+          </div>
+        </div>
+        ${[...faltas, ...dispensadas].length > 0 ? `
+        <div style="font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Por clínica</div>
+        ${entClinicas.map(e => {
+          const d = dadosPorEntidade(e.id);
+          const falt = Object.values(d.porTipo).reduce((s,v)=>s+v.falta,0);
+          const disp = Object.values(d.porTipo).reduce((s,v)=>s+v.disp,0);
+          if (falt === 0 && disp === 0) return "";
+          return `<div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:0.5px solid #f1f5f9;">
+            <span style="color:#0f172a;">${escapeHtml(e.nome)}</span>
+            <div style="display:flex;gap:8px;">
+              ${falt > 0 ? `<span style="color:#DC2626;font-weight:600;">${falt} falta(s)</span>` : ""}
+              ${disp > 0 ? `<span style="color:#D97706;font-weight:600;">${disp} dispensa(s)</span>` : ""}
+            </div>
+          </div>`;
+        }).join("")}
+        ` : `<div style="text-align:center;color:#94a3b8;font-size:12px;">Sem faltas nem dispensas.</div>`}
+      </div>
+    </div>
+  </div>
+
+  <!-- Consultas por semana -->
+  <div class="fin-card">
+    <div class="fin-card-head"><span class="fin-card-title">Consultas por semana</span></div>
+    <div style="padding:14px;">
+      <div style="position:relative;width:100%;height:160px;"><canvas id="finChartSemanas"></canvas></div>
     </div>
   </div>
 </div>
@@ -637,18 +720,46 @@ ${pendVencidos.length > 0 ? `
       openPdfMensal(registosFiltrados, presencas, entidades, mes, ano);
     });
 
-    /* PDF Athletix */
-    document.getElementById("btnFinPdfAthletix")?.addEventListener("click", () => {
-      openModalPdfAthletix(registosFiltrados, mes, ano);
+    /* PDF do seleccionado (na vista Registos) */
+    document.getElementById("btnFinPdfSeleccionado")?.addEventListener("click", () => {
+      const selCli = document.getElementById("finRegSelClinica")?.value || "";
+      const regsFiltrados = selCli
+        ? registosFiltrados.filter(r => r.entidade_id === selCli)
+        : registosFiltrados;
+      openPdfMensal(regsFiltrados, presencas, entidades, mes, ano);
     });
 
-    /* PDF por clínica */
+    /* PDF por clínica (botão no card) */
     content.querySelectorAll(".btnFinPdfCli").forEach(btn => {
       btn.addEventListener("click", () => {
-        const entId = btn.dataset.entid;
+        const entId   = btn.dataset.entid;
         const regsEnt = registosFiltrados.filter(r => r.entidade_id === entId);
         openModalPdfAthletix(regsEnt, mes, ano);
       });
+    });
+
+    /* Clique no card de clínica → abrir vista registos filtrada */
+    content.querySelectorAll(".fin-card-cli").forEach(card => {
+      card.addEventListener("click", (ev) => {
+        if (ev.target.closest("button")) return; // ignorar cliques em botões
+        const entId = card.dataset.entid;
+        clinicaFiltro = entId;
+        vistaActual   = "registos";
+        render();
+      });
+    });
+
+    /* Selector de clínica na vista Registos */
+    document.getElementById("finRegSelClinica")?.addEventListener("change", e => {
+      clinicaFiltro = e.target.value;
+      render();
+    });
+
+    /* Selector de mês na vista Registos */
+    document.getElementById("finRegSelMes")?.addEventListener("change", e => {
+      const [a, m] = e.target.value.split("-").map(Number);
+      ano = a; mes = m;
+      render();
     });
 
     /* Nova presença (FPF/UC) */
@@ -698,24 +809,29 @@ ${pendVencidos.length > 0 ? `
 
     /* Gráficos */
     function renderCharts() {
-      ["finChartTipos","finChartSemanas"].forEach(id => {
-        const el = document.getElementById(id);
-        if (el?._chartInstance) { el._chartInstance.destroy(); el._chartInstance = null; }
-      });
-      const cT = document.getElementById("finChartTipos");
-      if (cT && tiposOrdenados.length > 0) {
-        cT._chartInstance = new Chart(cT, {
-          type: "doughnut",
-          data: { datasets: [{ data: tiposOrdenados.map(([,n])=>n), backgroundColor: tipoCores.slice(0, tiposOrdenados.length), borderWidth: 2, borderColor: "#fff" }] },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: "62%" }
-        });
-      }
       const cS = document.getElementById("finChartSemanas");
+      if (cS?._chartInstance) { cS._chartInstance.destroy(); cS._chartInstance = null; }
       if (cS) {
         cS._chartInstance = new Chart(cS, {
           type: "bar",
-          data: { labels: ["S1 (1–7)","S2 (8–14)","S3 (15–21)","S4 (22–31)"], datasets: [{ data: porSemana, backgroundColor: "#185FA5", borderRadius: 5, borderSkipped: false }] },
-          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 11 }, color: "#94a3b8", autoSkip: false } }, y: { beginAtZero: true, grid: { color: "#f1f5f9" }, ticks: { font: { size: 11 }, color: "#94a3b8", stepSize: 1, precision: 0 } } } }
+          data: {
+            labels: ["S1 (1–7)","S2 (8–14)","S3 (15–21)","S4 (22–31)"],
+            datasets: [{
+              data: porSemana,
+              backgroundColor: "#0f2d52",
+              borderRadius: 5,
+              borderSkipped: false
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false }, ticks: { font: { size: 11 }, color: "#94a3b8", autoSkip: false } },
+              y: { beginAtZero: true, grid: { color: "#f1f5f9" }, ticks: { font: { size: 11 }, color: "#94a3b8", stepSize: 1, precision: 0 } }
+            }
+          }
         });
       }
     }
