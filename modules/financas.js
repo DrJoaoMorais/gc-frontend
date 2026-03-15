@@ -188,10 +188,19 @@ export async function renderFinancas() {
     }
 
     /* Calcular métricas */
+    // Realizadas = done e não dispensadas
     const realizadas   = registos.filter(r => contaParaTotal(r.appt_status, r.financial_status));
     const dispensadas  = registos.filter(r => r.financial_status === "honorarios_dispensados");
     const faltas       = registos.filter(r => String(r.appt_status || "").toLowerCase() === "no_show");
-    const totalEsperado = realizadas.reduce((s, r) => s + Number(r.valor || 0), 0);
+    // Pendentes = marcadas + chegou (valor esperado futuro)
+    const pendentes    = registos.filter(r => {
+      const s = String(r.appt_status || "").toLowerCase();
+      return (s === "scheduled" || s === "arrived") && r.financial_status !== "honorarios_dispensados";
+    });
+    // Total realizadas
+    const totalEsperado  = realizadas.reduce((s, r) => s + Number(r.valor || 0), 0);
+    // Total pendente (consultas marcadas/chegou — valor esperado)
+    const totalPendente  = pendentes.reduce((s, r) => s + Number(r.valor || 0), 0);
 
     /* Avenças do mês */
     const periodo = `${ano}-${String(mes).padStart(2, "0")}`;
@@ -206,19 +215,33 @@ export async function renderFinancas() {
     }
 
     /* ── Dados analíticos ── */
-    const totalGeral = totalEsperado + totalAvencas;
+    const totalGeral    = totalEsperado + totalAvencas;
     const mediaConsulta = realizadas.length > 0 ? Math.round(totalEsperado / realizadas.length) : 0;
     const valorPerdido  = [...faltas, ...dispensadas].reduce((s, r) => s + Number(r.valor || 0), 0);
 
-    /* Rendimento por entidade */
+    /* Rendimento por entidade — valor = realizadas, count = todos os estados */
     const porEntidade = {};
     registos.forEach(r => {
       const ent = r.entidades_financeiras || {};
       const key = ent.nome || "—";
-      if (!porEntidade[key]) porEntidade[key] = { nome: key, tipo: ent.tipo, valor: 0, count: 0 };
+      const s   = String(r.appt_status || "").toLowerCase();
+      if (!porEntidade[key]) porEntidade[key] = {
+        nome: key, tipo: ent.tipo,
+        valor: 0,          // só realizadas
+        count: 0,          // todos os actos (realizadas + marcadas + faltas)
+        countDone: 0,      // só realizadas
+        countPend: 0,      // marcadas + chegou
+        countFalta: 0      // faltas
+      };
+      // Contar todos
+      porEntidade[key].count++;
       if (contaParaTotal(r.appt_status, r.financial_status)) {
-        porEntidade[key].valor += Number(r.valor || 0);
-        porEntidade[key].count++;
+        porEntidade[key].valor     += Number(r.valor || 0);
+        porEntidade[key].countDone++;
+      } else if (s === "scheduled" || s === "arrived") {
+        porEntidade[key].countPend++;
+      } else if (s === "no_show") {
+        porEntidade[key].countFalta++;
       }
     });
     /* Adicionar avenças */
@@ -297,14 +320,14 @@ export async function renderFinancas() {
       <!-- MÉTRICAS -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;">
         <div class="fin-metric">
-          <div class="fin-metric-label">Total esperado</div>
-          <div class="fin-metric-value">${totalGeral.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}</div>
-          <div class="fin-metric-sub">Actos + avenças</div>
+          <div class="fin-metric-label">Realizadas</div>
+          <div class="fin-metric-value">${totalEsperado.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}</div>
+          <div class="fin-metric-sub">${realizadas.length} consulta(s) · média ${mediaConsulta.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}</div>
         </div>
         <div class="fin-metric">
-          <div class="fin-metric-label">Consultas realizadas</div>
-          <div class="fin-metric-value">${realizadas.length}</div>
-          <div class="fin-metric-sub">média ${mediaConsulta.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}/cons.</div>
+          <div class="fin-metric-label">Pendentes</div>
+          <div class="fin-metric-value" style="color:#1a56db;">${totalPendente.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}</div>
+          <div class="fin-metric-sub">${pendentes.length} marcada(s)</div>
         </div>
         <div class="fin-metric">
           <div class="fin-metric-label">Faltas / dispensas</div>
@@ -427,7 +450,12 @@ export async function renderFinancas() {
                       <div class="fin-bar" style="width:${Math.round((e.valor / Math.max(maxValEnt, 1)) * 100)}%;background:#185FA5;"></div>
                     </div>
                     <div style="font-size:12px;font-weight:600;color:#0f172a;min-width:64px;text-align:right;">${Number(e.valor).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
-                    <div style="font-size:11px;color:#94a3b8;min-width:40px;text-align:right;">${e.isAvenca ? "avença" : e.count + " cons."}</div>
+                    <div style="font-size:11px;color:#94a3b8;min-width:72px;text-align:right;">
+                      ${e.isAvenca
+                        ? "avença"
+                        : `<span style="color:#059669;">${e.countDone}✓</span>${e.countPend > 0 ? ` <span style="color:#1a56db;">${e.countPend}⏳</span>` : ""}${e.countFalta > 0 ? ` <span style="color:#e02424;">${e.countFalta}✗</span>` : ""}`
+                      }
+                    </div>
                   </div>
                 `).join("")
               }
