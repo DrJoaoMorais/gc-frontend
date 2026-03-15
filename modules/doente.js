@@ -3506,6 +3506,8 @@ function openPatientViewModal(patient) {
         }
         .gc-sb-btn:hover { background:#fff; border-color:#e2e8f0; }
         .gc-sb-btn--active { background:#eff6ff; border-color:#1a56db; color:#1a56db; font-weight:700; }
+        .gc-sb-btn--highlight { border-color:#93c5fd; color:#1a56db; font-weight:700; background:#fff; }
+        .gc-sb-btn--highlight:hover { background:#eff6ff; border-color:#1a56db; }
         .gc-sb-btn--primary { background:#1a56db; border-color:#1a56db; color:#fff; font-weight:700; }
         .gc-sb-btn--primary:hover { background:#1749be; }
         .gc-sb-icon { font-size:15px; flex-shrink:0; line-height:1; }
@@ -3540,7 +3542,7 @@ function openPatientViewModal(patient) {
           ${isDoctor() ? `
             <div class="gc-sb-lbl" style="margin-top:4px;">Consulta</div>
 
-            <button id="btnNewConsult" class="gc-sb-btn ${creatingConsult ? 'gc-sb-btn--primary' : ''}">
+            <button id="btnNewConsult" class="gc-sb-btn ${creatingConsult ? 'gc-sb-btn--primary' : 'gc-sb-btn--highlight'}">
               <span class="gc-sb-icon">📋</span><span>Nova Consulta</span>
             </button>
 
