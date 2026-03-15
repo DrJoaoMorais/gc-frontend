@@ -48,12 +48,20 @@ async function loadEntidades() {
 }
 
 /* ---- FA.2 — loadRegistos ---- */
-async function loadRegistos({ mes, ano }) {
-  const inicio = `${ano}-${String(mes).padStart(2, "0")}-01`;
-  // Construir fim como string directamente — evita desvio UTC do toISOString()
-  const mesFim = mes === 12 ? 1 : mes + 1;
-  const anoFim = mes === 12 ? ano + 1 : ano;
-  const fim    = `${anoFim}-${String(mesFim).padStart(2, "0")}-01`;
+async function loadRegistos({ mes, ano, dataIni, dataFim } = {}) {
+  let inicio, fim;
+  if (dataIni && dataFim) {
+    inicio = dataIni;
+    // fim é inclusivo — adicionar 1 dia
+    const d = new Date(dataFim + "T00:00:00");
+    d.setDate(d.getDate() + 1);
+    fim = d.toISOString().slice(0, 10);
+  } else {
+    inicio = `${ano}-${String(mes).padStart(2, "0")}-01`;
+    const mesFim = mes === 12 ? 1 : mes + 1;
+    const anoFim = mes === 12 ? ano + 1 : ano;
+    fim = `${anoFim}-${String(mesFim).padStart(2, "0")}-01`;
+  }
 
   const { data, error } = await window.sb
     .from("registos_financeiros")
@@ -211,16 +219,21 @@ export async function renderFinancas() {
   const now = new Date();
   let ano   = now.getFullYear();
   let mes   = now.getMonth() + 1;
-  let vistaActual = "clinica"; // clinica | registos | analise
+  let vistaActual   = "clinica"; // clinica | registos | analise
   let clinicaFiltro = ""; // "" = todas
+  let periodoIni    = ""; // data livre de/até
+  let periodoFim    = "";
 
   async function render() {
     let entidades = [], registos = [], presencas = [];
     try {
+      const loadParams = periodoIni && periodoFim
+        ? { dataIni: periodoIni, dataFim: periodoFim }
+        : { mes, ano };
       [entidades, registos, presencas] = await Promise.all([
         loadEntidades(),
-        loadRegistos({ mes, ano }),
-        loadPresencas({ mes, ano })
+        loadRegistos(loadParams),
+        loadPresencas(loadParams)
       ]);
     } catch (e) {
       console.error("renderFinancas load falhou:", e);
@@ -240,9 +253,13 @@ export async function renderFinancas() {
     const realizadas  = registosFiltrados.filter(r => contaParaTotal(r.appt_status, r.financial_status));
     const dispensadas = registosFiltrados.filter(r => r.financial_status === "honorarios_dispensados");
     const faltas      = registosFiltrados.filter(r => String(r.appt_status || "").toLowerCase() === "no_show");
+    /* Pendentes = marcadas/chegou com data até HOJE (não futuras) */
+    const _hoje = new Date(); _hoje.setHours(0,0,0,0);
     const pendentes   = registosFiltrados.filter(r => {
       const s = String(r.appt_status || "").toLowerCase();
-      return (s === "scheduled" || s === "arrived") && r.financial_status !== "honorarios_dispensados";
+      if (!((s === "scheduled" || s === "arrived") && r.financial_status !== "honorarios_dispensados")) return false;
+      if (!r.data) return false;
+      return new Date(r.data + "T00:00:00") <= _hoje;
     });
     const totalReal    = realizadas.reduce((s, r) => s + Number(r.valor || 0), 0);
     const totalPend    = pendentes.reduce((s, r) => s + Number(r.valor || 0), 0);
@@ -266,9 +283,9 @@ export async function renderFinancas() {
       pvPorEnt[nome].push(r);
     });
 
-    /* ── Tabs de mês ── */
+    /* ── Tabs de mês — 3 meses ── */
     const meses = [];
-    for (let i = 4; i >= 0; i--) {
+    for (let i = 2; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       meses.push({ ano: d.getFullYear(), mes: d.getMonth() + 1 });
     }
@@ -332,8 +349,9 @@ export async function renderFinancas() {
 .fin-mc-s{font-size:11px;color:#94a3b8;margin-top:3px}
 .fin-mtab{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;color:#64748b;border:0.5px solid #e2e8f0;background:#fff;font-family:inherit}
 .fin-mtab.on{background:#0f2d52;color:#fff;border-color:#0f2d52}
-.fin-vtab{padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#64748b;border:none;background:transparent;border-bottom:2px solid transparent;margin-bottom:-0.5px;font-family:inherit}
-.fin-vtab.on{color:#1a56db;border-bottom-color:#1a56db}
+.fin-vtab{padding:8px 18px;font-size:13px;font-weight:500;cursor:pointer;color:#64748b;border:0.5px solid transparent;background:transparent;border-radius:8px 8px 0 0;font-family:inherit;transition:all .12s}
+.fin-vtab:hover{color:#0f172a;background:#f8fafc}
+.fin-vtab.on{color:#1a56db;background:#eff6ff;border-color:#bfdbfe #bfdbfe #eff6ff;font-weight:600}
 .fin-card{background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden}
 .fin-card-head{padding:12px 16px;border-bottom:0.5px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center}
 .fin-card-title{font-size:13px;font-weight:700;color:#0f172a}
@@ -365,12 +383,21 @@ export async function renderFinancas() {
     </select>
     <div style="display:flex;background:#f1f5f9;border-radius:8px;padding:3px;gap:2px;">
       ${meses.map(m => `
-        <button class="fin-mtab${m.ano === ano && m.mes === mes ? " on" : ""}" data-ano="${m.ano}" data-mes="${m.mes}">
+        <button class="fin-mtab${!periodoIni && m.ano === ano && m.mes === mes ? " on" : ""}" data-ano="${m.ano}" data-mes="${m.mes}">
           ${new Date(m.ano, m.mes-1, 1).toLocaleString("pt-PT",{month:"short"})}${m.ano !== now.getFullYear() ? " "+m.ano : ""}
         </button>
       `).join("")}
     </div>
-    <button id="btnFinPdfMensal" class="gc-btn-primary" style="font-size:12px;padding:7px 14px;">PDF mensal</button>
+    <div style="display:flex;align-items:center;gap:4px;background:#fff;border:0.5px solid #e2e8f0;border-radius:8px;padding:4px 10px;">
+      <span style="font-size:11px;color:#94a3b8;white-space:nowrap;">De</span>
+      <input id="finPeriodoIni" type="date" value="${periodoIni}"
+        style="border:none;outline:none;font-size:12px;color:#0f172a;font-family:inherit;width:115px;" />
+      <span style="font-size:11px;color:#94a3b8;white-space:nowrap;">Até</span>
+      <input id="finPeriodoFim" type="date" value="${periodoFim}"
+        style="border:none;outline:none;font-size:12px;color:#0f172a;font-family:inherit;width:115px;" />
+      ${periodoIni ? `<button id="finLimparPeriodo" style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:13px;padding:0 2px;line-height:1;" title="Limpar">✕</button>` : ""}
+    </div>
+    <button id="btnFinPdfMensal" class="gc-btn-primary" style="font-size:12px;padding:7px 14px;">PDF</button>
   </div>
 </div>
 
@@ -574,45 +601,36 @@ ${pendVencidos.length > 0 ? `
 <!-- ════ VISTA: ANÁLISE ════ -->
 <div id="finVistaAna" style="display:${vistaActual==="analise"?"block":"none"};">
 
-  <!-- Comparativo por clínica -->
+  <!-- Comparativo por clínica — gráfico agrupado -->
   <div class="fin-card" style="margin-bottom:12px;">
-    <div class="fin-card-head"><span class="fin-card-title">Consultas por clínica — ${mesLabel(ano, mes)}</span></div>
-    <div style="padding:14px 16px;">
-      ${entClinicas.map((e, idx) => {
-        const d = dadosPorEntidade(e.id);
-        const total = d.regs.length || 1;
-        const cliCores = ["#185FA5","#0F6E56","#854F0B","#534AB7","#993C1D","#27500A"];
-        const cor = cliCores[idx % cliCores.length];
-        const done  = Object.values(d.porTipo).reduce((s,v)=>s+v.done,  0);
-        const pend  = Object.values(d.porTipo).reduce((s,v)=>s+v.pend,  0);
-        const falta = Object.values(d.porTipo).reduce((s,v)=>s+v.falta, 0);
-        const disp  = Object.values(d.porTipo).reduce((s,v)=>s+v.disp,  0);
-        const totalAcos = done + pend + falta + disp || 1;
-        return `
-        <div style="margin-bottom:14px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
-            <span style="font-size:12px;font-weight:600;color:#0f172a;">${escapeHtml(e.nome)}</span>
-            <span style="font-size:12px;color:#94a3b8;">${done+pend+falta+disp} actos</span>
-          </div>
-          <div style="display:flex;height:18px;border-radius:6px;overflow:hidden;background:#f1f5f9;">
-            ${done  > 0 ? `<div style="width:${Math.round(done/totalAcos*100)}%;background:${cor};opacity:.9;" title="${done} realizadas"></div>` : ""}
-            ${pend  > 0 ? `<div style="width:${Math.round(pend/totalAcos*100)}%;background:#93c5fd;" title="${pend} pendentes"></div>` : ""}
-            ${falta > 0 ? `<div style="width:${Math.round(falta/totalAcos*100)}%;background:#fca5a5;" title="${falta} faltas"></div>` : ""}
-            ${disp  > 0 ? `<div style="width:${Math.round(disp/totalAcos*100)}%;background:#fcd34d;" title="${disp} dispensas"></div>` : ""}
-          </div>
-          <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;">
-            ${done  > 0 ? `<span style="font-size:11px;color:#065f46;">${done} realizadas</span>` : ""}
-            ${pend  > 0 ? `<span style="font-size:11px;color:#1e40af;">${pend} pendentes</span>` : ""}
-            ${falta > 0 ? `<span style="font-size:11px;color:#991b1b;font-weight:600;">${falta} faltas</span>` : ""}
-            ${disp  > 0 ? `<span style="font-size:11px;color:#92400e;font-weight:600;">${disp} dispensas</span>` : ""}
-          </div>
-        </div>`;
-      }).join("")}
-      <div style="display:flex;gap:14px;padding-top:10px;border-top:0.5px solid #f1f5f9;flex-wrap:wrap;">
-        <span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#185FA5;display:inline-block;"></span>Realizadas</span>
-        <span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#93c5fd;display:inline-block;"></span>Pendentes</span>
-        <span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#fca5a5;display:inline-block;"></span>Faltas</span>
-        <span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#fcd34d;display:inline-block;"></span>Dispensas</span>
+    <div class="fin-card-head">
+      <span class="fin-card-title">Comparativo por clínica</span>
+      <div style="display:flex;gap:12px;">
+        <span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:2px;background:#0f2d52;display:inline-block;"></span>Realizadas</span>
+        <span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:2px;background:#DC2626;display:inline-block;"></span>Faltas</span>
+        <span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:2px;background:#D97706;display:inline-block;"></span>Dispensas</span>
+      </div>
+    </div>
+    <div style="padding:16px;">
+      <div style="display:grid;grid-template-columns:repeat(${Math.max(1,entClinicas.length)},minmax(0,1fr));gap:12px;margin-bottom:12px;">
+        ${entClinicas.map(e => {
+          const d    = dadosPorEntidade(e.id);
+          const done = Object.values(d.porTipo).reduce((s,v)=>s+v.done, 0);
+          const falt = Object.values(d.porTipo).reduce((s,v)=>s+v.falta, 0);
+          const disp = Object.values(d.porTipo).reduce((s,v)=>s+v.disp, 0);
+          const nomeAbrev = e.nome.split("—")[0].trim().split(" ")[0];
+          return `<div style="text-align:center;">
+            <div style="font-size:11px;font-weight:500;color:#64748b;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(e.nome)}">${escapeHtml(nomeAbrev)}</div>
+            <div style="font-size:20px;font-weight:700;color:#0f2d52;">${done}</div>
+            <div style="font-size:10px;color:#94a3b8;">realizadas</div>
+            <div style="font-size:13px;font-weight:600;color:#0f2d52;margin-top:4px;">${d.totalEnt.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
+            ${falt > 0 ? `<div style="font-size:11px;color:#DC2626;margin-top:2px;">${falt} falta(s)</div>` : ""}
+            ${disp > 0 ? `<div style="font-size:11px;color:#D97706;">${disp} dispensa(s)</div>` : ""}
+          </div>`;
+        }).join("")}
+      </div>
+      <div style="position:relative;width:100%;height:${Math.max(180, entClinicas.length * 40)}px;">
+        <canvas id="finChartClinics"></canvas>
       </div>
     </div>
   </div>
@@ -699,6 +717,24 @@ ${pendVencidos.length > 0 ? `
     /* Selector de clínica */
     document.getElementById("finSelClinica")?.addEventListener("change", e => {
       clinicaFiltro = e.target.value;
+      render();
+    });
+
+    /* Período livre de/até */
+    document.getElementById("finPeriodoIni")?.addEventListener("change", e => {
+      periodoIni = e.target.value;
+      const fimEl = document.getElementById("finPeriodoFim");
+      periodoFim = fimEl?.value || "";
+      if (periodoIni && periodoFim) render();
+    });
+    document.getElementById("finPeriodoFim")?.addEventListener("change", e => {
+      periodoFim = e.target.value;
+      const iniEl = document.getElementById("finPeriodoIni");
+      periodoIni = iniEl?.value || "";
+      if (periodoIni && periodoFim) render();
+    });
+    document.getElementById("finLimparPeriodo")?.addEventListener("click", () => {
+      periodoIni = ""; periodoFim = "";
       render();
     });
 
@@ -809,23 +845,51 @@ ${pendVencidos.length > 0 ? `
 
     /* Gráficos */
     function renderCharts() {
+      /* Destruir instâncias anteriores */
+      ["finChartSemanas","finChartClinics"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el?._chartInstance) { el._chartInstance.destroy(); el._chartInstance = null; }
+      });
+
+      /* Gráfico agrupado por clínica: realizadas vs faltas vs dispensas */
+      const cCli = document.getElementById("finChartClinics");
+      if (cCli && entClinicas.length > 0) {
+        const labels = entClinicas.map(e => e.nome.split("—")[0].trim().split(" ")[0]);
+        const dDone  = entClinicas.map(e => Object.values(dadosPorEntidade(e.id).porTipo).reduce((s,v)=>s+v.done, 0));
+        const dFalt  = entClinicas.map(e => Object.values(dadosPorEntidade(e.id).porTipo).reduce((s,v)=>s+v.falta, 0));
+        const dDisp  = entClinicas.map(e => Object.values(dadosPorEntidade(e.id).porTipo).reduce((s,v)=>s+v.disp, 0));
+        cCli._chartInstance = new Chart(cCli, {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [
+              { label: "Realizadas", data: dDone, backgroundColor: "#0f2d52", borderRadius: 4, borderSkipped: false },
+              { label: "Faltas",     data: dFalt, backgroundColor: "#DC2626", borderRadius: 4, borderSkipped: false },
+              { label: "Dispensas",  data: dDisp, backgroundColor: "#D97706", borderRadius: 4, borderSkipped: false },
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false }, ticks: { font: { size: 11 }, color: "#64748b" } },
+              y: { beginAtZero: true, grid: { color: "#f1f5f9" }, ticks: { font: { size: 11 }, color: "#94a3b8", stepSize: 1, precision: 0 } }
+            }
+          }
+        });
+      }
+
+      /* Gráfico por semana */
       const cS = document.getElementById("finChartSemanas");
-      if (cS?._chartInstance) { cS._chartInstance.destroy(); cS._chartInstance = null; }
       if (cS) {
         cS._chartInstance = new Chart(cS, {
           type: "bar",
           data: {
             labels: ["S1 (1–7)","S2 (8–14)","S3 (15–21)","S4 (22–31)"],
-            datasets: [{
-              data: porSemana,
-              backgroundColor: "#0f2d52",
-              borderRadius: 5,
-              borderSkipped: false
-            }]
+            datasets: [{ data: porSemana, backgroundColor: "#0f2d52", borderRadius: 5, borderSkipped: false }]
           },
           options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
               x: { grid: { display: false }, ticks: { font: { size: 11 }, color: "#94a3b8", autoSkip: false } },
