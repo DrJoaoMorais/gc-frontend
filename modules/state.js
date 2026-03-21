@@ -60,7 +60,9 @@ export function statusMeta(statusRaw) {
 /* ---- 03E.1 — G (estado partilhado entre módulos) ---- */
 export const G = {
   sessionUser:    null,
-  role:           null,
+  role:           null,       // role efectivo da clínica activa
+  myClinicRoles:  {},         // mapa clinic_id → role (todas as linhas do utilizador)
+  activeClinicId: null,       // clínica seleccionada — define o role efectivo
   clinics:        [],
   clinicsById:    {},
   agenda:         { rows: [], timeColUsed: "start_at" },
