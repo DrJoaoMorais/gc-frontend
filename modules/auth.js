@@ -49,20 +49,9 @@ function openCalendarOverlay()        { return window.__gc_openCalendarOverlay()
 
 /* ---- 01F.1 — fetchMyRole ---- */
 export async function fetchMyRole(userId) {
-  // Guardar flag de superadmin SEM mudar o role operacional
-  window.__GC_IS_SUPERADMIN__ = false;
-  try {
-    const { data: isSa, error: eSa } = await window.sb.rpc("is_superadmin");
-    if (eSa) throw eSa;
-    window.__GC_IS_SUPERADMIN__ = (isSa === true);
-  } catch (e) {
-    try { console.warn("fetchMyRole: rpc(is_superadmin) falhou:", e); } catch (_) {}
-    window.__GC_IS_SUPERADMIN__ = false;
-  }
-
-  // Fonte de verdade: user_clinics (multi-clínica)
+  // Fonte de verdade: clinic_members (multi-clínica)
   const { data, error } = await window.sb
-    .from("user_clinics")
+    .from("clinic_members")
     .select("role, clinic_id, is_active")
     .eq("user_id", userId)
     .eq("is_active", true);
@@ -74,10 +63,14 @@ export async function fetchMyRole(userId) {
   window.__GC_MY_CLINIC_IDS__    = rows.map(r => r.clinic_id).filter(Boolean);
   window.__GC_MY_CLINICS_COUNT__ = window.__GC_MY_CLINIC_IDS__.length;
 
+  window.__GC_IS_SUPERADMIN__ = rows.some(r => r.role === "super_admin");
+
   const roles = rows.map(r => String(r.role || "").trim()).filter(Boolean);
-  if (roles.includes("doctor"))    return "doctor";
-  if (roles.includes("physio"))    return "physio";
-  if (roles.includes("secretary")) return "secretary";
+  if (roles.includes("super_admin"))    return "super_admin";
+  if (roles.includes("admin"))          return "admin";
+  if (roles.includes("medico"))         return "medico";
+  if (roles.includes("fisioterapeuta")) return "fisioterapeuta";
+  if (roles.includes("administrativo")) return "administrativo";
   return null;
 }
 
