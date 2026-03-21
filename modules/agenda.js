@@ -1442,7 +1442,7 @@ export function openApptModal({ mode, row }) {
         <div style="margin-top:12px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
           <div id="mMsg" style="font-size:${UI.fs12}px;color:#666;"></div>
           <div style="display:flex;gap:10px;">
-            ${canDeleteAppt ? `<button id="btnDeleteAppt" class="gcBtn" type="button" style="font-weight:900;">Eliminar marcação</button>` : ""}
+            ${canDeleteAppt ? `<button id="btnDeleteAppt" class="gcBtn" type="button" style="font-weight:600;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;">Registar falta</button>` : ""}
             <button id="btnCancel" class="gcBtn">Cancelar</button>
             <button id="btnSave" class="gcBtn" style="font-weight:900;">Guardar</button>
           </div>
@@ -1563,7 +1563,7 @@ export function openApptModal({ mode, row }) {
     if (!isBlockEdit || !row?.id) return;
     if (!confirm("Apagar este bloqueio?")) return;
     try {
-      const { error } = await window.sb.from("appointments").delete().eq("id", row.id);
+      const { error } = await window.sb.from("appointments").update({ appt_status: "no_show" }).eq("id", row.id);
       if (error) throw error;
       safeCloseModal();
       await refreshAgenda();
@@ -1826,20 +1826,20 @@ export function openApptModal({ mode, row }) {
   /* --- guardar / eliminar --- */
   async function onDeleteAppt() {
     if (!canDeleteAppt || !row?.id) return;
-    if (!confirm("Eliminar esta marcação?")) return;
+    if (!confirm("Registar esta marcação como falta (Faltou)?")) return;
     try {
       if (btnDeleteAppt) btnDeleteAppt.disabled = true;
       if (btnSave) btnSave.disabled = true;
-      mMsg.style.color = "#666"; mMsg.textContent = "A eliminar…";
+      mMsg.style.color = "#666"; mMsg.textContent = "A registar falta…";
       const dayISO = String(row.start_at || G.selectedDayISO || "").slice(0, 10);
-      const { error } = await window.sb.from("appointments").delete().eq("id", row.id);
+      const { error } = await window.sb.from("appointments").update({ appt_status: "no_show" }).eq("id", row.id);
       if (error) throw error;
       safeCloseModal();
       await refreshAgenda();
       __gcFireSyncDay(dayISO);
     } catch (e) {
-      console.error("Eliminar falhou:", e);
-      mMsg.style.color = "#b00020"; mMsg.textContent = String(e?.message || e?.details || e?.hint || e) || "Erro ao eliminar.";
+      console.error("Registar falta falhou:", e);
+      mMsg.style.color = "#b00020"; mMsg.textContent = String(e?.message || e?.details || e?.hint || e) || "Erro ao registar falta.";
       if (btnDeleteAppt) btnDeleteAppt.disabled = false;
       if (btnSave) btnSave.disabled = false;
     }
