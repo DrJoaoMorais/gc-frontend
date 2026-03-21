@@ -141,9 +141,9 @@ export function openCalendarOverlay() {
     <div id="calOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
       <div style="background:#fff; width:min(520px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px;">
         <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
-          <button id="calPrev" class="gcBtn">◀</button>
+          <button id="calPrev" class="gcBtn gcBtnIcon">◀</button>
           <div style="font-size:${UI.fs14}px; font-weight:800; color:#111;" id="calTitle">${escapeHtml(monthLabel(G.calMonth))}</div>
-          <button id="calNext" class="gcBtn">▶</button>
+          <button id="calNext" class="gcBtn gcBtnIcon">▶</button>
         </div>
 
         <div style="margin-top:10px; display:grid; grid-template-columns: repeat(7, 1fr); gap:6px;">
@@ -165,7 +165,7 @@ export function openCalendarOverlay() {
 
         <div style="margin-top:12px; display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
           <div style="font-size:${UI.fs12}px; color:#666;">Clique num dia para abrir a agenda desse dia.</div>
-          <button id="calClose" class="gcBtn">Fechar</button>
+          <button id="calClose" class="gcBtnGhost">Fechar</button>
         </div>
       </div>
     </div>

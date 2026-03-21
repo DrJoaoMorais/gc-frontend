@@ -491,7 +491,7 @@ export function renderAgendaList() {
   const footer = `
     <li style="padding:10px 0 0 0;">
       <div class="gcAgendaFooter">
-        <button id="btnPrintAgendaDay" class="gcBtn" type="button" style="font-weight:900;">Imprimir lista do dia</button>
+        <button id="btnPrintAgendaDay" class="gcBtnOutline" type="button">Imprimir lista do dia</button>
       </div>
     </li>`;
 
@@ -814,9 +814,9 @@ export async function openCalendarOverlay() {
     <div id="calOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;padding:18px;z-index:1000;">
       <div style="background:#fff;width:min(560px,100%);border-radius:14px;border:1px solid #e5e5e5;padding:16px;">
         <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
-          <button id="calPrev" class="gcBtn">◀</button>
+          <button id="calPrev" class="gcBtn gcBtnIcon">◀</button>
           <div style="font-size:${UI.fs14}px;font-weight:800;color:#111;" id="calTitle">${escapeHtml(monthLabel(G.calMonth))}</div>
-          <button id="calNext" class="gcBtn">▶</button>
+          <button id="calNext" class="gcBtn gcBtnIcon">▶</button>
         </div>
         <div style="margin-top:10px;display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">
           ${weekDays.map((w) => `<div style="font-size:${UI.fs12}px;color:#666;text-align:center;padding:6px 0;">${w}</div>`).join("")}
@@ -847,7 +847,7 @@ export async function openCalendarOverlay() {
           <div style="font-size:${UI.fs12}px;color:#666;">Clique num dia para abrir a agenda desse dia.</div>
           <div style="display:flex;gap:8px;">
             <button id="calOpenWeek" class="gcBtn">Vista semanal</button>
-            <button id="calClose" class="gcBtn">Fechar</button>
+            <button id="calClose" class="gcBtnGhost">Fechar</button>
           </div>
         </div>
       </div>
@@ -1041,14 +1041,14 @@ export async function openWeekView() {
       <div style="background:#fff;width:min(1100px,100%);border-radius:14px;border:1px solid #e5e5e5;padding:14px;max-height:92vh;display:flex;flex-direction:column;">
         <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-shrink:0;">
           <div style="display:flex;align-items:center;gap:8px;">
-            <button id="weekPrev" class="gcBtn">◀</button>
+            <button id="weekPrev" class="gcBtn gcBtnIcon">◀</button>
             <div style="font-size:${UI.fs14}px;font-weight:800;color:#111;">${escapeHtml(weekLabel)}</div>
-            <button id="weekNext" class="gcBtn">▶</button>
-            <button id="weekToday" class="gcBtn" style="margin-left:4px;">Hoje</button>
+            <button id="weekNext" class="gcBtn gcBtnIcon">▶</button>
+            <button id="weekToday" class="gcBtnOutline" style="margin-left:4px;">Hoje</button>
           </div>
           <div style="display:flex;gap:8px;">
-            <button id="weekOpenCal" class="gcBtn">Mensal</button>
-            <button id="weekClose" class="gcBtn">Fechar</button>
+            <button id="weekOpenCal" class="gcBtnOutline">Mensal</button>
+            <button id="weekClose" class="gcBtnGhost">Fechar</button>
           </div>
         </div>
         <div style="margin-top:10px;overflow:auto;flex:1;">
@@ -1347,7 +1347,7 @@ export function openApptModal({ mode, row }) {
             </div>
             <div style="font-size:${UI.fs12}px;color:#666;margin-top:4px;">Dia selecionado: ${escapeHtml(G.selectedDayISO)}.</div>
           </div>
-          <button id="btnCloseModal" class="gcBtn">Fechar</button>
+          <button id="btnCloseModal" class="gcBtnGhost">Fechar</button>
         </div>
 
         <div style="margin-top:12px;display:flex;flex-direction:column;gap:4px;">
@@ -1362,11 +1362,11 @@ export function openApptModal({ mode, row }) {
         <div id="mBlockOnlyWrap" style="display:none;margin-top:14px;border:1px solid #eee;border-radius:14px;padding:14px;background:#fafafa;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
             <div style="font-weight:900;font-size:${UI.fs13}px;">Bloqueio</div>
-            ${isBlockEdit ? `<button id="btnDeleteBlock" class="gcBtn" type="button" style="font-weight:900;">Apagar bloqueio</button>` : ""}
+            ${isBlockEdit ? `<button id="btnDeleteBlock" class="gcBtnDanger" type="button">Apagar bloqueio</button>` : ""}
           </div>
           <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
-            <button id="btnBlockDay" class="gcBtn" type="button" style="font-weight:900;">Bloquear dia</button>
-            <button id="btnBlockPeriod" class="gcBtn" type="button">Bloquear período</button>
+            <button id="btnBlockDay" class="gcBtnOutline" type="button">Bloquear dia</button>
+            <button id="btnBlockPeriod" class="gcBtnOutline" type="button">Bloquear período</button>
           </div>
           <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;align-items:end;">
             <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:${UI.fs12}px;color:#666;">Datas De</label><input id="bDateFrom" type="date" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;font-size:${UI.fs13}px;" /></div>
@@ -1399,7 +1399,7 @@ export function openApptModal({ mode, row }) {
             <label style="font-size:${UI.fs12}px;color:#666;">Doente (obrigatório)</label>
             <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;">
               <input id="mPatientQuery" type="search" placeholder="ex.: Man… | 916… | 123456789" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search" data-form-type="other" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;width:100%;font-size:${UI.fs13}px;" />
-              <button id="btnNewPatient" class="gcBtn" style="white-space:nowrap;">＋ 👤 Novo doente</button>
+              <button id="btnNewPatient" class="gcBtnPrimary" style="white-space:nowrap;">＋ 👤 Novo doente</button>
             </div>
             <div id="mPatientResults" style="display:none;margin-top:8px;border:1px solid #eee;border-radius:10px;padding:8px;background:#fff;max-height:220px;overflow:auto;"></div>
             <input type="hidden" id="mPatientId" value="" />
@@ -1442,9 +1442,9 @@ export function openApptModal({ mode, row }) {
         <div style="margin-top:12px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
           <div id="mMsg" style="font-size:${UI.fs12}px;color:#666;"></div>
           <div style="display:flex;gap:10px;">
-            ${canDeleteAppt ? `<button id="btnDeleteAppt" class="gcBtn" type="button" style="font-weight:600;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;">Registar falta</button>` : ""}
-            <button id="btnCancel" class="gcBtn">Cancelar</button>
-            <button id="btnSave" class="gcBtn" style="font-weight:900;">Guardar</button>
+            ${canDeleteAppt ? `<button id="btnDeleteAppt" class="gcBtnDanger" type="button">Registar falta</button>` : ""}
+            <button id="btnCancel" class="gcBtnGhost">Cancelar</button>
+            <button id="btnSave" class="gcBtnSuccess">Guardar</button>
           </div>
         </div>
       </div>
@@ -2059,7 +2059,7 @@ export function openPresencaModal({ selectedDayISO } = {}) {
               <div style="font-size:15px;font-weight:800;color:#064e3b;">Nova Presença</div>
               <div style="font-size:12px;color:#64748b;margin-top:2px;">FPF · Universidade Católica · outras actividades</div>
             </div>
-            <button id="gcPresAgClose" style="border:0.5px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;font-family:inherit;">Fechar</button>
+            <button id="gcPresAgClose" class="gcBtnGhost">Fechar</button>
           </div>
 
           <div style="display:flex;flex-direction:column;gap:12px;">
@@ -2097,7 +2097,7 @@ export function openPresencaModal({ selectedDayISO } = {}) {
               Total: 200,00 €
             </div>
             <div id="gcPresMsg" style="font-size:12px;color:#b00020;min-height:16px;"></div>
-            <button id="gcPresBtnGuardar" style="width:100%;padding:10px;border:none;background:#064e3b;color:#fff;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Guardar presença</button>
+            <button id="gcPresBtnGuardar" class="gcBtnSuccess" style="width:100%;">Guardar presença</button>
           </div>
         </div>
       `;

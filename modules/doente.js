@@ -405,9 +405,9 @@ function openPatientViewModal(patient) {
 
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
               ${!canEdit && canOpenEdit ? `
-                <button id="btnIdentEditTop" class="gcBtn" style="font-weight:900;">Editar</button>
+                <button id="btnIdentEditTop" class="gcBtnPrimary" style="font-weight:900;">Editar</button>
               ` : ``}
-              <button id="btnIdentCloseTop" class="gcBtn">Fechar</button>
+              <button id="btnIdentCloseTop" class="gcBtnGhost">Fechar</button>
             </div>
           </div>
 
@@ -523,8 +523,8 @@ function openPatientViewModal(patient) {
             </div>
 
             <div style="display:flex; gap:10px;">
-              <button id="btnIdentClose" class="gcBtn">Cancelar</button>
-              <button id="btnIdentSave" class="gcBtn" style="font-weight:900;" ${dis}>
+              <button id="btnIdentClose" class="gcBtnGhost">Cancelar</button>
+              <button id="btnIdentSave" class="gcBtnSuccess" style="font-weight:900;" ${dis}>
                 Gravar
               </button>
             </div>
@@ -711,7 +711,7 @@ function openPatientViewModal(patient) {
                     box-shadow:0 18px 44px rgba(0,0,0,0.18); overflow:hidden;">
           <div style="padding:14px 16px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between;">
             <div style="font-weight:900;">Adicionar diagnóstico ao catálogo</div>
-            <button id="diagAddClose" class="gcBtn" style="padding:8px 10px; border-radius:10px;">Fechar</button>
+            <button id="diagAddClose" class="gcBtnGhost" style="padding:8px 10px; border-radius:10px;">Fechar</button>
           </div>
 
           <div style="padding:16px;">
@@ -741,7 +741,7 @@ function openPatientViewModal(patient) {
             </div>
 
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;">
-              <button id="diagAddCancel" class="gcBtn" style="padding:10px 12px; border-radius:12px;">Cancelar</button>
+              <button id="diagAddCancel" class="gcBtnGhost" style="padding:10px 12px; border-radius:12px;">Cancelar</button>
               <button id="diagAddSave" class="gcBtnPrimary" style="padding:10px 12px; border-radius:12px; min-width:140px;">
                 ${diagAddSaving ? "A gravar…" : "Guardar"}
               </button>
@@ -1610,7 +1610,7 @@ function openPatientViewModal(patient) {
               <div style="font-weight:900; font-size:16px;">
                 Documento v1 — ${docMode === "preview" ? "pré-visualização" : (docMode === "html" ? "editar HTML" : "editor visual")}
               </div>
-              <button id="btnDocCloseTop" class="gcBtn">Fechar</button>
+              <button id="btnDocCloseTop" class="gcBtnGhost">Fechar</button>
             </div>
 
             <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
@@ -1670,8 +1670,8 @@ function openPatientViewModal(patient) {
               ` : ""}
             </div>
             <div style="display:flex; gap:10px;">
-              <button id="btnDocCancel" class="gcBtn">Cancelar</button>
-              <button id="btnDocGeneratePdfNow" class="gcBtn"
+              <button id="btnDocCancel" class="gcBtnGhost">Cancelar</button>
+              <button id="btnDocGeneratePdfNow" class="gcBtnOutline"
                 style="font-weight:900; background:#1a56db; border:1px solid #1a56db; color:#fff; padding:8px 20px;">
                 Gerar PDF (v1)
               </button>
@@ -2371,7 +2371,7 @@ function openPatientViewModal(patient) {
     if (!s.composerOpen) {
       return `
         <div style="display:flex; justify-content:flex-start;">
-          <button id="btnAddPhysioRecord" class="gcBtn" type="button" style="font-weight:900;">+ Registo Fisioterapia</button>
+          <button id="btnAddPhysioRecord" class="gcBtnPrimary" type="button" style="font-weight:900;">+ Registo Fisioterapia</button>
         </div>
       `;
     }
@@ -2389,8 +2389,8 @@ function openPatientViewModal(patient) {
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
           <div style="font-weight:900; font-size:15px;">${title}</div>
           <div style="display:flex; gap:8px;">
-            <button id="btnCancelPhysioComposer" class="gcBtn" type="button">Cancelar</button>
-            <button id="btnSavePhysioRecord" class="gcBtn" type="button" style="font-weight:900;">Gravar</button>
+            <button id="btnCancelPhysioComposer" class="gcBtnGhost" type="button">Cancelar</button>
+            <button id="btnSavePhysioRecord" class="gcBtnSuccess" type="button" style="font-weight:900;">Gravar</button>
           </div>
         </div>
 
@@ -3104,7 +3104,7 @@ function openPatientViewModal(patient) {
                 <input id="treatCustomInput"
                        placeholder="Tratamento livre (não catalogado)…"
                        style="flex:1; padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:13px;" />
-                <button id="btnAddCustomTreat" class="gcBtn" type="button"
+                <button id="btnAddCustomTreat" class="gcBtnPrimary" type="button"
                   style="padding:8px 12px; font-weight:700; background:#f0f9ff; border:1px solid #bcd4f5; color:#1d6db5; white-space:nowrap; flex-shrink:0;">
                   + Adicionar
                 </button>
@@ -3118,11 +3118,11 @@ function openPatientViewModal(patient) {
 
       <div style="padding:12px 16px; border-top:1px solid #e5e7eb; background:#f8fafc;
                   border-radius:0 0 14px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
-        <button id="btnSaveConsult" class="gcBtn" type="button"
+        <button id="btnSaveConsult" class="gcBtnSuccess" type="button"
           style="font-weight:800; background:#1a56db; border:1px solid #1a56db; color:#ffffff; padding:9px 24px; font-size:14px;">
           Gravar Consulta
         </button>
-        <button id="btnCancelConsult" class="gcBtn" type="button">Cancelar</button>
+        <button id="btnCancelConsult" class="gcBtnGhost" type="button">Cancelar</button>
       </div>
 
     </div>
@@ -3540,18 +3540,18 @@ function openPatientViewModal(patient) {
           ${isDoctor() ? `
             <div class="gc-sb-lbl" style="margin-top:4px;">Consulta</div>
 
-            <button id="btnNewConsult" class="gc-sb-btn ${creatingConsult ? 'gc-sb-btn--primary' : 'gc-sb-btn--highlight'}">
+            <button id="btnNewConsult" class="gcBtnPrimary ${creatingConsult ? '' : 'gc-sb-btn--highlight'}">
               <span class="gc-sb-icon">📋</span><span>Nova Consulta</span>
             </button>
 
-            <button id="btnExameObjectivo" class="gc-sb-btn">
+            <button id="btnExameObjectivo" class="gcBtnOutline">
               <span class="gc-sb-icon">🔍</span><span>Exame Objectivo</span>
             </button>
 
             <div class="gc-sb-div"></div>
             <div class="gc-sb-lbl">Documentação</div>
 
-            <button id="btnMedicalReports" class="gc-sb-btn">
+            <button id="btnMedicalReports" class="gcBtnOutline">
               <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 5h5M4.5 7.5h5M4.5 10h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
               <span>Relatórios</span>
             </button>
@@ -3579,7 +3579,7 @@ function openPatientViewModal(patient) {
             <span class="gc-sb-icon">👤</span><span>Identificação</span>
           </button>
 
-          <button id="btnAgendarConsulta" class="gc-sb-btn" style="color:#16a34a;border-color:#d1fae5;background:#f0fdf4;margin-top:4px;">
+          <button id="btnAgendarConsulta" class="gcBtnPrimary" style="background:#15803d;">
             <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="1.5" y="3" width="13" height="11.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 7h13M5 1.5V4M11 1.5V4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M8 9.5v2M7 10.5h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
             <span>Agendar Consulta</span>
           </button>
@@ -6022,7 +6022,7 @@ window._gerarResumo = function(){
             <div style="font-weight:900;font-size:16px;color:#0f172a;">🏥 Atestado de Doença</div>
             <div style="font-size:12px;color:#64748b;margin-top:2px;">Preencha e gere o atestado</div>
           </div>
-          <button id="gcAtClose" style="border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px;">✕</button>
+          <button id="gcAtClose" class="gcBtnGhost gcBtnIcon">✕</button>
         </div>
 
         <!-- Tratamento -->
@@ -7706,7 +7706,7 @@ function selSens(el) {
       justifyContent: "space-between", alignItems: "center", flexShrink: "0"
     });
     bar.innerHTML = `<div style="font-weight:700;font-size:15px;color:#0f172a;">🧠 Relatório Neurológico — MFR</div>
-      <button id="gcNeuroClose" style="border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:#475569;">✕ Fechar</button>`;
+      <button id="gcNeuroClose" class="gcBtnGhost">✕ Fechar</button>`;
 
     const frame = document.createElement("iframe");
     frame.src = blobUrl;
@@ -7795,7 +7795,7 @@ function selSens(el) {
           <div style="font-weight:900;font-size:16px;">PRP — Tendinopatia<br>
             <span style="font-size:12px;font-weight:400;color:#64748b;">Preencha os campos antes de gerar o relatório</span>
           </div>
-          <button id="gcPrpClose" style="border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px;">Cancelar</button>
+          <button id="gcPrpClose" class="gcBtnGhost">Cancelar</button>
         </div>
 
         <!-- DIAGNÓSTICO -->
@@ -8077,7 +8077,7 @@ function openNewPatientMainModal({ clinicId }) {
               Nome obrigatório. Identificação: SNS (9 dígitos) ou NIF (9 dígitos) ou Passaporte/ID (4–20 alfanum).
             </div>
           </div>
-          <button id="npMainClose" class="gcBtn">Fechar</button>
+          <button id="npMainClose" class="gcBtnGhost">Fechar</button>
         </div>
 
         <div style="margin-top:12px; border:1px solid #eee; border-radius:12px; padding:12px; background:#fafafa;">
@@ -8170,8 +8170,8 @@ function openNewPatientMainModal({ clinicId }) {
           <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
             <div id="npMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
             <div style="display:flex; gap:10px;">
-              <button id="npCancel" class="gcBtn">Cancelar</button>
-              <button id="npCreate" class="gcBtn" style="font-weight:900;">Criar doente</button>
+              <button id="npCancel" class="gcBtnGhost">Cancelar</button>
+              <button id="npCreate" class="gcBtnPrimary">Criar doente</button>
             </div>
           </div>
         </div>

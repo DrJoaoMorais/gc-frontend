@@ -10,11 +10,13 @@
 
 import { G } from "./state.js";
 import { UI } from "./config.js";
+import { injectDesignSystem } from "./ui.js";
 
 /* ==== 03F — Render shell (HTML + CSS) ==== */
 
 /* ---- 03F.1 — renderAppShell ---- */
 export function renderAppShell() {
+  injectDesignSystem();
   const canSeeManagement = ["super_admin", "admin"].includes(String(G.role || "").toLowerCase());
   const currentView = String(G.currentView || "agenda").toLowerCase();
 
@@ -57,7 +59,7 @@ export function renderAppShell() {
     mainHtml = `
       <div class="gc-page-header">
         <div><div class="gc-page-title">Doentes</div><div class="gc-page-sub">Pesquise e aceda ao feed clínico</div></div>
-        <button id="btnNewPatientMain" class="gc-btn-primary">＋ Novo doente</button>
+        <button id="btnNewPatientMain" class="gcBtnPrimary">＋ Novo doente</button>
       </div>
       <div class="gc-search-bar" style="margin-top:14px;">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
@@ -81,12 +83,12 @@ export function renderAppShell() {
           <div class="gc-page-sub" id="agendaSubtitle">—</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <button id="btnCal"   class="gc-btn">Calendário</button>
-          <button id="btnWeek"  class="gc-btn">Semana</button>
-          <button id="btnToday" class="gc-btn">Hoje</button>
-          <button id="btnNewAppt" class="gc-btn-primary">＋ Agendar</button>
-          ${canSeeManagement ? `<button id="btnNewPresenca" class="gc-btn" style="background:#064e3b;color:#fff;border-color:#064e3b;">＋ Presença</button>` : ""}
-          <button id="btnNewPatientMain" class="gc-btn">＋ Novo doente</button>
+          <button id="btnCal"   class="gcBtnOutline">Calendário</button>
+          <button id="btnWeek"  class="gcBtnOutline">Semana</button>
+          <button id="btnToday" class="gcBtnOutline">Hoje</button>
+          <button id="btnNewAppt" class="gcBtnPrimary">＋ Agendar</button>
+          ${canSeeManagement ? `<button id="btnNewPresenca" class="gcBtnPrimary" style="background:#064e3b;">＋ Presença</button>` : ""}
+          <button id="btnNewPatientMain" class="gcBtnPrimary">＋ Novo doente</button>
         </div>
       </div>
 
@@ -196,9 +198,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
 .gc-btn-primary:disabled{opacity:0.55;cursor:not-allowed;}
 
 /* Compatibilidade com legado */
-.gcBtn{padding:8px 14px;border-radius:8px;border:0.5px solid #e2e8f0;background:#fff;color:#0f172a;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;}
-.gcBtnPrimary{padding:8px 16px;border-radius:8px;border:none;background:#1a56db;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}
-.gcBtnPrimary:hover{filter:brightness(0.92);}
+/* gcBtn/gcBtnPrimary definidos em ui.js — ver injectDesignSystem() */
 .gcSelect{padding:8px 12px;border-radius:8px;border:0.5px solid #e2e8f0;background:#fff;font-size:13px;color:#0f172a;font-family:inherit;}
 .gc-select{padding:8px 12px;border-radius:8px;border:0.5px solid #e2e8f0;background:#fff;font-size:13px;color:#0f172a;font-family:inherit;}
 .gcLabel{font-size:12px;color:#64748b;}
