@@ -243,10 +243,7 @@ export async function renderFinancas() {
 
     /* ── Filtro por clínica ── */
     const registosFiltrados = clinicaFiltro
-      ? registos.filter(r => {
-          const ent = entidades.find(e => e.id === r.entidade_id);
-          return ent?.clinic_id === clinicaFiltro || ent?.nome === clinicaFiltro;
-        })
+      ? registos.filter(r => r.entidade_id === clinicaFiltro)
       : registos;
 
     /* ── Métricas globais ── */
