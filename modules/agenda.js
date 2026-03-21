@@ -1325,7 +1325,7 @@ export function openApptModal({ mode, row }) {
   const procSelectValue  = procIsOther ? "Outro" : (procInit || "");
   const apptModeInit     = isEdit ? String(row?.mode || "presencial").toLowerCase() : "presencial";
   const isSuperadmin     = !!window.__GC_IS_SUPERADMIN__;
-  const isDoctor         = String(G.role || "").toLowerCase() === "doctor";
+  const isDoctor         = ["medico","super_admin","admin"].includes(String(G.role || "").toLowerCase());
   const canCreateBlocks  = isSuperadmin || isDoctor;
   const isBlockEdit      = isEdit && String(row?.mode || "").toLowerCase() === "bloqueio";
   const canDeleteAppt    = !!(isEdit && row?.id && !isBlockEdit);

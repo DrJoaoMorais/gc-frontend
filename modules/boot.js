@@ -240,12 +240,13 @@ async function renderCurrentView() {
   }
 
   /* Permissões */
-  const doctorOrSecretary = ["doctor","secretary"];
-  if (btnNew && G.role && !doctorOrSecretary.includes(String(G.role).toLowerCase())) {
+  const podeAgendar = ["super_admin","admin","medico","administrativo"];
+  if (btnNew && G.role && !podeAgendar.includes(String(G.role).toLowerCase())) {
     btnNew.disabled = true;
     btnNew.title    = "Sem permissão para criar marcações.";
   }
-  if (btnNewPatientMain && G.role && !doctorOrSecretary.includes(String(G.role).toLowerCase())) {
+  const podeCriarDoente = ["super_admin","admin","medico","administrativo"];
+  if (btnNewPatientMain && G.role && !podeCriarDoente.includes(String(G.role).toLowerCase())) {
     btnNewPatientMain.disabled = true;
     btnNewPatientMain.title    = "Sem permissão para criar doentes.";
   }
