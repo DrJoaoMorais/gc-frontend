@@ -264,7 +264,13 @@ export async function renderFinancas() {
     const mediaConsulta = realizadas.length > 0 ? Math.round(totalReal / realizadas.length) : 0;
 
     /* ── Avenças ── */
-    const avencas     = entidades.filter(e => e.tipo === "avenca");
+    const avencas = entidades.filter(e => {
+      if (e.tipo !== "avenca") return false;
+      if (!clinicaFiltro) return true;
+      // Se há filtro: mostrar só avenças da entidade seleccionada ou da mesma clínica
+      const entSel = entidades.find(x => x.id === clinicaFiltro);
+      return e.clinic_id === entSel?.clinic_id;
+    });
     const totalAvencas = avencas.reduce((s, e) => s + Number(e.avenca_valor || 0), 0);
 
     /* ── Pendentes vencidos ── */
@@ -289,7 +295,10 @@ export async function renderFinancas() {
 
     /* ── Entidades externas (FPF, UC — sem clinic_id) ── */
     const entExternas  = entidades.filter(e => !e.clinic_id && e.tipo !== "avenca");
-    const entClinicas  = entidades.filter(e => e.clinic_id && e.tipo === "acto");
+    const entClinicasTodas = entidades.filter(e => e.clinic_id && e.tipo === "acto");
+    const entClinicas  = clinicaFiltro
+      ? entClinicasTodas.filter(e => e.id === clinicaFiltro)
+      : entClinicasTodas;
 
     /* ── Dados por clínica para vista "Por clínica" ── */
     function dadosPorEntidade(entId) {
