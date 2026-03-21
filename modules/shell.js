@@ -15,7 +15,7 @@ import { UI } from "./config.js";
 
 /* ---- 03F.1 — renderAppShell ---- */
 export function renderAppShell() {
-  const canSeeManagement = ["doctor", "superadmin"].includes(String(G.role || "").toLowerCase());
+  const canSeeManagement = ["super_admin", "admin"].includes(String(G.role || "").toLowerCase());
   const currentView = String(G.currentView || "agenda").toLowerCase();
 
   /* ── Ícones SVG ─────────────────────────────────── */
@@ -284,7 +284,14 @@ export function hydrateShellHeader() {
   if (hdrEmail) hdrEmail.textContent = G.sessionUser?.email || "Dr. João Morais";
 
   const hdrRole = document.getElementById("hdrRole");
-  if (hdrRole) hdrRole.textContent = G.role ? `· ${G.role}` : "";
+  const roleLabels = {
+    super_admin:    "SUPERADMINISTRADOR",
+    admin:          "Administrador",
+    medico:         "Médico",
+    fisioterapeuta: "Fisioterapeuta",
+    administrativo: "Administrativo",
+  };
+  if (hdrRole) hdrRole.textContent = G.role ? `· ${roleLabels[G.role] || G.role}` : "";
 
   const hdrClinicCount = document.getElementById("hdrClinicCount");
   if (hdrClinicCount) hdrClinicCount.textContent = String(Array.isArray(G.clinics) ? G.clinics.length : 0);

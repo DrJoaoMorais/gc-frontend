@@ -47,7 +47,7 @@ function openPatientViewModal__stub(patient) {
   let activeClinicId = null;
 
   function role() { return String(G.role || "").toLowerCase(); }
-  function isDoctor() { return role() === "doctor"; }
+  function isDoctor() { return ["super_admin", "admin", "medico"].includes(role()); }
 
   async function fetchActiveClinic() {
     const { data, error } = await window.sb
@@ -192,7 +192,7 @@ function openPatientViewModal(patient) {
 
   /* ================= ROLE ================= */
   function role() { return String(G.role || "").toLowerCase(); }
-  function isDoctor() { return role() === "doctor"; }
+  function isDoctor() { return ["super_admin", "admin", "medico"].includes(role()); }
 
   /* ================= SAFE CLOSE ================= */
   const closeModalSafe = () => {
@@ -384,7 +384,7 @@ function openPatientViewModal(patient) {
     const ro = (identMode !== "edit") ? "readonly" : "";
     const dis = (identMode !== "edit") ? "disabled" : "";
     const canEdit = (identMode === "edit");
-    const canManageClinic = role() === "doctor" || role() === "superadmin";
+    const canManageClinic = ["super_admin", "admin", "medico"].includes(role());
     const canOpenEdit = canManageClinic;
     const visibleClinics = Array.isArray(G.clinics) ? G.clinics : [];
     const currentClinicId = String(identDraft.active_clinic_id || activeClinicId || "");
@@ -586,7 +586,7 @@ function openPatientViewModal(patient) {
         const name = String(identDraft.full_name || "").trim();
         if (!name) { alert("Nome completo é obrigatório."); return; }
 
-        const canManageClinic = role() === "doctor" || role() === "superadmin";
+        const canManageClinic = ["super_admin", "admin", "medico"].includes(role());
         const nextClinicId = String(identDraft.active_clinic_id || "").trim();
         const currentClinicId = String(activeClinicId || "").trim();
         const clinicChanged = !!(canManageClinic && nextClinicId && nextClinicId !== currentClinicId);
@@ -2012,9 +2012,9 @@ function openPatientViewModal(patient) {
     return String(G.role || "").toLowerCase();
   }
 
-  function __gcIsSecretary() { return __gcRole() === "secretary"; }
-  function __gcIsPhysio() { return __gcRole() === "physio"; }
-  function __gcIsDoctor() { return __gcRole() === "doctor"; }
+  function __gcIsSecretary() { return __gcRole() === "administrativo"; }
+  function __gcIsPhysio() { return __gcRole() === "fisioterapeuta"; }
+  function __gcIsDoctor() { return ["super_admin", "admin", "medico"].includes(__gcRole()); }
 
   function __gcGuessClinicIdForPhysioRecord() {
     try {
@@ -2071,9 +2071,8 @@ function openPatientViewModal(patient) {
   async function loadPhysioRecords() {
     const s = __ps();
     const rRole = __gcRole();
-    const isSecretary = rRole === "secretary";
+    const isSecretary = rRole === "administrativo";
     if (isSecretary) {
-      s.rows = [];
       return;
     }
 
@@ -2118,7 +2117,7 @@ function openPatientViewModal(patient) {
     timelineLoading = true;
 
     const rRole = String(G.role || "").toLowerCase();
-    const isSecretary = rRole === "secretary";
+    const isSecretary = rRole === "administrativo";
 
     await loadAgendaNotes();
 

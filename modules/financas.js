@@ -274,7 +274,7 @@ export async function renderFinancas() {
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     const pendVencidos = pendentes.filter(r => {
       if (!r.data) return false;
-      return new Date(r.data + "T00:00:00") < hoje;
+      return new Date(r.data + "T00:00:00") < hoje && new Date(r.data + "T00:00:00") < _hoje;
     });
     const pvPorEnt = {};
     pendVencidos.forEach(r => {

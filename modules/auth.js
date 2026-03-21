@@ -652,12 +652,13 @@ export async function boot() {
         });
       }
 
-      if (btnNew && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
+      const canSchedule = ["super_admin", "admin", "medico", "administrativo"].includes(String(G.role || "").toLowerCase());
+      if (btnNew && G.role && !canSchedule) {
         btnNew.disabled = true;
         btnNew.title    = "Sem permissão para criar marcações.";
       }
 
-      if (btnNewPatientMain && G.role && !["doctor", "secretary"].includes(String(G.role).toLowerCase())) {
+      if (btnNewPatientMain && G.role && !canSchedule) {
         btnNewPatientMain.disabled = true;
         btnNewPatientMain.title    = "Sem permissão para criar doentes.";
       }
