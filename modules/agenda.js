@@ -1337,27 +1337,47 @@ export function openApptModal({ mode, row }) {
   const bTimeFromInit = __gcToTimeInput(startInit);
   const bTimeToInit   = __gcToTimeInput(endInit);
 
+  /* ── label de data formatada para o subtítulo do modal ── */
+  const __modalDayLabel = (() => {
+    try {
+      const d = parseISODateToLocalStart(G.selectedDayISO);
+      if (!d) return G.selectedDayISO || "";
+      const MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+      const WDAYS  = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+      return `${WDAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+    } catch (_) { return G.selectedDayISO || ""; }
+  })();
+  const __modalClinicLabel = (() => {
+    try {
+      const cid = defaultClinicId;
+      if (!cid) return "";
+      const c = G.clinicsById?.[cid];
+      return c ? (c.name || c.slug || "") : "";
+    } catch (_) { return ""; }
+  })();
+
   root.innerHTML = `
-    <div id="modalOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;padding:18px;">
-      <div style="background:#fff;width:min(1040px,100%);border-radius:14px;border:1px solid #e5e5e5;padding:14px;max-height:90vh;overflow:auto;">
-        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
+    <div id="modalOverlay" style="position:fixed;inset:0;background:rgba(15,45,82,0.3);display:flex;align-items:center;justify-content:center;padding:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+      <div style="background:#fff;width:min(680px,100%);border-radius:14px;border:1px solid #e2e8f0;box-shadow:0 4px 24px rgba(15,45,82,0.1);max-height:92vh;overflow:auto;">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:14px 18px 12px;border-bottom:1px solid #f1f5f9;">
           <div>
-            <div style="font-size:${UI.fs14}px;font-weight:900;color:#111;">
+            <div style="font-size:16px;font-weight:700;color:#0f2d52;letter-spacing:-0.01em;">
               ${isBlockEdit ? "Editar bloqueio" : (isEdit ? "Editar marcação" : "Nova marcação")}
             </div>
-            <div style="font-size:${UI.fs12}px;color:#666;margin-top:4px;">Dia selecionado: ${escapeHtml(G.selectedDayISO)}.</div>
+            <div style="font-size:11px;color:#64748b;margin-top:3px;">${escapeHtml(__modalDayLabel)}${__modalClinicLabel ? ` · ${escapeHtml(__modalClinicLabel)}` : ""}</div>
           </div>
-          <button id="btnCloseModal" class="gcBtnGhost">Fechar</button>
+          <button id="btnCloseModal" class="gcBtnGhost" style="flex-shrink:0;">✕</button>
         </div>
+        <div style="padding:14px 18px 16px;display:flex;flex-direction:column;gap:12px;">
 
-        <div style="margin-top:12px;display:flex;flex-direction:column;gap:4px;">
-          <label style="font-size:${UI.fs12}px;color:#666;">Ação</label>
-          <select id="mMode" class="gcSelect">
-            <option value="presencial">Agendar consulta</option>
-            ${canCreateBlocks ? `<option value="bloqueio">Realizar bloqueio</option>` : ""}
-          </select>
-          ${!canCreateBlocks ? `<div style="font-size:${UI.fs12}px;color:#666;margin-top:4px;">Bloqueios: apenas médico/superadmin.</div>` : ""}
-        </div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Ação</label>
+            <select id="mMode" class="gcSelect" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;color:#1e293b;">
+              <option value="presencial">Agendar consulta</option>
+              ${canCreateBlocks ? `<option value="bloqueio">Realizar bloqueio</option>` : ""}
+            </select>
+            ${!canCreateBlocks ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px;">Bloqueios: apenas médico/superadmin.</div>` : ""}
+          </div>
 
         <div id="mBlockOnlyWrap" style="display:none;margin-top:14px;border:1px solid #eee;border-radius:14px;padding:14px;background:#fafafa;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
@@ -1394,57 +1414,67 @@ export function openApptModal({ mode, row }) {
           </div>
         </div>
 
-        <div id="mConsultOnlyWrap" style="display:block;">
-          <div id="mPatientWrap" style="margin-top:12px;display:flex;flex-direction:column;gap:6px;">
-            <label style="font-size:${UI.fs12}px;color:#666;">Doente (obrigatório)</label>
-            <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;">
-              <input id="mPatientQuery" type="search" placeholder="ex.: Man… | 916… | 123456789" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search" data-form-type="other" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;width:100%;font-size:${UI.fs13}px;" />
-              <button id="btnNewPatient" class="gcBtnPrimary" style="white-space:nowrap;">＋ 👤 Novo doente</button>
+        <div id="mConsultOnlyWrap" style="display:contents;">
+          <div id="mPatientWrap" style="display:flex;flex-direction:column;gap:5px;">
+            <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Doente *</label>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;">
+              <input id="mPatientQuery" type="search" placeholder="Nome, SNS, NIF, telefone…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search" data-form-type="other" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;width:100%;font-size:13px;font-family:inherit;color:#1e293b;" />
+              <button id="btnNewPatient" class="gcBtnPrimary" style="white-space:nowrap;padding:7px 12px;font-size:12px;font-weight:600;border-radius:8px;">+ Novo doente</button>
             </div>
-            <div id="mPatientResults" style="display:none;margin-top:8px;border:1px solid #eee;border-radius:10px;padding:8px;background:#fff;max-height:220px;overflow:auto;"></div>
+            <div id="mPatientResults" style="display:none;margin-top:4px;border:1px solid #e2e8f0;border-radius:8px;padding:6px;background:#fff;max-height:200px;overflow:auto;"></div>
             <input type="hidden" id="mPatientId" value="" />
             <input type="hidden" id="mPatientName" value="" />
-            <div id="newPatientHost" style="margin-top:8px;"></div>
+            <div id="newPatientHost" style="margin-top:6px;"></div>
           </div>
 
-          <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
-            <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:${UI.fs12}px;color:#666;">Clínica</label><select id="mClinic" class="gcSelect"></select></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
             <div id="mProcWrap" style="display:flex;flex-direction:column;gap:4px;">
-              <label style="font-size:${UI.fs12}px;color:#666;">Tipo (obrigatório)</label>
-              <select id="mProc" class="gcSelect">
-                <option value="">—</option>
+              <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Tipo *</label>
+              <select id="mProc" class="gcSelect" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;color:#1e293b;">
+                <option value="">— seleccionar —</option>
                 ${PROCEDURE_OPTIONS.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("")}
               </select>
             </div>
             <div id="mStatusWrap" style="display:flex;flex-direction:column;gap:4px;">
-              <label style="font-size:${UI.fs12}px;color:#666;">Estado</label>
-              <select id="mStatus" class="gcSelect">
+              <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Estado</label>
+              <select id="mStatus" class="gcSelect" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;color:#1e293b;">
                 ${STATUS_OPTIONS.map((s) => { const val = (s === "cancelled") ? "no_show" : String(s).toLowerCase(); return `<option value="${escapeHtml(val)}">${escapeHtml(optLabel(val))}</option>`; }).join("")}
               </select>
             </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Duração (min)</label>
+              <select id="mDuration" class="gcSelect" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;color:#1e293b;">${DURATION_OPTIONS.map((n) => `<option value="${n}">${n}</option>`).join("")}</select>
+            </div>
             <div id="mProcOtherWrap" style="display:none;flex-direction:column;gap:4px;grid-column:1 / -1;">
-              <label style="font-size:${UI.fs12}px;color:#666;">Outro (texto) *</label>
-              <input id="mProcOther" type="text" placeholder="ex.: Ondas de choque" autocomplete="off" autocapitalize="off" spellcheck="false" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;font-size:${UI.fs13}px;" />
+              <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Outro (texto) *</label>
+              <input id="mProcOther" type="text" placeholder="ex.: Ondas de choque" autocomplete="off" autocapitalize="off" spellcheck="false" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;" />
             </div>
           </div>
 
-          <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:${UI.fs12}px;color:#666;">Início</label><input id="mStart" type="datetime-local" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;font-size:${UI.fs13}px;" /></div>
-            <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:${UI.fs12}px;color:#666;">Duração (min)</label><select id="mDuration" class="gcSelect">${DURATION_OPTIONS.map((n) => `<option value="${n}">${n}</option>`).join("")}</select></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Início</label>
+              <input id="mStart" type="datetime-local" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;color:#1e293b;" />
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Clínica</label>
+              <select id="mClinic" class="gcSelect" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;color:#1e293b;"></select>
+            </div>
           </div>
         </div>
 
-        <div style="margin-top:12px;display:flex;flex-direction:column;gap:4px;">
-          <label id="mNotesLabel" style="font-size:${UI.fs12}px;color:#666;">Notas</label>
-          <textarea id="mNotes" rows="3" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;resize:vertical;font-size:${UI.fs13}px;"></textarea>
-        </div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label id="mNotesLabel" style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Notas</label>
+            <textarea id="mNotes" rows="2" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;resize:none;font-size:13px;font-family:inherit;color:#1e293b;"></textarea>
+          </div>
 
-        <div style="margin-top:12px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
-          <div id="mMsg" style="font-size:${UI.fs12}px;color:#666;"></div>
-          <div style="display:flex;gap:10px;">
-            ${canDeleteAppt ? `<button id="btnDeleteAppt" class="gcBtnDanger" type="button">Registar falta</button>` : ""}
-            <button id="btnCancel" class="gcBtnGhost">Cancelar</button>
-            <button id="btnSave" class="gcBtnSuccess">Guardar</button>
+          <div style="padding:10px 18px 12px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin:0 -18px -16px;">
+            <div id="mMsg" style="font-size:11px;color:#64748b;"></div>
+            <div style="display:flex;gap:8px;">
+              ${canDeleteAppt ? `<button id="btnDeleteAppt" class="gcBtnDanger" type="button" style="font-size:12px;padding:7px 14px;border-radius:8px;">Registar falta</button>` : ""}
+              <button id="btnCancel" class="gcBtnGhost" style="font-size:12px;padding:7px 14px;border-radius:8px;">Cancelar</button>
+              <button id="btnSave" class="gcBtnSuccess" style="font-size:12px;padding:7px 18px;border-radius:8px;font-weight:600;">Guardar</button>
+            </div>
           </div>
         </div>
       </div>
@@ -2194,9 +2224,7 @@ export function wireAgendaTopbar() {
     openApptModal({ mode: "new", row: null });
   });
 
-  document.getElementById("btnNewPresenca")?.addEventListener("click", () => {
-    openPresencaModal({ selectedDayISO: G.selectedDayISO });
-  });
+  /* btnNewPresenca removido da topbar — openPresencaModal mantida para uso interno */
 }
 
 window.__gc_wireAgendaTopbar = wireAgendaTopbar;
