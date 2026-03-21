@@ -4,7 +4,6 @@
    01F — Fetch de role e clínicas visíveis
       01F.1  fetchMyRole(userId)
       01F.2  fetchVisibleClinics()
-      01F.3  resolveEffectiveRole()   ← NOVO
 
    01G — Debug hooks globais
       01G.1  setupGlobalDebugHooks()   (auto-executa)
@@ -61,69 +60,29 @@ export async function fetchMyRole(userId) {
 
   const rows = Array.isArray(data) ? data : [];
 
-  // Guardar mapa clinic_id → role no estado global
-  G.myClinicRoles = {};
-  for (const r of rows) {
-    if (r.clinic_id) G.myClinicRoles[r.clinic_id] = String(r.role || "").trim();
-  }
-
   window.__GC_MY_CLINIC_IDS__    = rows.map(r => r.clinic_id).filter(Boolean);
   window.__GC_MY_CLINICS_COUNT__ = window.__GC_MY_CLINIC_IDS__.length;
-  window.__GC_IS_SUPERADMIN__    = rows.some(r => r.role === "super_admin");
 
-  // Se ainda não há clínica activa, usar a clínica principal (João Morais Web)
-  // ou a primeira clínica disponível
-  if (!G.activeClinicId && rows.length > 0) {
-    // Preferir a clínica onde é super_admin como clínica de gestão por defeito
-    const superRow = rows.find(r => r.role === "super_admin");
-    // Mas arrancar na primeira clínica clínica (medico) se existir
-    const medicoRow = rows.find(r => r.role === "medico");
-    G.activeClinicId = (medicoRow || superRow || rows[0]).clinic_id;
-  }
+  window.__GC_IS_SUPERADMIN__ = rows.some(r => r.role === "super_admin");
 
-  // Role efectivo = role na clínica activa
-  return resolveEffectiveRole();
+  const roles = rows.map(r => String(r.role || "").trim()).filter(Boolean);
+  if (roles.includes("super_admin"))    return "super_admin";
+  if (roles.includes("admin"))          return "admin";
+  if (roles.includes("medico"))         return "medico";
+  if (roles.includes("fisioterapeuta")) return "fisioterapeuta";
+  if (roles.includes("administrativo")) return "administrativo";
+  return null;
 }
 
 /* ---- 01F.2 — fetchVisibleClinics ---- */
 export async function fetchVisibleClinics() {
-  // super_admin vê todas as clínicas; outros vêem apenas as suas
-  const isSuperAdmin = window.__GC_IS_SUPERADMIN__ || false;
-
-  if (isSuperAdmin) {
-    const { data, error } = await window.sb
-      .from("clinics")
-      .select("id, name, slug, is_active")
-      .eq("is_active", true)
-      .order("name", { ascending: true });
-    if (error) throw error;
-    return Array.isArray(data) ? data : [];
-  }
-
-  // Não super_admin: apenas clínicas onde tem membro activo
-  const clinicIds = window.__GC_MY_CLINIC_IDS__ || [];
-  if (!clinicIds.length) return [];
-
   const { data, error } = await window.sb
     .from("clinics")
-    .select("id, name, slug, is_active")
-    .in("id", clinicIds)
-    .eq("is_active", true)
+    .select("id, name, slug")
     .order("name", { ascending: true });
 
   if (error) throw error;
   return Array.isArray(data) ? data : [];
-}
-
-/* ---- 01F.3 — resolveEffectiveRole ---- */
-export function resolveEffectiveRole() {
-  // Calcula o role efectivo com base na clínica activa
-  if (!G.activeClinicId || !G.myClinicRoles) return null;
-  const role = G.myClinicRoles[G.activeClinicId] || null;
-
-  // Hierarquia de prioridade (segurança)
-  const priority = ["super_admin", "admin", "medico", "fisioterapeuta", "administrativo"];
-  return priority.includes(role) ? role : null;
 }
 
 
@@ -273,69 +232,110 @@ export function resolveEffectiveRole() {
       scheduleIdleCheck();
     }
 
-    window.sb.auth.onAuthStateChange((event, session) => {
-      const ev = String(event || "").toUpperCase();
-      if (ev === "SIGNED_IN" || ev === "TOKEN_REFRESHED") {
-        window.__gcHasSession = true;
+    window.sb.auth.onAuthStateChange((_event, session) => {
+      window.__gcHasSession = !!session;
+      if (window.__gcHasSession) {
         addListeners();
         markActivity();
         scheduleIdleCheck();
-      } else if (ev === "SIGNED_OUT" || ev === "USER_DELETED") {
-        window.__gcHasSession = false;
+      } else {
         removeListeners();
       }
     });
   }
 
-  bootstrap().catch(e => console.warn("[SEC] setupIdleLogout bootstrap error:", e));
+  bootstrap();
 })();
 
 
 /* ==== 10A — Sessão bloqueada / auth guard ==== */
 
-/* ---- 10A.1 — __gcSessionLockActive ---- */
-export let __gcSessionLockActive = false;
+let __gcSessionLockActive = false;
 
 /* ---- 10A.2 — __gcIsAuthError ---- */
 export function __gcIsAuthError(err) {
-  if (!err) return false;
-  const msg = String(err?.message || err?.error_description || err?.toString() || "").toLowerCase();
-  const status = Number(err?.status || err?.statusCode || 0);
+  const msg = String(
+    (err && (err.message || err.error_description || err.error)) || ""
+  ).toLowerCase();
+
+  const status =
+    err?.status ??
+    err?.statusCode ??
+    err?.code ??
+    err?.response?.status ??
+    null;
+
   return (
     status === 401 ||
-    msg.includes("jwt expired") ||
-    msg.includes("invalid jwt") ||
-    msg.includes("not authenticated") ||
-    msg.includes("session_not_found") ||
-    msg.includes("refresh_token_not_found") ||
-    msg.includes("invalid refresh token")
+    status === 403 ||
+    msg.includes("jwt")           ||
+    msg.includes("token")         ||
+    msg.includes("auth")          ||
+    msg.includes("not logged in") ||
+    msg.includes("session")       ||
+    msg.includes("forbidden")     ||
+    msg.includes("unauthorized")
   );
 }
 
 /* ---- 10A.3 — __gcRenderSessionLockedScreen ---- */
-export function __gcRenderSessionLockedScreen(reasonText) {
-  const reason = String(reasonText || "A sua sessão foi terminada por segurança.");
-  document.body.innerHTML = `
-    <style>
-      body { margin:0; font-family: system-ui, sans-serif; background:#0b1020; color:#e8eefc; display:flex; align-items:center; justify-content:center; height:100vh; }
-      .lock-box { background:#121a33; border:1px solid #22305f; border-radius:16px; padding:40px 32px; max-width:420px; text-align:center; }
-      .lock-title { font-size:20px; font-weight:700; margin-bottom:12px; }
-      .lock-reason { font-size:14px; color:#94a3b8; margin-bottom:24px; }
-      .lock-btn { padding:12px 28px; border-radius:10px; border:none; background:#1a56db; color:#fff; font-size:15px; font-weight:600; cursor:pointer; }
-    </style>
-    <div class="lock-box">
-      <div class="lock-title">🔒 Sessão terminada</div>
-      <div class="lock-reason">${reason}</div>
-      <button class="lock-btn" onclick="window.location.replace('/index.html')">Iniciar sessão</button>
+function __gcRenderSessionLockedScreen(reasonText) {
+  const reason = String(reasonText || "Sessão expirada por segurança. Volte a iniciar sessão.");
+
+  const esc = (s) => String(s || "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+
+  const root = document.getElementById("appRoot") || document.body;
+  root.innerHTML = `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#0b1220;color:#e7eefc;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
+      <div style="width:100%;max-width:520px;background:#111a2e;border:1px solid rgba(255,255,255,.10);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:24px 20px;">
+        <div style="font-size:18px;font-weight:800;letter-spacing:.2px;">Sessão bloqueada</div>
+        <div style="margin-top:10px;font-size:14px;line-height:1.5;opacity:.95;">${esc(reason)}</div>
+        <div style="margin-top:16px;font-size:13px;line-height:1.45;opacity:.82;">
+          Por segurança, a aplicação foi bloqueada para impedir alterações sem autenticação válida.
+        </div>
+        <div style="display:flex;gap:10px;margin-top:18px;">
+          <button id="btnGoLoginNow" style="flex:1;border:0;background:#3b82f6;color:#fff;border-radius:12px;padding:12px 14px;font-size:14px;font-weight:700;cursor:pointer;">
+            Voltar ao login
+          </button>
+          <button id="btnReloadLocked" style="border:1px solid rgba(255,255,255,.18);background:transparent;color:#e7eefc;border-radius:12px;padding:12px 14px;font-size:14px;cursor:pointer;">
+            Recarregar
+          </button>
+        </div>
+      </div>
     </div>
   `;
+
+  const btnGo = document.getElementById("btnGoLoginNow");
+  if (btnGo) btnGo.onclick = () => hardRedirect("/index.html");
+
+  const btnReload = document.getElementById("btnReloadLocked");
+  if (btnReload) btnReload.onclick = () => window.location.reload();
 }
 
 /* ---- 10A.4 — __gcForceSessionLock ---- */
 export async function __gcForceSessionLock(reasonText) {
+  if (__gcSessionLockActive) return;
   __gcSessionLockActive = true;
-  try { await window.sb?.auth?.signOut(); } catch (_) {}
-  __gcRenderSessionLockedScreen(reasonText);
+
+  try {
+    if (G?.authStateSubscription?.unsubscribe) G.authStateSubscription.unsubscribe();
+  } catch {}
+
+  try {
+    if (window.sb?.auth?.signOut) await window.sb.auth.signOut();
+  } catch {}
+
+  try {
+    __gcRenderSessionLockedScreen(reasonText);
+  } catch (e) {
+    console.error("Falha a renderizar ecrã de sessão bloqueada:", e);
+    hardRedirect("/index.html");
+    return;
+  }
+
+  setTimeout(() => hardRedirect("/index.html"), 1500);
 }
 
 
@@ -345,11 +345,26 @@ export async function __gcForceSessionLock(reasonText) {
 export async function wireLogout() {
   const btn = document.getElementById("btnLogout");
   if (!btn) return;
+
   btn.addEventListener("click", async () => {
+    btn.disabled    = true;
+    btn.textContent = "A terminar sessão…";
+
     try {
-      await window.sb.auth.signOut();
-    } catch (_) {}
-    window.location.replace("/index.html");
+      if (G?.authStateSubscription?.unsubscribe) {
+        try { G.authStateSubscription.unsubscribe(); } catch {}
+      }
+      if (window.sb?.auth?.signOut) {
+        await Promise.race([
+          window.sb.auth.signOut(),
+          new Promise((resolve) => setTimeout(resolve, 1200))
+        ]);
+      }
+    } catch (e) {
+      console.error("Logout falhou:", e);
+    } finally {
+      hardRedirect("/index.html");
+    }
   });
 }
 
@@ -359,32 +374,76 @@ export async function wireLogout() {
 /* ---- 11A.1 — ensureAAL2 ---- */
 export async function ensureAAL2() {
   const sb = window.sb;
-  if (!sb) return false;
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  }
 
   function renderMFAScreen({ title, subtitle, qrDataUrl, secret, uri, errorMsg }) {
-    document.body.innerHTML = `
-      <style>
-        body { margin:0; font-family:system-ui,sans-serif; background:#0b1020; color:#e8eefc; display:flex; align-items:center; justify-content:center; height:100vh; }
-        .mfa-box { background:#121a33; border:1px solid #22305f; border-radius:16px; padding:36px 28px; max-width:380px; width:100%; text-align:center; }
-        .mfa-title { font-size:18px; font-weight:700; margin-bottom:6px; }
-        .mfa-sub { font-size:13px; color:#94a3b8; margin-bottom:20px; }
-        .mfa-qr { margin:0 auto 16px; width:180px; height:180px; border-radius:8px; background:#fff; display:flex; align-items:center; justify-content:center; }
-        .mfa-qr img { width:100%; border-radius:8px; }
-        .mfa-secret { font-size:12px; color:#94a3b8; margin-bottom:16px; word-break:break-all; }
-        .mfa-input { width:100%; padding:12px; border-radius:10px; border:1px solid #22305f; background:#0f1630; color:#e8eefc; font-size:20px; text-align:center; letter-spacing:6px; margin-bottom:12px; box-sizing:border-box; }
-        .mfa-btn { width:100%; padding:12px; border-radius:10px; border:none; background:#1a56db; color:#fff; font-size:15px; font-weight:600; cursor:pointer; }
-        .mfa-err { color:#f87171; font-size:13px; margin-top:10px; }
-      </style>
-      <div class="mfa-box">
-        <div class="mfa-title">${title}</div>
-        <div class="mfa-sub">${subtitle}</div>
-        ${qrDataUrl ? `<div class="mfa-qr"><img src="${qrDataUrl}" alt="QR Code MFA"/></div>` : ""}
-        ${secret ? `<div class="mfa-secret">Chave manual: <strong>${secret}</strong></div>` : ""}
-        <input id="inpMFACode" class="mfa-input" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code"/>
-        <button id="btnMFAVerify" class="mfa-btn">Verificar</button>
-        ${errorMsg ? `<div class="mfa-err">${errorMsg}</div>` : ""}
+    const root = document.getElementById("appRoot") || document.body;
+    root.innerHTML = `
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#0b1220;color:#e7eefc;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
+        <div style="width:100%;max-width:520px;background:#111a2e;border:1px solid rgba(255,255,255,.10);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:20px 18px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div>
+              <div style="font-size:16px;font-weight:700;letter-spacing:.2px;">${esc(title || "Dupla autenticação obrigatória")}</div>
+              <div style="margin-top:4px;font-size:13px;opacity:.9;line-height:1.35;">${esc(subtitle || "Introduza o código da sua app autenticadora para continuar.")}</div>
+            </div>
+            <button id="btnMFALogout" style="border:1px solid rgba(255,255,255,.18);background:transparent;color:#e7eefc;border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer;">Sair</button>
+          </div>
+
+          <div style="margin-top:14px;border-top:1px solid rgba(255,255,255,.10);padding-top:14px;">
+            ${qrDataUrl ? `
+              <div style="display:flex;gap:14px;flex-wrap:wrap;">
+                <div style="background:#fff;border-radius:12px;padding:10px;">
+                  <img alt="QR TOTP" src="${qrDataUrl}" style="display:block;width:170px;height:170px;object-fit:contain;" />
+                </div>
+                <div style="flex:1;min-width:240px;">
+                  <div style="font-size:13px;font-weight:700;margin-bottom:6px;">Configuração TOTP</div>
+                  <div style="font-size:12px;opacity:.92;line-height:1.35;">
+                    1) Abra a app autenticadora (Google Authenticator / Microsoft Authenticator / Apple Passwords / 1Password).<br/>
+                    2) Adicione conta por QR code.<br/>
+                    3) Introduza abaixo o código de 6 dígitos.
+                  </div>
+                  ${secret ? `<div style="margin-top:10px;font-size:12px;opacity:.92;"><b>Secret:</b> <span style="font-family:monospace;">${esc(secret)}</span></div>` : ``}
+                  ${uri    ? `<div style="margin-top:6px;font-size:12px;opacity:.92;word-break:break-all;"><b>URI:</b> <span style="font-family:monospace;">${esc(uri)}</span></div>` : ``}
+                </div>
+              </div>
+            ` : ``}
+
+            <div style="margin-top:${qrDataUrl ? "14px" : "0"};">
+              <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;">Código (6 dígitos)</label>
+              <input id="inpMFACode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"
+                style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:#0b1220;color:#e7eefc;font-size:16px;letter-spacing:2px;"
+              />
+              <div style="display:flex;gap:10px;margin-top:10px;">
+                <button id="btnMFAVerify" style="flex:1;border:0;background:#3b82f6;color:white;border-radius:12px;padding:11px 12px;font-size:14px;font-weight:700;cursor:pointer;">
+                  Verificar e continuar
+                </button>
+                <button id="btnMFARetry" style="border:1px solid rgba(255,255,255,.18);background:transparent;color:#e7eefc;border-radius:12px;padding:11px 12px;font-size:14px;cursor:pointer;">
+                  Recarregar
+                </button>
+              </div>
+              ${errorMsg ? `<div style="margin-top:10px;color:#ffb4b4;font-size:13px;line-height:1.35;">${esc(errorMsg)}</div>` : ``}
+              <div style="margin-top:10px;font-size:12px;opacity:.85;line-height:1.35;">
+                Sessão atual: <span style="font-family:monospace;">${esc(G.sessionUser?.email || "—")}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     `;
+
+    const btnLogout = document.getElementById("btnMFALogout");
+    if (btnLogout) btnLogout.onclick = async () => {
+      try { await sb.auth.signOut(); } catch {}
+      hardRedirect("/index.html");
+    };
+
+    const btnRetry = document.getElementById("btnMFARetry");
+    if (btnRetry) btnRetry.onclick = () => window.location.reload();
   }
 
   async function getAAL() {
@@ -564,14 +623,7 @@ export async function boot() {
       await wireQuickPatientSearch();
 
       const sel = document.getElementById("selClinic");
-      if (sel) {
-        // Mudar clínica activa actualiza o role efectivo
-        sel.addEventListener("change", () => {
-          G.activeClinicId = sel.value || G.activeClinicId;
-          G.role = resolveEffectiveRole();
-          refreshAgenda();
-        });
-      }
+      if (sel) sel.addEventListener("change", refreshAgenda);
 
       const btnRefresh = document.getElementById("btnRefreshAgenda");
       if (btnRefresh) btnRefresh.addEventListener("click", refreshAgenda);
