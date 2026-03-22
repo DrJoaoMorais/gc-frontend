@@ -73,7 +73,6 @@ function openPatientViewModal__stub(patient) {
 /* ==== INÍCIO BLOCO 06B/12 — Bootstrap + State + Helpers base ==== */
 function openPatientViewModal(patient) {
 
-  console.log("06B openPatientViewModal OK", patient);
 
   // Usar gc-content como contentor principal (página inteira, sem modal)
   const gcContent = document.querySelector(".gc-content");
@@ -3441,7 +3440,6 @@ function openPatientViewModal(patient) {
 /* ==== INÍCIO BLOCO 06J/12 — Render + Wiring + Boot ==== */
 
   function render() {
-    console.log("06J render OK");
 
     root.innerHTML = `
       <style>
