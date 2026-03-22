@@ -3540,9 +3540,9 @@ function openPatientViewModal(patient) {
           ${isDoctor() ? `
             <div class="gc-sb-lbl" style="margin-top:4px;">Consulta Médica</div>
 
-            <button id="btnNewConsult" class="gc-sb-btn gc-sb-btn--primary">
+            <button id="btnNewConsult" class="gc-sb-btn" style="background:#0f766e;border-color:#0f766e;color:#fff;font-weight:700;">
               <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 5h4M5 7.5h4M5 10h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M11 10v4M9 12h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-              <span>Nova Consulta</span>
+              <span>Iniciar Consulta</span>
             </button>
 
             <button id="btnExameObjectivo" class="gc-sb-btn">
@@ -3602,14 +3602,14 @@ function openPatientViewModal(patient) {
             <span>Consulta Médica</span>
           </button>
 
-          <button id="btnAgendarFisio" class="gc-sb-btn" style="color:#64748b;">
-            <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="1.5" y="3" width="13" height="11.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 7h13M5 1.5V4M11 1.5V4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="10.5" r="1.5" stroke="currentColor" stroke-width="1.2"/></svg>
-            <span>Fisioterapia</span>
+          <button id="btnAgendarFisio" class="gc-sb-btn" style="color:#94a3b8;cursor:not-allowed;" title="Marcações de fisioterapia — disponível em breve">
+            <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;opacity:0.4"><rect x="1.5" y="3" width="13" height="11.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 7h13M5 1.5V4M11 1.5V4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="10.5" r="1.5" stroke="currentColor" stroke-width="1.2"/></svg>
+            <span>Fisioterapia <span style="font-size:10px;opacity:0.7;">— breve</span></span>
           </button>
 
-          <button id="btnAgendarTreino" class="gc-sb-btn" style="color:#64748b;">
-            <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="1.5" y="3" width="13" height="11.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 7h13M5 1.5V4M11 1.5V4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5.5 10.5l1.5 1.5 3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>Treino</span>
+          <button id="btnAgendarTreino" class="gc-sb-btn" style="color:#94a3b8;cursor:not-allowed;" title="Marcações de treino — disponível em breve">
+            <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;opacity:0.4"><rect x="1.5" y="3" width="13" height="11.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 7h13M5 1.5V4M11 1.5V4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5.5 10.5l1.5 1.5 3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Treino <span style="font-size:10px;opacity:0.7;">— breve</span></span>
           </button>
 
           ${docsLoading ? `<div style="font-size:11px;color:#94a3b8;padding:3px 10px;">A carregar…</div>` : ``}
@@ -3654,7 +3654,7 @@ function openPatientViewModal(patient) {
     document.getElementById("btnEditIdent")?.addEventListener("click", () => openPatientIdentity("edit"));
     document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
 
-    // Agendar Consulta — vai para Agenda com doente pré-seleccionado
+    // Agendar Consulta Médica — pré-selecciona doente e volta ao feed ao fechar
     document.getElementById("btnAgendarConsulta")?.addEventListener("click", () => {
       try {
         const G_ref = window.__gc_G || (typeof G !== "undefined" ? G : null);
@@ -3662,13 +3662,30 @@ function openPatientViewModal(patient) {
           G_ref.currentView = "agenda";
           G_ref.preselectedPatientId = p.id;
           G_ref.preselectedPatientName = p.full_name || "";
+          // Guardar referência ao doente para voltar depois
+          G_ref._returnToPatient = { id: p.id, data: p };
         }
         if (typeof window.__gc_renderCurrentView === "function") {
           window.__gc_renderCurrentView();
-          // Abrir modal de nova marcação após render
           setTimeout(() => {
             const btnNew = document.getElementById("btnNewAppt");
             if (btnNew) btnNew.click();
+            // Interceptar fecho do modal de agendamento para voltar ao feed
+            const modalRoot = document.getElementById("modalRoot");
+            if (modalRoot) {
+              const observer = new MutationObserver(() => {
+                if (!modalRoot.hasChildNodes()) {
+                  observer.disconnect();
+                  const G2 = window.__gc_G || (typeof G !== "undefined" ? G : null);
+                  const ret = G2?._returnToPatient;
+                  if (ret?.data && typeof openPatientViewModal === "function") {
+                    G2._returnToPatient = null;
+                    openPatientViewModal(ret.data);
+                  }
+                }
+              });
+              observer.observe(modalRoot, { childList: true });
+            }
           }, 200);
         }
       } catch(e) { console.error("Agendar consulta:", e); }
@@ -3684,44 +3701,14 @@ function openPatientViewModal(patient) {
       alert("Evolução — disponível em breve.");
     });
 
-    // Agendar Fisioterapia
-    document.getElementById("btnAgendarFisio")?.addEventListener("click", () => {
-      try {
-        const G_ref = window.__gc_G || (typeof G !== "undefined" ? G : null);
-        if (G_ref) {
-          G_ref.currentView = "agenda";
-          G_ref.preselectedPatientId = p.id;
-          G_ref.preselectedPatientName = p.full_name || "";
-          G_ref.preselectedApptType = "fisioterapia";
-        }
-        if (typeof window.__gc_renderCurrentView === "function") {
-          window.__gc_renderCurrentView();
-          setTimeout(() => {
-            const btnNew = document.getElementById("btnNewAppt");
-            if (btnNew) btnNew.click();
-          }, 200);
-        }
-      } catch(e) { console.error("Agendar fisioterapia:", e); }
+    // Agendar Fisioterapia — em breve
+    document.getElementById("btnAgendarFisio")?.addEventListener("click", (e) => {
+      e.preventDefault();
     });
 
-    // Agendar Treino
-    document.getElementById("btnAgendarTreino")?.addEventListener("click", () => {
-      try {
-        const G_ref = window.__gc_G || (typeof G !== "undefined" ? G : null);
-        if (G_ref) {
-          G_ref.currentView = "agenda";
-          G_ref.preselectedPatientId = p.id;
-          G_ref.preselectedPatientName = p.full_name || "";
-          G_ref.preselectedApptType = "treino";
-        }
-        if (typeof window.__gc_renderCurrentView === "function") {
-          window.__gc_renderCurrentView();
-          setTimeout(() => {
-            const btnNew = document.getElementById("btnNewAppt");
-            if (btnNew) btnNew.click();
-          }, 200);
-        }
-      } catch(e) { console.error("Agendar treino:", e); }
+    // Agendar Treino — em breve
+    document.getElementById("btnAgendarTreino")?.addEventListener("click", (e) => {
+      e.preventDefault();
     });
 
     // Garantir que os contentores ancestrais têm position:relative para os painéis laterais
