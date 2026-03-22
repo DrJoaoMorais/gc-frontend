@@ -1321,7 +1321,8 @@ export function openApptModal({ mode, row }) {
   const patientIdInit = isEdit ? (row.patient_id ?? "") : "";
   const titleInit     = isEdit ? (row.title  ?? "") : "";
   const notesInit     = isEdit ? (row.notes  ?? "") : "";
-  const procIsOther   = procInit && !PROCEDURE_OPTIONS.includes(procInit);
+  const _procList   = (G.procedureTypes?.length ? G.procedureTypes : PROCEDURE_OPTIONS);
+  const procIsOther   = procInit && !_procList.includes(procInit);
   const procSelectValue  = procIsOther ? "Outro" : (procInit || "");
   const apptModeInit     = isEdit ? String(row?.mode || "presencial").toLowerCase() : "presencial";
   const isSuperadmin     = !!window.__GC_IS_SUPERADMIN__;
@@ -1432,7 +1433,7 @@ export function openApptModal({ mode, row }) {
               <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Tipo de Consulta/Procedimento *</label>
               <select id="mProc" class="gcSelect" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;color:#1e293b;">
                 <option value="">— seleccionar —</option>
-                ${PROCEDURE_OPTIONS.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("")}
+                ${_procList.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("")}
               </select>
             </div>
             <div id="mStatusWrap" style="display:flex;flex-direction:column;gap:4px;">

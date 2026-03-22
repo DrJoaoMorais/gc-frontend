@@ -69,8 +69,9 @@ export const G = {
   selectedDayISO: fmtDateISO(new Date()),
   calMonth:       null,
   patientsById:   {},
-  patientQuick:   { lastResults: [], selected: null },
-  currentView:    "agenda",
+  patientQuick:    { lastResults: [], selected: null },
+  currentView:     "agenda",
+  procedureTypes:  [], // carregado do Supabase (tabela procedure_types)
 };
 
 // Expor globalmente para compatibilidade com código legado (app.js)

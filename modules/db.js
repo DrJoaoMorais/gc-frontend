@@ -322,6 +322,21 @@ export async function fetchPatientById(patientId) {
 }
 
 
+/* ==== 02J — Tipos de procedimento ==== */
+
+/* ---- 02J.1 — fetchProcedureTypes ---- */
+export async function fetchProcedureTypes() {
+  const { data, error } = await window.sb
+    .from("procedure_types")
+    .select("name")
+    .eq("active", true)
+    .order("id", { ascending: true });
+
+  if (error) throw error;
+  return (Array.isArray(data) ? data : []).map(r => r.name).filter(Boolean);
+}
+
+
 /* ==== 02I — Atualização de doente ==== */
 
 /* ---- 02I.1 — updatePatient ---- */

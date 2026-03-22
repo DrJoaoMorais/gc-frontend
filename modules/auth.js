@@ -28,6 +28,7 @@
 
 import { hardRedirect, fmtDateISO } from "./helpers.js";
 import { G } from "./state.js";
+import { fetchProcedureTypes } from "./db.js";
 
 /* ---- Referências a funções definidas noutros módulos ----
    Estas funções são injectadas em runtime via window.*
@@ -607,6 +608,13 @@ export async function boot() {
 
     G.clinicsById = {};
     for (const c of G.clinics) G.clinicsById[c.id] = c;
+
+    try {
+      G.procedureTypes = await fetchProcedureTypes();
+    } catch (e) {
+      console.warn("[boot] procedure_types não carregado:", e?.message);
+      G.procedureTypes = [];
+    }
 
     async function renderCurrentView() {
       renderAppShell();
