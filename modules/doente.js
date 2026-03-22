@@ -3538,32 +3538,20 @@ function openPatientViewModal(patient) {
         <div class="gc-pv-sb">
 
           ${isDoctor() ? `
-            <div class="gc-sb-lbl" style="margin-top:4px;">Consulta Médica</div>
+            <div class="gc-sb-lbl" style="margin-top:4px;">Consulta</div>
 
-            <button id="btnNewConsult" class="gc-sb-btn" style="background:#0f766e;border-color:#0f766e;color:#fff;font-weight:700;">
-              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 5h4M5 7.5h4M5 10h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M11 10v4M9 12h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-              <span>Iniciar Consulta</span>
+            <button id="btnNewConsult" class="gcBtnPrimary ${creatingConsult ? '' : 'gc-sb-btn--highlight'}">
+              <span class="gc-sb-icon">📋</span><span>Nova Consulta</span>
             </button>
 
-            <button id="btnExameObjectivo" class="gc-sb-btn">
-              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5 7h4M7 5v4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-              <span>Exame Objectivo</span>
-            </button>
-
-            <button id="btnProtocolos" class="gc-sb-btn">
-              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="2" width="10" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 5h5M4.5 7.5h5M4.5 10h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M12 9v5M9.5 11.5h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-              <span>Protocolos</span>
-            </button>
-
-            <button id="btnEvolucao" class="gc-sb-btn">
-              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><polyline points="2,12 5,8 8,10 11,5 14,7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              <span>Evolução</span>
+            <button id="btnExameObjectivo" class="gcBtnOutline">
+              <span class="gc-sb-icon">🔍</span><span>Exame Objectivo</span>
             </button>
 
             <div class="gc-sb-div"></div>
             <div class="gc-sb-lbl">Documentação</div>
 
-            <button id="btnMedicalReports" class="gc-sb-btn">
+            <button id="btnMedicalReports" class="gcBtnOutline">
               <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 5h5M4.5 7.5h5M4.5 10h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
               <span>Relatórios</span>
             </button>
@@ -3578,38 +3566,29 @@ function openPatientViewModal(patient) {
               <span>Análises</span>
             </button>
 
+            <button id="btnProtocolos" class="gc-sb-btn" style="color:#94a3b8;">
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <span>Protocolos</span>
+            </button>
+
             <div class="gc-sb-div"></div>
             <div class="gc-sb-lbl">Doente</div>
           ` : ``}
 
-          <button id="btnViewIdent" class="gc-sb-btn">
-            <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="8" cy="5.5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M2 14c0-3 2.686-5 6-5s6 2 6 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-            <span>Identificação</span>
+          <button id="btnViewIdent" class="gc-sb-btn" style="color:#64748b;">
+            <span class="gc-sb-icon">👤</span><span>Identificação</span>
           </button>
 
           ${["super_admin", "admin", "medico"].includes(role()) ? `
-            <button id="btnEditIdent" class="gc-sb-btn" style="color:#1a56db;">
+            <button id="btnEditIdent" class="gc-sb-btn" style="color:#1a56db; font-weight:700;">
               <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M11 2.5a1.5 1.5 0 012.121 2.121l-7.5 7.5-2.621.5.5-2.621 7.5-7.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <span>Editar identificação</span>
             </button>
           ` : ``}
 
-          <div class="gc-sb-div"></div>
-          <div class="gc-sb-lbl">Agendar</div>
-
-          <button id="btnAgendarConsulta" class="gc-sb-btn gc-sb-btn--primary">
+          <button id="btnAgendarConsulta" class="gcBtnPrimary">
             <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="1.5" y="3" width="13" height="11.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 7h13M5 1.5V4M11 1.5V4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M8 9.5v2M7 10.5h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-            <span>Consulta Médica</span>
-          </button>
-
-          <button id="btnAgendarFisio" class="gc-sb-btn" style="color:#94a3b8;cursor:not-allowed;" title="Marcações de fisioterapia — disponível em breve">
-            <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;opacity:0.4"><rect x="1.5" y="3" width="13" height="11.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 7h13M5 1.5V4M11 1.5V4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="10.5" r="1.5" stroke="currentColor" stroke-width="1.2"/></svg>
-            <span>Fisioterapia <span style="font-size:10px;opacity:0.7;">— breve</span></span>
-          </button>
-
-          <button id="btnAgendarTreino" class="gc-sb-btn" style="color:#94a3b8;cursor:not-allowed;" title="Marcações de treino — disponível em breve">
-            <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;opacity:0.4"><rect x="1.5" y="3" width="13" height="11.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 7h13M5 1.5V4M11 1.5V4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5.5 10.5l1.5 1.5 3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>Treino <span style="font-size:10px;opacity:0.7;">— breve</span></span>
+            <span>Agendar Consulta</span>
           </button>
 
           ${docsLoading ? `<div style="font-size:11px;color:#94a3b8;padding:3px 10px;">A carregar…</div>` : ``}
@@ -3654,7 +3633,7 @@ function openPatientViewModal(patient) {
     document.getElementById("btnEditIdent")?.addEventListener("click", () => openPatientIdentity("edit"));
     document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
 
-    // Agendar Consulta Médica — pré-selecciona doente e volta ao feed ao fechar
+    // Agendar Consulta — vai para Agenda com doente pré-seleccionado
     document.getElementById("btnAgendarConsulta")?.addEventListener("click", () => {
       try {
         const G_ref = window.__gc_G || (typeof G !== "undefined" ? G : null);
@@ -3662,30 +3641,13 @@ function openPatientViewModal(patient) {
           G_ref.currentView = "agenda";
           G_ref.preselectedPatientId = p.id;
           G_ref.preselectedPatientName = p.full_name || "";
-          // Guardar referência ao doente para voltar depois
-          G_ref._returnToPatient = { id: p.id, data: p };
         }
         if (typeof window.__gc_renderCurrentView === "function") {
           window.__gc_renderCurrentView();
+          // Abrir modal de nova marcação após render
           setTimeout(() => {
             const btnNew = document.getElementById("btnNewAppt");
             if (btnNew) btnNew.click();
-            // Interceptar fecho do modal de agendamento para voltar ao feed
-            const modalRoot = document.getElementById("modalRoot");
-            if (modalRoot) {
-              const observer = new MutationObserver(() => {
-                if (!modalRoot.hasChildNodes()) {
-                  observer.disconnect();
-                  const G2 = window.__gc_G || (typeof G !== "undefined" ? G : null);
-                  const ret = G2?._returnToPatient;
-                  if (ret?.data && typeof openPatientViewModal === "function") {
-                    G2._returnToPatient = null;
-                    openPatientViewModal(ret.data);
-                  }
-                }
-              });
-              observer.observe(modalRoot, { childList: true });
-            }
           }, 200);
         }
       } catch(e) { console.error("Agendar consulta:", e); }
@@ -3694,21 +3656,6 @@ function openPatientViewModal(patient) {
     // Protocolos — em desenvolvimento
     document.getElementById("btnProtocolos")?.addEventListener("click", () => {
       alert("Protocolos — disponível em breve.");
-    });
-
-    // Evolução — comparação entre consultas (em desenvolvimento)
-    document.getElementById("btnEvolucao")?.addEventListener("click", () => {
-      alert("Evolução — disponível em breve.");
-    });
-
-    // Agendar Fisioterapia — em breve
-    document.getElementById("btnAgendarFisio")?.addEventListener("click", (e) => {
-      e.preventDefault();
-    });
-
-    // Agendar Treino — em breve
-    document.getElementById("btnAgendarTreino")?.addEventListener("click", (e) => {
-      e.preventDefault();
     });
 
     // Garantir que os contentores ancestrais têm position:relative para os painéis laterais
@@ -3870,6 +3817,7 @@ function openPatientViewModal(patient) {
         label: "Neurológico",
         items: [
           { id: "pfp",       label: "😐 Paresia Facial Periférica", ready: true },
+          { id: "incont",    label: "🫧 Pavimento Pélvico / Incontinência", ready: true },
           { id: "neuro_sum", label: "🧠 Neurológico Sumário",       ready: false },
         ]
       },
@@ -3947,7 +3895,243 @@ function openPatientViewModal(patient) {
   }
 
   function openExameObjectivoForm(formId) {
-    if (formId === "pfp") {
+    if (formId === "incont") {
+      _abrirBlob(`<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
+<title>Pavimento Pélvico / Incontinência</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#0f172a;background:#f8fafc}
+.page{max-width:900px;margin:0 auto;padding:20px}
+h1{font-size:18px;font-weight:700;color:#0f2d52;margin-bottom:4px}
+.subtitle{font-size:12px;color:#64748b;margin-bottom:18px}
+.sec{background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-bottom:10px}
+.sec-title{font-size:13px;font-weight:700;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:8px}
+.num{width:22px;height:22px;border-radius:50%;background:#1a56db;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.gl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin-bottom:6px;margin-top:12px}
+.gl:first-child{margin-top:0}
+textarea{width:100%;border:0.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;resize:vertical;min-height:64px;background:#f8fafc;color:#0f172a;font-family:inherit}
+.inp{width:100%;border:0.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;background:#f8fafc;color:#0f172a;font-family:inherit}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.rg{display:flex;flex-direction:column;gap:4px;margin-top:4px}
+.ri{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+.ri input{width:14px;height:14px;accent-color:#1a56db;flex-shrink:0}
+.cg{display:flex;flex-direction:column;gap:4px;margin-top:4px}
+.ci{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+.ci input{width:14px;height:14px;accent-color:#1a56db;flex-shrink:0}
+.mrc-table{border-collapse:collapse;width:100%;font-size:12px;margin-top:6px}
+.mrc-table th{background:#f1f5f9;padding:6px 10px;border:0.5px solid #e2e8f0;font-weight:600;text-align:left}
+.mrc-table td{border:0.5px solid #e2e8f0;padding:6px 10px}
+.mrc-table tr:nth-child(even) td{background:#f8fafc}
+select.inp-sm{padding:5px 8px;border:0.5px solid #e2e8f0;border-radius:6px;font-size:12px;background:#f8fafc;color:#0f172a;font-family:inherit}
+.inp-sm{width:80px;padding:5px 8px;border:0.5px solid #e2e8f0;border-radius:6px;font-size:12px;background:#f8fafc;color:#0f172a;font-family:inherit}
+.flex-r{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;padding-top:14px;border-top:1px solid #e2e8f0}
+.btn-save{background:#1a56db;color:#fff;border:none;border-radius:8px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn-pdf{background:#fff;color:#0f172a;border:0.5px solid #e2e8f0;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-family:inherit}
+.badge-icd{display:inline-block;font-size:10px;padding:2px 7px;border-radius:4px;background:#e0f2fe;color:#0369a1;font-weight:600;margin-left:6px}
+</style></head><body><div class="page">
+<h1>Pavimento Pélvico / Incontinência Urinária e Fecal</h1>
+<div class="subtitle">Avaliação clínica estruturada — MFR</div>
+
+<!-- 1. ANAMNESE -->
+<div class="sec">
+  <div class="sec-title"><div class="num">1</div>Anamnese</div>
+
+  <div class="gl">Tipo e características da perda</div>
+  <div class="cg">
+    <label class="ci"><input type="checkbox"> Incontinência de esforço (tosse, espirro, levantar peso) <span class="badge-icd">ICD 788.32</span></label>
+    <label class="ci"><input type="checkbox"> Incontinência de urgência <span class="badge-icd">ICD 788.31</span></label>
+    <label class="ci"><input type="checkbox"> Incontinência mista <span class="badge-icd">ICD 788.33</span></label>
+    <label class="ci"><input type="checkbox"> Incontinência fecal por urgência <span class="badge-icd">ICD 787.60</span></label>
+    <label class="ci"><input type="checkbox"> Incontinência fecal passiva / seepage</label>
+  </div>
+
+  <div class="gl" style="margin-top:14px">Frequência e volume</div>
+  <div class="grid3">
+    <div><div class="gl">Episódios/dia</div><input class="inp" type="number" min="0" placeholder="—"></div>
+    <div><div class="gl">Micções diurnas</div><input class="inp" type="number" min="0" placeholder="—"></div>
+    <div><div class="gl">Micções noturnas</div><input class="inp" type="number" min="0" placeholder="—"></div>
+  </div>
+
+  <div class="gl">Sintomas associados</div>
+  <div class="cg">
+    <label class="ci"><input type="checkbox"> Urgência miccional</label>
+    <label class="ci"><input type="checkbox"> Enurese noturna</label>
+    <label class="ci"><input type="checkbox"> Hematúria</label>
+    <label class="ci"><input type="checkbox"> Infecções urinárias recorrentes</label>
+    <label class="ci"><input type="checkbox"> Obstipação</label>
+    <label class="ci"><input type="checkbox"> Sensação de prolapso retal</label>
+  </div>
+
+  <div class="gl">Factores precipitantes</div>
+  <div class="cg">
+    <label class="ci"><input type="checkbox"> Partos vaginais</label>
+    <label class="ci"><input type="checkbox"> Trauma obstétrico</label>
+    <label class="ci"><input type="checkbox"> Cirurgias pélvicas / anorretais prévias</label>
+    <label class="ci"><input type="checkbox"> Radioterapia</label>
+    <label class="ci"><input type="checkbox"> Diabetes</label>
+    <label class="ci"><input type="checkbox"> Lesão neurológica</label>
+    <label class="ci"><input type="checkbox"> Menopausa / défice estrogénico</label>
+    <label class="ci"><input type="checkbox"> Doença inflamatória intestinal</label>
+  </div>
+
+  <div class="gl">Notas de anamnese</div>
+  <textarea placeholder="História da queixa, duração, factores precipitantes, impacto na qualidade de vida, expectativas do doente..."></textarea>
+</div>
+
+<!-- 2. EXAME OBJETIVO -->
+<div class="sec">
+  <div class="sec-title"><div class="num">2</div>Exame Objetivo</div>
+
+  <div class="gl">Estado geral e abdómen</div>
+  <textarea placeholder="Abdómen — inspeção, palpação, cicatrizes cirúrgicas, sensibilidade..."></textarea>
+
+  <div class="gl" style="margin-top:14px">Exame neurológico perineal</div>
+  <div class="grid2">
+    <div>
+      <div class="gl">Sensibilidade perineal/perianal</div>
+      <div class="rg">
+        <label class="ri"><input type="radio" name="sensPerineal"> Intacta</label>
+        <label class="ri"><input type="radio" name="sensPerineal"> Diminuída</label>
+        <label class="ri"><input type="radio" name="sensPerineal"> Ausente</label>
+      </div>
+    </div>
+    <div>
+      <div class="gl">Reflexo cutâneo-anal</div>
+      <div class="rg">
+        <label class="ri"><input type="radio" name="reflexoAnal"> Bilateral presente</label>
+        <label class="ri"><input type="radio" name="reflexoAnal"> Unilateral</label>
+        <label class="ri"><input type="radio" name="reflexoAnal"> Ausente</label>
+      </div>
+    </div>
+  </div>
+  <div class="gl">Sensibilidade sacral S2-S4</div>
+  <div class="rg" style="flex-direction:row;gap:16px">
+    <label class="ri"><input type="radio" name="sacral"> Normal</label>
+    <label class="ri"><input type="radio" name="sacral"> Diminuída</label>
+    <label class="ri"><input type="radio" name="sacral"> Ausente</label>
+  </div>
+
+  <div class="gl" style="margin-top:14px">Exame ginecológico / urogenital</div>
+  <div class="cg">
+    <label class="ci"><input type="checkbox"> Trofismo vaginal/vulvar normal</label>
+    <label class="ci"><input type="checkbox"> Cistocele</label>
+    <label class="ci"><input type="checkbox"> Retocele</label>
+    <label class="ci"><input type="checkbox"> Histerocele</label>
+    <label class="ci"><input type="checkbox"> Integridade perineal comprometida</label>
+    <label class="ci"><input type="checkbox"> Próstata aumentada (homem)</label>
+  </div>
+
+  <div class="gl" style="margin-top:14px">Exame proctológico</div>
+  <div class="cg">
+    <label class="ci"><input type="checkbox"> Normal</label>
+    <label class="ci"><input type="checkbox"> Dermatite perianal</label>
+    <label class="ci"><input type="checkbox"> Fissura</label>
+    <label class="ci"><input type="checkbox"> Hemorroidas</label>
+    <label class="ci"><input type="checkbox"> Prolapso retal</label>
+  </div>
+
+  <div class="gl" style="margin-top:14px">Avaliação muscular — Pavimento Pélvico (Escala MRC)</div>
+  <table class="mrc-table">
+    <thead><tr><th>Grau</th><th>Descrição</th><th>D</th><th>E</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td>Sem contração palpável</td><td><input type="radio" name="mrcD" value="0"></td><td><input type="radio" name="mrcE" value="0"></td></tr>
+      <tr><td>1</td><td>Contração mínima</td><td><input type="radio" name="mrcD" value="1"></td><td><input type="radio" name="mrcE" value="1"></td></tr>
+      <tr><td>2</td><td>Contração visível sem resistência</td><td><input type="radio" name="mrcD" value="2"></td><td><input type="radio" name="mrcE" value="2"></td></tr>
+      <tr><td>3</td><td>Contração contra gravidade</td><td><input type="radio" name="mrcD" value="3"></td><td><input type="radio" name="mrcE" value="3"></td></tr>
+      <tr><td>4</td><td>Contração contra resistência moderada</td><td><input type="radio" name="mrcD" value="4"></td><td><input type="radio" name="mrcE" value="4"></td></tr>
+      <tr><td>5</td><td>Força normal</td><td><input type="radio" name="mrcD" value="5"></td><td><input type="radio" name="mrcE" value="5"></td></tr>
+    </tbody>
+  </table>
+
+  <div class="gl" style="margin-top:14px">Endurance e repetições</div>
+  <div class="grid3">
+    <div><div class="gl">Manutenção (seg)</div><input class="inp" type="number" min="0" max="60" placeholder="0–60s"></div>
+    <div><div class="gl">Repetições possíveis</div><input class="inp" type="number" min="0" placeholder="—"></div>
+    <div><div class="gl">Tónus anal repouso</div>
+      <select class="inp">
+        <option value="">—</option>
+        <option>Normal</option>
+        <option>Diminuído</option>
+        <option>Aumentado</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="gl">Avaliação muscular global</div>
+  <textarea placeholder="Força abdominal, dorsais, glúteos, membros inferiores (escala MRC). Alterações posturais relevantes..."></textarea>
+
+  <div class="gl">Equilíbrio e marcha</div>
+  <textarea placeholder="Estabilidade ortostática, coordenação — se aplicável..."></textarea>
+</div>
+
+<!-- 3. EXAMES COMPLEMENTARES -->
+<div class="sec">
+  <div class="sec-title"><div class="num">3</div>Exames Complementares</div>
+  <div class="cg">
+    <label class="ci"><input type="checkbox"> Diário miccional e fecal (3–7 dias) solicitado</label>
+    <label class="ci"><input type="checkbox"> Uroanálise realizada</label>
+    <label class="ci"><input type="checkbox"> Resíduo pós-miccional avaliado</label>
+    <label class="ci"><input type="checkbox"> Ecografia abdominal/pélvica</label>
+    <label class="ci"><input type="checkbox"> Estudos urodinâmicos solicitados</label>
+    <label class="ci"><input type="checkbox"> Manometria anorretal solicitada</label>
+    <label class="ci"><input type="checkbox"> Laboratorial — glicemia, função renal, hemograma</label>
+  </div>
+  <div class="gl">Resultados / notas</div>
+  <textarea placeholder="Resultados relevantes dos exames complementares..."></textarea>
+</div>
+
+<!-- 4. DIAGNÓSTICO -->
+<div class="sec">
+  <div class="sec-title"><div class="num">4</div>Diagnóstico</div>
+  <div class="cg">
+    <label class="ci"><input type="checkbox"> Incontinência urinária de esforço <span class="badge-icd">ICD 788.32</span></label>
+    <label class="ci"><input type="checkbox"> Incontinência urinária de urgência <span class="badge-icd">ICD 788.31</span></label>
+    <label class="ci"><input type="checkbox"> Incontinência urinária mista <span class="badge-icd">ICD 788.33</span></label>
+    <label class="ci"><input type="checkbox"> Incontinência urinária não especificada <span class="badge-icd">ICD 788.30</span></label>
+    <label class="ci"><input type="checkbox"> Incontinência fecal não especificada <span class="badge-icd">ICD 787.60</span></label>
+    <label class="ci"><input type="checkbox"> Laxidão do pavimento pélvico</label>
+    <label class="ci"><input type="checkbox"> Prolapso dos órgãos pélvicos</label>
+    <label class="ci"><input type="checkbox"> Fraqueza muscular do pavimento pélvico</label>
+    <label class="ci"><input type="checkbox"> Neuropatia periférica associada</label>
+  </div>
+  <div class="gl">Diagnósticos adicionais</div>
+  <textarea placeholder="Outros diagnósticos associados ou notas clínicas..."></textarea>
+</div>
+
+<!-- 5. PLANO TERAPÊUTICO -->
+<div class="sec">
+  <div class="sec-title"><div class="num">5</div>Plano Terapêutico</div>
+  <div class="cg">
+    <label class="ci"><input type="checkbox"> Educação e mudanças comportamentais (ingestão hídrica, cafeína, fibras)</label>
+    <label class="ci"><input type="checkbox"> Treino dos músculos do pavimento pélvico — exercícios de Kegel ≥12 semanas</label>
+    <label class="ci"><input type="checkbox"> Biofeedback electromiográfico <span class="badge-icd">ADSE 2278</span></label>
+    <label class="ci"><input type="checkbox"> Estimulação eléctrica neuromuscular intravaginal/intra-anal <span class="badge-icd">ADSE 2264</span></label>
+    <label class="ci"><input type="checkbox"> Reeducação vesical — horário regular de micção</label>
+    <label class="ci"><input type="checkbox"> Reeducação intestinal — técnica de defecação e banco de apoio</label>
+    <label class="ci"><input type="checkbox"> Fortalecimento muscular global <span class="badge-icd">ADSE 2340 / 2372</span></label>
+    <label class="ci"><input type="checkbox"> Treino de AVD — técnicas de transferência e gestão de esforços <span class="badge-icd">ADSE 2380</span></label>
+    <label class="ci"><input type="checkbox"> Encaminhamento urológico / coloproctológico</label>
+    <label class="ci"><input type="checkbox"> Encaminhamento psicológico</label>
+  </div>
+  <div class="gl">Notas do plano</div>
+  <textarea placeholder="Programa personalizado, frequência, cronograma de reavaliação..."></textarea>
+</div>
+
+<!-- 6. CONCLUSÃO -->
+<div class="sec">
+  <div class="sec-title"><div class="num">6</div>Conclusão</div>
+  <textarea style="min-height:110px" placeholder="Síntese clínica, factores precipitantes identificados, orientação para programa de reabilitação e seguimento..."></textarea>
+</div>
+
+<div class="actions">
+  <button class="btn-pdf" id="gc-pdf-btn" onclick="window.print()">Exportar PDF</button>
+  <button class="btn-save" id="gc-save-btn">Gravar e copiar para HDA</button>
+</div>
+
+</div></body></html>`);
+    }
       const pfpHtml = `<!DOCTYPE html>
 <html lang="pt">
 <head>
@@ -7331,8 +7515,39 @@ textarea{width:100%;border:0.5px solid var(--color-border-secondary);border-radi
 <!-- 11. OBJETIVOS -->
 <div class="sec">
   <div class="sec-title"><div class="num">11</div>Objetivos terapêuticos</div>
-  <div class="gl">Selecione os objetivos aplicáveis:</div>
+
+  <div class="gl" style="margin-top:0">Região / Condição</div>
+  <select id="objRegiao" style="width:100%;padding:7px 10px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);font-size:13px;background:var(--color-background-secondary);color:var(--color-text-primary);font-family:var(--font-sans);margin-bottom:10px">
+    <option value="">— Selecionar região —</option>
+    <optgroup label="Membro Superior">
+      <option value="ombro">Ombro</option>
+      <option value="cotovelo">Cotovelo</option>
+      <option value="punho">Punho e Mão</option>
+    </optgroup>
+    <optgroup label="Membro Inferior">
+      <option value="anca">Anca</option>
+      <option value="joelho">Joelho</option>
+      <option value="tibio">Tibiotársica / Pé</option>
+    </optgroup>
+    <optgroup label="Coluna">
+      <option value="cervical">Coluna Cervical</option>
+      <option value="lombar">Coluna Lombar</option>
+    </optgroup>
+    <optgroup label="Neurológico / Funcional">
+      <option value="facial">Paresia Facial Periférica</option>
+      <option value="avc">AVC</option>
+      <option value="incont">Incontinência Urinária / Fecal</option>
+    </optgroup>
+  </select>
+
+  <div id="objEspecificos" style="display:none;margin-bottom:14px">
+    <div class="gl">Objetivos específicos</div>
+    <div class="obj-grid" id="objgrid-esp"></div>
+  </div>
+
+  <div class="gl">Objetivos gerais (MFR)</div>
   <div class="obj-grid" id="objgrid"></div>
+
   <div style="margin-top:10px">
     <div class="gl">Objetivos adicionais</div>
     <textarea placeholder="Objetivos específicos para este doente..."></textarea>
@@ -7486,10 +7701,49 @@ sensSegs.forEach(s=>{
   sb.appendChild(tr);
 });
 
-// Objectivos
+// Objectivos genéricos
 var objs=['Redução do síndrome álgico','Recuperação da força muscular global','Recuperação da força MS','Recuperação da força MI','Melhoria do equilíbrio estático','Melhoria do equilíbrio dinâmico','Treino de marcha','Independência nas transferências','Independência no levante','Prevenção de queda','Redução da espasticidade','Controlo motor e coordenação','Melhoria da amplitude articular','Prevenção de úlceras de pressão','Reeducação neuromotora','Treino de AVD','Integração de auxiliar de marcha','Fortalecimento do tronco/core','Reeducação da marcha pós-AVC','Alta com segurança e autonomia','Reabilitação da deglutição / disfagia','Progressão da via oral (textura / consistência)','Prevenção de aspiração / pneumonia de aspiração','Desmame de SNG / PEG'];
 var og=document.getElementById('objgrid');
-objs.forEach(o=>{var d=document.createElement('div');d.className='obj-item';d.innerHTML='<input type="checkbox" onchange="this.closest(\\'.obj-item\\').classList.toggle(\\'sel\\',this.checked)"> '+o;og.appendChild(d);});
+objs.forEach(o=>{var d=document.createElement('div');d.className='obj-item';d.innerHTML='<input type="checkbox" onchange="this.closest(\'\.obj-item\').classList.toggle(\'sel\',this.checked)"> '+o;og.appendChild(d);});
+
+// Objectivos específicos por região
+var objsRegiao = {
+  ombro: ['Redução da dor em repouso e movimento','Redução da dor noturna','Redução da inflamação subacromial','Ganho de ADM — flexão','Ganho de ADM — abdução','Ganho de ADM — rotação externa','Ganho de ADM — rotação interna','Recuperação do ritmo escapulo-umeral','Prevenção de capsulite / rigidez','Reforço da coifa dos rotadores (ênfase RE)','Reforço do deltoide','Reforço do trapézio inferior / médio','Reforço do serrátil anterior / rombóides','Reeducação do padrão de elevação','Dissociação escápulo-umeral','Estabilidade dinâmica (cadeia aberta e fechada)','Controlo neuromuscular em amplitudes elevadas','AVD — pentear cabelo','AVD — vestir/despir camisola','AVD — alcance acima da cabeça','AVD — higiene posterior'],
+  cotovelo: ['Redução da dor à carga e movimento repetitivo','Ganho de ADM — flexão/extensão','Ganho de ADM — pronação/supinação','Reforço flexores/extensores do cotovelo','Reforço pronadores/supinadores','Resistência muscular (tendinopatias)','Estabilidade em cadeia fechada','AVD — alimentação','AVD — transporte de objetos','AVD — uso de teclado/rato'],
+  punho: ['Redução da dor em preensão/pinça','Ganho de ADM — flexão/extensão do punho','Ganho de ADM — desvios radial e cubital','Ganho de ADM — cadeias digitais','Ganho de ADM — oposição do polegar','Aumento da força de preensão global','Aumento da força de pinça (lateral, polpa-polpa)','Treino de destreza fina','Treino de velocidade e precisão','AVD — escrita','AVD — botões e fechos','AVD — manipulação de objetos pequenos'],
+  anca: ['Redução da dor em carga e marcha','Ganho de ADM — flexão','Ganho de ADM — extensão e abdução','Ganho de ADM — rotação interna/externa','Reforço do glúteo médio (estabilidade frontal)','Reforço do glúteo máximo (extensão)','Reforço dos flexores/extensores da anca','Controlo pélvico — prevenção de Trendelenburg','Estabilidade lombo-pélvica','Propriocepção — apoio monopodal','Controlo da marcha','AVD — sentar-levantar','AVD — escadas','AVD — entrada/saída do carro'],
+  joelho: ['Redução da dor em carga e escadas','Redução da dor em transições','Ganho de ADM — extensão completa (prioridade)','Ganho de ADM — flexão funcional','Reforço do quadríceps (VMO quando relevante)','Reforço dos isquiotibiais','Reforço dos glúteos','Estabilidade dinâmica do joelho','Controlo do valgo dinâmico','Normalização do padrão de marcha','Desmame de auxiliares de marcha','AVD — escadas','AVD — levantar da cadeira','AVD — marcha prolongada'],
+  tibio: ['Redução da dor em carga e marcha','Ganho de ADM — dorsiflexão (crítica)','Ganho de ADM — flexão plantar','Ganho de ADM — inversão/eversão','Reforço do tibial anterior/posterior','Reforço dos peroniais','Reforço do tríceps sural','Propriocepção em superfícies instáveis','Reações de equilíbrio','Normalização do padrão de marcha','Treino de corrida (se aplicável)'],
+  cervical: ['Redução da cervicalgia e tensão muscular','Ganho de ADM — rotação cervical','Ganho de ADM — flexão/extensão','Ganho de ADM — inclinação lateral','Reforço dos flexores cervicais profundos','Alinhamento cabeça-pescoço','Redução de protracção','AVD — condução','AVD — trabalho ao computador'],
+  lombar: ['Redução da lombalgia','Redução da dor radicular (se presente)','Melhoria da mobilidade lombo-pélvica','Reforço do core — transverso abdominal','Reforço do core — multifidus','Reforço dos glúteos','Estabilidade lombar','Dissociação lombo-pélvica','AVD — levantar cargas','AVD — tarefas domésticas'],
+  facial: ['Redução da dor retroauricular','Proteção ocular (lagoftalmo)','Recuperação de movimentos voluntários — frontal','Recuperação de movimentos voluntários — orbicular dos olhos','Recuperação de movimentos voluntários — zigomático','Recuperação de movimentos voluntários — orbicular dos lábios','Facilitação seletiva muscular','Inibição de sincinesias','Simetria facial em repouso','Simetria facial em movimento','Encerramento ocular eficaz','Mastigação','Articulação da fala','Expressividade facial'],
+  avc: ['Redução da espasticidade','Facilitação de padrões motores normais','Treino de transferências cama-cadeira','Treino de ortostatismo','Treino de marcha','Função do membro superior afetado','Reforço membro inferior (suporte/marcha)','Consciência corporal e integração sensório-motora','Equilíbrio estático e dinâmico','Prevenção de quedas','AVD — alimentação','AVD — higiene','AVD — vestir/despir','Comunicação — linguagem','Atenção / negligência','Máxima independência funcional'],
+  incont: ['Redução de episódios de perda urinária','Redução de episódios de perda fecal','Reforço do pavimento pélvico — contração voluntária eficaz','Sinergia pavimento pélvico com core','Coordenação contração/relaxamento do esfíncter','Treino de urgência miccional','Reconhecimento de sinais de enchimento vesical','Continência em esforço (tosse, espirro, exercício)','Controlo em atividades de vida diária','Educação — hábitos miccionais','Modificação comportamental','Reforço muscular global (abdominais, glúteos)']
+};
+
+var selRegiao = document.getElementById('objRegiao');
+var espDiv = document.getElementById('objEspecificos');
+var espGrid = document.getElementById('objgrid-esp');
+
+function buildObjChk(label) {
+  var d = document.createElement('div');
+  d.className = 'obj-item';
+  d.innerHTML = '<input type="checkbox" onchange="this.closest(\'.obj-item\').classList.toggle(\'sel\',this.checked)"> ' + label;
+  return d;
+}
+
+if (selRegiao) {
+  selRegiao.addEventListener('change', function() {
+    var val = this.value;
+    espGrid.innerHTML = '';
+    if (val && objsRegiao[val]) {
+      objsRegiao[val].forEach(function(o) { espGrid.appendChild(buildObjChk(o)); });
+      espDiv.style.display = 'block';
+    } else {
+      espDiv.style.display = 'none';
+    }
+  });
+}
 // ── MAPAS SENSITIVOS DERMATOMAIS ──────────────────────────────
 var sensCurType = 'hipostesia';
 var sensCurColor = '#60a5fa';
