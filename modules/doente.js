@@ -37,6 +37,7 @@ import { closeModalRoot, ensurePatientActiveInClinic } from "./agenda.js";
 import { rpcCreatePatientForClinic } from "./db.js";
 import { examsUiState, buildExamRequestHtml } from "./exames.js";
 import { analisesUiState, openAnalisesPanel, closeAnalisesPanel } from "./analises.js";
+import { checkConsentStatus, openConsentModal } from "./consentimentos.js";
 
 /* ==== INÍCIO BLOCO 06A/12 — Stub (mantido; não usado) ==== */
 function openPatientViewModal__stub(patient) {
@@ -147,6 +148,9 @@ function openPatientViewModal(patient) {
   /* ================= STATE ================= */
   let activeClinicId = null;
   let activeClinicName = "";
+  let activeClinicData = null;
+
+  let consentStatus = {};
 
   let creatingConsult = false;
   let editingConsultId = null;
@@ -255,16 +259,28 @@ function openPatientViewModal(patient) {
       try {
         const { data: c, error: cErr } = await window.sb
           .from("clinics")
-          .select("name")
+          .select("name, address_line1, postal_code, city")
           .eq("id", activeClinicId)
           .single();
 
         if (cErr) console.error(cErr);
+        activeClinicData = c || null;
         activeClinicName = (c && c.name) ? String(c.name) : "";
       } catch (e) {
         console.error(e);
+        activeClinicData = null;
         activeClinicName = "";
       }
+    }
+  }
+
+  async function loadConsentStatus() {
+    if (!p?.id || !activeClinicId) return;
+    try {
+      consentStatus = await checkConsentStatus(p.id, activeClinicId);
+    } catch (e) {
+      console.warn("[doente] loadConsentStatus falhou:", e);
+      consentStatus = {};
     }
   }
 
@@ -3592,24 +3608,24 @@ function openPatientViewModal(patient) {
             </button>
           ` : ``}
 
-          <button id="btnRgpd" class="gc-sb-btn">
+          <button id="btnRgpd" class="gc-sb-btn ${consentStatus.rgpd ? 'gc-sb-btn--signed' : ''}">
             <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="3" y="2" width="10" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5.5 6h5M5.5 8.5h5M5.5 11h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-            <span>RGPD</span>
+            <span>RGPD${consentStatus.rgpd ? ' <span style="color:#16a34a;font-size:11px;">✓</span>' : ''}</span>
           </button>
 
-          <button id="btnConsentPrp" class="gc-sb-btn" style="padding-left:22px;font-size:12px;">
+          <button id="btnConsentPrp" class="gc-sb-btn ${consentStatus.prp ? 'gc-sb-btn--signed' : ''}" style="padding-left:22px;font-size:12px;">
             <svg class="gc-sb-icon" width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M4 8l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>Consentimento PRP</span>
+            <span>Consentimento PRP${consentStatus.prp ? ' <span style="color:#16a34a;font-size:11px;">✓</span>' : ''}</span>
           </button>
 
-          <button id="btnConsentAh" class="gc-sb-btn" style="padding-left:22px;font-size:12px;">
+          <button id="btnConsentAh" class="gc-sb-btn ${consentStatus.ah ? 'gc-sb-btn--signed' : ''}" style="padding-left:22px;font-size:12px;">
             <svg class="gc-sb-icon" width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M4 8l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>Consentimento Ác. Hialurónico</span>
+            <span>Consentimento Ác. Hialurónico${consentStatus.ah ? ' <span style="color:#16a34a;font-size:11px;">✓</span>' : ''}</span>
           </button>
 
-          <button id="btnConsentInfilt" class="gc-sb-btn" style="padding-left:22px;font-size:12px;">
+          <button id="btnConsentInfilt" class="gc-sb-btn ${consentStatus.corticoide ? 'gc-sb-btn--signed' : ''}" style="padding-left:22px;font-size:12px;">
             <svg class="gc-sb-icon" width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M4 8l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>Consentimento Infiltração</span>
+            <span>Consentimento Infiltração${consentStatus.corticoide ? ' <span style="color:#16a34a;font-size:11px;">✓</span>' : ''}</span>
           </button>
 
           <div class="gc-sb-div"></div>
@@ -3672,20 +3688,56 @@ function openPatientViewModal(patient) {
     document.getElementById("btnEditIdent")?.addEventListener("click", () => openPatientIdentity("edit"));
     document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
 
-    // RGPD — em breve
+    // RGPD
     document.getElementById("btnRgpd")?.addEventListener("click", () => {
-      alert("RGPD — disponível em breve.");
+      openConsentModal({
+        type: "rgpd",
+        patient: p,
+        clinicId: activeClinicId,
+        clinic: activeClinicData,
+        onSaved: async () => {
+          await loadConsentStatus();
+          render();
+        },
+      });
     });
 
-    // Consentimentos — em breve
+    // Consentimentos
     document.getElementById("btnConsentPrp")?.addEventListener("click", () => {
-      alert("Consentimento PRP — disponível em breve.");
+      openConsentModal({
+        type: "prp",
+        patient: p,
+        clinicId: activeClinicId,
+        clinic: activeClinicData,
+        onSaved: async () => {
+          await loadConsentStatus();
+          render();
+        },
+      });
     });
     document.getElementById("btnConsentAh")?.addEventListener("click", () => {
-      alert("Consentimento Ácido Hialurónico — disponível em breve.");
+      openConsentModal({
+        type: "ah",
+        patient: p,
+        clinicId: activeClinicId,
+        clinic: activeClinicData,
+        onSaved: async () => {
+          await loadConsentStatus();
+          render();
+        },
+      });
     });
     document.getElementById("btnConsentInfilt")?.addEventListener("click", () => {
-      alert("Consentimento Infiltração — disponível em breve.");
+      openConsentModal({
+        type: "corticoide",
+        patient: p,
+        clinicId: activeClinicId,
+        clinic: activeClinicData,
+        onSaved: async () => {
+          await loadConsentStatus();
+          render();
+        },
+      });
     });
 
     // Evolução — em breve
@@ -3848,6 +3900,8 @@ function openPatientViewModal(patient) {
         loadConsultations(),
         loadDocuments()
       ]);
+      // loadConsentStatus depende do activeClinicId definido por fetchActiveClinic
+      await loadConsentStatus();
     } catch (e) {
       console.error("boot modal falhou:", e);
     }
