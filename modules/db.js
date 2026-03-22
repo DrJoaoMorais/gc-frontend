@@ -114,19 +114,41 @@ async function listPatientIdsForScope({ clinicId }) {
 
 /* ==== 02D — Construção de filtros de pesquisa ==== */
 
+/* ---- 02D.0 — stripAccents ---- */
+/* Remove acentos e diacríticos de uma string.
+   "Sérgio" → "Sergio", "João" → "Joao", "Conceição" → "Conceicao"
+   Usa NFD (decomposição canónica) + remoção de combining marks (U+0300–U+036F). */
+function stripAccents(str) {
+  return String(str || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 /* ---- 02D.1 — buildPatientOrFilter ---- */
 export function buildPatientOrFilter(termRaw) {
-  const term   = String(termRaw || "").trim();
-  const digits = normalizeDigits(term);
+  const term         = String(termRaw || "").trim();
+  const termStripped = stripAccents(term);   /* versão sem acentos */
+  const digits       = normalizeDigits(term);
 
   const parts = [];
 
   if (term.length >= 2) {
-    const safe = term.replaceAll(",", " ");
+    const safe         = term.replaceAll(",", " ");
+    const safeStripped = termStripped.replaceAll(",", " ");
+
+    /* Pesquisa com o termo original (apanha "Sérgio" se escrever "Sérgio") */
     parts.push(`full_name.ilike.%${safe}%`);
     parts.push(`email.ilike.%${safe}%`);
     parts.push(`passport_id.ilike.%${safe}%`);
     parts.push(`external_id.ilike.%${safe}%`);
+
+    /* Pesquisa sem acentos (apanha "Sérgio" se escrever "Sergio") */
+    if (safeStripped !== safe) {
+      parts.push(`full_name.ilike.%${safeStripped}%`);
+      parts.push(`email.ilike.%${safeStripped}%`);
+      parts.push(`passport_id.ilike.%${safeStripped}%`);
+      parts.push(`external_id.ilike.%${safeStripped}%`);
+    }
   }
 
   if (digits.length >= 3) parts.push(`phone.ilike.%${digits}%`);
