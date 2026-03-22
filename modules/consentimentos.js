@@ -102,7 +102,7 @@ export function openConsentModal({ type, patient, clinicId, clinic, onSaved }) {
 
     overlay.innerHTML = `
       <div style="
-        background:#fff; width:min(860px,96vw); max-height:92vh;
+        background:#fff; width:min(1100px,98vw); height:94vh;
         border-radius:16px; overflow:hidden; display:flex; flex-direction:column;
         box-shadow:0 24px 64px rgba(0,0,0,0.35);
       ">
@@ -135,8 +135,8 @@ export function openConsentModal({ type, patient, clinicId, clinic, onSaved }) {
 
         ${isRead ? `
           <!-- PASSO 1 — Documento completo para leitura -->
-          <div style="flex:1; overflow:hidden;">
-            <iframe id="gcConsentPreviewFrame" style="width:100%; height:100%; border:none;"></iframe>
+          <div style="flex:1; min-height:0; overflow:hidden;">
+            <iframe id="gcConsentPreviewFrame" style="width:100%; height:100%; border:none; display:block;"></iframe>
           </div>
           <div style="
             border-top:2px solid #0f2d52; padding:14px 20px;
