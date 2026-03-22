@@ -76,11 +76,25 @@ export async function fetchMyRole(userId) {
 
 /* ---- 01F.2 — fetchVisibleClinics ---- */
 export async function fetchVisibleClinics() {
+  // Super admin vê todas as clínicas
+  if (window.__GC_IS_SUPERADMIN__) {
+    const { data, error } = await window.sb
+      .from("clinics")
+      .select("id, name, slug")
+      .order("name", { ascending: true });
+    if (error) throw error;
+    return Array.isArray(data) ? data : [];
+  }
+
+  // Todos os outros só vêem as clínicas a que pertencem
+  const myIds = window.__GC_MY_CLINIC_IDS__ || [];
+  if (!myIds.length) return [];
+
   const { data, error } = await window.sb
     .from("clinics")
     .select("id, name, slug")
+    .in("id", myIds)
     .order("name", { ascending: true });
-
   if (error) throw error;
   return Array.isArray(data) ? data : [];
 }
