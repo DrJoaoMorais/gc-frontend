@@ -1358,7 +1358,7 @@ export function openApptModal({ mode, row }) {
 
   root.innerHTML = `
     <div id="modalOverlay" style="position:fixed;inset:0;background:rgba(15,45,82,0.3);display:flex;align-items:center;justify-content:center;padding:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
-      <div style="background:#fff;width:min(680px,100%);border-radius:14px;border:1px solid #e2e8f0;box-shadow:0 4px 24px rgba(15,45,82,0.1);max-height:92vh;overflow:auto;">
+      <div style="background:#fff;width:min(680px,100%);border-radius:14px;border:1px solid #e2e8f0;box-shadow:0 4px 24px rgba(15,45,82,0.1);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;">
         <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:14px 18px 12px;border-bottom:1px solid #f1f5f9;">
           <div>
             <div style="font-size:16px;font-weight:700;color:#0f2d52;letter-spacing:-0.01em;">
@@ -1368,7 +1368,7 @@ export function openApptModal({ mode, row }) {
           </div>
           <button id="btnCloseModal" class="gcBtnGhost" style="flex-shrink:0;">✕</button>
         </div>
-        <div style="padding:14px 18px 16px;display:flex;flex-direction:column;gap:12px;">
+        <div style="padding:14px 18px 0;display:flex;flex-direction:column;gap:12px;flex:1;overflow-y:auto;">
 
           <div style="display:flex;flex-direction:column;gap:4px;">
             <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Ação</label>
@@ -1424,12 +1424,12 @@ export function openApptModal({ mode, row }) {
             <div id="mPatientResults" style="display:none;margin-top:4px;border:1px solid #e2e8f0;border-radius:8px;padding:6px;background:#fff;max-height:200px;overflow:auto;"></div>
             <input type="hidden" id="mPatientId" value="" />
             <input type="hidden" id="mPatientName" value="" />
-            <div id="newPatientHost" style="margin-top:6px;"></div>
+            <div id="newPatientHost"></div>
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
             <div id="mProcWrap" style="display:flex;flex-direction:column;gap:4px;">
-              <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Tipo *</label>
+              <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Tipo de Consulta/Procedimento *</label>
               <select id="mProc" class="gcSelect" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;color:#1e293b;">
                 <option value="">— seleccionar —</option>
                 ${PROCEDURE_OPTIONS.map((p) => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join("")}
@@ -1468,13 +1468,14 @@ export function openApptModal({ mode, row }) {
             <textarea id="mNotes" rows="2" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;resize:none;font-size:13px;font-family:inherit;color:#1e293b;"></textarea>
           </div>
 
-          <div style="padding:10px 18px 12px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin:0 -18px -16px;">
-            <div id="mMsg" style="font-size:11px;color:#64748b;"></div>
-            <div style="display:flex;gap:8px;">
-              ${canDeleteAppt ? `<button id="btnDeleteAppt" class="gcBtnDanger" type="button" style="font-size:12px;padding:7px 14px;border-radius:8px;">Registar falta</button>` : ""}
-              <button id="btnCancel" class="gcBtnGhost" style="font-size:12px;padding:7px 14px;border-radius:8px;">Cancelar</button>
-              <button id="btnSave" class="gcBtnSuccess" style="font-size:12px;padding:7px 18px;border-radius:8px;font-weight:600;">Guardar</button>
-            </div>
+          <div style="height:14px;flex-shrink:0;"></div>
+        </div>
+        <div style="padding:10px 18px 12px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;flex-shrink:0;background:#fff;border-radius:0 0 14px 14px;">
+          <div id="mMsg" style="font-size:11px;color:#64748b;"></div>
+          <div style="display:flex;gap:8px;">
+            ${canDeleteAppt ? `<button id="btnDeleteAppt" class="gcBtnDanger" type="button" style="font-size:12px;padding:7px 14px;border-radius:8px;">Registar falta</button>` : ""}
+            <button id="btnCancel" class="gcBtnGhost" style="font-size:12px;padding:7px 14px;border-radius:8px;">Cancelar</button>
+            <button id="btnSave" class="gcBtnSuccess" style="font-size:12px;padding:7px 18px;border-radius:8px;font-weight:600;">Guardar</button>
           </div>
         </div>
       </div>
