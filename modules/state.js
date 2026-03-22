@@ -23,9 +23,10 @@ export const PROCEDURE_OPTIONS = [
   "🩸 Plasma Rico em Plaquetas",
   "💉 Viscossuplementação",
   "🎥 Teleconsulta",
-  "📑 Revalidação de tratamentos",
+  "Revalidação de tratamentos",
   "🖋️ Relatórios",
-  "📌Outro",
+  "🦵 Bloqueio do Geniculado",
+  "📌 Outro",
 ];
 
 /* ==== 03B — Constantes de estados/status ==== */
