@@ -3551,6 +3551,7 @@ function openPatientViewModal(patient) {
         <!-- ════ SIDEBAR ════ -->
         <div class="gc-pv-sb">
 
+          <!-- ── Consulta Médica + Documentação (apenas médicos) ── -->
           ${isDoctor() ? `
             <div class="gc-sb-lbl" style="margin-top:4px;">Consulta Médica</div>
 
@@ -3593,8 +3594,10 @@ function openPatientViewModal(patient) {
             </button>
 
             <div class="gc-sb-div"></div>
-            <div class="gc-sb-lbl">Doente</div>
           ` : ``}
+
+          <!-- ── Doente (visível a todos) ── -->
+          <div class="gc-sb-lbl" style="${isDoctor() ? '' : 'margin-top:4px;'}">Doente</div>
 
           <button id="btnViewIdent" class="gc-sb-btn">
             <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="8" cy="5.5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M2 14c0-3 2.686-5 6-5s6 2 6 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
@@ -3610,24 +3613,29 @@ function openPatientViewModal(patient) {
 
           <button id="btnRgpd" class="gc-sb-btn ${consentStatus.rgpd ? 'gc-sb-btn--signed' : ''}">
             <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="3" y="2" width="10" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5.5 6h5M5.5 8.5h5M5.5 11h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-            <span>RGPD${consentStatus.rgpd ? ' <span style="color:#16a34a;font-size:11px;">✓</span>' : ''}</span>
+            <span>RGPD${consentStatus.rgpd ? ' <span style="color:#16a34a;font-size:11px;margin-left:4px;">✓</span>' : ''}</span>
           </button>
 
-          <button id="btnConsentPrp" class="gc-sb-btn ${consentStatus.prp ? 'gc-sb-btn--signed' : ''}" style="padding-left:22px;font-size:12px;">
-            <svg class="gc-sb-icon" width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M4 8l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>Consentimento PRP${consentStatus.prp ? ' <span style="color:#16a34a;font-size:11px;">✓</span>' : ''}</span>
+          <!-- ── Consentimentos (visível a todos) ── -->
+          <div class="gc-sb-div"></div>
+          <div class="gc-sb-lbl">Consentimentos</div>
+
+          <button id="btnConsentPrp" class="gc-sb-btn ${consentStatus.prp ? 'gc-sb-btn--signed' : ''}">
+            <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M4 8l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>PRP${consentStatus.prp ? ' <span style="color:#16a34a;font-size:11px;margin-left:4px;">✓</span>' : ''}</span>
           </button>
 
-          <button id="btnConsentAh" class="gc-sb-btn ${consentStatus.ah ? 'gc-sb-btn--signed' : ''}" style="padding-left:22px;font-size:12px;">
-            <svg class="gc-sb-icon" width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M4 8l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>Consentimento Ác. Hialurónico${consentStatus.ah ? ' <span style="color:#16a34a;font-size:11px;">✓</span>' : ''}</span>
+          <button id="btnConsentAh" class="gc-sb-btn ${consentStatus.ah ? 'gc-sb-btn--signed' : ''}">
+            <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M4 8l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Ác. Hialurónico${consentStatus.ah ? ' <span style="color:#16a34a;font-size:11px;margin-left:4px;">✓</span>' : ''}</span>
           </button>
 
-          <button id="btnConsentInfilt" class="gc-sb-btn ${consentStatus.corticoide ? 'gc-sb-btn--signed' : ''}" style="padding-left:22px;font-size:12px;">
-            <svg class="gc-sb-icon" width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M4 8l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>Consentimento Infiltração${consentStatus.corticoide ? ' <span style="color:#16a34a;font-size:11px;">✓</span>' : ''}</span>
+          <button id="btnConsentInfilt" class="gc-sb-btn ${consentStatus.corticoide ? 'gc-sb-btn--signed' : ''}">
+            <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M4 8l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Corticosteróide${consentStatus.corticoide ? ' <span style="color:#16a34a;font-size:11px;margin-left:4px;">✓</span>' : ''}</span>
           </button>
 
+          <!-- ── Agendar (visível a todos) ── -->
           <div class="gc-sb-div"></div>
           <div class="gc-sb-lbl">Agendar</div>
 
