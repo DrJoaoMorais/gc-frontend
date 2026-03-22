@@ -79,9 +79,10 @@ export function openConsentModal({ type, patient, clinicId, clinic, onSaved }) {
   document.getElementById("gcConsentOverlay")?.remove();
 
   const p = patient;
-  let clinicFields   = {};
+  let clinicFields     = {};
   let consentResponses = {};
   let saving = false;
+  let step   = "read"; // "read" | "sign"
 
   const overlay = document.createElement("div");
   overlay.id = "gcConsentOverlay";
@@ -97,69 +98,119 @@ export function openConsentModal({ type, patient, clinicId, clinic, onSaved }) {
 
   /* ── Render ─────────────────────────────────────────── */
   function render() {
+    const isRead = step === "read";
+
     overlay.innerHTML = `
       <div style="
         background:#fff; width:min(860px,96vw); max-height:92vh;
         border-radius:16px; overflow:hidden; display:flex; flex-direction:column;
         box-shadow:0 24px 64px rgba(0,0,0,0.35);
       ">
+
+        <!-- Cabeçalho -->
         <div style="
-          background:#0f2d52; color:#fff; padding:14px 20px;
+          background:#0f2d52; color:#fff; padding:12px 20px;
           display:flex; justify-content:space-between; align-items:center; flex-shrink:0;
         ">
-          <div style="font-weight:900; font-size:15px;">${escH(CONSENT_TITLES[type] || type)}</div>
-          <button id="gcConsentClose" style="
-            background:none; border:none; color:#fff; font-size:20px;
-            cursor:pointer; padding:4px 10px; border-radius:6px; line-height:1;
-          ">✕</button>
-        </div>
-
-        <div style="flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px;">
-
-          ${renderVariableFields()}
-
-          ${type === "rgpd" ? renderRgpdCheckboxes() : renderDocumentNote()}
-
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-            ${renderCanvasBlock("gcCanvasPatient", "gcClearPatient", "Assinatura do doente")}
-            ${renderCanvasBlock("gcCanvasDoctor",  "gcClearDoctor",  "Assinatura do médico")}
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <div style="font-weight:900; font-size:15px;">${escH(CONSENT_TITLES[type] || type)}</div>
+            <div style="font-size:11px; opacity:0.75;">
+              ${isRead
+                ? "Passo 1 de 2 — Leia o documento antes de assinar"
+                : "Passo 2 de 2 — Preencha e assine"}
+            </div>
           </div>
-
-        </div>
-
-        <div style="
-          border-top:1px solid #e2e8f0; padding:12px 20px;
-          display:flex; justify-content:space-between; align-items:center;
-          background:#f8fafc; flex-shrink:0; gap:10px; flex-wrap:wrap;
-        ">
-          <div id="gcConsentMsg" style="font-size:12px; color:#64748b;"></div>
-          <div style="display:flex; gap:10px;">
-            <button id="gcConsentPaper" style="
-              padding:9px 14px; border-radius:10px; border:1px solid #e2e8f0;
-              background:#fff; cursor:pointer; font-size:13px; font-weight:600; color:#475569;
-            ">📄 Papel (PDF sem assinatura)</button>
-            <button id="gcConsentSave" style="
-              padding:9px 20px; border-radius:10px; border:none;
-              background:#0f2d52; color:#fff; cursor:pointer; font-size:13px; font-weight:700;
-            ">Gravar e gerar PDF</button>
+          <div style="display:flex; gap:8px; align-items:center;">
+            ${!isRead ? `<button id="gcConsentBack" style="
+              background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3);
+              color:#fff; font-size:12px; font-weight:600; cursor:pointer;
+              padding:5px 12px; border-radius:8px;
+            ">← Ler documento</button>` : ""}
+            <button id="gcConsentClose" style="
+              background:none; border:none; color:#fff; font-size:20px;
+              cursor:pointer; padding:4px 10px; border-radius:6px; line-height:1;
+            ">✕</button>
           </div>
         </div>
+
+        ${isRead ? `
+          <!-- PASSO 1 — Documento completo para leitura -->
+          <div style="flex:1; overflow:hidden;">
+            <iframe id="gcConsentPreviewFrame" style="width:100%; height:100%; border:none;"></iframe>
+          </div>
+          <div style="
+            border-top:2px solid #0f2d52; padding:14px 20px;
+            display:flex; justify-content:space-between; align-items:center;
+            background:#f0f6ff; flex-shrink:0; gap:10px; flex-wrap:wrap;
+          ">
+            <div style="font-size:12px; color:#1d4ed8; font-weight:600;">
+              📖 Leia o documento completo antes de avançar
+            </div>
+            <button id="gcConsentAdvance" style="
+              padding:10px 24px; border-radius:10px; border:none;
+              background:#0f2d52; color:#fff; cursor:pointer; font-size:14px; font-weight:700;
+            ">Li o documento — Avançar para assinar →</button>
+          </div>
+        ` : `
+          <!-- PASSO 2 — Campos + assinatura -->
+          <div style="flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px;">
+
+            ${renderVariableFields()}
+
+            ${type === "rgpd" ? renderRgpdCheckboxes() : renderDocumentNote()}
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+              ${renderCanvasBlock("gcCanvasPatient", "gcClearPatient", "Assinatura do doente")}
+              ${renderCanvasBlock("gcCanvasDoctor",  "gcClearDoctor",  "Assinatura do médico")}
+            </div>
+
+          </div>
+          <div style="
+            border-top:1px solid #e2e8f0; padding:12px 20px;
+            display:flex; justify-content:space-between; align-items:center;
+            background:#f8fafc; flex-shrink:0; gap:10px; flex-wrap:wrap;
+          ">
+            <div id="gcConsentMsg" style="font-size:12px; color:#64748b;"></div>
+            <div style="display:flex; gap:10px;">
+              <button id="gcConsentPaper" style="
+                padding:9px 14px; border-radius:10px; border:1px solid #e2e8f0;
+                background:#fff; cursor:pointer; font-size:13px; font-weight:600; color:#475569;
+              ">📄 Papel (PDF sem assinatura)</button>
+              <button id="gcConsentSave" style="
+                padding:9px 20px; border-radius:10px; border:none;
+                background:#0f2d52; color:#fff; cursor:pointer; font-size:13px; font-weight:700;
+              ">Gravar e gerar PDF</button>
+            </div>
+          </div>
+        `}
+
       </div>
     `;
 
+    // Injectar documento no iframe (evita escapar HTML no atributo srcdoc)
+    if (isRead) {
+      const frame = document.getElementById("gcConsentPreviewFrame");
+      if (frame) {
+        frame.srcdoc = buildConsentHtml({
+          type, patient: p, clinic, clinicFields,
+          consentResponses, patientSig: null, doctorSig: null,
+          today: todayPt(), paperMode: true,
+        });
+      }
+      document.getElementById("gcConsentAdvance")?.addEventListener("click", () => { step = "sign"; render(); });
+    } else {
+      document.getElementById("gcConsentBack")?.addEventListener("click", () => { step = "read"; render(); });
+      document.getElementById("gcClearPatient")?.addEventListener("click", () => clearCanvas("gcCanvasPatient"));
+      document.getElementById("gcClearDoctor")?.addEventListener("click",  () => clearCanvas("gcCanvasDoctor"));
+      initCanvas(document.getElementById("gcCanvasPatient"));
+      initCanvas(document.getElementById("gcCanvasDoctor"));
+      wireFieldInputs();
+      if (type === "rgpd") wireRgpdInputs();
+      document.getElementById("gcConsentSave")?.addEventListener("click", () => handleSave(false));
+      document.getElementById("gcConsentPaper")?.addEventListener("click", () => handleSave(true));
+    }
+
     document.getElementById("gcConsentClose")?.addEventListener("click", close);
-    document.getElementById("gcClearPatient")?.addEventListener("click", () => clearCanvas("gcCanvasPatient"));
-    document.getElementById("gcClearDoctor")?.addEventListener("click",  () => clearCanvas("gcCanvasDoctor"));
-
-    initCanvas(document.getElementById("gcCanvasPatient"));
-    initCanvas(document.getElementById("gcCanvasDoctor"));
-
-    wireFieldInputs();
-    if (type === "rgpd") wireRgpdInputs();
-
-    document.getElementById("gcConsentSave")?.addEventListener("click", () => handleSave(false));
-    document.getElementById("gcConsentPaper")?.addEventListener("click", () => handleSave(true));
-
     overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
   }
 
