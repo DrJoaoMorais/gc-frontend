@@ -4132,6 +4132,7 @@ select.inp-sm{padding:5px 8px;border:0.5px solid #e2e8f0;border-radius:6px;font-
 
 </div></body></html>`);
     }
+    if (formId === "pfp") {
       const pfpHtml = `<!DOCTYPE html>
 <html lang="pt">
 <head>
@@ -7704,7 +7705,7 @@ sensSegs.forEach(s=>{
 // Objectivos genéricos
 var objs=['Redução do síndrome álgico','Recuperação da força muscular global','Recuperação da força MS','Recuperação da força MI','Melhoria do equilíbrio estático','Melhoria do equilíbrio dinâmico','Treino de marcha','Independência nas transferências','Independência no levante','Prevenção de queda','Redução da espasticidade','Controlo motor e coordenação','Melhoria da amplitude articular','Prevenção de úlceras de pressão','Reeducação neuromotora','Treino de AVD','Integração de auxiliar de marcha','Fortalecimento do tronco/core','Reeducação da marcha pós-AVC','Alta com segurança e autonomia','Reabilitação da deglutição / disfagia','Progressão da via oral (textura / consistência)','Prevenção de aspiração / pneumonia de aspiração','Desmame de SNG / PEG'];
 var og=document.getElementById('objgrid');
-objs.forEach(o=>{var d=document.createElement('div');d.className='obj-item';d.innerHTML='<input type="checkbox" onchange="this.closest(\'\.obj-item\').classList.toggle(\'sel\',this.checked)"> '+o;og.appendChild(d);});
+objs.forEach(o=>{var d=document.createElement('div');d.className='obj-item';d.innerHTML='<input type="checkbox" onchange="this.closest(\".obj-item\").classList.toggle(\"sel\",this.checked)"> '+o;og.appendChild(d);});
 
 // Objectivos específicos por região
 var objsRegiao = {
@@ -7728,7 +7729,7 @@ var espGrid = document.getElementById('objgrid-esp');
 function buildObjChk(label) {
   var d = document.createElement('div');
   d.className = 'obj-item';
-  d.innerHTML = '<input type="checkbox" onchange="this.closest(\'.obj-item\').classList.toggle(\'sel\',this.checked)"> ' + label;
+  d.innerHTML = '<input type="checkbox" onchange="this.closest(\".obj-item\").classList.toggle(\"sel\",this.checked)"> ' + label;
   return d;
 }
 
