@@ -25,7 +25,6 @@ export const PROCEDURE_OPTIONS = [
   "🎥 Teleconsulta",
   "Revalidação de tratamentos",
   "🖋️ Relatórios",
-  "🦵 Bloqueio do Geniculado",
   "📌 Outro",
 ];
 
