@@ -3538,20 +3538,32 @@ function openPatientViewModal(patient) {
         <div class="gc-pv-sb">
 
           ${isDoctor() ? `
-            <div class="gc-sb-lbl" style="margin-top:4px;">Consulta</div>
+            <div class="gc-sb-lbl" style="margin-top:4px;">Consulta Médica</div>
 
-            <button id="btnNewConsult" class="gcBtnPrimary ${creatingConsult ? '' : 'gc-sb-btn--highlight'}">
-              <span class="gc-sb-icon">📋</span><span>Nova Consulta</span>
+            <button id="btnNewConsult" class="gc-sb-btn gc-sb-btn--primary">
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 5h4M5 7.5h4M5 10h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M11 10v4M9 12h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              <span>Nova Consulta</span>
             </button>
 
-            <button id="btnExameObjectivo" class="gcBtnOutline">
-              <span class="gc-sb-icon">🔍</span><span>Exame Objectivo</span>
+            <button id="btnExameObjectivo" class="gc-sb-btn">
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5 7h4M7 5v4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              <span>Exame Objectivo</span>
+            </button>
+
+            <button id="btnProtocolos" class="gc-sb-btn">
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="2" width="10" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 5h5M4.5 7.5h5M4.5 10h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M12 9v5M9.5 11.5h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              <span>Protocolos</span>
+            </button>
+
+            <button id="btnEvolucao" class="gc-sb-btn">
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><polyline points="2,12 5,8 8,10 11,5 14,7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Evolução</span>
             </button>
 
             <div class="gc-sb-div"></div>
             <div class="gc-sb-lbl">Documentação</div>
 
-            <button id="btnMedicalReports" class="gcBtnOutline">
+            <button id="btnMedicalReports" class="gc-sb-btn">
               <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 5h5M4.5 7.5h5M4.5 10h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
               <span>Relatórios</span>
             </button>
@@ -3566,29 +3578,38 @@ function openPatientViewModal(patient) {
               <span>Análises</span>
             </button>
 
-            <button id="btnProtocolos" class="gc-sb-btn" style="color:#94a3b8;">
-              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-              <span>Protocolos</span>
-            </button>
-
             <div class="gc-sb-div"></div>
             <div class="gc-sb-lbl">Doente</div>
           ` : ``}
 
-          <button id="btnViewIdent" class="gc-sb-btn" style="color:#64748b;">
-            <span class="gc-sb-icon">👤</span><span>Identificação</span>
+          <button id="btnViewIdent" class="gc-sb-btn">
+            <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="8" cy="5.5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M2 14c0-3 2.686-5 6-5s6 2 6 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            <span>Identificação</span>
           </button>
 
           ${["super_admin", "admin", "medico"].includes(role()) ? `
-            <button id="btnEditIdent" class="gc-sb-btn" style="color:#1a56db; font-weight:700;">
+            <button id="btnEditIdent" class="gc-sb-btn" style="color:#1a56db;">
               <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M11 2.5a1.5 1.5 0 012.121 2.121l-7.5 7.5-2.621.5.5-2.621 7.5-7.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <span>Editar identificação</span>
             </button>
           ` : ``}
 
-          <button id="btnAgendarConsulta" class="gcBtnPrimary">
+          <div class="gc-sb-div"></div>
+          <div class="gc-sb-lbl">Agendar</div>
+
+          <button id="btnAgendarConsulta" class="gc-sb-btn gc-sb-btn--primary">
             <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="1.5" y="3" width="13" height="11.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 7h13M5 1.5V4M11 1.5V4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M8 9.5v2M7 10.5h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-            <span>Agendar Consulta</span>
+            <span>Consulta Médica</span>
+          </button>
+
+          <button id="btnAgendarFisio" class="gc-sb-btn" style="color:#64748b;">
+            <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="1.5" y="3" width="13" height="11.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 7h13M5 1.5V4M11 1.5V4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="10.5" r="1.5" stroke="currentColor" stroke-width="1.2"/></svg>
+            <span>Fisioterapia</span>
+          </button>
+
+          <button id="btnAgendarTreino" class="gc-sb-btn" style="color:#64748b;">
+            <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="1.5" y="3" width="13" height="11.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 7h13M5 1.5V4M11 1.5V4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5.5 10.5l1.5 1.5 3-3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>Treino</span>
           </button>
 
           ${docsLoading ? `<div style="font-size:11px;color:#94a3b8;padding:3px 10px;">A carregar…</div>` : ``}
@@ -3656,6 +3677,51 @@ function openPatientViewModal(patient) {
     // Protocolos — em desenvolvimento
     document.getElementById("btnProtocolos")?.addEventListener("click", () => {
       alert("Protocolos — disponível em breve.");
+    });
+
+    // Evolução — comparação entre consultas (em desenvolvimento)
+    document.getElementById("btnEvolucao")?.addEventListener("click", () => {
+      alert("Evolução — disponível em breve.");
+    });
+
+    // Agendar Fisioterapia
+    document.getElementById("btnAgendarFisio")?.addEventListener("click", () => {
+      try {
+        const G_ref = window.__gc_G || (typeof G !== "undefined" ? G : null);
+        if (G_ref) {
+          G_ref.currentView = "agenda";
+          G_ref.preselectedPatientId = p.id;
+          G_ref.preselectedPatientName = p.full_name || "";
+          G_ref.preselectedApptType = "fisioterapia";
+        }
+        if (typeof window.__gc_renderCurrentView === "function") {
+          window.__gc_renderCurrentView();
+          setTimeout(() => {
+            const btnNew = document.getElementById("btnNewAppt");
+            if (btnNew) btnNew.click();
+          }, 200);
+        }
+      } catch(e) { console.error("Agendar fisioterapia:", e); }
+    });
+
+    // Agendar Treino
+    document.getElementById("btnAgendarTreino")?.addEventListener("click", () => {
+      try {
+        const G_ref = window.__gc_G || (typeof G !== "undefined" ? G : null);
+        if (G_ref) {
+          G_ref.currentView = "agenda";
+          G_ref.preselectedPatientId = p.id;
+          G_ref.preselectedPatientName = p.full_name || "";
+          G_ref.preselectedApptType = "treino";
+        }
+        if (typeof window.__gc_renderCurrentView === "function") {
+          window.__gc_renderCurrentView();
+          setTimeout(() => {
+            const btnNew = document.getElementById("btnNewAppt");
+            if (btnNew) btnNew.click();
+          }, 200);
+        }
+      } catch(e) { console.error("Agendar treino:", e); }
     });
 
     // Garantir que os contentores ancestrais têm position:relative para os painéis laterais
