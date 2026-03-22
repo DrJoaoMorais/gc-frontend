@@ -3579,7 +3579,14 @@ function openPatientViewModal(patient) {
             <span class="gc-sb-icon">👤</span><span>Identificação</span>
           </button>
 
-          <button id="btnAgendarConsulta" class="gcBtnPrimary" style="background:#15803d;">
+          ${["super_admin", "admin", "medico"].includes(role()) ? `
+            <button id="btnEditIdent" class="gc-sb-btn" style="color:#1a56db; font-weight:700;">
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M11 2.5a1.5 1.5 0 012.121 2.121l-7.5 7.5-2.621.5.5-2.621 7.5-7.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Editar identificação</span>
+            </button>
+          ` : ``}
+
+          <button id="btnAgendarConsulta" class="gcBtnPrimary">
             <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="1.5" y="3" width="13" height="11.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 7h13M5 1.5V4M11 1.5V4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M8 9.5v2M7 10.5h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
             <span>Agendar Consulta</span>
           </button>
@@ -3623,6 +3630,7 @@ function openPatientViewModal(patient) {
     `;
 
     document.getElementById("btnViewIdent")?.addEventListener("click", () => openPatientIdentity("view"));
+    document.getElementById("btnEditIdent")?.addEventListener("click", () => openPatientIdentity("edit"));
     document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
 
     // Agendar Consulta — vai para Agenda com doente pré-seleccionado
