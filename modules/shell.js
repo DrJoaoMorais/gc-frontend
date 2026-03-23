@@ -89,20 +89,10 @@ export function renderAppShell() {
       <!-- Toolbar unificada -->
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:8px 12px;box-shadow:0 1px 4px rgba(15,45,82,0.06);">
 
-        <!-- Pesquisa + Clínica -->
-        <div class="gc-search-bar" style="flex:1;min-width:180px;max-width:360px;">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
-          <input id="pQuickQuery" type="search" placeholder="Pesquisar doente — Nome, SNS, NIF..." autocomplete="off" spellcheck="false" class="gc-search-input"/>
-        </div>
-        <select id="selClinic" class="gc-select" style="min-width:160px;max-width:220px;"></select>
-
-        <!-- Separador -->
-        <div style="width:1px;height:24px;background:#e2e8f0;flex-shrink:0;"></div>
-
-        <!-- Navegação temporal -->
-        <button id="btnCal"   class="gcBtnOutline" style="white-space:nowrap;">Calendário</button>
-        <button id="btnWeek"  class="gcBtnOutline" style="white-space:nowrap;">Semana</button>
-        <button id="btnToday" class="gcBtnOutline" style="white-space:nowrap;">Hoje</button>
+        <!-- Navegação temporal (ghost — neutros, não competem com as acções) -->
+        <button id="btnToday" class="gcBtnGhost" style="white-space:nowrap;">Hoje</button>
+        <button id="btnWeek"  class="gcBtnGhost" style="white-space:nowrap;">Semana</button>
+        <button id="btnCal"   class="gcBtnGhost" style="white-space:nowrap;">Calendário</button>
 
         <!-- Separador -->
         <div style="width:1px;height:24px;background:#e2e8f0;flex-shrink:0;"></div>
@@ -110,7 +100,17 @@ export function renderAppShell() {
         <!-- Acções -->
         <button id="btnNewAppt" class="gcBtnPrimary" style="white-space:nowrap;">＋ Agendar</button>
         ${canSeeManagement ? `<button id="btnNewPresenca" class="gcBtnPrimary" style="background:#064e3b;white-space:nowrap;">＋ Presença</button>` : ""}
-        <button id="btnNewPatientMain" class="gcBtnPrimary" style="white-space:nowrap;">＋ Novo doente</button>
+        <button id="btnNewPatientMain" class="gcBtnSuccess" style="white-space:nowrap;">＋ Novo doente</button>
+
+        <!-- Separador -->
+        <div style="width:1px;height:24px;background:#e2e8f0;flex-shrink:0;"></div>
+
+        <!-- Pesquisa + Clínica -->
+        <div class="gc-search-bar" style="flex:1;min-width:180px;max-width:360px;">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <input id="pQuickQuery" type="search" placeholder="Pesquisar doente — Nome, SNS, NIF..." autocomplete="off" spellcheck="false" class="gc-search-input"/>
+        </div>
+        <select id="selClinic" class="gc-select" style="min-width:160px;max-width:220px;"></select>
 
       </div>
 
