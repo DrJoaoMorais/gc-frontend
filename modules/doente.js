@@ -3353,10 +3353,12 @@ function openPatientViewModal(patient) {
 
       lastSavedConsultId = consultId;
 
-      const { error: delDiagErr } = await window.sb
+      const { error: delDiagErr, count: delDiagCount } = await window.sb
         .from("consultation_diagnoses")
         .delete()
         .eq("consultation_id", consultId);
+
+      console.log("[diag] DELETE result:", { delDiagErr, delDiagCount });
 
       if (delDiagErr) {
         console.error(delDiagErr);
@@ -3379,7 +3381,7 @@ function openPatientViewModal(patient) {
         if (diagRows.length) {
           const { error: dErr } = await window.sb
             .from("consultation_diagnoses")
-            .insert(diagRows);
+            .upsert(diagRows, { onConflict: "consultation_id,diagnosis_id", ignoreDuplicates: true });
 
           if (dErr) {
             console.error("ERRO consultation_diagnoses:", dErr);
