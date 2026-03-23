@@ -3353,42 +3353,20 @@ function openPatientViewModal(patient) {
 
       lastSavedConsultId = consultId;
 
-      const { error: delDiagErr, count: delDiagCount } = await window.sb
-        .from("consultation_diagnoses")
-        .delete()
-        .eq("consultation_id", consultId);
+      const diagIds = (selectedDiag || [])
+        .filter(x => x && x.id !== undefined && x.id !== null && String(x.id).trim() !== "")
+        .map(x => String(x.id));
+      const diagIdsUnique = [...new Set(diagIds)];
 
-      console.log("[diag] DELETE result:", { delDiagErr, delDiagCount });
+      const { error: diagRpcErr } = await window.sb.rpc("save_consultation_diagnoses", {
+        p_consultation_id: consultId,
+        p_diagnosis_ids: diagIdsUnique
+      });
 
-      if (delDiagErr) {
-        console.error(delDiagErr);
-        alert("Consulta gravada, mas houve erro a limpar diagnósticos antigos.");
+      if (diagRpcErr) {
+        console.error("ERRO save_consultation_diagnoses:", diagRpcErr);
+        alert("Consulta gravada, mas houve erro a gravar diagnósticos.");
         return false;
-      }
-
-      if (selectedDiag && selectedDiag.length) {
-        const diagRows = [
-          ...new Map(
-            selectedDiag
-              .filter(x => x && x.id !== undefined && x.id !== null && String(x.id).trim() !== "")
-              .map(x => [String(x.id), { consultation_id: consultId, diagnosis_id: String(x.id) }])
-          ).values()
-        ];
-
-        console.log("DIAG ROWS TO INSERT:", diagRows);
-        console.log("SELECTED DIAG RAW:", selectedDiag);
-
-        if (diagRows.length) {
-          const { error: dErr } = await window.sb
-            .from("consultation_diagnoses")
-            .upsert(diagRows, { onConflict: "consultation_id,diagnosis_id", ignoreDuplicates: true });
-
-          if (dErr) {
-            console.error("ERRO consultation_diagnoses:", dErr);
-            alert("Consulta gravada, mas houve erro a gravar diagnósticos.");
-            return false;
-          }
-        }
       }
 
       const { error: delTreatErr } = await window.sb
