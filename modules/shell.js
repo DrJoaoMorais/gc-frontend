@@ -99,7 +99,6 @@ export function renderAppShell() {
 
         <!-- Acções -->
         <button id="btnNewAppt" class="gcBtnPrimary" style="white-space:nowrap;">＋ Agendar</button>
-        ${canSeeManagement ? `<button id="btnNewPresenca" class="gcBtnPrimary" style="background:#064e3b;white-space:nowrap;">＋ Presença</button>` : ""}
         <button id="btnNewPatientMain" class="gcBtnSuccess" style="white-space:nowrap;">＋ Novo doente</button>
 
         <!-- Separador -->
