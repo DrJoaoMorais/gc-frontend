@@ -3358,6 +3358,8 @@ function openPatientViewModal(patient) {
         .map(x => String(x.id));
       const diagIdsUnique = [...new Set(diagIds)];
 
+      console.log("[save] selectedDiag:", selectedDiag, "→ diagIdsUnique:", diagIdsUnique);
+
       const { error: diagRpcErr } = await window.sb.rpc("save_consultation_diagnoses", {
         p_consultation_id: consultId,
         p_diagnosis_ids: diagIdsUnique
@@ -3371,6 +3373,7 @@ function openPatientViewModal(patient) {
 
       const treatIds = (selectedTreat || []).map(x => x.id);
       const treatQtys = (selectedTreat || []).map(x => Number(x.qty || 1));
+      console.log("[save] selectedTreat:", selectedTreat, "→ treatIds:", treatIds);
 
       const { error: treatRpcErr } = await window.sb.rpc("save_consultation_treatments", {
         p_consultation_id: consultId,
