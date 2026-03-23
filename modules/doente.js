@@ -3369,33 +3369,19 @@ function openPatientViewModal(patient) {
         return false;
       }
 
-      const { error: delTreatErr } = await window.sb
-        .from("consultation_treatments")
-        .delete()
-        .eq("consultation_id", consultId);
+      const treatIds = (selectedTreat || []).map(x => x.id);
+      const treatQtys = (selectedTreat || []).map(x => Number(x.qty || 1));
 
-      if (delTreatErr) {
-        console.error(delTreatErr);
-        alert("Consulta gravada, mas houve erro a limpar tratamentos antigos.");
+      const { error: treatRpcErr } = await window.sb.rpc("save_consultation_treatments", {
+        p_consultation_id: consultId,
+        p_treatment_ids: treatIds,
+        p_qtys: treatQtys
+      });
+
+      if (treatRpcErr) {
+        console.error(treatRpcErr);
+        alert("Consulta gravada, mas houve erro a gravar tratamentos.");
         return false;
-      }
-
-      if (selectedTreat && selectedTreat.length) {
-        const treatRows = selectedTreat.map(x => ({
-          consultation_id: consultId,
-          treatment_id: x.id,
-          qty: Number(x.qty || 1)
-        }));
-
-        const { error: tErr } = await window.sb
-          .from("consultation_treatments")
-          .insert(treatRows);
-
-        if (tErr) {
-          console.error(tErr);
-          alert("Consulta gravada, mas houve erro a gravar tratamentos.");
-          return false;
-        }
       }
 
       if (!isEditing && appointmentId) {
