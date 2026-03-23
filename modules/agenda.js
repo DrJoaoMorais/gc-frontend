@@ -868,15 +868,15 @@ export async function openCalendarOverlay() {
   });
 
   root.querySelectorAll("[data-iso]").forEach((el) => {
-    el.addEventListener("click", async () => {
+    el.addEventListener("click", () => {
       const iso = el.getAttribute("data-iso");
       if (!iso) return;
       G.selectedDayISO = iso;
       const d = parseISODateToLocalStart(iso);
       if (d) G.calMonth = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
       close();
-      setAgendaSubtitleForSelectedDay();
-      await refreshAgenda();
+      G.weekStartISO = __gcWeekStartISO(iso);
+      openWeekView();
     });
   });
 }
@@ -1006,7 +1006,7 @@ export async function openWeekView() {
     const cells = weekDays.map(({ iso }) => {
       /* Todas as marcações desta hora neste dia */
       const dayAppts = (byDay[iso] || []).filter(a => apptHour(a) === h);
-      if (!dayAppts.length) return `<td style="border-right:1px solid #eee;border-bottom:1px solid #f5f5f5;height:52px;padding:2px;vertical-align:top;"></td>`;
+      if (!dayAppts.length) return `<td data-slot-iso="${escapeHtml(iso)}" data-slot-hour="${h}" style="border-right:1px solid #eee;border-bottom:1px solid #f5f5f5;height:52px;padding:2px;vertical-align:top;cursor:pointer;" title="Agendar às ${String(h).padStart(2,'0')}h de ${iso}"></td>`;
       const inner = dayAppts.map(a => {
         const isBlock = String(a.mode || "").toLowerCase() === "bloqueio";
         if (isBlock) {
@@ -1063,7 +1063,7 @@ export async function openWeekView() {
           </table>
         </div>
         ${legendHtml ? `<div style="margin-top:10px;padding-top:8px;border-top:1px solid #f0f0f0;display:flex;flex-wrap:wrap;gap:10px;flex-shrink:0;">${legendHtml}</div>` : ""}
-        <div style="margin-top:8px;font-size:${UI.fs12}px;color:#888;flex-shrink:0;">Clique numa marcação para abrir o feed do doente.</div>
+        <div style="margin-top:8px;font-size:${UI.fs12}px;color:#888;flex-shrink:0;">Clique numa marcação para abrir o doente · Clique numa célula vazia para agendar.</div>
       </div>
     </div>`;
 
@@ -1084,6 +1084,26 @@ export async function openWeekView() {
   document.getElementById("weekToday")?.addEventListener("click", () => {
     G.weekStartISO = __gcWeekStartISO(fmtDateISO(new Date()));
     openWeekView();
+  });
+
+  /* Clique em célula vazia → abrir modal de nova marcação */
+  root.querySelectorAll("[data-slot-iso]").forEach((el) => {
+    el.addEventListener("click", (ev) => {
+      const iso  = el.getAttribute("data-slot-iso");
+      const hour = parseInt(el.getAttribute("data-slot-hour"), 10);
+      if (!iso || isNaN(hour)) return;
+      /* Granularidade de 15 min com base na posição Y dentro da célula */
+      const rect    = el.getBoundingClientRect();
+      const relY    = Math.max(0, ev.clientY - rect.top);
+      const minutes = Math.min(45, Math.round((relY / rect.height) * 60 / 15) * 15);
+      const d = parseISODateToLocalStart(iso);
+      if (!d) return;
+      const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, minutes, 0, 0);
+      G.selectedDayISO = iso;
+      setAgendaSubtitleForSelectedDay();
+      close();
+      openApptModal({ mode: "new", row: null, prefillDatetime: dt.toISOString() });
+    });
   });
 
   /* Clique numa marcação → abre feed do doente */
@@ -1297,7 +1317,7 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
 /* ==== 09C/D/E — Modal marcação ==== */
 
 /* ---- openApptModal ---- */
-export function openApptModal({ mode, row }) {
+export function openApptModal({ mode, row, prefillDatetime }) {
   const root = document.getElementById("modalRoot");
   if (!root) return;
 
@@ -1308,7 +1328,9 @@ export function openApptModal({ mode, row }) {
     : selClinic?.value || (G.clinics.length === 1 ? G.clinics[0].id : "");
 
   const selectedDayStart = parseISODateToLocalStart(G.selectedDayISO) || new Date();
-  const startBase = new Date(selectedDayStart.getFullYear(), selectedDayStart.getMonth(), selectedDayStart.getDate(), 9, 0, 0, 0);
+  const startBase = prefillDatetime
+    ? new Date(prefillDatetime)
+    : new Date(selectedDayStart.getFullYear(), selectedDayStart.getMonth(), selectedDayStart.getDate(), 9, 0, 0, 0);
   const startInit  = isEdit && row?.start_at ? new Date(row.start_at) : startBase;
   const endInit    = isEdit && row?.end_at   ? new Date(row.end_at)   : new Date(startInit.getTime() + 20 * 60000);
   const durInit    = Math.max(5, Math.round((endInit.getTime() - startInit.getTime()) / 60000));
