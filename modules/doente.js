@@ -2204,12 +2204,14 @@ function openPatientViewModal(patient) {
         console.error(lErr);
       } else {
         const diagIds = [...new Set((links || []).map(x => x.diagnosis_id).filter(Boolean))];
+        console.log("[load] consultation_diagnoses links:", links, "diagIds:", diagIds);
         let diagMap = {};
         if (diagIds.length) {
           const { data: diags, error: dErr } = await window.sb
             .from("diagnoses_catalog")
             .select("id, label, code")
             .in("id", diagIds);
+          console.log("[load] diagnoses_catalog result:", diags, dErr);
 
           if (dErr) console.error(dErr);
           else {
