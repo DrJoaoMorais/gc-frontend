@@ -399,7 +399,7 @@ function openPatientViewModal(patient) {
     const ro = (identMode !== "edit") ? "readonly" : "";
     const dis = (identMode !== "edit") ? "disabled" : "";
     const canEdit = (identMode === "edit");
-    const canManageClinic = ["super_admin", "admin", "medico"].includes(role());
+    const canManageClinic = ["super_admin", "admin", "medico", "administrativo"].includes(role());
     const canOpenEdit = canManageClinic;
     const visibleClinics = Array.isArray(G.clinics) ? G.clinics : [];
     const currentClinicId = String(identDraft.active_clinic_id || activeClinicId || "");
@@ -601,7 +601,7 @@ function openPatientViewModal(patient) {
         const name = String(identDraft.full_name || "").trim();
         if (!name) { alert("Nome completo é obrigatório."); return; }
 
-        const canManageClinic = ["super_admin", "admin", "medico"].includes(role());
+        const canManageClinic = ["super_admin", "admin", "medico", "administrativo"].includes(role());
         const nextClinicId = String(identDraft.active_clinic_id || "").trim();
         const currentClinicId = String(activeClinicId || "").trim();
         const clinicChanged = !!(canManageClinic && nextClinicId && nextClinicId !== currentClinicId);
@@ -3576,7 +3576,7 @@ function openPatientViewModal(patient) {
             <span>Identificação</span>
           </button>
 
-          ${["super_admin", "admin", "medico"].includes(role()) ? `
+          ${["super_admin", "admin", "medico", "administrativo"].includes(role()) ? `
             <button id="btnEditIdent" class="gc-sb-btn" style="color:#1a56db;">
               <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M11 2.5a1.5 1.5 0 012.121 2.121l-7.5 7.5-2.621.5.5-2.621 7.5-7.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <span>Editar identificação</span>
