@@ -3365,12 +3365,13 @@ function openPatientViewModal(patient) {
       }
 
       if (selectedDiag && selectedDiag.length) {
-        const diagRows = selectedDiag
-          .filter(x => x && x.id !== undefined && x.id !== null && String(x.id).trim() !== "")
-          .map(x => ({
-            consultation_id: consultId,
-            diagnosis_id: String(x.id)
-          }));
+        const diagRows = [
+          ...new Map(
+            selectedDiag
+              .filter(x => x && x.id !== undefined && x.id !== null && String(x.id).trim() !== "")
+              .map(x => [String(x.id), { consultation_id: consultId, diagnosis_id: String(x.id) }])
+          ).values()
+        ];
 
         console.log("DIAG ROWS TO INSERT:", diagRows);
         console.log("SELECTED DIAG RAW:", selectedDiag);
