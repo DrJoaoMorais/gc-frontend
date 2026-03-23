@@ -1428,7 +1428,7 @@ export function openApptModal({ mode, row }) {
             <div id="newPatientHost"></div>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:2px;">
             <div id="mProcWrap" style="display:flex;flex-direction:column;gap:4px;">
               <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Tipo de Consulta/Procedimento *</label>
               <select id="mProc" class="gcSelect" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;color:#1e293b;">
@@ -1452,7 +1452,7 @@ export function openApptModal({ mode, row }) {
             </div>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:2px;">
             <div style="display:flex;flex-direction:column;gap:4px;">
               <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Início</label>
               <input id="mStart" type="datetime-local" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;color:#1e293b;" />
