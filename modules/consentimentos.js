@@ -541,7 +541,7 @@ function buildConsentHtml({ type, patient, clinic, clinicFields, consentResponse
     .hdr-name{font-size:15pt;font-weight:900;color:#0f2d52;}
     .hdr-sub{font-size:9.5pt;color:#475569;margin-top:2px;}
     .hdr-meta{display:flex;justify-content:space-between;font-size:8pt;color:#64748b;margin-top:5px;}
-    .doc-title{background:#0f2d52;color:#fff;text-align:center;font-weight:900;font-size:11pt;padding:6px 10px;margin:10px 0;}
+    .doc-title{background:#0f2d52;color:#fff;text-align:center;font-weight:900;font-size:11pt;padding:8px 12px;margin:10px 0;line-height:1.4;white-space:normal;word-wrap:break-word;}
     .sec{background:#0f2d52;color:#fff;font-weight:700;font-size:9pt;padding:4px 10px;margin:8px 0 4px;}
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;margin-bottom:4px;}
     .f{border-bottom:1px solid #bbb;padding:2px 0;font-size:9.5pt;}
