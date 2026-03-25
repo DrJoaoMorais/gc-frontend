@@ -537,11 +537,12 @@ function buildConsentHtml({ type, patient, clinic, clinicFields, consentResponse
     *{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:Arial,Helvetica,sans-serif;font-size:9.5pt;color:#111;background:#fff;padding:10mm 12mm;}
     @page{size:A4;margin:0;}
-    .hdr{text-align:center;border-bottom:2px solid #0f2d52;padding-bottom:8px;margin-bottom:10px;}
+    .hdr{text-align:center;border-bottom:2px solid #0f2d52;padding-bottom:12px;margin-bottom:16px;}
+    .sec-8{page-break-before:always;}
     .hdr-name{font-size:15pt;font-weight:900;color:#0f2d52;}
     .hdr-sub{font-size:9.5pt;color:#475569;margin-top:2px;}
     .hdr-meta{display:flex;justify-content:space-between;font-size:8pt;color:#64748b;margin-top:5px;}
-    .doc-title{background:#0f2d52;color:#fff;text-align:center;font-weight:900;font-size:11pt;padding:8px 12px;margin:10px 0;line-height:1.4;white-space:normal;word-wrap:break-word;}
+    .doc-title{background:#0f2d52;color:#fff;text-align:center;font-weight:900;font-size:11pt;padding:6px 10px;margin:10px 0;}
     .sec{background:#0f2d52;color:#fff;font-weight:700;font-size:9pt;padding:4px 10px;margin:8px 0 4px;}
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;margin-bottom:4px;}
     .f{border-bottom:1px solid #bbb;padding:2px 0;font-size:9.5pt;}
@@ -620,7 +621,7 @@ function bodyRgpd({ patName, patDob, patNif, patPhone, patEmail, clinicName, cli
   <div class="sec">7. Direitos do Titular dos Dados</div>
   <ul class="ul txt"><li>Aceder, rectificar ou apagar os seus dados pessoais.</li><li>Limitar ou opor-se ao tratamento.</li><li>Solicitar a portabilidade dos dados.</li><li>Retirar o consentimento a qualquer momento.</li><li>Apresentar reclamação à <b>CNPD</b> — www.cnpd.pt.</li></ul>
   <div class="txt">Contacto: <b>Dr.Joao.Morais@gmail.com</b> | <b>916 390 074</b></div>
-  <div class="sec">8. Declaração de Tomada de Conhecimento</div>
+  <div class="sec sec-8">8. Declaração de Tomada de Conhecimento</div>
   <div class="txt">Declaro que tomei conhecimento da informação de privacidade acima apresentada, que me foi explicada de forma clara e compreensível, e que tive oportunidade de colocar questões e obter respostas satisfatórias.</div>
   <div class="sig-wrap">
     <div class="sig-grid">
