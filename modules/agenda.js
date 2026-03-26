@@ -2480,19 +2480,29 @@ function _openPendenteModal(row) {
   overlay.querySelector("#gcPendClose").addEventListener("click", close);
   overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
 
-  /* Gerar Meet automaticamente */
+  /* Gerar Meet automaticamente via gc-gcal (SA já configurada) */
   overlay.querySelector("#gcPendGenMeet").addEventListener("click", async () => {
     const btn = overlay.querySelector("#gcPendGenMeet");
+    const dt  = overlay.querySelector("#gcPendDT").value;
     btn.disabled = true;
     btn.textContent = "A gerar…";
     meetStat.textContent = "";
     try {
-      const res  = await fetch(`${_UPLOADS_WORKER}/meet`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ upload_id: row.id }) });
+      if (!dt) throw new Error("Selecciona primeiro a data e hora da consulta.");
+      const { data: sessionData } = await window.sb.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error("Sessão expirada. Volta a iniciar sessão.");
+
+      const res  = await fetch(`${GCAL_WORKER_URL}/meet`, {
+        method:  "POST",
+        headers: { "content-type": "application/json", "Authorization": `Bearer ${token}` },
+        body:    JSON.stringify({ patient_name: row.atleta_nome, datetime_start: dt, duration_min: 20 }),
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) throw new Error(data.error || "Erro");
-      meetInp.value      = data.meet_url;
+      meetInp.value        = data.meet_url;
       meetStat.style.color = "#059669";
-      meetStat.textContent = "Link gerado com sucesso.";
+      meetStat.textContent = "✓ Evento criado no teu calendário Google.";
     } catch (e) {
       meetStat.style.color = "#EF4444";
       meetStat.textContent = `Erro: ${e.message}`;
