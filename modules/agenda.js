@@ -2485,7 +2485,7 @@ function _openPendenteModal(row) {
           <div style="grid-column:1/-1;"><div style="font-size:10px;color:#9CA3AF;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Identificação</div><div style="color:#374151;">${escapeHtml(ids)}</div></div>
           ${row.disponibilidade ? `<div style="grid-column:1/-1;"><div style="font-size:10px;color:#9CA3AF;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Disponibilidade pedida</div><div style="color:#374151;line-height:1.5;">${escapeHtml(row.disponibilidade)}</div></div>` : ""}
         </div>
-        ${row.pdf_url ? `<a href="${row.pdf_url}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;margin-top:10px;font-size:12px;font-weight:600;color:#1a56db;text-decoration:none;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Ver PDF enviado</a>` : ""}
+        ${row.pdf_url ? `<button data-pdf-url="${escapeHtml(row.pdf_url)}" style="display:inline-flex;align-items:center;gap:5px;margin-top:10px;font-size:12px;font-weight:600;color:#1a56db;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Ver PDF enviado</button>` : ""}
       </div>
 
       <!-- Formulário de resposta -->
@@ -2535,6 +2535,34 @@ function _openPendenteModal(row) {
 
   overlay.querySelector("#gcPendClose").addEventListener("click", close);
   overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+
+  /* Ver PDF — fetch autenticado + abrir como blob */
+  overlay.querySelector("[data-pdf-url]")?.addEventListener("click", async (ev) => {
+    const btn = ev.currentTarget;
+    const pdfUrl = btn.getAttribute("data-pdf-url");
+    if (!pdfUrl) return;
+    const origText = btn.textContent;
+    btn.textContent = "A carregar…";
+    btn.disabled = true;
+    try {
+      const session = await window.sb.auth.getSession();
+      const token = session?.data?.session?.access_token || "";
+      const res = await fetch(`${_UPLOADS_WORKER}/pdf?key=${encodeURIComponent(pdfUrl)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const tab = window.open(blobUrl, "_blank");
+      if (tab) setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+      else { const a = document.createElement("a"); a.href = blobUrl; a.download = "documento.pdf"; a.click(); setTimeout(() => URL.revokeObjectURL(blobUrl), 5000); }
+    } catch (e) {
+      alert("Não foi possível abrir o PDF: " + (e?.message || e));
+    } finally {
+      btn.textContent = origText;
+      btn.disabled = false;
+    }
+  });
 
   /* Gerar Meet automaticamente via gc-gcal (SA já configurada) */
   overlay.querySelector("#gcPendGenMeet").addEventListener("click", async () => {
