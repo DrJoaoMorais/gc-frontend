@@ -1343,7 +1343,7 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
 /* ==== 09C/D/E — Modal marcação ==== */
 
 /* ---- openApptModal ---- */
-export function openApptModal({ mode, row, prefillDatetime, prefillPatientId }) {
+export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, prefillPatientName }) {
   const root = document.getElementById("modalRoot");
   if (!root) return;
 
@@ -1715,9 +1715,32 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId }) 
   }
 
   if (patientIdInit) {
-    const displayName = titleInit ? String(titleInit).split(" — ")[0] : "";
-    setSelectedPatient({ id: patientIdInit, name: displayName || `ID: ${patientIdInit}` });
-    if (mPatientQuery) mPatientQuery.value = displayName || "";
+    // Try cache first, then async fetch from Supabase
+    const cached = G.patientsById?.[patientIdInit];
+    const cachedName = cached?.full_name || (titleInit ? String(titleInit).split(" — ")[0] : "");
+    if (cachedName) {
+      setSelectedPatient({ id: patientIdInit, name: cachedName });
+      if (mPatientQuery) mPatientQuery.value = cachedName;
+    } else {
+      // Fetch name async and update field when ready
+      setSelectedPatient({ id: patientIdInit, name: prefillPatientName || patientIdInit });
+      if (mPatientQuery) mPatientQuery.value = "A carregar…";
+      window.sb?.from("patients").select("id,full_name").eq("id", patientIdInit).single()
+        .then(({ data }) => {
+          if (data?.full_name) {
+            setSelectedPatient({ id: patientIdInit, name: data.full_name });
+            if (mPatientQuery) mPatientQuery.value = data.full_name;
+          } else if (prefillPatientName) {
+            if (mPatientQuery) mPatientQuery.value = prefillPatientName;
+          }
+        }).catch(() => {
+          if (mPatientQuery) mPatientQuery.value = prefillPatientName || "";
+        });
+    }
+  } else if (prefillPatientName) {
+    // No patient_id match — pre-fill search so user can find/create
+    if (mPatientQuery) mPatientQuery.value = prefillPatientName;
+    setSelectedPatient({ id: "", name: "" });
   } else {
     setSelectedPatient({ id: "", name: "" });
   }
@@ -2548,7 +2571,7 @@ function _openPendenteModal(row) {
   overlay.querySelector("#gcPendBtnAgendar").addEventListener("click", () => {
     const dtVal = overlay.querySelector("#gcPendDT")?.value || null;
     close();
-    openApptModal({ mode: "new", row: null, prefillPatientId: row.patient_id || null, prefillDatetime: dtVal });
+    openApptModal({ mode: "new", row: null, prefillPatientId: row.patient_id || null, prefillPatientName: row.atleta_nome || null, prefillDatetime: dtVal });
   });
 
   /* Cancelar pedido */
