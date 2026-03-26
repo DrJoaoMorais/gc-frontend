@@ -166,58 +166,26 @@ export function buildPatientOrFilter(termRaw) {
 }
 
 
-/* ==== 02E — Pesquisa de doentes ✅ FIX: 1 query directa com JOIN ==== */
+/* ==== 02E — Pesquisa de doentes via RPC search_patients_v2 ==== */
 
 /* ---- 02E.1 — searchPatientsScoped ---- */
-export async function searchPatientsScoped({ clinicId, q, limit = 12 }) {
+// Devolve array de doentes. Doentes de outra clínica têm active_clinic_id !== clinicId.
+export async function searchPatientsScoped({ clinicId, q, limit = 30 }) {
   const term = (q || "").trim();
   if (!term || term.length < 2) return [];
 
-  const orStr = buildPatientOrFilter(term);
-  if (!orStr) return [];
+  const { data, error } = await window.sb.rpc("search_patients_v2", {
+    p_clinic_id: clinicId || null,
+    p_term:      term,
+    p_limit:     limit,
+  });
 
-  try {
-    // ✅ FIX: query única com JOIN directo
-    // Em vez de carregar até 2000 IDs e depois filtrar,
-    // filtra directamente na base de dados com JOIN
-    let query = window.sb
-      .from("patients")
-      .select(`${PATIENT_FIELDS}, patient_clinic!inner(clinic_id, is_active)`)
-      .eq("is_active", true)
-      .eq("patient_clinic.is_active", true)
-      .or(orStr)
-      .order("full_name", { ascending: true })
-      .limit(limit);
-
-    if (clinicId) {
-      query = query.eq("patient_clinic.clinic_id", clinicId);
-    }
-
-    const { data: pts, error: pErr } = await query;
-    if (pErr) throw pErr;
-
-    // Remover campo patient_clinic do resultado final
-    return (Array.isArray(pts) ? pts : []).map(({ patient_clinic: _pc, ...p }) => p);
-
-  } catch (joinErr) {
-    // Fallback para método original se o JOIN não for suportado
-    console.warn("[db] searchPatientsScoped JOIN falhou, a usar fallback:", joinErr?.message);
-
-    const { ids } = await listPatientIdsForScope({ clinicId });
-    if (ids.length === 0) return [];
-
-    const { data: pts, error: pErr } = await window.sb
-      .from("patients")
-      .select(PATIENT_FIELDS)
-      .in("id", ids)
-      .eq("is_active", true)
-      .or(orStr)
-      .order("full_name", { ascending: true })
-      .limit(limit);
-
-    if (pErr) throw pErr;
-    return Array.isArray(pts) ? pts : [];
+  if (error) {
+    console.warn("[db] search_patients_v2 falhou:", error.message);
+    return [];
   }
+
+  return Array.isArray(data) ? data : [];
 }
 
 

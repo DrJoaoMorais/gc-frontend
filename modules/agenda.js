@@ -572,6 +572,8 @@ export function renderQuickPatientResults(results) {
 
   const selectedId = G.patientQuick?.selected?.id ?? null;
 
+  const currentClinicId = G.activeClinicId || G.clinics?.[0]?.id || null;
+
   host.innerHTML = results.map((p) => {
     const idBits = [];
     if (p.sns)         idBits.push(`SNS:${p.sns}`);
@@ -579,14 +581,23 @@ export function renderQuickPatientResults(results) {
     if (p.passport_id) idBits.push(`ID:${p.passport_id}`);
     const line2 = [idBits.join(" / "), p.phone ? `Tel:${p.phone}` : ""].filter(Boolean).join(" • ");
 
-    const isSel = selectedId && p.id === selectedId;
-    const bg    = isSel ? "background:#f2f2f2;" : "background:#fff;";
-    const br    = isSel ? "border:1px solid #cbd5e1;" : "border:1px solid #f0f0f0;";
+    const isSel      = selectedId && p.id === selectedId;
+    const isOther    = p.active_clinic_id && currentClinicId && p.active_clinic_id !== currentClinicId;
+    const otherName  = isOther ? (G.clinicsById?.[p.active_clinic_id]?.name || G.clinicsById?.[p.active_clinic_id]?.display_name || "Outra clínica") : null;
+
+    const bg = isSel    ? "background:#f2f2f2;" : isOther ? "background:#fffbeb;" : "background:#fff;";
+    const br = isSel    ? "border:1px solid #cbd5e1;" : isOther ? "border:1px solid #fcd34d;" : "border:1px solid #f0f0f0;";
+
+    const clinicBadge = isOther
+      ? `<span style="font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 6px;margin-left:6px;">↗ ${escapeHtml(otherName)}</span>`
+      : "";
 
     return `
-      <div data-pid="${escapeHtml(p.id)}"
+      <div data-pid="${escapeHtml(p.id)}" data-other-clinic="${isOther ? escapeHtml(p.active_clinic_id) : ""}"
            style="padding:8px; ${br} border-radius:10px; margin-bottom:8px; cursor:pointer; ${bg}">
-        <div style="font-size:${UI.fs13}px; color:#111; font-weight:700; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">${escapeHtml(p.full_name)}</div>
+        <div style="font-size:${UI.fs13}px; color:#111; font-weight:700; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">
+          ${escapeHtml(p.full_name)}${clinicBadge}
+        </div>
         <div style="font-size:${UI.fs12}px; color:#666;">${escapeHtml(line2 || "—")}</div>
       </div>`;
   }).join("");
@@ -605,6 +616,21 @@ export function renderQuickPatientResults(results) {
     if (!pid) return;
     const p = (results || []).find((x) => x.id === pid);
     if (!p) return;
+
+    // Se o doente está noutro clínica, oferecer transferência
+    const otherClinicId = card.getAttribute("data-other-clinic");
+    if (otherClinicId && currentClinicId) {
+      const fromName = G.clinicsById?.[otherClinicId]?.name || G.clinicsById?.[otherClinicId]?.display_name || otherClinicId;
+      const toName   = G.clinicsById?.[currentClinicId]?.name || G.clinicsById?.[currentClinicId]?.display_name || currentClinicId;
+      const ok = confirm(`"${p.full_name}" está activo em: ${fromName}\n\nTransferir para: ${toName}?`);
+      if (!ok) return;
+      try {
+        await ensurePatientActiveInClinic({ patientId: pid, targetClinicId: currentClinicId });
+      } catch (e) {
+        alert("Erro ao transferir doente: " + (e?.message || e));
+        return;
+      }
+    }
 
     G.patientQuick.selected = p;
     const input = document.getElementById("pQuickQuery");
@@ -1642,6 +1668,7 @@ export function openApptModal({ mode, row, prefillDatetime }) {
 
   function showResultsList(pts) {
     if (!mPatientResults) return;
+    const modalClinicId = mClinic?.value || null;
     mPatientResults.style.display = "block";
     mPatientResults.innerHTML = (pts || []).map((p) => {
       const idBits = [];
@@ -1649,17 +1676,39 @@ export function openApptModal({ mode, row, prefillDatetime }) {
       if (p.nif)         idBits.push(`NIF:${p.nif}`);
       if (p.passport_id) idBits.push(`ID:${p.passport_id}`);
       const line2 = [idBits.join(" / "), p.phone ? `Tel:${p.phone}` : ""].filter(Boolean).join(" • ");
+
+      const isOther   = p.active_clinic_id && modalClinicId && p.active_clinic_id !== modalClinicId;
+      const otherName = isOther ? (G.clinicsById?.[p.active_clinic_id]?.name || G.clinicsById?.[p.active_clinic_id]?.display_name || "Outra clínica") : null;
+      const badge     = isOther ? `<span style="font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 6px;margin-left:6px;">↗ ${escapeHtml(otherName)}</span>` : "";
+      const bg        = isOther ? "background:#fffbeb;border:1px solid #fcd34d;" : "border:1px solid #f0f0f0;";
+
       return `
         <div data-pid="${escapeHtml(p.id)}" data-pname="${escapeHtml(p.full_name)}"
-             style="padding:8px;border:1px solid #f0f0f0;border-radius:10px;margin-bottom:8px;cursor:pointer;">
-          <div style="font-size:${UI.fs13}px;color:#111;font-weight:800;white-space:normal;overflow-wrap:anywhere;word-break:break-word;">${escapeHtml(p.full_name)}</div>
+             data-other-clinic="${isOther ? escapeHtml(p.active_clinic_id) : ""}"
+             style="padding:8px;${bg}border-radius:10px;margin-bottom:8px;cursor:pointer;">
+          <div style="font-size:${UI.fs13}px;color:#111;font-weight:800;white-space:normal;overflow-wrap:anywhere;word-break:break-word;">${escapeHtml(p.full_name)}${badge}</div>
           <div style="font-size:${UI.fs12}px;color:#666;">${escapeHtml(line2 || "—")}</div>
         </div>`;
     }).join("");
     mPatientResults.querySelectorAll("[data-pid]").forEach((el) => {
-      el.addEventListener("click", () => {
-        setSelectedPatient({ id: el.getAttribute("data-pid"), name: el.getAttribute("data-pname") });
-        if (mPatientQuery) mPatientQuery.value = el.getAttribute("data-pname") || "";
+      el.addEventListener("click", async () => {
+        const pid          = el.getAttribute("data-pid");
+        const pname        = el.getAttribute("data-pname");
+        const otherClinic  = el.getAttribute("data-other-clinic");
+        if (otherClinic && modalClinicId) {
+          const fromName = G.clinicsById?.[otherClinic]?.name || G.clinicsById?.[otherClinic]?.display_name || otherClinic;
+          const toName   = G.clinicsById?.[modalClinicId]?.name || G.clinicsById?.[modalClinicId]?.display_name || modalClinicId;
+          const ok = confirm(`"${pname}" está activo em: ${fromName}\n\nTransferir para: ${toName}?`);
+          if (!ok) return;
+          try {
+            await ensurePatientActiveInClinic({ patientId: pid, targetClinicId: modalClinicId });
+          } catch (e) {
+            alert("Erro ao transferir doente: " + (e?.message || e));
+            return;
+          }
+        }
+        setSelectedPatient({ id: pid, name: pname });
+        if (mPatientQuery) mPatientQuery.value = pname || "";
         closeResults();
       });
     });
