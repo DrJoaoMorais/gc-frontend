@@ -492,6 +492,7 @@ export function renderAgendaList() {
     <li style="padding:10px 0 0 0;">
       <div class="gcAgendaFooter">
         <button id="btnPrintAgendaDay" class="gcBtnOutline" type="button">Imprimir lista do dia</button>
+        <button id="btnSyncGcal" class="gcBtnOutline" type="button" title="Sincronizar este dia com o Google Calendar">🔄 Sync GCal</button>
       </div>
     </li>`;
 
@@ -531,6 +532,34 @@ export function renderAgendaList() {
 
   const btn = document.getElementById("btnPrintAgendaDay");
   if (btn) btn.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); __gcPrintAgendaDay(); });
+
+  const btnSync = document.getElementById("btnSyncGcal");
+  if (btnSync) btnSync.addEventListener("click", async (ev) => {
+    ev.preventDefault(); ev.stopPropagation();
+    const dayISO = G.selectedDayISO;
+    if (!dayISO) return;
+    btnSync.disabled = true;
+    btnSync.textContent = "A sincronizar…";
+    try {
+      await new Promise((resolve, reject) => {
+        const url = __gcGetGcalSyncDayUrl();
+        if (!url || !window.sb?.auth) { reject(new Error("Sync não disponível")); return; }
+        window.sb.auth.getSession().then(({ data }) => {
+          const token = data?.session?.access_token || "";
+          fetch(url, {
+            method: "POST",
+            headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+            body: JSON.stringify({ dayISO }),
+          }).then(r => r.ok ? resolve() : r.text().then(t => reject(new Error(t)))).catch(reject);
+        }).catch(reject);
+      });
+      btnSync.textContent = "✅ Sincronizado";
+    } catch (e) {
+      btnSync.textContent = "❌ Erro";
+      console.error("Sync GCal falhou:", e);
+    }
+    setTimeout(() => { btnSync.disabled = false; btnSync.textContent = "🔄 Sync GCal"; }, 3000);
+  });
 }
 
 
