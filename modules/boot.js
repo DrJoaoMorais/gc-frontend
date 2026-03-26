@@ -77,7 +77,7 @@ export async function boot() {
     G.authStateSubscription = authStateData?.subscription || null;
 
     /* Check periódico de sessão — a cada 5 min verifica se o token ainda é válido */
-    const SESSION_CHECK_INTERVAL = 5 * 60 * 1000;
+    const SESSION_CHECK_INTERVAL = 30 * 60 * 1000;
     const sessionCheckTimer = setInterval(async () => {
       if (__gcSessionLockActive) { clearInterval(sessionCheckTimer); return; }
       try {
