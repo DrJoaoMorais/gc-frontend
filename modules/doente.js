@@ -39,6 +39,134 @@ import { examsUiState, buildExamRequestHtml } from "./exames.js";
 import { analisesUiState, openAnalisesPanel, closeAnalisesPanel } from "./analises.js";
 import { checkConsentStatus, openConsentModal } from "./consentimentos.js";
 
+/* ========================================================
+   EXAME MÉDICO DESPORTIVO — painel lateral (viewer)
+   Recebe PDFs enviados de www.joaomorais.pt
+   ======================================================== */
+const exameDesportivoUiState = { isOpen: false, onClose: null };
+
+function closeExameDesportivoPanel() {
+  const panel = document.getElementById("gcExameDesportivoPanel");
+  if (panel) panel.remove();
+  exameDesportivoUiState.isOpen = false;
+  const cb = exameDesportivoUiState.onClose;
+  exameDesportivoUiState.onClose = null;
+  if (typeof cb === "function") cb();
+}
+
+async function openExameDesportivoPanel({ patientId, onClose }) {
+  exameDesportivoUiState.isOpen = true;
+  exameDesportivoUiState.onClose = onClose;
+
+  const closeBtn = document.getElementById("btnClosePView");
+  if (!closeBtn) return;
+  const container = closeBtn.closest(".gc-pv-wrap") || closeBtn.parentElement;
+  if (!container) return;
+
+  const existing = document.getElementById("gcExameDesportivoPanel");
+  if (existing) existing.remove();
+
+  const panel = document.createElement("div");
+  panel.id = "gcExameDesportivoPanel";
+  Object.assign(panel.style, {
+    position: "absolute", top: "0", right: "0", width: "420px", height: "100%",
+    background: "#ffffff", borderLeft: "1px solid #e5e7eb",
+    boxShadow: "-8px 0 24px rgba(0,0,0,0.08)", zIndex: "50",
+    display: "flex", flexDirection: "column",
+    borderTopRightRadius: "14px", borderBottomRightRadius: "14px", overflow: "hidden"
+  });
+
+  panel.innerHTML = `
+    <div style="padding:16px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;">
+      <div>
+        <div style="font-weight:800;font-size:15px;color:#111827;">Exame Médico Desportivo</div>
+        <div style="font-size:11px;color:#6B7280;margin-top:2px;">Formulários IPDJ recebidos de www.joaomorais.pt</div>
+      </div>
+      <button id="gcCloseExameDesportivoPanel" style="background:#fff;border:1px solid #d1d5db;color:#374151;font-weight:700;padding:6px 12px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;flex-shrink:0;">Fechar</button>
+    </div>
+    <div id="gcExameDesportivoList" style="flex:1;overflow-y:auto;padding:16px;">
+      <div style="text-align:center;padding:32px 16px;color:#9CA3AF;font-size:13px;">A carregar...</div>
+    </div>`;
+
+  if (container.style.position !== "relative" && container.style.position !== "absolute") {
+    container.style.position = "relative";
+  }
+  container.appendChild(panel);
+
+  document.getElementById("gcCloseExameDesportivoPanel")
+    ?.addEventListener("click", closeExameDesportivoPanel);
+
+  await _loadExameDesportivoRecords(patientId);
+}
+
+async function _loadExameDesportivoRecords(patientId) {
+  const list = document.getElementById("gcExameDesportivoList");
+  if (!list) return;
+
+  try {
+    const { data, error } = await window.sb
+      .from("exames_desportivos")
+      .select("id, created_at, status, atleta_nome, atleta_modalidade, atleta_clube, atleta_escalao, atleta_email, agendamento_preferencias, agendamento_confirmado_at, pdf_url, decisao, paid_at")
+      .eq("patient_id", patientId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    const rows = data || [];
+
+    if (rows.length === 0) {
+      list.innerHTML = `
+        <div style="text-align:center;padding:40px 16px;color:#9CA3AF;">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin:0 auto 14px;display:block;opacity:0.3;"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+          <div style="font-size:14px;font-weight:600;color:#374151;margin-bottom:6px;">Nenhum exame desportivo recebido</div>
+          <div style="font-size:12px;line-height:1.6;max-width:260px;margin:0 auto;">Quando o atleta submeter o formulário em www.joaomorais.pt, o pedido e o PDF IPDJ aparecem aqui.</div>
+        </div>`;
+      return;
+    }
+
+    const STATUS = {
+      pendente:   { label: "Pendente",   bg: "#FEF3C7", color: "#92400E" },
+      confirmado: { label: "Confirmado", bg: "#DBEAFE", color: "#1E40AF" },
+      pago:       { label: "Pago",       bg: "#D1FAE5", color: "#065F46" },
+      realizado:  { label: "Realizado",  bg: "#F3F4F6", color: "#374151" },
+      cancelado:  { label: "Cancelado",  bg: "#FEE2E2", color: "#991B1B" },
+    };
+
+    list.innerHTML = rows.map(r => {
+      const st      = STATUS[r.status] || STATUS.pendente;
+      const date    = new Date(r.created_at).toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+      const nome    = r.atleta_nome    || "—";
+      const modal   = r.atleta_modalidade || "—";
+      const clube   = r.atleta_clube   || "—";
+      const escalao = r.atleta_escalao || "—";
+      const disp    = r.agendamento_preferencias || "";
+      const agendAt = r.agendamento_confirmado_at
+        ? new Date(r.agendamento_confirmado_at).toLocaleDateString("pt-PT", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" })
+        : null;
+
+      return `<div style="border:1px solid #E5E7EB;border-radius:12px;padding:14px;margin-bottom:12px;background:#fff;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:11px;color:#9CA3AF;">${date}</div>
+          <span style="background:${st.bg};color:${st.color};font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;">${st.label}</span>
+        </div>
+        <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:10px;">${nome}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;font-size:12px;">
+          <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#9CA3AF;letter-spacing:0.06em;margin-bottom:2px;">Modalidade</div><div style="font-weight:600;color:#111827;">${modal}</div></div>
+          <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#9CA3AF;letter-spacing:0.06em;margin-bottom:2px;">Clube</div><div style="font-weight:600;color:#111827;">${clube}</div></div>
+          <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#9CA3AF;letter-spacing:0.06em;margin-bottom:2px;">Escalão</div><div style="color:#374151;">${escalao}</div></div>
+          ${disp ? `<div style="grid-column:1/-1;"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#9CA3AF;letter-spacing:0.06em;margin-bottom:2px;">Disponibilidade</div><div style="color:#374151;line-height:1.4;">${disp}</div></div>` : ""}
+        </div>
+        ${agendAt ? `<div style="margin-bottom:10px;padding:8px 10px;background:#EEF4FF;border-radius:8px;font-size:12px;color:#1a56db;font-weight:600;">📅 Agendado: ${agendAt}</div>` : ""}
+        ${r.pdf_url
+          ? `<a href="${r.pdf_url}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:7px;width:100%;padding:8px 12px;border:1px solid #3B7EF5;border-radius:8px;background:#EEF4FF;color:#1a56db;font-size:13px;font-weight:700;text-decoration:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>Abrir IPDJ PDF</a>`
+          : `<div style="padding:8px;background:#F9FAFB;border-radius:8px;text-align:center;font-size:12px;color:#9CA3AF;border:1px dashed #E5E7EB;">PDF ainda não disponível</div>`}
+      </div>`;
+    }).join("");
+
+  } catch (err) {
+    list.innerHTML = `<div style="padding:20px;text-align:center;color:#EF4444;font-size:13px;">Erro ao carregar: ${err.message || err}</div>`;
+  }
+}
+
 /* ==== INÍCIO BLOCO 06A/12 — Stub (mantido; não usado) ==== */
 function openPatientViewModal__stub(patient) {
   const root = document.getElementById("modalRoot");
@@ -3565,6 +3693,11 @@ function openPatientViewModal(patient) {
               <span>Análises</span>
             </button>
 
+            <button id="btnExameDesportivo" class="gc-sb-btn ${exameDesportivoUiState?.isOpen ? 'gc-sb-btn--active' : ''}">
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 5.5h4M4.5 8h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M9.5 9.5l1.2 1.5 2-2.5" stroke="#4a9a30" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Exame Desportivo</span>
+            </button>
+
             <div class="gc-sb-div"></div>
           ` : ``}
 
@@ -3821,6 +3954,14 @@ function openPatientViewModal(patient) {
         } else {
           // Abrir directamente — sem render() antes (destruiria o btnClosePView do DOM)
           openAnalisesPanel({ patientId: p.id, consultationId: consultId || null, onClose: () => { render(); } });
+        }
+      });
+
+      document.getElementById("btnExameDesportivo")?.addEventListener("click", () => {
+        if (exameDesportivoUiState.isOpen) {
+          closeExameDesportivoPanel();
+        } else {
+          openExameDesportivoPanel({ patientId: p.id, onClose: () => { render(); } });
         }
       });
     }
