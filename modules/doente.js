@@ -167,6 +167,126 @@ async function _loadExameDesportivoRecords(patientId) {
   }
 }
 
+/* ========================================================
+   PEDIDOS ONLINE — painel lateral
+   Mostra registos de patient_uploads (www.joaomorais.pt)
+   ======================================================== */
+const pedidosOnlineUiState = { isOpen: false, onClose: null };
+
+function closePedidosOnlinePanel() {
+  const panel = document.getElementById("gcPedidosOnlinePanel");
+  if (panel) panel.remove();
+  pedidosOnlineUiState.isOpen = false;
+  const cb = pedidosOnlineUiState.onClose;
+  pedidosOnlineUiState.onClose = null;
+  if (typeof cb === "function") cb();
+}
+
+async function openPedidosOnlinePanel({ patientId, onClose }) {
+  pedidosOnlineUiState.isOpen = true;
+  pedidosOnlineUiState.onClose = onClose;
+
+  const closeBtn = document.getElementById("btnClosePView");
+  if (!closeBtn) return;
+  const container = closeBtn.closest(".gc-pv-wrap") || closeBtn.parentElement;
+  if (!container) return;
+
+  const existing = document.getElementById("gcPedidosOnlinePanel");
+  if (existing) existing.remove();
+
+  const panel = document.createElement("div");
+  panel.id = "gcPedidosOnlinePanel";
+  Object.assign(panel.style, {
+    position: "absolute", top: "0", right: "0", width: "420px", height: "100%",
+    background: "#ffffff", borderLeft: "1px solid #e5e7eb",
+    boxShadow: "-8px 0 24px rgba(0,0,0,0.08)", zIndex: "50",
+    display: "flex", flexDirection: "column",
+    borderTopRightRadius: "14px", borderBottomRightRadius: "14px", overflow: "hidden"
+  });
+
+  panel.innerHTML = `
+    <div style="padding:16px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;">
+      <div>
+        <div style="font-weight:800;font-size:15px;color:#111827;">Pedidos Online</div>
+        <div style="font-size:11px;color:#6B7280;margin-top:2px;">Marcações e ficheiros recebidos de www.joaomorais.pt</div>
+      </div>
+      <button id="gcClosePedidosOnlinePanel" style="background:#fff;border:1px solid #d1d5db;color:#374151;font-weight:700;padding:6px 12px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;flex-shrink:0;">Fechar</button>
+    </div>
+    <div id="gcPedidosOnlineList" style="flex:1;overflow-y:auto;padding:16px;">
+      <div style="text-align:center;padding:32px 16px;color:#9CA3AF;font-size:13px;">A carregar...</div>
+    </div>`;
+
+  if (container.style.position !== "relative" && container.style.position !== "absolute") {
+    container.style.position = "relative";
+  }
+  container.appendChild(panel);
+
+  document.getElementById("gcClosePedidosOnlinePanel")
+    ?.addEventListener("click", closePedidosOnlinePanel);
+
+  await _loadPedidosOnline(patientId);
+}
+
+async function _loadPedidosOnline(patientId) {
+  const list = document.getElementById("gcPedidosOnlineList");
+  if (!list) return;
+
+  try {
+    const { data, error } = await window.sb
+      .from("patient_uploads")
+      .select("id, created_at, tipo, atleta_nome, atleta_email, atleta_tel, atleta_sns, disponibilidade, pdf_url, status")
+      .eq("patient_id", patientId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    const rows = data || [];
+
+    if (rows.length === 0) {
+      list.innerHTML = `
+        <div style="text-align:center;padding:40px 16px;color:#9CA3AF;">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="margin:0 auto 14px;display:block;opacity:0.3;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <div style="font-size:14px;font-weight:600;color:#374151;margin-bottom:6px;">Nenhum pedido recebido</div>
+          <div style="font-size:12px;line-height:1.6;max-width:260px;margin:0 auto;">Quando o doente submeter um pedido em www.joaomorais.pt, aparece aqui.</div>
+        </div>`;
+      return;
+    }
+
+    const STATUS = {
+      pendente:   { label: "Pendente",   bg: "#FEF3C7", color: "#92400E" },
+      confirmado: { label: "Confirmado", bg: "#DBEAFE", color: "#1E40AF" },
+      pago:       { label: "Pago",       bg: "#D1FAE5", color: "#065F46" },
+      realizado:  { label: "Realizado",  bg: "#F3F4F6", color: "#374151" },
+      cancelado:  { label: "Cancelado",  bg: "#FEE2E2", color: "#991B1B" },
+    };
+    const TIPO_LABEL = {
+      videoconsulta:    "Videoconsulta",
+      exame_desportivo: "Exame Médico Desportivo",
+    };
+
+    list.innerHTML = rows.map(r => {
+      const st   = STATUS[r.status] || STATUS.pendente;
+      const date = new Date(r.created_at).toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+      const tipo = TIPO_LABEL[r.tipo] || r.tipo || "—";
+      const disp = r.disponibilidade || "";
+
+      return `<div style="border:1px solid #E5E7EB;border-radius:12px;padding:14px;margin-bottom:12px;background:#fff;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:11px;color:#9CA3AF;">${date}</div>
+          <span style="background:${st.bg};color:${st.color};font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;">${st.label}</span>
+        </div>
+        <div style="font-size:13px;font-weight:700;color:#1a56db;margin-bottom:8px;">${tipo}</div>
+        ${disp ? `<div style="margin-bottom:10px;padding:8px 10px;background:#F9FAFB;border-radius:8px;font-size:12px;color:#374151;"><span style="font-size:9px;font-weight:700;text-transform:uppercase;color:#9CA3AF;letter-spacing:0.06em;display:block;margin-bottom:3px;">Disponibilidade</span>${disp}</div>` : ""}
+        ${r.pdf_url
+          ? `<a href="${r.pdf_url}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:7px;width:100%;padding:8px 12px;border:1px solid #3B7EF5;border-radius:8px;background:#EEF4FF;color:#1a56db;font-size:13px;font-weight:700;text-decoration:none;box-sizing:border-box;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>Abrir ficheiro</a>`
+          : `<div style="padding:8px;background:#F9FAFB;border-radius:8px;text-align:center;font-size:12px;color:#9CA3AF;border:1px dashed #E5E7EB;">Sem ficheiro anexado</div>`}
+      </div>`;
+    }).join("");
+
+  } catch (err) {
+    list.innerHTML = `<div style="padding:20px;text-align:center;color:#EF4444;font-size:13px;">Erro ao carregar: ${err.message || err}</div>`;
+  }
+}
+
 /* ==== INÍCIO BLOCO 06A/12 — Stub (mantido; não usado) ==== */
 function openPatientViewModal__stub(patient) {
   const root = document.getElementById("modalRoot");
@@ -3698,6 +3818,11 @@ function openPatientViewModal(patient) {
               <span>Exame Desportivo</span>
             </button>
 
+            <button id="btnPedidosOnline" class="gc-sb-btn ${pedidosOnlineUiState?.isOpen ? 'gc-sb-btn--active' : ''}">
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v6M5 8h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              <span>Pedidos Online</span>
+            </button>
+
             <div class="gc-sb-div"></div>
           ` : ``}
 
@@ -3962,6 +4087,14 @@ function openPatientViewModal(patient) {
           closeExameDesportivoPanel();
         } else {
           openExameDesportivoPanel({ patientId: p.id, onClose: () => { render(); } });
+        }
+      });
+
+      document.getElementById("btnPedidosOnline")?.addEventListener("click", () => {
+        if (pedidosOnlineUiState.isOpen) {
+          closePedidosOnlinePanel();
+        } else {
+          openPedidosOnlinePanel({ patientId: p.id, onClose: () => { render(); } });
         }
       });
     }
