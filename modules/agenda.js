@@ -1343,7 +1343,7 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
 /* ==== 09C/D/E — Modal marcação ==== */
 
 /* ---- openApptModal ---- */
-export function openApptModal({ mode, row, prefillDatetime }) {
+export function openApptModal({ mode, row, prefillDatetime, prefillPatientId }) {
   const root = document.getElementById("modalRoot");
   if (!root) return;
 
@@ -1366,7 +1366,7 @@ export function openApptModal({ mode, row, prefillDatetime }) {
   const statusRaw     = isEdit ? (row.status ?? "scheduled") : "scheduled";
   const statusNorm    = String(statusRaw).toLowerCase() === "cancelled" ? "no_show" : String(statusRaw || "scheduled").toLowerCase();
   const statusInit    = STATUS_OPTIONS.map((x) => String(x).toLowerCase()).includes(statusNorm) ? statusNorm : "scheduled";
-  const patientIdInit = isEdit ? (row.patient_id ?? "") : "";
+  const patientIdInit = isEdit ? (row.patient_id ?? "") : (prefillPatientId ?? "");
   const titleInit     = isEdit ? (row.title  ?? "") : "";
   const notesInit     = isEdit ? (row.notes  ?? "") : "";
   const _procList   = (G.procedureTypes?.length ? G.procedureTypes : PROCEDURE_OPTIONS);
@@ -2546,8 +2546,9 @@ function _openPendenteModal(row) {
 
   /* Agendar na agenda */
   overlay.querySelector("#gcPendBtnAgendar").addEventListener("click", () => {
+    const dtVal = overlay.querySelector("#gcPendDT")?.value || null;
     close();
-    openApptModal({ mode: "new", row: null });
+    openApptModal({ mode: "new", row: null, prefillPatientId: row.patient_id || null, prefillDatetime: dtVal });
   });
 
   /* Cancelar pedido */

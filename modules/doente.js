@@ -622,6 +622,7 @@ function openPatientViewModal(patient) {
       email: p.email || "",
       sns: p.sns || "",
       nif: p.nif || "",
+      external_id: p.external_id || "",
       passport_id: p.passport_id || "",
       address_line1: p.address_line1 || "",
       postal_code: p.postal_code || "",
@@ -734,6 +735,11 @@ function openPatientViewModal(patient) {
             </div>
 
             <div>
+              <label>Cartão de Cidadão</label>
+              <input id="id_external_id" ${ro} value="${escAttr(identDraft.external_id)}"
+                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+            <div>
               <label>Passaporte</label>
               <input id="id_passport_id" ${ro} value="${escAttr(identDraft.passport_id)}"
                      style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
@@ -824,6 +830,7 @@ function openPatientViewModal(patient) {
     bindVal("id_email", "email");
     bindVal("id_sns", "sns");
     bindVal("id_nif", "nif");
+    bindVal("id_external_id", "external_id");
     bindVal("id_passport_id", "passport_id");
     bindVal("id_address_line1", "address_line1");
     bindVal("id_postal_code", "postal_code");
@@ -866,6 +873,7 @@ function openPatientViewModal(patient) {
             email: String(identDraft.email || "").trim() || null,
             sns: String(identDraft.sns || "").trim() || null,
             nif: String(identDraft.nif || "").trim() || null,
+            external_id: String(identDraft.external_id || "").trim() || null,
             passport_id: String(identDraft.passport_id || "").trim() || null,
             address_line1: String(identDraft.address_line1 || "").trim() || null,
             postal_code: String(identDraft.postal_code || "").trim() || null,
