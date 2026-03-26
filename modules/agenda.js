@@ -2106,6 +2106,7 @@ export async function refreshAgenda() {
     G.agenda.timeColUsed = timeColUsed || "start_at";
     setAgendaStatus("ok", `OK: ${data.length} marcação(ões).`);
     renderAgendaList();
+    loadAndRenderPendentes(clinicId).catch(() => {});
   } catch (e) {
     if (__gcIsAuthError(e)) { await __gcForceSessionLock("Sessão expirada ou inválida. Volte a iniciar sessão."); return; }
     console.error("Agenda load falhou:", e);
@@ -2301,3 +2302,256 @@ export function wireAgendaTopbar() {
 }
 
 window.__gc_wireAgendaTopbar = wireAgendaTopbar;
+
+
+/* ========================================================
+   PENDENTES ONLINE — pedidos recebidos de www.joaomorais.pt
+   ======================================================== */
+
+const _WEB_CLINIC_ID     = "951ad0da-7114-43de-ac6b-da64f17c6bb1";
+const _UPLOADS_WORKER    = "https://uploads-worker.dr-joao-morais.workers.dev";
+const _TIPO_LABEL        = { videoconsulta: "Videoconsulta", exame_desportivo: "Exame Médico Desportivo" };
+
+/* ---- Carregar e renderizar pendentes ---- */
+export async function loadAndRenderPendentes(clinicId) {
+  const section = document.getElementById("pendentesSection");
+  if (!section) return;
+  try {
+    let q = window.sb
+      .from("patient_uploads")
+      .select("id, created_at, tipo, clinic_id, atleta_nome, atleta_email, atleta_tel, atleta_dob, atleta_sns, atleta_cc, atleta_nif, atleta_passport, disponibilidade, pdf_url, status, patient_id")
+      .eq("status", "pendente")
+      .order("created_at", { ascending: true });
+    if (clinicId) q = q.eq("clinic_id", clinicId);
+    const { data, error } = await q;
+    if (error) throw error;
+    _renderPendentes(data || []);
+    _updatePendentesBadge((data || []).length);
+  } catch (e) {
+    console.warn("loadAndRenderPendentes:", e);
+    section.innerHTML = "";
+  }
+}
+
+function _updatePendentesBadge(count) {
+  document.getElementById("gcPendentesAgendaBadge")?.remove();
+  const btn = document.querySelector('[data-nav="agenda"]');
+  if (!btn || count === 0) return;
+  const b = document.createElement("span");
+  b.id = "gcPendentesAgendaBadge";
+  Object.assign(b.style, { position:"absolute", top:"6px", right:"6px", background:"#e02424", color:"#fff", fontSize:"10px", fontWeight:"700", width:"16px", height:"16px", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" });
+  b.textContent = count > 9 ? "9+" : String(count);
+  btn.style.position = "relative";
+  btn.appendChild(b);
+}
+
+function _renderPendentes(rows) {
+  const section = document.getElementById("pendentesSection");
+  if (!section) return;
+  if (!rows.length) { section.innerHTML = ""; return; }
+
+  const cards = rows.map(r => {
+    const tipo = _TIPO_LABEL[r.tipo] || r.tipo || "—";
+    const date = new Date(r.created_at).toLocaleDateString("pt-PT", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
+    const disp = r.disponibilidade ? `<div style="font-size:11px;color:#374151;margin-top:3px;"><span style="color:#9CA3AF;">Disponível: </span>${escapeHtml(r.disponibilidade)}</div>` : "";
+    return `<div class="gc-pend-card" data-id="${r.id}" style="background:#fff;border:1px solid #FCD34D;border-left:3px solid #F59E0B;border-radius:10px;padding:11px 13px;cursor:pointer;transition:box-shadow 0.15s;" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.10)'" onmouseout="this.style.boxShadow=''">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(r.atleta_nome || "—")}</div>
+          <div style="font-size:11px;color:#D97706;font-weight:600;margin-top:1px;">${tipo}</div>
+          ${disp}
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div style="font-size:10px;color:#9CA3AF;">${date}</div>
+          <div style="margin-top:5px;background:#FEF3C7;color:#92400E;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;">Pendente</div>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+
+  section.innerHTML = `
+    <div style="background:#FFFBEB;border:1px solid #FCD34D;border-radius:12px;padding:14px;margin-bottom:4px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div style="width:8px;height:8px;background:#F59E0B;border-radius:50%;flex-shrink:0;animation:gcPendPulse 1.5s ease-in-out infinite;"></div>
+        <span style="font-size:13px;font-weight:700;color:#92400E;">${rows.length} pedido${rows.length > 1 ? "s" : ""} pendente${rows.length > 1 ? "s" : ""}</span>
+        <span style="font-size:11px;color:#B45309;">— clica para tratar</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:7px;">${cards}</div>
+    </div>
+    <style>@keyframes gcPendPulse{0%,100%{opacity:1}50%{opacity:0.4}}</style>`;
+
+  section.querySelectorAll(".gc-pend-card").forEach(card => {
+    card.addEventListener("click", () => {
+      const row = rows.find(r => r.id === card.dataset.id);
+      if (row) _openPendenteModal(row);
+    });
+  });
+}
+
+/* ---- Modal de confirmação ---- */
+function _openPendenteModal(row) {
+  document.getElementById("gcPendModal")?.remove();
+
+  const isWebClinic = row.clinic_id === _WEB_CLINIC_ID;
+  const tipo        = _TIPO_LABEL[row.tipo] || row.tipo || "—";
+
+  const ids = [
+    row.atleta_sns      && `SNS: ${row.atleta_sns}`,
+    row.atleta_cc       && `CC: ${row.atleta_cc}`,
+    row.atleta_nif      && `NIF: ${row.atleta_nif}`,
+    row.atleta_passport && `Passaporte: ${row.atleta_passport}`,
+  ].filter(Boolean).join(" · ") || "—";
+
+  const overlay = document.createElement("div");
+  overlay.id = "gcPendModal";
+  Object.assign(overlay.style, { position:"fixed", inset:"0", background:"rgba(15,45,82,0.45)", zIndex:"9000", display:"flex", alignItems:"center", justifyContent:"center", padding:"16px" });
+
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.25);display:flex;flex-direction:column;">
+
+      <!-- Cabeçalho -->
+      <div style="padding:18px 20px 14px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;">
+        <div>
+          <div style="font-size:16px;font-weight:800;color:#111827;">Pedido pendente</div>
+          <div style="font-size:12px;color:#D97706;font-weight:600;margin-top:2px;">${tipo}</div>
+        </div>
+        <button id="gcPendClose" style="background:none;border:1px solid #E5E7EB;border-radius:8px;padding:5px 10px;cursor:pointer;font-size:18px;color:#6B7280;line-height:1;">×</button>
+      </div>
+
+      <!-- Dados do doente -->
+      <div style="padding:16px 20px;border-bottom:1px solid #F3F4F6;background:#F9FAFB;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#9CA3AF;letter-spacing:0.06em;margin-bottom:10px;">Dados do doente</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">
+          <div><div style="font-size:10px;color:#9CA3AF;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Nome</div><div style="font-weight:700;color:#111827;">${escapeHtml(row.atleta_nome || "—")}</div></div>
+          <div><div style="font-size:10px;color:#9CA3AF;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Email</div><div style="color:#1a56db;">${escapeHtml(row.atleta_email || "—")}</div></div>
+          <div><div style="font-size:10px;color:#9CA3AF;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Telemóvel</div><div style="color:#374151;">${escapeHtml(row.atleta_tel || "—")}</div></div>
+          <div><div style="font-size:10px;color:#9CA3AF;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Nasc.</div><div style="color:#374151;">${row.atleta_dob || "—"}</div></div>
+          <div style="grid-column:1/-1;"><div style="font-size:10px;color:#9CA3AF;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Identificação</div><div style="color:#374151;">${escapeHtml(ids)}</div></div>
+          ${row.disponibilidade ? `<div style="grid-column:1/-1;"><div style="font-size:10px;color:#9CA3AF;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Disponibilidade pedida</div><div style="color:#374151;line-height:1.5;">${escapeHtml(row.disponibilidade)}</div></div>` : ""}
+        </div>
+        ${row.pdf_url ? `<a href="${row.pdf_url}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:5px;margin-top:10px;font-size:12px;font-weight:600;color:#1a56db;text-decoration:none;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Ver PDF enviado</a>` : ""}
+      </div>
+
+      <!-- Formulário de resposta -->
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Data e hora confirmada <span style="color:#EF4444;">*</span></label>
+          <input id="gcPendDT" type="datetime-local" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:14px;color:#111827;font-family:inherit;box-sizing:border-box;">
+        </div>
+
+        ${isWebClinic ? `
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Link de pagamento <span style="font-size:11px;font-weight:400;color:#9CA3AF;">(Stripe ou outro)</span></label>
+          <input id="gcPendPay" type="url" placeholder="https://buy.stripe.com/..." style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:14px;color:#111827;font-family:inherit;box-sizing:border-box;">
+          <div style="font-size:11px;color:#6B7280;margin-top:4px;">O email com o link do Google Meet só será enviado após pagamento confirmado.</div>
+        </div>` : ""}
+
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Link Google Meet ${isWebClinic ? "" : "<span style='color:#EF4444;'>*</span>"}</label>
+          <div style="display:flex;gap:8px;">
+            <input id="gcPendMeet" type="url" placeholder="https://meet.google.com/..." style="flex:1;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:14px;color:#111827;font-family:inherit;min-width:0;">
+            <button id="gcPendGenMeet" style="background:#1a56db;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;">Gerar Meet</button>
+          </div>
+          <div id="gcPendMeetStatus" style="font-size:11px;color:#6B7280;margin-top:4px;"></div>
+        </div>
+      </div>
+
+      <!-- Botões -->
+      <div style="padding:14px 20px 18px;border-top:1px solid #F3F4F6;display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+        <button id="gcPendBtnConfirm" style="background:#1a56db;color:#fff;border:none;border-radius:10px;padding:11px 16px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;">
+          ${isWebClinic ? "Enviar data e link de pagamento ao doente" : "Enviar confirmação com link Google Meet"}
+        </button>
+        <div style="display:flex;gap:8px;">
+          <button id="gcPendBtnAgendar" style="flex:1;background:#F3F4F6;color:#374151;border:none;border-radius:10px;padding:9px 12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Agendar na Agenda</button>
+          <button id="gcPendBtnCancel" style="flex:1;background:#FEE2E2;color:#991B1B;border:none;border-radius:10px;padding:9px 12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar pedido</button>
+        </div>
+        <div id="gcPendMsg" style="font-size:12px;color:#EF4444;min-height:14px;text-align:center;"></div>
+      </div>
+
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  const close    = () => overlay.remove();
+  const msgEl    = overlay.querySelector("#gcPendMsg");
+  const meetInp  = overlay.querySelector("#gcPendMeet");
+  const meetStat = overlay.querySelector("#gcPendMeetStatus");
+
+  overlay.querySelector("#gcPendClose").addEventListener("click", close);
+  overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+
+  /* Gerar Meet automaticamente */
+  overlay.querySelector("#gcPendGenMeet").addEventListener("click", async () => {
+    const btn = overlay.querySelector("#gcPendGenMeet");
+    btn.disabled = true;
+    btn.textContent = "A gerar…";
+    meetStat.textContent = "";
+    try {
+      const res  = await fetch(`${_UPLOADS_WORKER}/meet`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ upload_id: row.id }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || "Erro");
+      meetInp.value      = data.meet_url;
+      meetStat.style.color = "#059669";
+      meetStat.textContent = "Link gerado com sucesso.";
+    } catch (e) {
+      meetStat.style.color = "#EF4444";
+      meetStat.textContent = `Erro: ${e.message}`;
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = "Gerar Meet";
+    }
+  });
+
+  /* Enviar confirmação */
+  overlay.querySelector("#gcPendBtnConfirm").addEventListener("click", async () => {
+    const dt       = overlay.querySelector("#gcPendDT").value;
+    const payUrl   = overlay.querySelector("#gcPendPay")?.value.trim() || null;
+    const meetUrl  = meetInp.value.trim();
+    const btn      = overlay.querySelector("#gcPendBtnConfirm");
+
+    msgEl.textContent = "";
+    if (!dt)      { msgEl.textContent = "Indica a data e hora."; return; }
+    if (!isWebClinic && !meetUrl) { msgEl.textContent = "Indica ou gera o link Google Meet."; return; }
+
+    btn.disabled    = true;
+    btn.textContent = "A enviar…";
+
+    try {
+      const res  = await fetch(`${_UPLOADS_WORKER}/confirm`, {
+        method:  "POST",
+        headers: { "content-type": "application/json" },
+        body:    JSON.stringify({ upload_id: row.id, confirmed_datetime: dt, payment_url: payUrl, meet_url: meetUrl || null }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || "Erro");
+      close();
+      const sel = document.getElementById("selClinic");
+      await loadAndRenderPendentes(sel?.value || null);
+    } catch (e) {
+      msgEl.textContent = `Erro: ${e.message}`;
+      btn.disabled    = false;
+      btn.textContent = isWebClinic ? "Enviar data e link de pagamento ao doente" : "Enviar confirmação com link Google Meet";
+    }
+  });
+
+  /* Agendar na agenda */
+  overlay.querySelector("#gcPendBtnAgendar").addEventListener("click", () => {
+    close();
+    openApptModal({ mode: "new", row: null });
+  });
+
+  /* Cancelar pedido */
+  overlay.querySelector("#gcPendBtnCancel").addEventListener("click", async () => {
+    if (!confirm(`Cancelar o pedido de ${row.atleta_nome || "este doente"}?`)) return;
+    try {
+      await window.sb.from("patient_uploads").update({ status: "cancelado" }).eq("id", row.id);
+      close();
+      const sel = document.getElementById("selClinic");
+      await loadAndRenderPendentes(sel?.value || null);
+    } catch (e) {
+      alert("Erro ao cancelar: " + e.message);
+    }
+  });
+}
+
+window.__gc_loadAndRenderPendentes = loadAndRenderPendentes;
