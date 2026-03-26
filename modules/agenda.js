@@ -2156,6 +2156,13 @@ export async function refreshAgenda() {
     setAgendaStatus("ok", `OK: ${data.length} marcação(ões).`);
     renderAgendaList();
     loadAndRenderPendentes(clinicId).catch(() => {});
+
+    // Auto-sync Google Calendar em background para dias de hoje ou futuros
+    // (garante que teleconsultas não sincronizadas pelo webhook são apanhadas)
+    const todayISO = fmtDateISO(new Date());
+    if (G.selectedDayISO >= todayISO) {
+      __gcFireSyncDay(G.selectedDayISO);
+    }
   } catch (e) {
     if (__gcIsAuthError(e)) { await __gcForceSessionLock("Sessão expirada ou inválida. Volte a iniciar sessão."); return; }
     console.error("Agenda load falhou:", e);
