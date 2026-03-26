@@ -903,15 +903,15 @@ export async function openCalendarOverlay() {
   });
 
   root.querySelectorAll("[data-iso]").forEach((el) => {
-    el.addEventListener("click", () => {
+    el.addEventListener("click", async () => {
       const iso = el.getAttribute("data-iso");
       if (!iso) return;
       G.selectedDayISO = iso;
       const d = parseISODateToLocalStart(iso);
       if (d) G.calMonth = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
       close();
-      G.weekStartISO = __gcWeekStartISO(iso);
-      openWeekView();
+      setAgendaSubtitleForSelectedDay();
+      await refreshAgenda();
     });
   });
 }
@@ -1030,7 +1030,7 @@ export async function openWeekView() {
       : isSelDay
         ? "color:#0f2d52;font-weight:900;"
         : "color:#111;font-weight:700;";
-    return `<th style="padding:6px 4px;text-align:center;border-right:1px solid #eee;background:#fafafa;position:sticky;top:0;z-index:2;">
+    return `<th data-week-day-iso="${escapeHtml(iso)}" style="padding:6px 4px;text-align:center;border-right:1px solid #eee;background:#fafafa;position:sticky;top:0;z-index:2;cursor:pointer;" title="Ver dia ${iso}">
       <div style="font-size:${UI.fs12}px;color:#888;">${label}</div>
       <div style="font-size:${UI.fs14}px;${numStyle}">${d ? d.getDate() : ""}</div>
     </th>`;
@@ -1119,6 +1119,18 @@ export async function openWeekView() {
   document.getElementById("weekToday")?.addEventListener("click", () => {
     G.weekStartISO = __gcWeekStartISO(fmtDateISO(new Date()));
     openWeekView();
+  });
+
+  /* Clique no cabeçalho do dia → navegar para esse dia na agenda */
+  root.querySelectorAll("[data-week-day-iso]").forEach((el) => {
+    el.addEventListener("click", async () => {
+      const iso = el.getAttribute("data-week-day-iso");
+      if (!iso) return;
+      G.selectedDayISO = iso;
+      close();
+      setAgendaSubtitleForSelectedDay();
+      await refreshAgenda();
+    });
   });
 
   /* Clique em célula vazia → abrir modal de nova marcação */
