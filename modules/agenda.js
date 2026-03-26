@@ -573,6 +573,9 @@ export function renderQuickPatientResults(results) {
   const selectedId = G.patientQuick?.selected?.id ?? null;
 
   const currentClinicId = G.activeClinicId || G.clinics?.[0]?.id || null;
+  const _isSuperadmin = !!window.__GC_IS_SUPERADMIN__;
+  // Clinics the current user belongs to (for privacy: don't reveal clinic name to outside staff)
+  const _myClinicIds  = new Set((G.clinics || []).map(c => c.id));
 
   host.innerHTML = results.map((p) => {
     const idBits = [];
@@ -582,8 +585,14 @@ export function renderQuickPatientResults(results) {
     const line2 = [idBits.join(" / "), p.phone ? `Tel:${p.phone}` : ""].filter(Boolean).join(" • ");
 
     const isSel      = selectedId && p.id === selectedId;
-    const isOther    = p.active_clinic_id && currentClinicId && p.active_clinic_id !== currentClinicId;
-    const otherName  = isOther ? (G.clinicsById?.[p.active_clinic_id]?.name || G.clinicsById?.[p.active_clinic_id]?.display_name || "Outra clínica") : null;
+    // Superadmin sees all patients without clinic distinction
+    const isOther    = !_isSuperadmin && p.active_clinic_id && currentClinicId && p.active_clinic_id !== currentClinicId;
+    // Only reveal clinic name if user also belongs to that clinic
+    const otherName  = isOther
+      ? (_myClinicIds.has(p.active_clinic_id)
+          ? (G.clinicsById?.[p.active_clinic_id]?.name || G.clinicsById?.[p.active_clinic_id]?.display_name || "Outra clínica")
+          : "Outra clínica")
+      : null;
 
     const bg = isSel    ? "background:#f2f2f2;" : isOther ? "background:#fffbeb;" : "background:#fff;";
     const br = isSel    ? "border:1px solid #cbd5e1;" : isOther ? "border:1px solid #fcd34d;" : "border:1px solid #f0f0f0;";
@@ -617,10 +626,10 @@ export function renderQuickPatientResults(results) {
     const p = (results || []).find((x) => x.id === pid);
     if (!p) return;
 
-    // Se o doente está noutro clínica, oferecer transferência
+    // Se o doente está noutra clínica, oferecer transferência (não para superadmin)
     const otherClinicId = card.getAttribute("data-other-clinic");
-    if (otherClinicId && currentClinicId) {
-      const fromName = G.clinicsById?.[otherClinicId]?.name || G.clinicsById?.[otherClinicId]?.display_name || otherClinicId;
+    if (!window.__GC_IS_SUPERADMIN__ && otherClinicId && currentClinicId) {
+      const fromName = G.clinicsById?.[otherClinicId]?.name || G.clinicsById?.[otherClinicId]?.display_name || "Outra clínica";
       const toName   = G.clinicsById?.[currentClinicId]?.name || G.clinicsById?.[currentClinicId]?.display_name || currentClinicId;
       const ok = confirm(`"${p.full_name}" está activo em: ${fromName}\n\nTransferir para: ${toName}?`);
       if (!ok) return;
@@ -1677,8 +1686,13 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
       if (p.passport_id) idBits.push(`ID:${p.passport_id}`);
       const line2 = [idBits.join(" / "), p.phone ? `Tel:${p.phone}` : ""].filter(Boolean).join(" • ");
 
-      const isOther   = p.active_clinic_id && modalClinicId && p.active_clinic_id !== modalClinicId;
-      const otherName = isOther ? (G.clinicsById?.[p.active_clinic_id]?.name || G.clinicsById?.[p.active_clinic_id]?.display_name || "Outra clínica") : null;
+      const _modalMyClinicIds = new Set((G.clinics || []).map(c => c.id));
+      const isOther   = !window.__GC_IS_SUPERADMIN__ && p.active_clinic_id && modalClinicId && p.active_clinic_id !== modalClinicId;
+      const otherName = isOther
+        ? (_modalMyClinicIds.has(p.active_clinic_id)
+            ? (G.clinicsById?.[p.active_clinic_id]?.name || G.clinicsById?.[p.active_clinic_id]?.display_name || "Outra clínica")
+            : "Outra clínica")
+        : null;
       const badge     = isOther ? `<span style="font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 6px;margin-left:6px;">↗ ${escapeHtml(otherName)}</span>` : "";
       const bg        = isOther ? "background:#fffbeb;border:1px solid #fcd34d;" : "border:1px solid #f0f0f0;";
 
@@ -1695,8 +1709,8 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
         const pid          = el.getAttribute("data-pid");
         const pname        = el.getAttribute("data-pname");
         const otherClinic  = el.getAttribute("data-other-clinic");
-        if (otherClinic && modalClinicId) {
-          const fromName = G.clinicsById?.[otherClinic]?.name || G.clinicsById?.[otherClinic]?.display_name || otherClinic;
+        if (!window.__GC_IS_SUPERADMIN__ && otherClinic && modalClinicId) {
+          const fromName = G.clinicsById?.[otherClinic]?.name || G.clinicsById?.[otherClinic]?.display_name || "Outra clínica";
           const toName   = G.clinicsById?.[modalClinicId]?.name || G.clinicsById?.[modalClinicId]?.display_name || modalClinicId;
           const ok = confirm(`"${pname}" está activo em: ${fromName}\n\nTransferir para: ${toName}?`);
           if (!ok) return;
