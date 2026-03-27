@@ -6827,7 +6827,18 @@ function render() {
       ? statusNorm
       : "scheduled";
 
-    const patientIdInit = isEdit ? (row.patient_id ?? "") : "";
+    let patientIdInit = isEdit ? (row.patient_id ?? "") : "";
+    let patientNameInit = isEdit ? (String(row.title ?? "").split(" — ")[0]) : "";
+    // Pré-selecção vinda da ficha do doente (btnAgendarConsulta)
+    if (!patientIdInit) {
+      const G_ref = window.__gc_G || (typeof G !== "undefined" ? G : null);
+      if (G_ref?.preselectedPatientId) {
+        patientIdInit  = G_ref.preselectedPatientId;
+        patientNameInit = G_ref.preselectedPatientName || "";
+        G_ref.preselectedPatientId   = null;
+        G_ref.preselectedPatientName = null;
+      }
+    }
     const titleInit = isEdit ? (row.title ?? "") : "";
     const notesInit = isEdit ? (row.notes ?? "") : "";
 
@@ -7288,9 +7299,9 @@ function render() {
     }
 
     if (patientIdInit) {
-      const displayName = titleInit ? String(titleInit).split(" — ")[0] : "";
-      setSelectedPatient({ id: patientIdInit, name: displayName || `ID: ${patientIdInit}` });
-      if (mPatientQuery) mPatientQuery.value = displayName || "";
+      const displayName = patientNameInit || (titleInit ? String(titleInit).split(" — ")[0] : "") || `ID: ${patientIdInit}`;
+      setSelectedPatient({ id: patientIdInit, name: displayName });
+      if (mPatientQuery) mPatientQuery.value = displayName;
     } else {
       setSelectedPatient({ id: "", name: "" });
     }
