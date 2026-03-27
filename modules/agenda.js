@@ -1702,7 +1702,6 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
       if (error) throw error;
       safeCloseModal();
       await refreshAgenda();
-      __gcFireSyncDay(String(row.start_at || G.selectedDayISO || "").slice(0, 10));
     } catch (e) { console.error(e); alert("Erro ao apagar bloqueio. Vê a consola para detalhe."); }
   });
 
@@ -2022,7 +2021,6 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
       if (error) throw error;
       safeCloseModal();
       await refreshAgenda();
-      __gcFireSyncDay(dayISO);
     } catch (e) {
       console.error("Registar falta falhou:", e);
       mMsg.style.color = "#b00020"; mMsg.textContent = String(e?.message || e?.details || e?.hint || e) || "Erro ao registar falta.";
@@ -2088,9 +2086,6 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
 
         safeCloseModal();
         await refreshAgenda();
-        const syncDays = [String(dateFrom).slice(0, 10)];
-        if (isEdit && row?.start_at) syncDays.push(String(row.start_at).slice(0, 10));
-        __gcFireSyncDays(syncDays);
         return;
       }
 
@@ -2141,7 +2136,6 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
 
       safeCloseModal();
       await refreshAgenda();
-      __gcFireSyncDays([oldDayISO, newDayISO]);
 
     } catch (e) {
       console.error("Guardar falhou:", e);
