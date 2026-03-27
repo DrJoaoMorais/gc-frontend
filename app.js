@@ -8527,6 +8527,7 @@ async function wireLogout() {
         await refreshAgenda();
       }
 
+      window.__gc_renderCurrentView = renderCurrentView;
       await renderCurrentView();
 
     } catch (e) {
