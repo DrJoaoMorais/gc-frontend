@@ -550,7 +550,12 @@ export function renderAgendaList() {
             method: "POST",
             headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
             body: JSON.stringify({ dayISO }),
-          }).then(r => r.ok ? resolve() : r.text().then(t => reject(new Error(t)))).catch(reject);
+          }).then(async r => {
+            if (!r.ok) { const t = await r.text().catch(() => ""); reject(new Error(t)); return; }
+            const json = await r.json().catch(() => ({}));
+            console.log("[GCAL] sync-day resultado:", JSON.stringify(json, null, 2));
+            resolve(json);
+          }).catch(reject);
         }).catch(reject);
       });
       btnSync.textContent = "✅ Sincronizado";
