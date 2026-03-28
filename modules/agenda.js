@@ -1590,6 +1590,10 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
               <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Clínica</label>
               <select id="mClinic" class="gcSelect" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;color:#1e293b;"></select>
             </div>
+            <div style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1;">
+              <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Médico responsável</label>
+              <select id="mProvider" class="gcSelect" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;color:#1e293b;"></select>
+            </div>
           </div>
         </div>
 
@@ -1658,6 +1662,46 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
     mClinic.innerHTML = G.clinics.map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name || c.slug || c.id)}</option>`).join("");
     if (defaultClinicId) mClinic.value = defaultClinicId;
     if (G.clinics.length === 1) mClinic.disabled = true;
+  }
+
+  /* preencher select médico */
+  const mProvider = document.getElementById("mProvider");
+  if (mProvider) {
+    const isSA   = String(G.role || "").toLowerCase() === "super_admin";
+    const isAdm  = String(G.role || "").toLowerCase() === "administrativo";
+    const myUid  = G.sessionUser?.id || "";
+
+    /* Médicos da clínica seleccionada */
+    async function fillProviders(clinicId) {
+      mProvider.innerHTML = `<option value="">A carregar…</option>`;
+      try {
+        const { data } = await window.sb
+          .from("clinic_members")
+          .select("user_id, display_name, profiles(nome_completo)")
+          .eq("clinic_id", clinicId)
+          .eq("is_active", true)
+          .in("role", ["medico", "super_admin"]);
+        const lista = data || [];
+        mProvider.innerHTML = lista.map(m => {
+          const nome = m.profiles?.nome_completo || m.display_name || m.user_id;
+          return `<option value="${escapeHtml(m.user_id)}">${escapeHtml(nome)}</option>`;
+        }).join("");
+        /* Pré-seleccionar */
+        if (isEdit && row?.provider_id) {
+          mProvider.value = row.provider_id;
+        } else if (!isAdm && myUid) {
+          mProvider.value = myUid;
+        }
+        /* Médico normal não pode mudar */
+        if (!isSA && !isAdm) mProvider.disabled = true;
+      } catch(e) {
+        mProvider.innerHTML = `<option value="">Erro ao carregar</option>`;
+      }
+    }
+
+    const clinicIdInit = mClinic?.value || defaultClinicId;
+    if (clinicIdInit) fillProviders(clinicIdInit);
+    mClinic?.addEventListener("change", (e) => fillProviders(e.target.value));
   }
 
   if (mStatus)   mStatus.value   = statusInit;
@@ -2132,6 +2176,7 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
         title: makeAutoTitle(pname, proc),
         notes: mNotes?.value?.trim() || null,
         mode: "presencial",
+        provider_id: document.getElementById("mProvider")?.value || G.sessionUser?.id || null,
       };
       if (payload.notes === "") payload.notes = null;
 
