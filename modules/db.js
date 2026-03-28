@@ -79,6 +79,14 @@ export async function loadAppointmentsForRange({ clinicId, startISO, endISO }) {
         q = q.or(`clinic_id.eq.${clinicId},and(clinic_id.is.null,mode.eq.bloqueio)`);
       }
 
+      // Médico vê só as suas consultas (+ bloqueios)
+      // Super_admin e administrativo vêem tudo da clínica
+      const _role = String(window.G?.role || "").toLowerCase();
+      const _uid  = window.G?.sessionUser?.id || null;
+      if (_role === "medico" && _uid) {
+        q = q.or(`provider_id.eq.${_uid},mode.eq.bloqueio,provider_id.is.null`);
+      }
+
       const { data, error } = await q;
       if (error) throw error;
 
