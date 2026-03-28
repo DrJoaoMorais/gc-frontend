@@ -2038,21 +2038,8 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   async function onDeleteAppt() {
     if (!canDeleteAppt || !row?.id) return;
     if (!confirm("Registar esta marcação como falta (Faltou)?")) return;
-    try {
-      if (btnDeleteAppt) btnDeleteAppt.disabled = true;
-      if (btnSave) btnSave.disabled = true;
-      mMsg.style.color = "#666"; mMsg.textContent = "A registar falta…";
-      const dayISO = String(row.start_at || G.selectedDayISO || "").slice(0, 10);
-      const { error } = await window.sb.from("appointments").update({ appt_status: "no_show" }).eq("id", row.id);
-      if (error) throw error;
-      safeCloseModal();
-      await refreshAgenda();
-    } catch (e) {
-      console.error("Registar falta falhou:", e);
-      mMsg.style.color = "#b00020"; mMsg.textContent = String(e?.message || e?.details || e?.hint || e) || "Erro ao registar falta.";
-      if (btnDeleteAppt) btnDeleteAppt.disabled = false;
-      if (btnSave) btnSave.disabled = false;
-    }
+    if (mStatus) mStatus.value = "no_show";
+    await onSave();
   }
   btnDeleteAppt?.addEventListener("click", onDeleteAppt);
 
