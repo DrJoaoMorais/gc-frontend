@@ -26,6 +26,7 @@ import { wireLogout, ensureAAL2, __gcForceSessionLock, __gcIsAuthError, __gcSess
 import { fmtDateISO }                      from "./helpers.js";
 import { renderFinancas }                  from "./financas.js";
 import { renderGestao }                    from "./gestao.js";
+import { initGestaoAgenda }               from "./gestaoagenda.js";
 
 /* ====================================================================
    BLOCO 11B — Boot principal
@@ -201,6 +202,12 @@ async function renderCurrentView() {
   /* Vista Gestão */
   if (view === "management") {
     await renderGestao();
+    return;
+  }
+
+  /* Vista Gestão de Agenda */
+  if (view === "gestaoagenda") {
+    initGestaoAgenda();
     return;
   }
 

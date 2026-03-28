@@ -89,6 +89,7 @@ import {
 
 // Finanças
 import { initFinancas }                      from "./modules/financas.js";
+import { initGestaoAgenda }                  from "./modules/gestaoagenda.js";
 
 // Boot
 import { boot }                             from "./modules/boot.js";
@@ -212,6 +213,7 @@ window.closeExamsPanel         = closeExamsPanel;
 window.openAnalisesModal       = openAnalisesModal;
 window.openCalendarOverlay     = openCalendarOverlay;
 window.refreshAgenda           = refreshAgenda;
+window.initGestaoAgenda        = initGestaoAgenda;
 
 /* ── arranque ────────────────────────────────────────────────────────── */
 document.addEventListener("DOMContentLoaded", boot);
