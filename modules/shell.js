@@ -89,8 +89,12 @@ export function renderAppShell() {
       <!-- Toolbar unificada -->
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:8px 12px;box-shadow:0 1px 4px rgba(15,45,82,0.06);">
 
-        <!-- Navegação temporal (ghost — neutros, não competem com as acções) -->
-        <button id="btnToday" class="gcBtnGhost" style="white-space:nowrap;">Hoje</button>
+        <!-- Navegação temporal -->
+        <div style="display:flex;align-items:center;gap:2px;background:#f1f5f9;border-radius:10px;padding:2px;">
+          <button id="btnPrevDay" title="Dia anterior" style="border:none;background:transparent;cursor:pointer;width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#475569;font-size:16px;font-weight:700;transition:background 0.15s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='transparent'">‹</button>
+          <button id="btnToday" style="border:none;background:transparent;cursor:pointer;padding:0 10px;height:28px;border-radius:7px;font-size:13px;font-weight:600;color:#0f2d52;white-space:nowrap;transition:background 0.15s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='transparent'">Hoje</button>
+          <button id="btnNextDay" title="Próximo dia" style="border:none;background:transparent;cursor:pointer;width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#475569;font-size:16px;font-weight:700;transition:background 0.15s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='transparent'">›</button>
+        </div>
         <button id="btnWeek"  class="gcBtnGhost" style="white-space:nowrap;">Semana</button>
         <button id="btnCal"   class="gcBtnGhost" style="white-space:nowrap;">Calendário</button>
 

@@ -2372,6 +2372,18 @@ export function wireAgendaTopbar() {
     await refreshAgenda();
   });
 
+  document.getElementById("btnPrevDay")?.addEventListener("click", async () => {
+    G.selectedDayISO = __gcAddDaysToISO(G.selectedDayISO || fmtDateISO(new Date()), -1);
+    setAgendaSubtitleForSelectedDay();
+    await refreshAgenda();
+  });
+
+  document.getElementById("btnNextDay")?.addEventListener("click", async () => {
+    G.selectedDayISO = __gcAddDaysToISO(G.selectedDayISO || fmtDateISO(new Date()), 1);
+    setAgendaSubtitleForSelectedDay();
+    await refreshAgenda();
+  });
+
   document.getElementById("btnNewAppt")?.addEventListener("click", () => {
     openApptModal({ mode: "new", row: null });
   });
@@ -2426,17 +2438,22 @@ function _renderVencidos(rows, patientsById, timeCol) {
   if (!section || !rows.length) { if (section) section.innerHTML = ""; return; }
 
   const cards = rows.map(r => {
-    const nome = escapeHtml(patientsById[r.patient_id]?.full_name || "—");
+    const nome   = escapeHtml(patientsById[r.patient_id]?.full_name || "—");
     const dateVal = r[timeCol];
-    const dateStr = dateVal
-      ? new Date(dateVal).toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit", year: "2-digit" })
+    const dayISO  = dateVal ? String(dateVal).slice(0, 10) : "";
+    const dateStr = dayISO
+      ? new Date(dayISO + "T00:00:00").toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit", year: "2-digit" })
       : "—";
     const sm = statusMeta(r.appt_status);
     return `<div class="gc-venc-card" data-id="${r.id}"
       style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:#fff;border:1px solid #FCA5A5;border-left:3px solid #EF4444;border-radius:8px;cursor:pointer;"
       onmouseover="this.style.boxShadow='0 2px 6px rgba(0,0,0,0.10)'" onmouseout="this.style.boxShadow=''">
-      <div style="flex:1;font-size:12px;font-weight:700;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${nome}</div>
-      <div style="font-size:11px;color:#6B7280;flex-shrink:0;">${dateStr}</div>
+      <span class="gc-venc-patient" data-pid="${r.patient_id || ""}"
+        style="flex:1;font-size:12px;font-weight:700;color:#1d4ed8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:underline;"
+        title="Ver ficha do doente">${nome}</span>
+      <span class="gc-venc-day" data-dayiso="${dayISO}"
+        style="font-size:11px;color:#6B7280;flex-shrink:0;text-decoration:underline;cursor:pointer;"
+        title="Ir para este dia">${dateStr}</span>
       <div style="font-size:10px;background:${sm.bg};color:${sm.fg};padding:2px 7px;border-radius:999px;font-weight:600;flex-shrink:0;">${sm.icon} ${sm.label}</div>
     </div>`;
   }).join("");
@@ -2446,11 +2463,37 @@ function _renderVencidos(rows, patientsById, timeCol) {
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
         <div style="width:8px;height:8px;background:#EF4444;border-radius:50%;flex-shrink:0;"></div>
         <span style="font-size:13px;font-weight:700;color:#991B1B;">⚠️ ${rows.length} consulta${rows.length > 1 ? "s" : ""} por fechar</span>
-        <span style="font-size:11px;color:#B91C1C;">— clica para actualizar o estado</span>
+        <span style="font-size:11px;color:#B91C1C;">— nome abre doente · data abre agenda desse dia · clica para editar estado</span>
       </div>
       <div style="display:flex;flex-direction:column;gap:5px;">${cards}</div>
     </div>`;
 
+  // Nome → abre ficha do doente
+  section.querySelectorAll(".gc-venc-patient").forEach(el => {
+    const pid = el.dataset.pid;
+    if (!pid) return;
+    el.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try {
+        const pt = await fetchPatientById(pid);
+        if (pt) openPatientViewModal(pt);
+      } catch (err) { console.warn("gc-venc open patient:", err); }
+    });
+  });
+
+  // Data → navega para esse dia na agenda
+  section.querySelectorAll(".gc-venc-day").forEach(el => {
+    const dayISO = el.dataset.dayiso;
+    if (!dayISO) return;
+    el.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      G.selectedDayISO = dayISO;
+      setAgendaSubtitleForSelectedDay();
+      await refreshAgenda();
+    });
+  });
+
+  // Card → abre modal de edição da marcação
   section.querySelectorAll(".gc-venc-card").forEach(card => {
     const row = rows.find(r => String(r.id) === String(card.dataset.id));
     if (row) card.addEventListener("click", () => openApptModal({ mode: "edit", row }));
