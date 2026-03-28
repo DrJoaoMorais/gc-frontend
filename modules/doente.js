@@ -4005,32 +4005,27 @@ function openPatientViewModal(patient) {
       try {
         const G_ref = window.__gc_G || (typeof G !== "undefined" ? G : null);
         if (G_ref) {
-          G_ref.currentView = "agenda";
           G_ref.preselectedPatientId = p.id;
           G_ref.preselectedPatientName = p.full_name || "";
           G_ref._returnToPatient = { id: p.id, data: p };
         }
-        if (typeof window.__gc_renderCurrentView === "function") {
-          window.__gc_renderCurrentView();
-          setTimeout(() => {
-            const btnNew = document.getElementById("btnNewAppt");
-            if (btnNew) btnNew.click();
-            const modalRoot = document.getElementById("modalRoot");
-            if (modalRoot) {
-              const observer = new MutationObserver(() => {
-                if (!modalRoot.hasChildNodes()) {
-                  observer.disconnect();
-                  const G2 = window.__gc_G || (typeof G !== "undefined" ? G : null);
-                  const ret = G2?._returnToPatient;
-                  if (ret?.data && typeof openPatientViewModal === "function") {
-                    G2._returnToPatient = null;
-                    openPatientViewModal(ret.data);
-                  }
+        if (typeof window.__gc_openApptModal === "function") {
+          window.__gc_openApptModal({ mode: "new", row: null });
+          const modalRoot = document.getElementById("modalRoot");
+          if (modalRoot) {
+            const observer = new MutationObserver(() => {
+              if (!modalRoot.hasChildNodes()) {
+                observer.disconnect();
+                const G2 = window.__gc_G || (typeof G !== "undefined" ? G : null);
+                const ret = G2?._returnToPatient;
+                if (ret?.data && typeof openPatientViewModal === "function") {
+                  G2._returnToPatient = null;
+                  openPatientViewModal(ret.data);
                 }
-              });
-              observer.observe(modalRoot, { childList: true });
-            }
-          }, 200);
+              }
+            });
+            observer.observe(modalRoot, { childList: true });
+          }
         }
       } catch(e) { console.error("Agendar consulta:", e); }
     });

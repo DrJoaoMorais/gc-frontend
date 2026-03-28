@@ -8528,6 +8528,7 @@ async function wireLogout() {
       }
 
       window.__gc_renderCurrentView = renderCurrentView;
+      window.__gc_openApptModal = openApptModal;
       await renderCurrentView();
 
     } catch (e) {
