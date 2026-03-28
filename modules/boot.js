@@ -124,13 +124,13 @@ export async function boot() {
   (async () => {
     try {
       const hoje = new Date().toISOString().slice(0, 10);
-      const { data } = await window.sb
+      const { count } = await window.sb
         .from("registos_financeiros")
         .select("id", { count: "exact", head: true })
         .in("appt_status", ["scheduled", "arrived"])
         .lt("data", hoje);
-      const count = data?.length ?? 0;
-      if (count > 0) {
+      const c = count ?? 0;
+      if (c > 0) {
         // Badge no ícone de Rendimentos
         const btnFin = document.querySelector('[data-nav="financas"]');
         if (btnFin) {
@@ -145,7 +145,7 @@ export async function boot() {
             alignItems: "center", justifyContent: "center",
             lineHeight: "1", pointerEvents: "none"
           });
-          badge.textContent = count > 9 ? "9+" : String(count);
+          badge.textContent = c > 9 ? "9+" : String(c);
           btnFin.style.position = "relative";
           btnFin.appendChild(badge);
         }

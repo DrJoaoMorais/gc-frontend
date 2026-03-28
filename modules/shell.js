@@ -119,6 +119,8 @@ export function renderAppShell() {
 
       <div id="pendentesSection" style="margin-top:14px;"></div>
 
+      <div id="vencidosSection" style="margin-top:8px;"></div>
+
       <div style="margin-top:14px;">
         <ul id="agendaList" style="list-style:none;padding:0;margin:0;"></ul>
       </div>

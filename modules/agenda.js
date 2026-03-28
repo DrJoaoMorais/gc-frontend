@@ -2184,6 +2184,7 @@ export async function refreshAgenda() {
     setAgendaStatus("ok", `OK: ${data.length} marcação(ões).`);
     renderAgendaList();
     loadAndRenderPendentes(clinicId).catch(() => {});
+    loadAndRenderVencidos(clinicId).catch(() => {});
   } catch (e) {
     if (__gcIsAuthError(e)) { await __gcForceSessionLock("Sessão expirada ou inválida. Volte a iniciar sessão."); return; }
     console.error("Agenda load falhou:", e);
@@ -2379,6 +2380,82 @@ export function wireAgendaTopbar() {
 }
 
 window.__gc_wireAgendaTopbar = wireAgendaTopbar;
+
+
+/* ========================================================
+   VENCIDOS — consultas passadas não fechadas
+   ======================================================== */
+
+async function loadAndRenderVencidos(clinicId) {
+  const section = document.getElementById("vencidosSection");
+  if (!section) return;
+  try {
+    const hoje = new Date().toISOString().slice(0, 10);
+    const timeCol = G.agenda?.timeColUsed || "start_at";
+    let q = window.sb
+      .from("appointments")
+      .select("*")
+      .in("appt_status", ["scheduled", "arrived"])
+      .lt(timeCol, hoje)
+      .neq("mode", "bloqueio")
+      .order(timeCol, { ascending: false })
+      .limit(15);
+    if (clinicId) q = q.eq("clinic_id", clinicId);
+    const { data, error } = await q;
+    if (error) throw error;
+    const rows = data || [];
+    if (!rows.length) { section.innerHTML = ""; return; }
+
+    // Buscar nomes dos doentes
+    const patientIds = [...new Set(rows.map(r => r.patient_id).filter(Boolean))];
+    let patientsById = {};
+    if (patientIds.length) {
+      const { data: pts } = await window.sb.from("patients").select("id,full_name").in("id", patientIds);
+      (pts || []).forEach(p => { patientsById[p.id] = p; });
+    }
+
+    _renderVencidos(rows, patientsById, timeCol);
+  } catch (e) {
+    console.warn("loadAndRenderVencidos:", e);
+    section.innerHTML = "";
+  }
+}
+
+function _renderVencidos(rows, patientsById, timeCol) {
+  const section = document.getElementById("vencidosSection");
+  if (!section || !rows.length) { if (section) section.innerHTML = ""; return; }
+
+  const cards = rows.map(r => {
+    const nome = escapeHtml(patientsById[r.patient_id]?.full_name || "—");
+    const dateVal = r[timeCol];
+    const dateStr = dateVal
+      ? new Date(dateVal).toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit", year: "2-digit" })
+      : "—";
+    const sm = statusMeta(r.appt_status);
+    return `<div class="gc-venc-card" data-id="${r.id}"
+      style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:#fff;border:1px solid #FCA5A5;border-left:3px solid #EF4444;border-radius:8px;cursor:pointer;"
+      onmouseover="this.style.boxShadow='0 2px 6px rgba(0,0,0,0.10)'" onmouseout="this.style.boxShadow=''">
+      <div style="flex:1;font-size:12px;font-weight:700;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${nome}</div>
+      <div style="font-size:11px;color:#6B7280;flex-shrink:0;">${dateStr}</div>
+      <div style="font-size:10px;background:${sm.bg};color:${sm.fg};padding:2px 7px;border-radius:999px;font-weight:600;flex-shrink:0;">${sm.icon} ${sm.label}</div>
+    </div>`;
+  }).join("");
+
+  section.innerHTML = `
+    <div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;padding:12px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <div style="width:8px;height:8px;background:#EF4444;border-radius:50%;flex-shrink:0;"></div>
+        <span style="font-size:13px;font-weight:700;color:#991B1B;">⚠️ ${rows.length} consulta${rows.length > 1 ? "s" : ""} por fechar</span>
+        <span style="font-size:11px;color:#B91C1C;">— clica para actualizar o estado</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;">${cards}</div>
+    </div>`;
+
+  section.querySelectorAll(".gc-venc-card").forEach(card => {
+    const row = rows.find(r => String(r.id) === String(card.dataset.id));
+    if (row) card.addEventListener("click", () => openApptModal({ mode: "edit", row }));
+  });
+}
 
 
 /* ========================================================
