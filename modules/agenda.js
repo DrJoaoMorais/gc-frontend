@@ -843,19 +843,22 @@ export async function openCalendarOverlay() {
   const endISO   = `${y}-${String(m + 2).padStart(2, "0")}-01T00:00:00.000Z`;
   /* dots: { "2026-03-14": [{clinic_id, isBlock}, ...] } */
   const dots = {};
+  /* Selecção persistente de clínicas — por defeito todas */
+  if (!G.calSelectedClinicIds) {
+    G.calSelectedClinicIds = new Set((G.clinics || []).map(c => String(c.id)));
+  }
+  const selIds = G.calSelectedClinicIds;
   try {
-    const _existingCalSel = document.getElementById("calSelClinic");
-    const _mainSel = document.getElementById("selClinic");
-    const calClinicId = _existingCalSel
-      ? (_existingCalSel.value || null)
-      : (_mainSel?.value || null);
-    const { data: appts } = await loadAppointmentsForRange({ clinicId: calClinicId, startISO, endISO });
+    const { data: appts } = await loadAppointmentsForRange({ clinicId: null, startISO, endISO });
     for (const a of (appts || [])) {
       const col = a.start_at || a.starts_at || a.start_time || a.start_datetime || a.start;
       if (!col) continue;
+      const isBlock = String(a.mode || "").toLowerCase() === "bloqueio";
+      /* Filtrar por clínicas seleccionadas; bloqueios globais sempre incluídos */
+      if (!isBlock && !selIds.has(String(a.clinic_id))) continue;
       const dayISO = String(col).slice(0, 10);
       if (!dots[dayISO]) dots[dayISO] = [];
-      dots[dayISO].push({ clinic_id: a.clinic_id, isBlock: String(a.mode || "").toLowerCase() === "bloqueio" });
+      dots[dayISO].push({ clinic_id: a.clinic_id, isBlock });
     }
   } catch (_) { /* dots ficam vazios — não bloqueia abertura */ }
 
@@ -916,11 +919,17 @@ export async function openCalendarOverlay() {
         </div>
         ${legendItems.length ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid #f0f0f0;display:flex;flex-wrap:wrap;gap:10px;">${legendItems.join("")}</div>` : ""}
         <div style="margin-top:12px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <select id="calSelClinic" style="font-size:12px;border:1px solid #e2e8f0;border-radius:8px;padding:4px 8px;background:#fff;color:#111;cursor:pointer;">
-              <option value="">Todas as clínicas</option>
-              ${(G.clinics || []).map(c => `<option value="${c.id}" ${calClinicId === c.id ? "selected" : ""}>${escapeHtml(c.name || c.slug || c.id)}</option>`).join("")}
-            </select>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;flex-wrap:wrap;gap:10px;">
+              ${(G.clinics || []).map(c => {
+                const pal = getClinicPalette(c.id);
+                const chk = selIds.has(String(c.id)) ? "checked" : "";
+                return `<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;user-select:none;">
+                  <input type="checkbox" data-cal-clinic="${escapeHtml(String(c.id))}" ${chk} style="accent-color:${pal.color};width:14px;height:14px;cursor:pointer;">
+                  <span style="color:#333;">${escapeHtml(c.name || c.slug || c.id)}</span>
+                </label>`;
+              }).join("")}
+            </div>
             <div style="font-size:${UI.fs12}px;color:#666;">Clique num dia para abrir a agenda desse dia.</div>
           </div>
           <div style="display:flex;gap:8px;">
@@ -945,8 +954,21 @@ export async function openCalendarOverlay() {
     openCalendarOverlay();
   });
 
-  document.getElementById("calSelClinic")?.addEventListener("change", () => {
-    openCalendarOverlay();
+  root.querySelectorAll("[data-cal-clinic]").forEach(cb => {
+    cb.addEventListener("change", () => {
+      if (cb.checked) {
+        G.calSelectedClinicIds.add(cb.dataset.calClinic);
+      } else {
+        G.calSelectedClinicIds.delete(cb.dataset.calClinic);
+        /* Garantir pelo menos 1 seleccionada */
+        if (G.calSelectedClinicIds.size === 0) {
+          G.calSelectedClinicIds.add(cb.dataset.calClinic);
+          cb.checked = true;
+          return;
+        }
+      }
+      openCalendarOverlay();
+    });
   });
 
   root.querySelectorAll("[data-iso]").forEach((el) => {
