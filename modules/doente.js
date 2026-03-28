@@ -4010,7 +4010,13 @@ function openPatientViewModal(patient) {
           G_ref._returnToPatient = { id: p.id, data: p };
         }
         if (typeof window.__gc_openApptModal === "function") {
-          window.__gc_openApptModal({ mode: "new", row: null });
+          window.__gc_openApptModal({
+            mode: "new",
+            row: null,
+            prefillPatientId: p.id,
+            prefillPatientName: p.full_name || "",
+            prefillClinicId: activeClinicId || null
+          });
           const modalRoot = document.getElementById("modalRoot");
           if (modalRoot) {
             const observer = new MutationObserver(() => {

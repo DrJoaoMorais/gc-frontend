@@ -1424,7 +1424,7 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
 /* ==== 09C/D/E — Modal marcação ==== */
 
 /* ---- openApptModal ---- */
-export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, prefillPatientName }) {
+export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, prefillPatientName, prefillClinicId }) {
   const root = document.getElementById("modalRoot");
   if (!root) return;
 
@@ -1432,7 +1432,7 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   const selClinic       = document.getElementById("selClinic");
   const defaultClinicId = isEdit && row?.clinic_id
     ? row.clinic_id
-    : selClinic?.value || (G.clinics.length === 1 ? G.clinics[0].id : "");
+    : prefillClinicId || selClinic?.value || (G.clinics.length === 1 ? G.clinics[0].id : "");
 
   const selectedDayStart = parseISODateToLocalStart(G.selectedDayISO) || new Date();
   const startBase = prefillDatetime
@@ -2431,7 +2431,7 @@ async function loadAndRenderVencidos() {
     const hoje = new Date().toISOString().slice(0, 10);
     const { data, error } = await window.sb
       .from("registos_financeiros")
-      .select("id, data, patient_id, tipo_acto, appt_status, entidades_financeiras(nome), patients(full_name)")
+      .select("id, data, patient_id, appointment_id, tipo_acto, appt_status, financial_status, entidades_financeiras(nome), patients(full_name)")
       .in("appt_status", ["scheduled", "arrived"])
       .lt("data", hoje)
       .order("data", { ascending: false })
@@ -2450,6 +2450,15 @@ function _renderVencidos(rows) {
   const section = document.getElementById("vencidosSection");
   if (!section || !rows.length) { if (section) section.innerHTML = ""; return; }
 
+  const vencStatusOpts = [
+    { val: "scheduled",               label: "Marcada" },
+    { val: "arrived",                 label: "Chegou" },
+    { val: "done",                    label: "Efectuada" },
+    { val: "no_show",                 label: "Faltou" },
+    { val: "cancelled",               label: "Cancelada" },
+    { val: "honorarios_dispensados",  label: "Dispensa honorários" },
+  ];
+
   const cards = rows.map(r => {
     const nome    = escapeHtml(r.patients?.full_name || "—");
     const clinica = escapeHtml(r.entidades_financeiras?.nome || "");
@@ -2457,7 +2466,10 @@ function _renderVencidos(rows) {
     const dateStr = dayISO
       ? new Date(dayISO + "T00:00:00").toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric" })
       : "—";
-    const sm = statusMeta(r.appt_status);
+    const curStatus = r.appt_status || "scheduled";
+    const opts = vencStatusOpts.map(o =>
+      `<option value="${o.val}"${o.val === curStatus ? " selected" : ""}>${o.label}</option>`
+    ).join("");
     return `<div class="gc-venc-card" data-id="${r.id}"
       style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border:0.5px solid #FCA5A5;border-left:3px solid #EF4444;border-radius:8px;">
       <span class="gc-venc-patient" data-pid="${r.patient_id || ""}"
@@ -2466,7 +2478,10 @@ function _renderVencidos(rows) {
       <span class="gc-venc-day" data-dayiso="${dayISO}"
         style="font-size:12px;font-weight:800;color:#111;flex-shrink:0;cursor:pointer;background:#f3f4f6;padding:3px 10px;border-radius:6px;border:1px solid #d1d5db;"
         title="Ir para este dia na agenda">${dateStr}</span>
-      <div style="font-size:11px;background:${sm.bg};color:${sm.fg};padding:3px 9px;border-radius:999px;font-weight:600;flex-shrink:0;">${sm.icon} ${sm.label}</div>
+      <select class="gc-venc-status" data-regid="${r.id}" data-apptid="${r.appointment_id || ""}"
+        style="font-size:11px;font-weight:600;border-radius:6px;border:1px solid #d1d5db;padding:3px 6px;background:#f9fafb;color:#374151;cursor:pointer;flex-shrink:0;">
+        ${opts}
+      </select>
     </div>`;
   }).join("");
 
@@ -2504,6 +2519,59 @@ function _renderVencidos(rows) {
       G.selectedDayISO = dayISO;
       setAgendaSubtitleForSelectedDay();
       await refreshAgenda();
+    });
+  });
+
+  /* Status select → actualiza registos_financeiros (e appointments se possível) */
+  section.querySelectorAll(".gc-venc-status").forEach(sel => {
+    const origVal = sel.value;
+    sel.addEventListener("change", async () => {
+      const newVal = sel.value;
+      const regId  = sel.dataset.regid;
+      const apptId = sel.dataset.apptid;
+      sel.disabled = true;
+
+      try {
+        /* Actualizar registos_financeiros */
+        const rfUpdate = { appt_status: newVal };
+        if (newVal === "honorarios_dispensados") rfUpdate.financial_status = "honorarios_dispensados";
+        const { error: rfErr } = await window.sb
+          .from("registos_financeiros")
+          .update(rfUpdate)
+          .eq("id", regId);
+        if (rfErr) throw rfErr;
+
+        /* Tentar actualizar appointments.status (pode falhar por constraint — ignora silenciosamente) */
+        if (apptId && newVal !== "honorarios_dispensados") {
+          try {
+            await window.sb.from("appointments").update({ status: newVal }).eq("id", apptId);
+          } catch (_) { /* constraint no appointments.status — não crítico */ }
+        }
+
+        /* Remover o card da lista se o estado foi fechado */
+        const closed = ["done", "no_show", "cancelled", "honorarios_dispensados"];
+        if (closed.includes(newVal)) {
+          const card = sel.closest(".gc-venc-card");
+          if (card) card.remove();
+
+          /* Se não sobrou nenhum card, limpa a secção */
+          if (!section.querySelectorAll(".gc-venc-card").length) {
+            section.innerHTML = "";
+          } else {
+            /* Actualiza o contador no cabeçalho */
+            const remaining = section.querySelectorAll(".gc-venc-card").length;
+            const hdr = section.querySelector("span[style*='color:#991B1B']");
+            if (hdr) hdr.textContent = `⚠️ ${remaining} consulta${remaining > 1 ? "s" : ""} por fechar`;
+          }
+        } else {
+          sel.disabled = false;
+        }
+      } catch (e) {
+        console.error("gc-venc-status update:", e);
+        sel.value    = origVal;
+        sel.disabled = false;
+        alert("Erro ao actualizar o estado. Tenta novamente.");
+      }
     });
   });
 }

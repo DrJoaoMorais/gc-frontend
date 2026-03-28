@@ -163,8 +163,10 @@ export async function fetchVisibleClinics() {
       window.__gcSigningOut = true;
       console.warn("[SEC] Idle logout:", reason || "inactivity");
       await window.sb.auth.signOut();
+      window.location.replace("/index.html");
     } catch (e) {
       console.error("[SEC] Idle logout error:", e);
+      window.location.replace("/index.html");
     } finally {
       window.__gcSigningOut = false;
     }
