@@ -844,9 +844,12 @@ export async function openCalendarOverlay() {
   /* dots: { "2026-03-14": [{clinic_id, isBlock}, ...] } */
   const dots = {};
   try {
-    const selClinic = document.getElementById("selClinic");
-    const clinicId  = selClinic?.value || null;
-    const { data: appts } = await loadAppointmentsForRange({ clinicId, startISO, endISO });
+    const _existingCalSel = document.getElementById("calSelClinic");
+    const _mainSel = document.getElementById("selClinic");
+    const calClinicId = _existingCalSel
+      ? (_existingCalSel.value || null)
+      : (_mainSel?.value || null);
+    const { data: appts } = await loadAppointmentsForRange({ clinicId: calClinicId, startISO, endISO });
     for (const a of (appts || [])) {
       const col = a.start_at || a.starts_at || a.start_time || a.start_datetime || a.start;
       if (!col) continue;
@@ -913,7 +916,13 @@ export async function openCalendarOverlay() {
         </div>
         ${legendItems.length ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid #f0f0f0;display:flex;flex-wrap:wrap;gap:10px;">${legendItems.join("")}</div>` : ""}
         <div style="margin-top:12px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
-          <div style="font-size:${UI.fs12}px;color:#666;">Clique num dia para abrir a agenda desse dia.</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <select id="calSelClinic" style="font-size:12px;border:1px solid #e2e8f0;border-radius:8px;padding:4px 8px;background:#fff;color:#111;cursor:pointer;">
+              <option value="">Todas as clínicas</option>
+              ${(G.clinics || []).map(c => `<option value="${c.id}" ${calClinicId === c.id ? "selected" : ""}>${escapeHtml(c.name || c.slug || c.id)}</option>`).join("")}
+            </select>
+            <div style="font-size:${UI.fs12}px;color:#666;">Clique num dia para abrir a agenda desse dia.</div>
+          </div>
           <div style="display:flex;gap:8px;">
             <button id="calOpenWeek" class="gcBtn">Vista semanal</button>
             <button id="calClose" class="gcBtnGhost">Fechar</button>
@@ -933,6 +942,10 @@ export async function openCalendarOverlay() {
   });
   document.getElementById("calNext")?.addEventListener("click", () => {
     G.calMonth = new Date(G.calMonth.getFullYear(), G.calMonth.getMonth() + 1, 1, 0, 0, 0, 0);
+    openCalendarOverlay();
+  });
+
+  document.getElementById("calSelClinic")?.addEventListener("change", () => {
     openCalendarOverlay();
   });
 
@@ -987,11 +1000,16 @@ export async function openWeekView() {
   const weekRangeStart = rStart?.startISO || `${weekDays[0].iso}T00:00:00.000Z`;
   const weekRangeEnd   = rEnd?.endISO     || `${__gcAddDaysToISO(weekDays[6].iso, 1)}T00:00:00.000Z`;
 
+  /* Preservar selecção de clínica entre navegações da semana */
+  const _existingWeekSel = document.getElementById("weekSelClinic");
+  const _mainSel = document.getElementById("selClinic");
+  const weekClinicId = _existingWeekSel
+    ? (_existingWeekSel.value || null)
+    : (_mainSel?.value || null);
+
   let appts = [];
   try {
-    const selClinic = document.getElementById("selClinic");
-    const clinicId  = selClinic?.value || null;
-    const { data } = await loadAppointmentsForRange({ clinicId, startISO: weekRangeStart, endISO: weekRangeEnd });
+    const { data } = await loadAppointmentsForRange({ clinicId: weekClinicId, startISO: weekRangeStart, endISO: weekRangeEnd });
     appts = data || [];
   } catch (_) {}
 
@@ -1108,14 +1126,18 @@ export async function openWeekView() {
   root.innerHTML = `
     <div id="weekOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;padding:12px;z-index:1000;">
       <div style="background:#fff;width:min(1100px,100%);border-radius:14px;border:1px solid #e5e5e5;padding:14px;max-height:92vh;display:flex;flex-direction:column;">
-        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-shrink:0;">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-shrink:0;flex-wrap:wrap;">
           <div style="display:flex;align-items:center;gap:8px;">
             <button id="weekPrev" class="gcBtn gcBtnIcon">◀</button>
             <div style="font-size:${UI.fs14}px;font-weight:800;color:#111;">${escapeHtml(weekLabel)}</div>
             <button id="weekNext" class="gcBtn gcBtnIcon">▶</button>
             <button id="weekToday" class="gcBtnOutline" style="margin-left:4px;">Hoje</button>
           </div>
-          <div style="display:flex;gap:8px;">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="weekSelClinic" style="font-size:13px;border:1px solid #e2e8f0;border-radius:8px;padding:5px 10px;background:#fff;color:#111;cursor:pointer;">
+              <option value="">Todas as clínicas</option>
+              ${(G.clinics || []).map(c => `<option value="${c.id}" ${weekClinicId === c.id ? "selected" : ""}>${escapeHtml(c.name || c.slug || c.id)}</option>`).join("")}
+            </select>
             <button id="weekOpenCal" class="gcBtnOutline">Mensal</button>
             <button id="weekClose" class="gcBtnGhost">Fechar</button>
           </div>
@@ -1152,6 +1174,10 @@ export async function openWeekView() {
   });
   document.getElementById("weekToday")?.addEventListener("click", () => {
     G.weekStartISO = __gcWeekStartISO(fmtDateISO(new Date()));
+    openWeekView();
+  });
+
+  document.getElementById("weekSelClinic")?.addEventListener("change", () => {
     openWeekView();
   });
 
@@ -2184,7 +2210,7 @@ export async function refreshAgenda() {
     setAgendaStatus("ok", `OK: ${data.length} marcação(ões).`);
     renderAgendaList();
     loadAndRenderPendentes(clinicId).catch(() => {});
-    loadAndRenderVencidos(clinicId).catch(() => {});
+    loadAndRenderVencidos().catch(() => {});
   } catch (e) {
     if (__gcIsAuthError(e)) { await __gcForceSessionLock("Sessão expirada ou inválida. Volte a iniciar sessão."); return; }
     console.error("Agenda load falhou:", e);
@@ -2398,82 +2424,69 @@ window.__gc_wireAgendaTopbar = wireAgendaTopbar;
    VENCIDOS — consultas passadas não fechadas
    ======================================================== */
 
-async function loadAndRenderVencidos(clinicId) {
+async function loadAndRenderVencidos() {
   const section = document.getElementById("vencidosSection");
   if (!section) return;
   try {
     const hoje = new Date().toISOString().slice(0, 10);
-    const timeCol = G.agenda?.timeColUsed || "start_at";
-    let q = window.sb
-      .from("appointments")
-      .select("*")
+    const { data, error } = await window.sb
+      .from("registos_financeiros")
+      .select("id, data, patient_id, tipo_acto, appt_status, entidades_financeiras(nome), patients(full_name)")
       .in("appt_status", ["scheduled", "arrived"])
-      .lt(timeCol, hoje)
-      .neq("mode", "bloqueio")
-      .order(timeCol, { ascending: false })
-      .limit(15);
-    if (clinicId) q = q.eq("clinic_id", clinicId);
-    const { data, error } = await q;
+      .lt("data", hoje)
+      .order("data", { ascending: false })
+      .limit(20);
     if (error) throw error;
     const rows = data || [];
     if (!rows.length) { section.innerHTML = ""; return; }
-
-    // Buscar nomes dos doentes
-    const patientIds = [...new Set(rows.map(r => r.patient_id).filter(Boolean))];
-    let patientsById = {};
-    if (patientIds.length) {
-      const { data: pts } = await window.sb.from("patients").select("id,full_name").in("id", patientIds);
-      (pts || []).forEach(p => { patientsById[p.id] = p; });
-    }
-
-    _renderVencidos(rows, patientsById, timeCol);
+    _renderVencidos(rows);
   } catch (e) {
     console.warn("loadAndRenderVencidos:", e);
     section.innerHTML = "";
   }
 }
 
-function _renderVencidos(rows, patientsById, timeCol) {
+function _renderVencidos(rows) {
   const section = document.getElementById("vencidosSection");
   if (!section || !rows.length) { if (section) section.innerHTML = ""; return; }
 
   const cards = rows.map(r => {
-    const nome   = escapeHtml(patientsById[r.patient_id]?.full_name || "—");
-    const dateVal = r[timeCol];
-    const dayISO  = dateVal ? String(dateVal).slice(0, 10) : "";
+    const nome    = escapeHtml(r.patients?.full_name || "—");
+    const clinica = escapeHtml(r.entidades_financeiras?.nome || "");
+    const dayISO  = r.data ? String(r.data).slice(0, 10) : "";
     const dateStr = dayISO
-      ? new Date(dayISO + "T00:00:00").toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit", year: "2-digit" })
+      ? new Date(dayISO + "T00:00:00").toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric" })
       : "—";
     const sm = statusMeta(r.appt_status);
     return `<div class="gc-venc-card" data-id="${r.id}"
-      style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:#fff;border:1px solid #FCA5A5;border-left:3px solid #EF4444;border-radius:8px;cursor:pointer;"
-      onmouseover="this.style.boxShadow='0 2px 6px rgba(0,0,0,0.10)'" onmouseout="this.style.boxShadow=''">
+      style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border:0.5px solid #FCA5A5;border-left:3px solid #EF4444;border-radius:8px;">
       <span class="gc-venc-patient" data-pid="${r.patient_id || ""}"
-        style="flex:1;font-size:12px;font-weight:700;color:#1d4ed8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:underline;"
-        title="Ver ficha do doente">${nome}</span>
+        style="flex:1;font-size:13px;font-weight:700;color:#1d4ed8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;"
+        title="Ver ficha do doente">${nome}${clinica ? `<span style="font-weight:400;color:#9CA3AF;font-size:11px;margin-left:6px;">${clinica}</span>` : ""}</span>
       <span class="gc-venc-day" data-dayiso="${dayISO}"
-        style="font-size:11px;color:#6B7280;flex-shrink:0;text-decoration:underline;cursor:pointer;"
-        title="Ir para este dia">${dateStr}</span>
-      <div style="font-size:10px;background:${sm.bg};color:${sm.fg};padding:2px 7px;border-radius:999px;font-weight:600;flex-shrink:0;">${sm.icon} ${sm.label}</div>
+        style="font-size:12px;font-weight:800;color:#111;flex-shrink:0;cursor:pointer;background:#f3f4f6;padding:3px 10px;border-radius:6px;border:1px solid #d1d5db;"
+        title="Ir para este dia na agenda">${dateStr}</span>
+      <div style="font-size:11px;background:${sm.bg};color:${sm.fg};padding:3px 9px;border-radius:999px;font-weight:600;flex-shrink:0;">${sm.icon} ${sm.label}</div>
     </div>`;
   }).join("");
 
   section.innerHTML = `
     <div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;padding:12px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-        <div style="width:8px;height:8px;background:#EF4444;border-radius:50%;flex-shrink:0;"></div>
+        <div style="width:8px;height:8px;background:#EF4444;border-radius:50%;flex-shrink:0;animation:gcPendPulse 1.5s ease-in-out infinite;"></div>
         <span style="font-size:13px;font-weight:700;color:#991B1B;">⚠️ ${rows.length} consulta${rows.length > 1 ? "s" : ""} por fechar</span>
-        <span style="font-size:11px;color:#B91C1C;">— nome abre doente · data abre agenda desse dia · clica para editar estado</span>
+        <span style="font-size:11px;color:#B91C1C;">— clica no nome para abrir o doente · clica na data para ir a esse dia</span>
       </div>
-      <div style="display:flex;flex-direction:column;gap:5px;">${cards}</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">${cards}</div>
     </div>`;
 
-  // Nome → abre ficha do doente
+  /* Nome → abre ficha do doente */
   section.querySelectorAll(".gc-venc-patient").forEach(el => {
     const pid = el.dataset.pid;
     if (!pid) return;
     el.addEventListener("click", async (e) => {
       e.stopPropagation();
+      e.preventDefault();
       try {
         const pt = await fetchPatientById(pid);
         if (pt) openPatientViewModal(pt);
@@ -2481,22 +2494,17 @@ function _renderVencidos(rows, patientsById, timeCol) {
     });
   });
 
-  // Data → navega para esse dia na agenda
+  /* Data → navega para esse dia */
   section.querySelectorAll(".gc-venc-day").forEach(el => {
     const dayISO = el.dataset.dayiso;
     if (!dayISO) return;
     el.addEventListener("click", async (e) => {
       e.stopPropagation();
+      e.preventDefault();
       G.selectedDayISO = dayISO;
       setAgendaSubtitleForSelectedDay();
       await refreshAgenda();
     });
-  });
-
-  // Card → abre modal de edição da marcação
-  section.querySelectorAll(".gc-venc-card").forEach(card => {
-    const row = rows.find(r => String(r.id) === String(card.dataset.id));
-    if (row) card.addEventListener("click", () => openApptModal({ mode: "edit", row }));
   });
 }
 

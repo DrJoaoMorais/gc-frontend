@@ -252,6 +252,30 @@ async function renderCurrentView() {
     });
   }
 
+  /* Dia anterior */
+  const btnPrevDay = document.getElementById("btnPrevDay");
+  if (btnPrevDay) {
+    btnPrevDay.addEventListener("click", async () => {
+      const d = new Date((G.selectedDayISO || fmtDateISO(new Date())) + "T00:00:00");
+      d.setDate(d.getDate() - 1);
+      G.selectedDayISO = fmtDateISO(d);
+      setAgendaSubtitleForSelectedDay();
+      await refreshAgenda();
+    });
+  }
+
+  /* Próximo dia */
+  const btnNextDay = document.getElementById("btnNextDay");
+  if (btnNextDay) {
+    btnNextDay.addEventListener("click", async () => {
+      const d = new Date((G.selectedDayISO || fmtDateISO(new Date())) + "T00:00:00");
+      d.setDate(d.getDate() + 1);
+      G.selectedDayISO = fmtDateISO(d);
+      setAgendaSubtitleForSelectedDay();
+      await refreshAgenda();
+    });
+  }
+
   /* Permissões */
   const podeAgendar = ["super_admin","admin","medico","administrativo"];
   if (btnNew && G.role && !podeAgendar.includes(String(G.role).toLowerCase())) {
