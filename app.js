@@ -234,12 +234,12 @@
       window.__GC_IS_SUPERADMIN__ = false;
     }
 
-    // ✅ Fonte de verdade: user_clinics (multi-clínica)
+    // ✅ Fonte de verdade: clinic_members (multi-clínica)
     const { data, error } = await window.sb
-      .from("user_clinics")
-      .select("role, clinic_id, is_active")
-      .eq("user_id", userId)
-      .eq("is_active", true);
+      .from(“clinic_members”)
+      .select(“role, clinic_id, is_active”)
+      .eq(“user_id”, userId)
+      .eq(“is_active”, true);
 
     if (error) throw error;
 
@@ -249,11 +249,12 @@
     window.__GC_MY_CLINIC_IDS__ = rows.map(r => r.clinic_id).filter(Boolean);
     window.__GC_MY_CLINICS_COUNT__ = window.__GC_MY_CLINIC_IDS__.length;
 
-    // Role “operacional” (prioridade)
-    const roles = rows.map(r => String(r.role || "").trim()).filter(Boolean);
-    if (roles.includes("doctor")) return "doctor";
-    if (roles.includes("physio")) return "physio";
-    if (roles.includes("secretary")) return "secretary";
+    // Mapear roles Supabase → roles frontend
+    const roleMap = { medico: “doctor”, fisioterapeuta: “physio”, administrativo: “secretary” };
+    const roles = rows.map(r => roleMap[String(r.role || “”).trim()] || null).filter(Boolean);
+    if (roles.includes(“doctor”)) return “doctor”;
+    if (roles.includes(“physio”)) return “physio”;
+    if (roles.includes(“secretary”)) return “secretary”;
     return null;
   }
   /* ---- FIM FUNÇÃO 01F.1 ---- */
