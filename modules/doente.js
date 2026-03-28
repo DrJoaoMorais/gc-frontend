@@ -4197,7 +4197,7 @@ function openPatientViewModal(patient) {
     const rect = anchorBtn.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom - 12;
     const spaceAbove = rect.top - 12;
-    const menuMaxH = Math.min(Math.max(spaceBelow, spaceAbove) - 8, 520);
+    const menuMaxH = Math.min(Math.max(spaceBelow, spaceAbove) - 8, 640);
     menu.style.maxHeight = menuMaxH + "px";
     if (spaceBelow >= spaceAbove || spaceBelow >= 300) {
       menu.style.top  = (rect.bottom + 6) + "px";
@@ -6041,7 +6041,7 @@ window._gerarResumo = function(){
       return;
     }
 
-    alert("Formulário em desenvolvimento.");
+    if (formId) console.warn("[ExObj] formId não implementado:", formId);
   }
 
 

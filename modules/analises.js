@@ -664,7 +664,7 @@ export function openAnalisesPanel({ patientId, consultationId, onClose } = {}) {
       if (totalSelected() === 0) return;
       const ta = document.getElementById("gcAnalisesCliInfo");
       if (ta) state.clinicalInfo = ta.value;
-      await gerarAnalisePdf(state);
+      await gerarAnalisePdf(state, openAnalisesPanel.__lastPatient);
     });
   }
 
@@ -688,23 +688,42 @@ export function openAnalisesModal(opts = {}) {
  * gerarAnalisePdf
  * Recolhe assets (vinheta, logo, assinatura), constrói HTML e abre o editor.
  */
-export async function gerarAnalisePdf(state) {
+export async function gerarAnalisePdf(state, patientId) {
   const btn = document.getElementById("gcAnalisesGenPdf");
   if (btn) { btn.textContent = "A gerar…"; btn.disabled = true; }
 
   try {
-    const fetchClinic  = window.__gc_fetchClinicForPdf || window.fetchClinicForPdf;
     const signedUrl    = window.__gc_storageSignedUrl;
     const toDataUrl    = window.__gc_urlToDataUrl;
     const bucket       = window.__gc_VINHETA_BUCKET;
     const vinhetaPath  = window.__gc_VINHETA_PATH;
     const sigPath      = window.__gc_SIGNATURE_PATH;
 
-    const clinic = await fetchClinic();
+    const { data: patientClinicRow, error: pcErr } = await window.sb
+      .from("patient_clinic").select("clinic_id")
+      .eq("patient_id", patientId).eq("is_active", true).single();
+    if (pcErr || !patientClinicRow?.clinic_id) {
+      throw new Error("Não consegui determinar a clínica ativa do doente.");
+    }
+    const { data: clinic, error: clinicErr } = await window.sb
+      .from("clinics")
+      .select("id, name, address_line1, address_line2, postal_code, city, phone, email, website, logo_url")
+      .eq("id", patientClinicRow.clinic_id).single();
+    if (clinicErr || !clinic) throw new Error("Não consegui carregar os dados da clínica.");
 
     const [vinhetaUrl, logoUrl, signatureUrl] = await Promise.all([
       (async () => { try { const u = await signedUrl(bucket, vinhetaPath, 3600); return u ? await toDataUrl(u, "image/png") : ""; } catch { return ""; } })(),
-      (async () => { try { const lp = clinic?.logo_url; if (!lp) return ""; const u = await signedUrl(bucket, lp, 3600); return u ? await toDataUrl(u, "image/png") : ""; } catch { return ""; } })(),
+      (async () => {
+        try {
+          const rawLogo = String(clinic?.logo_url || "").trim();
+          if (!rawLogo) return "";
+          if (rawLogo.startsWith("data:")) return rawLogo;
+          if (rawLogo.startsWith("http://") || rawLogo.startsWith("https://"))
+            return await toDataUrl(rawLogo, "image/png");
+          const u = await signedUrl(bucket, rawLogo, 3600);
+          return u ? await toDataUrl(u, "image/png") : "";
+        } catch { return ""; }
+      })(),
       (async () => { try { const u = await signedUrl(bucket, sigPath, 3600); return u ? await toDataUrl(u, "image/png") : ""; } catch { return ""; } })()
     ]);
 
@@ -785,7 +804,7 @@ export function buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatur
   .web{font-size:14px;font-weight:700;}
   .vinheta{margin-top:8px;width:4cm;height:2.5cm;object-fit:contain;display:block;}
   .locDate{text-align:right;font-size:14px;margin-top:14px;}
-  .sig{margin-top:60px;display:flex;justify-content:flex-end;}
+  .sig{margin-top:40px;display:flex;justify-content:flex-end;}
   .sigBox{width:360px;text-align:center;}
   .sigLine{border-top:1px solid #111;padding-top:10px;}
   .sigName{font-weight:900;font-size:18px;margin-top:6px;}
