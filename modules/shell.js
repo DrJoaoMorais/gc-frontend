@@ -42,19 +42,7 @@ export function renderAppShell() {
   if (currentView === "financas") {
     mainHtml = `<div id="gcFinancasRoot"></div>`;
   } else if (currentView === "management") {
-    mainHtml = `
-      <div class="gc-page-header">
-        <div>
-          <div class="gc-page-title">Gestão</div>
-          <div class="gc-page-sub">Clínicas, utilizadores e estatísticas</div>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:16px;">
-        <div class="gc-stat-card"><div class="gc-stat-label">Clínicas</div><div class="gc-stat-value" id="hdrClinicCount">0</div></div>
-        <div class="gc-stat-card"><div class="gc-stat-label">Produção</div><div class="gc-stat-value" style="font-size:15px;color:#94a3b8;">Em breve</div></div>
-        <div class="gc-stat-card"><div class="gc-stat-label">Receita</div><div class="gc-stat-value" style="font-size:15px;color:#94a3b8;">Em breve</div></div>
-      </div>
-    `;
+    mainHtml = ``;
   } else if (currentView === "doentes") {
     mainHtml = `
       <div class="gc-page-header">

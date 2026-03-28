@@ -25,6 +25,7 @@ import { openCalendarOverlay, openWeekView }           from "./agenda.js";
 import { wireLogout, ensureAAL2, __gcForceSessionLock, __gcIsAuthError, __gcSessionLockActive } from "./session.js";
 import { fmtDateISO }                      from "./helpers.js";
 import { renderFinancas }                  from "./financas.js";
+import { renderGestao }                    from "./gestao.js";
 
 /* ====================================================================
    BLOCO 11B — Boot principal
@@ -194,6 +195,12 @@ async function renderCurrentView() {
   /* Vista Financas */
   if (view === "financas") {
     await renderFinancas();
+    return;
+  }
+
+  /* Vista Gestão */
+  if (view === "management") {
+    await renderGestao();
     return;
   }
 
