@@ -1601,6 +1601,15 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
               <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Outro (texto) *</label>
               <input id="mProcOther" type="text" placeholder="ex.: Ondas de choque" autocomplete="off" autocapitalize="off" spellcheck="false" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;" />
             </div>
+            <div id="mMeetWrap" style="display:none;flex-direction:column;gap:4px;grid-column:1 / -1;">
+              <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Link Google Meet</label>
+              <div id="mMeetBadge" style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1px solid #bbf7d0;background:#f0fdf4;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><path d="M15 10l4.553-2.069A1 1 0 0 1 21 8.82v6.361a1 1 0 0 1-1.447.894L15 14"/><rect x="3" y="6" width="12" height="12" rx="2"/></svg>
+                <span id="mMeetLink" style="font-size:12px;color:#15803d;font-weight:600;word-break:break-all;"></span>
+                <button type="button" id="btnCopyMeet" style="margin-left:auto;font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid #16a34a;background:#fff;color:#16a34a;cursor:pointer;white-space:nowrap;">Copiar</button>
+              </div>
+              <div style="font-size:11px;color:#94a3b8;">Link gerado automaticamente — será enviado ao doente com a confirmação.</div>
+            </div>
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:2px;">
@@ -1897,9 +1906,30 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   }
 
   function updateProcOtherVisibility() {
-    const show = mProc?.value === "Outro";
-    if (mProcOtherWrap) mProcOtherWrap.style.display = show ? "flex" : "none";
-    if (!show && mProcOther) mProcOther.value = "";
+    const val = mProc?.value || "";
+    const showOther = val === "Outro";
+    if (mProcOtherWrap) mProcOtherWrap.style.display = showOther ? "flex" : "none";
+    if (!showOther && mProcOther) mProcOther.value = "";
+
+    const isTele = val === "Teleconsulta";
+    const mMeetWrap = document.getElementById("mMeetWrap");
+    if (mMeetWrap) mMeetWrap.style.display = isTele ? "flex" : "none";
+    if (isTele) {
+      const mMeetLink = document.getElementById("mMeetLink");
+      const existingLink = isEdit ? (row?.meet_link || "") : "";
+      if (!existingLink) {
+        const uid = Math.random().toString(36).slice(2,5) + "-" + Math.random().toString(36).slice(2,5) + "-" + Math.random().toString(36).slice(2,5);
+        if (mMeetLink) mMeetLink.textContent = `https://meet.google.com/${uid}`;
+      } else {
+        if (mMeetLink) mMeetLink.textContent = existingLink;
+      }
+      document.getElementById("btnCopyMeet")?.addEventListener("click", () => {
+        navigator.clipboard.writeText(mMeetLink?.textContent || "").then(() => {
+          const btn = document.getElementById("btnCopyMeet");
+          if (btn) { btn.textContent = "Copiado!"; setTimeout(() => { btn.textContent = "Copiar"; }, 1500); }
+        });
+      });
+    }
   }
   mProc?.addEventListener("change", updateProcOtherVisibility);
   updateProcOtherVisibility();
@@ -2198,6 +2228,7 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
         title: makeAutoTitle(pname, proc),
         notes: mNotes?.value?.trim() || null,
         mode: "presencial",
+        meet_link: (proc === "Teleconsulta") ? (document.getElementById("mMeetLink")?.textContent?.trim() || null) : null,
         provider_id: document.getElementById("mProvider")?.value || G.sessionUser?.id || null,
       };
       if (payload.notes === "") payload.notes = null;
