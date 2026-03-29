@@ -236,15 +236,59 @@ function _renderRecBanner(clinicId) {
   if (!_state.horarios.length) { el.innerHTML = ""; return; }
 
   const DOW = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
-  const items = _state.horarios.map(h =>
-    `${DOW[h.day_of_week]} ${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}`
-  ).join(" · ");
-
-  el.innerHTML = `<div id="gaBtnEditRec" style="display:flex;align-items:center;gap:5px;padding:4px 10px;background:#eff6ff;border:0.5px solid #93c5fd;border-radius:8px;font-size:11px;color:#1e40af;cursor:pointer;white-space:nowrap;" title="Clica para editar a disponibilidade">
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-    ${escapeHtml(items)}
+  el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:5px;">
+    ${_state.horarios.map(h => `
+      <div style="display:flex;align-items:center;gap:0;background:#eff6ff;border:0.5px solid #93c5fd;border-radius:8px;overflow:hidden;font-size:11px;color:#1e40af;white-space:nowrap;">
+        <span style="padding:4px 8px;cursor:pointer;" class="gaBtnEditRec" data-hid="${h.id}" title="Editar">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px;margin-right:3px;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>${DOW[h.day_of_week]} ${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}
+        </span>
+        <button class="gaBtnDelRec" data-hid="${h.id}" title="Eliminar disponibilidade"
+          style="padding:4px 7px;border:none;border-left:0.5px solid #93c5fd;background:transparent;color:#1e40af;cursor:pointer;font-size:12px;line-height:1;">×</button>
+      </div>`).join("")}
   </div>`;
-  document.getElementById("gaBtnEditRec")?.addEventListener("click", _openModalRecorrente);
+
+  el.querySelectorAll(".gaBtnEditRec").forEach(btn => {
+    btn.addEventListener("click", _openModalRecorrente);
+  });
+
+  el.querySelectorAll(".gaBtnDelRec").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const hid = btn.dataset.hid;
+      const h   = _state.horarios.find(x => x.id === hid);
+      if (!h) return;
+
+      // Verificar marcações futuras com doentes neste dia da semana
+      const hoje = new Date().toISOString();
+      const { data: futuras } = await window.sb
+        .from("appointments")
+        .select("start_at, patients(full_name)")
+        .eq("clinic_id", h.clinic_id)
+        .gt("start_at", hoje)
+        .not("patient_id", "is", null);
+
+      const DOW_FULL = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
+      const comDoentes = (futuras||[]).filter(a => {
+        const d = new Date(a.start_at);
+        return d.getDay() === h.day_of_week;
+      });
+
+      if (comDoentes.length) {
+        const datas = [...new Set(comDoentes.map(a =>
+          new Date(a.start_at).toLocaleDateString("pt-PT",{day:"2-digit",month:"2-digit",year:"numeric"})
+        ))].join(", ");
+        const ok = confirm(
+          `Atenção: existem ${comDoentes.length} marcação(ões) futuras em ${DOW_FULL[h.day_of_week]}:\n\n${datas}\n\nEliminar a disponibilidade na mesma?`
+        );
+        if (!ok) return;
+      } else {
+        if (!confirm(`Eliminar disponibilidade de ${DOW[h.day_of_week]} ${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}?`)) return;
+      }
+
+      await window.sb.from("horarios_recorrentes").update({ is_active: false }).eq("id", hid);
+      await _loadAndRender();
+      if (_semanaVisible) _renderSemana();
+    });
+  });
 }
 
 /* ── Stats ────────────────────────────────────────────── */
@@ -899,12 +943,12 @@ function _openModalRecorrente() {
     const sems   = parseInt(document.getElementById("gaRecSemanas")?.value||"0");
 
     try {
-      await window.sb.from("horarios_recorrentes").upsert({
-        id: existing?.id || undefined,
-        clinic_id: clinId, day_of_week: dow,
-        hora_inicio: ini, hora_fim: fim,
-        duracao_min: dur, semanas: sems, is_active: true
-      }, { onConflict: "id" });
+      const payload = { clinic_id: clinId, day_of_week: dow, hora_inicio: ini, hora_fim: fim, duracao_min: dur, semanas: sems, is_active: true };
+      if (existing?.id) {
+        await window.sb.from("horarios_recorrentes").update(payload).eq("id", existing.id);
+      } else {
+        await window.sb.from("horarios_recorrentes").insert(payload);
+      }
 
       document.getElementById("gaModalOverlay").style.display = "none";
       alert("Disponibilidade guardada.");
