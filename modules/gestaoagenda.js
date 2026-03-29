@@ -647,12 +647,7 @@ function _openModalRecorrente() {
           <option value="15">15 min</option>
           <option value="20" ${(!existing||existing.duracao_min===20)?"selected":""}>20 min</option>
         </select></div>
-      <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Gerar até</label>
-        <select id="gaRecSemanas" class="gcSelect" style="font-size:12px;">
-          <option value="520" selected>Sempre</option>
-          <option value="4">4 semanas</option>
-          <option value="8">1 mês</option>
-        </select></div>
+      <div></div>
     </div>
     <div id="gaRecPreview" style="padding:8px 10px;background:#eff6ff;border-radius:8px;font-size:12px;color:#1e40af;margin-bottom:1rem;"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;">
@@ -700,27 +695,8 @@ function _openModalRecorrente() {
         duracao_min: dur, is_active: true
       }, { onConflict: "id" });
 
-      const slots = gerarSlots(ini, fim, dur);
-      const rows = [];
-      for (let w=0; w<sems; w++) {
-        const base = new Date();
-        const baseDow = (base.getDay()+6)%7;
-        const diff = ((dow===0?7:dow) - (baseDow===0?7:baseDow) + 7) % 7 || 7;
-        const first = new Date(base); first.setDate(base.getDate() + diff + w*7);
-        const isoDate = first.getFullYear()+"-"+pad2(first.getMonth()+1)+"-"+pad2(first.getDate());
-        for (const slot of slots) {
-          const [sh,sm] = slot.split(":").map(Number);
-          const startD = new Date(isoDate+"T"+pad2(sh)+":"+pad2(sm)+":00");
-          const endD   = new Date(startD.getTime()+dur*60000);
-          rows.push({ clinic_id: clinId, patient_id: null, start_at: startD.toISOString(), end_at: endD.toISOString(), status: "available", procedure_type: null, title: "SLOT", notes: null, mode: "presencial" });
-        }
-      }
-
-      const { error } = await window.sb.from("appointments").insert(rows);
-      if (error) throw error;
-
       document.getElementById("gaModalOverlay").style.display = "none";
-      alert(`Horário guardado. ${rows.length} slots criados para ${sems} semanas.`);
+      alert("Disponibilidade guardada.");
       _loadAndRender();
     } catch(e) { alert("Erro: " + (e.message||e)); }
   });
