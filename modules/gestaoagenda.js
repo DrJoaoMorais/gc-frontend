@@ -571,12 +571,18 @@ async function _renderSemana() {
       });
     }
 
-    // Indexar consultas por dia+hora exacta
+    // Indexar consultas por slot da grelha (arredondar para baixo ao múltiplo de durMin)
     const bySlot = {};
     appts.forEach(r => {
-      const tStr = new Date(r.start_at).toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"});
-      const iso  = new Date(r.start_at).toLocaleDateString("pt-PT",{timeZone:"Europe/Lisbon",year:"numeric",month:"2-digit",day:"2-digit"}).split("/").reverse().join("-");
-      bySlot[iso+"T"+tStr] = r;
+      const tDate  = new Date(r.start_at);
+      const rawStr = tDate.toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"});
+      const [hh, mm] = rawStr.split(":").map(Number);
+      const rounded  = Math.floor((hh*60 + mm) / durMin) * durMin;
+      const tStr = pad2(Math.floor(rounded/60)) + ":" + pad2(rounded%60);
+      const iso  = tDate.toLocaleDateString("pt-PT",{timeZone:"Europe/Lisbon",year:"numeric",month:"2-digit",day:"2-digit"}).split("/").reverse().join("-");
+      const key  = iso+"T"+tStr;
+      if (!bySlot[key]) bySlot[key] = [];
+      bySlot[key].push(r);
     });
 
     const cc = CLINIC_COLORS[clinicId] || DEFAULT_COLOR;
@@ -592,15 +598,17 @@ async function _renderSemana() {
     // Linhas
     const linhas = horas.map(hora => {
       const cells = dias.map(iso => {
-        const key  = iso+"T"+hora;
-        const r    = bySlot[key];
+        const key    = iso+"T"+hora;
+        const rList  = bySlot[key];
         const isDisp = slotsDisp.has(key);
 
-        if (!r) {
+        if (!rList || !rList.length) {
           const bg = isDisp ? cc.light : "";
           return `<div onclick="window.__gaSlotClick('${iso}','${hora}')" style="border-right:0.5px solid #f1f5f9;padding:2px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:${bg};" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background='${bg}'"></div>`;
         }
 
+        const r = rList[0];
+        const extras = rList.length - 1;
         const isBlocked = r.mode === "bloqueio";
         const nome = patientsById[r.patient_id]?.full_name || "";
         const nomeCurto = nome
@@ -612,8 +620,9 @@ async function _renderSemana() {
         if (isBlocked) { bg="#fee2e2"; color="#991b1b"; }
         else           { bg=apptClr.solid; color="#fff"; }
 
+        const extrasBadge = extras > 0 ? ` <span style="font-size:9px;opacity:0.85;">+${extras}</span>` : "";
         return `<div onclick="window.__gaSlotClickAppt('${r.id}')" style="border-right:0.5px solid #f1f5f9;padding:2px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-          <div style="width:100%;height:26px;border-radius:4px;background:${bg};color:${color};font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;padding:0 3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="${escapeHtml(nome)}">${escapeHtml(nomeCurto)}</div>
+          <div style="width:100%;height:26px;border-radius:4px;background:${bg};color:${color};font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;padding:0 3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="${escapeHtml(nome)}">${escapeHtml(nomeCurto)}${extrasBadge}</div>
         </div>`;
       }).join("");
 
