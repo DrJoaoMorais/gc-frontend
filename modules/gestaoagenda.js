@@ -529,61 +529,43 @@ async function _renderSemana() {
     window.__gaSemanaAppts    = appts;
     window.__gaSemanaPatients = patientsById;
 
-    // Calcular intervalo de horas:
-    // base = horários activos ± 1h; expandir se houver consultas fora desse intervalo
-    let horaMinMin = 8*60, horaMaxMin = 20*60;
-    if (_state.horarios && _state.horarios.length) {
-      const inicios = _state.horarios.map(h => { const [hh,mm] = h.hora_inicio.split(":").map(Number); return hh*60+mm; });
-      const fins    = _state.horarios.map(h => { const [hh,mm] = h.hora_fim.split(":").map(Number); return hh*60+mm; });
-      horaMinMin = Math.max(0,    Math.min(...inicios) - 60);
-      horaMaxMin = Math.min(23*60+59, Math.max(...fins) + 60);
-    }
+    // Indexar consultas por hora exata (com arrays para vários no mesmo minuto)
+    const bySlot = {};
     appts.forEach(r => {
-      const t = new Date(r.start_at);
-      const minutos = t.toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"}).split(":").map(Number);
-      const m = minutos[0]*60 + minutos[1];
-      if (m < horaMinMin) horaMinMin = m;
-      if (m > horaMaxMin) horaMaxMin = m;
+      const tDate = new Date(r.start_at);
+      const tStr  = tDate.toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"});
+      const iso   = tDate.toLocaleDateString("pt-PT",{timeZone:"Europe/Lisbon",year:"numeric",month:"2-digit",day:"2-digit"}).split("/").reverse().join("-");
+      const key   = iso+"T"+tStr;
+      if (!bySlot[key]) bySlot[key] = [];
+      bySlot[key].push(r);
     });
-    // arredondar para baixo/cima em múltiplos de durMin
-    const durMin = _state.horarios[0]?.duracao_min || 20;
-    horaMinMin = Math.floor(horaMinMin / durMin) * durMin;
-    horaMaxMin = Math.ceil(horaMaxMin / durMin) * durMin + durMin;
 
-    // Gerar linhas de tempo
-    const horas = [];
-    for (let m = horaMinMin; m < horaMaxMin; m += durMin) {
-      horas.push(pad2(Math.floor(m/60))+":"+pad2(m%60));
-    }
-
-    // Calcular slots de disponibilidade para esta semana
+    // Calcular slots de disponibilidade para esta semana (respeita durMin de cada horário)
     const slotsDisp = new Set();
     if (_state.horarios && _state.horarios.length) {
       dias.forEach(iso => {
-        const dt = new Date(iso+"T00:00:00");
-        const diaSemana = dt.getDay(); // 0=Dom
+        const diaSemana = new Date(iso+"T00:00:00").getDay();
         _state.horarios.forEach(h => {
           if (h.day_of_week === diaSemana) {
-            const slotsTimes = gerarSlots(h.hora_inicio.slice(0,5), h.hora_fim.slice(0,5), h.duracao_min);
-            slotsTimes.forEach(s => slotsDisp.add(iso+"T"+s));
+            gerarSlots(h.hora_inicio.slice(0,5), h.hora_fim.slice(0,5), h.duracao_min)
+              .forEach(s => slotsDisp.add(iso+"T"+s));
           }
         });
       });
     }
 
-    // Indexar consultas por slot da grelha (arredondar para baixo ao múltiplo de durMin)
-    const bySlot = {};
+    // Gerar linhas: union das horas de disponibilidade + horas reais dos appointments
+    const horasSet = new Set();
+    slotsDisp.forEach(key => horasSet.add(key.slice(-5)));
     appts.forEach(r => {
-      const tDate  = new Date(r.start_at);
-      const rawStr = tDate.toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"});
-      const [hh, mm] = rawStr.split(":").map(Number);
-      const rounded  = Math.floor((hh*60 + mm) / durMin) * durMin;
-      const tStr = pad2(Math.floor(rounded/60)) + ":" + pad2(rounded%60);
-      const iso  = tDate.toLocaleDateString("pt-PT",{timeZone:"Europe/Lisbon",year:"numeric",month:"2-digit",day:"2-digit"}).split("/").reverse().join("-");
-      const key  = iso+"T"+tStr;
-      if (!bySlot[key]) bySlot[key] = [];
-      bySlot[key].push(r);
+      const tDate = new Date(r.start_at);
+      horasSet.add(tDate.toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"}));
     });
+    // Fallback: se não há nada, mostrar 8:00–20:00 de 20 em 20
+    if (!horasSet.size) {
+      for (let m = 8*60; m < 20*60; m += 20) horasSet.add(pad2(Math.floor(m/60))+":"+pad2(m%60));
+    }
+    const horas = [...horasSet].sort();
 
     const cc = CLINIC_COLORS[clinicId] || DEFAULT_COLOR;
 
