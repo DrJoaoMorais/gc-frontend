@@ -6265,7 +6265,7 @@ window._gerarResumo = function(){
         html = `<!doctype html><html><head><meta charset="utf-8"/><title>${title}</title>
         <style>${sharedStyles}.prp-patient{background:#f0f4fb;border-left:3px solid #1a56db;padding:6px 12px;margin-bottom:10px;font-size:12.5px;display:flex;gap:20px;flex-wrap:wrap;}.prp-patient strong{color:#0f2d52;}.prp-slabel{font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#1a56db;margin:10px 0 3px 0;}.prp-hda{background:#fafafa;border:0.5px solid #ddd;border-radius:3px;padding:7px 11px;font-size:12px;line-height:1.6;font-style:italic;color:#222;}.prp-checklist{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;margin-top:3px;}.prp-ci{display:flex;align-items:center;gap:5px;font-size:11px;color:#333;padding:1px 0;}.prp-cb{width:10px;height:10px;border:1px solid #1a56db;border-radius:2px;background:#e8f0fe;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#1a56db;font-weight:700;}.prp-cb0{width:10px;height:10px;border:1px solid #bbb;border-radius:2px;background:#fff;flex-shrink:0;}.prp-justif{font-size:11.5px;line-height:1.65;color:#222;margin-top:3px;border-left:2px solid #94a3b8;padding:7px 11px;background:#f8f9fa;border-radius:0 3px 3px 0;}.prp-conclusao{font-size:12px;line-height:1.65;color:#111;margin-top:3px;border:1px solid #0f2d52;border-radius:3px;padding:8px 12px;}</style></head><body><div class="a4">
           ${header}
-          <div class="title">Relatório Médico — Proposta de PRP</div>
+          <div class="title">Relatório Médico</div>
           <div style="text-align:center;font-size:12px;color:#64748b;margin-bottom:8px;">Pedido de Autorização de Reembolso — Osteoartrose</div>
 
           <div class="prp-patient">
@@ -6311,7 +6311,7 @@ window._gerarResumo = function(){
         html = `<!doctype html><html><head><meta charset="utf-8"/><title>${title}</title>
         <style>${sharedStyles}.prp-patient{background:#f0f4fb;border-left:3px solid #1a56db;padding:6px 12px;margin-bottom:10px;font-size:12.5px;display:flex;gap:20px;flex-wrap:wrap;}.prp-patient strong{color:#0f2d52;}.prp-slabel{font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#1a56db;margin:10px 0 3px 0;}.prp-hda{background:#fafafa;border:0.5px solid #ddd;border-radius:3px;padding:7px 11px;font-size:12px;line-height:1.6;font-style:italic;color:#222;}.prp-checklist{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;margin-top:3px;}.prp-ci{display:flex;align-items:center;gap:5px;font-size:11px;color:#333;padding:1px 0;}.prp-cb{width:10px;height:10px;border:1px solid #1a56db;border-radius:2px;background:#e8f0fe;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#1a56db;font-weight:700;}.prp-cb0{width:10px;height:10px;border:1px solid #bbb;border-radius:2px;background:#fff;flex-shrink:0;}.prp-justif{font-size:11.5px;line-height:1.65;color:#222;margin-top:3px;border-left:2px solid #94a3b8;padding:7px 11px;background:#f8f9fa;border-radius:0 3px 3px 0;}.prp-conclusao{font-size:12px;line-height:1.65;color:#111;margin-top:3px;border:1px solid #0f2d52;border-radius:3px;padding:8px 12px;}</style></head><body><div class="a4">
           ${header}
-          <div class="title">Relatório Médico — Proposta de PRP</div>
+          <div class="title">Relatório Médico</div>
           <div style="text-align:center;font-size:12px;color:#64748b;margin-bottom:8px;">Pedido de Autorização de Reembolso — Rotura Muscular</div>
 
           <div class="prp-patient">
@@ -8428,13 +8428,12 @@ function selSens(el) {
           <div class="topLeft"><div>${websiteHtml}</div><div>${phoneHtml}</div></div>
         </div>
         <div class="hr"></div>
-        <div class="title">Relatório Médico — Proposta de PRP</div>
+        <div class="title">Relatório Médico</div>
         <div style="text-align:center;font-size:12px;color:#64748b;margin-bottom:8px;">Pedido de Autorização de Reembolso — Tendinopatia / Rotura Tendinosa Parcial</div>
 
         <div class="prp-patient">
           <span><strong>Doente:</strong> ${name}</span>
           ${patientLine2 ? `<span>${patientLine2}</span>` : ""}
-          <span><strong>Diagnóstico:</strong> ${escAttr(diag)}</span>
         </div>
 
         <div class="prp-slabel">História da doença actual</div>
