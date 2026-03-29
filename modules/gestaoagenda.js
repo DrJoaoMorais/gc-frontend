@@ -383,6 +383,7 @@ function _renderPanel(row, patientsById = {}) {
   el.querySelector("[data-action='remover-bloq']")?.addEventListener("click", async () => {
     if (!confirm("Remover este bloqueio?")) return;
     await window.sb.from("appointments").delete().eq("id", row.id);
+    el.innerHTML = '<div style="font-size:12px;color:#94a3b8;text-align:center;padding:1rem 0;">Clica num slot para ver detalhes e acções.</div>';
     _loadAndRender();
   });
   el.querySelector("[data-action='forcar']")?.addEventListener("click", () => {
@@ -513,9 +514,9 @@ function _openModalRecorrente() {
         </select></div>
       <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Gerar até</label>
         <select id="gaRecSemanas" class="gcSelect" style="font-size:12px;">
+          <option value="520" selected>Sempre</option>
           <option value="4">4 semanas</option>
-          <option value="8" selected>8 semanas</option>
-          <option value="12">12 semanas</option>
+          <option value="8">1 mês</option>
         </select></div>
     </div>
     <div id="gaRecPreview" style="padding:8px 10px;background:#eff6ff;border-radius:8px;font-size:12px;color:#1e40af;margin-bottom:1rem;"></div>
