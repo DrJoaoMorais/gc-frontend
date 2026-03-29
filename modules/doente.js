@@ -6263,108 +6263,40 @@ window._gerarResumo = function(){
             if (templateId === "prp_osteoartrose") {
         title = "PRP — Osteoartrose";
         html = `<!doctype html><html><head><meta charset="utf-8"/><title>${title}</title>
-        <style>${sharedStyles}
-          .ref { font-size:12px; color:#475569; line-height:1.6; }
-          .ref li { margin-bottom:4px; }
-          .evid { background:#f0f9ff; border-left:3px solid #0ea5e9; padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13.5px; }
-        </style></head><body><div class="a4">
+        <style>${sharedStyles}${extra_css}</style></head><body><div class="a4">
           ${header}
-          <div class="title">Relatório Médico — Pedido de Autorização de Reembolso</div>
-          <div style="text-align:center;font-size:13px;color:#64748b;margin-bottom:12px;">
-            Aplicação de Plasma Rico em Plaquetas (PRP) — Osteoartrose
-          </div>
-          ${patientBlock}
+          <div class="title">Relatório Médico — Proposta de PRP</div>
+          <div style="text-align:center;font-size:12px;color:#64748b;margin-bottom:8px;">Pedido de Autorização de Reembolso — Osteoartrose</div>
 
-          <div class="section">
-            <div class="stitle">Diagnóstico</div>
-            <p>
-              O/A doente apresenta <b>osteoartrose</b> de <span class="field">[localização — ex: joelho direito / anca esquerda / tornozelo / articulação acromioclavicular]</span>,
-              grau <span class="field">[Kellgren-Lawrence I / II / III]</span>, confirmada por radiografia simples
-              <span class="field">[e/ou RM — descrever achados: diminuição do espaço articular, esclerose subcondral, osteófitos]</span>.
-            </p>
+          <div class="prp-patient">
+            <span><strong>Doente:</strong> ${name}</span>
+            ${patientLine2 ? `<span>${patientLine2}</span>` : ""}
           </div>
 
-          <div class="section">
-            <div class="stitle">História Clínica</div>
-            <p>
-              Queixas com evolução de <span class="field">[duração]</span>, com dor articular
-              de características mecânicas, rigidez matinal inferior a 30 minutos, e limitação funcional
-              progressiva. Escala de dor EVA: <span class="field">[0–10]</span> em repouso e
-              <span class="field">[0–10]</span> em actividade. Impacto nas actividades de vida diária:
-              <span class="field">[descrever — ex: dificuldade na marcha, subir escadas, actividade desportiva]</span>.
-            </p>
+          <div class="prp-slabel">História da doença actual</div>
+          <div class="prp-hda"><span class="field" style="background:transparent;border:none;font-style:normal;color:#1e40af;padding:0;">[Cole aqui a HDA do doente — diagnóstico, localização, grau KL, achados imagiológicos, EVA, duração das queixas, impacto funcional]</span></div>
+
+          <div class="prp-slabel">Critérios de indicação verificados</div>
+          <div class="prp-checklist">
+            <div class="prp-ci"><div class="prp-cb">✓</div> Dor persistente refratária ao tratamento conservador</div>
+            <div class="prp-ci"><div class="prp-cb">✓</div> Confirmação imagiológica (Rx / RM)</div>
+            <div class="prp-ci"><div class="prp-cb">✓</div> Falha de reabilitação / fisioterapia estruturada</div>
+            <div class="prp-ci"><div class="prp-cb">✓</div> Osteoartrose grau KL I–III (sem indicação cirúrgica)</div>
+            <div class="prp-ci"><div class="prp-cb">✓</div> AINEs / analgésicos sem controlo adequado da dor</div>
+            <div class="prp-ci"><div class="prp-cb">✓</div> Impacto funcional relevante (AVD / marcha / desporto)</div>
+            <div class="prp-ci"><div class="prp-cb">✓</div> Falha de infiltração prévia (corticoide / HA) <em style="font-size:10px;">(se aplic.)</em></div>
+            <div class="prp-ci"><div class="prp-cb0"></div> Sem contraindicações relevantes</div>
           </div>
 
-          <div class="section">
-            <div class="stitle">Tratamentos Conservadores Realizados (sem resposta adequada)</div>
-            <ul style="margin:8px 0 0 18px;padding:0;">
-              <li>Fisioterapia / reabilitação — <span class="field">[duração / número de sessões]</span></li>
-              <li>AINEs e analgésicos — <span class="field">[duração]</span></li>
-              <li>Infiltração de corticosteróide intra-articular — <span class="field">[número / datas]</span> <em>(se aplicável)</em></li>
-              <li>Viscossuplementação com ácido hialurónico — <span class="field">[número de ciclos / datas]</span> <em>(se aplicável)</em></li>
-              <li><span class="field">[outros tratamentos]</span></li>
-            </ul>
+          <div class="prp-slabel">Justificação terapêutica</div>
+          <div class="prp-justif">
+            Face à ausência de resposta ao tratamento conservador optimizado, propõe-se <b>PRP intra-articular</b> — terapêutica biológica autóloga com efeito condroprotector, anti-inflamatório e modulador articular (TGF-β, IGF-1, PDGF, FGF). Previstas <b>[1 a 3]</b> infiltração(ões), intervalo <b>4 semanas</b>, em programa de reabilitação. LP-PRP demonstrou superioridade sobre ácido hialurónico e corticosteróides (dor e função) a 6 e 12 meses em OA KL I–III.
+            <br><span style="font-size:10.5px;color:#475569;margin-top:4px;display:block;"><b>Referências:</b> Mende et al., Military Medicine 2024 · Hamid et al., PubMed 2025 · Cochrane Syst Rev 2021 · Mayo Clinic Proc 2023 · AAOS CPG 2024 · Ann Med Surg 2024 · Du &amp; Liang, J Orthop Surg Res 2025 · ACR/Arthritis Foundation 2019</span>
           </div>
 
-          <div class="section">
-            <div class="stitle">Justificação Clínica e Evidência Científica para PRP</div>
-            <p>
-              Face à ausência de resposta satisfatória aos tratamentos conservadores optimizados,
-              e tratando-se de osteoartrose em grau não cirúrgico (<span class="field">KL I–III</span>),
-              propõe-se a aplicação de <b>Plasma Rico em Plaquetas (PRP)</b> intra-articular,
-              terapêutica biológica autóloga com efeito condroprotector, anti-inflamatório e modulador
-              do microambiente articular, actuando através de factores de crescimento (TGF-β, IGF-1,
-              PDGF, FGF) que promovem a síntese de proteoglicanos e inibem a degradação da cartilagem.
-            </p>
-            <div class="evid">
-              A evidência científica actual (2024–2025) demonstra que PRP — particularmente LP-PRP
-              (leukocyte-poor) — é superior ao ácido hialurónico e aos corticosteróides na redução da
-              dor e melhoria funcional em osteoartrose ligeira a moderada (KL I–III), com benefício
-              sustentado aos 6 e 12 meses e perfil de segurança favorável.
-            </div>
-            <p style="margin-top:10px;font-size:13.5px;"><b>Referências bibliográficas de suporte:</b></p>
-            <ol class="ref">
-              <li>
-                <b>Mende E et al.</b> — <em>Comprehensive Summary of Meta-Analyses on PRP Therapies for Knee Osteoarthritis.</em>
-                Military Medicine, Oxford Academic. Nov/Dec 2024. — Revisão de 39 meta-análises e revisões sistemáticas:
-                PRP reduziu significativamente dor (VAS e WOMAC) nos 12 meses de seguimento; LP-PRP recomendado para
-                OA ligeira-moderada (KL 1–3); efeitos adversos minor e transitórios.
-              </li>
-              <li>
-                <b>Hamid A et al.</b> — <em>Efficacy and Safety of PRP for Knee Osteoarthritis: Systematic Review and Meta-analysis of RCTs (2021–2024).</em>
-                PubMed. 2025. — PRP demonstrou valor único e efeitos sinérgicos; eficácia máxima aos 3 meses,
-                sustentada aos 12 meses; 3 ou mais injecções recomendadas em doença mais avançada.
-              </li>
-              <li>
-                <b>Annals of Medicine & Surgery. 2024.</b> — <em>Comparative Effectiveness of Intra-articular Therapies in KOA: Meta-analysis.</em>
-                PRP superior ao ácido hialurónico e corticosteróides em outcomes de dor e função a médio-longo prazo.
-              </li>
-              <li>
-                <b>Du D, Liang Y. J Orthop Surg Res. 2025.</b> — <em>Meta-analysis: PRP+HA vs PRP alone in KOA (16 studies, 1384 doentes).</em>
-                PRP com benefício significativo a longo prazo (6 e 12 meses) nos scores WOMAC e Lequesne vs. controlo.
-              </li>
-              <li>
-                <b>ACR / Arthritis Foundation (desde 2019).</b> — Recomendam PRP para osteoartrose do joelho e anca,
-                com base em evidência de outcomes sintomáticos positivos e excelente perfil de segurança autóloga.
-              </li>
-            </ol>
-            <p style="margin-top:12px;">
-              Está prevista a realização de <span class="field">[1 a 3]</span> infiltração(ões) intra-articular(es) de PRP,
-              com intervalo de <span class="field">[4 semanas]</span> entre sessões,
-              associadas a programa de reabilitação e controlo de peso.
-            </p>
-          </div>
-
-          <div class="section">
-            <div class="stitle">Conclusão</div>
-            <p>
-              Solicita-se autorização de reembolso da aplicação de Plasma Rico em Plaquetas (PRP)
-              intra-articular em <span class="field">[localização]</span> — osteoartrose grau
-              <span class="field">KL [I/II/III]</span> — em doente sem resposta ao tratamento
-              conservador optimizado, com evidência científica de nível I (meta-análises de RCTs,
-              2024–2025), excelente perfil de segurança e ausência de contraindicações cirúrgicas
-              neste estadio.
-            </p>
+          <div class="prp-slabel">Conclusão / Pedido de autorização</div>
+          <div class="prp-conclusao">
+            Solicita-se autorização de reembolso de PRP intra-articular em <b>[localização]</b> — osteoartrose grau <b>KL [I/II/III]</b> — sem resposta ao tratamento conservador optimizado, com evidência científica de nível I (meta-análises de RCTs, 2024–2025), excelente perfil de segurança e ausência de indicação cirúrgica neste estadio.
           </div>
 
           ${footer}
@@ -6374,118 +6306,44 @@ window._gerarResumo = function(){
       if (templateId === "prp_rotura") {
         title = "PRP — Rotura Muscular";
         html = `<!doctype html><html><head><meta charset="utf-8"/><title>${title}</title>
-        <style>${sharedStyles}
-          .ref { font-size:12px; color:#475569; line-height:1.6; }
-          .ref li { margin-bottom:4px; }
-          .evid { background:#f0f9ff; border-left:3px solid #0ea5e9; padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13.5px; }
-        </style></head><body><div class="a4">
+        <style>${sharedStyles}${extra_css}</style></head><body><div class="a4">
           ${header}
-          <div class="title">Relatório Médico — Pedido de Autorização de Reembolso</div>
-          <div style="text-align:center;font-size:13px;color:#64748b;margin-bottom:12px;">
-            Aplicação de Plasma Rico em Plaquetas (PRP) — Rotura Muscular
-          </div>
-          ${patientBlock}
+          <div class="title">Relatório Médico — Proposta de PRP</div>
+          <div style="text-align:center;font-size:12px;color:#64748b;margin-bottom:8px;">Pedido de Autorização de Reembolso — Rotura Muscular</div>
 
-          <div class="section">
-            <div class="stitle">Diagnóstico</div>
-            <p>
-              O/A doente apresenta <b>rotura muscular</b>
-              <span class="field">[grau I / II / III parcial]</span> do
-              <span class="field">[músculo / grupo muscular — ex: isquiotibiais / gémeos / quadricípite / adutores / recto abdominal]</span>,
-              <span class="field">[lado direito / esquerdo]</span>, confirmada por ecografia
-              <span class="field">[e/ou RM — descrever: extensão da lesão, localização, presença de hematoma]</span>.
-            </p>
+          <div class="prp-patient">
+            <span><strong>Doente:</strong> ${name}</span>
+            ${patientLine2 ? `<span>${patientLine2}</span>` : ""}
           </div>
 
-          <div class="section">
-            <div class="stitle">História Clínica</div>
-            <p>
-              Lesão ocorrida em <span class="field">[data ou há X dias/semanas]</span>,
-              durante <span class="field">[actividade — ex: corrida / salto / contracção excêntrica brusca]</span>.
-              Dor súbita localizada a <span class="field">[localização anatómica]</span>,
-              com <span class="field">[equimose / hematoma / impotência funcional parcial / total]</span>.
-              EVA: <span class="field">[0–10]</span> em repouso e <span class="field">[0–10]</span> em actividade.
-            </p>
-            <p>
-              <span class="field">[Atleta de competição — descrever modalidade e nível competitivo, se aplicável.]</span>
-              Objetivo de retorno à actividade: <span class="field">[prazo pretendido]</span>.
-            </p>
+          <div class="prp-slabel">História da doença actual</div>
+          <div class="prp-hda"><span style="color:#1e40af;">[Cole aqui a HDA — músculo, grau da lesão, mecanismo, data, achados imagiológicos, EVA, hematoma, impotência funcional, objectivo de retorno à actividade]</span></div>
+
+          <div class="prp-slabel">Critérios de indicação verificados</div>
+          <div class="prp-checklist">
+            <div class="prp-ci"><div class="prp-cb">✓</div> Rotura muscular grau I–II ou rotura parcial grau III</div>
+            <div class="prp-ci"><div class="prp-cb">✓</div> Confirmação imagiológica (Ecografia / RM)</div>
+            <div class="prp-ci"><div class="prp-cb">✓</div> Protocolo RICE/POLICE realizado na fase aguda</div>
+            <div class="prp-ci"><div class="prp-cb">✓</div> Fisioterapia / reabilitação em curso ou realizada</div>
+            <div class="prp-ci"><div class="prp-cb">✓</div> Impacto funcional relevante (AVD / actividade desportiva)</div>
+            <div class="prp-ci"><div class="prp-cb">✓</div> Objectivo de retorno funcional / desportivo estruturado</div>
+            <div class="prp-ci"><div class="prp-cb">✓</div> Lesão compatível com indicação para PRP intra-lesional</div>
+            <div class="prp-ci"><div class="prp-cb0"></div> Sem contraindicações relevantes</div>
           </div>
 
-          <div class="section">
-            <div class="stitle">Tratamento Conservador Realizado</div>
-            <ul style="margin:8px 0 0 18px;padding:0;">
-              <li>Protocolo RICE/POLICE na fase aguda</li>
-              <li>Fisioterapia / reabilitação — <span class="field">[duração / número de sessões]</span></li>
-              <li>AINEs — <span class="field">[duração limitada à fase aguda]</span></li>
-              <li><span class="field">[outros tratamentos]</span></li>
-            </ul>
+          <div class="prp-slabel">Justificação terapêutica</div>
+          <div class="prp-justif">
+            Propõe-se <b>PRP intra-lesional ecoguiado</b> para acelerar a regeneração muscular e reduzir o risco de recidiva. O PRP actua por libertação de factores de crescimento (IGF-1, TGF-β, PDGF, VEGF, HGF) que estimulam a proliferação de células satélite, miogénese e remodelação da matriz extracelular. Previstas <b>[1 a 2]</b> aplicação(ões) na fase aguda/sub-aguda, integradas em reabilitação estruturada.
+            <br><span style="font-size:10.5px;color:#475569;margin-top:4px;display:block;"><b>Referências:</b> Schneider et al., Cureus 2024 · O'Dowd et al., Am J Sports Med 2022 · Rothrauff et al., Am J Sports Med 2026 · BJSM 2023 · ESSR/ESSKA Consensus 2024 · Am J Sports Med 2024 · Pretorius et al., Cureus 2023 · Chalidis et al., Int J Mol Sci 2023</span>
           </div>
 
-          <div class="section">
-            <div class="stitle">Justificação Clínica e Evidência Científica para PRP</div>
-            <p>
-              Propõe-se a aplicação de <b>Plasma Rico em Plaquetas (PRP)</b> intra-lesional,
-              guiada por ecografia, com o objectivo de acelerar a regeneração muscular e reduzir
-              o risco de recidiva. O PRP actua através da libertação de factores de crescimento
-              (IGF-1, TGF-β, PDGF, VEGF, HGF) que estimulam a proliferação de células satélite,
-              miogénese, angiogénese e remodelação da matriz extracelular muscular.
-            </p>
-            <div class="evid">
-              A evidência actual suporta o uso de PRP em roturas musculares de grau I–II e roturas
-              parciais de grau III, com aceleração documentada do retorno à actividade desportiva,
-              redução do tempo de recuperação e diminuição da taxa de recidiva em atletas.
-            </div>
-            <p style="margin-top:10px;font-size:13.5px;"><b>Referências bibliográficas de suporte:</b></p>
-            <ol class="ref">
-              <li>
-                <b>Schneider N et al.</b> — <em>The Use of PRP and Stem Cell Injections in Musculoskeletal Injuries.</em>
-                Cureus. 2024. — PRP associado a retorno mais rápido às actividades de vida diária e alívio
-                mais duradouro em lesões musculares agudas e roturas de tecidos moles, sem efeitos adversos major.
-              </li>
-              <li>
-                <b>O'Dowd A et al.</b> — <em>Update on PRP in Musculoskeletal Injuries: Systematic Review 2014–2021.</em>
-                Am J Sports Med. 2022. — 32 RCTs incluídos; 6 estudos em lesões agudas de tecidos moles:
-                PRP demonstrou benefício na aceleração da cicatrização e retorno ao desporto.
-              </li>
-              <li>
-                <b>Pretorius et al.</b> — <em>Current Status and Advancements in PRP Therapy.</em>
-                PMC / Cureus. 2023. — Evidência de nível I para lesões musculares;
-                PRP e células estaminais associados a menor número de efeitos adversos vs. cirurgia,
-                com retorno mais rápido ao desporto.
-              </li>
-              <li>
-                <b>Rothrauff BB et al.</b> — <em>PRP in the Treatment of Musculoskeletal Disease in 2025 and Beyond.</em>
-                Am J Sports Med. 2026. — Revisão actualizada dos mecanismos biológicos e aplicações clínicas:
-                PRP promove proliferação de mioblastos (upregulation de ciclina A, CDK1, CDK2) e regeneração muscular.
-              </li>
-              <li>
-                <b>Chalidis B et al.</b> — <em>Molecular and Biologic Effects of PRP in Ligament and Tendon Healing.</em>
-                Int J Mol Sci. 2023. — Revisão sistemática dos mecanismos: PDGF, TGF-β, VEGF com papel central
-                na remodelação tecidular, proliferação celular e controlo da inflamação pós-lesão.
-              </li>
-            </ol>
-            <p style="margin-top:12px;">
-              Está prevista a realização de <span class="field">[1 a 2]</span> aplicação(ões) de PRP intra-lesional,
-              guiada por ecografia, nas primeiras <span class="field">[48–72 horas / 1 semana]</span> após a lesão
-              <span class="field">[ou na fase sub-aguda]</span>, integrada em programa de reabilitação estruturado.
-            </p>
-          </div>
-
-          <div class="section">
-            <div class="stitle">Conclusão</div>
-            <p>
-              Solicita-se autorização de reembolso da aplicação de PRP em rotura muscular
-              <span class="field">[grau I/II/III parcial]</span> do
-              <span class="field">[músculo]</span>, em doente
-              <span class="field">[atleta de competição / com necessidade de retorno rápido à actividade]</span>,
-              com suporte em evidência científica actual, excelente perfil de segurança e
-              ausência de contraindicações para terapêutica regenerativa autóloga.
-            </p>
+          <div class="prp-slabel">Conclusão / Pedido de autorização</div>
+          <div class="prp-conclusao">
+            Solicita-se autorização de reembolso de PRP intra-lesional ecoguiado em <b>rotura muscular [grau I/II/III parcial]</b> do <b>[músculo]</b>, com suporte em evidência científica actual, excelente perfil de segurança e ausência de contraindicações para terapêutica regenerativa autóloga.
           </div>
 
           ${footer}
-        </div></body></html>`;
+        </div></body></html>`
       }
 
       if (templateId === "relatorio_neurologico") {
@@ -8559,62 +8417,44 @@ function selSens(el) {
         : "";
 
       const html = `<!doctype html><html><head><meta charset="utf-8"/><title>PRP — Tendinopatia</title>
-      <style>${sharedStyles}
-        .ref { font-size:12px; color:#475569; line-height:1.6; }
-        .ref li { margin-bottom:4px; }
-        .evid { background:#f0f9ff; border-left:3px solid #0ea5e9; padding:10px 14px; border-radius:0 6px 6px 0; margin:10px 0; font-size:13.5px; }
-      </style></head><body><div class="a4">
+      <style>${sharedStyles}${extra_css}</style></head><body><div class="a4">
         <div class="top">
           <div class="topLeft"><div>${websiteHtml}</div><div>${phoneHtml}</div></div>
         </div>
         <div class="hr"></div>
-        <div class="title">Relatório Médico — Pedido de Autorização de Reembolso</div>
-        <div style="text-align:center;font-size:13px;color:#64748b;margin-bottom:12px;">Aplicação de Plasma Rico em Plaquetas (PRP) — Tendinopatia</div>
-        ${patientBlock}
+        <div class="title">Relatório Médico — Proposta de PRP</div>
+        <div style="text-align:center;font-size:12px;color:#64748b;margin-bottom:8px;">Pedido de Autorização de Reembolso — Tendinopatia / Rotura Tendinosa Parcial</div>
 
-        <div class="section">
-          <div class="stitle">Diagnóstico</div>
-          <p>O/A doente apresenta <b>${escAttr(diag)}</b>, confirmada clinicamente e por imagiologia: ${escAttr(imag)}.</p>
+        <div class="prp-patient">
+          <span><strong>Doente:</strong> ${name}</span>
+          ${patientLine2 ? `<span>${patientLine2}</span>` : ""}
+          <span><strong>Diagnóstico:</strong> ${escAttr(diag)}</span>
         </div>
 
-        <div class="section">
-          <div class="stitle">Anamnese / História Clínica</div>
-          ${hdaHtml}
-          <p>Escala de dor EVA: <b>${escAttr(evaR)}</b> em repouso e <b>${escAttr(evaA)}</b> em actividade.</p>
+        <div class="prp-slabel">História da doença actual</div>
+        <div class="prp-hda">${hdaHtml}<br><span style="font-style:normal;">EVA: <b>${escAttr(evaR)}</b> repouso · <b>${escAttr(evaA)}</b> actividade</span></div>
+
+        <div class="prp-slabel">Critérios de indicação verificados</div>
+        <div class="prp-checklist">
+          <div class="prp-ci"><div class="prp-cb">✓</div> Dor persistente refratária ao tratamento conservador</div>
+          <div class="prp-ci"><div class="prp-cb">✓</div> Confirmação imagiológica: ${escAttr(imag)}</div>
+          ${document.getElementById("trtFisio")?.checked ? `<div class="prp-ci"><div class="prp-cb">✓</div> Falha de reabilitação estruturada${document.getElementById("trtFisioDetalhe")?.value ? " — " + escAttr(document.getElementById("trtFisioDetalhe").value) : ""}</div>` : ""}
+          ${document.getElementById("trtEswt")?.checked ? `<div class="prp-ci"><div class="prp-cb">✓</div> Falha de ESWT${document.getElementById("trtEswtDetalhe")?.value ? " — " + escAttr(document.getElementById("trtEswtDetalhe").value) : ""}</div>` : ""}
+          ${document.getElementById("trtAines")?.checked ? `<div class="prp-ci"><div class="prp-cb">✓</div> AINEs sem benefício adequado</div>` : ""}
+          ${document.getElementById("trtCort")?.checked ? `<div class="prp-ci"><div class="prp-cb">✓</div> Corticoterapia local${document.getElementById("trtCortDetalhe")?.value ? " — " + escAttr(document.getElementById("trtCortDetalhe").value) : ""}</div>` : ""}
+          <div class="prp-ci"><div class="prp-cb">✓</div> Impacto funcional relevante (AVD / desporto / trabalho)</div>
+          <div class="prp-ci"><div class="prp-cb0"></div> Sem contraindicações relevantes</div>
         </div>
 
-        <div class="section">
-          <div class="stitle">Tratamentos Conservadores Realizados (sem resposta adequada)</div>
-          <ul style="margin:8px 0 0 18px;padding:0;line-height:1.8;">${trtHtml}</ul>
+        <div class="prp-slabel">Justificação terapêutica</div>
+        <div class="prp-justif">
+          Face à ausência de resposta ao tratamento conservador optimizado, propõe-se <b>Plasma Rico em Plaquetas (PRP)</b> ecoguiado — terapêutica biológica autóloga que actua por libertação de factores de crescimento (PDGF, TGF-β, IGF-1, VEGF) com efeito anti-inflamatório, angiogénico e de estimulação da síntese de colagénio tendinoso. Previstas <b>${escAttr(sessoes)}</b> aplicação(ões), intervalo <b>${escAttr(intervalo)}</b>, em programa de reabilitação supervisionada.
+          <br><span style="font-size:10.5px;color:#475569;margin-top:4px;display:block;"><b>Referências:</b> Fitzpatrick et al., Am J Sports Med 2017 · Azadvari et al., Pain Medicine 2024 · Vij et al., Pain Ther 2025 · BJSM 2023 · Lancet Rheumatology 2023 · ESSR Consensus 2024 · Georgetown Med Rev 2024 · Kale et al., Cureus 2024</span>
         </div>
 
-        <div class="section">
-          <div class="stitle">Justificação Clínica e Evidência Científica para PRP</div>
-          <p>Face à ausência de resposta satisfatória aos tratamentos conservadores optimizados,
-          propõe-se a aplicação de <b>Plasma Rico em Plaquetas (PRP)</b> — terapêutica biológica
-          autóloga, regenerativa, que actua através da libertação de factores de crescimento
-          (PDGF, TGF-β, IGF-1, VEGF) com efeito angiogénico, anti-inflamatório e de estimulação
-          da síntese de colagénio tendinoso.</p>
-          <div class="evid">A evidência científica actual suporta o uso de PRP em tendinopatias crónicas refratárias
-          ao tratamento conservador, com benefício sustentado na redução da dor e melhoria funcional
-          aos 6 e 12 meses de seguimento.</div>
-          <p style="margin-top:10px;font-size:13.5px;"><b>Referências bibliográficas de suporte:</b></p>
-          <ol class="ref">
-            <li><b>Fitzpatrick J et al.</b> — <em>The Effectiveness of Platelet-Rich Plasma in the Treatment of Tendinopathy: A Meta-analysis of Randomized Controlled Clinical Trials.</em> Am J Sports Med. 2017. — Meta-análise de 18 RCTs (1066 doentes): LR-PRP guiado por ecografia demonstrou eficácia superior; efeito positivo fortemente significativo na redução da dor.</li>
-            <li><b>Vij N et al.</b> — <em>Platelet-Rich Plasma as a Treatment for Chronic Noncancer Pain.</em> Pain Ther. 2025. — PRP reduziu significativamente a dor vs. corticosteróides (SMD −0.53, p=0.02) e ácido hialurónico (SMD −0.55, p=0.004), com benefício sustentado ≥3 meses.</li>
-            <li><b>Azadvari M et al.</b> — <em>PRP injections as second-line treatment in chronic tendinopathy failing conservative treatment.</em> Pain Medicine. 2024. — 9 RCTs, 488 doentes: redução da dor aos 6 meses (MD −0.83) e 12 meses (MD −1.11) vs. controlo.</li>
-            <li><b>Georgetown Medical Review. 2024.</b> — <em>Evaluating Efficacy of PRP versus Corticosteroids in Management of Tendinopathies.</em> PRP superior a longo prazo; menos efeitos adversos e maior custo-efectividade.</li>
-            <li><b>Kale et al.</b> — <em>Mechanisms, Efficacy, and Clinical Applications of PRP in Tendinopathy.</em> PMC / Cureus. 2024. — PRP promove síntese de colagénio tipo I e redução da degeneração tendinosa.</li>
-          </ol>
-          <p style="margin-top:12px;">Está prevista a realização de <b>${escAttr(sessoes)}</b> aplicação(ões) de PRP, sob orientação ecográfica, com intervalo de <b>${escAttr(intervalo)}</b> entre sessões, associada a programa de reabilitação supervisionada.</p>
-        </div>
-
-        <div class="section">
-          <div class="stitle">Conclusão</div>
-          <p>Solicita-se autorização de reembolso da aplicação de Plasma Rico em Plaquetas (PRP)
-          em <b>${escAttr(diag)}</b> — doente sem resposta ao tratamento conservador optimizado,
-          com suporte em evidência científica de nível I-II (meta-análises de RCTs, 2024–2025),
-          com perfil de segurança favorável e ausência de efeitos adversos major documentados.</p>
+        <div class="prp-slabel">Conclusão / Pedido de autorização</div>
+        <div class="prp-conclusao">
+          Solicita-se autorização de reembolso da aplicação de PRP ecoguiado em <b>${escAttr(diag)}</b>, doente sem resposta ao tratamento conservador optimizado, com confirmação imagiológica de lesão activa e suporte em evidência científica de nível I–II (meta-análises de RCTs, 2024–2025), perfil de segurança favorável e ausência de contraindicações.
         </div>
 
         <div class="footerBlock">
