@@ -58,7 +58,7 @@ export function initGestaoAgenda() {
 /* ── HTML shell ───────────────────────────────────────── */
 function _buildShell() {
   const clinicas = G.clinics || [];
-  const clinicOpts = clinicas.map(c =>
+  const clinicOpts = `<option value="">Todas as clínicas</option>` + clinicas.map(c =>
     `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name||c.slug||c.id)}</option>`
   ).join("");
 
@@ -77,14 +77,13 @@ function _buildShell() {
     <button id="gaBtnBloq" class="gcBtnDanger" style="font-size:12px;padding:5px 14px;">Bloquear</button>
     <div style="width:1px;height:20px;background:#e2e8f0;"></div>
     <button id="gaBtnSemana" class="gcBtnGhost" style="font-size:12px;padding:5px 12px;">Vista semanal</button>
-    <select id="gaSelClinica" class="gcSelect" style="font-size:12px;padding:5px 10px;">${clinicOpts}</select>
+    <div id="gaRecBanner"></div>
+    <select id="gaSelClinica" class="gcSelect" style="font-size:12px;padding:5px 8px;max-width:140px;">${clinicOpts}</select>
   </div>
 
-  <div id="gaSemanaBanner" style="display:none;margin-bottom:1rem;"></div>
-  <div id="gaRecBanner" style="margin-bottom:1rem;"></div>
-
   <div style="display:flex;gap:12px;">
-    <div style="flex:1;min-width:0;">
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;">
+      <div id="gaSemanaBanner" style="display:none;"></div>
       <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;">
         <div style="display:grid;grid-template-columns:60px 1fr 140px 110px;padding:8px 12px;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;gap:8px;">
           <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Hora</div>
@@ -115,15 +114,33 @@ function _wireShell() {
   document.getElementById("gaBtnPrev")?.addEventListener("click", () => { _state.selectedDayISO = addDays(_state.selectedDayISO, -1); _loadAndRender(); if (_semanaVisible) _renderSemana(); });
   document.getElementById("gaBtnNext")?.addEventListener("click", () => { _state.selectedDayISO = addDays(_state.selectedDayISO, 1); _loadAndRender(); if (_semanaVisible) _renderSemana(); });
   document.getElementById("gaBtnHoje")?.addEventListener("click", () => { _state.selectedDayISO = todayISO(); _loadAndRender(); if (_semanaVisible) _renderSemana(); });
-  document.getElementById("gaSelClinica")?.addEventListener("change", e => { _state.selectedClinicId = e.target.value; _loadAndRender(); });
-  document.getElementById("gaBtnRec")?.addEventListener("click", () => _openModalRecorrente());
-  document.getElementById("gaBtnBloq")?.addEventListener("click", () => _openModalBloqueio());
+  document.getElementById("gaSelClinica")?.addEventListener("change", e => {
+    _state.selectedClinicId = e.target.value || null;
+    _loadAndRender();
+    if (_semanaVisible) _renderSemana();
+  });
+  document.getElementById("gaBtnRec")?.addEventListener("click", () => {
+    if (!_state.selectedClinicId) { alert("Selecciona uma clínica primeiro."); return; }
+    _openModalRecorrente();
+  });
+  document.getElementById("gaBtnBloq")?.addEventListener("click", () => {
+    if (!_state.selectedClinicId) { alert("Selecciona uma clínica primeiro."); return; }
+    _openModalBloqueio();
+  });
   document.getElementById("gaBtnSemana")?.addEventListener("click", () => _toggleSemana());
 
   if (_state.selectedClinicId) {
     const sel = document.getElementById("gaSelClinica");
     if (sel) sel.value = _state.selectedClinicId;
   }
+
+  // Clique fora dos slots — limpa o painel
+  document.getElementById("gaTimeline")?.addEventListener("click", e => {
+    if (!e.target.closest(".ga-tl-row")) {
+      const panel = document.getElementById("gaPanel");
+      if (panel) panel.innerHTML = '<div style="font-size:12px;color:#94a3b8;text-align:center;padding:1rem 0;">Clica num slot para ver detalhes e acções.</div>';
+    }
+  });
 }
 
 /* ── Load & render ────────────────────────────────────── */
@@ -133,7 +150,11 @@ async function _loadAndRender() {
   _renderStats([]);
 
   const clinicId = _state.selectedClinicId || document.getElementById("gaSelClinica")?.value;
-  if (!clinicId) return;
+  if (!clinicId) {
+    const tl = document.getElementById("gaTimeline");
+    if (tl) tl.innerHTML = '<div style="padding:32px;text-align:center;color:#94a3b8;font-size:13px;">Selecciona uma clínica para ver a agenda.</div>';
+    return;
+  }
   _state.selectedClinicId = clinicId;
 
   const dayISO = _state.selectedDayISO;
@@ -200,12 +221,12 @@ function _renderRecBanner(clinicId) {
 
   const DOW = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
   const items = _state.horarios.map(h =>
-    `${DOW[h.day_of_week]} ${h.hora_inicio}–${h.hora_fim} · ${h.duracao_min} min`
-  ).join(" | ");
+    `${DOW[h.day_of_week]} ${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}`
+  ).join(" · ");
 
-  el.innerHTML = `<div style="background:#eff6ff;border:0.5px solid #93c5fd;border-radius:8px;padding:8px 12px;font-size:12px;color:#1e40af;display:flex;align-items:center;justify-content:space-between;gap:8px;">
-    <span>Disponibilidade activa: ${escapeHtml(items)}</span>
-    <button id="gaBtnEditRec" style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid #93c5fd;background:#fff;color:#1e40af;cursor:pointer;">Editar</button>
+  el.innerHTML = `<div id="gaBtnEditRec" style="display:flex;align-items:center;gap:5px;padding:4px 10px;background:#eff6ff;border:0.5px solid #93c5fd;border-radius:8px;font-size:11px;color:#1e40af;cursor:pointer;white-space:nowrap;" title="Clica para editar a disponibilidade">
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    ${escapeHtml(items)}
   </div>`;
   document.getElementById("gaBtnEditRec")?.addEventListener("click", _openModalRecorrente);
 }
@@ -583,14 +604,14 @@ async function _renderSemana() {
         </div>`;
       }).join("");
 
-      return `<div style="display:grid;grid-template-columns:38px repeat(7,1fr);border-bottom:0.5px solid #f1f5f9;">
+      return `<div style="display:grid;grid-template-columns:38px 1fr 1fr 1fr 1fr 1fr 0.5fr 0.5fr;border-bottom:0.5px solid #f1f5f9;">
         <div style="font-size:10px;color:#94a3b8;padding:0 4px;height:32px;display:flex;align-items:center;justify-content:flex-end;border-right:0.5px solid #e2e8f0;flex-shrink:0;">${hora}</div>
         ${cells}
       </div>`;
     }).join("");
 
     banner.innerHTML = `<div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:10px;">
-      <div style="display:grid;grid-template-columns:38px repeat(7,1fr);background:#f8fafc;border-bottom:0.5px solid #e2e8f0;">
+      <div style="display:grid;grid-template-columns:38px 1fr 1fr 1fr 1fr 1fr 0.5fr 0.5fr;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;">
         <div style="border-right:0.5px solid #e2e8f0;"></div>
         ${headerCols}
       </div>
