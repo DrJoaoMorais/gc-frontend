@@ -565,6 +565,12 @@ async function _renderSemana() {
     if (!horasSet.size) {
       for (let m = 8*60; m < 20*60; m += 20) horasSet.add(pad2(Math.floor(m/60))+":"+pad2(m%60));
     }
+    // Padding: +1h antes e depois, em intervalos de 20 min
+    const _stepMin = 20;
+    const _minutosExist = [...horasSet].map(h => { const [hh,mm] = h.split(":").map(Number); return hh*60+mm; });
+    const _minH = Math.max(0,     Math.min(..._minutosExist) - 60);
+    const _maxH = Math.min(23*60, Math.max(..._minutosExist) + 60);
+    for (let m = _minH; m <= _maxH; m += _stepMin) horasSet.add(pad2(Math.floor(m/60))+":"+pad2(m%60));
     const horas = [...horasSet].sort();
 
     const cc = CLINIC_COLORS[clinicId] || DEFAULT_COLOR;
