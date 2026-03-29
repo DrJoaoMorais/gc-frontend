@@ -796,10 +796,28 @@ function _openModalRecorrente() {
         <input id="gaRecFim" type="time" value="${existing?.hora_fim||'16:40'}" style="padding:6px 8px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;"/></div>
       <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Duração</label>
         <select id="gaRecDur" class="gcSelect" style="font-size:12px;">
-          <option value="15">15 min</option>
-          <option value="20" ${(!existing||existing.duracao_min===20)?"selected":""}>20 min</option>
+          <option value="15" ${(!existing||existing.duracao_min===15)?"selected":""}>15 min</option>
+          <option value="20" ${existing?.duracao_min===20?"selected":""}>20 min</option>
         </select></div>
       <div></div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;color:#64748b;display:block;margin-bottom:6px;">Âmbito</label>
+      <div style="display:flex;gap:6px;">
+        <button type="button" class="gaRecScope" data-val="1"
+          style="flex:1;padding:7px 0;font-size:12px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;">
+          Esta semana
+        </button>
+        <button type="button" class="gaRecScope" data-val="4"
+          style="flex:1;padding:7px 0;font-size:12px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;">
+          4 semanas
+        </button>
+        <button type="button" class="gaRecScope" data-val="0"
+          style="flex:1;padding:7px 0;font-size:12px;border-radius:8px;border:1.5px solid #1a56db;background:#eff6ff;color:#1a56db;cursor:pointer;font-weight:600;font-family:inherit;">
+          Para sempre
+        </button>
+      </div>
+      <input type="hidden" id="gaRecSemanas" value="0"/>
     </div>
     <div id="gaRecPreview" style="padding:8px 10px;background:#eff6ff;border-radius:8px;font-size:12px;color:#1e40af;margin-bottom:1rem;"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;">
@@ -808,7 +826,18 @@ function _openModalRecorrente() {
       <button id="gaRecSaveBtn" class="gcBtnSuccess" style="font-size:12px;padding:6px 18px;font-weight:600;">Guardar horário</button>
     </div>`);
 
-  if (existing) document.getElementById("gaRecDow").value = existing.day_of_week;
+  if (existing) {
+    document.getElementById("gaRecDow").value = existing.day_of_week;
+    const existSems = String(existing.semanas ?? 0);
+    document.getElementById("gaRecSemanas").value = existSems;
+    document.querySelectorAll(".gaRecScope").forEach(b => {
+      const active = b.dataset.val === existSems;
+      b.style.border    = active ? "1.5px solid #1a56db" : "1.5px solid #e2e8f0";
+      b.style.background = active ? "#eff6ff" : "#fff";
+      b.style.color     = active ? "#1a56db" : "#64748b";
+      b.style.fontWeight = active ? "600" : "400";
+    });
+  }
 
   function updatePreview() {
     const ini = document.getElementById("gaRecInicio")?.value||"15:00";
@@ -820,6 +849,23 @@ function _openModalRecorrente() {
   }
   ["gaRecInicio","gaRecFim","gaRecDur"].forEach(id => document.getElementById(id)?.addEventListener("change", updatePreview));
   updatePreview();
+
+  /* Âmbito — pills */
+  document.querySelectorAll(".gaRecScope").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".gaRecScope").forEach(b => {
+        b.style.border = "1.5px solid #e2e8f0";
+        b.style.background = "#fff";
+        b.style.color = "#64748b";
+        b.style.fontWeight = "400";
+      });
+      btn.style.border = "1.5px solid #1a56db";
+      btn.style.background = "#eff6ff";
+      btn.style.color = "#1a56db";
+      btn.style.fontWeight = "600";
+      document.getElementById("gaRecSemanas").value = btn.dataset.val;
+    });
+  });
 
   document.getElementById("gaRecDeleteBtn")?.addEventListener("click", async () => {
     if (!existing) return;
@@ -837,14 +883,14 @@ function _openModalRecorrente() {
     const ini    = document.getElementById("gaRecInicio")?.value||"15:00";
     const fim    = document.getElementById("gaRecFim")?.value||"16:40";
     const dur    = parseInt(document.getElementById("gaRecDur")?.value||"20");
-    const sems   = parseInt(document.getElementById("gaRecSemanas")?.value||"8");
+    const sems   = parseInt(document.getElementById("gaRecSemanas")?.value||"0");
 
     try {
       await window.sb.from("horarios_recorrentes").upsert({
         id: existing?.id || undefined,
         clinic_id: clinId, day_of_week: dow,
         hora_inicio: ini, hora_fim: fim,
-        duracao_min: dur, is_active: true
+        duracao_min: dur, semanas: sems, is_active: true
       }, { onConflict: "id" });
 
       document.getElementById("gaModalOverlay").style.display = "none";
