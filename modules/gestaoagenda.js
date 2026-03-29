@@ -43,7 +43,7 @@ let _state = {
 };
 
 /* ── Entry point ──────────────────────────────────────── */
-export function initGestaoAgenda() {
+export async function initGestaoAgenda() {
   const root = document.getElementById("gcGestaoAgendaRoot");
   if (!root) return;
 
@@ -52,7 +52,15 @@ export function initGestaoAgenda() {
 
   root.innerHTML = _buildShell();
   _wireShell();
-  _loadAndRender();
+  await _loadAndRender();
+
+  // Vista semanal activa por defeito
+  _semanaVisible = true;
+  const btn = document.getElementById("gaBtnSemana");
+  if (btn) { btn.style.background = "#1a56db"; btn.style.color = "#fff"; }
+  const banner = document.getElementById("gaSemanaBanner");
+  if (banner) { banner.style.display = "block"; banner.innerHTML = `<div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:10px;"><div style="font-size:12px;color:#94a3b8;text-align:center;padding:8px 0;">A carregar semana…</div></div>`; }
+  _renderSemana();
 }
 
 /* ── HTML shell ───────────────────────────────────────── */
@@ -455,7 +463,7 @@ function _criarExtra() {
 }
 
 /* ── Vista semanal ────────────────────────────────────── */
-let _semanaVisible = false;
+let _semanaVisible = true;
 async function _toggleSemana() {
   _semanaVisible = !_semanaVisible;
   const btn = document.getElementById("gaBtnSemana");
