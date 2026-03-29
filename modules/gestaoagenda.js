@@ -133,8 +133,8 @@ async function _loadAndRender() {
   _state.selectedClinicId = clinicId;
 
   const dayISO = _state.selectedDayISO;
-  const startISO = dayISO + "T00:00:00.000Z";
-  const endISO   = dayISO + "T23:59:59.999Z";
+  const startISO = dayISO + "T00:00:00+01:00";
+  const endISO   = dayISO + "T23:59:59+01:00";
 
   try {
     const { data, error } = await window.sb
