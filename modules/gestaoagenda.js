@@ -92,8 +92,8 @@ function _buildShell() {
       <div style="width:1px;height:20px;background:#e2e8f0;"></div>
       <button id="gaBtnSemana" class="gcBtnGhost" style="font-size:12px;padding:5px 12px;">Vista semanal</button>
       <select id="gaSelClinica" class="gcSelect" style="font-size:12px;padding:5px 8px;max-width:140px;">${clinicOpts}</select>
+      <div id="gaRecBanner" style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;"></div>
     </div>
-    <div id="gaRecBanner" style="margin-top:4px;"></div>
   </div>
 
   <div style="display:flex;gap:12px;">
@@ -238,13 +238,11 @@ function _renderRecBanner(clinicId) {
   const DOW = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
   el.innerHTML = _state.horarios.map(h => {
     const slots = gerarSlots(h.hora_inicio.slice(0,5), h.hora_fim.slice(0,5), h.duracao_min).join(" · ");
-    return `<div data-hid="${h.id}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 8px 5px 10px;background:#eff6ff;border:0.5px solid #93c5fd;border-radius:8px;font-size:11px;color:#1e40af;margin-bottom:4px;">
-      <span>
-        <b style="font-weight:600;">${DOW[h.day_of_week]} ${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}</b>
-        <span style="color:#60a5fa;margin-left:5px;">${slots}</span>
-      </span>
+    return `<div data-hid="${h.id}" style="display:flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;background:#eff6ff;border:0.5px solid #93c5fd;border-radius:8px;font-size:11px;color:#1e40af;white-space:nowrap;">
+      <b style="font-weight:600;">${DOW[h.day_of_week]} ${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}</b>
+      <span style="color:#60a5fa;">${slots}</span>
       <button class="gaBtnDelRec" data-hid="${h.id}"
-        style="flex-shrink:0;padding:3px 9px;border-radius:6px;border:0.5px solid #fca5a5;background:#fee2e2;color:#991b1b;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;">
+        style="padding:2px 8px;border-radius:5px;border:0.5px solid #fca5a5;background:#fee2e2;color:#991b1b;font-size:11px;cursor:pointer;font-family:inherit;">
         Eliminar
       </button>
     </div>`;
@@ -822,9 +820,23 @@ function _openModalRecorrente(existing = null) {
   }
   const defaultDur = existing?.duracao_min || (isAlfraClinic(_state.selectedClinicId) ? 20 : 15);
 
+  const DOW_LABEL = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+  const existingList = _state.horarios.length ? `
+    <div style="margin-bottom:12px;padding:8px 10px;background:#f8fafc;border-radius:8px;border:0.5px solid #e2e8f0;">
+      <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Horários activos nesta clínica</div>
+      ${_state.horarios.map(h => {
+        const slots = gerarSlots(h.hora_inicio.slice(0,5), h.hora_fim.slice(0,5), h.duracao_min).join(" · ");
+        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:0.5px solid #f1f5f9;font-size:11px;">
+          <span style="color:#1e40af;"><b>${DOW_LABEL[h.day_of_week]} ${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}</b> <span style="color:#60a5fa;">${slots}</span></span>
+          <button class="gaModalDelRec" data-hid="${h.id}" style="padding:2px 8px;border-radius:5px;border:0.5px solid #fca5a5;background:#fee2e2;color:#991b1b;font-size:11px;cursor:pointer;font-family:inherit;">Eliminar</button>
+        </div>`;
+      }).join("")}
+    </div>` : "";
+
   _showModal(`
     <div style="font-size:16px;font-weight:700;color:#0f2d52;margin-bottom:4px;">Disponibilidade</div>
-    <div style="font-size:12px;color:#64748b;margin-bottom:1rem;">Define uma vez — slots gerados automaticamente.</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:${existingList ? "8px" : "1rem"};">Define uma vez — slots gerados automaticamente.</div>
+    ${existingList}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
       <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Dia da semana</label>
         <select id="gaRecDow" class="gcSelect" style="font-size:12px;">${DOW_OPTS}</select></div>
@@ -867,6 +879,20 @@ function _openModalRecorrente(existing = null) {
     </div>`);
 
   const modalBox = document.getElementById("gaModalBox");
+
+  /* Eliminar directamente a partir do modal */
+  modalBox.querySelectorAll(".gaModalDelRec").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const hid = btn.dataset.hid;
+      const h   = _state.horarios.find(x => x.id === hid);
+      if (!h || !confirm(`Eliminar ${DOW_LABEL[h.day_of_week]} ${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}?`)) return;
+      await window.sb.from("horarios_recorrentes").update({ is_active: false }).eq("id", hid);
+      document.getElementById("gaModalOverlay").style.display = "none";
+      await _loadAndRender();
+      if (_semanaVisible) _renderSemana();
+    });
+  });
+
   if (existing) {
     document.getElementById("gaRecDow").value = existing.day_of_week;
     const existSems = String(existing.semanas ?? 0);
