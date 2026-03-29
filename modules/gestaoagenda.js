@@ -236,20 +236,19 @@ function _renderRecBanner(clinicId) {
   if (!_state.horarios.length) { el.innerHTML = ""; return; }
 
   const DOW = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
-  el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:5px;">
-    ${_state.horarios.map(h => `
-      <div style="display:flex;align-items:center;gap:0;background:#eff6ff;border:0.5px solid #93c5fd;border-radius:8px;overflow:hidden;font-size:11px;color:#1e40af;white-space:nowrap;">
-        <span style="padding:4px 8px;cursor:pointer;" class="gaBtnEditRec" data-hid="${h.id}" title="Editar">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px;margin-right:3px;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>${DOW[h.day_of_week]} ${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}
-        </span>
-        <button class="gaBtnDelRec" data-hid="${h.id}" title="Eliminar disponibilidade"
-          style="padding:4px 7px;border:none;border-left:0.5px solid #93c5fd;background:transparent;color:#1e40af;cursor:pointer;font-size:12px;line-height:1;">×</button>
-      </div>`).join("")}
-  </div>`;
-
-  el.querySelectorAll(".gaBtnEditRec").forEach(btn => {
-    btn.addEventListener("click", _openModalRecorrente);
-  });
+  el.innerHTML = _state.horarios.map(h => {
+    const slots = gerarSlots(h.hora_inicio.slice(0,5), h.hora_fim.slice(0,5), h.duracao_min).join(" · ");
+    return `<div data-hid="${h.id}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 8px 5px 10px;background:#eff6ff;border:0.5px solid #93c5fd;border-radius:8px;font-size:11px;color:#1e40af;margin-bottom:4px;">
+      <span>
+        <b style="font-weight:600;">${DOW[h.day_of_week]} ${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}</b>
+        <span style="color:#60a5fa;margin-left:5px;">${slots}</span>
+      </span>
+      <button class="gaBtnDelRec" data-hid="${h.id}"
+        style="flex-shrink:0;padding:3px 9px;border-radius:6px;border:0.5px solid #fca5a5;background:#fee2e2;color:#991b1b;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;">
+        Eliminar
+      </button>
+    </div>`;
+  }).join("");
 
   el.querySelectorAll(".gaBtnDelRec").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -257,29 +256,22 @@ function _renderRecBanner(clinicId) {
       const h   = _state.horarios.find(x => x.id === hid);
       if (!h) return;
 
-      // Verificar marcações futuras com doentes neste dia da semana
       const hoje = new Date().toISOString();
       const { data: futuras } = await window.sb
         .from("appointments")
-        .select("start_at, patients(full_name)")
+        .select("start_at")
         .eq("clinic_id", h.clinic_id)
         .gt("start_at", hoje)
         .not("patient_id", "is", null);
 
       const DOW_FULL = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
-      const comDoentes = (futuras||[]).filter(a => {
-        const d = new Date(a.start_at);
-        return d.getDay() === h.day_of_week;
-      });
+      const comDoentes = (futuras||[]).filter(a => new Date(a.start_at).getDay() === h.day_of_week);
 
       if (comDoentes.length) {
         const datas = [...new Set(comDoentes.map(a =>
           new Date(a.start_at).toLocaleDateString("pt-PT",{day:"2-digit",month:"2-digit",year:"numeric"})
         ))].join(", ");
-        const ok = confirm(
-          `Atenção: existem ${comDoentes.length} marcação(ões) futuras em ${DOW_FULL[h.day_of_week]}:\n\n${datas}\n\nEliminar a disponibilidade na mesma?`
-        );
-        if (!ok) return;
+        if (!confirm(`Atenção: há ${comDoentes.length} marcação(ões) em ${DOW_FULL[h.day_of_week]} futuras:\n\n${datas}\n\nEliminar mesmo assim?`)) return;
       } else {
         if (!confirm(`Eliminar disponibilidade de ${DOW[h.day_of_week]} ${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}?`)) return;
       }
