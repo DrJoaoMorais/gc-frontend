@@ -806,7 +806,8 @@ function _openModalCriarSlot(iso, hora) {
 }
 
 /* ── Modal horário recorrente ─────────────────────────── */
-function _openModalRecorrente(existing = null) {
+async function _openModalRecorrente(existing = null) {
+  if (_state.selectedClinicId) await _loadHorarios(_state.selectedClinicId);
   const clinicas = G.clinics||[];
   const DOW_OPTS = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"]
     .map((d,i) => `<option value="${i}">${d}</option>`).join("");
