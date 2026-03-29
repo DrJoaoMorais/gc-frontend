@@ -169,7 +169,7 @@ export function renderClinicsSelect(clinics) {
   const sel = document.getElementById("selClinic");
   if (!sel) return;
 
-  const opts = [`<option value="">Todas</option>`];
+  const opts = [`<option value="">Todas as clínicas</option>`];
   for (const c of clinics) {
     const label = c.name || c.slug || c.id;
     opts.push(`<option value="${escapeHtml(c.id)}">${escapeHtml(label)}</option>`);
@@ -1452,6 +1452,25 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
 
   const isEdit          = mode === "edit";
   const selClinic       = document.getElementById("selClinic");
+
+  /* Guard: nova marcação requer clínica seleccionada */
+  if (!isEdit && !prefillClinicId && G.clinics.length !== 1 && !selClinic?.value) {
+    const _existingToast = document.getElementById("__gcClinicToast");
+    if (_existingToast) _existingToast.remove();
+    const _toast = document.createElement("div");
+    _toast.id = "__gcClinicToast";
+    _toast.style.cssText = "position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:9999;background:#0f2d52;color:#fff;border-radius:10px;padding:12px 20px;font-size:13px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;box-shadow:0 4px 16px rgba(15,45,82,0.25);display:flex;align-items:center;gap:10px;max-width:360px;";
+    _toast.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>Seleccione uma clínica para poder marcar uma consulta.</span>`;
+    document.body.appendChild(_toast);
+    if (selClinic) {
+      selClinic.style.outline = "2px solid #c9a84c";
+      selClinic.focus();
+      setTimeout(() => { selClinic.style.outline = ""; }, 2500);
+    }
+    setTimeout(() => _toast.remove(), 3000);
+    return;
+  }
+
   const defaultClinicId = isEdit && row?.clinic_id
     ? row.clinic_id
     : prefillClinicId || selClinic?.value || (G.clinics.length === 1 ? G.clinics[0].id : "");
