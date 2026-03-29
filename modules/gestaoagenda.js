@@ -91,7 +91,6 @@ function _buildShell() {
       <button id="gaBtnBloq" class="gcBtnDanger" style="font-size:12px;padding:5px 14px;">Bloquear</button>
       <div style="width:1px;height:20px;background:#e2e8f0;"></div>
       <button id="gaBtnSemana" class="gcBtnGhost" style="font-size:12px;padding:5px 12px;">Vista semanal</button>
-      <button id="gaBtnFecho" style="font-size:12px;padding:5px 14px;border-radius:8px;border:0.5px solid #6ee7b7;background:#d1fae5;color:#065f46;cursor:pointer;font-weight:600;">Fecho do mês</button>
       <select id="gaSelClinica" class="gcSelect" style="font-size:12px;padding:5px 8px;max-width:140px;">${clinicOpts}</select>
       <div id="gaRecBanner"></div>
     </div>
@@ -144,7 +143,6 @@ function _wireShell() {
     _openModalBloqueio();
   });
   document.getElementById("gaBtnSemana")?.addEventListener("click", () => _toggleSemana());
-  document.getElementById("gaBtnFecho")?.addEventListener("click", () => _openFechoMes());
 
   if (_state.selectedClinicId) {
     const sel = document.getElementById("gaSelClinica");
@@ -1001,7 +999,7 @@ async function _gaFechoLoad(mes, ano, clinicId) {
     let q = window.sb.from("appointments")
       .select("id, start_at, status, mode, procedure_type, patient_id, clinic_id")
       .gte("start_at", startISO).lte("start_at", endISO)
-      .not("mode","eq","slot").not("mode","eq","bloqueio")
+      .not("mode", "in", '("slot","bloqueio")')
       .order("start_at", { ascending: true });
     if (clinicId) q = q.eq("clinic_id", clinicId);
     const { data, error } = await q;

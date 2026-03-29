@@ -408,6 +408,7 @@ export async function renderFinancas() {
         style="border:none;outline:none;font-size:12px;color:#0f172a;font-family:inherit;width:115px;" />
       ${periodoIni ? `<button id="finLimparPeriodo" style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:13px;padding:0 2px;line-height:1;" title="Limpar">✕</button>` : ""}
     </div>
+    <button id="btnFinFechoMes" style="font-size:12px;padding:7px 14px;border-radius:8px;border:0.5px solid #6ee7b7;background:#d1fae5;color:#065f46;cursor:pointer;font-weight:600;">Fecho do mês</button>
     <button id="btnFinPdfMensal" class="gc-btn-primary" style="font-size:12px;padding:7px 14px;">PDF</button>
   </div>
 </div>
@@ -770,6 +771,11 @@ ${pendVencidos.length > 0 ? `
         document.getElementById("finVistaAna").style.display = vistaActual === "analise"  ? "block" : "none";
         if (vistaActual === "analise") renderCharts();
       });
+    });
+
+    /* Fecho do mês */
+    document.getElementById("btnFinFechoMes")?.addEventListener("click", () => {
+      _openFechoMesModal(mes, ano, null);
     });
 
     /* PDF mensal */
@@ -1579,6 +1585,170 @@ function openPdfMensal(registos, presencas, avencasOuEntidades, mes, ano) {
   if (w) w.document.write(html);
 }
 
+
+/* ==== Fecho do mês ==== */
+function _pad2(n) { return String(n).padStart(2,"0"); }
+
+function _openFechoMesModal(defMes, defAno, defClinicId) {
+  const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  const clinicas = G.clinics || [];
+  const clinicOpts = `<option value="">Todas as clínicas</option>` + clinicas.map(c =>
+    `<option value="${escapeHtml(c.id)}"${c.id===defClinicId?" selected":""}>${escapeHtml(c.name||c.slug||c.id)}</option>`
+  ).join("");
+  const mesOpts = MESES.map((m,i)=>`<option value="${i+1}"${i+1===defMes?" selected":""}>${m}</option>`).join("");
+  const now = new Date();
+  const anoOpts = [now.getFullYear()-1,now.getFullYear(),now.getFullYear()+1].map(y=>`<option value="${y}"${y===defAno?" selected":""}>${y}</option>`).join("");
+
+  // Criar overlay próprio
+  let ov = document.getElementById("finFechoOverlay");
+  if (!ov) {
+    ov = document.createElement("div");
+    ov.id = "finFechoOverlay";
+    ov.style.cssText = "position:fixed;inset:0;background:rgba(15,45,82,0.35);display:flex;align-items:center;justify-content:center;z-index:2000;padding:16px;";
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `
+    <div style="background:#fff;border-radius:14px;border:1px solid #e2e8f0;box-shadow:0 4px 24px rgba(15,45,82,0.12);width:min(860px,96vw);max-height:92vh;overflow-y:auto;padding:1.25rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div style="font-size:17px;font-weight:700;color:#0f2d52;">Fecho do mês</div>
+        <button id="finFechoClose" style="border:none;background:none;font-size:20px;color:#94a3b8;cursor:pointer;line-height:1;">×</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+        <select id="finFMes" style="padding:6px 10px;border:0.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;">${mesOpts}</select>
+        <select id="finFAno" style="padding:6px 10px;border:0.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;">${anoOpts}</select>
+        <select id="finFClinica" style="padding:6px 10px;border:0.5px solid #e2e8f0;border-radius:8px;font-size:12px;font-family:inherit;min-width:150px;">${clinicOpts}</select>
+      </div>
+      <div id="finFechoBody" style="font-size:12px;color:#94a3b8;text-align:center;padding:2rem 0;">A carregar…</div>
+    </div>`;
+
+  ov.style.display = "flex";
+  document.getElementById("finFechoClose")?.addEventListener("click", () => { ov.style.display = "none"; });
+  ov.addEventListener("click", e => { if (e.target === ov) ov.style.display = "none"; });
+
+  const _load = () => _gaFechoLoadFin(
+    parseInt(document.getElementById("finFMes")?.value),
+    parseInt(document.getElementById("finFAno")?.value),
+    document.getElementById("finFClinica")?.value || null
+  );
+  document.getElementById("finFMes")?.addEventListener("change", _load);
+  document.getElementById("finFAno")?.addEventListener("change", _load);
+  document.getElementById("finFClinica")?.addEventListener("change", _load);
+  _load();
+}
+
+async function _gaFechoLoadFin(mes, ano, clinicId) {
+  const body = document.getElementById("finFechoBody");
+  if (!body) return;
+  body.innerHTML = `<div style="text-align:center;padding:1.5rem;color:#94a3b8;">A carregar…</div>`;
+  const ESTADOS = { scheduled:"Marcado", arrived:"Chegou", done:"Realizada", no_show:"Falta", honorarios_dispensados:"Dispensado", cancelled:"Cancelado" };
+  const ESTADO_COLORS = {
+    scheduled:              { bg:"#dbeafe", color:"#1e40af" },
+    arrived:                { bg:"#fef3c7", color:"#92400e" },
+    done:                   { bg:"#d1fae5", color:"#065f46" },
+    no_show:                { bg:"#fee2e2", color:"#991b1b" },
+    honorarios_dispensados: { bg:"#ede9fe", color:"#4c1d95" },
+    cancelled:              { bg:"#f1f5f9", color:"#64748b" },
+  };
+  try {
+    const lastDay = new Date(ano, mes, 0).getDate();
+    const tzOff = (() => {
+      const off = new Intl.DateTimeFormat("pt-PT",{timeZone:"Europe/Lisbon",timeZoneName:"shortOffset"})
+        .formatToParts(new Date(`${ano}-${_pad2(mes)}-01T12:00:00Z`)).find(p=>p.type==="timeZoneName").value;
+      return off.replace("GMT","") || "+00:00";
+    })();
+    let q = window.sb.from("appointments")
+      .select("id, start_at, status, mode, procedure_type, patient_id, clinic_id")
+      .gte("start_at", `${ano}-${_pad2(mes)}-01T00:00:00${tzOff}`)
+      .lte("start_at", `${ano}-${_pad2(mes)}-${_pad2(lastDay)}T23:59:59${tzOff}`)
+      .not("mode","in",'("slot","bloqueio")')
+      .order("start_at", { ascending: true });
+    if (clinicId) q = q.eq("clinic_id", clinicId);
+    const { data, error } = await q;
+    if (error) throw error;
+    const appts = data || [];
+
+    const patientIds = [...new Set(appts.map(a=>a.patient_id).filter(Boolean))];
+    let patientsById = {};
+    if (patientIds.length) {
+      const { data: pts } = await window.sb.from("patients").select("id, full_name").in("id", patientIds);
+      (pts||[]).forEach(p => { patientsById[p.id] = p; });
+    }
+
+    const realizadas  = appts.filter(a=>a.status==="done").length;
+    const faltas      = appts.filter(a=>a.status==="no_show").length;
+    const dispensadas = appts.filter(a=>a.status==="honorarios_dispensados").length;
+    const pendentes   = appts.filter(a=>["scheduled","arrived"].includes(a.status)).length;
+    const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+    const rowsHtml = appts.map(a => {
+      const dt   = new Date(a.start_at);
+      const data = dt.toLocaleDateString("pt-PT",{timeZone:"Europe/Lisbon",day:"2-digit",month:"2-digit"});
+      const hora = dt.toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"});
+      const nome = escapeHtml(patientsById[a.patient_id]?.full_name || "—");
+      const cName = escapeHtml((G.clinics||[]).find(c=>c.id===a.clinic_id)?.name || "—");
+      const ec   = ESTADO_COLORS[a.status] || ESTADO_COLORS.scheduled;
+      const selOpts = Object.entries(ESTADOS).map(([v,l])=>`<option value="${v}"${a.status===v?" selected":""}>${l}</option>`).join("");
+      return `<tr style="border-bottom:0.5px solid #f1f5f9;">
+        <td style="padding:5px 8px;font-size:11px;color:#64748b;white-space:nowrap;">${data}</td>
+        <td style="padding:5px 8px;font-size:11px;color:#475569;">${hora}</td>
+        <td style="padding:5px 8px;font-size:12px;font-weight:500;color:#0f172a;">${nome}</td>
+        <td style="padding:5px 8px;font-size:11px;color:#64748b;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(a.procedure_type||"—")}</td>
+        <td style="padding:5px 8px;font-size:11px;color:#64748b;">${cName}</td>
+        <td style="padding:5px 8px;">
+          <select class="finFSel" data-id="${a.id}" style="font-size:11px;padding:2px 6px;border-radius:6px;border:0.5px solid #e2e8f0;background:${ec.bg};color:${ec.color};cursor:pointer;font-family:inherit;">${selOpts}</select>
+        </td>
+      </tr>`;
+    }).join("");
+
+    body.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">
+        <div style="background:#d1fae5;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:26px;font-weight:700;color:#065f46;">${realizadas}</div>
+          <div style="font-size:10px;color:#065f46;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Realizadas</div>
+        </div>
+        <div style="background:#fee2e2;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:26px;font-weight:700;color:#991b1b;">${faltas}</div>
+          <div style="font-size:10px;color:#991b1b;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Faltas</div>
+        </div>
+        <div style="background:#ede9fe;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:26px;font-weight:700;color:#4c1d95;">${dispensadas}</div>
+          <div style="font-size:10px;color:#4c1d95;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Dispensados</div>
+        </div>
+        <div style="background:#fef3c7;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:26px;font-weight:700;color:#92400e;">${pendentes}</div>
+          <div style="font-size:10px;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Por Confirmar</div>
+        </div>
+      </div>
+      ${pendentes > 0
+        ? `<div style="padding:8px 12px;background:#fef3c7;border:0.5px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e;margin-bottom:12px;">⚠ ${pendentes} consulta(s) ainda sem estado final em ${MESES[mes-1]} ${ano}.</div>`
+        : `<div style="padding:8px 12px;background:#d1fae5;border:0.5px solid #6ee7b7;border-radius:8px;font-size:12px;color:#065f46;margin-bottom:12px;">✓ Todas as consultas de ${MESES[mes-1]} ${ano} têm estado confirmado.</div>`}
+      <div style="max-height:380px;overflow-y:auto;border:0.5px solid #e2e8f0;border-radius:8px;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead style="background:#f8fafc;position:sticky;top:0;z-index:2;">
+            <tr>${["Data","Hora","Doente","Tipo","Clínica","Estado"].map(h=>`<th style="padding:6px 8px;font-size:10px;font-weight:600;color:#94a3b8;text-align:left;text-transform:uppercase;white-space:nowrap;">${h}</th>`).join("")}</tr>
+          </thead>
+          <tbody>${rowsHtml||`<tr><td colspan="6" style="padding:24px;text-align:center;color:#94a3b8;">Sem consultas neste período.</td></tr>`}</tbody>
+        </table>
+      </div>`;
+
+    body.querySelectorAll(".finFSel").forEach(sel => {
+      sel.addEventListener("change", async () => {
+        const id  = sel.getAttribute("data-id");
+        const val = sel.value;
+        const ec  = ESTADO_COLORS[val] || ESTADO_COLORS.scheduled;
+        sel.style.background = ec.bg; sel.style.color = ec.color;
+        try {
+          const { error } = await window.sb.from("appointments").update({ status: val }).eq("id", id);
+          if (error) throw error;
+          if (typeof window.__gc_onApptSaved === "function") window.__gc_onApptSaved();
+          _gaFechoLoadFin(mes, ano, clinicId);
+        } catch(e) { alert("Erro: " + (e.message||e)); }
+      });
+    });
+  } catch(e) {
+    if (body) body.innerHTML = `<div style="color:#b00020;padding:12px;">Erro: ${e.message||e}</div>`;
+  }
+}
 
 /* ==== FE — Boot ==== */
 
