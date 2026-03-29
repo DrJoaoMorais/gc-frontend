@@ -82,20 +82,24 @@ function _buildShell() {
 
   <div id="gaSemanaBanner" style="display:none;margin-bottom:1rem;"></div>
   <div id="gaRecBanner" style="margin-bottom:1rem;"></div>
-  <div id="gaStats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem;"></div>
 
   <div style="display:flex;gap:12px;">
-    <div style="flex:1;background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-      <div style="display:grid;grid-template-columns:60px 1fr 140px 110px;padding:8px 12px;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;gap:8px;">
-        <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Hora</div>
-        <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Doente</div>
-        <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Tipo</div>
-        <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Estado</div>
+    <div style="flex:1;min-width:0;">
+      <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+        <div style="display:grid;grid-template-columns:60px 1fr 140px 110px;padding:8px 12px;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;gap:8px;">
+          <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Hora</div>
+          <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Doente</div>
+          <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Tipo</div>
+          <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Estado</div>
+        </div>
+        <div id="gaTimeline"></div>
       </div>
-      <div id="gaTimeline"></div>
     </div>
-    <div id="gaPanel" style="width:220px;background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:1rem;flex-shrink:0;">
-      <div style="font-size:12px;color:#94a3b8;text-align:center;padding:1rem 0;">Clica num slot para ver detalhes e acções.</div>
+    <div style="width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;">
+      <div id="gaStats" style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;"></div>
+      <div id="gaPanel" style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:1rem;flex:1;">
+        <div style="font-size:12px;color:#94a3b8;text-align:center;padding:1rem 0;">Clica num slot para ver detalhes e acções.</div>
+      </div>
     </div>
   </div>
 
@@ -108,9 +112,9 @@ function _buildShell() {
 
 /* ── Wiring principal ─────────────────────────────────── */
 function _wireShell() {
-  document.getElementById("gaBtnPrev")?.addEventListener("click", () => { _state.selectedDayISO = addDays(_state.selectedDayISO, -1); _loadAndRender(); });
-  document.getElementById("gaBtnNext")?.addEventListener("click", () => { _state.selectedDayISO = addDays(_state.selectedDayISO, 1); _loadAndRender(); });
-  document.getElementById("gaBtnHoje")?.addEventListener("click", () => { _state.selectedDayISO = todayISO(); _loadAndRender(); });
+  document.getElementById("gaBtnPrev")?.addEventListener("click", () => { _state.selectedDayISO = addDays(_state.selectedDayISO, -1); _loadAndRender(); if (_semanaVisible) _renderSemana(); });
+  document.getElementById("gaBtnNext")?.addEventListener("click", () => { _state.selectedDayISO = addDays(_state.selectedDayISO, 1); _loadAndRender(); if (_semanaVisible) _renderSemana(); });
+  document.getElementById("gaBtnHoje")?.addEventListener("click", () => { _state.selectedDayISO = todayISO(); _loadAndRender(); if (_semanaVisible) _renderSemana(); });
   document.getElementById("gaSelClinica")?.addEventListener("change", e => { _state.selectedClinicId = e.target.value; _loadAndRender(); });
   document.getElementById("gaBtnRec")?.addEventListener("click", () => _openModalRecorrente());
   document.getElementById("gaBtnBloq")?.addEventListener("click", () => _openModalBloqueio());
@@ -133,8 +137,13 @@ async function _loadAndRender() {
   _state.selectedClinicId = clinicId;
 
   const dayISO = _state.selectedDayISO;
-  const startISO = dayISO + "T00:00:00+01:00";
-  const endISO   = dayISO + "T23:59:59+01:00";
+  const _lisbonOffset = (() => {
+    const off = new Intl.DateTimeFormat("pt-PT", { timeZone: "Europe/Lisbon", timeZoneName: "shortOffset" })
+      .formatToParts(new Date(`${dayISO}T12:00:00Z`)).find(p => p.type === "timeZoneName").value;
+    return off.replace("GMT", "") || "+00:00";
+  })();
+  const startISO = dayISO + "T00:00:00" + _lisbonOffset;
+  const endISO   = dayISO + "T23:59:59" + _lisbonOffset;
 
   try {
     const { data, error } = await window.sb
@@ -205,20 +214,31 @@ function _renderRecBanner(clinicId) {
 function _renderStats(rows) {
   const el = document.getElementById("gaStats");
   if (!el) return;
-  const livres   = rows.filter(r => r.mode === "slot" && r.status === "available").length;
-  const ocupados = rows.filter(r => r.mode !== "bloqueio" && r.mode !== "slot" && r.patient_id).length;
+  const livres   = rows.filter(r => r.status === "available" && !r.patient_id).length;
+  const ocupados = rows.filter(r => r.mode !== "bloqueio" && r.patient_id).length;
   const bloq     = rows.filter(r => r.mode === "bloqueio").length;
   const total    = livres + ocupados;
-  const taxa     = total > 0 ? Math.round((ocupados/total)*100) : 0;
+  const taxa     = total > 0 ? Math.round((ocupados/total)*100) : (ocupados > 0 ? 100 : 0);
 
   el.innerHTML = `
-    <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;"><div style="font-size:20px;font-weight:700;color:#0f172a;">${livres}</div><div style="font-size:11px;color:#94a3b8;margin-top:2px;">Slots livres</div></div>
-    <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;"><div style="font-size:20px;font-weight:700;color:#0f172a;">${ocupados}</div><div style="font-size:11px;color:#94a3b8;margin-top:2px;">Ocupados</div></div>
-    <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;"><div style="font-size:20px;font-weight:700;color:#0f172a;">${bloq}</div><div style="font-size:11px;color:#94a3b8;margin-top:2px;">Bloqueados</div></div>
-    <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;">
-      <div style="font-size:20px;font-weight:700;color:#0f172a;">${taxa}%</div>
-      <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Ocupação</div>
-      <div style="height:4px;border-radius:2px;background:#e2e8f0;margin-top:6px;"><div style="height:100%;border-radius:2px;background:#1a56db;width:${taxa}%;"></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+      <div style="background:#f8fafc;border-radius:8px;padding:8px 10px;">
+        <div style="font-size:18px;font-weight:600;color:#0f172a;">${livres}</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:1px;">Livres</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:8px;padding:8px 10px;">
+        <div style="font-size:18px;font-weight:600;color:#0f172a;">${ocupados}</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:1px;">Ocupados</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:8px;padding:8px 10px;">
+        <div style="font-size:18px;font-weight:600;color:#0f172a;">${bloq}</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:1px;">Bloqueados</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:8px;padding:8px 10px;">
+        <div style="font-size:18px;font-weight:600;color:#0f172a;">${taxa}%</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:1px;">Ocupação</div>
+        <div style="height:3px;border-radius:2px;background:#e2e8f0;margin-top:5px;"><div style="height:100%;border-radius:2px;background:#1a56db;width:${taxa}%;"></div></div>
+      </div>
     </div>`;
 }
 
@@ -441,51 +461,121 @@ async function _renderSemana() {
   const DAYS = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
   const hoje = todayISO();
 
+  // Calcular intervalo de horas com base nos horários activos
+  let horaMin = 8, horaMax = 20;
+  if (_state.horarios && _state.horarios.length) {
+    const inicios = _state.horarios.map(h => parseInt(h.hora_inicio.split(":")[0]));
+    const fins    = _state.horarios.map(h => {
+      const [hh,mm] = h.hora_fim.split(":").map(Number);
+      return hh + (mm > 0 ? 1 : 0);
+    });
+    horaMin = Math.max(0,  Math.min(...inicios) - 1);
+    horaMax = Math.min(23, Math.max(...fins)    + 1);
+  }
+
+  // Gerar linhas de horas com slots de 20min (ou duracao_min do horário)
+  const durMin = _state.horarios[0]?.duracao_min || 20;
+  const horas = [];
+  for (let m = horaMin*60; m < horaMax*60; m += durMin) {
+    horas.push(pad2(Math.floor(m/60))+":"+pad2(m%60));
+  }
+
   try {
+    const _lisbonOffset = (() => {
+      const off = new Intl.DateTimeFormat("pt-PT", { timeZone: "Europe/Lisbon", timeZoneName: "shortOffset" })
+        .formatToParts(new Date(dias[0]+"T12:00:00Z")).find(p => p.type === "timeZoneName").value;
+      return off.replace("GMT", "") || "+00:00";
+    })();
+
     const { data } = await window.sb
       .from("appointments")
-      .select("start_at, status, mode, patient_id")
+      .select("id, start_at, end_at, status, mode, patient_id, procedure_type, title")
       .eq("clinic_id", clinicId)
-      .gte("start_at", dias[0]+"T00:00:00.000Z")
-      .lte("start_at", dias[6]+"T23:59:59.999Z");
+      .gte("start_at", dias[0]+"T00:00:00"+_lisbonOffset)
+      .lte("start_at", dias[6]+"T23:59:59"+_lisbonOffset);
 
-    const byDay = {};
-    dias.forEach(d => { byDay[d] = []; });
-    (data||[]).forEach(r => { const d = r.start_at.slice(0,10); if (byDay[d]) byDay[d].push(r); });
+    const patientIds = (data||[]).map(r => r.patient_id).filter(Boolean);
+    let patientsById = {};
+    if (patientIds.length) {
+      const { data: pts } = await window.sb.from("patients").select("id, full_name").in("id", patientIds);
+      (pts||[]).forEach(p => { patientsById[p.id] = p; });
+    }
 
-    const cols = dias.map((iso, i) => {
-      const rows = byDay[iso]||[];
+    window.__gaSemanaAppts    = data || [];
+    window.__gaSemanaPatients = patientsById;
+
+    // Indexar por dia+hora
+    const bySlot = {};
+    (data||[]).forEach(r => {
+      const slotDate = r.start_at.slice(0,10);
+      const slotHour = new Date(r.start_at).toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Lisbon"});
+      const key = slotDate+"T"+slotHour;
+      bySlot[key] = r;
+    });
+
+    // Header
+    const headerCols = dias.map((iso, i) => {
       const isHoje = iso === hoje;
       const isSelected = iso === _state.selectedDayISO;
       const dt = new Date(iso+"T00:00:00");
-      const dots = rows.slice(0,6).map(r => {
-        const isB = r.mode==="bloqueio";
-        const isL = r.mode==="slot"&&r.status==="available";
-        const bg  = isB?"#ef4444":isL?"#e2e8f0":r.status==="done"?"#10b981":r.status==="arrived"?"#f59e0b":"#3b82f6";
-        return `<div style="width:8px;height:8px;border-radius:2px;background:${bg};"></div>`;
-      }).join("");
+      return `<div style="font-size:10px;font-weight:600;text-align:center;padding:6px 2px;border-right:0.5px solid #f1f5f9;color:${isHoje||isSelected?"#1a56db":"#94a3b8"};background:${isSelected?"#eff6ff":""};">${DAYS[i]}<br>${dt.getDate()}</div>`;
+    }).join("");
 
-      return `<div onclick="window.__gaGoDay('${iso}')" style="cursor:pointer;display:flex;flex-direction:column;gap:4px;padding:6px 4px;border-radius:8px;background:${isSelected?"#eff6ff":""};border:0.5px solid ${isSelected?"#93c5fd":"transparent"};">
-        <div style="font-size:10px;font-weight:600;text-align:center;color:${isHoje?"#1a56db":isSelected?"#1a56db":"#64748b"};">${DAYS[i]} ${dt.getDate()}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:2px;justify-content:center;">${dots||'<div style="height:8px;"></div>'}</div>
-        <div style="font-size:10px;text-align:center;color:#94a3b8;">${rows.length||""}</div>
+    // Linhas
+    const linhas = horas.map(hora => {
+      const cells = dias.map(iso => {
+        const key = iso+"T"+hora;
+        const r = bySlot[key];
+        if (!r) {
+          return `<div onclick="window.__gaSlotClick('${iso}','${hora}')" style="border-right:0.5px solid #f1f5f9;padding:2px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;" onmouseover="this.style.background='#f8faff'" onmouseout="this.style.background=''"></div>`;
+        }
+        const isBlocked = r.mode === "bloqueio";
+        const nome = patientsById[r.patient_id]?.full_name || "";
+        const nomeCurto = nome ? nome.split(" ")[0]+" "+nome.split(" ").slice(-1)[0] : (isBlocked ? "Bloq." : r.title||"");
+        let bg="#f1f5f9", color="#64748b";
+        if (isBlocked)                { bg="#fee2e2"; color="#991b1b"; }
+        else if (r.status==="done")   { bg="#d1fae5"; color="#065f46"; }
+        else if (r.status==="arrived"){ bg="#fef3c7"; color="#92400e"; }
+        else if (r.status==="no_show"){ bg="#fee2e2"; color="#991b1b"; }
+        else if (r.patient_id)        { bg="#dbeafe"; color="#1e40af"; }
+        return `<div onclick="window.__gaSlotClickAppt('${r.id}')" style="border-right:0.5px solid #f1f5f9;padding:2px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+          <div style="width:100%;height:26px;border-radius:4px;background:${bg};color:${color};font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;padding:0 3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${escapeHtml(nomeCurto)}</div>
+        </div>`;
+      }).join("");
+      return `<div style="display:grid;grid-template-columns:38px repeat(7,1fr);border-bottom:0.5px solid #f1f5f9;">
+        <div style="font-size:10px;color:#94a3b8;padding:0 4px;height:32px;display:flex;align-items:center;justify-content:flex-end;border-right:0.5px solid #e2e8f0;flex-shrink:0;">${hora}</div>
+        ${cells}
       </div>`;
     }).join("");
 
-    banner.innerHTML = `<div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:10px;">
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">${cols}</div>
-      <div style="display:flex;gap:12px;margin-top:10px;padding-top:8px;border-top:0.5px solid #e2e8f0;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:#64748b;"><div style="width:8px;height:8px;border-radius:2px;background:#3b82f6;"></div>Marcado</div>
-        <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:#64748b;"><div style="width:8px;height:8px;border-radius:2px;background:#10b981;"></div>Realizado</div>
-        <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:#64748b;"><div style="width:8px;height:8px;border-radius:2px;background:#ef4444;"></div>Bloqueado</div>
-        <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:#64748b;"><div style="width:8px;height:8px;border-radius:2px;background:#e2e8f0;"></div>Livre</div>
+    banner.innerHTML = `<div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:10px;">
+      <div style="display:grid;grid-template-columns:38px repeat(7,1fr);background:#f8fafc;border-bottom:0.5px solid #e2e8f0;">
+        <div style="border-right:0.5px solid #e2e8f0;"></div>
+        ${headerCols}
       </div>
+      ${linhas}
     </div>`;
+
   } catch(e) {
     banner.innerHTML = `<div style="color:#b00020;font-size:13px;padding:12px;">Erro ao carregar semana.</div>`;
   }
 
-  window.__gaGoDay = (iso) => { _state.selectedDayISO = iso; _loadAndRender(); if (_semanaVisible) _renderSemana(); };
+  window.__gaGoDay = (iso) => {
+    _state.selectedDayISO = iso;
+    _loadAndRender();
+    if (_semanaVisible) _renderSemana();
+  };
+
+  window.__gaSlotClick = (iso, hora) => {
+    const [h,m] = hora.split(":").map(Number);
+    const dt = new Date(iso+"T"+pad2(h)+":"+pad2(m)+":00");
+    openApptModal({ mode:"new", row:null, prefillDatetime: dt.toISOString(), prefillClinicId: _state.selectedClinicId });
+  };
+
+  window.__gaSlotClickAppt = (apptId) => {
+    const r = (window.__gaSemanaAppts||[]).find(a => a.id === apptId);
+    if (r) _renderPanel(r, window.__gaSemanaPatients||{});
+  };
 }
 
 /* ── Modal horário recorrente ─────────────────────────── */
