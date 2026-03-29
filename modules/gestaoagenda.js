@@ -885,7 +885,8 @@ function _openModalRecorrente() {
     try {
       await window.sb.from("horarios_recorrentes").update({ is_active: false }).eq("id", existing.id);
       document.getElementById("gaModalOverlay").style.display = "none";
-      _loadAndRender();
+      await _loadAndRender();
+      if (_semanaVisible) _renderSemana();
     } catch(e) { alert("Erro: " + (e.message||e)); }
   });
 
@@ -907,7 +908,8 @@ function _openModalRecorrente() {
 
       document.getElementById("gaModalOverlay").style.display = "none";
       alert("Disponibilidade guardada.");
-      _loadAndRender();
+      await _loadAndRender();
+      if (_semanaVisible) _renderSemana();
     } catch(e) { alert("Erro: " + (e.message||e)); }
   });
 }
