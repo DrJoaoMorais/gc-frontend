@@ -149,13 +149,7 @@ async function _loadAndRender() {
   _renderTimeline([]);
   _renderStats([]);
 
-  const clinicId = _state.selectedClinicId || document.getElementById("gaSelClinica")?.value;
-  if (!clinicId) {
-    const tl = document.getElementById("gaTimeline");
-    if (tl) tl.innerHTML = '<div style="padding:32px;text-align:center;color:#94a3b8;font-size:13px;">Selecciona uma clínica para ver a agenda.</div>';
-    return;
-  }
-  _state.selectedClinicId = clinicId;
+  const clinicId = _state.selectedClinicId;
 
   const dayISO = _state.selectedDayISO;
   const _lisbonOffset = (() => {
@@ -167,13 +161,14 @@ async function _loadAndRender() {
   const endISO   = dayISO + "T23:59:59" + _lisbonOffset;
 
   try {
-    const { data, error } = await window.sb
+    let _q = window.sb
       .from("appointments")
-      .select("id, start_at, end_at, status, mode, procedure_type, title, notes, patient_id, meet_link")
-      .eq("clinic_id", clinicId)
+      .select("id, start_at, end_at, status, mode, procedure_type, title, notes, patient_id, meet_link, clinic_id")
       .gte("start_at", startISO)
       .lte("start_at", endISO)
       .order("start_at", { ascending: true });
+    if (clinicId) _q = _q.eq("clinic_id", clinicId);
+    const { data, error } = await _q;
 
     if (error) throw error;
     _state.rows = data || [];
@@ -191,8 +186,14 @@ async function _loadAndRender() {
     } catch(_) {}
   }
 
-  await _loadHorarios(clinicId);
-  _renderRecBanner(clinicId);
+  if (clinicId) {
+    await _loadHorarios(clinicId);
+    _renderRecBanner(clinicId);
+  } else {
+    _state.horarios = [];
+    const recBanner = document.getElementById("gaRecBanner");
+    if (recBanner) recBanner.innerHTML = "";
+  }
   _renderStats(_state.rows);
   _renderTimeline(_state.rows, patientsById);
 }
@@ -493,12 +494,18 @@ async function _renderSemana() {
   const hoje = todayISO();
 
   try {
-    const { data } = await window.sb
+    const _tzOff = (() => {
+      const off = new Intl.DateTimeFormat("pt-PT", { timeZone: "Europe/Lisbon", timeZoneName: "shortOffset" })
+        .formatToParts(new Date(`${dias[0]}T12:00:00Z`)).find(p => p.type === "timeZoneName").value;
+      return off.replace("GMT", "") || "+00:00";
+    })();
+    let _sq = window.sb
       .from("appointments")
       .select("id, start_at, end_at, status, mode, patient_id, procedure_type, title, clinic_id")
-      .eq("clinic_id", clinicId)
-      .gte("start_at", dias[0]+"T00:00:00+01:00")
-      .lte("start_at", dias[6]+"T23:59:59+01:00");
+      .gte("start_at", dias[0]+"T00:00:00"+_tzOff)
+      .lte("start_at", dias[6]+"T23:59:59"+_tzOff);
+    if (clinicId) _sq = _sq.eq("clinic_id", clinicId);
+    const { data } = await _sq;
 
     const appts = data || [];
 
@@ -592,12 +599,10 @@ async function _renderSemana() {
           ? (nome.split(" ")[0]+" "+nome.split(" ").slice(-1)[0])
           : (isBlocked ? "Bloq." : r.title || "");
 
+        const apptClr = CLINIC_COLORS[r.clinic_id] || DEFAULT_COLOR;
         let bg, color;
-        if (isBlocked)                { bg="#fee2e2"; color="#991b1b"; }
-        else if (r.status==="done")   { bg="#d1fae5"; color="#065f46"; }
-        else if (r.status==="arrived"){ bg="#fef3c7"; color="#92400e"; }
-        else if (r.status==="no_show"){ bg="#fecaca"; color="#7f1d1d"; }
-        else                          { bg=cc.solid;  color="#fff"; }
+        if (isBlocked) { bg="#fee2e2"; color="#991b1b"; }
+        else           { bg=apptClr.solid; color="#fff"; }
 
         return `<div onclick="window.__gaSlotClickAppt('${r.id}')" style="border-right:0.5px solid #f1f5f9;padding:2px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
           <div style="width:100%;height:26px;border-radius:4px;background:${bg};color:${color};font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;padding:0 3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="${escapeHtml(nome)}">${escapeHtml(nomeCurto)}</div>
