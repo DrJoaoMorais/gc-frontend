@@ -73,7 +73,7 @@ function _buildShell() {
     </div>
     <button id="gaBtnHoje" class="gcBtnGhost" style="font-size:12px;padding:5px 12px;">Hoje</button>
     <div style="width:1px;height:20px;background:#e2e8f0;"></div>
-    <button id="gaBtnRec" class="gcBtnPrimary" style="font-size:12px;padding:5px 14px;">Horário recorrente</button>
+    <button id="gaBtnRec" class="gcBtnGhost" style="font-size:12px;padding:5px 14px;">Disponibilidade</button>
     <button id="gaBtnBloq" class="gcBtnDanger" style="font-size:12px;padding:5px 14px;">Bloquear</button>
     <div style="width:1px;height:20px;background:#e2e8f0;"></div>
     <button id="gaBtnSemana" class="gcBtnGhost" style="font-size:12px;padding:5px 12px;">Vista semanal</button>
@@ -195,7 +195,7 @@ function _renderRecBanner(clinicId) {
   ).join(" | ");
 
   el.innerHTML = `<div style="background:#eff6ff;border:0.5px solid #93c5fd;border-radius:8px;padding:8px 12px;font-size:12px;color:#1e40af;display:flex;align-items:center;justify-content:space-between;gap:8px;">
-    <span>Horário recorrente activo: ${escapeHtml(items)}</span>
+    <span>Disponibilidade activa: ${escapeHtml(items)}</span>
     <button id="gaBtnEditRec" style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid #93c5fd;background:#fff;color:#1e40af;cursor:pointer;">Editar</button>
   </div>`;
   document.getElementById("gaBtnEditRec")?.addEventListener("click", _openModalRecorrente);
@@ -495,7 +495,7 @@ function _openModalRecorrente() {
   const existing = _state.horarios[0];
 
   _showModal(`
-    <div style="font-size:16px;font-weight:700;color:#0f2d52;margin-bottom:4px;">Horário recorrente</div>
+    <div style="font-size:16px;font-weight:700;color:#0f2d52;margin-bottom:4px;">Disponibilidade</div>
     <div style="font-size:12px;color:#64748b;margin-bottom:1rem;">Define uma vez — slots gerados automaticamente.</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
       <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Dia da semana</label>
@@ -519,7 +519,8 @@ function _openModalRecorrente() {
         </select></div>
     </div>
     <div id="gaRecPreview" style="padding:8px 10px;background:#eff6ff;border-radius:8px;font-size:12px;color:#1e40af;margin-bottom:1rem;"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
+    <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;">
+      ${existing ? `<button id="gaRecDeleteBtn" style="font-size:12px;padding:6px 14px;border-radius:8px;border:0.5px solid #fca5a5;background:#fee2e2;color:#991b1b;cursor:pointer;font-weight:500;">Eliminar</button><div style="flex:1;"></div>` : '<div style="flex:1;"></div>'}
       <button onclick="document.getElementById('gaModalOverlay').style.display='none'" class="gcBtnGhost" style="font-size:12px;padding:6px 14px;">Cancelar</button>
       <button id="gaRecSaveBtn" class="gcBtnSuccess" style="font-size:12px;padding:6px 18px;font-weight:600;">Guardar horário</button>
     </div>`);
@@ -536,6 +537,16 @@ function _openModalRecorrente() {
   }
   ["gaRecInicio","gaRecFim","gaRecDur"].forEach(id => document.getElementById(id)?.addEventListener("change", updatePreview));
   updatePreview();
+
+  document.getElementById("gaRecDeleteBtn")?.addEventListener("click", async () => {
+    if (!existing) return;
+    if (!confirm("Eliminar esta disponibilidade recorrente?\n\nOs slots já gerados nas consultas não são afectados.")) return;
+    try {
+      await window.sb.from("horarios_recorrentes").update({ is_active: false }).eq("id", existing.id);
+      document.getElementById("gaModalOverlay").style.display = "none";
+      _loadAndRender();
+    } catch(e) { alert("Erro: " + (e.message||e)); }
+  });
 
   document.getElementById("gaRecSaveBtn")?.addEventListener("click", async () => {
     const dow    = parseInt(document.getElementById("gaRecDow")?.value||"2");
@@ -565,7 +576,7 @@ function _openModalRecorrente() {
           const [sh,sm] = slot.split(":").map(Number);
           const startD = new Date(isoDate+"T"+pad2(sh)+":"+pad2(sm)+":00");
           const endD   = new Date(startD.getTime()+dur*60000);
-          rows.push({ clinic_id: clinId, patient_id: null, start_at: startD.toISOString(), end_at: endD.toISOString(), status: "available", procedure_type: null, title: "SLOT", notes: null, mode: "slot" });
+          rows.push({ clinic_id: clinId, patient_id: null, start_at: startD.toISOString(), end_at: endD.toISOString(), status: "available", procedure_type: null, title: "SLOT", notes: null, mode: "presencial" });
         }
       }
 
@@ -669,7 +680,8 @@ function _openModalBloqueio() {
       const startStr = isHoras ? isoDate+"T"+hi+":00" : isoDate+"T00:00:00";
       const endStr   = isHoras ? isoDate+"T"+hf+":00" : isoDate+"T23:59:59";
       for (const cid of targetIds) {
-        rows.push({ clinic_id: cid, patient_id: null, start_at: new Date(startStr).toISOString(), end_at: new Date(endStr).toISOString(), status: "confirmed", procedure_type: null, title: "BLOQUEIO", notes: nota||motivo, mode: "bloqueio" });
+        rows.push({ clinic_id: cid, patient_id: null, start_at: new Date(startStr).toISOString(), end_at: new Date(endStr).toISOString(), status: "confirmed", procedure_type: null, title: "BLOQUEIO", notes: nota||motivo, mode: "bloqueio" // ← manter como estava
+        });
       }
       cur.setDate(cur.getDate()+1);
     }
