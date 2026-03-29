@@ -625,10 +625,27 @@ async function _renderSemana() {
         <div style="border-right:0.5px solid #e2e8f0;"></div>
         ${headerCols}
       </div>
-      <div style="max-height:480px;overflow-y:auto;">
+      <div id="gaSemanScroll" style="max-height:480px;overflow-y:auto;">
         ${linhas}
       </div>
     </div>`;
+
+    // Scroll automático para a primeira hora de disponibilidade (ou primeiro appointment)
+    const _primeiraDisp = [...slotsDisp].map(k => k.slice(-5)).sort()[0];
+    const _primeiroAppt = appts.length
+      ? new Date(appts.slice().sort((a,b) => new Date(a.start_at)-new Date(b.start_at))[0].start_at)
+          .toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"})
+      : null;
+    const _alvoHora = _primeiraDisp || _primeiroAppt;
+    if (_alvoHora) {
+      const _idx = horas.indexOf(_alvoHora);
+      if (_idx > 0) {
+        requestAnimationFrame(() => {
+          const sc = document.getElementById("gaSemanScroll");
+          if (sc) sc.scrollTop = Math.max(0, (_idx - 1) * 32); // 1 linha acima
+        });
+      }
+    }
 
   } catch(e) {
     banner.innerHTML = `<div style="color:#b00020;font-size:13px;padding:12px;">Erro ao carregar semana.</div>`;
