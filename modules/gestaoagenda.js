@@ -10,8 +10,8 @@ import { openApptModal } from "./agenda.js";
 const GCAL_WORKER_URL = window.__GC_GCAL_WORKER_URL__ || "";
 
 function pad2(n) { return String(n).padStart(2, "0"); }
-function fmtHM(date) { return pad2(date.getHours()) + ":" + pad2(date.getMinutes()); }
-function todayISO() { const d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth()+1) + "-" + pad2(d.getDate()); }
+function fmtHM(date) { return date.toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"}); }
+function todayISO() { return new Date().toLocaleDateString("pt-PT",{timeZone:"Europe/Lisbon",year:"numeric",month:"2-digit",day:"2-digit"}).split("/").reverse().join("-"); }
 function isoToDisplay(iso) {
   const d = new Date(iso + "T00:00:00");
   const DAYS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
@@ -52,6 +52,11 @@ export async function initGestaoAgenda() {
 
   root.innerHTML = _buildShell();
   _wireShell();
+  // Refresh automático quando o modal de consulta guarda
+  window.__gc_onApptSaved = async () => {
+    await _loadAndRender();
+    if (_semanaVisible) _renderSemana();
+  };
   await _loadAndRender();
 
   // Vista semanal activa por defeito
@@ -86,6 +91,7 @@ function _buildShell() {
       <button id="gaBtnBloq" class="gcBtnDanger" style="font-size:12px;padding:5px 14px;">Bloquear</button>
       <div style="width:1px;height:20px;background:#e2e8f0;"></div>
       <button id="gaBtnSemana" class="gcBtnGhost" style="font-size:12px;padding:5px 12px;">Vista semanal</button>
+      <button id="gaBtnFecho" style="font-size:12px;padding:5px 14px;border-radius:8px;border:0.5px solid #6ee7b7;background:#d1fae5;color:#065f46;cursor:pointer;font-weight:600;">Fecho do mês</button>
       <select id="gaSelClinica" class="gcSelect" style="font-size:12px;padding:5px 8px;max-width:140px;">${clinicOpts}</select>
       <div id="gaRecBanner"></div>
     </div>
@@ -138,6 +144,7 @@ function _wireShell() {
     _openModalBloqueio();
   });
   document.getElementById("gaBtnSemana")?.addEventListener("click", () => _toggleSemana());
+  document.getElementById("gaBtnFecho")?.addEventListener("click", () => _openFechoMes());
 
   if (_state.selectedClinicId) {
     const sel = document.getElementById("gaSelClinica");
@@ -937,11 +944,172 @@ function _openModalBloqueio() {
   });
 }
 
+/* ── Fecho do mês ─────────────────────────────────────── */
+function _openFechoMes() {
+  const hoje = new Date();
+  const defMes = hoje.getMonth() + 1;
+  const defAno = hoje.getFullYear();
+  const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  const clinicas = G.clinics || [];
+  const clinicOpts = `<option value="">Todas as clínicas</option>` + clinicas.map(c =>
+    `<option value="${escapeHtml(c.id)}"${c.id===_state.selectedClinicId?" selected":""}>${escapeHtml(c.name||c.slug||c.id)}</option>`
+  ).join("");
+  const mesOpts  = MESES.map((m,i) => `<option value="${i+1}"${i+1===defMes?" selected":""}>${m}</option>`).join("");
+  const anoOpts  = [defAno-1, defAno, defAno+1].map(y => `<option value="${y}"${y===defAno?" selected":""}>${y}</option>`).join("");
+
+  _showModal(`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div style="font-size:17px;font-weight:700;color:#0f2d52;">Fecho do mês</div>
+      <button onclick="document.getElementById('gaModalOverlay').style.display='none'" style="border:none;background:none;font-size:18px;color:#94a3b8;cursor:pointer;">×</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+      <select id="gaFMes" class="gcSelect" style="font-size:12px;">${mesOpts}</select>
+      <select id="gaFAno" class="gcSelect" style="font-size:12px;">${anoOpts}</select>
+      <select id="gaFClinica" class="gcSelect" style="font-size:12px;min-width:140px;">${clinicOpts}</select>
+    </div>
+    <div id="gaFechoBody" style="font-size:12px;color:#94a3b8;text-align:center;padding:2rem 0;">A carregar…</div>
+  `, { wide: true });
+
+  const _load = () => _gaFechoLoad(
+    parseInt(document.getElementById("gaFMes")?.value),
+    parseInt(document.getElementById("gaFAno")?.value),
+    document.getElementById("gaFClinica")?.value || null
+  );
+
+  document.getElementById("gaFMes")?.addEventListener("change", _load);
+  document.getElementById("gaFAno")?.addEventListener("change", _load);
+  document.getElementById("gaFClinica")?.addEventListener("change", _load);
+  _load();
+}
+
+async function _gaFechoLoad(mes, ano, clinicId) {
+  const body = document.getElementById("gaFechoBody");
+  if (!body) return;
+  body.innerHTML = `<div style="color:#94a3b8;text-align:center;padding:1.5rem;">A carregar…</div>`;
+
+  const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  try {
+    const lastDay = new Date(ano, mes, 0).getDate();
+    const tzOff = (() => {
+      const off = new Intl.DateTimeFormat("pt-PT",{timeZone:"Europe/Lisbon",timeZoneName:"shortOffset"})
+        .formatToParts(new Date(`${ano}-${pad2(mes)}-01T12:00:00Z`)).find(p=>p.type==="timeZoneName").value;
+      return off.replace("GMT","") || "+00:00";
+    })();
+    const startISO = `${ano}-${pad2(mes)}-01T00:00:00${tzOff}`;
+    const endISO   = `${ano}-${pad2(mes)}-${pad2(lastDay)}T23:59:59${tzOff}`;
+
+    let q = window.sb.from("appointments")
+      .select("id, start_at, status, mode, procedure_type, patient_id, clinic_id")
+      .gte("start_at", startISO).lte("start_at", endISO)
+      .not("mode","eq","slot").not("mode","eq","bloqueio")
+      .order("start_at", { ascending: true });
+    if (clinicId) q = q.eq("clinic_id", clinicId);
+    const { data, error } = await q;
+    if (error) throw error;
+    const appts = data || [];
+
+    const patientIds = [...new Set(appts.map(a=>a.patient_id).filter(Boolean))];
+    let patientsById = {};
+    if (patientIds.length) {
+      const { data: pts } = await window.sb.from("patients").select("id, full_name").in("id", patientIds);
+      (pts||[]).forEach(p => { patientsById[p.id] = p; });
+    }
+
+    const realizadas  = appts.filter(a=>a.status==="done").length;
+    const faltas      = appts.filter(a=>a.status==="no_show").length;
+    const dispensadas = appts.filter(a=>a.status==="honorarios_dispensados").length;
+    const pendentes   = appts.filter(a=>["scheduled","arrived"].includes(a.status)).length;
+
+    const alertBanner = pendentes > 0
+      ? `<div style="padding:8px 12px;background:#fef3c7;border:0.5px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e;margin-bottom:12px;">⚠ ${pendentes} consulta(s) ainda sem estado final — confirma antes de fechar o mês.</div>`
+      : `<div style="padding:8px 12px;background:#d1fae5;border:0.5px solid #6ee7b7;border-radius:8px;font-size:12px;color:#065f46;margin-bottom:12px;">✓ Todas as consultas de ${MESES[mes-1]} ${ano} têm estado confirmado.</div>`;
+
+    const rowsHtml = appts.map(a => {
+      const dt    = new Date(a.start_at);
+      const data  = dt.toLocaleDateString("pt-PT",{timeZone:"Europe/Lisbon",day:"2-digit",month:"2-digit"});
+      const hora  = dt.toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"});
+      const nome  = escapeHtml(patientsById[a.patient_id]?.full_name || "—");
+      const cName = escapeHtml((G.clinics||[]).find(c=>c.id===a.clinic_id)?.name || "—");
+      const meta  = ESTADO_META[a.status] || ESTADO_META.scheduled;
+      return `<tr style="border-bottom:0.5px solid #f1f5f9;" data-id="${a.id}">
+        <td style="padding:5px 8px;font-size:11px;color:#64748b;white-space:nowrap;">${data}</td>
+        <td style="padding:5px 8px;font-size:11px;color:#475569;">${hora}</td>
+        <td style="padding:5px 8px;font-size:12px;font-weight:500;color:#0f172a;">${nome}</td>
+        <td style="padding:5px 8px;font-size:11px;color:#64748b;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(a.procedure_type||"")}">${escapeHtml(a.procedure_type||"—")}</td>
+        <td style="padding:5px 8px;font-size:11px;color:#64748b;">${cName}</td>
+        <td style="padding:5px 8px;">
+          <select class="gaFSel" data-id="${a.id}" style="font-size:11px;padding:2px 6px;border-radius:6px;border:0.5px solid #e2e8f0;background:${meta.bg};color:${meta.color};cursor:pointer;">
+            <option value="scheduled" ${a.status==="scheduled"?"selected":""}>Marcado</option>
+            <option value="arrived"   ${a.status==="arrived"?"selected":""}>Chegou</option>
+            <option value="done"      ${a.status==="done"?"selected":""}>Realizada</option>
+            <option value="no_show"   ${a.status==="no_show"?"selected":""}>Falta</option>
+            <option value="honorarios_dispensados" ${a.status==="honorarios_dispensados"?"selected":""}>Dispensado</option>
+            <option value="cancelled" ${a.status==="cancelled"?"selected":""}>Cancelado</option>
+          </select>
+        </td>
+      </tr>`;
+    }).join("");
+
+    body.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">
+        <div style="background:#d1fae5;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:26px;font-weight:700;color:#065f46;">${realizadas}</div>
+          <div style="font-size:10px;color:#065f46;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Realizadas</div>
+        </div>
+        <div style="background:#fee2e2;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:26px;font-weight:700;color:#991b1b;">${faltas}</div>
+          <div style="font-size:10px;color:#991b1b;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Faltas</div>
+        </div>
+        <div style="background:#ede9fe;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:26px;font-weight:700;color:#4c1d95;">${dispensadas}</div>
+          <div style="font-size:10px;color:#4c1d95;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Dispensados</div>
+        </div>
+        <div style="background:#fef3c7;border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:26px;font-weight:700;color:#92400e;">${pendentes}</div>
+          <div style="font-size:10px;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Por Confirmar</div>
+        </div>
+      </div>
+      ${alertBanner}
+      <div style="max-height:380px;overflow-y:auto;border:0.5px solid #e2e8f0;border-radius:8px;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead style="background:#f8fafc;position:sticky;top:0;z-index:2;">
+            <tr>
+              ${["Data","Hora","Doente","Tipo","Clínica","Estado"].map(h=>`<th style="padding:6px 8px;font-size:10px;font-weight:600;color:#94a3b8;text-align:left;text-transform:uppercase;white-space:nowrap;">${h}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody id="gaFechoTbody">${rowsHtml || `<tr><td colspan="6" style="padding:24px;text-align:center;color:#94a3b8;">Sem consultas neste período.</td></tr>`}</tbody>
+        </table>
+      </div>`;
+
+    // Wire status dropdowns — actualiza BD e refresca stats inline
+    body.querySelectorAll(".gaFSel").forEach(sel => {
+      sel.addEventListener("change", async () => {
+        const id  = sel.getAttribute("data-id");
+        const val = sel.value;
+        const meta = ESTADO_META[val] || ESTADO_META.scheduled;
+        sel.style.background = meta.bg;
+        sel.style.color = meta.color;
+        try {
+          const { error } = await window.sb.from("appointments").update({ status: val }).eq("id", id);
+          if (error) throw error;
+          if (typeof window.__gc_onApptSaved === "function") window.__gc_onApptSaved();
+          // Recarregar stats sem fechar o modal
+          _gaFechoLoad(mes, ano, clinicId);
+        } catch(e) { alert("Erro: " + (e.message||e)); }
+      });
+    });
+
+  } catch(e) {
+    if (body) body.innerHTML = `<div style="color:#b00020;font-size:13px;padding:12px;">Erro: ${e.message||e}</div>`;
+  }
+}
+
 /* ── Helper modal ─────────────────────────────────────── */
-function _showModal(html) {
+function _showModal(html, opts = {}) {
   const ov  = document.getElementById("gaModalOverlay");
   const box = document.getElementById("gaModalBox");
   if (!ov||!box) return;
+  box.style.width = opts.wide ? "min(860px,96vw)" : "min(420px,100%)";
   box.innerHTML = html;
   ov.style.display = "flex";
   ov.addEventListener("click", e => { if (e.target===ov) ov.style.display="none"; }, { once: true });

@@ -2315,6 +2315,7 @@ export async function refreshAgenda() {
     renderAgendaList();
     loadAndRenderPendentes(clinicId).catch(() => {});
     loadAndRenderVencidos().catch(() => {});
+    if (typeof window.__gc_onApptSaved === "function") window.__gc_onApptSaved();
   } catch (e) {
     if (__gcIsAuthError(e)) { await __gcForceSessionLock("Sessão expirada ou inválida. Volte a iniciar sessão."); return; }
     console.error("Agenda load falhou:", e);
