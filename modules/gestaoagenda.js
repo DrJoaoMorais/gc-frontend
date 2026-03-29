@@ -121,12 +121,12 @@ function _buildShell() {
 
 /* ── Wiring principal ─────────────────────────────────── */
 function _wireShell() {
-  document.getElementById("gaBtnPrev")?.addEventListener("click", () => { _state.selectedDayISO = addDays(_state.selectedDayISO, -1); _loadAndRender(); if (_semanaVisible) _renderSemana(); });
-  document.getElementById("gaBtnNext")?.addEventListener("click", () => { _state.selectedDayISO = addDays(_state.selectedDayISO, 1); _loadAndRender(); if (_semanaVisible) _renderSemana(); });
-  document.getElementById("gaBtnHoje")?.addEventListener("click", () => { _state.selectedDayISO = todayISO(); _loadAndRender(); if (_semanaVisible) _renderSemana(); });
-  document.getElementById("gaSelClinica")?.addEventListener("change", e => {
+  document.getElementById("gaBtnPrev")?.addEventListener("click", async () => { _state.selectedDayISO = addDays(_state.selectedDayISO, -1); await _loadAndRender(); if (_semanaVisible) _renderSemana(); });
+  document.getElementById("gaBtnNext")?.addEventListener("click", async () => { _state.selectedDayISO = addDays(_state.selectedDayISO, 1); await _loadAndRender(); if (_semanaVisible) _renderSemana(); });
+  document.getElementById("gaBtnHoje")?.addEventListener("click", async () => { _state.selectedDayISO = todayISO(); await _loadAndRender(); if (_semanaVisible) _renderSemana(); });
+  document.getElementById("gaSelClinica")?.addEventListener("change", async e => {
     _state.selectedClinicId = e.target.value || null;
-    _loadAndRender();
+    await _loadAndRender();
     if (_semanaVisible) _renderSemana();
   });
   document.getElementById("gaBtnRec")?.addEventListener("click", () => {
@@ -661,7 +661,11 @@ async function _renderSemana() {
     if (_semanaVisible) _renderSemana();
   };
 
-  window.__gaSlotClick = (iso, hora) => { _openModalCriarSlot(iso, hora); };
+  window.__gaSlotClick = (iso, hora) => {
+    const [h, m] = hora.split(":").map(Number);
+    const dt = new Date(iso+"T"+pad2(h)+":"+pad2(m)+":00");
+    openApptModal({ mode:"new", row:null, prefillDatetime: dt.toISOString(), prefillClinicId: _state.selectedClinicId });
+  };
 
   window.__gaSlotClickAppt = (apptId) => {
     const r = (window.__gaSemanaAppts||[]).find(a => a.id === apptId);
