@@ -48,7 +48,7 @@ export async function initGestaoAgenda() {
   if (!root) return;
 
   _state.selectedDayISO = G.selectedDayISO || todayISO();
-  _state.selectedClinicId = (G.clinics||[])[0]?.id || null;
+  _state.selectedClinicId = null;
 
   root.innerHTML = _buildShell();
   _wireShell();
@@ -86,8 +86,8 @@ function _buildShell() {
       <button id="gaBtnBloq" class="gcBtnDanger" style="font-size:12px;padding:5px 14px;">Bloquear</button>
       <div style="width:1px;height:20px;background:#e2e8f0;"></div>
       <button id="gaBtnSemana" class="gcBtnGhost" style="font-size:12px;padding:5px 12px;">Vista semanal</button>
-      <div id="gaRecBanner"></div>
       <select id="gaSelClinica" class="gcSelect" style="font-size:12px;padding:5px 8px;max-width:140px;">${clinicOpts}</select>
+      <div id="gaRecBanner"></div>
     </div>
   </div>
 
