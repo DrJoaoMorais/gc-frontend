@@ -522,7 +522,8 @@ async function _renderSemana() {
     if (clinicId) _sq = _sq.eq("clinic_id", clinicId);
     const { data } = await _sq;
 
-    const appts = data || [];
+    // Excluir slots de disponibilidade (mode="slot") — a fonte de verdade são os horarios_recorrentes
+    const appts = (data || []).filter(r => r.mode !== "slot");
 
     const patientIds = appts.map(r => r.patient_id).filter(Boolean);
     let patientsById = {};
@@ -545,40 +546,55 @@ async function _renderSemana() {
       bySlot[key].push(r);
     });
 
-    // Calcular slots de disponibilidade para esta semana (respeita durMin de cada horário)
-    const slotsDisp = new Set();
-    if (_state.horarios && _state.horarios.length) {
-      dias.forEach(iso => {
-        const diaSemana = new Date(iso+"T00:00:00").getDay();
-        _state.horarios.forEach(h => {
-          if (h.day_of_week === diaSemana) {
-            gerarSlots(h.hora_inicio.slice(0,5), h.hora_fim.slice(0,5), h.duracao_min)
-              .forEach(s => slotsDisp.add(iso+"T"+s));
-          }
-        });
+    // Carregar horarios activos (todas as clínicas ou só a seleccionada)
+    let horariosDisp = [];
+    try {
+      let hq = window.sb.from("horarios_recorrentes").select("*").eq("is_active", true);
+      if (clinicId) hq = hq.eq("clinic_id", clinicId);
+      const { data: hd } = await hq;
+      horariosDisp = hd || [];
+    } catch(_) {}
+
+    // Calcular slots de disponibilidade: Map key -> clinicId (para cor correcta por clínica)
+    const slotsDispMap = new Map();
+    dias.forEach(iso => {
+      const diaSemana = new Date(iso+"T00:00:00").getDay();
+      horariosDisp.forEach(h => {
+        if (h.day_of_week === diaSemana) {
+          gerarSlots(h.hora_inicio.slice(0,5), h.hora_fim.slice(0,5), h.duracao_min)
+            .forEach(s => slotsDispMap.set(iso+"T"+s, h.clinic_id));
+        }
       });
-    }
+    });
 
     // Gerar linhas: union das horas de disponibilidade + horas reais dos appointments
     const horasSet = new Set();
-    slotsDisp.forEach(key => horasSet.add(key.slice(-5)));
+    slotsDispMap.forEach((_, key) => horasSet.add(key.slice(-5)));
     appts.forEach(r => {
       const tDate = new Date(r.start_at);
       horasSet.add(tDate.toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"}));
     });
-    // Fallback: se não há nada, mostrar 8:00–20:00 de 20 em 20
+    // Passo do padding: usar a menor duração dos horários activos
+    const _minDur = horariosDisp.length ? Math.min(...horariosDisp.map(h => h.duracao_min)) : 20;
+    // Fallback: se não há nada, mostrar 8:00–20:00 no passo correcto
     if (!horasSet.size) {
-      for (let m = 8*60; m < 20*60; m += 20) horasSet.add(pad2(Math.floor(m/60))+":"+pad2(m%60));
+      for (let m = 8*60; m < 20*60; m += _minDur) horasSet.add(pad2(Math.floor(m/60))+":"+pad2(m%60));
     }
-    // Padding: +1h antes e depois, em intervalos de 20 min
-    const _stepMin = 20;
-    const _minutosExist = [...horasSet].map(h => { const [hh,mm] = h.split(":").map(Number); return hh*60+mm; });
-    const _minH = Math.max(0,     Math.min(..._minutosExist) - 60);
-    const _maxH = Math.min(23*60, Math.max(..._minutosExist) + 60);
-    for (let m = _minH; m <= _maxH; m += _stepMin) horasSet.add(pad2(Math.floor(m/60))+":"+pad2(m%60));
+    // Âncora do padding: usar APENAS os tempos dos horários (slotsDispMap), NÃO os appointments forçados fora de grid
+    // Isto evita que consultas às 15:10 (entre slots de 15:00 e 15:20) criem linhas fantasma brancas
+    const _slotMinutos = [...slotsDispMap.keys()].map(k => { const [hh,mm] = k.slice(-5).split(":").map(Number); return hh*60+mm; });
+    if (_slotMinutos.length) {
+      const _minH = Math.max(0,     Math.floor((Math.min(..._slotMinutos) - 60) / _minDur) * _minDur);
+      const _maxH = Math.min(23*60, Math.ceil( (Math.max(..._slotMinutos) + 60) / _minDur) * _minDur);
+      for (let m = _minH; m <= _maxH; m += _minDur) horasSet.add(pad2(Math.floor(m/60))+":"+pad2(m%60));
+    } else if (appts.length) {
+      // Sem horários definidos mas com consultas (ex: só extras) — usar tempos dos appointments
+      const _apptMin = appts.map(r => { const t = new Date(r.start_at).toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"}); const [hh,mm]=t.split(":").map(Number); return hh*60+mm; });
+      const _minH = Math.max(0,     Math.floor((Math.min(..._apptMin) - 60) / _minDur) * _minDur);
+      const _maxH = Math.min(23*60, Math.ceil( (Math.max(..._apptMin) + 60) / _minDur) * _minDur);
+      for (let m = _minH; m <= _maxH; m += _minDur) horasSet.add(pad2(Math.floor(m/60))+":"+pad2(m%60));
+    }
     const horas = [...horasSet].sort();
-
-    const cc = CLINIC_COLORS[clinicId] || DEFAULT_COLOR;
 
     // Header
     const headerCols = dias.map((iso, i) => {
@@ -591,12 +607,14 @@ async function _renderSemana() {
     // Linhas
     const linhas = horas.map(hora => {
       const cells = dias.map(iso => {
-        const key    = iso+"T"+hora;
-        const rList  = bySlot[key];
-        const isDisp = slotsDisp.has(key);
+        const key         = iso+"T"+hora;
+        const rList       = bySlot[key];
+        const slotClinicId = slotsDispMap.get(key);
+        const isDisp      = slotClinicId !== undefined;
+        const slotCC      = isDisp ? (CLINIC_COLORS[slotClinicId] || DEFAULT_COLOR) : null;
 
         if (!rList || !rList.length) {
-          const bg = isDisp ? cc.light : "";
+          const bg = slotCC ? slotCC.light : "";
           return `<div onclick="window.__gaSlotClick('${iso}','${hora}')" style="border-right:0.5px solid #f1f5f9;padding:2px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:${bg};" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background='${bg}'"></div>`;
         }
 
@@ -636,7 +654,7 @@ async function _renderSemana() {
     </div>`;
 
     // Scroll automático para a primeira hora de disponibilidade (ou primeiro appointment)
-    const _primeiraDisp = [...slotsDisp].map(k => k.slice(-5)).sort()[0];
+    const _primeiraDisp = [...slotsDispMap.keys()].map(k => k.slice(-5)).sort()[0];
     const _primeiroAppt = appts.length
       ? new Date(appts.slice().sort((a,b) => new Date(a.start_at)-new Date(b.start_at))[0].start_at)
           .toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"})
