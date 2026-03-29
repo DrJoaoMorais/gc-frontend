@@ -65,20 +65,22 @@ function _buildShell() {
   return `
 <div style="padding:0 0 2rem;">
 
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
-    <div style="display:flex;align-items:center;gap:2px;background:#f1f5f9;border-radius:10px;padding:2px;">
-      <button id="gaBtnPrev" style="border:none;background:transparent;cursor:pointer;width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#475569;font-size:16px;">‹</button>
-      <span id="gaDayLabel" style="font-size:13px;font-weight:600;color:#0f2d52;padding:0 8px;white-space:nowrap;"></span>
-      <button id="gaBtnNext" style="border:none;background:transparent;cursor:pointer;width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#475569;font-size:16px;">›</button>
+  <div style="position:sticky;top:0;z-index:20;background:#f8fafc;padding:8px 0 8px;margin-bottom:0.5rem;border-bottom:0.5px solid #e2e8f0;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:2px;background:#f1f5f9;border-radius:10px;padding:2px;">
+        <button id="gaBtnPrev" style="border:none;background:transparent;cursor:pointer;width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#475569;font-size:16px;">‹</button>
+        <span id="gaDayLabel" style="font-size:13px;font-weight:600;color:#0f2d52;padding:0 8px;white-space:nowrap;"></span>
+        <button id="gaBtnNext" style="border:none;background:transparent;cursor:pointer;width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#475569;font-size:16px;">›</button>
+      </div>
+      <button id="gaBtnHoje" class="gcBtnGhost" style="font-size:12px;padding:5px 12px;">Hoje</button>
+      <div style="width:1px;height:20px;background:#e2e8f0;"></div>
+      <button id="gaBtnRec" class="gcBtnGhost" style="font-size:12px;padding:5px 14px;">Disponibilidade</button>
+      <button id="gaBtnBloq" class="gcBtnDanger" style="font-size:12px;padding:5px 14px;">Bloquear</button>
+      <div style="width:1px;height:20px;background:#e2e8f0;"></div>
+      <button id="gaBtnSemana" class="gcBtnGhost" style="font-size:12px;padding:5px 12px;">Vista semanal</button>
+      <div id="gaRecBanner"></div>
+      <select id="gaSelClinica" class="gcSelect" style="font-size:12px;padding:5px 8px;max-width:140px;">${clinicOpts}</select>
     </div>
-    <button id="gaBtnHoje" class="gcBtnGhost" style="font-size:12px;padding:5px 12px;">Hoje</button>
-    <div style="width:1px;height:20px;background:#e2e8f0;"></div>
-    <button id="gaBtnRec" class="gcBtnGhost" style="font-size:12px;padding:5px 14px;">Disponibilidade</button>
-    <button id="gaBtnBloq" class="gcBtnDanger" style="font-size:12px;padding:5px 14px;">Bloquear</button>
-    <div style="width:1px;height:20px;background:#e2e8f0;"></div>
-    <button id="gaBtnSemana" class="gcBtnGhost" style="font-size:12px;padding:5px 12px;">Vista semanal</button>
-    <div id="gaRecBanner"></div>
-    <select id="gaSelClinica" class="gcSelect" style="font-size:12px;padding:5px 8px;max-width:140px;">${clinicOpts}</select>
   </div>
 
   <div style="display:flex;gap:12px;">
@@ -94,9 +96,9 @@ function _buildShell() {
         <div id="gaTimeline"></div>
       </div>
     </div>
-    <div style="width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;">
+    <div style="width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;position:sticky;top:57px;align-self:flex-start;">
       <div id="gaStats" style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;"></div>
-      <div id="gaPanel" style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:1rem;flex:1;">
+      <div id="gaPanel" style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:1rem;">
         <div style="font-size:12px;color:#94a3b8;text-align:center;padding:1rem 0;">Clica num slot para ver detalhes e acções.</div>
       </div>
     </div>
