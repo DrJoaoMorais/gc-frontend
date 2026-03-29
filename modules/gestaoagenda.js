@@ -621,11 +621,13 @@ async function _renderSemana() {
     }).join("");
 
     banner.innerHTML = `<div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:10px;">
-      <div style="display:grid;grid-template-columns:38px 1fr 1fr 1fr 1fr 1fr 0.5fr 0.5fr;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;">
+      <div style="display:grid;grid-template-columns:38px 1fr 1fr 1fr 1fr 1fr 0.5fr 0.5fr;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;position:sticky;top:0;z-index:5;">
         <div style="border-right:0.5px solid #e2e8f0;"></div>
         ${headerCols}
       </div>
-      ${linhas}
+      <div style="max-height:480px;overflow-y:auto;">
+        ${linhas}
+      </div>
     </div>`;
 
   } catch(e) {
