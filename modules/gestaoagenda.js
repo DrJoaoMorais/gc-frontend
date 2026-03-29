@@ -598,9 +598,7 @@ async function _renderSemana() {
 
         if (!r) {
           const bg = isDisp ? cc.light : "";
-          const cursor = isDisp ? "pointer" : "default";
-          const title = isDisp ? `onclick="window.__gaSlotClick('${iso}','${hora}')"` : "";
-          return `<div ${title} style="border-right:0.5px solid #f1f5f9;padding:2px;height:32px;display:flex;align-items:center;justify-content:center;cursor:${cursor};background:${bg};" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'"></div>`;
+          return `<div onclick="window.__gaSlotClick('${iso}','${hora}')" style="border-right:0.5px solid #f1f5f9;padding:2px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:${bg};" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background='${bg}'"></div>`;
         }
 
         const isBlocked = r.mode === "bloqueio";
@@ -643,16 +641,87 @@ async function _renderSemana() {
     if (_semanaVisible) _renderSemana();
   };
 
-  window.__gaSlotClick = (iso, hora) => {
-    const [h,m] = hora.split(":").map(Number);
-    const dt = new Date(iso+"T"+pad2(h)+":"+pad2(m)+":00");
-    openApptModal({ mode:"new", row:null, prefillDatetime: dt.toISOString(), prefillClinicId: _state.selectedClinicId });
-  };
+  window.__gaSlotClick = (iso, hora) => { _openModalCriarSlot(iso, hora); };
 
   window.__gaSlotClickAppt = (apptId) => {
     const r = (window.__gaSemanaAppts||[]).find(a => a.id === apptId);
     if (r) _renderPanel(r, window.__gaSemanaPatients||{});
   };
+}
+
+/* ── Modal criar slot ─────────────────────────────────── */
+function _openModalCriarSlot(iso, hora) {
+  const clinicas = G.clinics || [];
+  if (!clinicas.length) { alert("Sem clínicas disponíveis."); return; }
+
+  const clinicOpts = clinicas.map(c =>
+    `<option value="${escapeHtml(c.id)}"${c.id===_state.selectedClinicId?" selected":""}>${escapeHtml(c.name||c.slug||c.id)}</option>`
+  ).join("");
+
+  const dt = new Date(iso+"T"+hora+":00");
+  const DAYS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+  const MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  const label = `${DAYS[dt.getDay()]}, ${dt.getDate()} ${MONTHS[dt.getMonth()]} às ${hora}`;
+
+  _showModal(`
+    <div style="font-size:16px;font-weight:700;color:#0f2d52;margin-bottom:4px;">Criar slot disponível</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:1rem;">${escapeHtml(label)}</div>
+
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <label style="font-size:11px;color:#64748b;">Clínica</label>
+        <select id="gaSlotClinica" class="gcSelect" style="font-size:12px;">${clinicOpts}</select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <label style="font-size:11px;color:#64748b;">Duração do slot</label>
+        <select id="gaSlotDur" class="gcSelect" style="font-size:12px;">
+          <option value="15">15 min</option>
+          <option value="20" selected>20 min</option>
+          <option value="30">30 min</option>
+          <option value="45">45 min</option>
+          <option value="60">1 hora</option>
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <label style="font-size:11px;color:#64748b;">Repetir semanalmente</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:0.5px solid #e2e8f0;cursor:pointer;font-size:12px;"><input type="radio" name="gaSlotRep" value="1" checked style="accent-color:#1a56db;"/> Só esta vez</label>
+          <label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:0.5px solid #e2e8f0;cursor:pointer;font-size:12px;"><input type="radio" name="gaSlotRep" value="4" style="accent-color:#1a56db;"/> 4 semanas</label>
+          <label style="display:flex;align-items:center;gap=6px;padding:6px 12px;border-radius:8px;border:0.5px solid #e2e8f0;cursor:pointer;font-size:12px;"><input type="radio" name="gaSlotRep" value="1560" style="accent-color:#1a56db;"/> Sempre</label>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button onclick="document.getElementById('gaModalOverlay').style.display='none'" class="gcBtnGhost" style="font-size:12px;padding:6px 14px;">Cancelar</button>
+      <button id="gaSlotSaveBtn" class="gcBtnSuccess" style="font-size:12px;padding:6px 18px;font-weight:600;">Criar slot</button>
+    </div>`);
+
+  document.getElementById("gaSlotSaveBtn")?.addEventListener("click", async () => {
+    const clinId = document.getElementById("gaSlotClinica")?.value;
+    const dur    = parseInt(document.getElementById("gaSlotDur")?.value || "20");
+    const rep    = parseInt(document.querySelector("input[name='gaSlotRep']:checked")?.value || "1");
+    if (!clinId) { alert("Selecciona uma clínica."); return; }
+
+    const rows = [];
+    for (let i = 0; i < rep; i++) {
+      const start = new Date(iso+"T"+hora+":00");
+      start.setDate(start.getDate() + i * 7);
+      const end = new Date(start.getTime() + dur * 60000);
+      rows.push({ clinic_id: clinId, patient_id: null, start_at: start.toISOString(), end_at: end.toISOString(), status: "available", mode: "slot", title: null, notes: null, procedure_type: null });
+    }
+
+    // Inserir em lotes de 200 para não sobrecarregar
+    try {
+      for (let i = 0; i < rows.length; i += 200) {
+        const { error } = await window.sb.from("appointments").insert(rows.slice(i, i + 200));
+        if (error) throw error;
+      }
+      document.getElementById("gaModalOverlay").style.display = "none";
+      _loadAndRender();
+      if (_semanaVisible) _renderSemana();
+    } catch(e) { alert("Erro: " + (e.message||e)); }
+  });
 }
 
 /* ── Modal horário recorrente ─────────────────────────── */
