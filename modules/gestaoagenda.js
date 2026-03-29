@@ -638,11 +638,15 @@ async function _renderSemana() {
       : null;
     const _alvoHora = _primeiraDisp || _primeiroAppt;
     if (_alvoHora) {
-      const _idx = horas.indexOf(_alvoHora);
+      const [_ah, _am] = _alvoHora.split(":").map(Number);
+      const _alvoMenos1h = Math.max(0, _ah*60 + _am - 60);
+      const _alvoStr = pad2(Math.floor(_alvoMenos1h/60))+":"+pad2(_alvoMenos1h%60);
+      // encontrar o índice mais próximo na grelha
+      const _idx = horas.findIndex(h => h >= _alvoStr);
       if (_idx > 0) {
         requestAnimationFrame(() => {
           const sc = document.getElementById("gaSemanScroll");
-          if (sc) sc.scrollTop = Math.max(0, (_idx - 1) * 32); // 1 linha acima
+          if (sc) sc.scrollTop = _idx * 32;
         });
       }
     }
