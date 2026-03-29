@@ -445,6 +445,16 @@ async function _toggleSemana() {
 }
 
 async function _renderSemana() {
+  const CLINIC_COLORS = {
+    "692c518d-a9e2-4eba-96a7-e13a08809b5b": { solid:"#1a56db", light:"#dbeafe", text:"#1e40af" },
+    "1c18862e-0ab1-4488-8f52-1112b7e77405": { solid:"#0891b2", light:"#cffafe", text:"#155e75" },
+    "cf417ff7-4c7d-4afe-842e-403cf314dbf3": { solid:"#d97706", light:"#fef3c7", text:"#92400e" },
+    "951ad0da-7114-43de-ac6b-da64f17c6bb1": { solid:"#7c3aed", light:"#ede9fe", text:"#4c1d95" },
+    "f244a0dd-cbf7-4c34-ad0f-a8daef7b96d9": { solid:"#dc2626", light:"#fee2e2", text:"#7f1d1d" },
+    "f0e45cda-3c0f-412f-8420-cf9e26185bc5": { solid:"#059669", light:"#d1fae5", text:"#064e3b" },
+  };
+  const DEFAULT_COLOR = { solid:"#64748b", light:"#f1f5f9", text:"#334155" };
+
   const banner = document.getElementById("gaSemanaBanner");
   if (!banner) return;
   const clinicId = _state.selectedClinicId;
@@ -461,87 +471,118 @@ async function _renderSemana() {
   const DAYS = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
   const hoje = todayISO();
 
-  // Calcular intervalo de horas com base nos horários activos
-  let horaMin = 8, horaMax = 20;
-  if (_state.horarios && _state.horarios.length) {
-    const inicios = _state.horarios.map(h => parseInt(h.hora_inicio.split(":")[0]));
-    const fins    = _state.horarios.map(h => {
-      const [hh,mm] = h.hora_fim.split(":").map(Number);
-      return hh + (mm > 0 ? 1 : 0);
-    });
-    horaMin = Math.max(0,  Math.min(...inicios) - 1);
-    horaMax = Math.min(23, Math.max(...fins)    + 1);
-  }
-
-  // Gerar linhas de horas com slots de 20min (ou duracao_min do horário)
-  const durMin = _state.horarios[0]?.duracao_min || 20;
-  const horas = [];
-  for (let m = horaMin*60; m < horaMax*60; m += durMin) {
-    horas.push(pad2(Math.floor(m/60))+":"+pad2(m%60));
-  }
-
   try {
-    const _lisbonOffset = (() => {
-      const off = new Intl.DateTimeFormat("pt-PT", { timeZone: "Europe/Lisbon", timeZoneName: "shortOffset" })
-        .formatToParts(new Date(dias[0]+"T12:00:00Z")).find(p => p.type === "timeZoneName").value;
-      return off.replace("GMT", "") || "+00:00";
-    })();
-
     const { data } = await window.sb
       .from("appointments")
-      .select("id, start_at, end_at, status, mode, patient_id, procedure_type, title")
+      .select("id, start_at, end_at, status, mode, patient_id, procedure_type, title, clinic_id")
       .eq("clinic_id", clinicId)
-      .gte("start_at", dias[0]+"T00:00:00"+_lisbonOffset)
-      .lte("start_at", dias[6]+"T23:59:59"+_lisbonOffset);
+      .gte("start_at", dias[0]+"T00:00:00+01:00")
+      .lte("start_at", dias[6]+"T23:59:59+01:00");
 
-    const patientIds = (data||[]).map(r => r.patient_id).filter(Boolean);
+    const appts = data || [];
+
+    const patientIds = appts.map(r => r.patient_id).filter(Boolean);
     let patientsById = {};
     if (patientIds.length) {
       const { data: pts } = await window.sb.from("patients").select("id, full_name").in("id", patientIds);
       (pts||[]).forEach(p => { patientsById[p.id] = p; });
     }
 
-    window.__gaSemanaAppts    = data || [];
+    window.__gaSemanaAppts    = appts;
     window.__gaSemanaPatients = patientsById;
 
-    // Indexar por dia+hora
-    const bySlot = {};
-    (data||[]).forEach(r => {
-      const slotDate = r.start_at.slice(0,10);
-      const slotHour = new Date(r.start_at).toLocaleTimeString("pt-PT",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Lisbon"});
-      const key = slotDate+"T"+slotHour;
-      bySlot[key] = r;
+    // Calcular intervalo de horas:
+    // base = horários activos ± 1h; expandir se houver consultas fora desse intervalo
+    let horaMinMin = 8*60, horaMaxMin = 20*60;
+    if (_state.horarios && _state.horarios.length) {
+      const inicios = _state.horarios.map(h => { const [hh,mm] = h.hora_inicio.split(":").map(Number); return hh*60+mm; });
+      const fins    = _state.horarios.map(h => { const [hh,mm] = h.hora_fim.split(":").map(Number); return hh*60+mm; });
+      horaMinMin = Math.max(0,    Math.min(...inicios) - 60);
+      horaMaxMin = Math.min(23*60+59, Math.max(...fins) + 60);
+    }
+    appts.forEach(r => {
+      const t = new Date(r.start_at);
+      const minutos = t.toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"}).split(":").map(Number);
+      const m = minutos[0]*60 + minutos[1];
+      if (m < horaMinMin) horaMinMin = m;
+      if (m > horaMaxMin) horaMaxMin = m;
     });
+    // arredondar para baixo/cima em múltiplos de durMin
+    const durMin = _state.horarios[0]?.duracao_min || 20;
+    horaMinMin = Math.floor(horaMinMin / durMin) * durMin;
+    horaMaxMin = Math.ceil(horaMaxMin / durMin) * durMin + durMin;
+
+    // Gerar linhas de tempo
+    const horas = [];
+    for (let m = horaMinMin; m < horaMaxMin; m += durMin) {
+      horas.push(pad2(Math.floor(m/60))+":"+pad2(m%60));
+    }
+
+    // Calcular slots de disponibilidade para esta semana
+    const slotsDisp = new Set();
+    if (_state.horarios && _state.horarios.length) {
+      dias.forEach(iso => {
+        const dt = new Date(iso+"T00:00:00");
+        const diaSemana = dt.getDay(); // 0=Dom
+        _state.horarios.forEach(h => {
+          if (h.day_of_week === diaSemana) {
+            const slotsTimes = gerarSlots(h.hora_inicio.slice(0,5), h.hora_fim.slice(0,5), h.duracao_min);
+            slotsTimes.forEach(s => slotsDisp.add(iso+"T"+s));
+          }
+        });
+      });
+    }
+
+    // Indexar consultas por dia+hora exacta
+    const bySlot = {};
+    appts.forEach(r => {
+      const tStr = new Date(r.start_at).toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"});
+      const iso  = new Date(r.start_at).toLocaleDateString("pt-PT",{timeZone:"Europe/Lisbon",year:"numeric",month:"2-digit",day:"2-digit"}).split("/").reverse().join("-");
+      bySlot[iso+"T"+tStr] = r;
+    });
+
+    const cc = CLINIC_COLORS[clinicId] || DEFAULT_COLOR;
 
     // Header
     const headerCols = dias.map((iso, i) => {
-      const isHoje = iso === hoje;
+      const isHoje     = iso === hoje;
       const isSelected = iso === _state.selectedDayISO;
       const dt = new Date(iso+"T00:00:00");
-      return `<div style="font-size:10px;font-weight:600;text-align:center;padding:6px 2px;border-right:0.5px solid #f1f5f9;color:${isHoje||isSelected?"#1a56db":"#94a3b8"};background:${isSelected?"#eff6ff":""};">${DAYS[i]}<br>${dt.getDate()}</div>`;
+      return `<div onclick="window.__gaGoDay('${iso}')" style="font-size:10px;font-weight:600;text-align:center;padding:6px 2px;border-right:0.5px solid #e2e8f0;color:${isHoje||isSelected?"#1a56db":"#94a3b8"};background:${isSelected?"#eff6ff":""};cursor:pointer;">${DAYS[i]}<br>${dt.getDate()}</div>`;
     }).join("");
 
     // Linhas
     const linhas = horas.map(hora => {
       const cells = dias.map(iso => {
-        const key = iso+"T"+hora;
-        const r = bySlot[key];
+        const key  = iso+"T"+hora;
+        const r    = bySlot[key];
+        const isDisp = slotsDisp.has(key);
+
         if (!r) {
-          return `<div onclick="window.__gaSlotClick('${iso}','${hora}')" style="border-right:0.5px solid #f1f5f9;padding:2px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;" onmouseover="this.style.background='#f8faff'" onmouseout="this.style.background=''"></div>`;
+          const bg = isDisp ? cc.light : "";
+          const cursor = isDisp ? "pointer" : "default";
+          const title = isDisp ? `onclick="window.__gaSlotClick('${iso}','${hora}')"` : "";
+          return `<div ${title} style="border-right:0.5px solid #f1f5f9;padding:2px;height:32px;display:flex;align-items:center;justify-content:center;cursor:${cursor};background:${bg};" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'"></div>`;
         }
+
         const isBlocked = r.mode === "bloqueio";
         const nome = patientsById[r.patient_id]?.full_name || "";
-        const nomeCurto = nome ? nome.split(" ")[0]+" "+nome.split(" ").slice(-1)[0] : (isBlocked ? "Bloq." : r.title||"");
-        let bg="#f1f5f9", color="#64748b";
+        const nomeCurto = nome
+          ? (nome.split(" ")[0]+" "+nome.split(" ").slice(-1)[0])
+          : (isBlocked ? "Bloq." : r.title || "");
+
+        let bg, color;
         if (isBlocked)                { bg="#fee2e2"; color="#991b1b"; }
         else if (r.status==="done")   { bg="#d1fae5"; color="#065f46"; }
         else if (r.status==="arrived"){ bg="#fef3c7"; color="#92400e"; }
-        else if (r.status==="no_show"){ bg="#fee2e2"; color="#991b1b"; }
-        else if (r.patient_id)        { bg="#dbeafe"; color="#1e40af"; }
+        else if (r.status==="no_show"){ bg="#fecaca"; color="#7f1d1d"; }
+        else                          { bg=cc.solid;  color="#fff"; }
+
         return `<div onclick="window.__gaSlotClickAppt('${r.id}')" style="border-right:0.5px solid #f1f5f9;padding:2px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-          <div style="width:100%;height:26px;border-radius:4px;background:${bg};color:${color};font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;padding:0 3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${escapeHtml(nomeCurto)}</div>
+          <div style="width:100%;height:26px;border-radius:4px;background:${bg};color:${color};font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;padding:0 3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="${escapeHtml(nome)}">${escapeHtml(nomeCurto)}</div>
         </div>`;
       }).join("");
+
       return `<div style="display:grid;grid-template-columns:38px repeat(7,1fr);border-bottom:0.5px solid #f1f5f9;">
         <div style="font-size:10px;color:#94a3b8;padding:0 4px;height:32px;display:flex;align-items:center;justify-content:flex-end;border-right:0.5px solid #e2e8f0;flex-shrink:0;">${hora}</div>
         ${cells}
