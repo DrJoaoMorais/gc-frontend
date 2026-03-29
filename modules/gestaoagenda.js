@@ -782,6 +782,12 @@ function _openModalRecorrente() {
 
   const existing = _state.horarios[0];
 
+  function isAlfraClinic(clinId) {
+    const c = clinicas.find(x => x.id === clinId);
+    return /alfra/i.test(c?.name || c?.slug || "");
+  }
+  const defaultDur = existing?.duracao_min || (isAlfraClinic(_state.selectedClinicId) ? 20 : 15);
+
   _showModal(`
     <div style="font-size:16px;font-weight:700;color:#0f2d52;margin-bottom:4px;">Disponibilidade</div>
     <div style="font-size:12px;color:#64748b;margin-bottom:1rem;">Define uma vez — slots gerados automaticamente.</div>
@@ -796,8 +802,8 @@ function _openModalRecorrente() {
         <input id="gaRecFim" type="time" value="${existing?.hora_fim||'16:40'}" style="padding:6px 8px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;"/></div>
       <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Duração</label>
         <select id="gaRecDur" class="gcSelect" style="font-size:12px;">
-          <option value="15" ${(!existing||existing.duracao_min===15)?"selected":""}>15 min</option>
-          <option value="20" ${existing?.duracao_min===20?"selected":""}>20 min</option>
+          <option value="15" ${defaultDur===15?"selected":""}>15 min</option>
+          <option value="20" ${defaultDur===20?"selected":""}>20 min</option>
         </select></div>
       <div></div>
     </div>
@@ -847,6 +853,12 @@ function _openModalRecorrente() {
     const el = document.getElementById("gaRecPreview");
     if (el) el.textContent = "Slots: " + slots.join(" · ");
   }
+  document.getElementById("gaRecClinica")?.addEventListener("change", () => {
+    if (!existing) {
+      document.getElementById("gaRecDur").value = isAlfraClinic(document.getElementById("gaRecClinica").value) ? "20" : "15";
+      updatePreview();
+    }
+  });
   ["gaRecInicio","gaRecFim","gaRecDur"].forEach(id => document.getElementById(id)?.addEventListener("change", updatePreview));
   updatePreview();
 
