@@ -6263,7 +6263,7 @@ window._gerarResumo = function(){
             if (templateId === "prp_osteoartrose") {
         title = "PRP — Osteoartrose";
         html = `<!doctype html><html><head><meta charset="utf-8"/><title>${title}</title>
-        <style>${sharedStyles}${extra_css}</style></head><body><div class="a4">
+        <style>${sharedStyles}.prp-patient{background:#f0f4fb;border-left:3px solid #1a56db;padding:6px 12px;margin-bottom:10px;font-size:12.5px;display:flex;gap:20px;flex-wrap:wrap;}.prp-patient strong{color:#0f2d52;}.prp-slabel{font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#1a56db;margin:10px 0 3px 0;}.prp-hda{background:#fafafa;border:0.5px solid #ddd;border-radius:3px;padding:7px 11px;font-size:12px;line-height:1.6;font-style:italic;color:#222;}.prp-checklist{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;margin-top:3px;}.prp-ci{display:flex;align-items:center;gap:5px;font-size:11px;color:#333;padding:1px 0;}.prp-cb{width:10px;height:10px;border:1px solid #1a56db;border-radius:2px;background:#e8f0fe;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#1a56db;font-weight:700;}.prp-cb0{width:10px;height:10px;border:1px solid #bbb;border-radius:2px;background:#fff;flex-shrink:0;}.prp-justif{font-size:11.5px;line-height:1.65;color:#222;margin-top:3px;border-left:2px solid #94a3b8;padding:7px 11px;background:#f8f9fa;border-radius:0 3px 3px 0;}.prp-conclusao{font-size:12px;line-height:1.65;color:#111;margin-top:3px;border:1px solid #0f2d52;border-radius:3px;padding:8px 12px;}</style></head><body><div class="a4">
           ${header}
           <div class="title">Relatório Médico — Proposta de PRP</div>
           <div style="text-align:center;font-size:12px;color:#64748b;margin-bottom:8px;">Pedido de Autorização de Reembolso — Osteoartrose</div>
@@ -6296,7 +6296,10 @@ window._gerarResumo = function(){
 
           <div class="prp-slabel">Conclusão / Pedido de autorização</div>
           <div class="prp-conclusao">
-            Solicita-se autorização de reembolso de PRP intra-articular em <b>[localização]</b> — osteoartrose grau <b>KL [I/II/III]</b> — sem resposta ao tratamento conservador optimizado, com evidência científica de nível I (meta-análises de RCTs, 2024–2025), excelente perfil de segurança e ausência de indicação cirúrgica neste estadio.
+            Solicita-se autorização para realização de <b>[1–3]</b> infiltração(ões) intra-articular(es) com PRP em <b>[articulação]</b>, no contexto de osteoartrose grau <b>[KL]</b>, refratária a tratamento conservador optimizado.<br>
+            O doente apresenta dor persistente e limitação funcional relevante, em estádio não cirúrgico, sendo o PRP considerado opção terapêutica biológica com potencial benefício sintomático e funcional em doentes seleccionados.<br>
+            A evidência científica recente demonstra melhoria clínica em osteoartrose ligeira a moderada, apesar de alguma heterogeneidade entre recomendações internacionais.<br>
+            <span style="font-size:10.5px;color:#475569;"><b>Fonte:</b> Kon E et al., KSSTA, 2024 · Laver L et al., J Exp Orthop, 2024</span>
           </div>
 
           ${footer}
@@ -6306,7 +6309,7 @@ window._gerarResumo = function(){
       if (templateId === "prp_rotura") {
         title = "PRP — Rotura Muscular";
         html = `<!doctype html><html><head><meta charset="utf-8"/><title>${title}</title>
-        <style>${sharedStyles}${extra_css}</style></head><body><div class="a4">
+        <style>${sharedStyles}.prp-patient{background:#f0f4fb;border-left:3px solid #1a56db;padding:6px 12px;margin-bottom:10px;font-size:12.5px;display:flex;gap:20px;flex-wrap:wrap;}.prp-patient strong{color:#0f2d52;}.prp-slabel{font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#1a56db;margin:10px 0 3px 0;}.prp-hda{background:#fafafa;border:0.5px solid #ddd;border-radius:3px;padding:7px 11px;font-size:12px;line-height:1.6;font-style:italic;color:#222;}.prp-checklist{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;margin-top:3px;}.prp-ci{display:flex;align-items:center;gap:5px;font-size:11px;color:#333;padding:1px 0;}.prp-cb{width:10px;height:10px;border:1px solid #1a56db;border-radius:2px;background:#e8f0fe;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#1a56db;font-weight:700;}.prp-cb0{width:10px;height:10px;border:1px solid #bbb;border-radius:2px;background:#fff;flex-shrink:0;}.prp-justif{font-size:11.5px;line-height:1.65;color:#222;margin-top:3px;border-left:2px solid #94a3b8;padding:7px 11px;background:#f8f9fa;border-radius:0 3px 3px 0;}.prp-conclusao{font-size:12px;line-height:1.65;color:#111;margin-top:3px;border:1px solid #0f2d52;border-radius:3px;padding:8px 12px;}</style></head><body><div class="a4">
           ${header}
           <div class="title">Relatório Médico — Proposta de PRP</div>
           <div style="text-align:center;font-size:12px;color:#64748b;margin-bottom:8px;">Pedido de Autorização de Reembolso — Rotura Muscular</div>
@@ -6339,7 +6342,10 @@ window._gerarResumo = function(){
 
           <div class="prp-slabel">Conclusão / Pedido de autorização</div>
           <div class="prp-conclusao">
-            Solicita-se autorização de reembolso de PRP intra-lesional ecoguiado em <b>rotura muscular [grau I/II/III parcial]</b> do <b>[músculo]</b>, com suporte em evidência científica actual, excelente perfil de segurança e ausência de contraindicações para terapêutica regenerativa autóloga.
+            Solicita-se autorização para realização de <b>[1–2]</b> aplicação(ões) de PRP intra-lesional ecoguiado no contexto de <b>rotura muscular grau [I/II/III]</b> de <b>[músculo]</b>, confirmada por <b>[Ecografia / RM]</b>.<br>
+            Trata-se de lesão com impacto funcional relevante, em que se pretende optimizar o processo de regeneração tecidular e promover retorno funcional/desportivo mais célere, integrada em programa estruturado de reabilitação.<br>
+            A utilização de PRP é considerada em casos seleccionados, existindo evidência de possível benefício na recuperação funcional em algumas lesões musculares, embora com resultados menos uniformes.<br>
+            <span style="font-size:10.5px;color:#475569;"><b>Fonte:</b> Vale D et al., Sports Med Open, 2024</span>
           </div>
 
           ${footer}
@@ -8417,7 +8423,7 @@ function selSens(el) {
         : "";
 
       const html = `<!doctype html><html><head><meta charset="utf-8"/><title>PRP — Tendinopatia</title>
-      <style>${sharedStyles}${extra_css}</style></head><body><div class="a4">
+      <style>${sharedStyles}.prp-patient{background:#f0f4fb;border-left:3px solid #1a56db;padding:6px 12px;margin-bottom:10px;font-size:12.5px;display:flex;gap:20px;flex-wrap:wrap;}.prp-patient strong{color:#0f2d52;}.prp-slabel{font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#1a56db;margin:10px 0 3px 0;}.prp-hda{background:#fafafa;border:0.5px solid #ddd;border-radius:3px;padding:7px 11px;font-size:12px;line-height:1.6;font-style:italic;color:#222;}.prp-checklist{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;margin-top:3px;}.prp-ci{display:flex;align-items:center;gap:5px;font-size:11px;color:#333;padding:1px 0;}.prp-cb{width:10px;height:10px;border:1px solid #1a56db;border-radius:2px;background:#e8f0fe;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#1a56db;font-weight:700;}.prp-cb0{width:10px;height:10px;border:1px solid #bbb;border-radius:2px;background:#fff;flex-shrink:0;}.prp-justif{font-size:11.5px;line-height:1.65;color:#222;margin-top:3px;border-left:2px solid #94a3b8;padding:7px 11px;background:#f8f9fa;border-radius:0 3px 3px 0;}.prp-conclusao{font-size:12px;line-height:1.65;color:#111;margin-top:3px;border:1px solid #0f2d52;border-radius:3px;padding:8px 12px;}</style></head><body><div class="a4">
         <div class="top">
           <div class="topLeft"><div>${websiteHtml}</div><div>${phoneHtml}</div></div>
         </div>
@@ -8454,7 +8460,10 @@ function selSens(el) {
 
         <div class="prp-slabel">Conclusão / Pedido de autorização</div>
         <div class="prp-conclusao">
-          Solicita-se autorização de reembolso da aplicação de PRP ecoguiado em <b>${escAttr(diag)}</b>, doente sem resposta ao tratamento conservador optimizado, com confirmação imagiológica de lesão activa e suporte em evidência científica de nível I–II (meta-análises de RCTs, 2024–2025), perfil de segurança favorável e ausência de contraindicações.
+          Solicita-se autorização para realização de <b>${escAttr(sessoes)}</b> aplicação(ões) de PRP ecoguiado no contexto de <b>tendinopatia crónica refratária / rotura tendinosa parcial</b> de <b>${escAttr(diag)}</b>, com falência de tratamento conservador optimizado e confirmação imagiológica de lesão activa.<br>
+          Trata-se de quadro clínico com dor persistente, limitação funcional e impacto significativo na qualidade de vida, em que o PRP é proposto como terapêutica biológica de segunda linha, integrada em programa de reabilitação supervisionada.<br>
+          A evidência científica disponível suporta a sua utilização em casos seleccionados de tendinopatia crónica refratária, com benefício potencial na dor e função a médio prazo.<br>
+          <span style="font-size:10.5px;color:#475569;"><b>Fonte:</b> Fitzpatrick J et al., Am J Sports Med, 2017 · Masiello F et al., 2023 · Ye Z et al., 2025</span>
         </div>
 
         <div class="footerBlock">
