@@ -386,10 +386,14 @@ function _renderPanel(row, patientsById = {}) {
     el.innerHTML = '<div style="font-size:12px;color:#94a3b8;text-align:center;padding:1rem 0;">Clica num slot para ver detalhes e acções.</div>';
     _loadAndRender();
   });
-  el.querySelector("[data-action='forcar']")?.addEventListener("click", () => {
-    if (confirm("Este horário está indisponível.\n\nContacte o Dr. João Morais para confirmação antes de avançar.\n\nForçar mesmo assim?")) {
+  el.querySelector("[data-action='forcar']")?.addEventListener("click", async () => {
+    if (!confirm("Este horário está bloqueado.\n\nO bloqueio será removido e a marcação criada.\n\nConfirmar?")) return;
+    try {
+      await window.sb.from("appointments").delete().eq("id", row.id);
+      el.innerHTML = '<div style="font-size:12px;color:#94a3b8;text-align:center;padding:1rem 0;">Clica num slot para ver detalhes e acções.</div>';
+      _loadAndRender();
       openApptModal({ mode:"new", row:null, prefillDatetime: row.start_at, prefillClinicId: _state.selectedClinicId });
-    }
+    } catch(e) { alert("Erro: " + (e.message||e)); }
   });
 }
 
