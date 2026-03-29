@@ -6256,7 +6256,7 @@ window._gerarResumo = function(){
 
       if (templateId === "prp_tendinopatia") {
         // Mostrar modal de preenchimento antes de gerar o documento
-        await openPrpTendinopatiaModal({ clinic, locality: escAttr(localityDate), vinhetaUrl, websiteHtml, phoneHtml, patientBlock, footer, sharedStyles });
+        await openPrpTendinopatiaModal({ clinic, locality: escAttr(localityDate), vinhetaUrl, websiteHtml, phoneHtml, patientBlock, footer, sharedStyles, name, patientLine2 });
         return; // openDocumentEditor é chamado dentro do modal
       }
 
@@ -8225,7 +8225,7 @@ function selSens(el) {
   /* ====================================================================
      PRP TENDINOPATIA — Modal de preenchimento
      ==================================================================== */
-  function openPrpTendinopatiaModal({ clinic, locality, vinhetaUrl, websiteHtml, phoneHtml, patientBlock, footer, sharedStyles }) {
+  function openPrpTendinopatiaModal({ clinic, locality, vinhetaUrl, websiteHtml, phoneHtml, patientBlock, footer, sharedStyles, name, patientLine2 }) {
     // Remove modal anterior
     document.getElementById("gcPrpModal")?.remove();
 
