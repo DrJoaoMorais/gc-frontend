@@ -935,7 +935,7 @@ function _openModalRecorrente() {
     const sems   = parseInt(document.getElementById("gaRecSemanas")?.value||"0");
 
     try {
-      const payload = { clinic_id: clinId, day_of_week: dow, hora_inicio: ini, hora_fim: fim, duracao_min: dur, is_active: true };
+      const payload = { clinic_id: clinId, day_of_week: dow, hora_inicio: ini, hora_fim: fim, duracao_min: dur, semanas: sems, is_active: true };
       if (existing?.id) {
         await window.sb.from("horarios_recorrentes").update(payload).eq("id", existing.id);
       } else {
