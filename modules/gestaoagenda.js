@@ -92,8 +92,8 @@ function _buildShell() {
       <div style="width:1px;height:20px;background:#e2e8f0;"></div>
       <button id="gaBtnSemana" class="gcBtnGhost" style="font-size:12px;padding:5px 12px;">Vista semanal</button>
       <select id="gaSelClinica" class="gcSelect" style="font-size:12px;padding:5px 8px;max-width:140px;">${clinicOpts}</select>
-      <div id="gaRecBanner"></div>
     </div>
+    <div id="gaRecBanner" style="margin-top:4px;"></div>
   </div>
 
   <div style="display:flex;gap:12px;">
@@ -136,7 +136,7 @@ function _wireShell() {
   });
   document.getElementById("gaBtnRec")?.addEventListener("click", () => {
     if (!_state.selectedClinicId) { alert("Selecciona uma clínica primeiro."); return; }
-    _openModalRecorrente();
+    _openModalRecorrente(null);
   });
   document.getElementById("gaBtnBloq")?.addEventListener("click", () => {
     if (!_state.selectedClinicId) { alert("Selecciona uma clínica primeiro."); return; }
@@ -808,15 +808,13 @@ function _openModalCriarSlot(iso, hora) {
 }
 
 /* ── Modal horário recorrente ─────────────────────────── */
-function _openModalRecorrente() {
+function _openModalRecorrente(existing = null) {
   const clinicas = G.clinics||[];
   const DOW_OPTS = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"]
     .map((d,i) => `<option value="${i}">${d}</option>`).join("");
   const clinicOpts = clinicas.map(c =>
     `<option value="${escapeHtml(c.id)}"${c.id===_state.selectedClinicId?" selected":""}>${escapeHtml(c.name||c.slug||c.id)}</option>`
   ).join("");
-
-  const existing = _state.horarios[0];
 
   function isAlfraClinic(clinId) {
     const c = clinicas.find(x => x.id === clinId);
@@ -868,15 +866,16 @@ function _openModalRecorrente() {
       <button id="gaRecSaveBtn" class="gcBtnSuccess" style="font-size:12px;padding:6px 18px;font-weight:600;">Guardar horário</button>
     </div>`);
 
+  const modalBox = document.getElementById("gaModalBox");
   if (existing) {
     document.getElementById("gaRecDow").value = existing.day_of_week;
     const existSems = String(existing.semanas ?? 0);
     document.getElementById("gaRecSemanas").value = existSems;
-    document.querySelectorAll(".gaRecScope").forEach(b => {
+    modalBox.querySelectorAll(".gaRecScope").forEach(b => {
       const active = b.dataset.val === existSems;
-      b.style.border    = active ? "1.5px solid #1a56db" : "1.5px solid #e2e8f0";
+      b.style.border     = active ? "1.5px solid #1a56db" : "1.5px solid #e2e8f0";
       b.style.background = active ? "#eff6ff" : "#fff";
-      b.style.color     = active ? "#1a56db" : "#64748b";
+      b.style.color      = active ? "#1a56db" : "#64748b";
       b.style.fontWeight = active ? "600" : "400";
     });
   }
@@ -899,9 +898,9 @@ function _openModalRecorrente() {
   updatePreview();
 
   /* Âmbito — pills */
-  document.querySelectorAll(".gaRecScope").forEach(btn => {
+  modalBox.querySelectorAll(".gaRecScope").forEach(btn => {
     btn.addEventListener("click", () => {
-      document.querySelectorAll(".gaRecScope").forEach(b => {
+      modalBox.querySelectorAll(".gaRecScope").forEach(b => {
         b.style.border = "1.5px solid #e2e8f0";
         b.style.background = "#fff";
         b.style.color = "#64748b";
