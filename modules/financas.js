@@ -179,6 +179,37 @@ function contaParaTotal(apptStatus, financialStatus) {
   return String(apptStatus || "").toLowerCase() === "done";
 }
 
+/* ---- FB.6 — estadoAvenca ---- */
+function badgeEstadoAvenca(status) {
+  if (status === "pago")           return { label: "✓ Pago",           cls: "pago" };
+  if (status === "recibo_enviado") return { label: "✓ Recibo enviado", cls: "enviado" };
+  return { label: "Pendente", cls: "" };
+}
+
+async function toggleEstadoAvenca(registoId, campoActual, onRefresh) {
+  const next = campoActual === "normal"          ? "recibo_enviado"
+             : campoActual === "recibo_enviado"  ? "pago"
+             : "pago";
+  const { error } = await window.sb
+    .from("registos_financeiros")
+    .update({ financial_status: next })
+    .eq("id", registoId);
+  if (error) { alert("Erro: " + error.message); return; }
+  if (typeof onRefresh === "function") onRefresh();
+}
+
+async function toggleEstadoPresenca(presencaId, estadoActual, onRefresh) {
+  const next = estadoActual === "normal"          ? "recibo_enviado"
+             : estadoActual === "recibo_enviado"  ? "pago"
+             : "pago";
+  const { error } = await window.sb
+    .from("presencas")
+    .update({ financial_status: next })
+    .eq("id", presencaId);
+  if (error) { alert("Erro: " + error.message); return; }
+  if (typeof onRefresh === "function") onRefresh();
+}
+
 /* ---- FB.4 — badgeTipo ---- */
 function badgeTipo(tipo) {
   const map = {
@@ -272,6 +303,17 @@ export async function renderFinancas() {
       return e.clinic_id === entSel?.clinic_id;
     });
     const totalAvencas = avencas.reduce((s, e) => s + Number(e.avenca_valor || 0), 0);
+
+    /* Avenças realizadas — registos em registos_financeiros com tipo avenca */
+    const avencasRealizadas = registosFiltrados.filter(r => {
+      const ent = entidades.find(e => e.id === r.entidade_id);
+      return ent?.tipo === "avenca" && r.appt_status === "done";
+    });
+    const totalAvencasRealizadas = avencasRealizadas.reduce((s, r) => s + Number(r.valor || 0), 0);
+
+    /* Presenças (FPF, Católica) */
+    const totalPresencas = presencas.reduce((s, p) => s + Number(p.valor_calculado || 0), 0);
+    const totalGeral = totalReal + totalAvencasRealizadas + totalPresencas;
 
     /* ── Pendentes vencidos ── */
     const hoje = new Date(); hoje.setHours(0,0,0,0);
@@ -432,24 +474,24 @@ ${pendVencidos.length > 0 ? `
 <!-- MÉTRICAS -->
 <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px;">
   <div class="fin-mc">
-    <div class="fin-mc-l">Realizadas</div>
+    <div class="fin-mc-l">Consultas realizadas</div>
     <div class="fin-mc-v" style="color:#059669;">${totalReal.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
     <div class="fin-mc-s">${realizadas.length} consulta(s) · média ${mediaConsulta.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
   </div>
   <div class="fin-mc">
-    <div class="fin-mc-l">Pendentes</div>
-    <div class="fin-mc-v" style="color:#1a56db;">${totalPend.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
-    <div class="fin-mc-s">${pendentes.length} marcada(s) / chegou</div>
-  </div>
-  <div class="fin-mc">
-    <div class="fin-mc-l">Faltas · dispensas</div>
-    <div class="fin-mc-v" style="color:#DC2626;">${faltas.length} · ${dispensadas.length}</div>
-    <div class="fin-mc-s">perdido: ${valorPerdido.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
-  </div>
-  <div class="fin-mc">
     <div class="fin-mc-l">Avenças</div>
-    <div class="fin-mc-v">${totalAvencas.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
-    <div class="fin-mc-s">${avencas.map(e=>escapeHtml(e.nome.split("—")[0].trim())).join(" · ")}</div>
+    <div class="fin-mc-v" style="color:#185FA5;">${totalAvencasRealizadas.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
+    <div class="fin-mc-s">HBA · Liga · AlfraClinic Dir.</div>
+  </div>
+  <div class="fin-mc">
+    <div class="fin-mc-l">Outras actividades</div>
+    <div class="fin-mc-v" style="color:#854F0B;">${totalPresencas.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
+    <div class="fin-mc-s">FPF · Católica</div>
+  </div>
+  <div class="fin-mc">
+    <div class="fin-mc-l">Total do mês</div>
+    <div class="fin-mc-v" style="color:#0f2d52;">${totalGeral.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
+    <div class="fin-mc-s">consultas + avenças + actividades</div>
   </div>
 </div>
 
@@ -463,19 +505,34 @@ ${pendVencidos.length > 0 ? `
 <!-- ════ VISTA: POR CLÍNICA ════ -->
 <div id="finVistaCli" style="display:${vistaActual==="clinica"?"block":"none"};">
 
-  <!-- Avenças strip -->
-  ${avencas.length > 0 ? `
-  <div class="fin-avenca-strip">
-    <div>
-      <div style="font-size:13px;font-weight:700;color:#0C447C;">Avenças fixas mensais</div>
-      <div style="font-size:11px;color:#185FA5;margin-top:2px;">${avencas.map(e=>`${escapeHtml(e.nome)} — ${Number(e.avenca_valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}`).join(" · ")}</div>
-    </div>
-    <div style="text-align:right;">
-      <div style="font-size:16px;font-weight:700;color:#0C447C;">${totalAvencas.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
-      <div style="font-size:11px;color:#185FA5;">/mês</div>
-    </div>
+<!-- Avenças fixas mensais -->
+${avencas.length > 0 ? `
+<div style="margin-bottom:14px;">
+  <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-weight:500;margin-bottom:8px;">Avenças fixas mensais</div>
+  <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+    ${avencas.map(e => {
+      const reg = registosFiltrados.find(r => r.entidade_id === e.id && r.tipo_acto === "Avença mensal" && r.appt_status === "done");
+      const fs  = reg?.financial_status || "normal";
+      const btnRecibo = fs === "normal"
+        ? `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="recibo" style="font-size:11px;">Recibo enviado</button>`
+        : `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="recibo" style="font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Recibo enviado</button>`;
+      const btnPago = fs === "pago"
+        ? `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="pago" style="font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Pago</button>`
+        : `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="pago" style="font-size:11px;">Pagamento recebido</button>`;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:0.5px solid #f1f5f9;">
+        <div>
+          <div style="font-size:13px;font-weight:500;color:#0f172a;">${escapeHtml(e.nome)}</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${Number(e.avenca_valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}/mês</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:13px;font-weight:500;color:#0f172a;">${Number(e.avenca_valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span>
+          <div style="display:flex;gap:6px;">${btnRecibo}${btnPago}</div>
+        </div>
+      </div>`;
+    }).join("")}
   </div>
-  ` : ""}
+</div>
+` : ""}
 
   <!-- Grid de clínicas -->
   <div class="fin-cc-grid">
@@ -552,7 +609,17 @@ ${pendVencidos.length > 0 ? `
                 <td style="color:#64748b;">${escapeHtml(p.descricao||"—")}</td>
                 <td style="color:#64748b;">${p.num_dias > 1 ? p.num_dias+" dias" : "1 dia"}</td>
                 <td style="text-align:right;font-weight:700;color:#0f2d52;">${Number(p.valor_calculado||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</td>
-                <td style="text-align:right;"><button class="gc-btn-sm btnFinEditPresenca" data-pid="${p.id}">Editar</button></td>
+                <td style="text-align:right;">
+                  <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center;">
+                    ${(p.financial_status||"normal") !== "normal"
+                      ? `<button class="gc-btn-sm btnPresEstado" data-pid="${p.id}" data-fs="${p.financial_status||"normal"}" style="font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Recibo enviado</button>`
+                      : `<button class="gc-btn-sm btnPresEstado" data-pid="${p.id}" data-fs="${p.financial_status||"normal"}" style="font-size:11px;">Recibo enviado</button>`}
+                    ${(p.financial_status||"normal") === "pago"
+                      ? `<button class="gc-btn-sm btnPresEstado2" data-pid="${p.id}" data-fs="${p.financial_status||"normal"}" style="font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Pago</button>`
+                      : `<button class="gc-btn-sm btnPresEstado2" data-pid="${p.id}" data-fs="${p.financial_status||"normal"}" style="font-size:11px;">Pagamento recebido</button>`}
+                    <button class="gc-btn-sm btnFinEditPresenca" data-pid="${p.id}">Editar</button>
+                  </div>
+                </td>
               </tr>`;
             })).join("")
         }
@@ -837,6 +904,43 @@ ${pendVencidos.length > 0 ? `
         const tipo  = btn.dataset.tipo;
         const ent   = entidades.find(e => e.id === entId);
         openModalPresenca({ ent, onSave: render });
+      });
+    });
+
+    /* Estado avenças */
+    content.querySelectorAll(".btnAvencaEstado").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.id;
+        const fs = btn.dataset.fs;
+        if (!id) { alert("Sem registo de avença para este mês. Cria primeiro o registo."); return; }
+        const next = fs === "normal" ? "recibo_enviado" : fs === "recibo_enviado" ? "pago" : "pago";
+        const { error } = await window.sb.from("registos_financeiros").update({ financial_status: next }).eq("id", id);
+        if (error) { alert("Erro: " + error.message); return; }
+        render();
+      });
+    });
+
+    /* Estado presenças — recibo */
+    content.querySelectorAll(".btnPresEstado").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const pid = btn.dataset.pid;
+        const fs  = btn.dataset.fs;
+        const next = fs === "normal" ? "recibo_enviado" : "recibo_enviado";
+        const { error } = await window.sb.from("presencas").update({ financial_status: next }).eq("id", pid);
+        if (error) { alert("Erro: " + error.message); return; }
+        render();
+      });
+    });
+
+    /* Estado presenças — pago */
+    content.querySelectorAll(".btnPresEstado2").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const pid = btn.dataset.pid;
+        const fs  = btn.dataset.fs;
+        const next = fs === "pago" ? "pago" : "pago";
+        const { error } = await window.sb.from("presencas").update({ financial_status: next }).eq("id", pid);
+        if (error) { alert("Erro: " + error.message); return; }
+        render();
       });
     });
 
