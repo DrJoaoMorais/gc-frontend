@@ -356,7 +356,7 @@ function _renderTimeline(rows, patientsById = {}) {
 
     const borderLeft = isExtra ? "border-left:3px solid #f59e0b;" : isBlocked ? "border-left:3px solid #ef4444;" : "";
 
-    return `<div class="ga-tl-row" data-idx="${i}" style="display:grid;grid-template-columns:60px 1fr 140px 110px;padding:8px 12px;border-bottom:0.5px solid #f1f5f9;gap:8px;align-items:center;cursor:pointer;${borderLeft}">
+    return `<div class="ga-tl-row" data-idx="${i}" style="display:grid;grid-template-columns:60px 1fr 200px 110px;padding:8px 12px;border-bottom:0.5px solid #f1f5f9;gap:8px;align-items:center;cursor:pointer;${borderLeft}">
       <div style="font-size:12px;font-weight:600;color:${isBlocked?"#ef4444":isExtra?"#92400e":"#475569"};white-space:nowrap;">${hora}</div>
       <div style="display:flex;align-items:center;gap:8px;">
         <div style="width:8px;height:8px;border-radius:50%;background:${meta.dot};flex-shrink:0;"></div>
@@ -366,7 +366,7 @@ function _renderTimeline(rows, patientsById = {}) {
           ${isExtra?`<div style="font-size:11px;color:#92400e;">Consulta extra</div>`:""}
         </div>
       </div>
-      <div style="font-size:12px;color:#64748b;">${isSlot||isBlocked?"":escapeHtml(tipo)}</div>
+      <div style="font-size:12px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${isSlot||isBlocked?"":escapeHtml(tipo)}</div>
       <div style="display:flex;align-items:center;gap:6px;">
         <span style="padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:${meta.bg};color:${meta.color};">${meta.label}</span>
         ${isSlot?`<button class="ga-btn-marcar" data-idx="${i}" style="font-size:11px;color:#1a56db;border:0.5px solid #93c5fd;background:#eff6ff;border-radius:6px;padding:2px 8px;cursor:pointer;">+ Marcar</button>`:""}
