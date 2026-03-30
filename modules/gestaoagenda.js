@@ -475,7 +475,8 @@ function _renderPanel(row, patientsById = {}) {
     if (!confirm("Remover este bloqueio?")) return;
     await window.sb.from("appointments").delete().eq("id", row.id);
     el.innerHTML = '<div style="font-size:12px;color:#94a3b8;text-align:center;padding:1rem 0;">Clica num slot para ver detalhes e acções.</div>';
-    _loadAndRender();
+    await _loadAndRender();
+    if (_semanaVisible) _renderSemana();
   });
   el.querySelector("[data-action='forcar']")?.addEventListener("click", async () => {
     if (!confirm("Este horário está bloqueado.\n\nO bloqueio será removido e a marcação criada.\n\nConfirmar?")) return;
@@ -1077,7 +1078,8 @@ function _openModalBloqueio() {
       if (error) throw error;
       document.getElementById("gaModalOverlay").style.display = "none";
       alert("Bloqueio criado com sucesso.");
-      _loadAndRender();
+      await _loadAndRender();
+      if (_semanaVisible) _renderSemana();
     } catch(e) { alert("Erro: " + (e.message||e)); }
   });
 }
