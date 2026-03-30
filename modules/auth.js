@@ -148,28 +148,24 @@ export async function fetchVisibleClinics() {
 
 /* ---- 01H.1 — setupIdleLogout (auto-executa) ---- */
 (function setupIdleLogout() {
-  const IDLE_MS = 30 * 60 * 1000; // 30 minutos
+  const IDLE_MS          = 30 * 60 * 1000; // 30 minutos
+  const CHECK_INTERVAL   =  2 * 60 * 1000; //  2 minutos (verificação periódica)
   const LS_LAST_ACTIVITY = "gc_last_activity";
 
   let idleTimer    = null;
+  let periodicTimer = null;
   let listenersOn  = false;
 
   function nowMs() { return Date.now(); }
 
   async function safeSignOut(reason) {
+    if (window.__gcSigningOut) return;
+    window.__gcSigningOut = true;
+    console.warn("[SEC] Idle logout:", reason || "inactivity");
     try {
-      if (!window.sb || !window.sb.auth) return;
-      if (window.__gcSigningOut) return;
-      window.__gcSigningOut = true;
-      console.warn("[SEC] Idle logout:", reason || "inactivity");
-      await window.sb.auth.signOut();
-      window.location.replace("/index.html");
-    } catch (e) {
-      console.error("[SEC] Idle logout error:", e);
-      window.location.replace("/index.html");
-    } finally {
-      window.__gcSigningOut = false;
-    }
+      if (window.sb?.auth) await window.sb.auth.signOut();
+    } catch (_) {}
+    window.location.replace("/index.html");
   }
 
   function markActivity() {
@@ -184,6 +180,11 @@ export async function fetchVisibleClinics() {
     } catch (_) { return 0; }
   }
 
+  function isIdle() {
+    const last = getLastActivityMs();
+    return last > 0 && (nowMs() - last) >= IDLE_MS;
+  }
+
   function clearIdleTimer() {
     if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
   }
@@ -192,16 +193,26 @@ export async function fetchVisibleClinics() {
     clearIdleTimer();
     const last      = getLastActivityMs() || nowMs();
     const elapsed   = nowMs() - last;
-    const remaining = Math.max(0, IDLE_MS - elapsed);
-
+    const remaining = Math.max(5000, IDLE_MS - elapsed);
     idleTimer = setTimeout(async () => {
-      const elapsed2 = nowMs() - (getLastActivityMs() || 0);
-      if (elapsed2 >= IDLE_MS) {
-        await safeSignOut("30min inactivity");
-      } else {
-        scheduleIdleCheck();
-      }
+      if (isIdle()) await safeSignOut("30min inactivity");
+      else scheduleIdleCheck();
     }, remaining);
+  }
+
+  /* Verificação periódica — apanha o caso em que o timer não disparou
+     (ex: computador suspenso) ao regressar ao tab */
+  function startPeriodicCheck() {
+    if (periodicTimer) return;
+    periodicTimer = setInterval(async () => {
+      if (!window.__gcHasSession) return;
+      if (isIdle()) { await safeSignOut("periodic check — 30min inactivity"); return; }
+      // Verifica também se a sessão Supabase ainda é válida
+      try {
+        const { data } = await window.sb.auth.getSession();
+        if (!data?.session) await safeSignOut("session expired");
+      } catch (_) {}
+    }, CHECK_INTERVAL);
   }
 
   function onAnyActivity() {
@@ -210,18 +221,25 @@ export async function fetchVisibleClinics() {
     scheduleIdleCheck();
   }
 
+  /* visibilitychange: verifica inactividade ANTES de marcar actividade */
+  function onVisibilityChange() {
+    if (document.visibilityState !== "visible") return;
+    if (!window.__gcHasSession) return;
+    if (isIdle()) { safeSignOut("returned after 30min inactivity"); return; }
+    onAnyActivity();
+  }
+
   function addListeners() {
     if (listenersOn) return;
     listenersOn = true;
     const opts = { passive: true, capture: true };
-    window.addEventListener("click",      onAnyActivity, opts);
-    window.addEventListener("mousemove",  onAnyActivity, opts);
-    window.addEventListener("keydown",    onAnyActivity, opts);
-    window.addEventListener("scroll",     onAnyActivity, opts);
-    window.addEventListener("touchstart", onAnyActivity, opts);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") onAnyActivity();
-    }, true);
+    window.addEventListener("click",      onAnyActivity,      opts);
+    window.addEventListener("mousemove",  onAnyActivity,      opts);
+    window.addEventListener("keydown",    onAnyActivity,      opts);
+    window.addEventListener("scroll",     onAnyActivity,      opts);
+    window.addEventListener("touchstart", onAnyActivity,      opts);
+    document.addEventListener("visibilitychange", onVisibilityChange, true);
+    startPeriodicCheck();
   }
 
   function removeListeners() {
@@ -232,22 +250,27 @@ export async function fetchVisibleClinics() {
     window.removeEventListener("keydown",    onAnyActivity, true);
     window.removeEventListener("scroll",     onAnyActivity, true);
     window.removeEventListener("touchstart", onAnyActivity, true);
+    document.removeEventListener("visibilitychange", onVisibilityChange, true);
     clearIdleTimer();
+    if (periodicTimer) { clearInterval(periodicTimer); periodicTimer = null; }
   }
 
-  async function bootstrap() {
-    if (!window.sb || !window.sb.auth) {
-      console.warn("[SEC] Supabase client não encontrado (window.sb)");
+  /* Bootstrap: aguarda window.sb estar disponível */
+  function bootstrap() {
+    if (!window.sb?.auth) {
+      // Tenta novamente em 500ms (window.sb pode ainda não estar pronto)
+      setTimeout(bootstrap, 500);
       return;
     }
-    const { data } = await window.sb.auth.getSession();
-    window.__gcHasSession = !!(data && data.session);
 
-    if (window.__gcHasSession) {
-      addListeners();
-      markActivity();
-      scheduleIdleCheck();
-    }
+    window.sb.auth.getSession().then(({ data }) => {
+      window.__gcHasSession = !!(data?.session);
+      if (window.__gcHasSession) {
+        addListeners();
+        markActivity();
+        scheduleIdleCheck();
+      }
+    }).catch(() => {});
 
     window.sb.auth.onAuthStateChange((_event, session) => {
       window.__gcHasSession = !!session;
