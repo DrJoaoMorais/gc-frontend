@@ -100,7 +100,7 @@ function _buildShell() {
     <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;">
       <div id="gaSemanaBanner" style="display:none;"></div>
       <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-        <div style="display:grid;grid-template-columns:60px 1fr 140px 110px;padding:8px 12px;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;gap:8px;">
+        <div style="display:grid;grid-template-columns:60px 1fr 200px 110px;padding:8px 12px;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;gap:8px;">
           <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Hora</div>
           <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Doente</div>
           <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Tipo</div>
@@ -356,20 +356,20 @@ function _renderTimeline(rows, patientsById = {}) {
 
     const borderLeft = isExtra ? "border-left:3px solid #f59e0b;" : isBlocked ? "border-left:3px solid #ef4444;" : "";
 
-    return `<div class="ga-tl-row" data-idx="${i}" style="display:grid;grid-template-columns:60px 1fr 200px 110px;padding:8px 12px;border-bottom:0.5px solid #f1f5f9;gap:8px;align-items:center;cursor:pointer;${borderLeft}">
-      <div style="font-size:12px;font-weight:600;color:${isBlocked?"#ef4444":isExtra?"#92400e":"#475569"};white-space:nowrap;">${hora}</div>
+    return `<div class="ga-tl-row" data-idx="${i}" style="display:grid;grid-template-columns:60px 1fr 200px 110px;padding:10px 12px;border-bottom:0.5px solid #f1f5f9;gap:8px;align-items:center;cursor:pointer;${borderLeft}">
+      <div style="font-size:14px;font-weight:600;color:${isBlocked?"#ef4444":isExtra?"#92400e":"#475569"};white-space:nowrap;">${hora}</div>
       <div style="display:flex;align-items:center;gap:8px;">
         <div style="width:8px;height:8px;border-radius:50%;background:${meta.dot};flex-shrink:0;"></div>
         <div>
-          <div style="font-size:13px;font-weight:${isSlot?"400":"600"};color:${isSlot?"#94a3b8":"#0f172a"};">${isSlot?"Livre":escapeHtml(nome)}</div>
-          ${isBlocked&&r.notes?`<div style="font-size:11px;color:#991b1b;">${escapeHtml(r.notes)}</div>`:""}
-          ${isExtra?`<div style="font-size:11px;color:#92400e;">Consulta extra</div>`:""}
+          <div style="font-size:15px;font-weight:${isSlot?"400":"600"};color:${isSlot?"#94a3b8":"#0f172a"};">${isSlot?"Livre":escapeHtml(nome)}</div>
+          ${isBlocked&&r.notes?`<div style="font-size:12px;color:#991b1b;">${escapeHtml(r.notes)}</div>`:""}
+          ${isExtra?`<div style="font-size:12px;color:#92400e;">Consulta extra</div>`:""}
         </div>
       </div>
-      <div style="font-size:12px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${isSlot||isBlocked?"":escapeHtml(tipo)}</div>
+      <div style="font-size:14px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${isSlot||isBlocked?"":escapeHtml(tipo)}</div>
       <div style="display:flex;align-items:center;gap:6px;">
-        <span style="padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:${meta.bg};color:${meta.color};">${meta.label}</span>
-        ${isSlot?`<button class="ga-btn-marcar" data-idx="${i}" style="font-size:11px;color:#1a56db;border:0.5px solid #93c5fd;background:#eff6ff;border-radius:6px;padding:2px 8px;cursor:pointer;">+ Marcar</button>`:""}
+        <span style="padding:2px 8px;border-radius:999px;font-size:13px;font-weight:600;background:${meta.bg};color:${meta.color};">${meta.label}</span>
+        ${isSlot?`<button class="ga-btn-marcar" data-idx="${i}" style="font-size:12px;color:#1a56db;border:0.5px solid #93c5fd;background:#eff6ff;border-radius:6px;padding:2px 8px;cursor:pointer;">+ Marcar</button>`:""}
       </div>
     </div>`;
   }).join("");
