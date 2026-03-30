@@ -48,7 +48,11 @@ export async function initGestaoAgenda() {
   if (!root) return;
 
   _state.selectedDayISO = G.selectedDayISO || todayISO();
-  _state.selectedClinicId = null;
+  const _isAdm = String(G.role||"").toLowerCase() === "administrativo";
+  const _clinicsList = G.clinics || [];
+  _state.selectedClinicId = (_isAdm || _clinicsList.length === 1) && _clinicsList.length > 0
+    ? _clinicsList[0].id
+    : null;
 
   root.innerHTML = _buildShell();
   _wireShell();
@@ -71,7 +75,8 @@ export async function initGestaoAgenda() {
 /* ── HTML shell ───────────────────────────────────────── */
 function _buildShell() {
   const clinicas = G.clinics || [];
-  const clinicOpts = `<option value="">Todas as clínicas</option>` + clinicas.map(c =>
+  const _showTodas = clinicas.length > 1 && String(G.role||"").toLowerCase() !== "administrativo";
+  const clinicOpts = (_showTodas ? `<option value="">Todas as clínicas</option>` : "") + clinicas.map(c =>
     `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name||c.slug||c.id)}</option>`
   ).join("");
 
