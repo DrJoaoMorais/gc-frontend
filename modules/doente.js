@@ -8503,118 +8503,121 @@ function openNewPatientMainModal({ clinicId }) {
   }
 
   root.innerHTML = `
-    <div id="npMainOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; padding:18px;">
-      <div style="background:#fff; width:min(860px, 100%); border-radius:14px; border:1px solid #e5e5e5; padding:14px; max-height: 86vh; overflow:auto;">
-        <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+    <div id="npMainOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;">
+      <div style="background:#fff;border-radius:14px;border:0.5px solid #e2e8f0;width:min(720px,100%);overflow:hidden;">
+
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:0.5px solid #e2e8f0;position:sticky;top:0;background:#fff;z-index:10;">
           <div>
-            <div style="font-size:${UI.fs14}px; font-weight:900; color:#111;">Novo doente</div>
-            <div style="font-size:${UI.fs12}px; color:#666; margin-top:4px;">
-              Nome obrigatório. Identificação: SNS (9 dígitos) ou NIF (9 dígitos) ou Passaporte/ID (4–20 alfanum).
-            </div>
+            <div style="font-size:16px;font-weight:500;color:#0f172a;">Novo doente</div>
+            <div style="font-size:12px;color:#64748b;margin-top:3px;">Nome obrigatório. SNS/NIF (9 dígitos), CC (8 dígitos), Passaporte (4–20).</div>
           </div>
-          <button id="npMainClose" class="gcBtnGhost">Fechar</button>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div id="npMsg" style="font-size:12px;color:#64748b;max-width:200px;text-align:right;"></div>
+            <button id="npCreate" style="background:#1a56db;color:#fff;border:none;border-radius:8px;padding:7px 18px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;">Gravar</button>
+            <button id="npCancel" style="background:transparent;border:0.5px solid #e2e8f0;border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer;color:#0f172a;font-family:inherit;">Fechar</button>
+          </div>
         </div>
 
-        <div style="margin-top:12px; border:1px solid #eee; border-radius:12px; padding:12px; background:#fafafa;">
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <div style="display:flex; flex-direction:column; gap:4px; grid-column: 1 / -1;">
-              <label class="gcLabel">Nome completo *</label>
-              <input id="npFullName" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
+        <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px;">
 
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label class="gcLabel">Data nascimento</label>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;color:#64748b;">Nome completo *</label>
+            <input id="npFullName" type="text" placeholder="Nome completo do doente" autocomplete="off" autocapitalize="off" spellcheck="false"
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
+          </div>
+
+          <div style="display:grid;grid-template-columns:160px 150px 1fr;gap:10px;">
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <label style="font-size:11px;color:#64748b;">Data de nascimento</label>
               <input id="npDob" type="date"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
             </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label class="gcLabel">Telefone</label>
-              <input id="npPhone" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <label style="font-size:11px;color:#64748b;">Telefone</label>
+              <input id="npPhone" type="tel" placeholder="+351 9XX XXX XXX" autocomplete="off" spellcheck="false"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
             </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label class="gcLabel">Email</label>
-              <input id="npEmail" type="email" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label class="gcLabel">SNS (9 dígitos)</label>
-              <input id="npSNS" type="text" inputmode="numeric" placeholder="#########" autocomplete="off"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label class="gcLabel">NIF (9 dígitos)</label>
-              <input id="npNIF" type="text" inputmode="numeric" placeholder="#########" autocomplete="off"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label class="gcLabel">Passaporte/ID (4–20)</label>
-              <input id="npPassport" type="text" placeholder="AB123456" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label class="gcLabel">Cartão de Cidadão</label>
-              <input id="npCC" type="text" placeholder="12345678" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label class="gcLabel">Seguro</label>
-              <input id="npInsuranceProvider" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label class="gcLabel">Apólice</label>
-              <input id="npInsurancePolicy" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px; grid-column: 1 / -1;">
-              <label class="gcLabel">Morada</label>
-              <input id="npAddress1" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label class="gcLabel">Código-postal</label>
-              <input id="npPostal" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px;">
-              <label class="gcLabel">Cidade</label>
-              <input id="npCity" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px; grid-column: 1 / -1;">
-              <label class="gcLabel">País</label>
-              <input id="npCountry" type="text" value="PT" autocomplete="off" autocapitalize="off" spellcheck="false"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; font-size:${UI.fs13}px;" />
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:4px; grid-column: 1 / -1;">
-              <label class="gcLabel">Notas</label>
-              <textarea id="npNotes" rows="2"
-                style="padding:10px 12px; border-radius:10px; border:1px solid #ddd; resize:vertical; font-size:${UI.fs13}px;"></textarea>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <label style="font-size:11px;color:#64748b;">Email</label>
+              <input id="npEmail" type="email" placeholder="email@exemplo.pt" autocomplete="off" spellcheck="false"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
             </div>
           </div>
 
-          <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-            <div id="npMsg" style="font-size:${UI.fs12}px; color:#666;"></div>
-            <div style="display:flex; gap:10px;">
-              <button id="npCancel" class="gcBtnGhost">Cancelar</button>
-              <button id="npCreate" class="gcBtnPrimary">Criar doente</button>
+          <div style="border-top:0.5px solid #e2e8f0;padding-top:10px;">
+            <div style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Identificação</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;">
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:11px;color:#64748b;">SNS (9 dígitos)</label>
+                <input id="npSNS" type="text" inputmode="numeric" placeholder="#########" maxlength="9" autocomplete="off"
+                  style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:11px;color:#64748b;">NIF (9 dígitos)</label>
+                <input id="npNIF" type="text" inputmode="numeric" placeholder="#########" maxlength="9" autocomplete="off"
+                  style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:11px;color:#64748b;">Cartão de Cidadão</label>
+                <input id="npCC" type="text" placeholder="########X" maxlength="9" autocomplete="off" spellcheck="false"
+                  style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:11px;color:#64748b;">Passaporte/ID</label>
+                <input id="npPassport" type="text" placeholder="AB123456" autocomplete="off" autocapitalize="off" spellcheck="false"
+                  style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
+              </div>
             </div>
           </div>
+
+          <div style="border-top:0.5px solid #e2e8f0;padding-top:10px;">
+            <div style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Seguro</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:11px;color:#64748b;">Seguradora</label>
+                <input id="npInsuranceProvider" type="text" autocomplete="off" spellcheck="false"
+                  style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:11px;color:#64748b;">Nº apólice</label>
+                <input id="npInsurancePolicy" type="text" autocomplete="off" spellcheck="false"
+                  style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
+              </div>
+            </div>
+          </div>
+
+          <div style="border-top:0.5px solid #e2e8f0;padding-top:10px;">
+            <div style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Morada</div>
+            <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px;">
+              <label style="font-size:11px;color:#64748b;">Morada</label>
+              <input id="npAddress1" type="text" autocomplete="off" spellcheck="false"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:10px;">
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:11px;color:#64748b;">Cidade</label>
+                <input id="npCity" type="text" autocomplete="off" spellcheck="false"
+                  style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:11px;color:#64748b;">Código-postal</label>
+                <input id="npPostal" type="text" placeholder="0000-000" autocomplete="off" spellcheck="false"
+                  style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <label style="font-size:11px;color:#64748b;">País</label>
+                <input id="npCountry" type="text" value="PT" autocomplete="off" spellcheck="false"
+                  style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
+              </div>
+            </div>
+          </div>
+
+          <div style="border-top:0.5px solid #e2e8f0;padding-top:10px;padding-bottom:4px;">
+            <label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px;">Notas</label>
+            <textarea id="npNotes" rows="2"
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;resize:vertical;font-size:${UI.fs13}px;font-family:inherit;"></textarea>
+          </div>
+
         </div>
       </div>
     </div>
