@@ -1482,7 +1482,9 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   const startInit  = isEdit && row?.start_at ? new Date(row.start_at) : startBase;
   const endInit    = isEdit && row?.end_at   ? new Date(row.end_at)   : new Date(startInit.getTime() + 20 * 60000);
   const durInit    = Math.max(5, Math.round((endInit.getTime() - startInit.getTime()) / 60000));
-  const durationBest = DURATION_OPTIONS.includes(durInit) ? durInit : 20;
+  const _clinicNameForDur = (() => { try { const c = G.clinicsById?.[defaultClinicId]; return c ? (c.name || c.slug || "") : ""; } catch(_) { return ""; } })();
+  const _defaultDurForClinic = (cid) => { try { const c = G.clinicsById?.[cid]; const n = c ? (c.name || c.slug || "") : ""; return /alfra/i.test(n) ? 20 : 15; } catch(_) { return 15; } };
+  const durationBest = isEdit ? (DURATION_OPTIONS.includes(durInit) ? durInit : 20) : _defaultDurForClinic(defaultClinicId);
 
   const procInit      = isEdit ? (row.procedure_type ?? "") : "";
   const statusRaw     = isEdit ? (row.status ?? "scheduled") : "scheduled";
@@ -1987,6 +1989,7 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   }
 
   mClinic?.addEventListener("change", () => {
+    if (!isEdit && mDuration) mDuration.value = String(_defaultDurForClinic(mClinic.value));
     setSelectedPatient({ id: "", name: "" });
     if (mPatientQuery) mPatientQuery.value = "";
     closeResults();
