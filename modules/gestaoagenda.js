@@ -362,7 +362,6 @@ function _renderTimeline(rows, patientsById = {}) {
         <div style="width:8px;height:8px;border-radius:50%;background:${meta.dot};flex-shrink:0;"></div>
         <div>
           <div style="font-size:13px;font-weight:${isSlot?"400":"600"};color:${isSlot?"#94a3b8":"#0f172a"};">${isSlot?"Livre":escapeHtml(nome)}</div>
-          ${sns&&!isSlot?`<div style="font-size:11px;color:#94a3b8;">${escapeHtml(sns)}</div>`:""}
           ${isBlocked&&r.notes?`<div style="font-size:11px;color:#991b1b;">${escapeHtml(r.notes)}</div>`:""}
           ${isExtra?`<div style="font-size:11px;color:#92400e;">Consulta extra</div>`:""}
         </div>
