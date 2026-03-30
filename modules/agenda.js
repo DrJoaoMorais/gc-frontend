@@ -1494,19 +1494,18 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   const _procList   = (G.procedureTypes?.length ? G.procedureTypes : PROCEDURE_OPTIONS);
   const procIsOther   = procInit && !_procList.includes(procInit);
   const procSelectValue  = procIsOther ? "Outro" : (procInit || "");
-  const apptModeInit     = isEdit ? String(row?.mode || "presencial").toLowerCase() : "presencial";
   const isSuperadmin     = !!window.__GC_IS_SUPERADMIN__;
-  const isDoctor         = ["medico","super_admin","admin"].includes(String(G.role || "").toLowerCase());
-  const canCreateBlocks  = isSuperadmin || isDoctor;
   const isBlockEdit      = isEdit && String(row?.mode || "").toLowerCase() === "bloqueio";
-  const canDeleteAppt    = !!(isEdit && row?.id && !isBlockEdit);
+
+  /* Bloqueios geridos exclusivamente em Gestão Agenda */
+  if (isBlockEdit) {
+    alert("Este registo é um bloqueio.\nPara gerir bloqueios usa o módulo Gestão Agenda → Bloquear.");
+    return;
+  }
+
+  const canDeleteAppt    = !!(isEdit && row?.id);
 
   function optLabel(s) { const m = statusMeta(s); return `${m.icon} ${m.label}`; }
-
-  const bDateFromInit = __gcToDateInput(startInit);
-  const bDateToInit   = __gcToDateInput(startInit);
-  const bTimeFromInit = __gcToTimeInput(startInit);
-  const bTimeToInit   = __gcToTimeInput(endInit);
 
   /* ── label de data formatada para o subtítulo do modal ── */
   const __modalDayLabel = (() => {
@@ -1533,7 +1532,7 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
         <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:14px 18px 12px;border-bottom:1px solid #f1f5f9;">
           <div>
             <div style="font-size:16px;font-weight:700;color:#0f2d52;letter-spacing:-0.01em;">
-              ${isBlockEdit ? "Editar bloqueio" : (isEdit ? "Editar marcação" : "Nova marcação")}
+              ${isEdit ? "Editar marcação" : "Nova marcação"}
             </div>
             <div style="font-size:11px;color:#64748b;margin-top:3px;">${escapeHtml(__modalDayLabel)}${__modalClinicLabel ? ` · ${escapeHtml(__modalClinicLabel)}` : ""}</div>
           </div>
@@ -1541,49 +1540,6 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
         </div>
         <div style="padding:14px 18px 0;display:flex;flex-direction:column;gap:12px;flex:1;overflow-y:auto;">
 
-          <div style="display:flex;flex-direction:column;gap:4px;">
-            <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Ação</label>
-            <select id="mMode" class="gcSelect" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;color:#1e293b;">
-              <option value="presencial">Agendar consulta</option>
-              ${canCreateBlocks ? `<option value="bloqueio">Realizar bloqueio</option>` : ""}
-            </select>
-            ${!canCreateBlocks ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px;">Bloqueios: apenas médico/superadmin.</div>` : ""}
-          </div>
-
-        <div id="mBlockOnlyWrap" style="display:none;margin-top:14px;border:1px solid #eee;border-radius:14px;padding:14px;background:#fafafa;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-            <div style="font-weight:900;font-size:${UI.fs13}px;">Bloqueio</div>
-            ${isBlockEdit ? `<button id="btnDeleteBlock" class="gcBtnDanger" type="button">Apagar bloqueio</button>` : ""}
-          </div>
-          <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
-            <button id="btnBlockDay" class="gcBtnOutline" type="button">Bloquear dia</button>
-            <button id="btnBlockPeriod" class="gcBtnOutline" type="button">Bloquear período</button>
-          </div>
-          <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;align-items:end;">
-            <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:${UI.fs12}px;color:#666;">Datas De</label><input id="bDateFrom" type="date" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;font-size:${UI.fs13}px;" /></div>
-            <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:${UI.fs12}px;color:#666;">Até</label><input id="bDateTo" type="date" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;font-size:${UI.fs13}px;" /></div>
-            <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:${UI.fs12}px;color:#666;">Das</label><input id="bTimeFrom" type="time" step="60" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;font-size:${UI.fs13}px;" /></div>
-            <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:${UI.fs12}px;color:#666;">Às</label><input id="bTimeTo" type="time" step="60" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;font-size:${UI.fs13}px;" /></div>
-          </div>
-          <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
-            <div style="display:flex;flex-direction:column;gap:4px;">
-              <label style="font-size:${UI.fs12}px;color:#666;">Aplicar a</label>
-              <select id="bApplyTo" class="gcSelect">
-                <option value="selected">Selecionar clínicas</option>
-                ${isSuperadmin ? `<option value="global">Todas as clínicas (global)</option>` : ""}
-              </select>
-              ${!isSuperadmin ? `<div style="font-size:${UI.fs12}px;color:#666;margin-top:4px;">Global: apenas superadmin.</div>` : ""}
-            </div>
-            <div id="bClinicsWrap" style="display:flex;flex-direction:column;gap:6px;">
-              <label style="font-size:${UI.fs12}px;color:#666;">Clínicas</label>
-              <div id="bClinicsList" style="border:1px solid #e5e5e5;border-radius:12px;background:#fff;max-height:240px;overflow:auto;padding:8px;"></div>
-              <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
-                <button id="bSelectAll" class="gcBtn" type="button">Selecionar todas</button>
-                <button id="bClearAll" class="gcBtn" type="button">Limpar</button>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <div id="mConsultOnlyWrap" style="display:contents;">
           <div id="mPatientWrap" style="display:flex;flex-direction:column;gap:5px;">
@@ -1672,20 +1628,6 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   const btnSave          = document.getElementById("btnSave");
   const btnNewPatient    = document.getElementById("btnNewPatient");
   const btnDeleteAppt    = document.getElementById("btnDeleteAppt");
-  const mMode            = document.getElementById("mMode");
-  const mBlockOnlyWrap   = document.getElementById("mBlockOnlyWrap");
-  const btnDeleteBlock   = document.getElementById("btnDeleteBlock");
-  const btnBlockDay      = document.getElementById("btnBlockDay");
-  const btnBlockPeriod   = document.getElementById("btnBlockPeriod");
-  const bDateFrom        = document.getElementById("bDateFrom");
-  const bDateTo          = document.getElementById("bDateTo");
-  const bTimeFrom        = document.getElementById("bTimeFrom");
-  const bTimeTo          = document.getElementById("bTimeTo");
-  const bApplyTo         = document.getElementById("bApplyTo");
-  const bClinicsWrap     = document.getElementById("bClinicsWrap");
-  const bClinicsList     = document.getElementById("bClinicsList");
-  const bSelectAll       = document.getElementById("bSelectAll");
-  const bClearAll        = document.getElementById("bClearAll");
   const mConsultOnlyWrap = document.getElementById("mConsultOnlyWrap");
   const mClinic          = document.getElementById("mClinic");
   const mStatus          = document.getElementById("mStatus");
@@ -1759,76 +1701,6 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   if (mDuration) mDuration.value = String(durationBest);
   if (mProc)     mProc.value     = procSelectValue;
   if (mNotes)    mNotes.value    = notesInit;
-
-  let __blockMode = "period";
-  const __selectedClinicIds = new Set();
-  if (defaultClinicId) __selectedClinicIds.add(String(defaultClinicId));
-
-  function __renderClinicsChecklist() {
-    if (!bClinicsList) return;
-    bClinicsList.innerHTML = (G.clinics || []).map((c) => {
-      const cid     = String(c.id);
-      const label   = c.name || c.slug || c.id;
-      const checked = __selectedClinicIds.has(cid) ? "checked" : "";
-      return `<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;"><input type="checkbox" data-b-cid="${escapeHtml(cid)}" ${checked} /><span style="font-weight:800;color:#111;">${escapeHtml(label)}</span></label>`;
-    }).join("");
-    bClinicsList.querySelectorAll("input[type='checkbox'][data-b-cid]").forEach((cb) => {
-      cb.addEventListener("change", () => {
-        const cid = cb.getAttribute("data-b-cid");
-        if (!cid) return;
-        if (cb.checked) __selectedClinicIds.add(String(cid));
-        else __selectedClinicIds.delete(String(cid));
-      });
-    });
-  }
-
-  function __applyBlockModeUi() {
-    if (!bDateFrom || !bDateTo || !bTimeFrom || !bTimeTo) return;
-    if (__blockMode === "day") {
-      bTimeFrom.value = "00:00"; bTimeTo.value = "23:59";
-      if (btnBlockDay)    btnBlockDay.style.fontWeight    = "900";
-      if (btnBlockPeriod) btnBlockPeriod.style.fontWeight = "700";
-    } else {
-      if (btnBlockDay)    btnBlockDay.style.fontWeight    = "700";
-      if (btnBlockPeriod) btnBlockPeriod.style.fontWeight = "900";
-    }
-  }
-
-  if (bDateFrom) bDateFrom.value = bDateFromInit;
-  if (bDateTo)   bDateTo.value   = bDateToInit;
-  if (bTimeFrom) bTimeFrom.value = bTimeFromInit || "09:00";
-  if (bTimeTo)   bTimeTo.value   = bTimeToInit   || "09:20";
-
-  __renderClinicsChecklist();
-  __applyBlockModeUi();
-
-  bSelectAll?.addEventListener("click",  (ev) => { ev.preventDefault(); (G.clinics || []).forEach((c) => __selectedClinicIds.add(String(c.id))); __renderClinicsChecklist(); });
-  bClearAll?.addEventListener("click",   (ev) => { ev.preventDefault(); __selectedClinicIds.clear(); __renderClinicsChecklist(); });
-  btnBlockDay?.addEventListener("click", (ev) => { ev.preventDefault(); __blockMode = "day";    __applyBlockModeUi(); });
-  btnBlockPeriod?.addEventListener("click", (ev) => { ev.preventDefault(); __blockMode = "period"; __applyBlockModeUi(); });
-
-  bApplyTo?.addEventListener("change", () => {
-    const v = String(bApplyTo.value || "selected").toLowerCase();
-    if (bClinicsWrap) bClinicsWrap.style.display = (v === "global") ? "none" : "flex";
-  });
-  if (bClinicsWrap) bClinicsWrap.style.display = String(bApplyTo?.value || "selected").toLowerCase() === "global" ? "none" : "flex";
-
-  btnDeleteBlock?.addEventListener("click", async (ev) => {
-    ev.preventDefault();
-    if (!isBlockEdit || !row?.id) return;
-    if (!confirm("Apagar este bloqueio?")) return;
-    try {
-      const { error } = await window.sb.from("appointments").update({ appt_status: "no_show" }).eq("id", row.id);
-      if (error) throw error;
-      safeCloseModal();
-      await refreshAgenda();
-    } catch (e) { console.error(e); alert("Erro ao apagar bloqueio. Vê a consola para detalhe."); }
-  });
-
-  if (mMode) {
-    mMode.value = apptModeInit;
-    if (isEdit && apptModeInit === "bloqueio" && !canCreateBlocks) mMode.disabled = true;
-  }
 
   /* --- pesquisa doente (modal) --- */
   function setSelectedPatient({ id, name }) {
@@ -1957,26 +1829,8 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
     if (mProcOtherWrap) mProcOtherWrap.style.display = "flex";
   }
 
-  function applyModeUi() {
-    const isBlock = String(mMode?.value || "presencial").toLowerCase() === "bloqueio";
-    if (mBlockOnlyWrap)   mBlockOnlyWrap.style.display   = isBlock ? "block" : "none";
-    if (mConsultOnlyWrap) mConsultOnlyWrap.style.display = isBlock ? "none"  : "block";
-    if (mNotesLabel) mNotesLabel.textContent = isBlock ? "Motivo do bloqueio (opcional)" : "Notas";
-    if (isBlock) {
-      setSelectedPatient({ id: "", name: "" });
-      if (mPatientQuery) mPatientQuery.value = "";
-      closeResults();
-      const host = document.getElementById("newPatientHost");
-      if (host) host.innerHTML = "";
-    }
-  }
-  applyModeUi();
-  mMode?.addEventListener("change", applyModeUi);
-
   let searchTimer = null;
   async function runSearch() {
-    const vMode    = String(mMode?.value || "presencial").toLowerCase();
-    if (vMode === "bloqueio") return;
     const clinicId = mClinic?.value || "";
     const term     = (mPatientQuery?.value || "").trim();
     if (!term || term.length < 2 || !clinicId) { closeResults(); return; }
@@ -2133,7 +1987,6 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   }
 
   mClinic?.addEventListener("change", () => {
-    if (String(mMode?.value || "presencial").toLowerCase() === "bloqueio") return;
     setSelectedPatient({ id: "", name: "" });
     if (mPatientQuery) mPatientQuery.value = "";
     closeResults();
@@ -2142,7 +1995,6 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   });
 
   mPatientQuery?.addEventListener("input", () => {
-    if (String(mMode?.value || "presencial").toLowerCase() === "bloqueio") return;
     setSelectedPatient({ id: "", name: "" });
     scheduleSearch();
   });
@@ -2159,64 +2011,10 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   btnDeleteAppt?.addEventListener("click", onDeleteAppt);
 
   async function onSave() {
-    const isBlock = String(mMode?.value || "presencial").toLowerCase() === "bloqueio";
     btnSave.disabled = true;
     mMsg.style.color = "#666"; mMsg.textContent = "A guardar…";
 
     try {
-      if (isBlock) {
-        if (!canCreateBlocks) throw new Error("Sem permissões para criar bloqueios.");
-        const dateFrom  = bDateFrom?.value || "";
-        const dateTo    = bDateTo?.value   || "";
-        const timeFrom  = bTimeFrom?.value || "00:00";
-        const timeTo    = bTimeTo?.value   || "23:59";
-        if (!dateFrom) throw new Error("Datas De em falta.");
-        if (!dateTo)   throw new Error("Até em falta.");
-        if (__gcCmpYYYYMMDD(dateFrom, dateTo) > 0) throw new Error("Intervalo de datas inválido.");
-
-        const applyToRaw    = String(bApplyTo?.value || "selected").toLowerCase();
-        const idsSelected   = Array.from(__selectedClinicIds).map(String);
-        const allClinicsCount = Array.isArray(G.clinics) ? G.clinics.length : 0;
-        const allSelected   = allClinicsCount > 0 && idsSelected.length === allClinicsCount;
-        let applyTo = (applyToRaw === "selected" && allSelected && isSuperadmin) ? "global" : applyToRaw;
-
-        let targetClinicIds = [];
-        if (applyTo === "global") {
-          if (!isSuperadmin) throw new Error("Global: apenas superadmin.");
-          targetClinicIds = [null];
-        } else {
-          if (!idsSelected.length) throw new Error("Seleciona pelo menos uma clínica.");
-          targetClinicIds = idsSelected;
-        }
-
-        const rowsToInsert = [];
-        let d = dateFrom;
-        while (__gcCmpYYYYMMDD(d, dateTo) <= 0) {
-          const sIso = __gcLocalDateTimeToIso(d, timeFrom);
-          const eIso = __gcLocalDateTimeToIso(d, timeTo);
-          if (!sIso || !eIso) throw new Error("Data/hora inválida no bloqueio.");
-          if (new Date(eIso).getTime() <= new Date(sIso).getTime()) throw new Error("Hora 'Às' tem de ser depois de 'Das'.");
-          for (const t of targetClinicIds) {
-            rowsToInsert.push({ clinic_id: (t === null) ? null : String(t), patient_id: null, start_at: sIso, end_at: eIso, status: "confirmed", procedure_type: null, title: "BLOQUEIO", notes: mNotes?.value?.trim() || null, mode: "bloqueio" });
-          }
-          d = __gcAddDaysYYYYMMDD(d, 1);
-        }
-
-        if (isEdit && row?.id) {
-          const first = rowsToInsert[0];
-          if (!first) throw new Error("Sem dados para guardar.");
-          const { error } = await window.sb.from("appointments").update(first).eq("id", row.id);
-          if (error) throw error;
-        } else {
-          const { error } = await window.sb.from("appointments").insert(rowsToInsert);
-          if (error) throw error;
-        }
-
-        safeCloseModal();
-        await refreshAgenda();
-        return;
-      }
-
       /* --- consulta normal --- */
       if (!mClinic?.value) throw new Error("Seleciona a clínica.");
       const pid   = mPatientId?.value   || "";
