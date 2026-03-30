@@ -8731,6 +8731,7 @@ function openNewPatientMainModal({ clinicId }) {
           p_sns: v.sns,
           p_nif: v.nif,
           p_passport_id: v.passport_id,
+          p_cc_number: v.cc_number || null,
           p_address_line1: v.address_line1,
           p_postal_code: v.postal_code,
           p_city: v.city,

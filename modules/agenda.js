@@ -2018,7 +2018,7 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
         const newPatientId = await rpcCreatePatientForClinic({
           p_clinic_id: clinicId, p_full_name: v.full_name, p_dob: v.dob, p_sex: null,
           p_phone: v.phone, p_email: v.email, p_external_id: null, p_notes: v.notes,
-          p_sns: v.sns, p_nif: v.nif, p_passport_id: v.passport_id,
+          p_sns: v.sns, p_nif: v.nif, p_passport_id: v.passport_id, p_cc_number: v.cc_number || null,
           p_address_line1: v.address_line1, p_postal_code: v.postal_code,
           p_city: v.city, p_country: v.country,
           p_insurance_provider: v.insurance_provider, p_insurance_policy_number: v.insurance_policy_number,
