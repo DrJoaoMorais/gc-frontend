@@ -1872,6 +1872,7 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
           <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:${UI.fs12}px;color:#666;">SNS (9 dígitos)</label><input id="npSNS" type="text" inputmode="numeric" placeholder="#########" autocomplete="off" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;font-size:${UI.fs13}px;" /></div>
           <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:${UI.fs12}px;color:#666;">NIF (9 dígitos)</label><input id="npNIF" type="text" inputmode="numeric" placeholder="#########" autocomplete="off" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;font-size:${UI.fs13}px;" /></div>
           <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:${UI.fs12}px;color:#666;">Passaporte/ID (4–20)</label><input id="npPassport" type="text" placeholder="AB123456" autocomplete="off" autocapitalize="off" spellcheck="false" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;font-size:${UI.fs13}px;" /></div>
+          <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:${UI.fs12}px;color:#666;">Cartão de Cidadão</label><input id="npCC" type="text" placeholder="12345678" autocomplete="off" autocapitalize="off" spellcheck="false" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;font-size:${UI.fs13}px;" /></div>
           <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:${UI.fs12}px;color:#666;">Seguro</label><input id="npInsuranceProvider" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;font-size:${UI.fs13}px;" /></div>
           <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:${UI.fs12}px;color:#666;">Apólice</label><input id="npInsurancePolicy" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;font-size:${UI.fs13}px;" /></div>
           <div style="grid-column:1 / -1;display:flex;flex-direction:column;gap:4px;"><label style="font-size:${UI.fs12}px;color:#666;">Morada</label><input id="npAddress1" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" style="padding:10px 12px;border-radius:10px;border:1px solid #ddd;font-size:${UI.fs13}px;" /></div>
@@ -1896,6 +1897,7 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
     const npSNS               = document.getElementById("npSNS");
     const npNIF               = document.getElementById("npNIF");
     const npPassport          = document.getElementById("npPassport");
+    const npCC                = document.getElementById("npCC");
     const npInsuranceProvider = document.getElementById("npInsuranceProvider");
     const npInsurancePolicy   = document.getElementById("npInsurancePolicy");
     const npAddress1          = document.getElementById("npAddress1");
@@ -1916,16 +1918,17 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
       const sns  = normalizeDigits(npSNS.value);
       const nif  = normalizeDigits(npNIF.value);
       const pass = (npPassport.value || "").trim();
+      const cc   = (npCC?.value || "").trim();
       if (sns  && !/^[0-9]{9}$/.test(sns))           return { ok: false, msg: "SNS inválido: tem de ter 9 dígitos." };
       if (nif  && !/^[0-9]{9}$/.test(nif))           return { ok: false, msg: "NIF inválido: tem de ter 9 dígitos." };
       if (pass && !/^[A-Za-z0-9]{4,20}$/.test(pass)) return { ok: false, msg: "Passaporte/ID inválido: 4–20 alfanum." };
-      if (!sns && !nif && !pass)                      return { ok: false, msg: "Identificação obrigatória: SNS ou NIF ou Passaporte/ID." };
+      if (!sns && !nif && !pass && !cc)               return { ok: false, msg: "Identificação obrigatória: CC, SNS, NIF ou Passaporte/ID." };
       return {
         ok: true, full_name: fullName,
         dob:                    npDob.value               || null,
         phone:                  npPhone.value?.trim()     || null,
         email:                  npEmail.value?.trim()     || null,
-        sns: sns || null, nif: nif || null, passport_id: pass || null,
+        sns: sns || null, nif: nif || null, passport_id: pass || null, cc_number: cc || null,
         insurance_provider:      npInsuranceProvider.value?.trim() || null,
         insurance_policy_number: npInsurancePolicy.value?.trim()   || null,
         address_line1:           npAddress1.value?.trim() || null,
@@ -1944,7 +1947,7 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
       else       { npCreate.disabled = false; setInfo("OK para criar."); }
     }
 
-    [npFullName, npDob, npPhone, npEmail, npSNS, npNIF, npPassport, npInsuranceProvider, npInsurancePolicy, npAddress1, npPostal, npCity, npCountry, npNotes]
+    [npFullName, npDob, npPhone, npEmail, npSNS, npNIF, npPassport, npCC, npInsuranceProvider, npInsurancePolicy, npAddress1, npPostal, npCity, npCountry, npNotes]
       .forEach((el) => { if (!el) return; el.addEventListener("input", refreshButtonState); el.addEventListener("change", refreshButtonState); });
 
     npCancel.addEventListener("click", () => { host.innerHTML = ""; });

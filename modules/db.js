@@ -35,7 +35,7 @@ import { normalizeDigits } from "./helpers.js";
 
 /* Campos de doente usados em todos os SELECTs */
 const PATIENT_FIELDS =
-  "id, full_name, dob, phone, email, external_id, sns, nif, passport_id, " +
+  "id, full_name, dob, phone, email, external_id, sns, nif, passport_id, cc_number, " +
   "insurance_provider, insurance_policy_number, address_line1, postal_code, " +
   "city, country, notes";
 
@@ -168,6 +168,7 @@ export function buildPatientOrFilter(termRaw) {
 
   if (/^[A-Za-z0-9]{4,20}$/.test(term)) {
     parts.push(`passport_id.eq.${term.replaceAll(",", " ")}`);
+    parts.push(`cc_number.ilike.%${term}%`);
   }
 
   return [...new Set(parts)].join(",");
