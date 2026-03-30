@@ -363,6 +363,7 @@ function _renderTimeline(rows, patientsById = {}) {
         <div>
           <div style="font-size:13px;font-weight:${isSlot?"400":"600"};color:${isSlot?"#94a3b8":"#0f172a"};">${isSlot?"Livre":escapeHtml(nome)}</div>
           ${sns&&!isSlot?`<div style="font-size:11px;color:#94a3b8;">${escapeHtml(sns)}</div>`:""}
+          ${isBlocked&&r.notes?`<div style="font-size:11px;color:#991b1b;">${escapeHtml(r.notes)}</div>`:""}
           ${isExtra?`<div style="font-size:11px;color:#92400e;">Consulta extra</div>`:""}
         </div>
       </div>
@@ -416,7 +417,10 @@ function _renderPanel(row, patientsById = {}) {
   const meta      = isBlocked ? ESTADO_META.bloqueio : isSlot ? ESTADO_META.available : isExtra ? ESTADO_META.extra : (ESTADO_META[row.status] || ESTADO_META.scheduled);
 
   let warn = "";
-  if (isBlocked) warn = `<div style="padding:8px 10px;background:#fef3c7;border:0.5px solid #fcd34d;border-radius:8px;font-size:11px;color:#92400e;margin-bottom:8px;">Slot indisponível — para marcar contacte o Dr. João Morais.</div>`;
+  if (isBlocked) {
+    const notaHtml = row.notes ? `<div style="font-weight:600;margin-bottom:2px;">${escapeHtml(row.notes)}</div>` : "";
+    warn = `<div style="padding:8px 10px;background:#fef3c7;border:0.5px solid #fcd34d;border-radius:8px;font-size:11px;color:#92400e;margin-bottom:8px;">${notaHtml}Slot indisponível — para marcar contacte o Dr. João Morais.</div>`;
+  }
   if (isExtra)   warn = `<div style="padding:8px 10px;background:#fef3c7;border:0.5px solid #fcd34d;border-radius:8px;font-size:11px;color:#92400e;margin-bottom:8px;">Consulta extra — fora de slot recorrente.</div>`;
 
   let actions = "";
