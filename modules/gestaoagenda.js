@@ -1006,8 +1006,11 @@ function _openModalBloqueio() {
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
       <div style="display:flex;flex-direction:column;gap:4px;">
-        <label style="font-size:11px;color:#64748b;">Clínicas</label>
-        <div style="display:flex;flex-direction:column;gap:4px;">${checks}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <label style="font-size:11px;color:#64748b;">Clínicas</label>
+          <button id="gaBloqSelTodas" type="button" style="font-size:11px;color:#1a56db;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">Seleccionar todas</button>
+        </div>
+        <div id="gaBloqChecks" style="display:flex;flex-direction:column;gap:4px;">${checks}</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;">
         <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Motivo</label>
@@ -1041,6 +1044,10 @@ function _openModalBloqueio() {
   const today = todayISO();
   document.getElementById("gaBloqDe").value  = today;
   document.getElementById("gaBloqAte").value = today;
+
+  document.getElementById("gaBloqSelTodas")?.addEventListener("click", () => {
+    document.querySelectorAll("#gaBloqChecks input[type=checkbox][data-cid]").forEach(cb => { cb.checked = true; });
+  });
 
   document.getElementById("gaBloqSaveBtn")?.addEventListener("click", async () => {
     const de     = document.getElementById("gaBloqDe")?.value;
