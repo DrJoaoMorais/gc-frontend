@@ -966,7 +966,7 @@
 
 /* ==== INÍCIO BLOCO 03B — Constantes de estados/status ==== */
   /* ---- FUNÇÃO/CONST 03B.1 — STATUS_OPTIONS ---- */
-  const STATUS_OPTIONS = ["scheduled", "arrived", "done", "no_show", "confirmed"];
+  const STATUS_OPTIONS = ["scheduled", "arrived", "done", "no_show", "honorarios_dispensados"];
   /* ---- FIM FUNÇÃO/CONST 03B.1 ---- */
 /* ==== FIM BLOCO 03B — Constantes de estados/status ==== */
 
@@ -987,7 +987,7 @@
       arrived:   { icon: "⏳", label: "Chegou", bg: "#fffbeb", fg: "#92400e", br: "#fde68a" },
       done:      { icon: "✅", label: "Realizada", bg: "#ecfdf5", fg: "#065f46", br: "#a7f3d0" },
       no_show:   { icon: "❌", label: "Faltou/Cancelada", bg: "#fef2f2", fg: "#991b1b", br: "#fecaca" },
-      confirmed: { icon: "🎁", label: "Dispensa de honorários", bg: "#dbeafe", fg: "#1e40af", br: "#93c5fd" },
+      honorarios_dispensados: { icon: "🎁", label: "Dispensa de honorários", bg: "#f3f4f6", fg: "#374151", br: "#d1d5db" },
     };
     return map[s] || map.scheduled;
   }

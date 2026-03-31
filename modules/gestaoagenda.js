@@ -3,7 +3,7 @@
    e horários recorrentes
    ======================================================== */
 
-import { G } from "./state.js";
+import { G, STATUS_OPTIONS, statusMeta } from "./state.js";
 import { escapeHtml } from "./helpers.js";
 import { openApptModal } from "./agenda.js";
 
@@ -320,12 +320,13 @@ function _renderStats(rows) {
 
 /* ── Timeline ─────────────────────────────────────────── */
 const ESTADO_META = {
-  scheduled: { label:"Marcado",  bg:"#dbeafe", color:"#1e40af", dot:"#3b82f6" },
-  arrived:   { label:"Chegou",   bg:"#fef3c7", color:"#92400e", dot:"#f59e0b" },
-  done:      { label:"Realizada",bg:"#d1fae5", color:"#065f46", dot:"#10b981" },
-  no_show:   { label:"Falta",    bg:"#fee2e2", color:"#991b1b", dot:"#ef4444" },
-  available: { label:"Livre",    bg:"#f1f5f9", color:"#64748b", dot:"#cbd5e1" },
-  bloqueio:  { label:"Bloqueado",bg:"#fee2e2", color:"#991b1b", dot:"#ef4444" },
+  scheduled:              { label:"Marcada",              bg:"#eff6ff", color:"#1d4ed8", dot:"#3b82f6" },
+  arrived:                { label:"Chegou",               bg:"#fffbeb", color:"#92400e", dot:"#f59e0b" },
+  done:                   { label:"Realizada",            bg:"#ecfdf5", color:"#065f46", dot:"#10b981" },
+  no_show:                { label:"Faltou/Cancelada",     bg:"#fef2f2", color:"#991b1b", dot:"#ef4444" },
+  honorarios_dispensados: { label:"Dispensa honorários",  bg:"#f3f4f6", color:"#374151", dot:"#9ca3af" },
+  available:              { label:"Livre",                bg:"#f1f5f9", color:"#64748b", dot:"#cbd5e1" },
+  bloqueio:               { label:"Bloqueado",            bg:"#fee2e2", color:"#991b1b", dot:"#ef4444" },
   extra:     { label:"Extra",    bg:"#fef3c7", color:"#92400e", dot:"#f59e0b" },
 };
 
@@ -1194,12 +1195,7 @@ async function _gaFechoLoad(mes, ano, clinicId) {
         <td style="padding:5px 8px;font-size:11px;color:#64748b;">${cName}</td>
         <td style="padding:5px 8px;">
           <select class="gaFSel" data-id="${a.id}" style="font-size:11px;padding:2px 6px;border-radius:6px;border:0.5px solid #e2e8f0;background:${meta.bg};color:${meta.color};cursor:pointer;">
-            <option value="scheduled" ${a.status==="scheduled"?"selected":""}>Marcado</option>
-            <option value="arrived"   ${a.status==="arrived"?"selected":""}>Chegou</option>
-            <option value="done"      ${a.status==="done"?"selected":""}>Realizada</option>
-            <option value="no_show"   ${a.status==="no_show"?"selected":""}>Falta</option>
-            <option value="honorarios_dispensados" ${a.status==="honorarios_dispensados"?"selected":""}>Dispensado</option>
-            <option value="cancelled" ${a.status==="cancelled"?"selected":""}>Cancelado</option>
+            ${STATUS_OPTIONS.map(s => { const m = statusMeta(s); const curNorm = (a.status === "cancelled") ? "no_show" : (a.status || "scheduled"); return `<option value="${s}" ${curNorm===s?"selected":""}>${m.icon} ${m.label}</option>`; }).join("")}
           </select>
         </td>
       </tr>`;

@@ -2416,14 +2416,10 @@ function _renderVencidos(rows) {
   const section = document.getElementById("vencidosSection");
   if (!section || !rows.length) { if (section) section.innerHTML = ""; return; }
 
-  const vencStatusOpts = [
-    { val: "scheduled",               label: "Marcada" },
-    { val: "arrived",                 label: "Chegou" },
-    { val: "done",                    label: "Efectuada" },
-    { val: "no_show",                 label: "Faltou" },
-    { val: "cancelled",               label: "Cancelada" },
-    { val: "honorarios_dispensados",  label: "Dispensa honorários" },
-  ];
+  const vencStatusOpts = STATUS_OPTIONS.map(s => {
+    const m = statusMeta(s);
+    return { val: s, label: `${m.icon} ${m.label}` };
+  });
 
   const cards = rows.map(r => {
     const nome    = escapeHtml(r.patients?.full_name || "—");
