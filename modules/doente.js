@@ -6256,7 +6256,7 @@ window._gerarResumo = function(){
 
       if (templateId === "prp_tendinopatia") {
         // Mostrar modal de preenchimento antes de gerar o documento
-        await openPrpTendinopatiaModal({ clinic, locality: escAttr(localityDate), vinhetaUrl, websiteHtml, phoneHtml, patientBlock, footer, sharedStyles, name, patientLine2 });
+        await openPrpTendinopatiaModal({ clinic, locality: escAttr(localityDate), vinhetaUrl, websiteHtml, phoneHtml, patientBlock, footer, sharedStyles, name, patientLine2, sns, nif, dobPt });
         return; // openDocumentEditor é chamado dentro do modal
       }
 
@@ -8731,7 +8731,6 @@ function openNewPatientMainModal({ clinicId }) {
           p_sns: v.sns,
           p_nif: v.nif,
           p_passport_id: v.passport_id,
-          p_cc_number: v.cc_number || null,
           p_address_line1: v.address_line1,
           p_postal_code: v.postal_code,
           p_city: v.city,
