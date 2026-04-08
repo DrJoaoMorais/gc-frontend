@@ -38,6 +38,7 @@ import { rpcCreatePatientForClinic } from "./db.js";
 import { examsUiState, buildExamRequestHtml } from "./exames.js";
 import { analisesUiState, openAnalisesPanel, closeAnalisesPanel } from "./analises.js";
 import { checkConsentStatus, openConsentModal } from "./consentimentos.js";
+import { openEscalaFuncional } from "./escalas.js";
 
 /* ========================================================
    EXAME MÉDICO DESPORTIVO — painel lateral (viewer)
@@ -4363,6 +4364,12 @@ function openPatientViewModal(patient) {
           { id: "atleta", label: "🏃 Avaliação do Atleta", ready: true },
         ]
       },
+      {
+        label: "Escalas Funcionais — MFR",
+        items: [
+          { id: "escalas_mfr", label: "📊 Escalas Funcionais (DASH, Barthel, Oswestry…)", ready: true },
+        ]
+      },
     ];
 
     grupos.forEach((grp, gi) => {
@@ -4390,7 +4397,11 @@ function openPatientViewModal(patient) {
         if (item.ready) {
           btn.onmouseenter = () => btn.style.background = "#f1f5f9";
           btn.onmouseleave = () => btn.style.background = "none";
-          btn.addEventListener("click", () => { menu.remove(); openExameObjectivoForm(item.id); });
+          btn.addEventListener("click", () => {
+            menu.remove();
+            if (item.id === "escalas_mfr") { openEscalaFuncional(); }
+            else { openExameObjectivoForm(item.id); }
+          });
         }
         menu.appendChild(btn);
       });
