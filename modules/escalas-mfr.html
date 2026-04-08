@@ -286,6 +286,27 @@ function updateCopySummary(){
   else el.textContent=`${filled.length} escalas preenchidas`;
 }
 
+function _itemLines(scale,scaleId){
+  const lines=[];
+  let lastSec=-1;
+  scale.questions.forEach((q,i)=>{
+    const val=state[scaleId][i];
+    if(val===null)return;
+    if(scale.sections&&q.sec!==lastSec){
+      lines.push('');
+      lines.push(`  [${scale.sections[q.sec].toUpperCase()}]`);
+      lastSec=q.sec;
+    }
+    const vals=q.vals||q.opts.map((_,j)=>j);
+    const j=vals.indexOf(val);
+    const optText=j>=0?q.opts[j]:'—';
+    const pts=val===1?'1 pt':`${val} pts`;
+    lines.push(`  ${i+1}. ${q.text}`);
+    lines.push(`     → ${optText}  [${pts}]`);
+  });
+  return lines;
+}
+
 function buildFormattedText(){
   const name=document.getElementById('pt-name').value.trim()||'(não indicado)';
   const proc=document.getElementById('pt-proc').value.trim()||'—';
@@ -307,6 +328,8 @@ function buildFormattedText(){
     const total=state[s.id].filter(v=>v!==null).length;
     lines.push(`ESCALA: ${s.full}`);
     lines.push(`Região: ${s.region}`);
+    _itemLines(s,s.id).forEach(l=>lines.push(l));
+    lines.push('');
     lines.push(`Itens respondidos: ${total} / ${s.items}`);
     lines.push(`Pontuação: ${score} / ${s.maxScore}${s.higherWorse?' (maior = mais incapacidade)':' (maior = melhor função)'}`);
     lines.push(`Interpretação: ${interp}`);
@@ -352,7 +375,23 @@ function copyScale(scaleId,btn){
   const n=parseFloat(score);
   const[interp]=scale.interpret(n);
   const total=state[scaleId].filter(v=>v!==null).length;
-  const text=[`ESCALA: ${scale.full}`,`Doente: ${name}  |  Nº processo: ${proc}  |  Data: ${date}`,'─'.repeat(50),`Região: ${scale.region}`,`Itens respondidos: ${total} / ${scale.items}`,`Pontuação: ${score} / ${scale.maxScore}`,`Interpretação: ${interp}`,scale.note?`Nota: ${scale.note}`:'','─'.repeat(50),`Gerado em: ${new Date().toLocaleString('pt-PT')}`].filter(Boolean).join('\n');
+  const sep='─'.repeat(50);
+  const lines=[
+    `── ${scale.full.toUpperCase()} ──`,
+    `Doente: ${name}  |  Nº processo: ${proc}  |  Data: ${date}`,
+    sep,
+    `Região: ${scale.region}`,
+    ..._itemLines(scale,scaleId),
+    '',
+    sep,
+    `Itens respondidos: ${total} / ${scale.items}`,
+    `Pontuação: ${score} / ${scale.maxScore}${scale.higherWorse?' (maior = mais incapacidade)':' (maior = melhor função)'}`,
+    `Interpretação: ${interp}`,
+    ...(scale.note?[`Nota: ${scale.note}`]:[]),
+    sep,
+    `Gerado em: ${new Date().toLocaleString('pt-PT')}`,
+  ];
+  const text=lines.join('\n');
   navigator.clipboard.writeText(text).catch(()=>{const ta=document.createElement('textarea');ta.value=text;ta.style.position='absolute';ta.style.left='-9999px';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)});
   btn.textContent='Copiado!';btn.classList.add('ok');
   setTimeout(()=>{btn.textContent='Copiar esta escala';btn.classList.remove('ok')},2500);
