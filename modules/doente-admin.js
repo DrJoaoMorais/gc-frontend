@@ -33,7 +33,7 @@ export async function renderDoentePanorama(patientId) {
   /* ── 3. Carregar consentimentos ── */
   const { data: tokens } = await supabase
     .from("consent_tokens")
-    .select("id, type, created_at, expires_at, clinic_id")
+    .select("id, created_at, expires_at, clinic_id")
     .eq("patient_id", patientId)
     .order("created_at", { ascending: false })
     .limit(10);
@@ -316,11 +316,11 @@ export async function renderDoentePanorama(patientId) {
   });
 
   document.getElementById("dpaOpenProcessoBtn").addEventListener("click", () => {
-    if (typeof window.__gc_openPatientView === "function") window.__gc_openPatientView(patientId);
+    if (typeof window.__gc_openPatientViewModal === "function") window.__gc_openPatientViewModal(pt);
   });
 
   document.getElementById("dpaEditBtn").addEventListener("click", () => {
-    if (typeof window.__gc_openEditPatient === "function") window.__gc_openEditPatient(patientId);
+    if (typeof window.__gc_openPatientViewModal === "function") window.__gc_openPatientViewModal(pt);
   });
 }
 
