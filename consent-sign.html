@@ -776,13 +776,13 @@
 
         if (sigError) { console.error('STEP1 consent_signatures insert:', JSON.stringify(sigError, null, 2)); throw sigError; }
 
-        // 2. Actualizar status do token para 'signed'
-        const { error: tokenError } = await supabase
-          .from('consent_tokens')
-          .update({ status: 'signed', signed_at: payload.signed_at })
-          .eq('id', tokenData.id);
+        // 2. Actualizar status do token para 'signed' (via RPC SECURITY DEFINER)
+        const { error: tokenError } = await supabase.rpc('sign_consent_token', {
+          p_token_id:  tokenData.id,
+          p_signed_at: payload.signed_at,
+        });
 
-        if (tokenError) { console.error('STEP2 consent_tokens update:', JSON.stringify(tokenError, null, 2)); throw tokenError; }
+        if (tokenError) { console.error('STEP2 sign_consent_token rpc:', JSON.stringify(tokenError, null, 2)); throw tokenError; }
 
         // Mostrar estado de sucesso
         hide('state-form');
