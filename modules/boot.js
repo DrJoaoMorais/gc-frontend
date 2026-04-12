@@ -67,7 +67,7 @@ export async function boot() {
       const ev      = String(event || "").toUpperCase();
       const hasUser = !!(nextSession?.user);
 
-      if (!hasUser || ev === "SIGNED_OUT" || ev === "USER_DELETED") {
+      if (!hasUser || ev === "SIGNED_OUT" || ev === "USER_DELETED" || ev === "TOKEN_EXPIRED") {
         await __gcForceSessionLock("Sessão terminada. Volte a iniciar sessão para continuar.");
         return;
       }
@@ -80,7 +80,7 @@ export async function boot() {
     G.authStateSubscription = authStateData?.subscription || null;
 
     /* Check periódico de sessão — a cada 5 min verifica se o token ainda é válido */
-    const SESSION_CHECK_INTERVAL = 30 * 60 * 1000;
+    const SESSION_CHECK_INTERVAL = 5 * 60 * 1000;
     const sessionCheckTimer = setInterval(async () => {
       if (__gcSessionLockActive) { clearInterval(sessionCheckTimer); return; }
       try {
@@ -89,7 +89,10 @@ export async function boot() {
           clearInterval(sessionCheckTimer);
           await __gcForceSessionLock("Sessão expirada. Volte a iniciar sessão para continuar.");
         }
-      } catch (_) {}
+      } catch (_) {
+        clearInterval(sessionCheckTimer);
+        await __gcForceSessionLock("Sessão expirada. Volte a iniciar sessão para continuar.");
+      }
     }, SESSION_CHECK_INTERVAL);
 
     /* MFA gate */
