@@ -33,6 +33,11 @@
 
 import { normalizeDigits } from "./helpers.js";
 
+/** Lança erro se clinicId é null/undefined/vazio. */
+function requireClinicId(clinicId, fnName) {
+  if (!clinicId) throw new Error(`[db] ${fnName}: clinicId em falta`);
+}
+
 /* Campos de doente usados em todos os SELECTs */
 const PATIENT_FIELDS =
   "id, full_name, dob, phone, email, external_id, sns, nif, passport_id, cc_number, " +
@@ -180,6 +185,7 @@ export function buildPatientOrFilter(termRaw) {
 /* ---- 02E.1 — searchPatientsScoped ---- */
 // Devolve array de doentes. Doentes de outra clínica têm active_clinic_id !== clinicId.
 export async function searchPatientsScoped({ clinicId, q, limit = 30 }) {
+  requireClinicId(clinicId, "searchPatientsScoped");
   const term = (q || "").trim();
   if (!term || term.length < 2) return [];
 
@@ -202,6 +208,8 @@ export async function searchPatientsScoped({ clinicId, q, limit = 30 }) {
 
 /* ---- 02F.1 — rpcCreatePatientForClinic ---- */
 export async function rpcCreatePatientForClinic(payload) {
+  const clinicId = payload?.p_clinic_id || payload?.clinic_id || null;
+  requireClinicId(clinicId, "rpcCreatePatientForClinic");
   const { data, error } = await window.sb.rpc("create_patient_for_clinic_v2", payload);
   if (error) throw error;
 
