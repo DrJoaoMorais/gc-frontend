@@ -5,6 +5,8 @@
    02 — openQrModal  (exportada)
    ======================================================== */
 
+import { openConsentModal } from "./consentimentos.js";
+
 const SIGN_BASE_URL = "https://gc.joaomorais.pt/consent-sign.html";
 const QR_API_URL    = "https://api.qrserver.com/v1/create-qr-code/";
 const POLL_INTERVAL = 5000; // ms
@@ -108,8 +110,11 @@ export function openQrModal({ patient, clinicId, clinic, type, onSigned }) {
           ${typeBtn("corticoide",        DOC_LABELS.corticoide)}
           ${typeBtn("acido_hialuronico", DOC_LABELS.acido_hialuronico)}
         </div>
-        <div style="font-size:12px; color:#94a3b8; text-align:center;">
-          Seleccione o tipo de consentimento
+        <div style="border-top:1px solid #e2e8f0; padding-top:12px; text-align:center;">
+          <button id="gcQrPresencial" style="
+            background:none; border:none; cursor:pointer;
+            font-size:12px; color:#64748b; text-decoration:underline;
+          ">📄 Assinar presencialmente (PDF + papel)</button>
         </div>
       </div>
     `);
@@ -121,6 +126,15 @@ export function openQrModal({ patient, clinicId, clinic, type, onSigned }) {
         selectedType = btn.getAttribute("data-type");
         renderLoading();
         generateToken(selectedType);
+      });
+    });
+
+    document.getElementById("gcQrPresencial")?.addEventListener("click", () => {
+      close();
+      openConsentModal({
+        type: type || "rgpd",
+        patient, clinicId, clinic,
+        onSaved: onSigned,
       });
     });
   }
