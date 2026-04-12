@@ -9,6 +9,7 @@
 
 import { G }                              from "./state.js";
 import { fetchMyRole, fetchVisibleClinics } from "./auth.js";
+import { fetchProcedureTypes } from "./db.js";
 import {
   renderAppShell,
   hydrateShellHeader
