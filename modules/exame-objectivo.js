@@ -235,7 +235,7 @@ function openExameObjectivoForm(formId) {
 
 <div class="act">
 <button class="bp" onclick="window.print()">Exportar PDF</button>
-<button class="bs" id="gc-save-btn">Gravar e copiar para HDA</button>
+<button class="bs" onclick="window.print()">Exportar PDF</button>
 </div></div></body></html>`);
   }
   if (formId === "pfp") {
