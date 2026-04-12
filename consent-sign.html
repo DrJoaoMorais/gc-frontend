@@ -351,8 +351,17 @@
     </div>
   </div>
 
+  <!-- Supabase SDK + inicialização -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+    window.sb = window.supabase.createClient(
+      "https://nxfnzzcuqzxmzsihbrtp.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA"
+    );
+  </script>
+
   <script type="module">
-    import { supabase } from './supabase-client.js';
+    const supabase = window.sb;
 
     // ── Textos dos consentimentos ──────────────────────────────────────────────
     const CONSENT_CONTENT = {
