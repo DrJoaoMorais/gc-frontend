@@ -152,8 +152,16 @@ export function openQrModal({ patient, clinicId, clinic, type, onSigned }) {
 
         <div id="gcQrStatusWrap" style="
           border:3px solid #0f2d52; border-radius:12px; padding:10px;
-          display:inline-block; background:#fff;
+          display:inline-block; background:#fff; position:relative;
         ">
+          <div style="
+            position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+            width:36px; height:36px; border-radius:50%;
+            background:#1a56db; border:2px solid #fff;
+            display:flex; align-items:center; justify-content:center;
+            color:#fff; font-size:11px; font-weight:900; letter-spacing:0.5px;
+            pointer-events:none; z-index:1;
+          ">JM</div>
           <img src="${escH(imgSrc)}" width="200" height="200" alt="QR code" style="display:block;" />
         </div>
 
