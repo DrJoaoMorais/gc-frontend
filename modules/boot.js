@@ -25,6 +25,7 @@ import { wireQuickPatientSearch }                      from "./pesquisa.js";
 import { openCalendarOverlay, openWeekView }           from "./agenda.js";
 import { wireLogout, ensureAAL2, __gcForceSessionLock, __gcIsAuthError, __gcSessionLockActive } from "./session.js";
 import { fmtDateISO }                      from "./helpers.js";
+import { renderDoentePanorama } from "./doente-admin.js";
 import { renderFinancas }                  from "./financas.js";
 import { renderGestao }                    from "./gestao.js";
 import { initGestaoAgenda }               from "./gestaoagenda.js";

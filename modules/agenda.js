@@ -685,6 +685,12 @@ export function renderQuickPatientResults(results) {
     if (hostNow) hostNow.style.display = "none";
 
     try {
+      if (G.currentView === "doentes" && typeof window.__gc_renderDoentePanorama === "function") {
+        G.currentView = "doente-panorama";
+        G._panoramaPatientId = pid;
+        if (typeof window.__gc_renderCurrentView === "function") await window.__gc_renderCurrentView();
+        return;
+      }
       await openPatientFeedFromAny({ id: pid });
     } catch (e) {
       console.error("Abrir FEED a partir da pesquisa falhou:", e);
@@ -1253,6 +1259,12 @@ export async function openWeekView() {
           }
         }
         close();
+        if (G.currentView === "doentes" && typeof window.__gc_renderDoentePanorama === "function") {
+        G.currentView = "doente-panorama";
+        G._panoramaPatientId = pid;
+        if (typeof window.__gc_renderCurrentView === "function") await window.__gc_renderCurrentView();
+        return;
+      }
         await openPatientFeedFromAny({ id: pid });
       } else if (aid) {
         const appt = appts.find(a => String(a.id) === String(aid));

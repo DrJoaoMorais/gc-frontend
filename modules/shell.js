@@ -48,7 +48,7 @@ export function renderAppShell() {
   } else if (currentView === "doentes") {
     mainHtml = `
       <div class="gc-page-header">
-        <div><div class="gc-page-title">Doentes</div><div class="gc-page-sub">Pesquise e aceda ao feed clínico</div></div>
+        <div><div class="gc-page-title">Doentes</div><div class="gc-page-sub">Pesquise e aceda ao panorama clínico</div></div>
         <button id="btnNewPatientMain" class="gcBtnPrimary">＋ Novo doente</button>
       </div>
       <div class="gc-search-bar" style="margin-top:14px;">
@@ -57,6 +57,8 @@ export function renderAppShell() {
       </div>
       <div id="pQuickResults" style="margin-top:6px;"></div>
     `;
+  } else if (currentView === "doente-panorama") {
+    mainHtml = `<div id="gcDoentePanoramaRoot"></div>`;
   } else if (currentView === "historico") {
     mainHtml = `
       <div class="gc-page-header">

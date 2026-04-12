@@ -91,6 +91,10 @@ import {
 import { initFinancas }                      from "./modules/financas.js";
 import { initGestaoAgenda }                  from "./modules/gestaoagenda.js";
 
+// Panorama do doente
+import { renderDoentePanorama } from "./modules/doente-admin.js";
+window.__gc_renderDoentePanorama = renderDoentePanorama;
+
 // Boot
 import { boot }                             from "./modules/boot.js";
 
