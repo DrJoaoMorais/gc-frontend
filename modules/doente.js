@@ -37,7 +37,8 @@ import { closeModalRoot, ensurePatientActiveInClinic } from "./agenda.js";
 import { rpcCreatePatientForClinic } from "./db.js";
 import { examsUiState, buildExamRequestHtml } from "./exames.js";
 import { analisesUiState, openAnalisesPanel, closeAnalisesPanel } from "./analises.js";
-import { checkConsentStatus, openConsentModal } from "./consentimentos.js";
+import { checkConsentStatus } from "./consentimentos.js";
+import { openQrModal } from "./consentimentos_qr.js";
 import { openExameObjectivoMenu, openExameObjectivoForm } from "./exame-objectivo.js";
 import { openNewPatientMainModal } from "./novo-doente.js";
 
@@ -4055,12 +4056,12 @@ function openPatientViewModal(patient) {
 
     // RGPD
     document.getElementById("btnRgpd")?.addEventListener("click", () => {
-      openConsentModal({
+      openQrModal({
         type: "rgpd",
         patient: p,
         clinicId: activeClinicId,
         clinic: activeClinicData,
-        onSaved: async () => {
+        onSigned: async () => {
           await loadConsentStatus();
           render();
         },
@@ -4069,36 +4070,36 @@ function openPatientViewModal(patient) {
 
     // Consentimentos
     document.getElementById("btnConsentPrp")?.addEventListener("click", () => {
-      openConsentModal({
+      openQrModal({
         type: "prp",
         patient: p,
         clinicId: activeClinicId,
         clinic: activeClinicData,
-        onSaved: async () => {
+        onSigned: async () => {
           await loadConsentStatus();
           render();
         },
       });
     });
     document.getElementById("btnConsentAh")?.addEventListener("click", () => {
-      openConsentModal({
+      openQrModal({
         type: "ah",
         patient: p,
         clinicId: activeClinicId,
         clinic: activeClinicData,
-        onSaved: async () => {
+        onSigned: async () => {
           await loadConsentStatus();
           render();
         },
       });
     });
     document.getElementById("btnConsentInfilt")?.addEventListener("click", () => {
-      openConsentModal({
+      openQrModal({
         type: "corticoide",
         patient: p,
         clinicId: activeClinicId,
         clinic: activeClinicData,
-        onSaved: async () => {
+        onSigned: async () => {
           await loadConsentStatus();
           render();
         },

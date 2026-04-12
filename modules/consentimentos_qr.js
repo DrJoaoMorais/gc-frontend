@@ -39,7 +39,7 @@ function buildSignUrl(tokenValue) {
 /*  02 — openQrModal                                        */
 /* ======================================================== */
 
-export function openQrModal({ patient, clinicId, clinic, onSigned }) {
+export function openQrModal({ patient, clinicId, clinic, type, onSigned }) {
   document.getElementById("gcQrOverlay")?.remove();
 
   const overlay = document.createElement("div");
@@ -240,6 +240,7 @@ export function openQrModal({ patient, clinicId, clinic, onSigned }) {
           patient_id:    patient?.id,
           clinic_id:     clinicId,
           document_type: docType,
+          token:         crypto.randomUUID(),
           status:        "pending",
           expires_at:    expiresAt,
           created_by:    userId,
@@ -254,11 +255,17 @@ export function openQrModal({ patient, clinicId, clinic, onSigned }) {
       startPolling(rowId);
 
     } catch (e) {
-      console.error("openQrModal generateToken:", e);
+      console.error("INSERT error:", JSON.stringify(e, null, 2));
       renderError("Erro ao gerar token. Tente de novo.");
     }
   }
 
   /* ── Arranque ───────────────────────────────────────── */
-  renderSelector();
+  if (type) {
+    selectedType = type;
+    renderLoading();
+    generateToken(type);
+  } else {
+    renderSelector();
+  }
 }
