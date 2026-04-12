@@ -205,6 +205,14 @@ async function renderCurrentView() {
     return;
   }
 
+  /* Vista Panorama do Doente */
+  if (view === "doente-panorama") {
+    if (G._panoramaPatientId) {
+      await window.__gc_renderDoentePanorama(G._panoramaPatientId);
+    }
+    return;
+  }
+
   /* Vista Financas */
   if (view === "financas") {
     await renderFinancas();
