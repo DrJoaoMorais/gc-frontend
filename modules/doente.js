@@ -2462,14 +2462,14 @@ function openPatientViewModal(patient) {
         console.error(lErr);
       } else {
         const diagIds = [...new Set((links || []).map(x => x.diagnosis_id).filter(Boolean))];
-        console.log("[load] consultation_diagnoses links:", links, "diagIds:", diagIds);
+        // [debug removido] consultation_diagnoses links + diagIds
         let diagMap = {};
         if (diagIds.length) {
           const { data: diags, error: dErr } = await window.sb
             .from("diagnoses_catalog")
             .select("id, label, code")
             .in("id", diagIds);
-          console.log("[load] diagnoses_catalog result:", diags, dErr);
+          // [debug removido] diagnoses_catalog result
 
           if (dErr) console.error(dErr);
           else {
@@ -3735,7 +3735,7 @@ function openPatientViewModal(patient) {
         .map(x => String(x.id));
       const diagIdsUnique = [...new Set(diagIds)];
 
-      console.log("[save] selectedDiag:", selectedDiag, "→ diagIdsUnique:", diagIdsUnique);
+      // [debug removido] selectedDiag → diagIdsUnique
 
       const { error: diagRpcErr } = await window.sb.rpc("save_consultation_diagnoses", {
         p_consultation_id: consultId,
@@ -3750,7 +3750,7 @@ function openPatientViewModal(patient) {
 
       const treatIds = (selectedTreat || []).map(x => x.id);
       const treatQtys = (selectedTreat || []).map(x => Number(x.qty || 1));
-      console.log("[save] selectedTreat:", selectedTreat, "→ treatIds:", treatIds);
+      // [debug removido] selectedTreat → treatIds
 
       const { error: treatRpcErr } = await window.sb.rpc("save_consultation_treatments", {
         p_consultation_id: consultId,
@@ -4252,13 +4252,13 @@ function openPatientViewModal(patient) {
         let vinhetaUrl = "";
         try {
           const vinhetaSignedUrl = await storageSignedUrl(VINHETA_BUCKET, VINHETA_PATH, 3600);
-          console.log("VINHETA signed URL:", vinhetaSignedUrl);
+          // [debug removido] VINHETA signed URL
 
           if (vinhetaSignedUrl) {
             vinhetaUrl = await urlToDataUrl(vinhetaSignedUrl, "image/png");
           }
 
-          console.log("VINHETA data URL prefix:", vinhetaUrl ? vinhetaUrl.slice(0, 80) : "(vazia)");
+          // [debug removido] VINHETA data URL prefix
         } catch (e) {
           console.warn("Editor: vinheta falhou:", e);
           vinhetaUrl = "";
@@ -6454,7 +6454,7 @@ function selSens(el) {
               updated_at: payload.ts
             }, { onConflict: "patient_id,doc_type" });
           if (error) console.error("Erro ao guardar relatório neurológico:", error);
-          else console.log("Relatório neurológico guardado no Supabase");
+          // relatório neurológico guardado
         } catch(e) {
           console.error("Erro Supabase relatório neurológico:", e);
         }
