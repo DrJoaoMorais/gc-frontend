@@ -84,11 +84,12 @@ export async function loadAppointmentsForRange({ clinicId, startISO, endISO }) {
         q = q.or(`clinic_id.eq.${clinicId},and(clinic_id.is.null,mode.eq.bloqueio)`);
       }
 
-      // Médico vê só as suas consultas (+ bloqueios)
-      // Super_admin e administrativo vêem tudo da clínica
+      // Admin/administrativo vêem tudo da clínica; qualquer outro role (incluindo
+      // role ainda não carregado / null) vê só as suas próprias consultas.
       const _role = String(window.G?.role || "").toLowerCase();
       const _uid  = window.G?.sessionUser?.id || null;
-      if (_role === "medico" && _uid) {
+      const isKnownAdmin = ["super_admin", "admin", "administrativo"].includes(_role);
+      if (!isKnownAdmin && _uid) {
         q = q.or(`provider_id.eq.${_uid},mode.eq.bloqueio,provider_id.is.null`);
       }
 
