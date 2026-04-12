@@ -50,7 +50,7 @@ export async function wireQuickPatientSearch() {
     }
 
     const selClinic = document.getElementById("selClinic");
-    const clinicId  = selClinic && selClinic.value ? selClinic.value : null;
+    const clinicId  = (selClinic && selClinic.value) ? selClinic.value : (G.clinics?.[0]?.id || null);
 
     resHost.style.display = "block";
     resHost.innerHTML     = `<div style="font-size:${UI.fs12}px; color:#666;">A pesquisar…</div>`;
