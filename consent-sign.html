@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Consentimento Informado</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy: #0f2d52;
+      --blue: #1a56db;
+      --blue-light: #e8f0fe;
+      --gold: #c9a84c;
+      --green: #059669;
+      --green-light: #d1fae5;
+      --red: #dc2626;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-400: #9ca3af;
+      --gray-600: #4b5563;
+      --gray-900: #111827;
+      --font: 'Outfit', sans-serif;
+      --radius: 10px;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: var(--font);
+      background: var(--gray-50);
+      color: var(--gray-900);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────── */
+    .page-header {
+      background: var(--navy);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-badge {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--blue);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 600; color: #fff;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+    .header-text { color: #fff; }
+    .header-text .clinic-name { font-size: 11px; opacity: 0.7; letter-spacing: 0.08em; text-transform: uppercase; }
+    .header-text .doc-title { font-size: 15px; font-weight: 500; }
+
+    /* ── ESTADOS ─────────────────────────────────────────── */
+    #state-loading,
+    #state-invalid,
+    #state-signed {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      padding: 40px 24px;
+      text-align: center;
+    }
+    .state-icon { font-size: 48px; margin-bottom: 16px; }
+    .state-title { font-size: 18px; font-weight: 500; color: var(--gray-900); margin-bottom: 8px; }
+    .state-sub { font-size: 14px; color: var(--gray-600); }
+
+    .signed-card {
+      background: var(--green-light);
+      border: 1.5px solid var(--green);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      max-width: 340px;
+      width: 100%;
+    }
+    .signed-card .check-circle {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: var(--green);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 14px;
+    }
+    .signed-card .signed-name { font-size: 15px; font-weight: 500; color: #065f46; }
+    .signed-card .signed-time { font-size: 13px; color: #059669; margin-top: 4px; }
+    .signed-card .signed-note { font-size: 12px; color: #047857; margin-top: 10px; line-height: 1.5; }
+
+    /* ── FORMULÁRIO ──────────────────────────────────────── */
+    #state-form { display: none; }
+    .form-wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 40px; }
+
+    /* Secção de texto do consentimento */
+    .consent-text-section {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .consent-text-section h2 {
+      font-size: 15px; font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .consent-body { font-size: 13.5px; color: var(--gray-600); line-height: 1.7; }
+    .consent-body p { margin-bottom: 10px; }
+    .consent-body ul { padding-left: 18px; margin-bottom: 10px; }
+    .consent-body ul li { margin-bottom: 4px; }
+    .consent-body strong { color: var(--gray-900); font-weight: 500; }
+
+    /* Secções do formulário */
+    .form-section {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .form-section-title {
+      font-size: 13px; font-weight: 500;
+      color: var(--gray-600);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 14px;
+    }
+
+    /* Checkboxes RGPD */
+    .checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+    .checkbox-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .checkbox-row input[type="checkbox"] {
+      width: 18px; height: 18px;
+      margin-top: 2px;
+      accent-color: var(--blue);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .checkbox-label { font-size: 13.5px; color: var(--gray-900); line-height: 1.5; cursor: pointer; }
+    .checkbox-label span { display: block; font-size: 12px; color: var(--gray-400); margin-top: 1px; }
+
+    /* Campos de texto */
+    .field-group { margin-bottom: 14px; }
+    .field-group:last-child { margin-bottom: 0; }
+    .field-label { display: block; font-size: 13px; font-weight: 500; color: var(--gray-600); margin-bottom: 6px; }
+    .field-required { color: var(--red); }
+
+    input[type="text"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      font-family: var(--font);
+      font-size: 15px;
+      color: var(--gray-900);
+      background: #fff;
+      appearance: none;
+      transition: border-color 0.15s;
+    }
+    input[type="text"]:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(26,86,219,0.12);
+    }
+    textarea { resize: none; line-height: 1.5; }
+
+    /* Select articulação */
+    .select-wrap { position: relative; }
+    .select-wrap select { padding-right: 32px; }
+    .select-wrap::after {
+      content: '';
+      position: absolute;
+      right: 12px; top: 50%;
+      transform: translateY(-50%);
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 6px solid var(--gray-400);
+      pointer-events: none;
+    }
+
+    /* Canvas assinatura */
+    .sig-canvas-wrap {
+      border: 1.5px dashed var(--gray-200);
+      border-radius: 8px;
+      background: var(--gray-50);
+      position: relative;
+      touch-action: none;
+      overflow: hidden;
+    }
+    .sig-canvas-wrap canvas { display: block; width: 100%; height: 140px; cursor: crosshair; }
+    .sig-clear-btn {
+      position: absolute;
+      top: 8px; right: 8px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--gray-400);
+      background: rgba(255,255,255,0.9);
+      border: 1px solid var(--gray-200);
+      border-radius: 6px;
+      padding: 3px 8px;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    .sig-clear-btn:hover { color: var(--red); border-color: var(--red); }
+    .sig-hint { text-align: center; font-size: 12px; color: var(--gray-400); margin-top: 6px; }
+    #sig-canvas.has-drawing { background: #fff; }
+
+    /* Botão submeter */
+    .submit-btn {
+      width: 100%;
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 14px;
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .submit-btn:hover { background: #1748c5; }
+    .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .submit-btn.loading { opacity: 0.7; }
+
+    .error-msg {
+      background: #fee2e2; border: 1px solid #fca5a5;
+      border-radius: 8px; padding: 10px 14px;
+      font-size: 13px; color: var(--red);
+      margin-top: 12px; display: none;
+    }
+
+    /* Nota legal */
+    .legal-note {
+      text-align: center; font-size: 12px; color: var(--gray-400);
+      margin-top: 20px; padding: 0 8px;
+      line-height: 1.6;
+    }
+
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid var(--gray-200);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER (preenchido via JS) -->
+  <header class="page-header" id="page-header">
+    <div class="header-badge">JM</div>
+    <div class="header-text">
+      <div class="clinic-name" id="header-clinic">GC · João Morais</div>
+      <div class="doc-title" id="header-title">Consentimento Informado</div>
+    </div>
+  </header>
+
+  <!-- ESTADO: A carregar -->
+  <div id="state-loading">
+    <div class="spinner"></div>
+    <div class="state-title">A carregar...</div>
+  </div>
+
+  <!-- ESTADO: Link inválido / expirado -->
+  <div id="state-invalid" style="display:none;">
+    <div class="state-icon">⚠️</div>
+    <div class="state-title">Link inválido ou expirado</div>
+    <div class="state-sub">Este link de consentimento não é válido ou já expirou.<br>Peça à secretária para gerar um novo link.</div>
+  </div>
+
+  <!-- ESTADO: Já assinado -->
+  <div id="state-signed" style="display:none;">
+    <div class="signed-card">
+      <div class="check-circle">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <path d="M6 14l6 6 10-12" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="state-title" style="color:#065f46;">Consentimento assinado</div>
+      <div class="signed-name" id="signed-name"></div>
+      <div class="signed-time" id="signed-time"></div>
+      <div class="signed-note">O documento foi guardado de forma segura. Pode fechar esta página.</div>
+    </div>
+  </div>
+
+  <!-- ESTADO: FORMULÁRIO -->
+  <div id="state-form">
+    <div class="form-wrap">
+
+      <!-- Texto do consentimento (injetado via JS) -->
+      <div class="consent-text-section" id="consent-text-section">
+        <h2 id="consent-text-title"></h2>
+        <div class="consent-body" id="consent-text-body"></div>
+      </div>
+
+      <!-- Campos dinâmicos (RGPD vs procedimentos) -->
+      <div id="dynamic-fields"></div>
+
+      <!-- Nome completo (todos os tipos) -->
+      <div class="form-section">
+        <div class="form-section-title">Identificação</div>
+        <div class="field-group">
+          <label class="field-label" for="patient-name">
+            Nome completo <span class="field-required">*</span>
+          </label>
+          <input type="text" id="patient-name" placeholder="Escreva o seu nome completo" autocomplete="name">
+        </div>
+      </div>
+
+      <!-- Assinatura -->
+      <div class="form-section">
+        <div class="form-section-title">Assinatura</div>
+        <div class="sig-canvas-wrap">
+          <canvas id="sig-canvas"></canvas>
+          <button class="sig-clear-btn" id="sig-clear">Limpar</button>
+        </div>
+        <div class="sig-hint">Assine com o dedo na área acima</div>
+      </div>
+
+      <!-- Submeter -->
+      <button class="submit-btn" id="submit-btn">Assinar e submeter</button>
+      <div class="error-msg" id="error-msg"></div>
+
+      <div class="legal-note">
+        A sua assinatura fica registada com data, hora e referência de segurança.<br>
+        Um documento PDF será gerado e guardado no seu processo clínico.
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase } from './supabase-client.js';
+
+    // ── Textos dos consentimentos ──────────────────────────────────────────────
+    const CONSENT_CONTENT = {
+      rgpd: {
+        title: 'Declaração de Consentimento — RGPD',
+        body: `
+          <p>Nos termos do Regulamento Geral sobre a Proteção de Dados (RGPD — Regulamento UE 2016/679), 
+          o/a doente abaixo identificado/a presta o seguinte consentimento para o tratamento dos seus 
+          dados pessoais e de saúde.</p>
+          <p>O responsável pelo tratamento é o médico assistente, no âmbito da prestação de cuidados de 
+          saúde. Os dados serão tratados exclusivamente para as finalidades indicadas e não serão 
+          cedidos a terceiros sem consentimento expresso.</p>
+          <p>Assiste-lhe o direito de acesso, rectificação, apagamento, portabilidade e oposição, 
+          exercíveis por escrito junto do médico assistente.</p>
+        `
+      },
+      prp: {
+        title: 'Consentimento Informado — PRP (Plasma Rico em Plaquetas)',
+        body: `
+          <p><strong>O que é o PRP?</strong> O Plasma Rico em Plaquetas é preparado a partir do próprio 
+          sangue do doente. Envolve uma colheita venosa, centrifugação para concentrar as plaquetas 
+          e posterior injecção na zona a tratar.</p>
+          <p><strong>Objectivo terapêutico:</strong> Promover a regeneração tecidular e reduzir a inflamação 
+          crónica em patologias músculo-esqueléticas.</p>
+          <p><strong>Riscos e complicações possíveis:</strong></p>
+          <ul>
+            <li>Dor local transitória no local de injecção (24–72h)</li>
+            <li>Hematoma ou equimose local</li>
+            <li>Infecção (risco muito baixo — procedimento asséptico)</li>
+            <li>Reacção vasovagal durante ou após a colheita</li>
+            <li>Ausência de resposta clínica (o PRP não garante resultado em todos os doentes)</li>
+          </ul>
+          <p><strong>Alternativas terapêuticas:</strong> Fisioterapia, infiltração corticosteróide, 
+          viscossuplementação, tratamento cirúrgico.</p>
+          <p>Declaro que fui informado/a sobre o procedimento, os seus riscos e as alternativas disponíveis, 
+          e que tive oportunidade de colocar as minhas dúvidas ao médico assistente.</p>
+        `
+      },
+      acido_hialuronico: {
+        title: 'Consentimento Informado — Viscossuplementação (Ácido Hialurónico)',
+        body: `
+          <p><strong>O que é a viscossuplementação?</strong> A injecção intra-articular de ácido hialurónico 
+          tem como objectivo restaurar as propriedades viscoelásticas do líquido sinovial, reduzindo 
+          a dor e melhorando a função articular.</p>
+          <p><strong>Indicações principais:</strong> Osteoartrose do joelho, ombro, anca e outras articulações.</p>
+          <p><strong>Riscos e complicações possíveis:</strong></p>
+          <ul>
+            <li>Dor e tumefacção local transitória (24–72h)</li>
+            <li>Reacção inflamatória articular aguda (pseudo-séptica) — rara</li>
+            <li>Infecção articular — risco muito baixo</li>
+            <li>Hematoma peri-articular</li>
+            <li>Ausência de resposta clínica</li>
+          </ul>
+          <p><strong>Alternativas terapêuticas:</strong> Fisioterapia, analgésicos, infiltração corticosteróide, 
+          PRP, tratamento cirúrgico.</p>
+          <p>Declaro que fui informado/a sobre o procedimento, os seus riscos e as alternativas disponíveis, 
+          e que tive oportunidade de colocar as minhas dúvidas ao médico assistente.</p>
+        `
+      },
+      corticoide: {
+        title: 'Consentimento Informado — Infiltração de Corticosteróide',
+        body: `
+          <p><strong>O que é uma infiltração de corticosteróide?</strong> Consiste na injecção de um 
+          corticosteróide (anti-inflamatório) na região a tratar — articulação, bursa, tendão ou 
+          tecidos peri-articulares — com o objectivo de reduzir a inflamação e a dor.</p>
+          <p><strong>Riscos e complicações possíveis:</strong></p>
+          <ul>
+            <li>Dor e tumefacção local transitória após a injecção (24–48h)</li>
+            <li>Rubor facial transitório (flush)</li>
+            <li>Aumento transitório da glicemia em doentes diabéticos</li>
+            <li>Atrofia cutânea ou hipopigmentação local (injecções superficiais repetidas)</li>
+            <li>Lesão tendinosa com infiltrações repetidas no mesmo local</li>
+            <li>Infecção — risco muito baixo</li>
+            <li>Ausência de resposta clínica</li>
+          </ul>
+          <p><strong>Alternativas terapêuticas:</strong> Fisioterapia, AINEs, viscossuplementação, 
+          PRP, tratamento cirúrgico.</p>
+          <p>Declaro que fui informado/a sobre o procedimento, os seus riscos e as alternativas disponíveis, 
+          e que tive oportunidade de colocar as minhas dúvidas ao médico assistente.</p>
+        `
+      }
+    };
+
+    // ── Labels legíveis ─────────────────────────────────────────────────────────
+    const TYPE_LABELS = {
+      rgpd: 'RGPD',
+      prp: 'PRP',
+      acido_hialuronico: 'Ácido Hialurónico',
+      corticoide: 'Corticóide'
+    };
+
+    const JOINT_OPTIONS = [
+      'Joelho direito', 'Joelho esquerdo',
+      'Ombro direito', 'Ombro esquerdo',
+      'Anca direita', 'Anca esquerda',
+      'Tornozelo direito', 'Tornozelo esquerdo',
+      'Cotovelo direito', 'Cotovelo esquerdo',
+      'Punho direito', 'Punho esquerdo',
+      'Coluna cervical', 'Coluna lombar',
+      'Outra (especificar nas observações)'
+    ];
+
+    // ── Estado global ───────────────────────────────────────────────────────────
+    let tokenData = null;
+    let signatureHasContent = false;
+
+    // ── Utilitários ─────────────────────────────────────────────────────────────
+    const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
+    const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
+    const showFlex = id => { const el = document.getElementById(id); if (el) el.style.display = 'flex'; };
+
+    function formatDateTime(iso) {
+      return new Date(iso).toLocaleString('pt-PT', {
+        day: '2-digit', month: 'long', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    }
+
+    // ── Inicialização ────────────────────────────────────────────────────────────
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+
+      if (!token) {
+        hide('state-loading');
+        showFlex('state-invalid');
+        return;
+      }
+
+      // Buscar token na BD
+      const { data, error } = await supabase
+        .from('consent_tokens')
+        .select('id, token, patient_id, clinic_id, document_type, document_data, status, expires_at, signed_at')
+        .eq('token', token)
+        .maybeSingle();
+
+      hide('state-loading');
+
+      if (error || !data) {
+        showFlex('state-invalid');
+        return;
+      }
+
+      // Já assinado?
+      if (data.status === 'signed') {
+        renderSigned(data);
+        return;
+      }
+
+      // Expirado?
+      if (data.status === 'expired' || new Date(data.expires_at) < new Date()) {
+        showFlex('state-invalid');
+        document.querySelector('#state-invalid .state-sub').textContent =
+          'Este link expirou. Peça à secretária para gerar um novo link.';
+        return;
+      }
+
+      tokenData = data;
+      renderForm(data);
+    }
+
+    // ── Renderizar estado "já assinado" ─────────────────────────────────────────
+    function renderSigned(data) {
+      document.getElementById('signed-name').textContent = data.document_data?.patient_name || '';
+      document.getElementById('signed-time').textContent =
+        data.signed_at ? 'Assinado em ' + formatDateTime(data.signed_at) : '';
+      showFlex('state-signed');
+    }
+
+    // ── Renderizar formulário ───────────────────────────────────────────────────
+    function renderForm(data) {
+      const type = data.document_type;
+      const content = CONSENT_CONTENT[type] || CONSENT_CONTENT.rgpd;
+      const docData = data.document_data || {};
+
+      // Header
+      document.getElementById('header-clinic').textContent =
+        docData.clinic_name || 'GC · João Morais';
+      document.getElementById('header-title').textContent =
+        TYPE_LABELS[type] || 'Consentimento';
+
+      // Texto do consentimento
+      document.getElementById('consent-text-title').textContent = content.title;
+      document.getElementById('consent-text-body').innerHTML = content.body;
+
+      // Campos dinâmicos
+      const container = document.getElementById('dynamic-fields');
+
+      if (type === 'rgpd') {
+        renderRgpdFields(container);
+      } else {
+        renderProcedureFields(container, type, docData);
+      }
+
+      // Pré-preencher nome se vier no token
+      if (docData.patient_name) {
+        document.getElementById('patient-name').value = docData.patient_name;
+      }
+
+      show('state-form');
+      initSignatureCanvas();
+    }
+
+    // ── Campos RGPD ─────────────────────────────────────────────────────────────
+    function renderRgpdFields(container) {
+      const checkboxes = [
+        { id: 'rgpd_health_care',       label: 'Tratamento de dados de saúde para prestação de cuidados médicos', sub: 'Necessário para o funcionamento do processo clínico' },
+        { id: 'rgpd_contact',           label: 'Contacto para marcações e comunicações clínicas', sub: 'Chamadas, SMS ou e-mail relacionados com a sua saúde' },
+        { id: 'rgpd_billing',           label: 'Tratamento de dados para fins de faturação', sub: 'Emissão de recibos e gestão administrativa' },
+        { id: 'rgpd_digital_storage',   label: 'Armazenamento digital do processo clínico', sub: 'Consultas, exames e relatórios em sistema seguro' },
+        { id: 'rgpd_digital_sign',      label: 'Assinatura digital de documentos clínicos', sub: 'Consentimentos, relatórios e declarações' },
+        { id: 'rgpd_reminders',         label: 'Envio de lembretes de consulta', sub: 'Notificações automáticas antes das marcações' },
+        { id: 'rgpd_communications',    label: 'Comunicações sobre saúde e bem-estar', sub: 'Informações relevantes para o seu estado clínico' },
+        { id: 'rgpd_research',          label: 'Utilização de dados anonimizados para investigação científica', sub: 'Sem identificação pessoal, para fins académicos' },
+      ];
+
+      container.innerHTML = `
+        <div class="form-section">
+          <div class="form-section-title">Autorizo</div>
+          ${checkboxes.map(cb => `
+            <div class="checkbox-row">
+              <input type="checkbox" id="${cb.id}" name="${cb.id}" checked>
+              <label class="checkbox-label" for="${cb.id}">
+                ${cb.label}
+                <span>${cb.sub}</span>
+              </label>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // ── Campos procedimentos (PRP / AH / Corticóide) ────────────────────────────
+    function renderProcedureFields(container, type, docData) {
+      const jointOptions = JOINT_OPTIONS.map(j =>
+        `<option value="${j}" ${docData.joint === j ? 'selected' : ''}>${j}</option>`
+      ).join('');
+
+      const techniqueField = type === 'prp' ? `
+        <div class="field-group">
+          <label class="field-label" for="technique">Técnica utilizada</label>
+          <input type="text" id="technique" placeholder="Ex: PRP autólogo, activação com CaCl₂..." value="${docData.technique || ''}">
+        </div>
+      ` : '';
+
+      container.innerHTML = `
+        <div class="form-section">
+          <div class="form-section-title">Dados do procedimento</div>
+          <div class="field-group">
+            <label class="field-label" for="joint-treated">
+              Articulação / local tratado <span class="field-required">*</span>
+            </label>
+            <div class="select-wrap">
+              <select id="joint-treated">
+                <option value="">Seleccionar...</option>
+                ${jointOptions}
+              </select>
+            </div>
+          </div>
+          ${techniqueField}
+          <div class="field-group">
+            <label class="field-label" for="patient-questions">
+              Questões ou observações (opcional)
+            </label>
+            <textarea id="patient-questions" rows="3" 
+              placeholder="Escreva aqui qualquer dúvida ou observação que queira registar...">${docData.patient_questions || ''}</textarea>
+          </div>
+        </div>
+      `;
+    }
+
+    // ── Canvas de assinatura ────────────────────────────────────────────────────
+    function initSignatureCanvas() {
+      const canvas = document.getElementById('sig-canvas');
+      const ctx = canvas.getContext('2d');
+
+      // Escalar para ecrã retina
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        ctx.strokeStyle = '#1a56db';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+      }
+      resize();
+
+      let drawing = false;
+      let lastX = 0, lastY = 0;
+
+      function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches ? e.touches[0] : e;
+        return {
+          x: touch.clientX - rect.left,
+          y: touch.clientY - rect.top
+        };
+      }
+
+      function startDraw(e) {
+        e.preventDefault();
+        drawing = true;
+        const pos = getPos(e);
+        lastX = pos.x; lastY = pos.y;
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+      }
+
+      function draw(e) {
+        if (!drawing) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        lastX = pos.x; lastY = pos.y;
+        signatureHasContent = true;
+        canvas.classList.add('has-drawing');
+      }
+
+      function stopDraw(e) {
+        drawing = false;
+      }
+
+      canvas.addEventListener('mousedown', startDraw);
+      canvas.addEventListener('mousemove', draw);
+      canvas.addEventListener('mouseup', stopDraw);
+      canvas.addEventListener('mouseleave', stopDraw);
+      canvas.addEventListener('touchstart', startDraw, { passive: false });
+      canvas.addEventListener('touchmove', draw, { passive: false });
+      canvas.addEventListener('touchend', stopDraw);
+
+      document.getElementById('sig-clear').addEventListener('click', () => {
+        ctx.clearRect(0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
+        signatureHasContent = false;
+        canvas.classList.remove('has-drawing');
+      });
+    }
+
+    // ── Submissão ───────────────────────────────────────────────────────────────
+    document.getElementById('submit-btn').addEventListener('click', async () => {
+      const errorEl = document.getElementById('error-msg');
+      errorEl.style.display = 'none';
+
+      const name = document.getElementById('patient-name').value.trim();
+      if (!name) {
+        errorEl.textContent = 'Por favor, escreva o seu nome completo.';
+        errorEl.style.display = 'block';
+        document.getElementById('patient-name').focus();
+        return;
+      }
+
+      if (!signatureHasContent) {
+        errorEl.textContent = 'Por favor, assine na área indicada antes de submeter.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      const type = tokenData.document_type;
+
+      // Validar articulação (procedimentos)
+      if (type !== 'rgpd') {
+        const joint = document.getElementById('joint-treated')?.value;
+        if (!joint) {
+          errorEl.textContent = 'Por favor, seleccione a articulação / local tratado.';
+          errorEl.style.display = 'block';
+          return;
+        }
+      }
+
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'A submeter...';
+      btn.classList.add('loading');
+
+      try {
+        // Capturar assinatura como PNG base64
+        const canvas = document.getElementById('sig-canvas');
+        const sigDataUrl = canvas.toDataURL('image/png');
+
+        // Construir payload da assinatura
+        const payload = {
+          token_id: tokenData.id,
+          patient_name_typed: name,
+          user_agent: navigator.userAgent,
+          signed_at: new Date().toISOString(),
+          // signature_image: sigDataUrl  // opcional — guardar imagem da assinatura
+        };
+
+        if (type === 'rgpd') {
+          payload.rgpd_health_care    = document.getElementById('rgpd_health_care')?.checked ?? false;
+          payload.rgpd_contact        = document.getElementById('rgpd_contact')?.checked ?? false;
+          payload.rgpd_billing        = document.getElementById('rgpd_billing')?.checked ?? false;
+          payload.rgpd_digital_storage= document.getElementById('rgpd_digital_storage')?.checked ?? false;
+          payload.rgpd_digital_sign   = document.getElementById('rgpd_digital_sign')?.checked ?? false;
+          payload.rgpd_reminders      = document.getElementById('rgpd_reminders')?.checked ?? false;
+          payload.rgpd_communications = document.getElementById('rgpd_communications')?.checked ?? false;
+          payload.rgpd_research       = document.getElementById('rgpd_research')?.checked ?? false;
+        } else {
+          payload.joint_treated      = document.getElementById('joint-treated')?.value || null;
+          payload.patient_questions  = document.getElementById('patient-questions')?.value || null;
+          if (type === 'prp') {
+            payload.technique = document.getElementById('technique')?.value || null;
+          }
+        }
+
+        // 1. Inserir assinatura
+        const { error: sigError } = await supabase
+          .from('consent_signatures')
+          .insert(payload);
+
+        if (sigError) throw sigError;
+
+        // 2. Actualizar status do token para 'signed'
+        const { error: tokenError } = await supabase
+          .from('consent_tokens')
+          .update({ status: 'signed', signed_at: payload.signed_at })
+          .eq('id', tokenData.id);
+
+        if (tokenError) throw tokenError;
+
+        // Mostrar estado de sucesso
+        hide('state-form');
+        document.getElementById('signed-name').textContent = name;
+        document.getElementById('signed-time').textContent =
+          'Assinado em ' + formatDateTime(payload.signed_at);
+        showFlex('state-signed');
+
+      } catch (err) {
+        console.error('Erro ao submeter consentimento:', err);
+        errorEl.textContent = 'Ocorreu um erro ao submeter. Por favor tente novamente ou peça ajuda à secretária.';
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Assinar e submeter';
+        btn.classList.remove('loading');
+      }
+    });
+
+    // ── Arranque ─────────────────────────────────────────────────────────────────
+    init();
+  </script>
+</body>
+</html>

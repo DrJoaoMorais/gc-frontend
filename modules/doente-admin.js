@@ -3,6 +3,7 @@
    ======================================================== */
 
 import { G } from "./state.js";
+import { openQrModal } from "./consentimentos_qr.js";
 export async function renderDoentePanorama(patientId) {
   const supabase = window.sb;
   const root = document.getElementById("gcDoentePanoramaRoot");
@@ -34,7 +35,6 @@ export async function renderDoentePanorama(patientId) {
   const { data: tokens } = await supabase
     .from("consent_tokens")
     .select("id, created_at, expires_at, clinic_id, document_type, status")
-    .eq("document_type", "rgpd")
     .eq("patient_id", patientId)
     .order("created_at", { ascending: false })
     .limit(10);
@@ -206,13 +206,14 @@ export async function renderDoentePanorama(patientId) {
       <div class="dpa-card-title">Consentimentos</div>
       <div id="dpaConsentimentos">
         ${(tokens && tokens.length > 0) ? tokens.map(t => {
-          const exp = new Date(t.expires_at);
-          const assinado = exp < hoje;
+          const assinado = t.status === "signed";
           const badge = assinado
             ? `<span class="dpa-badge dpa-badge-green">assinado</span>`
             : `<span class="dpa-badge dpa-badge-amber">pendente</span>`;
+          const labelMap = { rgpd:"RGPD", prp:"PRP", corticoide:"Corticóide", acido_hialuronico:"Ác. Hialurónico" };
+          const label = labelMap[t.document_type] || t.document_type || "—";
           const dataStr = new Date(t.created_at).toLocaleDateString("pt-PT", { day:"numeric", month:"short", year:"numeric" });
-          return `<div class="dpa-consent-item"><div><div style="font-weight:600">${t.type || "RGPD"}</div><div style="font-size:11px;color:#94a3b8;">${dataStr}</div></div>${badge}</div>`;
+          return `<div class="dpa-consent-item"><div><div style="font-weight:600">${label}</div><div style="font-size:11px;color:#94a3b8;">${dataStr}</div></div>${badge}</div>`;
         }).join("") : `<div style="color:#94a3b8;font-size:13px;padding:8px 0;">Sem consentimentos registados.</div>`}
       </div>
       <button class="dpa-btn" style="width:100%;margin-top:12px;text-align:center;" id="dpaNovoConsentBtn">+ novo consentimento</button>
@@ -327,6 +328,15 @@ export async function renderDoentePanorama(patientId) {
         document.getElementById("btnEditIdent")?.click();
       }, 600);
     }
+  });
+
+  document.getElementById("dpaNovoConsentBtn").addEventListener("click", () => {
+    openQrModal({
+      patient:  pt,
+      clinicId: clinicaId,
+      clinic:   clinica,
+      onSigned: () => renderDoentePanorama(patientId),
+    });
   });
 }
 
