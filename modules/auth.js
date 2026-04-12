@@ -234,7 +234,6 @@ export async function fetchVisibleClinics() {
     listenersOn = true;
     const opts = { passive: true, capture: true };
     window.addEventListener("click",      onAnyActivity,      opts);
-    window.addEventListener("mousemove",  onAnyActivity,      opts);
     window.addEventListener("keydown",    onAnyActivity,      opts);
     window.addEventListener("scroll",     onAnyActivity,      opts);
     window.addEventListener("touchstart", onAnyActivity,      opts);
@@ -246,7 +245,6 @@ export async function fetchVisibleClinics() {
     if (!listenersOn) return;
     listenersOn = false;
     window.removeEventListener("click",      onAnyActivity, true);
-    window.removeEventListener("mousemove",  onAnyActivity, true);
     window.removeEventListener("keydown",    onAnyActivity, true);
     window.removeEventListener("scroll",     onAnyActivity, true);
     window.removeEventListener("touchstart", onAnyActivity, true);
