@@ -4054,57 +4054,25 @@ function openPatientViewModal(patient) {
     document.getElementById("btnEditIdent")?.addEventListener("click", () => openPatientIdentity("edit"));
     document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
 
-    // RGPD
-    document.getElementById("btnRgpd")?.addEventListener("click", () => {
+    function openQrGuarded(type) {
+      if (consentStatus[type] &&
+          !confirm(`O consentimento "${type.toUpperCase()}" já foi assinado.\nPretende gerar um novo?`)) return;
       openQrModal({
-        type: "rgpd",
+        type,
         patient: p,
         clinicId: activeClinicId,
         clinic: activeClinicData,
-        onSigned: async () => {
-          await loadConsentStatus();
-          render();
-        },
+        onSigned: async () => { await loadConsentStatus(); render(); },
       });
-    });
+    }
+
+    // RGPD
+    document.getElementById("btnRgpd")?.addEventListener("click", () => openQrGuarded("rgpd"));
 
     // Consentimentos
-    document.getElementById("btnConsentPrp")?.addEventListener("click", () => {
-      openQrModal({
-        type: "prp",
-        patient: p,
-        clinicId: activeClinicId,
-        clinic: activeClinicData,
-        onSigned: async () => {
-          await loadConsentStatus();
-          render();
-        },
-      });
-    });
-    document.getElementById("btnConsentAh")?.addEventListener("click", () => {
-      openQrModal({
-        type: "ah",
-        patient: p,
-        clinicId: activeClinicId,
-        clinic: activeClinicData,
-        onSigned: async () => {
-          await loadConsentStatus();
-          render();
-        },
-      });
-    });
-    document.getElementById("btnConsentInfilt")?.addEventListener("click", () => {
-      openQrModal({
-        type: "corticoide",
-        patient: p,
-        clinicId: activeClinicId,
-        clinic: activeClinicData,
-        onSigned: async () => {
-          await loadConsentStatus();
-          render();
-        },
-      });
-    });
+    document.getElementById("btnConsentPrp")?.addEventListener("click",    () => openQrGuarded("prp"));
+    document.getElementById("btnConsentAh")?.addEventListener("click",     () => openQrGuarded("ah"));
+    document.getElementById("btnConsentInfilt")?.addEventListener("click", () => openQrGuarded("corticoide"));
 
     // Evolução — em breve
     document.getElementById("btnEvolucao")?.addEventListener("click", () => {

@@ -53,17 +53,31 @@ const CONSENT_TITLES = {
 export async function checkConsentStatus(patientId, clinicId) {
   if (!patientId || !clinicId) return {};
   try {
-    const { data, error } = await window.sb
+    const signed = {};
+
+    // Fluxo antigo — tabela consents
+    const { data: oldData } = await window.sb
       .from("consents")
       .select("type")
       .eq("patient_id", patientId)
       .eq("clinic_id", clinicId)
       .eq("status", "signed");
+    (oldData || []).forEach(r => { signed[r.type] = true; });
 
-    if (error) { console.warn("checkConsentStatus:", error); return {}; }
+    // Fluxo QR — tabela consent_tokens
+    // document_type 'acido_hialuronico' mapeia para chave 'ah
+    const typeMap = { acido_hialuronico: "ah" };
+    const { data: newData } = await window.sb
+      .from("consent_tokens")
+      .select("document_type")
+      .eq("patient_id", patientId)
+      .eq("clinic_id", clinicId)
+      .eq("status", "signed");
+    (newData || []).forEach(r => {
+      const key = typeMap[r.document_type] || r.document_type;
+      signed[key] = true;
+    });
 
-    const signed = {};
-    (data || []).forEach(r => { signed[r.type] = true; });
     return signed;
   } catch (e) {
     console.warn("checkConsentStatus:", e);
