@@ -121,6 +121,13 @@ export async function boot() {
     G.clinicsById = {};
     for (const c of G.clinics) G.clinicsById[c.id] = c;
 
+    /* Tipos de procedimento */
+    try {
+      G.procedureTypes = await fetchProcedureTypes();
+    } catch (e) {
+      G.procedureTypes = [];
+    }
+
     await renderCurrentView();
 
   // Verificar pendentes em background — sem bloquear o arranque
