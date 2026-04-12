@@ -195,10 +195,21 @@ export function openQrModal({ patient, clinicId, clinic, type, onSigned }) {
           <a href="${escH(signUrl)}" target="_blank" style="color:#3b82f6;">${escH(signUrl)}</a>
         </div>
 
+        <div style="border-top:1px solid #e2e8f0; padding-top:12px; text-align:center; width:100%;">
+          <button id="gcQrPresencialQr" style="
+            background:none; border:none; cursor:pointer;
+            font-size:12px; color:#64748b; text-decoration:underline;
+          ">📄 Assinar presencialmente (PDF + papel)</button>
+        </div>
+
       </div>
     `);
 
     wireClose();
+    document.getElementById("gcQrPresencialQr")?.addEventListener("click", () => {
+      close();
+      openConsentModal({ type: selectedType, patient, clinicId, clinic, onSaved: onSigned });
+    });
   }
 
   function renderSigned() {
