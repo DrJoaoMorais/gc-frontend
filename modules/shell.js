@@ -249,7 +249,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
 
     <!-- TOPBAR -->
     <header class="gc-topbar">
-      <span class="gc-topbar-user" id="hdrEmail">Dr. João Morais</span>
+      <span class="gc-topbar-user" id="hdrEmail"></span>
       <span class="gc-topbar-role" id="hdrRole"></span>
       <div class="gc-topbar-spacer"></div>
       <span class="gc-topbar-clinics"><span id="hdrClinicCount">0</span> clínicas</span>
@@ -292,7 +292,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
 
 export function hydrateShellHeader() {
   const hdrEmail = document.getElementById("hdrEmail");
-  if (hdrEmail) hdrEmail.textContent = G.sessionUser?.email || "Dr. João Morais";
+  if (hdrEmail) hdrEmail.textContent = G.sessionUser?.email || "";
 
   const hdrRole = document.getElementById("hdrRole");
   const roleLabels = {
