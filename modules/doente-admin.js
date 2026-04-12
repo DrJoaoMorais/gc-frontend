@@ -3,9 +3,8 @@
    ======================================================== */
 
 import { G } from "./state.js";
-const supabase = window.sb;
-
 export async function renderDoentePanorama(patientId) {
+  const supabase = window.sb;
   const root = document.getElementById("gcDoentePanoramaRoot");
   if (!root) return;
 
