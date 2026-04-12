@@ -769,20 +769,12 @@
           }
         }
 
-        // 1. Inserir assinatura
-        const { error: sigError } = await supabase
-          .from('consent_signatures')
-          .insert(payload);
-
-        if (sigError) { console.error('STEP1 consent_signatures insert:', JSON.stringify(sigError, null, 2)); throw sigError; }
-
-        // 2. Actualizar status do token para 'signed' (via RPC SECURITY DEFINER)
-        const { error: tokenError } = await supabase.rpc('sign_consent_token', {
-          p_token_id:  tokenData.id,
-          p_signed_at: payload.signed_at,
+        // Inserir assinatura + marcar token como signed (RPC SECURITY DEFINER)
+        const { error: submitError } = await supabase.rpc('submit_consent_signature', {
+          payload,
         });
 
-        if (tokenError) { console.error('STEP2 sign_consent_token rpc:', JSON.stringify(tokenError, null, 2)); throw tokenError; }
+        if (submitError) { console.error('submit_consent_signature rpc:', JSON.stringify(submitError, null, 2)); throw submitError; }
 
         // Mostrar estado de sucesso
         hide('state-form');
