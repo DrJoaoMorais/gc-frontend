@@ -291,12 +291,12 @@ async function renderCurrentView() {
   }
 
   /* Permissões */
-  const podeAgendar = ["super_admin","admin","medico","administrativo"];
+  const podeAgendar = ["super_admin","admin","medico","administrativo","fisioterapeuta"];
   if (btnNew && G.role && !podeAgendar.includes(String(G.role).toLowerCase())) {
     btnNew.disabled = true;
     btnNew.title    = "Sem permissão para criar marcações.";
   }
-  const podeCriarDoente = ["super_admin","admin","medico","administrativo"];
+  const podeCriarDoente = ["super_admin","admin","medico","administrativo","fisioterapeuta"];
   if (btnNewPatientMain && G.role && !podeCriarDoente.includes(String(G.role).toLowerCase())) {
     btnNewPatientMain.disabled = true;
     btnNewPatientMain.title    = "Sem permissão para criar doentes.";
