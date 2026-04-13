@@ -4054,15 +4054,94 @@ function openPatientViewModal(patient) {
     document.getElementById("btnEditIdent")?.addEventListener("click", () => openPatientIdentity("edit"));
     document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
 
-    function openQrGuarded(type) {
-      if (consentStatus[type] &&
-          !confirm(`O consentimento "${type.toUpperCase()}" já foi assinado.\nPretende gerar um novo?`)) return;
-      openQrModal({
-        type,
-        patient: p,
-        clinicId: activeClinicId,
-        clinic: activeClinicData,
-        onSigned: async () => { await loadConsentStatus(); render(); },
+    const TYPE_LABELS_GUARD = {
+      rgpd: "RGPD", prp: "PRP", ah: "Ác. Hialurónico", corticoide: "Corticosteroide",
+    };
+
+    async function openQrGuarded(type) {
+      if (!consentStatus[type]) {
+        openQrModal({ type, patient: p, clinicId: activeClinicId, clinic: activeClinicData,
+          onSigned: async () => { await loadConsentStatus(); render(); } });
+        return;
+      }
+
+      // Buscar data de assinatura e PDF do token mais recente
+      const docType = type === "ah" ? "acido_hialuronico" : type;
+      const { data: tokens } = await window.sb
+        .from("consent_tokens")
+        .select("id, signed_at")
+        .eq("patient_id", p.id)
+        .eq("clinic_id", activeClinicId)
+        .in("document_type", [type, docType])
+        .eq("status", "signed")
+        .order("signed_at", { ascending: false })
+        .limit(1);
+
+      const token   = tokens?.[0];
+      const sigDate = token?.signed_at
+        ? new Date(token.signed_at).toLocaleDateString("pt-PT", { day:"numeric", month:"long", year:"numeric" })
+        : "data desconhecida";
+
+      // Buscar PDF da assinatura
+      let pdfUrl = null;
+      if (token) {
+        const { data: sigs } = await window.sb
+          .from("consent_signatures")
+          .select("pdf_url")
+          .eq("token_id", token.id)
+          .not("pdf_url", "is", null)
+          .limit(1);
+        pdfUrl = sigs?.[0]?.pdf_url || null;
+      }
+
+      // Modal de escolha
+      const overlay = document.createElement("div");
+      Object.assign(overlay.style, {
+        position:"fixed", inset:"0", zIndex:"6000",
+        background:"rgba(15,23,42,0.55)",
+        display:"flex", alignItems:"center", justifyContent:"center", padding:"16px",
+      });
+      overlay.innerHTML = `
+        <div style="background:#fff; border-radius:14px; padding:28px 24px; width:min(380px,96vw);
+                    box-shadow:0 20px 60px rgba(0,0,0,0.3); display:flex; flex-direction:column; gap:16px;">
+          <div style="font-size:15px; font-weight:700; color:#0f2d52;">
+            ${TYPE_LABELS_GUARD[type] || type} — já assinado
+          </div>
+          <div style="font-size:13px; color:#475569;">
+            Assinado em <strong>${sigDate}</strong>.
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            ${pdfUrl
+              ? `<a id="gcGuardView" href="${pdfUrl}" target="_blank"
+                   style="display:block; text-align:center; padding:10px; border-radius:10px;
+                          background:#0f2d52; color:#fff; font-weight:700; font-size:14px;
+                          text-decoration:none; cursor:pointer;">
+                   📄 Visualizar consentimento
+                 </a>`
+              : `<div style="text-align:center; padding:10px; border-radius:10px;
+                             background:#f1f5f9; color:#94a3b8; font-size:13px;">
+                   PDF não disponível
+                 </div>`}
+            <button id="gcGuardNew" style="padding:10px; border-radius:10px; border:1.5px solid #e2e8f0;
+              background:#fff; color:#0f2d52; font-size:14px; font-weight:600; cursor:pointer;">
+              + Gerar novo consentimento
+            </button>
+            <button id="gcGuardCancel" style="padding:8px; border-radius:10px; border:none;
+              background:none; color:#94a3b8; font-size:13px; cursor:pointer;">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const close = () => overlay.remove();
+      document.getElementById("gcGuardCancel")?.addEventListener("click", close);
+      overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+      document.getElementById("gcGuardNew")?.addEventListener("click", () => {
+        close();
+        openQrModal({ type, patient: p, clinicId: activeClinicId, clinic: activeClinicData,
+          onSigned: async () => { await loadConsentStatus(); render(); } });
       });
     }
 
