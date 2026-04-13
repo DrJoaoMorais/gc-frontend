@@ -4074,7 +4074,7 @@ function openPatientViewModal(patient) {
         .select("id, signed_at")
         .eq("patient_id", p.id)
         .eq("clinic_id", activeClinicId)
-        .in("document_type", [type, docType])
+        .eq("document_type", docType)
         .eq("status", "signed")
         .order("signed_at", { ascending: false })
         .limit(1);
