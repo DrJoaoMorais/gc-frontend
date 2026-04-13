@@ -2377,15 +2377,27 @@ export function wireAgendaTopbar() {
   });
 
   document.getElementById("btnPrevDay")?.addEventListener("click", async () => {
-    G.selectedDayISO = __gcAddDaysToISO(G.selectedDayISO || fmtDateISO(new Date()), -1);
-    setAgendaSubtitleForSelectedDay();
-    await refreshAgenda();
+    const inWeekView = !!document.getElementById("weekOverlay");
+    if (inWeekView) {
+      G.weekStartISO = __gcAddDaysToISO(G.weekStartISO, -7);
+      openWeekView();
+    } else {
+      G.selectedDayISO = __gcAddDaysToISO(G.selectedDayISO || fmtDateISO(new Date()), -1);
+      setAgendaSubtitleForSelectedDay();
+      await refreshAgenda();
+    }
   });
 
   document.getElementById("btnNextDay")?.addEventListener("click", async () => {
-    G.selectedDayISO = __gcAddDaysToISO(G.selectedDayISO || fmtDateISO(new Date()), 1);
-    setAgendaSubtitleForSelectedDay();
-    await refreshAgenda();
+    const inWeekView = !!document.getElementById("weekOverlay");
+    if (inWeekView) {
+      G.weekStartISO = __gcAddDaysToISO(G.weekStartISO, 7);
+      openWeekView();
+    } else {
+      G.selectedDayISO = __gcAddDaysToISO(G.selectedDayISO || fmtDateISO(new Date()), 1);
+      setAgendaSubtitleForSelectedDay();
+      await refreshAgenda();
+    }
   });
 
   document.getElementById("btnNewAppt")?.addEventListener("click", () => {
