@@ -603,7 +603,12 @@
       const techniqueField = type === 'prp' ? `
         <div class="field-group">
           <label class="field-label" for="technique">Técnica utilizada</label>
-          <input type="text" id="technique" placeholder="Ex: PRP autólogo, activação com CaCl₂..." value="${docData.technique || ''}">
+          <div class="select-wrap">
+            <select id="technique">
+              <option value="Anatómica" ${docData.technique === 'Anatómica' ? 'selected' : ''}>Anatómica</option>
+              <option value="Ecoguiada" ${docData.technique === 'Ecoguiada' ? 'selected' : ''}>Ecoguiada</option>
+            </select>
+          </div>
         </div>
       ` : '';
 
