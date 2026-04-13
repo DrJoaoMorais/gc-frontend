@@ -4059,14 +4059,16 @@ function openPatientViewModal(patient) {
     };
 
     async function openQrGuarded(type) {
+      // Normalizar "ah" → "acido_hialuronico" para corresponder ao enum na BD
+      const docType = type === "ah" ? "acido_hialuronico" : type;
+
       if (!consentStatus[type]) {
-        openQrModal({ type, patient: p, clinicId: activeClinicId, clinic: activeClinicData,
+        openQrModal({ type: docType, patient: p, clinicId: activeClinicId, clinic: activeClinicData,
           onSigned: async () => { await loadConsentStatus(); render(); } });
         return;
       }
 
       // Buscar data de assinatura e PDF do token mais recente
-      const docType = type === "ah" ? "acido_hialuronico" : type;
       const { data: tokens } = await window.sb
         .from("consent_tokens")
         .select("id, signed_at")
@@ -4140,7 +4142,7 @@ function openPatientViewModal(patient) {
       overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
       document.getElementById("gcGuardNew")?.addEventListener("click", () => {
         close();
-        openQrModal({ type, patient: p, clinicId: activeClinicId, clinic: activeClinicData,
+        openQrModal({ type: docType, patient: p, clinicId: activeClinicId, clinic: activeClinicData,
           onSigned: async () => { await loadConsentStatus(); render(); } });
       });
     }
