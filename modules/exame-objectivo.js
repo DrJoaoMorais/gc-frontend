@@ -6,7 +6,7 @@ import { openEscalaFuncional } from "./escalas.js";
    Dependências externas: openEscalaFuncional (escalas.js)
    ======================================================== */
 
-function openExameObjectivoMenu(anchorBtn) {
+function openExameObjectivoMenu(anchorBtn, ctx = {}) {
   document.getElementById("gcExObjMenu")?.remove();
 
   const menu = document.createElement("div");
@@ -107,13 +107,14 @@ function openExameObjectivoMenu(anchorBtn) {
         btn.addEventListener("click", () => {
           menu.remove();
           if (item.id === "escalas_mfr") { openEscalaFuncional(); }
-          else { openExameObjectivoForm(item.id); }
+          else { openExameObjectivoForm(item.id, menu._ctx || {}); }
         });
       }
       menu.appendChild(btn);
     });
   });
 
+  menu._ctx = ctx;
   document.body.appendChild(menu);
   setTimeout(() => {
     const close = (ev) => {
@@ -125,7 +126,7 @@ function openExameObjectivoMenu(anchorBtn) {
   }, 50);
 }
 
-function openExameObjectivoForm(formId) {
+function openExameObjectivoForm(formId, ctx = {}) {
   if (formId === "incont") {
     _abrirBlob(`<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8"><title>Pavimento Pélvico</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#0f172a;background:#f8fafc}.page{max-width:900px;margin:0 auto;padding:20px}h1{font-size:18px;font-weight:700;color:#0f2d52;margin-bottom:4px}.sub{font-size:12px;color:#64748b;margin-bottom:18px}.sec{background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin-bottom:10px}.st{font-size:13px;font-weight:700;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:8px}.num{width:22px;height:22px;border-radius:50%;background:#1a56db;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}.gl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin-bottom:6px;margin-top:12px}.gl:first-child{margin-top:0}textarea{width:100%;border:0.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;resize:vertical;min-height:64px;background:#f8fafc;color:#0f172a;font-family:inherit}.inp{width:100%;border:0.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;background:#f8fafc;color:#0f172a;font-family:inherit}.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.rg{display:flex;flex-direction:column;gap:4px;margin-top:4px}.ri{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}.ri input{width:14px;height:14px;accent-color:#1a56db;flex-shrink:0}.cg{display:flex;flex-direction:column;gap:4px;margin-top:4px}.ci{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}.ci input{width:14px;height:14px;accent-color:#1a56db;flex-shrink:0}.mt{border-collapse:collapse;width:100%;font-size:12px;margin-top:6px}.mt th{background:#f1f5f9;padding:6px 10px;border:0.5px solid #e2e8f0;font-weight:600;text-align:left}.mt td{border:0.5px solid #e2e8f0;padding:6px 10px}.mt tr:nth-child(even) td{background:#f8fafc}.icd{display:inline-block;font-size:10px;padding:2px 7px;border-radius:4px;background:#e0f2fe;color:#0369a1;font-weight:600;margin-left:6px}.act{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;padding-top:14px;border-top:1px solid #e2e8f0}.bs{background:#1a56db;color:#fff;border:none;border-radius:8px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}.bp{background:#fff;color:#0f172a;border:0.5px solid #e2e8f0;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-family:inherit}</style></head><body><div class="page">
@@ -914,6 +915,31 @@ var n=v('notas'); if(n){L.push('');L.push('Notas: '+n);}
 L.push('');L.push('──────────────────────────────────────────────────');
 return L.join('\\n');
 };
+window._examCtx = ${JSON.stringify({ patientId: ctx.patientId || null, clinicId: ctx.clinicId || null, consultationId: ctx.consultationId || null })};
+window._saveExamToSupabase = async function(txt) {
+  var c = window._examCtx || {};
+  if (!c.consultationId) return;
+  try {
+    var sb = window.opener && window.opener.sb;
+    if (!sb) return;
+    var userRes = await sb.auth.getUser();
+    var authorId = userRes?.data?.user?.id || null;
+    var res = await sb.from('consultation_assessments').insert({
+      consultation_id: c.consultationId,
+      patient_id:      c.patientId,
+      clinic_id:       c.clinicId,
+      author_user_id:  authorId,
+      assessment_type: 'ombro',
+      assessment_date: new Date().toISOString().split('T')[0],
+      data:            { resumo: txt }
+    });
+    if (res.error) console.error('saveExam:', res.error);
+  } catch(e) { console.error('saveExam:', e); }
+};
+document.getElementById('btnCopy').addEventListener('click', async function() {
+  var t = typeof window._gerarResumo === 'function' ? window._gerarResumo() : '';
+  if (t) await window._saveExamToSupabase(t);
+});
 </script></body></html>`);
     return;
   }

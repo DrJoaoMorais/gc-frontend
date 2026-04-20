@@ -4216,7 +4216,12 @@ function openPatientViewModal(patient) {
 
     // Exame Objectivo — sempre disponível, independente do estado da consulta
     document.getElementById("btnExameObjectivo")?.addEventListener("click", () => {
-      openExameObjectivoMenu(document.getElementById("btnExameObjectivo"));
+      const _ctx = {
+        patientId: p.id,
+        clinicId: activeClinicId,
+        consultationId: lastSavedConsultId || (consultRows?.length ? consultRows[0].id : null)
+      };
+      openExameObjectivoMenu(document.getElementById("btnExameObjectivo"), _ctx);
     });
 
     if (isDoctor()) {
