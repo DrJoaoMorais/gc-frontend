@@ -129,7 +129,7 @@ export async function fetchVisibleClinics() {
 
 /* ---- 01H.1 — setupIdleLogout (auto-executa) ---- */
 (function setupIdleLogout() {
-  const IDLE_MS          = 600000; // 10 minutos
+  const IDLE_MS          = 2700000; // 45 minutos
   const CHECK_INTERVAL   =  2 * 60 * 1000; //  2 minutos (verificação periódica)
   const LS_LAST_ACTIVITY = "gc_last_activity";
 
