@@ -37,6 +37,7 @@ import { closeModalRoot, ensurePatientActiveInClinic } from "./agenda.js";
 import { rpcCreatePatientForClinic } from "./db.js";
 import { examsUiState, buildExamRequestHtml } from "./exames.js";
 import { analisesUiState, openAnalisesPanel, closeAnalisesPanel } from "./analises.js";
+import { evolucaoUiState, openEvolucaoPanel, closeEvolucaoPanel } from "./evolucao.js";
 import { checkConsentStatus } from "./consentimentos.js";
 import { openQrModal } from "./consentimentos_qr.js";
 import { openExameObjectivoMenu, openExameObjectivoForm } from "./exame-objectivo.js";
@@ -4155,9 +4156,12 @@ function openPatientViewModal(patient) {
     document.getElementById("btnConsentAh")?.addEventListener("click",     () => openQrGuarded("ah"));
     document.getElementById("btnConsentInfilt")?.addEventListener("click", () => openQrGuarded("corticoide"));
 
-    // Evolução — em breve
     document.getElementById("btnEvolucao")?.addEventListener("click", () => {
-      alert("Evolução — disponível em breve.");
+      if (evolucaoUiState.isOpen) {
+        closeEvolucaoPanel(() => { render(); });
+      } else {
+        openEvolucaoPanel({ patientId: p.id, consultationId: lastSavedConsultId || (consultRows?.length ? consultRows[0].id : null), onClose: () => { render(); } });
+      }
     });
 
     // Protocolos — em breve
