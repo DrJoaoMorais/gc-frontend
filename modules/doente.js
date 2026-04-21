@@ -2625,10 +2625,7 @@ function openPatientViewModal(patient) {
                       ).toUpperCase();
                       const _clinic = (activeClinicName || '').replace(/[^a-zA-Z0-9À-ÿ]/g, '').slice(0,20) || 'Clinica';
                       const _dlName = `GCC_${_initials}_${_clinic}_${_ymd}.pdf`;
-                      return `<a class="gcBtn" href="${escAttr(d.url)}" target="_blank" rel="noopener" style="text-decoration:none;">Abrir</a>
-                              <a class="gcBtn" href="${escAttr(d.url)}" download="${escAttr(_dlName)}" rel="noopener"
-                                style="text-decoration:none; background:#f0f9ff; border:1px solid #bae6fd; color:#0369a1; font-weight:700;"
-                                title="${escAttr(_dlName)}">⬇</a>`;
+                      return `<a class="gcBtn" href="${escAttr(d.url)}" target="_blank" rel="noopener" style="text-decoration:none;">Abrir</a>`;
                     })()
                   : `<button class="gcBtn" disabled>Sem link</button>`
                 }
