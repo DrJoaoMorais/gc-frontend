@@ -756,189 +756,367 @@ window.getRF=getRF;
   ══════════════════════════════════════════════════════════════ */
   if (formId === "ombro") {
     _abrirBlob(`<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
-<title>Exame Objectivo — Ombro</title><style>${_mskCss}</style></head><body>
+<title>Exame Objectivo — Ombro</title>
+<style>
+${_mskCss}
+/* ── OMBRO CUSTOM ── */
+.ob-tabs{display:flex;gap:4px;border-bottom:2px solid #e2e8f0;margin-bottom:14px;}
+.ob-tab{padding:8px 18px;border:none;background:none;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;font-family:inherit;transition:color .15s;}
+.ob-tab.active{color:#0f2d52;border-bottom-color:#0f2d52;}
+.ob-tab-content{display:none;}
+.ob-tab-content.active{display:block;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.opts.grade .opt{padding:3px 9px;font-size:11px;border:1px solid #e2e8f0;border-radius:4px;cursor:pointer;background:#f8fafc;color:#475569;margin:1px;display:inline-flex;align-items:center;}
+.opts.grade .opt.sel[data-v="Negativo"]{background:#059669;color:#fff;border-color:#059669;}
+.opts.grade .opt.sel[data-v="+"]{background:#f59e0b;color:#fff;border-color:#f59e0b;}
+.opts.grade .opt.sel[data-v="++"]{background:#ea580c;color:#fff;border-color:#ea580c;}
+.opts.grade .opt.sel[data-v="+++"]{background:#dc2626;color:#fff;border-color:#dc2626;}
+.rom-table{width:100%;border-collapse:collapse;}
+.rom-table th{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;padding:4px 6px;text-align:left;border-bottom:1px solid #e2e8f0;}
+.rom-table td{padding:4px 5px;vertical-align:middle;border-bottom:1px solid #f8fafc;}
+.rom-inp{width:48px;padding:3px 5px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;text-align:center;font-family:inherit;color:#0f172a;}
+.rom-inp:focus{outline:none;}
+.rom-inp.ia{border-color:#3b82f6;}
+.rom-inp.ip{border-color:#10b981;}
+.dyn-table{width:100%;border-collapse:collapse;font-size:12px;}
+.dyn-table th{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;padding:3px 5px;text-align:center;border-bottom:1px solid #e2e8f0;}
+.dyn-table th:first-child{text-align:left;}
+.dyn-table td{padding:4px 5px;border-bottom:1px solid #f8fafc;text-align:center;font-size:12px;}
+.dyn-table td:first-child{text-align:left;font-weight:600;color:#0f172a;}
+.dyn-inp{width:52px;padding:3px 5px;border:1px solid #e2e8f0;border-radius:5px;font-size:12px;text-align:center;font-family:inherit;}
+.dyn-inp:focus{outline:none;border-color:#1a56db;}
+.dyn-ok{color:#059669;font-weight:700;}
+.dyn-warn{color:#f59e0b;font-weight:700;}
+.dyn-bad{color:#dc2626;font-weight:700;}
+.mrc-row{display:flex;align-items:center;margin-bottom:5px;}
+.mrc-lbl{font-size:11px;color:#475569;width:115px;flex-shrink:0;}
+.func-row{display:flex;align-items:center;margin-bottom:4px;}
+.func-lbl{font-size:11px;color:#475569;width:140px;flex-shrink:0;}
+.scale-block{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:10px;}
+.scale-title{font-size:13px;font-weight:800;color:#0f2d52;margin-bottom:3px;}
+.scale-desc{font-size:11px;color:#64748b;margin-bottom:10px;}
+.scale-row{display:flex;align-items:center;gap:12px;}
+.scale-inp{width:68px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:8px;font-size:15px;font-weight:700;text-align:center;font-family:inherit;color:#0f2d52;}
+.scale-interp{font-size:12px;color:#475569;}
+.sub-lbl{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin:8px 0 3px;}
+.sub-lbl:first-child{margin-top:0;}
+textarea{width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:6px 9px;font-size:12px;resize:vertical;min-height:44px;background:#f8fafc;color:#0f172a;font-family:inherit;box-sizing:border-box;margin-top:4px;}
+</style></head><body>
 <div class="page">
-<h1>Exame Objectivo — Ombro</h1>
-<div class="subtitle">Clique nas opções · Copie para a consulta no final</div>
 
-<!-- 1. LATERALIDADE & DOR -->
-<div class="sec">
-  <div class="sec-title"><div class="num">1</div>Lateralidade &amp; Caracterização da Dor</div>
-  <div class="cols2">
-    <div>
-      <div class="gl">Ombro avaliado</div>
-      <div class="opts sg" id="lado"><div class="opt" data-v="Direito">Direito</div><div class="opt" data-v="Esquerdo">Esquerdo</div><div class="opt" data-v="Bilateral">Bilateral</div></div>
-    </div>
-    <div>
-      <div class="gl">Tipo de dor</div>
-      <div class="opts sg" id="tipo_dor"><div class="opt" data-v="Mecânica">Mecânica</div><div class="opt" data-v="Inflamatória">Inflamatória</div><div class="opt" data-v="Neuropática">Neuropática</div><div class="opt" data-v="Mista">Mista</div></div>
-    </div>
+<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+  <div>
+    <h1>Exame Objectivo — Ombro</h1>
+    <div class="subtitle">Exame completo · Tab Escalas para DASH/ASES/OSS · Copiar &amp; Guardar no final</div>
   </div>
-  <div class="sub-title" style="margin-top:14px">EVA (0 = sem dor · 10 = dor máxima)</div>
-  <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
-    <div class="eva-row"><span class="eva-lbl">Repouso</span>${_evaOpts("eva_rep")}</div>
-    <div class="eva-row"><span class="eva-lbl">Actividade</span>${_evaOpts("eva_act")}</div>
-    <div class="eva-row"><span class="eva-lbl">Pico máximo</span>${_evaOpts("eva_pic")}</div>
-  </div>
-  <div class="cols2" style="margin-top:14px">
-    <div>
-      <div class="gl">Irradiação</div>
-      <div class="opts sg" id="irrad"><div class="opt" data-v="Não irradia">Não irradia</div><div class="opt" data-v="Irradiação proximal">Proximal</div><div class="opt" data-v="Irradiação distal">Distal</div></div>
-    </div>
-    <div>
-      <div class="gl">Dor noturna</div>
-      <div class="opts sg" id="d_noturna"><div class="opt" data-v="Não">Não</div><div class="opt" data-v="Sim — deitar sobre o ombro">Sim</div></div>
-    </div>
+  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;margin-top:4px;">
+    <span style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;">Ombro</span>
+    <div class="opts sg" id="lado"><div class="opt" data-v="Direito">D</div><div class="opt" data-v="Esquerdo">E</div><div class="opt" data-v="Bilateral">Bil.</div></div>
   </div>
 </div>
 
-<!-- 2. INSPEÇÃO -->
+<div class="ob-tabs">
+  <button class="ob-tab active" data-tab="exame">🦴 Exame Objectivo</button>
+  <button class="ob-tab" data-tab="escalas">📊 Escalas Funcionais</button>
+</div>
+
+<!-- ═══ TAB: EXAME OBJECTIVO ═══ -->
+<div id="tab-exame" class="ob-tab-content active">
+<div class="two-col">
+
+<!-- ── LEFT COLUMN ── -->
+<div>
+
 <div class="sec">
-  <div class="sec-title"><div class="num">2</div>Inspeção</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Postura ombros</div><div class="opts mg" id="insp_pos"><div class="opt" data-v="Ombros anteriorizados">Anteriorizados</div><div class="opt" data-v="Rotação interna aumentada">Rot. interna ↑</div><div class="opt" data-v="Assimetria escapular">Assimetria escap.</div></div></div>
-    <div class="param-row"><div class="param-label">Escápula</div><div class="opts sg" id="insp_esc"><div class="opt" data-v="Normal">Normal</div><div class="opt" data-v="Escápula alada">Alada</div></div></div>
-    <div class="param-row"><div class="param-label">Atrofia muscular</div><div class="opts mg" id="insp_atr"><div class="opt" data-v="Sem atrofia">Sem atrofia</div><div class="opt" data-v="Atrofia deltóide">Deltóide</div><div class="opt" data-v="Atrofia supra-espinhoso">Supra-esp.</div><div class="opt" data-v="Atrofia infra-espinhoso">Infra-esp.</div></div></div>
+  <div class="sec-title">1 · Caracterização da Dor</div>
+  <div class="gl">Tipo</div>
+  <div class="opts sg" id="tipo_dor"><div class="opt" data-v="Mecânica">Mecânica</div><div class="opt" data-v="Inflamatória">Inflamatória</div><div class="opt" data-v="Neuropática">Neuropática</div><div class="opt" data-v="Mista">Mista</div></div>
+  <div class="gl">Localização</div>
+  <div class="opts mg" id="localizacao_dor"><div class="opt" data-v="Face anterior">Anterior</div><div class="opt" data-v="Face lateral">Lateral</div><div class="opt" data-v="Face posterior">Posterior</div><div class="opt" data-v="Articulação AC">AC</div><div class="opt" data-v="Irradiação para o braço">Irradiação</div></div>
+  <div class="gl">Dor noturna</div>
+  <div class="opts sg" id="d_noturna"><div class="opt" data-v="Não">Não</div><div class="opt" data-v="Sim — deitar sobre o ombro">Sim</div></div>
+  <div class="gl" style="margin-top:10px;">EVA (0–10)</div>
+  <div class="eva-row"><span class="eva-lbl">Repouso</span>${_evaOpts("eva_rep")}</div>
+  <div class="eva-row"><span class="eva-lbl">Actividade</span>${_evaOpts("eva_act")}</div>
+  <div class="eva-row"><span class="eva-lbl">Pico</span>${_evaOpts("eva_pic")}</div>
+</div>
+
+<div class="sec">
+  <div class="sec-title">2 · Palpação</div>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <thead><tr><th style="text-align:left;color:#64748b;font-size:10px;font-weight:700;padding:2px 4px;border-bottom:1px solid #e2e8f0;">Estrutura</th><th style="color:#64748b;font-size:10px;font-weight:700;padding:2px 4px;border-bottom:1px solid #e2e8f0;">Resultado</th></tr></thead>
+    <tbody>
+      <tr><td style="padding:4px;">Articulação AC</td><td><div class="opts sg" id="palp_ac"><div class="opt" data-v="Indolor">Indolor</div><div class="opt" data-v="Dolorosa">Dolorosa</div></div></td></tr>
+      <tr><td style="padding:4px;">Tubérculo maior</td><td><div class="opts sg" id="palp_tb"><div class="opt" data-v="Indolor">Indolor</div><div class="opt" data-v="Doloroso">Doloroso</div></div></td></tr>
+      <tr><td style="padding:4px;">Sulco bicipital</td><td><div class="opts sg" id="palp_bic"><div class="opt" data-v="Indolor">Indolor</div><div class="opt" data-v="Doloroso">Doloroso</div></div></td></tr>
+      <tr><td style="padding:4px;">Bursa subacromial</td><td><div class="opts sg" id="palp_bur"><div class="opt" data-v="Indolor">Indolor</div><div class="opt" data-v="Dolorosa">Dolorosa</div></div></td></tr>
+      <tr><td style="padding:4px;">Supra-espinhoso (tendão)</td><td><div class="opts sg" id="palp_sup"><div class="opt" data-v="Indolor">Indolor</div><div class="opt" data-v="Doloroso">Doloroso</div></div></td></tr>
+    </tbody>
+  </table>
+  <textarea id="notas_palp" placeholder="Notas de palpação…"></textarea>
+</div>
+
+<div class="sec">
+  <div class="sec-title">3 · Força Muscular (MRC)</div>
+  ${[['f_sup','Supra-espinhoso'],['f_inf','Infra-espinhoso'],['f_sub','Subescapular'],['f_del','Deltóide']].map(function(r){return '<div class="mrc-row"><div class="mrc-lbl">'+r[1]+'</div><div class="opts sg" id="'+r[0]+'"><div class="opt" data-v="5/5">5/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="2/5">2/5</div><div class="opt" data-v="1/5">1/5</div><div class="opt" data-v="0/5">0/5</div></div></div>';}).join('')}
+  <textarea id="notas_forca" placeholder="Notas sobre força…"></textarea>
+</div>
+
+<div class="sec">
+  <div class="sec-title">4 · Dinamometria (ActivForce 2)</div>
+  <table class="dyn-table">
+    <thead><tr><th>Movimento</th><th>AF (kg)</th><th>CL (kg)</th><th>Déf.</th><th>RE/RI</th></tr></thead>
+    <tbody>
+      <tr><td>Rot. Externa</td><td><input class="dyn-inp" type="number" id="dyn_re_af" min="0" max="99" step="0.1" placeholder="—"></td><td><input class="dyn-inp" type="number" id="dyn_re_cl" min="0" max="99" step="0.1" placeholder="—"></td><td id="dyn_re_def">—</td><td id="dyn_re_fp" rowspan="2" style="vertical-align:middle;font-weight:700;font-size:13px;">—</td></tr>
+      <tr><td>Rot. Interna</td><td><input class="dyn-inp" type="number" id="dyn_ri_af" min="0" max="99" step="0.1" placeholder="—"></td><td><input class="dyn-inp" type="number" id="dyn_ri_cl" min="0" max="99" step="0.1" placeholder="—"></td><td id="dyn_ri_def">—</td></tr>
+      <tr><td>Elev. Anterior</td><td><input class="dyn-inp" type="number" id="dyn_ea_af" min="0" max="99" step="0.1" placeholder="—"></td><td><input class="dyn-inp" type="number" id="dyn_ea_cl" min="0" max="99" step="0.1" placeholder="—"></td><td id="dyn_ea_def">—</td><td id="dyn_ea_fp">—</td></tr>
+      <tr><td>Abdução</td><td><input class="dyn-inp" type="number" id="dyn_abd_af" min="0" max="99" step="0.1" placeholder="—"></td><td><input class="dyn-inp" type="number" id="dyn_abd_cl" min="0" max="99" step="0.1" placeholder="—"></td><td id="dyn_abd_def">—</td><td id="dyn_abd_fp">—</td></tr>
+    </tbody>
+  </table>
+  <div style="font-size:10px;color:#94a3b8;margin-top:4px;">AF = lado afectado · CL = contralateral · Déf. = défice % · RE/RI = ratio estabilidade</div>
+</div>
+
+</div><!-- end left col -->
+
+<!-- ── RIGHT COLUMN ── -->
+<div>
+
+<div class="sec">
+  <div class="sec-title">5 · Amplitude de Movimento (Goniómetro)</div>
+  <div style="font-size:10px;margin-bottom:6px;"><span style="color:#3b82f6;font-weight:700;">● Activo</span>&nbsp;&nbsp;<span style="color:#10b981;font-weight:700;">● Passivo</span></div>
+  <table class="rom-table">
+    <thead><tr>
+      <th>Movimento</th>
+      <th style="color:#3b82f6;">A °</th>
+      <th style="color:#10b981;">P °</th>
+      <th>Arco</th>
+      <th style="color:#94a3b8;">Ref</th>
+    </tr></thead>
+    <tbody id="rom-tbody"></tbody>
+  </table>
+  <textarea id="notas_mob" placeholder="End-feel, dor em arco, crepitação…"></textarea>
+</div>
+
+<div class="sec">
+  <div class="sec-title">6 · Testes Específicos</div>
+  <div class="sub-lbl">Conflito Subacromial</div>
+  ${[['t_neer','Neer'],['t_hawk','Hawkins']].map(function(r){return '<div style="display:flex;align-items:center;margin-bottom:3px;"><div style="font-size:11px;color:#475569;width:115px;flex-shrink:0;">'+r[1]+'</div><div class="opts sg grade" id="'+r[0]+'"><div class="opt" data-v="Negativo">Neg</div><div class="opt" data-v="+">+</div><div class="opt" data-v="++">++</div><div class="opt" data-v="+++">+++</div></div></div>';}).join('')}
+  <div class="sub-lbl">Coifa dos Rotadores</div>
+  ${[['t_jobe','Jobe (supra-esp.)'],['t_patte','Patte (infra-esp.)'],['t_liftoff','Lift-off (subesc.)'],['t_belly','Belly press'],['t_drop','Drop Arm']].map(function(r){return '<div style="display:flex;align-items:center;margin-bottom:3px;"><div style="font-size:11px;color:#475569;width:115px;flex-shrink:0;">'+r[1]+'</div><div class="opts sg grade" id="'+r[0]+'"><div class="opt" data-v="Negativo">Neg</div><div class="opt" data-v="+">+</div><div class="opt" data-v="++">++</div><div class="opt" data-v="+++">+++</div></div></div>';}).join('')}
+  <div class="sub-lbl">Bicípite</div>
+  ${[['t_speed','Speed'],['t_yerg','Yergason']].map(function(r){return '<div style="display:flex;align-items:center;margin-bottom:3px;"><div style="font-size:11px;color:#475569;width:115px;flex-shrink:0;">'+r[1]+'</div><div class="opts sg grade" id="'+r[0]+'"><div class="opt" data-v="Negativo">Neg</div><div class="opt" data-v="+">+</div><div class="opt" data-v="++">++</div><div class="opt" data-v="+++">+++</div></div></div>';}).join('')}
+  <div class="sub-lbl">Instabilidade</div>
+  ${[['t_appr','Apprehension'],['t_reloc','Relocation'],['t_sulc','Sulcus sign']].map(function(r){return '<div style="display:flex;align-items:center;margin-bottom:3px;"><div style="font-size:11px;color:#475569;width:115px;flex-shrink:0;">'+r[1]+'</div><div class="opts sg grade" id="'+r[0]+'"><div class="opt" data-v="Negativo">Neg</div><div class="opt" data-v="+">+</div><div class="opt" data-v="++">++</div><div class="opt" data-v="+++">+++</div></div></div>';}).join('')}
+  <textarea id="notas_testes" placeholder="Notas sobre testes…"></textarea>
+</div>
+
+<div class="sec">
+  <div class="sec-title">7 · Avaliação Funcional</div>
+  ${[['func_elev','Elevação acima cabeça',['Mantida','Dificuldade','Incapaz']],['func_cos','Alcançar costas',['Mantida','Dificuldade','Incapaz']],['func_vest','Vestir camisola',['Normal','Com dor','Dificuldade']],['func_prof','Actividade profissional',['Sem limitação','Limitação parcial','Incapacitante']],['func_desp','Actividade desportiva',['Sem limitação','Limitação parcial','Incapaz']],['func_cond','Conduzir',['Sem dor','Com dor','Incapaz']]].map(function(r){return '<div class="func-row"><div class="func-lbl">'+r[1]+'</div><div class="opts sg" id="'+r[0]+'">'+r[2].map(function(o){return '<div class="opt" data-v="'+o+'">'+o+'</div>';}).join('')+'</div></div>';}).join('')}
+</div>
+
+</div><!-- end right col -->
+</div><!-- end two-col -->
+</div><!-- end tab-exame -->
+
+<!-- ═══ TAB: ESCALAS ═══ -->
+<div id="tab-escalas" class="ob-tab-content">
+  <div class="scale-block">
+    <div class="scale-title">DASH — Disabilities of the Arm, Shoulder and Hand</div>
+    <div class="scale-desc">Score 0–100 · 0 = sem incapacidade · 100 = incapacidade máxima</div>
+    <div class="scale-row"><input class="scale-inp" type="number" id="dash_score" min="0" max="100" placeholder="—"><div class="scale-interp" id="dash_interp">—</div></div>
+  </div>
+  <div class="scale-block">
+    <div class="scale-title">ASES — American Shoulder and Elbow Surgeons Score</div>
+    <div class="scale-desc">Score 0–100 · 0 = pior · 100 = melhor função</div>
+    <div class="scale-row"><input class="scale-inp" type="number" id="ases_score" min="0" max="100" placeholder="—"><div class="scale-interp" id="ases_interp">—</div></div>
+  </div>
+  <div class="scale-block">
+    <div class="scale-title">OSS — Oxford Shoulder Score</div>
+    <div class="scale-desc">Score 12–60 · 12 = melhor função · 60 = pior função</div>
+    <div class="scale-row"><input class="scale-inp" type="number" id="oss_score" min="12" max="60" placeholder="—"><div class="scale-interp" id="oss_interp">—</div></div>
   </div>
 </div>
 
-<!-- 3. PALPAÇÃO -->
-<div class="sec">
-  <div class="sec-title"><div class="num">3</div>Palpação</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Articulação AC</div><div class="opts sg" id="palp_ac"><div class="opt" data-v="Indolor">Indolor</div><div class="opt" data-v="Dolorosa">Dolorosa</div></div></div>
-    <div class="param-row"><div class="param-label">Tubérculo maior</div><div class="opts sg" id="palp_tb"><div class="opt" data-v="Indolor">Indolor</div><div class="opt" data-v="Doloroso">Doloroso</div></div></div>
-    <div class="param-row"><div class="param-label">Sulco bicipital</div><div class="opts sg" id="palp_bic"><div class="opt" data-v="Indolor">Indolor</div><div class="opt" data-v="Doloroso">Doloroso</div></div></div>
-    <div class="param-row"><div class="param-label">Bursa subacromial</div><div class="opts sg" id="palp_bur"><div class="opt" data-v="Indolor">Indolor</div><div class="opt" data-v="Dolorosa">Dolorosa</div></div></div>
-  </div>
-</div>
-
-<!-- 4. MOBILIDADE -->
-<div class="sec">
-  <div class="sec-title"><div class="num">4</div>Mobilidade (activa / passiva)</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Flexão (ref: 180°)</div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><div class="opts sg" id="mob_flex"><div class="opt" data-v="Completa">Completa</div><div class="opt" data-v="Limitada com dor">Limitada c/ dor</div><div class="opt" data-v="Limitada sem dor">Limitada s/ dor</div><div class="opt" data-v="Muito limitada">Muito limitada</div></div><input type="number" placeholder="°" style="width:58px;padding:4px 6px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;text-align:center;" id="mob_flex_g" min="0" max="180"></div></div>
-    <div class="param-row"><div class="param-label">Extensão (ref: 60°)</div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><div class="opts sg" id="mob_ext"><div class="opt" data-v="Completa">Completa</div><div class="opt" data-v="Limitada com dor">Limitada c/ dor</div><div class="opt" data-v="Limitada sem dor">Limitada s/ dor</div></div><input type="number" placeholder="°" style="width:58px;padding:4px 6px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;text-align:center;" id="mob_ext_g" min="0" max="60"></div></div>
-    <div class="param-row"><div class="param-label">Abdução (ref: 180°)</div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><div class="opts sg" id="mob_abd"><div class="opt" data-v="Completa">Completa</div><div class="opt" data-v="Arco doloroso 60°–120°">Arco doloroso</div><div class="opt" data-v="Limitada com dor">Limitada c/ dor</div><div class="opt" data-v="Muito limitada">Muito limitada</div></div><input type="number" placeholder="°" style="width:58px;padding:4px 6px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;text-align:center;" id="mob_abd_g" min="0" max="180"></div></div>
-    <div class="param-row"><div class="param-label">Rotação externa (ref: 90°)</div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><div class="opts sg" id="mob_re"><div class="opt" data-v="Completa">Completa</div><div class="opt" data-v="Limitada com dor">Limitada c/ dor</div><div class="opt" data-v="Limitada sem dor">Limitada s/ dor</div></div><input type="number" placeholder="°" style="width:58px;padding:4px 6px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;text-align:center;" id="mob_re_g" min="0" max="90"></div></div>
-    <div class="param-row"><div class="param-label">Rotação interna (nível vertebral)</div><div class="opts sg" id="mob_ri"><div class="opt" data-v="T12–L1 (normal)">T12–L1 ✓</div><div class="opt" data-v="LomboSagrada">LomboSagrada</div><div class="opt" data-v="Nádega">Nádega</div><div class="opt" data-v="Anca">Anca</div><div class="opt" data-v="T10–T12">T10–T12</div><div class="opt" data-v="T7–T10">T7–T10</div><div class="opt" data-v="Abaixo de T7">↓ T7</div></div></div>
-    <div class="param-row"><div class="param-label">Crepitação</div><div class="opts sg" id="mob_crep"><div class="opt" data-v="Ausente">Ausente</div><div class="opt" data-v="Presente">Presente</div></div></div>
-  </div>
-</div>
-
-<!-- 5. FORÇA MRC -->
-<div class="sec">
-  <div class="sec-title"><div class="num">5</div>Força Muscular (MRC)</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Supra-espinhoso</div><div class="opts sg" id="f_sup"><div class="opt" data-v="5/5">5/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="2/5">2/5</div><div class="opt" data-v="1/5">1/5</div><div class="opt" data-v="0/5">0/5</div></div></div>
-    <div class="param-row"><div class="param-label">Infra-espinhoso</div><div class="opts sg" id="f_inf"><div class="opt" data-v="5/5">5/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="2/5">2/5</div><div class="opt" data-v="1/5">1/5</div><div class="opt" data-v="0/5">0/5</div></div></div>
-    <div class="param-row"><div class="param-label">Subescapular</div><div class="opts sg" id="f_sub"><div class="opt" data-v="5/5">5/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="2/5">2/5</div><div class="opt" data-v="1/5">1/5</div><div class="opt" data-v="0/5">0/5</div></div></div>
-    <div class="param-row"><div class="param-label">Deltóide</div><div class="opts sg" id="f_del"><div class="opt" data-v="5/5">5/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="2/5">2/5</div><div class="opt" data-v="1/5">1/5</div><div class="opt" data-v="0/5">0/5</div></div></div>
-  </div>
-</div>
-
-<!-- 6. TESTES ESPECÍFICOS -->
-<div class="sec">
-  <div class="sec-title"><div class="num">6</div>Testes Específicos</div>
-  <div class="sub-title">Conflito Subacromial</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Neer</div><div class="opts sg" id="t_neer"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-    <div class="param-row"><div class="param-label">Hawkins</div><div class="opts sg" id="t_hawk"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-  </div>
-  <div class="sub-title">Coifa dos Rotadores</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Jobe (supra-espinhoso)</div><div class="opts sg" id="t_jobe"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-    <div class="param-row"><div class="param-label">Patte (infra-espinhoso)</div><div class="opts sg" id="t_patte"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-    <div class="param-row"><div class="param-label">Lift-off (subescapular)</div><div class="opts sg" id="t_liftoff"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-    <div class="param-row"><div class="param-label">Belly press</div><div class="opts sg" id="t_belly"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-    <div class="param-row"><div class="param-label">Drop Arm Test</div><div class="opts sg" id="t_drop"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo — suspeita rotura coifa">Pos.</div></div></div>
-  </div>
-  <div class="sub-title">Bicípite</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Speed</div><div class="opts sg" id="t_speed"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-    <div class="param-row"><div class="param-label">Yergason</div><div class="opts sg" id="t_yerg"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-  </div>
-  <div class="sub-title">Instabilidade</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Apprehension</div><div class="opts sg" id="t_appr"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-    <div class="param-row"><div class="param-label">Relocation</div><div class="opts sg" id="t_reloc"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-    <div class="param-row"><div class="param-label">Sulcus sign</div><div class="opts sg" id="t_sulc"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-  </div>
-</div>
-
-<!-- 7. AVALIAÇÃO FUNCIONAL -->
-<div class="sec">
-  <div class="sec-title"><div class="num">7</div>Avaliação Funcional &amp; Observações</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Elevação acima da cabeça</div><div class="opts sg" id="func_elev"><div class="opt" data-v="Mantida">Mantida</div><div class="opt" data-v="Dificuldade">Dificuldade</div><div class="opt" data-v="Incapaz">Incapaz</div></div></div>
-    <div class="param-row"><div class="param-label">Alcançar costas</div><div class="opts sg" id="func_cos"><div class="opt" data-v="Mantida">Mantida</div><div class="opt" data-v="Dificuldade">Dificuldade</div><div class="opt" data-v="Incapaz">Incapaz</div></div></div>
-    <div class="param-row"><div class="param-label">Vestir camisola</div><div class="opts sg" id="func_vest"><div class="opt" data-v="Normal">Normal</div><div class="opt" data-v="Com dor">Com dor</div><div class="opt" data-v="Dificuldade">Dificuldade</div></div></div>
-  </div>
-  <div style="margin-top:12px"><div class="gl">Notas / Conclusão</div><textarea id="notas" placeholder="Impressão clínica, plano..."></textarea></div>
-</div>
-</div>
-<div id="toast">✓ Copiado — cole na consulta (Ctrl+V)</div>
-<div class="bar-acoes"><button class="btn-pdf" id="btnPdf">Imprimir / PDF</button><button class="btn-copy" id="btnCopy">Copiar resumo para consulta</button></div>
+</div><!-- end .page -->
+<div id="toast">✓ Copiado e guardado</div>
+<div class="bar-acoes"><button class="btn-pdf" id="btnPdf">Imprimir / PDF</button><button class="btn-copy" id="btnCopy">Copiar &amp; Guardar</button></div>
 <script>
 ${_mskJs}
-window._gerarResumo = function(){
-var g=window._getOpt, m=window._getMulti, v=window._getVal, e=window._evaRow;
-var L=['── OMBRO — EXAME OBJECTIVO ──'];
-var lado=g('lado'); if(lado) L.push('Ombro '+lado);
+/* ── TABS ── */
+document.querySelectorAll('.ob-tab').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.ob-tab').forEach(function(b){b.classList.remove('active');});
+    document.querySelectorAll('.ob-tab-content').forEach(function(c){c.classList.remove('active');});
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
+/* ── ROM GONIOMETER ── */
+var ROM_DEFS=[
+  {key:'flex',label:'Flexão',    ref:180},
+  {key:'ext', label:'Extensão',  ref:60},
+  {key:'abd', label:'Abdução',   ref:180},
+  {key:'re',  label:'Rot. ext.', ref:90},
+  {key:'ri',  label:'Rot. int.', ref:90},
+];
+function makeArcSvg(idA,idP){
+  return '<svg width="108" height="62" viewBox="0 0 108 62" style="display:block;">'
+    +'<path d="M6 58 A48 48 0 0 1 102 58" fill="none" stroke="#e2e8f0" stroke-width="8" stroke-linecap="round" pathLength="100"/>'
+    +'<path id="'+idA+'" d="M6 58 A48 48 0 0 1 102 58" fill="none" stroke="#3b82f6" stroke-width="8" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100"/>'
+    +'<path id="'+idP+'" d="M6 58 A48 48 0 0 1 102 58" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100"/>'
+    +'</svg>';
+}
+var tbody=document.getElementById('rom-tbody');
+ROM_DEFS.forEach(function(r){
+  var tr=document.createElement('tr');
+  tr.innerHTML='<td style="font-size:11px;font-weight:600;color:#0f172a;white-space:nowrap;">'+r.label+'</td>'
+    +'<td><input class="rom-inp ia" type="number" id="rom_'+r.key+'_a" min="0" max="'+r.ref+'" placeholder="—"></td>'
+    +'<td><input class="rom-inp ip" type="number" id="rom_'+r.key+'_p" min="0" max="'+r.ref+'" placeholder="—"></td>'
+    +'<td>'+makeArcSvg('arc_'+r.key+'_a','arc_'+r.key+'_p')+'</td>'
+    +'<td style="font-size:10px;color:#94a3b8;">'+r.ref+'°</td>';
+  tbody.appendChild(tr);
+  var ia=document.getElementById('rom_'+r.key+'_a');
+  var ip=document.getElementById('rom_'+r.key+'_p');
+  var aa=document.getElementById('arc_'+r.key+'_a');
+  var ap=document.getElementById('arc_'+r.key+'_p');
+  function upd(){
+    var va=Math.min(Math.max(parseFloat(ia.value)||0,0),r.ref);
+    var vp=Math.min(Math.max(parseFloat(ip.value)||0,0),r.ref);
+    aa.setAttribute('stroke-dasharray',(va/r.ref*100)+' 100');
+    ap.setAttribute('stroke-dasharray',(vp/r.ref*100)+' 100');
+  }
+  ia.addEventListener('input',upd);
+  ip.addEventListener('input',upd);
+});
+/* ── DINAMOMETRIA ── */
+function calcDyn(){
+  [['re','dyn_re'],['ri','dyn_ri'],['ea','dyn_ea'],['abd','dyn_abd']].forEach(function(p){
+    var af=parseFloat(document.getElementById(p[1]+'_af').value)||null;
+    var cl=parseFloat(document.getElementById(p[1]+'_cl').value)||null;
+    var el=document.getElementById(p[1]+'_def');
+    if(af!==null&&cl!==null&&cl>0){
+      var d=Math.round((cl-af)/cl*100);
+      el.textContent=d+'%';
+      el.className=d<10?'dyn-ok':d<20?'dyn-warn':'dyn-bad';
+    }else{el.textContent='—';el.className='';}
+  });
+  var reAf=parseFloat(document.getElementById('dyn_re_af').value)||null;
+  var riAf=parseFloat(document.getElementById('dyn_ri_af').value)||null;
+  var fpEl=document.getElementById('dyn_re_fp');
+  if(reAf&&riAf&&riAf>0){var ratio=(reAf/riAf);fpEl.textContent=ratio.toFixed(2);fpEl.className=ratio>=0.6?'dyn-ok':'dyn-bad';}
+  else{fpEl.textContent='—';fpEl.className='';}
+}
+document.querySelectorAll('.dyn-inp').forEach(function(i){i.addEventListener('input',calcDyn);});
+/* ── SCALES ── */
+document.getElementById('dash_score').addEventListener('input',function(){
+  var v=parseInt(this.value),el=document.getElementById('dash_interp');
+  if(isNaN(v)){el.textContent='—';return;}
+  el.textContent=v<=20?'Incapacidade ligeira':v<=40?'Incapacidade moderada':v<=60?'Incapacidade severa':'Incapacidade muito severa';
+});
+document.getElementById('ases_score').addEventListener('input',function(){
+  var v=parseInt(this.value),el=document.getElementById('ases_interp');
+  if(isNaN(v)){el.textContent='—';return;}
+  el.textContent=v>=80?'Boa/Excelente função':v>=60?'Função satisfatória':v>=40?'Função moderada':'Função fraca';
+});
+document.getElementById('oss_score').addEventListener('input',function(){
+  var v=parseInt(this.value),el=document.getElementById('oss_interp');
+  if(isNaN(v)){el.textContent='—';return;}
+  el.textContent=v<=20?'Boa/Excelente função':v<=30?'Função satisfatória':v<=40?'Função moderada':'Função fraca';
+});
+/* ── _gerarResumo ── */
+window._gerarResumo=function(){
+var g=window._getOpt,m=window._getMulti,v=window._getVal,e=window._evaRow;
+var rv=function(id){var el=document.getElementById(id);return el&&el.value?el.value:'';};
+var L=['\u2500\u2500 OMBRO \u2014 EXAME OBJECTIVO \u2500\u2500'];
+var lado=g('lado');if(lado)L.push('Ombro '+lado);
+var td=g('tipo_dor');if(td)L.push('Dor: '+td);
+var loc=m('localizacao_dor');if(loc.length)L.push('Localização: '+loc.join(', '));
+var dn=g('d_noturna');if(dn)L.push('Dor noturna: '+dn);
 var evr=e('eva_rep'),eva=e('eva_act'),evp=e('eva_pic');
 var evaStr=[evr?'repouso '+evr:'',eva?'actividade '+eva:'',evp?'pico '+evp:''].filter(Boolean).join(' | ');
-if(evaStr) L.push('EVA: '+evaStr);
-var td=g('tipo_dor'); if(td) L.push('Dor: '+td);
-var ir=m('irrad'); if(ir.length) L.push('Irradiação: '+ir.join(', '));
-var dn=g('d_noturna'); if(dn) L.push('Dor noturna: '+dn);
-
-var insp=[m('insp_pos').join(', '),g('insp_esc'),m('insp_atr').join(', ')].filter(Boolean);
-if(insp.length){L.push('');L.push('Inspeção: '+insp.join(' | '));}
-
-var palp=['AC: '+g('palp_ac'),'Tubérculo: '+g('palp_tb'),'Sulco bicipital: '+g('palp_bic'),'Bursa: '+g('palp_bur')].filter(function(x){return x.split(': ')[1];});
-if(palp.length){L.push('');L.push('Palpação:');palp.forEach(function(x){L.push('  • '+x);});}
-
-L.push('');L.push('Mobilidade:');
-var mobG=[['Flexão',g('mob_flex'),document.getElementById('mob_flex_g')&&document.getElementById('mob_flex_g').value],['Extensão',g('mob_ext'),document.getElementById('mob_ext_g')&&document.getElementById('mob_ext_g').value],['Abdução',g('mob_abd'),document.getElementById('mob_abd_g')&&document.getElementById('mob_abd_g').value],['Rot. externa',g('mob_re'),document.getElementById('mob_re_g')&&document.getElementById('mob_re_g').value],['Rot. interna',g('mob_ri'),null],['Crepitação',g('mob_crep'),null]];
-mobG.forEach(function(p){if(p[1]){var gr=p[2]?' ('+p[2]+'°)':'';L.push('  • '+p[0]+': '+p[1]+gr);}});
-
-L.push('');L.push('Força MRC:');
-[['Supra-espinhoso',g('f_sup')],['Infra-espinhoso',g('f_inf')],['Subescapular',g('f_sub')],['Deltóide',g('f_del')]].forEach(function(p){if(p[1])L.push('  • '+p[0]+': '+p[1]);});
-
-L.push('');L.push('Testes:');
-[['Neer',g('t_neer')],['Hawkins',g('t_hawk')],['Jobe',g('t_jobe')],['Patte',g('t_patte')],['Lift-off',g('t_liftoff')],['Belly press',g('t_belly')],['Drop Arm',g('t_drop')],['Speed',g('t_speed')],['Yergason',g('t_yerg')],['Apprehension',g('t_appr')],['Relocation',g('t_reloc')],['Sulcus',g('t_sulc')]].forEach(function(p){if(p[1])L.push('  • '+p[0]+': '+p[1]);});
-
-var func=[g('func_elev')?'elevação: '+g('func_elev'):'',g('func_cos')?'costas: '+g('func_cos'):'',g('func_vest')?'vestir: '+g('func_vest'):''].filter(Boolean);
-if(func.length){L.push('');L.push('Funcional: '+func.join(' | '));}
-
-var n=v('notas'); if(n){L.push('');L.push('Notas: '+n);}
-L.push('');L.push('──────────────────────────────────────────────────');
+if(evaStr)L.push('EVA: '+evaStr);
+L.push('');
+L.push('Palpação:');
+[['AC',g('palp_ac')],['Tubérculo',g('palp_tb')],['Sulco bicipital',g('palp_bic')],['Bursa',g('palp_bur')],['Supra-espinhoso',g('palp_sup')]].forEach(function(p){if(p[1])L.push('  \u2022 '+p[0]+': '+p[1]);});
+var np=v('notas_palp');if(np)L.push('  '+np);
+L.push('');
+L.push('Mobilidade (A=activo P=passivo):');
+[['Flexão','flex'],['Extensão','ext'],['Abdução','abd'],['Rot. externa','re'],['Rot. interna','ri']].forEach(function(p){
+  var a=rv('rom_'+p[1]+'_a'),pas=rv('rom_'+p[1]+'_p');
+  if(a||pas)L.push('  \u2022 '+p[0]+': A '+(a||'\u2014')+'° | P '+(pas||'\u2014')+'°');
+});
+var nm=v('notas_mob');if(nm)L.push('  '+nm);
+L.push('');
+L.push('Força MRC:');
+[['Supra-espinhoso',g('f_sup')],['Infra-espinhoso',g('f_inf')],['Subescapular',g('f_sub')],['Deltóide',g('f_del')]].forEach(function(p){if(p[1])L.push('  \u2022 '+p[0]+': '+p[1]);});
+var nf=v('notas_forca');if(nf)L.push('  '+nf);
+var dynLines=[];
+[['RE','dyn_re'],['RI','dyn_ri'],['EA','dyn_ea'],['Abd','dyn_abd']].forEach(function(p){
+  var af=rv(p[1]+'_af'),cl=rv(p[1]+'_cl'),def=document.getElementById(p[1]+'_def');
+  if(af||cl)dynLines.push('  \u2022 '+p[0]+': AF='+af+'kg CL='+cl+'kg'+(af&&cl?' Déf='+def.textContent:''));
+});
+if(dynLines.length){L.push('');L.push('Dinamometria:');dynLines.forEach(function(x){L.push(x);});}
+L.push('');
+L.push('Testes:');
+[['Neer',g('t_neer')],['Hawkins',g('t_hawk')],['Jobe',g('t_jobe')],['Patte',g('t_patte')],['Lift-off',g('t_liftoff')],['Belly press',g('t_belly')],['Drop Arm',g('t_drop')],['Speed',g('t_speed')],['Yergason',g('t_yerg')],['Apprehension',g('t_appr')],['Relocation',g('t_reloc')],['Sulcus',g('t_sulc')]].forEach(function(p){if(p[1])L.push('  \u2022 '+p[0]+': '+p[1]);});
+var nt=v('notas_testes');if(nt)L.push('  '+nt);
+L.push('');
+L.push('Funcional:');
+[['Elevação',g('func_elev')],['Costas',g('func_cos')],['Vestir',g('func_vest')],['Profissional',g('func_prof')],['Desportiva',g('func_desp')],['Conduzir',g('func_cond')]].forEach(function(p){if(p[1])L.push('  \u2022 '+p[0]+': '+p[1]);});
+var dash=rv('dash_score'),ases=rv('ases_score'),oss=rv('oss_score');
+if(dash||ases||oss){L.push('');L.push('Escalas:');if(dash)L.push('  \u2022 DASH: '+dash+'/100');if(ases)L.push('  \u2022 ASES: '+ases+'/100');if(oss)L.push('  \u2022 OSS: '+oss);}
+L.push('');L.push('\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500');
 return L.join('\\n');
 };
-window._examCtx = ${JSON.stringify({ patientId: ctx.patientId || null, clinicId: ctx.clinicId || null, consultationId: ctx.consultationId || null })};
-window._saveExamToSupabase = async function(txt) {
-  var c = window._examCtx || {};
-  if (!c.consultationId) return;
-  try {
-    var sb = window.opener && window.opener.sb;
-    if (!sb) return;
-    var userRes = await sb.auth.getUser();
-    var authorId = userRes?.data?.user?.id || null;
-    var res = await sb.from('consultation_assessments').insert({
-      consultation_id: c.consultationId,
-      patient_id:      c.patientId,
-      clinic_id:       c.clinicId,
-      author_user_id:  authorId,
-      assessment_type: 'ombro',
-      assessment_date: new Date().toISOString().split('T')[0],
-      data:            { resumo: txt }
-    });
-    if (res.error) console.error('saveExam:', res.error);
-  } catch(e) { console.error('saveExam:', e); }
+/* ── _gerarData ── */
+window._gerarData=function(){
+var g=window._getOpt,m=window._getMulti,v=window._getVal;
+var rv=function(id){var el=document.getElementById(id);return el&&el.value!==''?parseFloat(el.value):null;};
+var rs=function(id){var el=document.getElementById(id);return el?(el.value.trim()||null):null;};
+return{
+  lado:g('lado')||null,
+  eva:{rep:g('eva_rep')||null,act:g('eva_act')||null,pic:g('eva_pic')||null},
+  tipo_dor:g('tipo_dor')||null,
+  localizacao_dor:m('localizacao_dor'),
+  d_noturna:g('d_noturna')||null,
+  palp:{ac:g('palp_ac')||null,tb:g('palp_tb')||null,bic:g('palp_bic')||null,bur:g('palp_bur')||null,sup:g('palp_sup')||null},
+  rom:{flex_a:rv('rom_flex_a'),flex_p:rv('rom_flex_p'),ext_a:rv('rom_ext_a'),ext_p:rv('rom_ext_p'),abd_a:rv('rom_abd_a'),abd_p:rv('rom_abd_p'),re_a:rv('rom_re_a'),re_p:rv('rom_re_p'),ri_a:rv('rom_ri_a'),ri_p:rv('rom_ri_p')},
+  mrc:{sup:g('f_sup')||null,inf:g('f_inf')||null,sub:g('f_sub')||null,del:g('f_del')||null},
+  testes:{neer:g('t_neer')||null,hawk:g('t_hawk')||null,jobe:g('t_jobe')||null,patte:g('t_patte')||null,liftoff:g('t_liftoff')||null,belly:g('t_belly')||null,drop:g('t_drop')||null,speed:g('t_speed')||null,yerg:g('t_yerg')||null,appr:g('t_appr')||null,reloc:g('t_reloc')||null,sulc:g('t_sulc')||null},
+  dyn:{re_af:rv('dyn_re_af'),re_cl:rv('dyn_re_cl'),ri_af:rv('dyn_ri_af'),ri_cl:rv('dyn_ri_cl'),ea_af:rv('dyn_ea_af'),ea_cl:rv('dyn_ea_cl'),abd_af:rv('dyn_abd_af'),abd_cl:rv('dyn_abd_cl')},
+  func:{elev:g('func_elev')||null,cos:g('func_cos')||null,vest:g('func_vest')||null,prof:g('func_prof')||null,desp:g('func_desp')||null,cond:g('func_cond')||null},
+  escalas:{dash:rv('dash_score'),ases:rv('ases_score'),oss:rv('oss_score')},
+  notas_mob:rs('notas_mob'),notas_palp:rs('notas_palp'),notas_testes:rs('notas_testes'),notas_forca:rs('notas_forca'),
 };
-document.getElementById('btnCopy').addEventListener('click', async function() {
-  var t = typeof window._gerarResumo === 'function' ? window._gerarResumo() : '';
-  if (t) await window._saveExamToSupabase(t);
+};
+/* ── CTX & SAVE ── */
+window._examCtx=${JSON.stringify({patientId:ctx.patientId||null,clinicId:ctx.clinicId||null,consultationId:ctx.consultationId||null})};
+window._saveExamToSupabase=async function(txt,dataObj){
+  var c=window._examCtx||{};
+  if(!c.consultationId)return;
+  try{
+    var sb=window.opener&&window.opener.sb;
+    if(!sb)return;
+    var userRes=await sb.auth.getUser();
+    var authorId=userRes&&userRes.data&&userRes.data.user?userRes.data.user.id:null;
+    var payload=Object.assign({resumo:txt},dataObj||{});
+    var res=await sb.from('consultation_assessments').insert({
+      consultation_id:c.consultationId,
+      patient_id:c.patientId,
+      clinic_id:c.clinicId,
+      author_user_id:authorId,
+      assessment_type:'ombro',
+      assessment_date:new Date().toISOString().split('T')[0],
+      data:payload
+    });
+    if(res.error)console.error('saveExam:',res.error);
+  }catch(e){console.error('saveExam:',e);}
+};
+document.getElementById('btnCopy').addEventListener('click',async function(){
+  var txt=typeof window._gerarResumo==='function'?window._gerarResumo():'';
+  var dataObj=typeof window._gerarData==='function'?window._gerarData():{};
+  if(txt)await window._saveExamToSupabase(txt,dataObj);
 });
 </script></body></html>`);
     return;
