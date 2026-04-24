@@ -757,7 +757,7 @@ window.getRF=getRF;
   ══════════════════════════════════════════════════════════════ */
   if (formId === "ombro") {
     const m = await import('./obj/ombro.js');
-    m.render(_mskCss, _evaOpts, _mskJs, _abrirBlob);
+    m.render(_mskCss, _evaOpts, _mskJs, _abrirBlob, ctx);
     return;
   }
 

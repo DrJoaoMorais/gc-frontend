@@ -1,4 +1,4 @@
-export function render(_mskCss, _evaOpts, _mskJs, _abrirBlob) {
+export function render(_mskCss, _evaOpts, _mskJs, _abrirBlob, ctx) {
     _abrirBlob(`<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
 <title>Exame Objectivo — Ombro</title>
 <style>
