@@ -421,49 +421,6 @@ document.getElementById('scale-oss').addEventListener('recalc',function(){
   document.getElementById('oss_score').textContent=sum;
   document.getElementById('oss_interp').textContent=sum>=40?'Excelente (40-48) - sem sintomas relevantes':sum>=30?'Bom (30-39) - sintomas ligeiros, função conservada':sum>=20?'Moderado (20-29) - dor e limitação funcionais significativas':'Fraco (<20) - sintomas graves, incapacidade marcada';
 });
-/* ── _gerarResumo ── */
-window._gerarResumo=function(){
-var g=window._getOpt,m=window._getMulti,v=window._getVal,e=window._evaRow;
-var rv=function(id){var el=document.getElementById(id);return el&&el.value?el.value:'';};
-var L=['── OMBRO — EXAME OBJECTIVO ──'];
-var lado=document.querySelector('#lado .opt.sel');if(lado)L.push('Ombro '+lado.dataset.v);
-var td=g('tipo_dor');if(td)L.push('Dor: '+td);
-var loc=m('localizacao_dor');if(loc.length)L.push('Localizao: '+loc.join(', '));
-var irr=g('irradiacao');if(irr)L.push('Irradiao: '+irr);
-var dn=g('d_noturna');if(dn)L.push('Dor noturna: '+dn);
-var evr=e('eva_rep'),eva=e('eva_act'),evp=e('eva_pic');
-var evaStr=[evr?'repouso '+evr:'',eva?'actividade '+eva:'',evp?'pico '+evp:''].filter(Boolean).join(' | ');
-if(evaStr)L.push('EVA: '+evaStr);
-L.push('');L.push('Palpao:');
-[['AC',g('palp_ac')],['Tubrculo',g('palp_tb')],['Sulco bicipital',g('palp_bic')],['Bursa',g('palp_bur')],['Supra-espinhoso',g('palp_sup')]].forEach(function(p){if(p[1])L.push('  • '+p[0]+': '+p[1]);});
-var np=v('notas_palp');if(np)L.push('  '+np);
-L.push('');L.push('Mobilidade (A=activo P=passivo):');
-[['Flexo','flex'],['Extenso','ext'],['Abduo','abd'],['Rot. ext.','re'],['Rot. int.','ri']].forEach(function(p){
-  var a=rv('rom_'+p[1]+'_a'),pas=rv('rom_'+p[1]+'_p');
-  if(a||pas)L.push('  • '+p[0]+': A '+(a||'—')+'  | P '+(pas||'—')+'');
-});
-var nm=v('notas_mob');if(nm)L.push('  '+nm);
-L.push('');L.push('Fora MRC:');
-[['Supra-espinhoso',g('f_sup')],['Infra-espinhoso',g('f_inf')],['Subescapular',g('f_sub')],['Deltide',g('f_del')]].forEach(function(p){if(p[1])L.push('  • '+p[0]+': '+p[1]);});
-var nf=v('notas_forca');if(nf)L.push('  '+nf);
-var dynLines=[];
-[['RE','dyn_re'],['RI','dyn_ri'],['EA','dyn_ea'],['Abd','dyn_abd']].forEach(function(p){
-  var af=rv(p[1]+'_af'),cl=rv(p[1]+'_cl'),def=document.getElementById(p[1]+'_def');
-  if(af||cl)dynLines.push('  • '+p[0]+': Afect='+af+'kg Contral='+cl+'kg'+(af&&cl?' Df='+def.textContent:''));
-});
-if(dynLines.length){L.push('');L.push('Dinamometria:');dynLines.forEach(function(x){L.push(x);});}
-L.push('');L.push('Testes:');
-[['Neer',g('t_neer')],['Hawkins',g('t_hawk')],['Jobe',g('t_jobe')],['Patte',g('t_patte')],['Lift-off',g('t_liftoff')],['Belly press',g('t_belly')],['Drop Arm',g('t_drop')],['Speed',g('t_speed')],['Yergason',g('t_yerg')],['Apprehension',g('t_appr')],['Relocation',g('t_reloc')],['Sulcus',g('t_sulc')]].forEach(function(p){if(p[1])L.push('  • '+p[0]+': '+p[1]);});
-var nt=v('notas_testes');if(nt)L.push('  '+nt);
-L.push('');L.push('Funcional:');
-[['Elevao',g('func_elev')],['Costas',g('func_cos')],['Vestir',g('func_vest')],['Profissional',g('func_prof')],['Desportiva',g('func_desp')],['Conduzir',g('func_cond')]].forEach(function(p){if(p[1])L.push('  • '+p[0]+': '+p[1]);});
-var dash=document.getElementById('dash_score').textContent;
-var ases=document.getElementById('ases_score').textContent;
-var oss=document.getElementById('oss_score').textContent;
-if(dash!=='—'||ases!=='—'||oss!=='—'){L.push('');L.push('Escalas:');if(dash&&dash!=='—')L.push('  • DASH: '+dash+'/100');if(ases&&ases!=='—')L.push('  • ASES: '+ases+'/100');if(oss&&oss!=='—')L.push('  • OSS: '+oss+'/48');}
-L.push('');L.push('──────────────────────────────────────────────');
-return L.join('\\n');
-};
 /* ── _gerarData ── */
 window._gerarData=function(){
 var g=window._getOpt,m=window._getMulti;
@@ -523,19 +480,14 @@ window._saveExamToSupabase=async function(txt,dataObj){
     if(res.error)console.error('saveExam:',res.error);
   }catch(e){console.error('saveExam:',e);}
 };
-document.getElementById('btnPdf').addEventListener('click',function(){
-  window.print();
-});
-document.getElementById('btnCopy').addEventListener('click',async function(){
+window._gerarResumo=function(){
   var linhas=[];
-  /* ── EXAME OBJECTIVO ── */
   var lado=document.querySelector('.lado-bar .opt.sel');
   if(lado)linhas.push('OMBRO '+lado.textContent.toUpperCase());
-  /* dor */
   var tipoDor=[...document.querySelectorAll('#tipo_dor .opt.sel')].map(function(o){return o.dataset.v;});
   if(tipoDor.length)linhas.push('Tipo de dor: '+tipoDor.join(', '));
   var locDor=[...document.querySelectorAll('#loc_dor .opt.sel')].map(function(o){return o.dataset.v;});
-  if(locDor.length)linhas.push('Localização: '+locDor.join(', '));
+  if(locDor.length)linhas.push('Localizacao: '+locDor.join(', '));
   var noturna=document.querySelector('#d_noturna .opt.sel');
   if(noturna)linhas.push('Dor nocturna: '+noturna.dataset.v);
   var evaRep=document.querySelector('#eva_rep .opt.sel');
@@ -546,9 +498,8 @@ document.getElementById('btnCopy').addEventListener('click',async function(){
   if(evaAct)evaStr.push('actividade '+evaAct.dataset.v);
   if(evaPic)evaStr.push('pico '+evaPic.dataset.v);
   if(evaStr.length)linhas.push('EVA: '+evaStr.join(' | '));
-  /* palpação */
   linhas.push('');
-  linhas.push('PALPAÇÃO');
+  linhas.push('PALPACAO');
   document.querySelectorAll('.palp-row').forEach(function(row){
     var lbl=row.querySelector('.palp-lbl');
     var sel=row.querySelector('.opt.sel');
@@ -556,31 +507,26 @@ document.getElementById('btnCopy').addEventListener('click',async function(){
   });
   var notasPalp=document.getElementById('notas_palp');
   if(notasPalp&&notasPalp.value.trim())linhas.push('  Notas: '+notasPalp.value.trim());
-  /* ROM */
   linhas.push('');
   linhas.push('AMPLITUDE ARTICULAR');
-  ['flex','ext','abd','re','ri'].forEach(function(k){
-    var ia=document.getElementById('rom_'+k+'_a');
-    var ip=document.getElementById('rom_'+k+'_p');
-    var lbl={'flex':'Flexão','ext':'Extensão','abd':'Abdução','re':'Rot. ext.','ri':'Rot. int.'}[k];
-    var ref={'flex':180,'ext':60,'abd':180,'re':90,'ri':70}[k];
-    var va=ia&&ia.value?ia.value:'—';
-    var vp=ip&&ip.value?ip.value:'—';
-    linhas.push('  '+lbl+': A '+va+'° / P '+vp+'° (ref '+ref+'°)');
+  [{k:'flex',l:'Flexao',r:180},{k:'ext',l:'Extensao',r:60},{k:'abd',l:'Abducao',r:180},{k:'re',l:'Rot. ext.',r:90},{k:'ri',l:'Rot. int.',r:70}].forEach(function(m){
+    var ia=document.getElementById('rom_'+m.k+'_a');
+    var ip=document.getElementById('rom_'+m.k+'_p');
+    var va=ia&&ia.value?ia.value:'?';
+    var vp=ip&&ip.value?ip.value:'?';
+    linhas.push('  '+m.l+': A '+va+'graus / P '+vp+'graus (ref '+m.r+'graus)');
   });
   var notasMob=document.getElementById('notas_mob');
   if(notasMob&&notasMob.value.trim())linhas.push('  Notas: '+notasMob.value.trim());
-  /* força MRC */
   linhas.push('');
-  linhas.push('FORÇA MRC');
+  linhas.push('FORCA MRC');
   document.querySelectorAll('.mrc-row').forEach(function(row){
     var lbl=row.querySelector('.mrc-lbl');
     var sel=row.querySelector('.opt.sel');
     if(lbl&&sel)linhas.push('  '+lbl.textContent+': '+sel.dataset.v);
   });
-  /* testes */
   linhas.push('');
-  linhas.push('TESTES CLÍNICOS ESPECIAIS');
+  linhas.push('TESTES CLINICOS ESPECIAIS');
   document.querySelectorAll('.teste-row').forEach(function(row){
     var lbl=row.querySelector('.teste-lbl');
     var sel=row.querySelector('.opt.sel');
@@ -588,16 +534,14 @@ document.getElementById('btnCopy').addEventListener('click',async function(){
   });
   var notasTestes=document.getElementById('notas_testes');
   if(notasTestes&&notasTestes.value.trim())linhas.push('  Notas: '+notasTestes.value.trim());
-  /* dinamometria */
   linhas.push('');
   linhas.push('DINAMOMETRIA (ActivForce 2)');
-  [['re','Rot. externa'],['ri','Rot. interna'],['ea','Elevação ant.'],['abd','Abdução']].forEach(function(p){
+  [['re','Rot. externa'],['ri','Rot. interna'],['ea','Elevacao ant.'],['abd','Abducao']].forEach(function(p){
     var af=document.getElementById('dyn_'+p[0]+'_af');
     var cl=document.getElementById('dyn_'+p[0]+'_cl');
     var def=document.getElementById('dyn_'+p[0]+'_def');
-    if(af&&af.value)linhas.push('  '+p[1]+': Afect. '+af.value+'kg / Contral. '+(cl&&cl.value?cl.value:'—')+'kg'+(def&&def.textContent&&def.textContent!=='—'?' — Défice '+def.textContent:''));
+    if(af&&af.value)linhas.push('  '+p[1]+': Afect. '+af.value+'kg / Contral. '+(cl&&cl.value?cl.value:'?')+'kg'+(def&&def.textContent&&def.textContent!='?'?' Defice '+def.textContent:''));
   });
-  /* funcional */
   linhas.push('');
   linhas.push('FUNCIONAL');
   document.querySelectorAll('.func-row').forEach(function(row){
@@ -605,61 +549,43 @@ document.getElementById('btnCopy').addEventListener('click',async function(){
     var sel=row.querySelector('.opt.sel');
     if(lbl&&sel&&sel.dataset.v!=='Normal')linhas.push('  '+lbl.textContent+': '+sel.dataset.v);
   });
-  /* ── ESCALAS FUNCIONAIS ── */
   linhas.push('');
-  linhas.push('── ESCALAS FUNCIONAIS ──');
-  /* DASH */
+  linhas.push('-- ESCALAS FUNCIONAIS --');
   var dashScore=document.getElementById('dash_score');
   var dashInterp=document.getElementById('dash_interp');
-  if(dashScore&&dashScore.textContent&&dashScore.textContent!=='—'){
-    linhas.push('');
-    linhas.push('DASH (Disabilities of the Arm, Shoulder and Hand)');
-    linhas.push('  Score: '+dashScore.textContent+'/100');
-    if(dashInterp&&dashInterp.textContent)linhas.push('  Interpretação: '+dashInterp.textContent);
+  if(dashScore&&dashScore.textContent&&dashScore.textContent!='?'){
+    linhas.push('DASH: '+dashScore.textContent+'/100');
+    if(dashInterp&&dashInterp.textContent)linhas.push('  '+dashInterp.textContent);
     document.querySelectorAll('#scale-dash .sq-row').forEach(function(row){
       var lbl=row.querySelector('.sq-lbl');
       var sel=row.querySelector('.sq-opt.sel');
-      if(lbl&&sel)linhas.push('  • '+lbl.textContent.trim()+': '+sel.textContent.trim()+' ('+sel.dataset.v+')');
+      if(lbl&&sel)linhas.push('  - '+lbl.textContent.trim()+': '+sel.textContent.trim());
     });
   }
-  /* ASES */
   var asesScore=document.getElementById('ases_score');
   var asesInterp=document.getElementById('ases_interp');
-  if(asesScore&&asesScore.textContent&&asesScore.textContent!=='—'){
-    linhas.push('');
-    linhas.push('ASES (American Shoulder and Elbow Surgeons)');
-    linhas.push('  Score: '+asesScore.textContent+'/100');
-    if(asesInterp&&asesInterp.textContent)linhas.push('  Interpretação: '+asesInterp.textContent);
+  if(asesScore&&asesScore.textContent&&asesScore.textContent!='?'){
+    linhas.push('ASES: '+asesScore.textContent+'/100');
+    if(asesInterp&&asesInterp.textContent)linhas.push('  '+asesInterp.textContent);
     document.querySelectorAll('#scale-ases .sq-row').forEach(function(row){
       var lbl=row.querySelector('.sq-lbl');
       var sel=row.querySelector('.sq-opt.sel');
-      if(lbl&&sel)linhas.push('  • '+lbl.textContent.trim()+': '+sel.textContent.trim()+' ('+sel.dataset.v+')');
+      if(lbl&&sel)linhas.push('  - '+lbl.textContent.trim()+': '+sel.textContent.trim());
     });
   }
-  /* OSS */
   var ossScore=document.getElementById('oss_score');
   var ossInterp=document.getElementById('oss_interp');
-  if(ossScore&&ossScore.textContent&&ossScore.textContent!=='—'){
-    linhas.push('');
-    linhas.push('OSS (Oxford Shoulder Score)');
-    linhas.push('  Score: '+ossScore.textContent+'/48');
-    if(ossInterp&&ossInterp.textContent)linhas.push('  Interpretação: '+ossInterp.textContent);
+  if(ossScore&&ossScore.textContent&&ossScore.textContent!='?'){
+    linhas.push('OSS: '+ossScore.textContent+'/48');
+    if(ossInterp&&ossInterp.textContent)linhas.push('  '+ossInterp.textContent);
     document.querySelectorAll('#scale-oss .sq-row').forEach(function(row){
       var lbl=row.querySelector('.sq-lbl');
       var sel=row.querySelector('.sq-opt.sel');
-      if(lbl&&sel)linhas.push('  • '+lbl.textContent.trim()+': '+sel.textContent.trim()+' ('+sel.dataset.v+')');
+      if(lbl&&sel)linhas.push('  - '+lbl.textContent.trim()+': '+sel.textContent.trim());
     });
   }
-  /* copiar + guardar */
-  var txt=linhas.join('\n');
-  try{await navigator.clipboard.writeText(txt);}catch(e){}
-  var toast=document.getElementById('toast');
-  if(toast){toast.style.display='block';setTimeout(function(){toast.style.display='none';},2200);}
-  var dataObj=typeof window._gerarData==='function'?window._gerarData():{};
-  try{
-    if(window._saveExamToSupabase)await window._saveExamToSupabase(txt,dataObj);
-  }catch(e){console.error('saveExam:',e);}
-});
+  return linhas.join('\n');
+};
 </script></body></html>`, "width=1100,height=820,scrollbars=yes");
     return;
 }
