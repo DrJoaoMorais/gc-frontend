@@ -1020,22 +1020,23 @@ var ROM_DEFS=[
   {key:'re',label:'Rot. ext.',ref:90},
   {key:'ri',label:'Rot. int.',ref:90}
 ];
-var ROM_CX=60,ROM_CY=64,ROM_R_MID=44;
+var ROM_CX=46,ROM_CY=46,ROM_R_OUT=38,ROM_R_IN=26,ROM_R_THRESH=32;
+var ROM_C_OUT=2*Math.PI*38,ROM_C_IN=2*Math.PI*26;
 var rc=document.getElementById('rom-container');
 ROM_DEFS.forEach(function(r){
   var div=document.createElement('div');
   div.className='rom-item';
   div.innerHTML='<div class="rom-hdr"><span class="rom-label">'+r.label+'</span><span class="rom-ref">ref '+r.ref+'°</span></div>'
-    +'<svg id="rsvg_'+r.key+'" class="rom-svg" width="120" height="68" viewBox="0 0 120 68">'
-    +'<path d="M8,64 A52,52 0 0,1 112,64" fill="none" stroke="#e2e8f0" stroke-width="10" stroke-linecap="round"/>'
-    +'<path d="M24,64 A36,36 0 0,1 96,64" fill="none" stroke="#e2e8f0" stroke-width="8" stroke-linecap="round"/>'
-    +'<path id="rarc_'+r.key+'_a" d="M8,64 A52,52 0 0,1 112,64" fill="none" stroke="#3b82f6" stroke-width="10" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100"/>'
-    +'<path id="rarc_'+r.key+'_p" d="M24,64 A36,36 0 0,1 96,64" fill="none" stroke="#10b981" stroke-width="8" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100"/>'
+    +'<svg id="rsvg_'+r.key+'" class="rom-svg" width="92" height="92" viewBox="0 0 92 92" style="cursor:crosshair;display:block;">'
+    +'<circle cx="46" cy="46" r="38" fill="none" stroke="#f0f0f0" stroke-width="7"/>'
+    +'<circle cx="46" cy="46" r="26" fill="none" stroke="#f0f0f0" stroke-width="5"/>'
+    +'<circle id="rarc_'+r.key+'_a" cx="46" cy="46" r="38" fill="none" stroke="#1a56db" stroke-width="7" stroke-linecap="round" transform="rotate(-90 46 46)" stroke-dasharray="0 '+ROM_C_OUT.toFixed(2)+'"/>'
+    +'<circle id="rarc_'+r.key+'_p" cx="46" cy="46" r="26" fill="none" stroke="#3B6D11" stroke-width="5" stroke-linecap="round" transform="rotate(-90 46 46)" stroke-dasharray="0 '+ROM_C_IN.toFixed(2)+'"/>'
     +'</svg>'
     +'<div class="rom-inputs">'
-    +'<span class="rom-inp-lbl" style="color:#3b82f6;font-weight:700;">A°</span>'
+    +'<span class="rom-inp-lbl" style="color:#1a56db;font-weight:700;">A°</span>'
     +'<input class="rom-inp ia" type="number" id="rom_'+r.key+'_a" min="0" max="'+r.ref+'" placeholder="—">'
-    +'<span class="rom-inp-lbl" style="color:#10b981;font-weight:700;">P°</span>'
+    +'<span class="rom-inp-lbl" style="color:#3B6D11;font-weight:700;">P°</span>'
     +'<input class="rom-inp ip" type="number" id="rom_'+r.key+'_p" min="0" max="'+r.ref+'" placeholder="—">'
     +'</div>';
   rc.appendChild(div);
@@ -1048,23 +1049,28 @@ ROM_DEFS.forEach(function(r){
     function redraw(){
       var va=Math.min(Math.max(parseFloat(ia.value)||0,0),ref);
       var vp=Math.min(Math.max(parseFloat(ip.value)||0,0),ref);
-      aa.setAttribute('stroke-dasharray',(va/ref*100).toFixed(1)+' 100');
-      ap.setAttribute('stroke-dasharray',(vp/ref*100).toFixed(1)+' 100');
+      var fracA=va/ref, fracP=vp/ref;
+      var colA=fracA<0.75?'#E24B4A':'#1a56db';
+      var colP=fracP<0.75?'#E24B4A':'#3B6D11';
+      aa.setAttribute('stroke-dasharray',(fracA*ROM_C_OUT).toFixed(2)+' '+ROM_C_OUT.toFixed(2));
+      ap.setAttribute('stroke-dasharray',(fracP*ROM_C_IN).toFixed(2)+' '+ROM_C_IN.toFixed(2));
+      aa.setAttribute('stroke',colA);
+      ap.setAttribute('stroke',colP);
     }
     ia.addEventListener('input',redraw);
     ip.addEventListener('input',redraw);
     svg.addEventListener('click',function(e){
       var rect=svg.getBoundingClientRect();
-      var mx=(e.clientX-rect.left)*(120/rect.width);
-      var my=(e.clientY-rect.top)*(68/rect.height);
+      var mx=(e.clientX-rect.left)*(92/rect.width);
+      var my=(e.clientY-rect.top)*(92/rect.height);
       var dx=mx-ROM_CX,dy=my-ROM_CY;
       var dist=Math.sqrt(dx*dx+dy*dy);
-      if(dist<18||dist>58||my>=ROM_CY+3)return;
-      var angle=Math.atan2(-dy,dx);
-      if(angle<0)angle=0;
-      if(angle>Math.PI)angle=Math.PI;
-      var val=Math.round(angle/Math.PI*ref);
-      if(dist>=ROM_R_MID){ia.value=val;}else{ip.value=val;}
+      if(dist<14||dist>44)return;
+      var angle=Math.atan2(dy,dx)*180/Math.PI+90;
+      if(angle<0)angle+=360;
+      var val=Math.round(angle/360*ref/5)*5;
+      if(val<0)val=0; if(val>ref)val=ref;
+      if(dist>ROM_R_THRESH){ia.value=val;}else{ip.value=val;}
       redraw();
     });
   })(r.key,r.ref);
