@@ -389,7 +389,7 @@ document.getElementById('scale-dash').addEventListener('recalc',function(){
   var n=filled.length;
   var score=Math.round((sum-n)/(n*4)*100);
   document.getElementById('dash_score').textContent=score;
-  document.getElementById('dash_interp').textContent=score<=20?'Incapacidade mínima (0-20) — função praticamente normal':score<=40?'Incapacidade ligeira (21-40) — limitação em actividades exigentes':score<=60?'Incapacidade moderada (41-60) — limitação significativa nas AVD':score<=80?'Incapacidade grave (61-80) — grande dependência funcional':'Incapacidade muito grave (81-100) — incapacidade quase total';
+  document.getElementById('dash_interp').textContent=score<=20?'Incapacidade mínima (0-20) - função praticamente normal':score<=40?'Incapacidade ligeira (21-40) - limitação em actividades exigentes':score<=60?'Incapacidade moderada (41-60) - limitação significativa nas AVD':score<=80?'Incapacidade grave (61-80) - grande dependência funcional':'Incapacidade muito grave (81-100) - incapacidade quase total';
 });
 /* ── ASES ── */
 document.getElementById('scale-ases').addEventListener('recalc',function(){
@@ -404,7 +404,7 @@ document.getElementById('scale-ases').addEventListener('recalc',function(){
   if(pain===null&&func===null){document.getElementById('ases_score').textContent='—';document.getElementById('ases_interp').textContent='';return;}
   var score=Math.round((pain||0)+(func||0));
   document.getElementById('ases_score').textContent=score;
-  document.getElementById('ases_interp').textContent=score>=80?'Boa / Excelente — função preservada, sem limitação significativa':score>=60?'Satisfatório — limitação moderada em actividades exigentes':score>=40?'Moderado — limitação marcada, impacto nas AVD':' Fraco — incapacidade grave, limitação em actividades básicas';
+  document.getElementById('ases_interp').textContent=score>=80?'Boa / Excelente - função preservada, sem limitação significativa':score>=60?'Satisfatório - limitação moderada em actividades exigentes':score>=40?'Moderado - limitação marcada, impacto nas AVD':' Fraco - incapacidade grave, limitação em actividades básicas';
 });
 document.getElementById('ases_eva').addEventListener('input',function(){
   document.getElementById('scale-ases').dispatchEvent(new Event('recalc'));
@@ -419,7 +419,7 @@ document.getElementById('scale-oss').addEventListener('recalc',function(){
   if(!filled.length){document.getElementById('oss_score').textContent='—';document.getElementById('oss_interp').textContent='';return;}
   var sum=filled.reduce(function(a,b){return a+b;},0);
   document.getElementById('oss_score').textContent=sum;
-  document.getElementById('oss_interp').textContent=sum>=40?'Excelente (40-48) — sem sintomas relevantes':sum>=30?'Bom (30-39) — sintomas ligeiros, função conservada':sum>=20?'Moderado (20-29) — dor e limitação funcionais significativas':'Fraco (<20) — sintomas graves, incapacidade marcada';
+  document.getElementById('oss_interp').textContent=sum>=40?'Excelente (40-48) - sem sintomas relevantes':sum>=30?'Bom (30-39) - sintomas ligeiros, função conservada':sum>=20?'Moderado (20-29) - dor e limitação funcionais significativas':'Fraco (<20) - sintomas graves, incapacidade marcada';
 });
 /* ── _gerarResumo ── */
 window._gerarResumo=function(){
