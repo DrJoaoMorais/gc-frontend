@@ -584,7 +584,7 @@ window._gerarResumo=function(){
       if(lbl&&sel)linhas.push('  - '+lbl.textContent.trim()+': '+sel.textContent.trim());
     });
   }
-  return linhas.join('\n');
+  return linhas.join(String.fromCharCode(10));
 };
 </script></body></html>`, "width=1100,height=820,scrollbars=yes");
     return;
