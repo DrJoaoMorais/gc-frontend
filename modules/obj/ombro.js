@@ -364,46 +364,40 @@ document.getElementById('af2_import').addEventListener('click',function(){
   if(!txt.trim())return;
   var lado=document.querySelector('.lado-bar .opt.sel');
   var ladoAfect=lado?lado.textContent.trim():'Esquerda';
-  var ladoContral=ladoAfect==='Direita'?'Esquerda':'Direita';
+  var ladoContral=ladoAfect==='Esquerda'?'Direita':'Esquerda';
   var map={
-    'Flex\u00e3o':['dyn_ea_af','dyn_ea_cl'],
-    'Flexao':['dyn_ea_af','dyn_ea_cl'],
-    'Abd\u00e7\u00e3o':['dyn_abd_af','dyn_abd_cl'],
-    'Abducao':['dyn_abd_af','dyn_abd_cl'],
-    'Rota\u00e7\u00e3o Externa':['dyn_re_af','dyn_re_cl'],
-    'Rotacao Externa':['dyn_re_af','dyn_re_cl'],
-    'Rota\u00e7\u00e3o Interna':['dyn_ri_af','dyn_ri_cl'],
-    'Rotacao Interna':['dyn_ri_af','dyn_ri_cl'],
-    'Extens\u00e3o':['dyn_ext_af','dyn_ext_cl'],
-    'Extensao':['dyn_ext_af','dyn_ext_cl']
+    'Flex':['dyn_ea_af','dyn_ea_cl'],
+    'Abdu':['dyn_abd_af','dyn_abd_cl'],
+    'Externa':['dyn_re_af','dyn_re_cl'],
+    'Interna':['dyn_ri_af','dyn_ri_cl']
   };
-  var sections=txt.split(/====\s*(.+?)\s*====/);
-  for(var i=1;i<sections.length;i+=2){
-    var title=sections[i];
-    var block=sections[i+1]||'';
-    var movimento=null;
+  var blocks=txt.split(/====\s*(.+?)\s*====/);
+  for(var i=1;i<blocks.length;i+=2){
+    var title=blocks[i];
+    var block=blocks[i+1]||'';
+    var fields=null;
     Object.keys(map).forEach(function(k){
-      if(title.indexOf(k)!==-1)movimento=k;
+      if(title.indexOf(k)!==-1)fields=map[k];
     });
-    if(!movimento)continue;
-    var fields=map[movimento];
+    if(!fields)continue;
+    var fmMatch=block.match(/For\u00e7a M\u00e1xima[\s\S]*?\n([\s\S]*?)(?:\n\n|\nTempo|\nFor\u00e7a M\u00e9dia|\nRela\u00e7\u00e3o|$)/);
+    if(!fmMatch)continue;
+    var fmBlock=fmMatch[1];
     var isBilateral=title.indexOf('Esquerda')!==-1&&title.indexOf('Direita')!==-1;
     if(isBilateral){
-      var esqMatch=block.match(/Esquerda:\s*([\d.]+)\s*kg/);
-      var dirMatch=block.match(/Direita:\s*([\d.]+)\s*kg/);
-      var esqVal=esqMatch?esqMatch[1]:null;
-      var dirVal=dirMatch?dirMatch[1]:null;
-      var afVal=ladoAfect==='Esquerda'?esqVal:dirVal;
-      var clVal=ladoAfect==='Esquerda'?dirVal:esqVal;
-      if(afVal){var el=document.getElementById(fields[0]);if(el)el.value=afVal;}
-      if(clVal){var el=document.getElementById(fields[1]);if(el)el.value=clVal;}
+      var esqM=fmBlock.match(/Esquerda:\s*([\d.]+)\s*kg/);
+      var dirM=fmBlock.match(/Direita:\s*([\d.]+)\s*kg/);
+      var afVal=ladoAfect==='Esquerda'?(esqM?esqM[1]:null):(dirM?dirM[1]:null);
+      var clVal=ladoAfect==='Esquerda'?(dirM?dirM[1]:null):(esqM?esqM[1]:null);
+      if(afVal){var ea=document.getElementById(fields[0]);if(ea)ea.value=afVal;}
+      if(clVal){var ec=document.getElementById(fields[1]);if(ec)ec.value=clVal;}
     } else {
-      var valMatch=block.match(/(?:Esquerda|Direita):\s*([\d.]+)\s*kg/);
-      if(valMatch){
+      var uniM=fmBlock.match(/(?:Esquerda|Direita):\s*([\d.]+)\s*kg/);
+      if(uniM){
         var side=title.indexOf('Esquerda')!==-1?'Esquerda':'Direita';
-        var fieldIdx=side===ladoAfect?0:1;
-        var el=document.getElementById(fields[fieldIdx]);
-        if(el)el.value=valMatch[1];
+        var fi=side===ladoAfect?0:1;
+        var eu=document.getElementById(fields[fi]);
+        if(eu)eu.value=uniM[1];
       }
     }
   }
