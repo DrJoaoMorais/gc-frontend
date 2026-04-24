@@ -198,7 +198,7 @@ textarea{width:100%;border:1px solid #e2e8f0;border-radius:7px;padding:4px 7px;f
 <div class="sec">
   <div class="sec-title">7 · Dinamometria ActivForce 2</div>
   <table class="dyn-table">
-    <thead><tr><th>Movimento</th><th>Afect. Esq. kg</th><th>Dir. kg</th><th>Défice</th><th>F·P</th></tr></thead>
+    <thead><tr><th>Movimento</th><th>Esq. kg</th><th>Dir. kg</th><th>Défice</th><th>F·P</th></tr></thead>
     <tbody>
       <tr><td>Rot. Externa</td><td><input class="dyn-inp" type="number" id="dyn_re_af" min="0" max="99" step="0.1" placeholder="—"></td><td><input class="dyn-inp" type="number" id="dyn_re_cl" min="0" max="99" step="0.1" placeholder="—"></td><td id="dyn_re_def">—</td><td id="dyn_re_fp" rowspan="2" style="vertical-align:middle;font-weight:700;font-size:12px;">—</td></tr>
       <tr><td>Rot. Interna</td><td><input class="dyn-inp" type="number" id="dyn_ri_af" min="0" max="99" step="0.1" placeholder="—"></td><td><input class="dyn-inp" type="number" id="dyn_ri_cl" min="0" max="99" step="0.1" placeholder="—"></td><td id="dyn_ri_def">—</td></tr>
