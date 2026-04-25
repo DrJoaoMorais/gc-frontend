@@ -501,7 +501,8 @@ document.getElementById('scale-oss').addEventListener('recalc',function(){
 });
 /* ── _gerarData ── */
 window._gerarData=function(){
-var g=window._getOpt,m=window._getMulti;
+var g=function(id){var el=document.getElementById(id);if(!el)return '';var s=el.querySelector('.opt.sel');return s?s.dataset.v:'';};
+var m=function(id){var el=document.getElementById(id);if(!el)return [];return Array.from(el.querySelectorAll('.opt.sel')).map(function(b){return b.dataset.v;});};
 var rv=function(id){var el=document.getElementById(id);return el&&el.value!==''?parseFloat(el.value):null;};
 var rs=function(id){var el=document.getElementById(id);return el?(el.value.trim()||null):null;};
 var ladoEl=document.querySelector('#lado .opt.sel');
