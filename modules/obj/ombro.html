@@ -673,7 +673,7 @@ document.getElementById('btnCopy').addEventListener('click',async function(){
   var txt=typeof window._gerarResumo==='function'?window._gerarResumo():'';
   var toast=document.getElementById('toast');
   try{await navigator.clipboard.writeText(txt);}catch(e){}
-  if(toast){toast.style.display='block';setTimeout(function(){toast.style.display='none';},2200);}
+  if(toast){toast.classList.add('show');setTimeout(function(){toast.classList.remove('show');},2200);}
   var dataObj=typeof window._gerarData==='function'?window._gerarData():{};
   if(window._saveExamToSupabase)await window._saveExamToSupabase(txt,dataObj);
 });
