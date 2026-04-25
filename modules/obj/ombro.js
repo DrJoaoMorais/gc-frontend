@@ -253,7 +253,7 @@ textarea{width:100%;border:1px solid #e2e8f0;border-radius:7px;padding:4px 7px;f
 <div id="toast">&#10003; Guardado</div>
 <div class="bar-acoes"><button class="btn-pdf" id="btnPdf">Imprimir / PDF</button><button class="btn-copy" id="btnCopy">Copiar &amp; Guardar</button></div>
 <script>
-${_mskJs}
+/* mskjs removido */
 /* ── TABS ── */
 document.querySelectorAll('.ob-tab').forEach(function(btn){
   btn.addEventListener('click',function(){
