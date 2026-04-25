@@ -756,8 +756,8 @@ window.getRF=getRF;
      OMBRO
   ══════════════════════════════════════════════════════════════ */
   if (formId === "ombro") {
-    const m = await import('./obj/ombro.js');
-    m.render(_mskCss, _evaOpts, _mskJs, _abrirBlob, ctx);
+    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
+    window.open('/modules/obj/ombro.html?' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
     return;
   }
 
