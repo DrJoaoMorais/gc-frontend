@@ -391,6 +391,19 @@ function calcDyn(){
   if(reAf&&riAf&&riAf>0){var ratio=reAf/riAf;fpEl.textContent=ratio.toFixed(2);fpEl.className=ratio>=0.6?'dyn-ok':'dyn-bad';}
   else{fpEl.textContent='—';fpEl.className='';}
 }
+document.querySelectorAll('.opts.sg').forEach(function(grp){
+  grp.querySelectorAll('.opt').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      grp.querySelectorAll('.opt').forEach(function(b){b.classList.remove('sel');});
+      btn.classList.add('sel');
+    });
+  });
+});
+document.querySelectorAll('.opts.mg').forEach(function(grp){
+  grp.querySelectorAll('.opt').forEach(function(btn){
+    btn.addEventListener('click',function(){btn.classList.toggle('sel');});
+  });
+});
 document.querySelectorAll('.dyn-inp').forEach(function(i){i.addEventListener('input',calcDyn);});
 /* ── AF2 PASTE IMPORT ── */
 document.getElementById('af2_import').addEventListener('click',function(){
