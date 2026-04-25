@@ -360,49 +360,43 @@ function calcDyn(){
 document.querySelectorAll('.dyn-inp').forEach(function(i){i.addEventListener('input',calcDyn);});
 /* ── AF2 PASTE IMPORT ── */
 document.getElementById('af2_import').addEventListener('click',function(){
-  var txt=document.getElementById('af2_paste').value||'';
-  if(!txt.trim())return;
-  var lado=document.querySelector('.lado-bar .opt.sel');
-  var ladoAfect=lado?lado.textContent.trim():'Esquerda';
-  var ladoContral=ladoAfect==='Esquerda'?'Direita':'Esquerda';
-  var map={
-    'Flex':['dyn_ea_af','dyn_ea_cl'],
-    'Abdu':['dyn_abd_af','dyn_abd_cl'],
-    'Externa':['dyn_re_af','dyn_re_cl'],
-    'Interna':['dyn_ri_af','dyn_ri_cl']
-  };
-  var blocks=txt.split(/====\s*(.+?)\s*====/);
-  for(var i=1;i<blocks.length;i+=2){
-    var title=blocks[i];
-    var block=blocks[i+1]||'';
-    var fields=null;
-    Object.keys(map).forEach(function(k){
-      if(title.indexOf(k)!==-1)fields=map[k];
-    });
-    if(!fields)continue;
-    var fmBlock2=block.split("Força Máxima")[1]||block.split("Forca Maxima")[1]||"";var fmMatch=[null,fmBlock2.split(/\n(?:Tempo|Força|Forca|Rela)/)[0]||fmBlock2];
-    if(!fmMatch)continue;
-    var fmBlock=fmMatch[1];
-    var isBilateral=title.indexOf('Esquerda')!==-1&&title.indexOf('Direita')!==-1;
-    if(isBilateral){
-      var esqM=fmBlock.match(/Esquerda:\s*([\d.]+)\s*kg/);
-      var dirM=fmBlock.match(/Direita:\s*([\d.]+)\s*kg/);
-      var afVal=ladoAfect==='Esquerda'?(esqM?esqM[1]:null):(dirM?dirM[1]:null);
-      var clVal=ladoAfect==='Esquerda'?(dirM?dirM[1]:null):(esqM?esqM[1]:null);
-      if(afVal){var ea=document.getElementById(fields[0]);if(ea)ea.value=afVal;}
-      if(clVal){var ec=document.getElementById(fields[1]);if(ec)ec.value=clVal;}
-    } else {
-      var uniM=fmBlock.match(/(?:Esquerda|Direita):\s*([\d.]+)\s*kg/);
-      if(uniM){
-        var side=title.indexOf('Esquerda')!==-1?'Esquerda':'Direita';
-        var fi=side===ladoAfect?0:1;
-        var eu=document.getElementById(fields[fi]);
-        if(eu)eu.value=uniM[1];
+      var txt=document.getElementById('af2_paste').value||'';
+      if(!txt.trim())return;
+      var lado=document.querySelector('.lado-bar .opt.sel');
+      var ladoAfect=lado?lado.textContent.trim():'Esquerda';
+      var map={'Flex':['dyn_ea_af','dyn_ea_cl'],'Abdu':['dyn_abd_af','dyn_abd_cl'],'Externa':['dyn_re_af','dyn_re_cl'],'Interna':['dyn_ri_af','dyn_ri_cl']};
+      var parts=txt.split('====');
+      for(var i=1;i<parts.length;i+=2){
+        var title=parts[i]||'';
+        var block=parts[i+1]||'';
+        var fields=null;
+        Object.keys(map).forEach(function(k){if(title.indexOf(k)!==-1)fields=map[k];});
+        if(!fields)continue;
+        var fmIdx=block.indexOf('xima');
+        var fmBlock=fmIdx>=0?block.slice(fmIdx+4):'';
+        var nextIdx=fmBlock.search(/Tempo|For|Rela/);
+        if(nextIdx>0)fmBlock=fmBlock.slice(0,nextIdx);
+        var isBilateral=title.indexOf('Esquerda')!==-1&&title.indexOf('Direita')!==-1;
+        function getVal(str,lado){
+          var idx=str.indexOf(lado+':');
+          if(idx<0)return null;
+          var rest=str.slice(idx+lado.length+1).trim();
+          var num=rest.match(/^([\d.]+)/);
+          return num?num[1]:null;
+        }
+        if(isBilateral){
+          var afVal=getVal(fmBlock,ladoAfect);
+          var clVal=getVal(fmBlock,ladoAfect==='Esquerda'?'Direita':'Esquerda');
+          if(afVal){var e1=document.getElementById(fields[0]);if(e1)e1.value=afVal;}
+          if(clVal){var e2=document.getElementById(fields[1]);if(e2)e2.value=clVal;}
+        } else {
+          var side=title.indexOf('Esquerda')!==-1?'Esquerda':'Direita';
+          var val=getVal(fmBlock,side);
+          if(val){var fi=side===ladoAfect?0:1;var e3=document.getElementById(fields[fi]);if(e3)e3.value=val;}
+        }
       }
-    }
-  }
-  calcDyn();
-});
+      calcDyn();
+    });
 /* ── SCALES: sq-opt click ── */
 document.querySelectorAll('.sq-row').forEach(function(row){
   row.querySelectorAll('.sq-opt').forEach(function(btn){
