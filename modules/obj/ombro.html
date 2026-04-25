@@ -192,7 +192,7 @@ textarea{width:100%;border:1px solid #e2e8f0;border-radius:7px;padding:4px 7px;f
 
 <div class="sec">
   <div class="sec-title">3 · Força Muscular (MRC)</div>
-  <div class="mrc-row"><div class="mrc-lbl">Supra-espinhoso</div><div class="opts sg" id="f_sup"><div class="opt" data-v="5/5">5/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="2/5">2/5</div><div class="opt" data-v="1/5">1/5</div><div class="opt" data-v="0/5">0/5</div></div></div><div class="mrc-row"><div class="mrc-lbl">Infra-espinhoso</div><div class="opts sg" id="f_inf"><div class="opt" data-v="5/5">5/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="2/5">2/5</div><div class="opt" data-v="1/5">1/5</div><div class="opt" data-v="0/5">0/5</div></div></div><div class="mrc-row"><div class="mrc-lbl">Subescapular</div><div class="opts sg" id="f_sub"><div class="opt" data-v="5/5">5/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="2/5">2/5</div><div class="opt" data-v="1/5">1/5</div><div class="opt" data-v="0/5">0/5</div></div></div><div class="mrc-row"><div class="mrc-lbl">Deltóide</div><div class="opts sg" id="f_del"><div class="opt" data-v="5/5">5/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="2/5">2/5</div><div class="opt" data-v="1/5">1/5</div><div class="opt" data-v="0/5">0/5</div></div></div>
+  <div class="mrc-row"><div class="mrc-lbl">Flexão</div><div class="opts sg" id="f_sup"><div class="opt" data-v="0/5">0/5</div><div class="opt" data-v="1/5">1/5</div><div class="opt" data-v="2/5">2/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="5/5">5/5</div></div></div><div class="mrc-row"><div class="mrc-lbl">Abdução</div><div class="opts sg" id="f_inf"><div class="opt" data-v="0/5">0/5</div><div class="opt" data-v="1/5">1/5</div><div class="opt" data-v="2/5">2/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="5/5">5/5</div></div></div><div class="mrc-row"><div class="mrc-lbl">Rotação Interna</div><div class="opts sg" id="f_sub"><div class="opt" data-v="0/5">0/5</div><div class="opt" data-v="1/5">1/5</div><div class="opt" data-v="2/5">2/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="5/5">5/5</div></div></div><div class="mrc-row"><div class="mrc-lbl">Rotação Externa</div><div class="opts sg" id="f_del"><div class="opt" data-v="0/5">0/5</div><div class="opt" data-v="1/5">1/5</div><div class="opt" data-v="2/5">2/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="5/5">5/5</div></div></div>
   <textarea id="notas_forca" placeholder="Notas sobre força…"></textarea>
 </div>
 
@@ -594,7 +594,7 @@ window._gerarResumo=function(){
     var ip=document.getElementById('rom_'+m.k+'_p');
     var va=ia&&ia.value?ia.value:'?';
     var vp=ip&&ip.value?ip.value:'?';
-    linhas.push('  '+m.l+': A '+va+'graus / P '+vp+'graus (ref '+m.r+'graus)');
+    linhas.push('  '+m.l+': A '+va+'° / P '+vp+'° (ref '+m.r+'°)');
   });
   var notasMob=document.getElementById('notas_mob');
   if(notasMob&&notasMob.value.trim())linhas.push('  Notas: '+notasMob.value.trim());
