@@ -392,6 +392,31 @@ document.querySelectorAll('.ob-tab').forEach(function(btn){
     document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
   });
 });
+/* ── OPT SELECTORS ── */
+document.querySelectorAll('.opts.sg').forEach(function(grp){
+  grp.querySelectorAll('.opt').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      grp.querySelectorAll('.opt').forEach(function(b){b.classList.remove('sel');});
+      btn.classList.add('sel');
+    });
+  });
+});
+document.querySelectorAll('.opts.mg').forEach(function(grp){
+  grp.querySelectorAll('.opt').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      btn.classList.toggle('sel');
+    });
+  });
+});
+/* ── EVA BUTTONS ── */
+document.querySelectorAll('.eva-row').forEach(function(row){
+  row.querySelectorAll('.eva-btn').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      row.querySelectorAll('.eva-btn').forEach(function(b){b.classList.remove('sel');});
+      btn.classList.add('sel');
+    });
+  });
+});
 /* ── ROM CONCENTRIC CIRCLES ── */
 var ROM_DEFS=[
   {key:'flex',label:'Flexão',ref:180},
