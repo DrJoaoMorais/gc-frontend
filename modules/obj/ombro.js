@@ -495,7 +495,7 @@ return{
 };
 };
 /* ── CTX & SAVE ── */
-window._examCtx={patientId:'${ctx.patientId||''}',clinicId:'${ctx.clinicId||''}',consultationId:'${ctx.consultationId||''}'};
+window._examCtx={patientId:ctx.patientId||null,clinicId:ctx.clinicId||null,consultationId:ctx.consultationId||null};
 window._saveExamToSupabase=async function(txt,dataObj){
   var c=window._examCtx||{};
   if(!c.consultationId)return;
