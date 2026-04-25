@@ -381,8 +381,8 @@ document.getElementById('af2_import').addEventListener('click',function(){
           var idx=str.indexOf(lado+':');
           if(idx<0)return null;
           var rest=str.slice(idx+lado.length+1).trim();
-          var num=rest.match(/^([\d.]+)/);
-          return num?num[1]:null;
+          var num=parseFloat(rest);
+          return isNaN(num)?null:String(num);
         }
         if(isBilateral){
           var afVal=getVal(fmBlock,ladoAfect);
