@@ -564,7 +564,6 @@ window._gerarResumo=function(){
   var lado=document.querySelector('.lado-bar .opt.sel');
   var ladoTxt=lado?lado.textContent.toUpperCase():'';
   linhas.push('── OMBRO ' + ladoTxt + ' — EXAME OBJECTIVO ──');
-  linhas.push('────────────────────────────────────────');
   var tipoDor=[...document.querySelectorAll('#tipo_dor .opt.sel')].map(function(o){return o.dataset.v;});
   if(tipoDor.length)linhas.push('Tipo de dor: '+tipoDor.join(', '));
   var locDor=[...document.querySelectorAll('#loc_dor .opt.sel')].map(function(o){return o.dataset.v;});
