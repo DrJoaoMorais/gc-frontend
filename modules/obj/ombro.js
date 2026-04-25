@@ -380,7 +380,7 @@ document.getElementById('af2_import').addEventListener('click',function(){
       if(title.indexOf(k)!==-1)fields=map[k];
     });
     if(!fields)continue;
-    var fmMatch=block.match(/or\u00e7a M\u00e1xima[\s\S]*?\n([\s\S]*?)(?:\n\n|\nTempo|\nor\u00e7a M\u00e9dia|\nRela|$)/);
+    var fmBlock2=block.split("Força Máxima")[1]||block.split("Forca Maxima")[1]||"";var fmMatch=[null,fmBlock2.split(/\n(?:Tempo|Força|Forca|Rela)/)[0]||fmBlock2];
     if(!fmMatch)continue;
     var fmBlock=fmMatch[1];
     var isBilateral=title.indexOf('Esquerda')!==-1&&title.indexOf('Direita')!==-1;
