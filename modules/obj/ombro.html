@@ -503,9 +503,12 @@ function calcDyn2(data){
     setDmCell('dm_'+m+'_e', e!==null?e.toFixed(1):null);
     setDmCell('dm_'+m+'_d', di!==null?di.toFixed(1):null);
     var defPct=null;
-    if(e!==null&&di!==null&&di!==0){defPct=(e-di)/di*100;}
+    if(e!==null&&di!==null){var stronger=Math.max(e,di);var weaker=Math.min(e,di);var defSide=e<di?'D':'E';defPct=stronger>0?(weaker-stronger)/stronger*100:0;defPct=Math.abs(defPct);defPct=e<di?defPct:-defPct;}
     var elDef=document.getElementById('dm_'+m+'_def');
-    if(elDef)elDef.innerHTML=defTag(defPct,defPct>=0?'E':'D');
+    if(elDef){
+      if(e===null||di===null){elDef.innerHTML='<span style="font-size:11px;color:#94a3b8;">unilateral</span>';}
+      else{elDef.innerHTML=defTag(defPct,e<di?'D':'E');}
+    }
     setDmCell('dm_'+m+'_fpe', fpe!==null?fpe.toFixed(1)+'%':null);
     setDmCell('dm_'+m+'_fpd', fpd!==null?fpd.toFixed(1)+'%':null);
     setDmCell('dm_'+m+'_me', me!==null?me.toFixed(1):null);
