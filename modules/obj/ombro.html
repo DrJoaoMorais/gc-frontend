@@ -139,6 +139,7 @@ textarea{width:100%;border:1px solid #e2e8f0;border-radius:7px;padding:4px 7px;f
 
 <div class="ob-tabs">
   <button class="ob-tab active" data-tab="exame">🦴 Exame Objectivo</button>
+  <button class="ob-tab" data-tab="dinamometria">📈 Dinamometria</button>
   <button class="ob-tab" data-tab="escalas">📊 Escalas Funcionais</button>
 </div>
 
@@ -229,25 +230,119 @@ textarea{width:100%;border:1px solid #e2e8f0;border-radius:7px;padding:4px 7px;f
   <textarea id="notas_testes" placeholder="Notas sobre testes…"></textarea>
 </div>
 
-<div class="sec">
-  <div class="sec-title">7 · Dinamometria ActivForce 2</div>
-  <table class="dyn-table">
-    <thead><tr><th>Movimento</th><th>Esq. kg</th><th>Dir. kg</th><th>Défice</th><th>F·P</th></tr></thead>
-    <tbody>
-      <tr><td>Rot. Externa</td><td><input class="dyn-inp" type="number" id="dyn_re_af" min="0" max="99" step="0.1" placeholder="—"></td><td><input class="dyn-inp" type="number" id="dyn_re_cl" min="0" max="99" step="0.1" placeholder="—"></td><td id="dyn_re_def">—</td><td id="dyn_re_fp" rowspan="2" style="vertical-align:middle;font-weight:700;font-size:12px;">—</td></tr>
-      <tr><td>Rot. Interna</td><td><input class="dyn-inp" type="number" id="dyn_ri_af" min="0" max="99" step="0.1" placeholder="—"></td><td><input class="dyn-inp" type="number" id="dyn_ri_cl" min="0" max="99" step="0.1" placeholder="—"></td><td id="dyn_ri_def">—</td></tr>
-      <tr><td>Elev. Anterior</td><td><input class="dyn-inp" type="number" id="dyn_ea_af" min="0" max="99" step="0.1" placeholder="—"></td><td><input class="dyn-inp" type="number" id="dyn_ea_cl" min="0" max="99" step="0.1" placeholder="—"></td><td id="dyn_ea_def">—</td><td id="dyn_ea_fp">—</td></tr>
-      <tr><td>Abdução</td><td><input class="dyn-inp" type="number" id="dyn_abd_af" min="0" max="99" step="0.1" placeholder="—"></td><td><input class="dyn-inp" type="number" id="dyn_abd_cl" min="0" max="99" step="0.1" placeholder="—"></td><td id="dyn_abd_def">—</td><td id="dyn_abd_fp">—</td></tr>
-    </tbody>
-  </table>
-  <div style="font-size:10px;color:#94a3b8;margin-top:4px;">Colar dados do ActivForce 2 (Copy Data)</div>
-  <textarea class="af2-paste" id="af2_paste" placeholder="Cole aqui os dados exportados pelo ActivForce 2…"></textarea>
-  <button class="af2-btn" id="af2_import">Importar dados</button>
-</div>
-
 </div><!-- end right col -->
 </div><!-- end two-col -->
 </div><!-- end tab-exame -->
+
+<!-- ═══ TAB DINAMOMETRIA ═══ -->
+<div id="tab-dinamometria" class="ob-tab-content">
+
+  <div class="sec">
+    <div class="sec-title">Importar dados ActivForce 2</div>
+    <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:12px;">
+      <textarea id="af2_raw" placeholder="Colar texto exportado do ActivForce 2 (Copy Data)…" style="flex:1;height:72px;font-size:12px;padding:8px;border:1px solid #e2e8f0;border-radius:6px;resize:vertical;"></textarea>
+      <button id="btn_af2_import" style="padding:8px 14px;background:#1a56db;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;white-space:nowrap;font-weight:500;">Importar AF2</button>
+    </div>
+    <div id="dyn_doente_bar" style="display:none;padding:9px 12px;background:#f8fafc;border:0.5px solid #e2e8f0;border-radius:8px;font-size:12px;color:#64748b;margin-bottom:12px;"></div>
+  </div>
+
+  <div class="sec" id="dyn_results_sec" style="display:none;">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:14px;" id="dyn_metrics_grid">
+      <div style="background:#f8fafc;border-radius:8px;padding:11px 13px;">
+        <div style="font-size:11px;color:#64748b;margin-bottom:3px;">Maior força</div>
+        <div id="dyn_m1_val" style="font-size:16px;font-weight:500;color:#0f172a;">—</div>
+        <div id="dyn_m1_sub" style="font-size:11px;color:#64748b;margin-top:2px;">—</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:8px;padding:11px 13px;">
+        <div style="font-size:11px;color:#64748b;margin-bottom:3px;">Maior défice</div>
+        <div id="dyn_m2_val" style="font-size:16px;font-weight:500;color:#0f172a;">—</div>
+        <div id="dyn_m2_sub" style="font-size:11px;color:#64748b;margin-top:2px;">—</div>
+      </div>
+      <div style="background:#f8fafc;border-radius:8px;padding:11px 13px;">
+        <div style="font-size:11px;color:#64748b;margin-bottom:3px;">Ratio RE/RI</div>
+        <div id="dyn_m3_val" style="font-size:16px;font-weight:500;color:#0f172a;">—</div>
+        <div id="dyn_m3_sub" style="font-size:11px;color:#64748b;margin-top:2px;">Ref ≥ 66%</div>
+        <div style="height:4px;border-radius:2px;background:#e2e8f0;margin-top:5px;overflow:hidden;"><div id="dyn_m3_bar" style="height:100%;border-radius:2px;background:#1a56db;width:0%;"></div></div>
+      </div>
+      <div style="background:#f8fafc;border-radius:8px;padding:11px 13px;">
+        <div style="font-size:11px;color:#64748b;margin-bottom:3px;">Assimetria global</div>
+        <div id="dyn_m4_val" style="font-size:16px;font-weight:500;color:#0f172a;">—</div>
+        <div id="dyn_m4_sub" style="font-size:11px;color:#64748b;margin-top:2px;">média bilateral</div>
+        <div style="height:4px;border-radius:2px;background:#e2e8f0;margin-top:5px;overflow:hidden;"><div id="dyn_m4_bar" style="height:100%;border-radius:2px;background:#1a56db;width:0%;"></div></div>
+      </div>
+    </div>
+
+    <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:10px;">
+      <div style="padding:9px 14px;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;font-size:11px;font-weight:500;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Força máxima (kg)</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr>
+          <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;width:22%;">Movimento</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#1a56db;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">Esq. kg</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#0f2d52;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">Dir. kg</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">Défice</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">F/P Esq</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">F/P Dir</th>
+        </tr></thead>
+        <tbody id="dyn_fmax_tbody">
+          <tr><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;font-weight:500;">Flexão</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#1a56db;font-weight:500;" id="dm_flex_e">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#0f2d52;font-weight:500;" id="dm_flex_d">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;" id="dm_flex_def">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_flex_fpe">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_flex_fpd">—</td></tr>
+          <tr><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;font-weight:500;">Abdução</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#1a56db;font-weight:500;" id="dm_abd_e">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#0f2d52;font-weight:500;" id="dm_abd_d">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;" id="dm_abd_def">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_abd_fpe">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_abd_fpd">—</td></tr>
+          <tr><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;font-weight:500;">Extensão</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#1a56db;font-weight:500;" id="dm_ext_e">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#0f2d52;font-weight:500;" id="dm_ext_d">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;" id="dm_ext_def">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_ext_fpe">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_ext_fpd">—</td></tr>
+          <tr><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;font-weight:500;">Rot. Externa</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#1a56db;font-weight:500;" id="dm_re_e">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#0f2d52;font-weight:500;" id="dm_re_d">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;" id="dm_re_def">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_re_fpe">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_re_fpd">—</td></tr>
+          <tr><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;font-weight:500;">Rot. Interna</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#1a56db;font-weight:500;" id="dm_ri_e">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#0f2d52;font-weight:500;" id="dm_ri_d">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;" id="dm_ri_def">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_ri_fpe">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_ri_fpd">—</td></tr>
+          <tr><td style="padding:8px 10px;font-weight:500;">Adução</td><td style="padding:8px 10px;text-align:right;color:#1a56db;font-weight:500;" id="dm_adu_e">—</td><td style="padding:8px 10px;text-align:right;color:#0f2d52;font-weight:500;" id="dm_adu_d">—</td><td style="padding:8px 10px;text-align:right;" id="dm_adu_def">—</td><td style="padding:8px 10px;text-align:right;font-size:11px;color:#64748b;" id="dm_adu_fpe">—</td><td style="padding:8px 10px;text-align:right;font-size:11px;color:#64748b;" id="dm_adu_fpd">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:10px;">
+      <div style="padding:9px 14px;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;font-size:11px;font-weight:500;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Força média (kg) · indicador de fadiga</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr>
+          <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;width:22%;">Movimento</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#1a56db;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">Esq. kg</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#0f2d52;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">Dir. kg</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">Δ Máx→Méd Esq</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">Δ Máx→Méd Dir</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;font-weight:500;">Flexão</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#1a56db;font-weight:500;" id="dm_flex_me">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#0f2d52;font-weight:500;" id="dm_flex_md">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_flex_dme">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_flex_dmd">—</td></tr>
+          <tr><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;font-weight:500;">Abdução</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#1a56db;font-weight:500;" id="dm_abd_me">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#0f2d52;font-weight:500;" id="dm_abd_md">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_abd_dme">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_abd_dmd">—</td></tr>
+          <tr><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;font-weight:500;">Extensão</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#1a56db;font-weight:500;" id="dm_ext_me">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#0f2d52;font-weight:500;" id="dm_ext_md">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_ext_dme">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_ext_dmd">—</td></tr>
+          <tr><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;font-weight:500;">Rot. Externa</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#1a56db;font-weight:500;" id="dm_re_me">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#0f2d52;font-weight:500;" id="dm_re_md">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_re_dme">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_re_dmd">—</td></tr>
+          <tr><td style="padding:8px 10px;font-weight:500;">Rot. Interna</td><td style="padding:8px 10px;text-align:right;color:#1a56db;font-weight:500;" id="dm_ri_me">—</td><td style="padding:8px 10px;text-align:right;color:#0f2d52;font-weight:500;" id="dm_ri_md">—</td><td style="padding:8px 10px;text-align:right;font-size:11px;color:#64748b;" id="dm_ri_dme">—</td><td style="padding:8px 10px;text-align:right;font-size:11px;color:#64748b;" id="dm_ri_dmd">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:10px;">
+      <div style="padding:9px 14px;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;font-size:11px;font-weight:500;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Ratios funcionais</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr>
+          <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;width:28%;">Ratio</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">Esquerda</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">Direita</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">Referência</th>
+          <th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">Interpretação</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;font-weight:500;">RE / RI</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;" id="dm_ratio_reri_e">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;" id="dm_ratio_reri_d">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;">≥ 66%</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;" id="dm_ratio_reri_int">—</td></tr>
+          <tr><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;font-weight:500;">Flex / Ext</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;" id="dm_ratio_fext_e">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;" id="dm_ratio_fext_d">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;">60–80%</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;" id="dm_ratio_fext_int">—</td></tr>
+          <tr><td style="padding:8px 10px;font-weight:500;">Abd / Flex</td><td style="padding:8px 10px;text-align:right;" id="dm_ratio_af_e">—</td><td style="padding:8px 10px;text-align:right;" id="dm_ratio_af_d">—</td><td style="padding:8px 10px;text-align:right;font-size:11px;color:#64748b;">—</td><td style="padding:8px 10px;text-align:right;" id="dm_ratio_af_int">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="font-size:11px;color:#94a3b8;padding:4px 2px;display:flex;gap:14px;flex-wrap:wrap;">
+      <span>🟢 &lt;10% simétrico</span>
+      <span>🟡 10–20% ligeiro</span>
+      <span>🔴 &gt;20% significativo</span>
+      <span>Ratio RE/RI ref. ≥ 66%</span>
+    </div>
+
+  </div>
+
+</div><!-- end tab-dinamometria -->
 
 <!-- ═══ TAB ESCALAS ═══ -->
 <div id="tab-escalas" class="ob-tab-content">
@@ -374,76 +469,183 @@ ROM_DEFS.forEach(function(r){
   })(r.key,r.ref);
 });
 /* ── DINAMOMETRIA ── */
-function calcDyn(){
-  [['re','dyn_re'],['ri','dyn_ri'],['ea','dyn_ea'],['abd','dyn_abd']].forEach(function(p){
-    var af=parseFloat(document.getElementById(p[1]+'_af').value)||null;
-    var cl=parseFloat(document.getElementById(p[1]+'_cl').value)||null;
-    var el=document.getElementById(p[1]+'_def');
-    if(af!==null&&cl!==null&&cl>0){
-      var d=Math.round((cl-af)/cl*100);
-      el.textContent=d+'%';
-      el.className=d<10?'dyn-ok':d<20?'dyn-warn':'dyn-bad';
-    }else{el.textContent='—';el.className='';}
-  });
-  var reAf=parseFloat(document.getElementById('dyn_re_af').value)||null;
-  var riAf=parseFloat(document.getElementById('dyn_ri_af').value)||null;
-  var fpEl=document.getElementById('dyn_re_fp');
-  if(reAf&&riAf&&riAf>0){var ratio=reAf/riAf;fpEl.textContent=ratio.toFixed(2);fpEl.className=ratio>=0.6?'dyn-ok':'dyn-bad';}
-  else{fpEl.textContent='—';fpEl.className='';}
+function setDmCell(id,val){var el=document.getElementById(id);if(el)el.textContent=val!==null?val:'—';}
+function defTag(pct,lado){
+  if(pct===null)return '—';
+  var abs=Math.abs(pct);
+  var col=abs<10?'#3b6d11':abs<=20?'#854f0b':'#a32d2d';
+  var bg=abs<10?'#eaf3de':abs<=20?'#faeeda':'#fcebeb';
+  var sinal=pct>0?(lado==='E'?'E':'D')+' +':pct<0?(lado==='E'?'E':'D')+' ':'';
+  return '<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:500;background:'+bg+';color:'+col+';">'+sinal+Math.abs(pct).toFixed(1)+'%</span>';
 }
-document.querySelectorAll('.opts.sg').forEach(function(grp){
-  grp.querySelectorAll('.opt').forEach(function(btn){
-    btn.addEventListener('click',function(){
-      grp.querySelectorAll('.opt').forEach(function(b){b.classList.remove('sel');});
-      btn.classList.add('sel');
+function ratioTag(val,min,max){
+  if(val===null)return '<span style="font-size:11px;color:#94a3b8;">—</span>';
+  var pct=val.toFixed(0)+'%';
+  if(max===null){
+    var ok=val>=min;
+    var col=ok?'#3b6d11':'#a32d2d';var bg=ok?'#eaf3de':'#fcebeb';
+    return '<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:500;background:'+bg+';color:'+col+';">'+pct+'</span>';
+  }
+  var ok2=val>=min&&val<=max;
+  var col2=ok2?'#3b6d11':'#854f0b';var bg2=ok2?'#eaf3de':'#faeeda';
+  return '<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:500;background:'+bg2+';color:'+col2+';">'+pct+'</span>';
+}
+function calcDyn2(data){
+  var movs=['flex','abd','ext','re','ri','adu'];
+  movs.forEach(function(m){
+    var d=data[m]||{};
+    var e=d.e!==undefined?d.e:null;
+    var di=d.d!==undefined?d.d:null;
+    var me=d.me!==undefined?d.me:null;
+    var md=d.md!==undefined?d.md:null;
+    var fpe=d.fpe!==undefined?d.fpe:null;
+    var fpd=d.fpd!==undefined?d.fpd:null;
+    setDmCell('dm_'+m+'_e', e!==null?e.toFixed(1):null);
+    setDmCell('dm_'+m+'_d', di!==null?di.toFixed(1):null);
+    var defPct=null;
+    if(e!==null&&di!==null&&di!==0){defPct=(e-di)/di*100;}
+    var elDef=document.getElementById('dm_'+m+'_def');
+    if(elDef)elDef.innerHTML=defTag(defPct,defPct>=0?'E':'D');
+    setDmCell('dm_'+m+'_fpe', fpe!==null?fpe.toFixed(1)+'%':null);
+    setDmCell('dm_'+m+'_fpd', fpd!==null?fpd.toFixed(1)+'%':null);
+    setDmCell('dm_'+m+'_me', me!==null?me.toFixed(1):null);
+    setDmCell('dm_'+m+'_md', md!==null?md.toFixed(1):null);
+    var dme=null,dmd=null;
+    if(e!==null&&me!==null&&e!==0)dme=(me-e)/e*100;
+    if(di!==null&&md!==null&&di!==0)dmd=(md-di)/di*100;
+    setDmCell('dm_'+m+'_dme', dme!==null?dme.toFixed(0)+'%':null);
+    setDmCell('dm_'+m+'_dmd', dmd!==null?dmd.toFixed(0)+'%':null);
+  });
+  var re=data.re&&data.re.d!==null?data.re.d:null;
+  var ri=data.ri&&data.ri.d!==null?data.ri.d:null;
+  var reE=data.re&&data.re.e!==null?data.re.e:null;
+  var riE=data.ri&&data.ri.e!==null?data.ri.e:null;
+  var flex=data.flex&&data.flex.d!==null?data.flex.d:null;
+  var ext=data.ext&&data.ext.d!==null?data.ext.d:null;
+  var flexE=data.flex&&data.flex.e!==null?data.flex.e:null;
+  var extE=data.ext&&data.ext.e!==null?data.ext.e:null;
+  var abd=data.abd&&data.abd.d!==null?data.abd.d:null;
+  var abdE=data.abd&&data.abd.e!==null?data.abd.e:null;
+  var reriD=re!==null&&ri!==null&&ri!==0?re/ri*100:null;
+  var reriE=reE!==null&&riE!==null&&riE!==0?reE/riE*100:null;
+  var fextD=ext!==null&&flex!==null&&ext!==0?flex/ext*100:null;
+  var fextE=extE!==null&&flexE!==null&&extE!==0?flexE/extE*100:null;
+  var afD=flex!==null&&abd!==null&&flex!==0?abd/flex*100:null;
+  var afE=flexE!==null&&abdE!==null&&flexE!==0?abdE/flexE*100:null;
+  var elReriD=document.getElementById('dm_ratio_reri_d');if(elReriD)elReriD.innerHTML=ratioTag(reriD,66,null);
+  var elReriE=document.getElementById('dm_ratio_reri_e');if(elReriE)elReriE.innerHTML=ratioTag(reriE,66,null);
+  var elFextD=document.getElementById('dm_ratio_fext_d');if(elFextD)elFextD.innerHTML=ratioTag(fextD,60,80);
+  var elFextE=document.getElementById('dm_ratio_fext_e');if(elFextE)elFextE.innerHTML=ratioTag(fextE,60,80);
+  var elAfD=document.getElementById('dm_ratio_af_d');if(elAfD)elAfD.innerHTML=ratioTag(afD,null,null);
+  var elAfE=document.getElementById('dm_ratio_af_e');if(elAfE)elAfE.innerHTML=ratioTag(afE,null,null);
+  var elReriInt=document.getElementById('dm_ratio_reri_int');
+  if(elReriInt)elReriInt.innerHTML=ratioTag(reriD!==null?reriD:reriE,66,null);
+  var elFextInt=document.getElementById('dm_ratio_fext_int');
+  if(elFextInt)elFextInt.innerHTML=ratioTag(fextD!==null?fextD:fextE,60,80);
+  var elAfInt=document.getElementById('dm_ratio_af_int');
+  if(elAfInt)elAfInt.innerHTML='<span style="font-size:11px;color:#94a3b8;">Informativo</span>';
+  var bestLabel='—',bestSub='—',bestVal=-1;
+  ['flex','abd','ext','re','ri'].forEach(function(m){
+    var d=window._dynData&&window._dynData[m];if(!d)return;
+    ['e','d'].forEach(function(lado){
+      var v=d[lado];if(v===null||v===undefined)return;
+      if(v>bestVal){bestVal=v;bestLabel=({flex:'Flexão',abd:'Abdução',ext:'Extensão',re:'Rot.Ext.',ri:'Rot.Int.'})[m]+' '+(lado==='e'?'E':'D');}
     });
   });
-});
-document.querySelectorAll('.opts.mg').forEach(function(grp){
-  grp.querySelectorAll('.opt').forEach(function(btn){
-    btn.addEventListener('click',function(){btn.classList.toggle('sel');});
+  setDmCell('dyn_m1_val',bestLabel);
+  var worstPct=0,worstLabel='—',worstSub='—';
+  ['flex','abd','ext'].forEach(function(m){
+    var d=window._dynData&&window._dynData[m];if(!d||d.e===null||d.d===null||d.d===0)return;
+    var pct=Math.abs((d.e-d.d)/d.d*100);
+    if(pct>worstPct){worstPct=pct;worstLabel=({flex:'Flex.',abd:'Abd.',ext:'Ext.'})[m]+' +'+pct.toFixed(0)+'%';
+      worstSub=(d.e!==null?'E '+d.e.toFixed(1):'')+' vs '+(d.d!==null?'D '+d.d.toFixed(1):'')+' kg';}
   });
-});
-document.querySelectorAll('.dyn-inp').forEach(function(i){i.addEventListener('input',calcDyn);});
-/* ── AF2 PASTE IMPORT ── */
-document.getElementById('af2_import').addEventListener('click',function(){
-      var txt=document.getElementById('af2_paste').value||'';
-      if(!txt.trim())return;
-      var lado=document.querySelector('.lado-bar .opt.sel');
-      var ladoAfect=lado?lado.textContent.trim():'Esquerda';
-      var map={'Flex':['dyn_ea_af','dyn_ea_cl'],'Abdu':['dyn_abd_af','dyn_abd_cl'],'Externa':['dyn_re_af','dyn_re_cl'],'Interna':['dyn_ri_af','dyn_ri_cl']};
-      var parts=txt.split('====');
-      for(var i=1;i<parts.length;i+=2){
-        var title=parts[i]||'';
-        var block=parts[i+1]||'';
-        var fields=null;
-        Object.keys(map).forEach(function(k){if(title.indexOf(k)!==-1)fields=map[k];});
-        if(!fields)continue;
-        var fmIdx=block.indexOf('xima');
-        var fmBlock=fmIdx>=0?block.slice(fmIdx+4):'';
-        var nextIdx=fmBlock.search(/Tempo|For|Rela/);
-        if(nextIdx>0)fmBlock=fmBlock.slice(0,nextIdx);
-        var isBilateral=title.indexOf('Esquerda')!==-1&&title.indexOf('Direita')!==-1;
-        function getVal(str,lado){
-          var idx=str.indexOf(lado+':');
-          if(idx<0)return null;
-          var rest=str.slice(idx+lado.length+1).trim();
-          var num=parseFloat(rest);
-          return isNaN(num)?null:String(num);
-        }
-        if(isBilateral){
-          var afVal=getVal(fmBlock,ladoAfect);
-          var clVal=getVal(fmBlock,ladoAfect==='Esquerda'?'Direita':'Esquerda');
-          if(afVal){var e1=document.getElementById(fields[0]);if(e1)e1.value=afVal;}
-          if(clVal){var e2=document.getElementById(fields[1]);if(e2)e2.value=clVal;}
-        } else {
-          var side=title.indexOf('Esquerda')!==-1?'Esquerda':'Direita';
-          var val=getVal(fmBlock,side);
-          if(val){var fi=side===ladoAfect?0:1;var e3=document.getElementById(fields[fi]);if(e3)e3.value=val;}
-        }
+  var elM2=document.getElementById('dyn_m2_val');
+  if(elM2){elM2.textContent=worstLabel;elM2.style.color=worstPct>20?'#a32d2d':worstPct>10?'#854f0b':'#3b6d11';}
+  setDmCell('dyn_m2_sub',worstSub);
+  var reriVal=reriD!==null?reriD:reriE;
+  var elM3=document.getElementById('dyn_m3_val');
+  if(elM3){elM3.textContent=reriVal!==null?reriVal.toFixed(0)+'%':'—';elM3.style.color=reriVal!==null&&reriVal>=66?'#3b6d11':'#a32d2d';}
+  var elM3b=document.getElementById('dyn_m3_bar');if(elM3b&&reriVal!==null)elM3b.style.width=Math.min(reriVal,100)+'%';
+  var defs=[];
+  ['flex','abd','ext'].forEach(function(m){
+    var d=window._dynData&&window._dynData[m];if(!d||d.e===null||d.d===null||d.d===0)return;
+    defs.push(Math.abs((d.e-d.d)/d.d*100));
+  });
+  var glob=defs.length?defs.reduce(function(a,b){return a+b;},0)/defs.length:null;
+  var elM4=document.getElementById('dyn_m4_val');
+  if(elM4){elM4.textContent=glob!==null?glob.toFixed(1)+'%':'—';elM4.style.color=glob!==null&&glob>20?'#a32d2d':glob!==null&&glob>10?'#854f0b':'#3b6d11';}
+  var elM4b=document.getElementById('dyn_m4_bar');if(elM4b&&glob!==null)elM4b.style.width=Math.min(glob,30)/30*100+'%';
+}
+document.getElementById('btn_af2_import').addEventListener('click',function(){
+  var raw=document.getElementById('af2_raw').value.trim();
+  if(!raw)return;
+  var data={flex:{e:null,d:null,me:null,md:null,fpe:null,fpd:null},abd:{e:null,d:null,me:null,md:null,fpe:null,fpd:null},ext:{e:null,d:null,me:null,md:null,fpe:null,fpd:null},re:{e:null,d:null,me:null,md:null,fpe:null,fpd:null},ri:{e:null,d:null,me:null,md:null,fpe:null,fpd:null},adu:{e:null,d:null,me:null,md:null,fpe:null,fpd:null}};
+  var nome='';var peso=null;var idade=null;var genero='';var dominante='';var dataExame='';
+  var lnome=raw.match(/^(.+)\n/);if(lnome)nome=lnome[1].trim();
+  var lpeso=raw.match(/Peso:\s*([\d.]+)/);if(lpeso)peso=parseFloat(lpeso[1]);
+  var lidade=raw.match(/Idade:\s*(\d+)/);if(lidade)idade=parseInt(lidade[1]);
+  var lgen=raw.match(/G[eê]nero:\s*(\w+)/);if(lgen)genero=lgen[1];
+  var ldom=raw.match(/Lado dominante:\s*(\w+)/);if(ldom)dominante=ldom[1];
+  var ldata=raw.match(/(segunda|terça|quarta|quinta|sexta|sábado|domingo)[^,\n]*,\s*([^\n]+)/i);if(ldata)dataExame=ldata[2].trim();
+  var barEl=document.getElementById('dyn_doente_bar');
+  if(barEl){
+    barEl.style.display='flex';barEl.style.gap='8px';barEl.style.flexWrap='wrap';
+    barEl.innerHTML='<strong style="color:#0f172a;">'+nome+'</strong><span style="color:#cbd5e1;">·</span><span>'+genero+'</span><span style="color:#cbd5e1;">·</span><span>'+idade+' anos</span><span style="color:#cbd5e1;">·</span><span>'+peso+' kg</span><span style="color:#cbd5e1;">·</span><span>Dominante: '+dominante+'</span><span style="margin-left:auto;font-size:11px;color:#185fa5;">'+dataExame+'</span>';
+  }
+  function getLineVal(block,label){
+    var ls=block.split('\n');
+    for(var i=0;i<ls.length;i++){
+      var l=ls[i].trim();
+      if(l.indexOf(label+':')===0){var num=parseFloat(l.slice(label.length+1).trim());return isNaN(num)?null:num;}
+    }
+    return null;
+  }
+  var sections=raw.split(/====([^=]+)====/);
+  for(var i=1;i<sections.length;i+=2){
+    var title=sections[i].trim();
+    var body=sections[i+1]||'';
+    var isBil=title.indexOf('Esquerda')!==-1&&title.indexOf('Direita')!==-1;
+    var key=null;
+    if(title.indexOf('Flexão')!==-1||title.indexOf('Flexao')!==-1)key='flex';
+    else if(title.indexOf('Abdução')!==-1||title.indexOf('Abducao')!==-1)key='abd';
+    else if(title.indexOf('Extensão')!==-1||title.indexOf('Extensao')!==-1)key='ext';
+    else if(title.indexOf('Rotação Externa')!==-1||title.indexOf('Rotacao Externa')!==-1)key='re';
+    else if(title.indexOf('Rotação Interna')!==-1||title.indexOf('Rotacao Interna')!==-1)key='ri';
+    else if(title.indexOf('Adução')!==-1||title.indexOf('Aducao')!==-1)key='adu';
+    if(!key)continue;
+    var fmIdx=body.indexOf('Força Máxima');if(fmIdx<0)fmIdx=body.indexOf('Forca Maxima');
+    if(fmIdx>=0){
+      var fmBlock=body.slice(fmIdx);
+      var nextIdx=fmBlock.indexOf('Tempo');if(nextIdx>0)fmBlock=fmBlock.slice(0,nextIdx);
+      if(isBil){data[key].e=getLineVal(fmBlock,'Esquerda');data[key].d=getLineVal(fmBlock,'Direita');}
+      else{var isE=title.indexOf('Esquerda')!==-1;var v=getLineVal(fmBlock,isE?'Esquerda':'Direita');if(isE)data[key].e=v;else data[key].d=v;}
+    }
+    var medIdx=body.indexOf('Força Média');if(medIdx<0)medIdx=body.indexOf('Forca Media');
+    if(medIdx>=0){
+      var medBlock=body.slice(medIdx);
+      var nextMed=medBlock.indexOf('Relação');if(nextMed>0)medBlock=medBlock.slice(0,nextMed);
+      if(isBil){data[key].me=getLineVal(medBlock,'Esquerda');data[key].md=getLineVal(medBlock,'Direita');}
+      else{var isEm=title.indexOf('Esquerda')!==-1;var vm=getLineVal(medBlock,isEm?'Esquerda':'Direita');if(isEm)data[key].me=vm;else data[key].md=vm;}
+    }
+    var fpIdx=body.indexOf('Relação Força-Peso');if(fpIdx<0)fpIdx=body.indexOf('Relacao Forca-Peso');
+    if(fpIdx>=0){
+      var fpBlock=body.slice(fpIdx);
+      var nextFp=fpBlock.indexOf('====');if(nextFp>0)fpBlock=fpBlock.slice(0,nextFp);
+      function getLinePct(blk,label){
+        var ls2=blk.split('\n');
+        for(var j=0;j<ls2.length;j++){var l2=ls2[j].trim();if(l2.indexOf(label+':')===0){var num2=parseFloat(l2.slice(label.length+1).trim());return isNaN(num2)?null:num2;}}
+        return null;
       }
-      calcDyn();
-    });
+      if(isBil){data[key].fpe=getLinePct(fpBlock,'Esquerda');data[key].fpd=getLinePct(fpBlock,'Direita');}
+      else{var isEfp=title.indexOf('Esquerda')!==-1;var vfp=getLinePct(fpBlock,isEfp?'Esquerda':'Direita');if(isEfp)data[key].fpe=vfp;else data[key].fpd=vfp;}
+    }
+  }
+  window._dynData=data;
+  calcDyn2(data);
+  var sec=document.getElementById('dyn_results_sec');if(sec)sec.style.display='block';
+});
+
 /* ── SCALES: sq-opt click ── */
 document.querySelectorAll('.sq-row').forEach(function(row){
   row.querySelectorAll('.sq-opt').forEach(function(btn){
@@ -522,7 +724,7 @@ return{
   rom:{flex_a:rv('rom_flex_a'),flex_p:rv('rom_flex_p'),ext_a:rv('rom_ext_a'),ext_p:rv('rom_ext_p'),abd_a:rv('rom_abd_a'),abd_p:rv('rom_abd_p'),re_a:rv('rom_re_a'),re_p:rv('rom_re_p'),ri_a:rv('rom_ri_a'),ri_p:rv('rom_ri_p')},
   mrc:{sup:g('f_sup')||null,inf:g('f_inf')||null,sub:g('f_sub')||null,del:g('f_del')||null,ext:g('f_ext')||null},
   testes:{neer:g('t_neer')||null,hawk:g('t_hawk')||null,jobe:g('t_jobe')||null,patte:g('t_patte')||null,liftoff:g('t_liftoff')||null,belly:g('t_belly')||null,drop:g('t_drop')||null,speed:g('t_speed')||null,yerg:g('t_yerg')||null,appr:g('t_appr')||null,reloc:g('t_reloc')||null,sulc:g('t_sulc')||null},
-  dyn:{re_af:rv('dyn_re_af'),re_cl:rv('dyn_re_cl'),ri_af:rv('dyn_ri_af'),ri_cl:rv('dyn_ri_cl'),ea_af:rv('dyn_ea_af'),ea_cl:rv('dyn_ea_cl'),abd_af:rv('dyn_abd_af'),abd_cl:rv('dyn_abd_cl')},
+  dyn:window._dynData||{},
   func:{elev:g('func_elev')||null,cos:g('func_cos')||null,vest:g('func_vest')||null,prof:g('func_prof')||null,desp:g('func_desp')||null,cond:g('func_cond')||null},
   escalas:{
     dash_score:parseInt(document.getElementById('dash_score').textContent)||null,
@@ -615,14 +817,26 @@ window._gerarResumo=function(){
   var notasTestes=document.getElementById('notas_testes');
   if(notasTestes&&notasTestes.value.trim())linhas.push('  Notas: '+notasTestes.value.trim());
   linhas.push('');
-  linhas.push('DINAMOMETRIA (ActivForce 2)');
-  [['re','Rot. externa'],['ri','Rot. interna'],['ea','Elevacao ant.'],['abd','Abducao']].forEach(function(p){
-    var af=document.getElementById('dyn_'+p[0]+'_af');
-    var cl=document.getElementById('dyn_'+p[0]+'_cl');
-    var def=document.getElementById('dyn_'+p[0]+'_def');
-    if(af&&af.value)linhas.push('  '+p[1]+': Afect. '+af.value+'kg / Contral. '+(cl&&cl.value?cl.value:'?')+'kg'+(def&&def.textContent&&def.textContent!='?'?' Defice '+def.textContent:''));
-  });
-  linhas.push('');
+      linhas.push('DINAMOMETRIA (ActivForce 2)');
+      var _dyn=window._dynData||{};
+      [['flex','Flexão'],['abd','Abdução'],['ext','Extensão'],['re','Rot. Externa'],['ri','Rot. Interna'],['adu','Adução']].forEach(function(p){
+        var d=_dyn[p[0]];if(!d)return;
+        var vals=[];
+        if(d.e!==null&&d.e!==undefined)vals.push('E '+d.e.toFixed(1)+' kg');
+        if(d.d!==null&&d.d!==undefined)vals.push('D '+d.d.toFixed(1)+' kg');
+        if(!vals.length)return;
+        var linha='  '+p[1]+': '+vals.join(' / ');
+        if(d.e!==null&&d.d!==null&&d.d!==0){var def=(d.e-d.d)/d.d*100;linha+=' (défice '+(def>=0?'+':'')+def.toFixed(1)+'%)';}
+        if(d.fpe!==null&&d.fpe!==undefined&&d.fpd!==null&&d.fpd!==undefined)linha+=' · F/P E '+d.fpe.toFixed(1)+'% / D '+d.fpd.toFixed(1)+'%';
+        else if(d.fpe!==null&&d.fpe!==undefined)linha+=' · F/P E '+d.fpe.toFixed(1)+'%';
+        else if(d.fpd!==null&&d.fpd!==undefined)linha+=' · F/P D '+d.fpd.toFixed(1)+'%';
+        linhas.push(linha);
+      });
+      var reriD=_dyn.re&&_dyn.re.d!==null&&_dyn.ri&&_dyn.ri.d!==null&&_dyn.ri.d!==0?(_dyn.re.d/_dyn.ri.d*100):null;
+      if(reriD!==null)linhas.push('  Ratio RE/RI (D): '+reriD.toFixed(0)+'% (ref ≥ 66%)');
+      var reriE=_dyn.re&&_dyn.re.e!==null&&_dyn.ri&&_dyn.ri.e!==null&&_dyn.ri.e!==0?(_dyn.re.e/_dyn.ri.e*100):null;
+      if(reriE!==null)linhas.push('  Ratio RE/RI (E): '+reriE.toFixed(0)+'% (ref ≥ 66%)');
+      linhas.push('');
   linhas.push('FUNCIONAL');
   document.querySelectorAll('.func-row').forEach(function(row){
     var lbl=row.querySelector('.func-lbl');
