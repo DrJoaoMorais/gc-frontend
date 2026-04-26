@@ -412,8 +412,8 @@ document.querySelectorAll('.eva-row').forEach(function(row){
 /* ── ROM GONIOMETRO ── */
 function d2r(d){return d*Math.PI/180;}
 var ROM_DEFS=[
-  {key:'flex',label:'Flexão',    ref:180,grid:'top',W:200,H:92, cx:100,cy:92, Ro:88,Ri:72,startSVG:180,sweep:1, mt:20},
-  {key:'abd', label:'Abdução',   ref:180,grid:'top',W:200,H:92, cx:100,cy:92, Ro:88,Ri:72,startSVG:180,sweep:1, mt:20},
+  {key:'flex',label:'Flexão',    ref:180,grid:'top',W:200,H:92, cx:100,cy:92, Ro:88,Ri:72,startSVG:90, sweep:-1,mt:20},
+  {key:'abd', label:'Abdução',   ref:180,grid:'top',W:200,H:92, cx:100,cy:92, Ro:88,Ri:72,startSVG:90, sweep:-1,mt:20},
   {key:'ext', label:'Extensão',  ref:75, grid:'bot',W:160,H:96, cx:152,cy:92, Ro:76,Ri:62,startSVG:90, sweep:-1,mt:8},
   {key:'re',  label:'Rot. ext.', ref:90, grid:'bot',W:160,H:96, cx:8,  cy:8,  Ro:76,Ri:62,startSVG:270,sweep:1, mt:8},
   {key:'ri',  label:'Rot. int.', ref:90, grid:'bot',W:160,H:96, cx:152,cy:8,  Ro:76,Ri:62,startSVG:0,  sweep:1, mt:8},
