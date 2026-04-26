@@ -412,11 +412,11 @@ document.querySelectorAll('.eva-row').forEach(function(row){
 /* ── ROM GONIOMETRO ── */
 function d2r(d){return d*Math.PI/180;}
 var ROM_DEFS=[
-  {key:'flex',label:'Flexão',    ref:180,grid:'top',W:130,H:76, cx:65,cy:72,Ro:58,Ri:47,startSVG:90, sweep:-1},
-  {key:'abd', label:'Abdução',   ref:180,grid:'top',W:130,H:76, cx:65,cy:72,Ro:58,Ri:47,startSVG:90, sweep:-1},
-  {key:'ext', label:'Extensão',  ref:75, grid:'bot',W:96, H:82, cx:76,cy:76,Ro:62,Ri:51,startSVG:180,sweep:-1},
-  {key:'re',  label:'Rot. ext.', ref:90, grid:'bot',W:96, H:82, cx:10,cy:76,Ro:62,Ri:51,startSVG:270,sweep:1},
-  {key:'ri',  label:'Rot. int.', ref:90, grid:'bot',W:96, H:82, cx:10,cy:10, Ro:62,Ri:51,startSVG:0,  sweep:1},
+  {key:'flex',label:'Flexão',    ref:180,grid:'top',W:200,H:110,cx:100,cy:104,Ro:90,Ri:74,startSVG:90, sweep:-1},
+  {key:'abd', label:'Abdução',   ref:180,grid:'top',W:200,H:110,cx:100,cy:104,Ro:90,Ri:74,startSVG:90, sweep:-1},
+  {key:'ext', label:'Extensão',  ref:75, grid:'bot',W:160,H:100,cx:14, cy:86, Ro:78,Ri:64,startSVG:90, sweep:1},
+  {key:'re',  label:'Rot. ext.', ref:90, grid:'bot',W:160,H:100,cx:14, cy:86, Ro:78,Ri:64,startSVG:270,sweep:1},
+  {key:'ri',  label:'Rot. int.', ref:90, grid:'bot',W:160,H:100,cx:14, cy:14, Ro:78,Ri:64,startSVG:0,  sweep:1},
 ];
 var rc=document.getElementById('rom-container');
 function romPtArc(cx,cy,R,startSVG,angDeg,sweep){
@@ -457,15 +457,18 @@ function romTicks(cx,cy,Ro,Ri,startSVG,totalDeg,sweep,step){
 }
 var romGridTop=null,romGridBot=null;
 (function(){
-  var gt=document.createElement('div');
-  gt.id='rom-grid-top';
-  gt.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;';
-  var gb=document.createElement('div');
-  gb.id='rom-grid-bot';
-  gb.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;';
-  rc.appendChild(gt);
-  rc.appendChild(gb);
-  romGridTop=gt; romGridBot=gb;
+  var outer=document.createElement('div');
+  outer.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;';
+  var gl=document.createElement('div');
+  gl.id='rom-grid-top';
+  gl.style.cssText='display:flex;flex-direction:column;gap:8px;';
+  var gr=document.createElement('div');
+  gr.id='rom-grid-bot';
+  gr.style.cssText='display:flex;flex-direction:column;gap:8px;';
+  outer.appendChild(gl);
+  outer.appendChild(gr);
+  rc.appendChild(outer);
+  romGridTop=gl; romGridBot=gr;
 })();
 ROM_DEFS.forEach(function(r){
   var lp0=romPtArc(r.cx,r.cy,r.Ro+14,r.startSVG,0,r.sweep);
