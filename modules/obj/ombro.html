@@ -414,9 +414,9 @@ function d2r(d){return d*Math.PI/180;}
 var ROM_DEFS=[
   {key:'flex',label:'Flexão',    ref:180,grid:'top',W:200,H:110,cx:100,cy:104,Ro:90,Ri:74,startSVG:90, sweep:-1},
   {key:'abd', label:'Abdução',   ref:180,grid:'top',W:200,H:110,cx:100,cy:104,Ro:90,Ri:74,startSVG:90, sweep:-1},
-  {key:'ext', label:'Extensão',  ref:75, grid:'bot',W:160,H:100,cx:14, cy:86, Ro:78,Ri:64,startSVG:90, sweep:1},
-  {key:'re',  label:'Rot. ext.', ref:90, grid:'bot',W:160,H:100,cx:14, cy:86, Ro:78,Ri:64,startSVG:270,sweep:1},
-  {key:'ri',  label:'Rot. int.', ref:90, grid:'bot',W:160,H:100,cx:14, cy:14, Ro:78,Ri:64,startSVG:0,  sweep:1},
+  {key:'ext', label:'Extensão',  ref:75, grid:'bot',W:160,H:100,cx:148,cy:90, Ro:78,Ri:64,startSVG:90, sweep:-1},
+  {key:'re',  label:'Rot. ext.', ref:90, grid:'bot',W:160,H:100,cx:14, cy:90, Ro:78,Ri:64,startSVG:270,sweep:1},
+  {key:'ri',  label:'Rot. int.', ref:90, grid:'bot',W:160,H:100,cx:148,cy:14, Ro:78,Ri:64,startSVG:0,  sweep:1},
 ];
 var rc=document.getElementById('rom-container');
 function romPtArc(cx,cy,R,startSVG,angDeg,sweep){
