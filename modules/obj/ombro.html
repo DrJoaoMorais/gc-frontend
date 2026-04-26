@@ -412,11 +412,11 @@ document.querySelectorAll('.eva-row').forEach(function(row){
 /* ── ROM GONIOMETRO ── */
 function d2r(d){return d*Math.PI/180;}
 var ROM_DEFS=[
-  {key:'flex',label:'Flexão',    ref:180,grid:'top',W:200,H:92, cx:100,cy:92, Ro:88,Ri:72,startSVG:90, sweep:-1},
-  {key:'abd', label:'Abdução',   ref:180,grid:'top',W:200,H:92, cx:100,cy:92, Ro:88,Ri:72,startSVG:90, sweep:-1},
-  {key:'ext', label:'Extensão',  ref:75, grid:'bot',W:160,H:96, cx:152,cy:92, Ro:76,Ri:62,startSVG:90, sweep:-1},
-  {key:'re',  label:'Rot. ext.', ref:90, grid:'bot',W:160,H:96, cx:8,  cy:8,  Ro:76,Ri:62,startSVG:270,sweep:1},
-  {key:'ri',  label:'Rot. int.', ref:90, grid:'bot',W:160,H:96, cx:152,cy:8,  Ro:76,Ri:62,startSVG:0,  sweep:1},
+  {key:'flex',label:'Flexão',    ref:180,grid:'top',W:200,H:92, cx:100,cy:92, Ro:88,Ri:72,startSVG:180,sweep:1, mt:20},
+  {key:'abd', label:'Abdução',   ref:180,grid:'top',W:200,H:92, cx:100,cy:92, Ro:88,Ri:72,startSVG:180,sweep:1, mt:20},
+  {key:'ext', label:'Extensão',  ref:75, grid:'bot',W:160,H:96, cx:152,cy:92, Ro:76,Ri:62,startSVG:90, sweep:-1,mt:8},
+  {key:'re',  label:'Rot. ext.', ref:90, grid:'bot',W:160,H:96, cx:8,  cy:8,  Ro:76,Ri:62,startSVG:270,sweep:1, mt:8},
+  {key:'ri',  label:'Rot. int.', ref:90, grid:'bot',W:160,H:96, cx:152,cy:8,  Ro:76,Ri:62,startSVG:0,  sweep:1, mt:8},
 ];
 var rc=document.getElementById('rom-container');
 function romPtArc(cx,cy,R,startSVG,angDeg,sweep){
@@ -494,7 +494,7 @@ ROM_DEFS.forEach(function(r){
       +'<text x="'+lp0[0].toFixed(0)+'" y="'+(lp0[1]+3).toFixed(0)+'" font-size="8" fill="rgba(128,128,128,.6)" text-anchor="middle">0°</text>'
       +'<text x="'+lp1[0].toFixed(0)+'" y="'+(lp1[1]+3).toFixed(0)+'" font-size="8" fill="rgba(128,128,128,.6)" text-anchor="middle">'+r.ref+'°</text>'
     +'</svg>'
-    +'<div style="width:100%;display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px;">'
+    +'<div style="width:100%;display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:'+(r.mt||8)+'px;">'
       +'<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">'
         +'<span style="font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:#1a56db;" id="rarc_'+r.key+'_lbl">Activo</span>'
         +'<input style="width:100%;text-align:center;font-size:16px;font-weight:500;border-radius:6px;padding:3px 2px;border:1.5px solid #1a56db;background:#fff;outline:none;" id="rom_'+r.key+'_a" type="number" min="0" max="'+r.ref+'" value="'+r.ref+'">'
