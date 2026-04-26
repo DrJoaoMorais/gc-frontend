@@ -76,15 +76,7 @@ h1{font-size:17px;margin-bottom:1px;}
 .teste-lbl{font-size:11px;color:#475569;width:108px;flex-shrink:0;}
 .sub-lbl{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin:6px 0 3px;}
 .sub-lbl:first-child{margin-top:0;}
-.rom-item{margin-bottom:8px;}
-.rom-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
-.rom-label{font-size:11px;font-weight:700;color:#0f172a;}
-.rom-ref{font-size:10px;color:#94a3b8;}
-.rom-svg{cursor:crosshair;display:block;}
-.rom-inputs{display:flex;gap:8px;align-items:center;margin-top:3px;}
-.rom-inp{width:50px;padding:2px 4px;border:1px solid #e2e8f0;border-radius:5px;font-size:12px;text-align:center;font-family:inherit;color:#0f172a;background:#fff;}
-.rom-inp.ia{border-color:#3b82f6;}.rom-inp.ip{border-color:#10b981;}
-.rom-inp-lbl{font-size:10px;color:#64748b;}
+.rom-item{box-sizing:border-box;}
 .dyn-table{width:100%;border-collapse:collapse;font-size:11px;}
 .dyn-table th{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;padding:3px 4px;text-align:center;border-bottom:1px solid #e2e8f0;}
 .dyn-table th:first-child{text-align:left;}
@@ -417,81 +409,154 @@ document.querySelectorAll('.eva-row').forEach(function(row){
     });
   });
 });
-/* ── ROM CONCENTRIC CIRCLES ── */
+/* ── ROM GONIOMETRO ── */
+function d2r(d){return d*Math.PI/180;}
 var ROM_DEFS=[
-  {key:'flex',label:'Flexão',ref:180},
-  {key:'ext',label:'Extensão',ref:60},
-  {key:'abd',label:'Abdução',ref:180},
-  {key:'re',label:'Rot. ext.',ref:90},
-  {key:'ri',label:'Rot. int.',ref:70}
+  {key:'flex',label:'Flexão',    ref:180,grid:'top',W:130,H:82, cx:65,cy:76,Ro:62,Ri:50,startSVG:90, sweep:-1},
+  {key:'abd', label:'Abdução',   ref:180,grid:'top',W:130,H:82, cx:65,cy:76,Ro:62,Ri:50,startSVG:90, sweep:-1},
+  {key:'ext', label:'Extensão',  ref:75, grid:'bot',W:96, H:90, cx:10,cy:78,Ro:72,Ri:59,startSVG:90, sweep:1},
+  {key:'re',  label:'Rot. ext.', ref:90, grid:'bot',W:96, H:90, cx:10,cy:78,Ro:72,Ri:59,startSVG:270,sweep:1},
+  {key:'ri',  label:'Rot. int.', ref:90, grid:'bot',W:96, H:90, cx:10,cy:10, Ro:72,Ri:59,startSVG:0,  sweep:1},
 ];
-var ROM_CX=46,ROM_CY=46,ROM_R_OUT=38,ROM_R_IN=26,ROM_R_THRESH=32;
 var rc=document.getElementById('rom-container');
+function romPtArc(cx,cy,R,startSVG,angDeg,sweep){
+  var rad=d2r(startSVG+angDeg*sweep);
+  return [cx+R*Math.cos(rad),cy+R*Math.sin(rad)];
+}
+function romArcD(cx,cy,R,startSVG,totalDeg,sweep,frac){
+  var ang=Math.max(totalDeg*frac,0.1);
+  var p0=romPtArc(cx,cy,R,startSVG,0,sweep);
+  var p1=romPtArc(cx,cy,R,startSVG,ang,sweep);
+  var lg=ang>180?1:0,sw=sweep>0?1:0;
+  return 'M '+p0[0].toFixed(2)+' '+p0[1].toFixed(2)+' A '+R+' '+R+' 0 '+lg+' '+sw+' '+p1[0].toFixed(2)+' '+p1[1].toFixed(2);
+}
+function romFanD(cx,cy,R,startSVG,totalDeg,sweep,frac){
+  var ang=totalDeg*frac;
+  if(ang<0.5)return '';
+  var p0=romPtArc(cx,cy,R,startSVG,0,sweep);
+  var p1=romPtArc(cx,cy,R,startSVG,ang,sweep);
+  var lg=ang>180?1:0,sw=sweep>0?1:0;
+  return 'M '+cx+' '+cy+' L '+p0[0].toFixed(2)+' '+p0[1].toFixed(2)+' A '+R+' '+R+' 0 '+lg+' '+sw+' '+p1[0].toFixed(2)+' '+p1[1].toFixed(2)+' Z';
+}
+function romTicks(cx,cy,Ro,Ri,startSVG,totalDeg,sweep,step){
+  var s='';
+  for(var a=0;a<=totalDeg;a+=step){
+    var major=(a%30===0);
+    var rO=Ro+1,rI=major?Ri-5:Ri-2;
+    var rad=d2r(startSVG+a*sweep);
+    var x1=(cx+rO*Math.cos(rad)).toFixed(2),y1=(cy+rO*Math.sin(rad)).toFixed(2);
+    var x2=(cx+rI*Math.cos(rad)).toFixed(2),y2=(cy+rI*Math.sin(rad)).toFixed(2);
+    s+='<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="rgba(128,128,128,'+(major?.4:.2)+')" stroke-width="'+(major?1.2:.6)+'"/>';
+    if(major&&a>0&&a<totalDeg){
+      var rT=rO+9;
+      var xt=(cx+rT*Math.cos(rad)).toFixed(0),yt=((cy+rT*Math.sin(rad))+3).toFixed(0);
+      s+='<text x="'+xt+'" y="'+yt+'" font-size="7" fill="rgba(128,128,128,.5)" text-anchor="middle">'+a+'</text>';
+    }
+  }
+  return s;
+}
+var romGridTop=null,romGridBot=null;
+(function(){
+  var gt=document.createElement('div');
+  gt.id='rom-grid-top';
+  gt.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;';
+  var gb=document.createElement('div');
+  gb.id='rom-grid-bot';
+  gb.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;';
+  rc.appendChild(gt);
+  rc.appendChild(gb);
+  romGridTop=gt; romGridBot=gb;
+})();
 ROM_DEFS.forEach(function(r){
-  var maxRad=r.ref/180*Math.PI;
-  var half=maxRad/2;
-  var W=92,H=Math.round(ROM_CY-ROM_R_OUT*Math.cos(half)+ROM_R_OUT+10);
-  H=Math.max(H,50);
-  function arcPts(R){
-    var x1=ROM_CX-R*Math.sin(half),y1=ROM_CY-R*Math.cos(half);
-    var x2=ROM_CX+R*Math.sin(half),y2=ROM_CY-R*Math.cos(half);
-    var lg=maxRad>Math.PI?1:0;
-    return {x1:x1.toFixed(2),y1:y1.toFixed(2),x2:x2.toFixed(2),y2:y2.toFixed(2),lg:lg};
-  }
-  function makePath(R){
-    var e=arcPts(R);
-    return 'M '+e.x1+' '+e.y1+' A '+R+' '+R+' 0 '+e.lg+' 1 '+e.x2+' '+e.y2;
-  }
+  var lp0=romPtArc(r.cx,r.cy,r.Ro+14,r.startSVG,0,r.sweep);
+  var lp1=romPtArc(r.cx,r.cy,r.Ro+14,r.startSVG,r.ref,r.sweep);
+  var ptrE=romPtArc(r.cx,r.cy,r.Ro-3,r.startSVG,r.ref,r.sweep);
   var div=document.createElement('div');
   div.className='rom-item';
-  div.innerHTML='<div class="rom-hdr"><span class="rom-label">'+r.label+'</span><span class="rom-ref">ref '+r.ref+'°</span></div>'
-    +'<svg id="rsvg_'+r.key+'" class="rom-svg" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" style="cursor:crosshair;display:block;">'
-    +'<path d="'+makePath(ROM_R_OUT)+'" fill="none" stroke="#f0f0f0" stroke-width="7" stroke-linecap="round"/>'
-    +'<path d="'+makePath(ROM_R_IN)+'" fill="none" stroke="#f0f0f0" stroke-width="5" stroke-linecap="round"/>'
-    +'<path id="rarc_'+r.key+'_a" d="'+makePath(ROM_R_OUT)+'" fill="none" stroke="#1a56db" stroke-width="7" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100"/>'
-    +'<path id="rarc_'+r.key+'_p" d="'+makePath(ROM_R_IN)+'" fill="none" stroke="#16a34a" stroke-width="5" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100"/>'
+  div.id='romcard_'+r.key;
+  div.style.cssText='background:var(--color-background-secondary,#f8fafc);border-radius:10px;border:0.5px solid var(--color-border-tertiary,#e2e8f0);padding:10px 8px 8px;display:flex;flex-direction:column;align-items:center;gap:0;transition:border-color .15s;';
+  div.innerHTML=
+    '<div style="width:100%;display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">'
+      +'<span style="font-size:12px;font-weight:500;">'+r.label+'</span>'
+      +'<span style="font-size:10px;color:#94a3b8;">ref '+r.ref+'°</span>'
+    +'</div>'
+    +'<svg id="rsvg_'+r.key+'" width="'+r.W+'" height="'+r.H+'" viewBox="0 0 '+r.W+' '+r.H+'" style="cursor:crosshair;overflow:visible;">'
+      +'<path d="'+romArcD(r.cx,r.cy,r.Ro,r.startSVG,r.ref,r.sweep,1)+'" stroke="rgba(128,128,128,0.12)" stroke-width="14" fill="none" stroke-linecap="round"/>'
+      +romTicks(r.cx,r.cy,r.Ro,r.Ri,r.startSVG,r.ref,r.sweep,5)
+      +'<path id="rarc_'+r.key+'_fan" d="" fill="#1a56db" opacity="0.18"/>'
+      +'<path id="rarc_'+r.key+'_p" d="'+romArcD(r.cx,r.cy,r.Ri,r.startSVG,r.ref,r.sweep,1)+'" stroke="#16a34a" stroke-width="3.5" fill="none" stroke-linecap="round" pathLength="100" stroke-dasharray="100 100"/>'
+      +'<path id="rarc_'+r.key+'_a" d="'+romArcD(r.cx,r.cy,r.Ro,r.startSVG,r.ref,r.sweep,1)+'" stroke="#1a56db" stroke-width="4" fill="none" stroke-linecap="round" pathLength="100" stroke-dasharray="100 100"/>'
+      +'<line id="rarc_'+r.key+'_ptr" x1="'+r.cx+'" y1="'+r.cy+'" x2="'+ptrE[0].toFixed(2)+'" y2="'+ptrE[1].toFixed(2)+'" stroke="#1a56db" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>'
+      +'<circle cx="'+r.cx+'" cy="'+r.cy+'" r="2.5" fill="#1a56db" opacity="0.7"/>'
+      +'<text x="'+lp0[0].toFixed(0)+'" y="'+(lp0[1]+3).toFixed(0)+'" font-size="8" fill="rgba(128,128,128,.6)" text-anchor="middle">0°</text>'
+      +'<text x="'+lp1[0].toFixed(0)+'" y="'+(lp1[1]+3).toFixed(0)+'" font-size="8" fill="rgba(128,128,128,.6)" text-anchor="middle">'+r.ref+'°</text>'
     +'</svg>'
-    +'<div class="rom-inputs">'
-    +'<span class="rom-inp-lbl" style="color:#1a56db;font-weight:700;">A°</span>'
-    +'<input class="rom-inp ia" type="number" id="rom_'+r.key+'_a" min="0" max="'+r.ref+'" placeholder="—">'
-    +'<span class="rom-inp-lbl" style="color:#16a34a;font-weight:700;">P°</span>'
-    +'<input class="rom-inp ip" type="number" id="rom_'+r.key+'_p" min="0" max="'+r.ref+'" placeholder="—">'
-    +'</div>';
-  rc.appendChild(div);
-  (function(key,ref){
+    +'<div style="width:100%;display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px;">'
+      +'<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">'
+        +'<span style="font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:#1a56db;" id="rarc_'+r.key+'_lbl">Activo</span>'
+        +'<input style="width:100%;text-align:center;font-size:16px;font-weight:500;border-radius:6px;padding:3px 2px;border:1.5px solid #1a56db;background:#fff;outline:none;" id="rom_'+r.key+'_a" type="number" min="0" max="'+r.ref+'" value="'+r.ref+'">'
+      +'</div>'
+      +'<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">'
+        +'<span style="font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:#16a34a;">Passivo</span>'
+        +'<input style="width:100%;text-align:center;font-size:16px;font-weight:500;border-radius:6px;padding:3px 2px;border:1.5px solid #16a34a;background:#fff;outline:none;" id="rom_'+r.key+'_p" type="number" min="0" max="'+r.ref+'" value="'+r.ref+'">'
+      +'</div>'
+    +'</div>'
+    +'<div id="rarc_'+r.key+'_pill" style="font-size:9px;padding:1px 7px;border-radius:999px;background:rgba(220,38,38,.1);color:#dc2626;border:0.5px solid rgba(220,38,38,.3);margin-top:5px;visibility:hidden;">défice</div>';
+  if(r.grid==='top') romGridTop.appendChild(div);
+  else romGridBot.appendChild(div);
+  (function(key,ref,def){
     var svg=document.getElementById('rsvg_'+key);
     var ia=document.getElementById('rom_'+key+'_a');
     var ip=document.getElementById('rom_'+key+'_p');
     var aa=document.getElementById('rarc_'+key+'_a');
     var ap=document.getElementById('rarc_'+key+'_p');
+    var fan=document.getElementById('rarc_'+key+'_fan');
+    var ptr=document.getElementById('rarc_'+key+'_ptr');
+    var pill=document.getElementById('rarc_'+key+'_pill');
+    var lbl=document.getElementById('rarc_'+key+'_lbl');
+    var card=document.getElementById('romcard_'+key);
     function redraw(){
       var va=Math.min(Math.max(parseFloat(ia.value)||0,0),ref);
       var vp=Math.min(Math.max(parseFloat(ip.value)||0,0),ref);
-      var colA=va/ref<0.75?'#dc2626':'#1a56db';
-      var colP=vp/ref<0.75?'#dc2626':'#16a34a';
-      aa.setAttribute('stroke-dasharray',(va/ref*100).toFixed(2)+' 100');
-      ap.setAttribute('stroke-dasharray',(vp/ref*100).toFixed(2)+' 100');
+      var isdef=va/ref<0.75;
+      var colA=isdef?'#dc2626':'#1a56db';
+      aa.setAttribute('stroke-dasharray',(va/ref*100).toFixed(1)+' 100');
+      ap.setAttribute('stroke-dasharray',(vp/ref*100).toFixed(1)+' 100');
       aa.setAttribute('stroke',colA);
-      ap.setAttribute('stroke',colP);
+      fan.setAttribute('d',va>0?romFanD(def.cx,def.cy,def.Ro-1,def.startSVG,def.ref,def.sweep,va/ref):'');
+      fan.setAttribute('fill',colA);
+      var pe=romPtArc(def.cx,def.cy,def.Ro-3,def.startSVG,va,def.sweep);
+      ptr.setAttribute('x2',pe[0].toFixed(2));
+      ptr.setAttribute('y2',pe[1].toFixed(2));
+      ptr.setAttribute('stroke',colA);
+      ia.style.borderColor=colA;
+      ia.style.color=isdef?colA:'';
+      lbl.style.color=colA;
+      card.style.borderColor=isdef?'rgba(220,38,38,.5)':'';
+      var d=ref-va;
+      if(d>0){pill.textContent='défice '+d+'°';pill.style.visibility='visible';}
+      else{pill.style.visibility='hidden';}
     }
     ia.addEventListener('input',redraw);
     ip.addEventListener('input',redraw);
     svg.addEventListener('click',function(e){
       var rect=svg.getBoundingClientRect();
-      var mx=(e.clientX-rect.left)*(92/rect.width);
-      var my=(e.clientY-rect.top)*(92/rect.height);
-      var dx=mx-ROM_CX,dy=my-ROM_CY;
+      var mx=(e.clientX-rect.left)*(def.W/rect.width);
+      var my=(e.clientY-rect.top)*(def.H/rect.height);
+      var dx=mx-def.cx,dy=my-def.cy;
       var dist=Math.sqrt(dx*dx+dy*dy);
-      if(dist<14||dist>ROM_R_OUT+6)return;
-      var angle=Math.atan2(dx,-dy);
-      var half=r.ref/180*Math.PI/2;
-      if(angle<-half||angle>half)return;
-      var val=Math.round((angle+half)/(half*2)*ref/5)*5;
-      val=Math.max(0,Math.min(val,ref));
-      if(dist>ROM_R_THRESH){ia.value=val;}else{ip.value=val;}
+      if(dist<def.Ri-12||dist>def.Ro+14)return;
+      var clickAng=Math.atan2(dy,dx)*180/Math.PI;
+      var rel=(clickAng-def.startSVG)*def.sweep;
+      while(rel<-5)rel+=360;
+      if(rel<0)rel=0;
+      if(rel>def.ref+5)return;
+      var val=Math.round(Math.min(rel,def.ref)/5)*5;
+      if(dist>(def.Ri+def.Ro)/2){ia.value=val;}else{ip.value=val;}
       redraw();
     });
-  })(r.key,r.ref);
+    redraw();
+  })(r.key,r.ref,r);
 });
 /* ── DINAMOMETRIA ── */
 function setDmCell(id,val){var el=document.getElementById(id);if(el)el.textContent=val!==null?val:'—';}
