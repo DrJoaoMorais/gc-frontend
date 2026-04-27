@@ -687,6 +687,7 @@ document.querySelectorAll('.eva-row').forEach(function(row){
   // Expor romSv globalmente para os inputs inline da tabela
   window.romSv=romSv;
   window.romSyncSlider=romSyncSlider;
+  window.romGetState=function(gi){return S[gi]||null;};
 })();
 /* ── FIM ROM GONIOMETRO ── */
 /* ── DINAMOMETRIA ── */
@@ -1015,11 +1016,11 @@ window._gerarResumo=function(){
   if(notasPalp&&notasPalp.value.trim())linhas.push('  Notas: '+notasPalp.value.trim());
   linhas.push('');
   linhas.push('AMPLITUDE ARTICULAR');
-  [{k:'flex',l:'Flexao',r:180},{k:'ext',l:'Extensao',r:60},{k:'abd',l:'Abducao',r:180},{k:'re',l:'Rot. ext.',r:90},{k:'ri',l:'Rot. int.',r:70}].forEach(function(m){
-    var ia=document.getElementById('rom_'+m.k+'_a');
-    var ip=document.getElementById('rom_'+m.k+'_p');
-    var va=ia&&ia.value?ia.value:'?';
-    var vp=ip&&ip.value?ip.value:'?';
+  [{gi:1,l:'Flexao',r:180},{gi:2,l:'Extensao',r:60},{gi:0,l:'Abducao',r:180},
+   {gi:3,l:'Rot. ext.',r:90},{gi:4,l:'Rot. int.',r:90}].forEach(function(m){
+    var st=window.romGetState?window.romGetState(m.gi):null;
+    var va=st!==null?st.a:'?';
+    var vp=st!==null?st.p:'?';
     linhas.push('  '+m.l+': A '+va+'° / P '+vp+'° (ref '+m.r+'°)');
   });
   var notasMob=document.getElementById('notas_mob');
