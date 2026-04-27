@@ -51,8 +51,8 @@ h1{font-size:17px;margin-bottom:1px;}
 .ob-tab.active{color:#0f2d52;border-bottom-color:#0f2d52;}
 .ob-tab-content{display:none;}
 .ob-tab-content.active{display:block;}
-.two-col{display:grid;grid-template-columns:420px 1fr;gap:24px;}
-.col-scroll{min-width:0;}
+.two-col{display:grid;grid-template-columns:400px 1fr;gap:20px;align-items:start;}
+.col-scroll{min-width:0;overflow:visible;}
 .sec{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:9px 11px;margin-bottom:8px;}
 .sec:last-child{margin-bottom:0;}
 .sec-title{font-size:12px;font-weight:700;color:#0f2d52;margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid #f1f5f9;}
@@ -660,8 +660,8 @@ document.querySelectorAll('.eva-row').forEach(function(row){
   const container=document.getElementById('rom-container');
   if(container){
     container.innerHTML=`
-      <div id="rom-grid-top" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px"></div>
-      <div id="rom-grid-bot" style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:20px;max-width:580px"></div>
+      <div id="rom-grid-top" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:14px"></div>
+      <div id="rom-grid-bot" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:20px;max-width:67%"></div>
       <div style="font-size:14px;font-weight:600;margin-bottom:10px;color:#0f2d52">Ombro — Tabela de Amplitudes Articulares</div>
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:12px">
