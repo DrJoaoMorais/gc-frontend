@@ -497,7 +497,6 @@ document.querySelectorAll('.eva-row').forEach(function(row){
       ${needleSVG(CX,CY,R,g.start,g.dir,s.a,aC,gi,'a')}
       <circle cx="${CX}" cy="${CY}" r="6" fill="#444" pointer-events="none"/>
       ${splitArc(CX,CY,SPLIT,g.start,g.range,g.dir,aC)}
-      <text x="8" y="14" font-size="11" font-weight="600" fill="#0f2d52" opacity="0.8">G${g.gNum}</text>
       ${sectorHit(CX,CY,R,g.start,g.range,g.dir,gi)}
     </svg>`;
   }
@@ -586,7 +585,6 @@ document.querySelectorAll('.eva-row').forEach(function(row){
     return`<div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <span style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px">
-          <span style="font-size:11px;font-weight:600;color:white;background:#0f2d52;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center">${g.gNum}</span>
           ${g.mov}
         </span>
         <span style="font-size:11px;color:var(--color-text-secondary)">${s.norm}°</span>
@@ -645,7 +643,6 @@ document.querySelectorAll('.eva-row').forEach(function(row){
                `<td style="color:#38a169;font-weight:500;text-align:center">${pct}%</td>`;
       return`<tr>
         <td style="font-weight:500">${g.mov}</td>
-        <td><span style="font-size:10px;color:var(--color-text-secondary);background:var(--color-background-secondary);border-radius:4px;padding:1px 5px">G${g.gNum}</span></td>
         <td style="text-align:center"><input type="number" min="0" max="${g.range}" step="5" value="${s.a}"
           style="width:52px;text-align:center;font-size:12px;font-weight:600;color:${aC};border:0.5px solid ${aC}44;border-radius:4px;padding:2px 4px;background:transparent"
           onchange="romSv(${gi},'a',+this.value);romSyncSlider(${gi},'a',+this.value)"></td>
@@ -671,7 +668,6 @@ document.querySelectorAll('.eva-row').forEach(function(row){
           <thead style="background:#0f2d52">
             <tr>
               <th style="color:white;padding:8px;text-align:left;font-weight:500;font-size:11px">Movimento</th>
-              <th style="color:white;padding:8px;text-align:left;font-weight:500;font-size:11px">Gon.</th>
               <th style="color:#93c5fd;padding:8px;font-weight:500;font-size:11px">Activo °</th>
               <th style="color:#86efac;padding:8px;font-weight:500;font-size:11px">Passivo °</th>
               <th style="color:white;padding:8px;font-weight:500;font-size:11px">Dif A–P</th>
