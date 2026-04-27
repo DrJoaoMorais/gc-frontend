@@ -410,157 +410,289 @@ document.querySelectorAll('.eva-row').forEach(function(row){
   });
 });
 /* ── ROM GONIOMETRO ── */
-function d2r(d){return d*Math.PI/180;}
-var ROM_DEFS=[
-  {key:'flex',label:'Flexão',    ref:180,grid:'top',W:200,H:92, cx:100,cy:92, Ro:88,Ri:72,startSVG:180,sweep:1, mt:20},
-  {key:'abd', label:'Abdução',   ref:180,grid:'top',W:200,H:92, cx:100,cy:92, Ro:88,Ri:72,startSVG:180,sweep:1, mt:20},
-  {key:'ext', label:'Extensão',  ref:75, grid:'bot',W:160,H:96, cx:152,cy:92, Ro:76,Ri:62,startSVG:90, sweep:-1,mt:8},
-  {key:'re',  label:'Rot. ext.', ref:90, grid:'bot',W:160,H:96, cx:8,  cy:8,  Ro:76,Ri:62,startSVG:270,sweep:1, mt:8},
-  {key:'ri',  label:'Rot. int.', ref:90, grid:'bot',W:160,H:96, cx:152,cy:8,  Ro:76,Ri:62,startSVG:0,  sweep:1, mt:8},
-];
-var rc=document.getElementById('rom-container');
-function romPtArc(cx,cy,R,startSVG,angDeg,sweep){
-  var rad=d2r(startSVG+angDeg*sweep);
-  return [cx+R*Math.cos(rad),cy+R*Math.sin(rad)];
-}
-function romArcD(cx,cy,R,startSVG,totalDeg,sweep,frac){
-  var ang=Math.max(totalDeg*frac,0.1);
-  var p0=romPtArc(cx,cy,R,startSVG,0,sweep);
-  var p1=romPtArc(cx,cy,R,startSVG,ang,sweep);
-  var lg=ang>180?1:0,sw=sweep>0?1:0;
-  return 'M '+p0[0].toFixed(2)+' '+p0[1].toFixed(2)+' A '+R+' '+R+' 0 '+lg+' '+sw+' '+p1[0].toFixed(2)+' '+p1[1].toFixed(2);
-}
-function romFanD(cx,cy,R,startSVG,totalDeg,sweep,frac){
-  var ang=totalDeg*frac;
-  if(ang<0.5)return '';
-  var p0=romPtArc(cx,cy,R,startSVG,0,sweep);
-  var p1=romPtArc(cx,cy,R,startSVG,ang,sweep);
-  var lg=ang>180?1:0,sw=sweep>0?1:0;
-  return 'M '+cx+' '+cy+' L '+p0[0].toFixed(2)+' '+p0[1].toFixed(2)+' A '+R+' '+R+' 0 '+lg+' '+sw+' '+p1[0].toFixed(2)+' '+p1[1].toFixed(2)+' Z';
-}
-function romTicks(cx,cy,Ro,Ri,startSVG,totalDeg,sweep,step){
-  var s='';
-  for(var a=0;a<=totalDeg;a+=step){
-    var major=(a%30===0);
-    var rO=Ro+1,rI=major?Ri-5:Ri-2;
-    var rad=d2r(startSVG+a*sweep);
-    var x1=(cx+rO*Math.cos(rad)).toFixed(2),y1=(cy+rO*Math.sin(rad)).toFixed(2);
-    var x2=(cx+rI*Math.cos(rad)).toFixed(2),y2=(cy+rI*Math.sin(rad)).toFixed(2);
-    s+='<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="rgba(128,128,128,'+(major?.4:.2)+')" stroke-width="'+(major?1.2:.6)+'"/>';
-    if(major&&a>0&&a<totalDeg){
-      var rT=rO+9;
-      var xt=(cx+rT*Math.cos(rad)).toFixed(0),yt=((cy+rT*Math.sin(rad))+3).toFixed(0);
-      s+='<text x="'+xt+'" y="'+yt+'" font-size="7" fill="rgba(128,128,128,.5)" text-anchor="middle">'+a+'</text>';
-    }
-  }
-  return s;
-}
-var romGridTop=null,romGridBot=null;
 (function(){
-  var outer=document.createElement('div');
-  outer.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;';
-  var gl=document.createElement('div');
-  gl.id='rom-grid-top';
-  gl.style.cssText='display:flex;flex-direction:column;gap:8px;';
-  var gr=document.createElement('div');
-  gr.id='rom-grid-bot';
-  gr.style.cssText='display:flex;flex-direction:column;gap:8px;';
-  outer.appendChild(gl);
-  outer.appendChild(gr);
-  rc.appendChild(outer);
-  romGridTop=gl; romGridBot=gr;
-})();
-ROM_DEFS.forEach(function(r){
-  var lp0=romPtArc(r.cx,r.cy,r.Ro+14,r.startSVG,0,r.sweep);
-  var lp1=romPtArc(r.cx,r.cy,r.Ro+14,r.startSVG,r.ref,r.sweep);
-  var ptrE=romPtArc(r.cx,r.cy,r.Ro-3,r.startSVG,r.ref,r.sweep);
-  var div=document.createElement('div');
-  div.className='rom-item';
-  div.id='romcard_'+r.key;
-  div.style.cssText='background:var(--color-background-secondary,#f8fafc);border-radius:10px;border:0.5px solid var(--color-border-tertiary,#e2e8f0);padding:10px 8px 8px;display:flex;flex-direction:column;align-items:center;gap:0;transition:border-color .15s;';
-  div.innerHTML=
-    '<div style="width:100%;display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">'
-      +'<span style="font-size:12px;font-weight:500;">'+r.label+'</span>'
-      +'<span style="font-size:10px;color:#94a3b8;">ref '+r.ref+'°</span>'
-    +'</div>'
-    +'<svg id="rsvg_'+r.key+'" width="'+r.W+'" height="'+r.H+'" viewBox="0 0 '+r.W+' '+r.H+'" style="cursor:crosshair;overflow:visible;">'
-      +'<path d="'+romArcD(r.cx,r.cy,r.Ro,r.startSVG,r.ref,r.sweep,1)+'" stroke="rgba(128,128,128,0.12)" stroke-width="14" fill="none" stroke-linecap="round"/>'
-      +romTicks(r.cx,r.cy,r.Ro,r.Ri,r.startSVG,r.ref,r.sweep,5)
-      +'<path id="rarc_'+r.key+'_fan" d="" fill="#1a56db" opacity="0.18"/>'
-      +'<path id="rarc_'+r.key+'_p" d="'+romArcD(r.cx,r.cy,r.Ri,r.startSVG,r.ref,r.sweep,1)+'" stroke="#16a34a" stroke-width="3.5" fill="none" stroke-linecap="round" pathLength="100" stroke-dasharray="100 100"/>'
-      +'<path id="rarc_'+r.key+'_a" d="'+romArcD(r.cx,r.cy,r.Ro,r.startSVG,r.ref,r.sweep,1)+'" stroke="#1a56db" stroke-width="4" fill="none" stroke-linecap="round" pathLength="100" stroke-dasharray="100 100"/>'
-      +'<line id="rarc_'+r.key+'_ptr" x1="'+r.cx+'" y1="'+r.cy+'" x2="'+ptrE[0].toFixed(2)+'" y2="'+ptrE[1].toFixed(2)+'" stroke="#1a56db" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>'
-      +'<circle cx="'+r.cx+'" cy="'+r.cy+'" r="2.5" fill="#1a56db" opacity="0.7"/>'
-      +'<text x="'+lp0[0].toFixed(0)+'" y="'+(lp0[1]+3).toFixed(0)+'" font-size="8" fill="rgba(128,128,128,.6)" text-anchor="middle">0°</text>'
-      +'<text x="'+lp1[0].toFixed(0)+'" y="'+(lp1[1]+3).toFixed(0)+'" font-size="8" fill="rgba(128,128,128,.6)" text-anchor="middle">'+r.ref+'°</text>'
-    +'</svg>'
-    +'<div style="width:100%;display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:'+(r.mt||8)+'px;">'
-      +'<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">'
-        +'<span style="font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:#1a56db;" id="rarc_'+r.key+'_lbl">Activo</span>'
-        +'<input style="width:100%;text-align:center;font-size:16px;font-weight:500;border-radius:6px;padding:3px 2px;border:1.5px solid #1a56db;background:#fff;outline:none;" id="rom_'+r.key+'_a" type="number" min="0" max="'+r.ref+'" value="'+r.ref+'">'
-      +'</div>'
-      +'<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">'
-        +'<span style="font-size:9px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:#16a34a;">Passivo</span>'
-        +'<input style="width:100%;text-align:center;font-size:16px;font-weight:500;border-radius:6px;padding:3px 2px;border:1.5px solid #16a34a;background:#fff;outline:none;" id="rom_'+r.key+'_p" type="number" min="0" max="'+r.ref+'" value="'+r.ref+'">'
-      +'</div>'
-    +'</div>'
-    +'<div id="rarc_'+r.key+'_pill" style="font-size:9px;padding:1px 7px;border-radius:999px;background:rgba(220,38,38,.1);color:#dc2626;border:0.5px solid rgba(220,38,38,.3);margin-top:5px;visibility:hidden;">défice</div>';
-  if(r.grid==='top') romGridTop.appendChild(div);
-  else romGridBot.appendChild(div);
-  (function(key,ref,def){
-    var svg=document.getElementById('rsvg_'+key);
-    var ia=document.getElementById('rom_'+key+'_a');
-    var ip=document.getElementById('rom_'+key+'_p');
-    var aa=document.getElementById('rarc_'+key+'_a');
-    var ap=document.getElementById('rarc_'+key+'_p');
-    var fan=document.getElementById('rarc_'+key+'_fan');
-    var ptr=document.getElementById('rarc_'+key+'_ptr');
-    var pill=document.getElementById('rarc_'+key+'_pill');
-    var lbl=document.getElementById('rarc_'+key+'_lbl');
-    var card=document.getElementById('romcard_'+key);
-    function redraw(){
-      var va=Math.min(Math.max(parseFloat(ia.value)||0,0),ref);
-      var vp=Math.min(Math.max(parseFloat(ip.value)||0,0),ref);
-      var isdef=va/ref<0.75;
-      var colA=isdef?'#dc2626':'#1a56db';
-      aa.setAttribute('stroke-dasharray',(va/ref*100).toFixed(1)+' 100');
-      ap.setAttribute('stroke-dasharray',(vp/ref*100).toFixed(1)+' 100');
-      aa.setAttribute('stroke',colA);
-      fan.setAttribute('d',va>0?romFanD(def.cx,def.cy,def.Ro-1,def.startSVG,def.ref,def.sweep,va/ref):'');
-      fan.setAttribute('fill',colA);
-      var pe=romPtArc(def.cx,def.cy,def.Ro-3,def.startSVG,va,def.sweep);
-      ptr.setAttribute('x2',pe[0].toFixed(2));
-      ptr.setAttribute('y2',pe[1].toFixed(2));
-      ptr.setAttribute('stroke',colA);
-      ia.style.borderColor=colA;
-      ia.style.color=isdef?colA:'';
-      lbl.style.color=colA;
-      card.style.borderColor=isdef?'rgba(220,38,38,.5)':'';
-      var d=ref-va;
-      if(d>0){pill.textContent='défice '+d+'°';pill.style.visibility='visible';}
-      else{pill.style.visibility='hidden';}
+  const CX=92,CY=92,R=68,SPLIT=52;
+  const toR=d=>d*Math.PI/180;
+  const pt=(cx,cy,r,d)=>[+(cx+r*Math.cos(toR(d))).toFixed(2),+(cy+r*Math.sin(toR(d))).toFixed(2)];
+  const thr85=n=>n>0?Math.floor(n*0.85/5)*5:0;
+  const isDef=(a,n)=>n>0&&a<=thr85(n);
+
+  const GONIOS=[
+    {gi:0,gNum:2,mov:'Abdução',        range:180,start:90, dir:1, norm:180,row:0},
+    {gi:1,gNum:1,mov:'Flexão',         range:180,start:90, dir:-1,norm:180,row:0},
+    {gi:2,gNum:8,mov:'Extensão',       range:60, start:90, dir:1, norm:60, row:0},
+    {gi:3,gNum:6,mov:'Rotação externa',range:90, start:270,dir:1, norm:90, row:1},
+    {gi:4,gNum:7,mov:'Rotação interna',range:90, start:0,  dir:1, norm:90, row:1},
+  ];
+  const S=GONIOS.map(g=>({a:0,p:0,norm:g.norm}));
+
+  function sectorBg(cx,cy,r,start,range,dir){
+    const end=start+dir*range;
+    const[sx,sy]=pt(cx,cy,r,start);const[ex,ey]=pt(cx,cy,r,end);
+    const lg=range>180?1:0,sw=dir>0?1:0;
+    return`<path d="M${cx},${cy} L${sx},${sy} A${r},${r},0,${lg},${sw},${ex},${ey} Z" fill="#f4f6f8" stroke="#bbb" stroke-width="0.8" stroke-linejoin="round"/>`;
+  }
+  function splitArc(cx,cy,r,start,range,dir,color){
+    const end=start+dir*range;
+    const[sx,sy]=pt(cx,cy,r,start);const[ex,ey]=pt(cx,cy,r,end);
+    const lg=range>180?1:0,sw=dir>0?1:0;
+    return`<path d="M${sx},${sy} A${r},${r},0,${lg},${sw},${ex},${ey}" fill="none" stroke="${color}" stroke-width="1" stroke-dasharray="4,3" opacity="0.45" pointer-events="none"/>`;
+  }
+  function sectorHit(cx,cy,r,start,range,dir,gi){
+    const end=start+dir*range;
+    const[sx,sy]=pt(cx,cy,r,start);const[ex,ey]=pt(cx,cy,r,end);
+    const lg=range>180?1:0,sw=dir>0?1:0;
+    return`<path d="M${cx},${cy} L${sx},${sy} A${r},${r},0,${lg},${sw},${ex},${ey} Z" fill="transparent" style="cursor:crosshair" onmousedown="romOnDisc(event,${gi})" ontouchstart="romOnDisc(event,${gi})"/>`;
+  }
+  function fan(cx,cy,r,start,span,dir,fill,stroke,sw){
+    if(span<=0)return'';
+    const end=start+dir*span;
+    const[sx,sy]=pt(cx,cy,r,start);const[ex,ey]=pt(cx,cy,r,end);
+    const lg=span>180?1:0,s2=dir>0?1:0;
+    return`<path d="M${cx},${cy} L${sx},${sy} A${r},${r},0,${lg},${s2},${ex},${ey} Z" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round"/>`;
+  }
+  function fanExtra(cx,cy,r,start,spanA,spanP,dir){
+    if(spanP<=spanA)return'';
+    const sd=start+dir*spanA,ed=start+dir*spanP;
+    const[sx,sy]=pt(cx,cy,r,sd);const[ex,ey]=pt(cx,cy,r,ed);
+    const diff=spanP-spanA,lg=diff>180?1:0,sw=dir>0?1:0;
+    return`<path d="M${cx},${cy} L${sx},${sy} A${r},${r},0,${lg},${sw},${ex},${ey} Z" fill="rgba(56,161,105,0.40)" stroke="#38a169" stroke-width="2" stroke-linejoin="round"/>`;
+  }
+  function ticks(cx,cy,r,start,dir,range){
+    let s='';
+    for(let v=0;v<=range;v+=5){
+      const d=start+dir*v;
+      const[x1,y1]=pt(cx,cy,r-3,d);const[x2,y2]=pt(cx,cy,r+(v%10===0?6:3),d);
+      s+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#999" stroke-width="${v%10===0?1.2:0.5}" opacity="0.4"/>`;
+      if(v%10===0||v===range){
+        const[lx,ly]=pt(cx,cy,r+15,d);
+        s+=`<text x="${lx}" y="${ly}" font-size="8" text-anchor="middle" dominant-baseline="middle" fill="#999" opacity="0.8">${v}</text>`;
+      }
     }
-    ia.addEventListener('input',redraw);
-    ip.addEventListener('input',redraw);
-    svg.addEventListener('click',function(e){
-      var rect=svg.getBoundingClientRect();
-      var mx=(e.clientX-rect.left)*(def.W/rect.width);
-      var my=(e.clientY-rect.top)*(def.H/rect.height);
-      var dx=mx-def.cx,dy=my-def.cy;
-      var dist=Math.sqrt(dx*dx+dy*dy);
-      if(dist<def.Ri-12||dist>def.Ro+14)return;
-      var clickAng=Math.atan2(dy,dx)*180/Math.PI;
-      var rel=(clickAng-def.startSVG)*def.sweep;
-      while(rel<-5)rel+=360;
-      if(rel<0)rel=0;
-      if(rel>def.ref+5)return;
-      var val=Math.round(Math.min(rel,def.ref)/5)*5;
-      if(dist>(def.Ri+def.Ro)/2){ia.value=val;}else{ip.value=val;}
-      redraw();
+    return s;
+  }
+  function needleSVG(cx,cy,r,start,dir,val,color,gi,field){
+    if(val<=0)return'';
+    const d=start+dir*val;
+    const[ex,ey]=pt(cx,cy,r-4,d);
+    return`<g>
+      <line x1="${cx}" y1="${cy}" x2="${ex}" y2="${ey}" stroke="transparent" stroke-width="16" style="cursor:grab"
+        onmousedown="romOnNeedle(event,${gi},'${field}')" ontouchstart="romOnNeedle(event,${gi},'${field}')"/>
+      <line x1="${cx}" y1="${cy}" x2="${ex}" y2="${ey}" stroke="${color}" stroke-width="3" stroke-linecap="round" opacity="0.95" pointer-events="none"/>
+      <circle cx="${ex}" cy="${ey}" r="5" fill="${color}" opacity="0.95" pointer-events="none"/>
+    </g>`;
+  }
+  function makeSVG(gi){
+    const g=GONIOS[gi],s=S[gi];
+    const def=isDef(s.a,s.norm);
+    const aC=def?'#e53e3e':'#1a56db';
+    const aFill=def?'rgba(229,62,62,0.22)':'rgba(26,86,219,0.18)';
+    return`<svg width="184" height="184" viewBox="0 0 184 184" id="romSv${gi}">
+      ${sectorBg(CX,CY,R,g.start,g.range,g.dir)}
+      ${ticks(CX,CY,R,g.start,g.dir,g.range)}
+      ${fan(CX,CY,R,g.start,s.p,g.dir,'rgba(56,161,105,0.18)','#38a169',2)}
+      ${fan(CX,CY,R,g.start,s.a,g.dir,aFill,aC,2.5)}
+      ${fanExtra(CX,CY,R,g.start,s.a,s.p,g.dir)}
+      ${needleSVG(CX,CY,R,g.start,g.dir,s.p,'#38a169',gi,'p')}
+      ${needleSVG(CX,CY,R,g.start,g.dir,s.a,aC,gi,'a')}
+      <circle cx="${CX}" cy="${CY}" r="6" fill="#444" pointer-events="none"/>
+      ${splitArc(CX,CY,SPLIT,g.start,g.range,g.dir,aC)}
+      <text x="8" y="14" font-size="11" font-weight="600" fill="#0f2d52" opacity="0.8">G${g.gNum}</text>
+      ${sectorHit(CX,CY,R,g.start,g.range,g.dir,gi)}
+    </svg>`;
+  }
+  function cellsHTML(gi){
+    const s=S[gi],def=isDef(s.a,s.norm);
+    const aC=def?'#e53e3e':'#1a56db',aBg=def?'rgba(229,62,62,0.07)':'rgba(26,86,219,0.07)';
+    const dif=s.a-s.p;
+    const difColor=dif<0?'#e53e3e':dif>0?'#805ad5':'var(--color-text-secondary)';
+    const difTxt=dif<0?'P > A':dif>0?'A > P':'A = P';
+    const pct=s.norm>0?Math.round(s.a/s.norm*100):null;
+    const thr=s.norm>0?thr85(s.norm):null;
+    const deficit=s.norm>0?s.norm-s.a:null;
+    return`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
+      <div style="border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 4px;text-align:center;background:${aBg};border-color:${aC}55">
+        <div style="font-size:9px;text-transform:uppercase;color:${aC};margin-bottom:1px">Activo</div>
+        <div style="font-size:20px;font-weight:500;color:${aC}">${s.a}°</div>
+        <div style="font-size:9px;color:var(--color-text-secondary)">${pct!==null?pct+'% de '+s.norm+'°':'—'}</div>
+      </div>
+      <div style="border:0.5px solid #38a16955;border-radius:8px;padding:6px 4px;text-align:center;background:rgba(56,161,105,0.07)">
+        <div style="font-size:9px;text-transform:uppercase;color:#38a169;margin-bottom:1px">Passivo</div>
+        <div style="font-size:20px;font-weight:500;color:#38a169">${s.p}°</div>
+        <div style="font-size:9px;color:var(--color-text-secondary)">${s.norm>0?Math.round(s.p/s.norm*100)+'% de '+s.norm+'°':'—'}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
+      <div style="border:0.5px solid ${aC}33;border-radius:8px;padding:5px 6px;text-align:center;background:${aBg}">
+        <div style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;margin-bottom:1px">Défice amplitude</div>
+        <div style="font-size:14px;font-weight:500;color:${aC}">${deficit!==null?(deficit>0?'+'+deficit:deficit)+'°':'—'}</div>
+        <div style="font-size:9px;color:${aC};margin-top:1px">${pct!==null?pct+'% — limiar ≤'+thr+'°':''}</div>
+      </div>
+      <div style="border:0.5px solid ${difColor}33;border-radius:8px;padding:5px 6px;text-align:center">
+        <div style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;margin-bottom:1px">Dif. Activo − Passivo</div>
+        <div style="font-size:14px;font-weight:500;color:${difColor}">${dif>0?'+':''}${dif}°</div>
+        <div style="font-size:9px;color:${difColor};margin-top:1px">${difTxt}</div>
+      </div>
+    </div>`;
+  }
+  function posToVal(svg,e,g){
+    const p=svg.createSVGPoint();
+    const ce=e.touches?e.touches[0]:e;
+    p.x=ce.clientX;p.y=ce.clientY;
+    const sp=p.matrixTransform(svg.getScreenCTM().inverse());
+    const dx=sp.x-CX,dy=sp.y-CY;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    let ang=Math.atan2(dy,dx)*180/Math.PI;
+    let val=g.dir*(ang-g.start);
+    val=((val%360)+360)%360;
+    val=Math.min(g.range,Math.max(0,Math.round(val/5)*5));
+    return{val,dist};
+  }
+  window.romOnDisc=function(e,gi){
+    e.preventDefault();e.stopPropagation();
+    const svg=document.getElementById(`romSv${gi}`);
+    const{val,dist}=posToVal(svg,e,GONIOS[gi]);
+    if(dist>R+4)return;
+    const field=dist<=SPLIT?'a':'p';
+    romSv(gi,field,val);romSyncSlider(gi,field,val);romStartDrag(gi,field,svg);
+  };
+  window.romOnNeedle=function(e,gi,field){
+    e.preventDefault();e.stopPropagation();
+    romStartDrag(gi,field,document.getElementById(`romSv${gi}`));
+  };
+  let romDs=null;
+  function romStartDrag(gi,field,svg){
+    romDs={gi,g:GONIOS[gi],field,svg};
+    const mv=ev=>{if(!romDs)return;ev.preventDefault();const{val}=posToVal(romDs.svg,ev,romDs.g);romSv(romDs.gi,romDs.field,val);romSyncSlider(romDs.gi,romDs.field,val);};
+    const up=()=>{romDs=null;document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);document.removeEventListener('touchmove',mv);document.removeEventListener('touchend',up);};
+    document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
+    document.addEventListener('touchmove',mv,{passive:false});document.addEventListener('touchend',up);
+  }
+  function romSyncSlider(gi,field,val){
+    const sl=document.getElementById(field==='a'?`romSA${gi}`:`romSP${gi}`);if(sl)sl.value=val;
+  }
+  function romSv(gi,field,val){
+    S[gi][field]=val;
+    const def=isDef(S[gi].a,S[gi].norm),aC=def?'#e53e3e':'#1a56db';
+    document.getElementById(`romSv${gi}`).outerHTML=makeSVG(gi);
+    document.getElementById(`romCells${gi}`).innerHTML=cellsHTML(gi);
+    const lA=document.getElementById(`romLA${gi}`);if(lA)lA.style.color=aC;
+    const slA=document.getElementById(`romSA${gi}`);if(slA)slA.style.accentColor=aC;
+    romRenderTable();
+  }
+  function cardHTML(gi){
+    const g=GONIOS[gi],s=S[gi],def=isDef(s.a,s.norm),aC=def?'#e53e3e':'#1a56db';
+    return`<div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px">
+          <span style="font-size:11px;font-weight:600;color:white;background:#0f2d52;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center">${g.gNum}</span>
+          ${g.mov}
+        </span>
+        <span style="font-size:11px;color:var(--color-text-secondary)">${s.norm}°</span>
+      </div>
+      <div style="display:flex;justify-content:center" id="romSwWrap${gi}">${makeSVG(gi)}</div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;margin-top:2px;padding:0 4px">
+        <span style="color:#1a56db">● interior = activo</span>
+        <span style="color:#38a169">exterior = passivo ●</span>
+      </div>
+      <div id="romCells${gi}">${cellsHTML(gi)}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <label id="romLA${gi}" style="font-size:10px;color:${aC}">Activo</label>
+          <input type="range" min="0" max="${g.range}" step="5" value="${s.a}"
+            style="accent-color:${aC}" id="romSA${gi}"
+            oninput="romSv(${gi},'a',+this.value)">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <label style="font-size:10px;color:#38a169">Passivo</label>
+          <input type="range" min="0" max="${g.range}" step="5" value="${s.p}"
+            style="accent-color:#38a169" id="romSP${gi}"
+            oninput="romSv(${gi},'p',+this.value)">
+        </div>
+      </div>
+    </div>`;
+  }
+  function romRenderCards(){
+    const top=document.getElementById('rom-grid-top');
+    const bot=document.getElementById('rom-grid-bot');
+    if(!top||!bot)return;
+    top.innerHTML='';bot.innerHTML='';
+    GONIOS.forEach((g,gi)=>{
+      const div=document.createElement('div');
+      div.innerHTML=cardHTML(gi);
+      const card=div.firstElementChild;
+      if(g.row===0)top.appendChild(card);
+      else bot.appendChild(card);
     });
-    redraw();
-  })(r.key,r.ref,r);
-});
+  }
+  function romRenderTable(){
+    const tb=document.getElementById('rom-tbody');
+    if(!tb)return;
+    tb.innerHTML=GONIOS.map((g,gi)=>{
+      const s=S[gi],def=isDef(s.a,s.norm),aC=def?'#e53e3e':'#1a56db';
+      const dAP=s.a-s.p;
+      const dA=s.norm>0?s.norm-s.a:null,dP=s.norm>0?s.norm-s.p:null;
+      const pct=s.norm>0?Math.round(s.a/s.norm*100):null;
+      const thr=s.norm>0?thr85(s.norm):null;
+      const difColor=Math.abs(dAP)<2?'var(--color-text-secondary)':dAP<0?'#e53e3e':'#805ad5';
+      const fD=v=>v===null?`<td style="color:var(--color-text-secondary);text-align:center">—</td>`:
+        v<=0?`<td style="color:#38a169;font-weight:500;text-align:center">${v}°</td>`:
+             `<td style="color:#e53e3e;font-weight:500;text-align:center">+${v}°</td>`;
+      const fPct=pct===null?`<td style="text-align:center;color:var(--color-text-secondary)">—</td>`:
+        pct<85?`<td style="color:#e53e3e;font-weight:600;text-align:center">${pct}%</td>`:
+        pct<95?`<td style="color:#d97706;font-weight:500;text-align:center">${pct}%</td>`:
+               `<td style="color:#38a169;font-weight:500;text-align:center">${pct}%</td>`;
+      return`<tr>
+        <td style="font-weight:500">${g.mov}</td>
+        <td><span style="font-size:10px;color:var(--color-text-secondary);background:var(--color-background-secondary);border-radius:4px;padding:1px 5px">G${g.gNum}</span></td>
+        <td style="text-align:center"><input type="number" min="0" max="${g.range}" step="5" value="${s.a}"
+          style="width:52px;text-align:center;font-size:12px;font-weight:600;color:${aC};border:0.5px solid ${aC}44;border-radius:4px;padding:2px 4px;background:transparent"
+          onchange="romSv(${gi},'a',+this.value);romSyncSlider(${gi},'a',+this.value)"></td>
+        <td style="text-align:center"><input type="number" min="0" max="${g.range}" step="5" value="${s.p}"
+          style="width:52px;text-align:center;font-size:12px;font-weight:600;color:#38a169;border:0.5px solid #38a16944;border-radius:4px;padding:2px 4px;background:transparent"
+          onchange="romSv(${gi},'p',+this.value);romSyncSlider(${gi},'p',+this.value)"></td>
+        <td style="color:${difColor};font-weight:500;text-align:center">${dAP>0?'+':''}${dAP}°</td>
+        <td style="text-align:center;color:var(--color-text-secondary)">${s.norm}°</td>
+        ${fPct}${fD(dA)}${fD(dP)}
+      </tr>`;
+    }).join('');
+  }
+
+  // Criar layout HTML no contentor existente
+  const container=document.getElementById('rom-container');
+  if(container){
+    container.innerHTML=`
+      <div id="rom-grid-top" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px"></div>
+      <div id="rom-grid-bot" style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:20px;max-width:580px"></div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:10px;color:#0f2d52">Ombro — Tabela de Amplitudes Articulares</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead style="background:#0f2d52">
+            <tr>
+              <th style="color:white;padding:8px;text-align:left;font-weight:500;font-size:11px">Movimento</th>
+              <th style="color:white;padding:8px;text-align:left;font-weight:500;font-size:11px">Gon.</th>
+              <th style="color:#93c5fd;padding:8px;font-weight:500;font-size:11px">Activo °</th>
+              <th style="color:#86efac;padding:8px;font-weight:500;font-size:11px">Passivo °</th>
+              <th style="color:white;padding:8px;font-weight:500;font-size:11px">Dif A–P</th>
+              <th style="color:white;padding:8px;font-weight:500;font-size:11px">Normal °</th>
+              <th style="color:white;padding:8px;font-weight:500;font-size:11px">% Normal</th>
+              <th style="color:white;padding:8px;font-weight:500;font-size:11px">Défice activo</th>
+              <th style="color:white;padding:8px;font-weight:500;font-size:11px">Défice passivo</th>
+            </tr>
+          </thead>
+          <tbody id="rom-tbody"></tbody>
+        </table>
+      </div>`;
+    romRenderCards();
+    romRenderTable();
+  }
+
+  // Expor romSv globalmente para os inputs inline da tabela
+  window.romSv=romSv;
+  window.romSyncSlider=romSyncSlider;
+})();
+/* ── FIM ROM GONIOMETRO ── */
 /* ── DINAMOMETRIA ── */
 function setDmCell(id,val){var el=document.getElementById(id);if(el)el.textContent=val!==null?val:'—';}
 function defTag(pct,lado){
