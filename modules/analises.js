@@ -727,7 +727,9 @@ export async function gerarAnalisePdf(state, patientId) {
       (async () => { try { const u = await signedUrl(bucket, sigPath, 3600); return u ? await toDataUrl(u, "image/png") : ""; } catch { return ""; } })()
     ]);
 
-    const html = buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatureUrl });
+    const { data: patientProfile } = await window.sb.from("profiles").select("full_name").eq("id", patientId).single();
+    const patientName = patientProfile?.full_name || "";
+    const html = buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatureUrl, patientName });
     window.openDocumentEditor(html, "Pedido de Análises");
     closeAnalisesPanel();
 
@@ -746,7 +748,7 @@ export async function gerarAnalisePdf(state, patientId) {
  * buildAnalisesHtml
  * Constrói o HTML A4 para o pedido de análises.
  */
-export function buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatureUrl }) {
+export function buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatureUrl, patientName }) {
   function escHtml(v) { return String(v||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
   function escUrl(u)  { return String(u||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
   function nl2br(v)   { return escHtml(v).replace(/\n/g,"<br>"); }
@@ -821,6 +823,7 @@ export function buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatur
   </div>
   <div class="hr"></div>
   <div class="title">Pedido de Análises</div>
+  ${patientName ? `<div class="patient-name">Doente: <strong>${escHtml(patientName)}</strong></div>` : ""}
   <div class="rx">R/</div>
   <div class="cols">
     <div>${renderColuna(col1)}</div>

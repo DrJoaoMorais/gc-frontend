@@ -592,6 +592,8 @@ async function openExamClinicalInfoStep() {
   try {
     const patientId = String(examsUiState.patientId || "").trim();
     if (!patientId) { alert("Doente sem ID válido."); return; }
+    const { data: patientProfile } = await window.sb.from("profiles").select("full_name").eq("id", patientId).single();
+    const patientName = patientProfile?.full_name || "";
 
     /* Clínica */
     const { data: patientClinicRow, error: pcErr } = await window.sb
@@ -649,7 +651,8 @@ async function openExamClinicalInfoStep() {
       examDate,
       vinhetaUrl,
       clinicLogoUrl,
-      signatureUrl: ""
+      signatureUrl: "",
+      patientName
     });
 
     window.__gc_pendingExamCtx = {
@@ -668,6 +671,7 @@ async function openExamClinicalInfoStep() {
         examDate,
         vinhetaUrl,
         clinicLogoUrl,
+        patientName,
         patientId,
         clinicId:       resolvedClinicId,
         consultationId: examsUiState.consultationId || null
@@ -705,7 +709,7 @@ function openExamRequest(examId) {
  * buildExamRequestHtml
  * Constrói o HTML A4 para o pedido de exame (usado pelo editor/PDF).
  */
-export function buildExamRequestHtml({ clinic, examName, clinicalInfo, examDate, vinhetaUrl, clinicLogoUrl, signatureUrl }) {
+export function buildExamRequestHtml({ clinic, examName, clinicalInfo, examDate, vinhetaUrl, clinicLogoUrl, signatureUrl, patientName }) {
   function escHtml(v)  { return String(v||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
   function escUrl(u)   { return String(u||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
   function nl2br(v)    { return escHtml(v).replace(/\n/g,"<br>"); }
@@ -766,6 +770,7 @@ export function buildExamRequestHtml({ clinic, examName, clinicalInfo, examDate,
 
     <div class="hr"></div>
     <div class="title">Pedido de Exame</div>
+    ${patientName ? `<div style="text-align:center;font-size:15px;margin-bottom:12px;">Doente: <strong>${escHtml(patientName)}</strong></div>` : ""}
 
     <div class="bodyText">
       <div class="rx">R/</div>
