@@ -38,7 +38,7 @@ import { rpcCreatePatientForClinic } from "./db.js";
 import { examsUiState, buildExamRequestHtml } from "./exames.js";
 import { analisesUiState, openAnalisesPanel, closeAnalisesPanel } from "./analises.js";
 import { evolucaoUiState, openEvolucaoPanel, closeEvolucaoPanel } from "./evolucao.js";
-import { checkConsentStatus } from "./consentimentos.js";
+import { checkConsentStatus, checkConsentPrinted } from "./consentimentos.js";
 import { openQrModal } from "./consentimentos_qr.js";
 import { openExameObjectivoMenu, openExameObjectivoForm } from "./exame-objectivo.js";
 import { openNewPatientMainModal } from "./novo-doente.js";
@@ -403,6 +403,7 @@ function openPatientViewModal(patient) {
   let activeClinicData = null;
 
   let consentStatus = {};
+  let consentPrinted = {};
 
   let creatingConsult = false;
   let editingConsultId = null;
@@ -530,6 +531,7 @@ function openPatientViewModal(patient) {
     if (!p?.id || !activeClinicId) return;
     try {
       consentStatus = await checkConsentStatus(p.id, activeClinicId);
+      consentPrinted = await checkConsentPrinted(p.id, activeClinicId);
     } catch (e) {
       console.warn("[doente] loadConsentStatus falhou:", e);
       consentStatus = {};
@@ -3969,8 +3971,9 @@ function openPatientViewModal(patient) {
 
           <button id="btnRgpd" class="gc-sb-btn ${consentStatus.rgpd ? 'gc-sb-btn--signed' : ''}">
             <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="3" y="2" width="10" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5.5 6h5M5.5 8.5h5M5.5 11h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-            <span>RGPD${consentStatus.rgpd ? ' <span style="color:#16a34a;font-size:11px;margin-left:4px;">✓</span>' : ''}</span>
+            <span>RGPD${consentStatus.rgpd ? ' <span style="color:#16a34a;font-size:11px;margin-left:4px;">✓</span>' : consentPrinted.rgpd ? ' <span style="color:#f59e0b;font-size:11px;margin-left:4px;">🖨 Por assinar</span>' : ''}</span>
           </button>
+          ${consentPrinted.rgpd && !consentStatus.rgpd ? `<button id="btnConfirmarRgpd" class="gc-sb-btn" style="font-size:11px;color:#f59e0b;margin-top:2px;">✔ Confirmar assinatura manual</button>` : ''}
 
           <!-- ── Consentimentos (visível a todos) ── -->
           <div class="gc-sb-div"></div>
@@ -3978,18 +3981,21 @@ function openPatientViewModal(patient) {
 
           <button id="btnConsentPrp" class="gc-sb-btn ${consentStatus.prp ? 'gc-sb-btn--signed' : ''}">
             <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M4 8l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>PRP${consentStatus.prp ? ' <span style="color:#16a34a;font-size:11px;margin-left:4px;">✓</span>' : ''}</span>
+            <span>PRP${consentStatus.prp ? ' <span style="color:#16a34a;font-size:11px;margin-left:4px;">✓</span>' : consentPrinted.prp ? ' <span style="color:#f59e0b;font-size:11px;margin-left:4px;">🖨 Por assinar</span>' : ''}</span>
           </button>
+          ${consentPrinted.prp && !consentStatus.prp ? `<button id="btnConfirmarPrp" class="gc-sb-btn" style="font-size:11px;color:#f59e0b;margin-top:2px;">✔ Confirmar assinatura manual</button>` : ''}
 
           <button id="btnConsentAh" class="gc-sb-btn ${consentStatus.ah ? 'gc-sb-btn--signed' : ''}">
             <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M4 8l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>Ác. Hialurónico${consentStatus.ah ? ' <span style="color:#16a34a;font-size:11px;margin-left:4px;">✓</span>' : ''}</span>
+            <span>Ác. Hialurónico${consentStatus.ah ? ' <span style="color:#16a34a;font-size:11px;margin-left:4px;">✓</span>' : consentPrinted.ah ? ' <span style="color:#f59e0b;font-size:11px;margin-left:4px;">🖨 Por assinar</span>' : ''}</span>
           </button>
+          ${consentPrinted.ah && !consentStatus.ah ? `<button id="btnConfirmarAh" class="gc-sb-btn" style="font-size:11px;color:#f59e0b;margin-top:2px;">✔ Confirmar assinatura manual</button>` : ''}
 
           <button id="btnConsentInfilt" class="gc-sb-btn ${consentStatus.corticoide ? 'gc-sb-btn--signed' : ''}">
             <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M4 8l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span>Corticosteróide${consentStatus.corticoide ? ' <span style="color:#16a34a;font-size:11px;margin-left:4px;">✓</span>' : ''}</span>
+            <span>Corticosteróide${consentStatus.corticoide ? ' <span style="color:#16a34a;font-size:11px;margin-left:4px;">✓</span>' : consentPrinted.corticoide ? ' <span style="color:#f59e0b;font-size:11px;margin-left:4px;">🖨 Por assinar</span>' : ''}</span>
           </button>
+          ${consentPrinted.corticoide && !consentStatus.corticoide ? `<button id="btnConfirmarInfilt" class="gc-sb-btn" style="font-size:11px;color:#f59e0b;margin-top:2px;">✔ Confirmar assinatura manual</button>` : ''}
 
           <!-- ── Agendar (visível a todos) ── -->
           <div class="gc-sb-div"></div>
@@ -4152,6 +4158,23 @@ function openPatientViewModal(patient) {
     document.getElementById("btnConsentPrp")?.addEventListener("click",    () => openQrGuarded("prp"));
     document.getElementById("btnConsentAh")?.addEventListener("click",     () => openQrGuarded("ah"));
     document.getElementById("btnConsentInfilt")?.addEventListener("click", () => openQrGuarded("corticoide"));
+
+    // Confirmar assinatura manual
+    async function confirmarAssinaturaManual(type) {
+      if (!confirm(`Confirmar que o consentimento de ${type.toUpperCase()} foi assinado manualmente pelo doente?`)) return;
+      await window.sb.from("consents")
+        .update({ status: "paper_signed", signed_at: new Date().toISOString() })
+        .eq("patient_id", p.id)
+        .eq("clinic_id", activeClinicId)
+        .eq("type", type)
+        .eq("status", "printed");
+      await loadConsentStatus();
+      render();
+    }
+    document.getElementById("btnConfirmarRgpd")?.addEventListener("click",   () => confirmarAssinaturaManual("rgpd"));
+    document.getElementById("btnConfirmarPrp")?.addEventListener("click",    () => confirmarAssinaturaManual("prp"));
+    document.getElementById("btnConfirmarAh")?.addEventListener("click",     () => confirmarAssinaturaManual("ah"));
+    document.getElementById("btnConfirmarInfilt")?.addEventListener("click", () => confirmarAssinaturaManual("corticoide"));
 
     document.getElementById("btnEvolucao")?.addEventListener("click", () => {
       if (evolucaoUiState.isOpen) {

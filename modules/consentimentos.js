@@ -61,7 +61,7 @@ export async function checkConsentStatus(patientId, clinicId) {
       .select("type")
       .eq("patient_id", patientId)
       .eq("clinic_id", clinicId)
-      .eq("status", "signed");
+      .in("status", ["signed", "paper_signed"]);
     (oldData || []).forEach(r => { signed[r.type] = true; });
 
     // Fluxo QR — tabela consent_tokens
@@ -72,7 +72,7 @@ export async function checkConsentStatus(patientId, clinicId) {
       .select("document_type")
       .eq("patient_id", patientId)
       .eq("clinic_id", clinicId)
-      .eq("status", "signed");
+      .in("status", ["signed", "paper_signed"]);
     (newData || []).forEach(r => {
       const key = typeMap[r.document_type] || r.document_type;
       signed[key] = true;
@@ -81,6 +81,26 @@ export async function checkConsentStatus(patientId, clinicId) {
     return signed;
   } catch (e) {
     console.warn("checkConsentStatus:", e);
+    return {};
+  }
+}
+
+/* ======================================================== */
+/*  02B — checkConsentPrinted                               */
+/* ======================================================== */
+export async function checkConsentPrinted(patientId, clinicId) {
+  try {
+    const printed = {};
+    const { data } = await window.sb
+      .from("consents")
+      .select("type")
+      .eq("patient_id", patientId)
+      .eq("clinic_id", clinicId)
+      .eq("status", "printed");
+    (data || []).forEach(r => { printed[r.type] = true; });
+    return printed;
+  } catch (e) {
+    console.warn("checkConsentPrinted:", e);
     return {};
   }
 }
@@ -469,7 +489,7 @@ export function openConsentModal({ type, patient, clinicId, clinic, onSaved }) {
         patient_id:        p.id,
         clinic_id:         clinicId,
         type,
-        status:            paperMode ? "paper_sent" : "signed",
+        status:            paperMode ? "printed" : "signed",
         modalidade:        clinicFields.modalidade || "presencial",
         clinical_fields:   Object.keys(clinicFields).length ? clinicFields : null,
         consent_responses: Object.keys(consentResponses).length ? consentResponses : null,
