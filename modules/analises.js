@@ -27,7 +27,7 @@ export const ANALISES_CATALOG = [
     id: "hematologia",
     label: "Hematologia / Coagulação",
     icon: "🩸",
-    default: [0, 2, 4, 5],
+    default: [0, 1],
     items: [
       { name: "Hemograma completo", info: "Anemia, infecção, trombocitopenia — avaliação global série vermelha, branca e plaquetas" },
       { name: "Velocidade de sedimentação (VS)", info: "Marcador inflamação inespecífico — útil em AR, PMR, arterite temporal" },
@@ -42,7 +42,7 @@ export const ANALISES_CATALOG = [
     id: "bioquimica",
     label: "Bioquímica / Função Orgânica",
     icon: "🧪",
-    default: [0, 1, 3, 4, 6, 7, 9, 10, 11, 13, 14, 16, 19, 20, 21, 22, 23, 24, 25],
+    default: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19, 20, 21, 22, 23, 24, 25],
     items: [
       { name: "Glicose em jejum", info: "Diabetes, pré-diabetes" },
       { name: "Hemoglobina glicada (HbA1c)", info: "Controlo glicémico últimos 3 meses — diagnóstico e monitorização diabetes" },
@@ -80,7 +80,7 @@ export const ANALISES_CATALOG = [
     id: "lipidico",
     label: "Perfil Lipídico",
     icon: "💛",
-    default: [0, 1, 2, 3, 4, 6, 7],
+    default: [0, 1, 2, 3, 4, 5, 6, 7],
     items: [
       { name: "Colesterol total", info: "Risco cardiovascular global" },
       { name: "Colesterol LDL", info: "Principal alvo terapêutico risco CV — colesterol mau" },
