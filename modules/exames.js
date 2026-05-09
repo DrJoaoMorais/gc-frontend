@@ -592,8 +592,12 @@ async function openExamClinicalInfoStep() {
   try {
     const patientId = String(examsUiState.patientId || "").trim();
     if (!patientId) { alert("Doente sem ID válido."); return; }
-    const { data: patientProfile } = await window.sb.from("patients").select("full_name").eq("id", patientId).single();
+    const { data: patientProfile } = await window.sb.from("patients").select("full_name, dob, nif, insurance_provider, insurance_policy_number").eq("id", patientId).single();
     const patientName = patientProfile?.full_name || "";
+    const patientDob  = patientProfile?.dob || "";
+    const patientNif  = patientProfile?.nif || "";
+    const patientInsurer = patientProfile?.insurance_provider || "";
+    const patientPolicyNr = patientProfile?.insurance_policy_number || "";
 
     /* Clínica */
     const { data: patientClinicRow, error: pcErr } = await window.sb
@@ -652,7 +656,11 @@ async function openExamClinicalInfoStep() {
       vinhetaUrl,
       clinicLogoUrl,
       signatureUrl: "",
-      patientName
+      patientName,
+      patientDob,
+      patientNif,
+      patientInsurer,
+      patientPolicyNr
     });
 
     window.__gc_pendingExamCtx = {
@@ -672,6 +680,10 @@ async function openExamClinicalInfoStep() {
         vinhetaUrl,
         clinicLogoUrl,
         patientName,
+        patientDob,
+        patientNif,
+        patientInsurer,
+        patientPolicyNr,
         patientId,
         clinicId:       resolvedClinicId,
         consultationId: examsUiState.consultationId || null
@@ -709,7 +721,7 @@ function openExamRequest(examId) {
  * buildExamRequestHtml
  * Constrói o HTML A4 para o pedido de exame (usado pelo editor/PDF).
  */
-export function buildExamRequestHtml({ clinic, examName, clinicalInfo, examDate, vinhetaUrl, clinicLogoUrl, signatureUrl, patientName }) {
+export function buildExamRequestHtml({ clinic, examName, clinicalInfo, examDate, vinhetaUrl, clinicLogoUrl, signatureUrl, patientName, patientDob, patientNif, patientInsurer, patientPolicyNr }) {
   function escHtml(v)  { return String(v||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
   function escUrl(u)   { return String(u||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
   function nl2br(v)    { return escHtml(v).replace(/\n/g,"<br>"); }
@@ -770,7 +782,13 @@ export function buildExamRequestHtml({ clinic, examName, clinicalInfo, examDate,
 
     <div class="hr"></div>
     <div class="title">Pedido de Exame</div>
-    ${patientName ? `<div style="text-align:center;font-size:15px;margin-bottom:12px;">Doente: <strong>${escHtml(patientName)}</strong></div>` : ""}
+    ${patientName ? `
+    <div style="margin:0 0 14px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;line-height:1.6;">
+      <div><strong>${escHtml(patientName)}</strong></div>
+      ${patientDob ? `<div style="color:#555;">Data de nascimento: ${escHtml(patientDob)}</div>` : ""}
+      ${patientNif ? `<div style="color:#555;">NIF: ${escHtml(patientNif)}</div>` : ""}
+      ${patientInsurer ? `<div style="color:#555;">Seguro: ${escHtml(patientInsurer)}${patientPolicyNr ? ` — Apólice: ${escHtml(patientPolicyNr)}` : ""}</div>` : ""}
+    </div>` : ""}
 
     <div class="bodyText">
       <div class="rx">R/</div>

@@ -848,9 +848,13 @@ export async function gerarAnalisePdf(state, patientId) {
       (async () => { try { const u = await signedUrl(bucket, sigPath, 3600); return u ? await toDataUrl(u, "image/png") : ""; } catch { return ""; } })()
     ]);
 
-    const { data: patientProfile } = await window.sb.from("patients").select("full_name").eq("id", patientId).single();
+    const { data: patientProfile } = await window.sb.from("patients").select("full_name, dob, nif, insurance_provider, insurance_policy_number").eq("id", patientId).single();
     const patientName = patientProfile?.full_name || "";
-    const html = buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatureUrl, patientName });
+    const patientDob  = patientProfile?.dob || "";
+    const patientNif  = patientProfile?.nif || "";
+    const patientInsurer = patientProfile?.insurance_provider || "";
+    const patientPolicyNr = patientProfile?.insurance_policy_number || "";
+    const html = buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatureUrl, patientName, patientDob, patientNif, patientInsurer, patientPolicyNr });
     window.openDocumentEditor(html, "Pedido de Análises");
     closeAnalisesPanel();
 
@@ -869,7 +873,7 @@ export async function gerarAnalisePdf(state, patientId) {
  * buildAnalisesHtml
  * Constrói o HTML A4 para o pedido de análises.
  */
-export function buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatureUrl, patientName }) {
+export function buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatureUrl, patientName, patientDob, patientNif, patientInsurer, patientPolicyNr }) {
   function escHtml(v) { return String(v||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
   function escUrl(u)  { return String(u||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
   function nl2br(v)   { return escHtml(v).replace(/\n/g,"<br>"); }
@@ -944,7 +948,13 @@ export function buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatur
   </div>
   <div class="hr"></div>
   <div class="title">Pedido de Análises</div>
-  ${patientName ? `<div class="patient-name">Doente: <strong>${escHtml(patientName)}</strong></div>` : ""}
+  ${patientName ? `
+  <div style="margin:0 0 14px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;line-height:1.6;">
+    <div><strong>${escHtml(patientName)}</strong></div>
+    ${patientDob ? `<div style="color:#555;">Data de nascimento: ${escHtml(patientDob)}</div>` : ""}
+    ${patientNif ? `<div style="color:#555;">NIF: ${escHtml(patientNif)}</div>` : ""}
+    ${patientInsurer ? `<div style="color:#555;">Seguro: ${escHtml(patientInsurer)}${patientPolicyNr ? ` — Apólice: ${escHtml(patientPolicyNr)}` : ""}</div>` : ""}
+  </div>` : ""}
   <div class="rx">R/</div>
   <div class="cols">
     <div>${renderColuna(col1)}</div>
