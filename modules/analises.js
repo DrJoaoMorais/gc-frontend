@@ -27,22 +27,22 @@ export const ANALISES_CATALOG = [
     id: "hematologia",
     label: "Hematologia / Coagulação",
     icon: "🩸",
+    default: [0, 2, 4, 5],
     items: [
       { name: "Hemograma completo", info: "Anemia, infecção, trombocitopenia — avaliação global série vermelha, branca e plaquetas" },
-      { name: "Hemograma com fórmula leucocitária", info: "Idem + diferencial leucocitário — infecção, leucemia, eosinofilia" },
       { name: "Velocidade de sedimentação (VS)", info: "Marcador inflamação inespecífico — útil em AR, PMR, arterite temporal" },
       { name: "Tempo de protrombina — INR", info: "Coagulação via extrínseca — anticoagulação com varfarina, função hepática" },
       { name: "Tempo de tromboplastina parcial ativado (APTT)", info: "Coagulação via intrínseca — hemofilias, lúpus anticoagulante" },
       { name: "Fibrinogénio", info: "Inflamação, coagulação — elevado em fase aguda, baixo em CID" },
       { name: "Dímeros-D", info: "Exclusão TEP e TVP — muito sensível, pouco específico" },
-      { name: "Grupo sanguíneo (ABO)", info: "Tipagem pré-transfusional ou pré-operatória" },
-      { name: "Tipagem ABO e Rh (D)", info: "Tipagem completa pré-operatória ou gravidez" }
+      { name: "Tipagem ABO e Rh (D)", info: "Tipagem completa pré-operatória, transfusão ou gravidez" }
     ]
   },
   {
     id: "bioquimica",
     label: "Bioquímica / Função Orgânica",
     icon: "🧪",
+    default: [0, 1, 3, 4, 6, 7, 9, 10, 11, 13, 14, 16, 19, 20, 21, 22, 23, 24, 25],
     items: [
       { name: "Glicose em jejum", info: "Diabetes, pré-diabetes" },
       { name: "Hemoglobina glicada (HbA1c)", info: "Controlo glicémico últimos 3 meses — diagnóstico e monitorização diabetes" },
@@ -52,9 +52,6 @@ export const ANALISES_CATALOG = [
       { name: "Cistatina-C", info: "Função renal precoce — melhor que creatinina em atletas e idosos" },
       { name: "Ácido úrico", info: "Gota, síndrome metabólico, risco cardiovascular" },
       { name: "Ionograma (Sódio, Potássio, Cloro)", info: "Equilíbrio electrolítico — hipertensão, insuficiência renal, diuréticos" },
-      { name: "Magnésio", info: "Cãibras, arritmias, síndrome de sobreetreino" },
-      { name: "Cálcio total", info: "Hiperparatiroidismo, osteoporose, sarcoidose, neoplasia" },
-      { name: "Fósforo", info: "Metabolismo ósseo, insuficiência renal" },
       { name: "Aspartato aminotransferase (AST / TGO)", info: "Lesão hepática e muscular" },
       { name: "Alanina aminotransferase (ALT / TGP)", info: "Lesão hepática — mais específico que AST" },
       { name: "Fosfatase alcalina (FA)", info: "Fígado, osso — elevada em doença hepática e óssea" },
@@ -73,13 +70,17 @@ export const ANALISES_CATALOG = [
       { name: "Saturação de transferrina", info: "Percentagem ferro ligado — hemocromatose se >45%" },
       { name: "Vitamina D (25-hidroxivitamina D)", info: "Saúde óssea, imunidade, músculo — deficiência muito prevalente em Portugal" },
       { name: "Vitamina B12", info: "Neuropatia, anemia megaloblástica, défice cognitivo" },
-      { name: "Folato", info: "Anemia megaloblástica, gravidez, neuropatia" }
+      { name: "Folato", info: "Anemia megaloblástica, gravidez, neuropatia" },
+      { name: "Magnésio", info: "Cãibras, arritmias, síndrome de sobreetreino" },
+      { name: "Cálcio total", info: "Hiperparatiroidismo, osteoporose, sarcoidose, neoplasia" },
+      { name: "Fósforo", info: "Metabolismo ósseo, insuficiência renal" }
     ]
   },
   {
     id: "lipidico",
     label: "Perfil Lipídico",
     icon: "💛",
+    default: [0, 1, 2, 3, 4, 6, 7],
     items: [
       { name: "Colesterol total", info: "Risco cardiovascular global" },
       { name: "Colesterol LDL", info: "Principal alvo terapêutico risco CV — colesterol mau" },
@@ -95,6 +96,7 @@ export const ANALISES_CATALOG = [
     id: "endocrinologia",
     label: "Endocrinologia / Tiróide",
     icon: "⚗️",
+    default: [0, 1, 2, 6, 7, 8, 11, 12, 13, 14],
     items: [
       { name: "Hormona tiroestimulante (TSH)", info: "Screening tiróide — primeiro exame a pedir" },
       { name: "Triiodotironina livre (T3 livre)", info: "Forma activa hormona tiroideia — hipertiroidismo, monitorização" },
@@ -117,6 +119,7 @@ export const ANALISES_CATALOG = [
     id: "ginecologia",
     label: "Hormonal Feminino / Ginecologia",
     icon: "♀️",
+    default: [0, 1, 2, 3, 4],
     items: [
       { name: "FSH (hormona folículo-estimulante)", info: "Reserva ovárica, menopausa, hipogonadismo" },
       { name: "LH (hormona luteinizante)", info: "Ovulação, hipogonadismo, síndrome ovário poliquístico" },
@@ -130,6 +133,7 @@ export const ANALISES_CATALOG = [
     id: "reumatologia",
     label: "Reumatologia / Autoimunidade",
     icon: "🦴",
+    default: [0, 6, 7, 8],
     items: [
       { name: "Anticorpos antinucleares (ANA)", info: "Screening autoimunidade sistémica — lúpus, esclerodermia, Sjögren, miosite" },
       { name: "Anticorpos anti-DNA de cadeia dupla (anti-dsDNA)", info: "Lúpus eritematoso sistémico — específico, correlaciona com actividade" },
@@ -148,55 +152,60 @@ export const ANALISES_CATALOG = [
     id: "serologias",
     label: "Serologias / Doenças Infecciosas",
     icon: "🦠",
+    default: [0, 3, 4, 5, 6],
     items: [
       { name: "VIH — Antigénio p24 + Anticorpos VIH-1/2", info: "Infecção VIH — 4ª geração, detecta infecção aguda e crónica" },
-      { name: "Hepatite A — Anticorpos IgM", info: "Hepatite A aguda" },
-      { name: "Hepatite A — Anticorpos totais", info: "Imunidade pós-infecção ou vacinação" },
-      { name: "Hepatite B — Antigénio HBs (AgHBs)", info: "Infecção activa ou portador crónico VHB" },
-      { name: "Hepatite B — Anticorpos anti-HBs", info: "Imunidade por vacinação ou cura" },
-      { name: "Hepatite B — Anticorpos anti-HBc", info: "Contacto prévio VHB — distingue vacinado de infectado" },
-      { name: "Hepatite C — Anticorpos anti-VHC", info: "Infecção VHC — screening" },
-      { name: "Hepatite C — Pesquisa de RNA (PCR)", info: "Confirmação infecção activa VHC após anti-VHC positivo" },
-      { name: "VDRL", info: "Sífilis — screening; falsos positivos em lúpus" },
-      { name: "TPHA — Anticorpos anti-Treponema pallidum", info: "Sífilis — confirmatório, mais específico que VDRL" },
-      { name: "Paul-Bunnell / Monospot", info: "Mononucleose infecciosa (EBV)" }
+      { name: "Hepatite A — Anticorpos IgM (HAV IgM)", info: "Hepatite A aguda — positivo nas primeiras semanas de infecção" },
+      { name: "Hepatite A — Anticorpos totais (HAV total)", info: "Imunidade pós-infecção ou vacinação — negativo indica susceptibilidade" },
+      { name: "Hepatite B — Antigénio HBs (AgHBs)", info: "Infecção activa VHB ou portador crónico — pedir sempre com anti-HBs e anti-HBc" },
+      { name: "Hepatite B — Anticorpos anti-HBs", info: "Imunidade por vacinação (isolado) ou cura (com anti-HBc positivo)" },
+      { name: "Hepatite B — Anticorpos anti-HBc total", info: "Contacto prévio VHB — distingue vacinado (negativo) de infectado (positivo)" },
+      { name: "Hepatite C — Anticorpos anti-VHC", info: "Screening infecção VHC — se positivo confirmar com RNA PCR" },
+      { name: "Hepatite C — RNA VHC (PCR)", info: "Confirma infecção activa VHC após anti-VHC positivo — quantifica carga viral" },
+      { name: "VDRL", info: "Sífilis — screening; falsos positivos em lúpus e gravidez" },
+      { name: "TPHA — Anticorpos anti-Treponema pallidum", info: "Sífilis — confirmatório, mais específico que VDRL, permanece positivo após tratamento" },
+      { name: "Paul-Bunnell / Monospot", info: "Mononucleose infecciosa (EBV) — faringite, adenopatias, esplenomegalia" }
     ]
   },
   {
     id: "urina",
     label: "Urina",
     icon: "💧",
+    default: [0, 5],
     items: [
-      { name: "Exame sumário de urina", info: "Infecção urinária, hematúria, proteinúria — rastreio geral" },
+      { name: "Exame sumário de urina (EAU)", info: "Infecção urinária, hematúria, proteinúria — rastreio geral" },
       { name: "Microalbuminúria", info: "Lesão renal precoce — diabetes, hipertensão, risco cardiovascular" },
       { name: "Proteína de Bence-Jones — urina de 24 horas", info: "Mieloma múltiplo — proteínas de cadeias leves" },
       { name: "Hidroxiprolina total — urina de 24 horas", info: "Metabolismo ósseo — reabsorção óssea aumentada" },
-      { name: "Cortisol urinário livre — urina de 24 horas", info: "Síndrome de Cushing — melhor que cortisol sérico basal" }
+      { name: "Cortisol urinário livre — urina de 24 horas", info: "Síndrome de Cushing — melhor que cortisol sérico basal" },
+      { name: "Urocultura + TSA (eventual)", info: "Infecção urinária — identificação agente e sensibilidade a antibióticos" }
     ]
   },
   {
     id: "oncologia",
     label: "Oncologia / Marcadores Tumorais",
     icon: "🎗️",
+    default: [2, 3, 6, 7, 8, 9, 10, 11],
     items: [
-      { name: "PSA total", info: "Próstata — rastreio e monitorização carcinoma" },
-      { name: "PSA livre", info: "Próstata — rácio PSA livre/total distingue HBP de carcinoma" },
+      { name: "PSA total (Homem — próstata)", info: "Rastreio e monitorização carcinoma da próstata — pedir com PSA livre" },
+      { name: "PSA livre (Homem — próstata)", info: "Rácio PSA livre/total — distingue hiperplasia benigna de carcinoma" },
       { name: "CEA", info: "Cólon, recto, pulmão, mama, estômago — monitorização pós-tratamento" },
       { name: "CA 19-9", info: "Pâncreas, vias biliares — diagnóstico e monitorização" },
-      { name: "CA 125", info: "Ovário — diagnóstico e monitorização" },
-      { name: "CA 15-3", info: "Mama — monitorização tratamento e recidiva" },
-      { name: "AFP (alfafetoproteína)", info: "Hepatocarcinoma, tumores células germinativas" },
-      { name: "Beta-HCG", info: "Coriocarcinoma, tumores testiculares células germinativas" },
+      { name: "CA 125 (Mulher — ovário)", info: "Diagnóstico e monitorização carcinoma do ovário" },
+      { name: "CA 15-3 (Mulher — mama)", info: "Monitorização tratamento e recidiva carcinoma da mama" },
+      { name: "AFP (alfafetoproteína)", info: "Hepatocarcinoma, tumores células germinativas testiculares e ováricos" },
+      { name: "Beta-HCG", info: "Coriocarcinoma, tumores testiculares e ováricos de células germinativas" },
       { name: "LDH", info: "Linfoma, melanoma, tumores sólidos — marcador inespecífico de massa tumoral" },
       { name: "Beta-2 microglobulina", info: "Mieloma múltiplo, linfoma B — estadiamento e prognóstico" },
-      { name: "Calcitonina", info: "Carcinoma medular da tiróide" },
-      { name: "Cromogranina A", info: "Tumores neuroendócrinos — carcinoide, feocromocitoma" }
+      { name: "Calcitonina", info: "Carcinoma medular da tiróide — screening nódulos tiroideus" },
+      { name: "Cromogranina A", info: "Tumores neuroendócrinos — carcinoide, feocromocitoma, paraganglioma" }
     ]
   },
   {
     id: "neurologia",
     label: "Neurologia",
     icon: "🧠",
+    default: [0, 1, 2, 3, 4, 5, 6],
     items: [
       { name: "Vitamina B12", info: "Neuropatia periférica, défice cognitivo, subaguda combinada medular" },
       { name: "Folato", info: "Neuropatia, alterações cognitivas, prevenção defeitos tubo neural" },
@@ -222,6 +231,7 @@ export const ANALISES_CATALOG = [
     id: "preop",
     label: "Pré-operatório",
     icon: "🏥",
+    default: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
     items: [
       { name: "Hemograma completo", info: "Anemia pré-op, trombocitopenia, infecção" },
       { name: "Tempo de protrombina — INR", info: "Coagulação — risco hemorrágico cirúrgico" },
@@ -239,6 +249,7 @@ export const ANALISES_CATALOG = [
     id: "longevidade",
     label: "Longevidade",
     icon: "⏳",
+    default: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33],
     items: [
       { name: "Hemograma completo", info: "Anemia, infecção, trombocitopenia — avaliação global" },
       { name: "Ferritina", info: "Reservas de ferro — baixa na anemia ferropénica, alta na inflamação crónica" },
@@ -269,9 +280,9 @@ export const ANALISES_CATALOG = [
       { name: "Vitamina B12", info: "Neuropatia, défice cognitivo, longevidade" },
       { name: "Hormona tiroestimulante (TSH)", info: "Tiróide — causa reversível de múltiplas doenças crónicas" },
       { name: "Tiroxina livre (T4 livre)", info: "Avaliação tiroideia completa" },
-      { name: "IGF-1 (fator de crescimento insulínico tipo 1)", info: "Eixo GH — longevidade, massa muscular, performance" },
-      { name: "PSA total", info: "Próstata — rastreio carcinoma (homens >45 anos)" },
-      { name: "PSA livre", info: "Próstata — rácio distingue HBP de carcinoma" },
+      { name: "IGF-1 (fator de crescimento insulínico tipo 1)", info: "Eixo GH — massa muscular, recuperação, longevidade" },
+      { name: "PSA total (Homem)", info: "Próstata — rastreio carcinoma (homens >45 anos)" },
+      { name: "PSA livre (Homem)", info: "Próstata — rácio distingue HBP de carcinoma" },
       { name: "Microalbuminúria", info: "Lesão renal precoce, risco cardiovascular" },
       { name: "Exame sumário de urina", info: "Rastreio infecção, hematúria, proteinúria" }
     ]
@@ -280,6 +291,7 @@ export const ANALISES_CATALOG = [
     id: "desportivo_inicio",
     label: "Med. Desportiva — Início de Época",
     icon: "🏃",
+    default: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
     items: [
       { name: "Hemograma completo", info: "Anemia do desportista, infecção, recuperação" },
       { name: "Ferritina", info: "Reservas de ferro — deficiência frequente em atletas de endurance" },
@@ -317,6 +329,7 @@ export const ANALISES_CATALOG = [
     id: "desportivo_master",
     label: "Med. Desportiva — Atleta >40 anos",
     icon: "🏅",
+    default: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41],
     items: [
       { name: "Hemograma completo", info: "Anemia, infecção, recuperação" },
       { name: "Ferritina", info: "Reservas de ferro" },
@@ -356,8 +369,8 @@ export const ANALISES_CATALOG = [
       { name: "Cortisol basal (manhã)", info: "Eixo HPA — sobreetreino, rácio testosterona/cortisol" },
       { name: "DHEA-S (dehidroepiandrosterona sulfato)", info: "Declina com idade — fadiga, sarcopenia" },
       { name: "IGF-1 (fator de crescimento insulínico tipo 1)", info: "Eixo GH — massa muscular, recuperação, longevidade" },
-      { name: "PSA total", info: "Próstata — rastreio obrigatório em homens >45 anos" },
-      { name: "PSA livre", info: "Próstata — rácio distingue HBP de carcinoma" },
+      { name: "PSA total (Homem)", info: "Próstata — rastreio obrigatório em homens >45 anos" },
+      { name: "PSA livre (Homem)", info: "Próstata — rácio distingue HBP de carcinoma" },
       { name: "Microalbuminúria", info: "Lesão renal precoce, risco CV" },
       { name: "Exame sumário de urina", info: "Rastreio infecção, hematúria, proteinúria" }
     ]
@@ -366,6 +379,7 @@ export const ANALISES_CATALOG = [
     id: "desportivo_mulher",
     label: "Med. Desportiva — Atleta Mulher",
     icon: "🚺",
+    default: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34],
     items: [
       { name: "Hemograma completo", info: "Anemia ferropénica — muito frequente em atletas mulher" },
       { name: "Ferritina", info: "Reservas de ferro — défice frequente, impacta performance" },
@@ -401,15 +415,14 @@ export const ANALISES_CATALOG = [
       { name: "Alanina aminotransferase (ALT / TGP)", info: "Lesão hepática" },
       { name: "Colesterol total", info: "Risco cardiovascular" },
       { name: "Colesterol LDL", info: "Risco cardiovascular" },
-      { name: "Colesterol HDL", info: "Protector cardiovascular" },
-      { name: "Triglicerídeos", info: "Risco metabólico" },
-      { name: "Ácido úrico", info: "Gota, síndrome metabólico" }
+      { name: "Colesterol HDL", info: "Protector cardiovascular" }
     ]
   },
   {
     id: "desportivo_overtraining",
     label: "Med. Desportiva — Overtraining / REDs",
     icon: "⚠️",
+    default: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
     items: [
       { name: "Hemograma com fórmula leucocitária", info: "Imunossupressão, anemia, infecção — frequentes em overtraining" },
       { name: "Ferritina", info: "Reservas de ferro — défice agrava fadiga e performance" },
@@ -498,9 +511,9 @@ export function openAnalisesPanel({ patientId, consultationId, onClose } = {}) {
     if (state.selected[gid]) {
       delete state.selected[gid];
     } else {
-      /* Ponto 6: ao expandir, selecciona todos por defeito */
       const grp = ANALISES_CATALOG.find(g => g.id === gid);
-      state.selected[gid] = new Set(grp.items.map((_, i) => i));
+      const defaults = grp.default ?? grp.items.map((_, i) => i);
+      state.selected[gid] = new Set(defaults);
     }
     renderPanel();
   }
