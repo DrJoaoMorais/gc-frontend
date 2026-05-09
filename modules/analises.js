@@ -549,21 +549,25 @@ export function openAnalisesPanel({ patientId, consultationId, onClose } = {}) {
       const isOpen   = searchQ ? true : !!state.selected[grp.id];
       const selCount = state.selected[grp.id] ? state.selected[grp.id].size : 0;
 
+      function renderItem(item) {
+        const idx = grp.items.indexOf(item);
+        const checked = state.selected[grp.id]?.has(idx);
+        return `
+          <label class="gcAnal-item ${checked ? "gcAnal-item--checked" : ""}">
+            <input type="checkbox" data-gid="${grp.id}" data-idx="${idx}"
+              ${checked ? "checked" : ""}
+              style="width:14px;height:14px;accent-color:#1d9e75;flex-shrink:0;cursor:pointer;margin-top:1px;">
+            <span>
+              <span style="display:block;line-height:1.3;">${item.name}</span>
+              ${item.info ? `<span style="display:block;font-size:10px;color:#64748b;line-height:1.3;margin-top:1px;">${item.info}</span>` : ""}
+            </span>
+          </label>`;
+      }
+      const metade = Math.ceil(filteredItems.length / 2);
+      const col1Items = filteredItems.slice(0, metade);
+      const col2Items = filteredItems.slice(metade);
       const itemsHtml = isOpen
-        ? filteredItems.map((item) => {
-            const idx = grp.items.indexOf(item);
-            const checked = state.selected[grp.id]?.has(idx);
-            return `
-              <label class="gcAnal-item ${checked ? "gcAnal-item--checked" : ""}">
-                <input type="checkbox" data-gid="${grp.id}" data-idx="${idx}"
-                  ${checked ? "checked" : ""}
-                  style="width:14px;height:14px;accent-color:#1d9e75;flex-shrink:0;cursor:pointer;margin-top:1px;">
-                <span>
-                  <span style="display:block;line-height:1.3;">${item.name}</span>
-                  ${item.info ? `<span style="display:block;font-size:10px;color:#64748b;line-height:1.3;margin-top:1px;">${item.info}</span>` : ""}
-                </span>
-              </label>`;
-          }).join("")
+        ? `<div style="display:contents;">${col1Items.map(renderItem).join("")}</div><div style="display:contents;">${col2Items.map(renderItem).join("")}</div>`
         : "";
 
       return `
