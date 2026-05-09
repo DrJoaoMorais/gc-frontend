@@ -466,6 +466,7 @@ export const analisesUiState = {
 export function closeAnalisesPanel(onClose) {
   analisesUiState.isOpen = false;
   document.getElementById("gcAnalisesPanel")?.remove();
+  document.getElementById("gcAnalisesOverlay")?.remove();
   if (typeof onClose === "function") onClose();
 }
 
@@ -520,21 +521,6 @@ export function openAnalisesPanel({ patientId, consultationId, onClose } = {}) {
   }
 
   /* ---- construção do host (igual ao exames.js) ---- */
-  function getHost() {
-    const btnClose = document.getElementById("btnClosePView");
-    if (!btnClose) return null;
-    let host = btnClose.parentElement;
-    while (host && host.parentElement) {
-      const style         = window.getComputedStyle(host);
-      const hasWhiteBg    = style.backgroundColor === "rgb(255, 255, 255)";
-      const hasLargeBox   = host.clientWidth >= 900 && host.clientHeight >= 500;
-      const hasScrollable = style.overflow === "auto" || style.overflowY === "auto";
-      if (hasWhiteBg && hasLargeBox && hasScrollable) break;
-      host = host.parentElement;
-    }
-    return host || null;
-  }
-
   /* ---- HTML do painel ---- */
   function buildPanelInnerHtml() {
     const hasSelected = totalSelected() > 0;
@@ -584,86 +570,88 @@ export function openAnalisesPanel({ patientId, consultationId, onClose } = {}) {
         </div>`;
     }).join("");
 
+    const pillsHtml = ANALISES_CATALOG.flatMap(g => {
+      if (!state.selected[g.id]) return [];
+      return [...state.selected[g.id]].map(idx => {
+        const itemName = g.items[idx]?.name || g.items[idx];
+        return `<div class="gcAnal-pill" data-gid="${g.id}" data-idx="${idx}"
+          style="font-size:11px;background:#fff;border:1px solid #cbd5e1;border-radius:6px;
+                 padding:3px 8px;display:flex;align-items:center;justify-content:space-between;
+                 gap:6px;cursor:default;color:#0f172a;margin-bottom:4px;">
+          <span style="flex:1;line-height:1.3;">${itemName}</span>
+          <span style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+            <span style="font-size:9px;color:#94a3b8;">${g.label.split(" /")[0].split(" —")[0]}</span>
+            <span class="gcAnal-pill-x" data-gid="${g.id}" data-idx="${idx}"
+              style="color:#94a3b8;font-size:14px;line-height:1;cursor:pointer;padding:0 2px;">×</span>
+          </span>
+        </div>`;
+      });
+    }).join("");
+
     return `
       <style>
-        .gcAnal-group{border:1px solid #e2e8f0;border-radius:10px;margin-bottom:7px;overflow:hidden;}
+        .gcAnal-group{border:0.5px solid #e2e8f0;border-radius:8px;margin-bottom:6px;overflow:hidden;}
         .gcAnal-group--open{border-color:#1d9e75;}
-        .gcAnal-group-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;background:#f8fafc;user-select:none;}
+        .gcAnal-group-header{display:flex;align-items:center;justify-content:space-between;padding:8px 11px;cursor:pointer;background:#f8fafc;user-select:none;}
         .gcAnal-group--open .gcAnal-group-header{background:#e8f8f3;}
         .gcAnal-group-header:hover{background:#f1f5f9;}
         .gcAnal-group--open .gcAnal-group-header:hover{background:#d4f1e7;}
-        .gcAnal-group-label{font-size:13px;font-weight:600;color:#0f172a;}
+        .gcAnal-group-label{font-size:12px;font-weight:600;color:#0f172a;}
         .gcAnal-badge{font-size:10px;font-weight:700;background:#1d9e75;color:#fff;padding:2px 7px;border-radius:100px;}
-        .gcAnal-chevron{font-size:11px;color:#94a3b8;}
-        .gcAnal-deselect-all{font-size:11px;color:#64748b;background:none;border:1px solid #cbd5e1;border-radius:5px;padding:2px 7px;cursor:pointer;font-family:inherit;}
-        .gcAnal-deselect-all:hover{background:#f1f5f9;}
-        .gcAnal-items{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:8px 12px 10px;border-top:1px solid #e2e8f0;background:#fff;}
-        .gcAnal-item{display:flex;align-items:flex-start;gap:6px;font-size:12px;color:#374151;padding:4px 6px;border-radius:6px;cursor:pointer;border:1px solid transparent;line-height:1.35;}
-        .gcAnal-item:hover{background:#f8fafc;border-color:#e2e8f0;}
+        .gcAnal-chevron{font-size:10px;color:#94a3b8;}
+        .gcAnal-deselect-all{font-size:10px;color:#64748b;background:none;border:0.5px solid #cbd5e1;border-radius:5px;padding:2px 7px;cursor:pointer;font-family:inherit;}
+        .gcAnal-deselect-all:hover{background:#fee2e2;border-color:#fca5a5;color:#dc2626;}
+        .gcAnal-sel-all{font-size:10px;color:#1d9e75;background:#e8f8f3;border:0.5px solid #1d9e75;border-radius:5px;padding:2px 7px;cursor:pointer;font-family:inherit;}
+        .gcAnal-items{display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:8px 11px 10px;border-top:0.5px solid #e2e8f0;background:#fff;}
+        .gcAnal-item{display:flex;align-items:flex-start;gap:6px;font-size:11px;color:#374151;padding:3px 5px;border-radius:5px;cursor:pointer;line-height:1.3;}
+        .gcAnal-item:hover{background:#f8fafc;}
         .gcAnal-item--checked{color:#0f172a;}
       </style>
 
-      <div style="padding:12px 14px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">
-        <div style="font-weight:800;font-size:15px;color:#111827;">Pedido de Análises</div>
-        <button id="gcAnalisesClose" class="gcBtn"
-          style="background:#ffffff;border:1px solid #d1d5db;color:#111827;font-weight:700;">
-          Fechar
-        </button>
+      <div style="padding:11px 16px;border-bottom:0.5px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <div style="font-weight:700;font-size:14px;color:#111827;">Pedido de Análises</div>
+        <button id="gcAnalisesClose" style="background:#fff;border:0.5px solid #d1d5db;color:#374151;font-size:12px;font-weight:600;padding:5px 12px;border-radius:7px;cursor:pointer;font-family:inherit;">Fechar</button>
       </div>
 
-      <div style="padding:8px 14px;border-bottom:1px solid #e5e7eb;">
-        <input id="gcAnalisesSearch" type="text" placeholder="Pesquisar análise…"
+      <div style="padding:8px 16px;border-bottom:0.5px solid #e5e7eb;flex-shrink:0;">
+        <input id="gcAnalisesSearch" type="text" placeholder="Pesquisar análise… (ex: ferritina, PCR, TSH)"
           value="${state.searchQuery || ''}"
-          style="width:100%;padding:6px 10px;font-size:12px;border:1px solid #cbd5e1;border-radius:8px;
+          style="width:100%;padding:6px 10px;font-size:12px;border:0.5px solid #cbd5e1;border-radius:7px;
                  background:#f8fafc;color:#0f172a;box-sizing:border-box;font-family:inherit;outline:none;">
       </div>
-      ${totalSelected() > 0 ? `
-      <div style="padding:7px 14px;border-bottom:1px solid #e5e7eb;background:#f8fafc;">
-        <div style="font-size:10px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:5px;">Seleccionadas</div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;">
-          ${ANALISES_CATALOG.flatMap(g => {
-            if (!state.selected[g.id]) return [];
-            return [...state.selected[g.id]].map(idx => {
-              const itemName = g.items[idx]?.name || g.items[idx];
-              return `<span class="gcAnal-pill" data-gid="${g.id}" data-idx="${idx}"
-                style="font-size:11px;background:#fff;border:1px solid #cbd5e1;border-radius:100px;
-                       padding:2px 8px;display:inline-flex;align-items:center;gap:4px;cursor:pointer;color:#0f172a;">
-                ${itemName}
-                <span style="color:#94a3b8;font-size:12px;line-height:1;">×</span>
-              </span>`;
-            });
-          }).join("")}
-        </div>
-      </div>` : ""}
 
-      <div id="gcAnalisesBody" style="flex:1;overflow-y:auto;padding:12px 14px;">
-        ${groupsHtml}
+      <div style="display:grid;grid-template-columns:1fr 260px;flex:1;overflow:hidden;">
 
-        <div style="margin-top:12px;">
-          <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:5px;">Informação clínica</div>
-          <textarea id="gcAnalisesCliInfo"
-            placeholder="Ex: Suspeita espondiloartrite, dor lombar crónica…"
-            style="width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;
-                   font-size:13px;resize:vertical;min-height:60px;font-family:inherit;
-                   color:#0f172a;outline:none;box-sizing:border-box;"
-          >${state.clinicalInfo}</textarea>
+        <div id="gcAnalisesBody" style="overflow-y:auto;padding:12px 16px;border-right:0.5px solid #e5e7eb;">
+          ${groupsHtml}
         </div>
+
+        <div style="overflow-y:auto;padding:12px 14px;background:#f8fafc;display:flex;flex-direction:column;gap:0;">
+          <div style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;flex-shrink:0;">
+            ${totalSelected() > 0 ? `Seleccionadas (${totalSelected()})` : "Nenhuma seleccionada"}
+          </div>
+          <div style="flex:1;">
+            ${pillsHtml || `<div style="font-size:11px;color:#94a3b8;line-height:1.5;">Expanda um grupo à esquerda e seleccione análises.</div>`}
+          </div>
+        </div>
+
       </div>
 
-      <div style="padding:10px 14px;border-top:1px solid #e2e8f0;
-                  display:flex;align-items:center;justify-content:space-between;
-                  background:#f8fafc;flex-shrink:0;">
-        <div style="font-size:12px;color:#64748b;">
-          ${hasSelected
-            ? `<span style="color:#1d9e75;font-weight:700;">${totalSelected()} análise${totalSelected()!==1?"s":""} sel.</span>`
-            : `<span>Nenhum grupo seleccionado</span>`}
-        </div>
+      <div style="padding:10px 16px;border-top:0.5px solid #e2e8f0;display:flex;align-items:center;gap:10px;background:#f8fafc;flex-shrink:0;">
+        <span style="font-size:11px;color:${hasSelected?"#1d9e75":"#94a3b8"};font-weight:600;white-space:nowrap;">
+          ${hasSelected ? `${totalSelected()} análise${totalSelected()!==1?"s":""} sel.` : "Nenhuma seleccionada"}
+        </span>
+        <input id="gcAnalisesCliInfo" type="text"
+          placeholder="Informação clínica (opcional)…"
+          value="${state.clinicalInfo || ''}"
+          style="flex:1;padding:6px 10px;font-size:12px;border:0.5px solid #cbd5e1;border-radius:7px;
+                 background:#fff;color:#0f172a;font-family:inherit;outline:none;">
         <button id="gcAnalisesGenPdf"
           ${hasSelected ? "" : "disabled"}
-          style="padding:7px 18px;border:none;border-radius:8px;
+          style="padding:7px 18px;border:none;border-radius:7px;white-space:nowrap;
                  background:${hasSelected?"#1d9e75":"#cbd5e1"};
                  color:${hasSelected?"#fff":"#94a3b8"};
-                 font-size:13px;font-weight:700;
+                 font-size:12px;font-weight:700;
                  cursor:${hasSelected?"pointer":"not-allowed"};
                  font-family:inherit;">
           Gerar PDF
@@ -677,30 +665,43 @@ export function openAnalisesPanel({ patientId, consultationId, onClose } = {}) {
     const existingTa = document.getElementById("gcAnalisesCliInfo");
     if (existingTa) state.clinicalInfo = existingTa.value;
 
+    let overlay = document.getElementById("gcAnalisesOverlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "gcAnalisesOverlay";
+      Object.assign(overlay.style, {
+        position:        "fixed",
+        top:             "0",
+        left:            "0",
+        width:           "100vw",
+        height:          "100vh",
+        background:      "rgba(0,0,0,0.35)",
+        zIndex:          "9998",
+        display:         "flex",
+        alignItems:      "center",
+        justifyContent:  "center"
+      });
+      document.body.appendChild(overlay);
+    }
+
     let panel = document.getElementById("gcAnalisesPanel");
     if (!panel) {
-      const host = getHost();
-      if (!host) { console.error("gcAnalisesPanel: host não encontrado"); return; }
-      host.style.position = "relative";
-
-      panel     = document.createElement("div");
-      panel.id  = "gcAnalisesPanel";
+      panel    = document.createElement("div");
+      panel.id = "gcAnalisesPanel";
       Object.assign(panel.style, {
-        position:                "absolute",
-        top:                     "0",
-        right:                   "0",
-        width:                   "380px",
-        height:                  "100%",
-        background:              "#ffffff",
-        borderLeft:              "1px solid #e5e7eb",
-        boxShadow:               "-8px 0 24px rgba(0,0,0,0.08)",
-        zIndex:                  "50",
-        display:                 "flex",
-        flexDirection:           "column",
-        borderTopRightRadius:    "14px",
-        borderBottomRightRadius: "14px"
+        width:         "92vw",
+        maxWidth:      "1100px",
+        height:        "88vh",
+        maxHeight:     "820px",
+        background:    "#ffffff",
+        borderRadius:  "14px",
+        boxShadow:     "0 24px 64px rgba(0,0,0,0.18)",
+        zIndex:        "9999",
+        display:       "flex",
+        flexDirection: "column",
+        overflow:      "hidden"
       });
-      host.appendChild(panel);
+      overlay.appendChild(panel);
     }
 
     panel.innerHTML = buildPanelInnerHtml();
@@ -750,7 +751,7 @@ export function openAnalisesPanel({ patientId, consultationId, onClose } = {}) {
       renderPanel();
     });
 
-    document.querySelectorAll(".gcAnal-pill").forEach(pill => {
+    document.querySelectorAll(".gcAnal-pill-x").forEach(pill => {
       pill.addEventListener("click", e => {
         e.stopPropagation();
         const gid = pill.dataset.gid;
