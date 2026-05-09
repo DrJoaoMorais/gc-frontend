@@ -848,7 +848,8 @@ export async function gerarAnalisePdf(state, patientId) {
       (async () => { try { const u = await signedUrl(bucket, sigPath, 3600); return u ? await toDataUrl(u, "image/png") : ""; } catch { return ""; } })()
     ]);
 
-    const { data: patientProfile } = await window.sb.from("profiles").select("full_name").eq("id", patientId).single();
+    const { data: patientProfile, error: ppErr } = await window.sb.from("profiles").select("full_name").eq("id", patientId).single();
+    console.log("[analises] patientId:", patientId, "profile:", patientProfile, "err:", ppErr);
     const patientName = patientProfile?.full_name || "";
     const html = buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatureUrl, patientName });
     window.openDocumentEditor(html, "Pedido de Análises");
