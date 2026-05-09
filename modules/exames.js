@@ -592,7 +592,7 @@ async function openExamClinicalInfoStep() {
   try {
     const patientId = String(examsUiState.patientId || "").trim();
     if (!patientId) { alert("Doente sem ID válido."); return; }
-    const { data: patientProfile } = await window.sb.from("profiles").select("full_name").eq("id", patientId).single();
+    const { data: patientProfile } = await window.sb.from("patients").select("full_name").eq("id", patientId).single();
     const patientName = patientProfile?.full_name || "";
 
     /* Clínica */
