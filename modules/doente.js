@@ -2104,7 +2104,9 @@ function openPatientViewModal(patient) {
         html: meta.html || "",
         parent_document_id: meta.parent_document_id || null,
         version: Number(meta.version || 1),
-        storage_path: meta.storage_path || null
+        storage_path: meta.storage_path || null,
+        category: meta.category || null,
+        template_id: meta.template_id || null
       };
 
       const { data, error } = await window.sb
@@ -4421,6 +4423,12 @@ function openPatientViewModal(patient) {
           { id: "atestado_ef",      label: "🏫 Dispensa Educação Física" },
           { id: "atestado_doenca",  label: "🏥 Atestado de Doença" }
         ]
+      },
+      {
+        label: "Outros",
+        items: [
+          { id: "relatorio_simples", label: "📄 Relatório Simples" }
+        ]
       }
     ];
 
@@ -4585,6 +4593,18 @@ function openPatientViewModal(patient) {
 
       let html = "";
       let title = "Relatório";
+
+      if (templateId === "relatorio_simples") {
+        if (typeof window.__gc_openRelatorioSimples === "function") {
+          window.__gc_openRelatorioSimples({
+            p, activeClinicId, lastSavedConsultId,
+            sharedStyles, header, patientBlock, footer, vinhetaUrl,
+            localityDate, name, sns, nif, dobPt,
+            onSuccess: async () => { await loadDocuments(); render(); }
+          });
+        }
+        return;
+      }
 
       if (templateId === "prp_tendinopatia") {
         // Mostrar modal de preenchimento antes de gerar o documento
