@@ -1858,6 +1858,7 @@ function openPatientViewModal(patient) {
   function openDocumentEditor(html, title) {
     docDraftHtml = String(html || "");
     docTitle = String(title || docTitle || "Relatório Médico");
+    if (window.__GC_DEBUG_HTML_ANCORA__) console.log("__HTML_ANCORA__", JSON.stringify(docDraftHtml));
     docMode = "visual";
     docOpen = true;
     docSaving = false;
