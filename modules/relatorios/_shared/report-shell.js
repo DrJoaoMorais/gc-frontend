@@ -63,11 +63,17 @@ export async function buildReportShell({ patient, clinic }) {
   const websiteHtml = escAttr(clinic?.website || "www.JoaoMorais.pt");
   const phoneHtml   = escAttr(clinic?.phone   || "");
 
-  // Vinheta: falha silenciosa — vinhetaUrl fica "" se storage inacessível
+  // Vinheta (footer): falha silenciosa — vinhetaUrl fica "" se storage inacessível
   let vinhetaUrl = "";
   try {
     const u = await signedUrl(BUCKET, PATH, 3600);
     if (u) vinhetaUrl = await toDataUrl(u, "image/png");
+  } catch (_) {}
+
+  // Logo clínica (cabeçalho): converte logo_url para dataUrl; falha silenciosa
+  let clinicLogoUrl = "";
+  try {
+    if (clinic?.logo_url) clinicLogoUrl = await toDataUrl(clinic.logo_url, "image/png");
   } catch (_) {}
 
   const vinhetaTag = vinhetaUrl
@@ -105,7 +111,7 @@ export async function buildReportShell({ patient, clinic }) {
             <div>${websiteHtml}</div>
             <div>${phoneHtml}</div>
           </div>
-          ${vinhetaUrl ? `<div class="topRight"><img style="width:3.5cm;height:2.2cm;object-fit:contain;display:block;" src="${vinhetaUrl}" /></div>` : ""}
+          ${clinicLogoUrl ? `<div class="topRight"><img style="width:3.5cm;height:2.2cm;object-fit:contain;display:block;" src="${clinicLogoUrl}" /></div>` : ""}
         </div>
         <div class="hr"></div>
       `;
