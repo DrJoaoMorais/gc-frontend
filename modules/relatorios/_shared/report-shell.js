@@ -105,6 +105,7 @@ export async function buildReportShell({ patient, clinic }) {
             <div>${websiteHtml}</div>
             <div>${phoneHtml}</div>
           </div>
+          ${vinhetaUrl ? `<div class="topRight"><img style="width:3.5cm;height:2.2cm;object-fit:contain;display:block;" src="${vinhetaUrl}" /></div>` : ""}
         </div>
         <div class="hr"></div>
       `;
