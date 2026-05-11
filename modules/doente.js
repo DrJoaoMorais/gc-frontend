@@ -4341,6 +4341,26 @@ function openPatientViewModal(patient) {
           openPedidosOnlinePanel({ patientId: p.id, onClose: () => { render(); } });
         }
       });
+
+      document.getElementById("btnPrpVisco")?.addEventListener("click", () => {
+        alert("PRP / Visco — em construção");
+      });
+
+      document.getElementById("btnRelatorioEvolutivo")?.addEventListener("click", () => {
+        alert("Relatório Médico Evolutivo — em construção");
+      });
+
+      document.getElementById("btnAtestadoDoenca")?.addEventListener("click", () => {
+        alert("Atestado de Doença — em construção");
+      });
+
+      document.getElementById("btnAtestadoEdfisica")?.addEventListener("click", () => {
+        alert("Atestado de Educação Física — em construção");
+      });
+
+      document.getElementById("btnHistoricoDocumentos")?.addEventListener("click", () => {
+        alert("Histórico de documentos — em construção");
+      });
     }
 
     document.querySelectorAll('[data-action="edit-consult"]').forEach((btn) => {
