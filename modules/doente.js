@@ -4002,6 +4002,16 @@ function openPatientViewModal(patient) {
           </button>
           ${consentPrinted.rgpd && !consentStatus.rgpd ? `<button id="btnConfirmarRgpd" class="gc-sb-btn" style="font-size:11px;color:#f59e0b;margin-top:2px;">✔ Confirmar assinatura manual</button>` : ''}
 
+          <button id="btnPedidosOnline" class="gc-sb-btn ${pedidosOnlineUiState?.isOpen ? 'gc-sb-btn--active' : ''}">
+            <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v6M5 8h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            <span>Pedidos Online</span>
+          </button>
+
+          <button id="btnHistoricoDocumentos" class="gc-sb-btn">
+            <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 5h5M4.5 7.5h5M4.5 10h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            <span>Histórico de documentos</span>
+          </button>
+
           <!-- ── Consentimentos (visível a todos) ── -->
           <div class="gc-sb-div"></div>
           <div class="gc-sb-lbl">Consentimentos</div>
