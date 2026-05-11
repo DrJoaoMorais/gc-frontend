@@ -3930,31 +3930,52 @@ function openPatientViewModal(patient) {
             </button>
 
             <div class="gc-sb-div"></div>
-            <div class="gc-sb-lbl">Documentação</div>
-
-            <button id="btnMedicalReports" class="gc-sb-btn">
-              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 5h5M4.5 7.5h5M4.5 10h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-              <span>Relatórios</span>
-            </button>
+            <div class="gc-sb-lbl">Meios Complementares</div>
 
             <button id="btnComplementaryExams" class="gc-sb-btn ${examsUiState?.isOpen ? 'gc-sb-btn--active' : ''}">
               <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="1" y="5" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 5V3.5a3 3 0 016 0V5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="9.5" r="1.2" fill="currentColor"/></svg>
-              <span>Exames</span>
+              <span>Pedido de Exames</span>
             </button>
 
             <button id="btnAnalyses" class="gc-sb-btn ${analisesUiState?.isOpen ? 'gc-sb-btn--active' : ''}">
               <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M5 2v6l-2.5 4.5A.8.8 0 003.2 14h9.6a.8.8 0 00.7-1.5L11 8V2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 2h6M4 9.5h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-              <span>Análises</span>
+              <span>Pedido de Análises</span>
+            </button>
+
+            <div class="gc-sb-div"></div>
+            <div class="gc-sb-lbl">Relatórios</div>
+
+            <button id="btnMedicalReports" class="gc-sb-btn">
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 5h5M4.5 7.5h5M4.5 10h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              <span>Relatório Simples</span>
+            </button>
+
+            <button id="btnPrpVisco" class="gc-sb-btn">
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M8 2c0 0-4 3-4 7a4 4 0 008 0c0-4-4-7-4-7z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>PRP / Visco</span>
+            </button>
+
+            <button id="btnRelatorioEvolutivo" class="gc-sb-btn">
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><polyline points="2,12 5,8 8,10 11,5 14,7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3" opacity="0.4"/></svg>
+              <span>Rel. Médico Evolutivo</span>
+            </button>
+
+            <div class="gc-sb-div"></div>
+            <div class="gc-sb-lbl">Atestados</div>
+
+            <button id="btnAtestadoDoenca" class="gc-sb-btn">
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 6h4M5 8.5h4M5 11h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M10 10.5l1 1 2-2" stroke="#0f766e" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Atestado de Doença</span>
+            </button>
+
+            <button id="btnAtestadoEdfisica" class="gc-sb-btn">
+              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="8" cy="4" r="2" stroke="currentColor" stroke-width="1.3"/><path d="M4 14c0-2.5 1.8-4 4-4s4 1.5 4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M6 9.5l2 2 2-2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Atestado Ed. Física</span>
             </button>
 
             <button id="btnExameDesportivo" class="gc-sb-btn ${exameDesportivoUiState?.isOpen ? 'gc-sb-btn--active' : ''}">
               <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 5.5h4M4.5 8h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M9.5 9.5l1.2 1.5 2-2.5" stroke="#4a9a30" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              <span>Exame Desportivo</span>
-            </button>
-
-            <button id="btnPedidosOnline" class="gc-sb-btn ${pedidosOnlineUiState?.isOpen ? 'gc-sb-btn--active' : ''}">
-              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v6M5 8h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-              <span>Pedidos Online</span>
+              <span>Exame Médico Desportivo</span>
             </button>
 
             <div class="gc-sb-div"></div>
