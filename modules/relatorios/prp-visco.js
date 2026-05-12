@@ -242,32 +242,38 @@ export async function openPrpViscoPanel({ patient, clinic, onClose }) {
       if (typeof onClose === "function") onClose();
     });
 
-    /* chips genéricos */
-    panel.querySelectorAll(".prpv-chip[data-campo]").forEach(el => {
-      el.addEventListener("click", () => {
-        const campo = el.dataset.campo;
-        const val   = el.dataset.val;
-        if (campo === "indicacao") {
-          state.indicacao   = val;
-          state.localizacao = "";
-          state.grau        = "";
-          state.tratamentos.clear();
-        } else {
-          state[campo] = val;
-        }
-        render();
-      });
+    /* chips genéricos — event delegation */
+    panel.addEventListener("click", e => {
+      const chip = e.target.closest(".prpv-chip[data-campo]");
+      if (!chip) return;
+      const campo = chip.dataset.campo;
+      const val   = chip.dataset.val;
+      if (campo === "indicacao") {
+        state.indicacao   = val;
+        state.localizacao = "";
+        state.grau        = "";
+        state.tratamentos.clear();
+      } else {
+        state[campo] = val;
+      }
+      const scrollTop = panel.querySelector(".prpv-body")?.scrollTop || 0;
+      render();
+      const body = panel.querySelector(".prpv-body");
+      if (body) body.scrollTop = scrollTop;
     });
 
-    /* checkboxes tratamentos */
-    panel.querySelectorAll(".prpv-check").forEach(el => {
-      el.addEventListener("click", () => {
-        const v = el.querySelector("input[data-trat]")?.dataset.trat;
-        if (!v) return;
-        if (state.tratamentos.has(v)) state.tratamentos.delete(v);
-        else state.tratamentos.add(v);
-        render();
-      });
+    /* checkboxes tratamentos — event delegation para sobreviver ao render() */
+    panel.addEventListener("click", e => {
+      const check = e.target.closest(".prpv-check");
+      if (!check) return;
+      const v = check.querySelector("input[data-trat]")?.dataset.trat;
+      if (!v) return;
+      if (state.tratamentos.has(v)) state.tratamentos.delete(v);
+      else state.tratamentos.add(v);
+      const scrollTop = panel.querySelector(".prpv-body")?.scrollTop || 0;
+      render();
+      const body = panel.querySelector(".prpv-body");
+      if (body) body.scrollTop = scrollTop;
     });
 
     /* textareas — guardar estado sem re-render */

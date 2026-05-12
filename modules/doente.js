@@ -4345,7 +4345,7 @@ function openPatientViewModal(patient) {
 
       document.getElementById("btnPrpVisco")?.addEventListener("click", async () => {
         const clinic = await fetchClinicForPdf();
-        openPrpViscoPanel({ patient: p, clinic, onClose: () => { render(); } });
+        openPrpViscoPanel({ patient: p, clinic, onClose: () => { render(); loadDocuments(); } });
       });
 
       document.getElementById("btnRelatorioEvolutivo")?.addEventListener("click", () => {
