@@ -43,6 +43,7 @@ import { openQrModal } from "./consentimentos_qr.js";
 import { openExameObjectivoMenu, openExameObjectivoForm } from "./exame-objectivo.js";
 import { openNewPatientMainModal } from "./novo-doente.js";
 import { buildReportShell } from "./relatorios/_shared/report-shell.js";
+import { openPrpViscoPanel, closePrpViscoPanel } from "./relatorios/prp-visco.js";
 
 /* ========================================================
    EXAME MÉDICO DESPORTIVO — painel lateral (viewer)
@@ -4342,8 +4343,9 @@ function openPatientViewModal(patient) {
         }
       });
 
-      document.getElementById("btnPrpVisco")?.addEventListener("click", () => {
-        alert("PRP / Visco — em construção");
+      document.getElementById("btnPrpVisco")?.addEventListener("click", async () => {
+        const clinic = await fetchClinicForPdf();
+        openPrpViscoPanel({ patient: p, clinic, onClose: () => { render(); } });
       });
 
       document.getElementById("btnRelatorioEvolutivo")?.addEventListener("click", () => {
