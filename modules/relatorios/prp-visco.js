@@ -115,7 +115,7 @@ export async function openPrpViscoPanel({ patient, clinic, onClose }) {
 
     panel.innerHTML = `
 <style>
-#${PANEL_ID}{position:absolute;top:0;right:0;width:440px;height:100%;background:#fff;border-left:1px solid #e5e7eb;box-shadow:-8px 0 24px rgba(0,0,0,.08);z-index:50;display:flex;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#111;}
+#${PANEL_ID}{position:fixed;top:0;right:0;width:440px;height:100vh;background:#fff;border-left:1px solid #e5e7eb;box-shadow:-8px 0 24px rgba(0,0,0,.08);z-index:9999;display:flex;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#111;}
 .prpv-header{padding:14px 18px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .prpv-title{font-size:15px;font-weight:700;color:#0f2d52}
 .prpv-close{background:none;border:1px solid #e5e7eb;border-radius:6px;width:30px;height:30px;cursor:pointer;font-size:17px;color:#64748b;display:flex;align-items:center;justify-content:center;}
@@ -262,17 +262,19 @@ export async function openPrpViscoPanel({ patient, clinic, onClose }) {
       if (body) body.scrollTop = scrollTop;
     });
 
-    /* checkboxes tratamentos — event delegation para sobreviver ao render() */
-    panel.addEventListener("click", e => {
+    /* checkboxes tratamentos — delegado no body para evitar intercepção do <label> */
+    panel.querySelector(".prpv-body")?.addEventListener("click", e => {
+      e.preventDefault();
+      e.stopPropagation();
       const check = e.target.closest(".prpv-check");
       if (!check) return;
       const v = check.querySelector("input[data-trat]")?.dataset.trat;
       if (!v) return;
       if (state.tratamentos.has(v)) state.tratamentos.delete(v);
       else state.tratamentos.add(v);
-      const scrollTop = panel.querySelector(".prpv-body")?.scrollTop || 0;
-      render();
       const body = panel.querySelector(".prpv-body");
+      const scrollTop = body?.scrollTop || 0;
+      render();
       if (body) body.scrollTop = scrollTop;
     });
 
