@@ -264,10 +264,10 @@ export async function openPrpViscoPanel({ patient, clinic, onClose }) {
 
     /* checkboxes tratamentos — delegado no body para evitar intercepção do <label> */
     panel.querySelector(".prpv-body")?.addEventListener("click", e => {
-      e.preventDefault();
-      e.stopPropagation();
       const check = e.target.closest(".prpv-check");
       if (!check) return;
+      e.preventDefault();
+      e.stopPropagation();
       const v = check.querySelector("input[data-trat]")?.dataset.trat;
       if (!v) return;
       if (state.tratamentos.has(v)) state.tratamentos.delete(v);
