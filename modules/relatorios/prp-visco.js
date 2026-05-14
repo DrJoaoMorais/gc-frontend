@@ -1,7 +1,7 @@
 /**
  * prp-visco.js — Relatório PRP / Viscossuplementação
- * Painel iframe+Blob isolado, sem interferência com o DOM principal.
- * Padrão idêntico ao Relatório Neurológico (doente.js L6461+).
+ * Fluxo dois passos: formulário → editor Quill → guardar PDF
+ * Padrão iframe+Blob isolado (igual ao Neurológico).
  */
 
 import { buildReportShell } from "./_shared/report-shell.js";
@@ -12,18 +12,6 @@ export function closePrpViscoPanel() {
 
 export async function openPrpViscoPanel({ patient, clinic, consultationId, onClose }) {
   closePrpViscoPanel();
-
-  /* ── estado ── */
-  const state = {
-    procedimento: "prp",
-    indicacao:    "osteoartrose",
-    localizacao:  "",
-    grau:         "",
-    tratamentos:  [],
-    infiltracoes: "1",
-    hda:          "",
-    observacoes:  "",
-  };
 
   const OPTS = {
     localizacao: {
@@ -53,7 +41,7 @@ export async function openPrpViscoPanel({ patient, clinic, consultationId, onClo
     rotura_muscular: "Rotura Muscular",
   };
 
-  /* ── HDA da última consulta ── */
+  /* HDA da última consulta */
   let lastHda = "";
   try {
     const { data } = await window.sb
@@ -62,19 +50,21 @@ export async function openPrpViscoPanel({ patient, clinic, consultationId, onClo
       .eq("patient_id", patient.id)
       .order("created_at", { ascending: false })
       .limit(1);
-    lastHda = (data && data.length && data[0].hda) ? String(data[0].hda).trim() : "";
+    if (data && data.length && data[0].hda) {
+      /* strip HTML tags para texto simples */
+      const tmp = document.createElement("div");
+      tmp.innerHTML = data[0].hda;
+      lastHda = tmp.innerText || tmp.textContent || "";
+    }
   } catch (_) {}
 
-  /* ── calcular idade ── */
   const age = patient.dob
     ? Math.floor((Date.now() - new Date(patient.dob).getTime()) / (1000*60*60*24*365.25))
     : null;
 
-  /* ── HTML do iframe ── */
-  const htmlContent = `<!DOCTYPE html>
-<html lang="pt">
-<head>
-<meta charset="utf-8">
+  /* ── PASSO 1: formulário ── */
+  const htmlFormulario = `<!DOCTYPE html>
+<html lang="pt"><head><meta charset="utf-8">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#111;background:#f8fafc;height:100vh;display:flex;flex-direction:column}
@@ -83,36 +73,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-s
 .doente-bar{background:#e8f0fe;border-left:3px solid #1a56db;border-radius:0 6px 6px 0;padding:8px 14px;font-size:13px;display:flex;gap:20px;flex-wrap:wrap}
 .doente-bar strong{color:#0f2d52}
 .slabel{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#64748b;margin-bottom:7px}
-.chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:2px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
 .chip{padding:7px 15px;border-radius:999px;border:1.5px solid #cbd5e1;font-size:13px;cursor:pointer;background:#fff;color:#374151;user-select:none;transition:all .12s}
 .chip.on-dark{background:#0f2d52;border-color:#0f2d52;color:#fff}
 .chip.on-blue{background:#1a56db;border-color:#1a56db;color:#fff}
 .hr{height:1px;background:#e5e7eb}
 .checks{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.ck{display:flex;align-items:flex-start;gap:9px;padding:9px 11px;border-radius:7px;border:1.5px solid #e5e7eb;cursor:pointer;font-size:13px;line-height:1.4;background:#fff;user-select:none;transition:all .12s}
+.ck{display:flex;align-items:flex-start;gap:9px;padding:9px 11px;border-radius:7px;border:1.5px solid #e5e7eb;cursor:pointer;font-size:13px;line-height:1.4;background:#fff;user-select:none}
 .ck.on{border-color:#1a56db;background:#eff6ff}
-.ck-box{width:17px;height:17px;min-width:17px;border-radius:4px;border:1.5px solid #cbd5e1;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;margin-top:1px;transition:all .12s}
+.ck-box{width:17px;height:17px;min-width:17px;border-radius:4px;border:1.5px solid #cbd5e1;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;margin-top:1px}
 .ck.on .ck-box{background:#1a56db;border-color:#1a56db}
-.justif{background:#fff;border-left:3px solid #94a3b8;border-radius:0 6px 6px 0;padding:10px 14px;font-size:12.5px;line-height:1.65;color:#1e3a8a}
 textarea{width:100%;border:1.5px solid #e5e7eb;border-radius:7px;padding:9px 12px;font-size:13px;line-height:1.55;resize:vertical;color:#111;font-family:inherit;background:#fff}
 textarea:focus{outline:none;border-color:#1a56db}
 .copy-btn{background:none;border:1.5px solid #cbd5e1;border-radius:6px;padding:4px 11px;font-size:12px;color:#1a56db;cursor:pointer;margin-bottom:7px}
-.copy-btn:hover{background:#eff6ff}
-.btn-gen{width:100%;background:#1a56db;color:#fff;border:none;border-radius:8px;padding:12px;font-size:15px;font-weight:600;cursor:pointer;transition:opacity .15s}
-.btn-gen:disabled{opacity:.5;cursor:not-allowed}
-.btn-gen:hover:not(:disabled){opacity:.88}
-</style>
-</head>
-<body>
-<div class="wrap" id="wrap">
-
+.btn-gen{width:100%;background:#1a56db;color:#fff;border:none;border-radius:8px;padding:12px;font-size:15px;font-weight:600;cursor:pointer}
+.btn-gen:hover{opacity:.88}
+</style></head><body>
+<div class="wrap">
   <div class="doente-bar">
     <strong>${patient.full_name || "—"}</strong>
     ${patient.sns ? `<span>SNS ${patient.sns}</span>` : ""}
     ${age !== null ? `<span>${age} anos</span>` : ""}
   </div>
 
-  <!-- PROCEDIMENTO -->
   <div>
     <div class="slabel">Procedimento</div>
     <div class="chips" id="chips-procedimento">
@@ -120,10 +103,7 @@ textarea:focus{outline:none;border-color:#1a56db}
       <span class="chip" data-grupo="procedimento" data-val="visco">Viscossuplementação</span>
     </div>
   </div>
-
   <div class="hr"></div>
-
-  <!-- INDICAÇÃO -->
   <div>
     <div class="slabel">Indicação clínica</div>
     <div class="chips" id="chips-indicacao">
@@ -133,194 +113,213 @@ textarea:focus{outline:none;border-color:#1a56db}
       <span class="chip" data-grupo="indicacao" data-val="rotura_muscular">Rotura muscular</span>
     </div>
   </div>
-
-  <!-- LOCALIZAÇÃO -->
   <div>
     <div class="slabel">Localização</div>
     <div class="chips" id="chips-localizacao"></div>
   </div>
-
-  <!-- GRAU -->
   <div>
     <div class="slabel">Grau imagiológico</div>
     <div class="chips" id="chips-grau"></div>
   </div>
-
   <div class="hr"></div>
-
-  <!-- TRATAMENTOS -->
   <div>
     <div class="slabel">Tratamentos conservadores já realizados</div>
     <div class="checks" id="checks-tratamentos"></div>
   </div>
-
-  <!-- INFILTRAÇÕES -->
   <div>
     <div class="slabel">Nº de infiltrações previstas</div>
-    <div class="chips" id="chips-infiltracoes">
+    <div class="chips">
       <span class="chip on-blue" data-grupo="infiltracoes" data-val="1">1</span>
       <span class="chip" data-grupo="infiltracoes" data-val="2">2</span>
       <span class="chip" data-grupo="infiltracoes" data-val="3">3</span>
     </div>
   </div>
-
   <div class="hr"></div>
-
-  <!-- HDA -->
   <div>
     <div class="slabel">HDA / Exame objectivo</div>
     <button class="copy-btn" id="btnCopyHda">↓ Copiar da última consulta</button>
     <textarea id="taHda" rows="5" placeholder="Descreva a história clínica e achados relevantes para o pedido ao seguro…"></textarea>
   </div>
-
-  <!-- OBSERVAÇÕES -->
   <div>
     <div class="slabel">Observações adicionais <span style="font-size:10px;color:#94a3b8;font-weight:400;text-transform:none">(opcional)</span></div>
     <textarea id="taObs" rows="3" placeholder="Notas adicionais para o seguro…"></textarea>
   </div>
-
-  <div class="hr"></div>
-
-  <!-- JUSTIFICAÇÃO -->
-  <div>
-    <div class="slabel">Justificação gerada automaticamente</div>
-    <div class="justif" id="justif"></div>
-  </div>
-
 </div>
 <div class="footer">
-  <button class="btn-gen" id="btnGerar">Gerar PDF para seguro</button>
+  <button class="btn-gen" id="btnPreview">Pré-visualizar e editar →</button>
 </div>
-
 <script>
 const OPTS = ${JSON.stringify(OPTS)};
 const lastHda = ${JSON.stringify(lastHda)};
-
 const state = {
-  procedimento: "prp",
-  indicacao:    "osteoartrose",
-  localizacao:  "",
-  grau:         "",
-  tratamentos:  [],
-  infiltracoes: "1",
-  hda:          "",
-  observacoes:  "",
+  procedimento:"prp", indicacao:"osteoartrose",
+  localizacao:"", grau:"", tratamentos:[], infiltracoes:"1", hda:"", observacoes:""
 };
-
 function buildJustificacao() {
-  const proc = state.procedimento === "prp" ? "PRP" : "ácido hialurónico";
-  const tratsStr = state.tratamentos.length ? state.tratamentos.join(", ").toLowerCase() : "tratamento conservador";
-  const loc  = state.localizacao ? " de " + state.localizacao.toLowerCase() : "";
-  const grau = state.grau ? " (" + state.grau + ")" : "";
-  const textos = {
-    osteoartrose:    "Face à osteoartrose" + loc + grau + " com falha de " + tratsStr + " optimizado, propõe-se infiltração intra-articular com " + proc + " — terapêutica biológica autóloga com efeito condroprotector, anti-inflamatório e modulador articular (TGF-β, IGF-1, PDGF, FGF). LP-PRP demonstrou superioridade sobre ácido hialurónico e corticosteróides na dor e função a 6 e 12 meses em OA KL I–III.",
-    tendinopatia:    "Face à tendinopatia" + loc + grau + " refratária a " + tratsStr + ", propõe-se infiltração com " + proc + " — terapêutica regenerativa com efeito angiogénico, anti-inflamatório e modulador da matriz tendinosa (TGF-β, PDGF, VEGF). A evidência suporta o uso de PRP em tendinopatias crónicas com falha de tratamento conservador optimizado.",
-    rotura_tendao:   "Face à rotura parcial" + loc + grau + " sem indicação cirúrgica imediata e com falha de " + tratsStr + ", propõe-se infiltração com " + proc + " — terapêutica biológica com efeito regenerativo e modulador do processo cicatricial tendinoso (TGF-β, PDGF, IGF-1).",
-    rotura_muscular: "Face à rotura muscular" + loc + grau + " com falha de " + tratsStr + ", propõe-se infiltração com " + proc + " — terapêutica regenerativa com efeito miogénico e anti-inflamatório (IGF-1, HGF, FGF). A evidência apoia o uso de PRP em roturas musculares de grau I–II para aceleração da recuperação.",
+  const proc = state.procedimento==="prp"?"PRP":"ácido hialurónico";
+  const tr = state.tratamentos.length ? state.tratamentos.join(", ").toLowerCase() : "tratamento conservador";
+  const loc = state.localizacao?" de "+state.localizacao.toLowerCase():"";
+  const gr  = state.grau?" ("+state.grau+")":"";
+  const t = {
+    osteoartrose:"Face à osteoartrose"+loc+gr+" com falha de "+tr+" optimizado, propõe-se infiltração intra-articular com "+proc+" — terapêutica biológica autóloga com efeito condroprotector, anti-inflamatório e modulador articular (TGF-β, IGF-1, PDGF, FGF). LP-PRP demonstrou superioridade sobre ácido hialurónico e corticosteróides na dor e função a 6 e 12 meses em OA KL I–III.",
+    tendinopatia:"Face à tendinopatia"+loc+gr+" refratária a "+tr+", propõe-se infiltração com "+proc+" — terapêutica regenerativa com efeito angiogénico, anti-inflamatório e modulador da matriz tendinosa (TGF-β, PDGF, VEGF). A evidência suporta o uso de PRP em tendinopatias crónicas com falha de tratamento conservador optimizado.",
+    rotura_tendao:"Face à rotura parcial"+loc+gr+" sem indicação cirúrgica imediata e com falha de "+tr+", propõe-se infiltração com "+proc+" — terapêutica biológica com efeito regenerativo e modulador do processo cicatricial tendinoso (TGF-β, PDGF, IGF-1).",
+    rotura_muscular:"Face à rotura muscular"+loc+gr+" com falha de "+tr+", propõe-se infiltração com "+proc+" — terapêutica regenerativa com efeito miogénico e anti-inflamatório (IGF-1, HGF, FGF). A evidência apoia o uso de PRP em roturas musculares de grau I–II para aceleração da recuperação.",
   };
-  return textos[state.indicacao] || "";
+  return t[state.indicacao]||"";
 }
-
-function renderChips(id, lista, valorActivo, grupo, estilo) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.innerHTML = lista.map(v =>
-    '<span class="chip ' + (v === valorActivo ? estilo : "") + '" data-grupo="' + grupo + '" data-val="' + v + '">' + v + '</span>'
+function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function renderDynamic() {
+  const ind = state.indicacao;
+  document.getElementById("chips-localizacao").innerHTML = (OPTS.localizacao[ind]||[]).map(v=>
+    '<span class="chip '+(v===state.localizacao?"on-blue":"")+'" data-grupo="localizacao" data-val="'+v+'">'+v+'</span>'
   ).join("");
-}
-
-function renderChecks() {
-  const el = document.getElementById("checks-tratamentos");
-  if (!el) return;
-  const lista = OPTS.tratamentos[state.indicacao] || [];
-  el.innerHTML = lista.map(v => {
-    const on = state.tratamentos.includes(v);
-    return '<div class="ck ' + (on ? "on" : "") + '" data-trat="' + v + '"><div class="ck-box">' + (on ? "✓" : "") + '</div><span>' + v + '</span></div>';
+  document.getElementById("chips-grau").innerHTML = (OPTS.grau[ind]||[]).map(v=>
+    '<span class="chip '+(v===state.grau?"on-blue":"")+'" data-grupo="grau" data-val="'+v+'">'+v+'</span>'
+  ).join("");
+  document.getElementById("checks-tratamentos").innerHTML = (OPTS.tratamentos[ind]||[]).map(v=>{
+    const on=state.tratamentos.includes(v);
+    return '<div class="ck '+(on?"on":"")+'" data-trat="'+v+'"><div class="ck-box">'+(on?"✓":"")+'</div><span>'+v+'</span></div>';
   }).join("");
 }
-
-function updateJustif() {
-  const el = document.getElementById("justif");
-  if (el) el.textContent = buildJustificacao();
-}
-
-function fullRender() {
-  renderChips("chips-localizacao", OPTS.localizacao[state.indicacao] || [], state.localizacao, "localizacao", "on-blue");
-  renderChips("chips-grau", OPTS.grau[state.indicacao] || [], state.grau, "grau", "on-blue");
-  renderChecks();
-  updateJustif();
-}
-
-/* ── eventos ── */
 document.body.addEventListener("click", e => {
-  /* chip */
   const chip = e.target.closest(".chip[data-grupo]");
   if (chip) {
-    const grupo = chip.dataset.grupo;
-    const val   = chip.dataset.val;
-    /* limpar activo no grupo */
-    document.querySelectorAll(".chip[data-grupo='" + grupo + "']").forEach(c => {
-      c.classList.remove("on-dark", "on-blue");
-    });
-    const estilo = (grupo === "procedimento") ? "on-dark" : "on-blue";
-    chip.classList.add(estilo);
-    if (grupo === "indicacao") {
-      state.indicacao   = val;
-      state.localizacao = "";
-      state.grau        = "";
-      state.tratamentos = [];
-      fullRender();
-    } else {
-      state[grupo] = val;
-      updateJustif();
-    }
+    const g=chip.dataset.grupo, v=chip.dataset.val;
+    document.querySelectorAll(".chip[data-grupo='"+g+"']").forEach(c=>c.classList.remove("on-dark","on-blue"));
+    chip.classList.add(g==="procedimento"?"on-dark":"on-blue");
+    if (g==="indicacao"){state.indicacao=v;state.localizacao="";state.grau="";state.tratamentos=[];renderDynamic();}
+    else { state[g]=v; }
     return;
   }
-
-  /* checkbox */
   const ck = e.target.closest(".ck[data-trat]");
   if (ck) {
-    const v = ck.dataset.trat;
-    const idx = state.tratamentos.indexOf(v);
-    if (idx >= 0) state.tratamentos.splice(idx, 1);
-    else state.tratamentos.push(v);
+    const v=ck.dataset.trat, idx=state.tratamentos.indexOf(v);
+    if(idx>=0)state.tratamentos.splice(idx,1); else state.tratamentos.push(v);
     ck.classList.toggle("on");
-    ck.querySelector(".ck-box").textContent = state.tratamentos.includes(v) ? "✓" : "";
-    updateJustif();
+    ck.querySelector(".ck-box").textContent=state.tratamentos.includes(v)?"✓":"";
     return;
   }
 });
-
-/* copiar HDA */
-document.getElementById("btnCopyHda")?.addEventListener("click", () => {
-  const ta = document.getElementById("taHda");
-  if (lastHda && ta) {
-    ta.value = lastHda;
-    state.hda = lastHda;
-  }
+document.getElementById("btnCopyHda").addEventListener("click",()=>{
+  if(lastHda){document.getElementById("taHda").value=lastHda;state.hda=lastHda;}
 });
-
-/* textareas */
-document.getElementById("taHda")?.addEventListener("input", e => { state.hda = e.target.value; updateJustif(); });
-document.getElementById("taObs")?.addEventListener("input", e => { state.observacoes = e.target.value; });
-
-/* gerar PDF */
-document.getElementById("btnGerar")?.addEventListener("click", () => {
-  const btn = document.getElementById("btnGerar");
-  btn.disabled = true;
-  btn.textContent = "A gerar…";
-  window.parent.__gc_prpViscoGerar(JSON.parse(JSON.stringify(state)), buildJustificacao())
-    .finally(() => { btn.disabled = false; btn.textContent = "Gerar PDF para seguro"; });
+document.getElementById("taHda").addEventListener("input",e=>{state.hda=e.target.value;});
+document.getElementById("taObs").addEventListener("input",e=>{state.observacoes=e.target.value;});
+document.getElementById("btnPreview").addEventListener("click",()=>{
+  state.hda = document.getElementById("taHda").value;
+  state.observacoes = document.getElementById("taObs").value;
+  window.parent.__gc_prpViscoPreview(JSON.parse(JSON.stringify(state)), buildJustificacao());
 });
-
-/* render inicial */
-fullRender();
+renderDynamic();
 </script>
-</body>
-</html>`;
+</body></html>`;
 
-  /* ── função de geração PDF exposta ao iframe ── */
-  window.__gc_prpViscoGerar = async (state, justificacao) => {
+  /* ── função de pré-visualização/edição exposta ao iframe ── */
+  window.__gc_prpViscoPreview = async (state, justificacao) => {
+    const shell = await buildReportShell({ patient, clinic });
+    const { sharedStyles, header, patientBlock, footer } = shell;
+    const proc     = state.procedimento==="prp" ? "PRP" : "Ácido Hialurónico";
+    const indLabel = indLabels[state.indicacao] || "";
+    const trats    = state.tratamentos || [];
+
+    /* escapar texto simples */
+    function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+    const htmlEditavel = `<!DOCTYPE html>
+<html lang="pt"><head><meta charset="utf-8">
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"><\/script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#111;background:#f1f5f9;height:100vh;display:flex;flex-direction:column}
+.topbar{padding:10px 18px;background:#fff;border-bottom:1px solid #e5e7eb;display:flex;gap:10px;align-items:center;flex-shrink:0}
+.topbar span{font-size:13px;color:#64748b;flex:1}
+.btn{padding:8px 18px;border-radius:7px;border:none;font-size:13px;font-weight:600;cursor:pointer}
+.btn-sec{background:#f1f5f9;color:#374151;border:1.5px solid #e5e7eb}
+.btn-pri{background:#1a56db;color:#fff}
+.btn:hover{opacity:.88}
+.editor-wrap{flex:1;overflow-y:auto;padding:20px;display:flex;justify-content:center}
+.page{width:210mm;background:#fff;padding:16mm;box-shadow:0 2px 16px rgba(0,0,0,.1);min-height:297mm}
+.ql-container{border:none!important;font-family:inherit;font-size:14px}
+.ql-toolbar{border:none!important;border-bottom:1.5px solid #e5e7eb!important;background:#fafafa;position:sticky;top:0;z-index:10}
+</style>
+</head><body>
+<div class="topbar">
+  <span>Edite o documento antes de guardar</span>
+  <button class="btn btn-sec" id="btnVoltar">← Voltar</button>
+  <button class="btn btn-pri" id="btnGuardar">Guardar e gerar PDF</button>
+</div>
+<div class="editor-wrap">
+  <div class="page">
+    <div id="editor"></div>
+  </div>
+</div>
+<script>
+const quill = new Quill("#editor", {
+  theme: "snow",
+  modules: { toolbar: [
+    ["bold","italic","underline"],
+    [{header:[1,2,3,false]}],
+    [{list:"ordered"},{list:"bullet"}],
+    ["clean"]
+  ]}
+});
+
+const conteudoInicial = \`${header.replace(/`/g,"\\`")}
+<h2 style="text-align:center;font-weight:900;font-size:20px;margin:2px 0 12px 0;">Pedido de Comparticipação — ${proc}</h2>
+${patientBlock.replace(/`/g,"\\`")}
+<p><strong>PROCEDIMENTO</strong><br>${proc}</p>
+<p><strong>INDICAÇÃO CLÍNICA</strong><br>${esc(indLabel)}${state.localizacao?" — "+esc(state.localizacao):""}${state.grau?" ("+esc(state.grau)+")":""}</p>
+${state.hda ? `<p><strong>HDA / EXAME OBJECTIVO</strong><br>${esc(state.hda).replace(/\n/g,"<br>")}</p>` : ""}
+<p><strong>TRATAMENTOS CONSERVADORES REALIZADOS</strong><br>${trats.map(t=>"✓ "+esc(t)).join(" &nbsp; ")}</p>
+<p><strong>Nº DE INFILTRAÇÕES PREVISTAS</strong><br>${esc(state.infiltracoes)}</p>
+<p><strong>JUSTIFICAÇÃO TERAPÊUTICA</strong><br>${esc(justificacao)}</p>
+<p><strong>CONCLUSÃO / PEDIDO DE AUTORIZAÇÃO</strong><br>
+Solicita-se autorização para realização de <strong>${esc(state.infiltracoes)}</strong> infiltração(ões) com <strong>${proc}</strong>${state.localizacao?" em <strong>"+esc(state.localizacao.toLowerCase())+"</strong>":""}, no contexto de <strong>${esc(indLabel.toLowerCase())}</strong>${state.grau?" grau <strong>"+esc(state.grau)+"</strong>":""}, refratária a tratamento conservador optimizado.${state.observacoes?"<br><br>"+esc(state.observacoes):""}</p>
+${footer.replace(/`/g,"\\`")}\`;
+
+quill.clipboard.dangerouslyPasteHTML(conteudoInicial);
+
+document.getElementById("btnVoltar").addEventListener("click",()=>{
+  window.parent.__gc_prpViscoBack();
+});
+document.getElementById("btnGuardar").addEventListener("click",()=>{
+  const html = quill.root.innerHTML;
+  const btn = document.getElementById("btnGuardar");
+  btn.disabled=true; btn.textContent="A guardar…";
+  window.parent.__gc_prpViscoGuardar(html)
+    .finally(()=>{ btn.disabled=false; btn.textContent="Guardar e gerar PDF"; });
+});
+<\/script>
+</body></html>`;
+
+    /* trocar iframe para o editor */
+    const blobEd  = new Blob([htmlEditavel], { type:"text/html" });
+    const urlEd   = URL.createObjectURL(blobEd);
+    const frame   = document.querySelector("#gcPrpViscoModal iframe");
+    const barTitle = document.querySelector("#gcPrpViscoModal #prpBarTitle");
+    if (barTitle) barTitle.textContent = "💉 PRP / Visco — Editar documento";
+    if (frame) {
+      URL.revokeObjectURL(frame.src);
+      frame.src = urlEd;
+    }
+  };
+
+  /* ── voltar ao formulário ── */
+  window.__gc_prpViscoBack = () => {
+    const frame = document.querySelector("#gcPrpViscoModal iframe");
+    if (frame) {
+      URL.revokeObjectURL(frame.src);
+      const blob2 = new Blob([htmlFormulario], { type:"text/html" });
+      frame.src = URL.createObjectURL(blob2);
+      const barTitle = document.querySelector("#gcPrpViscoModal #prpBarTitle");
+      if (barTitle) barTitle.textContent = "💉 PRP / Viscossuplementação — Pedido ao Seguro";
+    }
+  };
+
+  /* ── guardar PDF ── */
+  window.__gc_prpViscoGuardar = async (htmlEditado) => {
     const renderProxy = window.__gc_renderPdfViaProxy;
     const uploadPdf   = window.__gc_uploadPdfToStorage;
     const insertDoc   = window.__gc_insertDocumentRow;
@@ -330,98 +329,79 @@ fullRender();
     }
 
     const shell = await buildReportShell({ patient, clinic });
-    const { sharedStyles, header, patientBlock, footer } = shell;
-    const proc     = state.procedimento === "prp" ? "PRP" : "Ácido Hialurónico";
-    const indLabel = { osteoartrose:"Osteoartrose", tendinopatia:"Tendinopatia", rotura_tendao:"Rotura Parcial de Tendão", rotura_muscular:"Rotura Muscular" }[state.indicacao] || "";
-    const trats    = state.tratamentos || [];
+    const { sharedStyles } = shell;
 
-    const htmlPdf = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-${sharedStyles}
-.sl{font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#1a56db;margin:14px 0 4px 0}
-.sv{font-size:13px;color:#111;margin-bottom:2px}
-.trats{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:3px}
-.trat{display:flex;align-items:center;gap:5px;font-size:12px;color:#333}
-.tcb{width:10px;height:10px;border:1px solid #1a56db;border-radius:2px;background:#e8f0fe;display:flex;align-items:center;justify-content:center;font-size:8px;color:#1a56db;font-weight:700;flex-shrink:0}
-.justif{font-size:12px;line-height:1.65;color:#222;border-left:2px solid #94a3b8;padding:8px 12px;background:#f8f9fa;border-radius:0 4px 4px 0;margin-top:4px}
-.conclusao{font-size:12.5px;line-height:1.65;color:#111;border:1px solid #0f2d52;border-radius:4px;padding:10px 14px;margin-top:4px}
-.hda{background:#fafafa;border:0.5px solid #ddd;border-radius:4px;padding:8px 12px;font-size:12.5px;line-height:1.6;color:#222;white-space:pre-wrap}
-</style></head><body><div class="a4">
-${header}
-<div class="title">Pedido de Comparticipação — ${proc}</div>
-${patientBlock}
-<div class="sl">Procedimento</div><div class="sv">${proc}</div>
-<div class="sl">Indicação clínica</div>
-<div class="sv">${indLabel}${state.localizacao ? " — " + state.localizacao : ""}${state.grau ? " (" + state.grau + ")" : ""}</div>
-${state.hda ? `<div class="sl">HDA / Exame objectivo</div><div class="hda">${state.hda.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>` : ""}
-<div class="sl">Tratamentos conservadores realizados</div>
-<div class="trats">${trats.length ? trats.map(t => `<div class="trat"><div class="tcb">✓</div>${t}</div>`).join("") : "<div>Não especificado</div>"}</div>
-<div class="sl">Nº de infiltrações previstas</div><div class="sv">${state.infiltracoes}</div>
-<div class="sl">Justificação terapêutica</div><div class="justif">${justificacao}</div>
-<div class="sl">Conclusão / Pedido de autorização</div>
-<div class="conclusao">Solicita-se autorização para realização de <b>${state.infiltracoes}</b> infiltração(ões) com <b>${proc}</b>${state.localizacao ? " em <b>" + state.localizacao.toLowerCase() + "</b>" : ""}, no contexto de <b>${indLabel.toLowerCase()}</b>${state.grau ? " grau <b>" + state.grau + "</b>" : ""}, refratária a tratamento conservador optimizado.${state.observacoes ? "<br><br>" + state.observacoes.replace(/</g,"&lt;").replace(/>/g,"&gt;") : ""}</div>
-${footer}
-</div></body></html>`;
+    const htmlPdf = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>${sharedStyles}
+.ql-editor{padding:0}
+</style></head><body><div class="a4">${htmlEditado}</div></body></html>`;
 
     let blob;
     try { blob = await renderProxy(htmlPdf); }
-    catch (e) { alert("Falha ao gerar PDF.\n" + String(e?.message || e)); return; }
-    if (!blob || blob.size < 5000) { alert("PDF inválido."); return; }
+    catch(e) { alert("Falha ao gerar PDF.\n"+String(e?.message||e)); return; }
+    if (!blob||blob.size<5000) { alert("PDF inválido."); return; }
 
-    const ymd    = new Date().toISOString().slice(0,10);
-    const hms    = new Date().toISOString().slice(11,19).replaceAll(":","-");
-    const path   = `clinic_${clinic?.id || "x"}/patient_${patient.id}/prp_visco_${ymd}_${hms}.pdf`;
-    const up     = await uploadPdf({ blob, path });
-    if (!up.ok) { alert("Falhou o upload.\n" + String(up.error?.message || up.error || "")); return; }
+    const ymd  = new Date().toISOString().slice(0,10);
+    const hms  = new Date().toISOString().slice(11,19).replaceAll(":","-");
+    const path = `clinic_${clinic?.id||"x"}/patient_${patient.id}/prp_visco_${ymd}_${hms}.pdf`;
+    const up   = await uploadPdf({ blob, path });
+    if (!up.ok) { alert("Falhou o upload.\n"+String(up.error?.message||up.error||"")); return; }
 
-    const title  = `PRP-Visco_${indLabel}_${(state.localizacao||"").replace(/\s/g,"_")}_${ymd}`.replace(/[^a-zA-Z0-9_\-]/g,"");
+    const ins  = await insertDoc({
+      clinic_id:       clinic?.id,
+      patient_id:      patient.id,
+      consultation_id: consultationId || null,
+      title:           `PRP-Visco_${ymd}`,
+      html:            "",
+      version:         1,
+      storage_path:    path,
+      category:        "PRP"
+    });
+    if (!ins.ok) { alert("PDF guardado mas falhou o registo.\n"+String(ins.error?.message||ins.error||"")); return; }
 
-    /* usar consultationId passado pelo caller (consulta activa do doente) */
-
-    const ins    = await insertDoc({ clinic_id: clinic?.id, patient_id: patient.id, consultation_id: consultationId, title, html: "", version: 1, storage_path: path, category: "PRP" });
-    if (!ins.ok) { alert("PDF guardado mas falhou o registo.\n" + String(ins.error?.message || ins.error || "")); return; }
-
-    alert("PDF criado e guardado com sucesso.");
+    alert("PDF guardado com sucesso.");
     closePrpViscoPanel();
     if (typeof onClose === "function") onClose();
   };
 
   /* ── montar modal ── */
-  const blob    = new Blob([htmlContent], { type: "text/html" });
-  const blobUrl = URL.createObjectURL(blob);
+  const blob0   = new Blob([htmlFormulario], { type:"text/html" });
+  const blobUrl = URL.createObjectURL(blob0);
 
   const overlay = document.createElement("div");
   overlay.id = "gcPrpViscoModal";
   Object.assign(overlay.style, {
-    position: "fixed", inset: "0", background: "rgba(0,0,0,0.55)",
-    display: "flex", flexDirection: "column",
-    alignItems: "center", justifyContent: "center",
-    padding: "12px", zIndex: "3100",
-    fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif"
+    position:"fixed", inset:"0", background:"rgba(0,0,0,0.55)",
+    display:"flex", flexDirection:"column",
+    alignItems:"center", justifyContent:"center",
+    padding:"12px", zIndex:"3100"
   });
 
   const bar = document.createElement("div");
   Object.assign(bar.style, {
-    width: "min(680px,100%)", background: "#fff",
-    borderRadius: "12px 12px 0 0", borderBottom: "1px solid #e2e8f0",
-    padding: "12px 18px", display: "flex",
-    justifyContent: "space-between", alignItems: "center", flexShrink: "0"
+    width:"min(780px,100%)", background:"#fff",
+    borderRadius:"12px 12px 0 0", borderBottom:"1px solid #e2e8f0",
+    padding:"12px 18px", display:"flex",
+    justifyContent:"space-between", alignItems:"center", flexShrink:"0"
   });
-  bar.innerHTML = `<div style="font-weight:700;font-size:15px;color:#0f2d52;">💉 PRP / Viscossuplementação — Pedido ao Seguro</div>
+  bar.innerHTML = `<div id="prpBarTitle" style="font-weight:700;font-size:15px;color:#0f2d52;">💉 PRP / Viscossuplementação — Pedido ao Seguro</div>
     <button id="gcPrpViscoClose" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px;color:#64748b;">✕ Fechar</button>`;
 
   const frame = document.createElement("iframe");
   frame.src = blobUrl;
   Object.assign(frame.style, {
-    width: "min(680px,100%)",
-    height: "calc(88vh - 52px)",
-    border: "none", background: "#fff",
-    borderRadius: "0 0 12px 12px", flexShrink: "0"
+    width:"min(780px,100%)",
+    height:"calc(88vh - 52px)",
+    border:"none", background:"#fff",
+    borderRadius:"0 0 12px 12px", flexShrink:"0"
   });
 
   function closeModal() {
     URL.revokeObjectURL(blobUrl);
     overlay.remove();
-    delete window.__gc_prpViscoGerar;
+    delete window.__gc_prpViscoPreview;
+    delete window.__gc_prpViscoBack;
+    delete window.__gc_prpViscoGuardar;
   }
 
   overlay.appendChild(bar);
@@ -429,5 +409,5 @@ ${footer}
   document.body.appendChild(overlay);
 
   document.getElementById("gcPrpViscoClose")?.addEventListener("click", closeModal);
-  overlay.addEventListener("click", e => { if (e.target === overlay) closeModal(); });
+  overlay.addEventListener("click", e => { if(e.target===overlay) closeModal(); });
 }
