@@ -244,6 +244,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-s
 .page{width:210mm;background:#fff;padding:16mm;box-shadow:0 2px 16px rgba(0,0,0,.1);min-height:297mm}
 .ql-container{border:none!important;font-family:inherit;font-size:14px}
 .ql-toolbar{border:none!important;border-bottom:1.5px solid #e5e7eb!important;background:#fafafa;position:sticky;top:0;z-index:10}
+.ql-editor img{max-width:3.5cm!important;max-height:2.5cm!important;object-fit:contain}
 </style>
 </head><body>
 <div class="topbar">
@@ -267,8 +268,7 @@ const quill = new Quill("#editor", {
   ]}
 });
 
-const conteudoInicial = \`${header.replace(/`/g,"\\`")}
-<h2 style="text-align:center;font-weight:900;font-size:20px;margin:2px 0 12px 0;">Pedido de Comparticipação — ${proc}</h2>
+const conteudoInicial = \`<h2 style="text-align:center;font-weight:900;font-size:20px;margin:2px 0 12px 0;">Pedido de Comparticipação — ${proc}</h2>
 ${patientBlock.replace(/`/g,"\\`")}
 <p><strong>PROCEDIMENTO</strong><br>${proc}</p>
 <p><strong>INDICAÇÃO CLÍNICA</strong><br>${esc(indLabel)}${state.localizacao?" — "+esc(state.localizacao):""}${state.grau?" ("+esc(state.grau)+")":""}</p>
@@ -277,8 +277,7 @@ ${state.hda ? `<p><strong>HDA / EXAME OBJECTIVO</strong><br>${esc(state.hda).rep
 <p><strong>Nº DE INFILTRAÇÕES PREVISTAS</strong><br>${esc(state.infiltracoes)}</p>
 <p><strong>JUSTIFICAÇÃO TERAPÊUTICA</strong><br>${esc(justificacao)}</p>
 <p><strong>CONCLUSÃO / PEDIDO DE AUTORIZAÇÃO</strong><br>
-Solicita-se autorização para realização de <strong>${esc(state.infiltracoes)}</strong> infiltração(ões) com <strong>${proc}</strong>${state.localizacao?" em <strong>"+esc(state.localizacao.toLowerCase())+"</strong>":""}, no contexto de <strong>${esc(indLabel.toLowerCase())}</strong>${state.grau?" grau <strong>"+esc(state.grau)+"</strong>":""}, refratária a tratamento conservador optimizado.${state.observacoes?"<br><br>"+esc(state.observacoes):""}</p>
-${footer.replace(/`/g,"\\`")}\`;
+Solicita-se autorização para realização de <strong>${esc(state.infiltracoes)}</strong> infiltração(ões) com <strong>${proc}</strong>${state.localizacao?" em <strong>"+esc(state.localizacao.toLowerCase())+"</strong>":""}, no contexto de <strong>${esc(indLabel.toLowerCase())}</strong>${state.grau?" grau <strong>"+esc(state.grau)+"</strong>":""}, refratária a tratamento conservador optimizado.${state.observacoes?"<br><br>"+esc(state.observacoes):""}</p>\`;
 
 quill.clipboard.dangerouslyPasteHTML(conteudoInicial);
 
@@ -330,12 +329,16 @@ document.getElementById("btnGuardar").addEventListener("click",()=>{
     }
 
     const shell = await buildReportShell({ patient, clinic });
-    const { sharedStyles } = shell;
+    const { sharedStyles, header, footer } = shell;
 
     const htmlPdf = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>${sharedStyles}
 .ql-editor{padding:0}
-</style></head><body><div class="a4">${htmlEditado}</div></body></html>`;
+</style></head><body><div class="a4">
+${header}
+${htmlEditado}
+${footer}
+</div></body></html>`;
 
     let blob;
     try { blob = await renderProxy(htmlPdf); }
