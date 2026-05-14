@@ -10,7 +10,7 @@ export function closePrpViscoPanel() {
   document.getElementById("gcPrpViscoModal")?.remove();
 }
 
-export async function openPrpViscoPanel({ patient, clinic, onClose }) {
+export async function openPrpViscoPanel({ patient, clinic, consultationId, onClose }) {
   closePrpViscoPanel();
 
   /* ── estado ── */
@@ -375,21 +375,7 @@ ${footer}
 
     const title  = `PRP-Visco_${indLabel}_${(state.localizacao||"").replace(/\s/g,"_")}_${ymd}`.replace(/[^a-zA-Z0-9_\-]/g,"");
 
-    /* associar à consulta mais recente do dia, se existir */
-    let consultationId = null;
-    try {
-      const todayStart = ymd + "T00:00:00.000Z";
-      const todayEnd   = ymd + "T23:59:59.999Z";
-      const { data: cData } = await window.sb
-        .from("consultations")
-        .select("id")
-        .eq("patient_id", patient.id)
-        .gte("created_at", todayStart)
-        .lte("created_at", todayEnd)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      if (cData && cData.length) consultationId = cData[0].id;
-    } catch (_) {}
+    /* usar consultationId passado pelo caller (consulta activa do doente) */
 
     const ins    = await insertDoc({ clinic_id: clinic?.id, patient_id: patient.id, consultation_id: consultationId, title, html: "", version: 1, storage_path: path, category: "PRP" });
     if (!ins.ok) { alert("PDF guardado mas falhou o registo.\n" + String(ins.error?.message || ins.error || "")); return; }
