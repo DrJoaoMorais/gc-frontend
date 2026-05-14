@@ -269,7 +269,6 @@ const quill = new Quill("#editor", {
 });
 
 const conteudoInicial = \`<h2 style="text-align:center;font-weight:900;font-size:20px;margin:2px 0 12px 0;">Pedido de Comparticipação — ${proc}</h2>
-${patientBlock.replace(/`/g,"\\`")}
 <p><strong>PROCEDIMENTO</strong><br>${proc}</p>
 <p><strong>INDICAÇÃO CLÍNICA</strong><br>${esc(indLabel)}${state.localizacao?" — "+esc(state.localizacao):""}${state.grau?" ("+esc(state.grau)+")":""}</p>
 ${state.hda ? `<p><strong>HDA / EXAME OBJECTIVO</strong><br>${esc(state.hda).replace(/\n/g,"<br>")}</p>` : ""}
