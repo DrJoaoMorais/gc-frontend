@@ -201,8 +201,9 @@ document.body.addEventListener("click", e => {
     return;
   }
 });
+function stripHtml(s){const d=document.createElement("div");d.innerHTML=s;return d.innerText||d.textContent||"";}
 document.getElementById("btnCopyHda").addEventListener("click",()=>{
-  if(lastHda){document.getElementById("taHda").value=lastHda;state.hda=lastHda;}
+  if(lastHda){const txt=stripHtml(lastHda);document.getElementById("taHda").value=txt;state.hda=txt;}
 });
 document.getElementById("taHda").addEventListener("input",e=>{state.hda=e.target.value;});
 document.getElementById("taObs").addEventListener("input",e=>{state.observacoes=e.target.value;});
