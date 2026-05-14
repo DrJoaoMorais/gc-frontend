@@ -216,8 +216,12 @@ renderDynamic();
 </script>
 </body></html>`;
 
+  /* state guardado em closure para uso no guardar */
+  let _savedState = null;
+
   /* ── função de pré-visualização/edição exposta ao iframe ── */
   window.__gc_prpViscoPreview = async (state, justificacao) => {
+    _savedState = state;
     const shell = await buildReportShell({ patient, clinic });
     const { sharedStyles, header, patientBlock, footer } = shell;
     const proc     = state.procedimento==="prp" ? "PRP" : "Ácido Hialurónico";
@@ -245,6 +249,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-s
 .ql-container{border:none!important;font-family:inherit;font-size:14px}
 .ql-toolbar{border:none!important;border-bottom:1.5px solid #e5e7eb!important;background:#fafafa;position:sticky;top:0;z-index:10}
 .ql-editor img{max-width:3.5cm!important;max-height:2.5cm!important;object-fit:contain}
+.ql-editor p{margin-bottom:8px;line-height:1.6}
+.ql-editor strong{color:#0f2d52}
 </style>
 </head><body>
 <div class="topbar">
@@ -328,13 +334,25 @@ document.getElementById("btnGuardar").addEventListener("click",()=>{
     }
 
     const shell = await buildReportShell({ patient, clinic });
-    const { sharedStyles, header, footer } = shell;
+    const { sharedStyles, header, patientBlock, footer } = shell;
+    const proc = (_savedState?.procedimento === "prp") ? "PRP" : "Ácido Hialurónico";
 
     const htmlPdf = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>${sharedStyles}
 .ql-editor{padding:0}
+.prp-title{text-align:center;font-weight:900;font-size:22px;margin:10px 0 16px 0;letter-spacing:-.3px}
+.prp-sl{font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#1a56db;margin:16px 0 4px 0;border-bottom:1px solid #e8f0fe;padding-bottom:3px}
+.prp-val{font-size:13px;color:#111;margin-bottom:2px;line-height:1.5}
+.prp-trats{display:flex;flex-wrap:wrap;gap:5px 16px;margin-top:3px}
+.prp-trat{display:flex;align-items:center;gap:5px;font-size:12.5px;color:#333}
+.prp-tcb{width:11px;height:11px;border:1px solid #1a56db;border-radius:2px;background:#e8f0fe;display:flex;align-items:center;justify-content:center;font-size:8px;color:#1a56db;font-weight:700;flex-shrink:0}
+.prp-justif{font-size:12.5px;line-height:1.7;color:#222;border-left:3px solid #1a56db;padding:10px 14px;background:#f8fafc;border-radius:0 6px 6px 0;margin-top:4px}
+.prp-conclusao{font-size:12.5px;line-height:1.7;color:#111;border:1.5px solid #0f2d52;border-radius:6px;padding:12px 16px;margin-top:4px}
+.prp-hda{background:#fafafa;border:0.5px solid #ddd;border-radius:4px;padding:10px 13px;font-size:12.5px;line-height:1.65;color:#222;white-space:pre-wrap}
 </style></head><body><div class="a4">
 ${header}
+<div class="prp-title">Pedido de Comparticipação — ${proc}</div>
+${patientBlock}
 ${htmlEditado}
 ${footer}
 </div></body></html>`;
