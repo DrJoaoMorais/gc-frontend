@@ -242,40 +242,42 @@ export async function openPrpViscoPanel({ patient, clinic, onClose }) {
       if (typeof onClose === "function") onClose();
     });
 
-    /* chips genéricos — event delegation */
+      /* todos os cliques — um único listener no panel */
     panel.addEventListener("click", e => {
-      const chip = e.target.closest(".prpv-chip[data-campo]");
-      if (!chip) return;
-      const campo = chip.dataset.campo;
-      const val   = chip.dataset.val;
-      if (campo === "indicacao") {
-        state.indicacao   = val;
-        state.localizacao = "";
-        state.grau        = "";
-        state.tratamentos.clear();
-      } else {
-        state[campo] = val;
-      }
-      const scrollTop = panel.querySelector(".prpv-body")?.scrollTop || 0;
-      render();
-      const body = panel.querySelector(".prpv-body");
-      if (body) body.scrollTop = scrollTop;
-    });
-
-    /* checkboxes tratamentos — delegado no body para evitar intercepção do <label> */
-    panel.querySelector(".prpv-body")?.addEventListener("click", e => {
-      const check = e.target.closest(".prpv-check");
-      if (!check) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const v = check.querySelector("input[data-trat]")?.dataset.trat;
-      if (!v) return;
-      if (state.tratamentos.has(v)) state.tratamentos.delete(v);
-      else state.tratamentos.add(v);
       const body = panel.querySelector(".prpv-body");
       const scrollTop = body?.scrollTop || 0;
-      render();
-      if (body) body.scrollTop = scrollTop;
+
+      /* checkbox tratamento */
+      const check = e.target.closest(".prpv-check");
+      if (check) {
+        e.preventDefault();
+        const v = check.querySelector("input[data-trat]")?.dataset.trat;
+        if (v) {
+          if (state.tratamentos.has(v)) state.tratamentos.delete(v);
+          else state.tratamentos.add(v);
+          render();
+          panel.querySelector(".prpv-body").scrollTop = scrollTop;
+        }
+        return;
+      }
+
+      /* chip */
+      const chip = e.target.closest(".prpv-chip[data-campo]");
+      if (chip) {
+        const campo = chip.dataset.campo;
+        const val   = chip.dataset.val;
+        if (campo === "indicacao") {
+          state.indicacao   = val;
+          state.localizacao = "";
+          state.grau        = "";
+          state.tratamentos.clear();
+        } else {
+          state[campo] = val;
+        }
+        render();
+        panel.querySelector(".prpv-body").scrollTop = scrollTop;
+        return;
+      }
     });
 
     /* textareas — guardar estado sem re-render */
