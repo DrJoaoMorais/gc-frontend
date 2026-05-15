@@ -160,11 +160,20 @@ function buildJustificacao() {
   const tr = state.tratamentos.length ? state.tratamentos.join(", ").toLowerCase() : "tratamento conservador";
   const loc = state.localizacao?" de "+state.localizacao.toLowerCase():"";
   const gr  = state.grau?" ("+state.grau+")":"";
+  const isPrp = state.procedimento === "prp";
   const t = {
-    osteoartrose:"Face à osteoartrose"+loc+gr+" com falha de "+tr+" optimizado, propõe-se infiltração intra-articular com "+proc+" — terapêutica biológica autóloga com efeito condroprotector, anti-inflamatório e modulador articular (TGF-β, IGF-1, PDGF, FGF). LP-PRP demonstrou superioridade sobre ácido hialurónico e corticosteróides na dor e função a 6 e 12 meses em OA KL I–III.",
-    tendinopatia:"Face à tendinopatia"+loc+gr+" refratária a "+tr+", propõe-se infiltração com "+proc+" — terapêutica regenerativa com efeito angiogénico, anti-inflamatório e modulador da matriz tendinosa (TGF-β, PDGF, VEGF). A evidência suporta o uso de PRP em tendinopatias crónicas com falha de tratamento conservador optimizado.",
-    rotura_tendao:"Face à rotura parcial"+loc+gr+" sem indicação cirúrgica imediata e com falha de "+tr+", propõe-se infiltração com "+proc+" — terapêutica biológica com efeito regenerativo e modulador do processo cicatricial tendinoso (TGF-β, PDGF, IGF-1).",
-    rotura_muscular:"Face à rotura muscular"+loc+gr+" com falha de "+tr+", propõe-se infiltração com "+proc+" — terapêutica regenerativa com efeito miogénico e anti-inflamatório (IGF-1, HGF, FGF). A evidência apoia o uso de PRP em roturas musculares de grau I–II para aceleração da recuperação.",
+    osteoartrose: isPrp
+      ? "Face à osteoartrose"+loc+gr+" com falha de "+tr+" optimizado, propõe-se infiltração intra-articular com PRP — terapêutica biológica autóloga com efeito condroprotector, anti-inflamatório e modulador articular (TGF-β, IGF-1, PDGF, FGF). LP-PRP demonstrou superioridade sobre ácido hialurónico e corticosteróides na dor e função a 6 e 12 meses em OA KL I–III (Kon et al., 2011; Shen et al., 2017)."
+      : "Face à osteoartrose"+loc+gr+" com falha de "+tr+" optimizado, propõe-se viscossuplementação intra-articular com ácido hialurónico — terapêutica viscoelástica com efeito lubrificante, condroprotector e anti-inflamatório. O ácido hialurónico demonstrou eficácia na redução da dor e melhoria funcional em OA KL I–III, com perfil de segurança favorável (Bannuru et al., 2015; EULAR guidelines).",
+    tendinopatia: isPrp
+      ? "Face à tendinopatia"+loc+gr+" refratária a "+tr+", propõe-se infiltração com PRP — terapêutica regenerativa com efeito angiogénico, anti-inflamatório e modulador da matriz tendinosa (TGF-β, PDGF, VEGF). A evidência suporta o uso de PRP em tendinopatias crónicas com falha de tratamento conservador optimizado (Mishra et al., 2014; Dragoo et al., 2014)."
+      : "Face à tendinopatia"+loc+gr+" refratária a "+tr+", propõe-se infiltração peritendinosa com ácido hialurónico — terapêutica viscoelástica com efeito lubrificante e modulador da matriz tendinosa, utilizada como alternativa nos casos sem resposta a tratamento conservador.",
+    rotura_tendao: isPrp
+      ? "Face à rotura parcial"+loc+gr+" sem indicação cirúrgica imediata e com falha de "+tr+", propõe-se infiltração com PRP — terapêutica biológica com efeito regenerativo e modulador do processo cicatricial tendinoso (TGF-β, PDGF, IGF-1). A evidência suporta o uso de PRP em roturas parciais para aceleração da cicatrização e recuperação funcional."
+      : "Face à rotura parcial"+loc+gr+" sem indicação cirúrgica imediata e com falha de "+tr+", propõe-se infiltração com ácido hialurónico — terapêutica viscoelástica com propriedades lubrificantes e anti-inflamatórias que pode contribuir para a modulação do ambiente peritendinoso e redução da dor.",
+    rotura_muscular: isPrp
+      ? "Face à rotura muscular"+loc+gr+" com falha de "+tr+", propõe-se infiltração com PRP — terapêutica regenerativa com efeito miogénico e anti-inflamatório (IGF-1, HGF, FGF). A evidência apoia o uso de PRP em roturas musculares de grau I–II para aceleração da recuperação e retorno à actividade (Hamid et al., 2014)."
+      : "Face à rotura muscular"+loc+gr+" com falha de "+tr+", propõe-se infiltração com ácido hialurónico — terapêutica com propriedades viscoelásticas e anti-inflamatórias utilizada como adjuvante na recuperação músculo-esquelética em contexto de medicina desportiva.",
   };
   return t[state.indicacao]||"";
 }
