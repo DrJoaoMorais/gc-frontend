@@ -4353,11 +4353,11 @@ function openPatientViewModal(patient) {
       });
 
       document.getElementById("btnAtestadoDoenca")?.addEventListener("click", () => {
-        alert("Atestado de Doença — em construção");
+        openReportTemplate("atestado_doenca");
       });
 
       document.getElementById("btnAtestadoEdfisica")?.addEventListener("click", () => {
-        alert("Atestado de Educação Física — em construção");
+        openReportTemplate("atestado_ef");
       });
 
       document.getElementById("btnHistoricoDocumentos")?.addEventListener("click", () => {
@@ -4684,6 +4684,11 @@ function openPatientViewModal(patient) {
         return;
       }
 
+      if (templateId === "atestado_ef") {
+        openAtestadoEdfisicaModal({ locality: escAttr(localityDate), vinhetaUrl, websiteHtml, phoneHtml, footer, sharedStyles, name, sns, dobPt, nif });
+        return;
+      }
+
       if (html) {
         openDocumentEditor(html, title);
       }
@@ -4867,6 +4872,183 @@ function openPatientViewModal(patient) {
     });
   }
 
+  function openAtestadoEdfisicaModal({ locality, vinhetaUrl, websiteHtml, phoneHtml, footer, sharedStyles, name, sns, dobPt, nif }) {
+    document.getElementById("gcAtEdfModal")?.remove();
+
+    const overlay = document.createElement("div");
+    overlay.id = "gcAtEdfModal";
+    Object.assign(overlay.style, {
+      position: "fixed", inset: "0", background: "rgba(0,0,0,0.45)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: "16px", zIndex: "3100",
+      fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif"
+    });
+
+    const today = new Date();
+    const todayIso = today.toISOString().slice(0,10);
+    const ateD = new Date(today); ateD.setDate(ateD.getDate()+30);
+    const ateIso = ateD.toISOString().slice(0,10);
+
+    overlay.innerHTML = `
+      <div style="background:#fff;width:min(640px,100%);max-height:92vh;overflow-y:auto;
+                  border-radius:14px;border:1px solid #e2e8f0;padding:26px;">
+
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
+          <div>
+            <div style="font-weight:900;font-size:16px;color:#0f172a;">🏫 Dispensa de Educação Física</div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px;">Preencha e gere o atestado</div>
+          </div>
+          <button id="gcAtEdfClose" class="gcBtnGhost gcBtnIcon">✕</button>
+        </div>
+
+        <!-- Tratamento -->
+        <div style="margin-bottom:14px;">
+          <label style="font-weight:700;font-size:13px;display:block;margin-bottom:6px;">Tratamento</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${["Sra.","Sr.","Jovem","Menor","Menina","Menino"].map(t =>
+              `<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;padding:6px 12px;border:1px solid #e2e8f0;border-radius:8px;">
+                <input type="radio" name="aefTrat" value="${t}" ${t==="Menor"?"checked":""}> ${t}
+              </label>`
+            ).join("")}
+          </div>
+        </div>
+
+        <!-- Motivo clínico -->
+        <div style="margin-bottom:14px;">
+          <label style="font-weight:700;font-size:13px;display:block;margin-bottom:4px;">Motivo clínico</label>
+          <textarea id="aefMotivo" rows="3"
+            placeholder="ex: fractura do membro inferior direito em fase de recuperação funcional"
+            style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;resize:vertical;box-sizing:border-box;line-height:1.5;"></textarea>
+        </div>
+
+        <!-- Tipo de dispensa -->
+        <div style="margin-bottom:14px;">
+          <label style="font-weight:700;font-size:13px;display:block;margin-bottom:6px;">Tipo de dispensa</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${[
+              {id:"total", label:"Total"},
+              {id:"parcial", label:"Parcial (observador)"},
+              {id:"adaptada", label:"Actividade adaptada"}
+            ].map(o =>
+              `<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;padding:6px 12px;border:1px solid #e2e8f0;border-radius:8px;">
+                <input type="radio" name="aefTipo" value="${o.id}" ${o.id==="total"?"checked":""}> ${o.label}
+              </label>`
+            ).join("")}
+          </div>
+        </div>
+
+        <!-- Datas -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+          <div>
+            <label style="font-weight:700;font-size:13px;display:block;margin-bottom:4px;">Dispensa a partir de</label>
+            <input id="aefDe" type="date" value="${todayIso}" style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;" />
+          </div>
+          <div>
+            <label style="font-weight:700;font-size:13px;display:block;margin-bottom:4px;">Até (inclusive)</label>
+            <input id="aefAte" type="date" value="${ateIso}" style="width:100%;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;box-sizing:border-box;" />
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;">
+          <button id="gcAtEdfCancel" style="border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:9px 20px;cursor:pointer;font-size:13px;color:#475569;">Cancelar</button>
+          <button id="gcAtEdfGerar" style="border:none;background:#1a56db;color:#fff;border-radius:8px;padding:9px 22px;cursor:pointer;font-size:14px;font-weight:700;">Gerar Atestado</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    document.getElementById("gcAtEdfClose").addEventListener("click", close);
+    document.getElementById("gcAtEdfCancel").addEventListener("click", close);
+    overlay.addEventListener("click", (ev) => { if (ev.target === overlay) close(); });
+
+    document.getElementById("gcAtEdfGerar").addEventListener("click", () => {
+      const tratEl = overlay.querySelector('input[name="aefTrat"]:checked');
+      const trat   = tratEl ? tratEl.value : "Menor";
+      const motivo = (document.getElementById("aefMotivo").value || "").trim()
+                     || "patologia que condiciona limitação funcional temporária";
+      const tipoEl = overlay.querySelector('input[name="aefTipo"]:checked');
+      const tipo   = tipoEl ? tipoEl.value : "total";
+
+      const fmtDate = (iso) => {
+        if (!iso) return "__/__/____";
+        const [y,m,d] = iso.split("-");
+        return `${d}/${m}/${y}`;
+      };
+      const de  = fmtDate(document.getElementById("aefDe").value);
+      const ate = fmtDate(document.getElementById("aefAte").value);
+
+      const tipoTexto = tipo === "total"
+        ? "dispensa total da prática de Educação Física"
+        : tipo === "parcial"
+          ? "autorização para permanecer como observador nas aulas de Educação Física, sem participação activa"
+          : "prática de Educação Física em regime adaptado, com actividades ajustadas à sua condição clínica";
+
+      const idPecas = [];
+      if (dobPt) idPecas.push(`nascido(a) em <b>${dobPt}</b>`);
+      if (sns)   idPecas.push(`N.º de Utente <b>${sns}</b>`);
+      else if (nif) idPecas.push(`NIF/CC <b>${nif}</b>`);
+      const idDoente = idPecas.length ? ", " + idPecas.join(", ") : "";
+
+      const vinhetaTag = vinhetaUrl
+        ? `<img style="width:4cm;height:2.5cm;object-fit:contain;display:block;margin-top:8px;" src="${vinhetaUrl}" />`
+        : "";
+
+      const title = "Atestado de Dispensa de Educação Física";
+      const html = `<!doctype html><html><head><meta charset="utf-8"/><title>${title}</title>
+      <style>${sharedStyles}
+        .doc-title{text-align:center;font-weight:900;font-size:17px;margin:4px 0 24px 0;letter-spacing:0.03em;text-transform:uppercase}
+        .body-text{font-size:14px;line-height:1.9;text-align:justify;margin-bottom:16px}
+      </style></head><body><div class="a4">
+
+        <div class="top">
+          <div class="topLeft"><div>${websiteHtml}</div><div>${phoneHtml}</div></div>
+        </div>
+        <div class="hr"></div>
+
+        <div class="doc-title">Declaração Médica</div>
+
+        <p class="body-text">
+          Eu, <b>João Morais</b>, Médico licenciado pela Faculdade de Medicina da Universidade de Coimbra,
+          Especialista em Medicina Física e de Reabilitação e Pós-graduado em Medicina Desportiva,
+          com Cédula Profissional da Ordem dos Médicos n.º <b>44380</b>,
+          atesto por minha honra que ${trat} <b>${name}</b>${idDoente}
+          apresenta ${motivo}, pelo que necessita de ${tipoTexto}
+          no período compreendido entre <b>${de}</b> e <b>${ate}</b> (inclusive).
+        </p>
+
+        <p class="body-text">
+          Por ser verdade e me ter sido pedido, dato e assino o presente atestado.
+        </p>
+
+        <div class="footerBlock">
+          <div class="hr2"></div>
+          <div class="footRow">
+            <div>
+              <div class="web">${websiteHtml}</div>
+              ${vinhetaTag}
+            </div>
+            <div style="flex:1;">
+              <div class="locDate">${locality}</div>
+              <div class="sig">
+                <div class="sigBox">
+                  <div class="sigLine"></div>
+                  <div class="sigName">Dr. João Morais</div>
+                  <div class="sigRole">Especialista em Medicina Física e de Reabilitação</div>
+                  <div class="sigRole">OM n.º 44380</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div></body></html>`;
+
+      close();
+      openDocumentEditor(html, title);
+    });
+  }
 
   /* ====================================================================
      RELATÓRIO NEUROLÓGICO — Modal com iframe
