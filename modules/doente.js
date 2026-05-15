@@ -3892,6 +3892,15 @@ function openPatientViewModal(patient) {
           .gc-pv-name { font-size:16px; }
         }
 
+        /* ── Tabs do cabeçalho do doente ── */
+        .gc-pv-tabs { display:flex; gap:0; border-top:1px solid #e9ecef; margin-top:10px; }
+        .gc-pv-tab { display:flex; align-items:center; gap:6px; padding:9px 18px; font-size:13px; font-weight:500; color:#64748b; cursor:pointer; border:none; background:transparent; border-bottom:2px solid transparent; white-space:nowrap; font-family:inherit; }
+        .gc-pv-tab:hover { color:#1a56db; }
+        .gc-pv-tab.active { color:#1a56db; border-bottom-color:#1a56db; }
+        .gc-pv-tab-iniciar { display:flex; align-items:center; gap:7px; padding:9px 18px; font-size:13px; font-weight:700; color:#0f2d52; cursor:pointer; border:none; background:transparent; border-bottom:2px solid #0f2d52; white-space:nowrap; font-family:inherit; position:relative; }
+        .gc-pv-tab-iniciar:hover { color:#1a56db; border-bottom-color:#1a56db; }
+        .gc-pv-tab-iniciar::after { content:''; position:absolute; top:10px; right:8px; width:6px; height:6px; background:#1a56db; border-radius:50%; }
+
         /* ── Action btn classes (kept for compatibility) ── */
         .gc-action-btn { font-weight:700!important; background:#ffffff!important; border:1px solid #cbd5e1!important; color:#0f172a!important; }
         .gc-action-btn--active-primary { background:#1a56db!important; border-color:#1a56db!important; color:#fff!important; font-weight:800!important; }
@@ -3906,32 +3915,9 @@ function openPatientViewModal(patient) {
         <!-- ════ SIDEBAR ════ -->
         <div class="gc-pv-sb">
 
-          <!-- ── Consulta Médica + Documentação (apenas médicos) ── -->
+          <!-- ── Meios Complementares (apenas médicos) ── -->
           ${isDoctor() ? `
-            <div class="gc-sb-lbl" style="margin-top:4px;">Consulta Médica</div>
-
-            <button id="btnNewConsult" class="gc-sb-btn" style="background:#0f766e;border-color:#0f766e;color:#fff;font-weight:700;">
-              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 5h4M5 7.5h4M5 10h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M11 10v4M9 12h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-              <span>Iniciar Consulta</span>
-            </button>
-
-            <button id="btnExameObjectivo" class="gc-sb-btn">
-              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5 7h4M7 5v4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-              <span>Exame Objectivo</span>
-            </button>
-
-            <button id="btnProtocolos" class="gc-sb-btn">
-              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="2" width="10" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 5h5M4.5 7.5h5M4.5 10h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M12 9v5M9.5 11.5h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-              <span>Protocolos</span>
-            </button>
-
-            <button id="btnEvolucao" class="gc-sb-btn">
-              <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><polyline points="2,12 5,8 8,10 11,5 14,7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              <span>Evolução</span>
-            </button>
-
-            <div class="gc-sb-div"></div>
-            <div class="gc-sb-lbl">Meios Complementares</div>
+            <div class="gc-sb-lbl" style="margin-top:4px;">Meios Complementares</div>
 
             <button id="btnComplementaryExams" class="gc-sb-btn ${examsUiState?.isOpen ? 'gc-sb-btn--active' : ''}">
               <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="1" y="5" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 5V3.5a3 3 0 016 0V5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="9.5" r="1.2" fill="currentColor"/></svg>
@@ -4077,6 +4063,28 @@ function openPatientViewModal(patient) {
               ${ageTextToday() !== '—' ? `<div><b>Idade:</b> ${escAttr(ageTextToday())}</div>` : ''}
             </div>
           </div>
+
+          <!-- ── Tabs de navegação do doente ── -->
+          ${isDoctor() ? `
+          <div class="gc-pv-tabs">
+            <button class="gc-pv-tab-iniciar" id="btnNewConsult">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="1" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 5h4M5 7.5h4M5 10h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M11 10v4M9 12h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              Iniciar Consulta
+            </button>
+            <button class="gc-pv-tab" id="btnExameObjectivo">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5 7h4M7 5v4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              Exame Objectivo
+            </button>
+            <button class="gc-pv-tab" id="btnProtocolos">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 5.5h7M4.5 8h7M4.5 10.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              Protocolos
+            </button>
+            <button class="gc-pv-tab" id="btnEvolucao">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><polyline points="2,12 5,8 8,10 11,5 14,7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Evolução
+            </button>
+          </div>
+          ` : ''}
 
           ${creatingConsult ? renderConsultFormInline() : ""}
 
