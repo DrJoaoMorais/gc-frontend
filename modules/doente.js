@@ -2581,68 +2581,84 @@ function openPatientViewModal(patient) {
     function docStyle(title) {
       const t = String(title || "").toLowerCase();
       if (t.startsWith("pedido de exame"))
-        return { border: "#bcd4f5", bg: "#f0f6ff", badge: "#1d6db5", label: "Exame" };
+        return { bg: "#dbeafe", color: "#1d4ed8", label: "Exame" };
       if (t.startsWith("análise") || t.startsWith("analise"))
-        return { border: "#b8e0c8", bg: "#f0faf4", badge: "#1a7a45", label: "Análise" };
+        return { bg: "#f3e8ff", color: "#7e22ce", label: "Análises" };
+      if (t.startsWith("prp") || t.startsWith("visco"))
+        return { bg: "#fef3c7", color: "#b45309", label: "PRP / Visco" };
+      if (t.startsWith("atestado"))
+        return { bg: "#dcfce7", color: "#15803d", label: "Atestado" };
       if (t.startsWith("relatório") || t.startsWith("relatorio"))
-        return { border: "#e2e8f0", bg: "#f8fafc", badge: "#475569", label: "Relatório" };
-      return { border: "#e2e8f0", bg: "#f8fafc", badge: "#475569", label: "Documento" };
+        return { bg: "#dbeafe", color: "#1d4ed8", label: "Relatório" };
+      return { bg: "#f1f5f9", color: "#475569", label: "Documento" };
     }
 
+    const _docsId = 'docs-' + Math.random().toString(36).slice(2,8);
     return `
-      <div style="margin-top:12px;">
-        <div style="font-weight:900;">Documentos:</div>
-        <div style="margin-top:8px; display:flex; flex-direction:column; gap:8px;">
-          ${docs.map(d => {
+      <div style="margin-top:14px; border-top:1px solid #f0f4f8; padding-top:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <span style="font-size:10px; font-weight:700; letter-spacing:0.08em; color:#8a94a6; text-transform:uppercase;">Documentos · ${docs.length}</span>
+          ${docs.length > 3 ? `<span id="${_docsId}-toggle" onclick="(function(){var el=document.getElementById('${_docsId}-extra');var tog=document.getElementById('${_docsId}-toggle');var open=el.style.display!=='none';el.style.display=open?'none':'flex';tog.textContent=open?'▼ ver mais ('+(${docs.length}-3)+')':'▲ recolher';})()" style="font-size:11px;color:#1a56db;cursor:pointer;font-weight:500;">▼ ver mais (${docs.length - 3})</span>` : ''}
+        </div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          ${docs.slice(0,3).map(d => {
             const s = docStyle(d.title);
+            const _dDate = d.created_at ? new Date(d.created_at) : new Date();
+            const _ymd = `${_dDate.getFullYear()}-${String(_dDate.getMonth()+1).padStart(2,'0')}-${String(_dDate.getDate()).padStart(2,'0')}`;
+            const _words = (p.full_name || '').trim().split(/\s+/);
+            const _initials = (_words.length >= 2
+              ? (_words[0][0] + _words[_words.length - 1][0])
+              : (_words[0] ? _words[0].slice(0,2) : 'XX')
+            ).toUpperCase();
+            const _clinic = (activeClinicName || '').replace(/[^a-zA-Z0-9À-ÿ]/g, '').slice(0,12) || 'Clinica';
+            const _dlName = `GCC_${_initials}_${_clinic}_${_ymd}.pdf`;
+            const _dateStr = (() => { try { const _d = d.created_at ? new Date(d.created_at) : null; return (_d && !isNaN(_d.getTime())) ? `${fmtDatePt(_d)} às ${fmtTime(_d)}` : (d.created_at ? escAttr(String(d.created_at)) : ""); } catch(_) { return d.created_at ? escAttr(String(d.created_at)) : ""; } })();
             return `
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;
-                        padding:10px 12px;
-                        border:1px solid ${s.border};
-                        background:${s.bg};
-                        border-radius:12px;">
-              <div style="display:flex; flex-direction:column; gap:2px;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <span style="
-                    font-size:11px;
-                    font-weight:700;
-                    color:${s.badge};
-                    background:${s.border};
-                    padding:2px 8px;
-                    border-radius:20px;
-                    text-transform:uppercase;
-                    letter-spacing:0.4px;
-                  ">${s.label}</span>
-                  <span style="font-weight:900;">
-                    ${escAttr(d.title || "Documento")}
-                    ${d.version ? `<span style="color:#64748b; font-size:12px; font-weight:400;">(v${escAttr(String(d.version))})</span>` : ``}
-                  </span>
-                </div>
-                <div style="color:#94a3b8; font-size:12px; margin-left:2px;">
-                  ${(() => { try { const _d = d.created_at ? new Date(d.created_at) : null; return (_d && !isNaN(_d.getTime())) ? `${fmtDatePt(_d)} às ${fmtTime(_d)}` : (d.created_at ? escAttr(String(d.created_at)) : ""); } catch(_) { return d.created_at ? escAttr(String(d.created_at)) : ""; } })()}
-                </div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;
+                        padding:5px 2px;
+                        border-bottom:1px solid #f0f4f8;">
+              <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
+                <span style="flex-shrink:0;font-size:9px;font-weight:700;color:${s.color};background:${s.bg};padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap;">${s.label}</span>
+                <span style="font-size:13px; font-weight:500; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                  ${escAttr(d.title || "Documento")}${d.version ? ` <span style="color:#94a3b8; font-size:11px; font-weight:400;">v${escAttr(String(d.version))}</span>` : ""}
+                </span>
+                <span style="color:#94a3b8; font-size:11px; white-space:nowrap; flex-shrink:0;">· ${_dateStr}</span>
               </div>
-              <div style="display:flex; gap:8px;">
+              <div style="flex-shrink:0;">
                 ${d.url
-                  ? (() => {
-                      const _dDate = d.created_at ? new Date(d.created_at) : new Date();
-                      const _ymd = `${_dDate.getFullYear()}-${String(_dDate.getMonth()+1).padStart(2,'0')}-${String(_dDate.getDate()).padStart(2,'0')}`;
-                      const _words = (p.full_name || '').trim().split(/\s+/);
-                      const _initials = (_words.length >= 2
-                        ? (_words[0][0] + _words[_words.length - 1][0])
-                        : (_words[0] ? _words[0].slice(0,2) : 'XX')
-                      ).toUpperCase();
-                      const _clinic = (activeClinicName || '').replace(/[^a-zA-Z0-9À-ÿ]/g, '').slice(0,20) || 'Clinica';
-                      const _dlName = `GCC_${_initials}_${_clinic}_${_ymd}.pdf`;
-                      return `<a class="gcBtn" href="${escAttr(d.url)}" target="_blank" rel="noopener" style="text-decoration:none;">Abrir</a>`;
-                    })()
-                  : `<button class="gcBtn" disabled>Sem link</button>`
+                  ? `<a href="${escAttr(d.url)}" target="_blank" rel="noopener" download="${escAttr(_dlName)}" style="text-decoration:none; font-size:12px; font-weight:600; color:#1a56db;">Abrir</a>`
+                  : `<span style="font-size:12px; color:#94a3b8;">Sem link</span>`
                 }
               </div>
             </div>
           `;
           }).join("")}
         </div>
+        ${docs.length > 3 ? `<div id="${_docsId}-extra" style="display:none; flex-direction:column; gap:4px; margin-top:4px;">
+          ${docs.slice(3).map(d => {
+            const s = docStyle(d.title);
+            const _dDate = d.created_at ? new Date(d.created_at) : new Date();
+            const _ymd = `${_dDate.getFullYear()}-${String(_dDate.getMonth()+1).padStart(2,'0')}-${String(_dDate.getDate()).padStart(2,'0')}`;
+            const _words = (p.full_name || '').trim().split(/\s+/);
+            const _initials = (_words.length >= 2 ? (_words[0][0] + _words[_words.length-1][0]) : (_words[0] ? _words[0].slice(0,2) : 'XX')).toUpperCase();
+            const _clinic = (activeClinicName || '').replace(/[^a-zA-Z0-9À-ÿ]/g, '').slice(0,12) || 'Clinica';
+            const _dlName = `GCC_${_initials}_${_clinic}_${_ymd}.pdf`;
+            const _dateStr = (() => { try { const _d = d.created_at ? new Date(d.created_at) : null; return (_d && !isNaN(_d.getTime())) ? `${fmtDatePt(_d)} às ${fmtTime(_d)}` : (d.created_at ? escAttr(String(d.created_at)) : ""); } catch(_) { return d.created_at ? escAttr(String(d.created_at)) : ""; } })();
+            return `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;
+                        padding:5px 2px;
+                        border-bottom:1px solid #f0f4f8;">
+              <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
+                <span style="flex-shrink:0;font-size:9px;font-weight:700;color:${s.color};background:${s.bg};padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap;">${s.label}</span>
+                <span style="font-size:13px;font-weight:500;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escAttr(d.title || "Documento")}${d.version ? ` <span style="color:#94a3b8;font-size:11px;font-weight:400;">v${escAttr(String(d.version))}</span>` : ""}</span>
+                <span style="color:#94a3b8;font-size:11px;white-space:nowrap;flex-shrink:0;">· ${_dateStr}</span>
+              </div>
+              <div style="flex-shrink:0;">
+                ${d.url ? `<a href="${escAttr(d.url)}" target="_blank" rel="noopener" download="${escAttr(_dlName)}" style="text-decoration:none;font-size:12px;font-weight:600;color:#1a56db;">Abrir</a>` : `<span style="font-size:12px;color:#94a3b8;">Sem link</span>`}
+              </div>
+            </div>`;
+          }).join("")}
+        </div>` : ''}
       </div>
     `;
   }
