@@ -2582,14 +2582,14 @@ function openPatientViewModal(patient) {
       const t = String(title || "").toLowerCase();
       if (t.startsWith("pedido de exame"))
         return { bg: "#dbeafe", color: "#1d4ed8", label: "Exame" };
-      if (t.startsWith("análise") || t.startsWith("analise"))
+      if (t.startsWith("análise") || t.startsWith("analise") || t.startsWith("pedido de análise") || t.startsWith("pedido de analise"))
         return { bg: "#f3e8ff", color: "#7e22ce", label: "Análises" };
       if (t.startsWith("prp") || t.startsWith("visco"))
         return { bg: "#fef3c7", color: "#b45309", label: "PRP / Visco" };
       if (t.startsWith("atestado"))
         return { bg: "#dcfce7", color: "#15803d", label: "Atestado" };
       if (t.startsWith("relatório") || t.startsWith("relatorio"))
-        return { bg: "#dbeafe", color: "#1d4ed8", label: "Relatório" };
+        return { bg: "#e8eef7", color: "#0f2d52", label: "Relatório" };
       return { bg: "#f1f5f9", color: "#475569", label: "Documento" };
     }
 
