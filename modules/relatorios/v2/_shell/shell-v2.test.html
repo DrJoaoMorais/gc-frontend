@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <title>Shell v2 · Teste</title>
+  <link rel="stylesheet" href="./shell-v2.css">
+</head>
+<body class="gcv2-test-wrapper">
+  <div class="gcv2-test-banner">
+    🧪 <strong>Teste isolado do Shell v2</strong> — carrega clínica activa + médico logado + vinheta do Supabase.
+    Esta página não está integrada com o GC: serve apenas para validar o shell visual.
+  </div>
+  <div id="render-target" style="font-family: 'Outfit', sans-serif; text-align: center; padding: 80px;">
+    A carregar...
+  </div>
+
+  <!-- Carrega Supabase + helpers globais do GC -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../../../config.js"></script>
+
+  <script type="module">
+    import {
+      buildShellV2,
+      loadActiveClinic,
+      loadCurrentDoctor,
+      getVinhetaDataUrl
+    } from './shell-v2.js';
+
+    (async () => {
+      const target = document.getElementById('render-target');
+
+      // Inicializa cliente Supabase como no app.html
+      if (!window.sb) {
+        if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
+          target.innerHTML = '<p style="color:red">⚠️ config.js não carregou as variáveis SUPABASE_URL / SUPABASE_ANON_KEY.</p>';
+          return;
+        }
+        window.sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+      }
+
+      // Verificar autenticação
+      const { data: { user } } = await window.sb.auth.getUser();
+      if (!user) {
+        target.innerHTML = `
+          <p style="color: #92400e;">
+            ⚠️ Não estás autenticado.<br><br>
+            Abre primeiro o GC normal em <a href="../../../../app.html">app.html</a>,
+            faz login, e volta a esta página.
+          </p>`;
+        return;
+      }
+
+      // Carregar dados
+      const clinic = await loadActiveClinic();
+      const doctor = await loadCurrentDoctor();
+      const vinhetaUrl = await getVinhetaDataUrl();
+
+      if (!clinic) {
+        target.innerHTML = '<p style="color:red">⚠️ Não foi possível carregar uma clínica activa.</p>';
+        return;
+      }
+
+      const html = buildShellV2({
+        clinic,
+        doctor,
+        config: {
+          kicker: 'Medicina Física & Reabilitação',
+          title: 'Teste do Shell v2',
+          date: new Date().toISOString().slice(0, 10),
+          vinhetaUrl
+        },
+        contentHtml: `
+          <div style="padding: 60px 0; text-align: center; color: #8a8a8a;">
+            <p style="font-family: 'Cormorant Garamond', serif; font-size: 18px; color: #0f2d52; margin-bottom: 16px;">
+              ✓ Shell v2 a funcionar
+            </p>
+            <p style="font-size: 13px;">
+              Conteúdo central — será preenchido pelos componentes nos passos 2 a 6.
+            </p>
+            <p style="font-size: 11px; color: #b0b0b0; margin-top: 20px;">
+              Clínica: ${clinic.display_name || clinic.name}<br>
+              Médico: ${doctor?.nome_completo || 'desconhecido'}<br>
+              Vinheta: ${vinhetaUrl ? '✓ carregada' : '✗ não carregou'}
+            </p>
+          </div>
+        `
+      });
+
+      target.outerHTML = html;
+    })();
+  </script>
+</body>
+</html>
