@@ -3963,6 +3963,8 @@ function openPatientViewModal(patient) {
               <span>Rel. Médico Evolutivo</span>
             </button>
 
+            <button id="btnTesteShellV2" class="gc-sb-btn" data-feature="teste-shell-v2" title="Teste isolado do Shell v2 — abre um modal com o novo design (não toca em consulta)">🧪 Teste Shell v2</button>
+
             <div class="gc-sb-div"></div>
             <div class="gc-sb-lbl">Atestados</div>
 
@@ -4374,6 +4376,61 @@ function openPatientViewModal(patient) {
 
       document.getElementById("btnRelatorioEvolutivo")?.addEventListener("click", () => {
         alert("Relatório Médico Evolutivo — em construção");
+      });
+
+      document.getElementById("btnTesteShellV2")?.addEventListener("click", async () => {
+        const { buildShellV2, loadActiveClinic, loadCurrentDoctor, getVinhetaDataUrl } =
+          await import("./relatorios/v2/_shell/shell-v2.js");
+
+        if (!document.querySelector('link[data-gcv2-shell]')) {
+          const lnk = document.createElement("link");
+          lnk.rel = "stylesheet";
+          lnk.href = new URL("./relatorios/v2/_shell/shell-v2.css", import.meta.url).href;
+          lnk.dataset.gcv2Shell = "1";
+          document.head.appendChild(lnk);
+        }
+
+        const [clinic, doctor, vinhetaUrl] = await Promise.all([
+          loadActiveClinic(),
+          loadCurrentDoctor(),
+          getVinhetaDataUrl(),
+        ]);
+
+        const contentHtml = `
+          <div style="padding:40px 0;text-align:center;color:#8a8a8a;">
+            <p style="font-family:'Cormorant Garamond',serif;font-size:18px;color:#0f2d52;margin-bottom:16px;">✓ Shell v2 a funcionar</p>
+            <p style="font-size:13px;">Clínica: <strong>${clinic?.display_name || clinic?.name || "—"}</strong></p>
+            <p style="font-size:13px;">Médico: <strong>${doctor?.nome_completo || "—"}</strong></p>
+            <p style="font-size:13px;">Vinheta: <strong>${vinhetaUrl ? "✓ carregada" : "✗ não carregou"}</strong></p>
+          </div>`;
+
+        const shellHtml = buildShellV2({
+          clinic, doctor,
+          config: { kicker: "Medicina Física & Reabilitação", title: "Teste do Shell v2",
+                    date: new Date().toISOString().slice(0, 10), vinhetaUrl },
+          contentHtml,
+        });
+
+        const overlay = document.createElement("div");
+        Object.assign(overlay.style, {
+          position: "fixed", inset: "0", zIndex: "9999",
+          background: "rgba(15,23,42,0.65)",
+          display: "flex", alignItems: "flex-start", justifyContent: "center",
+          padding: "20px", overflowY: "auto",
+        });
+        overlay.innerHTML = `
+          <div style="position:relative;width:min(220mm,98vw);">
+            <button id="gcv2TestClose" style="position:fixed;top:16px;right:20px;z-index:10000;
+              background:#fff;border:none;border-radius:50%;width:32px;height:32px;
+              font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3);
+              display:flex;align-items:center;justify-content:center;">×</button>
+            ${shellHtml}
+          </div>`;
+        document.body.appendChild(overlay);
+
+        const close = () => overlay.remove();
+        document.getElementById("gcv2TestClose")?.addEventListener("click", close);
+        overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
       });
 
       document.getElementById("btnAtestadoDoenca")?.addEventListener("click", () => {
