@@ -4379,7 +4379,7 @@ function openPatientViewModal(patient) {
       });
 
       document.getElementById("btnTesteShellV2")?.addEventListener("click", async () => {
-        const { buildShellV2, loadActiveClinic, loadCurrentDoctor, getVinhetaDataUrl } =
+        const { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl } =
           await import("./relatorios/v2/_shell/shell-v2.js");
 
         if (!document.querySelector('link[data-gcv2-shell]')) {
@@ -4391,7 +4391,11 @@ function openPatientViewModal(patient) {
         }
 
         const [clinic, doctor, vinhetaUrl] = await Promise.all([
-          loadActiveClinic(),
+          (async () => {
+            const cid = consultRows?.[0]?.clinic_id || null;
+            if (!cid) { console.warn('[teste-shell-v2] doente sem clinic_id na última consulta'); return null; }
+            return await loadClinicById(cid);
+          })(),
           loadCurrentDoctor(),
           getVinhetaDataUrl(),
         ]);
