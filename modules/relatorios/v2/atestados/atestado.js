@@ -64,7 +64,7 @@ function ensureAtestadoCss() {
   document.head.appendChild(lnk);
 }
 
-async function loadLastConsultClinicId(patientId) {
+async function loadLastConsult(patientId) {
   const { data, error } = await window.sb
     .from('consultations')
     .select('id, clinic_id, report_date, created_at')
@@ -74,7 +74,7 @@ async function loadLastConsultClinicId(patientId) {
     .limit(1)
     .maybeSingle();
   if (error) { console.error('[atestado] erro a obter última consulta:', error); return null; }
-  return data?.clinic_id || null;
+  return data || null;
 }
 
 async function loadPatient(patientId) {
@@ -140,7 +140,9 @@ export async function openAtestadoModal({ tipo = 'doenca', patientId, onClose } 
   ensureAtestadoCss();
 
   // Carregar contexto em paralelo
-  const clinicId = await loadLastConsultClinicId(patientId);
+  const lastConsult = await loadLastConsult(patientId);
+  const clinicId = lastConsult?.clinic_id || null;
+  const consultationId = lastConsult?.id || null;
   const [patient, clinic, doctor, vinhetaUrl] = await Promise.all([
     loadPatient(patientId),
     clinicId ? loadClinicById(clinicId) : Promise.resolve(null),
@@ -332,6 +334,7 @@ export async function openAtestadoModal({ tipo = 'doenca', patientId, onClose } 
       const { error: insErr } = await window.sb.from('documents').insert({
         patient_id: patientId,
         clinic_id: clinic?.id || null,
+        consultation_id: consultationId,
         category: cfg.categoria,
         title: cfg.titulo,
         storage_path: path,
