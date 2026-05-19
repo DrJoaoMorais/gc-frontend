@@ -3978,6 +3978,16 @@ function openPatientViewModal(patient) {
               <span>Atestado Ed. Física</span>
             </button>
 
+            <button id="btnAtestadoDoencaV2" class="gc-sb-btn">
+              <span style="margin-right:6px;">🧪</span>
+              <span>Atestado Doença v2</span>
+            </button>
+
+            <button id="btnAtestadoEdfisicaV2" class="gc-sb-btn">
+              <span style="margin-right:6px;">🧪</span>
+              <span>Atestado Ed. Física v2</span>
+            </button>
+
             <button id="btnExameDesportivo" class="gc-sb-btn ${exameDesportivoUiState?.isOpen ? 'gc-sb-btn--active' : ''}">
               <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 5.5h4M4.5 8h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M9.5 9.5l1.2 1.5 2-2.5" stroke="#4a9a30" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <span>Exame Médico Desportivo</span>
@@ -4443,6 +4453,16 @@ function openPatientViewModal(patient) {
 
       document.getElementById("btnAtestadoEdfisica")?.addEventListener("click", () => {
         openReportTemplate("atestado_ef");
+      });
+
+      document.getElementById("btnAtestadoDoencaV2")?.addEventListener("click", async () => {
+        const { openAtestadoModal } = await import("./relatorios/v2/atestados/atestado.js");
+        await openAtestadoModal({ tipo: 'doenca', patientId: p.id, onClose: () => render() });
+      });
+
+      document.getElementById("btnAtestadoEdfisicaV2")?.addEventListener("click", async () => {
+        const { openAtestadoModal } = await import("./relatorios/v2/atestados/atestado.js");
+        await openAtestadoModal({ tipo: 'edfisica', patientId: p.id, onClose: () => render() });
       });
 
       document.getElementById("btnHistoricoDocumentos")?.addEventListener("click", () => {
