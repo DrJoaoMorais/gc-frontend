@@ -67,9 +67,10 @@ function ensureAtestadoCss() {
 async function loadLastConsultClinicId(patientId) {
   const { data, error } = await window.sb
     .from('consultations')
-    .select('id, clinic_id, started_at')
+    .select('id, clinic_id, report_date, created_at')
     .eq('patient_id', patientId)
-    .order('started_at', { ascending: false })
+    .order('report_date', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) { console.error('[atestado] erro a obter última consulta:', error); return null; }
@@ -301,14 +302,18 @@ export async function openAtestadoModal({ tipo = 'doenca', patientId, onClose } 
 
       const fullHtml = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}</body></html>`;
 
-      const resp = await fetch('https://gc-pdf-proxy.dr-joao-morais.workers.dev/', {
+      const resp = await fetch('https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ html: fullHtml, filename: `${cfg.categoria}_${patient?.full_name || 'doente'}.pdf` }),
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ html: fullHtml }),
       });
 
-      if (!resp.ok) throw new Error(`PDF worker erro ${resp.status}`);
-      const blob = await resp.blob();
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => '');
+        throw new Error(`PDF worker erro ${resp.status}: ${errText.slice(0, 200)}`);
+      }
+      const buf = await resp.arrayBuffer();
+      const blob = new Blob([buf], { type: 'application/pdf' });
 
       // Abrir numa nova aba
       const url = URL.createObjectURL(blob);
