@@ -4457,12 +4457,12 @@ function openPatientViewModal(patient) {
 
       document.getElementById("btnAtestadoDoencaV2")?.addEventListener("click", async () => {
         const { openAtestadoModal } = await import("./relatorios/v2/atestados/atestado.js");
-        await openAtestadoModal({ tipo: 'doenca', patientId: p.id, onClose: () => render() });
+        await openAtestadoModal({ tipo: 'doenca', patientId: p.id, onClose: async () => { await loadDocuments(); render(); } });
       });
 
       document.getElementById("btnAtestadoEdfisicaV2")?.addEventListener("click", async () => {
         const { openAtestadoModal } = await import("./relatorios/v2/atestados/atestado.js");
-        await openAtestadoModal({ tipo: 'edfisica', patientId: p.id, onClose: () => render() });
+        await openAtestadoModal({ tipo: 'edfisica', patientId: p.id, onClose: async () => { await loadDocuments(); render(); } });
       });
 
       document.getElementById("btnHistoricoDocumentos")?.addEventListener("click", () => {
