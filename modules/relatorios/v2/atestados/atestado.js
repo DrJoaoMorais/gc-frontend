@@ -320,7 +320,8 @@ export async function openAtestadoModal({ tipo = 'doenca', patientId, onClose } 
       window.open(url, '_blank');
 
       // Guardar em documents/
-      const fileName = `${cfg.categoria}_${state.signDate}.pdf`;
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      const fileName = `${cfg.categoria}_${state.signDate}_${ts}.pdf`;
       const path = `clinic_${clinic?.id || 'unknown'}/patient_${patientId}/atestados/${fileName}`;
       const { error: upErr } = await window.sb.storage.from('documents').upload(path, blob, {
         contentType: 'application/pdf',
@@ -332,9 +333,9 @@ export async function openAtestadoModal({ tipo = 'doenca', patientId, onClose } 
         patient_id: patientId,
         clinic_id: clinic?.id || null,
         category: cfg.categoria,
-        file_path: path,
         title: cfg.titulo,
-        created_by: doctor?.id || null,
+        storage_path: path,
+        version: 1,
       });
       if (insErr) console.warn('[atestado] insert documents falhou:', insErr);
 
