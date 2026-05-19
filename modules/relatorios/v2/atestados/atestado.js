@@ -22,10 +22,10 @@ const TIPOS = {
     titulo: 'Atestado de Doença',
     categoria: 'atestado_doenca',
     impossOptions: [
-      'actividade laboral',
-      'frequência das aulas',
-      'prática desportiva',
-      'condução de veículos',
+      { label: 'actividade laboral',     prep: 'da' },
+      { label: 'frequência das aulas',   prep: 'da' },
+      { label: 'prática desportiva',     prep: 'da' },
+      { label: 'condução de veículos',   prep: 'da' },
     ],
     impossDefault: 'actividade laboral',
   },
@@ -33,13 +33,15 @@ const TIPOS = {
     titulo: 'Atestado de Educação Física',
     categoria: 'atestado_edfisica',
     impossOptions: [
-      'aulas práticas de educação física',
-      'aulas de educação física e desporto escolar',
-      'exercício físico em geral',
+      { label: 'aulas práticas de educação física',            prep: 'das' },
+      { label: 'aulas de educação física e desporto escolar',  prep: 'das' },
+      { label: 'exercício físico em geral',                    prep: 'do' },
     ],
     impossDefault: 'aulas práticas de educação física',
   },
 };
+
+const PREP_OUTRO = 'de';
 
 // -----------------------------------------------------------------
 // Helpers
@@ -87,7 +89,7 @@ async function loadPatient(patientId) {
 // -----------------------------------------------------------------
 // Corpo do atestado (texto formal)
 // -----------------------------------------------------------------
-function buildAtestadoBody({ doctor, patient, tipoImpossibilidade, motivo, periodoTexto }) {
+function buildAtestadoBody({ doctor, patient, tipoImpossibilidade, prepImpossibilidade = 'de', motivo, periodoTexto }) {
   const doutor   = escHtml(doctor?.nome_completo || '—');
   const om       = escHtml(doctor?.numero_ordem || '—');
   const esp      = escHtml(doctor?.especialidade || '');
@@ -96,6 +98,7 @@ function buildAtestadoBody({ doctor, patient, tipoImpossibilidade, motivo, perio
   const sexo     = (patient?.sex || '').toLowerCase();
   const artigo   = sexo === 'f' ? 'a' : 'o';
   const impos    = escHtml(tipoImpossibilidade || '—');
+  const prep     = escHtml(prepImpossibilidade || 'de');
   const mot      = motivo && motivo.trim() ? ` por ${escHtml(motivo.trim())}` : '';
   const periodo  = escHtml(periodoTexto || '');
 
@@ -113,7 +116,7 @@ function buildAtestadoBody({ doctor, patient, tipoImpossibilidade, motivo, perio
 
       <p class="gcv2-at-frase">
         atesto por minha honra que ${artigo} <strong>${paciente}</strong>
-        se encontra impossibilitad${artigo} de <strong>${impos}</strong>${mot}
+        se encontra impossibilitad${artigo} ${prep} <strong>${impos}</strong>${mot}
         <strong>${periodo}</strong>.
       </p>
 
@@ -169,7 +172,7 @@ export async function openAtestadoModal({ tipo = 'doenca', patientId, onClose } 
           <label class="gcv2-at-field">
             <span>Tipo de impossibilidade</span>
             <select id="gcv2-at-impos">
-              ${cfg.impossOptions.map(o => `<option value="${escAttr(o)}" ${o === state.tipoImpossibilidade ? 'selected' : ''}>${escHtml(o)}</option>`).join('')}
+              ${cfg.impossOptions.map(o => `<option value="${escAttr(o.label)}" data-prep="${escAttr(o.prep)}" ${o.label === state.tipoImpossibilidade ? 'selected' : ''}>${escHtml(o.label)}</option>`).join('')}
               <option value="__outro__">outro…</option>
             </select>
           </label>
@@ -215,11 +218,18 @@ export async function openAtestadoModal({ tipo = 'doenca', patientId, onClose } 
       : state.tipoImpossibilidade;
   }
 
+  function getEffectivePrep() {
+    if (state.tipoImpossibilidade === '__outro__') return PREP_OUTRO;
+    const opt = cfg.impossOptions.find(o => o.label === state.tipoImpossibilidade);
+    return opt?.prep || 'de';
+  }
+
   function renderPreview() {
     const body = buildAtestadoBody({
       doctor,
       patient,
       tipoImpossibilidade: getEffectiveImpos(),
+      prepImpossibilidade: getEffectivePrep(),
       motivo: state.motivo,
       periodoTexto: formatPeriodPt(state.period),
     });
