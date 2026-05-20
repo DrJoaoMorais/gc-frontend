@@ -1,0 +1,110 @@
+/* =================================================================
+   relatorio-consulta.css  ·  Relatório de Consulta v2
+   Estilos específicos do relatório. O modal overlay/split/form
+   é gerido pelo atestado.css (carregado em paralelo).
+   ================================================================= */
+
+/* -------- Modal — ajuste de largura -------- */
+.gcv2-rc-modal {
+  max-width: 1400px;
+  width: 95vw;
+}
+
+/* -------- Textarea no formulário -------- */
+.gcv2-atestado-form textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+  box-sizing: border-box;
+  resize: vertical;
+  line-height: 1.5;
+}
+.gcv2-atestado-form textarea:focus {
+  outline: none;
+  border-color: #1a56db;
+  box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.15);
+}
+
+/* -------- Blocos só-leitura (Dx, Plano) -------- */
+.gcv2-rc-readonly-block {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-left: 3px solid #cbd5e1;
+  border-radius: 4px;
+}
+
+.gcv2-rc-readonly-block .gcv2-at-field-label {
+  display: block;
+  font-size: 0.85rem;
+  color: #475569;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.gcv2-rc-list {
+  font-size: 0.9rem;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.gcv2-rc-list em {
+  color: #94a3b8;
+}
+
+/* -------- Conteúdo do relatório (preview, dentro do shell) -------- */
+.gcv2-rc-content {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 14pt;
+  color: #1e293b;
+  line-height: 1.5;
+}
+
+.gcv2-rc-section {
+  margin-top: 1.5rem;
+}
+
+.gcv2-rc-section:first-child {
+  margin-top: 1rem;
+}
+
+.gcv2-rc-h3 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 11pt;
+  font-weight: 600;
+  color: #0f2d52;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.5rem 0;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.gcv2-rc-prose {
+  font-size: 12pt;
+  line-height: 1.65;
+  margin-bottom: 0.5rem;
+}
+
+.gcv2-rc-list-ul {
+  font-size: 12pt;
+  margin: 0.25rem 0 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.gcv2-rc-list-ul li {
+  margin-bottom: 0.2rem;
+}
+
+/* -------- Patient card dentro do relatório -------- */
+.gcv2-rc-content .gcv2-patient-card {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border-radius: 6px;
+  border-left: 3px solid #1a56db;
+}
