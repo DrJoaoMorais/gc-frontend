@@ -149,6 +149,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
 
 /* TOPBAR */
 .gc-topbar{height:52px;background:#fff;border-bottom:0.5px solid #e2e8f0;display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;}
+.gc-topbar-logo{height:36px;width:auto;object-fit:contain;flex-shrink:0;}
 .gc-topbar-user{font-size:13px;font-weight:600;color:#0f2d52;}
 .gc-topbar-role{font-size:11.5px;color:#94a3b8;}
 .gc-topbar-spacer{flex:1;}
@@ -251,6 +252,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
 
     <!-- TOPBAR -->
     <header class="gc-topbar">
+      <img src="/assets/vinheta.png" class="gc-topbar-logo" alt="Logotipo da clínica">
       <span class="gc-topbar-user" id="hdrEmail"></span>
       <span class="gc-topbar-role" id="hdrRole"></span>
       <div class="gc-topbar-spacer"></div>
