@@ -70,13 +70,47 @@ async function loadPatient(patientId) {
 }
 
 async function loadDiagnoses(consultationId) {
-  // Diagnósticos ligados à consulta — a implementar no 3.5.b/c.
-  return [];
+  const { data: links, error } = await window.sb
+    .from("consultation_diagnoses")
+    .select("diagnosis_id")
+    .eq("consultation_id", consultationId);
+  if (error || !links?.length) return [];
+
+  const ids = [...new Set(links.map(l => l.diagnosis_id).filter(Boolean))];
+  if (!ids.length) return [];
+
+  const { data: cat } = await window.sb
+    .from("diagnoses_catalog")
+    .select("id, code, label")
+    .in("id", ids);
+
+  return (cat || []).map(d => ({ id: d.id, code: d.code || "", label: d.label || "" }));
 }
 
 async function loadPlano(consultationId) {
-  // Tratamentos do plano — a implementar no 3.5.b/c.
-  return [];
+  const { data: links, error } = await window.sb
+    .from("consultation_treatments")
+    .select("treatment_id, qty")
+    .eq("consultation_id", consultationId);
+  if (error || !links?.length) return [];
+
+  const ids = [...new Set(links.map(l => l.treatment_id).filter(Boolean))];
+  if (!ids.length) return [];
+
+  const { data: cat } = await window.sb
+    .from("treatments_catalog")
+    .select("id, label, sort_order")
+    .in("id", ids);
+
+  const byId = Object.fromEntries((cat || []).map(t => [t.id, t]));
+  return links
+    .map(l => ({
+      id: l.treatment_id,
+      label: byId[l.treatment_id]?.label || "",
+      qty: l.qty || null,
+      sort_order: byId[l.treatment_id]?.sort_order ?? 999
+    }))
+    .sort((a, b) => a.sort_order - b.sort_order);
 }
 
 // -----------------------------------------------------------------
@@ -181,7 +215,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     const hdaHtml = state.hda && state.hda.trim()
       ? `<section class="gcv2-rc-section">
            <h3 class="gcv2-rc-h3">Anamnese / História da Doença Actual</h3>
-           <div class="gcv2-rc-prose">${escHtml(state.hda).replace(/\n/g, '<br>')}</div>
+           <div class="gcv2-rc-prose">${window.gcv2SanitizeHTML(state.hda)}</div>
          </section>`
       : '';
 
