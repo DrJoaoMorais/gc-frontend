@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <title>Relatório de Consulta v2 · Teste</title>
+</head>
+<body class="gcv2-test-wrapper">
+  <div class="gcv2-test-banner" style="background:#fef3c7;padding:12px 16px;font-family:'Outfit',sans-serif;font-size:13px;color:#92400e;">
+    🧪 <strong>Teste isolado do Relatório de Consulta v2</strong> — abre o modal com uma consulta real.
+    Página não integrada com o GC: serve apenas para validar o relatório.
+  </div>
+  <div id="status" style="font-family:'Outfit',sans-serif;text-align:center;padding:40px;color:#0f2d52;">
+    A carregar…
+  </div>
+
+  <!-- Scripts clássicos: Supabase + config + utilitários globais do v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.SUPABASE_URL = "https://nxfnzzcuqzxmzsihbrtp.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA";
+    window.sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  </script>
+  <script src="../_utils/sanitize.js"></script>
+  <script src="../_renderers/ombro-render.js"></script>
+
+  <!-- Módulo ES6: importa e chama o relatório -->
+  <script type="module">
+    import { openRelatorioConsultaModal } from './relatorio-consulta.js';
+
+    (async () => {
+      const status = document.getElementById('status');
+
+      // Inicializa cliente Supabase (igual ao app.html / shell-v2.test)
+      if (!window.sb) {
+        if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
+          status.innerHTML = '⚠️ config.js não carregou SUPABASE_URL / SUPABASE_ANON_KEY.';
+          return;
+        }
+        window.sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+      }
+
+      // Verifica autenticação
+      const { data: { user } } = await window.sb.auth.getUser();
+      if (!user) {
+        status.innerHTML =
+          '⚠️ Não estás autenticado.<br><br>Abre primeiro o GC em ' +
+          '<a href="../../../../app.html">app.html</a>, faz login, e volta a esta página.';
+        return;
+      }
+
+      // Confirma que os utilitários clássicos carregaram
+      if (typeof window.gcv2SanitizeHTML !== 'function') {
+        status.innerHTML = '⚠️ sanitize.js não carregou (window.gcv2SanitizeHTML em falta).';
+        return;
+      }
+
+      status.innerHTML = '✓ Autenticado. A abrir o relatório…';
+
+      // Abre o modal com a consulta real (Candidato A)
+      await openRelatorioConsultaModal({
+        patientId: '82e6ae05-6868-4745-ad93-fd62bacbc595',
+        consultationId: 'f5602bed-f026-4fe1-97df-766ccbee7315',
+        onClose: () => { status.innerHTML = 'Modal fechado. Recarrega a página para reabrir.'; }
+      });
+    })();
+  </script>
+</body>
+</html>

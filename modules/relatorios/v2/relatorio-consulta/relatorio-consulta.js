@@ -99,13 +99,14 @@ async function loadPlano(consultationId) {
 
   const { data: cat } = await window.sb
     .from("treatments_catalog")
-    .select("id, label, sort_order")
+    .select("id, code, label, sort_order")
     .in("id", ids);
 
   const byId = Object.fromEntries((cat || []).map(t => [t.id, t]));
   return links
     .map(l => ({
       id: l.treatment_id,
+      code: byId[l.treatment_id]?.code || "",
       label: byId[l.treatment_id]?.label || "",
       qty: l.qty || null,
       sort_order: byId[l.treatment_id]?.sort_order ?? 999
@@ -145,6 +146,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     date: consultation.report_date || new Date().toISOString().slice(0, 10),
     hda: consultation.hda || '',
     conclusao: '',
+    sessoes: 20,
   };
 
   // Construir overlay
@@ -189,6 +191,11 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
           </div>
 
           <label class="gcv2-at-field">
+            <span>Nº de sessões <small>(prescrição do plano)</small></span>
+            <input type="number" id="gcv2-rc-sessoes" min="1" max="60" step="1" value="20">
+          </label>
+
+          <label class="gcv2-at-field">
             <span>Conclusão <small>(opcional · só aparece no PDF se preenchida)</small></span>
             <textarea id="gcv2-rc-conclusao" rows="4" placeholder="Síntese clínica / parecer (opcional)…"></textarea>
           </label>
@@ -222,7 +229,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     const dxHtml = diagnoses.length
       ? `<section class="gcv2-rc-section">
            <h3 class="gcv2-rc-h3">Diagnósticos</h3>
-           <ul class="gcv2-rc-list-ul">${diagnoses.map(d => `<li>${escHtml(d.label || '—')}</li>`).join('')}</ul>
+           <ul class="gcv2-rc-list-ul">${diagnoses.map(d => `<li>${d.code ? 'ICD 9- ' + escHtml(d.code) + ' - ' : ''}${escHtml(d.label || '—')}</li>`).join('')}</ul>
          </section>`
       : '';
 
@@ -232,7 +239,8 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     const planoHtml = plano.length
       ? `<section class="gcv2-rc-section">
            <h3 class="gcv2-rc-h3">Plano Terapêutico</h3>
-           <ul class="gcv2-rc-list-ul">${plano.map(p => `<li>${escHtml(p.label || '—')}</li>`).join('')}</ul>
+           <p class="gcv2-rc-prescricao">R/ ${state.sessoes} Sessões de Tratamentos de Medicina Física e de Reabilitação com:</p>
+           <ul class="gcv2-rc-list-ul">${plano.map(p => `<li>${p.code ? escHtml(p.code) + ' - ' : ''}${escHtml(p.label || '—')}</li>`).join('')}</ul>
          </section>`
       : '';
 
@@ -287,6 +295,12 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
 
   overlay.querySelector('#gcv2-rc-conclusao').addEventListener('input', (e) => {
     state.conclusao = e.target.value;
+    renderPreview();
+  });
+
+  overlay.querySelector('#gcv2-rc-sessoes').addEventListener('input', (e) => {
+    const n = parseInt(e.target.value, 10);
+    state.sessoes = (Number.isFinite(n) && n > 0) ? n : 20;
     renderPreview();
   });
 
