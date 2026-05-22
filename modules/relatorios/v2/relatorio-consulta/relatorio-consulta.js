@@ -202,7 +202,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
 
           <div class="gcv2-at-actions">
             <button class="gcv2-btn gcv2-btn-secondary" id="gcv2-rc-cancel">Fechar</button>
-            <button class="gcv2-btn gcv2-btn-primary" id="gcv2-rc-gen" disabled title="PDF disponível no próximo sub-passo">Gerar PDF (em breve)</button>
+            <button class="gcv2-btn gcv2-btn-primary" id="gcv2-rc-gen">Gerar PDF</button>
           </div>
 
         </aside>
@@ -302,6 +302,66 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     const n = parseInt(e.target.value, 10);
     state.sessoes = (Number.isFinite(n) && n > 0) ? n : 20;
     renderPreview();
+  });
+
+  // -------- Gerar PDF --------
+  overlay.querySelector('#gcv2-rc-gen').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    btn.textContent = 'A gerar PDF…';
+
+    try {
+      const html = overlay.querySelector('#gcv2-rc-preview-host').innerHTML;
+      const styles = Array.from(document.querySelectorAll('link[data-gcv2-shell], link[data-gcv2-atestado], link[data-gcv2-rc]'))
+        .map(l => `<link rel="stylesheet" href="${l.href}">`).join('\n');
+
+      const fullHtml = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}</body></html>`;
+
+      const resp = await fetch('https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ html: fullHtml }),
+      });
+
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => '');
+        throw new Error(`PDF worker erro ${resp.status}: ${errText.slice(0, 200)}`);
+      }
+      const buf = await resp.arrayBuffer();
+      const blob = new Blob([buf], { type: 'application/pdf' });
+
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      const title = `Relatório clínico — ${patient?.full_name || 'desconhecido'} — ${state.date}`;
+      const fileName = `relatorio-clinico_${state.date}_${ts}.pdf`;
+      const path = `clinic_${clinicId || 'unknown'}/patient_${patientId}/relatorios-clinicos/${fileName}`;
+
+      const { error: upErr } = await window.sb.storage.from('documents').upload(path, blob, {
+        contentType: 'application/pdf',
+        upsert: true,
+      });
+      if (upErr) console.warn('[rc] upload storage falhou:', upErr);
+
+      const { error: insErr } = await window.sb.from('documents').insert({
+        patient_id: patientId,
+        clinic_id: clinicId || null,
+        consultation_id: consultationId,
+        category: 'relatorio-clinico',
+        title,
+        storage_path: path,
+        version: 1,
+      });
+      if (insErr) console.warn('[rc] insert documents falhou:', insErr);
+
+      closeModal();
+    } catch (err) {
+      console.error('[rc] erro a gerar PDF:', err);
+      alert('Erro a gerar PDF: ' + (err?.message || err));
+      btn.disabled = false;
+      btn.textContent = 'Gerar PDF';
+    }
   });
 
   // -------- Fechar --------
