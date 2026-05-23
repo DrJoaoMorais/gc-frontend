@@ -14,6 +14,42 @@ const escAttr = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
 }[c]));
 const escHtml = escAttr;
 
+// Sanitiza HTML do editor Quill (HDA): mantém tags de formatação seguras,
+// remove scripts, handlers de eventos e atributos perigosos.
+function gcv2SanitizeHTML(html) {
+  if (!html) return '';
+  const allowed = ['P','BR','UL','OL','LI','STRONG','B','EM','I','U','SPAN','DIV','H1','H2','H3','H4','BLOCKQUOTE','A'];
+  const tmp = document.createElement('div');
+  tmp.innerHTML = String(html);
+  const walk = (node) => {
+    const children = Array.from(node.childNodes);
+    for (const child of children) {
+      if (child.nodeType === 1) { // elemento
+        if (!allowed.includes(child.tagName)) {
+          // substitui tag não permitida pelo seu texto
+          child.replaceWith(document.createTextNode(child.textContent || ''));
+          continue;
+        }
+        // remove atributos perigosos (onclick, onerror, style com expr, etc.)
+        for (const attr of Array.from(child.attributes)) {
+          const n = attr.name.toLowerCase();
+          if (n.startsWith('on') || n === 'style' || (n === 'href' && /javascript:/i.test(attr.value))) {
+            child.removeAttribute(attr.name);
+          }
+        }
+        walk(child);
+      } else if (child.nodeType === 8) { // comentário
+        child.remove();
+      }
+    }
+  };
+  walk(tmp);
+  return tmp.innerHTML;
+}
+if (typeof window !== 'undefined') {
+  window.gcv2SanitizeHTML = gcv2SanitizeHTML;
+}
+
 // -----------------------------------------------------------------
 // CSS loaders
 // -----------------------------------------------------------------

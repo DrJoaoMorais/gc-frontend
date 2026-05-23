@@ -2963,6 +2963,10 @@ function openPatientViewModal(patient) {
             style="font-weight:800; background:#166534; border:1px solid #166534; color:#ffffff;">
             Relatório da Consulta
           </button>
+          <button class="gcBtn" data-action="consult-report-v2" data-consult-id="${escAttr(consultId)}"
+            style="font-weight:700; background:#1a56db; border:1px solid #1a56db; color:#ffffff;">
+            🧪 Relatório v2
+          </button>
         </div>
       `;
     }
@@ -4475,6 +4479,19 @@ function openPatientViewModal(patient) {
         const consultId = btn.getAttribute("data-consult-id") || "";
         if (!consultId) return;
         openConsultForEdit(consultId);
+      });
+    });
+
+    document.querySelectorAll('[data-action="consult-report-v2"]').forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const consultId = btn.getAttribute("data-consult-id") || "";
+        if (!consultId) return;
+        const { openRelatorioConsultaModal } = await import("./relatorios/v2/relatorio-consulta/relatorio-consulta.js");
+        await openRelatorioConsultaModal({
+          patientId: p.id,
+          consultationId: consultId,
+          onClose: async () => { await loadDocuments(); render(); }
+        });
       });
     });
 
