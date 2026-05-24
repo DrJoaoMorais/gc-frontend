@@ -256,7 +256,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     const cardHtml = buildPatientCard({ patient, mode: 'full' });
 
     const hdaHtml = state.hda && state.hda.trim()
-      ? `<section class="gcv2-rc-section">
+      ? `<section class="gcv2-rc-section gcv2-rc-flow">
            <h3 class="gcv2-rc-h3">Anamnese / História da Doença Actual</h3>
            <div class="gcv2-rc-prose">${window.gcv2SanitizeHTML(state.hda)}</div>
          </section>`

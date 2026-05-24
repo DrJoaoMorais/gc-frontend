@@ -276,3 +276,66 @@
 .gcv2-test-page {
   box-shadow: 0 8px 30px rgba(0,0,0,.14);
 }
+
+/* ============================================================
+   IMPRESSÃO / PDF — controlo de páginas, margens e quebras
+   ============================================================ */
+@media print {
+
+  @page {
+    size: A4;
+    margin: 14mm 0 14mm 0;
+  }
+
+  .gcv2-page {
+    width: auto;
+    min-height: 0;
+    overflow: visible;
+    margin: 0;
+    box-shadow: none;
+  }
+  .gcv2-test-page {
+    box-shadow: none;
+  }
+
+  .gcv2-test-wrapper {
+    background: none;
+    padding: 0;
+    min-height: 0;
+  }
+  .gcv2-test-banner {
+    display: none;
+  }
+
+  .gcv2-watermark {
+    position: fixed;
+    opacity: 0.6;
+  }
+
+  .gcv2-rc-section {
+    break-inside: avoid;
+  }
+
+  .gcv2-rc-section.gcv2-rc-flow {
+    break-inside: auto;
+  }
+  .gcv2-rc-flow .gcv2-rc-prose,
+  .gcv2-rc-flow p,
+  .gcv2-rc-flow li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  .gcv2-rc-h3,
+  .gcv2-section-head {
+    break-after: avoid;
+  }
+
+  .gcv2-rc-list-ul li {
+    break-inside: avoid;
+  }
+
+  .gcv2-footer {
+    break-inside: avoid;
+  }
+}
