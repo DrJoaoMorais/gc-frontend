@@ -282,7 +282,6 @@ textarea{width:100%;border:1px solid #e2e8f0;border-radius:7px;padding:4px 7px;f
           <tr><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;font-weight:500;">Extensão</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#1a56db;font-weight:500;" id="dm_ext_e">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#0f2d52;font-weight:500;" id="dm_ext_d">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;" id="dm_ext_def">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_ext_fpe">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_ext_fpd">—</td></tr>
           <tr><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;font-weight:500;">Rot. Externa</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#1a56db;font-weight:500;" id="dm_re_e">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#0f2d52;font-weight:500;" id="dm_re_d">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;" id="dm_re_def">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_re_fpe">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_re_fpd">—</td></tr>
           <tr><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;font-weight:500;">Rot. Interna</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#1a56db;font-weight:500;" id="dm_ri_e">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;color:#0f2d52;font-weight:500;" id="dm_ri_d">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;" id="dm_ri_def">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_ri_fpe">—</td><td style="padding:8px 10px;border-bottom:0.5px solid #e2e8f0;text-align:right;font-size:11px;color:#64748b;" id="dm_ri_fpd">—</td></tr>
-          <tr><td style="padding:8px 10px;font-weight:500;">Adução</td><td style="padding:8px 10px;text-align:right;color:#1a56db;font-weight:500;" id="dm_adu_e">—</td><td style="padding:8px 10px;text-align:right;color:#0f2d52;font-weight:500;" id="dm_adu_d">—</td><td style="padding:8px 10px;text-align:right;" id="dm_adu_def">—</td><td style="padding:8px 10px;text-align:right;font-size:11px;color:#64748b;" id="dm_adu_fpe">—</td><td style="padding:8px 10px;text-align:right;font-size:11px;color:#64748b;" id="dm_adu_fpd">—</td></tr>
         </tbody>
       </table>
     </div>
@@ -816,7 +815,14 @@ document.getElementById('btn_af2_import').addEventListener('click',function(){
   var barEl=document.getElementById('dyn_doente_bar');
   if(barEl){
     barEl.style.display='flex';barEl.style.gap='8px';barEl.style.flexWrap='wrap';
-    barEl.innerHTML='<strong style="color:#0f172a;">'+nome+'</strong><span style="color:#cbd5e1;">·</span><span>'+genero+'</span><span style="color:#cbd5e1;">·</span><span>'+idade+' anos</span><span style="color:#cbd5e1;">·</span><span>'+peso+' kg</span><span style="color:#cbd5e1;">·</span><span>Dominante: '+dominante+'</span><span style="margin-left:auto;font-size:11px;color:#185fa5;">'+dataExame+'</span>';
+    var _sep='<span style="color:#cbd5e1;">·</span>';
+    var _bits=[];
+    if(nome)_bits.push('<strong style="color:#0f172a;">'+nome+'</strong>');
+    if(genero)_bits.push('<span>'+genero+'</span>');
+    if(idade)_bits.push('<span>'+idade+' anos</span>');
+    if(peso!==null&&!isNaN(peso))_bits.push('<span>'+peso+' kg</span>');
+    if(dominante)_bits.push('<span>Dominante: '+dominante+' ⭐</span>');
+    barEl.innerHTML=_bits.join(_sep)+(dataExame?'<span style="margin-left:auto;font-size:11px;color:#185fa5;">'+dataExame+'</span>':'');
   }
   function getLineVal(block,label){
     var ls=block.split('\n');
@@ -827,44 +833,39 @@ document.getElementById('btn_af2_import').addEventListener('click',function(){
     return null;
   }
   var sections=raw.split(/====([^=]+)====/);
+  var bilDone={};
   for(var i=1;i<sections.length;i+=2){
     var title=sections[i].trim();
     var body=sections[i+1]||'';
     var isBil=title.indexOf('Esquerda')!==-1&&title.indexOf('Direita')!==-1;
     var key=null;
-    if(title.indexOf('Flexão')!==-1||title.indexOf('Flexao')!==-1)key='flex';
+    if(title.indexOf('Rotação Externa')!==-1||title.indexOf('Rotacao Externa')!==-1)key='re';
+    else if(title.indexOf('Rotação Interna')!==-1||title.indexOf('Rotacao Interna')!==-1)key='ri';
+    else if(title.indexOf('Flexão')!==-1||title.indexOf('Flexao')!==-1)key='flex';
     else if(title.indexOf('Abdução')!==-1||title.indexOf('Abducao')!==-1)key='abd';
     else if(title.indexOf('Extensão')!==-1||title.indexOf('Extensao')!==-1)key='ext';
-    else if(title.indexOf('Rotação Externa')!==-1||title.indexOf('Rotacao Externa')!==-1)key='re';
-    else if(title.indexOf('Rotação Interna')!==-1||title.indexOf('Rotacao Interna')!==-1)key='ri';
-    else if(title.indexOf('Adução')!==-1||title.indexOf('Aducao')!==-1)key='adu';
     if(!key)continue;
+    if(!isBil)continue;
+    if(bilDone[key])continue;
     var fmIdx=body.indexOf('Força Máxima');if(fmIdx<0)fmIdx=body.indexOf('Forca Maxima');
     if(fmIdx>=0){
       var fmBlock=body.slice(fmIdx);
       var nextIdx=fmBlock.indexOf('Tempo');if(nextIdx>0)fmBlock=fmBlock.slice(0,nextIdx);
-      if(isBil){data[key].e=getLineVal(fmBlock,'Esquerda');data[key].d=getLineVal(fmBlock,'Direita');}
-      else{var isE=title.indexOf('Esquerda')!==-1;var v=getLineVal(fmBlock,isE?'Esquerda':'Direita');if(isE)data[key].e=v;else data[key].d=v;}
+      data[key].e=getLineVal(fmBlock,'Esquerda');data[key].d=getLineVal(fmBlock,'Direita');
     }
     var medIdx=body.indexOf('Força Média');if(medIdx<0)medIdx=body.indexOf('Forca Media');
     if(medIdx>=0){
       var medBlock=body.slice(medIdx);
       var nextMed=medBlock.indexOf('Relação');if(nextMed>0)medBlock=medBlock.slice(0,nextMed);
-      if(isBil){data[key].me=getLineVal(medBlock,'Esquerda');data[key].md=getLineVal(medBlock,'Direita');}
-      else{var isEm=title.indexOf('Esquerda')!==-1;var vm=getLineVal(medBlock,isEm?'Esquerda':'Direita');if(isEm)data[key].me=vm;else data[key].md=vm;}
+      data[key].me=getLineVal(medBlock,'Esquerda');data[key].md=getLineVal(medBlock,'Direita');
     }
     var fpIdx=body.indexOf('Relação Força-Peso');if(fpIdx<0)fpIdx=body.indexOf('Relacao Forca-Peso');
     if(fpIdx>=0){
       var fpBlock=body.slice(fpIdx);
       var nextFp=fpBlock.indexOf('====');if(nextFp>0)fpBlock=fpBlock.slice(0,nextFp);
-      function getLinePct(blk,label){
-        var ls2=blk.split('\n');
-        for(var j=0;j<ls2.length;j++){var l2=ls2[j].trim();if(l2.indexOf(label+':')===0){var num2=parseFloat(l2.slice(label.length+1).trim());return isNaN(num2)?null:num2;}}
-        return null;
-      }
-      if(isBil){data[key].fpe=getLinePct(fpBlock,'Esquerda');data[key].fpd=getLinePct(fpBlock,'Direita');}
-      else{var isEfp=title.indexOf('Esquerda')!==-1;var vfp=getLinePct(fpBlock,isEfp?'Esquerda':'Direita');if(isEfp)data[key].fpe=vfp;else data[key].fpd=vfp;}
+      data[key].fpe=getLineVal(fpBlock,'Esquerda');data[key].fpd=getLineVal(fpBlock,'Direita');
     }
+    bilDone[key]=true;
   }
   window._dynData=data;
   calcDyn2(data);
