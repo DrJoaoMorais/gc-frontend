@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Antecedentes &amp; Alertas (teste isolado)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.SUPABASE_URL = "https://nxfnzzcuqzxmzsihbrtp.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA";
+    window.sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  </script>
+  <style>
+    :root{
+      --cc-navy:#0f2d52;--cc-azul:#1a56db;--cc-texto:#1f2937;--cc-suave:#6b7280;
+      --cc-tenue:#9ca3af;--cc-linha:#e5e7eb;--cc-fundo:#f9fafb;--cc-branco:#fff;
+      --cc-verde:#15803d;--cc-vermelho:#b91c1c;--cc-ambar:#92400e;--cc-ambar-bg:#fffbeb;
+      --cc-ambar-borda:#fde68a;--cc-azul-bg:#eff6ff;--cc-azul-borda:#bfdbfe;
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--cc-fundo);color:var(--cc-texto);font-family:'Outfit',system-ui,sans-serif;line-height:1.6;}
+
+    /* Banner de teste */
+    .cc-banner{background:#fef9c3;color:#713f12;padding:12px 20px;font-size:14px;border-bottom:1px solid #fde68a;}
+
+    /* Alerta pacemaker — aparece no topo quando activo */
+    .alerta-critico{display:none;background:#fef2f2;border-bottom:2px solid #fca5a5;padding:13px 20px;font-size:14px;font-weight:600;color:var(--cc-vermelho);letter-spacing:.01em;}
+    .alerta-critico.visivel{display:block;}
+
+    .wrap{max-width:760px;margin:0 auto;padding:24px 20px 64px;}
+    .titulo{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:26px;color:var(--cc-navy);margin:0 0 4px;}
+    .sub{font-size:13px;color:var(--cc-suave);margin:0 0 20px;}
+    .status{text-align:center;color:var(--cc-suave);font-size:15px;padding:32px 0;}
+
+    /* Cards */
+    .card{background:var(--cc-branco);border:1px solid var(--cc-linha);border-radius:12px;overflow:hidden;margin-bottom:18px;}
+    .card-head{display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--cc-linha);}
+    .card-icon{font-size:16px;}
+    .card-titulo{font-size:14px;font-weight:600;color:var(--cc-navy);}
+    .card-hint{margin-left:auto;font-size:11px;color:var(--cc-tenue);}
+    .card-body{padding:16px 18px;}
+
+    /* Textareas */
+    textarea{width:100%;border:1px solid var(--cc-linha);border-radius:8px;padding:12px 14px;font:15px/1.7 'Outfit',sans-serif;color:var(--cc-texto);background:var(--cc-branco);resize:vertical;min-height:90px;outline:none;transition:border-color .15s;}
+    textarea:focus{border-color:var(--cc-azul);}
+    textarea::placeholder{color:var(--cc-tenue);font-style:italic;}
+    label.campo-label{display:block;font-size:12px;font-weight:600;color:var(--cc-suave);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+
+    /* Secção alertas */
+    .alertas-grid{display:grid;gap:12px;}
+
+    /* Toggle pacemaker */
+    .toggle-row{display:flex;align-items:center;gap:14px;padding:13px 16px;border:2px solid var(--cc-linha);border-radius:10px;cursor:pointer;transition:all .15s;user-select:none;}
+    .toggle-row.ativo{background:#fef2f2;border-color:#fca5a5;}
+    .toggle-etiqueta{flex:1;font-size:14px;font-weight:500;}
+    .toggle-desc{font-size:12px;color:var(--cc-suave);margin-top:1px;}
+    .toggle-ativo-txt{font-size:12px;font-weight:600;color:var(--cc-vermelho);display:none;}
+    .toggle-row.ativo .toggle-ativo-txt{display:block;}
+    .toggle-row.ativo .toggle-desc{display:none;}
+    .toggle-switch{width:42px;height:24px;border-radius:12px;background:#d1d5db;position:relative;flex-shrink:0;transition:background .2s;}
+    .toggle-switch::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;}
+    .toggle-row.ativo .toggle-switch{background:var(--cc-vermelho);}
+    .toggle-row.ativo .toggle-switch::after{transform:translateX(18px);}
+
+    /* Alerta alergias (âmbar) */
+    .alerta-alergias{background:var(--cc-ambar-bg);border:1px solid var(--cc-ambar-borda);border-radius:10px;padding:13px 16px;}
+    .alerta-alergias label.campo-label{color:var(--cc-ambar);}
+    .alerta-alergias textarea{background:var(--cc-ambar-bg);border-color:var(--cc-ambar-borda);}
+    .alerta-alergias textarea:focus{border-color:#d97706;}
+
+    /* Outros alertas (azul) */
+    .alerta-outros{background:var(--cc-azul-bg);border:1px solid var(--cc-azul-borda);border-radius:10px;padding:13px 16px;}
+    .alerta-outros label.campo-label{color:#1e40af;}
+    .alerta-outros textarea{background:var(--cc-azul-bg);border-color:var(--cc-azul-borda);}
+    .alerta-outros textarea:focus{border-color:var(--cc-azul);}
+
+    /* Acções */
+    .acoes{display:flex;align-items:center;gap:10px;margin-top:14px;}
+    .btn{font:inherit;font-size:14px;font-weight:500;border-radius:8px;padding:9px 18px;cursor:pointer;border:1px solid var(--cc-linha);background:var(--cc-branco);color:var(--cc-texto);transition:all .15s;}
+    .btn:hover{border-color:var(--cc-azul);color:var(--cc-azul);}
+    .btn-primario{background:var(--cc-verde);border-color:var(--cc-verde);color:#fff;}
+    .btn-primario:hover{background:#136a33;border-color:#136a33;color:#fff;}
+    .estado{font-size:13px;color:var(--cc-suave);}
+    .estado.ok{color:var(--cc-verde);}
+    .estado.erro{color:var(--cc-vermelho);}
+    .sp{flex:1;}
+
+    /* Pré-visualização */
+    .preview-secao{margin-bottom:14px;}
+    .preview-secao-titulo{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--cc-tenue);margin-bottom:6px;}
+    .preview-texto{font-size:14px;line-height:1.7;color:var(--cc-texto);white-space:pre-wrap;}
+    .preview-texto.vazio{color:var(--cc-tenue);font-style:italic;}
+    .preview-alerta{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:4px 12px;border-radius:6px;margin:3px 4px 3px 0;}
+    .preview-alerta.pacemaker{background:#fef2f2;color:var(--cc-vermelho);border:1px solid #fca5a5;}
+    .preview-alerta.alergia{background:var(--cc-ambar-bg);color:var(--cc-ambar);border:1px solid var(--cc-ambar-borda);}
+    .preview-alerta.outro{background:var(--cc-azul-bg);color:#1e40af;border:1px solid var(--cc-azul-borda);}
+    .preview-alerta.oculto{display:none;}
+    .separador{border:none;border-top:1px solid var(--cc-linha);margin:14px 0;}
+  </style>
+</head>
+<body>
+
+  <div class="alerta-critico" id="alerta-critico">⚠️ PACEMAKER — verificar compatibilidade antes de qualquer procedimento</div>
+
+  <div class="cc-banner">
+    🧪 <strong>Teste isolado — Antecedentes &amp; Alertas</strong> — lê e escreve directamente na tabela <code>patients</code>. A pré-visualização actualiza em tempo real.
+  </div>
+
+  <div class="wrap">
+    <h1 class="titulo">Antecedentes &amp; Alertas Clínicos</h1>
+    <p class="sub">Doente de teste · patient_id 163fe5dc</p>
+    <div id="raiz"><p class="status">A carregar…</p></div>
+  </div>
+
+  <script type="module">
+    const PATIENT_ID = '163fe5dc-a34f-4c80-8f01-5db0d63f759c';
+    const raiz = document.getElementById('raiz');
+    const alertaCritico = document.getElementById('alerta-critico');
+
+    /* estado local */
+    let draft = {
+      antecedentes_pessoais: '',
+      antecedentes_medicamentosos: '',
+      antecedentes_cirurgicos: '',
+      alertas: { pacemaker: false, alergias: '', outros: '' },
+    };
+
+    async function boot() {
+      const sb = window.sb;
+      if (!sb) { raiz.innerHTML = `<p class="status">⚠️ Supabase não inicializado.</p>`; return; }
+      const { data: u, error: eu } = await sb.auth.getUser();
+      if (eu || !u?.user) { raiz.innerHTML = `<p class="status">⚠️ Sem sessão. Faz login no GC neste browser e recarrega.</p>`; return; }
+
+      const { data, error } = await sb
+        .from('patients')
+        .select('antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas')
+        .eq('id', PATIENT_ID)
+        .single();
+      if (error) { raiz.innerHTML = `<p class="status">⚠️ Erro a ler doente: ${error.message}</p>`; return; }
+
+      draft.antecedentes_pessoais       = data.antecedentes_pessoais       || '';
+      draft.antecedentes_medicamentosos = data.antecedentes_medicamentosos || '';
+      draft.antecedentes_cirurgicos     = data.antecedentes_cirurgicos     || '';
+      draft.alertas = {
+        pacemaker: !!(data.alertas?.pacemaker),
+        alergias:  data.alertas?.alergias  || '',
+        outros:    data.alertas?.outros    || '',
+      };
+
+      montar();
+    }
+
+    function montar() {
+      raiz.innerHTML = `
+        <!-- Antecedentes Pessoais -->
+        <div class="card">
+          <div class="card-head">
+            <span class="card-icon">🧬</span>
+            <span class="card-titulo">Antecedentes Pessoais</span>
+            <span class="card-hint">patologias, comorbilidades, história familiar relevante</span>
+          </div>
+          <div class="card-body">
+            <textarea id="ap" placeholder="Ex: HTA, DM tipo 2, dislipidémia…" rows="4"></textarea>
+          </div>
+        </div>
+
+        <!-- Antecedentes Medicamentosos -->
+        <div class="card">
+          <div class="card-head">
+            <span class="card-icon">💊</span>
+            <span class="card-titulo">Antecedentes Medicamentosos</span>
+            <span class="card-hint">medicação habitual, doses, duração</span>
+          </div>
+          <div class="card-body">
+            <textarea id="am" placeholder="Ex: Ramipril 5 mg id, Metformina 850 mg bid…" rows="4"></textarea>
+          </div>
+        </div>
+
+        <!-- Antecedentes Cirúrgicos -->
+        <div class="card">
+          <div class="card-head">
+            <span class="card-icon">🔪</span>
+            <span class="card-titulo">Antecedentes Cirúrgicos</span>
+            <span class="card-hint">cirurgias, datas aproximadas, intercorrências</span>
+          </div>
+          <div class="card-body">
+            <textarea id="ac" placeholder="Ex: Artroplastia total do joelho direito (2019)…" rows="3"></textarea>
+          </div>
+        </div>
+
+        <!-- Alertas Clínicos -->
+        <div class="card">
+          <div class="card-head">
+            <span class="card-icon">🚨</span>
+            <span class="card-titulo">Alertas Clínicos</span>
+            <span class="card-hint">visíveis em todas as consultas deste doente</span>
+          </div>
+          <div class="card-body">
+            <div class="alertas-grid">
+
+              <!-- Pacemaker -->
+              <div class="toggle-row" id="toggle-pm" role="checkbox" tabindex="0">
+                <div style="font-size:22px">🫀</div>
+                <div class="toggle-etiqueta">
+                  <div>Pacemaker / CDI</div>
+                  <div class="toggle-desc">Inactivo — clica para activar</div>
+                  <div class="toggle-ativo-txt">ACTIVO — aviso visível em todas as consultas</div>
+                </div>
+                <div class="toggle-switch"></div>
+              </div>
+
+              <!-- Alergias -->
+              <div class="alerta-alergias">
+                <label class="campo-label" for="al">⚠️ Alergias</label>
+                <textarea id="al" placeholder="Ex: Penicilina (anafilaxia), AINEs, contraste iodado…" rows="2"></textarea>
+              </div>
+
+              <!-- Outros alertas -->
+              <div class="alerta-outros">
+                <label class="campo-label" for="ao">ℹ️ Outros alertas</label>
+                <textarea id="ao" placeholder="Ex: Anticoagulado (Varfarina), doença oncológica activa…" rows="2"></textarea>
+              </div>
+
+            </div>
+
+            <div class="acoes">
+              <button class="btn" id="btn-recarregar">↺ Recarregar original</button>
+              <span class="sp"></span>
+              <span class="estado" id="estado"></span>
+              <button class="btn btn-primario" id="btn-guardar">💾 Guardar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pré-visualização -->
+        <div class="card">
+          <div class="card-head">
+            <span class="card-icon">👁️</span>
+            <span class="card-titulo">Pré-visualização (como aparece no feed de cada consulta)</span>
+          </div>
+          <div class="card-body" id="preview-body">
+          </div>
+        </div>`;
+
+      /* preencher campos */
+      document.getElementById('ap').value = draft.antecedentes_pessoais;
+      document.getElementById('am').value = draft.antecedentes_medicamentosos;
+      document.getElementById('ac').value = draft.antecedentes_cirurgicos;
+      document.getElementById('al').value = draft.alertas.alergias;
+      document.getElementById('ao').value = draft.alertas.outros;
+      if (draft.alertas.pacemaker) document.getElementById('toggle-pm').classList.add('ativo');
+
+      actualizarAlertaCritico();
+      renderPreview();
+
+      /* eventos */
+      ['ap','am','ac','al','ao'].forEach(id => {
+        document.getElementById(id).addEventListener('input', () => {
+          sincronizarDraft();
+          renderPreview();
+        });
+      });
+
+      const pm = document.getElementById('toggle-pm');
+      pm.addEventListener('click', () => {
+        draft.alertas.pacemaker = !draft.alertas.pacemaker;
+        pm.classList.toggle('ativo', draft.alertas.pacemaker);
+        actualizarAlertaCritico();
+        renderPreview();
+      });
+      pm.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); pm.click(); } });
+
+      document.getElementById('btn-recarregar').addEventListener('click', recarregar);
+      document.getElementById('btn-guardar').addEventListener('click', guardar);
+    }
+
+    function sincronizarDraft() {
+      draft.antecedentes_pessoais       = document.getElementById('ap').value;
+      draft.antecedentes_medicamentosos = document.getElementById('am').value;
+      draft.antecedentes_cirurgicos     = document.getElementById('ac').value;
+      draft.alertas.alergias            = document.getElementById('al').value;
+      draft.alertas.outros              = document.getElementById('ao').value;
+    }
+
+    function actualizarAlertaCritico() {
+      alertaCritico.classList.toggle('visivel', draft.alertas.pacemaker);
+    }
+
+    function renderPreview() {
+      const pb = document.getElementById('preview-body');
+      if (!pb) return;
+
+      const secoes = [
+        { titulo: 'Antecedentes Pessoais',       texto: draft.antecedentes_pessoais },
+        { titulo: 'Antecedentes Medicamentosos',  texto: draft.antecedentes_medicamentosos },
+        { titulo: 'Antecedentes Cirúrgicos',      texto: draft.antecedentes_cirurgicos },
+      ];
+
+      const secoesHTML = secoes.map(s => {
+        const vazio = !s.texto.trim();
+        return `<div class="preview-secao">
+          <div class="preview-secao-titulo">${s.titulo}</div>
+          <div class="preview-texto${vazio ? ' vazio' : ''}">${vazio ? '(vazio)' : escapeHTML(s.texto)}</div>
+        </div>`;
+      }).join('<hr class="separador" />');
+
+      const pm    = draft.alertas.pacemaker;
+      const alerg = draft.alertas.alergias.trim();
+      const outr  = draft.alertas.outros.trim();
+      const temAlertas = pm || alerg || outr;
+
+      const alertasHTML = `
+        <div class="preview-secao">
+          <div class="preview-secao-titulo">Alertas Clínicos</div>
+          <div>
+            <span class="preview-alerta pacemaker${pm ? '' : ' oculto'}">🫀 PACEMAKER</span>
+            ${alerg ? `<span class="preview-alerta alergia">⚠️ Alergia: ${escapeHTML(alerg)}</span>` : ''}
+            ${outr  ? `<span class="preview-alerta outro">ℹ️ ${escapeHTML(outr)}</span>` : ''}
+            ${!temAlertas ? '<span class="preview-texto vazio">(sem alertas)</span>' : ''}
+          </div>
+        </div>`;
+
+      pb.innerHTML = secoesHTML + '<hr class="separador" />' + alertasHTML;
+    }
+
+    function escapeHTML(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function diz(txt, cls) {
+      const e = document.getElementById('estado');
+      if (e) { e.textContent = txt; e.className = 'estado ' + (cls || ''); }
+    }
+
+    function recarregar() {
+      boot();
+    }
+
+    async function guardar() {
+      sincronizarDraft();
+      const sb = window.sb;
+      if (!sb) { diz('Supabase não disponível.', 'erro'); return; }
+      diz('A guardar…', '');
+      try {
+        const { data, error } = await sb
+          .from('patients')
+          .update({
+            antecedentes_pessoais:       draft.antecedentes_pessoais       || null,
+            antecedentes_medicamentosos: draft.antecedentes_medicamentosos || null,
+            antecedentes_cirurgicos:     draft.antecedentes_cirurgicos     || null,
+            alertas:                     draft.alertas,
+          })
+          .eq('id', PATIENT_ID)
+          .select('id');
+        if (error) throw error;
+        if (!data || !data.length) throw new Error('Sem permissão (RLS).');
+        diz('Guardado ✓', 'ok');
+      } catch (e) {
+        diz('Erro: ' + (e.message || e), 'erro');
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>
