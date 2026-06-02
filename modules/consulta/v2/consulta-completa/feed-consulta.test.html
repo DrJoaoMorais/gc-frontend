@@ -282,11 +282,6 @@
   </div><!-- /fc-page -->
 
   <script type="module">
-    import {
-      preencherHDA, preencherDiagnostico, preencherTratamento,
-      preencherExame, preencherProtocolo,
-    } from './cc-feed.js';
-
     async function carregarConsulta({ consultationId, patientId }) {
       const sb = window.sb;
       if (!sb) throw new Error('Supabase (window.sb) não inicializado.');
@@ -429,10 +424,10 @@
       iniciarQuill(consulta.hda || '');
 
       /* blocos leitura */
-      preencherExame(document.getElementById('bloco-exame'), exames);
-      preencherDiagnostico(document.getElementById('bloco-diag'), diagnosticos);
-      preencherTratamento(document.getElementById('bloco-trat'), tratamentos);
-      preencherProtocolo(document.getElementById('bloco-protocolo'), protocolo);
+      renderExame(document.getElementById('bloco-exame'), exames);
+      renderDiagnostico(document.getElementById('bloco-diag'), diagnosticos);
+      renderTratamento(document.getElementById('bloco-trat'), tratamentos);
+      renderProtocolo(document.getElementById('bloco-protocolo'), protocolo);
       renderResumo(exames);
 
       aplicarOffsets();
@@ -600,6 +595,75 @@
         alert('Relatório de Consulta — em construção'));
       document.getElementById('btn-rm').addEventListener('click', () =>
         alert('Relatório Médico — em construção'));
+    }
+
+    /* -------- renders simples (sem cc-feed.js) -------- */
+    function renderExame(el, exames) {
+      if (!exames?.length) { el.innerHTML = `<p class="cc-vazio">Sem exame objectivo registado.</p>`; return; }
+      el.innerHTML = exames.map((ex, i) => {
+        const tipo = ex.assessment_type || 'Exame';
+        const lado = ex.assessment_side ? ` ${ex.assessment_side}` : '';
+        const [a, m, d] = (ex.assessment_date || '').split('-');
+        const data = d ? `${d}/${m}/${a}` : (ex.assessment_date || '');
+        const dados = ex.data || {};
+        const linhas = Object.entries(dados)
+          .filter(([k]) => !['resumo','lado'].includes(k))
+          .map(([k, v]) => v != null && v !== '' && !(typeof v === 'object' && !Object.keys(v).length)
+            ? `<div style="font-size:13px;padding:4px 0;border-top:1px solid var(--cc-linha)"><span style="font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--cc-ténue);text-transform:uppercase;margin-right:8px">${esc(k)}</span>${esc(typeof v === 'object' ? JSON.stringify(v) : String(v))}</div>`
+            : '')
+          .join('');
+        return `<div style="border:1px solid var(--cc-linha);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <span style="font-size:14px;font-weight:600;color:var(--cc-navy);text-transform:capitalize">${esc(tipo)}${esc(lado)}</span>
+            <span style="font-size:11px;color:var(--cc-suave);border:1px solid var(--cc-linha);border-radius:6px;padding:2px 7px">${data}</span>
+            ${i > 0 ? '<span style="font-size:11px;color:var(--cc-ténue)">registo anterior</span>' : ''}
+          </div>
+          ${linhas || '<p class="cc-vazio">Exame sem campos preenchidos.</p>'}
+        </div>`;
+      }).join('');
+    }
+
+    function renderDiagnostico(el, diagnosticos) {
+      if (!diagnosticos?.length) { el.innerHTML = `<p class="cc-vazio">Sem diagnósticos.</p>`; return; }
+      el.innerHTML = diagnosticos.map(d =>
+        `<div class="cc-diag-chip">
+          <span class="cc-diag-sis">${esc(d.system || 'ICD-9')}</span>
+          <span class="cc-diag-code">${esc(d.code)}</span>
+          <span class="cc-diag-label">${esc(d.label)}</span>
+        </div>`
+      ).join('');
+    }
+
+    function renderTratamento(el, tratamentos) {
+      if (!tratamentos?.length) { el.innerHTML = `<p class="cc-vazio">Sem tratamentos prescritos.</p>`; return; }
+      el.innerHTML = `<table class="cc-tabela">
+        <thead><tr><th>Código</th><th>Tratamento</th><th>Qtd.</th></tr></thead>
+        <tbody>${tratamentos.map(t =>
+          `<tr>
+            <td class="cc-trat-code">${esc(t.code)}</td>
+            <td>${esc(t.label)}</td>
+            <td class="cc-trat-qty">${esc(t.qty)}</td>
+          </tr>`).join('')}
+        </tbody></table>`;
+    }
+
+    function renderProtocolo(el, protocolo) {
+      if (!protocolo?.fase) { el.innerHTML = `<p class="cc-vazio">Sem protocolo associado.</p>`; return; }
+      const f = protocolo.fase;
+      const d = f.dados || {};
+      const semanas = (f.ancora_de != null && f.ancora_ate != null) ? `${f.ancora_de}–${f.ancora_ate} sem` : '';
+      const lista = (arr, cls) => Array.isArray(arr) && arr.length
+        ? `<ul style="margin:0 0 8px;padding-left:20px">${arr.map(x => `<li class="${cls}" style="font-size:13px;padding:2px 0">${esc(typeof x === 'object' ? (x.label || '') : x)}</li>`).join('')}</ul>`
+        : '';
+      el.innerHTML = `
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+          <span style="font-size:12px;font-weight:600;background:#e6f1fb;color:#042c53;border-radius:6px;padding:4px 10px">${esc(protocolo.nome)}</span>
+          ${semanas ? `<span style="font-size:12px;background:var(--cc-fundo);border:1px solid var(--cc-linha);border-radius:6px;padding:4px 10px">${esc(semanas)}</span>` : ''}
+          <span style="font-size:12px;background:var(--cc-fundo);border:1px solid var(--cc-linha);border-radius:6px;padding:4px 10px">Fase ${esc(String(f.ordem))} — ${esc(f.nome)}</span>
+        </div>
+        ${d.objetivos?.length ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--cc-ténue);margin:0 0 4px">Objectivos</p>${lista(d.objetivos,'cc-prot-obj')}` : ''}
+        ${d.contraindicacoes?.length ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--cc-ténue);margin:8px 0 4px">Contraindicações</p>${lista(d.contraindicacoes,'cc-prot-contra')}` : ''}
+        ${d.hep?.length ? `<p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--cc-ténue);margin:8px 0 4px">HEP</p>${lista(d.hep,'cc-prot-hep')}` : ''}`;
     }
 
     /* -------- utilidades -------- */
