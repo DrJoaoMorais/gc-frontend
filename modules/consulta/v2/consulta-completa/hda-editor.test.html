@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HDA — Editor Quill (teste isolado)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../app-config.js" onerror="void 0"></script>
+  <style>
+    :root{--cc-navy:#0f2d52;--cc-azul:#1a56db;--cc-texto:#1f2937;--cc-suave:#6b7280;--cc-tenue:#9ca3af;--cc-linha:#e5e7eb;--cc-fundo:#f9fafb;--cc-branco:#fff;--cc-verde:#15803d;--cc-vermelho:#b91c1c;}
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--cc-fundo);color:var(--cc-texto);font-family:'Outfit',system-ui,sans-serif;line-height:1.6;}
+    .cc-banner{background:#fef9c3;color:#713f12;padding:12px 20px;font-size:14px;border-bottom:1px solid #fde68a;}
+    .wrap{max-width:760px;margin:0 auto;padding:24px 20px 64px;}
+    .titulo{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:26px;color:var(--cc-navy);margin:0 0 4px;}
+    .sub{font-size:13px;color:var(--cc-suave);margin:0 0 20px;}
+    .status{text-align:center;color:var(--cc-suave);font-size:15px;padding:32px 0;}
+    .card{background:var(--cc-branco);border:1px solid var(--cc-linha);border-radius:12px;overflow:hidden;margin-bottom:18px;}
+    .card-head{display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--cc-linha);}
+    .card-icon{font-size:16px;}
+    .card-titulo{font-size:14px;font-weight:600;color:var(--cc-navy);}
+    .card-hint{margin-left:auto;font-size:11px;color:var(--cc-tenue);}
+    .card-body{padding:16px 18px;}
+    .ql-toolbar.ql-snow{border:1px solid var(--cc-linha);border-bottom:none;border-radius:8px 8px 0 0;background:var(--cc-fundo);font-family:'Outfit',sans-serif;}
+    .ql-container.ql-snow{border:1px solid var(--cc-linha);border-radius:0 0 8px 8px;font-family:'Outfit',sans-serif;font-size:15px;}
+    .ql-editor{min-height:200px;line-height:1.7;color:var(--cc-texto);padding:14px 16px;}
+    .ql-editor.ql-blank::before{color:var(--cc-tenue);font-style:italic;left:16px;}
+    .ql-snow .ql-toolbar button:hover .ql-stroke,.ql-snow .ql-toolbar button.ql-active .ql-stroke{stroke:var(--cc-azul);}
+    .ql-snow .ql-toolbar button:hover .ql-fill,.ql-snow .ql-toolbar button.ql-active .ql-fill{fill:var(--cc-azul);}
+    .snip-bar{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;}
+    .snip{background:var(--cc-fundo);border:1px solid var(--cc-linha);border-radius:5px;padding:4px 11px;font-size:12px;color:var(--cc-suave);cursor:pointer;transition:all .15s;}
+    .snip:hover{background:var(--cc-azul);color:#fff;border-color:var(--cc-azul);}
+    .acoes{display:flex;align-items:center;gap:10px;margin-top:14px;}
+    .btn{font:inherit;font-size:14px;font-weight:500;border-radius:8px;padding:9px 18px;cursor:pointer;border:1px solid var(--cc-linha);background:var(--cc-branco);color:var(--cc-texto);transition:all .15s;}
+    .btn:hover{border-color:var(--cc-azul);color:var(--cc-azul);}
+    .btn-primario{background:var(--cc-verde);border-color:var(--cc-verde);color:#fff;}
+    .btn-primario:hover{background:#136a33;border-color:#136a33;color:#fff;}
+    .estado{font-size:13px;color:var(--cc-suave);}
+    .estado.ok{color:var(--cc-verde);}
+    .estado.erro{color:var(--cc-vermelho);}
+    .sp{flex:1;}
+    .preview-head{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-size:12px;color:var(--cc-suave);}
+    .preview-chev{transition:transform .15s;}
+    .preview-head.fechado .preview-chev{transform:rotate(-90deg);}
+    .preview-box{margin-top:10px;background:#0f172a;color:#94e2d5;font-family:monospace;font-size:11.5px;line-height:1.5;padding:12px 14px;border-radius:8px;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow:auto;}
+    .preview-box.fechado{display:none;}
+    .render-leitura{font-size:15px;line-height:1.7;color:var(--cc-texto);border:1px dashed var(--cc-linha);border-radius:8px;padding:14px 16px;}
+    .render-leitura p{margin:0 0 8px;}
+    .render-leitura ul,.render-leitura ol{margin:0 0 8px;padding-left:22px;}
+    .render-leitura h1,.render-leitura h2,.render-leitura h3{color:var(--cc-navy);margin:8px 0 6px;font-family:'Cormorant Garamond',serif;}
+  </style>
+</head>
+<body>
+  <div class="cc-banner">
+    🧪 <strong>Teste isolado — Editor da HDA (Quill 2.0)</strong> — lê a HDA real da consulta de teste, deixa editar com formatação, e mostra exactamente o que será gravado. Não grava sem o teu clique.
+  </div>
+  <div class="wrap">
+    <h1 class="titulo">Editor da HDA</h1>
+    <p class="sub">Caso de teste: consulta bdc1e349 · 24/05/2026</p>
+    <div id="raiz"><p class="status">A carregar HDA real…</p></div>
+  </div>
+  <script type="module">
+    const CONSULTA_ID = 'bdc1e349-232e-42b7-bd49-7a07d6e8ee76';
+    const raiz = document.getElementById('raiz');
+    const SNIPPETS = [
+      ['+ EVA','Dor EVA '],['+ Rigidez','Rigidez matinal '],
+      ['+ Parestesias','Parestesias em '],['+ Limitação','Limitação funcional para '],
+      ['+ Antecedentes','Antecedentes: '],['+ Medicação','Medicação actual: '],
+      ['+ Cirurgia','Cirurgia de '],['+ Exames','Exames complementares: '],
+    ];
+    let quill = null;
+
+    function getSB() {
+      if (window.sb) return window.sb;
+      const url = window.SUPABASE_URL || window.GC_SUPABASE_URL;
+      const key = window.SUPABASE_ANON_KEY || window.GC_SUPABASE_ANON_KEY;
+      if (url && key) { window.sb = window.supabase.createClient(url, key); return window.sb; }
+      return null;
+    }
+
+    async function boot() {
+      const sb = getSB();
+      if (!sb) { raiz.innerHTML = `<p class="status">⚠️ Supabase não inicializado. Abre esta página a partir do GC.</p>`; return; }
+      let user = null;
+      try { const {data,error} = await sb.auth.getUser(); if(error) throw error; user = data?.user||null; } catch(e) { raiz.innerHTML = `<p class="status">⚠️ Sessão inválida. Faz login no GC neste browser e recarrega.</p>`; return; }
+      if (!user) { raiz.innerHTML = `<p class="status">⚠️ Sem sessão. Faz login no GC neste browser e recarrega.</p>`; return; }
+      let hdaHTML = '';
+      try { const {data,error} = await sb.from('consultations').select('hda').eq('id',CONSULTA_ID).single(); if(error) throw error; hdaHTML = data?.hda||''; } catch(e) { raiz.innerHTML = `<p class="status">⚠️ Erro a ler HDA: ${e.message}</p>`; return; }
+      montar(hdaHTML);
+    }
+
+    function montar(hdaHTML) {
+      const snipsHTML = SNIPPETS.map(([r,t])=>`<span class="snip" data-txt="${t.replace(/"/g,'&quot;')}">${r}</span>`).join('');
+      raiz.innerHTML = `
+        <div class="card">
+          <div class="card-head"><span class="card-icon">📝</span><span class="card-titulo">História da Doença Actual</span><span class="card-hint">Editor rico — a formatação atravessa para o relatório</span></div>
+          <div class="card-body">
+            <div id="editor"></div>
+            <div class="snip-bar">${snipsHTML}</div>
+            <div class="acoes">
+              <button class="btn" id="btn-recarregar">↺ Recarregar original</button>
+              <span class="sp"></span>
+              <span class="estado" id="estado"></span>
+              <button class="btn btn-primario" id="btn-guardar">💾 Guardar HDA</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="card-icon">👁️</span><span class="card-titulo">Pré-visualização (como aparece no feed / relatório)</span></div>
+          <div class="card-body">
+            <div class="render-leitura" id="render"></div>
+            <div style="margin-top:14px;">
+              <div class="preview-head fechado" id="preview-head"><span class="preview-chev">⌄</span><span>Ver HTML que será gravado (debug)</span></div>
+              <pre class="preview-box fechado" id="preview"></pre>
+            </div>
+          </div>
+        </div>`;
+      quill = new Quill('#editor',{theme:'snow',placeholder:'Escreve a história da doença actual…',modules:{toolbar:[[{header:[1,2,3,false]}],[{size:['small',false,'large','huge']}],['bold','italic','underline'],[{list:'ordered'},{list:'bullet'}],['clean']]}});
+      const original = hdaHTML;
+      quill.clipboard.dangerouslyPasteHTML(original);
+      const render=document.getElementById('render'), preview=document.getElementById('preview');
+      function act(){ const h=quill.root.innerHTML; render.innerHTML=h; preview.textContent=h; }
+      act(); quill.on('text-change',act);
+      raiz.querySelectorAll('.snip').forEach(s=>{ s.addEventListener('click',()=>{ const t=s.dataset.txt; const r=quill.getSelection(true); quill.insertText(r?r.index:quill.getLength(),t,'user'); quill.setSelection((r?r.index:quill.getLength())+t.length,0); }); });
+      document.getElementById('btn-recarregar').addEventListener('click',()=>{ quill.setText(''); quill.clipboard.dangerouslyPasteHTML(original); act(); diz('Original recarregado.',''); });
+      document.getElementById('preview-head').addEventListener('click',()=>{ document.getElementById('preview-head').classList.toggle('fechado'); preview.classList.toggle('fechado'); });
+      document.getElementById('btn-guardar').addEventListener('click',guardar);
+    }
+
+    function diz(txt,cls){ const e=document.getElementById('estado'); if(e){e.textContent=txt;e.className='estado '+(cls||'');} }
+
+    async function guardar() {
+      const sb=getSB(); if(!sb){diz('Supabase não disponível.','erro');return;}
+      const html=quill.root.innerHTML; diz('A guardar…','');
+      try { const {data,error}=await sb.from('consultations').update({hda:html}).eq('id',CONSULTA_ID).select('id'); if(error) throw error; if(!data||!data.length) throw new Error('Sem permissão (RLS).'); diz('Guardado ✓','ok'); } catch(e){ diz('Erro: '+(e.message||e),'erro'); }
+    }
+
+    boot();
+  </script>
+</body>
+</html>
