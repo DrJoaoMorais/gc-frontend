@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Feed Consulta — 2 colunas (teste)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link href="./consulta-completa.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.SUPABASE_URL = "https://nxfnzzcuqzxmzsihbrtp.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA";
+    window.sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  </script>
+  <style>
+    /* ===== TOPBAR NAVY ===== */
+    .fc-topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      height: 52px;
+      background: var(--cc-navy);
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 18px;
+    }
+    .fc-topbar-nome {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 600; font-size: 19px; color: #fff;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .fc-topbar-data {
+      font-size: 12px; color: rgba(255,255,255,0.5);
+      border: 1px solid rgba(255,255,255,0.2); border-radius: 5px;
+      padding: 2px 8px; white-space: nowrap; flex-shrink: 0;
+    }
+    .fc-topbar-sp { flex: 1; min-width: 0; }
+    .fc-topbar-acoes { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+    .fc-btn {
+      font: 500 13px/1 'Outfit', sans-serif;
+      border-radius: 7px; padding: 7px 13px;
+      cursor: pointer; border: 1px solid rgba(255,255,255,0.22);
+      background: transparent; color: rgba(255,255,255,0.82);
+      transition: all .15s; white-space: nowrap;
+    }
+    .fc-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .fc-btn:disabled { opacity: .45; cursor: default; }
+    .fc-btn-prim { background: #15803d; border-color: #15803d; color: #fff; }
+    .fc-btn-prim:hover { background: #136a33; border-color: #136a33; }
+    .fc-topbar-estado { font-size: 12px; color: rgba(255,255,255,0.6); white-space: nowrap; }
+    .fc-topbar-estado.ok   { color: #86efac; }
+    .fc-topbar-estado.erro { color: #fca5a5; }
+
+    /* ===== BARRA ANTECEDENTES ===== */
+    .fc-antec-bar {
+      position: fixed; top: 52px; left: 0; right: 0; z-index: 199;
+      background: #fff; border-bottom: 1px solid var(--cc-linha);
+    }
+    .fc-antec-inner {
+      padding: 6px 18px;
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; overflow: hidden;
+      white-space: nowrap; min-height: 36px;
+    }
+    .fc-antec-item {
+      overflow: hidden; text-overflow: ellipsis;
+      color: var(--cc-suave); max-width: 260px; flex-shrink: 1;
+    }
+    .fc-antec-lbl {
+      font-size: 10px; font-weight: 700; letter-spacing: .05em;
+      text-transform: uppercase; color: var(--cc-ténue); margin-right: 3px;
+    }
+    .fc-antec-sep { color: var(--cc-linha); font-size: 14px; flex-shrink: 0; }
+    .fc-antec-vazio { font-size: 12px; color: var(--cc-ténue); font-style: italic; }
+    .fc-badge {
+      display: inline-flex; align-items: center;
+      font-size: 11px; font-weight: 600; padding: 2px 9px;
+      border-radius: 5px; white-space: nowrap; flex-shrink: 0;
+    }
+    .fc-badge-red   { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+    .fc-badge-ambar { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+    .fc-badge-azul  { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+    .fc-antec-edit  {
+      margin-left: auto; flex-shrink: 0;
+      font-size: 11px; color: var(--cc-ténue);
+      text-decoration: none; white-space: nowrap;
+    }
+    .fc-antec-edit:hover { color: var(--cc-azul); }
+
+    /* ===== BARRA PACEMAKER (condicional) ===== */
+    .fc-alerta-critico {
+      display: none;
+      position: fixed; left: 0; right: 0; z-index: 198;
+      background: #fef2f2; border-bottom: 2px solid #fca5a5;
+      padding: 7px 18px; font-size: 13px; font-weight: 600; color: #b91c1c;
+    }
+    .fc-alerta-critico.visivel { display: block; }
+
+    /* ===== PÁGINA ===== */
+    .fc-page { padding-top: 96px; /* recalculado via JS */ }
+    .fc-banner-wrap { border-bottom: 1px solid #fde68a; }
+
+    /* ===== LAYOUT 2 COLUNAS ===== */
+    .fc-layout {
+      display: grid;
+      grid-template-columns: 65fr 35fr;
+      gap: 14px;
+      padding: 14px 16px 80px;
+      max-width: 1440px;
+      margin: 0 auto;
+      align-items: start;
+    }
+    .fc-col-main { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+    .fc-col-side {
+      display: flex; flex-direction: column; gap: 12px;
+      position: sticky; top: 104px; /* recalculado via JS */
+      align-self: start; min-width: 0;
+      max-height: calc(100vh - 108px);
+      overflow-y: auto;
+    }
+
+    /* ===== QUILL OVERRIDES ===== */
+    .ql-toolbar.ql-snow {
+      border: 1px solid var(--cc-linha); border-bottom: none;
+      border-radius: 8px 8px 0 0;
+      background: var(--cc-fundo); font-family: 'Outfit', sans-serif;
+    }
+    .ql-container.ql-snow {
+      border: 1px solid var(--cc-linha); border-radius: 0 0 8px 8px;
+      font-family: 'Outfit', sans-serif; font-size: 15px;
+    }
+    .ql-editor { min-height: 150px; line-height: 1.7; color: var(--cc-texto); padding: 14px 16px; }
+    .ql-editor.ql-blank::before { color: var(--cc-ténue); font-style: italic; left: 16px; }
+    .ql-snow .ql-toolbar button:hover .ql-stroke,
+    .ql-snow .ql-toolbar button.ql-active .ql-stroke { stroke: var(--cc-azul); }
+    .ql-snow .ql-toolbar button:hover .ql-fill,
+    .ql-snow .ql-toolbar button.ql-active .ql-fill { fill: var(--cc-azul); }
+
+    /* ===== SNIPPETS HDA ===== */
+    .fc-snips { display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
+    .fc-snip {
+      background: var(--cc-fundo); border: 1px solid var(--cc-linha);
+      border-radius: 5px; padding: 4px 10px; font-size: 11px;
+      color: var(--cc-suave); cursor: pointer; transition: all .15s;
+    }
+    .fc-snip:hover { background: var(--cc-azul); color: #fff; border-color: var(--cc-azul); }
+
+    /* ===== RESUMO EXAME (coluna direita) ===== */
+    .fc-resumo-linha {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 7px 0; border-top: 1px solid var(--cc-linha); font-size: 13px;
+    }
+    .fc-resumo-linha:first-child { border-top: none; padding-top: 0; }
+    .fc-resumo-rot { color: var(--cc-suave); }
+    .fc-resumo-val { font-weight: 600; color: var(--cc-texto); }
+    .fc-resumo-v { color: #15803d; }
+    .fc-resumo-a { color: #b45309; }
+    .fc-resumo-r { color: #b91c1c; }
+
+    /* ===== STATUS LOADING ===== */
+    #fc-loading {
+      text-align: center; color: var(--cc-suave); font-size: 15px;
+      padding: 60px 0;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 860px) {
+      .fc-layout { grid-template-columns: 1fr; }
+      .fc-col-side { position: static; max-height: none; overflow: visible; }
+      .fc-topbar-nome { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOPBAR NAVY -->
+  <header class="fc-topbar">
+    <span class="fc-topbar-nome" id="fc-nome">A carregar…</span>
+    <span class="fc-topbar-data" id="fc-data"></span>
+    <span class="fc-topbar-sp"></span>
+    <div class="fc-topbar-acoes">
+      <button class="fc-btn" id="btn-rc" disabled title="Rel. Consulta — em construção">Rel. Consulta</button>
+      <button class="fc-btn" id="btn-rm" disabled title="Rel. Médico — em construção">Rel. Médico</button>
+      <button class="fc-btn fc-btn-prim" id="btn-gravar">Gravar HDA</button>
+      <span class="fc-topbar-estado" id="fc-estado"></span>
+    </div>
+  </header>
+
+  <!-- BARRA ANTECEDENTES -->
+  <div class="fc-antec-bar" id="fc-antec-bar">
+    <div class="fc-antec-inner" id="fc-antec-inner">
+      <span class="fc-antec-vazio">A carregar antecedentes…</span>
+    </div>
+  </div>
+
+  <!-- BARRA PACEMAKER (aparece quando activo) -->
+  <div class="fc-alerta-critico" id="fc-alerta-critico">
+    ⚠️ PACEMAKER — verificar compatibilidade antes de qualquer procedimento
+  </div>
+
+  <!-- PÁGINA -->
+  <div class="fc-page" id="fc-page">
+
+    <div class="cc-banner fc-banner-wrap">
+      🧪 <strong>Teste isolado — Feed Consulta (layout 2 colunas)</strong> · doente 163fe5dc · consulta bdc1e349
+    </div>
+
+    <div id="fc-loading">A carregar consulta…</div>
+
+    <div class="fc-layout" id="fc-layout" style="display:none">
+
+      <!-- COLUNA PRINCIPAL (65%) -->
+      <div class="fc-col-main">
+
+        <!-- HDA -->
+        <div class="cc-bloco">
+          <div class="cc-bloco-head">
+            <span class="cc-bloco-icon">📝</span>
+            <span class="cc-bloco-titulo">História da Doença Actual</span>
+            <span class="cc-badge" style="margin-left:auto">Quill 2.0</span>
+          </div>
+          <div class="cc-acc-body">
+            <div id="hda-editor"></div>
+            <div class="fc-snips" id="fc-snips"></div>
+          </div>
+        </div>
+
+        <!-- Exame objectivo -->
+        <div class="cc-bloco cc-acc-bloco">
+          <div class="cc-bloco-head cc-acc-head" data-acc="exame">
+            <span class="cc-bloco-icon">⚕️</span>
+            <span class="cc-bloco-titulo">Exame Objectivo</span>
+            <span class="cc-chev" style="margin-left:auto">⌄</span>
+          </div>
+          <div class="cc-acc-body" id="bloco-exame"></div>
+        </div>
+
+        <!-- Diagnóstico -->
+        <div class="cc-bloco cc-acc-bloco">
+          <div class="cc-bloco-head cc-acc-head" data-acc="diag">
+            <span class="cc-bloco-icon">🏷️</span>
+            <span class="cc-bloco-titulo">Diagnóstico</span>
+            <span class="cc-chev" style="margin-left:auto">⌄</span>
+          </div>
+          <div class="cc-acc-body" id="bloco-diag"></div>
+        </div>
+
+        <!-- Prescrição -->
+        <div class="cc-bloco cc-acc-bloco">
+          <div class="cc-bloco-head cc-acc-head" data-acc="trat">
+            <span class="cc-bloco-icon">💊</span>
+            <span class="cc-bloco-titulo">Prescrição</span>
+            <span class="cc-chev" style="margin-left:auto">⌄</span>
+          </div>
+          <div class="cc-acc-body" id="bloco-trat"></div>
+        </div>
+
+      </div>
+
+      <!-- COLUNA DIREITA STICKY (35%) -->
+      <div class="fc-col-side" id="fc-col-side">
+
+        <!-- Objectivos & Protocolo -->
+        <div class="cc-bloco">
+          <div class="cc-bloco-head">
+            <span class="cc-bloco-icon">🎯</span>
+            <span class="cc-bloco-titulo">Objectivos &amp; Protocolo</span>
+          </div>
+          <div class="cc-acc-body" id="bloco-protocolo"></div>
+        </div>
+
+        <!-- Resumo exame (métricas chave) -->
+        <div class="cc-bloco" id="bloco-resumo-wrap">
+          <div class="cc-bloco-head">
+            <span class="cc-bloco-icon">📊</span>
+            <span class="cc-bloco-titulo">Resumo do Exame</span>
+          </div>
+          <div class="cc-acc-body" id="bloco-resumo"></div>
+        </div>
+
+      </div>
+    </div>
+  </div><!-- /fc-page -->
+
+  <script type="module">
+    import { carregarConsulta } from './cc-queries.js';
+    import {
+      preencherHDA, preencherDiagnostico, preencherTratamento,
+      preencherExame, preencherProtocolo,
+    } from './cc-feed.js';
+
+    const PATIENT_ID  = '163fe5dc-a34f-4c80-8f01-5db0d63f759c';
+    const CONSULTA_ID = 'bdc1e349-232e-42b7-bd49-7a07d6e8ee76';
+
+    const SNIPPETS = [
+      ['+ EVA',        'Dor EVA '],
+      ['+ Rigidez',    'Rigidez matinal '],
+      ['+ Parestesias','Parestesias em '],
+      ['+ Limitação',  'Limitação funcional para '],
+      ['+ Antecedentes','Antecedentes: '],
+      ['+ Medicação',  'Medicação actual: '],
+    ];
+
+    let quill = null;
+
+    /* -------- offsets dinâmicos -------- */
+    function calcOffset() {
+      const tb = document.getElementById('fc-topbar')?.offsetHeight || 52;
+      const ab = document.getElementById('fc-antec-bar')?.offsetHeight || 36;
+      const ac = document.getElementById('fc-alerta-critico');
+      const acH = ac?.classList.contains('visivel') ? (ac.offsetHeight || 0) : 0;
+      return tb + ab + acH;
+    }
+
+    function aplicarOffsets() {
+      const off = calcOffset();
+      const page = document.getElementById('fc-page');
+      if (page) page.style.paddingTop = off + 'px';
+      const side = document.getElementById('fc-col-side');
+      if (side) side.style.top = (off + 8) + 'px';
+      const side_maxH = `calc(100vh - ${off + 12}px)`;
+      if (side) side.style.maxHeight = side_maxH;
+    }
+
+    /* -------- boot -------- */
+    async function boot() {
+      const sb = window.sb;
+      if (!sb) { status('⚠️ Supabase não inicializado.'); return; }
+
+      const { data: u, error: eu } = await sb.auth.getUser();
+      if (eu || !u?.user) { status('⚠️ Sem sessão. Faz login no GC neste browser e recarrega.'); return; }
+
+      /* carregar consulta + doente em paralelo */
+      const [consultaData, pacienteRes] = await Promise.all([
+        carregarConsulta({ consultationId: CONSULTA_ID, patientId: PATIENT_ID }),
+        sb.from('patients')
+          .select('full_name, dob, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas')
+          .eq('id', PATIENT_ID)
+          .single(),
+      ]);
+
+      /* topbar: nome + data */
+      if (!pacienteRes.error && pacienteRes.data) {
+        const p = pacienteRes.data;
+        document.getElementById('fc-nome').textContent = p.full_name || 'Doente';
+        renderAntecedentes(p);
+      }
+
+      const { consulta, diagnosticos, tratamentos, exames, protocolo } = consultaData;
+
+      if (consulta.report_date) {
+        const [a, m, d] = consulta.report_date.split('-');
+        document.getElementById('fc-data').textContent = `${d}/${m}/${a}`;
+      }
+
+      /* mostrar layout */
+      document.getElementById('fc-loading').style.display = 'none';
+      document.getElementById('fc-layout').style.display = 'grid';
+
+      /* HDA → Quill */
+      iniciarQuill(consulta.hda || '');
+
+      /* blocos leitura */
+      preencherExame(document.getElementById('bloco-exame'), exames);
+      preencherDiagnostico(document.getElementById('bloco-diag'), diagnosticos);
+      preencherTratamento(document.getElementById('bloco-trat'), tratamentos);
+      preencherProtocolo(document.getElementById('bloco-protocolo'), protocolo);
+      renderResumo(exames);
+
+      aplicarOffsets();
+      bindAccordeons();
+      bindGravar();
+      bindBotoesRelatorio();
+    }
+
+    /* -------- Quill -------- */
+    function iniciarQuill(hdaHTML) {
+      quill = new Quill('#hda-editor', {
+        theme: 'snow',
+        placeholder: 'Escreve a história da doença actual…',
+        modules: {
+          toolbar: [
+            [{ header: [1, 2, 3, false] }],
+            [{ size: ['small', false, 'large', 'huge'] }],
+            ['bold', 'italic', 'underline'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            ['clean'],
+          ],
+        },
+      });
+      quill.clipboard.dangerouslyPasteHTML(hdaHTML);
+
+      const snipsEl = document.getElementById('fc-snips');
+      snipsEl.innerHTML = SNIPPETS
+        .map(([r, t]) => `<span class="fc-snip" data-txt="${t.replace(/"/g, '&quot;')}">${r}</span>`)
+        .join('');
+      snipsEl.querySelectorAll('.fc-snip').forEach(s => {
+        s.addEventListener('click', () => {
+          const rng = quill.getSelection(true);
+          const idx = rng ? rng.index : quill.getLength();
+          quill.insertText(idx, s.dataset.txt, 'user');
+          quill.setSelection(idx + s.dataset.txt.length, 0);
+        });
+      });
+    }
+
+    /* -------- Barra antecedentes -------- */
+    function renderAntecedentes(p) {
+      const alertas = p.alertas || {};
+      const ac = document.getElementById('fc-alerta-critico');
+      ac.classList.toggle('visivel', !!alertas.pacemaker);
+
+      const partes = [];
+      if (alertas.pacemaker) partes.push(`<span class="fc-badge fc-badge-red">🫀 PACEMAKER</span>`);
+      if (alertas.alergias?.trim()) partes.push(`<span class="fc-badge fc-badge-ambar">⚠️ ${esc(alertas.alergias)}</span>`);
+      if (alertas.outros?.trim())   partes.push(`<span class="fc-badge fc-badge-azul">ℹ️ ${esc(alertas.outros)}</span>`);
+
+      if (partes.length) partes.push(`<span class="fc-antec-sep">·</span>`);
+
+      if (p.antecedentes_pessoais?.trim())
+        partes.push(`<span class="fc-antec-item"><span class="fc-antec-lbl">Pessoais</span>${esc(p.antecedentes_pessoais)}</span>`);
+      if (p.antecedentes_medicamentosos?.trim()) {
+        if (partes.length) partes.push(`<span class="fc-antec-sep">·</span>`);
+        partes.push(`<span class="fc-antec-item"><span class="fc-antec-lbl">Medicação</span>${esc(p.antecedentes_medicamentosos)}</span>`);
+      }
+      if (p.antecedentes_cirurgicos?.trim()) {
+        if (partes.length) partes.push(`<span class="fc-antec-sep">·</span>`);
+        partes.push(`<span class="fc-antec-item"><span class="fc-antec-lbl">Cirúrgicos</span>${esc(p.antecedentes_cirurgicos)}</span>`);
+      }
+
+      const editLink = `<a class="fc-antec-edit" href="./antecedentes.test.html" title="Editar antecedentes">editar ↗</a>`;
+      const inner = document.getElementById('fc-antec-inner');
+      inner.innerHTML = partes.length
+        ? partes.join('') + editLink
+        : `<span class="fc-antec-vazio">Sem antecedentes</span>${editLink}`;
+
+      aplicarOffsets();
+    }
+
+    /* -------- Resumo exame (coluna direita) -------- */
+    function renderResumo(exames) {
+      const wrap = document.getElementById('bloco-resumo-wrap');
+      const el   = document.getElementById('bloco-resumo');
+      if (!exames?.length) { wrap.style.display = 'none'; return; }
+
+      const ex = exames[0];
+      const d  = ex.data || {};
+      const linhas = [];
+
+      /* EVA */
+      if (d.eva) {
+        const { rep, act, pic } = d.eva;
+        const vals = [];
+        if (rep != null && rep !== '') vals.push(`Rep. ${rep}/10`);
+        if (act != null && act !== '') vals.push(`Act. ${act}/10`);
+        if (pic != null && pic !== '') vals.push(`Pico ${pic}/10`);
+        if (vals.length) {
+          const max = Math.max(...[rep, act, pic].map(v => Number(v) || 0));
+          linhas.push({ r: 'EVA', v: vals.join(' · '), c: max >= 7 ? 'r' : max >= 4 ? 'a' : 'v' });
+        }
+      }
+
+      /* ROM */
+      const rom = d.rom || {};
+      const movs = [
+        { ch: 'flex_a', rot: 'Flexão activa',    norm: 180 },
+        { ch: 'abd_a',  rot: 'Abdução activa',   norm: 180 },
+        { ch: 're_a',   rot: 'Rot. externa act.', norm: 90 },
+        { ch: 'ri_a',   rot: 'Rot. interna act.', norm: 90 },
+      ];
+      movs.forEach(m => {
+        const v = rom[m.ch];
+        if (v == null || v === '') return;
+        const pct = Math.round((Number(v) / m.norm) * 100);
+        linhas.push({ r: m.rot, v: `${v}°`, c: pct >= 90 ? 'v' : pct >= 70 ? 'a' : 'r' });
+      });
+
+      /* Escalas */
+      const esc_ = d.escalas || {};
+      if (esc_.oss_score  != null && esc_.oss_score  !== '') {
+        const n = Number(esc_.oss_score);
+        linhas.push({ r: 'OSS', v: `${esc_.oss_score}/48`, c: n >= 40 ? 'v' : n >= 30 ? 'a' : 'r' });
+      }
+      if (esc_.ases_score != null && esc_.ases_score !== '')
+        linhas.push({ r: 'ASES', v: `${esc_.ases_score}/100`, c: '' });
+      if (esc_.dash_score != null && esc_.dash_score !== '')
+        linhas.push({ r: 'DASH', v: `${esc_.dash_score}/100`, c: '' });
+
+      if (!linhas.length) { wrap.style.display = 'none'; return; }
+
+      const corCls = { v: 'fc-resumo-v', a: 'fc-resumo-a', r: 'fc-resumo-r', '': '' };
+      el.innerHTML = linhas.map(l =>
+        `<div class="fc-resumo-linha">
+          <span class="fc-resumo-rot">${esc(l.r)}</span>
+          <span class="fc-resumo-val ${corCls[l.c] || ''}">${esc(l.v)}</span>
+        </div>`
+      ).join('');
+    }
+
+    /* -------- Acordeões -------- */
+    function bindAccordeons() {
+      document.querySelectorAll('.cc-acc-head').forEach(h => {
+        h.addEventListener('click', () => {
+          h.closest('.cc-acc-bloco')?.classList.toggle('cc-collapsed');
+        });
+      });
+    }
+
+    /* -------- Gravar HDA -------- */
+    function bindGravar() {
+      document.getElementById('btn-gravar').addEventListener('click', async () => {
+        if (!quill) return;
+        const html = quill.root.innerHTML;
+        diz('A gravar…', '');
+        try {
+          const { data, error } = await window.sb
+            .from('consultations')
+            .update({ hda: html })
+            .eq('id', CONSULTA_ID)
+            .select('id');
+          if (error) throw error;
+          if (!data?.length) throw new Error('Sem permissão (RLS).');
+          diz('Gravado ✓', 'ok');
+        } catch (e) {
+          diz('Erro: ' + (e.message || e), 'erro');
+        }
+      });
+    }
+
+    function bindBotoesRelatorio() {
+      document.getElementById('btn-rc').addEventListener('click', () =>
+        alert('Relatório de Consulta — em construção'));
+      document.getElementById('btn-rm').addEventListener('click', () =>
+        alert('Relatório Médico — em construção'));
+    }
+
+    /* -------- utilidades -------- */
+    function status(msg) {
+      document.getElementById('fc-loading').textContent = msg;
+      aplicarOffsets();
+    }
+
+    function diz(txt, cls) {
+      const e = document.getElementById('fc-estado');
+      if (e) { e.textContent = txt; e.className = 'fc-topbar-estado ' + (cls || ''); }
+    }
+
+    function esc(s) {
+      return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    aplicarOffsets();
+    boot();
+  </script>
+</body>
+</html>
