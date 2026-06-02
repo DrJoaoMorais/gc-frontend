@@ -9,7 +9,11 @@
   <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../../app-config.js" onerror="void 0"></script>
+  <script>
+    window.SUPABASE_URL = "https://nxfnzzcuqzxmzsihbrtp.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA";
+    window.sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  </script>
   <style>
     :root{--cc-navy:#0f2d52;--cc-azul:#1a56db;--cc-texto:#1f2937;--cc-suave:#6b7280;--cc-tenue:#9ca3af;--cc-linha:#e5e7eb;--cc-fundo:#f9fafb;--cc-branco:#fff;--cc-verde:#15803d;--cc-vermelho:#b91c1c;}
     *{box-sizing:border-box;}
