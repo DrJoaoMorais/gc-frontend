@@ -351,7 +351,48 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       const styles = Array.from(document.querySelectorAll('link[data-gcv2-shell], link[data-gcv2-atestado], link[data-gcv2-rc]'))
         .map(l => `<link rel="stylesheet" href="${l.href}">`).join('\n');
 
-      const fullHtml = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}</body></html>`;
+      // Passo 1: gerar o doc_number via INSERT temporário não — fazemos INSERT no fim com html completo
+      // A vinheta é injectada depois de obtermos o doc_number do Supabase
+      const { data: docInserted, error: insErrPre } = await window.sb.from('documents').insert({
+        patient_id: patientId,
+        clinic_id: clinicId || null,
+        consultation_id: consultationId,
+        category: 'relatorio-clinico',
+        title,
+        html: '',
+        storage_path: '',
+        version: 1,
+      }).select('doc_number').single();
+      if (insErrPre) throw new Error('Erro ao gerar código do documento: ' + insErrPre.message);
+
+      const docNumber = docInserted?.doc_number || 'JM-XX-0000-A';
+
+      const vinheta = `
+        <div style="margin-top:48px; border-top: 1px solid #1a56db; padding-top:16px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; font-family:Arial,sans-serif; page-break-inside:avoid;">
+          <div style="flex:1;">
+            <p style="margin:0 0 2px; font-size:14px; font-weight:600; color:#0f2d52;">Dr. João Morais</p>
+            <p style="margin:0 0 4px; font-size:11px; color:#1a56db;">Medicina Física e de Reabilitação · Medicina Desportiva</p>
+            <p style="margin:0 0 8px; font-size:10px; color:#555;">Cédula OM 44380 · www.joaomorais.pt</p>
+            <p style="margin:0 0 4px; font-size:9px; color:#333; font-family:monospace; letter-spacing:0.05em;">Código do documento: <strong>${docNumber}</strong></p>
+            <p style="margin:0; font-size:9px; color:#555; line-height:1.5;">Assinado digitalmente com Cartão de Cidadão.<br>Verificar integridade no Adobe Acrobat ou leitor PDF compatível.</p>
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+              <rect width="64" height="64" fill="white"/>
+              <text x="32" y="38" text-anchor="middle" font-size="7" fill="#0f2d52" font-family="monospace">${docNumber}</text>
+              <rect x="2" y="2" width="20" height="20" rx="2" fill="none" stroke="#0f2d52" stroke-width="2"/>
+              <rect x="7" y="7" width="10" height="10" fill="#0f2d52"/>
+              <rect x="42" y="2" width="20" height="20" rx="2" fill="none" stroke="#0f2d52" stroke-width="2"/>
+              <rect x="47" y="7" width="10" height="10" fill="#0f2d52"/>
+              <rect x="2" y="42" width="20" height="20" rx="2" fill="none" stroke="#0f2d52" stroke-width="2"/>
+              <rect x="7" y="47" width="10" height="10" fill="#0f2d52"/>
+            </svg>
+            <span style="font-size:7px; color:#888;">verificar autenticidade</span>
+          </div>
+        </div>`;
+
+      const fullHtml = \`<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}${vinheta}</body></html>\`;
+
 
       const resp = await fetch('https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf', {
         method: 'POST',
@@ -380,16 +421,11 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       });
       if (upErr) console.warn('[rc] upload storage falhou:', upErr);
 
-      const { error: insErr } = await window.sb.from('documents').insert({
-        patient_id: patientId,
-        clinic_id: clinicId || null,
-        consultation_id: consultationId,
-        category: 'relatorio-clinico',
-        title,
-        storage_path: path,
-        version: 1,
-      });
-      if (insErr) console.warn('[rc] insert documents falhou:', insErr);
+      // Actualizar o documento já inserido com o html completo (com vinheta) e o storage_path
+      const { error: insErr } = await window.sb.from('documents')
+        .update({ html: fullHtml, storage_path: path })
+        .eq('doc_number', docNumber);
+      if (insErr) console.warn('[rc] update documents falhou:', insErr);
 
       closeModal();
     } catch (err) {
