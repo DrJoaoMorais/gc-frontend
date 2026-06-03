@@ -174,8 +174,17 @@ export function renderClinicsSelect(clinics) {
     const label = c.name || c.slug || c.id;
     opts.push(`<option value="${escapeHtml(c.id)}">${escapeHtml(label)}</option>`);
   }
+  /* preserva a escolha actual antes de reconstruir as opções */
+  const prev = sel.value || G.activeClinicId || "";
+
   sel.innerHTML = opts.join("");
-  if (clinics.length === 1) sel.value = clinics[0].id;
+
+  /* restaura a escolha anterior se a clínica ainda existir */
+  if (prev && [...sel.options].some((o) => o.value === String(prev))) {
+    sel.value = String(prev);
+  } else if (clinics.length === 1) {
+    sel.value = clinics[0].id;
+  }
 }
 
 /* ---- 04A.4 — getPatientForAppointmentRow ---- */
@@ -2164,6 +2173,7 @@ export async function refreshAgenda() {
 
   const sel      = document.getElementById("selClinic");
   const clinicId = sel?.value || null;
+  G.activeClinicId = clinicId;   /* persiste a escolha de clínica */
   const r        = isoLocalDayRangeFromISODate(G.selectedDayISO);
 
   if (!r) { setAgendaStatus("error", "Dia inválido."); return; }
