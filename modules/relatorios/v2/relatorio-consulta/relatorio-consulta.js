@@ -178,11 +178,14 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
   ]);
 
   // Estado local — campos editáveis
+  const _y = new Date().getFullYear().toString().slice(-2);
+  const _s = String(Math.floor(Date.now() / 1000) % 100000).padStart(5, '0');
   const state = {
     date: consultation.report_date || new Date().toISOString().slice(0, 10),
     hda: consultation.hda || '',
     conclusao: '',
     sessoes: 20,
+    docNumber: 'JM-' + _y + '-' + _s + '-A',
   };
 
   // Construir overlay
@@ -287,6 +290,29 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
          </section>`
       : '';
 
+    const seloHtml = `
+      <div style="margin-top:32px; padding-top:14px; border-top:1px solid #1a56db; display:flex; align-items:center; justify-content:space-between; gap:16px; page-break-inside:avoid;">
+        <div>
+          <div style="font-size:9px; color:#666; font-family:monospace; letter-spacing:0.05em;">Código do documento: <strong style="color:#0f2d52;">${state.docNumber}</strong></div>
+          <div style="font-size:9px; color:#666; margin-top:3px;">Assinado digitalmente com Cartão de Cidadão · Verificável no Adobe Acrobat</div>
+        </div>
+        <svg width="80" height="28" viewBox="0 0 80 28" xmlns="http://www.w3.org/2000/svg">
+          <g fill="#0f2d52">
+            <rect x="0" y="2" width="2" height="24"/><rect x="3" y="2" width="1" height="24"/>
+            <rect x="6" y="2" width="3" height="24"/><rect x="11" y="2" width="1" height="24"/>
+            <rect x="14" y="2" width="2" height="24"/><rect x="18" y="2" width="1" height="24"/>
+            <rect x="21" y="2" width="3" height="24"/><rect x="26" y="2" width="1" height="24"/>
+            <rect x="29" y="2" width="2" height="24"/><rect x="33" y="2" width="3" height="24"/>
+            <rect x="38" y="2" width="1" height="24"/><rect x="41" y="2" width="2" height="24"/>
+            <rect x="45" y="2" width="1" height="24"/><rect x="48" y="2" width="3" height="24"/>
+            <rect x="53" y="2" width="2" height="24"/><rect x="57" y="2" width="1" height="24"/>
+            <rect x="60" y="2" width="3" height="24"/><rect x="65" y="2" width="1" height="24"/>
+            <rect x="68" y="2" width="2" height="24"/><rect x="72" y="2" width="1" height="24"/>
+            <rect x="75" y="2" width="3" height="24"/>
+          </g>
+        </svg>
+      </div>`;
+
     return `
       <div class="gcv2-rc-content">
         ${cardHtml}
@@ -295,6 +321,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
         ${examHtml}
         ${planoHtml}
         ${conclusaoHtml}
+        ${seloHtml}
       </div>
     `;
   }
@@ -352,35 +379,8 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
         .map(l => `<link rel="stylesheet" href="${l.href}">`).join('\n');
 
       // Gerar código do documento localmente
-      const _year = new Date().getFullYear().toString().slice(-2);
-      const _seq = String(Math.floor(Date.now() / 1000) % 100000).padStart(5, '0');
-      const docNumber = 'JM-' + _year + '-' + _seq + '-A';
 
-      const vinheta = `
-        <div style="margin-top:24px; border-top: 1px solid #1a56db; padding-top:16px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; font-family:Arial,sans-serif; page-break-inside:avoid;">
-          <div style="flex:1;">
-            <p style="margin:0 0 2px; font-size:14px; font-weight:600; color:#0f2d52;">Dr. João Morais</p>
-            <p style="margin:0 0 4px; font-size:11px; color:#1a56db;">Medicina Física e de Reabilitação · Medicina Desportiva</p>
-            <p style="margin:0 0 8px; font-size:10px; color:#555;">Cédula OM 44380 · www.joaomorais.pt</p>
-            <p style="margin:0 0 4px; font-size:9px; color:#333; font-family:monospace; letter-spacing:0.05em;">Código do documento: <strong>${docNumber}</strong></p>
-            <p style="margin:0; font-size:9px; color:#555; line-height:1.5;">Assinado digitalmente com Cartão de Cidadão.<br>Verificar integridade no Adobe Acrobat ou leitor PDF compatível.</p>
-          </div>
-          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-              <rect width="64" height="64" fill="white"/>
-              <text x="32" y="38" text-anchor="middle" font-size="7" fill="#0f2d52" font-family="monospace">${docNumber}</text>
-              <rect x="2" y="2" width="20" height="20" rx="2" fill="none" stroke="#0f2d52" stroke-width="2"/>
-              <rect x="7" y="7" width="10" height="10" fill="#0f2d52"/>
-              <rect x="42" y="2" width="20" height="20" rx="2" fill="none" stroke="#0f2d52" stroke-width="2"/>
-              <rect x="47" y="7" width="10" height="10" fill="#0f2d52"/>
-              <rect x="2" y="42" width="20" height="20" rx="2" fill="none" stroke="#0f2d52" stroke-width="2"/>
-              <rect x="7" y="47" width="10" height="10" fill="#0f2d52"/>
-            </svg>
-            <span style="font-size:7px; color:#888;">verificar autenticidade</span>
-          </div>
-        </div>`;
-
-      const fullHtml = \`<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}${vinheta}</body></html>\`;
+      const fullHtml = \`<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}</body></html>\`;
 
 
       const resp = await fetch('https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf', {
@@ -413,7 +413,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       // Actualizar o documento já inserido com o html completo (com vinheta) e o storage_path
       const { error: insErr } = await window.sb.from('documents')
         .update({ html: fullHtml, storage_path: path })
-        .eq('doc_number', docNumber);
+        .eq('doc_number', state.docNumber);
       if (insErr) console.warn('[rc] update documents falhou:', insErr);
 
       closeModal();
