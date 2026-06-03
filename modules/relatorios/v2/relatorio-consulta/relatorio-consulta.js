@@ -351,24 +351,13 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       const styles = Array.from(document.querySelectorAll('link[data-gcv2-shell], link[data-gcv2-atestado], link[data-gcv2-rc]'))
         .map(l => `<link rel="stylesheet" href="${l.href}">`).join('\n');
 
-      // Passo 1: gerar o doc_number via INSERT temporário não — fazemos INSERT no fim com html completo
-      // A vinheta é injectada depois de obtermos o doc_number do Supabase
-      const { data: docInserted, error: insErrPre } = await window.sb.from('documents').insert({
-        patient_id: patientId,
-        clinic_id: clinicId || null,
-        consultation_id: consultationId,
-        category: 'relatorio-clinico',
-        title,
-        html: '',
-        storage_path: '',
-        version: 1,
-      }).select('doc_number').single();
-      if (insErrPre) throw new Error('Erro ao gerar código do documento: ' + insErrPre.message);
-
-      const docNumber = docInserted?.doc_number || 'JM-XX-0000-A';
+      // Gerar código do documento localmente
+      const _year = new Date().getFullYear().toString().slice(-2);
+      const _seq = String(Math.floor(Date.now() / 1000) % 100000).padStart(5, '0');
+      const docNumber = 'JM-' + _year + '-' + _seq + '-A';
 
       const vinheta = `
-        <div style="page-break-before:always; margin-top:40px; border-top: 1px solid #1a56db; padding-top:16px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; font-family:Arial,sans-serif; page-break-inside:avoid;">
+        <div style="margin-top:24px; border-top: 1px solid #1a56db; padding-top:16px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; font-family:Arial,sans-serif; page-break-inside:avoid;">
           <div style="flex:1;">
             <p style="margin:0 0 2px; font-size:14px; font-weight:600; color:#0f2d52;">Dr. João Morais</p>
             <p style="margin:0 0 4px; font-size:11px; color:#1a56db;">Medicina Física e de Reabilitação · Medicina Desportiva</p>
