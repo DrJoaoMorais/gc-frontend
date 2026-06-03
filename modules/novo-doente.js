@@ -170,7 +170,8 @@ function openNewPatientMainModal({ clinicId }) {
 
   if (btnClose) btnClose.addEventListener("click", close);
   if (npCancel) npCancel.addEventListener("click", close);
-  if (overlay) overlay.addEventListener("click", (ev) => { if (ev.target && ev.target.id === "npMainOverlay") close(); });
+  /* a janela NÃO fecha ao clicar fora — evita perder dados por engano.
+     Só fecha pelo botão "Fechar". */
 
   /* ---- 07C — Validação ---- */
   function validate() {
@@ -281,6 +282,17 @@ function openNewPatientMainModal({ clinicId }) {
         if (rHost) { rHost.innerHTML = ""; rHost.style.display = "none"; }
 
         close();
+
+        /* fluxo encadeado: abrir a marcação já com o doente e clínica preenchidos */
+        if (typeof window.__gc_openApptModal === "function") {
+          window.__gc_openApptModal({
+            mode: "new",
+            row: null,
+            prefillPatientId: newPatientId,
+            prefillPatientName: v.full_name,
+            prefillClinicId: clinicId,
+          });
+        }
       } catch (e) {
         console.error("Criar doente (main) falhou:", e);
         const msg = String(e && (e.message || e.details || e.hint) ? (e.message || e.details || e.hint) : e);
