@@ -368,7 +368,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       const docNumber = docInserted?.doc_number || 'JM-XX-0000-A';
 
       const vinheta = `
-        <div style="margin-top:48px; border-top: 1px solid #1a56db; padding-top:16px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; font-family:Arial,sans-serif; page-break-inside:avoid;">
+        <div style="page-break-before:always; margin-top:40px; border-top: 1px solid #1a56db; padding-top:16px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; font-family:Arial,sans-serif; page-break-inside:avoid;">
           <div style="flex:1;">
             <p style="margin:0 0 2px; font-size:14px; font-weight:600; color:#0f2d52;">Dr. João Morais</p>
             <p style="margin:0 0 4px; font-size:11px; color:#1a56db;">Medicina Física e de Reabilitação · Medicina Desportiva</p>
