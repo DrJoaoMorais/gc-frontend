@@ -2161,7 +2161,8 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   btnSave?.addEventListener("click", onSave);
   btnCancel?.addEventListener("click", safeCloseModal);
   btnClose?.addEventListener("click", safeCloseModal);
-  overlay?.addEventListener("click", (ev) => { if (ev.target === overlay) safeCloseModal(); });
+  /* a janela NÃO fecha ao clicar fora — evita perder dados por engano.
+     Só fecha pelo botão ✕ ou pelo Cancelar. */
 }
 
 
