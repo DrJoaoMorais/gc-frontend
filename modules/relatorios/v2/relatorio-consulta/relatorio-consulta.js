@@ -291,7 +291,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       : '';
 
     const seloHtml = `
-      <div style="margin-top:32px; padding-top:14px; border-top:1px solid #1a56db; display:flex; align-items:center; justify-content:space-between; gap:16px; page-break-inside:avoid;">
+      <div style="margin-top:32px; padding-top:14px; border-top:3px solid red; background:red; display:flex; align-items:center; justify-content:space-between; gap:16px; page-break-inside:avoid;">
         <div>
           <div style="font-size:9px; color:#666; font-family:monospace; letter-spacing:0.05em;">Código do documento: <strong style="color:#0f2d52;">${state.docNumber}</strong></div>
           <div style="font-size:9px; color:#666; margin-top:3px;">Assinado digitalmente com Cartão de Cidadão · Verificável no Adobe Acrobat</div>
