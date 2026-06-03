@@ -1,0 +1,410 @@
+/* ============================================================
+   Consulta Completa (V2) — estilos do teste isolado.
+   Design system GC: Cormorant Garamond + Outfit, navy #0f2d52,
+   azul primário #1a56db.
+   ============================================================ */
+
+:root {
+  --cc-navy: #0f2d52;
+  --cc-azul: #1a56db;
+  --cc-texto: #1f2937;
+  --cc-suave: #6b7280;
+  --cc-ténue: #9ca3af;
+  --cc-linha: #e5e7eb;
+  --cc-fundo: #f9fafb;
+  --cc-branco: #ffffff;
+  --cc-verde: #15803d;
+  --cc-ambar: #b45309;
+  --cc-vermelho: #b91c1c;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--cc-fundo);
+  color: var(--cc-texto);
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.cc-banner {
+  background: #fef9c3;
+  color: #713f12;
+  padding: 12px 20px;
+  font-size: 14px;
+  border-bottom: 1px solid #fde68a;
+}
+.cc-banner strong { font-weight: 600; }
+
+.cc-root { max-width: 760px; margin: 0 auto; padding: 24px 20px 64px; }
+
+.cc-status {
+  text-align: center;
+  color: var(--cc-suave);
+  font-size: 16px;
+  padding: 48px 0;
+}
+
+/* Cabeçalho do doente */
+.cc-cabecalho {
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--cc-linha);
+}
+.cc-nome {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 600;
+  font-size: 28px;
+  color: var(--cc-navy);
+  margin: 0;
+}
+.cc-sub { margin: 4px 0 0; font-size: 14px; color: var(--cc-suave); }
+.cc-ids { margin: 2px 0 0; font-size: 12px; color: var(--cc-ténue); font-family: monospace; }
+
+/* Feed */
+.cc-feed { display: flex; flex-direction: column; gap: 12px; }
+
+.cc-bloco {
+  background: var(--cc-branco);
+  border: 1px solid var(--cc-linha);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.cc-bloco-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+}
+.cc-acc-head { cursor: pointer; user-select: none; }
+.cc-acc-head:hover { background: var(--cc-fundo); }
+
+.cc-bloco-icon { font-size: 16px; }
+.cc-bloco-titulo {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cc-navy);
+}
+
+.cc-chev {
+  margin-left: auto;
+  font-size: 18px;
+  color: var(--cc-ténue);
+  transition: transform 0.15s;
+}
+.cc-collapsed .cc-chev { transform: rotate(-90deg); }
+
+.cc-acc-body { padding: 0 18px 16px; }
+.cc-collapsed .cc-acc-body { display: none; }
+
+.cc-vazio {
+  margin: 0;
+  font-size: 13px;
+  color: var(--cc-ténue);
+  font-style: italic;
+}
+
+/* Blocos reservados (a construir) */
+.cc-reservado {
+  background: transparent;
+  border-style: dashed;
+}
+.cc-reservado .cc-bloco-titulo { color: var(--cc-suave); }
+.cc-badge {
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: var(--cc-ténue);
+  border: 1px solid var(--cc-linha);
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+
+/* ===== Conteúdo dos blocos (ficheiro 2) ===== */
+
+/* HDA */
+.cc-hda { font-size: 15px; line-height: 1.7; color: var(--cc-texto); }
+.cc-hda p { margin: 0 0 8px; }
+.cc-hda ul, .cc-hda ol { margin: 0 0 8px; padding-left: 22px; }
+
+/* Diagnóstico */
+.cc-diag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #e6f1fb;
+  border-radius: 8px;
+  padding: 6px 12px;
+  margin: 0 8px 8px 0;
+}
+.cc-diag-sis {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #185fa5;
+  border: 1px solid #85b7eb;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.cc-diag-code { font-size: 12px; font-weight: 600; color: #0c447c; font-family: monospace; }
+.cc-diag-label { font-size: 14px; color: #042c53; }
+
+/* Tabela (tratamentos) */
+.cc-tabela { width: 100%; border-collapse: collapse; font-size: 14px; }
+.cc-tabela th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--cc-suave);
+  padding: 4px 8px 8px 0;
+}
+.cc-tabela td { padding: 7px 8px 7px 0; border-top: 1px solid var(--cc-linha); }
+.cc-trat-code { font-family: monospace; font-size: 12px; color: var(--cc-suave); }
+.cc-trat-qty { text-align: right; }
+.cc-tabela th:last-child, .cc-tabela td:last-child { text-align: right; }
+
+/* Exame objectivo */
+.cc-exame-registo {
+  border: 1px solid var(--cc-linha);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.cc-exame-cabec { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.cc-exame-tipo { font-size: 14px; font-weight: 600; color: var(--cc-navy); text-transform: capitalize; }
+.cc-exame-data {
+  font-size: 11px;
+  color: var(--cc-suave);
+  border: 1px solid var(--cc-linha);
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+.cc-exame-nota { font-size: 11px; color: var(--cc-ténue); }
+.cc-exame-seccao { margin-bottom: 12px; }
+.cc-exame-rotulo {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--cc-ténue);
+}
+.cc-exame-valor { font-size: 14px; line-height: 1.6; color: var(--cc-texto); }
+
+/* ============================================================
+   Render dedicado do OMBRO (sub-passo 3).
+   Convive com o render genérico acima; este só é usado quando
+   assessment_type === 'ombro'. Reutiliza as variáveis do :root.
+   ============================================================ */
+
+/* Cabeçalho do registo de ombro */
+.cc-omb-cabec {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--cc-linha);
+}
+.cc-omb-icon { font-size: 18px; color: #185fa5; }
+.cc-omb-titulo { font-size: 15px; font-weight: 600; color: var(--cc-navy); }
+.cc-omb-data {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--cc-suave);
+  border: 1px solid var(--cc-linha);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+/* Chips de topo (tipo de dor, localização, irradiação, EVA) */
+.cc-omb-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.cc-omb-chip {
+  font-size: 13px;
+  background: #e6f1fb;
+  color: #042c53;
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+.cc-omb-chip-eva { background: #fceaeb; color: var(--cc-vermelho); }
+
+/* Rótulo de secção */
+.cc-omb-rotulo {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--cc-ténue);
+}
+.cc-omb-rotulo .cc-omb-rotulo-norm {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Bloco de uma secção (espaçamento entre secções) */
+.cc-omb-seccao { margin-bottom: 20px; }
+
+/* Linha de chips de achados (palpação, MRC, testes, funcional) */
+.cc-omb-itens { display: flex; flex-wrap: wrap; gap: 8px; }
+.cc-omb-itens-compacto { gap: 6px; }
+.cc-omb-item {
+  font-size: 13px;
+  border: 1px solid var(--cc-linha);
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: var(--cc-suave);
+}
+.cc-omb-item-compacto { font-size: 12px; padding: 3px 9px; }
+.cc-omb-item-val { font-weight: 500; }
+
+/* Cores semânticas reutilizáveis (verde/âmbar/vermelho) */
+.cc-v-verde { color: var(--cc-verde); }
+.cc-v-ambar { color: var(--cc-ambar); }
+.cc-v-vermelho { color: var(--cc-vermelho); }
+
+/* Tabelas (ROM e dinamometria) */
+.cc-omb-tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cc-omb-tabela thead th {
+  text-align: right;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--cc-suave);
+  padding: 4px 6px 8px;
+}
+.cc-omb-tabela thead th:first-child { text-align: left; padding-left: 0; }
+.cc-omb-tabela thead th:last-child { padding-right: 0; }
+.cc-omb-tabela tbody td {
+  text-align: right;
+  padding: 7px 6px;
+  border-top: 1px solid var(--cc-linha);
+  color: var(--cc-suave);
+}
+.cc-omb-tabela tbody td:first-child { text-align: left; padding-left: 0; color: var(--cc-texto); }
+.cc-omb-tabela tbody td:last-child { padding-right: 0; }
+.cc-omb-td-forte { color: var(--cc-texto); font-weight: 500; }
+.cc-omb-td-tenue { color: var(--cc-ténue); }
+
+/* Escalas funcionais (cartões métricos) */
+.cc-omb-escalas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.cc-omb-escala {
+  background: var(--cc-fundo);
+  border-radius: 8px;
+  padding: 12px;
+}
+.cc-omb-escala-nome { margin: 0; font-size: 12px; color: var(--cc-suave); }
+.cc-omb-escala-valor { margin: 2px 0 0; font-size: 22px; font-weight: 500; color: var(--cc-navy); }
+.cc-omb-escala-max { font-size: 13px; color: var(--cc-ténue); }
+.cc-omb-escala-faixa { margin: 4px 0 0; font-size: 11px; color: var(--cc-ténue); }
+.cc-omb-escala-faixa-verde { color: var(--cc-verde); }
+
+/* Caixa de interpretação clínica (placeholder por agora) */
+.cc-omb-interp {
+  border: 1px solid var(--cc-linha);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.cc-omb-interp-rotulo {
+  margin: 0 0 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--cc-ténue);
+}
+.cc-omb-interp-texto { margin: 0; font-size: 13px; font-style: italic; color: var(--cc-ténue); }
+
+/* ---------- BLOCO PROTOCOLO E OBJECTIVOS ---------- */
+.cc-prot { display: flex; flex-direction: column; gap: 12px; }
+.cc-prot-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cc-prot-chip {
+  font-size: 12px; padding: 3px 10px; border-radius: 6px;
+  border: 1px solid #c7d6ea; color: #1a56db; background: #f2f7fe;
+}
+.cc-prot-chip-nome { font-weight: 600; }
+.cc-prot-chip-fase { background: #0f2d52; border-color: #0f2d52; color: #fff; }
+.cc-prot-colunas { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 14px; }
+.cc-prot-col { min-width: 0; }
+.cc-prot-col-rotulo {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .03em; margin: 0 0 6px; color: #5b6b7f;
+}
+.cc-prot-lista { list-style: none; margin: 0; padding: 0; }
+.cc-prot-lista li {
+  font-size: 13px; line-height: 1.45; padding: 4px 0 4px 16px;
+  position: relative; color: #1f2d3d;
+}
+.cc-prot-lista li::before {
+  content: ''; position: absolute; left: 2px; top: 11px;
+  width: 5px; height: 5px; border-radius: 50%; background: #9aa7b5;
+}
+.cc-prot-obj::before    { background: #1a56db; }
+.cc-prot-contra         { color: #501313; }
+.cc-prot-contra::before { background: #a32d2d; }
+.cc-prot-hep            { color: #173404; }
+.cc-prot-hep::before    { background: #3b6d11; }
+@media (max-width: 640px) { .cc-prot-colunas { grid-template-columns: 1fr; gap: 10px; } }
+
+.cc-serie-rodape { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+.cc-serie-guardar { font: inherit; font-size: 14px; font-weight: 500; color: #fff; background: var(--cc-verde); border: 1px solid var(--cc-verde); border-radius: 8px; padding: 8px 16px; cursor: pointer; }
+.cc-serie-guardar:hover { background: #136a33; border-color: #136a33; }
+.cc-serie-estado { font-size: 13px; color: var(--cc-suave); }
+.cc-serie-estado.cc-serie-ok { color: var(--cc-verde); }
+.cc-serie-estado.cc-serie-erro { color: var(--cc-vermelho); }
+.cc-serie-linhas { display: flex; flex-direction: column; gap: 10px; }
+.cc-serie-linha-fora { opacity: 0.5; }
+.cc-serie-linha-manual { border-color: #c7d6ea; }
+.cc-serie-origem-seu { color: var(--cc-azul); }
+.cc-serie-remover { flex: none; font: inherit; font-size: 13px; line-height: 1; color: var(--cc-suave); background: none; border: 1px solid var(--cc-linha); border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+.cc-serie-remover:hover { color: var(--cc-vermelho); border-color: var(--cc-vermelho); }
+.cc-serie-param { font: inherit; font-size: 14px; color: var(--cc-texto); background: var(--cc-branco); border: 1px solid var(--cc-linha); border-radius: 6px; padding: 5px 7px; }
+.cc-serie-add { font: inherit; font-size: 13px; color: var(--cc-azul); background: none; border: 1px solid #c7d6ea; border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+.cc-serie-add:hover { background: #f2f7fe; }
+.cc-serie-guardar { margin-left: auto; }
+.cc-serie-linha-compacta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
+.cc-serie-linha-compacta .cc-serie-texto { flex: 1 1 160px; min-width: 120px; }
+.cc-serie-linha-compacta .cc-serie-alvo { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0; flex: 0 1 auto; }
+.cc-serie-linha-compacta .cc-serie-valor { width: 56px; }
+.cc-serie-linha-compacta .cc-serie-obs { flex-basis: 100%; margin: 0; padding-left: 26px; }
+/* A frase longa vira um ícone discreto com dica ao passar o rato */
+.cc-serie-linha-compacta .cc-serie-auto { font-size: 0; }
+.cc-serie-linha-compacta .cc-serie-auto::after { content: '⚡'; font-size: 14px; color: var(--cc-ténue); cursor: help; }
+.cc-serie-linha-compacta .cc-serie-auto { position: relative; }
+.cc-serie-linha-compacta .cc-serie-auto:hover::before {
+  content: 'real automático do exame seguinte';
+  position: absolute; bottom: 130%; right: 0; white-space: nowrap;
+  font-size: 11px; color: #fff; background: var(--cc-navy);
+  padding: 4px 8px; border-radius: 6px; z-index: 5;
+}
+.cc-serie-origem-fim { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; flex: none; }
+.cc-serie-linha-compacta .cc-serie-origem { margin: 0; }
+.cc-serie-linhas { gap: 7px; }
+.cc-serie-linha-compacta { padding: 6px 10px; gap: 7px; }
+.cc-serie-linha-compacta .cc-serie-obs { margin-top: 3px; padding-left: 26px; font-size: 11px; }
+
+/* ---------- OBJECTIVOS DA PRÓXIMA SÉRIE (camada de escrita) ---------- */
+.cc-serie { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--cc-linha); display: flex; flex-direction: column; gap: 10px; }
+.cc-serie-titulo { margin: 0; font-size: 13px; font-weight: 600; color: var(--cc-navy); }
+.cc-serie-ajuda { margin: -4px 0 2px; font-size: 12px; color: var(--cc-suave); }
+.cc-serie-linha { border: 1px solid var(--cc-linha); border-radius: 10px; padding: 10px 12px; }
+.cc-serie-topo { display: flex; align-items: center; gap: 10px; }
+.cc-serie-check { width: 16px; height: 16px; flex: none; accent-color: var(--cc-azul); }
+.cc-serie-tag { flex: none; font-size: 12px; border-radius: 6px; padding: 2px 8px; }
+.cc-serie-tag-mens { background: #e6f1fb; color: #0c447c; }
+.cc-serie-tag-qual { background: #faeeda; color: #854f0b; }
+.cc-serie-texto { flex: 1; min-width: 0; font: inherit; font-size: 14px; color: var(--cc-texto); border: 1px solid var(--cc-linha); border-radius: 6px; padding: 6px 8px; }
+.cc-serie-origem { flex: none; font-size: 11px; color: var(--cc-ténue); }
+.cc-serie-alvo { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding-left: 26px; }
+.cc-serie-param { font-size: 13px; color: var(--cc-suave); background: var(--cc-fundo); border-radius: 6px; padding: 3px 9px; }
+.cc-serie-op, .cc-serie-valor { font: inherit; font-size: 14px; border: 1px solid var(--cc-linha); border-radius: 6px; padding: 5px 7px; color: var(--cc-texto); }
+.cc-serie-valor { width: 64px; text-align: center; }
+.cc-serie-unid { font-size: 13px; color: var(--cc-suave); }
+.cc-serie-auto { margin-left: auto; font-size: 12px; color: var(--cc-ténue); }
+.cc-serie-nota { font-size: 12px; color: var(--cc-ténue); }
+.cc-serie-obs { margin: 8px 0 0; padding-left: 26px; font-size: 12px; color: var(--cc-suave); font-style: italic; }

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Consulta Completa (V2) — teste isolado</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    /* === Supabase inline — mesmo padrão do Relatório V2 (app.html), NÃO config.js === */
+    /* TODO (passo final): reconciliar com window.sb / config.js de produção. */
+    window.SUPABASE_URL = "https://nxfnzzcuqzxmzsihbrtp.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA";
+    window.sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  </script>
+
+  <link rel="stylesheet" href="consulta-completa.css" />
+</head>
+<body>
+
+  <div class="cc-banner">
+    🧪 <strong>Teste isolado — Consulta Completa (V2)</strong> — lê as tabelas reais (modo leitura). Página não integrada com o GC; serve para construir o feed.
+  </div>
+
+  <main id="cc-root" class="cc-root">
+    <p id="cc-status" class="cc-status">A carregar…</p>
+  </main>
+
+  <script type="module">
+    /* ============================================================
+       Consulta Completa (V2) — esqueleto + arranque + dados.
+       Caso de teste: João Miguel Guerreiro de Morais, 24/05/2026.
+       ============================================================ */
+
+    import { carregarConsulta } from './cc-queries.js';
+    import { preencherHDA, preencherExame, preencherDiagnostico, preencherTratamento, preencherProtocolo } from './cc-feed.js';
+
+    const CASE = {
+      patientId: '163fe5dc-a34f-4c80-8f01-5db0d63f759c',
+      consultationId: 'bdc1e349-232e-42b7-bd49-7a07d6e8ee76',
+    };
+
+    const root = document.getElementById('cc-root');
+    const statusEl = document.getElementById('cc-status');
+
+    /* Verificação de sessão. Se a sessão caducou (Invalid Refresh Token),
+       mostra mensagem clara em vez de ficar preso em "A carregar…". */
+    async function boot() {
+      if (!window.sb) {
+        statusEl.textContent = '⚠️ Supabase não inicializou. Verifica a ANON KEY no <head>.';
+        return;
+      }
+
+      let user = null;
+      try {
+        const { data, error } = await window.sb.auth.getUser();
+        if (error) throw error;
+        user = data?.user || null;
+      } catch (e) {
+        statusEl.innerHTML =
+          '⚠️ Sessão Supabase inválida ou expirada.<br>' +
+          'Faz login no GC neste browser (ou no localhost) e volta a abrir esta página.';
+        return;
+      }
+
+      if (!user) {
+        statusEl.innerHTML =
+          '⚠️ Sem sessão. Faz login no GC neste browser e recarrega.';
+        return;
+      }
+
+      renderSkeleton(user);
+    }
+
+    /* Desenha o esqueleto do feed: 6 blocos colapsáveis, todos VAZIOS e FECHADOS.
+       Os dados entram no ficheiro 2. */
+    function renderSkeleton(user) {
+      const blocos = [
+        { id: 'hda',    icon: '📝', titulo: 'História da doença actual' },
+        { id: 'exame',  icon: '🩺', titulo: 'Exame objectivo' },
+        { id: 'objs',   icon: '🎯', titulo: 'Protocolo e objectivos' },
+        { id: 'diag',   icon: '📋', titulo: 'Diagnóstico' },
+        { id: 'trat',   icon: '💉', titulo: 'Tratamento' },
+        { id: 'evol',   icon: '📈', titulo: 'Evolução', reservado: true },
+      ];
+
+      const blocosHTML = blocos.map(b => {
+        if (b.reservado) {
+          return `
+            <section class="cc-bloco cc-reservado">
+              <div class="cc-bloco-head">
+                <span class="cc-bloco-icon">${b.icon}</span>
+                <span class="cc-bloco-titulo">${b.titulo}</span>
+                <span class="cc-badge">A CONSTRUIR</span>
+              </div>
+            </section>`;
+        }
+        return `
+          <section class="cc-bloco cc-acc cc-collapsed" data-bloco="${b.id}">
+            <div class="cc-bloco-head cc-acc-head">
+              <span class="cc-bloco-icon">${b.icon}</span>
+              <span class="cc-bloco-titulo">${b.titulo}</span>
+              <span class="cc-chev">⌄</span>
+            </div>
+            <div class="cc-acc-body">
+              <p class="cc-vazio">— ainda sem dados (entra no ficheiro 2) —</p>
+            </div>
+          </section>`;
+      }).join('');
+
+      root.innerHTML = `
+        <header class="cc-cabecalho">
+          <h1 class="cc-nome">João Miguel Guerreiro de Morais</h1>
+          <p class="cc-sub">Consulta de 24/05/2026 · 08:32 · modo leitura</p>
+          <p class="cc-ids">paciente ${CASE.patientId.slice(0,8)}… · consulta ${CASE.consultationId.slice(0,8)}…</p>
+        </header>
+        <div class="cc-feed">${blocosHTML}</div>
+      `;
+
+      /* Ligar o abrir/fechar de cada bloco colapsável */
+      root.querySelectorAll('.cc-acc-head').forEach(head => {
+        head.addEventListener('click', () => {
+          head.closest('.cc-acc').classList.toggle('cc-collapsed');
+        });
+      });
+
+      /* Carregar os dados reais e preencher os blocos */
+      carregarDados();
+    }
+
+    async function carregarDados() {
+      const corpo = id => root.querySelector(`[data-bloco="${id}"] .cc-acc-body`);
+      try {
+        const { consulta, diagnosticos, tratamentos, exames, protocolo } =
+          await carregarConsulta(CASE);
+        preencherHDA(corpo('hda'), consulta);
+        preencherExame(corpo('exame'), exames);
+        preencherProtocolo(corpo('objs'), protocolo);
+        preencherDiagnostico(corpo('diag'), diagnosticos);
+        preencherTratamento(corpo('trat'), tratamentos);
+      } catch (e) {
+        console.error('Erro a carregar dados:', e);
+        const hdaBody = corpo('hda');
+        if (hdaBody) hdaBody.innerHTML =
+          `<p class="cc-vazio">⚠️ Erro a carregar dados: ${e.message}</p>`;
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>
