@@ -342,51 +342,50 @@ async function _renderStatsCards() {
     temHorario = horarios.length > 0;
   } catch(_) {}
 
-  // próximo dia COM slots (a partir de amanhã, até 14 dias)
-  let alvoISO=null, alvoSlots=[];
-  if (temHorario) {
-    for (let i=1; i<=14; i++) {
-      const cand = isoOf(new Date(d.getFullYear(), d.getMonth(), d.getDate()+i));
-      const cDow = new Date(cand+"T00:00:00").getDay();
-      const slots = [];
-      horarios.filter(h=>h.day_of_week===cDow).forEach(h => {
-        gerarSlots(h.hora_inicio.slice(0,5), h.hora_fim.slice(0,5), h.duracao_min).forEach(s => {
-          const [hh,mm]=s.split(":").map(Number); slots.push(hh*60+mm);
-        });
+  // ocupação de um dia (desconta bloqueios). devolve null se não há horário nesse dia
+  function ocupacaoDia(diaISO){
+    const dDow = new Date(diaISO+"T00:00:00").getDay();
+    const slots=[];
+    horarios.filter(h=>h.day_of_week===dDow).forEach(h=>{
+      gerarSlots(h.hora_inicio.slice(0,5), h.hora_fim.slice(0,5), h.duracao_min).forEach(s=>{
+        const [hh,mm]=s.split(":").map(Number); slots.push(hh*60+mm);
       });
-      if (slots.length) { alvoISO = cand; alvoSlots = slots; break; }
-    }
+    });
+    if(!slots.length) return null;
+    const blocosDia = blocks.filter(b=>isoLocal(b.start_at)===diaISO)
+      .map(b=>({ini:minLocal(b.start_at), fim:b.end_at?minLocal(b.end_at):minLocal(b.start_at)+1}));
+    const capLiq = slots.filter(m=>!blocosDia.some(b=>m>=b.ini && m<b.fim)).length;
+    const ok = appts.filter(a=>isoLocal(a.start_at)===diaISO).length;
+    return { ok, capLiq, bloq:slots.length-capLiq };
   }
 
-  // descontar bloqueios + contar consultas do dia alvo
-  let taxa=null, okAlvo=0, capLiq=0, bloqDia=0;
-  if (alvoISO) {
-    const blocosDia = blocks.filter(b => isoLocal(b.start_at) === alvoISO)
-      .map(b => ({ ini: minLocal(b.start_at), fim: b.end_at ? minLocal(b.end_at) : minLocal(b.start_at)+1 }));
-    capLiq = alvoSlots.filter(m => !blocosDia.some(b => m >= b.ini && m < b.fim)).length;
-    bloqDia = alvoSlots.length - capLiq;
-    okAlvo = appts.filter(a => isoLocal(a.start_at) === alvoISO).length;
-    taxa = capLiq>0 ? Math.round(okAlvo/capLiq*100) : null;
-  }
+  // semana actual (Seg–Dom): soma de todos os dias com horário
+  let semTem=false, oSem={ok:0,capLiq:0,bloq:0};
+  { const cur=new Date(seg); for(let i=0;i<7;i++){ const o=ocupacaoDia(isoOf(cur)); if(o){semTem=true;oSem.ok+=o.ok;oSem.capLiq+=o.capLiq;oSem.bloq+=o.bloq;} cur.setDate(cur.getDate()+1); } }
 
-  let cor="#0f2d52", bar="#94a3b8";
-  if (taxa!==null) {
-    if (taxa<50)      { cor="#A32D2D"; bar="#E24B4A"; }
-    else if (taxa<90) { cor="#854F0B"; bar="#E0A23D"; }
-    else              { cor="#3B6D11"; bar="#6FA73D"; }
-  }
+  // próximo dia com horário (a partir de amanhã)
+  let alvoISO=null, oAlvo=null;
+  for(let i=1;i<=14;i++){ const cand=isoOf(new Date(d.getFullYear(),d.getMonth(),d.getDate()+i)); const o=ocupacaoDia(cand); if(o){alvoISO=cand;oAlvo=o;break;} }
   const alvoLabel = alvoISO ? new Date(alvoISO+"T00:00:00").toLocaleDateString("pt-PT",{weekday:"short",day:"numeric",month:"short"}) : "";
-  const mostrarOcupacao = !!clinicId && !!alvoISO;
 
-  el.innerHTML = `
-    ${ mostrarOcupacao ? `
-    <div style="margin-bottom:8px;">
-      <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Próximo dia com horário · ${alvoLabel}</div>
+  function blocoOcup(titulo, o){
+    if(!o) return "";
+    const taxa = o.capLiq>0 ? Math.round(o.ok/o.capLiq*100) : null;
+    let cor="#0f2d52", bar="#94a3b8";
+    if(taxa!==null){ if(taxa<50){cor="#A32D2D";bar="#E24B4A";} else if(taxa<90){cor="#854F0B";bar="#E0A23D";} else {cor="#3B6D11";bar="#6FA73D";} }
+    return `<div style="margin-bottom:8px;">
+      <div style="font-size:11px;color:#64748b;margin-bottom:4px;">${titulo}</div>
       ${ taxa!==null ? `
-        <div style="display:flex;align-items:baseline;gap:6px;"><span style="font-size:20px;font-weight:600;color:${cor};">${taxa}%</span><span style="font-size:11px;color:${cor};">ocupação · ${okAlvo}/${capLiq}${bloqDia?` · ${bloqDia} bloq.`:""}</span></div>
+        <div style="display:flex;align-items:baseline;gap:6px;"><span style="font-size:20px;font-weight:600;color:${cor};">${taxa}%</span><span style="font-size:11px;color:${cor};">ocupação · ${o.ok}/${o.capLiq}${o.bloq?` · ${o.bloq} bloq.`:""}</span></div>
         <div style="height:6px;background:#f1f5f9;border-radius:4px;margin-top:6px;overflow:hidden;"><div style="width:${Math.min(taxa,100)}%;height:100%;background:${bar};"></div></div>
       ` : `<div style="font-size:12px;color:#94a3b8;">Dia todo bloqueado</div>` }
-    </div>` : `` }
+    </div>`;
+  }
+
+  const mostrarOcupacao = !!clinicId && temHorario;
+  el.innerHTML = `
+    ${ mostrarOcupacao ? blocoOcup("Esta semana", semTem ? oSem : null) : "" }
+    ${ mostrarOcupacao && alvoISO ? blocoOcup("Próximo dia · "+alvoLabel, oAlvo) : "" }
     <div style="${mostrarOcupacao ? 'border-top:0.5px solid #f1f5f9;padding-top:8px;' : ''}">
       <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Consultas marcadas</div>
       <div style="display:flex;align-items:baseline;gap:14px;">
