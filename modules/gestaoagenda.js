@@ -91,6 +91,7 @@ function _buildShell() {
         <button id="gaBtnNext" style="border:none;background:transparent;cursor:pointer;width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#475569;font-size:16px;">›</button>
       </div>
       <button id="gaBtnHoje" class="gcBtnGhost" style="font-size:12px;padding:5px 12px;">Hoje</button>
+      <input id="gaJumpDate" type="date" title="Ir para uma semana" class="gcSelect" style="font-size:12px;padding:4px 8px;color:#0f2d52;cursor:pointer;" />
       <div style="width:1px;height:20px;background:#e2e8f0;"></div>
       <button id="gaBtnRec" class="gcBtnGhost" style="font-size:12px;padding:5px 14px;">Disponibilidade</button>
       <button id="gaBtnBloq" class="gcBtnDanger" style="font-size:12px;padding:5px 14px;">Bloquear</button>
@@ -134,6 +135,8 @@ function _wireShell() {
   document.getElementById("gaBtnPrev")?.addEventListener("click", async () => { _state.selectedDayISO = addDays(_state.selectedDayISO, _semanaVisible ? -7 : -1); await _loadAndRender(); if (_semanaVisible) _renderSemana(); });
   document.getElementById("gaBtnNext")?.addEventListener("click", async () => { _state.selectedDayISO = addDays(_state.selectedDayISO, _semanaVisible ? 7 : 1); await _loadAndRender(); if (_semanaVisible) _renderSemana(); });
   document.getElementById("gaBtnHoje")?.addEventListener("click", async () => { _state.selectedDayISO = todayISO(); await _loadAndRender(); if (_semanaVisible) _renderSemana(); });
+  // mini-calendário: saltar para qualquer semana
+  document.getElementById("gaJumpDate")?.addEventListener("change", async (e) => { if (!e.target.value) return; _state.selectedDayISO = e.target.value; await _loadAndRender(); if (_semanaVisible) _renderSemana(); });
   document.getElementById("gaSelClinica")?.addEventListener("change", async e => {
     _state.selectedClinicId = e.target.value || null;
     await _loadAndRender();
@@ -221,6 +224,8 @@ async function _loadAndRender() {
 function _renderDayLabel() {
   const el = document.getElementById("gaDayLabel");
   if (el) el.textContent = isoToDisplay(_state.selectedDayISO);
+  const jd = document.getElementById("gaJumpDate");
+  if (jd) jd.value = _state.selectedDayISO;
 }
 
 /* ── Horários recorrentes ─────────────────────────────── */
