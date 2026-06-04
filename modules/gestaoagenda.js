@@ -664,7 +664,7 @@ async function _renderSemana() {
 
         if (!rList || !rList.length) {
           const bg = slotCC ? slotCC.light : "";
-          return `<div onclick="window.__gaSlotClick('${iso}','${hora}')" style="border-right:0.5px solid #f1f5f9;padding:2px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:${bg};" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background='${bg}'"></div>`;
+          return `<div onclick="window.__gaSlotClick('${iso}','${hora}')" style="border-right:0.5px solid #f1f5f9;padding:2px;height:46px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:${bg};" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background='${bg}'"></div>`;
         }
 
         const r = rList[0];
@@ -681,13 +681,13 @@ async function _renderSemana() {
         else           { bg=apptClr.solid; color="#fff"; }
 
         const extrasBadge = extras > 0 ? ` <span style="font-size:9px;opacity:0.85;">+${extras}</span>` : "";
-        return `<div onclick="window.__gaSlotClickAppt('${r.id}')" style="border-right:0.5px solid #f1f5f9;padding:2px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-          <div style="width:100%;height:26px;border-radius:4px;background:${bg};color:${color};font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;padding:0 3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="${escapeHtml(nome)}">${escapeHtml(nomeCurto)}${extrasBadge}</div>
+        return `<div onclick="window.__gaSlotClickAppt('${r.id}')" style="border-right:0.5px solid #f1f5f9;padding:2px;height:46px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+          <div style="width:100%;height:38px;border-radius:4px;background:${bg};color:${color};font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;padding:0 3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="${escapeHtml(nome)}">${escapeHtml(nomeCurto)}${extrasBadge}</div>
         </div>`;
       }).join("");
 
       return `<div style="display:grid;grid-template-columns:38px 1fr 1fr 1fr 1fr 1fr 0.5fr 0.5fr;border-bottom:0.5px solid #f1f5f9;">
-        <div style="font-size:10px;color:#94a3b8;padding:0 4px;height:32px;display:flex;align-items:center;justify-content:flex-end;border-right:0.5px solid #e2e8f0;flex-shrink:0;">${hora}</div>
+        <div style="font-size:10px;color:#94a3b8;padding:0 4px;height:46px;display:flex;align-items:center;justify-content:flex-end;border-right:0.5px solid #e2e8f0;flex-shrink:0;">${hora}</div>
         ${cells}
       </div>`;
     }).join("");
@@ -697,7 +697,7 @@ async function _renderSemana() {
         <div style="border-right:0.5px solid #e2e8f0;"></div>
         ${headerCols}
       </div>
-      <div id="gaSemanScroll" style="max-height:480px;overflow-y:auto;">
+      <div id="gaSemanScroll" style="max-height:560px;overflow-y:auto;">
         ${linhas}
       </div>
     </div>`;
@@ -718,7 +718,7 @@ async function _renderSemana() {
       if (_idx > 0) {
         requestAnimationFrame(() => {
           const sc = document.getElementById("gaSemanScroll");
-          if (sc) sc.scrollTop = _idx * 32;
+          if (sc) sc.scrollTop = _idx * 46;
         });
       }
     }
