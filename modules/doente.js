@@ -439,6 +439,10 @@ function openPatientViewModal(patient) {
   let selectedTreat = [];
   let treatDebounceT = null;
 
+  // ---- Sessões (total + por semana): alimentam contagem/cartões ----
+  let sessoesTotal = "20";
+  let sessoesSemana = "3";
+
   // ---- Documentos/PDF ----
   let docOpen = false;
   let docMode = "visual";
@@ -3292,6 +3296,13 @@ function openPatientViewModal(patient) {
       getPrescriptionTextFromPlan(row.plan_text) ||
       "R/ 20 Sessões de Tratamentos de Medicina Fisica e de Reabilitação com:";
 
+    {
+      let _plan = {};
+      try { _plan = JSON.parse(row.plan_text || "{}") || {}; } catch (_) { _plan = {}; }
+      sessoesTotal  = (_plan.sessoes_total  == null) ? "20" : String(_plan.sessoes_total);
+      sessoesSemana = (_plan.sessoes_semana == null) ? "3"  : String(_plan.sessoes_semana);
+    }
+
     treatQuery = "";
     treatLoading = false;
     treatResults = [];
@@ -3390,8 +3401,20 @@ function openPatientViewModal(patient) {
 
         <div style="margin-top:16px;">
           <div style="font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:6px;">Plano terapêutico</div>
-          <input id="prescriptionText" value="${escAttr(prescriptionText)}"
-                 style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+          <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+            <input id="prescriptionText" value="${escAttr(prescriptionText)}"
+                   style="flex:1; min-width:240px; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            <div style="display:flex; flex-direction:column;">
+              <label for="sessoesTotal" style="font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:6px;">Total sessões</label>
+              <input id="sessoesTotal" type="number" min="0" value="${escAttr(sessoesTotal)}"
+                     style="width:74px; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+            <div style="display:flex; flex-direction:column;">
+              <label for="sessoesSemana" style="font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:6px;">/ semana</label>
+              <input id="sessoesSemana" type="number" min="0" value="${escAttr(sessoesSemana)}"
+                     style="width:74px; padding:10px; border:1px solid #ddd; border-radius:10px;" />
+            </div>
+          </div>
 
           <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
 
@@ -3591,6 +3614,11 @@ function openPatientViewModal(patient) {
     const pr = document.getElementById("prescriptionText");
     if (pr) pr.oninput = (e) => { prescriptionText = e?.target?.value ?? ""; };
 
+    const stTot = document.getElementById("sessoesTotal");
+    if (stTot) stTot.oninput = (e) => { sessoesTotal = e?.target?.value ?? ""; };
+    const stSem = document.getElementById("sessoesSemana");
+    if (stSem) stSem.oninput = (e) => { sessoesSemana = e?.target?.value ?? ""; };
+
     const tInput = document.getElementById("treatSearch");
     if (tInput) {
       tInput.oninput = (e) => {
@@ -3697,7 +3725,9 @@ function openPatientViewModal(patient) {
 
       const planPayload = {
         prescriptionText,
-        treat_order: (selectedTreat || []).map(x => x.id)
+        treat_order: (selectedTreat || []).map(x => x.id),
+        sessoes_total: (sessoesTotal === "" || sessoesTotal == null) ? null : Number(sessoesTotal),
+        sessoes_semana: (sessoesSemana === "" || sessoesSemana == null) ? null : Number(sessoesSemana)
       };
 
       let consultId = null;
@@ -3815,6 +3845,7 @@ function openPatientViewModal(patient) {
       diagQuery = ""; diagLoading = false; diagResults = []; selectedDiag = [];
       prescriptionText = "R/ 20 Sessões de Tratamentos de Medicina Fisica e de Reabilitação com:";
       treatQuery = ""; treatLoading = false; treatResults = []; selectedTreat = [];
+      sessoesTotal = "20"; sessoesSemana = "3";
 
       alert(isEditing ? "Consulta atualizada." : "Consulta gravada.");
       return true;
