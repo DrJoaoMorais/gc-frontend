@@ -131,8 +131,8 @@ function _buildShell() {
 
 /* ── Wiring principal ─────────────────────────────────── */
 function _wireShell() {
-  document.getElementById("gaBtnPrev")?.addEventListener("click", async () => { _state.selectedDayISO = addDays(_state.selectedDayISO, -1); await _loadAndRender(); if (_semanaVisible) _renderSemana(); });
-  document.getElementById("gaBtnNext")?.addEventListener("click", async () => { _state.selectedDayISO = addDays(_state.selectedDayISO, 1); await _loadAndRender(); if (_semanaVisible) _renderSemana(); });
+  document.getElementById("gaBtnPrev")?.addEventListener("click", async () => { _state.selectedDayISO = addDays(_state.selectedDayISO, _semanaVisible ? -7 : -1); await _loadAndRender(); if (_semanaVisible) _renderSemana(); });
+  document.getElementById("gaBtnNext")?.addEventListener("click", async () => { _state.selectedDayISO = addDays(_state.selectedDayISO, _semanaVisible ? 7 : 1); await _loadAndRender(); if (_semanaVisible) _renderSemana(); });
   document.getElementById("gaBtnHoje")?.addEventListener("click", async () => { _state.selectedDayISO = todayISO(); await _loadAndRender(); if (_semanaVisible) _renderSemana(); });
   document.getElementById("gaSelClinica")?.addEventListener("change", async e => {
     _state.selectedClinicId = e.target.value || null;
