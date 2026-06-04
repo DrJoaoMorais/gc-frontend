@@ -317,7 +317,7 @@ async function _renderStatsCards() {
   const lo = segISO < mesIni ? segISO : mesIni;
   const hi = domISO > mesFim ? domISO : mesFim;
 
-  let okProx=0, totProx=0, semana=0, mes=0;
+  let okProx=0, totProx=0, semana=0, mes=0, temHorario=false;
   try {
     let q = window.sb.from("appointments")
       .select("start_at,patient_id,mode,clinic_id")
@@ -332,10 +332,12 @@ async function _renderStatsCards() {
       if (iso >= mesIni && iso <= mesFim) mes++;
     });
     const proxDow = new Date(proxISO+"T00:00:00").getDay();
-    let hq = window.sb.from("horarios_recorrentes").select("hora_inicio,hora_fim,duracao_min").eq("is_active",true).eq("day_of_week",proxDow);
+    let hq = window.sb.from("horarios_recorrentes").select("day_of_week,hora_inicio,hora_fim,duracao_min").eq("is_active",true);
     if (clinicId) hq = hq.eq("clinic_id", clinicId);
     const { data: hd } = await hq;
-    (hd||[]).forEach(h => { totProx += gerarSlots(h.hora_inicio.slice(0,5), h.hora_fim.slice(0,5), h.duracao_min).length; });
+    const horarios = hd || [];
+    temHorario = horarios.length > 0;
+    horarios.filter(h => h.day_of_week === proxDow).forEach(h => { totProx += gerarSlots(h.hora_inicio.slice(0,5), h.hora_fim.slice(0,5), h.duracao_min).length; });
   } catch(_) {}
 
   const taxa = totProx>0 ? Math.round(okProx/totProx*100) : null;
@@ -347,16 +349,20 @@ async function _renderStatsCards() {
   }
   const proxLabel = new Date(proxISO+"T00:00:00").toLocaleDateString("pt-PT",{weekday:"short",day:"numeric",month:"short"});
 
+  // % de ocupação só para uma clínica específica COM horário; senão, só o contador
+  const mostrarOcupacao = !!clinicId && temHorario;
+
   el.innerHTML = `
+    ${ mostrarOcupacao ? `
     <div style="margin-bottom:8px;">
       <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Próximo dia · ${proxLabel}</div>
-      ${ taxa!==null ? `
-        <div style="display:flex;align-items:baseline;gap:6px;"><span style="font-size:20px;font-weight:600;color:${cor};">${taxa}%</span><span style="font-size:11px;color:${cor};">ocupação · ${okProx}/${totProx} vagas</span></div>
-        <div style="height:6px;background:#f1f5f9;border-radius:4px;margin-top:6px;overflow:hidden;"><div style="width:${taxa}%;height:100%;background:${bar};"></div></div>
-      ` : `<div style="font-size:12px;color:#94a3b8;">Sem horário fixo neste dia</div>` }
-    </div>
-    <div style="border-top:0.5px solid #f1f5f9;padding-top:8px;">
-      <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Marcadas</div>
+      ${ totProx>0 ? `
+        <div style="display:flex;align-items:baseline;gap:6px;"><span style="font-size:20px;font-weight:600;color:${cor};">${taxa}%</span><span style="font-size:11px;color:${cor};">ocupação · ${okProx}/${totProx}</span></div>
+        <div style="height:6px;background:#f1f5f9;border-radius:4px;margin-top:6px;overflow:hidden;"><div style="width:${Math.min(taxa,100)}%;height:100%;background:${bar};"></div></div>
+      ` : `<div style="font-size:12px;color:#94a3b8;">Sem horário neste dia</div>` }
+    </div>` : `` }
+    <div style="${mostrarOcupacao ? 'border-top:0.5px solid #f1f5f9;padding-top:8px;' : ''}">
+      <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Consultas marcadas</div>
       <div style="display:flex;align-items:baseline;gap:14px;">
         <span><span style="font-size:20px;font-weight:600;color:#0f2d52;">${semana}</span><span style="font-size:10px;color:#94a3b8;"> /semana</span></span>
         <span><span style="font-size:20px;font-weight:600;color:#0f2d52;">${mes}</span><span style="font-size:10px;color:#94a3b8;"> /mês</span></span>
