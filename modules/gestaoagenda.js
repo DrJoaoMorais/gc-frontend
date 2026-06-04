@@ -170,7 +170,7 @@ function _wireShell() {
 async function _loadAndRender() {
   _renderDayLabel();
   _renderTimeline([]);
-  _renderStats([]);
+  _renderStatsCards();
 
   const clinicId = _state.selectedClinicId;
 
@@ -217,7 +217,7 @@ async function _loadAndRender() {
     const recBanner = document.getElementById("gaRecBanner");
     if (recBanner) recBanner.innerHTML = "";
   }
-  _renderStats(_state.rows);
+  _renderStatsCards();
   _renderTimeline(_state.rows, patientsById);
 }
 
@@ -289,6 +289,79 @@ function _renderRecBanner(clinicId) {
       if (_semanaVisible) _renderSemana();
     });
   });
+}
+
+async function _renderStatsCards() {
+  const el = document.getElementById("gaStats");
+  if (!el) return;
+  const clinicId = _state.selectedClinicId;
+
+  const _tz = (() => {
+    try {
+      const off = new Intl.DateTimeFormat("pt-PT",{timeZone:"Europe/Lisbon",timeZoneName:"shortOffset"})
+        .formatToParts(new Date()).find(p=>p.type==="timeZoneName").value;
+      return off.replace("GMT","") || "+00:00";
+    } catch(_) { return "+00:00"; }
+  })();
+
+  const baseISO = _state.selectedDayISO;
+  const proxISO = addDays(baseISO, 1);
+  const d = new Date(baseISO+"T00:00:00");
+  const dow = (d.getDay()+6)%7;
+  const seg = new Date(d); seg.setDate(d.getDate()-dow);
+  const dom = new Date(seg); dom.setDate(seg.getDate()+6);
+  const isoOf = x => x.getFullYear()+"-"+pad2(x.getMonth()+1)+"-"+pad2(x.getDate());
+  const segISO = isoOf(seg), domISO = isoOf(dom);
+  const mesIni = d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-01";
+  const mesFim = isoOf(new Date(d.getFullYear(), d.getMonth()+1, 0));
+  const lo = segISO < mesIni ? segISO : mesIni;
+  const hi = domISO > mesFim ? domISO : mesFim;
+
+  let okProx=0, totProx=0, semana=0, mes=0;
+  try {
+    let q = window.sb.from("appointments")
+      .select("start_at,patient_id,mode,clinic_id")
+      .gte("start_at", lo+"T00:00:00"+_tz)
+      .lte("start_at", hi+"T23:59:59"+_tz);
+    if (clinicId) q = q.eq("clinic_id", clinicId);
+    const { data } = await q;
+    (data||[]).filter(r => r.mode!=="bloqueio" && r.mode!=="slot" && r.patient_id).forEach(r => {
+      const iso = new Date(r.start_at).toLocaleDateString("pt-PT",{timeZone:"Europe/Lisbon",year:"numeric",month:"2-digit",day:"2-digit"}).split("/").reverse().join("-");
+      if (iso === proxISO) okProx++;
+      if (iso >= segISO && iso <= domISO) semana++;
+      if (iso >= mesIni && iso <= mesFim) mes++;
+    });
+    const proxDow = new Date(proxISO+"T00:00:00").getDay();
+    let hq = window.sb.from("horarios_recorrentes").select("hora_inicio,hora_fim,duracao_min").eq("is_active",true).eq("day_of_week",proxDow);
+    if (clinicId) hq = hq.eq("clinic_id", clinicId);
+    const { data: hd } = await hq;
+    (hd||[]).forEach(h => { totProx += gerarSlots(h.hora_inicio.slice(0,5), h.hora_fim.slice(0,5), h.duracao_min).length; });
+  } catch(_) {}
+
+  const taxa = totProx>0 ? Math.round(okProx/totProx*100) : null;
+  let cor="#0f2d52", bar="#94a3b8";
+  if (taxa!==null) {
+    if (taxa < 50)      { cor="#A32D2D"; bar="#E24B4A"; }
+    else if (taxa < 90) { cor="#854F0B"; bar="#E0A23D"; }
+    else                { cor="#3B6D11"; bar="#6FA73D"; }
+  }
+  const proxLabel = new Date(proxISO+"T00:00:00").toLocaleDateString("pt-PT",{weekday:"short",day:"numeric",month:"short"});
+
+  el.innerHTML = `
+    <div style="margin-bottom:8px;">
+      <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Próximo dia · ${proxLabel}</div>
+      ${ taxa!==null ? `
+        <div style="display:flex;align-items:baseline;gap:6px;"><span style="font-size:20px;font-weight:600;color:${cor};">${taxa}%</span><span style="font-size:11px;color:${cor};">ocupação · ${okProx}/${totProx} vagas</span></div>
+        <div style="height:6px;background:#f1f5f9;border-radius:4px;margin-top:6px;overflow:hidden;"><div style="width:${taxa}%;height:100%;background:${bar};"></div></div>
+      ` : `<div style="font-size:12px;color:#94a3b8;">Sem horário fixo neste dia</div>` }
+    </div>
+    <div style="border-top:0.5px solid #f1f5f9;padding-top:8px;">
+      <div style="font-size:11px;color:#64748b;margin-bottom:4px;">Marcadas</div>
+      <div style="display:flex;align-items:baseline;gap:14px;">
+        <span><span style="font-size:20px;font-weight:600;color:#0f2d52;">${semana}</span><span style="font-size:10px;color:#94a3b8;"> /semana</span></span>
+        <span><span style="font-size:20px;font-weight:600;color:#0f2d52;">${mes}</span><span style="font-size:10px;color:#94a3b8;"> /mês</span></span>
+      </div>
+    </div>`;
 }
 
 /* ── Stats ────────────────────────────────────────────── */
