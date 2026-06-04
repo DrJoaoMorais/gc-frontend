@@ -654,7 +654,7 @@ async function _renderSemana() {
     }).join("");
 
     // Linhas
-    const linhas = horas.map(hora => {
+    const linhas = horas.map((hora, _ri) => {
       const cells = dias.map(iso => {
         const key         = iso+"T"+hora;
         const rList       = bySlot[key];
@@ -686,7 +686,7 @@ async function _renderSemana() {
         </div>`;
       }).join("");
 
-      return `<div style="display:grid;grid-template-columns:38px 1fr 1fr 1fr 1fr 1fr 0.5fr 0.5fr;border-bottom:0.5px solid #f1f5f9;">
+      return `<div style="display:grid;grid-template-columns:38px 1fr 1fr 1fr 1fr 1fr 0.5fr 0.5fr;border-bottom:0.5px solid #f1f5f9;background:${_ri % 2 ? '#f7f9fb' : '#ffffff'};">
         <div style="font-size:10px;color:#94a3b8;padding:0 4px;height:24px;display:flex;align-items:center;justify-content:flex-end;border-right:0.5px solid #e2e8f0;flex-shrink:0;">${hora}</div>
         ${cells}
       </div>`;
