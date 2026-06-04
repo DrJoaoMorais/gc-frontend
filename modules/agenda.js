@@ -2083,7 +2083,15 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
     scheduleSearch();
   });
   mPatientQuery?.addEventListener("focus", scheduleSearch);
-  btnNewPatient?.addEventListener("click", openNewPatientForm);
+  btnNewPatient?.addEventListener("click", () => {
+    /* UNIFICADO: abre a MESMA janela do "+ Novo doente" do topo.
+       Ao gravar, reabre a marcação com o doente preenchido.
+       Elimina a confusão dos dois botões (Criar e marcar vs Guardar). */
+    const cid = mClinic?.value || document.getElementById("selClinic")?.value || "";
+    if (typeof window.openNewPatientMainModal === "function") {
+      window.openNewPatientMainModal({ clinicId: cid });
+    }
+  });
 
   /* --- guardar / eliminar --- */
   async function onDeleteAppt() {
