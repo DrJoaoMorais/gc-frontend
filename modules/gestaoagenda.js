@@ -117,6 +117,7 @@ function _buildShell() {
     </div>
     <div style="width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;position:sticky;top:57px;align-self:flex-start;">
       <div id="gaStats" style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;"></div>
+      <div id="gaReavaliacoes"></div>
       <div id="gaPanel" style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:1rem;">
         <div style="font-size:12px;color:#94a3b8;text-align:center;padding:1rem 0;">Clica num slot para ver detalhes e acções.</div>
       </div>
@@ -425,6 +426,79 @@ function _renderStats(rows) {
         <div style="height:3px;border-radius:2px;background:#e2e8f0;margin-top:5px;"><div style="height:100%;border-radius:2px;background:#1a56db;width:${taxa}%;"></div></div>
       </div>
     </div>`;
+}
+
+/* ── Reavaliações pendentes ───────────────────────── */
+function _fmtDataCurta(iso) {
+  const meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const [a, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+  return d + ' ' + meses[m - 1];
+}
+
+async function _renderReavaliacoes() {
+  const el = document.getElementById('gaReavaliacoes');
+  if (!el) return;
+  try {
+    let q = window.sb
+      .from('v_reavaliacoes_pendentes')
+      .select('consultation_id, patient_id, patient_name, clinic_id, total, semana, sessoes_decorridas, data_reavaliacao, estado')
+      .order('data_reavaliacao', { ascending: true });
+    if (_state.selectedClinicId) q = q.eq('clinic_id', _state.selectedClinicId);
+    const { data, error } = await q;
+    if (error) throw error;
+
+    const rows = data || [];
+    if (!rows.length) { el.innerHTML = ''; return; }
+
+    const cards = rows.map(r => {
+      const atraso = r.estado === 'em atraso';
+      const cor = atraso ? '#b45309' : '#1a56db';
+      return `
+        <div style="border:0.5px solid #e2e8f0;border-left:3px solid ${cor};border-radius:0 8px 8px 0;padding:8px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
+            <div style="font-size:13px;font-weight:600;color:#0f2d52;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r.patient_name || '—')}</div>
+            <button data-rav-del="${r.consultation_id}" data-pid="${r.patient_id}" data-clin="${r.clinic_id || ''}" aria-label="Remover" title="Remover da lista" style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:16px;line-height:1;padding:0 2px;">&times;</button>
+          </div>
+          <div style="font-size:11px;color:#64748b;margin-top:2px;">≈ ${r.sessoes_decorridas}/${r.total} sessões · ${r.semana}×/sem</div>
+          <div style="font-size:11px;color:${cor};margin-top:3px;">Reavaliar: ${_fmtDataCurta(r.data_reavaliacao)} · ${r.estado}</div>
+          <button data-rav-agendar="${r.patient_id}" style="margin-top:8px;width:100%;background:#1a56db;color:#fff;border:none;border-radius:8px;padding:6px;font-size:12px;font-weight:600;cursor:pointer;">Agendar consulta</button>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:10px;margin-top:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="font-size:13px;font-weight:600;color:#0f2d52;">Reavaliações</div>
+          <div style="font-size:11px;font-weight:600;color:#1a56db;background:#e6f1fb;border-radius:8px;padding:1px 7px;">${rows.length}</div>
+        </div>
+        ${cards}
+      </div>`;
+
+    el.querySelectorAll('[data-rav-del]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('Remover este doente da lista de reavaliações?')) return;
+      try {
+        const { error } = await window.sb.from('reavaliacoes_resolvidas').insert({
+          consultation_id: b.getAttribute('data-rav-del'),
+          patient_id: b.getAttribute('data-pid'),
+          clinic_id: b.getAttribute('data-clin') || null,
+          resultado: 'eliminada'
+        });
+        if (error) throw error;
+        await _renderReavaliacoes();
+      } catch (e) { alert('Erro ao remover: ' + (e.message || e)); }
+    }));
+
+    el.querySelectorAll('[data-rav-agendar]').forEach(b => b.addEventListener('click', () => {
+      _agendarReavaliacao(b.getAttribute('data-rav-agendar'));
+    }));
+  } catch (e) {
+    el.innerHTML = '';
+    console.error('reavaliacoes', e);
+  }
+}
+
+function _agendarReavaliacao(patientId) {
+  alert('Agendar — a ligar no passo 5 (doente ' + patientId + ')');
 }
 
 /* ── Timeline ─────────────────────────────────────────── */
