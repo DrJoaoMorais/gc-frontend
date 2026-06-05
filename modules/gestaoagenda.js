@@ -462,7 +462,7 @@ async function _renderReavaliacoes() {
           </div>
           <div style="font-size:11px;color:#64748b;margin-top:2px;">≈ ${r.sessoes_decorridas}/${r.total} sessões · ${r.semana}×/sem</div>
           <div style="font-size:11px;color:${cor};margin-top:3px;">Reavaliar: ${_fmtDataCurta(r.data_reavaliacao)} · ${r.estado}</div>
-          <button data-rav-agendar="${r.patient_id}" style="margin-top:8px;width:100%;background:#1a56db;color:#fff;border:none;border-radius:8px;padding:6px;font-size:12px;font-weight:600;cursor:pointer;">Agendar consulta</button>
+          <button data-rav-agendar="${r.patient_id}" data-pname="${escapeHtml(r.patient_name || '')}" data-aclin="${r.clinic_id || ''}" style="margin-top:8px;width:100%;background:#1a56db;color:#fff;border:none;border-radius:8px;padding:6px;font-size:12px;font-weight:600;cursor:pointer;">Agendar consulta</button>
         </div>`;
     }).join('');
 
@@ -490,7 +490,11 @@ async function _renderReavaliacoes() {
     }));
 
     el.querySelectorAll('[data-rav-agendar]').forEach(b => b.addEventListener('click', () => {
-      _agendarReavaliacao(b.getAttribute('data-rav-agendar'));
+      _agendarReavaliacao(
+        b.getAttribute('data-rav-agendar'),
+        b.getAttribute('data-pname'),
+        b.getAttribute('data-aclin')
+      );
     }));
   } catch (e) {
     el.innerHTML = '';
@@ -498,8 +502,13 @@ async function _renderReavaliacoes() {
   }
 }
 
-function _agendarReavaliacao(patientId) {
-  alert('Agendar — a ligar no passo 5 (doente ' + patientId + ')');
+function _agendarReavaliacao(patientId, patientName, clinicId) {
+  openApptModal({
+    mode: 'new',
+    prefillPatientId: patientId,
+    prefillPatientName: patientName || '',
+    prefillClinicId: clinicId || _state.selectedClinicId || null
+  });
 }
 
 /* ── Timeline ─────────────────────────────────────────── */
