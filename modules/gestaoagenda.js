@@ -220,6 +220,7 @@ async function _loadAndRender() {
   }
   _renderStatsCards();
   _renderTimeline(_state.rows, patientsById);
+  _renderReavaliacoes();
 }
 
 function _renderDayLabel() {
