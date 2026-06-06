@@ -100,6 +100,7 @@ import {
   APPT_TIME_COL_CANDIDATES, APPT_END_COL_CANDIDATES, pickFirstExisting
 } from "./db.js";
 import { __gcIsAuthError, __gcForceSessionLock } from "./auth.js";
+import { verificarDiaAberto, abrirMiniModalCriarTurno } from "./dias-avulsos.js";
 
 /* referência circular — openPatientViewModal vem de doente.js, injectado em runtime */
 function openPatientViewModal(p) { return window.__gc_openPatientViewModal(p); }
@@ -1615,6 +1616,7 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
               <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Início</label>
               <input id="mStart" type="datetime-local" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;color:#1e293b;" />
             </div>
+            <div id="mAvisoTurno" style="display:none;grid-column:1/-1;"></div>
             <div style="display:flex;flex-direction:column;gap:4px;">
               <label style="font-size:10px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;">Clínica</label>
               <select id="mClinic" class="gcSelect" style="padding:7px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;font-family:inherit;color:#1e293b;"></select>
@@ -1718,6 +1720,47 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
     if (clinicIdInit) fillProviders(clinicIdInit);
     mClinic?.addEventListener("change", (e) => fillProviders(e.target.value));
   }
+
+  /* ── Aviso "dia de consultas não aberto" (turnos avulsos) ── */
+  async function _checkDiaAberto() {
+    const avisoEl = document.getElementById("mAvisoTurno");
+    if (!avisoEl || !mStart) return;
+    const cid  = mClinic?.value || defaultClinicId;
+    const dISO = (mStart.value || "").slice(0, 10);
+    if (!cid || !dISO) { avisoEl.style.display = "none"; return; }
+
+    const aberto = await verificarDiaAberto(cid, dISO);
+    if (aberto) { avisoEl.style.display = "none"; avisoEl.innerHTML = ""; return; }
+
+    const DOW = ["dom","seg","ter","qua","qui","sex","sáb"];
+    const MESES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+    const dd = new Date(dISO + "T00:00:00");
+    const dataLabel = `${DOW[dd.getDay()]}, ${dd.getDate()} ${MESES[dd.getMonth()]}`;
+    const cName = (G.clinicsById?.[cid]?.name) || "";
+
+    avisoEl.style.display = "block";
+    avisoEl.innerHTML = `
+      <div style="background:#fef3c7;border-left:3px solid #f59e0b;padding:10px 12px;display:flex;align-items:flex-start;gap:10px;border-radius:0;">
+        <span style="font-size:14px;line-height:1.2;flex-shrink:0;">⚠</span>
+        <div style="flex:1;">
+          <div style="font-size:12px;color:#92400e;line-height:1.5;margin-bottom:8px;">Não há dia de consulta aberto para <b>${escapeHtml(dataLabel)}</b> nesta clínica. Confirma que é o dia certo.</div>
+          <button type="button" id="mBtnAbrirTurno" style="border:1px solid #f59e0b;background:#fff;color:#92400e;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">+ Abrir dia de consultas</button>
+        </div>
+      </div>`;
+
+    avisoEl.querySelector("#mBtnAbrirTurno")?.addEventListener("click", () => {
+      abrirMiniModalCriarTurno({
+        clinicId: cid,
+        dataISO: dISO,
+        clinicName: cName,
+        onCriado: () => { _checkDiaAberto(); },
+      });
+    });
+  }
+
+  mStart?.addEventListener("change", _checkDiaAberto);
+  mClinic?.addEventListener("change", _checkDiaAberto);
+  _checkDiaAberto();
 
   if (mStatus)   mStatus.value   = statusInit;
   if (mStart)    mStart.value    = toLocalInputValue(startInit);
