@@ -330,7 +330,7 @@ async function _renderStatsCards() {
   const isoLocal = s => new Date(s).toLocaleDateString("pt-PT",{timeZone:"Europe/Lisbon",year:"numeric",month:"2-digit",day:"2-digit"}).split("/").reverse().join("-");
   const minLocal = s => { const t=new Date(s).toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"}); const [h,m]=t.split(":").map(Number); return h*60+m; };
 
-  let semana=0, mes=0, temHorario=false, appts=[], blocks=[], horarios=[];
+  let semana=0, mes=0, temHorario=false, appts=[], blocks=[], horarios=[], avulsos=[];
   try {
     let q = window.sb.from("appointments")
       .select("start_at,end_at,patient_id,mode,clinic_id")
@@ -350,15 +350,31 @@ async function _renderStatsCards() {
     if (clinicId) hq = hq.eq("clinic_id", clinicId);
     const { data: hd } = await hq;
     horarios = hd || [];
-    temHorario = horarios.length > 0;
+
+    // turnos avulsos no intervalo lo–hi
+    let avq = window.sb.from("dias_consulta_avulsos")
+      .select("clinic_id,data,hora_inicio,hora_fim,duracao_min")
+      .gte("data", lo).lte("data", hi);
+    if (clinicId) avq = avq.eq("clinic_id", clinicId);
+    const { data: avd } = await avq;
+    avulsos = avd || [];
+
+    temHorario = horarios.length > 0 || avulsos.length > 0;
   } catch(_) {}
 
   // ocupação de um dia (desconta bloqueios). devolve null se não há horário nesse dia
-  function ocupacaoDia(diaISO){
+  function ocupacaoDia(diaISO, filtroClinicId){
     const dDow = new Date(diaISO+"T00:00:00").getDay();
     const slots=[];
-    horarios.filter(h=>h.day_of_week===dDow).forEach(h=>{
+    // padrão recorrente
+    horarios.filter(h=>h.day_of_week===dDow && (!filtroClinicId || h.clinic_id===filtroClinicId)).forEach(h=>{
       gerarSlots(h.hora_inicio.slice(0,5), h.hora_fim.slice(0,5), h.duracao_min).forEach(s=>{
+        const [hh,mm]=s.split(":").map(Number); slots.push(hh*60+mm);
+      });
+    });
+    // turnos avulsos
+    avulsos.filter(a=>a.data===diaISO && (!filtroClinicId || a.clinic_id===filtroClinicId)).forEach(a=>{
+      gerarSlots(a.hora_inicio.slice(0,5), a.hora_fim.slice(0,5), a.duracao_min).forEach(s=>{
         const [hh,mm]=s.split(":").map(Number); slots.push(hh*60+mm);
       });
     });
