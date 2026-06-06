@@ -96,8 +96,8 @@ export function renderAppShell() {
         <div style="width:1px;height:24px;background:#e2e8f0;flex-shrink:0;"></div>
 
         <!-- Acções -->
-        <button id="btnNewAppt" class="gcBtnPrimary" style="white-space:nowrap;">＋ Agendar</button>
-        <button id="btnNewPatientMain" class="gcBtnSuccess" style="white-space:nowrap;">＋ Novo doente</button>
+        <button id="btnNewAppt" class="gcBtnPrimary" style="white-space:nowrap;">Agendar consulta</button>
+        <button id="btnNewPatientMain" class="gcBtnOutline" style="white-space:nowrap;">Novo doente</button>
 
         <!-- Separador -->
         <div style="width:1px;height:24px;background:#e2e8f0;flex-shrink:0;"></div>
