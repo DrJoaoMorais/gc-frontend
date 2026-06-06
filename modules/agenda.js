@@ -1745,6 +1745,7 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
         <div style="flex:1;">
           <div style="font-size:12px;color:#92400e;line-height:1.5;margin-bottom:8px;">Não há dia de consulta aberto para <b>${escapeHtml(dataLabel)}</b> nesta clínica. Confirma que é o dia certo.</div>
           <button type="button" id="mBtnAbrirTurno" style="border:1px solid #f59e0b;background:#fff;color:#92400e;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">+ Abrir dia de consultas</button>
+          <button type="button" id="mBtnConsultaUnica" style="margin-left:6px;border:1px solid #f59e0b;background:#fff;color:#92400e;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Marcar consulta única</button>
         </div>
       </div>`;
 
@@ -1755,6 +1756,10 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
         clinicName: cName,
         onCriado: () => { _checkDiaAberto(); },
       });
+    });
+    avisoEl.querySelector("#mBtnConsultaUnica")?.addEventListener("click", () => {
+      avisoEl.style.display = "none";
+      avisoEl.innerHTML = "";
     });
   }
 

@@ -96,8 +96,6 @@ function _buildShell() {
       <div style="width:1px;height:20px;background:#e2e8f0;margin:0 4px;"></div>
       <button id="gaBtnAgendar" class="gcBtnPrimary" style="font-size:12px;padding:5px 14px;">Agendar consulta</button>
       <button id="gaBtnNovoDoente" class="gcBtnOutline" style="font-size:12px;padding:5px 14px;">Novo doente</button>
-      <div style="width:1px;height:20px;background:#e2e8f0;margin:0 16px;"></div>
-      <button id="gaBtnRec" class="gcBtnGhost" style="font-size:12px;padding:5px 14px;">Disponibilidade</button>
       <button id="gaBtnBloq" class="gcBtnDanger" style="font-size:12px;padding:5px 14px;">Bloquear</button>
       <div style="flex:1;min-width:8px;"></div>
       <select id="gaSelClinica" class="gcSelect" style="font-size:12px;padding:5px 8px;max-width:140px;">${clinicOpts}</select>
@@ -120,6 +118,7 @@ function _buildShell() {
     </div>
     <div style="width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:8px;position:sticky;top:57px;align-self:flex-start;">
       <div id="gaStats" style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;"></div>
+      <div id="gaPadroesFixos" style="display:none;background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;"></div>
       <div id="gaReavaliacoes"></div>
       <div id="gaPanel" style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:1rem;">
         <div style="font-size:12px;color:#94a3b8;text-align:center;padding:1rem 0;">Clica num slot para ver detalhes e acções.</div>
@@ -145,10 +144,6 @@ function _wireShell() {
     _state.selectedClinicId = e.target.value || null;
     await _loadAndRender();
     if (_semanaVisible) _renderSemana();
-  });
-  document.getElementById("gaBtnRec")?.addEventListener("click", () => {
-    if (!_state.selectedClinicId) { alert("Selecciona uma clínica primeiro."); return; }
-    _openModalRecorrente(null);
   });
   document.getElementById("gaBtnBloq")?.addEventListener("click", () => {
     if (!_state.selectedClinicId) { alert("Selecciona uma clínica primeiro."); return; }
@@ -302,6 +297,59 @@ function _renderRecBanner(clinicId) {
   });
 }
 
+function _renderPadroesFixos() {
+  const el = document.getElementById("gaPadroesFixos");
+  if (!el) return;
+  const isSuperAdmin = String(G.role||"").toLowerCase() === "super_admin";
+  if (!isSuperAdmin) { el.style.display = "none"; return; }
+  const clinicId = _state.selectedClinicId;
+  const horarios = (_state.horarios||[]).filter(h => !clinicId || h.clinic_id === clinicId);
+  const DOW_LABEL = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+  el.style.display = "block";
+  if (!horarios.length) {
+    el.innerHTML = `
+      <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Padrões fixos</div>
+      <div style="font-size:12px;color:#94a3b8;margin-bottom:8px;">Sem padrão fixo${clinicId ? " nesta clínica" : ""}.</div>
+      <button id="gaBtnNovoPadrao" style="width:100%;border:0.5px dashed #cbd5e1;background:transparent;color:#64748b;padding:7px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;">+ Novo padrão fixo</button>`;
+  } else {
+    el.innerHTML = `
+      <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Padrões fixos</div>
+      ${horarios.map(h => `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 0;border-bottom:0.5px solid #f1f5f9;">
+          <div>
+            <div style="font-size:12px;font-weight:600;color:#0f2d52;">${DOW_LABEL[h.day_of_week]} ${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}</div>
+            <div style="font-size:11px;color:#94a3b8;">${h.duracao_min} min</div>
+          </div>
+          <div style="display:flex;gap:4px;">
+            <button class="gaBtnEditarPadrao" data-hid="${h.id}" style="border:0.5px solid #e2e8f0;background:#fff;color:#64748b;padding:4px 8px;border-radius:6px;font-size:12px;cursor:pointer;" title="Editar">✏</button>
+            <button class="gaBtnEliminarPadrao" data-hid="${h.id}" style="border:0.5px solid #fca5a5;background:#fee2e2;color:#991b1b;padding:4px 8px;border-radius:6px;font-size:12px;cursor:pointer;" title="Eliminar">✕</button>
+          </div>
+        </div>`).join("")}
+      <button id="gaBtnNovoPadrao" style="margin-top:8px;width:100%;border:0.5px dashed #cbd5e1;background:transparent;color:#64748b;padding:7px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;">+ Novo padrão fixo</button>`;
+  }
+  el.querySelector("#gaBtnNovoPadrao")?.addEventListener("click", () => {
+    if (!_state.selectedClinicId) { alert("Selecciona uma clínica primeiro."); return; }
+    _openModalRecorrente(null);
+  });
+  el.querySelectorAll(".gaBtnEditarPadrao").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const h = (_state.horarios||[]).find(x => x.id === btn.dataset.hid);
+      if (h) _openModalRecorrente(h);
+    });
+  });
+  el.querySelectorAll(".gaBtnEliminarPadrao").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const h = (_state.horarios||[]).find(x => x.id === btn.dataset.hid);
+      if (!h) return;
+      const DOW_LABEL2 = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+      if (!confirm(`Eliminar padrão ${DOW_LABEL2[h.day_of_week]} ${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}?\n\nConsultas já marcadas não são afectadas.`)) return;
+      await window.sb.from("horarios_recorrentes").update({ is_active: false }).eq("id", h.id);
+      await _loadAndRender();
+      if (_semanaVisible) _renderSemana();
+    });
+  });
+}
+
 async function _renderStatsCards() {
   const el = document.getElementById("gaStats");
   if (!el) return;
@@ -420,6 +468,7 @@ async function _renderStatsCards() {
         <span><span style="font-size:20px;font-weight:600;color:#0f2d52;">${mes}</span><span style="font-size:10px;color:#94a3b8;"> /mês</span></span>
       </div>
     </div>`;
+  _renderPadroesFixos();
 }
 
 /* ── Stats ────────────────────────────────────────────── */
