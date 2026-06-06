@@ -1565,14 +1565,7 @@ function openPatientViewModal(patient) {
       const out = [];
 
       for (const r of rows) {
-        let url = "";
         const path = r.storage_path || "";
-        if (path) {
-          try {
-            const s = await window.sb.storage.from("documents").createSignedUrl(path, 60 * 60);
-            if (s?.data?.signedUrl) url = s.data.signedUrl;
-          } catch (e) {}
-        }
 
         out.push({
           id: r.id,
@@ -1581,7 +1574,7 @@ function openPatientViewModal(patient) {
           consultation_id: r.consultation_id || null,
           clinic_id: r.clinic_id || null,
           storage_path: path,
-          url,
+          url: "",
           version: (r.version !== undefined && r.version !== null) ? r.version : null
         });
       }
@@ -2247,6 +2240,13 @@ function openPatientViewModal(patient) {
   try {
     window.generatePdfAndUploadV1 = generatePdfAndUploadV1;
     window.openDocumentEditor = openDocumentEditor;
+    async function abrirDocumentoLazy(storagePath) {
+      if (!storagePath) return;
+      const url = await storageSignedUrl("documents", storagePath, 3600);
+      if (!url) { alert("Não foi possível abrir o documento."); return; }
+      window.open(url, "_blank", "noopener");
+    }
+    window.abrirDocumentoLazy = abrirDocumentoLazy;
     window.__gc_storageSignedUrl  = storageSignedUrl;
     window.__gc_urlToDataUrl      = urlToDataUrl;
     window.__gc_renderPdfViaProxy = renderPdfViaProxy;
@@ -2629,8 +2629,8 @@ function openPatientViewModal(patient) {
                 <span style="color:#94a3b8; font-size:11px; white-space:nowrap; flex-shrink:0;">· ${_dateStr}</span>
               </div>
               <div style="flex-shrink:0;">
-                ${d.url
-                  ? `<a href="${escAttr(d.url)}" target="_blank" rel="noopener" download="${escAttr(_dlName)}" style="text-decoration:none; font-size:12px; font-weight:600; color:#1a56db;">Abrir</a>`
+                ${d.storage_path
+                  ? `<a href="#" onclick="abrirDocumentoLazy('${escAttr(d.storage_path)}');return false;" style="text-decoration:none; font-size:12px; font-weight:600; color:#1a56db;">Abrir</a>`
                   : `<span style="font-size:12px; color:#94a3b8;">Sem link</span>`
                 }
               </div>
@@ -2658,7 +2658,7 @@ function openPatientViewModal(patient) {
                 <span style="color:#94a3b8;font-size:11px;white-space:nowrap;flex-shrink:0;">· ${_dateStr}</span>
               </div>
               <div style="flex-shrink:0;">
-                ${d.url ? `<a href="${escAttr(d.url)}" target="_blank" rel="noopener" download="${escAttr(_dlName)}" style="text-decoration:none;font-size:12px;font-weight:600;color:#1a56db;">Abrir</a>` : `<span style="font-size:12px;color:#94a3b8;">Sem link</span>`}
+                ${d.storage_path ? `<a href="#" onclick="abrirDocumentoLazy('${escAttr(d.storage_path)}');return false;" style="text-decoration:none;font-size:12px;font-weight:600;color:#1a56db;">Abrir</a>` : `<span style="font-size:12px;color:#94a3b8;">Sem link</span>`}
               </div>
             </div>`;
           }).join("")}
