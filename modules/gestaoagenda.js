@@ -5,7 +5,8 @@
 
 import { G, STATUS_OPTIONS, statusMeta } from "./state.js";
 import { escapeHtml } from "./helpers.js";
-import { openApptModal, wireQuickPatientSearch } from "./agenda.js";
+import { openApptModal, renderQuickPatientResults } from "./agenda.js";
+import { searchPatientsScoped } from "./db.js";
 
 const GCAL_WORKER_URL = window.__GC_GCAL_WORKER_URL__ || "";
 
@@ -174,8 +175,52 @@ function _wireShell() {
     }
   });
 
-  // Pesquisa rápida de doente (reutiliza a lógica da Agenda)
-  wireQuickPatientSearch();
+  // Pesquisa rápida de doente (lê a clínica seleccionada na Gestão de Agenda)
+  _wireQuickSearchGA();
+}
+
+/* ── Pesquisa rápida de doente (Gestão de Agenda) ─────── */
+function _wireQuickSearchGA() {
+  const input   = document.getElementById("pQuickQuery");
+  const resHost = document.getElementById("pQuickResults");
+  if (!input || !resHost) return;
+  if (!G.patientQuick) G.patientQuick = {};
+
+  resHost.innerHTML = "";
+  resHost.style.display = "none";
+
+  let timer = null;
+
+  async function run() {
+    const term = (input.value || "").trim();
+    if (!term || term.length < 2) { resHost.innerHTML = ""; resHost.style.display = "none"; return; }
+
+    const clinicId = _state.selectedClinicId || null;
+    resHost.style.display = "block";
+
+    if (!clinicId) {
+      resHost.innerHTML = '<div style="font-size:12px;color:#666;">Selecciona uma clínica para pesquisar.</div>';
+      return;
+    }
+
+    resHost.innerHTML = '<div style="font-size:12px;color:#666;">A pesquisar…</div>';
+    try {
+      const pts = await searchPatientsScoped({ clinicId, q: term, limit: 30 });
+      if (!pts || pts.length === 0) {
+        resHost.innerHTML = '<div style="font-size:12px;color:#666;">Sem resultados.</div>';
+        return;
+      }
+      renderQuickPatientResults(pts);
+    } catch (e) {
+      console.error("Pesquisa rápida de doente (GA) falhou:", e);
+      resHost.innerHTML = '<div style="font-size:12px;color:#b00020;">Erro na pesquisa. Vê a consola.</div>';
+    }
+  }
+
+  input.addEventListener("input", () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(run, 250);
+  });
 }
 
 /* ── Load & render ────────────────────────────────────── */
