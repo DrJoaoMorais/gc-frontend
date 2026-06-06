@@ -5,7 +5,7 @@
 
 import { G, STATUS_OPTIONS, statusMeta } from "./state.js";
 import { escapeHtml } from "./helpers.js";
-import { openApptModal } from "./agenda.js";
+import { openApptModal, wireQuickPatientSearch } from "./agenda.js";
 
 const GCAL_WORKER_URL = window.__GC_GCAL_WORKER_URL__ || "";
 
@@ -97,7 +97,11 @@ function _buildShell() {
       <button id="gaBtnAgendar" class="gcBtnPrimary" style="font-size:12px;padding:5px 14px;">Agendar consulta</button>
       <button id="gaBtnNovoDoente" class="gcBtnOutline" style="font-size:12px;padding:5px 14px;">Novo doente</button>
       <button id="gaBtnBloq" class="gcBtnDanger" style="font-size:12px;padding:5px 14px;">Bloquear</button>
-      <div style="flex:1;min-width:8px;"></div>
+      <div style="flex:1;min-width:180px;position:relative;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input id="pQuickQuery" type="search" placeholder="Pesquisar doente — Nome, SNS, NIF…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search" style="width:100%;box-sizing:border-box;padding:6px 10px 6px 30px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;font-family:inherit;color:#1e293b;background:#fff;" />
+        <div id="pQuickResults" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:0.5px solid #e2e8f0;border-radius:10px;box-shadow:0 6px 24px rgba(15,45,82,0.12);padding:8px;max-height:340px;overflow-y:auto;z-index:50;"></div>
+      </div>
       <select id="gaSelClinica" class="gcSelect" style="font-size:12px;padding:5px 8px;max-width:140px;">${clinicOpts}</select>
       <div id="gaRecBanner" style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;"></div>
     </div>
@@ -169,6 +173,9 @@ function _wireShell() {
       if (panel) panel.innerHTML = '<div style="font-size:12px;color:#94a3b8;text-align:center;padding:1rem 0;">Clica num slot para ver detalhes e acções.</div>';
     }
   });
+
+  // Pesquisa rápida de doente (reutiliza a lógica da Agenda)
+  wireQuickPatientSearch();
 }
 
 /* ── Load & render ────────────────────────────────────── */
