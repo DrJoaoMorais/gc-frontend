@@ -132,6 +132,9 @@ export async function boot() {
       G.procedureTypes = [];
     }
 
+    if (!G.currentView && G.role === "administrativo") {
+      G.currentView = "gestaoagenda";
+    }
     await renderCurrentView();
 
   // Verificar pendentes em background — sem bloquear o arranque
