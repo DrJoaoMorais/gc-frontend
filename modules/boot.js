@@ -132,7 +132,7 @@ export async function boot() {
       G.procedureTypes = [];
     }
 
-    if (!G.currentView && G.role === "administrativo") {
+    if (G.role === "administrativo" && G.currentView === "agenda") {
       G.currentView = "gestaoagenda";
     }
     await renderCurrentView();
