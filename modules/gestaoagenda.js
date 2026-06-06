@@ -66,7 +66,7 @@ export async function initGestaoAgenda() {
   // Vista semanal activa por defeito
   _semanaVisible = true;
   const btn = document.getElementById("gaBtnSemana");
-  if (btn) { btn.style.background = "#1a56db"; btn.style.color = "#fff"; }
+  if (btn) { btn.style.background = "#e6f1fb"; btn.style.color = "#1a56db"; }
   const banner = document.getElementById("gaSemanaBanner");
   if (banner) { banner.style.display = "block"; banner.innerHTML = `<div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:10px;"><div style="font-size:12px;color:#94a3b8;text-align:center;padding:8px 0;">A carregar semana…</div></div>`; }
   _renderSemana();
@@ -92,11 +92,14 @@ function _buildShell() {
       </div>
       <button id="gaBtnHoje" class="gcBtnGhost" style="font-size:12px;padding:5px 12px;">Hoje</button>
       <input id="gaJumpDate" type="date" title="Ir para uma semana" class="gcSelect" style="font-size:12px;padding:4px 8px;color:#0f2d52;cursor:pointer;" />
-      <div style="width:1px;height:20px;background:#e2e8f0;"></div>
+      <button id="gaBtnSemana" class="gcBtnGhost" style="font-size:12px;padding:5px 12px;">Vista semanal</button>
+      <div style="width:1px;height:20px;background:#e2e8f0;margin:0 4px;"></div>
+      <button id="gaBtnAgendar" class="gcBtnPrimary" style="font-size:12px;padding:5px 14px;">Agendar consulta</button>
+      <button id="gaBtnNovoDoente" class="gcBtnOutline" style="font-size:12px;padding:5px 14px;">Novo doente</button>
+      <div style="width:1px;height:20px;background:#e2e8f0;margin:0 16px;"></div>
       <button id="gaBtnRec" class="gcBtnGhost" style="font-size:12px;padding:5px 14px;">Disponibilidade</button>
       <button id="gaBtnBloq" class="gcBtnDanger" style="font-size:12px;padding:5px 14px;">Bloquear</button>
-      <div style="width:1px;height:20px;background:#e2e8f0;"></div>
-      <button id="gaBtnSemana" class="gcBtnGhost" style="font-size:12px;padding:5px 12px;">Vista semanal</button>
+      <div style="flex:1;min-width:8px;"></div>
       <select id="gaSelClinica" class="gcSelect" style="font-size:12px;padding:5px 8px;max-width:140px;">${clinicOpts}</select>
       <div id="gaRecBanner" style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;"></div>
     </div>
@@ -152,6 +155,12 @@ function _wireShell() {
     _openModalBloqueio();
   });
   document.getElementById("gaBtnSemana")?.addEventListener("click", () => _toggleSemana());
+  document.getElementById("gaBtnAgendar")?.addEventListener("click", () => {
+    openApptModal({ mode: "new", row: null, prefillClinicId: _state.selectedClinicId });
+  });
+  document.getElementById("gaBtnNovoDoente")?.addEventListener("click", () => {
+    window.openNewPatientMainModal({ clinicId: _state.selectedClinicId });
+  });
 
   if (_state.selectedClinicId) {
     const sel = document.getElementById("gaSelClinica");
@@ -709,7 +718,7 @@ let _semanaVisible = true;
 async function _toggleSemana() {
   _semanaVisible = !_semanaVisible;
   const btn = document.getElementById("gaBtnSemana");
-  if (btn) { btn.style.background = _semanaVisible ? "#1a56db" : ""; btn.style.color = _semanaVisible ? "#fff" : ""; }
+  if (btn) { btn.style.background = _semanaVisible ? "#e6f1fb" : ""; btn.style.color = _semanaVisible ? "#1a56db" : ""; }
   const banner = document.getElementById("gaSemanaBanner");
   if (!banner) return;
   if (!_semanaVisible) { banner.style.display = "none"; banner.innerHTML = ""; return; }
