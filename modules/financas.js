@@ -135,7 +135,35 @@ async function loadPresencas({ mes, ano }) {
   return data || [];
 }
 
-/* ---- FA.8 — insertPresenca ---- */
+/* ============================================================
+   PASSO 3.1 — Função-fonte do novo fecho mensal (Caminho B)
+   ------------------------------------------------------------
+   ONDE COLAR:  modules/financas.js
+   POSIÇÃO:     dentro da secção "FA — Queries Supabase",
+                LOGO A SEGUIR à função FA.7 loadPresencas()
+                (por volta da linha 157, depois do bloco de presenças).
+
+   O QUE FAZ:   chama a RPC fecho_mensal(ano, mes) no Supabase e
+                devolve as 3 zonas já calculadas (acto / avença /
+                diária-módulo). NÃO substitui nada — é função nova.
+
+   NÃO APAGAR:  nenhuma função existente. Esta é puramente aditiva.
+   ============================================================ */
+
+/* ---- FA.8 — loadFechoAgenda ----
+   Lê o fecho do mês direto da agenda (appointments), via RPC.
+   Devolve array de linhas: { fonte, tipo, clinic_id, entidade_id,
+   efectivadas, faltou, por_fechar, dispensadas, eur, eur_perdido } */
+async function loadFechoAgenda({ ano, mes }) {
+  const { data, error } = await window.sb.rpc("fecho_mensal", {
+    p_ano: Number(ano),
+    p_mes: Number(mes),
+  });
+  if (error) throw error;
+  return data || [];
+}
+
+/* ---- FA.9 — insertPresenca ---- */
 async function insertPresenca(payload) {
   const { data, error } = await window.sb
     .from("presencas").insert(payload).select("*").limit(1);
@@ -1062,6 +1090,222 @@ ${avencas.length > 0 ? `
   await render();
 }
 
+/* ============================================================
+   PASSO 3.2 — Render V2 do Fecho Mensal (Caminho B: agenda)
+   ------------------------------------------------------------
+   ONDE COLAR:  modules/financas.js
+   POSIÇÃO:     a seguir à função renderFinancas() inteira
+                (ou em qualquer ponto entre funções — é independente).
+
+   DEPENDE DE:  - loadFechoAgenda()            (FA.8, já colado no 3.1)
+                - RPC fecho_mensal             (já criada no Supabase)
+                - RPC fecho_mensal_procedimentos (já criada no Supabase)
+                - escapeHtml()                 (já importado no topo)
+
+   NÃO TOCA:    renderFinancas, loadPresencas, PDF Athletix, modais,
+                estados de pagamento. Tudo intacto.
+
+   COMO LIGA:   pela peça 3.3 (botão de alternância Clássico/V2).
+                Sozinho, este código não corre — espera ser chamado.
+   ============================================================ */
+
+/* ---- helper local: chama a RPC de procedimentos ---- */
+async function loadFechoProcedimentos({ ano, mes }) {
+  const { data, error } = await window.sb.rpc("fecho_mensal_procedimentos", {
+    p_ano: Number(ano),
+    p_mes: Number(mes),
+  });
+  if (error) throw error;
+  return data || [];
+}
+
+/* ---- helper local: formata euros à portuguesa ---- */
+function _eur(v) {
+  return Number(v || 0).toLocaleString("pt-PT", {
+    style: "currency", currency: "EUR", minimumFractionDigits: 0, maximumFractionDigits: 0,
+  });
+}
+
+/* ============================================================
+   FC.5 — renderFechoV2
+   Render do painel de fecho mensal lido da agenda.
+   ============================================================ */
+export async function renderFechoV2() {
+  const content = document.querySelector(".gc-content");
+  if (!content) return;
+
+  const now = new Date();
+  let ano = now.getFullYear();
+  let mes = now.getMonth() + 1;
+
+  const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho",
+                 "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+  async function render() {
+    content.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:200px;color:#94a3b8;font-size:13px;">A carregar fecho…</div>`;
+
+    let linhas = [], procs = [];
+    try {
+      [linhas, procs] = await Promise.all([
+        loadFechoAgenda({ ano, mes }),
+        loadFechoProcedimentos({ ano, mes }),
+      ]);
+    } catch (e) {
+      console.error("renderFechoV2 load falhou:", e);
+      content.innerHTML = `<div style="color:#b00020;padding:20px;">Erro ao carregar o fecho. Vê a consola.</div>`;
+      return;
+    }
+
+    /* ── separar por zona ── */
+    const acto    = linhas.filter(l => l.tipo === "acto");
+    const avencas = linhas.filter(l => l.tipo === "avença");
+    const presen  = linhas.filter(l => l.tipo === "diaria" || l.tipo === "modulo");
+
+    /* ── agrupar avenças por clínica (p/ juntar à AlfraClinic) ── */
+    const avencaPorClinica = {};
+    const avencaSemClinica = [];
+    avencas.forEach(a => {
+      if (a.clinic_id) {
+        (avencaPorClinica[a.clinic_id] = avencaPorClinica[a.clinic_id] || []).push(a);
+      } else {
+        avencaSemClinica.push(a);
+      }
+    });
+
+    /* ── métricas globais ── */
+    const totEfect   = acto.reduce((s,l) => s + Number(l.efectivadas||0), 0);
+    const totFaltas  = acto.reduce((s,l) => s + Number(l.faltou||0), 0);
+    const totFechar  = acto.reduce((s,l) => s + Number(l.por_fechar||0), 0);
+    const totPerdido = acto.reduce((s,l) => s + Number(l.eur_perdido||0), 0);
+    const totActoEur = acto.reduce((s,l) => s + Number(l.eur||0), 0);
+    const totAvenca  = avencas.reduce((s,l) => s + Number(l.eur||0), 0);
+    const totPresen  = presen.reduce((s,l) => s + Number(l.eur||0), 0);
+    const totalGeral = totActoEur + totAvenca + totPresen;
+    const taxaFaltas = (totEfect + totFaltas) > 0
+      ? Math.round(totFaltas / (totEfect + totFaltas) * 100) : 0;
+
+    /* ── mix de procedimentos por clínica (mapa clinic_id -> linhas) ── */
+    const procPorClinica = {};
+    procs.forEach(p => {
+      (procPorClinica[p.clinic_id] = procPorClinica[p.clinic_id] || []).push(p);
+    });
+
+    /* ===== cabeçalho + seletor de mês ===== */
+    const header = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="gc-btn-sm" id="fv2Prev">‹</button>
+          <span style="font-size:18px;font-weight:800;color:#0f2d52;min-width:150px;text-align:center;">${MESES[mes-1]} ${ano}</span>
+          <button class="gc-btn-sm" id="fv2Next">›</button>
+        </div>
+      </div>`;
+
+    /* ===== cartões de métrica ===== */
+    const cards = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:22px;">
+        <div style="background:#f8fafc;border-radius:8px;padding:14px;">
+          <div style="font-size:12px;color:#64748b;margin-bottom:4px;">Total a receber</div>
+          <div style="font-size:24px;font-weight:800;color:#0f2d52;">${_eur(totalGeral)}</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:8px;padding:14px;">
+          <div style="font-size:12px;color:#64748b;margin-bottom:4px;">Efectivadas</div>
+          <div style="font-size:24px;font-weight:800;color:#0f2d52;">${totEfect}</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:8px;padding:14px;">
+          <div style="font-size:12px;color:#64748b;margin-bottom:4px;">Faltas (${taxaFaltas}%)</div>
+          <div style="font-size:24px;font-weight:800;color:#0f2d52;">${totFaltas}</div>
+          <div style="font-size:11px;color:#b45309;margin-top:2px;">${_eur(totPerdido)} perdidos</div>
+        </div>
+        <div style="background:${totFechar>0?'#FEF3C7':'#f8fafc'};border-radius:8px;padding:14px;">
+          <div style="font-size:12px;color:${totFechar>0?'#92400e':'#64748b'};margin-bottom:4px;">Por fechar</div>
+          <div style="font-size:24px;font-weight:800;color:${totFechar>0?'#92400e':'#0f2d52'};">${totFechar}</div>
+        </div>
+      </div>`;
+
+    /* ===== zona 1: por acto (com Alfra agrupada + mix) ===== */
+    const linhasActo = acto.map(l => {
+      const ticket = Number(l.efectivadas||0) > 0
+        ? Math.round(Number(l.eur||0) / Number(l.efectivadas||0)) : 0;
+      const avExtra = (avencaPorClinica[l.clinic_id] || []);
+      const subtotalClinica = Number(l.eur||0) + avExtra.reduce((s,a)=>s+Number(a.eur||0),0);
+
+      const mix = (procPorClinica[l.clinic_id] || [])
+        .filter(p => Number(p.eur||0) > 0)
+        .map(p => `<span style="display:inline-block;background:#f1f5f9;border-radius:6px;padding:2px 8px;margin:2px 4px 2px 0;font-size:11px;color:#475569;">${escapeHtml(p.procedimento)} ×${p.efectivadas} · ${_eur(p.eur)}</span>`)
+        .join("");
+
+      const linhaAvenca = avExtra.map(a => `
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:#64748b;padding:3px 0 3px 14px;">
+          <span>${escapeHtml(a.fonte)} — avença</span>
+          <span>${_eur(a.eur)}</span>
+        </div>`).join("");
+
+      return `
+        <div style="padding:14px 16px;border-bottom:0.5px solid #e2e8f0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${avExtra.length?'8px':'4px'};">
+            <span style="font-weight:700;font-size:15px;color:#0f2d52;">${escapeHtml(l.fonte)}</span>
+            <span style="font-weight:800;font-size:15px;color:#0f2d52;">${_eur(subtotalClinica)}</span>
+          </div>
+          ${avExtra.length ? `<div style="display:flex;justify-content:space-between;font-size:13px;color:#64748b;padding:3px 0 3px 14px;">
+            <span>Consultas — ${l.efectivadas} efect. · ${l.faltou} faltas${ticket?` · ${_eur(ticket)}/cons.`:''}</span><span>${_eur(l.eur)}</span></div>${linhaAvenca}` : `
+          <div style="font-size:13px;color:#64748b;">${l.efectivadas} efect. · ${l.faltou} faltas${Number(l.por_fechar)>0?` · <span style="color:#92400e;font-weight:600;">${l.por_fechar} por fechar</span>`:''}${ticket?` · ${_eur(ticket)}/cons.`:''}</div>`}
+          ${mix ? `<div style="margin-top:8px;">${mix}</div>` : ""}
+        </div>`;
+    }).join("");
+
+    const zonaActo = `
+      <div style="font-size:12px;color:#64748b;margin:0 0 8px 2px;text-transform:uppercase;letter-spacing:.04em;">Por acto clínico</div>
+      <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:22px;">
+        ${linhasActo || `<div style="padding:18px;color:#94a3b8;font-size:13px;">Sem consultas neste mês.</div>`}
+      </div>`;
+
+    /* ===== zona 2: avenças sem clínica (Beatriz Ângelo, Liga) ===== */
+    const linhasAvenca = avencaSemClinica.map(a => `
+      <div style="padding:14px 16px;border-bottom:0.5px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:700;font-size:15px;color:#0f2d52;">${escapeHtml(a.fonte)}</span>
+        <span style="font-weight:800;font-size:15px;color:#0f2d52;">${_eur(a.eur)}</span>
+      </div>`).join("");
+
+    const zonaAvenca = avencaSemClinica.length ? `
+      <div style="font-size:12px;color:#64748b;margin:0 0 8px 2px;text-transform:uppercase;letter-spacing:.04em;">Avenças fixas</div>
+      <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:22px;">
+        ${linhasAvenca}
+      </div>` : "";
+
+    /* ===== zona 3: diária / módulo (FPF, Católica) ===== */
+    const linhasPresen = presen.map(p => `
+      <div style="padding:14px 16px;border-bottom:0.5px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <span style="font-weight:700;font-size:15px;color:#0f2d52;">${escapeHtml(p.fonte)}</span>
+          <div style="font-size:12px;color:#94a3b8;margin-top:2px;">${Number(p.eur)>0?_eur(p.eur):"sem lançamentos este mês"}</div>
+        </div>
+        <span style="font-weight:800;font-size:15px;color:#0f2d52;">${_eur(p.eur)}</span>
+      </div>`).join("");
+
+    const zonaPresen = presen.length ? `
+      <div style="font-size:12px;color:#64748b;margin:0 0 8px 2px;text-transform:uppercase;letter-spacing:.04em;">Diária / módulo</div>
+      <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+        ${linhasPresen}
+        <div style="padding:10px 16px;font-size:11px;color:#94a3b8;">Lançamento de dias/módulos: usar o painel clássico (botão em cima).</div>
+      </div>` : "";
+
+    content.innerHTML = `<div style="max-width:760px;">${header}${cards}${zonaActo}${zonaAvenca}${zonaPresen}</div>`;
+
+    /* ── navegação de mês ── */
+    content.querySelector("#fv2Prev")?.addEventListener("click", () => {
+      mes--; if (mes < 1) { mes = 12; ano--; } render();
+    });
+    content.querySelector("#fv2Next")?.addEventListener("click", () => {
+      mes++; if (mes > 12) { mes = 1; ano++; } render();
+    });
+  }
+
+  await render();
+}
+
+/* expor para o shell / botão de alternância */
+window.__gc_renderFechoV2 = renderFechoV2;
+
 
 /* ==== FD — Modais ==== */
 
@@ -1854,11 +2098,58 @@ async function _gaFechoLoadFin(mes, ano, clinicId) {
   }
 }
 
+/* ---- FC.6 — renderRendimentos (porteiro Clássico/V2) ---- */
+let __gcVistaFecho = "classico"; // "classico" | "v2"
+
+export async function renderRendimentos() {
+  const content = document.querySelector(".gc-content");
+  if (!content) return;
+
+  const barId = "gcFechoToggleBar";
+  let bar = document.getElementById(barId);
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = barId;
+  }
+  const btn = (v, txt) => {
+    const activo = __gcVistaFecho === v;
+    return `<button class="gc-btn-sm gcFechoTab" data-vista="${v}"
+      style="${activo
+        ? 'background:#0f2d52;color:#fff;border-color:#0f2d52;'
+        : 'background:#fff;color:#0f2d52;border-color:#cbd5e1;'}">${txt}</button>`;
+  };
+  bar.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;">
+      <span style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-right:4px;">Vista</span>
+      ${btn("classico", "Clássico")}
+      ${btn("v2", "Fecho v2 (agenda)")}
+    </div>`;
+
+  if (__gcVistaFecho === "v2") {
+    await renderFechoV2();
+  } else {
+    await renderFinancas();
+  }
+
+  const c2 = document.querySelector(".gc-content");
+  if (c2 && bar) c2.insertBefore(bar, c2.firstChild);
+
+  bar.querySelectorAll(".gcFechoTab").forEach(b => {
+    b.addEventListener("click", () => {
+      __gcVistaFecho = b.dataset.vista;
+      renderRendimentos();
+    });
+  });
+}
+
+
 /* ==== FE — Boot ==== */
 
 /* ---- FE.1 — initFinancas ---- */
 export function initFinancas() {
-  window.__gc_renderFinancas = renderFinancas;
+  // o shell passa a abrir o porteiro (Clássico/V2);
+  // mantemos o alias antigo a apontar p/ ele por compatibilidade
+  window.__gc_renderFinancas = renderRendimentos;
 }
 
 initFinancas();
