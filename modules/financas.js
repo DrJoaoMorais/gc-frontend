@@ -2149,7 +2149,7 @@ export async function renderRendimentos() {
 export function initFinancas() {
   // o shell passa a abrir o porteiro (Clássico/V2);
   // mantemos o alias antigo a apontar p/ ele por compatibilidade
-  window.__gc_renderFinancas = renderRendimentos;
+  window.__gc_renderFinancas = renderFinancas;
 }
 
 initFinancas();
