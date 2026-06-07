@@ -306,7 +306,11 @@ export async function renderFinancas() {
       : registos;
 
     /* ── Métricas globais ── */
-    const realizadas  = registosFiltrados.filter(r => contaParaTotal(r.appt_status, r.financial_status));
+    const realizadas  = registosFiltrados.filter(r => {
+      if (!contaParaTotal(r.appt_status, r.financial_status)) return false;
+      const ent = entidades.find(e => e.id === r.entidade_id);
+      return ent?.tipo !== "avenca";
+    });
     const dispensadas = registosFiltrados.filter(r => r.financial_status === "honorarios_dispensados");
     const faltas      = registosFiltrados.filter(r => String(r.appt_status || "").toLowerCase() === "no_show");
     /* Pendentes = marcadas/chegou com data até HOJE (não futuras) */
