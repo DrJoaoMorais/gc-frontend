@@ -444,6 +444,8 @@ export async function renderFinancas() {
 .fin-avenca-strip{background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .gc-btn-sm{padding:5px 12px;border-radius:7px;border:0.5px solid #e2e8f0;background:#fff;font-size:12px;cursor:pointer;color:#0f172a;font-family:inherit}
 .gc-btn-sm:hover{background:#f8fafc}
+.fin-mais-btn{border:none;background:none;padding:0;font-size:11px;color:#185FA5;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px}
+.fin-mais-box{display:none}
 </style>
 
 <!-- TOPO -->
@@ -585,10 +587,11 @@ ${avencas.length > 0 ? `
           </div>
         </div>
         <div style="padding:0;">
-          ${tipos.length === 0 ? `<div style="padding:16px;text-align:center;color:#94a3b8;font-size:12px;">Sem registos — clique para ver detalhes</div>` :
-            `<table class="fin-tbl">
-              <tbody>
-                ${tipos.map(([tipo, v]) => `
+          ${(() => {
+            const ord = tipos.slice().sort((a,b) => b[1].done - a[1].done);
+            const topo = ord.slice(0, 3);
+            const resto = ord.slice(3);
+            const linha = ([tipo, v]) => `
                   <tr>
                     <td style="color:#475569;">${escapeHtml(tipo)}</td>
                     <td style="text-align:right;">
@@ -600,13 +603,21 @@ ${avencas.length > 0 ? `
                         <span style="font-size:12px;font-weight:700;color:#0f2d52;min-width:52px;text-align:right;">${v.valor > 0 ? v.valor.toLocaleString("pt-PT",{style:"currency",currency:"EUR"}) : "—"}</span>
                       </div>
                     </td>
-                  </tr>
-                `).join("")}
-              </tbody>
-            </table>`
-          }
+                  </tr>`;
+            if (ord.length === 0) return `<div style="padding:16px;text-align:center;color:#94a3b8;font-size:12px;">Sem registos — clique para ver detalhes</div>`;
+            return `<table class="fin-tbl"><tbody>${topo.map(linha).join("")}</tbody></table>
+              ${resto.length > 0 ? `
+                <div class="fin-mais-box" data-mais="${e.id}">
+                  <table class="fin-tbl" style="background:#f8fafc;"><tbody>${resto.map(linha).join("")}</tbody></table>
+                </div>` : ""}`;
+          })()}
           <div style="padding:8px 14px;border-top:0.5px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:11px;color:#94a3b8;">ver registos →</span>
+            ${(() => {
+              const nResto = Math.max(0, tipos.length - 3);
+              return nResto > 0
+                ? `<button class="fin-mais-btn" data-toggle="${e.id}" onclick="event.stopPropagation()"><span class="fin-mais-chev" data-chev="${e.id}">▾</span> <span class="fin-mais-lbl" data-lbl="${e.id}">+ ${nResto} acto${nResto>1?"s":""}</span></button>`
+                : `<span style="font-size:11px;color:#94a3b8;">ver registos →</span>`;
+            })()}
             ${e.gera_pdf_consulta ? `<button class="gc-btn-sm btnFinPdfCli" data-entid="${e.id}" onclick="event.stopPropagation()">PDF contabilista</button>` : ""}
           </div>
         </div>
@@ -908,6 +919,23 @@ ${avencas.length > 0 ? `
         clinicaFiltro = entId;
         vistaActual   = "registos";
         render();
+      });
+    });
+
+    /* Seta "+ N actos" → expandir/colapsar resto dos tipos no card */
+    content.querySelectorAll(".fin-mais-btn").forEach(btn => {
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        const id  = btn.dataset.toggle;
+        const box = content.querySelector(`.fin-mais-box[data-mais="${id}"]`);
+        const chev= content.querySelector(`.fin-mais-chev[data-chev="${id}"]`);
+        const lbl = content.querySelector(`.fin-mais-lbl[data-lbl="${id}"]`);
+        if (!box) return;
+        const aberto = box.style.display === "block";
+        box.style.display = aberto ? "none" : "block";
+        if (chev) chev.textContent = aberto ? "▾" : "▴";
+        if (lbl && !lbl.dataset.orig) lbl.dataset.orig = lbl.textContent;
+        if (lbl)  lbl.textContent  = aberto ? lbl.dataset.orig : "menos";
       });
     });
 
