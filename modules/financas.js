@@ -447,9 +447,11 @@ export async function renderFinancas() {
 .fin-mc-s{font-size:11px;color:#94a3b8;margin-top:3px}
 .fin-mtab{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;color:#64748b;border:0.5px solid #e2e8f0;background:#fff;font-family:inherit}
 .fin-mtab.on{background:#0f2d52;color:#fff;border-color:#0f2d52}
-.fin-vtab{padding:8px 18px;font-size:13px;font-weight:500;cursor:pointer;color:#64748b;border:0.5px solid transparent;background:transparent;border-radius:8px 8px 0 0;font-family:inherit;transition:all .12s}
-.fin-vtab:hover{color:#0f172a;background:#f8fafc}
-.fin-vtab.on{color:#1a56db;background:#eff6ff;border-color:#bfdbfe #bfdbfe #eff6ff;font-weight:600}
+.fin-vtabs{display:flex;gap:8px;background:#f1f5f9;padding:5px;border-radius:12px;margin-bottom:18px}
+.fin-vtab{flex:1;padding:11px 18px;font-size:14px;font-weight:500;cursor:pointer;color:#64748b;border:none;background:transparent;border-radius:8px;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .12s}
+.fin-vtab:hover{color:#0f172a;background:#e2e8f0}
+.fin-vtab.on{color:#fff;background:#0f2d52}
+.fin-vtab.on:hover{background:#0f2d52}
 .fin-card{background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden}
 .fin-card-head{padding:12px 16px;border-bottom:0.5px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center}
 .fin-card-title{font-size:13px;font-weight:700;color:#0f172a}
@@ -462,7 +464,10 @@ export async function renderFinancas() {
 .pill-p{font-size:10px;background:#dbeafe;color:#1e40af;padding:2px 6px;border-radius:4px;font-weight:500}
 .pill-f{font-size:10px;background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:4px;font-weight:500}
 .pill-disp{font-size:10px;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-weight:500}
-.fin-cc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.fin-cc-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+@media(max-width:1100px){.fin-cc-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:820px){.fin-cc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.fin-cc-grid{grid-template-columns:1fr}}
 .fin-avenca-strip{background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .gc-btn-sm{padding:5px 12px;border-radius:7px;border:0.5px solid #e2e8f0;background:#fff;font-size:12px;cursor:pointer;color:#0f172a;font-family:inherit}
 .gc-btn-sm:hover{background:#f8fafc}
@@ -548,43 +553,16 @@ ${pendVencidos.length > 0 ? `
 </div>
 
 <!-- TABS DE VISTA -->
-<div style="display:flex;gap:0;border-bottom:0.5px solid #e2e8f0;margin-bottom:16px;">
-  <button class="fin-vtab${vistaActual==="clinica"?" on":""}" data-vista="clinica">Por clínica</button>
-  <button class="fin-vtab${vistaActual==="registos"?" on":""}" data-vista="registos">Registos</button>
-  <button class="fin-vtab${vistaActual==="analise"?" on":""}" data-vista="analise">Análise</button>
+<div class="fin-vtabs">
+  <button class="fin-vtab${vistaActual==="clinica"?" on":""}" data-vista="clinica"><i class="ti ti-building-hospital" style="font-size:17px;"></i> Por clínica</button>
+  <button class="fin-vtab${vistaActual==="registos"?" on":""}" data-vista="registos"><i class="ti ti-list-details" style="font-size:17px;"></i> Registos</button>
+  <button class="fin-vtab${vistaActual==="analise"?" on":""}" data-vista="analise"><i class="ti ti-chart-bar" style="font-size:17px;"></i> Análise</button>
 </div>
 
 <!-- ════ VISTA: POR CLÍNICA ════ -->
 <div id="finVistaCli" style="display:${vistaActual==="clinica"?"block":"none"};">
 
-<!-- Avenças fixas mensais -->
-${avencas.length > 0 ? `
-<div style="margin-bottom:14px;">
-  <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-weight:500;margin-bottom:8px;">Avenças fixas mensais</div>
-  <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-    ${avencas.map(e => {
-      const reg = registosFiltrados.find(r => r.entidade_id === e.id && r.tipo_acto === "Avença mensal" && r.appt_status === "done");
-      const fs  = reg?.financial_status || "normal";
-      const btnRecibo = fs === "normal"
-        ? `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="recibo" style="font-size:11px;">Recibo enviado</button>`
-        : `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="recibo" style="font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Recibo enviado</button>`;
-      const btnPago = fs === "pago"
-        ? `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="pago" style="font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Pago</button>`
-        : `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="pago" style="font-size:11px;">Pagamento recebido</button>`;
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:0.5px solid #f1f5f9;">
-        <div>
-          <div style="font-size:13px;font-weight:500;color:#0f172a;">${escapeHtml(e.nome)}</div>
-          <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${Number(e.avenca_valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}/mês</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:13px;font-weight:500;color:#0f172a;">${Number(e.avenca_valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span>
-          <div style="display:flex;gap:6px;">${btnRecibo}${btnPago}</div>
-        </div>
-      </div>`;
-    }).join("")}
-  </div>
-</div>
-` : ""}
+  <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-weight:500;margin-bottom:10px;">Clínicas</div>
 
   <!-- Grid de clínicas -->
   <div class="fin-cc-grid">
@@ -650,45 +628,76 @@ ${avencas.length > 0 ? `
     }).join("")}
   </div>
 
-  <!-- Outras actividades: FPF, UC, etc. -->
-  ${entExternas.length > 0 ? `
-  <div class="fin-card" style="margin-top:4px;">
-    <div class="fin-card-head">
-      <span class="fin-card-title">Outras actividades</span>
-      <div style="display:flex;gap:6px;">
-        ${entExternas.map(e => `<button class="gc-btn-sm btnFinNovaPresenca" data-entid="${e.id}" data-nome="${escapeHtml(e.nome)}" data-tipo="${e.tipo}">+ ${escapeHtml(e.nome.split(" ")[0])}</button>`).join("")}
-      </div>
+  <!-- ════ ENTIDADES EXTERNAS (não uso o GC) ════ -->
+  ${(avencas.length > 0 || entExternas.length > 0) ? `
+  <div style="margin-top:18px;">
+    <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-weight:500;margin-bottom:10px;">Entidades externas</div>
+
+    ${avencas.length > 0 ? `
+    <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:10px;">
+      ${avencas.map(e => {
+        const reg = registosFiltrados.find(r => r.entidade_id === e.id && r.tipo_acto === "Avença mensal" && r.appt_status === "done");
+        const fs  = reg?.financial_status || "normal";
+        const btnRecibo = fs === "normal"
+          ? `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="recibo" style="font-size:11px;">Recibo enviado</button>`
+          : `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="recibo" style="font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Recibo enviado</button>`;
+        const btnPago = fs === "pago"
+          ? `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="pago" style="font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Pago</button>`
+          : `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="pago" style="font-size:11px;">Pagamento recebido</button>`;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:0.5px solid #f1f5f9;">
+          <div>
+            <div style="font-size:13px;font-weight:500;color:#0f172a;">${escapeHtml(e.nome)} <span style="font-size:10px;background:#CECBF6;color:#26215C;padding:2px 7px;border-radius:8px;margin-left:4px;">mensal fixo</span></div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${Number(e.avenca_valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}/mês</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:13px;font-weight:500;color:#0f172a;">${Number(e.avenca_valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span>
+            <div style="display:flex;gap:6px;">${btnRecibo}${btnPago}</div>
+          </div>
+        </div>`;
+      }).join("")}
     </div>
-    <table class="fin-tbl">
-      <thead><tr><th>Data</th><th>Entidade</th><th>Descrição</th><th>Dias</th><th style="text-align:right;">Valor</th><th></th></tr></thead>
-      <tbody>
-        ${entExternas.flatMap(e => presencasPorEntidade(e.id)).length === 0
-          ? `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:20px;">Sem registos. Use os botões acima para adicionar.</td></tr>`
-          : entExternas.flatMap(e => presencasPorEntidade(e.id).map(p => {
-              const dI = new Date(p.data_inicio+"T00:00:00").toLocaleDateString("pt-PT");
-              const dF = p.data_inicio !== p.data_fim ? new Date(p.data_fim+"T00:00:00").toLocaleDateString("pt-PT") : null;
-              return `<tr>
-                <td style="color:#64748b;white-space:nowrap;">${dI}${dF ? " → "+dF : ""}</td>
-                <td style="font-weight:600;">${escapeHtml(e.nome)}</td>
-                <td style="color:#64748b;">${escapeHtml(p.descricao||"—")}</td>
-                <td style="color:#64748b;">${p.num_dias > 1 ? p.num_dias+" dias" : "1 dia"}</td>
-                <td style="text-align:right;font-weight:700;color:#0f2d52;">${Number(p.valor_calculado||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</td>
-                <td style="text-align:right;">
-                  <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center;">
-                    ${(p.financial_status||"normal") !== "normal"
-                      ? `<button class="gc-btn-sm btnPresEstado" data-pid="${p.id}" data-fs="${p.financial_status||"normal"}" style="font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Recibo enviado</button>`
-                      : `<button class="gc-btn-sm btnPresEstado" data-pid="${p.id}" data-fs="${p.financial_status||"normal"}" style="font-size:11px;">Recibo enviado</button>`}
-                    ${(p.financial_status||"normal") === "pago"
-                      ? `<button class="gc-btn-sm btnPresEstado2" data-pid="${p.id}" data-fs="${p.financial_status||"normal"}" style="font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Pago</button>`
-                      : `<button class="gc-btn-sm btnPresEstado2" data-pid="${p.id}" data-fs="${p.financial_status||"normal"}" style="font-size:11px;">Pagamento recebido</button>`}
-                    <button class="gc-btn-sm btnFinEditPresenca" data-pid="${p.id}">Editar</button>
-                  </div>
-                </td>
-              </tr>`;
-            })).join("")
-        }
-      </tbody>
-    </table>
+    ` : ""}
+
+    ${entExternas.length > 0 ? `
+    <div class="fin-card">
+      <div class="fin-card-head">
+        <span class="fin-card-title">Outras actividades</span>
+        <div style="display:flex;gap:6px;">
+          ${entExternas.map(e => `<button class="gc-btn-sm btnFinNovaPresenca" data-entid="${e.id}" data-nome="${escapeHtml(e.nome)}" data-tipo="${e.tipo}">+ ${escapeHtml(e.nome.split(" ")[0])}</button>`).join("")}
+        </div>
+      </div>
+      <table class="fin-tbl">
+        <thead><tr><th>Data</th><th>Entidade</th><th>Descrição</th><th>Dias</th><th style="text-align:right;">Valor</th><th></th></tr></thead>
+        <tbody>
+          ${entExternas.flatMap(e => presencasPorEntidade(e.id)).length === 0
+            ? `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:20px;">Sem registos. Use os botões acima para adicionar.</td></tr>`
+            : entExternas.flatMap(e => presencasPorEntidade(e.id).map(p => {
+                const dI = new Date(p.data_inicio+"T00:00:00").toLocaleDateString("pt-PT");
+                const dF = p.data_inicio !== p.data_fim ? new Date(p.data_fim+"T00:00:00").toLocaleDateString("pt-PT") : null;
+                return `<tr>
+                  <td style="color:#64748b;white-space:nowrap;">${dI}${dF ? " → "+dF : ""}</td>
+                  <td style="font-weight:600;">${escapeHtml(e.nome)}</td>
+                  <td style="color:#64748b;">${escapeHtml(p.descricao||"—")}</td>
+                  <td style="color:#64748b;">${p.num_dias > 1 ? p.num_dias+" dias" : "1 dia"}</td>
+                  <td style="text-align:right;font-weight:700;color:#0f2d52;">${Number(p.valor_calculado||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</td>
+                  <td style="text-align:right;">
+                    <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center;">
+                      ${(p.financial_status||"normal") !== "normal"
+                        ? `<button class="gc-btn-sm btnPresEstado" data-pid="${p.id}" data-fs="${p.financial_status||"normal"}" style="font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Recibo enviado</button>`
+                        : `<button class="gc-btn-sm btnPresEstado" data-pid="${p.id}" data-fs="${p.financial_status||"normal"}" style="font-size:11px;">Recibo enviado</button>`}
+                      ${(p.financial_status||"normal") === "pago"
+                        ? `<button class="gc-btn-sm btnPresEstado2" data-pid="${p.id}" data-fs="${p.financial_status||"normal"}" style="font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Pago</button>`
+                        : `<button class="gc-btn-sm btnPresEstado2" data-pid="${p.id}" data-fs="${p.financial_status||"normal"}" style="font-size:11px;">Pagamento recebido</button>`}
+                      <button class="gc-btn-sm btnFinEditPresenca" data-pid="${p.id}">Editar</button>
+                    </div>
+                  </td>
+                </tr>`;
+              })).join("")
+          }
+        </tbody>
+      </table>
+    </div>
+    ` : ""}
   </div>
   ` : ""}
 </div>
