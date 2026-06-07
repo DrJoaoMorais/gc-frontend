@@ -477,6 +477,15 @@ export async function renderFinancas() {
 @media(max-width:1100px){.fin-cc-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:820px){.fin-cc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.fin-cc-grid{grid-template-columns:1fr}}
+.fin-cli-layout{display:block}
+.fin-ext-wrap{margin-top:18px}
+@media(min-width:1101px){
+  .fin-cli-layout{display:flex;gap:16px;align-items:flex-start}
+  .fin-cli-main{flex:0 0 60%;min-width:0}
+  .fin-cli-side{flex:1 1 40%;min-width:0}
+  .fin-cli-main .fin-cc-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .fin-cli-side .fin-ext-wrap{margin-top:0}
+}
 .fin-avenca-strip{background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .gc-btn-sm{padding:5px 12px;border-radius:7px;border:0.5px solid #e2e8f0;background:#fff;font-size:12px;cursor:pointer;color:#0f172a;font-family:inherit}
 .gc-btn-sm:hover{background:#f8fafc}
@@ -566,6 +575,8 @@ ${pendVencidos.length > 0 ? `
 <!-- ════ VISTA: POR CLÍNICA ════ -->
 <div id="finVistaCli" style="display:${vistaActual==="clinica"?"block":"none"};">
 
+  <div class="fin-cli-layout">
+  <div class="fin-cli-main">
   <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-weight:500;margin-bottom:10px;">Clínicas</div>
 
   <!-- Grid de clínicas -->
@@ -576,13 +587,15 @@ ${pendVencidos.length > 0 ? `
       const cliCores = ["#185FA5","#0F6E56","#854F0B","#534AB7","#993C1D","#27500A"];
       const cor = cliCores[idx % cliCores.length];
       const temFaltasOuDisp = Object.values(d.porTipo).some(v => v.falta > 0 || v.disp > 0);
+      const ABREV_CARTAO = { "Liga dos Amigos do Hospital de Santarém": "Liga AH Santarém" };
+      const nomeCli = ABREV_CARTAO[e.nome] || e.nome;
       return `
       <div class="fin-card fin-card-cli" data-entid="${e.id}"
            style="border-left:3px solid ${cor};border-radius:0 12px 12px 0;cursor:pointer;"
            title="Clique para ver registos desta clínica">
         <div class="fin-card-head" style="border-left:none;">
           <div>
-            <div style="font-size:13px;font-weight:700;color:#0f172a;">${escapeHtml(e.nome)}</div>
+            <div style="font-size:13px;font-weight:700;color:#0f172a;">${escapeHtml(nomeCli)}</div>
             <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${e.gera_pdf_consulta ? `PDF contabilista a ${Number(e.valor_faturado||0).toFixed(0)}€/cons.` : "Consultas e procedimentos"}</div>
           </div>
           <div style="text-align:right;">
@@ -632,9 +645,12 @@ ${pendVencidos.length > 0 ? `
     }).join("")}
   </div>
 
+  </div><!-- /fin-cli-main -->
+  <div class="fin-cli-side">
+
   <!-- ════ ENTIDADES EXTERNAS (não uso o GC) ════ -->
   ${(avencas.length > 0 || entExternas.length > 0) ? `
-  <div style="margin-top:18px;">
+  <div class="fin-ext-wrap">
     <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-weight:500;margin-bottom:10px;">Entidades externas</div>
 
     <!-- ── G1: Fixo mensal (HBA) ── -->
@@ -723,6 +739,8 @@ ${pendVencidos.length > 0 ? `
     ` : ""}
   </div>
   ` : ""}
+  </div><!-- /fin-cli-side -->
+  </div><!-- /fin-cli-layout -->
 </div>
 
 <!-- ════ VISTA: REGISTOS ════ -->
