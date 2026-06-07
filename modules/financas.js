@@ -376,6 +376,9 @@ export async function renderFinancas() {
 
     /* ── Entidades externas (FPF, UC — sem clinic_id) ── */
     const entExternas  = entidades.filter(e => !e.clinic_id && e.tipo !== "avenca");
+    /* Sub-grupos: "por dia de consultas" (sempre visíveis) vs "quando requisitado" (FPF/Católica) */
+    const entFixasDia = entExternas.filter(e => e.sempre_visivel);
+    const entManuais  = entExternas.filter(e => !e.sempre_visivel);
     // Clínicas reais: entidades-acto + avenças cujo clinic_id NÃO tenha já uma entidade-acto
     // (ex.: Liga só tem avença → ganha cartão; AlfraClinic-Direcção tem clinic_id com acto → fica agregada, sem cartão próprio)
     const clinicIdsComActo = new Set(
@@ -634,69 +637,88 @@ ${pendVencidos.length > 0 ? `
   <div style="margin-top:18px;">
     <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-weight:500;margin-bottom:10px;">Entidades externas</div>
 
+    <!-- ── G1: Fixo mensal (HBA) ── -->
     ${avencas.length > 0 ? `
-    <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:10px;">
+    <div style="font-size:10px;color:#26215C;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0 0 5px 2px;">Fixo mensal</div>
+    <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:14px;">
       ${avencas.map(e => {
         const reg = registosFiltrados.find(r => r.entidade_id === e.id && r.tipo_acto === "Avença mensal" && r.appt_status === "done");
         const fs  = reg?.financial_status || "normal";
         const btnRecibo = fs === "normal"
-          ? `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="recibo" style="font-size:11px;">Recibo enviado</button>`
-          : `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="recibo" style="font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Recibo enviado</button>`;
+          ? `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="recibo" style="flex:1;font-size:11px;">Recibo enviado</button>`
+          : `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="recibo" style="flex:1;font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Recibo enviado</button>`;
         const btnPago = fs === "pago"
-          ? `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="pago" style="font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Pago</button>`
-          : `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="pago" style="font-size:11px;">Pagamento recebido</button>`;
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-bottom:0.5px solid #f1f5f9;">
-          <div>
-            <div style="font-size:13px;font-weight:500;color:#0f172a;">${escapeHtml(e.nome)} <span style="font-size:10px;background:#CECBF6;color:#26215C;padding:2px 7px;border-radius:8px;margin-left:4px;">mensal fixo</span></div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${Number(e.avenca_valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}/mês</div>
+          ? `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="pago" style="flex:1;font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Pago</button>`
+          : `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="pago" style="flex:1;font-size:11px;">Pagamento recebido</button>`;
+        return `<div style="padding:10px 14px;border-bottom:0.5px solid #f1f5f9;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;">
+            <span style="font-size:13px;font-weight:500;color:#0f172a;">${escapeHtml(e.nome)} <span style="font-size:10px;background:#CECBF6;color:#26215C;padding:2px 7px;border-radius:8px;">mensal fixo</span></span>
+            <span style="font-size:13px;font-weight:700;color:#0f2d52;">${Number(e.avenca_valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span>
           </div>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <span style="font-size:13px;font-weight:500;color:#0f172a;">${Number(e.avenca_valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span>
-            <div style="display:flex;gap:6px;">${btnRecibo}${btnPago}</div>
-          </div>
+          <div style="font-size:10px;color:#94a3b8;margin-top:1px;">${Number(e.avenca_valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}/mês</div>
+          <div style="display:flex;gap:6px;margin-top:8px;">${btnRecibo}${btnPago}</div>
         </div>`;
       }).join("")}
     </div>
     ` : ""}
 
-    ${entExternas.length > 0 ? `
-    <div class="fin-card">
-      <div class="fin-card-head">
-        <span class="fin-card-title">Outras actividades</span>
-        <div style="display:flex;gap:6px;">
-          ${entExternas.map(e => `<button class="gc-btn-sm btnFinNovaPresenca" data-entid="${e.id}" data-nome="${escapeHtml(e.nome)}" data-tipo="${e.tipo}">+ ${escapeHtml(e.nome.split(" ")[0])}</button>`).join("")}
-        </div>
+    <!-- ── G2: Por dia de consultas (sempre visíveis) ── -->
+    ${entFixasDia.length > 0 ? `
+    <div style="font-size:10px;color:#854F0B;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0 0 5px 2px;">Por dia de consultas</div>
+    <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:14px;">
+      ${entFixasDia.map(e => {
+        const ps  = presencasPorEntidade(e.id).slice().sort((a,b) => (a.data_inicio < b.data_inicio ? -1 : 1));
+        const tot = ps.reduce((s,p) => s + Number(p.valor_calculado||0), 0);
+        return `<div style="padding:9px 14px;border-bottom:0.5px solid #f1f5f9;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:13px;font-weight:600;color:#0f172a;">${escapeHtml(e.nome)}</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              ${tot > 0
+                ? `<span style="font-size:13px;font-weight:700;color:#0f2d52;">${tot.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span>`
+                : `<span style="font-size:11px;color:#cbd5e1;">sem dias este mês</span>`}
+              <button class="gc-btn-sm btnFinNovaPresenca" data-entid="${e.id}" data-nome="${escapeHtml(e.nome)}" data-tipo="${e.tipo}" style="font-size:11px;padding:3px 10px;border-color:#1a56db;background:#1a56db;color:#fff;">+ dia</button>
+            </div>
+          </div>
+          ${ps.map(p => {
+            const dI = new Date(p.data_inicio+"T00:00:00").toLocaleDateString("pt-PT");
+            return `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:4px 10px;background:#f8fafc;border-radius:6px;">
+              <span style="font-size:11px;color:#64748b;">${dI}${p.descricao ? " · "+escapeHtml(p.descricao) : ""}</span>
+              <span style="font-size:11px;color:#64748b;display:flex;gap:8px;align-items:center;"><b style="color:#0f2d52;">${Number(p.valor_calculado||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</b><button class="btnFinEditPresenca" data-pid="${p.id}" style="border:none;background:none;color:#1a56db;cursor:pointer;font-size:11px;padding:0;">editar</button></span>
+            </div>`;
+          }).join("")}
+        </div>`;
+      }).join("")}
+    </div>
+    ` : ""}
+
+    <!-- ── G3: Quando requisitado (FPF, Católica) ── -->
+    ${entManuais.length > 0 ? `
+    <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0 0 5px 2px;">Quando requisitado</div>
+    <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <div style="display:flex;gap:6px;padding:9px 14px;border-bottom:0.5px solid #f1f5f9;flex-wrap:wrap;">
+        ${entManuais.map(e => `<button class="gc-btn-sm btnFinNovaPresenca" data-entid="${e.id}" data-nome="${escapeHtml(e.nome)}" data-tipo="${e.tipo}" style="font-size:11px;">+ ${escapeHtml(e.nome.split(" ")[0])}</button>`).join("")}
       </div>
-      <table class="fin-tbl">
-        <thead><tr><th>Data</th><th>Entidade</th><th>Descrição</th><th>Dias</th><th style="text-align:right;">Valor</th><th></th></tr></thead>
-        <tbody>
-          ${entExternas.flatMap(e => presencasPorEntidade(e.id)).length === 0
-            ? `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:20px;">Sem registos. Use os botões acima para adicionar.</td></tr>`
-            : entExternas.flatMap(e => presencasPorEntidade(e.id).map(p => {
-                const dI = new Date(p.data_inicio+"T00:00:00").toLocaleDateString("pt-PT");
-                const dF = p.data_inicio !== p.data_fim ? new Date(p.data_fim+"T00:00:00").toLocaleDateString("pt-PT") : null;
-                return `<tr>
-                  <td style="color:#64748b;white-space:nowrap;">${dI}${dF ? " → "+dF : ""}</td>
-                  <td style="font-weight:600;">${escapeHtml(e.nome)}</td>
-                  <td style="color:#64748b;">${escapeHtml(p.descricao||"—")}</td>
-                  <td style="color:#64748b;">${p.num_dias > 1 ? p.num_dias+" dias" : "1 dia"}</td>
-                  <td style="text-align:right;font-weight:700;color:#0f2d52;">${Number(p.valor_calculado||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</td>
-                  <td style="text-align:right;">
-                    <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center;">
-                      ${(p.financial_status||"normal") !== "normal"
-                        ? `<button class="gc-btn-sm btnPresEstado" data-pid="${p.id}" data-fs="${p.financial_status||"normal"}" style="font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Recibo enviado</button>`
-                        : `<button class="gc-btn-sm btnPresEstado" data-pid="${p.id}" data-fs="${p.financial_status||"normal"}" style="font-size:11px;">Recibo enviado</button>`}
-                      ${(p.financial_status||"normal") === "pago"
-                        ? `<button class="gc-btn-sm btnPresEstado2" data-pid="${p.id}" data-fs="${p.financial_status||"normal"}" style="font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Pago</button>`
-                        : `<button class="gc-btn-sm btnPresEstado2" data-pid="${p.id}" data-fs="${p.financial_status||"normal"}" style="font-size:11px;">Pagamento recebido</button>`}
-                      <button class="gc-btn-sm btnFinEditPresenca" data-pid="${p.id}">Editar</button>
-                    </div>
-                  </td>
-                </tr>`;
-              })).join("")
-          }
-        </tbody>
-      </table>
+      ${(() => {
+        const todas = entManuais.flatMap(e => presencasPorEntidade(e.id).map(p => ({ e, p })));
+        if (todas.length === 0) return `<div style="padding:16px;text-align:center;color:#cbd5e1;font-size:12px;">Sem registos este mês.</div>`;
+        return todas.map(({ e, p }) => {
+          const dI = new Date(p.data_inicio+"T00:00:00").toLocaleDateString("pt-PT");
+          const dF = p.data_inicio !== p.data_fim ? new Date(p.data_fim+"T00:00:00").toLocaleDateString("pt-PT") : null;
+          const fs = p.financial_status || "normal";
+          return `<div style="padding:9px 14px;border-bottom:0.5px solid #f1f5f9;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;">
+              <span style="font-size:13px;font-weight:600;color:#0f172a;">${escapeHtml(e.nome)}${p.descricao ? " — "+escapeHtml(p.descricao) : ""}</span>
+              <span style="font-size:13px;font-weight:700;color:#0f2d52;">${Number(p.valor_calculado||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span>
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:1px;">${dI}${dF ? " → "+dF : ""}${p.num_dias > 1 ? " · "+p.num_dias+" dias" : ""}</div>
+            <div style="display:flex;gap:6px;margin-top:8px;">
+              <button class="gc-btn-sm btnPresEstado" data-pid="${p.id}" data-fs="${fs}" style="flex:1;font-size:11px;${fs !== "normal" ? "border-color:#9FE1CB;background:#E1F5EE;color:#085041;" : ""}">${fs !== "normal" ? "✓ Recibo enviado" : "Recibo enviado"}</button>
+              <button class="gc-btn-sm btnPresEstado2" data-pid="${p.id}" data-fs="${fs}" style="flex:1;font-size:11px;${fs === "pago" ? "border-color:#9FE1CB;background:#E1F5EE;color:#085041;" : ""}">${fs === "pago" ? "✓ Pago" : "Pagamento recebido"}</button>
+              <button class="gc-btn-sm btnFinEditPresenca" data-pid="${p.id}" style="font-size:11px;">Editar</button>
+            </div>
+          </div>`;
+        }).join("");
+      })()}
     </div>
     ` : ""}
   </div>
