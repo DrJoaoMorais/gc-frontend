@@ -325,6 +325,7 @@ export async function renderFinancas() {
     /* ── Avenças ── */
     const avencas = entidades.filter(e => {
       if (e.tipo !== "avenca") return false;
+      if (e.clinic_id) return false;
       if (!clinicaFiltro) return true;
       // Se há filtro: mostrar só avenças da entidade seleccionada ou da mesma clínica
       const entSel = entidades.find(x => x.id === clinicaFiltro);
@@ -372,7 +373,14 @@ export async function renderFinancas() {
 
     /* ── Dados por clínica para vista "Por clínica" ── */
     function dadosPorEntidade(entId) {
-      const regs = registosFiltrados.filter(r => r.entidade_id === entId);
+      const entThis = entidades.find(x => x.id === entId);
+      const idsAgregar = new Set([entId]);
+      if (entThis?.clinic_id) {
+        entidades
+          .filter(x => x.tipo === "avenca" && x.clinic_id === entThis.clinic_id)
+          .forEach(x => idsAgregar.add(x.id));
+      }
+      const regs = registosFiltrados.filter(r => idsAgregar.has(r.entidade_id));
       const porTipo = {};
       regs.forEach(r => {
         const t = r.tipo_acto || "—";
@@ -588,7 +596,10 @@ ${avencas.length > 0 ? `
         </div>
         <div style="padding:0;">
           ${(() => {
-            const ord = tipos.slice().sort((a,b) => b[1].done - a[1].done);
+            const ehAvenca = ([tipo]) => tipo === "Avença mensal";
+            const avencaLinhas = tipos.filter(ehAvenca);
+            const restoTipos = tipos.filter(t => !ehAvenca(t)).sort((a,b) => b[1].done - a[1].done);
+            const ord = [...avencaLinhas, ...restoTipos];
             const topo = ord.slice(0, 3);
             const resto = ord.slice(3);
             const linha = ([tipo, v]) => `
