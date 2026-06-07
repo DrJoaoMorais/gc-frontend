@@ -370,7 +370,17 @@ export async function renderFinancas() {
 
     /* ── Entidades externas (FPF, UC — sem clinic_id) ── */
     const entExternas  = entidades.filter(e => !e.clinic_id && e.tipo !== "avenca");
-    const entClinicasTodas = entidades.filter(e => e.clinic_id && e.tipo === "acto");
+    // Clínicas reais: entidades-acto + avenças cujo clinic_id NÃO tenha já uma entidade-acto
+    // (ex.: Liga só tem avença → ganha cartão; AlfraClinic-Direcção tem clinic_id com acto → fica agregada, sem cartão próprio)
+    const clinicIdsComActo = new Set(
+      entidades.filter(e => e.clinic_id && e.tipo === "acto").map(e => e.clinic_id)
+    );
+    const entClinicasTodas = entidades.filter(e =>
+      e.clinic_id && (
+        e.tipo === "acto" ||
+        (e.tipo === "avenca" && !clinicIdsComActo.has(e.clinic_id))
+      )
+    );
     const entClinicas  = clinicaFiltro
       ? entClinicasTodas.filter(e => e.id === clinicaFiltro)
       : entClinicasTodas;
