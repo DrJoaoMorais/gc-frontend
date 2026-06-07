@@ -344,8 +344,14 @@ export async function renderFinancas() {
     });
     const totalAvencasRealizadas = avencasRealizadas.reduce((s, r) => s + Number(r.valor || 0), 0);
 
-    /* Presenças (FPF, Católica) */
+    /* Presenças (FPF, Católica, clínicas externas por dia) */
     const totalPresencas = presencas.reduce((s, p) => s + Number(p.valor_calculado || 0), 0);
+    /* Avença externa = sem clínica (HBA). Internas (Alfra, Liga) ficam nos cartões. */
+    const totalAvExternas = avencasRealizadas
+      .filter(r => { const e = entidades.find(x => x.id === r.entidade_id); return e && !e.clinic_id; })
+      .reduce((s, r) => s + Number(r.valor || 0), 0);
+    /* Actividade externa = HBA + clínicas-dia + FPF/Católica (tudo presencas + HBA) */
+    const totalActividadeExterna = totalAvExternas + totalPresencas;
     const totalGeral = totalReal + totalAvencasRealizadas + totalPresencas;
 
     /* ── Pendentes vencidos ── */
@@ -529,26 +535,21 @@ ${pendVencidos.length > 0 ? `
 ` : ""}
 
 <!-- MÉTRICAS -->
-<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px;">
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px;">
   <div class="fin-mc">
-    <div class="fin-mc-l">Consultas realizadas</div>
+    <div class="fin-mc-l">Consultas realizadas no GC</div>
     <div class="fin-mc-v" style="color:#059669;">${totalReal.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
     <div class="fin-mc-s">${realizadas.length} consulta(s) · média ${mediaConsulta.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
   </div>
   <div class="fin-mc">
-    <div class="fin-mc-l">Avenças</div>
-    <div class="fin-mc-v" style="color:#185FA5;">${totalAvencasRealizadas.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
-    <div class="fin-mc-s">HBA · Liga · AlfraClinic Dir.</div>
-  </div>
-  <div class="fin-mc">
-    <div class="fin-mc-l">Outras actividades</div>
-    <div class="fin-mc-v" style="color:#854F0B;">${totalPresencas.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
-    <div class="fin-mc-s">FPF · Católica</div>
+    <div class="fin-mc-l">Actividade externa</div>
+    <div class="fin-mc-v" style="color:#854F0B;">${totalActividadeExterna.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
+    <div class="fin-mc-s">Beatriz Ângelo · Fisicontrol · Capitão · Cintramédica · Luz Oeiras</div>
   </div>
   <div class="fin-mc">
     <div class="fin-mc-l">Total do mês</div>
     <div class="fin-mc-v" style="color:#0f2d52;">${totalGeral.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
-    <div class="fin-mc-s">consultas + avenças + actividades</div>
+    <div class="fin-mc-s">soma de todas as entidades</div>
   </div>
 </div>
 
