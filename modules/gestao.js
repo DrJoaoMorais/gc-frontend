@@ -1076,6 +1076,16 @@ async function openModalPreco(precoId, clinicId, procedureTypes) {
       <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Preço (€) <span style="color:#ef4444;">*</span></label>
       <input id="gPrcPreco" type="number" min="0" step="0.01" value="${preco ? Number(preco.price || 0).toFixed(2) : ""}" placeholder="0.00" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
     </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Preço ao doente (€)</label>
+        <input id="gPrcPrecoDoente" type="number" min="0" step="0.01" value="${preco?.preco_doente != null ? Number(preco.preco_doente).toFixed(2) : ""}" placeholder="0.00" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">% Médico</label>
+        <input id="gPrcPercMedico" type="number" min="0" max="100" step="1" value="${preco?.percentagem_medico != null ? Number(preco.percentagem_medico) : ""}" placeholder="Ex: 60" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+      </div>
+    </div>
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Duração padrão (min)</label>
       <select id="gPrcDur" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
@@ -1125,11 +1135,15 @@ async function openModalPreco(precoId, clinicId, procedureTypes) {
 
     btn.disabled = true; btn.textContent = "A guardar…";
     try {
+      const precoDoente  = overlay.querySelector("#gPrcPrecoDoente").value;
+      const percMedico   = overlay.querySelector("#gPrcPercMedico").value;
       const payload = {
-        procedure_type: procVal,
-        price:          precoVal,
-        duracao_min:    durVal ? parseInt(durVal, 10) : null,
-        clinic_id:      clinicId,
+        procedure_type:     procVal,
+        price:              precoVal,
+        duracao_min:        durVal ? parseInt(durVal, 10) : null,
+        clinic_id:          clinicId,
+        preco_doente:       precoDoente !== "" ? parseFloat(precoDoente) : null,
+        percentagem_medico: percMedico  !== "" ? parseFloat(percMedico)  : null,
       };
       if (isEdit) {
         const { error } = await window.sb.from("clinic_prices").update(payload).eq("id", precoId);
