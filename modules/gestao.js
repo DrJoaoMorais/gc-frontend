@@ -7,6 +7,7 @@
       GA.3  loadHorarios(clinicMemberId)
       GA.4  loadPrecos(clinicId)
       GA.5  loadProcedureTypes()
+      GA.6  loadClinicas()
 
    GB — Helpers
       GB.1  escapeHtml(s)
@@ -32,6 +33,10 @@
 
    GG — Boot
       GG.1  initGestao()
+
+   GH — Secção Clínicas
+      GH.1  renderSeccaoClinicas(container, clinicas)
+      GH.2  openModalClinica(clinicaId)
    ======================================================== */
 
 import { G } from "./state.js";
@@ -103,6 +108,16 @@ async function loadProcedureTypes() {
     .select("id, name")
     .eq("active", true)
     .order("id", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+/* ---- GA.6 — loadClinicas ---- */
+async function loadClinicas() {
+  const { data, error } = await window.sb
+    .from("clinics")
+    .select("id, name, display_name, city, phone, email, nif, iban, legal_name, is_active, tipo, notes")
+    .order("name", { ascending: true });
   if (error) throw error;
   return data || [];
 }
@@ -179,16 +194,17 @@ export async function renderGestao() {
 
   /* Estado da vista */
   let clinicaFiltro = (G.clinics && G.clinics.length === 1) ? G.clinics[0].id : "";
-  let seccaoActiva  = "profissionais"; /* profissionais | espacos | precos */
+  let seccaoActiva  = "clinicas"; /* clinicas | profissionais | espacos | precos */
 
   async function render() {
-    let profissionais = [], espacos = [], precos = [], procedureTypes = [];
+    let profissionais = [], espacos = [], precos = [], procedureTypes = [], todasClinicas = [];
     try {
-      [profissionais, espacos, precos, procedureTypes] = await Promise.all([
+      [profissionais, espacos, precos, procedureTypes, todasClinicas] = await Promise.all([
         loadProfissionais(clinicaFiltro || null),
         loadEspacos(clinicaFiltro || null),
         loadPrecos(clinicaFiltro || null),
         loadProcedureTypes(),
+        loadClinicas(),
       ]);
     } catch (e) {
       content.innerHTML = `<div style="color:#b00020;padding:20px;font-size:13px;">Erro ao carregar: ${escapeHtml(e.message)}</div>`;
@@ -222,7 +238,7 @@ export async function renderGestao() {
 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
   <div>
     <div style="font-size:19px;font-weight:800;color:#0f2d52;">Gestão</div>
-    <div style="font-size:12px;color:#94a3b8;margin-top:2px;">Profissionais, espaços e preços</div>
+    <div style="font-size:12px;color:#94a3b8;margin-top:2px;">Clínicas, profissionais, espaços e preços</div>
   </div>
   <div style="display:flex;gap:8px;align-items:center;">
     <select id="gestSelClinica" style="padding:6px 10px;border:0.5px solid #e2e8f0;border-radius:8px;background:#fff;font-size:12px;color:#0f172a;font-family:inherit;">
@@ -235,14 +251,14 @@ export async function renderGestao() {
 <!-- STATS -->
 <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:18px;">
   <div style="background:#f8fafc;border-radius:10px;padding:12px 16px;">
+    <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;font-weight:500;">Clínicas GC</div>
+    <div style="font-size:22px;font-weight:700;color:#0f172a;">${todasClinicas.filter(c => c.tipo === 'gc').length}</div>
+    <div style="font-size:11px;color:#94a3b8;margin-top:3px;">${todasClinicas.filter(c => c.tipo === 'externa').length} entidade${todasClinicas.filter(c => c.tipo === 'externa').length !== 1 ? 's' : ''} externa${todasClinicas.filter(c => c.tipo === 'externa').length !== 1 ? 's' : ''}</div>
+  </div>
+  <div style="background:#f8fafc;border-radius:10px;padding:12px 16px;">
     <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;font-weight:500;">Profissionais</div>
     <div style="font-size:22px;font-weight:700;color:#0f172a;">${profissionais.length}</div>
     <div style="font-size:11px;color:#94a3b8;margin-top:3px;">${[...new Set(profissionais.map(p => p.role))].map(roleLabel).join(" · ") || "—"}</div>
-  </div>
-  <div style="background:#f8fafc;border-radius:10px;padding:12px 16px;">
-    <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;font-weight:500;">Espaços</div>
-    <div style="font-size:22px;font-weight:700;color:#0f172a;">${espacos.length}</div>
-    <div style="font-size:11px;color:#94a3b8;margin-top:3px;">${espacos.length ? espacos.slice(0,3).map(e => escapeHtml(e.nome)).join(" · ") : "Nenhum definido"}</div>
   </div>
   <div style="background:#f8fafc;border-radius:10px;padding:12px 16px;">
     <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;font-weight:500;">Tabela de preços</div>
@@ -253,6 +269,7 @@ export async function renderGestao() {
 
 <!-- TABS -->
 <div class="gest-tabs">
+  <button class="gest-tab${seccaoActiva === "clinicas" ? " on" : ""}" data-tab="clinicas">Clínicas</button>
   <button class="gest-tab${seccaoActiva === "profissionais" ? " on" : ""}" data-tab="profissionais">Profissionais</button>
   <button class="gest-tab${seccaoActiva === "espacos" ? " on" : ""}" data-tab="espacos">Espaços e gabinetes</button>
   <button class="gest-tab${seccaoActiva === "precos" ? " on" : ""}" data-tab="precos">Tabela de preços</button>
@@ -280,9 +297,10 @@ export async function renderGestao() {
     function renderTab() {
       const tabContent = content.querySelector("#gestTabContent");
       if (!tabContent) return;
-      if (seccaoActiva === "profissionais") renderSeccaoProfissionais(tabContent, profissionais, espacos, clinicaFiltro);
-      else if (seccaoActiva === "espacos")  renderSeccaoEspacos(tabContent, espacos, clinicaFiltro);
-      else if (seccaoActiva === "precos")   renderSeccaoPrecos(tabContent, precos, procedureTypes, clinicaFiltro);
+      if (seccaoActiva === "clinicas")          renderSeccaoClinicas(tabContent, todasClinicas);
+      else if (seccaoActiva === "profissionais") renderSeccaoProfissionais(tabContent, profissionais, espacos, clinicaFiltro);
+      else if (seccaoActiva === "espacos")       renderSeccaoEspacos(tabContent, espacos, clinicaFiltro);
+      else if (seccaoActiva === "precos")        renderSeccaoPrecos(tabContent, precos, procedureTypes, clinicaFiltro);
     }
 
     renderTab();
@@ -1117,6 +1135,189 @@ async function openModalPreco(precoId, clinicId, procedureTypes) {
       close();
       renderGestao();
     } catch (e) { alert("Erro: " + e.message); }
+  });
+}
+
+
+/* ==== GH — Secção Clínicas ==== */
+
+/* ---- GH.1 — renderSeccaoClinicas ---- */
+function renderSeccaoClinicas(container, todasClinicas) {
+  const gc  = todasClinicas.filter(c => c.tipo === "gc");
+  const ext = todasClinicas.filter(c => c.tipo === "externa");
+
+  function rowClinica(c) {
+    const badge = c.tipo === "gc"
+      ? `<span class="gest-badge" style="background:#E6F1FB;color:#185FA5;">GC</span>`
+      : `<span class="gest-badge" style="background:#FAEEDA;color:#854F0B;">Externa</span>`;
+    const estadoBadge = c.is_active
+      ? `<span class="gest-badge" style="background:#EAF3DE;color:#3B6D11;">Activa</span>`
+      : `<span class="gest-badge" style="background:#F1EFE8;color:#5F5E5A;">Inactiva</span>`;
+    return `
+<div class="gest-row">
+  <div style="flex:1;min-width:0;">
+    <div style="font-size:13px;font-weight:700;color:#0f172a;">${escapeHtml(c.display_name || c.name)}</div>
+    <div style="font-size:11px;color:#64748b;margin-top:1px;">${escapeHtml(c.city || "—")}${c.nif ? ` · NIF ${escapeHtml(c.nif)}` : ""}${c.email ? ` · ${escapeHtml(c.email)}` : ""}</div>
+  </div>
+  ${badge}
+  ${estadoBadge}
+  <button class="gest-btn-sm btn-editar-clinica" data-clinica-id="${escapeHtml(c.id)}">Editar</button>
+</div>`;
+  }
+
+  let html = `
+<div class="gest-card" style="margin-bottom:14px;">
+  <div class="gest-card-head">
+    <span class="gest-card-title">Clínicas no GC</span>
+    <span style="font-size:11px;color:#94a3b8;">${gc.length} clínica${gc.length !== 1 ? "s" : ""} · com agenda e registos clínicos</span>
+    <button class="gest-btn-sm btn-nova-clinica" data-tipo="gc" style="margin-left:8px;">＋ Nova clínica GC</button>
+  </div>
+  ${gc.length ? gc.map(rowClinica).join("") : `<div class="gest-empty">Nenhuma clínica GC.</div>`}
+</div>
+
+<div class="gest-card">
+  <div class="gest-card-head">
+    <span class="gest-card-title">Entidades externas</span>
+    <span style="font-size:11px;color:#94a3b8;">${ext.length} entidade${ext.length !== 1 ? "s" : ""} · só financeiro, sem agenda no GC</span>
+    <button class="gest-btn-sm btn-nova-clinica" data-tipo="externa" style="margin-left:8px;">＋ Nova entidade</button>
+  </div>
+  ${ext.length ? ext.map(rowClinica).join("") : `<div class="gest-empty">Nenhuma entidade externa. Adiciona aqui Fisicontrol, Cintramedica, Capitão, Luz Oeiras, etc.</div>`}
+</div>`;
+
+  container.innerHTML = html;
+
+  container.querySelectorAll(".btn-editar-clinica").forEach(btn => {
+    btn.addEventListener("click", () => openModalClinica(btn.dataset.clinicaId, todasClinicas));
+  });
+  container.querySelectorAll(".btn-nova-clinica").forEach(btn => {
+    btn.addEventListener("click", () => openModalClinica(null, todasClinicas, btn.dataset.tipo));
+  });
+}
+
+/* ---- GH.2 — openModalClinica ---- */
+async function openModalClinica(clinicaId, todasClinicas, tipoDefault) {
+  const clinica = clinicaId ? todasClinicas.find(c => c.id === clinicaId) : null;
+  const isEdit  = !!clinica;
+  const tipo    = clinica?.tipo || tipoDefault || "gc";
+
+  const overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(15,45,82,0.35);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;";
+
+  overlay.innerHTML = `
+<div style="background:#fff;border-radius:16px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;">
+  <div style="padding:16px 20px;border-bottom:0.5px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+    <div>
+      <div style="font-size:15px;font-weight:700;color:#0f172a;">${isEdit ? "Editar" : "Nova"} ${tipo === "gc" ? "clínica GC" : "entidade externa"}</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${tipo === "gc" ? "Terá agenda, doentes e registos clínicos" : "Só aparece no módulo financeiro — sem agenda no GC"}</div>
+    </div>
+    <button id="gCloseClinica" style="border:none;background:none;font-size:18px;cursor:pointer;color:#94a3b8;padding:0;">✕</button>
+  </div>
+
+  <div style="padding:18px 20px;display:flex;flex-direction:column;gap:13px;">
+
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Nome <span style="color:#ef4444;">*</span></label>
+      <input id="gClNome" type="text" value="${escapeHtml(clinica?.display_name || clinica?.name || "")}" placeholder="Ex: Cintramedica" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Cidade</label>
+        <input id="gClCidade" type="text" value="${escapeHtml(clinica?.city || "")}" placeholder="Ex: Lisboa" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Telefone</label>
+        <input id="gClTelefone" type="text" value="${escapeHtml(clinica?.phone || "")}" placeholder="Ex: 21 000 0000" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+      </div>
+    </div>
+
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Email de contacto</label>
+      <input id="gClEmail" type="email" value="${escapeHtml(clinica?.email || "")}" placeholder="clinica@exemplo.pt" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">NIF</label>
+        <input id="gClNif" type="text" value="${escapeHtml(clinica?.nif || "")}" placeholder="500000000" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">IBAN</label>
+        <input id="gClIban" type="text" value="${escapeHtml(clinica?.iban || "")}" placeholder="PT50..." style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+      </div>
+    </div>
+
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Designação legal</label>
+      <input id="gClLegal" type="text" value="${escapeHtml(clinica?.legal_name || "")}" placeholder="Ex: Clínica Exemplo, Lda." style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+    </div>
+
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Notas</label>
+      <textarea id="gClNotas" rows="2" placeholder="Observações internas..." style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;resize:vertical;">${escapeHtml(clinica?.notes || "")}</textarea>
+    </div>
+
+    ${isEdit ? `
+    <div style="display:flex;align-items:center;gap:10px;">
+      <input type="checkbox" id="gClActiva" ${clinica?.is_active ? "checked" : ""} style="width:15px;height:15px;cursor:pointer;">
+      <label for="gClActiva" style="font-size:13px;color:#374151;cursor:pointer;">Clínica activa</label>
+    </div>` : ""}
+
+    <div id="gClMsg" style="font-size:12px;color:#b00020;min-height:14px;"></div>
+  </div>
+
+  <div style="padding:14px 20px 18px;border-top:0.5px solid #e2e8f0;display:flex;gap:8px;flex-shrink:0;">
+    <button id="gClSave" style="flex:1;background:#1a56db;color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Guardar</button>
+    <button id="gClCancel" style="padding:10px 16px;border:0.5px solid #e2e8f0;border-radius:10px;background:#fff;font-size:13px;cursor:pointer;font-family:inherit;">Cancelar</button>
+  </div>
+</div>`;
+
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.querySelector("#gCloseClinica").addEventListener("click", close);
+  overlay.querySelector("#gClCancel").addEventListener("click", close);
+  overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+
+  overlay.querySelector("#gClSave").addEventListener("click", async () => {
+    const btn  = overlay.querySelector("#gClSave");
+    const msg  = overlay.querySelector("#gClMsg");
+    msg.textContent = "";
+
+    const nomeVal = overlay.querySelector("#gClNome").value.trim();
+    if (!nomeVal) { msg.textContent = "Nome obrigatório."; return; }
+
+    btn.disabled = true; btn.textContent = "A guardar…";
+
+    const payload = {
+      display_name: nomeVal,
+      name:         nomeVal,
+      city:         overlay.querySelector("#gClCidade").value.trim() || null,
+      phone:        overlay.querySelector("#gClTelefone").value.trim() || null,
+      email:        overlay.querySelector("#gClEmail").value.trim() || null,
+      nif:          overlay.querySelector("#gClNif").value.trim() || null,
+      iban:         overlay.querySelector("#gClIban").value.trim() || null,
+      legal_name:   overlay.querySelector("#gClLegal").value.trim() || null,
+      notes:        overlay.querySelector("#gClNotas").value.trim() || null,
+      tipo:         tipo,
+      ...(isEdit ? { is_active: overlay.querySelector("#gClActiva").checked } : {}),
+    };
+
+    try {
+      if (isEdit) {
+        const { error } = await window.sb.from("clinics").update(payload).eq("id", clinicaId);
+        if (error) throw error;
+      } else {
+        payload.slug      = nomeVal.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        payload.is_active = true;
+        const { error } = await window.sb.from("clinics").insert(payload);
+        if (error) throw error;
+      }
+      close();
+      renderGestao();
+    } catch (e) {
+      msg.textContent = e.message || "Erro ao guardar.";
+      btn.disabled = false; btn.textContent = "Guardar";
+    }
   });
 }
 
