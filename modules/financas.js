@@ -969,7 +969,7 @@ ${pendVencidos.length > 0 ? `
 
     /* PDF mensal */
     document.getElementById("btnFinPdfMensal")?.addEventListener("click", () => {
-      openPdfMensal(registosFiltrados, presencas, entidades, mes, ano);
+      openPdfMensal(registosFiltrados, presencas, entidades, entidades, mes, ano);
     });
 
     /* PDF do seleccionado (na vista Registos) */
@@ -982,7 +982,7 @@ ${pendVencidos.length > 0 ? `
       const avencasFiltradas = selCli
         ? entidades.filter(e => e.tipo === "avenca" && e.clinic_id === (entidades.find(x=>x.id===selCli)?.clinic_id))
         : entidades.filter(e => e.tipo === "avenca");
-      openPdfMensal(regsFiltrados, presencas, avencasFiltradas, mes, ano);
+      openPdfMensal(regsFiltrados, presencas, avencasFiltradas, entidades, mes, ano);
     });
 
     /* PDF por clínica (botão no card) */
@@ -1959,11 +1959,10 @@ function openModalPresenca({ ent, presenca, onSave }) {
 
 
 /* ---- FD.5 — openPdfMensal ---- */
-function openPdfMensal(registos, presencas, avencasOuEntidades, mes, ano) {
+function openPdfMensal(registos, presencas, avencasOuEntidades, entidades, mes, ano) {
   const realizadas = registos.filter(r => contaParaTotal(r.appt_status, r.financial_status));
   const faltas     = registos.filter(r => String(r.appt_status||"").toLowerCase() === "no_show");
   const dispensas  = registos.filter(r => r.financial_status === "honorarios_dispensados");
-  // avencasOuEntidades pode ser array de entidades completo ou só as avenças filtradas
   const avencas    = Array.isArray(avencasOuEntidades) && avencasOuEntidades.length > 0 && avencasOuEntidades[0]?.tipo
     ? avencasOuEntidades.filter(e => e.tipo === "avenca")
     : avencasOuEntidades;
@@ -1984,7 +1983,7 @@ function openPdfMensal(registos, presencas, avencasOuEntidades, mes, ano) {
   }).join("");
 
   const linhasPres = presencas.map(p => {
-    const ent = entidades.find(e => e.id === p.entidade_id)||{};
+    const ent = (entidades||[]).find(e => e.id === p.entidade_id)||{};
     const dI  = new Date(p.data_inicio+"T00:00:00").toLocaleDateString("pt-PT");
     const dF  = p.data_inicio !== p.data_fim ? " → "+new Date(p.data_fim+"T00:00:00").toLocaleDateString("pt-PT") : "";
     return `<tr>
@@ -1999,7 +1998,7 @@ function openPdfMensal(registos, presencas, avencasOuEntidades, mes, ano) {
   const html = `<!doctype html><html><head><meta charset="utf-8">
     <title>Rendimentos — ${mesLabel(ano, mes)}</title>
     <style>
-      body{font-family:Arial,sans-serif;font-size:13px;color:#0f172a;margin:40px}
+      body{font-family:Arial,sans-serif;font-size:13px;color:#0f172a;margin:40px;margin-top:90px}
       h1{font-size:18px;font-weight:900;color:#0f2d52;margin-bottom:4px}
       .sub{font-size:12px;color:#64748b;margin-bottom:24px}
       h2{font-size:14px;font-weight:700;color:#0f2d52;margin:20px 0 8px}
@@ -2011,9 +2010,17 @@ function openPdfMensal(registos, presencas, avencasOuEntidades, mes, ano) {
       .sumario{background:#f8fafc;border-radius:8px;padding:14px;margin-top:16px}
       .sum-row{display:flex;justify-content:space-between;padding:5px 0;font-size:13px}
       .sum-total{font-weight:900;font-size:15px;color:#0f2d52;border-top:1px solid #e2e8f0;margin-top:4px;padding-top:8px}
-      @media print{body{margin:20px}}
+      .print-bar{position:fixed;top:0;left:0;right:0;background:#0f2d52;color:#fff;padding:12px 24px;display:flex;align-items:center;gap:16px;font-family:Arial,sans-serif;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,0.18);z-index:999;}
+      .print-bar button{background:#fff;color:#0f2d52;border:none;border-radius:7px;padding:8px 20px;font-size:14px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif;}
+      .print-bar button:hover{background:#e0eaf5}
+      .print-bar .hint{font-size:12px;opacity:.8}
+      @media print{.print-bar{display:none}body{margin:20px}}
     </style>
     </head><body>
+    <div class="print-bar">
+      <button onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>
+      <span class="hint">No diálogo de impressão, escolha <b>Destino → Guardar como PDF</b></span>
+    </div>
     <h1>Rendimentos — Dr. João Morais</h1>
     <div class="sub">${mesLabel(ano, mes)}</div>
 
@@ -2061,7 +2068,6 @@ function openPdfMensal(registos, presencas, avencasOuEntidades, mes, ano) {
       <div class="sum-row"><span>Presenças</span><span>${totalPres.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span></div>
       <div class="sum-row sum-total"><span>TOTAL ESPERADO</span><span>${(totalAv+totalReal+totalPres).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span></div>
     </div>
-    <script>window.onload = () => window.print();<\/script>
     </body></html>`;
 
   const w = window.open("", "_blank");
