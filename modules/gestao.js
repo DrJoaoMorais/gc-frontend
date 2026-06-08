@@ -8,6 +8,7 @@
       GA.4  loadPrecos(clinicId)
       GA.5  loadProcedureTypes()
       GA.6  loadClinicas()
+      GA.7  loadAvencas()
 
    GB — Helpers
       GB.1  escapeHtml(s)
@@ -37,6 +38,10 @@
    GH — Secção Clínicas
       GH.1  renderSeccaoClinicas(container, clinicas)
       GH.2  openModalClinica(clinicaId)
+
+   GI — Secção Avenças
+      GI.1  renderSeccaoAvencas(container, avencas, todasClinicas)
+      GI.2  openModalAvenca(avencaId, avencas, todasClinicas)
    ======================================================== */
 
 import { G } from "./state.js";
@@ -122,6 +127,16 @@ async function loadClinicas() {
   return data || [];
 }
 
+/* ---- GA.7 — loadAvencas ---- */
+async function loadAvencas() {
+  const { data, error } = await window.sb
+    .from("entidades_financeiras")
+    .select("id, clinic_id, nome, tipo, avenca_valor, ativa, notas, sempre_visivel, meses_dispensados")
+    .order("nome", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
 
 /* ==== GB — Helpers ==== */
 
@@ -197,14 +212,15 @@ export async function renderGestao() {
   let seccaoActiva  = "clinicas"; /* clinicas | profissionais | espacos | precos */
 
   async function render() {
-    let profissionais = [], espacos = [], precos = [], procedureTypes = [], todasClinicas = [];
+    let profissionais = [], espacos = [], precos = [], procedureTypes = [], todasClinicas = [], avencas = [];
     try {
-      [profissionais, espacos, precos, procedureTypes, todasClinicas] = await Promise.all([
+      [profissionais, espacos, precos, procedureTypes, todasClinicas, avencas] = await Promise.all([
         loadProfissionais(clinicaFiltro || null),
         loadEspacos(clinicaFiltro || null),
         loadPrecos(clinicaFiltro || null),
         loadProcedureTypes(),
         loadClinicas(),
+        loadAvencas(),
       ]);
     } catch (e) {
       content.innerHTML = `<div style="color:#b00020;padding:20px;font-size:13px;">Erro ao carregar: ${escapeHtml(e.message)}</div>`;
@@ -273,6 +289,7 @@ export async function renderGestao() {
   <button class="gest-tab${seccaoActiva === "profissionais" ? " on" : ""}" data-tab="profissionais">Profissionais</button>
   <button class="gest-tab${seccaoActiva === "espacos" ? " on" : ""}" data-tab="espacos">Espaços e gabinetes</button>
   <button class="gest-tab${seccaoActiva === "precos" ? " on" : ""}" data-tab="precos">Tabela de preços</button>
+  <button class="gest-tab${seccaoActiva === "avencas" ? " on" : ""}" data-tab="avencas">Avenças</button>
 </div>
 
 <!-- CONTEÚDO DAS TABS -->
@@ -301,6 +318,7 @@ export async function renderGestao() {
       else if (seccaoActiva === "profissionais") renderSeccaoProfissionais(tabContent, profissionais, espacos, clinicaFiltro);
       else if (seccaoActiva === "espacos")       renderSeccaoEspacos(tabContent, espacos, clinicaFiltro);
       else if (seccaoActiva === "precos")        renderSeccaoPrecos(tabContent, precos, procedureTypes, clinicaFiltro);
+      else if (seccaoActiva === "avencas")       renderSeccaoAvencas(tabContent, avencas, todasClinicas);
     }
 
     renderTab();
@@ -1310,6 +1328,166 @@ async function openModalClinica(clinicaId, todasClinicas, tipoDefault) {
         payload.slug      = nomeVal.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
         payload.is_active = true;
         const { error } = await window.sb.from("clinics").insert(payload);
+        if (error) throw error;
+      }
+      close();
+      renderGestao();
+    } catch (e) {
+      msg.textContent = e.message || "Erro ao guardar.";
+      btn.disabled = false; btn.textContent = "Guardar";
+    }
+  });
+}
+
+
+/* ==== GI — Secção Avenças ==== */
+
+/* ---- GI.1 — renderSeccaoAvencas ---- */
+function renderSeccaoAvencas(container, avencas, todasClinicas) {
+  const avencasLista = avencas.filter(a => a.tipo === "avenca");
+  const totalMensal  = avencasLista.filter(a => a.ativa).reduce((s, a) => s + Number(a.avenca_valor || 0), 0);
+
+  function clinicaNome(clinicId) {
+    return todasClinicas.find(c => c.id === clinicId)?.display_name || todasClinicas.find(c => c.id === clinicId)?.name || "—";
+  }
+
+  function rowAvenca(a) {
+    const estadoBadge = a.ativa
+      ? `<span class="gest-badge" style="background:#EAF3DE;color:#3B6D11;">Activa</span>`
+      : `<span class="gest-badge" style="background:#F1EFE8;color:#5F5E5A;">Inactiva</span>`;
+    return `
+<div class="gest-row">
+  <div style="flex:1;min-width:0;">
+    <div style="font-size:13px;font-weight:700;color:#0f172a;">${escapeHtml(a.nome)}</div>
+    <div style="font-size:11px;color:#64748b;margin-top:1px;">${escapeHtml(clinicaNome(a.clinic_id))} · Mensal${a.notas ? ` · ${escapeHtml(a.notas)}` : ""}</div>
+  </div>
+  <div style="font-size:18px;font-weight:700;color:#1a56db;font-family:monospace;margin-right:8px;">${Number(a.avenca_valor || 0).toFixed(0)} €</div>
+  ${estadoBadge}
+  <button class="gest-btn-sm btn-editar-avenca" data-avenca-id="${escapeHtml(a.id)}">Editar</button>
+</div>`;
+  }
+
+  let html = `
+<div class="gest-card" style="margin-bottom:14px;">
+  <div class="gest-card-head">
+    <span class="gest-card-title">Avenças e acordos fixos</span>
+    <span style="font-size:11px;color:#94a3b8;">${avencasLista.length} avença${avencasLista.length !== 1 ? "s" : ""} · rendimento mensal garantido</span>
+    <button class="gest-btn-sm btn-nova-avenca" style="margin-left:8px;">＋ Nova avença</button>
+  </div>
+  ${avencasLista.length ? avencasLista.map(rowAvenca).join("") : `<div class="gest-empty">Nenhuma avença definida.</div>`}
+  <div style="padding:10px 16px;border-top:0.5px solid #e2e8f0;font-size:12px;color:#64748b;">
+    Total mensal activo: <strong style="color:#0f172a;">${totalMensal.toFixed(0)} €</strong>
+  </div>
+</div>`;
+
+  container.innerHTML = html;
+
+  container.querySelectorAll(".btn-editar-avenca").forEach(btn => {
+    btn.addEventListener("click", () => openModalAvenca(btn.dataset.avencaId, avencas, todasClinicas));
+  });
+  container.querySelector(".btn-nova-avenca")?.addEventListener("click", () => {
+    openModalAvenca(null, avencas, todasClinicas);
+  });
+}
+
+/* ---- GI.2 — openModalAvenca ---- */
+async function openModalAvenca(avencaId, avencas, todasClinicas) {
+  const avenca = avencaId ? avencas.find(a => a.id === avencaId) : null;
+  const isEdit = !!avenca;
+
+  const overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(15,45,82,0.35);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;";
+
+  const clinicasOpts = todasClinicas
+    .map(c => `<option value="${escapeHtml(c.id)}" ${avenca?.clinic_id === c.id ? "selected" : ""}>${escapeHtml(c.display_name || c.name)} (${c.tipo === "gc" ? "GC" : "Externa"})</option>`)
+    .join("");
+
+  overlay.innerHTML = `
+<div style="background:#fff;border-radius:16px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;">
+  <div style="padding:16px 20px;border-bottom:0.5px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+    <div>
+      <div style="font-size:15px;font-weight:700;color:#0f172a;">${isEdit ? "Editar" : "Nova"} avença</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Rendimento fixo mensal</div>
+    </div>
+    <button id="gAvClose" style="border:none;background:none;font-size:18px;cursor:pointer;color:#94a3b8;padding:0;">✕</button>
+  </div>
+
+  <div style="padding:18px 20px;display:flex;flex-direction:column;gap:13px;">
+
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Entidade <span style="color:#ef4444;">*</span></label>
+      <select id="gAvClinica" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+        <option value="">— Seleccionar —</option>
+        ${clinicasOpts}
+      </select>
+    </div>
+
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Descrição / Nome <span style="color:#ef4444;">*</span></label>
+      <input id="gAvNome" type="text" value="${escapeHtml(avenca?.nome || "")}" placeholder="Ex: Direcção Clínica, Avença mensal..." style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+    </div>
+
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Valor mensal (€) <span style="color:#ef4444;">*</span></label>
+      <input id="gAvValor" type="number" min="0" step="50" value="${avenca ? Number(avenca.avenca_valor || 0).toFixed(0) : ""}" placeholder="Ex: 500" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+    </div>
+
+    <div>
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Notas</label>
+      <textarea id="gAvNotas" rows="2" placeholder="Observações internas..." style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;resize:vertical;">${escapeHtml(avenca?.notas || "")}</textarea>
+    </div>
+
+    ${isEdit ? `
+    <div style="display:flex;align-items:center;gap:10px;">
+      <input type="checkbox" id="gAvActiva" ${avenca?.ativa ? "checked" : ""} style="width:15px;height:15px;cursor:pointer;">
+      <label for="gAvActiva" style="font-size:13px;color:#374151;cursor:pointer;">Avença activa</label>
+    </div>` : ""}
+
+    <div id="gAvMsg" style="font-size:12px;color:#b00020;min-height:14px;"></div>
+  </div>
+
+  <div style="padding:14px 20px 18px;border-top:0.5px solid #e2e8f0;display:flex;gap:8px;flex-shrink:0;">
+    <button id="gAvSave" style="flex:1;background:#1a56db;color:#fff;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Guardar</button>
+    <button id="gAvCancel" style="padding:10px 16px;border:0.5px solid #e2e8f0;border-radius:10px;background:#fff;font-size:13px;cursor:pointer;font-family:inherit;">Cancelar</button>
+  </div>
+</div>`;
+
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.querySelector("#gAvClose").addEventListener("click", close);
+  overlay.querySelector("#gAvCancel").addEventListener("click", close);
+  overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+
+  overlay.querySelector("#gAvSave").addEventListener("click", async () => {
+    const btn    = overlay.querySelector("#gAvSave");
+    const msg    = overlay.querySelector("#gAvMsg");
+    msg.textContent = "";
+
+    const clinicId = overlay.querySelector("#gAvClinica").value;
+    const nomeVal  = overlay.querySelector("#gAvNome").value.trim();
+    const valorVal = parseFloat(overlay.querySelector("#gAvValor").value);
+
+    if (!clinicId) { msg.textContent = "Selecciona a entidade."; return; }
+    if (!nomeVal)  { msg.textContent = "Nome obrigatório."; return; }
+    if (isNaN(valorVal)) { msg.textContent = "Valor inválido."; return; }
+
+    btn.disabled = true; btn.textContent = "A guardar…";
+
+    const payload = {
+      clinic_id:    clinicId,
+      nome:         nomeVal,
+      tipo:         "avenca",
+      avenca_valor: valorVal,
+      notas:        overlay.querySelector("#gAvNotas").value.trim() || null,
+      ...(isEdit ? { ativa: overlay.querySelector("#gAvActiva").checked } : { ativa: true }),
+    };
+
+    try {
+      if (isEdit) {
+        const { error } = await window.sb.from("entidades_financeiras").update(payload).eq("id", avencaId);
+        if (error) throw error;
+      } else {
+        const { error } = await window.sb.from("entidades_financeiras").insert(payload);
         if (error) throw error;
       }
       close();
