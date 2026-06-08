@@ -120,11 +120,19 @@ async function deleteRegisto(id) {
 }
 
 /* ---- FA.7 — loadPresencas ---- */
-async function loadPresencas({ mes, ano }) {
-  const inicio = `${ano}-${String(mes).padStart(2,"0")}-01`;
-  const mesFim = mes === 12 ? 1 : mes + 1;
-  const anoFim = mes === 12 ? ano + 1 : ano;
-  const fim    = `${anoFim}-${String(mesFim).padStart(2,"0")}-01`;
+async function loadPresencas({ mes, ano, dataIni, dataFim } = {}) {
+  let inicio, fim;
+  if (dataIni && dataFim) {
+    inicio = dataIni;
+    const d = new Date(dataFim + "T00:00:00");
+    d.setDate(d.getDate() + 1);
+    fim = d.toISOString().slice(0, 10);
+  } else {
+    inicio = `${ano}-${String(mes).padStart(2,"0")}-01`;
+    const mesFim = mes === 12 ? 1 : mes + 1;
+    const anoFim = mes === 12 ? ano + 1 : ano;
+    fim = `${anoFim}-${String(mesFim).padStart(2,"0")}-01`;
+  }
   const { data, error } = await window.sb
     .from("presencas")
     .select("*")
