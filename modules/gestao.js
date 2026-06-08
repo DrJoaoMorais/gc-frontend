@@ -1193,13 +1193,8 @@ function renderSeccaoClinicas(container, todasClinicas) {
   ${gc.length ? gc.map(rowClinica).join("") : `<div class="gest-empty">Nenhuma clínica GC.</div>`}
 </div>
 
-<div class="gest-card">
-  <div class="gest-card-head">
-    <span class="gest-card-title">Entidades externas</span>
-    <span style="font-size:11px;color:#94a3b8;">${ext.length} entidade${ext.length !== 1 ? "s" : ""} · só financeiro, sem agenda no GC</span>
-    <button class="gest-btn-sm btn-nova-clinica" data-tipo="externa" style="margin-left:8px;">＋ Nova entidade</button>
-  </div>
-  ${ext.length ? ext.map(rowClinica).join("") : `<div class="gest-empty">Nenhuma entidade externa. Adiciona aqui Fisicontrol, Cintramedica, Capitão, Luz Oeiras, etc.</div>`}
+<div style="background:#E6F1FB;border:0.5px solid #B5D4F4;border-radius:12px;padding:11px 14px;display:flex;align-items:flex-start;gap:8px;">
+  <span style="font-size:12px;color:#0C447C;line-height:1.5;">As entidades externas (Fisicontrol, FPF, Universidade Católica, Hospital Beatriz Ângelo…) são geridas no módulo <strong>Finanças</strong> — não têm agenda no GC.</span>
 </div>`;
 
   container.innerHTML = html;
