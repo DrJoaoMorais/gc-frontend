@@ -1942,7 +1942,10 @@ function openModalPresenca({ ent, presenca, onSave }) {
 
 /* ---- FD.5 — openPdfMensal ---- */
 function openPdfMensal(registos, presencas, avencasOuEntidades, entidades, mes, ano) {
-  const realizadas = registos.filter(r => contaParaTotal(r.appt_status, r.financial_status));
+  const realizadas = registos.filter(r =>
+    contaParaTotal(r.appt_status, r.financial_status) &&
+    (r.entidades_financeiras?.tipo || "") !== "avenca"
+  );
   const faltas     = registos.filter(r => String(r.appt_status||"").toLowerCase() === "no_show");
   const dispensas  = registos.filter(r => r.financial_status === "honorarios_dispensados");
   const avencas    = Array.isArray(avencasOuEntidades) && avencasOuEntidades.length > 0 && avencasOuEntidades[0]?.tipo
