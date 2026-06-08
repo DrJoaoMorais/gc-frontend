@@ -465,8 +465,8 @@ export async function renderFinancas() {
 .fin-mtab{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;color:#64748b;border:0.5px solid #e2e8f0;background:#fff;font-family:inherit}
 .fin-mtab.on{background:#0f2d52;color:#fff;border-color:#0f2d52}
 .fin-vtabs{display:flex;gap:8px;background:#f1f5f9;padding:5px;border-radius:12px;margin-bottom:18px}
-.fin-vtab{flex:1;padding:11px 18px;font-size:14px;font-weight:500;cursor:pointer;color:#64748b;border:none;background:transparent;border-radius:8px;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .12s}
-.fin-vtab:hover{color:#0f172a;background:#e2e8f0}
+.fin-vtab{flex:1;padding:11px 18px;font-size:14px;font-weight:500;cursor:pointer;color:#334155;border:none;background:#e8edf2;border-radius:8px;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .12s}
+.fin-vtab:hover{color:#0f172a;background:#d1dae4}
 .fin-vtab.on{color:#fff;background:#0f2d52}
 .fin-vtab.on:hover{background:#0f2d52}
 .fin-card{background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden}
