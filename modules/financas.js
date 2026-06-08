@@ -1765,9 +1765,34 @@ function openModalPdfAthletix(registos, mes, ano) {
            letter-spacing: .05em; padding: 8px 12px; border-bottom: 2px solid #0f2d52; text-align: left; }
       .total { text-align: right; font-weight: 900; font-size: 15px; color: #0f2d52;
                padding: 12px; border-top: 2px solid #0f2d52; margin-top: 4px; }
-      @media print { body { margin: 20px; } }
+      .print-bar {
+        position: fixed; top: 0; left: 0; right: 0;
+        background: #0f2d52; color: #fff;
+        padding: 12px 24px;
+        display: flex; align-items: center; gap: 16px;
+        font-family: Arial, sans-serif; font-size: 13px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+        z-index: 999;
+      }
+      .print-bar button {
+        background: #fff; color: #0f2d52;
+        border: none; border-radius: 7px;
+        padding: 8px 20px; font-size: 14px; font-weight: 700;
+        cursor: pointer; font-family: Arial, sans-serif;
+      }
+      .print-bar button:hover { background: #e0eaf5; }
+      .print-bar .hint { font-size: 12px; opacity: 0.8; }
+      body { margin-top: 80px; }
+      @media print {
+        .print-bar { display: none; }
+        body { margin: 20px; }
+      }
     </style>
     </head><body>
+    <div class="print-bar">
+      <button onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>
+      <span class="hint">No diálogo de impressão, escolha <b>Destino → Guardar como PDF</b></span>
+    </div>
     <h1>Athletix — Consultas Realizadas</h1>
     <div class="sub">${mesLabel(ano, mes)} · Dr. João Morais · Para contabilista</div>
     <table>
@@ -1779,7 +1804,6 @@ function openModalPdfAthletix(registos, mes, ano) {
       <tbody>${linhas}</tbody>
     </table>
     <div class="total">Total: ${totalFaturado.toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}</div>
-    <script>window.onload = () => window.print();<\/script>
     </body></html>`;
 
   const w = window.open("", "_blank");
