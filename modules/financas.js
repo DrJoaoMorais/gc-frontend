@@ -534,7 +534,6 @@ export async function renderFinancas() {
       ${periodoIni ? `<button id="finLimparPeriodo" style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:13px;padding:0 2px;line-height:1;" title="Limpar">✕</button>` : ""}
     </div>
     <button id="btnFinFechoMes" style="font-size:12px;padding:7px 14px;border-radius:8px;border:0.5px solid #6ee7b7;background:#d1fae5;color:#065f46;cursor:pointer;font-weight:600;">Fecho do mês</button>
-    <button id="btnFinPdfMensal" class="gc-btn-primary" style="font-size:12px;padding:7px 14px;">PDF</button>
   </div>
 </div>
 
@@ -757,13 +756,7 @@ ${pendVencidos.length > 0 ? `
     <div class="fin-card-head" style="flex-wrap:wrap;gap:8px;">
       <span class="fin-card-title">Registos</span>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto;">
-        <select id="finRegGran" style="padding:5px 9px;border:0.5px solid #e2e8f0;border-radius:7px;background:#fff;font-size:12px;color:#0f172a;font-family:inherit;">
-          <option value="mes">Este mês</option>
-          <option value="semana">Esta semana</option>
-          <option value="hoje">Hoje</option>
-          <option value="custom"${periodoIni ? " selected":""}>Período personalizado</option>
-        </select>
-        <button id="btnFinPdfSeleccionado" class="gc-btn-primary" style="font-size:12px;padding:6px 14px;">PDF do seleccionado</button>
+        <button id="btnFinPdfSeleccionado" class="gc-btn-primary" style="font-size:12px;padding:6px 14px;">PDF</button>
       </div>
     </div>
     ${registosFiltrados.length === 0
@@ -961,31 +954,7 @@ ${pendVencidos.length > 0 ? `
       _openFechoMesModal(mes, ano, null);
     });
 
-    /* PDF mensal */
-    document.getElementById("btnFinPdfMensal")?.addEventListener("click", () => {
-      openPdfMensal(registosFiltrados, presencas, entidades, entidades, mes, ano);
-    });
-
-    /* Granularidade da vista Registos */
-    document.getElementById("finRegGran")?.addEventListener("change", e => {
-      const gran = e.target.value;
-      const hoje2 = new Date(); hoje2.setHours(0,0,0,0);
-      if (gran === "hoje") {
-        periodoIni = hoje2.toISOString().slice(0,10);
-        periodoFim = hoje2.toISOString().slice(0,10);
-      } else if (gran === "semana") {
-        const dow = hoje2.getDay();
-        const seg = new Date(hoje2); seg.setDate(hoje2.getDate() - ((dow + 6) % 7));
-        const dom = new Date(seg); dom.setDate(seg.getDate() + 6);
-        periodoIni = seg.toISOString().slice(0,10);
-        periodoFim = dom.toISOString().slice(0,10);
-      } else if (gran === "mes") {
-        periodoIni = ""; periodoFim = "";
-      }
-      if (gran !== "custom") render();
-    });
-
-    /* PDF do seleccionado (na vista Registos) */
+    /* PDF — usa filtro de clínica do topo; presenças só se sem filtro de clínica */
     document.getElementById("btnFinPdfSeleccionado")?.addEventListener("click", () => {
       const selCli = clinicaFiltro;
       const regsFiltrados2 = selCli
