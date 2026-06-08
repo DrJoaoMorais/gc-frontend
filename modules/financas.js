@@ -757,17 +757,11 @@ ${pendVencidos.length > 0 ? `
     <div class="fin-card-head" style="flex-wrap:wrap;gap:8px;">
       <span class="fin-card-title">Registos</span>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto;">
-        <select id="finRegSelClinica" style="padding:5px 9px;border:0.5px solid #e2e8f0;border-radius:7px;background:#fff;font-size:12px;color:#0f172a;font-family:inherit;">
-          <option value="">Todas as clínicas</option>
-          ${entClinicas.map(e => {
-            const clinicaNome = (G.clinicsById && e.clinic_id && G.clinicsById[e.clinic_id]?.name)
-              ? G.clinicsById[e.clinic_id].name
-              : e.nome.split("—")[0].trim();
-            return `<option value="${e.id}" ${clinicaFiltro===e.id?"selected":""}>${escapeHtml(clinicaNome)}</option>`;
-          }).join("")}
-        </select>
-        <select id="finRegSelMes" style="padding:5px 9px;border:0.5px solid #e2e8f0;border-radius:7px;background:#fff;font-size:12px;color:#0f172a;font-family:inherit;">
-          ${meses.map(m => `<option value="${m.ano}-${m.mes}" ${m.ano===ano&&m.mes===mes?"selected":""}>${mesLabel(m.ano,m.mes)}</option>`).join("")}
+        <select id="finRegGran" style="padding:5px 9px;border:0.5px solid #e2e8f0;border-radius:7px;background:#fff;font-size:12px;color:#0f172a;font-family:inherit;">
+          <option value="mes">Este mês</option>
+          <option value="semana">Esta semana</option>
+          <option value="hoje">Hoje</option>
+          <option value="custom"${periodoIni ? " selected":""}>Período personalizado</option>
         </select>
         <button id="btnFinPdfSeleccionado" class="gc-btn-primary" style="font-size:12px;padding:6px 14px;">PDF do seleccionado</button>
       </div>
@@ -972,17 +966,36 @@ ${pendVencidos.length > 0 ? `
       openPdfMensal(registosFiltrados, presencas, entidades, entidades, mes, ano);
     });
 
+    /* Granularidade da vista Registos */
+    document.getElementById("finRegGran")?.addEventListener("change", e => {
+      const gran = e.target.value;
+      const hoje2 = new Date(); hoje2.setHours(0,0,0,0);
+      if (gran === "hoje") {
+        periodoIni = hoje2.toISOString().slice(0,10);
+        periodoFim = hoje2.toISOString().slice(0,10);
+      } else if (gran === "semana") {
+        const dow = hoje2.getDay();
+        const seg = new Date(hoje2); seg.setDate(hoje2.getDate() - ((dow + 6) % 7));
+        const dom = new Date(seg); dom.setDate(seg.getDate() + 6);
+        periodoIni = seg.toISOString().slice(0,10);
+        periodoFim = dom.toISOString().slice(0,10);
+      } else if (gran === "mes") {
+        periodoIni = ""; periodoFim = "";
+      }
+      if (gran !== "custom") render();
+    });
+
     /* PDF do seleccionado (na vista Registos) */
     document.getElementById("btnFinPdfSeleccionado")?.addEventListener("click", () => {
-      const selCli = document.getElementById("finRegSelClinica")?.value || "";
-      const regsFiltrados = selCli
+      const selCli = clinicaFiltro;
+      const regsFiltrados2 = selCli
         ? registosFiltrados.filter(r => r.entidade_id === selCli)
         : registosFiltrados;
-      // Avenças: só incluir se clínica seleccionada for a da avença (ou se for todas)
       const avencasFiltradas = selCli
         ? entidades.filter(e => e.tipo === "avenca" && e.clinic_id === (entidades.find(x=>x.id===selCli)?.clinic_id))
         : entidades.filter(e => e.tipo === "avenca");
-      openPdfMensal(regsFiltrados, presencas, avencasFiltradas, entidades, mes, ano);
+      const presencasFiltradas = selCli ? [] : presencas;
+      openPdfMensal(regsFiltrados2, presencasFiltradas, avencasFiltradas, entidades, mes, ano);
     });
 
     /* PDF por clínica (botão no card) */
