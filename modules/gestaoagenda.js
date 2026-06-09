@@ -935,6 +935,18 @@ async function _renderSemana() {
       });
     });
 
+    // Dias avulsos (consultas pontuais) — merge no slotsDispMap
+    try {
+      let _aq = window.sb.from("dias_consulta_avulsos").select("clinic_id,data,hora_inicio,hora_fim,duracao_min")
+        .gte("data", dias[0]).lte("data", dias[6]);
+      if (clinicId) _aq = _aq.eq("clinic_id", clinicId);
+      const { data: _avd } = await _aq;
+      (_avd || []).forEach(a => {
+        gerarSlots(a.hora_inicio.slice(0,5), a.hora_fim.slice(0,5), a.duracao_min)
+          .forEach(s => slotsDispMap.set(a.data+"T"+s, a.clinic_id));
+      });
+    } catch(_) {}
+
     // Gerar linhas: union das horas de disponibilidade + horas reais dos appointments
     const horasSet = new Set();
     slotsDispMap.forEach((_, key) => horasSet.add(key.slice(-5)));
