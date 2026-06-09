@@ -40,6 +40,7 @@ let _state = {
   selectedClinicId: null,
   rows: [],
   horarios: [],
+  avulsos: [],
   loading: false,
 };
 
@@ -273,9 +274,11 @@ async function _loadAndRender() {
 
   if (clinicId) {
     await _loadHorarios(clinicId);
+    await _loadAvulsos(clinicId);
     _renderRecBanner(clinicId);
   } else {
     _state.horarios = [];
+    _state.avulsos = [];
     const recBanner = document.getElementById("gaRecBanner");
     if (recBanner) recBanner.innerHTML = "";
   }
@@ -303,13 +306,32 @@ async function _loadHorarios(clinicId) {
   } catch(_) { _state.horarios = []; }
 }
 
+async function _loadAvulsos(clinicId) {
+  try {
+    const d = new Date(_state.selectedDayISO + "T00:00:00");
+    const dow = (d.getDay()+6)%7;
+    const seg = new Date(d); seg.setDate(d.getDate()-dow);
+    const dom = new Date(seg); dom.setDate(seg.getDate()+6);
+    const isoOf = x => x.getFullYear()+"-"+pad2(x.getMonth()+1)+"-"+pad2(x.getDate());
+    const { data } = await window.sb
+      .from("dias_consulta_avulsos")
+      .select("*")
+      .eq("clinic_id", clinicId)
+      .gte("data", isoOf(seg))
+      .lte("data", isoOf(dom))
+      .order("data");
+    _state.avulsos = data || [];
+  } catch(_) { _state.avulsos = []; }
+}
+
 function _renderRecBanner(clinicId) {
   const el = document.getElementById("gaRecBanner");
   if (!el) return;
-  if (!_state.horarios.length) { el.innerHTML = ""; return; }
+  if (!_state.horarios.length && !_state.avulsos.length) { el.innerHTML = ""; return; }
 
   const DOW = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
-  el.innerHTML = _state.horarios.map(h => {
+  const DOW_AV = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+  const recHtml = _state.horarios.map(h => {
     const slots = gerarSlots(h.hora_inicio.slice(0,5), h.hora_fim.slice(0,5), h.duracao_min).join(" · ");
     return `<div data-hid="${h.id}" style="display:flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;background:#eff6ff;border:0.5px solid #93c5fd;border-radius:8px;font-size:11px;color:#1e40af;white-space:nowrap;">
       <b style="font-weight:600;">${DOW[h.day_of_week]} ${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}</b>
@@ -320,6 +342,39 @@ function _renderRecBanner(clinicId) {
       </button>
     </div>`;
   }).join("");
+
+  const avHtml = _state.avulsos.map(a => {
+    const slots = gerarSlots(a.hora_inicio.slice(0,5), a.hora_fim.slice(0,5), a.duracao_min).join(" · ");
+    const dt = new Date(a.data+"T00:00:00");
+    const lbl = DOW_AV[(dt.getDay()+6)%7] + " " + pad2(dt.getDate()) + "/" + pad2(dt.getMonth()+1);
+    return `<div data-aid="${a.id}" style="display:flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;background:#fff1f2;border:0.5px solid #fda4af;border-radius:8px;font-size:11px;color:#9f1239;white-space:nowrap;">
+      <span style="font-size:9px;font-weight:600;background:#ffe4e6;color:#be123c;padding:1px 5px;border-radius:4px;">PONTUAL</span>
+      <b style="font-weight:600;">${lbl} ${a.hora_inicio.slice(0,5)}–${a.hora_fim.slice(0,5)}</b>
+      <span style="color:#fb7185;">${slots}</span>
+      <button class="gaBtnDelAvulso" data-aid="${a.id}"
+        style="padding:2px 8px;border-radius:5px;border:0.5px solid #fca5a5;background:#fee2e2;color:#991b1b;font-size:11px;cursor:pointer;font-family:inherit;">
+        Eliminar
+      </button>
+    </div>`;
+  }).join("");
+
+  el.innerHTML = recHtml + avHtml;
+
+  el.querySelectorAll(".gaBtnDelAvulso").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const aid = btn.dataset.aid;
+      const a = _state.avulsos.find(x => x.id === aid);
+      if (!a) return;
+      const dt = new Date(a.data+"T00:00:00");
+      const lbl = pad2(dt.getDate())+"/"+pad2(dt.getMonth()+1);
+      if (!confirm(`Eliminar slots pontuais de ${lbl} (${a.hora_inicio.slice(0,5)}–${a.hora_fim.slice(0,5)})?\n\nConsultas já marcadas não são afectadas.`)) return;
+      try {
+        await window.sb.from("dias_consulta_avulsos").delete().eq("id", aid);
+        await _loadAndRender();
+        if (_semanaVisible) _renderSemana();
+      } catch(e) { alert("Erro: " + (e.message||e)); }
+    });
+  });
 
   el.querySelectorAll(".gaBtnDelRec").forEach(btn => {
     btn.addEventListener("click", async () => {
