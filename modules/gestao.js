@@ -1426,9 +1426,10 @@ async function openModalAvenca(avencaId, avencas, todasClinicas) {
   const overlay = document.createElement("div");
   overlay.style.cssText = "position:fixed;inset:0;background:rgba(15,45,82,0.35);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;";
 
-  const clinicasOpts = todasClinicas
-    .map(c => `<option value="${escapeHtml(c.id)}" ${avenca?.clinic_id === c.id ? "selected" : ""}>${escapeHtml(c.display_name || c.name)} (${c.tipo === "gc" ? "GC" : "Externa"})</option>`)
-    .join("");
+  const clinicasOpts = [
+    `<option value="__externa" ${avenca && !avenca.clinic_id ? "selected" : ""}>— Entidade externa (sem clínica GC) —</option>`,
+    ...todasClinicas.map(c => `<option value="${escapeHtml(c.id)}" ${avenca?.clinic_id === c.id ? "selected" : ""}>${escapeHtml(c.display_name || c.name)}</option>`)
+  ].join("");
 
   overlay.innerHTML = `
 <div style="background:#fff;border-radius:16px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;">
@@ -1502,7 +1503,7 @@ async function openModalAvenca(avencaId, avencas, todasClinicas) {
     btn.disabled = true; btn.textContent = "A guardar…";
 
     const payload = {
-      clinic_id:    clinicId,
+      clinic_id:    clinicId === "__externa" ? null : clinicId,
       nome:         nomeVal,
       tipo:         "avenca",
       avenca_valor: valorVal,
