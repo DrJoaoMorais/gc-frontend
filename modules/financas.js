@@ -2066,7 +2066,7 @@ async function openModalPresenca({ ent, presenca, onSave }) {
       if (valorOficial <= 0) { msg.textContent = "Introduz o total manual ou pelo menos uma contagem de subsistema."; return; }
       const payload = {
         entidade_id: ent.id, data_inicio: ini, data_fim: ini, tipo: "dia",
-        descricao: desc || null, valor_dia: 0, num_dias: 1,
+        descricao: desc || null, valor_dia: 0,
         valor_manual: temManual ? manual : null,
         subsistemas: subsSnapshot.length > 0 ? subsSnapshot : null,
         valor_calculado: valorOficial, notas: notas || null,
@@ -2117,7 +2117,7 @@ async function openModalPresenca({ ent, presenca, onSave }) {
         entidade_id: ent.id, data_inicio: ini, data_fim: fim,
         tipo: ini === fim ? "dia" : "intervalo",
         descricao: desc || null, valor_dia: vdia,
-        num_dias: dias, valor_calculado: dias * vdia, notas: notas || null,
+        valor_calculado: dias * vdia, notas: notas || null,
       };
       try {
         overlay.querySelector("#presBtnGuardar").disabled = true;
