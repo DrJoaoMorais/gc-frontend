@@ -991,12 +991,14 @@ async function _renderSemana() {
     });
 
     // Dias avulsos (consultas pontuais) — merge no slotsDispMap
+    let _avulsosDurs = [];
     try {
       let _aq = window.sb.from("dias_consulta_avulsos").select("clinic_id,data,hora_inicio,hora_fim,duracao_min")
         .gte("data", dias[0]).lte("data", dias[6]);
       if (clinicId) _aq = _aq.eq("clinic_id", clinicId);
       const { data: _avd } = await _aq;
       (_avd || []).forEach(a => {
+        _avulsosDurs.push(a.duracao_min);
         gerarSlots(a.hora_inicio.slice(0,5), a.hora_fim.slice(0,5), a.duracao_min)
           .forEach(s => slotsDispMap.set(a.data+"T"+s, a.clinic_id));
       });
@@ -1009,8 +1011,9 @@ async function _renderSemana() {
       const tDate = new Date(r.start_at);
       horasSet.add(tDate.toLocaleString("pt-PT",{timeZone:"Europe/Lisbon",hour:"2-digit",minute:"2-digit"}));
     });
-    // Passo do padding: usar a menor duração dos horários activos
-    const _minDur = horariosDisp.length ? Math.min(...horariosDisp.map(h => h.duracao_min)) : 20;
+    // Passo do padding: menor duração entre recorrentes + avulsos (fallback 15)
+    const _todasDurs = [...horariosDisp.map(h => h.duracao_min), ..._avulsosDurs];
+    const _minDur = _todasDurs.length ? Math.min(..._todasDurs) : 15;
     // Fallback: se não há nada, mostrar 8:00–20:00 no passo correcto
     if (!horasSet.size) {
       for (let m = 8*60; m < 20*60; m += _minDur) horasSet.add(pad2(Math.floor(m/60))+":"+pad2(m%60));
