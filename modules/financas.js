@@ -1906,11 +1906,26 @@ async function openModalSubsistemas(ent) {
 }
 
 /* ---- FD.4 — openModalPresenca ---- */
-function openModalPresenca({ ent, presenca, onSave }) {
+async function openModalPresenca({ ent, presenca, onSave }) {
   document.getElementById("gcPresModal")?.remove();
-  const isEdit = !!presenca;
-  const hoje   = new Date().toISOString().slice(0, 10);
-  const isFpf  = (ent?.tipo || "") === "diaria";
+  const isEdit             = !!presenca;
+  const hoje               = new Date().toISOString().slice(0, 10);
+  const isConsultasExterna = !!ent?.usa_subsistemas;
+  const isFpf              = !isConsultasExterna && (ent?.tipo || "") === "diaria";
+
+  let catalogSubs = [];
+  if (isConsultasExterna) {
+    const { data } = await window.sb
+      .from("entidade_subsistemas")
+      .select("*")
+      .eq("entidade_id", ent.id)
+      .eq("ativo", true)
+      .order("subsistema");
+    catalogSubs = data || [];
+  }
+  const snapshotSubs = presenca?.subsistemas || [];
+  const countMap = {};
+  snapshotSubs.forEach(s => { countMap[s.subsistema] = s.n; });
 
   const overlay = document.createElement("div");
   overlay.id = "gcPresModal";
@@ -1921,47 +1936,55 @@ function openModalPresenca({ ent, presenca, onSave }) {
     fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif"
   });
 
+  const subsRowsHtml = isConsultasExterna
+    ? (catalogSubs.length === 0
+        ? `<div style="padding:12px;text-align:center;font-size:12px;color:#cbd5e1;">Sem subsistemas — usa ⚙ Configurar no cartão da entidade.</div>`
+        : `<div style="background:#f8fafc;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0;"><div style="display:grid;grid-template-columns:1fr 72px 72px 80px;padding:6px 10px;border-bottom:1px solid #e2e8f0;font-size:11px;color:#94a3b8;font-weight:600;"><span>Subsistema</span><span style="text-align:center;">Nº</span><span style="text-align:right;">Preço</span><span style="text-align:right;">Subtotal</span></div>${catalogSubs.map(s => `<div class="presSubRow" data-sub="${escapeHtml(s.subsistema)}" data-preco="${s.preco}" style="display:grid;grid-template-columns:1fr 72px 72px 80px;align-items:center;padding:7px 10px;border-bottom:0.5px solid #f1f5f9;background:#fff;"><span style="font-size:13px;color:#0f172a;">${escapeHtml(s.subsistema)}</span><input type="number" min="0" step="1" class="presSubN" value="${countMap[s.subsistema] || ""}" placeholder="0" style="width:56px;padding:4px 6px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;font-family:inherit;text-align:center;box-sizing:border-box;"><span style="font-size:12px;color:#94a3b8;text-align:right;">${Number(s.preco).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span><span class="presSubTotal" style="font-size:13px;font-weight:600;color:#0f2d52;text-align:right;">—</span></div>`).join("")}</div>`)
+    : "";
+
   overlay.innerHTML = `
-    <div style="background:#fff;width:min(480px,100%);border-radius:14px;border:1px solid #e2e8f0;padding:22px;max-height:90vh;overflow-y:auto;">
+    <div style="background:#fff;width:min(500px,100%);border-radius:14px;border:1px solid #e2e8f0;padding:22px;max-height:90vh;overflow-y:auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
         <div style="font-size:15px;font-weight:800;color:#0f2d52;">${isEdit ? "Editar" : "Novo"} — ${escapeHtml(ent?.nome||"")}</div>
         <button id="gcPresClose" class="gc-btn" style="font-size:12px;">Fechar</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:12px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div style="display:grid;grid-template-columns:${isConsultasExterna ? "1fr" : "1fr 1fr"};gap:10px;">
           <div>
             <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">${isFpf ? "Data início *" : "Data *"}</label>
-            <input id="presDataIni" type="date" value="${presenca?.data_inicio || hoje}"
-              style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;" />
+            <input id="presDataIni" type="date" value="${presenca?.data_inicio || hoje}" style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;" />
           </div>
-          <div>
-            <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">Data fim</label>
-            <input id="presDataFim" type="date" value="${presenca?.data_fim || hoje}"
-              style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;" />
-          </div>
+          ${!isConsultasExterna ? `<div><label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">Data fim</label><input id="presDataFim" type="date" value="${presenca?.data_fim || hoje}" style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;" /></div>` : `<input id="presDataFim" type="hidden" value="${presenca?.data_inicio || hoje}">`}
         </div>
-        <div id="presDiasWrap" style="background:#f8fafc;border-radius:8px;padding:10px 12px;font-size:13px;color:#0f2d52;font-weight:600;text-align:center;">
-          1 dia
-        </div>
+        ${!isConsultasExterna ? `<div id="presDiasWrap" style="background:#f8fafc;border-radius:8px;padding:10px 12px;font-size:13px;color:#0f2d52;font-weight:600;text-align:center;">1 dia</div>` : ""}
         <div>
           <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">Descrição</label>
           <input id="presDescricao" type="text" value="${escapeHtml(presenca?.descricao||"")}"
-            placeholder="${isFpf ? "ex: Jogo Sub-21 · Estágio · Treino" : "ex: Aula de Medicina Desportiva"}"
+            placeholder="${isFpf ? "ex: Jogo Sub-21 · Estágio · Treino" : isConsultasExterna ? "ex: turno habitual" : "ex: Aula de Medicina Desportiva"}"
             style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;" />
         </div>
+        ${isConsultasExterna ? `
+        <div>
+          <label style="font-size:12px;color:#64748b;display:block;margin-bottom:6px;">Consultas por subsistema</label>
+          ${subsRowsHtml}
+          <div id="presSubSoma" style="text-align:right;font-size:13px;color:#64748b;margin-top:6px;font-weight:600;">Calculado: —</div>
+        </div>
+        <div>
+          <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">Total manual (€) <span style="font-weight:400;">— deixa vazio para usar o calculado</span></label>
+          <input id="presValorManual" type="number" min="0" step="0.01" value="${presenca?.valor_manual != null ? Number(presenca.valor_manual).toFixed(2) : ""}" placeholder="0.00" style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;" />
+        </div>
+        <div id="presConferidor" style="display:none;border-radius:8px;padding:10px 12px;font-size:13px;font-weight:600;text-align:center;"></div>
+        <div id="presValorTotalWrap" style="background:#E6F1FB;border-radius:8px;padding:10px 12px;font-size:14px;color:#0C447C;font-weight:700;text-align:right;">Total: —</div>
+        ` : `
         <div>
           <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">Valor por dia (€)</label>
-          <input id="presValorDia" type="number" min="0" step="0.01"
-            value="${presenca?.valor_dia || (isFpf ? 200 : 0)}"
-            style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;" />
+          <input id="presValorDia" type="number" min="0" step="0.01" value="${presenca?.valor_dia || (isFpf ? 200 : 0)}" style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;" />
         </div>
-        <div id="presValorTotalWrap" style="background:#E6F1FB;border-radius:8px;padding:10px 12px;font-size:14px;color:#0C447C;font-weight:700;text-align:right;">
-          Total: 200,00 €
-        </div>
+        <div id="presValorTotalWrap" style="background:#E6F1FB;border-radius:8px;padding:10px 12px;font-size:14px;color:#0C447C;font-weight:700;text-align:right;">Total: 200,00 €</div>
+        `}
         <div>
           <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;">Notas</label>
-          <input id="presNotas" type="text" value="${escapeHtml(presenca?.notas||"")}"
-            style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;" />
+          <input id="presNotas" type="text" value="${escapeHtml(presenca?.notas||"")}" style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;" />
         </div>
         <div id="presMsg" style="font-size:12px;color:#b00020;min-height:16px;"></div>
         <div style="display:flex;gap:8px;">
@@ -1973,74 +1996,148 @@ function openModalPresenca({ ent, presenca, onSave }) {
   `;
 
   document.body.appendChild(overlay);
-
-  const inpIni   = overlay.querySelector("#presDataIni");
-  const inpFim   = overlay.querySelector("#presDataFim");
-  const inpVal   = overlay.querySelector("#presValorDia");
-  const wrapDias = overlay.querySelector("#presDiasWrap");
-  const wrapTot  = overlay.querySelector("#presValorTotalWrap");
-  const msg      = overlay.querySelector("#presMsg");
-
-  function updateCalc() {
-    const d1 = inpIni.value, d2 = inpFim.value;
-    if (!d1 || !d2) return;
-    const dias  = Math.max(1, Math.round((new Date(d2) - new Date(d1)) / 86400000) + 1);
-    const valor = parseFloat(inpVal.value || 0);
-    wrapDias.textContent = `${dias} dia(s)`;
-    wrapTot.textContent  = `Total: ${(dias * valor).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}`;
-  }
-
-  inpIni.addEventListener("change", updateCalc);
-  inpFim.addEventListener("change", updateCalc);
-  inpVal.addEventListener("input",  updateCalc);
-  updateCalc();
-
+  const msg   = overlay.querySelector("#presMsg");
   const close = () => overlay.remove();
   overlay.querySelector("#gcPresClose").addEventListener("click", close);
   overlay.addEventListener("click", ev => { if (ev.target === overlay) close(); });
 
-  overlay.querySelector("#presBtnGuardar").addEventListener("click", async () => {
-    const ini   = inpIni.value;
-    const fim   = inpFim.value;
-    const vdia  = parseFloat(inpVal.value || 0);
-    const desc  = overlay.querySelector("#presDescricao").value.trim();
-    const notas = overlay.querySelector("#presNotas").value.trim();
+  if (isConsultasExterna) {
+    const inpManual  = overlay.querySelector("#presValorManual");
+    const wrapTotal  = overlay.querySelector("#presValorTotalWrap");
+    const wrapConf   = overlay.querySelector("#presConferidor");
+    const somaEl     = overlay.querySelector("#presSubSoma");
+    const dataIniInp = overlay.querySelector("#presDataIni");
+    const dataFimInp = overlay.querySelector("#presDataFim");
 
-    if (!ini) { msg.textContent = "Indique a data de início."; return; }
-    if (!fim || fim < ini) { msg.textContent = "Data fim tem de ser igual ou posterior ao início."; return; }
+    dataIniInp.addEventListener("change", () => { dataFimInp.value = dataIniInp.value; });
 
-    const payload = {
-      entidade_id: ent.id,
-      data_inicio: ini,
-      data_fim:    fim,
-      tipo:        ini === fim ? "dia" : "intervalo",
-      descricao:   desc || null,
-      valor_dia:   vdia,
-      notas:       notas || null,
-    };
-
-    try {
-      overlay.querySelector("#presBtnGuardar").disabled = true;
-      if (isEdit) await updatePresenca(presenca.id, payload);
-      else        await insertPresenca(payload);
-      close();
-      await onSave();
-    } catch (e) {
-      console.error("presenca guardar falhou:", e);
-      msg.textContent = "Erro ao guardar. Vê a consola.";
-      overlay.querySelector("#presBtnGuardar").disabled = false;
+    function calcSub() {
+      let soma = 0;
+      overlay.querySelectorAll(".presSubRow").forEach(row => {
+        const n   = parseFloat(row.querySelector(".presSubN").value) || 0;
+        const p   = parseFloat(row.dataset.preco) || 0;
+        const sub = n * p;
+        row.querySelector(".presSubTotal").textContent = n > 0
+          ? sub.toLocaleString("pt-PT", { style: "currency", currency: "EUR" }) : "—";
+        soma += sub;
+      });
+      somaEl.textContent = soma > 0
+        ? `Calculado: ${soma.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}` : "Calculado: —";
+      const manual    = parseFloat(inpManual.value);
+      const temManual = !isNaN(manual) && inpManual.value.trim() !== "";
+      const temSoma   = soma > 0;
+      const oficial   = temManual ? manual : (temSoma ? soma : 0);
+      if (temManual && temSoma) {
+        const diff = Math.abs(manual - soma);
+        wrapConf.style.display = "block";
+        if (diff < 0.01) {
+          wrapConf.style.background = "#EAF3DE"; wrapConf.style.color = "#27500A";
+          wrapConf.textContent = "✓ Manual e calculado coincidem";
+        } else {
+          wrapConf.style.background = "#FAEEDA"; wrapConf.style.color = "#633806";
+          wrapConf.textContent = `⚠ Não bate certo — manual: ${manual.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})} · calculado: ${soma.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}`;
+        }
+      } else {
+        wrapConf.style.display = "none";
+      }
+      wrapTotal.textContent = oficial > 0
+        ? `Total${temManual ? " (manual)" : temSoma ? " (calculado)" : ""}: ${oficial.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}` : "Total: —";
     }
-  });
+
+    overlay.querySelectorAll(".presSubN").forEach(inp => inp.addEventListener("input", calcSub));
+    inpManual.addEventListener("input", calcSub);
+    calcSub();
+
+    overlay.querySelector("#presBtnGuardar").addEventListener("click", async () => {
+      const ini       = dataIniInp.value;
+      const desc      = overlay.querySelector("#presDescricao").value.trim();
+      const notas     = overlay.querySelector("#presNotas").value.trim();
+      const manual    = parseFloat(inpManual.value);
+      const temManual = !isNaN(manual) && inpManual.value.trim() !== "";
+      if (!ini) { msg.textContent = "Indique a data."; return; }
+      let somaCalc = 0;
+      const subsSnapshot = [];
+      overlay.querySelectorAll(".presSubRow").forEach(row => {
+        const n  = parseFloat(row.querySelector(".presSubN").value) || 0;
+        const pr = parseFloat(row.dataset.preco) || 0;
+        if (n > 0) { subsSnapshot.push({ subsistema: row.dataset.sub, n, preco: pr, subtotal: n * pr }); somaCalc += n * pr; }
+      });
+      const valorOficial = temManual ? manual : somaCalc;
+      if (valorOficial <= 0) { msg.textContent = "Introduz o total manual ou pelo menos uma contagem de subsistema."; return; }
+      const payload = {
+        entidade_id: ent.id, data_inicio: ini, data_fim: ini, tipo: "dia",
+        descricao: desc || null, valor_dia: 0, num_dias: 1,
+        valor_manual: temManual ? manual : null,
+        subsistemas: subsSnapshot.length > 0 ? subsSnapshot : null,
+        valor_calculado: valorOficial, notas: notas || null,
+      };
+      try {
+        overlay.querySelector("#presBtnGuardar").disabled = true;
+        if (isEdit) await updatePresenca(presenca.id, payload);
+        else        await insertPresenca(payload);
+        close(); await onSave();
+      } catch (e) {
+        console.error("presenca guardar falhou:", e);
+        msg.textContent = "Erro ao guardar. Vê a consola.";
+        overlay.querySelector("#presBtnGuardar").disabled = false;
+      }
+    });
+
+  } else {
+    const inpIni   = overlay.querySelector("#presDataIni");
+    const inpFim   = overlay.querySelector("#presDataFim");
+    const inpVal   = overlay.querySelector("#presValorDia");
+    const wrapDias = overlay.querySelector("#presDiasWrap");
+    const wrapTot  = overlay.querySelector("#presValorTotalWrap");
+
+    function updateCalc() {
+      const d1 = inpIni.value, d2 = inpFim.value;
+      if (!d1 || !d2) return;
+      const dias  = Math.max(1, Math.round((new Date(d2) - new Date(d1)) / 86400000) + 1);
+      const valor = parseFloat(inpVal.value || 0);
+      wrapDias.textContent = `${dias} dia(s)`;
+      wrapTot.textContent  = `Total: ${(dias * valor).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}`;
+    }
+
+    inpIni.addEventListener("change", updateCalc);
+    inpFim.addEventListener("change", updateCalc);
+    inpVal.addEventListener("input",  updateCalc);
+    updateCalc();
+
+    overlay.querySelector("#presBtnGuardar").addEventListener("click", async () => {
+      const ini   = inpIni.value;
+      const fim   = inpFim.value;
+      const vdia  = parseFloat(inpVal.value || 0);
+      const desc  = overlay.querySelector("#presDescricao").value.trim();
+      const notas = overlay.querySelector("#presNotas").value.trim();
+      if (!ini) { msg.textContent = "Indique a data de início."; return; }
+      if (!fim || fim < ini) { msg.textContent = "Data fim tem de ser igual ou posterior ao início."; return; }
+      const dias = Math.max(1, Math.round((new Date(fim) - new Date(ini)) / 86400000) + 1);
+      const payload = {
+        entidade_id: ent.id, data_inicio: ini, data_fim: fim,
+        tipo: ini === fim ? "dia" : "intervalo",
+        descricao: desc || null, valor_dia: vdia,
+        num_dias: dias, valor_calculado: dias * vdia, notas: notas || null,
+      };
+      try {
+        overlay.querySelector("#presBtnGuardar").disabled = true;
+        if (isEdit) await updatePresenca(presenca.id, payload);
+        else        await insertPresenca(payload);
+        close(); await onSave();
+      } catch (e) {
+        console.error("presenca guardar falhou:", e);
+        msg.textContent = "Erro ao guardar. Vê a consola.";
+        overlay.querySelector("#presBtnGuardar").disabled = false;
+      }
+    });
+  }
 
   overlay.querySelector("#presBtnEliminar")?.addEventListener("click", async () => {
     if (!confirm("Eliminar este registo?")) return;
     try {
       await deletePresenca(presenca.id);
-      close();
-      await onSave();
-    } catch (e) {
-      msg.textContent = "Erro ao eliminar.";
-    }
+      close(); await onSave();
+    } catch (e) { msg.textContent = "Erro ao eliminar."; }
   });
 }
 
