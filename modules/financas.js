@@ -709,6 +709,7 @@ ${pendVencidos.length > 0 ? `
               <span style="font-size:11px;color:#64748b;display:flex;gap:8px;align-items:center;"><b style="color:#0f2d52;">${Number(p.valor_calculado||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</b><button class="btnFinEditPresenca" data-pid="${p.id}" style="border:none;background:none;color:#1a56db;cursor:pointer;font-size:11px;padding:0;">editar</button></span>
             </div>`;
           }).join("")}
+          ${e.usa_subsistemas ? `<div style="border-top:0.5px solid #f1f5f9;padding:7px 10px;display:flex;align-items:center;justify-content:space-between;margin-top:4px;"><span style="font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:4px;"><i class="ti ti-layout-list" style="font-size:13px;" aria-hidden="true"></i> Preços por subsistema</span><button class="gc-btn-sm btnFinConfigSubsistemas" data-entid="${e.id}" data-nome="${escapeHtml(e.nome)}" style="font-size:11px;padding:3px 8px;">⚙ Configurar</button></div>` : ""}
         </div>`;
       }).join("")}
     </div>
@@ -1025,6 +1026,13 @@ ${pendVencidos.length > 0 ? `
         const tipo  = btn.dataset.tipo;
         const ent   = entidades.find(e => e.id === entId);
         openModalPresenca({ ent, onSave: render });
+      });
+    });
+
+    content.querySelectorAll(".btnFinConfigSubsistemas").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const ent = entidades.find(e => e.id === btn.dataset.entid);
+        openModalSubsistemas(ent);
       });
     });
 
@@ -1798,6 +1806,103 @@ function openModalPdfAthletix(registos, mes, ano) {
 
   const w = window.open("", "_blank");
   if (w) w.document.write(html);
+}
+
+/* ---- FD.5 — openModalSubsistemas ---- */
+async function openModalSubsistemas(ent) {
+  const overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(15,45,82,0.35);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px;";
+
+  const renderModal = async () => {
+    const { data: subs, error } = await window.sb
+      .from("entidade_subsistemas")
+      .select("*")
+      .eq("entidade_id", ent.id)
+      .eq("ativo", true)
+      .order("subsistema");
+    if (error) { alert("Erro ao carregar subsistemas: " + error.message); return; }
+    const lista = subs || [];
+
+    overlay.innerHTML = `
+<div style="background:#fff;border-radius:16px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column;">
+  <div style="padding:14px 18px;border-bottom:0.5px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+    <div>
+      <div style="font-size:14px;font-weight:700;color:#0f172a;">Preços por subsistema</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:1px;">${escapeHtml(ent.nome)}</div>
+    </div>
+    <button id="gSubClose" style="border:none;background:none;font-size:18px;cursor:pointer;color:#94a3b8;padding:0;">✕</button>
+  </div>
+  <div id="gSubLista">
+    ${lista.length === 0
+      ? `<div style="padding:24px;text-align:center;color:#cbd5e1;font-size:12px;">Sem subsistemas configurados. Adiciona abaixo.</div>`
+      : lista.map(s => `
+        <div class="gSubRow" data-sid="${s.id}" style="padding:9px 18px;display:flex;align-items:center;gap:8px;border-bottom:0.5px solid #f1f5f9;">
+          <span style="flex:1;font-size:13px;color:#0f172a;">${escapeHtml(s.subsistema)}</span>
+          <span style="font-size:13px;font-weight:600;color:#0f2d52;min-width:62px;text-align:right;">${Number(s.preco).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span>
+          <button class="gc-btn-sm gSubBtnEditar" data-sid="${s.id}" data-nome="${escapeHtml(s.subsistema)}" data-preco="${s.preco}" style="font-size:11px;padding:3px 8px;">editar</button>
+          <button class="gSubBtnRemover" data-sid="${s.id}" data-nome="${escapeHtml(s.subsistema)}" style="border:none;background:none;cursor:pointer;padding:3px;color:#94a3b8;" aria-label="remover"><i class="ti ti-trash" style="font-size:14px;"></i></button>
+        </div>`).join("")}
+  </div>
+  <div style="padding:10px 18px;display:flex;align-items:center;gap:8px;background:#f8fafc;border-top:0.5px solid #e2e8f0;">
+    <input id="gSubNome" type="text" placeholder="Subsistema (ADSE, Médis…)" list="gSubSugestoes" style="flex:1;border:1px solid #D1D5DB;border-radius:8px;padding:6px 10px;font-size:12px;font-family:inherit;box-sizing:border-box;min-width:0;">
+    <datalist id="gSubSugestoes">
+      <option value="ADSE"><option value="ADM"><option value="Médis"><option value="Multicare"><option value="AdvanceCare"><option value="SAMS"><option value="Particular">
+    </datalist>
+    <input id="gSubPreco" type="number" min="0" step="0.01" placeholder="€" style="width:68px;border:1px solid #D1D5DB;border-radius:8px;padding:6px 8px;font-size:12px;font-family:inherit;box-sizing:border-box;">
+    <button id="gSubBtnAdd" style="padding:6px 12px;border-radius:8px;background:#1a56db;color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">＋ Adicionar</button>
+  </div>
+  <div id="gSubMsg" style="font-size:12px;color:#b00020;min-height:14px;padding:2px 18px 4px;"></div>
+  <div style="padding:12px 18px 16px;border-top:0.5px solid #e2e8f0;display:flex;justify-content:flex-end;flex-shrink:0;">
+    <button id="gSubFechar" style="padding:8px 18px;border:0.5px solid #e2e8f0;border-radius:10px;background:#fff;font-size:13px;cursor:pointer;font-family:inherit;">Fechar</button>
+  </div>
+</div>`;
+
+    const close = () => overlay.remove();
+    overlay.querySelector("#gSubClose").addEventListener("click", close);
+    overlay.querySelector("#gSubFechar").addEventListener("click", close);
+    overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+
+    overlay.querySelector("#gSubBtnAdd").addEventListener("click", async () => {
+      const nome  = overlay.querySelector("#gSubNome").value.trim();
+      const preco = parseFloat(overlay.querySelector("#gSubPreco").value);
+      const msg   = overlay.querySelector("#gSubMsg");
+      msg.textContent = "";
+      if (!nome)  { msg.textContent = "Nome do subsistema obrigatório."; return; }
+      if (isNaN(preco) || preco < 0) { msg.textContent = "Preço inválido."; return; }
+      const { error } = await window.sb.from("entidade_subsistemas").upsert(
+        { entidade_id: ent.id, subsistema: nome, preco, ativo: true },
+        { onConflict: "entidade_id,subsistema" }
+      );
+      if (error) { msg.textContent = error.message; return; }
+      overlay.querySelector("#gSubNome").value = "";
+      overlay.querySelector("#gSubPreco").value = "";
+      await renderModal();
+    });
+
+    overlay.querySelectorAll(".gSubBtnRemover").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm(`Remover "${btn.dataset.nome}"?`)) return;
+        const { error } = await window.sb.from("entidade_subsistemas").delete().eq("id", btn.dataset.sid);
+        if (error) { alert("Erro: " + error.message); return; }
+        await renderModal();
+      });
+    });
+
+    overlay.querySelectorAll(".gSubBtnEditar").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const novoPreco = prompt(`Novo preço para ${btn.dataset.nome} (€):`, Number(btn.dataset.preco).toFixed(2));
+        if (novoPreco === null) return;
+        const val = parseFloat(novoPreco.replace(",", "."));
+        if (isNaN(val) || val < 0) { alert("Preço inválido."); return; }
+        const { error } = await window.sb.from("entidade_subsistemas").update({ preco: val }).eq("id", btn.dataset.sid);
+        if (error) { alert("Erro: " + error.message); return; }
+        await renderModal();
+      });
+    });
+  };
+
+  document.body.appendChild(overlay);
+  await renderModal();
 }
 
 /* ---- FD.4 — openModalPresenca ---- */
