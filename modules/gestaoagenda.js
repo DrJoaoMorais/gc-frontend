@@ -97,6 +97,7 @@ function _buildShell() {
       <div style="width:1px;height:20px;background:#e2e8f0;margin:0 4px;"></div>
       <button id="gaBtnAgendar" class="gcBtnPrimary" style="font-size:12px;padding:5px 14px;">Agendar consulta</button>
       <button id="gaBtnNovoDoente" class="gcBtnOutline" style="font-size:12px;padding:5px 14px;">Novo doente</button>
+      <button id="gaBtnCriarSlots" class="gcBtnSuccess" style="font-size:12px;padding:5px 14px;">+ Criar slots</button>
       <button id="gaBtnBloq" class="gcBtnDanger" style="font-size:12px;padding:5px 14px;">Bloquear</button>
       <div style="flex:1;min-width:180px;position:relative;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -160,6 +161,10 @@ function _wireShell() {
   });
   document.getElementById("gaBtnNovoDoente")?.addEventListener("click", () => {
     window.openNewPatientMainModal({ clinicId: _state.selectedClinicId });
+  });
+  document.getElementById("gaBtnCriarSlots")?.addEventListener("click", () => {
+    if (!_state.selectedClinicId) { alert("Selecciona uma clínica primeiro."); return; }
+    _openModalCriarSlots();
   });
 
   if (_state.selectedClinicId) {
@@ -1059,78 +1064,211 @@ async function _renderSemana() {
   };
 }
 
-/* ── Modal criar slot ─────────────────────────────────── */
-function _openModalCriarSlot(iso, hora) {
+/* ── Modal criar slots (tabs: Recorrente + Pontual) ───── */
+async function _openModalCriarSlots(defaultTab = "recorrente") {
   const clinicas = G.clinics || [];
-  if (!clinicas.length) { alert("Sem clínicas disponíveis."); return; }
+  const selClinic = clinicas.find(c => c.id === _state.selectedClinicId);
+  const clinicName = escapeHtml(selClinic?.name || selClinic?.slug || "");
 
-  const clinicOpts = clinicas.map(c =>
-    `<option value="${escapeHtml(c.id)}"${c.id===_state.selectedClinicId?" selected":""}>${escapeHtml(c.name||c.slug||c.id)}</option>`
-  ).join("");
+  /* Obter duração da clínica — tenta G.clinics, fallback à BD */
+  let durDefault = selClinic?.duracao_default_min || 15;
+  if (!selClinic?.duracao_default_min) {
+    try {
+      const { data: cd } = await window.sb.from("clinics").select("duracao_default_min").eq("id", _state.selectedClinicId).single();
+      if (cd?.duracao_default_min) durDefault = cd.duracao_default_min;
+    } catch(_) {}
+  }
 
-  const dt = new Date(iso+"T"+hora+":00");
-  const DAYS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
-  const MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-  const label = `${DAYS[dt.getDay()]}, ${dt.getDate()} ${MONTHS[dt.getMonth()]} às ${hora}`;
+  if (_state.selectedClinicId) await _loadHorarios(_state.selectedClinicId);
+
+  const DOW_OPTS = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"]
+    .map((d,i) => `<option value="${i}">${d}</option>`).join("");
+  const DOW_LABEL = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+
+  const existingList = _state.horarios.length ? `
+    <div style="margin-bottom:12px;padding:8px 10px;background:#f8fafc;border-radius:8px;border:0.5px solid #e2e8f0;">
+      <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Horários activos — ${clinicName}</div>
+      ${_state.horarios.map(h => {
+        const sl = gerarSlots(h.hora_inicio.slice(0,5), h.hora_fim.slice(0,5), h.duracao_min).join(" · ");
+        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:0.5px solid #f1f5f9;font-size:11px;">
+          <span style="color:#1e40af;"><b>${DOW_LABEL[h.day_of_week]} ${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}</b> <span style="color:#60a5fa;">${sl}</span></span>
+          <button class="gaCSDelRec" data-hid="${h.id}" style="padding:2px 8px;border-radius:5px;border:0.5px solid #fca5a5;background:#fee2e2;color:#991b1b;font-size:11px;cursor:pointer;font-family:inherit;">Eliminar</button>
+        </div>`;
+      }).join("")}
+    </div>` : "";
+
+  const isRec = defaultTab === "recorrente";
 
   _showModal(`
-    <div style="font-size:16px;font-weight:700;color:#0f2d52;margin-bottom:4px;">Criar slot disponível</div>
-    <div style="font-size:12px;color:#64748b;margin-bottom:1rem;">${escapeHtml(label)}</div>
+    <div style="font-size:16px;font-weight:700;color:#0f2d52;margin-bottom:2px;">Criar slots</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:10px;">${clinicName} · consultas de ${durDefault} min</div>
 
-    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
-      <div style="display:flex;flex-direction:column;gap:4px;">
-        <label style="font-size:11px;color:#64748b;">Clínica</label>
-        <select id="gaSlotClinica" class="gcSelect" style="font-size:12px;">${clinicOpts}</select>
+    <div style="display:flex;gap:4px;background:#f1f5f9;border-radius:10px;padding:3px;margin-bottom:14px;">
+      <button id="gaCSTabRec" type="button" style="flex:1;text-align:center;font-size:12px;padding:7px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-weight:${isRec?'600':'400'};background:${isRec?'#fff':'transparent'};color:${isRec?'#1a56db':'#64748b'};${isRec?'box-shadow:0 1px 2px rgba(15,45,82,.08);':''}">Recorrente</button>
+      <button id="gaCSTabPont" type="button" style="flex:1;text-align:center;font-size:12px;padding:7px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-weight:${isRec?'400':'600'};background:${isRec?'transparent':'#fff'};color:${isRec?'#64748b':'#1a56db'};${isRec?'':'box-shadow:0 1px 2px rgba(15,45,82,.08);'}">Pontual</button>
+    </div>
+
+    <div id="gaCSTRec" style="display:${isRec?'block':'none'};">
+      ${existingList}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Dia da semana</label>
+          <select id="gaCSRecDow" class="gcSelect" style="font-size:12px;">${DOW_OPTS}</select></div>
+        <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Duração</label>
+          <select id="gaCSRecDur" class="gcSelect" style="font-size:12px;">
+            <option value="15" ${durDefault===15?"selected":""}>15 min</option>
+            <option value="20" ${durDefault===20?"selected":""}>20 min</option>
+          </select></div>
+        <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Início</label>
+          <input id="gaCSRecInicio" type="time" value="14:00" style="padding:6px 8px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;"/></div>
+        <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Fim</label>
+          <input id="gaCSRecFim" type="time" value="17:00" style="padding:6px 8px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;"/></div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:4px;">
-        <label style="font-size:11px;color:#64748b;">Duração do slot</label>
-        <select id="gaSlotDur" class="gcSelect" style="font-size:12px;">
-          <option value="15">15 min</option>
-          <option value="20" selected>20 min</option>
-          <option value="30">30 min</option>
-          <option value="45">45 min</option>
-          <option value="60">1 hora</option>
-        </select>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:4px;">
-        <label style="font-size:11px;color:#64748b;">Repetir semanalmente</label>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:0.5px solid #e2e8f0;cursor:pointer;font-size:12px;"><input type="radio" name="gaSlotRep" value="1" checked style="accent-color:#1a56db;"/> Só esta vez</label>
-          <label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:0.5px solid #e2e8f0;cursor:pointer;font-size:12px;"><input type="radio" name="gaSlotRep" value="4" style="accent-color:#1a56db;"/> 4 semanas</label>
-          <label style="display:flex;align-items:center;gap=6px;padding:6px 12px;border-radius:8px;border:0.5px solid #e2e8f0;cursor:pointer;font-size:12px;"><input type="radio" name="gaSlotRep" value="1560" style="accent-color:#1a56db;"/> Sempre</label>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:11px;color:#64748b;display:block;margin-bottom:6px;">Âmbito</label>
+        <div style="display:flex;gap:6px;">
+          <button type="button" class="gaCSRecScope" data-val="1" style="flex:1;padding:7px 0;font-size:12px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;">Esta semana</button>
+          <button type="button" class="gaCSRecScope" data-val="4" style="flex:1;padding:7px 0;font-size:12px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;">4 semanas</button>
+          <button type="button" class="gaCSRecScope" data-val="0" style="flex:1;padding:7px 0;font-size:12px;border-radius:8px;border:1.5px solid #1a56db;background:#eff6ff;color:#1a56db;cursor:pointer;font-weight:600;font-family:inherit;">Para sempre</button>
         </div>
+        <input type="hidden" id="gaCSRecSemanas" value="0"/>
+      </div>
+      <div id="gaCSRecPreview" style="padding:8px 10px;background:#eff6ff;border-radius:8px;font-size:12px;color:#1e40af;margin-bottom:1rem;"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="document.getElementById('gaModalOverlay').style.display='none'" class="gcBtnGhost" style="font-size:12px;padding:6px 14px;">Cancelar</button>
+        <button id="gaCSRecSave" class="gcBtnSuccess" style="font-size:12px;padding:6px 18px;font-weight:600;">Guardar horário</button>
       </div>
     </div>
 
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button onclick="document.getElementById('gaModalOverlay').style.display='none'" class="gcBtnGhost" style="font-size:12px;padding:6px 14px;">Cancelar</button>
-      <button id="gaSlotSaveBtn" class="gcBtnSuccess" style="font-size:12px;padding:6px 18px;font-weight:600;">Criar slot</button>
-    </div>`);
+    <div id="gaCSTPoint" style="display:${isRec?'none':'block'};">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div style="display:flex;flex-direction:column;gap:4px;grid-column:span 2;"><label style="font-size:11px;color:#64748b;">Data</label>
+          <input id="gaCSPontData" type="date" style="padding:6px 8px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;"/></div>
+        <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Início</label>
+          <input id="gaCSPontInicio" type="time" value="17:30" style="padding:6px 8px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;"/></div>
+        <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Fim</label>
+          <input id="gaCSPontFim" type="time" value="19:00" style="padding:6px 8px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;"/></div>
+      </div>
+      <div style="padding:8px 10px;background:#f0fdf4;border-radius:8px;font-size:12px;color:#166534;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;">
+        <span>Duração: <b>${durDefault} min</b></span>
+        <span style="font-size:10px;color:#059669;">automático — ${clinicName}</span>
+      </div>
+      <div id="gaCSPontPreview" style="padding:8px 10px;background:#eff6ff;border-radius:8px;font-size:12px;color:#1e40af;margin-bottom:1rem;"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="document.getElementById('gaModalOverlay').style.display='none'" class="gcBtnGhost" style="font-size:12px;padding:6px 14px;">Cancelar</button>
+        <button id="gaCSPontSave" class="gcBtnSuccess" style="font-size:12px;padding:6px 18px;font-weight:600;">Criar slots</button>
+      </div>
+    </div>
+  `);
 
-  document.getElementById("gaSlotSaveBtn")?.addEventListener("click", async () => {
-    const clinId = document.getElementById("gaSlotClinica")?.value;
-    const dur    = parseInt(document.getElementById("gaSlotDur")?.value || "20");
-    const rep    = parseInt(document.querySelector("input[name='gaSlotRep']:checked")?.value || "1");
-    if (!clinId) { alert("Selecciona uma clínica."); return; }
+  const modalBox = document.getElementById("gaModalBox");
 
-    const rows = [];
-    for (let i = 0; i < rep; i++) {
-      const start = new Date(iso+"T"+hora+":00");
-      start.setDate(start.getDate() + i * 7);
-      const end = new Date(start.getTime() + dur * 60000);
-      rows.push({ clinic_id: clinId, patient_id: null, start_at: start.toISOString(), end_at: end.toISOString(), status: "available", mode: "slot", title: null, notes: null, procedure_type: null });
-    }
+  /* ── Tabs ── */
+  function switchTab(tab) {
+    const r = tab === "recorrente";
+    document.getElementById("gaCSTRec").style.display = r ? "block" : "none";
+    document.getElementById("gaCSTPoint").style.display = r ? "none" : "block";
+    const tR = document.getElementById("gaCSTabRec"), tP = document.getElementById("gaCSTabPont");
+    tR.style.fontWeight = r?"600":"400"; tR.style.background = r?"#fff":"transparent";
+    tR.style.color = r?"#1a56db":"#64748b"; tR.style.boxShadow = r?"0 1px 2px rgba(15,45,82,.08)":"none";
+    tP.style.fontWeight = r?"400":"600"; tP.style.background = r?"transparent":"#fff";
+    tP.style.color = r?"#64748b":"#1a56db"; tP.style.boxShadow = r?"none":"0 1px 2px rgba(15,45,82,.08)";
+  }
+  document.getElementById("gaCSTabRec")?.addEventListener("click", () => switchTab("recorrente"));
+  document.getElementById("gaCSTabPont")?.addEventListener("click", () => switchTab("pontual"));
 
-    // Inserir em lotes de 200 para não sobrecarregar
-    try {
-      for (let i = 0; i < rows.length; i += 200) {
-        const { error } = await window.sb.from("appointments").insert(rows.slice(i, i + 200));
-        if (error) throw error;
-      }
+  /* ── Eliminar padrão existente (lista no tab Recorrente) ── */
+  modalBox.querySelectorAll(".gaCSDelRec").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const hid = btn.dataset.hid;
+      const h = _state.horarios.find(x => x.id === hid);
+      if (!h || !confirm(`Eliminar ${DOW_LABEL[h.day_of_week]} ${h.hora_inicio.slice(0,5)}–${h.hora_fim.slice(0,5)}?`)) return;
+      await window.sb.from("horarios_recorrentes").update({ is_active: false }).eq("id", hid);
       document.getElementById("gaModalOverlay").style.display = "none";
-      _loadAndRender();
+      await _loadAndRender();
       if (_semanaVisible) _renderSemana();
-    } catch(e) { alert("Erro: " + (e.message||e)); }
+    });
+  });
+
+  /* ── Recorrente — preview + scope pills + save ── */
+  function updateRecPreview() {
+    const ini = document.getElementById("gaCSRecInicio")?.value || "14:00";
+    const fim = document.getElementById("gaCSRecFim")?.value || "17:00";
+    const dur = parseInt(document.getElementById("gaCSRecDur")?.value || String(durDefault));
+    const sl = gerarSlots(ini, fim, dur);
+    const el = document.getElementById("gaCSRecPreview");
+    if (el) el.textContent = sl.length ? "Slots: " + sl.join(" · ") : "Nenhum slot — verifica o intervalo.";
+  }
+  ["gaCSRecInicio","gaCSRecFim","gaCSRecDur"].forEach(id =>
+    document.getElementById(id)?.addEventListener("change", updateRecPreview));
+  updateRecPreview();
+
+  modalBox.querySelectorAll(".gaCSRecScope").forEach(btn => {
+    btn.addEventListener("click", () => {
+      modalBox.querySelectorAll(".gaCSRecScope").forEach(b => {
+        b.style.border = "1.5px solid #e2e8f0"; b.style.background = "#fff";
+        b.style.color = "#64748b"; b.style.fontWeight = "400";
+      });
+      btn.style.border = "1.5px solid #1a56db"; btn.style.background = "#eff6ff";
+      btn.style.color = "#1a56db"; btn.style.fontWeight = "600";
+      document.getElementById("gaCSRecSemanas").value = btn.dataset.val;
+    });
+  });
+
+  document.getElementById("gaCSRecSave")?.addEventListener("click", async () => {
+    const dow = parseInt(document.getElementById("gaCSRecDow")?.value || "2");
+    const ini = document.getElementById("gaCSRecInicio")?.value || "14:00";
+    const fim = document.getElementById("gaCSRecFim")?.value || "17:00";
+    const dur = parseInt(document.getElementById("gaCSRecDur")?.value || String(durDefault));
+    const sems = parseInt(document.getElementById("gaCSRecSemanas")?.value || "0");
+    try {
+      await window.sb.from("horarios_recorrentes").insert({
+        clinic_id: _state.selectedClinicId, day_of_week: dow,
+        hora_inicio: ini, hora_fim: fim, duracao_min: dur, semanas: sems, is_active: true
+      });
+      document.getElementById("gaModalOverlay").style.display = "none";
+      alert("Disponibilidade guardada.");
+      await _loadAndRender();
+      if (_semanaVisible) _renderSemana();
+    } catch(e) { alert("Erro: " + (e.message || e)); }
+  });
+
+  /* ── Pontual — preview + save ── */
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomISO = tomorrow.getFullYear() + "-" + pad2(tomorrow.getMonth()+1) + "-" + pad2(tomorrow.getDate());
+  const dateIn = document.getElementById("gaCSPontData");
+  if (dateIn) dateIn.value = tomISO;
+
+  function updatePontPreview() {
+    const ini = document.getElementById("gaCSPontInicio")?.value || "17:30";
+    const fim = document.getElementById("gaCSPontFim")?.value || "19:00";
+    const sl = gerarSlots(ini, fim, durDefault);
+    const el = document.getElementById("gaCSPontPreview");
+    if (el) el.textContent = sl.length
+      ? (sl.length === 1 ? "1 slot: " + sl[0] : sl.length + " slots: " + sl.join(" · "))
+      : "Nenhum slot — verifica o intervalo.";
+  }
+  ["gaCSPontInicio","gaCSPontFim"].forEach(id =>
+    document.getElementById(id)?.addEventListener("change", updatePontPreview));
+  updatePontPreview();
+
+  document.getElementById("gaCSPontSave")?.addEventListener("click", async () => {
+    const data = document.getElementById("gaCSPontData")?.value;
+    const ini = document.getElementById("gaCSPontInicio")?.value;
+    const fim = document.getElementById("gaCSPontFim")?.value;
+    if (!data || !ini || !fim) { alert("Preenche a data e os horários."); return; }
+    if (ini >= fim) { alert("A hora de início deve ser anterior ao fim."); return; }
+    try {
+      const userId = (await window.sb.auth.getUser()).data?.user?.id || null;
+      await window.sb.from("dias_consulta_avulsos").insert({
+        clinic_id: _state.selectedClinicId, data, hora_inicio: ini,
+        hora_fim: fim, duracao_min: durDefault, criado_por: userId
+      });
+      document.getElementById("gaModalOverlay").style.display = "none";
+      const sl = gerarSlots(ini, fim, durDefault);
+      alert(sl.length + " slot" + (sl.length > 1 ? "s" : "") + " criado" + (sl.length > 1 ? "s" : "") + ".");
+      await _loadAndRender();
+      if (_semanaVisible) _renderSemana();
+    } catch(e) { alert("Erro: " + (e.message || e)); }
   });
 }
 
@@ -1144,11 +1282,8 @@ async function _openModalRecorrente(existing = null) {
     `<option value="${escapeHtml(c.id)}"${c.id===_state.selectedClinicId?" selected":""}>${escapeHtml(c.name||c.slug||c.id)}</option>`
   ).join("");
 
-  function isAlfraClinic(clinId) {
-    const c = clinicas.find(x => x.id === clinId);
-    return /alfra/i.test(c?.name || c?.slug || "");
-  }
-  const defaultDur = existing?.duracao_min || (isAlfraClinic(_state.selectedClinicId) ? 20 : 15);
+  const selClinicRec = clinicas.find(x => x.id === (existing?.clinic_id || _state.selectedClinicId));
+  const defaultDur = existing?.duracao_min || (selClinicRec?.duracao_default_min || 15);
 
   const DOW_LABEL = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
   const existingList = _state.horarios.length ? `
@@ -1244,12 +1379,6 @@ async function _openModalRecorrente(existing = null) {
     const el = document.getElementById("gaRecPreview");
     if (el) el.textContent = "Slots: " + slots.join(" · ");
   }
-  document.getElementById("gaRecClinica")?.addEventListener("change", () => {
-    if (!existing) {
-      document.getElementById("gaRecDur").value = isAlfraClinic(document.getElementById("gaRecClinica").value) ? "20" : "15";
-      updatePreview();
-    }
-  });
   ["gaRecInicio","gaRecFim","gaRecDur"].forEach(id => document.getElementById(id)?.addEventListener("change", updatePreview));
   updatePreview();
 
