@@ -1086,6 +1086,9 @@ async function openModalPreco(precoId, clinicId, procedureTypes) {
         <input id="gPrcPercMedico" type="number" min="0" max="100" step="1" value="${preco?.percentagem_medico != null ? Number(preco.percentagem_medico) : ""}" placeholder="Ex: 60" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
       </div>
     </div>
+    <div id="gPrcCalcInfo" style="font-size:12px;color:#185FA5;background:#E6F1FB;border-radius:8px;padding:7px 11px;display:none;">
+      Recebes: <strong id="gPrcCalcVal">—</strong>
+    </div>
     <div>
       <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Duração padrão (min)</label>
       <select id="gPrcDur" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
@@ -1113,6 +1116,22 @@ async function openModalPreco(precoId, clinicId, procedureTypes) {
     const outro = overlay.querySelector("#gPrcProcOutro");
     if (outro) outro.style.display = e.target.value === "__outro" ? "" : "none";
   });
+
+  const calcRecebes = () => {
+    const p    = parseFloat(overlay.querySelector("#gPrcPreco").value);
+    const pct  = parseFloat(overlay.querySelector("#gPrcPercMedico").value);
+    const info = overlay.querySelector("#gPrcCalcInfo");
+    const val  = overlay.querySelector("#gPrcCalcVal");
+    if (!isNaN(p) && !isNaN(pct) && p > 0 && pct > 0) {
+      val.textContent = (p * pct / 100).toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
+      info.style.display = "";
+    } else {
+      info.style.display = "none";
+    }
+  };
+  overlay.querySelector("#gPrcPreco").addEventListener("input", calcRecebes);
+  overlay.querySelector("#gPrcPercMedico").addEventListener("input", calcRecebes);
+  calcRecebes();
 
   overlay.querySelector("#gPrcSave").addEventListener("click", async () => {
     const btn = overlay.querySelector("#gPrcSave");
