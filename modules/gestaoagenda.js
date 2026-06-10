@@ -748,13 +748,12 @@ const ESTADO_META = {
 function _gaConsentBadges(patientId, consentMap, clinicId) {
   const pc = consentMap[patientId] || {};
   const rgpd = pc.rgpd;
-  let b = '<div style="display:flex;gap:3px;margin-top:3px;flex-wrap:wrap;">';
-  if (rgpd === 'signed') {
-    b += '<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#d1fae5;color:#065f46;font-weight:600;">✓ RGPD digital</span>';
-  } else if (rgpd === 'paper_signed') {
-    b += '<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#fef3c7;color:#92400e;font-weight:600;">✎ RGPD manual</span>';
+  const _rgpdTip = rgpd === 'paper_signed' ? 'RGPD manual (papel)' : 'RGPD digital';
+  let b = '<div style="display:flex;gap:3px;flex-wrap:wrap;">';
+  if (rgpd === 'signed' || rgpd === 'paper_signed') {
+    b += `<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:#d1fae5;color:#065f46;font-weight:700;" title="${_rgpdTip}">✓ RGPD</span>`;
   } else {
-    b += `<span class="ga-rgpd-badge" data-pid="${patientId}" data-cid="${clinicId}" style="font-size:10px;padding:1px 5px;border-radius:4px;background:#fee2e2;color:#991b1b;font-weight:600;cursor:pointer;">! RGPD</span>`;
+    b += `<span class="ga-rgpd-badge" data-pid="${patientId}" data-cid="${clinicId}" style="font-size:10px;padding:1px 5px;border-radius:4px;background:#fee2e2;color:#991b1b;font-weight:600;cursor:pointer;" title="Consentimento RGPD não assinado">! RGPD</span>`;
   }
   if (pc.prp === 'signed') b += '<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#eff6ff;color:#1e40af;font-weight:600;">PRP</span>';
   if (pc.ah === 'signed') b += '<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#eff6ff;color:#1e40af;font-weight:600;">Visco</span>';
