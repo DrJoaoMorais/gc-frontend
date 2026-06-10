@@ -7,6 +7,7 @@ import { G, STATUS_OPTIONS, statusMeta } from "./state.js";
 import { escapeHtml } from "./helpers.js";
 import { openApptModal, renderQuickPatientResults } from "./agenda.js";
 import { searchPatientsScoped } from "./db.js";
+import { openConsentModal } from "./consentimentos.js";
 
 const GCAL_WORKER_URL = window.__GC_GCAL_WORKER_URL__ || "";
 
@@ -743,7 +744,7 @@ const ESTADO_META = {
   extra:     { label:"Extra",    bg:"#fef3c7", color:"#92400e", dot:"#f59e0b" },
 };
 
-function _gaConsentBadges(patientId, consentMap) {
+function _gaConsentBadges(patientId, consentMap, clinicId) {
   const pc = consentMap[patientId] || {};
   const rgpd = pc.rgpd;
   let b = '<div style="display:flex;gap:3px;margin-top:3px;flex-wrap:wrap;">';
@@ -752,7 +753,7 @@ function _gaConsentBadges(patientId, consentMap) {
   } else if (rgpd === 'paper_signed') {
     b += '<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#fef3c7;color:#92400e;font-weight:600;">✎ RGPD manual</span>';
   } else {
-    b += '<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#fee2e2;color:#991b1b;font-weight:600;">! RGPD</span>';
+    b += `<span class="ga-rgpd-badge" data-pid="${patientId}" data-cid="${clinicId}" style="font-size:10px;padding:1px 5px;border-radius:4px;background:#fee2e2;color:#991b1b;font-weight:600;cursor:pointer;">! RGPD</span>`;
   }
   if (pc.prp === 'signed') b += '<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#eff6ff;color:#1e40af;font-weight:600;">PRP</span>';
   if (pc.ah === 'signed') b += '<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#eff6ff;color:#1e40af;font-weight:600;">Visco</span>';
@@ -800,7 +801,7 @@ function _renderTimeline(rows, patientsById = {}, consentMap = {}) {
           <div style="font-size:15px;font-weight:${isSlot?"400":"600"};color:${isSlot?"#94a3b8":"#0f172a"};">${isSlot?"Livre":escapeHtml(nome)}</div>
           ${isBlocked&&r.notes?`<div style="font-size:12px;color:#991b1b;">${escapeHtml(r.notes)}</div>`:""}
           ${isExtra?`<div style="font-size:12px;color:#92400e;">Consulta extra</div>`:""}
-          ${(!isSlot&&!isBlocked&&r.patient_id)?_gaConsentBadges(r.patient_id, consentMap):""}
+          ${(!isSlot&&!isBlocked&&r.patient_id)?_gaConsentBadges(r.patient_id, consentMap, r.clinic_id):""}
         </div>
       </div>
       <div style="font-size:14px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${isSlot||isBlocked?"":escapeHtml(tipo)}</div>
@@ -814,6 +815,17 @@ function _renderTimeline(rows, patientsById = {}, consentMap = {}) {
   el.innerHTML = html + `<div style="padding:10px 12px;border-top:0.5px solid #f1f5f9;text-align:right;">
     <button id="gaBtnCriarExtra" style="font-size:12px;padding:5px 14px;border-radius:8px;border:0.5px solid #fcd34d;background:#fef3c7;color:#92400e;cursor:pointer;">+ Consulta extra</button>
   </div>`;
+
+  el.querySelectorAll(".ga-rgpd-badge").forEach(badge => {
+    badge.addEventListener("click", e => {
+      e.stopPropagation();
+      const pid = badge.dataset.pid;
+      const cid = badge.dataset.cid;
+      const patient = patientsById[pid] || { id: pid };
+      const clinic  = (G.clinics||[]).find(c => c.id === cid);
+      openConsentModal({ type: "rgpd", patient, clinicId: cid, clinic, onSaved: () => _loadAndRender() });
+    });
+  });
 
   el.querySelectorAll(".ga-tl-row").forEach(row => {
     row.addEventListener("mouseenter", () => { if (!row.classList.contains("ga-selected")) row.style.background = "#f8faff"; });
