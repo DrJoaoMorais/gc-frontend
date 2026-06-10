@@ -272,6 +272,22 @@ async function _loadAndRender() {
     } catch(_) {}
   }
 
+  let consentMap = {};
+  if (patientIds.length) {
+    try {
+      const { data: cd } = await window.sb
+        .from("consents")
+        .select("patient_id, type, status")
+        .in("patient_id", patientIds)
+        .in("type", ["rgpd", "prp", "ah"])
+        .order("created_at", { ascending: false });
+      (cd || []).forEach(c => {
+        if (!consentMap[c.patient_id]) consentMap[c.patient_id] = {};
+        if (!consentMap[c.patient_id][c.type]) consentMap[c.patient_id][c.type] = c.status;
+      });
+    } catch(_) {}
+  }
+
   if (clinicId) {
     await _loadHorarios(clinicId);
     await _loadAvulsos(clinicId);
@@ -283,7 +299,7 @@ async function _loadAndRender() {
     if (recBanner) recBanner.innerHTML = "";
   }
   _renderStatsCards();
-  _renderTimeline(_state.rows, patientsById);
+  _renderTimeline(_state.rows, patientsById, consentMap);
   _renderReavaliacoes();
 }
 
@@ -727,7 +743,24 @@ const ESTADO_META = {
   extra:     { label:"Extra",    bg:"#fef3c7", color:"#92400e", dot:"#f59e0b" },
 };
 
-function _renderTimeline(rows, patientsById = {}) {
+function _gaConsentBadges(patientId, consentMap) {
+  const pc = consentMap[patientId] || {};
+  const rgpd = pc.rgpd;
+  let b = '<div style="display:flex;gap:3px;margin-top:3px;flex-wrap:wrap;">';
+  if (rgpd === 'signed') {
+    b += '<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#d1fae5;color:#065f46;font-weight:600;">✓ RGPD digital</span>';
+  } else if (rgpd === 'paper_signed') {
+    b += '<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#fef3c7;color:#92400e;font-weight:600;">✎ RGPD manual</span>';
+  } else {
+    b += '<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#fee2e2;color:#991b1b;font-weight:600;">! RGPD</span>';
+  }
+  if (pc.prp === 'signed') b += '<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#eff6ff;color:#1e40af;font-weight:600;">PRP</span>';
+  if (pc.ah === 'signed') b += '<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#eff6ff;color:#1e40af;font-weight:600;">Visco</span>';
+  b += '</div>';
+  return b;
+}
+
+function _renderTimeline(rows, patientsById = {}, consentMap = {}) {
   const el = document.getElementById("gaTimeline");
   if (!el) return;
 
@@ -767,6 +800,7 @@ function _renderTimeline(rows, patientsById = {}) {
           <div style="font-size:15px;font-weight:${isSlot?"400":"600"};color:${isSlot?"#94a3b8":"#0f172a"};">${isSlot?"Livre":escapeHtml(nome)}</div>
           ${isBlocked&&r.notes?`<div style="font-size:12px;color:#991b1b;">${escapeHtml(r.notes)}</div>`:""}
           ${isExtra?`<div style="font-size:12px;color:#92400e;">Consulta extra</div>`:""}
+          ${(!isSlot&&!isBlocked&&r.patient_id)?_gaConsentBadges(r.patient_id, consentMap):""}
         </div>
       </div>
       <div style="font-size:14px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${isSlot||isBlocked?"":escapeHtml(tipo)}</div>
