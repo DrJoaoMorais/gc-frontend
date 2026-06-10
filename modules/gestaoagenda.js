@@ -831,6 +831,14 @@ function _renderTimeline(rows, patientsById = {}, consentMap = {}) {
     });
   });
 
+  el.querySelectorAll(".ga-nome-link").forEach(link => {
+    link.addEventListener("click", e => {
+      e.stopPropagation();
+      const pid = link.dataset.pid;
+      if (pid && window.__gc_openPatientViewModal) window.__gc_openPatientViewModal({ id: pid });
+    });
+  });
+
   el.querySelectorAll(".ga-tl-row").forEach(row => {
     row.addEventListener("mouseenter", () => { if (!row.classList.contains("ga-selected")) row.style.background = "#f8faff"; });
     row.addEventListener("mouseleave", () => { if (!row.classList.contains("ga-selected")) row.style.background = ""; });
