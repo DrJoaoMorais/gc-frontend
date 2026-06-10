@@ -4116,6 +4116,7 @@ function openPatientViewModal(patient) {
           <div class="gc-pv-header">
             <div class="gc-pv-name">
               ${escAttr(p.full_name || "—")} ${birthdayBadgeToday()}
+              ${isDoctor() && consultRows?.length ? `<a id="btnOpenFeed" href="#" style="margin-left:auto;font-size:12px;font-weight:500;color:#1a56db;border:1px solid #bfdbfe;border-radius:6px;padding:3px 10px;text-decoration:none;flex-shrink:0;" title="Abrir feed da consulta">Feed ↗</a>` : ''}
             </div>
             <div class="gc-pv-meta">
               <div><b>Clínica:</b> ${escAttr(activeClinicName || "—")}</div>
@@ -4163,6 +4164,13 @@ function openPatientViewModal(patient) {
       ${docOpen ? renderDocumentEditorModal() : ""}
     `;
 
+    document.getElementById("btnOpenFeed")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      const consultId = consultRows?.[0]?.id;
+      if (!consultId) return;
+      const url = `/modules/consulta/v2/consulta-completa/feed-consulta.html?consultId=${encodeURIComponent(consultId)}&patientId=${encodeURIComponent(p.id)}`;
+      window.open(url, '_blank');
+    });
     document.getElementById("btnViewIdent")?.addEventListener("click", () => openPatientIdentity("view"));
     document.getElementById("btnEditIdent")?.addEventListener("click", () => openPatientIdentity("edit"));
     document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Feed Consulta — 2 colunas (teste)</title>
+  <title>Feed Consulta — GC</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" />
@@ -200,10 +200,6 @@
   <!-- PÁGINA -->
   <div class="fc-page" id="fc-page">
 
-    <div class="cc-banner fc-banner-wrap">
-      🧪 <strong>Teste isolado — Feed Consulta (layout 2 colunas)</strong> · doente 163fe5dc · consulta bdc1e349
-    </div>
-
     <div id="fc-loading">A carregar consulta…</div>
 
     <div class="fc-layout" id="fc-layout" style="display:none">
@@ -354,8 +350,9 @@
       return { consulta, diagnosticos, tratamentos, exames, protocolo };
     }
 
-    const PATIENT_ID  = '163fe5dc-a34f-4c80-8f01-5db0d63f759c';
-    const CONSULTA_ID = 'bdc1e349-232e-42b7-bd49-7a07d6e8ee76';
+    const params = new URLSearchParams(window.location.search);
+    const PATIENT_ID  = params.get('patientId') || '';
+    const CONSULTA_ID = params.get('consultId') || '';
 
     const SNIPPETS = [
       ['+ EVA',        'Dor EVA '],
@@ -391,6 +388,7 @@
     async function boot() {
       const sb = window.sb;
       if (!sb) { status('⚠️ Supabase não inicializado.'); return; }
+      if (!PATIENT_ID || !CONSULTA_ID) { status('⚠️ Parâmetros em falta. Abre este feed a partir da ficha do doente.'); return; }
 
       const { data: u, error: eu } = await sb.auth.getUser();
       if (eu || !u?.user) { status('⚠️ Sem sessão. Faz login no GC neste browser e recarrega.'); return; }
