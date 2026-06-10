@@ -1192,8 +1192,8 @@ async function _openModalCriarSlots(defaultTab = "pontual") {
     <div style="font-size:12px;color:#64748b;margin-bottom:10px;">${clinicName} · consultas de ${durDefault} min</div>
 
     <div style="display:flex;gap:4px;background:#f1f5f9;border-radius:10px;padding:3px;margin-bottom:14px;">
-      <button id="gaCSTabRec" type="button" style="flex:1;text-align:center;font-size:12px;padding:7px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-weight:${isRec?'600':'400'};background:${isRec?'#fff':'transparent'};color:${isRec?'#1a56db':'#64748b'};${isRec?'box-shadow:0 1px 2px rgba(15,45,82,.08);':''}">Recorrente</button>
       <button id="gaCSTabPont" type="button" style="flex:1;text-align:center;font-size:12px;padding:7px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-weight:${isRec?'400':'600'};background:${isRec?'transparent':'#fff'};color:${isRec?'#64748b':'#1a56db'};${isRec?'':'box-shadow:0 1px 2px rgba(15,45,82,.08);'}">Pontual</button>
+      <button id="gaCSTabRec" type="button" style="flex:1;text-align:center;font-size:12px;padding:7px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-weight:${isRec?'600':'400'};background:${isRec?'#fff':'transparent'};color:${isRec?'#1a56db':'#64748b'};${isRec?'box-shadow:0 1px 2px rgba(15,45,82,.08);':''}">Recorrente</button>
     </div>
 
     <div id="gaCSTRec" style="display:${isRec?'block':'none'};">
