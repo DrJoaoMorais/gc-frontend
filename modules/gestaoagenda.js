@@ -115,7 +115,7 @@ function _buildShell() {
     <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;">
       <div id="gaSemanaBanner" style="display:none;"></div>
       <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-        <div style="display:grid;grid-template-columns:60px minmax(100px,1fr) 120px 80px 165px;padding:8px 12px;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;gap:8px;">
+        <div style="display:grid;grid-template-columns:60px minmax(100px,1fr) 170px 80px 165px;padding:8px 12px;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;gap:8px;">
           <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Hora</div>
           <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Doente</div>
           <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Tipo</div>
@@ -206,7 +206,7 @@ function _wireQuickSearchGA() {
     const clinicId = _state.selectedClinicId || null;
     resHost.style.display = "block";
 
-    if (!clinicId) {
+    if (!clinicId && String(G.role||"").toLowerCase() !== "super_admin") {
       resHost.innerHTML = '<div style="font-size:12px;color:#666;">Selecciona uma clínica para pesquisar.</div>';
       return;
     }
@@ -805,7 +805,7 @@ function _renderTimeline(rows, patientsById = {}, consentMap = {}) {
 
     const borderLeft = isExtra ? "border-left:3px solid #f59e0b;" : isBlocked ? "border-left:3px solid #ef4444;" : "";
 
-    return `<div class="ga-tl-row" data-idx="${i}" style="display:grid;grid-template-columns:60px minmax(100px,1fr) 120px 80px 165px;padding:10px 12px;border-bottom:0.5px solid #f1f5f9;gap:8px;align-items:center;cursor:pointer;${borderLeft}">
+    return `<div class="ga-tl-row" data-idx="${i}" style="display:grid;grid-template-columns:60px minmax(100px,1fr) 170px 80px 165px;padding:10px 12px;border-bottom:0.5px solid #f1f5f9;gap:8px;align-items:center;cursor:pointer;${borderLeft}">
       <div style="font-size:14px;font-weight:600;color:${isBlocked?"#ef4444":isExtra?"#92400e":"#475569"};white-space:nowrap;">${hora}</div>
       <div style="display:flex;align-items:center;gap:8px;min-width:0;">
         <div style="width:8px;height:8px;border-radius:50%;background:${meta.dot};flex-shrink:0;"></div>
