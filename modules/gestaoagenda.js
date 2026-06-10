@@ -5,7 +5,7 @@
 
 import { G, STATUS_OPTIONS, statusMeta } from "./state.js";
 import { escapeHtml } from "./helpers.js";
-import { openApptModal, renderQuickPatientResults } from "./agenda.js";
+import { openApptModal, renderQuickPatientResults, openPatientFeedFromAny } from "./agenda.js";
 import { searchPatientsScoped } from "./db.js";
 import { openQrModal } from "./consentimentos_qr.js";
 
@@ -846,7 +846,7 @@ function _renderTimeline(rows, patientsById = {}, consentMap = {}) {
     link.addEventListener("click", e => {
       e.stopPropagation();
       const pid = link.dataset.pid;
-      if (pid && window.__gc_openPatientViewModal) window.__gc_openPatientViewModal({ id: pid });
+      if (pid) openPatientFeedFromAny({ id: pid });
     });
   });
 
