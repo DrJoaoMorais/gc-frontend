@@ -213,7 +213,17 @@ function _wireQuickSearchGA() {
 
     resHost.innerHTML = '<div style="font-size:12px;color:#666;">A pesquisar…</div>';
     try {
-      const pts = await searchPatientsScoped({ clinicId, q: term, limit: 30 });
+      let pts;
+      if (!clinicId) {
+        // super_admin sem clínica seleccionada — db.js exige clinicId, chamar RPC directamente
+        const { data, error } = await window.sb.rpc("search_patients_v2", {
+          p_clinic_id: null, p_term: term, p_limit: 30
+        });
+        if (error) throw error;
+        pts = data || [];
+      } else {
+        pts = await searchPatientsScoped({ clinicId, q: term, limit: 30 });
+      }
       if (!pts || pts.length === 0) {
         resHost.innerHTML = '<div style="font-size:12px;color:#666;">Sem resultados.</div>';
         return;
