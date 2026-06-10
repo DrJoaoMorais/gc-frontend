@@ -892,9 +892,11 @@ function _renderPanel(row, patientsById = {}) {
       <button class="ga-pa-btn ga-pa-amber" data-action="forcar">Forçar mesmo assim</button>`;
   } else {
     actions = `
+      <button class="ga-pa-btn ga-pa-blue2" data-action="marcada">Marcada</button>
       <button class="ga-pa-btn ga-pa-amber" data-action="chegou">Chegou</button>
       <button class="ga-pa-btn ga-pa-green" data-action="realizada">Realizada</button>
       <button class="ga-pa-btn ga-pa-red" data-action="falta">Registar falta</button>
+      <button class="ga-pa-btn ga-pa-gray" data-action="honorarios">Dispensa honorários</button>
       <div style="height:0.5px;background:#e2e8f0;"></div>
       <button class="ga-pa-btn" data-action="editar">Editar marcação</button>
       <button class="ga-pa-btn ga-pa-blue" data-action="ficha">Ver ficha do doente</button>
@@ -914,9 +916,11 @@ function _renderPanel(row, patientsById = {}) {
     btn.style.cssText = "padding:7px 10px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;text-align:center;border:0.5px solid #e2e8f0;background:#fff;color:#0f172a;width:100%;";
     const a = btn.getAttribute("data-action");
     if (a==="marcar"||a==="ficha"||a==="editar"||a==="forcar") { btn.style.background="#eff6ff"; btn.style.color="#1a56db"; btn.style.borderColor="#93c5fd"; }
+    if (a==="marcada") { btn.style.background="#eff6ff"; btn.style.color="#1d4ed8"; btn.style.borderColor="#bfdbfe"; }
     if (a==="chegou") { btn.style.background="#fef3c7"; btn.style.color="#92400e"; btn.style.borderColor="#fcd34d"; }
     if (a==="realizada") { btn.style.background="#d1fae5"; btn.style.color="#065f46"; btn.style.borderColor="#6ee7b7"; }
     if (a==="falta"||a==="remover-bloq") { btn.style.background="#fee2e2"; btn.style.color="#991b1b"; btn.style.borderColor="#fca5a5"; }
+    if (a==="honorarios") { btn.style.background="#f3f4f6"; btn.style.color="#374151"; btn.style.borderColor="#d1d5db"; }
     if (a==="forcar") { btn.style.background="#fef3c7"; btn.style.color="#92400e"; btn.style.borderColor="#fcd34d"; }
   });
 
@@ -932,9 +936,11 @@ function _renderPanel(row, patientsById = {}) {
       window.__gc_openPatientViewModal(p);
     }
   });
+  el.querySelector("[data-action='marcada']")?.addEventListener("click", () => _updateStatus(row.id, "scheduled"));
   el.querySelector("[data-action='chegou']")?.addEventListener("click", () => _updateStatus(row.id, "arrived"));
   el.querySelector("[data-action='realizada']")?.addEventListener("click", () => _updateStatus(row.id, "done"));
   el.querySelector("[data-action='falta']")?.addEventListener("click", () => _updateStatus(row.id, "no_show"));
+  el.querySelector("[data-action='honorarios']")?.addEventListener("click", () => _updateStatus(row.id, "honorarios_dispensados"));
   el.querySelector("[data-action='remover-bloq']")?.addEventListener("click", async () => {
     if (!confirm("Remover este bloqueio?")) return;
     await window.sb.from("appointments").delete().eq("id", row.id);
