@@ -98,7 +98,7 @@ function _buildShell() {
       <div style="width:1px;height:20px;background:#e2e8f0;margin:0 4px;"></div>
       <button id="gaBtnAgendar" class="gcBtnPrimary" style="font-size:12px;padding:5px 14px;">Agendar consulta</button>
       <button id="gaBtnNovoDoente" class="gcBtnOutline" style="font-size:12px;padding:5px 14px;">Novo doente</button>
-      <button id="gaBtnCriarSlots" style="font-size:12px;padding:5px 14px;border-radius:8px;border:0.5px solid #a5d6a7;background:#e8f5e9;color:#2e7d32;cursor:pointer;font-family:inherit;">+ Disponibilidade</button>
+      <button id="gaBtnCriarSlots" class="gcBtnSuccess" style="font-size:12px;padding:5px 14px;">+ Disponibilidade</button>
       <button id="gaBtnBloq" class="gcBtnDanger" style="font-size:12px;padding:5px 14px;">Bloquear</button>
       <div style="flex:1;min-width:180px;position:relative;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -1153,7 +1153,7 @@ async function _renderSemana() {
 }
 
 /* ── Modal criar slots (tabs: Recorrente + Pontual) ───── */
-async function _openModalCriarSlots(defaultTab = "recorrente") {
+async function _openModalCriarSlots(defaultTab = "pontual") {
   const clinicas = G.clinics || [];
   const selClinic = clinicas.find(c => c.id === _state.selectedClinicId);
   const clinicName = escapeHtml(selClinic?.name || selClinic?.slug || "");
