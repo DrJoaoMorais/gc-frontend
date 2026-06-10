@@ -288,6 +288,18 @@ async function _loadAndRender() {
         if (!consentMap[c.patient_id][c.type]) consentMap[c.patient_id][c.type] = c.status;
       });
     } catch(_) {}
+    // consent_tokens = assinaturas digitais QR; têm precedência sobre papel
+    try {
+      const { data: ct } = await window.sb
+        .from("consent_tokens")
+        .select("patient_id, document_type")
+        .in("patient_id", patientIds)
+        .eq("status", "signed");
+      (ct || []).forEach(t => {
+        if (!consentMap[t.patient_id]) consentMap[t.patient_id] = {};
+        consentMap[t.patient_id][t.document_type] = "signed";
+      });
+    } catch(_) {}
   }
 
   if (clinicId) {
