@@ -942,10 +942,7 @@ function _renderPanel(row, patientsById = {}) {
     openApptModal({ mode:"edit", row });
   });
   el.querySelector("[data-action='ficha']")?.addEventListener("click", () => {
-    if (row.patient_id && window.__gc_openPatientViewModal) {
-      const p = { id: row.patient_id };
-      window.__gc_openPatientViewModal(p);
-    }
+    if (row.patient_id) openPatientFeedFromAny({ id: row.patient_id });
   });
   el.querySelector("[data-action='marcada']")?.addEventListener("click", () => _updateStatus(row.id, "scheduled"));
   el.querySelector("[data-action='chegou']")?.addEventListener("click", () => _updateStatus(row.id, "arrived"));
