@@ -270,6 +270,32 @@
     .nc-hist-seccao .cc-tabela,
     .nc-hist-seccao .cc-omb-tabela { max-width: 750px; }
 
+    /* ── Guião de anamnese ── */
+    .fc-guiao-bar { background: #0f2d52; padding: 10px 14px; display: flex; align-items: flex-start; gap: 9px; cursor: pointer; }
+    .fc-guiao-ico { font-size: 14px; color: #93c5fd; flex-shrink: 0; margin-top: 2px; }
+    .fc-guiao-chev { font-size: 14px; color: rgba(255,255,255,.5); flex-shrink: 0; transition: transform .2s; }
+    .fc-guiao-conteudo { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .fc-guiao-linha { font-size: 11px; color: rgba(255,255,255,.92); line-height: 1.5; }
+    .fc-guiao-k { color: #93c5fd; font-weight: 500; }
+    .fc-guiao-redflag { color: #fca5a5; }
+    .fc-guiao-redflag .fc-guiao-k { color: #fca5a5; }
+    .fc-guiao-fechado { display: none; align-items: center; gap: 8px; font-size: 11px; color: rgba(255,255,255,.7); }
+    .fc-guiao-hint { font-size: 10px; color: rgba(255,255,255,.45); }
+    .fc-guiao-bar.fc-guiao-collapsed { padding: 7px 14px; align-items: center; }
+    .fc-guiao-bar.fc-guiao-collapsed .fc-guiao-conteudo { display: none; }
+    .fc-guiao-bar.fc-guiao-collapsed .fc-guiao-fechado { display: flex; }
+    .fc-guiao-bar.fc-guiao-collapsed .fc-guiao-chev { transform: rotate(180deg); }
+
+    /* ── Quill HDA ── */
+    .ql-toolbar.ql-snow { border: 1px solid #e2e8f0; border-bottom: none; border-radius: 0; background: #f8fafc; font-family: inherit; }
+    .ql-container.ql-snow { border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 6px 6px; font-family: inherit; font-size: 14px; }
+    .ql-editor { min-height: 240px; line-height: 1.7; color: #1e293b; padding: 14px 16px; }
+    .ql-editor.ql-blank::before { color: #94a3b8; font-style: italic; left: 16px; }
+    .ql-snow .ql-toolbar button:hover .ql-stroke,
+    .ql-snow .ql-toolbar button.ql-active .ql-stroke { stroke: #1a56db; }
+    .ql-snow .ql-toolbar button:hover .ql-fill,
+    .ql-snow .ql-toolbar button.ql-active .ql-fill { fill: #1a56db; }
+
     /* ── Botão flutuante ── */
     .nc-float-btn {
       position: fixed;
@@ -329,21 +355,7 @@
             <span>1 · HDA</span>
             <span class="nc-block-chevron open" id="bc-1">▾</span>
           </div>
-          <!-- 2.4 Textarea auto-grow + campo objectivos -->
-          <div class="nc-block-body open" id="bb-1">
-            <textarea
-              class="nc-textarea"
-              id="hda-text"
-              placeholder="Descreve a história da doença actual…"
-            ></textarea>
-            <div>
-              <div class="nc-field-label">Objectivos do doente e do médico</div>
-              <textarea
-                class="nc-textarea nc-objectivos-ta"
-                id="objectivos-text"
-                placeholder="Regista os objectivos definidos nesta consulta…"
-              ></textarea>
-            </div>
+          <div class="nc-block-body open" id="bb-1" style="padding:0">
           </div>
         </div>
 
@@ -419,10 +431,13 @@
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA";
     window.sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
   </script>
+  <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
 
   <script type="module">
     import { carregarFeedDoente } from './nc-queries.js';
     import { preencherHDA, preencherDiagnostico, preencherTratamento, preencherExame, preencherProtocolo } from '../consulta-completa/cc-feed.js';
+    import { montarEditorHDA } from './hda-quill.js';
 
     const PATIENT_ID = '163fe5dc-a34f-4c80-8f01-5db0d63f759c';
     const status = document.getElementById('status');
@@ -457,6 +472,12 @@
     /* ── Mostra a app ── */
     status.style.display = 'none';
     document.getElementById('app').style.display = 'block';
+    const { data: consultaRow } = await window.sb
+      .from('consultations')
+      .select('id, hda')
+      .eq('id', 'bdc1e349-232e-42b7-bd49-7a07d6e8ee76')
+      .single();
+    montarEditorHDA(document.getElementById('bb-1'), consultaRow || { id: null, hda: '' }, window.sb);
 
     /* ── Toggle barra principal (expande/colapsa todos os blocos) ── */
     const headerBar  = document.getElementById('nc-header-bar');
