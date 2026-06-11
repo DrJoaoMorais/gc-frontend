@@ -200,11 +200,6 @@ textarea{width:100%;border:1px solid #e2e8f0;border-radius:7px;padding:4px 7px;f
 
 <div class="sec">
   <div class="sec-title">5 · Amplitude de Movimento</div>
-  <div style="font-size:10px;margin-bottom:6px;display:flex;gap:12px;">
-    <span style="color:#3b82f6;font-weight:700;">● Activo (arco ext.)</span>
-    <span style="color:#10b981;font-weight:700;">● Passivo (arco int.)</span>
-    <span style="color:#94a3b8;">Clicar no arco · editar valores abaixo</span>
-  </div>
   <div id="rom-container"></div>
   <textarea id="notas_mob" placeholder="End-feel, dor em arco, crepitação…"></textarea>
 </div>
@@ -410,9 +405,6 @@ document.querySelectorAll('.eva-row').forEach(function(row){
 });
 /* ── ROM GONIOMETRO ── */
 (function(){
-  const CX=92,CY=92,R=68,SPLIT=52;
-  const toR=d=>d*Math.PI/180;
-  const pt=(cx,cy,r,d)=>[+(cx+r*Math.cos(toR(d))).toFixed(2),+(cy+r*Math.sin(toR(d))).toFixed(2)];
   const thr85=n=>n>0?Math.floor(n*0.85/5)*5:0;
   const isDef=(a,n)=>n>0&&a<=thr85(n);
 
@@ -425,203 +417,9 @@ document.querySelectorAll('.eva-row').forEach(function(row){
   ];
   const S=GONIOS.map(g=>({a:0,p:0,norm:g.norm}));
 
-  function sectorBg(cx,cy,r,start,range,dir){
-    const end=start+dir*range;
-    const[sx,sy]=pt(cx,cy,r,start);const[ex,ey]=pt(cx,cy,r,end);
-    const lg=range>180?1:0,sw=dir>0?1:0;
-    return`<path d="M${cx},${cy} L${sx},${sy} A${r},${r},0,${lg},${sw},${ex},${ey} Z" fill="#f4f6f8" stroke="#bbb" stroke-width="0.8" stroke-linejoin="round"/>`;
-  }
-  function splitArc(cx,cy,r,start,range,dir,color){
-    const end=start+dir*range;
-    const[sx,sy]=pt(cx,cy,r,start);const[ex,ey]=pt(cx,cy,r,end);
-    const lg=range>180?1:0,sw=dir>0?1:0;
-    return`<path d="M${sx},${sy} A${r},${r},0,${lg},${sw},${ex},${ey}" fill="none" stroke="${color}" stroke-width="1" stroke-dasharray="4,3" opacity="0.45" pointer-events="none"/>`;
-  }
-  function sectorHit(cx,cy,r,start,range,dir,gi){
-    const end=start+dir*range;
-    const[sx,sy]=pt(cx,cy,r,start);const[ex,ey]=pt(cx,cy,r,end);
-    const lg=range>180?1:0,sw=dir>0?1:0;
-    return`<path d="M${cx},${cy} L${sx},${sy} A${r},${r},0,${lg},${sw},${ex},${ey} Z" fill="transparent" style="cursor:crosshair" onmousedown="romOnDisc(event,${gi})" ontouchstart="romOnDisc(event,${gi})"/>`;
-  }
-  function fan(cx,cy,r,start,span,dir,fill,stroke,sw){
-    if(span<=0)return'';
-    const end=start+dir*span;
-    const[sx,sy]=pt(cx,cy,r,start);const[ex,ey]=pt(cx,cy,r,end);
-    const lg=span>180?1:0,s2=dir>0?1:0;
-    return`<path d="M${cx},${cy} L${sx},${sy} A${r},${r},0,${lg},${s2},${ex},${ey} Z" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" stroke-linejoin="round"/>`;
-  }
-  function fanExtra(cx,cy,r,start,spanA,spanP,dir){
-    if(spanP<=spanA)return'';
-    const sd=start+dir*spanA,ed=start+dir*spanP;
-    const[sx,sy]=pt(cx,cy,r,sd);const[ex,ey]=pt(cx,cy,r,ed);
-    const diff=spanP-spanA,lg=diff>180?1:0,sw=dir>0?1:0;
-    return`<path d="M${cx},${cy} L${sx},${sy} A${r},${r},0,${lg},${sw},${ex},${ey} Z" fill="rgba(56,161,105,0.40)" stroke="#38a169" stroke-width="2" stroke-linejoin="round"/>`;
-  }
-  function ticks(cx,cy,r,start,dir,range){
-    let s='';
-    for(let v=0;v<=range;v+=5){
-      const d=start+dir*v;
-      const[x1,y1]=pt(cx,cy,r-3,d);const[x2,y2]=pt(cx,cy,r+(v%10===0?6:3),d);
-      s+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#999" stroke-width="${v%10===0?1.2:0.5}" opacity="0.4"/>`;
-      if(v%10===0||v===range){
-        const[lx,ly]=pt(cx,cy,r+15,d);
-        s+=`<text x="${lx}" y="${ly}" font-size="8" text-anchor="middle" dominant-baseline="middle" fill="#999" opacity="0.8">${v}</text>`;
-      }
-    }
-    return s;
-  }
-  function needleSVG(cx,cy,r,start,dir,val,color,gi,field){
-    if(val<=0)return'';
-    const d=start+dir*val;
-    const[ex,ey]=pt(cx,cy,r-4,d);
-    return`<g>
-      <line x1="${cx}" y1="${cy}" x2="${ex}" y2="${ey}" stroke="transparent" stroke-width="16" style="cursor:grab"
-        onmousedown="romOnNeedle(event,${gi},'${field}')" ontouchstart="romOnNeedle(event,${gi},'${field}')"/>
-      <line x1="${cx}" y1="${cy}" x2="${ex}" y2="${ey}" stroke="${color}" stroke-width="3" stroke-linecap="round" opacity="0.95" pointer-events="none"/>
-      <circle cx="${ex}" cy="${ey}" r="5" fill="${color}" opacity="0.95" pointer-events="none"/>
-    </g>`;
-  }
-  function makeSVG(gi){
-    const g=GONIOS[gi],s=S[gi];
-    const def=isDef(s.a,s.norm);
-    const aC=def?'#e53e3e':'#1a56db';
-    const aFill=def?'rgba(229,62,62,0.22)':'rgba(26,86,219,0.18)';
-    return`<svg width="184" height="184" viewBox="0 0 184 184" id="romSv${gi}">
-      ${sectorBg(CX,CY,R,g.start,g.range,g.dir)}
-      ${ticks(CX,CY,R,g.start,g.dir,g.range)}
-      ${fan(CX,CY,R,g.start,s.p,g.dir,'rgba(56,161,105,0.18)','#38a169',2)}
-      ${fan(CX,CY,R,g.start,s.a,g.dir,aFill,aC,2.5)}
-      ${fanExtra(CX,CY,R,g.start,s.a,s.p,g.dir)}
-      ${needleSVG(CX,CY,R,g.start,g.dir,s.p,'#38a169',gi,'p')}
-      ${needleSVG(CX,CY,R,g.start,g.dir,s.a,aC,gi,'a')}
-      <circle cx="${CX}" cy="${CY}" r="6" fill="#444" pointer-events="none"/>
-      ${splitArc(CX,CY,SPLIT,g.start,g.range,g.dir,aC)}
-      ${sectorHit(CX,CY,R,g.start,g.range,g.dir,gi)}
-    </svg>`;
-  }
-  function cellsHTML(gi){
-    const s=S[gi],def=isDef(s.a,s.norm);
-    const aC=def?'#e53e3e':'#1a56db',aBg=def?'rgba(229,62,62,0.07)':'rgba(26,86,219,0.07)';
-    const dif=s.a-s.p;
-    const difColor=dif<0?'#e53e3e':dif>0?'#805ad5':'var(--color-text-secondary)';
-    const difTxt=dif<0?'P > A':dif>0?'A > P':'A = P';
-    const pct=s.norm>0?Math.round(s.a/s.norm*100):null;
-    const thr=s.norm>0?thr85(s.norm):null;
-    const deficit=s.norm>0?s.norm-s.a:null;
-    return`
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
-      <div style="border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 4px;text-align:center;background:${aBg};border-color:${aC}55">
-        <div style="font-size:9px;text-transform:uppercase;color:${aC};margin-bottom:1px">Activo</div>
-        <div style="font-size:20px;font-weight:500;color:${aC}">${s.a}°</div>
-        <div style="font-size:9px;color:var(--color-text-secondary)">${pct!==null?pct+'% de '+s.norm+'°':'—'}</div>
-      </div>
-      <div style="border:0.5px solid #38a16955;border-radius:8px;padding:6px 4px;text-align:center;background:rgba(56,161,105,0.07)">
-        <div style="font-size:9px;text-transform:uppercase;color:#38a169;margin-bottom:1px">Passivo</div>
-        <div style="font-size:20px;font-weight:500;color:#38a169">${s.p}°</div>
-        <div style="font-size:9px;color:var(--color-text-secondary)">${s.norm>0?Math.round(s.p/s.norm*100)+'% de '+s.norm+'°':'—'}</div>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">
-      <div style="border:0.5px solid ${aC}33;border-radius:8px;padding:5px 6px;text-align:center;background:${aBg}">
-        <div style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;margin-bottom:1px">Défice amplitude</div>
-        <div style="font-size:14px;font-weight:500;color:${aC}">${deficit!==null?(deficit>0?'+'+deficit:deficit)+'°':'—'}</div>
-        <div style="font-size:9px;color:${aC};margin-top:1px">${pct!==null?pct+'% — limiar ≤'+thr+'°':''}</div>
-      </div>
-      <div style="border:0.5px solid ${difColor}33;border-radius:8px;padding:5px 6px;text-align:center">
-        <div style="font-size:9px;color:var(--color-text-secondary);text-transform:uppercase;margin-bottom:1px">Dif. Activo − Passivo</div>
-        <div style="font-size:14px;font-weight:500;color:${difColor}">${dif>0?'+':''}${dif}°</div>
-        <div style="font-size:9px;color:${difColor};margin-top:1px">${difTxt}</div>
-      </div>
-    </div>`;
-  }
-  function posToVal(svg,e,g){
-    const p=svg.createSVGPoint();
-    const ce=e.touches?e.touches[0]:e;
-    p.x=ce.clientX;p.y=ce.clientY;
-    const sp=p.matrixTransform(svg.getScreenCTM().inverse());
-    const dx=sp.x-CX,dy=sp.y-CY;
-    const dist=Math.sqrt(dx*dx+dy*dy);
-    let ang=Math.atan2(dy,dx)*180/Math.PI;
-    let val=g.dir*(ang-g.start);
-    val=((val%360)+360)%360;
-    val=Math.min(g.range,Math.max(0,Math.round(val/5)*5));
-    return{val,dist};
-  }
-  window.romOnDisc=function(e,gi){
-    e.preventDefault();e.stopPropagation();
-    const svg=document.getElementById(`romSv${gi}`);
-    const{val,dist}=posToVal(svg,e,GONIOS[gi]);
-    if(dist>R+4)return;
-    const field=dist<=SPLIT?'a':'p';
-    romSv(gi,field,val);romSyncSlider(gi,field,val);romStartDrag(gi,field,svg);
-  };
-  window.romOnNeedle=function(e,gi,field){
-    e.preventDefault();e.stopPropagation();
-    romStartDrag(gi,field,document.getElementById(`romSv${gi}`));
-  };
-  let romDs=null;
-  function romStartDrag(gi,field,svg){
-    romDs={gi,g:GONIOS[gi],field,svg};
-    const mv=ev=>{if(!romDs)return;ev.preventDefault();const{val}=posToVal(romDs.svg,ev,romDs.g);romSv(romDs.gi,romDs.field,val);romSyncSlider(romDs.gi,romDs.field,val);};
-    const up=()=>{romDs=null;document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);document.removeEventListener('touchmove',mv);document.removeEventListener('touchend',up);};
-    document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
-    document.addEventListener('touchmove',mv,{passive:false});document.addEventListener('touchend',up);
-  }
-  function romSyncSlider(gi,field,val){
-    const sl=document.getElementById(field==='a'?`romSA${gi}`:`romSP${gi}`);if(sl)sl.value=val;
-  }
   function romSv(gi,field,val){
     S[gi][field]=val;
-    const def=isDef(S[gi].a,S[gi].norm),aC=def?'#e53e3e':'#1a56db';
-    document.getElementById(`romSv${gi}`).outerHTML=makeSVG(gi);
-    document.getElementById(`romCells${gi}`).innerHTML=cellsHTML(gi);
-    const lA=document.getElementById(`romLA${gi}`);if(lA)lA.style.color=aC;
-    const slA=document.getElementById(`romSA${gi}`);if(slA)slA.style.accentColor=aC;
     romRenderTable();
-  }
-  function cardHTML(gi){
-    const g=GONIOS[gi],s=S[gi],def=isDef(s.a,s.norm),aC=def?'#e53e3e':'#1a56db';
-    return`<div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <span style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px">
-          ${g.mov}
-        </span>
-        <span style="font-size:11px;color:var(--color-text-secondary)">${s.norm}°</span>
-      </div>
-      <div style="display:flex;justify-content:center" id="romSwWrap${gi}">${makeSVG(gi)}</div>
-      <div style="display:flex;justify-content:space-between;font-size:9px;margin-top:2px;padding:0 4px">
-        <span style="color:#1a56db">● interior = activo</span>
-        <span style="color:#38a169">exterior = passivo ●</span>
-      </div>
-      <div id="romCells${gi}">${cellsHTML(gi)}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
-        <div style="display:flex;flex-direction:column;gap:2px">
-          <label id="romLA${gi}" style="font-size:10px;color:${aC}">Activo</label>
-          <input type="range" min="0" max="${g.range}" step="5" value="${s.a}"
-            style="accent-color:${aC}" id="romSA${gi}"
-            oninput="romSv(${gi},'a',+this.value)">
-        </div>
-        <div style="display:flex;flex-direction:column;gap:2px">
-          <label style="font-size:10px;color:#38a169">Passivo</label>
-          <input type="range" min="0" max="${g.range}" step="5" value="${s.p}"
-            style="accent-color:#38a169" id="romSP${gi}"
-            oninput="romSv(${gi},'p',+this.value)">
-        </div>
-      </div>
-    </div>`;
-  }
-  function romRenderCards(){
-    const top=document.getElementById('rom-grid-top');
-    const bot=document.getElementById('rom-grid-bot');
-    if(!top||!bot)return;
-    top.innerHTML='';bot.innerHTML='';
-    GONIOS.forEach((g,gi)=>{
-      const div=document.createElement('div');
-      div.innerHTML=cardHTML(gi);
-      const card=div.firstElementChild;
-      if(g.row===0)top.appendChild(card);
-      else bot.appendChild(card);
-    });
   }
   function romRenderTable(){
     const tb=document.getElementById('rom-tbody');
@@ -659,8 +457,6 @@ document.querySelectorAll('.eva-row').forEach(function(row){
   const container=document.getElementById('rom-container');
   if(container){
     container.innerHTML=`
-      <div id="rom-grid-top" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:14px"></div>
-      <div id="rom-grid-bot" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:20px;max-width:67%"></div>
       <div style="font-size:14px;font-weight:600;margin-bottom:10px;color:#0f2d52">Ombro — Tabela de Amplitudes Articulares</div>
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -679,13 +475,12 @@ document.querySelectorAll('.eva-row').forEach(function(row){
           <tbody id="rom-tbody"></tbody>
         </table>
       </div>`;
-    romRenderCards();
     romRenderTable();
   }
 
   // Expor romSv globalmente para os inputs inline da tabela
   window.romSv=romSv;
-  window.romSyncSlider=romSyncSlider;
+  window.romSyncSlider=()=>{};
   window.romGetState=function(gi){return S[gi]||null;};
 })();
 /* ── FIM ROM GONIOMETRO ── */
