@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nova Consulta · Teste</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Outfit', 'Segoe UI', sans-serif; background: #f1f5f9; min-height: 100vh; color: #1e293b; }
+
+    /* ── Banner de teste ── */
+    .test-banner {
+      background: #fef3c7;
+      padding: 10px 16px;
+      font-size: 13px;
+      color: #92400e;
+      border-bottom: 1px solid #fde68a;
+    }
+
+    /* ── Barra superior navy ── */
+    .nc-topbar {
+      background: #0f2d52;
+      padding: 0 20px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nc-topbar-nome {
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: .01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .nc-gravar-btn {
+      background: #1a56db;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      padding: 7px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: default;
+      flex-shrink: 0;
+      opacity: .85;
+    }
+
+    /* ── Área de conteúdo ── */
+    .nc-content {
+      max-width: 860px;
+      margin: 24px auto;
+      padding: 0 16px 80px;
+    }
+
+    /* ── Barra "Nova consulta · data" ── */
+    .nc-header-bar {
+      border: 2px solid #1a56db;
+      border-radius: 8px;
+      background: #fff;
+      padding: 11px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+      margin-bottom: 0;
+    }
+    .nc-header-bar:hover { background: #eff6ff; }
+    .nc-header-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1a56db;
+      letter-spacing: .01em;
+    }
+    .nc-chevron {
+      font-size: 16px;
+      color: #1a56db;
+      transition: transform .2s;
+      line-height: 1;
+    }
+    .nc-chevron.open { transform: rotate(180deg); }
+
+    /* ── Contentor dos blocos ── */
+    .nc-blocks {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .nc-blocks.open { display: flex; }
+
+    /* ── Bloco individual ── */
+    .nc-block {
+      border: 1px solid #e2e8f0;
+      border-radius: 7px;
+      background: #fff;
+      overflow: hidden;
+    }
+    .nc-block-header {
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+      background: #f8fafc;
+      border-bottom: 1px solid transparent;
+    }
+    .nc-block-header:hover { background: #f1f5f9; }
+    .nc-block-header.open { border-bottom-color: #e2e8f0; }
+    .nc-block-chevron {
+      font-size: 13px;
+      color: #94a3b8;
+      transition: transform .2s;
+    }
+    .nc-block-chevron.open { transform: rotate(180deg); }
+
+    .nc-block-body {
+      display: none;
+      padding: 14px 16px;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .nc-block-body.open { display: flex; }
+
+    /* ── Textarea auto-grow ── */
+    .nc-textarea {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-family: inherit;
+      font-size: 14px;
+      color: #1e293b;
+      line-height: 1.6;
+      resize: none;
+      overflow: hidden;
+      min-height: calc(1.6em * 15 + 20px); /* ~15 linhas */
+      transition: border-color .15s;
+    }
+    .nc-textarea:focus {
+      outline: none;
+      border-color: #1a56db;
+      box-shadow: 0 0 0 3px #dbeafe;
+    }
+    .nc-textarea.nc-objectivos-ta {
+      min-height: calc(1.6em * 4 + 20px);
+    }
+    .nc-field-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 4px;
+    }
+
+    /* ── Status / loading ── */
+    #status {
+      text-align: center;
+      padding: 40px;
+      color: #0f2d52;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="test-banner">
+    🧪 <strong>Teste isolado — Nova Consulta</strong> — página não integrada com o GC.
+    Serve para validar o módulo isoladamente. Não grava nada.
+  </div>
+
+  <div id="status">A carregar…</div>
+
+  <!-- Shell (oculto até auth confirmada) -->
+  <div id="app" style="display:none">
+
+    <!-- 2.1 Barra superior navy -->
+    <div class="nc-topbar">
+      <span class="nc-topbar-nome" id="patient-name">—</span>
+      <button class="nc-gravar-btn" title="Ainda sem função">Gravar</button>
+    </div>
+
+    <div class="nc-content">
+
+      <!-- 2.2 Barra "Nova consulta · data" -->
+      <div class="nc-header-bar" id="nc-header-bar" role="button" aria-expanded="false">
+        <span class="nc-header-label" id="nc-header-label">Nova consulta · —</span>
+        <span class="nc-chevron" id="nc-chevron">▾</span>
+      </div>
+
+      <!-- 2.3 Sete blocos colapsáveis -->
+      <div class="nc-blocks" id="nc-blocks">
+
+        <!-- Bloco 1 · HDA — abre automaticamente com a barra -->
+        <div class="nc-block" id="block-1">
+          <div class="nc-block-header open" id="bh-1">
+            <span>1 · HDA</span>
+            <span class="nc-block-chevron open" id="bc-1">▾</span>
+          </div>
+          <!-- 2.4 Textarea auto-grow + campo objectivos -->
+          <div class="nc-block-body open" id="bb-1">
+            <textarea
+              class="nc-textarea"
+              id="hda-text"
+              placeholder="Descreve a história da doença actual…"
+            ></textarea>
+            <div>
+              <div class="nc-field-label">Objectivos do doente e do médico</div>
+              <textarea
+                class="nc-textarea nc-objectivos-ta"
+                id="objectivos-text"
+                placeholder="Regista os objectivos definidos nesta consulta…"
+              ></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Blocos 2-7 · vazios, colapsados -->
+        <div class="nc-block" id="block-2">
+          <div class="nc-block-header" id="bh-2">
+            <span>2 · Exame objectivo</span>
+            <span class="nc-block-chevron" id="bc-2">▾</span>
+          </div>
+          <div class="nc-block-body" id="bb-2"></div>
+        </div>
+
+        <div class="nc-block" id="block-3">
+          <div class="nc-block-header" id="bh-3">
+            <span>3 · Protocolo</span>
+            <span class="nc-block-chevron" id="bc-3">▾</span>
+          </div>
+          <div class="nc-block-body" id="bb-3"></div>
+        </div>
+
+        <div class="nc-block" id="block-4">
+          <div class="nc-block-header" id="bh-4">
+            <span>4 · Evolução</span>
+            <span class="nc-block-chevron" id="bc-4">▾</span>
+          </div>
+          <div class="nc-block-body" id="bb-4"></div>
+        </div>
+
+        <div class="nc-block" id="block-5">
+          <div class="nc-block-header" id="bh-5">
+            <span>5 · Diagnóstico</span>
+            <span class="nc-block-chevron" id="bc-5">▾</span>
+          </div>
+          <div class="nc-block-body" id="bb-5"></div>
+        </div>
+
+        <div class="nc-block" id="block-6">
+          <div class="nc-block-header" id="bh-6">
+            <span>6 · Tratamentos</span>
+            <span class="nc-block-chevron" id="bc-6">▾</span>
+          </div>
+          <div class="nc-block-body" id="bb-6"></div>
+        </div>
+
+        <div class="nc-block" id="block-7">
+          <div class="nc-block-header" id="bh-7">
+            <span>7 · Relatório PDF</span>
+            <span class="nc-block-chevron" id="bc-7">▾</span>
+          </div>
+          <div class="nc-block-body" id="bb-7"></div>
+        </div>
+
+      </div><!-- /nc-blocks -->
+    </div><!-- /nc-content -->
+  </div><!-- /app -->
+
+  <!-- Supabase inline — chaves idênticas ao app.html -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.SUPABASE_URL = "https://nxfnzzcuqzxmzsihbrtp.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA";
+    window.sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  </script>
+
+  <script type="module">
+    const PATIENT_ID = '163fe5dc-a34f-4c80-8f01-5db0d63f759c';
+    const status = document.getElementById('status');
+
+    /* ── Auth ── */
+    const { data: { user } } = await window.sb.auth.getUser();
+    if (!user) {
+      status.innerHTML =
+        '⚠️ Não estás autenticado.<br><br>Abre primeiro o GC em ' +
+        '<a href="../../../../app.html">app.html</a>, faz login, e volta a esta página.';
+      return;
+    }
+
+    /* ── Nome do doente ── */
+    const { data: patient } = await window.sb
+      .from('patients')
+      .select('full_name')
+      .eq('id', PATIENT_ID)
+      .single();
+
+    document.getElementById('patient-name').textContent =
+      patient?.full_name || '(doente não encontrado)';
+
+    /* ── Data de hoje no cabeçalho ── */
+    const hoje = new Date().toLocaleDateString('pt-PT', {
+      day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+    document.getElementById('nc-header-label').textContent =
+      `Nova consulta · ${hoje}`;
+
+    /* ── Mostra a app ── */
+    status.style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+
+    /* ── Toggle barra principal (expande/colapsa todos os blocos) ── */
+    const headerBar  = document.getElementById('nc-header-bar');
+    const blocksEl   = document.getElementById('nc-blocks');
+    const chevronEl  = document.getElementById('nc-chevron');
+
+    headerBar.addEventListener('click', () => {
+      const isOpen = blocksEl.classList.toggle('open');
+      chevronEl.classList.toggle('open', isOpen);
+      headerBar.setAttribute('aria-expanded', String(isOpen));
+      /* Quando expande, garante que só bloco 1 fica aberto */
+      if (isOpen) {
+        setBlock(1, true);
+        [2, 3, 4, 5, 6, 7].forEach(n => setBlock(n, false));
+      }
+    });
+
+    /* ── Toggle de cada bloco individualmente ── */
+    function setBlock(n, open) {
+      document.getElementById(`bh-${n}`).classList.toggle('open', open);
+      document.getElementById(`bc-${n}`).classList.toggle('open', open);
+      document.getElementById(`bb-${n}`).classList.toggle('open', open);
+    }
+
+    [1, 2, 3, 4, 5, 6, 7].forEach(n => {
+      document.getElementById(`bh-${n}`).addEventListener('click', () => {
+        const body = document.getElementById(`bb-${n}`);
+        const willOpen = !body.classList.contains('open');
+        setBlock(n, willOpen);
+      });
+    });
+
+    /* ── Auto-grow nas textareas ── */
+    document.querySelectorAll('.nc-textarea').forEach(ta => {
+      ta.addEventListener('input', () => {
+        ta.style.height = 'auto';
+        ta.style.height = ta.scrollHeight + 'px';
+      });
+    });
+  </script>
+
+</body>
+</html>
