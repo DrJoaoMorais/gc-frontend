@@ -471,7 +471,7 @@ return{
   irradiacao:g('irradiacao')||null,
   d_noturna:g('d_noturna')||null,
   palp:{ac:g('palp_ac')||null,tb:g('palp_tb')||null,bic:g('palp_bic')||null,bur:g('palp_bur')||null,sup:g('palp_sup')||null},
-  rom:{flex_a:rv('rom_flex_a'),flex_p:rv('rom_flex_p'),ext_a:rv('rom_ext_a'),ext_p:rv('rom_ext_p'),abd_a:rv('rom_abd_a'),abd_p:rv('rom_abd_p'),re_a:rv('rom_re_a'),re_p:rv('rom_re_p'),ri_a:rv('rom_ri_a'),ri_p:rv('rom_ri_p')},
+  rom:(function(){var rg=window.romGetState;function gf(gi,f){var s=rg?rg(gi):null;return s?(s[f]||null):null;}return{flex_a:gf(1,'a'),flex_p:gf(1,'p'),ext_a:gf(2,'a'),ext_p:gf(2,'p'),abd_a:gf(0,'a'),abd_p:gf(0,'p'),re_a:gf(3,'a'),re_p:gf(3,'p'),ri_a:gf(4,'a'),ri_p:gf(4,'p')};}()),
   mrc:{sup:g('f_sup')||null,inf:g('f_inf')||null,sub:g('f_sub')||null,del:g('f_del')||null},
   testes:{neer:g('t_neer')||null,hawk:g('t_hawk')||null,jobe:g('t_jobe')||null,patte:g('t_patte')||null,liftoff:g('t_liftoff')||null,belly:g('t_belly')||null,drop:g('t_drop')||null,speed:g('t_speed')||null,yerg:g('t_yerg')||null,appr:g('t_appr')||null,reloc:g('t_reloc')||null,sulc:g('t_sulc')||null},
   dyn:{re_af:rv('dyn_re_af'),re_cl:rv('dyn_re_cl'),ri_af:rv('dyn_ri_af'),ri_cl:rv('dyn_ri_cl'),ea_af:rv('dyn_ea_af'),ea_cl:rv('dyn_ea_cl'),abd_af:rv('dyn_abd_af'),abd_cl:rv('dyn_abd_cl')},
