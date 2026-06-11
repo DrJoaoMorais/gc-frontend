@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Nova Consulta · Teste</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../consulta-completa/consulta-completa.css">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Outfit', 'Segoe UI', sans-serif; background: #f1f5f9; min-height: 100vh; color: #1e293b; }
@@ -172,6 +174,81 @@
       color: #0f2d52;
       font-size: 14px;
     }
+
+    /* ── Histórico do doente ── */
+    .nc-historico {
+      max-width: 860px;
+      margin: 32px auto 60px;
+      padding: 0 16px;
+    }
+    .nc-hist-titulo {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: #94a3b8;
+      margin-bottom: 12px;
+    }
+    .nc-hist-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+    .nc-hist-cabec {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .nc-hist-data {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f2d52;
+    }
+    .nc-hist-autor {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .nc-hist-seccao {
+      padding: 12px 16px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .nc-hist-seccao:last-child { border-bottom: none; }
+    .nc-hist-seccao-titulo {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: #94a3b8;
+      margin-bottom: 8px;
+    }
+
+    /* ── Botão flutuante ── */
+    .nc-float-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0f2d52;
+      color: #fff;
+      border: none;
+      border-radius: 24px;
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(15,45,82,.35);
+      display: none;
+      align-items: center;
+      gap: 6px;
+      z-index: 200;
+      transition: opacity .2s;
+    }
+    .nc-float-btn:hover { opacity: .85; }
   </style>
 </head>
 <body>
@@ -278,6 +355,18 @@
 
       </div><!-- /nc-blocks -->
     </div><!-- /nc-content -->
+
+    <!-- 3.1 Histórico do doente -->
+    <div class="nc-historico">
+      <div class="nc-hist-titulo">Histórico do doente</div>
+      <div id="nc-hist-lista">
+        <div style="color:#64748b;font-size:14px;padding:16px 0;">A carregar histórico…</div>
+      </div>
+    </div>
+
+    <!-- 3.3 Botão flutuante -->
+    <button class="nc-float-btn" id="nc-float-btn" aria-label="Voltar ao topo">↑ Escrita</button>
+
   </div><!-- /app -->
 
   <!-- Supabase inline — chaves idênticas ao app.html -->
@@ -289,6 +378,9 @@
   </script>
 
   <script type="module">
+    import { carregarFeedDoente } from './nc-queries.js';
+    import { preencherHDA, preencherDiagnostico, preencherTratamento, preencherExame, preencherProtocolo } from '../consulta-completa/cc-feed.js';
+
     const PATIENT_ID = '163fe5dc-a34f-4c80-8f01-5db0d63f759c';
     const status = document.getElementById('status');
 
@@ -361,7 +453,78 @@
         ta.style.height = ta.scrollHeight + 'px';
       });
     });
+
+    /* ── 3.2 Histórico do doente ── */
+    const histLista = document.getElementById('nc-hist-lista');
+    try {
+      const { consultas } = await carregarFeedDoente(PATIENT_ID);
+      if (!consultas.length) {
+        histLista.innerHTML = '<p style="color:#64748b;font-size:14px;">Sem consultas anteriores.</p>';
+      } else {
+        histLista.innerHTML = '';
+        for (const item of consultas) {
+          histLista.appendChild(criarCardConsulta(item));
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao carregar histórico:', err);
+      histLista.innerHTML = `<p style="color:#dc2626;font-size:14px;">Erro ao carregar histórico: ${err.message}</p>`;
+    }
+
+    /* ── 3.3 Botão flutuante — aparece quando a barra sai do ecrã ── */
+    const floatBtn = document.getElementById('nc-float-btn');
+    new IntersectionObserver(([entry]) => {
+      floatBtn.style.display = entry.isIntersecting ? 'none' : 'flex';
+    }, { threshold: 0 }).observe(headerBar);
+    floatBtn.addEventListener('click', () => {
+      headerBar.scrollIntoView({ behavior: 'smooth' });
+    });
+
     } // end init
+
+    /* ── Cria card de consulta histórica ── */
+    function criarCardConsulta(item) {
+      const { consulta, diagnosticos, tratamentos, exames, protocolo } = item;
+
+      const dataFmt = consulta.report_date
+        ? new Date(consulta.report_date + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : '—';
+
+      const card = document.createElement('div');
+      card.className = 'nc-hist-card';
+
+      const cabec = document.createElement('div');
+      cabec.className = 'nc-hist-cabec';
+      cabec.innerHTML = `
+        <span class="nc-hist-data">${dataFmt}</span>
+        ${consulta.author_display_name ? `<span class="nc-hist-autor">${consulta.author_display_name}</span>` : ''}
+      `;
+      card.appendChild(cabec);
+
+      const seccoes = [
+        { titulo: 'HDA',             fn: preencherHDA,         arg: consulta      },
+        { titulo: 'Diagnóstico',     fn: preencherDiagnostico, arg: diagnosticos  },
+        { titulo: 'Tratamentos',     fn: preencherTratamento,  arg: tratamentos   },
+        { titulo: 'Exame Objectivo', fn: preencherExame,       arg: exames        },
+        { titulo: 'Protocolo',       fn: preencherProtocolo,   arg: protocolo     },
+      ];
+
+      for (const { titulo, fn, arg } of seccoes) {
+        const sec = document.createElement('div');
+        sec.className = 'nc-hist-seccao';
+        const h = document.createElement('div');
+        h.className = 'nc-hist-seccao-titulo';
+        h.textContent = titulo;
+        const body = document.createElement('div');
+        fn(body, arg);
+        sec.appendChild(h);
+        sec.appendChild(body);
+        card.appendChild(sec);
+      }
+
+      return card;
+    }
+
     init();
   </script>
 
