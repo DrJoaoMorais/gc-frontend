@@ -56,7 +56,7 @@
 
     /* ── Área de conteúdo ── */
     .nc-content {
-      max-width: 860px;
+      max-width: 1500px;
       margin: 24px auto;
       padding: 0 16px 80px;
     }
@@ -177,7 +177,7 @@
 
     /* ── Histórico do doente ── */
     .nc-historico {
-      max-width: 860px;
+      max-width: 1500px;
       margin: 32px auto 60px;
       padding: 0 16px;
     }
@@ -226,6 +226,45 @@
       color: #94a3b8;
       margin-bottom: 8px;
     }
+
+    /* ── Chips de resumo (visíveis só quando colapsado) ── */
+    .nc-hist-chips-resumo {
+      display: none;
+      flex-wrap: wrap;
+      gap: 5px;
+      align-items: center;
+    }
+    .nc-hist-card.collapsed .nc-hist-chips-resumo { display: flex; }
+    .nc-hist-card.collapsed .nc-hist-seccoes      { display: none; }
+    .nc-hist-chip {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 99px;
+      border: 1px solid #cbd5e1;
+      color: #475569;
+      background: #f8fafc;
+      white-space: nowrap;
+    }
+    .nc-hist-chip-eva  { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
+    .nc-hist-chip-fase { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+    .nc-hist-chip-dx   { background: #f0fdf4; border-color: #86efac; color: #166534; }
+    .nc-hist-chip-trat { background: #faf5ff; border-color: #d8b4fe; color: #6b21a8; }
+
+    /* ── Botão colapsar/expandir ── */
+    .nc-hist-colapsar-btn {
+      background: none;
+      border: 1px solid #e2e8f0;
+      border-radius: 5px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .nc-hist-colapsar-btn:hover { background: #f1f5f9; }
 
     /* ── Botão flutuante ── */
     .nc-float-btn {
@@ -482,47 +521,160 @@
 
     } // end init
 
-    /* ── Cria card de consulta histórica ── */
+    /* ── Helper: escape HTML ── */
+    const esc = s => String(s ?? '').replace(/[&<>"]/g,
+      c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+
+    /* ── 4.1: trunca HDA no marcador do fluxo antigo ── */
+    function truncarHDA(hda) {
+      if (!hda) return { texto: hda, cortado: false };
+      const idx = hda.indexOf('EXAME OBJECTIVO ──');
+      if (idx === -1) return { texto: hda, cortado: false };
+      return { texto: hda.slice(0, idx).trimEnd(), original: hda, cortado: true };
+    }
+
+    /* ── 4.2: render compacto do protocolo (sem editor) ── */
+    function preencherProtocoloCompacto(el, protocolo) {
+      if (!protocolo?.fase) {
+        el.innerHTML = '<p class="cc-vazio">Sem protocolo associado.</p>';
+        return;
+      }
+      const f = protocolo.fase;
+      const d = f.dados || {};
+      const semanas = (f.ancora_de != null && f.ancora_ate != null)
+        ? `${esc(f.ancora_de)}–${esc(f.ancora_ate)} sem` : '';
+      const objectivos = (Array.isArray(d.objetivos) ? d.objetivos : [])
+        .map(x => (x && typeof x === 'object') ? (x.label || '') : String(x))
+        .filter(Boolean);
+
+      el.innerHTML = `
+        <div class="cc-prot-chips" style="margin-bottom:${objectivos.length ? '8px' : '0'}">
+          <span class="cc-prot-chip cc-prot-chip-nome">${esc(protocolo.nome)}</span>
+          ${semanas ? `<span class="cc-prot-chip">${semanas}</span>` : ''}
+          <span class="cc-prot-chip cc-prot-chip-fase">Fase ${esc(String(f.ordem))} — ${esc(f.nome)}</span>
+        </div>
+        ${objectivos.length
+          ? `<ul style="margin:0;padding-left:18px;font-size:13px;color:#374151;line-height:1.7">
+               ${objectivos.map(o => `<li>${esc(o)}</li>`).join('')}
+             </ul>`
+          : ''}`;
+    }
+
+    /* ── 4.4: chips de resumo para o estado colapsado ── */
+    function chipsResumo(diagnosticos, tratamentos, exames, protocolo) {
+      const chips = [];
+      /* EVA — procura no primeiro exame com data eva */
+      const eva = exames[0]?.data?.eva;
+      if (eva) {
+        const val = eva.rep ?? eva.act ?? eva.pic;
+        if (val != null) chips.push(`<span class="nc-hist-chip nc-hist-chip-eva">EVA ${esc(String(val))}</span>`);
+      }
+      /* Fase do protocolo */
+      if (protocolo?.fase) {
+        const f = protocolo.fase;
+        chips.push(`<span class="nc-hist-chip nc-hist-chip-fase">Fase ${esc(String(f.ordem))} · ${esc(f.nome)}</span>`);
+      }
+      /* Primeiro diagnóstico */
+      if (diagnosticos[0]) {
+        const dx = diagnosticos[0].code || diagnosticos[0].label?.slice(0, 20);
+        if (dx) chips.push(`<span class="nc-hist-chip nc-hist-chip-dx">${esc(dx)}</span>`);
+      }
+      /* Nº de tratamentos */
+      if (tratamentos.length)
+        chips.push(`<span class="nc-hist-chip nc-hist-chip-trat">${tratamentos.length} trat.</span>`);
+      return chips.join('');
+    }
+
+    /* ── Cria card de consulta histórica (4.1 + 4.2 + 4.4) ── */
     function criarCardConsulta(item) {
       const { consulta, diagnosticos, tratamentos, exames, protocolo } = item;
 
       const dataFmt = consulta.report_date
-        ? new Date(consulta.report_date + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        ? new Date(consulta.report_date + 'T12:00:00').toLocaleDateString('pt-PT',
+            { day: '2-digit', month: '2-digit', year: 'numeric' })
         : '—';
 
       const card = document.createElement('div');
       card.className = 'nc-hist-card';
 
+      /* ── Cabeçalho com botão colapsar (4.4) ── */
       const cabec = document.createElement('div');
       cabec.className = 'nc-hist-cabec';
       cabec.innerHTML = `
         <span class="nc-hist-data">${dataFmt}</span>
-        ${consulta.author_display_name ? `<span class="nc-hist-autor">${consulta.author_display_name}</span>` : ''}
-      `;
+        <div class="nc-hist-chips-resumo">
+          ${chipsResumo(diagnosticos, tratamentos, exames, protocolo)}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0">
+          ${consulta.author_display_name ? `<span class="nc-hist-autor">${esc(consulta.author_display_name)}</span>` : ''}
+          <button class="nc-hist-colapsar-btn" type="button">▾ colapsar</button>
+        </div>`;
       card.appendChild(cabec);
 
-      const seccoes = [
-        { titulo: 'HDA',             fn: preencherHDA,         arg: consulta      },
-        { titulo: 'Diagnóstico',     fn: preencherDiagnostico, arg: diagnosticos  },
-        { titulo: 'Tratamentos',     fn: preencherTratamento,  arg: tratamentos   },
-        { titulo: 'Exame Objectivo', fn: preencherExame,       arg: exames        },
-        { titulo: 'Protocolo',       fn: preencherProtocolo,   arg: protocolo     },
-      ];
+      cabec.querySelector('.nc-hist-colapsar-btn').addEventListener('click', () => {
+        const collapsed = card.classList.toggle('collapsed');
+        cabec.querySelector('.nc-hist-colapsar-btn').textContent =
+          collapsed ? '▸ expandir' : '▾ colapsar';
+      });
 
-      for (const { titulo, fn, arg } of seccoes) {
-        const sec = document.createElement('div');
-        sec.className = 'nc-hist-seccao';
-        const h = document.createElement('div');
-        h.className = 'nc-hist-seccao-titulo';
-        h.textContent = titulo;
-        const body = document.createElement('div');
-        fn(body, arg);
-        sec.appendChild(h);
-        sec.appendChild(body);
-        card.appendChild(sec);
+      /* ── Secções (dentro de nc-hist-seccoes para o toggle CSS) ── */
+      const seccoes = document.createElement('div');
+      seccoes.className = 'nc-hist-seccoes';
+
+      /* HDA com truncagem 4.1 */
+      const hdaTrunc = truncarHDA(consulta.hda);
+      const hdaSec = criarSeccao('HDA');
+      preencherHDA(hdaSec.body, { ...consulta, hda: hdaTrunc.texto });
+      if (hdaTrunc.cortado) {
+        let expanded = false;
+        const link = document.createElement('a');
+        link.href = '#';
+        link.textContent = 'ver texto original completo';
+        link.style.cssText = 'font-size:12px;color:#1a56db;display:inline-block;margin-top:6px;';
+        link.addEventListener('click', e => {
+          e.preventDefault();
+          expanded = !expanded;
+          preencherHDA(hdaSec.body, { ...consulta, hda: expanded ? hdaTrunc.original : hdaTrunc.texto });
+          hdaSec.body.appendChild(link);
+          link.textContent = expanded ? 'mostrar versão reduzida' : 'ver texto original completo';
+        });
+        hdaSec.body.appendChild(link);
       }
+      seccoes.appendChild(hdaSec.sec);
 
+      /* Restantes secções */
+      const secDiag = criarSeccao('Diagnóstico');
+      preencherDiagnostico(secDiag.body, diagnosticos);
+      seccoes.appendChild(secDiag.sec);
+
+      const secTrat = criarSeccao('Tratamentos');
+      preencherTratamento(secTrat.body, tratamentos);
+      seccoes.appendChild(secTrat.sec);
+
+      const secExam = criarSeccao('Exame Objectivo');
+      preencherExame(secExam.body, exames);
+      seccoes.appendChild(secExam.sec);
+
+      /* Protocolo compacto sem editor (4.2) */
+      const secProt = criarSeccao('Protocolo');
+      preencherProtocoloCompacto(secProt.body, protocolo);
+      seccoes.appendChild(secProt.sec);
+
+      card.appendChild(seccoes);
       return card;
+    }
+
+    /* Helper: cria <div.nc-hist-seccao> com label e body */
+    function criarSeccao(titulo) {
+      const sec = document.createElement('div');
+      sec.className = 'nc-hist-seccao';
+      const h = document.createElement('div');
+      h.className = 'nc-hist-seccao-titulo';
+      h.textContent = titulo;
+      const body = document.createElement('div');
+      sec.appendChild(h);
+      sec.appendChild(body);
+      return { sec, body };
     }
 
     init();
