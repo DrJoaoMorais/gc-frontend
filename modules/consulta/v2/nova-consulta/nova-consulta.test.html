@@ -292,6 +292,7 @@
     const PATIENT_ID = '163fe5dc-a34f-4c80-8f01-5db0d63f759c';
     const status = document.getElementById('status');
 
+    async function init() {
     /* ── Auth ── */
     const { data: { user } } = await window.sb.auth.getUser();
     if (!user) {
@@ -360,6 +361,8 @@
         ta.style.height = ta.scrollHeight + 'px';
       });
     });
+    } // end init
+    init();
   </script>
 
 </body>
