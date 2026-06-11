@@ -30,7 +30,8 @@ export function montarEditorHDA(el, consulta, sb) {
     catch (_) { quill.setText(initial); }
   }
 
-  initGuiao(quill);
+  // initGuiao depois do load: avalia consulta.hda, não quill.getText()
+  initGuiao(quill, initial);
 
   const estadoEl = el.querySelector('#nc-hda-estado');
   const diz = txt => { if (estadoEl) estadoEl.textContent = txt; };
