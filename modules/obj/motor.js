@@ -272,6 +272,18 @@ function _romRenderTable() {
 
 window.romSv = function (key, field, val) {
   if (!_romState[key]) _romState[key] = { a: null, p: null };
+  if (val !== null && _romConfig) {
+    const m = _romConfig.movimentos.find(function (mv) { return mv.key === key; });
+    if (m && (val < m.min || val > m.max)) {
+      const inp = document.querySelector('[data-key="' + key + '"][data-field="' + field + '"]');
+      if (inp) {
+        inp.value = '';
+        inp.style.borderColor = '#e53e3e';
+        setTimeout(function () { inp.style.borderColor = ''; }, 1500);
+      }
+      val = null;
+    }
+  }
   _romState[key][field] = val;
   _romRenderTable();
 };
