@@ -757,7 +757,7 @@ window.getRF=getRF;
   ══════════════════════════════════════════════════════════════ */
   if (formId === "ombro") {
     const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
-    window.open('/modules/obj/regiao.html?r=ombro&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
+    window.open('/modules/obj/ombro.html?' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
     return;
   }
 
