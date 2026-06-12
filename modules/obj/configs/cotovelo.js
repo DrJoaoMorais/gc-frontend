@@ -96,20 +96,22 @@ export default {
   },
 
   escalas: [
-    { id:'dash', titulo:'DASH (membro superior)', optMin:1, optMax:5,
+    { id:'dash', titulo:'QuickDASH (membro superior)', optMin:1, optMax:5,
+      desc:   '11 itens · 1 = sem dificuldade · 5 = incapaz · Score 0–100 · 0 = sem incapacidade',
       legend:'1 (sem dificuldade) → 5 (incapaz) · Score 0–100 (maior = pior)',
       score:'dash',
       itens: [
-        'Abrir um frasco (rosca)',
-        'Escrever ou digitar',
-        'Rodar uma chave',
-        'Preparar uma refeição',
-        'Empurrar uma porta pesada',
-        'Colocar objeto em prateleira acima da cabeça',
-        'Tarefas domésticas pesadas (lavar o chão, etc.)',
-        'Jardinagem ou bricolagem',
-        'Actividade desportiva com impacto no braço',
-        'Dificuldade para dormir por dor no braço/ombro'
+        'Abrir um frasco novo ou bem apertado',
+        'Tarefas domésticas pesadas (lavar paredes, limpar o chão)',
+        'Lavar as costas',
+        'Usar uma faca para cortar alimentos',
+        'Actividades recreativas com força ou impacto pelo braço (golfe, martelar, ténis)',
+        'Interferência nas actividades sociais normais (família, amigos, vizinhos)',
+        'Limitação no trabalho ou actividades diárias habituais',
+        'Dor no braço, ombro ou mão',
+        'Formigueiro no braço, ombro ou mão',
+        'Dificuldade em dormir por causa da dor',
+        'Dificuldade em realizar o trabalho habitual por causa do problema'
       ]
     },
     { id:'oes', titulo:'OES — Oxford Elbow Score', optMin:0, optMax:4,
