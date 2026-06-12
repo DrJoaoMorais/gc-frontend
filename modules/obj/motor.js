@@ -820,7 +820,7 @@ window._gerarResumo = function () {
     cfg.escalas.forEach(function (esc) {
       const scoreEl = document.getElementById(esc.id + '_score');
       if (!scoreEl || scoreEl.textContent === '—') return;
-      const maxStr = esc.score === 'dash' ? '/100' : '/' + (esc.optMax * esc.itens.length);
+      const maxStr = esc.score === 'dash' ? '/100' : esc.score === 'ases' ? '' : '/' + (esc.optMax * esc.itens.length);
       linhas.push(esc.titulo + ': ' + scoreEl.textContent + maxStr);
       const block = document.getElementById('scale-' + esc.id);
       if (block) block.querySelectorAll('.sq-row').forEach(function (row) {
