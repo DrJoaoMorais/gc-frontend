@@ -506,8 +506,18 @@ function _wireHandlers(cfg) {
     btn.disabled = true;
     btn.textContent = 'A guardar…';
     if (_motorCfg && _motorCfg.lado && !document.querySelector('#lado .opt.sel')) {
-      const av = document.getElementById('aviso-lateral');
-      if (av) av.style.display = 'flex';
+      const te = document.getElementById('toast-err');
+      if (te) {
+        te.textContent = 'Selecciona o lado antes de gravar';
+        te.classList.add('show');
+        setTimeout(function () {
+          te.classList.remove('show');
+          te.textContent = '⚠ NÃO GRAVADO — abre o exame a partir da consulta';
+        }, 3000);
+      }
+      btn.disabled = false;
+      btn.textContent = originalText;
+      return;
     }
     const txt = typeof window._gerarResumo === 'function' ? window._gerarResumo() : '';
     const toast = document.getElementById('toast');
