@@ -71,10 +71,10 @@ export default {
     { tipo: 'rom', id: 'rom', titulo: 'Amplitude de Movimento', notas: 'notas_mob',
       movimentos: [
         { key: 'flex', label: 'Flexão',          normal: 180, min: 0, max: 180 },
-        { key: 'ext',  label: 'Extensão',         normal: 60,  min: 0, max: 90  },
+        { key: 'ext',  label: 'Extensão',         normal: 60,  min: 0, max: 70  },
         { key: 'abd',  label: 'Abdução',          normal: 180, min: 0, max: 180 },
-        { key: 're',   label: 'Rotação externa',  normal: 90,  min: 0, max: 90  },
-        { key: 'ri',   label: 'Rotação interna',  normal: 90,  min: 0, max: 90  },
+        { key: 're',   label: 'Rotação externa',  normal: 90,  min: 0, max: 100 },
+        { key: 'ri',   label: 'Rotação interna',  normal: 90,  min: 0, max: 100 },
       ],
     },
 
