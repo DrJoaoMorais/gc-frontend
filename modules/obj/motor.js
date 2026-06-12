@@ -55,7 +55,7 @@ function _renderPage(cfg) {
     cfg.seccoes.forEach(function (sec) {
       sNum++;
       const h = _renderSec(sec, sNum);
-      if (sec.tipo === 'rom' || sec.tipo === 'testes') rightH += h;
+      if (sec.col === 'dir' || sec.tipo === 'rom' || sec.tipo === 'testes') rightH += h;
       else leftH += h;
     });
     tabExame.innerHTML = '<div class="two-col"><div class="col-scroll">' + leftH + '</div><div class="col-scroll">' + rightH + '</div></div>';
@@ -192,9 +192,41 @@ function _renderGrupos(sec, n) {
     });
     h += '</div>';
   });
+  if (sec.perimetria) {
+    h += '<div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:12px">' +
+         '<thead style="background:#0f2d52"><tr>' +
+         '<th style="color:white;padding:6px 8px;text-align:left;font-weight:500;font-size:11px">Nível</th>' +
+         '<th style="color:#93c5fd;padding:6px 8px;font-weight:500;font-size:11px">D (cm)</th>' +
+         '<th style="color:#86efac;padding:6px 8px;font-weight:500;font-size:11px">E (cm)</th>' +
+         '<th style="color:white;padding:6px 8px;font-weight:500;font-size:11px">Δ</th>' +
+         '</tr></thead><tbody>';
+    sec.perimetria.niveis.forEach(function (nv) {
+      h += '<tr>' +
+           '<td style="font-weight:500;padding:4px 8px">' + nv.label + '</td>' +
+           '<td style="text-align:center;padding:4px 6px"><input type="number" step="0.5" min="0" max="99" placeholder="—"' +
+           ' style="width:56px;text-align:center;font-size:12px;border:0.5px solid #93c5fd44;border-radius:4px;padding:2px 4px;background:transparent"' +
+           ' id="perim_' + sec.id + '_' + nv.key + '_d" onchange="window._perimCalc(\'' + sec.id + '\',\'' + nv.key + '\')"></td>' +
+           '<td style="text-align:center;padding:4px 6px"><input type="number" step="0.5" min="0" max="99" placeholder="—"' +
+           ' style="width:56px;text-align:center;font-size:12px;border:0.5px solid #86efac44;border-radius:4px;padding:2px 4px;background:transparent"' +
+           ' id="perim_' + sec.id + '_' + nv.key + '_e" onchange="window._perimCalc(\'' + sec.id + '\',\'' + nv.key + '\')"></td>' +
+           '<td style="text-align:center;padding:4px 6px;color:#64748b" id="perim_' + sec.id + '_' + nv.key + '_delta">—</td>' +
+           '</tr>';
+    });
+    h += '</tbody></table></div>';
+  }
   if (sec.notasKey) h += '<textarea id="' + sec.notasKey + '" placeholder="' + (sec.notasPlaceholder || '') + '"></textarea>';
   return h + '</div>';
 }
+
+window._perimCalc = function (secId, key) {
+  const dEl = document.getElementById('perim_' + secId + '_' + key + '_d');
+  const eEl = document.getElementById('perim_' + secId + '_' + key + '_e');
+  const deltaEl = document.getElementById('perim_' + secId + '_' + key + '_delta');
+  if (!deltaEl) return;
+  const d = dEl && dEl.value !== '' ? parseFloat(dEl.value) : null;
+  const e = eEl && eEl.value !== '' ? parseFloat(eEl.value) : null;
+  deltaEl.textContent = (d !== null && e !== null) ? (d - e).toFixed(1) : '—';
+};
 
 /* ── ROM ── */
 function _romRenderTable() {
@@ -473,6 +505,17 @@ window._gerarData = function () {
             bloco[g.key] = Array.from(wrap.querySelectorAll('.opt.sel')).map(function (c) { return c.dataset.v; });
           }
         });
+        if (sec.perimetria) {
+          const perimObj = {};
+          sec.perimetria.niveis.forEach(function (nv) {
+            const dEl = document.getElementById('perim_' + sec.id + '_' + nv.key + '_d');
+            const eEl = document.getElementById('perim_' + sec.id + '_' + nv.key + '_e');
+            const d = dEl && dEl.value !== '' ? parseFloat(dEl.value) : null;
+            const e = eEl && eEl.value !== '' ? parseFloat(eEl.value) : null;
+            if (d !== null || e !== null) perimObj[nv.key] = { d: d, e: e };
+          });
+          if (Object.keys(perimObj).length) bloco.perimetria = perimObj;
+        }
         const notasEl = sec.notasKey ? document.getElementById(sec.notasKey) : null;
         const notasVal = notasEl ? notasEl.value.trim() : '';
         if (notasVal) data[sec.notasKey] = notasVal;
@@ -604,7 +647,12 @@ window._gerarResumo = function () {
         const temAlgo = sec.grupos.some(function (g) {
           return document.querySelector('#sec-' + sec.id + ' [data-key="' + g.key + '"] .opt.sel');
         });
-        if (!temAlgo && !notas) break;
+        const temPerim = sec.perimetria && sec.perimetria.niveis.some(function (nv) {
+          const dEl = document.getElementById('perim_' + sec.id + '_' + nv.key + '_d');
+          const eEl = document.getElementById('perim_' + sec.id + '_' + nv.key + '_e');
+          return (dEl && dEl.value !== '') || (eEl && eEl.value !== '');
+        });
+        if (!temAlgo && !temPerim && !notas) break;
         linhas.push('\n' + sec.label.toUpperCase());
         sec.grupos.forEach(function (g) {
           const wrap = document.querySelector('#sec-' + sec.id + ' [data-key="' + g.key + '"]');
@@ -617,6 +665,20 @@ window._gerarResumo = function () {
             if (vals.length) linhas.push('  ' + g.label + ': ' + vals.join(', '));
           }
         });
+        if (sec.perimetria) {
+          sec.perimetria.niveis.forEach(function (nv) {
+            const dEl = document.getElementById('perim_' + sec.id + '_' + nv.key + '_d');
+            const eEl = document.getElementById('perim_' + sec.id + '_' + nv.key + '_e');
+            const d = dEl && dEl.value !== '' ? parseFloat(dEl.value) : null;
+            const e = eEl && eEl.value !== '' ? parseFloat(eEl.value) : null;
+            if (d === null && e === null) return;
+            let parte = '  ' + nv.label + ':';
+            if (d !== null) parte += ' D ' + d.toFixed(1) + ' cm';
+            if (e !== null) parte += ' / E ' + e.toFixed(1) + ' cm';
+            if (d !== null && e !== null) parte += ' (Δ ' + (d - e).toFixed(1) + ' cm)';
+            linhas.push(parte);
+          });
+        }
         if (notas) linhas.push('  Notas: ' + notas);
         break;
       }

@@ -1,5 +1,5 @@
 /* Config de região — Cotovelo. Lida pelo motor.js. Só dados, zero lógica. */
-import { seccaoCicatriz, seccaoAtrofia } from './_comuns.js';
+import { seccaoCicatriz, seccaoAtrofia, NIVEIS_MS } from './_comuns.js';
 
 export default {
   id: 'cotovelo',
@@ -78,7 +78,7 @@ export default {
           {id:'hook',label:'Hook test'} ]}
       ]},
     seccaoCicatriz,
-    seccaoAtrofia,
+    { ...seccaoAtrofia, perimetria: { niveis: NIVEIS_MS } },
   ],
 
   dinamometria: {

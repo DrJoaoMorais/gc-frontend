@@ -1,11 +1,12 @@
 // modules/obj/configs/_comuns.js
 // Secções transversais reutilizáveis em qualquer região.
-// Importar com: import { seccaoCicatriz, seccaoAtrofia } from './_comuns.js';
+// Importar com: import { seccaoCicatriz, seccaoAtrofia, NIVEIS_MS, NIVEIS_MI } from './_comuns.js';
 
 export const seccaoCicatriz = {
   id: 'cicatriz',
   label: 'Cicatriz',
   tipo: 'grupos',
+  col: 'dir',
   notasKey: 'notas_cicatriz',
   notasPlaceholder: 'Notas sobre a cicatriz...',
   grupos: [
@@ -109,10 +110,31 @@ export const seccaoAtrofia = {
   id: 'atrofia',
   label: 'Atrofia Muscular',
   tipo: 'grupos',
+  col: 'dir',
   notasKey: 'notas_atrofia',
-  notasPlaceholder: 'Perimetria — ex.: 10 cm acima do olécrano: D 32 cm / E 34 cm',
+  notasPlaceholder: 'Outras observações...',
   grupos: [
     { label: 'Atrofia muscular', key: 'atrofia_muscular', tipo: 'sg',
       opcoes: ['Ausente', 'Presente'] }
   ]
 };
+
+export const NIVEIS_MS = [
+  { key: 'acrom10',  label: '10 cm abaixo do acrómio' },
+  { key: 'cot_a10', label: '10 cm acima do cotovelo' },
+  { key: 'cot',     label: 'Cotovelo' },
+  { key: 'cot_b10', label: '10 cm abaixo do cotovelo' },
+  { key: 'pun_a10', label: '10 cm acima do punho' },
+  { key: 'pun',     label: 'Punho' },
+  { key: 'mao',     label: 'Mão' }
+];
+
+export const NIVEIS_MI = [
+  { key: 'vir_b10', label: '10 cm abaixo da virilha' },
+  { key: 'joe_a10', label: '10 cm acima do joelho' },
+  { key: 'joe',     label: 'Joelho' },
+  { key: 'joe_b10', label: '10 cm abaixo do joelho' },
+  { key: 'tor_a10', label: '10 cm acima do tornozelo' },
+  { key: 'tor',     label: 'Tornozelo' },
+  { key: 'pe',      label: 'Pé' }
+];
