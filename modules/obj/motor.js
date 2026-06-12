@@ -286,7 +286,14 @@ window.romSv = function (key, field, val) {
     }
   }
   _romState[key][field] = val;
+  const _ae = document.activeElement;
+  const _aeKey = _ae && _ae.dataset && _ae.dataset.key;
+  const _aeField = _ae && _ae.dataset && _ae.dataset.field;
   _romRenderTable();
+  if (_aeKey) {
+    const _r = document.querySelector('[data-key="' + _aeKey + '"][data-field="' + _aeField + '"]');
+    if (_r) _r.focus();
+  }
 };
 window.romGetState = function (key) { return _romState[key] || null; };
 window._romFillNormal = function () {
