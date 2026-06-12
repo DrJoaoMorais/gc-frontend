@@ -5,6 +5,7 @@ const REGIOES = ['cotovelo', 'ombro'];
 let _motorCfg = null;
 let _romState = {};
 let _romConfig = null;
+let _savedOnce = false;
 
 /* ════════ ENTRY ════════ */
 (async function () {
@@ -524,10 +525,27 @@ function _wireHandlers(cfg) {
     try { await navigator.clipboard.writeText(txt); } catch (e) {}
     const dataObj = typeof window._gerarData === 'function' ? window._gerarData() : {};
     const saved = window._saveExamToSupabase ? await window._saveExamToSupabase(txt, dataObj) : null;
-    btn.disabled = false;
-    btn.textContent = originalText;
-    if (saved !== false && toast) { toast.classList.add('show'); setTimeout(function () { toast.classList.remove('show'); }, 2200); }
+    if (saved !== false) {
+      _savedOnce = true;
+      btn.textContent = 'Guardado ✓';
+      btn.disabled = true;
+      if (toast) { toast.classList.add('show'); setTimeout(function () { toast.classList.remove('show'); }, 2200); }
+    } else {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
   });
+
+  function _markDirty() {
+    if (!_savedOnce) return;
+    _savedOnce = false;
+    const b = document.getElementById('btnCopy');
+    if (b) { b.disabled = false; b.textContent = 'Copiar & Guardar'; }
+  }
+  document.addEventListener('input', _markDirty, true);
+  document.addEventListener('click', function (e) {
+    if (e.target.classList.contains('opt') || e.target.classList.contains('sq-opt')) _markDirty();
+  }, true);
 }
 
 /* ════════ gerarData ════════ */
