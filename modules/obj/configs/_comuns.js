@@ -108,15 +108,11 @@ export const seccaoCicatriz = {
 export const seccaoAtrofia = {
   id: 'atrofia',
   label: 'Atrofia Muscular',
-  tipo: 'params',
+  tipo: 'grupos',
   notasKey: 'notas_atrofia',
   notasPlaceholder: 'Perimetria — ex.: 10 cm acima do olécrano: D 32 cm / E 34 cm',
-  params: [
-    {
-      label: 'Atrofia muscular',
-      key: 'atrofia_muscular',
-      tipo: 'sg',
-      opcoes: ['Ausente', 'Presente']
-    }
+  grupos: [
+    { label: 'Atrofia muscular', key: 'atrofia_muscular', tipo: 'sg',
+      opcoes: ['Ausente', 'Presente'] }
   ]
 };
