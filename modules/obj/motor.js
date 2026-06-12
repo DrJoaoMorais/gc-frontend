@@ -82,6 +82,7 @@ function _renderSec(sec, n) {
     case 'func':   return _renderFunc(sec, n);
     case 'rom':    return _renderRom(sec, n);
     case 'testes': return _renderTestes(sec, n);
+    case 'grupos': return _renderGrupos(sec, n);
     default: return '';
   }
 }
@@ -179,6 +180,25 @@ function _renderTestes(sec, n) {
   });
   if (sec.notas) h += '<textarea id="' + sec.notas + '" placeholder="Notas sobre testes…"></textarea>';
   return h + '</div>';
+}
+
+function _renderGrupos(sec, n) {
+  let html = `<div class="sec-card" id="sec-${sec.id}">
+    <h3 class="sec-titulo">${n}. ${sec.label}</h3>`;
+  sec.grupos.forEach(function (g) {
+    html += `<div class="param-row">
+      <span class="param-label">${g.label}</span>
+      <div class="chips-wrap" data-key="${g.key}" data-tipo="${g.tipo}">`;
+    g.opcoes.forEach(function (op) {
+      html += `<button type="button" class="chip${g.tipo === 'sg' ? ' chip-sg' : ' chip-mg'}" data-val="${op}">${op}</button>`;
+    });
+    html += `</div></div>`;
+  });
+  html += `<div class="param-row param-row--notas">
+    <textarea class="notas-field" data-notaskey="${sec.notasKey}"
+      placeholder="${sec.notasPlaceholder || ''}"></textarea>
+  </div></div>`;
+  return html;
 }
 
 /* ── ROM ── */
@@ -446,6 +466,29 @@ window._gerarData = function () {
         if (sec.notas) data[sec.notas] = rs(sec.notas);
         break;
       }
+      case 'grupos': {
+        const bloco = {};
+        sec.grupos.forEach(function (g) {
+          const wrap = document.querySelector(`#sec-${sec.id} [data-key="${g.key}"]`);
+          if (!wrap) return;
+          if (g.tipo === 'sg') {
+            const sel = wrap.querySelector('.chip.active');
+            bloco[g.key] = sel ? sel.dataset.val : null;
+          } else {
+            bloco[g.key] = Array.from(wrap.querySelectorAll('.chip.active')).map(function (c) { return c.dataset.val; });
+          }
+        });
+        const notasEl = document.querySelector(`#sec-${sec.id} [data-notaskey="${sec.notasKey}"]`);
+        const notasVal = notasEl ? notasEl.value.trim() : '';
+        // notas ao topo do payload
+        if (notasVal) data[sec.notasKey] = notasVal;
+        // só grava o bloco se tiver pelo menos um campo preenchido
+        const temDados = Object.values(bloco).some(function (v) {
+          return v !== null && !(Array.isArray(v) && v.length === 0);
+        });
+        if (temDados) data[sec.id] = bloco;
+        break;
+      }
     }
   });
 
@@ -560,6 +603,28 @@ window._gerarResumo = function () {
         });
         const notaT = sec.notas ? document.getElementById(sec.notas) : null;
         if (notaT && notaT.value.trim()) linhas.push('  Notas: ' + notaT.value.trim());
+        break;
+      }
+      case 'grupos': {
+        const notasEl = document.querySelector(`#sec-${sec.id} [data-notaskey="${sec.notasKey}"]`);
+        const notas = notasEl ? notasEl.value.trim() : '';
+        const temAlgo = sec.grupos.some(function (g) {
+          return document.querySelector(`#sec-${sec.id} [data-key="${g.key}"] .chip.active`);
+        });
+        if (!temAlgo && !notas) break;
+        linhas.push(`\n${sec.label.toUpperCase()}`);
+        sec.grupos.forEach(function (g) {
+          const wrap = document.querySelector(`#sec-${sec.id} [data-key="${g.key}"]`);
+          if (!wrap) return;
+          if (g.tipo === 'sg') {
+            const sel = wrap.querySelector('.chip.active');
+            if (sel) linhas.push(`  ${g.label}: ${sel.dataset.val}`);
+          } else {
+            const vals = Array.from(wrap.querySelectorAll('.chip.active')).map(function (c) { return c.dataset.val; });
+            if (vals.length) linhas.push(`  ${g.label}: ${vals.join(', ')}`);
+          }
+        });
+        if (notas) linhas.push(`  Notas: ${notas}`);
         break;
       }
     }

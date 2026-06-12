@@ -1,4 +1,6 @@
 /* Config de região — Cotovelo. Lida pelo motor.js. Só dados, zero lógica. */
+import { seccaoCicatriz, seccaoAtrofia } from './_comuns.js';
+
 export default {
   id: 'cotovelo',
   titulo: 'Cotovelo',
@@ -74,7 +76,9 @@ export default {
           {id:'tinel',label:'Tinel (goteira cubital)'}, {id:'flexsus',label:'Flexão sustentada cotovelo'} ]},
         { sub:'Bicípite distal', testes:[
           {id:'hook',label:'Hook test'} ]}
-      ]}
+      ]},
+    seccaoCicatriz,
+    seccaoAtrofia,
   ],
 
   dinamometria: {
