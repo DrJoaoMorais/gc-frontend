@@ -434,6 +434,10 @@ function _wireHandlers(cfg) {
     const originalText = btn.textContent;
     btn.disabled = true;
     btn.textContent = 'A guardar…';
+    if (_motorCfg && _motorCfg.lado && !document.querySelector('#lado .opt.sel')) {
+      const av = document.getElementById('aviso-lateral');
+      if (av) av.style.display = 'flex';
+    }
     const txt = typeof window._gerarResumo === 'function' ? window._gerarResumo() : '';
     const toast = document.getElementById('toast');
     try { await navigator.clipboard.writeText(txt); } catch (e) {}
