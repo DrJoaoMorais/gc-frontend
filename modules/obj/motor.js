@@ -14,7 +14,7 @@ let _romConfig = null;
     document.body.innerHTML = '<p style="padding:20px;color:#dc2626;font-weight:600">Região inválida: ' + r + '</p>';
     return;
   }
-  const config = (await import('./configs/' + r + '.js')).default;
+  const config = (await import('./configs/' + r + '.js?v=1')).default;
   window._examCtx = { patientId: qp.get('p') || null, clinicId: qp.get('c') || null, consultationId: qp.get('s') || null };
   _motorCfg = config;
   _renderPage(config);

@@ -1,5 +1,5 @@
 /* Config de região — Cotovelo. Lida pelo motor.js. Só dados, zero lógica. */
-import { seccaoCicatriz, seccaoAtrofia, NIVEIS_MS } from './_comuns.js';
+import { seccaoCicatriz, seccaoAtrofia, NIVEIS_MS } from './_comuns.js?v=1';
 
 export default {
   id: 'cotovelo',
