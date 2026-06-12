@@ -482,8 +482,9 @@ function _wireHandlers(cfg) {
   document.querySelectorAll('.opts.sg').forEach(function (grp) {
     grp.querySelectorAll('.opt').forEach(function (btn) {
       btn.addEventListener('click', function () {
+        const was = btn.classList.contains('sel');
         grp.querySelectorAll('.opt').forEach(function (b) { b.classList.remove('sel'); });
-        btn.classList.add('sel');
+        if (!was) btn.classList.add('sel');
       });
     });
   });
