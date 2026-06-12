@@ -137,13 +137,6 @@ export default {
       desc:   '10 itens · 1 = sem dificuldade · 5 = incapaz · Score 0–100 · 0 = sem incapacidade',
       optMin: 1, optMax: 5, score: 'dash',
       legend: '1 Sem dificuldade · 2 Ligeira · 3 Moderada · 4 Extrema · 5 Incapaz',
-      interp: [
-        { threshold: 20,  txt: 'Incapacidade mínima (0-20) — função praticamente normal' },
-        { threshold: 40,  txt: 'Incapacidade ligeira (21-40) — limitação em actividades exigentes' },
-        { threshold: 60,  txt: 'Incapacidade moderada (41-60) — limitação significativa nas AVD' },
-        { threshold: 80,  txt: 'Incapacidade grave (61-80) — grande dependência funcional' },
-        { threshold: 100, txt: 'Incapacidade muito grave (81-100) — incapacidade quase total' },
-      ],
       itens: [
         'Abrir um frasco (rosca)',
         'Escrever ou digitar',
@@ -164,12 +157,6 @@ export default {
       optMin: 0, optMax: 3, score: 'ases',
       evaInput: { id: 'ases_eva', label: 'Dor EVA 0–10', min: 0, max: 10, step: 0.5 },
       legend: 'Actividades: 0 Incapaz · 1 Dificuldade extrema · 2 Ligeira dificuldade · 3 Normal',
-      interp: [
-        { threshold: 80, txt: 'Boa / Excelente — função preservada, sem limitação significativa' },
-        { threshold: 60, txt: 'Satisfatório — limitação moderada em actividades exigentes' },
-        { threshold: 40, txt: 'Moderado — limitação marcada, impacto nas AVD' },
-        { threshold: 0,  txt: 'Fraco — incapacidade grave, limitação em actividades básicas' },
-      ],
       itens: [
         'Colocar um casaco',
         'Dormir sobre o lado afectado',
