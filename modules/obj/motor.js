@@ -425,16 +425,16 @@ function _wireEscalas(escalas) {
       if (esc.score === 'ases') {
         const evaEl = esc.evaInput ? document.getElementById(esc.evaInput.id) : null;
         const evaVal = evaEl && evaEl.value !== '' ? parseFloat(evaEl.value) : null;
-        const pain = (evaVal !== null && !isNaN(evaVal)) ? 50 * (1 - evaVal / 10) : null;
-        const func = filled.length ? 50 * (filled.reduce(function (a, b) { return a + b; }, 0) / 30) : null;
-        if (pain === null && func === null) {
+        if (evaVal === null || isNaN(evaVal)) {
           scoreEl.textContent = '—';
-          if (interpEl) interpEl.textContent = '';
+          if (interpEl) interpEl.textContent = 'componente de dor em falta';
           return;
         }
-        const score = Math.round((pain || 0) + (func || 0));
-        scoreEl.textContent = score;
-        if (interpEl) interpEl.textContent = _interpScore(esc, score);
+        const pain = (10 - evaVal) * 5;
+        const func = filled.length ? (filled.reduce(function (a, b) { return a + b; }, 0) / 30) * 50 : 0;
+        const score = Math.round(pain + func);
+        scoreEl.textContent = score + '/100';
+        if (interpEl) interpEl.textContent = '';
         return;
       }
 
