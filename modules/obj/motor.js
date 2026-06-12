@@ -183,22 +183,17 @@ function _renderTestes(sec, n) {
 }
 
 function _renderGrupos(sec, n) {
-  let html = `<div class="sec-card" id="sec-${sec.id}">
-    <h3 class="sec-titulo">${n}. ${sec.label}</h3>`;
+  let h = '<div class="sec" id="sec-' + sec.id + '"><div class="sec-title">' + n + ' · ' + sec.label + '</div>';
   sec.grupos.forEach(function (g) {
-    html += `<div class="param-row">
-      <span class="param-label">${g.label}</span>
-      <div class="chips-wrap" data-key="${g.key}" data-tipo="${g.tipo}">`;
+    h += '<div class="gl">' + g.label + '</div>';
+    h += '<div class="opts ' + (g.tipo === 'sg' ? 'sg' : 'mg') + '" data-key="' + g.key + '">';
     g.opcoes.forEach(function (op) {
-      html += `<button type="button" class="chip${g.tipo === 'sg' ? ' chip-sg' : ' chip-mg'}" data-val="${op}">${op}</button>`;
+      h += '<div class="opt" data-v="' + op + '">' + op + '</div>';
     });
-    html += `</div></div>`;
+    h += '</div>';
   });
-  html += `<div class="param-row param-row--notas">
-    <textarea class="notas-field" data-notaskey="${sec.notasKey}"
-      placeholder="${sec.notasPlaceholder || ''}"></textarea>
-  </div></div>`;
-  return html;
+  if (sec.notasKey) h += '<textarea id="' + sec.notasKey + '" placeholder="' + (sec.notasPlaceholder || '') + '"></textarea>';
+  return h + '</div>';
 }
 
 /* ── ROM ── */
@@ -469,20 +464,18 @@ window._gerarData = function () {
       case 'grupos': {
         const bloco = {};
         sec.grupos.forEach(function (g) {
-          const wrap = document.querySelector(`#sec-${sec.id} [data-key="${g.key}"]`);
+          const wrap = document.querySelector('#sec-' + sec.id + ' [data-key="' + g.key + '"]');
           if (!wrap) return;
           if (g.tipo === 'sg') {
-            const sel = wrap.querySelector('.chip.active');
-            bloco[g.key] = sel ? sel.dataset.val : null;
+            const sel = wrap.querySelector('.opt.sel');
+            bloco[g.key] = sel ? sel.dataset.v : null;
           } else {
-            bloco[g.key] = Array.from(wrap.querySelectorAll('.chip.active')).map(function (c) { return c.dataset.val; });
+            bloco[g.key] = Array.from(wrap.querySelectorAll('.opt.sel')).map(function (c) { return c.dataset.v; });
           }
         });
-        const notasEl = document.querySelector(`#sec-${sec.id} [data-notaskey="${sec.notasKey}"]`);
+        const notasEl = sec.notasKey ? document.getElementById(sec.notasKey) : null;
         const notasVal = notasEl ? notasEl.value.trim() : '';
-        // notas ao topo do payload
         if (notasVal) data[sec.notasKey] = notasVal;
-        // só grava o bloco se tiver pelo menos um campo preenchido
         const temDados = Object.values(bloco).some(function (v) {
           return v !== null && !(Array.isArray(v) && v.length === 0);
         });
@@ -606,25 +599,25 @@ window._gerarResumo = function () {
         break;
       }
       case 'grupos': {
-        const notasEl = document.querySelector(`#sec-${sec.id} [data-notaskey="${sec.notasKey}"]`);
+        const notasEl = sec.notasKey ? document.getElementById(sec.notasKey) : null;
         const notas = notasEl ? notasEl.value.trim() : '';
         const temAlgo = sec.grupos.some(function (g) {
-          return document.querySelector(`#sec-${sec.id} [data-key="${g.key}"] .chip.active`);
+          return document.querySelector('#sec-' + sec.id + ' [data-key="' + g.key + '"] .opt.sel');
         });
         if (!temAlgo && !notas) break;
-        linhas.push(`\n${sec.label.toUpperCase()}`);
+        linhas.push('\n' + sec.label.toUpperCase());
         sec.grupos.forEach(function (g) {
-          const wrap = document.querySelector(`#sec-${sec.id} [data-key="${g.key}"]`);
+          const wrap = document.querySelector('#sec-' + sec.id + ' [data-key="' + g.key + '"]');
           if (!wrap) return;
           if (g.tipo === 'sg') {
-            const sel = wrap.querySelector('.chip.active');
-            if (sel) linhas.push(`  ${g.label}: ${sel.dataset.val}`);
+            const sel = wrap.querySelector('.opt.sel');
+            if (sel) linhas.push('  ' + g.label + ': ' + sel.dataset.v);
           } else {
-            const vals = Array.from(wrap.querySelectorAll('.chip.active')).map(function (c) { return c.dataset.val; });
-            if (vals.length) linhas.push(`  ${g.label}: ${vals.join(', ')}`);
+            const vals = Array.from(wrap.querySelectorAll('.opt.sel')).map(function (c) { return c.dataset.v; });
+            if (vals.length) linhas.push('  ' + g.label + ': ' + vals.join(', '));
           }
         });
-        if (notas) linhas.push(`  Notas: ${notas}`);
+        if (notas) linhas.push('  Notas: ' + notas);
         break;
       }
     }
