@@ -512,10 +512,10 @@ function _wireHandlers(cfg) {
     const toast = document.getElementById('toast');
     try { await navigator.clipboard.writeText(txt); } catch (e) {}
     const dataObj = typeof window._gerarData === 'function' ? window._gerarData() : {};
-    if (window._saveExamToSupabase) await window._saveExamToSupabase(txt, dataObj);
+    const saved = window._saveExamToSupabase ? await window._saveExamToSupabase(txt, dataObj) : null;
     btn.disabled = false;
     btn.textContent = originalText;
-    if (toast) { toast.classList.add('show'); setTimeout(function () { toast.classList.remove('show'); }, 2200); }
+    if (saved !== false && toast) { toast.classList.add('show'); setTimeout(function () { toast.classList.remove('show'); }, 2200); }
   });
 }
 
@@ -1175,9 +1175,13 @@ function _calcDynAF2(data, dynCfg) {
 window._saveExamToSupabase = async function (txt, dataObj) {
   const c = window._examCtx || {};
   if (!c.consultationId) return;
+  const sb = window.opener && window.opener.sb;
+  if (!sb) {
+    const te = document.getElementById('toast-err');
+    if (te) te.classList.add('show');
+    return false;
+  }
   try {
-    const sb = window.opener && window.opener.sb;
-    if (!sb) return;
     const userRes = await sb.auth.getUser();
     const authorId = userRes && userRes.data && userRes.data.user ? userRes.data.user.id : null;
     const payload = Object.assign({ resumo: txt }, dataObj || {});

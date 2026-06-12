@@ -30,6 +30,8 @@ textarea{resize:vertical;min-height:56px;line-height:1.5}
 .btn-pdf{padding:9px 22px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#475569;font-size:13px;cursor:pointer}
 #toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#0f6e56;color:#fff;padding:9px 20px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200}
 #toast.show{opacity:1}
+#toast-err{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#c53030;color:#fff;padding:10px 22px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;z-index:200;text-align:center;max-width:340px;line-height:1.4;font-weight:600}
+#toast-err.show{opacity:1;pointer-events:auto}
 #aviso-lateral{position:fixed;bottom:62px;left:50%;transform:translateX(-50%);max-width:560px;width:calc(100% - 32px);background:#fffbeb;border:1.5px solid #f59e0b;border-radius:10px;color:#92400e;font-size:13px;font-weight:500;padding:11px 14px;z-index:201;box-shadow:0 4px 16px rgba(0,0,0,.12);align-items:flex-start;gap:10px;}
 #aviso-lateral-close{background:none;border:none;font-size:20px;line-height:1;cursor:pointer;color:#92400e;padding:0;flex-shrink:0;margin-top:-1px;}
 @media print{.bar-acoes,#toast,#aviso-lateral{display:none!important}.page{padding-bottom:16px}}
@@ -121,6 +123,7 @@ textarea{width:100%;border:1px solid #e2e8f0;border-radius:7px;padding:4px 7px;f
   <div id="tab-escalas" class="ob-tab-content"></div>
 </div>
 <div id="toast">&#10003; Guardado</div>
+<div id="toast-err">&#9888; N&#xC3;O GRAVADO &#8212; abre o exame a partir da consulta</div>
 <div id="aviso-lateral" style="display:none">
   <span>&#9888; Atenção: nenhum lado seleccionado. Para relatórios médico-legais a lateralidade é obrigatória.</span>
   <button id="aviso-lateral-close" onclick="document.getElementById('aviso-lateral').style.display='none'">×</button>
