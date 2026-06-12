@@ -383,12 +383,18 @@ function _wireHandlers(cfg) {
   if (btnPdf) btnPdf.addEventListener('click', function () { window.print(); });
   const btnCopy = document.getElementById('btnCopy');
   if (btnCopy) btnCopy.addEventListener('click', async function () {
+    const btn = this;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'A guardar…';
     const txt = typeof window._gerarResumo === 'function' ? window._gerarResumo() : '';
     const toast = document.getElementById('toast');
     try { await navigator.clipboard.writeText(txt); } catch (e) {}
-    if (toast) { toast.classList.add('show'); setTimeout(function () { toast.classList.remove('show'); }, 2200); }
     const dataObj = typeof window._gerarData === 'function' ? window._gerarData() : {};
     if (window._saveExamToSupabase) await window._saveExamToSupabase(txt, dataObj);
+    btn.disabled = false;
+    btn.textContent = originalText;
+    if (toast) { toast.classList.add('show'); setTimeout(function () { toast.classList.remove('show'); }, 2200); }
   });
 }
 
