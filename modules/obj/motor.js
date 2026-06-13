@@ -4,7 +4,7 @@ const REGIOES = ['cotovelo', 'ombro'];
 
 let _motorCfg = null;
 let _romState = {};
-let _romConfig = null;
+let _romConfigs = {};
 let _savedOnce = false;
 
 /* ════════ ENTRY ════════ */
@@ -146,11 +146,11 @@ function _renderFunc(sec, n) {
 
 function _renderRom(sec, n) {
   sec.movimentos.forEach(function (m) { _romState[m.key] = { a: null, p: null }; });
-  _romConfig = sec;
+  _romConfigs[sec.id] = sec;
   let h = '<div class="sec">';
   h += '<div class="sec-title" style="display:flex;justify-content:space-between;align-items:center">' +
        n + ' · ' + sec.titulo +
-       '<button onclick="window._romFillNormal()" style="font-size:10px;padding:3px 9px;border:1px solid #1a56db;border-radius:5px;background:#fff;color:#1a56db;cursor:pointer;font-weight:600;">Amplitudes normais</button>' +
+       '<button onclick="window._romFillNormal(\'' + sec.id + '\')" style="font-size:10px;padding:3px 9px;border:1px solid #1a56db;border-radius:5px;background:#fff;color:#1a56db;cursor:pointer;font-weight:600;">Amplitudes normais</button>' +
        '</div>';
   h += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">' +
        '<thead style="background:#0f2d52"><tr>' +
@@ -162,7 +162,7 @@ function _renderRom(sec, n) {
        '<th style="color:white;padding:8px;font-weight:500;font-size:11px">% Normal</th>' +
        '<th style="color:white;padding:8px;font-weight:500;font-size:11px">Défice activo</th>' +
        '<th style="color:white;padding:8px;font-weight:500;font-size:11px">Défice passivo</th>' +
-       '</tr></thead><tbody id="rom-tbody"></tbody></table></div>';
+       '</tr></thead><tbody id="rom-tbody-' + sec.id + '"></tbody></table></div>';
   if (sec.notas) h += '<textarea id="' + sec.notas + '" placeholder="End-feel, dor em arco, crepitação…"></textarea>';
   return h + '</div>';
 }
@@ -230,10 +230,11 @@ window._perimCalc = function (secId, key) {
 };
 
 /* ── ROM ── */
-function _romRenderTable() {
-  const tb = document.getElementById('rom-tbody');
-  if (!tb || !_romConfig) return;
-  tb.innerHTML = _romConfig.movimentos.map(function (m) {
+function _romRenderTable(secId) {
+  const tb = document.getElementById('rom-tbody-' + secId);
+  const cfg = _romConfigs[secId];
+  if (!tb || !cfg) return;
+  tb.innerHTML = cfg.movimentos.map(function (m) {
     const s = _romState[m.key] || { a: null, p: null };
     const aC = (s.a !== null && m.normal > 0 && s.a / m.normal < 0.85) ? '#e53e3e' : '#1a56db';
     const dAP = (s.a !== null && s.p !== null) ? s.a - s.p : null;
@@ -273,8 +274,12 @@ function _romRenderTable() {
 
 window.romSv = function (key, field, val) {
   if (!_romState[key]) _romState[key] = { a: null, p: null };
-  if (val !== null && _romConfig) {
-    const m = _romConfig.movimentos.find(function (mv) { return mv.key === key; });
+  let ownerSecId = null;
+  Object.keys(_romConfigs).forEach(function (sid) {
+    if (_romConfigs[sid].movimentos.find(function (mv) { return mv.key === key; })) ownerSecId = sid;
+  });
+  if (val !== null && ownerSecId) {
+    const m = _romConfigs[ownerSecId].movimentos.find(function (mv) { return mv.key === key; });
     if (m && (val < m.min || val > m.max)) {
       const inp = document.querySelector('[data-key="' + key + '"][data-field="' + field + '"]');
       if (inp) {
@@ -289,17 +294,18 @@ window.romSv = function (key, field, val) {
   const _ae = document.activeElement;
   const _aeKey = _ae && _ae.dataset && _ae.dataset.key;
   const _aeField = _ae && _ae.dataset && _ae.dataset.field;
-  _romRenderTable();
+  if (ownerSecId) _romRenderTable(ownerSecId);
   if (_aeKey) {
     const _r = document.querySelector('[data-key="' + _aeKey + '"][data-field="' + _aeField + '"]');
     if (_r) _r.focus();
   }
 };
 window.romGetState = function (key) { return _romState[key] || null; };
-window._romFillNormal = function () {
-  if (!_romConfig) return;
-  _romConfig.movimentos.forEach(function (m) { _romState[m.key] = { a: m.normal, p: m.normal }; });
-  _romRenderTable();
+window._romFillNormal = function (secId) {
+  const cfg = _romConfigs[secId];
+  if (!cfg) return;
+  cfg.movimentos.forEach(function (m) { _romState[m.key] = { a: m.normal, p: m.normal }; });
+  _romRenderTable(secId);
 };
 
 /* ── DINAMOMETRIA ── */
@@ -590,7 +596,7 @@ window._gerarData = function () {
           romObj[m.key + '_a'] = s ? s.a : null;
           romObj[m.key + '_p'] = s ? s.p : null;
         });
-        data.rom = romObj;
+        data[sec.id] = romObj;
         if (sec.notas) data[sec.notas] = rs(sec.notas);
         break;
       }
