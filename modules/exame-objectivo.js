@@ -770,6 +770,15 @@ window.getRF=getRF;
     return;
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     PUNHO / MÃO — motor genérico
+  ══════════════════════════════════════════════════════════════ */
+  if (formId === "punho") {
+    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
+    window.open('/modules/obj/regiao.html?r=punho-mao&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
+    return;
+  }
+
   if (formId === "_cotovelo_old_unused") {
     _abrirBlob(`<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
 <title>Exame Objectivo — Cotovelo</title><style>${_mskCss}</style></head><body>
