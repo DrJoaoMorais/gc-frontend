@@ -56,7 +56,7 @@ function _renderPage(cfg) {
     cfg.seccoes.forEach(function (sec) {
       sNum++;
       const h = _renderSec(sec, sNum);
-      if (sec.col === 'dir' || sec.tipo === 'rom' || sec.tipo === 'testes') rightH += h;
+      if (sec.col === 'dir' || sec.tipo === 'rom' || sec.tipo === 'testes' || sec.tipo === 'kapandji') rightH += h;
       else leftH += h;
     });
     tabExame.innerHTML = '<div class="two-col"><div class="col-scroll">' + leftH + '</div><div class="col-scroll">' + rightH + '</div></div>';
@@ -82,8 +82,9 @@ function _renderSec(sec, n) {
     case 'mrc':    return _renderMrc(sec, n);
     case 'func':   return _renderFunc(sec, n);
     case 'rom':    return _renderRom(sec, n);
-    case 'testes': return _renderTestes(sec, n);
-    case 'grupos': return _renderGrupos(sec, n);
+    case 'testes':   return _renderTestes(sec, n);
+    case 'kapandji': return _renderKapandji(sec, n);
+    case 'grupos':   return _renderGrupos(sec, n);
     default: return '';
   }
 }
@@ -180,6 +181,25 @@ function _renderTestes(sec, n) {
     });
   });
   if (sec.notas) h += '<textarea id="' + sec.notas + '" placeholder="Notas sobre testes…"></textarea>';
+  return h + '</div>';
+}
+
+function _renderKapandji(sec, n) {
+  const niveis = sec.niveis || [];
+  let h = '<div class="sec"><div class="sec-title">' + n + ' · ' + sec.titulo + '</div>';
+  h += '<table class="rom-tbl" style="width:100%"><thead><tr>';
+  h += '<th style="width:36px">Nív.</th><th>Descrição</th>';
+  h += '<th style="width:48px;text-align:center">D</th>';
+  h += '<th style="width:48px;text-align:center">E</th></tr></thead><tbody>';
+  niveis.forEach(function (desc, i) {
+    h += '<tr><td style="text-align:center;font-weight:600">' + i + '</td>';
+    h += '<td>' + desc + '</td>';
+    h += '<td style="text-align:center"><input type="radio" name="kap_d_' + n + '" value="' + i + '"></td>';
+    h += '<td style="text-align:center"><input type="radio" name="kap_e_' + n + '" value="' + i + '"></td>';
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  if (sec.notas) h += '<textarea id="' + sec.notas + '" placeholder="Notas…" style="margin-top:6px"></textarea>';
   return h + '</div>';
 }
 
@@ -465,6 +485,18 @@ function _wireEscalas(escalas) {
         return;
       }
 
+      if (esc.score === 'prwe') {
+        const pain = vals.slice(0, 5).filter(function (v) { return v !== null; });
+        const func = vals.slice(5).filter(function (v) { return v !== null; });
+        if (!pain.length && !func.length) { scoreEl.textContent = '—'; if (interpEl) interpEl.textContent = ''; return; }
+        const painScore = pain.length ? pain.reduce(function (a, b) { return a + b; }, 0) : 0;
+        const funcScore = func.length ? func.reduce(function (a, b) { return a + b; }, 0) / 2 : 0;
+        const score = Math.round(painScore + funcScore);
+        scoreEl.textContent = score + '/100';
+        if (interpEl) interpEl.textContent = _interpScore(esc, score);
+        return;
+      }
+
       if (!filled.length) {
         scoreEl.textContent = '—';
         if (interpEl) interpEl.textContent = '';
@@ -508,7 +540,7 @@ function _wireHandlers(cfg) {
       btn.addEventListener('click', function () { btn.classList.toggle('sel'); });
     });
   });
-  if (cfg.seccoes.find(function (s) { return s.tipo === 'rom'; })) _romRenderTable();
+  Object.keys(_romConfigs).forEach(function (sid) { _romRenderTable(sid); });
   if (cfg.tabs && cfg.tabs.escalas) _wireEscalas(cfg.escalas);
   if (cfg.dinamometria && cfg.dinamometria.af2) _wireDinAF2(cfg.dinamometria);
 
