@@ -258,12 +258,14 @@ function _romRenderTable(secId) {
         ' value="' + (s.a !== null ? s.a : '') + '" placeholder="—"' +
         ' style="width:52px;text-align:center;font-size:12px;font-weight:600;color:' + aC + ';border:0.5px solid ' + aC + '44;border-radius:4px;padding:2px 4px;background:transparent"' +
         ' data-key="' + m.key + '" data-field="a"' +
-        ' oninput="window.romSv(this.dataset.key,this.dataset.field,this.value===\'\'?null:+this.value)"></td>' +
+        ' oninput="window.romSv(this.dataset.key,this.dataset.field,this.value===\'\'?null:+this.value)"' +
+        ' onchange="window.romCommit(this.dataset.key)"></td>' +
       '<td style="text-align:center"><input type="number" min="' + m.min + '" max="' + m.max + '" step="1"' +
         ' value="' + (s.p !== null ? s.p : '') + '" placeholder="—"' +
         ' style="width:52px;text-align:center;font-size:12px;font-weight:600;color:#38a169;border:0.5px solid #38a16944;border-radius:4px;padding:2px 4px;background:transparent"' +
         ' data-key="' + m.key + '" data-field="p"' +
-        ' oninput="window.romSv(this.dataset.key,this.dataset.field,this.value===\'\'?null:+this.value)"></td>' +
+        ' oninput="window.romSv(this.dataset.key,this.dataset.field,this.value===\'\'?null:+this.value)"' +
+        ' onchange="window.romCommit(this.dataset.key)"></td>' +
       '<td style="color:' + dAPColor + ';font-weight:500;text-align:center">' + dAPStr + '</td>' +
       '<td style="text-align:center;color:#64748b">' + (m.normal > 0 ? m.normal + '°' : '0°') + '</td>' +
       (m.normal > 0 ? pctCell : '<td style="text-align:center;color:#94a3b8">—</td>') +
@@ -291,14 +293,13 @@ window.romSv = function (key, field, val) {
     }
   }
   _romState[key][field] = val;
-  const _ae = document.activeElement;
-  const _aeKey = _ae && _ae.dataset && _ae.dataset.key;
-  const _aeField = _ae && _ae.dataset && _ae.dataset.field;
+};
+window.romCommit = function (key) {
+  let ownerSecId = null;
+  Object.keys(_romConfigs).forEach(function (sid) {
+    if (_romConfigs[sid].movimentos.find(function (mv) { return mv.key === key; })) ownerSecId = sid;
+  });
   if (ownerSecId) _romRenderTable(ownerSecId);
-  if (_aeKey) {
-    const _r = document.querySelector('[data-key="' + _aeKey + '"][data-field="' + _aeField + '"]');
-    if (_r) _r.focus();
-  }
 };
 window.romGetState = function (key) { return _romState[key] || null; };
 window._romFillNormal = function (secId) {
