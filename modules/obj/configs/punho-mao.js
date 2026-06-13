@@ -69,33 +69,49 @@ export default {
         { key:'pun_sup',    label:'Supinação',             normal:85, min:0, max:90 }
       ]},
 
-    { tipo:'rom', id:'rom_dedos', titulo:'Dedos 2.º–5.º — Amplitudes', notas:'notas_rom_dedos',
+    { tipo:'rom', id:'rom_ind', titulo:'Indicador (2.º dedo) — Amplitudes', notas:'notas_rom_ind',
       movimentos:[
-        { key:'ind_mcf_flex', label:'Indicador MCF — Flexão',   normal:90,  min:0, max:100 },
-        { key:'ind_mcf_ext',  label:'Indicador MCF — Extensão', normal:0,   min:0, max:30  },
-        { key:'ind_ifp_flex', label:'Indicador IFP — Flexão',   normal:100, min:0, max:120 },
-        { key:'ind_ifp_ext',  label:'Indicador IFP — Extensão', normal:0,   min:0, max:10  },
-        { key:'ind_ifd_flex', label:'Indicador IFD — Flexão',   normal:70,  min:0, max:90  },
-        { key:'ind_ifd_ext',  label:'Indicador IFD — Extensão', normal:0,   min:0, max:10  },
-        { key:'med_mcf_flex', label:'Médio MCF — Flexão',       normal:90,  min:0, max:100 },
-        { key:'med_mcf_ext',  label:'Médio MCF — Extensão',     normal:0,   min:0, max:30  },
-        { key:'med_ifp_flex', label:'Médio IFP — Flexão',       normal:100, min:0, max:120 },
-        { key:'med_ifp_ext',  label:'Médio IFP — Extensão',     normal:0,   min:0, max:10  },
-        { key:'med_ifd_flex', label:'Médio IFD — Flexão',       normal:70,  min:0, max:90  },
-        { key:'med_ifd_ext',  label:'Médio IFD — Extensão',     normal:0,   min:0, max:10  },
-        { key:'an_mcf_flex',  label:'Anelar MCF — Flexão',      normal:90,  min:0, max:100 },
-        { key:'an_mcf_ext',   label:'Anelar MCF — Extensão',    normal:0,   min:0, max:30  },
-        { key:'an_ifp_flex',  label:'Anelar IFP — Flexão',      normal:100, min:0, max:120 },
-        { key:'an_ifp_ext',   label:'Anelar IFP — Extensão',    normal:0,   min:0, max:10  },
-        { key:'an_ifd_flex',  label:'Anelar IFD — Flexão',      normal:70,  min:0, max:90  },
-        { key:'an_ifd_ext',   label:'Anelar IFD — Extensão',    normal:0,   min:0, max:10  },
-        { key:'min_mcf_flex', label:'Mínimo MCF — Flexão',      normal:90,  min:0, max:100 },
-        { key:'min_mcf_ext',  label:'Mínimo MCF — Extensão',    normal:0,   min:0, max:30  },
-        { key:'min_ifp_flex', label:'Mínimo IFP — Flexão',      normal:100, min:0, max:120 },
-        { key:'min_ifp_ext',  label:'Mínimo IFP — Extensão',    normal:0,   min:0, max:10  },
-        { key:'min_ifd_flex', label:'Mínimo IFD — Flexão',      normal:70,  min:0, max:90  },
-        { key:'min_ifd_ext',  label:'Mínimo IFD — Extensão',    normal:0,   min:0, max:10  },
-        { key:'ponta_palma',  label:'Ponta–palma (cm)',          normal:0,   min:0, max:20  }
+        { key:'ind_mcf_flex', label:'MCF — Flexão',   normal:90,  min:0, max:100 },
+        { key:'ind_mcf_ext',  label:'MCF — Extensão', normal:0,   min:0, max:30  },
+        { key:'ind_ifp_flex', label:'IFP — Flexão',   normal:100, min:0, max:120 },
+        { key:'ind_ifp_ext',  label:'IFP — Extensão', normal:0,   min:0, max:10  },
+        { key:'ind_ifd_flex', label:'IFD — Flexão',   normal:70,  min:0, max:90  },
+        { key:'ind_ifd_ext',  label:'IFD — Extensão', normal:0,   min:0, max:10  }
+      ]},
+
+    { tipo:'rom', id:'rom_med', titulo:'Médio (3.º dedo) — Amplitudes', notas:'notas_rom_med',
+      movimentos:[
+        { key:'med_mcf_flex', label:'MCF — Flexão',   normal:90,  min:0, max:100 },
+        { key:'med_mcf_ext',  label:'MCF — Extensão', normal:0,   min:0, max:30  },
+        { key:'med_ifp_flex', label:'IFP — Flexão',   normal:100, min:0, max:120 },
+        { key:'med_ifp_ext',  label:'IFP — Extensão', normal:0,   min:0, max:10  },
+        { key:'med_ifd_flex', label:'IFD — Flexão',   normal:70,  min:0, max:90  },
+        { key:'med_ifd_ext',  label:'IFD — Extensão', normal:0,   min:0, max:10  }
+      ]},
+
+    { tipo:'rom', id:'rom_an', titulo:'Anelar (4.º dedo) — Amplitudes', notas:'notas_rom_an',
+      movimentos:[
+        { key:'an_mcf_flex',  label:'MCF — Flexão',   normal:90,  min:0, max:100 },
+        { key:'an_mcf_ext',   label:'MCF — Extensão', normal:0,   min:0, max:30  },
+        { key:'an_ifp_flex',  label:'IFP — Flexão',   normal:100, min:0, max:120 },
+        { key:'an_ifp_ext',   label:'IFP — Extensão', normal:0,   min:0, max:10  },
+        { key:'an_ifd_flex',  label:'IFD — Flexão',   normal:70,  min:0, max:90  },
+        { key:'an_ifd_ext',   label:'IFD — Extensão', normal:0,   min:0, max:10  }
+      ]},
+
+    { tipo:'rom', id:'rom_min', titulo:'Mínimo (5.º dedo) — Amplitudes', notas:'notas_rom_min',
+      movimentos:[
+        { key:'min_mcf_flex', label:'MCF — Flexão',   normal:90,  min:0, max:100 },
+        { key:'min_mcf_ext',  label:'MCF — Extensão', normal:0,   min:0, max:30  },
+        { key:'min_ifp_flex', label:'IFP — Flexão',   normal:100, min:0, max:120 },
+        { key:'min_ifp_ext',  label:'IFP — Extensão', normal:0,   min:0, max:10  },
+        { key:'min_ifd_flex', label:'IFD — Flexão',   normal:70,  min:0, max:90  },
+        { key:'min_ifd_ext',  label:'IFD — Extensão', normal:0,   min:0, max:10  }
+      ]},
+
+    { tipo:'rom', id:'rom_mao', titulo:'Mão — Avaliação Global', notas:'notas_rom_mao',
+      movimentos:[
+        { key:'ponta_palma',  label:'Ponta–palma (cm)', normal:0, min:0, max:20 }
       ]},
 
     { tipo:'rom', id:'rom_polegar', titulo:'Polegar — Amplitudes', notas:'notas_rom_pol',
