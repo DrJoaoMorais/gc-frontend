@@ -779,6 +779,15 @@ window.getRF=getRF;
     return;
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     ANCA — motor genérico
+  ══════════════════════════════════════════════════════════════ */
+  if (formId === "anca") {
+    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
+    window.open('/modules/obj/regiao.html?r=anca&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
+    return;
+  }
+
   if (formId === "_cotovelo_old_unused") {
     _abrirBlob(`<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
 <title>Exame Objectivo — Cotovelo</title><style>${_mskCss}</style></head><body>
@@ -980,98 +989,6 @@ return L.join('\\n');
   /* ══════════════════════════════════════════════════════════════
      ANCA
   ══════════════════════════════════════════════════════════════ */
-  if (formId === "anca") {
-    _abrirBlob(`<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
-<title>Exame Objectivo — Anca</title><style>${_mskCss}</style></head><body>
-<div class="page">
-<h1>Exame Objectivo — Anca</h1>
-<div class="subtitle">Clique nas opções · Copie para a consulta no final</div>
-
-<div class="sec">
-  <div class="sec-title"><div class="num">1</div>Lateralidade &amp; Dor</div>
-  <div class="cols2">
-    <div><div class="gl">Anca avaliada</div><div class="opts sg" id="lado"><div class="opt" data-v="Direita">Direita</div><div class="opt" data-v="Esquerda">Esquerda</div><div class="opt" data-v="Bilateral">Bilateral</div></div></div>
-    <div><div class="gl">Tipo de dor</div><div class="opts sg" id="tipo_dor"><div class="opt" data-v="Mecânica">Mecânica</div><div class="opt" data-v="Inflamatória">Inflamatória</div><div class="opt" data-v="Neuropática">Neuropática</div></div></div>
-  </div>
-  <div class="sub-title" style="margin-top:14px">EVA</div>
-  <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
-    <div class="eva-row"><span class="eva-lbl">Repouso</span>${_evaOpts("eva_rep")}</div>
-    <div class="eva-row"><span class="eva-lbl">Actividade</span>${_evaOpts("eva_act")}</div>
-    <div class="eva-row"><span class="eva-lbl">Pico máximo</span>${_evaOpts("eva_pic")}</div>
-  </div>
-  <div style="margin-top:12px"><div class="gl">Localização da dor</div>
-    <div class="opts mg" id="local_dor"><div class="opt" data-v="Virilha">Virilha</div><div class="opt" data-v="Face lateral — grande trocânter">Trocânter</div><div class="opt" data-v="Face posterior — glúteo">Glúteo</div><div class="opt" data-v="Irradiação coxa">Irradiação coxa</div></div>
-  </div>
-</div>
-
-<div class="sec">
-  <div class="sec-title"><div class="num">2</div>Inspeção &amp; Marcha</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Marcha</div><div class="opts sg" id="marcha"><div class="opt" data-v="Normal">Normal</div><div class="opt" data-v="Claudicação álgica">Claudicação álgica</div><div class="opt" data-v="Trendelenburg">Trendelenburg</div><div class="opt" data-v="Antálgica">Antálgica</div></div></div>
-    <div class="param-row"><div class="param-label">Sinal de Trendelenburg</div><div class="opts sg" id="trend"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-    <div class="param-row"><div class="param-label">Discrepância membros</div><div class="opts sg" id="discr"><div class="opt" data-v="Sem discrepância">Sem discrepância</div><div class="opt" data-v="Encurtamento aparente">Encurtamento aparente</div><div class="opt" data-v="Encurtamento real">Encurtamento real</div></div></div>
-  </div>
-</div>
-
-<div class="sec">
-  <div class="sec-title"><div class="num">3</div>Mobilidade</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Flexão (ref: 120°)</div><div class="opts sg" id="mob_flex"><div class="opt" data-v="Completa">Completa</div><div class="opt" data-v="Limitada c/ dor">Limitada c/ dor</div><div class="opt" data-v="Limitada s/ dor">Limitada s/ dor</div></div></div>
-    <div class="param-row"><div class="param-label">Extensão (ref: 20°)</div><div class="opts sg" id="mob_ext"><div class="opt" data-v="Completa">Completa</div><div class="opt" data-v="Limitada c/ dor">Limitada c/ dor</div><div class="opt" data-v="Limitada s/ dor">Limitada s/ dor</div></div></div>
-    <div class="param-row"><div class="param-label">Abdução (ref: 45°)</div><div class="opts sg" id="mob_abd"><div class="opt" data-v="Completa">Completa</div><div class="opt" data-v="Limitada c/ dor">Limitada c/ dor</div><div class="opt" data-v="Limitada s/ dor">Limitada s/ dor</div></div></div>
-    <div class="param-row"><div class="param-label">Adução (ref: 30°)</div><div class="opts sg" id="mob_adu"><div class="opt" data-v="Completa">Completa</div><div class="opt" data-v="Limitada c/ dor">Limitada c/ dor</div></div></div>
-    <div class="param-row"><div class="param-label">Rotação interna (ref: 45°)</div><div class="opts sg" id="mob_ri"><div class="opt" data-v="Completa">Completa</div><div class="opt" data-v="Limitada c/ dor">Limitada c/ dor</div><div class="opt" data-v="Limitada s/ dor">Limitada s/ dor</div></div></div>
-    <div class="param-row"><div class="param-label">Rotação externa (ref: 45°)</div><div class="opts sg" id="mob_re"><div class="opt" data-v="Completa">Completa</div><div class="opt" data-v="Limitada c/ dor">Limitada c/ dor</div><div class="opt" data-v="Limitada s/ dor">Limitada s/ dor</div></div></div>
-  </div>
-</div>
-
-<div class="sec">
-  <div class="sec-title"><div class="num">4</div>Testes Específicos</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">FABER (Patrick)</div><div class="opts sg" id="t_faber"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo — dor virilha">Pos. virilha</div><div class="opt" data-v="Positivo — dor sacroilíaca">Pos. SI</div></div></div>
-    <div class="param-row"><div class="param-label">FADIR</div><div class="opts sg" id="t_fadir"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo — conflito FAI">Pos. FAI</div></div></div>
-    <div class="param-row"><div class="param-label">Ober (banda iliotibial)</div><div class="opts sg" id="t_ober"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-    <div class="param-row"><div class="param-label">Thomas (flexores anca)</div><div class="opts sg" id="t_thomas"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo — encurtamento ilipsoas">Pos.</div></div></div>
-  </div>
-</div>
-
-<div class="sec">
-  <div class="sec-title"><div class="num">5</div>Força &amp; Observações</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Abdutores anca</div><div class="opts sg" id="f_abd"><div class="opt" data-v="5/5">5/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="2/5">2/5</div></div></div>
-    <div class="param-row"><div class="param-label">Glúteo médio</div><div class="opts sg" id="f_glmed"><div class="opt" data-v="5/5">5/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="2/5">2/5</div></div></div>
-  </div>
-  <div style="margin-top:12px"><div class="gl">Notas / Conclusão</div><textarea id="notas" placeholder="Conclusão clínica, plano..."></textarea></div>
-</div>
-</div>
-<div id="toast">✓ Copiado — cole na consulta (Ctrl+V)</div>
-<div class="bar-acoes"><button class="btn-pdf" id="btnPdf">Imprimir / PDF</button><button class="btn-copy" id="btnCopy">Copiar resumo para consulta</button></div>
-<script>
-${_mskJs}
-window._gerarResumo = function(){
-var g=window._getOpt,m=window._getMulti,v=window._getVal,e=window._evaRow;
-var L=['── ANCA — EXAME OBJECTIVO ──'];
-var lado=g('lado'); if(lado) L.push('Anca '+lado);
-var evStr=[e('eva_rep')?'repouso '+e('eva_rep'):'',e('eva_act')?'actividade '+e('eva_act'):'',e('eva_pic')?'pico '+e('eva_pic'):''].filter(Boolean).join(' | ');
-if(evStr) L.push('EVA: '+evStr);
-var td=g('tipo_dor'); if(td) L.push('Dor: '+td);
-var ld=m('local_dor'); if(ld.length) L.push('Localização: '+ld.join(', '));
-L.push('');L.push('Marcha:');
-[['Padrão',g('marcha')],['Trendelenburg',g('trend')],['Discrepância',g('discr')]].forEach(function(p){if(p[1])L.push('  • '+p[0]+': '+p[1]);});
-L.push('');L.push('Mobilidade:');
-[['Flexão',g('mob_flex')],['Extensão',g('mob_ext')],['Abdução',g('mob_abd')],['Adução',g('mob_adu')],['Rot. interna',g('mob_ri')],['Rot. externa',g('mob_re')]].forEach(function(p){if(p[1])L.push('  • '+p[0]+': '+p[1]);});
-L.push('');L.push('Testes:');
-[['FABER',g('t_faber')],['FADIR',g('t_fadir')],['Ober',g('t_ober')],['Thomas',g('t_thomas')]].forEach(function(p){if(p[1])L.push('  • '+p[0]+': '+p[1]);});
-L.push('');L.push('Força:');
-[['Abdutores',g('f_abd')],['Glúteo médio',g('f_glmed')]].forEach(function(p){if(p[1])L.push('  • '+p[0]+': '+p[1]);});
-var n=v('notas'); if(n){L.push('');L.push('Notas: '+n);}
-L.push('');L.push('──────────────────────────────────────────────────');
-return L.join('\\n');
-};
-</script></body></html>`);
-    return;
-  }
-
   /* ══════════════════════════════════════════════════════════════
      JOELHO
   ══════════════════════════════════════════════════════════════ */
