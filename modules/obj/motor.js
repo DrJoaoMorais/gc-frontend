@@ -497,6 +497,15 @@ function _wireEscalas(escalas) {
         return;
       }
 
+      if (esc.score === 'hoos') {
+        if (filled.length < vals.length) { scoreEl.textContent = '—'; if (interpEl) interpEl.textContent = ''; return; }
+        const hoosSum = vals.reduce(function (a, b) { return a + (b || 0); }, 0);
+        const score = Math.round(100 - (hoosSum / (esc.itens.length * 4)) * 100);
+        scoreEl.textContent = score + '/100';
+        if (interpEl) interpEl.textContent = '';
+        return;
+      }
+
       if (!filled.length) {
         scoreEl.textContent = '—';
         if (interpEl) interpEl.textContent = '';
