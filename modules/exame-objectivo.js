@@ -788,6 +788,15 @@ window.getRF=getRF;
     return;
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     JOELHO — motor genérico
+  ══════════════════════════════════════════════════════════════ */
+  if (formId === "joelho") {
+    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
+    window.open('/modules/obj/regiao.html?r=joelho&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
+    return;
+  }
+
   if (formId === "_cotovelo_old_unused") {
     _abrirBlob(`<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
 <title>Exame Objectivo — Cotovelo</title><style>${_mskCss}</style></head><body>
@@ -989,113 +998,6 @@ return L.join('\\n');
   /* ══════════════════════════════════════════════════════════════
      ANCA
   ══════════════════════════════════════════════════════════════ */
-  /* ══════════════════════════════════════════════════════════════
-     JOELHO
-  ══════════════════════════════════════════════════════════════ */
-  if (formId === "joelho") {
-    _abrirBlob(`<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
-<title>Exame Objectivo — Joelho</title><style>${_mskCss}</style></head><body>
-<div class="page">
-<h1>Exame Objectivo — Joelho</h1>
-<div class="subtitle">Clique nas opções · Copie para a consulta no final</div>
-
-<div class="sec">
-  <div class="sec-title"><div class="num">1</div>Lateralidade &amp; Dor</div>
-  <div class="cols2">
-    <div><div class="gl">Joelho avaliado</div><div class="opts sg" id="lado"><div class="opt" data-v="Direito">Direito</div><div class="opt" data-v="Esquerdo">Esquerdo</div><div class="opt" data-v="Bilateral">Bilateral</div></div></div>
-    <div><div class="gl">Tipo de dor</div><div class="opts sg" id="tipo_dor"><div class="opt" data-v="Mecânica">Mecânica</div><div class="opt" data-v="Inflamatória">Inflamatória</div><div class="opt" data-v="Neuropática">Neuropática</div></div></div>
-  </div>
-  <div class="sub-title" style="margin-top:14px">EVA</div>
-  <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
-    <div class="eva-row"><span class="eva-lbl">Repouso</span>${_evaOpts("eva_rep")}</div>
-    <div class="eva-row"><span class="eva-lbl">Actividade</span>${_evaOpts("eva_act")}</div>
-    <div class="eva-row"><span class="eva-lbl">Pico máximo</span>${_evaOpts("eva_pic")}</div>
-  </div>
-  <div style="margin-top:12px"><div class="gl">Localização da dor</div>
-    <div class="opts mg" id="local_dor"><div class="opt" data-v="Compartimento medial">Medial</div><div class="opt" data-v="Compartimento lateral">Lateral</div><div class="opt" data-v="Região patelofemoral">Patelofemoral</div><div class="opt" data-v="Tendão rotuliano">Tend. rotuliano</div><div class="opt" data-v="Poplíteo">Poplíteo</div></div>
-  </div>
-</div>
-
-<div class="sec">
-  <div class="sec-title"><div class="num">2</div>Inspeção &amp; Palpação</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Eixo joelho</div><div class="opts sg" id="insp_eixo"><div class="opt" data-v="Normal">Normal</div><div class="opt" data-v="Varo">Varo</div><div class="opt" data-v="Valgo">Valgo</div></div></div>
-    <div class="param-row"><div class="param-label">Edema articular</div><div class="opts sg" id="insp_edema"><div class="opt" data-v="Ausente">Ausente</div><div class="opt" data-v="Ligeiro">Ligeiro</div><div class="opt" data-v="Moderado — derrame articular">Moderado</div><div class="opt" data-v="Volumoso — derrame abundante">Volumoso</div></div></div>
-    <div class="param-row"><div class="param-label">Choque rotuliano</div><div class="opts sg" id="choque_rot"><div class="opt" data-v="Ausente">Ausente</div><div class="opt" data-v="Presente">Presente</div></div></div>
-    <div class="param-row"><div class="param-label">Interlinha medial</div><div class="opts sg" id="palp_med"><div class="opt" data-v="Indolor">Indolor</div><div class="opt" data-v="Dolorosa">Dolorosa</div></div></div>
-    <div class="param-row"><div class="param-label">Interlinha lateral</div><div class="opts sg" id="palp_lat"><div class="opt" data-v="Indolor">Indolor</div><div class="opt" data-v="Dolorosa">Dolorosa</div></div></div>
-    <div class="param-row"><div class="param-label">Tendão rotuliano</div><div class="opts sg" id="palp_rot"><div class="opt" data-v="Indolor">Indolor</div><div class="opt" data-v="Doloroso">Doloroso</div></div></div>
-    <div class="param-row"><div class="param-label">Tuberosidade tibial anterior</div><div class="opts sg" id="palp_tta"><div class="opt" data-v="Indolor">Indolor</div><div class="opt" data-v="Dolorosa — Osgood-Schlatter?">Dolorosa</div></div></div>
-  </div>
-</div>
-
-<div class="sec">
-  <div class="sec-title"><div class="num">3</div>Mobilidade</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Flexão (ref: 140°)</div><div class="opts sg" id="mob_flex"><div class="opt" data-v="Completa">Completa</div><div class="opt" data-v="Limitada c/ dor">Limitada c/ dor</div><div class="opt" data-v="Limitada s/ dor">Limitada s/ dor</div></div></div>
-    <div class="param-row"><div class="param-label">Extensão (ref: 0°)</div><div class="opts sg" id="mob_ext"><div class="opt" data-v="Completa">Completa</div><div class="opt" data-v="Défice extensão c/ dor">Défice c/ dor</div><div class="opt" data-v="Défice extensão s/ dor">Défice s/ dor</div><div class="opt" data-v="Recurvatum">Recurvatum</div></div></div>
-    <div class="param-row"><div class="param-label">Crepitação</div><div class="opts sg" id="mob_crep"><div class="opt" data-v="Ausente">Ausente</div><div class="opt" data-v="Femoropatelar">Femoropatelar</div><div class="opt" data-v="Femorotibial">Femorotibial</div></div></div>
-  </div>
-</div>
-
-<div class="sec">
-  <div class="sec-title"><div class="num">4</div>Testes Específicos</div>
-  <div class="sub-title">Ligamentos</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Lachman (LCA)</div><div class="opts sg" id="t_lach"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo — instabilidade anterior">Pos.</div></div></div>
-    <div class="param-row"><div class="param-label">Pivot shift (LCA)</div><div class="opts sg" id="t_pivot"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-    <div class="param-row"><div class="param-label">Gaveta posterior (LCP)</div><div class="opts sg" id="t_gav"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo — instabilidade posterior">Pos.</div></div></div>
-    <div class="param-row"><div class="param-label">Valgo stress (LCM)</div><div class="opts sg" id="t_valgo"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-    <div class="param-row"><div class="param-label">Varo stress (LCL)</div><div class="opts sg" id="t_varo"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-  </div>
-  <div class="sub-title">Meniscos</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">McMurray</div><div class="opts sg" id="t_mcmur"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo medial">Pos. medial</div><div class="opt" data-v="Positivo lateral">Pos. lateral</div></div></div>
-    <div class="param-row"><div class="param-label">Thessaly</div><div class="opts sg" id="t_thess"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-  </div>
-  <div class="sub-title">Patela</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Clarke (chondromalacia)</div><div class="opts sg" id="t_clark"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-    <div class="param-row"><div class="param-label">Apprehension patelar</div><div class="opts sg" id="t_appr"><div class="opt" data-v="Negativo">Neg.</div><div class="opt" data-v="Positivo">Pos.</div></div></div>
-  </div>
-</div>
-
-<div class="sec">
-  <div class="sec-title"><div class="num">5</div>Força &amp; Observações</div>
-  <div class="param-grid">
-    <div class="param-row"><div class="param-label">Quadricípite</div><div class="opts sg" id="f_quad"><div class="opt" data-v="5/5">5/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="2/5">2/5</div></div></div>
-    <div class="param-row"><div class="param-label">Isquiotibiais</div><div class="opts sg" id="f_isq"><div class="opt" data-v="5/5">5/5</div><div class="opt" data-v="4/5">4/5</div><div class="opt" data-v="3/5">3/5</div><div class="opt" data-v="2/5">2/5</div></div></div>
-  </div>
-  <div style="margin-top:12px"><div class="gl">Notas / Conclusão</div><textarea id="notas" placeholder="Conclusão clínica, plano..."></textarea></div>
-</div>
-</div>
-<div id="toast">✓ Copiado — cole na consulta (Ctrl+V)</div>
-<div class="bar-acoes"><button class="btn-pdf" id="btnPdf">Imprimir / PDF</button><button class="btn-copy" id="btnCopy">Copiar resumo para consulta</button></div>
-<script>
-${_mskJs}
-window._gerarResumo = function(){
-var g=window._getOpt,m=window._getMulti,v=window._getVal,e=window._evaRow;
-var L=['── JOELHO — EXAME OBJECTIVO ──'];
-var lado=g('lado'); if(lado) L.push('Joelho '+lado);
-var evStr=[e('eva_rep')?'repouso '+e('eva_rep'):'',e('eva_act')?'actividade '+e('eva_act'):'',e('eva_pic')?'pico '+e('eva_pic'):''].filter(Boolean).join(' | ');
-if(evStr) L.push('EVA: '+evStr);
-var td=g('tipo_dor'); if(td) L.push('Dor: '+td);
-var ld=m('local_dor'); if(ld.length) L.push('Localização: '+ld.join(', '));
-L.push('');L.push('Inspeção/Palpação:');
-[['Eixo',g('insp_eixo')],['Edema',g('insp_edema')],['Choque rotuliano',g('choque_rot')],['Interlinha medial',g('palp_med')],['Interlinha lateral',g('palp_lat')],['Tendão rotuliano',g('palp_rot')],['Tuberosidade tibial',g('palp_tta')]].forEach(function(p){if(p[1])L.push('  • '+p[0]+': '+p[1]);});
-L.push('');L.push('Mobilidade:');
-[['Flexão',g('mob_flex')],['Extensão',g('mob_ext')],['Crepitação',g('mob_crep')]].forEach(function(p){if(p[1])L.push('  • '+p[0]+': '+p[1]);});
-L.push('');L.push('Testes:');
-[['Lachman',g('t_lach')],['Pivot shift',g('t_pivot')],['Gaveta posterior',g('t_gav')],['Valgo stress',g('t_valgo')],['Varo stress',g('t_varo')],['McMurray',g('t_mcmur')],['Thessaly',g('t_thess')],['Clarke',g('t_clark')],['Apprehension patelar',g('t_appr')]].forEach(function(p){if(p[1])L.push('  • '+p[0]+': '+p[1]);});
-L.push('');L.push('Força:');
-[['Quadricípite',g('f_quad')],['Isquiotibiais',g('f_isq')]].forEach(function(p){if(p[1])L.push('  • '+p[0]+': '+p[1]);});
-var n=v('notas'); if(n){L.push('');L.push('Notas: '+n);}
-L.push('');L.push('──────────────────────────────────────────────────');
-return L.join('\\n');
-};
-</script></body></html>`);
-    return;
-  }
 
   /* ══════════════════════════════════════════════════════════════
      TIBIOTÁRSICA / PÉ
