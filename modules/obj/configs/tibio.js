@@ -138,13 +138,22 @@ export default {
   ],
 
   dinamometria: {
+    af2: true,
     af2Map: {
-      // PLACEHOLDER — pendente sessão dedicada de mapeamento AF2 real
       'Tornozelo Dorsiflexão':    'dorsiflex',
       'Tornozelo Flexão plantar': 'plantiflex',
       'Tornozelo Inversão':       'inversao',
       'Tornozelo Eversão':        'eversao',
     },
+    movimentos: [
+      { key: 'dorsiflex',  label: 'Dorsiflexão' },
+      { key: 'plantiflex', label: 'Flexão plantar' },
+      { key: 'inversao',   label: 'Inversão' },
+      { key: 'eversao',    label: 'Eversão' },
+    ],
+    racios: [
+      { num: 'inversao', den: 'eversao', label: 'Inv / Ever', refMin: null, refMax: null },
+    ],
   },
 
   escalas: [
