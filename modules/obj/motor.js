@@ -1,6 +1,6 @@
 /* motor.js — motor genérico exame objectivo. Config de ./configs/<r>.js */
 
-const REGIOES = ['cotovelo', 'ombro', 'punho-mao', 'anca', 'joelho'];
+const REGIOES = ['cotovelo', 'ombro', 'punho-mao', 'anca', 'joelho', 'tibio'];
 
 let _motorCfg = null;
 let _romState = {};
