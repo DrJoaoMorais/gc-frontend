@@ -135,11 +135,11 @@ export default {
       optMin: 0, optMax: 5, score: 'odi',
       legend: '0 Sem limitação · 1 Ligeira · 2 Moderada · 3 Grave · 4 Muito grave · 5 Máxima',
       interp: [
-        { threshold: 0,  txt: 'Incapacidade mínima (0–20%)' },
-        { threshold: 21, txt: 'Incapacidade moderada (21–40%)' },
-        { threshold: 41, txt: 'Incapacidade grave (41–60%)' },
-        { threshold: 61, txt: 'Acamado (61–80%)' },
         { threshold: 81, txt: 'Exagero de sintomas / máxima (81–100%)' },
+        { threshold: 61, txt: 'Acamado (61–80%)' },
+        { threshold: 41, txt: 'Incapacidade grave (41–60%)' },
+        { threshold: 21, txt: 'Incapacidade moderada (21–40%)' },
+        { threshold: 0,  txt: 'Incapacidade mínima (0–20%)' },
       ],
       itens: [
         'Intensidade da dor',

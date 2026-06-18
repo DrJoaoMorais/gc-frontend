@@ -508,7 +508,8 @@ function _wireEscalas(escalas) {
 
       if (esc.score === 'odi') {
         if (filled.length < vals.length) { scoreEl.textContent = '—'; if (interpEl) interpEl.textContent = ''; return; }
-        const pct = Math.round((sum / (esc.itens.length * esc.optMax)) * 100);
+        const odiSum = filled.reduce(function (a, b) { return a + b; }, 0);
+        const pct = Math.round((odiSum / (esc.itens.length * esc.optMax)) * 100);
         scoreEl.textContent = pct + '%';
         if (interpEl) interpEl.textContent = _interpScore(esc, pct);
         return;
