@@ -1,6 +1,6 @@
 /* motor.js — motor genérico exame objectivo. Config de ./configs/<r>.js */
 
-const REGIOES = ['cotovelo', 'ombro', 'punho-mao', 'anca', 'joelho', 'tibio', 'cervical', 'lombar'];
+const REGIOES = ['cotovelo', 'ombro', 'punho-mao', 'anca', 'joelho', 'tibio', 'cervical', 'lombar', 'pfp'];
 
 let _motorCfg = null;
 let _romState = {};
@@ -85,6 +85,7 @@ function _renderSec(sec, n) {
     case 'testes':   return _renderTestes(sec, n);
     case 'kapandji': return _renderKapandji(sec, n);
     case 'grupos':   return _renderGrupos(sec, n);
+    case 'grading':  return _renderEscalas(sec.escalas || []);
     default: return '';
   }
 }
@@ -515,7 +516,53 @@ function _wireEscalas(escalas) {
         return;
       }
 
-      if (!filled.length) {
+      if (esc.score === 'hb') {
+          const sel = vals[0];
+          if (sel === null) { scoreEl.textContent = '—'; if (interpEl) interpEl.textContent = ''; return; }
+          const labels = ['','I — Normal','II — Disfunção ligeira','III — Disfunção moderada','IV — Disfunção moderada–grave','V — Disfunção grave','VI — Paralisia total'];
+          scoreEl.textContent = labels[sel] || '—';
+          if (interpEl) interpEl.textContent = '';
+          return;
+        }
+
+        if (esc.score === 'sunnybrook') {
+          const el_r = document.getElementById('pfp_repouso_score');
+          const el_v = document.getElementById('pfp_voluntarios_score');
+          const el_s = document.getElementById('pfp_sincinesias_score');
+          const el_c = document.getElementById('pfp_sunnybrook_score');
+          const el_i = document.getElementById('pfp_sunnybrook_interp');
+          const getSubScore = function(blockId) {
+            const block = document.getElementById('scale-' + blockId);
+            if (!block) return null;
+            const vs = [];
+            block.querySelectorAll('.sq-row').forEach(function(row) {
+              const s = row.querySelector('.sq-opt.sel');
+              vs.push(s ? parseInt(s.dataset.v) : null);
+            });
+            if (vs.some(function(v) { return v === null; })) return null;
+            return vs.reduce(function(a,b) { return a+b; }, 0);
+          };
+          const R = getSubScore('pfp_repouso');
+          const V = getSubScore('pfp_voluntarios');
+          const S = getSubScore('pfp_sincinesias');
+          if (el_r) el_r.textContent = R !== null ? R + '/12' : '—';
+          if (el_v) el_v.textContent = V !== null ? V + '/25' : '—';
+          if (el_s) el_s.textContent = S !== null ? S + '/15' : '—';
+          if (R === null || V === null || S === null) {
+            if (el_c) el_c.textContent = '—';
+            if (el_i) el_i.textContent = '';
+            return;
+          }
+          const composite = Math.max(0, Math.min(100, (V * 4) - (R * 5) - S));
+          if (el_c) el_c.textContent = composite + '/100';
+          const sev = composite >= 90 ? 'Normal' : composite >= 76 ? 'Disfunção ligeira' : composite >= 61 ? 'Disfunção moderada' : composite >= 31 ? 'Disfunção moderada–grave' : 'Paralisia grave';
+          if (el_i) el_i.textContent = sev;
+          scoreEl.textContent = composite + '/100';
+          if (interpEl) interpEl.textContent = sev;
+          return;
+        }
+
+        if (!filled.length) {
         scoreEl.textContent = '—';
         if (interpEl) interpEl.textContent = '';
         return;
@@ -660,6 +707,13 @@ window._gerarData = function () {
         if (sec.notas) data[sec.notas] = rs(sec.notas);
         break;
       }
+      case 'grading': {
+          (sec.escalas || []).forEach(function (esc) {
+            const scoreEl = document.getElementById(esc.id + '_score');
+            data[esc.id + '_score'] = scoreEl ? scoreEl.textContent : '—';
+          });
+          break;
+        }
       case 'grupos': {
         const bloco = {};
         sec.grupos.forEach(function (g) {
@@ -810,6 +864,18 @@ window._gerarResumo = function () {
         if (notaT && notaT.value.trim()) linhas.push('  Notas: ' + notaT.value.trim());
         break;
       }
+      case 'grading': {
+          (sec.escalas || []).forEach(function (esc) {
+              const scoreEl = document.getElementById(esc.id + '_score');
+              const interpEl = document.getElementById(esc.id + '_interp');
+              const score = scoreEl ? scoreEl.textContent : '—';
+              const interp = interpEl ? interpEl.textContent : '';
+              if (score && score !== '—') {
+                linhas.push(esc.titulo + ': ' + score + (interp ? ' (' + interp + ')' : ''));
+              }
+            });
+            break;
+          }
       case 'grupos': {
         const notasEl = sec.notasKey ? document.getElementById(sec.notasKey) : null;
         const notas = notasEl ? notasEl.value.trim() : '';

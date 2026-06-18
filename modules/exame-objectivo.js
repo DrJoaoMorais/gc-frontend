@@ -63,6 +63,7 @@ function openExameObjectivoMenu(anchorBtn, ctx = {}) {
       items: [
         { id: "cervical", label: "🫀 Coluna Cervical", ready: true },
         { id: "lombar",   label: "🫁 Coluna Lombar",   ready: true },
+        { id: "pfp",      label: "🧠 Paresia Facial",   ready: true },
       ]
     },
     {
@@ -1020,6 +1021,11 @@ return L.join('\\n');
   /* ══════════════════════════════════════════════════════════════
      COLUNA LOMBAR — motor genérico
   ══════════════════════════════════════════════════════════════ */
+  if (formId === "pfp") {
+    window.open('/modules/obj/regiao.html?r=pfp&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
+    return;
+  }
+
   if (formId === "lombar") {
     const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
     window.open('/modules/obj/regiao.html?r=lombar&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
