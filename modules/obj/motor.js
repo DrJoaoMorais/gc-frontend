@@ -1,6 +1,6 @@
 /* motor.js — motor genérico exame objectivo. Config de ./configs/<r>.js */
 
-const REGIOES = ['cotovelo', 'ombro', 'punho-mao', 'anca', 'joelho', 'tibio'];
+const REGIOES = ['cotovelo', 'ombro', 'punho-mao', 'anca', 'joelho', 'tibio', 'cervical', 'lombar'];
 
 let _motorCfg = null;
 let _romState = {};
@@ -506,6 +506,14 @@ function _wireEscalas(escalas) {
         return;
       }
 
+      if (esc.score === 'odi') {
+        if (filled.length < vals.length) { scoreEl.textContent = '—'; if (interpEl) interpEl.textContent = ''; return; }
+        const pct = Math.round((sum / (esc.itens.length * esc.optMax)) * 100);
+        scoreEl.textContent = pct + '%';
+        if (interpEl) interpEl.textContent = _interpScore(esc, pct);
+        return;
+      }
+
       if (!filled.length) {
         scoreEl.textContent = '—';
         if (interpEl) interpEl.textContent = '';
@@ -904,7 +912,7 @@ window._gerarResumo = function () {
     cfg.escalas.forEach(function (esc) {
       const scoreEl = document.getElementById(esc.id + '_score');
       if (!scoreEl || scoreEl.textContent === '—') return;
-      const maxStr = esc.score === 'dash' ? '/100' : esc.score === 'ases' ? '' : '/' + (esc.optMax * esc.itens.length);
+      const maxStr = esc.score === 'dash' ? '/100' : esc.score === 'ases' || esc.score === 'odi' ? '' : '/' + (esc.optMax * esc.itens.length);
       linhas.push(esc.titulo + ': ' + scoreEl.textContent + maxStr);
       const block = document.getElementById('scale-' + esc.id);
       if (block) block.querySelectorAll('.sq-row').forEach(function (row) {
