@@ -11,10 +11,9 @@
     .card { background: #fff; border-radius: 14px;
             border: 0.5px solid #e2e8f0; padding: 1.5rem;
             max-width: 480px; margin: 0 auto; }
-    .logo { font-size: 13px; color: #94a3b8; margin-bottom: 1.5rem; }
-    .doente { font-size: 18px; font-weight: 600; color: #0f2d52;
-              margin-bottom: 4px; }
-    .clinica { font-size: 13px; color: #64748b; margin-bottom: 1.5rem; }
+    .logo { font-size: 12px; color: #94a3b8; margin-bottom: 1.25rem; }
+    .ft-name { font-size: 20px; font-weight: 700; color: #0f2d52; margin-bottom: 2px; }
+    .ft-sub  { font-size: 13px; color: #64748b; margin-bottom: 1.25rem; }
     .sep { height: 0.5px; background: #e2e8f0; margin: 1rem 0; }
     label { font-size: 13px; font-weight: 500; color: #374151;
             display: block; margin-bottom: 6px; }
@@ -24,7 +23,7 @@
       font-family: inherit; background: #f8fafc;
       color: #0f172a; margin-bottom: 1rem;
     }
-    textarea { min-height: 90px; resize: vertical; }
+    textarea { min-height: 160px; resize: vertical; }
     input:focus, textarea:focus {
       outline: none; border-color: #1a56db; background: #fff;
     }
@@ -43,18 +42,15 @@
 <body>
 <div class="card" id="card-form">
   <div class="logo">gc.joaomorais.pt</div>
-  <div class="doente" id="ft-patient">A carregar…</div>
-  <div class="clinica" id="ft-fisio"></div>
+  <div class="ft-name" id="ft-name">A carregar…</div>
+  <div class="ft-sub"  id="ft-doente"></div>
   <div class="sep"></div>
 
   <label>Data de início da fisioterapia</label>
   <input type="date" id="ft-start-date">
 
-  <label>Como está actualmente</label>
-  <textarea id="ft-current" placeholder="Estado actual do doente…"></textarea>
-
-  <label>Evolução desde última avaliação</label>
-  <textarea id="ft-evolution" placeholder="Como tem evoluído…"></textarea>
+  <label>Registo e evolução</label>
+  <textarea id="ft-notes" placeholder="Estado actual, evolução desde a última avaliação, observações…"></textarea>
 
   <button class="btn" id="ft-btn" onclick="submeter()">Guardar registo</button>
   <div class="erro" id="ft-erro"></div>
@@ -67,7 +63,7 @@
 </div>
 
 <script>
-  const SUPABASE_URL = 'https://nxfnzzcuqzxmzsihbrtp.supabase.co';
+  const SUPABASE_URL  = 'https://nxfnzzcuqzxmzsihbrtp.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA';
 
   const token = new URLSearchParams(location.search).get('t');
@@ -99,14 +95,14 @@
 
   async function init() {
     if (!token) {
-      document.getElementById('ft-patient').textContent = 'Link inválido.';
+      document.getElementById('ft-name').textContent = 'Link inválido.';
       return;
     }
 
     const rec = await sbGet('physio_records', { submission_token: token });
 
     if (!rec) {
-      document.getElementById('ft-patient').textContent = 'Link não encontrado.';
+      document.getElementById('ft-name').textContent = 'Link não encontrado.';
       return;
     }
 
@@ -118,10 +114,8 @@
       return;
     }
 
-    document.getElementById('ft-patient').textContent = rec.patient_name || '—';
-    if (rec.physio_name) {
-      document.getElementById('ft-fisio').textContent = rec.physio_name;
-    }
+    document.getElementById('ft-name').textContent   = rec.physio_name || 'Fisioterapeuta';
+    document.getElementById('ft-doente').textContent = rec.patient_name ? `Doente: ${rec.patient_name}` : '';
 
     if (rec.physio_start_date) {
       document.getElementById('ft-start-date').value = rec.physio_start_date;
@@ -129,40 +123,34 @@
   }
 
   async function submeter() {
-    const btn = document.getElementById('ft-btn');
+    const btn  = document.getElementById('ft-btn');
     const erro = document.getElementById('ft-erro');
     erro.textContent = '';
 
     const startDate = document.getElementById('ft-start-date').value;
-    const current   = document.getElementById('ft-current').value.trim();
-    const evolution = document.getElementById('ft-evolution').value.trim();
+    const notes     = document.getElementById('ft-notes').value.trim();
 
-    if (!current && !evolution) {
-      erro.textContent = 'Por favor preencha pelo menos um campo.';
+    if (!notes) {
+      erro.textContent = 'Por favor preencha o campo de registo.';
       return;
     }
 
-    btn.disabled = true;
+    btn.disabled    = true;
     btn.textContent = 'A guardar…';
 
-    const content = [
-      current   ? `Estado actual:\n${current}`   : '',
-      evolution ? `Evolução:\n${evolution}` : ''
-    ].filter(Boolean).join('\n\n');
-
     const r = await sbPatch('physio_records', 'submission_token', token, {
-      content,
+      content: notes,
       physio_start_date: startDate || null,
       token_used: true
     });
 
     if (r.ok) {
       document.getElementById('card-form').style.display = 'none';
-      document.getElementById('card-ok').style.display = 'block';
+      document.getElementById('card-ok').style.display   = 'block';
     } else {
-      erro.textContent = 'Erro ao guardar. Tente novamente.';
-      btn.disabled = false;
-      btn.textContent = 'Guardar registo';
+      erro.textContent    = 'Erro ao guardar. Tente novamente.';
+      btn.disabled        = false;
+      btn.textContent     = 'Guardar registo';
     }
   }
 

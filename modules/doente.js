@@ -2368,7 +2368,7 @@ function openPatientViewModal(patient) {
 
     const { data, error } = await window.sb
       .from("physio_records")
-      .select("id, clinic_id, patient_id, author_user_id, content, created_at")
+      .select("id, clinic_id, patient_id, author_user_id, content, created_at, physio_name, physio_start_date, token_used")
       .eq("patient_id", p.id)
       .order("created_at", { ascending: false });
 
@@ -2723,30 +2723,48 @@ function openPatientViewModal(patient) {
       ? `${fmtDatePt(d)} às ${fmtTime(d)}`
       : (r.created_at ? String(r.created_at) : "—");
 
-    const authorTxt = (r.author_name || "").trim();
     const uid = __gcGetUidCached();
     const canEdit = __gcIsPhysio() && uid && String(r.author_user_id) === String(uid);
+    const viaLink = !r.author_user_id && r.submission_token !== undefined;
+    const isPending = viaLink && r.token_used === false;
+
+    const ftName = (r.physio_name || r.author_name || "").trim();
+    const sourceLine = viaLink
+      ? `Via link — ${ftName || "Fisioterapeuta"}`
+      : (ftName || "");
+
+    let startDateLine = "";
+    if (r.physio_start_date) {
+      const ds = new Date(r.physio_start_date + "T00:00:00");
+      startDateLine = `<div style="font-size:12px;color:#64748b;margin-top:4px;">Início FT: ${fmtDatePt(ds)}</div>`;
+    }
+
+    if (isPending) {
+      return `
+        <div style="border:1px solid #fcd34d;border-radius:14px;padding:16px;background:#fefce8;">
+          <div style="font-weight:700;font-size:14px;color:#92400e;">⏳ Registo FT pendente — ${when}</div>
+          ${ftName ? `<div style="font-size:12px;color:#78350f;margin-top:2px;">Aguarda resposta de ${escAttr(ftName)}</div>` : ""}
+        </div>`;
+    }
 
     return `
-      <div style="border:1px solid #e5e5e5; border-radius:14px; padding:16px; background:#f1f5f9;">
-        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
-          <div style="font-weight:900; font-size:16px;">
-            Fisioterapia — ${when}${authorTxt ? ` - ${escAttr(authorTxt)}` : ``}
+      <div style="border:1px solid #e5e5e5;border-radius:14px;padding:16px;background:#f1f5f9;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+          <div>
+            <div style="font-weight:900;font-size:16px;">Fisioterapia — ${when}</div>
+            ${sourceLine ? `<div style="font-size:12px;color:#64748b;margin-top:2px;">${escAttr(sourceLine)}</div>` : ""}
+            ${startDateLine}
           </div>
-
           ${canEdit ? `
-            <div style="display:flex; gap:8px;">
+            <div style="display:flex;gap:8px;flex-shrink:0;">
               <button class="gcBtn" type="button" data-physio-action="edit" data-physio-id="${escAttr(r.id)}">Editar</button>
               <button class="gcBtn" type="button" data-physio-action="delete" data-physio-id="${escAttr(r.id)}">Apagar</button>
-            </div>
-          ` : ``}
+            </div>` : ""}
         </div>
-
-        <div style="margin-top:8px; line-height:1.35; font-size:15px;">
+        <div style="margin-top:8px;line-height:1.35;font-size:15px;">
           ${sanitizeHTML(r.content || "") || `<span style="color:#64748b;">—</span>`}
         </div>
-      </div>
-    `;
+      </div>`;
   }
 
   function __gcRenderAgendaNoteItem(r) {
