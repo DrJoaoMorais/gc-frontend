@@ -607,6 +607,9 @@ function _wireHandlers(cfg) {
   });
   Object.keys(_romConfigs).forEach(function (sid) { _romRenderTable(sid); });
   if (cfg.tabs && cfg.tabs.escalas) _wireEscalas(cfg.escalas);
+  (cfg.seccoes || []).forEach(function (sec) {
+    if (sec.tipo === 'grading') _wireEscalas(sec.escalas || []);
+  });
   if (cfg.dinamometria && cfg.dinamometria.af2) _wireDinAF2(cfg.dinamometria);
 
   const btnPdf = document.getElementById('btnPdf');
