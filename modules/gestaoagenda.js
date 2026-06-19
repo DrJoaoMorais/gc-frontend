@@ -117,12 +117,13 @@ function _buildShell() {
     <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;">
       <div id="gaSemanaBanner" style="display:none;"></div>
       <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-        <div style="display:grid;grid-template-columns:60px minmax(100px,1fr) 170px 80px 165px;padding:8px 12px;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;gap:8px;">
+        <div style="display:grid;grid-template-columns:60px minmax(100px,1fr) 170px 80px 165px 28px;padding:8px 12px;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;gap:8px;">
           <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Hora</div>
           <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Doente</div>
           <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Tipo</div>
           <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">RGPD</div>
           <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Estado</div>
+          <div></div>
         </div>
         <div id="gaTimeline"></div>
       </div>
@@ -314,6 +315,21 @@ async function _loadAndRender() {
     } catch(_) {}
   }
 
+  let physioMap = {};
+  if (patientIds.length) {
+    try {
+      const { data: phData } = await window.sb
+        .from("physio_records")
+        .select("patient_id, token_used, physio_name, submission_token, created_at")
+        .in("patient_id", patientIds)
+        .not("submission_token", "is", null)
+        .order("created_at", { ascending: false });
+      (phData || []).forEach(rec => {
+        if (!physioMap[rec.patient_id]) physioMap[rec.patient_id] = rec;
+      });
+    } catch(_) {}
+  }
+
   if (clinicId) {
     await _loadHorarios(clinicId);
     await _loadAvulsos(clinicId);
@@ -325,7 +341,7 @@ async function _loadAndRender() {
     if (recBanner) recBanner.innerHTML = "";
   }
   _renderStatsCards();
-  _renderTimeline(_state.rows, patientsById, consentMap);
+  _renderTimeline(_state.rows, patientsById, consentMap, physioMap);
   _renderReavaliacoes();
 }
 
@@ -875,7 +891,7 @@ function _gaConsentBadges(patientId, consentMap, clinicId) {
   return b;
 }
 
-function _renderTimeline(rows, patientsById = {}, consentMap = {}) {
+function _renderTimeline(rows, patientsById = {}, consentMap = {}, physioMap = {}) {
   const el = document.getElementById("gaTimeline");
   if (!el) return;
 
@@ -907,7 +923,18 @@ function _renderTimeline(rows, patientsById = {}, consentMap = {}) {
 
     const borderLeft = isExtra ? "border-left:3px solid #f59e0b;" : isBlocked ? "border-left:3px solid #ef4444;" : "";
 
-    return `<div class="ga-tl-row" data-idx="${i}" style="display:grid;grid-template-columns:60px minmax(100px,1fr) 170px 80px 165px;padding:10px 12px;border-bottom:0.5px solid #f1f5f9;gap:8px;align-items:center;cursor:pointer;${borderLeft}">
+    const phRec = (!isSlot && !isBlocked && r.patient_id) ? physioMap[r.patient_id] : null;
+    let ftIcon = "";
+    if (phRec) {
+      const tip = escapeHtml(phRec.physio_name || "");
+      if (phRec.token_used === false) {
+        ftIcon = `<span title="Aguarda registo — ${tip}" style="font-size:14px;cursor:default;line-height:1;">📱</span>`;
+      } else if (phRec.token_used === true) {
+        ftIcon = `<span title="Registo recebido — ${tip}" style="font-size:13px;font-weight:700;color:#16a34a;cursor:default;line-height:1;">✓</span>`;
+      }
+    }
+
+    return `<div class="ga-tl-row" data-idx="${i}" style="display:grid;grid-template-columns:60px minmax(100px,1fr) 170px 80px 165px 28px;padding:10px 12px;border-bottom:0.5px solid #f1f5f9;gap:8px;align-items:center;cursor:pointer;${borderLeft}">
       <div style="font-size:14px;font-weight:600;color:${isBlocked?"#ef4444":isExtra?"#92400e":"#475569"};white-space:nowrap;">${hora}</div>
       <div style="display:flex;align-items:center;gap:8px;min-width:0;">
         <div style="width:8px;height:8px;border-radius:50%;background:${meta.dot};flex-shrink:0;"></div>
@@ -926,6 +953,7 @@ function _renderTimeline(rows, patientsById = {}, consentMap = {}) {
         <span style="padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;background:${meta.bg};color:${meta.color};white-space:nowrap;">${meta.label}</span>
         ${isSlot?`<button class="ga-btn-marcar" data-idx="${i}" style="font-size:12px;color:#1a56db;border:0.5px solid #93c5fd;background:#eff6ff;border-radius:6px;padding:2px 8px;cursor:pointer;">+ Marcar</button>`:""}
       </div>
+      <div style="display:flex;align-items:center;justify-content:center;">${ftIcon}</div>
     </div>`;
   }).join("");
 
