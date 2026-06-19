@@ -38,7 +38,6 @@ function openExameObjectivoMenu(anchorBtn, ctx = {}) {
       label: "Neurológico",
       items: [
         { id: "pfp",       label: "🥴 Paresia Facial Periférica",         ready: true },
-        { id: "incont",    label: "🫧 Pavimento Pélvico / Incontinência", ready: true },
         { id: "rpp",       label: "🩺 Pavimento Pélvico",                 ready: true },
         { id: "neuro_sum", label: "🧠 Neurológico Sumário",               ready: false },
       ]
