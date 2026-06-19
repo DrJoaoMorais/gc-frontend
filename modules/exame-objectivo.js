@@ -505,9 +505,10 @@ return L.join('\\n');
   }
 
   /* ══════════════════════════════════════════════════════════════
-     COLUNA LOMBAR — motor genérico
+     PARESIA FACIAL PERIFÉRICA — motor genérico
   ══════════════════════════════════════════════════════════════ */
   if (formId === "pfp") {
+    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
     window.open('/modules/obj/regiao.html?r=pfp&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
     return;
   }
