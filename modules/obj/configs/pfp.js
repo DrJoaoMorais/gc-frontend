@@ -2,6 +2,8 @@ import { seccaoCicatriz, seccaoAtrofia } from './_comuns.js';
 
 export const config = {
   titulo: 'Paresia Facial Periférica',
+  emoji: '🥴',
+  subtitle: 'VII par craniano',
   lado: false,
   seccoes: [
 
