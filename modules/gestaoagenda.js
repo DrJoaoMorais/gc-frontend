@@ -44,6 +44,8 @@ let _state = {
   avulsos: [],
   loading: false,
 };
+let _ravRows = [];
+let _ravExpanded = false;
 
 /* ── Entry point ──────────────────────────────────────── */
 export async function initGestaoAgenda() {
@@ -676,8 +678,21 @@ function _renderStats(rows) {
 /* ── Reavaliações pendentes ───────────────────────── */
 function _fmtDataCurta(iso) {
   const meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-  const [a, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+  const [, m, d] = String(iso).slice(0, 10).split('-').map(Number);
   return d + ' ' + meses[m - 1];
+}
+
+function _ravDotColor(dataReavISO) {
+  const dias = Math.round((new Date(dataReavISO + 'T00:00:00') - new Date(todayISO() + 'T00:00:00')) / 86400000);
+  return dias < 0 ? '#ef4444' : dias <= 7 ? '#f59e0b' : '#22c55e';
+}
+
+function _ravDiasTxt(dataReavISO) {
+  const dias = Math.round((new Date(dataReavISO + 'T00:00:00') - new Date(todayISO() + 'T00:00:00')) / 86400000);
+  if (dias < 0)  return `${-dias}d atraso`;
+  if (dias === 0) return 'hoje';
+  if (dias === 1) return 'amanhã';
+  return `${dias}d`;
 }
 
 async function _renderReavaliacoes() {
@@ -691,59 +706,136 @@ async function _renderReavaliacoes() {
     if (_state.selectedClinicId) q = q.eq('clinic_id', _state.selectedClinicId);
     const { data, error } = await q;
     if (error) throw error;
-
-    const rows = data || [];
-    if (!rows.length) { el.innerHTML = ''; return; }
-
-    const cards = rows.map(r => {
-      const atraso = r.estado === 'em atraso';
-      const cor = atraso ? '#b45309' : '#1a56db';
-      return `
-        <div style="border:0.5px solid #e2e8f0;border-left:3px solid ${cor};border-radius:0 8px 8px 0;padding:8px;margin-bottom:8px;">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
-            <div style="font-size:13px;font-weight:600;color:#0f2d52;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r.patient_name || '—')}</div>
-            <button data-rav-del="${r.consultation_id}" data-pid="${r.patient_id}" data-clin="${r.clinic_id || ''}" aria-label="Remover" title="Remover da lista" style="border:none;background:none;color:#94a3b8;cursor:pointer;font-size:16px;line-height:1;padding:0 2px;">&times;</button>
-          </div>
-          <div style="font-size:11px;color:#64748b;margin-top:2px;">≈ ${r.sessoes_decorridas}/${r.total} sessões · ${r.semana}×/sem</div>
-          <div style="font-size:11px;color:${cor};margin-top:3px;">Reavaliar: ${_fmtDataCurta(r.data_reavaliacao)} · ${r.estado}</div>
-          <button data-rav-agendar="${r.patient_id}" data-pname="${escapeHtml(r.patient_name || '')}" data-aclin="${r.clinic_id || ''}" style="margin-top:8px;width:100%;background:#1a56db;color:#fff;border:none;border-radius:8px;padding:6px;font-size:12px;font-weight:600;cursor:pointer;">Agendar consulta</button>
-        </div>`;
-    }).join('');
-
-    el.innerHTML = `
-      <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:10px;margin-top:8px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <div style="font-size:13px;font-weight:600;color:#0f2d52;">Reavaliações</div>
-          <div style="font-size:11px;font-weight:600;color:#1a56db;background:#e6f1fb;border-radius:8px;padding:1px 7px;">${rows.length}</div>
-        </div>
-        ${cards}
-      </div>`;
-
-    el.querySelectorAll('[data-rav-del]').forEach(b => b.addEventListener('click', async () => {
-      if (!confirm('Remover este doente da lista de reavaliações?')) return;
-      try {
-        const { error } = await window.sb.from('reavaliacoes_resolvidas').insert({
-          consultation_id: b.getAttribute('data-rav-del'),
-          patient_id: b.getAttribute('data-pid'),
-          clinic_id: b.getAttribute('data-clin') || null,
-          resultado: 'eliminada'
-        });
-        if (error) throw error;
-        await _renderReavaliacoes();
-      } catch (e) { alert('Erro ao remover: ' + (e.message || e)); }
-    }));
-
-    el.querySelectorAll('[data-rav-agendar]').forEach(b => b.addEventListener('click', () => {
-      _agendarReavaliacao(
-        b.getAttribute('data-rav-agendar'),
-        b.getAttribute('data-pname'),
-        b.getAttribute('data-aclin')
-      );
-    }));
+    _ravRows = data || [];
+    _ravExpanded = false;
+    _renderReavaliacoesLista(el);
   } catch (e) {
     el.innerHTML = '';
     console.error('reavaliacoes', e);
   }
+}
+
+function _renderReavaliacoesLista(el) {
+  if (!el) el = document.getElementById('gaReavaliacoes');
+  if (!el) return;
+  const rows = _ravRows;
+  if (!rows.length) { el.innerHTML = ''; return; }
+
+  const MAX = 5;
+  const visible = _ravExpanded ? rows : rows.slice(0, MAX);
+  const hasMore = !_ravExpanded && rows.length > MAX;
+
+  const items = visible.map((r, i) => {
+    const dot   = _ravDotColor(r.data_reavaliacao);
+    const dias  = _ravDiasTxt(r.data_reavaliacao);
+    return `<div data-rav-i="${i}" class="ga-rav-row" style="display:flex;align-items:center;gap:7px;padding:5px 6px;border-radius:7px;cursor:pointer;">
+      <span style="width:7px;height:7px;border-radius:50%;background:${dot};flex-shrink:0;display:inline-block;"></span>
+      <span style="flex:1;font-size:12px;font-weight:500;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r.patient_name || '—')}</span>
+      <span style="font-size:11px;color:#64748b;flex-shrink:0;">${dias}</span>
+    </div>`;
+  }).join('');
+
+  const verTodos = hasMore
+    ? `<button id="ga-rav-ver-todos" style="font-size:11px;color:#1a56db;background:none;border:none;cursor:pointer;padding:4px 6px;width:100%;text-align:right;">Ver todos (${rows.length}) →</button>`
+    : '';
+
+  el.innerHTML = `
+    <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;padding:10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <div style="font-size:12px;font-weight:600;color:#0f2d52;">Reavaliações</div>
+        <div style="font-size:11px;font-weight:600;color:#1a56db;background:#e6f1fb;border-radius:8px;padding:1px 7px;">${rows.length}</div>
+      </div>
+      <div>${items}</div>
+      ${verTodos}
+    </div>`;
+
+  el.querySelectorAll('.ga-rav-row').forEach(row => {
+    row.addEventListener('mouseenter', () => { row.style.background = '#f1f5f9'; });
+    row.addEventListener('mouseleave', () => { row.style.background = ''; });
+    row.addEventListener('click', () => {
+      const i = parseInt(row.getAttribute('data-rav-i'));
+      _abrirMiniPainelReavaliacao(visible[i]);
+    });
+  });
+
+  document.getElementById('ga-rav-ver-todos')?.addEventListener('click', () => {
+    _ravExpanded = true;
+    _renderReavaliacoesLista(el);
+  });
+}
+
+async function _abrirMiniPainelReavaliacao(r) {
+  const el = document.getElementById('gaPanel');
+  if (!el) return;
+
+  el.innerHTML = '<div style="font-size:12px;color:#94a3b8;text-align:center;padding:2rem 0;">A carregar…</div>';
+
+  let ultimaConsulta = '—';
+  try {
+    const { data: appts } = await window.sb
+      .from('appointments')
+      .select('start_at')
+      .eq('patient_id', r.patient_id)
+      .eq('status', 'done')
+      .order('start_at', { ascending: false })
+      .limit(1);
+    if (appts?.[0]?.start_at) {
+      ultimaConsulta = _fmtDataCurta(appts[0].start_at.slice(0, 10));
+    }
+  } catch {}
+
+  const dot     = _ravDotColor(r.data_reavaliacao);
+  const diasTxt = _ravDiasTxt(r.data_reavaliacao);
+
+  el.innerHTML = `
+    <button id="ga-rav-back" style="border:none;background:none;cursor:pointer;font-size:12px;color:#1a56db;padding:0;margin-bottom:12px;display:flex;align-items:center;gap:3px;">← Reavaliações</button>
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:${dot};display:inline-block;flex-shrink:0;"></span>
+      <div style="font-size:14px;font-weight:700;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(r.patient_name || '—')}</div>
+    </div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:2px;">Última consulta: <b>${ultimaConsulta}</b></div>
+    <div style="font-size:11px;color:${dot};margin-bottom:12px;">Reavaliar: ${_fmtDataCurta(r.data_reavaliacao)} — ${diasTxt}</div>
+    <div style="height:0.5px;background:#e2e8f0;margin-bottom:10px;"></div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <button class="ga-rav-act" data-a="agendar">Agendar reavaliação</button>
+      <button class="ga-rav-act" data-a="ficha">Ver ficha</button>
+      <button class="ga-rav-act" data-a="alta">Dar alta</button>
+      <button class="ga-rav-act" data-a="arquivar">Arquivar</button>
+    </div>`;
+
+  el.querySelectorAll('.ga-rav-act').forEach(btn => {
+    btn.style.cssText = 'padding:7px 10px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;text-align:center;border:0.5px solid #e2e8f0;background:#fff;color:#0f172a;width:100%;';
+    const a = btn.getAttribute('data-a');
+    if (a === 'agendar') { btn.style.background = '#eff6ff'; btn.style.color = '#1a56db'; btn.style.borderColor = '#93c5fd'; }
+    if (a === 'alta')    { btn.style.background = '#d1fae5'; btn.style.color = '#065f46'; btn.style.borderColor = '#6ee7b7'; }
+    if (a === 'arquivar') { btn.style.background = '#f3f4f6'; btn.style.color = '#374151'; btn.style.borderColor = '#d1d5db'; }
+  });
+
+  document.getElementById('ga-rav-back')?.addEventListener('click', () => {
+    el.innerHTML = '<div style="font-size:12px;color:#94a3b8;text-align:center;padding:1rem 0;">Clica num slot para ver detalhes e acções.</div>';
+    _renderReavaliacoesLista();
+  });
+
+  el.querySelector('[data-a="agendar"]')?.addEventListener('click', () => _agendarReavaliacao(r.patient_id, r.patient_name, r.clinic_id));
+  el.querySelector('[data-a="ficha"]')?.addEventListener('click', () => openPatientFeedFromAny({ id: r.patient_id }));
+
+  const _resolver = async (resultado, msg) => {
+    if (!confirm(msg)) return;
+    try {
+      const { error } = await window.sb.from('reavaliacoes_resolvidas').insert({
+        consultation_id: r.consultation_id,
+        patient_id: r.patient_id,
+        clinic_id: r.clinic_id || null,
+        resultado
+      });
+      if (error) throw error;
+      el.innerHTML = '<div style="font-size:12px;color:#94a3b8;text-align:center;padding:1rem 0;">Clica num slot para ver detalhes e acções.</div>';
+      await _renderReavaliacoes();
+    } catch (e) { alert('Erro: ' + (e.message || e)); }
+  };
+
+  el.querySelector('[data-a="alta"]')?.addEventListener('click', () => _resolver('alta', `Dar alta a ${r.patient_name}?`));
+  el.querySelector('[data-a="arquivar"]')?.addEventListener('click', () => _resolver('arquivada', `Arquivar reavaliação de ${r.patient_name}?`));
 }
 
 function _agendarReavaliacao(patientId, patientName, clinicId) {
