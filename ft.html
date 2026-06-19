@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registo Fisioterapeuta</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f8fafc;
+           min-height: 100vh; padding: 1.5rem 1rem; }
+    .card { background: #fff; border-radius: 14px;
+            border: 0.5px solid #e2e8f0; padding: 1.5rem;
+            max-width: 480px; margin: 0 auto; }
+    .logo { font-size: 13px; color: #94a3b8; margin-bottom: 1.5rem; }
+    .doente { font-size: 18px; font-weight: 600; color: #0f2d52;
+              margin-bottom: 4px; }
+    .clinica { font-size: 13px; color: #64748b; margin-bottom: 1.5rem; }
+    .sep { height: 0.5px; background: #e2e8f0; margin: 1rem 0; }
+    label { font-size: 13px; font-weight: 500; color: #374151;
+            display: block; margin-bottom: 6px; }
+    input[type=date], textarea {
+      width: 100%; padding: 10px 12px; border-radius: 10px;
+      border: 1px solid #e2e8f0; font-size: 15px;
+      font-family: inherit; background: #f8fafc;
+      color: #0f172a; margin-bottom: 1rem;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    input:focus, textarea:focus {
+      outline: none; border-color: #1a56db; background: #fff;
+    }
+    .btn { width: 100%; padding: 14px; background: #1a56db;
+           color: #fff; border: none; border-radius: 10px;
+           font-size: 16px; font-weight: 600; cursor: pointer;
+           font-family: inherit; margin-top: 4px; }
+    .btn:disabled { background: #94a3b8; cursor: not-allowed; }
+    .msg-ok { text-align: center; padding: 2rem 1rem; }
+    .msg-ok .icon { font-size: 48px; margin-bottom: 1rem; }
+    .msg-ok h2 { color: #0f2d52; margin-bottom: 8px; }
+    .msg-ok p { color: #64748b; font-size: 14px; }
+    .erro { color: #b91c1c; font-size: 13px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+<div class="card" id="card-form">
+  <div class="logo">gc.joaomorais.pt</div>
+  <div class="doente" id="ft-patient">A carregar…</div>
+  <div class="clinica" id="ft-fisio"></div>
+  <div class="sep"></div>
+
+  <label>Data de início da fisioterapia</label>
+  <input type="date" id="ft-start-date">
+
+  <label>Como está actualmente</label>
+  <textarea id="ft-current" placeholder="Estado actual do doente…"></textarea>
+
+  <label>Evolução desde última avaliação</label>
+  <textarea id="ft-evolution" placeholder="Como tem evoluído…"></textarea>
+
+  <button class="btn" id="ft-btn" onclick="submeter()">Guardar registo</button>
+  <div class="erro" id="ft-erro"></div>
+</div>
+
+<div class="msg-ok" id="card-ok" style="display:none;">
+  <div class="icon">✅</div>
+  <h2>Registo guardado</h2>
+  <p>O Dr. Morais receberá a informação antes da consulta.</p>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://nxfnzzcuqzxmzsihbrtp.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA';
+
+  const token = new URLSearchParams(location.search).get('t');
+
+  async function sbGet(table, filters) {
+    let url = `${SUPABASE_URL}/rest/v1/${table}?`;
+    url += Object.entries(filters).map(([k, v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&');
+    url += '&limit=1';
+    const r = await fetch(url, {
+      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON }
+    });
+    const data = await r.json();
+    return Array.isArray(data) ? (data[0] || null) : null;
+  }
+
+  async function sbPatch(table, matchField, matchVal, body) {
+    const url = `${SUPABASE_URL}/rest/v1/${table}?${matchField}=eq.${encodeURIComponent(matchVal)}`;
+    return fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_ANON,
+        'Authorization': 'Bearer ' + SUPABASE_ANON,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(body)
+    });
+  }
+
+  async function init() {
+    if (!token) {
+      document.getElementById('ft-patient').textContent = 'Link inválido.';
+      return;
+    }
+
+    const rec = await sbGet('physio_records', { submission_token: token });
+
+    if (!rec) {
+      document.getElementById('ft-patient').textContent = 'Link não encontrado.';
+      return;
+    }
+
+    if (rec.token_used) {
+      document.getElementById('card-form').style.display = 'none';
+      document.getElementById('card-ok').style.display = 'block';
+      document.querySelector('.msg-ok h2').textContent = 'Registo já submetido';
+      document.querySelector('.msg-ok p').textContent = 'Este link já foi utilizado.';
+      return;
+    }
+
+    document.getElementById('ft-patient').textContent = rec.patient_name || '—';
+    if (rec.physio_name) {
+      document.getElementById('ft-fisio').textContent = rec.physio_name;
+    }
+
+    if (rec.physio_start_date) {
+      document.getElementById('ft-start-date').value = rec.physio_start_date;
+    }
+  }
+
+  async function submeter() {
+    const btn = document.getElementById('ft-btn');
+    const erro = document.getElementById('ft-erro');
+    erro.textContent = '';
+
+    const startDate = document.getElementById('ft-start-date').value;
+    const current   = document.getElementById('ft-current').value.trim();
+    const evolution = document.getElementById('ft-evolution').value.trim();
+
+    if (!current && !evolution) {
+      erro.textContent = 'Por favor preencha pelo menos um campo.';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'A guardar…';
+
+    const content = [
+      current   ? `Estado actual:\n${current}`   : '',
+      evolution ? `Evolução:\n${evolution}` : ''
+    ].filter(Boolean).join('\n\n');
+
+    const r = await sbPatch('physio_records', 'submission_token', token, {
+      content,
+      physio_start_date: startDate || null,
+      token_used: true
+    });
+
+    if (r.ok) {
+      document.getElementById('card-form').style.display = 'none';
+      document.getElementById('card-ok').style.display = 'block';
+    } else {
+      erro.textContent = 'Erro ao guardar. Tente novamente.';
+      btn.disabled = false;
+      btn.textContent = 'Guardar registo';
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

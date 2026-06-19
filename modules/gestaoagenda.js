@@ -921,7 +921,10 @@ function _renderPanel(row, patientsById = {}) {
       <div style="height:0.5px;background:#e2e8f0;"></div>
       <button class="ga-pa-btn" data-action="editar">Editar marcação</button>
       <button class="ga-pa-btn ga-pa-blue" data-action="ficha">Ver ficha do doente</button>
-      ${row.meet_link ? `<a href="${escapeHtml(row.meet_link)}" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 10px;border-radius:8px;font-size:12px;font-weight:500;background:#d1fae5;color:#065f46;border:0.5px solid #6ee7b7;text-decoration:none;margin-top:2px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.361a1 1 0 01-1.447.894L15 14"/><rect x="3" y="6" width="12" height="12" rx="2"/></svg>Abrir Google Meet</a>` : ""}`;
+      ${row.meet_link ? `<a href="${escapeHtml(row.meet_link)}" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 10px;border-radius:8px;font-size:12px;font-weight:500;background:#d1fae5;color:#065f46;border:0.5px solid #6ee7b7;text-decoration:none;margin-top:2px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.361a1 1 0 01-1.447.894L15 14"/><rect x="3" y="6" width="12" height="12" rx="2"/></svg>Abrir Google Meet</a>` : ""}
+      <div style="height:0.5px;background:#e2e8f0;"></div>
+      <button class="ga-pa-btn" data-action="enviar-link-ft">📱 Enviar link FT</button>
+      <div id="ga-ft-status" style="font-size:11px;margin-top:2px;"></div>`;
   }
 
   el.innerHTML = `
@@ -975,6 +978,15 @@ function _renderPanel(row, patientsById = {}) {
       openApptModal({ mode:"new", row:null, prefillDatetime: row.start_at, prefillClinicId: _state.selectedClinicId });
     } catch(e) { alert("Erro: " + (e.message||e)); }
   });
+  el.querySelector("[data-action='enviar-link-ft']")?.addEventListener("click", () => {
+    _enviarLinkFT(row, nome);
+  });
+  if (!isSlot && !isBlocked && row.patient_id) {
+    _verificarRegistoFT(row.patient_id, row.clinic_id, row.id).then(html => {
+      const st = document.getElementById("ga-ft-status");
+      if (st) st.outerHTML = html;
+    });
+  }
 }
 
 async function _updateStatus(id, status) {
@@ -982,6 +994,55 @@ async function _updateStatus(id, status) {
     await window.sb.from("appointments").update({ status }).eq("id", id);
     _loadAndRender();
   } catch(e) { alert("Erro ao actualizar estado: " + (e.message||e)); }
+}
+
+async function _enviarLinkFT(row, patientName) {
+  const input = prompt("Nome do fisioterapeuta (deixar vazio = Fisioterapeuta):");
+  if (input === null) return;
+  const physioName = input.trim() || "Fisioterapeuta";
+
+  const token = crypto.randomUUID();
+  const { error } = await window.sb.from("physio_records").insert({
+    clinic_id: row.clinic_id,
+    patient_id: row.patient_id,
+    appointment_id: row.id,
+    physio_name: physioName,
+    patient_name: patientName,
+    submission_token: token,
+    token_used: false,
+    content: ""
+  });
+  if (error) { alert("Erro ao gerar link: " + error.message); return; }
+
+  const link = `https://gc.joaomorais.pt/ft?t=${token}`;
+  const msg = encodeURIComponent(
+    `Olá ${physioName},\n\nPor favor registe a evolução de ${patientName} antes da próxima consulta:\n\n${link}\n\nObrigado.`
+  );
+  window.open(`https://wa.me/?text=${msg}`, "_blank");
+
+  // Actualizar status no painel após envio
+  _verificarRegistoFT(row.patient_id, row.clinic_id, row.id).then(html => {
+    const st = document.getElementById("ga-ft-status");
+    if (st) st.outerHTML = html;
+  });
+}
+
+async function _verificarRegistoFT(patientId, clinicId) {
+  const { data } = await window.sb
+    .from("physio_records")
+    .select("id, token_used, physio_name")
+    .eq("patient_id", patientId)
+    .eq("clinic_id", clinicId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  const rec = data?.[0];
+  if (!rec) return `<div id="ga-ft-status" style="font-size:11px;color:#94a3b8;margin-top:2px;">Sem registo FT</div>`;
+
+  if (rec.token_used === false) {
+    return `<div id="ga-ft-status" style="font-size:11px;color:#b45309;background:#fef3c7;padding:4px 8px;border-radius:6px;margin-top:2px;">⏳ Link enviado — aguarda resposta</div>`;
+  }
+  return `<div id="ga-ft-status" style="font-size:11px;color:#065f46;background:#d1fae5;padding:4px 8px;border-radius:6px;margin-top:2px;">✓ Registo FT recebido</div>`;
 }
 
 /* ── Consulta extra ───────────────────────────────────── */
