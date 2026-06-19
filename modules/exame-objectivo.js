@@ -39,6 +39,7 @@ function openExameObjectivoMenu(anchorBtn, ctx = {}) {
       items: [
         { id: "pfp",       label: "🥴 Paresia Facial Periférica",         ready: true },
         { id: "incont",    label: "🫧 Pavimento Pélvico / Incontinência", ready: true },
+        { id: "rpp",       label: "🩺 Pavimento Pélvico",                 ready: true },
         { id: "neuro_sum", label: "🧠 Neurológico Sumário",               ready: false },
       ]
     },
@@ -510,6 +511,15 @@ return L.join('\\n');
   if (formId === "pfp") {
     const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
     window.open('/modules/obj/regiao.html?r=pfp&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
+    return;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     REABILITAÇÃO PAVIMENTO PÉLVICO — motor genérico
+  ══════════════════════════════════════════════════════════════ */
+  if (formId === "rpp") {
+    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
+    window.open('/modules/obj/regiao.html?r=rpp&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
     return;
   }
 
