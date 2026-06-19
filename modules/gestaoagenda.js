@@ -117,7 +117,7 @@ function _buildShell() {
     <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;">
       <div id="gaSemanaBanner" style="display:none;"></div>
       <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-        <div style="display:grid;grid-template-columns:60px minmax(100px,1fr) 170px 80px 165px 28px;padding:8px 12px;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;gap:8px;">
+        <div style="display:grid;grid-template-columns:60px minmax(80px,1fr) 170px 80px 165px 44px;padding:8px 12px;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;gap:8px;">
           <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Hora</div>
           <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Doente</div>
           <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Tipo</div>
@@ -932,9 +932,11 @@ function _renderTimeline(rows, patientsById = {}, consentMap = {}, physioMap = {
       } else if (phRec.token_used === true) {
         ftIcon = `<span title="Registo recebido — ${tip}" style="font-size:13px;font-weight:700;color:#16a34a;cursor:default;line-height:1;">✓</span>`;
       }
+    } else if (!isSlot && !isBlocked && r.patient_id) {
+      ftIcon = `<button class="ga-btn-ft" data-idx="${i}" style="font-size:11px;color:#64748b;border:0.5px solid #e2e8f0;background:transparent;border-radius:5px;padding:2px 4px;cursor:pointer;white-space:nowrap;line-height:1.3;">📱 FT</button>`;
     }
 
-    return `<div class="ga-tl-row" data-idx="${i}" style="display:grid;grid-template-columns:60px minmax(100px,1fr) 170px 80px 165px 28px;padding:10px 12px;border-bottom:0.5px solid #f1f5f9;gap:8px;align-items:center;cursor:pointer;${borderLeft}">
+    return `<div class="ga-tl-row" data-idx="${i}" style="display:grid;grid-template-columns:60px minmax(80px,1fr) 170px 80px 165px 44px;padding:10px 12px;border-bottom:0.5px solid #f1f5f9;gap:8px;align-items:center;cursor:pointer;${borderLeft}">
       <div style="font-size:14px;font-weight:600;color:${isBlocked?"#ef4444":isExtra?"#92400e":"#475569"};white-space:nowrap;">${hora}</div>
       <div style="display:flex;align-items:center;gap:8px;min-width:0;">
         <div style="width:8px;height:8px;border-radius:50%;background:${meta.dot};flex-shrink:0;"></div>
@@ -998,6 +1000,16 @@ function _renderTimeline(rows, patientsById = {}, consentMap = {}, physioMap = {
       const idx = parseInt(btn.getAttribute("data-idx"));
       const r = rows[idx];
       openApptModal({ mode: "new", row: null, prefillDatetime: r.start_at, prefillClinicId: _state.selectedClinicId });
+    });
+  });
+
+  el.querySelectorAll(".ga-btn-ft").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      const idx = parseInt(btn.getAttribute("data-idx"));
+      const r = rows[idx];
+      const nome = patientsById[r.patient_id]?.full_name || r.title || "—";
+      _enviarLinkFT(r, nome);
     });
   });
 
