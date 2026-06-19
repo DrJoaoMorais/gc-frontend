@@ -37,7 +37,7 @@ function openExameObjectivoMenu(anchorBtn, ctx = {}) {
     {
       label: "Neurológico",
       items: [
-        { id: "pfp",       label: "🧠 Paresia Facial Periférica",         ready: true },
+        { id: "pfp",       label: "🥴 Paresia Facial Periférica",         ready: true },
         { id: "incont",    label: "🫧 Pavimento Pélvico / Incontinência", ready: true },
         { id: "neuro_sum", label: "🧠 Neurológico Sumário",               ready: false },
       ]
@@ -61,8 +61,8 @@ function openExameObjectivoMenu(anchorBtn, ctx = {}) {
     {
       label: "Coluna",
       items: [
-        { id: "cervical", label: "🫀 Coluna Cervical", ready: true },
-        { id: "lombar",   label: "🫁 Coluna Lombar",   ready: true },
+        { id: "cervical", label: "⬆️ Coluna Cervical", ready: true },
+        { id: "lombar",   label: "⬇️ Coluna Lombar",   ready: true },
       ]
     },
     {
