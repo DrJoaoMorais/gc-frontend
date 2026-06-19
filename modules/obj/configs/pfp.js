@@ -11,15 +11,14 @@ export default {
       id: 'pfp_inicial',
       titulo: 'Avaliação inicial',
       tipo: 'params',
-      campos: [
-        { id: 'pfp_data_inicio',   label: 'Data/hora de início',  type: 'text', placeholder: 'dd/mm/aaaa hh:mm' },
-        { id: 'pfp_lateralidade',  label: 'Lateralidade',         type: 'radio', options: ['Direita','Esquerda'] },
-        { id: 'pfp_instalacao',    label: 'Instalação',           type: 'radio', options: ['Súbita','Progressiva'] },
-        { id: 'pfp_episodio',      label: 'Episódio',             type: 'radio', options: ['Único','Recorrente'] },
-        { id: 'pfp_su',            label: 'Recorreu ao SU',       type: 'radio', options: ['Sim','Não'] },
-        { id: 'pfp_cortico',       label: 'Corticoterapia',       type: 'radio', options: ['Sim','Não'] },
-        { id: 'pfp_aciclovir',     label: 'Aciclovir',            type: 'radio', options: ['Sim','Não'] },
-        { id: 'pfp_evolucao',      label: 'Evolução até hoje',    type: 'textarea' },
+      notas: 'notas_pfp_inicial',
+      rows: [
+        { id: 'pfp_lateralidade', label: 'Lateralidade',      opts: ['Direita','Esquerda'] },
+        { id: 'pfp_instalacao',   label: 'Instalação',         opts: ['Súbita','Progressiva'] },
+        { id: 'pfp_episodio',     label: 'Episódio',           opts: ['Único','Recorrente'] },
+        { id: 'pfp_su',          label: 'Recorreu ao SU',     opts: ['Sim','Não'] },
+        { id: 'pfp_cortico',     label: 'Corticoterapia',     opts: ['Sim','Não'] },
+        { id: 'pfp_aciclovir',   label: 'Aciclovir',          opts: ['Sim','Não'] },
       ]
     },
 
