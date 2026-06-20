@@ -106,6 +106,19 @@ h1{font-size:17px;margin-bottom:1px;}
 .ases-eva-lbl{font-size:11px;color:#475569;width:80px;flex-shrink:0;}
 .ases-eva-inp{width:56px;padding:4px 6px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;font-weight:700;text-align:center;font-family:inherit;color:#0f172a;}
 textarea{width:100%;border:1px solid #e2e8f0;border-radius:7px;padding:4px 7px;font-size:11px;resize:vertical;min-height:34px;background:#f8fafc;color:#0f172a;font-family:inherit;box-sizing:border-box;margin-top:4px;}
+.ob-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#0f2d52;padding:6px 0 5px;border-bottom:1px solid #e2e8f0;margin-bottom:8px;}
+.ob-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;}
+.ob-row>label{font-size:12px;font-weight:500;color:#374151;min-width:160px;flex-shrink:0;}
+.ob-chips{display:flex;gap:5px;flex-wrap:wrap;}
+.ob-chip{padding:4px 10px;border:1px solid #e2e8f0;border-radius:16px;font-size:11px;font-weight:500;cursor:pointer;background:#f8fafc;color:#475569;user-select:none;transition:all .15s;}
+.ob-chip:hover{border-color:#1a56db;color:#1a56db;}
+.ob-chip.active{background:#1a56db;border-color:#1a56db;color:#fff;}
+.ob-chip-alarme{border-color:#fca5a5;color:#dc2626;}
+.ob-chip-alarme:hover{border-color:#dc2626;background:#fef2f2;}
+.ob-chip-alarme.active{background:#dc2626;border-color:#dc2626;color:#fff;}
+.ob-notes{width:100%;padding:6px 8px;border:1px solid #e2e8f0;border-radius:7px;font-size:12px;resize:vertical;background:#f8fafc;color:#0f172a;font-family:inherit;box-sizing:border-box;margin-top:4px;}
+.ob-input{width:80px;padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;color:#0f172a;}
+.ob-label{font-size:12px;color:#6b7280;margin-bottom:4px;display:block;}
 @media print{
   .ob-tabs{display:none!important;}
   .bar-acoes{display:none!important;}
@@ -121,6 +134,7 @@ textarea{width:100%;border:1px solid #e2e8f0;border-radius:7px;padding:4px 7px;f
   <div id="tab-exame" class="ob-tab-content active"></div>
   <div id="tab-dinamometria" class="ob-tab-content"></div>
   <div id="tab-escalas" class="ob-tab-content"></div>
+  <div id="tab-historia" class="ob-tab-content"></div>
 </div>
 <div id="toast">&#10003; Guardado</div>
 <div id="toast-err">&#9888; N&#xC3;O GRAVADO &#8212; abre o exame a partir da consulta</div>

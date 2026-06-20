@@ -46,6 +46,7 @@ function _renderPage(cfg) {
     let h = '<div class="ob-tabs"><button class="ob-tab active" data-tab="exame">🦴 Exame Objectivo</button>';
     if (cfg.tabs && cfg.tabs.dinamometria) h += '<button class="ob-tab" data-tab="dinamometria">📈 Dinamometria</button>';
     if (cfg.tabs && cfg.tabs.escalas) h += '<button class="ob-tab" data-tab="escalas">📊 Escalas Funcionais</button>';
+    if (cfg.tabs && cfg.tabs.historia) h += '<button class="ob-tab" data-tab="historia">📋 História Clínica</button>';
     tabsSlot.innerHTML = h + '</div>';
   }
 
@@ -69,6 +70,10 @@ function _renderPage(cfg) {
   if (cfg.tabs && cfg.tabs.escalas) {
     const el = document.getElementById('tab-escalas');
     if (el) el.innerHTML = _renderEscalas(cfg.escalas);
+  }
+  if (cfg.tabs && cfg.tabs.historia) {
+    const el = document.getElementById('tab-historia');
+    if (el) { el.innerHTML = _renderHistoria(cfg); _wireHistoria(); }
   }
 
   _wireHandlers(cfg);
@@ -580,6 +585,165 @@ function _wireEscalas(escalas) {
   });
 }
 
+/* ── HISTÓRIA CLÍNICA ── */
+function _renderHistoria() {
+  return '<div style="padding:12px 0 0;max-width:700px;">' +
+
+    '<div class="ob-section-title">Queixa Principal</div>' +
+    '<div class="ob-row"><label>Tipo de incontinência</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="motivo" data-v="esforco">Esforço</button>' +
+    '<button class="ob-chip" data-h="motivo" data-v="urgencia">Urgência</button>' +
+    '<button class="ob-chip" data-h="motivo" data-v="mista">Mista</button>' +
+    '<button class="ob-chip" data-h="motivo" data-v="por_extravasar">Por extravasar</button>' +
+    '<button class="ob-chip" data-h="motivo" data-v="nocturia">Noctúria isolada</button>' +
+    '<button class="ob-chip" data-h="motivo" data-v="funcional">Funcional</button>' +
+    '</div></div>' +
+    '<div class="ob-row"><label>Instalação</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="instalacao" data-v="aguda">Aguda</button>' +
+    '<button class="ob-chip" data-h="instalacao" data-v="progressiva">Progressiva</button>' +
+    '<button class="ob-chip" data-h="instalacao" data-v="pos_parto">Pós-parto</button>' +
+    '<button class="ob-chip" data-h="instalacao" data-v="pos_cirurgia">Pós-cirurgia</button>' +
+    '<button class="ob-chip" data-h="instalacao" data-v="menopausa">Menopausa</button>' +
+    '</div></div>' +
+
+    '<div class="ob-section-title" style="margin-top:14px;">Sintomas Urinários</div>' +
+    '<div class="ob-row"><label>Perda ao esforço</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="esforco" data-v="sim">Sim</button>' +
+    '<button class="ob-chip" data-h="esforco" data-v="nao">Não</button>' +
+    '<button class="ob-chip" data-h="esforco" data-v="ocasional">Ocasional</button>' +
+    '</div></div>' +
+    '<div class="ob-row"><label>Urgência miccional</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="urgencia_mic" data-v="sim">Sim</button>' +
+    '<button class="ob-chip" data-h="urgencia_mic" data-v="nao">Não</button>' +
+    '<button class="ob-chip" data-h="urgencia_mic" data-v="ocasional">Ocasional</button>' +
+    '</div></div>' +
+    '<div class="ob-row"><label>Noctúria</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="nocturia" data-v="sim">Sim</button>' +
+    '<button class="ob-chip" data-h="nocturia" data-v="nao">Não</button>' +
+    '<button class="ob-chip" data-h="nocturia" data-v="ocasional">Ocasional</button>' +
+    '</div></div>' +
+    '<div class="ob-row"><label>Disúria</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="disuria" data-v="sim">Sim</button>' +
+    '<button class="ob-chip" data-h="disuria" data-v="nao">Não</button>' +
+    '</div></div>' +
+    '<div class="ob-row"><label>Frequência diurna</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="freq_diurna" data-v="normal">Normal (&lt;8×)</button>' +
+    '<button class="ob-chip" data-h="freq_diurna" data-v="aumentada">Aumentada (≥8×)</button>' +
+    '</div></div>' +
+
+    '<div class="ob-section-title" style="margin-top:14px;">Dor Pélvica</div>' +
+    '<div class="ob-row"><label>Dor em repouso</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="dor_pelvica" data-v="sim">Sim</button>' +
+    '<button class="ob-chip" data-h="dor_pelvica" data-v="nao">Não</button>' +
+    '<button class="ob-chip" data-h="dor_pelvica" data-v="ocasional">Ocasional</button>' +
+    '</div></div>' +
+    '<div class="ob-row"><label>Dispareunia</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="dispareunia" data-v="sim">Sim</button>' +
+    '<button class="ob-chip" data-h="dispareunia" data-v="nao">Não</button>' +
+    '<button class="ob-chip" data-h="dispareunia" data-v="na">N/A</button>' +
+    '</div></div>' +
+
+    '<div class="ob-section-title" style="margin-top:14px;">Sintomas Intestinais</div>' +
+    '<div class="ob-row"><label>Perda de gases</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="gases" data-v="sim">Sim</button>' +
+    '<button class="ob-chip" data-h="gases" data-v="nao">Não</button>' +
+    '<button class="ob-chip" data-h="gases" data-v="ocasional">Ocasional</button>' +
+    '</div></div>' +
+    '<div class="ob-row"><label>Perda de fezes líquidas</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="fezes_liq" data-v="sim">Sim</button>' +
+    '<button class="ob-chip" data-h="fezes_liq" data-v="nao">Não</button>' +
+    '<button class="ob-chip" data-h="fezes_liq" data-v="ocasional">Ocasional</button>' +
+    '</div></div>' +
+    '<div class="ob-row"><label>Urgência fecal</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="urgencia_fecal" data-v="sim">Sim</button>' +
+    '<button class="ob-chip" data-h="urgencia_fecal" data-v="nao">Não</button>' +
+    '</div></div>' +
+    '<div class="ob-row"><label>Obstipação</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="obstipacao" data-v="sim">Sim</button>' +
+    '<button class="ob-chip" data-h="obstipacao" data-v="nao">Não</button>' +
+    '</div></div>' +
+
+    '<div class="ob-section-title" style="margin-top:14px;">Ginecológico / Obstétrico</div>' +
+    '<div class="ob-row"><label>Episiotomia</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="episiotomia" data-v="sim">Sim</button>' +
+    '<button class="ob-chip" data-h="episiotomia" data-v="nao">Não</button>' +
+    '<button class="ob-chip" data-h="episiotomia" data-v="na">N/A</button>' +
+    '</div></div>' +
+    '<div class="ob-row"><label>RN ≥ 4 kg</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="rn_grande" data-v="sim">Sim</button>' +
+    '<button class="ob-chip" data-h="rn_grande" data-v="nao">Não</button>' +
+    '<button class="ob-chip" data-h="rn_grande" data-v="na">N/A</button>' +
+    '</div></div>' +
+    '<div class="ob-row"><label>Amamentação actual</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="amamentacao" data-v="sim">Sim</button>' +
+    '<button class="ob-chip" data-h="amamentacao" data-v="nao">Não</button>' +
+    '</div></div>' +
+    '<div class="ob-row"><label>Menopausa</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="menopausa" data-v="sim">Sim</button>' +
+    '<button class="ob-chip" data-h="menopausa" data-v="nao">Não</button>' +
+    '<button class="ob-chip" data-h="menopausa" data-v="thr">THS</button>' +
+    '</div></div>' +
+
+    '<div class="ob-section-title" style="margin-top:14px;">Factores Gatilho</div>' +
+    '<div class="ob-row" style="align-items:flex-start;"><label style="padding-top:4px;">Gatilhos</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="gatilho" data-v="tosse">Tosse crónica</button>' +
+    '<button class="ob-chip" data-h="gatilho" data-v="obesidade">Obesidade</button>' +
+    '<button class="ob-chip" data-h="gatilho" data-v="constipacao">Constipação crónica</button>' +
+    '<button class="ob-chip" data-h="gatilho" data-v="levantamento">Levantamento de pesos</button>' +
+    '<button class="ob-chip" data-h="gatilho" data-v="exercicio">Exercício intenso</button>' +
+    '<button class="ob-chip" data-h="gatilho" data-v="cirurgia_pelv">Cirurgia pélvica prévia</button>' +
+    '<button class="ob-chip" data-h="gatilho" data-v="irradiacao">Irradiação pélvica</button>' +
+    '</div></div>' +
+    '<div class="ob-row" style="align-items:flex-start;"><label style="padding-top:4px;">Agravantes</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="agrav" data-v="frio">Frio</button>' +
+    '<button class="ob-chip" data-h="agrav" data-v="cafe">Cafeína</button>' +
+    '<button class="ob-chip" data-h="agrav" data-v="stress">Stress</button>' +
+    '<button class="ob-chip" data-h="agrav" data-v="alcool">Álcool</button>' +
+    '<button class="ob-chip" data-h="agrav" data-v="agua">Ingestão hídrica excessiva</button>' +
+    '<button class="ob-chip" data-h="agrav" data-v="condicionamento">Condicionamento</button>' +
+    '</div></div>' +
+
+    '<div class="ob-section-title" style="margin-top:14px;">Medicação Relevante</div>' +
+    '<div class="ob-row" style="align-items:flex-start;"><label style="padding-top:4px;">Medicação actual</label><div class="ob-chips">' +
+    '<button class="ob-chip" data-h="med" data-v="diureticos">Diuréticos</button>' +
+    '<button class="ob-chip" data-h="med" data-v="anticolinergicos">Anticolinérgicos</button>' +
+    '<button class="ob-chip" data-h="med" data-v="alfa_bloq">α-bloqueantes</button>' +
+    '<button class="ob-chip" data-h="med" data-v="antidepressivos">Antidepressivos</button>' +
+    '<button class="ob-chip" data-h="med" data-v="opioides">Opióides</button>' +
+    '<button class="ob-chip" data-h="med" data-v="hormonas">Hormonoterapia</button>' +
+    '</div></div>' +
+
+    '<div class="ob-section-title" style="margin-top:14px;">Sinais de Alarme</div>' +
+    '<div class="ob-row" style="align-items:flex-start;"><label style="padding-top:4px;">Alertas</label><div class="ob-chips">' +
+    '<button class="ob-chip ob-chip-alarme" data-h="alarme" data-v="hematuria">Hematúria</button>' +
+    '<button class="ob-chip ob-chip-alarme" data-h="alarme" data-v="perda_peso">Perda de peso</button>' +
+    '<button class="ob-chip ob-chip-alarme" data-h="alarme" data-v="dor_nocturna">Dor nocturna</button>' +
+    '<button class="ob-chip ob-chip-alarme" data-h="alarme" data-v="febre">Febre recorrente</button>' +
+    '<button class="ob-chip ob-chip-alarme" data-h="alarme" data-v="reten_urin">Retenção urinária</button>' +
+    '<button class="ob-chip ob-chip-alarme" data-h="alarme" data-v="massa_pelvica">Massa pélvica</button>' +
+    '</div></div>' +
+
+    '<div class="ob-section-title" style="margin-top:14px;">Notas</div>' +
+    '<span class="ob-label">Observações livres / história detalhada</span>' +
+    '<textarea class="ob-notes" data-h="notas" rows="4" placeholder="Anamnese complementar, contexto relevante…"></textarea>' +
+
+    '</div>';
+}
+
+function _wireHistoria() {
+  const tab = document.getElementById('tab-historia');
+  if (!tab) return;
+  tab.querySelectorAll('.ob-chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      chip.classList.toggle('active');
+      document.dispatchEvent(new Event('input'));
+    });
+  });
+  tab.querySelectorAll('textarea[data-h], input[data-h]').forEach(function (el) {
+    el.addEventListener('input', function () { document.dispatchEvent(new Event('input')); });
+  });
+}
+
 /* ── WIRE HANDLERS ── */
 function _wireHandlers(cfg) {
   document.querySelectorAll('.ob-tab').forEach(function (btn) {
@@ -776,6 +940,24 @@ window._gerarData = function () {
       esc[e.id + '_items'] = items;
     });
     data.escalas = esc;
+  }
+  const histTab = document.getElementById('tab-historia');
+  if (histTab) {
+    const hist = {};
+    histTab.querySelectorAll('.ob-chip.active').forEach(function (c) {
+      const k = c.getAttribute('data-h'), v = c.getAttribute('data-v');
+      if (!k) return;
+      if (!hist[k]) hist[k] = [];
+      hist[k].push(v);
+    });
+    histTab.querySelectorAll('textarea[data-h]').forEach(function (el) {
+      hist[el.getAttribute('data-h')] = el.value.trim() || null;
+    });
+    histTab.querySelectorAll('input[type=number][data-h]').forEach(function (el) {
+      const v = el.value.trim();
+      hist[el.getAttribute('data-h')] = v !== '' ? parseInt(v) : null;
+    });
+    data.historia = hist;
   }
   return data;
 };

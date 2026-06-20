@@ -3,6 +3,7 @@ export default {
   id: 'rpp',
   titulo: 'Pavimento Pélvico',
   subtitle: 'Reabilitação — homem e mulher',
+  tabs: { historia: true },
   seccoes: [
 
     // 1. DOR
