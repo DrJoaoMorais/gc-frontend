@@ -43,10 +43,15 @@ function _renderPage(cfg) {
 
   const tabsSlot = document.getElementById('tabs-slot');
   if (tabsSlot) {
-    let h = '<div class="ob-tabs"><button class="ob-tab active" data-tab="exame">🦴 Exame Objectivo</button>';
+    let h = '<div class="ob-tabs">';
+    if (cfg.tabs && cfg.tabs.historia) {
+      h += '<button class="ob-tab active" data-tab="historia">📋 História Clínica</button>';
+      h += '<button class="ob-tab" data-tab="exame">🦴 Exame Objectivo</button>';
+    } else {
+      h += '<button class="ob-tab active" data-tab="exame">🦴 Exame Objectivo</button>';
+    }
     if (cfg.tabs && cfg.tabs.dinamometria) h += '<button class="ob-tab" data-tab="dinamometria">📈 Dinamometria</button>';
     if (cfg.tabs && cfg.tabs.escalas) h += '<button class="ob-tab" data-tab="escalas">📊 Escalas Funcionais</button>';
-    if (cfg.tabs && cfg.tabs.historia) h += '<button class="ob-tab" data-tab="historia">📋 História Clínica</button>';
     tabsSlot.innerHTML = h + '</div>';
   }
 
@@ -73,7 +78,12 @@ function _renderPage(cfg) {
   }
   if (cfg.tabs && cfg.tabs.historia) {
     const el = document.getElementById('tab-historia');
-    if (el) { el.innerHTML = _renderHistoria(cfg); _wireHistoria(); }
+    if (el) {
+      el.innerHTML = _renderHistoria(cfg);
+      _wireHistoria();
+      document.querySelectorAll('.ob-tab-content').forEach(function (c) { c.classList.remove('active'); });
+      el.classList.add('active');
+    }
   }
 
   _wireHandlers(cfg);
