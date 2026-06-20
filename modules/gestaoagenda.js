@@ -2076,3 +2076,6 @@ function _showModal(html, opts = {}) {
   ov.style.display = "flex";
   ov.addEventListener("click", e => { if (e.target===ov) ov.style.display="none"; }, { once: true });
 }
+
+/* Exposto para que agenda.js possa chamar após nova marcação */
+window.__gc_enviarLinkFT = _enviarLinkFT;

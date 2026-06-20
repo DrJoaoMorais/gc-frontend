@@ -2193,13 +2193,39 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
       const oldDayISO = isEdit && row?.start_at ? String(row.start_at).slice(0, 10) : "";
       const newDayISO = String(times.startAt || G.selectedDayISO || "").slice(0, 10);
 
+      let savedApptId = isEdit ? (row?.id || null) : null;
+
       if (isEdit) {
         const { error } = await window.sb.from("appointments").update(payload).eq("id", row.id);
         if (error) throw error;
       } else {
-        const { data, error } = await window.sb.from("appointments").insert(payload).select("id").limit(1);
+        const { data: insertData, error } = await window.sb.from("appointments").insert(payload).select("id").limit(1);
         if (error) throw error;
-        console.log("[APPT] insert ok id=", data?.[0]?.id);
+        savedApptId = insertData?.[0]?.id || null;
+        console.log("[APPT] insert ok id=", savedApptId);
+      }
+
+      // Prompt FT apenas em novas consultas com doente
+      if (!isEdit && pid) {
+        mMsg.textContent = "";
+        const footer = mMsg.parentElement;
+        footer.innerHTML = `
+          <div style="font-size:12px;color:#374151;flex:1;">Enviar link de registo ao fisioterapeuta?</div>
+          <div style="display:flex;gap:8px;">
+            <button id="btnFtNao" class="gcBtnGhost" style="font-size:12px;padding:7px 14px;border-radius:8px;">Não</button>
+            <button id="btnFtEnviar" style="font-size:12px;padding:7px 14px;border-radius:8px;background:#0d9488;color:#fff;border:none;cursor:pointer;font-weight:600;">Enviar</button>
+          </div>`;
+
+        const closeAndRefresh = async () => { safeCloseModal(); await refreshAgenda(); };
+
+        document.getElementById("btnFtNao")?.addEventListener("click", closeAndRefresh);
+        document.getElementById("btnFtEnviar")?.addEventListener("click", async () => {
+          if (typeof window.__gc_enviarLinkFT === "function") {
+            window.__gc_enviarLinkFT({ id: savedApptId, patient_id: pid, clinic_id: mClinic.value }, pname);
+          }
+          await closeAndRefresh();
+        });
+        return;
       }
 
       safeCloseModal();
