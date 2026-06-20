@@ -4157,6 +4157,10 @@ function openPatientViewModal(patient) {
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M11 11l3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M5 7h4M7 5v4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
               Exame Objectivo
             </button>
+            <button class="gc-pv-tab" id="btnConsultaPelvico">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="8" cy="5.5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M8 8.5v5M5.5 11.5h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              Consulta Pélvico
+            </button>
             <button class="gc-pv-tab" id="btnProtocolos">
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 5.5h7M4.5 8h7M4.5 10.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
               Protocolos
@@ -4381,6 +4385,10 @@ function openPatientViewModal(patient) {
         consultationId: lastSavedConsultId || (consultRows?.length ? consultRows[0].id : null)
       };
       openExameObjectivoMenu(document.getElementById("btnExameObjectivo"), _ctx);
+    });
+
+    document.getElementById("btnConsultaPelvico")?.addEventListener("click", () => {
+      window.open('/modules/pelvico/consulta-pelvico.html', '_blank');
     });
 
     if (isDoctor()) {

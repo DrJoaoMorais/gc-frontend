@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assistente Clínico · Pavimento Pélvico</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #181c27;
+  --surface2: #1e2333;
+  --border: #2a3044;
+  --border2: #343d55;
+  --text: #e8eaf0;
+  --text2: #8891a8;
+  --text3: #555f7a;
+  --accent: #4f8ef7;
+  --accent2: #2d5fd4;
+  --green: #3ecf8e;
+  --green2: #1a9962;
+  --amber: #f5a623;
+  --amber2: #c47d0e;
+  --red: #f05252;
+  --purple: #a78bfa;
+  --teal: #2dd4bf;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* LAYOUT */
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+/* SIDEBAR */
+.sidebar {
+  width: 240px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.sidebar-header {
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-logo {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.sidebar-title {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text);
+}
+.sidebar-subtitle {
+  font-size: 0.72rem;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+.nav-section {
+  padding: 12px 8px 4px;
+}
+.nav-label {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--text3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0 8px;
+  margin-bottom: 4px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--text2);
+  transition: all 0.15s;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: rgba(79,142,247,0.12); color: var(--accent); }
+.nav-item .nav-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--border2);
+  flex-shrink: 0;
+}
+.nav-item.active .nav-dot { background: var(--accent); }
+.nav-item.done .nav-dot { background: var(--green); }
+.nav-item.done { color: var(--text2); }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+.reset-btn {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--text3);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+.reset-btn:hover { border-color: var(--border2); color: var(--text2); }
+
+/* MAIN CONTENT */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.content::-webkit-scrollbar { width: 4px; }
+.content::-webkit-scrollbar-track { background: var(--bg); }
+.content::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.top-bar {
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.breadcrumb {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text3);
+  letter-spacing: 0.04em;
+}
+.breadcrumb span { color: var(--accent); }
+
+.progress-pills {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.pill {
+  width: 28px; height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.3s;
+}
+.pill.active { background: var(--accent); }
+.pill.done { background: var(--green); }
+
+.panel { display: none; padding: 28px; animation: fadeUp 0.25s ease; }
+.panel.active { display: block; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.panel-header { margin-bottom: 24px; }
+.panel-tag {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.panel-title {
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.panel-desc {
+  font-size: 0.82rem;
+  color: var(--text2);
+  max-width: 560px;
+  line-height: 1.7;
+}
+
+/* CARDS */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+.card-title {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--text3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.card.highlight { border-color: var(--accent2); background: rgba(79,142,247,0.04); }
+.card.success { border-color: var(--green2); background: rgba(62,207,142,0.04); }
+.card.warning { border-color: var(--amber2); background: rgba(245,166,35,0.04); }
+.card.danger { border-color: var(--red); background: rgba(240,82,82,0.04); }
+
+/* TOGGLE GROUPS */
+.toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+.toggle-grid.two-col { grid-template-columns: 1fr 1fr; }
+.toggle-grid.three-col { grid-template-columns: 1fr 1fr 1fr; }
+
+.toggle-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface2);
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text2);
+  transition: all 0.15s;
+  text-align: left;
+  line-height: 1.4;
+  font-family: var(--sans);
+}
+.toggle-btn:hover { border-color: var(--border2); color: var(--text); }
+.toggle-btn.on {
+  border-color: var(--accent);
+  background: rgba(79,142,247,0.1);
+  color: var(--text);
+}
+.toggle-btn .indicator {
+  width: 14px; height: 14px;
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.6rem;
+  transition: all 0.15s;
+}
+.toggle-btn.on .indicator {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+.toggle-btn.radio-btn.on {
+  border-color: var(--green);
+  background: rgba(62,207,142,0.08);
+}
+.toggle-btn.radio-btn.on .indicator {
+  background: var(--green);
+  border-color: var(--green);
+  border-radius: 50%;
+}
+
+/* SCALE */
+.scale-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.scale-num {
+  flex: 1;
+  padding: 8px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface2);
+  text-align: center;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text2);
+  transition: all 0.15s;
+}
+.scale-num:hover { border-color: var(--border2); color: var(--text); }
+.scale-num.on {
+  border-color: var(--accent);
+  background: rgba(79,142,247,0.15);
+  color: var(--accent);
+}
+.scale-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: var(--text3);
+}
+
+/* INPUTS */
+.field-row { margin-bottom: 16px; }
+.field-label {
+  font-size: 0.76rem;
+  color: var(--text2);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.field-label .sub { font-weight: 300; color: var(--text3); font-size: 0.7rem; margin-left: 4px; }
+input[type=text], input[type=number], select, textarea {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  transition: border-color 0.2s;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+select option { background: var(--surface2); }
+textarea { resize: vertical; min-height: 70px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+/* DIVIDER */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 24px 0;
+}
+.section-label {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--text3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  margin-top: 20px;
+}
+
+/* NAV BUTTONS */
+.nav-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.btn {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+}
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text3);
+}
+.btn-ghost:hover { border-color: var(--border2); color: var(--text2); }
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+.btn-primary:hover { background: #6fa3f9; }
+.btn-generate {
+  background: var(--green);
+  color: var(--bg);
+  font-weight: 500;
+  padding: 11px 24px;
+}
+.btn-generate:hover { background: #5cdba0; }
+
+/* BADGE */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+}
+.badge-blue { background: rgba(79,142,247,0.15); color: var(--accent); }
+.badge-green { background: rgba(62,207,142,0.15); color: var(--green); }
+.badge-amber { background: rgba(245,166,35,0.15); color: var(--amber); }
+.badge-red { background: rgba(240,82,82,0.15); color: var(--red); }
+.badge-purple { background: rgba(167,139,250,0.15); color: var(--purple); }
+
+/* ALERT BOX */
+.alert {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+.alert-icon { font-size: 0.9rem; flex-shrink: 0; }
+.alert-amber { background: rgba(245,166,35,0.08); border: 1px solid rgba(245,166,35,0.25); color: #d4aa60; }
+.alert-red { background: rgba(240,82,82,0.08); border: 1px solid rgba(240,82,82,0.25); color: #e07070; }
+.alert-blue { background: rgba(79,142,247,0.08); border: 1px solid rgba(79,142,247,0.25); color: #7aabff; }
+.alert-green { background: rgba(62,207,142,0.08); border: 1px solid rgba(62,207,142,0.25); color: #5dd6a8; }
+
+/* RESULTS */
+.result-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.result-block-header {
+  padding: 12px 16px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text2);
+  letter-spacing: 0.04em;
+}
+.result-block-body {
+  padding: 16px;
+  font-size: 0.82rem;
+  color: var(--text2);
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+.result-block-body strong { color: var(--text); }
+
+.ai-output {
+  background: var(--surface);
+  border: 1px solid var(--green2);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.ai-output-header {
+  padding: 12px 16px;
+  background: rgba(62,207,142,0.05);
+  border-bottom: 1px solid var(--green2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--green);
+  letter-spacing: 0.06em;
+}
+.ai-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+.ai-output-body {
+  padding: 20px;
+  font-size: 0.83rem;
+  color: var(--text2);
+  line-height: 1.85;
+  white-space: pre-wrap;
+}
+
+.spinner-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text3);
+  font-size: 0.8rem;
+  padding: 20px;
+  font-family: var(--mono);
+}
+.spin {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* CHECKLIST */
+.checklist { list-style: none; }
+.checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+  color: var(--text2);
+}
+.checklist li:last-child { border-bottom: none; }
+.checklist li .ck {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--accent);
+  margin-top: 3px;
+  flex-shrink: 0;
+  background: rgba(79,142,247,0.1);
+  border-radius: 2px;
+  padding: 1px 4px;
+}
+.checklist li .ck.gr { color: var(--green); background: rgba(62,207,142,0.1); }
+.checklist li .ck.am { color: var(--amber); background: rgba(245,166,35,0.1); }
+.checklist li strong { color: var(--text); }
+
+/* SCORE BOX */
+.score-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.score-num {
+  font-family: var(--mono);
+  font-size: 2rem;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1;
+}
+.score-info { flex: 1; }
+.score-label { font-size: 0.75rem; color: var(--text3); margin-bottom: 2px; }
+.score-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+.score-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
+.print-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text3);
+  font-size: 0.72rem;
+  padding: 8px 14px;
+}
+.btn-outline:hover { border-color: var(--border2); color: var(--text2); }
+
+@media (max-width: 700px) {
+  .sidebar { display: none; }
+  .panel { padding: 20px 16px; }
+  .toggle-grid { grid-template-columns: 1fr; }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .toggle-grid.two-col, .toggle-grid.three-col { grid-template-columns: 1fr 1fr; }
+}
+
+@media print {
+  .sidebar, .top-bar, .nav-row, .print-row { display: none !important; }
+  body { background: white; color: black; }
+  .content { overflow: visible; }
+  .panel { display: block !important; }
+  .ai-output-body, .result-block-body { color: #333; white-space: pre-wrap; }
+  .ai-output { border-color: #ccc; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">MFR · Pélv</div>
+    <div class="sidebar-title">Assistente Clínico</div>
+    <div class="sidebar-subtitle">Pavimento Pélvico</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Avaliação</div>
+    <button class="nav-item active" id="nav-1" onclick="goPanel(1)">
+      <span class="nav-dot"></span> 1 · Queixa Principal
+    </button>
+    <button class="nav-item" id="nav-2" onclick="goPanel(2)">
+      <span class="nav-dot"></span> 2 · Sintomas Urinários
+    </button>
+    <button class="nav-item" id="nav-3" onclick="goPanel(3)">
+      <span class="nav-dot"></span> 3 · Intestinal / Prolapso
+    </button>
+    <button class="nav-item" id="nav-4" onclick="goPanel(4)">
+      <span class="nav-dot"></span> 4 · Dor Pélvica
+    </button>
+    <button class="nav-item" id="nav-5" onclick="goPanel(5)">
+      <span class="nav-dot"></span> 5 · Ginecológico
+    </button>
+    <button class="nav-item" id="nav-6" onclick="goPanel(6)">
+      <span class="nav-dot"></span> 6 · Antecedentes
+    </button>
+    <button class="nav-item" id="nav-7" onclick="goPanel(7)">
+      <span class="nav-dot"></span> 7 · Exame Objectivo
+    </button>
+    <button class="nav-item" id="nav-8" onclick="goPanel(8)">
+      <span class="nav-dot"></span> 8 · Exames Comp.
+    </button>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Saída</div>
+    <button class="nav-item" id="nav-9" onclick="goPanel(9)">
+      <span class="nav-dot"></span> ✦ Plano Clínico IA
+    </button>
+  </div>
+
+  <div class="sidebar-footer">
+    <button class="reset-btn" onclick="resetAll()">↺ limpar tudo</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="content">
+  <div class="top-bar">
+    <div class="breadcrumb">assistente · <span id="breadcrumbText">queixa principal</span></div>
+    <div class="progress-pills" id="progressPills"></div>
+  </div>
+
+  <!-- PANEL 1: QUEIXA PRINCIPAL -->
+  <div class="panel active" id="panel-1">
+    <div class="panel-header">
+      <div class="panel-tag">01 / Triagem Inicial</div>
+      <div class="panel-title">Queixa Principal</div>
+      <div class="panel-desc">Selecione os domínios sintomáticos presentes. Orienta as secções seguintes.</div>
+    </div>
+
+    <div class="section-label">Motivo da consulta — pode selecionar vários</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="qIU" onclick="toggle(this)"><span class="indicator">✓</span>Incontinência Urinária</button>
+      <button class="toggle-btn" data-key="qBH" onclick="toggle(this)"><span class="indicator">✓</span>Bexiga Hiperativa / Urgência</button>
+      <button class="toggle-btn" data-key="qProlapse" onclick="toggle(this)"><span class="indicator">✓</span>Prolapso de Órgãos Pélvicos</button>
+      <button class="toggle-btn" data-key="qDor" onclick="toggle(this)"><span class="indicator">✓</span>Dor Pélvica / Dispareunia</button>
+      <button class="toggle-btn" data-key="qIF" onclick="toggle(this)"><span class="indicator">✓</span>Incontinência Fecal</button>
+      <button class="toggle-btn" data-key="qObstipacao" onclick="toggle(this)"><span class="indicator">✓</span>Obstipação / Defecação Obstruída</button>
+      <button class="toggle-btn" data-key="qPosNatal" onclick="toggle(this)"><span class="indicator">✓</span>Reabilitação Pós-Parto</button>
+      <button class="toggle-btn" data-key="qDisfSex" onclick="toggle(this)"><span class="indicator">✓</span>Disfunção Sexual</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label">Dados base</div>
+    <div class="grid-3">
+      <div class="field-row">
+        <div class="field-label">Idade</div>
+        <input type="number" id="idade" min="15" max="100" placeholder="anos">
+      </div>
+      <div class="field-row">
+        <div class="field-label">IMC <span class="sub">kg/m²</span></div>
+        <input type="number" id="imc" min="15" max="60" placeholder="ex: 26">
+      </div>
+      <div class="field-row">
+        <div class="field-label">Duração sintomas</div>
+        <select id="duracaoSint">
+          <option value="">—</option>
+          <option>< 3 meses</option>
+          <option>3–12 meses</option>
+          <option>1–5 anos</option>
+          <option>> 5 anos</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <div></div>
+      <button class="btn btn-primary" onclick="goPanel(2)">Sintomas Urinários →</button>
+    </div>
+  </div>
+
+  <!-- PANEL 2: SINTOMAS URINÁRIOS -->
+  <div class="panel" id="panel-2">
+    <div class="panel-header">
+      <div class="panel-tag">02 / Urinário</div>
+      <div class="panel-title">Sintomas Urinários</div>
+      <div class="panel-desc">ICIQ-UI SF integrado + caracterização do padrão miccional.</div>
+    </div>
+
+    <div class="section-label">ICIQ-UI SF · Q1 — Frequência das perdas</div>
+    <div class="toggle-grid">
+      <button class="toggle-btn radio-btn" data-group="iciq1" data-val="0" onclick="radioToggle(this)"><span class="indicator">○</span>Nunca</button>
+      <button class="toggle-btn radio-btn" data-group="iciq1" data-val="1" onclick="radioToggle(this)"><span class="indicator">○</span>≤ 1× semana</button>
+      <button class="toggle-btn radio-btn" data-group="iciq1" data-val="2" onclick="radioToggle(this)"><span class="indicator">○</span>2–3× semana</button>
+      <button class="toggle-btn radio-btn" data-group="iciq1" data-val="3" onclick="radioToggle(this)"><span class="indicator">○</span>1× dia</button>
+      <button class="toggle-btn radio-btn" data-group="iciq1" data-val="4" onclick="radioToggle(this)"><span class="indicator">○</span>Várias vezes/dia</button>
+      <button class="toggle-btn radio-btn" data-group="iciq1" data-val="5" onclick="radioToggle(this)"><span class="indicator">○</span>Sempre</button>
+    </div>
+
+    <div class="section-label" style="margin-top:20px;">ICIQ-UI SF · Q2 — Quantidade de perda</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn radio-btn" data-group="iciq2" data-val="0" onclick="radioToggle(this)"><span class="indicator">○</span>Nenhuma</button>
+      <button class="toggle-btn radio-btn" data-group="iciq2" data-val="2" onclick="radioToggle(this)"><span class="indicator">○</span>Pequena quantidade</button>
+      <button class="toggle-btn radio-btn" data-group="iciq2" data-val="4" onclick="radioToggle(this)"><span class="indicator">○</span>Quantidade moderada</button>
+      <button class="toggle-btn radio-btn" data-group="iciq2" data-val="6" onclick="radioToggle(this)"><span class="indicator">○</span>Grande quantidade</button>
+    </div>
+
+    <div class="section-label" style="margin-top:20px;">ICIQ-UI SF · Q3 — Impacto na qualidade de vida (0–10)</div>
+    <div class="scale-row" id="iciq3Scale"></div>
+    <div class="scale-labels"><span>Sem impacto</span><span>Impacto máximo</span></div>
+
+    <div class="section-label" style="margin-top:20px;">ICIQ-UI SF · Q4 — Quando perde urina (múltiplo)</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="iciq4urgencia" onclick="toggle(this)"><span class="indicator">✓</span>Urgência (antes de chegar)</button>
+      <button class="toggle-btn" data-key="iciq4esforco" onclick="toggle(this)"><span class="indicator">✓</span>Esforço / tosse / espirro</button>
+      <button class="toggle-btn" data-key="iciq4exercicio" onclick="toggle(this)"><span class="indicator">✓</span>Exercício físico</button>
+      <button class="toggle-btn" data-key="iciq4sono" onclick="toggle(this)"><span class="indicator">✓</span>Durante o sono</button>
+      <button class="toggle-btn" data-key="iciq4semRazao" onclick="toggle(this)"><span class="indicator">✓</span>Sem razão aparente</button>
+      <button class="toggle-btn" data-key="iciq4sempre" onclick="toggle(this)"><span class="indicator">✓</span>Sempre / continuamente</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label">Hábito Miccional</div>
+    <div class="grid-3">
+      <div class="field-row">
+        <div class="field-label">Micções/dia</div>
+        <select id="miccoesDia">
+          <option value="">—</option>
+          <option>< 4 (hipomiccional)</option>
+          <option>4–7 (normal)</option>
+          <option>8–10</option>
+          <option>> 10</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Noctúria</div>
+        <select id="nocturia">
+          <option value="">—</option>
+          <option>0×</option>
+          <option>1×</option>
+          <option>2×</option>
+          <option>≥ 3×</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field-label">Uso de proteção</div>
+        <select id="protecao">
+          <option value="">—</option>
+          <option>Não</option>
+          <option>Penso ocasional</option>
+          <option>Penso diário</option>
+          <option>Fralda</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="section-label">Red flags urinários</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="rfHematuria" onclick="toggle(this)"><span class="indicator">✓</span>⚠ Hematúria</button>
+      <button class="toggle-btn" data-key="rfDor" onclick="toggle(this)"><span class="indicator">✓</span>⚠ Dor miccional (disúria)</button>
+      <button class="toggle-btn" data-key="rfRetencao" onclick="toggle(this)"><span class="indicator">✓</span>⚠ Retenção / RPM elevado</button>
+      <button class="toggle-btn" data-key="rfITUrecorrente" onclick="toggle(this)"><span class="indicator">✓</span>⚠ ITU recorrente (≥3/ano)</button>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" onclick="goPanel(1)">← Voltar</button>
+      <button class="btn btn-primary" onclick="goPanel(3)">Intestinal / Prolapso →</button>
+    </div>
+  </div>
+
+  <!-- PANEL 3: INTESTINAL / PROLAPSO -->
+  <div class="panel" id="panel-3">
+    <div class="panel-header">
+      <div class="panel-tag">03 / Colorretal · Prolapso</div>
+      <div class="panel-title">Função Intestinal e Prolapso</div>
+    </div>
+
+    <div class="section-label">Incontinência Fecal — Wexner Score (simplificado)</div>
+    <div class="toggle-grid three-col">
+      <button class="toggle-btn" data-key="ifGases" onclick="toggle(this)"><span class="indicator">✓</span>Incont. gases</button>
+      <button class="toggle-btn" data-key="ifLiquidos" onclick="toggle(this)"><span class="indicator">✓</span>Incont. líquidos</button>
+      <button class="toggle-btn" data-key="ifSolidos" onclick="toggle(this)"><span class="indicator">✓</span>Incont. sólidos</button>
+    </div>
+
+    <div class="section-label" style="margin-top:16px;">Frequência da incontinência fecal</div>
+    <div class="toggle-grid">
+      <button class="toggle-btn radio-btn" data-group="wexner" data-val="0" onclick="radioToggle(this)"><span class="indicator">○</span>Nunca</button>
+      <button class="toggle-btn radio-btn" data-group="wexner" data-val="1" onclick="radioToggle(this)"><span class="indicator">○</span>< 1× mês</button>
+      <button class="toggle-btn radio-btn" data-group="wexner" data-val="2" onclick="radioToggle(this)"><span class="indicator">○</span>< 1× semana</button>
+      <button class="toggle-btn radio-btn" data-group="wexner" data-val="3" onclick="radioToggle(this)"><span class="indicator">○</span>< 1× dia</button>
+      <button class="toggle-btn radio-btn" data-group="wexner" data-val="4" onclick="radioToggle(this)"><span class="indicator">○</span>≥ 1× dia</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label">Obstipação / Defecação</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="obstipacao" onclick="toggle(this)"><span class="indicator">✓</span>Obstipação crónica</button>
+      <button class="toggle-btn" data-key="esforcoDefecatorio" onclick="toggle(this)"><span class="indicator">✓</span>Esforço defecatório excessivo</button>
+      <button class="toggle-btn" data-key="esvaziamentoIncompleto" onclick="toggle(this)"><span class="indicator">✓</span>Esvaziamento incompleto</button>
+      <button class="toggle-btn" data-key="manobrasDigitais" onclick="toggle(this)"><span class="indicator">✓</span>Manobras digitais necessárias</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label">Prolapso de Órgãos Pélvicos</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="sensacaoProlapso" onclick="toggle(this)"><span class="indicator">✓</span>Sensação de bola / peso perineal</button>
+      <button class="toggle-btn" data-key="salienciaVaginal" onclick="toggle(this)"><span class="indicator">✓</span>Saliência vaginal visível</button>
+      <button class="toggle-btn" data-key="prolapsoAgravaCDia" onclick="toggle(this)"><span class="indicator">✓</span>Agrava ao longo do dia</button>
+      <button class="toggle-btn" data-key="prolapsoLimitaAtividade" onclick="toggle(this)"><span class="indicator">✓</span>Limita atividade física</button>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" onclick="goPanel(2)">← Voltar</button>
+      <button class="btn btn-primary" onclick="goPanel(4)">Dor Pélvica →</button>
+    </div>
+  </div>
+
+  <!-- PANEL 4: DOR PÉLVICA -->
+  <div class="panel" id="panel-4">
+    <div class="panel-header">
+      <div class="panel-tag">04 / Dor</div>
+      <div class="panel-title">Dor Pélvica</div>
+    </div>
+
+    <div class="section-label">Intensidade — EVA/NRS (0–10)</div>
+    <div class="scale-row" id="dorScale"></div>
+    <div class="scale-labels"><span>Sem dor</span><span>Dor máxima</span></div>
+
+    <div class="section-label" style="margin-top:20px;">Características da dor</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="dorCronica" onclick="toggle(this)"><span class="indicator">✓</span>Dor crónica (> 3 meses)</button>
+      <button class="toggle-btn" data-key="dorCiclo" onclick="toggle(this)"><span class="indicator">✓</span>Relacionada com ciclo menstrual</button>
+      <button class="toggle-btn" data-key="dispareunia" onclick="toggle(this)"><span class="indicator">✓</span>Dispareunia</button>
+      <button class="toggle-btn" data-key="vaginismo" onclick="toggle(this)"><span class="indicator">✓</span>Vaginismo / contracção involuntária</button>
+      <button class="toggle-btn" data-key="dorDefecacao" onclick="toggle(this)"><span class="indicator">✓</span>Dor à defecação</button>
+      <button class="toggle-btn" data-key="dorMiccao" onclick="toggle(this)"><span class="indicator">✓</span>Dor durante a micção</button>
+      <button class="toggle-btn" data-key="dorPosicional" onclick="toggle(this)"><span class="indicator">✓</span>Posicional (sentada)</button>
+      <button class="toggle-btn" data-key="dorPerineal" onclick="toggle(this)"><span class="indicator">✓</span>Localizada ao períneo</button>
+    </div>
+
+    <div class="section-label" style="margin-top:16px;">Suspeita etiológica</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="susEndometriose" onclick="toggle(this)"><span class="indicator">✓</span>Endometriose / adenomiose</button>
+      <button class="toggle-btn" data-key="susNeuropatiaPudendo" onclick="toggle(this)"><span class="indicator">✓</span>Neuropatia do pudendo</button>
+      <button class="toggle-btn" data-key="susMialgiaPP" onclick="toggle(this)"><span class="indicator">✓</span>Mialgia do pavimento pélvico</button>
+      <button class="toggle-btn" data-key="susRadicular" onclick="toggle(this)"><span class="indicator">✓</span>Origem radicular (L4–S3)</button>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" onclick="goPanel(3)">← Voltar</button>
+      <button class="btn btn-primary" onclick="goPanel(5)">Ginecológico →</button>
+    </div>
+  </div>
+
+  <!-- PANEL 5: GINECOLÓGICO -->
+  <div class="panel" id="panel-5">
+    <div class="panel-header">
+      <div class="panel-tag">05 / Ginecológico · Obstétrico</div>
+      <div class="panel-title">História Ginecológica</div>
+    </div>
+
+    <div class="grid-3">
+      <div class="field-row">
+        <div class="field-label">Gestações</div>
+        <input type="number" id="gestacoes" min="0" max="15" placeholder="0">
+      </div>
+      <div class="field-row">
+        <div class="field-label">Partos vaginais</div>
+        <input type="number" id="partosVag" min="0" max="15" placeholder="0">
+      </div>
+      <div class="field-row">
+        <div class="field-label">Cesarianas</div>
+        <input type="number" id="cesariana" min="0" max="10" placeholder="0">
+      </div>
+    </div>
+
+    <div class="section-label">Factores obstétricos de risco</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="forcepsVentosa" onclick="toggle(this)"><span class="indicator">✓</span>Fórceps / ventosa</button>
+      <button class="toggle-btn" data-key="episiotomia" onclick="toggle(this)"><span class="indicator">✓</span>Episiotomia</button>
+      <button class="toggle-btn" data-key="laceracaoGrau3_4" onclick="toggle(this)"><span class="indicator">✓</span>Laceração grau III/IV</button>
+      <button class="toggle-btn" data-key="bebeGrande" onclick="toggle(this)"><span class="indicator">✓</span>RN > 4 kg</button>
+      <button class="toggle-btn" data-key="trabalhoPartoProlongado" onclick="toggle(this)"><span class="indicator">✓</span>Trabalho de parto prolongado</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label">Estado hormonal</div>
+    <div class="toggle-grid three-col">
+      <button class="toggle-btn radio-btn" data-group="menopausa" data-val="Pré-menopausa" onclick="radioToggle(this)"><span class="indicator">○</span>Pré-menopausa</button>
+      <button class="toggle-btn radio-btn" data-group="menopausa" data-val="Perimenopausa" onclick="radioToggle(this)"><span class="indicator">○</span>Perimenopausa</button>
+      <button class="toggle-btn radio-btn" data-group="menopausa" data-val="Pós-menopausa" onclick="radioToggle(this)"><span class="indicator">○</span>Pós-menopausa</button>
+    </div>
+    <div class="toggle-grid two-col" style="margin-top:8px;">
+      <button class="toggle-btn" data-key="atrofiaVaginal" onclick="toggle(this)"><span class="indicator">✓</span>Atrofia vaginal / secura</button>
+      <button class="toggle-btn" data-key="thrLocal" onclick="toggle(this)"><span class="indicator">✓</span>THR local (estrogénio vaginal)</button>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" onclick="goPanel(4)">← Voltar</button>
+      <button class="btn btn-primary" onclick="goPanel(6)">Antecedentes →</button>
+    </div>
+  </div>
+
+  <!-- PANEL 6: ANTECEDENTES -->
+  <div class="panel" id="panel-6">
+    <div class="panel-header">
+      <div class="panel-tag">06 / Antecedentes</div>
+      <div class="panel-title">Antecedentes e Factores de Risco</div>
+    </div>
+
+    <div class="section-label">Cirurgias pélvicas prévias</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="histerectomia" onclick="toggle(this)"><span class="indicator">✓</span>Histerectomia</button>
+      <button class="toggle-btn" data-key="cirurgiaProlapso" onclick="toggle(this)"><span class="indicator">✓</span>Cirurgia prolapso prévia</button>
+      <button class="toggle-btn" data-key="tvtTot" onclick="toggle(this)"><span class="indicator">✓</span>TVT / TOT (incontinência)</button>
+      <button class="toggle-btn" data-key="cirurgiaAnorretal" onclick="toggle(this)"><span class="indicator">✓</span>Cirurgia anorretal</button>
+      <button class="toggle-btn" data-key="radioterapiaPelvica" onclick="toggle(this)"><span class="indicator">✓</span>Radioterapia pélvica</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label">Comorbilidades relevantes</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="diabetes" onclick="toggle(this)"><span class="indicator">✓</span>Diabetes mellitus</button>
+      <button class="toggle-btn" data-key="doencaNeurologica" onclick="toggle(this)"><span class="indicator">✓</span>Doença neurológica</button>
+      <button class="toggle-btn" data-key="tosseCronica" onclick="toggle(this)"><span class="indicator">✓</span>Tosse crónica (DPOC/asma)</button>
+      <button class="toggle-btn" data-key="obstipacaoCronica" onclick="toggle(this)"><span class="indicator">✓</span>Obstipação crónica</button>
+      <button class="toggle-btn" data-key="obesidade" onclick="toggle(this)"><span class="indicator">✓</span>Obesidade (IMC > 30)</button>
+      <button class="toggle-btn" data-key="hipermobilidade" onclick="toggle(this)"><span class="indicator">✓</span>Hipermobilidade articular</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label">Medicação relevante</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="diureticos" onclick="toggle(this)"><span class="indicator">✓</span>Diuréticos</button>
+      <button class="toggle-btn" data-key="anticolinergicos" onclick="toggle(this)"><span class="indicator">✓</span>Anticolinérgicos</button>
+      <button class="toggle-btn" data-key="alfabloqueantes" onclick="toggle(this)"><span class="indicator">✓</span>Alfa-bloqueantes</button>
+      <button class="toggle-btn" data-key="antidepressivos" onclick="toggle(this)"><span class="indicator">✓</span>Antidepressivos / SSRI</button>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" onclick="goPanel(5)">← Voltar</button>
+      <button class="btn btn-primary" onclick="goPanel(7)">Exame Objectivo →</button>
+    </div>
+  </div>
+
+  <!-- PANEL 7: EXAME OBJECTIVO -->
+  <div class="panel" id="panel-7">
+    <div class="panel-header">
+      <div class="panel-tag">07 / Exame Objectivo</div>
+      <div class="panel-title">Achados do Exame Objectivo</div>
+      <div class="panel-desc">Registe os achados relevantes. Orienta o plano e a codificação.</div>
+    </div>
+
+    <div class="section-label">Avaliação do Pavimento Pélvico — Escala de Oxford</div>
+    <div class="toggle-grid">
+      <button class="toggle-btn radio-btn" data-group="oxford" data-val="0 — Sem contracção" onclick="radioToggle(this)"><span class="indicator">○</span>0 — Sem contracção</button>
+      <button class="toggle-btn radio-btn" data-group="oxford" data-val="1 — Frémito" onclick="radioToggle(this)"><span class="indicator">○</span>1 — Frémito</button>
+      <button class="toggle-btn radio-btn" data-group="oxford" data-val="2 — Fraca" onclick="radioToggle(this)"><span class="indicator">○</span>2 — Fraca</button>
+      <button class="toggle-btn radio-btn" data-group="oxford" data-val="3 — Moderada" onclick="radioToggle(this)"><span class="indicator">○</span>3 — Moderada</button>
+      <button class="toggle-btn radio-btn" data-group="oxford" data-val="4 — Boa" onclick="radioToggle(this)"><span class="indicator">○</span>4 — Boa</button>
+      <button class="toggle-btn radio-btn" data-group="oxford" data-val="5 — Normal" onclick="radioToggle(this)"><span class="indicator">○</span>5 — Normal</button>
+    </div>
+
+    <div class="section-label" style="margin-top:20px;">Avaliação funcional</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="incapacidadeRelaxamento" onclick="toggle(this)"><span class="indicator">✓</span>Incapacidade de relaxamento</button>
+      <button class="toggle-btn" data-key="hipertoniaPP" onclick="toggle(this)"><span class="indicator">✓</span>Hipertonia do PP</button>
+      <button class="toggle-btn" data-key="hipotoniaPP" onclick="toggle(this)"><span class="indicator">✓</span>Hipotonia do PP</button>
+      <button class="toggle-btn" data-key="assincroniaValsalva" onclick="toggle(this)"><span class="indicator">✓</span>Assincronia no Valsalva</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label">Testes provocadores</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="stressTestPos" onclick="toggle(this)"><span class="indicator">✓</span>Stress test ✚ (IUE confirmada)</button>
+      <button class="toggle-btn" data-key="bonney" onclick="toggle(this)"><span class="indicator">✓</span>Bonney / Marshall ✚</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label">POP-Q — Grau de prolapso</div>
+    <div class="toggle-grid">
+      <button class="toggle-btn radio-btn" data-group="popq" data-val="Grau 0 — Sem prolapso" onclick="radioToggle(this)"><span class="indicator">○</span>Grau 0</button>
+      <button class="toggle-btn radio-btn" data-group="popq" data-val="Grau I" onclick="radioToggle(this)"><span class="indicator">○</span>Grau I</button>
+      <button class="toggle-btn radio-btn" data-group="popq" data-val="Grau II" onclick="radioToggle(this)"><span class="indicator">○</span>Grau II</button>
+      <button class="toggle-btn radio-btn" data-group="popq" data-val="Grau III" onclick="radioToggle(this)"><span class="indicator">○</span>Grau III</button>
+      <button class="toggle-btn radio-btn" data-group="popq" data-val="Grau IV — Prolapso total" onclick="radioToggle(this)"><span class="indicator">○</span>Grau IV</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label">Neurológico perianal (S2–S4)</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="refAnalPresente" onclick="toggle(this)"><span class="indicator">✓</span>Reflexo anal presente</button>
+      <button class="toggle-btn" data-key="refBulbocavernoso" onclick="toggle(this)"><span class="indicator">✓</span>Reflexo bulbocavernoso presente</button>
+      <button class="toggle-btn" data-key="hipostesiaPerianal" onclick="toggle(this)"><span class="indicator">✓</span>Hipostesia perianal</button>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" onclick="goPanel(6)">← Voltar</button>
+      <button class="btn btn-primary" onclick="goPanel(8)">Exames Comp. →</button>
+    </div>
+  </div>
+
+  <!-- PANEL 8: EXAMES COMPLEMENTARES -->
+  <div class="panel" id="panel-8">
+    <div class="panel-header">
+      <div class="panel-tag">08 / Exames Complementares</div>
+      <div class="panel-title">Pedidos Sugeridos</div>
+      <div class="panel-desc">Selecione os exames a pedir com base no quadro clínico. Gerados automaticamente no plano.</div>
+    </div>
+
+    <div class="section-label">1ª Linha — Quase universal</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn on" data-key="exUrinaII" onclick="toggle(this)"><span class="indicator">✓</span>Urina II + sedimento</button>
+      <button class="toggle-btn on" data-key="exUrocultura" onclick="toggle(this)"><span class="indicator">✓</span>Urocultura</button>
+      <button class="toggle-btn on" data-key="exEcoVesical" onclick="toggle(this)"><span class="indicator">✓</span>Eco renal/vesical + RPM</button>
+      <button class="toggle-btn on" data-key="exGlicemia" onclick="toggle(this)"><span class="indicator">✓</span>Glicemia / HbA1c</button>
+    </div>
+
+    <div class="section-label" style="margin-top:16px;">Imagem pélvica</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="exEcoTransvaginal" onclick="toggle(this)"><span class="indicator">✓</span>Eco transvaginal</button>
+      <button class="toggle-btn" data-key="exEcoPerineal" onclick="toggle(this)"><span class="indicator">✓</span>Eco perineal / introital</button>
+      <button class="toggle-btn" data-key="exRMPelvica" onclick="toggle(this)"><span class="indicator">✓</span>RM pélvica</button>
+      <button class="toggle-btn" data-key="exRMColuna" onclick="toggle(this)"><span class="indicator">✓</span>RM coluna lombo-sagrada</button>
+    </div>
+
+    <div class="section-label" style="margin-top:16px;">Urodinâmica</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="exFluxometria" onclick="toggle(this)"><span class="indicator">✓</span>Fluxometria livre</button>
+      <button class="toggle-btn" data-key="exCistomanometria" onclick="toggle(this)"><span class="indicator">✓</span>Cistomanometria</button>
+      <button class="toggle-btn" data-key="exUrodinamica" onclick="toggle(this)"><span class="indicator">✓</span>Estudo urodinâmico completo</button>
+      <button class="toggle-btn" data-key="exEMGEsfincteriano" onclick="toggle(this)"><span class="indicator">✓</span>EMG esfincteriano</button>
+    </div>
+
+    <div class="section-label" style="margin-top:16px;">Laboratorial adicional</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="exCA125" onclick="toggle(this)"><span class="indicator">✓</span>CA-125</button>
+      <button class="toggle-btn" data-key="exHormonal" onclick="toggle(this)"><span class="indicator">✓</span>FSH / LH / Estradiol</button>
+      <button class="toggle-btn" data-key="exPCR" onclick="toggle(this)"><span class="indicator">✓</span>PCR / VS</button>
+      <button class="toggle-btn" data-key="exIST" onclick="toggle(this)"><span class="indicator">✓</span>Rastreio IST</button>
+    </div>
+
+    <div class="section-label" style="margin-top:16px;">Coloproctologia</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="exManometriaAnorretal" onclick="toggle(this)"><span class="indicator">✓</span>Manometria anorretal</button>
+      <button class="toggle-btn" data-key="exEcoEndoanal" onclick="toggle(this)"><span class="indicator">✓</span>Eco endoanal</button>
+    </div>
+
+    <div class="section-label" style="margin-top:16px;">Referenciação</div>
+    <div class="toggle-grid two-col">
+      <button class="toggle-btn" data-key="refUrologia" onclick="toggle(this)"><span class="indicator">✓</span>Ref. Urologia</button>
+      <button class="toggle-btn" data-key="refGinecologia" onclick="toggle(this)"><span class="indicator">✓</span>Ref. Ginecologia</button>
+      <button class="toggle-btn" data-key="refColoproctologia" onclick="toggle(this)"><span class="indicator">✓</span>Ref. Coloproctologia</button>
+      <button class="toggle-btn" data-key="refPsicologia" onclick="toggle(this)"><span class="indicator">✓</span>Ref. Psicologia / Sexologia</button>
+    </div>
+
+    <div class="nav-row">
+      <button class="btn btn-ghost" onclick="goPanel(7)">← Voltar</button>
+      <button class="btn btn-generate" onclick="goPanel(9)">✦ Gerar Plano Clínico</button>
+    </div>
+  </div>
+
+  <!-- PANEL 9: PLANO CLÍNICO IA -->
+  <div class="panel" id="panel-9">
+    <div class="panel-header">
+      <div class="panel-tag">09 / Output Clínico</div>
+      <div class="panel-title">Plano Clínico</div>
+      <div class="panel-desc">Síntese automática com diagnóstico funcional, alertas, exames e proposta terapêutica.</div>
+    </div>
+
+    <div id="planLoadingDiv" class="spinner-row" style="display:none;">
+      <div class="spin"></div> a gerar plano clínico...
+    </div>
+
+    <div id="planContent" style="display:none;">
+
+      <!-- SCORES -->
+      <div id="scoreSection"></div>
+
+      <!-- RED FLAGS -->
+      <div id="redFlagsSection"></div>
+
+      <!-- AI PLAN -->
+      <div class="ai-output">
+        <div class="ai-output-header">
+          <div class="ai-dot"></div> síntese clínica · gerado por ia · revisar antes de utilizar
+        </div>
+        <div class="ai-output-body" id="aiPlanText">A gerar...</div>
+      </div>
+
+      <!-- EXAMES SELECIONADOS -->
+      <div id="examSection"></div>
+
+      <div class="print-row">
+        <button class="btn btn-outline" onclick="window.print()">
+          ⎙ Imprimir / PDF
+        </button>
+        <button class="btn btn-outline" onclick="regeneratePlan()">
+          ↺ Regenerar
+        </button>
+        <button class="btn btn-outline" onclick="resetAll()">
+          ✕ Nova Consulta
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end content -->
+</div><!-- end app -->
+
+<script>
+const PANELS = 9;
+let current = 1;
+const state = {};
+const radioState = {};
+const scaleState = {};
+
+// Build progress pills
+const pillsContainer = document.getElementById('progressPills');
+for (let i = 1; i <= PANELS; i++) {
+  const p = document.createElement('div');
+  p.className = 'pill';
+  p.id = 'pill-' + i;
+  pillsContainer.appendChild(p);
+}
+
+const breadcrumbs = ['queixa principal','sintomas urinários','intestinal · prolapso','dor pélvica','ginecológico','antecedentes','exame objectivo','exames complementares','plano clínico'];
+
+function updateUI() {
+  for (let i = 1; i <= PANELS; i++) {
+    const pill = document.getElementById('pill-' + i);
+    const nav = document.getElementById('nav-' + i);
+    if (i < current) { pill.className = 'pill done'; if(nav) { nav.classList.remove('active'); nav.classList.add('done'); } }
+    else if (i === current) { pill.className = 'pill active'; if(nav) { nav.classList.add('active'); nav.classList.remove('done'); } }
+    else { pill.className = 'pill'; if(nav) { nav.classList.remove('active','done'); } }
+  }
+  document.getElementById('breadcrumbText').textContent = breadcrumbs[current-1];
+}
+
+function goPanel(n) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + n).classList.add('active');
+  current = n;
+  updateUI();
+  document.querySelector('.content').scrollTo({ top: 0, behavior: 'smooth' });
+  if (n === 9) generatePlan();
+}
+
+// Build scales
+function buildScale(id, key, max) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = '';
+  for (let i = 0; i <= max; i++) {
+    const b = document.createElement('div');
+    b.className = 'scale-num';
+    b.textContent = i;
+    b.onclick = () => {
+      scaleState[key] = i;
+      el.querySelectorAll('.scale-num').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    };
+    el.appendChild(b);
+  }
+}
+buildScale('iciq3Scale', 'iciq3', 10);
+buildScale('dorScale', 'dorScale', 10);
+
+function toggle(btn) {
+  btn.classList.toggle('on');
+  state[btn.dataset.key] = btn.classList.contains('on');
+}
+
+function radioToggle(btn) {
+  const group = btn.dataset.group;
+  document.querySelectorAll(`[data-group="${group}"]`).forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  radioState[group] = btn.dataset.val;
+}
+
+function getChecked(keys) {
+  return keys.filter(k => state[k]);
+}
+
+function computeICIQ() {
+  const q1 = parseInt(radioState.iciq1 || 0);
+  const q2 = parseInt(radioState.iciq2 || 0);
+  const q3 = scaleState.iciq3 || 0;
+  return { q1, q2, q3, total: q1 + q2 + q3 };
+}
+
+function iciqCat(t) {
+  if (t === 0) return { label: 'Sem incontinência', color: 'var(--green)', cls: 'badge-green' };
+  if (t <= 5) return { label: 'Ligeira', color: 'var(--accent)', cls: 'badge-blue' };
+  if (t <= 12) return { label: 'Moderada', color: 'var(--amber)', cls: 'badge-amber' };
+  if (t <= 18) return { label: 'Grave', color: 'var(--red)', cls: 'badge-red' };
+  return { label: 'Muito Grave', color: 'var(--red)', cls: 'badge-red' };
+}
+
+function buildScoreSection() {
+  const iciq = computeICIQ();
+  const cat = iciqCat(iciq.total);
+  const pct = (iciq.total / 21) * 100;
+
+  let html = `
+  <div class="score-box">
+    <div class="score-num">${iciq.total}<span style="font-size:1rem;color:var(--text3)">/21</span></div>
+    <div class="score-info">
+      <div class="score-label">ICIQ-UI SF · <span class="badge ${cat.cls}">${cat.label}</span></div>
+      <div style="font-size:0.75rem;color:var(--text3);margin-top:2px;">Q1: ${iciq.q1} · Q2: ${iciq.q2} · Q3 (QV): ${iciq.q3}</div>
+      <div class="score-bar"><div class="score-fill" style="width:${pct}%;background:${cat.color}"></div></div>
+    </div>
+  </div>`;
+
+  if (radioState.oxford) {
+    html += `<div style="margin-bottom:12px;font-size:0.82rem;color:var(--text2);">
+      <strong style="color:var(--text)">Oxford:</strong> ${radioState.oxford} &nbsp;
+      ${radioState.popq ? `· <strong style="color:var(--text)">POP-Q:</strong> ${radioState.popq}` : ''}
+    </div>`;
+  }
+  if (scaleState.dorScale) {
+    html += `<div style="margin-bottom:16px;font-size:0.82rem;color:var(--text2);">
+      <strong style="color:var(--text)">EVA dor:</strong> ${scaleState.dorScale}/10
+    </div>`;
+  }
+  document.getElementById('scoreSection').innerHTML = html;
+}
+
+function buildRedFlags() {
+  const flags = [];
+  if (state.rfHematuria) flags.push({ t: 'Hematúria', d: 'Cistoscopia · referir Urologia urgente', s: 'danger' });
+  if (state.rfRetencao) flags.push({ t: 'Retenção urinária / RPM elevado', d: 'Avaliação urodinâmica + eco vesical', s: 'danger' });
+  if (state.rfITUrecorrente) flags.push({ t: 'ITU recorrente ≥ 3/ano', d: 'Urocultura série · eco renal · uroflujo · avaliar profilaxia', s: 'warning' });
+  if (state.laceracaoGrau3_4) flags.push({ t: 'Laceração obstétrica grau III/IV', d: 'Eco endoanal + manometria anorretal obrigatórios', s: 'warning' });
+  if (state.radioterapiaPelvica) flags.push({ t: 'Radioterapia pélvica prévia', d: 'Cistoscopia para excluir cistite actínica · RM pélvica', s: 'warning' });
+  if (state.doencaNeurologica) flags.push({ t: 'Doença neurológica', d: 'Estudo urodinâmico + EMG esfincteriano obrigatórios', s: 'warning' });
+  if ((radioState.popq || '').includes('III') || (radioState.popq || '').includes('IV'))
+    flags.push({ t: `Prolapso ${radioState.popq}`, d: 'Referenciação Ginecologia / Uroginecologia', s: 'warning' });
+
+  if (!flags.length) return;
+  let html = '<div style="margin-bottom:16px;">';
+  flags.forEach(f => {
+    html += `<div class="alert alert-${f.s === 'danger' ? 'red' : 'amber'}">
+      <div class="alert-icon">${f.s === 'danger' ? '⛔' : '⚠'}</div>
+      <div><strong>${f.t}</strong><br>${f.d}</div>
+    </div>`;
+  });
+  html += '</div>';
+  document.getElementById('redFlagsSection').innerHTML = html;
+}
+
+function buildExamSection() {
+  const exams = [];
+  const refs = [];
+  const examMap = {
+    exUrinaII: 'Urina II + sedimento urinário',
+    exUrocultura: 'Urocultura',
+    exEcoVesical: 'Ecografia renal e vesical com RPM',
+    exGlicemia: 'Glicemia em jejum / HbA1c',
+    exEcoTransvaginal: 'Ecografia transvaginal',
+    exEcoPerineal: 'Ecografia perineal / introital',
+    exRMPelvica: 'RM pélvica',
+    exRMColuna: 'RM coluna lombo-sagrada',
+    exFluxometria: 'Fluxometria livre',
+    exCistomanometria: 'Cistomanometria',
+    exUrodinamica: 'Estudo urodinâmico completo',
+    exEMGEsfincteriano: 'EMG esfincteriano',
+    exCA125: 'CA-125',
+    exHormonal: 'FSH / LH / Estradiol',
+    exPCR: 'PCR / VS',
+    exIST: 'Rastreio IST (Chlamydia, Gonorreia)',
+    exManometriaAnorretal: 'Manometria anorretal',
+    exEcoEndoanal: 'Ecografia endoanal',
+  };
+  const refMap = {
+    refUrologia: 'Urologia',
+    refGinecologia: 'Ginecologia / Uroginecologia',
+    refColoproctologia: 'Coloproctologia',
+    refPsicologia: 'Psicologia / Sexologia',
+  };
+
+  Object.entries(examMap).forEach(([k, v]) => { if (state[k]) exams.push(v); });
+  Object.entries(refMap).forEach(([k, v]) => { if (state[k]) refs.push(v); });
+
+  let html = '<div class="result-block"><div class="result-block-header"><span>exames complementares solicitados</span><span class="badge badge-blue">' + exams.length + ' exames</span></div><div class="result-block-body">';
+  if (exams.length) {
+    html += '<ul class="checklist">';
+    exams.forEach(e => { html += `<li><span class="ck">EX</span>${e}</li>`; });
+    html += '</ul>';
+  } else {
+    html += '<span style="color:var(--text3)">Nenhum exame selecionado.</span>';
+  }
+  if (refs.length) {
+    html += '<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">';
+    html += '<div style="font-family:var(--mono);font-size:0.65rem;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">Referenciação</div>';
+    html += '<ul class="checklist">';
+    refs.forEach(r => { html += `<li><span class="ck am">REF</span>${r}</li>`; });
+    html += '</ul></div>';
+  }
+  html += '</div></div>';
+  document.getElementById('examSection').innerHTML = html;
+}
+
+async function generatePlan() {
+  document.getElementById('planLoadingDiv').style.display = 'flex';
+  document.getElementById('planContent').style.display = 'none';
+
+  const iciq = computeICIQ();
+  const cat = iciqCat(iciq.total);
+
+  const activeKeys = Object.entries(state).filter(([,v]) => v).map(([k]) => k);
+
+  const prompt = `És um médico especialista em Medicina Física e de Reabilitação com subespecialização em Pavimento Pélvico.
+Com base nos dados clínicos abaixo, gera um PLANO CLÍNICO ESTRUTURADO em português europeu, técnico, para uso interno médico. Sê directo e clínico.
+
+QUEIXAS PRINCIPAIS: ${['qIU','qBH','qProlapse','qDor','qIF','qObstipacao','qPosNatal','qDisfSex'].filter(k=>state[k]).join(', ') || 'não especificado'}
+IDADE: ${document.getElementById('idade').value || '?'} anos | IMC: ${document.getElementById('imc').value || '?'} | Duração: ${document.getElementById('duracaoSint').value || '?'}
+
+ICIQ-UI SF: ${iciq.total}/21 (${cat.label}) | Q1:${iciq.q1} Q2:${iciq.q2} Q3-QV:${iciq.q3}
+Contexto das perdas: ${['iciq4urgencia','iciq4esforco','iciq4exercicio','iciq4sono','iciq4semRazao','iciq4sempre'].filter(k=>state[k]).join(', ') || '—'}
+Micções/dia: ${document.getElementById('miccoesDia').value || '?'} | Noctúria: ${document.getElementById('nocturia').value || '?'} | Proteção: ${document.getElementById('protecao').value || '?'}
+Red flags urinários: ${['rfHematuria','rfDor','rfRetencao','rfITUrecorrente'].filter(k=>state[k]).join(', ') || 'nenhum'}
+
+INTESTINAL/PROLAPSO: ${['ifGases','ifLiquidos','ifSolidos','obstipacao','esforcoDefecatorio','esvaziamentoIncompleto','manobrasDigitais','sensacaoProlapso','salienciaVaginal'].filter(k=>state[k]).join(', ') || 'nenhum'}
+POP-Q: ${radioState.popq || 'não avaliado'}
+
+DOR PÉLVICA: NRS ${scaleState.dorScale ?? '—'}/10 | ${['dorCronica','dorCiclo','dispareunia','vaginismo','dorDefecacao','dorMiccao','dorPosicional','susEndometriose','susNeuropatiaPudendo','susMialgiaPP','susRadicular'].filter(k=>state[k]).join(', ') || 'sem dor'}
+
+GINECOLÓGICO: G${document.getElementById('gestacoes').value||0} P${document.getElementById('partosVag').value||0} C${document.getElementById('cesariana').value||0}
+Factores obstétricos: ${['forcepsVentosa','episiotomia','laceracaoGrau3_4','bebeGrande','trabalhoPartoProlongado'].filter(k=>state[k]).join(', ') || 'nenhum'}
+Menopausa: ${radioState.menopausa || '?'} | Atrofia vaginal: ${state.atrofiaVaginal ? 'Sim' : 'Não'}
+
+ANTECEDENTES: ${['histerectomia','cirurgiaProlapso','tvtTot','cirurgiaAnorretal','radioterapiaPelvica','diabetes','doencaNeurologica','tosseCronica','obstipacaoCronica','obesidade','hipermobilidade','diureticos','anticolinergicos','alfabloqueantes','antidepressivos'].filter(k=>state[k]).join(', ') || 'nenhum relevante'}
+
+EXAME OBJECTIVO:
+Oxford: ${radioState.oxford || 'não registado'}
+Stress test: ${state.stressTestPos ? 'Positivo' : 'Não realizado/negativo'}
+${state.hipertoniaPP ? 'Hipertonia PP presente' : ''} ${state.hipotoniaPP ? 'Hipotonia PP presente' : ''} ${state.incapacidadeRelaxamento ? 'Incapacidade de relaxamento' : ''}
+Neurológico: ${['refAnalPresente','refBulbocavernoso','hipostesiaPerianal'].filter(k=>state[k]).join(', ') || '—'}
+
+---
+Gera um plano organizado nestas secções:
+
+1. DIAGNÓSTICO FUNCIONAL (diagnóstico principal + secundários se aplicável, com terminologia ICS)
+2. ESTRATIFICAÇÃO DE GRAVIDADE / PRIORIDADE DE ACTUAÇÃO
+3. PLANO TERAPÊUTICO (1ª, 2ª e 3ª linha conforme evidência; inclui reabilitação pavimento pélvico, comportamental, farmacológico se indicado)
+4. OBJECTIVOS A 6–8 SEMANAS (mensuráveis)
+5. PONTOS DE ALERTA para reavaliação ou referenciação urgente
+
+Máximo 400 palavras. Sê conciso, técnico, em português europeu.`;
+
+  try {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+    const data = await resp.json();
+    const text = data.content?.map(b => b.text || '').join('') || 'Erro ao gerar plano.';
+    document.getElementById('aiPlanText').textContent = text;
+  } catch (e) {
+    document.getElementById('aiPlanText').textContent = 'Erro de ligação: ' + e.message;
+  }
+
+  buildScoreSection();
+  buildRedFlags();
+  buildExamSection();
+  document.getElementById('planLoadingDiv').style.display = 'none';
+  document.getElementById('planContent').style.display = 'block';
+}
+
+async function regeneratePlan() {
+  document.getElementById('planContent').style.display = 'none';
+  document.getElementById('planLoadingDiv').style.display = 'flex';
+  document.getElementById('aiPlanText').textContent = 'A gerar...';
+  await generatePlan();
+}
+
+function resetAll() {
+  Object.keys(state).forEach(k => delete state[k]);
+  Object.keys(radioState).forEach(k => delete radioState[k]);
+  Object.keys(scaleState).forEach(k => delete scaleState[k]);
+  document.querySelectorAll('.toggle-btn').forEach(b => {
+    if (b.dataset.key && ['exUrinaII','exUrocultura','exEcoVesical','exGlicemia'].includes(b.dataset.key)) {
+      b.classList.add('on'); state[b.dataset.key] = true;
+    } else {
+      b.classList.remove('on');
+    }
+  });
+  document.querySelectorAll('input[type=number], input[type=text], select').forEach(el => el.value = '');
+  document.querySelectorAll('.scale-num').forEach(b => b.classList.remove('on'));
+  document.getElementById('planContent').style.display = 'none';
+  document.getElementById('planLoadingDiv').style.display = 'none';
+  goPanel(1);
+}
+
+// Init
+updateUI();
+// Pre-select 1st line exams
+['exUrinaII','exUrocultura','exEcoVesical','exGlicemia'].forEach(k => { state[k] = true; });
+</script>
+</body>
+</html>
