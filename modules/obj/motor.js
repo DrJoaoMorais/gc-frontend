@@ -1314,9 +1314,12 @@ function _wireDinAF2(dynCfg) {
     const raw = document.getElementById('af2_raw').value.trim();
     if (!raw) return;
 
+    const isCervical = !!dynCfg.af2Cervical;
     const data = {};
     dynCfg.movimentos.forEach(function (m) {
-      data[m.key] = { e: null, d: null, me: null, md: null, fpe: null, fpd: null };
+      data[m.key] = isCervical
+        ? { val: null, med: null, fp: null }
+        : { e: null, d: null, me: null, md: null, fpe: null, fpd: null };
     });
 
     let nome = '', peso = null, idade = null, genero = '', dominante = '', dataExame = '';
@@ -1357,7 +1360,6 @@ function _wireDinAF2(dynCfg) {
 
     const sections = raw.split(/====([^=]+)====/);
     const bilDone = {};
-    const isCervical = !!dynCfg.af2Cervical;
 
     for (let i = 1; i < sections.length; i += 2) {
       const title = sections[i].trim();
