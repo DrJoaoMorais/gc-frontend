@@ -1571,24 +1571,6 @@ function _calcDynCervical(data, dynCfg) {
     return '<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:500;background:' + bg + ';color:' + col + ';">' + pct + '</span>';
   }
 
-  dynCfg.movimentos.forEach(function (m) {
-    const d = data[m.key] || {};
-    const val = d.val !== undefined ? d.val : null;
-    const med = d.med !== undefined ? d.med : null;
-    const fp  = d.fp  !== undefined ? d.fp  : null;
-    setCell('dcv_' + m.key + '_val', val !== null ? val.toFixed(1) + ' kg' : null);
-    setCell('dcv_' + m.key + '_med', med !== null ? med.toFixed(1) + ' kg' : null);
-    setCell('dcv_' + m.key + '_fp',  fp  !== null ? fp.toFixed(1)  + '%'   : null);
-  });
-
-  dynCfg.racios.forEach(function (rc) {
-    const nv = data[rc.num] ? data[rc.num].val : null;
-    const dv = data[rc.den] ? data[rc.den].val : null;
-    const ratio = (nv !== null && dv !== null && dv !== 0) ? nv / dv : null;
-    const el = document.getElementById('dcv_ratio_' + rc.num + '_' + rc.den);
-    if (el) el.innerHTML = ratioTag(ratio, rc.refMin, rc.refMax);
-  });
-
   // Metric 1: maior força
   let bestLabel = '—', bestVal = -1;
   dynCfg.movimentos.forEach(function (m) {
@@ -1683,6 +1665,25 @@ function _calcDynCervical(data, dynCfg) {
   }
   existing.innerHTML = th + tr;
   sec.style.display = 'block';
+
+  // Preencher células após render (IDs existem agora no DOM)
+  dynCfg.movimentos.forEach(function (m) {
+    const d = data[m.key] || {};
+    const val = d.val !== undefined ? d.val : null;
+    const med = d.med !== undefined ? d.med : null;
+    const fp  = d.fp  !== undefined ? d.fp  : null;
+    setCell('dcv_' + m.key + '_val', val !== null ? val.toFixed(1) + ' kg' : null);
+    setCell('dcv_' + m.key + '_med', med !== null ? med.toFixed(1) + ' kg' : null);
+    setCell('dcv_' + m.key + '_fp',  fp  !== null ? fp.toFixed(1)  + '%'   : null);
+  });
+
+  dynCfg.racios.forEach(function (rc) {
+    const nv = data[rc.num] ? data[rc.num].val : null;
+    const dv = data[rc.den] ? data[rc.den].val : null;
+    const ratio = (nv !== null && dv !== null && dv !== 0) ? nv / dv : null;
+    const el = document.getElementById('dcv_ratio_' + rc.num + '_' + rc.den);
+    if (el) el.innerHTML = ratioTag(ratio, rc.refMin, rc.refMax);
+  });
 }
 
 /* ════════ saveExam ════════ */
