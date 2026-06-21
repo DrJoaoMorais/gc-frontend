@@ -1298,7 +1298,7 @@ function _renderDinAF2(dynCfg) {
     return t + '</tbody></table></div>';
   }
 
-  h += fmaxTable() + fmedTable() + raciosTable();
+  h += dynCfg.af2Cervical ? '<div class="dcv-tables"></div>' : fmaxTable() + fmedTable() + raciosTable();
   h += '<div style="font-size:11px;color:#94a3b8;padding:4px 2px;display:flex;gap:14px;flex-wrap:wrap;">' +
        '<span>🟢 &lt;10% simétrico</span><span>🟡 10–20% ligeiro</span><span>🔴 &gt;20% significativo</span>' +
        (rc0 && rc0.refMin !== null ? '<span>Ratio ' + rc0.label + ' ref. ≥ ' + rc0.refMin + '%</span>' : '') +
