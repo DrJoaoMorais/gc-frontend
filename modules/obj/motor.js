@@ -1366,8 +1366,8 @@ function _wireDinAF2(dynCfg) {
       const body = sections[i + 1] || '';
       const isBilateral = title.indexOf('Esquerda') !== -1 || title.indexOf('Direita') !== -1;
 
+      // Cervical: aceita todos os blocos; outros segmentos: só bilateral
       if (!isCervical && !isBilateral) continue;
-      if (isCervical && isBilateral) continue;
 
       let key = null;
       const normT = normStr(title);
