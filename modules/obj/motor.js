@@ -1357,10 +1357,16 @@ function _wireDinAF2(dynCfg) {
 
     const sections = raw.split(/====([^=]+)====/);
     const bilDone = {};
+    const isCervical = !!dynCfg.af2Cervical;
+
     for (let i = 1; i < sections.length; i += 2) {
       const title = sections[i].trim();
       const body = sections[i + 1] || '';
-      if (title.indexOf('Esquerda') === -1 || title.indexOf('Direita') === -1) continue;
+      const isBilateral = title.indexOf('Esquerda') !== -1 || title.indexOf('Direita') !== -1;
+
+      if (!isCervical && !isBilateral) continue;
+      if (isCervical && isBilateral) continue;
+
       let key = null;
       const normT = normStr(title);
       for (const kw of Object.keys(dynCfg.af2Map)) {
@@ -1368,29 +1374,51 @@ function _wireDinAF2(dynCfg) {
       }
       if (!key || bilDone[key]) continue;
 
-      let fmIdx = body.indexOf('Força Máxima'); if (fmIdx < 0) fmIdx = body.indexOf('Forca Maxima');
-      if (fmIdx >= 0) {
-        let blk = body.slice(fmIdx);
-        const nx = blk.indexOf('Tempo'); if (nx > 0) blk = blk.slice(0, nx);
-        data[key].e = getLineVal(blk, 'Esquerda'); data[key].d = getLineVal(blk, 'Direita');
-      }
-      let medIdx = body.indexOf('Força Média'); if (medIdx < 0) medIdx = body.indexOf('Forca Media');
-      if (medIdx >= 0) {
-        let blk = body.slice(medIdx);
-        const nx = blk.indexOf('Relação'); if (nx > 0) blk = blk.slice(0, nx);
-        data[key].me = getLineVal(blk, 'Esquerda'); data[key].md = getLineVal(blk, 'Direita');
-      }
-      let fpIdx = body.indexOf('Relação Força-Peso'); if (fpIdx < 0) fpIdx = body.indexOf('Relacao Forca-Peso');
-      if (fpIdx >= 0) {
-        let blk = body.slice(fpIdx);
-        const nx = blk.indexOf('===='); if (nx > 0) blk = blk.slice(0, nx);
-        data[key].fpe = getLineVal(blk, 'Esquerda'); data[key].fpd = getLineVal(blk, 'Direita');
+      if (isCervical) {
+        let fmIdx = body.indexOf('Força Máxima'); if (fmIdx < 0) fmIdx = body.indexOf('Forca Maxima');
+        if (fmIdx >= 0) {
+          let blk = body.slice(fmIdx);
+          const nx = blk.indexOf('Tempo'); if (nx > 0) blk = blk.slice(0, nx);
+          data[key].val = getLineVal(blk, 'Exame');
+        }
+        let medIdx = body.indexOf('Força Média'); if (medIdx < 0) medIdx = body.indexOf('Forca Media');
+        if (medIdx >= 0) {
+          let blk = body.slice(medIdx);
+          const nx = blk.indexOf('Relação'); if (nx > 0) blk = blk.slice(0, nx);
+          data[key].med = getLineVal(blk, 'Exame');
+        }
+        let fpIdx = body.indexOf('Relação Força-Peso'); if (fpIdx < 0) fpIdx = body.indexOf('Relacao Forca-Peso');
+        if (fpIdx >= 0) {
+          let blk = body.slice(fpIdx);
+          const nx = blk.indexOf('===='); if (nx > 0) blk = blk.slice(0, nx);
+          data[key].fp = getLineVal(blk, 'Exame');
+        }
+      } else {
+        let fmIdx = body.indexOf('Força Máxima'); if (fmIdx < 0) fmIdx = body.indexOf('Forca Maxima');
+        if (fmIdx >= 0) {
+          let blk = body.slice(fmIdx);
+          const nx = blk.indexOf('Tempo'); if (nx > 0) blk = blk.slice(0, nx);
+          data[key].e = getLineVal(blk, 'Esquerda'); data[key].d = getLineVal(blk, 'Direita');
+        }
+        let medIdx = body.indexOf('Força Média'); if (medIdx < 0) medIdx = body.indexOf('Forca Media');
+        if (medIdx >= 0) {
+          let blk = body.slice(medIdx);
+          const nx = blk.indexOf('Relação'); if (nx > 0) blk = blk.slice(0, nx);
+          data[key].me = getLineVal(blk, 'Esquerda'); data[key].md = getLineVal(blk, 'Direita');
+        }
+        let fpIdx = body.indexOf('Relação Força-Peso'); if (fpIdx < 0) fpIdx = body.indexOf('Relacao Forca-Peso');
+        if (fpIdx >= 0) {
+          let blk = body.slice(fpIdx);
+          const nx = blk.indexOf('===='); if (nx > 0) blk = blk.slice(0, nx);
+          data[key].fpe = getLineVal(blk, 'Esquerda'); data[key].fpd = getLineVal(blk, 'Direita');
+        }
       }
       bilDone[key] = true;
     }
 
     window._dynData = data;
-    _calcDynAF2(data, dynCfg);
+    if (isCervical) _calcDynCervical(data, dynCfg);
+    else _calcDynAF2(data, dynCfg);
     const sec = document.getElementById('dyn_results_sec');
     if (sec) sec.style.display = 'block';
   });
@@ -1523,6 +1551,136 @@ function _calcDynAF2(data, dynCfg) {
   if (elM4) { elM4.textContent = glob !== null ? glob.toFixed(1) + '%' : '—'; elM4.style.color = glob !== null && glob > 20 ? '#a32d2d' : glob !== null && glob > 10 ? '#854f0b' : '#3b6d11'; }
   const elM4b = document.getElementById('dyn_m4_bar');
   if (elM4b && glob !== null) elM4b.style.width = Math.min(glob, 30) / 30 * 100 + '%';
+}
+
+/* ════════ AF2 cervical — cálculo e render ════════ */
+function _calcDynCervical(data, dynCfg) {
+  function setCell(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val !== null && val !== undefined ? val : '—';
+  }
+  function ratioTag(val, refMin, refMax) {
+    if (val === null) return '<span style="font-size:11px;color:#94a3b8;">—</span>';
+    const pct = val.toFixed(2);
+    if (refMin === null && refMax === null) return '<span style="font-size:11px;color:#94a3b8;">' + pct + ' <em style="font-size:10px">(informativo)</em></span>';
+    const ok = val >= refMin && val <= refMax;
+    const bg  = ok ? '#eaf3de' : '#fcebeb';
+    const col = ok ? '#3b6d11' : '#a32d2d';
+    return '<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:500;background:' + bg + ';color:' + col + ';">' + pct + '</span>';
+  }
+
+  dynCfg.movimentos.forEach(function (m) {
+    const d = data[m.key] || {};
+    const val = d.val !== undefined ? d.val : null;
+    const med = d.med !== undefined ? d.med : null;
+    const fp  = d.fp  !== undefined ? d.fp  : null;
+    setCell('dcv_' + m.key + '_val', val !== null ? val.toFixed(1) + ' kg' : null);
+    setCell('dcv_' + m.key + '_med', med !== null ? med.toFixed(1) + ' kg' : null);
+    setCell('dcv_' + m.key + '_fp',  fp  !== null ? fp.toFixed(1)  + '%'   : null);
+  });
+
+  dynCfg.racios.forEach(function (rc) {
+    const nv = data[rc.num] ? data[rc.num].val : null;
+    const dv = data[rc.den] ? data[rc.den].val : null;
+    const ratio = (nv !== null && dv !== null && dv !== 0) ? nv / dv : null;
+    const el = document.getElementById('dcv_ratio_' + rc.num + '_' + rc.den);
+    if (el) el.innerHTML = ratioTag(ratio, rc.refMin, rc.refMax);
+  });
+
+  // Metric 1: maior força
+  let bestLabel = '—', bestVal = -1;
+  dynCfg.movimentos.forEach(function (m) {
+    const v = data[m.key] ? data[m.key].val : null;
+    if (v !== null && v > bestVal) { bestVal = v; bestLabel = m.label + ' · ' + v.toFixed(1) + ' kg'; }
+  });
+  setCell('dyn_m1_val', bestLabel);
+
+  // Metric 2: maior assimetria entre pares
+  const pares = [
+    { a: 'rot_e', b: 'rot_d', label: 'Rot E/D' },
+    { a: 'inc_e', b: 'inc_d', label: 'Inc E/D' },
+  ];
+  let worstPct = 0, worstLabel = '—';
+  pares.forEach(function (p) {
+    const va = data[p.a] ? data[p.a].val : null;
+    const vb = data[p.b] ? data[p.b].val : null;
+    if (va === null || vb === null || vb === 0) return;
+    const pct = Math.abs((va - vb) / vb * 100);
+    if (pct > worstPct) { worstPct = pct; worstLabel = p.label + ' +' + pct.toFixed(0) + '%'; }
+  });
+  const elM2 = document.getElementById('dyn_m2_val');
+  if (elM2) { elM2.textContent = worstLabel; elM2.style.color = worstPct > 20 ? '#a32d2d' : worstPct > 10 ? '#854f0b' : '#3b6d11'; }
+  setCell('dyn_m2_sub', '');
+
+  // Metric 3: rácio Flex/Ext
+  const rc0 = dynCfg.racios && dynCfg.racios.length ? dynCfg.racios[0] : null;
+  if (rc0) {
+    const nv = data[rc0.num] ? data[rc0.num].val : null;
+    const dv = data[rc0.den] ? data[rc0.den].val : null;
+    const r0 = (nv !== null && dv !== null && dv !== 0) ? nv / dv : null;
+    const elM3 = document.getElementById('dyn_m3_val');
+    if (elM3) {
+      elM3.textContent = r0 !== null ? r0.toFixed(2) : '—';
+      elM3.style.color = (r0 !== null && rc0.refMin !== null && r0 >= rc0.refMin && r0 <= rc0.refMax) ? '#3b6d11' : '#a32d2d';
+    }
+    const elM3b = document.getElementById('dyn_m3_bar');
+    if (elM3b && r0 !== null) elM3b.style.width = Math.min(r0 * 100, 100) + '%';
+  }
+
+  // Metric 4: não aplicável à cervical
+  const elM4 = document.getElementById('dyn_m4_val');
+  if (elM4) { elM4.textContent = '—'; elM4.style.color = '#94a3b8'; }
+
+  // Render tabelas cervical
+  const sec = document.getElementById('dyn_results_sec');
+  if (!sec) return;
+  let th = '<div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:10px;">' +
+           '<div style="padding:9px 14px;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;font-size:11px;font-weight:500;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Força máxima por movimento (kg)</div>' +
+           '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>' +
+           '<th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;width:30%;">Movimento</th>' +
+           '<th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#0f2d52;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">F. Máx (kg)</th>' +
+           '<th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">F. Média (kg)</th>' +
+           '<th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">F/P (%)</th>' +
+           '</tr></thead><tbody>';
+  dynCfg.movimentos.forEach(function (m, i) {
+    const cs = 'padding:8px 10px;' + (i < dynCfg.movimentos.length - 1 ? 'border-bottom:0.5px solid #e2e8f0;' : '');
+    th += '<tr>' +
+          '<td style="' + cs + 'font-weight:500;">' + m.label + '</td>' +
+          '<td style="' + cs + 'text-align:right;color:#0f2d52;font-weight:500;" id="dcv_' + m.key + '_val">—</td>' +
+          '<td style="' + cs + 'text-align:right;color:#64748b;" id="dcv_' + m.key + '_med">—</td>' +
+          '<td style="' + cs + 'text-align:right;font-size:11px;color:#64748b;" id="dcv_' + m.key + '_fp">—</td>' +
+          '</tr>';
+  });
+  th += '</tbody></table></div>';
+
+  let tr = '<div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:10px;">' +
+           '<div style="padding:9px 14px;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;font-size:11px;font-weight:500;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">Rácios agonista / antagonista</div>' +
+           '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>' +
+           '<th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;width:35%;">Rácio</th>' +
+           '<th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">Valor</th>' +
+           '<th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">Referência</th>' +
+           '<th style="padding:8px 10px;text-align:right;font-size:11px;font-weight:500;color:#64748b;border-bottom:0.5px solid #e2e8f0;background:#f8fafc;">Interpretação</th>' +
+           '</tr></thead><tbody>';
+  dynCfg.racios.forEach(function (rc, i) {
+    const cs = 'padding:8px 10px;' + (i < dynCfg.racios.length - 1 ? 'border-bottom:0.5px solid #e2e8f0;' : '');
+    const refStr = (rc.refMin !== null && rc.refMax !== null) ? rc.refMin.toFixed(2) + '–' + rc.refMax.toFixed(2) : '—';
+    tr += '<tr>' +
+          '<td style="' + cs + 'font-weight:500;">' + rc.label + '</td>' +
+          '<td style="' + cs + 'text-align:right;" id="dcv_ratio_' + rc.num + '_' + rc.den + '">—</td>' +
+          '<td style="' + cs + 'text-align:right;font-size:11px;color:#64748b;">' + refStr + '</td>' +
+          '<td style="' + cs + 'text-align:right;" id="dcv_ratio_' + rc.num + '_' + rc.den + '_int">—</td>' +
+          '</tr>';
+  });
+  tr += '</tbody></table></div>';
+
+  let existing = sec.querySelector('.dcv-tables');
+  if (!existing) {
+    existing = document.createElement('div');
+    existing.className = 'dcv-tables';
+    sec.appendChild(existing);
+  }
+  existing.innerHTML = th + tr;
+  sec.style.display = 'block';
 }
 
 /* ════════ saveExam ════════ */
