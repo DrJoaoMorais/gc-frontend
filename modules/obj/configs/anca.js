@@ -136,10 +136,12 @@ export default {
     af2: true,
     // Chaves com prefixo "Quadril " para não apanhar secções Joelho*; bilDone descarta Ventral/Sentado
     af2Map: {
-      'Quadril Flexão':   'flex',
-      'Quadril Extensão': 'ext',
-      'Quadril Abdução':  'abd',
-      'Quadril Adução':   'adu',
+      'Quadril Flexão':          'flex',
+      'Quadril Extensão':        'ext',
+      'Quadril Abdução':         'abd',
+      'Quadril Adução':          'adu',
+      'Quadril Rotação Externa': 're',
+      'Quadril Rotação Interna': 'ri',
     },
     movimentos: [
       { key: 'flex', label: 'Flexão' },

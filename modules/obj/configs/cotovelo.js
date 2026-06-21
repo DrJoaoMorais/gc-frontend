@@ -82,17 +82,23 @@ export default {
   ],
 
   dinamometria: {
-    af2Import: false,
+    af2: true,
+    af2Map: {
+      'Cotovelo Flexão':    'flexc',
+      'Cotovelo Extensão':  'extc',
+      'Cotovelo Pronação':  'pro',
+      'Cotovelo Supinação': 'sup',
+    },
     movimentos: [
-      { key:'flexc', label:'Flexão do cotovelo' },
-      { key:'extc',  label:'Extensão do cotovelo' },
-      { key:'pro',   label:'Pronação' },
-      { key:'sup',   label:'Supinação' },
-      { key:'preens',label:'Preensão (Jamar/AF2)' }
+      { key: 'flexc', label: 'Flexão' },
+      { key: 'extc',  label: 'Extensão' },
+      { key: 'pro',   label: 'Pronação' },
+      { key: 'sup',   label: 'Supinação' },
     ],
     racios: [
-      { num:'flexc', den:'extc', label:'Flexão/Extensão', ref:null }
-    ]
+      { num: 'flexc', den: 'extc', label: 'Flex / Ext', refMin: null, refMax: null },
+      { num: 'pro',   den: 'sup',  label: 'Pro / Sup',  refMin: null, refMax: null },
+    ],
   },
 
   escalas: [

@@ -155,15 +155,27 @@ export default {
   ],
 
   dinamometria: {
-    af2Import: true,
+    af2: true,
+    af2Map: {
+      'Mão Pega':          'pega',
+      'Mão Pega de Pinça': 'pinc',
+      'Pulso Extensão':    'pun_ext',
+      'Pulso Flexão':      'pun_flex',
+      'Pulso Abdução':     'pun_abd',
+      'Pulso Adução':      'pun_adu',
+    },
     movimentos: [
-      { key:'pega',     label:'Preensão palmar (Pega)' },
-      { key:'pinc',     label:'Pinça (Pega de Pinça)' },
-      { key:'tenaz',    label:'Tenaz (Pega de Tenaz)' },
-      { key:'pun_flex', label:'Flexão do punho (Pulso)' },
-      { key:'pun_ext',  label:'Extensão do punho (Pulso)' }
+      { key: 'pega',     label: 'Preensão palmar (Pega)' },
+      { key: 'pinc',     label: 'Pinça' },
+      { key: 'pun_flex', label: 'Flexão do punho' },
+      { key: 'pun_ext',  label: 'Extensão do punho' },
+      { key: 'pun_abd',  label: 'Abdução do punho' },
+      { key: 'pun_adu',  label: 'Adução do punho' },
     ],
-    racios: []
+    racios: [
+      { num: 'pun_flex', den: 'pun_ext', label: 'Flex / Ext punho', refMin: null, refMax: null },
+      { num: 'pega',     den: 'pinc',    label: 'Pega / Pinça',     refMin: null, refMax: null },
+    ],
   },
 
   escalas: [

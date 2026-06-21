@@ -6,7 +6,7 @@ export default {
   titulo: 'Coluna Cervical',
   subtitle: 'Exame completo · Guardar no final',
   lado: { label: 'Lado dominante da queixa' },
-  tabs: { dinamometria: false, escalas: true },
+  tabs: { dinamometria: true, escalas: true },
 
   seccoes: [
     { tipo: 'dor', titulo: 'Caracterização da Dor',
@@ -123,6 +123,32 @@ export default {
     seccaoCicatriz,
     seccaoAtrofia,
   ],
+
+  dinamometria: {
+    af2: true,
+    af2Cervical: true,
+    af2Map: {
+      'Cervical Flexão':                      'flex',
+      'Cervical Extensão':                    'ext',
+      'Cervical Rotação para a Esquerda':     'rot_e',
+      'Cervical Rotação para a Direita':      'rot_d',
+      'Cervical Inclinação Lateral Esquerda': 'inc_e',
+      'Cervical Inclinação Lateral Direita':  'inc_d',
+    },
+    movimentos: [
+      { key: 'flex',  label: 'Flexão' },
+      { key: 'ext',   label: 'Extensão' },
+      { key: 'rot_e', label: 'Rot. Esquerda' },
+      { key: 'rot_d', label: 'Rot. Direita' },
+      { key: 'inc_e', label: 'Inc. Esquerda' },
+      { key: 'inc_d', label: 'Inc. Direita' },
+    ],
+    racios: [
+      { num: 'flex',  den: 'ext',   label: 'Flex / Ext',    refMin: 0.70, refMax: 0.90 },
+      { num: 'rot_e', den: 'rot_d', label: 'Rot E / Rot D', refMin: 0.90, refMax: 1.10 },
+      { num: 'inc_e', den: 'inc_d', label: 'Inc E / Inc D', refMin: 0.90, refMax: 1.10 },
+    ],
+  },
 
   escalas: [
     { id: 'ndi',
