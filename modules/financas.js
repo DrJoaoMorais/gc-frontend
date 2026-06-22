@@ -1675,6 +1675,7 @@ function openModalEditarRegisto(registo, entidades, onSave) {
         data,
         periodo:          periodoFromDate(data),
         valor:            finStatus === "honorarios_dispensados" ? 0 : valor,
+        valor_manual:     finStatus === "honorarios_dispensados" ? null : valor,
         financial_status: finStatus,
         appt_status:      apptStatus,
         notas:            notas || null,
