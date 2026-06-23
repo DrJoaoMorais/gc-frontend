@@ -68,7 +68,7 @@ async function loadRegistos({ mes, ano, dataIni, dataFim } = {}) {
     .select(`
       *,
       entidades_financeiras ( nome, tipo, gera_pdf_consulta, valor_faturado ),
-      patients ( full_name, nif, address_line1, postal_code, city )
+      patients ( full_name, nif, sns, address_line1, postal_code, city, insurance_provider, insurance_policy_number )
     `)
     .gte("data", inicio)
     .lt("data", fim)
@@ -758,6 +758,7 @@ ${pendVencidos.length > 0 ? `
       <span class="fin-card-title">Registos</span>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto;">
         <button id="btnFinPdfSeleccionado" class="gc-btn-primary" style="font-size:12px;padding:6px 14px;">PDF</button>
+        <button id="btnFinPdfContab" style="font-size:12px;padding:6px 14px;border-radius:8px;border:0.5px solid #93c5fd;background:#dbeafe;color:#1e40af;cursor:pointer;font-weight:600;">PDF contabilista</button>
       </div>
     </div>
     ${registosFiltrados.length === 0
@@ -953,6 +954,20 @@ ${pendVencidos.length > 0 ? `
     /* Fecho do mês */
     document.getElementById("btnFinFechoMes")?.addEventListener("click", () => {
       _openFechoMesModal(mes, ano, null);
+    });
+
+    /* PDF contabilista — clínica seleccionada + período activo */
+    document.getElementById("btnFinPdfContab")?.addEventListener("click", () => {
+      if (!clinicaFiltro) { alert("Seleccione primeiro uma clínica no filtro do topo."); return; }
+      const regs = registosFiltrados.filter(r => r.entidade_id === clinicaFiltro);
+      const ent = entidades.find(e => e.id === clinicaFiltro);
+      const nomeClinica = ent ? (ent.nome.split("—")[0].trim()) : "Clínica";
+      const labelPeriodo = (periodoIni && periodoFim)
+        ? (periodoIni === periodoFim
+            ? new Date(periodoIni+"T00:00:00").toLocaleDateString("pt-PT")
+            : `${new Date(periodoIni+"T00:00:00").toLocaleDateString("pt-PT")} a ${new Date(periodoFim+"T00:00:00").toLocaleDateString("pt-PT")}`)
+        : mesLabel(ano, mes);
+      openPdfContabilista(regs, nomeClinica, labelPeriodo);
     });
 
     /* PDF — usa filtro de clínica do topo; presenças só se sem filtro de clínica */
@@ -2142,6 +2157,83 @@ async function openModalPresenca({ ent, presenca, onSave }) {
   });
 }
 
+
+/* ---- FD.4b — openPdfContabilista ---- */
+function openPdfContabilista(registos, nomeClinica, labelPeriodo) {
+  const linhas = registos.filter(r =>
+    contaParaTotal(r.appt_status, r.financial_status) && r.patients
+  );
+
+  if (linhas.length === 0) {
+    alert("Sem consultas realizadas no periodo/clinica seleccionados.");
+    return;
+  }
+
+  const fmtMorada = (p) => {
+    const a = (p.address_line1 || "").trim();
+    const pc = (p.postal_code || "").trim();
+    const c = (p.city || "").trim();
+    const tail = `${pc}${pc && c ? " " : ""}${c}`.trim();
+    return `${a}${a && tail ? ", " : ""}${tail}`.trim() || "—";
+  };
+  const fmtSeguro = (p) => {
+    const s = (p.insurance_provider || "").trim();
+    const n = (p.insurance_policy_number || "").trim();
+    if (!s && !n) return "—";
+    return `${s}${s && n ? " · " : ""}${n}`.trim();
+  };
+
+  const linhasHtml = linhas.map(r => {
+    const p = r.patients || {};
+    const valor = Number(r.valor || 0);
+    return `<tr>
+      <td>${r.data ? new Date(r.data+"T00:00:00").toLocaleDateString("pt-PT") : "—"}</td>
+      <td>${escapeHtml(p.full_name || "—")}</td>
+      <td>${escapeHtml(p.nif || "—")}</td>
+      <td>${escapeHtml(p.sns || "—")}</td>
+      <td>${escapeHtml(fmtMorada(p))}</td>
+      <td>${escapeHtml(fmtSeguro(p))}</td>
+      <td style="text-align:right;font-weight:700;">${valor.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</td>
+    </tr>`;
+  }).join("");
+
+  const total = linhas.reduce((s, r) => s + Number(r.valor || 0), 0);
+
+  const html = `<!doctype html><html><head><meta charset="utf-8">
+    <title>Consultas — ${escapeHtml(nomeClinica)} — ${escapeHtml(labelPeriodo)}</title>
+    <style>
+      body{font-family:Arial,sans-serif;font-size:12px;color:#0f172a;margin:40px;margin-top:90px}
+      h1{font-size:18px;font-weight:900;color:#0f2d52;margin-bottom:4px}
+      .sub{font-size:13px;color:#64748b;margin-bottom:24px}
+      table{width:100%;border-collapse:collapse}
+      th{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;padding:8px 10px;border-bottom:2px solid #0f2d52;text-align:left}
+      td{padding:8px 10px;border-bottom:0.5px solid #e2e8f0;font-size:12px}
+      .total{text-align:right;font-weight:900;font-size:15px;color:#0f2d52;padding:12px;border-top:2px solid #0f2d52;margin-top:4px}
+      .print-bar{position:fixed;top:0;left:0;right:0;background:#0f2d52;color:#fff;padding:12px 24px;display:flex;align-items:center;gap:16px;font-family:Arial,sans-serif;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,0.18);z-index:999}
+      .print-bar button{background:#fff;color:#0f2d52;border:none;border-radius:7px;padding:8px 20px;font-size:14px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif}
+      .print-bar button:hover{background:#e0eaf5}
+      .print-bar .hint{font-size:12px;opacity:.8}
+      @media print{.print-bar{display:none}body{margin:20px}}
+    </style>
+    </head><body>
+    <div class="print-bar">
+      <button onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>
+      <span class="hint">No diálogo, escolha <b>Destino → Guardar como PDF</b></span>
+    </div>
+    <h1>Consultas Realizadas — ${escapeHtml(nomeClinica)}</h1>
+    <div class="sub">${escapeHtml(labelPeriodo)} · Dr. João Morais · Para contabilista</div>
+    <table>
+      <thead><tr>
+        <th>Data</th><th>Nome</th><th>NIF</th><th>SNS</th><th>Morada</th><th>Seguro / Apólice</th><th style="text-align:right;">Valor</th>
+      </tr></thead>
+      <tbody>${linhasHtml}</tbody>
+    </table>
+    <div class="total">Total: ${total.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</div>
+    </body></html>`;
+
+  const w = window.open("", "_blank");
+  if (w) w.document.write(html);
+}
 
 /* ---- FD.5 — openPdfMensal ---- */
 function openPdfMensal(registos, presencas, avencasOuEntidades, entidades, mes, ano) {
