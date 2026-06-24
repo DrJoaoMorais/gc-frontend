@@ -251,7 +251,87 @@ function agruparPorSemana(registos) {
   });
   return Object.values(mapa).sort((a, b) => a.inicio < b.inicio ? -1 : 1);
 }
-window._gcDebug = { semanaInfo, agruparPorSemana };
+/* ---- FB.8 — cartões da Contabilidade ---- */
+function gcContabTog(id, el) {
+  const d = document.getElementById(id); if (!d) return;
+  const aberto = d.style.display !== "none";
+  d.style.display = aberto ? "none" : "block";
+  const c = el.querySelector(".contab-chev");
+  if (c) c.style.transform = aberto ? "rotate(0deg)" : "rotate(180deg)";
+}
+window.gcContabTog = gcContabTog;
+function _resumoContab(entidades, regs) {
+  const clinicas = {}, externas = [];
+  (entidades || []).forEach(e => {
+    if (e.clinic_id) {
+      const c = clinicas[e.clinic_id] || (clinicas[e.clinic_id] = { nome: "", acto: [], avenca: [], geraPdf: false });
+      (e.tipo === "avenca" ? c.avenca : c.acto).push(e);
+      if (e.gera_pdf_consulta) c.geraPdf = true;
+      c.nome = (G.clinicsById && G.clinicsById[e.clinic_id]?.name) || e.nome.split("—")[0].trim();
+    } else externas.push(e);
+  });
+  const out = { porSemana: [], porDoente: [], externas: [] };
+  Object.values(clinicas).forEach(c => {
+    const ids = new Set([...c.acto, ...c.avenca].map(e => e.id));
+    const regsC = regs.filter(r => ids.has(r.entidade_id));
+    const semanas = agruparPorSemana(regsC);
+    const avenca = c.avenca.reduce((s, e) => s + Number(e.avenca_valor || 0), 0);
+    const totalMes = semanas.reduce((s, w) => s + w.total, 0) + avenca;
+    const soAvenca = c.acto.length === 0;
+    const linha = { nome: c.nome, semanas, avenca, totalMes, geraPdf: c.geraPdf };
+    if (soAvenca) out.externas.push(linha);
+    else if (c.geraPdf) out.porDoente.push(linha);
+    else out.porSemana.push(linha);
+  });
+  externas.forEach(e => {
+    const regsE = regs.filter(r => r.entidade_id === e.id && contaParaTotal(r.appt_status, r.financial_status));
+    const totalRegs = regsE.reduce((s, r) => s + Number(r.valor || 0), 0);
+    out.externas.push({ nome: e.nome, avenca: Number(e.avenca_valor || 0), totalMes: Number(e.avenca_valor || 0) + totalRegs, semanas: [] });
+  });
+  return out;
+}
+function cartoesContabHTML(entidades, regs) {
+  const eur = v => Number(v || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
+  const r = _resumoContab(entidades, regs);
+  const slug = s => "dc_" + String(s).replace(/\W+/g, "");
+  const cartaoSemana = (c) => {
+    const id = slug(c.nome);
+    const linhas = c.semanas.map(w => {
+      const tipos = Object.entries(w.porTipo || {}).map(([k, v]) => `${v.n}× ${k}`).join(" · ");
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:0.5px solid #eef2f7;">
+        <div><div style="font-size:13px;color:#334155;">${w.label}</div><div style="font-size:11px;color:#94a3b8;">${escapeHtml(tipos)}</div></div>
+        <div style="display:flex;align-items:center;gap:10px;"><span style="font-size:13px;font-weight:700;color:#0f2d52;">${eur(w.total)}</span><button class="gc-btn-sm" disabled title="Disponível no 3c" style="opacity:.45;cursor:not-allowed;">PDF semana</button></div>
+      </div>`;
+    }).join("");
+    const av = c.avenca > 0 ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;margin-top:7px;background:#fef9ec;border-radius:8px;">
+        <span style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#854F0B;"><i class="ti ti-lock" style="font-size:14px;"></i> Direção / avença · só no PDF mês</span>
+        <span style="font-size:13px;font-weight:700;color:#854F0B;">${eur(c.avenca)}</span></div>` : "";
+    return `<div style="border:0.5px solid #e2e8f0;border-radius:12px;margin-bottom:8px;overflow:hidden;background:#fff;">
+      <div onclick="gcContabTog('${id}',this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:11px 16px;">
+        <div style="display:flex;align-items:center;gap:9px;"><i class="ti ti-chevron-down contab-chev" style="font-size:16px;color:#94a3b8;transition:transform .15s;"></i><span style="font-size:14px;font-weight:700;color:#0f2d52;">${escapeHtml(c.nome)}</span><span style="font-size:11px;color:#94a3b8;">${c.semanas.length} semana(s)${c.avenca > 0 ? " + avença" : ""}</span></div>
+        <div style="display:flex;align-items:center;gap:12px;"><span style="font-size:15px;font-weight:800;color:#1a56db;">${eur(c.totalMes)}</span><button class="gc-btn-sm" disabled title="Disponível no 3c" style="opacity:.45;cursor:not-allowed;">PDF mês</button></div>
+      </div>
+      <div id="${id}" style="display:none;padding:0 16px 11px;">${linhas}${av}</div>
+    </div>`;
+  };
+  const linhaDoente = (c) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-top:0.5px solid #eef2f7;">
+      <span style="font-size:14px;font-weight:700;color:#0f2d52;">${escapeHtml(c.nome)}</span>
+      <div style="display:flex;align-items:center;gap:10px;">${c.totalMes > 0 ? `<span style="font-size:13px;font-weight:700;color:#0f2d52;">${eur(c.totalMes)}</span><button class="gc-btn-sm" disabled title="Disponível no 3d" style="opacity:.45;cursor:not-allowed;">PDF doentes</button>` : `<span style="font-size:12px;color:#cbd5e1;">Sem consultas este mês</span>`}</div>
+    </div>`;
+  const linhaExterna = (c) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-top:0.5px solid #eef2f7;">
+      <span style="font-size:14px;font-weight:600;color:#334155;">${escapeHtml(c.nome)}</span>
+      <div style="display:flex;align-items:center;gap:10px;"><span style="font-size:14px;font-weight:700;color:#0f2d52;">${eur(c.totalMes)}</span><button class="gc-btn-sm" disabled title="Disponível no 3c" style="opacity:.45;cursor:not-allowed;">PDF</button></div>
+    </div>`;
+  const sec = (titulo, icon, inner) => inner ? `<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 8px;display:flex;align-items:center;gap:6px;"><i class="ti ${icon}" style="font-size:14px;"></i>${titulo}</div>${inner}` : "";
+  const sPorSemana = r.porSemana.map(cartaoSemana).join("");
+  const sPorDoente = r.porDoente.length ? `<div style="border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff;">${r.porDoente.map(linhaDoente).join("")}</div>` : "";
+  const sExternas = r.externas.length ? `<div style="border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff;">${r.externas.map(linhaExterna).join("")}</div>` : "";
+  return `<div style="margin-bottom:18px;">
+    ${sec("Por semana — sem doentes", "ti-building-hospital", sPorSemana)}
+    ${sec("Por doente — com NIF", "ti-user", sPorDoente)}
+    ${sec("Avença fixa & externas", "ti-repeat", sExternas)}
+  </div>`;
+}
 
 /* ---- FB.6 — estadoAvenca ---- */
 function badgeEstadoAvenca(status) {
@@ -791,9 +871,10 @@ ${pendVencidos.length > 0 ? `
 
 <!-- ════ VISTA: REGISTOS ════ -->
 <div id="finVistaReg" style="display:${vistaActual==="registos"?"block":"none"};">
+  ${cartoesContabHTML(entidades, registosFiltrados)}
   <div class="fin-card">
     <div class="fin-card-head" style="flex-wrap:wrap;gap:8px;">
-      <span class="fin-card-title">Contabilidade</span>
+      <span class="fin-card-title">Registos individuais</span>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto;">
         <button id="btnFinPdfSeleccionado" class="gc-btn-primary" style="font-size:12px;padding:6px 14px;">PDF</button>
         <button id="btnFinPdfContab" style="font-size:12px;padding:6px 14px;border-radius:8px;border:0.5px solid #93c5fd;background:#dbeafe;color:#1e40af;cursor:pointer;font-weight:600;">PDF contabilista</button>
