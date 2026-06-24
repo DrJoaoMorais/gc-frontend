@@ -750,7 +750,14 @@ export async function renderFinancas() {
       <span style="font-size:13px;font-weight:600;color:#0f2d52;min-width:96px;text-align:center;text-transform:capitalize;">${new Date(ano, mes - 1, 1).toLocaleString("pt-PT", { month: "long" })} ${ano}</span>
       <button id="finMesNext" aria-label="Mês seguinte" style="border:none;background:none;padding:6px 9px;cursor:pointer;color:#0f2d52;display:flex;align-items:center;"><i class="ti ti-chevron-right" style="font-size:16px;"></i></button>
     </div>
-    <div style="display:flex;align-items:center;gap:4px;background:#fff;border:0.5px solid #e2e8f0;border-radius:8px;padding:4px 10px;">
+    <div style="display:flex;background:#f1f5f9;border-radius:8px;padding:3px;gap:2px;">
+      <button id="finPresetHoje" style="border:none;background:none;font-size:12px;padding:5px 11px;border-radius:6px;color:#64748b;cursor:pointer;font-family:inherit;">Hoje</button>
+      <button id="finPresetSemana" style="border:none;background:none;font-size:12px;padding:5px 11px;border-radius:6px;color:#64748b;cursor:pointer;font-family:inherit;">Semana</button>
+      <button id="finPresetMes" style="border:none;background:none;font-size:12px;padding:5px 11px;border-radius:6px;color:#64748b;cursor:pointer;font-family:inherit;">Mês</button>
+      <button id="finPresetAno" style="border:none;background:none;font-size:12px;padding:5px 11px;border-radius:6px;color:#64748b;cursor:pointer;font-family:inherit;">Ano</button>
+    </div>
+    <button id="finBtnIntervalo" aria-label="Intervalo personalizado" title="Intervalo personalizado" style="border:0.5px solid ${periodoIni ? "#1a56db" : "#cbd5e1"};border-radius:8px;background:#fff;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0f2d52;"><i class="ti ti-calendar" style="font-size:17px;"></i></button>
+    <div id="finIntervaloBox" style="display:${periodoIni ? "flex" : "none"};align-items:center;gap:4px;background:#fff;border:0.5px solid #e2e8f0;border-radius:8px;padding:4px 10px;">
       <span style="font-size:11px;color:#94a3b8;white-space:nowrap;">De</span>
       <input id="finPeriodoIni" type="date" value="${periodoIni}"
         style="border:none;outline:none;font-size:12px;color:#0f172a;font-family:inherit;width:115px;" />
@@ -1143,6 +1150,22 @@ ${pendVencidos.length > 0 ? `
       mes++; if (mes > 12) { mes = 1; ano++; }
       periodoIni = ""; periodoFim = "";
       render();
+    });
+
+    /* Atalhos de período */
+    document.getElementById("finPresetHoje")?.addEventListener("click", () => {
+      const d = new Date(), h = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      periodoIni = h; periodoFim = h; render();
+    });
+    document.getElementById("finPresetSemana")?.addEventListener("click", () => {
+      const d = new Date(), h = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const s = semanaInfo(h); periodoIni = s.inicio; periodoFim = s.fim; render();
+    });
+    document.getElementById("finPresetMes")?.addEventListener("click", () => { periodoIni = ""; periodoFim = ""; render(); });
+    document.getElementById("finPresetAno")?.addEventListener("click", () => { periodoIni = `${ano}-01-01`; periodoFim = `${ano}-12-31`; render(); });
+    document.getElementById("finBtnIntervalo")?.addEventListener("click", () => {
+      const box = document.getElementById("finIntervaloBox");
+      if (box) box.style.display = box.style.display === "none" ? "flex" : "none";
     });
 
     /* Selector de clínica */
