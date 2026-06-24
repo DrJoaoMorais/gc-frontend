@@ -575,7 +575,7 @@ ${pendVencidos.length > 0 ? `
 <!-- TABS DE VISTA -->
 <div class="fin-vtabs">
   <button class="fin-vtab${vistaActual==="clinica"?" on":""}" data-vista="clinica"><i class="ti ti-building-hospital" style="font-size:17px;"></i> Por clínica</button>
-  <button class="fin-vtab${vistaActual==="registos"?" on":""}" data-vista="registos"><i class="ti ti-list-details" style="font-size:17px;"></i> Registos</button>
+  <button class="fin-vtab${vistaActual==="registos"?" on":""}" data-vista="registos"><i class="ti ti-calculator" style="font-size:17px;"></i> Contabilidade</button>
   <button class="fin-vtab${vistaActual==="analise"?" on":""}" data-vista="analise"><i class="ti ti-chart-bar" style="font-size:17px;"></i> Análise</button>
 </div>
 
@@ -755,7 +755,7 @@ ${pendVencidos.length > 0 ? `
 <div id="finVistaReg" style="display:${vistaActual==="registos"?"block":"none"};">
   <div class="fin-card">
     <div class="fin-card-head" style="flex-wrap:wrap;gap:8px;">
-      <span class="fin-card-title">Registos</span>
+      <span class="fin-card-title">Contabilidade</span>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-left:auto;">
         <button id="btnFinPdfSeleccionado" class="gc-btn-primary" style="font-size:12px;padding:6px 14px;">PDF</button>
         <button id="btnFinPdfContab" style="font-size:12px;padding:6px 14px;border-radius:8px;border:0.5px solid #93c5fd;background:#dbeafe;color:#1e40af;cursor:pointer;font-weight:600;">PDF contabilista</button>
