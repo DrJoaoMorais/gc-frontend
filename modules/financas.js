@@ -340,14 +340,17 @@ function cartoesContabHTML(entidades, regs) {
       <div id="${id}" style="display:none;padding:0 16px 11px;">${dias}</div>
     </div>`;
   };
-  const linhaExterna = (c) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-top:0.5px solid #eef2f7;">
-      <span style="font-size:14px;font-weight:600;color:#334155;">${escapeHtml(c.nome)}</span>
-      <div style="display:flex;align-items:center;gap:10px;"><span style="font-size:14px;font-weight:700;color:#0f2d52;">${eur(c.totalMes)}</span><button class="gc-btn-sm" onclick="gcContabPdf('externa','${c.entId}')">PDF</button></div>
+  const linhaExterna = (c) => `<div style="border:0.5px solid #e2e8f0;border-radius:12px;background:#fff;padding:10px 12px;">
+      <div style="font-size:13px;font-weight:600;color:#334155;line-height:1.25;min-height:32px;">${escapeHtml(c.nome)}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+        <span style="font-size:15px;font-weight:800;color:#0f2d52;">${eur(c.totalMes)}</span>
+        <button class="gc-btn-sm" onclick="gcContabPdf('externa','${c.entId}')">PDF</button>
+      </div>
     </div>`;
   const sec = (titulo, icon, inner) => inner ? `<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 8px;display:flex;align-items:center;gap:6px;"><i class="ti ${icon}" style="font-size:14px;"></i>${titulo}</div>${inner}` : "";
   const sPorSemana = r.porSemana.map(cartaoSemana).join("");
   const sPorDoente = r.porDoente.length ? `<div style="border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff;">${r.porDoente.map(linhaDoente).join("")}</div>` : "";
-  const sExternas = r.externas.length ? `<div style="border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff;">${r.externas.map(linhaExterna).join("")}</div>` : "";
+  const sExternas = r.externas.length ? `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;align-items:start;">${r.externas.map(linhaExterna).join("")}</div>` : "";
   return `<div style="margin-bottom:18px;">
     ${sec("Por semana — sem doentes", "ti-building-hospital", sPorSemana)}
     ${sec("Por doente — com NIF", "ti-user", sPorDoente)}
