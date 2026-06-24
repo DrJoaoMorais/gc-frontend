@@ -289,7 +289,7 @@ function _resumoContab(entidades, regs, presencas) {
     const ids = new Set([...c.acto, ...c.avenca].map(e => e.id));
     const regsC = regs.filter(r => ids.has(r.entidade_id));
     const semanas = agruparPorSemana(regsC);
-    const avenca = c.avenca.reduce((s, e) => s + Number(e.avenca_valor || 0), 0);
+    const avenca = regsC.filter(r => r.tipo_acto === "Avença mensal" && contaParaTotal(r.appt_status, r.financial_status)).reduce((s, r) => s + Number(r.valor || 0), 0);
     const totalMes = semanas.reduce((s, w) => s + w.total, 0) + avenca;
     const soAvenca = (c.acto.length === 0) || (semanas.length === 0 && avenca > 0);
     const linha = { nome: c.nome, clinic_id: c.clinic_id, semanas, dias: agruparPorDia(regsC), avenca, totalMes, geraPdf: c.geraPdf };
@@ -298,11 +298,12 @@ function _resumoContab(entidades, regs, presencas) {
     else out.porSemana.push(linha);
   });
   externas.forEach(e => {
-    const regsE = regs.filter(r => r.entidade_id === e.id && r.tipo_acto !== "Avença mensal" && contaParaTotal(r.appt_status, r.financial_status));
+    const regsE = regs.filter(r => r.entidade_id === e.id && contaParaTotal(r.appt_status, r.financial_status));
     const totalRegs = regsE.reduce((s, r) => s + Number(r.valor || 0), 0);
+    const avSum = regsE.filter(r => r.tipo_acto === "Avença mensal").reduce((s, r) => s + Number(r.valor || 0), 0);
     const presE = (presencas || []).filter(p => p.entidade_id === e.id && p.financial_status !== "honorarios_dispensados");
     const totalPres = presE.reduce((s, p) => s + _pVal(p), 0);
-    out.externas.push({ nome: e.nome, entId: e.id, avenca: Number(e.avenca_valor || 0), totalMes: Number(e.avenca_valor || 0) + totalRegs + totalPres, semanas: [] });
+    out.externas.push({ nome: e.nome, entId: e.id, avenca: avSum, totalMes: totalRegs + totalPres, semanas: [] });
   });
   out.externas.sort((a, b) => { const av = a.avenca > 0 ? 1 : 0, bv = b.avenca > 0 ? 1 : 0; if (av !== bv) return bv - av; return (b.avenca || 0) - (a.avenca || 0); });
   return out;
@@ -423,7 +424,8 @@ window.gcContabPdf = function (mode, key, wk) {
   if (mode === "externa") {
     const e = entidades.find(x => x.id === key); if (!e) return;
     const pt = porTipoDe(registos.filter(r => r.entidade_id === key));
-    if (Number(e.avenca_valor || 0) > 0) pt["Avença mensal"] = { n: 1, valor: Number(e.avenca_valor) };
+    const avRegs = registos.filter(r => r.entidade_id === key && r.tipo_acto === "Avença mensal" && contaParaTotal(r.appt_status, r.financial_status));
+    if (avRegs.length) pt["Avença mensal"] = { n: avRegs.length, valor: avRegs.reduce((s, r) => s + Number(r.valor || 0), 0) };
     (presencas || []).filter(p => p.entidade_id === key && p.financial_status !== "honorarios_dispensados").forEach(p => {
       const v = Number(p.valor_manual != null ? p.valor_manual : (p.valor_calculado || 0));
       const k = (p.descricao && p.descricao.trim()) ? p.descricao.trim() : (p.tipo === "dia" ? "Dia de consultas" : "Diárias");
@@ -435,7 +437,7 @@ window.gcContabPdf = function (mode, key, wk) {
   const ents = entidades.filter(x => x.clinic_id === key);
   const ids = new Set(ents.map(x => x.id));
   const nome = (G.clinicsById && G.clinicsById[key]?.name) || (ents[0]?.nome.split("—")[0].trim()) || "Clínica";
-  const avenca = ents.filter(x => x.tipo === "avenca").reduce((s, x) => s + Number(x.avenca_valor || 0), 0);
+  const avenca = registos.filter(r => ids.has(r.entidade_id) && r.tipo_acto === "Avença mensal" && contaParaTotal(r.appt_status, r.financial_status)).reduce((s, r) => s + Number(r.valor || 0), 0);
   let regsSel = registos.filter(r => ids.has(r.entidade_id));
   if (mode === "doente" || mode === "doente-dia") {
     let rs = regsSel, lbl = periodoLabel;
