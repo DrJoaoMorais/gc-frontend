@@ -215,6 +215,44 @@ function contaParaTotal(apptStatus, financialStatus) {
   return String(apptStatus || "").toLowerCase() === "done";
 }
 
+/* ---- FB.7 — agrupamento por semana ISO (Contabilidade) ---- */
+function semanaLabel(inicio, fim) {
+  const a = new Date(inicio + "T00:00:00"), b = new Date(fim + "T00:00:00");
+  const ms = d => d.toLocaleString("pt-PT", { month: "short" }).replace(".", "");
+  if (a.getMonth() === b.getMonth()) return `${a.getDate()}–${b.getDate()} ${ms(b)}`;
+  return `${a.getDate()} ${ms(a)}–${b.getDate()} ${ms(b)}`;
+}
+function semanaInfo(dateStr) {
+  const d = new Date(dateStr + "T00:00:00");
+  const dow = (d.getDay() + 6) % 7;
+  const monday = new Date(d); monday.setDate(d.getDate() - dow);
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+  const fmt = x => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+  const th = new Date(monday); th.setDate(monday.getDate() + 3);
+  const ys = new Date(th.getFullYear(), 0, 1);
+  const semana = Math.ceil((((th - ys) / 86400000) + 1) / 7);
+  const inicio = fmt(monday), fim = fmt(sunday);
+  return { chave: `${th.getFullYear()}-W${String(semana).padStart(2, "0")}`, inicio, fim, ano: th.getFullYear(), semana, label: semanaLabel(inicio, fim) };
+}
+function agruparPorSemana(registos) {
+  const mapa = {};
+  (registos || []).forEach(r => {
+    if (!r.data) return;
+    if (r.tipo_acto === "Avença mensal") return;
+    if ((r.entidades_financeiras?.tipo || "") === "avenca") return;
+    if (!contaParaTotal(r.appt_status, r.financial_status)) return;
+    const s = semanaInfo(r.data);
+    if (!mapa[s.chave]) mapa[s.chave] = { ...s, total: 0, n: 0, porTipo: {}, registos: [] };
+    const g = mapa[s.chave]; const v = Number(r.valor || 0);
+    g.total += v; g.n += 1; g.registos.push(r);
+    const ta = r.tipo_acto || "—";
+    if (!g.porTipo[ta]) g.porTipo[ta] = { n: 0, valor: 0 };
+    g.porTipo[ta].n += 1; g.porTipo[ta].valor += v;
+  });
+  return Object.values(mapa).sort((a, b) => a.inicio < b.inicio ? -1 : 1);
+}
+window._gcDebug = { semanaInfo, agruparPorSemana };
+
 /* ---- FB.6 — estadoAvenca ---- */
 function badgeEstadoAvenca(status) {
   if (status === "pago")           return { label: "✓ Pago",           cls: "pago" };
