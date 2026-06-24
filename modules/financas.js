@@ -290,17 +290,18 @@ function _resumoContab(entidades, regs) {
     const semanas = agruparPorSemana(regsC);
     const avenca = c.avenca.reduce((s, e) => s + Number(e.avenca_valor || 0), 0);
     const totalMes = semanas.reduce((s, w) => s + w.total, 0) + avenca;
-    const soAvenca = c.acto.length === 0;
+    const soAvenca = (c.acto.length === 0) || (semanas.length === 0 && avenca > 0);
     const linha = { nome: c.nome, clinic_id: c.clinic_id, semanas, dias: agruparPorDia(regsC), avenca, totalMes, geraPdf: c.geraPdf };
     if (soAvenca) out.externas.push(linha);
     else if (c.geraPdf) out.porDoente.push(linha);
     else out.porSemana.push(linha);
   });
   externas.forEach(e => {
-    const regsE = regs.filter(r => r.entidade_id === e.id && contaParaTotal(r.appt_status, r.financial_status));
+    const regsE = regs.filter(r => r.entidade_id === e.id && r.tipo_acto !== "Avença mensal" && contaParaTotal(r.appt_status, r.financial_status));
     const totalRegs = regsE.reduce((s, r) => s + Number(r.valor || 0), 0);
     out.externas.push({ nome: e.nome, entId: e.id, avenca: Number(e.avenca_valor || 0), totalMes: Number(e.avenca_valor || 0) + totalRegs, semanas: [] });
   });
+  out.externas.sort((a, b) => { const av = a.avenca > 0 ? 1 : 0, bv = b.avenca > 0 ? 1 : 0; if (av !== bv) return bv - av; return (b.avenca || 0) - (a.avenca || 0); });
   return out;
 }
 function cartoesContabHTML(entidades, regs) {
