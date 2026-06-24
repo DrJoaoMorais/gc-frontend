@@ -55,7 +55,7 @@ async function loadRegistos({ mes, ano, dataIni, dataFim } = {}) {
     // fim é inclusivo — adicionar 1 dia
     const d = new Date(dataFim + "T00:00:00");
     d.setDate(d.getDate() + 1);
-    fim = d.toISOString().slice(0, 10);
+    fim = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   } else {
     inicio = `${ano}-${String(mes).padStart(2, "0")}-01`;
     const mesFim = mes === 12 ? 1 : mes + 1;
@@ -126,7 +126,7 @@ async function loadPresencas({ mes, ano, dataIni, dataFim } = {}) {
     inicio = dataIni;
     const d = new Date(dataFim + "T00:00:00");
     d.setDate(d.getDate() + 1);
-    fim = d.toISOString().slice(0, 10);
+    fim = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   } else {
     inicio = `${ano}-${String(mes).padStart(2,"0")}-01`;
     const mesFim = mes === 12 ? 1 : mes + 1;
@@ -771,7 +771,9 @@ export async function renderFinancas() {
     </select>
     ${modoAtivo !== "intervalo" ? `<div style="display:flex;align-items:center;border:0.5px solid #cbd5e1;border-radius:8px;background:#fff;">
       <button id="finNavPrev" aria-label="Anterior" style="border:none;background:none;padding:6px 11px;cursor:pointer;color:#0f2d52;font-size:18px;line-height:1;">‹</button>
-      <span style="font-size:13px;font-weight:600;color:#0f2d52;min-width:118px;text-align:center;text-transform:capitalize;">${navLabel}</span>
+      ${modoAtivo === "dia"
+        ? `<input type="date" id="finDiaPick" value="${periodoIni}" style="border:none;outline:none;background:none;font-size:13px;font-weight:600;color:#0f2d52;font-family:inherit;text-align:center;width:150px;cursor:pointer;">`
+        : `<span style="font-size:13px;font-weight:600;color:#0f2d52;min-width:118px;text-align:center;text-transform:capitalize;">${navLabel}</span>`}
       <button id="finNavNext" aria-label="Seguinte" style="border:none;background:none;padding:6px 11px;cursor:pointer;color:#0f2d52;font-size:18px;line-height:1;">›</button>
     </div>` : ""}
     <button id="finHoje" style="border:0.5px solid #e2e8f0;background:#fff;font-size:12px;padding:6px 13px;border-radius:8px;color:#0f2d52;cursor:pointer;font-family:inherit;font-weight:600;">Hoje</button>
@@ -1196,6 +1198,7 @@ ${pendVencidos.length > 0 ? `
     };
     document.getElementById("finNavPrev")?.addEventListener("click", () => _nav(-1));
     document.getElementById("finNavNext")?.addEventListener("click", () => _nav(1));
+    document.getElementById("finDiaPick")?.addEventListener("change", e => { const v = e.target.value; if (v) { periodoIni = v; periodoFim = v; render(); } });
     document.getElementById("finHoje")?.addEventListener("click", () => {
       const d = new Date(), h = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       if (modoAtivo === "mes") { ano = d.getFullYear(); mes = d.getMonth() + 1; periodoIni = ""; periodoFim = ""; }
