@@ -745,12 +745,10 @@ export async function renderFinancas() {
         return `<option value="${e.id}" ${clinicaFiltro === e.id ? "selected" : ""}>${escapeHtml(clinicaNome)}</option>`;
       }).join("")}
     </select>
-    <div style="display:flex;background:#f1f5f9;border-radius:8px;padding:3px;gap:2px;">
-      ${meses.map(m => `
-        <button class="fin-mtab${!periodoIni && m.ano === ano && m.mes === mes ? " on" : ""}" data-ano="${m.ano}" data-mes="${m.mes}">
-          ${new Date(m.ano, m.mes-1, 1).toLocaleString("pt-PT",{month:"short"})}${m.ano !== now.getFullYear() ? " "+m.ano : ""}
-        </button>
-      `).join("")}
+    <div style="display:flex;align-items:center;border:0.5px solid #cbd5e1;border-radius:8px;background:#fff;">
+      <button id="finMesPrev" aria-label="Mês anterior" style="border:none;background:none;padding:6px 9px;cursor:pointer;color:#0f2d52;display:flex;align-items:center;"><i class="ti ti-chevron-left" style="font-size:16px;"></i></button>
+      <span style="font-size:13px;font-weight:600;color:#0f2d52;min-width:96px;text-align:center;text-transform:capitalize;">${new Date(ano, mes - 1, 1).toLocaleString("pt-PT", { month: "long" })} ${ano}</span>
+      <button id="finMesNext" aria-label="Mês seguinte" style="border:none;background:none;padding:6px 9px;cursor:pointer;color:#0f2d52;display:flex;align-items:center;"><i class="ti ti-chevron-right" style="font-size:16px;"></i></button>
     </div>
     <div style="display:flex;align-items:center;gap:4px;background:#fff;border:0.5px solid #e2e8f0;border-radius:8px;padding:4px 10px;">
       <span style="font-size:11px;color:#94a3b8;white-space:nowrap;">De</span>
@@ -1135,12 +1133,16 @@ ${pendVencidos.length > 0 ? `
     /* ══════ WIRING ══════ */
 
     /* Tabs de mês */
-    content.querySelectorAll(".fin-mtab").forEach(btn => {
-      btn.addEventListener("click", () => {
-        ano = parseInt(btn.dataset.ano, 10);
-        mes = parseInt(btn.dataset.mes, 10);
-        render();
-      });
+    /* Navegador de mês (setas) */
+    document.getElementById("finMesPrev")?.addEventListener("click", () => {
+      mes--; if (mes < 1) { mes = 12; ano--; }
+      periodoIni = ""; periodoFim = "";
+      render();
+    });
+    document.getElementById("finMesNext")?.addEventListener("click", () => {
+      mes++; if (mes > 12) { mes = 1; ano++; }
+      periodoIni = ""; periodoFim = "";
+      render();
     });
 
     /* Selector de clínica */
