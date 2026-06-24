@@ -320,24 +320,32 @@ function cartoesContabHTML(entidades, regs) {
     const av = c.avenca > 0 ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;margin-top:7px;background:#fef9ec;border-radius:8px;">
         <span style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#854F0B;"><i class="ti ti-lock" style="font-size:14px;"></i> Direção / avença · só no PDF mês</span>
         <span style="font-size:13px;font-weight:700;color:#854F0B;">${eur(c.avenca)}</span></div>` : "";
-    return `<div style="border:0.5px solid #e2e8f0;border-radius:12px;margin-bottom:8px;overflow:hidden;background:#fff;">
-      <div onclick="gcContabTog('${id}',this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:11px 16px;">
-        <div style="display:flex;align-items:center;gap:9px;"><i class="ti ti-chevron-down contab-chev" style="font-size:16px;color:#94a3b8;transition:transform .15s;"></i><span style="font-size:14px;font-weight:700;color:#0f2d52;">${escapeHtml(c.nome)}</span><span style="font-size:11px;color:#94a3b8;">${c.semanas.length} semana(s)${c.avenca > 0 ? " + avença" : ""}</span></div>
-        <div style="display:flex;align-items:center;gap:12px;"><span style="font-size:15px;font-weight:800;color:#1a56db;">${eur(c.totalMes)}</span><button class="gc-btn-sm" onclick="event.stopPropagation();gcContabPdf('mes','${c.clinic_id}')">PDF mês</button></div>
+    return `<div style="border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff;">
+      <div onclick="gcContabTog('${id}',this)" style="cursor:pointer;display:flex;align-items:center;gap:7px;padding:10px 12px 0;">
+        <i class="ti ti-chevron-down contab-chev" style="font-size:15px;color:#94a3b8;transition:transform .15s;flex-shrink:0;"></i>
+        <div style="min-width:0;"><div style="font-size:13px;font-weight:700;color:#0f2d52;">${escapeHtml(c.nome)}</div><div style="font-size:10px;color:#94a3b8;">${c.semanas.length} sem${c.avenca > 0 ? " + avença" : ""}</div></div>
       </div>
-      <div id="${id}" style="display:none;padding:0 16px 11px;">${linhas}${av}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 12px 10px;">
+        <span style="font-size:15px;font-weight:800;color:#1a56db;">${eur(c.totalMes)}</span>
+        <button class="gc-btn-sm" onclick="event.stopPropagation();gcContabPdf('mes','${c.clinic_id}')">PDF mês</button>
+      </div>
+      <div id="${id}" style="display:none;padding:0 12px 11px;">${linhas}${av}</div>
     </div>`;
   };
   const linhaDoente = (c) => {
-    if (!(c.totalMes > 0)) return `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-top:0.5px solid #eef2f7;"><span style="font-size:14px;font-weight:700;color:#0f2d52;">${escapeHtml(c.nome)}</span><span style="font-size:12px;color:#cbd5e1;">Sem consultas este mês</span></div>`;
+    if (!(c.totalMes > 0)) return `<div style="border:0.5px solid #e2e8f0;border-radius:12px;background:#fff;padding:10px 12px;"><div style="font-size:13px;font-weight:700;color:#0f2d52;">${escapeHtml(c.nome)}</div><div style="font-size:11px;color:#cbd5e1;margin-top:6px;">Sem consultas este mês</div></div>`;
     const id = "dd_" + String(c.clinic_id).replace(/\W+/g, "");
     const dias = (c.dias || []).map(d => `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:0.5px solid #eef2f7;"><div style="font-size:13px;color:#334155;">${d.label} · ${d.n} consulta(s)</div><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:13px;font-weight:700;color:#0f2d52;">${eur(d.total)}</span><button class="gc-btn-sm" onclick="gcContabPdf('doente-dia','${c.clinic_id}','${d.data}')">PDF doentes</button></div></div>`).join("");
-    return `<div style="border-top:0.5px solid #eef2f7;">
-      <div onclick="gcContabTog('${id}',this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:11px 16px;">
-        <div style="display:flex;align-items:center;gap:9px;"><i class="ti ti-chevron-down contab-chev" style="font-size:16px;color:#94a3b8;transition:transform .15s;"></i><span style="font-size:14px;font-weight:700;color:#0f2d52;">${escapeHtml(c.nome)}</span><span style="font-size:11px;color:#94a3b8;">${(c.dias || []).length} dia(s)</span></div>
-        <div style="display:flex;align-items:center;gap:12px;"><span style="font-size:15px;font-weight:800;color:#1a56db;">${eur(c.totalMes)}</span><button class="gc-btn-sm" onclick="event.stopPropagation();gcContabPdf('doente','${c.clinic_id}')">PDF doentes (mês)</button></div>
+    return `<div style="border:0.5px solid #e2e8f0;border-radius:12px;background:#fff;overflow:hidden;">
+      <div onclick="gcContabTog('${id}',this)" style="cursor:pointer;display:flex;align-items:center;gap:7px;padding:10px 12px 0;">
+        <i class="ti ti-chevron-down contab-chev" style="font-size:15px;color:#94a3b8;transition:transform .15s;flex-shrink:0;"></i>
+        <div style="min-width:0;"><div style="font-size:13px;font-weight:700;color:#0f2d52;">${escapeHtml(c.nome)}</div><div style="font-size:10px;color:#94a3b8;">${(c.dias || []).length} dia(s)</div></div>
       </div>
-      <div id="${id}" style="display:none;padding:0 16px 11px;">${dias}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 12px 10px;">
+        <span style="font-size:15px;font-weight:800;color:#1a56db;">${eur(c.totalMes)}</span>
+        <button class="gc-btn-sm" onclick="event.stopPropagation();gcContabPdf('doente','${c.clinic_id}')">PDF doentes</button>
+      </div>
+      <div id="${id}" style="display:none;padding:0 12px 11px;">${dias}</div>
     </div>`;
   };
   const linhaExterna = (c) => `<div style="border:0.5px solid #e2e8f0;border-radius:12px;background:#fff;padding:10px 12px;">
@@ -348,8 +356,8 @@ function cartoesContabHTML(entidades, regs) {
       </div>
     </div>`;
   const sec = (titulo, icon, inner) => inner ? `<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 8px;display:flex;align-items:center;gap:6px;"><i class="ti ${icon}" style="font-size:14px;"></i>${titulo}</div>${inner}` : "";
-  const sPorSemana = r.porSemana.map(cartaoSemana).join("");
-  const sPorDoente = r.porDoente.length ? `<div style="border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff;">${r.porDoente.map(linhaDoente).join("")}</div>` : "";
+  const sPorSemana = r.porSemana.length ? `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;align-items:start;">${r.porSemana.map(cartaoSemana).join("")}</div>` : "";
+  const sPorDoente = r.porDoente.length ? `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;align-items:start;">${r.porDoente.map(linhaDoente).join("")}</div>` : "";
   const sExternas = r.externas.length ? `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;align-items:start;">${r.externas.map(linhaExterna).join("")}</div>` : "";
   return `<div style="margin-bottom:18px;">
     ${sec("Por semana — sem doentes", "ti-building-hospital", sPorSemana)}
