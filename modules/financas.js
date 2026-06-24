@@ -695,15 +695,19 @@ export async function renderFinancas() {
     /* ============================================================
        HTML
     ============================================================ */
-    const _hojeStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
-    const _semAtual = semanaInfo(_hojeStr);
     let modoAtivo = "mes";
     if (periodoIni && periodoFim) {
-      if (periodoIni === _hojeStr && periodoFim === _hojeStr) modoAtivo = "hoje";
-      else if (periodoIni === _semAtual.inicio && periodoFim === _semAtual.fim) modoAtivo = "semana";
-      else if (periodoIni === `${ano}-01-01` && periodoFim === `${ano}-12-31`) modoAtivo = "ano";
+      const _s = semanaInfo(periodoIni);
+      if (periodoIni === periodoFim) modoAtivo = "dia";
+      else if (_s.inicio === periodoIni && _s.fim === periodoFim) modoAtivo = "semana";
+      else if (periodoIni.slice(5) === "01-01" && periodoFim.slice(5) === "12-31" && periodoIni.slice(0, 4) === periodoFim.slice(0, 4)) modoAtivo = "ano";
       else modoAtivo = "intervalo";
     }
+    let navLabel = "";
+    if (modoAtivo === "mes") navLabel = `${new Date(ano, mes - 1, 1).toLocaleString("pt-PT", { month: "long" })} ${ano}`;
+    else if (modoAtivo === "dia") navLabel = new Date(periodoIni + "T00:00:00").toLocaleDateString("pt-PT", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+    else if (modoAtivo === "semana") navLabel = semanaInfo(periodoIni).label;
+    else if (modoAtivo === "ano") navLabel = periodoIni.slice(0, 4);
     content.innerHTML = `
 <style>
 .fin-mc{background:#f8fafc;border-radius:10px;padding:14px 16px}
@@ -765,13 +769,14 @@ export async function renderFinancas() {
         return `<option value="${e.id}" ${clinicaFiltro === e.id ? "selected" : ""}>${escapeHtml(clinicaNome)}</option>`;
       }).join("")}
     </select>
-    ${modoAtivo === "mes" ? `<div style="display:flex;align-items:center;border:0.5px solid #cbd5e1;border-radius:8px;background:#fff;">
-      <button id="finMesPrev" aria-label="Mês anterior" style="border:none;background:none;padding:6px 11px;cursor:pointer;color:#0f2d52;font-size:18px;line-height:1;">‹</button>
-      <span style="font-size:13px;font-weight:600;color:#0f2d52;min-width:96px;text-align:center;text-transform:capitalize;">${new Date(ano, mes - 1, 1).toLocaleString("pt-PT", { month: "long" })} ${ano}</span>
-      <button id="finMesNext" aria-label="Mês seguinte" style="border:none;background:none;padding:6px 11px;cursor:pointer;color:#0f2d52;font-size:18px;line-height:1;">›</button>
+    ${modoAtivo !== "intervalo" ? `<div style="display:flex;align-items:center;border:0.5px solid #cbd5e1;border-radius:8px;background:#fff;">
+      <button id="finNavPrev" aria-label="Anterior" style="border:none;background:none;padding:6px 11px;cursor:pointer;color:#0f2d52;font-size:18px;line-height:1;">‹</button>
+      <span style="font-size:13px;font-weight:600;color:#0f2d52;min-width:118px;text-align:center;text-transform:capitalize;">${navLabel}</span>
+      <button id="finNavNext" aria-label="Seguinte" style="border:none;background:none;padding:6px 11px;cursor:pointer;color:#0f2d52;font-size:18px;line-height:1;">›</button>
     </div>` : ""}
+    <button id="finHoje" style="border:0.5px solid #e2e8f0;background:#fff;font-size:12px;padding:6px 13px;border-radius:8px;color:#0f2d52;cursor:pointer;font-family:inherit;font-weight:600;">Hoje</button>
     <div style="display:flex;background:#f1f5f9;border-radius:8px;padding:3px;gap:2px;">
-      <button data-modo="hoje" class="finPreset" style="border:none;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:inherit;${modoAtivo === "hoje" ? "background:#0f2d52;color:#fff;" : "background:none;color:#64748b;"}">Hoje</button>
+      <button data-modo="dia" class="finPreset" style="border:none;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:inherit;${modoAtivo === "dia" ? "background:#0f2d52;color:#fff;" : "background:none;color:#64748b;"}">Dia</button>
       <button data-modo="semana" class="finPreset" style="border:none;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:inherit;${modoAtivo === "semana" ? "background:#0f2d52;color:#fff;" : "background:none;color:#64748b;"}">Semana</button>
       <button data-modo="mes" class="finPreset" style="border:none;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:inherit;${modoAtivo === "mes" ? "background:#0f2d52;color:#fff;" : "background:none;color:#64748b;"}">Mês</button>
       <button data-modo="ano" class="finPreset" style="border:none;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:inherit;${modoAtivo === "ano" ? "background:#0f2d52;color:#fff;" : "background:none;color:#64748b;"}">Ano</button>
@@ -1173,13 +1178,32 @@ ${pendVencidos.length > 0 ? `
     content.querySelectorAll(".finPreset").forEach(btn => btn.addEventListener("click", () => {
       const modo = btn.dataset.modo;
       const d = new Date(), h = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      if (modo === "hoje") { periodoIni = h; periodoFim = h; }
+      if (modo === "dia") { periodoIni = h; periodoFim = h; }
       else if (modo === "semana") { const s = semanaInfo(h); periodoIni = s.inicio; periodoFim = s.fim; }
       else if (modo === "ano") { periodoIni = `${ano}-01-01`; periodoFim = `${ano}-12-31`; }
       else if (modo === "intervalo") { const u = new Date(ano, mes, 0).getDate(); periodoIni = `${ano}-${String(mes).padStart(2, "0")}-01`; periodoFim = `${ano}-${String(mes).padStart(2, "0")}-${String(u).padStart(2, "0")}`; }
       else { periodoIni = ""; periodoFim = ""; }
       render();
     }));
+    /* Setas universais: saltam pela unidade activa */
+    const _shiftIso = (iso, n) => { const x = new Date(iso + "T00:00:00"); x.setDate(x.getDate() + n); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`; };
+    const _nav = dir => {
+      if (modoAtivo === "mes") { mes += dir; if (mes < 1) { mes = 12; ano--; } if (mes > 12) { mes = 1; ano++; } periodoIni = ""; periodoFim = ""; }
+      else if (modoAtivo === "dia") { const x = _shiftIso(periodoIni, dir); periodoIni = x; periodoFim = x; }
+      else if (modoAtivo === "semana") { const s = semanaInfo(_shiftIso(periodoIni, dir * 7)); periodoIni = s.inicio; periodoFim = s.fim; }
+      else if (modoAtivo === "ano") { const y = Number(periodoIni.slice(0, 4)) + dir; periodoIni = `${y}-01-01`; periodoFim = `${y}-12-31`; }
+      render();
+    };
+    document.getElementById("finNavPrev")?.addEventListener("click", () => _nav(-1));
+    document.getElementById("finNavNext")?.addEventListener("click", () => _nav(1));
+    document.getElementById("finHoje")?.addEventListener("click", () => {
+      const d = new Date(), h = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (modoAtivo === "mes") { ano = d.getFullYear(); mes = d.getMonth() + 1; periodoIni = ""; periodoFim = ""; }
+      else if (modoAtivo === "semana") { const s = semanaInfo(h); periodoIni = s.inicio; periodoFim = s.fim; }
+      else if (modoAtivo === "ano") { periodoIni = `${d.getFullYear()}-01-01`; periodoFim = `${d.getFullYear()}-12-31`; }
+      else { periodoIni = h; periodoFim = h; }
+      render();
+    });
 
     /* Selector de clínica */
     document.getElementById("finSelClinica")?.addEventListener("change", e => {
