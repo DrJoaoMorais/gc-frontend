@@ -766,9 +766,9 @@ export async function renderFinancas() {
       }).join("")}
     </select>
     ${modoAtivo === "mes" ? `<div style="display:flex;align-items:center;border:0.5px solid #cbd5e1;border-radius:8px;background:#fff;">
-      <button id="finMesPrev" aria-label="Mês anterior" style="border:none;background:none;padding:6px 9px;cursor:pointer;color:#0f2d52;display:flex;align-items:center;"><i class="ti ti-chevron-left" style="font-size:16px;"></i></button>
+      <button id="finMesPrev" aria-label="Mês anterior" style="border:none;background:none;padding:6px 11px;cursor:pointer;color:#0f2d52;font-size:18px;line-height:1;">‹</button>
       <span style="font-size:13px;font-weight:600;color:#0f2d52;min-width:96px;text-align:center;text-transform:capitalize;">${new Date(ano, mes - 1, 1).toLocaleString("pt-PT", { month: "long" })} ${ano}</span>
-      <button id="finMesNext" aria-label="Mês seguinte" style="border:none;background:none;padding:6px 9px;cursor:pointer;color:#0f2d52;display:flex;align-items:center;"><i class="ti ti-chevron-right" style="font-size:16px;"></i></button>
+      <button id="finMesNext" aria-label="Mês seguinte" style="border:none;background:none;padding:6px 11px;cursor:pointer;color:#0f2d52;font-size:18px;line-height:1;">›</button>
     </div>` : ""}
     <div style="display:flex;background:#f1f5f9;border-radius:8px;padding:3px;gap:2px;">
       <button data-modo="hoje" class="finPreset" style="border:none;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:inherit;${modoAtivo === "hoje" ? "background:#0f2d52;color:#fff;" : "background:none;color:#64748b;"}">Hoje</button>
