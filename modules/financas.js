@@ -273,7 +273,8 @@ function gcContabTog(id, el) {
   if (c) c.style.transform = aberto ? "rotate(0deg)" : "rotate(180deg)";
 }
 window.gcContabTog = gcContabTog;
-function _resumoContab(entidades, regs) {
+function _resumoContab(entidades, regs, presencas) {
+  const _pVal = p => Number(p.valor_manual != null ? p.valor_manual : (p.valor_calculado || 0));
   const clinicas = {}, externas = [];
   (entidades || []).forEach(e => {
     if (e.clinic_id) {
@@ -299,14 +300,16 @@ function _resumoContab(entidades, regs) {
   externas.forEach(e => {
     const regsE = regs.filter(r => r.entidade_id === e.id && r.tipo_acto !== "Avença mensal" && contaParaTotal(r.appt_status, r.financial_status));
     const totalRegs = regsE.reduce((s, r) => s + Number(r.valor || 0), 0);
-    out.externas.push({ nome: e.nome, entId: e.id, avenca: Number(e.avenca_valor || 0), totalMes: Number(e.avenca_valor || 0) + totalRegs, semanas: [] });
+    const presE = (presencas || []).filter(p => p.entidade_id === e.id && p.financial_status !== "honorarios_dispensados");
+    const totalPres = presE.reduce((s, p) => s + _pVal(p), 0);
+    out.externas.push({ nome: e.nome, entId: e.id, avenca: Number(e.avenca_valor || 0), totalMes: Number(e.avenca_valor || 0) + totalRegs + totalPres, semanas: [] });
   });
   out.externas.sort((a, b) => { const av = a.avenca > 0 ? 1 : 0, bv = b.avenca > 0 ? 1 : 0; if (av !== bv) return bv - av; return (b.avenca || 0) - (a.avenca || 0); });
   return out;
 }
-function cartoesContabHTML(entidades, regs) {
+function cartoesContabHTML(entidades, regs, presencas) {
   const eur = v => Number(v || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
-  const r = _resumoContab(entidades, regs);
+  const r = _resumoContab(entidades, regs, presencas);
   const slug = s => "dc_" + String(s).replace(/\W+/g, "");
   const cartaoSemana = (c) => {
     const id = slug(c.nome);
@@ -416,11 +419,17 @@ function openPdfMesPorSemana({ titulo, subtitulo, semanas, avenca }) {
 }
 window.gcContabPdf = function (mode, key, wk) {
   const cache = _contabCache; if (!cache) return;
-  const { entidades, registos, periodoLabel } = cache;
+  const { entidades, registos, periodoLabel, presencas } = cache;
   if (mode === "externa") {
     const e = entidades.find(x => x.id === key); if (!e) return;
     const pt = porTipoDe(registos.filter(r => r.entidade_id === key));
     if (Number(e.avenca_valor || 0) > 0) pt["Avença mensal"] = { n: 1, valor: Number(e.avenca_valor) };
+    (presencas || []).filter(p => p.entidade_id === key && p.financial_status !== "honorarios_dispensados").forEach(p => {
+      const v = Number(p.valor_manual != null ? p.valor_manual : (p.valor_calculado || 0));
+      const k = (p.descricao && p.descricao.trim()) ? p.descricao.trim() : (p.tipo === "dia" ? "Dia de consultas" : "Diárias");
+      if (!pt[k]) pt[k] = { n: 0, valor: 0 };
+      pt[k].n += (p.num_dias || 1); pt[k].valor += v;
+    });
     return openPdfAgregado({ titulo: e.nome, subtitulo: periodoLabel, porTipo: pt });
   }
   const ents = entidades.filter(x => x.clinic_id === key);
@@ -539,7 +548,7 @@ export async function renderFinancas() {
     const registosFiltrados = clinicaFiltro
       ? registos.filter(r => r.entidade_id === clinicaFiltro)
       : registos;
-    _contabCache = { entidades, registos: registosFiltrados, periodoLabel: (periodoIni && periodoFim) ? `${periodoIni} a ${periodoFim}` : mesLabel(ano, mes) };
+    _contabCache = { entidades, registos: registosFiltrados, presencas, periodoLabel: (periodoIni && periodoFim) ? `${periodoIni} a ${periodoFim}` : mesLabel(ano, mes) };
 
     /* ── Métricas globais ── */
     const realizadas  = registosFiltrados.filter(r => {
@@ -986,7 +995,7 @@ ${pendVencidos.length > 0 ? `
 
 <!-- ════ VISTA: REGISTOS ════ -->
 <div id="finVistaReg" style="display:${vistaActual==="registos"?"block":"none"};">
-  ${cartoesContabHTML(entidades, registosFiltrados)}
+  ${cartoesContabHTML(entidades, registosFiltrados, presencas)}
   <div class="fin-card">
     <div class="fin-card-head" style="flex-wrap:wrap;gap:8px;">
       <span class="fin-card-title">Registos individuais</span>
