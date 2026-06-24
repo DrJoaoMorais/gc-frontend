@@ -251,6 +251,19 @@ function agruparPorSemana(registos) {
   });
   return Object.values(mapa).sort((a, b) => a.inicio < b.inicio ? -1 : 1);
 }
+function agruparPorDia(regs) {
+  const m = {};
+  (regs || []).forEach(r => {
+    if (r.tipo_acto === "Avença mensal") return;
+    if (!contaParaTotal(r.appt_status, r.financial_status)) return;
+    if (!r.patients) return;
+    const d = r.data; if (!d) return;
+    if (!m[d]) m[d] = { data: d, label: new Date(d + "T00:00:00").toLocaleDateString("pt-PT"), n: 0, total: 0 };
+    m[d].n++; m[d].total += Number(r.valor || 0);
+  });
+  return Object.values(m).sort((a, b) => a.data < b.data ? 1 : -1);
+}
+
 /* ---- FB.8 — cartões da Contabilidade ---- */
 function gcContabTog(id, el) {
   const d = document.getElementById(id); if (!d) return;
@@ -278,7 +291,7 @@ function _resumoContab(entidades, regs) {
     const avenca = c.avenca.reduce((s, e) => s + Number(e.avenca_valor || 0), 0);
     const totalMes = semanas.reduce((s, w) => s + w.total, 0) + avenca;
     const soAvenca = c.acto.length === 0;
-    const linha = { nome: c.nome, clinic_id: c.clinic_id, semanas, avenca, totalMes, geraPdf: c.geraPdf };
+    const linha = { nome: c.nome, clinic_id: c.clinic_id, semanas, dias: agruparPorDia(regsC), avenca, totalMes, geraPdf: c.geraPdf };
     if (soAvenca) out.externas.push(linha);
     else if (c.geraPdf) out.porDoente.push(linha);
     else out.porSemana.push(linha);
@@ -314,10 +327,18 @@ function cartoesContabHTML(entidades, regs) {
       <div id="${id}" style="display:none;padding:0 16px 11px;">${linhas}${av}</div>
     </div>`;
   };
-  const linhaDoente = (c) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-top:0.5px solid #eef2f7;">
-      <span style="font-size:14px;font-weight:700;color:#0f2d52;">${escapeHtml(c.nome)}</span>
-      <div style="display:flex;align-items:center;gap:10px;">${c.totalMes > 0 ? `<span style="font-size:13px;font-weight:700;color:#0f2d52;">${eur(c.totalMes)}</span><button class="gc-btn-sm" disabled title="Disponível no 3d" style="opacity:.45;cursor:not-allowed;">PDF doentes</button>` : `<span style="font-size:12px;color:#cbd5e1;">Sem consultas este mês</span>`}</div>
+  const linhaDoente = (c) => {
+    if (!(c.totalMes > 0)) return `<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-top:0.5px solid #eef2f7;"><span style="font-size:14px;font-weight:700;color:#0f2d52;">${escapeHtml(c.nome)}</span><span style="font-size:12px;color:#cbd5e1;">Sem consultas este mês</span></div>`;
+    const id = "dd_" + String(c.clinic_id).replace(/\W+/g, "");
+    const dias = (c.dias || []).map(d => `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:0.5px solid #eef2f7;"><div style="font-size:13px;color:#334155;">${d.label} · ${d.n} consulta(s)</div><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:13px;font-weight:700;color:#0f2d52;">${eur(d.total)}</span><button class="gc-btn-sm" onclick="gcContabPdf('doente-dia','${c.clinic_id}','${d.data}')">PDF doentes</button></div></div>`).join("");
+    return `<div style="border-top:0.5px solid #eef2f7;">
+      <div onclick="gcContabTog('${id}',this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:11px 16px;">
+        <div style="display:flex;align-items:center;gap:9px;"><i class="ti ti-chevron-down contab-chev" style="font-size:16px;color:#94a3b8;transition:transform .15s;"></i><span style="font-size:14px;font-weight:700;color:#0f2d52;">${escapeHtml(c.nome)}</span><span style="font-size:11px;color:#94a3b8;">${(c.dias || []).length} dia(s)</span></div>
+        <div style="display:flex;align-items:center;gap:12px;"><span style="font-size:15px;font-weight:800;color:#1a56db;">${eur(c.totalMes)}</span><button class="gc-btn-sm" onclick="event.stopPropagation();gcContabPdf('doente','${c.clinic_id}')">PDF doentes (mês)</button></div>
+      </div>
+      <div id="${id}" style="display:none;padding:0 16px 11px;">${dias}</div>
     </div>`;
+  };
   const linhaExterna = (c) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-top:0.5px solid #eef2f7;">
       <span style="font-size:14px;font-weight:600;color:#334155;">${escapeHtml(c.nome)}</span>
       <div style="display:flex;align-items:center;gap:10px;"><span style="font-size:14px;font-weight:700;color:#0f2d52;">${eur(c.totalMes)}</span><button class="gc-btn-sm" onclick="gcContabPdf('externa','${c.entId}')">PDF</button></div>
@@ -395,6 +416,11 @@ window.gcContabPdf = function (mode, key, wk) {
   const nome = (G.clinicsById && G.clinicsById[key]?.name) || (ents[0]?.nome.split("—")[0].trim()) || "Clínica";
   const avenca = ents.filter(x => x.tipo === "avenca").reduce((s, x) => s + Number(x.avenca_valor || 0), 0);
   let regsSel = registos.filter(r => ids.has(r.entidade_id));
+  if (mode === "doente" || mode === "doente-dia") {
+    let rs = regsSel, lbl = periodoLabel;
+    if (mode === "doente-dia") { rs = rs.filter(r => r.data === wk); lbl = "Dia " + (rs[0] ? new Date(rs[0].data + "T00:00:00").toLocaleDateString("pt-PT") : wk); }
+    return openPdfContabilista(rs, nome, lbl);
+  }
   if (mode === "semana") {
     regsSel = regsSel.filter(r => semanaInfo(r.data).chave === wk);
     const lbl = regsSel[0] ? semanaInfo(regsSel[0].data).label : wk;
