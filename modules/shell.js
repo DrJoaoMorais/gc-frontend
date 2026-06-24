@@ -133,7 +133,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
 .gc-app{display:flex;height:100vh;overflow:hidden;}
 
 /* SIDEBAR */
-.gc-sidebar{width:56px;background:#0f2d52;display:flex;flex-direction:column;align-items:center;flex-shrink:0;z-index:10;}
+.gc-sidebar{width:56px;background:#0f2d52;display:flex;flex-direction:column;align-items:center;flex-shrink:0;z-index:1;}
 .gc-sidebar-logo{width:56px;height:56px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;}
 .gc-logo-text{font-size:15px;font-weight:800;color:#fff;letter-spacing:-0.5px;}
 .gc-sidebar-nav{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px;width:100%;}
