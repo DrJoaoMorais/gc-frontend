@@ -361,6 +361,26 @@ function openPdfAgregado({ titulo, subtitulo, porTipo }) {
     <div class="total">Total: ${eur(total)}</div></body></html>`;
   const w = window.open("", "_blank"); if (w) w.document.write(html);
 }
+function openPdfMesPorSemana({ titulo, subtitulo, semanas, avenca }) {
+  const eur = v => Number(v || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
+  if (!semanas || semanas.length === 0) { if (!(avenca > 0)) { alert("Sem actos realizados no período."); return; } }
+  const blocos = (semanas || []).map(w => {
+    const linhas = Object.entries(w.porTipo || {}).map(([k, v]) =>
+      `<tr><td>${escapeHtml(k)}</td><td style="text-align:center;width:60px;">${v.n}</td><td style="text-align:right;width:110px;font-weight:700;">${eur(v.valor)}</td></tr>`).join("");
+    return `<div class="wk"><div class="wk-h"><span>${escapeHtml(w.label)}</span><span>${eur(w.total)}</span></div><table><tbody>${linhas}</tbody></table></div>`;
+  }).join("");
+  const totalSemanas = (semanas || []).reduce((s, w) => s + w.total, 0);
+  const avLinha = avenca > 0 ? `<div class="av"><span><b>Direção clínica / Avença mensal</b> · só mensal</span><span>${eur(avenca)}</span></div>` : "";
+  const total = totalSemanas + (avenca > 0 ? avenca : 0);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(titulo)} — ${escapeHtml(subtitulo)}</title>
+    <style>body{font-family:Arial,sans-serif;font-size:12px;color:#0f172a;margin:40px;margin-top:90px}h1{font-size:18px;font-weight:900;color:#0f2d52;margin-bottom:4px}.sub{font-size:13px;color:#64748b;margin-bottom:24px}.wk{margin-bottom:14px}.wk-h{display:flex;justify-content:space-between;font-size:13px;font-weight:800;color:#0f2d52;padding:6px 0;border-bottom:1.5px solid #0f2d52}table{width:100%;border-collapse:collapse}td{padding:6px 4px;border-bottom:0.5px solid #e2e8f0}.av{display:flex;justify-content:space-between;font-size:13px;color:#854F0B;background:#fef9ec;padding:10px;border-radius:6px;margin-top:8px}.total{text-align:right;font-weight:900;font-size:16px;color:#0f2d52;padding:14px 4px;border-top:2px solid #0f2d52;margin-top:8px}.print-bar{position:fixed;top:0;left:0;right:0;background:#0f2d52;color:#fff;padding:12px 24px;display:flex;align-items:center;gap:16px;font-size:13px;z-index:999}.print-bar button{background:#fff;color:#0f2d52;border:none;border-radius:7px;padding:8px 20px;font-size:14px;font-weight:700;cursor:pointer}.print-bar .hint{font-size:12px;opacity:.8}@media print{.print-bar{display:none}body{margin:20px}}</style>
+    </head><body>
+    <div class="print-bar"><button onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button><span class="hint">No diálogo, escolha Destino → Guardar como PDF</span></div>
+    <h1>${escapeHtml(titulo)}</h1><div class="sub">${escapeHtml(subtitulo)} · Dr. João Morais · Para contabilista</div>
+    ${blocos}${avLinha}
+    <div class="total">Total do mês: ${eur(total)}</div></body></html>`;
+  const w = window.open("", "_blank"); if (w) w.document.write(html);
+}
 window.gcContabPdf = function (mode, key, wk) {
   const cache = _contabCache; if (!cache) return;
   const { entidades, registos, periodoLabel } = cache;
@@ -380,9 +400,8 @@ window.gcContabPdf = function (mode, key, wk) {
     const lbl = regsSel[0] ? semanaInfo(regsSel[0].data).label : wk;
     return openPdfAgregado({ titulo: nome, subtitulo: `Semana ${lbl} · ${periodoLabel}`, porTipo: porTipoDe(regsSel) });
   }
-  const pt = porTipoDe(regsSel);
-  if (avenca > 0) pt["Direção clínica / Avença mensal"] = { n: 1, valor: avenca };
-  return openPdfAgregado({ titulo: nome, subtitulo: `${periodoLabel} · mês completo`, porTipo: pt });
+  const semanas = agruparPorSemana(regsSel);
+  return openPdfMesPorSemana({ titulo: nome, subtitulo: `${periodoLabel} · por semana`, semanas, avenca });
 };
 
 /* ---- FB.6 — estadoAvenca ---- */
