@@ -507,10 +507,10 @@ export function preencherExame(el, exames) {
    ════════════════════════════════════════════════════ */
 
 const CMP_PARAMS = {
-  'rom.flex_a':         { rot: 'Flexão A',   bom: 'sobe'  },
-  'rom.abd_a':          { rot: 'Abdução A',  bom: 'sobe'  },
-  'rom.re_a':           { rot: 'Rot. Ext.',  bom: 'sobe'  },
-  'rom.ri_a':           { rot: 'Rot. Int.',  bom: 'sobe'  },
+  'rom.flex_a':         { rot: 'Flexão',     bom: 'sobe',  passiva: 'rom.flex_p' },
+  'rom.abd_a':          { rot: 'Abdução',    bom: 'sobe',  passiva: 'rom.abd_p'  },
+  'rom.re_a':           { rot: 'Rot. Ext.',  bom: 'sobe',  passiva: 'rom.re_p'   },
+  'rom.ri_a':           { rot: 'Rot. Int.',  bom: 'sobe',  passiva: 'rom.ri_p'   },
   'eva.rep':            { rot: 'Repouso',    bom: 'desce' },
   'eva.act':            { rot: 'Actividade', bom: 'desce' },
   'eva.pic':            { rot: 'Pico',       bom: 'desce' },
@@ -520,7 +520,7 @@ const CMP_PARAMS = {
 };
 
 const CMP_GRUPOS = [
-  { titulo: 'Amplitude', unid: 'graus', params: ['rom.flex_a', 'rom.abd_a', 'rom.re_a', 'rom.ri_a'] },
+  { titulo: 'Amplitude', unid: 'graus', subrot: 'activa / passiva', params: ['rom.flex_a', 'rom.abd_a', 'rom.re_a', 'rom.ri_a'] },
   { titulo: 'Dor (EVA)', unid: '/10',   params: ['eva.rep', 'eva.act', 'eva.pic'] },
   { titulo: 'Escalas',   unid: '',      params: ['escalas.dash_score', 'escalas.ases_score', 'escalas.oss_score'] },
 ];
@@ -538,27 +538,43 @@ function cmpSeta(delta, bom) {
   return `<span class="cc-cmp-seta ${cls}">${seta} ${sinal}${abs}</span>`;
 }
 
-function cmpGrupoHtml(g, series) {
+/* dd/mm a partir de 'YYYY-MM-DD'. */
+function cmpDataCurta(d) {
+  if (!d) return '';
+  const [a, m, dia] = String(d).split('-');
+  return dia ? `${dia}/${m}` : d;
+}
+
+/* Células de um parâmetro ao longo do eixo de datas partilhado.
+   Lê o valor na data exacta (Map data→valor); ausência → "—".
+   Se o parâmetro tiver passiva COM dados, mostra "activa / passiva". */
+function cmpCelulas(p, eixo, series) {
+  const mapA = new Map((series[p] || []).map(pt => [pt.data, pt.valor]));
+  const passKey = CMP_PARAMS[p].passiva;
+  const temPassiva = !!(passKey && series[passKey]?.length);
+  const mapP = temPassiva ? new Map(series[passKey].map(pt => [pt.data, pt.valor])) : null;
+
+  return eixo.map((data, i) => {
+    const last = (i === eixo.length - 1) ? ' cc-cmp-v-last' : '';
+    const va = mapA.has(data) ? escapeTexto(mapA.get(data)) : '—';
+    let inner = `<span class="cc-cmp-a">${va}</span>`;
+    if (temPassiva) {
+      const vp = mapP.has(data) ? escapeTexto(mapP.get(data)) : '—';
+      inner += `<span class="cc-cmp-p"> / ${vp}</span>`;
+    }
+    return `<span class="cc-cmp-v${last}">${inner}</span>`;
+  }).join('');
+}
+
+function cmpGrupoHtml(g, series, eixo) {
   const linhas = g.params
-    .filter(p => series[p]?.length)
+    .filter(p => series[p]?.length || (CMP_PARAMS[p].passiva && series[CMP_PARAMS[p].passiva]?.length))
     .map(p => {
-      const pts = series[p];
-      const ult = pts.slice(-3);
-      /* preenche 3 posições, os mais antigos à esquerda; null → "—" */
-      const v = [null, null, null];
-      for (let i = 0; i < ult.length; i++) v[3 - ult.length + i] = ult[i].valor;
-
-      const cels = v.map((x, i) => {
-        const txt = x != null ? escapeTexto(x) : '—';
-        return i === 2
-          ? `<span class="cc-cmp-v cc-cmp-v-last">${txt}</span>`
-          : `<span class="cc-cmp-v">${txt}</span>`;
-      }).join('');
-
+      const cels = cmpCelulas(p, eixo, series);
+      const pts = series[p] || [];
       const setaHtml = pts.length >= 2
         ? cmpSeta(pts[pts.length - 1].valor - pts[pts.length - 2].valor, CMP_PARAMS[p].bom)
         : `<span class="cc-cmp-seta"></span>`;
-
       return `
         <div class="cc-cmp-linha">
           <span class="cc-cmp-rot">${escapeTexto(CMP_PARAMS[p].rot)}</span>
@@ -568,18 +584,46 @@ function cmpGrupoHtml(g, series) {
     });
 
   if (!linhas.length) return '';
-  const unid = g.unid ? `<span class="cc-cmp-grupo-unid">${escapeTexto(g.unid)}</span>` : '';
+  const unid = g.unid   ? `<span class="cc-cmp-grupo-unid">${escapeTexto(g.unid)}</span>` : '';
+  const sub  = g.subrot ? `<span class="cc-cmp-grupo-sub">${escapeTexto(g.subrot)}</span>` : '';
   return `
     <div class="cc-cmp-grupo">
-      <div class="cc-cmp-grupo-rot">${escapeTexto(g.titulo)}${unid}</div>
+      <div class="cc-cmp-grupo-rot">${escapeTexto(g.titulo)}${unid}${sub}</div>
       ${linhas.join('')}
     </div>`;
 }
 
 export function preencherComparativo(el, series) {
   if (!el) return;
-  const html = CMP_GRUPOS.map(g => cmpGrupoHtml(g, series || {})).join('');
-  el.innerHTML = html || `<p class="cc-vazio">Sem séries com dados.</p>`;
+  series = series || {};
+
+  /* Eixo de datas PARTILHADO: as 3 datas mais recentes com pelo menos
+     uma medição em qualquer parâmetro. Todas as linhas usam estas 3,
+     para as colunas serem o mesmo momento no tempo. */
+  const datas = new Set();
+  Object.values(series).forEach(arr => (arr || []).forEach(pt => datas.add(pt.data)));
+  const eixo = [...datas].sort().slice(-3);
+
+  if (!eixo.length) {
+    el.innerHTML = `<p class="cc-vazio">Sem séries com dados.</p>`;
+    return;
+  }
+
+  const cabec = `
+    <div class="cc-cmp-grupo cc-cmp-cabec-grupo">
+      <div class="cc-cmp-linha cc-cmp-cabec">
+        <span class="cc-cmp-rot"></span>
+        <div class="cc-cmp-vals">
+          ${eixo.map((d, i) =>
+            `<span class="cc-cmp-v cc-cmp-d${i === eixo.length - 1 ? ' cc-cmp-v-last' : ''}">${escapeTexto(cmpDataCurta(d))}</span>`
+          ).join('')}
+        </div>
+        <span class="cc-cmp-seta"></span>
+      </div>
+    </div>`;
+
+  const grupos = CMP_GRUPOS.map(g => cmpGrupoHtml(g, series, eixo)).join('');
+  el.innerHTML = grupos ? (cabec + grupos) : `<p class="cc-vazio">Sem séries com dados.</p>`;
 }
 
 /* ---------- BLOCO PROTOCOLO E OBJECTIVOS ---------- */
