@@ -2,9 +2,13 @@
 
 const CAMINHOS_OMBRO = [
   { param: 'rom.flex_a',         get: d => d?.rom?.flex_a         },
+  { param: 'rom.flex_p',         get: d => d?.rom?.flex_p         },
   { param: 'rom.abd_a',          get: d => d?.rom?.abd_a          },
+  { param: 'rom.abd_p',          get: d => d?.rom?.abd_p          },
   { param: 'rom.re_a',           get: d => d?.rom?.re_a           },
+  { param: 'rom.re_p',           get: d => d?.rom?.re_p           },
   { param: 'rom.ri_a',           get: d => d?.rom?.ri_a           },
+  { param: 'rom.ri_p',           get: d => d?.rom?.ri_p           },
   { param: 'eva.rep',            get: d => d?.eva?.rep            },
   { param: 'eva.act',            get: d => d?.eva?.act            },
   { param: 'eva.pic',            get: d => d?.eva?.pic            },
