@@ -165,7 +165,8 @@ body {
 .cc-trat-code { font-family: monospace; font-size: 12px; color: var(--cc-suave); }
 .cc-trat-qty { text-align: right; }
 .cc-tabela th:last-child, .cc-tabela td:last-child { text-align: right; }
-.cc-trat-rodape { padding-top: 8px; font-size: 12px; color: var(--cc-suave); font-style: italic; text-align: left !important; border-top: 2px solid var(--cc-linha); }
+.cc-trat-header { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+.cc-trat-sessoes { font-size: 12px; font-style: italic; color: var(--cc-suave); }
 
 /* Exame objectivo */
 .cc-exame-registo {

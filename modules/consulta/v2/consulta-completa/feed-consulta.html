@@ -707,18 +707,20 @@
       try { plan = JSON.parse(consulta?.plan_text || '{}'); } catch (_) {}
       const tot = plan.sessoes_total != null ? plan.sessoes_total : null;
       const sem = plan.sessoes_semana != null ? plan.sessoes_semana : null;
-      const rodape = (tot != null || sem != null)
-        ? `<tfoot><tr><td colspan="3" class="cc-trat-rodape">R/${tot != null ? ` ${tot} sessões` : ''}${sem != null ? ` · ${sem}/semana` : ''}</td></tr></tfoot>`
+      const cabecSessoes = (tot != null || sem != null)
+        ? `<span class="cc-trat-sessoes">R/${tot != null ? ` ${tot} sessões` : ''}${sem != null ? ` · ${sem}/semana` : ''}</span>`
         : '';
-      el.innerHTML = `<table class="cc-tabela">
-        <thead><tr><th>Código</th><th>Tratamento</th><th>Qtd.</th></tr></thead>
-        <tbody>${tratamentos.map(t =>
-          `<tr>
-            <td class="cc-trat-code">${esc(t.code)}</td>
-            <td>${esc(t.label)}</td>
-            <td class="cc-trat-qty">${esc(t.qty)}</td>
-          </tr>`).join('')}
-        </tbody>${rodape}</table>`;
+      el.innerHTML = `
+        <div class="cc-trat-header">${cabecSessoes}</div>
+        <table class="cc-tabela">
+          <thead><tr><th>Código</th><th>Tratamento</th></tr></thead>
+          <tbody>${tratamentos.map(t =>
+            `<tr>
+              <td class="cc-trat-code">${esc(t.code)}</td>
+              <td>${esc(t.label)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
     }
 
     function renderProtocolo(el, protocolo) {
