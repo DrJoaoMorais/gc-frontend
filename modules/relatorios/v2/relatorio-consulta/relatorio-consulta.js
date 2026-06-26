@@ -378,35 +378,34 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       const styles = Array.from(document.querySelectorAll('link[data-gcv2-shell], link[data-gcv2-atestado], link[data-gcv2-rc]'))
         .map(l => `<link rel="stylesheet" href="${l.href}">`).join('\n');
 
-      // Vinheta de autenticação — injectada antes do gcv2-footer (acima de "Lisboa")
+      // Vinheta de autenticação — topo da coluna direita do footer (gcv2-footer-sig)
       const vinhetaBox = `
-<div style="display:flex;justify-content:flex-end;margin-bottom:6mm;page-break-inside:avoid;">
-  <div id="gcv2-vinheta" style="
-    width:72mm; padding:8px 10px;
-    border:1.5px solid #0f2d52; border-radius:4px;
-    font-family:monospace; font-size:9pt; color:#0f2d52;
-    background:#fff;
-  ">
-    <div style="font-weight:700;font-size:10pt;margin-bottom:6px;">
-      Documento autenticado
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <div style="
-        width:48px;height:48px;background:#e5e7eb;
-        flex-shrink:0;border:1px solid #cbd5e1;
-      "></div>
-      <span style="font-size:8pt;line-height:1.5;">
-        <strong>GC-RM-XXXXXX</strong><br>
-        gc.joaomorais.pt/verificar/<br>
-        <em style="color:#6b7280;">QR activo após registo</em>
-      </span>
-    </div>
+<div id="gcv2-vinheta" style="
+  width:72mm; padding:8px 10px;
+  border:1.5px solid #0f2d52; border-radius:4px;
+  font-family:monospace; font-size:9pt; color:#0f2d52;
+  background:#fff; margin:0 auto 10px;
+  page-break-inside:avoid;
+">
+  <div style="font-weight:700;font-size:10pt;margin-bottom:6px;">
+    Documento autenticado
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <div style="
+      width:48px;height:48px;background:#e5e7eb;
+      flex-shrink:0;border:1px solid #cbd5e1;
+    "></div>
+    <span style="font-size:8pt;line-height:1.5;">
+      <strong>GC-RM-XXXXXX</strong><br>
+      gc.joaomorais.pt/verificar/<br>
+      <em style="color:#6b7280;">QR activo após registo</em>
+    </span>
   </div>
 </div>`;
 
       const htmlComVinheta = html.replace(
-        '<div class="gcv2-footer">',
-        `${vinhetaBox}<div class="gcv2-footer">`
+        '<div class="gcv2-footer-sig">',
+        `<div class="gcv2-footer-sig">${vinhetaBox}`
       );
 
       const fullHtml = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${htmlComVinheta}</body></html>`;
