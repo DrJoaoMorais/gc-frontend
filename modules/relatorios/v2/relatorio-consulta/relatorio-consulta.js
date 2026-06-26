@@ -378,9 +378,9 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       const styles = Array.from(document.querySelectorAll('link[data-gcv2-shell], link[data-gcv2-atestado], link[data-gcv2-rc]'))
         .map(l => `<link rel="stylesheet" href="${l.href}">`).join('\n');
 
-      // Vinheta de autenticação — slot reservado (QR real ligado no Passo 4)
-      const vinheta = `
-<div style="display:flex;justify-content:flex-end;margin-top:10mm;page-break-inside:avoid;">
+      // Vinheta de autenticação — injectada antes do gcv2-footer (acima de "Lisboa")
+      const vinhetaBox = `
+<div style="display:flex;justify-content:flex-end;margin-bottom:6mm;page-break-inside:avoid;">
   <div id="gcv2-vinheta" style="
     width:72mm; padding:8px 10px;
     border:1.5px solid #0f2d52; border-radius:4px;
@@ -404,7 +404,12 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
   </div>
 </div>`;
 
-      const fullHtml = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}${vinheta}</body></html>`;
+      const htmlComVinheta = html.replace(
+        '<div class="gcv2-footer">',
+        `${vinhetaBox}<div class="gcv2-footer">`
+      );
+
+      const fullHtml = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${htmlComVinheta}</body></html>`;
 
 
       const resp = await fetch('https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf', {
