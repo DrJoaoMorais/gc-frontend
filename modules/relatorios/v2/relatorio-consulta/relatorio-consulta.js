@@ -379,7 +379,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
         .map(l => `<link rel="stylesheet" href="${l.href}">`).join('\n');
 
       // Vinheta de autenticação — slot reservado (QR real ligado no Passo 4)
-      const vinheta = \`
+      const vinheta = `
 <div id="gcv2-vinheta" style="
   position:fixed; bottom:24mm; right:16mm;
   width:72mm; padding:8px 10px;
@@ -401,9 +401,9 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       <em style="color:#6b7280;">QR activo após registo</em>
     </span>
   </div>
-</div>\`;
+</div>`;
 
-      const fullHtml = \`<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}${vinheta}</body></html>\`;
+      const fullHtml = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}${vinheta}</body></html>`;
 
 
       const resp = await fetch('https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf', {
