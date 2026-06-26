@@ -402,15 +402,29 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
   </div>
 </div>`;
 
-      // Cidade da clínica — passa para a coluna direita, acima da data
+      // Cidade da clínica — coluna direita, acima da data
       const cityStr = clinic?.city || '';
       const cityHtml = cityStr
         ? `<div style="font-family:'Cormorant Garamond',serif;font-size:13px;color:#0f2d52;font-weight:600;margin-bottom:6px;text-align:center;">${cityStr}</div>`
         : '';
 
+      // Extrair vinheta médica do HTML renderizado (img ou div placeholder)
+      const vinhetaMedicaMatch = html.match(
+        /<img\s[^>]*class="gcv2-vinheta"[^>]*>|<div\s[^>]*class="gcv2-vinheta-placeholder"[^>]*>[\s\S]*?<\/div>/
+      );
+      const vinhetaMedica = vinhetaMedicaMatch
+        ? `<div style="margin-top:10px;">${vinhetaMedicaMatch[0]}</div>`
+        : '';
+
       const htmlComVinheta = html
-        .replace(/<div class="gcv2-footer-place">.*?<\/div>/, vinhetaBox)
+        // Footer alinhado ao topo (sem flex-end que colocava QR no fundo)
+        .replace('class="gcv2-footer"', 'class="gcv2-footer" style="align-items:start;"')
+        // Coluna esq: QR + vinheta médica (substitui cidade + "Documento gerado")
+        .replace(/<div class="gcv2-footer-place">.*?<\/div>/, vinhetaBox + vinhetaMedica)
         .replace(/<div class="gcv2-footer-info">.*?<\/div>/, '')
+        // Remover vinheta médica da coluna dir (já está na esq)
+        .replace(/<img\s[^>]*class="gcv2-vinheta"[^>]*>|<div\s[^>]*class="gcv2-vinheta-placeholder"[^>]*>[\s\S]*?<\/div>/, '')
+        // Coluna dir: cidade + data
         .replace('<div class="gcv2-footer-date">', `${cityHtml}<div class="gcv2-footer-date">`);
 
       const fullHtml = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${htmlComVinheta}</body></html>`;
