@@ -378,9 +378,32 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       const styles = Array.from(document.querySelectorAll('link[data-gcv2-shell], link[data-gcv2-atestado], link[data-gcv2-rc]'))
         .map(l => `<link rel="stylesheet" href="${l.href}">`).join('\n');
 
-      // Gerar código do documento localmente
+      // Vinheta de autenticação — slot reservado (QR real ligado no Passo 4)
+      const vinheta = \`
+<div id="gcv2-vinheta" style="
+  position:fixed; bottom:24mm; right:16mm;
+  width:72mm; padding:8px 10px;
+  border:1.5px solid #0f2d52; border-radius:4px;
+  font-family:monospace; font-size:9pt; color:#0f2d52;
+  background:#fff; page-break-inside:avoid;
+">
+  <div style="font-weight:700;font-size:10pt;margin-bottom:6px;">
+    Documento autenticado
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <div style="
+      width:48px;height:48px;background:#e5e7eb;
+      flex-shrink:0;border:1px solid #cbd5e1;
+    "></div>
+    <span style="font-size:8pt;line-height:1.5;">
+      <strong>GC-RM-XXXXXX</strong><br>
+      gc.joaomorais.pt/verificar/<br>
+      <em style="color:#6b7280;">QR activo após registo</em>
+    </span>
+  </div>
+</div>\`;
 
-      const fullHtml = \`<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}</body></html>\`;
+      const fullHtml = \`<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}${vinheta}</body></html>\`;
 
 
       const resp = await fetch('https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf', {
