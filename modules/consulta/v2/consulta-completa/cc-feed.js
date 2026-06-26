@@ -500,6 +500,88 @@ export function preencherExame(el, exames) {
   }).join('');
 }
 
+/* ════════════════════════════════════════════════════
+   BLOCO 4 — COMPARATIVO OMBRO
+   Recebe o output de lerSerieOmbro:
+   { param: [{data, valor}] } — séries ordenadas por data asc.
+   ════════════════════════════════════════════════════ */
+
+const CMP_PARAMS = {
+  'rom.flex_a':         { rot: 'Flexão A',   bom: 'sobe'  },
+  'rom.abd_a':          { rot: 'Abdução A',  bom: 'sobe'  },
+  'rom.re_a':           { rot: 'Rot. Ext.',  bom: 'sobe'  },
+  'rom.ri_a':           { rot: 'Rot. Int.',  bom: 'sobe'  },
+  'eva.rep':            { rot: 'Repouso',    bom: 'desce' },
+  'eva.act':            { rot: 'Actividade', bom: 'desce' },
+  'eva.pic':            { rot: 'Pico',       bom: 'desce' },
+  'escalas.dash_score': { rot: 'DASH /100',  bom: 'desce' },
+  'escalas.ases_score': { rot: 'ASES /100',  bom: 'sobe'  },
+  'escalas.oss_score':  { rot: 'OSS /48',    bom: 'sobe'  },
+};
+
+const CMP_GRUPOS = [
+  { titulo: 'Amplitude', unid: 'graus', params: ['rom.flex_a', 'rom.abd_a', 'rom.re_a', 'rom.ri_a'] },
+  { titulo: 'Dor (EVA)', unid: '/10',   params: ['eva.rep', 'eva.act', 'eva.pic'] },
+  { titulo: 'Escalas',   unid: '',      params: ['escalas.dash_score', 'escalas.ases_score', 'escalas.oss_score'] },
+];
+
+function cmpSeta(delta, bom) {
+  if (delta === 0) return `<span class="cc-cmp-seta cc-cmp-seta-igual">= 0</span>`;
+  const sobe = delta > 0;
+  const abs  = Number.isInteger(delta) ? Math.abs(delta) : Math.abs(delta).toFixed(1);
+  const boa  = (sobe && bom === 'sobe') || (!sobe && bom === 'desce');
+  const cls  = boa
+    ? (sobe ? 'cc-cmp-seta-up-bom' : 'cc-cmp-seta-dn-bom')
+    : (sobe ? 'cc-cmp-seta-up-mau' : 'cc-cmp-seta-dn-mau');
+  const sinal = sobe ? '+' : '−';
+  const seta  = sobe ? '↑' : '↓';
+  return `<span class="cc-cmp-seta ${cls}">${seta} ${sinal}${abs}</span>`;
+}
+
+function cmpGrupoHtml(g, series) {
+  const linhas = g.params
+    .filter(p => series[p]?.length)
+    .map(p => {
+      const pts = series[p];
+      const ult = pts.slice(-3);
+      /* preenche 3 posições, os mais antigos à esquerda; null → "—" */
+      const v = [null, null, null];
+      for (let i = 0; i < ult.length; i++) v[3 - ult.length + i] = ult[i].valor;
+
+      const cels = v.map((x, i) => {
+        const txt = x != null ? escapeTexto(x) : '—';
+        return i === 2
+          ? `<span class="cc-cmp-v cc-cmp-v-last">${txt}</span>`
+          : `<span class="cc-cmp-v">${txt}</span>`;
+      }).join('');
+
+      const setaHtml = pts.length >= 2
+        ? cmpSeta(pts[pts.length - 1].valor - pts[pts.length - 2].valor, CMP_PARAMS[p].bom)
+        : `<span class="cc-cmp-seta"></span>`;
+
+      return `
+        <div class="cc-cmp-linha">
+          <span class="cc-cmp-rot">${escapeTexto(CMP_PARAMS[p].rot)}</span>
+          <div class="cc-cmp-vals">${cels}</div>
+          ${setaHtml}
+        </div>`;
+    });
+
+  if (!linhas.length) return '';
+  const unid = g.unid ? `<span class="cc-cmp-grupo-unid">${escapeTexto(g.unid)}</span>` : '';
+  return `
+    <div class="cc-cmp-grupo">
+      <div class="cc-cmp-grupo-rot">${escapeTexto(g.titulo)}${unid}</div>
+      ${linhas.join('')}
+    </div>`;
+}
+
+export function preencherComparativo(el, series) {
+  if (!el) return;
+  const html = CMP_GRUPOS.map(g => cmpGrupoHtml(g, series || {})).join('');
+  el.innerHTML = html || `<p class="cc-vazio">Sem séries com dados.</p>`;
+}
+
 /* ---------- BLOCO PROTOCOLO E OBJECTIVOS ---------- */
 /* Render de leitura. Objectivos = ALVOS da fase; o valor de hoje
    vem do exame (bloco acima). 3 colunas: objectivos · contra · HEP. */

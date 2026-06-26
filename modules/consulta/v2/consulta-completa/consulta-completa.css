@@ -408,3 +408,73 @@ body {
 .cc-serie-auto { margin-left: auto; font-size: 12px; color: var(--cc-ténue); }
 .cc-serie-nota { font-size: 12px; color: var(--cc-ténue); }
 .cc-serie-obs { margin: 8px 0 0; padding-left: 26px; font-size: 12px; color: var(--cc-suave); font-style: italic; }
+
+/* ============================================================
+   BLOCO 4 — COMPARATIVO OMBRO
+   ============================================================ */
+
+/* Contador de medições no cabeçalho do bloco */
+.cc-cmp-meta {
+  margin-left: auto;
+  font-size: 11px; color: var(--cc-ténue);
+  border: 1px solid var(--cc-linha);
+  border-radius: 5px; padding: 2px 7px;
+  white-space: nowrap;
+}
+
+/* Grupos (Amplitude / Dor / Escalas) */
+.cc-cmp-grupo { margin-bottom: 14px; }
+.cc-cmp-grupo:last-child { margin-bottom: 0; }
+
+.cc-cmp-grupo-rot {
+  font-size: 10px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--cc-ténue);
+  margin-bottom: 6px;
+  display: flex; align-items: baseline; gap: 6px;
+}
+.cc-cmp-grupo-unid {
+  font-size: 9px; font-weight: 400; letter-spacing: 0;
+  text-transform: none; color: #c4cad3;
+}
+
+/* Linha por parâmetro */
+.cc-cmp-linha {
+  display: flex; align-items: center;
+  padding: 5px 0;
+  border-top: 1px solid var(--cc-linha);
+}
+.cc-cmp-linha:first-of-type { border-top: none; }
+
+/* Rótulo */
+.cc-cmp-rot {
+  flex: 0 0 82px;
+  font-size: 12px; color: var(--cc-suave);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding-right: 6px;
+}
+
+/* Células de valores */
+.cc-cmp-vals {
+  flex: 1;
+  display: flex; align-items: center; justify-content: flex-end;
+}
+.cc-cmp-v {
+  flex: 1; text-align: right;
+  font-size: 12px; color: var(--cc-ténue);
+  padding-right: 4px;
+}
+.cc-cmp-v-last {
+  font-size: 13px; font-weight: 600;
+  color: var(--cc-texto);
+}
+
+/* Seta + delta */
+.cc-cmp-seta {
+  flex: 0 0 52px; text-align: right;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.cc-cmp-seta-up-bom  { color: var(--cc-verde); }
+.cc-cmp-seta-dn-bom  { color: var(--cc-verde); }
+.cc-cmp-seta-up-mau  { color: var(--cc-vermelho); }
+.cc-cmp-seta-dn-mau  { color: var(--cc-vermelho); }
+.cc-cmp-seta-igual   { color: var(--cc-ténue); font-weight: 400; }

@@ -306,13 +306,24 @@
           <div class="cc-acc-body" id="bloco-resumo"></div>
         </div>
 
+        <!-- Evolução (Comparativo ombro) -->
+        <div class="cc-bloco" id="bloco-comparativo-wrap">
+          <div class="cc-bloco-head">
+            <span class="cc-bloco-icon">📈</span>
+            <span class="cc-bloco-titulo">Evolução</span>
+            <span class="cc-cmp-meta" id="cmp-meta">…</span>
+          </div>
+          <div class="cc-acc-body" id="bloco-comparativo"></div>
+        </div>
+
       </div>
     </div>
   </div><!-- /fc-page -->
 
   <script type="module">
-    import { preencherExame } from './cc-feed.js';
+    import { preencherExame, preencherComparativo } from './cc-feed.js';
     import { buildGuiaoHTML, initGuiao } from './guiao-anamnese.js';
+    import { lerSerieOmbro } from '../../../comparativo/comparativo-motor.js';
 
     async function carregarConsulta({ consultationId, patientId }) {
       const sb = window.sb;
@@ -428,12 +439,13 @@
       if (eu || !u?.user) { status('⚠️ Sem sessão. Faz login no GC neste browser e recarrega.'); return; }
 
       /* carregar consulta + doente em paralelo */
-      const [consultaData, pacienteRes] = await Promise.all([
+      const [consultaData, pacienteRes, seriesCompar] = await Promise.all([
         carregarConsulta({ consultationId: CONSULTA_ID, patientId: PATIENT_ID }),
         sb.from('patients')
           .select('full_name, dob, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas')
           .eq('id', PATIENT_ID)
           .single(),
+        lerSerieOmbro(PATIENT_ID).catch(() => ({})),
       ]);
 
       /* topbar: nome + data */
@@ -470,6 +482,18 @@
       renderTratamento(document.getElementById('bloco-trat'), tratamentos);
       renderProtocolo(document.getElementById('bloco-protocolo'), protocolo);
       renderResumo(exames);
+
+      /* bloco 4: evolução */
+      const _cp = Object.keys(seriesCompar || {});
+      if (!_cp.length) {
+        const w = document.getElementById('bloco-comparativo-wrap');
+        if (w) w.style.display = 'none';
+      } else {
+        const tot = Math.max(..._cp.map(p => seriesCompar[p].length));
+        const meta = document.getElementById('cmp-meta');
+        if (meta) meta.textContent = tot + (tot === 1 ? ' medição' : ' medições');
+        preencherComparativo(document.getElementById('bloco-comparativo'), seriesCompar);
+      }
 
       aplicarOffsets();
       bindAccordeons();
