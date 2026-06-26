@@ -412,6 +412,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       const vinhetaMedicaMatch = html.match(
         /<img\s[^>]*class="gcv2-vinheta"[^>]*>|<div\s[^>]*class="gcv2-vinheta-placeholder"[^>]*>[\s\S]*?<\/div>/
       );
+      console.log('[rc] vinhetaMedicaMatch:', vinhetaMedicaMatch ? vinhetaMedicaMatch[0].slice(0, 80) : 'NULL — regex não fez match');
       const vinhetaMedica = vinhetaMedicaMatch
         ? `<div style="margin-top:10px;">${vinhetaMedicaMatch[0]}</div>`
         : '';
