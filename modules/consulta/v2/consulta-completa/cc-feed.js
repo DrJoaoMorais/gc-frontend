@@ -526,7 +526,7 @@ const CMP_GRUPOS = [
 ];
 
 function cmpSeta(delta, bom) {
-  if (delta === 0) return `<span class="cc-cmp-seta cc-cmp-seta-igual">= 0</span>`;
+  if (delta === 0) return `<span class="cc-cmp-seta"><span class="cc-cmp-pill cc-cmp-seta-igual">= 0</span></span>`;
   const sobe = delta > 0;
   const abs  = Number.isInteger(delta) ? Math.abs(delta) : Math.abs(delta).toFixed(1);
   const boa  = (sobe && bom === 'sobe') || (!sobe && bom === 'desce');
@@ -535,7 +535,7 @@ function cmpSeta(delta, bom) {
     : (sobe ? 'cc-cmp-seta-up-mau' : 'cc-cmp-seta-dn-mau');
   const sinal = sobe ? '+' : '−';
   const seta  = sobe ? '↑' : '↓';
-  return `<span class="cc-cmp-seta ${cls}">${seta} ${sinal}${abs}</span>`;
+  return `<span class="cc-cmp-seta"><span class="cc-cmp-pill ${cls}">${seta} ${sinal}${abs}</span></span>`;
 }
 
 /* dd/mm a partir de 'YYYY-MM-DD'. */
