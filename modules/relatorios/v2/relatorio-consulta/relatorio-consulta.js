@@ -417,13 +417,13 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
         : '';
 
       const htmlComVinheta = html
-        // Footer alinhado ao topo (sem flex-end que colocava QR no fundo)
+        // Footer alinhado ao topo
         .replace('class="gcv2-footer"', 'class="gcv2-footer" style="align-items:start;"')
-        // Coluna esq: QR + vinheta médica (substitui cidade + "Documento gerado")
+        // 1º — remover vinheta médica da coluna dir (antes de a injectar na esq)
+        .replace(/<img\s[^>]*class="gcv2-vinheta"[^>]*>|<div\s[^>]*class="gcv2-vinheta-placeholder"[^>]*>[\s\S]*?<\/div>/, '')
+        // 2º — coluna esq: QR + vinheta médica (substitui cidade + "Documento gerado")
         .replace(/<div class="gcv2-footer-place">.*?<\/div>/, vinhetaBox + vinhetaMedica)
         .replace(/<div class="gcv2-footer-info">.*?<\/div>/, '')
-        // Remover vinheta médica da coluna dir (já está na esq)
-        .replace(/<img\s[^>]*class="gcv2-vinheta"[^>]*>|<div\s[^>]*class="gcv2-vinheta-placeholder"[^>]*>[\s\S]*?<\/div>/, '')
         // Coluna dir: cidade + data
         .replace('<div class="gcv2-footer-date">', `${cityHtml}<div class="gcv2-footer-date">`);
 
