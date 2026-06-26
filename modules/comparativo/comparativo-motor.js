@@ -15,6 +15,11 @@ const CAMINHOS_OMBRO = [
   { param: 'escalas.dash_score', get: d => d?.escalas?.dash_score },
   { param: 'escalas.ases_score', get: d => d?.escalas?.ases_score },
   { param: 'escalas.oss_score',  get: d => d?.escalas?.oss_score  },
+  { param: 'mrc.f_sup', get: d => d?.mrc?.f_sup },
+  { param: 'mrc.f_inf', get: d => d?.mrc?.f_inf },
+  { param: 'mrc.f_sub', get: d => d?.mrc?.f_sub },
+  { param: 'mrc.f_del', get: d => d?.mrc?.f_del },
+  { param: 'mrc.f_ext', get: d => d?.mrc?.f_ext },
 ];
 
 export async function lerSerieOmbro(patientId) {
@@ -35,10 +40,8 @@ export async function lerSerieOmbro(patientId) {
   for (const row of (rows || [])) {
     const d = row.data || {};
     for (const caminho of CAMINHOS_OMBRO) {
-      const raw = caminho.get(d);
-      if (raw === null || raw === undefined) continue;
-      const valor = Number(raw);
-      if (isNaN(valor)) continue;
+      const valor = caminho.get(d);
+      if (valor == null || valor === '') continue;
       series[caminho.param].push({ data: row.assessment_date, valor });
     }
   }

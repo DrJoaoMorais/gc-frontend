@@ -517,12 +517,18 @@ const CMP_PARAMS = {
   'escalas.dash_score': { rot: 'DASH /100',  bom: 'desce' },
   'escalas.ases_score': { rot: 'ASES /100',  bom: 'sobe'  },
   'escalas.oss_score':  { rot: 'OSS /48',    bom: 'sobe'  },
+  'mrc.f_sup':          { rot: 'Flexão',     bom: 'sobe',  num: mrcNum },
+  'mrc.f_inf':          { rot: 'Abdução',    bom: 'sobe',  num: mrcNum },
+  'mrc.f_sub':          { rot: 'Rot. Int.',  bom: 'sobe',  num: mrcNum },
+  'mrc.f_del':          { rot: 'Rot. Ext.',  bom: 'sobe',  num: mrcNum },
+  'mrc.f_ext':          { rot: 'Extensão',   bom: 'sobe',  num: mrcNum },
 };
 
 const CMP_GRUPOS = [
   { titulo: 'Amplitude', unid: 'graus', subrot: 'activa / passiva', params: ['rom.flex_a', 'rom.abd_a', 'rom.re_a', 'rom.ri_a'] },
   { titulo: 'Dor (EVA)', unid: '/10',   params: ['eva.rep', 'eva.act', 'eva.pic'] },
   { titulo: 'Escalas',   unid: '',      params: ['escalas.dash_score', 'escalas.ases_score', 'escalas.oss_score'] },
+  { titulo: 'Força MRC', unid: '/5',    params: ['mrc.f_sup', 'mrc.f_inf', 'mrc.f_sub', 'mrc.f_del', 'mrc.f_ext'] },
 ];
 
 function cmpSeta(delta, bom) {
@@ -543,6 +549,13 @@ function cmpDataCurta(d) {
   if (!d) return '';
   const [a, m, dia] = String(d).split('-');
   return dia ? `${dia}/${m}` : d;
+}
+
+/* Extrai o numerador de "4/5" → 4. Devolve null se não parsear. */
+function mrcNum(v) {
+  if (v == null) return null;
+  const n = parseInt(String(v).split('/')[0], 10);
+  return isNaN(n) ? null : n;
 }
 
 /* Células de um parâmetro ao longo do eixo de datas partilhado.
@@ -574,8 +587,15 @@ function cmpGrupoHtml(g, series, eixo) {
       const pts = series[p] || [];
       const dataAtual = eixo[eixo.length - 1];
       const temAtual  = pts.some(pt => pt.data === dataAtual);
+      const extractor = CMP_PARAMS[p].num;
       const setaHtml = (temAtual && pts.length >= 2)
-        ? cmpSeta(pts[pts.length - 1].valor - pts[pts.length - 2].valor, CMP_PARAMS[p].bom)
+        ? (() => {
+            const vAtual = extractor ? extractor(pts[pts.length - 1].valor) : pts[pts.length - 1].valor;
+            const vAnt   = extractor ? extractor(pts[pts.length - 2].valor) : pts[pts.length - 2].valor;
+            return (vAtual != null && vAnt != null)
+              ? cmpSeta(vAtual - vAnt, CMP_PARAMS[p].bom)
+              : `<span class="cc-cmp-seta"></span>`;
+          })()
         : `<span class="cc-cmp-seta"></span>`;
       return `
         <div class="cc-cmp-linha">
