@@ -378,14 +378,13 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       const styles = Array.from(document.querySelectorAll('link[data-gcv2-shell], link[data-gcv2-atestado], link[data-gcv2-rc]'))
         .map(l => `<link rel="stylesheet" href="${l.href}">`).join('\n');
 
-      // Vinheta de autenticação — topo da coluna direita do footer (gcv2-footer-sig)
+      // Vinheta de autenticação — coluna esquerda do footer (substitui cidade + "Documento gerado")
       const vinhetaBox = `
 <div id="gcv2-vinheta" style="
   width:72mm; padding:8px 10px;
   border:1.5px solid #0f2d52; border-radius:4px;
   font-family:monospace; font-size:9pt; color:#0f2d52;
-  background:#fff; margin:0 auto 10px;
-  page-break-inside:avoid;
+  background:#fff; page-break-inside:avoid;
 ">
   <div style="font-weight:700;font-size:10pt;margin-bottom:6px;">
     Documento autenticado
@@ -403,10 +402,16 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
   </div>
 </div>`;
 
-      const htmlComVinheta = html.replace(
-        '<div class="gcv2-footer-sig">',
-        `<div class="gcv2-footer-sig">${vinhetaBox}`
-      );
+      // Cidade da clínica — passa para a coluna direita, acima da data
+      const cityStr = clinic?.city || '';
+      const cityHtml = cityStr
+        ? `<div style="font-family:'Cormorant Garamond',serif;font-size:13px;color:#0f2d52;font-weight:600;margin-bottom:6px;text-align:center;">${cityStr}</div>`
+        : '';
+
+      const htmlComVinheta = html
+        .replace(/<div class="gcv2-footer-place">.*?<\/div>/, vinhetaBox)
+        .replace(/<div class="gcv2-footer-info">.*?<\/div>/, '')
+        .replace('<div class="gcv2-footer-date">', `${cityHtml}<div class="gcv2-footer-date">`);
 
       const fullHtml = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${htmlComVinheta}</body></html>`;
 
