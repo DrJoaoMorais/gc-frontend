@@ -708,7 +708,7 @@
       const tot = plan.sessoes_total != null ? plan.sessoes_total : null;
       const sem = plan.sessoes_semana != null ? plan.sessoes_semana : null;
       const cabecSessoes = (tot != null || sem != null)
-        ? `<span class="cc-trat-sessoes">R/${tot != null ? ` ${tot} sessões` : ''}${sem != null ? ` · ${sem}/semana` : ''}</span>`
+        ? `<span class="cc-trat-sessoes">Prescrevem-se${tot != null ? ` ${tot}` : ''} sessões de tratamentos de reabilitação${sem != null ? ` (periodicidade ${sem}×/semana)` : ''} com:</span>`
         : '';
       el.innerHTML = `
         <div class="cc-trat-header">${cabecSessoes}</div>
