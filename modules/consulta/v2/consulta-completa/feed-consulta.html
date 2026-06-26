@@ -694,7 +694,7 @@
       if (!diagnosticos?.length) { el.innerHTML = `<p class="cc-vazio">Sem diagnósticos.</p>`; return; }
       el.innerHTML = diagnosticos.map(d =>
         `<div class="cc-diag-chip">
-          <span class="cc-diag-sis">${esc(d.system || 'ICD-9')}</span>
+          <span class="cc-diag-sis">${(s => s.includes('10') ? 'ICD-10' : 'ICD-9')((d.system || '').toLowerCase())}</span>
           <span class="cc-diag-code">${esc(d.code)}</span>
           <span class="cc-diag-label">${esc(d.label)}</span>
         </div>`
