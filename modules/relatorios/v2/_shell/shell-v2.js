@@ -105,6 +105,7 @@ export function buildShellV2({ clinic, doctor, config = {}, contentHtml = '' }) 
   const title = config.title || 'Documento Médico';
   const vinhetaUrl = config.vinhetaUrl || null;
   const doctorLogoUrl = config.doctorLogoUrl || null;
+  const authVinheta = config.authVinheta || null;
 
   const clinicLogoHtml = clinic?.logo_url
     ? `<img class="gcv2-clinic-logo" src="${escAttr(clinic.logo_url)}" alt="${escAttr(clinic.display_name || clinic.name || 'Clínica')}">`
@@ -176,12 +177,16 @@ export function buildShellV2({ clinic, doctor, config = {}, contentHtml = '' }) 
 
     <div class="gcv2-footer">
       <div>
-        <div class="gcv2-footer-place">${escAttr(clinic?.city || '')}</div>
-        <div class="gcv2-footer-info">Documento gerado em www.joaomorais.pt</div>
+        ${authVinheta
+          ? `${authVinheta}${vinhetaHtml}`
+          : `<div class="gcv2-footer-place">${escAttr(clinic?.city || '')}</div>
+        <div class="gcv2-footer-info">Documento gerado em www.joaomorais.pt</div>`
+        }
       </div>
       <div class="gcv2-footer-sig">
+        ${authVinheta ? `<div class="gcv2-footer-place" style="text-align:center;">${escAttr(clinic?.city || '')}</div>` : ''}
         <div class="gcv2-footer-date">${dateStr}</div>
-        ${vinhetaHtml}
+        ${authVinheta ? '' : vinhetaHtml}
         <div class="gcv2-sig-line">
           <div class="gcv2-doctor-sig">${escAttr(doctorName)}</div>
           <div class="gcv2-doctor-role">${escAttr(doctorRole)}</div>

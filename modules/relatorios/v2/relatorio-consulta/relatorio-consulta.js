@@ -374,11 +374,10 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     btn.textContent = 'A gerar PDF…';
 
     try {
-      const html = overlay.querySelector('#gcv2-rc-preview-host').innerHTML;
       const styles = Array.from(document.querySelectorAll('link[data-gcv2-shell], link[data-gcv2-atestado], link[data-gcv2-rc]'))
         .map(l => `<link rel="stylesheet" href="${l.href}">`).join('\n');
 
-      // Vinheta de autenticação — coluna esquerda do footer (substitui cidade + "Documento gerado")
+      // Vinheta de autenticação — passada ao shell via config.authVinheta
       const vinhetaBox = `
 <div id="gcv2-vinheta" style="
   width:72mm; padding:8px 10px;
@@ -395,40 +394,27 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       flex-shrink:0;border:1px solid #cbd5e1;
     "></div>
     <span style="font-size:8pt;line-height:1.5;">
-      <strong>GC-RM-XXXXXX</strong><br>
+      <strong>${state.docNumber}</strong><br>
       gc.joaomorais.pt/verificar/<br>
       <em style="color:#6b7280;">QR activo após registo</em>
     </span>
   </div>
 </div>`;
 
-      // Cidade da clínica — coluna direita, acima da data
-      const cityStr = clinic?.city || '';
-      const cityHtml = cityStr
-        ? `<div style="font-family:'Cormorant Garamond',serif;font-size:13px;color:#0f2d52;font-weight:600;margin-bottom:6px;text-align:center;">${cityStr}</div>`
-        : '';
+      // Gerar HTML do PDF directamente via buildShellV2 (sem .replace() frágil)
+      const shellHtmlPdf = buildShellV2({
+        clinic, doctor,
+        config: {
+          kicker: 'Medicina Física & Reabilitação',
+          title: 'Relatório de Consulta',
+          date: state.date,
+          vinhetaUrl,
+          authVinheta: vinhetaBox,
+        },
+        contentHtml: buildReportContent(),
+      });
 
-      // Extrair vinheta médica do HTML renderizado (img ou div placeholder)
-      const vinhetaMedicaMatch = html.match(
-        /<img\s[^>]*class="gcv2-vinheta"[^>]*>|<div\s[^>]*class="gcv2-vinheta-placeholder"[^>]*>[\s\S]*?<\/div>/
-      );
-      console.log('[rc] vinhetaMedicaMatch:', vinhetaMedicaMatch ? vinhetaMedicaMatch[0].slice(0, 80) : 'NULL — regex não fez match');
-      const vinhetaMedica = vinhetaMedicaMatch
-        ? `<div style="margin-top:10px;">${vinhetaMedicaMatch[0]}</div>`
-        : '';
-
-      const htmlComVinheta = html
-        // Footer alinhado ao topo
-        .replace('class="gcv2-footer"', 'class="gcv2-footer" style="align-items:start;"')
-        // 1º — remover vinheta médica da coluna dir (antes de a injectar na esq)
-        .replace(/<img\s[^>]*class="gcv2-vinheta"[^>]*>|<div\s[^>]*class="gcv2-vinheta-placeholder"[^>]*>[\s\S]*?<\/div>/, '')
-        // 2º — coluna esq: QR + vinheta médica (substitui cidade + "Documento gerado")
-        .replace(/<div class="gcv2-footer-place">.*?<\/div>/, vinhetaBox + vinhetaMedica)
-        .replace(/<div class="gcv2-footer-info">.*?<\/div>/, '')
-        // Coluna dir: cidade + data
-        .replace('<div class="gcv2-footer-date">', `${cityHtml}<div class="gcv2-footer-date">`);
-
-      const fullHtml = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${htmlComVinheta}</body></html>`;
+      const fullHtml = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${shellHtmlPdf}</body></html>`;
 
 
       const resp = await fetch('https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf', {
