@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Comparativo — Mockup Bloco 4</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cc-navy:    #0f2d52;
+      --cc-azul:    #1a56db;
+      --cc-texto:   #1f2937;
+      --cc-suave:   #6b7280;
+      --cc-ténue:   #9ca3af;
+      --cc-linha:   #e5e7eb;
+      --cc-fundo:   #f9fafb;
+      --cc-branco:  #ffffff;
+      --cc-verde:   #15803d;
+      --cc-ambar:   #b45309;
+      --cc-vermelho:#b91c1c;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Outfit', system-ui, sans-serif;
+      background: #e8edf2;
+      padding: 32px 16px;
+      color: var(--cc-texto);
+    }
+
+    /* ── página de contexto ── */
+    .mock-legend {
+      max-width: 860px; margin: 0 auto 20px;
+      font-size: 12px; color: #5b6b7f;
+      display: flex; gap: 18px; align-items: center; flex-wrap: wrap;
+    }
+    .mock-legend b { font-weight: 600; color: var(--cc-navy); }
+    .mock-cols {
+      max-width: 860px; margin: 0 auto;
+      display: grid; grid-template-columns: 65fr 35fr; gap: 14px;
+      align-items: start;
+    }
+    .mock-col-label {
+      font-size: 10px; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase; color: #9ca3af;
+      margin-bottom: 8px;
+    }
+
+    /* ── shell cc-bloco (idêntico ao feed real) ── */
+    .cc-bloco {
+      background: var(--cc-branco);
+      border: 1px solid var(--cc-linha);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .cc-bloco-head {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 18px;
+    }
+    .cc-bloco-icon { font-size: 16px; }
+    .cc-bloco-titulo {
+      font-size: 14px; font-weight: 600; color: var(--cc-navy);
+    }
+    .cc-acc-body { padding: 0 18px 16px; }
+    .cc-vazio { font-size: 13px; color: var(--cc-ténue); font-style: italic; }
+
+    /* ── RESUMO (bloco 3 — para contexto) ── */
+    .fc-resumo-linha {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 7px 0; border-top: 1px solid var(--cc-linha); font-size: 13px;
+    }
+    .fc-resumo-linha:first-child { border-top: none; padding-top: 0; }
+    .fc-resumo-rot { color: var(--cc-suave); }
+    .fc-resumo-val { font-weight: 600; }
+    .fv  { color: #15803d; }
+    .fa  { color: #b45309; }
+    .fr  { color: #b91c1c; }
+
+    /* ════════════════════════════════════════════
+       BLOCO 4 — COMPARATIVO
+       Variáveis específicas com prefixo cc-cmp-
+       ════════════════════════════════════════════ */
+
+    /* Cabeçalho do bloco: ícone · título · "N medições" */
+    .cc-cmp-meta {
+      margin-left: auto;
+      font-size: 11px; color: var(--cc-ténue);
+      border: 1px solid var(--cc-linha);
+      border-radius: 5px; padding: 2px 7px;
+      white-space: nowrap;
+    }
+
+    /* Grupos (AMPLITUDE / DOR / ESCALAS) */
+    .cc-cmp-grupo {
+      margin-bottom: 14px;
+    }
+    .cc-cmp-grupo:last-child { margin-bottom: 0; }
+
+    .cc-cmp-grupo-rot {
+      font-size: 10px; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--cc-ténue);
+      margin-bottom: 6px;
+      display: flex; align-items: baseline; gap: 6px;
+    }
+    .cc-cmp-grupo-unid {
+      font-size: 9px; font-weight: 400; letter-spacing: 0;
+      text-transform: none; color: #c4cad3;
+    }
+
+    /* Cada linha de parâmetro */
+    .cc-cmp-linha {
+      display: flex; align-items: center;
+      padding: 5px 0;
+      border-top: 1px solid var(--cc-linha);
+      gap: 0;
+    }
+    .cc-cmp-linha:first-of-type { border-top: none; }
+
+    /* Rótulo do parâmetro */
+    .cc-cmp-rot {
+      flex: 0 0 82px;
+      font-size: 12px; color: var(--cc-suave);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      padding-right: 6px;
+    }
+
+    /* Os 3 valores */
+    .cc-cmp-vals {
+      flex: 1;
+      display: flex; align-items: center; justify-content: flex-end;
+      gap: 0;
+    }
+    .cc-cmp-v {
+      flex: 1;
+      text-align: right;
+      font-size: 12px;
+      color: var(--cc-ténue);
+      padding-right: 4px;
+    }
+    /* Último valor — destacado */
+    .cc-cmp-v-last {
+      font-size: 13px; font-weight: 600;
+      color: var(--cc-texto);
+    }
+
+    /* Seta + delta */
+    .cc-cmp-seta {
+      flex: 0 0 52px;
+      text-align: right;
+      font-size: 12px; font-weight: 600;
+      white-space: nowrap;
+    }
+    .cc-cmp-seta-up-bom   { color: var(--cc-verde); }
+    .cc-cmp-seta-up-mau   { color: var(--cc-vermelho); }
+    .cc-cmp-seta-dn-bom   { color: var(--cc-verde); }
+    .cc-cmp-seta-dn-mau   { color: var(--cc-vermelho); }
+    .cc-cmp-seta-neutro   { color: var(--cc-ténue); }
+    /* sem variação → em cinzento */
+    .cc-cmp-seta-igual    { color: var(--cc-ténue); font-weight: 400; }
+
+    /* Estado "a carregar" e "sem dados" */
+    .cc-cmp-estado { font-size: 13px; color: var(--cc-ténue); font-style: italic; }
+
+    /* Legenda interna (separador de grupo) */
+    .cc-cmp-sep {
+      border: none; border-top: 1px solid var(--cc-linha);
+      margin: 10px 0 12px;
+    }
+
+    /* ── anotações de mockup ── */
+    .ann {
+      background: #fffbeb; border: 1px solid #fde68a;
+      border-radius: 6px; padding: 10px 12px;
+      font-size: 11px; color: #713f12; margin-top: 8px;
+    }
+    .ann b { font-weight: 600; }
+    .ann ul { margin: 4px 0 0 14px; }
+    .ann li { margin: 2px 0; }
+  </style>
+</head>
+<body>
+
+<div class="mock-legend">
+  <b>Mockup — Bloco 4: Comparativo</b>
+  <span>Encaixe na coluna direita do feed-consulta (35%)</span>
+  <span>Dados fictícios representativos</span>
+  <span>
+    Seta verde = melhorou &nbsp;·&nbsp;
+    Seta vermelha = piorou &nbsp;·&nbsp;
+    Cinzento = sem variação
+  </span>
+</div>
+
+<div class="mock-cols">
+
+  <!-- COLUNA PRINCIPAL — só contexto -->
+  <div>
+    <div class="mock-col-label">Coluna principal (65%)</div>
+    <div class="cc-bloco">
+      <div class="cc-bloco-head">
+        <span class="cc-bloco-icon">📝</span>
+        <span class="cc-bloco-titulo">História da Doença Actual</span>
+      </div>
+      <div class="cc-acc-body">
+        <p class="cc-vazio">[Editor Quill]</p>
+      </div>
+    </div>
+    <div class="cc-bloco">
+      <div class="cc-bloco-head">
+        <span class="cc-bloco-icon">⚕️</span>
+        <span class="cc-bloco-titulo">Exame Objectivo</span>
+      </div>
+      <div class="cc-acc-body">
+        <p class="cc-vazio">[Render dedicado do ombro — já existente]</p>
+      </div>
+    </div>
+    <div class="cc-bloco">
+      <div class="cc-bloco-head">
+        <span class="cc-bloco-icon">🏷️</span>
+        <span class="cc-bloco-titulo">Diagnóstico</span>
+      </div>
+      <div class="cc-acc-body">
+        <p class="cc-vazio">[…]</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- COLUNA DIREITA — onde vive o bloco 4 -->
+  <div>
+    <div class="mock-col-label">Coluna direita sticky (35%) — bloco 4 novo</div>
+
+    <!-- Bloco 2 existente: Resumo (contexto) -->
+    <div class="cc-bloco">
+      <div class="cc-bloco-head">
+        <span class="cc-bloco-icon">📊</span>
+        <span class="cc-bloco-titulo">Resumo do Exame</span>
+      </div>
+      <div class="cc-acc-body">
+        <div class="fc-resumo-linha"><span class="fc-resumo-rot">EVA</span><span class="fc-resumo-val fr">Rep. 3 · Act. 5 · Pico 7</span></div>
+        <div class="fc-resumo-linha"><span class="fc-resumo-rot">Flexão activa</span><span class="fc-resumo-val fv">165°</span></div>
+        <div class="fc-resumo-linha"><span class="fc-resumo-rot">Abdução activa</span><span class="fc-resumo-val fa">120°</span></div>
+        <div class="fc-resumo-linha"><span class="fc-resumo-rot">OSS</span><span class="fc-resumo-val fv">38/48</span></div>
+        <div class="fc-resumo-linha"><span class="fc-resumo-rot">ASES</span><span class="fc-resumo-val">71/100</span></div>
+        <div class="fc-resumo-linha"><span class="fc-resumo-rot">DASH</span><span class="fc-resumo-val">28/100</span></div>
+      </div>
+    </div>
+
+    <!-- ════ BLOCO 4 — COMPARATIVO ════ -->
+    <div class="cc-bloco">
+      <div class="cc-bloco-head">
+        <span class="cc-bloco-icon">📈</span>
+        <span class="cc-bloco-titulo">Evolução</span>
+        <span class="cc-cmp-meta">10 medições</span>
+      </div>
+      <div class="cc-acc-body">
+
+        <!-- GRUPO AMPLITUDE -->
+        <div class="cc-cmp-grupo">
+          <div class="cc-cmp-grupo-rot">
+            Amplitude
+            <span class="cc-cmp-grupo-unid">graus</span>
+          </div>
+
+          <div class="cc-cmp-linha">
+            <span class="cc-cmp-rot">Flexão A</span>
+            <div class="cc-cmp-vals">
+              <span class="cc-cmp-v">90</span>
+              <span class="cc-cmp-v">140</span>
+              <span class="cc-cmp-v cc-cmp-v-last">165</span>
+            </div>
+            <span class="cc-cmp-seta cc-cmp-seta-up-bom">↑ +25</span>
+          </div>
+
+          <div class="cc-cmp-linha">
+            <span class="cc-cmp-rot">Abdução A</span>
+            <div class="cc-cmp-vals">
+              <span class="cc-cmp-v">75</span>
+              <span class="cc-cmp-v">100</span>
+              <span class="cc-cmp-v cc-cmp-v-last">120</span>
+            </div>
+            <span class="cc-cmp-seta cc-cmp-seta-up-bom">↑ +20</span>
+          </div>
+
+          <div class="cc-cmp-linha">
+            <span class="cc-cmp-rot">Rot. Ext.</span>
+            <div class="cc-cmp-vals">
+              <span class="cc-cmp-v">—</span>
+              <span class="cc-cmp-v">50</span>
+              <span class="cc-cmp-v cc-cmp-v-last">65</span>
+            </div>
+            <span class="cc-cmp-seta cc-cmp-seta-up-bom">↑ +15</span>
+          </div>
+
+          <div class="cc-cmp-linha">
+            <span class="cc-cmp-rot">Rot. Int.</span>
+            <div class="cc-cmp-vals">
+              <span class="cc-cmp-v">40</span>
+              <span class="cc-cmp-v">55</span>
+              <span class="cc-cmp-v cc-cmp-v-last">55</span>
+            </div>
+            <!-- sem variação → neutro -->
+            <span class="cc-cmp-seta cc-cmp-seta-igual">= 0</span>
+          </div>
+
+        </div>
+
+        <!-- GRUPO DOR -->
+        <div class="cc-cmp-grupo">
+          <div class="cc-cmp-grupo-rot">
+            Dor (EVA)
+            <span class="cc-cmp-grupo-unid">/10</span>
+          </div>
+
+          <div class="cc-cmp-linha">
+            <span class="cc-cmp-rot">Repouso</span>
+            <div class="cc-cmp-vals">
+              <span class="cc-cmp-v">7</span>
+              <span class="cc-cmp-v">4</span>
+              <span class="cc-cmp-v cc-cmp-v-last">3</span>
+            </div>
+            <!-- EVA desce = verde -->
+            <span class="cc-cmp-seta cc-cmp-seta-dn-bom">↓ −1</span>
+          </div>
+
+          <div class="cc-cmp-linha">
+            <span class="cc-cmp-rot">Actividade</span>
+            <div class="cc-cmp-vals">
+              <span class="cc-cmp-v">8</span>
+              <span class="cc-cmp-v">6</span>
+              <span class="cc-cmp-v cc-cmp-v-last">5</span>
+            </div>
+            <span class="cc-cmp-seta cc-cmp-seta-dn-bom">↓ −1</span>
+          </div>
+
+          <div class="cc-cmp-linha">
+            <span class="cc-cmp-rot">Pico</span>
+            <div class="cc-cmp-vals">
+              <span class="cc-cmp-v">9</span>
+              <span class="cc-cmp-v">7</span>
+              <span class="cc-cmp-v cc-cmp-v-last">9</span>
+            </div>
+            <!-- EVA subiu = vermelho -->
+            <span class="cc-cmp-seta cc-cmp-seta-up-mau">↑ +2</span>
+          </div>
+
+        </div>
+
+        <!-- GRUPO ESCALAS -->
+        <div class="cc-cmp-grupo">
+          <div class="cc-cmp-grupo-rot">Escalas</div>
+
+          <div class="cc-cmp-linha">
+            <span class="cc-cmp-rot">DASH /100</span>
+            <div class="cc-cmp-vals">
+              <span class="cc-cmp-v">65</span>
+              <span class="cc-cmp-v">45</span>
+              <span class="cc-cmp-v cc-cmp-v-last">28</span>
+            </div>
+            <!-- DASH desce = verde -->
+            <span class="cc-cmp-seta cc-cmp-seta-dn-bom">↓ −17</span>
+          </div>
+
+          <div class="cc-cmp-linha">
+            <span class="cc-cmp-rot">ASES /100</span>
+            <div class="cc-cmp-vals">
+              <span class="cc-cmp-v">42</span>
+              <span class="cc-cmp-v">58</span>
+              <span class="cc-cmp-v cc-cmp-v-last">71</span>
+            </div>
+            <!-- ASES sobe = verde -->
+            <span class="cc-cmp-seta cc-cmp-seta-up-bom">↑ +13</span>
+          </div>
+
+          <div class="cc-cmp-linha">
+            <span class="cc-cmp-rot">OSS /48</span>
+            <div class="cc-cmp-vals">
+              <span class="cc-cmp-v">22</span>
+              <span class="cc-cmp-v">30</span>
+              <span class="cc-cmp-v cc-cmp-v-last">38</span>
+            </div>
+            <!-- OSS sobe = verde -->
+            <span class="cc-cmp-seta cc-cmp-seta-up-bom">↑ +8</span>
+          </div>
+
+        </div>
+
+      </div>
+    </div><!-- /bloco 4 -->
+
+    <!-- Anotações -->
+    <div class="ann">
+      <b>Notas de design</b>
+      <ul>
+        <li><b>3 colunas de valores</b> = últimas 3 datas com aquele parâmetro (podem ser diferentes entre parâmetros). Placeholder "—" se só existirem 1 ou 2.</li>
+        <li><b>Seta</b> = direcção entre penúltimo e último valor. Delta = diferença absoluta.</li>
+        <li><b>Cor da seta</b> — ROM/ASES/OSS: ↑ verde, ↓ vermelho. EVA/DASH: ↓ verde, ↑ vermelho. = cinzento.</li>
+        <li><b>"10 medições"</b> = total de registos com assessment_type='ombro' para o doente, vindo de lerSerieOmbro.</li>
+        <li>Bloco só aparece se lerSerieOmbro devolver ≥ 1 série. Sem séries → bloco escondido.</li>
+        <li>Encaixa em cc-feed.js como <code>preencherComparativo(el, series)</code>. Estilos em consulta-completa.css.</li>
+      </ul>
+    </div>
+
+  </div><!-- /col-side -->
+</div><!-- /mock-cols -->
+
+</body>
+</html>
