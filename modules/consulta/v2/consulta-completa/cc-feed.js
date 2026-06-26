@@ -572,7 +572,9 @@ function cmpGrupoHtml(g, series, eixo) {
     .map(p => {
       const cels = cmpCelulas(p, eixo, series);
       const pts = series[p] || [];
-      const setaHtml = pts.length >= 2
+      const dataAtual = eixo[eixo.length - 1];
+      const temAtual  = pts.some(pt => pt.data === dataAtual);
+      const setaHtml = (temAtual && pts.length >= 2)
         ? cmpSeta(pts[pts.length - 1].valor - pts[pts.length - 2].valor, CMP_PARAMS[p].bom)
         : `<span class="cc-cmp-seta"></span>`;
       return `
