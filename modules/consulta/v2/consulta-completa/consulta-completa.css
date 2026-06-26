@@ -165,6 +165,7 @@ body {
 .cc-trat-code { font-family: monospace; font-size: 12px; color: var(--cc-suave); }
 .cc-trat-qty { text-align: right; }
 .cc-tabela th:last-child, .cc-tabela td:last-child { text-align: right; }
+.cc-trat-rodape { padding-top: 8px; font-size: 12px; color: var(--cc-suave); font-style: italic; text-align: left !important; border-top: 2px solid var(--cc-linha); }
 
 /* Exame objectivo */
 .cc-exame-registo {

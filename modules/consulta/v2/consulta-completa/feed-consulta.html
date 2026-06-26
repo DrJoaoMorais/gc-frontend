@@ -480,7 +480,7 @@
       /* blocos leitura */
       preencherExame(document.getElementById('bloco-exame'), exames);
       renderDiagnostico(document.getElementById('bloco-diag'), diagnosticos);
-      renderTratamento(document.getElementById('bloco-trat'), tratamentos);
+      renderTratamento(document.getElementById('bloco-trat'), tratamentos, consulta);
       renderProtocolo(document.getElementById('bloco-protocolo'), protocolo);
       renderResumo(exames);
 
@@ -701,8 +701,15 @@
       ).join('');
     }
 
-    function renderTratamento(el, tratamentos) {
+    function renderTratamento(el, tratamentos, consulta) {
       if (!tratamentos?.length) { el.innerHTML = `<p class="cc-vazio">Sem tratamentos prescritos.</p>`; return; }
+      let plan = {};
+      try { plan = JSON.parse(consulta?.plan_text || '{}'); } catch (_) {}
+      const tot = plan.sessoes_total != null ? plan.sessoes_total : null;
+      const sem = plan.sessoes_semana != null ? plan.sessoes_semana : null;
+      const rodape = (tot != null || sem != null)
+        ? `<tfoot><tr><td colspan="3" class="cc-trat-rodape">R/${tot != null ? ` ${tot} sessões` : ''}${sem != null ? ` · ${sem}/semana` : ''}</td></tr></tfoot>`
+        : '';
       el.innerHTML = `<table class="cc-tabela">
         <thead><tr><th>Código</th><th>Tratamento</th><th>Qtd.</th></tr></thead>
         <tbody>${tratamentos.map(t =>
@@ -711,7 +718,7 @@
             <td>${esc(t.label)}</td>
             <td class="cc-trat-qty">${esc(t.qty)}</td>
           </tr>`).join('')}
-        </tbody></table>`;
+        </tbody>${rodape}</table>`;
     }
 
     function renderProtocolo(el, protocolo) {
