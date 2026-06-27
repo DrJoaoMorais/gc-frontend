@@ -17,10 +17,10 @@ let _savedOnce = false;
   }
   const config = (await import('./configs/' + r + '.js')).default;
   window._examCtx = { patientId: qp.get('p') || null, clinicId: qp.get('c') || null, consultationId: qp.get('s') || null };
-  const _ed = document.getElementById('examDate');
-  if (_ed) { _ed.value = new Date().toISOString().split('T')[0]; _ed.max = new Date().toISOString().split('T')[0]; }
   _motorCfg = config;
   _renderPage(config);
+  const _ed = document.getElementById('examDate');
+  if (_ed) { _ed.value = new Date().toISOString().split('T')[0]; _ed.max = new Date().toISOString().split('T')[0]; }
 })();
 
 /* ════════ RENDER ════════ */
@@ -33,13 +33,13 @@ function _renderPage(cfg) {
   if (cfg.lado) {
     const slot = document.getElementById('lado-bar-slot');
     if (slot) slot.innerHTML =
-      '<div class="lado-bar">' +
+      '<div class="lado-bar" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">' +
         '<span class="lado-bar-lbl">' + cfg.lado.label + '</span>' +
-        '<div class="opts sg" id="lado">' +
+        '<div class="opts sg" id="lado" style="display:flex;flex-direction:row;gap:6px;">' +
           '<div class="opt" data-v="Direito">D</div>' +
           '<div class="opt" data-v="Esquerdo">E</div>' +
         '</div>' +
-        '<input type="date" id="examDate" title="Data do exame" style="font-size:13px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;color:#0f2d52;margin-left:12px;">' +
+        '<input type="date" id="examDate" title="Data do exame" style="font-size:13px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;color:#0f2d52;width:auto;">' +
       '</div>';
   }
 
