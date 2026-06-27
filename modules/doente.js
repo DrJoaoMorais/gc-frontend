@@ -2816,7 +2816,7 @@ function openPatientViewModal(patient) {
       // Texto puro (sem tags HTML)
       var textOnly = seg.replace(/<[^>]+>/g, '').trim();
 
-      var isExamHeader = /──.*EXAME OBJECTIVO.*──/.test(textOnly);
+      var isExamHeader = /──.*EXAME OBJECTIVO.*──/.test(textOnly) || /EXAME OBJECTIVO/.test(textOnly);
       var isSeparator  = /^─{10,}/.test(textOnly);
 
       if (isExamHeader) {
@@ -2827,7 +2827,7 @@ function openPatientViewModal(patient) {
         }
         inExam = true;
         // Extrair nome: "── OMBRO — EXAME OBJECTIVO ──" → "OMBRO"
-        var m = textOnly.match(/──\s*([^—]+)\s*—/);
+        var m = textOnly.match(/──\s*([^—]+)\s*—/) || textOnly.match(/^([^—]+?)\s*—?\s*EXAME OBJECTIVO/i);
         examTitle = m ? m[1].trim() : 'Exame Objectivo';
 
       } else if (isSeparator && inExam) {
