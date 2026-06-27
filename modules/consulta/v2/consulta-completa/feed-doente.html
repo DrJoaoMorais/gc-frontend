@@ -1002,15 +1002,25 @@
         const userId  = userRes?.data?.user?.id;
         const hoje    = new Date().toISOString().slice(0, 10);
 
+        /* buscar clinic_id activo do médico */
+        const { data: memberRow } = await sb
+          .from('clinic_members')
+          .select('clinic_id')
+          .eq('user_id', userId)
+          .limit(1)
+          .single();
+        const clinicId = memberRow?.clinic_id || null;
+
         const { data: ins, error: insErr } = await sb
           .from('consultations')
           .insert({
-            patient_id:    PATIENT_ID,
+            patient_id:     PATIENT_ID,
+            clinic_id:      clinicId,
             author_user_id: userId,
-            report_date:   hoje,
-            hda:           hda,
-            assessment:    '',
-            plan_text:     JSON.stringify({ treat_order: fdTreatSelecionados.map(t => t.id) }),
+            report_date:    hoje,
+            hda:            hda,
+            assessment:     '',
+            plan_text:      JSON.stringify({ treat_order: fdTreatSelecionados.map(t => t.id) }),
           })
           .select('id')
           .single();
