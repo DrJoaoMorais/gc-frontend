@@ -1020,7 +1020,7 @@
             report_date:    hoje,
             hda:            hda,
             assessment:     '',
-            plan_text:      JSON.stringify({ treat_order: fdTreatSelecionados.map(t => t.id) }),
+            plan_text:      JSON.stringify({ treat_order: fdTreatSelecionados.map(t => t.id), sessoes_total: Number(document.getElementById('fd-sessoes-total')?.value || 20), sessoes_semana: Number(document.getElementById('fd-sessoes-semana')?.value || 3) }),
           })
           .select('id')
           .single();
@@ -1041,7 +1041,7 @@
           const { error: tErr } = await sb.rpc('save_consultation_treatments', {
             p_consultation_id: consultId,
             p_treatment_ids:   fdTreatSelecionados.map(t => t.id),
-            p_qtys:            fdTreatSelecionados.map(() => 1),
+            p_qtys:            fdTreatSelecionados.map(() => Number(document.getElementById('fd-sessoes-total')?.value || 20)),
           });
           if (tErr) throw tErr;
         }
