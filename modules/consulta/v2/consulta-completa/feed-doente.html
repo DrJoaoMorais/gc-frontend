@@ -277,6 +277,15 @@
       padding: 1px 6px;
     }
 
+    /* botões região */
+    .fd-regiao-btn {
+      padding: 6px 13px; border: 1px solid var(--linha);
+      border-radius: 20px; font-size: 12px; font-weight: 500;
+      cursor: pointer; background: var(--fundo); color: var(--suave);
+      font-family: 'Outfit', sans-serif; transition: all .15s;
+    }
+    .fd-regiao-btn:hover { background: var(--azul); color: #fff; border-color: var(--azul); }
+    .fd-regiao-btn:disabled { opacity: .4; cursor: default; }
     /* separador entre blocos */
     .fd-sep {
       height: 1px; background: var(--linha);
@@ -349,6 +358,38 @@
         <div class="fd-bloco-titulo">História da Doença Actual</div>
         <div id="fd-quill-editor" style="background:#fff;border-radius:0 0 8px 8px;font-size:15px;min-height:160px;"></div>
         <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;" id="fd-snips"></div>
+      </div>
+
+      <!-- Exame Objectivo — botões região -->
+      <div style="margin-bottom:14px;">
+        <div class="fd-bloco-titulo">Exame Objectivo</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+          <button class="fd-regiao-btn" data-r="ombro" disabled>💪 Ombro</button>
+          <button class="fd-regiao-btn" data-r="cotovelo" disabled>🦾 Cotovelo</button>
+          <button class="fd-regiao-btn" data-r="punho-mao" disabled>✋ Punho / Mão</button>
+          <button class="fd-regiao-btn" data-r="anca" disabled>🦴 Anca</button>
+          <button class="fd-regiao-btn" data-r="joelho" disabled>🦵 Joelho</button>
+          <button class="fd-regiao-btn" data-r="tibio" disabled>🦶 Tibiotársica</button>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="fd-regiao-btn" data-r="cervical" disabled>⬆️ Cervical</button>
+          <button class="fd-regiao-btn" data-r="lombar" disabled>⬇️ Lombar</button>
+          <button class="fd-regiao-btn" data-r="pfp" disabled>🥴 Par. Facial</button>
+          <button class="fd-regiao-btn" data-r="rpp" disabled>🩺 Pav. Pélvico</button>
+        </div>
+        <div id="fd-regiao-aviso" style="font-size:11px;color:var(--tenue);font-style:italic;margin-top:6px;">
+          Grava a consulta primeiro para activar o exame objectivo.
+        </div>
+      </div>
+
+      <!-- Objectivos -->
+      <div style="margin-bottom:14px;">
+        <div class="fd-bloco-titulo">Objectivos</div>
+        <textarea id="fd-objectivos"
+          style="width:100%;border:1px solid var(--linha);border-radius:7px;padding:8px 12px;
+                 font:14px 'Outfit',sans-serif;color:var(--texto);outline:none;
+                 box-sizing:border-box;resize:vertical;min-height:70px;"
+          placeholder="Objectivos da consulta…"></textarea>
       </div>
 
       <!-- Diagnósticos -->
@@ -989,6 +1030,25 @@
       fdRenderCatalogo('');
     }
 
+    /* ── activar botões de região após criar consulta ── */
+    function fdActivarRegioes(consultId) {
+      const nome = document.getElementById('fd-nome')?.textContent || '';
+      document.querySelectorAll('.fd-regiao-btn').forEach(btn => {
+        btn.disabled = false;
+        btn.addEventListener('click', () => {
+          const r = btn.dataset.r;
+          const base = new URL('../../../obj/regiao.html', window.location.href);
+          base.searchParams.set('r', r);
+          base.searchParams.set('p', PATIENT_ID);
+          base.searchParams.set('s', consultId);
+          base.searchParams.set('n', nome);
+          window.open(base.toString(), '_blank');
+        });
+      });
+      const aviso = document.getElementById('fd-regiao-aviso');
+      if (aviso) aviso.style.display = 'none';
+    }
+
     /* ── gravar nova consulta ── */
     async function fdGravar() {
       const sb = window.sb;
@@ -1019,6 +1079,7 @@
             author_user_id: userId,
             report_date:    hoje,
             hda:            hda,
+            objectives:     document.getElementById('fd-objectivos')?.value || '',
             assessment:     '',
             plan_text:      JSON.stringify({ treat_order: fdTreatSelecionados.map(t => t.id), sessoes_total: Number(document.getElementById('fd-sessoes-total')?.value || 20), sessoes_semana: Number(document.getElementById('fd-sessoes-semana')?.value || 3) }),
           })
@@ -1026,6 +1087,9 @@
           .single();
         if (insErr) throw insErr;
         const consultId = ins.id;
+
+        /* activar botões de região */
+        fdActivarRegioes(consultId);
 
         /* 2. diagnósticos */
         if (fdDiagSelecionados.length) {
