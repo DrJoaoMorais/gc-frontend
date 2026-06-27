@@ -1052,44 +1052,22 @@
     /* ── gravar nova consulta ── */
     async function fdGravar() {
       const sb = window.sb;
-      if (!fdQuill) return;
+      if (!fdQuill || !fdRascunhoId) return;
       const hda = fdQuill.root.innerHTML;
       fdDiz('A gravar…', 'var(--suave)');
 
       try {
-        /* 1. criar consulta */
-        const userRes = await sb.auth.getUser();
-        const userId  = userRes?.data?.user?.id;
-        const hoje    = new Date().toISOString().slice(0, 10);
-
-        /* buscar clinic_id activo do médico */
-        const { data: memberRow } = await sb
-          .from('clinic_members')
-          .select('clinic_id')
-          .eq('user_id', userId)
-          .limit(1)
-          .single();
-        const clinicId = memberRow?.clinic_id || null;
-
-        const { data: ins, error: insErr } = await sb
+        /* update do rascunho já criado */
+        const { error: insErr } = await sb
           .from('consultations')
-          .insert({
-            patient_id:     PATIENT_ID,
-            clinic_id:      clinicId,
-            author_user_id: userId,
-            report_date:    hoje,
-            hda:            hda,
-            objectives:     document.getElementById('fd-objectivos')?.value || '',
-            assessment:     '',
-            plan_text:      JSON.stringify({ treat_order: fdTreatSelecionados.map(t => t.id), sessoes_total: Number(document.getElementById('fd-sessoes-total')?.value || 20), sessoes_semana: Number(document.getElementById('fd-sessoes-semana')?.value || 3) }),
+          .update({
+            hda:       hda,
+            objectives: document.getElementById('fd-objectivos')?.value || '',
+            plan_text: JSON.stringify({ treat_order: fdTreatSelecionados.map(t => t.id), sessoes_total: Number(document.getElementById('fd-sessoes-total')?.value || 20), sessoes_semana: Number(document.getElementById('fd-sessoes-semana')?.value || 3) }),
           })
-          .select('id')
-          .single();
+          .eq('id', fdRascunhoId);
         if (insErr) throw insErr;
-        const consultId = ins.id;
-
-        /* activar botões de região */
-        fdActivarRegioes(consultId);
+        const consultId = fdRascunhoId;
 
         /* 2. diagnósticos */
         if (fdDiagSelecionados.length) {
@@ -1129,7 +1107,9 @@
     }
 
     /* ── botão "Nova Consulta" ── */
-    document.getElementById('fd-btn-nova')?.addEventListener('click', () => {
+    let fdRascunhoId = null;
+
+    document.getElementById('fd-btn-nova')?.addEventListener('click', async () => {
       const wrap = document.getElementById('fd-nova-wrap');
       wrap?.classList.add('visivel');
       wrap?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1146,6 +1126,35 @@
       document.getElementById('fd-nova-fechar')?.addEventListener('click', () => {
         wrap?.classList.remove('visivel');
       });
+
+      /* criar rascunho imediatamente */
+      try {
+        const sb = window.sb;
+        const userRes = await sb.auth.getUser();
+        const userId  = userRes?.data?.user?.id;
+        const hoje    = new Date().toISOString().slice(0, 10);
+        const { data: memberRow } = await sb
+          .from('clinic_members').select('clinic_id')
+          .eq('user_id', userId).limit(1).single();
+        const clinicId = memberRow?.clinic_id || null;
+        const { data: ins, error: insErr } = await sb
+          .from('consultations')
+          .insert({
+            patient_id:     PATIENT_ID,
+            clinic_id:      clinicId,
+            author_user_id: userId,
+            report_date:    hoje,
+            hda:            '',
+            assessment:     '',
+            plan_text:      JSON.stringify({ sessoes_total: 20, sessoes_semana: 3 }),
+          })
+          .select('id').single();
+        if (insErr) throw insErr;
+        fdRascunhoId = ins.id;
+        fdActivarRegioes(fdRascunhoId);
+      } catch(e) {
+        console.error('[fd] erro ao criar rascunho:', e);
+      }
     });
 
     boot();
