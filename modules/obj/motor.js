@@ -796,6 +796,17 @@ function _wireHandlers(cfg) {
     const originalText = btn.textContent;
     btn.disabled = true;
     btn.textContent = 'A guardar…';
+    if (!window._examCtx || !window._examCtx.consultationId) {
+      const te = document.getElementById('toast-err');
+      if (te) {
+        te.textContent = '⚠ Abre o exame a partir de uma consulta activa';
+        te.classList.add('show');
+        setTimeout(function () { te.classList.remove('show'); }, 3500);
+      }
+      btn.disabled = false;
+      btn.textContent = originalText;
+      return;
+    }
     if (_motorCfg && _motorCfg.lado && !document.querySelector('#lado .opt.sel')) {
       const te = document.getElementById('toast-err');
       if (te) {
