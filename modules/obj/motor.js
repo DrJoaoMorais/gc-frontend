@@ -28,7 +28,8 @@ function _renderPage(cfg) {
   const hdr = document.getElementById('hdr');
   if (hdr) hdr.innerHTML =
     '<h1>' + (cfg.emoji ? cfg.emoji + ' ' : '') + cfg.titulo + '</h1>' +
-    '<div class="subtitle">' + cfg.subtitle + '</div>';
+    '<div class="subtitle">' + cfg.subtitle + '</div>' +
+    (window._examCtx?.patientName ? '<div style="font-size:13px;color:#1a56db;font-weight:600;margin-top:4px;">👤 ' + window._examCtx.patientName + '</div>' : '');
 
   if (cfg.lado) {
     const slot = document.getElementById('lado-bar-slot');
