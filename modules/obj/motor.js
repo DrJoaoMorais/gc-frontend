@@ -755,77 +755,6 @@ function _wireHistoria() {
 }
 
 /* ── WIRE HANDLERS ── */
-function _resumoParaHTML(txt) {
-  if (!txt) return '';
-  const linhas = txt.split('\n');
-  let html = '<div style="font-family:sans-serif;font-size:13px;line-height:1.7;">';
-  let emLista = false;
-
-  const _fechaLista = () => {
-    if (emLista) { html += '</div>'; emLista = false; }
-  };
-
-  linhas.forEach(function (linha) {
-    if (!linha.trim()) { _fechaLista(); return; }
-
-    // Título de secção (maiúsculas, sem indent)
-    if (linha === linha.toUpperCase() && !linha.startsWith(' ') && linha.trim().length > 2) {
-      _fechaLista();
-      const isHeader = linha.startsWith('──');
-      if (isHeader) {
-        html += '<p style="font-size:12px;font-weight:600;color:#0f2d52;border-bottom:1px solid #1a56db;padding-bottom:3px;margin:8px 0 6px;">'
-          + linha.replace(/──/g,'').trim() + '</p>';
-      } else {
-        html += '<p style="font-size:10px;font-weight:600;color:#1a56db;letter-spacing:0.08em;margin:10px 0 4px;">'
-          + linha.trim() + '</p>';
-      }
-      return;
-    }
-
-    // EVA — linha especial com pills
-    if (linha.startsWith('EVA:')) {
-      _fechaLista();
-      const partes = linha.replace('EVA: ','').split(' | ');
-      const pills = partes.map(function(p) {
-        return '<span style="display:inline-block;background:#0f2d52;color:#fff;font-size:11px;padding:2px 8px;border-radius:12px;margin-right:6px;">'
-          + p + '</span>';
-      }).join('');
-      html += '<p style="margin:4px 0;">' + pills + '</p>';
-      return;
-    }
-
-    // Item com indent (começa com espaços)
-    if (linha.startsWith('  ') || linha.startsWith('\t')) {
-      if (!emLista) {
-        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0;">';
-        emLista = true;
-      }
-      const conteudo = linha.trim();
-      const partes = conteudo.split(': ');
-      if (partes.length >= 2) {
-        const label = partes[0];
-        const valor = partes.slice(1).join(': ');
-        html += '<span style="display:inline-block;background:#f1f5f9;border-radius:4px;padding:2px 8px;font-size:12px;">'
-          + '<span style="color:#555;">' + label + ':</span> '
-          + '<strong style="color:#0f2d52;">' + valor + '</strong>'
-          + '</span>';
-      } else {
-        html += '<span style="display:inline-block;background:#f1f5f9;border-radius:4px;padding:2px 8px;font-size:12px;color:#0f2d52;">'
-          + conteudo + '</span>';
-      }
-      return;
-    }
-
-    // Linha normal
-    _fechaLista();
-    html += '<p style="margin:3px 0;font-size:12px;">' + linha + '</p>';
-  });
-
-  _fechaLista();
-  html += '</div>';
-  return html;
-}
-
 function _wireHandlers(cfg) {
   document.querySelectorAll('.ob-tab').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -881,17 +810,7 @@ function _wireHandlers(cfg) {
     }
     const txt = typeof window._gerarResumo === 'function' ? window._gerarResumo() : '';
     const toast = document.getElementById('toast');
-    try {
-      const html = _resumoParaHTML(txt);
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          'text/plain': new Blob([txt], { type: 'text/plain' }),
-          'text/html':  new Blob([html], { type: 'text/html' }),
-        })
-      ]);
-    } catch (e) {
-      try { await navigator.clipboard.writeText(txt); } catch (_) {}
-    }
+    try { await navigator.clipboard.writeText(txt); } catch (e) {}
     const dataObj = typeof window._gerarData === 'function' ? window._gerarData() : {};
     const saved = window._saveExamToSupabase ? await window._saveExamToSupabase(txt, dataObj) : null;
     if (saved !== false) {
