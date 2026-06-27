@@ -1031,7 +1031,7 @@
     }
 
     /* ── activar botões de região após criar consulta ── */
-    function fdActivarRegioes(consultId) {
+    function fdActivarRegioes(consultId, clinicId) {
       const nome = document.getElementById('fd-nome')?.textContent || '';
       document.querySelectorAll('.fd-regiao-btn').forEach(btn => {
         btn.disabled = false;
@@ -1041,6 +1041,7 @@
           base.searchParams.set('r', r);
           base.searchParams.set('p', PATIENT_ID);
           base.searchParams.set('s', consultId);
+          base.searchParams.set('c', clinicId || '');
           base.searchParams.set('n', nome);
           window.open(base.toString(), '_blank');
         });
@@ -1151,7 +1152,7 @@
           .select('id').single();
         if (insErr) throw insErr;
         fdRascunhoId = ins.id;
-        fdActivarRegioes(fdRascunhoId);
+        fdActivarRegioes(fdRascunhoId, clinicId);
       } catch(e) {
         console.error('[fd] erro ao criar rascunho:', e);
       }
