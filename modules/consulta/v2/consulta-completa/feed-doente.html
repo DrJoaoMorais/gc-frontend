@@ -919,7 +919,12 @@
       const cat = document.getElementById('fd-treat-catalogo');
       if (!cat) return;
       const sb = window.sb;
-      let query = sb.from('treatments_catalog').select('id,code,label').order('id', { ascending: true }).limit(20);
+      let query = sb.from('treatments_catalog')
+        .select('id,code,label')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .order('label', { ascending: true })
+        .limit(200);
       if (q.length >= 2) {
         const isCode = /^\d/.test(q);
         if (isCode) query = query.ilike('code', `${q}%`);
