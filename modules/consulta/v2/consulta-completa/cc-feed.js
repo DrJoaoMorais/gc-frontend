@@ -299,36 +299,61 @@ function ombMRC(mrc) {
 /* ----- secção: testes especiais ----- */
 function ombTestes(testes) {
   if (!testes) return '';
-  const itens = OMB_TESTES_ORDEM
-    .filter(o => ombTem(testes[o.ch]))
-    .map(o => `<span class="cc-omb-item cc-omb-item-compacto">${escapeTexto(o.rot)} <strong class="cc-omb-item-val ${ombCorTeste(testes[o.ch])}">${escapeTexto(testes[o.ch])}</strong></span>`);
-  if (!itens.length) return '';
+  const GRUPOS = [
+    { sub: 'Conflito', chs: ['t_neer','t_hawk'] },
+    { sub: 'Coifa',    chs: ['t_jobe','t_patte','t_liftoff','t_belly','t_drop'] },
+    { sub: 'Bicípite', chs: ['t_speed','t_yerg'] },
+    { sub: 'Instab.',  chs: ['t_appr','t_reloc','t_sulc'] },
+  ];
+  const ROT = Object.fromEntries(OMB_TESTES_ORDEM.map(o => [o.ch, o.rot]));
+  const grupos = GRUPOS.map(g => {
+    const tags = g.chs
+      .filter(ch => ombTem(testes[ch]))
+      .map(ch => {
+        const val = testes[ch];
+        const cor = ombCorTeste(val);
+        return `<span class="cc-omb-tag ${cor}">${escapeTexto(ROT[ch] || ch)} <strong>${escapeTexto(val)}</strong></span>`;
+      });
+    if (!tags.length) return '';
+    return `<div class="cc-omb-teste-grupo"><span class="cc-omb-teste-sub">${g.sub}</span>${tags.join('')}</div>`;
+  }).filter(Boolean);
+  if (!grupos.length) return '';
   return `
     <div class="cc-omb-seccao">
       <p class="cc-omb-rotulo">Testes especiais</p>
-      <div class="cc-omb-itens cc-omb-itens-compacto">${itens.join('')}</div>
+      <div class="cc-omb-testes-grid">${grupos.join('')}</div>
     </div>`;
 }
 
 /* ----- secção: amplitude articular (ROM) ----- */
 function ombROM(rom) {
   if (!rom) return '';
+  const _defCor = (def, norm) => {
+    if (def <= 0) return 'cc-v-verde';
+    const pct = norm ? (def / norm) * 100 : 100;
+    return pct < 30 ? 'cc-v-ambar' : 'cc-v-vermelho';
+  };
   const linhas = OMB_ROM_ORDEM.map(o => {
     const a = rom[`${o.ch}_a`];
     const p = rom[`${o.ch}_p`];
     if (!ombTem(a) && !ombTem(p)) return null;
     const norm = OMB_ROM_NORMAL[o.ch];
-    const delta = (ombTem(a) && ombTem(p)) ? (Number(p) - Number(a)) : null;
-    const pct = (ombTem(a) && norm) ? Math.round((Number(a) / norm) * 100) : null;
-    const corA = pct != null ? ombCorPct(pct) : '';
+    const nA = ombTem(a) ? Number(a) : null;
+    const nP = ombTem(p) ? Number(p) : null;
+    const deltaAP = (nA != null && nP != null) ? (nA - nP) : null;
+    const defice  = (nP != null && norm)        ? (norm - nP) : null;
+    const corDef  = defice != null ? _defCor(defice, norm) : '';
+    const deltaStr = deltaAP != null
+      ? (deltaAP === 0 ? '0°' : (deltaAP > 0 ? '+' + deltaAP + '°' : deltaAP + '°'))
+      : '—';
     return `
       <tr>
         <td>${escapeTexto(o.rot)}</td>
-        <td class="cc-omb-td-forte ${corA}">${ombTem(a) ? escapeTexto(a) + '°' : '—'}</td>
-        <td>${ombTem(p) ? escapeTexto(p) + '°' : '—'}</td>
-        <td class="cc-omb-td-tenue">${delta != null ? delta + '°' : '—'}</td>
+        <td class="cc-omb-td-forte">${nA != null ? nA + '°' : '—'}</td>
+        <td class="cc-omb-td-tenue">${nP != null ? nP + '°' : '—'}</td>
+        <td class="cc-omb-td-tenue">${deltaStr}</td>
         <td class="cc-omb-td-tenue">${norm}°</td>
-        <td class="cc-omb-td-forte ${corA}">${pct != null ? pct + '%' : '—'}</td>
+        <td class="cc-omb-td-forte ${corDef}">${defice != null ? (defice <= 0 ? '0°' : '−' + defice + '°') : '—'}</td>
       </tr>`;
   }).filter(Boolean);
   if (!linhas.length) return '';
@@ -337,7 +362,7 @@ function ombROM(rom) {
       <p class="cc-omb-rotulo">Amplitude articular</p>
       <table class="cc-omb-tabela">
         <thead><tr>
-          <th>Movimento</th><th>Activo</th><th>Passivo</th><th>Δ</th><th>Normal</th><th>% normal</th>
+          <th>Movimento</th><th>Activa</th><th>Passiva</th><th>Δ A−P</th><th>Ref.</th><th>Défice s/ ref.</th>
         </tr></thead>
         <tbody>${linhas.join('')}</tbody>
       </table>
@@ -387,47 +412,52 @@ function ombEscalas(escalas) {
   const oss = escalas.oss_score, ases = escalas.ases_score, dash = escalas.dash_score;
   if (!ombTem(oss) && !ombTem(ases) && !ombTem(dash)) return '';
 
-  const faixaOSS = (v) => {
-    const n = Number(v);
-    if (n >= 40) return '<span class="cc-omb-escala-faixa cc-omb-escala-faixa-verde">Excelente (40–48)</span>';
-    if (n >= 30) return '<span class="cc-omb-escala-faixa">Bom (30–39)</span>';
-    if (n >= 20) return '<span class="cc-omb-escala-faixa">Moderado (20–29)</span>';
-    return '<span class="cc-omb-escala-faixa">Fraco (0–19)</span>';
+  const _faixaOSS = (n) => {
+    if (n >= 40) return 'Excelente (40–48)';
+    if (n >= 30) return 'Bom (30–39)';
+    if (n >= 20) return 'Moderado (20–29)';
+    return 'Fraco (<20)';
   };
+  const _barCor = (pct) => pct >= 75 ? '#166534' : pct >= 50 ? '#92400e' : '#991b1b';
 
   const cartoes = [];
-  if (ombTem(oss)) cartoes.push(`
-    <div class="cc-omb-escala">
-      <p class="cc-omb-escala-nome">OSS</p>
-      <p class="cc-omb-escala-valor">${escapeTexto(oss)}<span class="cc-omb-escala-max">/48</span></p>
-      ${faixaOSS(oss)}
-    </div>`);
-  if (ombTem(ases)) cartoes.push(`
-    <div class="cc-omb-escala">
-      <p class="cc-omb-escala-nome">ASES</p>
-      <p class="cc-omb-escala-valor">${escapeTexto(ases)}<span class="cc-omb-escala-max">/100</span></p>
-      <p class="cc-omb-escala-faixa">Normativo ~92</p>
-    </div>`);
-  if (ombTem(dash)) cartoes.push(`
-    <div class="cc-omb-escala">
-      <p class="cc-omb-escala-nome">DASH</p>
-      <p class="cc-omb-escala-valor">${escapeTexto(dash)}<span class="cc-omb-escala-max">/100</span></p>
-      <p class="cc-omb-escala-faixa">MCID ~10 pts</p>
-    </div>`);
+  if (ombTem(dash)) {
+    const n = Number(dash), pct = Math.round((1 - n / 100) * 100);
+    cartoes.push(`
+      <div class="cc-omb-escala-card">
+        <div class="cc-omb-escala-head"><span class="cc-omb-escala-nome">QuickDASH</span><span class="cc-omb-escala-valor">${n}<span class="cc-omb-escala-max">/100</span></span></div>
+        <div class="cc-omb-escala-bar-wrap"><div class="cc-omb-escala-bar" style="width:${Math.round(n)}%;background:#991b1b;"></div></div>
+        <div class="cc-omb-escala-faixa">MCID ~10 pts · 0 = sem incapacidade</div>
+      </div>`);
+  }
+  if (ombTem(ases)) {
+    const n = Number(ases), pct = Math.round(n);
+    cartoes.push(`
+      <div class="cc-omb-escala-card">
+        <div class="cc-omb-escala-head"><span class="cc-omb-escala-nome">ASES</span><span class="cc-omb-escala-valor">${n}<span class="cc-omb-escala-max">/100</span></span></div>
+        <div class="cc-omb-escala-bar-wrap"><div class="cc-omb-escala-bar" style="width:${pct}%;background:${_barCor(pct)};"></div></div>
+        <div class="cc-omb-escala-faixa">Normativo ~92 · 100 = função total</div>
+      </div>`);
+  }
+  if (ombTem(oss)) {
+    const n = Number(oss), pct = Math.round((n / 48) * 100);
+    cartoes.push(`
+      <div class="cc-omb-escala-card">
+        <div class="cc-omb-escala-head"><span class="cc-omb-escala-nome">OSS</span><span class="cc-omb-escala-valor">${n}<span class="cc-omb-escala-max">/48</span></span></div>
+        <div class="cc-omb-escala-bar-wrap"><div class="cc-omb-escala-bar" style="width:${pct}%;background:${_barCor(pct)};"></div></div>
+        <div class="cc-omb-escala-faixa">${_faixaOSS(n)}</div>
+      </div>`);
+  }
 
   return `
     <div class="cc-omb-seccao">
       <p class="cc-omb-rotulo">Escalas funcionais</p>
-      <div class="cc-omb-escalas">${cartoes.join('')}</div>
-      <div class="cc-omb-interp">
-        <p class="cc-omb-interp-rotulo">Interpretação clínica das escalas</p>
-        <p class="cc-omb-interp-texto">Caixa sempre escrita pelo médico — nunca automática.</p>
-      </div>
+      <div class="cc-omb-escalas-grid">${cartoes.join('')}</div>
     </div>`;
 }
 
 /* Monta o registo de ombro completo. */
-function renderOmbro(ex, idx) {
+export function renderOmbro(ex, idx) {
   const d = ex.data || {};
   const ladoTxt = d.lado ? ` ${escapeTexto(d.lado).toLowerCase()}` : (ex.assessment_side ? ` ${escapeTexto(ex.assessment_side)}` : '');
   const data = formatarData(ex.assessment_date);

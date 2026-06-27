@@ -511,3 +511,45 @@ body {
   color: var(--cc-ténue); font-weight: 500;
   background: color-mix(in srgb, var(--cc-ténue) 16%, transparent);
 }
+
+/* ── Testes especiais: tags por subgrupo (2026-06-27) ── */
+.cc-omb-testes-grid { display: flex; flex-direction: column; gap: 8px; }
+.cc-omb-teste-grupo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cc-omb-teste-sub {
+  font-size: 10px; font-weight: 500; color: var(--cc-suave);
+  letter-spacing: 0.06em; text-transform: uppercase;
+  min-width: 52px; flex-shrink: 0;
+}
+.cc-omb-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; padding: 3px 9px; border-radius: 4px;
+  background: #f1f5f9; color: var(--cc-texto);
+  border: 1px solid #e2e8f0;
+}
+.cc-omb-tag.cc-v-verde  { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+.cc-omb-tag.cc-v-ambar  { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+.cc-omb-tag.cc-v-vermelho { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+.cc-omb-tag strong { font-weight: 600; }
+
+/* ── Escalas: cartões com barra de progresso (2026-06-27) ── */
+.cc-omb-escalas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.cc-omb-escala-card {
+  background: var(--cc-fundo, #f8fafc);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.cc-omb-escala-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 8px;
+}
+.cc-omb-escala-bar-wrap {
+  height: 6px; background: #e2e8f0; border-radius: 4px; margin-bottom: 6px;
+}
+.cc-omb-escala-bar {
+  height: 6px; border-radius: 4px; transition: width 0.3s ease;
+}

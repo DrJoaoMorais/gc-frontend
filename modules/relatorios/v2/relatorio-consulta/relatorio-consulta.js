@@ -8,6 +8,7 @@
 
 import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl } from '../_shell/shell-v2.js';
 import { buildPatientCard } from '../_components/patient-card.js';
+import { renderOmbro } from '../../consulta/v2/consulta-completa/cc-feed.js';
 
 const escAttr = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -123,6 +124,16 @@ async function loadDiagnoses(consultationId) {
   return (cat || []).map(d => ({ id: d.id, code: d.code || "", label: d.label || "" }));
 }
 
+async function loadExames(consultationId) {
+  const { data, error } = await window.sb
+    .from('consultation_assessments')
+    .select('id, assessment_type, assessment_side, assessment_date, data')
+    .eq('consultation_id', consultationId)
+    .order('assessment_date', { ascending: false });
+  if (error) { console.error('[rc] erro a obter exames:', error); return []; }
+  return data || [];
+}
+
 async function loadPlano(consultationId) {
   const { data: links, error } = await window.sb
     .from("consultation_treatments")
@@ -168,13 +179,14 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
 
   const clinicId = consultation.clinic_id;
 
-  const [patient, clinic, doctor, vinhetaUrl, diagnoses, plano] = await Promise.all([
+  const [patient, clinic, doctor, vinhetaUrl, diagnoses, plano, exames] = await Promise.all([
     loadPatient(consultation.patient_id),
     loadClinicById(clinicId),
     loadCurrentDoctor(),
     getVinhetaDataUrl(),
     loadDiagnoses(consultationId),
     loadPlano(consultationId),
+    loadExames(consultationId),
   ]);
 
   // Estado local — campos editáveis
@@ -272,8 +284,12 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
          </section>`
       : '';
 
-    // Placeholder para exame objectivo (entra no 3.5.b)
-    const examHtml = '';
+    const examHtml = exames.length
+      ? `<section class="gcv2-rc-section">
+           <h3 class="gcv2-rc-h3">Exame Objectivo</h3>
+           ${exames.map((ex, idx) => renderOmbro(ex, idx)).join('')}
+         </section>`
+      : '';
 
     const planoHtml = plano.length
       ? `<section class="gcv2-rc-section">
