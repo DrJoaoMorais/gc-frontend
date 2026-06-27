@@ -8,6 +8,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
   <script>
     window.SUPABASE_URL  = "https://nxfnzzcuqzxmzsihbrtp.supabase.co";
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA";
@@ -334,15 +336,48 @@
   <div class="fd-page" id="fd-page">
     <div class="fd-loading" id="fd-loading">A carregar consultas…</div>
 
-    <!-- card "Nova Consulta" (aparece ao clicar o botão) -->
+    <!-- card "Nova Consulta" — formulário inline completo -->
     <div class="fd-nova-wrap" id="fd-nova-wrap">
-      <button class="fd-nova-fechar" id="fd-nova-fechar">×</button>
-      <div class="fd-nova-titulo">Nova Consulta</div>
-      <div id="fd-nova-body">
-        <p style="font-size:13px;color:var(--suave);">
-          Para iniciar uma nova consulta, volta ao painel do doente e usa o botão
-          <strong>"Iniciar Consulta"</strong>.
-        </p>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <span style="font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:var(--navy);">Nova Consulta</span>
+        <span id="fd-nova-estado" style="font-size:12px;color:var(--suave);margin-left:4px;"></span>
+        <button class="fd-nova-fechar" id="fd-nova-fechar" style="margin-left:auto;">×</button>
+      </div>
+
+      <!-- HDA -->
+      <div style="margin-bottom:14px;">
+        <div class="fd-bloco-titulo">História da Doença Actual</div>
+        <div id="fd-quill-editor" style="background:#fff;border-radius:0 0 8px 8px;font-size:15px;min-height:160px;"></div>
+        <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;" id="fd-snips"></div>
+      </div>
+
+      <!-- Diagnósticos -->
+      <div style="margin-bottom:14px;">
+        <div class="fd-bloco-titulo">Diagnóstico</div>
+        <div id="fd-diag-chips" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;min-height:28px;"></div>
+        <input id="fd-diag-search" type="text" placeholder="Pesquisar diagnóstico (ICD-9)…"
+          style="width:100%;border:1px solid var(--linha);border-radius:7px;padding:8px 12px;
+                 font:14px 'Outfit',sans-serif;color:var(--texto);outline:none;box-sizing:border-box;" />
+        <div id="fd-diag-resultados" style="display:none;border:1px solid var(--linha);border-radius:7px;
+             margin-top:4px;background:#fff;max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.08);"></div>
+      </div>
+
+      <!-- Tratamentos -->
+      <div style="margin-bottom:16px;">
+        <div class="fd-bloco-titulo">Tratamentos</div>
+        <div id="fd-treat-chips" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;min-height:28px;"></div>
+        <input id="fd-treat-search" type="text" placeholder="Pesquisar tratamento…"
+          style="width:100%;border:1px solid var(--linha);border-radius:7px;padding:8px 12px;
+                 font:14px 'Outfit',sans-serif;color:var(--texto);outline:none;box-sizing:border-box;" />
+        <div id="fd-treat-resultados" style="display:none;border:1px solid var(--linha);border-radius:7px;
+             margin-top:4px;background:#fff;max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.08);"></div>
+      </div>
+
+      <!-- Acções -->
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button id="fd-btn-gravar" class="fd-btn-nova" style="padding:9px 22px;font-size:14px;">💾 Gravar Consulta</button>
+        <button id="fd-btn-cancelar" style="background:none;border:1px solid var(--linha);border-radius:8px;
+          padding:9px 16px;font:500 13px 'Outfit',sans-serif;color:var(--suave);cursor:pointer;">Cancelar</button>
       </div>
     </div>
 
@@ -671,14 +706,277 @@
       renderFeed(consultas, dadosPorId);
     }
 
+    /* ── estado do formulário nova consulta ── */
+    let fdQuill = null;
+    let fdDiagSelecionados = []; // [{id, code, label, system}]
+    let fdTreatSelecionados = []; // [{id, code, label}]
+    let fdDiagTimer = null;
+    let fdTreatTimer = null;
+
+    function fdDiz(txt, cor) {
+      const e = document.getElementById('fd-nova-estado');
+      if (e) { e.textContent = txt; e.style.color = cor || 'var(--suave)'; }
+    }
+
+    /* ── iniciar Quill ── */
+    function fdIniciarQuill() {
+      if (fdQuill) return;
+      fdQuill = new Quill('#fd-quill-editor', {
+        theme: 'snow',
+        placeholder: 'História da doença actual…',
+        modules: {
+          toolbar: [
+            ['bold', 'italic', 'underline'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            ['clean'],
+          ],
+        },
+      });
+
+      /* snippets rápidos */
+      const SNIPS = [
+        ['EVA','Dor EVA '], ['Rigidez','Rigidez matinal '],
+        ['Parestesias','Parestesias em '], ['Limitação','Limitação funcional para '],
+        ['Antecedentes','Antecedentes: '], ['Medicação','Medicação actual: '],
+      ];
+      const snipsEl = document.getElementById('fd-snips');
+      if (snipsEl) {
+        snipsEl.innerHTML = SNIPS.map(([r, t]) =>
+          `<span style="background:var(--fundo);border:1px solid var(--linha);border-radius:5px;
+            padding:4px 10px;font-size:11px;color:var(--suave);cursor:pointer;transition:all .15s;"
+            data-txt="${t}">${r}</span>`
+        ).join('');
+        snipsEl.querySelectorAll('span').forEach(s => {
+          s.addEventListener('mouseenter', () => { s.style.background='var(--azul)'; s.style.color='#fff'; });
+          s.addEventListener('mouseleave', () => { s.style.background='var(--fundo)'; s.style.color='var(--suave)'; });
+          s.addEventListener('click', () => {
+            const rng = fdQuill.getSelection(true);
+            const idx = rng ? rng.index : fdQuill.getLength();
+            fdQuill.insertText(idx, s.dataset.txt, 'user');
+            fdQuill.setSelection(idx + s.dataset.txt.length, 0);
+          });
+        });
+      }
+    }
+
+    /* ── render chips Dx ── */
+    function fdRenderDiagChips() {
+      const el = document.getElementById('fd-diag-chips');
+      if (!el) return;
+      el.innerHTML = fdDiagSelecionados.map(d => `
+        <span style="display:inline-flex;align-items:center;gap:5px;background:#eff6ff;
+          border:1px solid #bfdbfe;border-radius:6px;padding:3px 8px;font-size:12px;">
+          <span style="font-size:10px;font-weight:700;color:#3b82f6;background:#dbeafe;
+            border-radius:3px;padding:1px 4px;">${d.system?.includes('10')?'ICD-10':'ICD-9'}</span>
+          <span style="font-weight:600;color:var(--navy);">${esc(d.code)}</span>
+          <span style="color:var(--texto);">${esc(d.label)}</span>
+          <span data-diag-id="${d.id}" style="cursor:pointer;color:var(--tenue);font-size:14px;
+            line-height:1;margin-left:2px;" title="Remover">×</span>
+        </span>`).join('');
+      el.querySelectorAll('[data-diag-id]').forEach(x => {
+        x.addEventListener('click', () => {
+          fdDiagSelecionados = fdDiagSelecionados.filter(d => String(d.id) !== x.dataset.diagId);
+          fdRenderDiagChips();
+        });
+      });
+    }
+
+    /* ── pesquisa Dx ── */
+    function fdBindDiag() {
+      const input = document.getElementById('fd-diag-search');
+      const res   = document.getElementById('fd-diag-resultados');
+      if (!input || !res) return;
+
+      input.addEventListener('input', () => {
+        clearTimeout(fdDiagTimer);
+        const q = input.value.trim();
+        if (q.length < 2) { res.style.display = 'none'; return; }
+        fdDiagTimer = setTimeout(async () => {
+          const sb = window.sb;
+          const isCode = /^\d/.test(q);
+          let query = sb.from('diagnoses_catalog').select('id,system,code,label').limit(8);
+          if (isCode) query = query.ilike('code', `${q}%`);
+          else        query = query.ilike('label', `%${q}%`);
+          const { data } = await query;
+          if (!data?.length) { res.style.display = 'none'; return; }
+          res.style.display = 'block';
+          res.innerHTML = data.map(d => `
+            <div data-id="${d.id}" data-system="${esc(d.system||'')}" data-code="${esc(d.code)}" data-label="${esc(d.label)}"
+              style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--linha);
+                     display:flex;gap:8px;align-items:baseline;">
+              <span style="font-size:10px;font-weight:700;color:#3b82f6;background:#dbeafe;
+                border-radius:3px;padding:1px 4px;flex-shrink:0;">${d.system?.includes('10')?'ICD-10':'ICD-9'}</span>
+              <span style="font-weight:600;color:var(--navy);flex-shrink:0;">${esc(d.code)}</span>
+              <span style="color:var(--texto);">${esc(d.label)}</span>
+            </div>`).join('');
+          res.querySelectorAll('[data-id]').forEach(row => {
+            row.addEventListener('mouseenter', () => row.style.background = 'var(--fundo)');
+            row.addEventListener('mouseleave', () => row.style.background = '#fff');
+            row.addEventListener('click', () => {
+              const id = row.dataset.id;
+              if (!fdDiagSelecionados.find(d => String(d.id) === id)) {
+                fdDiagSelecionados.push({ id, system: row.dataset.system, code: row.dataset.code, label: row.dataset.label });
+                fdRenderDiagChips();
+              }
+              input.value = '';
+              res.style.display = 'none';
+            });
+          });
+        }, 300);
+      });
+
+      document.addEventListener('click', e => {
+        if (!res.contains(e.target) && e.target !== input) res.style.display = 'none';
+      });
+    }
+
+    /* ── render chips Tratamentos ── */
+    function fdRenderTreatChips() {
+      const el = document.getElementById('fd-treat-chips');
+      if (!el) return;
+      el.innerHTML = fdTreatSelecionados.map(t => `
+        <span style="display:inline-flex;align-items:center;gap:5px;background:#f0fdf4;
+          border:1px solid #bbf7d0;border-radius:6px;padding:3px 8px;font-size:12px;">
+          <span style="font-weight:600;color:#166534;">${esc(t.code)}</span>
+          <span style="color:var(--texto);">${esc(t.label)}</span>
+          <span data-treat-id="${t.id}" style="cursor:pointer;color:var(--tenue);font-size:14px;
+            line-height:1;margin-left:2px;" title="Remover">×</span>
+        </span>`).join('');
+      el.querySelectorAll('[data-treat-id]').forEach(x => {
+        x.addEventListener('click', () => {
+          fdTreatSelecionados = fdTreatSelecionados.filter(t => String(t.id) !== x.dataset.treatId);
+          fdRenderTreatChips();
+        });
+      });
+    }
+
+    /* ── pesquisa Tratamentos ── */
+    function fdBindTreat() {
+      const input = document.getElementById('fd-treat-search');
+      const res   = document.getElementById('fd-treat-resultados');
+      if (!input || !res) return;
+
+      input.addEventListener('input', () => {
+        clearTimeout(fdTreatTimer);
+        const q = input.value.trim();
+        if (q.length < 2) { res.style.display = 'none'; return; }
+        fdTreatTimer = setTimeout(async () => {
+          const sb = window.sb;
+          const isCode = /^\d/.test(q);
+          let query = sb.from('treatments_catalog').select('id,code,label').limit(8);
+          if (isCode) query = query.ilike('code', `${q}%`);
+          else        query = query.ilike('label', `%${q}%`);
+          const { data } = await query;
+          if (!data?.length) { res.style.display = 'none'; return; }
+          res.style.display = 'block';
+          res.innerHTML = data.map(t => `
+            <div data-id="${t.id}" data-code="${esc(t.code)}" data-label="${esc(t.label)}"
+              style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--linha);
+                     display:flex;gap:8px;align-items:baseline;">
+              <span style="font-weight:600;color:#166534;flex-shrink:0;">${esc(t.code)}</span>
+              <span style="color:var(--texto);">${esc(t.label)}</span>
+            </div>`).join('');
+          res.querySelectorAll('[data-id]').forEach(row => {
+            row.addEventListener('mouseenter', () => row.style.background = 'var(--fundo)');
+            row.addEventListener('mouseleave', () => row.style.background = '#fff');
+            row.addEventListener('click', () => {
+              const id = row.dataset.id;
+              if (!fdTreatSelecionados.find(t => String(t.id) === id)) {
+                fdTreatSelecionados.push({ id, code: row.dataset.code, label: row.dataset.label });
+                fdRenderTreatChips();
+              }
+              input.value = '';
+              res.style.display = 'none';
+            });
+          });
+        }, 300);
+      });
+
+      document.addEventListener('click', e => {
+        if (!res.contains(e.target) && e.target !== input) res.style.display = 'none';
+      });
+    }
+
+    /* ── gravar nova consulta ── */
+    async function fdGravar() {
+      const sb = window.sb;
+      if (!fdQuill) return;
+      const hda = fdQuill.root.innerHTML;
+      fdDiz('A gravar…', 'var(--suave)');
+
+      try {
+        /* 1. criar consulta */
+        const userRes = await sb.auth.getUser();
+        const userId  = userRes?.data?.user?.id;
+        const hoje    = new Date().toISOString().slice(0, 10);
+
+        const { data: ins, error: insErr } = await sb
+          .from('consultations')
+          .insert({
+            patient_id:    PATIENT_ID,
+            author_user_id: userId,
+            report_date:   hoje,
+            hda:           hda,
+            assessment:    '',
+            plan_text:     JSON.stringify({ treat_order: fdTreatSelecionados.map(t => t.id) }),
+          })
+          .select('id')
+          .single();
+        if (insErr) throw insErr;
+        const consultId = ins.id;
+
+        /* 2. diagnósticos */
+        if (fdDiagSelecionados.length) {
+          const { error: dErr } = await sb.rpc('save_consultation_diagnoses', {
+            p_consultation_id: consultId,
+            p_diagnosis_ids:   fdDiagSelecionados.map(d => String(d.id)),
+          });
+          if (dErr) throw dErr;
+        }
+
+        /* 3. tratamentos */
+        if (fdTreatSelecionados.length) {
+          const { error: tErr } = await sb.rpc('save_consultation_treatments', {
+            p_consultation_id: consultId,
+            p_treatment_ids:   fdTreatSelecionados.map(t => t.id),
+            p_qtys:            fdTreatSelecionados.map(() => 1),
+          });
+          if (tErr) throw tErr;
+        }
+
+        fdDiz('Gravado ✓', 'var(--verde)');
+
+        /* 4. reset + reload do feed */
+        fdQuill.setText('');
+        fdDiagSelecionados = [];
+        fdTreatSelecionados = [];
+        fdRenderDiagChips();
+        fdRenderTreatChips();
+        document.getElementById('fd-nova-wrap')?.classList.remove('visivel');
+
+        /* recarregar feed */
+        await boot();
+
+      } catch(e) {
+        fdDiz('Erro: ' + (e.message || e), 'var(--vermelho)');
+      }
+    }
+
     /* ── botão "Nova Consulta" ── */
     document.getElementById('fd-btn-nova')?.addEventListener('click', () => {
       const wrap = document.getElementById('fd-nova-wrap');
       wrap?.classList.add('visivel');
       wrap?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-    document.getElementById('fd-nova-fechar')?.addEventListener('click', () => {
-      document.getElementById('fd-nova-wrap')?.classList.remove('visivel');
+      fdIniciarQuill();
+      fdBindDiag();
+      fdBindTreat();
+      document.getElementById('fd-btn-gravar')?.addEventListener('click', fdGravar);
+      document.getElementById('fd-btn-cancelar')?.addEventListener('click', () => {
+        wrap?.classList.remove('visivel');
+      });
+      document.getElementById('fd-nova-fechar')?.addEventListener('click', () => {
+        wrap?.classList.remove('visivel');
+      });
     });
 
     boot();
