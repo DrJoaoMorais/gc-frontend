@@ -190,6 +190,15 @@
     }
 
     /* ===== RESPONSIVE ===== */
+    /* ===== BOTÕES REGIÃO ===== */
+    .fc-regiao-btn {
+      padding: 7px 14px; border: 1px solid var(--cc-linha);
+      border-radius: 20px; font-size: 12px; font-weight: 500;
+      cursor: pointer; background: var(--cc-fundo); color: var(--cc-suave);
+      font-family: 'Outfit', sans-serif; transition: all .15s;
+    }
+    .fc-regiao-btn:hover { background: var(--cc-azul); color: #fff; border-color: var(--cc-azul); }
+
     @media (max-width: 860px) {
       .fc-layout { grid-template-columns: 1fr; }
       .fc-col-side { position: static; max-height: none; overflow: visible; }
@@ -250,6 +259,30 @@
                 <label class="fc-obj-label" for="fc-objectivos">Objectivos</label>
                 <textarea id="fc-objectivos" class="fc-obj-textarea" placeholder="Objectivos da consulta…" rows="2"></textarea>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- NOVO EXAME OBJECTIVO — botões por região -->
+        <div class="cc-bloco">
+          <div class="cc-bloco-head">
+            <span class="cc-bloco-icon">⚕️</span>
+            <span class="cc-bloco-titulo">Exame Objectivo — Nova Avaliação</span>
+          </div>
+          <div class="cc-acc-body" style="padding:10px 14px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="fc-regiao-btn" data-r="ombro">💪 Ombro</button>
+              <button class="fc-regiao-btn" data-r="cotovelo">🦾 Cotovelo</button>
+              <button class="fc-regiao-btn" data-r="punho-mao">✋ Punho / Mão</button>
+              <button class="fc-regiao-btn" data-r="anca">🦴 Anca</button>
+              <button class="fc-regiao-btn" data-r="joelho">🦵 Joelho</button>
+              <button class="fc-regiao-btn" data-r="tibio">🦶 Tibiotársica</button>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="fc-regiao-btn" data-r="cervical">⬆️ Cervical</button>
+              <button class="fc-regiao-btn" data-r="lombar">⬇️ Lombar</button>
+              <button class="fc-regiao-btn" data-r="pfp">🥴 Par. Facial</button>
+              <button class="fc-regiao-btn" data-r="rpp">🩺 Pav. Pélvico</button>
             </div>
           </div>
         </div>
@@ -333,7 +366,7 @@
       /* --- 1. Consulta + HDA --- */
       const { data: consulta, error: eC } = await sb
         .from('consultations')
-        .select('id, report_date, hda, objectives, plan_text, author_display_name')
+        .select('id, report_date, hda, objectives, plan_text, author_display_name, clinic_id')
         .eq('id', consultationId)
         .single();
       if (eC) throw eC;
@@ -457,6 +490,7 @@
       }
 
       const { consulta, diagnosticos, tratamentos, exames, protocolo } = consultaData;
+      window._gcClinicId = consulta.clinic_id || '';
 
       if (consulta.report_date) {
         const [a, m, d] = consulta.report_date.split('-');
@@ -500,6 +534,7 @@
       bindAccordeons();
       bindGravar();
       bindBotoesRelatorio();
+      bindBotoesRegiao();
     }
 
     /* -------- Quill -------- */
@@ -654,6 +689,23 @@
         } catch (e) {
           diz('Erro: ' + (e.message || e), 'erro');
         }
+      });
+    }
+
+    function bindBotoesRegiao() {
+      const nome = document.getElementById('fc-nome')?.textContent || '';
+      const clinicId = window._gcClinicId || '';
+      document.querySelectorAll('.fc-regiao-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const r = btn.dataset.r;
+          const base = new URL('../../../obj/regiao.html', window.location.href);
+          base.searchParams.set('r', r);
+          base.searchParams.set('p', PATIENT_ID);
+          base.searchParams.set('s', CONSULTA_ID);
+          base.searchParams.set('c', clinicId);
+          base.searchParams.set('n', nome);
+          window.open(base.toString(), '_blank');
+        });
       });
     }
 
