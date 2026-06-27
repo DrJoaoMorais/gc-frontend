@@ -18,7 +18,7 @@ let _savedOnce = false;
   const config = (await import('./configs/' + r + '.js')).default;
   window._examCtx = { patientId: qp.get('p') || null, clinicId: qp.get('c') || null, consultationId: qp.get('s') || null };
   const _ed = document.getElementById('examDate');
-  if (_ed) _ed.value = new Date().toISOString().split('T')[0];
+  if (_ed) { _ed.value = new Date().toISOString().split('T')[0]; _ed.max = new Date().toISOString().split('T')[0]; }
   _motorCfg = config;
   _renderPage(config);
 })();
@@ -38,8 +38,8 @@ function _renderPage(cfg) {
         '<div class="opts sg" id="lado">' +
           '<div class="opt" data-v="Direito">D</div>' +
           '<div class="opt" data-v="Esquerdo">E</div>' +
-          '<div class="opt" data-v="Bilateral">Bilateral</div>' +
         '</div>' +
+        '<input type="date" id="examDate" title="Data do exame" style="font-size:13px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;color:#0f2d52;margin-left:12px;">' +
       '</div>';
   }
 
