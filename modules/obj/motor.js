@@ -16,7 +16,7 @@ let _savedOnce = false;
     return;
   }
   const config = (await import('./configs/' + r + '.js')).default;
-  window._examCtx = { patientId: qp.get('p') || null, clinicId: qp.get('c') || null, consultationId: qp.get('s') || null };
+  window._examCtx = { patientId: qp.get('p') || null, clinicId: qp.get('c') || null, consultationId: qp.get('s') || null, patientName: qp.get('n') || null };
   _motorCfg = config;
   _renderPage(config);
   const _ed = document.getElementById('examDate');

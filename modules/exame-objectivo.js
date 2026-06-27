@@ -243,7 +243,7 @@ async function openExameObjectivoForm(formId, ctx = {}) {
      OMBRO
   ══════════════════════════════════════════════════════════════ */
   if (formId === "ombro") {
-    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
+    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||'', n: ctx.patientName||''});
     window.open('/modules/obj/regiao.html?r=ombro&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
     return;
   }
@@ -252,7 +252,7 @@ async function openExameObjectivoForm(formId, ctx = {}) {
      COTOVELO — motor genérico
   ══════════════════════════════════════════════════════════════ */
   if (formId === "cotovelo") {
-    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
+    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||'', n: ctx.patientName||''});
     window.open('/modules/obj/regiao.html?r=cotovelo&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
     return;
   }
@@ -261,7 +261,7 @@ async function openExameObjectivoForm(formId, ctx = {}) {
      PUNHO / MÃO — motor genérico
   ══════════════════════════════════════════════════════════════ */
   if (formId === "punho") {
-    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
+    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||'', n: ctx.patientName||''});
     window.open('/modules/obj/regiao.html?r=punho-mao&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
     return;
   }
@@ -270,7 +270,7 @@ async function openExameObjectivoForm(formId, ctx = {}) {
      ANCA — motor genérico
   ══════════════════════════════════════════════════════════════ */
   if (formId === "anca") {
-    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
+    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||'', n: ctx.patientName||''});
     window.open('/modules/obj/regiao.html?r=anca&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
     return;
   }
@@ -279,7 +279,7 @@ async function openExameObjectivoForm(formId, ctx = {}) {
      JOELHO — motor genérico
   ══════════════════════════════════════════════════════════════ */
   if (formId === "joelho") {
-    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
+    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||'', n: ctx.patientName||''});
     window.open('/modules/obj/regiao.html?r=joelho&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
     return;
   }
@@ -490,7 +490,7 @@ return L.join('\\n');
      TIBIOTÁRSICA / PÉ
   ══════════════════════════════════════════════════════════════ */
   if (formId === "tibio") {
-    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
+    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||'', n: ctx.patientName||''});
     window.open('/modules/obj/regiao.html?r=tibio&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
     return;
   }
@@ -499,7 +499,7 @@ return L.join('\\n');
      COLUNA CERVICAL — motor genérico
   ══════════════════════════════════════════════════════════════ */
   if (formId === "cervical") {
-    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
+    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||'', n: ctx.patientName||''});
     window.open('/modules/obj/regiao.html?r=cervical&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
     return;
   }
@@ -508,7 +508,7 @@ return L.join('\\n');
      PARESIA FACIAL PERIFÉRICA — motor genérico
   ══════════════════════════════════════════════════════════════ */
   if (formId === "pfp") {
-    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
+    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||'', n: ctx.patientName||''});
     window.open('/modules/obj/regiao.html?r=pfp&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
     return;
   }
@@ -517,13 +517,13 @@ return L.join('\\n');
      REABILITAÇÃO PAVIMENTO PÉLVICO — motor genérico
   ══════════════════════════════════════════════════════════════ */
   if (formId === "rpp") {
-    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
+    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||'', n: ctx.patientName||''});
     window.open('/modules/obj/regiao.html?r=rpp&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
     return;
   }
 
   if (formId === "lombar") {
-    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||''});
+    const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||'', n: ctx.patientName||''});
     window.open('/modules/obj/regiao.html?r=lombar&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
     return;
   }

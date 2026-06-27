@@ -4442,7 +4442,8 @@ function openPatientViewModal(patient) {
       const _ctx = {
         patientId: p.id,
         clinicId: activeClinicId,
-        consultationId: lastSavedConsultId || (consultRows?.length ? consultRows[0].id : null)
+        consultationId: lastSavedConsultId || (consultRows?.length ? consultRows[0].id : null),
+        patientName: p.full_name || ''
       };
       openExameObjectivoMenu(document.getElementById("btnExameObjectivo"), _ctx);
     });
