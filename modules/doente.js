@@ -2851,8 +2851,69 @@ function openPatientViewModal(patient) {
     return result || sanitized;
   }
 
+  function _examLinhasParaHTML(lines) {
+    if (!lines || !lines.length) return '';
+    var html = '<div style="font-family:inherit;font-size:12px;line-height:1.7;">';
+    var emGrid = false;
+    var gridItems = [];
+    var _fechaGrid = function() {
+      if (!emGrid) return;
+      html += '<div style="display:flex;flex-wrap:wrap;gap:5px;margin:4px 0;">';
+      gridItems.forEach(function(it) { html += it; });
+      html += '</div>';
+      gridItems = [];
+      emGrid = false;
+    };
+    lines.forEach(function(linha) {
+      if (!linha.trim()) { _fechaGrid(); return; }
+      // T\u00EDtulo de sec\u00E7\u00E3o (mai\u00FAsculas sem indent)
+      if (linha === linha.toUpperCase() && linha.trim().length > 2) {
+        _fechaGrid();
+        html += '<p style="font-size:10px;font-weight:600;color:#1a56db;letter-spacing:0.08em;margin:10px 0 4px 0;">' + linha.trim() + '</p>';
+        return;
+      }
+      // EVA \u2014 pills
+      if (linha.startsWith('EVA:')) {
+        _fechaGrid();
+        var partes = linha.replace('EVA: ','').split(' | ');
+        var pills = partes.map(function(p) {
+          return '<span style="display:inline-block;background:#0f2d52;color:#fff;font-size:11px;padding:2px 9px;border-radius:12px;margin-right:5px;">' + p + '</span>';
+        }).join('');
+        html += '<p style="margin:4px 0;">' + pills + '</p>';
+        return;
+      }
+      // Item com indent \u2192 chip
+      if (linha.startsWith('  ')) {
+        emGrid = true;
+        var conteudo = linha.trim();
+        var sep = conteudo.indexOf(': ');
+        if (sep > -1) {
+          var label = conteudo.substring(0, sep);
+          var valor = conteudo.substring(sep + 2);
+          gridItems.push(
+            '<span style="display:inline-block;background:#f1f5f9;border-radius:4px;padding:2px 8px;font-size:11px;">' +
+            '<span style="color:#555;">' + label + ':</span> ' +
+            '<strong style="color:#0f2d52;">' + valor + '</strong>' +
+            '</span>'
+          );
+        } else {
+          gridItems.push(
+            '<span style="display:inline-block;background:#f1f5f9;border-radius:4px;padding:2px 8px;font-size:11px;color:#0f2d52;">' + conteudo + '</span>'
+          );
+        }
+        return;
+      }
+      // Linha normal
+      _fechaGrid();
+      html += '<p style="margin:2px 0;">' + linha + '</p>';
+    });
+    _fechaGrid();
+    html += '</div>';
+    return html;
+  }
+
   function _wrapExamBlock(title, lines) {
-    var body = lines.join('\n');
+    var body = _examLinhasParaHTML(lines);
     return (
       '<details style="margin:5px 0; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">' +
       '<summary style="cursor:pointer; padding:6px 12px; background:#f8fafc; font-size:12px;' +
@@ -2862,8 +2923,7 @@ function openPatientViewModal(patient) {
       '<span>Exame Objectivo \u2014 ' + title + '</span>' +
       '<span style="margin-left:auto; font-size:11px; color:#94a3b8; font-weight:400;">clique para expandir</span>' +
       '</summary>' +
-      '<div style="padding:8px 14px; font-size:12px; line-height:1.3; color:#374151;' +
-      ' white-space:pre-wrap; font-family:inherit;">' +
+      '<div style="padding:8px 14px;">' +
       body +
       '</div>' +
       '</details>'
