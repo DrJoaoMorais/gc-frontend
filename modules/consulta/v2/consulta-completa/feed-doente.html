@@ -918,15 +918,13 @@
     async function fdRenderCatalogo(q) {
       const cat = document.getElementById('fd-treat-catalogo');
       if (!cat) return;
-      if (q.length < 2) {
-        cat.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--tenue);font-style:italic;">Escreva para pesquisar…</div>';
-        return;
-      }
       const sb = window.sb;
-      const isCode = /^\d/.test(q);
-      let query = sb.from('treatments_catalog').select('id,code,label').limit(12);
-      if (isCode) query = query.ilike('code', `${q}%`);
-      else        query = query.ilike('label', `%${q}%`);
+      let query = sb.from('treatments_catalog').select('id,code,label').limit(20);
+      if (q.length >= 2) {
+        const isCode = /^\d/.test(q);
+        if (isCode) query = query.ilike('code', `${q}%`);
+        else        query = query.ilike('label', `%${q}%`);
+      }
       const { data } = await query;
       if (!data?.length) {
         cat.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--tenue);">Sem resultados.</div>';
