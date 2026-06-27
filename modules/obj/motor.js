@@ -1704,7 +1704,7 @@ function _calcDynCervical(data, dynCfg) {
 window._saveExamToSupabase = async function (txt, dataObj) {
   const c = window._examCtx || {};
   if (!c.consultationId) return;
-  const sb = window.opener && window.opener.sb;
+  const sb = window.sb || (window.opener && window.opener.sb);
   if (!sb) {
     const te = document.getElementById('toast-err');
     if (te) te.classList.add('show');
