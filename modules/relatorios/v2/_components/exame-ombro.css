@@ -1,0 +1,287 @@
+/* =================================================================
+   exame-ombro.css  ·  Exame Objectivo — Ombro
+   Classes cc-omb-* usadas por exame-ombro.js e cc-feed.js.
+   Serve o feed do doente (consulta-completa) e o relatório PDF.
+   ================================================================= */
+
+/* -------- Contentor do registo -------- */
+.cc-exame-registo {
+  margin-bottom: 1.25rem;
+}
+
+/* -------- Cabeçalho do exame -------- */
+.cc-omb-cabec {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1.5px solid #1a56db;
+}
+
+.cc-omb-titulo {
+  font-family: 'Outfit', sans-serif;
+  font-size: 11pt;
+  font-weight: 600;
+  color: #0f2d52;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex: 1;
+}
+
+.cc-omb-data {
+  font-family: 'Outfit', sans-serif;
+  font-size: 9pt;
+  color: #64748b;
+}
+
+.cc-exame-nota {
+  font-family: 'Outfit', sans-serif;
+  font-size: 8pt;
+  color: #94a3b8;
+  background: #f1f5f9;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* -------- Secção genérica -------- */
+.cc-omb-seccao {
+  margin-bottom: 0.875rem;
+}
+
+.cc-omb-rotulo {
+  font-family: 'Outfit', sans-serif;
+  font-size: 8.5pt;
+  font-weight: 600;
+  color: #1a56db;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.35rem 0;
+}
+
+.cc-omb-rotulo-norm {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #94a3b8;
+  font-size: 8pt;
+}
+
+/* -------- Chips de topo (dor, EVA, localização) -------- */
+.cc-omb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 0.75rem;
+}
+
+.cc-omb-chip {
+  font-family: 'Outfit', sans-serif;
+  font-size: 9pt;
+  background: #e8f0fb;
+  color: #1a56db;
+  padding: 2px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.cc-omb-chip-eva {
+  background: #0f2d52;
+  color: #fff;
+}
+
+/* -------- Itens em linha (palpação, funcional, MRC) -------- */
+.cc-omb-itens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.cc-omb-item {
+  font-family: 'Outfit', sans-serif;
+  font-size: 10pt;
+  color: #334155;
+}
+
+.cc-omb-item-val {
+  font-size: 9.5pt;
+}
+
+/* -------- Tabela genérica (ROM e dinamometria) -------- */
+.cc-omb-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Outfit', sans-serif;
+  font-size: 10pt;
+}
+
+.cc-omb-tabela thead th {
+  font-size: 8.5pt;
+  font-weight: 600;
+  color: #64748b;
+  border-bottom: 1.5px solid #1a56db;
+  padding: 4px 8px;
+  text-align: right;
+}
+
+.cc-omb-tabela thead th:first-child {
+  text-align: left;
+}
+
+.cc-omb-tabela tbody td {
+  padding: 4px 8px;
+  border-bottom: 0.5px solid #e2e8f0;
+  text-align: right;
+  vertical-align: middle;
+  color: #475569;
+}
+
+.cc-omb-tabela tbody td:first-child {
+  text-align: left;
+  font-weight: 500;
+  color: #0f2d52;
+}
+
+.cc-omb-tabela tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Células fortes (valor activo, assimetria) */
+.cc-omb-td-forte {
+  color: #0f2d52;
+  font-weight: 600;
+}
+
+/* Células ténues (passivo, referência) */
+.cc-omb-td-tenue {
+  color: #94a3b8;
+}
+
+/* -------- Cores semânticas -------- */
+.cc-v-verde  { color: #166534 !important; }
+.cc-v-ambar  { color: #92400e !important; }
+.cc-v-vermelho { color: #991b1b !important; }
+
+/* -------- Tags dos testes especiais -------- */
+.cc-omb-testes-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.cc-omb-teste-grupo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cc-omb-teste-sub {
+  font-family: 'Outfit', sans-serif;
+  font-size: 8pt;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-right: 4px;
+}
+
+.cc-omb-tag {
+  display: inline-block;
+  font-family: 'Outfit', sans-serif;
+  font-size: 9pt;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.cc-omb-tag.cc-v-verde    { background: #dcfce7; color: #166534 !important; }
+.cc-omb-tag.cc-v-ambar    { background: #fef3c7; color: #92400e !important; }
+.cc-omb-tag.cc-v-vermelho { background: #fee2e2; color: #991b1b !important; }
+
+/* -------- Escalas funcionais -------- */
+.cc-omb-escalas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.cc-omb-escala-card {
+  background: #f8fafc;
+  border: 0.5px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.cc-omb-escala-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+
+.cc-omb-escala-nome {
+  font-family: 'Outfit', sans-serif;
+  font-size: 8.5pt;
+  font-weight: 600;
+  color: #0f2d52;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cc-omb-escala-valor {
+  font-family: 'Outfit', sans-serif;
+  font-size: 14pt;
+  font-weight: 600;
+  color: #0f2d52;
+}
+
+.cc-omb-escala-max {
+  font-size: 9pt;
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.cc-omb-escala-bar-wrap {
+  height: 5px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  margin-bottom: 5px;
+  overflow: hidden;
+}
+
+.cc-omb-escala-bar {
+  height: 5px;
+  border-radius: 4px;
+}
+
+.cc-omb-escala-faixa {
+  font-family: 'Outfit', sans-serif;
+  font-size: 8pt;
+  color: #94a3b8;
+}
+
+/* -------- Vazio -------- */
+.cc-vazio {
+  font-family: 'Outfit', sans-serif;
+  font-size: 10pt;
+  color: #94a3b8;
+  font-style: italic;
+  margin: 0;
+}
+
+/* -------- Ajustes para impressão / PDF -------- */
+@media print {
+  .cc-omb-tabela thead th,
+  .cc-omb-tabela tbody td {
+    font-size: 9pt;
+    padding: 3px 6px;
+  }
+  .cc-omb-escalas-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .cc-omb-tag {
+    font-size: 8pt;
+  }
+}

@@ -81,6 +81,15 @@ function ensureRelConsultaCss() {
   document.head.appendChild(lnk);
 }
 
+function ensureExameOmbroCss() {
+  if (document.querySelector('link[data-gcv2-exame-ombro]')) return;
+  const lnk = document.createElement('link');
+  lnk.rel = 'stylesheet';
+  lnk.href = new URL('../_components/exame-ombro.css', import.meta.url).href;
+  lnk.dataset.gcv2ExameOmbro = '1';
+  document.head.appendChild(lnk);
+}
+
 // -----------------------------------------------------------------
 // Carregamento de dados
 // -----------------------------------------------------------------
@@ -173,6 +182,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
   ensureShellCss();
   ensureAtestadoCss();
   ensureRelConsultaCss();
+  ensureExameOmbroCss();
 
   const consultation = await loadConsultation(consultationId);
   if (!consultation) { alert('Consulta não encontrada'); return; }
@@ -390,7 +400,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     btn.textContent = 'A gerar PDF…';
 
     try {
-      const styles = Array.from(document.querySelectorAll('link[data-gcv2-shell], link[data-gcv2-atestado], link[data-gcv2-rc]'))
+      const styles = Array.from(document.querySelectorAll('link[data-gcv2-shell], link[data-gcv2-atestado], link[data-gcv2-rc], link[data-gcv2-exame-ombro]'))
         .map(l => `<link rel="stylesheet" href="${l.href}">`).join('\n');
 
       // Vinheta de autenticação — passada ao shell via config.authVinheta
