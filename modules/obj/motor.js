@@ -17,6 +17,8 @@ let _savedOnce = false;
   }
   const config = (await import('./configs/' + r + '.js')).default;
   window._examCtx = { patientId: qp.get('p') || null, clinicId: qp.get('c') || null, consultationId: qp.get('s') || null };
+  const _ed = document.getElementById('examDate');
+  if (_ed) _ed.value = new Date().toISOString().split('T')[0];
   _motorCfg = config;
   _renderPage(config);
 })();
@@ -1708,7 +1710,7 @@ window._saveExamToSupabase = async function (txt, dataObj) {
       author_user_id: authorId,
       assessment_type: _motorCfg ? _motorCfg.id : 'unknown',
       assessment_side: lado,
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: document.getElementById('examDate')?.value || new Date().toISOString().split('T')[0],
       data: payload
     });
     if (res.error) console.error('saveExam:', res.error);
