@@ -362,15 +362,53 @@
              margin-top:4px;background:#fff;max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.08);"></div>
       </div>
 
-      <!-- Tratamentos -->
+      <!-- Sessões + texto R/ -->
+      <div style="margin-bottom:14px;">
+        <div class="fd-bloco-titulo">Plano Terapêutico</div>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+          <label style="font-size:12px;color:var(--suave);">Nº sessões
+            <input id="fd-sessoes-total" type="number" min="1" max="60" value="20"
+              style="width:60px;border:1px solid var(--linha);border-radius:6px;padding:5px 8px;
+                     font:14px 'Outfit',sans-serif;color:var(--texto);outline:none;margin-left:6px;" />
+          </label>
+          <label style="font-size:12px;color:var(--suave);">Periodicidade
+            <input id="fd-sessoes-semana" type="number" min="1" max="7" value="3"
+              style="width:50px;border:1px solid var(--linha);border-radius:6px;padding:5px 8px;
+                     font:14px 'Outfit',sans-serif;color:var(--texto);outline:none;margin-left:6px;" />
+            ×/semana
+          </label>
+        </div>
+        <div style="font-size:12px;color:var(--suave);font-style:italic;margin-bottom:10px;"
+             id="fd-texto-r">R/ Prescrevem-se 20 sessões de Tratamentos de Medicina Física e de Reabilitação (3×/semana) com:</div>
+      </div>
+
+      <!-- Tratamentos — duas colunas -->
       <div style="margin-bottom:16px;">
         <div class="fd-bloco-titulo">Tratamentos</div>
-        <div id="fd-treat-chips" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;min-height:28px;"></div>
-        <input id="fd-treat-search" type="text" placeholder="Pesquisar tratamento…"
-          style="width:100%;border:1px solid var(--linha);border-radius:7px;padding:8px 12px;
-                 font:14px 'Outfit',sans-serif;color:var(--texto);outline:none;box-sizing:border-box;" />
-        <div id="fd-treat-resultados" style="display:none;border:1px solid var(--linha);border-radius:7px;
-             margin-top:4px;background:#fff;max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.08);"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;">
+
+          <!-- coluna esquerda: catálogo -->
+          <div>
+            <div style="font-size:11px;color:var(--tenue);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">Disponíveis</div>
+            <input id="fd-treat-search" type="text" placeholder="Pesquisar…"
+              style="width:100%;border:1px solid var(--linha);border-radius:7px;padding:7px 10px;
+                     font:13px 'Outfit',sans-serif;color:var(--texto);outline:none;
+                     box-sizing:border-box;margin-bottom:6px;" />
+            <div id="fd-treat-catalogo"
+              style="border:1px solid var(--linha);border-radius:7px;background:#fff;
+                     min-height:120px;max-height:200px;overflow-y:auto;"></div>
+          </div>
+
+          <!-- coluna direita: seleccionados -->
+          <div>
+            <div style="font-size:11px;color:var(--tenue);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">Seleccionados</div>
+            <div id="fd-treat-selected"
+              style="border:1px solid var(--linha);border-radius:7px;background:#f0fdf4;
+                     min-height:120px;max-height:200px;overflow-y:auto;padding:6px;">
+              <div id="fd-treat-vazio" style="font-size:12px;color:var(--tenue);font-style:italic;padding:8px;">Nenhum seleccionado</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Acções -->
@@ -830,22 +868,82 @@
       });
     }
 
-    /* ── render chips Tratamentos ── */
+    /* ── texto R/ reactivo ── */
+    function fdAtualizarTextoR() {
+      const s = Number(document.getElementById('fd-sessoes-total')?.value || 20);
+      const p = Number(document.getElementById('fd-sessoes-semana')?.value || 3);
+      const el = document.getElementById('fd-texto-r');
+      if (el) el.textContent = `R/ Prescrevem-se ${s} sessões de Tratamentos de Medicina Física e de Reabilitação (${p}×/semana) com:`;
+    }
+
+    /* ── render lista seleccionados ── */
     function fdRenderTreatChips() {
-      const el = document.getElementById('fd-treat-chips');
+      const el    = document.getElementById('fd-treat-selected');
+      const vazio = document.getElementById('fd-treat-vazio');
       if (!el) return;
-      el.innerHTML = fdTreatSelecionados.map(t => `
-        <span style="display:inline-flex;align-items:center;gap:5px;background:#f0fdf4;
-          border:1px solid #bbf7d0;border-radius:6px;padding:3px 8px;font-size:12px;">
-          <span style="font-weight:600;color:#166534;">${esc(t.code)}</span>
-          <span style="color:var(--texto);">${esc(t.label)}</span>
-          <span data-treat-id="${t.id}" style="cursor:pointer;color:var(--tenue);font-size:14px;
-            line-height:1;margin-left:2px;" title="Remover">×</span>
-        </span>`).join('');
-      el.querySelectorAll('[data-treat-id]').forEach(x => {
-        x.addEventListener('click', () => {
-          fdTreatSelecionados = fdTreatSelecionados.filter(t => String(t.id) !== x.dataset.treatId);
+      if (!fdTreatSelecionados.length) {
+        if (vazio) vazio.style.display = '';
+        el.querySelectorAll('[data-treat-row]').forEach(n => n.remove());
+        return;
+      }
+      if (vazio) vazio.style.display = 'none';
+      /* reconstruir itens */
+      el.querySelectorAll('[data-treat-row]').forEach(n => n.remove());
+      fdTreatSelecionados.forEach(t => {
+        const row = document.createElement('div');
+        row.setAttribute('data-treat-row', t.id);
+        row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:6px;margin-bottom:4px;background:#dcfce7;font-size:12px;';
+        row.innerHTML = `
+          <span style="font-weight:600;color:#166534;flex-shrink:0;">${esc(t.code)}</span>
+          <span style="color:var(--texto);flex:1;">${esc(t.label)}</span>
+          <span data-treat-id="${t.id}" style="cursor:pointer;color:var(--tenue);font-size:16px;line-height:1;flex-shrink:0;" title="Remover">×</span>`;
+        row.querySelector('[data-treat-id]').addEventListener('click', () => {
+          fdTreatSelecionados = fdTreatSelecionados.filter(x => String(x.id) !== t.id);
           fdRenderTreatChips();
+          fdRenderCatalogo(document.getElementById('fd-treat-search')?.value || '');
+        });
+        el.appendChild(row);
+      });
+    }
+
+    /* ── render catálogo (coluna esquerda) ── */
+    async function fdRenderCatalogo(q) {
+      const cat = document.getElementById('fd-treat-catalogo');
+      if (!cat) return;
+      if (q.length < 2) {
+        cat.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--tenue);font-style:italic;">Escreva para pesquisar…</div>';
+        return;
+      }
+      const sb = window.sb;
+      const isCode = /^\d/.test(q);
+      let query = sb.from('treatments_catalog').select('id,code,label').limit(12);
+      if (isCode) query = query.ilike('code', `${q}%`);
+      else        query = query.ilike('label', `%${q}%`);
+      const { data } = await query;
+      if (!data?.length) {
+        cat.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--tenue);">Sem resultados.</div>';
+        return;
+      }
+      cat.innerHTML = data.map(t => {
+        const sel = !!fdTreatSelecionados.find(x => String(x.id) === String(t.id));
+        return `<div data-id="${t.id}" data-code="${esc(t.code)}" data-label="${esc(t.label)}"
+          style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--linha);
+                 display:flex;gap:8px;align-items:baseline;${sel ? 'background:#f0fdf4;' : ''}">
+          <span style="font-weight:600;color:#166534;flex-shrink:0;">${esc(t.code)}</span>
+          <span style="color:var(--texto);flex:1;">${esc(t.label)}</span>
+          ${sel ? '<span style="color:#16a34a;font-size:12px;flex-shrink:0;">✓</span>' : ''}
+        </div>`;
+      }).join('');
+      cat.querySelectorAll('[data-id]').forEach(row => {
+        row.addEventListener('mouseenter', () => { if (!fdTreatSelecionados.find(x => String(x.id) === row.dataset.id)) row.style.background = 'var(--fundo)'; });
+        row.addEventListener('mouseleave', () => { if (!fdTreatSelecionados.find(x => String(x.id) === row.dataset.id)) row.style.background = ''; });
+        row.addEventListener('click', () => {
+          const id = row.dataset.id;
+          if (!fdTreatSelecionados.find(t => String(t.id) === id)) {
+            fdTreatSelecionados.push({ id, code: row.dataset.code, label: row.dataset.label });
+            fdRenderTreatChips();
+            fdRenderCatalogo(document.getElementById('fd-treat-search')?.value || '');
+          }
         });
       });
     }
@@ -853,48 +951,12 @@
     /* ── pesquisa Tratamentos ── */
     function fdBindTreat() {
       const input = document.getElementById('fd-treat-search');
-      const res   = document.getElementById('fd-treat-resultados');
-      if (!input || !res) return;
-
+      if (!input) return;
       input.addEventListener('input', () => {
         clearTimeout(fdTreatTimer);
-        const q = input.value.trim();
-        if (q.length < 2) { res.style.display = 'none'; return; }
-        fdTreatTimer = setTimeout(async () => {
-          const sb = window.sb;
-          const isCode = /^\d/.test(q);
-          let query = sb.from('treatments_catalog').select('id,code,label').limit(8);
-          if (isCode) query = query.ilike('code', `${q}%`);
-          else        query = query.ilike('label', `%${q}%`);
-          const { data } = await query;
-          if (!data?.length) { res.style.display = 'none'; return; }
-          res.style.display = 'block';
-          res.innerHTML = data.map(t => `
-            <div data-id="${t.id}" data-code="${esc(t.code)}" data-label="${esc(t.label)}"
-              style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--linha);
-                     display:flex;gap:8px;align-items:baseline;">
-              <span style="font-weight:600;color:#166534;flex-shrink:0;">${esc(t.code)}</span>
-              <span style="color:var(--texto);">${esc(t.label)}</span>
-            </div>`).join('');
-          res.querySelectorAll('[data-id]').forEach(row => {
-            row.addEventListener('mouseenter', () => row.style.background = 'var(--fundo)');
-            row.addEventListener('mouseleave', () => row.style.background = '#fff');
-            row.addEventListener('click', () => {
-              const id = row.dataset.id;
-              if (!fdTreatSelecionados.find(t => String(t.id) === id)) {
-                fdTreatSelecionados.push({ id, code: row.dataset.code, label: row.dataset.label });
-                fdRenderTreatChips();
-              }
-              input.value = '';
-              res.style.display = 'none';
-            });
-          });
-        }, 300);
+        fdTreatTimer = setTimeout(() => fdRenderCatalogo(input.value.trim()), 300);
       });
-
-      document.addEventListener('click', e => {
-        if (!res.contains(e.target) && e.target !== input) res.style.display = 'none';
-      });
+      fdRenderCatalogo('');
     }
 
     /* ── gravar nova consulta ── */
@@ -970,6 +1032,9 @@
       fdIniciarQuill();
       fdBindDiag();
       fdBindTreat();
+      fdAtualizarTextoR();
+      document.getElementById('fd-sessoes-total')?.addEventListener('input', fdAtualizarTextoR);
+      document.getElementById('fd-sessoes-semana')?.addEventListener('input', fdAtualizarTextoR);
       document.getElementById('fd-btn-gravar')?.addEventListener('click', fdGravar);
       document.getElementById('fd-btn-cancelar')?.addEventListener('click', () => {
         wrap?.classList.remove('visivel');
