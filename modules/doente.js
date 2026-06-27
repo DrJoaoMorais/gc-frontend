@@ -4248,9 +4248,7 @@ function openPatientViewModal(patient) {
 
     document.getElementById("btnOpenFeed")?.addEventListener("click", (e) => {
       e.preventDefault();
-      const consultId = consultRows?.[0]?.id;
-      if (!consultId) return;
-      const url = `/modules/consulta/v2/consulta-completa/feed-consulta.html?consultId=${encodeURIComponent(consultId)}&patientId=${encodeURIComponent(p.id)}`;
+      const url = `/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(p.id)}`;
       window.open(url, '_blank');
     });
     document.getElementById("btnViewIdent")?.addEventListener("click", () => openPatientIdentity("view"));
