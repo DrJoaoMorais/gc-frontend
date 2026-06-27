@@ -2882,8 +2882,8 @@ function openPatientViewModal(patient) {
         html += '<p style="margin:4px 0;">' + pills + '</p>';
         return;
       }
-      // Item com indent \u2192 chip
-      if (linha.startsWith('  ')) {
+      // Item com indent \u2192 chip (indent removido pelo parser do HDA)
+      if (linha.startsWith('  ') || /^[A-Z\u00c0-\u00da][^:]+:\s/.test(linha)) {
         emGrid = true;
         var conteudo = linha.trim();
         var sep = conteudo.indexOf(': ');
