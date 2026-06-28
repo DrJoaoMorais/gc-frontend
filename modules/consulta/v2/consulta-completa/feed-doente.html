@@ -637,13 +637,16 @@
           const a = val.a != null ? val.a : '—';
           const p = val.p != null ? val.p : '—';
           const ref = val.ref || '—';
-          const delta = (val.a != null && val.p != null) ? (val.p - val.a) : '—';
+          const deltaAP = (val.a != null && val.p != null) ? (val.a - val.p) : '—';
           const defice = (val.a != null && ref !== '—') ? (val.a - ref) : '—';
           const deficeCor = defice !== '—' && defice < -10 ? 'color:#dc2626;font-weight:600' : 'color:#94a3b8';
+          const deltaCor = deltaAP !== '—' && deltaAP < -10 ? 'color:#f59e0b;font-weight:600' : 'color:#94a3b8';
           return `<tr>
             <td style="font-size:11px;color:#374151;padding:4px 8px 4px 0;border-top:1px solid #f1f5f9;">${movLabels[mov]||mov}</td>
-            <td style="font-size:12px;font-weight:600;color:#0f2d52;text-align:right;padding:4px 4px;border-top:1px solid #f1f5f9;">${a}°</td>
+            <td style="font-size:12px;font-weight:600;color:#0f2d52;text-align:right;padding:4px 4px;border-top:1px solid #f1f5f9;">${a !== '—' ? a+'°' : '—'}</td>
             <td style="font-size:11px;color:#64748b;text-align:right;padding:4px 4px;border-top:1px solid #f1f5f9;">${p !== '—' ? p+'°' : '—'}</td>
+            <td style="font-size:11px;text-align:right;padding:4px 4px;border-top:1px solid #f1f5f9;${deltaCor}">${deltaAP !== '—' ? deltaAP+'°' : '—'}</td>
+            <td style="font-size:11px;color:#94a3b8;text-align:right;padding:4px 4px;border-top:1px solid #f1f5f9;">${ref !== '—' ? ref+'°' : '—'}</td>
             <td style="font-size:11px;text-align:right;padding:4px 0;border-top:1px solid #f1f5f9;${deficeCor}">${defice !== '—' ? defice+'°' : '—'}</td>
           </tr>`;
         }).join('');
@@ -653,6 +656,8 @@
               <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:left;padding-bottom:4px;">Movimento</th>
               <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">Act.</th>
               <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">Pass.</th>
+              <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">Δ A-P</th>
+              <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">Ref.</th>
               <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">Défice</th>
             </tr></thead>
             <tbody>${rows}</tbody>
