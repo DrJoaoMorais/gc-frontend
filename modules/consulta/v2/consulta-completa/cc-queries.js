@@ -43,7 +43,7 @@ export async function carregarConsulta({ consultationId, patientId }) {
   /* --- 4. Exames objectivos (jsonb), mais recente primeiro --- */
   const { data: examRows, error: eE } = await sb
     .from('consultation_assessments')
-    .select('id, assessment_type, assessment_side, assessment_date, data, created_at')
+    .select('id, assessment_type, assessment_side, assessment_date, patient_id, clinic_id, data, created_at')
     .eq('consultation_id', consultationId)
     .order('assessment_date', { ascending: false })
     .order('created_at', { ascending: false });

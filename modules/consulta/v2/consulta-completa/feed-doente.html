@@ -827,6 +827,7 @@
         <div class="cc-exame-cabec">
           <span class="cc-exame-tipo">⚕️ ${esc(tipo)}${esc(lado)}</span>
           <span class="cc-exame-data">${data}</span>
+          <a href="#" style="margin-left:auto;font-size:11px;color:#1a56db;text-decoration:none;border:1px solid #bcd4f5;border-radius:6px;padding:2px 9px;" onclick="(function(){const base=new URL('../../../obj/regiao.html',window.location.href);base.searchParams.set('r','${esc(ex.assessment_type)}');base.searchParams.set('p','${esc(ex.patient_id||'')}');base.searchParams.set('s','${esc(ex.consultation_id||'')}');base.searchParams.set('n',document.getElementById('fd-nome')?.textContent||'');window.open(base.toString(),'_blank');return false;})();return false;">↗ Ver</a>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
           ${cartoes}
