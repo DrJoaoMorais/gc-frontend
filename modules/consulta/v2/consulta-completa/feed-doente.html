@@ -48,7 +48,7 @@
     }
     .fd-topbar-nome {
       font-family: 'Cormorant Garamond', serif;
-      font-weight: 600; font-size: 20px; color: #fff;
+      font-weight: 700; font-size: 22px; color: #fff;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       min-width: 0; flex: 1;
     }
@@ -58,6 +58,12 @@
       border-radius: 5px; padding: 2px 8px;
       white-space: nowrap; flex-shrink: 0;
     }
+    .fd-topbar-meta {
+      display: flex; gap: 14px;
+      font-size: 11px; color: rgba(255,255,255,0.6);
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .fd-topbar-meta span { display: flex; align-items: center; gap: 4px; }
     .fd-btn-nova {
       font: 600 13px/1 'Outfit', sans-serif;
       background: var(--verde); color: #fff;
@@ -351,7 +357,11 @@
   <!-- TOPBAR -->
   <header class="fd-topbar">
     <span class="fd-topbar-nome" id="fd-nome">A carregar…</span>
-    <span class="fd-topbar-idade" id="fd-idade" style="display:none"></span>
+    <div class="fd-topbar-meta" id="fd-meta" style="display:none">
+      <span class="fd-topbar-idade" id="fd-idade"></span>
+      <span id="fd-sns"></span>
+      <span id="fd-phone"></span>
+    </div>
     <button class="fd-btn-nova" id="fd-btn-nova">+ Nova Consulta</button>
   </header>
 
@@ -973,6 +983,14 @@
           </div>`;
         }
 
+      /* Objectivos */
+      if (consulta.objectives) {
+        html += `<div class="fd-sep"></div><div class="fd-bloco">
+          <div class="fd-bloco-titulo">Objectivos</div>
+          <div class="fd-hda">${sanitizarHTML(consulta.objectives)}</div>
+        </div>`;
+      }
+
       /* Diagnósticos */
       if (diagnosticos?.length) {
         html += `<div class="fd-sep"></div><div class="fd-bloco">
@@ -1217,12 +1235,12 @@
       /* doente + consultas em paralelo */
       const [pacienteRes, consultasRes] = await Promise.all([
         sb.from('patients')
-          .select('full_name, dob, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas')
+          .select('full_name, dob, sns, phone, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas')
           .eq('id', PATIENT_ID)
           .single(),
         sb.from('consultations')
           .select(`
-            id, report_date, hda, plan_text, created_at,
+            id, report_date, hda, plan_text, objectives, created_at,
             clinics ( display_name )
           `)
           .eq('patient_id', PATIENT_ID)
@@ -1230,10 +1248,13 @@
           .order('created_at',  { ascending: false }),
       ]);
 
-      /* nome + idade */
+      /* nome + idade + sns + phone */
       if (!pacienteRes.error && pacienteRes.data) {
         const p = pacienteRes.data;
         document.getElementById('fd-nome').textContent = p.full_name || 'Doente';
+
+        const metaEl = document.getElementById('fd-meta');
+        let metaVisible = false;
 
         if (p.dob) {
           const hoje = new Date();
@@ -1241,8 +1262,17 @@
           const anos = hoje.getFullYear() - nasc.getFullYear()
             - (hoje < new Date(hoje.getFullYear(), nasc.getMonth(), nasc.getDate()) ? 1 : 0);
           const idadeEl = document.getElementById('fd-idade');
-          if (idadeEl) { idadeEl.textContent = `${anos} anos`; idadeEl.style.display = ''; }
+          if (idadeEl) { idadeEl.textContent = `${anos} anos`; }
+          metaVisible = true;
         }
+
+        const snsEl = document.getElementById('fd-sns');
+        if (snsEl && p.sns) { snsEl.textContent = `🪪 ${p.sns}`; metaVisible = true; }
+
+        const phoneEl = document.getElementById('fd-phone');
+        if (phoneEl && p.phone) { phoneEl.textContent = `📞 ${p.phone}`; metaVisible = true; }
+
+        if (metaEl && metaVisible) metaEl.style.display = '';
 
         renderAntecedentes(p);
       }
