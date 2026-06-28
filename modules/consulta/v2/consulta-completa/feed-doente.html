@@ -1824,7 +1824,9 @@ window.iniciarEvolutivo = iniciarEvolutivo;
       }
     });
 
-    boot().then(() => iniciarEvolutivo(PATIENT_ID));
+    boot().then(() => {
+      iniciarEvolutivo(PATIENT_ID);
+    }).catch(e => console.error('[boot] erro:', e));
   </script>
 </body>
 </html>
