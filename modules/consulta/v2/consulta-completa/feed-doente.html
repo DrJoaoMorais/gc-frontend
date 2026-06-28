@@ -773,9 +773,37 @@
       /* --- ESCALAS --- */
       let escHtml = '';
       if (d.escalas) {
-        const esc_map = [['dash_score','DASH',100],['ases_score','ASES',100],['oss_score','OSS',48],['prwe_score','PRWE',150]];
-        esc_map.forEach(([k,nome,max]) => {
-          const v = d.escalas[k];
+        const soma = arr => (arr||[]).filter(x=>x!=null).reduce((a,b)=>a+b,0);
+        const filled = arr => (arr||[]).filter(x=>x!=null).length;
+
+        const calcASES = () => {
+          const items = d.escalas.ases_items;
+          if (!items || !filled(items)) return null;
+          const eva = d.eva?.rep != null ? Number(d.eva.rep) : null;
+          if (eva == null) return null; /* sem EVA não calculamos */
+          return Math.round((10 - eva) * 5 + soma(items) / 30 * 50);
+        };
+        const calcOSS = () => {
+          const items = d.escalas.oss_items;
+          if (!items || !filled(items)) return null;
+          return soma(items); /* soma directa 0–48 */
+        };
+        const calcDASH = () => {
+          const items = d.escalas.dash_items;
+          if (!items || !filled(items)) return null;
+          const n = filled(items);
+          return Math.round((soma(items)/n - 1) * 25);
+        };
+
+        const esc_map = [
+          ['dash_score', 'DASH', 100, calcDASH],
+          ['ases_score', 'ASES', 100, calcASES],
+          ['oss_score',  'OSS',   48, calcOSS],
+          ['prwe_score', 'PRWE', 150, null],
+        ];
+        esc_map.forEach(([k, nome, max, calcFn]) => {
+          let v = d.escalas[k];
+          if ((v == null || v === '') && calcFn) v = calcFn();
           if (v != null && v !== '') escHtml += `<div style="background:#f8fafc;border-radius:8px;padding:10px 12px;text-align:center;"><div style="font-size:10px;color:#94a3b8;">${nome}</div><div style="font-size:20px;font-weight:700;color:#0f2d52;">${v}<span style="font-size:12px;color:#94a3b8;">/${max}</span></div></div>`;
         });
         if (escHtml) escHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:8px;">${escHtml}</div>`;
