@@ -558,6 +558,130 @@
       aplicarOffsets();
     }
 
+    /* ── renderer visual do exame objectivo ── */
+    function renderExameVisual(ex) {
+      const d = ex.data || {};
+      const tipo = (ex.assessment_type || 'exame').replace('-', ' ');
+      const lado = ex.assessment_side ? ` · ${ex.assessment_side}` : '';
+      const data = fmtData(ex.assessment_date);
+
+      /* helpers */
+      const grauCor = v => {
+        if (!v || v === 'Negativo') return 'color:#059669';
+        if (v === '+')   return 'color:#f59e0b';
+        if (v === '++')  return 'color:#ea580c';
+        if (v === '+++') return 'color:#dc2626';
+        return '';
+      };
+      const pill = (txt, cor) => `<span style="display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px;border:1px solid #e2e8f0;background:#f8fafc;margin:2px;${cor||''}">${esc(String(txt))}</span>`;
+      const cartao = (titulo, conteudo) => conteudo
+        ? `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;min-width:0;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin-bottom:8px;">${titulo}</div>
+            ${conteudo}
+           </div>`
+        : '';
+
+      /* --- DOR --- */
+      let dorHtml = '';
+      if (d.eva) {
+        const { rep, act, pic } = d.eva;
+        const vals = [];
+        if (rep != null && rep !== '') vals.push(`Rep. ${rep}/10`);
+        if (act != null && act !== '') vals.push(`Act. ${act}/10`);
+        if (pic != null && pic !== '') vals.push(`Pico ${pic}/10`);
+        if (vals.length) dorHtml += `<div style="margin-bottom:6px;">${vals.map(v => pill(v, 'color:#dc2626;border-color:#fca5a5;background:#fef2f2')).join('')}</div>`;
+      }
+      if (d.localizacao_dor?.length) dorHtml += `<div style="margin-bottom:4px;font-size:11px;color:#64748b;">📍 ${d.localizacao_dor.map(v=>esc(v)).join(', ')}</div>`;
+      if (d.tipo_dor) dorHtml += `<div style="margin-bottom:4px;font-size:11px;color:#64748b;">Tipo: ${esc(d.tipo_dor)}</div>`;
+      if (d.irradiacao && d.irradiacao !== 'Sem irradiação') dorHtml += `<div style="margin-bottom:4px;font-size:11px;color:#64748b;">Irradiação: ${esc(d.irradiacao)}</div>`;
+      if (d.d_noturna && d.d_noturna !== 'Não') dorHtml += `<div style="font-size:11px;color:#64748b;">Noturna: ${esc(d.d_noturna)}</div>`;
+
+      /* --- PALPAÇÃO --- */
+      let palpHtml = '';
+      if (d.palp) {
+        const map = { palp_ac:'AC', palp_tb:'Tubérculo maior', palp_bic:'Bicipital', palp_bur:'Bursa', palp_sup:'Supra-espinhoso', palp_tib:'Tibial', palp_rot:'Rotuliano', palp_men:'Menisco' };
+        Object.entries(d.palp).forEach(([k,v]) => {
+          if (v) palpHtml += pill(`${map[k]||k}: ${v}`, v==='Dor'?'color:#dc2626;border-color:#fca5a5;background:#fef2f2':'color:#059669;border-color:#bbf7d0;background:#f0fdf4');
+        });
+      }
+
+      /* --- MRC --- */
+      let mrcHtml = '';
+      if (d.mrc) {
+        const map = { f_del:'Deltóide', f_sup:'Supra-esp.', f_inf:'Infra-esp.', f_sub:'Subescap.', f_ext:'Extensão', f_flex:'Flexão', f_abd:'Abdução', f_quad:'Quadricípite', f_isch:'Isquiotibiais', f_gas:'Gastrocnémio' };
+        Object.entries(d.mrc).forEach(([k,v]) => {
+          if (v) {
+            const num = parseInt(v);
+            const cor = num >= 5 ? 'color:#059669;border-color:#bbf7d0;background:#f0fdf4' : num >= 4 ? 'color:#f59e0b;border-color:#fde68a;background:#fffbeb' : 'color:#dc2626;border-color:#fca5a5;background:#fef2f2';
+            mrcHtml += pill(`${map[k]||k} ${v}`, cor);
+          }
+        });
+      }
+
+      /* --- ROM --- */
+      let romHtml = '';
+      if (d.rom) {
+        const labels = { flex_a:'Flexão A', flex_p:'Flexão P', ext_a:'Extensão A', ext_p:'Extensão P', abd_a:'Abdução A', abd_p:'Abdução P', re_a:'Rot. Ext. A', re_p:'Rot. Ext. P', ri_a:'Rot. Int. A', ri_p:'Rot. Int. P', lat_d_a:'Lat. D A', lat_e_a:'Lat. E A', rot_d_a:'Rot. D A', rot_e_a:'Rot. E A', flex_lomb_a:'Flexão A', ext_lomb_a:'Extensão A' };
+        const rows = Object.entries(d.rom).filter(([,v]) => v != null && v !== '').map(([k,v]) =>
+          `<tr><td style="font-size:11px;color:#374151;padding:3px 6px 3px 0;">${labels[k]||k}</td><td style="font-size:12px;font-weight:600;color:#0f2d52;text-align:right;padding:3px 0;">${v}°</td></tr>`
+        ).join('');
+        if (rows) romHtml = `<table style="width:100%;border-collapse:collapse;">${rows}</table>`;
+      }
+
+      /* --- TESTES --- */
+      let testesHtml = '';
+      if (d.testes) {
+        const map = { t_neer:'Neer', t_hawk:'Hawkins', t_jobe:'Jobe', t_patte:'Patte', t_liftoff:'Lift-off', t_belly:'Belly press', t_drop:'Drop Arm', t_speed:'Speed', t_yerg:'Yergason', t_appr:'Apprehension', t_reloc:'Relocation', t_sulc:'Sulcus', t_lach:'Lachman', t_draw_ant:'Gaveta ant.', t_draw_post:'Gaveta post.', t_mcmurray:'McMurray', t_thessaly:'Thessaly' };
+        Object.entries(d.testes).forEach(([k,v]) => {
+          if (v && v !== 'Negativo') testesHtml += pill(`${map[k]||k} ${v}`, grauCor(v));
+        });
+      }
+
+      /* --- FUNCIONAL --- */
+      let funcHtml = '';
+      if (d.func) {
+        const map = { func_elev:'Elevação', func_cos:'Costas', func_vest:'Vestir', func_prof:'Profissional', func_desp:'Desportiva', func_cond:'Conduzir' };
+        Object.entries(d.func).forEach(([k,v]) => {
+          if (v) {
+            const cor = v==='Normal'?'color:#059669;border-color:#bbf7d0;background:#f0fdf4':v==='Com dor'?'color:#f59e0b;border-color:#fde68a;background:#fffbeb':'color:#dc2626;border-color:#fca5a5;background:#fef2f2';
+            funcHtml += pill(`${map[k]||k}: ${v}`, cor);
+          }
+        });
+      }
+
+      /* --- ESCALAS --- */
+      let escHtml = '';
+      if (d.escalas) {
+        const esc_map = [['dash_score','DASH',100],['ases_score','ASES',100],['oss_score','OSS',48],['prwe_score','PRWE',150]];
+        esc_map.forEach(([k,nome,max]) => {
+          const v = d.escalas[k];
+          if (v != null && v !== '') escHtml += `<div style="background:#f8fafc;border-radius:8px;padding:10px 12px;text-align:center;"><div style="font-size:10px;color:#94a3b8;">${nome}</div><div style="font-size:20px;font-weight:700;color:#0f2d52;">${v}<span style="font-size:12px;color:#94a3b8;">/${max}</span></div></div>`;
+        });
+        if (escHtml) escHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:8px;">${escHtml}</div>`;
+      }
+
+      /* --- GRID DE CARTÕES --- */
+      const cartoes = [
+        cartao('Dor', dorHtml),
+        cartao('Palpação', palpHtml),
+        cartao('Força MRC', mrcHtml),
+        cartao('Amplitude articular', romHtml),
+        cartao('Testes clínicos', testesHtml),
+        cartao('Funcional', funcHtml),
+        cartao('Escalas', escHtml),
+      ].filter(Boolean).join('');
+
+      return `<div class="cc-exame-registo">
+        <div class="cc-exame-cabec">
+          <span class="cc-exame-tipo">⚕️ ${esc(tipo)}${esc(lado)}</span>
+          <span class="cc-exame-data">${data}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+          ${cartoes}
+        </div>
+      </div>`;
+    }
+
     /* ── render de uma consulta (body do card) ── */
     function renderCardBody(dados) {
       const { consulta, diagnosticos, tratamentos, exames } = dados;
@@ -581,16 +705,7 @@
             const lado = ex.assessment_side ? ` · ${ex.assessment_side}` : '';
             const data = fmtData(ex.assessment_date);
             const d = ex.data || {};
-            const resumo = d.resumo
-              ? `<pre style="white-space:pre-wrap;font-family:'Outfit',sans-serif;font-size:12px;color:#374151;margin-top:6px;line-height:1.6;">${esc(d.resumo)}</pre>`
-              : '';
-            return `<div class="fd-exame-item">
-              <div class="fd-exame-head">
-                <span class="fd-exame-tipo">${esc(tipo)}${esc(lado)}</span>
-                <span class="fd-exame-data">${data}</span>
-              </div>
-              ${resumo}
-            </div>`;
+            return renderExameVisual(ex);
           }).join('')}
         </div>`;
       }
