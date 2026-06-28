@@ -1867,13 +1867,16 @@ window._saveExamToSupabase = async function (txt, dataObj) {
     };
     const res = c.assessmentId
       ? await sb.from('consultation_assessments').update(fields).eq('id', c.assessmentId)
-      : await sb.from('consultation_assessments').insert(Object.assign({}, fields, {
+      : await sb.from('consultation_assessments').upsert(Object.assign({}, fields, {
           consultation_id: c.consultationId,
           patient_id: c.patientId,
           clinic_id: c.clinicId,
           author_user_id: authorId,
           assessment_type: _motorCfg ? _motorCfg.id : 'unknown'
-        }));
+        }), {
+          onConflict: 'patient_id,assessment_type,assessment_side,assessment_date',
+          ignoreDuplicates: false
+        });
     if (res.error) console.error('saveExam:', res.error);
   } catch (e) {
     console.error('saveExam:', e);
