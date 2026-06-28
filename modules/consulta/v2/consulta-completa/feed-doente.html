@@ -574,8 +574,8 @@
         return '';
       };
       const pill = (txt, cor) => `<span style="display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px;border:1px solid #e2e8f0;background:#f8fafc;margin:2px;${cor||''}">${esc(String(txt))}</span>`;
-      const cartao = (titulo, conteudo) => conteudo
-        ? `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;min-width:0;">
+      const cartao = (titulo, conteudo, extraStyle) => conteudo
+        ? `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;min-width:0;${extraStyle||''}">
             <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin-bottom:8px;">${titulo}</div>
             ${conteudo}
            </div>`
@@ -696,7 +696,7 @@
         cartao('Dor', dorHtml),
         cartao('Palpação', palpHtml),
         cartao('Força MRC', mrcHtml),
-        cartao('Amplitude articular', romHtml),
+        cartao('Amplitude articular', romHtml, 'grid-column:span 2'),
         cartao('Testes clínicos', testesHtml),
         cartao('Funcional', funcHtml),
         cartao('Escalas', escHtml),
@@ -707,7 +707,7 @@
           <span class="cc-exame-tipo">⚕️ ${esc(tipo)}${esc(lado)}</span>
           <span class="cc-exame-data">${data}</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
           ${cartoes}
         </div>
       </div>`;
