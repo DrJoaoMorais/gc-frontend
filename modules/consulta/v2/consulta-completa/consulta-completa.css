@@ -553,3 +553,20 @@ body {
 .cc-omb-escala-bar {
   height: 6px; border-radius: 4px; transition: width 0.3s ease;
 }
+
+/* Dinamometria card feed — KPIs + LSI */
+.cc-dyn-kpis { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 12px; }
+.cc-dyn-kpi { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; }
+.cc-dyn-kpi-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+.cc-dyn-kpi-value { font-size: 13px; font-weight: 700; color: #0f2d52; }
+.cc-dyn-kpi-sub { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+.cc-dyn-kpi-vermelho { color: #dc2626 !important; }
+.cc-dyn-kpi-ambar { color: #d97706 !important; }
+.cc-dyn-kpi-verde { color: #16a34a !important; }
+.cc-dyn-lsi { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+.cc-dyn-lsi-verde { background: #dcfce7; color: #16a34a; }
+.cc-dyn-lsi-ambar { background: #fef9c3; color: #854d0e; }
+.cc-dyn-lsi-vermelho { background: #fee2e2; color: #dc2626; }
+.cc-dyn-lado-maior { color: #1a56db; font-weight: 700; }
+.cc-dyn-ver-link { display: block; text-align: right; font-size: 11px; color: #1a56db; margin-top: 8px; text-decoration: none; }
+.cc-dyn-ver-link:hover { text-decoration: underline; }

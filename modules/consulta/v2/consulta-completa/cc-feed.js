@@ -370,39 +370,94 @@ function ombROM(rom) {
 }
 
 /* ----- secção: dinamometria ----- */
-function ombDyn(dyn) {
+function ombDyn(dyn, assessmentId) {
   if (!dyn) return '';
+
+  // Calcular LSI por movimento
   const linhas = OMB_DYN_ORDEM.map(o => {
     const m = dyn[o.ch];
     if (!m || (!ombTem(m.e) && !ombTem(m.d))) return null;
-    let assim = '—', corAssim = '';
-    if (ombTem(m.e) && ombTem(m.d) && Number(m.e) !== 0) {
-      const pct = ((Number(m.d) - Number(m.e)) / Number(m.e)) * 100;
-      const abs = Math.abs(pct);
-      const ladoFraco = pct < 0 ? 'D' : (pct > 0 ? 'E' : null);
-      corAssim = ombCorAssim(abs);
-      assim = ladoFraco
-        ? `${Math.round(abs)}% · ${ladoFraco} mais fraco`
-        : 'simétrico';
+    let lsiHtml = '—';
+    const temBilateral = ombTem(m.e) && ombTem(m.d) && Number(m.e) !== 0 && Number(m.d) !== 0;
+    const ladoMaiorE = temBilateral && Number(m.e) >= Number(m.d);
+    if (temBilateral) {
+      const menor = Math.min(Number(m.e), Number(m.d));
+      const maior = Math.max(Number(m.e), Number(m.d));
+      const lsi = Math.round((menor / maior) * 100);
+      const cor = lsi >= 90 ? 'cc-dyn-lsi-verde' : lsi >= 80 ? 'cc-dyn-lsi-ambar' : 'cc-dyn-lsi-vermelho';
+      lsiHtml = `<span class="cc-dyn-lsi ${cor}">${lsi}%</span>`;
     }
-    return `
-      <tr>
-        <td>${escapeTexto(o.rot)}</td>
-        <td>${ombTem(m.e) ? escapeTexto(m.e) : '—'}</td>
-        <td>${ombTem(m.d) ? escapeTexto(m.d) : '—'}</td>
-        <td class="cc-omb-td-forte ${corAssim}">${assim}</td>
-      </tr>`;
+    const eVal = ombTem(m.e) ? `<span class="${temBilateral && ladoMaiorE ? 'cc-dyn-lado-maior' : ''}">${escapeTexto(String(m.e))}</span>` : '—';
+    const dVal = ombTem(m.d) ? `<span class="${temBilateral && !ladoMaiorE ? 'cc-dyn-lado-maior' : ''}">${escapeTexto(String(m.d))}</span>` : '—';
+    return `<tr><td>${escapeTexto(o.rot)}</td><td>${eVal}</td><td>${dVal}</td><td>${lsiHtml}</td></tr>`;
   }).filter(Boolean);
+
   if (!linhas.length) return '';
+
+  // KPIs
+  let maiorForcaTxt = '—', maiorDeficeTxt = '—', maiorDeficeSub = '', maiorDeficeCor = '';
+  let ratioRERItxt = '—', assimGlobalTxt = '—', assimGlobalCor = '';
+
+  let maiorForca = 0, maiorForcaLabel = '';
+  let maiorDeficePct = 0, maiorDeficeLabel = '', maiorDeficeLados = '';
+  let assimSoma = 0, assimN = 0;
+
+  OMB_DYN_ORDEM.forEach(o => {
+    const m = dyn[o.ch];
+    if (!m) return;
+    if (ombTem(m.e) && Number(m.e) > maiorForca) { maiorForca = Number(m.e); maiorForcaLabel = `${o.rot} E · ${m.e} kg`; }
+    if (ombTem(m.d) && Number(m.d) > maiorForca) { maiorForca = Number(m.d); maiorForcaLabel = `${o.rot} D · ${m.d} kg`; }
+    if (ombTem(m.e) && ombTem(m.d) && Number(m.e) !== 0 && Number(m.d) !== 0) {
+      const menor = Math.min(Number(m.e), Number(m.d));
+      const maior = Math.max(Number(m.e), Number(m.d));
+      const defPct = Math.round(((maior - menor) / maior) * 100);
+      const ladoFraco = Number(m.d) < Number(m.e) ? 'D' : 'E';
+      assimSoma += defPct; assimN++;
+      if (defPct > maiorDeficePct) {
+        maiorDeficePct = defPct;
+        maiorDeficeLabel = `${o.rot} +${defPct}%`;
+        maiorDeficeLados = `${ladoFraco === 'D' ? 'E' : 'D'} ${maior} vs ${ladoFraco} ${menor} kg`;
+      }
+    }
+  });
+
+  if (maiorForcaLabel) maiorForcaTxt = maiorForcaLabel;
+  if (maiorDeficePct > 0) {
+    maiorDeficeTxt = maiorDeficeLabel;
+    maiorDeficeSub = maiorDeficeLados;
+    maiorDeficeCor = maiorDeficePct >= 20 ? 'cc-dyn-kpi-vermelho' : maiorDeficePct >= 10 ? 'cc-dyn-kpi-ambar' : '';
+  }
+  if (assimN > 0) {
+    const media = Math.round(assimSoma / assimN);
+    assimGlobalTxt = `${media}%`;
+    assimGlobalCor = media >= 20 ? 'cc-dyn-kpi-vermelho' : media >= 10 ? 'cc-dyn-kpi-ambar' : 'cc-dyn-kpi-verde';
+  }
+
+  // Ratio RE/RI
+  const re = dyn['re'], ri = dyn['ri'];
+  if (re && ri && ombTem(re.e) && ombTem(ri.e) && Number(ri.e) !== 0) {
+    const r = Math.round((Number(re.e) / Number(ri.e)) * 100);
+    ratioRERItxt = `${r}%`;
+  }
+
+  const linkVer = assessmentId
+    ? `<a class="cc-dyn-ver-link" href="#" onclick="event.preventDefault();window.fdAbrirExame&&window.fdAbrirExame('ombro','','','','',${JSON.stringify(assessmentId)})">↗ Ver análise completa</a>`
+    : '';
+
   return `
     <div class="cc-omb-seccao">
       <p class="cc-omb-rotulo">Dinamometria <span class="cc-omb-rotulo-norm">(ActivForce 2)</span></p>
+      <div class="cc-dyn-kpis">
+        <div class="cc-dyn-kpi"><div class="cc-dyn-kpi-label">Maior força</div><div class="cc-dyn-kpi-value">${escapeTexto(maiorForcaTxt)}</div></div>
+        <div class="cc-dyn-kpi"><div class="cc-dyn-kpi-label">Maior défice</div><div class="cc-dyn-kpi-value ${maiorDeficeCor}">${escapeTexto(maiorDeficeTxt)}</div><div class="cc-dyn-kpi-sub">${escapeTexto(maiorDeficeSub)}</div></div>
+        <div class="cc-dyn-kpi"><div class="cc-dyn-kpi-label">Ratio RE/RI</div><div class="cc-dyn-kpi-value">${escapeTexto(ratioRERItxt)}</div><div class="cc-dyn-kpi-sub">Ref ≥ 66%</div></div>
+        <div class="cc-dyn-kpi"><div class="cc-dyn-kpi-label">Assimetria global</div><div class="cc-dyn-kpi-value ${assimGlobalCor}">${escapeTexto(assimGlobalTxt)}</div><div class="cc-dyn-kpi-sub">média bilateral</div></div>
+      </div>
       <table class="cc-omb-tabela">
-        <thead><tr>
-          <th>Movimento</th><th>Esq. (kg)</th><th>Dir. (kg)</th><th>Assimetria</th>
-        </tr></thead>
+        <thead><tr><th>Movimento</th><th>Esq. kg</th><th>Dir. kg</th><th>LSI</th></tr></thead>
         <tbody>${linhas.join('')}</tbody>
       </table>
+      ${linkVer}
     </div>`;
 }
 
@@ -467,7 +522,7 @@ export function renderOmbro(ex, idx) {
     + ombChipsAchados('Palpação', d.palp, OMB_PALP_ORDEM)
     + ombROM(d.rom)
     + ombMRC(d.mrc)
-    + ombDyn(d.dyn)
+    + ombDyn(d.dyn, ex.id)
     + ombTestes(d.testes)
     + ombChipsAchados('Funcional', d.func, OMB_FUNC_ORDEM)
     + ombEscalas(d.escalas);
