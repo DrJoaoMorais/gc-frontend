@@ -472,6 +472,341 @@
     <div id="fd-feed"></div>
   </div>
 
+<!-- ── QUADRO EVOLUTIVO ──────────────────────────────────────────────── -->
+<section id="sec-evolutivo" style="margin:32px 0 0;">
+  <div class="evo-header">
+    <span class="evo-titulo">Quadro Evolutivo</span>
+    <div id="evo-chips" class="evo-chips-wrap"></div>
+  </div>
+  <div id="evo-corpo"></div>
+</section>
+
+<style>
+/* Evolutivo */
+.evo-header {
+  background: #0f2d52;
+  border-radius: 10px 10px 0 0;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.evo-titulo {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.evo-chips-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.evo-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #fff;
+  border: 1.5px solid #1a56db;
+  border-radius: 20px;
+  padding: 3px 10px 3px 12px;
+  font-size: 11px;
+  color: #1a56db;
+  font-weight: 600;
+  cursor: pointer;
+}
+.evo-chip-rm {
+  width: 14px; height: 14px;
+  background: #e2e8f0;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; color: #64748b; cursor: pointer;
+  border: none; padding: 0;
+}
+.evo-add-btn {
+  background: none;
+  border: 1.5px dashed #94a3b8;
+  border-radius: 20px;
+  padding: 3px 12px;
+  font-size: 11px;
+  color: #e2e8f0;
+  cursor: pointer;
+}
+.evo-auto-label {
+  margin-left: auto;
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  white-space: nowrap;
+}
+/* Tabela por região */
+.evo-regiao-wrap {
+  border: 1px solid #e2e8f0;
+  border-top: none;
+  border-radius: 0 0 0 0;
+  overflow: hidden;
+  margin-bottom: 0;
+}
+.evo-regiao-wrap + .evo-regiao-wrap {
+  border-top: 2px dashed #e2e8f0;
+}
+.evo-regiao-wrap:last-child {
+  border-radius: 0 0 10px 10px;
+}
+.evo-regiao-label {
+  padding: 8px 20px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: #fff;
+}
+.evo-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.evo-table thead tr { background: #eef2f7; }
+.evo-table th {
+  padding: 8px 14px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f2d52;
+  border-bottom: 2px solid #d1dae8;
+  white-space: nowrap;
+}
+.evo-table th.evo-col-param { text-align: left; color: #475569; width: 210px; }
+.evo-table th.evo-col-latest { background: #dbeafe; color: #1a56db; }
+.evo-table td {
+  padding: 7px 14px;
+  text-align: center;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 12px;
+  color: #334155;
+}
+.evo-table td.evo-col-param { text-align: left; color: #1e293b; font-weight: 500; }
+.evo-table td.evo-col-param .evo-unit { font-size: 10px; color: #94a3b8; font-weight: 400; }
+.evo-table td.evo-col-latest { background: #f0f7ff; font-weight: 600; }
+.evo-grupo-row td {
+  background: #f1f5f9;
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 14px;
+  border-bottom: none !important;
+}
+.evo-empty { color: #cbd5e1; }
+.evo-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 4px;
+}
+.evo-delta.good { background: #dcfce7; color: #15803d; }
+.evo-delta.bad  { background: #fee2e2; color: #dc2626; }
+.evo-delta.neutral { background: #f1f5f9; color: #64748b; }
+.evo-seal {
+  display: inline-block;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.evo-seal.neg  { background: #dcfce7; color: #15803d; }
+.evo-seal.pos1 { background: #fef9c3; color: #92400e; }
+.evo-seal.pos2 { background: #fee2e2; color: #dc2626; }
+.evo-vazio {
+  padding: 24px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+  border: 1px solid #e2e8f0;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  background: #fff;
+}
+</style>
+
+<script type="module">
+import { construirEvolutivo, extrairDatasDisponiveis } from '../../../comparativo/evolutivo-motor.js';
+
+const EVO_MAX_DATAS = 5;
+let _evoRegistos = [];
+let _evoDatasSeleccionadas = [];
+let _evoDatasDisponiveis = {};
+
+async function iniciarEvolutivo() {
+  const sb = window.sb;
+  if (!sb || !PATIENT_ID) return;
+
+  // Buscar todos os registos do doente
+  const { data, error } = await sb
+    .from('consultation_assessments')
+    .select('assessment_type, assessment_side, assessment_date, data')
+    .eq('patient_id', PATIENT_ID)
+    .order('assessment_date', { ascending: true });
+
+  if (error || !data?.length) {
+    document.getElementById('sec-evolutivo').style.display = 'none';
+    return;
+  }
+
+  _evoRegistos = data;
+  _evoDatasDisponiveis = extrairDatasDisponiveis(data);
+
+  // Seleccionar automaticamente as últimas N datas com exame (globais)
+  const todasDatas = [...new Set(data.map(r => r.assessment_date))].sort();
+  _evoDatasSeleccionadas = todasDatas.slice(-EVO_MAX_DATAS);
+
+  renderEvo();
+}
+
+function renderEvo() {
+  renderChips();
+  renderTabelas();
+}
+
+function renderChips() {
+  const wrap = document.getElementById('evo-chips');
+  if (!wrap) return;
+
+  // Todas as datas disponíveis (para picker)
+  const todasDatas = [...new Set(_evoRegistos.map(r => r.assessment_date))].sort();
+
+  wrap.innerHTML = '';
+
+  // Chips das datas seleccionadas
+  for (const d of _evoDatasSeleccionadas) {
+    const chip = document.createElement('div');
+    chip.className = 'evo-chip';
+    chip.innerHTML = `${fmtData(d)} <button class="evo-chip-rm" data-d="${d}">✕</button>`;
+    chip.querySelector('.evo-chip-rm').addEventListener('click', (e) => {
+      e.stopPropagation();
+      _evoDatasSeleccionadas = _evoDatasSeleccionadas.filter(x => x !== d);
+      renderEvo();
+    });
+    wrap.appendChild(chip);
+  }
+
+  // Botão adicionar (só se houver datas disponíveis não seleccionadas)
+  const disponiveis = todasDatas.filter(d => !_evoDatasSeleccionadas.includes(d));
+  if (disponiveis.length > 0 && _evoDatasSeleccionadas.length < EVO_MAX_DATAS) {
+    const sel = document.createElement('select');
+    sel.className = 'evo-add-btn';
+    sel.innerHTML = `<option value="">+ data</option>` +
+      disponiveis.map(d => `<option value="${d}">${fmtData(d)}</option>`).join('');
+    sel.addEventListener('change', () => {
+      if (sel.value) {
+        _evoDatasSeleccionadas = [..._evoDatasSeleccionadas, sel.value].sort();
+        renderEvo();
+      }
+    });
+    wrap.appendChild(sel);
+  }
+
+  // Label automático
+  const label = document.createElement('span');
+  label.className = 'evo-auto-label';
+  label.textContent = 'automático · últimas ' + EVO_MAX_DATAS + ' consultas';
+  wrap.appendChild(label);
+}
+
+function renderTabelas() {
+  const corpo = document.getElementById('evo-corpo');
+  if (!corpo) return;
+
+  if (_evoDatasSeleccionadas.length < 2) {
+    corpo.innerHTML = `<div class="evo-vazio">Selecciona pelo menos 2 datas para comparar.</div>`;
+    return;
+  }
+
+  const estrutura = construirEvolutivo(_evoRegistos, _evoDatasSeleccionadas);
+
+  if (!estrutura.length) {
+    corpo.innerHTML = `<div class="evo-vazio">Sem dados de exame objetivo para as datas seleccionadas.</div>`;
+    return;
+  }
+
+  const isLatest = (d) => d === _evoDatasSeleccionadas[_evoDatasSeleccionadas.length - 1];
+
+  let html = '';
+  for (const regiao of estrutura) {
+    html += `<div class="evo-regiao-wrap">`;
+    html += `<div class="evo-regiao-label">${regiao.regiaoLabel}</div>`;
+    html += `<table class="evo-table"><thead><tr>`;
+    html += `<th class="evo-col-param">Parâmetro</th>`;
+    for (const d of regiao.datas) {
+      const cls = isLatest(d) ? ' evo-col-latest' : '';
+      const star = isLatest(d) ? ' ★' : '';
+      html += `<th class="${cls}">${fmtData(d)}${star}</th>`;
+    }
+    html += `</tr></thead><tbody>`;
+
+    for (const [grupo, linhas] of Object.entries(regiao.grupos)) {
+      html += `<tr class="evo-grupo-row"><td colspan="${regiao.datas.length + 1}">${grupo}</td></tr>`;
+      for (const linha of linhas) {
+        html += `<tr>`;
+        html += `<td class="evo-col-param">${linha.label}${linha.unidade ? ` <span class="evo-unit">${linha.unidade}</span>` : ''}</td>`;
+        linha.valores.forEach((val, i) => {
+          const cls = isLatest(regiao.datas[i]) ? ' evo-col-latest' : '';
+          const delta = linha.deltas[i];
+          let celula = '';
+          if (val == null) {
+            celula = `<span class="evo-empty">—</span>`;
+          } else if (linha.tipo === 'teste') {
+            celula = sealHtml(val);
+          } else if (linha.tipo === 'mrc') {
+            celula = `${val}/5`;
+          } else if (linha.tipo === 'func') {
+            celula = `<span style="font-size:11px">${val}</span>`;
+          } else {
+            celula = String(val);
+          }
+          if (delta) {
+            const sinal = delta.valor > 0 ? '+' : '';
+            celula += `<span class="evo-delta ${delta.classe}">${delta.seta || ''}${sinal}${delta.valor}</span>`;
+          }
+          html += `<td class="${cls}">${celula}</td>`;
+        });
+        html += `</tr>`;
+      }
+    }
+
+    html += `</tbody></table></div>`;
+  }
+
+  corpo.innerHTML = html;
+}
+
+function sealHtml(val) {
+  const v = String(val).trim();
+  if (!v || v === 'neg') return `<span class="evo-seal neg">neg</span>`;
+  if (v === '+')   return `<span class="evo-seal pos1">+</span>`;
+  if (v === '++')  return `<span class="evo-seal pos2">++</span>`;
+  if (v === '+++') return `<span class="evo-seal pos2">+++</span>`;
+  return `<span class="evo-seal pos1">${v}</span>`;
+}
+
+function fmtData(d) {
+  if (!d) return '';
+  const [y, m, dia] = d.split('-');
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  return `${parseInt(dia)} ${meses[parseInt(m)-1]} ${y}`;
+}
+
+window.iniciarEvolutivo = iniciarEvolutivo;
+</script>
+
   <script type="module">
     import { carregarConsulta } from './cc-queries.js';
 
@@ -1490,6 +1825,7 @@
     });
 
     boot();
+    iniciarEvolutivo();
   </script>
 </body>
 </html>
