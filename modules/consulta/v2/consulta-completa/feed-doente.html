@@ -978,8 +978,13 @@
             data-patient="${consulta.patient_id}"
             data-data="${dataConsulta}"
             data-tipos="${tiposConsulta}">
-            <div class="fd-bloco-titulo">Quadro Evolutivo
-              <select class="evo-regiao-sel" style="display:none;margin-left:10px;font-size:11px;border:1px solid #cbd5e1;border-radius:5px;padding:2px 6px;color:#0f2d52;background:#fff;cursor:pointer;"></select>
+            <div class="fd-bloco-titulo" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              Quadro Evolutivo
+              <select class="evo-regiao-sel" style="display:none;font-size:11px;border:1px solid #cbd5e1;border-radius:5px;padding:2px 6px;color:#0f2d52;background:#fff;cursor:pointer;"></select>
+              <span class="evo-dp-wrap" style="display:flex;align-items:center;gap:4px;font-size:11px;color:#64748b;margin-left:auto;">
+                De <input type="date" class="evo-dp-de" style="font-size:11px;border:1px solid #cbd5e1;border-radius:5px;padding:2px 5px;color:#0f2d52;">
+                Até <input type="date" class="evo-dp-ate" style="font-size:11px;border:1px solid #cbd5e1;border-radius:5px;padding:2px 5px;color:#0f2d52;">
+              </span>
             </div>
             <div class="fd-evo-inner" id="evo-${consulta.id}">
               <span class="fd-vazio">A carregar...</span>
@@ -1068,7 +1073,7 @@
         const tiposConsulta = (bloco.dataset.tipos || '').split(',').filter(Boolean);
         const regiaoInicial = regioes.find(r => tiposConsulta.includes(r.tipo)) || regioes[regioes.length - 1];
 
-        // Popular selector se há mais de uma região
+        // Selector de região se há mais de uma
         if (regioes.length > 1 && sel) {
           sel.innerHTML = regioes.map(r => {
             const label = r.lado ? `${r.tipo} · ${r.lado}` : r.tipo;
@@ -1077,7 +1082,29 @@
             return `<option value="${val}" ${selected}>${label}</option>`;
           }).join('');
           sel.style.display = '';
-          sel.onchange = () => renderParaRegiao(sel.value);
+          sel.onchange = () => {
+            actualizarDatePickers(sel.value);
+            renderParaRegiao(sel.value);
+          };
+        }
+
+        // Date pickers De/Até
+        const dpDe  = bloco.querySelector('.evo-dp-de');
+        const dpAte = bloco.querySelector('.evo-dp-ate');
+        if (dpDe && dpAte) {
+          dpDe.onchange  = () => renderParaRegiao(sel?.value || `${regiaoInicial.tipo}|${regiaoInicial.lado}`);
+          dpAte.onchange = () => renderParaRegiao(sel?.value || `${regiaoInicial.tipo}|${regiaoInicial.lado}`);
+        }
+
+        function actualizarDatePickers(chave) {
+          const [tipo, lado] = chave.split('|');
+          const registosFiltrados = registosAteData.filter(r =>
+            r.assessment_type === tipo && (r.assessment_side || '') === lado
+          );
+          const datas = [...new Set(registosFiltrados.map(r => r.assessment_date))].sort();
+          const ultimas5 = datas.slice(-5);
+          if (dpDe)  dpDe.value  = ultimas5[0] || '';
+          if (dpAte) dpAte.value = ultimas5[ultimas5.length - 1] || '';
         }
 
         function renderParaRegiao(chave) {
@@ -1085,18 +1112,24 @@
           const registosFiltrados = registosAteData.filter(r =>
             r.assessment_type === tipo && (r.assessment_side || '') === lado
           );
-          const datasUnicas = [...new Set(registosFiltrados.map(r => r.assessment_date))]
-            .sort().slice(-5);
+          const datas = [...new Set(registosFiltrados.map(r => r.assessment_date))].sort();
+          // filtrar por intervalo dos pickers
+          const de  = dpDe?.value  || datas.slice(-5)[0] || '';
+          const ate = dpAte?.value || datas[datas.length - 1] || '';
+          const datasUnicas = datas.filter(d => d >= de && d <= ate);
           if (datasUnicas.length < 2) {
             inner.innerHTML = '<span class="fd-vazio">Sem histórico comparativo suficiente para esta região.</span>';
             return;
           }
-          const estrutura = construirEvolutivo(registosFiltrados, datasUnicas);
+          const registosNoIntervalo = registosFiltrados.filter(r => datasUnicas.includes(r.assessment_date));
+          const estrutura = construirEvolutivo(registosNoIntervalo, datasUnicas);
           inner.innerHTML = estrutura.length
             ? renderEvoTabelas(estrutura, datasUnicas)
             : '<span class="fd-vazio">Sem dados comparativos.</span>';
         }
 
+        // Inicializar pickers com últimos 5 da região inicial e renderizar
+        actualizarDatePickers(`${regiaoInicial.tipo}|${regiaoInicial.lado}`);
         renderParaRegiao(`${regiaoInicial.tipo}|${regiaoInicial.lado}`);
       });
     }
