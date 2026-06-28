@@ -645,15 +645,15 @@ let _evoRegistos = [];
 let _evoDatasSeleccionadas = [];
 let _evoDatasDisponiveis = {};
 
-async function iniciarEvolutivo() {
+async function iniciarEvolutivo(patientId) {
   const sb = window.sb;
-  if (!sb || !PATIENT_ID) return;
+  if (!sb || !patientId) return;
 
   // Buscar todos os registos do doente
   const { data, error } = await sb
     .from('consultation_assessments')
     .select('assessment_type, assessment_side, assessment_date, data')
-    .eq('patient_id', PATIENT_ID)
+    .eq('patient_id', patientId)
     .order('assessment_date', { ascending: true });
 
   if (error || !data?.length) {
@@ -1825,7 +1825,7 @@ window.iniciarEvolutivo = iniciarEvolutivo;
     });
 
     boot();
-    iniciarEvolutivo();
+    iniciarEvolutivo(PATIENT_ID);
   </script>
 </body>
 </html>
