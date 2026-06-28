@@ -973,10 +973,14 @@
       /* Quadro Evolutivo — depois do exame objectivo */
       if (exames?.length) {
           const dataConsulta = consulta.report_date || consulta.created_at?.slice(0,10);
+          const tiposConsulta = [...new Set(exames.map(ex => ex.assessment_type).filter(Boolean))].join(',');
           html += `<div class="fd-sep"></div><div class="fd-bloco fd-bloco-evolutivo"
             data-patient="${consulta.patient_id}"
-            data-data="${dataConsulta}">
-            <div class="fd-bloco-titulo">Quadro Evolutivo</div>
+            data-data="${dataConsulta}"
+            data-tipos="${tiposConsulta}">
+            <div class="fd-bloco-titulo">Quadro Evolutivo
+              <select class="evo-regiao-sel" style="display:none;margin-left:10px;font-size:11px;border:1px solid #cbd5e1;border-radius:5px;padding:2px 6px;color:#0f2d52;background:#fff;cursor:pointer;"></select>
+            </div>
             <div class="fd-evo-inner" id="evo-${consulta.id}">
               <span class="fd-vazio">A carregar...</span>
             </div>
@@ -1043,31 +1047,57 @@
 
       // Para cada bloco evolutivo no feed
       document.querySelectorAll('.fd-bloco-evolutivo').forEach(bloco => {
-        const consultId = bloco.closest('.fd-card')?.dataset?.consultId;
         const dataConsulta = bloco.dataset.data;
         const inner = bloco.querySelector('.fd-evo-inner');
+        const sel = bloco.querySelector('.evo-regiao-sel');
         if (!inner || !dataConsulta) return;
 
         // Só assessments até à data desta consulta
         const registosAteData = todos.filter(r => r.assessment_date <= dataConsulta);
-
-        // Datas únicas disponíveis até esta consulta (últimas 5)
-        const datasUnicas = [...new Set(registosAteData.map(r => r.assessment_date))]
-          .sort().slice(-5);
-
-        if (datasUnicas.length < 2) {
-          inner.innerHTML = '<span class="fd-vazio" style="font-size:12px;color:#94a3b8;">Sem histórico comparativo suficiente.</span>';
+        if (!registosAteData.length) {
+          inner.innerHTML = '<span class="fd-vazio">Sem histórico comparativo.</span>';
           return;
         }
 
-        const estrutura = construirEvolutivo(registosAteData, datasUnicas);
+        // Regiões disponíveis até esta data
+        const regioes = [...new Map(
+          registosAteData.map(r => [`${r.assessment_type}|${r.assessment_side||''}`, r])
+        ).values()].map(r => ({ tipo: r.assessment_type, lado: r.assessment_side || '' }));
 
-        if (!estrutura.length) {
-          inner.innerHTML = '<span class="fd-vazio" style="font-size:12px;color:#94a3b8;">Sem dados comparativos.</span>';
-          return;
+        // Pré-seleccionar: regiões desta consulta (data-tipos) ou a mais recente
+        const tiposConsulta = (bloco.dataset.tipos || '').split(',').filter(Boolean);
+        const regiaoInicial = regioes.find(r => tiposConsulta.includes(r.tipo)) || regioes[regioes.length - 1];
+
+        // Popular selector se há mais de uma região
+        if (regioes.length > 1 && sel) {
+          sel.innerHTML = regioes.map(r => {
+            const label = r.lado ? `${r.tipo} · ${r.lado}` : r.tipo;
+            const val = `${r.tipo}|${r.lado}`;
+            const selected = (r.tipo === regiaoInicial.tipo && r.lado === regiaoInicial.lado) ? 'selected' : '';
+            return `<option value="${val}" ${selected}>${label}</option>`;
+          }).join('');
+          sel.style.display = '';
+          sel.onchange = () => renderParaRegiao(sel.value);
         }
 
-        inner.innerHTML = renderEvoTabelas(estrutura, datasUnicas);
+        function renderParaRegiao(chave) {
+          const [tipo, lado] = chave.split('|');
+          const registosFiltrados = registosAteData.filter(r =>
+            r.assessment_type === tipo && (r.assessment_side || '') === lado
+          );
+          const datasUnicas = [...new Set(registosFiltrados.map(r => r.assessment_date))]
+            .sort().slice(-5);
+          if (datasUnicas.length < 2) {
+            inner.innerHTML = '<span class="fd-vazio">Sem histórico comparativo suficiente para esta região.</span>';
+            return;
+          }
+          const estrutura = construirEvolutivo(registosFiltrados, datasUnicas);
+          inner.innerHTML = estrutura.length
+            ? renderEvoTabelas(estrutura, datasUnicas)
+            : '<span class="fd-vazio">Sem dados comparativos.</span>';
+        }
+
+        renderParaRegiao(`${regiaoInicial.tipo}|${regiaoInicial.lado}`);
       });
     }
 
