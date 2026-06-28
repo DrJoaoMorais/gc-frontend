@@ -567,10 +567,10 @@
 
       /* helpers */
       const grauCor = v => {
-        if (!v || v === 'Negativo') return 'color:#059669';
-        if (v === '+')   return 'color:#f59e0b';
-        if (v === '++')  return 'color:#ea580c';
-        if (v === '+++') return 'color:#dc2626';
+        if (!v || v === 'Negativo') return 'color:#059669;border-color:#bbf7d0;background:#fff';
+        if (v === '+')   return 'color:#ca8a04;border-color:#fde68a;background:#fff';
+        if (v === '++')  return 'color:#ea580c;border-color:#fed7aa;background:#fff';
+        if (v === '+++') return 'color:#dc2626;border-color:#fca5a5;background:#fff';
         return '';
       };
       const pill = (txt, cor) => `<span style="display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px;border:1px solid #e2e8f0;background:#f8fafc;margin:2px;${cor||''}">${esc(String(txt))}</span>`;
@@ -621,11 +621,42 @@
       /* --- ROM --- */
       let romHtml = '';
       if (d.rom) {
-        const labels = { flex_a:'Flexão A', flex_p:'Flexão P', ext_a:'Extensão A', ext_p:'Extensão P', abd_a:'Abdução A', abd_p:'Abdução P', re_a:'Rot. Ext. A', re_p:'Rot. Ext. P', ri_a:'Rot. Int. A', ri_p:'Rot. Int. P', lat_d_a:'Lat. D A', lat_e_a:'Lat. E A', rot_d_a:'Rot. D A', rot_e_a:'Rot. E A', flex_lomb_a:'Flexão A', ext_lomb_a:'Extensão A' };
-        const rows = Object.entries(d.rom).filter(([,v]) => v != null && v !== '').map(([k,v]) =>
-          `<tr><td style="font-size:11px;color:#374151;padding:3px 6px 3px 0;">${labels[k]||k}</td><td style="font-size:12px;font-weight:600;color:#0f2d52;text-align:right;padding:3px 0;">${v}°</td></tr>`
-        ).join('');
-        if (rows) romHtml = `<table style="width:100%;border-collapse:collapse;">${rows}</table>`;
+        const refs = { flex_a:180, flex_p:180, ext_a:60, ext_p:60, abd_a:180, abd_p:180, re_a:90, re_p:90, ri_a:90, ri_p:90, lat_d_a:45, lat_e_a:45, rot_d_a:80, rot_e_a:80, flex_lomb_a:90, ext_lomb_a:30 };
+        const movLabels = { flex:'Flexão', ext:'Extensão', abd:'Abdução', re:'Rot. externa', ri:'Rot. interna', lat_d:'Lat. direita', lat_e:'Lat. esquerda', rot_d:'Rot. direita', rot_e:'Rot. esquerda', flex_lomb:'Flexão', ext_lomb:'Extensão' };
+        /* agrupar activa+passiva por movimento */
+        const movs = {};
+        Object.entries(d.rom).forEach(([k,v]) => {
+          if (v == null || v === '') return;
+          const match = k.match(/^(.+?)_(a|p)$/);
+          if (!match) return;
+          const [,mov,ap] = match;
+          if (!movs[mov]) movs[mov] = { ref: refs[k] || refs[mov+'_a'] || '—' };
+          movs[mov][ap] = v;
+        });
+        const rows = Object.entries(movs).map(([mov, val]) => {
+          const a = val.a != null ? val.a : '—';
+          const p = val.p != null ? val.p : '—';
+          const ref = val.ref || '—';
+          const delta = (val.a != null && val.p != null) ? (val.p - val.a) : '—';
+          const defice = (val.a != null && ref !== '—') ? (val.a - ref) : '—';
+          const deficeCor = defice !== '—' && defice < -10 ? 'color:#dc2626;font-weight:600' : 'color:#94a3b8';
+          return `<tr>
+            <td style="font-size:11px;color:#374151;padding:4px 8px 4px 0;border-top:1px solid #f1f5f9;">${movLabels[mov]||mov}</td>
+            <td style="font-size:12px;font-weight:600;color:#0f2d52;text-align:right;padding:4px 4px;border-top:1px solid #f1f5f9;">${a}°</td>
+            <td style="font-size:11px;color:#64748b;text-align:right;padding:4px 4px;border-top:1px solid #f1f5f9;">${p !== '—' ? p+'°' : '—'}</td>
+            <td style="font-size:11px;text-align:right;padding:4px 0;border-top:1px solid #f1f5f9;${deficeCor}">${defice !== '—' ? defice+'°' : '—'}</td>
+          </tr>`;
+        }).join('');
+        if (rows) romHtml = `
+          <table style="width:100%;border-collapse:collapse;">
+            <thead><tr>
+              <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:left;padding-bottom:4px;">Movimento</th>
+              <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">Act.</th>
+              <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">Pass.</th>
+              <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">Défice</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>`;
       }
 
       /* --- TESTES --- */
