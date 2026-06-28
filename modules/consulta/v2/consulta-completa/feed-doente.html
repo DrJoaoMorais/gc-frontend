@@ -319,6 +319,32 @@
       text-align: center; padding: 10px 0 4px;
     }
   </style>
+  <style>
+.evo-regiao-wrap { border:1px solid #e2e8f0; border-top:none; overflow:hidden; margin-bottom:0; }
+.evo-regiao-wrap:first-child { border-top:1px solid #e2e8f0; border-radius:6px 6px 0 0; }
+.evo-regiao-wrap:last-child { border-radius:0 0 6px 6px; }
+.evo-regiao-wrap + .evo-regiao-wrap { border-top:2px dashed #e2e8f0; }
+.evo-regiao-label { padding:6px 14px 3px; font-size:10px; font-weight:700; color:#94a3b8; letter-spacing:.1em; text-transform:uppercase; background:#fff; }
+.evo-table { width:100%; border-collapse:collapse; }
+.evo-table thead tr { background:#eef2f7; }
+.evo-table th { padding:7px 12px; text-align:center; font-size:11px; font-weight:700; color:#0f2d52; border-bottom:2px solid #d1dae8; white-space:nowrap; }
+.evo-table th.evo-col-param { text-align:left; color:#475569; width:200px; }
+.evo-table th.evo-col-latest { background:#dbeafe; color:#1a56db; }
+.evo-table td { padding:6px 12px; text-align:center; border-bottom:1px solid #f1f5f9; font-size:12px; color:#334155; }
+.evo-table td.evo-col-param { text-align:left; color:#1e293b; font-weight:500; }
+.evo-table td.evo-col-latest { background:#f0f7ff; font-weight:600; }
+.evo-unit { font-size:10px; color:#94a3b8; font-weight:400; }
+.evo-grupo-row td { background:#f1f5f9; font-size:10px; font-weight:700; color:#64748b; letter-spacing:.08em; text-transform:uppercase; padding:5px 12px; border-bottom:none !important; }
+.evo-empty { color:#cbd5e1; }
+.evo-delta { display:inline-flex; align-items:center; gap:2px; border-radius:10px; padding:1px 6px; font-size:10px; font-weight:700; margin-left:4px; }
+.evo-delta.good { background:#dcfce7; color:#15803d; }
+.evo-delta.bad  { background:#fee2e2; color:#dc2626; }
+.evo-delta.neutral { background:#f1f5f9; color:#64748b; }
+.evo-seal { display:inline-block; border-radius:6px; padding:2px 7px; font-size:11px; font-weight:700; }
+.evo-seal.neg  { background:#dcfce7; color:#15803d; }
+.evo-seal.pos1 { background:#fef9c3; color:#92400e; }
+.evo-seal.pos2 { background:#fee2e2; color:#dc2626; }
+  </style>
 </head>
 <body>
 
@@ -981,6 +1007,119 @@
       return html;
     }
 
+    async function preencherEvolutivos() {
+      const { construirEvolutivo, extrairDatasDisponiveis } =
+        await import('../../../comparativo/evolutivo-motor.js');
+
+      const sb = window.sb;
+      if (!sb || !PATIENT_ID) return;
+
+      // Buscar todos os assessments do doente uma só vez
+      const { data: todos, error } = await sb
+        .from('consultation_assessments')
+        .select('assessment_type, assessment_side, assessment_date, consultation_id, data')
+        .eq('patient_id', PATIENT_ID)
+        .order('assessment_date', { ascending: true });
+
+      if (error || !todos?.length) return;
+
+      // Para cada bloco evolutivo no feed
+      document.querySelectorAll('.fd-bloco-evolutivo').forEach(bloco => {
+        const consultId = bloco.closest('.fd-card')?.dataset?.consultId;
+        const dataConsulta = bloco.dataset.data;
+        const inner = bloco.querySelector('.fd-evo-inner');
+        if (!inner || !dataConsulta) return;
+
+        // Só assessments até à data desta consulta
+        const registosAteData = todos.filter(r => r.assessment_date <= dataConsulta);
+
+        // Datas únicas disponíveis até esta consulta (últimas 5)
+        const datasUnicas = [...new Set(registosAteData.map(r => r.assessment_date))]
+          .sort().slice(-5);
+
+        if (datasUnicas.length < 2) {
+          inner.innerHTML = '<span class="fd-vazio" style="font-size:12px;color:#94a3b8;">Sem histórico comparativo suficiente.</span>';
+          return;
+        }
+
+        const estrutura = construirEvolutivo(registosAteData, datasUnicas);
+
+        if (!estrutura.length) {
+          inner.innerHTML = '<span class="fd-vazio" style="font-size:12px;color:#94a3b8;">Sem dados comparativos.</span>';
+          return;
+        }
+
+        inner.innerHTML = renderEvoTabelas(estrutura, datasUnicas);
+      });
+    }
+
+    function renderEvoTabelas(estrutura, datas) {
+      const isLatest = (d) => d === datas[datas.length - 1];
+
+      const fmtD = (d) => {
+        if (!d) return '';
+        const [y, m, dia] = d.split('-');
+        const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        return `${parseInt(dia)} ${meses[parseInt(m)-1]}`;
+      };
+
+      const sealHtml = (val) => {
+        const v = String(val).trim();
+        if (!v || v === 'neg') return `<span class="evo-seal neg">neg</span>`;
+        if (v === '+')   return `<span class="evo-seal pos1">+</span>`;
+        if (v === '++')  return `<span class="evo-seal pos2">++</span>`;
+        if (v === '+++') return `<span class="evo-seal pos2">+++</span>`;
+        return `<span class="evo-seal pos1">${v}</span>`;
+      };
+
+      let html = '';
+      for (const regiao of estrutura) {
+        html += `<div class="evo-regiao-wrap">`;
+        html += `<div class="evo-regiao-label">${regiao.regiaoLabel}</div>`;
+        html += `<table class="evo-table"><thead><tr>`;
+        html += `<th class="evo-col-param">Parâmetro</th>`;
+        for (const d of regiao.datas) {
+          const cls = isLatest(d) ? ' evo-col-latest' : '';
+          const star = isLatest(d) ? ' ★' : '';
+          html += `<th class="${cls}">${fmtD(d)}${star}</th>`;
+        }
+        html += `</tr></thead><tbody>`;
+
+        for (const [grupo, linhas] of Object.entries(regiao.grupos)) {
+          html += `<tr class="evo-grupo-row"><td colspan="${regiao.datas.length + 1}">${grupo}</td></tr>`;
+          for (const linha of linhas) {
+            html += `<tr>`;
+            const unit = linha.unidade ? ` <span class="evo-unit">${linha.unidade}</span>` : '';
+            html += `<td class="evo-col-param">${linha.label}${unit}</td>`;
+            linha.valores.forEach((val, i) => {
+              const cls = isLatest(regiao.datas[i]) ? ' evo-col-latest' : '';
+              const delta = linha.deltas[i];
+              let celula = '';
+              if (val == null) {
+                celula = `<span class="evo-empty">—</span>`;
+              } else if (linha.tipo === 'teste') {
+                celula = sealHtml(val);
+              } else if (linha.tipo === 'mrc') {
+                celula = `${val}/5`;
+              } else if (linha.tipo === 'func') {
+                celula = `<span style="font-size:11px">${val}</span>`;
+              } else {
+                celula = String(val);
+              }
+              if (delta) {
+                const sinal = delta.valor > 0 ? '+' : '';
+                celula += `<span class="evo-delta ${delta.classe}">${delta.seta || ''}${sinal}${delta.valor}</span>`;
+              }
+              html += `<td class="${cls}">${celula}</td>`;
+            });
+            html += `</tr>`;
+          }
+        }
+        html += `</tbody></table></div>`;
+      }
+      return html;
+    }
+
     /* ── render do feed completo ── */
     function renderFeed(consultas, dadosPorId) {
       const feed = document.getElementById('fd-feed');
@@ -1024,6 +1163,9 @@
       });
 
       feed.innerHTML = html;
+
+      /* ── evolutivo por card ── */
+      preencherEvolutivos();
 
       /* ── acordeões ── */
       feed.querySelectorAll('.fd-card-head').forEach(head => {
