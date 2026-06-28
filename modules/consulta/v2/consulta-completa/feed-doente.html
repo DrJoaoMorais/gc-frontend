@@ -228,6 +228,15 @@
     }
     .fd-hda p { margin: 0 0 6px; }
     .fd-hda ul, .fd-hda ol { margin: 0 0 6px; padding-left: 20px; }
+    .fd-objectivos {
+      background: #eff6ff;
+      border-left: 3px solid #1a56db;
+      border-radius: 0 6px 6px 0;
+      padding: 8px 12px;
+      font-size: 0.88rem;
+      color: #1e3a5f;
+      line-height: 1.55;
+    }
     .fd-vazio {
       font-size: 13px; color: var(--tenue); font-style: italic;
     }
@@ -995,8 +1004,8 @@
       /* Objectivos */
       if (consulta.objectives) {
         html += `<div class="fd-sep"></div><div class="fd-bloco">
-          <div class="fd-bloco-titulo">Objectivos</div>
-          <div class="fd-hda">${sanitizarHTML(consulta.objectives)}</div>
+          <div class="fd-bloco-titulo">🎯 Objectivos</div>
+          <div class="fd-objectivos">${sanitizarHTML(consulta.objectives)}</div>
         </div>`;
       }
 

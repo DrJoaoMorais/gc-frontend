@@ -11,7 +11,7 @@ export async function carregarConsulta({ consultationId, patientId }) {
   /* --- 1. Consulta + HDA --- */
   const { data: consulta, error: eC } = await sb
     .from('consultations')
-    .select('id, report_date, hda, plan_text, author_display_name')
+    .select('id, report_date, hda, plan_text, objectives, author_display_name')
     .eq('id', consultationId)
     .single();
   if (eC) throw eC;
