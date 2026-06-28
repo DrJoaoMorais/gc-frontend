@@ -572,6 +572,29 @@
           : `<p class="fd-vazio">Sem HDA registada.</p>`}
       </div>`;
 
+      /* Exame objectivo — antes do diagnóstico */
+      if (exames?.length) {
+        html += `<div class="fd-sep"></div><div class="fd-bloco">
+          <div class="fd-bloco-titulo">Exame Objectivo</div>
+          ${exames.map(ex => {
+            const tipo = ex.assessment_type || 'exame';
+            const lado = ex.assessment_side ? ` · ${ex.assessment_side}` : '';
+            const data = fmtData(ex.assessment_date);
+            const d = ex.data || {};
+            const resumo = d.resumo
+              ? `<pre style="white-space:pre-wrap;font-family:'Outfit',sans-serif;font-size:12px;color:#374151;margin-top:6px;line-height:1.6;">${esc(d.resumo)}</pre>`
+              : '';
+            return `<div class="fd-exame-item">
+              <div class="fd-exame-head">
+                <span class="fd-exame-tipo">${esc(tipo)}${esc(lado)}</span>
+                <span class="fd-exame-data">${data}</span>
+              </div>
+              ${resumo}
+            </div>`;
+          }).join('')}
+        </div>`;
+      }
+
       /* Diagnósticos */
       if (diagnosticos?.length) {
         html += `<div class="fd-sep"></div><div class="fd-bloco">
@@ -600,37 +623,6 @@
               </tr>`).join('')}
             </tbody>
           </table>
-        </div>`;
-      }
-
-      /* Exame objectivo */
-      if (exames?.length) {
-        html += `<div class="fd-sep"></div><div class="fd-bloco">
-          <div class="fd-bloco-titulo">Exame Objectivo</div>
-          ${exames.map(ex => {
-            const tipo = ex.assessment_type || 'exame';
-            const lado = ex.assessment_side ? ` · ${ex.assessment_side}` : '';
-            const data = fmtData(ex.assessment_date);
-            const d = ex.data || {};
-            /* EVA */
-            let resumo = '';
-            if (d.eva) {
-              const { rep, act } = d.eva;
-              const pills = [];
-              if (rep != null && rep !== '') pills.push(`Rep. ${rep}/10`);
-              if (act != null && act !== '') pills.push(`Act. ${act}/10`);
-              if (pills.length) resumo = pills.map(p =>
-                `<span style="background:#0f2d52;color:#fff;font-size:11px;padding:2px 8px;border-radius:12px;margin-right:4px;">${p}</span>`
-              ).join('');
-            }
-            return `<div class="fd-exame-item">
-              <div class="fd-exame-head">
-                <span class="fd-exame-tipo">${esc(tipo)}${esc(lado)}</span>
-                <span class="fd-exame-data">${data}</span>
-              </div>
-              ${resumo ? `<div style="margin-top:4px;">${resumo}</div>` : ''}
-            </div>`;
-          }).join('')}
         </div>`;
       }
 
