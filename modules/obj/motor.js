@@ -16,12 +16,149 @@ let _savedOnce = false;
     return;
   }
   const config = (await import('./configs/' + r + '.js')).default;
-  window._examCtx = { patientId: qp.get('p') || null, clinicId: qp.get('c') || null, consultationId: qp.get('s') || null, patientName: qp.get('n') || null };
+  window._examCtx = { patientId: qp.get('p') || null, clinicId: qp.get('c') || null, consultationId: qp.get('s') || null, patientName: qp.get('n') || null, assessmentId: qp.get('a') || null };
   _motorCfg = config;
   _renderPage(config);
   const _ed = document.getElementById('examDate');
   if (_ed) { _ed.value = new Date().toISOString().split('T')[0]; _ed.max = new Date().toISOString().split('T')[0]; }
+  if (window._examCtx.assessmentId) await _carregarAssessment(window._examCtx.assessmentId);
 })();
+
+/* ════════ CARREGAR ASSESSMENT (edição) ════════ */
+async function _carregarAssessment(id) {
+  const sb = window.sb;
+  if (!sb) return;
+  const { data: row, error } = await sb.from('consultation_assessments')
+    .select('data, assessment_side, assessment_date')
+    .eq('id', id).single();
+  if (error || !row) return;
+  const ed = document.getElementById('examDate');
+  if (ed && row.assessment_date) ed.value = row.assessment_date;
+  if (row.assessment_side) {
+    document.querySelectorAll('#lado .opt').forEach(function (o) {
+      if (o.dataset.v === row.assessment_side) o.click();
+    });
+  }
+  if (row.data) _hidratarFormData(row.data);
+}
+
+function _hidratarFormData(d) {
+  const cfg = _motorCfg;
+  if (!cfg || !d) return;
+  function selOpt(id, val) {
+    if (val == null) return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.querySelectorAll('.opt').forEach(function (b) { b.classList.remove('sel'); });
+    const btn = el.querySelector('[data-v="' + String(val) + '"]');
+    if (btn) btn.classList.add('sel');
+  }
+  function selMulti(id, vals) {
+    if (!Array.isArray(vals)) return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    vals.forEach(function (v) {
+      const btn = el.querySelector('[data-v="' + String(v) + '"]');
+      if (btn) btn.classList.add('sel');
+    });
+  }
+  cfg.seccoes.forEach(function (sec) {
+    switch (sec.tipo) {
+      case 'dor':
+        if (d.eva) sec.eva.forEach(function (e) { selOpt(e.id, d.eva[e.id.replace('eva_', '')]); });
+        sec.grupos.forEach(function (gr) { if (gr.multi) selMulti(gr.id, d[gr.id]); else selOpt(gr.id, d[gr.id]); });
+        break;
+      case 'params':
+      case 'mrc':
+      case 'func': {
+        const obj = d[sec.id] || {};
+        sec.rows.forEach(function (row) { selOpt(row.id, obj[row.id]); });
+        if (sec.notas) { const el = document.getElementById(sec.notas); if (el && d[sec.notas]) el.value = d[sec.notas]; }
+        break;
+      }
+      case 'rom': {
+        const obj = d[sec.id] || {};
+        sec.movimentos.forEach(function (m) {
+          const va = obj[m.key + '_a'], vp = obj[m.key + '_p'];
+          _romState[m.key] = { a: va != null ? va : null, p: vp != null ? vp : null };
+        });
+        _romRenderTable(sec.id);
+        if (sec.notas) { const el = document.getElementById(sec.notas); if (el && d[sec.notas]) el.value = d[sec.notas]; }
+        break;
+      }
+      case 'testes': {
+        const obj = d.testes || {};
+        sec.grupos.forEach(function (grp) { grp.testes.forEach(function (t) { selOpt(t.id, obj[t.id]); }); });
+        if (sec.notas) { const el = document.getElementById(sec.notas); if (el && d[sec.notas]) el.value = d[sec.notas]; }
+        break;
+      }
+      case 'grupos': {
+        const obj = d[sec.id] || {};
+        sec.grupos.forEach(function (g) {
+          const wrap = document.querySelector('#sec-' + sec.id + ' [data-key="' + g.key + '"]');
+          if (!wrap) return;
+          const val = obj[g.key];
+          if (g.tipo === 'sg') {
+            wrap.querySelectorAll('.opt').forEach(function (b) { b.classList.remove('sel'); });
+            if (val != null) { const btn = wrap.querySelector('[data-v="' + String(val) + '"]'); if (btn) btn.classList.add('sel'); }
+          } else {
+            if (Array.isArray(val)) val.forEach(function (v) { const btn = wrap.querySelector('[data-v="' + String(v) + '"]'); if (btn) btn.classList.add('sel'); });
+          }
+        });
+        if (sec.perimetria && obj.perimetria) {
+          sec.perimetria.niveis.forEach(function (nv) {
+            const pv = obj.perimetria[nv.key]; if (!pv) return;
+            const dEl = document.getElementById('perim_' + sec.id + '_' + nv.key + '_d');
+            const eEl = document.getElementById('perim_' + sec.id + '_' + nv.key + '_e');
+            if (dEl && pv.d != null) { dEl.value = pv.d; window._perimCalc(sec.id, nv.key); }
+            if (eEl && pv.e != null) { eEl.value = pv.e; window._perimCalc(sec.id, nv.key); }
+          });
+        }
+        if (sec.notasKey && d[sec.notasKey]) { const el = document.getElementById(sec.notasKey); if (el) el.value = d[sec.notasKey]; }
+        break;
+      }
+    }
+  });
+  if (cfg.dinamometria && !cfg.dinamometria.af2 && d.dyn) {
+    cfg.dinamometria.movimentos.forEach(function (m) {
+      const mv = d.dyn[m.key]; if (!mv) return;
+      const afEl = document.getElementById('dyn_' + m.key + '_af');
+      const clEl = document.getElementById('dyn_' + m.key + '_cl');
+      if (afEl && mv.af != null) { afEl.value = mv.af; afEl.dispatchEvent(new Event('input')); }
+      if (clEl && mv.cl != null) { clEl.value = mv.cl; clEl.dispatchEvent(new Event('input')); }
+    });
+  }
+  if (cfg.escalas && d.escalas) {
+    cfg.escalas.forEach(function (e) {
+      if (e.evaInput) { const evaEl = document.getElementById(e.evaInput.id); if (evaEl && d.escalas[e.evaInput.id] != null) evaEl.value = d.escalas[e.evaInput.id]; }
+      const items = d.escalas[e.id + '_items'];
+      if (!Array.isArray(items)) return;
+      const block = document.getElementById('scale-' + e.id);
+      if (!block) return;
+      block.querySelectorAll('.sq-row').forEach(function (row, i) {
+        row.querySelectorAll('.sq-opt').forEach(function (b) { b.classList.remove('sel'); });
+        if (items[i] != null) { const btn = row.querySelector('[data-v="' + items[i] + '"]'); if (btn) btn.classList.add('sel'); }
+      });
+      block.dispatchEvent(new Event('recalc'));
+    });
+  }
+  if (d.historia) {
+    const histTab = document.getElementById('tab-historia');
+    if (histTab) {
+      Object.keys(d.historia).forEach(function (k) {
+        const val = d.historia[k];
+        if (Array.isArray(val)) {
+          val.forEach(function (v) { const chip = histTab.querySelector('.ob-chip[data-h="' + k + '"][data-v="' + v + '"]'); if (chip) chip.classList.add('active'); });
+        } else if (val != null) {
+          const ta = histTab.querySelector('textarea[data-h="' + k + '"]');
+          if (ta) { ta.value = val; return; }
+          const inp = histTab.querySelector('input[type=number][data-h="' + k + '"]');
+          if (inp) inp.value = val;
+        }
+      });
+    }
+  }
+}
 
 /* ════════ RENDER ════════ */
 function _renderPage(cfg) {
@@ -962,6 +1099,7 @@ window._gerarData = function () {
         const s = row.querySelector('.sq-opt.sel'); items.push(s ? parseInt(s.dataset.v) : null);
       });
       esc[e.id + '_items'] = items;
+      if (e.evaInput) { const evaEl = document.getElementById(e.evaInput.id); esc[e.evaInput.id] = evaEl && evaEl.value !== '' ? parseFloat(evaEl.value) : null; }
     });
     data.escalas = esc;
   }
@@ -1715,16 +1853,20 @@ window._saveExamToSupabase = async function (txt, dataObj) {
     const authorId = userRes && userRes.data && userRes.data.user ? userRes.data.user.id : null;
     const payload = Object.assign({ resumo: txt }, dataObj || {});
     const lado = dataObj && dataObj.lado ? dataObj.lado : null;
-    const res = await sb.from('consultation_assessments').insert({
-      consultation_id: c.consultationId,
-      patient_id: c.patientId,
-      clinic_id: c.clinicId,
-      author_user_id: authorId,
-      assessment_type: _motorCfg ? _motorCfg.id : 'unknown',
+    const fields = {
       assessment_side: lado,
       assessment_date: document.getElementById('examDate')?.value || new Date().toISOString().split('T')[0],
       data: payload
-    });
+    };
+    const res = c.assessmentId
+      ? await sb.from('consultation_assessments').update(fields).eq('id', c.assessmentId)
+      : await sb.from('consultation_assessments').insert(Object.assign({}, fields, {
+          consultation_id: c.consultationId,
+          patient_id: c.patientId,
+          clinic_id: c.clinicId,
+          author_user_id: authorId,
+          assessment_type: _motorCfg ? _motorCfg.id : 'unknown'
+        }));
     if (res.error) console.error('saveExam:', res.error);
   } catch (e) {
     console.error('saveExam:', e);
