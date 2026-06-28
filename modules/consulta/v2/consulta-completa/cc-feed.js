@@ -441,7 +441,7 @@ function ombDyn(dyn, assessmentId) {
   }
 
   const linkVer = assessmentId
-    ? `<a class="cc-dyn-ver-link" href="#" onclick="event.preventDefault();window.fdAbrirExame&&window.fdAbrirExame('ombro','','','','',${JSON.stringify(assessmentId)})">↗ Ver análise completa</a>`
+    ? `<a class="cc-dyn-ver-link" href="#" onclick="event.preventDefault();window.fdAbrirExame&&window.fdAbrirExame('ombro','','','',${JSON.stringify(assessmentId)})">↗ Ver análise completa</a>`
     : '';
 
   return `
