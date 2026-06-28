@@ -8,7 +8,6 @@
 
 import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl } from '../_shell/shell-v2.js';
 import { buildPatientCard } from '../_components/patient-card.js';
-import { renderOmbro } from '../_components/exame-ombro.js';
 
 const escAttr = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -81,15 +80,6 @@ function ensureRelConsultaCss() {
   document.head.appendChild(lnk);
 }
 
-function ensureExameOmbroCss() {
-  if (document.querySelector('link[data-gcv2-exame-ombro]')) return;
-  const lnk = document.createElement('link');
-  lnk.rel = 'stylesheet';
-  lnk.href = new URL('../_components/exame-ombro.css', import.meta.url).href;
-  lnk.dataset.gcv2ExameOmbro = '1';
-  document.head.appendChild(lnk);
-}
-
 // -----------------------------------------------------------------
 // Carregamento de dados
 // -----------------------------------------------------------------
@@ -133,16 +123,6 @@ async function loadDiagnoses(consultationId) {
   return (cat || []).map(d => ({ id: d.id, code: d.code || "", label: d.label || "" }));
 }
 
-async function loadExames(consultationId) {
-  const { data, error } = await window.sb
-    .from('consultation_assessments')
-    .select('id, assessment_type, assessment_side, assessment_date, data')
-    .eq('consultation_id', consultationId)
-    .order('assessment_date', { ascending: false });
-  if (error) { console.error('[rc] erro a obter exames:', error); return []; }
-  return data || [];
-}
-
 async function loadPlano(consultationId) {
   const { data: links, error } = await window.sb
     .from("consultation_treatments")
@@ -170,6 +150,41 @@ async function loadPlano(consultationId) {
     .sort((a, b) => a.sort_order - b.sort_order);
 }
 
+async function loadAssessments(consultationId) {
+  const { data, error } = await window.sb
+    .from('consultation_assessments')
+    .select('id, type, data')
+    .eq('consultation_id', consultationId);
+  if (error) { console.error('[rc] erro a obter assessments:', error); return []; }
+  return data || [];
+}
+
+// -----------------------------------------------------------------
+// Renderers dinâmicos (IIFEs carregadas como <script>)
+// -----------------------------------------------------------------
+
+function ensureOmbroRender() {
+  if (typeof window.gcv2RenderOmbroExame === 'function') return Promise.resolve();
+  return new Promise((resolve) => {
+    const s = document.createElement('script');
+    s.src = new URL('../_renderers/ombro-render.js', import.meta.url).href;
+    s.onload = resolve;
+    s.onerror = () => { console.warn('[rc] ombro-render.js não carregou'); resolve(); };
+    document.head.appendChild(s);
+  });
+}
+
+function ensureDinamometriaTable() {
+  if (typeof window.gcv2HydrateDynTables === 'function') return Promise.resolve();
+  return new Promise((resolve) => {
+    const s = document.createElement('script');
+    s.src = new URL('../_components/dinamometria-table.js', import.meta.url).href;
+    s.onload = resolve;
+    s.onerror = () => { console.warn('[rc] dinamometria-table.js não carregou'); resolve(); };
+    document.head.appendChild(s);
+  });
+}
+
 // -----------------------------------------------------------------
 // Modal principal
 // -----------------------------------------------------------------
@@ -182,22 +197,23 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
   ensureShellCss();
   ensureAtestadoCss();
   ensureRelConsultaCss();
-  ensureExameOmbroCss();
 
   const consultation = await loadConsultation(consultationId);
   if (!consultation) { alert('Consulta não encontrada'); return; }
 
   const clinicId = consultation.clinic_id;
 
-  const [patient, clinic, doctor, vinhetaUrl, diagnoses, plano, exames] = await Promise.all([
+  const [patient, clinic, doctor, vinhetaUrl, diagnoses, plano, assessments] = await Promise.all([
     loadPatient(consultation.patient_id),
     loadClinicById(clinicId),
     loadCurrentDoctor(),
     getVinhetaDataUrl(),
     loadDiagnoses(consultationId),
     loadPlano(consultationId),
-    loadExames(consultationId),
+    loadAssessments(consultationId),
   ]);
+
+  await Promise.all([ensureOmbroRender(), ensureDinamometriaTable()]);
 
   // Estado local — campos editáveis
   const _y = new Date().getFullYear().toString().slice(-2);
@@ -294,10 +310,11 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
          </section>`
       : '';
 
-    const examHtml = exames.length
+    const ombroData = assessments.find(a => a.type === 'ombro')?.data;
+    const examHtml = ombroData && typeof window.gcv2RenderOmbroExame === 'function'
       ? `<section class="gcv2-rc-section">
            <h3 class="gcv2-rc-h3">Exame Objectivo</h3>
-           ${exames.map((ex, idx) => renderOmbro(ex, idx)).join('')}
+           <div class="gcv2-rc-exam">${window.gcv2RenderOmbroExame(ombroData)}</div>
          </section>`
       : '';
 
@@ -366,7 +383,10 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       contentHtml,
     });
     const host = overlay.querySelector('#gcv2-rc-preview-host');
-    if (host) host.innerHTML = shellHtml;
+    if (host) {
+      host.innerHTML = shellHtml;
+      if (typeof window.gcv2HydrateDynTables === 'function') window.gcv2HydrateDynTables(host);
+    }
   }
 
   renderPreview();
@@ -400,47 +420,13 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     btn.textContent = 'A gerar PDF…';
 
     try {
-      const styles = Array.from(document.querySelectorAll('link[data-gcv2-shell], link[data-gcv2-atestado], link[data-gcv2-rc], link[data-gcv2-exame-ombro]'))
+      const html = overlay.querySelector('#gcv2-rc-preview-host').innerHTML;
+      const styles = Array.from(document.querySelectorAll('link[data-gcv2-shell], link[data-gcv2-atestado], link[data-gcv2-rc]'))
         .map(l => `<link rel="stylesheet" href="${l.href}">`).join('\n');
 
-      // Vinheta de autenticação — passada ao shell via config.authVinheta
-      const vinhetaBox = `
-<div id="gcv2-vinheta" style="
-  width:72mm; padding:8px 10px;
-  border:1.5px solid #0f2d52; border-radius:4px;
-  font-family:monospace; font-size:9pt; color:#0f2d52;
-  background:#fff; page-break-inside:avoid;
-">
-  <div style="font-weight:700;font-size:10pt;margin-bottom:6px;">
-    Documento autenticado
-  </div>
-  <div style="display:flex;align-items:center;gap:8px;">
-    <div style="
-      width:48px;height:48px;background:#e5e7eb;
-      flex-shrink:0;border:1px solid #cbd5e1;
-    "></div>
-    <span style="font-size:8pt;line-height:1.5;">
-      <strong>${state.docNumber}</strong><br>
-      gc.joaomorais.pt/verificar/<br>
-      <em style="color:#6b7280;">QR activo após registo</em>
-    </span>
-  </div>
-</div>`;
+      // Gerar código do documento localmente
 
-      // Gerar HTML do PDF directamente via buildShellV2 (sem .replace() frágil)
-      const shellHtmlPdf = buildShellV2({
-        clinic, doctor,
-        config: {
-          kicker: 'Medicina Física & Reabilitação',
-          title: 'Relatório de Consulta',
-          date: state.date,
-          vinhetaUrl,
-          authVinheta: vinhetaBox,
-        },
-        contentHtml: buildReportContent(),
-      });
-
-      const fullHtml = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${shellHtmlPdf}</body></html>`;
+      const fullHtml = \`<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}</body></html>\`;
 
 
       const resp = await fetch('https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf', {
@@ -470,11 +456,17 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       });
       if (upErr) console.warn('[rc] upload storage falhou:', upErr);
 
-      // Actualizar o documento já inserido com o html completo (com vinheta) e o storage_path
-      const { error: insErr } = await window.sb.from('documents')
-        .update({ html: fullHtml, storage_path: path })
-        .eq('doc_number', state.docNumber);
-      if (insErr) console.warn('[rc] update documents falhou:', insErr);
+      const { error: insErr } = await window.sb.from('documents').insert({
+        clinic_id: clinicId,
+        patient_id: patientId,
+        consultation_id: consultationId,
+        title: `Relatório de Consulta — ${state.date}`,
+        html: fullHtml,
+        storage_path: path,
+        category: 'relatorio_consulta',
+        doc_number: state.docNumber,
+      });
+      if (insErr) console.warn('[rc] insert documents falhou:', insErr);
 
       closeModal();
     } catch (err) {

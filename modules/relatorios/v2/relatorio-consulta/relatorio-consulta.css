@@ -110,3 +110,68 @@
   border-radius: 6px;
   border-left: 3px solid #1a56db;
 }
+
+/* -------- Exame objectivo — ombro -------- */
+.gcv2-rc-exam { font-size: 12pt; }
+.gcv2-rc-exam h2.gcv2-ombro-h {
+  font-family: 'Outfit', sans-serif;
+  font-size: 11pt;
+  font-weight: 700;
+  color: #0f2d52;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 1rem 0 0.5rem 0;
+}
+.gcv2-rc-exam h3 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 10pt;
+  font-weight: 600;
+  color: #334155;
+  margin: 0.75rem 0 0.35rem 0;
+}
+.gcv2-ombro-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11pt;
+  margin-bottom: 0.5rem;
+}
+.gcv2-ombro-table th, .gcv2-ombro-table td {
+  padding: 4px 8px;
+  border: 1px solid #e2e8f0;
+  text-align: left;
+}
+.gcv2-ombro-table th { background: #f1f5f9; font-weight: 600; }
+.gcv2-ombro-alert { color: #991b1b; font-weight: 700; }
+.gcv2-ombro-warn  { color: #92400e; font-weight: 600; }
+.gcv2-ombro-dor   { color: #991b1b; }
+.gcv2-ombro-mrc   { font-size: 11pt; line-height: 1.8; }
+.gcv2-ombro-testes-grid {
+  display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 11pt;
+}
+.gcv2-ombro-teste-item { white-space: nowrap; }
+.gcv2-ombro-teste-lbl  { color: #475569; }
+.gcv2-ombro-pos1 { color: #92400e; font-weight: 600; }
+.gcv2-ombro-pos2 { color: #b45309; font-weight: 700; }
+.gcv2-ombro-pos3 { color: #991b1b; font-weight: 700; }
+.gcv2-ombro-escalas-flex { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px; }
+.gcv2-ombro-escala-card {
+  border: 1px solid #e2e8f0; border-radius: 6px;
+  padding: 8px 14px; text-align: center; min-width: 90px;
+}
+.gcv2-ombro-escala-nome  { font-size: 9pt; color: #64748b; font-weight: 600; text-transform: uppercase; }
+.gcv2-ombro-escala-score { font-size: 18pt; font-weight: 700; color: #0f2d52; }
+.gcv2-ombro-escala-sub   { font-size: 9pt; color: #64748b; }
+.gcv2-ombro-escala-int   { font-size: 9pt; color: #475569; }
+
+/* -------- Dinamometria -------- */
+.gcv2-dyn-table {
+  width: 100%; border-collapse: collapse; font-size: 11pt; margin-bottom: 0.5rem;
+}
+.gcv2-dyn-table th, .gcv2-dyn-table td {
+  padding: 4px 8px; border: 1px solid #e2e8f0; text-align: left;
+}
+.gcv2-dyn-table th { background: #f1f5f9; font-weight: 600; }
+.gcv2-dyn-alert { color: #991b1b; font-weight: 700; }
+.gcv2-dyn-warn  { color: #92400e; font-weight: 600; }
+.gcv2-dyn-unilateral { color: #94a3b8; font-size: 9pt; }
+.gcv2-dyn-empty { color: #94a3b8; font-size: 10pt; font-style: italic; }
