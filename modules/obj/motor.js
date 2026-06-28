@@ -158,6 +158,13 @@ function _hidratarFormData(d) {
       });
     }
   }
+  if (cfg.dinamometria && cfg.dinamometria.af2 && d.dyn && Object.keys(d.dyn).length) {
+    window._dynData = d.dyn;
+    if (cfg.dinamometria.af2Cervical) _calcDynCervical(d.dyn, cfg.dinamometria);
+    else _calcDynAF2(d.dyn, cfg.dinamometria);
+    const sec = document.getElementById('dyn_results_sec');
+    if (sec) sec.style.display = 'block';
+  }
 }
 
 /* ════════ RENDER ════════ */
