@@ -701,25 +701,84 @@
       let dynHtml = '';
       if (d.dyn && Object.keys(d.dyn).length) {
         const dynLabels = { flex:'Flexão', ext:'Extensão', abd:'Abdução', re:'Rot. externa', ri:'Rot. interna', add:'Adução', flex_cot:'Flexão cotovelo', ext_cot:'Extensão cotovelo', flex_pun:'Flexão punho', ext_pun:'Extensão punho', flex_joe:'Flexão joelho', ext_joe:'Extensão joelho', flex_anc:'Flexão anca', ext_anc:'Extensão anca' };
-        const dynRows = Object.entries(d.dyn).filter(([,v]) => v && (v.d != null || v.e != null)).map(([k,v]) => {
-          const vd = v.d != null ? v.d+'kg' : '—';
-          const ve = v.e != null ? v.e+'kg' : '—';
-          const lsi = (v.d != null && v.e != null && v.d > 0)
-            ? Math.round(Math.min(v.d,v.e)/Math.max(v.d,v.e)*100)+'%' : '—';
-          const lsiCor = lsi !== '—'
-            ? (parseInt(lsi)>=90?'color:#059669':parseInt(lsi)>=85?'color:#f59e0b':'color:#dc2626') : '';
+        const tem = v => v != null && v !== '';
+        const dynEntries = Object.entries(d.dyn).filter(([,v]) => v && (tem(v.e) || tem(v.d)));
+
+        /* KPIs */
+        let maiorForca = 0, maiorForcaLbl = '—';
+        let maiorDefPct = 0, maiorDefLbl = '—', maiorDefSub = '', maiorDefCor = '';
+        let assimSoma = 0, assimN = 0;
+        let ratioRERI = '—';
+        dynEntries.forEach(([k,v]) => {
+          if (tem(v.e) && Number(v.e) > maiorForca) { maiorForca = Number(v.e); maiorForcaLbl = `${dynLabels[k]||k} E · ${v.e} kg`; }
+          if (tem(v.d) && Number(v.d) > maiorForca) { maiorForca = Number(v.d); maiorForcaLbl = `${dynLabels[k]||k} D · ${v.d} kg`; }
+          if (tem(v.e) && tem(v.d) && Number(v.e) > 0 && Number(v.d) > 0) {
+            const mn = Math.min(Number(v.e),Number(v.d)), mx = Math.max(Number(v.e),Number(v.d));
+            const pct = Math.round(((mx-mn)/mx)*100);
+            const ldo = Number(v.d) < Number(v.e) ? 'D' : 'E';
+            assimSoma += pct; assimN++;
+            if (pct > maiorDefPct) {
+              maiorDefPct = pct;
+              maiorDefLbl = `${dynLabels[k]||k} +${pct}%`;
+              maiorDefSub = `${ldo==='D'?'E':'D'} ${mx} vs ${ldo} ${mn} kg`;
+              maiorDefCor = pct>=20?'color:#dc2626':pct>=10?'color:#d97706':'';
+            }
+          }
+        });
+        if (d.dyn.re && d.dyn.ri && tem(d.dyn.re.e) && tem(d.dyn.ri.e) && Number(d.dyn.ri.e)>0)
+          ratioRERI = Math.round((Number(d.dyn.re.e)/Number(d.dyn.ri.e))*100)+'%';
+        const assimMedia = assimN > 0 ? Math.round(assimSoma/assimN) : null;
+        const assimLbl = assimMedia != null ? assimMedia+'%' : '—';
+        const assimCor = assimMedia != null ? (assimMedia>=20?'color:#dc2626':assimMedia>=10?'color:#d97706':'color:#16a34a') : '';
+
+        const kpisHtml = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;">
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">
+            <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Maior força</div>
+            <div style="font-size:12px;font-weight:700;color:#0f2d52;">${maiorForcaLbl}</div>
+          </div>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">
+            <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Maior défice</div>
+            <div style="font-size:12px;font-weight:700;${maiorDefCor}">${maiorDefLbl}</div>
+            <div style="font-size:10px;color:#94a3b8;margin-top:2px;">${maiorDefSub}</div>
+          </div>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">
+            <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Ratio RE/RI</div>
+            <div style="font-size:12px;font-weight:700;color:#0f2d52;">${ratioRERI}</div>
+            <div style="font-size:10px;color:#94a3b8;margin-top:2px;">Ref ≥ 66%</div>
+          </div>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">
+            <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Assimetria global</div>
+            <div style="font-size:12px;font-weight:700;${assimCor}">${assimLbl}</div>
+            <div style="font-size:10px;color:#94a3b8;margin-top:2px;">média bilateral</div>
+          </div>
+        </div>`;
+
+        /* Tabela LSI */
+        const dynRows = dynEntries.map(([k,v]) => {
+          const ve = tem(v.e) ? v.e+'kg' : '—';
+          const vd = tem(v.d) ? v.d+'kg' : '—';
+          let lsiHtml = '—';
+          if (tem(v.e) && tem(v.d) && Number(v.e)>0 && Number(v.d)>0) {
+            const lsi = Math.round(Math.min(Number(v.e),Number(v.d))/Math.max(Number(v.e),Number(v.d))*100);
+            const bg = lsi>=90?'background:#dcfce7;color:#16a34a':lsi>=80?'background:#fef9c3;color:#854d0e':'background:#fee2e2;color:#dc2626';
+            lsiHtml = `<span style="display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700;${bg}">${lsi}%</span>`;
+          }
+          const maiorE = tem(v.e) && tem(v.d) && Number(v.e) >= Number(v.d);
+          const estE = maiorE ? 'color:#1a56db;font-weight:700;' : '';
+          const estD = !maiorE && tem(v.e) && tem(v.d) ? 'color:#1a56db;font-weight:700;' : '';
           return `<tr>
             <td style="font-size:11px;color:#374151;padding:4px 6px 4px 0;border-top:1px solid #f1f5f9;">${dynLabels[k]||k}</td>
-            <td style="font-size:12px;font-weight:600;color:#0f2d52;text-align:right;padding:4px 4px;border-top:1px solid #f1f5f9;">${vd}</td>
-            <td style="font-size:12px;font-weight:600;color:#0f2d52;text-align:right;padding:4px 4px;border-top:1px solid #f1f5f9;">${ve}</td>
-            <td style="font-size:11px;font-weight:600;text-align:right;padding:4px 0;border-top:1px solid #f1f5f9;${lsiCor}">${lsi}</td>
+            <td style="font-size:12px;${estE}text-align:right;padding:4px;border-top:1px solid #f1f5f9;">${ve}</td>
+            <td style="font-size:12px;${estD}text-align:right;padding:4px;border-top:1px solid #f1f5f9;">${vd}</td>
+            <td style="text-align:right;padding:4px 0;border-top:1px solid #f1f5f9;">${lsiHtml}</td>
           </tr>`;
         }).join('');
-        if (dynRows) dynHtml = `<table style="width:100%;border-collapse:collapse;">
+
+        dynHtml = kpisHtml + `<table style="width:100%;border-collapse:collapse;">
           <thead><tr>
             <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:left;padding-bottom:4px;">Movimento</th>
-            <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">D</th>
-            <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">E</th>
+            <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">Esq. kg</th>
+            <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">Dir. kg</th>
             <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">LSI</th>
           </tr></thead>
           <tbody>${dynRows}</tbody>
