@@ -680,6 +680,91 @@
         });
       }
 
+      /* --- DINAMOMETRIA --- */
+      let dynHtml = '';
+      if (d.dyn && Object.keys(d.dyn).length) {
+        const dynLabels = { flex:'Flexão', ext:'Extensão', abd:'Abdução', re:'Rot. externa', ri:'Rot. interna', add:'Adução', flex_cot:'Flexão cotovelo', ext_cot:'Extensão cotovelo', flex_pun:'Flexão punho', ext_pun:'Extensão punho', flex_joe:'Flexão joelho', ext_joe:'Extensão joelho', flex_anc:'Flexão anca', ext_anc:'Extensão anca' };
+        const dynRows = Object.entries(d.dyn).filter(([,v]) => v && (v.d != null || v.e != null)).map(([k,v]) => {
+          const vd = v.d != null ? v.d+'kg' : '—';
+          const ve = v.e != null ? v.e+'kg' : '—';
+          const lsi = (v.d != null && v.e != null && v.d > 0)
+            ? Math.round(Math.min(v.d,v.e)/Math.max(v.d,v.e)*100)+'%' : '—';
+          const lsiCor = lsi !== '—'
+            ? (parseInt(lsi)>=90?'color:#059669':parseInt(lsi)>=85?'color:#f59e0b':'color:#dc2626') : '';
+          return `<tr>
+            <td style="font-size:11px;color:#374151;padding:4px 6px 4px 0;border-top:1px solid #f1f5f9;">${dynLabels[k]||k}</td>
+            <td style="font-size:12px;font-weight:600;color:#0f2d52;text-align:right;padding:4px 4px;border-top:1px solid #f1f5f9;">${vd}</td>
+            <td style="font-size:12px;font-weight:600;color:#0f2d52;text-align:right;padding:4px 4px;border-top:1px solid #f1f5f9;">${ve}</td>
+            <td style="font-size:11px;font-weight:600;text-align:right;padding:4px 0;border-top:1px solid #f1f5f9;${lsiCor}">${lsi}</td>
+          </tr>`;
+        }).join('');
+        if (dynRows) dynHtml = `<table style="width:100%;border-collapse:collapse;">
+          <thead><tr>
+            <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:left;padding-bottom:4px;">Movimento</th>
+            <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">D</th>
+            <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">E</th>
+            <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">LSI</th>
+          </tr></thead>
+          <tbody>${dynRows}</tbody>
+        </table>`;
+      }
+
+      /* --- CICATRIZ --- */
+      let cicatrizHtml = '';
+      if (d.cicatriz) {
+        const c = d.cicatriz;
+        const campos = [
+          c.aspeto_geral && `Aspecto: ${c.aspeto_geral}`,
+          c.tipo && `Tipo: ${c.tipo}`,
+          c.bordas && `Bordas: ${c.bordas}`,
+          c.aderencia && `Aderência: ${c.aderencia}`,
+          c.mobilidade && `Mobilidade: ${c.mobilidade}`,
+          c.secrecao && c.secrecao !== 'Ausente' && `Secreção: ${c.secrecao}`,
+          c.repuxamento === 'Sim' && 'Repuxamento: Sim',
+          c.dor_palpacao && c.dor_palpacao !== 'Ausente' && `Dor: ${c.dor_palpacao}`,
+          c.dor_presente?.length && `Dor em: ${c.dor_presente.join(', ')}`,
+          c.sinais_locais?.length && `Sinais: ${c.sinais_locais.join(', ')}`,
+          c.sensibilidade_tatil && c.sensibilidade_tatil !== 'Normal' && `Sensib.: ${c.sensibilidade_tatil}`,
+          c.fenomenos_sensitivos?.length && c.fenomenos_sensitivos.join(', '),
+          c.impacto_funcional && c.impacto_funcional !== 'Sem impacto' && `Impacto: ${c.impacto_funcional}`,
+          c.impressao_clinica?.length && c.impressao_clinica.join(' · '),
+        ].filter(Boolean);
+        if (campos.length) cicatrizHtml = campos.map(t =>
+          `<div style="font-size:11px;color:#374151;padding:2px 0;border-bottom:1px solid #f8fafc;">${esc(t)}</div>`
+        ).join('');
+      }
+
+      /* --- PERIMETRIA --- */
+      let perimHtml = '';
+      if (d.atrofia) {
+        const at = d.atrofia;
+        if (at.atrofia_muscular && at.atrofia_muscular !== 'Ausente') {
+          perimHtml += `<div style="font-size:11px;font-weight:600;color:#dc2626;margin-bottom:6px;">Atrofia muscular: ${esc(at.atrofia_muscular)}</div>`;
+        }
+        if (at.perimetria && Object.keys(at.perimetria).length) {
+          const perimLabels = { acrom10:'Acrómio +10', cot_a10:'Cotovelo −10', cot:'Cotovelo', cot_b10:'Cotovelo +10', pun_a10:'Punho −10', pun:'Punho', mao:'Mão', vir_b10:'Virilha +10', joe_a10:'Joelho −10', joe:'Joelho', joe_b10:'Joelho +10', tor_a10:'Tornozelo −10', tor:'Tornozelo', pe:'Pé' };
+          const rows = Object.entries(at.perimetria).filter(([,v]) => v.d != null || v.e != null).map(([k,v]) => {
+            const delta = (v.d != null && v.e != null) ? (v.d - v.e).toFixed(1) : '—';
+            const deltaCor = delta !== '—' && Math.abs(parseFloat(delta)) > 1 ? 'color:#dc2626;font-weight:600' : 'color:#94a3b8';
+            return `<tr>
+              <td style="font-size:11px;color:#374151;padding:3px 6px 3px 0;border-top:1px solid #f1f5f9;">${perimLabels[k]||k}</td>
+              <td style="font-size:12px;font-weight:600;color:#0f2d52;text-align:right;padding:3px 4px;border-top:1px solid #f1f5f9;">${v.d != null ? v.d+'cm' : '—'}</td>
+              <td style="font-size:12px;font-weight:600;color:#0f2d52;text-align:right;padding:3px 4px;border-top:1px solid #f1f5f9;">${v.e != null ? v.e+'cm' : '—'}</td>
+              <td style="font-size:11px;text-align:right;padding:3px 0;border-top:1px solid #f1f5f9;${deltaCor}">${delta !== '—' ? delta+'cm' : '—'}</td>
+            </tr>`;
+          }).join('');
+          if (rows) perimHtml += `<table style="width:100%;border-collapse:collapse;">
+            <thead><tr>
+              <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:left;padding-bottom:4px;">Nível</th>
+              <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">D</th>
+              <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">E</th>
+              <th style="font-size:10px;font-weight:600;color:#94a3b8;text-align:right;padding-bottom:4px;">Δ</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>`;
+        }
+      }
+
       /* --- ESCALAS --- */
       let escHtml = '';
       if (d.escalas) {
@@ -699,6 +784,9 @@
         cartao('Amplitude articular', romHtml, 'grid-column:span 2'),
         cartao('Testes clínicos', testesHtml),
         cartao('Funcional', funcHtml),
+        cartao('Dinamometria', dynHtml, 'grid-column:span 2'),
+        cartao('Perimetria / Atrofia', perimHtml, 'grid-column:span 2'),
+        cartao('Cicatriz', cicatrizHtml),
         cartao('Escalas', escHtml),
       ].filter(Boolean).join('');
 
