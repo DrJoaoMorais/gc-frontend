@@ -306,7 +306,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     const dxHtml = diagnoses.length
       ? `<section class="gcv2-rc-section">
            <h3 class="gcv2-rc-h3">Diagnósticos</h3>
-           <ul class="gcv2-rc-list-ul">${diagnoses.map(d => `<li>${d.code ? 'ICD 9- ' + escHtml(d.code) + ' - ' : ''}${escHtml(d.label || '—')}</li>`).join('')}</ul>
+           <ul class="gcv2-rc-list-ul">${diagnoses.map(d => `<li>${d.code ? 'ICD-9 ' + escHtml(d.code) + ' — ' : ''}${escHtml(d.label || '—')}</li>`).join('')}</ul>
          </section>`
       : '';
 
