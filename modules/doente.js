@@ -3391,6 +3391,7 @@ function openPatientViewModal(patient) {
     render();
     bindConsultEvents();
   }
+  window.openConsultForEdit = openConsultForEdit;
 
   function renderConsultFormInline() {
     const today = new Date().toISOString().slice(0, 10);
