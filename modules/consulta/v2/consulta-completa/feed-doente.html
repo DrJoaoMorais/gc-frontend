@@ -393,7 +393,7 @@
     <!-- card "Nova Consulta" — formulário inline completo -->
     <div class="fd-nova-wrap" id="fd-nova-wrap">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-        <span style="font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:var(--navy);">Nova Consulta</span>
+        <span id="fd-form-titulo" style="font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:var(--navy);">Nova Consulta</span>
         <span id="fd-nova-estado" style="font-size:12px;color:var(--suave);margin-left:4px;"></span>
         <button class="fd-nova-fechar" id="fd-nova-fechar" style="margin-left:auto;">×</button>
       </div>
@@ -1266,18 +1266,10 @@
         });
       });
 
-      /* ── botão Editar → modal inline do doente.js ── */
+      /* ── botão Editar → painel inline ── */
       feed.querySelectorAll('[data-action="feed-consulta"]').forEach(btn => {
         btn.addEventListener('click', () => {
-          const cid = btn.getAttribute('data-consult-id');
-          if (window.opener && typeof window.opener.openConsultForEdit === 'function') {
-            window.opener.openConsultForEdit(cid);
-          } else {
-            window.open(
-              `/modules/consulta/v2/consulta-completa/feed-consulta.html?consultId=${encodeURIComponent(cid)}&patientId=${encodeURIComponent(PATIENT_ID)}`,
-              '_blank'
-            );
-          }
+          fdAbrirEdicao(btn.getAttribute('data-consult-id'));
         });
       });
 
@@ -1391,6 +1383,9 @@
     let fdTreatSelecionados = []; // [{id, code, label}]
     let fdDiagTimer = null;
     let fdTreatTimer = null;
+    let fdModoEdicao = false;
+    let fdBindDiagDone = false;
+    let fdBindTreatDone = false;
 
     function fdDiz(txt, cor) {
       const e = document.getElementById('fd-nova-estado');
@@ -1462,6 +1457,7 @@
 
     /* ── pesquisa Dx ── */
     function fdBindDiag() {
+      if (fdBindDiagDone) return; fdBindDiagDone = true;
       const input = document.getElementById('fd-diag-search');
       const res   = document.getElementById('fd-diag-resultados');
       if (!input || !res) return;
@@ -1594,6 +1590,7 @@
 
     /* ── pesquisa Tratamentos ── */
     function fdBindTreat() {
+      if (fdBindTreatDone) return; fdBindTreatDone = true;
       const input = document.getElementById('fd-treat-search');
       if (!input) return;
       input.addEventListener('input', () => {
@@ -1682,6 +1679,9 @@
         }
 
         fdDiz('Gravado ✓', 'var(--verde)');
+        fdModoEdicao = false;
+        const tituloEl = document.getElementById('fd-form-titulo');
+        if (tituloEl) tituloEl.textContent = 'Nova Consulta';
 
         /* 4. reset + reload do feed */
         fdQuill.setText('');
@@ -1696,6 +1696,88 @@
 
       } catch(e) {
         fdDiz('Erro: ' + (e.message || e), 'var(--vermelho)');
+      }
+    }
+
+    /* ── abrir consulta em edição inline ── */
+    async function fdAbrirEdicao(consultationId) {
+      const sb = window.sb;
+      try {
+        fdDiz('A carregar…', 'var(--suave)');
+        const [{ data: c }, { data: dRows }, { data: tRows }] = await Promise.all([
+          sb.from('consultations')
+            .select('hda, objectives, plan_text, report_date')
+            .eq('id', consultationId).single(),
+          sb.from('consultation_diagnoses')
+            .select('diagnosis_id, diagnoses_catalog(system, code, label)')
+            .eq('consultation_id', consultationId),
+          sb.from('consultation_treatments')
+            .select('qty, treatments_catalog(id, code, label)')
+            .eq('consultation_id', consultationId),
+        ]);
+
+        fdRascunhoId = consultationId;
+        fdModoEdicao = true;
+
+        fdDiagSelecionados = (dRows || []).map(r => ({
+          id:     r.diagnosis_id,
+          system: r.diagnoses_catalog?.system || 'ICD-9',
+          code:   r.diagnoses_catalog?.code   || '',
+          label:  r.diagnoses_catalog?.label  || '',
+        }));
+        fdTreatSelecionados = (tRows || []).map(r => ({
+          id:    r.treatments_catalog?.id,
+          code:  r.treatments_catalog?.code  || '',
+          label: r.treatments_catalog?.label || '',
+        }));
+
+        const wrap = document.getElementById('fd-nova-wrap');
+        wrap?.classList.add('visivel');
+        wrap?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        fdIniciarQuill();
+        if (fdQuill) {
+          fdQuill.root.innerHTML = c?.hda || '';
+          fdQuill.history.clear();
+        }
+        const objEl = document.getElementById('fd-objectivos');
+        if (objEl) objEl.value = c?.objectives || '';
+
+        const planData = (() => { try { return JSON.parse(c?.plan_text || '{}'); } catch(e) { return {}; } })();
+        const sessTotal  = document.getElementById('fd-sessoes-total');
+        const sessSemana = document.getElementById('fd-sessoes-semana');
+        if (sessTotal)  sessTotal.value  = planData.sessoes_total  || 20;
+        if (sessSemana) sessSemana.value = planData.sessoes_semana || 3;
+        fdAtualizarTextoR();
+
+        const tituloEl = document.getElementById('fd-form-titulo');
+        if (tituloEl) tituloEl.textContent = `Editar Consulta — ${c?.report_date ? fmtData(c.report_date) : ''}`;
+
+        fdRenderDiagChips();
+        fdRenderTreatChips();
+        fdBindDiag();
+        fdBindTreat();
+        fdRenderCatalogo('');
+
+        document.getElementById('fd-btn-gravar')?.addEventListener('click', fdGravar);
+        document.getElementById('fd-sessoes-total')?.addEventListener('input', fdAtualizarTextoR);
+        document.getElementById('fd-sessoes-semana')?.addEventListener('input', fdAtualizarTextoR);
+        document.getElementById('fd-btn-cancelar')?.addEventListener('click', () => {
+          wrap?.classList.remove('visivel');
+          fdModoEdicao = false;
+          const t = document.getElementById('fd-form-titulo');
+          if (t) t.textContent = 'Nova Consulta';
+        });
+        document.getElementById('fd-nova-fechar')?.addEventListener('click', () => {
+          wrap?.classList.remove('visivel');
+          fdModoEdicao = false;
+          const t = document.getElementById('fd-form-titulo');
+          if (t) t.textContent = 'Nova Consulta';
+        });
+
+        fdDiz('', '');
+      } catch(e) {
+        fdDiz('Erro ao carregar: ' + (e.message || e), 'var(--vermelho)');
       }
     }
 
