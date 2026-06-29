@@ -709,7 +709,7 @@ export function preencherComparativo(el, series) {
      para as colunas serem o mesmo momento no tempo. */
   const datas = new Set();
   Object.values(series).forEach(arr => (arr || []).forEach(pt => datas.add(pt.data)));
-  const eixo = [...datas].sort().slice(-3);
+  const eixo = [...datas].sort().slice(-5);
 
   if (!eixo.length) {
     el.innerHTML = `<p class="cc-vazio">Sem séries com dados.</p>`;

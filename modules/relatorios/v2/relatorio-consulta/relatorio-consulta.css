@@ -175,3 +175,65 @@
 .gcv2-dyn-warn  { color: #92400e; font-weight: 600; }
 .gcv2-dyn-unilateral { color: #94a3b8; font-size: 9pt; }
 .gcv2-dyn-empty { color: #94a3b8; font-size: 10pt; font-style: italic; }
+
+/* -------- Quadro Evolutivo (Comparativo) -------- */
+.gcv2-rc-evolutivo {
+  font-size: 10pt;
+}
+.cc-cmp-meta {
+  margin-left: auto; font-size: 9pt; color: #9ca3af;
+  border: 1px solid #e5e7eb; border-radius: 5px; padding: 2px 7px; white-space: nowrap;
+}
+.cc-cmp-grupo { margin-bottom: 10px; }
+.cc-cmp-grupo:last-child { margin-bottom: 0; }
+.cc-cmp-grupo-rot {
+  font-size: 8pt; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: #9ca3af;
+  margin-bottom: 4px; display: flex; align-items: baseline; gap: 6px;
+}
+.cc-cmp-grupo-unid, .cc-cmp-grupo-sub {
+  font-size: 7pt; font-weight: 400; letter-spacing: 0;
+  text-transform: none; color: #c4cad3;
+}
+.cc-cmp-grupo-sub::before { content: '· '; }
+.cc-cmp-linha {
+  display: flex; align-items: center;
+  padding: 3px 0; border-top: 1px solid #e5e7eb;
+}
+.cc-cmp-linha:first-of-type { border-top: none; }
+.cc-cmp-rot {
+  flex: 0 0 110px; font-size: 9pt; color: #6b7280;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 6px;
+}
+.cc-cmp-vals {
+  flex: 1; display: flex; align-items: center; justify-content: flex-end;
+}
+.cc-cmp-v {
+  flex: 1; text-align: right; font-size: 9pt; color: #9ca3af;
+  padding-right: 4px; font-family: 'Courier New', monospace;
+}
+.cc-cmp-v-last {
+  font-size: 10pt; font-weight: 700; color: #1f2937;
+}
+.cc-cmp-p { font-size: .82em; color: #c4cad3; }
+.cc-cmp-cabec-grupo { margin-bottom: 2px; }
+.cc-cmp-cabec { border-top: none; padding: 0 0 2px; }
+.cc-cmp-cabec .cc-cmp-v { font-size: 8pt; font-weight: 500; color: #9ca3af; }
+.cc-cmp-cabec .cc-cmp-v-last { color: #6b7280; font-weight: 600; }
+.cc-cmp-seta {
+  flex: 0 0 52px; display: flex; justify-content: flex-end; align-items: center;
+}
+.cc-cmp-pill {
+  font-family: 'Courier New', monospace;
+  font-size: 8pt; font-weight: 600; white-space: nowrap;
+  padding: 1px 5px; border-radius: 999px;
+}
+.cc-cmp-seta-up-bom, .cc-cmp-seta-dn-bom {
+  color: #15803d; background: #dcfce7;
+}
+.cc-cmp-seta-up-mau, .cc-cmp-seta-dn-mau {
+  color: #b91c1c; background: #fee2e2;
+}
+.cc-cmp-seta-igual {
+  color: #9ca3af; font-weight: 500; background: #f3f4f6;
+}

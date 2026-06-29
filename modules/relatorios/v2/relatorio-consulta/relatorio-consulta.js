@@ -8,6 +8,7 @@
 
 import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl } from '../_shell/shell-v2.js';
 import { buildPatientCard } from '../_components/patient-card.js';
+import { lerSerie } from '../../comparativo/comparativo-motor.js';
 
 const escAttr = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -365,12 +366,43 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
         </svg>
       </div>`;
 
+    /* ── Quadro Evolutivo ── */
+    const evolutivoHtml = await (async () => {
+      if (!assessments.length) return '';
+      const patientId = consultation.patient_id;
+      const tipos = [...new Set(assessments.map(a => a.assessment_type).filter(Boolean))];
+      const partes = [];
+      for (const tipo of tipos) {
+        try {
+          const mod = await import(new URL(`../../../obj/configs/${tipo}.js`, import.meta.url));
+          const cfg = mod.default;
+          const series = await lerSerie(patientId, tipo, cfg);
+          if (!Object.keys(series).length) continue;
+          const { preencherComparativo } = await import(
+            new URL('../../consulta/v2/consulta-completa/cc-feed.js', import.meta.url)
+          );
+          const divTmp = document.createElement('div');
+          preencherComparativo(divTmp, series);
+          if (divTmp.innerHTML.trim()) {
+            partes.push(`<section class="gcv2-rc-section">
+              <h3 class="gcv2-rc-h3">Quadro Evolutivo — ${cfg.titulo}</h3>
+              <div class="gcv2-rc-evolutivo">${divTmp.innerHTML}</div>
+            </section>`);
+          }
+        } catch(e) {
+          console.warn('[rc] evolutivo erro para:', tipo, e);
+        }
+      }
+      return partes.join('\n');
+    })();
+
     return `
       <div class="gcv2-rc-content">
         ${cardHtml}
         ${hdaHtml}
         ${dxHtml}
         ${examHtml}
+        ${evolutivoHtml}
         ${planoHtml}
         ${conclusaoHtml}
         ${seloHtml}
