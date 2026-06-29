@@ -1278,10 +1278,12 @@
         btn.addEventListener('click', () => {
           const cid = btn.getAttribute('data-consult-id');
           /* dispara evento para a janela pai (doente.js) se existir */
-          if (window.opener && typeof window.opener.__gc_openRelatorioConsulta === 'function') {
+          if (window.opener && typeof window.opener.__gcv2_openRelatorioConsultaModal === 'function') {
+            window.opener.__gcv2_openRelatorioConsultaModal({ patientId: PATIENT_ID, consultationId: cid });
+          } else if (window.opener && typeof window.opener.__gc_openRelatorioConsulta === 'function') {
             window.opener.__gc_openRelatorioConsulta({ patientId: PATIENT_ID, consultationId: cid });
           } else {
-            alert(`Relatório da consulta ${cid.slice(0,8)}… — abre o relatório no GC principal.`);
+            alert(`Relatório da consulta ${cid.slice(0,8)}… — função não encontrada no GC principal.`);
           }
         });
       });
