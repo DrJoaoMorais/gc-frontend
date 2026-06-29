@@ -1270,14 +1270,8 @@
       feed.querySelectorAll('[data-action="feed-consulta"]').forEach(btn => {
         btn.addEventListener('click', () => {
           const cid = btn.getAttribute('data-consult-id');
-          if (window.opener && typeof window.opener.openConsultForEdit === 'function') {
-            window.opener.openConsultForEdit(cid);
-          } else {
-            window.open(
-              `/modules/consulta/v2/consulta-completa/feed-consulta.html?consultId=${encodeURIComponent(cid)}&patientId=${encodeURIComponent(PATIENT_ID)}`,
-              '_blank'
-            );
-          }
+          localStorage.setItem('gc_editConsult', cid);
+          window.close();
         });
       });
 
