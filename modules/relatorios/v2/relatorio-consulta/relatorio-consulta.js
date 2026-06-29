@@ -435,7 +435,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
 
       // Gerar código do documento localmente
 
-      const fullHtml = \`<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}</body></html>\`;
+      const fullHtml = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}</body></html>`;
 
 
       const resp = await fetch('https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf', {
