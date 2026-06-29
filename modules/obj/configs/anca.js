@@ -16,7 +16,7 @@ export default {
         { id: 'eva_pic', label: 'Pico' },
       ],
       grupos: [
-        { id: 'local_dor', label: 'Localização', multi: true, opts: [
+        { id: 'localizacao_dor', label: 'Localização', multi: true, opts: [
           { v: 'Virilha',                         lbl: 'Virilha' },
           { v: 'Face lateral — grande trocânter',  lbl: 'Trocânter' },
           { v: 'Face posterior — glúteo',          lbl: 'Glúteo' },

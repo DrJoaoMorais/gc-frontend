@@ -16,7 +16,7 @@ export default {
         { id: 'eva_pic', label: 'Pico' },
       ],
       grupos: [
-        { id: 'local_dor', label: 'Localização', multi: true, opts: [
+        { id: 'localizacao_dor', label: 'Localização', multi: true, opts: [
           { v: 'Interlinha medial',   lbl: 'Interlinha medial' },
           { v: 'Interlinha lateral',  lbl: 'Interlinha lateral' },
           { v: 'Anterior — rótula',   lbl: 'Anterior / rótula' },

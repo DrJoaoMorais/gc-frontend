@@ -16,7 +16,7 @@ export default {
         { id: 'eva_pic', label: 'Pico' },
       ],
       grupos: [
-        { id: 'local_dor', label: 'Localização', multi: true, opts: [
+        { id: 'localizacao_dor', label: 'Localização', multi: true, opts: [
           { v: 'Cervical posterior',  lbl: 'Cervical posterior' },
           { v: 'Cervicobraquial',     lbl: 'Cervicobraquial' },
           { v: 'Trapézio',            lbl: 'Trapézio' },
