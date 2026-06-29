@@ -137,6 +137,14 @@ export default {
       desc:   '11 itens · 1 = sem dificuldade · 5 = incapaz · Score 0–100 · 0 = sem incapacidade',
       optMin: 1, optMax: 5, score: 'dash',
       legend: '1 Sem dificuldade · 2 Ligeira · 3 Moderada · 4 Extrema · 5 Incapaz',
+      interpDir: 'desc',
+      interp: [
+        { threshold: 0,  txt: 'Incapacidade mínima (0–20)' },
+        { threshold: 20, txt: 'Incapacidade ligeira (21–40)' },
+        { threshold: 40, txt: 'Incapacidade moderada (41–60)' },
+        { threshold: 60, txt: 'Incapacidade grave (61–80)' },
+        { threshold: 80, txt: 'Incapacidade extrema (81–100)' },
+      ],
       itens: [
         'Abrir um frasco novo ou bem apertado',
         'Tarefas domésticas pesadas (lavar paredes, limpar o chão)',
@@ -158,6 +166,13 @@ export default {
       optMin: 0, optMax: 3, score: 'ases',
       evaInput: { id: 'ases_eva', label: 'Dor EVA 0–10', min: 0, max: 10, step: 0.5 },
       legend: 'Actividades: 0 Incapaz · 1 Dificuldade extrema · 2 Ligeira dificuldade · 3 Normal',
+      interpDir: 'asc',
+      interp: [
+        { threshold: 80, txt: 'Excelente (≥80) — próximo do normativo' },
+        { threshold: 60, txt: 'Bom (60–79)' },
+        { threshold: 40, txt: 'Moderado (40–59) — limitação marcada' },
+        { threshold: 0,  txt: 'Mau (<40) — limitação severa' },
+      ],
       itens: [
         'Colocar um casaco',
         'Dormir sobre o lado afectado',
