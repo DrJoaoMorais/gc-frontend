@@ -22,24 +22,69 @@ const CAMINHOS_OMBRO = [
   { param: 'mrc.f_ext', get: d => d?.mrc?.f_ext },
 ];
 
-export async function lerSerieOmbro(patientId) {
+/* Deriva caminhos automaticamente de uma config de região (motor.js) */
+function caminhosDaConfig(cfg) {
+  const caminhos = [];
+  /* EVA — comum a todas as regiões */
+  caminhos.push({ param: 'eva.rep', get: d => d?.eva?.rep });
+  caminhos.push({ param: 'eva.act', get: d => d?.eva?.act });
+  caminhos.push({ param: 'eva.pic', get: d => d?.eva?.pic });
+
+  for (const sec of (cfg.seccoes || [])) {
+    /* ROM */
+    if (sec.tipo === 'rom') {
+      for (const m of (sec.movimentos || [])) {
+        const id = sec.id || 'rom';
+        caminhos.push({ param: id + '.' + m.key + '_a', get: d => d?.[id]?.[m.key + '_a'] });
+        caminhos.push({ param: id + '.' + m.key + '_p', get: d => d?.[id]?.[m.key + '_p'] });
+      }
+    }
+    /* MRC */
+    if (sec.tipo === 'mrc') {
+      for (const r of (sec.rows || [])) {
+        const id = sec.id || 'mrc';
+        caminhos.push({ param: id + '.' + r.id, get: d => d?.[id]?.[r.id] });
+      }
+    }
+    /* Testes */
+    if (sec.tipo === 'testes') {
+      for (const g of (sec.grupos || [])) {
+        for (const t of (g.testes || [])) {
+          caminhos.push({ param: 'testes.' + t.id, get: d => d?.testes?.[t.id] });
+        }
+      }
+    }
+  }
+  /* Escalas */
+  for (const e of (cfg.escalas || [])) {
+    caminhos.push({ param: 'escalas.' + e.id + '_score', get: d => d?.escalas?.[e.id + '_score'] });
+  }
+  /* Deduplicar por param */
+  const vistos = new Set();
+  return caminhos.filter(c => { if (vistos.has(c.param)) return false; vistos.add(c.param); return true; });
+}
+
+/* Motor genérico — aceita qualquer assessment_type + config */
+export async function lerSerie(patientId, assessmentType, cfg) {
   const sb = window.sb;
   if (!sb) throw new Error('Supabase (window.sb) não inicializado.');
+
+  const caminhos = cfg ? caminhosDaConfig(cfg) : CAMINHOS_OMBRO;
 
   const { data: rows, error } = await sb
     .from('consultation_assessments')
     .select('assessment_date, data')
     .eq('patient_id', patientId)
-    .eq('assessment_type', 'ombro')
+    .eq('assessment_type', assessmentType)
     .order('assessment_date', { ascending: true });
 
   if (error) throw error;
 
-  const series = Object.fromEntries(CAMINHOS_OMBRO.map(c => [c.param, []]));
+  const series = Object.fromEntries(caminhos.map(c => [c.param, []]));
 
   for (const row of (rows || [])) {
     const d = row.data || {};
-    for (const caminho of CAMINHOS_OMBRO) {
+    for (const caminho of caminhos) {
       const valor = caminho.get(d);
       if (valor == null || valor === '') continue;
       series[caminho.param].push({ data: row.assessment_date, valor });
@@ -51,4 +96,9 @@ export async function lerSerieOmbro(patientId) {
   }
 
   return series;
+}
+
+/* Alias para compatibilidade — feed-consulta.html usa lerSerieOmbro */
+export async function lerSerieOmbro(patientId) {
+  return lerSerie(patientId, 'ombro', null);
 }
