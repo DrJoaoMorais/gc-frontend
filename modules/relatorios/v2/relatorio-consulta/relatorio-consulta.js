@@ -153,7 +153,7 @@ async function loadPlano(consultationId) {
 async function loadAssessments(consultationId) {
   const { data, error } = await window.sb
     .from('consultation_assessments')
-    .select('id, type, data')
+    .select('id, assessment_type, data')
     .eq('consultation_id', consultationId);
   if (error) { console.error('[rc] erro a obter assessments:', error); return []; }
   return data || [];
@@ -163,13 +163,13 @@ async function loadAssessments(consultationId) {
 // Renderers dinâmicos (IIFEs carregadas como <script>)
 // -----------------------------------------------------------------
 
-function ensureOmbroRender() {
-  if (typeof window.gcv2RenderOmbroExame === 'function') return Promise.resolve();
+function ensureExameRender() {
+  if (typeof window.gcv2RenderExameObjectivo === 'function') return Promise.resolve();
   return new Promise((resolve) => {
     const s = document.createElement('script');
-    s.src = new URL('../_renderers/ombro-render.js', import.meta.url).href;
+    s.src = new URL('../_renderers/exame-render.js', import.meta.url).href;
     s.onload = resolve;
-    s.onerror = () => { console.warn('[rc] ombro-render.js não carregou'); resolve(); };
+    s.onerror = () => { console.warn('[rc] exame-render.js não carregou'); resolve(); };
     document.head.appendChild(s);
   });
 }
@@ -213,7 +213,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     loadAssessments(consultationId),
   ]);
 
-  await Promise.all([ensureOmbroRender(), ensureDinamometriaTable()]);
+  await Promise.all([ensureExameRender(), ensureDinamometriaTable()]);
 
   // Estado local — campos editáveis
   const _y = new Date().getFullYear().toString().slice(-2);
@@ -293,7 +293,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
   document.body.appendChild(overlay);
 
   // -------- Conteúdo do relatório --------
-  function buildReportContent() {
+  async function buildReportContent() {
     const cardHtml = buildPatientCard({ patient, mode: 'full' });
 
     const hdaHtml = state.hda && state.hda.trim()
@@ -310,13 +310,22 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
          </section>`
       : '';
 
-    const ombroData = assessments.find(a => a.type === 'ombro')?.data;
-    const examHtml = ombroData && typeof window.gcv2RenderOmbroExame === 'function'
-      ? `<section class="gcv2-rc-section">
-           <h3 class="gcv2-rc-h3">Exame Objectivo</h3>
-           <div class="gcv2-rc-exam">${window.gcv2RenderOmbroExame(ombroData)}</div>
-         </section>`
-      : '';
+    const examHtml = await (async () => {
+      if (!assessments.length || typeof window.gcv2RenderExameObjectivo !== 'function') return '';
+      const parts = [];
+      for (const a of assessments) {
+        if (!a.assessment_type || !a.data) continue;
+        try {
+          const mod = await import(new URL(`../../../obj/configs/${a.assessment_type}.js`, import.meta.url));
+          const cfg = mod.default;
+          const html = window.gcv2RenderExameObjectivo(cfg, a.data);
+          if (html) parts.push(`<section class="gcv2-rc-section"><div class="gcv2-rc-exam">${html}</div></section>`);
+        } catch (e) {
+          console.warn('[rc] config não encontrada para:', a.assessment_type, e);
+        }
+      }
+      return parts.join('\n');
+    })();
 
     const planoHtml = plano.length
       ? `<section class="gcv2-rc-section">
@@ -370,8 +379,8 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
   }
 
   // -------- Render do preview --------
-  function renderPreview() {
-    const contentHtml = buildReportContent();
+  async function renderPreview() {
+    const contentHtml = await buildReportContent();
     const shellHtml = buildShellV2({
       clinic, doctor,
       config: {
