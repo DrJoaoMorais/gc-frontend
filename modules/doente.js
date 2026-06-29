@@ -3392,13 +3392,6 @@ function openPatientViewModal(patient) {
     bindConsultEvents();
   }
   window.openConsultForEdit = openConsultForEdit;
-  window.addEventListener('focus', () => {
-    const cid = localStorage.getItem('gc_editConsult');
-    if (cid) {
-      localStorage.removeItem('gc_editConsult');
-      openConsultForEdit(cid);
-    }
-  });
 
   function renderConsultFormInline() {
     const today = new Date().toISOString().slice(0, 10);
