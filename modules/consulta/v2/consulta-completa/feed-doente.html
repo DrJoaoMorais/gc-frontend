@@ -1356,6 +1356,7 @@
           .lt('start_at', amanha.toISOString())
           .order('start_at', { ascending: true }),
       ]);
+      console.log('[DBG] marcacaoHojeRes', JSON.stringify(marcacaoHojeRes));
 
       /* nome + idade + sns + phone */
       if (!pacienteRes.error && pacienteRes.data) {
