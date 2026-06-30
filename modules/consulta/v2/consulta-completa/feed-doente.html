@@ -403,17 +403,17 @@
     ⚠️ PACEMAKER — verificar compatibilidade antes de qualquer procedimento
   </div>
 
-  <!-- NOTA DA MARCAÇÃO DE HOJE -->
-  <div class="fd-nota-marcacao" id="fd-nota-marcacao">
-    <span class="fd-nota-marcacao-ic">📌</span>
-    <div>
-      <span class="fd-nota-marcacao-hora" id="fd-nota-marcacao-hora"></span>
-      <span class="fd-nota-marcacao-txt" id="fd-nota-marcacao-txt"></span>
-    </div>
-  </div>
-
   <!-- PÁGINA -->
   <div class="fd-page" id="fd-page">
+    <!-- NOTA DA MARCAÇÃO DE HOJE -->
+    <div class="fd-nota-marcacao" id="fd-nota-marcacao">
+      <span class="fd-nota-marcacao-ic">📌</span>
+      <div>
+        <span class="fd-nota-marcacao-hora" id="fd-nota-marcacao-hora"></span>
+        <span class="fd-nota-marcacao-txt" id="fd-nota-marcacao-txt"></span>
+      </div>
+    </div>
+
     <div class="fd-loading" id="fd-loading">A carregar consultas…</div>
 
     <!-- card "Nova Consulta" — formulário inline completo -->
@@ -1356,8 +1356,6 @@
           .lt('start_at', amanha.toISOString())
           .order('start_at', { ascending: true }),
       ]);
-      console.log('[DBG] marcacaoHojeRes', JSON.stringify(marcacaoHojeRes));
-
       /* nome + idade + sns + phone */
       if (!pacienteRes.error && pacienteRes.data) {
         const p = pacienteRes.data;
