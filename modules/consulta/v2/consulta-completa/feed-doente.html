@@ -136,14 +136,76 @@
     }
     .fd-alerta.visivel { display: block; }
 
+    /* ── LAYOUT (sidebar + página) ── */
+    .fd-layout {
+      display: flex;
+      align-items: flex-start;
+    }
+
+    /* ── SIDEBAR ── */
+    .fd-sb {
+      width: 236px;
+      flex-shrink: 0;
+      background: var(--branco);
+      border-right: 1px solid var(--linha);
+      min-height: calc(100vh - 90px);
+      padding: 16px 0 40px;
+    }
+    .fd-sb-titulo {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--tenue);
+      padding: 14px 20px 6px;
+    }
+    .fd-sb-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 20px;
+      color: var(--texto);
+      text-decoration: none;
+      font-size: 13.5px;
+      border-left: 3px solid transparent;
+      cursor: pointer;
+      background: none;
+      border: none;
+      border-left: 3px solid transparent;
+      width: 100%;
+      text-align: left;
+      font-family: 'Outfit', sans-serif;
+    }
+    .fd-sb-item:hover { background: #f3f6fb; }
+    .fd-sb-item .fd-sb-ic {
+      width: 16px;
+      text-align: center;
+      font-size: 13px;
+      opacity: .85;
+      flex-shrink: 0;
+    }
+    .fd-sb-item .fd-sb-tag {
+      margin-left: auto;
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+    .fd-sb-tag-pendente { background: #fdf3e0; color: var(--ambar); }
+    .fd-sb-tag-assinado { background: #e7f6ec; color: var(--verde); }
+    .fd-sb-divisor { height: 1px; background: var(--linha); margin: 10px 20px; }
+
     /* ── PÁGINA ── */
     .fd-page {
       padding-top: 96px; /* recalculado via JS */
-      max-width: 760px;
+      max-width: 900px;
       margin: 0 auto;
       padding-left: 16px;
       padding-right: 16px;
       padding-bottom: 80px;
+      flex: 1;
+      min-width: 0;
     }
 
     /* ── LOADING ── */
@@ -403,8 +465,51 @@
     ⚠️ PACEMAKER — verificar compatibilidade antes de qualquer procedimento
   </div>
 
-  <!-- PÁGINA -->
-  <div class="fd-page" id="fd-page">
+  <!-- LAYOUT: SIDEBAR + PÁGINA -->
+  <div class="fd-layout">
+
+    <!-- SIDEBAR -->
+    <div class="fd-sb">
+
+      <div class="fd-sb-titulo">Meios Complementares</div>
+      <button class="fd-sb-item" id="fdBtnExames"><span class="fd-sb-ic">📄</span>Pedido de Exames</button>
+      <button class="fd-sb-item" id="fdBtnAnalises"><span class="fd-sb-ic">🧪</span>Pedido de Análises</button>
+      <button class="fd-sb-item" id="fdBtnExameDesportivo"><span class="fd-sb-ic">⚽</span>Exame Médico Desportivo</button>
+
+      <div class="fd-sb-divisor"></div>
+      <div class="fd-sb-titulo">Relatórios</div>
+      <button class="fd-sb-item" id="fdBtnRelatorioSimples"><span class="fd-sb-ic">📋</span>Relatório Simples</button>
+      <button class="fd-sb-item" id="fdBtnPrpVisco"><span class="fd-sb-ic">💉</span>PRP / Visco</button>
+
+      <div class="fd-sb-divisor"></div>
+      <div class="fd-sb-titulo">Atestados</div>
+      <button class="fd-sb-item" id="fdBtnAtestadoDoenca"><span class="fd-sb-ic">🩺</span>Atestado de Doença</button>
+      <button class="fd-sb-item" id="fdBtnAtestadoEdfisica"><span class="fd-sb-ic">🏃</span>Atestado Ed. Física</button>
+
+      <div class="fd-sb-divisor"></div>
+      <div class="fd-sb-titulo">Doente</div>
+      <button class="fd-sb-item" id="fdBtnIdentificacao"><span class="fd-sb-ic">👤</span>Identificação</button>
+      <button class="fd-sb-item" id="fdBtnEditarIdentificacao"><span class="fd-sb-ic">✏️</span>Editar identificação</button>
+      <button class="fd-sb-item" id="fdBtnRgpd"><span class="fd-sb-ic">🛡️</span>RGPD<span class="fd-sb-tag fd-sb-tag-assinado" id="fdRgpdTag" style="display:none;">Assinado</span></button>
+
+      <div class="fd-sb-divisor"></div>
+      <div class="fd-sb-titulo">Consentimentos</div>
+      <button class="fd-sb-item" id="fdBtnConsentPrp"><span class="fd-sb-ic">✔</span>PRP<span class="fd-sb-tag" id="fdConsentPrpTag" style="display:none;"></span></button>
+      <button class="fd-sb-item" id="fdBtnConsentAh"><span class="fd-sb-ic">✔</span>Ác. Hialurónico<span class="fd-sb-tag" id="fdConsentAhTag" style="display:none;"></span></button>
+      <button class="fd-sb-item" id="fdBtnConsentInfilt"><span class="fd-sb-ic">✔</span>Corticosteróide<span class="fd-sb-tag" id="fdConsentInfiltTag" style="display:none;"></span></button>
+
+      <div class="fd-sb-divisor"></div>
+      <div class="fd-sb-titulo">Agendar</div>
+      <button class="fd-sb-item" id="fdBtnAgendarConsulta"><span class="fd-sb-ic">📅</span>Consulta Médica</button>
+
+      <div class="fd-sb-divisor"></div>
+      <div class="fd-sb-titulo">Pedidos Online</div>
+      <button class="fd-sb-item" id="fdBtnPedidosOnline"><span class="fd-sb-ic">🌐</span>Pedidos Online</button>
+
+    </div>
+
+    <!-- PÁGINA -->
+    <div class="fd-page" id="fd-page">
     <!-- NOTA DA MARCAÇÃO DE HOJE -->
     <div class="fd-nota-marcacao" id="fd-nota-marcacao">
       <span class="fd-nota-marcacao-ic">📌</span>
@@ -541,7 +646,8 @@
 
     <!-- feed de consultas -->
     <div id="fd-feed"></div>
-  </div>
+  </div><!-- /fd-page -->
+  </div><!-- /fd-layout -->
 
   <script type="module">
     import { carregarConsulta } from './cc-queries.js';
