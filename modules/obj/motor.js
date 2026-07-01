@@ -582,12 +582,13 @@ function _renderEscalas(escalas) {
          '<div class="scale-interp" id="' + esc.id + '_interp"></div>' +
          '</div>';
     if (esc.evaInput) {
-      h += '<div class="ases-eva-row">' +
+      h += '<div class="ases-eva-row" id="' + esc.evaInput.id + '_row">' +
            '<span class="ases-eva-lbl">' + esc.evaInput.label + '</span>' +
            '<input class="ases-eva-inp" type="number" id="' + esc.evaInput.id + '"' +
            ' min="' + esc.evaInput.min + '" max="' + esc.evaInput.max + '"' +
            ' step="' + esc.evaInput.step + '" placeholder="—">' +
            '<span style="font-size:10px;color:#94a3b8;">0 = sem dor &nbsp;·&nbsp; 10 = dor máxima</span>' +
+           '<span class="ases-eva-aviso-txt">Necessário para calcular o score ASES</span>' +
            '</div>';
     }
     h += '<div class="scale-legend">' + esc.legend + '</div>';
@@ -635,11 +636,17 @@ function _wireEscalas(escalas) {
       if (esc.score === 'ases') {
         const evaEl = esc.evaInput ? document.getElementById(esc.evaInput.id) : null;
         const evaVal = evaEl && evaEl.value !== '' ? parseFloat(evaEl.value) : null;
+        const rowEl = esc.evaInput ? document.getElementById(esc.evaInput.id + '_row') : null;
+        const itensCompletos = filled.length === vals.length;
         if (evaVal === null || isNaN(evaVal)) {
           scoreEl.textContent = '—';
-          if (interpEl) interpEl.textContent = 'componente de dor em falta';
+          if (interpEl) interpEl.textContent = itensCompletos ? 'Falta o EVA de dor — necessário para o score' : 'componente de dor em falta';
+          if (evaEl) evaEl.classList.toggle('aviso-em-falta', itensCompletos);
+          if (rowEl) rowEl.classList.toggle('aviso', itensCompletos);
           return;
         }
+        if (evaEl) evaEl.classList.remove('aviso-em-falta');
+        if (rowEl) rowEl.classList.remove('aviso');
         const pain = (10 - evaVal) * 5;
         const func = filled.length ? (filled.reduce(function (a, b) { return a + b; }, 0) / 30) * 50 : 0;
         const score = Math.round(pain + func);
