@@ -1787,7 +1787,7 @@
       const nome = document.getElementById('fd-nome')?.textContent || '';
       document.querySelectorAll('.fd-regiao-btn').forEach(btn => {
         btn.disabled = false;
-        btn.addEventListener('click', () => {
+        btn.onclick = () => {
           const r = btn.dataset.r;
           const base = new URL('../../../obj/regiao.html', window.location.href);
           base.searchParams.set('r', r);
@@ -1796,7 +1796,7 @@
           base.searchParams.set('c', clinicId || '');
           base.searchParams.set('n', nome);
           window.open(base.toString(), '_blank');
-        });
+        };
       });
       const aviso = document.getElementById('fd-regiao-aviso');
       if (aviso) aviso.style.display = 'none';
@@ -1869,7 +1869,7 @@
         fdDiz('A carregar…', 'var(--suave)');
         const [{ data: c }, { data: dRows }, { data: tRows }] = await Promise.all([
           sb.from('consultations')
-            .select('hda, objectives, plan_text, report_date')
+            .select('hda, objectives, plan_text, report_date, clinic_id')
             .eq('id', consultationId).single(),
           sb.from('consultation_diagnoses')
             .select('diagnosis_id, diagnoses_catalog(system, code, label)')
@@ -1881,6 +1881,7 @@
 
         fdRascunhoId = consultationId;
         fdModoEdicao = true;
+        fdActivarRegioes(fdRascunhoId, c?.clinic_id);
 
         fdDiagSelecionados = (dRows || []).map(r => ({
           id:     r.diagnosis_id,
