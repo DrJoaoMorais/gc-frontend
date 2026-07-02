@@ -165,12 +165,12 @@ async function loadAssessments(consultationId) {
 // -----------------------------------------------------------------
 
 function ensureExameRender() {
-  if (typeof window.gcv2RenderExameObjectivo === 'function') return Promise.resolve();
+  if (typeof window.gcv2RenderExameObjectivoV2 === 'function') return Promise.resolve();
   return new Promise((resolve) => {
     const s = document.createElement('script');
-    s.src = new URL('../_renderers/exame-render.js', import.meta.url).href;
+    s.src = new URL('../_renderers/exame-render-v2.js', import.meta.url).href;
     s.onload = resolve;
-    s.onerror = () => { console.warn('[rc] exame-render.js não carregou'); resolve(); };
+    s.onerror = () => { console.warn('[rc] exame-render-v2.js não carregou'); resolve(); };
     document.head.appendChild(s);
   });
 }
@@ -312,14 +312,14 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       : '';
 
     const examHtml = await (async () => {
-      if (!assessments.length || typeof window.gcv2RenderExameObjectivo !== 'function') return '';
+      if (!assessments.length || typeof window.gcv2RenderExameObjectivoV2 !== 'function') return '';
       const parts = [];
       for (const a of assessments) {
         if (!a.assessment_type || !a.data) continue;
         try {
           const mod = await import(new URL(`../../../obj/configs/${a.assessment_type}.js`, import.meta.url));
           const cfg = mod.default;
-          const html = window.gcv2RenderExameObjectivo(cfg, a.data);
+          const html = window.gcv2RenderExameObjectivoV2(cfg, a.data);
           if (html) parts.push(`<section class="gcv2-rc-section"><div class="gcv2-rc-exam">${html}</div></section>`);
         } catch (e) {
           console.warn('[rc] config não encontrada para:', a.assessment_type, e);
