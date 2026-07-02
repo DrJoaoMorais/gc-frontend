@@ -400,8 +400,8 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       <div class="gcv2-rc-content">
         ${cardHtml}
         ${hdaHtml}
-        ${dxHtml}
         ${examHtml}
+        ${dxHtml}
         ${evolutivoHtml}
         ${planoHtml}
         ${conclusaoHtml}
