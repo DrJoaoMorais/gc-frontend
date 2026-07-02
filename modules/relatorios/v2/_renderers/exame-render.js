@@ -110,6 +110,53 @@
     return `<h3>Testes Clínicos Especiais</h3><div class="gcv2-ombro-testes-grid">${items}</div>${nota}`;
   }
 
+  function blocoSeccaoGrupos(sec, data) {
+    const bloco = data[sec.id] || {};
+    const grupos = sec.grupos || [];
+    let rows = '';
+    grupos.forEach(function (gr) {
+      const val = bloco[gr.key];
+      if (!hasVal(val) && !Array.isArray(val)) return;
+      if (Array.isArray(val) && !val.length) return;
+      const txt = Array.isArray(val) ? val.join(', ') : val;
+      rows += `<tr><td>${esc(gr.label)}</td><td>${esc(txt)}</td></tr>`;
+    });
+    let perimHtml = '';
+    if (sec.perimetria && bloco.perimetria) {
+      const niveis = sec.perimetria.niveis || [];
+      let prows = '';
+      niveis.forEach(function (nv) {
+        const p = bloco.perimetria[nv.key];
+        if (!p || (p.d == null && p.e == null)) return;
+        prows += `<tr><td>${esc(nv.label)}</td><td>${p.d != null ? p.d + ' cm' : '—'}</td><td>${p.e != null ? p.e + ' cm' : '—'}</td></tr>`;
+      });
+      if (prows) {
+        perimHtml = `<table class="gcv2-ombro-table"><thead><tr><th>Nível</th><th>Direito</th><th>Esquerdo</th></tr></thead><tbody>${prows}</tbody></table>`;
+      }
+    }
+    if (!rows && !perimHtml) return '';
+    const nota = sec.notasKey && data[sec.notasKey] ? `<p class="gcv2-ombro-nota"><em>${esc(data[sec.notasKey])}</em></p>` : '';
+    const table = rows ? `<table class="gcv2-ombro-table">${rows}</table>` : '';
+    return `<h3>${esc(sec.label)}</h3>${table}${perimHtml}${nota}`;
+  }
+
+  function blocoSeccaoGrading(sec, data) {
+    const escalas = sec.escalas || [];
+    let cards = '';
+    escalas.forEach(function (e) {
+      const raw = data[e.id + '_score'];
+      if (!hasVal(raw) || raw === '—') return;
+      const interpTxt = data[e.id + '_interp'];
+      cards += `<div class="gcv2-ombro-escala-card">
+  <div class="gcv2-ombro-escala-nome">${esc(e.titulo)}</div>
+  <div class="gcv2-ombro-escala-score">${esc(raw)}</div>
+  ${hasVal(interpTxt) ? `<div class="gcv2-ombro-escala-int">${esc(interpTxt)}</div>` : ''}
+</div>`;
+    });
+    if (!cards) return '';
+    return `<h3>${esc(sec.titulo)}</h3><div class="gcv2-ombro-escalas-flex">${cards}</div>`;
+  }
+
   function blocoSeccaoDyn(cfg, data) {
     if (!cfg.dinamometria) return '';
     const dyn = data.dyn;
@@ -185,6 +232,8 @@
         case 'func':   parts.push(blocoSeccaoParams(sec, data)); break;
         case 'rom':    parts.push(blocoSeccaoRom(sec, data)); break;
         case 'testes': parts.push(blocoSeccaoTestes(sec, data)); break;
+        case 'grupos': parts.push(blocoSeccaoGrupos(sec, data)); break;
+        case 'grading': parts.push(blocoSeccaoGrading(sec, data)); break;
       }
     });
 

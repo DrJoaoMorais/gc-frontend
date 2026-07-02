@@ -1052,7 +1052,9 @@ window._gerarData = function () {
       case 'grading': {
           (sec.escalas || []).forEach(function (esc) {
             const scoreEl = document.getElementById(esc.id + '_score');
+            const interpEl = document.getElementById(esc.id + '_interp');
             data[esc.id + '_score'] = scoreEl ? scoreEl.textContent : '—';
+            if (interpEl && interpEl.textContent) data[esc.id + '_interp'] = interpEl.textContent;
           });
           break;
         }
