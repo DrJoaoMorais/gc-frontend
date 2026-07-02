@@ -809,6 +809,22 @@
         });
       }
 
+      /* --- KAPANDJI --- */
+      let kapHtml = '';
+      if (d.kapandji) {
+        const corKap = n => n >= 8 ? 'color:#059669;border-color:#bbf7d0;background:#f0fdf4'
+                      : n >= 5 ? 'color:#f59e0b;border-color:#fde68a;background:#fffbeb'
+                      :          'color:#dc2626;border-color:#fca5a5;background:#fef2f2';
+        const kd = parseInt(d.kapandji.d, 10);
+        const ke = parseInt(d.kapandji.e, 10);
+        if (!isNaN(kd)) kapHtml += pill(`D ${kd}/10`, corKap(kd));
+        if (!isNaN(ke)) kapHtml += pill(`E ${ke}/10`, corKap(ke));
+        if (!isNaN(kd) && !isNaN(ke)) {
+          const delta = kd - ke;
+          kapHtml += `<div style="font-size:11px;color:#64748b;margin-top:6px;">Δ D−E: ${delta > 0 ? '+' : ''}${delta}</div>`;
+        }
+      }
+
       /* --- ROM --- */
       let romHtml = '';
       if (d.rom) {
@@ -1064,6 +1080,7 @@
         cartao('Dor', dorHtml),
         cartao('Palpação', palpHtml),
         cartao('Força MRC', mrcHtml),
+        cartao('Kapandji', kapHtml),
         cartao('Amplitude articular', romHtml, 'grid-column:span 2'),
         cartao('Testes clínicos', testesHtml),
         cartao('Funcional', funcHtml),
