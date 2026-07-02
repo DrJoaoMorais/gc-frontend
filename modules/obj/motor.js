@@ -117,6 +117,16 @@ function _hidratarFormData(d) {
         if (sec.notasKey && d[sec.notasKey]) { const el = document.getElementById(sec.notasKey); if (el) el.value = d[sec.notasKey]; }
         break;
       }
+      case 'kapandji': {
+        document.querySelectorAll('#sec-' + sec.id + ' .opt[data-kap].sel').forEach(function (b) { b.classList.remove('sel'); });
+        const obj = d[sec.id];
+        if (obj) {
+          if (obj.d != null) { const btn = document.querySelector('#sec-' + sec.id + ' .opt[data-kap="d"][data-v="' + obj.d + '"]'); if (btn) btn.classList.add('sel'); }
+          if (obj.e != null) { const btn = document.querySelector('#sec-' + sec.id + ' .opt[data-kap="e"][data-v="' + obj.e + '"]'); if (btn) btn.classList.add('sel'); }
+        }
+        if (sec.notas) { const el = document.getElementById(sec.notas); if (el) el.value = d[sec.notas] || ''; }
+        break;
+      }
     }
   });
   if (cfg.dinamometria && !cfg.dinamometria.af2 && d.dyn) {
@@ -349,7 +359,7 @@ function _renderTestes(sec, n) {
 
 function _renderKapandji(sec, n) {
   const niveis = sec.niveis || [];
-  let h = '<div class="sec"><div class="sec-title">' + n + ' · ' + sec.titulo + '</div>';
+  let h = '<div class="sec" id="sec-' + sec.id + '"><div class="sec-title">' + n + ' · ' + sec.titulo + '</div>';
   h += '<table class="rom-tbl" style="width:100%"><thead><tr>';
   h += '<th style="width:36px">Nív.</th><th>Descrição</th>';
   h += '<th style="width:48px;text-align:center">D</th>';
@@ -357,8 +367,8 @@ function _renderKapandji(sec, n) {
   niveis.forEach(function (desc, i) {
     h += '<tr><td style="text-align:center;font-weight:600">' + i + '</td>';
     h += '<td>' + desc + '</td>';
-    h += '<td style="text-align:center"><input type="radio" name="kap_d_' + n + '" value="' + i + '"></td>';
-    h += '<td style="text-align:center"><input type="radio" name="kap_e_' + n + '" value="' + i + '"></td>';
+    h += '<td style="text-align:center"><div class="opt" data-v="' + i + '" data-kap="d"></div></td>';
+    h += '<td style="text-align:center"><div class="opt" data-v="' + i + '" data-kap="e"></div></td>';
     h += '</tr>';
   });
   h += '</tbody></table>';
@@ -937,6 +947,18 @@ function _wireHandlers(cfg) {
   if (cfg.tabs && cfg.tabs.escalas) _wireEscalas(cfg.escalas);
   (cfg.seccoes || []).forEach(function (sec) {
     if (sec.tipo === 'grading') _wireEscalas(sec.escalas || []);
+    if (sec.tipo === 'kapandji') {
+      ['d', 'e'].forEach(function (lado) {
+        const opts = document.querySelectorAll('#sec-' + sec.id + ' .opt[data-kap="' + lado + '"]');
+        opts.forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            const was = btn.classList.contains('sel');
+            opts.forEach(function (b) { b.classList.remove('sel'); });
+            if (!was) btn.classList.add('sel');
+          });
+        });
+      });
+    }
   });
   if (cfg.dinamometria && cfg.dinamometria.af2) _wireDinAF2(cfg.dinamometria);
 
@@ -1088,6 +1110,13 @@ window._gerarData = function () {
           return v !== null && !(Array.isArray(v) && v.length === 0);
         });
         if (temDados) data[sec.id] = bloco;
+        break;
+      }
+      case 'kapandji': {
+        const dSel = document.querySelector('#sec-' + sec.id + ' .opt[data-kap="d"].sel');
+        const eSel = document.querySelector('#sec-' + sec.id + ' .opt[data-kap="e"].sel');
+        if (dSel || eSel) data[sec.id] = { d: dSel ? dSel.dataset.v : null, e: eSel ? eSel.dataset.v : null };
+        if (sec.notas) { const v = rs(sec.notas); if (v) data[sec.notas] = v; }
         break;
       }
     }
@@ -1278,6 +1307,21 @@ window._gerarResumo = function () {
           });
         }
         if (notas) linhas.push('  Notas: ' + notas);
+        break;
+      }
+      case 'kapandji': {
+        const dSel = document.querySelector('#sec-' + sec.id + ' .opt[data-kap="d"].sel');
+        const eSel = document.querySelector('#sec-' + sec.id + ' .opt[data-kap="e"].sel');
+        const notaK = sec.notas ? document.getElementById(sec.notas) : null;
+        const notaVal = notaK && notaK.value.trim() ? notaK.value.trim() : '';
+        if (!dSel && !eSel && !notaVal) break;
+        const partes = [];
+        if (dSel) partes.push('D: ' + dSel.dataset.v);
+        if (eSel) partes.push('E: ' + eSel.dataset.v);
+        linhas.push('');
+        linhas.push('KAPANDJI');
+        if (partes.length) linhas.push('  ' + partes.join(' / '));
+        if (notaVal) linhas.push('  Notas: ' + notaVal);
         break;
       }
     }
