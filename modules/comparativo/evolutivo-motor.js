@@ -174,7 +174,7 @@ function labelRegiao(tipo, lado) {
   const nomes = {
     ombro: 'Ombro', cervical: 'Coluna Cervical', lombar: 'Coluna Lombar',
     joelho: 'Joelho', anca: 'Anca', cotovelo: 'Cotovelo',
-    tibio: 'Tibiotársica', pfp: 'Pavimento Pélvico', rpp: 'Raqui',
+    tibio: 'Tibiotársica', pfp: 'Paresia Facial Periférica', rpp: 'Raqui',
   };
   const base = nomes[tipo] || tipo;
   return lado ? `${base} ${lado}` : base;
