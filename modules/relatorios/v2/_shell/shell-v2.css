@@ -1,7 +1,7 @@
 /* ============================================================
    GC · Shell Visual v2 · Relatórios
    Design aprovado em 2026-05-17 (FINAL_v9)
-   Identidade: navy #0f2d52 + yellow #f5b800 + Cormorant + Outfit
+   Identidade: navy #0f2d52 + Cormorant + Outfit
    Prefixo .gcv2- em TODAS as classes (isolamento de estilos)
    ============================================================ */
 
@@ -9,7 +9,6 @@
 
 .gcv2-root {
   --gcv2-navy: #0f2d52;
-  --gcv2-yellow: #f5b800;
   --gcv2-ink: #0a0a0a;
   --gcv2-ink-soft: #2c2c2c;
   --gcv2-muted: #8a8a8a;
@@ -31,19 +30,6 @@
   position: relative;
   overflow: hidden;
   margin: 0 auto;
-}
-
-.gcv2-watermark {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%) rotate(-25deg);
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 160px;
-  color: rgba(15, 45, 82, 0.03);
-  font-weight: 700;
-  pointer-events: none;
-  z-index: 0;
-  letter-spacing: 8px;
 }
 
 .gcv2-header { padding: 22px 32px 0; position: relative; z-index: 1; }
@@ -106,9 +92,7 @@
 
 .gcv2-accent-line {
   height: 3px;
-  background: linear-gradient(90deg,
-    var(--gcv2-navy) 0%, var(--gcv2-navy) 72%,
-    var(--gcv2-yellow) 72%, var(--gcv2-yellow) 100%);
+  background: var(--gcv2-navy);
   margin: 0 32px;
   position: relative;
   z-index: 1;
@@ -136,25 +120,6 @@
   color: var(--gcv2-navy);
   margin: 0;
 }
-.gcv2-ornament {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 7px;
-}
-.gcv2-ornament .gcv2-line { width: 38px; height: 2px; background: var(--gcv2-navy); }
-.gcv2-ornament .gcv2-dot-yellow {
-  width: 8px; height: 8px;
-  background: var(--gcv2-yellow);
-  border-radius: 50%;
-}
-.gcv2-ornament .gcv2-dot-navy {
-  width: 5px; height: 5px;
-  background: var(--gcv2-navy);
-  border-radius: 50%;
-}
-
 .gcv2-container {
   padding: 0 32px 24px;
   position: relative;
@@ -178,13 +143,6 @@
   flex: 1;
   margin: 0;
 }
-.gcv2-ybar {
-  width: 18px;
-  height: 3px;
-  background: var(--gcv2-yellow);
-  border-radius: 2px;
-}
-
 .gcv2-footer {
   padding: 18px 32px 22px;
   display: grid;
@@ -202,7 +160,7 @@
   left: 32px;
   width: 38px;
   height: 3px;
-  background: var(--gcv2-yellow);
+  background: var(--gcv2-navy);
 }
 .gcv2-footer-place {
   font-family: 'Cormorant Garamond', serif;

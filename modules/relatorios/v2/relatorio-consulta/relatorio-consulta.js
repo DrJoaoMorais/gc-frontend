@@ -233,7 +233,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
   overlay.innerHTML = `
     <div class="gcv2-atestado-modal gcv2-rc-modal">
       <header class="gcv2-atestado-head">
-        <h2>Relatório de Consulta</h2>
+        <h2>Relatório Médico</h2>
         <button class="gcv2-at-close" aria-label="Fechar">×</button>
       </header>
 
@@ -295,7 +295,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
 
   // -------- Conteúdo do relatório --------
   async function buildReportContent() {
-    const cardHtml = buildPatientCard({ patient, mode: 'full' });
+    const cardHtml = buildPatientCard({ patient, clinic, mode: 'full' });
 
     const hdaHtml = state.hda && state.hda.trim()
       ? `<section class="gcv2-rc-section gcv2-rc-flow">
@@ -417,7 +417,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       clinic, doctor,
       config: {
         kicker: 'Medicina Física & Reabilitação',
-        title: 'Relatório de Consulta',
+        title: 'Relatório Médico',
         date: state.date,
         vinhetaUrl,
       },
@@ -501,7 +501,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
         clinic_id: clinicId,
         patient_id: patientId,
         consultation_id: consultationId,
-        title: `Relatório de Consulta — ${state.date}`,
+        title: `Relatório Médico — ${state.date}`,
         html: fullHtml,
         storage_path: path,
         category: 'relatorio_consulta',

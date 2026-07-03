@@ -59,7 +59,7 @@
 /* -------- Conteúdo do relatório (preview, dentro do shell) -------- */
 .gcv2-rc-content {
   font-family: 'Cormorant Garamond', Georgia, serif;
-  font-size: 14pt;
+  font-size: 12pt;
   color: #1e293b;
   line-height: 1.5;
 }
@@ -85,19 +85,19 @@
 }
 
 .gcv2-rc-prose {
-  font-size: 12pt;
-  line-height: 1.65;
+  font-size: 10.5pt;
+  line-height: 1.45;
   margin-bottom: 0.5rem;
 }
 
 .gcv2-rc-list-ul {
-  font-size: 12pt;
+  font-size: 10.5pt;
   margin: 0.25rem 0 0.5rem 0;
   padding-left: 1.25rem;
 }
 
 .gcv2-rc-list-ul li {
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.1rem;
   font-variant-numeric: lining-nums tabular-nums;
   font-feature-settings: "lnum" 1, "tnum" 1;
 }
@@ -106,9 +106,18 @@
 .gcv2-rc-content .gcv2-patient-card {
   margin-bottom: 1rem;
   padding: 0.75rem 1rem;
-  background: #f8fafc;
-  border-radius: 6px;
   border-left: 3px solid #1a56db;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.gcv2-rc-content .gcv2-pc-clinic {
+  color: #1a56db;
+  font-weight: 600;
+  text-align: right;
+  max-width: 40%;
 }
 
 /* -------- Exame objectivo — ombro -------- */

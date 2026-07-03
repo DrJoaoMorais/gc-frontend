@@ -133,8 +133,6 @@ export function buildShellV2({ clinic, doctor, config = {}, contentHtml = '' }) 
   return `
 <div class="gcv2-root">
   <div class="gcv2-page gcv2-test-page">
-    <div class="gcv2-watermark">JM</div>
-
     <div class="gcv2-header">
       <div class="gcv2-header-grid">
         <div class="gcv2-header-left">
@@ -162,13 +160,6 @@ export function buildShellV2({ clinic, doctor, config = {}, contentHtml = '' }) 
     <div class="gcv2-doc-title">
       <div class="gcv2-doc-kicker">${escAttr(kicker)}</div>
       <h1>${escAttr(title)}</h1>
-      <div class="gcv2-ornament">
-        <span class="gcv2-line"></span>
-        <span class="gcv2-dot-navy"></span>
-        <span class="gcv2-dot-yellow"></span>
-        <span class="gcv2-dot-navy"></span>
-        <span class="gcv2-line"></span>
-      </div>
     </div>
 
     <div class="gcv2-container">

@@ -52,7 +52,7 @@ function buildAddress(patient) {
  * @param {'inline'|'full'} [opts.mode='full']
  * @returns {string} HTML
  */
-export function buildPatientCard({ patient, mode = 'full' } = {}) {
+export function buildPatientCard({ patient, clinic, mode = 'full' } = {}) {
   if (!patient) return '';
 
   const name = escAttr(patient.full_name || '—');
@@ -90,7 +90,13 @@ export function buildPatientCard({ patient, mode = 'full' } = {}) {
     rows.push(`<div class="gcv2-pc-line gcv2-pc-addr">${escAttr(addr)}</div>`);
   }
 
-  return `<div class="gcv2-patient-card">${rows.join('')}</div>`;
+  const clinicName = escAttr(clinic?.display_name || clinic?.name || '');
+  const clinicHtml = clinicName ? `<div class="gcv2-pc-clinic">${clinicName}</div>` : '';
+
+  return `<div class="gcv2-patient-card">
+    <div class="gcv2-pc-body">${rows.join('')}</div>
+    ${clinicHtml}
+  </div>`;
 }
 
 // Expor globalmente (consistente com o padrão do shell-v2)
