@@ -144,10 +144,10 @@
   margin: 0;
 }
 .gcv2-footer {
-  padding: 18px 32px 22px;
+  padding: 10px 32px 14px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 28px;
+  gap: 20px;
   align-items: flex-end;
   position: relative;
   z-index: 1;

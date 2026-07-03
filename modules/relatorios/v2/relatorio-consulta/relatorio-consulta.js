@@ -295,7 +295,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
 
   // -------- Conteúdo do relatório --------
   async function buildReportContent() {
-    const cardHtml = buildPatientCard({ patient, clinic, mode: 'full' });
+    const cardHtml = buildPatientCard({ patient, mode: 'full' });
 
     const hdaHtml = state.hda && state.hda.trim()
       ? `<section class="gcv2-rc-section gcv2-rc-flow">

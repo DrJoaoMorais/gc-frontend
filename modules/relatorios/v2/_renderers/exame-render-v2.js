@@ -6,8 +6,7 @@
    - Grelha mista de 6 colunas: cartões declaram a sua largura.
    - Dinamometria estática: 4 mini-cartões + tabela (fórmulas
      copiadas textualmente de modules/obj/motor.js — não alterar).
-   - Kapandji: SEM case — entra só após correcção da persistência
-     em motor.js (sessão dedicada).
+   - Kapandji: case activo desde 2026-07-03 (persistência confirmada).
    - Expõe window.gcv2RenderExameObjectivoV2 (IIFE, não ES6 module).
    ================================================================= */
 (function () {
@@ -171,10 +170,12 @@
     (sec.grupos || []).forEach(function (grp) {
       (grp.testes || []).forEach(function (t) {
         var val = obj[t.id];
-        if (!val || val === 'Negativo' || val === '-' || !hasVal(val)) return;
+        if (!hasVal(val)) return; /* só o NÃO preenchido se omite — negativo é acto médico */
+        var neg = (val === 'Negativo' || val === '-');
         var cls = posCls[val] || '';
-        items += '<span>' + esc(t.label) + ' ' +
-          (cls ? '<b class="' + cls + '">' + esc(val) + '</b>' : esc(val)) + '</span>';
+        var valHtml = neg ? '<span class="gx2-ok">neg</span>'
+          : (cls ? '<b class="' + cls + '">' + esc(val) + '</b>' : esc(val));
+        items += '<span>' + esc(t.label) + ' ' + valHtml + '</span>';
       });
     });
     if (!items) return '';
@@ -366,6 +367,24 @@
     return card('Dinamometria — ActivForce 2', minis + tabela, 6);
   }
 
+  /* ---------- Kapandji (1/3) — valores 0-10; 0 é válido ---------- */
+  function blocoKapandji(sec, data) {
+    var k = data[sec.id] || data.kapandji;
+    if (!k || typeof k !== 'object') return '';
+    var d = parseInt(k.d), e = parseInt(k.e);
+    if (isNaN(d) && isNaN(e)) return '';
+    function lado(rot, v) {
+      return '<div style="flex:1;text-align:center;padding:4pt 0;border:.5pt solid #e2e8f0;border-radius:3pt;">' +
+        '<div style="font-size:6pt;color:#64748b;">' + rot + '</div>' +
+        '<div style="font-size:11pt;font-weight:600;color:' + (!isNaN(v) && v <= 3 ? '#991b1b' : '#0f2d52') + ';">' +
+        (!isNaN(v) ? v : '—') + '<span style="font-size:7pt;color:#64748b;">/10</span></div></div>';
+    }
+    var delta = (!isNaN(d) && !isNaN(e))
+      ? '<div style="font-size:6.5pt;color:#64748b;margin-top:2.5pt;">Δ D−E: ' + (d - e > 0 ? '+' : '') + (d - e) + ' níveis</div>' : '';
+    return card(sec.titulo || 'Kapandji',
+      '<div style="display:flex;gap:4pt;">' + lado('D', d) + lado('E', e) + '</div>' + delta + nota(sec, data), 2);
+  }
+
   /* ---------- Dispatch (mesma ordem de secções do config) ---------- */
   function renderExameObjectivoV2(cfg, data) {
     if (!cfg || !data) return '';
@@ -380,7 +399,7 @@
         case 'testes':  cards.push(blocoTestes(sec, data)); break;
         case 'grupos':  cards.push(blocoGrupos(sec, data)); break;
         case 'grading': cards.push(blocoGrading(sec, data)); break;
-        /* 'kapandji': deliberadamente ausente — ver cabeçalho */
+        case 'kapandji': cards.push(blocoKapandji(sec, data)); break;
       }
     });
     cards.push(blocoDyn(cfg, data));
