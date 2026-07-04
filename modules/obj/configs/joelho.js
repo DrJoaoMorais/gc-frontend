@@ -9,7 +9,7 @@ export default {
   tabs: { dinamometria: true, escalas: true },
 
   seccoes: [
-    { tipo: 'dor', titulo: 'Caracterização da Dor',
+    { tipo: 'dor', col: 'esq', titulo: 'Caracterização da Dor',
       eva: [
         { id: 'eva_rep', label: 'Repouso' },
         { id: 'eva_act', label: 'Actividade' },
@@ -28,7 +28,7 @@ export default {
       ],
     },
 
-    { tipo: 'params', id: 'palp', titulo: 'Inspeção & Palpação', notas: 'notas_palp',
+    { tipo: 'params', col: 'esq', id: 'palp', titulo: 'Inspeção & Palpação', notas: 'notas_palp',
       rows: [
         { id: 'marcha',     label: 'Marcha',
           opts: ['Normal', 'Claudicação álgica', 'Antálgica', 'Em varo/valgo'] },
@@ -55,7 +55,7 @@ export default {
       ],
     },
 
-    { tipo: 'mrc', id: 'mrc', titulo: 'Força Muscular (MRC)', notas: 'notas_forca',
+    { tipo: 'mrc', col: 'dir', id: 'mrc', titulo: 'Força Muscular (MRC)', notas: 'notas_forca',
       rows: [
         { id: 'f_quad', label: 'Quadricípite' },
         { id: 'f_isq',  label: 'Isquiotibiais' },
@@ -64,7 +64,7 @@ export default {
       ],
     },
 
-    { tipo: 'func', id: 'func', titulo: 'Avaliação Funcional',
+    { tipo: 'func', col: 'dir', id: 'func', titulo: 'Avaliação Funcional',
       opts: ['Normal', 'Com dor', 'Dificuldade', 'Impossível'],
       rows: [
         { id: 'func_plan',   label: 'Caminhar em plano' },
@@ -83,14 +83,14 @@ export default {
       ],
     },
 
-    { tipo: 'rom', id: 'rom', titulo: 'Amplitude de Movimento', notas: 'notas_mob',
+    { tipo: 'rom', col: 'esq', id: 'rom', titulo: 'Amplitude de Movimento', notas: 'notas_mob',
       movimentos: [
         { key: 'flex', label: 'Flexão',   normal: 140, min: 0, max: 150 },
         { key: 'ext',  label: 'Extensão', normal: 0,   min: 0, max: 10  },
       ],
     },
 
-    { tipo: 'testes', id: 'testes', titulo: 'Testes Específicos', notas: 'notas_testes',
+    { tipo: 'testes', col: 'dir', id: 'testes', titulo: 'Testes Específicos', notas: 'notas_testes',
       grade: ['Negativo', '+', '++', '+++'],
       grupos: [
         { sub: 'Ligamentos', testes: [
