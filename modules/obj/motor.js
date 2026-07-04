@@ -441,8 +441,8 @@ function _romRowHTML(m) {
     pct < 85 ? '<td data-cell="pct" style="text-align:center;color:#e53e3e;font-weight:600">' + pct + '%</td>' :
     pct < 95 ? '<td data-cell="pct" style="text-align:center;color:#d97706;font-weight:500">' + pct + '%</td>' :
                '<td data-cell="pct" style="text-align:center;color:#38a169;font-weight:500">' + pct + '%</td>';
-  const dA = (s.a !== null && m.normal !== null && m.normal !== undefined) ? m.normal - s.a : null;
-  const dP = (s.p !== null && m.normal !== null && m.normal !== undefined) ? m.normal - s.p : null;
+  const dA = (s.a !== null && m.normal !== null && m.normal !== undefined) ? (m.normal === 0 ? s.a : m.normal - s.a) : null;
+  const dP = (s.p !== null && m.normal !== null && m.normal !== undefined) ? (m.normal === 0 ? s.p : m.normal - s.p) : null;
   function fD(v, cell) {
     if (v === null) return '<td data-cell="' + cell + '" style="color:#94a3b8;text-align:center">—</td>';
     if (v <= 0) return '<td data-cell="' + cell + '" style="color:#38a169;font-weight:500;text-align:center">' + v + '°</td>';
@@ -512,8 +512,8 @@ window.romUpdateRow = function (secId, key) {
     cellPct.style.color = pct === null ? '#94a3b8' : pct < 85 ? '#e53e3e' : pct < 95 ? '#d97706' : '#38a169';
     cellPct.style.fontWeight = pct === null ? '' : pct < 85 ? '600' : '500';
   }
-  const dA = (s.a !== null && m.normal !== null && m.normal !== undefined) ? m.normal - s.a : null;
-  const dP = (s.p !== null && m.normal !== null && m.normal !== undefined) ? m.normal - s.p : null;
+  const dA = (s.a !== null && m.normal !== null && m.normal !== undefined) ? (m.normal === 0 ? s.a : m.normal - s.a) : null;
+  const dP = (s.p !== null && m.normal !== null && m.normal !== undefined) ? (m.normal === 0 ? s.p : m.normal - s.p) : null;
   function fD(cellSel, v) {
     const cell = tr.querySelector('[data-cell="' + cellSel + '"]');
     if (!cell) return;
