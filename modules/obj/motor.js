@@ -427,44 +427,46 @@ function _romRenderTable(secId) {
   const tb = document.getElementById('rom-tbody-' + secId);
   const cfg = _romConfigs[secId];
   if (!tb || !cfg) return;
-  tb.innerHTML = cfg.movimentos.map(function (m) {
-    const s = _romState[m.key] || { a: null, p: null };
-    const aC = (s.a !== null && m.normal > 0 && s.a / m.normal < 0.85) ? '#e53e3e' : '#1a56db';
-    const dAP = (s.a !== null && s.p !== null) ? s.a - s.p : null;
-    const dAPStr = dAP !== null ? (dAP > 0 ? '+' + dAP + '°' : dAP + '°') : '—';
-    const dAPColor = dAP === null ? '#94a3b8' : Math.abs(dAP) < 2 ? '#64748b' : dAP < 0 ? '#e53e3e' : '#805ad5';
-    const pct = (s.a !== null && m.normal > 0) ? Math.round(s.a / m.normal * 100) : null;
-    const pctCell = pct === null ? '<td style="text-align:center;color:#94a3b8">—</td>' :
-      pct < 85 ? '<td style="text-align:center;color:#e53e3e;font-weight:600">' + pct + '%</td>' :
-      pct < 95 ? '<td style="text-align:center;color:#d97706;font-weight:500">' + pct + '%</td>' :
-                 '<td style="text-align:center;color:#38a169;font-weight:500">' + pct + '%</td>';
-    const dA = (s.a !== null && m.normal > 0) ? m.normal - s.a : null;
-    const dP = (s.p !== null && m.normal > 0) ? m.normal - s.p : null;
-    function fD(v) {
-      if (v === null) return '<td style="color:#94a3b8;text-align:center">—</td>';
-      if (v <= 0) return '<td style="color:#38a169;font-weight:500;text-align:center">' + v + '°</td>';
-      return '<td style="color:#e53e3e;font-weight:500;text-align:center">+' + v + '°</td>';
-    }
-    return '<tr>' +
-      '<td style="font-weight:500">' + m.label + (m.nota ? ' <span style="font-size:9px;color:#94a3b8">(' + m.nota + ')</span>' : '') + '</td>' +
-      '<td style="text-align:center"><input type="number" min="' + m.min + '" max="' + m.max + '" step="1"' +
-        ' value="' + (s.a !== null ? s.a : '') + '" placeholder="—"' +
-        ' style="width:52px;text-align:center;font-size:12px;font-weight:600;color:' + aC + ';border:0.5px solid ' + aC + '44;border-radius:4px;padding:2px 4px;background:transparent"' +
-        ' data-key="' + m.key + '" data-field="a"' +
-        ' oninput="window.romSv(this.dataset.key,this.dataset.field,this.value===\'\'?null:+this.value)"' +
-        ' onchange="window.romCommit(this.dataset.key)"></td>' +
-      '<td style="text-align:center"><input type="number" min="' + m.min + '" max="' + m.max + '" step="1"' +
-        ' value="' + (s.p !== null ? s.p : '') + '" placeholder="—"' +
-        ' style="width:52px;text-align:center;font-size:12px;font-weight:600;color:#38a169;border:0.5px solid #38a16944;border-radius:4px;padding:2px 4px;background:transparent"' +
-        ' data-key="' + m.key + '" data-field="p"' +
-        ' oninput="window.romSv(this.dataset.key,this.dataset.field,this.value===\'\'?null:+this.value)"' +
-        ' onchange="window.romCommit(this.dataset.key)"></td>' +
-      '<td style="color:' + dAPColor + ';font-weight:500;text-align:center">' + dAPStr + '</td>' +
-      '<td style="text-align:center;color:#64748b">' + (m.normal > 0 ? m.normal + '°' : '0°') + '</td>' +
-      (m.normal > 0 ? pctCell : '<td style="text-align:center;color:#94a3b8">—</td>') +
-      fD(dA) + fD(dP) +
-      '</tr>';
-  }).join('');
+  tb.innerHTML = cfg.movimentos.map(_romRowHTML).join('');
+}
+
+function _romRowHTML(m) {
+  const s = _romState[m.key] || { a: null, p: null };
+  const aC = (s.a !== null && m.normal > 0 && s.a / m.normal < 0.85) ? '#e53e3e' : '#1a56db';
+  const dAP = (s.a !== null && s.p !== null) ? s.a - s.p : null;
+  const dAPStr = dAP !== null ? (dAP > 0 ? '+' + dAP + '°' : dAP + '°') : '—';
+  const dAPColor = dAP === null ? '#94a3b8' : Math.abs(dAP) < 2 ? '#64748b' : dAP < 0 ? '#e53e3e' : '#805ad5';
+  const pct = (s.a !== null && m.normal > 0) ? Math.round(s.a / m.normal * 100) : null;
+  const pctCell = pct === null ? '<td data-cell="pct" style="text-align:center;color:#94a3b8">—</td>' :
+    pct < 85 ? '<td data-cell="pct" style="text-align:center;color:#e53e3e;font-weight:600">' + pct + '%</td>' :
+    pct < 95 ? '<td data-cell="pct" style="text-align:center;color:#d97706;font-weight:500">' + pct + '%</td>' :
+               '<td data-cell="pct" style="text-align:center;color:#38a169;font-weight:500">' + pct + '%</td>';
+  const dA = (s.a !== null && m.normal > 0) ? m.normal - s.a : null;
+  const dP = (s.p !== null && m.normal > 0) ? m.normal - s.p : null;
+  function fD(v, cell) {
+    if (v === null) return '<td data-cell="' + cell + '" style="color:#94a3b8;text-align:center">—</td>';
+    if (v <= 0) return '<td data-cell="' + cell + '" style="color:#38a169;font-weight:500;text-align:center">' + v + '°</td>';
+    return '<td data-cell="' + cell + '" style="color:#e53e3e;font-weight:500;text-align:center">+' + v + '°</td>';
+  }
+  return '<tr data-row="' + m.key + '">' +
+    '<td style="font-weight:500">' + m.label + (m.nota ? ' <span style="font-size:9px;color:#94a3b8">(' + m.nota + ')</span>' : '') + '</td>' +
+    '<td style="text-align:center"><input type="number" min="' + m.min + '" max="' + m.max + '" step="1"' +
+      ' value="' + (s.a !== null ? s.a : '') + '" placeholder="—"' +
+      ' style="width:52px;text-align:center;font-size:12px;font-weight:600;color:' + aC + ';border:0.5px solid ' + aC + '44;border-radius:4px;padding:2px 4px;background:transparent"' +
+      ' data-key="' + m.key + '" data-field="a"' +
+      ' oninput="window.romSv(this.dataset.key,this.dataset.field,this.value===\'\'?null:+this.value)"' +
+      ' onchange="window.romCommit(this.dataset.key)"></td>' +
+    '<td style="text-align:center"><input type="number" min="' + m.min + '" max="' + m.max + '" step="1"' +
+      ' value="' + (s.p !== null ? s.p : '') + '" placeholder="—"' +
+      ' style="width:52px;text-align:center;font-size:12px;font-weight:600;color:#38a169;border:0.5px solid #38a16944;border-radius:4px;padding:2px 4px;background:transparent"' +
+      ' data-key="' + m.key + '" data-field="p"' +
+      ' oninput="window.romSv(this.dataset.key,this.dataset.field,this.value===\'\'?null:+this.value)"' +
+      ' onchange="window.romCommit(this.dataset.key)"></td>' +
+    '<td data-cell="dap" style="color:' + dAPColor + ';font-weight:500;text-align:center">' + dAPStr + '</td>' +
+    '<td style="text-align:center;color:#64748b">' + (m.normal > 0 ? m.normal + '°' : '0°') + '</td>' +
+    (m.normal > 0 ? pctCell : '<td data-cell="pct" style="text-align:center;color:#94a3b8">—</td>') +
+    fD(dA, 'da') + fD(dP, 'dp') +
+    '</tr>';
 }
 
 window.romSv = function (key, field, val) {
@@ -487,12 +489,47 @@ window.romSv = function (key, field, val) {
   }
   _romState[key][field] = val;
 };
+window.romUpdateRow = function (secId, key) {
+  const tb = document.getElementById('rom-tbody-' + secId);
+  const cfg = _romConfigs[secId];
+  if (!tb || !cfg) return;
+  const m = cfg.movimentos.find(function (mv) { return mv.key === key; });
+  const tr = m && tb.querySelector('tr[data-row="' + key + '"]');
+  if (!m || !tr) return;
+  const s = _romState[m.key] || { a: null, p: null };
+  const aC = (s.a !== null && m.normal > 0 && s.a / m.normal < 0.85) ? '#e53e3e' : '#1a56db';
+  const inpA = tr.querySelector('input[data-field="a"]');
+  if (inpA) { inpA.style.color = aC; inpA.style.borderColor = aC + '44'; }
+  const dAP = (s.a !== null && s.p !== null) ? s.a - s.p : null;
+  const dAPStr = dAP !== null ? (dAP > 0 ? '+' + dAP + '°' : dAP + '°') : '—';
+  const dAPColor = dAP === null ? '#94a3b8' : Math.abs(dAP) < 2 ? '#64748b' : dAP < 0 ? '#e53e3e' : '#805ad5';
+  const cellDap = tr.querySelector('[data-cell="dap"]');
+  if (cellDap) { cellDap.textContent = dAPStr; cellDap.style.color = dAPColor; }
+  const pct = (s.a !== null && m.normal > 0) ? Math.round(s.a / m.normal * 100) : null;
+  const cellPct = tr.querySelector('[data-cell="pct"]');
+  if (cellPct) {
+    cellPct.textContent = pct === null ? '—' : pct + '%';
+    cellPct.style.color = pct === null ? '#94a3b8' : pct < 85 ? '#e53e3e' : pct < 95 ? '#d97706' : '#38a169';
+    cellPct.style.fontWeight = pct === null ? '' : pct < 85 ? '600' : '500';
+  }
+  const dA = (s.a !== null && m.normal > 0) ? m.normal - s.a : null;
+  const dP = (s.p !== null && m.normal > 0) ? m.normal - s.p : null;
+  function fD(cellSel, v) {
+    const cell = tr.querySelector('[data-cell="' + cellSel + '"]');
+    if (!cell) return;
+    cell.textContent = v === null ? '—' : v <= 0 ? v + '°' : '+' + v + '°';
+    cell.style.color = v === null ? '#94a3b8' : v <= 0 ? '#38a169' : '#e53e3e';
+    cell.style.fontWeight = v === null ? '' : '500';
+  }
+  fD('da', dA);
+  fD('dp', dP);
+};
 window.romCommit = function (key) {
   let ownerSecId = null;
   Object.keys(_romConfigs).forEach(function (sid) {
     if (_romConfigs[sid].movimentos.find(function (mv) { return mv.key === key; })) ownerSecId = sid;
   });
-  if (ownerSecId) _romRenderTable(ownerSecId);
+  if (ownerSecId) window.romUpdateRow(ownerSecId, key);
 };
 window.romGetState = function (key) { return _romState[key] || null; };
 window._romFillNormal = function (secId) {
