@@ -64,6 +64,8 @@ export default {
       ],
     },
 
+    { ...seccaoCicatriz, col: 'esq' },
+
     { tipo: 'func', col: 'dir', id: 'func', titulo: 'Avaliação Funcional', notas: 'notas_func',
       opts: ['Normal', 'Com dor', 'Dificuldade', 'Impossível'],
       rows: [
@@ -119,7 +121,6 @@ export default {
       ],
     },
 
-    seccaoCicatriz,
     { ...seccaoAtrofia, perimetria: { niveis: NIVEIS_MI } },
   ],
 
