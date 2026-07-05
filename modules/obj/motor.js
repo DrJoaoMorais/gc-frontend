@@ -312,11 +312,13 @@ function _renderMrc(sec, n) {
 
 function _renderFunc(sec, n) {
   let h = '<div class="sec"><div class="sec-title">' + n + ' · ' + sec.titulo + '</div>';
+  h += '<div class="func-grid">';
   sec.rows.forEach(function (row) {
     h += '<div class="func-row"><div class="func-lbl">' + row.label + '</div><div class="opts sg" id="' + row.id + '">';
     sec.opts.forEach(function (o) { h += '<div class="opt" data-v="' + o + '">' + o + '</div>'; });
     h += '</div></div>';
   });
+  h += '</div>';
   if (sec.notas) h += '<textarea id="' + sec.notas + '" placeholder="Notas sobre funcionalidade…"></textarea>';
   return h + '</div>';
 }
