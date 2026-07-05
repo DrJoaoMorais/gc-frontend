@@ -66,7 +66,7 @@ export default {
 
     { ...seccaoCicatriz, col: 'esq' },
 
-    { tipo: 'func', col: 'dir', id: 'func', titulo: 'Avaliação Funcional', notas: 'notas_func',
+    { tipo: 'func', col: 'esq', id: 'func', titulo: 'Avaliação Funcional', notas: 'notas_func',
       opts: ['Normal', 'Com dor', 'Dificuldade', 'Impossível'],
       rows: [
         { id: 'func_plan',   label: 'Caminhar em plano' },
@@ -85,7 +85,7 @@ export default {
       ],
     },
 
-    { tipo: 'rom', col: 'esq', id: 'rom', titulo: 'Amplitude de Movimento', notas: 'notas_mob',
+    { tipo: 'rom', col: 'dir', id: 'rom', titulo: 'Amplitude de Movimento', notas: 'notas_mob',
       movimentos: [
         { key: 'flex', label: 'Flexão',   normal: 140, min: 0, max: 150 },
         { key: 'ext',  label: 'Extensão', normal: 0,   min: 0, max: 10  },
