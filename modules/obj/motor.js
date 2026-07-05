@@ -69,10 +69,15 @@ function _hidratarFormData(d) {
         sec.grupos.forEach(function (gr) { if (gr.multi) selMulti(gr.id, d[gr.id]); else selOpt(gr.id, d[gr.id]); });
         break;
       case 'params':
-      case 'mrc':
-      case 'func': {
+      case 'mrc': {
         const obj = d[sec.id] || {};
         sec.rows.forEach(function (row) { selOpt(row.id, obj[row.id]); });
+        if (sec.notas) { const el = document.getElementById(sec.notas); if (el && d[sec.notas]) el.value = d[sec.notas]; }
+        break;
+      }
+      case 'func': {
+        const obj = d[sec.id] || {};
+        sec.rows.forEach(function (row) { selOpt(row.id, obj[row.id]); selOpt(row.id + '_dor', obj[row.id + '_dor']); });
         if (sec.notas) { const el = document.getElementById(sec.notas); if (el && d[sec.notas]) el.value = d[sec.notas]; }
         break;
       }
@@ -1102,10 +1107,16 @@ window._gerarData = function () {
         sec.grupos.forEach(function (gr) { data[gr.id] = gr.multi ? mg(gr.id) : g(gr.id); });
         break;
       case 'params':
-      case 'mrc':
-      case 'func': {
+      case 'mrc': {
         const obj = {};
         sec.rows.forEach(function (row) { obj[row.id] = g(row.id); });
+        data[sec.id] = obj;
+        if (sec.notas) data[sec.notas] = rs(sec.notas);
+        break;
+      }
+      case 'func': {
+        const obj = {};
+        sec.rows.forEach(function (row) { obj[row.id] = g(row.id); obj[row.id + '_dor'] = g(row.id + '_dor'); });
         data[sec.id] = obj;
         if (sec.notas) data[sec.notas] = rs(sec.notas);
         break;
@@ -1284,7 +1295,11 @@ window._gerarResumo = function () {
         linhas.push('FUNCIONAL');
         sec.rows.forEach(function (row) {
           const el = document.querySelector('#' + row.id + ' .opt.sel');
-          if (el && el.dataset.v !== 'Normal') linhas.push('  ' + row.label + ': ' + el.dataset.v);
+          const elDor = document.querySelector('#' + row.id + '_dor .opt.sel');
+          const partes = [];
+          if (el && el.dataset.v !== 'Normal') partes.push(el.dataset.v);
+          if (elDor && elDor.dataset.v !== 'Sem dor') partes.push(elDor.dataset.v);
+          if (partes.length) linhas.push('  ' + row.label + ': ' + partes.join(' · '));
         });
         break;
       }
