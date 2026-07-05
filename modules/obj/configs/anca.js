@@ -9,7 +9,7 @@ export default {
   tabs: { dinamometria: true, escalas: true },
 
   seccoes: [
-    { tipo: 'dor', titulo: 'Caracterização da Dor',
+    { tipo: 'dor', col: 'esq', titulo: 'Caracterização da Dor', notas: 'notas_dor',
       eva: [
         { id: 'eva_rep', label: 'Repouso' },
         { id: 'eva_act', label: 'Actividade' },
@@ -27,7 +27,7 @@ export default {
       ],
     },
 
-    { tipo: 'params', id: 'palp', titulo: 'Inspeção & Palpação', notas: 'notas_palp',
+    { tipo: 'params', col: 'esq', id: 'palp', titulo: 'Inspeção & Palpação', notas: 'notas_palp',
       rows: [
         { id: 'marcha',      label: 'Marcha',
           opts: ['Normal', 'Claudicação álgica', 'Trendelenburg', 'Antálgica'] },
@@ -54,7 +54,7 @@ export default {
       ],
     },
 
-    { tipo: 'mrc', id: 'mrc', titulo: 'Força Muscular (MRC)', notas: 'notas_forca',
+    { tipo: 'mrc', col: 'dir', id: 'mrc', titulo: 'Força Muscular (MRC)', notas: 'notas_forca',
       rows: [
         { id: 'f_flex', label: 'Flexão' },
         { id: 'f_ext',  label: 'Extensão' },
@@ -65,7 +65,7 @@ export default {
       ],
     },
 
-    { tipo: 'func', id: 'func', titulo: 'Avaliação Funcional',
+    { tipo: 'func', col: 'esq', zona: 'baixo', id: 'func', titulo: 'Avaliação Funcional', notas: 'notas_func',
       opts: ['Normal', 'Com dor', 'Dificuldade', 'Impossível'],
       rows: [
         { id: 'func_plan',   label: 'Caminhar em plano' },
@@ -82,7 +82,7 @@ export default {
       ],
     },
 
-    { tipo: 'rom', id: 'rom', titulo: 'Amplitude de Movimento', notas: 'notas_mob',
+    { tipo: 'rom', col: 'dir', id: 'rom', titulo: 'Amplitude de Movimento', notas: 'notas_mob',
       movimentos: [
         { key: 'flex', label: 'Flexão',          normal: 130, min: 0, max: 140 },
         { key: 'ext',  label: 'Extensão',         normal: 20,  min: 0, max: 30  },
@@ -93,7 +93,7 @@ export default {
       ],
     },
 
-    { tipo: 'testes', id: 'testes', titulo: 'Testes Específicos', notas: 'notas_testes',
+    { tipo: 'testes', col: 'dir', id: 'testes', titulo: 'Testes Específicos', notas: 'notas_testes',
       grade: ['Negativo', '+', '++', '+++'],
       grupos: [
         { sub: 'Conflito / Coxofemoral', testes: [
@@ -128,7 +128,7 @@ export default {
       ],
     },
 
-    seccaoCicatriz,
+    { ...seccaoCicatriz, col: 'esq', zona: 'baixo' },
     { ...seccaoAtrofia, perimetria: { niveis: NIVEIS_MI } },
   ],
 
