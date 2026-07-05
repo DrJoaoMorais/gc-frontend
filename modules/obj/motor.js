@@ -214,16 +214,25 @@ function _renderPage(cfg) {
 
   const tabExame = document.getElementById('tab-exame');
   if (tabExame) {
-    let leftH = '', rightH = '';
+    let topoEsq = '', topoDir = '', baixoEsq = '', baixoDir = '';
     let sNum = 0;
     cfg.seccoes.forEach(function (sec) {
       sNum++;
       const h = _renderSec(sec, sNum);
       const dirPorTipo = sec.tipo === 'rom' || sec.tipo === 'testes' || sec.tipo === 'kapandji';
       const vaiDireita = sec.col ? sec.col === 'dir' : dirPorTipo;
-      if (vaiDireita) rightH += h; else leftH += h;
+      const vaiBaixo = sec.zona === 'baixo';
+      if (vaiBaixo) {
+        if (vaiDireita) baixoDir += h; else baixoEsq += h;
+      } else {
+        if (vaiDireita) topoDir += h; else topoEsq += h;
+      }
     });
-    tabExame.innerHTML = '<div class="two-col"><div class="col-scroll">' + leftH + '</div><div class="col-scroll">' + rightH + '</div></div>';
+    let htmlExame = '<div class="two-col"><div class="col-scroll">' + topoEsq + '</div><div class="col-scroll">' + topoDir + '</div></div>';
+    if (baixoEsq || baixoDir) {
+      htmlExame += '<div class="two-col-baixo"><div class="col-scroll">' + baixoEsq + '</div><div class="col-scroll">' + baixoDir + '</div></div>';
+    }
+    tabExame.innerHTML = htmlExame;
   }
 
   if (cfg.tabs && cfg.tabs.dinamometria) {

@@ -64,9 +64,9 @@ export default {
       ],
     },
 
-    { ...seccaoCicatriz, col: 'esq' },
+    { ...seccaoCicatriz, zona: 'baixo', col: 'esq' },
 
-    { tipo: 'func', col: 'esq', id: 'func', titulo: 'Avaliação Funcional', notas: 'notas_func',
+    { tipo: 'func', col: 'dir', zona: 'baixo', id: 'func', titulo: 'Avaliação Funcional', notas: 'notas_func',
       opts: ['Normal', 'Com dor', 'Dificuldade', 'Impossível'],
       rows: [
         { id: 'func_plan',   label: 'Caminhar em plano' },
