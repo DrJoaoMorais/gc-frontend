@@ -219,8 +219,9 @@ function _renderPage(cfg) {
     cfg.seccoes.forEach(function (sec) {
       sNum++;
       const h = _renderSec(sec, sNum);
-      if (sec.col === 'dir' || sec.tipo === 'rom' || sec.tipo === 'testes' || sec.tipo === 'kapandji') rightH += h;
-      else leftH += h;
+      const dirPorTipo = sec.tipo === 'rom' || sec.tipo === 'testes' || sec.tipo === 'kapandji';
+      const vaiDireita = sec.col ? sec.col === 'dir' : dirPorTipo;
+      if (vaiDireita) rightH += h; else leftH += h;
     });
     tabExame.innerHTML = '<div class="two-col"><div class="col-scroll">' + leftH + '</div><div class="col-scroll">' + rightH + '</div></div>';
   }
@@ -279,6 +280,7 @@ function _renderDor(sec, n) {
     });
     h += '</div>';
   });
+  if (sec.notas) h += '<textarea id="' + sec.notas + '" placeholder="Notas sobre a dor…"></textarea>';
   return h + '</div>';
 }
 
@@ -315,6 +317,7 @@ function _renderFunc(sec, n) {
     sec.opts.forEach(function (o) { h += '<div class="opt" data-v="' + o + '">' + o + '</div>'; });
     h += '</div></div>';
   });
+  if (sec.notas) h += '<textarea id="' + sec.notas + '" placeholder="Notas sobre funcionalidade…"></textarea>';
   return h + '</div>';
 }
 
@@ -343,8 +346,9 @@ function _renderRom(sec, n) {
 
 function _renderTestes(sec, n) {
   let h = '<div class="sec"><div class="sec-title">' + n + ' · ' + sec.titulo + '</div>';
+  h += '<div class="testes-grid">';
   sec.grupos.forEach(function (g) {
-    h += '<div class="sub-lbl">' + g.sub + '</div>';
+    h += '<div class="testes-col"><div class="sub-lbl">' + g.sub + '</div>';
     g.testes.forEach(function (t) {
       h += '<div class="teste-row"><div class="teste-lbl">' + t.label + '</div><div class="opts sg grade" id="' + t.id + '">';
       sec.grade.forEach(function (gv) {
@@ -352,7 +356,9 @@ function _renderTestes(sec, n) {
       });
       h += '</div></div>';
     });
+    h += '</div>';
   });
+  h += '</div>';
   if (sec.notas) h += '<textarea id="' + sec.notas + '" placeholder="Notas sobre testes…"></textarea>';
   return h + '</div>';
 }

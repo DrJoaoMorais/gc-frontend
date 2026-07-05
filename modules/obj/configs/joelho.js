@@ -9,7 +9,7 @@ export default {
   tabs: { dinamometria: true, escalas: true },
 
   seccoes: [
-    { tipo: 'dor', col: 'esq', titulo: 'Caracterização da Dor',
+    { tipo: 'dor', col: 'esq', titulo: 'Caracterização da Dor', notas: 'notas_dor',
       eva: [
         { id: 'eva_rep', label: 'Repouso' },
         { id: 'eva_act', label: 'Actividade' },
@@ -64,7 +64,7 @@ export default {
       ],
     },
 
-    { tipo: 'func', col: 'dir', id: 'func', titulo: 'Avaliação Funcional',
+    { tipo: 'func', col: 'dir', id: 'func', titulo: 'Avaliação Funcional', notas: 'notas_func',
       opts: ['Normal', 'Com dor', 'Dificuldade', 'Impossível'],
       rows: [
         { id: 'func_plan',   label: 'Caminhar em plano' },
