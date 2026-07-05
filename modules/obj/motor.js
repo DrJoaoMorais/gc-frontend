@@ -314,9 +314,14 @@ function _renderFunc(sec, n) {
   let h = '<div class="sec"><div class="sec-title">' + n + ' · ' + sec.titulo + '</div>';
   h += '<div class="func-grid">';
   sec.rows.forEach(function (row) {
-    h += '<div class="func-row"><div class="func-lbl">' + row.label + '</div><div class="opts sg" id="' + row.id + '">';
+    h += '<div class="func-row"><div class="func-lbl">' + row.label + '</div>';
+    h += '<div class="func-escala"><span class="func-escala-lbl">Capacidade</span><div class="opts sg" id="' + row.id + '">';
     sec.opts.forEach(function (o) { h += '<div class="opt" data-v="' + o + '">' + o + '</div>'; });
     h += '</div></div>';
+    h += '<div class="func-escala"><span class="func-escala-lbl">Dor</span><div class="opts sg" id="' + row.id + '_dor">' +
+         ['Sem dor', 'Dor ligeira', 'Dor moderada', 'Dor intensa'].map(function(o){return '<div class="opt" data-v="'+o+'">'+o+'</div>';}).join('') +
+         '</div></div>';
+    h += '</div>';
   });
   h += '</div>';
   if (sec.notas) h += '<textarea id="' + sec.notas + '" placeholder="Notas sobre funcionalidade…"></textarea>';
