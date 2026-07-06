@@ -9,7 +9,7 @@ export default {
   tabs: { dinamometria: true, escalas: true },
 
   seccoes: [
-    { tipo: 'dor', titulo: 'Caracterização da Dor',
+    { tipo: 'dor', titulo: 'Caracterização da Dor', col: 'esq', notas: 'notas_dor',
       eva: [
         { id: 'eva_rep', label: 'Repouso' },
         { id: 'eva_act', label: 'Actividade' },
@@ -29,7 +29,7 @@ export default {
       ],
     },
 
-    { tipo: 'params', id: 'palp', titulo: 'Inspeção & Palpação', notas: 'notas_palp',
+    { tipo: 'params', id: 'palp', titulo: 'Inspeção & Palpação', notas: 'notas_palp', col: 'esq',
       rows: [
         { id: 'postura_cab',  label: 'Anteriorização cabeça',
           opts: ['Sem', 'Ligeira', 'Moderada', 'Acentuada'] },
@@ -60,7 +60,7 @@ export default {
       ],
     },
 
-    { tipo: 'mrc', id: 'mrc', titulo: 'Força Muscular (MRC)', notas: 'notas_forca',
+    { tipo: 'mrc', id: 'mrc', titulo: 'Força Muscular (MRC)', notas: 'notas_forca', col: 'dir',
       rows: [
         { id: 'f_flex_cerv', label: 'Flexores cervicais' },
         { id: 'f_ext_cerv',  label: 'Extensores cervicais' },
@@ -72,7 +72,7 @@ export default {
       ],
     },
 
-    { tipo: 'rom', id: 'rom', titulo: 'Mobilidade Cervical', notas: 'notas_mob',
+    { tipo: 'rom', id: 'rom', titulo: 'Mobilidade Cervical', notas: 'notas_mob', col: 'dir',
       movimentos: [
         { key: 'cerv_flex',  label: 'Flexão',              normal: 45, min: 0, max: 60 },
         { key: 'cerv_ext',   label: 'Extensão',            normal: 45, min: 0, max: 60 },
@@ -83,7 +83,7 @@ export default {
       ],
     },
 
-    { tipo: 'func', id: 'func', titulo: 'Avaliação Funcional',
+    { tipo: 'func', id: 'func', titulo: 'Avaliação Funcional', col: 'dir', zona: 'baixo', notas: 'notas_func',
       opts: ['Normal', 'Com dor', 'Dificuldade', 'Impossível'],
       rows: [
         { id: 'func_cond',   label: 'Rodar cabeça para conduzir' },
@@ -97,7 +97,7 @@ export default {
       ],
     },
 
-    { tipo: 'testes', id: 'testes', titulo: 'Testes Específicos', notas: 'notas_testes',
+    { tipo: 'testes', id: 'testes', titulo: 'Testes Específicos', notas: 'notas_testes', col: 'dir',
       grade: ['Negativo', '+', '++', '+++'],
       grupos: [
         { sub: 'Compressão / Foraminal', testes: [
@@ -120,7 +120,7 @@ export default {
       ],
     },
 
-    seccaoCicatriz,
+    { ...seccaoCicatriz, col: 'esq', zona: 'baixo' },
     seccaoAtrofia,
   ],
 
