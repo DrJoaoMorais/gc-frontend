@@ -10,7 +10,7 @@ export default {
   tabs: { dinamometria: true, escalas: true },
 
   seccoes: [
-    { tipo: 'dor', titulo: 'Caracterização da Dor',
+    { tipo: 'dor', titulo: 'Caracterização da Dor', col: 'esq', notas: 'notas_dor',
       eva: [ {id:'eva_rep',label:'Repouso'}, {id:'eva_act',label:'Actividade'}, {id:'eva_pic',label:'Pico'} ],
       grupos: [
         { id:'localizacao_dor', label:'Localização', multi:true, opts:[
@@ -26,7 +26,7 @@ export default {
         { id:'d_noturna', label:'Dor noturna', opts:['Não','Sim'] }
       ]},
 
-    { tipo: 'params', id:'palp', titulo: 'Inspeção & Palpação', notas:'notas_palp',
+    { tipo: 'params', id:'palp', titulo: 'Inspeção & Palpação', notas:'notas_palp', col: 'esq',
       rows: [
         { id:'insp_edema', label:'Edema / tumefacção', opts:['Ausente','Ligeiro','Moderado'] },
         { id:'insp_ang',  label:'Ângulo de carregamento', opts:['Normal','Varo','Valgo'] },
@@ -36,7 +36,7 @@ export default {
         { id:'palp_cub',  label:'Goteira cubital', opts:['Sem dor','Dor'] }
       ]},
 
-    { tipo: 'mrc', id:'mrc', titulo: 'Força Muscular (MRC)', notas:'notas_forca',
+    { tipo: 'mrc', id:'mrc', titulo: 'Força Muscular (MRC)', notas:'notas_forca', col: 'dir',
       rows: [
         { id:'flexc', label:'Flexão do cotovelo' },
         { id:'extc',  label:'Extensão do cotovelo' },
@@ -44,7 +44,7 @@ export default {
         { id:'flxp',  label:'Flexores do punho' }
       ]},
 
-    { tipo: 'func', id:'func', titulo: 'Avaliação Funcional',
+    { tipo: 'func', id:'func', titulo: 'Avaliação Funcional', col: 'dir', zona: 'baixo', notas: 'notas_func',
       opts:['Normal','Com dor','Dificuldade','Impossível'],
       rows: [
         { id:'boca',  label:'Mão à boca (alimentação)' },
@@ -55,7 +55,7 @@ export default {
         { id:'desp',  label:'Actividade desportiva' }
       ]},
 
-    { tipo: 'rom', id:'rom', titulo: 'Amplitude de Movimento', notas:'notas_mob',
+    { tipo: 'rom', id:'rom', titulo: 'Amplitude de Movimento', notas:'notas_mob', col: 'dir',
       movimentos: [
         { key:'flex', label:'Flexão',    normal:145, min:0,   max:160 },
         { key:'ext',  label:'Extensão',  normal:0,   min:-45, max:15, nota:'défice = negativo' },
@@ -63,7 +63,7 @@ export default {
         { key:'sup',  label:'Supinação', normal:80,  min:0,   max:90 }
       ]},
 
-    { tipo: 'testes', id:'testes', titulo: 'Testes Específicos', notas:'notas_testes',
+    { tipo: 'testes', id:'testes', titulo: 'Testes Específicos', notas:'notas_testes', col: 'dir',
       grade: ['Negativo','+','++','+++'],
       grupos: [
         { sub:'Epicondilite lateral', testes:[
@@ -77,7 +77,7 @@ export default {
         { sub:'Bicípite distal', testes:[
           {id:'hook',label:'Hook test'} ]}
       ]},
-    seccaoCicatriz,
+    { ...seccaoCicatriz, col: 'esq', zona: 'baixo' },
     { ...seccaoAtrofia, perimetria: { niveis: NIVEIS_MS } },
   ],
 
