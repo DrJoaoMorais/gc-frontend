@@ -65,7 +65,9 @@ export default {
       ],
     },
 
-    { tipo: 'func', col: 'esq', zona: 'baixo', id: 'func', titulo: 'Avaliação Funcional', notas: 'notas_func',
+    { ...seccaoCicatriz, col: 'esq', zona: 'baixo' },
+
+    { tipo: 'func', col: 'dir', zona: 'baixo', id: 'func', titulo: 'Avaliação Funcional', notas: 'notas_func',
       opts: ['Normal', 'Com dor', 'Dificuldade', 'Impossível'],
       rows: [
         { id: 'func_plan',   label: 'Caminhar em plano' },
@@ -128,7 +130,6 @@ export default {
       ],
     },
 
-    { ...seccaoCicatriz, col: 'esq', zona: 'baixo' },
     { ...seccaoAtrofia, perimetria: { niveis: NIVEIS_MI } },
   ],
 
