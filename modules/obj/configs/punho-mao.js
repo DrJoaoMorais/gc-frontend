@@ -10,7 +10,7 @@ export default {
   tabs: { dinamometria: true, escalas: true },
 
   seccoes: [
-    { tipo: 'dor', titulo: 'Caracterização da Dor',
+    { tipo: 'dor', titulo: 'Caracterização da Dor', col: 'esq', notas: 'notas_dor',
       eva: [ {id:'eva_rep',label:'Repouso'}, {id:'eva_act',label:'Actividade'}, {id:'eva_pic',label:'Pico'} ],
       grupos: [
         { id:'localizacao_dor', label:'Localização', multi:true, opts:[
@@ -27,7 +27,7 @@ export default {
         { id:'d_noturna', label:'Dor noturna', opts:['Não','Sim'] }
       ]},
 
-    { tipo: 'params', id:'palp', titulo: 'Inspeção & Palpação', notas:'notas_palp',
+    { tipo: 'params', id:'palp', titulo: 'Inspeção & Palpação', notas:'notas_palp', col: 'esq',
       rows: [
         { id:'insp_edema', label:'Edema / tumefacção',
           opts:['Ausente','Ligeiro','Moderado'] },
@@ -39,7 +39,7 @@ export default {
           opts:['Presente e simétrico','Assimétrico'] }
       ]},
 
-    { tipo: 'mrc', id:'mrc', titulo: 'Força Muscular (MRC)', notas:'notas_forca',
+    { tipo: 'mrc', id:'mrc', titulo: 'Força Muscular (MRC)', notas:'notas_forca', col: 'dir',
       rows: [
         { id:'ext_pun',  label:'Extensores do punho' },
         { id:'flex_pun', label:'Flexores do punho' },
@@ -48,7 +48,7 @@ export default {
         { id:'opol',     label:'Oponente do polegar' }
       ]},
 
-    { tipo: 'func', id:'func', titulo: 'Avaliação Funcional',
+    { tipo: 'func', id:'func', titulo: 'Avaliação Funcional', col: 'dir', zona: 'baixo', notas: 'notas_func',
       opts:['Normal','Com dor','Dificuldade','Impossível'],
       rows: [
         { id:'grip',    label:'Preensão palmar (grip)' },
@@ -59,7 +59,7 @@ export default {
         { id:'prof',    label:'Actividade profissional' }
       ]},
 
-    { tipo:'rom', id:'rom_punho', titulo:'Punho — Amplitudes', notas:'notas_rom_punho',
+    { tipo:'rom', id:'rom_punho', titulo:'Punho — Amplitudes', notas:'notas_rom_punho', col: 'dir',
       movimentos:[
         { key:'pun_flex_p', label:'Flexão palmar',         normal:80, min:0, max:90 },
         { key:'pun_flex_d', label:'Extensão (fl. dorsal)', normal:70, min:0, max:90 },
@@ -69,7 +69,7 @@ export default {
         { key:'pun_sup',    label:'Supinação',             normal:85, min:0, max:90 }
       ]},
 
-    { tipo:'rom', id:'rom_ind', titulo:'Indicador (2.º dedo) — Amplitudes', notas:'notas_rom_ind',
+    { tipo:'rom', id:'rom_ind', titulo:'Indicador (2.º dedo) — Amplitudes', notas:'notas_rom_ind', col: 'dir',
       movimentos:[
         { key:'ind_mcf_flex', label:'MCF — Flexão',   normal:90,  min:0, max:100 },
         { key:'ind_mcf_ext',  label:'MCF — Extensão', normal:0,   min:0, max:30  },
@@ -79,7 +79,7 @@ export default {
         { key:'ind_ifd_ext',  label:'IFD — Extensão', normal:0,   min:0, max:10  }
       ]},
 
-    { tipo:'rom', id:'rom_med', titulo:'Médio (3.º dedo) — Amplitudes', notas:'notas_rom_med',
+    { tipo:'rom', id:'rom_med', titulo:'Médio (3.º dedo) — Amplitudes', notas:'notas_rom_med', col: 'dir',
       movimentos:[
         { key:'med_mcf_flex', label:'MCF — Flexão',   normal:90,  min:0, max:100 },
         { key:'med_mcf_ext',  label:'MCF — Extensão', normal:0,   min:0, max:30  },
@@ -89,7 +89,7 @@ export default {
         { key:'med_ifd_ext',  label:'IFD — Extensão', normal:0,   min:0, max:10  }
       ]},
 
-    { tipo:'rom', id:'rom_an', titulo:'Anelar (4.º dedo) — Amplitudes', notas:'notas_rom_an',
+    { tipo:'rom', id:'rom_an', titulo:'Anelar (4.º dedo) — Amplitudes', notas:'notas_rom_an', col: 'dir',
       movimentos:[
         { key:'an_mcf_flex',  label:'MCF — Flexão',   normal:90,  min:0, max:100 },
         { key:'an_mcf_ext',   label:'MCF — Extensão', normal:0,   min:0, max:30  },
@@ -99,7 +99,7 @@ export default {
         { key:'an_ifd_ext',   label:'IFD — Extensão', normal:0,   min:0, max:10  }
       ]},
 
-    { tipo:'rom', id:'rom_min', titulo:'Mínimo (5.º dedo) — Amplitudes', notas:'notas_rom_min',
+    { tipo:'rom', id:'rom_min', titulo:'Mínimo (5.º dedo) — Amplitudes', notas:'notas_rom_min', col: 'dir',
       movimentos:[
         { key:'min_mcf_flex', label:'MCF — Flexão',   normal:90,  min:0, max:100 },
         { key:'min_mcf_ext',  label:'MCF — Extensão', normal:0,   min:0, max:30  },
@@ -109,18 +109,18 @@ export default {
         { key:'min_ifd_ext',  label:'IFD — Extensão', normal:0,   min:0, max:10  }
       ]},
 
-    { tipo:'rom', id:'rom_mao', titulo:'Mão — Avaliação Global', notas:'notas_rom_mao',
+    { tipo:'rom', id:'rom_mao', titulo:'Mão — Avaliação Global', notas:'notas_rom_mao', col: 'dir',
       movimentos:[
         { key:'ponta_palma',  label:'Ponta–palma (cm)', normal:0, min:0, max:20 }
       ]},
 
-    { tipo:'rom', id:'rom_polegar', titulo:'Polegar — Amplitudes', notas:'notas_rom_pol',
+    { tipo:'rom', id:'rom_polegar', titulo:'Polegar — Amplitudes', notas:'notas_rom_pol', col: 'dir',
       movimentos:[
         { key:'pol_mcp_flex', label:'MCP — Flexão', normal:50, min:0, max:70 },
         { key:'pol_ip_flex',  label:'IP — Flexão',  normal:80, min:0, max:90 }
       ]},
 
-    { tipo:'kapandji', id:'kapandji', titulo:'Kapandji — Oposição do Polegar', notas:'notas_kapandji',
+    { tipo:'kapandji', id:'kapandji', titulo:'Kapandji — Oposição do Polegar', notas:'notas_kapandji', col: 'dir',
       niveis:[
         'Sem oposição',
         'Borda lateral do 2.º dedo',
@@ -135,7 +135,7 @@ export default {
         'Alcance máximo na palma'
       ]},
 
-    { tipo: 'testes', id:'testes', titulo: 'Testes Específicos', notas:'notas_testes',
+    { tipo: 'testes', id:'testes', titulo: 'Testes Específicos', notas:'notas_testes', col: 'dir',
       grade: ['Negativo','+','++','+++'],
       grupos: [
         { sub:'Canal cárpico', testes:[
@@ -150,7 +150,7 @@ export default {
           {id:'grind', label:'Grind test'} ]}
       ]},
 
-    seccaoCicatriz,
+    { ...seccaoCicatriz, col: 'esq', zona: 'baixo' },
     { ...seccaoAtrofia, perimetria: { niveis: NIVEIS_MS } },
   ],
 
