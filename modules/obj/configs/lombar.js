@@ -9,7 +9,7 @@ export default {
   tabs: { dinamometria: false, escalas: true },
 
   seccoes: [
-    { tipo: 'dor', titulo: 'Caracterização da Dor',
+    { tipo: 'dor', titulo: 'Caracterização da Dor', col: 'esq', notas: 'notas_dor',
       eva: [
         { id: 'eva_rep', label: 'Repouso' },
         { id: 'eva_act', label: 'Actividade' },
@@ -28,7 +28,7 @@ export default {
       ],
     },
 
-    { tipo: 'params', id: 'palp', titulo: 'Inspeção & Palpação', notas: 'notas_palp',
+    { tipo: 'params', id: 'palp', titulo: 'Inspeção & Palpação', notas: 'notas_palp', col: 'esq',
       rows: [
         { id: 'postura_lord',  label: 'Lordose lombar',
           opts: ['Normal', 'Retificação', 'Hiperlordose'] },
@@ -57,7 +57,7 @@ export default {
       ],
     },
 
-    { tipo: 'mrc', id: 'mrc', titulo: 'Força Muscular (MRC)', notas: 'notas_forca',
+    { tipo: 'mrc', id: 'mrc', titulo: 'Força Muscular (MRC)', notas: 'notas_forca', col: 'dir',
       rows: [
         { id: 'f_flex_anca',  label: 'Flexão anca (L2)' },
         { id: 'f_ext_joe',    label: 'Extensão joelho (L3)' },
@@ -67,7 +67,7 @@ export default {
       ],
     },
 
-    { tipo: 'rom', id: 'rom', titulo: 'Mobilidade Lombar', notas: 'notas_mob',
+    { tipo: 'rom', id: 'rom', titulo: 'Mobilidade Lombar', notas: 'notas_mob', col: 'dir',
       movimentos: [
         { key: 'lomb_flex',  label: 'Flexão anterior tronco',  normal: 60, min: 0, max: 90 },
         { key: 'lomb_ext',   label: 'Extensão',                normal: 25, min: 0, max: 35 },
@@ -78,7 +78,7 @@ export default {
       ],
     },
 
-    { tipo: 'func', id: 'func', titulo: 'Avaliação Funcional',
+    { tipo: 'func', id: 'func', titulo: 'Avaliação Funcional', col: 'dir', zona: 'baixo', notas: 'notas_func',
       opts: ['Normal', 'Com dor', 'Dificuldade', 'Impossível'],
       rows: [
         { id: 'func_plan',  label: 'Caminhar em plano' },
@@ -96,7 +96,7 @@ export default {
       ],
     },
 
-    { tipo: 'testes', id: 'testes', titulo: 'Testes Específicos', notas: 'notas_testes',
+    { tipo: 'testes', id: 'testes', titulo: 'Testes Específicos', notas: 'notas_testes', col: 'dir',
       grade: ['Negativo', '+', '++', '+++'],
       grupos: [
         { sub: 'Radiculopatia', testes: [
@@ -124,7 +124,7 @@ export default {
       ],
     },
 
-    seccaoCicatriz,
+    { ...seccaoCicatriz, col: 'esq', zona: 'baixo' },
     seccaoAtrofia,
   ],
 
