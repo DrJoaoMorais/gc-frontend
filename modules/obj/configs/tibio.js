@@ -9,7 +9,7 @@ export default {
   tabs: { dinamometria: true, escalas: true },
 
   seccoes: [
-    { tipo: 'dor', titulo: 'Caracterização da Dor',
+    { tipo: 'dor', titulo: 'Caracterização da Dor', col: 'esq', notas: 'notas_dor',
       eva: [
         { id: 'eva_rep', label: 'Repouso' },
         { id: 'eva_act', label: 'Actividade' },
@@ -29,7 +29,7 @@ export default {
       ],
     },
 
-    { tipo: 'params', id: 'palp', titulo: 'Inspeção & Palpação', notas: 'notas_palp',
+    { tipo: 'params', id: 'palp', titulo: 'Inspeção & Palpação', notas: 'notas_palp', col: 'esq',
       rows: [
         { id: 'marcha',           label: 'Marcha',
           opts: ['Normal', 'Claudicação álgica', 'Antálgica', 'Equino', 'Em apoio talar'] },
@@ -56,7 +56,7 @@ export default {
       ],
     },
 
-    { tipo: 'mrc', id: 'mrc', titulo: 'Força Muscular (MRC)', notas: 'notas_forca',
+    { tipo: 'mrc', id: 'mrc', titulo: 'Força Muscular (MRC)', notas: 'notas_forca', col: 'dir',
       rows: [
         { id: 'f_dorsiflex',  label: 'Dorsiflexores (tibial anterior)' },
         { id: 'f_plantiflex', label: 'Flexores plantares (gastrocnémio/sóleo)' },
@@ -68,7 +68,7 @@ export default {
       ],
     },
 
-    { tipo: 'func', id: 'func', titulo: 'Avaliação Funcional',
+    { tipo: 'func', id: 'func', titulo: 'Avaliação Funcional', col: 'dir', zona: 'baixo', notas: 'notas_func',
       opts: ['Normal', 'Com dor', 'Dificuldade', 'Impossível'],
       rows: [
         { id: 'func_plan',   label: 'Caminhar em plano' },
@@ -86,7 +86,7 @@ export default {
       ],
     },
 
-    { tipo: 'rom', id: 'rom', titulo: 'Amplitude de Movimento', notas: 'notas_mob',
+    { tipo: 'rom', id: 'rom', titulo: 'Amplitude de Movimento', notas: 'notas_mob', col: 'dir',
       movimentos: [
         { key: 'dorsiflex',  label: 'Dorsiflexão',    normal: 20, min: 0, max: 30 },
         { key: 'plantiflex', label: 'Flexão plantar', normal: 50, min: 0, max: 60 },
@@ -95,7 +95,7 @@ export default {
       ],
     },
 
-    { tipo: 'testes', id: 'testes', titulo: 'Testes Específicos', notas: 'notas_testes',
+    { tipo: 'testes', id: 'testes', titulo: 'Testes Específicos', notas: 'notas_testes', col: 'dir',
       grade: ['Negativo', '+', '++', '+++'],
       grupos: [
         { sub: 'Instabilidade ligamentar lateral', testes: [
@@ -133,7 +133,7 @@ export default {
       ],
     },
 
-    seccaoCicatriz,
+    { ...seccaoCicatriz, col: 'esq', zona: 'baixo' },
     { ...seccaoAtrofia, perimetria: { niveis: NIVEIS_MI } },
   ],
 
