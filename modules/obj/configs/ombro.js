@@ -9,7 +9,7 @@ export default {
   tabs: { dinamometria: true, escalas: true },
 
   seccoes: [
-    { tipo: 'dor', titulo: 'Caracterização da Dor',
+    { tipo: 'dor', titulo: 'Caracterização da Dor', col: 'esq', notas: 'notas_dor',
       eva: [
         { id: 'eva_rep', label: 'Repouso' },
         { id: 'eva_act', label: 'Actividade' },
@@ -36,7 +36,7 @@ export default {
       ],
     },
 
-    { tipo: 'params', id: 'palp', titulo: 'Palpação', notas: 'notas_palp',
+    { tipo: 'params', id: 'palp', titulo: 'Palpação', notas: 'notas_palp', col: 'esq',
       rows: [
         { id: 'palp_ac',  label: 'Articulação AC',    opts: ['Sem dor', 'Dor'] },
         { id: 'palp_tb',  label: 'Tubérculo maior',   opts: ['Sem dor', 'Dor'] },
@@ -46,7 +46,7 @@ export default {
       ],
     },
 
-    { tipo: 'mrc', id: 'mrc', titulo: 'Força Muscular (MRC)', notas: 'notas_forca',
+    { tipo: 'mrc', id: 'mrc', titulo: 'Força Muscular (MRC)', notas: 'notas_forca', col: 'dir',
       rows: [
         { id: 'f_sup', label: 'Flexão' },
         { id: 'f_inf', label: 'Abdução' },
@@ -56,7 +56,7 @@ export default {
       ],
     },
 
-    { tipo: 'func', id: 'func', titulo: 'Avaliação Funcional',
+    { tipo: 'func', id: 'func', titulo: 'Avaliação Funcional', col: 'dir', zona: 'baixo', notas: 'notas_func',
       opts: ['Normal', 'Com dor', 'Dificuldade', 'Impossível'],
       rows: [
         { id: 'func_elev', label: 'Elevação acima cabeça' },
@@ -68,7 +68,7 @@ export default {
       ],
     },
 
-    { tipo: 'rom', id: 'rom', titulo: 'Amplitude de Movimento', notas: 'notas_mob',
+    { tipo: 'rom', id: 'rom', titulo: 'Amplitude de Movimento', notas: 'notas_mob', col: 'dir',
       movimentos: [
         { key: 'flex', label: 'Flexão',          normal: 180, min: 0, max: 180 },
         { key: 'ext',  label: 'Extensão',         normal: 60,  min: 0, max: 70  },
@@ -78,7 +78,7 @@ export default {
       ],
     },
 
-    { tipo: 'testes', id: 'testes', titulo: 'Testes Específicos', notas: 'notas_testes',
+    { tipo: 'testes', id: 'testes', titulo: 'Testes Específicos', notas: 'notas_testes', col: 'dir',
       grade: ['Negativo', '+', '++', '+++'],
       grupos: [
         { sub: 'Conflito subacromial', testes: [
@@ -104,7 +104,7 @@ export default {
       ],
     },
 
-    seccaoCicatriz,
+    { ...seccaoCicatriz, col: 'esq', zona: 'baixo' },
     { ...seccaoAtrofia, perimetria: { niveis: NIVEIS_MS } },
   ],
 
