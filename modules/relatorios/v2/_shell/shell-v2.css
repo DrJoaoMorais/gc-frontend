@@ -296,4 +296,25 @@
   .gcv2-footer {
     break-inside: avoid;
   }
+
+  /* Quadro Evolutivo: secção pode fluir entre páginas, mas
+     nunca corta uma linha a meio nem perde o cabeçalho de datas */
+  .gcv2-rc-evolutivo {
+    break-inside: auto;
+  }
+  .gcv2-rc-evolutivo .evo-regiao-wrap {
+    break-inside: auto;
+  }
+  .gcv2-rc-evolutivo .evo-regiao-label {
+    break-after: avoid;
+  }
+  .gcv2-rc-evolutivo .evo-table thead {
+    display: table-header-group;
+  }
+  .gcv2-rc-evolutivo .evo-table tr {
+    break-inside: avoid;
+  }
+  .gcv2-rc-evolutivo .evo-grupo-row {
+    break-after: avoid;
+  }
 }

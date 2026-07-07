@@ -387,7 +387,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
         const datas = [...new Set(registosAteData.map(r => r.assessment_date))].sort();
         const estrutura = construirEvolutivo(registosAteData, datas);
         if (!estrutura.length) return '';
-        return `<section class="gcv2-rc-section">
+        return `<section class="gcv2-rc-section gcv2-rc-flow">
           <h3 class="gcv2-rc-h3">Quadro Evolutivo</h3>
           <div class="gcv2-rc-evolutivo">${renderEvoTabelas(estrutura, datas)}</div>
         </section>`;
