@@ -369,31 +369,32 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     /* ── Quadro Evolutivo ── */
     const evolutivoHtml = await (async () => {
       if (!assessments.length) return '';
-      const patientId = consultation.patient_id;
-      const tipos = [...new Set(assessments.map(a => a.assessment_type).filter(Boolean))];
-      const partes = [];
-      for (const tipo of tipos) {
-        try {
-          const mod = await import(new URL(`../../../obj/configs/${tipo}.js`, import.meta.url));
-          const cfg = mod.default;
-          const series = await lerSerie(patientId, tipo, cfg);
-          if (!Object.keys(series).length) continue;
-          const { preencherComparativo } = await import(
-            new URL('../../consulta/v2/consulta-completa/cc-feed.js', import.meta.url)
-          );
-          const divTmp = document.createElement('div');
-          preencherComparativo(divTmp, series);
-          if (divTmp.innerHTML.trim()) {
-            partes.push(`<section class="gcv2-rc-section">
-              <h3 class="gcv2-rc-h3">Quadro Evolutivo — ${cfg.titulo}</h3>
-              <div class="gcv2-rc-evolutivo">${divTmp.innerHTML}</div>
-            </section>`);
-          }
-        } catch(e) {
-          console.warn('[rc] evolutivo erro para:', tipo, e);
-        }
+      try {
+        const { construirEvolutivo } = await import(
+          new URL('../../../comparativo/evolutivo-motor.js', import.meta.url)
+        );
+        const { renderEvoTabelas } = await import(
+          new URL('../../../comparativo/evolutivo-render.js', import.meta.url)
+        );
+        const { data: todos, error } = await window.sb
+          .from('consultation_assessments')
+          .select('assessment_type, assessment_side, assessment_date, consultation_id, data')
+          .eq('patient_id', consultation.patient_id)
+          .order('assessment_date', { ascending: true });
+        if (error || !todos?.length) return '';
+        const registosAteData = todos.filter(r => r.assessment_date <= state.date);
+        if (!registosAteData.length) return '';
+        const datas = [...new Set(registosAteData.map(r => r.assessment_date))].sort();
+        const estrutura = construirEvolutivo(registosAteData, datas);
+        if (!estrutura.length) return '';
+        return `<section class="gcv2-rc-section">
+          <h3 class="gcv2-rc-h3">Quadro Evolutivo</h3>
+          <div class="gcv2-rc-evolutivo">${renderEvoTabelas(estrutura, datas)}</div>
+        </section>`;
+      } catch(e) {
+        console.warn('[rc] evolutivo erro:', e);
+        return '';
       }
-      return partes.join('\n');
     })();
 
     return `
