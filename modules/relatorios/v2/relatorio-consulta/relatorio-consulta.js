@@ -410,8 +410,8 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
         ${cardHtml}
         ${hdaHtml}
         ${examHtml}
-        ${dxHtml}
         ${evolutivoHtml}
+        ${dxHtml}
         ${planoHtml}
         ${conclusaoHtml}
         ${seloHtml}
