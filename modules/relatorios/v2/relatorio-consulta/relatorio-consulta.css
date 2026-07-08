@@ -56,6 +56,121 @@
   color: #94a3b8;
 }
 
+/* -------- Selecção de regiões — Quadro Evolutivo -------- */
+.gcv2-rc-evo-select {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  background: #f8fbff;
+  border: 1.5px solid #1a56db;
+  border-radius: 6px;
+}
+.gcv2-rc-evo-select .gcv2-at-field-label {
+  display: block;
+  font-size: 0.85rem;
+  color: #475569;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+.gcv2-rc-evo-toggle-all {
+  display: flex;
+  gap: 0.9rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+}
+.gcv2-rc-evo-toggle-all a {
+  color: #1a56db;
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+.gcv2-rc-evo-toggle-all a:hover {
+  text-decoration: underline;
+}
+.gcv2-rc-evo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.3rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.gcv2-rc-evo-row:hover {
+  background: #eef4ff;
+}
+.gcv2-rc-evo-row input[type=checkbox] {
+  width: 15px;
+  height: 15px;
+  accent-color: #1a56db;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.gcv2-rc-evo-nome {
+  font-size: 0.87rem;
+  font-weight: 500;
+  color: #1e293b;
+  flex: 1;
+}
+.gcv2-rc-evo-count {
+  font-size: 0.72rem;
+  color: #64748b;
+  background: #eef2f7;
+  border-radius: 10px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+.gcv2-rc-evo-chevron {
+  font-size: 0.7rem;
+  color: #64748b;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.gcv2-rc-evo-row.hoje .gcv2-rc-evo-nome::after {
+  content: 'avaliado hoje';
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #15803d;
+  background: #dcfce7;
+  border-radius: 8px;
+  padding: 1px 7px;
+  margin-left: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.gcv2-rc-evo-datas {
+  display: none;
+  margin: 0.1rem 0 0.4rem 2.1rem;
+  border-left: 2px solid #e2e8f0;
+  padding-left: 0.6rem;
+}
+.gcv2-rc-evo-bloco.aberto .gcv2-rc-evo-datas {
+  display: block;
+}
+.gcv2-rc-evo-data-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.8rem;
+  color: #334155;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.gcv2-rc-evo-data-row:hover {
+  background: #eef4ff;
+}
+.gcv2-rc-evo-data-row input[type=checkbox] {
+  width: 13px;
+  height: 13px;
+  accent-color: #1a56db;
+}
+.gcv2-rc-evo-hint {
+  font-size: 0.72rem;
+  color: #64748b;
+  font-style: italic;
+  margin: 0.4rem 0 0 0;
+}
+
 /* -------- Conteúdo do relatório (preview, dentro do shell) -------- */
 .gcv2-rc-content {
   font-family: 'Cormorant Garamond', Georgia, serif;

@@ -224,6 +224,39 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
 
   await Promise.all([ensureExameRender(), ensureDinamometriaTable()]);
 
+  // ── Quadro Evolutivo: dados brutos para a selecção de regiões no modal ──
+  const { data: todosAssessments } = await window.sb
+    .from('consultation_assessments')
+    .select('assessment_type, assessment_side, assessment_date, consultation_id, data')
+    .eq('patient_id', consultation.patient_id)
+    .order('assessment_date', { ascending: true });
+
+  const { labelRegiao } = await import(
+    new URL('../../../comparativo/evolutivo-motor.js', import.meta.url)
+  );
+  const regioesEvo = (() => {
+    const porRegiao = {};
+    for (const r of (todosAssessments || [])) {
+      const chave = `${r.assessment_type}|${r.assessment_side || ''}`;
+      if (!porRegiao[chave]) {
+        porRegiao[chave] = {
+          chave,
+          tipo: r.assessment_type,
+          lado: r.assessment_side,
+          label: labelRegiao(r.assessment_type, r.assessment_side),
+          datas: [],
+        };
+      }
+      porRegiao[chave].datas.push(r.assessment_date);
+    }
+    const chavesHoje = new Set((assessments || []).map(a => `${a.assessment_type}|${a.assessment_side || ''}`));
+    return Object.values(porRegiao).map(reg => ({
+      ...reg,
+      datas: [...new Set(reg.datas)].sort(),
+      hoje: chavesHoje.has(reg.chave),
+    })).sort((a, b) => (b.hoje - a.hoje) || a.label.localeCompare(b.label));
+  })();
+
   // Estado local — campos editáveis
   const _y = new Date().getFullYear().toString().slice(-2);
   const _s = String(Math.floor(Date.now() / 1000) % 100000).padStart(5, '0');
@@ -233,6 +266,9 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     conclusao: '',
     sessoes: 20,
     docNumber: 'JM-' + _y + '-' + _s + '-A',
+    evoSelecionadas: new Set(
+      regioesEvo.filter(r => r.hoje).flatMap(r => r.datas.map(d => `${r.chave}|${d}`))
+    ),
   };
 
   // Construir overlay
@@ -276,6 +312,35 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
             </div>
           </div>
 
+          <div class="gcv2-rc-evo-select" id="gcv2-rc-evo-select">
+            <span class="gcv2-at-field-label">Quadro Evolutivo <small>(seleccione o que entra no PDF)</small></span>
+            <div class="gcv2-rc-evo-toggle-all">
+              <a href="#" id="gcv2-rc-evo-all">Seleccionar tudo</a>
+              <a href="#" id="gcv2-rc-evo-none">Limpar tudo</a>
+            </div>
+            ${regioesEvo.map(reg => `
+              <div class="gcv2-rc-evo-bloco${reg.hoje ? ' aberto' : ''}" data-chave="${escAttr(reg.chave)}">
+                <label class="gcv2-rc-evo-row${reg.hoje ? ' hoje' : ''}">
+                  <input type="checkbox" class="gcv2-rc-evo-master" ${reg.hoje ? 'checked' : ''}>
+                  <span class="gcv2-rc-evo-nome">${escHtml(reg.label)}</span>
+                  <span class="gcv2-rc-evo-count">${reg.datas.length} avaliaç${reg.datas.length === 1 ? 'ão' : 'ões'}</span>
+                  <span class="gcv2-rc-evo-chevron">${reg.hoje ? '▾' : '▸'}</span>
+                </label>
+                <div class="gcv2-rc-evo-datas">
+                  ${reg.datas.map(d => {
+                    const [ano, mes, dia] = d.split('-');
+                    const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+                    const dLabel = `${parseInt(dia)} ${meses[parseInt(mes) - 1]} ${ano}`;
+                    return `
+                    <label class="gcv2-rc-evo-data-row">
+                      <input type="checkbox" class="gcv2-rc-evo-data" data-key="${escAttr(reg.chave + '|' + d)}" ${reg.hoje ? 'checked' : ''}>
+                      ${escHtml(dLabel)}
+                    </label>`;
+                  }).join('')}
+                </div>
+              </div>`).join('')}
+            <p class="gcv2-rc-evo-hint">Sem selecção, o Quadro Evolutivo não aparece no PDF.</p>
+          </div>
           <label class="gcv2-at-field">
             <span>Nº de sessões <small>(prescrição do plano)</small></span>
             <input type="number" id="gcv2-rc-sessoes" min="1" max="60" step="1" value="20">
@@ -390,8 +455,12 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
           .eq('patient_id', consultation.patient_id)
           .order('assessment_date', { ascending: true });
         if (error || !todos?.length) return '';
-        const registosAteData = todos.filter(r => r.assessment_date <= state.date);
-        if (!registosAteData.length) return '';
+        const registosSelecionados = todos.filter(r => {
+          const chave = `${r.assessment_type}|${r.assessment_side || ''}|${r.assessment_date}`;
+          return state.evoSelecionadas.has(chave);
+        });
+        if (!registosSelecionados.length) return '';
+        const registosAteData = registosSelecionados;
         const datas = [...new Set(registosAteData.map(r => r.assessment_date))].sort();
         const estrutura = construirEvolutivo(registosAteData, datas);
         if (!estrutura.length) return '';
@@ -460,6 +529,55 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
   overlay.querySelector('#gcv2-rc-sessoes').addEventListener('input', (e) => {
     const n = parseInt(e.target.value, 10);
     state.sessoes = (Number.isFinite(n) && n > 0) ? n : 20;
+    renderPreview();
+  });
+
+  // -------- Quadro Evolutivo: selecção de regiões/datas --------
+  const evoSelectEl = overlay.querySelector('#gcv2-rc-evo-select');
+  evoSelectEl.addEventListener('click', (e) => {
+    const chevron = e.target.closest('.gcv2-rc-evo-chevron');
+    if (chevron) {
+      chevron.closest('.gcv2-rc-evo-bloco').classList.toggle('aberto');
+      chevron.textContent = chevron.closest('.gcv2-rc-evo-bloco').classList.contains('aberto') ? '▾' : '▸';
+      return;
+    }
+  });
+  evoSelectEl.addEventListener('change', (e) => {
+    if (e.target.classList.contains('gcv2-rc-evo-master')) {
+      const bloco = e.target.closest('.gcv2-rc-evo-bloco');
+      const checked = e.target.checked;
+      bloco.querySelectorAll('.gcv2-rc-evo-data').forEach(cb => {
+        cb.checked = checked;
+        if (checked) state.evoSelecionadas.add(cb.dataset.key);
+        else state.evoSelecionadas.delete(cb.dataset.key);
+      });
+      renderPreview();
+      return;
+    }
+    if (e.target.classList.contains('gcv2-rc-evo-data')) {
+      if (e.target.checked) state.evoSelecionadas.add(e.target.dataset.key);
+      else state.evoSelecionadas.delete(e.target.dataset.key);
+      const bloco = e.target.closest('.gcv2-rc-evo-bloco');
+      const todas = bloco.querySelectorAll('.gcv2-rc-evo-data');
+      const marcadas = bloco.querySelectorAll('.gcv2-rc-evo-data:checked');
+      bloco.querySelector('.gcv2-rc-evo-master').checked = marcadas.length === todas.length;
+      bloco.querySelector('.gcv2-rc-evo-master').indeterminate = marcadas.length > 0 && marcadas.length < todas.length;
+      renderPreview();
+    }
+  });
+  overlay.querySelector('#gcv2-rc-evo-all').addEventListener('click', (e) => {
+    e.preventDefault();
+    evoSelectEl.querySelectorAll('.gcv2-rc-evo-data').forEach(cb => {
+      cb.checked = true;
+      state.evoSelecionadas.add(cb.dataset.key);
+    });
+    evoSelectEl.querySelectorAll('.gcv2-rc-evo-master').forEach(cb => { cb.checked = true; cb.indeterminate = false; });
+    renderPreview();
+  });
+  overlay.querySelector('#gcv2-rc-evo-none').addEventListener('click', (e) => {
+    e.preventDefault();
+    state.evoSelecionadas.clear();
+    evoSelectEl.querySelectorAll('.gcv2-rc-evo-data, .gcv2-rc-evo-master').forEach(cb => { cb.checked = false; cb.indeterminate = false; });
     renderPreview();
   });
 

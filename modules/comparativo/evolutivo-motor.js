@@ -170,7 +170,7 @@ export function extrairDatasDisponiveis(registos) {
   return mapa;
 }
 
-function labelRegiao(tipo, lado) {
+export function labelRegiao(tipo, lado) {
   const nomes = {
     ombro: 'Ombro', cervical: 'Coluna Cervical', lombar: 'Coluna Lombar',
     joelho: 'Joelho', anca: 'Anca', cotovelo: 'Cotovelo',
