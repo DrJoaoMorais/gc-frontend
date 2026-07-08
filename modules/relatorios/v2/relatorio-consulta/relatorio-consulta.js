@@ -161,7 +161,7 @@ async function loadPlano(consultationId) {
 async function loadAssessments(consultationId) {
   const { data, error } = await window.sb
     .from('consultation_assessments')
-    .select('id, assessment_type, data')
+    .select('id, assessment_type, assessment_side, assessment_date, data')
     .eq('consultation_id', consultationId);
   if (error) { console.error('[rc] erro a obter assessments:', error); return []; }
   return data || [];
