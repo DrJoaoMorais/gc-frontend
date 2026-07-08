@@ -164,6 +164,35 @@
   height: 13px;
   accent-color: #1a56db;
 }
+.gcv2-rc-evo-datas-intervalo {
+  display: flex;
+  gap: 0.7rem;
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed #e2e8f0;
+}
+.gcv2-rc-evo-dt {
+  flex: 1;
+}
+.gcv2-rc-evo-dt label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.2rem;
+}
+.gcv2-rc-evo-dt input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  color: #1e293b;
+}
 .gcv2-rc-evo-hint {
   font-size: 0.72rem;
   color: #64748b;

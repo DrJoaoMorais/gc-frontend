@@ -256,6 +256,9 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       hoje: chavesHoje.has(reg.chave),
     })).sort((a, b) => (b.hoje - a.hoje) || a.label.localeCompare(b.label));
   })();
+  const evoTodasDatas = [...new Set(regioesEvo.flatMap(r => r.datas))].sort();
+  const evoDataMin = evoTodasDatas[0] || '';
+  const evoDataMax = evoTodasDatas[evoTodasDatas.length - 1] || '';
 
   // Estado local — campos editáveis
   const _y = new Date().getFullYear().toString().slice(-2);
@@ -339,6 +342,16 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
                   }).join('')}
                 </div>
               </div>`).join('')}
+            <div class="gcv2-rc-evo-datas-intervalo">
+              <div class="gcv2-rc-evo-dt">
+                <label for="gcv2-rc-evo-de">De</label>
+                <input type="date" id="gcv2-rc-evo-de" value="${escAttr(evoDataMin)}" min="${escAttr(evoDataMin)}" max="${escAttr(evoDataMax)}">
+              </div>
+              <div class="gcv2-rc-evo-dt">
+                <label for="gcv2-rc-evo-ate">Até</label>
+                <input type="date" id="gcv2-rc-evo-ate" value="${escAttr(evoDataMax)}" min="${escAttr(evoDataMin)}" max="${escAttr(evoDataMax)}">
+              </div>
+            </div>
             <p class="gcv2-rc-evo-hint">Sem selecção, o Quadro Evolutivo não aparece no PDF.</p>
           </div>
           <label class="gcv2-at-field">
@@ -580,6 +593,28 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     evoSelectEl.querySelectorAll('.gcv2-rc-evo-data, .gcv2-rc-evo-master').forEach(cb => { cb.checked = false; cb.indeterminate = false; });
     renderPreview();
   });
+  function aplicarIntervaloEvo() {
+    const de = overlay.querySelector('#gcv2-rc-evo-de').value;
+    const ate = overlay.querySelector('#gcv2-rc-evo-ate').value;
+    if (!de || !ate) return;
+    evoSelectEl.querySelectorAll('.gcv2-rc-evo-bloco').forEach(bloco => {
+      bloco.querySelectorAll('.gcv2-rc-evo-data').forEach(cb => {
+        const data = cb.dataset.key.split('|').pop();
+        const dentro = data >= de && data <= ate;
+        cb.checked = dentro;
+        if (dentro) state.evoSelecionadas.add(cb.dataset.key);
+        else state.evoSelecionadas.delete(cb.dataset.key);
+      });
+      const todas = bloco.querySelectorAll('.gcv2-rc-evo-data');
+      const marcadas = bloco.querySelectorAll('.gcv2-rc-evo-data:checked');
+      const master = bloco.querySelector('.gcv2-rc-evo-master');
+      master.checked = marcadas.length === todas.length && todas.length > 0;
+      master.indeterminate = marcadas.length > 0 && marcadas.length < todas.length;
+    });
+    renderPreview();
+  }
+  overlay.querySelector('#gcv2-rc-evo-de').addEventListener('change', aplicarIntervaloEvo);
+  overlay.querySelector('#gcv2-rc-evo-ate').addEventListener('change', aplicarIntervaloEvo);
 
   // -------- Gerar PDF --------
   overlay.querySelector('#gcv2-rc-gen').addEventListener('click', async (e) => {
