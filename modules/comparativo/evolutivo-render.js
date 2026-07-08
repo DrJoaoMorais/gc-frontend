@@ -44,12 +44,24 @@ export function renderEvoTabelas(estrutura, datas) {
       for (const linha of linhas) {
         html += `<tr>`;
         const unit = linha.unidade ? ` <span class="evo-unit">${linha.unidade}</span>` : '';
-        html += `<td class="evo-col-param">${linha.label}${unit}</td>`;
+        const sufixoAP = linha.tipo === 'rom_ap' ? ` <span class="evo-ap-suffix">(A · P)</span>` : '';
+        html += `<td class="evo-col-param">${linha.label}${sufixoAP}${unit}</td>`;
         linha.valores.forEach((val, i) => {
           const cls = isLatest(regiao.datas[i]) ? ' evo-col-latest' : '';
           const delta = linha.deltas[i];
           let celula = '';
-          if (val == null) {
+          if (linha.tipo === 'rom_ap') {
+            const fmtLado = (v, d) => {
+              if (v == null) return `<span class="evo-empty">—</span>`;
+              let h = `<b>${v}</b>`;
+              if (d) {
+                const sinal = d.valor > 0 ? '+' : '';
+                h += `<span class="evo-delta ${d.classe}">${d.seta || ''}${sinal}${d.valor}</span>`;
+              }
+              return h;
+            };
+            celula = `${fmtLado(val.a, delta && delta.a)} · ${fmtLado(val.p, delta && delta.p)}`;
+          } else if (val == null) {
             celula = `<span class="evo-empty">—</span>`;
           } else if (linha.tipo === 'teste') {
             celula = sealHtml(val);
@@ -60,7 +72,7 @@ export function renderEvoTabelas(estrutura, datas) {
           } else {
             celula = String(val);
           }
-          if (delta) {
+          if (delta && linha.tipo !== 'rom_ap') {
             const sinal = delta.valor > 0 ? '+' : '';
             celula += `<span class="evo-delta ${delta.classe}">${delta.seta || ''}${sinal}${delta.valor}</span>`;
           }

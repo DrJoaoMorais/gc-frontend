@@ -7,16 +7,11 @@ const PARAM_MAP = {
     { chave: 'eva.rep',    grupo: 'Dor (EVA)',        label: 'Repouso',           unidade: '/10',  dirBom: 'desce', tipo: 'num' },
     { chave: 'eva.act',    grupo: 'Dor (EVA)',        label: 'Actividade',        unidade: '/10',  dirBom: 'desce', tipo: 'num' },
     { chave: 'eva.pic',    grupo: 'Dor (EVA)',        label: 'Pico',              unidade: '/10',  dirBom: 'desce', tipo: 'num' },
-    { chave: 'rom.flex_a', grupo: 'Mobilidade (ROM)', label: 'Flexão A',          unidade: '°',    dirBom: 'sobe',  tipo: 'num' },
-    { chave: 'rom.abd_a',  grupo: 'Mobilidade (ROM)', label: 'Abdução A',         unidade: '°',    dirBom: 'sobe',  tipo: 'num' },
-    { chave: 'rom.re_a',   grupo: 'Mobilidade (ROM)', label: 'Rot. Externa A',    unidade: '°',    dirBom: 'sobe',  tipo: 'num' },
-    { chave: 'rom.ri_a',   grupo: 'Mobilidade (ROM)', label: 'Rot. Interna A',    unidade: '°',    dirBom: 'sobe',  tipo: 'num' },
-    { chave: 'rom.ext_a',  grupo: 'Mobilidade (ROM)', label: 'Extensão A',        unidade: '°',    dirBom: 'sobe',  tipo: 'num' },
-    { chave: 'rom.flex_p', grupo: 'Mobilidade (ROM)', label: 'Flexão P',          unidade: '°',    dirBom: 'sobe',  tipo: 'num' },
-    { chave: 'rom.abd_p',  grupo: 'Mobilidade (ROM)', label: 'Abdução P',         unidade: '°',    dirBom: 'sobe',  tipo: 'num' },
-    { chave: 'rom.re_p',   grupo: 'Mobilidade (ROM)', label: 'Rot. Externa P',    unidade: '°',    dirBom: 'sobe',  tipo: 'num' },
-    { chave: 'rom.ri_p',   grupo: 'Mobilidade (ROM)', label: 'Rot. Interna P',    unidade: '°',    dirBom: 'sobe',  tipo: 'num' },
-    { chave: 'rom.ext_p',  grupo: 'Mobilidade (ROM)', label: 'Extensão P',        unidade: '°',    dirBom: 'sobe',  tipo: 'num' },
+    { chaveA: 'rom.flex_a', chaveP: 'rom.flex_p', grupo: 'Mobilidade (ROM)', label: 'Flexão',      unidade: '°', dirBom: 'sobe', tipo: 'rom_ap' },
+    { chaveA: 'rom.abd_a',  chaveP: 'rom.abd_p',  grupo: 'Mobilidade (ROM)', label: 'Abdução',     unidade: '°', dirBom: 'sobe', tipo: 'rom_ap' },
+    { chaveA: 'rom.re_a',   chaveP: 'rom.re_p',   grupo: 'Mobilidade (ROM)', label: 'Rot. Externa', unidade: '°', dirBom: 'sobe', tipo: 'rom_ap' },
+    { chaveA: 'rom.ri_a',   chaveP: 'rom.ri_p',   grupo: 'Mobilidade (ROM)', label: 'Rot. Interna', unidade: '°', dirBom: 'sobe', tipo: 'rom_ap' },
+    { chaveA: 'rom.ext_a',  chaveP: 'rom.ext_p',  grupo: 'Mobilidade (ROM)', label: 'Extensão',     unidade: '°', dirBom: 'sobe', tipo: 'rom_ap' },
     { chave: 'mrc.f_del',  grupo: 'Força MRC',        label: 'Flexão (deltóide)', unidade: '',     dirBom: 'sobe',  tipo: 'mrc' },
     { chave: 'mrc.f_sup',  grupo: 'Força MRC',        label: 'Abdução (supra)',   unidade: '',     dirBom: 'sobe',  tipo: 'mrc' },
     { chave: 'mrc.f_inf',  grupo: 'Força MRC',        label: 'Rot. Ext. (infra)', unidade: '',     dirBom: 'sobe',  tipo: 'mrc' },
@@ -136,12 +131,31 @@ export function construirEvolutivo(registos, datas) {
 
     const gruposMap = {};
     for (const p of params) {
-      const valores = datasComDados.map(d => normalizar(lerCampo(dadosPorData[d], p.chave), p.tipo));
-      if (valores.every(v => v == null)) continue;
-      const deltas = valores.map((v, i) => {
-        if (i === 0) return null;
-        return calcDelta(v, valores[i - 1], p.dirBom, p.tipo);
-      });
+      let valores, deltas;
+
+      if (p.tipo === 'rom_ap') {
+        valores = datasComDados.map(d => ({
+          a: normalizar(lerCampo(dadosPorData[d], p.chaveA), 'num'),
+          p: normalizar(lerCampo(dadosPorData[d], p.chaveP), 'num'),
+        }));
+        if (valores.every(v => v.a == null && v.p == null)) continue;
+        deltas = valores.map((v, i) => {
+          if (i === 0) return null;
+          const anterior = valores[i - 1];
+          return {
+            a: calcDelta(v.a, anterior.a, p.dirBom, 'num'),
+            p: calcDelta(v.p, anterior.p, p.dirBom, 'num'),
+          };
+        });
+      } else {
+        valores = datasComDados.map(d => normalizar(lerCampo(dadosPorData[d], p.chave), p.tipo));
+        if (valores.every(v => v == null)) continue;
+        deltas = valores.map((v, i) => {
+          if (i === 0) return null;
+          return calcDelta(v, valores[i - 1], p.dirBom, p.tipo);
+        });
+      }
+
       if (!gruposMap[p.grupo]) gruposMap[p.grupo] = [];
       gruposMap[p.grupo].push({ ...p, valores, deltas });
     }
