@@ -71,6 +71,14 @@ function ensureAtestadoCss() {
   document.head.appendChild(lnk);
 }
 
+function ensureEvolutivoCss() {
+  if (document.querySelector('link[data-gcv2-evo]')) return;
+  const lnk = document.createElement('link');
+  lnk.rel = 'stylesheet';
+  lnk.href = new URL('../../../comparativo/evolutivo.css', import.meta.url).href;
+  lnk.dataset.gcv2Evo = '1';
+  document.head.appendChild(lnk);
+}
 function ensureRelConsultaCss() {
   if (document.querySelector('link[data-gcv2-rc]')) return;
   const lnk = document.createElement('link');
@@ -197,6 +205,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
   ensureShellCss();
   ensureAtestadoCss();
   ensureRelConsultaCss();
+  ensureEvolutivoCss();
 
   const consultation = await loadConsultation(consultationId);
   if (!consultation) { alert('Consulta não encontrada'); return; }
@@ -462,7 +471,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
 
     try {
       const html = overlay.querySelector('#gcv2-rc-preview-host').innerHTML;
-      const styles = Array.from(document.querySelectorAll('link[data-gcv2-shell], link[data-gcv2-atestado], link[data-gcv2-rc]'))
+      const styles = Array.from(document.querySelectorAll('link[data-gcv2-shell], link[data-gcv2-atestado], link[data-gcv2-rc], link[data-gcv2-evo]'))
         .map(l => `<link rel="stylesheet" href="${l.href}">`).join('\n');
 
       // Gerar código do documento localmente
