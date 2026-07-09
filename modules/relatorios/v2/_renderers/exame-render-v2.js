@@ -59,6 +59,8 @@
     '.gx2-dm-s{font-size:6.5pt;color:#64748b;}' +
     '.gx2-dm-bad{background:#fcebeb;}.gx2-dm-bad .gx2-dm-l{color:#a32d2d;}' +
     '.gx2-dm-bad .gx2-dm-v{color:#791f1f;}.gx2-dm-bad .gx2-dm-s{color:#a32d2d;}' +
+    '.gx2-2col{display:flex;gap:8pt;}' +
+    '.gx2-2col .gx2-t{flex:1;min-width:0;}' +
     '</style>';
 
   /* ---------- helpers de cartão ---------- */
@@ -185,14 +187,15 @@
   /* ---------- Grupos: Cicatriz / Atrofia + Perimetria (1/2) ---------- */
   function blocoGrupos(sec, data) {
     var bloco = data[sec.id] || {};
-    var rows = '';
+    var rowArr = [];
     (sec.grupos || []).forEach(function (gr) {
       var val = bloco[gr.key];
       if (!hasVal(val) && !Array.isArray(val)) return;
       if (Array.isArray(val) && !val.length) return;
       var txt = Array.isArray(val) ? val.join(', ') : val;
-      rows += '<tr><td>' + esc(gr.label) + '</td><td>' + esc(txt) + '</td></tr>';
+      rowArr.push('<tr><td>' + esc(gr.label) + '</td><td>' + esc(txt) + '</td></tr>');
     });
+    var rows = rowArr.join('');
     var prows = '';
     if (sec.perimetria && bloco.perimetria) {
       (sec.perimetria.niveis || []).forEach(function (nv) {
@@ -209,7 +212,18 @@
       }
     }
     if (!rows && !prows) return '';
-    return card(sec.label, '<table class="gx2-t">' + rows + prows + '</table>' + nota(sec, data, sec.notasKey), 3);
+    var corpo;
+    if (rowArr.length >= 8 && !prows) {
+      /* Cartões altos (ex.: Cicatriz, 14 linhas) — 2 tabelas lado a lado.
+         NÃO usar column-count: o Chrome não fragmenta <table> entre colunas CSS. */
+      var meio = Math.ceil(rowArr.length / 2);
+      corpo = '<div class="gx2-2col">' +
+        '<table class="gx2-t">' + rowArr.slice(0, meio).join('') + '</table>' +
+        '<table class="gx2-t">' + rowArr.slice(meio).join('') + '</table></div>';
+    } else {
+      corpo = '<table class="gx2-t">' + rows + prows + '</table>';
+    }
+    return card(sec.label, corpo + nota(sec, data, sec.notasKey), 3);
   }
 
   /* ---------- Grading (Sunnybrook / HB) ---------- */
