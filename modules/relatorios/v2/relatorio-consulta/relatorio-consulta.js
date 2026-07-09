@@ -507,7 +507,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     const shellHtml = buildShellV2({
       clinic, doctor,
       config: {
-        kicker: 'Medicina Física & Reabilitação',
+        kicker: '',
         title: 'Relatório Médico',
         date: state.date,
         vinhetaUrl,

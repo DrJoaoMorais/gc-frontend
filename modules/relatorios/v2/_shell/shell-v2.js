@@ -101,7 +101,7 @@ function escAttr(s) {
 export function buildShellV2({ clinic, doctor, config = {}, contentHtml = '' }) {
   const date = config.date || new Date().toISOString().slice(0, 10);
   const dateStr = formatDatePT(date);
-  const kicker = config.kicker || 'Medicina Física & Reabilitação';
+  const kicker = config.kicker !== undefined ? config.kicker : 'Medicina Física & Reabilitação';
   const title = config.title || 'Documento Médico';
   const vinhetaUrl = config.vinhetaUrl || null;
   const doctorLogoUrl = config.doctorLogoUrl || null;
@@ -158,7 +158,7 @@ export function buildShellV2({ clinic, doctor, config = {}, contentHtml = '' }) 
     <div class="gcv2-accent-line"></div>
 
     <div class="gcv2-doc-title">
-      <div class="gcv2-doc-kicker">${escAttr(kicker)}</div>
+      ${kicker ? `<div class="gcv2-doc-kicker">${escAttr(kicker)}</div>` : ''}
       <h1>${escAttr(title)}</h1>
     </div>
 
