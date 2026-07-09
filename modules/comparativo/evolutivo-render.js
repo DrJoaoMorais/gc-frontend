@@ -21,7 +21,8 @@ export function renderEvoTabelas(estrutura, datas) {
   };
   const sealHtml = (val) => {
     const v = String(val).trim();
-    if (!v || v === 'neg') return `<span class="evo-seal neg">neg</span>`;
+    if (!v || v.toLowerCase() === 'neg' || v.toLowerCase() === 'negativo')
+      return `<span class="evo-seal neg">${v || 'Negativo'}</span>`;
     if (v === '+')   return `<span class="evo-seal pos1">+</span>`;
     if (v === '++')  return `<span class="evo-seal pos2">++</span>`;
     if (v === '+++') return `<span class="evo-seal pos2">+++</span>`;
@@ -51,16 +52,20 @@ export function renderEvoTabelas(estrutura, datas) {
           const delta = linha.deltas[i];
           let celula = '';
           if (linha.tipo === 'rom_ap') {
-            const fmtLado = (v, d) => {
+            const ultima = isLatest(regiao.datas[i]);
+            const fmtLado = (v, d, activo) => {
               if (v == null) return `<span class="evo-empty">—</span>`;
-              let h = `<b>${v}</b>`;
-              if (d) {
+              const estilo = activo
+                ? 'font-size:12px;font-weight:600;color:#0f2d52;'
+                : 'font-size:11px;font-weight:400;color:#64748b;';
+              let h = `<span style="${estilo}">${v}</span>`;
+              if (ultima && d) {
                 const sinal = d.valor > 0 ? '+' : '';
                 h += `<span class="evo-delta ${d.classe}">${d.seta || ''}${sinal}${d.valor}</span>`;
               }
               return h;
             };
-            celula = `${fmtLado(val.a, delta && delta.a)} · ${fmtLado(val.p, delta && delta.p)}`;
+            celula = `${fmtLado(val.a, delta && delta.a, true)} · ${fmtLado(val.p, delta && delta.p, false)}`;
           } else if (val == null) {
             celula = `<span class="evo-empty">—</span>`;
           } else if (linha.tipo === 'teste') {
