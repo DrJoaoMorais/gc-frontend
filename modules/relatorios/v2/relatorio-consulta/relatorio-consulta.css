@@ -246,6 +246,13 @@
   font-feature-settings: "lnum" 1, "tnum" 1;
 }
 
+/* -------- Dx + Plano em Outfit (mockup aprovado 2026-07-09) -------- */
+.gcv2-rc-content .gcv2-rc-list-ul,
+.gcv2-rc-content .gcv2-rc-prescricao {
+  font-family: 'Outfit', sans-serif;
+  font-size: 9.5pt;
+}
+
 /* -------- Patient card dentro do relatório -------- */
 .gcv2-rc-content .gcv2-patient-card {
   margin-bottom: 1rem;
