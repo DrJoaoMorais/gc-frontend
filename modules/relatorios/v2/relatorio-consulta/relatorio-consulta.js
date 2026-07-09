@@ -406,7 +406,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
           const mod = await import(new URL(`../../../obj/configs/${a.assessment_type}.js`, import.meta.url));
           const cfg = mod.default;
           const html = window.gcv2RenderExameObjectivoV2(cfg, a.data);
-          if (html) parts.push(`<section class="gcv2-rc-section"><div class="gcv2-rc-exam">${html}</div></section>`);
+          if (html) parts.push(`<section class="gcv2-rc-section gcv2-rc-flow"><div class="gcv2-rc-exam">${html}</div></section>`);
         } catch (e) {
           console.warn('[rc] config não encontrada para:', a.assessment_type, e);
         }
