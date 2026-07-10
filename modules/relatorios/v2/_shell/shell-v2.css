@@ -244,7 +244,10 @@
 
   @page {
     size: A4;
-    margin: 6mm 0 12mm 0;
+    margin: 10mm 0 12mm 0;
+  }
+  @page :first {
+    margin-top: 4mm;
   }
 
   .gcv2-header {
