@@ -20,6 +20,7 @@
 
   font-family: 'Outfit', sans-serif;
   font-variant-numeric: lining-nums tabular-nums;
+  font-variant-ligatures: none;
   color: var(--gcv2-ink);
   line-height: 1.55;
 }
