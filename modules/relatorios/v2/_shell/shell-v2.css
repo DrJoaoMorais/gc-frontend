@@ -241,6 +241,7 @@
    IMPRESSÃO / PDF — controlo de páginas, margens e quebras
    ============================================================ */
 @media print {
+  * { box-shadow: none !important; filter: none !important; }
 
   @page {
     size: A4;
