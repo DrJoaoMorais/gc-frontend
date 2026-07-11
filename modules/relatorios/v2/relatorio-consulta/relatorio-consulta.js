@@ -625,7 +625,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     try {
       const html = overlay.querySelector('#gcv2-rc-preview-host').innerHTML;
       const styles = Array.from(document.querySelectorAll('link[data-gcv2-shell], link[data-gcv2-atestado], link[data-gcv2-rc], link[data-gcv2-evo]'))
-        .map(l => `<link rel="stylesheet" href="${l.href}">`).join('\n');
+        .map(l => `<link rel="stylesheet" href="${l.href}${l.href.includes('?') ? '&' : '?'}v=${Date.now()}">`).join('\n');
 
       // Gerar código do documento localmente
 
