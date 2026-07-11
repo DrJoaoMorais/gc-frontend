@@ -52,7 +52,7 @@
   background: white;
 }
 .gcv2-clinic-name {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Cormorant Garamond', Georgia, serif;
   font-size: 17px;
   color: var(--gcv2-navy);
   font-weight: 600;
@@ -75,7 +75,7 @@
 }
 .gcv2-doctor-info { text-align: right; }
 .gcv2-doctor-name {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Cormorant Garamond', Georgia, serif;
   font-size: 17px;
   color: var(--gcv2-navy);
   font-weight: 600;
@@ -116,7 +116,7 @@
   margin-bottom: 4px;
 }
 .gcv2-doc-title h1 {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Cormorant Garamond', Georgia, serif;
   font-size: 34px;
   font-weight: 500;
   color: var(--gcv2-navy);
@@ -138,7 +138,7 @@
   border-bottom: 1.5px solid var(--gcv2-navy);
 }
 .gcv2-section-head h2 {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Cormorant Garamond', Georgia, serif;
   font-size: 17px;
   color: var(--gcv2-navy);
   font-weight: 600;
@@ -165,7 +165,7 @@
   background: var(--gcv2-navy);
 }
 .gcv2-footer-place {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Cormorant Garamond', Georgia, serif;
   font-size: 13px;
   color: var(--gcv2-navy);
   font-weight: 600;
@@ -205,7 +205,7 @@
   padding-top: 5px;
 }
 .gcv2-doctor-sig {
-  font-family: 'Cormorant Garamond', serif;
+  font-family: 'Cormorant Garamond', Georgia, serif;
   font-size: 15px;
   color: var(--gcv2-navy);
   font-weight: 600;
