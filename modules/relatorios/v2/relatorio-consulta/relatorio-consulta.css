@@ -233,6 +233,9 @@
   line-height: 1.45;
   margin-bottom: 0.5rem;
 }
+.gcv2-rc-prose p {
+  margin: 0 0 0.4rem 0;
+}
 
 .gcv2-rc-list-ul {
   font-size: 10.5pt;
