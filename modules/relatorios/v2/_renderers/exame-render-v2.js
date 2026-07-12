@@ -175,7 +175,7 @@
         if (!hasVal(val)) return; /* só o NÃO preenchido se omite — negativo é acto médico */
         var neg = (val === 'Negativo' || val === '-');
         var cls = posCls[val] || '';
-        var valHtml = neg ? '<span class="gx2-ok">neg</span>'
+        var valHtml = neg ? '<span class="gx2-ok">Negativo</span>'
           : (cls ? '<b class="' + cls + '">' + esc(val) + '</b>' : esc(val));
         items += '<span>' + esc(t.label) + ' ' + valHtml + '</span>';
       });
