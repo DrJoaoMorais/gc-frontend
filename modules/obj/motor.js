@@ -373,7 +373,7 @@ function _renderTestes(sec, n) {
     g.testes.forEach(function (t) {
       h += '<div class="teste-row"><div class="teste-lbl">' + t.label + '</div><div class="opts sg grade" id="' + t.id + '">';
       sec.grade.forEach(function (gv) {
-        h += '<div class="opt" data-v="' + gv + '">' + (gv === 'Negativo' ? 'Neg' : gv) + '</div>';
+        h += '<div class="opt" data-v="' + gv + '">' + gv + '</div>';
       });
       h += '</div></div>';
     });
