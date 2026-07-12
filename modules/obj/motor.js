@@ -1323,7 +1323,7 @@ window._gerarResumo = function () {
         sec.grupos.forEach(function (grp) {
           grp.testes.forEach(function (t) {
             const el = document.querySelector('#' + t.id + ' .opt.sel');
-            if (el && el.dataset.v !== 'Negativo') linhas.push('  ' + t.label + ': ' + el.dataset.v);
+            if (el) linhas.push('  ' + t.label + ': ' + el.dataset.v);
           });
         });
         const notaT = sec.notas ? document.getElementById(sec.notas) : null;
