@@ -45,6 +45,7 @@
     '.gx2-ref{color:#94a3b8;}' +
     '.gx2-nota{font-size:7pt;color:#64748b;font-style:italic;margin:2.5pt 0 0 0;}' +
     '.gx2-pills{display:flex;flex-wrap:wrap;gap:2pt 9pt;font-size:8pt;color:#334155;}' +
+    '.gx2-pills>span:not(:last-child)::after{content:"\\00B7";color:#94a3b8;margin-left:9pt;}' +
     '.gx2-esc-flex{display:flex;flex-wrap:wrap;gap:6pt;}' +
     '.gx2-esc-card{border:.5pt solid #e2e8f0;border-radius:4.5pt;padding:5pt 9pt;' +
       'text-align:center;min-width:58pt;break-inside:avoid;}' +
