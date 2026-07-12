@@ -202,9 +202,9 @@
 
 /* -------- Conteúdo do relatório (preview, dentro do shell) -------- */
 .gcv2-rc-content {
-  font-family: 'Cormorant Garamond', Georgia, serif;
-  font-size: 12pt;
-  color: #1e293b;
+  font-family: 'Lora', Georgia, serif;
+  font-size: 11pt;
+  color: #111827;
   line-height: 1.5;
 }
 
