@@ -851,7 +851,7 @@
       if (d.testes) {
         const map = { t_neer:'Neer', t_hawk:'Hawkins', t_jobe:'Jobe', t_patte:'Patte', t_liftoff:'Lift-off', t_belly:'Belly press', t_drop:'Drop Arm', t_speed:'Speed', t_yerg:'Yergason', t_appr:'Apprehension', t_reloc:'Relocation', t_sulc:'Sulcus', t_lach:'Lachman', t_draw_ant:'Gaveta ant.', t_draw_post:'Gaveta post.', t_mcmurray:'McMurray', t_thessaly:'Thessaly' };
         Object.entries(d.testes).forEach(([k,v]) => {
-          if (v && v !== 'Negativo') testesHtml += pill(`${map[k]||k} ${v}`, grauCor(v));
+          if (v) testesHtml += pill(`${map[k]||k} ${v}`, grauCor(v));
         });
       }
 
@@ -1049,6 +1049,22 @@
         });
         if (escHtml) escHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:8px;">${escHtml}</div>`;
       }
+
+      /* --- NOTAS por secção (regra: tudo o que está preenchido aparece) --- */
+      const notaCartao = t => t
+        ? `<div style="font-size:11px;color:#475569;font-style:italic;margin-top:6px;border-top:1px dashed #e2e8f0;padding-top:6px;">${esc(t)}</div>`
+        : '';
+      dorHtml    += notaCartao(d.notas_dor);
+      palpHtml   += notaCartao(d.notas_palp);
+      romHtml    += notaCartao(d.notas_mob);
+      mrcHtml    += notaCartao(d.notas_forca);
+      testesHtml += notaCartao(d.notas_testes);
+      funcHtml   += notaCartao(d.notas_func);
+      perimHtml    += notaCartao(d.notas_atrofia);
+      cicatrizHtml += notaCartao(d.notas_cicatriz);
+      kapHtml      += notaCartao(d.notas_kapandji);
+      Object.keys(d).filter(k => k.startsWith('notas_rom_'))
+        .forEach(k => { romHtml += notaCartao(d[k]); });
 
       /* --- GRID DE CARTÕES --- */
       const cartoes = [
