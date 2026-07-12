@@ -635,7 +635,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       const resp = await fetch('https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ html: fullHtml }),
+        body: JSON.stringify({ html: fullHtml, media: 'print' }),
       });
 
       if (!resp.ok) {
