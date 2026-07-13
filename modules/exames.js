@@ -218,7 +218,7 @@ function renderExamsPanel() {
     if (!container) return;
 
     if (!results.length) {
-      container.innerHTML = renderAddNewExamBox(q);
+      container.innerHTML = `<div style="color:#94a3b8;font-size:13px;padding:8px 0 4px;">Sem resultados para "${escHtmlExam(q)}"</div>` + renderAddNewExamBox(q);
       bindAddNewExamEvents(container, q, () => {
         ev.target.dispatchEvent(new Event("input"));
       });
@@ -232,11 +232,15 @@ function renderExamsPanel() {
       const grpLabel = getExamGroupLabel(exam) || "";
       html += renderExamRow(exam, sel, grpLabel);
     });
+    html += renderAddNewExamTrigger();
     container.innerHTML = html;
     renderSelectedBar();
 
     /* Re-render dos resultados ao fazer toggle — reutiliza o mesmo listener */
     bindExamRowEvents(container, () => {
+      ev.target.dispatchEvent(new Event("input"));
+    });
+    bindAddNewExamTrigger(container, () => ev.target.value, () => {
       ev.target.dispatchEvent(new Event("input"));
     });
   });
@@ -428,8 +432,7 @@ function escHtmlExam(v) {
 function renderAddNewExamBox(query) {
   const safeQuery = escHtmlExam(query || "");
   return `
-    <div style="color:#94a3b8;font-size:13px;padding:8px 0 12px;">Sem resultados para "${safeQuery}"</div>
-    <div style="border:1.5px dashed #1a56db; border-radius:10px; padding:12px; background:#f5f8ff;">
+    <div style="border:1.5px dashed #1a56db; border-radius:10px; padding:12px; background:#f5f8ff; margin-top:8px;">
       <div style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#1a56db; margin-bottom:8px;">
         + Não encontrou? Adicionar novo exame
       </div>
@@ -441,6 +444,31 @@ function renderAddNewExamBox(query) {
       </div>
       <div style="font-size:11px; color:#64748b; margin-top:6px;">Fica disponível na pesquisa em todas as consultas seguintes.</div>
     </div>`;
+}
+
+/**
+ * renderAddNewExamTrigger — link discreto "+ Adicionar exame novo" no fundo da lista.
+ */
+function renderAddNewExamTrigger() {
+  return `
+    <div id="gcAddNewExamTrigger" style="margin-top:14px; text-align:center; font-size:12px; font-weight:700; color:#1a56db; cursor:pointer; padding:8px;">
+      + Adicionar exame novo
+    </div>
+    <div id="gcAddNewExamSlot"></div>`;
+}
+
+/**
+ * bindAddNewExamTrigger — abre a caixa de "adicionar exame novo" ao clicar no link.
+ */
+function bindAddNewExamTrigger(container, getQuery, onDone) {
+  const trigger = container.querySelector("#gcAddNewExamTrigger");
+  const slot    = container.querySelector("#gcAddNewExamSlot");
+  if (!trigger || !slot) return;
+  trigger.addEventListener("click", () => {
+    slot.innerHTML = renderAddNewExamBox(getQuery());
+    trigger.style.display = "none";
+    bindAddNewExamEvents(slot, getQuery(), onDone);
+  });
 }
 
 /**
@@ -580,9 +608,11 @@ function renderExamGroups() {
     });
   }
 
+  html += renderAddNewExamTrigger();
   container.innerHTML = html;
   renderSelectedBar();
   bindExamRowEvents(container, () => renderExamGroups());
+  bindAddNewExamTrigger(container, () => document.getElementById("gcExamSearch")?.value || "", () => renderExamGroups());
 
   container.querySelectorAll(".gcExamGroup").forEach(el => {
     el.addEventListener("click", () => {
