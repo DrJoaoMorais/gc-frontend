@@ -1575,7 +1575,7 @@
         snipsEl.innerHTML = SNIPS.map(([r, t]) =>
           `<span style="background:var(--fundo);border:1px solid var(--linha);border-radius:5px;
             padding:4px 10px;font-size:11px;color:var(--suave);cursor:pointer;transition:all .15s;"
-            data-txt="${t}">${r}</span>`
+            data-txt="${t}" title="${t.replace(/\s*—\s*$/, '').trim()}">${r}</span>`
         ).join('');
         snipsEl.querySelectorAll('span').forEach(s => {
           s.addEventListener('mouseenter', () => { s.style.background='var(--azul)'; s.style.color='#fff'; });
@@ -1583,8 +1583,11 @@
           s.addEventListener('click', () => {
             const rng = fdQuill.getSelection(true);
             const idx = rng ? rng.index : fdQuill.getLength();
-            fdQuill.insertText(idx, s.dataset.txt, 'user');
-            fdQuill.setSelection(idx + s.dataset.txt.length, 0);
+            const prevChar = idx > 0 ? fdQuill.getText(idx - 1, 1) : '\n';
+            const prefixo = prevChar === '\n' ? '' : '\n';
+            const texto = prefixo + s.dataset.txt;
+            fdQuill.insertText(idx, texto, 'user');
+            fdQuill.setSelection(idx + texto.length, 0);
           });
         });
       }
