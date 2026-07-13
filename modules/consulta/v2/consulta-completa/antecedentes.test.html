@@ -110,12 +110,13 @@
 
   <div class="wrap">
     <h1 class="titulo">Antecedentes &amp; Alertas Clínicos</h1>
-    <p class="sub">Doente de teste · patient_id 163fe5dc</p>
+    <p class="sub" id="sub-patient">A carregar doente…</p>
     <div id="raiz"><p class="status">A carregar…</p></div>
   </div>
 
   <script type="module">
-    const PATIENT_ID = '163fe5dc-a34f-4c80-8f01-5db0d63f759c';
+    const params = new URLSearchParams(window.location.search);
+    const PATIENT_ID = params.get('patientId') || '163fe5dc-a34f-4c80-8f01-5db0d63f759c';
     const raiz = document.getElementById('raiz');
     const alertaCritico = document.getElementById('alerta-critico');
 
@@ -141,6 +142,8 @@
       if (error) { raiz.innerHTML = `<p class="status">⚠️ Erro a ler doente: ${error.message}</p>`; return; }
 
       draft.antecedentes_pessoais       = data.antecedentes_pessoais       || '';
+      const subEl = document.getElementById('sub-patient');
+      if (subEl) subEl.textContent = 'patient_id ' + PATIENT_ID.slice(0, 8);
       draft.antecedentes_medicamentosos = data.antecedentes_medicamentosos || '';
       draft.antecedentes_cirurgicos     = data.antecedentes_cirurgicos     || '';
       draft.alertas = {
