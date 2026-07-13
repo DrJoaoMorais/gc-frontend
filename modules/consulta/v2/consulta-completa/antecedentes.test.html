@@ -29,7 +29,9 @@
     .alerta-critico{display:none;background:#fef2f2;border-bottom:2px solid #fca5a5;padding:13px 20px;font-size:14px;font-weight:600;color:var(--cc-vermelho);letter-spacing:.01em;}
     .alerta-critico.visivel{display:block;}
 
-    .wrap{max-width:760px;margin:0 auto;padding:24px 20px 64px;}
+    .wrap{max-width:1180px;margin:0 auto;padding:24px 20px 64px;}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;align-items:start;}
+    @media (max-width:820px){ .grid2{grid-template-columns:1fr;} }
     .titulo{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:26px;color:var(--cc-navy);margin:0 0 4px;}
     .sub{font-size:13px;color:var(--cc-suave);margin:0 0 20px;}
     .status{text-align:center;color:var(--cc-suave);font-size:15px;padding:32px 0;}
@@ -47,6 +49,11 @@
     textarea:focus{border-color:var(--cc-azul);}
     textarea::placeholder{color:var(--cc-tenue);font-style:italic;}
     label.campo-label{display:block;font-size:12px;font-weight:600;color:var(--cc-suave);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+
+    /* Contexto habitacional */
+    .habit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    select.campo-select{width:100%;border:1px solid var(--cc-linha);border-radius:8px;padding:10px 12px;font:14px 'Outfit',sans-serif;color:var(--cc-texto);background:var(--cc-branco);outline:none;transition:border-color .15s;}
+    select.campo-select:focus{border-color:var(--cc-azul);}
 
     /* Secção alertas */
     .alertas-grid{display:grid;gap:12px;}
@@ -126,6 +133,7 @@
       antecedentes_medicamentosos: '',
       antecedentes_cirurgicos: '',
       alertas: { pacemaker: false, alergias: '', outros: '' },
+      contexto_habitacional: { tipo_casa: '', elevador: '', escadas: '', corrimao: '' },
     };
 
     async function boot() {
@@ -136,7 +144,7 @@
 
       const { data, error } = await sb
         .from('patients')
-        .select('antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas')
+        .select('antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas, contexto_habitacional')
         .eq('id', PATIENT_ID)
         .single();
       if (error) { raiz.innerHTML = `<p class="status">⚠️ Erro a ler doente: ${error.message}</p>`; return; }
@@ -151,12 +159,21 @@
         alergias:  data.alertas?.alergias  || '',
         outros:    data.alertas?.outros    || '',
       };
+      draft.contexto_habitacional = {
+        tipo_casa: data.contexto_habitacional?.tipo_casa || '',
+        elevador:  data.contexto_habitacional?.elevador  || '',
+        escadas:   data.contexto_habitacional?.escadas   || '',
+        corrimao:  data.contexto_habitacional?.corrimao  || '',
+      };
 
       montar();
     }
 
     function montar() {
       raiz.innerHTML = `
+        <div class="grid2">
+        <div>
+
         <!-- Antecedentes Pessoais -->
         <div class="card">
           <div class="card-head">
@@ -166,6 +183,51 @@
           </div>
           <div class="card-body">
             <textarea id="ap" placeholder="Ex: HTA, DM tipo 2, dislipidémia…" rows="4"></textarea>
+          </div>
+        </div>
+
+        <!-- Contexto Habitacional -->
+        <div class="card">
+          <div class="card-head">
+            <span class="card-icon">🏠</span>
+            <span class="card-titulo">Contexto Habitacional</span>
+            <span class="card-hint">risco de queda, autonomia</span>
+          </div>
+          <div class="card-body">
+            <div class="habit-grid">
+              <div>
+                <label class="campo-label" for="ch-tipo">Tipo de Casa</label>
+                <select id="ch-tipo" class="campo-select">
+                  <option value="">— não registado —</option>
+                  <option value="apartamento">Apartamento</option>
+                  <option value="moradia">Moradia</option>
+                </select>
+              </div>
+              <div>
+                <label class="campo-label" for="ch-elevador">Elevador</label>
+                <select id="ch-elevador" class="campo-select">
+                  <option value="">— não registado —</option>
+                  <option value="sim">Sim</option>
+                  <option value="nao">Não</option>
+                </select>
+              </div>
+              <div>
+                <label class="campo-label" for="ch-escadas">Escadas</label>
+                <select id="ch-escadas" class="campo-select">
+                  <option value="">— não registado —</option>
+                  <option value="sim">Sim</option>
+                  <option value="nao">Não</option>
+                </select>
+              </div>
+              <div>
+                <label class="campo-label" for="ch-corrimao">Corrimão</label>
+                <select id="ch-corrimao" class="campo-select">
+                  <option value="">— não registado —</option>
+                  <option value="sim">Sim</option>
+                  <option value="nao">Não</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -180,6 +242,9 @@
             <textarea id="am" placeholder="Ex: Ramipril 5 mg id, Metformina 850 mg bid…" rows="4"></textarea>
           </div>
         </div>
+
+        </div>
+        <div>
 
         <!-- Antecedentes Cirúrgicos -->
         <div class="card">
@@ -237,6 +302,9 @@
           </div>
         </div>
 
+        </div>
+        </div>
+
         <!-- Pré-visualização -->
         <div class="card">
           <div class="card-head">
@@ -253,6 +321,10 @@
       document.getElementById('ac').value = draft.antecedentes_cirurgicos;
       document.getElementById('al').value = draft.alertas.alergias;
       document.getElementById('ao').value = draft.alertas.outros;
+      document.getElementById('ch-tipo').value     = draft.contexto_habitacional.tipo_casa;
+      document.getElementById('ch-elevador').value = draft.contexto_habitacional.elevador;
+      document.getElementById('ch-escadas').value  = draft.contexto_habitacional.escadas;
+      document.getElementById('ch-corrimao').value = draft.contexto_habitacional.corrimao;
       if (draft.alertas.pacemaker) document.getElementById('toggle-pm').classList.add('ativo');
 
       actualizarAlertaCritico();
@@ -261,6 +333,12 @@
       /* eventos */
       ['ap','am','ac','al','ao'].forEach(id => {
         document.getElementById(id).addEventListener('input', () => {
+          sincronizarDraft();
+          renderPreview();
+        });
+      });
+      ['ch-tipo','ch-elevador','ch-escadas','ch-corrimao'].forEach(id => {
+        document.getElementById(id).addEventListener('change', () => {
           sincronizarDraft();
           renderPreview();
         });
@@ -285,6 +363,12 @@
       draft.antecedentes_cirurgicos     = document.getElementById('ac').value;
       draft.alertas.alergias            = document.getElementById('al').value;
       draft.alertas.outros              = document.getElementById('ao').value;
+      draft.contexto_habitacional = {
+        tipo_casa: document.getElementById('ch-tipo').value,
+        elevador:  document.getElementById('ch-elevador').value,
+        escadas:   document.getElementById('ch-escadas').value,
+        corrimao:  document.getElementById('ch-corrimao').value,
+      };
     }
 
     function actualizarAlertaCritico() {
@@ -295,8 +379,24 @@
       const pb = document.getElementById('preview-body');
       if (!pb) return;
 
+      const rotulosHabit = {
+        tipo_casa: { apartamento: 'Apartamento', moradia: 'Moradia' },
+        elevador:  { sim: 'Sim', nao: 'Não' },
+        escadas:   { sim: 'Sim', nao: 'Não' },
+        corrimao:  { sim: 'Sim', nao: 'Não' },
+      };
+      const ch = draft.contexto_habitacional;
+      const chPreenchido = ['tipo_casa','elevador','escadas','corrimao'].some(k => ch[k]);
+      const chTexto = !chPreenchido ? '' : [
+        ch.tipo_casa && `Tipo de casa: ${rotulosHabit.tipo_casa[ch.tipo_casa]}`,
+        ch.elevador  && `Elevador: ${rotulosHabit.elevador[ch.elevador]}`,
+        ch.escadas   && `Escadas: ${rotulosHabit.escadas[ch.escadas]}`,
+        ch.corrimao  && `Corrimão: ${rotulosHabit.corrimao[ch.corrimao]}`,
+      ].filter(Boolean).join('\n');
+
       const secoes = [
         { titulo: 'Antecedentes Pessoais',       texto: draft.antecedentes_pessoais },
+        { titulo: 'Contexto Habitacional',        texto: chTexto },
         { titulo: 'Antecedentes Medicamentosos',  texto: draft.antecedentes_medicamentosos },
         { titulo: 'Antecedentes Cirúrgicos',      texto: draft.antecedentes_cirurgicos },
       ];
@@ -354,6 +454,7 @@
             antecedentes_medicamentosos: draft.antecedentes_medicamentosos || null,
             antecedentes_cirurgicos:     draft.antecedentes_cirurgicos     || null,
             alertas:                     draft.alertas,
+            contexto_habitacional:       draft.contexto_habitacional,
           })
           .eq('id', PATIENT_ID)
           .select('id');
