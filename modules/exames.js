@@ -218,7 +218,10 @@ function renderExamsPanel() {
     if (!container) return;
 
     if (!results.length) {
-      container.innerHTML = `<div style="color:#64748b;font-size:13px;padding:8px 0;">Sem resultados para "${q}"</div>`;
+      container.innerHTML = renderAddNewExamBox(q);
+      bindAddNewExamEvents(container, q, () => {
+        ev.target.dispatchEvent(new Event("input"));
+      });
       renderSelectedBar();
       return;
     }
@@ -413,6 +416,86 @@ function renderExamRow(exam, sel, groupSubtitle) {
           >${savedInfo}</textarea>
         </div>` : ""}
     </div>`;
+}
+
+function escHtmlExam(v) {
+  return String(v || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/**
+ * renderAddNewExamBox — HTML da caixa "adicionar novo exame" quando a pesquisa não tem resultados.
+ */
+function renderAddNewExamBox(query) {
+  const safeQuery = escHtmlExam(query || "");
+  return `
+    <div style="color:#94a3b8;font-size:13px;padding:8px 0 12px;">Sem resultados para "${safeQuery}"</div>
+    <div style="border:1.5px dashed #1a56db; border-radius:10px; padding:12px; background:#f5f8ff;">
+      <div style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#1a56db; margin-bottom:8px;">
+        + Não encontrou? Adicionar novo exame
+      </div>
+      <input id="gcNewExamName" type="text" value="${safeQuery}"
+        style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; box-sizing:border-box; margin-bottom:8px;">
+      <div id="gcNewExamAdd"
+        style="background:#1a56db; color:#fff; text-align:center; font-size:13px; font-weight:700; padding:8px; border-radius:8px; cursor:pointer;">
+        Adicionar ao catálogo e a este pedido
+      </div>
+      <div style="font-size:11px; color:#64748b; margin-top:6px;">Fica disponível na pesquisa em todas as consultas seguintes.</div>
+    </div>`;
+}
+
+/**
+ * bindAddNewExamEvents — adiciona o listener do botão de criação de exame novo.
+ */
+function bindAddNewExamEvents(container, query, onDone) {
+  const btn = container.querySelector("#gcNewExamAdd");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    const nameInput = container.querySelector("#gcNewExamName");
+    const name = String(nameInput?.value || "").trim();
+    if (!name) return;
+
+    btn.textContent = "A adicionar…";
+
+    const { data: maxRow } = await window.sb
+      .from("exams_catalog")
+      .select("sort_order")
+      .eq("category", "Exames Diretos")
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextSort = (maxRow?.sort_order || 3000) + 10;
+
+    const { data: newExam, error } = await window.sb
+      .from("exams_catalog")
+      .insert({
+        category:      "Exames Diretos",
+        exam_name:     name,
+        modality:      name,
+        body_region:   null,
+        subcategory:   null,
+        laterality:    "Não aplicável",
+        has_sublist:   false,
+        is_direct:     true,
+        is_active:     true,
+        search_terms:  name.toLowerCase(),
+        sort_order:    nextSort
+      })
+      .select()
+      .single();
+
+    if (error) {
+      alert("Erro ao adicionar exame: " + error.message);
+      btn.textContent = "Adicionar ao catálogo e a este pedido";
+      return;
+    }
+
+    examsUiState.exams = examsUiState.exams || [];
+    examsUiState.exams.push(newExam);
+    examsUiState.selectedExams = examsUiState.selectedExams || [];
+    examsUiState.selectedExams.push(newExam.id);
+
+    onDone();
+  });
 }
 
 /**
