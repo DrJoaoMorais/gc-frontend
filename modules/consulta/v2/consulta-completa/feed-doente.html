@@ -110,8 +110,8 @@
       .fd-antec-rail {
         display: block;
         width: 300px; flex-shrink: 0;
-        margin-left: 20px;
-        position: sticky; top: 16px;
+        margin-left: 20px; margin-right: 28px;
+        position: sticky;
         background: var(--branco);
         border: 1px solid var(--linha);
         border-radius: 10px;
@@ -125,10 +125,10 @@
     }
     .fd-antec-rail-inner .fd-badge { display: block; width: fit-content; margin-bottom: 8px; }
     .fd-antec-rail-inner .fd-antec-sep { display: none; }
-    .fd-antec-rail-inner .fd-antec-lbl { display: block; margin-top: 8px; }
+    .fd-antec-rail-inner .fd-antec-lbl { display: block; margin-top: 8px; font-size: 11px; }
     .fd-antec-rail-inner .fd-antec-txt {
       display: block; max-width: none; white-space: normal;
-      font-size: 13px; color: var(--texto); overflow: visible;
+      font-size: 14px; color: var(--texto); overflow: visible;
       text-overflow: clip; margin-top: 2px;
     }
     .fd-antec-rail-inner .fd-antec-vazio { display: block; }
@@ -707,6 +707,11 @@
       if (page) page.style.paddingTop = (off + 8) + 'px';
       const sb = document.querySelector('.fd-sb');
       if (sb) sb.style.paddingTop = (off + 8) + 'px';
+      const rail = document.getElementById('fd-antec-rail');
+      if (rail) {
+        rail.style.marginTop = (off + 8) + 'px';
+        rail.style.top = (off + 8) + 'px';
+      }
     }
 
     /* ── barra antecedentes ── */
