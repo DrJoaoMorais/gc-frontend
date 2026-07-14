@@ -647,7 +647,9 @@ export function renderQuickPatientResults(results) {
 
     return `
       <div data-pid="${escapeHtml(p.id)}" data-other-clinic="${isOther ? escapeHtml(p.active_clinic_id) : ""}"
-           style="padding:8px; ${br} border-radius:10px; margin-bottom:8px; cursor:pointer; ${bg}">
+           style="padding:8px; ${br} border-radius:10px; margin-bottom:8px; cursor:pointer; ${bg}; position:relative;">
+        <button type="button" data-open-feed="${escapeHtml(p.id)}" title="Abrir Feed novo"
+                style="position:absolute; top:6px; right:6px; border:none; background:transparent; cursor:pointer; font-size:14px;">🔗</button>
         <div style="font-size:${UI.fs13}px; color:#111; font-weight:700; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">
           ${escapeHtml(p.full_name)}${clinicBadge}
         </div>
@@ -664,6 +666,15 @@ export function renderQuickPatientResults(results) {
   const delegate = async (ev) => {
     const card = ev.target?.closest?.("[data-pid]");
     if (!card) return;
+
+    const feedBtn = ev.target?.closest?.("[data-open-feed]");
+    if (feedBtn) {
+      ev.preventDefault(); ev.stopPropagation();
+      const fid = feedBtn.getAttribute("data-open-feed");
+      window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(fid)}`, '_blank');
+      return;
+    }
+
     ev.preventDefault(); ev.stopPropagation();
     const pid = card.getAttribute("data-pid");
     if (!pid) return;
