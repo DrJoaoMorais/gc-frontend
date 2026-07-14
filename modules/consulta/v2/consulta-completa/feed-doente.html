@@ -106,7 +106,7 @@
     .fd-badge-azul  { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
     .fd-docs {
       display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-      margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--linha);
+      margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--linha);
     }
     .fd-docs-titulo {
       font-size: 10px; font-weight: 700; letter-spacing: .05em;
@@ -121,6 +121,11 @@
     .fd-doc-chip:hover { background: var(--azul); color: #fff; border-color: var(--azul); }
     .fd-doc-chip .fd-doc-data { color: var(--tenue); font-size: 11px; }
     .fd-doc-chip:hover .fd-doc-data { color: rgba(255,255,255,.8); }
+    .fd-card-docs-count {
+      font-size: 11px; color: var(--suave); background: var(--fundo);
+      border: 1px solid var(--linha); border-radius: 20px; padding: 2px 8px;
+      flex-shrink: 0;
+    }
     /* ── COLUNA ANTECEDENTES (ecrãs largos) ── */
     .fd-antec-rail { display: none; }
     @media (min-width: 1500px) {
@@ -694,6 +699,18 @@
       if (!iso) return '—';
       const [a, m, d] = String(iso).split('-');
       return d ? `${d}/${m}/${a}` : iso;
+    }
+
+    function fmtDataHora(iso) {
+      if (!iso) return '—';
+      const dt = new Date(iso);
+      if (isNaN(dt)) return '—';
+      const d  = String(dt.getDate()).padStart(2, '0');
+      const m  = String(dt.getMonth() + 1).padStart(2, '0');
+      const a  = dt.getFullYear();
+      const hh = String(dt.getHours()).padStart(2, '0');
+      const mm = String(dt.getMinutes()).padStart(2, '0');
+      return `${d}-${m}-${a} às ${hh}:${mm}`;
     }
 
     function sanitizarHTML(html) {
@@ -1389,7 +1406,7 @@
       const chips = docs.map(d => {
         const tipo = DOC_TIPOS[d.category] || { ic: '📄', lbl: d.title || 'Documento' };
         const url = window.sb.storage.from('documents').getPublicUrl(d.storage_path)?.data?.publicUrl || '#';
-        const data = fmtData(d.created_at);
+        const data = fmtDataHora(d.created_at);
         return `<a class="fd-doc-chip" href="${esc(url)}" target="_blank" rel="noopener" title="${esc(d.title || tipo.lbl)}">${tipo.ic} ${esc(tipo.lbl)} <span class="fd-doc-data">${data}</span></a>`;
       }).join('');
       return `<div class="fd-docs"><span class="fd-docs-titulo">Documentos</span>${chips}</div>`;
@@ -1425,6 +1442,7 @@
               <span class="fd-card-data">${data}</span>
               ${clinicaNome ? `<span class="fd-card-clinica">${esc(clinicaNome)}</span>` : ''}
               <span class="fd-card-dx">${dxPreview}</span>
+              ${docsPorId[c.id]?.length ? `<span class="fd-card-docs-count" title="${docsPorId[c.id].length} documento${docsPorId[c.id].length !== 1 ? 's' : ''}">📄 ${docsPorId[c.id].length}</span>` : ''}
               <div class="fd-card-acoes">
                 <button class="fd-btn-sm fd-btn-sm-prim" data-action="relatorio" data-consult-id="${esc(c.id)}">Relatório v2</button>
                 <button class="fd-btn-sm" data-action="feed-consulta" data-consult-id="${esc(c.id)}">Editar</button>
@@ -1432,8 +1450,8 @@
               <span class="fd-chev">⌄</span>
             </div>
             <div class="fd-card-body">
-              ${dados ? renderCardBody(dados) : '<p class="fd-vazio">A carregar…</p>'}
               ${renderDocumentos(docsPorId[c.id])}
+              ${dados ? renderCardBody(dados) : '<p class="fd-vazio">A carregar…</p>'}
             </div>
           </div>`;
       });
