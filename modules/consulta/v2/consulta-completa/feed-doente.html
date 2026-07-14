@@ -751,6 +751,8 @@
 
       const campos = [
         { lbl: 'Pessoais',   val: p.antecedentes_pessoais },
+        { lbl: 'Profissão',  val: p.profissao },
+        { lbl: 'Desporto',   val: p.atividade_desportiva },
         { lbl: 'Habitação',  val: chTexto },
         { lbl: 'Medicação',  val: p.antecedentes_medicamentosos },
         { lbl: 'Cirúrgicos', val: p.antecedentes_cirurgicos },
@@ -1452,7 +1454,7 @@
       const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1);
       const [pacienteRes, consultasRes, clinicaRes, marcacaoHojeRes] = await Promise.all([
         sb.from('patients')
-          .select('full_name, dob, sns, phone, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas, contexto_habitacional')
+          .select('full_name, dob, sns, phone, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas, contexto_habitacional, profissao, atividade_desportiva')
           .eq('id', PATIENT_ID)
           .single(),
         sb.from('consultations')

@@ -54,6 +54,8 @@
     .habit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
     select.campo-select{width:100%;border:1px solid var(--cc-linha);border-radius:8px;padding:10px 12px;font:14px 'Outfit',sans-serif;color:var(--cc-texto);background:var(--cc-branco);outline:none;transition:border-color .15s;}
     select.campo-select:focus{border-color:var(--cc-azul);}
+    input.campo-input{width:100%;border:1px solid var(--cc-linha);border-radius:8px;padding:10px 12px;font:14px 'Outfit',sans-serif;color:var(--cc-texto);background:var(--cc-branco);outline:none;transition:border-color .15s;}
+    input.campo-input:focus{border-color:var(--cc-azul);}
 
     /* Secção alertas */
     .alertas-grid{display:grid;gap:12px;}
@@ -132,6 +134,8 @@
       antecedentes_pessoais: '',
       antecedentes_medicamentosos: '',
       antecedentes_cirurgicos: '',
+      profissao: '',
+      atividade_desportiva: '',
       alertas: { pacemaker: false, alergias: '', outros: '' },
       contexto_habitacional: { tipo_casa: '', elevador: '', escadas: '', corrimao: '' },
     };
@@ -144,7 +148,7 @@
 
       const { data, error } = await sb
         .from('patients')
-        .select('antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas, contexto_habitacional')
+        .select('antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas, contexto_habitacional, profissao, atividade_desportiva')
         .eq('id', PATIENT_ID)
         .single();
       if (error) { raiz.innerHTML = `<p class="status">⚠️ Erro a ler doente: ${error.message}</p>`; return; }
@@ -154,6 +158,8 @@
       if (subEl) subEl.textContent = 'patient_id ' + PATIENT_ID.slice(0, 8);
       draft.antecedentes_medicamentosos = data.antecedentes_medicamentosos || '';
       draft.antecedentes_cirurgicos     = data.antecedentes_cirurgicos     || '';
+      draft.profissao             = data.profissao             || '';
+      draft.atividade_desportiva  = data.atividade_desportiva  || '';
       draft.alertas = {
         pacemaker: !!(data.alertas?.pacemaker),
         alergias:  data.alertas?.alergias  || '',
@@ -183,6 +189,27 @@
           </div>
           <div class="card-body">
             <textarea id="ap" placeholder="Ex: HTA, DM tipo 2, dislipidémia…" rows="4"></textarea>
+          </div>
+        </div>
+
+        <!-- Profissão & Actividade Desportiva -->
+        <div class="card">
+          <div class="card-head">
+            <span class="card-icon">🏃</span>
+            <span class="card-titulo">Profissão &amp; Actividade Desportiva</span>
+            <span class="card-hint">contexto ocupacional e desportivo</span>
+          </div>
+          <div class="card-body">
+            <div class="habit-grid">
+              <div>
+                <label class="campo-label" for="prof">Profissão</label>
+                <input id="prof" class="campo-input" type="text" placeholder="Ex: Empregado de escritório">
+              </div>
+              <div>
+                <label class="campo-label" for="desp">Actividade Desportiva</label>
+                <input id="desp" class="campo-input" type="text" placeholder="Ex: Corrida, recreativo, 3x/semana">
+              </div>
+            </div>
           </div>
         </div>
 
@@ -319,6 +346,8 @@
       document.getElementById('ap').value = draft.antecedentes_pessoais;
       document.getElementById('am').value = draft.antecedentes_medicamentosos;
       document.getElementById('ac').value = draft.antecedentes_cirurgicos;
+      document.getElementById('prof').value = draft.profissao;
+      document.getElementById('desp').value = draft.atividade_desportiva;
       document.getElementById('al').value = draft.alertas.alergias;
       document.getElementById('ao').value = draft.alertas.outros;
       document.getElementById('ch-tipo').value     = draft.contexto_habitacional.tipo_casa;
@@ -331,7 +360,7 @@
       renderPreview();
 
       /* eventos */
-      ['ap','am','ac','al','ao'].forEach(id => {
+      ['ap','am','ac','al','ao','prof','desp'].forEach(id => {
         document.getElementById(id).addEventListener('input', () => {
           sincronizarDraft();
           renderPreview();
@@ -361,6 +390,8 @@
       draft.antecedentes_pessoais       = document.getElementById('ap').value;
       draft.antecedentes_medicamentosos = document.getElementById('am').value;
       draft.antecedentes_cirurgicos     = document.getElementById('ac').value;
+      draft.profissao             = document.getElementById('prof').value;
+      draft.atividade_desportiva  = document.getElementById('desp').value;
       draft.alertas.alergias            = document.getElementById('al').value;
       draft.alertas.outros              = document.getElementById('ao').value;
       draft.contexto_habitacional = {
@@ -394,8 +425,14 @@
         ch.corrimao  && `Corrimão: ${rotulosHabit.corrimao[ch.corrimao]}`,
       ].filter(Boolean).join('\n');
 
+      const profDespTexto = [
+        draft.profissao            && `Profissão: ${draft.profissao}`,
+        draft.atividade_desportiva && `Actividade desportiva: ${draft.atividade_desportiva}`,
+      ].filter(Boolean).join('\n');
+
       const secoes = [
-        { titulo: 'Antecedentes Pessoais',       texto: draft.antecedentes_pessoais },
+        { titulo: 'Antecedentes Pessoais',        texto: draft.antecedentes_pessoais },
+        { titulo: 'Profissão & Actividade Desportiva', texto: profDespTexto },
         { titulo: 'Contexto Habitacional',        texto: chTexto },
         { titulo: 'Antecedentes Medicamentosos',  texto: draft.antecedentes_medicamentosos },
         { titulo: 'Antecedentes Cirúrgicos',      texto: draft.antecedentes_cirurgicos },
@@ -453,6 +490,8 @@
             antecedentes_pessoais:       draft.antecedentes_pessoais       || null,
             antecedentes_medicamentosos: draft.antecedentes_medicamentosos || null,
             antecedentes_cirurgicos:     draft.antecedentes_cirurgicos     || null,
+            profissao:                   draft.profissao                   || null,
+            atividade_desportiva:        draft.atividade_desportiva        || null,
             alertas:                     draft.alertas,
             contexto_habitacional:       draft.contexto_habitacional,
           })
