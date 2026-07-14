@@ -710,6 +710,14 @@
     }
 
     /* ── barra antecedentes ── */
+    function juntarLinhas(txt) {
+      return (txt || '')
+        .split(/\r?\n/)
+        .map(s => s.trim())
+        .filter(Boolean)
+        .join(' · ');
+    }
+
     function renderAntecedentes(p) {
       const alertas = p.alertas || {};
       const al = document.getElementById('fd-alerta');
@@ -719,7 +727,7 @@
       if (alertas.pacemaker)
         partes.push(`<span class="fd-badge fd-badge-red">🫀 PACEMAKER</span>`);
       if (alertas.alergias?.trim())
-        partes.push(`<span class="fd-badge fd-badge-ambar">⚠️ ${esc(alertas.alergias)}</span>`);
+        partes.push(`<span class="fd-badge fd-badge-ambar">⚠️ ${esc(juntarLinhas(alertas.alergias))}</span>`);
 
       const campos = [
         { lbl: 'Pessoais',  val: p.antecedentes_pessoais },
@@ -729,7 +737,7 @@
       campos.forEach(({ lbl, val }) => {
         if (val?.trim()) {
           if (partes.length) partes.push(`<span class="fd-antec-sep">·</span>`);
-          partes.push(`<span class="fd-antec-lbl">${lbl}</span><span class="fd-antec-txt">${esc(val)}</span>`);
+          partes.push(`<span class="fd-antec-lbl">${lbl}</span><span class="fd-antec-txt">${esc(juntarLinhas(val))}</span>`);
         }
       });
 
