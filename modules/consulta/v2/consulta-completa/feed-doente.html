@@ -104,6 +104,23 @@
     .fd-badge-red   { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
     .fd-badge-ambar { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
     .fd-badge-azul  { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+    .fd-docs {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+      margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--linha);
+    }
+    .fd-docs-titulo {
+      font-size: 10px; font-weight: 700; letter-spacing: .05em;
+      text-transform: uppercase; color: var(--tenue); margin-right: 4px;
+    }
+    .fd-doc-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12px; color: var(--suave); text-decoration: none;
+      background: var(--fundo); border: 1px solid var(--linha);
+      border-radius: 20px; padding: 4px 11px; transition: all .15s;
+    }
+    .fd-doc-chip:hover { background: var(--azul); color: #fff; border-color: var(--azul); }
+    .fd-doc-chip .fd-doc-data { color: var(--tenue); font-size: 11px; }
+    .fd-doc-chip:hover .fd-doc-data { color: rgba(255,255,255,.8); }
     /* ── COLUNA ANTECEDENTES (ecrãs largos) ── */
     .fd-antec-rail { display: none; }
     @media (min-width: 1500px) {
@@ -1358,7 +1375,28 @@
     }
 
     /* ── render do feed completo ── */
-    function renderFeed(consultas, dadosPorId) {
+    /* ── ícones/rótulos de categoria de documento ── */
+    const DOC_TIPOS = {
+      relatorio_consulta: { ic: '📋', lbl: 'Relatório' },
+      'relatorio-clinico': { ic: '📋', lbl: 'Relatório' },
+      simples:            { ic: '📄', lbl: 'Relatório simples' },
+      PRP:                { ic: '💉', lbl: 'PRP / Visco' },
+      atestado_doenca:    { ic: '🩺', lbl: 'Atestado de doença' },
+      atestado_edfisica:  { ic: '🏃', lbl: 'Atestado ed. física' },
+    };
+    function renderDocumentos(docs) {
+      if (!docs || !docs.length) return '';
+      const chips = docs.map(d => {
+        const tipo = DOC_TIPOS[d.category] || { ic: '📄', lbl: d.title || 'Documento' };
+        const url = window.sb.storage.from('documents').getPublicUrl(d.storage_path)?.data?.publicUrl || '#';
+        const data = fmtData(d.created_at);
+        return `<a class="fd-doc-chip" href="${esc(url)}" target="_blank" rel="noopener" title="${esc(d.title || tipo.lbl)}">${tipo.ic} ${esc(tipo.lbl)} <span class="fd-doc-data">${data}</span></a>`;
+      }).join('');
+      return `<div class="fd-docs"><span class="fd-docs-titulo">Documentos</span>${chips}</div>`;
+    }
+
+    /* ── render do feed completo ── */
+    function renderFeed(consultas, dadosPorId, docsPorId) {
       const feed = document.getElementById('fd-feed');
       if (!consultas.length) {
         feed.innerHTML = `<p class="fd-vazio" style="text-align:center;padding:40px 0;">Sem consultas registadas.</p>`;
@@ -1395,6 +1433,7 @@
             </div>
             <div class="fd-card-body">
               ${dados ? renderCardBody(dados) : '<p class="fd-vazio">A carregar…</p>'}
+              ${renderDocumentos(docsPorId[c.id])}
             </div>
           </div>`;
       });
@@ -1550,7 +1589,23 @@
         })
       );
 
-      renderFeed(consultas, dadosPorId);
+      /* carregar documentos (PDFs) do doente, agrupados por consulta */
+      const docsPorId = {};
+      const { data: docs, error: docsErr } = await sb
+        .from('documents')
+        .select('id, consultation_id, title, category, storage_path, created_at')
+        .eq('patient_id', PATIENT_ID)
+        .order('created_at', { ascending: false });
+      if (docsErr) {
+        console.error('Erro a carregar documentos:', docsErr);
+      } else {
+        (docs || []).forEach(d => {
+          if (!d.consultation_id) return;
+          (docsPorId[d.consultation_id] ||= []).push(d);
+        });
+      }
+
+      renderFeed(consultas, dadosPorId, docsPorId);
     }
 
     /* ── estado do formulário nova consulta ── */
