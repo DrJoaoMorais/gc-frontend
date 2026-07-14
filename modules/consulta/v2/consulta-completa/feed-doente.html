@@ -103,6 +103,7 @@
     }
     .fd-badge-red   { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
     .fd-badge-ambar { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+    .fd-badge-azul  { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
     /* ── COLUNA ANTECEDENTES (ecrãs largos) ── */
     .fd-antec-rail { display: none; }
     @media (min-width: 1500px) {
@@ -733,11 +734,26 @@
         partes.push(`<span class="fd-badge fd-badge-red">🫀 PACEMAKER</span>`);
       if (alertas.alergias?.trim())
         partes.push(`<span class="fd-badge fd-badge-ambar">⚠️ ${esc(juntarLinhas(alertas.alergias))}</span>`);
+      if (alertas.outros?.trim())
+        partes.push(`<span class="fd-badge fd-badge-azul">ℹ️ ${esc(juntarLinhas(alertas.outros))}</span>`);
+
+      const rotulosHabit = {
+        tipo_casa: { apartamento: 'Apartamento', moradia: 'Moradia' },
+        elevador:  { sim: 'Elevador', nao: 'Sem elevador' },
+        escadas:   { sim: 'Com escadas', nao: 'Sem escadas' },
+        corrimao:  { sim: 'Com corrimão', nao: 'Sem corrimão' },
+      };
+      const ch = p.contexto_habitacional || {};
+      const chTexto = ['tipo_casa','elevador','escadas','corrimao']
+        .map(k => ch[k] && rotulosHabit[k][ch[k]])
+        .filter(Boolean)
+        .join(' · ');
 
       const campos = [
-        { lbl: 'Pessoais',  val: p.antecedentes_pessoais },
-        { lbl: 'Medicação', val: p.antecedentes_medicamentosos },
-        { lbl: 'Cirúrgicos',val: p.antecedentes_cirurgicos },
+        { lbl: 'Pessoais',   val: p.antecedentes_pessoais },
+        { lbl: 'Habitação',  val: chTexto },
+        { lbl: 'Medicação',  val: p.antecedentes_medicamentosos },
+        { lbl: 'Cirúrgicos', val: p.antecedentes_cirurgicos },
       ];
       campos.forEach(({ lbl, val }) => {
         if (val?.trim()) {
@@ -1436,7 +1452,7 @@
       const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1);
       const [pacienteRes, consultasRes, clinicaRes, marcacaoHojeRes] = await Promise.all([
         sb.from('patients')
-          .select('full_name, dob, sns, phone, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas')
+          .select('full_name, dob, sns, phone, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas, contexto_habitacional')
           .eq('id', PATIENT_ID)
           .single(),
         sb.from('consultations')
