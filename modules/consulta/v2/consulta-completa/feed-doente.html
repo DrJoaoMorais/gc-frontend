@@ -1479,10 +1479,16 @@
 
       /* ── botão Relatório v2 ── */
       feed.querySelectorAll('[data-action="relatorio"]').forEach(btn => {
-        btn.addEventListener('click', async () => {
+        btn.addEventListener('click', () => {
           const cid = btn.getAttribute('data-consult-id');
-          const { openRelatorioConsultaModal } = await import('/modules/relatorios/v2/relatorio-consulta/relatorio-consulta.js');
-          await openRelatorioConsultaModal({ patientId: PATIENT_ID, consultationId: cid });
+          /* dispara evento para a janela pai (doente.js) se existir */
+          if (window.opener && typeof window.opener.__gcv2_openRelatorioConsultaModal === 'function') {
+            window.opener.__gcv2_openRelatorioConsultaModal({ patientId: PATIENT_ID, consultationId: cid });
+          } else if (window.opener && typeof window.opener.__gc_openRelatorioConsulta === 'function') {
+            window.opener.__gc_openRelatorioConsulta({ patientId: PATIENT_ID, consultationId: cid });
+          } else {
+            alert(`Relatório da consulta ${cid.slice(0,8)}… — função não encontrada no GC principal.`);
+          }
         });
       });
     }
