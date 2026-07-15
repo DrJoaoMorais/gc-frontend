@@ -73,9 +73,25 @@
     }
     .fd-btn-nova:hover { background: #136a33; }
 
+    /* ── BARRA DE ACÇÃO (Nova Consulta + nota) ── */
+    .fd-acao-bar {
+      position: fixed;
+      top: 52px;
+      left: 0; right: 0;
+      z-index: 199;
+      height: 52px;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 20px;
+      border-bottom: 1px solid #e2e2e2;
+      background: #fff;
+    }
+
     /* ── BARRA ANTECEDENTES ── */
     .fd-antec {
-      position: fixed; top: 52px; left: 0; right: 0; z-index: 199;
+      position: fixed; top: 104px; left: 0; right: 0; z-index: 198;
       background: var(--branco);
       border-bottom: 1px solid var(--linha);
     }
@@ -160,15 +176,37 @@
     .fd-nota-marcacao {
       display: none;
       background: #fffbeb;
-      border-bottom: 1px solid #fde68a;
-      padding: 10px 20px;
+      border: 1px solid #fde68a;
+      border-radius: 6px;
+      padding: 6px 12px;
       gap: 8px;
-      align-items: flex-start;
+      align-items: center;
       font-size: 12.5px;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
     }
     .fd-nota-marcacao-ic { color: #92400e; flex-shrink: 0; }
-    .fd-nota-marcacao-hora { color: #92400e; font-weight: 700; margin-right: 6px; }
-    .fd-nota-marcacao-txt { color: #78350f; }
+    .fd-nota-marcacao > div {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .fd-nota-marcacao-hora {
+      color: #92400e;
+      font-weight: 700;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .fd-nota-marcacao-txt {
+      color: #78350f;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
     /* ── ALERTA CRÍTICO ── */
     .fd-alerta {
@@ -474,8 +512,19 @@
       <span class="fd-meta-sep">·</span>
       <span class="fd-topbar-idade" id="fd-idade"></span>
     </div>
-    <button class="fd-btn-nova" id="fd-btn-nova">+ Nova Consulta</button>
   </header>
+
+  <!-- BARRA DE ACÇÃO: Nova Consulta + nota da marcação -->
+  <div class="fd-acao-bar">
+    <button class="fd-btn-nova" id="fd-btn-nova">+ Nova Consulta</button>
+    <div class="fd-nota-marcacao" id="fd-nota-marcacao">
+      <span class="fd-nota-marcacao-ic">📌</span>
+      <div>
+        <span class="fd-nota-marcacao-hora" id="fd-nota-marcacao-hora"></span>
+        <span class="fd-nota-marcacao-txt" id="fd-nota-marcacao-txt"></span>
+      </div>
+    </div>
+  </div>
 
   <!-- BARRA ANTECEDENTES -->
   <div class="fd-antec" id="fd-antec">
@@ -534,14 +583,6 @@
 
     <!-- PÁGINA -->
     <div class="fd-page" id="fd-page">
-    <!-- NOTA DA MARCAÇÃO DE HOJE -->
-    <div class="fd-nota-marcacao" id="fd-nota-marcacao">
-      <span class="fd-nota-marcacao-ic">📌</span>
-      <div>
-        <span class="fd-nota-marcacao-hora" id="fd-nota-marcacao-hora"></span>
-        <span class="fd-nota-marcacao-txt" id="fd-nota-marcacao-txt"></span>
-      </div>
-    </div>
 
     <div class="fd-loading" id="fd-loading">A carregar consultas…</div>
 
@@ -731,10 +772,11 @@
     function calcOffset() {
       const tb = document.getElementById('fd-topbar')?.offsetHeight
               || document.querySelector('.fd-topbar')?.offsetHeight || 52;
+      const acb = document.querySelector('.fd-acao-bar')?.offsetHeight || 52;
       const ab = document.getElementById('fd-antec')?.offsetHeight || 38;
       const al = document.getElementById('fd-alerta');
       const alH = al?.classList.contains('visivel') ? (al.offsetHeight || 0) : 0;
-      return tb + ab + alH;
+      return tb + acb + ab + alH;
     }
     function aplicarOffsets() {
       const off = calcOffset();
