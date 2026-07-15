@@ -821,8 +821,8 @@
     function calcOffset() {
       const tb = document.getElementById('fd-topbar')?.offsetHeight
               || document.querySelector('.fd-topbar')?.offsetHeight || 52;
-      const acb = document.querySelector('.fd-acao-bar')?.offsetHeight || 52;
-      const ab = document.getElementById('fd-antec')?.offsetHeight || 38;
+      const acb = document.querySelector('.fd-acao-bar')?.offsetHeight ?? 52;
+      const ab = document.getElementById('fd-antec')?.offsetHeight ?? 38;
       const al = document.getElementById('fd-alerta');
       const alH = al?.classList.contains('visivel') ? (al.offsetHeight || 0) : 0;
       return tb + acb + ab + alH;
