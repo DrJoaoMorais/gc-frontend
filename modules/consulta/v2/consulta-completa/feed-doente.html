@@ -44,7 +44,7 @@
       height: 52px;
       background: var(--navy);
       display: flex; align-items: center; gap: 12px;
-      padding: 0 20px;
+      padding: 0 28px;
     }
     .fd-topbar-nome {
       font-family: 'Cormorant Garamond', serif;
@@ -511,6 +511,8 @@
     <span class="fd-topbar-nome" id="fd-nome">A carregar…</span>
     <div class="fd-topbar-meta" id="fd-meta" style="display:none">
       <span id="fd-clinica"></span>
+      <span class="fd-meta-sep">·</span>
+      <span id="fd-seguro"></span>
       <span class="fd-meta-sep">·</span>
       <span id="fd-sns"></span>
       <span class="fd-meta-sep">·</span>
@@ -1571,7 +1573,7 @@
       const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1);
       const [pacienteRes, consultasRes, clinicaRes, marcacaoHojeRes] = await Promise.all([
         sb.from('patients')
-          .select('full_name, dob, sns, phone, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas, contexto_habitacional, profissao, atividade_desportiva')
+          .select('full_name, dob, sns, phone, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas, contexto_habitacional, profissao, atividade_desportiva, insurance_provider, insurance_policy_number')
           .eq('id', PATIENT_ID)
           .single(),
         sb.from('consultations')
@@ -1605,6 +1607,12 @@
         const clinicaNome = clinicaRes?.data?.clinics?.display_name;
         const clinicaEl = document.getElementById('fd-clinica');
         if (clinicaEl && clinicaNome) { clinicaEl.textContent = `Clínica: ${clinicaNome}`; metaVisible = true; }
+
+        const seguroEl = document.getElementById('fd-seguro');
+        if (seguroEl && p.insurance_provider) {
+          seguroEl.textContent = `Seguro: ${p.insurance_provider}${p.insurance_policy_number ? ' · Apólice: ' + p.insurance_policy_number : ''}`;
+          metaVisible = true;
+        }
 
         if (p.dob) {
           const hoje = new Date();
