@@ -144,8 +144,10 @@
     }
     /* ── COLUNA ANTECEDENTES (ecrãs largos) ── */
     .fd-antec-rail { display: none; }
+    .fd-nova-wide-wrap { display: none; }
     @media (min-width: 1500px) {
       .fd-antec { display: none; }
+      .fd-acao-bar { display: none; }
       .fd-antec-rail {
         display: block;
         width: 300px; flex-shrink: 0;
@@ -155,6 +157,10 @@
         border: 1px solid var(--linha);
         border-radius: 10px;
         padding: 16px 20px;
+      }
+      .fd-nova-wide-wrap {
+        display: block;
+        margin-bottom: 16px;
       }
     }
     .fd-antec-rail-titulo {
@@ -279,7 +285,7 @@
 
     /* ── PÁGINA ── */
     .fd-page {
-      padding-top: 96px; /* recalculado via JS */
+      padding-top: 150px; /* recalculado via JS */
       max-width: 900px;
       margin: 0 auto;
       padding-left: 16px;
@@ -516,7 +522,7 @@
 
   <!-- BARRA DE ACÇÃO: Nova Consulta + nota da marcação -->
   <div class="fd-acao-bar">
-    <button class="fd-btn-nova" id="fd-btn-nova">+ Nova Consulta</button>
+    <button class="fd-btn-nova fd-btn-nova-trigger" id="fd-btn-nova">+ Nova Consulta</button>
     <div class="fd-nota-marcacao" id="fd-nota-marcacao">
       <span class="fd-nota-marcacao-ic">📌</span>
       <div>
@@ -710,12 +716,24 @@
       </div>
     </div>
 
+    <!-- botão Nova Consulta (só ecrãs largos, ≥1500px) -->
+    <div class="fd-nova-wide-wrap">
+      <button class="fd-btn-nova fd-btn-nova-trigger" id="fd-btn-nova-wide">+ Nova Consulta</button>
+    </div>
+
     <!-- feed de consultas -->
     <div id="fd-feed"></div>
   </div><!-- /fd-page -->
 
   <!-- COLUNA ANTECEDENTES (só ecrãs largos) -->
   <div class="fd-antec-rail" id="fd-antec-rail">
+    <div class="fd-nota-marcacao" id="fd-nota-marcacao-wide" style="margin-bottom:14px;">
+      <span class="fd-nota-marcacao-ic">📌</span>
+      <div>
+        <span class="fd-nota-marcacao-hora" id="fd-nota-marcacao-wide-hora"></span>
+        <span class="fd-nota-marcacao-txt" id="fd-nota-marcacao-wide-txt"></span>
+      </div>
+    </div>
     <div class="fd-antec-rail-titulo">Antecedentes &amp; Alertas</div>
     <div class="fd-antec-rail-inner" id="fd-antec-rail-inner">
       <span class="fd-antec-vazio">A carregar…</span>
@@ -1618,6 +1636,11 @@
         document.getElementById('fd-nota-marcacao-txt').textContent = m.notes;
         const notaEl = document.getElementById('fd-nota-marcacao');
         if (notaEl) notaEl.style.display = 'flex';
+
+        document.getElementById('fd-nota-marcacao-wide-hora').textContent = hora;
+        document.getElementById('fd-nota-marcacao-wide-txt').textContent = m.notes;
+        const notaWideEl = document.getElementById('fd-nota-marcacao-wide');
+        if (notaWideEl) notaWideEl.style.display = 'flex';
       }
 
       if (consultasRes.error) {
@@ -2091,7 +2114,7 @@
     /* ── botão "Nova Consulta" ── */
     let fdRascunhoId = null;
 
-    document.getElementById('fd-btn-nova')?.addEventListener('click', async () => {
+    document.querySelectorAll('.fd-btn-nova-trigger').forEach(btn => btn.addEventListener('click', async () => {
       const wrap = document.getElementById('fd-nova-wrap');
       wrap?.classList.add('visivel');
       wrap?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2137,7 +2160,7 @@
       } catch(e) {
         console.error('[fd] erro ao criar rascunho:', e);
       }
-    });
+    }));
 
     boot();
   </script>
