@@ -168,7 +168,9 @@
         padding: 16px 20px;
       }
       .fd-nova-wide-wrap {
-        display: block;
+        display: flex;
+        align-items: center;
+        gap: 12px;
         margin-bottom: 8px;
       }
     }
@@ -549,6 +551,7 @@
     <div class="fd-nova-caixa">
       <button class="fd-btn-nova fd-btn-nova-trigger" id="fd-btn-nova">+ Nova Consulta</button>
     </div>
+    <span class="fd-contagem fd-contagem-inline"></span>
     <div class="fd-nota-marcacao" id="fd-nota-marcacao">
       <span class="fd-nota-marcacao-ic">📌</span>
       <div>
@@ -748,6 +751,7 @@
       <div class="fd-nova-caixa">
         <button class="fd-btn-nova fd-btn-nova-trigger" id="fd-btn-nova-wide">+ Nova Consulta</button>
       </div>
+      <span class="fd-contagem fd-contagem-inline"></span>
     </div>
 
     <!-- feed de consultas -->
@@ -1513,13 +1517,16 @@
     /* ── render do feed completo ── */
     function renderFeed(consultas, dadosPorId, docsPorId) {
       const feed = document.getElementById('fd-feed');
+      const contagemEls = document.querySelectorAll('.fd-contagem-inline');
       if (!consultas.length) {
         feed.innerHTML = `<p class="fd-vazio" style="text-align:center;padding:40px 0;">Sem consultas registadas.</p>`;
+        contagemEls.forEach(el => el.textContent = 'Sem consultas');
         return;
       }
 
       const total = consultas.length;
-      let html = `<div class="fd-contagem">${total} consulta${total !== 1 ? 's' : ''}</div>`;
+      contagemEls.forEach(el => el.textContent = `${total} consulta${total !== 1 ? 's' : ''}`);
+      let html = '';
 
       consultas.forEach((c, i) => {
         const aberta = i < 3; /* primeiras 3 abertas */
