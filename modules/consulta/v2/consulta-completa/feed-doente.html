@@ -779,6 +779,7 @@
     /* ── params ── */
     const params     = new URLSearchParams(window.location.search);
     const PATIENT_ID = params.get('patientId') || '';
+    let PATIENT_CLINIC_ID = null; // clínica activa DO DOENTE (patient_clinic.is_active) — nunca a clínica que o médico tem seleccionada na agenda
 
     /* ── utilidades ── */
     function esc(s) {
@@ -1619,7 +1620,7 @@
           .order('report_date', { ascending: false })
           .order('created_at',  { ascending: false }),
         sb.from('patient_clinic')
-          .select('clinics ( display_name )')
+          .select('clinic_id, clinics ( display_name )')
           .eq('patient_id', PATIENT_ID)
           .eq('is_active', true)
           .maybeSingle(),
@@ -1639,6 +1640,7 @@
         let metaVisible = false;
 
         const clinicaNome = clinicaRes?.data?.clinics?.display_name;
+        PATIENT_CLINIC_ID = clinicaRes?.data?.clinic_id || null;
         const clinicaEl = document.getElementById('fd-clinica');
         if (clinicaEl && clinicaNome) { clinicaEl.textContent = `Clínica: ${clinicaNome}`; metaVisible = true; }
 
@@ -2176,14 +2178,16 @@
 
       /* criar rascunho imediatamente */
       try {
+        if (!PATIENT_CLINIC_ID) {
+          alert('⚠️ Este doente não tem clínica activa associada (patient_clinic). Corrige isso antes de criar uma consulta — não vou adivinhar a clínica.');
+          wrap?.classList.remove('visivel');
+          return;
+        }
         const sb = window.sb;
         const userRes = await sb.auth.getUser();
         const userId  = userRes?.data?.user?.id;
         const hoje    = new Date().toISOString().slice(0, 10);
-        const { data: memberRow } = await sb
-          .from('clinic_members').select('clinic_id')
-          .eq('user_id', userId).limit(1).single();
-        const clinicId = memberRow?.clinic_id || null;
+        const clinicId = PATIENT_CLINIC_ID;
         const { data: ins, error: insErr } = await sb
           .from('consultations')
           .insert({
