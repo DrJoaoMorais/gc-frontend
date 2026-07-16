@@ -44,7 +44,7 @@
       height: 52px;
       background: var(--navy);
       display: flex; align-items: center; gap: 12px;
-      padding: 0 28px;
+      padding: 0 28px 0 252px;
     }
     .fd-topbar-nome {
       font-family: 'Cormorant Garamond', serif;
@@ -169,7 +169,7 @@
       }
       .fd-nova-wide-wrap {
         display: block;
-        margin-bottom: 16px;
+        margin-bottom: 8px;
       }
     }
     .fd-antec-rail-titulo-wrap {
@@ -309,7 +309,7 @@
     .fd-page {
       padding-top: 150px; /* recalculado via JS */
       max-width: 900px;
-      margin: 0 auto;
+      margin: 0;
       padding-left: 16px;
       padding-right: 16px;
       padding-bottom: 80px;
@@ -521,7 +521,7 @@
     /* ── CONTADOR ── */
     .fd-contagem {
       font-size: 12px; color: var(--tenue);
-      text-align: center; padding: 10px 0 4px;
+      text-align: left; padding: 0 0 4px;
     }
   </style>
   <link rel="stylesheet" href="../../../comparativo/evolutivo.css" />
@@ -630,7 +630,8 @@
       <!-- HDA -->
       <div style="margin-bottom:14px;">
         <div class="fd-bloco-titulo">História da Doença Actual</div>
-        <div id="fd-quill-editor" style="background:#fff;border-radius:0 0 8px 8px;font-size:15px;min-height:160px;"></div>
+        <div id="fd-quill-editor" style="background:#fff;border-radius:0 0 8px 8px;min-height:160px;"></div>
+        <style>#fd-quill-editor .ql-editor { font-size: 15px; line-height: 1.5; }</style>
         <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;" id="fd-snips"></div>
       </div>
 
