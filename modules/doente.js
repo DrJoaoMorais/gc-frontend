@@ -4249,7 +4249,7 @@ function openPatientViewModal(patient) {
 
     document.getElementById("btnOpenFeed")?.addEventListener("click", (e) => {
       e.preventDefault();
-      const url = `/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(p.id)}`;
+      const url = `/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(p.id)}&sessionClinicId=${encodeURIComponent(G.activeClinicId || '')}`;
       window.open(url, '_blank');
     });
     document.getElementById("btnViewIdent")?.addEventListener("click", () => openPatientIdentity("view"));

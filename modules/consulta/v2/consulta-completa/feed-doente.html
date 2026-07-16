@@ -784,7 +784,9 @@
     /* ── params ── */
     const params     = new URLSearchParams(window.location.search);
     const PATIENT_ID = params.get('patientId') || '';
-    let PATIENT_CLINIC_ID = null; // clínica activa DO DOENTE (patient_clinic.is_active) — nunca a clínica que o médico tem seleccionada na agenda
+    const SESSION_CLINIC_ID = params.get('sessionClinicId') || null; // clínica que o médico tinha seleccionada na Agenda ao abrir este feed
+    let PATIENT_CLINIC_ID = null;   // clínica DO DOENTE (patient_clinic.is_active) — só usada para mostrar o nome no cabeçalho, nunca para gravar
+    let TODAY_APPT_CLINIC_ID = null; // clínica da marcação de hoje, se existir — tem sempre prioridade
 
     /* ── utilidades ── */
     function esc(s) {
@@ -1633,7 +1635,7 @@
           .eq('is_active', true)
           .maybeSingle(),
         sb.from('appointments')
-          .select('start_at, status, title, notes')
+          .select('start_at, status, title, notes, clinic_id')
           .eq('patient_id', PATIENT_ID)
           .gte('start_at', hoje.toISOString())
           .lt('start_at', amanha.toISOString())
@@ -1649,6 +1651,7 @@
 
         const clinicaNome = clinicaRes?.data?.clinics?.display_name;
         PATIENT_CLINIC_ID = clinicaRes?.data?.clinic_id || null;
+        TODAY_APPT_CLINIC_ID = marcacaoHojeRes?.data?.[0]?.clinic_id || null;
         const clinicaEl = document.getElementById('fd-clinica');
         if (clinicaEl && clinicaNome) { clinicaEl.textContent = `Clínica: ${clinicaNome}`; metaVisible = true; }
 
@@ -2186,8 +2189,9 @@
 
       /* criar rascunho imediatamente */
       try {
-        if (!PATIENT_CLINIC_ID) {
-          alert('⚠️ Este doente não tem clínica activa associada (patient_clinic). Corrige isso antes de criar uma consulta — não vou adivinhar a clínica.');
+        const clinicId = TODAY_APPT_CLINIC_ID || SESSION_CLINIC_ID || null;
+        if (!clinicId) {
+          alert('⚠️ Não sei em que clínica estás a trabalhar. Abre este feed a partir do doente, com uma clínica seleccionada na Agenda.');
           wrap?.classList.remove('visivel');
           return;
         }
@@ -2195,7 +2199,6 @@
         const userRes = await sb.auth.getUser();
         const userId  = userRes?.data?.user?.id;
         const hoje    = new Date().toISOString().slice(0, 10);
-        const clinicId = PATIENT_CLINIC_ID;
         const { data: ins, error: insErr } = await sb
           .from('consultations')
           .insert({
