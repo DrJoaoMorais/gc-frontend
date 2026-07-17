@@ -34,17 +34,17 @@
   margin: 0 auto;
 }
 
-.gcv2-header { padding: 22px 32px 0; position: relative; z-index: 1; }
+.gcv2-header { padding: 12px 32px 0; position: relative; z-index: 1; }
 .gcv2-header-grid {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  padding-bottom: 16px;
+  padding-bottom: 10px;
   border-bottom: 2px solid var(--gcv2-navy);
 }
 .gcv2-header-left { display: flex; align-items: center; gap: 12px; }
 .gcv2-clinic-logo {
-  height: 50px; width: auto; max-width: 100px;
+  height: 36px; width: auto; max-width: 100px;
   object-fit: contain;
   border-radius: 4px;
   border: 1px solid var(--gcv2-line);
@@ -65,7 +65,7 @@
   margin-top: 2px;
 }
 .gcv2-header-sep {
-  width: 1px; height: 50px;
+  width: 1px; height: 36px;
   background: var(--gcv2-line);
   margin: 0 24px;
 }
@@ -88,7 +88,7 @@
   margin-top: 2px;
 }
 .gcv2-doctor-logo {
-  height: 50px; width: auto; max-width: 80px;
+  height: 36px; width: auto; max-width: 80px;
   object-fit: contain;
 }
 
@@ -102,7 +102,7 @@
 
 .gcv2-doc-title {
   text-align: center;
-  padding: 20px 32px 14px;
+  padding: 10px 32px 8px;
   position: relative;
   z-index: 1;
 }
@@ -117,7 +117,7 @@
 }
 .gcv2-doc-title h1 {
   font-family: 'Lora', Georgia, serif;
-  font-size: 34px;
+  font-size: 24px;
   font-weight: 500;
   color: var(--gcv2-navy);
   margin: 0;
@@ -146,11 +146,7 @@
   margin: 0;
 }
 .gcv2-footer {
-  padding: 10px 32px 14px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  align-items: flex-end;
+  padding: 8px 32px 12px;
   position: relative;
   z-index: 1;
   border-top: 1px solid var(--gcv2-line);
@@ -164,54 +160,50 @@
   height: 3px;
   background: var(--gcv2-navy);
 }
-.gcv2-footer-place {
-  font-family: 'Lora', Georgia, serif;
-  font-size: 13px;
-  color: var(--gcv2-navy);
-  font-weight: 600;
-  margin-bottom: 2px;
-}
-.gcv2-footer-info {
+.gcv2-footer-topline {
+  text-align: right;
   font-size: 9px;
   color: var(--gcv2-muted);
-  margin-top: 7px;
+  margin-bottom: 6px;
 }
-.gcv2-footer-sig { text-align: center; }
-.gcv2-footer-date {
-  margin-bottom: 10px;
-  font-size: 11px;
-  color: var(--gcv2-muted);
+.gcv2-footer-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 14px;
+  align-items: center;
 }
 .gcv2-vinheta {
-  width: 120px; height: 44px;
-  margin: 0 auto 7px;
+  width: 90px; height: 32px;
   object-fit: contain;
   display: block;
 }
 .gcv2-vinheta-placeholder {
-  width: 120px; height: 44px;
+  width: 90px; height: 32px;
   border: 1px dashed var(--gcv2-line);
-  margin: 0 auto 7px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  font-size: 8px;
   color: var(--gcv2-muted);
 }
+.gcv2-footer-verify {
+  min-height: 32px;
+}
 .gcv2-sig-line {
-  width: 220px;
+  width: 180px;
   border-top: 1px solid var(--gcv2-ink);
-  margin: 0 auto;
-  padding-top: 5px;
+  margin: 0 0 0 auto;
+  padding-top: 4px;
+  text-align: center;
 }
 .gcv2-doctor-sig {
   font-family: 'Lora', Georgia, serif;
-  font-size: 15px;
+  font-size: 12px;
   color: var(--gcv2-navy);
   font-weight: 600;
 }
 .gcv2-doctor-role {
-  font-size: 10px;
+  font-size: 8px;
   color: var(--gcv2-muted);
   margin-top: 1px;
 }

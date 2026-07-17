@@ -105,7 +105,6 @@ export function buildShellV2({ clinic, doctor, config = {}, contentHtml = '' }) 
   const title = config.title || 'Documento Médico';
   const vinhetaUrl = config.vinhetaUrl || null;
   const doctorLogoUrl = config.doctorLogoUrl || null;
-  const authVinheta = config.authVinheta || null;
 
   const clinicLogoHtml = clinic?.logo_url
     ? `<img class="gcv2-clinic-logo" src="${escAttr(clinic.logo_url)}" alt="${escAttr(clinic.display_name || clinic.name || 'Clínica')}">`
@@ -127,8 +126,13 @@ export function buildShellV2({ clinic, doctor, config = {}, contentHtml = '' }) 
 
   const doctorName = doctor?.nome_completo || 'Dr. João Morais';
   const doctorOM = doctor?.numero_ordem ? ` · OM ${escAttr(doctor.numero_ordem)}` : '';
-  const doctorRole = doctor?.especialidade || 'Médico Fisiatra';
-  const doctorRoleDetail = doctor?.especialidade_detail || 'Sports Medicine & Rehabilitation';
+  const especialidadeToTitulo = (esp) => {
+    const mapa = { 'Fisiatria': 'Médico Fisiatra' };
+    if (!esp) return 'Médico Fisiatra';
+    return mapa[esp] || `Médico ${esp}`;
+  };
+  const doctorRole = especialidadeToTitulo(doctor?.especialidade);
+  const doctorRoleDetail = doctor?.especialidade_detail || 'Pós-Graduação em Medicina Desportiva';
 
   return `
 <div class="gcv2-root">
@@ -167,17 +171,12 @@ export function buildShellV2({ clinic, doctor, config = {}, contentHtml = '' }) 
     </div>
 
     <div class="gcv2-footer">
-      <div>
-        ${authVinheta
-          ? `${authVinheta}${vinhetaHtml}`
-          : `<div class="gcv2-footer-place">${escAttr(clinic?.city || '')}</div>
-        <div class="gcv2-footer-info">Documento gerado em www.joaomorais.pt</div>`
-        }
+      <div class="gcv2-footer-topline">
+        ${[clinic?.city, dateStr].filter(Boolean).join(' · ')}
       </div>
-      <div class="gcv2-footer-sig">
-        ${authVinheta ? `<div class="gcv2-footer-place" style="text-align:center;">${escAttr(clinic?.city || '')}</div>` : ''}
-        <div class="gcv2-footer-date">${dateStr}</div>
-        ${authVinheta ? '' : vinhetaHtml}
+      <div class="gcv2-footer-row">
+        <div>${vinhetaHtml}</div>
+        <div class="gcv2-footer-verify"></div>
         <div class="gcv2-sig-line">
           <div class="gcv2-doctor-sig">${escAttr(doctorName)}</div>
           <div class="gcv2-doctor-role">${escAttr(doctorRole)}</div>

@@ -429,29 +429,6 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
          </section>`
       : '';
 
-    const seloHtml = `
-      <div style="margin-top:32px; padding-top:14px; border-top:1px solid #1a56db; display:flex; align-items:center; justify-content:space-between; gap:16px; page-break-inside:avoid;">
-        <div>
-          <div style="font-size:9px; color:#666; font-family:monospace; letter-spacing:0.05em;">Código do documento: <strong style="color:#0f2d52;">${state.docNumber}</strong></div>
-          <div style="font-size:9px; color:#666; margin-top:3px;">Assinado digitalmente com Cartão de Cidadão · Verificável no Adobe Acrobat</div>
-        </div>
-        <svg width="80" height="28" viewBox="0 0 80 28" xmlns="http://www.w3.org/2000/svg">
-          <g fill="#0f2d52">
-            <rect x="0" y="2" width="2" height="24"/><rect x="3" y="2" width="1" height="24"/>
-            <rect x="6" y="2" width="3" height="24"/><rect x="11" y="2" width="1" height="24"/>
-            <rect x="14" y="2" width="2" height="24"/><rect x="18" y="2" width="1" height="24"/>
-            <rect x="21" y="2" width="3" height="24"/><rect x="26" y="2" width="1" height="24"/>
-            <rect x="29" y="2" width="2" height="24"/><rect x="33" y="2" width="3" height="24"/>
-            <rect x="38" y="2" width="1" height="24"/><rect x="41" y="2" width="2" height="24"/>
-            <rect x="45" y="2" width="1" height="24"/><rect x="48" y="2" width="3" height="24"/>
-            <rect x="53" y="2" width="2" height="24"/><rect x="57" y="2" width="1" height="24"/>
-            <rect x="60" y="2" width="3" height="24"/><rect x="65" y="2" width="1" height="24"/>
-            <rect x="68" y="2" width="2" height="24"/><rect x="72" y="2" width="1" height="24"/>
-            <rect x="75" y="2" width="3" height="24"/>
-          </g>
-        </svg>
-      </div>`;
-
     /* ── Quadro Evolutivo ── */
     const evolutivoHtml = await (async () => {
       if (!assessments.length) return '';
@@ -496,7 +473,6 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
         ${dxHtml}
         ${planoHtml}
         ${conclusaoHtml}
-        ${seloHtml}
       </div>
     `;
   }
