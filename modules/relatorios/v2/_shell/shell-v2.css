@@ -164,7 +164,7 @@
   text-align: right;
   font-size: 9px;
   color: var(--gcv2-muted);
-  margin-bottom: 6px;
+  margin-bottom: 16px;
 }
 .gcv2-footer-row {
   display: grid;
@@ -173,12 +173,12 @@
   align-items: center;
 }
 .gcv2-vinheta {
-  width: 90px; height: 32px;
+  width: 3.8cm; height: 2.3cm;
   object-fit: contain;
   display: block;
 }
 .gcv2-vinheta-placeholder {
-  width: 90px; height: 32px;
+  width: 3.8cm; height: 2.3cm;
   border: 1px dashed var(--gcv2-line);
   display: flex;
   align-items: center;
