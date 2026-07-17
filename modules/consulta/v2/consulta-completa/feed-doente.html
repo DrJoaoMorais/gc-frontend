@@ -358,6 +358,11 @@
       border: 1px solid var(--linha); border-radius: 5px;
       padding: 2px 8px; flex-shrink: 0;
     }
+    .fd-card-editada {
+      font-size: 11px; color: var(--tenue);
+      border: 1px solid var(--linha); border-radius: 6px;
+      padding: 2px 8px;
+    }
     .fd-card-dx {
       font-size: 12px; color: var(--texto);
       overflow: hidden; text-overflow: ellipsis;
@@ -1535,6 +1540,16 @@
       consultas.forEach((c, i) => {
         const aberta = i < 3; /* primeiras 3 abertas */
         const data = fmtData(c.report_date);
+        const dCriada = c.created_at ? new Date(c.created_at) : null;
+        const dEditada = c.updated_at ? new Date(c.updated_at) : null;
+        const foiEditada = dCriada && dEditada && (
+          dCriada.getFullYear() !== dEditada.getFullYear() ||
+          dCriada.getMonth()    !== dEditada.getMonth()    ||
+          dCriada.getDate()     !== dEditada.getDate()
+        );
+        const editadaLabel = foiEditada
+          ? `<span class="fd-card-editada">Editada a ${fmtDataHora(c.updated_at)}</span>`
+          : '';
         const dados = dadosPorId[c.id];
         const diagnosticos = dados?.diagnosticos || [];
 
@@ -1549,6 +1564,7 @@
           <div class="fd-card ${aberta ? 'aberto' : ''}" data-consult-id="${esc(c.id)}">
             <div class="fd-card-head">
               <span class="fd-card-data">${data}</span>
+              ${editadaLabel}
               ${clinicaNome ? `<span class="fd-card-clinica">${esc(clinicaNome)}</span>` : ''}
               <span class="fd-card-dx">${dxPreview}</span>
               ${docsPorId[c.id]?.length ? `<span class="fd-card-docs-count" title="${docsPorId[c.id].length} documento${docsPorId[c.id].length !== 1 ? 's' : ''}">📄 ${docsPorId[c.id].length}</span>` : ''}
@@ -1625,7 +1641,7 @@
           .single(),
         sb.from('consultations')
           .select(`
-            id, report_date, hda, plan_text, objectives, created_at,
+            id, report_date, hda, plan_text, objectives, created_at, updated_at,
             clinics ( display_name )
           `)
           .eq('patient_id', PATIENT_ID)
