@@ -2029,6 +2029,14 @@
     async function fdGravar() {
       const sb = window.sb;
       if (!fdQuill || !fdRascunhoId) return;
+      if (fdModoEdicao) {
+        const ok = confirm(
+          'Vais GRAVAR alterações a uma consulta EXISTENTE.\n\n' +
+          'Se não tinhas intenção de editar uma consulta antiga, cancela ' +
+          'e usa "+ Nova Consulta" em vez de Guardar.\n\nContinuar?'
+        );
+        if (!ok) { fdDiz('', ''); return; }
+      }
       const hda = fdQuill.root.innerHTML;
       fdDiz('A gravar…', 'var(--suave)');
 
@@ -2195,6 +2203,8 @@
         fdTreatSelecionados = [];
         fdRenderDiagChips();
         fdRenderTreatChips();
+        const objEl = document.getElementById('fd-objectivos');
+        if (objEl) objEl.value = '';
       }
       if (fdRascunhoId != null) {
         wrap?.classList.add('visivel');
