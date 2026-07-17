@@ -2168,26 +2168,37 @@
 
     /* ── botão "Nova Consulta" ── */
     let fdRascunhoId = null;
+    let fdNovaBusy = false;
+
+    document.getElementById('fd-sessoes-total')?.addEventListener('input', fdAtualizarTextoR);
+    document.getElementById('fd-sessoes-semana')?.addEventListener('input', fdAtualizarTextoR);
+    document.getElementById('fd-btn-gravar')?.addEventListener('click', fdGravar);
+    document.getElementById('fd-btn-cancelar')?.addEventListener('click', () => {
+      document.getElementById('fd-nova-wrap')?.classList.remove('visivel');
+    });
+    document.getElementById('fd-nova-fechar')?.addEventListener('click', () => {
+      document.getElementById('fd-nova-wrap')?.classList.remove('visivel');
+    });
 
     document.querySelectorAll('.fd-btn-nova-trigger').forEach(btn => btn.addEventListener('click', async () => {
       const wrap = document.getElementById('fd-nova-wrap');
+
+      if (fdNovaBusy) return;
+      if (fdRascunhoId != null) {
+        wrap?.classList.add('visivel');
+        wrap?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      fdNovaBusy = true;
+
       wrap?.classList.add('visivel');
       wrap?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       fdIniciarQuill();
       fdBindDiag();
       fdBindTreat();
       fdAtualizarTextoR();
-      document.getElementById('fd-sessoes-total')?.addEventListener('input', fdAtualizarTextoR);
-      document.getElementById('fd-sessoes-semana')?.addEventListener('input', fdAtualizarTextoR);
-      document.getElementById('fd-btn-gravar')?.addEventListener('click', fdGravar);
-      document.getElementById('fd-btn-cancelar')?.addEventListener('click', () => {
-        wrap?.classList.remove('visivel');
-      });
-      document.getElementById('fd-nova-fechar')?.addEventListener('click', () => {
-        wrap?.classList.remove('visivel');
-      });
 
-      /* criar rascunho imediatamente */
+      /* criar rascunho imediatamente (ou reutilizar um já existente e vazio) */
       try {
         const clinicId = TODAY_APPT_CLINIC_ID || SESSION_CLINIC_ID || null;
         if (!clinicId) {
@@ -2199,23 +2210,42 @@
         const userRes = await sb.auth.getUser();
         const userId  = userRes?.data?.user?.id;
         const hoje    = new Date().toISOString().slice(0, 10);
-        const { data: ins, error: insErr } = await sb
+
+        const { data: existente, error: existErr } = await sb
           .from('consultations')
-          .insert({
-            patient_id:     PATIENT_ID,
-            clinic_id:      clinicId,
-            author_user_id: userId,
-            report_date:    hoje,
-            hda:            '',
-            assessment:     '',
-            plan_text:      JSON.stringify({ sessoes_total: 20, sessoes_semana: 3 }),
-          })
-          .select('id').single();
-        if (insErr) throw insErr;
-        fdRascunhoId = ins.id;
+          .select('id')
+          .eq('patient_id', PATIENT_ID)
+          .eq('clinic_id', clinicId)
+          .eq('report_date', hoje)
+          .eq('hda', '')
+          .eq('assessment', '')
+          .limit(1)
+          .maybeSingle();
+        if (existErr) throw existErr;
+
+        if (existente) {
+          fdRascunhoId = existente.id;
+        } else {
+          const { data: ins, error: insErr } = await sb
+            .from('consultations')
+            .insert({
+              patient_id:     PATIENT_ID,
+              clinic_id:      clinicId,
+              author_user_id: userId,
+              report_date:    hoje,
+              hda:            '',
+              assessment:     '',
+              plan_text:      JSON.stringify({ sessoes_total: 20, sessoes_semana: 3 }),
+            })
+            .select('id').single();
+          if (insErr) throw insErr;
+          fdRascunhoId = ins.id;
+        }
         fdActivarRegioes(fdRascunhoId, clinicId);
       } catch(e) {
         console.error('[fd] erro ao criar rascunho:', e);
+      } finally {
+        fdNovaBusy = false;
       }
     }));
 
