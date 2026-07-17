@@ -785,7 +785,8 @@
     const params     = new URLSearchParams(window.location.search);
     const PATIENT_ID = params.get('patientId') || '';
     const SESSION_CLINIC_ID = params.get('sessionClinicId') || null; // clínica que o médico tinha seleccionada na Agenda ao abrir este feed
-    let PATIENT_CLINIC_ID = null;   // clínica DO DOENTE (patient_clinic.is_active) — só usada para mostrar o nome no cabeçalho, nunca para gravar
+    let PATIENT_CLINIC_ID = null;   // clínica DO DOENTE (patient_clinic.is_active) — usada no cabeçalho e como último recurso na gravação, com confirmação explícita do médico
+    let PATIENT_CLINIC_NAME = null;
     let TODAY_APPT_CLINIC_ID = null; // clínica da marcação de hoje, se existir — tem sempre prioridade
 
     /* ── utilidades ── */
@@ -1651,6 +1652,7 @@
 
         const clinicaNome = clinicaRes?.data?.clinics?.display_name;
         PATIENT_CLINIC_ID = clinicaRes?.data?.clinic_id || null;
+        PATIENT_CLINIC_NAME = clinicaNome || null;
         TODAY_APPT_CLINIC_ID = marcacaoHojeRes?.data?.[0]?.clinic_id || null;
         const clinicaEl = document.getElementById('fd-clinica');
         if (clinicaEl && clinicaNome) { clinicaEl.textContent = `Clínica: ${clinicaNome}`; metaVisible = true; }
@@ -2210,7 +2212,15 @@
 
       /* criar rascunho imediatamente (ou reutilizar um já existente e vazio) */
       try {
-        const clinicId = TODAY_APPT_CLINIC_ID || SESSION_CLINIC_ID || null;
+        let clinicId = TODAY_APPT_CLINIC_ID || SESSION_CLINIC_ID || null;
+        if (!clinicId && PATIENT_CLINIC_ID) {
+          const ok = confirm(
+            'Não há marcação para hoje nem clínica seleccionada na Agenda.\n\n' +
+            'Gravar esta consulta em: ' + (PATIENT_CLINIC_NAME || 'clínica do doente') + ' ?'
+          );
+          if (!ok) { wrap?.classList.remove('visivel'); return; }
+          clinicId = PATIENT_CLINIC_ID;
+        }
         if (!clinicId) {
           alert('⚠️ Não sei em que clínica estás a trabalhar. Abre este feed a partir do doente, com uma clínica seleccionada na Agenda.');
           wrap?.classList.remove('visivel');
