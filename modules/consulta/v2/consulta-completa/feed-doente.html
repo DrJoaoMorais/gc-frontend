@@ -2212,17 +2212,9 @@
 
       /* criar rascunho imediatamente (ou reutilizar um já existente e vazio) */
       try {
-        let clinicId = TODAY_APPT_CLINIC_ID || SESSION_CLINIC_ID || null;
-        if (!clinicId && PATIENT_CLINIC_ID) {
-          const ok = confirm(
-            'Não há marcação para hoje nem clínica seleccionada na Agenda.\n\n' +
-            'Gravar esta consulta em: ' + (PATIENT_CLINIC_NAME || 'clínica do doente') + ' ?'
-          );
-          if (!ok) { wrap?.classList.remove('visivel'); return; }
-          clinicId = PATIENT_CLINIC_ID;
-        }
+        let clinicId = TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null;
         if (!clinicId) {
-          alert('⚠️ Não sei em que clínica estás a trabalhar. Abre este feed a partir do doente, com uma clínica seleccionada na Agenda.');
+          alert('⚠️ Este doente não tem clínica activa associada. Verifica a ficha do doente antes de criar a consulta.');
           wrap?.classList.remove('visivel');
           return;
         }
