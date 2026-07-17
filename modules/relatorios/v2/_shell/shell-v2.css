@@ -173,12 +173,12 @@
   align-items: center;
 }
 .gcv2-vinheta {
-  width: 3.8cm; height: 2.3cm;
+  width: 3.5cm; height: 2.1cm;
   object-fit: contain;
   display: block;
 }
 .gcv2-vinheta-placeholder {
-  width: 3.8cm; height: 2.3cm;
+  width: 3.5cm; height: 2.1cm;
   border: 1px dashed var(--gcv2-line);
   display: flex;
   align-items: center;
