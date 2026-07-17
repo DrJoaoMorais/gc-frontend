@@ -162,7 +162,7 @@
 }
 .gcv2-footer-topline {
   text-align: right;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--gcv2-muted);
   margin-bottom: 16px;
 }
@@ -203,7 +203,7 @@
   font-weight: 600;
 }
 .gcv2-doctor-role {
-  font-size: 8px;
+  font-size: 10px;
   color: var(--gcv2-muted);
   margin-top: 1px;
 }
