@@ -833,7 +833,7 @@ async function _abrirMiniPainelReavaliacao(r) {
   });
 
   el.querySelector('[data-a="agendar"]')?.addEventListener('click', () => _agendarReavaliacao(r.patient_id, r.patient_name, r.clinic_id));
-  el.querySelector('[data-a="ficha"]')?.addEventListener('click', () => window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(r.patient_id)}`, '_blank'));
+  el.querySelector('[data-a="ficha"]')?.addEventListener('click', () => window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(r.patient_id)}&sessionClinicId=${encodeURIComponent(_state.selectedClinicId || G.activeClinicId || '')}`, '_blank'));
 
   const _resolver = async (resultado, msg) => {
     if (!confirm(msg)) return;
@@ -989,7 +989,7 @@ function _renderTimeline(rows, patientsById = {}, consentMap = {}, physioMap = {
     btn.addEventListener("click", e => {
       e.stopPropagation();
       const pid = btn.dataset.pid;
-      if (pid) window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(pid)}`, '_blank');
+      if (pid) window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(pid)}&sessionClinicId=${encodeURIComponent(_state.selectedClinicId || G.activeClinicId || '')}`, '_blank');
     });
   });
 
@@ -1098,7 +1098,7 @@ function _renderPanel(row, patientsById = {}) {
     openApptModal({ mode:"edit", row });
   });
   el.querySelector("[data-action='ficha']")?.addEventListener("click", () => {
-    if (row.patient_id) window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(row.patient_id)}`, '_blank');
+    if (row.patient_id) window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(row.patient_id)}&sessionClinicId=${encodeURIComponent(_state.selectedClinicId || G.activeClinicId || '')}`, '_blank');
   });
   el.querySelector("[data-action='marcada']")?.addEventListener("click", () => _updateStatus(row.id, "scheduled"));
   el.querySelector("[data-action='chegou']")?.addEventListener("click", () => _updateStatus(row.id, "arrived"));

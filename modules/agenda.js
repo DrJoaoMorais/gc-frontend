@@ -539,7 +539,7 @@ export function renderAgendaList() {
         ev.preventDefault(); ev.stopPropagation();
         const pid = feedBtn.getAttribute("data-open-feed");
         if (!pid) { alert("Marcação sem patient_id."); return; }
-        window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(pid)}`, '_blank');
+        window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(pid)}&sessionClinicId=${encodeURIComponent(G.activeClinicId || '')}`, '_blank');
       });
     }
 
@@ -684,7 +684,7 @@ export function renderQuickPatientResults(results) {
     if (feedBtn) {
       ev.preventDefault(); ev.stopPropagation();
       const fid = feedBtn.getAttribute("data-open-feed");
-      window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(fid)}`, '_blank');
+      window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(fid)}&sessionClinicId=${encodeURIComponent(G.activeClinicId || '')}`, '_blank');
       return;
     }
 
