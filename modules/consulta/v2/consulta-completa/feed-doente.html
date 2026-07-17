@@ -2074,6 +2074,7 @@
         fdRenderDiagChips();
         fdRenderTreatChips();
         document.getElementById('fd-nova-wrap')?.classList.remove('visivel');
+        fdRascunhoId = null;
 
         /* recarregar feed */
         await boot();
@@ -2184,6 +2185,15 @@
       const wrap = document.getElementById('fd-nova-wrap');
 
       if (fdNovaBusy) return;
+      if (fdModoEdicao) {
+        fdRascunhoId = null;
+        fdModoEdicao = false;
+        fdQuill?.setText('');
+        fdDiagSelecionados = [];
+        fdTreatSelecionados = [];
+        fdRenderDiagChips();
+        fdRenderTreatChips();
+      }
       if (fdRascunhoId != null) {
         wrap?.classList.add('visivel');
         wrap?.scrollIntoView({ behavior: 'smooth', block: 'start' });
