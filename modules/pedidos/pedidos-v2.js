@@ -1,6 +1,6 @@
 /**
  * pedidos-v2.js
- * Modal "Pedidos" (Análises + Exames) — Passo 4c: identificação real do doente.
+ * Modal "Pedidos" (Análises + Exames) — Passo 4d: geração real de PDF.
  *
  * Análises: renderizado a partir de ANALISES_GRUPOS / ANALISES_PERFIS
  * (analises-catalog-v2.js, import estático).
@@ -13,21 +13,29 @@
  * cartões "Cabeçalho V2" (Análises e Exames) — sem bloquear a abertura do
  * modal ("A carregar…" até resolver; aviso claro se falhar/não existir).
  *
- * Ainda NÃO gera PDFs nem liga a window.opener — botão "Gerar PDF" fica
- * sem acção real (Passo 4d). Tudo o que precisa de Supabase usa window.sb
- * directamente.
+ * PDF: gerado self-contained (SEM window.openDocumentEditor/doente.js,
+ * que não existem no contexto de feed-doente.html) — replica o padrão de
+ * relatorio-consulta.js/atestado.js: buildShellV2 (import estático) +
+ * buildPatientCard + fetch directo ao worker gc-pdf-proxy + upload para
+ * Storage + insert em documents. Análises gera 1 PDF; Exames gera 1 PDF
+ * por modalidade, em sequência (não paralelo), com progresso visível e
+ * paragem imediata em caso de falha a meio (ver onGerarExamesPdf).
+ *
+ * Tudo o que precisa de Supabase usa window.sb directamente.
  *
  * Uso (dentro de #fdModalRoot do feed, que já tem all:initial + box-sizing
  * aplicado a si e a todos os descendentes — ver feed-doente.html):
  *
  *   import { mount, unmount } from './pedidos-v2.js';
- *   mount(container, { patientId, onClose });
+ *   mount(container, { patientId, consultationId, onClose });
  *   // ou, sem BD (ex.: testes de esqueleto visual): mount(container, { patientName, patientMeta, onClose });
  *   ...
  *   unmount(container);
  */
 
 import { ANALISES_GRUPOS, ANALISES_PERFIS } from "./analises-catalog-v2.js";
+import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl } from "../relatorios/v2/_shell/shell-v2.js";
+import { buildPatientCard } from "../relatorios/v2/_components/patient-card.js";
 
 const STYLE_ID = "pdv2-styles";
 
@@ -43,6 +51,20 @@ const EXAM_GROUP_ICONS = {
 };
 const EXAM_QUICK_CATEGORIAS = ["Cardiologia", "Provas Funcionais Respiratórias"];
 const EXAM_QUICK_REGIOES = ["Ombro", "Joelho", "Coluna lombar", "Anca"];
+
+const PDF_PROXY_URL = "https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf";
+const MIN_PDF_BYTES = 5000; // mesmo limiar de "provável em branco" que doente.js usa (generatePdfAndUploadV1)
+const SHELL_CSS_URL = new URL("../relatorios/v2/_shell/shell-v2.css", import.meta.url).href;
+// .gcv2-patient-card/.gcv2-pc-* só têm estilo em atestado.css (shell-v2.css não os define) —
+// relatorio-consulta.js também carrega os dois (ensureShellCss + ensureAtestadoCss) pelo mesmo motivo.
+const PATIENT_CARD_CSS_URL = new URL("../relatorios/v2/atestados/atestado.css", import.meta.url).href;
+const DOC_EXTRA_CSS = `
+  .pdv2-doc-section{margin-bottom:14px;}
+  .pdv2-doc-h3{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#0f2d52;border-bottom:1px solid #e2e2e6;padding-bottom:4px;margin-bottom:8px;}
+  .pdv2-doc-list{margin:0;padding-left:18px;font-size:13px;line-height:1.6;}
+  .pdv2-doc-list li{margin-bottom:2px;}
+  .pdv2-doc-prose{font-size:13px;line-height:1.6;white-space:pre-wrap;}
+`;
 
 function escHtml(v) {
   return String(v ?? "").replace(/[&<>"']/g, (c) => ({
@@ -109,16 +131,99 @@ function formatPatientMeta(p) {
  * loadPatientData
  * Mesma tabela/campos que analises.js (gerarAnalisePdf) usa para o
  * cabeçalho do PDF: full_name, dob, nif, insurance_provider,
- * insurance_policy_number.
+ * insurance_policy_number. clinic_id vem de patient_clinic (mesmo padrão
+ * de exames.js openExamClinicalInfoStep) — necessário para o path de
+ * Storage e para loadClinicById no momento de gerar PDF.
  */
 async function loadPatientData(patientId) {
-  const { data, error } = await window.sb
-    .from("patients")
-    .select("full_name, dob, nif, insurance_provider, insurance_policy_number")
-    .eq("id", patientId)
-    .single();
-  if (error || !data) throw error || new Error("doente não encontrado");
-  return data;
+  const [patientRes, clinicRes] = await Promise.all([
+    window.sb
+      .from("patients")
+      .select("full_name, dob, nif, insurance_provider, insurance_policy_number")
+      .eq("id", patientId)
+      .single(),
+    window.sb
+      .from("patient_clinic")
+      .select("clinic_id")
+      .eq("patient_id", patientId)
+      .eq("is_active", true)
+      .maybeSingle()
+  ]);
+  if (patientRes.error || !patientRes.data) throw patientRes.error || new Error("doente não encontrado");
+  return { ...patientRes.data, clinicId: clinicRes.data?.clinic_id || null };
+}
+
+/**
+ * generateDocNumber
+ * Mesma fórmula que relatorio-consulta.js já usa (não há sequência
+ * canónica na BD — doc_number/doc_suffix são texto livre, sem tabela de
+ * numeração). JM-{ano 2 díg.}-{5 díg. de segundos}-A.
+ */
+function generateDocNumber() {
+  const y = new Date().getFullYear().toString().slice(-2);
+  const s = String(Math.floor(Date.now() / 1000) % 100000).padStart(5, "0");
+  return `JM-${y}-${s}-A`;
+}
+
+function slugifyLabel(s) {
+  return normalizeTxt(s).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "doc";
+}
+
+/**
+ * renderPdfViaProxy
+ * Mesmo endpoint/payload que relatorio-consulta.js e atestado.js
+ * ({ html, media: 'print' }). Verifica blob.size < MIN_PDF_BYTES como
+ * doente.js (generatePdfAndUploadV1) — PDF suspeitosamente pequeno conta
+ * como erro, não sucesso silencioso.
+ */
+async function renderPdfViaProxy(html) {
+  const resp = await fetch(PDF_PROXY_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ html, media: "print" })
+  });
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => "");
+    throw new Error(`PDF worker erro ${resp.status}: ${errText.slice(0, 200)}`);
+  }
+  const buf = await resp.arrayBuffer();
+  const blob = new Blob([buf], { type: "application/pdf" });
+  if (!blob || blob.size < MIN_PDF_BYTES) {
+    throw new Error("PDF inválido ou demasiado pequeno (provável em branco).");
+  }
+  return blob;
+}
+
+/**
+ * uploadAndRegisterDocument
+ * Storage bucket 'documents', path clinic_{id}/patient_{id}/{folder}/{ficheiro}.pdf,
+ * upsert:true (padrão dos módulos v2). Insert em documents com os campos
+ * reais da tabela (ver sessão 4d — schema confirmado via Supabase).
+ */
+async function uploadAndRegisterDocument({ blob, clinicId, patientId, consultationId, title, category, html, docNumber, folder, fileNameHint }) {
+  const ts = new Date().toISOString().replace(/[:.]/g, "-");
+  const fileName = fileNameHint ? `${fileNameHint}_${ts}.pdf` : `${ts}.pdf`;
+  const path = `clinic_${clinicId}/patient_${patientId}/${folder}/${fileName}`;
+
+  const up = await window.sb.storage.from("documents").upload(path, blob, {
+    contentType: "application/pdf",
+    upsert: true
+  });
+  if (up.error) throw new Error(`Falha no upload para Storage: ${up.error.message || up.error}`);
+
+  const ins = await window.sb.from("documents").insert({
+    clinic_id: clinicId,
+    patient_id: patientId,
+    consultation_id: consultationId || null,
+    title,
+    html: html || "",
+    storage_path: path,
+    category,
+    doc_number: docNumber || null
+  }).select("id").single();
+  if (ins.error) throw new Error(`Falha ao registar em documents: ${ins.error.message || ins.error}`);
+
+  return { path, id: ins.data?.id || null };
 }
 
 /**
@@ -168,15 +273,20 @@ export function mount(container, options = {}) {
 
   /* ---- estado (por montagem — fecha sobre `container`) ---- */
   const state = {
+    patientId: options.patientId || null,
+    consultationId: options.consultationId || null,
     patient: options.patientId
-      ? { name: "A carregar…", meta: "", status: "loading" }
-      : { name: options.patientName || "Doente de exemplo", meta: options.patientMeta || "DN — · NIF — · Seguro —", status: "ready" },
+      ? { name: "A carregar…", meta: "", status: "loading", raw: null, clinicId: null }
+      : { name: options.patientName || "Doente de exemplo", meta: options.patientMeta || "DN — · NIF — · Seguro —", status: "ready", raw: null, clinicId: null },
+    pdfAssets: { loaded: false, clinic: null, doctor: null, vinhetaUrl: null },
     analises: {
       selected: new Set(),      // nomes exactos (ANALISES_GRUPOS[].items[].name)
       openGroups: new Set(),    // ids de grupo abertos manualmente
       search: "",
       clinicalInfo: "",
-      date: today
+      date: today,
+      generating: false,
+      statusMsg: null           // { type: 'info'|'success'|'error', text }
     },
     exames: {
       rows: [],
@@ -184,7 +294,10 @@ export function mount(container, options = {}) {
       selected: new Set(),      // exam ids (uuid)
       openGroups: new Set(),    // group labels (examGroupLabel) abertos manualmente
       search: "",
-      date: today
+      date: today,
+      generating: false,
+      progress: null,           // { current, total, label } enquanto gera
+      lastRun: null             // { total, results: [{label, ok, url|error}] } depois de gerar
     }
   };
 
@@ -270,9 +383,7 @@ export function mount(container, options = {}) {
     return anyGroup ? html : `<div class="pdv2-vazio">Sem resultados para a pesquisa.</div>`;
   }
 
-  function buildAnalisesPillsHtml() {
-    if (!state.analises.selected.size) return `<div class="pdv2-vazio">Sem análises seleccionadas.</div>`;
-
+  function getAnalisesByGroupForSelected() {
     const firstGroupLabel = new Map();
     ANALISES_GRUPOS.forEach((grp) => {
       grp.items.forEach((it) => {
@@ -289,7 +400,12 @@ export function mount(container, options = {}) {
         if (!byGroup.get(grp.label).includes(it.name)) byGroup.get(grp.label).push(it.name);
       });
     });
+    return byGroup;
+  }
 
+  function buildAnalisesPillsHtml() {
+    if (!state.analises.selected.size) return `<div class="pdv2-vazio">Sem análises seleccionadas.</div>`;
+    const byGroup = getAnalisesByGroupForSelected();
     let html = "";
     byGroup.forEach((names, label) => {
       html += `<div class="pdv2-pillGrp">${escHtml(label)}</div>`;
@@ -298,6 +414,84 @@ export function mount(container, options = {}) {
       });
     });
     return html;
+  }
+
+  function buildAnalisesDocBodyHtml() {
+    const byGroup = getAnalisesByGroupForSelected();
+    let html = "";
+    byGroup.forEach((names, label) => {
+      html += `<div class="pdv2-doc-section"><h3 class="pdv2-doc-h3">${escHtml(label)}</h3><ul class="pdv2-doc-list">`;
+      names.forEach((name) => { html += `<li>${escHtml(name)}</li>`; });
+      html += `</ul></div>`;
+    });
+    if (state.analises.clinicalInfo.trim()) {
+      html += `<div class="pdv2-doc-section"><h3 class="pdv2-doc-h3">Informação clínica</h3><p class="pdv2-doc-prose">${escHtml(state.analises.clinicalInfo)}</p></div>`;
+    }
+    return html;
+  }
+
+  /* ---- PDF: assets partilhados (clínica/médico/vinheta) + shell ---- */
+
+  async function ensurePdfAssets() {
+    if (state.pdfAssets.loaded) return state.pdfAssets;
+    const [clinic, doctor, vinhetaUrl] = await Promise.all([
+      loadClinicById(state.patient.clinicId),
+      loadCurrentDoctor(),
+      getVinhetaDataUrl()
+    ]);
+    state.pdfAssets = { loaded: true, clinic, doctor, vinhetaUrl };
+    return state.pdfAssets;
+  }
+
+  async function buildFullDocHtml({ title, contentHtml, date }) {
+    if (state.patient.status !== "ready") throw new Error("Doente ainda não carregado.");
+    if (!state.patient.clinicId) throw new Error("Sem clínica activa associada ao doente.");
+    const assets = await ensurePdfAssets();
+    const patientCardHtml = buildPatientCard({ patient: state.patient.raw, clinic: assets.clinic, mode: "full" });
+    const shellHtml = buildShellV2({
+      clinic: assets.clinic,
+      doctor: assets.doctor,
+      config: { date, title, vinhetaUrl: assets.vinhetaUrl },
+      contentHtml: `${patientCardHtml}${contentHtml}`
+    });
+    return `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><link rel="stylesheet" href="${SHELL_CSS_URL}"><link rel="stylesheet" href="${PATIENT_CARD_CSS_URL}"><style>${DOC_EXTRA_CSS}</style></head><body>${shellHtml}</body></html>`;
+  }
+
+  /* ---- PDF: Análises (1 documento) ---- */
+
+  async function onGerarAnalisesPdf() {
+    if (state.analises.generating || !state.analises.selected.size) return;
+    state.analises.generating = true;
+    state.analises.statusMsg = { type: "info", text: "A gerar PDF…" };
+    renderAnalisesPanel();
+
+    try {
+      const fullHtml = await buildFullDocHtml({
+        title: "Pedido de Análises",
+        contentHtml: buildAnalisesDocBodyHtml(),
+        date: state.analises.date
+      });
+      const blob = await renderPdfViaProxy(fullHtml);
+      await uploadAndRegisterDocument({
+        blob,
+        clinicId: state.patient.clinicId,
+        patientId: state.patientId,
+        consultationId: state.consultationId,
+        title: "Pedido de Análises",
+        category: "analises",
+        html: fullHtml,
+        docNumber: generateDocNumber(),
+        folder: "analises"
+      });
+      window.open(URL.createObjectURL(blob), "_blank");
+      state.analises.statusMsg = { type: "success", text: "PDF gerado e guardado com sucesso." };
+    } catch (err) {
+      console.error("[pedidos-v2] erro ao gerar PDF de análises:", err);
+      state.analises.statusMsg = { type: "error", text: "Erro ao gerar PDF: " + (err?.message || err) };
+    } finally {
+      state.analises.generating = false;
+      renderAnalisesPanel();
+    }
   }
 
   function buildAnalisesPanelHtml() {
@@ -329,7 +523,8 @@ export function mount(container, options = {}) {
               <input type="text" data-pdv2-role="clininfo" placeholder="Informação clínica (opcional)…" value="${escHtml(state.analises.clinicalInfo)}">
               <input type="date" data-pdv2-role="date" value="${escHtml(state.analises.date)}">
             </div>
-            <button class="pdv2-btnPdf" ${n ? "" : "disabled"}>Gerar PDF · ${n} análise${n === 1 ? "" : "s"}</button>
+            <button class="pdv2-btnPdf" data-pdv2="gerarpdf-analises" ${(state.analises.generating || !n) ? "disabled" : ""}>${state.analises.generating ? "A gerar PDF…" : `Gerar PDF · ${n} análise${n === 1 ? "" : "s"}`}</button>
+            ${state.analises.statusMsg ? `<div class="pdv2-docstatus pdv2-docstatus--${state.analises.statusMsg.type}">${escHtml(state.analises.statusMsg.text)}</div>` : ""}
             <div class="pdv2-notaPdf">Um único PDF com todas as análises seleccionadas</div>
           </div>
         </div>
@@ -403,6 +598,8 @@ export function mount(container, options = {}) {
     panel.querySelector('[data-pdv2-role="date"]')?.addEventListener("input", (e) => {
       state.analises.date = e.target.value;
     });
+
+    panel.querySelector('[data-pdv2="gerarpdf-analises"]')?.addEventListener("click", onGerarAnalisesPdf);
   }
 
   function renderAnalisesPanel(opts = {}) {
@@ -524,6 +721,80 @@ export function mount(container, options = {}) {
     return html;
   }
 
+  function buildExamesDocBodyHtml(examsInGroup) {
+    let html = `<div class="pdv2-doc-section"><ul class="pdv2-doc-list">`;
+    examsInGroup.forEach((e) => { html += `<li>${escHtml(e.exam_name)}</li>`; });
+    html += `</ul></div>`;
+    return html;
+  }
+
+  /* ---- PDF: Exames (1 documento por modalidade, em sequência) ---- */
+
+  async function onGerarExamesPdf() {
+    if (state.exames.generating) return;
+    const byGroup = selectedExamsByGroup();
+    if (!byGroup.size) return;
+
+    state.exames.generating = true;
+    state.exames.lastRun = null;
+    const results = [];
+    const entries = [...byGroup.entries()];
+    state.exames.progress = { current: 0, total: entries.length, label: "" };
+    renderExamesPanel();
+
+    for (let i = 0; i < entries.length; i++) {
+      const [label, exams] = entries[i];
+      state.exames.progress = { current: i + 1, total: entries.length, label };
+      renderExamesPanel();
+
+      try {
+        const fullHtml = await buildFullDocHtml({
+          title: `Pedido de Exame — ${label}`,
+          contentHtml: buildExamesDocBodyHtml(exams),
+          date: state.exames.date
+        });
+        const blob = await renderPdfViaProxy(fullHtml);
+        await uploadAndRegisterDocument({
+          blob,
+          clinicId: state.patient.clinicId,
+          patientId: state.patientId,
+          consultationId: state.consultationId,
+          title: `Pedido de Exame — ${label}`,
+          category: "exames",
+          html: fullHtml,
+          docNumber: generateDocNumber(),
+          folder: "exames",
+          fileNameHint: slugifyLabel(label)
+        });
+        results.push({ label, ok: true, url: URL.createObjectURL(blob) });
+      } catch (err) {
+        console.error(`[pedidos-v2] erro ao gerar PDF de exame (${label}):`, err);
+        results.push({ label, ok: false, error: String(err?.message || err) });
+        break; // pára a sequência — não gera os restantes às cegas
+      }
+    }
+
+    state.exames.generating = false;
+    state.exames.progress = null;
+    state.exames.lastRun = { total: entries.length, results };
+    renderExamesPanel();
+  }
+
+  function renderExamesResultsSummary() {
+    if (!state.exames.lastRun) return "";
+    const { total, results } = state.exames.lastRun;
+    const okCount = results.filter((r) => r.ok).length;
+    const allOk = okCount === total;
+    const falhou = results.find((r) => !r.ok);
+    const resumo = allOk
+      ? `${okCount} de ${total} PDFs gerados.`
+      : `${okCount} de ${total} — falhou "${falhou?.label}". ${falhou?.error || ""}`;
+    const linksHtml = results.filter((r) => r.ok).map((r) =>
+      `<div class="pdv2-docresult"><span>${escHtml(r.label)}</span><button class="pdv2-doclink" data-pdv2-openurl="${escHtml(r.url)}">Abrir PDF</button></div>`
+    ).join("");
+    return `<div class="pdv2-docstatus pdv2-docstatus--${allOk ? "success" : "error"}">${escHtml(resumo)}</div>${linksHtml}`;
+  }
+
   function buildExamesPanelHtml() {
     const n = state.exames.selected.size;
     const nGroups = selectedExamsByGroup().size;
@@ -553,7 +824,12 @@ export function mount(container, options = {}) {
             <div class="pdv2-linha">
               <input type="date" data-pdv2-role="examdate" style="flex:1;" value="${escHtml(state.exames.date)}">
             </div>
-            <button class="pdv2-btnPdf" ${n ? "" : "disabled"}>Gerar ${nGroups || 0} PDF${nGroups === 1 ? "" : "s"} · ${n} exame${n === 1 ? "" : "s"}</button>
+            <button class="pdv2-btnPdf" data-pdv2="gerarpdf-exames" ${(state.exames.generating || !n) ? "disabled" : ""}>${
+              state.exames.generating
+                ? `A gerar PDF ${state.exames.progress.current} de ${state.exames.progress.total} — ${escHtml(state.exames.progress.label)}…`
+                : `Gerar ${nGroups || 0} PDF${nGroups === 1 ? "" : "s"} · ${n} exame${n === 1 ? "" : "s"}`
+            }</button>
+            ${renderExamesResultsSummary()}
             <div class="pdv2-notaPdf">Um PDF por modalidade</div>
           </div>
         </div>
@@ -605,6 +881,11 @@ export function mount(container, options = {}) {
     panel.querySelector('[data-pdv2-role="examdate"]')?.addEventListener("input", (e) => {
       state.exames.date = e.target.value;
     });
+
+    panel.querySelector('[data-pdv2="gerarpdf-exames"]')?.addEventListener("click", onGerarExamesPdf);
+    panel.querySelectorAll("[data-pdv2-openurl]").forEach((b) => {
+      b.addEventListener("click", () => window.open(b.dataset.pdv2Openurl, "_blank"));
+    });
   }
 
   function renderExamesPanel(opts = {}) {
@@ -653,11 +934,15 @@ export function mount(container, options = {}) {
       const data = await loadPatientData(patientId);
       state.patient.name = data.full_name || "Doente";
       state.patient.meta = formatPatientMeta(data);
+      state.patient.raw = data;
+      state.patient.clinicId = data.clinicId;
       state.patient.status = "ready";
     } catch (err) {
       console.error("[pedidos-v2] erro ao carregar doente:", err);
       state.patient.name = "⚠️ Doente não encontrado";
       state.patient.meta = "";
+      state.patient.raw = null;
+      state.patient.clinicId = null;
       state.patient.status = "error";
     }
     renderPatientHeader();
@@ -800,6 +1085,14 @@ const CSS = `
 .pdv2-btnPdf{width:100%;padding:11px;border:none;border-radius:9px;background:var(--blue);color:#fff;font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer;}
 .pdv2-btnPdf:disabled{background:#cbd5e1;color:#94a3b8;cursor:not-allowed;}
 .pdv2-notaPdf{font-size:10.5px;color:var(--mut);text-align:center;margin-top:7px;line-height:1.4;}
+
+.pdv2-docstatus{font-size:12px;padding:8px 10px;border-radius:7px;margin-top:8px;line-height:1.4;}
+.pdv2-docstatus--info{background:var(--blue-soft);color:var(--blue);}
+.pdv2-docstatus--success{background:var(--ok-soft);color:var(--ok);}
+.pdv2-docstatus--error{background:#fef2f2;color:#b91c1c;}
+.pdv2-docresult{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;padding:5px 10px;border:1px solid var(--line);border-radius:6px;margin-top:4px;background:#fff;}
+.pdv2-doclink{font-size:11px;font-weight:600;color:var(--blue);background:none;border:1px solid var(--blue);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:inherit;flex-shrink:0;}
+.pdv2-doclink:hover{background:var(--blue-soft);}
 
 .pdv2-miniDoc{margin:0 16px 10px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:9px;color:var(--mut);}
 .pdv2-mh{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--navy);padding-bottom:4px;margin-bottom:4px;}
