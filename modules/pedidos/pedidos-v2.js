@@ -7,11 +7,16 @@
  * Exames: carregado de exams_catalog via window.sb (mesmo padrão de
  * exames.js), agrupado por category+subcategory (equivalente generalizado
  * a getExamGroupLabel de exames.js — ver nota no cabeçalho da função).
- * Doente: se options.patientId vier, o módulo carrega full_name/dob/nif/
- * insurance_provider/insurance_policy_number (mesmos campos que
- * analises.js/patient-card.js já usam) e substitui o cabeçalho + os dois
- * cartões "Cabeçalho V2" (Análises e Exames) — sem bloquear a abertura do
- * modal ("A carregar…" até resolver; aviso claro se falhar/não existir).
+ * Doente: se options.patientId vier, o módulo carrega full_name/dob/nif/sns/
+ * cc_number/address_line1/postal_code/city/insurance_provider/
+ * insurance_policy_number — os mesmos campos que buildPatientCard
+ * (patient-card.js) usa, mais seguradora/apólice (extensão do componente,
+ * ver patient-card.js). O cabeçalho navy do modal fica com uma versão
+ * simplificada (nome+DN+idade+NIF, texto claro sobre navy); os dois cartões
+ * "Cabeçalho V2" (Análises e Exames) usam buildPatientCard() a sério — a
+ * mesma função usada no corpo do PDF, não uma reimplementação à parte.
+ * Nada disto bloqueia a abertura do modal ("A carregar…" até resolver;
+ * aviso claro se falhar/não existir).
  *
  * PDF: gerado self-contained (SEM window.openDocumentEditor/doente.js,
  * que não existem no contexto de feed-doente.html) — replica o padrão de
@@ -96,12 +101,13 @@ function examGroupIcon(label) {
 }
 
 /**
- * calcAge / formatPatientMeta
- * Mesma fórmula de idade que feed-doente.html (boot()) e mesmos campos
- * de patients que analises.js (gerarAnalisePdf) e patient-card.js usam
- * para o "cabeçalho V2" — combinados aqui: DN+idade e NIF vêm de
- * patient-card.js, seguradora+apólice vêm de feed-doente.html (patient-card.js
- * não mostra seguro).
+ * calcAge / formatHeaderMeta
+ * calcAge continua a existir só para o cabeçalho simplificado do modal
+ * (.pdv2-head, fundo navy — buildPatientCard não pode ser usada aí
+ * directamente, as suas cores de texto (#4b5563/#6b7280) foram desenhadas
+ * para fundo branco e ficam ilegíveis em navy). O cartão "Cabeçalho V2" da
+ * coluna direita já não usa esta função — usa buildPatientCard() a sério
+ * (ver buildIdCardHtml), que faz o seu próprio cálculo de idade.
  */
 function calcAge(iso) {
   if (!iso) return null;
@@ -113,35 +119,38 @@ function calcAge(iso) {
   return anos;
 }
 
-function formatPatientMeta(p) {
+function formatHeaderMeta(p) {
+  // Só nome (já está fora desta função) + DN/idade + NIF — versão mínima do
+  // cabeçalho. Seguradora/apólice não entra aqui (ficaria a poluir a barra
+  // navy); já aparece no cartão "Cabeçalho V2" via buildPatientCard.
   const bits = [];
   if (p.dob) {
     const d = new Date(p.dob);
     if (!isNaN(d.getTime())) {
       const idade = calcAge(p.dob);
-      bits.push(`DN ${d.toLocaleDateString("pt-PT")}${idade !== null ? ` (${idade} a)` : ""}`);
+      bits.push(`DN ${d.toLocaleDateString("pt-PT")}${idade !== null ? ` (${idade} anos)` : ""}`);
     }
   }
   if (p.nif) bits.push(`NIF ${p.nif}`);
-  if (p.insurance_provider) {
-    bits.push(`${p.insurance_provider}${p.insurance_policy_number ? " · Ap. " + p.insurance_policy_number : ""}`);
-  }
   return bits.join(" · ");
 }
 
 /**
  * loadPatientData
- * Mesma tabela/campos que analises.js (gerarAnalisePdf) usa para o
- * cabeçalho do PDF: full_name, dob, nif, insurance_provider,
- * insurance_policy_number. clinic_id vem de patient_clinic (mesmo padrão
- * de exames.js openExamClinicalInfoStep) — necessário para o path de
- * Storage e para loadClinicById no momento de gerar PDF.
+ * Mesmos campos que buildPatientCard (patient-card.js) usa: full_name, dob,
+ * nif, sns, cc_number, address_line1, postal_code, city — mais
+ * insurance_provider/insurance_policy_number (extensão sobre o componente,
+ * ver patient-card.js). Sem passport_id — removido do componente partilhado
+ * nesta sessão. clinic_id vem de patient_clinic (mesmo padrão de
+ * exames.js openExamClinicalInfoStep) — necessário para o path de Storage,
+ * para loadClinicById (nome da clínica, reaproveitado de ensurePdfAssets
+ * tanto para o PDF como para o cartão em ecrã) e para gerar o PDF.
  */
 async function loadPatientData(patientId) {
   const [patientRes, clinicRes] = await Promise.all([
     window.sb
       .from("patients")
-      .select("full_name, dob, nif, insurance_provider, insurance_policy_number")
+      .select("full_name, dob, nif, sns, cc_number, address_line1, postal_code, city, insurance_provider, insurance_policy_number")
       .eq("id", patientId)
       .single(),
     window.sb
@@ -250,7 +259,22 @@ async function loadExamsCatalog() {
   }
 }
 
+function ensurePatientCardCss() {
+  // .gcv2-patient-card/.gcv2-pc-* (usadas pelo cartão "Cabeçalho V2" em ecrã, via
+  // buildPatientCard) só têm estilo em atestado.css — mesmo ficheiro já usado para o
+  // PDF (PATIENT_CARD_CSS_URL). Carrega-o também na página anfitriã, padrão idêntico ao
+  // ensureAtestadoCss() de atestado.js. Selectores todos prefixados .gcv2-* — sem risco
+  // de colidir com o resto do feed.
+  if (document.querySelector('link[data-pdv2-patient-card-css]')) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = PATIENT_CARD_CSS_URL;
+  link.dataset.pdv2PatientCardCss = "1";
+  document.head.appendChild(link);
+}
+
 function ensureStyles() {
+  ensurePatientCardCss();
   if (document.getElementById(STYLE_ID)) return;
   const style = document.createElement("style");
   style.id = STYLE_ID;
@@ -498,6 +522,24 @@ export function mount(container, options = {}) {
     }
   }
 
+  /**
+   * buildIdCardHtml
+   * Cartão "Cabeçalho V2" — mesma buildPatientCard() do PDF final (não uma
+   * reimplementação própria). Enquanto o doente ainda não carregou (ou falhou),
+   * buildPatientCard({patient:null}) devolve '' — mostra-se o nome de estado
+   * (state.patient.name já traz "A carregar…" ou a mensagem de erro).
+   */
+  function buildIdCardHtml() {
+    const cardBody = (state.patient.status === "ready" && state.patient.raw)
+      ? buildPatientCard({ patient: state.patient.raw, clinic: state.pdfAssets.clinic, mode: "full" })
+      : `<div class="gcv2-pc-line gcv2-pc-line-main">${escHtml(state.patient.name)}</div>`;
+    return `
+      <div class="pdv2-idCard">
+        <span class="pdv2-v2tag">Cabeçalho V2</span>
+        ${cardBody}
+      </div>`;
+  }
+
   function buildAnalisesPanelHtml() {
     const n = state.analises.selected.size;
     return `
@@ -507,11 +549,7 @@ export function mount(container, options = {}) {
         <div class="pdv2-colDir">
           <h3>Pedido actual</h3>
 
-          <div class="pdv2-idCard">
-            <span class="pdv2-v2tag">Cabeçalho V2</span>
-            <div class="pdv2-idnome">${escHtml(state.patient.name)}</div>
-            <div class="pdv2-idmeta">${escHtml(state.patient.meta)}</div>
-          </div>
+          ${buildIdCardHtml()}
 
           <div class="pdv2-pills">${buildAnalisesPillsHtml()}</div>
 
@@ -812,11 +850,7 @@ export function mount(container, options = {}) {
         <div class="pdv2-colDir">
           <h3>Pedido actual</h3>
 
-          <div class="pdv2-idCard">
-            <span class="pdv2-v2tag">Cabeçalho V2</span>
-            <div class="pdv2-idnome">${escHtml(state.patient.name)}</div>
-            <div class="pdv2-idmeta">${escHtml(state.patient.meta)}</div>
-          </div>
+          ${buildIdCardHtml()}
 
           <div class="pdv2-pills">${buildExamesPillsHtml()}</div>
 
@@ -943,10 +977,16 @@ export function mount(container, options = {}) {
     try {
       const data = await loadPatientData(patientId);
       state.patient.name = data.full_name || "Doente";
-      state.patient.meta = formatPatientMeta(data);
+      state.patient.meta = formatHeaderMeta(data);
       state.patient.raw = data;
       state.patient.clinicId = data.clinicId;
       state.patient.status = "ready";
+      // Pré-carrega clínica/médico/vinheta (ensurePdfAssets, mesma função usada para o
+      // PDF) já aqui — o cartão "Cabeçalho V2" em ecrã precisa do nome da clínica via
+      // buildPatientCard, não só o PDF final. loadClinicById/loadCurrentDoctor/
+      // getVinhetaDataUrl nunca rejeitam (self-catch, devolvem null em erro), por isso
+      // isto não risca o try/catch do doente em si.
+      await ensurePdfAssets();
     } catch (err) {
       console.error("[pedidos-v2] erro ao carregar doente:", err);
       state.patient.name = "⚠️ Doente não encontrado";
@@ -1077,9 +1117,12 @@ const CSS = `
 .pdv2-colDir{border-left:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
 .pdv2-colDir h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:0;padding:14px 16px 8px;}
 
-.pdv2-idCard{margin:0 16px 10px;background:#fff;border:1px solid var(--line);border-left:3px solid var(--navy);border-radius:8px;padding:10px 12px;}
-.pdv2-idnome{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:700;color:var(--navy);line-height:1.2;}
-.pdv2-idmeta{font-size:11px;color:var(--mut);margin-top:3px;line-height:1.5;}
+/* .pdv2-idCard envolve o resultado real de buildPatientCard() (.gcv2-patient-card,
+   estilos vindos de atestado.css — ver ensurePatientCardCss). Já traz o seu próprio
+   border-left azul/padding, por isso o wrapper fica com moldura clara só para o selo
+   "Cabeçalho V2" ter onde assentar, sem duplicar borda/padding. */
+.pdv2-idCard{margin:0 16px 10px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px;}
+.pdv2-idCard .gcv2-patient-card{margin-bottom:0;}
 .pdv2-v2tag{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--blue);background:var(--blue-soft);border-radius:5px;padding:2px 7px;float:right;}
 
 .pdv2-pills{flex:1;overflow-y:auto;padding:2px 16px 10px;}

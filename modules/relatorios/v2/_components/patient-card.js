@@ -74,12 +74,18 @@ export function buildPatientCard({ patient, clinic, mode = 'full' } = {}) {
   }
   rows.push(`<div class="gcv2-pc-line gcv2-pc-line-main">${line1}</div>`);
 
-  // Linha 2 — identificadores legais (só os preenchidos)
+  // Linha 2 — identificadores legais + seguradora (só os preenchidos).
+  // Ordem: NIF (fiscal) · SNS (saúde pública) · CC (civil) · Seguradora+Apólice
+  // (entidade pagadora, não é identificação da pessoa — fica no fim).
+  // Passaporte removido (decisão confirmada — não é usado na prática clínica diária).
   const ids = [];
-  if (patient.nif)          ids.push(`<span>NIF <strong>${escAttr(patient.nif)}</strong></span>`);
-  if (patient.sns)          ids.push(`<span>Utente SNS <strong>${escAttr(patient.sns)}</strong></span>`);
-  if (patient.cc_number)    ids.push(`<span>CC <strong>${escAttr(patient.cc_number)}</strong></span>`);
-  if (patient.passport_id)  ids.push(`<span>Passaporte <strong>${escAttr(patient.passport_id)}</strong></span>`);
+  if (patient.nif)       ids.push(`<span>NIF <strong>${escAttr(patient.nif)}</strong></span>`);
+  if (patient.sns)       ids.push(`<span>SNS <strong>${escAttr(patient.sns)}</strong></span>`);
+  if (patient.cc_number) ids.push(`<span>CC <strong>${escAttr(patient.cc_number)}</strong></span>`);
+  if (patient.insurance_provider) {
+    const apolice = patient.insurance_policy_number ? ` · Ap. ${escAttr(patient.insurance_policy_number)}` : '';
+    ids.push(`<span><strong>${escAttr(patient.insurance_provider)}</strong>${apolice}</span>`);
+  }
   if (ids.length) {
     rows.push(`<div class="gcv2-pc-line gcv2-pc-ids">${ids.join(' &nbsp;·&nbsp; ')}</div>`);
   }

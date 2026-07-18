@@ -106,7 +106,7 @@ async function loadPatient(patientId) {
   if (!patientId) return null;
   const { data, error } = await window.sb
     .from('patients')
-    .select('id, full_name, dob, sex, nif, sns, cc_number, passport_id, address_line1, postal_code, city')
+    .select('id, full_name, dob, sex, nif, sns, cc_number, passport_id, address_line1, postal_code, city, insurance_provider, insurance_policy_number')
     .eq('id', patientId)
     .single();
   if (error) { console.error('[rc] erro a obter doente:', error); return null; }
