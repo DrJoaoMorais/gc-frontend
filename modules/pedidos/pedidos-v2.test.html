@@ -2,16 +2,25 @@
 <html lang="pt-PT">
 <head>
   <meta charset="UTF-8">
-  <title>Pedidos v2 · Teste (esqueleto visual)</title>
+  <title>Pedidos v2 · Teste (4b — dados reais)</title>
 </head>
 <body style="margin:0;">
   <div style="background:#fef3c7;padding:12px 16px;font-family:system-ui,sans-serif;font-size:13px;color:#92400e;">
-    🧪 <strong>Teste isolado do modal Pedidos v2</strong> — só esqueleto visual, dados de exemplo,
-    sem PDF, sem catálogo real. Página não integrada com o GC.
+    🧪 <strong>Teste isolado do modal Pedidos v2 (4b)</strong> — Análises vem de analises-catalog-v2.js
+    (import estático), Exames vem de exams_catalog via Supabase (precisa de sessão activa).
+    Página não integrada com o GC.
   </div>
+  <div id="status" style="font-family:system-ui,sans-serif;padding:8px 16px;color:#0f2d52;font-size:13px;"></div>
+  <form id="loginForm" style="display:none;gap:8px;align-items:center;padding:0 16px 12px;font-family:system-ui,sans-serif;font-size:13px;">
+    <input id="loginEmail" type="email" placeholder="email" autocomplete="username" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;">
+    <input id="loginPass" type="password" placeholder="password" autocomplete="current-password" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;">
+    <button type="submit" style="padding:6px 14px;border:none;border-radius:6px;background:#1a56db;color:#fff;cursor:pointer;">Entrar (só neste teste local)</button>
+    <button type="button" id="loginSkip" style="padding:6px 14px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;cursor:pointer;">Continuar sem autenticar</button>
+    <span id="loginErr" style="color:#dc2626;"></span>
+  </form>
 
   <!-- Simulação do feed por baixo, só para contexto visual -->
-  <div style="position:fixed;inset:0;top:52px;padding:24px;background:#c7d2e0;z-index:0;">
+  <div style="position:fixed;inset:0;top:80px;padding:24px;background:#c7d2e0;z-index:0;">
     <div style="height:52px;background:#0f2d52;border-radius:12px;margin-bottom:16px;"></div>
     <div style="height:120px;background:#fff;border-radius:12px;margin-bottom:12px;"></div>
     <div style="height:120px;background:#fff;border-radius:12px;"></div>
@@ -20,19 +29,60 @@
   <!-- Contentor isolado — equivalente ao #fdModalRoot do feed real -->
   <div id="fdModalRoot" style="all:initial; display:block; position:relative; z-index:1;"></div>
 
+  <!-- Scripts clássicos: Supabase (igual ao padrão de relatorio-consulta.test.html) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.SUPABASE_URL = "https://nxfnzzcuqzxmzsihbrtp.supabase.co";
+    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA";
+    window.sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  </script>
+
   <script type="module">
     import { mount, unmount } from './pedidos-v2.js';
 
+    const status = document.getElementById('status');
     const container = document.getElementById('fdModalRoot');
+    const loginForm = document.getElementById('loginForm');
+    const loginErr = document.getElementById('loginErr');
 
-    mount(container, {
-      patientName: 'Maria Exemplo Santos',
-      patientMeta: 'DN 12/03/1968 (58 a) · NIF 213 456 789 · Multicare · Ap. 456123',
-      onClose: () => {
-        console.log('[pedidos-v2.test] modal fechado, unmount já feito.');
-        document.title = 'Pedidos v2 · Teste (fechado — recarrega para reabrir)';
-      }
+    function abrirModal() {
+      mount(container, {
+        patientName: 'Maria Exemplo Santos',
+        patientMeta: 'DN 12/03/1968 (58 a) · NIF 213 456 789 · Multicare · Ap. 456123',
+        onClose: () => {
+          console.log('[pedidos-v2.test] modal fechado, unmount já feito.');
+          document.title = 'Pedidos v2 · Teste (fechado — recarrega para reabrir)';
+        }
+      });
+    }
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loginErr.textContent = '';
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPass').value;
+      const { error } = await window.sb.auth.signInWithPassword({ email, password });
+      if (error) { loginErr.textContent = error.message; return; }
+      location.reload();
     });
+
+    document.getElementById('loginSkip').addEventListener('click', () => {
+      loginForm.style.display = 'none';
+      abrirModal();
+    });
+
+    (async () => {
+      const { data: { user } } = await window.sb.auth.getUser();
+      if (!user) {
+        status.innerHTML =
+          '⚠️ Não estás autenticado — Exames vai carregar vazio (Análises funciona na mesma, não precisa de sessão). ' +
+          'Sessão local só para este teste (localhost:8080), não interfere com a tua sessão em gc.joaomorais.pt.';
+        loginForm.style.display = 'flex';
+        return; // não abre o modal ainda — o formulário fica visível até login ou "continuar sem autenticar"
+      }
+      status.textContent = '✓ Autenticado como ' + user.email + '.';
+      abrirModal();
+    })();
 
     // Exposto para testar mount/unmount repetidamente a partir da consola:
     //   unmount(document.getElementById('fdModalRoot'))

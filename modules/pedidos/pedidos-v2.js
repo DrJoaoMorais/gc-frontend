@@ -1,10 +1,16 @@
 /**
  * pedidos-v2.js
- * Modal "Pedidos" (Análises + Exames) — esqueleto visual, Passo 4a.
+ * Modal "Pedidos" (Análises + Exames) — Passo 4b: dados reais.
  *
- * Baseado no mockup aprovado (mockup-pedidos-feed.html). Sem dados reais,
- * sem PDF, sem ligação a ANALISES_CATALOG/ANALISES_GRUPOS (fica para 4b).
- * Todo o conteúdo dos grupos/chips/pills é estático, de exemplo.
+ * Análises: renderizado a partir de ANALISES_GRUPOS / ANALISES_PERFIS
+ * (analises-catalog-v2.js, import estático).
+ * Exames: carregado de exams_catalog via window.sb (mesmo padrão de
+ * exames.js), agrupado por category+subcategory (equivalente generalizado
+ * a getExamGroupLabel de exames.js — ver nota no cabeçalho da função).
+ *
+ * Ainda NÃO gera PDFs nem liga a window.opener — botão "Gerar PDF" fica
+ * sem acção real (Passo 4d). Tudo o que precisa de Supabase usa window.sb
+ * directamente.
  *
  * Uso (dentro de #fdModalRoot do feed, que já tem all:initial + box-sizing
  * aplicado a si e a todos os descendentes — ver feed-doente.html):
@@ -13,20 +19,72 @@
  *   mount(container, { patientName, patientMeta, onClose });
  *   ...
  *   unmount(container);
- *
- * options:
- *   patientName  {string} — nome do doente (texto simples, escapado)
- *   patientMeta  {string} — linha de meta-dados (DN, NIF, seguro…), texto simples
- *   onClose      {Function} — chamado quando o utilizador clica "Fechar"
- *                (depois de o módulo já ter feito o seu próprio unmount)
  */
 
+import { ANALISES_GRUPOS, ANALISES_PERFIS } from "./analises-catalog-v2.js";
+
 const STYLE_ID = "pdv2-styles";
+
+const EXAM_GROUP_ICONS = {
+  "Cardiologia": "🫀",
+  "Provas Funcionais Respiratórias": "🫁",
+  "Ressonância Magnética": "🧲",
+  "Tomografia Computorizada": "🖥️",
+  "Ecografia Osteoarticular": "📡",
+  "Ecografia Partes Moles": "📡",
+  "Radiografia": "☢️",
+  "Densitometria Óssea": "🦴"
+};
+const EXAM_QUICK_CATEGORIAS = ["Cardiologia", "Provas Funcionais Respiratórias"];
+const EXAM_QUICK_REGIOES = ["Ombro", "Joelho", "Coluna lombar", "Anca"];
 
 function escHtml(v) {
   return String(v ?? "").replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   }[c]));
+}
+
+function normalizeTxt(s) {
+  return String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+/**
+ * examGroupLabel
+ * Generalização de getExamGroupLabel (exames.js): combina category+subcategory
+ * quando existe subcategory, em vez de uma lista fechada de categorias
+ * conhecidas — necessário para mostrar categorias novas (Cardiologia, Provas
+ * Funcionais Respiratórias) que getExamGroupLabel ainda não reconhece.
+ */
+function examGroupLabel(exam) {
+  const category = String(exam?.category || "").trim();
+  const subcategory = String(exam?.subcategory || "").trim();
+  return subcategory ? `${category} ${subcategory}` : category;
+}
+
+function examGroupIcon(label) {
+  return EXAM_GROUP_ICONS[label] || "🩺";
+}
+
+/**
+ * loadExamsCatalog
+ * Mesmo padrão de modules/exames.js (loadExamsCatalog): window.sb direto,
+ * sem window.opener. Só exames agrupáveis (is_direct = false).
+ */
+async function loadExamsCatalog() {
+  try {
+    const { data, error } = await window.sb
+      .from("exams_catalog")
+      .select("id, category, subcategory, exam_name, sort_order, body_region")
+      .eq("is_active", true)
+      .eq("is_direct", false)
+      .order("category", { ascending: true })
+      .order("sort_order", { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error("[pedidos-v2] erro ao carregar exams_catalog:", err);
+    return [];
+  }
 }
 
 function ensureStyles() {
@@ -43,15 +101,35 @@ function removeStyles() {
 
 /**
  * mount
- * Constrói o esqueleto visual do modal de Pedidos dentro de `container`.
+ * Constrói o modal de Pedidos dentro de `container`, com dados reais.
  */
 export function mount(container, options = {}) {
   if (!container) return;
 
   const patientName = escHtml(options.patientName || "Doente de exemplo");
   const patientMeta = escHtml(options.patientMeta || "DN — · NIF — · Seguro —");
+  const today = new Date().toISOString().slice(0, 10);
 
   ensureStyles();
+
+  /* ---- estado (por montagem — fecha sobre `container`) ---- */
+  const state = {
+    analises: {
+      selected: new Set(),      // nomes exactos (ANALISES_GRUPOS[].items[].name)
+      openGroups: new Set(),    // ids de grupo abertos manualmente
+      search: "",
+      clinicalInfo: "",
+      date: today
+    },
+    exames: {
+      rows: [],
+      loaded: false,
+      selected: new Set(),      // exam ids (uuid)
+      openGroups: new Set(),    // group labels (examGroupLabel) abertos manualmente
+      search: "",
+      date: today
+    }
+  };
 
   container.innerHTML = `
     <div class="pdv2-overlay">
@@ -67,214 +145,446 @@ export function mount(container, options = {}) {
         </div>
 
         <div class="pdv2-tabs">
-          <div class="pdv2-tab pdv2-tab--on" data-pdv2-tab="analises">Análises <span class="pdv2-n">4</span></div>
-          <div class="pdv2-tab" data-pdv2-tab="exames">Exames <span class="pdv2-n">5</span></div>
+          <div class="pdv2-tab pdv2-tab--on" data-pdv2-tab="analises">Análises <span class="pdv2-n">0</span></div>
+          <div class="pdv2-tab" data-pdv2-tab="exames">Exames <span class="pdv2-n">0</span></div>
         </div>
 
-        <!-- ============ SEPARADOR ANÁLISES ============ -->
-        <div class="pdv2-tabpanel pdv2-tabpanel--on" data-pdv2-panel="analises">
-          <div class="pdv2-quick">
-            <span class="pdv2-lbl">Perfis rápidos</span>
-            <button class="pdv2-chip">Rotina Fisiatria</button>
-            <button class="pdv2-chip">Pré-PRP / Pré-infiltração</button>
-            <button class="pdv2-chip">Reumatológico</button>
-            <div class="pdv2-chipWrap" data-pdv2="chipwrap">
-              <button class="pdv2-chip">Med. Desportiva ▾</button>
-              <div class="pdv2-chipMenu">
-                <button class="pdv2-op">Pré-época</button>
-                <button class="pdv2-op">Atleta &gt; 40 anos</button>
-                <button class="pdv2-op">Atleta mulher</button>
-                <button class="pdv2-op">Fractura de stress / RED-S</button>
-                <button class="pdv2-op">Overtraining</button>
-              </div>
-            </div>
-            <div class="pdv2-chipWrap" data-pdv2="chipwrap">
-              <button class="pdv2-chip">Mais ▾</button>
-              <div class="pdv2-chipMenu">
-                <button class="pdv2-op">Infecciologia / Pré-biológico</button>
-                <button class="pdv2-op">Neurológico</button>
-                <button class="pdv2-op">Longevidade</button>
-              </div>
-            </div>
-            <input class="pdv2-search" type="text" placeholder="Pesquisar análise… (ferritina, PCR, TSH)">
-          </div>
-
-          <div class="pdv2-body">
-            <div class="pdv2-colEsq">
-
-              <div class="pdv2-grp pdv2-grp--open">
-                <div class="pdv2-grpHead"><span class="pdv2-nome">🩸 Hematologia / Coagulação <span class="pdv2-badge">2 sel.</span></span><span class="pdv2-chev">▲</span></div>
-                <div class="pdv2-grpItems">
-                  <label class="pdv2-item"><input type="checkbox" checked><span>Hemograma completo<span class="pdv2-info">Anemia, infecção, avaliação global</span></span></label>
-                  <label class="pdv2-item"><input type="checkbox" checked><span>Velocidade de sedimentação (VS)<span class="pdv2-info">Marcador de inflamação inespecífico</span></span></label>
-                  <label class="pdv2-item"><input type="checkbox"><span>INR<span class="pdv2-info">Anticoagulação, função hepática</span></span></label>
-                  <label class="pdv2-item"><input type="checkbox"><span>Dímeros-D<span class="pdv2-info">Exclusão TEP e TVP</span></span></label>
-                </div>
-              </div>
-
-              <div class="pdv2-grp pdv2-grp--open">
-                <div class="pdv2-grpHead"><span class="pdv2-nome">🧪 Bioquímica <span class="pdv2-badge">2 sel.</span></span><span class="pdv2-chev">▲</span></div>
-                <div class="pdv2-grpItems">
-                  <label class="pdv2-item"><input type="checkbox" checked><span>Glicose em jejum<span class="pdv2-info">Diabetes, pré-diabetes</span></span></label>
-                  <label class="pdv2-item"><input type="checkbox" checked><span>Creatinina<span class="pdv2-info">Função renal</span></span></label>
-                  <label class="pdv2-item"><input type="checkbox"><span>Ácido úrico<span class="pdv2-info">Gota, síndrome metabólico</span></span></label>
-                  <label class="pdv2-item"><input type="checkbox"><span>AST / ALT<span class="pdv2-info">Lesão hepática e muscular</span></span></label>
-                </div>
-              </div>
-
-              <div class="pdv2-grp">
-                <div class="pdv2-grpHead"><span class="pdv2-nome">🦴 Metabolismo Ósseo</span><span class="pdv2-chev">▼</span></div>
-                <div class="pdv2-grpItems">
-                  <label class="pdv2-item"><input type="checkbox"><span>Cálcio total<span class="pdv2-info">Hiperparatiroidismo, osteoporose</span></span></label>
-                  <label class="pdv2-item"><input type="checkbox"><span>Fósforo<span class="pdv2-info">Metabolismo ósseo</span></span></label>
-                </div>
-              </div>
-              <div class="pdv2-grp">
-                <div class="pdv2-grpHead"><span class="pdv2-nome">🔥 Inflamação / Autoimunidade</span><span class="pdv2-chev">▼</span></div>
-                <div class="pdv2-grpItems">
-                  <label class="pdv2-item"><input type="checkbox"><span>Proteína C reativa (PCR)<span class="pdv2-info">Inflamação, infecção</span></span></label>
-                  <label class="pdv2-item"><input type="checkbox"><span>Anticorpos antinucleares (ANA)<span class="pdv2-info">Screening autoimunidade sistémica</span></span></label>
-                </div>
-              </div>
-
-            </div>
-
-            <div class="pdv2-colDir">
-              <h3>Pedido actual</h3>
-
-              <div class="pdv2-idCard">
-                <span class="pdv2-v2tag">Cabeçalho V2</span>
-                <div class="pdv2-idnome">${patientName}</div>
-                <div class="pdv2-idmeta">${patientMeta}</div>
-              </div>
-
-              <div class="pdv2-pills">
-                <div class="pdv2-pillGrp">Hematologia</div>
-                <div class="pdv2-pill"><span class="pdv2-miolo">Hemograma completo</span><span class="pdv2-x">×</span></div>
-                <div class="pdv2-pill"><span class="pdv2-miolo">Velocidade de sedimentação (VS)</span><span class="pdv2-x">×</span></div>
-                <div class="pdv2-pillGrp">Bioquímica</div>
-                <div class="pdv2-pill"><span class="pdv2-miolo">Glicose em jejum</span><span class="pdv2-x">×</span></div>
-                <div class="pdv2-pill"><span class="pdv2-miolo">Creatinina</span><span class="pdv2-x">×</span></div>
-              </div>
-
-              <div class="pdv2-miniDoc">
-                <div class="pdv2-mh"><div class="pdv2-logo"></div><div class="pdv2-tit">Pedido de Análises</div></div>
-                <div class="pdv2-corpo"></div>
-                <div class="pdv2-mf"><span>Dr. João Morais · OM 44380</span><span>Vinheta</span></div>
-                <div class="pdv2-cap">Pré-visualização — sai com cabeçalho e rodapé do Relatório V2</div>
-              </div>
-
-              <div class="pdv2-rodape">
-                <div class="pdv2-linha">
-                  <input type="text" placeholder="Informação clínica (opcional)…">
-                  <input type="date">
-                </div>
-                <button class="pdv2-btnPdf" disabled>Gerar PDF · 4 análises</button>
-                <div class="pdv2-notaPdf">Um único PDF com todas as análises seleccionadas</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ============ SEPARADOR EXAMES ============ -->
-        <div class="pdv2-tabpanel" data-pdv2-panel="exames" style="display:none;">
-          <div class="pdv2-quick">
-            <span class="pdv2-lbl">Perfis</span>
-            <button class="pdv2-chip">Cardiologia</button>
-            <button class="pdv2-chip">Pneumologia</button>
-            <span class="pdv2-lbl" style="margin-left:10px;">Região</span>
-            <button class="pdv2-chip">Ombro</button>
-            <button class="pdv2-chip">Joelho</button>
-            <button class="pdv2-chip">Coluna lombar</button>
-            <button class="pdv2-chip">Anca</button>
-            <input class="pdv2-search" type="text" placeholder="Pesquisar exame… (RM ombro, eco, RX)">
-          </div>
-
-          <div class="pdv2-body">
-            <div class="pdv2-colEsq">
-
-              <div class="pdv2-grp pdv2-grp--open">
-                <div class="pdv2-grpHead"><span class="pdv2-nome">🫀 Cardiologia <span class="pdv2-badge">3 sel.</span></span><span class="pdv2-chev">▲</span></div>
-                <div class="pdv2-grpItems">
-                  <label class="pdv2-item"><input type="checkbox" checked><span>Electrocardiograma (ECG) de repouso</span></label>
-                  <label class="pdv2-item"><input type="checkbox" checked><span>Ecocardiograma transtorácico</span></label>
-                  <label class="pdv2-item"><input type="checkbox" checked><span>Prova de esforço</span></label>
-                  <label class="pdv2-item"><input type="checkbox"><span>Holter 24h</span></label>
-                </div>
-              </div>
-
-              <div class="pdv2-grp">
-                <div class="pdv2-grpHead"><span class="pdv2-nome">🫁 Provas Funcionais Respiratórias</span><span class="pdv2-chev">▼</span></div>
-                <div class="pdv2-grpItems">
-                  <label class="pdv2-item"><input type="checkbox"><span>Espirometria com prova de broncodilatação</span></label>
-                  <label class="pdv2-item"><input type="checkbox"><span>Provas de função respiratória completas (com DLCO)</span></label>
-                </div>
-              </div>
-              <div class="pdv2-grp">
-                <div class="pdv2-grpHead"><span class="pdv2-nome">🧲 Ressonância Magnética</span><span class="pdv2-chev">▼</span></div>
-                <div class="pdv2-grpItems">
-                  <label class="pdv2-item"><input type="checkbox"><span>RM do ombro direito</span></label>
-                  <label class="pdv2-item"><input type="checkbox"><span>RM do joelho esquerdo</span></label>
-                </div>
-              </div>
-              <div class="pdv2-grp">
-                <div class="pdv2-grpHead"><span class="pdv2-nome">📡 Ecografia Osteoarticular</span><span class="pdv2-chev">▼</span></div>
-                <div class="pdv2-grpItems">
-                  <label class="pdv2-item"><input type="checkbox"><span>Ecografia do ombro direito</span></label>
-                  <label class="pdv2-item"><input type="checkbox"><span>Ecografia do joelho</span></label>
-                </div>
-              </div>
-              <div class="pdv2-grp">
-                <div class="pdv2-grpHead"><span class="pdv2-nome">☢️ Radiografia</span><span class="pdv2-chev">▼</span></div>
-                <div class="pdv2-grpItems">
-                  <label class="pdv2-item"><input type="checkbox"><span>Radiografia do ombro — 2 incidências</span></label>
-                  <label class="pdv2-item"><input type="checkbox"><span>Radiografia da anca — 1 incidência</span></label>
-                </div>
-              </div>
-
-            </div>
-
-            <div class="pdv2-colDir">
-              <h3>Pedido actual</h3>
-
-              <div class="pdv2-idCard">
-                <span class="pdv2-v2tag">Cabeçalho V2</span>
-                <div class="pdv2-idnome">${patientName}</div>
-                <div class="pdv2-idmeta">${patientMeta}</div>
-              </div>
-
-              <div class="pdv2-pills">
-                <div class="pdv2-pillGrp">Cardiologia · 1 PDF</div>
-                <div class="pdv2-pill"><span class="pdv2-miolo">ECG de repouso</span><span class="pdv2-x">×</span></div>
-                <div class="pdv2-pill"><span class="pdv2-miolo">Ecocardiograma transtorácico</span><span class="pdv2-x">×</span></div>
-                <div class="pdv2-pill"><span class="pdv2-miolo">Prova de esforço</span><span class="pdv2-x">×</span></div>
-              </div>
-
-              <div class="pdv2-miniDoc">
-                <div class="pdv2-mh"><div class="pdv2-logo"></div><div class="pdv2-tit">Pedido de Exame</div></div>
-                <div class="pdv2-corpo"></div>
-                <div class="pdv2-mf"><span>Dr. João Morais · OM 44380</span><span>Vinheta</span></div>
-                <div class="pdv2-cap">Pré-visualização — cabeçalho e rodapé do Relatório V2</div>
-              </div>
-
-              <div class="pdv2-rodape">
-                <div class="pdv2-linha">
-                  <input type="date" style="flex:1;">
-                </div>
-                <button class="pdv2-btnPdf" disabled>Gerar 1 PDF · 3 exames</button>
-                <div class="pdv2-notaPdf">Um PDF por modalidade</div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <div class="pdv2-tabpanel pdv2-tabpanel--on" data-pdv2-panel="analises"></div>
+        <div class="pdv2-tabpanel" data-pdv2-panel="exames" style="display:none;"></div>
 
       </div>
     </div>
   `;
 
-  /* ---- interacção mínima (só UI, sem lógica de negócio) ---- */
+  /* ================================================================
+     ANÁLISES
+     ================================================================ */
 
-  const tabs  = container.querySelectorAll("[data-pdv2-tab]");
+  function buildAnalisesQuickHtml() {
+    const chips = ANALISES_PERFIS.map((p) => {
+      if (!p.submenu) {
+        return `<button class="pdv2-chip" data-pdv2-perfil="${escHtml(p.id)}">${escHtml(p.label)}</button>`;
+      }
+      const opts = p.submenu.map((s) =>
+        `<button class="pdv2-op" data-pdv2-perfil="${escHtml(p.id)}" data-pdv2-sub="${escHtml(s.id)}">${escHtml(s.label)}</button>`
+      ).join("");
+      return `
+        <div class="pdv2-chipWrap" data-pdv2="chipwrap">
+          <button class="pdv2-chip">${escHtml(p.label)} ▾</button>
+          <div class="pdv2-chipMenu">${opts}</div>
+        </div>`;
+    }).join("");
+
+    return `
+      <span class="pdv2-lbl">Perfis rápidos</span>
+      ${chips}
+      <input class="pdv2-search" type="text" data-pdv2-role="search"
+        placeholder="Pesquisar análise… (ferritina, PCR, TSH)" value="${escHtml(state.analises.search)}">
+    `;
+  }
+
+  function buildAnalisesGroupsHtml() {
+    const qNorm = normalizeTxt(state.analises.search.trim());
+    let anyGroup = false;
+    const html = ANALISES_GRUPOS.map((grp) => {
+      const filtered = qNorm ? grp.items.filter((it) => normalizeTxt(it.name).includes(qNorm)) : grp.items;
+      if (qNorm && filtered.length === 0) return "";
+      anyGroup = true;
+      const isOpen = qNorm ? true : state.analises.openGroups.has(grp.id);
+      const selCount = grp.items.reduce((n, it) => n + (state.analises.selected.has(it.name) ? 1 : 0), 0);
+      const itemsHtml = filtered.map((it) => {
+        const checked = state.analises.selected.has(it.name);
+        const infoBits = [it.info, it.subcategoria].filter(Boolean).join(" · ");
+        return `
+          <label class="pdv2-item">
+            <input type="checkbox" data-pdv2-name="${escHtml(it.name)}" ${checked ? "checked" : ""}>
+            <span>${escHtml(it.name)}${infoBits ? `<span class="pdv2-info">${escHtml(infoBits)}</span>` : ""}</span>
+          </label>`;
+      }).join("");
+      return `
+        <div class="pdv2-grp ${isOpen ? "pdv2-grp--open" : ""}" data-pdv2-grpid="${escHtml(grp.id)}">
+          <div class="pdv2-grpHead">
+            <span class="pdv2-nome">${grp.icon} ${escHtml(grp.label)} ${selCount ? `<span class="pdv2-badge">${selCount} sel.</span>` : ""}</span>
+            <span class="pdv2-chev">${isOpen ? "▲" : "▼"}</span>
+          </div>
+          <div class="pdv2-grpItems">${itemsHtml}</div>
+        </div>`;
+    }).join("");
+    return anyGroup ? html : `<div class="pdv2-vazio">Sem resultados para a pesquisa.</div>`;
+  }
+
+  function buildAnalisesPillsHtml() {
+    if (!state.analises.selected.size) return `<div class="pdv2-vazio">Sem análises seleccionadas.</div>`;
+
+    const firstGroupLabel = new Map();
+    ANALISES_GRUPOS.forEach((grp) => {
+      grp.items.forEach((it) => {
+        if (!firstGroupLabel.has(it.name)) firstGroupLabel.set(it.name, grp.label);
+      });
+    });
+
+    const byGroup = new Map();
+    ANALISES_GRUPOS.forEach((grp) => {
+      grp.items.forEach((it) => {
+        if (!state.analises.selected.has(it.name)) return;
+        if (firstGroupLabel.get(it.name) !== grp.label) return;
+        if (!byGroup.has(grp.label)) byGroup.set(grp.label, []);
+        if (!byGroup.get(grp.label).includes(it.name)) byGroup.get(grp.label).push(it.name);
+      });
+    });
+
+    let html = "";
+    byGroup.forEach((names, label) => {
+      html += `<div class="pdv2-pillGrp">${escHtml(label)}</div>`;
+      names.forEach((name) => {
+        html += `<div class="pdv2-pill"><span class="pdv2-miolo">${escHtml(name)}</span><span class="pdv2-x" data-pdv2-removename="${escHtml(name)}">×</span></div>`;
+      });
+    });
+    return html;
+  }
+
+  function buildAnalisesPanelHtml() {
+    const n = state.analises.selected.size;
+    return `
+      <div class="pdv2-quick">${buildAnalisesQuickHtml()}</div>
+      <div class="pdv2-body">
+        <div class="pdv2-colEsq">${buildAnalisesGroupsHtml()}</div>
+        <div class="pdv2-colDir">
+          <h3>Pedido actual</h3>
+
+          <div class="pdv2-idCard">
+            <span class="pdv2-v2tag">Cabeçalho V2</span>
+            <div class="pdv2-idnome">${patientName}</div>
+            <div class="pdv2-idmeta">${patientMeta}</div>
+          </div>
+
+          <div class="pdv2-pills">${buildAnalisesPillsHtml()}</div>
+
+          <div class="pdv2-miniDoc">
+            <div class="pdv2-mh"><div class="pdv2-logo"></div><div class="pdv2-tit">Pedido de Análises</div></div>
+            <div class="pdv2-corpo"></div>
+            <div class="pdv2-mf"><span>Dr. João Morais · OM 44380</span><span>Vinheta</span></div>
+            <div class="pdv2-cap">Pré-visualização — sai com cabeçalho e rodapé do Relatório V2</div>
+          </div>
+
+          <div class="pdv2-rodape">
+            <div class="pdv2-linha">
+              <input type="text" data-pdv2-role="clininfo" placeholder="Informação clínica (opcional)…" value="${escHtml(state.analises.clinicalInfo)}">
+              <input type="date" data-pdv2-role="date" value="${escHtml(state.analises.date)}">
+            </div>
+            <button class="pdv2-btnPdf" ${n ? "" : "disabled"}>Gerar PDF · ${n} análise${n === 1 ? "" : "s"}</button>
+            <div class="pdv2-notaPdf">Um único PDF com todas as análises seleccionadas</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function applyPerfilAnalises(perfilId, subId) {
+    const perfil = ANALISES_PERFIS.find((p) => p.id === perfilId);
+    if (!perfil) return;
+    const lista = subId ? perfil.submenu?.find((s) => s.id === subId)?.analises : perfil.analises;
+    if (!lista) return;
+    lista.forEach((name) => state.analises.selected.add(name));
+    ANALISES_GRUPOS.forEach((grp) => {
+      if (grp.items.some((it) => lista.includes(it.name))) state.analises.openGroups.add(grp.id);
+    });
+    renderAnalisesPanel();
+  }
+
+  function bindAnalisesPanelEvents(panel) {
+    panel.querySelectorAll('[data-pdv2="chipwrap"] > .pdv2-chip').forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const wrap = btn.parentElement;
+        const estava = wrap.classList.contains("pdv2-chipWrap--open");
+        panel.querySelectorAll(".pdv2-chipWrap--open").forEach((w) => w.classList.remove("pdv2-chipWrap--open"));
+        if (!estava) wrap.classList.add("pdv2-chipWrap--open");
+      });
+    });
+
+    panel.querySelectorAll("[data-pdv2-perfil]").forEach((btn) => {
+      btn.addEventListener("click", () => applyPerfilAnalises(btn.dataset.pdv2Perfil, btn.dataset.pdv2Sub || null));
+    });
+
+    panel.querySelectorAll(".pdv2-grpHead").forEach((head) => {
+      head.addEventListener("click", () => {
+        const grpEl = head.closest(".pdv2-grp");
+        if (!grpEl) return;
+        const nowOpen = grpEl.classList.toggle("pdv2-grp--open");
+        const grpId = grpEl.dataset.pdv2Grpid;
+        if (nowOpen) state.analises.openGroups.add(grpId); else state.analises.openGroups.delete(grpId);
+        const chev = head.querySelector(".pdv2-chev");
+        if (chev) chev.textContent = nowOpen ? "▲" : "▼";
+      });
+    });
+
+    panel.querySelectorAll(".pdv2-item input[data-pdv2-name]").forEach((cb) => {
+      cb.addEventListener("change", () => {
+        const name = cb.dataset.pdv2Name;
+        if (cb.checked) state.analises.selected.add(name); else state.analises.selected.delete(name);
+        renderAnalisesPanel();
+      });
+    });
+
+    panel.querySelectorAll("[data-pdv2-removename]").forEach((x) => {
+      x.addEventListener("click", () => {
+        state.analises.selected.delete(x.dataset.pdv2Removename);
+        renderAnalisesPanel();
+      });
+    });
+
+    const searchEl = panel.querySelector('[data-pdv2-role="search"]');
+    searchEl?.addEventListener("input", (e) => {
+      state.analises.search = e.target.value;
+      renderAnalisesPanel({ preserveFocus: "search" });
+    });
+
+    panel.querySelector('[data-pdv2-role="clininfo"]')?.addEventListener("input", (e) => {
+      state.analises.clinicalInfo = e.target.value;
+    });
+    panel.querySelector('[data-pdv2-role="date"]')?.addEventListener("input", (e) => {
+      state.analises.date = e.target.value;
+    });
+  }
+
+  function renderAnalisesPanel(opts = {}) {
+    const panel = container.querySelector('[data-pdv2-panel="analises"]');
+    if (!panel) return;
+
+    let focusInfo = null;
+    if (opts.preserveFocus) {
+      const el = panel.querySelector(`[data-pdv2-role="${opts.preserveFocus}"]`);
+      if (el && document.activeElement === el) {
+        focusInfo = { role: opts.preserveFocus, start: el.selectionStart, end: el.selectionEnd };
+      }
+    }
+
+    panel.innerHTML = buildAnalisesPanelHtml();
+    bindAnalisesPanelEvents(panel);
+
+    if (focusInfo) {
+      const el = panel.querySelector(`[data-pdv2-role="${focusInfo.role}"]`);
+      if (el) { el.focus(); el.setSelectionRange?.(focusInfo.start, focusInfo.end); }
+    }
+
+    updateTabBadges();
+  }
+
+  /* ================================================================
+     EXAMES
+     ================================================================ */
+
+  function buildExamesQuickHtml() {
+    const cats = EXAM_QUICK_CATEGORIAS.map((c) =>
+      `<button class="pdv2-chip" data-pdv2-examsearch="${escHtml(c)}">${escHtml(c)}</button>`
+    ).join("");
+    const regioes = EXAM_QUICK_REGIOES.map((r) =>
+      `<button class="pdv2-chip" data-pdv2-examsearch="${escHtml(r)}">${escHtml(r)}</button>`
+    ).join("");
+    return `
+      <span class="pdv2-lbl">Perfis</span>
+      ${cats}
+      <span class="pdv2-lbl" style="margin-left:10px;">Região</span>
+      ${regioes}
+      <input class="pdv2-search" type="text" data-pdv2-role="examsearch"
+        placeholder="Pesquisar exame… (RM ombro, eco, RX)" value="${escHtml(state.exames.search)}">
+    `;
+  }
+
+  function groupExamRows() {
+    const map = new Map();
+    state.exames.rows.forEach((exam) => {
+      const label = examGroupLabel(exam);
+      if (!map.has(label)) map.set(label, []);
+      map.get(label).push(exam);
+    });
+    return map;
+  }
+
+  function matchesExamSearch(exam, qNorm) {
+    if (!qNorm) return true;
+    const hay = normalizeTxt([exam.exam_name, exam.body_region, exam.category, exam.subcategory].filter(Boolean).join(" "));
+    return hay.includes(qNorm);
+  }
+
+  function buildExamesGroupsHtml() {
+    if (!state.exames.loaded) return `<div class="pdv2-vazio">A carregar catálogo de exames…</div>`;
+    if (!state.exames.rows.length) return `<div class="pdv2-vazio">Sem exames activos no catálogo.</div>`;
+
+    const qNorm = normalizeTxt(state.exames.search.trim());
+    const groups = groupExamRows();
+    let anyGroup = false;
+
+    let html = "";
+    groups.forEach((items, label) => {
+      const filtered = qNorm ? items.filter((e) => matchesExamSearch(e, qNorm)) : items;
+      if (qNorm && filtered.length === 0) return;
+      anyGroup = true;
+      const isOpen = qNorm ? true : state.exames.openGroups.has(label);
+      const selCount = items.reduce((n, e) => n + (state.exames.selected.has(e.id) ? 1 : 0), 0);
+      const itemsHtml = filtered.map((e) => {
+        const checked = state.exames.selected.has(e.id);
+        return `
+          <label class="pdv2-item">
+            <input type="checkbox" data-pdv2-examid="${escHtml(e.id)}" ${checked ? "checked" : ""}>
+            <span>${escHtml(e.exam_name)}</span>
+          </label>`;
+      }).join("");
+      html += `
+        <div class="pdv2-grp ${isOpen ? "pdv2-grp--open" : ""}" data-pdv2-grplabel="${escHtml(label)}">
+          <div class="pdv2-grpHead">
+            <span class="pdv2-nome">${examGroupIcon(label)} ${escHtml(label)} ${selCount ? `<span class="pdv2-badge">${selCount} sel.</span>` : ""}</span>
+            <span class="pdv2-chev">${isOpen ? "▲" : "▼"}</span>
+          </div>
+          <div class="pdv2-grpItems">${itemsHtml}</div>
+        </div>`;
+    });
+    return anyGroup ? html : `<div class="pdv2-vazio">Sem resultados para a pesquisa.</div>`;
+  }
+
+  function selectedExamsByGroup() {
+    const byGroup = new Map();
+    state.exames.rows.forEach((exam) => {
+      if (!state.exames.selected.has(exam.id)) return;
+      const label = examGroupLabel(exam);
+      if (!byGroup.has(label)) byGroup.set(label, []);
+      byGroup.get(label).push(exam);
+    });
+    return byGroup;
+  }
+
+  function buildExamesPillsHtml() {
+    if (!state.exames.selected.size) return `<div class="pdv2-vazio">Sem exames seleccionados.</div>`;
+    const byGroup = selectedExamsByGroup();
+    let html = "";
+    byGroup.forEach((exams, label) => {
+      html += `<div class="pdv2-pillGrp">${escHtml(label)} · 1 PDF</div>`;
+      exams.forEach((e) => {
+        html += `<div class="pdv2-pill"><span class="pdv2-miolo">${escHtml(e.exam_name)}</span><span class="pdv2-x" data-pdv2-removeexamid="${escHtml(e.id)}">×</span></div>`;
+      });
+    });
+    return html;
+  }
+
+  function buildExamesPanelHtml() {
+    const n = state.exames.selected.size;
+    const nGroups = selectedExamsByGroup().size;
+    return `
+      <div class="pdv2-quick">${buildExamesQuickHtml()}</div>
+      <div class="pdv2-body">
+        <div class="pdv2-colEsq">${buildExamesGroupsHtml()}</div>
+        <div class="pdv2-colDir">
+          <h3>Pedido actual</h3>
+
+          <div class="pdv2-idCard">
+            <span class="pdv2-v2tag">Cabeçalho V2</span>
+            <div class="pdv2-idnome">${patientName}</div>
+            <div class="pdv2-idmeta">${patientMeta}</div>
+          </div>
+
+          <div class="pdv2-pills">${buildExamesPillsHtml()}</div>
+
+          <div class="pdv2-miniDoc">
+            <div class="pdv2-mh"><div class="pdv2-logo"></div><div class="pdv2-tit">Pedido de Exame</div></div>
+            <div class="pdv2-corpo"></div>
+            <div class="pdv2-mf"><span>Dr. João Morais · OM 44380</span><span>Vinheta</span></div>
+            <div class="pdv2-cap">Pré-visualização — cabeçalho e rodapé do Relatório V2</div>
+          </div>
+
+          <div class="pdv2-rodape">
+            <div class="pdv2-linha">
+              <input type="date" data-pdv2-role="examdate" style="flex:1;" value="${escHtml(state.exames.date)}">
+            </div>
+            <button class="pdv2-btnPdf" ${n ? "" : "disabled"}>Gerar ${nGroups || 0} PDF${nGroups === 1 ? "" : "s"} · ${n} exame${n === 1 ? "" : "s"}</button>
+            <div class="pdv2-notaPdf">Um PDF por modalidade</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function bindExamesPanelEvents(panel) {
+    panel.querySelectorAll("[data-pdv2-examsearch]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.exames.search = btn.dataset.pdv2Examsearch;
+        renderExamesPanel();
+      });
+    });
+
+    panel.querySelectorAll(".pdv2-grpHead").forEach((head) => {
+      head.addEventListener("click", () => {
+        const grpEl = head.closest(".pdv2-grp");
+        if (!grpEl) return;
+        const nowOpen = grpEl.classList.toggle("pdv2-grp--open");
+        const label = grpEl.dataset.pdv2Grplabel;
+        if (nowOpen) state.exames.openGroups.add(label); else state.exames.openGroups.delete(label);
+        const chev = head.querySelector(".pdv2-chev");
+        if (chev) chev.textContent = nowOpen ? "▲" : "▼";
+      });
+    });
+
+    panel.querySelectorAll(".pdv2-item input[data-pdv2-examid]").forEach((cb) => {
+      cb.addEventListener("change", () => {
+        const id = cb.dataset.pdv2Examid;
+        if (cb.checked) state.exames.selected.add(id); else state.exames.selected.delete(id);
+        renderExamesPanel();
+      });
+    });
+
+    panel.querySelectorAll("[data-pdv2-removeexamid]").forEach((x) => {
+      x.addEventListener("click", () => {
+        state.exames.selected.delete(x.dataset.pdv2Removeexamid);
+        renderExamesPanel();
+      });
+    });
+
+    const searchEl = panel.querySelector('[data-pdv2-role="examsearch"]');
+    searchEl?.addEventListener("input", (e) => {
+      state.exames.search = e.target.value;
+      renderExamesPanel({ preserveFocus: "examsearch" });
+    });
+
+    panel.querySelector('[data-pdv2-role="examdate"]')?.addEventListener("input", (e) => {
+      state.exames.date = e.target.value;
+    });
+  }
+
+  function renderExamesPanel(opts = {}) {
+    const panel = container.querySelector('[data-pdv2-panel="exames"]');
+    if (!panel) return;
+
+    let focusInfo = null;
+    if (opts.preserveFocus) {
+      const el = panel.querySelector(`[data-pdv2-role="${opts.preserveFocus}"]`);
+      if (el && document.activeElement === el) {
+        focusInfo = { role: opts.preserveFocus, start: el.selectionStart, end: el.selectionEnd };
+      }
+    }
+
+    panel.innerHTML = buildExamesPanelHtml();
+    bindExamesPanelEvents(panel);
+
+    if (focusInfo) {
+      const el = panel.querySelector(`[data-pdv2-role="${focusInfo.role}"]`);
+      if (el) { el.focus(); el.setSelectionRange?.(focusInfo.start, focusInfo.end); }
+    }
+
+    updateTabBadges();
+  }
+
+  /* ================================================================
+     CHROME (tabs, fechar, dropdown-outside-click) — ligado uma única vez
+     ================================================================ */
+
+  function updateTabBadges() {
+    const nA = container.querySelector('[data-pdv2-tab="analises"] .pdv2-n');
+    const nE = container.querySelector('[data-pdv2-tab="exames"] .pdv2-n');
+    if (nA) nA.textContent = String(state.analises.selected.size);
+    if (nE) nE.textContent = String(state.exames.selected.size);
+  }
+
+  const tabs = container.querySelectorAll("[data-pdv2-tab]");
   const onTabClick = (e) => {
     const alvo = e.currentTarget.dataset.pdv2Tab;
     tabs.forEach((t) => t.classList.toggle("pdv2-tab--on", t === e.currentTarget));
@@ -286,28 +596,8 @@ export function mount(container, options = {}) {
   };
   tabs.forEach((t) => t.addEventListener("click", onTabClick));
 
-  const chipWraps = container.querySelectorAll('[data-pdv2="chipwrap"]');
-  const onChipToggle = (e) => {
-    e.stopPropagation();
-    const wrap = e.currentTarget.parentElement;
-    const estava = wrap.classList.contains("pdv2-chipWrap--open");
-    chipWraps.forEach((w) => w.classList.remove("pdv2-chipWrap--open"));
-    if (!estava) wrap.classList.add("pdv2-chipWrap--open");
-  };
-  chipWraps.forEach((w) => w.querySelector(":scope > .pdv2-chip")?.addEventListener("click", onChipToggle));
-
-  const onDocClick = () => chipWraps.forEach((w) => w.classList.remove("pdv2-chipWrap--open"));
+  const onDocClick = () => container.querySelectorAll(".pdv2-chipWrap--open").forEach((w) => w.classList.remove("pdv2-chipWrap--open"));
   document.addEventListener("click", onDocClick);
-
-  const grpHeads = container.querySelectorAll(".pdv2-grpHead");
-  const onGrpToggle = (e) => {
-    const grp = e.currentTarget.closest(".pdv2-grp");
-    if (!grp) return;
-    const abreAgora = grp.classList.toggle("pdv2-grp--open");
-    const chev = e.currentTarget.querySelector(".pdv2-chev");
-    if (chev) chev.textContent = abreAgora ? "▲" : "▼";
-  };
-  grpHeads.forEach((h) => h.addEventListener("click", onGrpToggle));
 
   const onFechar = () => {
     unmount(container);
@@ -315,8 +605,16 @@ export function mount(container, options = {}) {
   };
   container.querySelector('[data-pdv2="fechar"]')?.addEventListener("click", onFechar);
 
-  /* Guarda referências para o unmount limpar sem resíduo */
   container.__pdv2State = { onDocClick };
+
+  /* ---- renderização inicial + carregamento assíncrono de exames ---- */
+  renderAnalisesPanel();
+  renderExamesPanel();
+  loadExamsCatalog().then((rows) => {
+    state.exames.rows = rows;
+    state.exames.loaded = true;
+    renderExamesPanel();
+  });
 }
 
 /**
@@ -395,6 +693,8 @@ const CSS = `
 .pdv2-item:hover{background:var(--bg);}
 .pdv2-item input{width:15px;height:15px;accent-color:var(--blue);flex-shrink:0;margin-top:1px;cursor:pointer;}
 .pdv2-info{display:block;font-size:10px;color:var(--mut);margin-top:1px;}
+
+.pdv2-vazio{font-size:12px;color:#94a3b8;padding:8px 6px;line-height:1.6;}
 
 .pdv2-colDir{border-left:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
 .pdv2-colDir h3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:0;padding:14px 16px 8px;}
