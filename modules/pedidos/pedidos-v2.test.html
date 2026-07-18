@@ -2,15 +2,19 @@
 <html lang="pt-PT">
 <head>
   <meta charset="UTF-8">
-  <title>Pedidos v2 · Teste (4b — dados reais)</title>
+  <title>Pedidos v2 · Teste (4c — doente real)</title>
 </head>
 <body style="margin:0;">
   <div style="background:#fef3c7;padding:12px 16px;font-family:system-ui,sans-serif;font-size:13px;color:#92400e;">
-    🧪 <strong>Teste isolado do modal Pedidos v2 (4b)</strong> — Análises vem de analises-catalog-v2.js
-    (import estático), Exames vem de exams_catalog via Supabase (precisa de sessão activa).
-    Página não integrada com o GC.
+    🧪 <strong>Teste isolado do modal Pedidos v2 (4c)</strong> — Análises vem de analises-catalog-v2.js
+    (import estático), Exames vem de exams_catalog via Supabase, doente vem de patients via patientId
+    (precisa de sessão activa para ambos). Página não integrada com o GC.
   </div>
   <div id="status" style="font-family:system-ui,sans-serif;padding:8px 16px;color:#0f2d52;font-size:13px;"></div>
+  <div style="font-family:system-ui,sans-serif;padding:0 16px 8px;font-size:13px;">
+    <button id="btnPatientOk" style="padding:4px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;cursor:pointer;">Reabrir com doente de teste</button>
+    <button id="btnPatientBad" style="padding:4px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;cursor:pointer;">Testar patientId inválido</button>
+  </div>
   <form id="loginForm" style="display:none;gap:8px;align-items:center;padding:0 16px 12px;font-family:system-ui,sans-serif;font-size:13px;">
     <input id="loginEmail" type="email" placeholder="email" autocomplete="username" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;">
     <input id="loginPass" type="password" placeholder="password" autocomplete="current-password" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;">
@@ -45,10 +49,13 @@
     const loginForm = document.getElementById('loginForm');
     const loginErr = document.getElementById('loginErr');
 
-    function abrirModal() {
+    const PATIENT_ID_TESTE = '163fe5dc-a34f-4c80-8f01-5db0d63f759c';
+    const PATIENT_ID_INVALIDO = '00000000-0000-0000-0000-000000000000';
+
+    function abrirModal(patientId) {
+      unmount(container);
       mount(container, {
-        patientName: 'Maria Exemplo Santos',
-        patientMeta: 'DN 12/03/1968 (58 a) · NIF 213 456 789 · Multicare · Ap. 456123',
+        patientId: patientId || PATIENT_ID_TESTE,
         onClose: () => {
           console.log('[pedidos-v2.test] modal fechado, unmount já feito.');
           document.title = 'Pedidos v2 · Teste (fechado — recarrega para reabrir)';
@@ -70,6 +77,9 @@
       loginForm.style.display = 'none';
       abrirModal();
     });
+
+    document.getElementById('btnPatientOk').addEventListener('click', () => abrirModal(PATIENT_ID_TESTE));
+    document.getElementById('btnPatientBad').addEventListener('click', () => abrirModal(PATIENT_ID_INVALIDO));
 
     (async () => {
       const { data: { user } } = await window.sb.auth.getUser();

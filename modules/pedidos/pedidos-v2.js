@@ -1,12 +1,17 @@
 /**
  * pedidos-v2.js
- * Modal "Pedidos" (Análises + Exames) — Passo 4b: dados reais.
+ * Modal "Pedidos" (Análises + Exames) — Passo 4c: identificação real do doente.
  *
  * Análises: renderizado a partir de ANALISES_GRUPOS / ANALISES_PERFIS
  * (analises-catalog-v2.js, import estático).
  * Exames: carregado de exams_catalog via window.sb (mesmo padrão de
  * exames.js), agrupado por category+subcategory (equivalente generalizado
  * a getExamGroupLabel de exames.js — ver nota no cabeçalho da função).
+ * Doente: se options.patientId vier, o módulo carrega full_name/dob/nif/
+ * insurance_provider/insurance_policy_number (mesmos campos que
+ * analises.js/patient-card.js já usam) e substitui o cabeçalho + os dois
+ * cartões "Cabeçalho V2" (Análises e Exames) — sem bloquear a abertura do
+ * modal ("A carregar…" até resolver; aviso claro se falhar/não existir).
  *
  * Ainda NÃO gera PDFs nem liga a window.opener — botão "Gerar PDF" fica
  * sem acção real (Passo 4d). Tudo o que precisa de Supabase usa window.sb
@@ -16,7 +21,8 @@
  * aplicado a si e a todos os descendentes — ver feed-doente.html):
  *
  *   import { mount, unmount } from './pedidos-v2.js';
- *   mount(container, { patientName, patientMeta, onClose });
+ *   mount(container, { patientId, onClose });
+ *   // ou, sem BD (ex.: testes de esqueleto visual): mount(container, { patientName, patientMeta, onClose });
  *   ...
  *   unmount(container);
  */
@@ -66,6 +72,56 @@ function examGroupIcon(label) {
 }
 
 /**
+ * calcAge / formatPatientMeta
+ * Mesma fórmula de idade que feed-doente.html (boot()) e mesmos campos
+ * de patients que analises.js (gerarAnalisePdf) e patient-card.js usam
+ * para o "cabeçalho V2" — combinados aqui: DN+idade e NIF vêm de
+ * patient-card.js, seguradora+apólice vêm de feed-doente.html (patient-card.js
+ * não mostra seguro).
+ */
+function calcAge(iso) {
+  if (!iso) return null;
+  const nasc = new Date(iso);
+  if (isNaN(nasc.getTime())) return null;
+  const hoje = new Date();
+  let anos = hoje.getFullYear() - nasc.getFullYear();
+  if (hoje < new Date(hoje.getFullYear(), nasc.getMonth(), nasc.getDate())) anos--;
+  return anos;
+}
+
+function formatPatientMeta(p) {
+  const bits = [];
+  if (p.dob) {
+    const d = new Date(p.dob);
+    if (!isNaN(d.getTime())) {
+      const idade = calcAge(p.dob);
+      bits.push(`DN ${d.toLocaleDateString("pt-PT")}${idade !== null ? ` (${idade} a)` : ""}`);
+    }
+  }
+  if (p.nif) bits.push(`NIF ${p.nif}`);
+  if (p.insurance_provider) {
+    bits.push(`${p.insurance_provider}${p.insurance_policy_number ? " · Ap. " + p.insurance_policy_number : ""}`);
+  }
+  return bits.join(" · ");
+}
+
+/**
+ * loadPatientData
+ * Mesma tabela/campos que analises.js (gerarAnalisePdf) usa para o
+ * cabeçalho do PDF: full_name, dob, nif, insurance_provider,
+ * insurance_policy_number.
+ */
+async function loadPatientData(patientId) {
+  const { data, error } = await window.sb
+    .from("patients")
+    .select("full_name, dob, nif, insurance_provider, insurance_policy_number")
+    .eq("id", patientId)
+    .single();
+  if (error || !data) throw error || new Error("doente não encontrado");
+  return data;
+}
+
+/**
  * loadExamsCatalog
  * Mesmo padrão de modules/exames.js (loadExamsCatalog): window.sb direto,
  * sem window.opener. Só exames agrupáveis (is_direct = false).
@@ -106,14 +162,15 @@ function removeStyles() {
 export function mount(container, options = {}) {
   if (!container) return;
 
-  const patientName = escHtml(options.patientName || "Doente de exemplo");
-  const patientMeta = escHtml(options.patientMeta || "DN — · NIF — · Seguro —");
   const today = new Date().toISOString().slice(0, 10);
 
   ensureStyles();
 
   /* ---- estado (por montagem — fecha sobre `container`) ---- */
   const state = {
+    patient: options.patientId
+      ? { name: "A carregar…", meta: "", status: "loading" }
+      : { name: options.patientName || "Doente de exemplo", meta: options.patientMeta || "DN — · NIF — · Seguro —", status: "ready" },
     analises: {
       selected: new Set(),      // nomes exactos (ANALISES_GRUPOS[].items[].name)
       openGroups: new Set(),    // ids de grupo abertos manualmente
@@ -138,8 +195,8 @@ export function mount(container, options = {}) {
         <div class="pdv2-head">
           <div class="pdv2-titulo">Pedidos</div>
           <div class="pdv2-doente">
-            <span><b>${patientName}</b></span>
-            <span>${patientMeta}</span>
+            <span><b data-pdv2="head-nome">${escHtml(state.patient.name)}</b></span>
+            <span data-pdv2="head-meta">${escHtml(state.patient.meta)}</span>
           </div>
           <button class="pdv2-fechar" data-pdv2="fechar">Fechar</button>
         </div>
@@ -254,8 +311,8 @@ export function mount(container, options = {}) {
 
           <div class="pdv2-idCard">
             <span class="pdv2-v2tag">Cabeçalho V2</span>
-            <div class="pdv2-idnome">${patientName}</div>
-            <div class="pdv2-idmeta">${patientMeta}</div>
+            <div class="pdv2-idnome">${escHtml(state.patient.name)}</div>
+            <div class="pdv2-idmeta">${escHtml(state.patient.meta)}</div>
           </div>
 
           <div class="pdv2-pills">${buildAnalisesPillsHtml()}</div>
@@ -479,8 +536,8 @@ export function mount(container, options = {}) {
 
           <div class="pdv2-idCard">
             <span class="pdv2-v2tag">Cabeçalho V2</span>
-            <div class="pdv2-idnome">${patientName}</div>
-            <div class="pdv2-idmeta">${patientMeta}</div>
+            <div class="pdv2-idnome">${escHtml(state.patient.name)}</div>
+            <div class="pdv2-idmeta">${escHtml(state.patient.meta)}</div>
           </div>
 
           <div class="pdv2-pills">${buildExamesPillsHtml()}</div>
@@ -584,6 +641,30 @@ export function mount(container, options = {}) {
     if (nE) nE.textContent = String(state.exames.selected.size);
   }
 
+  function renderPatientHeader() {
+    const nomeEl = container.querySelector('[data-pdv2="head-nome"]');
+    const metaEl = container.querySelector('[data-pdv2="head-meta"]');
+    if (nomeEl) nomeEl.textContent = state.patient.name;
+    if (metaEl) metaEl.textContent = state.patient.meta;
+  }
+
+  async function carregarPatientHeader(patientId) {
+    try {
+      const data = await loadPatientData(patientId);
+      state.patient.name = data.full_name || "Doente";
+      state.patient.meta = formatPatientMeta(data);
+      state.patient.status = "ready";
+    } catch (err) {
+      console.error("[pedidos-v2] erro ao carregar doente:", err);
+      state.patient.name = "⚠️ Doente não encontrado";
+      state.patient.meta = "";
+      state.patient.status = "error";
+    }
+    renderPatientHeader();
+    renderAnalisesPanel();
+    renderExamesPanel();
+  }
+
   const tabs = container.querySelectorAll("[data-pdv2-tab]");
   const onTabClick = (e) => {
     const alvo = e.currentTarget.dataset.pdv2Tab;
@@ -607,7 +688,7 @@ export function mount(container, options = {}) {
 
   container.__pdv2State = { onDocClick };
 
-  /* ---- renderização inicial + carregamento assíncrono de exames ---- */
+  /* ---- renderização inicial + carregamento assíncrono (exames + doente) ---- */
   renderAnalisesPanel();
   renderExamesPanel();
   loadExamsCatalog().then((rows) => {
@@ -615,6 +696,7 @@ export function mount(container, options = {}) {
     state.exames.loaded = true;
     renderExamesPanel();
   });
+  if (options.patientId) carregarPatientHeader(options.patientId);
 }
 
 /**
