@@ -829,6 +829,7 @@
 
   <script type="module">
     import { carregarConsulta } from './cc-queries.js';
+    import { mount as pdv2Mount, unmount as pdv2Unmount } from '../../../pedidos/pedidos-v2.js';
 
     /* ── params ── */
     const params     = new URLSearchParams(window.location.search);
@@ -2330,6 +2331,16 @@
         fdNovaBusy = false;
       }
     }));
+
+    /* ── botões "Pedido de Exames" / "Pedido de Análises" (modal pedidos-v2) ── */
+    function fdAbrirPedidos(initialTab) {
+      const container = document.getElementById('fdModalRoot');
+      if (!container) return;
+      pdv2Unmount(container);
+      pdv2Mount(container, { patientId: PATIENT_ID, initialTab });
+    }
+    document.getElementById('fdBtnExames')?.addEventListener('click', () => fdAbrirPedidos('exames'));
+    document.getElementById('fdBtnAnalises')?.addEventListener('click', () => fdAbrirPedidos('analises'));
 
     boot();
   </script>

@@ -1,6 +1,6 @@
 /**
  * pedidos-v2.js
- * Modal "Pedidos" (Análises + Exames) — Passo 4d: geração real de PDF.
+ * Modal "Pedidos" (Análises + Exames) — Passo 5: ligado aos botões do feed.
  *
  * Análises: renderizado a partir de ANALISES_GRUPOS / ANALISES_PERFIS
  * (analises-catalog-v2.js, import estático).
@@ -27,7 +27,9 @@
  * aplicado a si e a todos os descendentes — ver feed-doente.html):
  *
  *   import { mount, unmount } from './pedidos-v2.js';
- *   mount(container, { patientId, consultationId, onClose });
+ *   mount(container, { patientId, consultationId, initialTab, onClose });
+ *   // initialTab: 'analises' (default) ou 'exames' — só define o separador
+ *   // activo no arranque, não muda mais nenhuma lógica.
  *   // ou, sem BD (ex.: testes de esqueleto visual): mount(container, { patientName, patientMeta, onClose });
  *   ...
  *   unmount(container);
@@ -301,6 +303,8 @@ export function mount(container, options = {}) {
     }
   };
 
+  const initialTab = options.initialTab === "exames" ? "exames" : "analises";
+
   container.innerHTML = `
     <div class="pdv2-overlay">
       <div class="pdv2-modal">
@@ -315,12 +319,12 @@ export function mount(container, options = {}) {
         </div>
 
         <div class="pdv2-tabs">
-          <div class="pdv2-tab pdv2-tab--on" data-pdv2-tab="analises">Análises <span class="pdv2-n">0</span></div>
-          <div class="pdv2-tab" data-pdv2-tab="exames">Exames <span class="pdv2-n">0</span></div>
+          <div class="pdv2-tab ${initialTab === "analises" ? "pdv2-tab--on" : ""}" data-pdv2-tab="analises">Análises <span class="pdv2-n">0</span></div>
+          <div class="pdv2-tab ${initialTab === "exames" ? "pdv2-tab--on" : ""}" data-pdv2-tab="exames">Exames <span class="pdv2-n">0</span></div>
         </div>
 
-        <div class="pdv2-tabpanel pdv2-tabpanel--on" data-pdv2-panel="analises"></div>
-        <div class="pdv2-tabpanel" data-pdv2-panel="exames" style="display:none;"></div>
+        <div class="pdv2-tabpanel ${initialTab === "analises" ? "pdv2-tabpanel--on" : ""}" data-pdv2-panel="analises" style="${initialTab === "analises" ? "" : "display:none;"}"></div>
+        <div class="pdv2-tabpanel ${initialTab === "exames" ? "pdv2-tabpanel--on" : ""}" data-pdv2-panel="exames" style="${initialTab === "exames" ? "" : "display:none;"}"></div>
 
       </div>
     </div>
@@ -1002,12 +1006,15 @@ export function unmount(container) {
    depende de variáveis globais da página; container tem all:initial).
    ==================================================================== */
 const CSS = `
+/* z-index bem acima do máximo em feed-doente.html (.fd-topbar=200,
+   .fd-acao-bar=199, .fd-antec=198) — descoberto na sessão 5, o modal
+   ficava tapado pela topbar do feed com um valor mais baixo. */
 .pdv2-overlay{
   --navy:#0f2d52; --blue:#1a56db; --blue-soft:#eff4ff;
   --ink:#0f172a; --mut:#64748b; --line:#e5e7eb; --bg:#f8fafc;
   --ok:#1d9e75; --ok-soft:#e8f8f3;
   position:fixed; inset:0; background:rgba(15,45,82,.45);
-  display:flex; align-items:center; justify-content:center; z-index:100; padding:20px;
+  display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;
   font-family:'Outfit', system-ui, -apple-system, sans-serif;
   box-sizing:border-box;
 }
