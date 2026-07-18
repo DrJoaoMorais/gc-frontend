@@ -1061,13 +1061,11 @@ const CSS = `
 
 .pdv2-grp{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden;background:#fff;}
 .pdv2-grp--open{border-color:var(--blue);}
-.pdv2-grpHead{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;background:var(--bg);user-select:none;}
-.pdv2-grp--open .pdv2-grpHead{background:var(--blue-soft);}
-.pdv2-grpHead:hover{background:#eef2f8;}
-.pdv2-nome{font-size:13px;font-weight:600;display:flex;align-items:center;gap:9px;}
+.pdv2-grpHead{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--line);user-select:none;}
+.pdv2-nome{font-size:13px;font-weight:400;display:flex;align-items:center;gap:9px;}
 .pdv2-badge{font-size:10px;font-weight:700;background:var(--blue);color:#fff;padding:2px 8px;border-radius:100px;}
 .pdv2-chev{font-size:10px;color:var(--mut);}
-.pdv2-grpItems{display:none;grid-template-columns:1fr 1fr;gap:2px 14px;padding:10px 14px 12px;border-top:1px solid var(--line);}
+.pdv2-grpItems{display:none;grid-template-columns:1fr 1fr;gap:2px 14px;padding:10px 14px 12px;}
 .pdv2-grp--open .pdv2-grpItems{display:grid;}
 .pdv2-item{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#374151;padding:4px 6px;border-radius:6px;cursor:pointer;line-height:1.35;}
 .pdv2-item:hover{background:var(--bg);}

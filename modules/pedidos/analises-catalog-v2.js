@@ -10,9 +10,9 @@
  *
  * Notas de integridade (decisões confirmadas pelo Dr. João Morais):
  *   - Grupo 1 (Hematologia/Coagulação): "Hemograma com fórmula leucocitária"
- *     acrescentado como item novo (distinto de "Hemograma completo" — dados
- *     clinicamente diferentes, não sinónimos). Usado só pelo perfil
- *     Overtraining.
+ *     removido — redundante, "Hemograma completo" já inclui fórmula
+ *     leucocitária e plaquetas. Perfil Overtraining passou a referir
+ *     "Hemograma completo".
  *   - Grupo 3 (Músculo e Inflamação): "Ionograma (Sódio, Potássio, Magnésio)"
  *     acrescentado — usado por todos os perfis de Med. Desportiva no v1,
  *     distinto do "Ionograma (Sódio, Potássio, Cloro)" do grupo 2.
@@ -51,8 +51,7 @@ export const ANALISES_GRUPOS = [
       { name: "Tempo de tromboplastina parcial ativado (APTT)", info: "Coagulação via intrínseca — hemofilias, lúpus anticoagulante" },
       { name: "Fibrinogénio", info: "Inflamação, coagulação — elevado em fase aguda, baixo em CID" },
       { name: "Dímeros-D", info: "Exclusão TEP e TVP — muito sensível, pouco específico" },
-      { name: "Tipagem ABO e Rh (D)", info: "Tipagem completa pré-operatória, transfusão ou gravidez" },
-      { name: "Hemograma com fórmula leucocitária", info: "Imunossupressão, anemia, infecção — frequentes em overtraining" }
+      { name: "Tipagem ABO e Rh (D)", info: "Tipagem completa pré-operatória, transfusão ou gravidez" }
     ]
   },
   {
@@ -222,11 +221,8 @@ export const ANALISES_GRUPOS = [
       { name: "CA 19-9", info: "Pâncreas, vias biliares — diagnóstico e monitorização", subcategoria: "Digestivo" },
       { name: "CA 15-3 (Mulher — mama)", info: "Monitorização tratamento e recidiva carcinoma da mama", subcategoria: "Mama" },
       { name: "CA 125 (Mulher — ovário)", info: "Diagnóstico e monitorização carcinoma do ovário", subcategoria: "Ovário" },
-      { name: "AFP (alfafetoproteína)", info: "Hepatocarcinoma, tumores células germinativas testiculares e ováricos", subcategoria: "Ovário" },
-      { name: "Beta-HCG", info: "Coriocarcinoma, tumores testiculares e ováricos de células germinativas", subcategoria: "Ovário" },
-      { name: "AFP (alfafetoproteína)", info: "Hepatocarcinoma, tumores células germinativas testiculares e ováricos", subcategoria: "Fígado" },
-      { name: "AFP (alfafetoproteína)", info: "Hepatocarcinoma, tumores células germinativas testiculares e ováricos", subcategoria: "Testículo" },
-      { name: "Beta-HCG", info: "Coriocarcinoma, tumores testiculares e ováricos de células germinativas", subcategoria: "Testículo" },
+      { name: "AFP (alfafetoproteína)", info: "Hepatocarcinoma, tumores células germinativas testiculares e ováricos", subcategoria: "Fígado, Ovário, Testículo" },
+      { name: "Beta-HCG", info: "Coriocarcinoma, tumores testiculares e ováricos de células germinativas", subcategoria: "Ovário, Testículo" },
       { name: "Calcitonina", info: "Carcinoma medular da tiróide — screening nódulos tiroideus", subcategoria: "Tiróide" },
       { name: "Cromogranina A", info: "Tumores neuroendócrinos — carcinoide, feocromocitoma, paraganglioma", subcategoria: "Neuroendócrino" },
       { name: "LDH", info: "Linfoma, melanoma, tumores sólidos — marcador inespecífico de massa tumoral", subcategoria: "Hematológico/Sistémico" },
@@ -331,7 +327,7 @@ export const ANALISES_PERFIS = [
         id: "overtraining",
         label: "Overtraining",
         analises: [
-          "Hemograma com fórmula leucocitária", "Ferritina", "Ferro sérico", "Saturação de transferrina",
+          "Hemograma completo", "Ferritina", "Ferro sérico", "Saturação de transferrina",
           "Creatinacinase (CK)", "Desidrogenase láctica (LDH)", "Mioglobina",
           "Proteína C reativa ultra-sensível (PCR-us)", "Velocidade de sedimentação (VS)",
           "Cortisol basal (manhã)", "Testosterona total", "DHEA-S (dehidroepiandrosterona sulfato)",
