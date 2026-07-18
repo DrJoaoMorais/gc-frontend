@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <title>Pedidos v2 · Teste (esqueleto visual)</title>
+</head>
+<body style="margin:0;">
+  <div style="background:#fef3c7;padding:12px 16px;font-family:system-ui,sans-serif;font-size:13px;color:#92400e;">
+    🧪 <strong>Teste isolado do modal Pedidos v2</strong> — só esqueleto visual, dados de exemplo,
+    sem PDF, sem catálogo real. Página não integrada com o GC.
+  </div>
+
+  <!-- Simulação do feed por baixo, só para contexto visual -->
+  <div style="position:fixed;inset:0;top:52px;padding:24px;background:#c7d2e0;z-index:0;">
+    <div style="height:52px;background:#0f2d52;border-radius:12px;margin-bottom:16px;"></div>
+    <div style="height:120px;background:#fff;border-radius:12px;margin-bottom:12px;"></div>
+    <div style="height:120px;background:#fff;border-radius:12px;"></div>
+  </div>
+
+  <!-- Contentor isolado — equivalente ao #fdModalRoot do feed real -->
+  <div id="fdModalRoot" style="all:initial; display:block; position:relative; z-index:1;"></div>
+
+  <script type="module">
+    import { mount, unmount } from './pedidos-v2.js';
+
+    const container = document.getElementById('fdModalRoot');
+
+    mount(container, {
+      patientName: 'Maria Exemplo Santos',
+      patientMeta: 'DN 12/03/1968 (58 a) · NIF 213 456 789 · Multicare · Ap. 456123',
+      onClose: () => {
+        console.log('[pedidos-v2.test] modal fechado, unmount já feito.');
+        document.title = 'Pedidos v2 · Teste (fechado — recarrega para reabrir)';
+      }
+    });
+
+    // Exposto para testar mount/unmount repetidamente a partir da consola:
+    //   unmount(document.getElementById('fdModalRoot'))
+    //   mount(document.getElementById('fdModalRoot'), {...})
+    window.__pdv2Test = { mount, unmount, container };
+  </script>
+</body>
+</html>
