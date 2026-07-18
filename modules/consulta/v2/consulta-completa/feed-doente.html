@@ -15,6 +15,48 @@
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA";
     window.sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
   </script>
+  <script>
+    /* Copiado de doente.js:1478-1520 e 2239-2258 — manter sincronizado se o original mudar. */
+    window.__gc_VINHETA_BUCKET = "clinic-private";
+    window.__gc_VINHETA_PATH = "vinheta/vinheta_web.png";
+
+    window.__gc_storageSignedUrl = async function storageSignedUrl(bucket, path, expiresSec = 3600) {
+      try {
+        if (!bucket || !path) return "";
+        const s = await window.sb.storage.from(bucket).createSignedUrl(path, expiresSec);
+        return s?.data?.signedUrl ? String(s.data.signedUrl) : "";
+      } catch (e) {
+        console.warn("storageSignedUrl error:", e);
+        return "";
+      }
+    };
+
+    window.__gc_urlToDataUrl = async function urlToDataUrl(url, fallbackMime = "image/png") {
+      try {
+        if (!url) return "";
+        const res = await fetch(url, { method: "GET", cache: "no-store" });
+        if (!res.ok) throw new Error(`urlToDataUrl fetch ${res.status}`);
+        const blob = await res.blob();
+
+        const mime = blob.type && String(blob.type).includes("/") ? blob.type : fallbackMime;
+
+        const dataUrl = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result || ""));
+          r.onerror = reject;
+          r.readAsDataURL(blob);
+        });
+
+        if (dataUrl && dataUrl.startsWith("data:application/octet-stream")) {
+          return dataUrl.replace("data:application/octet-stream", `data:${mime}`);
+        }
+        return dataUrl;
+      } catch (e) {
+        console.warn("urlToDataUrl error:", e);
+        return "";
+      }
+    };
+  </script>
   <style>
     :root {
       --navy: #0f2d52;
@@ -29,7 +71,7 @@
       --ambar: #b45309;
       --vermelho: #b91c1c;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    .fd-app * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: var(--fundo);
       color: var(--texto);
@@ -535,6 +577,7 @@
   <link rel="stylesheet" href="../../../comparativo/evolutivo.css" />
 </head>
 <body>
+<div class="fd-app">
 
   <!-- TOPBAR -->
   <header class="fd-topbar">
@@ -2290,5 +2333,20 @@
 
     boot();
   </script>
+
+</div>
+
+  <!-- Contentor isolado para futuros modais próprios do feed (ex.: Relatório v2).
+       Vazio por agora — sem listeners, sem import de relatorio-consulta.js. -->
+  <style>
+    .fd-modal-scope {
+      all: initial;
+      display: block;
+    }
+    .fd-modal-scope, .fd-modal-scope *, .fd-modal-scope *::before, .fd-modal-scope *::after {
+      box-sizing: border-box;
+    }
+  </style>
+  <div id="fdModalRoot" class="fd-modal-scope"></div>
 </body>
 </html>
