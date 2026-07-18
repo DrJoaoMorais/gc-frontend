@@ -617,6 +617,7 @@ export function mount(container, options = {}) {
         focusInfo = { role: opts.preserveFocus, start: el.selectionStart, end: el.selectionEnd };
       }
     }
+    const scrollTop = panel.querySelector(".pdv2-colEsq")?.scrollTop ?? 0;
 
     panel.innerHTML = buildAnalisesPanelHtml();
     bindAnalisesPanelEvents(panel);
@@ -625,6 +626,8 @@ export function mount(container, options = {}) {
       const el = panel.querySelector(`[data-pdv2-role="${focusInfo.role}"]`);
       if (el) { el.focus(); el.setSelectionRange?.(focusInfo.start, focusInfo.end); }
     }
+    const colEsq = panel.querySelector(".pdv2-colEsq");
+    if (colEsq) colEsq.scrollTop = scrollTop;
 
     updateTabBadges();
   }
@@ -903,6 +906,7 @@ export function mount(container, options = {}) {
         focusInfo = { role: opts.preserveFocus, start: el.selectionStart, end: el.selectionEnd };
       }
     }
+    const scrollTop = panel.querySelector(".pdv2-colEsq")?.scrollTop ?? 0;
 
     panel.innerHTML = buildExamesPanelHtml();
     bindExamesPanelEvents(panel);
@@ -911,6 +915,8 @@ export function mount(container, options = {}) {
       const el = panel.querySelector(`[data-pdv2-role="${focusInfo.role}"]`);
       if (el) { el.focus(); el.setSelectionRange?.(focusInfo.start, focusInfo.end); }
     }
+    const colEsq = panel.querySelector(".pdv2-colEsq");
+    if (colEsq) colEsq.scrollTop = scrollTop;
 
     updateTabBadges();
   }

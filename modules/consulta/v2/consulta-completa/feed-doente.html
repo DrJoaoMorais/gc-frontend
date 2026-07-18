@@ -2335,15 +2335,30 @@
     }));
 
     /* ── botões "Pedido de Exames" / "Pedido de Análises" (modal pedidos-v2) ── */
-    function fdAbrirPedidos(initialTab) {
+    async function fdAbrirPedidos(initialTab) {
       const container = document.getElementById('fdModalRoot');
       if (!container) return;
       pdv2Unmount(container);
-      /* fdRascunhoId = consulta em edição/criação neste momento (fdGravar/fdAbrirEdicao
-         geridos mais acima) — null se não houver nenhuma consulta activa; nesse caso o
-         PDF é gerado na mesma mas fica sem consulta associada (não aparece agrupado em
-         nenhum cartão de "Documentos", tal como já acontecia antes desta correcção). */
-      pdv2Mount(container, { patientId: PATIENT_ID, initialTab, consultationId: fdRascunhoId });
+      /* fdRascunhoId só existe enquanto o painel "Editar Consulta" está aberto — mas estes
+         botões são da barra lateral, não do formulário, por isso não se pode depender dele
+         (era a causa dos documentos ficarem sem consulta associada). Em vez disso, vai
+         sempre buscar a consulta mais recente do doente; fica null só no caso genuíno de
+         ainda não haver nenhuma consulta gravada. */
+      let consultationId = null;
+      try {
+        const { data, error } = await window.sb
+          .from('consultations')
+          .select('id')
+          .eq('patient_id', PATIENT_ID)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        consultationId = data?.id || null;
+      } catch (e) {
+        console.error('[fd] erro ao obter consulta mais recente para Pedidos v2:', e);
+      }
+      pdv2Mount(container, { patientId: PATIENT_ID, initialTab, consultationId });
     }
     document.getElementById('fdBtnExames')?.addEventListener('click', () => fdAbrirPedidos('exames'));
     document.getElementById('fdBtnAnalises')?.addEventListener('click', () => fdAbrirPedidos('analises'));
