@@ -475,7 +475,10 @@ export function mount(container, options = {}) {
     if (state.patient.status !== "ready") throw new Error("Doente ainda não carregado.");
     if (!state.patient.clinicId) throw new Error("Sem clínica activa associada ao doente.");
     const assets = await ensurePdfAssets();
-    const patientCardHtml = buildPatientCard({ patient: state.patient.raw, clinic: assets.clinic, mode: "full" });
+    // Sem clinic aqui de propósito — igual a relatorio-consulta.js (a clínica já vai no
+    // cabeçalho/rodapé do documento via buildShellV2 duas linhas abaixo, não se repete
+    // dentro do cartão de identificação).
+    const patientCardHtml = buildPatientCard({ patient: state.patient.raw, mode: "full" });
     const shellHtml = buildShellV2({
       clinic: assets.clinic,
       doctor: assets.doctor,
@@ -525,13 +528,17 @@ export function mount(container, options = {}) {
   /**
    * buildIdCardHtml
    * Cartão "Cabeçalho V2" — mesma buildPatientCard() do PDF final (não uma
-   * reimplementação própria). Enquanto o doente ainda não carregou (ou falhou),
-   * buildPatientCard({patient:null}) devolve '' — mostra-se o nome de estado
-   * (state.patient.name já traz "A carregar…" ou a mensagem de erro).
+   * reimplementação própria), reutilizada tal e qual nos separadores Análises e
+   * Exames (chamada única, não há cópias). Sem clinic — igual a
+   * relatorio-consulta.js, a clínica não entra neste cartão (já vai no
+   * cabeçalho/rodapé do documento, via buildShellV2, só no PDF final). Enquanto o
+   * doente ainda não carregou (ou falhou), buildPatientCard({patient:null}) devolve
+   * '' — mostra-se o nome de estado (state.patient.name já traz "A carregar…" ou a
+   * mensagem de erro).
    */
   function buildIdCardHtml() {
     const cardBody = (state.patient.status === "ready" && state.patient.raw)
-      ? buildPatientCard({ patient: state.patient.raw, clinic: state.pdfAssets.clinic, mode: "full" })
+      ? buildPatientCard({ patient: state.patient.raw, mode: "full" })
       : `<div class="gcv2-pc-line gcv2-pc-line-main">${escHtml(state.patient.name)}</div>`;
     return `
       <div class="pdv2-idCard">
