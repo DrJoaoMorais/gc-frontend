@@ -1555,6 +1555,8 @@
       PRP:                { ic: '💉', lbl: 'PRP / Visco' },
       atestado_doenca:    { ic: '🩺', lbl: 'Atestado de doença' },
       atestado_edfisica:  { ic: '🏃', lbl: 'Atestado ed. física' },
+      analises:           { ic: '🧪', lbl: 'Pedido de Análises' },
+      exames:             { ic: '📄', lbl: 'Pedido de Exames' },
     };
     function renderDocumentos(docs) {
       if (!docs || !docs.length) return '';
@@ -2337,7 +2339,11 @@
       const container = document.getElementById('fdModalRoot');
       if (!container) return;
       pdv2Unmount(container);
-      pdv2Mount(container, { patientId: PATIENT_ID, initialTab });
+      /* fdRascunhoId = consulta em edição/criação neste momento (fdGravar/fdAbrirEdicao
+         geridos mais acima) — null se não houver nenhuma consulta activa; nesse caso o
+         PDF é gerado na mesma mas fica sem consulta associada (não aparece agrupado em
+         nenhum cartão de "Documentos", tal como já acontecia antes desta correcção). */
+      pdv2Mount(container, { patientId: PATIENT_ID, initialTab, consultationId: fdRascunhoId });
     }
     document.getElementById('fdBtnExames')?.addEventListener('click', () => fdAbrirPedidos('exames'));
     document.getElementById('fdBtnAnalises')?.addEventListener('click', () => fdAbrirPedidos('analises'));
