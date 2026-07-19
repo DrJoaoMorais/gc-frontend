@@ -1,0 +1,261 @@
+/* =================================================================
+   prp.css  ·  Modal Pedido de comparticipação PRP / Visco v2
+   Escopado .gcv2-prp- — sem regras globais body/html.
+   ================================================================= */
+
+/* -------- Overlay -------- */
+.gcv2-prp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 6000;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+}
+
+.gcv2-prp-modal {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: min(1400px, 98vw);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* -------- Cabeçalho -------- */
+.gcv2-prp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+.gcv2-prp-head h2 {
+  margin: 0;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: #0f2d52;
+}
+.gcv2-prp-close {
+  background: transparent;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  color: #6b7280;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gcv2-prp-close:hover {
+  background: #e5e7eb;
+  color: #0f2d52;
+}
+
+/* -------- Split formulário / preview -------- */
+.gcv2-prp-split {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+@media (max-width: 980px) {
+  .gcv2-prp-split { grid-template-columns: 1fr; }
+}
+
+/* -------- Formulário (esquerda) -------- */
+.gcv2-prp-form {
+  padding: 24px;
+  background: #fafafa;
+  border-right: 1px solid #e5e7eb;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.gcv2-prp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.gcv2-prp-field > span {
+  font-weight: 600;
+  color: #374151;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.gcv2-prp-field > span small {
+  display: block;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #9ca3af;
+  font-weight: 400;
+  margin-top: 2px;
+}
+.gcv2-prp-field input[type="date"],
+.gcv2-prp-field select,
+.gcv2-prp-field textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+  color: #111;
+}
+.gcv2-prp-field textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+.gcv2-prp-field select:focus,
+.gcv2-prp-field textarea:focus,
+.gcv2-prp-field input:focus {
+  outline: none;
+  border-color: #1a56db;
+  box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.12);
+}
+.gcv2-prp-field select:disabled {
+  background: #f3f4f6;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+/* -------- Checklist de tratamentos -------- */
+.gcv2-prp-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.gcv2-prp-ck {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1.5px solid #e5e7eb;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.4;
+  background: #fff;
+  user-select: none;
+}
+.gcv2-prp-ck.on {
+  border-color: #1a56db;
+  background: #eff6ff;
+}
+.gcv2-prp-ck input[type="checkbox"] {
+  margin-top: 2px;
+  accent-color: #1a56db;
+}
+
+/* -------- Acções -------- */
+/* .gcv2-btn/.gcv2-btn-primary/.gcv2-btn-secondary removidos daqui — herdados de
+   atestado.css (ensureAtestadoCss em prp.js), CSS partilhado do design system v2,
+   para não colidir com os mesmos nomes de classe já definidos lá. */
+.gcv2-prp-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+/* -------- Preview (direita) -------- */
+.gcv2-prp-preview {
+  padding: 24px;
+  background: #e5e7eb;
+  overflow-y: auto;
+}
+
+/* -------- Blocos do documento (preview + PDF) -------- */
+.gcv2-prp-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #111;
+  margin: 10px 0;
+}
+.gcv2-prp-k {
+  display: inline-block;
+  min-width: 130px;
+  font-weight: 700;
+  color: #1a56db;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.gcv2-prp-sec { margin-top: 12px; }
+.gcv2-prp-slabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #1a56db;
+  margin-bottom: 5px;
+}
+.gcv2-prp-hda,
+.gcv2-prp-obs {
+  background: #fafafa;
+  border: 0.5px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #222;
+}
+.gcv2-prp-p {
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: #111;
+  margin: 0 0 8px 0;
+  text-align: justify;
+}
+.gcv2-prp-p sup {
+  color: #1a56db;
+  font-weight: 700;
+}
+.gcv2-prp-refs {
+  margin-top: 14px;
+  border-top: 0.5px solid #cbd5e1;
+  padding-top: 8px;
+}
+.gcv2-prp-refs-list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+}
+.gcv2-prp-refs-list li {
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: #444;
+  margin-bottom: 4px;
+}
+.gcv2-prp-refs-list sup {
+  color: #1a56db;
+  font-weight: 700;
+  margin-right: 3px;
+}
+.gcv2-prp-warn {
+  margin: 16px 0;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 13px;
+}

@@ -2368,6 +2368,11 @@
       await openAtestadoModal({ tipo: 'doenca', patientId: PATIENT_ID, onClose: async () => { await boot(); } });
     });
 
+    document.getElementById('fdBtnPrpVisco')?.addEventListener('click', async () => {
+      const { openPrpModal } = await import('../../../relatorios/v2/prp/prp.js');
+      await openPrpModal({ patientId: PATIENT_ID, onClose: async () => { await boot(); } });
+    });
+
     boot();
   </script>
 
