@@ -89,7 +89,7 @@ const SHELL_CSS_URL = new URL("../relatorios/v2/_shell/shell-v2.css", import.met
 const PATIENT_CARD_CSS_URL = new URL("../relatorios/v2/atestados/atestado.css", import.meta.url).href;
 const DOC_EXTRA_CSS = `
   .pdv2-doc-section{margin-bottom:14px;}
-  .pdv2-doc-h3{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#0f2d52;border-bottom:1px solid #e2e2e6;padding-bottom:4px;margin-bottom:8px;}
+  .pdv2-doc-h3{font-size:13px;font-weight:400;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #e2e2e6;padding-bottom:4px;margin-bottom:8px;}
   .pdv2-doc-list{margin:0;padding-left:18px;font-size:13px;line-height:1.6;}
   .pdv2-doc-list li{margin-bottom:2px;}
   .pdv2-doc-prose{font-size:13px;line-height:1.6;white-space:pre-wrap;}
