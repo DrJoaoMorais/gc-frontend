@@ -2363,6 +2363,11 @@
     document.getElementById('fdBtnExames')?.addEventListener('click', () => fdAbrirPedidos('exames'));
     document.getElementById('fdBtnAnalises')?.addEventListener('click', () => fdAbrirPedidos('analises'));
 
+    document.getElementById('fdBtnAtestadoDoenca')?.addEventListener('click', async () => {
+      const { openAtestadoModal } = await import('../../../relatorios/v2/atestados/atestado.js');
+      await openAtestadoModal({ tipo: 'doenca', patientId: PATIENT_ID, onClose: async () => { await boot(); } });
+    });
+
     boot();
   </script>
 
