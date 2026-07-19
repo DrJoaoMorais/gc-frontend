@@ -59,6 +59,28 @@ const EXAM_GROUP_ICONS = {
 const EXAM_QUICK_CATEGORIAS = ["Cardiologia", "Provas Funcionais Respiratórias"];
 const EXAM_QUICK_REGIOES = ["Ombro", "Joelho", "Coluna lombar", "Anca"];
 
+/**
+ * ANALISES_PRESELECAO_DEFAULT
+ * Nomes exactos de ANALISES_GRUPOS[].items[].name — pré-seleccionados só na
+ * abertura inicial do modal (mount), só no separador Análises. Não se aplica a
+ * Exames. Só popula o Set inicial de state.analises.selected — depois disso o
+ * utilizador controla livremente (desmarcar não volta a marcar sozinho).
+ */
+const ANALISES_PRESELECAO_DEFAULT = [
+  "Hemograma completo",
+  "Glicose em jejum", "Hemoglobina glicada (HbA1c)", "Ureia", "Creatinina", "Cistatina-C",
+  "Ácido úrico", "Ionograma (Sódio, Potássio, Cloro)", "Aspartato aminotransferase (AST / TGO)",
+  "Alanina aminotransferase (ALT / TGP)", "Fosfatase alcalina (FA)", "Gama-glutamiltransferase (GGT)",
+  "Proteínas totais e albumina",
+  "Proteína C reativa ultra-sensível (PCR-us)", "Velocidade de sedimentação (VS)",
+  "Vitamina D (25-hidroxivitamina D)", "Magnésio",
+  "Cálcio total",
+  "Colesterol total", "Colesterol LDL", "Colesterol HDL", "Triglicerídeos", "Apolipoproteína B",
+  "Lipoproteína (a) — Lp(a)",
+  "Hormona tiroestimulante (TSH)",
+  "Exame sumário de urina (EAU)"
+];
+
 const PDF_PROXY_URL = "https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf";
 const MIN_PDF_BYTES = 5000; // mesmo limiar de "provável em branco" que doente.js usa (generatePdfAndUploadV1)
 const SHELL_CSS_URL = new URL("../relatorios/v2/_shell/shell-v2.css", import.meta.url).href;
@@ -327,6 +349,16 @@ export function mount(container, options = {}) {
     }
   };
 
+  // Pré-selecção por defeito — só aqui, na criação do estado (mount). Depois disto
+  // o utilizador controla livremente state.analises.selected; reabrir o modal cria
+  // um `state` novo e corre isto outra vez, restaurando a pré-selecção completa.
+  ANALISES_PRESELECAO_DEFAULT.forEach((name) => state.analises.selected.add(name));
+  ANALISES_GRUPOS.forEach((grp) => {
+    if (grp.items.some((it) => ANALISES_PRESELECAO_DEFAULT.includes(it.name))) {
+      state.analises.openGroups.add(grp.id);
+    }
+  });
+
   const initialTab = options.initialTab === "exames" ? "exames" : "analises";
 
   container.innerHTML = `
@@ -390,6 +422,7 @@ export function mount(container, options = {}) {
       anyGroup = true;
       const isOpen = qNorm ? true : state.analises.openGroups.has(grp.id);
       const selCount = grp.items.reduce((n, it) => n + (state.analises.selected.has(it.name) ? 1 : 0), 0);
+      const allSelected = filtered.length > 0 && filtered.every((it) => state.analises.selected.has(it.name));
       const itemsHtml = filtered.map((it) => {
         const checked = state.analises.selected.has(it.name);
         const infoBits = [it.info, it.subcategoria].filter(Boolean).join(" · ");
@@ -403,6 +436,7 @@ export function mount(container, options = {}) {
         <div class="pdv2-grp ${isOpen ? "pdv2-grp--open" : ""}" data-pdv2-grpid="${escHtml(grp.id)}">
           <div class="pdv2-grpHead">
             <span class="pdv2-nome">${grp.icon} ${escHtml(grp.label)} ${selCount ? `<span class="pdv2-badge">${selCount} sel.</span>` : ""}</span>
+            <button type="button" class="pdv2-selall" data-pdv2-selall="${escHtml(grp.id)}">${allSelected ? "Nenhum" : "Tudo"}</button>
             <span class="pdv2-chev">${isOpen ? "▲" : "▼"}</span>
           </div>
           <div class="pdv2-grpItems">${itemsHtml}</div>
@@ -617,6 +651,21 @@ export function mount(container, options = {}) {
         if (nowOpen) state.analises.openGroups.add(grpId); else state.analises.openGroups.delete(grpId);
         const chev = head.querySelector(".pdv2-chev");
         if (chev) chev.textContent = nowOpen ? "▲" : "▼";
+      });
+    });
+
+    panel.querySelectorAll("[data-pdv2-selall]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const grp = ANALISES_GRUPOS.find((g) => g.id === btn.dataset.pdv2Selall);
+        if (!grp) return;
+        const qNorm = normalizeTxt(state.analises.search.trim());
+        const filtered = qNorm ? grp.items.filter((it) => normalizeTxt(it.name).includes(qNorm)) : grp.items;
+        const allSelected = filtered.length > 0 && filtered.every((it) => state.analises.selected.has(it.name));
+        filtered.forEach((it) => {
+          if (allSelected) state.analises.selected.delete(it.name); else state.analises.selected.add(it.name);
+        });
+        renderAnalisesPanel();
       });
     });
 
@@ -1108,10 +1157,12 @@ const CSS = `
 
 .pdv2-grp{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden;background:#fff;}
 .pdv2-grp--open{border-color:var(--blue);}
-.pdv2-grpHead{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--line);user-select:none;}
-.pdv2-nome{font-size:13px;font-weight:400;display:flex;align-items:center;gap:9px;}
+.pdv2-grpHead{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--line);user-select:none;}
+.pdv2-nome{font-size:13px;font-weight:400;display:flex;align-items:center;gap:9px;flex:1;min-width:0;}
 .pdv2-badge{font-size:10px;font-weight:700;background:var(--blue);color:#fff;padding:2px 8px;border-radius:100px;}
-.pdv2-chev{font-size:10px;color:var(--mut);}
+.pdv2-selall{font-size:11px;font-weight:600;color:var(--blue);background:none;border:none;padding:2px 4px;cursor:pointer;font-family:inherit;text-decoration:underline;flex-shrink:0;}
+.pdv2-selall:hover{color:var(--navy);}
+.pdv2-chev{font-size:10px;color:var(--mut);flex-shrink:0;}
 .pdv2-grpItems{display:none;grid-template-columns:1fr 1fr;gap:2px 14px;padding:10px 14px 12px;}
 .pdv2-grp--open .pdv2-grpItems{display:grid;}
 .pdv2-item{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#374151;padding:4px 6px;border-radius:6px;cursor:pointer;line-height:1.35;}
