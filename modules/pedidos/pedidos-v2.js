@@ -88,7 +88,8 @@ const SHELL_CSS_URL = new URL("../relatorios/v2/_shell/shell-v2.css", import.met
 // relatorio-consulta.js também carrega os dois (ensureShellCss + ensureAtestadoCss) pelo mesmo motivo.
 const PATIENT_CARD_CSS_URL = new URL("../relatorios/v2/atestados/atestado.css", import.meta.url).href;
 const DOC_EXTRA_CSS = `
-  .pdv2-doc-section{margin-bottom:14px;}
+  .pdv2-doc-cols{column-count:2;column-gap:24px;}
+  .pdv2-doc-section{margin-bottom:14px;break-inside:avoid;page-break-inside:avoid;-webkit-column-break-inside:avoid;}
   .pdv2-doc-h3{font-size:13px;font-weight:400;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #e2e2e6;padding-bottom:4px;margin-bottom:8px;}
   .pdv2-doc-list{margin:0;padding-left:18px;font-size:13px;line-height:1.6;}
   .pdv2-doc-list li{margin-bottom:2px;}
@@ -489,7 +490,9 @@ export function mount(container, options = {}) {
     if (state.analises.clinicalInfo.trim()) {
       html += `<div class="pdv2-doc-section"><h3 class="pdv2-doc-h3">Informação clínica</h3><p class="pdv2-doc-prose">${escHtml(state.analises.clinicalInfo)}</p></div>`;
     }
-    return html;
+    // Só Análises — layout a 2 colunas para caber numa página com muitos itens
+    // seleccionados (ex: pré-selecção de 26). Exames fica a 1 coluna (não tocar).
+    return `<div class="pdv2-doc-cols">${html}</div>`;
   }
 
   /* ---- PDF: assets partilhados (clínica/médico/vinheta) + shell ---- */
