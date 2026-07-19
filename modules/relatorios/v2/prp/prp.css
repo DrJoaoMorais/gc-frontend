@@ -136,6 +136,29 @@
   cursor: not-allowed;
 }
 
+/* -------- Chips de sugestão (localização / grau) -------- */
+.gcv2-prp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+}
+.gcv2-prp-chip {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1.5px solid #cbd5e1;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  font-family: inherit;
+}
+.gcv2-prp-chip:hover {
+  border-color: #1a56db;
+  color: #1a56db;
+  background: #eff6ff;
+}
+
 /* -------- Checklist de tratamentos -------- */
 .gcv2-prp-checks {
   display: flex;

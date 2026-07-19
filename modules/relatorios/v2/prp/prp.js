@@ -13,6 +13,10 @@
 // aprovados por Morais em 2026-07-19, com evidência verificada.
 // A força probatória das afirmações é responsabilidade clínica
 // do médico. As referências são texto revisto, NÃO geradas.
+//
+// Localização e grau: texto livre + atalhos (2026-07-19). O médico
+// escreve rizartrose/omartrose/Eaton-Littler que não estão na lista
+// fixa; os atalhos são só sugestões e não apagam texto escrito à mão.
 // =================================================================
 
 import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl } from '../_shell/shell-v2.js';
@@ -39,17 +43,18 @@ function generateDocNumber() {
 
 // -----------------------------------------------------------------
 // Opções por indicação (reaproveitado do legacy prp-visco.js OPTS)
+// Localização e grau: agora são SUGESTÕES (atalhos), não lista fechada.
 // -----------------------------------------------------------------
 const OPTS = {
   localizacao: {
-    osteoartrose:    ['Joelho', 'Anca', 'Outra'],
-    tendinopatia:    ['Supraespinhoso / Coifa', 'Epicôndilo', 'Rotuliano', 'Aquiles', 'Outro'],
-    rotura_tendao:   ['Supraespinhoso', 'Bicipital', 'Rotuliano', 'Aquiles', 'Outro'],
-    rotura_muscular: ['Isquiotibiais', 'Quadricípite', 'Gémeos / Sóleo', 'Adutor', 'Outro'],
+    osteoartrose:    ['Joelho', 'Anca', 'Ombro', 'Rizartrose'],
+    tendinopatia:    ['Supraespinhoso', 'Epicôndilo', 'Rotuliano', 'Aquiles'],
+    rotura_tendao:   ['Supraespinhoso', 'Bicipital', 'Rotuliano', 'Aquiles'],
+    rotura_muscular: ['Isquiotibiais', 'Quadricípite', 'Gémeos / sóleo', 'Adutor'],
   },
   grau: {
     osteoartrose:    ['KL I', 'KL II', 'KL III'],
-    tendinopatia:    ['Degenerativo leve', 'Degenerativo moderado', 'Degenerativo grave (sem rotura)'],
+    tendinopatia:    ['Degenerativo leve', 'Degenerativo moderado', 'Degenerativo grave'],
     rotura_tendao:   ['< 50% espessura', '≥ 50% espessura'],
     rotura_muscular: ['Grau I', 'Grau II', 'Grau III parcial'],
   },
@@ -102,12 +107,17 @@ const REFS = {
 // Textos-base da justificação (congelados, aprovados 2026-07-19).
 // Chave = `${indicacao}__${procedimento}`.
 // Cada função devolve { paragrafos: [...], refs: [...] }.
-// Os campos dinâmicos entram como placeholders resolvidos aqui.
 // -----------------------------------------------------------------
 function partesDinamicas(state) {
-  const loc = state.localizacao ? state.localizacao.toLowerCase() : '';
-  const locFrag = loc ? ` [${loc}]` : '';
-  const grauFrag = state.grau ? ` [${state.grau}]` : '';
+  // Localização e grau são texto livre escrito pelo médico (ex.: "rizartrose",
+  // "omartrose", grau "Eaton-Littler II" que não é KL). Travessão como
+  // qualificador neutro: serve tanto articulação ("joelho") como diagnóstico
+  // com localização embutida ("rizartrose"), sem redundância ("da rizartrose")
+  // nem erro de concordância ("da supraespinhoso"). Sem colchetes — estes eram
+  // marcadores de campo-a-preencher e não fazem sentido em texto redigido.
+  const loc = state.localizacao ? state.localizacao.trim().toLowerCase() : '';
+  const locFrag = loc ? ` — ${loc}` : '';
+  const grauFrag = state.grau ? ` (${state.grau.trim()})` : '';
   const trats = state.tratamentos.length
     ? state.tratamentos.map(t => t.toLowerCase()).join(', ')
     : 'tratamento conservador optimizado';
@@ -365,13 +375,15 @@ export async function openPrpModal({ patientId, onClose } = {}) {
           </label>
 
           <label class="gcv2-prp-field">
-            <span>Localização</span>
-            <select id="gcv2-prp-loc"></select>
+            <span>Localização <small>escreva ou escolha uma sugestão</small></span>
+            <input type="text" id="gcv2-prp-loc" placeholder="Ex.: joelho, rizartrose, omartrose…" autocomplete="off">
+            <div id="gcv2-prp-loc-chips" class="gcv2-prp-chips"></div>
           </label>
 
           <label class="gcv2-prp-field">
-            <span>Grau imagiológico</span>
-            <select id="gcv2-prp-grau"></select>
+            <span>Grau imagiológico <small>escreva ou escolha (opcional)</small></span>
+            <input type="text" id="gcv2-prp-grau" placeholder="Ex.: KL II, Eaton-Littler III…" autocomplete="off">
+            <div id="gcv2-prp-grau-chips" class="gcv2-prp-chips"></div>
           </label>
 
           <div class="gcv2-prp-field">
@@ -419,8 +431,10 @@ export async function openPrpModal({ patientId, onClose } = {}) {
 
   const selInd = overlay.querySelector('#gcv2-prp-ind');
   const selProc = overlay.querySelector('#gcv2-prp-proc');
-  const selLoc = overlay.querySelector('#gcv2-prp-loc');
-  const selGrau = overlay.querySelector('#gcv2-prp-grau');
+  const inLoc = overlay.querySelector('#gcv2-prp-loc');
+  const inGrau = overlay.querySelector('#gcv2-prp-grau');
+  const chipsLoc = overlay.querySelector('#gcv2-prp-loc-chips');
+  const chipsGrau = overlay.querySelector('#gcv2-prp-grau-chips');
   const selInf = overlay.querySelector('#gcv2-prp-inf');
   const boxTrats = overlay.querySelector('#gcv2-prp-trats');
   const taHda = overlay.querySelector('#gcv2-prp-hda');
@@ -442,18 +456,34 @@ export async function openPrpModal({ patientId, onClose } = {}) {
     selProc.disabled = permitidos.length === 1;
   }
 
+  // Atalhos de localização: só sugestões. Não apagam o que o médico escreveu
+  // à mão (ex.: "rizartrose") ao trocar de indicação — o texto livre manda.
   function fillLocalizacoes() {
     const opts = OPTS.localizacao[state.indicacao] || [];
-    selLoc.innerHTML = `<option value="">— seleccione —</option>` +
-      opts.map(o => `<option value="${escAttr(o)}" ${o === state.localizacao ? 'selected' : ''}>${escHtml(o)}</option>`).join('');
-    if (!opts.includes(state.localizacao)) state.localizacao = '';
+    chipsLoc.innerHTML = opts
+      .map(o => `<button type="button" class="gcv2-prp-chip" data-val="${escAttr(o)}">${escHtml(o)}</button>`)
+      .join('');
+    chipsLoc.querySelectorAll('.gcv2-prp-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.localizacao = btn.dataset.val;
+        inLoc.value = btn.dataset.val;
+        renderPreview();
+      });
+    });
   }
 
   function fillGraus() {
     const opts = OPTS.grau[state.indicacao] || [];
-    selGrau.innerHTML = `<option value="">— seleccione —</option>` +
-      opts.map(o => `<option value="${escAttr(o)}" ${o === state.grau ? 'selected' : ''}>${escHtml(o)}</option>`).join('');
-    if (!opts.includes(state.grau)) state.grau = '';
+    chipsGrau.innerHTML = opts
+      .map(o => `<button type="button" class="gcv2-prp-chip" data-val="${escAttr(o)}">${escHtml(o)}</button>`)
+      .join('');
+    chipsGrau.querySelectorAll('.gcv2-prp-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.grau = btn.dataset.val;
+        inGrau.value = btn.dataset.val;
+        renderPreview();
+      });
+    });
   }
 
   function fillTratamentos() {
@@ -508,6 +538,8 @@ export async function openPrpModal({ patientId, onClose } = {}) {
   // ---- Inicializar ----
   fillIndicacoes();
   rebuildIndicacaoDependents();
+  inLoc.value = state.localizacao;
+  inGrau.value = state.grau;
   state.hda = lastHda;
   taHda.value = lastHda;
   renderPreview();
@@ -519,8 +551,8 @@ export async function openPrpModal({ patientId, onClose } = {}) {
     renderPreview();
   });
   selProc.addEventListener('change', () => { state.procedimento = selProc.value; renderPreview(); });
-  selLoc.addEventListener('change', () => { state.localizacao = selLoc.value; renderPreview(); });
-  selGrau.addEventListener('change', () => { state.grau = selGrau.value; renderPreview(); });
+  inLoc.addEventListener('input', () => { state.localizacao = inLoc.value; renderPreview(); });
+  inGrau.addEventListener('input', () => { state.grau = inGrau.value; renderPreview(); });
   selInf.addEventListener('change', () => { state.infiltracoes = selInf.value; renderPreview(); });
   taHda.addEventListener('input', () => { state.hda = taHda.value; renderPreview(); });
   taObs.addEventListener('input', () => { state.observacoes = taObs.value; renderPreview(); });
