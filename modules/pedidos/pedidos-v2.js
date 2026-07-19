@@ -90,7 +90,10 @@ const PATIENT_CARD_CSS_URL = new URL("../relatorios/v2/atestados/atestado.css", 
 const DOC_EXTRA_CSS = `
   .pdv2-doc-cols{column-count:2;column-gap:24px;}
   .pdv2-doc-section{margin-bottom:14px;break-inside:avoid;page-break-inside:avoid;-webkit-column-break-inside:avoid;}
-  .pdv2-doc-h3{font-size:13px;font-weight:400;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #e2e2e6;padding-bottom:4px;margin-bottom:8px;}
+  /* Linha divisória entre blocos de análises — sem título por cima (removido a pedido).
+     Scoped a .pdv2-doc-cols (só Análises) para não acrescentar borda aos PDFs de Exames,
+     que reutilizam .pdv2-doc-section fora desse contentor. */
+  .pdv2-doc-cols .pdv2-doc-section{border-top:1px solid #e2e2e6;padding-top:8px;}
   .pdv2-doc-list{margin:0;padding-left:18px;font-size:13px;line-height:1.6;}
   .pdv2-doc-list li{margin-bottom:2px;}
   .pdv2-doc-prose{font-size:13px;line-height:1.6;white-space:pre-wrap;}
@@ -480,15 +483,19 @@ export function mount(container, options = {}) {
   }
 
   function buildAnalisesDocBodyHtml() {
+    // Sem título de secção (label do grupo) no PDF — só a lista, separada por
+    // linha (border-top em .pdv2-doc-cols .pdv2-doc-section, ver DOC_EXTRA_CSS).
+    // O título continua visível no ecrã (.pdv2-grpHead, buildAnalisesGroupsHtml)
+    // — só desaparece no PDF final, não é tocado ali.
     const byGroup = getAnalisesByGroupForSelected();
     let html = "";
-    byGroup.forEach((names, label) => {
-      html += `<div class="pdv2-doc-section"><h3 class="pdv2-doc-h3">${escHtml(label)}</h3><ul class="pdv2-doc-list">`;
+    byGroup.forEach((names) => {
+      html += `<div class="pdv2-doc-section"><ul class="pdv2-doc-list">`;
       names.forEach((name) => { html += `<li>${escHtml(name)}</li>`; });
       html += `</ul></div>`;
     });
     if (state.analises.clinicalInfo.trim()) {
-      html += `<div class="pdv2-doc-section"><h3 class="pdv2-doc-h3">Informação clínica</h3><p class="pdv2-doc-prose">${escHtml(state.analises.clinicalInfo)}</p></div>`;
+      html += `<div class="pdv2-doc-section"><p class="pdv2-doc-prose">${escHtml(state.analises.clinicalInfo)}</p></div>`;
     }
     // Só Análises — layout a 2 colunas para caber numa página com muitos itens
     // seleccionados (ex: pré-selecção de 26). Exames fica a 1 coluna (não tocar).
