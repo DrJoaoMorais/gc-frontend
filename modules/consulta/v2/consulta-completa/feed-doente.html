@@ -636,6 +636,7 @@
       <div class="fd-sb-divisor"></div>
       <div class="fd-sb-titulo">Relatórios</div>
       <button class="fd-sb-item" id="fdBtnRelatorioSimples"><span class="fd-sb-ic">📋</span>Relatório Simples</button>
+      <button class="fd-sb-item" id="fdBtnRelatorioClinico"><span class="fd-sb-ic">📝</span>Relatório Clínico</button>
       <button class="fd-sb-item" id="fdBtnPrpVisco"><span class="fd-sb-ic">💉</span>PRP / Visco</button>
 
       <div class="fd-sb-divisor"></div>
@@ -2371,6 +2372,11 @@
     document.getElementById('fdBtnPrpVisco')?.addEventListener('click', async () => {
       const { openPrpModal } = await import('../../../relatorios/v2/prp/prp.js');
       await openPrpModal({ patientId: PATIENT_ID, onClose: async () => { await boot(); } });
+    });
+
+    document.getElementById('fdBtnRelatorioClinico')?.addEventListener('click', async () => {
+      const { openRelatorioClinicoModal } = await import('../../../relatorios/v2/relatorio-clinico/relatorio-clinico.js');
+      await openRelatorioClinicoModal({ patientId: PATIENT_ID, onClose: async () => { await boot(); } });
     });
 
     boot();
