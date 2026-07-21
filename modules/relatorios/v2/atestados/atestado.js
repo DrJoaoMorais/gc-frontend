@@ -25,7 +25,7 @@ const TIPOS = {
       { label: 'actividade laboral',     prep: 'da' },
       { label: 'frequência das aulas',   prep: 'da' },
       { label: 'prática desportiva',     prep: 'da' },
-      { label: 'condução de veículos',   prep: 'da' },
+      { label: 'aulas práticas de educação física', prep: 'das' },
     ],
     impossDefault: 'actividade laboral',
   },

@@ -92,6 +92,7 @@
   gap: 6px;
   font-size: 13px;
 }
+.gcv2-at-field[hidden] { display: none; }
 .gcv2-at-field > span {
   font-weight: 600;
   color: #374151;
