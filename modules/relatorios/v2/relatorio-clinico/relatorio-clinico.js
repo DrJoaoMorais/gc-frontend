@@ -135,11 +135,6 @@ async function loadPatient(patientId) {
 function buildRelatorioClinicoBody({ patient, state }) {
   const patientCard = buildPatientCard({ patient, mode: 'full' }); // sem hideInsurance — pode ir a seguradora
 
-  const dateStr = state.date ? new Date(`${state.date}T00:00:00`).toLocaleDateString('pt-PT') : '';
-  const dateLine = dateStr
-    ? `<p class="gcv2-rcl-date"><strong>Data do relatório:</strong> ${escHtml(dateStr)}</p>`
-    : '';
-
   const creditosHtml = state.incluirCredenciais
     ? `<p class="gcv2-rcl-creditos">${CREDENCIAIS_TEXT}</p>`
     : '';
@@ -152,7 +147,6 @@ function buildRelatorioClinicoBody({ patient, state }) {
   return `
     <div class="gcv2-rcl-content">
       ${patientCard}
-      ${dateLine}
       ${creditosHtml}
       ${corpoHtml}
     </div>
