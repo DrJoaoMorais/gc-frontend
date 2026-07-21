@@ -93,8 +93,6 @@ async function loadPatient(patientId) {
 function buildAtestadoBody({ doctor, patient, tipoImpossibilidade, prepImpossibilidade = 'de', motivo, periodoTexto }) {
   const doutor   = escHtml(doctor?.nome_completo || '—');
   const om       = escHtml(doctor?.numero_ordem || '—');
-  const esp      = escHtml(doctor?.especialidade || '');
-  const espDet   = escHtml(doctor?.especialidade_detail || '');
   const paciente = escHtml(patient?.full_name || '—');
   const sexo     = (patient?.sex || '').toLowerCase();
   const artigo   = sexo === 'f' ? 'a' : 'o';
@@ -106,8 +104,9 @@ function buildAtestadoBody({ doctor, patient, tipoImpossibilidade, prepImpossibi
   const creditos = [
     `Eu, <strong>${doutor}</strong>`,
     `Licenciado pela Faculdade de Medicina da Universidade de Coimbra`,
-    esp ? `Médico Especialista em ${esp}` : '',
-    espDet ? `Pós-graduado em ${espDet}` : '',
+    `Médico Especialista em Medicina Física e Reabilitação`,
+    `Fisiatra`,
+    `com Pós-Graduação em Medicina Desportiva`,
     `Cédula Profissional nº ${om}`,
   ].filter(Boolean).join(', ');
 
