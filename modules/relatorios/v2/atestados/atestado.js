@@ -114,8 +114,8 @@ function buildAtestadoBody({ doctor, patient, tipoImpossibilidade, prepImpossibi
 
   const creditos = [
     `Eu, <strong>${doutor}</strong>`,
-    `Licenciado pela Faculdade de Medicina da Universidade de Coimbra`,
-    `Médico Especialista em Medicina Física e Reabilitação`,
+    `Médico Licenciado pela Faculdade de Medicina da Universidade de Coimbra`,
+    `Especialista em Medicina Física e Reabilitação`,
     `Fisiatra`,
     `com Pós-Graduação em Medicina Desportiva`,
     `Cédula Profissional nº ${om}`,
