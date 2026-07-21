@@ -6,7 +6,6 @@
 // =================================================================
 
 import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl } from '../_shell/shell-v2.js';
-import { buildPatientCard } from '../_components/patient-card.js';
 import { buildPeriodEditor, bindPeriodEditor, readPeriodState, formatPeriodPt, defaultPeriodState } from '../_components/period.js';
 
 const escAttr = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -19,7 +18,7 @@ const escHtml = escAttr;
 // -----------------------------------------------------------------
 const TIPOS = {
   doenca: {
-    titulo: 'Atestado de Doença',
+    titulo: 'Atestado Médico',
     categoria: 'atestado_doenca',
     impossOptions: [
       { label: 'actividade laboral',     prep: 'da' },
@@ -87,6 +86,31 @@ async function loadPatient(patientId) {
   return data;
 }
 
+/**
+ * buildPatientMini
+ * Cartão reduzido do doente para o Atestado — NÃO é buildPatientCard (esse
+ * traz SNS/NIF/seguradora/morada, que não fazem sentido aqui). Só nome, CC e
+ * data de nascimento; cada campo só aparece se tiver valor (regra da casa).
+ */
+function buildPatientMini(patient) {
+  if (!patient) return '';
+  const linhas = [];
+  if (patient.full_name) {
+    linhas.push(`<div class="gcv2-at-pm-nome">${escHtml(patient.full_name)}</div>`);
+  }
+  const bits = [];
+  if (patient.cc_number) bits.push(`CC ${escHtml(patient.cc_number)}`);
+  if (patient.dob) {
+    const d = new Date(patient.dob);
+    if (!isNaN(d.getTime())) bits.push(escHtml(d.toLocaleDateString('pt-PT')));
+  }
+  if (bits.length) {
+    linhas.push(`<div class="gcv2-at-pm-info">${bits.join(' · ')}</div>`);
+  }
+  if (!linhas.length) return '';
+  return `<div class="gcv2-at-patient-mini">${linhas.join('')}</div>`;
+}
+
 // -----------------------------------------------------------------
 // Corpo do atestado (texto formal)
 // -----------------------------------------------------------------
@@ -112,6 +136,7 @@ function buildAtestadoBody({ doctor, patient, tipoImpossibilidade, prepImpossibi
 
   return `
     <div class="gcv2-atestado-body">
+      ${buildPatientMini(patient)}
       <p class="gcv2-at-creditos">${creditos},</p>
 
       <p class="gcv2-at-frase">
