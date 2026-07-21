@@ -6,6 +6,7 @@
 // =================================================================
 
 import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl } from '../_shell/shell-v2.js';
+import { buildPatientCard } from '../_components/patient-card.js';
 import { buildPeriodEditor, bindPeriodEditor, readPeriodState, formatPeriodPt, defaultPeriodState } from '../_components/period.js';
 
 const escAttr = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -86,31 +87,6 @@ async function loadPatient(patientId) {
   return data;
 }
 
-/**
- * buildPatientMini
- * Cartão reduzido do doente para o Atestado — NÃO é buildPatientCard (esse
- * traz SNS/NIF/seguradora/morada, que não fazem sentido aqui). Só nome, CC e
- * data de nascimento; cada campo só aparece se tiver valor (regra da casa).
- */
-function buildPatientMini(patient) {
-  if (!patient) return '';
-  const linhas = [];
-  if (patient.full_name) {
-    linhas.push(`<div class="gcv2-at-pm-nome">${escHtml(patient.full_name)}</div>`);
-  }
-  const bits = [];
-  if (patient.cc_number) bits.push(`CC ${escHtml(patient.cc_number)}`);
-  if (patient.dob) {
-    const d = new Date(patient.dob);
-    if (!isNaN(d.getTime())) bits.push(escHtml(d.toLocaleDateString('pt-PT')));
-  }
-  if (bits.length) {
-    linhas.push(`<div class="gcv2-at-pm-info">${bits.join(' · ')}</div>`);
-  }
-  if (!linhas.length) return '';
-  return `<div class="gcv2-at-patient-mini">${linhas.join('')}</div>`;
-}
-
 // -----------------------------------------------------------------
 // Corpo do atestado (texto formal)
 // -----------------------------------------------------------------
@@ -125,6 +101,17 @@ function buildAtestadoBody({ doctor, patient, tipoImpossibilidade, prepImpossibi
   const mot      = motivo && motivo.trim() ? ` por ${escHtml(motivo.trim())}` : '';
   const periodo  = escHtml(periodoTexto || '');
 
+  // Identificação reforçada (DN + CC) entre o nome e "se encontra" — reforço
+  // legal do atestado. Cada elemento só entra se tiver valor; sem nenhum dos
+  // dois, a frase fica exactamente como estava antes (nome directo).
+  const idParts = [];
+  if (patient?.dob) {
+    const d = new Date(patient.dob);
+    if (!isNaN(d.getTime())) idParts.push(`data de nascimento ${escHtml(d.toLocaleDateString('pt-PT'))}`);
+  }
+  if (patient?.cc_number) idParts.push(`Cartão de Cidadão nº ${escHtml(patient.cc_number)}`);
+  const idFrag = idParts.length ? `, com ${idParts.join(' e ')},` : '';
+
   const creditos = [
     `Eu, <strong>${doutor}</strong>`,
     `Licenciado pela Faculdade de Medicina da Universidade de Coimbra`,
@@ -136,11 +123,11 @@ function buildAtestadoBody({ doctor, patient, tipoImpossibilidade, prepImpossibi
 
   return `
     <div class="gcv2-atestado-body">
-      ${buildPatientMini(patient)}
+      ${buildPatientCard({ patient, mode: 'full', hideInsurance: true })}
       <p class="gcv2-at-creditos">${creditos},</p>
 
       <p class="gcv2-at-frase">
-        atesto por minha honra que ${artigo} <strong>${paciente}</strong>
+        atesto por minha honra que ${artigo} <strong>${paciente}</strong>${idFrag}
         se encontra impossibilitad${artigo} ${prep} <strong>${impos}</strong>${mot}
         <strong>${periodo}</strong>.
       </p>

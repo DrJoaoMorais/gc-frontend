@@ -2,7 +2,7 @@
 // patient-card.js  ·  Componente universal v2
 // Bloco de identificação do doente para relatórios e atestados
 // =================================================================
-// Função pura: recebe { patient, mode }, devolve HTML.
+// Função pura: recebe { patient, mode, hideInsurance }, devolve HTML.
 // Não faz fetch. Não tem listeners. Não escreve na BD.
 //
 // Modos:
@@ -50,9 +50,11 @@ function buildAddress(patient) {
  * @param {object} opts
  * @param {object} opts.patient - registo da tabela patients
  * @param {'inline'|'full'} [opts.mode='full']
+ * @param {boolean} [opts.hideInsurance=false] - omite a linha da seguradora
+ *   mesmo que o doente tenha uma associada (ex: Atestado, que nunca a mostra)
  * @returns {string} HTML
  */
-export function buildPatientCard({ patient, clinic, mode = 'full' } = {}) {
+export function buildPatientCard({ patient, clinic, mode = 'full', hideInsurance = false } = {}) {
   if (!patient) return '';
 
   const name = escAttr(patient.full_name || '—');
@@ -82,7 +84,7 @@ export function buildPatientCard({ patient, clinic, mode = 'full' } = {}) {
   if (patient.nif)       ids.push(`<span>NIF <strong>${escAttr(patient.nif)}</strong></span>`);
   if (patient.sns)       ids.push(`<span>SNS <strong>${escAttr(patient.sns)}</strong></span>`);
   if (patient.cc_number) ids.push(`<span>CC <strong>${escAttr(patient.cc_number)}</strong></span>`);
-  if (patient.insurance_provider) {
+  if (patient.insurance_provider && !hideInsurance) {
     const apolice = patient.insurance_policy_number ? ` · Ap. ${escAttr(patient.insurance_policy_number)}` : '';
     ids.push(`<span><strong>${escAttr(patient.insurance_provider)}</strong>${apolice}</span>`);
   }
