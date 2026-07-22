@@ -841,6 +841,12 @@
     let TODAY_APPT_CLINIC_ID = null; // clínica da marcação de hoje, se existir — tem sempre prioridade
 
     /* ── utilidades ── */
+    function getHostWindow() {
+      if (window.opener && !window.opener.closed) return window.opener;
+      if (window.parent && window.parent !== window) return window.parent;
+      return null;
+    }
+
     function esc(s) {
       return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
@@ -1653,11 +1659,12 @@
       feed.querySelectorAll('[data-action="relatorio"]').forEach(btn => {
         btn.addEventListener('click', () => {
           const cid = btn.getAttribute('data-consult-id');
-          /* dispara evento para a janela pai (doente.js) se existir */
-          if (window.opener && typeof window.opener.__gcv2_openRelatorioConsultaModal === 'function') {
-            window.opener.__gcv2_openRelatorioConsultaModal({ patientId: PATIENT_ID, consultationId: cid });
-          } else if (window.opener && typeof window.opener.__gc_openRelatorioConsulta === 'function') {
-            window.opener.__gc_openRelatorioConsulta({ patientId: PATIENT_ID, consultationId: cid });
+          /* dispara evento para a janela pai (doente.js) se existir — opener (popup) ou parent (iframe) */
+          const host = getHostWindow();
+          if (host && typeof host.__gcv2_openRelatorioConsultaModal === 'function') {
+            host.__gcv2_openRelatorioConsultaModal({ patientId: PATIENT_ID, consultationId: cid });
+          } else if (host && typeof host.__gc_openRelatorioConsulta === 'function') {
+            host.__gc_openRelatorioConsulta({ patientId: PATIENT_ID, consultationId: cid });
           } else {
             alert(`Relatório da consulta ${cid.slice(0,8)}… — função não encontrada no GC principal.`);
           }
