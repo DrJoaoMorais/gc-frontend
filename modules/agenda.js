@@ -484,6 +484,8 @@ export function renderAgendaList() {
         <div class="gcAgendaGrid">
           <div class="gcAgendaTime">${escapeHtml(timeTxt)}</div>
           <div class="gcAgendaNameWrap">
+            ${isBlock ? "" : `<button type="button" data-open-feed-legacy="${escapeHtml(r.patient_id || "")}" title="Feed antigo"
+              style="border:none;background:transparent;cursor:pointer;font-size:13px;margin-right:2px;color:#0f2d52;">⏱️</button>`}
             ${isBlock ? "" : `<button type="button" data-open-feed="${escapeHtml(r.patient_id || "")}" title="Abrir Feed novo"
               style="border:none;background:transparent;cursor:pointer;font-size:13px;margin-right:4px;">🔗</button>`}
             ${isBlock
@@ -516,6 +518,7 @@ export function renderAgendaList() {
       if (t?.closest?.("[data-status-select='1']")) return;
       if (t?.closest?.("[data-patient-open='1']")) return;
       if (t?.closest?.("[data-open-feed]")) return;
+      if (t?.closest?.("[data-open-feed-legacy]")) return;
       const id  = li.getAttribute("data-appt-id");
       const row = rows.find((x) => x.id === id);
       if (row) openApptModal({ mode: "edit", row });
@@ -529,7 +532,17 @@ export function renderAgendaList() {
         const row    = rows.find((x) => x.id === apptId);
         if (!row) return;
         if (!row.patient_id) { alert("Marcação sem patient_id."); return; }
-        openPatientFeedFromAny({ id: row.patient_id });
+        window.__gc_openFeedPanel(row.patient_id, G.activeClinicId || null);
+      });
+    }
+
+    const feedLegacyBtn = li.querySelector("[data-open-feed-legacy]");
+    if (feedLegacyBtn) {
+      feedLegacyBtn.addEventListener("click", (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        const pid = feedLegacyBtn.getAttribute("data-open-feed-legacy");
+        if (!pid) { alert("Marcação sem patient_id."); return; }
+        openPatientFeedFromAny({ id: pid });
       });
     }
 
