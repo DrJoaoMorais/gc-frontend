@@ -97,6 +97,7 @@ const DOC_EXTRA_CSS = `
   .pdv2-doc-list{margin:0;padding-left:18px;font-size:13px;line-height:1.6;}
   .pdv2-doc-list li{margin-bottom:2px;}
   .pdv2-doc-prose{font-size:13px;line-height:1.6;white-space:pre-wrap;}
+  .pdv2-clinical-info{font-size:11px;color:#555;margin:2px 0 0 4px;white-space:pre-wrap;}
 `;
 
 function escHtml(v) {
@@ -344,6 +345,7 @@ export function mount(container, options = {}) {
       rows: [],
       loaded: false,
       selected: new Set(),      // exam ids (uuid)
+      clinicalInfoByExam: new Map(), // exam id -> texto de informação clínica (por exame)
       openGroups: new Set(),    // group labels (examGroupLabel) abertos manualmente
       search: "",
       date: today,
@@ -790,11 +792,17 @@ export function mount(container, options = {}) {
       const selCount = items.reduce((n, e) => n + (state.exames.selected.has(e.id) ? 1 : 0), 0);
       const itemsHtml = filtered.map((e) => {
         const checked = state.exames.selected.has(e.id);
+        const infoVal = checked ? (state.exames.clinicalInfoByExam.get(e.id) || "") : "";
         return `
-          <label class="pdv2-item">
-            <input type="checkbox" data-pdv2-examid="${escHtml(e.id)}" ${checked ? "checked" : ""}>
-            <span>${escHtml(e.exam_name)}</span>
-          </label>`;
+          <div class="pdv2-examRow">
+            <label class="pdv2-item">
+              <input type="checkbox" data-pdv2-examid="${escHtml(e.id)}" ${checked ? "checked" : ""}>
+              <span>${escHtml(e.exam_name)}</span>
+            </label>
+            ${checked ? `
+            <textarea class="pdv2-examinfo" data-pdv2-examinfo="${escHtml(e.id)}"
+              placeholder="Informação clínica para este exame…">${escHtml(infoVal)}</textarea>` : ""}
+          </div>`;
       }).join("");
       html += `
         <div class="pdv2-grp ${isOpen ? "pdv2-grp--open" : ""}" data-pdv2-grplabel="${escHtml(label)}">
@@ -834,7 +842,10 @@ export function mount(container, options = {}) {
 
   function buildExamesDocBodyHtml(examsInGroup) {
     let html = `<div class="pdv2-doc-section"><ul class="pdv2-doc-list">`;
-    examsInGroup.forEach((e) => { html += `<li>${escHtml(e.exam_name)}</li>`; });
+    examsInGroup.forEach((e) => {
+      const info = state.exames.clinicalInfoByExam.get(e.id) || "";
+      html += `<li>${escHtml(e.exam_name)}${info ? `<div class="pdv2-clinical-info">${escHtml(info)}</div>` : ""}</li>`;
+    });
     html += `</ul></div>`;
     return html;
   }
@@ -967,15 +978,30 @@ export function mount(container, options = {}) {
     panel.querySelectorAll(".pdv2-item input[data-pdv2-examid]").forEach((cb) => {
       cb.addEventListener("change", () => {
         const id = cb.dataset.pdv2Examid;
-        if (cb.checked) state.exames.selected.add(id); else state.exames.selected.delete(id);
+        if (cb.checked) {
+          state.exames.selected.add(id);
+        } else {
+          state.exames.selected.delete(id);
+          state.exames.clinicalInfoByExam.delete(id);
+        }
         renderExamesPanel();
       });
     });
 
     panel.querySelectorAll("[data-pdv2-removeexamid]").forEach((x) => {
       x.addEventListener("click", () => {
-        state.exames.selected.delete(x.dataset.pdv2Removeexamid);
+        const id = x.dataset.pdv2Removeexamid;
+        state.exames.selected.delete(id);
+        state.exames.clinicalInfoByExam.delete(id);
         renderExamesPanel();
+      });
+    });
+
+    panel.querySelectorAll("textarea[data-pdv2-examinfo]").forEach((ta) => {
+      ta.addEventListener("input", () => {
+        const id = ta.dataset.pdv2Examinfo;
+        const val = ta.value;
+        if (val) state.exames.clinicalInfoByExam.set(id, val); else state.exames.clinicalInfoByExam.delete(id);
       });
     });
 
@@ -1179,6 +1205,10 @@ const CSS = `
 .pdv2-item:hover{background:var(--bg);}
 .pdv2-item input{width:15px;height:15px;accent-color:var(--blue);flex-shrink:0;margin-top:1px;cursor:pointer;}
 .pdv2-info{display:block;font-size:10px;color:var(--mut);margin-top:1px;}
+.pdv2-examinfo{width:100%;min-height:52px;margin:2px 0 4px 23px;padding:6px 8px;font-size:11px;line-height:1.4;
+  border:1px solid #bcd4f5;border-radius:6px;font-family:inherit;color:var(--ink);background:#fff;
+  resize:vertical;box-sizing:border-box;}
+.pdv2-examinfo:focus{outline:none;border-color:var(--blue);}
 
 .pdv2-vazio{font-size:12px;color:#94a3b8;padding:8px 6px;line-height:1.6;}
 
