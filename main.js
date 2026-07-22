@@ -98,6 +98,10 @@ import "./modules/relatorios/relatorios.js";
 import { renderDoentePanorama } from "./modules/doente-admin.js";
 window.__gc_renderDoentePanorama = renderDoentePanorama;
 
+// Painel iframe do feed do doente (Passo 2/6 — isolado, sem ligação à agenda)
+import { openFeedPanel } from "./modules/feed-panel.js";
+window.__gc_openFeedPanel = openFeedPanel;
+
 // Boot
 import { boot }                             from "./modules/boot.js";
 
