@@ -346,6 +346,7 @@ export function mount(container, options = {}) {
       loaded: false,
       selected: new Set(),      // exam ids (uuid)
       clinicalInfoByExam: new Map(), // exam id -> texto de informação clínica (por exame)
+      customExam: { name: "", info: "" }, // exame de texto livre, fora do catálogo
       openGroups: new Set(),    // group labels (examGroupLabel) abertos manualmente
       search: "",
       date: today,
@@ -776,8 +777,8 @@ export function mount(container, options = {}) {
   }
 
   function buildExamesGroupsHtml() {
-    if (!state.exames.loaded) return `<div class="pdv2-vazio">A carregar catálogo de exames…</div>`;
-    if (!state.exames.rows.length) return `<div class="pdv2-vazio">Sem exames activos no catálogo.</div>`;
+    if (!state.exames.loaded) return `<div class="pdv2-vazio">A carregar catálogo de exames…</div>` + buildCustomExamHtml();
+    if (!state.exames.rows.length) return `<div class="pdv2-vazio">Sem exames activos no catálogo.</div>` + buildCustomExamHtml();
 
     const qNorm = normalizeTxt(state.exames.search.trim());
     const groups = groupExamRows();
@@ -813,7 +814,25 @@ export function mount(container, options = {}) {
           <div class="pdv2-grpItems">${itemsHtml}</div>
         </div>`;
     });
-    return anyGroup ? html : `<div class="pdv2-vazio">Sem resultados para a pesquisa.</div>`;
+    return (anyGroup ? html : `<div class="pdv2-vazio">Sem resultados para a pesquisa.</div>`) + buildCustomExamHtml();
+  }
+
+  /**
+   * buildCustomExamHtml
+   * Bloco fixo "+ Outro exame" no fundo da lista (dentro de .pdv2-colEsq, depois do
+   * último grupo) — texto livre, fora de exams_catalog. Sempre visível, mesmo com
+   * pesquisa activa ou catálogo vazio/a carregar.
+   */
+  function buildCustomExamHtml() {
+    const custom = state.exames.customExam;
+    return `
+      <div class="pdv2-customExam">
+        <div class="pdv2-customExamTitle">+ Outro exame</div>
+        <input type="text" class="pdv2-customExamName" data-pdv2-role="customexamname"
+          placeholder="Nome do exame…" value="${escHtml(custom.name)}">
+        <textarea class="pdv2-examinfo" data-pdv2-role="customexaminfo"
+          placeholder="Informação clínica (opcional)…">${escHtml(custom.info)}</textarea>
+      </div>`;
   }
 
   function selectedExamsByGroup() {
@@ -850,29 +869,45 @@ export function mount(container, options = {}) {
     return html;
   }
 
+  /**
+   * buildCustomExamDocBodyHtml
+   * Mesmo padrão de buildExamesDocBodyHtml (nome + info clínica por baixo, se
+   * houver), a partir de state.exames.customExam em vez de uma linha do catálogo.
+   */
+  function buildCustomExamDocBodyHtml() {
+    const name = state.exames.customExam.name.trim();
+    const info = state.exames.customExam.info.trim();
+    let html = `<div class="pdv2-doc-section"><ul class="pdv2-doc-list">`;
+    html += `<li>${escHtml(name)}${info ? `<div class="pdv2-clinical-info">${escHtml(info)}</div>` : ""}</li>`;
+    html += `</ul></div>`;
+    return html;
+  }
+
   /* ---- PDF: Exames (1 documento por modalidade, em sequência) ---- */
 
   async function onGerarExamesPdf() {
     if (state.exames.generating) return;
     const byGroup = selectedExamsByGroup();
-    if (!byGroup.size) return;
+    const customName = state.exames.customExam.name.trim();
+    const entries = [...byGroup.entries()].map(([label, exams]) => ({ label, exams, custom: false }));
+    if (customName) entries.push({ label: customName, exams: null, custom: true });
+    if (!entries.length) return;
 
     state.exames.generating = true;
     state.exames.lastRun = null;
     const results = [];
-    const entries = [...byGroup.entries()];
     state.exames.progress = { current: 0, total: entries.length, label: "" };
     renderExamesPanel();
 
     for (let i = 0; i < entries.length; i++) {
-      const [label, exams] = entries[i];
-      state.exames.progress = { current: i + 1, total: entries.length, label };
+      const entry = entries[i];
+      state.exames.progress = { current: i + 1, total: entries.length, label: entry.label };
       renderExamesPanel();
 
       try {
         const fullHtml = await buildFullDocHtml({
-          title: `Pedido de Exame — ${label}`,
-          contentHtml: buildExamesDocBodyHtml(exams),
+          title: `Pedido de Exame — ${entry.label}`,
+          contentHtml: entry.custom ? buildCustomExamDocBodyHtml() : buildExamesDocBodyHtml(entry.exams),
           date: state.exames.date
         });
         const blob = await renderPdfViaProxy(fullHtml);
@@ -881,17 +916,17 @@ export function mount(container, options = {}) {
           clinicId: state.patient.clinicId,
           patientId: state.patientId,
           consultationId: state.consultationId,
-          title: `Pedido de Exame — ${label}`,
+          title: `Pedido de Exame — ${entry.label}`,
           category: "exames",
           html: fullHtml,
           docNumber: generateDocNumber(),
           folder: "exames",
-          fileNameHint: slugifyLabel(label)
+          fileNameHint: slugifyLabel(entry.label)
         });
-        results.push({ label, ok: true, url: URL.createObjectURL(blob) });
+        results.push({ label: entry.label, ok: true, url: URL.createObjectURL(blob), custom: entry.custom });
       } catch (err) {
-        console.error(`[pedidos-v2] erro ao gerar PDF de exame (${label}):`, err);
-        results.push({ label, ok: false, error: String(err?.message || err) });
+        console.error(`[pedidos-v2] erro ao gerar PDF de exame (${entry.label}):`, err);
+        results.push({ label: entry.label, ok: false, error: String(err?.message || err), custom: entry.custom });
         break; // pára a sequência — não gera os restantes às cegas
       }
     }
@@ -899,6 +934,12 @@ export function mount(container, options = {}) {
     state.exames.generating = false;
     state.exames.progress = null;
     state.exames.lastRun = { total: entries.length, results };
+    // Limpa "Outro exame" só se o seu próprio PDF tiver sido gerado com sucesso (ponto 5).
+    // Como está sempre no fim da sequência, só chega aqui já bem-sucedido se nada antes
+    // dele tiver falhado (break pára tudo no primeiro erro) — não persiste para o pedido
+    // seguinte, mas mantém-se se falhar (ou nem chegar a correr) para o utilizador tentar de novo.
+    const customResult = results.find((r) => r.custom);
+    if (customResult?.ok) state.exames.customExam = { name: "", info: "" };
     renderExamesPanel();
   }
 
@@ -920,6 +961,9 @@ export function mount(container, options = {}) {
   function buildExamesPanelHtml() {
     const n = state.exames.selected.size;
     const nGroups = selectedExamsByGroup().size;
+    const hasCustom = !!state.exames.customExam.name.trim();
+    const nTotal = n + (hasCustom ? 1 : 0);
+    const nGroupsTotal = nGroups + (hasCustom ? 1 : 0);
     return `
       <div class="pdv2-quick">${buildExamesQuickHtml()}</div>
       <div class="pdv2-body">
@@ -942,10 +986,10 @@ export function mount(container, options = {}) {
             <div class="pdv2-linha">
               <input type="date" data-pdv2-role="examdate" style="flex:1;" value="${escHtml(state.exames.date)}">
             </div>
-            <button class="pdv2-btnPdf" data-pdv2="gerarpdf-exames" ${(state.exames.generating || !n) ? "disabled" : ""}>${
+            <button class="pdv2-btnPdf" data-pdv2="gerarpdf-exames" ${(state.exames.generating || !nGroupsTotal) ? "disabled" : ""}>${
               state.exames.generating
                 ? `A gerar PDF ${state.exames.progress.current} de ${state.exames.progress.total} — ${escHtml(state.exames.progress.label)}…`
-                : `Gerar ${nGroups || 0} PDF${nGroups === 1 ? "" : "s"} · ${n} exame${n === 1 ? "" : "s"}`
+                : `Gerar ${nGroupsTotal || 0} PDF${nGroupsTotal === 1 ? "" : "s"} · ${nTotal} exame${nTotal === 1 ? "" : "s"}`
             }</button>
             ${renderExamesResultsSummary()}
             <div class="pdv2-notaPdf">Um PDF por modalidade</div>
@@ -1013,6 +1057,15 @@ export function mount(container, options = {}) {
 
     panel.querySelector('[data-pdv2-role="examdate"]')?.addEventListener("input", (e) => {
       state.exames.date = e.target.value;
+    });
+
+    panel.querySelector('[data-pdv2-role="customexamname"]')?.addEventListener("input", (e) => {
+      state.exames.customExam.name = e.target.value;
+      renderExamesPanel({ preserveFocus: "customexamname" });
+    });
+
+    panel.querySelector('[data-pdv2-role="customexaminfo"]')?.addEventListener("input", (e) => {
+      state.exames.customExam.info = e.target.value;
     });
 
     panel.querySelector('[data-pdv2="gerarpdf-exames"]')?.addEventListener("click", onGerarExamesPdf);
@@ -1209,6 +1262,12 @@ const CSS = `
   border:1px solid #bcd4f5;border-radius:6px;font-family:inherit;color:var(--ink);background:#fff;
   resize:vertical;box-sizing:border-box;}
 .pdv2-examinfo:focus{outline:none;border-color:var(--blue);}
+
+.pdv2-customExam{border:1px dashed #c7d5ea;border-radius:10px;padding:10px 12px;margin-top:4px;background:#fbfdff;}
+.pdv2-customExamTitle{font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px;}
+.pdv2-customExamName{width:100%;padding:8px 10px;font-size:12px;border:1px solid #cbd5e1;border-radius:7px;font-family:inherit;color:var(--ink);background:#fff;box-sizing:border-box;margin-bottom:6px;}
+.pdv2-customExamName:focus{outline:none;border-color:var(--blue);}
+.pdv2-customExam .pdv2-examinfo{margin-left:0;}
 
 .pdv2-vazio{font-size:12px;color:#94a3b8;padding:8px 6px;line-height:1.6;}
 
