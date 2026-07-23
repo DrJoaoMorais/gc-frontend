@@ -532,7 +532,7 @@ export function renderAgendaList() {
         const row    = rows.find((x) => x.id === apptId);
         if (!row) return;
         if (!row.patient_id) { alert("Marcação sem patient_id."); return; }
-        openPatientFeedFromAny({ id: row.patient_id });
+        window.__gc_openFeedPanel(row.patient_id, G.activeClinicId || null);
       });
     }
 
