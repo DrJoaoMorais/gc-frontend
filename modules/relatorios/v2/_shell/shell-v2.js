@@ -197,3 +197,29 @@ window.__gcv2_loadClinicById = loadClinicById;
 window.__gcv2_loadCurrentDoctor = loadCurrentDoctor;
 window.__gcv2_getVinhetaDataUrl = getVinhetaDataUrl;
 window.__gcv2_formatDatePT = formatDatePT;
+
+const DIACRITICS_RE = new RegExp('[' + String.fromCharCode(0x0300) + '-' + String.fromCharCode(0x036f) + ']', 'g');
+
+export function buildFriendlyFileName(tipo, patientFullName, dateIso) {
+  const apelido = String(patientFullName || 'Doente')
+    .trim().split(/\s+/).pop()
+    .normalize('NFD').replace(DIACRITICS_RE, '')
+    .replace(/[^a-zA-Z0-9]/g, '');
+  const d = dateIso ? new Date(dateIso + 'T00:00:00') : new Date();
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mes = meses[d.getMonth()];
+  const aaaa = d.getFullYear();
+  return `${tipo}_${apelido}_${dd}${mes}${aaaa}.pdf`;
+}
+
+export function openAndDownloadPdf(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}

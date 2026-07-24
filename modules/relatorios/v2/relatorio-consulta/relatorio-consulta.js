@@ -6,7 +6,7 @@
 // PDF e exame objectivo entram nos sub-passos seguintes (3.5.b/c).
 // =================================================================
 
-import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl } from '../_shell/shell-v2.js';
+import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl, buildFriendlyFileName, openAndDownloadPdf } from '../_shell/shell-v2.js';
 import { buildPatientCard } from '../_components/patient-card.js';
 
 const escAttr = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -621,8 +621,8 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       const buf = await resp.arrayBuffer();
       const blob = new Blob([buf], { type: 'application/pdf' });
 
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      const friendlyFileName = buildFriendlyFileName('RelatorioConsulta', patient?.full_name, state.date);
+      openAndDownloadPdf(blob, friendlyFileName);
 
       const ts = new Date().toISOString().replace(/[:.]/g, '-');
       const title = `Relatório clínico — ${patient?.full_name || 'desconhecido'} — ${state.date}`;
