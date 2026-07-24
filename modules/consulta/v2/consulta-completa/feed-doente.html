@@ -840,6 +840,7 @@
     let PATIENT_CLINIC_NAME = null;
     let TODAY_APPT_CLINIC_ID = null; // clínica da marcação de hoje, se existir — tem sempre prioridade
     let TODAY_APPT_ID = null; // id da marcação de hoje, se existir
+    let TODAY_APPT_MODE = null; // mode da marcação de hoje, para não actualizar status se for bloqueio
 
     /* ── utilidades ── */
     function getHostWindow() {
@@ -1708,7 +1709,7 @@
           .eq('is_active', true)
           .maybeSingle(),
         sb.from('appointments')
-          .select('id, start_at, status, title, notes, clinic_id')
+          .select('id, start_at, status, title, notes, clinic_id, mode')
           .eq('patient_id', PATIENT_ID)
           .gte('start_at', hoje.toISOString())
           .lt('start_at', amanha.toISOString())
@@ -1727,6 +1728,7 @@
         PATIENT_CLINIC_NAME = clinicaNome || null;
         TODAY_APPT_CLINIC_ID = marcacaoHojeRes?.data?.[0]?.clinic_id || null;
         TODAY_APPT_ID = marcacaoHojeRes?.data?.[0]?.id || null;
+        TODAY_APPT_MODE = marcacaoHojeRes?.data?.[0]?.mode || null;
         const clinicaEl = document.getElementById('fd-clinica');
         if (clinicaEl && clinicaNome) { clinicaEl.textContent = `Clínica: ${clinicaNome}`; metaVisible = true; }
 
@@ -2125,6 +2127,14 @@
           .eq('id', fdRascunhoId);
         if (insErr) throw insErr;
         const consultId = fdRascunhoId;
+
+        if (TODAY_APPT_ID && TODAY_APPT_MODE !== 'bloqueio') {
+          const { error: apptErr } = await sb
+            .from('appointments')
+            .update({ status: 'done' })
+            .eq('id', TODAY_APPT_ID);
+          if (apptErr) console.error('[fd] erro a marcar appointment como done:', apptErr);
+        }
 
         /* 2. diagnósticos */
         if (fdDiagSelecionados.length) {
