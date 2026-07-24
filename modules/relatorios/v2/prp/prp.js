@@ -19,7 +19,7 @@
 // fixa; os atalhos são só sugestões e não apagam texto escrito à mão.
 // =================================================================
 
-import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl } from '../_shell/shell-v2.js';
+import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl, buildFriendlyFileName, openAndDownloadPdf } from '../_shell/shell-v2.js';
 import { buildPatientCard } from '../_components/patient-card.js';
 
 const escAttr = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
@@ -601,8 +601,8 @@ export async function openPrpModal({ patientId, onClose } = {}) {
         throw new Error('PDF inválido ou demasiado pequeno (provável em branco).');
       }
 
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      const friendlyFileName = buildFriendlyFileName('PRP-Visco', patient?.full_name, state.signDate);
+      openAndDownloadPdf(blob, friendlyFileName);
 
       const ts = new Date().toISOString().replace(/[:.]/g, '-');
       const fileName = `prp_visco_${state.signDate}_${ts}.pdf`;
