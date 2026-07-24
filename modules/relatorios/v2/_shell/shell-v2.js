@@ -214,12 +214,7 @@ export function buildFriendlyFileName(tipo, patientFullName, dateIso) {
 }
 
 export function openAndDownloadPdf(blob, fileName) {
-  const url = URL.createObjectURL(blob);
+  const file = new File([blob], fileName, { type: 'application/pdf' });
+  const url = URL.createObjectURL(file);
   window.open(url, '_blank');
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
 }
