@@ -5,7 +5,7 @@
 // Gera PDF via Cloudflare Worker, guarda em documents/.
 // =================================================================
 
-import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl } from '../_shell/shell-v2.js';
+import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl, buildFriendlyFileName, openAndDownloadPdf } from '../_shell/shell-v2.js';
 import { buildPatientCard } from '../_components/patient-card.js';
 import { buildPeriodEditor, bindPeriodEditor, readPeriodState, formatPeriodPt, defaultPeriodState } from '../_components/period.js';
 
@@ -329,8 +329,8 @@ export async function openAtestadoModal({ tipo = 'doenca', patientId, onClose } 
       const blob = new Blob([buf], { type: 'application/pdf' });
 
       // Abrir numa nova aba
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      const friendlyFileName = buildFriendlyFileName('Atestado', patient?.full_name, state.signDate);
+      openAndDownloadPdf(blob, friendlyFileName);
 
       // Guardar em documents/
       const ts = new Date().toISOString().replace(/[:.]/g, '-');
