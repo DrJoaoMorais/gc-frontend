@@ -839,6 +839,7 @@
     let PATIENT_CLINIC_ID = null;   // clínica DO DOENTE (patient_clinic.is_active) — usada no cabeçalho e como último recurso na gravação, com confirmação explícita do médico
     let PATIENT_CLINIC_NAME = null;
     let TODAY_APPT_CLINIC_ID = null; // clínica da marcação de hoje, se existir — tem sempre prioridade
+    let TODAY_APPT_ID = null; // id da marcação de hoje, se existir
 
     /* ── utilidades ── */
     function getHostWindow() {
@@ -1707,7 +1708,7 @@
           .eq('is_active', true)
           .maybeSingle(),
         sb.from('appointments')
-          .select('start_at, status, title, notes, clinic_id')
+          .select('id, start_at, status, title, notes, clinic_id')
           .eq('patient_id', PATIENT_ID)
           .gte('start_at', hoje.toISOString())
           .lt('start_at', amanha.toISOString())
@@ -1725,6 +1726,7 @@
         PATIENT_CLINIC_ID = clinicaRes?.data?.clinic_id || null;
         PATIENT_CLINIC_NAME = clinicaNome || null;
         TODAY_APPT_CLINIC_ID = marcacaoHojeRes?.data?.[0]?.clinic_id || null;
+        TODAY_APPT_ID = marcacaoHojeRes?.data?.[0]?.id || null;
         const clinicaEl = document.getElementById('fd-clinica');
         if (clinicaEl && clinicaNome) { clinicaEl.textContent = `Clínica: ${clinicaNome}`; metaVisible = true; }
 
