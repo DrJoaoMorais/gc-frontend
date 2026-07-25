@@ -831,6 +831,7 @@
   <script type="module">
     import { carregarConsulta } from './cc-queries.js';
     import { mount as pdv2Mount, unmount as pdv2Unmount } from '../../../pedidos/pedidos-v2.js';
+    import { checkConsentStatus, checkConsentPrinted } from '../../../consentimentos.js';
 
     /* ── params ── */
     const params     = new URLSearchParams(window.location.search);
@@ -841,6 +842,8 @@
     let TODAY_APPT_CLINIC_ID = null; // clínica da marcação de hoje, se existir — tem sempre prioridade
     let TODAY_APPT_ID = null; // id da marcação de hoje, se existir
     let TODAY_APPT_MODE = null; // mode da marcação de hoje, para não actualizar status se for bloqueio
+    let fdConsentStatus = {};
+    let fdConsentPrinted = {};
 
     /* ── utilidades ── */
     function getHostWindow() {
@@ -978,6 +981,31 @@
       });
 
       aplicarOffsets();
+    }
+
+    function fdAtualizarTagsConsentimento() {
+      const mapa = [
+        ['fdRgpdTag',         'rgpd'],
+        ['fdConsentPrpTag',   'prp'],
+        ['fdConsentAhTag',    'ah'],
+        ['fdConsentInfiltTag','corticoide'],
+      ];
+      for (const [elId, tipo] of mapa) {
+        const el = document.getElementById(elId);
+        if (!el) continue;
+        if (fdConsentStatus[tipo]) {
+          el.textContent = 'Assinado';
+          el.style.display = '';
+          el.style.background = '';
+          el.className = 'fd-sb-tag fd-sb-tag-assinado';
+        } else if (fdConsentPrinted[tipo]) {
+          el.textContent = 'Por assinar';
+          el.style.display = '';
+          el.className = 'fd-sb-tag fd-sb-tag-pendente';
+        } else {
+          el.style.display = 'none';
+        }
+      }
     }
 
     /* ── abrir exame em nova tab ── */
@@ -1729,6 +1757,9 @@
         TODAY_APPT_CLINIC_ID = marcacaoHojeRes?.data?.[0]?.clinic_id || null;
         TODAY_APPT_ID = marcacaoHojeRes?.data?.[0]?.id || null;
         TODAY_APPT_MODE = marcacaoHojeRes?.data?.[0]?.mode || null;
+        fdConsentStatus = await checkConsentStatus(PATIENT_ID, TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null);
+        fdConsentPrinted = await checkConsentPrinted(PATIENT_ID, TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null);
+        fdAtualizarTagsConsentimento();
         const clinicaEl = document.getElementById('fd-clinica');
         if (clinicaEl && clinicaNome) { clinicaEl.textContent = `Clínica: ${clinicaNome}`; metaVisible = true; }
 
