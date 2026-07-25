@@ -832,6 +832,7 @@
     import { carregarConsulta } from './cc-queries.js';
     import { mount as pdv2Mount, unmount as pdv2Unmount } from '../../../pedidos/pedidos-v2.js';
     import { checkConsentStatus, checkConsentPrinted } from '../../../consentimentos.js';
+    import { openQrModal } from '../../../consentimentos_qr.js';
 
     /* ── params ── */
     const params     = new URLSearchParams(window.location.search);
@@ -844,6 +845,8 @@
     let TODAY_APPT_MODE = null; // mode da marcação de hoje, para não actualizar status se for bloqueio
     let fdConsentStatus = {};
     let fdConsentPrinted = {};
+    let fdActiveClinicData = null;
+    let fdPatientData = null;
 
     /* ── utilidades ── */
     function getHostWindow() {
@@ -1006,6 +1009,82 @@
           el.style.display = 'none';
         }
       }
+    }
+
+    const FD_TYPE_LABELS = { rgpd: 'RGPD', prp: 'PRP', ah: 'Ác. Hialurónico', corticoide: 'Corticosteroide' };
+
+    async function fdOpenQrGuarded(tipo) {
+      const sb = window.sb;
+      // Normalizar "ah" → "acido_hialuronico" para corresponder ao enum na BD
+      const docType = tipo === 'ah' ? 'acido_hialuronico' : tipo;
+      const clinicId = TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null;
+
+      if (!fdConsentStatus[tipo]) {
+        openQrModal({
+          type: docType, patient: { id: PATIENT_ID, ...fdPatientData },
+          clinicId, clinic: fdActiveClinicData,
+          onSigned: async () => {
+            fdConsentStatus = await checkConsentStatus(PATIENT_ID, clinicId);
+            fdConsentPrinted = await checkConsentPrinted(PATIENT_ID, clinicId);
+            fdAtualizarTagsConsentimento();
+          }
+        });
+        return;
+      }
+
+      // Buscar data de assinatura e PDF do token mais recente
+      const { data: tokens } = await sb.from('consent_tokens')
+        .select('id, signed_at')
+        .eq('patient_id', PATIENT_ID).eq('clinic_id', clinicId)
+        .eq('document_type', docType).eq('status', 'signed')
+        .order('signed_at', { ascending: false }).limit(1);
+
+      const token = tokens?.[0];
+      const sigDate = token?.signed_at
+        ? new Date(token.signed_at).toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' })
+        : 'data desconhecida';
+
+      // Buscar PDF da assinatura
+      let pdfUrl = null;
+      if (token) {
+        const { data: sigs } = await sb.from('consent_signatures')
+          .select('pdf_url').eq('token_id', token.id).not('pdf_url', 'is', null).limit(1);
+        pdfUrl = sigs?.[0]?.pdf_url || null;
+      }
+
+      // Modal de escolha
+      const overlay = document.createElement('div');
+      Object.assign(overlay.style, {
+        position: 'fixed', inset: '0', zIndex: '6000',
+        background: 'rgba(15,23,42,0.55)', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', padding: '16px',
+      });
+      overlay.innerHTML = `
+        <div style="background:#fff;border-radius:14px;padding:28px 24px;width:min(380px,96vw);box-shadow:0 20px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column;gap:16px;">
+          <div style="font-size:15px;font-weight:700;color:#0f2d52;">${FD_TYPE_LABELS[tipo] || tipo} — já assinado</div>
+          <div style="font-size:13px;color:#475569;">Assinado em <strong>${sigDate}</strong>.</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${pdfUrl
+              ? `<a id="fdGuardView" href="${pdfUrl}" target="_blank" style="display:block;text-align:center;padding:10px;border-radius:10px;background:#0f2d52;color:#fff;font-weight:700;font-size:14px;text-decoration:none;">📄 Visualizar consentimento</a>`
+              : `<div style="text-align:center;padding:10px;border-radius:10px;background:#f1f5f9;color:#94a3b8;font-size:13px;">PDF não disponível</div>`}
+            <button id="fdGuardNew" style="padding:10px;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;color:#0f2d52;font-size:14px;font-weight:600;cursor:pointer;">+ Gerar novo consentimento</button>
+            <button id="fdGuardCancel" style="padding:8px;border-radius:10px;border:none;background:none;color:#94a3b8;font-size:13px;cursor:pointer;">Cancelar</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      const close = () => overlay.remove();
+      document.getElementById('fdGuardCancel')?.addEventListener('click', close);
+      overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+      document.getElementById('fdGuardNew')?.addEventListener('click', () => {
+        close();
+        openQrModal({ type: docType, patient: { id: PATIENT_ID, ...fdPatientData }, clinicId, clinic: fdActiveClinicData,
+          onSigned: async () => {
+            fdConsentStatus = await checkConsentStatus(PATIENT_ID, clinicId);
+            fdConsentPrinted = await checkConsentPrinted(PATIENT_ID, clinicId);
+            fdAtualizarTagsConsentimento();
+          }
+        });
+      });
     }
 
     /* ── abrir exame em nova tab ── */
@@ -1720,7 +1799,7 @@
       const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1);
       const [pacienteRes, consultasRes, clinicaRes, marcacaoHojeRes] = await Promise.all([
         sb.from('patients')
-          .select('full_name, dob, sns, phone, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas, contexto_habitacional, profissao, atividade_desportiva, insurance_provider, insurance_policy_number')
+          .select('full_name, dob, sns, phone, nif, email, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas, contexto_habitacional, profissao, atividade_desportiva, insurance_provider, insurance_policy_number')
           .eq('id', PATIENT_ID)
           .single(),
         sb.from('consultations')
@@ -1746,6 +1825,7 @@
       /* nome + idade + sns + phone */
       if (!pacienteRes.error && pacienteRes.data) {
         const p = pacienteRes.data;
+        fdPatientData = p;
         document.getElementById('fd-nome').textContent = p.full_name || 'Doente';
 
         const metaEl = document.getElementById('fd-meta');
@@ -1759,6 +1839,13 @@
         TODAY_APPT_MODE = marcacaoHojeRes?.data?.[0]?.mode || null;
         fdConsentStatus = await checkConsentStatus(PATIENT_ID, TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null);
         fdConsentPrinted = await checkConsentPrinted(PATIENT_ID, TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null);
+        if (TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID) {
+          const { data: cData } = await sb.from('clinics')
+            .select('name, address_line1, postal_code, city')
+            .eq('id', TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID)
+            .single();
+          fdActiveClinicData = cData || null;
+        }
         fdAtualizarTagsConsentimento();
         const clinicaEl = document.getElementById('fd-clinica');
         if (clinicaEl && clinicaNome) { clinicaEl.textContent = `Clínica: ${clinicaNome}`; metaVisible = true; }
@@ -2428,6 +2515,11 @@
       const { openRelatorioClinicoModal } = await import('../../../relatorios/v2/relatorio-clinico/relatorio-clinico.js');
       await openRelatorioClinicoModal({ patientId: PATIENT_ID, onClose: async () => { await boot(); } });
     });
+
+    document.getElementById('fdBtnRgpd')?.addEventListener('click', () => fdOpenQrGuarded('rgpd'));
+    document.getElementById('fdBtnConsentPrp')?.addEventListener('click', () => fdOpenQrGuarded('prp'));
+    document.getElementById('fdBtnConsentAh')?.addEventListener('click', () => fdOpenQrGuarded('ah'));
+    document.getElementById('fdBtnConsentInfilt')?.addEventListener('click', () => fdOpenQrGuarded('corticoide'));
 
     boot();
   </script>
