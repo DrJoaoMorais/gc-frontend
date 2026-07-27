@@ -738,7 +738,11 @@ export function renderQuickPatientResults(results) {
         if (typeof window.__gc_renderCurrentView === "function") await window.__gc_renderCurrentView();
         return;
       }
-      await openPatientFeedFromAny({ id: pid });
+      if (typeof window.__gc_openFeedPanel === 'function') {
+        window.__gc_openFeedPanel(pid, G.activeClinicId || null);
+      } else {
+        await openPatientFeedFromAny({ id: pid });
+      }
     } catch (e) {
       console.error("Abrir FEED a partir da pesquisa falhou:", e);
       alert("Não consegui abrir o Feed a partir da pesquisa. Vê a consola para detalhe.");
