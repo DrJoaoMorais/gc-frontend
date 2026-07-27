@@ -484,12 +484,14 @@ export function renderAgendaList() {
         <div class="gcAgendaGrid">
           <div class="gcAgendaTime">${escapeHtml(timeTxt)}</div>
           <div class="gcAgendaNameWrap">
-            ${isBlock ? "" : `<button type="button" data-open-feed-legacy="${escapeHtml(r.patient_id || "")}" title="Feed antigo"
-              style="border:none;background:transparent;cursor:pointer;font-size:13px;margin-right:2px;color:#0f2d52;">⏱️</button>`}
-            ${isBlock
-              ? `<span class="gcAgendaNameText">${escapeHtml("—")}</span>`
-              : `<span data-patient-open="1" class="gcPatientLink gcAgendaNameText">${escapeHtml(patName)}</span>`
-            }
+            <div style="display:flex; align-items:center; gap:2px; min-width:0;">
+              ${isBlock
+                ? `<span class="gcAgendaNameText">${escapeHtml("—")}</span>`
+                : `<span data-patient-open="1" class="gcPatientLink gcAgendaNameText" style="min-width:0;">${escapeHtml(patName)}</span>`
+              }
+              ${isBlock ? "" : `<button type="button" data-open-feed-legacy="${escapeHtml(r.patient_id || "")}" title="Feed antigo"
+                style="border:none;background:transparent;cursor:pointer;font-size:13px;flex-shrink:0;color:#0f2d52;">⏱️</button>`}
+            </div>
             ${notes ? `<span class="gcAgendaNotesBelow">Notas: ${escapeHtml(notes)}</span>` : ""}
           </div>
           <div class="gcAgendaCell gcAgendaCellType" title="${escapeHtml(proc)}">${escapeHtml(proc)}</div>
