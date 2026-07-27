@@ -1084,6 +1084,125 @@
       });
     }
 
+    function fdOpenIdentidadeModal(mode) {
+      const canEdit = mode === 'edit';
+      const ro = canEdit ? '' : 'readonly';
+      const dis = canEdit ? '' : 'disabled';
+      const canOpenEdit = ['super_admin', 'admin', 'medico', 'administrativo'].includes(fdUserRole);
+      const p = fdPatientData || {};
+      const clinicName = PATIENT_CLINIC_NAME || '—';
+
+      document.getElementById('fdIdentOverlay')?.remove();
+
+      const overlay = document.createElement('div');
+      overlay.id = 'fdIdentOverlay';
+      Object.assign(overlay.style, {
+        position: 'fixed', inset: '0', zIndex: '6000',
+        background: 'rgba(15,23,42,0.55)', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', padding: '16px',
+      });
+      overlay.innerHTML = `
+        <div style="background:#fff;width:min(980px,96vw);max-height:92vh;overflow:auto;border-radius:14px;border:1px solid #e5e5e5;padding:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div style="font-weight:900;font-size:16px;color:#0f2d52;">Identificação do doente ${canEdit ? '(editar)' : '(ver)'}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              ${!canEdit && canOpenEdit ? `<button id="fdBtnIdentEditTop" style="padding:6px 14px;border-radius:8px;border:none;background:#0f2d52;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">Editar</button>` : ``}
+              <button id="fdBtnIdentCloseTop" style="padding:6px 14px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;color:#0f2d52;font-size:13px;font-weight:600;cursor:pointer;">Fechar</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;padding:12px;border:1px solid #e5e7eb;border-radius:12px;background:#f8fafc;">
+            <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:#64748b;margin-bottom:8px;">Clínica ativa</div>
+            <div style="padding:10px 12px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#111827;">${esc(clinicName)}</div>
+          </div>
+
+          <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <label>Nome completo</label>
+              <input id="fdIdFullName" ${ro} value="${esc(p.full_name)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
+            </div>
+            <div>
+              <label>Data de nascimento</label>
+              <input id="fdIdDob" type="date" ${ro} value="${esc(p.dob)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
+            </div>
+
+            <div>
+              <label>Telefone</label>
+              <input id="fdIdPhone" ${ro} value="${esc(p.phone)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
+            </div>
+            <div>
+              <label>Email</label>
+              <input id="fdIdEmail" ${ro} value="${esc(p.email)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
+            </div>
+
+            <div>
+              <label>SNS</label>
+              <input id="fdIdSns" ${ro} value="${esc(p.sns)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
+            </div>
+            <div>
+              <label>NIF</label>
+              <input id="fdIdNif" ${ro} value="${esc(p.nif)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
+            </div>
+
+            <div>
+              <label>Cartão de Cidadão</label>
+              <input id="fdIdExternalId" ${ro} value="${esc(p.external_id)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
+            </div>
+            <div>
+              <label>Passaporte</label>
+              <input id="fdIdPassportId" ${ro} value="${esc(p.passport_id)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
+            </div>
+            <div>
+              <label>Seguradora</label>
+              <input id="fdIdInsuranceProvider" ${ro} value="${esc(p.insurance_provider)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
+            </div>
+
+            <div>
+              <label>Nº apólice</label>
+              <input id="fdIdInsurancePolicyNumber" ${ro} value="${esc(p.insurance_policy_number)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
+            </div>
+
+            <div style="grid-column:1 / -1;">
+              <label>Morada</label>
+              <input id="fdIdAddressLine1" ${ro} value="${esc(p.address_line1)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
+            </div>
+
+            <div>
+              <label>Código postal</label>
+              <input id="fdIdPostalCode" ${ro} value="${esc(p.postal_code)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
+            </div>
+            <div>
+              <label>Cidade</label>
+              <input id="fdIdCity" ${ro} value="${esc(p.city)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
+            </div>
+
+            <div>
+              <label>País</label>
+              <input id="fdIdCountry" ${ro} value="${esc(p.country)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
+            </div>
+
+            <div style="grid-column:1 / -1;">
+              <label>Notas</label>
+              <textarea id="fdIdNotes" ${ro} style="width:100%;min-height:90px;padding:10px;border:1px solid #ddd;border-radius:10px;">${esc(p.notes)}</textarea>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+            <div id="fdIdentStatus" style="color:#64748b;font-size:13px;"></div>
+            <div style="display:flex;gap:10px;">
+              <button id="fdBtnIdentClose" style="padding:8px 16px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;color:#0f2d52;font-size:13px;font-weight:600;cursor:pointer;">Cancelar</button>
+              <button id="fdBtnIdentSave" style="padding:8px 16px;border-radius:8px;border:none;background:#16a34a;color:#fff;font-size:13px;font-weight:700;cursor:pointer;" ${dis}>Gravar</button>
+            </div>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+
+      const close = () => overlay.remove();
+      document.getElementById('fdBtnIdentCloseTop')?.addEventListener('click', close);
+      document.getElementById('fdBtnIdentClose')?.addEventListener('click', close);
+      overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    }
+
     /* ── abrir exame em nova tab ── */
     window.fdAbrirExame = function(tipo, patientId, consultId, clinicId, assessmentId) {
       const base = new URL('../../../obj/regiao.html', window.location.href);
@@ -1797,7 +1916,7 @@
       const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1);
       const [pacienteRes, consultasRes, clinicaRes, marcacaoHojeRes] = await Promise.all([
         sb.from('patients')
-          .select('full_name, dob, sns, phone, nif, email, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas, contexto_habitacional, profissao, atividade_desportiva, insurance_provider, insurance_policy_number')
+          .select('full_name, dob, sns, phone, nif, email, external_id, passport_id, address_line1, postal_code, city, country, notes, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas, contexto_habitacional, profissao, atividade_desportiva, insurance_provider, insurance_policy_number')
           .eq('id', PATIENT_ID)
           .single(),
         sb.from('consultations')
@@ -2534,6 +2653,8 @@
         alert('Não foi possível abrir a marcação — função não encontrada no GC principal. Abre este feed a partir do nome do doente na Agenda.');
       }
     });
+
+    document.getElementById('fdBtnIdentificacao')?.addEventListener('click', () => fdOpenIdentidadeModal('view'));
 
     boot();
   </script>
