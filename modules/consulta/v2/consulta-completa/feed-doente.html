@@ -1932,6 +1932,29 @@
       return `<div class="fd-docs"><span class="fd-docs-titulo">Documentos</span>${chips}</div>`;
     }
 
+    function fdRenderDocumentosModal(docs) {
+      if (!docs.length) return '<p style="color:#94a3b8;">Sem documentos.</p>';
+      const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+      let html = '';
+      let mesActual = null;
+      docs.forEach(d => {
+        const dt = d.created_at ? new Date(d.created_at) : null;
+        const chaveMes = dt ? `${meses[dt.getMonth()]} ${dt.getFullYear()}` : 'Sem data';
+        if (chaveMes !== mesActual) {
+          mesActual = chaveMes;
+          html += `<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin:14px 0 6px;">${esc(chaveMes)}</div>`;
+        }
+        const tipo = DOC_TIPOS[d.category] || { ic: '📄', lbl: d.title || 'Documento' };
+        const tipoSlug = DOC_TIPO_SLUG[d.category] || 'Documento';
+        const dataSimples = d.created_at ? String(d.created_at).slice(0, 10) : null;
+        const friendlyName = buildFriendlyFileName(tipoSlug, fdPatientData?.full_name, dataSimples);
+        const url = window.sb.storage.from('documents').getPublicUrl(d.storage_path, { download: friendlyName })?.data?.publicUrl || '#';
+        const data = fmtDataHora(d.created_at);
+        html += `<a class="fd-doc-chip" href="${esc(url)}" target="_blank" rel="noopener" title="${esc(d.title || tipo.lbl)}" style="display:inline-block;margin:2px;">${tipo.ic} ${esc(tipo.lbl)} <span class="fd-doc-data">${data}</span></a>`;
+      });
+      return html;
+    }
+
     function fdOpenDocumentosModal() {
       document.getElementById('fdDocsOverlay')?.remove();
       const overlay = document.createElement('div');
@@ -1944,16 +1967,22 @@
       const docsOrdenados = [...fdAllDocs].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       overlay.innerHTML = `
         <div style="background:#fff;width:min(640px,96vw);max-height:80vh;overflow:auto;border-radius:14px;padding:20px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
             <div style="font-weight:900;font-size:16px;color:#0f2d52;">Documentos (${docsOrdenados.length})</div>
             <button id="fdDocsClose" style="border:none;background:none;font-size:20px;cursor:pointer;color:#64748b;">×</button>
           </div>
-          ${docsOrdenados.length ? renderDocumentos(docsOrdenados) : '<p style="color:#94a3b8;">Sem documentos.</p>'}
+          <input id="fdDocsSearch" type="text" placeholder="Pesquisar documentos…" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;margin-bottom:8px;box-sizing:border-box;" />
+          <div id="fdDocsList">${fdRenderDocumentosModal(docsOrdenados)}</div>
         </div>`;
       document.body.appendChild(overlay);
       const close = () => overlay.remove();
       document.getElementById('fdDocsClose')?.addEventListener('click', close);
       overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+      document.getElementById('fdDocsSearch')?.addEventListener('input', (e) => {
+        const q = e.target.value.trim().toLowerCase();
+        const filtrados = !q ? docsOrdenados : docsOrdenados.filter(d => (d.title || '').toLowerCase().includes(q));
+        document.getElementById('fdDocsList').innerHTML = fdRenderDocumentosModal(filtrados);
+      });
     }
 
     /* ── render do feed completo ── */
