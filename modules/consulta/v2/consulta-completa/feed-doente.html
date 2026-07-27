@@ -829,6 +829,7 @@
     import { checkConsentStatus, checkConsentPrinted } from '../../../consentimentos.js';
     import { openQrModal } from '../../../consentimentos_qr.js';
     import { fetchMyRole } from '../../../auth.js';
+    import { buildFriendlyFileName } from '../../../relatorios/v2/_shell/shell-v2.js';
 
     /* ── params ── */
     const params     = new URLSearchParams(window.location.search);
@@ -1900,11 +1901,24 @@
       analises:           { ic: '🧪', lbl: 'Pedido de Análises' },
       exames:             { ic: '📄', lbl: 'Pedido de Exames' },
     };
+    const DOC_TIPO_SLUG = {
+      relatorio_consulta: 'RelatorioConsulta',
+      'relatorio-clinico': 'RelatorioClinico',
+      simples:             'RelatorioSimples',
+      PRP:                  'PRP-Visco',
+      prp_visco:            'PRP-Visco',
+      atestado_doenca:      'Atestado',
+      atestado_edfisica:    'AtestadoEdFisica',
+      analises:              'PedidoAnalises',
+      exames:                 'PedidoExames',
+    };
     function renderDocumentos(docs) {
       if (!docs || !docs.length) return '';
       const chips = docs.map(d => {
         const tipo = DOC_TIPOS[d.category] || { ic: '📄', lbl: d.title || 'Documento' };
-        const url = window.sb.storage.from('documents').getPublicUrl(d.storage_path)?.data?.publicUrl || '#';
+        const tipoSlug = DOC_TIPO_SLUG[d.category] || 'Documento';
+        const friendlyName = buildFriendlyFileName(tipoSlug, fdPatientData?.full_name, d.created_at);
+        const url = window.sb.storage.from('documents').getPublicUrl(d.storage_path, { download: friendlyName })?.data?.publicUrl || '#';
         const data = fmtDataHora(d.created_at);
         return `<a class="fd-doc-chip" href="${esc(url)}" target="_blank" rel="noopener" title="${esc(d.title || tipo.lbl)}">${tipo.ic} ${esc(tipo.lbl)} <span class="fd-doc-data">${data}</span></a>`;
       }).join('');
