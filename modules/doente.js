@@ -1490,10 +1490,11 @@ function openPatientViewModal(patient) {
       .slice(0, 80) || "Relatorio";
   }
 
-  async function storageSignedUrl(bucket, path, expiresSec = 3600) {
+  async function storageSignedUrl(bucket, path, expiresSec = 3600, downloadName = null) {
     try {
       if (!bucket || !path) return "";
-      const s = await window.sb.storage.from(bucket).createSignedUrl(path, expiresSec);
+      const opts = downloadName ? { download: downloadName } : undefined;
+      const s = await window.sb.storage.from(bucket).createSignedUrl(path, expiresSec, opts);
       return s?.data?.signedUrl ? String(s.data.signedUrl) : "";
     } catch (e) {
       console.warn("storageSignedUrl error:", e);
@@ -2240,9 +2241,9 @@ function openPatientViewModal(patient) {
   try {
     window.generatePdfAndUploadV1 = generatePdfAndUploadV1;
     window.openDocumentEditor = openDocumentEditor;
-    async function abrirDocumentoLazy(storagePath) {
+    async function abrirDocumentoLazy(storagePath, downloadName) {
       if (!storagePath) return;
-      const url = await storageSignedUrl("documents", storagePath, 3600);
+      const url = await storageSignedUrl("documents", storagePath, 3600, downloadName || null);
       if (!url) { alert("Não foi possível abrir o documento."); return; }
       window.open(url, "_blank", "noopener");
     }
@@ -2615,7 +2616,10 @@ function openPatientViewModal(patient) {
               : (_words[0] ? _words[0].slice(0,2) : 'XX')
             ).toUpperCase();
             const _clinic = (activeClinicName || '').replace(/[^a-zA-Z0-9À-ÿ]/g, '').slice(0,12) || 'Clinica';
-            const _dlName = `GCC_${_initials}_${_clinic}_${_ymd}.pdf`;
+            const _tipoSlug = (d.title || 'Documento')
+              .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+              .replace(/[^a-zA-Z0-9]+/g, '').slice(0, 24);
+            const _dlName = `${_tipoSlug}_${_initials}_${_clinic}_${_ymd}.pdf`;
             const _dateStr = (() => { try { const _d = d.created_at ? new Date(d.created_at) : null; return (_d && !isNaN(_d.getTime())) ? `${fmtDatePt(_d)} às ${fmtTime(_d)}` : (d.created_at ? escAttr(String(d.created_at)) : ""); } catch(_) { return d.created_at ? escAttr(String(d.created_at)) : ""; } })();
             return `
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;
@@ -2630,7 +2634,7 @@ function openPatientViewModal(patient) {
               </div>
               <div style="flex-shrink:0;">
                 ${d.storage_path
-                  ? `<a href="#" onclick="abrirDocumentoLazy('${escAttr(d.storage_path)}');return false;" style="text-decoration:none; font-size:12px; font-weight:600; color:#1a56db;">Abrir</a>`
+                  ? `<a href="#" onclick="abrirDocumentoLazy('${escAttr(d.storage_path)}', '${escAttr(_dlName)}');return false;" style="text-decoration:none; font-size:12px; font-weight:600; color:#1a56db;">Abrir</a>`
                   : `<span style="font-size:12px; color:#94a3b8;">Sem link</span>`
                 }
               </div>
@@ -2646,7 +2650,10 @@ function openPatientViewModal(patient) {
             const _words = (p.full_name || '').trim().split(/\s+/);
             const _initials = (_words.length >= 2 ? (_words[0][0] + _words[_words.length-1][0]) : (_words[0] ? _words[0].slice(0,2) : 'XX')).toUpperCase();
             const _clinic = (activeClinicName || '').replace(/[^a-zA-Z0-9À-ÿ]/g, '').slice(0,12) || 'Clinica';
-            const _dlName = `GCC_${_initials}_${_clinic}_${_ymd}.pdf`;
+            const _tipoSlug = (d.title || 'Documento')
+              .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+              .replace(/[^a-zA-Z0-9]+/g, '').slice(0, 24);
+            const _dlName = `${_tipoSlug}_${_initials}_${_clinic}_${_ymd}.pdf`;
             const _dateStr = (() => { try { const _d = d.created_at ? new Date(d.created_at) : null; return (_d && !isNaN(_d.getTime())) ? `${fmtDatePt(_d)} às ${fmtTime(_d)}` : (d.created_at ? escAttr(String(d.created_at)) : ""); } catch(_) { return d.created_at ? escAttr(String(d.created_at)) : ""; } })();
             return `
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;
@@ -2658,7 +2665,7 @@ function openPatientViewModal(patient) {
                 <span style="color:#94a3b8;font-size:11px;white-space:nowrap;flex-shrink:0;">· ${_dateStr}</span>
               </div>
               <div style="flex-shrink:0;">
-                ${d.storage_path ? `<a href="#" onclick="abrirDocumentoLazy('${escAttr(d.storage_path)}');return false;" style="text-decoration:none;font-size:12px;font-weight:600;color:#1a56db;">Abrir</a>` : `<span style="font-size:12px;color:#94a3b8;">Sem link</span>`}
+                ${d.storage_path ? `<a href="#" onclick="abrirDocumentoLazy('${escAttr(d.storage_path)}', '${escAttr(_dlName)}');return false;" style="text-decoration:none;font-size:12px;font-weight:600;color:#1a56db;">Abrir</a>` : `<span style="font-size:12px;color:#94a3b8;">Sem link</span>`}
               </div>
             </div>`;
           }).join("")}
