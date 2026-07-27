@@ -647,6 +647,7 @@
       <button class="fd-sb-item" id="fdBtnIdentificacao"><span class="fd-sb-ic">👤</span>Identificação</button>
       <button class="fd-sb-item" id="fdBtnEditarIdentificacao"><span class="fd-sb-ic">✏️</span>Editar identificação</button>
       <button class="fd-sb-item" id="fdBtnRgpd"><span class="fd-sb-ic">🛡️</span>RGPD<span class="fd-sb-tag fd-sb-tag-assinado" id="fdRgpdTag" style="display:none;">Assinado</span></button>
+      <button class="fd-sb-item" id="fdBtnDocumentos"><span class="fd-sb-ic">📁</span>Documentos</button>
 
       <div class="fd-sb-divisor"></div>
       <div class="fd-sb-titulo">Consentimentos</div>
@@ -850,6 +851,7 @@
     let fdPatientData = null;
     let fdIdentDraft = {};
     let fdUserRole = null;
+    let fdAllDocs = [];
 
     /* ── utilidades ── */
     function getHostWindow() {
@@ -1930,6 +1932,30 @@
       return `<div class="fd-docs"><span class="fd-docs-titulo">Documentos</span>${chips}</div>`;
     }
 
+    function fdOpenDocumentosModal() {
+      document.getElementById('fdDocsOverlay')?.remove();
+      const overlay = document.createElement('div');
+      overlay.id = 'fdDocsOverlay';
+      Object.assign(overlay.style, {
+        position: 'fixed', inset: '0', zIndex: '6000',
+        background: 'rgba(15,23,42,0.55)', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', padding: '16px',
+      });
+      const docsOrdenados = [...fdAllDocs].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      overlay.innerHTML = `
+        <div style="background:#fff;width:min(640px,96vw);max-height:80vh;overflow:auto;border-radius:14px;padding:20px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div style="font-weight:900;font-size:16px;color:#0f2d52;">Documentos (${docsOrdenados.length})</div>
+            <button id="fdDocsClose" style="border:none;background:none;font-size:20px;cursor:pointer;color:#64748b;">×</button>
+          </div>
+          ${docsOrdenados.length ? renderDocumentos(docsOrdenados) : '<p style="color:#94a3b8;">Sem documentos.</p>'}
+        </div>`;
+      document.body.appendChild(overlay);
+      const close = () => overlay.remove();
+      document.getElementById('fdDocsClose')?.addEventListener('click', close);
+      overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    }
+
     /* ── render do feed completo ── */
     function renderFeed(consultas, dadosPorId, docsPorId, docsSemConsulta = []) {
       const feed = document.getElementById('fd-feed');
@@ -2196,6 +2222,7 @@
         .select('id, consultation_id, title, category, storage_path, created_at')
         .eq('patient_id', PATIENT_ID)
         .order('created_at', { ascending: false });
+      fdAllDocs = docs || [];
       if (docsErr) {
         console.error('Erro a carregar documentos:', docsErr);
       } else {
@@ -2784,6 +2811,7 @@
     });
 
     document.getElementById('fdBtnRgpd')?.addEventListener('click', () => fdOpenQrGuarded('rgpd'));
+    document.getElementById('fdBtnDocumentos')?.addEventListener('click', fdOpenDocumentosModal);
     document.getElementById('fdBtnConsentPrp')?.addEventListener('click', () => fdOpenQrGuarded('prp'));
     document.getElementById('fdBtnConsentAh')?.addEventListener('click', () => fdOpenQrGuarded('ah'));
     document.getElementById('fdBtnConsentInfilt')?.addEventListener('click', () => fdOpenQrGuarded('corticoide'));
