@@ -843,6 +843,7 @@
     let fdConsentPrinted = {};
     let fdActiveClinicData = null;
     let fdPatientData = null;
+    let fdIdentDraft = {};
     let fdUserRole = null;
 
     /* ── utilidades ── */
@@ -1085,12 +1086,33 @@
     }
 
     function fdOpenIdentidadeModal(mode) {
+      const sb = window.sb;
       const canEdit = mode === 'edit';
       const ro = canEdit ? '' : 'readonly';
       const dis = canEdit ? '' : 'disabled';
       const canOpenEdit = ['super_admin', 'admin', 'medico', 'administrativo'].includes(fdUserRole);
       const p = fdPatientData || {};
       const clinicName = PATIENT_CLINIC_NAME || '—';
+
+      if (canEdit) {
+        fdIdentDraft = {
+          full_name: fdPatientData?.full_name || '',
+          dob: fdPatientData?.dob || '',
+          phone: fdPatientData?.phone || '',
+          email: fdPatientData?.email || '',
+          sns: fdPatientData?.sns || '',
+          nif: fdPatientData?.nif || '',
+          external_id: fdPatientData?.external_id || '',
+          passport_id: fdPatientData?.passport_id || '',
+          address_line1: fdPatientData?.address_line1 || '',
+          postal_code: fdPatientData?.postal_code || '',
+          city: fdPatientData?.city || '',
+          country: fdPatientData?.country || '',
+          insurance_provider: fdPatientData?.insurance_provider || '',
+          insurance_policy_number: fdPatientData?.insurance_policy_number || '',
+          notes: fdPatientData?.notes || '',
+        };
+      }
 
       document.getElementById('fdIdentOverlay')?.remove();
 
@@ -1201,6 +1223,74 @@
       document.getElementById('fdBtnIdentCloseTop')?.addEventListener('click', close);
       document.getElementById('fdBtnIdentClose')?.addEventListener('click', close);
       overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+      document.getElementById('fdBtnIdentEditTop')?.addEventListener('click', () => fdOpenIdentidadeModal('edit'));
+
+      function bindVal(id, key) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.oninput = (e) => { fdIdentDraft[key] = e?.target?.value ?? ''; };
+      }
+      bindVal('fdIdFullName', 'full_name');
+      bindVal('fdIdDob', 'dob');
+      bindVal('fdIdPhone', 'phone');
+      bindVal('fdIdEmail', 'email');
+      bindVal('fdIdSns', 'sns');
+      bindVal('fdIdNif', 'nif');
+      bindVal('fdIdExternalId', 'external_id');
+      bindVal('fdIdPassportId', 'passport_id');
+      bindVal('fdIdAddressLine1', 'address_line1');
+      bindVal('fdIdPostalCode', 'postal_code');
+      bindVal('fdIdCity', 'city');
+      bindVal('fdIdCountry', 'country');
+      bindVal('fdIdInsuranceProvider', 'insurance_provider');
+      bindVal('fdIdInsurancePolicyNumber', 'insurance_policy_number');
+      bindVal('fdIdNotes', 'notes');
+
+      document.getElementById('fdBtnIdentSave')?.addEventListener('click', async () => {
+        if (mode !== 'edit') return;
+
+        const name = String(fdIdentDraft.full_name || '').trim();
+        if (!name) { alert('Nome completo é obrigatório.'); return; }
+
+        const payload = {
+          full_name: name,
+          dob: fdIdentDraft.dob ? fdIdentDraft.dob : null,
+          phone: String(fdIdentDraft.phone || '').trim() || null,
+          email: String(fdIdentDraft.email || '').trim() || null,
+          sns: String(fdIdentDraft.sns || '').trim() || null,
+          nif: String(fdIdentDraft.nif || '').trim() || null,
+          external_id: String(fdIdentDraft.external_id || '').trim() || null,
+          passport_id: String(fdIdentDraft.passport_id || '').trim() || null,
+          address_line1: String(fdIdentDraft.address_line1 || '').trim() || null,
+          postal_code: String(fdIdentDraft.postal_code || '').trim() || null,
+          city: String(fdIdentDraft.city || '').trim() || null,
+          country: String(fdIdentDraft.country || '').trim() || null,
+          insurance_provider: String(fdIdentDraft.insurance_provider || '').trim() || null,
+          insurance_policy_number: String(fdIdentDraft.insurance_policy_number || '').trim() || null,
+          notes: String(fdIdentDraft.notes || '').trim() || null,
+        };
+
+        const { data, error } = await sb.from('patients')
+          .update(payload)
+          .eq('id', PATIENT_ID)
+          .select('*')
+          .single();
+
+        if (error) {
+          console.error(error);
+          alert('Erro a gravar Identificação.');
+          return;
+        }
+
+        if (data) {
+          Object.keys(payload).forEach(k => { fdPatientData[k] = data[k]; });
+          const nomeEl = document.getElementById('fd-nome');
+          if (nomeEl) nomeEl.textContent = fdPatientData.full_name || 'Doente';
+        }
+
+        close();
+      });
     }
 
     /* ── abrir exame em nova tab ── */
