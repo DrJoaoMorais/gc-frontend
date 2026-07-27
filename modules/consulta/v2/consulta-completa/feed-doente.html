@@ -1927,18 +1927,24 @@
     }
 
     /* ── render do feed completo ── */
-    function renderFeed(consultas, dadosPorId, docsPorId) {
+    function renderFeed(consultas, dadosPorId, docsPorId, docsSemConsulta = []) {
       const feed = document.getElementById('fd-feed');
       const contagemEls = document.querySelectorAll('.fd-contagem-inline');
+      const blocoSemConsulta = docsSemConsulta.length
+        ? `<div style="border:1px solid #fbbf24;background:#fffbeb;border-radius:14px;padding:12px 16px;margin-bottom:14px;">
+            <div style="font-weight:900;font-size:13px;color:#92400e;margin-bottom:8px;">⚠️ Documentos sem consulta associada</div>
+            ${renderDocumentos(docsSemConsulta)}
+          </div>`
+        : '';
       if (!consultas.length) {
-        feed.innerHTML = `<p class="fd-vazio" style="text-align:center;padding:40px 0;">Sem consultas registadas.</p>`;
+        feed.innerHTML = blocoSemConsulta + `<p class="fd-vazio" style="text-align:center;padding:40px 0;">Sem consultas registadas.</p>`;
         contagemEls.forEach(el => el.textContent = 'Sem consultas');
         return;
       }
 
       const total = consultas.length;
       contagemEls.forEach(el => el.textContent = `${total} consulta${total !== 1 ? 's' : ''}`);
-      let html = '';
+      let html = blocoSemConsulta;
 
       consultas.forEach((c, i) => {
         const aberta = i < 3; /* primeiras 3 abertas */
@@ -2166,6 +2172,7 @@
 
       /* carregar documentos (PDFs) do doente, agrupados por consulta */
       const docsPorId = {};
+      const docsSemConsulta = [];
       const { data: docs, error: docsErr } = await sb
         .from('documents')
         .select('id, consultation_id, title, category, storage_path, created_at')
@@ -2175,12 +2182,12 @@
         console.error('Erro a carregar documentos:', docsErr);
       } else {
         (docs || []).forEach(d => {
-          if (!d.consultation_id) return;
+          if (!d.consultation_id) { docsSemConsulta.push(d); return; }
           (docsPorId[d.consultation_id] ||= []).push(d);
         });
       }
 
-      renderFeed(consultas, dadosPorId, docsPorId);
+      renderFeed(consultas, dadosPorId, docsPorId, docsSemConsulta);
     }
 
     /* ── estado do formulário nova consulta ── */
