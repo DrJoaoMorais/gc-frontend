@@ -201,8 +201,11 @@ window.__gcv2_formatDatePT = formatDatePT;
 const DIACRITICS_RE = new RegExp('[' + String.fromCharCode(0x0300) + '-' + String.fromCharCode(0x036f) + ']', 'g');
 
 export function buildFriendlyFileName(tipo, patientFullName, dateIso) {
-  const apelido = String(patientFullName || 'Doente')
-    .trim().split(/\s+/).pop()
+  const palavras = String(patientFullName || 'Doente').trim().split(/\s+/);
+  const nome = palavras.length > 1
+    ? `${palavras[0]}${palavras[palavras.length - 1]}`
+    : (palavras[0] || 'Doente');
+  const apelido = nome
     .normalize('NFD').replace(DIACRITICS_RE, '')
     .replace(/[^a-zA-Z0-9]/g, '');
   const d = dateIso ? new Date(dateIso + 'T00:00:00') : new Date();
