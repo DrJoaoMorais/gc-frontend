@@ -2521,6 +2521,22 @@
     document.getElementById('fdBtnConsentAh')?.addEventListener('click', () => fdOpenQrGuarded('ah'));
     document.getElementById('fdBtnConsentInfilt')?.addEventListener('click', () => fdOpenQrGuarded('corticoide'));
 
+    document.getElementById('fdBtnAgendarConsulta')?.addEventListener('click', () => {
+      const host = getHostWindow();
+      const clinicId = TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null;
+      if (host && typeof host.__gc_openApptModal === 'function') {
+        host.__gc_openApptModal({
+          mode: 'new',
+          row: null,
+          prefillPatientId: PATIENT_ID,
+          prefillPatientName: fdPatientData?.full_name || '',
+          prefillClinicId: clinicId
+        });
+      } else {
+        alert('Não foi possível abrir a marcação — função não encontrada no GC principal. Abre este feed a partir do nome do doente na Agenda.');
+      }
+    });
+
     boot();
   </script>
 
