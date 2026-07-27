@@ -1969,23 +1969,25 @@
 
         const clinicaNome = c.clinic_name || '';
 
+        const ehAdministrativo = fdUserRole === 'administrativo';
+
         html += `
           <div class="fd-card ${aberta ? 'aberto' : ''}" data-consult-id="${esc(c.id)}">
             <div class="fd-card-head">
               <span class="fd-card-data">${data}</span>
               ${editadaLabel}
               ${clinicaNome ? `<span class="fd-card-clinica">${esc(clinicaNome)}</span>` : ''}
-              <span class="fd-card-dx">${dxPreview}</span>
+              ${ehAdministrativo ? '' : `<span class="fd-card-dx">${dxPreview}</span>`}
               ${docsPorId[c.id]?.length ? `<span class="fd-card-docs-count" title="${docsPorId[c.id].length} documento${docsPorId[c.id].length !== 1 ? 's' : ''}">📄 ${docsPorId[c.id].length}</span>` : ''}
               <div class="fd-card-acoes">
                 <button class="fd-btn-sm fd-btn-sm-prim" data-action="relatorio" data-consult-id="${esc(c.id)}">Relatório v2</button>
-                <button class="fd-btn-sm" data-action="feed-consulta" data-consult-id="${esc(c.id)}">Editar</button>
+                ${ehAdministrativo ? '' : `<button class="fd-btn-sm" data-action="feed-consulta" data-consult-id="${esc(c.id)}">Editar</button>`}
               </div>
               <span class="fd-chev">⌄</span>
             </div>
             <div class="fd-card-body">
               ${renderDocumentos(docsPorId[c.id])}
-              ${dados ? renderCardBody(dados) : '<p class="fd-vazio">A carregar…</p>'}
+              ${ehAdministrativo ? '' : (dados ? renderCardBody(dados) : '<p class="fd-vazio">A carregar…</p>')}
             </div>
           </div>`;
       });
