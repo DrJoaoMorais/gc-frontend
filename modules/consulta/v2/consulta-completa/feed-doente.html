@@ -1038,9 +1038,9 @@
         .order('signed_at', { ascending: false }).limit(1);
 
       const token = tokens?.[0];
-      const sigDate = token?.signed_at
+      let sigDate = token?.signed_at
         ? new Date(token.signed_at).toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' })
-        : 'data desconhecida';
+        : null;
 
       // Buscar PDF da assinatura
       let pdfUrl = null;
@@ -1049,6 +1049,25 @@
           .select('pdf_url').eq('token_id', token.id).not('pdf_url', 'is', null).limit(1);
         pdfUrl = sigs?.[0]?.pdf_url || null;
       }
+
+      // Fallback — fluxo antigo, tabela 'consents'
+      if (!sigDate) {
+        const { data: oldRows } = await sb.from('consents')
+          .select('signed_at, storage_path, created_at')
+          .eq('patient_id', PATIENT_ID).eq('clinic_id', clinicId).eq('type', tipo)
+          .in('status', ['signed', 'paper_signed'])
+          .order('created_at', { ascending: false })
+          .limit(1);
+        const old = oldRows?.[0];
+        if (old) {
+          sigDate = new Date(old.signed_at || old.created_at).toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' });
+          if (old.storage_path) {
+            const { data: signedUrlData } = await sb.storage.from('documents').createSignedUrl(old.storage_path, 3600);
+            pdfUrl = signedUrlData?.signedUrl || null;
+          }
+        }
+      }
+      sigDate = sigDate || 'data desconhecida';
 
       // Modal de escolha
       const overlay = document.createElement('div');
