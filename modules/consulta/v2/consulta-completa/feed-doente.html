@@ -828,6 +828,7 @@
     import { mount as pdv2Mount, unmount as pdv2Unmount } from '../../../pedidos/pedidos-v2.js';
     import { checkConsentStatus, checkConsentPrinted } from '../../../consentimentos.js';
     import { openQrModal } from '../../../consentimentos_qr.js';
+    import { fetchMyRole } from '../../../auth.js';
 
     /* ── params ── */
     const params     = new URLSearchParams(window.location.search);
@@ -842,6 +843,7 @@
     let fdConsentPrinted = {};
     let fdActiveClinicData = null;
     let fdPatientData = null;
+    let fdUserRole = null;
 
     /* ── utilidades ── */
     function getHostWindow() {
@@ -1788,6 +1790,7 @@
         document.getElementById('fd-loading').textContent = '⚠️ Sem sessão. Faz login no GC neste browser e recarrega.';
         return;
       }
+      fdUserRole = await fetchMyRole(u.user.id);
 
       /* doente + consultas em paralelo */
       const hoje = new Date(); hoje.setHours(0,0,0,0);
