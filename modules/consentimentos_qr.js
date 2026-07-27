@@ -37,6 +37,10 @@ function buildSignUrl(tokenValue) {
   return `${SIGN_BASE_URL}?token=${encodeURIComponent(tokenValue)}`;
 }
 
+function toShortType(t) {
+  return t === 'acido_hialuronico' ? 'ah' : t;
+}
+
 /* ======================================================== */
 /*  02 — openQrModal                                        */
 /* ======================================================== */
@@ -132,7 +136,7 @@ export function openQrModal({ patient, clinicId, clinic, type, onSigned }) {
     document.getElementById("gcQrPresencial")?.addEventListener("click", () => {
       close();
       openConsentModal({
-        type: type || "rgpd",
+        type: toShortType(type) || "rgpd",
         patient, clinicId, clinic,
         onSaved: onSigned,
       });
@@ -208,7 +212,7 @@ export function openQrModal({ patient, clinicId, clinic, type, onSigned }) {
     wireClose();
     document.getElementById("gcQrPresencialQr")?.addEventListener("click", () => {
       close();
-      openConsentModal({ type: selectedType, patient, clinicId, clinic, onSaved: onSigned });
+      openConsentModal({ type: toShortType(selectedType), patient, clinicId, clinic, onSaved: onSigned });
     });
   }
 
