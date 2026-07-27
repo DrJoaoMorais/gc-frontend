@@ -628,17 +628,21 @@
     <!-- SIDEBAR -->
     <div class="fd-sb">
 
-      <div class="fd-sb-titulo">Meios Complementares</div>
-      <button class="fd-sb-item" id="fdBtnExames"><span class="fd-sb-ic">📄</span>Pedido de Exames</button>
-      <button class="fd-sb-item" id="fdBtnAnalises"><span class="fd-sb-ic">🧪</span>Pedido de Análises</button>
+      <div id="fd-sec-meios">
+        <div class="fd-sb-titulo">Meios Complementares</div>
+        <button class="fd-sb-item" id="fdBtnExames"><span class="fd-sb-ic">📄</span>Pedido de Exames</button>
+        <button class="fd-sb-item" id="fdBtnAnalises"><span class="fd-sb-ic">🧪</span>Pedido de Análises</button>
+        <div class="fd-sb-divisor"></div>
+      </div>
 
-      <div class="fd-sb-divisor"></div>
-      <div class="fd-sb-titulo">Relatórios / Atestados</div>
-      <button class="fd-sb-item" id="fdBtnRelatorioClinico"><span class="fd-sb-ic">📝</span>Relatório Clínico</button>
-      <button class="fd-sb-item" id="fdBtnAtestadoDoenca"><span class="fd-sb-ic">🩺</span>Atestado de Doença</button>
-      <button class="fd-sb-item" id="fdBtnPrpVisco"><span class="fd-sb-ic">💉</span>PRP / Visco</button>
+      <div id="fd-sec-relatorios">
+        <div class="fd-sb-titulo">Relatórios / Atestados</div>
+        <button class="fd-sb-item" id="fdBtnRelatorioClinico"><span class="fd-sb-ic">📝</span>Relatório Clínico</button>
+        <button class="fd-sb-item" id="fdBtnAtestadoDoenca"><span class="fd-sb-ic">🩺</span>Atestado de Doença</button>
+        <button class="fd-sb-item" id="fdBtnPrpVisco"><span class="fd-sb-ic">💉</span>PRP / Visco</button>
+        <div class="fd-sb-divisor"></div>
+      </div>
 
-      <div class="fd-sb-divisor"></div>
       <div class="fd-sb-titulo">Doente</div>
       <button class="fd-sb-item" id="fdBtnIdentificacao"><span class="fd-sb-ic">👤</span>Identificação</button>
       <button class="fd-sb-item" id="fdBtnEditarIdentificacao"><span class="fd-sb-ic">✏️</span>Editar identificação</button>
@@ -2030,6 +2034,17 @@
       });
     }
 
+    function fdAplicarRestricoesAdministrativo() {
+      if (fdUserRole !== 'administrativo') return;
+      ['fd-sec-meios', 'fd-sec-relatorios'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+      document.getElementById('fdBtnExameDesportivo')?.style.setProperty('display', 'none');
+      document.getElementById('fd-btn-nova')?.style.setProperty('display', 'none');
+      document.getElementById('fd-btn-nova-wide')?.style.setProperty('display', 'none');
+    }
+
     /* ── boot ── */
     async function boot() {
       const sb = window.sb;
@@ -2043,6 +2058,7 @@
         return;
       }
       fdUserRole = await fetchMyRole(u.user.id);
+      fdAplicarRestricoesAdministrativo();
 
       /* doente + consultas em paralelo */
       const hoje = new Date(); hoje.setHours(0,0,0,0);
