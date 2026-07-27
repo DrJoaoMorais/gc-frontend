@@ -2674,6 +2674,53 @@ function openPatientViewModal(patient) {
     `;
   }
 
+  function renderDocumentsSemConsulta() {
+    const docs = (docRows || []).filter(d => !d.consultation_id);
+    if (!docs.length) return "";
+
+    function docStyle(title) {
+      const t = String(title || "").toLowerCase();
+      if (t.startsWith("pedido de exame")) return { bg: "#dbeafe", color: "#1d4ed8", label: "Exame" };
+      if (t.startsWith("análise") || t.startsWith("analise") || t.startsWith("pedido de análise") || t.startsWith("pedido de analise")) return { bg: "#f3e8ff", color: "#7e22ce", label: "Análises" };
+      if (t.startsWith("prp") || t.startsWith("visco")) return { bg: "#fef3c7", color: "#b45309", label: "PRP / Visco" };
+      if (t.startsWith("atestado")) return { bg: "#dcfce7", color: "#15803d", label: "Atestado" };
+      if (t.startsWith("relatório") || t.startsWith("relatorio")) return { bg: "#e8eef7", color: "#0f2d52", label: "Relatório" };
+      return { bg: "#f1f5f9", color: "#475569", label: "Documento" };
+    }
+
+    return `
+      <div style="border:1px solid #fbbf24; background:#fffbeb; border-radius:14px; padding:12px 16px; margin-bottom:14px;">
+        <div style="font-weight:900; font-size:13px; color:#92400e; margin-bottom:8px;">
+          ⚠️ Documentos sem consulta associada
+        </div>
+        ${docs.map(d => {
+          const s = docStyle(d.title);
+          const _dDate = d.created_at ? new Date(d.created_at) : new Date();
+          const _ymd = `${_dDate.getFullYear()}-${String(_dDate.getMonth()+1).padStart(2,'0')}-${String(_dDate.getDate()).padStart(2,'0')}`;
+          const _words = (p.full_name || '').trim().split(/\s+/);
+          const _initials = (_words.length >= 2 ? (_words[0][0] + _words[_words.length-1][0]) : (_words[0] ? _words[0].slice(0,2) : 'XX')).toUpperCase();
+          const _clinic = (activeClinicName || '').replace(/[^a-zA-Z0-9À-ÿ]/g, '').slice(0,12) || 'Clinica';
+          const _tipoSlug = (d.title || 'Documento').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '').slice(0, 24);
+          const _dlName = `${_tipoSlug}_${_initials}_${_clinic}_${_ymd}.pdf`;
+          const _dateStr = (() => { try { const _d = d.created_at ? new Date(d.created_at) : null; return (_d && !isNaN(_d.getTime())) ? `${fmtDatePt(_d)} às ${fmtTime(_d)}` : ""; } catch(_) { return ""; } })();
+          return `
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:5px 2px; border-bottom:1px solid #fde68a;">
+            <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
+              <span style="flex-shrink:0;font-size:9px;font-weight:700;color:${s.color};background:${s.bg};padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap;">${s.label}</span>
+              <span style="font-size:13px; font-weight:500; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escAttr(d.title || "Documento")}</span>
+              <span style="color:#94a3b8; font-size:11px; white-space:nowrap; flex-shrink:0;">· ${_dateStr}</span>
+            </div>
+            <div style="flex-shrink:0;">
+              ${d.storage_path
+                ? `<a href="#" onclick="abrirDocumentoLazy('${escAttr(d.storage_path)}', '${escAttr(_dlName)}');return false;" style="text-decoration:none; font-size:12px; font-weight:600; color:#1a56db;">Abrir</a>`
+                : `<span style="font-size:12px; color:#94a3b8;">Sem link</span>`
+              }
+            </div>
+          </div>`;
+        }).join("")}
+      </div>`;
+  }
+
   function __gcRenderPhysioComposer() {
     const s = __ps();
     if (!__gcIsPhysio()) return "";
@@ -3095,6 +3142,7 @@ function openPatientViewModal(patient) {
     return `
       <div style="display:flex; flex-direction:column; gap:14px;">
         ${__gcRenderPhysioComposer()}
+        ${renderDocumentsSemConsulta()}
 
         ${items.map((it) => {
           if (it.type === "agenda_note") return __gcRenderAgendaNoteItem(it.row);
