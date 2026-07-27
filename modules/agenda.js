@@ -486,8 +486,6 @@ export function renderAgendaList() {
           <div class="gcAgendaNameWrap">
             ${isBlock ? "" : `<button type="button" data-open-feed-legacy="${escapeHtml(r.patient_id || "")}" title="Feed antigo"
               style="border:none;background:transparent;cursor:pointer;font-size:13px;margin-right:2px;color:#0f2d52;">⏱️</button>`}
-            ${isBlock ? "" : `<button type="button" data-open-feed="${escapeHtml(r.patient_id || "")}" title="Abrir Feed novo"
-              style="border:none;background:transparent;cursor:pointer;font-size:13px;margin-right:4px;">🔗</button>`}
             ${isBlock
               ? `<span class="gcAgendaNameText">${escapeHtml("—")}</span>`
               : `<span data-patient-open="1" class="gcPatientLink gcAgendaNameText">${escapeHtml(patName)}</span>`
@@ -517,7 +515,6 @@ export function renderAgendaList() {
       const t = ev.target;
       if (t?.closest?.("[data-status-select='1']")) return;
       if (t?.closest?.("[data-patient-open='1']")) return;
-      if (t?.closest?.("[data-open-feed]")) return;
       if (t?.closest?.("[data-open-feed-legacy]")) return;
       const id  = li.getAttribute("data-appt-id");
       const row = rows.find((x) => x.id === id);
@@ -543,16 +540,6 @@ export function renderAgendaList() {
         const pid = feedLegacyBtn.getAttribute("data-open-feed-legacy");
         if (!pid) { alert("Marcação sem patient_id."); return; }
         openPatientFeedFromAny({ id: pid });
-      });
-    }
-
-    const feedBtn = li.querySelector("[data-open-feed]");
-    if (feedBtn) {
-      feedBtn.addEventListener("click", (ev) => {
-        ev.preventDefault(); ev.stopPropagation();
-        const pid = feedBtn.getAttribute("data-open-feed");
-        if (!pid) { alert("Marcação sem patient_id."); return; }
-        window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(pid)}&sessionClinicId=${encodeURIComponent(G.activeClinicId || '')}`, '_blank');
       });
     }
 
@@ -675,9 +662,7 @@ export function renderQuickPatientResults(results) {
       <div data-pid="${escapeHtml(p.id)}" data-other-clinic="${isOther ? escapeHtml(p.active_clinic_id) : ""}"
            style="padding:8px; ${br} border-radius:10px; margin-bottom:8px; cursor:pointer; ${bg}; position:relative;">
         <button type="button" data-open-feed-legacy="${escapeHtml(p.id)}" title="Feed antigo"
-                style="position:absolute; top:6px; right:26px; border:none; background:transparent; cursor:pointer; font-size:14px;">⏱️</button>
-        <button type="button" data-open-feed="${escapeHtml(p.id)}" title="Abrir Feed novo"
-                style="position:absolute; top:6px; right:6px; border:none; background:transparent; cursor:pointer; font-size:14px;">🔗</button>
+                style="position:absolute; top:6px; right:6px; border:none; background:transparent; cursor:pointer; font-size:14px;">⏱️</button>
         <div style="font-size:${UI.fs13}px; color:#111; font-weight:700; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">
           ${escapeHtml(p.full_name)}${clinicBadge}
         </div>
@@ -700,14 +685,6 @@ export function renderQuickPatientResults(results) {
       ev.preventDefault(); ev.stopPropagation();
       const fid = feedLegacyBtn.getAttribute("data-open-feed-legacy");
       await openPatientFeedFromAny({ id: fid });
-      return;
-    }
-
-    const feedBtn = ev.target?.closest?.("[data-open-feed]");
-    if (feedBtn) {
-      ev.preventDefault(); ev.stopPropagation();
-      const fid = feedBtn.getAttribute("data-open-feed");
-      window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(fid)}&sessionClinicId=${encodeURIComponent(G.activeClinicId || '')}`, '_blank');
       return;
     }
 

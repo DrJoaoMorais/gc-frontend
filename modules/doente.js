@@ -4249,8 +4249,13 @@ function openPatientViewModal(patient) {
 
     document.getElementById("btnOpenFeed")?.addEventListener("click", (e) => {
       e.preventDefault();
-      const url = `/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(p.id)}&sessionClinicId=${encodeURIComponent(G.activeClinicId || '')}`;
-      window.open(url, '_blank');
+      if (typeof window.__gc_openFeedPanel === 'function') {
+        try { if (typeof closeModalRoot === 'function') closeModalRoot(); } catch (_) {}
+        window.__gc_openFeedPanel(p.id, G.activeClinicId || null);
+      } else {
+        const url = `/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(p.id)}&sessionClinicId=${encodeURIComponent(G.activeClinicId || '')}`;
+        window.open(url, '_blank');
+      }
     });
     document.getElementById("btnViewIdent")?.addEventListener("click", () => openPatientIdentity("view"));
     document.getElementById("btnEditIdent")?.addEventListener("click", () => openPatientIdentity("edit"));

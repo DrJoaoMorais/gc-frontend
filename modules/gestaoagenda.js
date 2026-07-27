@@ -833,7 +833,9 @@ async function _abrirMiniPainelReavaliacao(r) {
   });
 
   el.querySelector('[data-a="agendar"]')?.addEventListener('click', () => _agendarReavaliacao(r.patient_id, r.patient_name, r.clinic_id));
-  el.querySelector('[data-a="ficha"]')?.addEventListener('click', () => window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(r.patient_id)}&sessionClinicId=${encodeURIComponent(_state.selectedClinicId || G.activeClinicId || '')}`, '_blank'));
+  el.querySelector('[data-a="ficha"]')?.addEventListener('click', () => (typeof window.__gc_openFeedPanel === 'function')
+    ? window.__gc_openFeedPanel(r.patient_id, _state.selectedClinicId || G.activeClinicId || null)
+    : window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(r.patient_id)}&sessionClinicId=${encodeURIComponent(_state.selectedClinicId || G.activeClinicId || '')}`, '_blank'));
 
   const _resolver = async (resultado, msg) => {
     if (!confirm(msg)) return;
@@ -944,7 +946,7 @@ function _renderTimeline(rows, patientsById = {}, consentMap = {}, physioMap = {
           ${(!isSlot&&!isBlocked&&r.patient_id)
             ? `<div style="display:flex;align-items:center;gap:4px;min-width:0;">
                  <div class="ga-nome-link" data-pid="${r.patient_id}" style="font-size:15px;font-weight:600;color:#0f172a;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;" title="${escapeHtml(nome)}">${escapeHtml(nome)}</div>
-                 <button type="button" class="ga-open-feed" data-pid="${r.patient_id}" title="Abrir Feed novo" style="border:none;background:transparent;cursor:pointer;font-size:12px;flex-shrink:0;padding:0;line-height:1;">🔗</button>
+                 <button type="button" class="ga-open-feed-legacy" data-pid="${r.patient_id}" title="Feed antigo" style="border:none;background:transparent;cursor:pointer;font-size:12px;flex-shrink:0;padding:0;line-height:1;">⏱️</button>
                </div>`
             : `<div style="font-size:15px;font-weight:${isSlot?"400":"600"};color:${isSlot?"#94a3b8":"#0f172a"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${isSlot?"Livre":escapeHtml(nome)}</div>`
           }
@@ -981,15 +983,20 @@ function _renderTimeline(rows, patientsById = {}, consentMap = {}, physioMap = {
     link.addEventListener("click", e => {
       e.stopPropagation();
       const pid = link.dataset.pid;
-      if (pid) openPatientFeedFromAny({ id: pid });
+      if (!pid) return;
+      if (typeof window.__gc_openFeedPanel === 'function') {
+        window.__gc_openFeedPanel(pid, _state.selectedClinicId || G.activeClinicId || null);
+      } else {
+        openPatientFeedFromAny({ id: pid });
+      }
     });
   });
 
-  el.querySelectorAll(".ga-open-feed").forEach(btn => {
+  el.querySelectorAll(".ga-open-feed-legacy").forEach(btn => {
     btn.addEventListener("click", e => {
       e.stopPropagation();
       const pid = btn.dataset.pid;
-      if (pid) window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(pid)}&sessionClinicId=${encodeURIComponent(_state.selectedClinicId || G.activeClinicId || '')}`, '_blank');
+      if (pid) openPatientFeedFromAny({ id: pid });
     });
   });
 
@@ -1098,7 +1105,9 @@ function _renderPanel(row, patientsById = {}) {
     openApptModal({ mode:"edit", row });
   });
   el.querySelector("[data-action='ficha']")?.addEventListener("click", () => {
-    if (row.patient_id) window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(row.patient_id)}&sessionClinicId=${encodeURIComponent(_state.selectedClinicId || G.activeClinicId || '')}`, '_blank');
+    if (row.patient_id) (typeof window.__gc_openFeedPanel === 'function')
+      ? window.__gc_openFeedPanel(row.patient_id, _state.selectedClinicId || G.activeClinicId || null)
+      : window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(row.patient_id)}&sessionClinicId=${encodeURIComponent(_state.selectedClinicId || G.activeClinicId || '')}`, '_blank');
   });
   el.querySelector("[data-action='marcada']")?.addEventListener("click", () => _updateStatus(row.id, "scheduled"));
   el.querySelector("[data-action='chegou']")?.addEventListener("click", () => _updateStatus(row.id, "arrived"));
