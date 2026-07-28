@@ -133,7 +133,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
 .gc-app{display:flex;height:100vh;overflow:hidden;}
 
 /* SIDEBAR */
-.gc-sidebar{width:56px;background:#0f2d52;display:flex;flex-direction:column;align-items:center;flex-shrink:0;z-index:1;}
+.gc-sidebar{width:56px;background:#0f2d52;display:flex;flex-direction:column;align-items:center;flex-shrink:0;position:relative;z-index:500;}
 .gc-sidebar-logo{width:56px;height:56px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;}
 .gc-logo-text{font-size:15px;font-weight:800;color:#fff;letter-spacing:-0.5px;}
 .gc-sidebar-nav{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:2px;width:100%;}
@@ -141,7 +141,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
 .gc-nav-btn{width:100%;height:48px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;border-left:3px solid transparent;color:rgba(255,255,255,0.45);cursor:pointer;transition:all 0.15s;margin-left:-3px;padding:0;position:relative;font-family:inherit;}
 .gc-nav-btn:hover{color:rgba(255,255,255,0.85);background:rgba(255,255,255,0.05);}
 .gc-nav-btn.active{background:rgba(255,255,255,0.10);border-left-color:#4a9eff;color:#fff;}
-.gc-nav-btn::after{content:attr(title);position:absolute;left:62px;top:50%;transform:translateY(-50%);background:#1e293b;color:#fff;font-size:12px;font-weight:500;padding:5px 10px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:200;}
+.gc-nav-btn::after{content:attr(title);position:absolute;left:62px;top:50%;transform:translateY(-50%);background:#1e293b;color:#fff;font-size:12px;font-weight:500;padding:5px 10px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:600;}
 .gc-nav-btn:hover::after{opacity:1;}
 
 /* MAIN */
