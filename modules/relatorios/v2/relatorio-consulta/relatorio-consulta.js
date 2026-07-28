@@ -96,7 +96,7 @@ async function loadConsultation(consultationId) {
   if (!consultationId) return null;
   const { data, error } = await window.sb
     .from('consultations')
-    .select('id, clinic_id, patient_id, report_date, hda, created_at, updated_at')
+    .select('id, clinic_id, patient_id, report_date, hda, objectives, created_at, updated_at')
     .eq('id', consultationId)
     .single();
   if (error) { console.error('[rc] erro a obter consulta:', error); return null; }
@@ -267,6 +267,8 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
   const state = {
     date: consultation.report_date || new Date().toISOString().slice(0, 10),
     hda: consultation.hda || '',
+    objectives: consultation.objectives || '',
+    incluirObjectivos: !!(consultation.objectives && consultation.objectives.trim()),
     conclusao: '',
     sessoes: 20,
     docNumber: 'JM-' + _y + '-' + _s + '-A',
@@ -355,6 +357,15 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
             </div>
             <p class="gcv2-rc-evo-hint">Sem selecção, o Quadro Evolutivo não aparece no PDF.</p>
           </div>
+
+          <label class="gcv2-at-field">
+            <span>
+              <input type="checkbox" id="gcv2-rc-objectivos-check" ${state.incluirObjectivos ? 'checked' : ''}>
+              Objectivos <small>(seleccione se entra no PDF)</small>
+            </span>
+            <textarea id="gcv2-rc-objectivos" rows="4" placeholder="Objectivos da consulta…">${escHtml(state.objectives)}</textarea>
+          </label>
+
           <label class="gcv2-at-field">
             <span>Nº de sessões <small>(prescrição do plano)</small></span>
             <input type="number" id="gcv2-rc-sessoes" min="1" max="60" step="1" value="20">
@@ -471,12 +482,20 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       }
     })();
 
+    const objectivosHtml = (state.incluirObjectivos && state.objectives && state.objectives.trim())
+      ? `<section class="gcv2-rc-section gcv2-rc-flow">
+           <h3 class="gcv2-rc-h3">Objectivos</h3>
+           <div class="gcv2-rc-prose">${window.gcv2SanitizeHTML(state.objectives)}</div>
+         </section>`
+      : '';
+
     return `
       <div class="gcv2-rc-content">
         ${cardHtml}
         ${hdaHtml}
         ${examHtml}
         ${evolutivoHtml}
+        ${objectivosHtml}
         ${dxHtml}
         ${planoHtml}
         ${conclusaoHtml}
@@ -514,6 +533,16 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
 
   overlay.querySelector('#gcv2-rc-hda').addEventListener('input', (e) => {
     state.hda = e.target.value;
+    renderPreview();
+  });
+
+  overlay.querySelector('#gcv2-rc-objectivos-check').addEventListener('change', (e) => {
+    state.incluirObjectivos = e.target.checked;
+    renderPreview();
+  });
+
+  overlay.querySelector('#gcv2-rc-objectivos').addEventListener('input', (e) => {
+    state.objectives = e.target.value;
     renderPreview();
   });
 
