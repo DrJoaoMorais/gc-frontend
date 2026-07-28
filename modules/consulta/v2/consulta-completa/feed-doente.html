@@ -279,6 +279,16 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    #fd-nota-marcacao-wide > div {
+      display: block;
+    }
+    .fd-nota-marcacao-wide-txt {
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      display: block;
+      margin-top: 2px;
+    }
 
     /* ── ALERTA CRÍTICO ── */
     .fd-alerta {
@@ -814,7 +824,7 @@
       <span class="fd-nota-marcacao-ic">📌</span>
       <div>
         <span class="fd-nota-marcacao-hora" id="fd-nota-marcacao-wide-hora"></span>
-        <span class="fd-nota-marcacao-txt" id="fd-nota-marcacao-wide-txt"></span>
+        <span class="fd-nota-marcacao-txt fd-nota-marcacao-wide-txt" id="fd-nota-marcacao-wide-txt"></span>
       </div>
     </div>
     <div class="fd-antec-rail-titulo-wrap">
