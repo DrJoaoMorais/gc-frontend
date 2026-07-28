@@ -13,6 +13,7 @@
 
 import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl, buildFriendlyFileName, openAndDownloadPdf } from '../_shell/shell-v2.js';
 import { buildPatientCard } from '../_components/patient-card.js';
+import { makeModalDraggable } from '../shared/modal-drag.js';
 
 const escAttr = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -241,6 +242,12 @@ export async function openRelatorioClinicoModal({ patientId, onClose } = {}) {
     </div>
   `;
   document.body.appendChild(overlay);
+
+  makeModalDraggable(
+    overlay,
+    overlay.querySelector('.gcv2-atestado-modal'),
+    overlay.querySelector('.gcv2-atestado-head')
+  );
 
   const inTitulo = overlay.querySelector('#gcv2-rcl-titulo');
   const cbCredenciais = overlay.querySelector('#gcv2-rcl-credenciais');

@@ -17,6 +17,7 @@
 }
 
 .gcv2-atestado-modal {
+  position: relative;
   background: #fff;
   border-radius: 14px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -35,6 +36,14 @@
   padding: 16px 24px;
   border-bottom: 1px solid #e5e7eb;
   background: #f9fafb;
+}
+.gcv2-atestado-head {
+  cursor: move;
+}
+.gcv2-atestado-head button,
+.gcv2-atestado-head input,
+.gcv2-atestado-head select {
+  cursor: default;
 }
 .gcv2-atestado-head h2 {
   margin: 0;
