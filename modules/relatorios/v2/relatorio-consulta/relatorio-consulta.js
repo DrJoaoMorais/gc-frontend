@@ -300,24 +300,6 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
             <textarea id="gcv2-rc-hda" rows="8" placeholder="História da doença actual…">${escHtml(state.hda)}</textarea>
           </label>
 
-          <div class="gcv2-rc-readonly-block">
-            <span class="gcv2-at-field-label">Diagnósticos <small>(só leitura · da consulta)</small></span>
-            <div class="gcv2-rc-list" id="gcv2-rc-dx-list">
-              ${diagnoses.length === 0
-                ? '<em>(sem diagnósticos registados nesta consulta)</em>'
-                : diagnoses.map(d => `<div>• ${escHtml(d.label || '—')}</div>`).join('')}
-            </div>
-          </div>
-
-          <div class="gcv2-rc-readonly-block">
-            <span class="gcv2-at-field-label">Plano terapêutico <small>(só leitura · da consulta)</small></span>
-            <div class="gcv2-rc-list" id="gcv2-rc-plano-list">
-              ${plano.length === 0
-                ? '<em>(sem plano registado nesta consulta)</em>'
-                : plano.map(p => `<div>• ${escHtml(p.label || '—')}</div>`).join('')}
-            </div>
-          </div>
-
           <div class="gcv2-rc-evo-select" id="gcv2-rc-evo-select">
             <span class="gcv2-at-field-label">Quadro Evolutivo <small>(seleccione o que entra no PDF)</small></span>
             <div class="gcv2-rc-evo-toggle-all">
@@ -366,10 +348,29 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
             <textarea id="gcv2-rc-objectivos" rows="4" placeholder="Objectivos da consulta…">${escHtml(state.objectives)}</textarea>
           </label>
 
+          <div class="gcv2-rc-readonly-block">
+            <span class="gcv2-at-field-label">Diagnósticos <small>(só leitura · da consulta)</small></span>
+            <div class="gcv2-rc-list" id="gcv2-rc-dx-list">
+              ${diagnoses.length === 0
+                ? '<em>(sem diagnósticos registados nesta consulta)</em>'
+                : diagnoses.map(d => `<div>• ${escHtml(d.label || '—')}</div>`).join('')}
+            </div>
+          </div>
+
+            <div class="gcv2-rc-row">
           <label class="gcv2-at-field">
             <span>Nº de sessões <small>(prescrição do plano)</small></span>
             <input type="number" id="gcv2-rc-sessoes" min="1" max="60" step="1" value="20">
           </label>
+          <div class="gcv2-rc-readonly-block">
+            <span class="gcv2-at-field-label">Plano terapêutico <small>(só leitura · da consulta)</small></span>
+            <div class="gcv2-rc-list" id="gcv2-rc-plano-list">
+              ${plano.length === 0
+                ? '<em>(sem plano registado nesta consulta)</em>'
+                : plano.map(p => `<div>• ${escHtml(p.label || '—')}</div>`).join('')}
+            </div>
+          </div>
+            </div>
 
           <label class="gcv2-at-field">
             <span>Conclusão <small>(opcional · só aparece no PDF se preenchida)</small></span>

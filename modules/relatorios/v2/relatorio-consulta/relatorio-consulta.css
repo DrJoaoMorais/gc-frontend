@@ -400,3 +400,12 @@
 .cc-cmp-seta-igual {
   color: #9ca3af; font-weight: 500; background: #f3f4f6;
 }
+
+.gcv2-rc-row {
+  display: flex;
+  gap: 16px;
+}
+.gcv2-rc-row > * {
+  flex: 1;
+  min-width: 0;
+}
