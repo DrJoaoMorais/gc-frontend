@@ -839,7 +839,7 @@
   </div><!-- /fd-layout -->
 
   <script type="module">
-    import { carregarConsulta } from './cc-queries.js';
+    import { carregarConsulta, carregarConsultasEmLote } from './cc-queries.js';
     import { mount as pdv2Mount, unmount as pdv2Unmount } from '../../../pedidos/pedidos-v2.js';
     import { checkConsentStatus, checkConsentPrinted } from '../../../consentimentos.js';
     import { openQrModal } from '../../../consentimentos_qr.js';
@@ -1802,23 +1802,20 @@
       return html;
     }
 
-    async function preencherEvolutivos() {
+    async function preencherEvolutivos(todosAssessments) {
       const { construirEvolutivo, extrairDatasDisponiveis } =
         await import('../../../comparativo/evolutivo-motor.js');
       const { renderEvoTabelas } =
         await import('../../../comparativo/evolutivo-render.js');
 
-      const sb = window.sb;
-      if (!sb || !PATIENT_ID) return;
+      if (!PATIENT_ID) return;
 
-      // Buscar todos os assessments do doente uma só vez
-      const { data: todos, error } = await sb
-        .from('consultation_assessments')
-        .select('assessment_type, assessment_side, assessment_date, consultation_id, data')
-        .eq('patient_id', PATIENT_ID)
-        .order('assessment_date', { ascending: true });
+      // todosAssessments chega ordenado por assessment_date DESCENDENTE (para os cartões);
+      // esta função sempre trabalhou com ordem ASCENDENTE — cópia ordenada, sem mutar o original.
+      const todos = [...(todosAssessments || [])]
+        .sort((a, b) => (a.assessment_date < b.assessment_date ? -1 : a.assessment_date > b.assessment_date ? 1 : 0));
 
-      if (error || !todos?.length) return;
+      if (!todos.length) return;
 
       // Para cada bloco evolutivo no feed
       document.querySelectorAll('.fd-bloco-evolutivo').forEach(bloco => {
@@ -1996,7 +1993,7 @@
     }
 
     /* ── render do feed completo ── */
-    function renderFeed(consultas, dadosPorId, docsPorId, docsSemConsulta = []) {
+    function renderFeed(consultas, dadosPorId, docsPorId, docsSemConsulta = [], todosAssessments = []) {
       const feed = document.getElementById('fd-feed');
       const contagemEls = document.querySelectorAll('.fd-contagem-inline');
       const blocoSemConsulta = docsSemConsulta.length
@@ -2064,7 +2061,7 @@
       feed.innerHTML = html;
 
       /* ── evolutivo por card ── */
-      preencherEvolutivos();
+      preencherEvolutivos(todosAssessments);
 
       /* ── acordeões ── */
       feed.querySelectorAll('.fd-card-head').forEach(head => {
@@ -2132,7 +2129,7 @@
           .single(),
         sb.from('consultations')
           .select(`
-            id, report_date, hda, plan_text, objectives, created_at, updated_at,
+            id, patient_id, report_date, hda, plan_text, objectives, created_at, updated_at,
             clinics ( display_name )
           `)
           .eq('patient_id', PATIENT_ID)
@@ -2246,21 +2243,23 @@
       document.getElementById('fd-loading').style.display = 'none';
       aplicarOffsets();
 
-      /* carregar dados detalhados de cada consulta */
-      const dadosPorId = {};
-      await Promise.all(
-        consultas.map(async c => {
-          try {
-            const dados = await carregarConsulta({
-              consultationId: c.id,
-              patientId: PATIENT_ID,
-            });
-            dadosPorId[c.id] = dados;
-          } catch (_) {
-            dadosPorId[c.id] = null;
-          }
-        })
-      );
+      /* carregar dados detalhados de todas as consultas num único lote */
+      let dadosPorId = {};
+      let todosAssessments = [];
+      try {
+        const lote = await carregarConsultasEmLote({
+          consultationIds: consultas.map(c => c.id),
+          patientId: PATIENT_ID,
+        });
+        dadosPorId = lote.dadosPorId;
+        todosAssessments = lote.todosAssessments;
+      } catch (e) {
+        console.error('carregarConsultasEmLote falhou:', e);
+        dadosPorId = {};
+      }
+      consultas.forEach(c => {
+        if (dadosPorId[c.id]) dadosPorId[c.id].consulta = c;
+      });
 
       /* documentos (PDFs) do doente, já carregados no Promise.all — agrupar por consulta */
       const docsPorId = {};
@@ -2277,7 +2276,7 @@
         });
       }
 
-      renderFeed(consultas, dadosPorId, docsPorId, docsSemConsulta);
+      renderFeed(consultas, dadosPorId, docsPorId, docsSemConsulta, todosAssessments);
     }
 
     /* ── estado do formulário nova consulta ── */
