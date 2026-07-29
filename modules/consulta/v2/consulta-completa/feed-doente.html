@@ -471,6 +471,43 @@
     }
     .fd-hda p { margin: 0 0 6px; }
     .fd-hda ul, .fd-hda ol { margin: 0 0 6px; padding-left: 20px; }
+
+    /* ── cartões de registo de terapeuta ── */
+    .fd-ter-chip{display:inline-flex;align-items:center;gap:5px;border-radius:5px;
+                 font-size:11px;font-weight:600;padding:2px 8px;flex-shrink:0}
+    .fd-ter-nome{font-size:12px;color:var(--suave);flex:1;min-width:0;
+                 overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .fd-ter-caixa{border-radius:8px;padding:11px 13px;border:1px solid}
+
+    /* fisioterapia — violeta */
+    .ter-fisioterapia .fd-ter-chip{background:#faf9ff;color:#5b21b6;border:1px solid #ede9fe}
+    .ter-fisioterapia .fd-ter-caixa{background:#faf9ff;border-color:#ede9fe;
+      box-shadow:inset 0 1px 3px rgba(124,58,237,.09)}
+    /* fisiologia do exercício — verde-azulado */
+    .ter-fisiologia .fd-ter-chip{background:#f4fdfb;color:#0f766e;border:1px solid #ccfbf1}
+    .ter-fisiologia .fd-ter-caixa{background:#f4fdfb;border-color:#ccfbf1;
+      box-shadow:inset 0 1px 3px rgba(15,118,110,.09)}
+    /* podologia — âmbar */
+    .ter-podologia .fd-ter-chip{background:#fffcf3;color:#92400e;border:1px solid #fde68a}
+    .ter-podologia .fd-ter-caixa{background:#fffcf3;border-color:#fde68a;
+      box-shadow:inset 0 1px 3px rgba(180,83,9,.09)}
+    /* psicologia — rosa */
+    .ter-psicologia .fd-ter-chip{background:#fff6f9;color:#9d174d;border:1px solid #fbcfe8}
+    .ter-psicologia .fd-ter-caixa{background:#fff6f9;border-color:#fbcfe8;
+      box-shadow:inset 0 1px 3px rgba(190,24,93,.09)}
+    /* terapia ocupacional — verde */
+    .ter-ocupacional .fd-ter-chip{background:#f5fdf8;color:#15803d;border:1px solid #d1fae5}
+    .ter-ocupacional .fd-ter-caixa{background:#f5fdf8;border-color:#d1fae5;
+      box-shadow:inset 0 1px 3px rgba(21,128,61,.09)}
+    /* terapia da fala — turquesa */
+    .ter-fala .fd-ter-chip{background:#f3fdff;color:#0e7490;border:1px solid #cffafe}
+    .ter-fala .fd-ter-caixa{background:#f3fdff;border-color:#cffafe;
+      box-shadow:inset 0 1px 3px rgba(14,116,144,.09)}
+
+    /* por preencher — cinzento, sobrepõe-se à cor da profissão */
+    .fd-ter-pendente{opacity:.7}
+    .fd-ter-pendente .fd-ter-chip{background:#f9fafb;color:#6b7280;border:1px solid #e5e7eb}
+
     .fd-objectivos {
       background: #eff6ff;
       border-left: 3px solid #1a56db;
@@ -904,6 +941,22 @@
         });
       });
       return div.innerHTML;
+    }
+
+    /* Conteúdo de registo de terapeuta: chega em texto simples (textarea do
+       ft.html) ou em HTML (editor Quill do doente.js). Se tiver uma etiqueta
+       reconhecível, sanitiza; senão escapa e parte por linha em <p>. */
+    function fdFormatarConteudoTerapeuta(content) {
+      const txt = String(content || '');
+      if (!txt.trim()) return '';
+      if (/<[a-z][\s\S]*>/i.test(txt)) {
+        return sanitizarHTML(txt);
+      }
+      return txt.split('\n')
+        .map(l => l.trim())
+        .filter(Boolean)
+        .map(l => `<p>${esc(l)}</p>`)
+        .join('');
     }
 
     /* ── offsets dinâmicos ── */
@@ -1993,7 +2046,7 @@
     }
 
     /* ── render do feed completo ── */
-    function renderFeed(consultas, dadosPorId, docsPorId, docsSemConsulta = [], todosAssessments = []) {
+    function renderFeed(consultas, dadosPorId, docsPorId, docsSemConsulta = [], todosAssessments = [], registosTerapeutas = []) {
       const feed = document.getElementById('fd-feed');
       const contagemEls = document.querySelectorAll('.fd-contagem-inline');
       const blocoSemConsulta = docsSemConsulta.length
@@ -2002,58 +2055,137 @@
             ${renderDocumentos(docsSemConsulta)}
           </div>`
         : '';
-      if (!consultas.length) {
+      if (!consultas.length && !registosTerapeutas.length) {
         feed.innerHTML = blocoSemConsulta + `<p class="fd-vazio" style="text-align:center;padding:40px 0;">Sem consultas registadas.</p>`;
         contagemEls.forEach(el => el.textContent = 'Sem consultas');
         return;
       }
 
       const total = consultas.length;
-      contagemEls.forEach(el => el.textContent = `${total} consulta${total !== 1 ? 's' : ''}`);
+      contagemEls.forEach(el => el.textContent = total ? `${total} consulta${total !== 1 ? 's' : ''}` : 'Sem consultas');
       let html = blocoSemConsulta;
 
-      consultas.forEach((c, i) => {
-        const aberta = i < 3; /* primeiras 3 abertas */
-        const data = fmtData(c.report_date);
-        const dCriada = c.created_at ? new Date(c.created_at) : null;
-        const dEditada = c.updated_at ? new Date(c.updated_at) : null;
-        const foiEditada = dCriada && dEditada && (
-          dCriada.getFullYear() !== dEditada.getFullYear() ||
-          dCriada.getMonth()    !== dEditada.getMonth()    ||
-          dCriada.getDate()     !== dEditada.getDate()
-        );
-        const editadaLabel = foiEditada
-          ? `<span class="fd-card-editada">Editada a ${fmtDataHora(c.updated_at)}</span>`
-          : '';
-        const dados = dadosPorId[c.id];
-        const diagnosticos = dados?.diagnosticos || [];
+      /* ── rótulos das áreas de cuidado (terapeutas) ── */
+      const FD_TER_ROTULOS = {
+        fisioterapia: 'Fisioterapia',
+        fisiologia:   'Fisiologia do Exercício',
+        podologia:    'Podologia',
+        psicologia:   'Psicologia',
+        ocupacional:  'Terapia Ocupacional',
+        fala:         'Terapia da Fala',
+      };
 
-        /* chip de diagnóstico no cabeçalho (primeiro Dx) */
-        const dxPreview = diagnosticos.length
-          ? `<span class="fd-card-dx-chip">${esc(diagnosticos[0].code)}</span>${esc(diagnosticos[0].label)}${diagnosticos.length > 1 ? ` <span style="color:var(--tenue)">+${diagnosticos.length - 1}</span>` : ''}`
-          : '';
+      /* ── lista misturada consultas + registos de terapeuta, por data descendente ── */
+      const itensConsulta = consultas.map(c => ({
+        tipo: 'consulta',
+        data: c.report_date || (c.created_at ? c.created_at.slice(0, 10) : ''),
+        dados: c,
+      }));
+      const itensTerapeuta = registosTerapeutas.map(r => ({
+        tipo: 'terapeuta',
+        data: r.physio_start_date || (r.created_at ? r.created_at.slice(0, 10) : ''),
+        dados: r,
+      }));
+      const itens = [...itensConsulta, ...itensTerapeuta]
+        .sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : 0));
 
-        const clinicaNome = c.clinic_name || '';
+      let consultasAbertas = 0;
+      const ehAdministrativo = fdUserRole === 'administrativo';
 
-        const ehAdministrativo = fdUserRole === 'administrativo';
+      itens.forEach(item => {
+        if (item.tipo === 'consulta') {
+          const c = item.dados;
+          const aberta = consultasAbertas < 3; /* primeiras 3 CONSULTAS abertas */
+          consultasAbertas++;
+          const data = fmtData(c.report_date);
+          const dCriada = c.created_at ? new Date(c.created_at) : null;
+          const dEditada = c.updated_at ? new Date(c.updated_at) : null;
+          const foiEditada = dCriada && dEditada && (
+            dCriada.getFullYear() !== dEditada.getFullYear() ||
+            dCriada.getMonth()    !== dEditada.getMonth()    ||
+            dCriada.getDate()     !== dEditada.getDate()
+          );
+          const editadaLabel = foiEditada
+            ? `<span class="fd-card-editada">Editada a ${fmtDataHora(c.updated_at)}</span>`
+            : '';
+          const dados = dadosPorId[c.id];
+          const diagnosticos = dados?.diagnosticos || [];
+
+          /* chip de diagnóstico no cabeçalho (primeiro Dx) */
+          const dxPreview = diagnosticos.length
+            ? `<span class="fd-card-dx-chip">${esc(diagnosticos[0].code)}</span>${esc(diagnosticos[0].label)}${diagnosticos.length > 1 ? ` <span style="color:var(--tenue)">+${diagnosticos.length - 1}</span>` : ''}`
+            : '';
+
+          const clinicaNome = c.clinic_name || '';
+
+          html += `
+            <div class="fd-card ${aberta ? 'aberto' : ''}" data-consult-id="${esc(c.id)}">
+              <div class="fd-card-head">
+                <span class="fd-card-data">${data}</span>
+                ${editadaLabel}
+                ${clinicaNome ? `<span class="fd-card-clinica">${esc(clinicaNome)}</span>` : ''}
+                ${ehAdministrativo ? '' : `<span class="fd-card-dx">${dxPreview}</span>`}
+                ${docsPorId[c.id]?.length ? `<span class="fd-card-docs-count" title="${docsPorId[c.id].length} documento${docsPorId[c.id].length !== 1 ? 's' : ''}">📄 ${docsPorId[c.id].length}</span>` : ''}
+                <div class="fd-card-acoes">
+                  <button class="fd-btn-sm fd-btn-sm-prim" data-action="relatorio" data-consult-id="${esc(c.id)}">Relatório v2</button>
+                  ${ehAdministrativo ? '' : `<button class="fd-btn-sm" data-action="feed-consulta" data-consult-id="${esc(c.id)}">Editar</button>`}
+                </div>
+                <span class="fd-chev">⌄</span>
+              </div>
+              <div class="fd-card-body">
+                ${renderDocumentos(docsPorId[c.id])}
+                ${ehAdministrativo ? '' : (dados ? renderCardBody(dados) : '<p class="fd-vazio">A carregar…</p>')}
+              </div>
+            </div>`;
+          return;
+        }
+
+        /* ── registo de terapeuta ── */
+        const r = item.dados;
+        const careArea = r.care_area || '';
+        const rotulo = FD_TER_ROTULOS[careArea] || 'Registo';
+        const classeTer = FD_TER_ROTULOS[careArea] ? `ter-${careArea}` : 'ter-fisioterapia';
+        const data = fmtData(item.data);
+        const temConteudo = !!(r.content && String(r.content).trim());
+        const pendente = !r.token_used && !temConteudo;
+
+        if (pendente) {
+          html += `
+            <div class="fd-card ${classeTer} fd-ter-pendente">
+              <div class="fd-card-head">
+                <span class="fd-card-data">${data}</span>
+                <span class="fd-ter-chip">${esc(rotulo)} · por preencher</span>
+                <span class="fd-ter-nome">${esc(r.physio_name || '')} — link enviado, sem resposta</span>
+                <span class="fd-chev">⌄</span>
+              </div>
+            </div>`;
+          return;
+        }
+
+        if (ehAdministrativo) {
+          html += `
+            <div class="fd-card ${classeTer}">
+              <div class="fd-card-head">
+                <span class="fd-card-data">${data}</span>
+                <span class="fd-ter-chip">${esc(rotulo)}</span>
+                <span class="fd-ter-nome">${esc(r.physio_name || '')}</span>
+                <span class="fd-chev">⌄</span>
+              </div>
+            </div>`;
+          return;
+        }
 
         html += `
-          <div class="fd-card ${aberta ? 'aberto' : ''}" data-consult-id="${esc(c.id)}">
+          <div class="fd-card ${classeTer}">
             <div class="fd-card-head">
               <span class="fd-card-data">${data}</span>
-              ${editadaLabel}
-              ${clinicaNome ? `<span class="fd-card-clinica">${esc(clinicaNome)}</span>` : ''}
-              ${ehAdministrativo ? '' : `<span class="fd-card-dx">${dxPreview}</span>`}
-              ${docsPorId[c.id]?.length ? `<span class="fd-card-docs-count" title="${docsPorId[c.id].length} documento${docsPorId[c.id].length !== 1 ? 's' : ''}">📄 ${docsPorId[c.id].length}</span>` : ''}
-              <div class="fd-card-acoes">
-                <button class="fd-btn-sm fd-btn-sm-prim" data-action="relatorio" data-consult-id="${esc(c.id)}">Relatório v2</button>
-                ${ehAdministrativo ? '' : `<button class="fd-btn-sm" data-action="feed-consulta" data-consult-id="${esc(c.id)}">Editar</button>`}
-              </div>
+              <span class="fd-ter-chip">${esc(rotulo)}</span>
+              <span class="fd-ter-nome">${esc(r.physio_name || '')}</span>
               <span class="fd-chev">⌄</span>
             </div>
             <div class="fd-card-body">
-              ${renderDocumentos(docsPorId[c.id])}
-              ${ehAdministrativo ? '' : (dados ? renderCardBody(dados) : '<p class="fd-vazio">A carregar…</p>')}
+              <div class="fd-bloco-titulo">Registo do terapeuta</div>
+              <div class="fd-hda fd-ter-caixa">${fdFormatarConteudoTerapeuta(r.content)}</div>
             </div>
           </div>`;
       });
@@ -2246,6 +2378,7 @@
       /* carregar dados detalhados de todas as consultas num único lote */
       let dadosPorId = {};
       let todosAssessments = [];
+      let registosTerapeutas = [];
       try {
         const lote = await carregarConsultasEmLote({
           consultationIds: consultas.map(c => c.id),
@@ -2253,6 +2386,7 @@
         });
         dadosPorId = lote.dadosPorId;
         todosAssessments = lote.todosAssessments;
+        registosTerapeutas = lote.registosTerapeutas || [];
       } catch (e) {
         console.error('carregarConsultasEmLote falhou:', e);
         dadosPorId = {};
@@ -2276,7 +2410,7 @@
         });
       }
 
-      renderFeed(consultas, dadosPorId, docsPorId, docsSemConsulta, todosAssessments);
+      renderFeed(consultas, dadosPorId, docsPorId, docsSemConsulta, todosAssessments, registosTerapeutas);
     }
 
     /* ── estado do formulário nova consulta ── */

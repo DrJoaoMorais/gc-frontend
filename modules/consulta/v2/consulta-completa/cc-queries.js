@@ -95,9 +95,9 @@ export async function carregarConsulta({ consultationId, patientId }) {
 }
 
 /* Versão em lote de carregarConsulta: em vez de 5 queries por consulta,
-   faz 4 queries no total para N consultas (diagnósticos e tratamentos
-   filtrados por lista de ids; exames e protocolos filtrados por
-   patient_id, porque essas tabelas têm essa coluna). As listas de ids
+   faz 5 queries no total para N consultas (diagnósticos e tratamentos
+   filtrados por lista de ids; exames, protocolos e registos de terapeuta
+   filtrados por patient_id, porque essas tabelas têm essa coluna). As listas de ids
    das queries 1 e 2 são partidas em blocos de 50 para não estourar o
    comprimento do URL do .in(). O campo 'consulta' de cada entrada fica
    null — quem chama preenche-o com os dados que já tem do boot(). */
@@ -114,7 +114,7 @@ export async function carregarConsultasEmLote({ consultationIds, patientId }) {
   };
   const blocosIds = partirEmBlocos(ids, 50);
 
-  const [diagBlocos, tratBlocos, assessRes, protRes] = await Promise.all([
+  const [diagBlocos, tratBlocos, assessRes, protRes, terRes] = await Promise.all([
     Promise.all(blocosIds.map(bloco =>
       sb.from('consultation_diagnoses')
         .select('consultation_id, diagnosis_id, diagnoses_catalog ( system, code, label )')
@@ -135,6 +135,10 @@ export async function carregarConsultasEmLote({ consultationIds, patientId }) {
       .from('consultation_protocols')
       .select('id, consultation_id, protocol_id, phase_id, data, protocols_catalog ( region, name, kind ), protocol_phases ( phase_order, name, anchor_from, anchor_to, data )')
       .eq('patient_id', patientId),
+    sb
+      .from('physio_records')
+      .select('id, patient_id, clinic_id, physio_name, care_area, content, physio_start_date, token_used, created_at')
+      .eq('patient_id', patientId),
   ]);
 
   const diagRows = [];
@@ -145,6 +149,7 @@ export async function carregarConsultasEmLote({ consultationIds, patientId }) {
 
   if (assessRes.error) throw assessRes.error;
   if (protRes.error) throw protRes.error;
+  if (terRes.error) throw terRes.error;
 
   const diagPorId = {};
   diagRows.forEach(r => { (diagPorId[r.consultation_id] ||= []).push(r); });
@@ -193,5 +198,5 @@ export async function carregarConsultasEmLote({ consultationIds, patientId }) {
     dadosPorId[id] = { consulta: null, diagnosticos, tratamentos, exames, protocolo };
   });
 
-  return { dadosPorId, todosAssessments: assessRes.data || [] };
+  return { dadosPorId, todosAssessments: assessRes.data || [], registosTerapeutas: terRes.data || [] };
 }
