@@ -16,7 +16,7 @@
  *  db.js       → queries Supabase
  *  shell.js    → render HTML+CSS (sidebar, header, estilos)
  *  agenda.js   → agenda completa, marcações, GCAL Worker
- *  doente.js   → openPatientViewModal, openNewPatientMainModal
+ *  doente.js   → carregado tardiamente via abrir-doente.js, só ao abrir uma ficha
  *  pesquisa.js → wireQuickPatientSearch, openCalendarOverlay
  *  exames.js   → openExamsPanel, buildExamRequestHtml
  *  analises.js → openAnalisesModal, ANALISES_CATALOG
@@ -49,10 +49,8 @@ import {
 }                                           from "./modules/agenda.js";
 
 // Doente
-import {
-  openPatientViewModal,
-  openNewPatientMainModal
-}                                           from "./modules/doente.js";
+import { abrirFichaDoente } from "./modules/abrir-doente.js";
+import { openNewPatientMainModal } from "./modules/novo-doente.js";
 
 // Pesquisa + Calendário
 import {
@@ -218,8 +216,8 @@ if (!window.openDocumentEditor) {
  * refatoradas) podem chamar funções pelo nome global. Expomo-las aqui
  * para manter compatibilidade durante a transição.
  */
-window.openPatientViewModal      = openPatientViewModal;
-window.__gc_openPatientViewModal = openPatientViewModal;   // ← ponte para agenda.js
+window.openPatientViewModal      = abrirFichaDoente;
+window.__gc_openPatientViewModal = abrirFichaDoente;   // ← ponte para agenda.js
 window.openNewPatientMainModal   = openNewPatientMainModal;
 window.openApptModal           = openApptModal;
 window.openExamsPanel          = openExamsPanel;

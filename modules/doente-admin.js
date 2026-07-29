@@ -323,10 +323,11 @@ export async function renderDoentePanorama(patientId) {
 
   document.getElementById("dpaEditBtn").addEventListener("click", () => {
     if (typeof window.__gc_openPatientViewModal === "function") {
-      window.__gc_openPatientViewModal(pt);
-      setTimeout(() => {
-        document.getElementById("btnEditIdent")?.click();
-      }, 600);
+      Promise.resolve(window.__gc_openPatientViewModal(pt)).then(() => {
+        setTimeout(() => {
+          document.getElementById("btnEditIdent")?.click();
+        }, 600);
+      });
     }
   });
 
