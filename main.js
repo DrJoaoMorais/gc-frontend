@@ -102,6 +102,9 @@ window.__gc_renderDoentePanorama = renderDoentePanorama;
 import { openFeedPanel } from "./modules/feed-panel.js";
 window.__gc_openFeedPanel = openFeedPanel;
 
+// Campainha do Relatório v2 (janelas filhas — feed-doente)
+import "./modules/relatorio-v2-bridge.js";
+
 // Boot
 import { boot }                             from "./modules/boot.js";
 
