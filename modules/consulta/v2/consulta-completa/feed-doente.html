@@ -2122,13 +2122,10 @@
         document.getElementById('fd-loading').textContent = '⚠️ Sem sessão. Faz login no GC neste browser e recarrega.';
         return;
       }
-      fdUserRole = await fetchMyRole(u.user.id);
-      fdAplicarRestricoesAdministrativo();
-
-      /* doente + consultas em paralelo */
+      /* doente + consultas + role + documentos em paralelo */
       const hoje = new Date(); hoje.setHours(0,0,0,0);
       const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1);
-      const [pacienteRes, consultasRes, clinicaRes, marcacaoHojeRes] = await Promise.all([
+      const [pacienteRes, consultasRes, clinicaRes, marcacaoHojeRes, roleRes, docsRes] = await Promise.all([
         sb.from('patients')
           .select('full_name, dob, sns, phone, nif, email, external_id, passport_id, address_line1, postal_code, city, country, notes, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas, contexto_habitacional, profissao, atividade_desportiva, insurance_provider, insurance_policy_number')
           .eq('id', PATIENT_ID)
@@ -2142,17 +2139,24 @@
           .order('report_date', { ascending: false })
           .order('created_at',  { ascending: false }),
         sb.from('patient_clinic')
-          .select('clinic_id, clinics ( display_name )')
+          .select('clinic_id, clinics ( display_name, name, address_line1, postal_code, city )')
           .eq('patient_id', PATIENT_ID)
           .eq('is_active', true)
           .maybeSingle(),
         sb.from('appointments')
-          .select('id, start_at, status, title, notes, clinic_id, mode')
+          .select('id, start_at, status, title, notes, clinic_id, mode, clinics ( name, address_line1, postal_code, city )')
           .eq('patient_id', PATIENT_ID)
           .gte('start_at', hoje.toISOString())
           .lt('start_at', amanha.toISOString())
           .order('start_at', { ascending: true }),
+        fetchMyRole(u.user.id),
+        sb.from('documents')
+          .select('id, consultation_id, title, category, storage_path, created_at')
+          .eq('patient_id', PATIENT_ID)
+          .order('created_at', { ascending: false }),
       ]);
+      fdUserRole = roleRes;
+      fdAplicarRestricoesAdministrativo();
       /* nome + idade + sns + phone */
       if (!pacienteRes.error && pacienteRes.data) {
         const p = pacienteRes.data;
@@ -2168,14 +2172,19 @@
         TODAY_APPT_CLINIC_ID = marcacaoHojeRes?.data?.[0]?.clinic_id || null;
         TODAY_APPT_ID = marcacaoHojeRes?.data?.[0]?.id || null;
         TODAY_APPT_MODE = marcacaoHojeRes?.data?.[0]?.mode || null;
-        fdConsentStatus = await checkConsentStatus(PATIENT_ID, TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null);
-        fdConsentPrinted = await checkConsentPrinted(PATIENT_ID, TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null);
+        const [consentStatusRes, consentPrintedRes] = await Promise.all([
+          checkConsentStatus(PATIENT_ID, TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null),
+          checkConsentPrinted(PATIENT_ID, TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null),
+        ]);
+        fdConsentStatus = consentStatusRes;
+        fdConsentPrinted = consentPrintedRes;
         if (TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID) {
-          const { data: cData } = await sb.from('clinics')
-            .select('name, address_line1, postal_code, city')
-            .eq('id', TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID)
-            .single();
-          fdActiveClinicData = cData || null;
+          const activeEmbed = TODAY_APPT_CLINIC_ID
+            ? marcacaoHojeRes?.data?.[0]?.clinics
+            : clinicaRes?.data?.clinics;
+          fdActiveClinicData = activeEmbed
+            ? { name: activeEmbed.name, address_line1: activeEmbed.address_line1, postal_code: activeEmbed.postal_code, city: activeEmbed.city }
+            : null;
         }
         fdAtualizarTagsConsentimento();
         const clinicaEl = document.getElementById('fd-clinica');
@@ -2253,14 +2262,11 @@
         })
       );
 
-      /* carregar documentos (PDFs) do doente, agrupados por consulta */
+      /* documentos (PDFs) do doente, já carregados no Promise.all — agrupar por consulta */
       const docsPorId = {};
       const docsSemConsulta = [];
-      const { data: docs, error: docsErr } = await sb
-        .from('documents')
-        .select('id, consultation_id, title, category, storage_path, created_at')
-        .eq('patient_id', PATIENT_ID)
-        .order('created_at', { ascending: false });
+      const docs = docsRes?.data;
+      const docsErr = docsRes?.error;
       fdAllDocs = docs || [];
       if (docsErr) {
         console.error('Erro a carregar documentos:', docsErr);
