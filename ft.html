@@ -68,29 +68,18 @@
 
   const token = new URLSearchParams(location.search).get('t');
 
-  async function sbGet(table, filters) {
-    let url = `${SUPABASE_URL}/rest/v1/${table}?`;
-    url += Object.entries(filters).map(([k, v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&');
-    url += '&limit=1';
-    const r = await fetch(url, {
-      headers: { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + SUPABASE_ANON }
-    });
-    const data = await r.json();
-    return Array.isArray(data) ? (data[0] || null) : null;
-  }
-
-  async function sbPatch(table, matchField, matchVal, body) {
-    const url = `${SUPABASE_URL}/rest/v1/${table}?${matchField}=eq.${encodeURIComponent(matchVal)}`;
-    return fetch(url, {
-      method: 'PATCH',
+  async function sbRpc(fn, args) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+      method: 'POST',
       headers: {
         'apikey': SUPABASE_ANON,
         'Authorization': 'Bearer ' + SUPABASE_ANON,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(args)
     });
+    if (!r.ok) return null;
+    return await r.json();
   }
 
   async function init() {
@@ -99,14 +88,14 @@
       return;
     }
 
-    const rec = await sbGet('physio_records', { submission_token: token });
+    const rec = await sbRpc('physio_record_por_token', { p_token: token });
 
-    if (!rec) {
+    if (!rec || rec.estado === 'invalido') {
       document.getElementById('ft-name').textContent = 'Link não encontrado.';
       return;
     }
 
-    if (rec.token_used) {
+    if (rec.estado === 'usado') {
       document.getElementById('card-form').style.display = 'none';
       document.getElementById('card-ok').style.display = 'block';
       document.querySelector('.msg-ok h2').textContent = 'Registo já submetido';
@@ -138,15 +127,21 @@
     btn.disabled    = true;
     btn.textContent = 'A guardar…';
 
-    const r = await sbPatch('physio_records', 'submission_token', token, {
-      content: notes,
-      physio_start_date: startDate || null,
-      token_used: true
+    const r = await sbRpc('physio_record_submeter', {
+      p_token: token, p_content: notes, p_start_date: startDate || null
     });
 
-    if (r.ok) {
+    if (r?.estado === 'ok') {
       document.getElementById('card-form').style.display = 'none';
       document.getElementById('card-ok').style.display   = 'block';
+    } else if (r?.estado === 'usado') {
+      erro.textContent    = 'Este link já foi utilizado.';
+      btn.disabled        = false;
+      btn.textContent     = 'Guardar registo';
+    } else if (r?.estado === 'demasiado_longo') {
+      erro.textContent    = 'O texto é demasiado longo.';
+      btn.disabled        = false;
+      btn.textContent     = 'Guardar registo';
     } else {
       erro.textContent    = 'Erro ao guardar. Tente novamente.';
       btn.disabled        = false;
