@@ -114,6 +114,15 @@
       transition: background .15s;
     }
     .fd-btn-nova:hover { background: #136a33; }
+    .fd-btn-ter { background:#5b21b6; }
+    .fd-btn-ter:hover { background:#4c1d95; }
+    .fd-ter-comp { background:#fff; border:1px solid var(--linha); border-radius:12px;
+                   margin:14px 0 0; overflow:hidden; }
+    .fd-ter-comp-head { display:flex; align-items:center; justify-content:space-between;
+                        gap:12px; padding:13px 16px; border-bottom:1px solid var(--linha); }
+    .fd-ter-comp-titulo { font-family:'Cormorant Garamond',serif; font-size:20px;
+                          font-weight:600; color:var(--navy); }
+    .fd-ter-comp-acoes { display:flex; gap:8px; align-items:center; }
 
     /* ── BARRA DE ACÇÃO (Nova Consulta + nota) ── */
     .fd-acao-bar {
@@ -646,6 +655,7 @@
   <div class="fd-acao-bar">
     <div class="fd-nova-caixa">
       <button class="fd-btn-nova fd-btn-nova-trigger" id="fd-btn-nova">+ Nova Consulta</button>
+      <button class="fd-btn-nova fd-btn-ter" id="fd-btn-ter" hidden>+ Registo de Fisioterapia</button>
     </div>
     <span class="fd-contagem fd-contagem-inline"></span>
     <div class="fd-nota-marcacao" id="fd-nota-marcacao">
@@ -847,11 +857,13 @@
     <div class="fd-nova-wide-wrap">
       <div class="fd-nova-caixa">
         <button class="fd-btn-nova fd-btn-nova-trigger" id="fd-btn-nova-wide">+ Nova Consulta</button>
+        <button class="fd-btn-nova fd-btn-ter" id="fd-btn-ter-wide" hidden>+ Registo de Fisioterapia</button>
       </div>
       <span class="fd-contagem fd-contagem-inline"></span>
     </div>
 
     <!-- feed de consultas -->
+    <div id="fd-ter-comp-wrap" hidden></div>
     <div id="fd-feed"></div>
   </div><!-- /fd-page -->
 
@@ -2239,6 +2251,17 @@
       document.getElementById('fd-btn-nova-wide')?.style.setProperty('display', 'none');
     }
 
+    function fdAplicarRestricoesTerapeuta() {
+      if (fdUserRole !== 'fisioterapeuta') return;
+      ['fd-sec-meios','fd-sec-relatorios'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.style.display = 'none';
+      });
+      document.getElementById('fd-btn-nova')?.style.setProperty('display','none');
+      document.getElementById('fd-btn-nova-wide')?.style.setProperty('display','none');
+      document.getElementById('fd-btn-ter')?.removeAttribute('hidden');
+      document.getElementById('fd-btn-ter-wide')?.removeAttribute('hidden');
+    }
+
     /* ── boot ── */
     async function boot() {
       const sb = window.sb;
@@ -2286,6 +2309,7 @@
       ]);
       fdUserRole = roleRes;
       fdAplicarRestricoesAdministrativo();
+      fdAplicarRestricoesTerapeuta();
       /* nome + idade + sns + phone */
       if (!pacienteRes.error && pacienteRes.data) {
         const p = pacienteRes.data;
@@ -2415,6 +2439,7 @@
 
     /* ── estado do formulário nova consulta ── */
     let fdQuill = null;
+    let fdTerQuill = null;
     let fdDiagSelecionados = []; // [{id, code, label, system}]
     let fdTreatSelecionados = []; // [{id, code, label}]
     let fdDiagTimer = null;
@@ -3012,6 +3037,84 @@
 
     document.getElementById('fdBtnIdentificacao')?.addEventListener('click', () => fdOpenIdentidadeModal('view'));
     document.getElementById('fdBtnEditarIdentificacao')?.addEventListener('click', () => fdOpenIdentidadeModal('edit'));
+
+    /* ── composer: registo de terapeuta ── */
+    function fdAbrirComposerTerapeuta() {
+      if (fdTerQuill) return; // guarda contra duplo clique
+      const wrap = document.getElementById('fd-ter-comp-wrap');
+      if (!wrap) return;
+      wrap.innerHTML = `
+        <div class="fd-ter-comp">
+          <div class="fd-ter-comp-head">
+            <span class="fd-ter-comp-titulo">Novo Registo de Fisioterapia</span>
+            <div class="fd-ter-comp-acoes">
+              <button id="fd-ter-cancel" style="background:none;border:1px solid var(--linha);border-radius:8px;
+                padding:9px 16px;font:500 13px 'Outfit',sans-serif;color:var(--suave);cursor:pointer;">Cancelar</button>
+              <button id="fd-ter-gravar" class="fd-btn-nova fd-btn-ter">Gravar registo</button>
+            </div>
+          </div>
+          <div id="fd-ter-editor"></div>
+        </div>
+      `;
+      wrap.hidden = false;
+      fdTerQuill = new Quill('#fd-ter-editor', {
+        theme: 'snow',
+        placeholder: 'Escreva o registo da sessão…',
+        modules: {
+          toolbar: [
+            ['bold', 'italic', 'underline'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            ['clean'],
+          ],
+        },
+      });
+      document.getElementById('fd-ter-cancel')?.addEventListener('click', fdFecharComposerTerapeuta);
+      document.getElementById('fd-ter-gravar')?.addEventListener('click', fdGravarRegistoTerapeuta);
+    }
+
+    function fdFecharComposerTerapeuta() {
+      fdTerQuill = null;
+      const wrap = document.getElementById('fd-ter-comp-wrap');
+      if (wrap) { wrap.innerHTML = ''; wrap.hidden = true; }
+    }
+
+    async function fdGravarRegistoTerapeuta() {
+      if (!fdTerQuill) return;
+      const html = fdTerQuill.root.innerHTML.trim();
+      if (!html || html === '<p><br></p>') { alert('Escreva o registo antes de gravar.'); return; }
+
+      const btn = document.getElementById('fd-ter-gravar');
+      if (btn?.disabled) return;
+      if (btn) { btn.disabled = true; btn.textContent = 'A gravar…'; }
+
+      try {
+        const sb = window.sb;
+        const { data: { user } } = await sb.auth.getUser();
+        const clinicId = PATIENT_CLINIC_ID;
+        if (!clinicId) { alert('Sem clínica activa para o doente'); throw new Error('Sem clínica activa para o doente'); }
+
+        const { data: cm } = await sb.from('clinic_members')
+          .select('display_name').eq('user_id', user.id).eq('clinic_id', clinicId).maybeSingle();
+
+        const { error } = await sb.from('physio_records').insert([{
+          clinic_id: clinicId,
+          patient_id: PATIENT_ID,
+          author_user_id: user.id,
+          physio_name: cm?.display_name || 'Terapeuta',
+          content: html
+        }]);
+        if (error) { alert('Erro ao gravar registo: ' + (error.message || error)); throw error; }
+
+        fdFecharComposerTerapeuta();
+        await boot();
+      } catch (e) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Gravar registo'; }
+        throw e;
+      }
+    }
+
+    document.getElementById('fd-btn-ter')?.addEventListener('click', fdAbrirComposerTerapeuta);
+    document.getElementById('fd-btn-ter-wide')?.addEventListener('click', fdAbrirComposerTerapeuta);
 
     boot();
   </script>
