@@ -1153,24 +1153,50 @@ async function _enviarLinkFT(row, patientName) {
   if (input === null) return;
   const physioName = input.trim() || "Fisioterapeuta";
 
-  const token = crypto.randomUUID();
-  const { error } = await window.sb.from("physio_records").insert({
-    clinic_id: row.clinic_id,
-    patient_id: row.patient_id,
-    appointment_id: row.id,
-    physio_name: physioName,
-    patient_name: patientName,
-    submission_token: token,
-    token_used: false,
-    content: ""
-  });
-  if (error) { alert("Erro ao gerar link: " + error.message); return; }
+  const { data: existente } = await window.sb
+    .from("physio_records")
+    .select("id, submission_token, physio_name")
+    .eq("patient_id", row.patient_id)
+    .eq("clinic_id", row.clinic_id)
+    .eq("appointment_id", row.id)
+    .eq("token_used", false)
+    .not("submission_token", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let token;
+  if (existente?.submission_token) {
+    token = existente.submission_token;
+    // se o nome mudou, actualiza a etiqueta na linha que já existe
+    if (existente.physio_name !== physioName) {
+      const { error: errUpd } = await window.sb.from("physio_records")
+        .update({ physio_name: physioName }).eq("id", existente.id);
+      if (errUpd) { alert("Erro ao actualizar o link: " + errUpd.message); return; }
+    }
+  } else {
+    token = crypto.randomUUID();
+    const { error } = await window.sb.from("physio_records").insert({
+      clinic_id: row.clinic_id,
+      patient_id: row.patient_id,
+      appointment_id: row.id,
+      physio_name: physioName,
+      patient_name: patientName,
+      submission_token: token,
+      token_used: false,
+      content: ""
+    });
+    if (error) { alert("Erro ao gerar link: " + error.message); return; }
+  }
 
   const link = `https://gc.joaomorais.pt/ft?t=${token}`;
   const msg = encodeURIComponent(
     `Olá ${physioName},\n\nPor favor registe a evolução de ${patientName} antes da próxima consulta:\n\n${link}\n\nObrigado.`
   );
-  window.open(`https://wa.me/?text=${msg}`, "_blank");
+  const w = window.open(`https://wa.me/?text=${msg}`, "_blank");
+  if (!w) {
+    prompt("O browser bloqueou a janela do WhatsApp. Copie o link e envie à mão:", link);
+  }
 
   // Actualizar status no painel após envio
   _verificarRegistoFT(row.patient_id, row.clinic_id, row.id).then(html => {
