@@ -235,8 +235,9 @@
     <div class="row"><button class="photo-btn" onclick="document.getElementById('cam').click()">📷 Foto</button></div>
     <input type="file" id="cam" accept="image/*" capture="environment" multiple>
     <div class="thumbs" id="thumbs"></div>
-    <button class="send" onclick="enviar()">Enviar</button>
+    <button class="send" onclick="enviar()">Enviar nota</button>
     <div class="toast" id="toast">Enviado ✓</div>
+    <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px;">Isto envia só o texto/foto acima. Os cartões lá em cima já ficaram guardados sozinhos.</p>
 
     <div class="today-list">
       <h2>Hoje</h2>
@@ -404,6 +405,7 @@
     const v = document.getElementById('peso-input').value;
     if(!v) return;
     document.getElementById('st-peso').innerHTML = `${v} kg`;
+    document.getElementById('peso-input').value = '';
     document.getElementById('peso-form').classList.remove('show');
     registarEntradaDireta(`⚖️ Peso: ${v} kg`);
     persistirEntrada(`⚖️ Peso: ${v} kg`);
