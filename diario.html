@@ -109,6 +109,8 @@
   .send{width:100%;margin-top:16px;padding:14px;border:none;border-radius:14px;background:var(--blue);color:#fff;font-size:15.5px;font-weight:600;cursor:pointer;}
   .toast{text-align:center;font-size:13.5px;color:var(--blue);font-weight:500;height:18px;margin-top:8px;opacity:0;transition:opacity .25s ease;}
   .toast.show{opacity:1;}
+  .alerta-falha{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(10px);max-width:340px;width:calc(100% - 40px);background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--warn-ink);font-size:13px;font-weight:500;padding:11px 15px;border-radius:12px;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.12);opacity:0;pointer-events:none;transition:opacity .2s ease, transform .2s ease;z-index:9998;}
+  .alerta-falha.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
   .today-list{margin-top:16px;}
   .today-list h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px;}
@@ -250,6 +252,8 @@
   </main>
 </div>
 
+<div class="alerta-falha" id="alertaFalha"></div>
+
 <script>
   const token = new URLSearchParams(location.search).get('t');
 
@@ -264,14 +268,25 @@
     entry.className = 'entry';
     entry.innerHTML = `<div class="time">${horaAgora()}</div><div class="text">${texto}</div>`;
     list.prepend(entry);
+    return entry;
   }
 
-  // grava a sério na BD; não bloqueia a UI — se falhar, fica só em consola
+  let alertaFalhaTimeout = null;
+  function avisarFalha(msg = 'Falha ao gravar. Tenta novamente.'){
+    const el = document.getElementById('alertaFalha');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(alertaFalhaTimeout);
+    alertaFalhaTimeout = setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  // grava a sério na BD; devolve true/false para quem chama decidir a UI
   async function persistirEntrada(raw_text, images = []){
     try{
       const { data, error } = await window.sb.rpc('submit_diary_entry', { p_token: token, p_raw_text: raw_text, p_images: images });
-      if(error || data !== true) console.warn('Falha ao gravar entrada:', error || 'token inválido');
-    } catch(e){ console.warn('Falha de rede ao gravar entrada:', e); }
+      if(error || data !== true){ console.warn('Falha ao gravar entrada:', error || 'token inválido'); return false; }
+      return true;
+    } catch(e){ console.warn('Falha de rede ao gravar entrada:', e); return false; }
   }
 
   async function uploadFotos(fileList){
@@ -364,17 +379,16 @@
   sentesBtn.onclick = async () => {
     sentesBtn.disabled = true;
     try{
-      const pendentes = [];
-      [escalaFome, escalaEnergia, escalaSono].forEach(e => {
-        if(e.pendente() !== null){
-          const texto = e.texto();
-          registarEntradaDireta(texto);
-          pendentes.push(persistirEntrada(texto));
-          e.limpar();
-        }
-      });
-      await Promise.all(pendentes);
-      sentesBtn.style.display = 'none';
+      const escalas = [escalaFome, escalaEnergia, escalaSono].filter(e => e.pendente() !== null);
+      const resultados = await Promise.all(escalas.map(async e => {
+        const texto = e.texto();
+        const entryEl = registarEntradaDireta(texto);
+        const ok = await persistirEntrada(texto);
+        if(ok) e.limpar(); else entryEl.remove();
+        return ok;
+      }));
+      if(resultados.length && resultados.every(Boolean)) sentesBtn.style.display = 'none';
+      if(resultados.some(ok => !ok)) avisarFalha();
     } finally {
       sentesBtn.disabled = false;
     }
@@ -387,14 +401,21 @@
       dorBtn.disabled = true;
       try{
         const texto = escalaDor.texto();
-        registarEntradaDireta(texto);
-        await persistirEntrada(texto);
-        escalaDor.limpar();
+        const entryEl = registarEntradaDireta(texto);
+        const ok = await persistirEntrada(texto);
+        if(ok){
+          escalaDor.limpar();
+          dorBtn.style.display = 'none';
+        } else {
+          entryEl.remove();
+          avisarFalha();
+        }
       } finally {
         dorBtn.disabled = false;
       }
+    } else {
+      dorBtn.style.display = 'none';
     }
-    dorBtn.style.display = 'none';
   };
 
   // validação do link + carregamento inicial
@@ -462,14 +483,19 @@
   init();
 
   // peso
-  function guardarPeso(){
+  async function guardarPeso(){
     const v = document.getElementById('peso-input').value;
     if(!v) return;
-    document.getElementById('st-peso').innerHTML = `${v} kg`;
-    document.getElementById('peso-input').value = '';
-    document.getElementById('peso-form').classList.remove('show');
-    registarEntradaDireta(`⚖️ Peso: ${v} kg`);
-    persistirEntrada(`⚖️ Peso: ${v} kg`);
+    const entryEl = registarEntradaDireta(`⚖️ Peso: ${v} kg`);
+    const ok = await persistirEntrada(`⚖️ Peso: ${v} kg`);
+    if(ok){
+      document.getElementById('st-peso').innerHTML = `${v} kg`;
+      document.getElementById('peso-input').value = '';
+      document.getElementById('peso-form').classList.remove('show');
+    } else {
+      entryEl.remove();
+      avisarFalha();
+    }
   }
 
   // medicação (definida por ti ao gerar o link; o doente só confirma e reporta efeitos)
@@ -516,28 +542,38 @@
         <button class="med-btn ${medState.tomadaHoje?'done':''}" id="med-btn" onclick="document.getElementById('med-dose-form').classList.toggle('show')">${medState.tomadaHoje?'Tomada ✓':'Tomei hoje'}</button>`;
     }
   }
-  function marcarMedicacao(){
-    medState.tomadaHoje = true;
-    medState.diasRestantes = 7;
+  async function marcarMedicacao(){
     const doseTomada = (document.getElementById('med-dose-tomada')?.value || medState.dose || '').trim();
     const desvio = doseTomada && doseTomada !== (medState.dose||'').trim();
-    document.getElementById('med-dose-form').classList.remove('show');
-    renderMed();
-    document.getElementById('med-chips').classList.add('show');
     const texto = desvio
       ? `💊 Medicação — ${medState.nome} tomada, dose ${doseTomada} (prescrito ${medState.dose})`
       : `💊 Medicação — ${medState.nome} tomada (${doseTomada || medState.dose})`;
-    registarEntradaDireta(texto);
-    persistirEntrada(texto);
+    const entryEl = registarEntradaDireta(texto);
+    const ok = await persistirEntrada(texto);
+    if(ok){
+      medState.tomadaHoje = true;
+      medState.diasRestantes = 7;
+      renderMed();
+      document.getElementById('med-dose-form').classList.remove('show');
+      document.getElementById('med-chips').classList.add('show');
+    } else {
+      entryEl.remove();
+      avisarFalha();
+    }
   }
 
   document.querySelectorAll('#med-chips .chip').forEach(chip => {
-    chip.onclick = () => {
+    chip.onclick = async () => {
       const grupo = document.querySelectorAll('#med-chips .chip');
       if(chip.dataset.nenhum){ grupo.forEach(c=>c.classList.remove('on')); chip.classList.add('on'); }
       else { document.querySelector('#med-chips .chip[data-nenhum]').classList.remove('on'); chip.classList.toggle('on'); }
       const activos = [...grupo].filter(c=>c.classList.contains('on')).map(c=>c.textContent);
-      if(activos.length){ registarEntradaDireta('Efeitos: ' + activos.join(', ')); persistirEntrada('Efeitos: ' + activos.join(', ')); }
+      if(activos.length){
+        const texto = 'Efeitos: ' + activos.join(', ');
+        const entryEl = registarEntradaDireta(texto);
+        const ok = await persistirEntrada(texto);
+        if(!ok){ entryEl.remove(); avisarFalha(); }
+      }
     };
   });
 
@@ -551,15 +587,20 @@
       document.getElementById('exo-form').classList.add('show');
     };
   });
-  function guardarExercicio(){
+  async function guardarExercicio(){
     const min = document.getElementById('exo-min').value || '?';
     const texto = `🏃 ${tipoExercicio} — ${min} min`;
-    registarEntradaDireta(texto);
-    persistirEntrada(texto);
-    marcarDiaExercicio();
-    document.getElementById('exo-chips').classList.remove('show');
-    document.getElementById('exo-form').classList.remove('show');
-    document.getElementById('exo-min').value = '';
+    const entryEl = registarEntradaDireta(texto);
+    const ok = await persistirEntrada(texto);
+    if(ok){
+      marcarDiaExercicio();
+      document.getElementById('exo-chips').classList.remove('show');
+      document.getElementById('exo-form').classList.remove('show');
+      document.getElementById('exo-min').value = '';
+    } else {
+      entryEl.remove();
+      avisarFalha();
+    }
   }
 
   // composer livre
@@ -589,30 +630,35 @@
     btn.disabled = true; btn.textContent = 'A enviar…';
 
     const fotosParaEnviar = fotos;
-    let fotosHtml = '';
-    fotosParaEnviar.forEach(f => { fotosHtml += `<img src="${URL.createObjectURL(f)}">`; });
     const prefixo = tagAtiva ? `${tagAtiva} — ` : '';
     const textoFinal = prefixo + (txt.value ? txt.value.trim() : '(foto)');
 
-    const list = document.getElementById('list');
-    if(list.querySelector('.empty')) list.innerHTML = '';
-    const entry = document.createElement('div');
-    entry.className = 'entry';
-    entry.innerHTML = `<div class="time">${horaAgora()}</div><div class="text"><strong>${prefixo}</strong>${txt.value ? txt.value.replace(/</g,'&lt;') : '<em>(sem texto)</em>'}${fotosHtml}</div>`;
-    list.prepend(entry);
-
-    txt.value = ''; fotos = [];
-    document.getElementById('thumbs').innerHTML = '';
-    document.getElementById('cam').value = '';
-    limparTag();
-
     const paths = fotosParaEnviar.length ? await uploadFotos(fotosParaEnviar) : [];
-    await persistirEntrada(textoFinal, paths);
+    const ok = await persistirEntrada(textoFinal, paths);
+
+    if(ok){
+      let fotosHtml = '';
+      fotosParaEnviar.forEach(f => { fotosHtml += `<img src="${URL.createObjectURL(f)}">`; });
+      const list = document.getElementById('list');
+      if(list.querySelector('.empty')) list.innerHTML = '';
+      const entry = document.createElement('div');
+      entry.className = 'entry';
+      entry.innerHTML = `<div class="time">${horaAgora()}</div><div class="text"><strong>${prefixo}</strong>${txt.value ? txt.value.replace(/</g,'&lt;') : '<em>(sem texto)</em>'}${fotosHtml}</div>`;
+      list.prepend(entry);
+
+      txt.value = ''; fotos = [];
+      document.getElementById('thumbs').innerHTML = '';
+      document.getElementById('cam').value = '';
+      limparTag();
+
+      const toast = document.getElementById('toast');
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 1400);
+    } else {
+      avisarFalha();
+    }
 
     btn.disabled = false; btn.textContent = 'Enviar';
-    const toast = document.getElementById('toast');
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 1400);
   }
 </script>
 </body>
