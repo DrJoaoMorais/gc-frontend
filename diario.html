@@ -61,6 +61,7 @@
   .mini-form input{flex:1;border:1px solid var(--mist);border-radius:10px;padding:9px 11px;font-family:'Outfit',sans-serif;font-size:14.5px;}
   .mini-form input:focus{outline:none;border-color:var(--blue);}
   .mini-btn{border:none;background:var(--blue);color:#fff;font-size:13px;font-weight:500;padding:9px 14px;border-radius:10px;cursor:pointer;}
+  .mini-btn:disabled{opacity:.55;cursor:default;}
 
   /* --- medicação --- */
   .med-row{display:flex;align-items:center;gap:12px;}
@@ -360,26 +361,38 @@
   const escalaFome = montarEscala('bar-fome','fome-val', ['Nenhuma','Pouca','Moderada','Bastante','Muita'], 'Fome', mostrarBotaoSentes);
   const escalaEnergia = montarEscala('bar-energia','energia-val', ['Muito baixa','Baixa','Razoável','Boa','Muito boa'], 'Energia', mostrarBotaoSentes);
   const escalaSono = montarEscala('bar-sono','sono-val', ['Muito mau','Mau','Razoável','Bom','Muito bom'], 'Sono', mostrarBotaoSentes);
-  sentesBtn.onclick = () => {
-    [escalaFome, escalaEnergia, escalaSono].forEach(e => {
-      if(e.pendente() !== null){
-        const texto = e.texto();
-        registarEntradaDireta(texto);
-        persistirEntrada(texto);
-        e.limpar();
-      }
-    });
-    sentesBtn.style.display = 'none';
+  sentesBtn.onclick = async () => {
+    sentesBtn.disabled = true;
+    try{
+      const pendentes = [];
+      [escalaFome, escalaEnergia, escalaSono].forEach(e => {
+        if(e.pendente() !== null){
+          const texto = e.texto();
+          registarEntradaDireta(texto);
+          pendentes.push(persistirEntrada(texto));
+          e.limpar();
+        }
+      });
+      await Promise.all(pendentes);
+      sentesBtn.style.display = 'none';
+    } finally {
+      sentesBtn.disabled = false;
+    }
   };
 
   const dorBtn = document.getElementById('bar-dor-btn');
   const escalaDor = montarEscala('bar-dor','dor-val', ['Nenhuma','Ligeira','Moderada','Forte','Muito forte'], 'Dor no exercício', () => { dorBtn.style.display = 'block'; });
-  dorBtn.onclick = () => {
+  dorBtn.onclick = async () => {
     if(escalaDor.pendente() !== null){
-      const texto = escalaDor.texto();
-      registarEntradaDireta(texto);
-      persistirEntrada(texto);
-      escalaDor.limpar();
+      dorBtn.disabled = true;
+      try{
+        const texto = escalaDor.texto();
+        registarEntradaDireta(texto);
+        await persistirEntrada(texto);
+        escalaDor.limpar();
+      } finally {
+        dorBtn.disabled = false;
+      }
     }
     dorBtn.style.display = 'none';
   };
