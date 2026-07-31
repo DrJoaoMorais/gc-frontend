@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Diário</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  /* Mesma URL/chave anon do resto do GC (feed-doente.html) — a chave anon é pública por desenho, protegida pelas políticas RLS. */
+  window.SUPABASE_URL  = "https://nxfnzzcuqzxmzsihbrtp.supabase.co";
+  window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA";
+  window.sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+</script>
+<style>
+  :root{
+    --navy:#0f2d52; --blue:#1a56db; --blue-soft:#eaf0fd; --blue-mid:#5b81e6;
+    --paper:#ffffff; --bg:#f4f6fa; --ink:#1b2430; --muted:#8a93a0;
+    --mist:#e5e9f0; --ok:#1f9d63; --warn-bg:#fff6ea; --warn-bd:#f0c988; --warn-ink:#9a5b00;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);font-family:'Outfit',sans-serif;color:var(--ink);display:flex;justify-content:center;min-height:100vh;}
+  .phone{width:100%;max-width:420px;min-height:100vh;background:var(--bg);}
+  header{background:var(--paper);padding:26px 22px 18px;border-bottom:1px solid var(--mist);}
+  .dots{display:flex;gap:6px;margin-bottom:14px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--mist);}
+  .dot.done{background:var(--navy);}
+  .dot.today{background:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,.18);}
+  h1{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:27px;margin:0 0 3px;color:var(--navy);}
+  .sub{font-size:13px;color:var(--muted);margin:0;}
+
+  .safety{display:flex;gap:9px;align-items:flex-start;margin:14px 18px 0;padding:11px 13px;background:var(--warn-bg);border:1px solid var(--warn-bd);border-radius:12px;font-size:12px;line-height:1.45;color:var(--warn-ink);}
+  .safety svg{width:16px;height:16px;flex-shrink:0;margin-top:1px;}
+
+  main{padding:16px 18px 40px;display:flex;flex-direction:column;gap:12px;}
+
+  .card{background:var(--paper);border:1px solid var(--mist);border-radius:16px;padding:16px 15px;}
+  .card-head{display:flex;align-items:center;gap:11px;}
+  .icon{width:32px;height:32px;border-radius:9px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .icon svg{width:17px;height:17px;}
+  .card h3{font-size:14.5px;font-weight:500;margin:0;flex:1;}
+  .state{font-size:12.5px;color:var(--muted);}
+  .state .delta{color:var(--ok);font-weight:500;}
+  .tap-card{cursor:pointer;}
+  .tap-card:active{transform:scale(.99);}
+  .link{background:none;border:none;color:var(--blue);font-family:'Outfit',sans-serif;font-size:12.5px;font-weight:500;cursor:pointer;padding:0;}
+
+  /* --- escala barra+etiqueta --- */
+  .scale-block{margin-top:12px;}
+  .scale-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+  .scale-top .lbl{font-size:12.5px;color:var(--muted);}
+  .scale-top .val{font-size:12.5px;font-weight:500;color:var(--navy);}
+  .bar{display:flex;gap:4px;}
+  .seg{height:9px;flex:1;border-radius:5px;background:var(--mist);cursor:pointer;}
+  .seg.on{background:var(--blue);}
+
+  /* --- peso --- */
+  .mini-form{display:none;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--mist);}
+  .mini-form.show{display:flex;}
+  .mini-form input{flex:1;border:1px solid var(--mist);border-radius:10px;padding:9px 11px;font-family:'Outfit',sans-serif;font-size:14.5px;}
+  .mini-form input:focus{outline:none;border-color:var(--blue);}
+  .mini-btn{border:none;background:var(--blue);color:#fff;font-size:13px;font-weight:500;padding:9px 14px;border-radius:10px;cursor:pointer;}
+
+  /* --- medicação --- */
+  .med-row{display:flex;align-items:center;gap:12px;}
+  .ring{flex-shrink:0;}
+  .med-info{flex:1;}
+  .med-info p{margin:0;font-size:11.5px;color:var(--muted);}
+  .med-info strong{font-size:14.5px;font-weight:500;display:block;margin-bottom:2px;}
+  .med-btn{border:none;background:var(--blue);color:#fff;font-family:'Outfit',sans-serif;font-size:12.5px;font-weight:500;padding:9px 12px;border-radius:10px;cursor:pointer;white-space:nowrap;}
+  .med-btn.done{background:var(--ok);}
+  .chips{display:none;flex-wrap:wrap;gap:7px;margin-top:13px;padding-top:13px;border-top:1px solid var(--mist);}
+  .chips.show{display:flex;}
+  .chips .lead{width:100%;font-size:11.5px;color:var(--muted);margin-bottom:2px;}
+  .chip{padding:7px 12px;border-radius:20px;border:1px solid var(--mist);background:#fff;font-size:12.5px;color:var(--ink);cursor:pointer;}
+  .chip.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+
+  /* --- exercício: grelha semanal --- */
+  .week{display:flex;gap:6px;margin-top:12px;}
+  .day{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;}
+  .day .sq{width:100%;height:26px;border-radius:7px;background:var(--mist);}
+  .day .sq.done{background:var(--blue);}
+  .day .lbl{font-size:10px;color:var(--muted);}
+  .day.today .lbl{color:var(--navy);font-weight:600;}
+
+  .exo-chips{display:none;flex-wrap:wrap;gap:7px;margin-top:13px;padding-top:13px;border-top:1px solid var(--mist);}
+  .exo-chips.show{display:flex;}
+  .exo-form{display:none;gap:8px;margin-top:10px;align-items:center;}
+  .exo-form.show{display:flex;}
+  .exo-form input{width:80px;border:1px solid var(--mist);border-radius:10px;padding:9px 10px;font-family:'Outfit',sans-serif;font-size:14px;}
+  .exo-form input:focus{outline:none;border-color:var(--blue);}
+  .exo-form span{font-size:12.5px;color:var(--muted);}
+
+  .divider{display:flex;align-items:center;gap:10px;margin:10px 0 2px;font-size:12px;color:var(--muted);}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--mist);}
+  .tag-chip{display:none;align-items:center;gap:6px;background:var(--blue-soft);color:var(--blue);font-size:12.5px;font-weight:500;padding:6px 10px;border-radius:20px;width:fit-content;margin-bottom:8px;}
+  .tag-chip.show{display:inline-flex;}
+  .tag-chip button{border:none;background:none;color:var(--blue);cursor:pointer;font-size:13px;line-height:1;padding:0;}
+
+  textarea{width:100%;min-height:90px;border:1px solid var(--mist);border-radius:14px;padding:13px;font-family:'Outfit',sans-serif;font-size:15px;line-height:1.5;color:var(--ink);resize:vertical;background:var(--paper);}
+  textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,.13);}
+  .row{display:flex;gap:10px;margin-top:12px;}
+  .photo-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:12px 10px;border-radius:12px;border:1.5px solid var(--blue);background:#fff;color:var(--blue);font-size:14px;font-weight:500;cursor:pointer;}
+  input[type=file]{display:none;}
+  .thumbs{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .thumbs img{width:52px;height:52px;object-fit:cover;border-radius:10px;border:1px solid var(--mist);}
+  .send{width:100%;margin-top:16px;padding:14px;border:none;border-radius:14px;background:var(--blue);color:#fff;font-size:15.5px;font-weight:600;cursor:pointer;}
+  .toast{text-align:center;font-size:13.5px;color:var(--blue);font-weight:500;height:18px;margin-top:8px;opacity:0;transition:opacity .25s ease;}
+  .toast.show{opacity:1;}
+
+  .today-list{margin-top:16px;}
+  .today-list h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px;}
+  .entry{display:flex;gap:12px;padding:11px 0;border-top:1px solid var(--mist);}
+  .entry .time{font-size:11.5px;color:var(--muted);min-width:38px;padding-top:2px;}
+  .entry .text{font-size:14px;line-height:1.45;}
+  .entry img{width:38px;height:38px;border-radius:8px;object-fit:cover;margin-top:6px;}
+  .empty{font-size:13px;color:var(--muted);padding:6px 0 0;}
+  .note{margin-top:6px;padding:13px 15px;background:#fff;border:1px dashed var(--mist);border-radius:12px;font-size:12px;color:var(--muted);line-height:1.5;}
+
+  .gate{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:10px;}
+  .gate h2{font-family:'Cormorant Garamond',serif;color:var(--navy);font-size:22px;margin:0;}
+  .gate p{color:var(--muted);font-size:14px;max-width:280px;line-height:1.5;margin:0;}
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate-loading"><p>A abrir…</p></div>
+
+<div class="gate" id="gate-invalido" style="display:none;">
+  <h2>Este link já não é válido</h2>
+  <p>Pode ter expirado ou já ter sido substituído por um novo. Contacta a clínica para receberes um link actualizado.</p>
+  <p id="debug-info" style="font-size:10px;color:#c00;margin-top:10px;word-break:break-all;"></p>
+</div>
+
+<div class="phone" id="app" style="display:none;">
+  <header>
+    <div class="dots" id="dots"></div>
+    <h1>Olá, <span id="saudacao-nome"></span></h1>
+    <p class="sub" id="dia-sub"></p>
+  </header>
+
+  <div class="safety">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9L2.7 18a2 2 0 001.7 3h15.2a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+    <span>Isto não é para emergências. Em caso de urgência liga <strong>112</strong>.</span>
+  </div>
+
+  <main>
+    <!-- PESO (opcional) -->
+    <div class="card tap-card" onclick="document.getElementById('peso-form').classList.toggle('show')">
+      <div class="card-head">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 4l1.5 4M16 4l-1.5 4" stroke-linecap="round"/></svg></div>
+        <h3>Peso</h3>
+        <span class="state" id="st-peso">89 kg <span class="delta">-0.3</span></span>
+      </div>
+      <div class="mini-form" id="peso-form" onclick="event.stopPropagation()">
+        <input type="number" step="0.1" id="peso-input" placeholder="ex: 88.7">
+        <button class="mini-btn" onclick="guardarPeso()">Guardar</button>
+      </div>
+    </div>
+
+    <!-- REFEIÇÃO -->
+    <div class="card tap-card" onclick="abrirComposer('Refeição')">
+      <div class="card-head">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3v7a2 2 0 002 2v9M7 3v7M11 3v7M15 3c0 4-2 5-2 9v6"/></svg></div>
+        <h3>Refeição</h3>
+        <span class="state" id="st-refeicao">Ainda não</span>
+      </div>
+    </div>
+
+    <!-- EXERCÍCIO -->
+    <div class="card">
+      <div class="card-head">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></div>
+        <h3>Exercício</h3>
+        <span class="state" id="ex-count">2/7 dias</span>
+      </div>
+      <div class="week" id="week"></div>
+      <div style="display:flex;gap:16px;margin-top:12px;">
+        <button class="link" onclick="document.getElementById('exo-chips').classList.toggle('show')">+ registar hoje</button>
+        <button class="link" onclick="abrirComposer('Exercício')">+ descrever</button>
+      </div>
+      <div class="exo-chips" id="exo-chips">
+        <span class="lead">O quê?</span>
+        <div class="chip" data-tipo="Corrida">Corrida</div>
+        <div class="chip" data-tipo="Ginásio">Ginásio</div>
+        <div class="chip" data-tipo="Nadar">Nadar</div>
+        <div class="chip" data-tipo="Bicicleta">Bicicleta</div>
+        <div class="chip" data-tipo="Andar">Andar</div>
+        <div class="chip" data-tipo="Outro">Outro</div>
+      </div>
+      <div class="exo-form" id="exo-form">
+        <input type="number" id="exo-min" placeholder="40">
+        <span>minutos</span>
+        <button class="mini-btn" onclick="guardarExercicio()">Guardar</button>
+      </div>
+      <div class="scale-block">
+        <div class="scale-top"><span class="lbl">Dor</span><span class="val" id="dor-val">—</span></div>
+        <div class="bar" id="bar-dor"></div>
+      </div>
+    </div>
+
+    <!-- MEDICAÇÃO (definida por ti; só aparece se configurada) -->
+    <div class="card" id="med-card" style="display:none;">
+      <div class="med-row" id="med-display"></div>
+      <div class="mini-form" id="med-dose-form">
+        <input type="text" id="med-dose-tomada" placeholder="Dose que tomaste">
+        <button class="mini-btn" onclick="marcarMedicacao()">Confirmar</button>
+      </div>
+      <div class="chips" id="med-chips">
+        <span class="lead">Algum efeito?</span>
+        <div class="chip" data-grp="sintoma">Náusea</div>
+        <div class="chip" data-grp="sintoma">Vómitos</div>
+        <div class="chip" data-grp="sintoma">Obstipação</div>
+        <div class="chip" data-grp="sintoma">Diarreia</div>
+        <div class="chip" data-grp="sintoma" data-nenhum="1">Nenhum</div>
+      </div>
+    </div>
+
+    <!-- COMO TE SENTES -->
+    <div class="card">
+      <div class="card-head">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2" stroke-linecap="round"/><circle cx="9" cy="10" r=".5" fill="currentColor"/><circle cx="15" cy="10" r=".5" fill="currentColor"/></svg></div>
+        <h3>Como te sentes?</h3>
+      </div>
+      <div class="scale-block"><div class="scale-top"><span class="lbl">Fome</span><span class="val" id="fome-val">—</span></div><div class="bar" id="bar-fome"></div></div>
+      <div class="scale-block"><div class="scale-top"><span class="lbl">Energia</span><span class="val" id="energia-val">—</span></div><div class="bar" id="bar-energia"></div></div>
+      <div class="scale-block"><div class="scale-top"><span class="lbl">Sono</span><span class="val" id="sono-val">—</span></div><div class="bar" id="bar-sono"></div></div>
+    </div>
+
+    <div class="divider">ou escreve livremente</div>
+
+    <div class="tag-chip" id="tagChip"><span id="tagChipText"></span><button onclick="limparTag()">✕</button></div>
+    <textarea id="txt" placeholder="Alguma coisa que não encaixe nos cartões acima…"></textarea>
+    <div class="row"><button class="photo-btn" onclick="document.getElementById('cam').click()">📷 Foto</button></div>
+    <input type="file" id="cam" accept="image/*" capture="environment" multiple>
+    <div class="thumbs" id="thumbs"></div>
+    <button class="send" onclick="enviar()">Enviar</button>
+    <div class="toast" id="toast">Enviado ✓</div>
+
+    <div class="today-list">
+      <h2>Hoje</h2>
+      <div id="list"><p class="empty">Ainda não escreveste nada hoje.</p></div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  const token = new URLSearchParams(location.search).get('t');
+
+  function horaAgora(){
+    const n = new Date();
+    return n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
+  }
+  function registarEntradaDireta(texto){
+    const list = document.getElementById('list');
+    if(list.querySelector('.empty')) list.innerHTML = '';
+    const entry = document.createElement('div');
+    entry.className = 'entry';
+    entry.innerHTML = `<div class="time">${horaAgora()}</div><div class="text">${texto}</div>`;
+    list.prepend(entry);
+  }
+
+  // grava a sério na BD; não bloqueia a UI — se falhar, fica só em consola
+  async function persistirEntrada(raw_text, images = []){
+    try{
+      const { data, error } = await window.sb.rpc('submit_diary_entry', { p_token: token, p_raw_text: raw_text, p_images: images });
+      if(error || data !== true) console.warn('Falha ao gravar entrada:', error || 'token inválido');
+    } catch(e){ console.warn('Falha de rede ao gravar entrada:', e); }
+  }
+
+  async function uploadFotos(fileList){
+    const paths = [];
+    for(const f of fileList){
+      const path = `${token}/${crypto.randomUUID()}-${f.name}`;
+      const { error } = await window.sb.storage.from('patient-diary').upload(path, f, { contentType: f.type });
+      if(!error) paths.push(path); else console.warn('Falha no upload da foto:', error);
+    }
+    return paths;
+  }
+
+  // grelha semanal (7 dias reais até hoje) + lista "Hoje" — a partir de get_diary_recent
+  const letras = ['D','S','T','Q','Q','S','S']; // Date.getDay(): 0=Dom … 6=Sáb
+  const weekDates = [];
+  for(let i=6;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); weekDates.push(d); }
+
+  function montarSemana(entradas){
+    const weekEl = document.getElementById('week');
+    weekEl.innerHTML = '';
+    const feitos = weekDates.map(d => entradas.some(e =>
+      e.raw_text && e.raw_text.startsWith('🏃') && new Date(e.entered_at).toDateString() === d.toDateString()
+    ));
+    weekDates.forEach((d,i) => {
+      const div = document.createElement('div');
+      div.className = 'day' + (i===6?' today':'');
+      div.innerHTML = `<div class="sq ${feitos[i]?'done':''}" id="sq-${i}"></div><div class="lbl">${letras[d.getDay()]}</div>`;
+      weekEl.appendChild(div);
+    });
+    document.getElementById('ex-count').textContent = feitos.filter(Boolean).length + '/7 dias';
+  }
+  function marcarDiaExercicio(){
+    document.getElementById('sq-6')?.classList.add('done');
+    const el = document.getElementById('ex-count');
+    const atual = parseInt(el.textContent) || 0;
+    el.textContent = Math.min(atual+1,7) + '/7 dias';
+  }
+
+  function montarListaHoje(entradas){
+    const hoje = new Date().toDateString();
+    const doDia = entradas.filter(e => new Date(e.entered_at).toDateString() === hoje);
+    if(!doDia.length) return;
+    const list = document.getElementById('list');
+    list.innerHTML = '';
+    doDia.forEach(e => {
+      const entry = document.createElement('div');
+      entry.className = 'entry';
+      const hora = new Date(e.entered_at);
+      const h = hora.getHours().toString().padStart(2,'0') + ':' + hora.getMinutes().toString().padStart(2,'0');
+      entry.innerHTML = `<div class="time">${h}</div><div class="text">${(e.raw_text||'').replace(/</g,'&lt;')}</div>`;
+      list.appendChild(entry);
+    });
+  }
+
+  // escalas barra+etiqueta
+  function montarEscala(barId, valId, labels, onSet){
+    const bar = document.getElementById(barId);
+    for(let i=1;i<=5;i++){
+      const s = document.createElement('div');
+      s.className = 'seg';
+      s.onclick = () => {
+        [...bar.children].forEach((c,idx)=>c.classList.toggle('on', idx < i));
+        document.getElementById(valId).textContent = labels[i-1];
+        onSet(i);
+      };
+      bar.appendChild(s);
+    }
+  }
+  montarEscala('bar-fome','fome-val', ['Nenhuma','Pouca','Moderada','Bastante','Muita'], v => { registarEntradaDireta(`Fome: ${v}/5`); persistirEntrada(`Fome: ${v}/5`); });
+  montarEscala('bar-energia','energia-val', ['Muito baixa','Baixa','Razoável','Boa','Muito boa'], v => { registarEntradaDireta(`Energia: ${v}/5`); persistirEntrada(`Energia: ${v}/5`); });
+  montarEscala('bar-sono','sono-val', ['Muito mau','Mau','Razoável','Bom','Muito bom'], v => { registarEntradaDireta(`Sono: ${v}/5`); persistirEntrada(`Sono: ${v}/5`); });
+  montarEscala('bar-dor','dor-val', ['Nenhuma','Ligeira','Moderada','Forte','Muito forte'], v => { registarEntradaDireta(`Dor no exercício: ${v}/5`); persistirEntrada(`Dor no exercício: ${v}/5`); });
+
+  // validação do link + carregamento inicial
+  async function init(){
+    if(!token){ document.getElementById('gate-loading').style.display='none'; document.getElementById('gate-invalido').style.display='flex'; return; }
+    try{
+      const { data, error } = await window.sb.rpc('get_diary_context', { p_token: token });
+      const row = data && data[0];
+      if(error || !row || !row.valid){
+        document.getElementById('gate-loading').style.display='none';
+        document.getElementById('gate-invalido').style.display='flex';
+        if(error) document.getElementById('debug-info').textContent = 'DEBUG: ' + (error.message || JSON.stringify(error));
+        return;
+      }
+      document.getElementById('saudacao-nome').textContent = row.first_name || '';
+      const diasRestantes = Math.max(0, Math.ceil((new Date(row.expires_at) - new Date()) / 86400000));
+      const diaAtual = Math.min(15, Math.max(1, 15 - diasRestantes + 1));
+      const dotsEl = document.getElementById('dots');
+      for(let i=1;i<=15;i++){
+        const d = document.createElement('div');
+        d.className = 'dot' + (i < diaAtual ? ' done' : i === diaAtual ? ' today' : '');
+        dotsEl.appendChild(d);
+      }
+      document.getElementById('dia-sub').textContent = `Dia ${diaAtual} de 15`;
+
+      if(row.med_nome){
+        medState = { nome: row.med_nome, dose: row.med_dose, freq: row.med_freq, tomadaHoje:false };
+        renderMed();
+      }
+
+      const { data: recentes } = await window.sb.rpc('get_diary_recent', { p_token: token });
+      const entradas = recentes || [];
+      montarSemana(entradas);
+      montarListaHoje(entradas);
+
+      document.getElementById('gate-loading').style.display='none';
+      document.getElementById('app').style.display='block';
+    } catch(e){
+      console.warn('Erro a validar o link:', e);
+      document.getElementById('gate-loading').style.display='none';
+      document.getElementById('gate-invalido').style.display='flex';
+      document.getElementById('debug-info').textContent = 'DEBUG: ' + (e && e.message ? e.message : String(e));
+    }
+  }
+  init();
+
+  // peso
+  function guardarPeso(){
+    const v = document.getElementById('peso-input').value;
+    if(!v) return;
+    document.getElementById('st-peso').innerHTML = `${v} kg`;
+    document.getElementById('peso-form').classList.remove('show');
+    registarEntradaDireta(`⚖️ Peso: ${v} kg`);
+    persistirEntrada(`⚖️ Peso: ${v} kg`);
+  }
+
+  // medicação (definida por ti ao gerar o link; o doente só confirma e reporta efeitos)
+  let medState = null;
+
+  function renderMed(){
+    if(!medState) return;
+    document.getElementById('med-card').style.display = 'block';
+    document.getElementById('med-dose-tomada').value = medState.dose || '';
+    const el = document.getElementById('med-display');
+    if(medState.freq === 'semanal'){
+      el.innerHTML = `
+        <svg class="ring" width="52" height="52" viewBox="0 0 52 52">
+          <circle cx="26" cy="26" r="21" fill="none" stroke="#e5e9f0" stroke-width="6"/>
+          <circle cx="26" cy="26" r="21" fill="none" stroke="#1a56db" stroke-width="6"
+            stroke-dasharray="131.9" stroke-dashoffset="56.5" stroke-linecap="round"
+            transform="rotate(-90 26 26)"/>
+          <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" font-size="16" font-weight="600" fill="#0f2d52" font-family="Outfit">4</text>
+        </svg>
+        <div class="med-info">
+          <strong>${medState.nome} <span style="color:var(--muted);font-weight:400;">(prescrito: ${medState.dose||'—'})</span></strong>
+          <p id="med-sub">${medState.tomadaHoje ? 'Tomada hoje · próxima em 7 dias' : 'Próxima toma esta semana'}</p>
+        </div>
+        <button class="med-btn ${medState.tomadaHoje?'done':''}" id="med-btn" onclick="document.getElementById('med-dose-form').classList.toggle('show')">${medState.tomadaHoje?'Tomada ✓':'Tomei hoje'}</button>`;
+    } else {
+      el.innerHTML = `
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="9" width="16" height="6" rx="3"/><path d="M9 9v6M15 9v6"/></svg></div>
+        <div class="med-info">
+          <strong>${medState.nome} <span style="color:var(--muted);font-weight:400;">(prescrito: ${medState.dose||'—'})</span></strong>
+          <p id="med-sub">${medState.tomadaHoje ? 'Tomada hoje' : 'Toma diária'}</p>
+        </div>
+        <button class="med-btn ${medState.tomadaHoje?'done':''}" id="med-btn" onclick="document.getElementById('med-dose-form').classList.toggle('show')">${medState.tomadaHoje?'Tomada ✓':'Tomei hoje'}</button>`;
+    }
+  }
+  function marcarMedicacao(){
+    medState.tomadaHoje = true;
+    const doseTomada = (document.getElementById('med-dose-tomada')?.value || medState.dose || '').trim();
+    const desvio = doseTomada && doseTomada !== (medState.dose||'').trim();
+    document.getElementById('med-dose-form').classList.remove('show');
+    renderMed();
+    document.getElementById('med-chips').classList.add('show');
+    const texto = desvio
+      ? `💊 Medicação — ${medState.nome} tomada, dose ${doseTomada} (prescrito ${medState.dose})`
+      : `💊 Medicação — ${medState.nome} tomada (${doseTomada || medState.dose})`;
+    registarEntradaDireta(texto);
+    persistirEntrada(texto);
+  }
+
+  document.querySelectorAll('#med-chips .chip').forEach(chip => {
+    chip.onclick = () => {
+      const grupo = document.querySelectorAll('#med-chips .chip');
+      if(chip.dataset.nenhum){ grupo.forEach(c=>c.classList.remove('on')); chip.classList.add('on'); }
+      else { document.querySelector('#med-chips .chip[data-nenhum]').classList.remove('on'); chip.classList.toggle('on'); }
+      const activos = [...grupo].filter(c=>c.classList.contains('on')).map(c=>c.textContent);
+      if(activos.length){ registarEntradaDireta('Efeitos: ' + activos.join(', ')); persistirEntrada('Efeitos: ' + activos.join(', ')); }
+    };
+  });
+
+  // exercício: chips de tipo + duração
+  let tipoExercicio = null;
+  document.querySelectorAll('#exo-chips .chip').forEach(chip => {
+    chip.onclick = () => {
+      document.querySelectorAll('#exo-chips .chip').forEach(c=>c.classList.remove('on'));
+      chip.classList.add('on');
+      tipoExercicio = chip.dataset.tipo;
+      document.getElementById('exo-form').classList.add('show');
+    };
+  });
+  function guardarExercicio(){
+    const min = document.getElementById('exo-min').value || '?';
+    const texto = `🏃 ${tipoExercicio} — ${min} min`;
+    registarEntradaDireta(texto);
+    persistirEntrada(texto);
+    marcarDiaExercicio();
+    document.getElementById('exo-chips').classList.remove('show');
+    document.getElementById('exo-form').classList.remove('show');
+    document.getElementById('exo-min').value = '';
+  }
+
+  // composer livre
+  let tagAtiva = null;
+  function abrirComposer(tag){
+    tagAtiva = tag;
+    document.getElementById('tagChip').classList.add('show');
+    document.getElementById('tagChipText').textContent = (tag==='Refeição'?'🍽 ':'🏃 ') + tag;
+    document.getElementById('txt').focus();
+    document.getElementById('txt').scrollIntoView({behavior:'smooth', block:'center'});
+    if(tag==='Refeição') document.getElementById('st-refeicao').outerHTML = '<span class="state" id="st-refeicao" style="color:var(--ok);font-weight:500;">Registado ✓</span>';
+  }
+  function limparTag(){ tagAtiva = null; document.getElementById('tagChip').classList.remove('show'); }
+
+  let fotos = [];
+  document.getElementById('cam').addEventListener('change', e => {
+    const thumbs = document.getElementById('thumbs'); thumbs.innerHTML = '';
+    fotos = Array.from(e.target.files);
+    fotos.forEach(f => { const img = document.createElement('img'); img.src = URL.createObjectURL(f); thumbs.appendChild(img); });
+  });
+
+  async function enviar(){
+    const txt = document.getElementById('txt');
+    if(!txt.value.trim() && fotos.length === 0) return;
+
+    const btn = document.querySelector('.send');
+    btn.disabled = true; btn.textContent = 'A enviar…';
+
+    const fotosParaEnviar = fotos;
+    let fotosHtml = '';
+    fotosParaEnviar.forEach(f => { fotosHtml += `<img src="${URL.createObjectURL(f)}">`; });
+    const prefixo = tagAtiva ? `${tagAtiva} — ` : '';
+    const textoFinal = prefixo + (txt.value ? txt.value.trim() : '(foto)');
+
+    const list = document.getElementById('list');
+    if(list.querySelector('.empty')) list.innerHTML = '';
+    const entry = document.createElement('div');
+    entry.className = 'entry';
+    entry.innerHTML = `<div class="time">${horaAgora()}</div><div class="text"><strong>${prefixo}</strong>${txt.value ? txt.value.replace(/</g,'&lt;') : '<em>(sem texto)</em>'}${fotosHtml}</div>`;
+    list.prepend(entry);
+
+    txt.value = ''; fotos = [];
+    document.getElementById('thumbs').innerHTML = '';
+    document.getElementById('cam').value = '';
+    limparTag();
+
+    const paths = fotosParaEnviar.length ? await uploadFotos(fotosParaEnviar) : [];
+    await persistirEntrada(textoFinal, paths);
+
+    btn.disabled = false; btn.textContent = 'Enviar';
+    const toast = document.getElementById('toast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1400);
+  }
+</script>
+</body>
+</html>
