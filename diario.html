@@ -114,6 +114,15 @@
 
   .today-list{margin-top:16px;}
   .today-list h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px;}
+  .day-group{border-top:1px solid var(--mist);}
+  .day-group:first-child{border-top:none;}
+  .day-header{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;background:none;border:none;padding:11px 0;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;color:var(--navy);cursor:pointer;text-align:left;}
+  .day-header .contagem{color:var(--muted);font-weight:400;font-size:12.5px;}
+  .day-header .seta{display:inline-block;color:var(--muted);font-size:11px;transition:transform .15s ease;}
+  .day-group.open .day-header .seta{transform:rotate(90deg);}
+  .day-body{display:none;}
+  .day-group.open .day-body{display:block;padding-bottom:4px;}
+  .day-body .entry:first-child{border-top:none;}
   .entry{display:flex;gap:12px;padding:11px 0;border-top:1px solid var(--mist);}
   .entry .time{font-size:11.5px;color:var(--muted);min-width:38px;padding-top:2px;}
   .entry .text{font-size:14px;line-height:1.45;}
@@ -252,8 +261,8 @@
     <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px;">Isto envia só o texto/foto acima. Os cartões lá em cima já ficaram guardados sozinhos.</p>
 
     <div class="today-list">
-      <h2>Hoje</h2>
-      <div id="list"><p class="empty">Ainda não escreveste nada hoje.</p></div>
+      <h2>Histórico</h2>
+      <div id="list"></div>
     </div>
 
   </main>
@@ -268,14 +277,87 @@
     const n = new Date();
     return n.getHours().toString().padStart(2,'0') + ':' + n.getMinutes().toString().padStart(2,'0');
   }
-  function registarEntradaDireta(texto){
-    const list = document.getElementById('list');
-    if(list.querySelector('.empty')) list.innerHTML = '';
+  const NOMES_MES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  function atualizarContagemHoje(){
+    const body = document.getElementById('list-hoje-body');
+    const n = body.querySelectorAll('.entry').length;
+    const contagemEl = body.closest('.day-group')?.querySelector('.contagem');
+    if(contagemEl) contagemEl.textContent = `${n} registo${n === 1 ? '' : 's'}`;
+  }
+
+  function inserirEntradaHoje(innerHtml){
+    const body = document.getElementById('list-hoje-body');
+    if(body.querySelector('.empty')) body.innerHTML = '';
     const entry = document.createElement('div');
     entry.className = 'entry';
-    entry.innerHTML = `<div class="time">${horaAgora()}</div><div class="text">${texto}</div>`;
-    list.prepend(entry);
+    entry.innerHTML = innerHtml;
+    body.prepend(entry);
+    atualizarContagemHoje();
     return entry;
+  }
+
+  function registarEntradaDireta(texto){
+    return inserirEntradaHoje(`<div class="time">${horaAgora()}</div><div class="text">${texto}</div>`);
+  }
+
+  function agruparPorDia(entradas){
+    const mapa = new Map();
+    entradas.forEach(e => {
+      const data = new Date(e.entered_at);
+      const key = data.toDateString();
+      if(!mapa.has(key)) mapa.set(key, { data, entries: [] });
+      mapa.get(key).entries.push(e);
+    });
+    const hojeKey = new Date().toDateString();
+    if(!mapa.has(hojeKey)) mapa.set(hojeKey, { data: new Date(), entries: [] });
+
+    return [...mapa.values()]
+      .sort((a, b) => b.data - a.data)
+      .map(({ data, entries }) => {
+        const isHoje = data.toDateString() === hojeKey;
+        return {
+          isHoje,
+          label: isHoje ? 'Hoje' : `${data.getDate()} ${NOMES_MES[data.getMonth()]}`,
+          entries: entries.slice().sort((a, b) => new Date(b.entered_at) - new Date(a.entered_at))
+        };
+      });
+  }
+
+  function renderizarTimeline(entradas){
+    const list = document.getElementById('list');
+    list.innerHTML = '';
+    agruparPorDia(entradas).forEach(grupo => {
+      const grupoEl = document.createElement('div');
+      grupoEl.className = 'day-group' + (grupo.isHoje ? ' open' : '');
+
+      const n = grupo.entries.length;
+      const header = document.createElement('button');
+      header.type = 'button';
+      header.className = 'day-header';
+      header.innerHTML = `<span>${grupo.label}</span><span><span class="contagem">${n} registo${n === 1 ? '' : 's'}</span> <span class="seta">▸</span></span>`;
+      header.onclick = () => grupoEl.classList.toggle('open');
+
+      const body = document.createElement('div');
+      body.className = 'day-body';
+      if(grupo.isHoje) body.id = 'list-hoje-body';
+      if(n){
+        grupo.entries.forEach(e => {
+          const hora = new Date(e.entered_at);
+          const h = hora.getHours().toString().padStart(2,'0') + ':' + hora.getMinutes().toString().padStart(2,'0');
+          const entry = document.createElement('div');
+          entry.className = 'entry';
+          entry.innerHTML = `<div class="time">${h}</div><div class="text">${(e.raw_text||'').replace(/</g,'&lt;')}</div>`;
+          body.appendChild(entry);
+        });
+      } else {
+        body.innerHTML = '<p class="empty">Ainda não escreveste nada hoje.</p>';
+      }
+
+      grupoEl.appendChild(header);
+      grupoEl.appendChild(body);
+      list.appendChild(grupoEl);
+    });
   }
 
   let alertaFalhaTimeout = null;
@@ -334,22 +416,6 @@
     const el = document.getElementById('ex-count');
     const atual = parseInt(el.textContent) || 0;
     el.textContent = Math.min(atual+1,7) + '/7 dias';
-  }
-
-  function montarListaHoje(entradas){
-    const hoje = new Date().toDateString();
-    const doDia = entradas.filter(e => new Date(e.entered_at).toDateString() === hoje);
-    if(!doDia.length) return;
-    const list = document.getElementById('list');
-    list.innerHTML = '';
-    doDia.forEach(e => {
-      const entry = document.createElement('div');
-      entry.className = 'entry';
-      const hora = new Date(e.entered_at);
-      const h = hora.getHours().toString().padStart(2,'0') + ':' + hora.getMinutes().toString().padStart(2,'0');
-      entry.innerHTML = `<div class="time">${h}</div><div class="text">${(e.raw_text||'').replace(/</g,'&lt;')}</div>`;
-      list.appendChild(entry);
-    });
   }
 
   // escalas barra+etiqueta — toque escolhe; quem chama decide quando gravar e quando limpar
@@ -451,7 +517,7 @@
       const { data: recentes } = await window.sb.rpc('get_diary_recent', { p_token: token });
       const entradas = recentes || [];
       montarSemana(entradas);
-      montarListaHoje(entradas);
+      renderizarTimeline(entradas);
 
       if(row.med_nome){
         medState = { nome: row.med_nome, dose: row.med_dose, freq: row.med_freq, tomadaHoje:false, diasRestantes:null };
@@ -647,12 +713,7 @@
     if(ok){
       let fotosHtml = '';
       fotosParaEnviar.forEach(f => { fotosHtml += `<img src="${URL.createObjectURL(f)}">`; });
-      const list = document.getElementById('list');
-      if(list.querySelector('.empty')) list.innerHTML = '';
-      const entry = document.createElement('div');
-      entry.className = 'entry';
-      entry.innerHTML = `<div class="time">${horaAgora()}</div><div class="text"><strong>${prefixo}</strong>${txt.value ? txt.value.replace(/</g,'&lt;') : '<em>(sem texto)</em>'}${fotosHtml}</div>`;
-      list.prepend(entry);
+      inserirEntradaHoje(`<div class="time">${horaAgora()}</div><div class="text"><strong>${prefixo}</strong>${txt.value ? txt.value.replace(/</g,'&lt;') : '<em>(sem texto)</em>'}${fotosHtml}</div>`);
 
       txt.value = ''; fotos = [];
       document.getElementById('thumbs').innerHTML = '';
