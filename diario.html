@@ -379,6 +379,15 @@
         ? ultimoPeso.raw_text.replace('⚖️ Peso: ', '')
         : '—';
 
+      const ultimaRefeicao = entradas.find(e => e.raw_text && e.raw_text.startsWith('Refeição'));
+      const hojeStr = new Date().toDateString();
+      if(ultimaRefeicao && new Date(ultimaRefeicao.entered_at).toDateString() === hojeStr){
+        document.getElementById('st-refeicao').outerHTML = '<span class="state" id="st-refeicao" style="color:var(--ok);font-weight:500;">Registado ✓</span>';
+      } else if(ultimaRefeicao){
+        const horas = Math.max(0, Math.round((new Date() - new Date(ultimaRefeicao.entered_at)) / 3600000));
+        document.getElementById('st-refeicao').textContent = `há ${horas}h`;
+      }
+
       document.getElementById('gate-loading').style.display='none';
       document.getElementById('app').style.display='block';
     } catch(e){
