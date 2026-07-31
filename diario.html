@@ -224,9 +224,10 @@
         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2" stroke-linecap="round"/><circle cx="9" cy="10" r=".5" fill="currentColor"/><circle cx="15" cy="10" r=".5" fill="currentColor"/></svg></div>
         <h3>Como te sentes?</h3>
       </div>
-      <div class="scale-block"><div class="scale-top"><span class="lbl">Fome</span><span class="val" id="fome-val">—</span></div><div class="bar" id="bar-fome"></div><button class="mini-btn" id="bar-fome-btn" style="display:none;margin-top:8px;width:100%;">Guardar</button></div>
-      <div class="scale-block"><div class="scale-top"><span class="lbl">Energia</span><span class="val" id="energia-val">—</span></div><div class="bar" id="bar-energia"></div><button class="mini-btn" id="bar-energia-btn" style="display:none;margin-top:8px;width:100%;">Guardar</button></div>
-      <div class="scale-block"><div class="scale-top"><span class="lbl">Sono</span><span class="val" id="sono-val">—</span></div><div class="bar" id="bar-sono"></div><button class="mini-btn" id="bar-sono-btn" style="display:none;margin-top:8px;width:100%;">Guardar</button></div>
+      <div class="scale-block"><div class="scale-top"><span class="lbl">Fome</span><span class="val" id="fome-val">—</span></div><div class="bar" id="bar-fome"></div></div>
+      <div class="scale-block"><div class="scale-top"><span class="lbl">Energia</span><span class="val" id="energia-val">—</span></div><div class="bar" id="bar-energia"></div></div>
+      <div class="scale-block"><div class="scale-top"><span class="lbl">Sono</span><span class="val" id="sono-val">—</span></div><div class="bar" id="bar-sono"></div></div>
+      <button class="mini-btn" id="sentes-btn" style="display:none;margin-top:12px;width:100%;">Guardar</button>
     </div>
 
     <div class="divider">ou escreve livremente</div>
@@ -328,10 +329,9 @@
     });
   }
 
-  // escalas barra+etiqueta — toque escolhe, só grava ao confirmar
-  function montarEscala(barId, valId, btnId, labels, textoBase){
+  // escalas barra+etiqueta — toque escolhe; quem chama decide quando gravar e quando limpar
+  function montarEscala(barId, valId, labels, textoBase, aoTocar){
     const bar = document.getElementById(barId);
-    const btn = document.getElementById(btnId);
     let valorPendente = null;
     for(let i=1;i<=5;i++){
       const s = document.createElement('div');
@@ -340,22 +340,49 @@
         [...bar.children].forEach((c,idx)=>c.classList.toggle('on', idx < i));
         document.getElementById(valId).textContent = labels[i-1];
         valorPendente = i;
-        btn.style.display = 'block';
+        aoTocar();
       };
       bar.appendChild(s);
     }
-    btn.onclick = () => {
-      if(valorPendente === null) return;
-      const texto = `${textoBase}: ${valorPendente}/5`;
-      registarEntradaDireta(texto);
-      persistirEntrada(texto);
-      btn.style.display = 'none';
+    return {
+      pendente: () => valorPendente,
+      texto: () => `${textoBase}: ${valorPendente}/5`,
+      limpar: () => {
+        valorPendente = null;
+        [...bar.children].forEach(c => c.classList.remove('on'));
+        document.getElementById(valId).textContent = '—';
+      }
     };
   }
-  montarEscala('bar-fome','fome-val','bar-fome-btn', ['Nenhuma','Pouca','Moderada','Bastante','Muita'], 'Fome');
-  montarEscala('bar-energia','energia-val','bar-energia-btn', ['Muito baixa','Baixa','Razoável','Boa','Muito boa'], 'Energia');
-  montarEscala('bar-sono','sono-val','bar-sono-btn', ['Muito mau','Mau','Razoável','Bom','Muito bom'], 'Sono');
-  montarEscala('bar-dor','dor-val','bar-dor-btn', ['Nenhuma','Ligeira','Moderada','Forte','Muito forte'], 'Dor no exercício');
+
+  const sentesBtn = document.getElementById('sentes-btn');
+  const mostrarBotaoSentes = () => { sentesBtn.style.display = 'block'; };
+  const escalaFome = montarEscala('bar-fome','fome-val', ['Nenhuma','Pouca','Moderada','Bastante','Muita'], 'Fome', mostrarBotaoSentes);
+  const escalaEnergia = montarEscala('bar-energia','energia-val', ['Muito baixa','Baixa','Razoável','Boa','Muito boa'], 'Energia', mostrarBotaoSentes);
+  const escalaSono = montarEscala('bar-sono','sono-val', ['Muito mau','Mau','Razoável','Bom','Muito bom'], 'Sono', mostrarBotaoSentes);
+  sentesBtn.onclick = () => {
+    [escalaFome, escalaEnergia, escalaSono].forEach(e => {
+      if(e.pendente() !== null){
+        const texto = e.texto();
+        registarEntradaDireta(texto);
+        persistirEntrada(texto);
+        e.limpar();
+      }
+    });
+    sentesBtn.style.display = 'none';
+  };
+
+  const dorBtn = document.getElementById('bar-dor-btn');
+  const escalaDor = montarEscala('bar-dor','dor-val', ['Nenhuma','Ligeira','Moderada','Forte','Muito forte'], 'Dor no exercício', () => { dorBtn.style.display = 'block'; });
+  dorBtn.onclick = () => {
+    if(escalaDor.pendente() !== null){
+      const texto = escalaDor.texto();
+      registarEntradaDireta(texto);
+      persistirEntrada(texto);
+      escalaDor.limpar();
+    }
+    dorBtn.style.display = 'none';
+  };
 
   // validação do link + carregamento inicial
   async function init(){
