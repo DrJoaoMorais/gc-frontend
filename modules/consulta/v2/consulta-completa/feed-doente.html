@@ -3019,32 +3019,114 @@
       await openPrpModal({ patientId: PATIENT_ID, onClose: async () => { await boot(); } });
     });
 
-    document.getElementById('fdBtnDiario')?.addEventListener('click', async () => {
+    function abrirModalLinkDiario(clinicId, patientName){
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,45,82,.35);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+      const chipCss = 'padding:7px 12px;border-radius:20px;border:1px solid #e5e7eb;font-size:12.5px;cursor:pointer;';
+      const chipOnCss = chipCss + 'background:#0f2d52;border-color:#0f2d52;color:#fff;';
+      overlay.innerHTML = `
+        <div style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:24px;font-family:inherit;">
+          <h3 style="margin:0 0 4px;font-size:17px;color:#0f2d52;">Diário — ${patientName}</h3>
+          <p style="margin:0 0 16px;font-size:12.5px;color:#9ca3af;">Medicação a monitorizar (opcional)</p>
+          <div id="dlgMedChips" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px;">
+            ${['Mounjaro','Ozempic','Wegovy','Saxenda','AINE','Corticoide oral','Outro','Nenhuma'].map(n =>
+              `<div class="dlgChip" data-nome="${n}" style="${chipCss}">${n}</div>`).join('')}
+          </div>
+          <input id="dlgMedNomeOutro" placeholder="Nome (se 'Outro')" style="display:none;width:100%;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:10px;padding:9px 11px;font-size:14px;margin-bottom:10px;">
+          <div id="dlgDoseChips" style="display:none;flex-wrap:wrap;gap:7px;margin-bottom:10px;"></div>
+          <input id="dlgMedDose" placeholder="Dose — ex: 400mg, 1 comprimido" style="display:none;width:100%;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:10px;padding:9px 11px;font-size:14px;margin-bottom:10px;">
+          <div id="dlgFreqChips" style="display:none;gap:7px;margin-bottom:16px;">
+            <div class="dlgFreq" data-freq="semanal" style="${chipCss}">Semanal</div>
+            <div class="dlgFreq" data-freq="diaria" style="${chipCss}">Diária</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button id="dlgCancelar" style="flex:1;padding:11px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;">Cancelar</button>
+            <button id="dlgGerar" style="flex:1;padding:11px;border-radius:10px;border:none;background:#1a56db;color:#fff;font-weight:600;cursor:pointer;">Gerar e enviar</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+
+      let medNomeEscolhido = null, freqEscolhida = null, doseEscolhida = null;
+      const DOSES = {
+        'Mounjaro': { doses: ['2.5mg','5mg','7.5mg','10mg','12.5mg','15mg'], freq: 'semanal' },
+        'Ozempic': { doses: ['0.25mg','0.5mg','1mg','2mg'], freq: 'semanal' },
+        'Wegovy': { doses: ['0.25mg','0.5mg','1mg','1.7mg','2.4mg'], freq: 'semanal' },
+        'Saxenda': { doses: ['0.6mg','1.2mg','1.8mg','2.4mg','3.0mg'], freq: 'diaria' }
+      };
+      overlay.querySelectorAll('.dlgChip').forEach(chip => {
+        chip.onclick = () => {
+          overlay.querySelectorAll('.dlgChip').forEach(c => c.style.cssText = chipCss);
+          chip.style.cssText = chipOnCss;
+          medNomeEscolhido = chip.dataset.nome;
+          doseEscolhida = null;
+          const isOutro = medNomeEscolhido === 'Outro', isNenhuma = medNomeEscolhido === 'Nenhuma';
+          const preset = DOSES[medNomeEscolhido];
+          document.getElementById('dlgMedNomeOutro').style.display = isOutro ? 'block' : 'none';
+          document.getElementById('dlgFreqChips').style.display = isNenhuma ? 'none' : 'flex';
+
+          const doseChipsEl = document.getElementById('dlgDoseChips');
+          if (preset) {
+            doseChipsEl.style.display = 'flex';
+            document.getElementById('dlgMedDose').style.display = 'none';
+            doseChipsEl.innerHTML = preset.doses.map(d => `<div class="dlgDose" data-dose="${d}" style="${chipCss}">${d}</div>`).join('');
+            doseChipsEl.querySelectorAll('.dlgDose').forEach(dc => {
+              dc.onclick = () => {
+                doseChipsEl.querySelectorAll('.dlgDose').forEach(c => c.style.cssText = chipCss);
+                dc.style.cssText = chipOnCss;
+                doseEscolhida = dc.dataset.dose;
+              };
+            });
+            overlay.querySelectorAll('.dlgFreq').forEach(c => {
+              c.style.cssText = c.dataset.freq === preset.freq ? chipOnCss : chipCss;
+            });
+            freqEscolhida = preset.freq;
+          } else {
+            doseChipsEl.style.display = 'none';
+            doseChipsEl.innerHTML = '';
+            document.getElementById('dlgMedDose').style.display = isNenhuma ? 'none' : 'block';
+          }
+        };
+      });
+      overlay.querySelectorAll('.dlgFreq').forEach(chip => {
+        chip.onclick = () => {
+          overlay.querySelectorAll('.dlgFreq').forEach(c => c.style.cssText = chipCss);
+          chip.style.cssText = chipOnCss;
+          freqEscolhida = chip.dataset.freq;
+        };
+      });
+      document.getElementById('dlgCancelar').onclick = () => overlay.remove();
+
+      document.getElementById('dlgGerar').onclick = async () => {
+        let medNome = null, medDose = null, medFreq = null;
+        if (medNomeEscolhido && medNomeEscolhido !== 'Nenhuma') {
+          medNome = medNomeEscolhido === 'Outro' ? (document.getElementById('dlgMedNomeOutro').value.trim() || null) : medNomeEscolhido;
+          medDose = doseEscolhida || document.getElementById('dlgMedDose').value.trim() || null;
+          medFreq = freqEscolhida || 'semanal';
+        }
+        const btn = document.getElementById('dlgGerar');
+        btn.disabled = true; btn.textContent = 'A gerar…';
+
+        const { data: token, error } = await window.sb.rpc('generate_diary_token', {
+          p_patient_id: PATIENT_ID, p_clinic_id: clinicId,
+          p_med_nome: medNome, p_med_dose: medDose, p_med_freq: medFreq
+        });
+        if (error) { alert('Erro ao gerar link: ' + error.message); btn.disabled = false; btn.textContent = 'Gerar e enviar'; return; }
+
+        overlay.remove();
+        const link = `https://gc.joaomorais.pt/diario?t=${token}`;
+        const msg = encodeURIComponent(
+          `Olá ${patientName},\n\nAqui está o seu diário de acompanhamento, válido 15 dias:\n\n${link}\n\nPreencha quando quiser ao longo do dia — não é obrigatório, mas ajuda-nos a acompanhar como está a correr.`
+        );
+        const w = window.open(`https://wa.me/?text=${msg}`, '_blank');
+        if (!w) prompt('O browser bloqueou a janela do WhatsApp. Copie o link e envie à mão:', link);
+      };
+    }
+
+    document.getElementById('fdBtnDiario')?.addEventListener('click', () => {
       const clinicId = TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null;
       if (!clinicId) { alert('Clínica do doente não identificada — não é possível gerar o link.'); return; }
       const patientName = fdPatientData?.full_name || 'Doente';
-
-      const medNomeInput = prompt('Medicação a monitorizar (deixar vazio = nenhuma):');
-      if (medNomeInput === null) return;
-      let medNome = medNomeInput.trim() || null, medDose = null, medFreq = null;
-      if (medNome) {
-        medDose = (prompt('Dose (ex: 7.5mg, 1 comprimido):') || '').trim() || null;
-        const freqInput = (prompt("Frequência — escreva 'semanal' ou 'diaria':") || '').trim().toLowerCase();
-        medFreq = freqInput === 'diaria' ? 'diaria' : 'semanal';
-      }
-
-      const { data: token, error } = await window.sb.rpc('generate_diary_token', {
-        p_patient_id: PATIENT_ID, p_clinic_id: clinicId,
-        p_med_nome: medNome, p_med_dose: medDose, p_med_freq: medFreq
-      });
-      if (error) { alert('Erro ao gerar link: ' + error.message); return; }
-
-      const link = `https://gc.joaomorais.pt/diario?t=${token}`;
-      const msg = encodeURIComponent(
-        `Olá ${patientName},\n\nAqui está o seu diário de acompanhamento, válido 15 dias:\n\n${link}\n\nPreencha quando quiser ao longo do dia — não é obrigatório, mas ajuda-nos a acompanhar como está a correr.`
-      );
-      const w = window.open(`https://wa.me/?text=${msg}`, '_blank');
-      if (!w) prompt('O browser bloqueou a janela do WhatsApp. Copie o link e envie à mão:', link);
+      abrirModalLinkDiario(clinicId, patientName);
     });
 
     document.getElementById('fdBtnRelatorioClinico')?.addEventListener('click', async () => {

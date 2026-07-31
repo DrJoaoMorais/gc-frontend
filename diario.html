@@ -197,6 +197,7 @@
       <div class="scale-block">
         <div class="scale-top"><span class="lbl">Dor</span><span class="val" id="dor-val">—</span></div>
         <div class="bar" id="bar-dor"></div>
+        <button class="mini-btn" id="bar-dor-btn" style="display:none;margin-top:8px;width:100%;">Guardar</button>
       </div>
     </div>
 
@@ -223,9 +224,9 @@
         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2" stroke-linecap="round"/><circle cx="9" cy="10" r=".5" fill="currentColor"/><circle cx="15" cy="10" r=".5" fill="currentColor"/></svg></div>
         <h3>Como te sentes?</h3>
       </div>
-      <div class="scale-block"><div class="scale-top"><span class="lbl">Fome</span><span class="val" id="fome-val">—</span></div><div class="bar" id="bar-fome"></div></div>
-      <div class="scale-block"><div class="scale-top"><span class="lbl">Energia</span><span class="val" id="energia-val">—</span></div><div class="bar" id="bar-energia"></div></div>
-      <div class="scale-block"><div class="scale-top"><span class="lbl">Sono</span><span class="val" id="sono-val">—</span></div><div class="bar" id="bar-sono"></div></div>
+      <div class="scale-block"><div class="scale-top"><span class="lbl">Fome</span><span class="val" id="fome-val">—</span></div><div class="bar" id="bar-fome"></div><button class="mini-btn" id="bar-fome-btn" style="display:none;margin-top:8px;width:100%;">Guardar</button></div>
+      <div class="scale-block"><div class="scale-top"><span class="lbl">Energia</span><span class="val" id="energia-val">—</span></div><div class="bar" id="bar-energia"></div><button class="mini-btn" id="bar-energia-btn" style="display:none;margin-top:8px;width:100%;">Guardar</button></div>
+      <div class="scale-block"><div class="scale-top"><span class="lbl">Sono</span><span class="val" id="sono-val">—</span></div><div class="bar" id="bar-sono"></div><button class="mini-btn" id="bar-sono-btn" style="display:none;margin-top:8px;width:100%;">Guardar</button></div>
     </div>
 
     <div class="divider">ou escreve livremente</div>
@@ -281,10 +282,14 @@
     return paths;
   }
 
-  // grelha semanal (7 dias reais até hoje) + lista "Hoje" — a partir de get_diary_recent
+  // grelha semanal (Segunda a Domingo da semana actual) + lista "Hoje" — a partir de get_diary_recent
   const letras = ['D','S','T','Q','Q','S','S']; // Date.getDay(): 0=Dom … 6=Sáb
+  const hoje0 = new Date();
+  const offsetSegunda = hoje0.getDay() === 0 ? 6 : hoje0.getDay() - 1;
+  const segundaFeira = new Date(hoje0); segundaFeira.setDate(hoje0.getDate() - offsetSegunda);
   const weekDates = [];
-  for(let i=6;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); weekDates.push(d); }
+  for(let i=0;i<7;i++){ const d = new Date(segundaFeira); d.setDate(segundaFeira.getDate()+i); weekDates.push(d); }
+  const hojeIndexSemana = offsetSegunda;
 
   function montarSemana(entradas){
     const weekEl = document.getElementById('week');
@@ -294,14 +299,14 @@
     ));
     weekDates.forEach((d,i) => {
       const div = document.createElement('div');
-      div.className = 'day' + (i===6?' today':'');
+      div.className = 'day' + (i===hojeIndexSemana?' today':'');
       div.innerHTML = `<div class="sq ${feitos[i]?'done':''}" id="sq-${i}"></div><div class="lbl">${letras[d.getDay()]}</div>`;
       weekEl.appendChild(div);
     });
     document.getElementById('ex-count').textContent = feitos.filter(Boolean).length + '/7 dias';
   }
   function marcarDiaExercicio(){
-    document.getElementById('sq-6')?.classList.add('done');
+    document.getElementById(`sq-${hojeIndexSemana}`)?.classList.add('done');
     const el = document.getElementById('ex-count');
     const atual = parseInt(el.textContent) || 0;
     el.textContent = Math.min(atual+1,7) + '/7 dias';
@@ -323,24 +328,34 @@
     });
   }
 
-  // escalas barra+etiqueta
-  function montarEscala(barId, valId, labels, onSet){
+  // escalas barra+etiqueta — toque escolhe, só grava ao confirmar
+  function montarEscala(barId, valId, btnId, labels, textoBase){
     const bar = document.getElementById(barId);
+    const btn = document.getElementById(btnId);
+    let valorPendente = null;
     for(let i=1;i<=5;i++){
       const s = document.createElement('div');
       s.className = 'seg';
       s.onclick = () => {
         [...bar.children].forEach((c,idx)=>c.classList.toggle('on', idx < i));
         document.getElementById(valId).textContent = labels[i-1];
-        onSet(i);
+        valorPendente = i;
+        btn.style.display = 'block';
       };
       bar.appendChild(s);
     }
+    btn.onclick = () => {
+      if(valorPendente === null) return;
+      const texto = `${textoBase}: ${valorPendente}/5`;
+      registarEntradaDireta(texto);
+      persistirEntrada(texto);
+      btn.style.display = 'none';
+    };
   }
-  montarEscala('bar-fome','fome-val', ['Nenhuma','Pouca','Moderada','Bastante','Muita'], v => { registarEntradaDireta(`Fome: ${v}/5`); persistirEntrada(`Fome: ${v}/5`); });
-  montarEscala('bar-energia','energia-val', ['Muito baixa','Baixa','Razoável','Boa','Muito boa'], v => { registarEntradaDireta(`Energia: ${v}/5`); persistirEntrada(`Energia: ${v}/5`); });
-  montarEscala('bar-sono','sono-val', ['Muito mau','Mau','Razoável','Bom','Muito bom'], v => { registarEntradaDireta(`Sono: ${v}/5`); persistirEntrada(`Sono: ${v}/5`); });
-  montarEscala('bar-dor','dor-val', ['Nenhuma','Ligeira','Moderada','Forte','Muito forte'], v => { registarEntradaDireta(`Dor no exercício: ${v}/5`); persistirEntrada(`Dor no exercício: ${v}/5`); });
+  montarEscala('bar-fome','fome-val','bar-fome-btn', ['Nenhuma','Pouca','Moderada','Bastante','Muita'], 'Fome');
+  montarEscala('bar-energia','energia-val','bar-energia-btn', ['Muito baixa','Baixa','Razoável','Boa','Muito boa'], 'Energia');
+  montarEscala('bar-sono','sono-val','bar-sono-btn', ['Muito mau','Mau','Razoável','Bom','Muito bom'], 'Sono');
+  montarEscala('bar-dor','dor-val','bar-dor-btn', ['Nenhuma','Ligeira','Moderada','Forte','Muito forte'], 'Dor no exercício');
 
   // validação do link + carregamento inicial
   async function init(){
@@ -365,15 +380,21 @@
       }
       document.getElementById('dia-sub').textContent = `Dia ${diaAtual} de 15`;
 
-      if(row.med_nome){
-        medState = { nome: row.med_nome, dose: row.med_dose, freq: row.med_freq, tomadaHoje:false };
-        renderMed();
-      }
-
       const { data: recentes } = await window.sb.rpc('get_diary_recent', { p_token: token });
       const entradas = recentes || [];
       montarSemana(entradas);
       montarListaHoje(entradas);
+
+      if(row.med_nome){
+        medState = { nome: row.med_nome, dose: row.med_dose, freq: row.med_freq, tomadaHoje:false, diasRestantes:null };
+        const ultimaToma = entradas.find(e => e.raw_text && e.raw_text.startsWith(`💊 Medicação — ${row.med_nome} tomada`));
+        if(ultimaToma){
+          const diasDesde = Math.floor((new Date() - new Date(ultimaToma.entered_at)) / 86400000);
+          medState.diasRestantes = Math.max(0, 7 - diasDesde);
+          medState.tomadaHoje = new Date(ultimaToma.entered_at).toDateString() === new Date().toDateString();
+        }
+        renderMed();
+      }
 
       const ultimoPeso = entradas.find(e => e.raw_text && e.raw_text.startsWith('⚖️ Peso:'));
       document.getElementById('st-peso').innerHTML = ultimoPeso
@@ -414,6 +435,24 @@
   // medicação (definida por ti ao gerar o link; o doente só confirma e reporta efeitos)
   let medState = null;
 
+  function anelSvg(diasRestantes){
+    const r = 21, c = 2*Math.PI*r;
+    if(diasRestantes === null){
+      return `<svg class="ring" width="52" height="52" viewBox="0 0 52 52">
+        <circle cx="26" cy="26" r="${r}" fill="none" stroke="#e5e9f0" stroke-width="6"/>
+        <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="600" fill="#9ca3af" font-family="Outfit">—</text>
+      </svg>`;
+    }
+    const offset = c * (1 - (7 - diasRestantes) / 7);
+    return `<svg class="ring" width="52" height="52" viewBox="0 0 52 52">
+      <circle cx="26" cy="26" r="${r}" fill="none" stroke="#e5e9f0" stroke-width="6"/>
+      <circle cx="26" cy="26" r="${r}" fill="none" stroke="#1a56db" stroke-width="6"
+        stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}" stroke-linecap="round"
+        transform="rotate(-90 26 26)"/>
+      <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" font-size="16" font-weight="600" fill="#0f2d52" font-family="Outfit">${diasRestantes}</text>
+    </svg>`;
+  }
+
   function renderMed(){
     if(!medState) return;
     document.getElementById('med-card').style.display = 'block';
@@ -421,16 +460,10 @@
     const el = document.getElementById('med-display');
     if(medState.freq === 'semanal'){
       el.innerHTML = `
-        <svg class="ring" width="52" height="52" viewBox="0 0 52 52">
-          <circle cx="26" cy="26" r="21" fill="none" stroke="#e5e9f0" stroke-width="6"/>
-          <circle cx="26" cy="26" r="21" fill="none" stroke="#1a56db" stroke-width="6"
-            stroke-dasharray="131.9" stroke-dashoffset="56.5" stroke-linecap="round"
-            transform="rotate(-90 26 26)"/>
-          <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" font-size="16" font-weight="600" fill="#0f2d52" font-family="Outfit">4</text>
-        </svg>
+        ${anelSvg(medState.diasRestantes)}
         <div class="med-info">
           <strong>${medState.nome} <span style="color:var(--muted);font-weight:400;">(prescrito: ${medState.dose||'—'})</span></strong>
-          <p id="med-sub">${medState.tomadaHoje ? 'Tomada hoje · próxima em 7 dias' : 'Próxima toma esta semana'}</p>
+          <p id="med-sub">${medState.tomadaHoje ? 'Tomada hoje · próxima em 7 dias' : (medState.diasRestantes===null ? 'Ainda sem confirmação' : 'Próxima toma esta semana')}</p>
         </div>
         <button class="med-btn ${medState.tomadaHoje?'done':''}" id="med-btn" onclick="document.getElementById('med-dose-form').classList.toggle('show')">${medState.tomadaHoje?'Tomada ✓':'Tomei hoje'}</button>`;
     } else {
@@ -445,6 +478,7 @@
   }
   function marcarMedicacao(){
     medState.tomadaHoje = true;
+    medState.diasRestantes = 7;
     const doseTomada = (document.getElementById('med-dose-tomada')?.value || medState.dose || '').trim();
     const desvio = doseTomada && doseTomada !== (medState.dose||'').trim();
     document.getElementById('med-dose-form').classList.remove('show');
