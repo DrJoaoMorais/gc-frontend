@@ -702,6 +702,14 @@
         <div class="fd-sb-divisor"></div>
       </div>
 
+      <div id="fd-sec-links-doente">
+        <div class="fd-sb-titulo">Links do Doente</div>
+        <button class="fd-sb-item" id="fdBtnDiario"><span class="fd-sb-ic">📓</span>Diário</button>
+        <button class="fd-sb-item" disabled style="color:var(--tenue);cursor:default;"><span class="fd-sb-ic">🏋️</span>Exercícios<span class="fd-sb-tag" style="background:#f3f4f6;color:var(--tenue);margin-left:auto;">Brevemente</span></button>
+        <button class="fd-sb-item" disabled style="color:var(--tenue);cursor:default;"><span class="fd-sb-ic">📋</span>Questionários<span class="fd-sb-tag" style="background:#f3f4f6;color:var(--tenue);margin-left:auto;">Brevemente</span></button>
+        <div class="fd-sb-divisor"></div>
+      </div>
+
       <div class="fd-sb-titulo">Doente</div>
       <button class="fd-sb-item" id="fdBtnIdentificacao"><span class="fd-sb-ic">👤</span>Identificação</button>
       <button class="fd-sb-item" id="fdBtnEditarIdentificacao"><span class="fd-sb-ic">✏️</span>Editar identificação</button>
@@ -3009,6 +3017,34 @@
     document.getElementById('fdBtnPrpVisco')?.addEventListener('click', async () => {
       const { openPrpModal } = await import('../../../relatorios/v2/prp/prp.js');
       await openPrpModal({ patientId: PATIENT_ID, onClose: async () => { await boot(); } });
+    });
+
+    document.getElementById('fdBtnDiario')?.addEventListener('click', async () => {
+      const clinicId = TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null;
+      if (!clinicId) { alert('Clínica do doente não identificada — não é possível gerar o link.'); return; }
+      const patientName = fdPatientData?.full_name || 'Doente';
+
+      const medNomeInput = prompt('Medicação a monitorizar (deixar vazio = nenhuma):');
+      if (medNomeInput === null) return;
+      let medNome = medNomeInput.trim() || null, medDose = null, medFreq = null;
+      if (medNome) {
+        medDose = (prompt('Dose (ex: 7.5mg, 1 comprimido):') || '').trim() || null;
+        const freqInput = (prompt("Frequência — escreva 'semanal' ou 'diaria':") || '').trim().toLowerCase();
+        medFreq = freqInput === 'diaria' ? 'diaria' : 'semanal';
+      }
+
+      const { data: token, error } = await window.sb.rpc('generate_diary_token', {
+        p_patient_id: PATIENT_ID, p_clinic_id: clinicId,
+        p_med_nome: medNome, p_med_dose: medDose, p_med_freq: medFreq
+      });
+      if (error) { alert('Erro ao gerar link: ' + error.message); return; }
+
+      const link = `https://gc.joaomorais.pt/diario?t=${token}`;
+      const msg = encodeURIComponent(
+        `Olá ${patientName},\n\nAqui está o seu diário de acompanhamento, válido 15 dias:\n\n${link}\n\nPreencha quando quiser ao longo do dia — não é obrigatório, mas ajuda-nos a acompanhar como está a correr.`
+      );
+      const w = window.open(`https://wa.me/?text=${msg}`, '_blank');
+      if (!w) prompt('O browser bloqueou a janela do WhatsApp. Copie o link e envie à mão:', link);
     });
 
     document.getElementById('fdBtnRelatorioClinico')?.addEventListener('click', async () => {
