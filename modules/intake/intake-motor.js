@@ -11,7 +11,8 @@
 */
 
 let _cfg = null;
-let _tokenRow = null;
+let _token = null;
+let _ctx = null;
 let _respostas = {};
 let _secaoIdx = 0;
 let _maxSecaoAlcancada = 0;
@@ -24,36 +25,37 @@ let _root = null;
   if (!root) return;
   _root = root;
   const qp = new URLSearchParams(location.search);
-  const token = qp.get('t') || '';
-  if (!token) { _renderErro(root, 'invalido'); return; }
-  await _carregarToken(root, token);
+  _token = qp.get('t') || '';
+  if (!_token) { _renderErro(root, 'invalido'); return; }
+  await _carregarToken(root);
 })();
 
-/* ════════ TOKEN ════════ */
-async function _carregarToken(root, token) {
+/* ════════ TOKEN ════════
+   Acesso público exclusivamente via funções SECURITY DEFINER (intake_get_context,
+   intake_aceitar_rgpd, intake_gravar_resposta, intake_concluir). Não há SELECT/UPDATE/INSERT
+   de anon nas tabelas base — cada função valida o token internamente e nunca expõe outras linhas. */
+async function _carregarToken(root) {
   const sb = window.sb;
-  if (!sb) { _renderErro(root, 'generico', token); return; }
+  if (!sb) { _renderErro(root, 'generico'); return; }
   root.innerHTML = '<div class="gate" id="gate-loading"><p>A abrir…</p></div>';
-  let row, error;
+  let data, error;
   try {
-    ({ data: row, error } = await sb.from('intake_tokens').select('*').eq('token', token).maybeSingle());
+    ({ data, error } = await sb.rpc('intake_get_context', { p_token: _token }));
   } catch (e) {
-    _renderErro(root, 'generico', token);
+    _renderErro(root, 'generico');
     return;
   }
-  if (error) { _renderErro(root, 'generico', token); return; }
-  if (!row) { _renderErro(root, 'invalido'); return; }
-  if (row.status === 'expired' || (row.expires_at && new Date(row.expires_at) < new Date())) {
-    _renderErro(root, 'expirado');
-    return;
-  }
-  _tokenRow = row;
-  if (row.status === 'completed') { _renderConcluido(root); return; }
-  if (!row.rgpd_accepted_at) { await _renderRgpd(root); return; }
+  if (error) { _renderErro(root, 'generico'); return; }
+  const ctx = Array.isArray(data) ? data[0] : data;
+  if (!ctx || ctx.status === 'invalid') { _renderErro(root, 'invalido'); return; }
+  if (ctx.status === 'expired') { _renderErro(root, 'expirado'); return; }
+  if (ctx.status === 'completed') { _renderConcluido(root); return; }
+  _ctx = ctx;
+  if (!ctx.rgpd_accepted_at) { _renderRgpd(root); return; }
   await _iniciarQuestionario(root);
 }
 
-function _renderErro(root, tipo, token) {
+function _renderErro(root, tipo) {
   const msgs = {
     invalido: { h: 'Este link não é válido', p: 'Confirme o link recebido ou contacte a clínica para lhe ser enviado um novo.' },
     expirado: { h: 'Este link expirou', p: 'Contacte a clínica para lhe ser enviado um novo link.' },
@@ -68,7 +70,7 @@ function _renderErro(root, tipo, token) {
     '</div>';
   if (tipo === 'generico') {
     const btn = document.getElementById('intake-retry');
-    if (btn) btn.addEventListener('click', function () { _carregarToken(root, token); });
+    if (btn) btn.addEventListener('click', function () { _carregarToken(root); });
   }
 }
 
@@ -81,16 +83,9 @@ function _renderConcluido(root) {
 }
 
 /* ════════ RGPD ════════ */
-async function _renderRgpd(root) {
-  const sb = window.sb;
-  let dataConsulta = null;
-  if (_tokenRow.appointment_id) {
-    try {
-      const { data: ap } = await sb.from('appointments').select('start_at').eq('id', _tokenRow.appointment_id).maybeSingle();
-      if (ap && ap.start_at) dataConsulta = ap.start_at;
-    } catch (e) { /* sem acesso via RLS a partir do token anónimo — ignora, não é bloqueante */ }
-  }
-  const limite = _tokenRow.expires_at ? _formatarData(_tokenRow.expires_at) : null;
+function _renderRgpd(root) {
+  const dataConsulta = _ctx.appointment_date;
+  const limite = _ctx.expires_at ? _formatarData(_ctx.expires_at) : null;
 
   root.innerHTML =
     '<div class="gate gate-rgpd">' +
@@ -110,16 +105,18 @@ async function _renderRgpd(root) {
   btn.addEventListener('click', async function () {
     btn.disabled = true;
     btn.textContent = 'A gravar…';
-    const agora = new Date().toISOString();
-    const { error } = await sb.from('intake_tokens')
-      .update({ rgpd_accepted_at: agora, rgpd_user_agent: navigator.userAgent, status: 'in_progress' })
-      .eq('id', _tokenRow.id);
-    if (error) {
+    const sb = window.sb;
+    let data, error;
+    try {
+      ({ data, error } = await sb.rpc('intake_aceitar_rgpd', { p_token: _token, p_user_agent: navigator.userAgent }));
+    } catch (e) { error = e; }
+    const ctx = Array.isArray(data) ? data[0] : data;
+    if (error || !ctx || ctx.status !== 'ok') {
       btn.disabled = false;
       btn.textContent = 'Continuar';
       return;
     }
-    _tokenRow.rgpd_accepted_at = agora;
+    _ctx = ctx;
     await _iniciarQuestionario(root);
   });
 }
@@ -132,8 +129,7 @@ function _formatarData(iso) {
 
 /* ════════ QUESTIONÁRIO ════════ */
 async function _iniciarQuestionario(root) {
-  const sb = window.sb;
-  const tipo = _tokenRow.questionnaire_type;
+  const tipo = _ctx.questionnaire_type;
   let mod;
   try {
     mod = await import('./configs/' + tipo + '.js');
@@ -142,9 +138,7 @@ async function _iniciarQuestionario(root) {
     return;
   }
   _cfg = mod.default;
-  const { data: respostas } = await sb.from('intake_responses').select('question_id, answer').eq('token_id', _tokenRow.id);
-  _respostas = {};
-  (respostas || []).forEach(function (r) { _respostas[r.question_id] = r.answer; });
+  _respostas = _ctx.respostas || {};
   _maxSecaoAlcancada = _calcularMaxAlcancada();
   _secaoIdx = _maxSecaoAlcancada;
   _render();
@@ -275,10 +269,11 @@ function _wireApp() {
     btnSeg.disabled = true;
     btnSeg.textContent = 'A concluir…';
     const sb = window.sb;
-    const { error } = await sb.from('intake_tokens')
-      .update({ status: 'completed', completed_at: new Date().toISOString() })
-      .eq('id', _tokenRow.id);
-    if (error) {
+    let data, error;
+    try {
+      ({ data, error } = await sb.rpc('intake_concluir', { p_token: _token }));
+    } catch (e) { error = e; }
+    if (error || data !== true) {
       btnSeg.disabled = false;
       btnSeg.textContent = 'Concluir questionário';
       return;
@@ -474,14 +469,10 @@ function _wirePergunta(p) {
 function _gravarResposta(questionId, valor) {
   _respostas[questionId] = valor;
   const sb = window.sb;
-  if (!sb || !_tokenRow) return;
-  sb.from('intake_responses')
-    .upsert(
-      { token_id: _tokenRow.id, question_id: questionId, answer: valor, updated_at: new Date().toISOString() },
-      { onConflict: 'token_id,question_id' }
-    )
+  if (!sb || !_token) return;
+  sb.rpc('intake_gravar_resposta', { p_token: _token, p_question_id: questionId, p_answer: valor })
     .then(function (res) {
-      if (res && res.error) { _avisarErroGravacao(); return; }
+      if (!res || res.error || res.data !== true) { _avisarErroGravacao(); return; }
       _mostrarToast();
     });
 }
