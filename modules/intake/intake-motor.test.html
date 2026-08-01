@@ -73,8 +73,8 @@
   .choice-mark{width:20px;height:20px;flex-shrink:0;border:2px solid var(--mist);position:relative;}
   .choice-mark.radio{border-radius:50%;}
   .choice-mark.check{border-radius:6px;}
-  .choice-item.sel .choice-mark{border-color:var(--blue);}
-  .choice-item.sel .choice-mark.radio::after{content:'';position:absolute;inset:4px;border-radius:50%;background:var(--blue);}
+  .choice-item.sel .choice-mark, .grelha-cell.sel .choice-mark{border-color:var(--blue);}
+  .choice-item.sel .choice-mark.radio::after, .grelha-cell.sel .choice-mark.radio::after{content:'';position:absolute;inset:4px;border-radius:50%;background:var(--blue);}
   .choice-item.sel .choice-mark.check::after{content:'';position:absolute;inset:3px;border-radius:2px;background:var(--blue);}
   .choice-label{font-size:14px;color:var(--ink);flex:1;}
 
