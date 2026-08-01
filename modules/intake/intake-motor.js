@@ -153,12 +153,27 @@ async function _iniciarQuestionario(root) {
 function _calcularMaxAlcancada() {
   let max = 0;
   _cfg.seccoes.forEach(function (sec, i) {
-    const temResposta = sec.perguntas.some(function (p) { return _perguntaRespondida(p); });
+    const temResposta = sec.perguntas.some(function (p) { return _perguntaTemAlgumaResposta(p); });
     if (temResposta) max = i;
   });
   return max;
 }
 
+/* progresso parcial — usado para saber até onde o doente já chegou (não exige a secção completa) */
+function _perguntaTemAlgumaResposta(p) {
+  const v = _respostas[p.id];
+  if (v == null) return false;
+  if (p.tipo === 'grelha') return typeof v === 'object' && Object.keys(v).length > 0;
+  if (p.tipo === 'escolha_multipla') {
+    if (p.outro) return (Array.isArray(v.v) && v.v.length > 0) || !!(v.outro_texto);
+    return Array.isArray(v) && v.length > 0;
+  }
+  if (p.tipo === 'escolha_unica' && p.outro) return !!(v && (v.v || v.outro_texto));
+  if (typeof v === 'string') return v.trim().length > 0;
+  return true;
+}
+
+/* secção completa — usado só para o ✓ no índice de secções */
 function _perguntaRespondida(p) {
   const v = _respostas[p.id];
   if (v == null) return false;
