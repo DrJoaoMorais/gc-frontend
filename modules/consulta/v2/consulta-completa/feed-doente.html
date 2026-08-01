@@ -706,7 +706,7 @@
         <div class="fd-sb-titulo">Links do Doente</div>
         <button class="fd-sb-item" id="fdBtnDiario"><span class="fd-sb-ic">📓</span>Diário</button>
         <button class="fd-sb-item" disabled style="color:var(--tenue);cursor:default;"><span class="fd-sb-ic">🏋️</span>Exercícios<span class="fd-sb-tag" style="background:#f3f4f6;color:var(--tenue);margin-left:auto;">Brevemente</span></button>
-        <button class="fd-sb-item" disabled style="color:var(--tenue);cursor:default;"><span class="fd-sb-ic">📋</span>Questionários<span class="fd-sb-tag" style="background:#f3f4f6;color:var(--tenue);margin-left:auto;">Brevemente</span></button>
+        <button class="fd-sb-item" id="fdBtnIntake"><span class="fd-sb-ic">📋</span>Questionários</button>
         <div class="fd-sb-divisor"></div>
       </div>
 
@@ -3127,6 +3127,182 @@
       if (!clinicId) { alert('Clínica do doente não identificada — não é possível gerar o link.'); return; }
       const patientName = fdPatientData?.full_name || 'Doente';
       abrirModalLinkDiario(clinicId, patientName);
+    });
+
+    /* ── Questionários pré-consulta (intake) ── */
+    const FD_INTAKE_TIPOS = { pre_consulta: 'Pré-Consulta' };
+
+    function fdGerarTokenHex(nBytes) {
+      const bytes = new Uint8Array(nBytes);
+      crypto.getRandomValues(bytes);
+      return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function fdFmtDataCurta(iso) {
+      return new Date(iso).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    function fdIntakeEstado(row) {
+      if (row.status === 'completed') return { texto: 'Concluído', cor: '#14532d', bg: '#eaf3de' };
+      if (row.status === 'expired' || new Date(row.expires_at) < new Date()) return { texto: 'Expirado', cor: '#991b1b', bg: '#fcebeb' };
+      if (row.status === 'in_progress') return { texto: 'Em curso', cor: '#1a56db', bg: '#eaf0fd' };
+      return { texto: 'Aguarda RGPD', cor: '#92400e', bg: '#fff6ea' };
+    }
+
+    function fdRenderIntakeHistorico(historico) {
+      if (!historico || !historico.length) return '<p style="color:#94a3b8;font-size:12.5px;">Sem questionários anteriores.</p>';
+      return historico.map(r => {
+        const est = fdIntakeEstado(r);
+        return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #f1f5f9;font-size:12.5px;">
+          <div style="flex:1;">
+            <div style="color:#0f2d52;font-weight:600;">${esc(FD_INTAKE_TIPOS[r.questionnaire_type] || r.questionnaire_type)}</div>
+            <div style="color:#94a3b8;">Pedido ${fdFmtDataCurta(r.created_at)} · Limite ${fdFmtDataCurta(r.expires_at)}</div>
+          </div>
+          <span style="padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;background:${est.bg};color:${est.cor};">${est.texto}</span>
+        </div>`;
+      }).join('');
+    }
+
+    async function fdRenderIntakeForm(body, clinicId, historico) {
+      const sb = window.sb;
+      const { data: marcacoes } = await sb.from('appointments')
+        .select('id, start_at')
+        .eq('patient_id', PATIENT_ID)
+        .gte('start_at', new Date().toISOString())
+        .order('start_at', { ascending: true })
+        .limit(10);
+
+      const opcoesMarcacao = (marcacoes || []).map(a =>
+        `<option value="${esc(a.id)}">${fdFmtDataCurta(a.start_at)} ${new Date(a.start_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}</option>`
+      ).join('');
+
+      body.innerHTML = `
+        <div style="margin-top:8px;">
+          <label style="display:block;font-size:12.5px;color:#64748b;margin-bottom:4px;">Tipo de questionário</label>
+          <select id="intakeTipo" style="width:100%;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:10px;padding:9px 11px;font-size:14px;margin-bottom:12px;">
+            <option value="pre_consulta">Pré-Consulta</option>
+          </select>
+
+          <label style="display:block;font-size:12.5px;color:#64748b;margin-bottom:4px;">Data limite para responder *</label>
+          <input id="intakeExpira" type="date" style="width:100%;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:10px;padding:9px 11px;font-size:14px;margin-bottom:12px;">
+
+          <label style="display:block;font-size:12.5px;color:#64748b;margin-bottom:4px;">Ligar a uma consulta (opcional)</label>
+          <select id="intakeConsulta" style="width:100%;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:10px;padding:9px 11px;font-size:14px;margin-bottom:14px;">
+            <option value="">Nenhuma</option>
+            ${opcoesMarcacao}
+          </select>
+
+          <div id="intakeGerarErro" style="color:#991b1b;font-size:12.5px;margin-bottom:8px;display:none;"></div>
+          <button id="intakeGerar" style="width:100%;padding:11px;border-radius:10px;border:none;background:#1a56db;color:#fff;font-weight:600;cursor:pointer;">Gerar link</button>
+          <div id="intakeResultado"></div>
+        </div>
+        <div style="margin-top:20px;border-top:1px solid #e5e7eb;padding-top:14px;">
+          <div style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:8px;">Histórico</div>
+          ${fdRenderIntakeHistorico(historico)}
+        </div>`;
+
+      body.querySelector('#intakeGerar').onclick = async () => {
+        const tipo = body.querySelector('#intakeTipo').value;
+        const expiraVal = body.querySelector('#intakeExpira').value;
+        const consultaId = body.querySelector('#intakeConsulta').value || null;
+        const errEl = body.querySelector('#intakeGerarErro');
+        errEl.style.display = 'none';
+        if (!expiraVal) { errEl.textContent = 'Indique a data limite.'; errEl.style.display = 'block'; return; }
+        const expiresAt = new Date(expiraVal + 'T23:59:59').toISOString();
+
+        const btn = body.querySelector('#intakeGerar');
+        btn.disabled = true; btn.textContent = 'A gerar…';
+
+        const token = fdGerarTokenHex(18);
+        const { data: userRes } = await sb.auth.getUser();
+        const { error } = await sb.from('intake_tokens').insert({
+          token, patient_id: PATIENT_ID, clinic_id: clinicId, appointment_id: consultaId,
+          questionnaire_type: tipo, expires_at: expiresAt, created_by: userRes?.user?.id,
+        });
+        if (error) {
+          errEl.textContent = 'Erro ao gerar: ' + error.message;
+          errEl.style.display = 'block';
+          btn.disabled = false; btn.textContent = 'Gerar link';
+          return;
+        }
+        const link = `https://gc.joaomorais.pt/intake.html?t=${token}`;
+        body.querySelector('#intakeResultado').innerHTML = `
+          <div style="margin-top:14px;padding:12px;border:1px solid #e5e7eb;border-radius:10px;background:#f8fafc;">
+            <div style="font-size:12.5px;color:#64748b;margin-bottom:6px;">Link gerado</div>
+            <div style="font-size:12.5px;color:#0f2d52;word-break:break-all;margin-bottom:8px;">${esc(link)}</div>
+            <button id="intakeCopiar" style="width:100%;padding:9px;border-radius:8px;border:none;background:#0f2d52;color:#fff;font-weight:600;cursor:pointer;">Copiar link</button>
+          </div>`;
+        body.querySelector('#intakeCopiar').onclick = async () => {
+          await navigator.clipboard.writeText(link);
+          const cbtn = body.querySelector('#intakeCopiar');
+          cbtn.textContent = 'Copiado ✓';
+          setTimeout(() => { cbtn.textContent = 'Copiar link'; }, 1800);
+        };
+        btn.style.display = 'none';
+      };
+    }
+
+    async function abrirModalIntake(clinicId, patientName) {
+      const sb = window.sb;
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,45,82,.35);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+      overlay.innerHTML = `
+        <div style="background:#fff;border-radius:16px;max-width:440px;width:100%;max-height:88vh;overflow:auto;padding:24px;font-family:inherit;">
+          <h3 style="margin:0 0 4px;font-size:17px;color:#0f2d52;">Questionário — ${esc(patientName)}</h3>
+          <div id="intakeModalBody"><p style="margin:16px 0;color:#9ca3af;font-size:13px;">A verificar questionários existentes…</p></div>
+        </div>`;
+      document.body.appendChild(overlay);
+      const close = () => overlay.remove();
+      overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+      const body = overlay.querySelector('#intakeModalBody');
+
+      const { data: historico, error: histErr } = await sb.from('intake_tokens')
+        .select('id, questionnaire_type, status, expires_at, created_at')
+        .eq('patient_id', PATIENT_ID)
+        .order('created_at', { ascending: false });
+
+      if (histErr) {
+        body.innerHTML = `<p style="color:#991b1b;font-size:13px;">Erro ao consultar questionários: ${esc(histErr.message)}</p>
+          <button id="intakeFechar" style="margin-top:12px;padding:10px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;width:100%;">Fechar</button>`;
+        body.querySelector('#intakeFechar').onclick = close;
+        return;
+      }
+
+      const agora = new Date();
+      const ativos = (historico || []).filter(r => ['pending_rgpd', 'in_progress'].includes(r.status) && new Date(r.expires_at) > agora);
+
+      if (ativos.length) {
+        const ativo = ativos[0];
+        body.innerHTML = `
+          <p style="font-size:13px;color:#475569;line-height:1.5;">Este doente já tem um questionário <strong>${esc(FD_INTAKE_TIPOS[ativo.questionnaire_type] || ativo.questionnaire_type)}</strong> ativo, enviado em ${fdFmtDataCurta(ativo.created_at)}, válido até ${fdFmtDataCurta(ativo.expires_at)}.</p>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">
+            <button id="intakeSubstituir" style="padding:11px;border-radius:10px;border:none;background:#1a56db;color:#fff;font-weight:600;cursor:pointer;">Substituir (o link antigo deixa de funcionar)</button>
+            <button id="intakeManterAmbos" style="padding:11px;border-radius:10px;border:1.5px solid #e5e7eb;background:#fff;color:#0f2d52;cursor:pointer;">Manter os dois</button>
+            <button id="intakeCancelar" style="padding:8px;border-radius:10px;border:none;background:none;color:#94a3b8;font-size:13px;cursor:pointer;">Cancelar</button>
+          </div>`;
+        body.querySelector('#intakeCancelar').onclick = close;
+        body.querySelector('#intakeSubstituir').onclick = async () => {
+          const btn = body.querySelector('#intakeSubstituir');
+          btn.disabled = true; btn.textContent = 'A substituir…';
+          const { error } = await sb.from('intake_tokens').update({ status: 'expired' }).eq('id', ativo.id);
+          if (error) { alert('Erro ao substituir: ' + error.message); btn.disabled = false; return; }
+          ativo.status = 'expired';
+          await fdRenderIntakeForm(body, clinicId, historico);
+        };
+        body.querySelector('#intakeManterAmbos').onclick = async () => {
+          await fdRenderIntakeForm(body, clinicId, historico);
+        };
+        return;
+      }
+
+      await fdRenderIntakeForm(body, clinicId, historico);
+    }
+
+    document.getElementById('fdBtnIntake')?.addEventListener('click', () => {
+      const clinicId = TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null;
+      if (!clinicId) { alert('Clínica do doente não identificada — não é possível gerar o link.'); return; }
+      const patientName = fdPatientData?.full_name || 'Doente';
+      abrirModalIntake(clinicId, patientName);
     });
 
     document.getElementById('fdBtnRelatorioClinico')?.addEventListener('click', async () => {
