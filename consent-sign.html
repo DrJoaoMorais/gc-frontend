@@ -354,9 +354,12 @@
   <!-- Supabase SDK + inicialização -->
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script>
+    /* persistSession:false — página pública por token; nunca herdar sessão de staff que possa
+       existir no mesmo browser (ex: computador da clínica com o GC aberto noutro separador). */
     window.sb = window.supabase.createClient(
       "https://nxfnzzcuqzxmzsihbrtp.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA"
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA",
+      { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
     );
   </script>
 
@@ -491,36 +494,37 @@
         return;
       }
 
-      // Buscar token na BD
-      const { data, error } = await supabase
-        .from('consent_tokens')
-        .select('id, token, patient_id, clinic_id, document_type, document_data, status, expires_at, signed_at')
-        .eq('token', token)
-        .maybeSingle();
+      // Buscar contexto do token via função SECURITY DEFINER — nunca expõe outras linhas
+      let data, error;
+      try {
+        ({ data, error } = await supabase.rpc('consent_get_context', { p_token: token }));
+      } catch (e) { error = e; }
 
       hide('state-loading');
 
-      if (error || !data) {
+      const ctx = Array.isArray(data) ? data[0] : data;
+
+      if (error || !ctx || ctx.status === 'invalid') {
         showFlex('state-invalid');
         return;
       }
 
-      // Já assinado?
-      if (data.status === 'signed') {
-        renderSigned(data);
+      // Já assinado (digital ou em papel)?
+      if (ctx.status === 'signed' || ctx.status === 'paper_signed') {
+        renderSigned(ctx);
         return;
       }
 
       // Expirado?
-      if (data.status === 'expired' || new Date(data.expires_at) < new Date()) {
+      if (ctx.status === 'expired') {
         showFlex('state-invalid');
         document.querySelector('#state-invalid .state-sub').textContent =
           'Este link expirou. Peça à secretária para gerar um novo link.';
         return;
       }
 
-      tokenData = data;
-      renderForm(data);
+      tokenData = ctx;
+      renderForm(ctx);
     }
 
     // ── Renderizar estado "já assinado" ─────────────────────────────────────────
@@ -795,7 +799,11 @@
 
       } catch (err) {
         console.error('Erro ao submeter consentimento:', err);
-        errorEl.textContent = 'Ocorreu um erro ao submeter. Por favor tente novamente ou peça ajuda à secretária.';
+        // Mensagens de validação vindas de submit_consent_signature (RAISE EXCEPTION) são claras
+        // e seguras para mostrar ao doente; qualquer outro erro (rede, etc.) usa o texto genérico.
+        errorEl.textContent = err?.message
+          ? err.message
+          : 'Ocorreu um erro ao submeter. Por favor tente novamente ou peça ajuda à secretária.';
         errorEl.style.display = 'block';
         btn.disabled = false;
         btn.textContent = 'Assinar e submeter';
