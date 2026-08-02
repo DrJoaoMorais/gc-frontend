@@ -286,6 +286,7 @@ function _wireApp() {
 function _renderPergunta(p) {
   switch (p.tipo) {
     case 'texto_curto':      return _renderTextoCurto(p);
+    case 'numero':           return _renderNumero(p);
     case 'escolha_unica':    return _renderEscolha(p, false);
     case 'escolha_multipla': return _renderEscolha(p, true);
     case 'escala':           return _renderEscala(p);
@@ -297,18 +298,33 @@ function _renderPergunta(p) {
 
 function _valorAtual(id) { return Object.prototype.hasOwnProperty.call(_respostas, id) ? _respostas[id] : null; }
 function _esc(s) { return String(s == null ? '' : s).replace(/"/g, '&quot;'); }
+function _renderApoio(p) { return p.apoio ? '<div class="q-apoio">' + p.apoio + '</div>' : ''; }
 
 function _renderTextoCurto(p) {
   const val = _valorAtual(p.id);
   if (p.multilinha) {
     return '<div class="q" data-id="' + p.id + '">' +
       '<label class="q-lbl" for="q_' + p.id + '">' + p.label + (p.obrigatorio ? ' *' : '') + '</label>' +
+      _renderApoio(p) +
       '<textarea id="q_' + p.id + '" class="q-textarea">' + _esc(val || '') + '</textarea>' +
       '</div>';
   }
   return '<div class="q" data-id="' + p.id + '">' +
     '<label class="q-lbl" for="q_' + p.id + '">' + p.label + (p.obrigatorio ? ' *' : '') + '</label>' +
+    _renderApoio(p) +
     '<input type="text" id="q_' + p.id + '" class="q-input" value="' + _esc(val) + '">' +
+    '</div>';
+}
+
+function _renderNumero(p) {
+  const val = _valorAtual(p.id);
+  return '<div class="q" data-id="' + p.id + '">' +
+    '<label class="q-lbl" for="q_' + p.id + '">' + p.label + (p.obrigatorio ? ' *' : '') + '</label>' +
+    _renderApoio(p) +
+    '<input type="number" inputmode="decimal" id="q_' + p.id + '" class="q-input"' +
+    (p.min != null ? ' min="' + p.min + '"' : '') +
+    (p.max != null ? ' max="' + p.max + '"' : '') +
+    ' value="' + (val != null ? val : '') + '">' +
     '</div>';
 }
 
@@ -390,6 +406,14 @@ function _wirePergunta(p) {
   if (p.tipo === 'texto_curto') {
     const input = el.querySelector('.q-input, .q-textarea');
     input.addEventListener('blur', function () { _gravarResposta(p.id, input.value); });
+    return;
+  }
+
+  if (p.tipo === 'numero') {
+    const input = el.querySelector('.q-input');
+    input.addEventListener('blur', function () {
+      _gravarResposta(p.id, input.value === '' ? null : parseFloat(input.value));
+    });
     return;
   }
 
