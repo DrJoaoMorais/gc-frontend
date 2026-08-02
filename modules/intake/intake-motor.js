@@ -362,6 +362,7 @@ function _renderEscala(p) {
   const val = _valorAtual(p.id);
   let h = '<div class="q" data-id="' + p.id + '">' +
     '<div class="q-lbl">' + p.label + '</div>' +
+    _renderApoio(p) +
     '<div class="escala-top"><span class="escala-val">' + (val != null ? val : '—') + '</span></div>' +
     '<div class="bar escala-bar">';
   for (let v = p.min; v <= p.max; v++) {

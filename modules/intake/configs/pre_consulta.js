@@ -193,6 +193,8 @@ export default {
             { id: 'perda_interesse', label: 'Perda de interesse em atividades que antes davam prazer' },
           ],
         },
+        { id: 's13_desligar_pensamentos', tipo: 'escala', label: 'Classifique a sua capacidade de desligar pensamentos antes de dormir', min: 0, max: 3,
+          apoio: '0 = Não consigo desligar, 3 = Quase sempre consigo.' },
       ],
     },
 
