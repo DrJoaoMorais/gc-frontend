@@ -65,6 +65,63 @@ function freshState() {
   };
 }
 let _state = freshState();
+let _expandedTarefaId = null; // id da única tarefa expandida no momento (entre todas as sessões)
+
+function fmtNum(n) {
+  if (n == null) return '';
+  return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
+}
+
+function tarefaSummaryText(t) {
+  const parts = [];
+  if (t.medida === 'distancia' && t.distancia_m != null) {
+    parts.push(t.series > 1 ? `${t.series}×${t.distancia_m}m` : `${t.distancia_m}m`);
+  } else if (t.medida === 'tempo' && t.duracao_min != null) {
+    const dLabel = `${fmtNum(t.duracao_min)}'`;
+    parts.push(t.series > 1 ? `${t.series}×${dLabel}` : dLabel);
+  }
+  if (t.zona) parts.push(t.zona);
+  if (t.intensidade.ritmo) parts.push(t.intensidade.ritmo);
+  if (t.intensidade.fc_bpm != null) parts.push(`FC ${t.intensidade.fc_bpm}bpm`);
+  if (t.descanso) parts.push(t.descanso);
+  if (t.nota) parts.push(t.nota);
+  return parts.join(' · ');
+}
+
+function calcTotaisModalidade(m) {
+  let totalDistM = 0, hasDist = false;
+  let totalTempoS = 0, hasTempo = false;
+  m.tarefas.forEach(t => {
+    const series = t.series || 1;
+    if (t.medida === 'distancia' && t.distancia_m != null) { totalDistM += series * t.distancia_m; hasDist = true; }
+    if (t.medida === 'tempo' && t.duracao_min != null) { totalTempoS += series * t.duracao_min * 60; hasTempo = true; }
+  });
+  return { totalDistM, hasDist, totalTempoS, hasTempo };
+}
+
+function renderTotaisHtml(m) {
+  const { totalDistM, hasDist, totalTempoS, hasTempo } = calcTotaisModalidade(m);
+  if (!hasDist && !hasTempo) return '';
+  const parts = [];
+  if (hasDist) {
+    const km = totalDistM / 1000;
+    const kmTxt = totalDistM >= 1000 ? ` (${km.toLocaleString('pt-PT', { maximumFractionDigits: 2 })} km)` : '';
+    parts.push(`Distância total: ${Math.round(totalDistM).toLocaleString('pt-PT')} m${kmTxt}`);
+  }
+  if (hasTempo) {
+    const totalMin = Math.round(totalTempoS / 60);
+    const h = Math.floor(totalMin / 60), mm = totalMin % 60;
+    parts.push(`Tempo total: ${h > 0 ? `${h}h${String(mm).padStart(2, '0')}` : `${totalMin} min`}`);
+  }
+  return `<div class="gcwo-totais">${parts.map(p => `<span>${escHtml(p)}</span>`).join('')}</div>`;
+}
+
+function updateTotaisDom(si) {
+  const s = _state.sessions[si];
+  if (!s || s.tipo !== 'modalidade') return;
+  const host = document.querySelector(`.gcwo-session[data-si="${si}"] .gcwo-totais-host`);
+  if (host) host.innerHTML = renderTotaisHtml(s.modalidade);
+}
 
 function novaTarefa() {
   return {
@@ -120,6 +177,7 @@ export async function initPrescricao() {
 
   ensurePrescricaoCss();
   _state = freshState();
+  _expandedTarefaId = null;
 
   const clinicas = G.clinics || [];
   if (clinicas.length === 1) _state.clinicId = clinicas[0].id;
@@ -459,12 +517,31 @@ function renderModalidadeBody(s, i) {
       ${m.tarefas.map((t, ti) => renderTarefaCard(t, i, ti)).join('') || '<div class="gcwo-muted">Sem tarefas ainda.</div>'}
     </div>
     <button type="button" class="gcwo-add-tarefa gcBtnGhost">+ Tarefa</button>
+    <div class="gcwo-totais-host">${renderTotaisHtml(m)}</div>
   `;
 }
 
 function renderTarefaCard(t, si, ti) {
+  const expanded = t.id === _expandedTarefaId;
+  const summary = tarefaSummaryText(t);
   return `
-    <div class="gcwo-tarefa" data-si="${si}" data-ti="${ti}">
+    <div class="gcwo-tarefa${expanded ? ' expanded' : ''}" data-si="${si}" data-ti="${ti}">
+      <div class="gcwo-tarefa-header">
+        <button type="button" class="gcwo-tarefa-toggle">
+          <span class="gcwo-tarefa-chevron">${expanded ? '▾' : '▸'}</span>
+          <span class="gcwo-tarefa-summary">${expanded ? 'A editar…' : (summary ? escHtml(summary) : '(tarefa vazia)')}</span>
+        </button>
+        <button type="button" class="gcwo-tarefa-remove" title="Remover tarefa">✕</button>
+      </div>
+      ${expanded ? renderTarefaFields(t, si, ti) : ''}
+    </div>
+  `;
+}
+
+function renderTarefaFields(t, si, ti) {
+  const hasExtra = t.intensidade.potencia_w != null || t.intensidade.cadencia_rpm != null || t.intensidade.rpe != null;
+  return `
+    <div class="gcwo-tarefa-body">
       <div class="gcwo-tarefa-row">
         <label class="gcwo-field gcwo-field-sm"><span>Séries</span><input type="number" min="1" class="gcwo-t-series" value="${t.series ?? 1}"></label>
         <div class="gcwo-field gcwo-field-sm">
@@ -479,11 +556,13 @@ function renderTarefaCard(t, si, ti) {
           : `<label class="gcwo-field gcwo-field-sm"><span>Duração (min)</span><input type="number" min="0" step="0.5" class="gcwo-t-duracao" value="${t.duracao_min ?? ''}"></label>`
         }
         <label class="gcwo-field gcwo-field-sm"><span>Zona</span><input type="text" class="gcwo-t-zona" placeholder="Z3, Z1→Z4…" value="${escAttr(t.zona)}"></label>
-        <button type="button" class="gcwo-tarefa-remove" title="Remover tarefa">✕</button>
       </div>
-      <div class="gcwo-tarefa-row">
+      <div class="gcwo-tarefa-row gcwo-intens-row">
         <label class="gcwo-field gcwo-field-sm"><span>Ritmo</span><input type="text" class="gcwo-t-ritmo" placeholder="4:15/km, 1:35/100m…" value="${escAttr(t.intensidade.ritmo)}"></label>
         <label class="gcwo-field gcwo-field-sm"><span>FC (bpm)</span><input type="number" min="0" class="gcwo-t-fc" value="${t.intensidade.fc_bpm ?? ''}"></label>
+        <button type="button" class="gcwo-mais-intensidade-toggle gcBtnGhost gcBtnSm">${hasExtra ? '– menos intensidade' : '+ mais intensidade'}</button>
+      </div>
+      <div class="gcwo-tarefa-row gcwo-intens-extra" ${hasExtra ? '' : 'hidden'}>
         <label class="gcwo-field gcwo-field-sm"><span>Potência (W)</span><input type="number" min="0" class="gcwo-t-potencia" value="${t.intensidade.potencia_w ?? ''}"></label>
         <label class="gcwo-field gcwo-field-sm"><span>Cadência (rpm)</span><input type="number" min="0" class="gcwo-t-cadencia" value="${t.intensidade.cadencia_rpm ?? ''}"></label>
         <label class="gcwo-field gcwo-field-sm"><span>RPE</span><input type="number" min="0" max="10" class="gcwo-t-rpe" value="${t.intensidade.rpe ?? ''}"></label>
@@ -608,13 +687,22 @@ function wireTarefaCard(card, s, i, t, ti) {
   const tCard = card.querySelector(`.gcwo-tarefa[data-si="${i}"][data-ti="${ti}"]`);
   if (!tCard) return;
 
+  tCard.querySelector('.gcwo-tarefa-toggle').addEventListener('click', () => {
+    _expandedTarefaId = (_expandedTarefaId === t.id) ? null : t.id;
+    renderSessions();
+  });
+
   tCard.querySelector('.gcwo-tarefa-remove').addEventListener('click', () => {
+    if (_expandedTarefaId === t.id) _expandedTarefaId = null;
     s.modalidade.tarefas.splice(ti, 1);
     renderSessions();
   });
 
+  if (t.id !== _expandedTarefaId) return; // campos só existem no DOM quando a tarefa está expandida
+
   tCard.querySelector('.gcwo-t-series').addEventListener('input', (e) => {
     t.series = e.target.value === '' ? 1 : Number(e.target.value);
+    updateTotaisDom(i);
   });
 
   tCard.querySelectorAll(`input[name="gcwo-medida-${i}-${ti}"]`).forEach(radio => {
@@ -624,9 +712,15 @@ function wireTarefaCard(card, s, i, t, ti) {
   });
 
   const distInp = tCard.querySelector('.gcwo-t-distancia');
-  if (distInp) distInp.addEventListener('input', (e) => { t.distancia_m = e.target.value === '' ? null : Number(e.target.value); });
+  if (distInp) distInp.addEventListener('input', (e) => {
+    t.distancia_m = e.target.value === '' ? null : Number(e.target.value);
+    updateTotaisDom(i);
+  });
   const durInp = tCard.querySelector('.gcwo-t-duracao');
-  if (durInp) durInp.addEventListener('input', (e) => { t.duracao_min = e.target.value === '' ? null : Number(e.target.value); });
+  if (durInp) durInp.addEventListener('input', (e) => {
+    t.duracao_min = e.target.value === '' ? null : Number(e.target.value);
+    updateTotaisDom(i);
+  });
 
   tCard.querySelector('.gcwo-t-zona').addEventListener('input', (e) => { t.zona = e.target.value; });
 
@@ -646,6 +740,16 @@ function wireTarefaCard(card, s, i, t, ti) {
 
   tCard.querySelector('.gcwo-t-descanso').addEventListener('input', (e) => { t.descanso = e.target.value; });
   tCard.querySelector('.gcwo-t-nota').addEventListener('input', (e) => { t.nota = e.target.value; });
+
+  const maisBtn = tCard.querySelector('.gcwo-mais-intensidade-toggle');
+  const extraRow = tCard.querySelector('.gcwo-intens-extra');
+  if (maisBtn && extraRow) {
+    maisBtn.addEventListener('click', () => {
+      const isHidden = extraRow.hasAttribute('hidden');
+      if (isHidden) extraRow.removeAttribute('hidden'); else extraRow.setAttribute('hidden', '');
+      maisBtn.textContent = isHidden ? '– menos intensidade' : '+ mais intensidade';
+    });
+  }
 }
 
 /* ================================================================

@@ -63,11 +63,29 @@
 .gcwo-modo { display:flex; gap:12px; font-size:13px; color:#374151; }
 .gcwo-modo label { display:flex; align-items:center; gap:5px; cursor:pointer; }
 
-.gcwo-tarefas { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
-.gcwo-tarefa { background:#f8fafc; border:0.5px solid #e2e8f0; border-radius:10px; padding:10px 12px; }
+.gcwo-tarefas { display:flex; flex-direction:column; gap:6px; margin-top:12px; }
+.gcwo-tarefa { background:#f8fafc; border:0.5px solid #e2e8f0; border-radius:10px; }
+.gcwo-tarefa.expanded { background:#fff; border-color:#c7d7f5; }
+
+.gcwo-tarefa-header { display:flex; align-items:stretch; }
+.gcwo-tarefa-toggle {
+  flex:1; min-width:0; display:flex; align-items:center; gap:8px; text-align:left;
+  background:transparent; border:none; cursor:pointer; padding:9px 10px; font-family:inherit;
+}
+.gcwo-tarefa-chevron { color:#94a3b8; font-size:11px; width:9px; flex-shrink:0; }
+.gcwo-tarefa-summary { font-size:13px; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gcwo-tarefa.expanded .gcwo-tarefa-summary { color:#64748b; font-style:italic; }
+.gcwo-tarefa-header .gcwo-tarefa-remove { margin:auto 8px; flex-shrink:0; }
+
+.gcwo-tarefa-body { padding:0 12px 12px; }
 .gcwo-tarefa-row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
 .gcwo-tarefa-row + .gcwo-tarefa-row { margin-top:8px; }
-.gcwo-tarefa .gcwo-tarefa-remove { margin-left:auto; }
+.gcwo-intens-extra[hidden] { display:none; }
+
+.gcwo-totais-host:empty { display:none; }
+.gcwo-totais { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+.gcwo-totais span { font-size:12px; font-weight:600; color:#0f2d52; background:#eaf0fd; padding:5px 10px; border-radius:8px; }
+
 .gcwo-add-tarefa { margin-top:10px; }
 
 .gcwo-field { display:flex; flex-direction:column; gap:4px; font-size:12px; color:#64748b; }
