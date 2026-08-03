@@ -1,7 +1,8 @@
 /* =================================================================
    PRESCRICAO.JS — Prescrição de exercício físico (Vertente 1)
    -----------------------------------------------------------------
-   Pesquisa/seleciona doente, constrói sessões (cardio/ginásio),
+   Pesquisa/seleciona doente, constrói sessões (ginásio ou
+   modalidade — corrida, natação, etc., como sequência de tarefas),
    grava snapshot em wo_prescriptions.data, gera token e mostra o
    link de acesso do doente (treino.joaomorais.pt/t/{token}).
    ================================================================= */
@@ -15,18 +16,17 @@ const escHtml = escAttr;
 
 const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 
-const CARDIO_ATIVIDADES = ['Corrida', 'Bicicleta', 'Elíptica', 'Remo', 'Nadar', 'Caminhada', 'Outro'];
+const MODALIDADES = ['Corrida', 'Ciclismo', 'Natação', 'Remo', 'Caminhada', 'Elíptica', 'Escadas', 'Trail', 'Ski', 'Outro'];
 
-const INTENSIDADE_TIPOS = [
-  { value: 'fc',         label: 'FC alvo (bpm)' },
-  { value: 'pace',       label: 'Pace (min/km)' },
-  { value: 'potencia',   label: 'Potência (W)' },
-  { value: 'tempo_100m', label: 'Tempo aos 100m (s)' },
-  { value: 'zona',       label: 'Zona' },
+const DIAS_SEMANA = [
+  { value: 'seg', label: 'Seg' },
+  { value: 'ter', label: 'Ter' },
+  { value: 'qua', label: 'Qua' },
+  { value: 'qui', label: 'Qui' },
+  { value: 'sex', label: 'Sex' },
+  { value: 'sab', label: 'Sáb' },
+  { value: 'dom', label: 'Dom' },
 ];
-
-const ZONAS = ['leve', 'moderada', 'vigorosa'];
-const ZONA_LABELS = { leve: 'Leve', moderada: 'Moderada', vigorosa: 'Vigorosa' };
 
 const RESTRICOES_PREDEFINIDAS = [
   'Sem impacto',
@@ -66,25 +66,35 @@ function freshState() {
 }
 let _state = freshState();
 
-function novoCardioDefault() {
+function novaTarefa() {
   return {
-    atividade: 'Corrida',
-    atividadeOutro: '',
-    modo: 'duracao',
-    distancia_km: null,
-    duracao_min: 30,
-    intensidade: { tipo: 'fc', fc_alvo_bpm: null, pace_min_km: null, potencia_w: null, tempo_100m_s: null, zona: null },
+    id: uuid(),
+    series: 1,
+    medida: 'distancia',       // "distancia" | "tempo"
+    distancia_m: null,
+    duracao_min: null,          // convertido para duracao_s (segundos) só na gravação
+    zona: '',                   // texto livre — "Z3", "Z1-Z2", "Z1→Z4"
+    intensidade: { ritmo: '', fc_bpm: null, potencia_w: null, cadencia_rpm: null, rpe: null },
+    descanso: '',                // texto livre — "3'", "Z3 a 5:30"
     nota: '',
+  };
+}
+function novoModalidadeDefault() {
+  return {
+    modalidade: 'Corrida',
+    modalidadeOutro: '',
+    tarefas: [],
   };
 }
 function novaSessao(tipo) {
   return {
     id: uuid(),
     nome: '',
-    tipo,
+    tipo,                       // "ginasio" | "modalidade"
     frequencia_semanal: tipo === 'ginasio' ? 2 : 3,
+    dia_sugerido: null,         // opcional — sugestão visível, não bloqueia o doente
     ginasio: { exercicios: [] },
-    cardio: novoCardioDefault(),
+    modalidade: novoModalidadeDefault(),
   };
 }
 function novoExercicioGinasio() {
@@ -93,6 +103,7 @@ function novoExercicioGinasio() {
     exercicio_id: null,
     nome: '',
     categoria: '',
+    foto_url: null,
     tempo_concentrico_s: null,
     tempo_excentrico_s: null,
     ajustes_maquina: [],
@@ -122,7 +133,7 @@ export async function initPrescricao() {
 async function loadExercisesCatalog() {
   const { data, error } = await window.sb
     .from('wo_exercises')
-    .select('id,name,categoria,tempo_concentrico_s,tempo_excentrico_s,ajustes_maquina')
+    .select('id,name,categoria,photo_url,tempo_concentrico_s,tempo_excentrico_s,ajustes_maquina')
     .eq('is_active', true)
     .order('categoria')
     .order('name');
@@ -251,7 +262,7 @@ function renderStep2() {
 
     <div class="gcwo-addrow">
       <button type="button" id="gcwoAddGinasio" class="gcBtnOutline">+ Sessão de ginásio</button>
-      <button type="button" id="gcwoAddCardio" class="gcBtnOutline">+ Sessão de cardio</button>
+      <button type="button" id="gcwoAddModalidade" class="gcBtnOutline">+ Sessão de modalidade</button>
     </div>
 
     <div class="gcwo-card">
@@ -288,8 +299,8 @@ function renderStep2() {
     _state.sessions.push(novaSessao('ginasio'));
     renderSessions();
   });
-  document.getElementById('gcwoAddCardio').addEventListener('click', () => {
-    _state.sessions.push(novaSessao('cardio'));
+  document.getElementById('gcwoAddModalidade').addEventListener('click', () => {
+    _state.sessions.push(novaSessao('modalidade'));
     renderSessions();
   });
 
@@ -324,18 +335,29 @@ function renderSessions() {
 }
 
 function renderSessionCard(s, i) {
+  const diaOpts = DIAS_SEMANA.map(d =>
+    `<option value="${d.value}" ${d.value === s.dia_sugerido ? 'selected' : ''}>${d.label}</option>`
+  ).join('');
+
   return `
     <div class="gcwo-session" data-si="${i}">
       <div class="gcwo-session-head">
-        <span class="gcwo-session-badge">${s.tipo === 'ginasio' ? 'Ginásio' : 'Cardio'}</span>
+        <span class="gcwo-session-badge">${s.tipo === 'ginasio' ? 'Ginásio' : 'Modalidade'}</span>
         <input type="text" class="gcwo-session-nome" value="${escAttr(s.nome)}" placeholder="Nome da sessão — ex: Ginásio A">
         <label class="gcwo-freq">
           <span>×/semana</span>
           <input type="number" min="0" max="14" class="gcwo-session-freq" value="${s.frequencia_semanal ?? ''}">
         </label>
+        <label class="gcwo-freq">
+          <span>Dia sugerido</span>
+          <select class="gcwo-session-dia">
+            <option value="">—</option>
+            ${diaOpts}
+          </select>
+        </label>
         <button type="button" class="gcwo-session-remove" title="Remover sessão">✕</button>
       </div>
-      ${s.tipo === 'ginasio' ? renderGinasioBody(s, i) : renderCardioBody(s, i)}
+      ${s.tipo === 'ginasio' ? renderGinasioBody(s, i) : renderModalidadeBody(s, i)}
     </div>
   `;
 }
@@ -368,6 +390,7 @@ function renderExercicioCard(ex, si, ei) {
   return `
     <div class="gcwo-exercicio" data-si="${si}" data-ei="${ei}">
       <div class="gcwo-exercicio-head">
+        ${ex.foto_url ? `<img class="gcwo-exercicio-foto" src="${escAttr(ex.foto_url)}" alt="">` : ''}
         <strong>${escHtml(ex.nome || '(exercício)')}</strong>
         ${ex.categoria ? `<span class="gcwo-muted">${escHtml(ex.categoria)}</span>` : ''}
         <button type="button" class="gcwo-exercicio-remove" title="Remover exercício">✕</button>
@@ -412,69 +435,65 @@ function renderExercicioCard(ex, si, ei) {
   `;
 }
 
-/* ── Corpo — Cardio ──────────────────────────────────────── */
-function renderCardioBody(s, i) {
-  const c = s.cardio;
-  const atividadeOpts = CARDIO_ATIVIDADES.map(a =>
-    `<option value="${escAttr(a)}" ${a === c.atividade ? 'selected' : ''}>${escHtml(a)}</option>`
+/* ── Corpo — Modalidade (sequência de tarefas) ──────────────── */
+function renderModalidadeBody(s, i) {
+  const m = s.modalidade;
+  const modOpts = MODALIDADES.map(md =>
+    `<option value="${escAttr(md)}" ${md === m.modalidade ? 'selected' : ''}>${escHtml(md)}</option>`
   ).join('');
 
   return `
-    <div class="gcwo-cardio">
+    <div class="gcwo-modalidade">
       <label class="gcwo-field">
-        <span>Atividade</span>
-        <select class="gcwo-cardio-atividade">${atividadeOpts}</select>
+        <span>Modalidade</span>
+        <select class="gcwo-modalidade-select">${modOpts}</select>
       </label>
-      ${c.atividade === 'Outro' ? `
+      ${m.modalidade === 'Outro' ? `
         <label class="gcwo-field">
           <span>Especificar</span>
-          <input type="text" class="gcwo-cardio-atividade-outro" value="${escAttr(c.atividadeOutro)}">
+          <input type="text" class="gcwo-modalidade-outro" value="${escAttr(m.modalidadeOutro)}">
         </label>
       ` : ''}
-
-      <div class="gcwo-field">
-        <span>Meta</span>
-        <div class="gcwo-modo">
-          <label><input type="radio" name="gcwo-modo-${i}" value="duracao" ${c.modo === 'duracao' ? 'checked' : ''}> Duração</label>
-          <label><input type="radio" name="gcwo-modo-${i}" value="distancia" ${c.modo === 'distancia' ? 'checked' : ''}> Distância</label>
-        </div>
-      </div>
-      ${c.modo === 'duracao'
-        ? `<label class="gcwo-field"><span>Duração (min)</span><input type="number" min="0" class="gcwo-cardio-duracao" value="${c.duracao_min ?? ''}"></label>`
-        : `<label class="gcwo-field"><span>Distância (km)</span><input type="number" min="0" step="0.1" class="gcwo-cardio-distancia" value="${c.distancia_km ?? ''}"></label>`
-      }
-
-      <label class="gcwo-field">
-        <span>Intensidade</span>
-        <select class="gcwo-cardio-intens-tipo">
-          ${INTENSIDADE_TIPOS.map(t => `<option value="${t.value}" ${t.value === c.intensidade.tipo ? 'selected' : ''}>${t.label}</option>`).join('')}
-        </select>
-      </label>
-      ${renderIntensidadeCampo(c.intensidade)}
-
-      <label class="gcwo-field">
-        <span>Nota</span>
-        <input type="text" class="gcwo-cardio-nota" value="${escAttr(c.nota)}">
-      </label>
     </div>
+    <div class="gcwo-tarefas">
+      ${m.tarefas.map((t, ti) => renderTarefaCard(t, i, ti)).join('') || '<div class="gcwo-muted">Sem tarefas ainda.</div>'}
+    </div>
+    <button type="button" class="gcwo-add-tarefa gcBtnGhost">+ Tarefa</button>
   `;
 }
 
-function renderIntensidadeCampo(intensidade) {
-  switch (intensidade.tipo) {
-    case 'fc':
-      return `<label class="gcwo-field"><span>FC alvo (bpm)</span><input type="number" min="0" class="gcwo-intens-valor" value="${intensidade.fc_alvo_bpm ?? ''}"></label>`;
-    case 'pace':
-      return `<label class="gcwo-field"><span>Pace (min/km)</span><input type="number" min="0" step="0.1" class="gcwo-intens-valor" value="${intensidade.pace_min_km ?? ''}"></label>`;
-    case 'potencia':
-      return `<label class="gcwo-field"><span>Potência (W)</span><input type="number" min="0" class="gcwo-intens-valor" value="${intensidade.potencia_w ?? ''}"></label>`;
-    case 'tempo_100m':
-      return `<label class="gcwo-field"><span>Tempo aos 100m (s)</span><input type="number" min="0" class="gcwo-intens-valor" value="${intensidade.tempo_100m_s ?? ''}"></label>`;
-    case 'zona':
-      return `<label class="gcwo-field"><span>Zona</span><select class="gcwo-intens-valor-select">${ZONAS.map(z => `<option value="${z}" ${z === intensidade.zona ? 'selected' : ''}>${ZONA_LABELS[z]}</option>`).join('')}</select></label>`;
-    default:
-      return '';
-  }
+function renderTarefaCard(t, si, ti) {
+  return `
+    <div class="gcwo-tarefa" data-si="${si}" data-ti="${ti}">
+      <div class="gcwo-tarefa-row">
+        <label class="gcwo-field gcwo-field-sm"><span>Séries</span><input type="number" min="1" class="gcwo-t-series" value="${t.series ?? 1}"></label>
+        <div class="gcwo-field gcwo-field-sm">
+          <span>Medida</span>
+          <div class="gcwo-modo">
+            <label><input type="radio" name="gcwo-medida-${si}-${ti}" value="distancia" ${t.medida === 'distancia' ? 'checked' : ''}> Distância</label>
+            <label><input type="radio" name="gcwo-medida-${si}-${ti}" value="tempo" ${t.medida === 'tempo' ? 'checked' : ''}> Tempo</label>
+          </div>
+        </div>
+        ${t.medida === 'distancia'
+          ? `<label class="gcwo-field gcwo-field-sm"><span>Distância (m)</span><input type="number" min="0" class="gcwo-t-distancia" value="${t.distancia_m ?? ''}"></label>`
+          : `<label class="gcwo-field gcwo-field-sm"><span>Duração (min)</span><input type="number" min="0" step="0.5" class="gcwo-t-duracao" value="${t.duracao_min ?? ''}"></label>`
+        }
+        <label class="gcwo-field gcwo-field-sm"><span>Zona</span><input type="text" class="gcwo-t-zona" placeholder="Z3, Z1→Z4…" value="${escAttr(t.zona)}"></label>
+        <button type="button" class="gcwo-tarefa-remove" title="Remover tarefa">✕</button>
+      </div>
+      <div class="gcwo-tarefa-row">
+        <label class="gcwo-field gcwo-field-sm"><span>Ritmo</span><input type="text" class="gcwo-t-ritmo" placeholder="4:15/km, 1:35/100m…" value="${escAttr(t.intensidade.ritmo)}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>FC (bpm)</span><input type="number" min="0" class="gcwo-t-fc" value="${t.intensidade.fc_bpm ?? ''}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>Potência (W)</span><input type="number" min="0" class="gcwo-t-potencia" value="${t.intensidade.potencia_w ?? ''}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>Cadência (rpm)</span><input type="number" min="0" class="gcwo-t-cadencia" value="${t.intensidade.cadencia_rpm ?? ''}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>RPE</span><input type="number" min="0" max="10" class="gcwo-t-rpe" value="${t.intensidade.rpe ?? ''}"></label>
+      </div>
+      <div class="gcwo-tarefa-row">
+        <label class="gcwo-field"><span>Descanso</span><input type="text" class="gcwo-t-descanso" placeholder="3', Z3 a 5:30…" value="${escAttr(t.descanso)}"></label>
+        <label class="gcwo-field" style="flex:1;"><span>Nota</span><input type="text" class="gcwo-t-nota" value="${escAttr(t.nota)}"></label>
+      </div>
+    </div>
+  `;
 }
 
 /* ── Wiring — sessão ─────────────────────────────────────── */
@@ -486,13 +505,16 @@ function wireSessionCard(s, i) {
   card.querySelector('.gcwo-session-freq').addEventListener('input', (e) => {
     s.frequencia_semanal = e.target.value === '' ? null : Number(e.target.value);
   });
+  card.querySelector('.gcwo-session-dia').addEventListener('change', (e) => {
+    s.dia_sugerido = e.target.value || null;
+  });
   card.querySelector('.gcwo-session-remove').addEventListener('click', () => {
     _state.sessions.splice(i, 1);
     renderSessions();
   });
 
   if (s.tipo === 'ginasio') wireGinasioBody(card, s, i);
-  else wireCardioBody(card, s, i);
+  else wireModalidadeBody(card, s, i);
 }
 
 function wireGinasioBody(card, s, i) {
@@ -509,6 +531,7 @@ function wireGinasioBody(card, s, i) {
         novo.exercicio_id = catExer.id;
         novo.nome = catExer.name;
         novo.categoria = catExer.categoria;
+        novo.foto_url = catExer.photo_url || null;
         novo.tempo_concentrico_s = catExer.tempo_concentrico_s;
         novo.tempo_excentrico_s = catExer.tempo_excentrico_s;
         novo.ajustes_maquina = Array.isArray(catExer.ajustes_maquina)
@@ -563,46 +586,66 @@ function wireExercicioCard(card, s, i, ex, ei) {
   exCard.querySelector('.gcwo-exercicio-nota').addEventListener('input', (e) => { ex.nota = e.target.value; });
 }
 
-function wireCardioBody(card, s, i) {
-  const c = s.cardio;
+function wireModalidadeBody(card, s, i) {
+  const m = s.modalidade;
 
-  card.querySelector('.gcwo-cardio-atividade').addEventListener('change', (e) => {
-    c.atividade = e.target.value;
+  card.querySelector('.gcwo-modalidade-select').addEventListener('change', (e) => {
+    m.modalidade = e.target.value;
     renderSessions();
   });
-  const outroInp = card.querySelector('.gcwo-cardio-atividade-outro');
-  if (outroInp) outroInp.addEventListener('input', (e) => { c.atividadeOutro = e.target.value; });
+  const outroInp = card.querySelector('.gcwo-modalidade-outro');
+  if (outroInp) outroInp.addEventListener('input', (e) => { m.modalidadeOutro = e.target.value; });
 
-  card.querySelectorAll(`input[name="gcwo-modo-${i}"]`).forEach(radio => {
+  m.tarefas.forEach((t, ti) => wireTarefaCard(card, s, i, t, ti));
+
+  card.querySelector('.gcwo-add-tarefa').addEventListener('click', () => {
+    m.tarefas.push(novaTarefa());
+    renderSessions();
+  });
+}
+
+function wireTarefaCard(card, s, i, t, ti) {
+  const tCard = card.querySelector(`.gcwo-tarefa[data-si="${i}"][data-ti="${ti}"]`);
+  if (!tCard) return;
+
+  tCard.querySelector('.gcwo-tarefa-remove').addEventListener('click', () => {
+    s.modalidade.tarefas.splice(ti, 1);
+    renderSessions();
+  });
+
+  tCard.querySelector('.gcwo-t-series').addEventListener('input', (e) => {
+    t.series = e.target.value === '' ? 1 : Number(e.target.value);
+  });
+
+  tCard.querySelectorAll(`input[name="gcwo-medida-${i}-${ti}"]`).forEach(radio => {
     radio.addEventListener('change', (e) => {
-      if (e.target.checked) { c.modo = e.target.value; renderSessions(); }
+      if (e.target.checked) { t.medida = e.target.value; renderSessions(); }
     });
   });
 
-  const durInp = card.querySelector('.gcwo-cardio-duracao');
-  if (durInp) durInp.addEventListener('input', (e) => { c.duracao_min = e.target.value === '' ? null : Number(e.target.value); });
-  const distInp = card.querySelector('.gcwo-cardio-distancia');
-  if (distInp) distInp.addEventListener('input', (e) => { c.distancia_km = e.target.value === '' ? null : Number(e.target.value); });
+  const distInp = tCard.querySelector('.gcwo-t-distancia');
+  if (distInp) distInp.addEventListener('input', (e) => { t.distancia_m = e.target.value === '' ? null : Number(e.target.value); });
+  const durInp = tCard.querySelector('.gcwo-t-duracao');
+  if (durInp) durInp.addEventListener('input', (e) => { t.duracao_min = e.target.value === '' ? null : Number(e.target.value); });
 
-  card.querySelector('.gcwo-cardio-intens-tipo').addEventListener('change', (e) => {
-    c.intensidade.tipo = e.target.value;
-    renderSessions();
+  tCard.querySelector('.gcwo-t-zona').addEventListener('input', (e) => { t.zona = e.target.value; });
+
+  tCard.querySelector('.gcwo-t-ritmo').addEventListener('input', (e) => { t.intensidade.ritmo = e.target.value; });
+  tCard.querySelector('.gcwo-t-fc').addEventListener('input', (e) => {
+    t.intensidade.fc_bpm = e.target.value === '' ? null : Number(e.target.value);
+  });
+  tCard.querySelector('.gcwo-t-potencia').addEventListener('input', (e) => {
+    t.intensidade.potencia_w = e.target.value === '' ? null : Number(e.target.value);
+  });
+  tCard.querySelector('.gcwo-t-cadencia').addEventListener('input', (e) => {
+    t.intensidade.cadencia_rpm = e.target.value === '' ? null : Number(e.target.value);
+  });
+  tCard.querySelector('.gcwo-t-rpe').addEventListener('input', (e) => {
+    t.intensidade.rpe = e.target.value === '' ? null : Number(e.target.value);
   });
 
-  const intensValor = card.querySelector('.gcwo-intens-valor');
-  if (intensValor) {
-    intensValor.addEventListener('input', (e) => {
-      const v = e.target.value === '' ? null : Number(e.target.value);
-      if (c.intensidade.tipo === 'fc') c.intensidade.fc_alvo_bpm = v;
-      else if (c.intensidade.tipo === 'pace') c.intensidade.pace_min_km = v;
-      else if (c.intensidade.tipo === 'potencia') c.intensidade.potencia_w = v;
-      else if (c.intensidade.tipo === 'tempo_100m') c.intensidade.tempo_100m_s = v;
-    });
-  }
-  const intensSelect = card.querySelector('.gcwo-intens-valor-select');
-  if (intensSelect) intensSelect.addEventListener('change', (e) => { c.intensidade.zona = e.target.value; });
-
-  card.querySelector('.gcwo-cardio-nota').addEventListener('input', (e) => { c.nota = e.target.value; });
+  tCard.querySelector('.gcwo-t-descanso').addEventListener('input', (e) => { t.descanso = e.target.value; });
+  tCard.querySelector('.gcwo-t-nota').addEventListener('input', (e) => { t.nota = e.target.value; });
 }
 
 /* ================================================================
@@ -610,7 +653,13 @@ function wireCardioBody(card, s, i) {
    ================================================================ */
 function buildFinalData() {
   const sessoes = _state.sessions.map(s => {
-    const base = { id: s.id, nome: s.nome.trim(), tipo: s.tipo, frequencia_semanal: s.frequencia_semanal };
+    const base = {
+      id: s.id,
+      nome: s.nome.trim(),
+      tipo: s.tipo,
+      frequencia_semanal: s.frequencia_semanal,
+      dia_sugerido: s.dia_sugerido || null,
+    };
     if (s.tipo === 'ginasio') {
       base.ginasio = {
         exercicios: s.ginasio.exercicios.map(ex => ({
@@ -618,6 +667,7 @@ function buildFinalData() {
           exercicio_id: ex.exercicio_id,
           nome: ex.nome,
           categoria: ex.categoria,
+          foto_url: ex.foto_url,
           tempo_concentrico_s: ex.tempo_concentrico_s,
           tempo_excentrico_s: ex.tempo_excentrico_s,
           ajustes_maquina: ex.ajustes_maquina,
@@ -627,14 +677,26 @@ function buildFinalData() {
         })),
       };
     } else {
-      const c = s.cardio;
-      base.cardio = {
-        atividade: c.atividade === 'Outro' ? (c.atividadeOutro.trim() || 'Outro') : c.atividade,
-        modo: c.modo,
-        distancia_km: c.modo === 'distancia' ? c.distancia_km : null,
-        duracao_min: c.modo === 'duracao' ? c.duracao_min : null,
-        intensidade: c.intensidade,
-        nota: c.nota,
+      const m = s.modalidade;
+      base.modalidade = {
+        modalidade: m.modalidade === 'Outro' ? (m.modalidadeOutro.trim() || 'Outro') : m.modalidade,
+        tarefas: m.tarefas.map(t => ({
+          id: t.id,
+          series: t.series || 1,
+          medida: t.medida,
+          distancia_m: t.medida === 'distancia' ? t.distancia_m : null,
+          duracao_s: t.medida === 'tempo' && t.duracao_min != null ? Math.round(t.duracao_min * 60) : null,
+          zona: t.zona && t.zona.trim() ? t.zona.trim() : null,
+          intensidade: {
+            ritmo: t.intensidade.ritmo && t.intensidade.ritmo.trim() ? t.intensidade.ritmo.trim() : null,
+            fc_bpm: t.intensidade.fc_bpm,
+            potencia_w: t.intensidade.potencia_w,
+            cadencia_rpm: t.intensidade.cadencia_rpm,
+            rpe: t.intensidade.rpe,
+          },
+          descanso: t.descanso && t.descanso.trim() ? t.descanso.trim() : null,
+          nota: t.nota,
+        })),
       };
     }
     return base;
@@ -658,6 +720,7 @@ function validarPrescricao() {
   for (const s of _state.sessions) {
     if (!s.nome || !s.nome.trim()) return 'Todas as sessões precisam de nome.';
     if (s.tipo === 'ginasio' && !s.ginasio.exercicios.length) return `A sessão "${s.nome}" não tem exercícios.`;
+    if (s.tipo === 'modalidade' && !s.modalidade.tarefas.length) return `A sessão "${s.nome}" não tem tarefas.`;
   }
   return null;
 }
