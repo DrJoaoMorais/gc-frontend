@@ -28,12 +28,14 @@ export function renderAppShell() {
   const iconGestao = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
   const iconLogout   = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="16 17 21 12 16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const iconFinancas = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 17V11M8 17V7M13 17V9M17 17V4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M3 17h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+  const iconExercicio = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="1.5" y="7" width="3" height="6" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="15.5" y="7" width="3" height="6" rx="1" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 10h11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M6.5 8v4M13.5 8v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
 
   const navItems = [
     { id: "agenda",        icon: iconAgenda,       label: "Agenda" },
     { id: "gestaoagenda",  icon: iconGestaAgenda,  label: "Gestão de agenda" },
     { id: "doentes",       icon: iconDoentes,      label: "Doentes" },
     { id: "historico",     icon: iconHistorico,    label: "Histórico" },
+    { id: "exercicio",     icon: iconExercicio,    label: "Exercício" },
     ...(canSeeManagement ? [{ id: "financas",   icon: iconFinancas,  label: "Rendimentos" }] : []),
     ...(canSeeManagement ? [{ id: "management", icon: iconGestao,    label: "Gestão" }] : []),
   ];
@@ -63,6 +65,13 @@ export function renderAppShell() {
     mainHtml = `
       <div class="gc-page-header">
         <div><div class="gc-page-title">Histórico</div><div class="gc-page-sub">Últimos documentos e actividade</div></div>
+      </div>
+      <div class="gc-muted" style="margin-top:40px;text-align:center;padding:40px 0;">Em construção — disponível em breve.</div>
+    `;
+  } else if (currentView === "exercicio") {
+    mainHtml = `
+      <div class="gc-page-header">
+        <div><div class="gc-page-title">Exercício</div><div class="gc-page-sub">Prescrição e registo de sessões</div></div>
       </div>
       <div class="gc-muted" style="margin-top:40px;text-align:center;padding:40px 0;">Em construção — disponível em breve.</div>
     `;
