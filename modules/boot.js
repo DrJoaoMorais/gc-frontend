@@ -29,6 +29,7 @@ import { renderDoentePanorama } from "./doente-admin.js";
 import { renderFinancas }                  from "./financas.js";
 import { renderGestao }                    from "./gestao.js";
 import { initGestaoAgenda }               from "./gestaoagenda.js";
+import { initPrescricao }                 from "./exercicio/prescricao/prescricao.js";
 
 /* ====================================================================
    BLOCO 11B — Boot principal
@@ -231,6 +232,12 @@ async function renderCurrentView() {
   /* Vista Gestão de Agenda */
   if (view === "gestaoagenda") {
     initGestaoAgenda();
+    return;
+  }
+
+  /* Vista Prescrição de Exercício */
+  if (view === "exercicio") {
+    await initPrescricao();
     return;
   }
 

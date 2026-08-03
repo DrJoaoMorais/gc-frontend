@@ -69,12 +69,7 @@ export function renderAppShell() {
       <div class="gc-muted" style="margin-top:40px;text-align:center;padding:40px 0;">Em construção — disponível em breve.</div>
     `;
   } else if (currentView === "exercicio") {
-    mainHtml = `
-      <div class="gc-page-header">
-        <div><div class="gc-page-title">Exercício</div><div class="gc-page-sub">Prescrição e registo de sessões</div></div>
-      </div>
-      <div class="gc-muted" style="margin-top:40px;text-align:center;padding:40px 0;">Em construção — disponível em breve.</div>
-    `;
+    mainHtml = `<div id="gcwoPrescricaoRoot"></div>`;
   } else if (currentView === "gestaoagenda") {
     mainHtml = `<div id="gcGestaoAgendaRoot"></div>`;
   } else {

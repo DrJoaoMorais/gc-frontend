@@ -1,0 +1,96 @@
+/* =================================================================
+   prescricao.css · Prescrição de exercício físico (Vertente 1)
+   ================================================================= */
+
+.gcwo-step1 { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; align-items:center; }
+
+.gcwo-results {
+  margin-top:8px; border:0.5px solid #e2e8f0; border-radius:10px; background:#fff;
+  max-height:280px; overflow:auto; padding:6px;
+}
+.gcwo-result-item {
+  display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%;
+  padding:8px 10px; border:none; background:transparent; border-radius:8px; cursor:pointer;
+  font-family:inherit; text-align:left;
+}
+.gcwo-result-item:hover { background:#f1f5f9; }
+.gcwo-result-name { font-size:13.5px; font-weight:600; color:#0f172a; }
+.gcwo-result-meta { font-size:12px; color:#94a3b8; }
+
+.gcwo-muted { font-size:12.5px; color:#94a3b8; padding:8px 2px; }
+
+.gcwo-sessions { display:flex; flex-direction:column; gap:12px; margin-top:16px; }
+
+.gcwo-session { background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; padding:14px 16px; }
+.gcwo-session-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.gcwo-session-badge {
+  font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  color:#1a56db; background:#eaf0fd; padding:3px 8px; border-radius:6px;
+}
+.gcwo-session-nome {
+  flex:1; min-width:180px; border:0.5px solid #e2e8f0; border-radius:8px; padding:7px 10px;
+  font-size:13.5px; font-family:inherit; color:#0f172a;
+}
+.gcwo-freq { display:flex; align-items:center; gap:6px; font-size:12.5px; color:#64748b; white-space:nowrap; }
+.gcwo-freq input { width:52px; border:0.5px solid #e2e8f0; border-radius:8px; padding:6px 8px; font-family:inherit; }
+.gcwo-session-remove, .gcwo-exercicio-remove, .gcwo-serie-remove {
+  border:none; background:transparent; color:#94a3b8; font-size:15px; cursor:pointer; padding:4px 6px; border-radius:6px;
+}
+.gcwo-session-remove:hover, .gcwo-exercicio-remove:hover, .gcwo-serie-remove:hover { background:#fef2f2; color:#dc2626; }
+
+.gcwo-exercicios { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+.gcwo-exercicio { background:#f8fafc; border:0.5px solid #e2e8f0; border-radius:10px; padding:10px 12px; }
+.gcwo-exercicio-head { display:flex; align-items:center; gap:8px; }
+.gcwo-exercicio-head strong { font-size:13.5px; color:#0f172a; }
+
+.gcwo-ajustes { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+.gcwo-ajuste { display:flex; flex-direction:column; gap:3px; font-size:11.5px; color:#64748b; }
+.gcwo-ajuste input { border:0.5px solid #e2e8f0; border-radius:7px; padding:5px 8px; font-family:inherit; font-size:13px; }
+
+.gcwo-series { margin-top:10px; }
+.gcwo-series table { border-collapse:collapse; width:100%; max-width:360px; }
+.gcwo-series th { font-size:11px; color:#94a3b8; text-align:left; font-weight:500; padding:2px 6px; }
+.gcwo-series td { padding:3px 6px; }
+.gcwo-series input { width:64px; border:0.5px solid #e2e8f0; border-radius:7px; padding:5px 7px; font-family:inherit; font-size:13px; }
+
+.gcwo-exercicio-extra { display:flex; gap:14px; margin-top:10px; flex-wrap:wrap; }
+
+.gcwo-exercicio-add { display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap; }
+.gcwo-catalog-select { flex:1; min-width:200px; }
+
+.gcwo-cardio { display:flex; gap:14px; flex-wrap:wrap; margin-top:12px; align-items:flex-end; }
+.gcwo-modo { display:flex; gap:12px; font-size:13px; color:#374151; }
+.gcwo-modo label { display:flex; align-items:center; gap:5px; cursor:pointer; }
+
+.gcwo-field { display:flex; flex-direction:column; gap:4px; font-size:12px; color:#64748b; }
+.gcwo-field span { font-weight:500; }
+.gcwo-field input, .gcwo-field select {
+  border:0.5px solid #e2e8f0; border-radius:8px; padding:7px 9px; font-family:inherit; font-size:13.5px; color:#0f172a;
+}
+.gcwo-field-label { font-size:13px; font-weight:600; color:#0f172a; display:block; margin-bottom:8px; }
+
+.gcwo-addrow { display:flex; gap:10px; margin-top:12px; }
+
+.gcwo-card { background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; padding:14px 16px; margin-top:16px; }
+.gcwo-card textarea {
+  width:100%; box-sizing:border-box; border:0.5px solid #e2e8f0; border-radius:8px; padding:9px 11px;
+  font-family:inherit; font-size:13.5px; color:#0f172a; resize:vertical;
+}
+
+.gcwo-chips { display:flex; flex-wrap:wrap; gap:7px; }
+.gcwo-chip {
+  border:0.5px solid #e2e8f0; background:#fff; border-radius:20px; padding:6px 12px;
+  font-size:12.5px; color:#374151; cursor:pointer; font-family:inherit;
+}
+.gcwo-chip.on { background:#0f2d52; border-color:#0f2d52; color:#fff; }
+
+.gcwo-generate { display:flex; align-items:center; gap:12px; margin-top:18px; }
+.gcwo-erro { font-size:12.5px; color:#dc2626; }
+
+.gcwo-success p { margin:0 0 8px; font-size:13px; color:#374151; }
+.gcwo-linkbox { display:flex; gap:8px; }
+.gcwo-linkbox input {
+  flex:1; border:0.5px solid #e2e8f0; border-radius:8px; padding:9px 11px; font-family:inherit;
+  font-size:13.5px; color:#0f172a; background:#f8fafc;
+}
+.gcwo-copiado { font-size:12.5px; color:#0f9d58; margin-left:4px; }
