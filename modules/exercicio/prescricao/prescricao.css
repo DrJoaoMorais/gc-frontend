@@ -4,7 +4,32 @@
 
 .gcwo-headeractions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 
-.gcwo-step1 { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; align-items:center; }
+.gcwo-step1-wrap { display:flex; justify-content:center; padding:40px 16px 60px; }
+.gcwo-step1-card { width:100%; max-width:520px; background:#fff; border:0.5px solid #e2e8f0; border-radius:16px; padding:28px 30px; }
+.gcwo-step1-intro { margin:0 0 22px; font-size:13.5px; color:#64748b; line-height:1.6; text-align:center; }
+
+.gcwo-clinicgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.gcwo-clinic-card {
+  display:flex; align-items:center; gap:10px; border:1.5px solid #e2e8f0; border-radius:12px; padding:11px 12px;
+  background:#fff; cursor:pointer; text-align:left; font-family:inherit;
+}
+.gcwo-clinic-card:hover { border-color:#cbd5e1; background:#f8fafc; }
+.gcwo-clinic-card .avatar {
+  width:34px; height:34px; border-radius:9px; background:#eaf0fd; color:#1a56db;
+  display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:700; flex-shrink:0;
+}
+.gcwo-clinic-card .name { font-size:13px; font-weight:600; color:#0f172a; line-height:1.3; }
+
+.gcwo-step1-selectedclinic {
+  display:flex; align-items:center; justify-content:space-between; gap:10px; background:#eaf0fd;
+  border-radius:10px; padding:10px 13px; margin-bottom:20px;
+}
+.gcwo-step1-selectedclinic span { font-size:12.5px; color:#0f2d52; }
+.gcwo-step1-selectedclinic strong { font-weight:700; }
+.gcwo-linkbtn { border:none; background:transparent; color:#1a56db; font-size:12.5px; font-weight:600; cursor:pointer; padding:0; }
+.gcwo-linkbtn:hover { text-decoration:underline; }
+
+@media (max-width:520px) { .gcwo-clinicgrid { grid-template-columns:1fr; } }
 
 .gcwo-results {
   margin-top:8px; border:0.5px solid #e2e8f0; border-radius:10px; background:#fff;

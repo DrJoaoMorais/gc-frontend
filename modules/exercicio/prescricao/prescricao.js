@@ -302,48 +302,81 @@ async function loadExercisesCatalog() {
   if (_panelDraft) renderPanel();
 }
 
+function iniciaisClinica(nome) {
+  return String(nome || '?').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+
 /* ================================================================
-   PASSO 1 — clínica + pesquisa/seleção de doente
+   PASSO 1 — clínica (cartões) + pesquisa/seleção de doente
    ================================================================ */
 function renderStep1() {
   const root = document.getElementById('gcwoPrescricaoRoot');
   if (!root) return;
 
   const clinicas = G.clinics || [];
-  const clinicOpts = clinicas.map(c =>
-    `<option value="${escAttr(c.id)}" ${c.id === _state.clinicId ? 'selected' : ''}>${escHtml(c.name || c.slug || c.id)}</option>`
-  ).join('');
+  const clinicaEscolhida = clinicas.find(c => c.id === _state.clinicId) || null;
+
+  const clinicCardsHtml = clinicas.map(c => `
+    <button type="button" class="gcwo-clinic-card" data-id="${escAttr(c.id)}">
+      <span class="avatar">${escHtml(iniciaisClinica(c.name || c.slug))}</span>
+      <span class="name">${escHtml(c.name || c.slug || c.id)}</span>
+    </button>
+  `).join('');
 
   root.innerHTML = `
     <div class="gc-page-header">
-      <div><div class="gc-page-title">Prescrição de exercício</div><div class="gc-page-sub">Selecione a clínica e o doente</div></div>
+      <div><div class="gc-page-title">Prescrição de exercício</div><div class="gc-page-sub">Nova prescrição</div></div>
       ${topActionsHtml()}
     </div>
-    <div class="gcwo-step1">
-      <select id="gcwoSelClinic" class="gc-select" style="min-width:220px;">
-        <option value="">Escolha a clínica…</option>
-        ${clinicOpts}
-      </select>
-      <div class="gc-search-bar" style="flex:1;min-width:220px;max-width:420px;">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
-        <input id="gcwoPatientQuery" type="search" class="gc-search-input" placeholder="Nome, SNS, NIF, Telefone…" autocomplete="off" spellcheck="false" ${_state.clinicId ? '' : 'disabled'}>
+    <div class="gcwo-step1-wrap">
+      <div class="gcwo-step1-card">
+        <p class="gcwo-step1-intro">Cria uma prescrição de exercício para um doente — sessões de ginásio ou de modalidade, com tarefas e séries — e gera um link de acesso sem login para ele seguir o plano.</p>
+
+        <div id="gcwoClinicStage" ${clinicaEscolhida ? 'hidden' : ''}>
+          <span class="gcwo-field-label">Escolhe a clínica</span>
+          <div class="gcwo-clinicgrid" id="gcwoClinicGrid">${clinicCardsHtml}</div>
+        </div>
+
+        <div id="gcwoPatientStage" ${clinicaEscolhida ? '' : 'hidden'}>
+          <div class="gcwo-step1-selectedclinic">
+            <span>Clínica: <strong id="gcwoSelectedClinicName">${clinicaEscolhida ? escHtml(clinicaEscolhida.name || clinicaEscolhida.slug || '') : ''}</strong></span>
+            <button type="button" class="gcwo-linkbtn" id="gcwoBtnTrocarClinica">Trocar</button>
+          </div>
+          <span class="gcwo-field-label">Procura o doente</span>
+          <div class="gc-search-bar">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
+            <input id="gcwoPatientQuery" type="search" class="gc-search-input" placeholder="Nome, SNS, NIF, Telefone…" autocomplete="off" spellcheck="false">
+          </div>
+          <div id="gcwoPatientResults" class="gcwo-results" style="display:none;"></div>
+        </div>
       </div>
     </div>
-    <div id="gcwoPatientResults" class="gcwo-results" style="display:none;"></div>
   `;
   wireTopActions();
 
-  const selClinic = document.getElementById('gcwoSelClinic');
+  document.getElementById('gcwoClinicGrid').querySelectorAll('[data-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _state.clinicId = btn.getAttribute('data-id');
+      const c = clinicas.find(x => x.id === _state.clinicId);
+      document.getElementById('gcwoSelectedClinicName').textContent = c?.name || c?.slug || '';
+      document.getElementById('gcwoClinicStage').hidden = true;
+      document.getElementById('gcwoPatientStage').hidden = false;
+      document.getElementById('gcwoPatientQuery').focus();
+    });
+  });
+
+  document.getElementById('gcwoBtnTrocarClinica').addEventListener('click', () => {
+    _state.clinicId = null;
+    document.getElementById('gcwoPatientStage').hidden = true;
+    document.getElementById('gcwoClinicStage').hidden = false;
+    const rh = document.getElementById('gcwoPatientResults');
+    rh.style.display = 'none';
+    rh.innerHTML = '';
+    document.getElementById('gcwoPatientQuery').value = '';
+  });
+
   const input = document.getElementById('gcwoPatientQuery');
   const resHost = document.getElementById('gcwoPatientResults');
-
-  selClinic.addEventListener('change', () => {
-    _state.clinicId = selClinic.value || null;
-    resHost.style.display = 'none';
-    resHost.innerHTML = '';
-    input.disabled = !_state.clinicId;
-    input.value = '';
-  });
 
   let timer = null;
   input.addEventListener('input', () => {
