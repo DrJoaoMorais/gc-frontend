@@ -21,26 +21,129 @@
 
 .gcwo-muted { font-size:12.5px; color:#94a3b8; padding:8px 2px; }
 
-.gcwo-sessions { display:flex; flex-direction:column; gap:12px; margin-top:16px; }
+/* ── layout de duas colunas: plano à esquerda, painel à direita ── */
+.gcwo-plano-body { display:flex; gap:16px; margin-top:14px; align-items:flex-start; }
+.gcwo-plano-main { flex:1; min-width:0; display:flex; flex-direction:column; }
+.gcwo-plano-main > section + section,
+.gcwo-plano-main > .gcwo-card { margin-top:20px; }
 
-.gcwo-session { background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; padding:14px 16px; }
-.gcwo-session-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-.gcwo-session-badge {
-  font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
-  color:#1a56db; background:#eaf0fd; padding:3px 8px; border-radius:6px;
+.gcwo-section-title { font-size:16px; font-weight:600; color:#0f2d52; margin:0; }
+
+/* ── plano semanal — fila de dias ── */
+.gcwo-daystrip { display:flex; gap:8px; overflow-x:auto; margin-top:10px; padding-bottom:2px; }
+.gcwo-daycard {
+  flex:1 0 100px; min-width:100px; border:1.5px solid #e2e8f0; border-radius:12px; background:#fff;
+  padding:9px 11px; cursor:pointer; text-align:left; font-family:inherit;
 }
-.gcwo-session-nome {
-  flex:1; min-width:180px; border:0.5px solid #e2e8f0; border-radius:8px; padding:7px 10px;
-  font-size:13.5px; font-family:inherit; color:#0f172a;
+.gcwo-daycard:hover { border-color:#cbd5e1; }
+.gcwo-daycard.selected { border-color:#1a56db; background:#eaf0fd; }
+.gcwo-daycard .dname { display:block; font-size:11.5px; font-weight:700; letter-spacing:.03em; color:#0f2d52; text-transform:uppercase; }
+.gcwo-daycard.selected .dname { color:#1a56db; }
+.gcwo-daycard .dcount { display:block; font-size:11px; color:#64748b; margin-top:1px; }
+.gcwo-daycard .dicons { display:flex; gap:3px; margin-top:7px; flex-wrap:wrap; min-height:16px; }
+.gcwo-daycard .dicons span { width:16px; height:16px; border-radius:5px; display:flex; align-items:center; justify-content:center; }
+.gcwo-daycard .dicons svg { width:10px; height:10px; }
+.gcwo-daycard-add {
+  flex:0 0 76px; border:1.5px dashed #cbd5e1; border-radius:12px; background:transparent; color:#94a3b8;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:11px; cursor:not-allowed;
 }
-.gcwo-freq { display:flex; align-items:center; gap:6px; font-size:12.5px; color:#64748b; white-space:nowrap; }
-.gcwo-freq input { width:52px; border:0.5px solid #e2e8f0; border-radius:8px; padding:6px 8px; font-family:inherit; }
-.gcwo-session-remove, .gcwo-exercicio-remove, .gcwo-serie-remove, .gcwo-tarefa-remove {
+.gcwo-daycard-add svg { width:14px; height:14px; }
+
+/* ── dia selecionado ── */
+.gcwo-daydetail-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+
+.gcwo-addpicker { margin-top:12px; }
+.gcwo-typegrid { display:grid; grid-template-columns:repeat(6, minmax(84px,1fr)); gap:8px; margin-top:8px; }
+.gcwo-typecard {
+  border:1.5px solid #e2e8f0; border-radius:12px; background:#fff; padding:11px 8px; display:flex; flex-direction:column;
+  align-items:center; gap:6px; cursor:pointer; text-align:center; font-family:inherit;
+}
+.gcwo-typecard:hover { border-color:#cbd5e1; background:#f8fafc; }
+.gcwo-typecard .ticon { width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; }
+.gcwo-typecard .ticon svg { width:16px; height:16px; }
+.gcwo-typecard .tname { font-size:11.5px; font-weight:600; color:#0f172a; }
+
+.gcwo-unassigned { background:#fff; border:1px dashed #cbd5e1; border-radius:12px; padding:14px 16px; }
+.gcwo-unassigned h3 { font-size:13px; font-weight:600; color:#64748b; display:flex; align-items:center; gap:7px; margin:0; }
+.gcwo-unassigned h3 svg { width:14px; height:14px; color:#94a3b8; flex-shrink:0; }
+.gcwo-unassigned h3 .count { font-weight:400; color:#94a3b8; }
+.gcwo-unassigned .gcwo-sessions { margin-top:12px; }
+
+/* ── cartão de sessão — leitura, colapsável ── */
+.gcwo-sessions { display:flex; flex-direction:column; gap:10px; margin-top:14px; }
+
+.gcwo-plano-session { background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; overflow:hidden; }
+.gcwo-plano-session-bar { display:flex; }
+.gcwo-plano-session-bar .accent { width:4px; flex-shrink:0; }
+.gcwo-plano-session-bar .main { flex:1; min-width:0; }
+
+.gcwo-plano-session-head {
+  display:flex; align-items:center; gap:11px; padding:11px 12px; cursor:pointer; background:transparent;
+  border:none; width:100%; text-align:left; font-family:inherit;
+}
+.gcwo-plano-session-head .icon { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.gcwo-plano-session-head .icon svg { width:15px; height:15px; }
+.gcwo-plano-session-head .titles { flex:1; min-width:0; display:flex; flex-direction:column; }
+.gcwo-plano-session-head .nome { font-size:13.5px; font-weight:600; color:#0f172a; }
+.gcwo-plano-session-head .resumo { font-size:11.5px; color:#64748b; margin-top:1px; }
+.gcwo-plano-session-head .tag { font-size:10.5px; font-weight:600; padding:3px 9px; border-radius:20px; white-space:nowrap; }
+.gcwo-plano-session-head .chevron { color:#94a3b8; font-size:11px; width:12px; text-align:center; flex-shrink:0; }
+
+.gcwo-plano-session-edit {
+  width:30px; height:30px; margin:10px 10px 10px 0; border-radius:8px; border:none; background:transparent;
+  color:#94a3b8; flex-shrink:0; align-self:flex-start; cursor:pointer;
+}
+.gcwo-plano-session-edit svg { width:14px; height:14px; }
+.gcwo-plano-session-edit:hover { background:#f1f5f9; color:#0f172a; }
+
+.gcwo-plano-session-body { padding:0 12px 12px; }
+.gcwo-tablewrap { overflow-x:auto; }
+.gcwo-readtable { width:100%; border-collapse:collapse; min-width:520px; font-variant-numeric:tabular-nums; }
+.gcwo-readtable th { text-align:left; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.03em; color:#94a3b8; padding:5px 7px; border-bottom:1px solid #e2e8f0; }
+.gcwo-readtable td { padding:6px 7px; font-size:12px; color:#0f172a; border-bottom:1px solid #f1f5f9; }
+.gcwo-readtable td.num { text-align:left; }
+.gcwo-readtable td.muted { color:#94a3b8; }
+.gcwo-readtable tr.total td { border-bottom:none; border-top:1.5px solid #e2e8f0; font-weight:700; padding-top:8px; }
+.gcwo-readtable tr.total td.muted { font-weight:500; }
+.gcwo-zonapill { font-size:10.5px; font-weight:600; padding:2px 7px; border-radius:6px; background:#eef2f6; color:#475569; }
+
+/* ── painel lateral — criar/editar sessão ── */
+.gcwo-panel { width:340px; flex-shrink:0; background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; overflow:hidden; }
+.gcwo-panel.empty { padding:30px; text-align:center; color:#94a3b8; font-size:12.5px; }
+.gcwo-panel-head { display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid #e2e8f0; }
+.gcwo-panel-icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.gcwo-panel-icon svg { width:18px; height:18px; }
+.gcwo-panel-titles { flex:1; min-width:0; }
+.gcwo-panel-titles h3 { font-size:16.5px; font-weight:600; color:#0f2d52; margin:0; line-height:1.1; }
+.gcwo-panel-titles .sub { font-size:11.5px; color:#64748b; }
+.gcwo-panel-headbtn { width:28px; height:28px; border-radius:7px; border:none; background:transparent; color:#94a3b8; flex-shrink:0; cursor:pointer; }
+.gcwo-panel-headbtn svg { width:15px; height:15px; }
+.gcwo-panel-headbtn:hover { background:#fef2f2; color:#dc2626; }
+.gcwo-panel-headbtn.close:hover { background:#f1f5f9; color:#0f172a; }
+.gcwo-panel-body { padding:16px; display:flex; flex-direction:column; gap:14px; }
+.gcwo-panel-footer { display:flex; gap:8px; padding:14px 16px; border-top:1px solid #e2e8f0; }
+.gcwo-panel-footer button { flex:1; justify-content:center; height:36px; font-size:13px; }
+
+.gcwo-row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+.gcwo-resumo { display:flex; gap:14px; flex-wrap:wrap; background:#f8fafc; border-radius:10px; padding:11px 13px; margin-top:8px; }
+.gcwo-stat { display:flex; align-items:center; gap:7px; }
+.gcwo-stat svg { width:15px; height:15px; color:#64748b; flex-shrink:0; }
+.gcwo-stat b { display:block; font-size:13px; color:#0f2d52; font-variant-numeric:tabular-nums; }
+.gcwo-stat small { display:block; font-size:10px; color:#94a3b8; }
+
+@media (max-width: 900px) {
+  .gcwo-plano-body { flex-direction:column; }
+  .gcwo-panel { width:100%; }
+}
+
+/* ── exercícios / tarefas (usados dentro do painel) ── */
+.gcwo-exercicio-remove, .gcwo-serie-remove, .gcwo-tarefa-remove {
   border:none; background:transparent; color:#94a3b8; font-size:15px; cursor:pointer; padding:4px 6px; border-radius:6px;
 }
-.gcwo-session-remove:hover, .gcwo-exercicio-remove:hover, .gcwo-serie-remove:hover, .gcwo-tarefa-remove:hover { background:#fef2f2; color:#dc2626; }
+.gcwo-exercicio-remove:hover, .gcwo-serie-remove:hover, .gcwo-tarefa-remove:hover { background:#fef2f2; color:#dc2626; }
 
-.gcwo-exercicios { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+.gcwo-exercicios { display:flex; flex-direction:column; gap:10px; margin-top:8px; }
 .gcwo-exercicio { background:#f8fafc; border:0.5px solid #e2e8f0; border-radius:10px; padding:10px 12px; }
 .gcwo-exercicio-head { display:flex; align-items:center; gap:8px; }
 .gcwo-exercicio-head strong { font-size:13.5px; color:#0f172a; }
@@ -51,21 +154,21 @@
 .gcwo-ajuste input { border:0.5px solid #e2e8f0; border-radius:7px; padding:5px 8px; font-family:inherit; font-size:13px; }
 
 .gcwo-series { margin-top:10px; }
-.gcwo-series table { border-collapse:collapse; width:100%; max-width:360px; }
+.gcwo-series table { border-collapse:collapse; width:100%; }
 .gcwo-series th { font-size:11px; color:#94a3b8; text-align:left; font-weight:500; padding:2px 6px; }
 .gcwo-series td { padding:3px 6px; }
-.gcwo-series input { width:64px; border:0.5px solid #e2e8f0; border-radius:7px; padding:5px 7px; font-family:inherit; font-size:13px; }
+.gcwo-series input { width:56px; border:0.5px solid #e2e8f0; border-radius:7px; padding:5px 7px; font-family:inherit; font-size:13px; }
 
 .gcwo-exercicio-extra { display:flex; gap:14px; margin-top:10px; flex-wrap:wrap; }
 
 .gcwo-exercicio-add { display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap; }
-.gcwo-catalog-select { flex:1; min-width:200px; }
+.gcwo-catalog-select { flex:1; min-width:0; }
 
-.gcwo-modalidade { display:flex; gap:14px; flex-wrap:wrap; margin-top:12px; align-items:flex-end; }
+.gcwo-modalidade { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
 .gcwo-modo { display:flex; gap:12px; font-size:13px; color:#374151; }
 .gcwo-modo label { display:flex; align-items:center; gap:5px; cursor:pointer; }
 
-.gcwo-tarefas { display:flex; flex-direction:column; gap:6px; margin-top:12px; }
+.gcwo-tarefas { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
 .gcwo-tarefa { background:#f8fafc; border:0.5px solid #e2e8f0; border-radius:10px; }
 .gcwo-tarefa.expanded { background:#fff; border-color:#c7d7f5; }
 
@@ -84,23 +187,18 @@
 .gcwo-tarefa-row + .gcwo-tarefa-row { margin-top:8px; }
 .gcwo-intens-extra[hidden] { display:none; }
 
-.gcwo-totais-host:empty { display:none; }
-.gcwo-totais { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
-.gcwo-totais span { font-size:12px; font-weight:600; color:#0f2d52; background:#eaf0fd; padding:5px 10px; border-radius:8px; }
-
 .gcwo-add-tarefa { margin-top:10px; }
 
 .gcwo-field { display:flex; flex-direction:column; gap:4px; font-size:12px; color:#64748b; }
 .gcwo-field span { font-weight:500; }
-.gcwo-field input, .gcwo-field select {
+.gcwo-field input, .gcwo-field select, .gcwo-field textarea {
   border:0.5px solid #e2e8f0; border-radius:8px; padding:7px 9px; font-family:inherit; font-size:13.5px; color:#0f172a;
 }
-.gcwo-field-sm input, .gcwo-field-sm select { width:110px; }
-.gcwo-field-label { font-size:13px; font-weight:600; color:#0f172a; display:block; margin-bottom:8px; }
+.gcwo-field textarea { resize:vertical; }
+.gcwo-field-sm input, .gcwo-field-sm select { width:100px; }
+.gcwo-field-label { font-size:12px; font-weight:600; color:#0f172a; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:.02em; }
 
-.gcwo-addrow { display:flex; gap:10px; margin-top:12px; }
-
-.gcwo-card { background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; padding:14px 16px; margin-top:16px; }
+.gcwo-card { background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; padding:14px 16px; }
 .gcwo-card textarea {
   width:100%; box-sizing:border-box; border:0.5px solid #e2e8f0; border-radius:8px; padding:9px 11px;
   font-family:inherit; font-size:13.5px; color:#0f172a; resize:vertical;

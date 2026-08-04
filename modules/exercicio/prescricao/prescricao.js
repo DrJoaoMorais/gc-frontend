@@ -1,9 +1,11 @@
 /* =================================================================
    PRESCRICAO.JS — Prescrição de exercício físico (Vertente 1)
    -----------------------------------------------------------------
-   Pesquisa/seleciona doente, constrói sessões (ginásio ou
-   modalidade — corrida, natação, etc., como sequência de tarefas),
-   grava snapshot em wo_prescriptions.data, gera token e mostra o
+   Pesquisa/seleciona doente, constrói o plano semanal (sessões de
+   ginásio ou modalidade — corrida, natação, etc., como sequência
+   de tarefas), organizado por dia sugerido (Seg–Dom) + secção
+   "sem dia atribuído". Edição de sessão num painel lateral.
+   Grava snapshot em wo_prescriptions.data, gera token e mostra o
    link de acesso do doente (treino.joaomorais.pt/t/{token}).
    ================================================================= */
 
@@ -20,13 +22,13 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 const MODALIDADES = ['Corrida', 'Ciclismo', 'Natação', 'Remo', 'Caminhada', 'Elíptica', 'Escadas', 'Trail', 'Ski', 'Outro'];
 
 const DIAS_SEMANA = [
-  { value: 'seg', label: 'Seg' },
-  { value: 'ter', label: 'Ter' },
-  { value: 'qua', label: 'Qua' },
-  { value: 'qui', label: 'Qui' },
-  { value: 'sex', label: 'Sex' },
-  { value: 'sab', label: 'Sáb' },
-  { value: 'dom', label: 'Dom' },
+  { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
+  { value: 'ter', label: 'Ter', full: 'Terça-feira' },
+  { value: 'qua', label: 'Qua', full: 'Quarta-feira' },
+  { value: 'qui', label: 'Qui', full: 'Quinta-feira' },
+  { value: 'sex', label: 'Sex', full: 'Sexta-feira' },
+  { value: 'sab', label: 'Sáb', full: 'Sábado' },
+  { value: 'dom', label: 'Dom', full: 'Domingo' },
 ];
 
 const RESTRICOES_PREDEFINIDAS = [
@@ -39,6 +41,39 @@ const RESTRICOES_PREDEFINIDAS = [
   'Amplitude articular limitada',
   'Sem material de resistência',
 ];
+
+/* ── Ícones — traço, currentColor, estilo do rail real (shell.js) ── */
+const ICON_GINASIO = `<svg viewBox="0 0 20 20" fill="none"><rect x="1.5" y="7" width="3" height="6" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="15.5" y="7" width="3" height="6" rx="1" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 10h11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M6.5 8v4M13.5 8v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+const ICON_CORRIDA = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="3.6" r="1.4" fill="currentColor" stroke="none"/><path d="M9 6.5l2.3 2 .7 3-2 4.5M11.3 8.5L8 9.7l-2 3.3M11.3 8.5l3 .8 2 2.7M6 18l2-3.3"/></svg>`;
+const ICON_NATACAO = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.5c1.4 1.6 4 2 5.5 0S11 6.9 12.5 8.5s4.1 1.6 5.5 0"/><path d="M2 13c1.4 1.6 4 2 5.5 0s3.5-1.6 5-0 4.1 1.6 5.5 0"/><path d="M6 6l2.2-3 3 1.4-1 2.3"/></svg>`;
+const ICON_CICLISMO = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="14.5" r="3"/><circle cx="15" cy="14.5" r="3"/><path d="M5 14.5l3.5-7h4L15 14.5M8.5 7.5H7M11 4h2.5l1.5 3.5"/></svg>`;
+const ICON_REMO = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l9 9M9.5 5.5l-6 6M14.5 10.5l-6 6"/><path d="M13 3l4 4M14 12.5c1.8 1.6 2 3.3 1 4.5-1.2 1-2.9.8-4.5-1"/></svg>`;
+const ICON_OUTRO = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.2"/><path d="M10 6.3v3.7l2.4 1.4"/></svg>`;
+const ICON_MAIS = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg>`;
+const ICON_PENCIL = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 3.5l4 4L6 18H2v-4L12.5 3.5z"/></svg>`;
+const ICON_TRASH = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4.5A1.5 1.5 0 019.5 3h1A1.5 1.5 0 0112 4.5V6m-6.5 0L6 16.5A1.5 1.5 0 007.5 18h5a1.5 1.5 0 001.5-1.5L14.5 6"/></svg>`;
+const ICON_CLOSE = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>`;
+const ICON_FLAG = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17V3.8c2.6-1.2 4.6-1.2 7 0s4.4 1.2 5.6.5V11c-2.6 1.2-4.6 1.2-7 0s-4.4-1.2-5.6-.5"/></svg>`;
+const ICON_CLOCK = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.2"/><path d="M10 6v4l2.6 1.6"/></svg>`;
+const ICON_RULER = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l4-4 10 10-4 4-10-10z"/><path d="M8 9l1.5 1.5M10.5 6.5L12 8M13 4l1.5 1.5"/></svg>`;
+
+const TIPO_META = {
+  ginasio:  { label: 'Ginásio',    icon: ICON_GINASIO,  fg: '#7c3aed', bg: '#f3e8ff' },
+  corrida:  { label: 'Corrida',    icon: ICON_CORRIDA,  fg: '#c2410c', bg: '#ffedd5' },
+  natacao:  { label: 'Natação',    icon: ICON_NATACAO,  fg: '#1a56db', bg: '#eaf0fd' },
+  ciclismo: { label: 'Ciclismo',   icon: ICON_CICLISMO, fg: '#0f8a74', bg: '#e3f6f2' },
+  remo:     { label: 'Remo',       icon: ICON_REMO,     fg: '#be185d', bg: '#fce7f3' },
+  outro:    { label: 'Modalidade', icon: ICON_OUTRO,    fg: '#475569', bg: '#eef2f6' },
+};
+function tipoKey(s) {
+  if (s.tipo === 'ginasio') return 'ginasio';
+  const m = (s.modalidade?.modalidade || '').toLowerCase();
+  if (m === 'corrida') return 'corrida';
+  if (m === 'natação' || m === 'natacao') return 'natacao';
+  if (m === 'ciclismo') return 'ciclismo';
+  if (m === 'remo') return 'remo';
+  return 'outro';
+}
 
 function uuid() { return crypto.randomUUID(); }
 
@@ -84,6 +119,7 @@ function freshState() {
     exercisesCatalog: [],
     catalogLoaded: false,
     sessions: [],
+    selectedDay: 'seg',
     progressao: '',
     restricoesPredefinidas: [],
     restricoesTexto: '',
@@ -91,11 +127,24 @@ function freshState() {
   };
 }
 let _state = freshState();
-let _expandedTarefaId = null; // id da única tarefa expandida no momento (entre todas as sessões)
+let _expandedCardIds = new Set();       // sessões expandidas na lista principal (leitura)
+let _panelExpandedTarefaId = null;      // dentro do painel, tarefa expandida (só uma)
+let _panelDraft = null;                 // clone de trabalho da sessão em edição — null = painel fechado
+let _panelIsNovo = false;
 
 function fmtNum(n) {
   if (n == null) return '';
   return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
+}
+function fmtDistanciaTotal(m) {
+  const km = m / 1000;
+  const kmTxt = m >= 1000 ? ` (${km.toLocaleString('pt-PT', { maximumFractionDigits: 2 })} km)` : '';
+  return `${Math.round(m).toLocaleString('pt-PT')} m${kmTxt}`;
+}
+function fmtDuracaoTotal(totalS) {
+  const totalMin = Math.round(totalS / 60);
+  const h = Math.floor(totalMin / 60), mm = totalMin % 60;
+  return h > 0 ? `${h}h${String(mm).padStart(2, '0')}` : `${totalMin} min`;
 }
 
 function tarefaSummaryText(t) {
@@ -113,6 +162,16 @@ function tarefaSummaryText(t) {
   if (t.nota) parts.push(t.nota);
   return parts.join(' · ');
 }
+function tarefaVolumeLabelReadonly(t) {
+  if (t.medida === 'distancia' && t.distancia_m != null) {
+    return t.series > 1 ? `${t.series} x ${t.distancia_m} m` : `${t.distancia_m} m`;
+  }
+  if (t.medida === 'tempo' && t.duracao_min != null) {
+    const lbl = `${fmtNum(t.duracao_min)}'`;
+    return t.series > 1 ? `${t.series} x ${lbl}` : lbl;
+  }
+  return '—';
+}
 
 function calcTotaisModalidade(m) {
   let totalDistM = 0, hasDist = false;
@@ -125,28 +184,17 @@ function calcTotaisModalidade(m) {
   return { totalDistM, hasDist, totalTempoS, hasTempo };
 }
 
-function renderTotaisHtml(m) {
-  const { totalDistM, hasDist, totalTempoS, hasTempo } = calcTotaisModalidade(m);
-  if (!hasDist && !hasTempo) return '';
+function sessionResumoTexto(s) {
+  if (s.tipo === 'ginasio') {
+    const nEx = s.ginasio.exercicios.length;
+    const nSeries = s.ginasio.exercicios.reduce((a, e) => a + e.series.length, 0);
+    return `${nEx} exercício${nEx === 1 ? '' : 's'} · ${nSeries} série${nSeries === 1 ? '' : 's'}`;
+  }
+  const { totalDistM, hasDist, totalTempoS, hasTempo } = calcTotaisModalidade(s.modalidade);
   const parts = [];
-  if (hasDist) {
-    const km = totalDistM / 1000;
-    const kmTxt = totalDistM >= 1000 ? ` (${km.toLocaleString('pt-PT', { maximumFractionDigits: 2 })} km)` : '';
-    parts.push(`Distância total: ${Math.round(totalDistM).toLocaleString('pt-PT')} m${kmTxt}`);
-  }
-  if (hasTempo) {
-    const totalMin = Math.round(totalTempoS / 60);
-    const h = Math.floor(totalMin / 60), mm = totalMin % 60;
-    parts.push(`Tempo total: ${h > 0 ? `${h}h${String(mm).padStart(2, '0')}` : `${totalMin} min`}`);
-  }
-  return `<div class="gcwo-totais">${parts.map(p => `<span>${escHtml(p)}</span>`).join('')}</div>`;
-}
-
-function updateTotaisDom(si) {
-  const s = _state.sessions[si];
-  if (!s || s.tipo !== 'modalidade') return;
-  const host = document.querySelector(`.gcwo-session[data-si="${si}"] .gcwo-totais-host`);
-  if (host) host.innerHTML = renderTotaisHtml(s.modalidade);
+  if (hasTempo) parts.push(fmtDuracaoTotal(totalTempoS));
+  if (hasDist) parts.push(fmtDistanciaTotal(totalDistM).replace(/ \(.*\)/, '')); // versão curta no resumo do cartão
+  return parts.join(' · ') || 'Sem tarefas';
 }
 
 function novaTarefa() {
@@ -176,6 +224,7 @@ function novaSessao(tipo) {
     tipo,                       // "ginasio" | "modalidade"
     frequencia_semanal: tipo === 'ginasio' ? 2 : 3,
     dia_sugerido: null,         // opcional — sugestão visível, não bloqueia o doente
+    nota_geral: '',
     ginasio: { exercicios: [] },
     modalidade: novoModalidadeDefault(),
   };
@@ -195,6 +244,22 @@ function novoExercicioGinasio() {
     nota: '',
   };
 }
+function cloneSession(s) {
+  return {
+    ...s,
+    ginasio: {
+      exercicios: (s.ginasio?.exercicios || []).map(ex => ({
+        ...ex,
+        ajustes_maquina: ex.ajustes_maquina.map(a => ({ ...a })),
+        series: ex.series.map(sr => ({ ...sr })),
+      })),
+    },
+    modalidade: {
+      ...(s.modalidade || novoModalidadeDefault()),
+      tarefas: (s.modalidade?.tarefas || []).map(t => ({ ...t, intensidade: { ...t.intensidade } })),
+    },
+  };
+}
 
 /* ── Entry point ─────────────────────────────────────────── */
 export async function initPrescricao() {
@@ -203,7 +268,10 @@ export async function initPrescricao() {
 
   ensurePrescricaoCss();
   _state = freshState();
-  _expandedTarefaId = null;
+  _expandedCardIds = new Set();
+  _panelExpandedTarefaId = null;
+  _panelDraft = null;
+  _panelIsNovo = false;
 
   const clinicas = G.clinics || [];
   if (clinicas.length === 1) _state.clinicId = clinicas[0].id;
@@ -230,8 +298,8 @@ async function loadExercisesCatalog() {
   }
   _state.catalogLoaded = true;
 
-  // Se o formulário de sessões já está visível, refresca para os selects ganharem opções
-  if (_state.patient) renderSessions();
+  // Se o painel de ginásio já está aberto, refresca para o select ganhar opções
+  if (_panelDraft) renderPanel();
 }
 
 /* ================================================================
@@ -331,7 +399,7 @@ function renderStep1() {
 }
 
 /* ================================================================
-   PASSO 2 — construção das sessões
+   PASSO 2 — plano semanal
    ================================================================ */
 function renderStep2() {
   const root = document.getElementById('gcwoPrescricaoRoot');
@@ -344,56 +412,71 @@ function renderStep2() {
       ${topActionsHtml('<button type="button" class="gcBtnGhost" id="gcwoTrocarDoente">Trocar doente</button>')}
     </div>
 
-    <div class="gcwo-sessions" id="gcwoSessions"></div>
+    <div class="gcwo-plano-body">
+      <main class="gcwo-plano-main">
+        <section>
+          <h2 class="gcwo-section-title">Plano semanal</h2>
+          <div class="gcwo-daystrip" id="gcwoDaystrip"></div>
+        </section>
 
-    <div class="gcwo-addrow">
-      <button type="button" id="gcwoAddGinasio" class="gcBtnOutline">+ Sessão de ginásio</button>
-      <button type="button" id="gcwoAddModalidade" class="gcBtnOutline">+ Sessão de modalidade</button>
-    </div>
+        <section>
+          <div class="gcwo-daydetail-head">
+            <h2 class="gcwo-section-title" id="gcwoDayTitle">—</h2>
+            <button type="button" class="gcBtnPrimary" id="gcwoAddSessao">+ Adicionar sessão</button>
+          </div>
+          <div class="gcwo-sessions" id="gcwoDaySessions"></div>
+          <div class="gcwo-addpicker" id="gcwoAddPicker" hidden>
+            <span class="gcwo-field-label">Escolher tipo de sessão</span>
+            <div class="gcwo-typegrid" id="gcwoTypegrid"></div>
+          </div>
+        </section>
 
-    <div class="gcwo-card">
-      <label class="gcwo-field">
-        <span>Progressão</span>
-        <textarea id="gcwoProgressao" rows="3" placeholder="Como evoluir ao longo do plano…">${escHtml(_state.progressao)}</textarea>
-      </label>
-    </div>
+        <section class="gcwo-unassigned">
+          <h3 id="gcwoUnassignedTitle"></h3>
+          <div class="gcwo-sessions" id="gcwoUnassignedSessions"></div>
+        </section>
 
-    <div class="gcwo-card">
-      <span class="gcwo-field-label">Restrições</span>
-      <div class="gcwo-chips" id="gcwoRestricoesChips">
-        ${RESTRICOES_PREDEFINIDAS.map(r => `
-          <button type="button" class="gcwo-chip${_state.restricoesPredefinidas.includes(r) ? ' on' : ''}" data-restr="${escAttr(r)}">${escHtml(r)}</button>
-        `).join('')}
-      </div>
-      <textarea id="gcwoRestricoesTexto" rows="2" placeholder="Outras restrições, em texto livre…" style="margin-top:8px;">${escHtml(_state.restricoesTexto)}</textarea>
-    </div>
+        <div class="gcwo-card">
+          <label class="gcwo-field">
+            <span>Progressão</span>
+            <textarea id="gcwoProgressao" rows="3" placeholder="Como evoluir ao longo do plano…">${escHtml(_state.progressao)}</textarea>
+          </label>
+        </div>
 
-    <div class="gcwo-generate">
-      <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg">Gerar prescrição e link</button>
-      <span id="gcwoGerarErro" class="gcwo-erro"></span>
+        <div class="gcwo-card">
+          <span class="gcwo-field-label">Restrições</span>
+          <div class="gcwo-chips" id="gcwoRestricoesChips">
+            ${RESTRICOES_PREDEFINIDAS.map(r => `
+              <button type="button" class="gcwo-chip${_state.restricoesPredefinidas.includes(r) ? ' on' : ''}" data-restr="${escAttr(r)}">${escHtml(r)}</button>
+            `).join('')}
+          </div>
+          <textarea id="gcwoRestricoesTexto" rows="2" placeholder="Outras restrições, em texto livre…" style="margin-top:8px;">${escHtml(_state.restricoesTexto)}</textarea>
+        </div>
+
+        <div class="gcwo-generate">
+          <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg">Gerar prescrição e link</button>
+          <span id="gcwoGerarErro" class="gcwo-erro"></span>
+        </div>
+      </main>
+
+      <aside class="gcwo-panel empty" id="gcwoPanel">Seleciona o lápis numa sessão para editar, ou "+ Adicionar sessão".</aside>
     </div>
   `;
 
-  renderSessions();
   wireTopActions();
-
   document.getElementById('gcwoTrocarDoente').addEventListener('click', () => {
     _state.patient = null;
     renderStep1();
   });
 
-  document.getElementById('gcwoAddGinasio').addEventListener('click', () => {
-    _state.sessions.push(novaSessao('ginasio'));
-    renderSessions();
-  });
-  document.getElementById('gcwoAddModalidade').addEventListener('click', () => {
-    _state.sessions.push(novaSessao('modalidade'));
-    renderSessions();
+  renderTypegrid();
+  document.getElementById('gcwoAddSessao').addEventListener('click', () => {
+    const picker = document.getElementById('gcwoAddPicker');
+    picker.hidden = !picker.hidden;
   });
 
   document.getElementById('gcwoProgressao').addEventListener('input', (e) => { _state.progressao = e.target.value; });
   document.getElementById('gcwoRestricoesTexto').addEventListener('input', (e) => { _state.restricoesTexto = e.target.value; });
-
   document.getElementById('gcwoRestricoesChips').querySelectorAll('[data-restr]').forEach(chip => {
     chip.addEventListener('click', () => {
       const r = chip.getAttribute('data-restr');
@@ -403,79 +486,316 @@ function renderStep2() {
       chip.classList.toggle('on');
     });
   });
-
   document.getElementById('gcwoGerar').addEventListener('click', handleGerar);
+
+  renderDaystrip();
+  renderDayDetail();
+  renderUnassigned();
+  renderPanel();
 }
 
-/* ── Lista de sessões ────────────────────────────────────── */
-function renderSessions() {
-  const host = document.getElementById('gcwoSessions');
+/* ── Plano semanal — fila de dias ────────────────────────── */
+function renderDaystrip() {
+  const host = document.getElementById('gcwoDaystrip');
   if (!host) return;
 
-  if (!_state.sessions.length) {
-    host.innerHTML = `<div class="gcwo-muted">Ainda sem sessões — adiciona uma abaixo.</div>`;
+  host.innerHTML = DIAS_SEMANA.map(d => {
+    const sessions = _state.sessions.filter(s => s.dia_sugerido === d.value);
+    const icons = sessions.map(s => {
+      const meta = TIPO_META[tipoKey(s)];
+      return `<span style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>`;
+    }).join('');
+    return `
+      <button type="button" class="gcwo-daycard${d.value === _state.selectedDay ? ' selected' : ''}" data-day="${d.value}">
+        <span class="dname">${d.label}</span>
+        <span class="dcount">${sessions.length === 1 ? '1 sessão' : sessions.length + ' sessões'}</span>
+        <span class="dicons">${icons}</span>
+      </button>`;
+  }).join('') + `<button type="button" class="gcwo-daycard-add" disabled title="Em breve">${ICON_MAIS}<span>Dia</span></button>`;
+
+  host.querySelectorAll('[data-day]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _state.selectedDay = btn.getAttribute('data-day');
+      const picker = document.getElementById('gcwoAddPicker');
+      if (picker) picker.hidden = true;
+      renderDaystrip();
+      renderDayDetail();
+    });
+  });
+}
+
+/* ── Dia selecionado ─────────────────────────────────────── */
+function renderDayDetail() {
+  const dia = DIAS_SEMANA.find(d => d.value === _state.selectedDay) || DIAS_SEMANA[0];
+  const titleEl = document.getElementById('gcwoDayTitle');
+  if (titleEl) titleEl.textContent = dia.full;
+
+  const sessions = _state.sessions.filter(s => s.dia_sugerido === dia.value);
+  const host = document.getElementById('gcwoDaySessions');
+  if (!host) return;
+  host.innerHTML = sessions.length
+    ? sessions.map(renderSessaoCardHtml).join('')
+    : `<div class="gcwo-muted">Sem sessões atribuídas a ${dia.full.toLowerCase()}.</div>`;
+  wireSessaoCards(host);
+}
+
+/* ── Sem dia atribuído — sempre visível ──────────────────── */
+function renderUnassigned() {
+  const sessions = _state.sessions.filter(s => !s.dia_sugerido);
+  const titleEl = document.getElementById('gcwoUnassignedTitle');
+  if (titleEl) titleEl.innerHTML = `${ICON_FLAG} Sessões sem dia atribuído <span class="count">— ${sessions.length}</span>`;
+  const host = document.getElementById('gcwoUnassignedSessions');
+  if (!host) return;
+  host.innerHTML = sessions.length
+    ? sessions.map(renderSessaoCardHtml).join('')
+    : `<div class="gcwo-muted">Todas as sessões têm dia atribuído.</div>`;
+  wireSessaoCards(host);
+}
+
+/* ── Cartão de sessão — leitura, colapsável ──────────────── */
+function renderSessaoCardHtml(s) {
+  const meta = TIPO_META[tipoKey(s)];
+  const expanded = _expandedCardIds.has(s.id);
+  const resumo = sessionResumoTexto(s);
+  const tipoLabel = s.tipo === 'ginasio' ? 'Ginásio' : meta.label;
+
+  let bodyHtml = '';
+  if (expanded) {
+    if (s.tipo === 'ginasio') {
+      bodyHtml = `
+        <div class="gcwo-plano-session-body"><div class="gcwo-tablewrap"><table class="gcwo-readtable">
+          <thead><tr><th>Exercício</th><th>Séries</th><th>Descanso</th><th>Nota</th></tr></thead>
+          <tbody>
+            ${s.ginasio.exercicios.map(ex => `
+              <tr>
+                <td>${escHtml(ex.nome)}</td>
+                <td class="num">${ex.series.map(sr => sr.peso_kg != null ? `${sr.reps}×${sr.peso_kg}kg` : `${sr.reps}×`).join(', ')}</td>
+                <td class="muted num">${ex.descanso_s ? ex.descanso_s + 's' : '—'}</td>
+                <td class="muted">${escHtml(ex.nota) || '—'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table></div></div>`;
+    } else {
+      const { totalDistM, hasDist, totalTempoS, hasTempo } = calcTotaisModalidade(s.modalidade);
+      bodyHtml = `
+        <div class="gcwo-plano-session-body"><div class="gcwo-tablewrap"><table class="gcwo-readtable">
+          <thead><tr><th>#</th><th>Tarefa</th><th>Distância</th><th>Zona</th><th>Ritmo</th><th>Nota</th><th>Descanso</th></tr></thead>
+          <tbody>
+            ${s.modalidade.tarefas.map((t, i) => `
+              <tr>
+                <td class="muted num">${i + 1}</td>
+                <td><strong>${tarefaVolumeLabelReadonly(t)}</strong></td>
+                <td class="num">${t.medida === 'distancia' && t.distancia_m != null ? fmtDistanciaTotal((t.series || 1) * t.distancia_m) : '—'}</td>
+                <td>${t.zona ? `<span class="gcwo-zonapill">${escHtml(t.zona)}</span>` : '<span class="muted">—</span>'}</td>
+                <td class="muted">${escHtml(t.intensidade?.ritmo) || '—'}</td>
+                <td class="muted">${escHtml(t.nota) || '—'}</td>
+                <td class="muted">${escHtml(t.descanso) || '—'}</td>
+              </tr>`).join('')}
+            <tr class="total">
+              <td colspan="2">TOTAL</td>
+              <td class="num">${hasDist ? fmtDistanciaTotal(totalDistM) : ''}</td>
+              <td colspan="4" class="muted">${hasTempo ? '≈ ' + fmtDuracaoTotal(totalTempoS) : ''}</td>
+            </tr>
+          </tbody>
+        </table></div></div>`;
+    }
+  }
+
+  return `
+    <div class="gcwo-plano-session" data-id="${s.id}">
+      <div class="gcwo-plano-session-bar">
+        <div class="accent" style="background:${meta.fg}"></div>
+        <div class="main">
+          <button type="button" class="gcwo-plano-session-head" data-toggle="${s.id}">
+            <span class="icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
+            <span class="titles"><span class="nome">${escHtml(s.nome || '(sem nome)')}</span><span class="resumo">${escHtml(resumo)}</span></span>
+            <span class="tag" style="background:${meta.bg};color:${meta.fg}">${tipoLabel}</span>
+            <span class="chevron">${expanded ? '▾' : '▸'}</span>
+          </button>
+          ${bodyHtml}
+        </div>
+        <button type="button" class="gcwo-plano-session-edit" data-edit="${s.id}" title="Editar sessão">${ICON_PENCIL}</button>
+      </div>
+    </div>`;
+}
+
+function wireSessaoCards(container) {
+  container.querySelectorAll('[data-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-toggle');
+      if (_expandedCardIds.has(id)) _expandedCardIds.delete(id); else _expandedCardIds.add(id);
+      renderDayDetail();
+      renderUnassigned();
+    });
+  });
+  container.querySelectorAll('[data-edit]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openPanelEditar(btn.getAttribute('data-edit'));
+    });
+  });
+}
+
+/* ── "+ Adicionar sessão" — escolha do tipo ──────────────── */
+function renderTypegrid() {
+  const host = document.getElementById('gcwoTypegrid');
+  if (!host) return;
+
+  const tipos = [
+    { key: 'ginasio',  tipo: 'ginasio',    modalidade: null },
+    { key: 'corrida',  tipo: 'modalidade', modalidade: 'Corrida' },
+    { key: 'natacao',  tipo: 'modalidade', modalidade: 'Natação' },
+    { key: 'ciclismo', tipo: 'modalidade', modalidade: 'Ciclismo' },
+    { key: 'remo',     tipo: 'modalidade', modalidade: 'Remo' },
+  ];
+  host.innerHTML = tipos.map(t => {
+    const meta = TIPO_META[t.key];
+    return `
+      <button type="button" class="gcwo-typecard" data-tipo="${t.tipo}" data-modalidade="${t.modalidade || ''}">
+        <span class="ticon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
+        <span class="tname">${meta.label}</span>
+      </button>`;
+  }).join('') + `
+    <button type="button" class="gcwo-typecard" data-tipo="modalidade" data-modalidade="">
+      <span class="ticon" style="background:${TIPO_META.outro.bg};color:${TIPO_META.outro.fg}">${ICON_MAIS}</span>
+      <span class="tname">Mais</span>
+    </button>`;
+
+  host.querySelectorAll('[data-tipo]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openPanelNovo(btn.getAttribute('data-tipo'), btn.getAttribute('data-modalidade') || null);
+    });
+  });
+}
+
+/* ================================================================
+   Painel lateral — criar/editar sessão
+   ================================================================ */
+function openPanelNovo(tipo, modalidadePreset) {
+  const s = novaSessao(tipo);
+  s.dia_sugerido = _state.selectedDay;
+  if (tipo === 'modalidade' && modalidadePreset) {
+    s.modalidade.modalidade = modalidadePreset;
+    s.nome = modalidadePreset;
+  }
+  _panelDraft = s;
+  _panelIsNovo = true;
+  _panelExpandedTarefaId = null;
+  const picker = document.getElementById('gcwoAddPicker');
+  if (picker) picker.hidden = true;
+  renderPanel();
+}
+function openPanelEditar(sessaoId) {
+  const s = _state.sessions.find(x => x.id === sessaoId);
+  if (!s) return;
+  _panelDraft = cloneSession(s);
+  _panelIsNovo = false;
+  _panelExpandedTarefaId = null;
+  renderPanel();
+}
+function fecharPanel() {
+  _panelDraft = null;
+  _panelIsNovo = false;
+  renderPanel();
+}
+
+function renderPanel() {
+  const panel = document.getElementById('gcwoPanel');
+  if (!panel) return;
+
+  if (!_panelDraft) {
+    panel.className = 'gcwo-panel empty';
+    panel.textContent = 'Seleciona o lápis numa sessão para editar, ou "+ Adicionar sessão".';
     return;
   }
 
-  host.innerHTML = _state.sessions.map((s, i) => renderSessionCard(s, i)).join('');
-  _state.sessions.forEach((s, i) => wireSessionCard(s, i));
-}
+  panel.className = 'gcwo-panel';
+  const s = _panelDraft;
+  const meta = TIPO_META[tipoKey(s)];
+  const diaOpts = DIAS_SEMANA.map(d => `<option value="${d.value}" ${d.value === s.dia_sugerido ? 'selected' : ''}>${d.full}</option>`).join('');
 
-function renderSessionCard(s, i) {
-  const diaOpts = DIAS_SEMANA.map(d =>
-    `<option value="${d.value}" ${d.value === s.dia_sugerido ? 'selected' : ''}>${d.label}</option>`
-  ).join('');
+  panel.innerHTML = `
+    <div class="gcwo-panel-head">
+      <span class="gcwo-panel-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
+      <span class="gcwo-panel-titles"><h3>${_panelIsNovo ? 'Nova sessão' : 'Editar sessão'}</h3><span class="sub">${meta.label}</span></span>
+      ${!_panelIsNovo ? `<button type="button" class="gcwo-panel-headbtn" id="gcwoPanelApagar" title="Apagar sessão">${ICON_TRASH}</button>` : ''}
+      <button type="button" class="gcwo-panel-headbtn close" id="gcwoPanelFechar" title="Fechar">${ICON_CLOSE}</button>
+    </div>
+    <div class="gcwo-panel-body">
+      <label class="gcwo-field"><span>Nome da sessão</span><input type="text" id="gcwoPNome" value="${escAttr(s.nome)}" placeholder="Ex: Ginásio A"></label>
 
-  return `
-    <div class="gcwo-session" data-si="${i}">
-      <div class="gcwo-session-head">
-        <span class="gcwo-session-badge">${s.tipo === 'ginasio' ? 'Ginásio' : 'Modalidade'}</span>
-        <input type="text" class="gcwo-session-nome" value="${escAttr(s.nome)}" placeholder="Nome da sessão — ex: Ginásio A">
-        <label class="gcwo-freq">
-          <span>×/semana</span>
-          <input type="number" min="0" max="14" class="gcwo-session-freq" value="${s.frequencia_semanal ?? ''}">
-        </label>
-        <label class="gcwo-freq">
-          <span>Dia sugerido</span>
-          <select class="gcwo-session-dia">
-            <option value="">—</option>
-            ${diaOpts}
-          </select>
-        </label>
-        <button type="button" class="gcwo-session-remove" title="Remover sessão">✕</button>
+      <div class="gcwo-row2">
+        <label class="gcwo-field"><span>Frequência semanal</span><input type="number" min="0" max="14" id="gcwoPFreq" value="${s.frequencia_semanal ?? ''}"></label>
+        <label class="gcwo-field"><span>Dia sugerido</span><select id="gcwoPDia"><option value="">—</option>${diaOpts}</select></label>
       </div>
-      ${s.tipo === 'ginasio' ? renderGinasioBody(s, i) : renderModalidadeBody(s, i)}
+
+      ${s.tipo === 'ginasio' ? renderPanelGinasio(s) : renderPanelModalidade(s)}
+
+      <label class="gcwo-field"><span>Notas gerais</span><textarea id="gcwoPNotaGeral" rows="3" placeholder="Instruções ou observações para esta sessão…">${escHtml(s.nota_geral || '')}</textarea></label>
+
+      <div>
+        <span class="gcwo-field-label">Resumo da sessão</span>
+        <div class="gcwo-resumo" id="gcwoPResumo">${renderResumoSessao(s)}</div>
+      </div>
+
+      <span class="gcwo-erro" id="gcwoPErro"></span>
+    </div>
+    <div class="gcwo-panel-footer">
+      <button type="button" class="gcBtnGhost" id="gcwoPCancelar">Cancelar</button>
+      <button type="button" class="gcBtnSuccess" id="gcwoPGuardar">Guardar sessão</button>
     </div>
   `;
+
+  wirePanel();
 }
 
-/* ── Corpo — Ginásio ─────────────────────────────────────── */
-function renderGinasioBody(s, i) {
+function renderResumoSessao(s) {
+  if (s.tipo === 'ginasio') {
+    const nEx = s.ginasio.exercicios.length;
+    const nSeries = s.ginasio.exercicios.reduce((a, e) => a + e.series.length, 0);
+    return `
+      <div class="gcwo-stat">${ICON_RULER}<div><b>${nEx}</b><small>Exercícios</small></div></div>
+      <div class="gcwo-stat">${ICON_CLOCK}<div><b>${nSeries}</b><small>Séries no total</small></div></div>`;
+  }
+  const { totalDistM, hasDist, totalTempoS, hasTempo } = calcTotaisModalidade(s.modalidade);
+  const zonas = [...new Set(s.modalidade.tarefas.flatMap(t => t.zona ? t.zona.split(/[→-]/).map(z => z.trim()).filter(Boolean) : []))];
+  const parts = [];
+  if (hasDist) parts.push(`<div class="gcwo-stat">${ICON_RULER}<div><b>${fmtDistanciaTotal(totalDistM)}</b><small>Distância total</small></div></div>`);
+  if (hasTempo) parts.push(`<div class="gcwo-stat">${ICON_CLOCK}<div><b>${fmtDuracaoTotal(totalTempoS)}</b><small>Duração prevista</small></div></div>`);
+  if (zonas.length) parts.push(`<div class="gcwo-stat">${ICON_FLAG}<div><b>${escHtml(zonas.join('–'))}</b><small>Zonas utilizadas</small></div></div>`);
+  return parts.join('') || '<span class="gcwo-muted">Sem tarefas ainda.</span>';
+}
+function updateResumoDom() {
+  const host = document.getElementById('gcwoPResumo');
+  if (host && _panelDraft) host.innerHTML = renderResumoSessao(_panelDraft);
+}
+
+/* ── Painel — corpo Ginásio ──────────────────────────────── */
+function renderPanelGinasio(s) {
   const catalogOpts = _state.exercisesCatalog.map(ex =>
     `<option value="${escAttr(ex.id)}">${escHtml(ex.name)}${ex.categoria ? ' — ' + escHtml(ex.categoria) : ''}</option>`
   ).join('');
-
   const placeholderOpt = !_state.catalogLoaded
     ? 'A carregar catálogo…'
     : (_state.exercisesCatalog.length ? 'Escolher exercício do catálogo…' : 'Catálogo vazio — insira exercícios primeiro');
 
   return `
+    <span class="gcwo-field-label">Exercícios</span>
     <div class="gcwo-exercicios">
-      ${s.ginasio.exercicios.map((ex, ei) => renderExercicioCard(ex, i, ei)).join('') || '<div class="gcwo-muted">Sem exercícios ainda.</div>'}
+      ${s.ginasio.exercicios.map((ex, ei) => renderExercicioCard(ex, ei)).join('') || '<div class="gcwo-muted">Sem exercícios ainda.</div>'}
     </div>
     <div class="gcwo-exercicio-add">
-      <select class="gcwo-catalog-select" ${_state.catalogLoaded && !_state.exercisesCatalog.length ? 'disabled' : ''}>
+      <select class="gcwo-catalog-select" id="gcwoPCatalogSelect" ${_state.catalogLoaded && !_state.exercisesCatalog.length ? 'disabled' : ''}>
         <option value="">${placeholderOpt}</option>
         ${catalogOpts}
       </select>
-      <button type="button" class="gcwo-add-exercicio gcBtnGhost">+ Exercício</button>
-    </div>
-  `;
+      <button type="button" class="gcwo-add-exercicio gcBtnGhost" id="gcwoPAddExercicio">+ Exercício</button>
+    </div>`;
 }
 
-function renderExercicioCard(ex, si, ei) {
+function renderExercicioCard(ex, ei) {
   return `
-    <div class="gcwo-exercicio" data-si="${si}" data-ei="${ei}">
+    <div class="gcwo-exercicio" data-ei="${ei}">
       <div class="gcwo-exercicio-head">
         ${ex.foto_url ? `<img class="gcwo-exercicio-foto" src="${escAttr(ex.foto_url)}" alt="">` : ''}
         <strong>${escHtml(ex.nome || '(exercício)')}</strong>
@@ -522,8 +842,8 @@ function renderExercicioCard(ex, si, ei) {
   `;
 }
 
-/* ── Corpo — Modalidade (sequência de tarefas) ──────────────── */
-function renderModalidadeBody(s, i) {
+/* ── Painel — corpo Modalidade (sequência de tarefas) ────── */
+function renderPanelModalidade(s) {
   const m = s.modalidade;
   const modOpts = MODALIDADES.map(md =>
     `<option value="${escAttr(md)}" ${md === m.modalidade ? 'selected' : ''}>${escHtml(md)}</option>`
@@ -533,28 +853,27 @@ function renderModalidadeBody(s, i) {
     <div class="gcwo-modalidade">
       <label class="gcwo-field">
         <span>Modalidade</span>
-        <select class="gcwo-modalidade-select">${modOpts}</select>
+        <select id="gcwoPModalidade">${modOpts}</select>
       </label>
       ${m.modalidade === 'Outro' ? `
         <label class="gcwo-field">
           <span>Especificar</span>
-          <input type="text" class="gcwo-modalidade-outro" value="${escAttr(m.modalidadeOutro)}">
+          <input type="text" id="gcwoPModalidadeOutro" value="${escAttr(m.modalidadeOutro)}">
         </label>
       ` : ''}
     </div>
-    <div class="gcwo-tarefas">
-      ${m.tarefas.map((t, ti) => renderTarefaCard(t, i, ti)).join('') || '<div class="gcwo-muted">Sem tarefas ainda.</div>'}
+    <span class="gcwo-field-label">Tarefas</span>
+    <div class="gcwo-tarefas" id="gcwoPTarefas">
+      ${m.tarefas.map((t, ti) => renderTarefaCard(t, ti)).join('') || '<div class="gcwo-muted">Sem tarefas ainda.</div>'}
     </div>
-    <button type="button" class="gcwo-add-tarefa gcBtnGhost">+ Tarefa</button>
-    <div class="gcwo-totais-host">${renderTotaisHtml(m)}</div>
-  `;
+    <button type="button" class="gcwo-add-tarefa gcBtnGhost" id="gcwoPAddTarefa">+ Tarefa</button>`;
 }
 
-function renderTarefaCard(t, si, ti) {
-  const expanded = t.id === _expandedTarefaId;
+function renderTarefaCard(t, ti) {
+  const expanded = t.id === _panelExpandedTarefaId;
   const summary = tarefaSummaryText(t);
   return `
-    <div class="gcwo-tarefa${expanded ? ' expanded' : ''}" data-si="${si}" data-ti="${ti}">
+    <div class="gcwo-tarefa${expanded ? ' expanded' : ''}" data-ti="${ti}">
       <div class="gcwo-tarefa-header">
         <button type="button" class="gcwo-tarefa-toggle">
           <span class="gcwo-tarefa-chevron">${expanded ? '▾' : '▸'}</span>
@@ -562,12 +881,12 @@ function renderTarefaCard(t, si, ti) {
         </button>
         <button type="button" class="gcwo-tarefa-remove" title="Remover tarefa">✕</button>
       </div>
-      ${expanded ? renderTarefaFields(t, si, ti) : ''}
+      ${expanded ? renderTarefaFields(t, ti) : ''}
     </div>
   `;
 }
 
-function renderTarefaFields(t, si, ti) {
+function renderTarefaFields(t, ti) {
   const hasExtra = t.intensidade.potencia_w != null || t.intensidade.cadencia_rpm != null || t.intensidade.rpe != null;
   return `
     <div class="gcwo-tarefa-body">
@@ -576,8 +895,8 @@ function renderTarefaFields(t, si, ti) {
         <div class="gcwo-field gcwo-field-sm">
           <span>Medida</span>
           <div class="gcwo-modo">
-            <label><input type="radio" name="gcwo-medida-${si}-${ti}" value="distancia" ${t.medida === 'distancia' ? 'checked' : ''}> Distância</label>
-            <label><input type="radio" name="gcwo-medida-${si}-${ti}" value="tempo" ${t.medida === 'tempo' ? 'checked' : ''}> Tempo</label>
+            <label><input type="radio" name="gcwo-medida-${ti}" value="distancia" ${t.medida === 'distancia' ? 'checked' : ''}> Distância</label>
+            <label><input type="radio" name="gcwo-medida-${ti}" value="tempo" ${t.medida === 'tempo' ? 'checked' : ''}> Tempo</label>
           </div>
         </div>
         ${t.medida === 'distancia'
@@ -604,33 +923,62 @@ function renderTarefaFields(t, si, ti) {
   `;
 }
 
-/* ── Wiring — sessão ─────────────────────────────────────── */
-function wireSessionCard(s, i) {
-  const card = document.querySelector(`.gcwo-session[data-si="${i}"]`);
-  if (!card) return;
+/* ── Painel — wiring ─────────────────────────────────────── */
+function wirePanel() {
+  const s = _panelDraft;
 
-  card.querySelector('.gcwo-session-nome').addEventListener('input', (e) => { s.nome = e.target.value; });
-  card.querySelector('.gcwo-session-freq').addEventListener('input', (e) => {
-    s.frequencia_semanal = e.target.value === '' ? null : Number(e.target.value);
+  document.getElementById('gcwoPanelFechar').addEventListener('click', fecharPanel);
+  document.getElementById('gcwoPCancelar').addEventListener('click', fecharPanel);
+  document.getElementById('gcwoPanelApagar')?.addEventListener('click', () => {
+    _state.sessions = _state.sessions.filter(x => x.id !== s.id);
+    fecharPanel();
+    renderDaystrip();
+    renderDayDetail();
+    renderUnassigned();
   });
-  card.querySelector('.gcwo-session-dia').addEventListener('change', (e) => {
-    s.dia_sugerido = e.target.value || null;
-  });
-  card.querySelector('.gcwo-session-remove').addEventListener('click', () => {
-    _state.sessions.splice(i, 1);
-    renderSessions();
-  });
+  document.getElementById('gcwoPGuardar').addEventListener('click', handleGuardarSessao);
 
-  if (s.tipo === 'ginasio') wireGinasioBody(card, s, i);
-  else wireModalidadeBody(card, s, i);
+  document.getElementById('gcwoPNome').addEventListener('input', (e) => { s.nome = e.target.value; });
+  document.getElementById('gcwoPFreq').addEventListener('input', (e) => { s.frequencia_semanal = e.target.value === '' ? null : Number(e.target.value); });
+  document.getElementById('gcwoPDia').addEventListener('change', (e) => { s.dia_sugerido = e.target.value || null; });
+  document.getElementById('gcwoPNotaGeral').addEventListener('input', (e) => { s.nota_geral = e.target.value; });
+
+  if (s.tipo === 'ginasio') wirePanelGinasio(s);
+  else wirePanelModalidade(s);
 }
 
-function wireGinasioBody(card, s, i) {
-  s.ginasio.exercicios.forEach((ex, ei) => wireExercicioCard(card, s, i, ex, ei));
+function showPanelErro(msg) {
+  const el = document.getElementById('gcwoPErro');
+  if (el) el.textContent = msg;
+}
 
-  const select = card.querySelector('.gcwo-catalog-select');
-  const addBtn = card.querySelector('.gcwo-add-exercicio');
-  addBtn.addEventListener('click', () => {
+function handleGuardarSessao() {
+  const s = _panelDraft;
+  showPanelErro('');
+
+  if (!s.nome || !s.nome.trim()) { showPanelErro('Falta o nome da sessão.'); return; }
+  if (s.tipo === 'ginasio' && !s.ginasio.exercicios.length) { showPanelErro('Adiciona pelo menos um exercício.'); return; }
+  if (s.tipo === 'modalidade' && !s.modalidade.tarefas.length) { showPanelErro('Adiciona pelo menos uma tarefa.'); return; }
+
+  if (_panelIsNovo) {
+    _state.sessions.push(s);
+  } else {
+    const idx = _state.sessions.findIndex(x => x.id === s.id);
+    if (idx >= 0) _state.sessions[idx] = s;
+  }
+
+  fecharPanel();
+  renderDaystrip();
+  renderDayDetail();
+  renderUnassigned();
+}
+
+/* ── Painel — wiring Ginásio ─────────────────────────────── */
+function wirePanelGinasio(s) {
+  s.ginasio.exercicios.forEach((ex, ei) => wireExercicioCard(s, ex, ei));
+
+  const select = document.getElementById('gcwoPCatalogSelect');
+  document.getElementById('gcwoPAddExercicio').addEventListener('click', () => {
     const exId = select.value;
     const novo = novoExercicioGinasio();
     if (exId) {
@@ -648,17 +996,17 @@ function wireGinasioBody(card, s, i) {
       }
     }
     s.ginasio.exercicios.push(novo);
-    renderSessions();
+    renderPanel();
   });
 }
 
-function wireExercicioCard(card, s, i, ex, ei) {
-  const exCard = card.querySelector(`.gcwo-exercicio[data-si="${i}"][data-ei="${ei}"]`);
+function wireExercicioCard(s, ex, ei) {
+  const exCard = document.querySelector(`#gcwoPanel .gcwo-exercicio[data-ei="${ei}"]`);
   if (!exCard) return;
 
   exCard.querySelector('.gcwo-exercicio-remove').addEventListener('click', () => {
     s.ginasio.exercicios.splice(ei, 1);
-    renderSessions();
+    renderPanel();
   });
 
   exCard.querySelectorAll('[data-ajuste-i]').forEach(inp => {
@@ -672,6 +1020,7 @@ function wireExercicioCard(card, s, i, ex, ei) {
     const sri = Number(tr.getAttribute('data-sri'));
     tr.querySelector('.gcwo-reps').addEventListener('input', (e) => {
       ex.series[sri].reps = e.target.value === '' ? null : Number(e.target.value);
+      updateResumoDom();
     });
     tr.querySelector('.gcwo-peso').addEventListener('input', (e) => {
       ex.series[sri].peso_kg = e.target.value === '' ? null : Number(e.target.value);
@@ -679,13 +1028,13 @@ function wireExercicioCard(card, s, i, ex, ei) {
     tr.querySelector('.gcwo-serie-remove').addEventListener('click', () => {
       ex.series.splice(sri, 1);
       ex.series.forEach((sr, idx) => { sr.serie = idx + 1; });
-      renderSessions();
+      renderPanel();
     });
   });
 
   exCard.querySelector('.gcwo-add-serie').addEventListener('click', () => {
     ex.series.push({ serie: ex.series.length + 1, reps: null, peso_kg: null });
-    renderSessions();
+    renderPanel();
   });
 
   exCard.querySelector('.gcwo-descanso').addEventListener('input', (e) => {
@@ -694,64 +1043,68 @@ function wireExercicioCard(card, s, i, ex, ei) {
   exCard.querySelector('.gcwo-exercicio-nota').addEventListener('input', (e) => { ex.nota = e.target.value; });
 }
 
-function wireModalidadeBody(card, s, i) {
+/* ── Painel — wiring Modalidade ──────────────────────────── */
+function wirePanelModalidade(s) {
   const m = s.modalidade;
 
-  card.querySelector('.gcwo-modalidade-select').addEventListener('change', (e) => {
+  document.getElementById('gcwoPModalidade').addEventListener('change', (e) => {
     m.modalidade = e.target.value;
-    renderSessions();
+    renderPanel();
   });
-  const outroInp = card.querySelector('.gcwo-modalidade-outro');
+  const outroInp = document.getElementById('gcwoPModalidadeOutro');
   if (outroInp) outroInp.addEventListener('input', (e) => { m.modalidadeOutro = e.target.value; });
 
-  m.tarefas.forEach((t, ti) => wireTarefaCard(card, s, i, t, ti));
+  m.tarefas.forEach((t, ti) => wireTarefaCard(s, t, ti));
 
-  card.querySelector('.gcwo-add-tarefa').addEventListener('click', () => {
+  document.getElementById('gcwoPAddTarefa').addEventListener('click', () => {
     m.tarefas.push(novaTarefa());
-    renderSessions();
+    renderPanel();
   });
 }
 
-function wireTarefaCard(card, s, i, t, ti) {
-  const tCard = card.querySelector(`.gcwo-tarefa[data-si="${i}"][data-ti="${ti}"]`);
+function wireTarefaCard(s, t, ti) {
+  const tCard = document.querySelector(`#gcwoPanel .gcwo-tarefa[data-ti="${ti}"]`);
   if (!tCard) return;
 
   tCard.querySelector('.gcwo-tarefa-toggle').addEventListener('click', () => {
-    _expandedTarefaId = (_expandedTarefaId === t.id) ? null : t.id;
-    renderSessions();
+    _panelExpandedTarefaId = (_panelExpandedTarefaId === t.id) ? null : t.id;
+    renderPanel();
   });
 
   tCard.querySelector('.gcwo-tarefa-remove').addEventListener('click', () => {
-    if (_expandedTarefaId === t.id) _expandedTarefaId = null;
+    if (_panelExpandedTarefaId === t.id) _panelExpandedTarefaId = null;
     s.modalidade.tarefas.splice(ti, 1);
-    renderSessions();
+    renderPanel();
   });
 
-  if (t.id !== _expandedTarefaId) return; // campos só existem no DOM quando a tarefa está expandida
+  if (t.id !== _panelExpandedTarefaId) return; // campos só existem no DOM quando a tarefa está expandida
 
   tCard.querySelector('.gcwo-t-series').addEventListener('input', (e) => {
     t.series = e.target.value === '' ? 1 : Number(e.target.value);
-    updateTotaisDom(i);
+    updateResumoDom();
   });
 
-  tCard.querySelectorAll(`input[name="gcwo-medida-${i}-${ti}"]`).forEach(radio => {
+  tCard.querySelectorAll(`input[name="gcwo-medida-${ti}"]`).forEach(radio => {
     radio.addEventListener('change', (e) => {
-      if (e.target.checked) { t.medida = e.target.value; renderSessions(); }
+      if (e.target.checked) { t.medida = e.target.value; renderPanel(); }
     });
   });
 
   const distInp = tCard.querySelector('.gcwo-t-distancia');
   if (distInp) distInp.addEventListener('input', (e) => {
     t.distancia_m = e.target.value === '' ? null : Number(e.target.value);
-    updateTotaisDom(i);
+    updateResumoDom();
   });
   const durInp = tCard.querySelector('.gcwo-t-duracao');
   if (durInp) durInp.addEventListener('input', (e) => {
     t.duracao_min = e.target.value === '' ? null : Number(e.target.value);
-    updateTotaisDom(i);
+    updateResumoDom();
   });
 
-  tCard.querySelector('.gcwo-t-zona').addEventListener('input', (e) => { t.zona = e.target.value; });
+  tCard.querySelector('.gcwo-t-zona').addEventListener('input', (e) => {
+    t.zona = e.target.value;
+    updateResumoDom();
+  });
 
   tCard.querySelector('.gcwo-t-ritmo').addEventListener('input', (e) => { t.intensidade.ritmo = e.target.value; });
   tCard.querySelector('.gcwo-t-fc').addEventListener('input', (e) => {
@@ -792,6 +1145,7 @@ function buildFinalData() {
       tipo: s.tipo,
       frequencia_semanal: s.frequencia_semanal,
       dia_sugerido: s.dia_sugerido || null,
+      nota_geral: (s.nota_geral || '').trim() || null,
     };
     if (s.tipo === 'ginasio') {
       base.ginasio = {
