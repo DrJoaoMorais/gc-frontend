@@ -8,6 +8,7 @@
    ================================================================= */
 
 import { G } from '../../state.js';
+import { initCatalogo } from '../catalogo/catalogo.js';
 
 const escAttr = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -40,6 +41,31 @@ const RESTRICOES_PREDEFINIDAS = [
 ];
 
 function uuid() { return crypto.randomUUID(); }
+
+/* ── Ações do topo (Biblioteca/Modelos inertes; Catálogo funcional) ── */
+function topActionsHtml(extraButtonsHtml = '') {
+  return `
+    <div class="gcwo-headeractions">
+      <button type="button" class="gcBtnGhost" disabled title="Em breve">Biblioteca de sessões</button>
+      <button type="button" class="gcBtnGhost" disabled title="Em breve">Modelos</button>
+      <button type="button" class="gcBtnOutline" id="gcwoBtnCatalogo">Catálogo</button>
+      ${extraButtonsHtml}
+    </div>`;
+}
+function wireTopActions() {
+  document.getElementById('gcwoBtnCatalogo')?.addEventListener('click', () => {
+    initCatalogo({ onVoltar: voltarDaCatalogo });
+  });
+}
+function voltarDaCatalogo() {
+  loadExercisesCatalog();
+  renderCurrentStep();
+}
+function renderCurrentStep() {
+  if (_state.savedLink) renderStep3();
+  else if (_state.patient) renderStep2();
+  else renderStep1();
+}
 
 function ensurePrescricaoCss() {
   if (document.querySelector('link[data-gcwo-prescricao]')) return;
@@ -223,6 +249,7 @@ function renderStep1() {
   root.innerHTML = `
     <div class="gc-page-header">
       <div><div class="gc-page-title">Prescrição de exercício</div><div class="gc-page-sub">Selecione a clínica e o doente</div></div>
+      ${topActionsHtml()}
     </div>
     <div class="gcwo-step1">
       <select id="gcwoSelClinic" class="gc-select" style="min-width:220px;">
@@ -236,6 +263,7 @@ function renderStep1() {
     </div>
     <div id="gcwoPatientResults" class="gcwo-results" style="display:none;"></div>
   `;
+  wireTopActions();
 
   const selClinic = document.getElementById('gcwoSelClinic');
   const input = document.getElementById('gcwoPatientQuery');
@@ -313,7 +341,7 @@ function renderStep2() {
   root.innerHTML = `
     <div class="gc-page-header">
       <div><div class="gc-page-title">Prescrição de exercício</div><div class="gc-page-sub">${escHtml(p.full_name)}</div></div>
-      <button type="button" id="gcwoTrocarDoente" class="gcBtnGhost">Trocar doente</button>
+      ${topActionsHtml('<button type="button" class="gcBtnGhost" id="gcwoTrocarDoente">Trocar doente</button>')}
     </div>
 
     <div class="gcwo-sessions" id="gcwoSessions"></div>
@@ -347,6 +375,7 @@ function renderStep2() {
   `;
 
   renderSessions();
+  wireTopActions();
 
   document.getElementById('gcwoTrocarDoente').addEventListener('click', () => {
     _state.patient = null;
@@ -873,6 +902,7 @@ function renderStep3() {
   root.innerHTML = `
     <div class="gc-page-header">
       <div><div class="gc-page-title">Prescrição de exercício</div><div class="gc-page-sub">${escHtml(_state.patient?.full_name || '')} — prescrição gravada</div></div>
+      ${topActionsHtml()}
     </div>
     <div class="gcwo-card gcwo-success">
       <p>Link do doente (válido 15 dias):</p>
@@ -886,6 +916,7 @@ function renderStep3() {
       <button type="button" id="gcwoNova" class="gcBtnOutline">Nova prescrição</button>
     </div>
   `;
+  wireTopActions();
 
   document.getElementById('gcwoCopiar').addEventListener('click', async () => {
     const inp = document.getElementById('gcwoLink');

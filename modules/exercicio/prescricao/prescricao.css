@@ -2,6 +2,8 @@
    prescricao.css · Prescrição de exercício físico (Vertente 1)
    ================================================================= */
 
+.gcwo-headeractions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
 .gcwo-step1 { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; align-items:center; }
 
 .gcwo-results {
