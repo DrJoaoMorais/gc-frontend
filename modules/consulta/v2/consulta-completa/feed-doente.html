@@ -2622,8 +2622,12 @@
           const sb = window.sb;
           const isCode = /^\d/.test(q);
           let query = sb.from('diagnoses_catalog').select('id,system,code,label').limit(8);
-          if (isCode) query = query.ilike('code', `${q}%`);
-          else        query = query.ilike('search_text', `%${q}%`);
+          if (isCode) {
+            query = query.ilike('code', `${q}%`);
+          } else {
+            const tokens = q.split(/\s+/).filter(Boolean);
+            tokens.forEach(t => { query = query.ilike('search_text', `%${t}%`); });
+          }
           const { data } = await query;
           if (!data?.length) { res.style.display = 'none'; return; }
           res.style.display = 'block';
