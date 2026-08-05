@@ -2623,7 +2623,7 @@
           const isCode = /^\d/.test(q);
           let query = sb.from('diagnoses_catalog').select('id,system,code,label').limit(8);
           if (isCode) query = query.ilike('code', `${q}%`);
-          else        query = query.ilike('label', `%${q}%`);
+          else        query = query.ilike('search_text', `%${q}%`);
           const { data } = await query;
           if (!data?.length) { res.style.display = 'none'; return; }
           res.style.display = 'block';
