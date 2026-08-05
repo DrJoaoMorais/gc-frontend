@@ -1,12 +1,21 @@
 /* =================================================================
    OBJETIVOS-CATALOGO.JS — Catálogo de 8 objetivos de consulta
    -----------------------------------------------------------------
-   Componente autónomo. Sem gravação, sem leitura de `consultations`.
-   Estado só em memória. Passo 2 do plano — só para revisão visual.
+   Componente autónomo — não lê nem grava em `consultations` (isso é
+   feito por quem o monta, ex: feed-doente.html). Estado só em
+   memória enquanto está montado.
 
-   Saída: array de {chave, valor, unidade}, entregue via onChange a
-   cada alteração. É isto que o Passo 3 vai gravar em objectives_data
-   e usar para gerar a frase automática em `objectives`.
+   initObjetivosCatalogo({ root, initial, onChange }) monta uma
+   instância única em `root`; `initial` repovoa-a a partir de um
+   objectives_data já gravado. Devolve { getObjetivos, setObjetivos }:
+   getObjetivos() lê o estado actual, setObjetivos(dados) troca o
+   conteúdo por baixo sem re-montar — para reutilizar a mesma
+   instância entre consultas (mesmo padrão de fdQuill em
+   feed-doente.html, não recriar o editor a cada consulta aberta).
+
+   Saída: array de {chave, valor, unidade} — o que se grava em
+   objectives_data e o que objetivos-frase.js lê para gerar a frase
+   guardada em `objectives`.
 
    Pills reutilizam exactamente as classes .opts/.opt/.opt.sel e
    .eva-btns já em produção em modules/obj/regiao.html (Exame
@@ -17,7 +26,7 @@
 
 import {
   ADM_TREE, ADM_ARTICULACOES, RETORNO_FASES, MOTOR_NIVEIS,
-  FORCA_ESCALAS, EQUILIBRIO_ESCALAS, slug,
+  FORCA_ESCALAS, EQUILIBRIO_ESCALAS, slug, caminhoAdmPorChave,
 } from './objetivos-catalogo-dados.js';
 
 const MOTOR_TAGS = ['Padrão de marcha', 'Coordenação', 'Propriocepção', 'Estabilização core', 'Sincronização muscular'];
@@ -26,11 +35,15 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[c]));
 
-export function initObjetivosCatalogo({ root, onChange } = {}) {
-  if (!root) return;
-
-  const state = {
-    aberto: new Set(['dor']),
+/* Inverso de gerarSaida(): repovoa o estado interno a partir de um
+   array {chave,valor,unidade}[] já gravado (objectives_data de uma
+   consulta antiga). Abre os cards que já têm valor, para o médico
+   ver de imediato o que está preenchido em vez de ter de clicar
+   card a card. Com `dados` vazio/null devolve o estado em branco
+   de sempre (comportamento igual ao de antes desta função existir). */
+function estadoInicial(dados) {
+  const st = {
+    aberto: new Set(),
     dor: null,
     forca: { tipo: null, valor: null },
     admCascata: { articulacao: null, subregiao: null, movimento: null, valor: '' },
@@ -41,6 +54,46 @@ export function initObjetivosCatalogo({ root, onChange } = {}) {
     motor: { nivel: null, tags: [] },
     hipertrofia: null,
   };
+
+  (dados || []).forEach((o) => {
+    if (o.chave === 'dor') { st.dor = o.valor; st.aberto.add('dor'); return; }
+    if (o.chave === 'forca') {
+      const escala = FORCA_ESCALAS.find((e) => e.unidade === o.unidade);
+      st.forca = { tipo: escala ? escala.v : null, valor: o.valor };
+      st.aberto.add('forca');
+      return;
+    }
+    if (o.chave.startsWith('adm.')) {
+      const caminho = caminhoAdmPorChave(o.chave);
+      if (caminho) st.admLista.push({ ...caminho, valor: o.valor });
+      st.aberto.add('adm');
+      return;
+    }
+    if (o.chave === 'equilibrio') {
+      if (o.unidade === 'sem escala') {
+        st.equilibrio = { escala: 'sem', valor: null };
+      } else {
+        const escala = EQUILIBRIO_ESCALAS.find((e) => e.unidade === o.unidade);
+        st.equilibrio = { escala: escala ? escala.v : null, valor: o.valor };
+      }
+      st.aberto.add('equilibrio');
+      return;
+    }
+    if (o.chave === 'avd') { st.avd = o.valor; st.aberto.add('avd'); return; }
+    if (o.chave === 'retorno_desporto') { st.desporto = o.valor; st.aberto.add('desporto'); return; }
+    if (o.chave === 'controlo_motor_nivel') { st.motor.nivel = o.valor; st.aberto.add('motor'); return; }
+    if (o.chave === 'controlo_motor_foco') { st.motor.tags = [...(o.valor || [])]; st.aberto.add('motor'); return; }
+    if (o.chave === 'hipertrofia') { st.hipertrofia = o.valor; st.aberto.add('hipertrofia'); return; }
+  });
+
+  if (!st.aberto.size) st.aberto.add('dor'); // nada preenchido — abre o primeiro card, como sempre foi
+  return st;
+}
+
+export function initObjetivosCatalogo({ root, initial, onChange } = {}) {
+  if (!root) return;
+
+  let state = estadoInicial(initial);
 
   /* ── Saída {chave, valor, unidade}[] ─────────────────────── */
   function gerarSaida() {
@@ -364,7 +417,15 @@ export function initObjetivosCatalogo({ root, onChange } = {}) {
     if (inp) handleCampoChange(inp);
   });
 
+  /* Repovoa o componente com outra consulta sem re-montar (sem
+     duplicar os listeners acima) — mesmo padrão de fdQuill.setText()
+     em feed-doente.html: uma instância só, conteúdo trocado por baixo. */
+  function setObjetivos(dados) {
+    state = estadoInicial(dados);
+    render();
+  }
+
   render();
 
-  return { getObjetivos: gerarSaida };
+  return { getObjetivos: gerarSaida, setObjetivos };
 }

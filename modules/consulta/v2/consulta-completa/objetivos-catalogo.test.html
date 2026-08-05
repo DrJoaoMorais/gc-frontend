@@ -59,30 +59,82 @@
 </head>
 <body>
   <div class="cc-banner">
-    🧪 <strong>Teste isolado — Catálogo de 8 Objetivos (Passo 2/4)</strong> — componente autónomo, sem gravação e sem leitura de <code>consultations</code>. Estado só em memória, para revisão visual antes do Passo 3 (estrutura de dados no Supabase).
+    🧪 <strong>Teste isolado — Catálogo de 8 Objetivos (Passo 4/4)</strong> — componente autónomo, sem gravação e sem leitura de <code>consultations</code>. Os botões abaixo testam <code>initial</code> e <code>setObjetivos()</code> — a mesma instância a trocar de conteúdo, tal como acontece em feed-doente.html ao abrir consultas diferentes sem re-montar.
   </div>
   <div class="wrap">
     <h1 class="titulo">Catálogo de Objetivos</h1>
     <p class="sub">Clica num objetivo para abrir. Pills reutilizam exatamente o CSS de "Exame Objectivo" (.opts/.opt/.opt.sel).</p>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+      <button type="button" class="goc-btn-add" id="btnCarregarA">Carregar consulta A (8 objetivos)</button>
+      <button type="button" class="goc-btn-add" id="btnCarregarB">Carregar consulta B (Berg · Joelho · sem foco)</button>
+      <button type="button" class="goc-btn-add" id="btnLimpar">Nova consulta (vazio)</button>
+    </div>
+
     <div id="raiz"></div>
 
     <div class="preview-card">
       <div class="preview-head">Saída em memória — {chave, valor, unidade}[]</div>
       <pre class="preview-box" id="saida">[]</pre>
     </div>
+
+    <div class="preview-card">
+      <div class="preview-head">Round-trip — saída === entrada que carregou? (JSON.stringify)</div>
+      <pre class="preview-box" id="roundtrip">—</pre>
+    </div>
   </div>
 
   <script type="module">
     import { initObjetivosCatalogo } from './objetivos-catalogo.js';
 
+    const EXEMPLO_A = [
+      { chave: 'dor', valor: 4, unidade: 'EVA 0-10' },
+      { chave: 'forca', valor: 12.5, unidade: 'kg' },
+      { chave: 'adm.ombro.flexao', valor: 160, unidade: '°' },
+      { chave: 'adm.ombro.rotacao_externa', valor: 80, unidade: '°' },
+      { chave: 'adm.punho_mao.mao_global.ponta_palma_cm', valor: 2, unidade: 'cm' },
+      { chave: 'equilibrio', valor: 12, unidade: 'segundos (TUG)' },
+      { chave: 'avd', valor: 'Ajuda parcial', unidade: null },
+      { chave: 'retorno_desporto', valor: 2, unidade: 'fase (1-5)' },
+      { chave: 'controlo_motor_nivel', valor: 'Funcional', unidade: null },
+      { chave: 'controlo_motor_foco', valor: ['Padrão de marcha', 'Propriocepção', 'Estabilização core'], unidade: null },
+      { chave: 'hipertrofia', valor: 3.5, unidade: 'cm perímetro' },
+    ];
+
+    const EXEMPLO_B = [
+      { chave: 'equilibrio', valor: 48, unidade: 'pontos (Berg)' },
+      { chave: 'adm.joelho.flexao', valor: 120, unidade: '°' },
+      { chave: 'controlo_motor_nivel', valor: 'Inicial', unidade: null },
+    ];
+
     const raiz = document.getElementById('raiz');
     const saidaEl = document.getElementById('saida');
+    const roundtripEl = document.getElementById('roundtrip');
+    let ultimaEntrada = null;
 
-    initObjetivosCatalogo({
-      root: raiz,
-      onChange: (objetivos) => {
-        saidaEl.textContent = JSON.stringify(objetivos, null, 2);
-      },
+    function onChange(objetivos) {
+      saidaEl.textContent = JSON.stringify(objetivos, null, 2);
+      if (ultimaEntrada) {
+        const igual = JSON.stringify(objetivos) === JSON.stringify(ultimaEntrada);
+        roundtripEl.textContent = igual ? '✓ IGUAL — round-trip correto' : '✗ DIFERENTE — ver abaixo\n\nentrada:\n' + JSON.stringify(ultimaEntrada, null, 2) + '\n\nsaída:\n' + JSON.stringify(objetivos, null, 2);
+      } else {
+        roundtripEl.textContent = '—';
+      }
+    }
+
+    const instancia = initObjetivosCatalogo({ root: raiz, initial: [], onChange });
+
+    document.getElementById('btnCarregarA').addEventListener('click', () => {
+      ultimaEntrada = EXEMPLO_A;
+      instancia.setObjetivos(EXEMPLO_A);
+    });
+    document.getElementById('btnCarregarB').addEventListener('click', () => {
+      ultimaEntrada = EXEMPLO_B;
+      instancia.setObjetivos(EXEMPLO_B);
+    });
+    document.getElementById('btnLimpar').addEventListener('click', () => {
+      ultimaEntrada = null;
+      instancia.setObjetivos([]);
     });
   </script>
 </body>

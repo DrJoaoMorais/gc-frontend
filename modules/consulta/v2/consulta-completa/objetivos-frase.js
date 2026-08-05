@@ -15,35 +15,20 @@
    Ainda NÃO está ligada a nenhum ecrã — isso é o Passo 4.
    ================================================================= */
 
-import { ADM_TREE, RETORNO_FASES, FORCA_ESCALAS, EQUILIBRIO_ESCALAS, slug } from './objetivos-catalogo-dados.js';
+import { RETORNO_FASES, FORCA_ESCALAS, EQUILIBRIO_ESCALAS, caminhoAdmPorChave } from './objetivos-catalogo-dados.js';
 
 /* ── ADM ativa: chave "adm.<articulacao>.[<subregiao>.]<movimento>"
-   não guarda o texto original (só o slug), por isso para escrever a
-   frase é preciso o caminho inverso: percorrer ADM_TREE e comparar
-   slugs até encontrar o rótulo original. ── */
-function caminhoAdmLegivel(chave) {
-  const partes = chave.split('.').slice(1); // remove o prefixo "adm"
-  for (const [articulacao, no] of Object.entries(ADM_TREE)) {
-    if (slug(articulacao) !== partes[0]) continue;
-
-    if (no.subregioes) {
-      const subSlug = partes[1];
-      for (const [subregiao, movimentos] of Object.entries(no.subregioes)) {
-        if (slug(subregiao) !== subSlug) continue;
-        const movimento = movimentos.find((m) => slug(m) === partes[2]);
-        if (movimento) return `${articulacao} · ${subregiao} · ${movimento}`;
-      }
-    } else {
-      const movimento = no.movimentos.find((m) => slug(m) === partes[1]);
-      if (movimento) return `${articulacao} · ${movimento}`;
-    }
-  }
-  return null; // chave não reconhecida — cai no fallback do chamador
-}
-
+   não guarda o texto original (só o slug) — caminhoAdmPorChave (em
+   objetivos-catalogo-dados.js) percorre a ADM_TREE e devolve os
+   rótulos originais com acentos. Essa função é partilhada com
+   objetivos-catalogo.js (repovoar o catálogo a partir de
+   objectives_data), por isso a travessia da árvore só existe uma vez. ── */
 function linhaAdm(o) {
-  const caminho = caminhoAdmLegivel(o.chave) || o.chave;
-  return `ADM ativa — ${caminho}: ${o.valor}${o.unidade === 'cm' ? ' cm' : '°'}`;
+  const caminho = caminhoAdmPorChave(o.chave);
+  const texto = caminho
+    ? [caminho.articulacao, caminho.subregiao, caminho.movimento].filter(Boolean).join(' · ')
+    : o.chave; // chave não reconhecida — cai no fallback, não falha silenciosamente
+  return `ADM ativa — ${texto}: ${o.valor}${o.unidade === 'cm' ? ' cm' : '°'}`;
 }
 
 function linhaForca(o) {
