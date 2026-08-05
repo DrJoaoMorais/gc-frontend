@@ -15,40 +15,16 @@
    usada em modules/obj/motor.js (_wireHandlers).
    ================================================================= */
 
-const ADM_TREE = {
-  'Ombro':        { movimentos: ['Flexão', 'Extensão', 'Abdução', 'Rotação externa', 'Rotação interna'] },
-  'Cotovelo':     { movimentos: ['Flexão', 'Extensão', 'Pronação', 'Supinação'] },
-  'Punho-mão':    { subregioes: {
-                      'Punho':      ['Flexão palmar', 'Extensão', 'Desvio radial', 'Desvio cubital', 'Pronação', 'Supinação'],
-                      'Mão global': ['Ponta-palma (cm)'],
-                    } },
-  'Anca':         { movimentos: ['Flexão', 'Extensão', 'Abdução', 'Adução', 'Rotação interna', 'Rotação externa'] },
-  'Joelho':       { movimentos: ['Flexão', 'Extensão'] },
-  'Tibiotársica': { movimentos: ['Dorsiflexão', 'Flexão plantar', 'Inversão', 'Eversão'] },
-  'Cervical':     { movimentos: ['Flexão', 'Extensão', 'Inclinação lateral D', 'Inclinação lateral E', 'Rotação D', 'Rotação E'] },
-  'Lombar':       { movimentos: ['Flexão anterior tronco', 'Extensão', 'Inclinação lateral D', 'Inclinação lateral E', 'Rotação D', 'Rotação E'] },
-};
-const ADM_ARTICULACOES = Object.keys(ADM_TREE);
+import {
+  ADM_TREE, ADM_ARTICULACOES, RETORNO_FASES, MOTOR_NIVEIS,
+  FORCA_ESCALAS, EQUILIBRIO_ESCALAS, slug,
+} from './objetivos-catalogo-dados.js';
 
-const RETORNO_FASES = [
-  { v: 1, lbl: '1 · Repouso' },
-  { v: 2, lbl: '2 · Treino leve' },
-  { v: 3, lbl: '3 · Treino específico' },
-  { v: 4, lbl: '4 · Treino completo' },
-  { v: 5, lbl: '5 · Competição' },
-];
-
-const MOTOR_NIVEIS = ['Ausente', 'Inicial', 'Parcial', 'Funcional'];
 const MOTOR_TAGS = ['Padrão de marcha', 'Coordenação', 'Propriocepção', 'Estabilização core', 'Sincronização muscular'];
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[c]));
-
-const DIACRITICOS_RE = new RegExp('[̀-ͯ]', 'g');
-const slug = (s) => String(s).toLowerCase()
-  .normalize('NFD').replace(DIACRITICOS_RE, '')
-  .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 
 export function initObjetivosCatalogo({ root, onChange } = {}) {
   if (!root) return;
@@ -72,7 +48,8 @@ export function initObjetivosCatalogo({ root, onChange } = {}) {
     if (state.dor != null) out.push({ chave: 'dor', valor: state.dor, unidade: 'EVA 0-10' });
 
     if (state.forca.valor != null) {
-      out.push({ chave: 'forca', valor: state.forca.valor, unidade: state.forca.tipo === 'grau' ? 'grau (1-5)' : 'kg' });
+      const escala = FORCA_ESCALAS.find((e) => e.v === state.forca.tipo);
+      out.push({ chave: 'forca', valor: state.forca.valor, unidade: escala ? escala.unidade : null });
     }
 
     state.admLista.forEach((item) => {
@@ -82,11 +59,8 @@ export function initObjetivosCatalogo({ root, onChange } = {}) {
     });
 
     if (state.equilibrio.escala === 'tug' || state.equilibrio.escala === 'berg') {
-      out.push({
-        chave: 'equilibrio',
-        valor: state.equilibrio.valor,
-        unidade: state.equilibrio.escala === 'tug' ? 'segundos (TUG)' : 'pontos (Berg)',
-      });
+      const escala = EQUILIBRIO_ESCALAS.find((e) => e.v === state.equilibrio.escala);
+      out.push({ chave: 'equilibrio', valor: state.equilibrio.valor, unidade: escala.unidade });
     } else if (state.equilibrio.escala === 'sem') {
       out.push({ chave: 'equilibrio', valor: null, unidade: 'sem escala' });
     }
@@ -216,7 +190,7 @@ export function initObjetivosCatalogo({ root, onChange } = {}) {
 
         ${cardHtml(2, 'forca', 'Força', `
           <div class="gl">Escala</div>
-          <div class="opts sg">${pillsHtml('forca-tipo', [{ v: 'grau', lbl: 'Grau (1–5)' }, { v: 'kg', lbl: 'Dinamómetro (kg)' }], state.forca.tipo ? [state.forca.tipo] : [])}</div>
+          <div class="opts sg">${pillsHtml('forca-tipo', FORCA_ESCALAS, state.forca.tipo ? [state.forca.tipo] : [])}</div>
           ${state.forca.tipo === 'grau' ? `
             <div class="gl">Valor</div>
             <div class="opts sg">${pillsHtml('forca-grau', [1, 2, 3, 4, 5], state.forca.valor != null ? [state.forca.valor] : [])}</div>
@@ -234,7 +208,7 @@ export function initObjetivosCatalogo({ root, onChange } = {}) {
 
         ${cardHtml(4, 'equilibrio', 'Equilíbrio', `
           <div class="gl">Escala</div>
-          <div class="opts sg">${pillsHtml('equilibrio-escala', [{ v: 'sem', lbl: 'Sem escala' }, { v: 'tug', lbl: 'TUG (segundos)' }, { v: 'berg', lbl: 'Berg (pontos)' }], state.equilibrio.escala ? [state.equilibrio.escala] : [])}</div>
+          <div class="opts sg">${pillsHtml('equilibrio-escala', EQUILIBRIO_ESCALAS, state.equilibrio.escala ? [state.equilibrio.escala] : [])}</div>
           ${state.equilibrio.escala === 'tug' ? `
             <div class="gl">Valor (segundos)</div>
             <input type="number" class="goc-inp" data-campo="equilibrio-valor" value="${esc(state.equilibrio.valor ?? '')}" placeholder="s" min="0" step="0.1">
