@@ -112,11 +112,19 @@
     const roundtripEl = document.getElementById('roundtrip');
     let ultimaEntrada = null;
 
+    // gerarSaida() emite sempre pela mesma ordem canónica (dor→força→ADM→
+    // equilíbrio→AVD→desporto→motor→hipertrofia), independentemente da
+    // ordem de entrada — por isso a comparação de round-trip é por
+    // conteúdo (ordenada por chave), não por ordem de array.
+    function porChave(arr) {
+      return [...arr].sort((a, b) => a.chave.localeCompare(b.chave));
+    }
+
     function onChange(objetivos) {
       saidaEl.textContent = JSON.stringify(objetivos, null, 2);
       if (ultimaEntrada) {
-        const igual = JSON.stringify(objetivos) === JSON.stringify(ultimaEntrada);
-        roundtripEl.textContent = igual ? '✓ IGUAL — round-trip correto' : '✗ DIFERENTE — ver abaixo\n\nentrada:\n' + JSON.stringify(ultimaEntrada, null, 2) + '\n\nsaída:\n' + JSON.stringify(objetivos, null, 2);
+        const igual = JSON.stringify(porChave(objetivos)) === JSON.stringify(porChave(ultimaEntrada));
+        roundtripEl.textContent = igual ? '✓ IGUAL (mesmo conteúdo, ordem pode diferir) — round-trip correto' : '✗ DIFERENTE — ver abaixo\n\nentrada:\n' + JSON.stringify(ultimaEntrada, null, 2) + '\n\nsaída:\n' + JSON.stringify(objetivos, null, 2);
       } else {
         roundtripEl.textContent = '—';
       }
