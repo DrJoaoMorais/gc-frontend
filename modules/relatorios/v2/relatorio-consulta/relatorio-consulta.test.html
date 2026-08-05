@@ -56,10 +56,10 @@
 
       status.innerHTML = '✓ Autenticado. A abrir o relatório…';
 
-      // Abre o modal com a consulta real (Candidato A)
+      // Abre o modal com a consulta real (verificação temporária Passo 4 — objetivos)
       await openRelatorioConsultaModal({
-        patientId: '82e6ae05-6868-4745-ad93-fd62bacbc595',
-        consultationId: 'f5602bed-f026-4fe1-97df-766ccbee7315',
+        patientId: '163fe5dc-a34f-4c80-8f01-5db0d63f759c',
+        consultationId: 'f47d9c32-fbda-4b89-b324-67d485ff6783',
         onClose: () => { status.innerHTML = 'Modal fechado. Recarrega a página para reabrir.'; }
       });
     })();
