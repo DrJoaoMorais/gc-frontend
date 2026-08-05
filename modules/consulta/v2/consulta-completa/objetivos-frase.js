@@ -48,11 +48,12 @@ function linhaAdm(o) {
 
 function linhaForca(o) {
   const escala = FORCA_ESCALAS.find((e) => e.unidade === o.unidade);
-  return `Força: ${o.valor} (${escala ? escala.lbl : o.unidade})`;
+  if (escala?.v === 'grau') return `Força: grau ${o.valor}/5`;
+  if (escala?.v === 'kg') return `Força: ${o.valor} kg (dinamómetro)`;
+  return `Força: ${o.valor} ${o.unidade}`; // escala não reconhecida — não falha silenciosamente
 }
 
 function linhaEquilibrio(o) {
-  if (o.valor == null) return 'Equilíbrio: sem escala definida';
   const escala = EQUILIBRIO_ESCALAS.find((e) => e.unidade === o.unidade);
   return `Equilíbrio: ${o.valor} (${escala ? escala.lbl : o.unidade})`;
 }
@@ -62,14 +63,24 @@ function linhaRetornoDesporto(o) {
   return `Retorno ao desporto: Fase ${fase ? fase.lbl : o.valor}`;
 }
 
+/* Controlo motor funde duas entradas de objectivesData (nível + foco)
+   numa só linha de frase — por isso não entra no dicionário chave→linha
+   de baixo, é tratado à parte em gerarFraseObjectivos(). */
+function linhaControloMotor(nivelEntry, focoEntry) {
+  const nivel = nivelEntry ? nivelEntry.valor : null;
+  const foco = focoEntry?.valor?.length ? focoEntry.valor.join(', ') : null;
+  if (nivel && foco) return `Controlo motor: ${nivel} · foco em ${foco}`;
+  if (nivel) return `Controlo motor: ${nivel}`;
+  if (foco) return `Controlo motor: foco em ${foco}`;
+  return null;
+}
+
 const LINHA_POR_CHAVE = {
   dor: (o) => `Dor: EVA ${o.valor}/10`,
   forca: linhaForca,
   equilibrio: linhaEquilibrio,
   avd: (o) => `Autonomia nas AVD's: ${o.valor}`,
   retorno_desporto: linhaRetornoDesporto,
-  controlo_motor_nivel: (o) => `Controlo motor: nível ${o.valor}`,
-  controlo_motor_foco: (o) => `Controlo motor — foco: ${(o.valor || []).join(', ')}`,
   hipertrofia: (o) => `Hipertrofia: ${o.valor} cm de perímetro`,
 };
 
@@ -84,5 +95,23 @@ function linhaObjetivo(o) {
 /* ── API pública ──────────────────────────────────────────────── */
 export function gerarFraseObjectivos(objectivesData) {
   if (!Array.isArray(objectivesData) || !objectivesData.length) return '';
-  return objectivesData.map(linhaObjetivo).join('\n');
+
+  const nivelEntry = objectivesData.find((o) => o.chave === 'controlo_motor_nivel');
+  const focoEntry = objectivesData.find((o) => o.chave === 'controlo_motor_foco');
+  let motorEmitido = false;
+
+  const linhas = [];
+  objectivesData.forEach((o) => {
+    if (o.chave === 'controlo_motor_nivel' || o.chave === 'controlo_motor_foco') {
+      if (motorEmitido) return;
+      motorEmitido = true;
+      const linha = linhaControloMotor(nivelEntry, focoEntry);
+      if (linha) linhas.push(linha);
+      return;
+    }
+    if (o.chave === 'equilibrio' && o.unidade === 'sem escala') return; // "sem escala" não entra na frase
+    linhas.push(linhaObjetivo(o));
+  });
+
+  return linhas.join('\n');
 }
