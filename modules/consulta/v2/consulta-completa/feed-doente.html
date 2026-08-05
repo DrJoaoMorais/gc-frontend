@@ -631,6 +631,42 @@
       font-size: 12px; color: var(--tenue);
       text-align: left; padding: 0 0 4px;
     }
+
+    /* ── Catálogo de Objetivos (objetivos-catalogo.js) ──
+       Pills copiadas tal-e-qual de modules/obj/regiao.html (bloco
+       "OVERRIDES", o que renderiza em produção no Exame Objectivo) —
+       o componente não traz CSS própria, depende destas classes
+       existirem onde for montado. */
+    .sec { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:9px 11px; margin-bottom:8px; }
+    .sec:last-child { margin-bottom:0; }
+    .sec-title { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:#1a56db; margin-bottom:7px; padding-bottom:5px; border-bottom:1px solid #f1f5f9; }
+    .num { width:22px; height:22px; border-radius:50%; background:#1a56db; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .gl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#3b5bdb; margin-bottom:4px; margin-top:7px; }
+    .gl:first-child { margin-top:0; }
+    .opts { display:flex; gap:4px; flex-wrap:wrap; }
+    .opt { padding:4px 9px; border:1px solid #e2e8f0; border-radius:16px; font-size:11px; font-weight:500; cursor:pointer; background:#f8fafc; color:#475569; transition:all .15s; user-select:none; }
+    .opt:hover { border-color:#1a56db; color:#1a56db; }
+    .opt.sel { background:#1a56db; border-color:#1a56db; color:#fff; }
+    .eva-btns { display:flex; gap:4px; flex-wrap:wrap; }
+    .eva-btns .opt { width:25px; height:25px; min-width:0; border-radius:50%; padding:0; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; }
+
+    .goc-wrap { display:flex; flex-direction:column; }
+    .goc-card-head { cursor:pointer; user-select:none; margin-bottom:0; }
+    .goc-card-titulo { font-size:13px; font-weight:700; color:#0f172a; }
+    .goc-resumo { margin-left:auto; font-size:11.5px; color:#64748b; }
+    .goc-chev { transition:transform .15s; color:#94a3b8; font-size:16px; }
+    .goc-chev.aberto { transform:rotate(90deg); }
+    .goc-body { padding-top:10px; }
+    .goc-body.fechado { display:none; }
+    .goc-inp { width:120px; border:0.5px solid #e2e8f0; border-radius:8px; padding:6px 9px; font-size:12.5px; font-family:inherit; color:#0f172a; background:#fff; margin-top:2px; }
+    .goc-valor-row { display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap; }
+    .goc-unidade { font-size:11px; color:#94a3b8; }
+    .goc-btn-add { font-size:11.5px; font-weight:600; color:#1a56db; background:#eaf0fd; border:none; border-radius:7px; padding:6px 10px; cursor:pointer; }
+    .goc-btn-add:hover { background:#dbe6fb; }
+    .goc-chiplist { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+    .goc-chip { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:#0f2d52; background:#f0f4ff; border:1px solid #dbeafe; border-radius:999px; padding:4px 6px 4px 10px; }
+    .goc-chip-x { border:none; background:transparent; color:#94a3b8; cursor:pointer; font-size:11px; padding:0 2px; }
+    .goc-chip-x:hover { color:#dc2626; }
   </style>
   <link rel="stylesheet" href="../../../comparativo/evolutivo.css" />
 </head>
