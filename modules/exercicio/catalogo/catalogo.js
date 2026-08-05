@@ -17,6 +17,10 @@ const escHtml = escAttr;
 
 const MIME_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 
+const CATEGORIA_OPCOES = ['Membro Superior', 'Membro Inferior', 'Core'];
+const LOCAIS_OPCOES = ['Casa', 'Ginásio', 'Clínica'];
+const EQUIPAMENTO_OPCOES = ['Máquina', 'TRX', 'Elásticos', 'Halteres', 'Peso Corporal'];
+
 function ensureCatalogoCss() {
   if (document.querySelector('link[data-gcwo-catalogo]')) return;
   const lnk = document.createElement('link');
@@ -45,7 +49,7 @@ function freshState() {
 }
 
 function novoExercicioVazio() {
-  return { id: null, name: '', categoria: '', tempo_concentrico_s: null, tempo_excentrico_s: null, ajustes_maquina: [], photo_url: null, is_active: true };
+  return { id: null, name: '', categoria: [], locais: [], equipamento: [], tempo_concentrico_s: null, tempo_excentrico_s: null, ajustes_maquina: [], photo_url: null, is_active: true };
 }
 
 /* ── Entry point ─────────────────────────────────────────── */
@@ -65,8 +69,7 @@ export async function initCatalogo({ onVoltar } = {}) {
 async function loadExercicios() {
   const { data, error } = await window.sb
     .from('wo_exercises')
-    .select('id,name,categoria,tempo_concentrico_s,tempo_excentrico_s,ajustes_maquina,photo_url,is_active')
-    .order('categoria')
+    .select('id,name,categoria,locais,equipamento,tempo_concentrico_s,tempo_excentrico_s,ajustes_maquina,photo_url,is_active')
     .order('name');
 
   if (error) {
@@ -161,7 +164,7 @@ function renderGrid() {
       ${photoTileHtml(ex)}
       <div class="gcwo-cat-info">
         <div class="gcwo-cat-name">${escHtml(ex.name)}</div>
-        <span class="gcwo-cat-cat">${escHtml(ex.categoria)}</span>
+        <div class="gcwo-cat-cats">${(ex.categoria || []).map(c => `<span class="gcwo-cat-cat">${escHtml(c)}</span>`).join('')}</div>
         <div class="gcwo-cat-meta">
           ${ex.tempo_concentrico_s || ex.tempo_excentrico_s ? `<span>${ICON_CLOCK}${ex.tempo_concentrico_s ?? '—'}s / ${ex.tempo_excentrico_s ?? '—'}s</span>` : ''}
           ${ex.ajustes_maquina?.length ? `<span>${ICON_WRENCH}${ex.ajustes_maquina.length} ajuste${ex.ajustes_maquina.length === 1 ? '' : 's'}</span>` : ''}
@@ -197,7 +200,13 @@ async function handleAtivar(id, ativo) {
    Painel — criar / editar
    ================================================================ */
 function openPanel(ex) {
-  _state.panelExercicio = ex ? { ...ex, ajustes_maquina: (ex.ajustes_maquina || []).map(a => ({ ...a })) } : novoExercicioVazio();
+  _state.panelExercicio = ex ? {
+    ...ex,
+    categoria: [...(ex.categoria || [])],
+    locais: [...(ex.locais || [])],
+    equipamento: [...(ex.equipamento || [])],
+    ajustes_maquina: (ex.ajustes_maquina || []).map(a => ({ ...a })),
+  } : novoExercicioVazio();
   _state.panelFotoFile = null;
   _state.panelFotoPreviewUrl = null;
   _state.panelFotoRemovida = false;
@@ -223,8 +232,7 @@ function renderPanel() {
   panel.className = 'gcwo-cat-panel';
   const ex = _state.panelExercicio;
   const isNovo = !ex.id;
-
-  const categoriasExistentes = [...new Set(_state.exercicios.map(e => e.categoria).filter(Boolean))];
+  const ritmoInicial = ex.tempo_concentrico_s != null || ex.tempo_excentrico_s != null;
 
   let fotoBodyHtml;
   if (_state.panelFotoPreviewUrl) {
@@ -251,10 +259,19 @@ function renderPanel() {
       </div>
 
       <label class="gcwo-cat-field"><span>Nome</span><input type="text" id="gcwoCatNome" value="${escAttr(ex.name)}" placeholder="Ex: Leg press"></label>
-      <label class="gcwo-cat-field"><span>Categoria</span><input type="text" id="gcwoCatCategoria" value="${escAttr(ex.categoria)}" placeholder="Ex: Membros inferiores" list="gcwoCatCategorias"></label>
-      <datalist id="gcwoCatCategorias">${categoriasExistentes.map(c => `<option value="${escAttr(c)}">`).join('')}</datalist>
 
-      <div class="gcwo-cat-row2">
+      <div class="gcwo-cat-field"><span>Categoria</span>${chipGroupHtml('gcwoCatCategoria', CATEGORIA_OPCOES, ex.categoria)}</div>
+      <div class="gcwo-cat-field"><span>Locais</span>${chipGroupHtml('gcwoCatLocais', LOCAIS_OPCOES, ex.locais)}</div>
+      <div class="gcwo-cat-field"><span>Equipamento</span>${chipGroupHtml('gcwoCatEquipamento', EQUIPAMENTO_OPCOES, ex.equipamento)}</div>
+
+      <div class="gcwo-cat-togglerow">
+        <span class="gcwo-cat-togglelabel">Definir ritmo desta série</span>
+        <label class="gcwo-cat-switch">
+          <input type="checkbox" id="gcwoCatRitmoToggle" ${ritmoInicial ? 'checked' : ''}>
+          <span class="gcwo-cat-track"></span><span class="gcwo-cat-thumb"></span>
+        </label>
+      </div>
+      <div class="gcwo-cat-row2" id="gcwoCatRitmoFields" style="display:${ritmoInicial ? '' : 'none'}">
         <label class="gcwo-cat-field"><span>Concêntrica (s)</span><input type="number" min="0" id="gcwoCatConc" value="${ex.tempo_concentrico_s ?? ''}"></label>
         <label class="gcwo-cat-field"><span>Excêntrica (s)</span><input type="number" min="0" id="gcwoCatExc" value="${ex.tempo_excentrico_s ?? ''}"></label>
       </div>
@@ -280,7 +297,13 @@ function renderPanel() {
   document.getElementById('gcwoCatGuardar').addEventListener('click', handleGuardar);
 
   document.getElementById('gcwoCatNome').addEventListener('input', e => { ex.name = e.target.value; });
-  document.getElementById('gcwoCatCategoria').addEventListener('input', e => { ex.categoria = e.target.value; });
+  wireChipGroup('gcwoCatCategoria', ex.categoria);
+  wireChipGroup('gcwoCatLocais', ex.locais);
+  wireChipGroup('gcwoCatEquipamento', ex.equipamento);
+
+  document.getElementById('gcwoCatRitmoToggle').addEventListener('change', e => {
+    document.getElementById('gcwoCatRitmoFields').style.display = e.target.checked ? '' : 'none';
+  });
   document.getElementById('gcwoCatConc').addEventListener('input', e => { ex.tempo_concentrico_s = e.target.value === '' ? null : Number(e.target.value); });
   document.getElementById('gcwoCatExc').addEventListener('input', e => { ex.tempo_excentrico_s = e.target.value === '' ? null : Number(e.target.value); });
 
@@ -307,6 +330,21 @@ function renderPanel() {
   document.getElementById('gcwoCatAddAjuste').addEventListener('click', () => {
     ex.ajustes_maquina.push({ etiqueta: '', valor: '' });
     renderAjustes();
+  });
+}
+
+function chipGroupHtml(id, opcoes, selecionados) {
+  return `<div class="gcwo-cat-chipgroup" id="${id}">${opcoes.map(o => `<span class="gcwo-cat-chip${selecionados.includes(o) ? ' on' : ''}" data-value="${escAttr(o)}">${escHtml(o)}</span>`).join('')}</div>`;
+}
+
+function wireChipGroup(id, arr) {
+  document.getElementById(id).querySelectorAll('.gcwo-cat-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const v = chip.getAttribute('data-value');
+      const i = arr.indexOf(v);
+      if (i === -1) arr.push(v); else arr.splice(i, 1);
+      chip.classList.toggle('on');
+    });
   });
 }
 
@@ -342,9 +380,21 @@ async function handleGuardar() {
   erroEl.textContent = '';
 
   const nome = (ex.name || '').trim();
-  const categoria = (ex.categoria || '').trim();
+  const categoria = ex.categoria || [];
+  const locais = ex.locais || [];
+  const equipamento = ex.equipamento || [];
   if (!nome) { erroEl.textContent = 'Falta o nome do exercício.'; return; }
-  if (!categoria) { erroEl.textContent = 'Falta a categoria.'; return; }
+  if (!categoria.length) { erroEl.textContent = 'Falta pelo menos uma categoria.'; return; }
+  if (!locais.length) { erroEl.textContent = 'Falta pelo menos um local.'; return; }
+  if (!equipamento.length) { erroEl.textContent = 'Falta pelo menos um equipamento.'; return; }
+
+  const ritmoOn = document.getElementById('gcwoCatRitmoToggle').checked;
+  const tempoConcentrico = ritmoOn ? ex.tempo_concentrico_s : null;
+  const tempoExcentrico = ritmoOn ? ex.tempo_excentrico_s : null;
+  if (ritmoOn && (tempoConcentrico == null || tempoExcentrico == null)) {
+    erroEl.textContent = 'Preenche os dois campos de ritmo, ou desliga o interruptor.';
+    return;
+  }
 
   btn.disabled = true;
   btn.textContent = 'A gravar…';
@@ -371,8 +421,10 @@ async function handleGuardar() {
     const payload = {
       name: nome,
       categoria,
-      tempo_concentrico_s: ex.tempo_concentrico_s,
-      tempo_excentrico_s: ex.tempo_excentrico_s,
+      locais,
+      equipamento,
+      tempo_concentrico_s: tempoConcentrico,
+      tempo_excentrico_s: tempoExcentrico,
       ajustes_maquina: ajustesLimpos,
       photo_url: photoUrl,
     };
