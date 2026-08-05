@@ -55,7 +55,9 @@ function linhaForca(o) {
 
 function linhaEquilibrio(o) {
   const escala = EQUILIBRIO_ESCALAS.find((e) => e.unidade === o.unidade);
-  return `Equilíbrio: ${o.valor} (${escala ? escala.lbl : o.unidade})`;
+  if (escala?.v === 'tug') return `Equilíbrio: ${o.valor} s (TUG)`;
+  if (escala?.v === 'berg') return `Equilíbrio: ${o.valor} pontos (Berg)`;
+  return `Equilíbrio: ${o.valor} ${o.unidade}`; // escala não reconhecida — não falha silenciosamente
 }
 
 function linhaRetornoDesporto(o) {
