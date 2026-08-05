@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catálogo de Objetivos — componente isolado (teste)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root{--cc-navy:#0f2d52;--cc-azul:#1a56db;--cc-texto:#1f2937;--cc-suave:#6b7280;--cc-tenue:#9ca3af;--cc-linha:#e5e7eb;--cc-fundo:#f9fafb;--cc-branco:#fff;--cc-verde:#15803d;--cc-vermelho:#b91c1c;}
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--cc-fundo);color:var(--cc-texto);font-family:'Outfit',system-ui,sans-serif;line-height:1.6;}
+    .cc-banner{background:#fef9c3;color:#713f12;padding:12px 20px;font-size:14px;border-bottom:1px solid #fde68a;}
+    .wrap{max-width:720px;margin:0 auto;padding:24px 20px 64px;}
+    .titulo{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:26px;color:var(--cc-navy);margin:0 0 4px;}
+    .sub{font-size:13px;color:var(--cc-suave);margin:0 0 20px;}
+
+    /* ===== Pills — copiado tal-e-qual de modules/obj/regiao.html
+       (bloco "OVERRIDES", que é o que renderiza em produção no
+       Exame Objectivo). Mesmos nomes de classe, mesmas regras. ===== */
+    .sec{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:9px 11px;margin-bottom:8px;}
+    .sec:last-child{margin-bottom:0;}
+    .sec-title{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#1a56db;margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid #f1f5f9;}
+    .num{width:22px;height:22px;border-radius:50%;background:#1a56db;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .gl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#3b5bdb;margin-bottom:4px;margin-top:7px;}
+    .gl:first-child{margin-top:0;}
+    .opts{display:flex;gap:4px;flex-wrap:wrap;}
+    .opt{padding:4px 9px;border:1px solid #e2e8f0;border-radius:16px;font-size:11px;font-weight:500;cursor:pointer;background:#f8fafc;color:#475569;transition:all .15s;user-select:none;}
+    .opt:hover{border-color:#1a56db;color:#1a56db;}
+    .opt.sel{background:#1a56db;border-color:#1a56db;color:#fff;}
+    .eva-btns{display:flex;gap:4px;flex-wrap:wrap;}
+    .eva-btns .opt{width:25px;height:25px;min-width:0;border-radius:50%;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;}
+
+    /* ===== Estrutura nova do componente (acordeão + cascata ADM) —
+       zero classes .opt/.sec/.num/.gl novas, só layout à volta delas. ===== */
+    .goc-wrap{display:flex;flex-direction:column;}
+    .goc-card-head{cursor:pointer;user-select:none;margin-bottom:0;}
+    .goc-card-titulo{font-size:13px;font-weight:700;color:#0f172a;}
+    .goc-resumo{margin-left:auto;font-size:11.5px;color:#64748b;}
+    .goc-chev{transition:transform .15s;color:#94a3b8;font-size:16px;}
+    .goc-chev.aberto{transform:rotate(90deg);}
+    .goc-body{padding-top:10px;}
+    .goc-body.fechado{display:none;}
+    .goc-inp{width:120px;border:0.5px solid #e2e8f0;border-radius:8px;padding:6px 9px;font-size:12.5px;font-family:inherit;color:#0f172a;background:#fff;margin-top:2px;}
+    .goc-valor-row{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
+    .goc-unidade{font-size:11px;color:#94a3b8;}
+    .goc-btn-add{font-size:11.5px;font-weight:600;color:#1a56db;background:#eaf0fd;border:none;border-radius:7px;padding:6px 10px;cursor:pointer;}
+    .goc-btn-add:hover{background:#dbe6fb;}
+    .goc-chiplist{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+    .goc-chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#0f2d52;background:#f0f4ff;border:1px solid #dbeafe;border-radius:999px;padding:4px 6px 4px 10px;}
+    .goc-chip-x{border:none;background:transparent;color:#94a3b8;cursor:pointer;font-size:11px;padding:0 2px;}
+    .goc-chip-x:hover{color:#dc2626;}
+
+    /* ===== Preview JSON — mesmo padrão de hda-editor.test.html ===== */
+    .preview-card{background:var(--cc-branco);border:1px solid var(--cc-linha);border-radius:12px;padding:14px 16px;margin-top:18px;}
+    .preview-head{font-size:12px;font-weight:700;color:var(--cc-navy);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;}
+    .preview-box{background:#0f172a;color:#94e2d5;font-family:monospace;font-size:11.5px;line-height:1.5;padding:12px 14px;border-radius:8px;white-space:pre-wrap;word-break:break-word;max-height:320px;overflow:auto;margin:0;}
+  </style>
+</head>
+<body>
+  <div class="cc-banner">
+    🧪 <strong>Teste isolado — Catálogo de 8 Objetivos (Passo 2/4)</strong> — componente autónomo, sem gravação e sem leitura de <code>consultations</code>. Estado só em memória, para revisão visual antes do Passo 3 (estrutura de dados no Supabase).
+  </div>
+  <div class="wrap">
+    <h1 class="titulo">Catálogo de Objetivos</h1>
+    <p class="sub">Clica num objetivo para abrir. Pills reutilizam exatamente o CSS de "Exame Objectivo" (.opts/.opt/.opt.sel).</p>
+    <div id="raiz"></div>
+
+    <div class="preview-card">
+      <div class="preview-head">Saída em memória — {chave, valor, unidade}[]</div>
+      <pre class="preview-box" id="saida">[]</pre>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initObjetivosCatalogo } from './objetivos-catalogo.js';
+
+    const raiz = document.getElementById('raiz');
+    const saidaEl = document.getElementById('saida');
+
+    initObjetivosCatalogo({
+      root: raiz,
+      onChange: (objetivos) => {
+        saidaEl.textContent = JSON.stringify(objetivos, null, 2);
+      },
+    });
+  </script>
+</body>
+</html>
