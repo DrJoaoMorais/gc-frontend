@@ -605,7 +605,7 @@ function renderStep2() {
         `}
 
         <div class="gcwo-generate">
-          <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg">Gerar prescrição e link</button>
+          <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" disabled title="Ainda não implementado — chega no Passo 1g (validade do link e geração do token)">Gerar prescrição e link</button>
           <span id="gcwoGerarErro" class="gcwo-erro"></span>
         </div>
       </main>
