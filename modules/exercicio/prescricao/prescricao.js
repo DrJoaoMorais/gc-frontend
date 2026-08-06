@@ -1070,7 +1070,9 @@ function renderCatalogPickerSection(s) {
     <div class="gcwo-catpick-grid" id="gcwoPCatGrid">${renderCatalogPickerGrid(s)}</div>
 
     <span class="gcwo-field-label" style="margin-top:14px;">Seleccionados</span>
-    <div class="gcwo-picked-list" id="gcwoPPickedList">${renderPickedListInner(s)}</div>
+    <div class="gcwo-exercicios" id="gcwoPPickedList">${renderPickedListInner(s)}</div>
+
+    <div class="gcwo-progressao-nota">Sobe para o topo do intervalo em todas as séries → sugere incremento no treino seguinte.</div>
   `;
 }
 
@@ -1103,13 +1105,52 @@ function renderCatalogPickerGrid(s) {
   }).join('');
 }
 
+// Sem reps_fixed definido → intervalo (o modo por omissão de qualquer exercício novo).
+function itemRepsMode(it) {
+  return it.reps_fixed != null ? 'fixo' : 'intervalo';
+}
+
 function renderPickedListInner(s) {
   if (!s.items.length) return `<div class="gcwo-muted">Nenhum exercício seleccionado ainda.</div>`;
-  return s.items.map(it => `
-    <span class="gcwo-picked-chip">
-      ${escHtml(it.name)}
-      <button type="button" data-remove-exid="${escAttr(it.exercise_id)}" title="Remover">✕</button>
-    </span>`).join('');
+  return s.items.map(renderItemCard).join('');
+}
+
+function renderItemCard(it) {
+  const mode = itemRepsMode(it);
+  const radioName = `gcwo-repsmode-${it.exercise_id}`;
+  return `
+    <div class="gcwo-exercicio" data-exid="${escAttr(it.exercise_id)}">
+      <div class="gcwo-exercicio-head">
+        ${it.photo_url ? `<img class="gcwo-exercicio-foto" src="${escAttr(it.photo_url)}" alt="">` : ''}
+        <strong>${escHtml(it.name)}</strong>
+        <button type="button" class="gcwo-exercicio-remove" data-remove-exid="${escAttr(it.exercise_id)}" title="Remover exercício">✕</button>
+      </div>
+      <div class="gcwo-row2" style="margin-top:8px;">
+        <label class="gcwo-field gcwo-field-sm"><span>Séries</span><input type="number" min="1" class="gcwo-it-sets" value="${it.sets ?? ''}"></label>
+        <div class="gcwo-field gcwo-field-sm">
+          <span>Repetições</span>
+          <div class="gcwo-modo">
+            <label><input type="radio" name="${radioName}" value="intervalo" ${mode === 'intervalo' ? 'checked' : ''}> Intervalo</label>
+            <label><input type="radio" name="${radioName}" value="fixo" ${mode === 'fixo' ? 'checked' : ''}> Fixo</label>
+          </div>
+        </div>
+      </div>
+      ${mode === 'intervalo' ? `
+      <div class="gcwo-row2">
+        <label class="gcwo-field gcwo-field-sm"><span>Reps mín.</span><input type="number" min="0" class="gcwo-it-repsmin" value="${it.reps_min ?? ''}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>Reps máx.</span><input type="number" min="0" class="gcwo-it-repsmax" value="${it.reps_max ?? ''}"></label>
+      </div>` : `
+      <label class="gcwo-field"><span>Repetições (número fixo)</span><input type="number" min="0" class="gcwo-it-repsfixed" value="${it.reps_fixed ?? ''}"></label>
+      `}
+      <div class="gcwo-row2">
+        <label class="gcwo-field gcwo-field-sm"><span>Carga (kg)</span><input type="number" min="0" step="0.5" class="gcwo-it-carga" value="${it.load ?? ''}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>Incremento (kg)</span><input type="number" min="0" step="0.5" class="gcwo-it-incremento" value="${it.incremento ?? ''}"></label>
+      </div>
+      <div class="gcwo-row2">
+        <label class="gcwo-field gcwo-field-sm"><span>Descanso entre séries (s)</span><input type="number" min="0" class="gcwo-it-restset" value="${it.rest_set ?? ''}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>Descanso p/ próximo (s)</span><input type="number" min="0" class="gcwo-it-restnext" value="${it.rest_next ?? ''}"></label>
+      </div>
+    </div>`;
 }
 
 function toggleExercicioNaSessao(s, exId) {
@@ -1124,26 +1165,86 @@ function toggleExercicioNaSessao(s, exId) {
       name: ex.name,
       photo_url: ex.photo_url || null,
       categoria: ex.categoria || [],
-      incremento_default: ex.incremento_default,
+      sets: 3,
+      reps_min: 8,
+      reps_max: 12,
+      reps_fixed: null,
+      load: null,
+      incremento: ex.incremento_default ?? null,
+      rest_set: 60,
+      rest_next: 90,
     });
   }
   refreshCatalogPickerDom(s);
 }
 
+// Grelha + seleccionados mudam ambos (a grelha ganha/perde o "✓") — reconstrói e reata os dois.
 function refreshCatalogPickerDom(s) {
   const grid = document.getElementById('gcwoPCatGrid');
   if (grid) grid.innerHTML = renderCatalogPickerGrid(s);
   const picked = document.getElementById('gcwoPPickedList');
   if (picked) picked.innerHTML = renderPickedListInner(s);
-  wireCatalogGridClicks(s);
+  wireGridCardClicks(s);
+  wireRemoveButtons(s);
+  wirePickedItems(s);
 }
 
-function wireCatalogGridClicks(s) {
+// Só o cartão do exercício muda de forma (intervalo↔fixo) — a grelha fica intacta, não se reata.
+function refreshPickedListDom(s) {
+  const picked = document.getElementById('gcwoPPickedList');
+  if (picked) picked.innerHTML = renderPickedListInner(s);
+  wireRemoveButtons(s);
+  wirePickedItems(s);
+}
+
+function wireGridCardClicks(s) {
   document.querySelectorAll('#gcwoPCatGrid [data-exid]').forEach(btn => {
     btn.addEventListener('click', () => toggleExercicioNaSessao(s, btn.getAttribute('data-exid')));
   });
+}
+
+function wireRemoveButtons(s) {
   document.querySelectorAll('#gcwoPPickedList [data-remove-exid]').forEach(btn => {
     btn.addEventListener('click', () => toggleExercicioNaSessao(s, btn.getAttribute('data-remove-exid')));
+  });
+}
+
+// Campos numéricos só actualizam o estado — nunca voltam a desenhar (perderiam o foco a meio de digitar).
+// Só o toggle intervalo/fixo reconstrói o cartão, porque muda que campos aparecem.
+function wirePickedItems(s) {
+  document.querySelectorAll('#gcwoPPickedList .gcwo-exercicio').forEach(card => {
+    const exId = card.getAttribute('data-exid');
+    const it = s.items.find(i => i.exercise_id === exId);
+    if (!it) return;
+
+    const bindNum = (selector, field) => {
+      const el = card.querySelector(selector);
+      if (el) el.addEventListener('input', (e) => { it[field] = e.target.value === '' ? null : Number(e.target.value); });
+    };
+    bindNum('.gcwo-it-sets', 'sets');
+    bindNum('.gcwo-it-repsmin', 'reps_min');
+    bindNum('.gcwo-it-repsmax', 'reps_max');
+    bindNum('.gcwo-it-repsfixed', 'reps_fixed');
+    bindNum('.gcwo-it-carga', 'load');
+    bindNum('.gcwo-it-incremento', 'incremento');
+    bindNum('.gcwo-it-restset', 'rest_set');
+    bindNum('.gcwo-it-restnext', 'rest_next');
+
+    card.querySelectorAll('input[type="radio"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        if (!e.target.checked) return;
+        if (e.target.value === 'intervalo') {
+          it.reps_fixed = null;
+          if (it.reps_min == null) it.reps_min = 8;
+          if (it.reps_max == null) it.reps_max = 12;
+        } else {
+          it.reps_min = null;
+          it.reps_max = null;
+          if (it.reps_fixed == null) it.reps_fixed = 12;
+        }
+        refreshPickedListDom(s);
+      });
+    });
   });
 }
 
@@ -1154,16 +1255,18 @@ function wireCatalogPicker(s) {
       document.querySelectorAll('#gcwoPCatFiltro .gcwo-chip').forEach(c => c.classList.toggle('on', c === chip));
       const grid = document.getElementById('gcwoPCatGrid');
       if (grid) grid.innerHTML = renderCatalogPickerGrid(s);
-      wireCatalogGridClicks(s);
+      wireGridCardClicks(s);
     });
   });
   document.getElementById('gcwoPCatBusca').addEventListener('input', (e) => {
     _panelCatalogBusca = e.target.value;
     const grid = document.getElementById('gcwoPCatGrid');
     if (grid) grid.innerHTML = renderCatalogPickerGrid(s);
-    wireCatalogGridClicks(s);
+    wireGridCardClicks(s);
   });
-  wireCatalogGridClicks(s);
+  wireGridCardClicks(s);
+  wireRemoveButtons(s);
+  wirePickedItems(s);
 }
 
 function showPanelErro(msg) {
