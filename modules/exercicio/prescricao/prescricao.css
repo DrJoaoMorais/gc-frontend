@@ -4,6 +4,39 @@
 
 .gcwo-headeractions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 
+/* ── histórico do doente — modal "Ver planos anteriores" ── */
+.gcwo-modal-overlay {
+  position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:1000;
+  display:flex; align-items:center; justify-content:center; padding:20px;
+}
+.gcwo-modal {
+  background:#fff; border-radius:14px; width:100%; max-width:560px; max-height:82vh;
+  display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 60px rgba(15,23,42,.3);
+}
+.gcwo-modal-head { display:flex; align-items:center; gap:10px; padding:16px 20px; border-bottom:1px solid #e2e8f0; flex-shrink:0; }
+.gcwo-modal-head h3 { flex:1; margin:0; font-size:17px; font-weight:600; color:#0f2d52; }
+.gcwo-modal-head .gcwo-linkbtn { flex:1; text-align:left; font-size:13.5px; }
+.gcwo-modal-head button:not(.gcwo-linkbtn) { width:28px; height:28px; border-radius:7px; border:none; background:transparent; color:#94a3b8; cursor:pointer; flex-shrink:0; }
+.gcwo-modal-head button:not(.gcwo-linkbtn) svg { width:14px; height:14px; }
+.gcwo-modal-head button:not(.gcwo-linkbtn):hover { background:#f1f5f9; color:#0f172a; }
+.gcwo-modal-body { flex:1; min-height:0; overflow-y:auto; padding:16px 20px; }
+
+.gcwo-history-item {
+  display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:0.5px solid #e2e8f0;
+  border-radius:10px; padding:11px 13px; background:#fff; cursor:pointer; font-family:inherit; margin-bottom:8px;
+}
+.gcwo-history-item:hover { border-color:#cbd5e1; background:#f8fafc; }
+.gcwo-history-date { font-size:13px; font-weight:600; color:#0f172a; flex-shrink:0; }
+.gcwo-history-meta { font-size:12px; color:#64748b; flex:1; }
+.gcwo-history-status { font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px; flex-shrink:0; }
+.gcwo-history-status.active { background:#dcfce7; color:#15803d; }
+.gcwo-history-status.expired { background:#f1f5f9; color:#64748b; }
+.gcwo-history-status.revoked { background:#ffedd5; color:#c2410c; }
+
+.gcwo-history-week { border:0.5px solid #e2e8f0; border-radius:10px; padding:12px 14px; margin-bottom:10px; }
+.gcwo-history-week-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+.gcwo-history-week-head strong { font-size:13.5px; color:#0f172a; }
+
 .gcwo-step1-wrap { display:flex; justify-content:center; padding:40px 16px 60px; }
 .gcwo-step1-card { width:100%; max-width:520px; background:#fff; border:0.5px solid #e2e8f0; border-radius:16px; padding:28px 30px; }
 .gcwo-step1-intro { margin:0 0 22px; font-size:13.5px; color:#64748b; line-height:1.6; text-align:center; }

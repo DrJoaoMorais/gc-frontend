@@ -151,6 +151,11 @@ let _panelCatalogFiltro = 'favoritos';  // filtro do catálogo dentro do painel 
 let _panelCatalogBusca = '';
 let _copyWeekOpen = false;              // "Copiar semana N para as outras" — painel aberto/fechado
 let _copyWeekSelected = new Set();      // semanas de destino marcadas no painel de cópia
+let _historyOpen = false;               // modal "Ver planos anteriores" aberto/fechado
+let _historyLoading = false;
+let _historyError = '';
+let _historyList = [];                  // prescrições deste doente (activas, expiradas ou revogadas)
+let _historyDetail = null;              // prescrição seleccionada na lista — null = a mostrar a lista
 
 const CATALOG_FILTROS = [
   { value: 'favoritos', label: 'Favoritos' },
@@ -332,6 +337,9 @@ export async function initPrescricao() {
   _panelExpandedTarefaId = null;
   _panelDraft = null;
   _panelIsNovo = false;
+  _historyOpen = false;
+  _historyDetail = null;
+  document.getElementById('gcwoHistoryOverlay')?.remove();
 
   const clinicas = G.clinics || [];
   if (clinicas.length === 1) _state.clinicId = clinicas[0].id;
@@ -584,7 +592,7 @@ function renderStep2() {
   _copyWeekSelected = new Set();
   root.innerHTML = `
     <div class="gc-page-header">
-      <div><div class="gc-page-title">Prescrição de exercício</div><div class="gc-page-sub">${escHtml(p.full_name)}</div></div>
+      <div><div class="gc-page-title">Prescrição de exercício</div><div class="gc-page-sub">${escHtml(p.full_name)} <button type="button" class="gcwo-linkbtn" id="gcwoVerHistorico">Ver planos anteriores</button></div></div>
       ${topActionsHtml('<button type="button" class="gcBtnGhost" id="gcwoTrocarDoente">Trocar doente</button>')}
     </div>
 
@@ -637,7 +645,9 @@ function renderStep2() {
   wireTopActions();
   wirePatientBanner();
   wireDuracaoSection();
+  document.getElementById('gcwoVerHistorico').addEventListener('click', () => openHistoryModal());
   document.getElementById('gcwoTrocarDoente').addEventListener('click', () => {
+    closeHistoryModal();
     _state.patient = null;
     _state.restricoesPredefinidas = [];
     _state.restricoesTexto = '';
@@ -785,6 +795,194 @@ function handleCopiarSemana() {
   renderDayDetail();
   const panel = document.getElementById('gcwoCopyWeekPanel');
   if (panel) panel.hidden = true;
+}
+
+/* ================================================================
+   Histórico do doente — "Ver planos anteriores"
+   Lê wo_prescriptions filtrado por patient_id (activas, expiradas
+   ou revogadas — nunca só "active"). O filtro tem de ir no pedido
+   ao servidor (.eq no query builder → WHERE no PostgREST), nunca
+   "buscar tudo e filtrar no browser".
+   ================================================================ */
+function prescricaoStatusInfo(p) {
+  if (p.status !== 'active') return { label: 'Revogado', cls: 'revoked' };
+  if (p.expires_at && new Date(p.expires_at) <= new Date()) return { label: 'Expirado', cls: 'expired' };
+  return { label: 'Activo', cls: 'active' };
+}
+
+async function openHistoryModal() {
+  _historyOpen = true;
+  _historyLoading = true;
+  _historyError = '';
+  _historyList = [];
+  _historyDetail = null;
+  renderHistoryModal();
+
+  const { data, error } = await window.sb
+    .from('wo_prescriptions')
+    .select('id,token,status,expires_at,created_at,data')
+    .eq('patient_id', _state.patient.id)
+    .order('created_at', { ascending: false });
+
+  _historyLoading = false;
+  if (error) {
+    console.error('[prescricao] falha a carregar histórico do doente:', error);
+    _historyError = 'Erro ao carregar planos anteriores.';
+  } else {
+    _historyList = data || [];
+  }
+  renderHistoryModal();
+}
+
+function closeHistoryModal() {
+  _historyOpen = false;
+  _historyDetail = null;
+  document.getElementById('gcwoHistoryOverlay')?.remove();
+}
+
+function renderHistoryModal() {
+  let overlay = document.getElementById('gcwoHistoryOverlay');
+  if (!_historyOpen) {
+    overlay?.remove();
+    return;
+  }
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'gcwoHistoryOverlay';
+    overlay.className = 'gcwo-modal-overlay';
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeHistoryModal(); });
+    document.body.appendChild(overlay);
+  }
+
+  overlay.innerHTML = _historyDetail
+    ? `
+      <div class="gcwo-modal">
+        <div class="gcwo-modal-head">
+          <button type="button" class="gcwo-linkbtn" id="gcwoHistBack">‹ Planos anteriores</button>
+          <button type="button" id="gcwoHistClose" title="Fechar">${ICON_CLOSE}</button>
+        </div>
+        <div class="gcwo-modal-body">
+          <p class="gcwo-muted" style="margin-top:0;">A copiar para: Semana ${_state.selectedWeek} do plano actual.</p>
+          ${renderHistoryDetailHtml(_historyDetail)}
+        </div>
+      </div>`
+    : `
+      <div class="gcwo-modal">
+        <div class="gcwo-modal-head">
+          <h3>Planos anteriores</h3>
+          <button type="button" id="gcwoHistClose" title="Fechar">${ICON_CLOSE}</button>
+        </div>
+        <div class="gcwo-modal-body">${renderHistoryListHtml()}</div>
+      </div>`;
+
+  wireHistoryModal();
+}
+
+function renderHistoryListHtml() {
+  if (_historyLoading) return `<div class="gcwo-muted">A carregar…</div>`;
+  if (_historyError) return `<div class="gcwo-erro">${escHtml(_historyError)}</div>`;
+  if (!_historyList.length) return `<div class="gcwo-muted">Sem planos anteriores para este doente.</div>`;
+
+  return _historyList.map(p => {
+    const info = prescricaoStatusInfo(p);
+    const nSemanas = p.data?.weeks || 0;
+    const nSessoes = (p.data?.sessions || []).length;
+    const dataTxt = new Date(p.created_at).toLocaleDateString('pt-PT');
+    return `
+      <button type="button" class="gcwo-history-item" data-id="${escAttr(p.id)}">
+        <span class="gcwo-history-date">${dataTxt}</span>
+        <span class="gcwo-history-meta">${nSemanas} semana${nSemanas === 1 ? '' : 's'} · ${nSessoes} sessõ${nSessoes === 1 ? 'ão' : 'es'}</span>
+        <span class="gcwo-history-status ${info.cls}">${info.label}</span>
+      </button>`;
+  }).join('');
+}
+
+function renderHistoryDetailHtml(p) {
+  const nSemanas = p.data?.weeks || 0;
+  const sessions = p.data?.sessions || [];
+  if (!nSemanas) return `<div class="gcwo-muted">Este plano não tem semanas.</div>`;
+
+  return Array.from({ length: nSemanas }, (_, i) => i + 1).map(w => {
+    const semanaSessoes = sessions.filter(s => s.week === w);
+    const corpo = semanaSessoes.length
+      ? `<ul class="gcwo-plano-itemlist">${semanaSessoes.map(s => {
+          const dia = DIAS_SEMANA.find(d => d.value === s.day);
+          const nItems = (s.items || []).length;
+          return `<li>${dia ? dia.full : s.day} — ${escHtml(s.modality)}${s.local ? ' · ' + escHtml(s.local) : ''} · ${nItems} exercício${nItems === 1 ? '' : 's'}</li>`;
+        }).join('')}</ul>`
+      : `<div class="gcwo-muted">Sem sessões nesta semana.</div>`;
+    return `
+      <div class="gcwo-history-week">
+        <div class="gcwo-history-week-head">
+          <strong>Semana ${w}</strong>
+          <button type="button" class="gcBtnGhost gcBtnSm" data-copiar-semana="${w}" ${semanaSessoes.length ? '' : 'disabled'}>Copiar para aqui</button>
+        </div>
+        ${corpo}
+      </div>`;
+  }).join('');
+}
+
+function wireHistoryModal() {
+  document.getElementById('gcwoHistClose').addEventListener('click', closeHistoryModal);
+  document.getElementById('gcwoHistBack')?.addEventListener('click', () => {
+    _historyDetail = null;
+    renderHistoryModal();
+  });
+  document.querySelectorAll('#gcwoHistoryOverlay [data-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = _historyList.find(x => x.id === btn.getAttribute('data-id'));
+      if (!p) return;
+      _historyDetail = p;
+      renderHistoryModal();
+    });
+  });
+  document.querySelectorAll('#gcwoHistoryOverlay [data-copiar-semana]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const w = Number(btn.getAttribute('data-copiar-semana'));
+      copiarSemanaDoHistorico(_historyDetail, w);
+    });
+  });
+}
+
+// Cola os exercícios de uma semana de um plano antigo na semana actual — sempre com
+// session_id novos, nunca reaproveitados do plano de origem (mesmo que já expirado).
+// Mistura ao nível do dia, como no "copiar semana para as outras": só os dias que a
+// semana de origem tem são substituídos; o resto da semana actual fica intocado.
+function copiarSemanaDoHistorico(prescricao, sourceWeek) {
+  const origem = (prescricao?.data?.sessions || []).filter(s => s.week === sourceWeek);
+  if (!origem.length) return;
+
+  const destWeek = _state.selectedWeek;
+  const diasTocados = [...new Set(origem.map(s => s.day))];
+  const diasComConflito = diasTocados.filter(d => _state.sessions.some(s => s.week === destWeek && s.day === d));
+  if (diasComConflito.length) {
+    const nomes = diasComConflito.map(d => DIAS_SEMANA.find(x => x.value === d)?.full || d).join(', ');
+    const ok = window.confirm(`A semana ${destWeek} já tem sessões em: ${nomes}. Vais substituí-las por estas. Continuar?`);
+    if (!ok) return;
+  }
+
+  DIAS_SEMANA.forEach(d => {
+    const doDia = origem.filter(s => s.day === d.value).sort((a, b) => a.order - b.order);
+    if (!doDia.length) return;
+    _state.sessions = _state.sessions.filter(s => !(s.week === destWeek && s.day === d.value));
+    doDia.forEach((s, idx) => {
+      _state.sessions.push({
+        session_id: uuid(),
+        week: destWeek,
+        day: s.day,
+        order: idx,
+        kind: s.kind,
+        modality: s.modality,
+        local: s.local,
+        items: (s.items || []).map(it => ({ ...it })),
+      });
+    });
+  });
+
+  closeHistoryModal();
+  renderWeekTabs();
+  renderDaystrip();
+  renderDayDetail();
 }
 
 /* ── Fila de dias, dentro da semana seleccionada ─────────── */
