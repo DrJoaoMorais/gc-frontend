@@ -1125,14 +1125,12 @@ function renderItemCard(it) {
         <strong>${escHtml(it.name)}</strong>
         <button type="button" class="gcwo-exercicio-remove" data-remove-exid="${escAttr(it.exercise_id)}" title="Remover exercício">✕</button>
       </div>
-      <div class="gcwo-row2" style="margin-top:8px;">
-        <label class="gcwo-field gcwo-field-sm"><span>Séries</span><input type="number" min="1" class="gcwo-it-sets" value="${it.sets ?? ''}"></label>
-        <div class="gcwo-field gcwo-field-sm">
-          <span>Repetições</span>
-          <div class="gcwo-modo">
-            <label><input type="radio" name="${radioName}" value="intervalo" ${mode === 'intervalo' ? 'checked' : ''}> Intervalo</label>
-            <label><input type="radio" name="${radioName}" value="fixo" ${mode === 'fixo' ? 'checked' : ''}> Fixo</label>
-          </div>
+      <label class="gcwo-field gcwo-field-sm" style="margin-top:8px;"><span>Séries</span><input type="number" min="1" class="gcwo-it-sets" value="${it.sets ?? ''}"></label>
+      <div class="gcwo-field" style="margin-top:8px;">
+        <span>Repetições</span>
+        <div class="gcwo-modo">
+          <label><input type="radio" name="${radioName}" value="intervalo" ${mode === 'intervalo' ? 'checked' : ''}> Intervalo</label>
+          <label><input type="radio" name="${radioName}" value="fixo" ${mode === 'fixo' ? 'checked' : ''}> Fixo</label>
         </div>
       </div>
       ${mode === 'intervalo' ? `
