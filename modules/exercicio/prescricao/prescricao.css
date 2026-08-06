@@ -46,6 +46,37 @@
 
 .gcwo-muted { font-size:12.5px; color:#94a3b8; padding:8px 2px; }
 
+/* ── cabeçalho do doente — idade + restrições em chips numa linha ── */
+.gcwo-patient-banner { display:flex; align-items:center; gap:10px; margin-top:14px; }
+.gcwo-patient-age {
+  flex-shrink:0; font-size:12px; font-weight:600; color:#475569; background:#f1f5f9;
+  border-radius:20px; padding:4px 10px; white-space:nowrap;
+}
+.gcwo-restricoes-line { flex:1; min-width:0; display:flex; gap:6px; overflow-x:auto; padding:2px 0; }
+.gcwo-restr-chip {
+  flex-shrink:0; font-size:11.5px; font-weight:600; color:#9a3412; background:#ffedd5;
+  border-radius:20px; padding:4px 10px; white-space:nowrap;
+}
+.gcwo-restricoes-editbtn {
+  flex-shrink:0; width:28px; height:28px; border-radius:8px; border:none; background:transparent;
+  color:#94a3b8; cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+.gcwo-restricoes-editbtn svg { width:14px; height:14px; }
+.gcwo-restricoes-editbtn:hover { background:#f1f5f9; color:#0f172a; }
+.gcwo-restricoes-editor {
+  margin-top:8px; background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; padding:12px 14px;
+  display:flex; flex-direction:column; gap:10px;
+}
+.gcwo-restricoes-editor textarea {
+  border:0.5px solid #e2e8f0; border-radius:8px; padding:8px 10px; font-family:inherit; font-size:13px; resize:vertical;
+}
+.gcwo-restricoes-editor-actions { display:flex; justify-content:flex-end; }
+.gcwo-restricoes-editor[hidden] { display:none; }
+
+/* ── duração do plano ── */
+.gcwo-duracao-section .gcwo-chips { margin-top:10px; }
+.gcwo-duracao-info { margin-top:10px; font-size:12.5px; color:#64748b; }
+
 /* ── layout de duas colunas: plano à esquerda, painel à direita ── */
 .gcwo-plano-body { display:flex; gap:16px; margin-top:14px; align-items:flex-start; }
 .gcwo-plano-main { flex:1; min-width:0; display:flex; flex-direction:column; }

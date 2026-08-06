@@ -120,9 +120,10 @@ function freshState() {
     catalogLoaded: false,
     sessions: [],
     selectedDay: 'seg',
-    progressao: '',
     restricoesPredefinidas: [],
     restricoesTexto: '',
+    restricoesEditing: false,
+    planWeeks: null,
     savedLink: null,
   };
 }
@@ -145,6 +146,37 @@ function fmtDuracaoTotal(totalS) {
   const totalMin = Math.round(totalS / 60);
   const h = Math.floor(totalMin / 60), mm = totalMin % 60;
   return h > 0 ? `${h}h${String(mm).padStart(2, '0')}` : `${totalMin} min`;
+}
+
+function calcIdade(dob) {
+  if (!dob) return null;
+  const d = new Date(dob);
+  if (Number.isNaN(d.getTime())) return null;
+  const hoje = new Date();
+  let idade = hoje.getFullYear() - d.getFullYear();
+  const aindaNaoFezAnos = (hoje.getMonth() < d.getMonth()) || (hoje.getMonth() === d.getMonth() && hoje.getDate() < d.getDate());
+  if (aindaNaoFezAnos) idade--;
+  return idade;
+}
+
+function restricoesAtuais() {
+  const lista = [..._state.restricoesPredefinidas];
+  const texto = (_state.restricoesTexto || '').trim();
+  if (texto) lista.push(texto);
+  return lista;
+}
+
+const MESES_PT = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+function fmtDataPt(d) {
+  return `${d.getDate()} de ${MESES_PT[d.getMonth()]} de ${d.getFullYear()}`;
+}
+// Janela de datas do plano — só pré-visualização; expires_at real é calculado no momento de gerar o link (Passo 1g).
+function fmtJanelaPlano(semanas) {
+  const dias = semanas * 7;
+  const inicio = new Date(); inicio.setHours(0, 0, 0, 0);
+  const fim = new Date(inicio); fim.setDate(fim.getDate() + dias - 1);
+  const aviso = new Date(fim); aviso.setDate(aviso.getDate() - 4);
+  return `${dias} dias · válido de ${fmtDataPt(inicio)} a ${fmtDataPt(fim)} · aviso a partir de ${fmtDataPt(aviso)}`;
 }
 
 function tarefaSummaryText(t) {
@@ -431,6 +463,86 @@ function renderStep1() {
   }
 }
 
+/* ── Cabeçalho do doente — idade + restrições em chips numa linha ── */
+function renderPatientBanner() {
+  const p = _state.patient;
+  const idade = calcIdade(p.dob);
+  return `
+    <div class="gcwo-patient-banner">
+      ${idade != null ? `<span class="gcwo-patient-age">${idade} anos</span>` : ''}
+      <div class="gcwo-restricoes-line" id="gcwoRestricoesLine">${restricoesLineHtml()}</div>
+      <button type="button" class="gcwo-restricoes-editbtn" id="gcwoRestricoesEditBtn" title="Editar restrições">${ICON_PENCIL}</button>
+    </div>
+    <div class="gcwo-restricoes-editor" id="gcwoRestricoesEditor" ${_state.restricoesEditing ? '' : 'hidden'}>
+      <div class="gcwo-chips" id="gcwoRestricoesChips">
+        ${RESTRICOES_PREDEFINIDAS.map(r => `
+          <button type="button" class="gcwo-chip${_state.restricoesPredefinidas.includes(r) ? ' on' : ''}" data-restr="${escAttr(r)}">${escHtml(r)}</button>
+        `).join('')}
+      </div>
+      <textarea id="gcwoRestricoesTexto" rows="2" placeholder="Outras restrições, em texto livre…">${escHtml(_state.restricoesTexto)}</textarea>
+      <div class="gcwo-restricoes-editor-actions">
+        <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoRestricoesFechar">Concluído</button>
+      </div>
+    </div>`;
+}
+function restricoesLineHtml() {
+  const restr = restricoesAtuais();
+  return restr.length
+    ? restr.map(r => `<span class="gcwo-restr-chip">${escHtml(r)}</span>`).join('')
+    : `<span class="gcwo-muted">Sem restrições registadas.</span>`;
+}
+function refreshRestricoesLine() {
+  const el = document.getElementById('gcwoRestricoesLine');
+  if (el) el.innerHTML = restricoesLineHtml();
+}
+function wirePatientBanner() {
+  document.getElementById('gcwoRestricoesEditBtn').addEventListener('click', () => {
+    _state.restricoesEditing = !_state.restricoesEditing;
+    document.getElementById('gcwoRestricoesEditor').hidden = !_state.restricoesEditing;
+  });
+  document.getElementById('gcwoRestricoesFechar').addEventListener('click', () => {
+    _state.restricoesEditing = false;
+    document.getElementById('gcwoRestricoesEditor').hidden = true;
+  });
+  document.getElementById('gcwoRestricoesTexto').addEventListener('input', (e) => {
+    _state.restricoesTexto = e.target.value;
+    refreshRestricoesLine();
+  });
+  document.getElementById('gcwoRestricoesChips').querySelectorAll('[data-restr]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const r = chip.getAttribute('data-restr');
+      const idx = _state.restricoesPredefinidas.indexOf(r);
+      if (idx >= 0) _state.restricoesPredefinidas.splice(idx, 1);
+      else _state.restricoesPredefinidas.push(r);
+      chip.classList.toggle('on');
+      refreshRestricoesLine();
+    });
+  });
+}
+
+/* ── Duração do plano — chips 2/3/4 semanas ──────────────── */
+function renderDuracaoSection() {
+  const semanas = _state.planWeeks;
+  const chipsHtml = [2, 3, 4].map(n => `
+    <button type="button" class="gcwo-chip${semanas === n ? ' on' : ''}" data-semanas="${n}">${n} semanas</button>
+  `).join('');
+  return `
+    <section class="gcwo-duracao-section">
+      <h2 class="gcwo-section-title">Duração do plano</h2>
+      <div class="gcwo-chips" id="gcwoDuracaoChips">${chipsHtml}</div>
+      <div class="gcwo-duracao-info" id="gcwoDuracaoInfo">${semanas ? escHtml(fmtJanelaPlano(semanas)) : 'Escolhe a duração do plano.'}</div>
+    </section>`;
+}
+function wireDuracaoSection() {
+  document.querySelectorAll('#gcwoDuracaoChips [data-semanas]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      _state.planWeeks = Number(chip.getAttribute('data-semanas'));
+      document.querySelectorAll('#gcwoDuracaoChips .gcwo-chip').forEach(c => c.classList.toggle('on', c === chip));
+      document.getElementById('gcwoDuracaoInfo').textContent = fmtJanelaPlano(_state.planWeeks);
+    });
+  });
+}
+
 /* ================================================================
    PASSO 2 — plano semanal
    ================================================================ */
@@ -445,8 +557,12 @@ function renderStep2() {
       ${topActionsHtml('<button type="button" class="gcBtnGhost" id="gcwoTrocarDoente">Trocar doente</button>')}
     </div>
 
+    ${renderPatientBanner()}
+
     <div class="gcwo-plano-body">
       <main class="gcwo-plano-main">
+        ${renderDuracaoSection()}
+
         <section>
           <h2 class="gcwo-section-title">Plano semanal</h2>
           <div class="gcwo-daystrip" id="gcwoDaystrip"></div>
@@ -469,23 +585,6 @@ function renderStep2() {
           <div class="gcwo-sessions" id="gcwoUnassignedSessions"></div>
         </section>
 
-        <div class="gcwo-card">
-          <label class="gcwo-field">
-            <span>Progressão</span>
-            <textarea id="gcwoProgressao" rows="3" placeholder="Como evoluir ao longo do plano…">${escHtml(_state.progressao)}</textarea>
-          </label>
-        </div>
-
-        <div class="gcwo-card">
-          <span class="gcwo-field-label">Restrições</span>
-          <div class="gcwo-chips" id="gcwoRestricoesChips">
-            ${RESTRICOES_PREDEFINIDAS.map(r => `
-              <button type="button" class="gcwo-chip${_state.restricoesPredefinidas.includes(r) ? ' on' : ''}" data-restr="${escAttr(r)}">${escHtml(r)}</button>
-            `).join('')}
-          </div>
-          <textarea id="gcwoRestricoesTexto" rows="2" placeholder="Outras restrições, em texto livre…" style="margin-top:8px;">${escHtml(_state.restricoesTexto)}</textarea>
-        </div>
-
         <div class="gcwo-generate">
           <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg">Gerar prescrição e link</button>
           <span id="gcwoGerarErro" class="gcwo-erro"></span>
@@ -497,8 +596,14 @@ function renderStep2() {
   `;
 
   wireTopActions();
+  wirePatientBanner();
+  wireDuracaoSection();
   document.getElementById('gcwoTrocarDoente').addEventListener('click', () => {
     _state.patient = null;
+    _state.restricoesPredefinidas = [];
+    _state.restricoesTexto = '';
+    _state.restricoesEditing = false;
+    _state.planWeeks = null;
     renderStep1();
   });
 
@@ -508,17 +613,6 @@ function renderStep2() {
     picker.hidden = !picker.hidden;
   });
 
-  document.getElementById('gcwoProgressao').addEventListener('input', (e) => { _state.progressao = e.target.value; });
-  document.getElementById('gcwoRestricoesTexto').addEventListener('input', (e) => { _state.restricoesTexto = e.target.value; });
-  document.getElementById('gcwoRestricoesChips').querySelectorAll('[data-restr]').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const r = chip.getAttribute('data-restr');
-      const idx = _state.restricoesPredefinidas.indexOf(r);
-      if (idx >= 0) _state.restricoesPredefinidas.splice(idx, 1);
-      else _state.restricoesPredefinidas.push(r);
-      chip.classList.toggle('on');
-    });
-  });
   document.getElementById('gcwoGerar').addEventListener('click', handleGerar);
 
   renderDaystrip();
@@ -1225,7 +1319,6 @@ function buildFinalData() {
   return {
     versao: 1,
     sessoes,
-    progressao: _state.progressao,
     restricoes: {
       predefinidas: _state.restricoesPredefinidas,
       texto: _state.restricoesTexto,
