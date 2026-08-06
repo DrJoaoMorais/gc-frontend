@@ -93,6 +93,25 @@
 }
 .gcwo-weektab:hover { border-color:#cbd5e1; }
 .gcwo-weektab.selected { background:#0f2d52; border-color:#0f2d52; color:#fff; }
+.gcwo-weektab-dot {
+  display:inline-block; width:6px; height:6px; border-radius:50%; background:currentColor;
+  margin-left:5px; vertical-align:middle; opacity:.55;
+}
+.gcwo-weektab.selected .gcwo-weektab-dot { opacity:1; }
+
+/* ── copiar semana N para as outras ── */
+.gcwo-copyweek-trigger { margin-top:10px; }
+.gcwo-copyweek {
+  margin-top:10px; background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; padding:14px 16px;
+}
+.gcwo-copyweek[hidden] { display:none; }
+.gcwo-copyweek-list { display:flex; flex-direction:column; gap:9px; margin-top:8px; }
+.gcwo-copyweek-item { display:flex; align-items:baseline; gap:8px; font-size:13px; cursor:pointer; }
+.gcwo-copyweek-item input { margin-top:2px; flex-shrink:0; }
+.gcwo-copyweek-name { font-weight:600; color:#0f172a; flex-shrink:0; }
+.gcwo-copyweek-status { font-size:11.5px; color:#94a3b8; }
+.gcwo-copyweek-status.altered { color:#c2410c; }
+.gcwo-copyweek-actions { display:flex; align-items:center; gap:8px; margin-top:14px; }
 
 /* ── plano semanal — fila de dias ── */
 .gcwo-daystrip { display:flex; gap:8px; overflow-x:auto; margin-top:10px; padding-bottom:2px; }

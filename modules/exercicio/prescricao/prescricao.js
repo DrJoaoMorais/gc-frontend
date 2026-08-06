@@ -149,6 +149,8 @@ let _panelDraft = null;                 // clone de trabalho da sessão em ediç
 let _panelIsNovo = false;
 let _panelCatalogFiltro = 'favoritos';  // filtro do catálogo dentro do painel de ginásio
 let _panelCatalogBusca = '';
+let _copyWeekOpen = false;              // "Copiar semana N para as outras" — painel aberto/fechado
+let _copyWeekSelected = new Set();      // semanas de destino marcadas no painel de cópia
 
 const CATALOG_FILTROS = [
   { value: 'favoritos', label: 'Favoritos' },
@@ -578,6 +580,8 @@ function renderStep2() {
 
   const p = _state.patient;
   const semanasEscolhidas = !!_state.planWeeks;
+  _copyWeekOpen = false;
+  _copyWeekSelected = new Set();
   root.innerHTML = `
     <div class="gc-page-header">
       <div><div class="gc-page-title">Prescrição de exercício</div><div class="gc-page-sub">${escHtml(p.full_name)}</div></div>
@@ -595,6 +599,12 @@ function renderStep2() {
           <h2 class="gcwo-section-title">Semanas e dias</h2>
           <div class="gcwo-weektabs" id="gcwoWeekTabs"></div>
           <div class="gcwo-daystrip" id="gcwoDaystrip"></div>
+          ${_state.planWeeks > 1 ? `
+          <div class="gcwo-copyweek-trigger">
+            <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoBtnCopiarSemana">Copiar semana <span id="gcwoCopiarSemanaNum">${_state.selectedWeek}</span> para as outras</button>
+          </div>
+          <div class="gcwo-copyweek" id="gcwoCopyWeekPanel" hidden></div>
+          ` : ''}
         </section>
 
         <section>
@@ -647,6 +657,11 @@ function renderStep2() {
     renderWeekTabs();
     renderDaystrip();
     renderDayDetail();
+    document.getElementById('gcwoBtnCopiarSemana')?.addEventListener('click', () => {
+      _copyWeekOpen = !_copyWeekOpen;
+      _copyWeekSelected = new Set();
+      renderCopyWeekPanel();
+    });
   }
 
   document.getElementById('gcwoGerar').addEventListener('click', handleGerar);
@@ -655,23 +670,121 @@ function renderStep2() {
 }
 
 /* ── Separadores de semana ────────────────────────────────── */
+function weekHasSessions(week) {
+  return _state.sessions.some(s => s.week === week);
+}
+
 function renderWeekTabs() {
   const host = document.getElementById('gcwoWeekTabs');
   if (!host) return;
   const n = _state.planWeeks || 1;
   host.innerHTML = Array.from({ length: n }, (_, i) => i + 1).map(w => `
-    <button type="button" class="gcwo-weektab${w === _state.selectedWeek ? ' selected' : ''}" data-week="${w}">Semana ${w}</button>
+    <button type="button" class="gcwo-weektab${w === _state.selectedWeek ? ' selected' : ''}" data-week="${w}">Semana ${w}${weekHasSessions(w) ? '<span class="gcwo-weektab-dot" title="Semana alterada"></span>' : ''}</button>
   `).join('');
   host.querySelectorAll('[data-week]').forEach(btn => {
     btn.addEventListener('click', () => {
       _state.selectedWeek = Number(btn.getAttribute('data-week'));
       const picker = document.getElementById('gcwoAddPicker');
       if (picker) picker.hidden = true;
+      _copyWeekOpen = false;
+      _copyWeekSelected = new Set();
+      const copyNum = document.getElementById('gcwoCopiarSemanaNum');
+      if (copyNum) copyNum.textContent = _state.selectedWeek;
+      const copyPanel = document.getElementById('gcwoCopyWeekPanel');
+      if (copyPanel) copyPanel.hidden = true;
       renderWeekTabs();
       renderDaystrip();
       renderDayDetail();
     });
   });
+}
+
+/* ── "Copiar semana N para as outras" ────────────────────── */
+function renderCopyWeekPanel() {
+  const panel = document.getElementById('gcwoCopyWeekPanel');
+  if (!panel) return;
+  panel.hidden = !_copyWeekOpen;
+  if (!_copyWeekOpen) return;
+
+  const source = _state.selectedWeek;
+  const destinos = Array.from({ length: _state.planWeeks }, (_, i) => i + 1).filter(w => w !== source);
+
+  panel.innerHTML = `
+    <span class="gcwo-field-label">Copiar para</span>
+    <div class="gcwo-copyweek-list">
+      ${destinos.map(w => {
+        const altered = weekHasSessions(w);
+        const checked = _copyWeekSelected.has(w);
+        return `
+          <label class="gcwo-copyweek-item">
+            <input type="checkbox" data-week="${w}" ${checked ? 'checked' : ''}>
+            <span class="gcwo-copyweek-name">Semana ${w}</span>
+            <span class="gcwo-copyweek-status${altered ? ' altered' : ''}">${altered ? 'já tem sessões — marcar substitui só os dias em comum' : 'vazia'}</span>
+          </label>`;
+      }).join('')}
+    </div>
+    <div class="gcwo-copyweek-actions">
+      <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCopyWeekTodas">Seleccionar todas</button>
+      <span style="flex:1"></span>
+      <button type="button" class="gcBtnGhost" id="gcwoCopyWeekCancelar">Cancelar</button>
+      <button type="button" class="gcBtnSuccess" id="gcwoCopyWeekConfirmar">Copiar</button>
+    </div>
+  `;
+
+  panel.querySelectorAll('[data-week]').forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      const w = Number(cb.getAttribute('data-week'));
+      if (e.target.checked) _copyWeekSelected.add(w);
+      else _copyWeekSelected.delete(w);
+    });
+  });
+  document.getElementById('gcwoCopyWeekTodas').addEventListener('click', () => {
+    const allSelected = destinos.every(w => _copyWeekSelected.has(w));
+    _copyWeekSelected = allSelected ? new Set() : new Set(destinos);
+    renderCopyWeekPanel();
+  });
+  document.getElementById('gcwoCopyWeekCancelar').addEventListener('click', () => {
+    _copyWeekOpen = false;
+    _copyWeekSelected = new Set();
+    renderCopyWeekPanel();
+  });
+  document.getElementById('gcwoCopyWeekConfirmar').addEventListener('click', handleCopiarSemana);
+}
+
+// Só copia, por dia, o que a semana de origem tem — dias sem nada na origem ficam
+// intocados no destino, mesmo que esse destino já tenha sessões próprias aí.
+function copyWeekDayLevel(sourceWeek, destWeek) {
+  DIAS_SEMANA.forEach(d => {
+    const origem = _state.sessions
+      .filter(s => s.week === sourceWeek && s.day === d.value)
+      .sort((a, b) => a.order - b.order);
+    if (!origem.length) return;
+
+    _state.sessions = _state.sessions.filter(s => !(s.week === destWeek && s.day === d.value));
+    origem.forEach((s, idx) => {
+      _state.sessions.push({
+        ...s,
+        session_id: uuid(),
+        week: destWeek,
+        order: idx,
+        items: s.items.map(it => ({ ...it })),
+      });
+    });
+  });
+}
+
+function handleCopiarSemana() {
+  const source = _state.selectedWeek;
+  const destinos = [..._copyWeekSelected];
+  destinos.forEach(destWeek => copyWeekDayLevel(source, destWeek));
+
+  _copyWeekOpen = false;
+  _copyWeekSelected = new Set();
+  renderWeekTabs();
+  renderDaystrip();
+  renderDayDetail();
+  const panel = document.getElementById('gcwoCopyWeekPanel');
+  if (panel) panel.hidden = true;
 }
 
 /* ── Fila de dias, dentro da semana seleccionada ─────────── */
