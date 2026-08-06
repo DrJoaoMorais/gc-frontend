@@ -85,6 +85,15 @@
 
 .gcwo-section-title { font-size:16px; font-weight:600; color:#0f2d52; margin:0; }
 
+/* ── separadores de semana ── */
+.gcwo-weektabs { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+.gcwo-weektab {
+  border:1.5px solid #e2e8f0; border-radius:20px; background:#fff; padding:6px 14px;
+  font-size:12.5px; font-weight:600; color:#374151; cursor:pointer; font-family:inherit;
+}
+.gcwo-weektab:hover { border-color:#cbd5e1; }
+.gcwo-weektab.selected { background:#0f2d52; border-color:#0f2d52; color:#fff; }
+
 /* ── plano semanal — fila de dias ── */
 .gcwo-daystrip { display:flex; gap:8px; overflow-x:auto; margin-top:10px; padding-bottom:2px; }
 .gcwo-daycard {
@@ -115,6 +124,8 @@
   align-items:center; gap:6px; cursor:pointer; text-align:center; font-family:inherit;
 }
 .gcwo-typecard:hover { border-color:#cbd5e1; background:#f8fafc; }
+.gcwo-typecard:disabled { opacity:.45; cursor:not-allowed; }
+.gcwo-typecard:disabled:hover { border-color:#e2e8f0; background:#fff; }
 .gcwo-typecard .ticon { width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; }
 .gcwo-typecard .ticon svg { width:16px; height:16px; }
 .gcwo-typecard .tname { font-size:11.5px; font-weight:600; color:#0f172a; }
