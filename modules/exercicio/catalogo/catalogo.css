@@ -42,13 +42,13 @@
 .gcwo-cat-btn-desativar:hover { background:#fef2f2; }
 
 /* painel lateral (criar/editar) */
-.gcwo-cat-panel { width:340px; flex-shrink:0; background:#fff; border-left:0.5px solid #e2e8f0; overflow-y:auto; display:flex; flex-direction:column; align-self:stretch; }
+.gcwo-cat-panel { width:340px; flex-shrink:0; background:#fff; border-left:0.5px solid #e2e8f0; overflow:hidden; display:flex; flex-direction:column; align-self:flex-start; position:sticky; top:0; height:calc(100vh - 132px); }
 .gcwo-cat-panel.empty { align-items:center; justify-content:center; color:#94a3b8; font-size:12.5px; text-align:center; padding:30px; }
 .gcwo-cat-panel-head { display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid #e2e8f0; }
 .gcwo-cat-panel-head h3 { flex:1; font-size:18px; font-weight:600; color:#0f2d52; margin:0; }
 .gcwo-cat-panel-head button { width:28px; height:28px; border-radius:7px; border:none; background:transparent; color:#94a3b8; cursor:pointer; }
 .gcwo-cat-panel-head button:hover { background:#f1f5f9; color:#0f172a; }
-.gcwo-cat-panel-body { flex:1; padding:16px; display:flex; flex-direction:column; gap:14px; }
+.gcwo-cat-panel-body { flex:1; min-height:0; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:14px; }
 
 .gcwo-photo-drop {
   aspect-ratio:4/3; border-radius:11px; background:linear-gradient(155deg, #151d2c, #060a12);
@@ -96,7 +96,7 @@
 
 .gcwo-cat-erro { font-size:12.5px; color:#dc2626; }
 
-.gcwo-cat-panel-footer { display:flex; gap:8px; padding:14px 16px; border-top:1px solid #e2e8f0; }
+.gcwo-cat-panel-footer { display:flex; gap:8px; padding:14px 16px; border-top:1px solid #e2e8f0; flex-shrink:0; background:#fff; }
 .gcwo-cat-panel-footer button { flex:1; justify-content:center; height:36px; font-size:13px; }
 
 @media (max-width: 900px) {
