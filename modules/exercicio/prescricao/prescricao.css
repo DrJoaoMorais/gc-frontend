@@ -204,6 +204,43 @@
   .gcwo-panel { width:100%; }
 }
 
+/* ── painel — grelha de escolha do catálogo (favoritos por omissão) ── */
+.gcwo-catpick-grid {
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(92px,1fr)); gap:8px; margin-top:8px;
+  max-height:300px; overflow-y:auto; padding:2px;
+}
+.gcwo-catpick-card {
+  position:relative; border:1.5px solid #e2e8f0; border-radius:10px; background:#fff; padding:6px;
+  display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; font-family:inherit; text-align:center;
+}
+.gcwo-catpick-card:hover { border-color:#cbd5e1; }
+.gcwo-catpick-card.added { border-color:#0f9d58; background:#f0fdf4; }
+.gcwo-catpick-photo {
+  width:100%; aspect-ratio:1/1; border-radius:7px; background:linear-gradient(155deg, #151d2c, #060a12);
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+}
+.gcwo-catpick-photo img { width:100%; height:100%; object-fit:contain; }
+.gcwo-catpick-photo.empty { background:#f1f5f9; }
+.gcwo-catpick-name { font-size:11px; font-weight:600; color:#0f172a; line-height:1.25; }
+.gcwo-catpick-check {
+  position:absolute; top:4px; right:4px; width:18px; height:18px; border-radius:50%; background:#0f9d58;
+  color:#fff; font-size:10.5px; display:flex; align-items:center; justify-content:center;
+}
+
+.gcwo-picked-list { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.gcwo-picked-chip {
+  display:inline-flex; align-items:center; gap:6px; background:#eaf0fd; color:#0f2d52; font-size:12px;
+  font-weight:600; border-radius:20px; padding:5px 6px 5px 10px;
+}
+.gcwo-picked-chip button {
+  border:none; background:transparent; color:#64748b; font-size:11px; cursor:pointer; padding:2px;
+  width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+}
+.gcwo-picked-chip button:hover { background:rgba(15,45,82,.12); color:#0f2d52; }
+
+.gcwo-plano-itemlist { margin:0; padding-left:18px; font-size:12.5px; color:#0f172a; }
+.gcwo-plano-itemlist li { margin-bottom:2px; }
+
 /* ── exercícios / tarefas (usados dentro do painel) ── */
 .gcwo-exercicio-remove, .gcwo-serie-remove, .gcwo-tarefa-remove {
   border:none; background:transparent; color:#94a3b8; font-size:15px; cursor:pointer; padding:4px 6px; border-radius:6px;

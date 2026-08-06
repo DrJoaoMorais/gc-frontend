@@ -15,8 +15,13 @@
 .gcwo-cat-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(206px,1fr)); gap:14px; }
 .gcwo-cat-empty { font-size:12.5px; color:#94a3b8; padding:20px 4px; }
 
-.gcwo-cat-card { background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; overflow:hidden; display:flex; flex-direction:column; }
+.gcwo-cat-card { position:relative; background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; overflow:hidden; display:flex; flex-direction:column; }
 .gcwo-cat-card.inactive { opacity:.68; }
+.gcwo-cat-favbadge {
+  position:absolute; top:8px; right:8px; width:22px; height:22px; border-radius:6px; background:rgba(15,23,42,.55);
+  color:#facc15; display:flex; align-items:center; justify-content:center; z-index:1;
+}
+.gcwo-cat-favbadge svg { width:12px; height:12px; }
 
 /* Fotos têm fundo escuro — moldura escura à volta, nunca a imagem nua sobre branco */
 .gcwo-cat-photo { aspect-ratio:4/3; background:linear-gradient(155deg, #151d2c, #060a12); display:flex; align-items:center; justify-content:center; position:relative; padding:10px; }

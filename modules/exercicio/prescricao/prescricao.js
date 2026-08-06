@@ -147,6 +147,16 @@ let _expandedCardIds = new Set();       // sessões expandidas na lista principa
 let _panelExpandedTarefaId = null;      // dentro do painel, tarefa expandida (só uma)
 let _panelDraft = null;                 // clone de trabalho da sessão em edição — null = painel fechado
 let _panelIsNovo = false;
+let _panelCatalogFiltro = 'favoritos';  // filtro do catálogo dentro do painel de ginásio
+let _panelCatalogBusca = '';
+
+const CATALOG_FILTROS = [
+  { value: 'favoritos', label: 'Favoritos' },
+  { value: 'todos', label: 'Todos' },
+  { value: 'Membro Inferior', label: 'Membro Inferior' },
+  { value: 'Core', label: 'Core' },
+  { value: 'Membro Superior', label: 'Membro Superior' },
+];
 
 function fmtNum(n) {
   if (n == null) return '';
@@ -333,7 +343,7 @@ export async function initPrescricao() {
 async function loadExercisesCatalog() {
   const { data, error } = await window.sb
     .from('wo_exercises')
-    .select('id,name,categoria,photo_url,tempo_concentrico_s,tempo_excentrico_s,ajustes_maquina')
+    .select('id,name,categoria,photo_url,tempo_concentrico_s,tempo_excentrico_s,ajustes_maquina,is_favorite,incremento_default')
     .eq('is_active', true)
     .order('categoria')
     .order('name');
@@ -719,7 +729,9 @@ function renderSessaoCardHtml(s) {
   const resumo = `${s.local ? escHtml(s.local) + ' · ' : ''}${nItems ? nItems + ' exercício' + (nItems === 1 ? '' : 's') : 'Sem exercícios ainda.'}`;
 
   const bodyHtml = expanded
-    ? `<div class="gcwo-plano-session-body"><div class="gcwo-muted">${nItems ? 'Tabela de exercícios — chega no Passo 1c/1d.' : 'Sem exercícios ainda.'}</div></div>`
+    ? `<div class="gcwo-plano-session-body">${nItems
+        ? `<ul class="gcwo-plano-itemlist">${s.items.map(it => `<li>${escHtml(it.name)}</li>`).join('')}</ul><div class="gcwo-muted" style="margin-top:6px;">Séries, reps e carga chegam no Passo 1d.</div>`
+        : `<div class="gcwo-muted">Sem exercícios ainda.</div>`}</div>`
     : '';
 
   return `
@@ -783,6 +795,8 @@ function renderTypegrid() {
 function openPanelNovo(modality, kind) {
   _panelDraft = novaSessaoSkeleton(modality, kind, _state.selectedWeek, _state.selectedDay);
   _panelIsNovo = true;
+  _panelCatalogFiltro = 'favoritos';
+  _panelCatalogBusca = '';
   const picker = document.getElementById('gcwoAddPicker');
   if (picker) picker.hidden = true;
   renderPanel();
@@ -790,6 +804,8 @@ function openPanelNovo(modality, kind) {
 function openPanelEditar(sessionId) {
   const s = _state.sessions.find(x => x.session_id === sessionId);
   if (!s) return;
+  _panelCatalogFiltro = 'favoritos';
+  _panelCatalogBusca = '';
   _panelDraft = cloneSession(s);
   _panelIsNovo = false;
   renderPanel();
@@ -828,7 +844,7 @@ function renderPanel() {
         ${LOCAIS_SESSAO.map(l => `<button type="button" class="gcwo-chip${s.local === l ? ' on' : ''}" data-local="${escAttr(l)}">${escHtml(l)}</button>`).join('')}
       </div>
 
-      ${s.kind === 'list' ? `<div class="gcwo-muted" style="margin-top:10px;">Exercícios — disponível no próximo passo (catálogo com favoritos).</div>` : ''}
+      ${s.kind === 'list' ? renderCatalogPickerSection(s) : ''}
 
       <span class="gcwo-erro" id="gcwoPErro"></span>
     </div>
@@ -1036,6 +1052,118 @@ function wirePanel() {
       document.querySelectorAll('#gcwoPLocalChips .gcwo-chip').forEach(c => c.classList.toggle('on', c === chip));
     });
   });
+
+  if (s.kind === 'list') wireCatalogPicker(s);
+}
+
+/* ── Painel — catálogo de exercícios (grelha, favoritos por omissão) ── */
+function renderCatalogPickerSection(s) {
+  return `
+    <span class="gcwo-field-label" style="margin-top:14px;">Exercícios</span>
+    <div class="gcwo-chips" id="gcwoPCatFiltro">
+      ${CATALOG_FILTROS.map(f => `<button type="button" class="gcwo-chip${_panelCatalogFiltro === f.value ? ' on' : ''}" data-filtro="${escAttr(f.value)}">${escHtml(f.label)}</button>`).join('')}
+    </div>
+    <div class="gc-search-bar" style="margin-top:8px;">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
+      <input id="gcwoPCatBusca" type="search" class="gc-search-input" placeholder="Pesquisar exercício…" autocomplete="off" spellcheck="false" value="${escAttr(_panelCatalogBusca)}">
+    </div>
+    <div class="gcwo-catpick-grid" id="gcwoPCatGrid">${renderCatalogPickerGrid(s)}</div>
+
+    <span class="gcwo-field-label" style="margin-top:14px;">Seleccionados</span>
+    <div class="gcwo-picked-list" id="gcwoPPickedList">${renderPickedListInner(s)}</div>
+  `;
+}
+
+function filteredCatalogForPanel() {
+  const busca = (_panelCatalogBusca || '').trim().toLowerCase();
+  let list = _state.exercisesCatalog;
+  if (_panelCatalogFiltro === 'favoritos') list = list.filter(e => e.is_favorite);
+  else if (_panelCatalogFiltro !== 'todos') list = list.filter(e => Array.isArray(e.categoria) && e.categoria.includes(_panelCatalogFiltro));
+  if (busca) list = list.filter(e => (e.name || '').toLowerCase().includes(busca));
+  return list;
+}
+
+function renderCatalogPickerGrid(s) {
+  if (!_state.catalogLoaded) return `<div class="gcwo-muted">A carregar catálogo…</div>`;
+  const list = filteredCatalogForPanel();
+  if (!list.length) {
+    if (_panelCatalogFiltro === 'favoritos' && !_panelCatalogBusca) {
+      return `<div class="gcwo-muted">Sem favoritos ainda — muda para "Todos", ou marca favoritos no Catálogo.</div>`;
+    }
+    return `<div class="gcwo-muted">Nenhum exercício encontrado.</div>`;
+  }
+  return list.map(ex => {
+    const added = s.items.some(it => it.exercise_id === ex.id);
+    return `
+      <button type="button" class="gcwo-catpick-card${added ? ' added' : ''}" data-exid="${escAttr(ex.id)}" title="${added ? 'Remover da sessão' : 'Adicionar à sessão'}">
+        ${ex.photo_url ? `<span class="gcwo-catpick-photo"><img src="${escAttr(ex.photo_url)}" alt=""></span>` : `<span class="gcwo-catpick-photo empty"></span>`}
+        <span class="gcwo-catpick-name">${escHtml(ex.name)}</span>
+        ${added ? `<span class="gcwo-catpick-check">✓</span>` : ''}
+      </button>`;
+  }).join('');
+}
+
+function renderPickedListInner(s) {
+  if (!s.items.length) return `<div class="gcwo-muted">Nenhum exercício seleccionado ainda.</div>`;
+  return s.items.map(it => `
+    <span class="gcwo-picked-chip">
+      ${escHtml(it.name)}
+      <button type="button" data-remove-exid="${escAttr(it.exercise_id)}" title="Remover">✕</button>
+    </span>`).join('');
+}
+
+function toggleExercicioNaSessao(s, exId) {
+  const idx = s.items.findIndex(it => it.exercise_id === exId);
+  if (idx >= 0) {
+    s.items.splice(idx, 1);
+  } else {
+    const ex = _state.exercisesCatalog.find(e => e.id === exId);
+    if (!ex) return;
+    s.items.push({
+      exercise_id: ex.id,
+      name: ex.name,
+      photo_url: ex.photo_url || null,
+      categoria: ex.categoria || [],
+      incremento_default: ex.incremento_default,
+    });
+  }
+  refreshCatalogPickerDom(s);
+}
+
+function refreshCatalogPickerDom(s) {
+  const grid = document.getElementById('gcwoPCatGrid');
+  if (grid) grid.innerHTML = renderCatalogPickerGrid(s);
+  const picked = document.getElementById('gcwoPPickedList');
+  if (picked) picked.innerHTML = renderPickedListInner(s);
+  wireCatalogGridClicks(s);
+}
+
+function wireCatalogGridClicks(s) {
+  document.querySelectorAll('#gcwoPCatGrid [data-exid]').forEach(btn => {
+    btn.addEventListener('click', () => toggleExercicioNaSessao(s, btn.getAttribute('data-exid')));
+  });
+  document.querySelectorAll('#gcwoPPickedList [data-remove-exid]').forEach(btn => {
+    btn.addEventListener('click', () => toggleExercicioNaSessao(s, btn.getAttribute('data-remove-exid')));
+  });
+}
+
+function wireCatalogPicker(s) {
+  document.querySelectorAll('#gcwoPCatFiltro [data-filtro]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      _panelCatalogFiltro = chip.getAttribute('data-filtro');
+      document.querySelectorAll('#gcwoPCatFiltro .gcwo-chip').forEach(c => c.classList.toggle('on', c === chip));
+      const grid = document.getElementById('gcwoPCatGrid');
+      if (grid) grid.innerHTML = renderCatalogPickerGrid(s);
+      wireCatalogGridClicks(s);
+    });
+  });
+  document.getElementById('gcwoPCatBusca').addEventListener('input', (e) => {
+    _panelCatalogBusca = e.target.value;
+    const grid = document.getElementById('gcwoPCatGrid');
+    if (grid) grid.innerHTML = renderCatalogPickerGrid(s);
+    wireCatalogGridClicks(s);
+  });
+  wireCatalogGridClicks(s);
 }
 
 function showPanelErro(msg) {
@@ -1043,12 +1171,12 @@ function showPanelErro(msg) {
   if (el) el.textContent = msg;
 }
 
-// Nota: a validação "pelo menos um exercício" volta no Passo 1d, quando os items ganham conteúdo real.
 function handleGuardarSessao() {
   const s = _panelDraft;
   showPanelErro('');
 
   if (!s.local) { showPanelErro('Falta escolher o local desta sessão.'); return; }
+  if (s.kind === 'list' && !s.items.length) { showPanelErro('Adiciona pelo menos um exercício.'); return; }
 
   if (_panelIsNovo) {
     _state.sessions.push(s);

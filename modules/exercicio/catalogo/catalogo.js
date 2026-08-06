@@ -49,7 +49,7 @@ function freshState() {
 }
 
 function novoExercicioVazio() {
-  return { id: null, name: '', categoria: [], locais: [], equipamento: [], tempo_concentrico_s: null, tempo_excentrico_s: null, ajustes_maquina: [], photo_url: null, is_active: true };
+  return { id: null, name: '', categoria: [], locais: [], equipamento: [], tempo_concentrico_s: null, tempo_excentrico_s: null, ajustes_maquina: [], photo_url: null, is_active: true, is_favorite: false, incremento_default: null };
 }
 
 /* ── Entry point ─────────────────────────────────────────── */
@@ -69,7 +69,7 @@ export async function initCatalogo({ onVoltar } = {}) {
 async function loadExercicios() {
   const { data, error } = await window.sb
     .from('wo_exercises')
-    .select('id,name,categoria,locais,equipamento,tempo_concentrico_s,tempo_excentrico_s,ajustes_maquina,photo_url,is_active')
+    .select('id,name,categoria,locais,equipamento,tempo_concentrico_s,tempo_excentrico_s,ajustes_maquina,photo_url,is_active,is_favorite,incremento_default')
     .order('name');
 
   if (error) {
@@ -134,6 +134,7 @@ const ICON_UPLOAD = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 const ICON_PLUS = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg>`;
 const ICON_TRASH = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4.5A1.5 1.5 0 019.5 3h1A1.5 1.5 0 0112 4.5V6m-6.5 0L6 16.5A1.5 1.5 0 007.5 18h5a1.5 1.5 0 001.5-1.5L14.5 6"/></svg>`;
 const ICON_CLOSE = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>`;
+const ICON_STAR = `<svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2.5l2.35 4.76 5.25.76-3.8 3.7.9 5.23L10 14.5l-4.7 2.45.9-5.23-3.8-3.7 5.25-.76z"/></svg>`;
 
 function renderGrid() {
   const ativos = _state.exercicios.filter(e => e.is_active);
@@ -162,6 +163,7 @@ function renderGrid() {
   grid.innerHTML = list.map(ex => `
     <div class="gcwo-cat-card${ex.is_active ? '' : ' inactive'}">
       ${photoTileHtml(ex)}
+      ${ex.is_favorite ? `<span class="gcwo-cat-favbadge" title="Favorito">${ICON_STAR}</span>` : ''}
       <div class="gcwo-cat-info">
         <div class="gcwo-cat-name">${escHtml(ex.name)}</div>
         <div class="gcwo-cat-cats">${(ex.categoria || []).map(c => `<span class="gcwo-cat-cat">${escHtml(c)}</span>`).join('')}</div>
@@ -260,6 +262,15 @@ function renderPanel() {
 
       <label class="gcwo-cat-field"><span>Nome</span><input type="text" id="gcwoCatNome" value="${escAttr(ex.name)}" placeholder="Ex: Leg press"></label>
 
+      <div class="gcwo-cat-togglerow">
+        <span class="gcwo-cat-togglelabel">Favorito — aparece primeiro na prescrição</span>
+        <label class="gcwo-cat-switch">
+          <input type="checkbox" id="gcwoCatFavorito" ${ex.is_favorite ? 'checked' : ''}>
+          <span class="gcwo-cat-track"></span><span class="gcwo-cat-thumb"></span>
+        </label>
+      </div>
+      <label class="gcwo-cat-field"><span>Incremento por omissão (kg) — opcional</span><input type="number" min="0" step="0.5" id="gcwoCatIncremento" value="${ex.incremento_default ?? ''}" placeholder="Ex: 2.5"></label>
+
       <div class="gcwo-cat-field"><span>Categoria</span>${chipGroupHtml('gcwoCatCategoria', CATEGORIA_OPCOES, ex.categoria)}</div>
       <div class="gcwo-cat-field"><span>Locais</span>${chipGroupHtml('gcwoCatLocais', LOCAIS_OPCOES, ex.locais)}</div>
       <div class="gcwo-cat-field"><span>Equipamento</span>${chipGroupHtml('gcwoCatEquipamento', EQUIPAMENTO_OPCOES, ex.equipamento)}</div>
@@ -297,6 +308,8 @@ function renderPanel() {
   document.getElementById('gcwoCatGuardar').addEventListener('click', handleGuardar);
 
   document.getElementById('gcwoCatNome').addEventListener('input', e => { ex.name = e.target.value; });
+  document.getElementById('gcwoCatFavorito').addEventListener('change', e => { ex.is_favorite = e.target.checked; });
+  document.getElementById('gcwoCatIncremento').addEventListener('input', e => { ex.incremento_default = e.target.value === '' ? null : Number(e.target.value); });
   wireChipGroup('gcwoCatCategoria', ex.categoria);
   wireChipGroup('gcwoCatLocais', ex.locais);
   wireChipGroup('gcwoCatEquipamento', ex.equipamento);
@@ -427,6 +440,8 @@ async function handleGuardar() {
       tempo_excentrico_s: tempoExcentrico,
       ajustes_maquina: ajustesLimpos,
       photo_url: photoUrl,
+      is_favorite: !!ex.is_favorite,
+      incremento_default: ex.incremento_default,
     };
 
     if (!ex.id) {
