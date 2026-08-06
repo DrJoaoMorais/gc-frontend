@@ -140,6 +140,7 @@ function freshState() {
     restricoesEditing: false,
     planWeeks: null,
     savedLink: null,
+    savedExpiresAt: null,
   };
 }
 let _state = freshState();
@@ -633,7 +634,7 @@ function renderStep2() {
         `}
 
         <div class="gcwo-generate">
-          <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" disabled title="Ainda não implementado — chega no Passo 1g (validade do link e geração do token)">Gerar prescrição e link</button>
+          <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com exercícios para gerar o link.'}">Gerar prescrição e link</button>
           <span id="gcwoGerarErro" class="gcwo-erro"></span>
         </div>
       </main>
@@ -667,6 +668,7 @@ function renderStep2() {
     renderWeekTabs();
     renderDaystrip();
     renderDayDetail();
+    updateGerarButtonState();
     document.getElementById('gcwoBtnCopiarSemana')?.addEventListener('click', () => {
       _copyWeekOpen = !_copyWeekOpen;
       _copyWeekSelected = new Set();
@@ -793,6 +795,7 @@ function handleCopiarSemana() {
   renderWeekTabs();
   renderDaystrip();
   renderDayDetail();
+  updateGerarButtonState();
   const panel = document.getElementById('gcwoCopyWeekPanel');
   if (panel) panel.hidden = true;
 }
@@ -983,6 +986,7 @@ function copiarSemanaDoHistorico(prescricao, sourceWeek) {
   renderWeekTabs();
   renderDaystrip();
   renderDayDetail();
+  updateGerarButtonState();
 }
 
 /* ── Fila de dias, dentro da semana seleccionada ─────────── */
@@ -1354,6 +1358,7 @@ function wirePanel() {
     renderWeekTabs();
     renderDaystrip();
     renderDayDetail();
+    updateGerarButtonState();
   });
   document.getElementById('gcwoPGuardar').addEventListener('click', handleGuardarSessao);
 
@@ -1601,6 +1606,7 @@ function handleGuardarSessao() {
   renderWeekTabs();
   renderDaystrip();
   renderDayDetail();
+  updateGerarButtonState();
 }
 
 /* ── Painel — wiring Ginásio ─────────────────────────────── */
@@ -1764,6 +1770,49 @@ function wireTarefaCard(s, t, ti) {
   }
 }
 
+/* ── "Gerar prescrição e link" — só activo com pelo menos uma sessão com exercícios ── */
+function hasSessionComExercicios() {
+  return _state.sessions.some(s => Array.isArray(s.items) && s.items.length > 0);
+}
+function updateGerarButtonState() {
+  const btn = document.getElementById('gcwoGerar');
+  if (!btn) return;
+  const ok = hasSessionComExercicios();
+  btn.disabled = !ok;
+  btn.title = ok ? '' : 'Adiciona pelo menos uma sessão com exercícios para gerar o link.';
+}
+
+/* ── Fim do plano às 23:59:59 em Europe/Lisbon — independente do fuso do browser ── */
+function lisbonOffsetMinutesAt(utcDate) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Lisbon', hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(utcDate).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+  const asUTC = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
+  return Math.round((asUTC - utcDate.getTime()) / 60000);
+}
+function hojeEmLisboa() {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(new Date()).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+  return { year: +parts.year, month: +parts.month, day: +parts.day };
+}
+// Duração exacta do plano, sem folga — dia 1 é hoje (Lisboa), último dia às 23:59:59 (Lisboa).
+function computeExpiresAt(weeks) {
+  const dias = weeks * 7;
+  const hoje = hojeEmLisboa();
+  const fim = new Date(Date.UTC(hoje.year, hoje.month - 1, hoje.day));
+  fim.setUTCDate(fim.getUTCDate() + dias - 1);
+  const y = fim.getUTCFullYear(), m = fim.getUTCMonth() + 1, d = fim.getUTCDate();
+  const offsetMin = lisbonOffsetMinutesAt(new Date(Date.UTC(y, m - 1, d, 12, 0, 0))); // meio-dia UTC só para apurar o offset desse dia (evita bordas de DST à meia-noite)
+  return new Date(Date.UTC(y, m - 1, d, 23, 59, 59) - offsetMin * 60000);
+}
+function fmtDataPtLisboa(date) {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(date).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+  return `${+parts.day} de ${MESES_PT[+parts.month - 1]} de ${parts.year}`;
+}
+
 /* ================================================================
    Gravação — monta o snapshot e grava em wo_prescriptions
    ================================================================ */
@@ -1807,24 +1856,31 @@ async function handleGerar() {
   btn.disabled = true;
   btn.textContent = 'A gravar…';
 
+  const token = uuid(); // aleatório (crypto.randomUUID), não sequencial
   try {
-    const token = uuid();
     const data = buildFinalData();
+    const expiresAt = computeExpiresAt(_state.planWeeks);
 
     const { error } = await window.sb.from('wo_prescriptions').insert({
       token,
       patient_id: _state.patient.id,
       clinic_id: _state.clinicId,
       created_by: G.sessionUser.id,
+      expires_at: expiresAt.toISOString(),
       data,
     });
     if (error) throw new Error(`Falha ao gravar prescrição: ${error.message || error}`);
 
     _state.savedLink = TREINO_BASE_URL + token;
+    _state.savedExpiresAt = expiresAt;
     renderStep3();
   } catch (err) {
-    console.error('[prescricao] erro a gravar prescrição:', err);
-    erroEl.textContent = 'Erro ao gravar: ' + (err?.message || err);
+    // O token nunca aparece em logs nem em mensagens de erro — mesmo na (muitíssimo improvável)
+    // colisão do índice único de token, a mensagem do Postgres viria com o valor lá dentro.
+    const rawMsg = err?.message || String(err);
+    const safeMsg = rawMsg.split(token).join('«token»');
+    console.error('[prescricao] erro a gravar prescrição:', safeMsg);
+    erroEl.textContent = 'Erro ao gravar: ' + safeMsg;
     btn.disabled = false;
     btn.textContent = 'Gerar prescrição e link';
   }
@@ -1837,16 +1893,21 @@ function renderStep3() {
   const root = document.getElementById('gcwoPrescricaoRoot');
   if (!root) return;
 
+  const validadeTxt = _state.savedExpiresAt
+    ? `Link válido até às 23:59 de ${fmtDataPtLisboa(_state.savedExpiresAt)} (Europe/Lisbon).`
+    : '';
+
   root.innerHTML = `
     <div class="gc-page-header">
       <div><div class="gc-page-title">Prescrição de exercício</div><div class="gc-page-sub">${escHtml(_state.patient?.full_name || '')} — prescrição gravada</div></div>
       ${topActionsHtml()}
     </div>
     <div class="gcwo-card gcwo-success">
-      <p>Link do doente (válido 15 dias):</p>
+      <p>${escHtml(validadeTxt)}</p>
       <div class="gcwo-linkbox">
         <input type="text" id="gcwoLink" readonly value="${escAttr(_state.savedLink)}">
         <button type="button" id="gcwoCopiar" class="gcBtnPrimary">Copiar</button>
+        <button type="button" id="gcwoWhatsapp" class="gcBtnOutline">WhatsApp</button>
       </div>
       <span id="gcwoCopiadoMsg" class="gcwo-copiado"></span>
     </div>
@@ -1864,9 +1925,17 @@ function renderStep3() {
       msg.textContent = 'Copiado ✓';
       setTimeout(() => { msg.textContent = ''; }, 2000);
     } catch (err) {
-      console.error('[prescricao] falha a copiar link:', err);
+      console.error('[prescricao] falha a copiar link.'); // nunca regista o link (contém o token)
       inp.select();
     }
+  });
+
+  // Mensagem neutra — sem nome, diagnóstico ou restrições clínicas (o link chega ao telemóvel do doente).
+  // Sem número de destino, como o resto da app (wa.me/?text=…) — abre o WhatsApp para o Morais escolher o contacto.
+  document.getElementById('gcwoWhatsapp').addEventListener('click', () => {
+    const msg = encodeURIComponent(`O seu plano de exercício está disponível aqui: ${_state.savedLink}`);
+    const w = window.open(`https://wa.me/?text=${msg}`, '_blank');
+    if (!w) prompt('O browser bloqueou a janela do WhatsApp. Copia o link e envia à mão:', _state.savedLink);
   });
 
   document.getElementById('gcwoNova').addEventListener('click', () => {
