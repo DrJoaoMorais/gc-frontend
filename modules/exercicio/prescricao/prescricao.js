@@ -66,7 +66,7 @@ const SESSAO_MODALIDADES = [
   { modality: 'Ciclismo',  kind: 'card',    enabled: true },
   { modality: 'Natação',   kind: 'card',    enabled: true },
   { modality: 'Caminhada', kind: 'walk',    enabled: true },
-  { modality: 'Circuito',  kind: 'circuit', enabled: false },
+  { modality: 'Circuito',  kind: 'circuit', enabled: true },
 ];
 const LOCAIS_SESSAO = ['Ginásio', 'Casa', 'Clínica'];
 const TIPO_BLOCO_LABELS_PT = { continuous: 'Contínuo', series: 'Séries', closing: 'Fecho' };
@@ -399,7 +399,7 @@ export async function initPrescricao() {
 async function loadExercisesCatalog() {
   const { data, error } = await window.sb
     .from('wo_exercises')
-    .select('id,name,categoria,photo_url,tempo_concentrico_s,tempo_excentrico_s,ajustes_maquina,is_favorite,incremento_default')
+    .select('id,name,categoria,photo_url,tempo_concentrico_s,tempo_excentrico_s,tempo_exercicio_s,ajustes_maquina,is_favorite,incremento_default,video_url,tecnica_notas')
     .eq('is_active', true)
     .order('categoria')
     .order('name');
@@ -1214,6 +1214,7 @@ function renderPanel() {
       ${s.kind === 'list' ? renderCatalogPickerSection(s) : ''}
       ${s.kind === 'walk' ? renderPanelCaminhada(s) : ''}
       ${s.kind === 'card' ? renderPanelCardio(s) : ''}
+      ${s.kind === 'circuit' ? renderPanelCircuito(s) : ''}
 
       <span class="gcwo-erro" id="gcwoPErro"></span>
     </div>
@@ -1426,6 +1427,7 @@ function wirePanel() {
   if (s.kind === 'list') wireCatalogPicker(s);
   if (s.kind === 'walk') wirePanelCaminhada(s);
   if (s.kind === 'card') wirePanelCardio(s);
+  if (s.kind === 'circuit') wirePanelCircuito(s);
 }
 
 /* ── Painel — catálogo de exercícios (grelha, favoritos por omissão) ── */
@@ -2013,6 +2015,277 @@ function wirePanelCardio(s) {
   document.getElementById('gcwoPAddFecho').addEventListener('click', () => { s.blocks.push(novoBlocoFecho()); refreshBlocosListDom(s); });
   wireBlocosList(s);
   refreshZonaResumo(s);
+}
+
+/* ── Painel — Circuito (secção 3/5 do briefing) ──────────────────────
+   O ecrã edita blocos como "voltas" (rounds/exercícios) ou duração fixa
+   — mas grava sempre em `intervals` já expandido (decisão de 8 de agosto
+   de 2026): rounds/exercicios é só o modelo do ecrã, nunca o que fica em
+   wo_prescriptions.data. flattenBlocosCircuitoParaGravar() faz a conversão. ── */
+function novoBlocoCircuitoVoltas() {
+  return { block_id: uuid(), tipo: 'voltas', name: '', rounds: 3, rest_between_rounds_s: null, exercicios: [] };
+}
+function novoBlocoCircuitoFixo() {
+  return { block_id: uuid(), tipo: 'fixed', name: '', duration_sec: null };
+}
+function novoExercicioCircuito() {
+  return { id: uuid(), exercise_id: null, name: '', measure: 'reps', value: null, rest_after_s: null };
+}
+
+// tempo_por_repeticao (secção 3): tempo_exercicio_s → concêntrico+excêntrico → fallback 2s+2s aproximado.
+function tempoPorRepeticaoCatalogo(catEx) {
+  if (!catEx) return { segundos: 4, aproximado: true };
+  if (catEx.tempo_exercicio_s != null) return { segundos: catEx.tempo_exercicio_s, aproximado: false };
+  if (catEx.tempo_concentrico_s != null && catEx.tempo_excentrico_s != null) {
+    return { segundos: catEx.tempo_concentrico_s + catEx.tempo_excentrico_s, aproximado: false };
+  }
+  return { segundos: 4, aproximado: true };
+}
+function duracaoTrabalhoExercicioCircuito(ex) {
+  if (ex.measure === 'time') return { segundos: ex.value || 0, aproximado: false };
+  const catEx = _state.exercisesCatalog.find(c => c.id === ex.exercise_id);
+  const { segundos: tempoRep, aproximado } = tempoPorRepeticaoCatalogo(catEx);
+  return { segundos: (ex.value || 0) * tempoRep, aproximado };
+}
+
+function calcularTempoTotalCircuito(s) {
+  let total = 0, aproximado = false;
+  (s.blocks || []).forEach(b => {
+    if (b.tipo === 'fixed') { total += b.duration_sec || 0; return; }
+    const R = b.rounds || 1;
+    const exs = b.exercicios || [];
+    for (let r = 1; r <= R; r++) {
+      exs.forEach(ex => {
+        const { segundos, aproximado: aprox } = duracaoTrabalhoExercicioCircuito(ex);
+        total += segundos;
+        if (aprox) aproximado = true;
+        if (ex.rest_after_s) total += ex.rest_after_s;
+      });
+      if (r < R && b.rest_between_rounds_s) total += b.rest_between_rounds_s;
+    }
+  });
+  return { total, aproximado };
+}
+function renderTempoTotalCircuitoHtml(s) {
+  const { total, aproximado } = calcularTempoTotalCircuito(s);
+  const excedeu = s._limiteMin != null && total > s._limiteMin * 60;
+  return `
+    <div class="gcwo-progressao-nota"${excedeu ? ' style="background:#fef2f2;color:#b91c1c;"' : ''}>Tempo total previsto: ${fmtDuracaoTotal(total)}${aproximado ? ' *' : ''}${excedeu ? ' — acima do limite definido' : ''}</div>
+    ${aproximado ? `<div class="gcwo-muted">* algum exercício sem tempo de execução no catálogo — usa 2s+2s aproximado</div>` : ''}
+  `;
+}
+function refreshTempoTotalCircuito(s) {
+  const host = document.getElementById('gcwoPTempoTotal');
+  if (host) host.innerHTML = renderTempoTotalCircuitoHtml(s);
+}
+
+function renderCircExercicioRow(ex) {
+  const catalogOpts = _state.exercisesCatalog.map(c => `<option value="${escAttr(c.id)}" ${ex.exercise_id === c.id ? 'selected' : ''}>${escHtml(c.name)}</option>`).join('');
+  return `
+    <div class="gcwo-circ-exrow" data-exid="${escAttr(ex.id)}" style="border-top:0.5px solid #e2e8f0;padding-top:8px;margin-top:8px;">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select class="gcwo-circ-ex-select" style="flex:1;">
+          <option value="">Escolher exercício…</option>
+          ${catalogOpts}
+        </select>
+        <button type="button" class="gcwo-exercicio-remove" data-remove-exid="${escAttr(ex.id)}" title="Remover exercício">✕</button>
+      </div>
+      <div class="gcwo-row3" style="margin-top:8px;">
+        <label class="gcwo-field"><span>Modo</span>
+          <select class="gcwo-circ-ex-measure">
+            <option value="reps" ${ex.measure === 'reps' ? 'selected' : ''}>Reps</option>
+            <option value="time" ${ex.measure === 'time' ? 'selected' : ''}>Tempo (s)</option>
+          </select>
+        </label>
+        <label class="gcwo-field"><span>${ex.measure === 'time' ? 'Segundos' : 'Repetições'}</span><input type="number" min="0" class="gcwo-circ-ex-value" value="${ex.value ?? ''}"></label>
+        <label class="gcwo-field"><span>Descanso após (s)</span><input type="number" min="0" class="gcwo-circ-ex-rest" value="${ex.rest_after_s ?? ''}"></label>
+      </div>
+    </div>`;
+}
+function renderCircBlocoVoltas(b) {
+  return `
+    <div class="gcwo-exercicio" data-bid="${escAttr(b.block_id)}">
+      <div class="gcwo-exercicio-head">
+        <input type="text" class="gcwo-circ-nome" placeholder="Nome do bloco (ex.: Burpees)" value="${escAttr(b.name)}" style="flex:1;">
+        <button type="button" class="gcwo-exercicio-remove" data-remove-cbid="${escAttr(b.block_id)}" title="Remover bloco">✕</button>
+      </div>
+      <div class="gcwo-row2" style="margin-top:8px;">
+        <label class="gcwo-field gcwo-field-sm"><span>Voltas</span><input type="number" min="1" class="gcwo-circ-rounds" value="${b.rounds ?? ''}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>Descanso entre voltas (s)</span><input type="number" min="0" class="gcwo-circ-restrounds" value="${b.rest_between_rounds_s ?? ''}"></label>
+      </div>
+      <span class="gcwo-field-label" style="margin-top:10px;">Exercícios</span>
+      <div class="gcwo-circ-exlist">${(b.exercicios || []).map(renderCircExercicioRow).join('') || '<div class="gcwo-muted">Nenhum exercício ainda.</div>'}</div>
+      <button type="button" class="gcwo-add-exercicio gcBtnGhost gcBtnSm" data-add-ex-cbid="${escAttr(b.block_id)}">+ Exercício</button>
+    </div>`;
+}
+function renderCircBlocoFixo(b) {
+  return `
+    <div class="gcwo-exercicio" data-bid="${escAttr(b.block_id)}">
+      <div class="gcwo-exercicio-head">
+        <input type="text" class="gcwo-circ-nome" placeholder="Nome do bloco (ex.: Mobilização geral)" value="${escAttr(b.name)}" style="flex:1;">
+        <button type="button" class="gcwo-exercicio-remove" data-remove-cbid="${escAttr(b.block_id)}" title="Remover bloco">✕</button>
+      </div>
+      <label class="gcwo-field gcwo-field-sm" style="margin-top:8px;"><span>Duração (min)</span><input type="number" min="0" class="gcwo-circ-fixodur" value="${b.duration_sec != null ? b.duration_sec / 60 : ''}"></label>
+    </div>`;
+}
+function renderCircBloco(b) {
+  return b.tipo === 'fixed' ? renderCircBlocoFixo(b) : renderCircBlocoVoltas(b);
+}
+function renderCircBlocosListInner(s) {
+  if (!s.blocks.length) return `<div class="gcwo-muted">Nenhum bloco adicionado ainda.</div>`;
+  return s.blocks.map(renderCircBloco).join('');
+}
+
+function renderPanelCircuito(s) {
+  return `
+    <label class="gcwo-field gcwo-field-sm"><span>Limite de tempo (min, opcional)</span><input type="number" min="0" id="gcwoPCircLimite" value="${s._limiteMin ?? ''}"></label>
+    <div id="gcwoPTempoTotal">${renderTempoTotalCircuitoHtml(s)}</div>
+    <span class="gcwo-field-label" style="margin-top:14px;">Blocos</span>
+    <div class="gcwo-exercicios" id="gcwoPCircBlocosList">${renderCircBlocosListInner(s)}</div>
+    <div class="gcwo-exercicio-add">
+      <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoPAddBlocoVoltas">+ Bloco de voltas</button>
+      <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoPAddBlocoFixo">+ Bloco de duração fixa</button>
+    </div>
+  `;
+}
+
+function refreshCircBlocosListDom(s) {
+  const host = document.getElementById('gcwoPCircBlocosList');
+  if (host) host.innerHTML = renderCircBlocosListInner(s);
+  wireCircBlocosList(s);
+  refreshTempoTotalCircuito(s);
+}
+
+function wireCircBlocosList(s) {
+  document.querySelectorAll('#gcwoPCircBlocosList [data-remove-cbid]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const bid = btn.getAttribute('data-remove-cbid');
+      s.blocks = s.blocks.filter(b => b.block_id !== bid);
+      refreshCircBlocosListDom(s);
+    });
+  });
+  document.querySelectorAll('#gcwoPCircBlocosList [data-add-ex-cbid]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const bid = btn.getAttribute('data-add-ex-cbid');
+      const b = s.blocks.find(x => x.block_id === bid);
+      if (!b) return;
+      b.exercicios.push(novoExercicioCircuito());
+      refreshCircBlocosListDom(s);
+    });
+  });
+  document.querySelectorAll('#gcwoPCircBlocosList .gcwo-exercicio').forEach(card => {
+    const bid = card.getAttribute('data-bid');
+    const b = s.blocks.find(x => x.block_id === bid);
+    if (!b) return;
+
+    card.querySelector('.gcwo-circ-nome').addEventListener('input', (e) => { b.name = e.target.value; });
+
+    const roundsEl = card.querySelector('.gcwo-circ-rounds');
+    if (roundsEl) roundsEl.addEventListener('input', (e) => { b.rounds = e.target.value === '' ? null : Number(e.target.value); refreshTempoTotalCircuito(s); });
+
+    const restRoundsEl = card.querySelector('.gcwo-circ-restrounds');
+    if (restRoundsEl) restRoundsEl.addEventListener('input', (e) => { b.rest_between_rounds_s = e.target.value === '' ? null : Number(e.target.value); refreshTempoTotalCircuito(s); });
+
+    const fixoDurEl = card.querySelector('.gcwo-circ-fixodur');
+    if (fixoDurEl) fixoDurEl.addEventListener('input', (e) => { b.duration_sec = e.target.value === '' ? null : Math.round(Number(e.target.value) * 60); refreshTempoTotalCircuito(s); });
+
+    card.querySelectorAll('.gcwo-circ-exrow').forEach(row => {
+      const exid = row.getAttribute('data-exid');
+      const ex = (b.exercicios || []).find(x => x.id === exid);
+      if (!ex) return;
+
+      row.querySelector('[data-remove-exid]')?.addEventListener('click', () => {
+        b.exercicios = b.exercicios.filter(x => x.id !== exid);
+        refreshCircBlocosListDom(s);
+      });
+      row.querySelector('.gcwo-circ-ex-select').addEventListener('change', (e) => {
+        const catEx = _state.exercisesCatalog.find(c => c.id === e.target.value);
+        ex.exercise_id = e.target.value || null;
+        ex.name = catEx ? catEx.name : '';
+        refreshTempoTotalCircuito(s);
+      });
+      row.querySelector('.gcwo-circ-ex-measure').addEventListener('change', (e) => {
+        ex.measure = e.target.value;
+        ex.value = null;
+        refreshCircBlocosListDom(s);
+      });
+      row.querySelector('.gcwo-circ-ex-value').addEventListener('input', (e) => {
+        ex.value = e.target.value === '' ? null : Number(e.target.value);
+        refreshTempoTotalCircuito(s);
+      });
+      row.querySelector('.gcwo-circ-ex-rest').addEventListener('input', (e) => {
+        ex.rest_after_s = e.target.value === '' ? null : Number(e.target.value);
+        refreshTempoTotalCircuito(s);
+      });
+    });
+  });
+}
+
+function wirePanelCircuito(s) {
+  document.getElementById('gcwoPAddBlocoVoltas').addEventListener('click', () => { s.blocks.push(novoBlocoCircuitoVoltas()); refreshCircBlocosListDom(s); });
+  document.getElementById('gcwoPAddBlocoFixo').addEventListener('click', () => { s.blocks.push(novoBlocoCircuitoFixo()); refreshCircBlocosListDom(s); });
+  document.getElementById('gcwoPCircLimite').addEventListener('input', (e) => {
+    s._limiteMin = e.target.value === '' ? null : Number(e.target.value);
+    refreshTempoTotalCircuito(s);
+  });
+  wireCircBlocosList(s);
+  refreshTempoTotalCircuito(s);
+}
+
+// Converte o modelo de edição (rounds/exercícios) em `intervals` já expandido — o que
+// fica gravado em wo_prescriptions.data. Nunca o inverso: rounds/exercicios nunca é
+// persistido (decisão de 8 de agosto de 2026). Um descanso nunca fica sem contexto —
+// carrega sempre o exercício associado (o que acabou de fazer, ou o que vem a seguir
+// no caso do descanso entre voltas), para o cronómetro do doente nunca mostrar
+// "Descanso" sozinho.
+function flattenBlocosCircuitoParaGravar(blocks) {
+  return (blocks || []).map(b => {
+    if (b.tipo === 'fixed') {
+      return {
+        block_id: b.block_id,
+        name: b.name,
+        intervals: [{
+          type: 'mobilizacao', label: b.name, duration_sec: b.duration_sec,
+          exercise_id: null, exercise_name: null, photo_url: null, video_url: null, tecnica_notas: null,
+          exercise_index: null, exercise_total: null, round_index: null, round_total: null,
+        }],
+      };
+    }
+    const intervals = [];
+    const R = b.rounds || 1;
+    const exs = b.exercicios || [];
+    for (let r = 1; r <= R; r++) {
+      exs.forEach((ex, ei) => {
+        const catEx = _state.exercisesCatalog.find(c => c.id === ex.exercise_id);
+        const { segundos } = duracaoTrabalhoExercicioCircuito(ex);
+        intervals.push({
+          type: 'trabalho', label: ex.name, duration_sec: Math.round(segundos),
+          exercise_id: ex.exercise_id, exercise_name: ex.name,
+          photo_url: catEx?.photo_url || null, video_url: catEx?.video_url || null, tecnica_notas: catEx?.tecnica_notas || null,
+          exercise_index: ei + 1, exercise_total: exs.length, round_index: r, round_total: R,
+        });
+        if (ex.rest_after_s) {
+          intervals.push({
+            type: 'descanso', label: ex.name, duration_sec: ex.rest_after_s,
+            exercise_id: ex.exercise_id, exercise_name: ex.name,
+            photo_url: catEx?.photo_url || null, video_url: catEx?.video_url || null, tecnica_notas: catEx?.tecnica_notas || null,
+            exercise_index: ei + 1, exercise_total: exs.length, round_index: r, round_total: R,
+          });
+        }
+      });
+      if (r < R && b.rest_between_rounds_s) {
+        const proximo = exs[0] || null;
+        const catProx = proximo ? _state.exercisesCatalog.find(c => c.id === proximo.exercise_id) : null;
+        intervals.push({
+          type: 'descanso', label: proximo ? proximo.name : b.name, duration_sec: b.rest_between_rounds_s,
+          exercise_id: proximo ? proximo.exercise_id : null, exercise_name: proximo ? proximo.name : null,
+          photo_url: catProx?.photo_url || null, video_url: catProx?.video_url || null, tecnica_notas: catProx?.tecnica_notas || null,
+          exercise_index: proximo ? 1 : null, exercise_total: exs.length || null, round_index: r + 1, round_total: R,
+        });
+      }
+    }
+    return { block_id: b.block_id, name: b.name, intervals };
+  });
 }
 
 function showPanelErro(msg) {
