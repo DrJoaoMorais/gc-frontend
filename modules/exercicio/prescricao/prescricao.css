@@ -227,7 +227,7 @@
 .gcwo-zonapill { font-size:10.5px; font-weight:600; padding:2px 7px; border-radius:6px; background:#eef2f6; color:#475569; }
 
 /* ── painel lateral — criar/editar sessão ── */
-.gcwo-panel { width:340px; flex-shrink:0; background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; overflow:hidden; }
+.gcwo-panel { width:480px; flex-shrink:0; background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; overflow:hidden; }
 .gcwo-panel.empty { padding:30px; text-align:center; color:#94a3b8; font-size:12.5px; }
 .gcwo-panel-head { display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid #e2e8f0; }
 .gcwo-panel-icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
@@ -254,7 +254,7 @@
 .gcwo-stat b { display:block; font-size:13px; color:#0f2d52; font-variant-numeric:tabular-nums; }
 .gcwo-stat small { display:block; font-size:10px; color:#94a3b8; }
 
-@media (max-width: 900px) {
+@media (max-width: 1180px) {
   .gcwo-plano-body { flex-direction:column; }
   .gcwo-panel { width:100%; }
 }
