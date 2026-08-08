@@ -1426,14 +1426,21 @@ function itemRepsMode(it) {
   return it.reps_fixed != null ? 'fixo' : 'intervalo';
 }
 
+// Variante "por duração" (decisão de 8 de agosto de 2026, briefing secção 3): um item de
+// ginásio tem `duration_sec` OU sets/reps/carga/incremento/rest_set, nunca os dois. `rest_next`
+// aplica-se sempre, independentemente do modo.
+function itemDuracaoMode(it) {
+  return it.duration_sec != null ? 'duracao' : 'series';
+}
+
 function renderPickedListInner(s) {
   if (!s.items.length) return `<div class="gcwo-muted">Nenhum exercício seleccionado ainda.</div>`;
   return s.items.map(renderItemCard).join('');
 }
 
 function renderItemCard(it) {
-  const mode = itemRepsMode(it);
-  const radioName = `gcwo-repsmode-${it.exercise_id}`;
+  const modoDuracao = itemDuracaoMode(it);
+  const duracaoRadioName = `gcwo-duracaomode-${it.exercise_id}`;
   return `
     <div class="gcwo-exercicio" data-exid="${escAttr(it.exercise_id)}">
       <div class="gcwo-exercicio-head">
@@ -1441,6 +1448,24 @@ function renderItemCard(it) {
         <strong>${escHtml(it.name)}</strong>
         <button type="button" class="gcwo-exercicio-remove" data-remove-exid="${escAttr(it.exercise_id)}" title="Remover exercício">✕</button>
       </div>
+      <div class="gcwo-field" style="margin-top:8px;">
+        <span>Modo</span>
+        <div class="gcwo-modo">
+          <label><input type="radio" name="${duracaoRadioName}" value="series" ${modoDuracao === 'series' ? 'checked' : ''}> Séries/repetições</label>
+          <label><input type="radio" name="${duracaoRadioName}" value="duracao" ${modoDuracao === 'duracao' ? 'checked' : ''}> Duração</label>
+        </div>
+      </div>
+      ${modoDuracao === 'duracao' ? `
+      <label class="gcwo-field" style="margin-top:8px;"><span>Duração (min)</span><input type="number" min="0" step="0.5" class="gcwo-it-duracaomin" value="${it.duration_sec != null ? it.duration_sec / 60 : ''}"></label>
+      ` : renderItemCardSeriesFields(it)}
+      <label class="gcwo-field gcwo-field-sm" style="margin-top:8px;"><span>Descanso p/ próximo (s)</span><input type="number" min="0" class="gcwo-it-restnext" value="${it.rest_next ?? ''}"></label>
+    </div>`;
+}
+
+function renderItemCardSeriesFields(it) {
+  const mode = itemRepsMode(it);
+  const radioName = `gcwo-repsmode-${it.exercise_id}`;
+  return `
       <label class="gcwo-field gcwo-field-sm" style="margin-top:8px;"><span>Séries</span><input type="number" min="1" class="gcwo-it-sets" value="${it.sets ?? ''}"></label>
       <div class="gcwo-field" style="margin-top:8px;">
         <span>Repetições</span>
@@ -1460,11 +1485,7 @@ function renderItemCard(it) {
         <label class="gcwo-field gcwo-field-sm"><span>Carga (kg)</span><input type="number" min="0" step="0.5" class="gcwo-it-carga" value="${it.load ?? ''}"></label>
         <label class="gcwo-field gcwo-field-sm"><span>Incremento (kg)</span><input type="number" min="0" step="0.5" class="gcwo-it-incremento" value="${it.incremento ?? ''}"></label>
       </div>
-      <div class="gcwo-row2">
-        <label class="gcwo-field gcwo-field-sm"><span>Descanso entre séries (s)</span><input type="number" min="0" class="gcwo-it-restset" value="${it.rest_set ?? ''}"></label>
-        <label class="gcwo-field gcwo-field-sm"><span>Descanso p/ próximo (s)</span><input type="number" min="0" class="gcwo-it-restnext" value="${it.rest_next ?? ''}"></label>
-      </div>
-    </div>`;
+      <label class="gcwo-field gcwo-field-sm"><span>Descanso entre séries (s)</span><input type="number" min="0" class="gcwo-it-restset" value="${it.rest_set ?? ''}"></label>`;
 }
 
 function toggleExercicioNaSessao(s, exId) {
@@ -1544,7 +1565,12 @@ function wirePickedItems(s) {
     bindNum('.gcwo-it-restset', 'rest_set');
     bindNum('.gcwo-it-restnext', 'rest_next');
 
-    card.querySelectorAll('input[type="radio"]').forEach(radio => {
+    const duracaoEl = card.querySelector('.gcwo-it-duracaomin');
+    if (duracaoEl) duracaoEl.addEventListener('input', (e) => {
+      it.duration_sec = e.target.value === '' ? null : Math.round(Number(e.target.value) * 60);
+    });
+
+    card.querySelectorAll(`input[name="gcwo-repsmode-${CSS.escape(exId)}"]`).forEach(radio => {
       radio.addEventListener('change', (e) => {
         if (!e.target.checked) return;
         if (e.target.value === 'intervalo') {
@@ -1555,6 +1581,28 @@ function wirePickedItems(s) {
           it.reps_min = null;
           it.reps_max = null;
           if (it.reps_fixed == null) it.reps_fixed = 12;
+        }
+        refreshPickedListDom(s);
+      });
+    });
+
+    card.querySelectorAll(`input[name="gcwo-duracaomode-${CSS.escape(exId)}"]`).forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        if (!e.target.checked) return;
+        if (e.target.value === 'duracao') {
+          it.sets = null;
+          it.reps_min = null;
+          it.reps_max = null;
+          it.reps_fixed = null;
+          it.load = null;
+          it.incremento = null;
+          it.rest_set = null;
+          if (it.duration_sec == null) it.duration_sec = 600;
+        } else {
+          it.duration_sec = null;
+          if (it.sets == null) it.sets = 3;
+          if (it.reps_min == null && it.reps_fixed == null) { it.reps_min = 8; it.reps_max = 12; }
+          if (it.rest_set == null) it.rest_set = 60;
         }
         refreshPickedListDom(s);
       });
