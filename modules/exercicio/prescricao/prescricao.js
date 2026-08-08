@@ -1834,6 +1834,38 @@ function buildFinalData() {
   };
 }
 
+// Chave de "slot" para casar sessões novas com as já existentes na prescrição activa.
+// O builder começa sempre vazio (nunca carrega o plano activo para edição), por isso
+// week+day+order é a única correspondência disponível — fiável quando há uma sessão
+// por dia, mas pode falhar se um dia tiver várias sessões numa ordem diferente da
+// versão anterior. Nesse caso a sessão fica tratada como nova (session_id próprio).
+function chaveSessao(s) {
+  return `${s.week}|${s.day}|${s.order}`;
+}
+
+// Edição de plano activo (secção 5 do briefing): preserva session_id das sessões que
+// correspondem a um slot já existente (para os registos do doente continuarem ligados
+// à sessão certa) e nunca apaga em silêncio uma sessão antiga que não voltou a aparecer
+// nesta gravação — só desaparece quando o Morais revogar a prescrição explicitamente.
+function mesclarSessoes(existentes, novas) {
+  const porChave = new Map();
+  (existentes || []).forEach(s => porChave.set(chaveSessao(s), s));
+
+  const chavesUsadas = new Set();
+  const resultado = novas.map(nova => {
+    const chave = chaveSessao(nova);
+    const existente = porChave.get(chave);
+    chavesUsadas.add(chave);
+    return existente ? { ...nova, session_id: existente.session_id } : nova;
+  });
+
+  (existentes || []).forEach(s => {
+    if (!chavesUsadas.has(chaveSessao(s))) resultado.push(s);
+  });
+
+  return resultado;
+}
+
 function validarPrescricao() {
   if (!_state.clinicId) return 'Falta selecionar a clínica.';
   if (!_state.patient) return 'Falta selecionar o doente.';
@@ -1856,29 +1888,78 @@ async function handleGerar() {
   btn.disabled = true;
   btn.textContent = 'A gravar…';
 
-  const token = uuid(); // aleatório (crypto.randomUUID), não sequencial
+  // Guarda todos os tokens que passem a ser conhecidos durante a gravação (o candidato
+  // novo e, se existir, o da prescrição activa encontrada) para o catch conseguir sempre
+  // escrubá-los da mensagem de erro — nunca aparecem em logs.
+  const tokensAEscrubar = [];
   try {
-    const data = buildFinalData();
-    const expiresAt = computeExpiresAt(_state.planWeeks);
+    const tokenCandidato = uuid(); // aleatório (crypto.randomUUID), não sequencial
+    tokensAEscrubar.push(tokenCandidato);
 
-    const { error } = await window.sb.from('wo_prescriptions').insert({
-      token,
-      patient_id: _state.patient.id,
-      clinic_id: _state.clinicId,
-      created_by: G.sessionUser.id,
-      expires_at: expiresAt.toISOString(),
-      data,
-    });
-    if (error) throw new Error(`Falha ao gravar prescrição: ${error.message || error}`);
+    // Edição de plano activo (secção 5 do briefing): havendo já uma prescrição activa
+    // (não expirada, não revogada) para este doente, actualiza essa linha em vez de criar
+    // outra — o link que o doente já tem continua a funcionar. Só cria linha nova quando
+    // não há nenhuma activa, ou depois de o Morais revogar a anterior explicitamente.
+    const { data: activaExistente, error: erroActiva } = await window.sb
+      .from('wo_prescriptions')
+      .select('id, token, data, expires_at')
+      .eq('patient_id', _state.patient.id)
+      .eq('status', 'active')
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (erroActiva) throw new Error(`Falha ao verificar prescrição activa: ${erroActiva.message || erroActiva}`);
+
+    const novaData = buildFinalData();
+    const expiresAtNovo = computeExpiresAt(_state.planWeeks);
+    let token, linkExpiresAt;
+
+    if (activaExistente) {
+      tokensAEscrubar.push(activaExistente.token);
+
+      const sessoesMescladas = mesclarSessoes(activaExistente.data?.sessions, novaData.sessions);
+      // Nunca encurtar por engano a validade que o doente já tem, nem tornar semanas
+      // antigas inacessíveis por a gravação actual ter escolhido uma duração menor.
+      const weeksFinal = Math.max(activaExistente.data?.weeks || 0, novaData.weeks);
+      const expiresAtExistente = new Date(activaExistente.expires_at);
+      const expiresAtFinal = expiresAtNovo > expiresAtExistente ? expiresAtNovo : expiresAtExistente;
+      const dataFinal = { ...novaData, weeks: weeksFinal, sessions: sessoesMescladas };
+
+      const { error } = await window.sb.from('wo_prescriptions')
+        .update({
+          clinic_id: _state.clinicId,
+          created_by: G.sessionUser.id,
+          expires_at: expiresAtFinal.toISOString(),
+          data: dataFinal,
+        })
+        .eq('id', activaExistente.id);
+      if (error) throw new Error(`Falha ao actualizar prescrição: ${error.message || error}`);
+
+      token = activaExistente.token;
+      linkExpiresAt = expiresAtFinal;
+    } else {
+      token = tokenCandidato;
+      const { error } = await window.sb.from('wo_prescriptions').insert({
+        token,
+        patient_id: _state.patient.id,
+        clinic_id: _state.clinicId,
+        created_by: G.sessionUser.id,
+        expires_at: expiresAtNovo.toISOString(),
+        data: novaData,
+      });
+      if (error) throw new Error(`Falha ao gravar prescrição: ${error.message || error}`);
+      linkExpiresAt = expiresAtNovo;
+    }
 
     _state.savedLink = TREINO_BASE_URL + token;
-    _state.savedExpiresAt = expiresAt;
+    _state.savedExpiresAt = linkExpiresAt;
     renderStep3();
   } catch (err) {
-    // O token nunca aparece em logs nem em mensagens de erro — mesmo na (muitíssimo improvável)
+    // Nenhum token aparece em logs nem em mensagens de erro — mesmo na (muitíssimo improvável)
     // colisão do índice único de token, a mensagem do Postgres viria com o valor lá dentro.
-    const rawMsg = err?.message || String(err);
-    const safeMsg = rawMsg.split(token).join('«token»');
+    let safeMsg = err?.message || String(err);
+    tokensAEscrubar.forEach((t) => { safeMsg = safeMsg.split(t).join('«token»'); });
     console.error('[prescricao] erro a gravar prescrição:', safeMsg);
     erroEl.textContent = 'Erro ao gravar: ' + safeMsg;
     btn.disabled = false;
