@@ -245,6 +245,7 @@
 
 .gcwo-row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .gcwo-row3 { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
+.gcwo-row3 .gcwo-field input, .gcwo-row3 .gcwo-field select { width:100%; min-width:0; }
 @media (max-width:480px) { .gcwo-row3 { grid-template-columns:1fr 1fr; } }
 
 .gcwo-resumo { display:flex; gap:14px; flex-wrap:wrap; background:#f8fafc; border-radius:10px; padding:11px 13px; margin-top:8px; }
