@@ -65,10 +65,11 @@ const SESSAO_MODALIDADES = [
   { modality: 'Corrida',   kind: 'card',    enabled: false },
   { modality: 'Ciclismo',  kind: 'card',    enabled: false },
   { modality: 'Natação',   kind: 'card',    enabled: false },
-  { modality: 'Caminhada', kind: 'walk',    enabled: false },
+  { modality: 'Caminhada', kind: 'walk',    enabled: true },
   { modality: 'Circuito',  kind: 'circuit', enabled: false },
 ];
 const LOCAIS_SESSAO = ['Ginásio', 'Casa', 'Clínica'];
+const TIPO_BLOCO_LABELS_PT = { continuous: 'Contínuo', series: 'Séries', closing: 'Fecho' };
 
 const TIPO_META = {
   ginasio:   { label: 'Ginásio',   icon: ICON_GINASIO,   fg: '#7c3aed', bg: '#f3e8ff' },
@@ -90,6 +91,24 @@ function tipoKey(s) {
 }
 
 function uuid() { return crypto.randomUUID(); }
+
+// Contagem de conteúdo por kind — usada onde antes só se olhava para `s.items`
+// (lista do dia, histórico, botão "Gerar", validação ao guardar).
+function sessaoContagem(s) {
+  if (s.kind === 'walk') {
+    const n = (s.walks || []).length + (s.stairs_flights != null ? 1 : 0);
+    return { n, label: n === 1 ? 'item' : 'itens' };
+  }
+  if (s.kind === 'card' || s.kind === 'circuit') {
+    const n = (s.blocks || []).length;
+    return { n, label: n === 1 ? 'bloco' : 'blocos' };
+  }
+  const n = (s.items || []).length;
+  return { n, label: n === 1 ? 'exercício' : 'exercícios' };
+}
+function sessaoTemConteudo(s) {
+  return sessaoContagem(s).n > 0;
+}
 
 /* ── Ações do topo (Biblioteca/Modelos inertes; Catálogo funcional) ── */
 function topActionsHtml(extraButtonsHtml = '') {
@@ -294,10 +313,11 @@ function novaSessao(tipo) {
     modalidade: novoModalidadeDefault(),
   };
 }
-// Sessão nova (secção 5): session_id/week/day/order/kind/modality/local, items ainda vazio (catálogo chega no Passo 1c).
+// Sessão nova (secção 5): session_id/week/day/order/kind/modality/local + o contentor
+// próprio de cada kind — items (ginásio), blocks (cardio/circuito) ou walks+stairs_flights (caminhada).
 function novaSessaoSkeleton(modality, kind, week, day) {
   const sessoesNoDia = _state.sessions.filter(s => s.week === week && s.day === day);
-  return {
+  const base = {
     session_id: uuid(),
     week,
     day,
@@ -305,8 +325,10 @@ function novaSessaoSkeleton(modality, kind, week, day) {
     kind,
     modality,
     local: null,
-    items: [],
   };
+  if (kind === 'walk') return { ...base, walks: [], stairs_flights: null };
+  if (kind === 'card' || kind === 'circuit') return { ...base, blocks: [] };
+  return { ...base, items: [] };
 }
 function novoExercicioGinasio() {
   return {
@@ -324,7 +346,7 @@ function novoExercicioGinasio() {
   };
 }
 function cloneSession(s) {
-  return { ...s, items: (s.items || []).map(it => ({ ...it })) };
+  return structuredClone(s);
 }
 
 /* ── Entry point ─────────────────────────────────────────── */
@@ -634,7 +656,7 @@ function renderStep2() {
         `}
 
         <div class="gcwo-generate">
-          <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com exercícios para gerar o link.'}">Gerar prescrição e link</button>
+          <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.'}">Gerar prescrição e link</button>
           <span id="gcwoGerarErro" class="gcwo-erro"></span>
         </div>
       </main>
@@ -774,13 +796,11 @@ function copyWeekDayLevel(sourceWeek, destWeek) {
 
     _state.sessions = _state.sessions.filter(s => !(s.week === destWeek && s.day === d.value));
     origem.forEach((s, idx) => {
-      _state.sessions.push({
-        ...s,
-        session_id: uuid(),
-        week: destWeek,
-        order: idx,
-        items: s.items.map(it => ({ ...it })),
-      });
+      const copy = structuredClone(s);
+      copy.session_id = uuid();
+      copy.week = destWeek;
+      copy.order = idx;
+      _state.sessions.push(copy);
     });
   });
 }
@@ -910,8 +930,8 @@ function renderHistoryDetailHtml(p) {
     const corpo = semanaSessoes.length
       ? `<ul class="gcwo-plano-itemlist">${semanaSessoes.map(s => {
           const dia = DIAS_SEMANA.find(d => d.value === s.day);
-          const nItems = (s.items || []).length;
-          return `<li>${dia ? dia.full : s.day} — ${escHtml(s.modality)}${s.local ? ' · ' + escHtml(s.local) : ''} · ${nItems} exercício${nItems === 1 ? '' : 's'}</li>`;
+          const cont = sessaoContagem(s);
+          return `<li>${dia ? dia.full : s.day} — ${escHtml(s.modality)}${s.local ? ' · ' + escHtml(s.local) : ''} · ${cont.n} ${cont.label}</li>`;
         }).join('')}</ul>`
       : `<div class="gcwo-muted">Sem sessões nesta semana.</div>`;
     return `
@@ -969,16 +989,11 @@ function copiarSemanaDoHistorico(prescricao, sourceWeek) {
     if (!doDia.length) return;
     _state.sessions = _state.sessions.filter(s => !(s.week === destWeek && s.day === d.value));
     doDia.forEach((s, idx) => {
-      _state.sessions.push({
-        session_id: uuid(),
-        week: destWeek,
-        day: s.day,
-        order: idx,
-        kind: s.kind,
-        modality: s.modality,
-        local: s.local,
-        items: (s.items || []).map(it => ({ ...it })),
-      });
+      const copy = structuredClone(s);
+      copy.session_id = uuid();
+      copy.week = destWeek;
+      copy.order = idx;
+      _state.sessions.push(copy);
     });
   });
 
@@ -1036,17 +1051,31 @@ function renderDayDetail() {
   wireSessaoCards(host);
 }
 
+// Linhas curtas para a lista expandida do cartão — uma por item/bloco/caminhada.
+function sessaoPreviewLinhas(s) {
+  if (s.kind === 'walk') {
+    const linhas = (s.walks || []).map(w => `${w.label || 'Caminhada'} — ${w.duration_sec ? fmtDuracaoTotal(w.duration_sec) : '—'}`);
+    if (s.stairs_flights != null) linhas.push(`Escadas — ${s.stairs_flights} lanços`);
+    return linhas;
+  }
+  if (s.kind === 'card' || s.kind === 'circuit') {
+    return (s.blocks || []).map(b => b.name || TIPO_BLOCO_LABELS_PT[b.type] || 'Bloco');
+  }
+  return (s.items || []).map(it => it.name);
+}
+
 /* ── Cartão de sessão — leitura, colapsável ──────────────── */
 function renderSessaoCardHtml(s) {
   const meta = TIPO_META[tipoKey(s)];
   const expanded = _expandedCardIds.has(s.session_id);
-  const nItems = s.items.length;
-  const resumo = `${s.local ? escHtml(s.local) + ' · ' : ''}${nItems ? nItems + ' exercício' + (nItems === 1 ? '' : 's') : 'Sem exercícios ainda.'}`;
+  const cont = sessaoContagem(s);
+  const resumo = `${s.local ? escHtml(s.local) + ' · ' : ''}${cont.n ? cont.n + ' ' + cont.label : 'Sem conteúdo ainda.'}`;
 
+  const linhas = sessaoPreviewLinhas(s);
   const bodyHtml = expanded
-    ? `<div class="gcwo-plano-session-body">${nItems
-        ? `<ul class="gcwo-plano-itemlist">${s.items.map(it => `<li>${escHtml(it.name)}</li>`).join('')}</ul><div class="gcwo-muted" style="margin-top:6px;">Séries, reps e carga chegam no Passo 1d.</div>`
-        : `<div class="gcwo-muted">Sem exercícios ainda.</div>`}</div>`
+    ? `<div class="gcwo-plano-session-body">${linhas.length
+        ? `<ul class="gcwo-plano-itemlist">${linhas.map(l => `<li>${escHtml(l)}</li>`).join('')}</ul>`
+        : `<div class="gcwo-muted">Sem conteúdo ainda.</div>`}</div>`
     : '';
 
   return `
@@ -1160,6 +1189,7 @@ function renderPanel() {
       </div>
 
       ${s.kind === 'list' ? renderCatalogPickerSection(s) : ''}
+      ${s.kind === 'walk' ? renderPanelCaminhada(s) : ''}
 
       <span class="gcwo-erro" id="gcwoPErro"></span>
     </div>
@@ -1370,6 +1400,7 @@ function wirePanel() {
   });
 
   if (s.kind === 'list') wireCatalogPicker(s);
+  if (s.kind === 'walk') wirePanelCaminhada(s);
 }
 
 /* ── Painel — catálogo de exercícios (grelha, favoritos por omissão) ── */
@@ -1631,6 +1662,87 @@ function wireCatalogPicker(s) {
   wirePickedItems(s);
 }
 
+/* ── Painel — Caminhada (secção 3/5 do briefing: sem blocos, caminhadas + escadas) ── */
+const PACE_OPCOES = [
+  { value: 'lento', label: 'Lento' },
+  { value: 'moderado', label: 'Moderado' },
+  { value: 'rapido', label: 'Rápido' },
+];
+function novaCaminhada() {
+  return { walk_id: uuid(), label: '', duration_sec: null, pace: 'moderado', rpe_local: null };
+}
+
+function renderPanelCaminhada(s) {
+  return `
+    <span class="gcwo-field-label" style="margin-top:14px;">Caminhadas</span>
+    <div class="gcwo-exercicios" id="gcwoPWalksList">${renderWalksListInner(s)}</div>
+    <button type="button" class="gcwo-add-exercicio gcBtnGhost" id="gcwoPAddWalk">+ Caminhada</button>
+
+    <span class="gcwo-field-label" style="margin-top:14px;">Escadas (opcional)</span>
+    <label class="gcwo-field gcwo-field-sm"><span>Lanços de escadas</span><input type="number" min="0" id="gcwoPStairs" value="${s.stairs_flights ?? ''}"></label>
+  `;
+}
+
+function renderWalksListInner(s) {
+  if (!s.walks.length) return `<div class="gcwo-muted">Nenhuma caminhada adicionada ainda.</div>`;
+  return s.walks.map(renderWalkCard).join('');
+}
+
+function renderWalkCard(w) {
+  return `
+    <div class="gcwo-exercicio" data-wid="${escAttr(w.walk_id)}">
+      <div class="gcwo-exercicio-head">
+        <input type="text" class="gcwo-walk-label" placeholder="Etiqueta (ex.: após almoço)" value="${escAttr(w.label)}" style="flex:1;">
+        <button type="button" class="gcwo-exercicio-remove" data-remove-wid="${escAttr(w.walk_id)}" title="Remover caminhada">✕</button>
+      </div>
+      <div class="gcwo-row2">
+        <label class="gcwo-field gcwo-field-sm"><span>Duração (min)</span><input type="number" min="0" class="gcwo-walk-duracaomin" value="${w.duration_sec != null ? w.duration_sec / 60 : ''}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>Passo</span>
+          <select class="gcwo-walk-pace">${PACE_OPCOES.map(p => `<option value="${p.value}" ${w.pace === p.value ? 'selected' : ''}>${p.label}</option>`).join('')}</select>
+        </label>
+      </div>
+      <label class="gcwo-field gcwo-field-sm"><span>RPE local (opcional)</span><input type="number" min="1" max="10" class="gcwo-walk-rpe" value="${w.rpe_local ?? ''}"></label>
+    </div>`;
+}
+
+function refreshWalksListDom(s) {
+  const host = document.getElementById('gcwoPWalksList');
+  if (host) host.innerHTML = renderWalksListInner(s);
+  wireWalksListItems(s);
+}
+
+function wireWalksListItems(s) {
+  document.querySelectorAll('#gcwoPWalksList [data-remove-wid]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wid = btn.getAttribute('data-remove-wid');
+      s.walks = s.walks.filter(w => w.walk_id !== wid);
+      refreshWalksListDom(s);
+    });
+  });
+  document.querySelectorAll('#gcwoPWalksList .gcwo-exercicio').forEach(card => {
+    const wid = card.getAttribute('data-wid');
+    const w = s.walks.find(x => x.walk_id === wid);
+    if (!w) return;
+    card.querySelector('.gcwo-walk-label').addEventListener('input', (e) => { w.label = e.target.value; });
+    card.querySelector('.gcwo-walk-duracaomin').addEventListener('input', (e) => {
+      w.duration_sec = e.target.value === '' ? null : Math.round(Number(e.target.value) * 60);
+    });
+    card.querySelector('.gcwo-walk-pace').addEventListener('change', (e) => { w.pace = e.target.value; });
+    card.querySelector('.gcwo-walk-rpe').addEventListener('input', (e) => { w.rpe_local = e.target.value === '' ? null : Number(e.target.value); });
+  });
+}
+
+function wirePanelCaminhada(s) {
+  document.getElementById('gcwoPAddWalk').addEventListener('click', () => {
+    s.walks.push(novaCaminhada());
+    refreshWalksListDom(s);
+  });
+  document.getElementById('gcwoPStairs').addEventListener('input', (e) => {
+    s.stairs_flights = e.target.value === '' ? null : Number(e.target.value);
+  });
+  wireWalksListItems(s);
+}
+
 function showPanelErro(msg) {
   const el = document.getElementById('gcwoPErro');
   if (el) el.textContent = msg;
@@ -1642,6 +1754,8 @@ function handleGuardarSessao() {
 
   if (!s.local) { showPanelErro('Falta escolher o local desta sessão.'); return; }
   if (s.kind === 'list' && !s.items.length) { showPanelErro('Adiciona pelo menos um exercício.'); return; }
+  if (s.kind === 'walk' && !sessaoTemConteudo(s)) { showPanelErro('Adiciona pelo menos uma caminhada ou lanços de escadas.'); return; }
+  if ((s.kind === 'card' || s.kind === 'circuit') && !s.blocks.length) { showPanelErro('Adiciona pelo menos um bloco.'); return; }
 
   if (_panelIsNovo) {
     _state.sessions.push(s);
@@ -1820,14 +1934,14 @@ function wireTarefaCard(s, t, ti) {
 
 /* ── "Gerar prescrição e link" — só activo com pelo menos uma sessão com exercícios ── */
 function hasSessionComExercicios() {
-  return _state.sessions.some(s => Array.isArray(s.items) && s.items.length > 0);
+  return _state.sessions.some(sessaoTemConteudo);
 }
 function updateGerarButtonState() {
   const btn = document.getElementById('gcwoGerar');
   if (!btn) return;
   const ok = hasSessionComExercicios();
   btn.disabled = !ok;
-  btn.title = ok ? '' : 'Adiciona pelo menos uma sessão com exercícios para gerar o link.';
+  btn.title = ok ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.';
 }
 
 /* ── Fim do plano às 23:59:59 em Europe/Lisbon — independente do fuso do browser ── */
@@ -1864,21 +1978,23 @@ function fmtDataPtLisboa(date) {
 /* ================================================================
    Gravação — monta o snapshot e grava em wo_prescriptions
    ================================================================ */
-// Forma alinhada com a secção 5 do briefing: weeks, restricoes (lista), sessions (session_id/week/day/order/kind/modality/local/items).
+// Forma alinhada com a secção 5 do briefing: weeks, restricoes (lista), sessions
+// (session_id/week/day/order/kind/modality/local + contentor próprio do kind).
+// Circuito grava sempre `intervals` já expandido — o `rounds`/`exercicios` da secção 5
+// é só o modelo do ecrã de edição, nunca o que fica na base de dados (decisão de 8 de
+// agosto de 2026).
+function sessaoParaGravar(s) {
+  const base = { session_id: s.session_id, week: s.week, day: s.day, order: s.order, kind: s.kind, modality: s.modality, local: s.local };
+  if (s.kind === 'walk') return { ...base, walks: s.walks, stairs_flights: s.stairs_flights };
+  if (s.kind === 'circuit') return { ...base, blocks: flattenBlocosCircuitoParaGravar(s.blocks) };
+  if (s.kind === 'card') return { ...base, blocks: s.blocks };
+  return { ...base, items: s.items };
+}
 function buildFinalData() {
   return {
     weeks: _state.planWeeks,
     restricoes: restricoesAtuais(),
-    sessions: _state.sessions.map(s => ({
-      session_id: s.session_id,
-      week: s.week,
-      day: s.day,
-      order: s.order,
-      kind: s.kind,
-      modality: s.modality,
-      local: s.local,
-      items: s.items,
-    })),
+    sessions: _state.sessions.map(sessaoParaGravar),
   };
 }
 
