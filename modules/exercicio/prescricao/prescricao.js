@@ -62,14 +62,25 @@ const ICON_CIRCUITO = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor
 // kind por sessão: só 'list' (ginásio) está activo — 'card'/'walk'/'circuit' ficam para os Passos 4/5 (secção 5 do briefing).
 const SESSAO_MODALIDADES = [
   { modality: 'Ginásio',   kind: 'list',    enabled: true },
-  { modality: 'Corrida',   kind: 'card',    enabled: false },
-  { modality: 'Ciclismo',  kind: 'card',    enabled: false },
-  { modality: 'Natação',   kind: 'card',    enabled: false },
+  { modality: 'Corrida',   kind: 'card',    enabled: true },
+  { modality: 'Ciclismo',  kind: 'card',    enabled: true },
+  { modality: 'Natação',   kind: 'card',    enabled: true },
   { modality: 'Caminhada', kind: 'walk',    enabled: true },
   { modality: 'Circuito',  kind: 'circuit', enabled: false },
 ];
 const LOCAIS_SESSAO = ['Ginásio', 'Casa', 'Clínica'];
 const TIPO_BLOCO_LABELS_PT = { continuous: 'Contínuo', series: 'Séries', closing: 'Fecho' };
+const ZONAS = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5', 'Z6', 'Z7'];
+const CLOSING_MODES = [
+  { value: 'rest', label: 'Descanso' },
+  { value: 'cooldown', label: 'Arrefecimento' },
+  { value: 'walk', label: 'Caminhada' },
+  { value: 'easy', label: 'Fácil' },
+];
+// Zona só se aplica a corrida e ciclismo (briefing secção 3) — natação usa só valor absoluto/RPE.
+function modalidadeTemZona(modality) {
+  return modality === 'Corrida' || modality === 'Ciclismo';
+}
 
 const TIPO_META = {
   ginasio:   { label: 'Ginásio',   icon: ICON_GINASIO,   fg: '#7c3aed', bg: '#f3e8ff' },
@@ -198,6 +209,18 @@ function fmtDuracaoTotal(totalS) {
   const totalMin = Math.round(totalS / 60);
   const h = Math.floor(totalMin / 60), mm = totalMin % 60;
   return h > 0 ? `${h}h${String(mm).padStart(2, '0')}` : `${totalMin} min`;
+}
+// Ritmo — sempre min:seg no ecrã, nunca decimal, nunca guardado como texto livre
+// (unidade interna é segundos por quilómetro, secção 3 do briefing).
+function fmtPaceEditavel(sec) {
+  if (sec == null) return '';
+  const m = Math.floor(sec / 60), s = Math.round(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+function parsePaceParaSegundos(txt) {
+  const m = String(txt || '').trim().match(/^(\d+):(\d{1,2})$/);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
 }
 
 function calcIdade(dob) {
@@ -1190,6 +1213,7 @@ function renderPanel() {
 
       ${s.kind === 'list' ? renderCatalogPickerSection(s) : ''}
       ${s.kind === 'walk' ? renderPanelCaminhada(s) : ''}
+      ${s.kind === 'card' ? renderPanelCardio(s) : ''}
 
       <span class="gcwo-erro" id="gcwoPErro"></span>
     </div>
@@ -1401,6 +1425,7 @@ function wirePanel() {
 
   if (s.kind === 'list') wireCatalogPicker(s);
   if (s.kind === 'walk') wirePanelCaminhada(s);
+  if (s.kind === 'card') wirePanelCardio(s);
 }
 
 /* ── Painel — catálogo de exercícios (grelha, favoritos por omissão) ── */
@@ -1741,6 +1766,253 @@ function wirePanelCaminhada(s) {
     s.stairs_flights = e.target.value === '' ? null : Number(e.target.value);
   });
   wireWalksListItems(s);
+}
+
+/* ── Painel — Corrida/Ciclismo/Natação (secção 3/5 do briefing: blocos contínuo/séries/fecho) ── */
+function novaIntensidade() {
+  return { zone: null, pace_sec_per_km: null, heart_rate_bpm: null, power_w: null, cadence_rpm: null, rpe: null };
+}
+function novoBlocoContinuo() {
+  return { block_id: uuid(), type: 'continuous', duration_sec: null, intensity: novaIntensidade() };
+}
+function novoBlocoSeries() {
+  return { block_id: uuid(), type: 'series', count: 4, work: { measure: 'distance', value: null, unit: 'm', intensity: novaIntensidade() }, recovery: { duration_sec: null, intensity: novaIntensidade() } };
+}
+function novoBlocoFecho() {
+  return { block_id: uuid(), type: 'closing', mode: 'rest', duration_sec: null, intensity: novaIntensidade() };
+}
+
+// Soma minutos por zona a partir dos blocos com duração conhecida (nunca converte
+// distância em tempo estimado — um bloco de séries por distância fica fora do cálculo,
+// mesmo princípio do indicador descrito na secção 3). É um espelho, não uma previsão.
+function calcularCargaPorZona(s) {
+  const minutosPorZona = {};
+  let totalComZona = 0, totalGeral = 0;
+  (s.blocks || []).forEach(b => {
+    let segundos = 0, zone = null;
+    if (b.type === 'continuous' || b.type === 'closing') {
+      segundos = b.duration_sec || 0;
+      zone = b.intensity && b.intensity.zone;
+    } else if (b.type === 'series' && b.work && b.work.measure === 'time' && b.work.value != null) {
+      const recDur = b.recovery ? (b.recovery.duration_sec || 0) : 0;
+      segundos = (b.count || 0) * (b.work.value + recDur);
+      zone = b.work.intensity && b.work.intensity.zone;
+    }
+    if (!segundos) return;
+    totalGeral += segundos;
+    if (zone) { minutosPorZona[zone] = (minutosPorZona[zone] || 0) + segundos; totalComZona += segundos; }
+  });
+  return { minutosPorZona, totalComZona, totalGeral };
+}
+function renderIndicadorZonaHtml(s) {
+  const { minutosPorZona, totalComZona } = calcularCargaPorZona(s);
+  if (!totalComZona) return '';
+  const z3mais = Object.entries(minutosPorZona)
+    .filter(([z]) => Number(z.replace('Z', '')) >= 3)
+    .reduce((a, [, v]) => a + v, 0);
+  const pct = Math.round((z3mais / totalComZona) * 100);
+  return `<div class="gcwo-progressao-nota">Z3+: ${fmtDuracaoTotal(z3mais)} de ${fmtDuracaoTotal(totalComZona)} · ${pct}% acima da base</div>`;
+}
+function refreshZonaResumo(s) {
+  const host = document.getElementById('gcwoPZonaResumo');
+  if (host) host.innerHTML = renderIndicadorZonaHtml(s);
+}
+
+function renderIntensidadeCampos(intensity, mostrarZona) {
+  return `
+    <div class="gcwo-row3">
+      ${mostrarZona ? `
+      <label class="gcwo-field gcwo-field-sm"><span>Zona</span>
+        <select class="gcwo-int-zone">
+          <option value="">—</option>
+          ${ZONAS.map(z => `<option value="${z}" ${intensity.zone === z ? 'selected' : ''}>${z}</option>`).join('')}
+        </select>
+      </label>` : ''}
+      <label class="gcwo-field gcwo-field-sm"><span>Ritmo (min/km)</span><input type="text" inputmode="numeric" placeholder="5:00" class="gcwo-int-pace" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_km))}"></label>
+      <label class="gcwo-field gcwo-field-sm"><span>FC (bpm)</span><input type="number" min="0" class="gcwo-int-fc" value="${intensity.heart_rate_bpm ?? ''}"></label>
+      <label class="gcwo-field gcwo-field-sm"><span>Potência (W)</span><input type="number" min="0" class="gcwo-int-power" value="${intensity.power_w ?? ''}"></label>
+      <label class="gcwo-field gcwo-field-sm"><span>Cadência (rpm)</span><input type="number" min="0" class="gcwo-int-cadence" value="${intensity.cadence_rpm ?? ''}"></label>
+      <label class="gcwo-field gcwo-field-sm"><span>RPE</span><input type="number" min="1" max="10" class="gcwo-int-rpe" value="${intensity.rpe ?? ''}"></label>
+    </div>`;
+}
+function wrapIntensidade(bid, scope, intensity, mostrarZona) {
+  return `<div class="gcwo-intensidade" data-bid="${escAttr(bid)}" data-scope="${scope}">${renderIntensidadeCampos(intensity, mostrarZona)}</div>`;
+}
+function intensidadeDoScope(b, scope) {
+  if (scope === 'work') return b.work.intensity;
+  if (scope === 'recovery') return b.recovery.intensity;
+  return b.intensity;
+}
+
+function renderBlocoContinuo(b, temZona) {
+  return `
+    <div class="gcwo-exercicio" data-bid="${escAttr(b.block_id)}">
+      <div class="gcwo-exercicio-head">
+        <strong>Contínuo</strong>
+        <button type="button" class="gcwo-exercicio-remove" data-remove-bid="${escAttr(b.block_id)}" title="Remover bloco">✕</button>
+      </div>
+      <label class="gcwo-field gcwo-field-sm" style="margin-top:8px;"><span>Duração (min)</span><input type="number" min="0" class="gcwo-bloco-duracaomin" value="${b.duration_sec != null ? b.duration_sec / 60 : ''}"></label>
+      <span class="gcwo-field-label" style="margin-top:10px;">Intensidade</span>
+      ${wrapIntensidade(b.block_id, 'main', b.intensity, temZona)}
+    </div>`;
+}
+function renderBlocoFecho(b, temZona) {
+  return `
+    <div class="gcwo-exercicio" data-bid="${escAttr(b.block_id)}">
+      <div class="gcwo-exercicio-head">
+        <strong>Fecho</strong>
+        <button type="button" class="gcwo-exercicio-remove" data-remove-bid="${escAttr(b.block_id)}" title="Remover bloco">✕</button>
+      </div>
+      <div class="gcwo-row2" style="margin-top:8px;">
+        <label class="gcwo-field gcwo-field-sm"><span>Modo</span>
+          <select class="gcwo-bloco-mode">${CLOSING_MODES.map(m => `<option value="${m.value}" ${b.mode === m.value ? 'selected' : ''}>${m.label}</option>`).join('')}</select>
+        </label>
+        <label class="gcwo-field gcwo-field-sm"><span>Duração (min)</span><input type="number" min="0" class="gcwo-bloco-duracaomin" value="${b.duration_sec != null ? b.duration_sec / 60 : ''}"></label>
+      </div>
+      <span class="gcwo-field-label" style="margin-top:10px;">Intensidade</span>
+      ${wrapIntensidade(b.block_id, 'main', b.intensity, temZona)}
+    </div>`;
+}
+function renderBlocoSeries(b, temZona, soDistancia) {
+  const medida = b.work.measure;
+  return `
+    <div class="gcwo-exercicio" data-bid="${escAttr(b.block_id)}">
+      <div class="gcwo-exercicio-head">
+        <strong>Séries</strong>
+        <button type="button" class="gcwo-exercicio-remove" data-remove-bid="${escAttr(b.block_id)}" title="Remover bloco">✕</button>
+      </div>
+      <label class="gcwo-field gcwo-field-sm" style="margin-top:8px;"><span>Nº de séries</span><input type="number" min="1" class="gcwo-bloco-count" value="${b.count ?? ''}"></label>
+      ${soDistancia ? '' : `
+      <div class="gcwo-field" style="margin-top:8px;">
+        <span>Trabalho — medida</span>
+        <div class="gcwo-modo">
+          <label><input type="radio" name="gcwo-medida-${b.block_id}" value="distance" ${medida === 'distance' ? 'checked' : ''}> Distância</label>
+          <label><input type="radio" name="gcwo-medida-${b.block_id}" value="time" ${medida === 'time' ? 'checked' : ''}> Tempo</label>
+        </div>
+      </div>`}
+      <label class="gcwo-field gcwo-field-sm"><span>${medida === 'distance' ? 'Distância (m)' : 'Duração (min)'}</span>
+        <input type="number" min="0" class="gcwo-bloco-workvalue" value="${b.work.value != null ? (medida === 'distance' ? b.work.value : b.work.value / 60) : ''}">
+      </label>
+      <span class="gcwo-field-label" style="margin-top:10px;">Intensidade do trabalho</span>
+      ${wrapIntensidade(b.block_id, 'work', b.work.intensity, temZona)}
+      <label class="gcwo-field gcwo-field-sm" style="margin-top:10px;"><span>Recuperação (min)</span><input type="number" min="0" class="gcwo-bloco-recdur" value="${b.recovery.duration_sec != null ? b.recovery.duration_sec / 60 : ''}"></label>
+      <span class="gcwo-field-label" style="margin-top:10px;">Intensidade da recuperação</span>
+      ${wrapIntensidade(b.block_id, 'recovery', b.recovery.intensity, temZona)}
+    </div>`;
+}
+function renderBlocoCardio(b, s) {
+  const temZona = modalidadeTemZona(s.modality);
+  if (b.type === 'series') {
+    const soDistancia = s.modality === 'Natação';
+    if (soDistancia) b.work.measure = 'distance';
+    return renderBlocoSeries(b, temZona, soDistancia);
+  }
+  if (b.type === 'closing') return renderBlocoFecho(b, temZona);
+  return renderBlocoContinuo(b, temZona);
+}
+function renderBlocosListInner(s) {
+  if (!s.blocks.length) return `<div class="gcwo-muted">Nenhum bloco adicionado ainda.</div>`;
+  return s.blocks.map(b => renderBlocoCardio(b, s)).join('');
+}
+
+function renderPanelCardio(s) {
+  return `
+    ${modalidadeTemZona(s.modality) ? `<div id="gcwoPZonaResumo">${renderIndicadorZonaHtml(s)}</div>` : ''}
+    <span class="gcwo-field-label" style="margin-top:14px;">Blocos</span>
+    <div class="gcwo-exercicios" id="gcwoPBlocosList">${renderBlocosListInner(s)}</div>
+    <div class="gcwo-exercicio-add">
+      <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoPAddContinuo">+ Contínuo</button>
+      <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoPAddSeries">+ Séries</button>
+      <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoPAddFecho">+ Fecho</button>
+    </div>
+  `;
+}
+
+function wireIntensidadeForms(s) {
+  document.querySelectorAll('#gcwoPBlocosList .gcwo-intensidade').forEach(box => {
+    const bid = box.getAttribute('data-bid');
+    const scope = box.getAttribute('data-scope');
+    const b = s.blocks.find(x => x.block_id === bid);
+    if (!b) return;
+    const intensity = intensidadeDoScope(b, scope);
+
+    const zoneEl = box.querySelector('.gcwo-int-zone');
+    if (zoneEl) zoneEl.addEventListener('change', (e) => { intensity.zone = e.target.value || null; refreshZonaResumo(s); });
+    box.querySelector('.gcwo-int-pace').addEventListener('input', (e) => { intensity.pace_sec_per_km = parsePaceParaSegundos(e.target.value); });
+    box.querySelector('.gcwo-int-fc').addEventListener('input', (e) => { intensity.heart_rate_bpm = e.target.value === '' ? null : Number(e.target.value); });
+    box.querySelector('.gcwo-int-power').addEventListener('input', (e) => { intensity.power_w = e.target.value === '' ? null : Number(e.target.value); });
+    box.querySelector('.gcwo-int-cadence').addEventListener('input', (e) => { intensity.cadence_rpm = e.target.value === '' ? null : Number(e.target.value); });
+    box.querySelector('.gcwo-int-rpe').addEventListener('input', (e) => { intensity.rpe = e.target.value === '' ? null : Number(e.target.value); });
+  });
+}
+
+function refreshBlocosListDom(s) {
+  const host = document.getElementById('gcwoPBlocosList');
+  if (host) host.innerHTML = renderBlocosListInner(s);
+  wireBlocosList(s);
+  refreshZonaResumo(s);
+}
+
+function wireBlocosList(s) {
+  document.querySelectorAll('#gcwoPBlocosList [data-remove-bid]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const bid = btn.getAttribute('data-remove-bid');
+      s.blocks = s.blocks.filter(b => b.block_id !== bid);
+      refreshBlocosListDom(s);
+    });
+  });
+  document.querySelectorAll('#gcwoPBlocosList .gcwo-exercicio').forEach(card => {
+    const bid = card.getAttribute('data-bid');
+    const b = s.blocks.find(x => x.block_id === bid);
+    if (!b) return;
+
+    const duracaoEl = card.querySelector('.gcwo-bloco-duracaomin');
+    if (duracaoEl) duracaoEl.addEventListener('input', (e) => {
+      b.duration_sec = e.target.value === '' ? null : Math.round(Number(e.target.value) * 60);
+      refreshZonaResumo(s);
+    });
+
+    const modeEl = card.querySelector('.gcwo-bloco-mode');
+    if (modeEl) modeEl.addEventListener('change', (e) => { b.mode = e.target.value; });
+
+    const countEl = card.querySelector('.gcwo-bloco-count');
+    if (countEl) countEl.addEventListener('input', (e) => {
+      b.count = e.target.value === '' ? null : Number(e.target.value);
+      refreshZonaResumo(s);
+    });
+
+    const workValEl = card.querySelector('.gcwo-bloco-workvalue');
+    if (workValEl) workValEl.addEventListener('input', (e) => {
+      const n = e.target.value === '' ? null : Number(e.target.value);
+      b.work.value = n == null ? null : (b.work.measure === 'distance' ? n : Math.round(n * 60));
+      refreshZonaResumo(s);
+    });
+
+    const recDurEl = card.querySelector('.gcwo-bloco-recdur');
+    if (recDurEl) recDurEl.addEventListener('input', (e) => {
+      b.recovery.duration_sec = e.target.value === '' ? null : Math.round(Number(e.target.value) * 60);
+      refreshZonaResumo(s);
+    });
+
+    card.querySelectorAll(`input[name="gcwo-medida-${CSS.escape(bid)}"]`).forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        if (!e.target.checked) return;
+        b.work.measure = e.target.value;
+        b.work.unit = e.target.value === 'distance' ? 'm' : 's';
+        b.work.value = null;
+        refreshBlocosListDom(s);
+      });
+    });
+  });
+  wireIntensidadeForms(s);
+}
+
+function wirePanelCardio(s) {
+  document.getElementById('gcwoPAddContinuo').addEventListener('click', () => { s.blocks.push(novoBlocoContinuo()); refreshBlocosListDom(s); });
+  document.getElementById('gcwoPAddSeries').addEventListener('click', () => { s.blocks.push(novoBlocoSeries()); refreshBlocosListDom(s); });
+  document.getElementById('gcwoPAddFecho').addEventListener('click', () => { s.blocks.push(novoBlocoFecho()); refreshBlocosListDom(s); });
+  wireBlocosList(s);
+  refreshZonaResumo(s);
 }
 
 function showPanelErro(msg) {
