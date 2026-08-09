@@ -23,7 +23,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-09-8';
+const PRESCRICAO_CSS_VERSION = '2026-08-09-9';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -64,7 +64,7 @@ const ICON_CAMINHADA = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColo
 const ICON_CIRCUITO = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a6 6 0 0110-4.5M16 12a6 6 0 01-10 4.5"/><path d="M13 2l1.5 1.5L13 5M7 18l-1.5-1.5L7 15"/></svg>`;
 const ICON_DIAMOND = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M10 2.5l7.5 7.5-7.5 7.5-7.5-7.5z"/></svg>`;
 // Menu de acções por sessão no calendário (⋮): Mover/Duplicar (9 ago 2026).
-const ICON_DOTS = `<svg viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="4" r="1.7"/><circle cx="10" cy="10" r="1.7"/><circle cx="10" cy="16" r="1.7"/></svg>`;
+const ICON_DOTS = `<svg viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="4" r="2.3"/><circle cx="10" cy="10" r="2.3"/><circle cx="10" cy="16" r="2.3"/></svg>`;
 const ICON_MOVE = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h14M3 10l3.5-3.5M3 10l3.5 3.5M17 10l-3.5-3.5M17 10l-3.5 3.5"/></svg>`;
 const ICON_COPY = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 7V5a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2"/></svg>`;
 

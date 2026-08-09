@@ -243,11 +243,12 @@
 .gcwo-calchip-wrap { position:relative; display:flex; align-items:stretch; gap:3px; }
 .gcwo-calchip-wrap .gcwo-calday-chip { flex:1 1 auto; }
 .gcwo-calchip-menubtn {
-  flex-shrink:0; width:16px; border:none; border-radius:6px; background:transparent; cursor:pointer;
-  display:flex; align-items:center; justify-content:center; opacity:.65;
+  flex-shrink:0; width:22px; border:none; border-radius:6px; background:#fff; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; color:#64748b !important; outline:none;
 }
-.gcwo-calchip-menubtn svg { width:11px; height:11px; }
-.gcwo-calchip-menubtn:hover { opacity:1; background:rgba(15,23,42,.08); }
+.gcwo-calchip-menubtn svg { width:15px; height:15px; }
+.gcwo-calchip-menubtn:hover { background:rgba(15,23,42,.08); color:#1a56db !important; }
+.gcwo-calchip-menubtn:focus-visible { outline:2px solid #93c5fd; outline-offset:1px; }
 .gcwo-calchip-menu {
   position:absolute; top:100%; left:0; margin-top:3px; background:#fff; border:0.5px solid #e2e8f0; border-radius:10px;
   box-shadow:0 10px 26px rgba(15,23,42,.16); padding:5px; z-index:15; min-width:154px; display:flex; flex-direction:column; gap:1px;
