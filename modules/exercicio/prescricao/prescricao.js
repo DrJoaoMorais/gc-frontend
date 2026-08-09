@@ -23,7 +23,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-09-5';
+const PRESCRICAO_CSS_VERSION = '2026-08-09-6';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -77,7 +77,19 @@ const SESSAO_MODALIDADES = [
   { modality: 'Caminhada', kind: 'walk',    enabled: true },
   { modality: 'Circuito',  kind: 'circuit', enabled: true },
 ];
-const LOCAIS_SESSAO = ['Ginásio', 'Casa', 'Clínica'];
+const LOCAIS_SESSAO = ['Ginásio', 'Casa', 'Clínica', 'Exterior', 'Piscina'];
+// Chips de momento do dia — inclui as "rotinas curtas" (pós-almoço/pós-jantar) como
+// valores do mesmo campo, em vez de um conceito à parte (9 ago 2026). Simplificação
+// consciente: por agora são etiquetas fixas, não uma hora exacta (HH:MM) — fica para
+// mais tarde se vier a fazer falta.
+const MOMENTOS_SESSAO = [
+  { value: 'manha', label: 'Manhã' },
+  { value: 'almoco', label: 'Almoço' },
+  { value: 'tarde', label: 'Tarde' },
+  { value: 'noite', label: 'Noite' },
+  { value: 'pos_almoco', label: 'Pós-almoço' },
+  { value: 'pos_jantar', label: 'Pós-jantar' },
+];
 const TIPO_BLOCO_LABELS_PT = { continuous: 'Contínuo', series: 'Séries', closing: 'Fecho' };
 const ZONAS = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5', 'Z6', 'Z7'];
 const CLOSING_MODES = [
@@ -173,32 +185,36 @@ function ensurePrescricaoCss() {
 }
 
 /* ── Estado local do módulo ─────────────────────────────── */
+// Modelo de datas (9 ago 2026, Fase A): cada sessão tem `date` real (ISO "yyyy-mm-dd"),
+// não `week`+`day` relativos. O plano tem `startDate`/`endDate` reais em vez de uma
+// "duração em semanas" — o calendário passa a ser uma janela rolante (pelo menos 4
+// semanas, estica até endDate se o plano for mais comprido), nunca um bloco fixo de N
+// semanas. dataRevisao é uma data à parte, só para o Morais se lembrar de reavaliar —
+// não tem efeito no link do doente nem no aviso automático (esse continua ligado a
+// endDate). duracaoSessaoPadrao/diasPorSemanaHabitual ficam já no modelo de dados;
+// o ecrã para os editar fica para a Fase B — por agora só vão com valores por omissão.
 function freshState() {
+  const inicio = isoAmanha();
   return {
     clinicId: null,
     patient: null,
     exercisesCatalog: [],
     catalogLoaded: false,
     sessions: [],
-    selectedWeek: 1,
-    selectedDay: 'seg',
     restricoesPredefinidas: [],
     restricoesTexto: '',
     restricoesEditing: false,
-    // Duração vem já escolhida (2 semanas) para o calendário aparecer logo ao entrar —
-    // antes disto o ecrã pedia para escolher a duração primeiro e só depois mostrava o
-    // calendário, contra o desenho de "Modo 1 sempre visível" (9 ago 2026). Continua
-    // ajustável nos chips por cima do calendário.
-    planWeeks: 2,
+    startDate: inicio,
+    endDate: addDiasIso(inicio, 27), // 4 semanas por omissão — ajustável nos campos de data
+    dataRevisao: null,
+    duracaoSessaoPadrao: 30,
+    diasPorSemanaHabitual: null,
     savedLink: null,
     savedExpiresAt: null,
     // Plano activo carregado para edição directa (9 ago 2026) — ver carregarPlanoActivoSeExistir().
-    // activePrescriptionId != null ⇒ gravar actualiza esta linha tal como está no ecrã,
-    // sem fundir por chave semana+dia+ordem (essa fusão só faz sentido quando o ecrã
-    // nunca mostrou o que já existia). planStartOverride ancora a semana 1 do calendário
-    // na data real de início do plano carregado, em vez de "amanhã".
+    // activePrescriptionId != null ⇒ gravar actualiza esta linha tal como está no ecrã, sem
+    // fundir por chave — essa fusão só faz sentido quando o ecrã nunca mostrou o que já existia.
     activePrescriptionId: null,
-    planStartOverride: null,
   };
 }
 let _state = freshState();
@@ -210,13 +226,9 @@ let _panelIsNovo = false;
 let _panelCatalogFiltro = 'favoritos';  // filtro do catálogo dentro do painel de ginásio
 let _panelCatalogBusca = '';
 let _panelEquipFiltro = new Set();      // filtro de equipamento (multi-selecção) dentro do painel de ginásio
-let _copyWeekOpen = false;              // "Copiar semana N para as outras" — painel aberto/fechado
-let _copyWeekSelected = new Set();      // semanas de destino marcadas no painel de cópia
-let _copyWeekSource = 1;                // semana de origem, escolhida dentro do próprio painel (9 ago 2026)
-let _historyTargetWeek = 1;             // semana de destino ao aplicar uma semana do histórico
-let _pendingSlot = null;                // {week, day} — dia escolhido na grelha, modalidade por escolher (ecrã de 2 modos, 9 ago 2026)
+let _pendingSlot = null;                // {date} — dia escolhido na grelha, modalidade por escolher (ecrã de 2 modos, 9 ago 2026)
 let _calMenuDocClickWired = false;      // menu ⋮ por sessão no calendário — fecha ao clicar fora (9 ago 2026)
-let _dayPicker = null;                  // {sessionId, mode:'mover'|'duplicar', selecionados:Set("week-day")} — modal de escolha de dia(s) (9 ago 2026)
+let _dayPicker = null;                  // {sessionId, mode:'mover'|'duplicar', selecionados:Set(iso)} — modal de escolha de dia(s) (9 ago 2026)
 let _historyOpen = false;               // modal "Ver planos anteriores" aberto/fechado
 let _historyLoading = false;
 let _historyError = '';
@@ -304,30 +316,74 @@ function restricoesAtuais() {
 }
 
 const MESES_PT = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-function fmtDataPt(d) {
-  return `${d.getDate()} de ${MESES_PT[d.getMonth()]} de ${d.getFullYear()}`;
+const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+/* ================================================================
+   Datas — modelo por ISO "yyyy-mm-dd" (Fase A, 9 ago 2026)
+   Cada sessão grava a data real em que acontece (não week+day relativos). Todas as
+   strings de data neste módulo são "yyyy-mm-dd" — comparáveis e ordenáveis como texto
+   sem ambiguidade de fuso, e só passam por um Date (sempre UTC-meia-noite) quando é
+   preciso somar/subtrair dias ou ler o dia da semana.
+   ================================================================ */
+function isoDeData(d) {
+  const y = d.getUTCFullYear(), m = String(d.getUTCMonth() + 1).padStart(2, '0'), dd = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
 }
-// Janela de datas do plano — só pré-visualização; expires_at real é calculado no momento de gerar o link (Passo 1g).
-// Quando há um plano activo carregado (planStartOverride), ancora a pré-visualização na
-// data real em que esse plano começou — senão mostraria sempre "a começar hoje", mesmo a
-// editar um plano que já está a decorrer há dias (9 ago 2026).
-function fmtJanelaPlano(semanas) {
-  const dias = semanas * 7;
-  let inicio;
-  if (_state.planStartOverride) {
-    const o = _state.planStartOverride;
-    inicio = new Date(o.getUTCFullYear(), o.getUTCMonth(), o.getUTCDate());
-  } else {
-    inicio = new Date(); inicio.setHours(0, 0, 0, 0);
-  }
-  const fim = new Date(inicio); fim.setDate(fim.getDate() + dias - 1);
-  const aviso = new Date(fim); aviso.setDate(aviso.getDate() - 4);
-  return `${dias} dias · válido de ${fmtDataPt(inicio)} a ${fmtDataPt(fim)} · aviso a partir de ${fmtDataPt(aviso)}`;
+function dataDeIso(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+function addDiasIso(iso, n) {
+  const d = dataDeIso(iso);
+  d.setUTCDate(d.getUTCDate() + n);
+  return isoDeData(d);
+}
+function isoHoje() {
+  const h = hojeEmLisboa();
+  return isoDeData(new Date(Date.UTC(h.year, h.month - 1, h.day)));
+}
+function isoAmanha() {
+  return addDiasIso(isoHoje(), 1);
+}
+// Segunda-feira (ISO) da semana em que a data cai — base para desenhar a grelha em
+// colunas Seg..Dom verdadeiras, mesmo quando startDate/endDate caem a meio da semana.
+function segundaFeiraDeIso(iso) {
+  const d = dataDeIso(iso);
+  const dow = d.getUTCDay(); // 0=Dom..6=Sáb
+  const diff = dow === 0 ? -6 : 1 - dow;
+  d.setUTCDate(d.getUTCDate() + diff);
+  return isoDeData(d);
+}
+function diaSemanaDeIso(iso) {
+  const dow = dataDeIso(iso).getUTCDay(); // 0=Dom..6=Sáb
+  return DIAS_SEMANA[dow === 0 ? 6 : dow - 1]; // reindexa para a ordem Seg..Dom de DIAS_SEMANA
+}
+function fmtDiaMesCurtoIso(iso) {
+  const d = dataDeIso(iso);
+  return `${d.getUTCDate()} ${MESES_ABREV[d.getUTCMonth()]}.`;
+}
+function fmtDataPtIso(iso) {
+  const d = dataDeIso(iso);
+  return `${d.getUTCDate()} de ${MESES_PT[d.getUTCMonth()]} de ${d.getUTCFullYear()}`;
+}
+function fmtIntervaloIso(inicioIso, fimIso) {
+  const i = dataDeIso(inicioIso), f = dataDeIso(fimIso);
+  const mesmoMes = i.getUTCMonth() === f.getUTCMonth() && i.getUTCFullYear() === f.getUTCFullYear();
+  if (mesmoMes) return `${i.getUTCDate()}–${f.getUTCDate()} ${MESES_PT[f.getUTCMonth()]}`;
+  return `${i.getUTCDate()} ${MESES_ABREV[i.getUTCMonth()]}. – ${f.getUTCDate()} ${MESES_ABREV[f.getUTCMonth()]}.`;
+}
+// Pré-visualização "N dias · válido de X a Y · aviso a partir de Z" a partir das datas
+// reais do plano — substitui o antigo fmtJanelaPlano(semanas), que assumia sempre
+// "a começar hoje" e não sabia nada de planos com datas próprias.
+function fmtJanelaPlanoIso(startIso, endIso) {
+  const dias = Math.round((dataDeIso(endIso) - dataDeIso(startIso)) / 86400000) + 1;
+  const avisoIso = addDiasIso(endIso, -4);
+  return `${dias} dias · válido de ${fmtDataPtIso(startIso)} a ${fmtDataPtIso(endIso)} · aviso a partir de ${fmtDataPtIso(avisoIso)}`;
 }
 
-// Datas reais do ecrã inicial (landing) — created_at/expires_at já são datas exactas
-// gravadas em wo_prescriptions (secção "Gravação"), não há aproximação nenhuma aqui.
-const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+// Datas reais do ecrã inicial (landing) — created_at/expires_at já são timestamps exactos
+// gravados em wo_prescriptions (secção "Gravação"); estes dois usam Date reais (não ISO
+// de calendário) porque vêm directamente de colunas timestamptz, não de `sessions[].date`.
 function fmtIntervaloPlano(inicio, fim) {
   const mesmoMes = inicio.getMonth() === fim.getMonth() && inicio.getFullYear() === fim.getFullYear();
   if (mesmoMes) return `${inicio.getDate()}–${fim.getDate()} ${MESES_PT[fim.getMonth()]}`;
@@ -342,53 +398,19 @@ function fmtRelativo(data) {
   return `${data.getDate()} ${MESES_ABREV[data.getMonth()]}.`;
 }
 
-// Datas reais da grelha do Passo 2 (ecrã de 2 modos, 9 ago 2026). Sem plano activo
-// carregado, dia 1 é sempre amanhã — a mesma base que computeExpiresAt usa por omissão
-// para o fim do plano. Com um plano activo carregado (planStartOverride), a semana 1
-// ancora-se na data real em que esse plano começou, para as sessões carregadas caírem
-// nos dias certos em vez de saltarem para a semana errada. As semanas mostradas são
-// semanas reais seg-dom (ISO); se o dia 1 não calhar à segunda-feira, os dias da semana 1
-// anteriores a ele aparecem na grelha (para as colunas SEG..DOM baterem com dias da
-// semana verdadeiros) mas ficam desativados — não se prescreve num dia já passado antes
-// do início do plano.
-function planStartDate() {
-  if (_state.planStartOverride) return _state.planStartOverride;
-  const hoje = hojeEmLisboa();
-  return new Date(Date.UTC(hoje.year, hoje.month - 1, hoje.day + 1));
-}
-function segundaFeiraDaSemanaDe(data) {
-  const dow = data.getUTCDay(); // 0=Dom..6=Sáb
-  const diff = dow === 0 ? -6 : 1 - dow;
-  const seg = new Date(data);
-  seg.setUTCDate(seg.getUTCDate() + diff);
-  return seg;
-}
-function realDateFor(week, dayValue) {
-  const idx = DIAS_SEMANA.findIndex(d => d.value === dayValue);
-  const seg1 = segundaFeiraDaSemanaDe(planStartDate());
-  const d = new Date(seg1);
-  d.setUTCDate(d.getUTCDate() + idx + (week - 1) * 7);
-  return d;
-}
-function fmtDiaMesCurto(d) {
-  return `${d.getUTCDate()} ${MESES_ABREV[d.getUTCMonth()]}.`;
-}
-function fmtIntervaloSemana(week) {
-  return fmtIntervaloPlano(realDateFor(week, 'seg'), realDateFor(week, 'dom'));
-}
-
-// Sessão nova (secção 5): session_id/week/day/order/kind/modality/local + o contentor
-// próprio de cada kind — items (ginásio), blocks (cardio/circuito) ou walks+stairs_flights (caminhada).
-function novaSessaoSkeleton(modality, kind, week, day) {
-  const sessoesNoDia = _state.sessions.filter(s => s.week === week && s.day === day);
+// Sessão nova: session_id/date/order/kind/modality/local/momento + o contentor próprio
+// de cada kind — items (ginásio), blocks (cardio/circuito) ou walks+stairs_flights
+// (caminhada). `date` é ISO "yyyy-mm-dd" real (Fase A, 9 ago 2026) — já não há week/day.
+function novaSessaoSkeleton(modality, kind, date) {
+  const sessoesNoDia = _state.sessions.filter(s => s.date === date);
   const base = {
     session_id: uuid(),
-    week,
-    day,
+    date,
     order: sessoesNoDia.length,
     kind,
     modality,
     local: null,
+    momento: null,
   };
   if (kind === 'walk') return { ...base, walks: [], stairs_flights: null };
   if (kind === 'card' && modality === 'Natação') return { ...base, blocks: [], pool_length_m: 25, stroke: 'crol' };
@@ -404,16 +426,15 @@ function cloneSession(s) {
 // 2026). Antes disto o ecrã começava sempre vazio e só se fundia com o plano activo ao
 // gravar (mesclarSessoes/chaveSessao) — com o calendário sempre visível isso passou a
 // parecer avariado (o doente via "não tenho nada", mesmo já tendo um plano a decorrer).
-// planStartOverride ancora a semana 1 na data real de criação do plano carregado, para as
-// sessões não caírem em dias errados por o calendário assumir "dia 1 = amanhã".
+// Desde a Fase A (datas reais em vez de week+day), startDate/endDate/etc. vêm gravados
+// tal e qual em `data` — já não é preciso derivar nada de created_at.
 async function carregarPlanoActivoSeExistir() {
   _state.activePrescriptionId = null;
-  _state.planStartOverride = null;
   if (!_state.patient) return;
 
   const { data, error } = await window.sb
     .from('wo_prescriptions')
-    .select('id,created_at,expires_at,data')
+    .select('id,data')
     .eq('patient_id', _state.patient.id)
     .eq('status', 'active')
     .gt('expires_at', new Date().toISOString())
@@ -430,10 +451,12 @@ async function carregarPlanoActivoSeExistir() {
   if (!data) return; // sem plano activo — quadro em branco, como sempre foi para doentes novos
 
   _state.activePrescriptionId = data.id;
-  _state.planWeeks = data.data?.weeks || 2;
+  _state.startDate = data.data?.startDate || _state.startDate;
+  _state.endDate = data.data?.endDate || _state.endDate;
+  _state.dataRevisao = data.data?.dataRevisao || null;
+  _state.duracaoSessaoPadrao = data.data?.duracaoSessaoPadrao || 30;
+  _state.diasPorSemanaHabitual = data.data?.diasPorSemanaHabitual ?? null;
   _state.sessions = structuredClone(data.data?.sessions || []);
-  const inicio = dataLisboaDe(new Date(data.created_at));
-  _state.planStartOverride = new Date(Date.UTC(inicio.year, inicio.month - 1, inicio.day));
 }
 
 /* ── Entry point ─────────────────────────────────────────── */
@@ -962,25 +985,38 @@ function wirePatientBanner() {
   });
 }
 
-/* ── Duração do plano — chips 2/3/4 semanas ──────────────── */
-function renderDuracaoSection() {
-  const semanas = _state.planWeeks;
-  const chipsHtml = [2, 3, 4].map(n => `
-    <button type="button" class="gcwo-chip${semanas === n ? ' on' : ''}" data-semanas="${n}">${n} semanas</button>
-  `).join('');
+/* ── Datas do plano — início/fim/revisão reais (Fase A, 9 ago 2026) ──────
+   Substitui as chips "2/3/4 semanas": já não há uma duração fixa, há datas reais.
+   O calendário passa a mostrar-se sempre (ver renderCalendarMode) — escolher datas
+   aqui só ajusta a janela, nunca é uma condição para o calendário aparecer. */
+function renderDatasPlanoSection() {
   return `
     <section class="gcwo-duracao-section">
-      <h2 class="gcwo-section-title">Duração do plano</h2>
-      <div class="gcwo-chips" id="gcwoDuracaoChips">${chipsHtml}</div>
-      <div class="gcwo-duracao-info" id="gcwoDuracaoInfo">${semanas ? escHtml(fmtJanelaPlano(semanas)) : 'Escolhe a duração do plano.'}</div>
+      <h2 class="gcwo-section-title">Datas do plano</h2>
+      <div class="gcwo-datasplano-row">
+        <label class="gcwo-field"><span>Início</span><input type="date" id="gcwoDataInicio" value="${_state.startDate}"></label>
+        <label class="gcwo-field"><span>Fim</span><input type="date" id="gcwoDataFim" value="${_state.endDate}" min="${_state.startDate}"></label>
+        <label class="gcwo-field"><span>Revisão (opcional)</span><input type="date" id="gcwoDataRevisao" value="${_state.dataRevisao || ''}"></label>
+      </div>
+      <div class="gcwo-duracao-info" id="gcwoDuracaoInfo">${escHtml(fmtJanelaPlanoIso(_state.startDate, _state.endDate))}</div>
     </section>`;
 }
-function wireDuracaoSection() {
-  document.querySelectorAll('#gcwoDuracaoChips [data-semanas]').forEach(chip => {
-    chip.addEventListener('click', () => {
-      _state.planWeeks = Number(chip.getAttribute('data-semanas'));
-      renderStep2(); // revela (ou reconstrói) o calendário
-    });
+function wireDatasPlanoSection() {
+  document.getElementById('gcwoDataInicio').addEventListener('change', (e) => {
+    if (!e.target.value) return;
+    _state.startDate = e.target.value;
+    // Fim nunca fica antes do início — se o médico recuar o início para lá do fim
+    // actual, o fim reajusta-se para 4 semanas a partir do novo início.
+    if (_state.endDate < _state.startDate) _state.endDate = addDiasIso(_state.startDate, 27);
+    renderStep2Body();
+  });
+  document.getElementById('gcwoDataFim').addEventListener('change', (e) => {
+    if (!e.target.value || e.target.value < _state.startDate) { renderStep2Body(); return; }
+    _state.endDate = e.target.value;
+    renderStep2Body();
+  });
+  document.getElementById('gcwoDataRevisao').addEventListener('change', (e) => {
+    _state.dataRevisao = e.target.value || null;
   });
 }
 
@@ -992,9 +1028,6 @@ function renderStep2() {
   if (!root) return;
 
   const p = _state.patient;
-  _copyWeekOpen = false;
-  _copyWeekSelected = new Set();
-  _copyWeekSource = 1;
   // _panelDraft/_pendingSlot NÃO se reiniciam aqui — renderStep2() é chamado outra vez
   // ao voltar do Catálogo (topActionsHtml) a meio de uma edição, e essa edição tem de
   // sobreviver à viagem (o comportamento de sempre, antes dos 2 modos).
@@ -1019,10 +1052,11 @@ function renderStep2() {
     _state.restricoesPredefinidas = [];
     _state.restricoesTexto = '';
     _state.restricoesEditing = false;
-    _state.planWeeks = 2;
+    _state.startDate = isoAmanha();
+    _state.endDate = addDiasIso(_state.startDate, 27);
+    _state.dataRevisao = null;
     _state.sessions = [];
     _state.activePrescriptionId = null;
-    _state.planStartOverride = null;
     renderStep1();
   });
 
@@ -1051,17 +1085,18 @@ function renderCalendarMode(host) {
     host.innerHTML = `<section class="gcwo-card"><span class="gcwo-muted">A verificar se este doente já tem um plano activo…</span></section>`;
     return;
   }
-  const semanasEscolhidas = !!_state.planWeeks;
 
+  // O calendário já não fica condicionado a "escolher a duração" — startDate/endDate
+  // vêm sempre com um valor (novo plano ou carregado), por isso aparece sempre (9 ago
+  // 2026). "Copiar uma semana para as outras" saiu: sem semanas numeradas fixas, deixou
+  // de fazer sentido — "Duplicar para…" no menu ⋮ de cada sessão cobre o mesmo caso e
+  // mais (pode duplicar para dias de semanas diferentes de uma vez).
   host.innerHTML = `
-    ${renderDuracaoSection()}
-    ${semanasEscolhidas ? `
+    ${renderDatasPlanoSection()}
     <section>
       <div class="gcwo-cal-head">
         <h2 class="gcwo-section-title">Calendário do plano</h2>
-        ${_state.planWeeks > 1 ? `<button type="button" class="gcBtnGhost gcBtnSm" id="gcwoBtnCopiarSemana">Copiar uma semana para as outras</button>` : ''}
       </div>
-      <div class="gcwo-copyweek" id="gcwoCopyWeekPanel" hidden></div>
       <div id="gcwoCalGrid"></div>
     </section>
 
@@ -1069,58 +1104,55 @@ function renderCalendarMode(host) {
       <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.'}">Gerar prescrição e link</button>
       <span id="gcwoGerarErro" class="gcwo-erro"></span>
     </div>
-    ` : `
-    <section class="gcwo-card">
-      <span class="gcwo-muted">Escolhe a duração do plano, acima, para começares a construir o calendário.</span>
-    </section>
-    `}
   `;
 
-  wireDuracaoSection();
-  if (!semanasEscolhidas) return;
-
+  wireDatasPlanoSection();
   renderCalGrid();
   document.getElementById('gcwoGerar').addEventListener('click', handleGerar);
-  document.getElementById('gcwoBtnCopiarSemana')?.addEventListener('click', () => {
-    _copyWeekOpen = !_copyWeekOpen;
-    _copyWeekSelected = new Set();
-    renderCopyWeekPanel();
-  });
 }
 
-// weekHasSessions ainda serve ao painel de "copiar semana" (avisar que o destino já
-// tem conteúdo antes de o substituir).
-function weekHasSessions(week) {
-  return _state.sessions.some(s => s.week === week);
+// Segundas-feiras (ISO) das semanas a desenhar: sempre pelo menos 4, e nunca menos do
+// que as necessárias para o calendário chegar a endDate — se o plano for mais comprido
+// do que 4 semanas, o calendário estica para mostrar tudo (9 ago 2026). Substitui o
+// antigo "N semanas fixas escolhidas no topo"; usado também pelo day-picker (mover/
+// duplicar), para oferecer sempre exactamente os mesmos dias que estão à vista.
+function semanasParaMostrar() {
+  const segInicio = segundaFeiraDeIso(_state.startDate);
+  const segFim = segundaFeiraDeIso(_state.endDate);
+  const diffSemanas = Math.round((dataDeIso(segFim) - dataDeIso(segInicio)) / (7 * 86400000)) + 1;
+  const n = Math.max(4, diffSemanas);
+  return Array.from({ length: n }, (_, i) => addDiasIso(segInicio, i * 7));
 }
 
 function renderCalGrid() {
   const host = document.getElementById('gcwoCalGrid');
   if (!host) return;
-  const n = _state.planWeeks || 1;
-  const inicio = planStartDate();
+  const semanas = semanasParaMostrar();
 
-  host.innerHTML = Array.from({ length: n }, (_, i) => i + 1).map(w => `
+  host.innerHTML = semanas.map((segIso, wi) => `
     <div class="gcwo-calweek">
-      <div class="gcwo-calweek-label">Semana ${w} <span>${escHtml(fmtIntervaloSemana(w))}</span></div>
+      <div class="gcwo-calweek-label">Semana ${wi + 1} <span>${escHtml(fmtIntervaloIso(segIso, addDiasIso(segIso, 6)))}</span></div>
       <div class="gcwo-calrow">
-        ${DIAS_SEMANA.map(d => {
-          const data = realDateFor(w, d.value);
-          const antesDoInicio = data < inicio;
-          const sessions = _state.sessions.filter(s => s.week === w && s.day === d.value).sort((a, b) => a.order - b.order);
+        ${DIAS_SEMANA.map((d, di) => {
+          const iso = addDiasIso(segIso, di);
+          // "before-start" cobre agora os dois lados fora do plano — antes de startDate
+          // ou depois de endDate — reaproveitando o mesmo estilo esbatido dos dois casos.
+          const fora = iso < _state.startDate || iso > _state.endDate;
+          const sessions = _state.sessions.filter(s => s.date === iso).sort((a, b) => a.order - b.order);
           return `
-          <div class="gcwo-calday${antesDoInicio ? ' before-start' : ''}">
+          <div class="gcwo-calday${fora ? ' before-start' : ''}">
             <div class="gcwo-calday-top">
               <span class="dname">${d.label}</span>
-              ${!antesDoInicio ? `<button type="button" class="gcwo-calday-add" data-add-week="${w}" data-add-day="${d.value}" title="Adicionar sessão">${ICON_MAIS}</button>` : ''}
+              ${!fora ? `<button type="button" class="gcwo-calday-add" data-add-date="${iso}" title="Adicionar sessão">${ICON_MAIS}</button>` : ''}
             </div>
-            <span class="num">${escHtml(fmtDiaMesCurto(data))}</span>
+            <span class="num">${escHtml(fmtDiaMesCurtoIso(iso))}</span>
             <div class="gcwo-calday-chips">
               ${sessions.map(s => {
                 const meta = TIPO_META[tipoKey(s)];
+                const momentoLabel = MOMENTOS_SESSAO.find(m => m.value === s.momento)?.label;
                 return `
                 <div class="gcwo-calchip-wrap">
-                  <button type="button" class="gcwo-calday-chip" style="background:${meta.bg};color:${meta.fg}" data-edit-session="${s.session_id}">${meta.icon}<span>${escHtml(meta.label)}</span></button>
+                  <button type="button" class="gcwo-calday-chip" style="background:${meta.bg};color:${meta.fg}" data-edit-session="${s.session_id}">${meta.icon}<span>${momentoLabel ? escHtml(momentoLabel) + ' · ' : ''}${escHtml(meta.label)}</span></button>
                   <button type="button" class="gcwo-calchip-menubtn" style="color:${meta.fg}" data-menu-session="${s.session_id}" title="Mais ações">${ICON_DOTS}</button>
                   <div class="gcwo-calchip-menu" id="gcwoCalMenu-${s.session_id}" hidden>
                     <button type="button" data-menu-action="editar" data-sid="${s.session_id}">${ICON_PENCIL}<span>Editar</span></button>
@@ -1137,9 +1169,9 @@ function renderCalGrid() {
     </div>
   `).join('');
 
-  host.querySelectorAll('[data-add-week]').forEach(btn => {
+  host.querySelectorAll('[data-add-date]').forEach(btn => {
     btn.addEventListener('click', () => {
-      _pendingSlot = { week: Number(btn.getAttribute('data-add-week')), day: btn.getAttribute('data-add-day') };
+      _pendingSlot = { date: btn.getAttribute('data-add-date') };
       renderStep2Body();
     });
   });
@@ -1206,11 +1238,12 @@ function wireCalMenuDocClickOnce() {
 
 /* ================================================================
    "Mover para…" / "Duplicar para…" — modal de escolha de dia(s)
-   Mover: 1 clique num dia executa logo (troca week/day, mantém
-   session_id). Duplicar: escolhe vários dias (podem ser de semanas
-   diferentes) e confirma — cada cópia recebe um session_id novo.
-   Em ambos: se o dia de destino já tiver outras sessões, a sessão
-   junta-se-lhes — nunca substitui (decisão de 9 ago 2026).
+   Mover: 1 clique num dia executa logo (muda `date`, mantém session_id).
+   Duplicar: escolhe vários dias (podem ser de semanas diferentes) e
+   confirma — cada cópia recebe um session_id novo. Em ambos: se o dia
+   de destino já tiver outras sessões, a sessão junta-se-lhes — nunca
+   substitui (decisão de 9 ago 2026). Oferece sempre os mesmos dias que
+   estão visíveis no calendário (semanasParaMostrar()).
    ================================================================ */
 function abrirDayPicker(sessionId, mode) {
   _dayPicker = { sessionId, mode, selecionados: new Set() };
@@ -1237,7 +1270,7 @@ function renderDayPicker() {
   }
 
   const meta = TIPO_META[tipoKey(s)];
-  const n = _state.planWeeks || 1;
+  const semanas = semanasParaMostrar();
   const mover = _dayPicker.mode === 'mover';
   const nSel = _dayPicker.selecionados.size;
 
@@ -1250,19 +1283,19 @@ function renderDayPicker() {
       </div>
       <div class="gcwo-modal-body">
         <p class="gcwo-daypicker-hint">${mover ? 'Clica no dia de destino.' : 'Escolhe um ou vários dias e confirma. Cada dia recebe uma cópia independente.'}</p>
-        ${Array.from({ length: n }, (_, i) => i + 1).map(w => `
+        ${semanas.map((segIso, wi) => `
           <div class="gcwo-daypicker-week">
-            <div class="gcwo-calweek-label">Semana ${w} <span>${escHtml(fmtIntervaloSemana(w))}</span></div>
+            <div class="gcwo-calweek-label">Semana ${wi + 1} <span>${escHtml(fmtIntervaloIso(segIso, addDiasIso(segIso, 6)))}</span></div>
             <div class="gcwo-daypicker-row">
-              ${DIAS_SEMANA.map(d => {
-                const isSource = s.week === w && s.day === d.value;
-                const key = w + '-' + d.value;
-                const temSessoes = _state.sessions.some(x => x.week === w && x.day === d.value && x.session_id !== s.session_id);
-                const selecionado = _dayPicker.selecionados.has(key);
+              ${DIAS_SEMANA.map((d, di) => {
+                const iso = addDiasIso(segIso, di);
+                const isSource = s.date === iso;
+                const temSessoes = _state.sessions.some(x => x.date === iso && x.session_id !== s.session_id);
+                const selecionado = _dayPicker.selecionados.has(iso);
                 return `
-                <button type="button" class="gcwo-daypicker-cell${isSource ? ' source' : ''}${selecionado ? ' on' : ''}" data-week="${w}" data-day="${d.value}" ${isSource ? 'disabled' : ''}>
+                <button type="button" class="gcwo-daypicker-cell${isSource ? ' source' : ''}${selecionado ? ' on' : ''}" data-date="${iso}" ${isSource ? 'disabled' : ''}>
                   <span class="dname">${d.label}</span>
-                  <span class="num">${escHtml(fmtDiaMesCurto(realDateFor(w, d.value)))}</span>
+                  <span class="num">${escHtml(fmtDiaMesCurtoIso(iso))}</span>
                   ${isSource ? '<span class="tag">actual</span>' : (temSessoes ? '<span class="dot" title="Já tem sessões — esta junta-se"></span>' : '')}
                 </button>`;
               }).join('')}
@@ -1283,56 +1316,48 @@ function wireDayPicker() {
   document.getElementById('gcwoDayPickerClose').addEventListener('click', fecharDayPicker);
   document.getElementById('gcwoDayPickerCancelar')?.addEventListener('click', fecharDayPicker);
 
-  document.querySelectorAll('#gcwoDayPickerOverlay [data-week]').forEach(cell => {
+  document.querySelectorAll('#gcwoDayPickerOverlay [data-date]').forEach(cell => {
     cell.addEventListener('click', () => {
-      const week = Number(cell.getAttribute('data-week'));
-      const day = cell.getAttribute('data-day');
+      const iso = cell.getAttribute('data-date');
       if (_dayPicker.mode === 'mover') {
-        moverSessaoParaDia(_dayPicker.sessionId, week, day);
+        moverSessaoParaDia(_dayPicker.sessionId, iso);
         return;
       }
-      const key = week + '-' + day;
-      if (_dayPicker.selecionados.has(key)) _dayPicker.selecionados.delete(key);
-      else _dayPicker.selecionados.add(key);
+      if (_dayPicker.selecionados.has(iso)) _dayPicker.selecionados.delete(iso);
+      else _dayPicker.selecionados.add(iso);
       renderDayPicker();
     });
   });
 
   document.getElementById('gcwoDayPickerConfirmar')?.addEventListener('click', () => {
-    const alvos = [..._dayPicker.selecionados].map(key => {
-      const idx = key.indexOf('-');
-      return { week: Number(key.slice(0, idx)), day: key.slice(idx + 1) };
-    });
-    duplicarSessaoParaDias(_dayPicker.sessionId, alvos);
+    duplicarSessaoParaDias(_dayPicker.sessionId, [..._dayPicker.selecionados]);
   });
 }
 
-// Muda week/day da própria sessão — mantém session_id (é a mesma sessão, só de dia
+// Muda a data da própria sessão — mantém session_id (é a mesma sessão, só de dia
 // diferente). Se o destino já tiver sessões, a movida entra a seguir às existentes.
-function moverSessaoParaDia(sessionId, week, day) {
+function moverSessaoParaDia(sessionId, date) {
   const s = _state.sessions.find(x => x.session_id === sessionId);
   if (!s) return;
-  if (s.week === week && s.day === day) { fecharDayPicker(); return; }
-  s.week = week;
-  s.day = day;
-  s.order = _state.sessions.filter(x => x.week === week && x.day === day && x.session_id !== sessionId).length;
+  if (s.date === date) { fecharDayPicker(); return; }
+  s.date = date;
+  s.order = _state.sessions.filter(x => x.date === date && x.session_id !== sessionId).length;
   fecharDayPicker();
   renderCalGrid();
   updateGerarButtonState();
 }
 
 // Cria uma cópia com session_id novo por cada dia escolhido — nunca reaproveita o
-// session_id de origem (mesmo padrão do "copiar semana"), para não misturar registos
-// que o doente já tenha feito numa sessão com os de outra.
-function duplicarSessaoParaDias(sessionId, alvos) {
+// session_id de origem, para não misturar registos que o doente já tenha feito numa
+// sessão com os de outra.
+function duplicarSessaoParaDias(sessionId, datas) {
   const s = _state.sessions.find(x => x.session_id === sessionId);
-  if (!s || !alvos.length) return;
-  alvos.forEach(({ week, day }) => {
+  if (!s || !datas.length) return;
+  datas.forEach(date => {
     const copy = structuredClone(s);
     copy.session_id = uuid();
-    copy.week = week;
-    copy.day = day;
-    copy.order = _state.sessions.filter(x => x.week === week && x.day === day).length;
+    copy.date = date;
+    copy.order = _state.sessions.filter(x => x.date === date).length;
     _state.sessions.push(copy);
   });
   fecharDayPicker();
@@ -1340,102 +1365,10 @@ function duplicarSessaoParaDias(sessionId, alvos) {
   updateGerarButtonState();
 }
 
-/* ── "Copiar semana N para as outras" ────────────────────── */
-function renderCopyWeekPanel() {
-  const panel = document.getElementById('gcwoCopyWeekPanel');
-  if (!panel) return;
-  panel.hidden = !_copyWeekOpen;
-  if (!_copyWeekOpen) return;
-
-  const todasSemanas = Array.from({ length: _state.planWeeks }, (_, i) => i + 1);
-  const source = _copyWeekSource;
-  const destinos = todasSemanas.filter(w => w !== source);
-
-  panel.innerHTML = `
-    <span class="gcwo-field-label">Copiar a semana</span>
-    <div class="gcwo-chips" id="gcwoCopyWeekSourceChips">
-      ${todasSemanas.map(w => `<button type="button" class="gcwo-chip${w === source ? ' on' : ''}" data-source-week="${w}">Semana ${w}</button>`).join('')}
-    </div>
-    <span class="gcwo-field-label" style="margin-top:10px;">Para</span>
-    <div class="gcwo-copyweek-list">
-      ${destinos.map(w => {
-        const altered = weekHasSessions(w);
-        const checked = _copyWeekSelected.has(w);
-        return `
-          <label class="gcwo-copyweek-item">
-            <input type="checkbox" data-week="${w}" ${checked ? 'checked' : ''}>
-            <span class="gcwo-copyweek-name">Semana ${w}</span>
-            <span class="gcwo-copyweek-status${altered ? ' altered' : ''}">${altered ? 'já tem sessões — marcar substitui só os dias em comum' : 'vazia'}</span>
-          </label>`;
-      }).join('')}
-    </div>
-    <div class="gcwo-copyweek-actions">
-      <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCopyWeekTodas">Seleccionar todas</button>
-      <span style="flex:1"></span>
-      <button type="button" class="gcBtnGhost" id="gcwoCopyWeekCancelar">Cancelar</button>
-      <button type="button" class="gcBtnSuccess" id="gcwoCopyWeekConfirmar">Copiar</button>
-    </div>
-  `;
-
-  panel.querySelectorAll('[data-source-week]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _copyWeekSource = Number(btn.getAttribute('data-source-week'));
-      _copyWeekSelected = new Set();
-      renderCopyWeekPanel();
-    });
-  });
-  panel.querySelectorAll('[data-week]').forEach(cb => {
-    cb.addEventListener('change', (e) => {
-      const w = Number(cb.getAttribute('data-week'));
-      if (e.target.checked) _copyWeekSelected.add(w);
-      else _copyWeekSelected.delete(w);
-    });
-  });
-  document.getElementById('gcwoCopyWeekTodas').addEventListener('click', () => {
-    const allSelected = destinos.every(w => _copyWeekSelected.has(w));
-    _copyWeekSelected = allSelected ? new Set() : new Set(destinos);
-    renderCopyWeekPanel();
-  });
-  document.getElementById('gcwoCopyWeekCancelar').addEventListener('click', () => {
-    _copyWeekOpen = false;
-    _copyWeekSelected = new Set();
-    renderCopyWeekPanel();
-  });
-  document.getElementById('gcwoCopyWeekConfirmar').addEventListener('click', handleCopiarSemana);
-}
-
-// Só copia, por dia, o que a semana de origem tem — dias sem nada na origem ficam
-// intocados no destino, mesmo que esse destino já tenha sessões próprias aí.
-function copyWeekDayLevel(sourceWeek, destWeek) {
-  DIAS_SEMANA.forEach(d => {
-    const origem = _state.sessions
-      .filter(s => s.week === sourceWeek && s.day === d.value)
-      .sort((a, b) => a.order - b.order);
-    if (!origem.length) return;
-
-    _state.sessions = _state.sessions.filter(s => !(s.week === destWeek && s.day === d.value));
-    origem.forEach((s, idx) => {
-      const copy = structuredClone(s);
-      copy.session_id = uuid();
-      copy.week = destWeek;
-      copy.order = idx;
-      _state.sessions.push(copy);
-    });
-  });
-}
-
-function handleCopiarSemana() {
-  const source = _copyWeekSource;
-  const destinos = [..._copyWeekSelected];
-  destinos.forEach(destWeek => copyWeekDayLevel(source, destWeek));
-
-  _copyWeekOpen = false;
-  _copyWeekSelected = new Set();
-  renderCalGrid();
-  updateGerarButtonState();
-  const panel = document.getElementById('gcwoCopyWeekPanel');
-  if (panel) panel.hidden = true;
-}
+// "Copiar semana N para as outras" foi removido nesta fase (9 ago 2026): sem semanas
+// numeradas fixas, "semana" deixou de ser uma unidade estável para copiar. "Duplicar
+// para…" no menu ⋮ de cada sessão cobre o mesmo caso (e mais — dias de semanas
+// diferentes numa só acção).
 
 /* ================================================================
    Histórico do doente — "Ver planos anteriores"
@@ -1502,11 +1435,8 @@ function renderHistoryModal() {
           <button type="button" id="gcwoHistClose" title="Fechar">${ICON_CLOSE}</button>
         </div>
         <div class="gcwo-modal-body">
-          <div style="margin-top:0;">
-            <span class="gcwo-field-label" style="display:inline; margin-right:8px;">Copiar para a semana</span>
-            <div class="gcwo-chips" id="gcwoHistTargetWeek" style="display:inline-flex;">
-              ${Array.from({ length: _state.planWeeks || 1 }, (_, i) => i + 1).map(w => `<button type="button" class="gcwo-chip${w === _historyTargetWeek ? ' on' : ''}" data-target-week="${w}">Semana ${w}</button>`).join('')}
-            </div>
+          <div style="margin-bottom:12px;">
+            <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoHistAplicar" ${(_historyDetail.data?.sessions || []).length && _historyDetail.data?.startDate ? '' : 'disabled'}>Aplicar este plano ao actual, a partir de ${escHtml(fmtDataPtIso(_state.startDate))}</button>
           </div>
           ${renderHistoryDetailHtml(_historyDetail)}
         </div>
@@ -1530,41 +1460,28 @@ function renderHistoryListHtml() {
 
   return _historyList.map(p => {
     const info = prescricaoStatusInfo(p);
-    const nSemanas = p.data?.weeks || 0;
     const nSessoes = (p.data?.sessions || []).length;
-    const dataTxt = new Date(p.created_at).toLocaleDateString('pt-PT');
+    const periodo = (p.data?.startDate && p.data?.endDate)
+      ? fmtIntervaloIso(p.data.startDate, p.data.endDate)
+      : new Date(p.created_at).toLocaleDateString('pt-PT');
     return `
       <button type="button" class="gcwo-history-item" data-id="${escAttr(p.id)}">
-        <span class="gcwo-history-date">${dataTxt}</span>
-        <span class="gcwo-history-meta">${nSemanas} semana${nSemanas === 1 ? '' : 's'} · ${nSessoes} sessõ${nSessoes === 1 ? 'ão' : 'es'}</span>
+        <span class="gcwo-history-date">${escHtml(periodo)}</span>
+        <span class="gcwo-history-meta">${nSessoes} sessõ${nSessoes === 1 ? 'ão' : 'es'}</span>
         <span class="gcwo-history-status ${info.cls}">${info.label}</span>
       </button>`;
   }).join('');
 }
 
+// Lista simples ordenada por data real — já não há "semanas" para agrupar (Fase A, 9 ago 2026).
 function renderHistoryDetailHtml(p) {
-  const nSemanas = p.data?.weeks || 0;
-  const sessions = p.data?.sessions || [];
-  if (!nSemanas) return `<div class="gcwo-muted">Este plano não tem semanas.</div>`;
-
-  return Array.from({ length: nSemanas }, (_, i) => i + 1).map(w => {
-    const semanaSessoes = sessions.filter(s => s.week === w);
-    const corpo = semanaSessoes.length
-      ? `<ul class="gcwo-plano-itemlist">${semanaSessoes.map(s => {
-          const dia = DIAS_SEMANA.find(d => d.value === s.day);
-          const cont = sessaoContagem(s);
-          return `<li>${dia ? dia.full : s.day} — ${escHtml(s.modality)}${s.local ? ' · ' + escHtml(s.local) : ''} · ${cont.n} ${cont.label}</li>`;
-        }).join('')}</ul>`
-      : `<div class="gcwo-muted">Sem sessões nesta semana.</div>`;
-    return `
-      <div class="gcwo-history-week">
-        <div class="gcwo-history-week-head">
-          <strong>Semana ${w}</strong>
-          <button type="button" class="gcBtnGhost gcBtnSm" data-copiar-semana="${w}" ${semanaSessoes.length ? '' : 'disabled'}>Copiar para aqui</button>
-        </div>
-        ${corpo}
-      </div>`;
-  }).join('');
+  const sessions = [...(p.data?.sessions || [])].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  if (!sessions.length) return `<div class="gcwo-muted">Este plano não tem sessões.</div>`;
+  return `<ul class="gcwo-plano-itemlist">${sessions.map(s => {
+    const cont = sessaoContagem(s);
+    const dataTxt = s.date ? `${diaSemanaDeIso(s.date).full}, ${fmtDiaMesCurtoIso(s.date)}` : '(sem data)';
+    return `<li>${escHtml(dataTxt)} — ${escHtml(s.modality)}${s.local ? ' · ' + escHtml(s.local) : ''} · ${cont.n} ${cont.label}</li>`;
+  }).join('')}</ul>`;
 }
 
 function wireHistoryModal() {
@@ -1581,48 +1498,34 @@ function wireHistoryModal() {
       renderHistoryModal();
     });
   });
-  document.querySelectorAll('#gcwoHistoryOverlay [data-target-week]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _historyTargetWeek = Number(btn.getAttribute('data-target-week'));
-      renderHistoryModal();
-    });
-  });
-  document.querySelectorAll('#gcwoHistoryOverlay [data-copiar-semana]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const w = Number(btn.getAttribute('data-copiar-semana'));
-      copiarSemanaDoHistorico(_historyDetail, w);
-    });
-  });
+  document.getElementById('gcwoHistAplicar')?.addEventListener('click', () => aplicarPrescricaoDoHistorico(_historyDetail));
 }
 
-// Cola os exercícios de uma semana de um plano antigo na semana actual — sempre com
-// session_id novos, nunca reaproveitados do plano de origem (mesmo que já expirado).
-// Mistura ao nível do dia, como no "copiar semana para as outras": só os dias que a
-// semana de origem tem são substituídos; o resto da semana actual fica intocado.
-function copiarSemanaDoHistorico(prescricao, sourceWeek) {
-  const origem = (prescricao?.data?.sessions || []).filter(s => s.week === sourceWeek);
-  if (!origem.length) return;
+// Aplica um plano antigo ao plano actual, deslocando as datas pela diferença entre o
+// início do plano antigo e o início do plano actual — sempre com session_id novos,
+// nunca reaproveitados do plano de origem (mesmo que já expirado). Acrescenta, nunca
+// substitui (mesma regra do mover/duplicar de 9 ago 2026) — se um dia de destino já
+// tiver sessões, a sessão aplicada junta-se-lhes.
+function aplicarPrescricaoDoHistorico(prescricao) {
+  const origem = prescricao?.data?.sessions || [];
+  const inicioAntigo = prescricao?.data?.startDate;
+  if (!origem.length || !inicioAntigo) return;
 
-  const destWeek = _historyTargetWeek;
-  const diasTocados = [...new Set(origem.map(s => s.day))];
-  const diasComConflito = diasTocados.filter(d => _state.sessions.some(s => s.week === destWeek && s.day === d));
+  const deslocamentoDias = Math.round((dataDeIso(_state.startDate) - dataDeIso(inicioAntigo)) / 86400000);
+  const datasDestino = origem.map(s => addDiasIso(s.date, deslocamentoDias));
+  const diasComConflito = [...new Set(datasDestino)].filter(iso => _state.sessions.some(s => s.date === iso));
   if (diasComConflito.length) {
-    const nomes = diasComConflito.map(d => DIAS_SEMANA.find(x => x.value === d)?.full || d).join(', ');
-    const ok = window.confirm(`A semana ${destWeek} já tem sessões em: ${nomes}. Vais substituí-las por estas. Continuar?`);
+    const ok = window.confirm(`Isto acrescenta sessões a ${diasComConflito.length} dia${diasComConflito.length === 1 ? '' : 's'} que já ${diasComConflito.length === 1 ? 'tem' : 'têm'} conteúdo no plano actual — nada é substituído, só se junta. Continuar?`);
     if (!ok) return;
   }
 
-  DIAS_SEMANA.forEach(d => {
-    const doDia = origem.filter(s => s.day === d.value).sort((a, b) => a.order - b.order);
-    if (!doDia.length) return;
-    _state.sessions = _state.sessions.filter(s => !(s.week === destWeek && s.day === d.value));
-    doDia.forEach((s, idx) => {
-      const copy = structuredClone(s);
-      copy.session_id = uuid();
-      copy.week = destWeek;
-      copy.order = idx;
-      _state.sessions.push(copy);
-    });
+  origem.forEach(s => {
+    const novaData = addDiasIso(s.date, deslocamentoDias);
+    const copy = structuredClone(s);
+    copy.session_id = uuid();
+    copy.date = novaData;
+    copy.order = _state.sessions.filter(x => x.date === novaData).length;
+    _state.sessions.push(copy);
   });
 
   closeHistoryModal();
@@ -1636,17 +1539,15 @@ function copiarSemanaDoHistorico(prescricao, sourceWeek) {
    o calendário recolhe para uma linha, o editor ocupa o resto do ecrã.
    ================================================================ */
 function renderEditMode(host) {
-  const week = _panelDraft ? _panelDraft.week : _pendingSlot.week;
-  const dayValue = _panelDraft ? _panelDraft.day : _pendingSlot.day;
-  const dia = DIAS_SEMANA.find(d => d.value === dayValue) || DIAS_SEMANA[0];
-  const data = realDateFor(week, dayValue);
+  const date = _panelDraft ? _panelDraft.date : _pendingSlot.date;
+  const dia = diaSemanaDeIso(date);
   const modalidadeLabel = _panelDraft ? TIPO_META[tipoKey(_panelDraft)].label : 'Escolher tipo de sessão';
 
   host.innerHTML = `
     <div class="gcwo-editbar">
       <button type="button" class="gcwo-editbar-back" id="gcwoEditBack">← Calendário</button>
       <span class="gcwo-editbar-sep">|</span>
-      <span class="gcwo-editbar-day">${dia.full}, ${escHtml(fmtDiaMesCurto(data))}</span>
+      <span class="gcwo-editbar-day">${dia.full}, ${escHtml(fmtDiaMesCurtoIso(date))}</span>
       <span class="gcwo-editbar-sep">|</span>
       <span class="gcwo-editbar-modalidade">${escHtml(modalidadeLabel)}</span>
     </div>
@@ -1698,7 +1599,7 @@ function renderTypegrid() {
    ================================================================ */
 function openPanelNovo(modality, kind) {
   if (!_pendingSlot) return;
-  _panelDraft = novaSessaoSkeleton(modality, kind, _pendingSlot.week, _pendingSlot.day);
+  _panelDraft = novaSessaoSkeleton(modality, kind, _pendingSlot.date);
   _panelIsNovo = true;
   _panelCatalogFiltro = 'favoritos';
   _panelCatalogBusca = '';
@@ -1730,12 +1631,12 @@ function renderPanel() {
 
   const s = _panelDraft;
   const meta = TIPO_META[tipoKey(s)];
-  const dia = DIAS_SEMANA.find(d => d.value === s.day);
+  const dia = diaSemanaDeIso(s.date);
 
   panel.innerHTML = `
     <div class="gcwo-panel-head">
       <span class="gcwo-panel-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
-      <span class="gcwo-panel-titles"><h3>${meta.label}</h3><span class="sub">${dia ? dia.full : ''} · Semana ${s.week}</span></span>
+      <span class="gcwo-panel-titles"><h3>${meta.label}</h3><span class="sub">${dia.full}, ${escHtml(fmtDiaMesCurtoIso(s.date))}</span></span>
       ${!_panelIsNovo ? `<button type="button" class="gcwo-panel-headbtn" id="gcwoPanelApagar" title="Apagar sessão">${ICON_TRASH}</button>` : ''}
       <button type="button" class="gcwo-panel-headbtn close" id="gcwoPanelFechar" title="Fechar">${ICON_CLOSE}</button>
     </div>
@@ -1743,6 +1644,12 @@ function renderPanel() {
       <span class="gcwo-field-label">Local</span>
       <div class="gcwo-chips" id="gcwoPLocalChips">
         ${LOCAIS_SESSAO.map(l => `<button type="button" class="gcwo-chip${s.local === l ? ' on' : ''}" data-local="${escAttr(l)}">${escHtml(l)}</button>`).join('')}
+      </div>
+
+      <span class="gcwo-field-label" style="margin-top:10px;">Momento do dia (opcional)</span>
+      <div class="gcwo-chips" id="gcwoPMomentoChips">
+        <button type="button" class="gcwo-chip${!s.momento ? ' on' : ''}" data-momento="">Sem indicar</button>
+        ${MOMENTOS_SESSAO.map(m => `<button type="button" class="gcwo-chip${s.momento === m.value ? ' on' : ''}" data-momento="${m.value}">${escHtml(m.label)}</button>`).join('')}
       </div>
 
       ${s.kind === 'list' ? renderCatalogPickerSection(s) : ''}
@@ -1779,6 +1686,13 @@ function wirePanel() {
     chip.addEventListener('click', () => {
       s.local = chip.getAttribute('data-local');
       document.querySelectorAll('#gcwoPLocalChips .gcwo-chip').forEach(c => c.classList.toggle('on', c === chip));
+    });
+  });
+
+  document.getElementById('gcwoPMomentoChips').querySelectorAll('[data-momento]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      s.momento = chip.getAttribute('data-momento') || null;
+      document.querySelectorAll('#gcwoPMomentoChips .gcwo-chip').forEach(c => c.classList.toggle('on', c === chip));
     });
   });
 
@@ -2818,28 +2732,14 @@ function hojeEmLisboa() {
     .formatToParts(new Date()).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
   return { year: +parts.year, month: +parts.month, day: +parts.day };
 }
-// Igual a hojeEmLisboa(), mas para uma data qualquer — usado para saber em que dia de
-// calendário (Lisboa) um wo_prescriptions.created_at caiu, ao carregar um plano activo
-// para edição (9 ago 2026).
-function dataLisboaDe(date) {
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' })
-    .formatToParts(date).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
-  return { year: +parts.year, month: +parts.month, day: +parts.day };
-}
-// Duração exacta do plano, sem folga — dia 1 é hoje (Lisboa) ou, se startOverride vier
-// preenchido (a editar um plano activo já carregado), o dia real em que esse plano
-// começou — nunca "hoje" nesse caso, para não ir empurrando o fim do plano cada vez que
-// o Morais volta a gravá-lo num dia diferente (9 ago 2026). Último dia às 23:59:59 (Lisboa).
-function computeExpiresAt(weeks, startOverride) {
-  const dias = weeks * 7;
-  const hoje = startOverride
-    ? { year: startOverride.getUTCFullYear(), month: startOverride.getUTCMonth() + 1, day: startOverride.getUTCDate() }
-    : hojeEmLisboa();
-  const fim = new Date(Date.UTC(hoje.year, hoje.month - 1, hoje.day));
-  fim.setUTCDate(fim.getUTCDate() + dias - 1);
-  const y = fim.getUTCFullYear(), m = fim.getUTCMonth() + 1, d = fim.getUTCDate();
-  const offsetMin = lisbonOffsetMinutesAt(new Date(Date.UTC(y, m - 1, d, 12, 0, 0))); // meio-dia UTC só para apurar o offset desse dia (evita bordas de DST à meia-noite)
-  return new Date(Date.UTC(y, m - 1, d, 23, 59, 59) - offsetMin * 60000);
+// expires_at real = endDate às 23:59:59 em Europe/Lisbon (Fase A, 9 ago 2026) — já não
+// se deriva de "N semanas a partir de hoje": startDate/endDate são datas reais e não
+// mudam consoante o dia em que o Morais grava, por isso substitui computeExpiresAt(weeks).
+function expiresAtDeIso(iso) {
+  const d = dataDeIso(iso);
+  const y = d.getUTCFullYear(), m = d.getUTCMonth() + 1, dd = d.getUTCDate();
+  const offsetMin = lisbonOffsetMinutesAt(new Date(Date.UTC(y, m - 1, dd, 12, 0, 0))); // meio-dia UTC só para apurar o offset desse dia (evita bordas de DST à meia-noite)
+  return new Date(Date.UTC(y, m - 1, dd, 23, 59, 59) - offsetMin * 60000);
 }
 function fmtDataPtLisboa(date) {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -2850,13 +2750,13 @@ function fmtDataPtLisboa(date) {
 /* ================================================================
    Gravação — monta o snapshot e grava em wo_prescriptions
    ================================================================ */
-// Forma alinhada com a secção 5 do briefing: weeks, restricoes (lista), sessions
-// (session_id/week/day/order/kind/modality/local + contentor próprio do kind).
-// Circuito grava sempre `intervals` já expandido — o `rounds`/`exercicios` da secção 5
-// é só o modelo do ecrã de edição, nunca o que fica na base de dados (decisão de 8 de
-// agosto de 2026).
+// Forma da Fase A (9 ago 2026): startDate/endDate/dataRevisao/duracaoSessaoPadrao/
+// diasPorSemanaHabitual/restricoes/sessions (session_id/date/order/kind/modality/local/
+// momento + contentor próprio do kind — já não há week/day). Circuito grava sempre
+// `intervals` já expandido — o `rounds`/`exercicios` é só o modelo do ecrã de edição,
+// nunca o que fica na base de dados (decisão de 8 de agosto de 2026).
 function sessaoParaGravar(s) {
-  const base = { session_id: s.session_id, week: s.week, day: s.day, order: s.order, kind: s.kind, modality: s.modality, local: s.local };
+  const base = { session_id: s.session_id, date: s.date, order: s.order, kind: s.kind, modality: s.modality, local: s.local, momento: s.momento || null };
   if (s.kind === 'walk') return { ...base, walks: s.walks, stairs_flights: s.stairs_flights };
   if (s.kind === 'circuit') return { ...base, blocks: flattenBlocosCircuitoParaGravar(s.blocks) };
   if (s.kind === 'card' && s.modality === 'Natação') {
@@ -2867,7 +2767,11 @@ function sessaoParaGravar(s) {
 }
 function buildFinalData() {
   return {
-    weeks: _state.planWeeks,
+    startDate: _state.startDate,
+    endDate: _state.endDate,
+    dataRevisao: _state.dataRevisao,
+    duracaoSessaoPadrao: _state.duracaoSessaoPadrao,
+    diasPorSemanaHabitual: _state.diasPorSemanaHabitual,
     restricoes: restricoesAtuais(),
     sessions: _state.sessions.map(sessaoParaGravar),
   };
@@ -2876,12 +2780,12 @@ function buildFinalData() {
 // Chave de "slot" para casar sessões novas com as já existentes na prescrição activa —
 // só entra em jogo quando o ecrã NÃO carregou o plano activo para edição directa (ver
 // carregarPlanoActivoSeExistir(), 9 ago 2026: doente novo, ou o plano activo mudou de id
-// a meio da edição). Nesse cenário week+day+order é a única correspondência disponível —
+// a meio da edição). Nesse cenário date+order é a única correspondência disponível —
 // fiável quando há uma sessão por dia, mas pode falhar se um dia tiver várias sessões
 // numa ordem diferente da versão anterior. Nesse caso a sessão fica tratada como nova
 // (session_id próprio).
 function chaveSessao(s) {
-  return `${s.week}|${s.day}|${s.order}`;
+  return `${s.date}|${s.order}`;
 }
 
 // Fusão "às cegas" (secção 5 do briefing) — só usada quando o ecrã não carregou o plano
@@ -2912,7 +2816,8 @@ function mesclarSessoes(existentes, novas) {
 function validarPrescricao() {
   if (!_state.clinicId) return 'Falta selecionar a clínica.';
   if (!_state.patient) return 'Falta selecionar o doente.';
-  if (!_state.planWeeks) return 'Falta escolher a duração do plano.';
+  if (!_state.startDate || !_state.endDate) return 'Falta escolher as datas do plano.';
+  if (_state.endDate < _state.startDate) return 'A data de fim não pode ser antes da data de início.';
   if (!_state.sessions.length) return 'Adiciona pelo menos uma sessão.';
   for (const s of _state.sessions) {
     if (!s.local) return 'Há uma sessão sem local escolhido.';
@@ -2955,7 +2860,7 @@ async function handleGerar() {
     if (erroActiva) throw new Error(`Falha ao verificar prescrição activa: ${erroActiva.message || erroActiva}`);
 
     const novaData = buildFinalData();
-    const expiresAtNovo = computeExpiresAt(_state.planWeeks, _state.planStartOverride);
+    const expiresAtNovo = expiresAtDeIso(_state.endDate);
     let token, linkExpiresAt;
 
     if (activaExistente) {
@@ -2964,23 +2869,30 @@ async function handleGerar() {
       // Se este ecrã carregou este MESMO plano activo para edição directa (9 ago 2026),
       // o que está em _state.sessions já É a lista completa e verdadeira — incluindo o
       // que o Morais tenha apagado no calendário. Gravar sobrepõe tal e qual, sem fundir
-      // por chave semana+dia+ordem: essa fusão só existe para proteger o caso em que o
+      // por chave data+ordem: essa fusão só existe para proteger o caso em que o
       // ecrã NUNCA mostrou o que já lá estava, o que deixou de acontecer aqui.
       const editandoPlanoCarregado = _state.activePrescriptionId === activaExistente.id;
 
       const sessoesFinais = editandoPlanoCarregado
         ? novaData.sessions
         : mesclarSessoes(activaExistente.data?.sessions, novaData.sessions);
-      // Fora do caso "plano carregado": nunca encurtar por engano a validade que o doente
-      // já tem, nem tornar semanas antigas inacessíveis por esta gravação ter escolhido
-      // uma duração menor. A editar um plano carregado, a duração escolhida no ecrã é que
-      // manda — é exactamente o que está à vista.
-      const weeksFinal = editandoPlanoCarregado ? novaData.weeks : Math.max(activaExistente.data?.weeks || 0, novaData.weeks);
       const expiresAtExistente = new Date(activaExistente.expires_at);
       const expiresAtFinal = editandoPlanoCarregado
         ? expiresAtNovo
         : (expiresAtNovo > expiresAtExistente ? expiresAtNovo : expiresAtExistente);
-      const dataFinal = { ...novaData, weeks: weeksFinal, sessions: sessoesFinais };
+      // Fora do caso "plano carregado": o ecrã nunca viu os campos reais deste plano
+      // (startDate/dataRevisao/etc.), por isso preserva os que já lá estavam em vez de
+      // gravar por cima os valores por omissão de um "plano novo" que nunca foi este.
+      const dataFinal = editandoPlanoCarregado
+        ? novaData
+        : {
+            ...novaData,
+            startDate: activaExistente.data?.startDate || novaData.startDate,
+            dataRevisao: activaExistente.data?.dataRevisao ?? novaData.dataRevisao,
+            duracaoSessaoPadrao: activaExistente.data?.duracaoSessaoPadrao ?? novaData.duracaoSessaoPadrao,
+            diasPorSemanaHabitual: activaExistente.data?.diasPorSemanaHabitual ?? novaData.diasPorSemanaHabitual,
+            sessions: sessoesFinais,
+          };
 
       const { error } = await window.sb.from('wo_prescriptions')
         .update({

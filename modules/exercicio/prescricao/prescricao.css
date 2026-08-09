@@ -194,9 +194,11 @@
 .gcwo-restricoes-editor-actions { display:flex; justify-content:flex-end; }
 .gcwo-restricoes-editor[hidden] { display:none; }
 
-/* ── duração do plano ── */
+/* ── datas do plano (Fase A, 9 ago 2026: substitui as chips de duração fixa) ── */
 .gcwo-duracao-section .gcwo-chips { margin-top:10px; }
 .gcwo-duracao-info { margin-top:10px; font-size:12.5px; color:#64748b; }
+.gcwo-datasplano-row { display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; }
+.gcwo-datasplano-row .gcwo-field input { min-width:150px; }
 
 .gcwo-section-title { font-size:16px; font-weight:600; color:#0f2d52; margin:0; }
 
