@@ -23,7 +23,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-09-10';
+const PRESCRICAO_CSS_VERSION = '2026-08-09-11';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -53,7 +53,11 @@ const ICON_NATACAO = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor"
 const ICON_CICLISMO = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="14.5" r="3"/><circle cx="15" cy="14.5" r="3"/><path d="M5 14.5l3.5-7h4L15 14.5M8.5 7.5H7M11 4h2.5l1.5 3.5"/></svg>`;
 const ICON_REMO = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l9 9M9.5 5.5l-6 6M14.5 10.5l-6 6"/><path d="M13 3l4 4M14 12.5c1.8 1.6 2 3.3 1 4.5-1.2 1-2.9.8-4.5-1"/></svg>`;
 const ICON_OUTRO = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.2"/><path d="M10 6.3v3.7l2.4 1.4"/></svg>`;
-const ICON_MAIS = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg>`;
+// Cruz preenchida (não traçada) — testada com renderização real (cairosvg) fora do
+// browser depois de o Morais reportar "nota-se mas não se vê": um traço fino de
+// 1.6px sobre fundo claro é demasiado subtil para se ver com confiança num ecrã
+// real; barras preenchidas + fundo/ícone a alto contraste resolvem isso de vez.
+const ICON_MAIS = `<svg viewBox="0 0 20 20"><rect x="8.6" y="4.5" width="2.8" height="11" rx="1.2" fill="currentColor"/><rect x="4.5" y="8.6" width="11" height="2.8" rx="1.2" fill="currentColor"/></svg>`;
 const ICON_PENCIL = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 3.5l4 4L6 18H2v-4L12.5 3.5z"/></svg>`;
 const ICON_TRASH = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4.5A1.5 1.5 0 019.5 3h1A1.5 1.5 0 0112 4.5V6m-6.5 0L6 16.5A1.5 1.5 0 007.5 18h5a1.5 1.5 0 001.5-1.5L14.5 6"/></svg>`;
 const ICON_CLOSE = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg>`;

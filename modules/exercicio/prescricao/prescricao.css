@@ -225,12 +225,14 @@
 .gcwo-calday.before-start { opacity:.45; background:#f8fafc; }
 .gcwo-calday-top { display:flex; align-items:center; justify-content:space-between; }
 .gcwo-calday .num { font-size:13px; font-weight:700; color:#0f172a; }
+/* Círculo azul sólido + cruz branca preenchida — contraste máximo, sem depender de
+   hover nem de traços finos (bug reportado 9 ago 2026: "nota-se mas não se vê"). */
 .gcwo-calday-add {
-  width:26px; height:26px; border-radius:50%; border:none; background:#eaf0fd; color:#1a56db; cursor:pointer;
+  width:26px; height:26px; border-radius:50%; border:none; background:#1a56db; color:#fff; cursor:pointer;
   display:flex; align-items:center; justify-content:center; flex-shrink:0;
 }
-.gcwo-calday-add svg { width:15px; height:15px; stroke-width:2.2; }
-.gcwo-calday-add:hover { background:#1a56db; color:#fff; }
+.gcwo-calday-add svg { width:15px; height:15px; }
+.gcwo-calday-add:hover { background:#123f9e; }
 .gcwo-calday-chips { display:flex; flex-direction:column; gap:5px; margin-top:8px; min-height:4px; }
 .gcwo-calday-chip {
   display:flex; align-items:center; gap:5px; border:none; border-radius:7px; padding:5px 7px; font-size:11px;
