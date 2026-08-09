@@ -19,6 +19,12 @@ const escHtml = escAttr;
 
 const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 
+// Sobe este número sempre que prescricao.css mudar de forma visível. Sem isto, o
+// <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
+// servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
+// 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
+const PRESCRICAO_CSS_VERSION = '2026-08-09-4';
+
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
   { value: 'ter', label: 'Ter', full: 'Terça-feira' },
@@ -57,6 +63,10 @@ const ICON_RULER = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" s
 const ICON_CAMINHADA = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11.5" cy="3.6" r="1.4" fill="currentColor" stroke="none"/><path d="M9 6l3 2-1 3 3 3M11 8l-3 1-2 4M8 11l-2.5 1.5"/></svg>`;
 const ICON_CIRCUITO = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a6 6 0 0110-4.5M16 12a6 6 0 01-10 4.5"/><path d="M13 2l1.5 1.5L13 5M7 18l-1.5-1.5L7 15"/></svg>`;
 const ICON_DIAMOND = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M10 2.5l7.5 7.5-7.5 7.5-7.5-7.5z"/></svg>`;
+// Menu de acções por sessão no calendário (⋮): Mover/Duplicar (9 ago 2026).
+const ICON_DOTS = `<svg viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="4" r="1.7"/><circle cx="10" cy="10" r="1.7"/><circle cx="10" cy="16" r="1.7"/></svg>`;
+const ICON_MOVE = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h14M3 10l3.5-3.5M3 10l3.5 3.5M17 10l-3.5-3.5M17 10l-3.5 3.5"/></svg>`;
+const ICON_COPY = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 7V5a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2"/></svg>`;
 
 // kind por sessão: só 'list' (ginásio) está activo — 'card'/'walk'/'circuit' ficam para os Passos 4/5 (secção 5 do briefing).
 const SESSAO_MODALIDADES = [
@@ -146,10 +156,18 @@ function renderCurrentStep() {
 }
 
 function ensurePrescricaoCss() {
-  if (document.querySelector('link[data-gcwo-prescricao]')) return;
+  const existente = document.querySelector('link[data-gcwo-prescricao]');
+  const url = new URL('./prescricao.css', import.meta.url);
+  url.searchParams.set('v', PRESCRICAO_CSS_VERSION);
+  if (existente) {
+    // Já existe uma tag de uma sessão anterior desta mesma página (SPA) — se a versão
+    // mudou entretanto, força a recarga da folha de estilo em vez de confiar na antiga.
+    if (existente.href !== url.href) existente.href = url.href;
+    return;
+  }
   const lnk = document.createElement('link');
   lnk.rel = 'stylesheet';
-  lnk.href = new URL('./prescricao.css', import.meta.url).href;
+  lnk.href = url.href;
   lnk.dataset.gcwoPrescricao = '1';
   document.head.appendChild(lnk);
 }
@@ -185,6 +203,7 @@ let _copyWeekSelected = new Set();      // semanas de destino marcadas no painel
 let _copyWeekSource = 1;                // semana de origem, escolhida dentro do próprio painel (9 ago 2026)
 let _historyTargetWeek = 1;             // semana de destino ao aplicar uma semana do histórico
 let _pendingSlot = null;                // {week, day} — dia escolhido na grelha, modalidade por escolher (ecrã de 2 modos, 9 ago 2026)
+let _calMenuDocClickWired = false;      // menu ⋮ por sessão no calendário — fecha ao clicar fora (9 ago 2026)
 let _historyOpen = false;               // modal "Ver planos anteriores" aberto/fechado
 let _historyLoading = false;
 let _historyError = '';
@@ -1018,7 +1037,17 @@ function renderCalGrid() {
             <div class="gcwo-calday-chips">
               ${sessions.map(s => {
                 const meta = TIPO_META[tipoKey(s)];
-                return `<button type="button" class="gcwo-calday-chip" style="background:${meta.bg};color:${meta.fg}" data-edit-session="${s.session_id}">${meta.icon}<span>${escHtml(meta.label)}</span></button>`;
+                return `
+                <div class="gcwo-calchip-wrap">
+                  <button type="button" class="gcwo-calday-chip" style="background:${meta.bg};color:${meta.fg}" data-edit-session="${s.session_id}">${meta.icon}<span>${escHtml(meta.label)}</span></button>
+                  <button type="button" class="gcwo-calchip-menubtn" style="color:${meta.fg}" data-menu-session="${s.session_id}" title="Mais ações">${ICON_DOTS}</button>
+                  <div class="gcwo-calchip-menu" id="gcwoCalMenu-${s.session_id}" hidden>
+                    <button type="button" data-menu-action="editar" data-sid="${s.session_id}">${ICON_PENCIL}<span>Editar</span></button>
+                    <button type="button" data-menu-action="mover" data-sid="${s.session_id}" disabled title="Em breve">${ICON_MOVE}<span>Mover para…</span></button>
+                    <button type="button" data-menu-action="duplicar" data-sid="${s.session_id}" disabled title="Em breve">${ICON_COPY}<span>Duplicar para…</span></button>
+                    <button type="button" class="danger" data-menu-action="apagar" data-sid="${s.session_id}">${ICON_TRASH}<span>Apagar</span></button>
+                  </div>
+                </div>`;
               }).join('')}
             </div>
           </div>`;
@@ -1035,6 +1064,61 @@ function renderCalGrid() {
   });
   host.querySelectorAll('[data-edit-session]').forEach(btn => {
     btn.addEventListener('click', () => openPanelEditar(btn.getAttribute('data-edit-session')));
+  });
+
+  // ⋮ por sessão — só um menu aberto de cada vez; fecha os outros antes de abrir o clicado.
+  host.querySelectorAll('[data-menu-session]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const sid = btn.getAttribute('data-menu-session');
+      const menu = document.getElementById('gcwoCalMenu-' + sid);
+      const abrir = menu.hidden;
+      host.querySelectorAll('.gcwo-calchip-menu').forEach(m => { m.hidden = true; });
+      menu.hidden = !abrir;
+    });
+  });
+  host.querySelectorAll('[data-menu-action]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (btn.disabled) return;
+      const sid = btn.getAttribute('data-sid');
+      const action = btn.getAttribute('data-menu-action');
+      document.getElementById('gcwoCalMenu-' + sid).hidden = true;
+      if (action === 'editar') openPanelEditar(sid);
+      else if (action === 'apagar') apagarSessaoNoCalendario(sid);
+      // 'mover' e 'duplicar' chegam nos próximos passos (picker de dias).
+    });
+  });
+  wireCalMenuDocClickOnce();
+}
+
+// Apagar directamente do chip do calendário, sem passar pelo painel — acção mais rápida
+// do que abrir para editar só para apagar. Pede confirmação por ser irreversível a partir
+// daqui (o painel de edição não pede porque lá já é um passo deliberado a mais).
+function apagarSessaoNoCalendario(sessionId) {
+  const s = _state.sessions.find(x => x.session_id === sessionId);
+  if (!s) return;
+  const meta = TIPO_META[tipoKey(s)];
+  if (!window.confirm(`Apagar a sessão "${meta.label}"? Não é possível desfazer.`)) return;
+  _state.sessions = _state.sessions.filter(x => x.session_id !== sessionId);
+  if (_panelDraft && _panelDraft.session_id === sessionId) fecharPanel();
+  else renderCalGrid();
+  updateGerarButtonState();
+}
+
+// Fecha qualquer menu ⋮ aberto ao clicar fora dele — mesmo padrão do popover de
+// clínicas do ecrã inicial (wireLandingDocClickOnce), ligado uma única vez ao document.
+function wireCalMenuDocClickOnce() {
+  if (_calMenuDocClickWired) return;
+  _calMenuDocClickWired = true;
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll('.gcwo-calchip-menu').forEach(menu => {
+      if (menu.hidden) return;
+      if (menu.contains(e.target)) return;
+      const wrap = menu.closest('.gcwo-calchip-wrap');
+      if (wrap && wrap.contains(e.target)) return;
+      menu.hidden = true;
+    });
   });
 }
 

@@ -227,10 +227,35 @@
 .gcwo-calday-chips { display:flex; flex-direction:column; gap:5px; margin-top:8px; min-height:4px; }
 .gcwo-calday-chip {
   display:flex; align-items:center; gap:5px; border:none; border-radius:7px; padding:5px 7px; font-size:11px;
-  font-weight:600; cursor:pointer; font-family:inherit; text-align:left; width:100%;
+  font-weight:600; cursor:pointer; font-family:inherit; text-align:left; width:100%; min-width:0;
 }
 .gcwo-calday-chip svg { width:12px; height:12px; flex-shrink:0; }
 .gcwo-calday-chip span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* ── ⋮ por sessão — Editar/Mover/Duplicar/Apagar (9 ago 2026) ── */
+.gcwo-calchip-wrap { position:relative; display:flex; align-items:stretch; gap:3px; }
+.gcwo-calchip-wrap .gcwo-calday-chip { flex:1 1 auto; }
+.gcwo-calchip-menubtn {
+  flex-shrink:0; width:16px; border:none; border-radius:6px; background:transparent; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; opacity:.65;
+}
+.gcwo-calchip-menubtn svg { width:11px; height:11px; }
+.gcwo-calchip-menubtn:hover { opacity:1; background:rgba(15,23,42,.08); }
+.gcwo-calchip-menu {
+  position:absolute; top:100%; left:0; margin-top:3px; background:#fff; border:0.5px solid #e2e8f0; border-radius:10px;
+  box-shadow:0 10px 26px rgba(15,23,42,.16); padding:5px; z-index:15; min-width:154px; display:flex; flex-direction:column; gap:1px;
+}
+.gcwo-calchip-menu button {
+  display:flex; align-items:center; gap:8px; border:none; background:transparent; border-radius:7px; padding:7px 8px;
+  font-size:12px; font-weight:600; color:#0f172a; cursor:pointer; text-align:left; font-family:inherit;
+}
+.gcwo-calchip-menu button svg { width:13px; height:13px; color:#64748b; flex-shrink:0; }
+.gcwo-calchip-menu button:hover { background:#f1f5f9; }
+.gcwo-calchip-menu button:disabled { opacity:.4; cursor:not-allowed; }
+.gcwo-calchip-menu button:disabled:hover { background:transparent; }
+.gcwo-calchip-menu button.danger { color:#dc2626; }
+.gcwo-calchip-menu button.danger svg { color:#dc2626; }
+.gcwo-calchip-menu button.danger:hover { background:#fef2f2; }
 
 /* ── copiar semana N para as outras ── */
 .gcwo-copyweek {
