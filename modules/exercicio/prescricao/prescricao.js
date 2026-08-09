@@ -774,7 +774,7 @@ function renderLandingTableHost() {
             <tr data-rid="${escAttr(r.id)}" class="gcwo-landing-row">
               <td><strong>${escHtml(r.patient?.full_name || '—')}</strong></td>
               <td class="muted">${escHtml(r.clinicName)}</td>
-              <td class="muted">${escHtml(fmtIntervaloPlano(r.createdAt, r.expiresAt))}</td>
+              <td class="muted">${escHtml(fmtIntervaloPlano(r.startDate, r.expiresAt))}</td>
               <td class="muted">${escHtml(fmtRelativo(r.lastLogAt))}</td>
               <td><span class="gcwo-situacao-dot ${r.situacao.cls}"></span>${escHtml(r.situacao.label)}</td>
             </tr>`).join('')}
@@ -814,7 +814,7 @@ async function loadLandingRows() {
 
   const { data, error } = await window.sb
     .from('wo_prescriptions')
-    .select('id,patient_id,clinic_id,created_at,expires_at,status,patients(id,full_name,dob,hr_zone_formula,hr_zones_bpm),clinics(name)')
+    .select('id,patient_id,clinic_id,created_at,expires_at,status,data,patients(id,full_name,dob,hr_zone_formula,hr_zones_bpm),clinics(name)')
     .eq('status', 'active')
     .in('clinic_id', clinicIds)
     .order('created_at', { ascending: false })
@@ -853,7 +853,11 @@ async function loadLandingRows() {
       patient: r.patients,
       clinicName: r.clinics?.name || '',
       clinicId: r.clinic_id,
-      createdAt: new Date(r.created_at),
+      // Início real do plano — vem de data.startDate (a data escolhida no calendário),
+      // não de created_at (quando o registo foi gravado, que pode ser um dia antes de o
+      // plano começar, ou continuar igual depois de o plano ser editado). Cai para
+      // created_at só em registos antigos sem data.startDate gravado (9 ago 2026).
+      startDate: r.data?.startDate ? dataDeIso(r.data.startDate) : new Date(r.created_at),
       expiresAt: new Date(r.expires_at),
       lastLogAt: logsByRx.get(r.id) || null,
     }));
