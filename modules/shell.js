@@ -256,7 +256,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
 
     <!-- TOPBAR -->
     <header class="gc-topbar">
-      <img src="/assets/vinheta.png" class="gc-topbar-logo" alt="Logotipo da clínica">
+      <img src="/assets/logo.png" class="gc-topbar-logo" alt="Logótipo João Morais">
       <span class="gc-topbar-user" id="hdrEmail"></span>
       <span class="gc-topbar-role" id="hdrRole"></span>
       <div class="gc-topbar-spacer"></div>
