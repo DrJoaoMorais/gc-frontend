@@ -23,7 +23,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-09-7';
+const PRESCRICAO_CSS_VERSION = '2026-08-09-8';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -1129,9 +1129,16 @@ function renderCalGrid() {
   if (!host) return;
   const semanas = semanasParaMostrar();
 
-  host.innerHTML = semanas.map((segIso, wi) => `
+  // Cabeçalho dos dias da semana (SEG..DOM) uma única vez no topo — antes cada
+  // linha de semana repetia isto por baixo do intervalo de datas, o que o Morais
+  // achou poluído. Agora é só isto, sem nenhuma etiqueta de semana a separar as linhas.
+  const cabecalho = `
+    <div class="gcwo-calweekday-header">
+      ${DIAS_SEMANA.map(d => `<span>${d.label}</span>`).join('')}
+    </div>`;
+
+  host.innerHTML = cabecalho + semanas.map((segIso, wi) => `
     <div class="gcwo-calweek">
-      <div class="gcwo-calweek-label">${escHtml(fmtIntervaloIso(segIso, addDiasIso(segIso, 6)))}</div>
       <div class="gcwo-calrow">
         ${DIAS_SEMANA.map((d, di) => {
           const iso = addDiasIso(segIso, di);
@@ -1142,10 +1149,9 @@ function renderCalGrid() {
           return `
           <div class="gcwo-calday${fora ? ' before-start' : ''}">
             <div class="gcwo-calday-top">
-              <span class="dname">${d.label}</span>
+              <span class="num">${escHtml(fmtDiaMesCurtoIso(iso))}</span>
               ${!fora ? `<button type="button" class="gcwo-calday-add" data-add-date="${iso}" title="Adicionar sessão">${ICON_MAIS}</button>` : ''}
             </div>
-            <span class="num">${escHtml(fmtDiaMesCurtoIso(iso))}</span>
             <div class="gcwo-calday-chips">
               ${sessions.map(s => {
                 const meta = TIPO_META[tipoKey(s)];

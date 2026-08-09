@@ -33,7 +33,7 @@ import { initGestaoAgenda }               from "./gestaoagenda.js";
 // Import dinâmico e versionado (não estático): evita que o browser/CDN sirva
 // uma cópia antiga de prescricao.js depois de um deploy — mesmo problema que
 // já resolvemos para o CSS, aqui aplicado ao próprio módulo JS.
-const PRESCRICAO_JS_VERSION = '2026-08-09-1';
+const PRESCRICAO_JS_VERSION = '2026-08-09-2';
 
 /* ====================================================================
    BLOCO 11B — Boot principal

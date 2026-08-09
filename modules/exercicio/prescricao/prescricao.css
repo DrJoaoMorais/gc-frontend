@@ -208,8 +208,15 @@
 .gcwo-cal-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:16px; flex-wrap:wrap; }
 
 /* ── calendário — semanas com datas reais ── */
-.gcwo-calweek { margin-top:16px; }
-.gcwo-calweek:first-of-type { margin-top:12px; }
+/* Cabeçalho SEG..DOM uma única vez no topo do calendário (9 ago 2026) — substitui
+   a etiqueta de intervalo de datas que separava cada linha de semana; o Morais
+   achou-a poluída e sem necessidade ("não preciso da informação da semana"). */
+.gcwo-calweekday-header { display:flex; gap:8px; margin-top:12px; }
+.gcwo-calweekday-header span {
+  flex:1 0 128px; min-width:128px; text-align:center; font-size:10.5px; font-weight:700;
+  letter-spacing:.03em; color:#94a3b8; text-transform:uppercase; padding-bottom:6px;
+}
+.gcwo-calweek { margin-top:10px; }
 .gcwo-calweek-label { font-size:12px; font-weight:600; color:#94a3b8; margin-bottom:8px; text-transform:uppercase; letter-spacing:.02em; }
 .gcwo-calrow { display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; }
 .gcwo-calday {
@@ -217,13 +224,12 @@
 }
 .gcwo-calday.before-start { opacity:.45; background:#f8fafc; }
 .gcwo-calday-top { display:flex; align-items:center; justify-content:space-between; }
-.gcwo-calday-top .dname { font-size:10.5px; font-weight:700; letter-spacing:.03em; color:#94a3b8; text-transform:uppercase; }
-.gcwo-calday .num { display:block; font-size:13px; font-weight:700; color:#0f172a; margin-top:2px; }
+.gcwo-calday .num { font-size:13px; font-weight:700; color:#0f172a; }
 .gcwo-calday-add {
-  width:22px; height:22px; border-radius:7px; border:none; background:transparent; color:#94a3b8; cursor:pointer;
+  width:24px; height:24px; border-radius:7px; border:none; background:transparent; color:#475569; cursor:pointer;
   display:flex; align-items:center; justify-content:center; flex-shrink:0;
 }
-.gcwo-calday-add svg { width:12px; height:12px; }
+.gcwo-calday-add svg { width:14px; height:14px; }
 .gcwo-calday-add:hover { background:#eaf0fd; color:#1a56db; }
 .gcwo-calday-chips { display:flex; flex-direction:column; gap:5px; margin-top:8px; min-height:4px; }
 .gcwo-calday-chip {
