@@ -23,7 +23,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-09-12';
+const PRESCRICAO_CSS_VERSION = '2026-08-09-13';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -71,6 +71,9 @@ const ICON_DIAMOND = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor"
 const ICON_DOTS = `<svg viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="4" r="2.3"/><circle cx="10" cy="10" r="2.3"/><circle cx="10" cy="16" r="2.3"/></svg>`;
 const ICON_MOVE = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h14M3 10l3.5-3.5M3 10l3.5 3.5M17 10l-3.5-3.5M17 10l-3.5 3.5"/></svg>`;
 const ICON_COPY = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 7V5a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2"/></svg>`;
+// Pega de arrastar da sessão no calendário — seis pontos em 2 colunas x 3 linhas,
+// elemento à parte do menu ⋮ (redesenho do calendário, 9 ago 2026).
+const ICON_GRIP = `<svg viewBox="0 0 20 20" fill="currentColor"><circle cx="7" cy="5" r="1.3"/><circle cx="13" cy="5" r="1.3"/><circle cx="7" cy="10" r="1.3"/><circle cx="13" cy="10" r="1.3"/><circle cx="7" cy="15" r="1.3"/><circle cx="13" cy="15" r="1.3"/></svg>`;
 
 // kind por sessão: só 'list' (ginásio) está activo — 'card'/'walk'/'circuit' ficam para os Passos 4/5 (secção 5 do briefing).
 const SESSAO_MODALIDADES = [
@@ -1204,20 +1207,24 @@ function renderCalGrid() {
           const fora = iso < _state.startDate || iso > _state.endDate;
           const sessions = _state.sessions.filter(s => s.date === iso).sort((a, b) => a.order - b.order);
           return `
-          <div class="gcwo-calday${fora ? ' before-start' : ''}">
+          <div class="gcwo-calday${fora ? ' before-start' : ''}"${fora ? '' : ` data-day="${iso}"`}>
             <div class="gcwo-calday-top">
               <span class="num">${escHtml(fmtDiaMesCurtoIso(iso))}</span>
               ${!fora ? `<button type="button" class="gcwo-calday-add" data-add-date="${iso}" title="Adicionar sessão">${ICON_MAIS}</button>` : ''}
             </div>
-            <div class="gcwo-calday-chips">
+            <div class="gcwo-calsessions">
               ${sessions.map(s => {
                 const meta = TIPO_META[tipoKey(s)];
                 const momentoLabel = MOMENTOS_SESSAO.find(m => m.value === s.momento)?.label;
                 return `
-                <div class="gcwo-calchip-wrap">
-                  <button type="button" class="gcwo-calday-chip" style="background:${meta.bg};color:${meta.fg}" data-edit-session="${s.session_id}">${meta.icon}<span>${momentoLabel ? escHtml(momentoLabel) + ' · ' : ''}${escHtml(meta.label)}</span></button>
-                  <button type="button" class="gcwo-calchip-menubtn" style="color:${meta.fg}" data-menu-session="${s.session_id}" title="Mais ações">${ICON_DOTS}</button>
-                  <div class="gcwo-calchip-menu" id="gcwoCalMenu-${s.session_id}" hidden>
+                <div class="gcwo-calsession-row" data-sid="${s.session_id}">
+                  <span class="gcwo-calsession-handle" data-drag-sid="${s.session_id}" title="Arrastar para mover">${ICON_GRIP}</span>
+                  <button type="button" class="gcwo-calsession-body" data-edit-session="${s.session_id}">
+                    <span class="gcwo-calsession-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
+                    <span class="gcwo-calsession-name">${escHtml(meta.label)}${momentoLabel ? ' · ' + escHtml(momentoLabel) : ''}</span>
+                  </button>
+                  <button type="button" class="gcwo-calsession-menubtn" data-menu-session="${s.session_id}" title="Mais ações">${ICON_DOTS}</button>
+                  <div class="gcwo-calsession-menu" id="gcwoCalMenu-${s.session_id}" hidden>
                     <button type="button" data-menu-action="editar" data-sid="${s.session_id}">${ICON_PENCIL}<span>Editar</span></button>
                     <button type="button" data-menu-action="mover" data-sid="${s.session_id}">${ICON_MOVE}<span>Mover para…</span></button>
                     <button type="button" data-menu-action="duplicar" data-sid="${s.session_id}">${ICON_COPY}<span>Duplicar para…</span></button>
@@ -1249,7 +1256,7 @@ function renderCalGrid() {
       const sid = btn.getAttribute('data-menu-session');
       const menu = document.getElementById('gcwoCalMenu-' + sid);
       const abrir = menu.hidden;
-      host.querySelectorAll('.gcwo-calchip-menu').forEach(m => { m.hidden = true; });
+      host.querySelectorAll('.gcwo-calsession-menu').forEach(m => { m.hidden = true; });
       if (abrir) posicionarMenuFlutuante(btn, menu);
       menu.hidden = !abrir;
     });
@@ -1268,6 +1275,44 @@ function renderCalGrid() {
     });
   });
   wireCalMenuDocClickOnce();
+  wireCalDragAndDrop(host);
+}
+
+// Arrastar pela pega de 6 pontos (⠿) — elemento à parte do corpo da sessão e do menu ⋮
+// (redesenho do calendário, 9 ago 2026). Só a pega é `draggable`, por isso arrastar só
+// começa a partir dela; o resto da sessão continua a abrir a edição normalmente. Larga
+// sobre um dia e reaproveita moverSessaoParaDia() tal e qual — mesma função do menu
+// "Mover para…", mantém sempre o session_id.
+function wireCalDragAndDrop(host) {
+  host.querySelectorAll('.gcwo-calsession-handle').forEach(handle => {
+    handle.setAttribute('draggable', 'true');
+    handle.addEventListener('dragstart', (e) => {
+      const sid = handle.getAttribute('data-drag-sid');
+      e.dataTransfer.setData('text/plain', sid);
+      e.dataTransfer.effectAllowed = 'move';
+      handle.closest('.gcwo-calsession-row')?.classList.add('dragging');
+    });
+    handle.addEventListener('dragend', () => {
+      handle.closest('.gcwo-calsession-row')?.classList.remove('dragging');
+      host.querySelectorAll('.gcwo-calday.drop-target').forEach(d => d.classList.remove('drop-target'));
+    });
+  });
+
+  host.querySelectorAll('.gcwo-calday[data-day]').forEach(day => {
+    day.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      day.classList.add('drop-target');
+    });
+    day.addEventListener('dragleave', () => day.classList.remove('drop-target'));
+    day.addEventListener('drop', (e) => {
+      e.preventDefault();
+      day.classList.remove('drop-target');
+      const sid = e.dataTransfer.getData('text/plain');
+      const destino = day.getAttribute('data-day');
+      if (sid && destino) moverSessaoParaDia(sid, destino);
+    });
+  });
 }
 
 // Apagar directamente do chip do calendário, sem passar pelo painel — acção mais rápida
@@ -1290,10 +1335,10 @@ function wireCalMenuDocClickOnce() {
   if (_calMenuDocClickWired) return;
   _calMenuDocClickWired = true;
   document.addEventListener('click', (e) => {
-    document.querySelectorAll('.gcwo-calchip-menu').forEach(menu => {
+    document.querySelectorAll('.gcwo-calsession-menu').forEach(menu => {
       if (menu.hidden) return;
       if (menu.contains(e.target)) return;
-      const wrap = menu.closest('.gcwo-calchip-wrap');
+      const wrap = menu.closest('.gcwo-calsession-row');
       if (wrap && wrap.contains(e.target)) return;
       menu.hidden = true;
     });

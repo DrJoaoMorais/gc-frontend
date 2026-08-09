@@ -216,66 +216,90 @@
   flex:1 0 128px; min-width:128px; text-align:center; font-size:10.5px; font-weight:700;
   letter-spacing:.03em; color:#94a3b8; text-transform:uppercase; padding-bottom:6px;
 }
-.gcwo-calweek { margin-top:10px; }
+.gcwo-calweek { margin-top:0; padding-top:10px; }
+.gcwo-calweek + .gcwo-calweek { border-top:1px solid #f1f5f9; margin-top:6px; }
 .gcwo-calweek-label { font-size:12px; font-weight:600; color:#94a3b8; margin-bottom:8px; text-transform:uppercase; letter-spacing:.02em; }
-.gcwo-calrow { display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; }
+.gcwo-calrow { display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; background:#fff; }
 .gcwo-calday {
-  flex:1 0 128px; min-width:128px; border:1.5px solid #e2e8f0; border-radius:12px; background:#fff; padding:9px 10px;
+  flex:1 0 128px; min-width:128px; background:#fff; padding:6px 6px; border-radius:8px;
+  transition:background-color .1s ease;
 }
-.gcwo-calday.before-start { opacity:.45; background:#f8fafc; }
+.gcwo-calday.before-start { opacity:.45; }
+/* Realce do dia de destino ao arrastar uma sessão por cima (secção 4 do redesenho,
+   9 ago 2026) — só um fundo claro transitório, nunca um cartão permanente. */
+.gcwo-calday.drop-target { background:#eaf0fd; }
 .gcwo-calday-top { display:flex; align-items:center; justify-content:space-between; }
 .gcwo-calday .num { font-size:13px; font-weight:700; color:#0f172a; }
-/* Círculo azul sólido + cruz branca preenchida — contraste máximo, sem depender de
-   hover nem de traços finos (bug reportado 9 ago 2026: "nota-se mas não se vê"). */
+/* "+" simples, sem botão azul preenchido (redesenho do calendário, 9 ago 2026) — o
+   círculo sólido dava demasiado peso visual a uma ação secundária. */
 .gcwo-calday-add {
-  width:26px; height:26px; border-radius:50%; border:none; background:#1a56db; color:#fff; cursor:pointer;
+  width:20px; height:20px; border-radius:6px; border:none; background:transparent; color:#94a3b8; cursor:pointer;
   display:flex; align-items:center; justify-content:center; flex-shrink:0;
 }
-.gcwo-calday-add svg { width:15px; height:15px; }
-.gcwo-calday-add:hover { background:#123f9e; }
-.gcwo-calday-chips { display:flex; flex-direction:column; gap:5px; margin-top:8px; min-height:4px; }
-.gcwo-calday-chip {
-  display:flex; align-items:center; gap:5px; border:none; border-radius:7px; padding:5px 7px; font-size:11px;
-  font-weight:600; cursor:pointer; font-family:inherit; text-align:left; width:100%; min-width:0;
+.gcwo-calday-add svg { width:12px; height:12px; }
+.gcwo-calday-add:hover { background:#f1f5f9; color:#1a56db; }
+.gcwo-calsessions { display:flex; flex-direction:column; gap:2px; margin-top:6px; min-height:4px; }
+
+/* ── linha de sessão — pega de arrastar / corpo (editar) / menu ⋮ são três zonas de
+   clique distintas (redesenho do calendário, 9 ago 2026). Nunca um cartão alto. ── */
+.gcwo-calsession-row {
+  display:flex; align-items:center; gap:4px; border-radius:6px; padding:3px 2px; min-width:0;
+  transition:opacity .1s ease;
 }
-.gcwo-calday-chip svg { width:12px; height:12px; flex-shrink:0; }
-.gcwo-calday-chip span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gcwo-calsession-row:hover { background:#f8fafc; }
+.gcwo-calsession-row.dragging { opacity:.4; }
+
+.gcwo-calsession-handle {
+  flex-shrink:0; width:14px; height:16px; display:flex; align-items:center; justify-content:center;
+  color:#cbd5e1; cursor:grab; touch-action:none;
+}
+.gcwo-calsession-handle:active { cursor:grabbing; }
+.gcwo-calsession-handle svg { width:14px; height:14px; }
+.gcwo-calsession-row:hover .gcwo-calsession-handle { color:#94a3b8; }
+
+.gcwo-calsession-body {
+  flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:6px; border:none; background:transparent;
+  padding:2px 0; cursor:pointer; font-family:inherit; text-align:left;
+}
+.gcwo-calsession-icon {
+  flex-shrink:0; width:16px; height:16px; border-radius:5px; display:flex; align-items:center; justify-content:center;
+}
+.gcwo-calsession-icon svg { width:10px; height:10px; }
+.gcwo-calsession-name { min-width:0; font-size:11.5px; font-weight:600; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* ── ⋮ por sessão — Editar/Mover/Duplicar/Apagar (9 ago 2026) ── */
-.gcwo-calchip-wrap { position:relative; display:flex; align-items:stretch; gap:3px; }
-.gcwo-calchip-wrap .gcwo-calday-chip { flex:1 1 auto; }
-.gcwo-calchip-menubtn {
-  flex-shrink:0; width:22px; border:none; border-radius:6px; background:#fff; cursor:pointer;
-  display:flex; align-items:center; justify-content:center; color:#64748b !important; outline:none;
+.gcwo-calsession-menubtn {
+  flex-shrink:0; width:20px; height:20px; border:none; border-radius:6px; background:transparent; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; color:#94a3b8 !important; outline:none;
 }
-.gcwo-calchip-menubtn svg { width:15px; height:15px; }
-.gcwo-calchip-menubtn:hover { background:rgba(15,23,42,.08); color:#1a56db !important; }
-.gcwo-calchip-menubtn:focus-visible { outline:2px solid #93c5fd; outline-offset:1px; }
-.gcwo-calchip-menu {
-  /* position:fixed com top/left calculados em JS (posicionarMenuFlutuante) — não é
-     mais filho posicionado do .gcwo-calchip-wrap, para escapar ao overflow-x:auto
-     de .gcwo-calrow que antes cortava o menu (bug "vai para baixo", 9 ago 2026). */
+.gcwo-calsession-menubtn svg { width:13px; height:13px; }
+.gcwo-calsession-menubtn:hover { background:rgba(15,23,42,.08); color:#1a56db !important; }
+.gcwo-calsession-menubtn:focus-visible { outline:2px solid #93c5fd; outline-offset:1px; }
+.gcwo-calsession-menu {
+  /* position:fixed com top/left calculados em JS (posicionarMenuFlutuante) — escapa ao
+     overflow-x:auto de .gcwo-calrow que antes cortava o menu (bug "vai para baixo", 9
+     ago 2026). */
   position:fixed; background:#fff; border:0.5px solid #e2e8f0; border-radius:10px;
   box-shadow:0 10px 26px rgba(15,23,42,.16); padding:5px; z-index:200; min-width:154px; flex-direction:column; gap:1px;
 }
 /* A regra nativa [hidden]{display:none} do browser tem a mesma especificidade que
-   .gcwo-calchip-menu{display:...} — sem este :not([hidden]), a nossa regra ganhava
+   .gcwo-calsession-menu{display:...} — sem este :not([hidden]), a nossa regra ganhava
    sempre (vem depois no CSS) e o atributo "hidden" nunca escondia nada de facto.
    Era esta a causa do menu "ficar sempre visível" (9 ago 2026). */
-.gcwo-calchip-menu:not([hidden]) {
+.gcwo-calsession-menu:not([hidden]) {
   display:flex;
 }
-.gcwo-calchip-menu button {
+.gcwo-calsession-menu button {
   display:flex; align-items:center; gap:8px; border:none; background:transparent; border-radius:7px; padding:7px 8px;
   font-size:12px; font-weight:600; color:#0f172a; cursor:pointer; text-align:left; font-family:inherit;
 }
-.gcwo-calchip-menu button svg { width:13px; height:13px; color:#64748b; flex-shrink:0; }
-.gcwo-calchip-menu button:hover { background:#f1f5f9; }
-.gcwo-calchip-menu button:disabled { opacity:.4; cursor:not-allowed; }
-.gcwo-calchip-menu button:disabled:hover { background:transparent; }
-.gcwo-calchip-menu button.danger { color:#dc2626; }
-.gcwo-calchip-menu button.danger svg { color:#dc2626; }
-.gcwo-calchip-menu button.danger:hover { background:#fef2f2; }
+.gcwo-calsession-menu button svg { width:13px; height:13px; color:#64748b; flex-shrink:0; }
+.gcwo-calsession-menu button:hover { background:#f1f5f9; }
+.gcwo-calsession-menu button:disabled { opacity:.4; cursor:not-allowed; }
+.gcwo-calsession-menu button:disabled:hover { background:transparent; }
+.gcwo-calsession-menu button.danger { color:#dc2626; }
+.gcwo-calsession-menu button.danger svg { color:#dc2626; }
+.gcwo-calsession-menu button.danger:hover { background:#fef2f2; }
 
 /* ── modal "Mover para…" / "Duplicar para…" (9 ago 2026) ── */
 .gcwo-daypicker-modal { max-width:660px; }
