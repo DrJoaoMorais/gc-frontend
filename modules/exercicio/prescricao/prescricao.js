@@ -1145,7 +1145,7 @@ function renderCalendarMode(host) {
     </section>
 
     <div class="gcwo-generate">
-      <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.'}">Gerar prescrição e link</button>
+      <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.'}">${labelBotaoGerar()}</button>
       <span id="gcwoGerarErro" class="gcwo-erro"></span>
       <span id="gcwoPorGravarAviso" class="gcwo-porgravar-aviso" style="display:${haSessoesPorGravar() ? '' : 'none'}">⚠ As sessões do calendário só ficam realmente gravadas depois de clicares aqui.</span>
     </div>
@@ -2822,11 +2822,20 @@ function handleGuardarSessao() {
 function hasSessionComExercicios() {
   return _state.sessions.some(sessaoTemConteudo);
 }
+// Texto do botão único de gravar — diz a verdade sobre o que vai acontecer em vez de
+// dizer sempre "Gerar…": para um doente com plano activo já carregado neste ecrã
+// (activePrescriptionId != null), gravar actualiza esse registo e mantém o link que o
+// doente já tem; só cria prescrição+link novos quando não há nenhum plano activo. Não
+// muda o comportamento (já era assim), só o rótulo (9 ago 2026).
+function labelBotaoGerar() {
+  return _state.activePrescriptionId ? 'Atualizar plano' : 'Gerar prescrição e link';
+}
 function updateGerarButtonState() {
   const btn = document.getElementById('gcwoGerar');
   if (!btn) return;
   const ok = hasSessionComExercicios();
   btn.disabled = !ok;
+  btn.textContent = labelBotaoGerar();
   btn.title = ok ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.';
   // Usa style.display em vez do atributo "hidden" de propósito — já tivemos um bug em
   // que um CSS com a mesma especificidade do que [hidden] anulava o "hidden" (9 ago
@@ -3050,7 +3059,7 @@ async function handleGerar() {
     console.error('[prescricao] erro a gravar prescrição:', safeMsg);
     erroEl.textContent = 'Erro ao gravar: ' + safeMsg;
     btn.disabled = false;
-    btn.textContent = 'Gerar prescrição e link';
+    btn.textContent = labelBotaoGerar();
   }
 }
 
