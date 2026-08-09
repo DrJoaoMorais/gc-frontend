@@ -236,7 +236,7 @@
   width:20px; height:20px; border-radius:6px; border:none; background:transparent; color:#94a3b8; cursor:pointer;
   display:flex; align-items:center; justify-content:center; flex-shrink:0;
 }
-.gcwo-calday-add svg { width:12px; height:12px; }
+.gcwo-calday-add svg { width:12px; height:12px; flex-shrink:0; }
 .gcwo-calday-add:hover { background:#f1f5f9; color:#1a56db; }
 .gcwo-calsessions { display:flex; flex-direction:column; gap:2px; margin-top:6px; min-height:4px; }
 
@@ -254,7 +254,7 @@
   color:#cbd5e1; cursor:grab; touch-action:none;
 }
 .gcwo-calsession-handle:active { cursor:grabbing; }
-.gcwo-calsession-handle svg { width:14px; height:14px; }
+.gcwo-calsession-handle svg { width:14px; height:14px; flex-shrink:0; }
 .gcwo-calsession-row:hover .gcwo-calsession-handle { color:#94a3b8; }
 
 .gcwo-calsession-body {
@@ -264,7 +264,7 @@
 .gcwo-calsession-icon {
   flex-shrink:0; width:16px; height:16px; border-radius:5px; display:flex; align-items:center; justify-content:center;
 }
-.gcwo-calsession-icon svg { width:10px; height:10px; }
+.gcwo-calsession-icon svg { width:10px; height:10px; flex-shrink:0; }
 .gcwo-calsession-name { min-width:0; font-size:11.5px; font-weight:600; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* ── ⋮ por sessão — Editar/Mover/Duplicar/Apagar (9 ago 2026) ── */
