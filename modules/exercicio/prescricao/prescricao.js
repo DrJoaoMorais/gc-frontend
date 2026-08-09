@@ -269,6 +269,7 @@ function novaSessaoSkeleton(modality, kind, week, day) {
     local: null,
   };
   if (kind === 'walk') return { ...base, walks: [], stairs_flights: null };
+  if (kind === 'card' && modality === 'Natação') return { ...base, blocks: [], pool_length_m: 25, stroke: 'crol' };
   if (kind === 'card' || kind === 'circuit') return { ...base, blocks: [] };
   return { ...base, items: [] };
 }
@@ -1518,7 +1519,7 @@ function wirePanelCaminhada(s) {
 
 /* ── Painel — Corrida/Ciclismo/Natação (secção 3/5 do briefing: blocos contínuo/séries/fecho) ── */
 function novaIntensidade() {
-  return { zone: null, pace_sec_per_km: null, heart_rate_bpm: null, power_w: null, cadence_rpm: null, rpe: null };
+  return { zone: null, pace_sec_per_km: null, pace_sec_per_100m: null, heart_rate_bpm: null, power_w: null, cadence_rpm: null, rpe: null };
 }
 function novoBlocoContinuo() {
   return { block_id: uuid(), type: 'continuous', duration_sec: null, intensity: novaIntensidade() };
@@ -1566,7 +1567,8 @@ function refreshZonaResumo(s) {
   if (host) host.innerHTML = renderIndicadorZonaHtml(s);
 }
 
-function renderIntensidadeCampos(intensity, mostrarZona) {
+function renderIntensidadeCampos(intensity, mostrarZona, modality) {
+  const isNatacao = modality === 'Natação';
   return `
     <div class="gcwo-row3">
       ${mostrarZona ? `
@@ -1576,15 +1578,18 @@ function renderIntensidadeCampos(intensity, mostrarZona) {
           ${ZONAS.map(z => `<option value="${z}" ${intensity.zone === z ? 'selected' : ''}>${z}</option>`).join('')}
         </select>
       </label>` : ''}
-      <label class="gcwo-field"><span>Ritmo (min/km)</span><input type="text" inputmode="numeric" placeholder="5:00" class="gcwo-int-pace" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_km))}"></label>
+      ${isNatacao
+        ? `<label class="gcwo-field"><span>Ritmo (min:seg/100m)</span><input type="text" inputmode="numeric" placeholder="1:35" class="gcwo-int-pace100" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_100m))}"></label>`
+        : `<label class="gcwo-field"><span>Ritmo (min/km)</span><input type="text" inputmode="numeric" placeholder="5:00" class="gcwo-int-pace" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_km))}"></label>`
+      }
       <label class="gcwo-field"><span>FC (bpm)</span><input type="number" min="0" class="gcwo-int-fc" value="${intensity.heart_rate_bpm ?? ''}"></label>
       <label class="gcwo-field"><span>Potência (W)</span><input type="number" min="0" class="gcwo-int-power" value="${intensity.power_w ?? ''}"></label>
       <label class="gcwo-field"><span>Cadência (rpm)</span><input type="number" min="0" class="gcwo-int-cadence" value="${intensity.cadence_rpm ?? ''}"></label>
       <label class="gcwo-field"><span>RPE</span><input type="number" min="1" max="10" class="gcwo-int-rpe" value="${intensity.rpe ?? ''}"></label>
     </div>`;
 }
-function wrapIntensidade(bid, scope, intensity, mostrarZona) {
-  return `<div class="gcwo-intensidade" data-bid="${escAttr(bid)}" data-scope="${scope}">${renderIntensidadeCampos(intensity, mostrarZona)}</div>`;
+function wrapIntensidade(bid, scope, intensity, mostrarZona, modality) {
+  return `<div class="gcwo-intensidade" data-bid="${escAttr(bid)}" data-scope="${scope}">${renderIntensidadeCampos(intensity, mostrarZona, modality)}</div>`;
 }
 function intensidadeDoScope(b, scope) {
   if (scope === 'work') return b.work.intensity;
@@ -1622,7 +1627,7 @@ function wireDuracaoMMSS(container, baseClass, onChange) {
   segEl.addEventListener('input', emit);
 }
 
-function renderBlocoContinuo(b, temZona) {
+function renderBlocoContinuo(b, temZona, modality) {
   return `
     <div class="gcwo-exercicio" data-bid="${escAttr(b.block_id)}">
       <div class="gcwo-exercicio-head">
@@ -1631,7 +1636,7 @@ function renderBlocoContinuo(b, temZona) {
       </div>
       <div style="margin-top:8px;">${campoDuracaoMMSS('gcwo-bloco-duracaomin', b.duration_sec, 'Duração')}</div>
       <span class="gcwo-field-label" style="margin-top:10px;">Intensidade</span>
-      ${wrapIntensidade(b.block_id, 'main', b.intensity, temZona)}
+      ${wrapIntensidade(b.block_id, 'main', b.intensity, temZona, modality)}
     </div>`;
 }
 function renderBlocoFecho(b, temZona, modality) {
@@ -1649,10 +1654,10 @@ function renderBlocoFecho(b, temZona, modality) {
         ${campoDuracaoMMSS('gcwo-bloco-duracaomin', b.duration_sec, 'Duração')}
       </div>
       <span class="gcwo-field-label" style="margin-top:10px;">Intensidade</span>
-      ${wrapIntensidade(b.block_id, 'main', b.intensity, temZona)}
+      ${wrapIntensidade(b.block_id, 'main', b.intensity, temZona, modality)}
     </div>`;
 }
-function renderBlocoSeries(b, temZona, soDistancia) {
+function renderBlocoSeries(b, temZona, soDistancia, modality) {
   const medida = b.work.measure;
   return `
     <div class="gcwo-exercicio" data-bid="${escAttr(b.block_id)}">
@@ -1674,10 +1679,10 @@ function renderBlocoSeries(b, temZona, soDistancia) {
         : campoDuracaoMMSS('gcwo-bloco-workvalue', b.work.value, 'Duração do trabalho')
       }
       <span class="gcwo-field-label" style="margin-top:10px;">Intensidade do trabalho</span>
-      ${wrapIntensidade(b.block_id, 'work', b.work.intensity, temZona)}
+      ${wrapIntensidade(b.block_id, 'work', b.work.intensity, temZona, modality)}
       <div style="margin-top:10px;">${campoDuracaoMMSS('gcwo-bloco-recdur', b.recovery.duration_sec, 'Recuperação')}</div>
       <span class="gcwo-field-label" style="margin-top:10px;">Intensidade da recuperação</span>
-      ${wrapIntensidade(b.block_id, 'recovery', b.recovery.intensity, temZona)}
+      ${wrapIntensidade(b.block_id, 'recovery', b.recovery.intensity, temZona, modality)}
     </div>`;
 }
 function renderBlocoCardio(b, s) {
@@ -1685,18 +1690,39 @@ function renderBlocoCardio(b, s) {
   if (b.type === 'series') {
     const soDistancia = s.modality === 'Natação';
     if (soDistancia) b.work.measure = 'distance';
-    return renderBlocoSeries(b, temZona, soDistancia);
+    return renderBlocoSeries(b, temZona, soDistancia, s.modality);
   }
   if (b.type === 'closing') return renderBlocoFecho(b, temZona, s.modality);
-  return renderBlocoContinuo(b, temZona);
+  return renderBlocoContinuo(b, temZona, s.modality);
 }
 function renderBlocosListInner(s) {
   if (!s.blocks.length) return `<div class="gcwo-muted">Nenhum bloco adicionado ainda.</div>`;
   return s.blocks.map(b => renderBlocoCardio(b, s)).join('');
 }
 
+const ESTILOS_NATACAO = [
+  { value: 'crol', label: 'Crol' },
+  { value: 'costas', label: 'Costas' },
+  { value: 'bruços', label: 'Bruços' },
+  { value: 'mariposa', label: 'Mariposa' },
+];
+function renderPainelNatacaoTopo(s) {
+  const pool = s.pool_length_m ?? 25;
+  const stroke = s.stroke ?? 'crol';
+  return `
+    <span class="gcwo-field-label">Piscina</span>
+    <div class="gcwo-chips" id="gcwoPPiscina">
+      <button type="button" class="gcwo-chip${pool === 25 ? ' on' : ''}" data-pool="25">25 m</button>
+      <button type="button" class="gcwo-chip${pool === 50 ? ' on' : ''}" data-pool="50">50 m</button>
+    </div>
+    <label class="gcwo-field gcwo-field-sm" style="margin-top:10px;"><span>Estilo</span>
+      <select id="gcwoPEstilo">${ESTILOS_NATACAO.map(e => `<option value="${e.value}" ${stroke === e.value ? 'selected' : ''}>${e.label}</option>`).join('')}</select>
+    </label>
+  `;
+}
 function renderPanelCardio(s) {
   return `
+    ${s.modality === 'Natação' ? renderPainelNatacaoTopo(s) : ''}
     ${modalidadeTemZona(s.modality) ? `<div id="gcwoPZonaResumo">${renderIndicadorZonaHtml(s)}</div>` : ''}
     <span class="gcwo-field-label" style="margin-top:14px;">Blocos</span>
     <div class="gcwo-exercicios" id="gcwoPBlocosList">${renderBlocosListInner(s)}</div>
@@ -1718,7 +1744,10 @@ function wireIntensidadeForms(s) {
 
     const zoneEl = box.querySelector('.gcwo-int-zone');
     if (zoneEl) zoneEl.addEventListener('change', (e) => { intensity.zone = e.target.value || null; refreshZonaResumo(s); });
-    box.querySelector('.gcwo-int-pace').addEventListener('input', (e) => { intensity.pace_sec_per_km = parsePaceParaSegundos(e.target.value); });
+    const paceEl = box.querySelector('.gcwo-int-pace');
+    if (paceEl) paceEl.addEventListener('input', (e) => { intensity.pace_sec_per_km = parsePaceParaSegundos(e.target.value); });
+    const pace100El = box.querySelector('.gcwo-int-pace100');
+    if (pace100El) pace100El.addEventListener('input', (e) => { intensity.pace_sec_per_100m = parsePaceParaSegundos(e.target.value); });
     box.querySelector('.gcwo-int-fc').addEventListener('input', (e) => { intensity.heart_rate_bpm = e.target.value === '' ? null : Number(e.target.value); });
     box.querySelector('.gcwo-int-power').addEventListener('input', (e) => { intensity.power_w = e.target.value === '' ? null : Number(e.target.value); });
     box.querySelector('.gcwo-int-cadence').addEventListener('input', (e) => { intensity.cadence_rpm = e.target.value === '' ? null : Number(e.target.value); });
@@ -1790,6 +1819,15 @@ function wirePanelCardio(s) {
   document.getElementById('gcwoPAddFecho').addEventListener('click', () => { s.blocks.push(novoBlocoFecho()); refreshBlocosListDom(s); });
   wireBlocosList(s);
   refreshZonaResumo(s);
+
+  const piscina = document.getElementById('gcwoPPiscina');
+  if (piscina) piscina.querySelectorAll('[data-pool]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      s.pool_length_m = Number(btn.getAttribute('data-pool'));
+      piscina.querySelectorAll('.gcwo-chip').forEach(c => c.classList.toggle('on', c === btn));
+    });
+  });
+  document.getElementById('gcwoPEstilo')?.addEventListener('change', (e) => { s.stroke = e.target.value; });
 }
 
 /* ── Painel — Circuito (secção 3/5 do briefing) ──────────────────────
@@ -2178,6 +2216,9 @@ function sessaoParaGravar(s) {
   const base = { session_id: s.session_id, week: s.week, day: s.day, order: s.order, kind: s.kind, modality: s.modality, local: s.local };
   if (s.kind === 'walk') return { ...base, walks: s.walks, stairs_flights: s.stairs_flights };
   if (s.kind === 'circuit') return { ...base, blocks: flattenBlocosCircuitoParaGravar(s.blocks) };
+  if (s.kind === 'card' && s.modality === 'Natação') {
+    return { ...base, blocks: s.blocks, pool_length_m: s.pool_length_m ?? 25, stroke: s.stroke ?? 'crol' };
+  }
   if (s.kind === 'card') return { ...base, blocks: s.blocks };
   return { ...base, items: s.items };
 }
