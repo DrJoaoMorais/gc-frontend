@@ -256,7 +256,14 @@
      mais filho posicionado do .gcwo-calchip-wrap, para escapar ao overflow-x:auto
      de .gcwo-calrow que antes cortava o menu (bug "vai para baixo", 9 ago 2026). */
   position:fixed; background:#fff; border:0.5px solid #e2e8f0; border-radius:10px;
-  box-shadow:0 10px 26px rgba(15,23,42,.16); padding:5px; z-index:200; min-width:154px; display:flex; flex-direction:column; gap:1px;
+  box-shadow:0 10px 26px rgba(15,23,42,.16); padding:5px; z-index:200; min-width:154px; flex-direction:column; gap:1px;
+}
+/* A regra nativa [hidden]{display:none} do browser tem a mesma especificidade que
+   .gcwo-calchip-menu{display:...} — sem este :not([hidden]), a nossa regra ganhava
+   sempre (vem depois no CSS) e o atributo "hidden" nunca escondia nada de facto.
+   Era esta a causa do menu "ficar sempre visível" (9 ago 2026). */
+.gcwo-calchip-menu:not([hidden]) {
+  display:flex;
 }
 .gcwo-calchip-menu button {
   display:flex; align-items:center; gap:8px; border:none; background:transparent; border-radius:7px; padding:7px 8px;
@@ -528,6 +535,7 @@
 
 .gcwo-generate { display:flex; align-items:center; gap:12px; margin-top:18px; }
 .gcwo-erro { font-size:12.5px; color:#dc2626; }
+.gcwo-porgravar-aviso { font-size:12.5px; font-weight:600; color:#b45309; }
 
 .gcwo-success p { margin:0 0 8px; font-size:13px; color:#374151; }
 .gcwo-linkbox { display:flex; gap:8px; }

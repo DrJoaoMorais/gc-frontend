@@ -23,7 +23,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-09-11';
+const PRESCRICAO_CSS_VERSION = '2026-08-09-12';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -219,6 +219,12 @@ function freshState() {
     // activePrescriptionId != null ⇒ gravar actualiza esta linha tal como está no ecrã, sem
     // fundir por chave — essa fusão só faz sentido quando o ecrã nunca mostrou o que já existia.
     activePrescriptionId: null,
+    // Snapshot (JSON) das sessões tal como estavam da última vez que "Gerar prescrição
+    // e link" gravou com sucesso — null enquanto nada foi gravado ainda. Usado para
+    // avisar antes de sair da página com sessões só locais, nunca escritas na base de
+    // dados (bug reportado 9 ago 2026: sessões "desaparecem" ao actualizar a página
+    // porque só existiam em memória — nunca se tinha carregado em "Gerar prescrição e link").
+    __ultimoSnapshotGravado: null,
   };
 }
 let _state = freshState();
@@ -232,6 +238,7 @@ let _panelCatalogBusca = '';
 let _panelEquipFiltro = new Set();      // filtro de equipamento (multi-selecção) dentro do painel de ginásio
 let _pendingSlot = null;                // {date} — dia escolhido na grelha, modalidade por escolher (ecrã de 2 modos, 9 ago 2026)
 let _calMenuDocClickWired = false;      // menu ⋮ por sessão no calendário — fecha ao clicar fora (9 ago 2026)
+let _beforeUnloadWired = false;         // aviso ao sair com sessões só locais, nunca gravadas (9 ago 2026)
 let _dayPicker = null;                  // {sessionId, mode:'mover'|'duplicar', selecionados:Set(iso)} — modal de escolha de dia(s) (9 ago 2026)
 let _historyOpen = false;               // modal "Ver planos anteriores" aberto/fechado
 let _historyLoading = false;
@@ -461,6 +468,9 @@ async function carregarPlanoActivoSeExistir() {
   _state.duracaoSessaoPadrao = data.data?.duracaoSessaoPadrao || 30;
   _state.diasPorSemanaHabitual = data.data?.diasPorSemanaHabitual ?? null;
   _state.sessions = structuredClone(data.data?.sessions || []);
+  // Isto veio da base de dados — não é trabalho por gravar. Sem isto, o aviso de "vais
+  // perder sessões" apareceria logo ao abrir um plano já existente, mesmo sem tocar em nada.
+  _state.__ultimoSnapshotGravado = JSON.stringify(_state.sessions);
 }
 
 /* ── Entry point ─────────────────────────────────────────── */
@@ -485,8 +495,31 @@ export async function initPrescricao() {
   if (clinicas.length === 1) _state.clinicId = clinicas[0].id;
 
   loadExercisesCatalog(); // não bloqueia o primeiro render
+  wireAvisoSairSemGravar();
 
   renderLanding();
+}
+
+// Sessões adicionadas ao calendário só existem em memória (_state.sessions) até se
+// clicar em "Gerar prescrição e link" — foi isto que causou o bug reportado 9 ago 2026
+// ("faço vários treinos, dou refresh, desaparecem"): os treinos apareciam no calendário
+// mas nunca tinham sido gravados na base de dados, porque esse botão final nunca tinha
+// sido premido. Isto avisa antes de sair/actualizar a página nessas condições — não
+// resolve sozinho a confusão de "o que é que já ficou gravado", mas evita perder o
+// trabalho sem aviso nenhum.
+function haSessoesPorGravar() {
+  if (!_state.sessions.length) return false;
+  const actual = JSON.stringify(_state.sessions);
+  return actual !== _state.__ultimoSnapshotGravado;
+}
+function wireAvisoSairSemGravar() {
+  if (_beforeUnloadWired) return;
+  _beforeUnloadWired = true;
+  window.addEventListener('beforeunload', (e) => {
+    if (!haSessoesPorGravar()) return;
+    e.preventDefault();
+    e.returnValue = '';
+  });
 }
 
 /* ── Catálogo de exercícios (wo_exercises, global ao sistema) ── */
@@ -1107,6 +1140,7 @@ function renderCalendarMode(host) {
     <div class="gcwo-generate">
       <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.'}">Gerar prescrição e link</button>
       <span id="gcwoGerarErro" class="gcwo-erro"></span>
+      <span id="gcwoPorGravarAviso" class="gcwo-porgravar-aviso" style="display:${haSessoesPorGravar() ? '' : 'none'}">⚠ As sessões do calendário só ficam realmente gravadas depois de clicares aqui.</span>
     </div>
   `;
 
@@ -2745,6 +2779,11 @@ function updateGerarButtonState() {
   const ok = hasSessionComExercicios();
   btn.disabled = !ok;
   btn.title = ok ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.';
+  // Usa style.display em vez do atributo "hidden" de propósito — já tivemos um bug em
+  // que um CSS com a mesma especificidade do que [hidden] anulava o "hidden" (9 ago
+  // 2026, menu ⋮). style.display inline ganha sempre, sem essa armadilha.
+  const aviso = document.getElementById('gcwoPorGravarAviso');
+  if (aviso) aviso.style.display = haSessoesPorGravar() ? '' : 'none';
 }
 
 /* ── Fim do plano às 23:59:59 em Europe/Lisbon — independente do fuso do browser ── */
@@ -2952,6 +2991,7 @@ async function handleGerar() {
 
     _state.savedLink = TREINO_BASE_URL + token;
     _state.savedExpiresAt = linkExpiresAt;
+    _state.__ultimoSnapshotGravado = JSON.stringify(_state.sessions);
     renderStep3();
   } catch (err) {
     // Nenhum token aparece em logs nem em mensagens de erro — mesmo na (muitíssimo improvável)
