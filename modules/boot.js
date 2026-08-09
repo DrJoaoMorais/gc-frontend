@@ -29,7 +29,11 @@ import { renderDoentePanorama } from "./doente-admin.js";
 import { renderFinancas }                  from "./financas.js";
 import { renderGestao }                    from "./gestao.js";
 import { initGestaoAgenda }               from "./gestaoagenda.js";
-import { initPrescricao }                 from "./exercicio/prescricao/prescricao.js";
+
+// Import dinâmico e versionado (não estático): evita que o browser/CDN sirva
+// uma cópia antiga de prescricao.js depois de um deploy — mesmo problema que
+// já resolvemos para o CSS, aqui aplicado ao próprio módulo JS.
+const PRESCRICAO_JS_VERSION = '2026-08-09-1';
 
 /* ====================================================================
    BLOCO 11B — Boot principal
@@ -237,6 +241,7 @@ async function renderCurrentView() {
 
   /* Vista Prescrição de Exercício */
   if (view === "exercicio") {
+    const { initPrescricao } = await import(`./exercicio/prescricao/prescricao.js?v=${PRESCRICAO_JS_VERSION}`);
     await initPrescricao();
     return;
   }

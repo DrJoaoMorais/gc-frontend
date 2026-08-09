@@ -23,7 +23,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-09-6';
+const PRESCRICAO_CSS_VERSION = '2026-08-09-7';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -1131,7 +1131,7 @@ function renderCalGrid() {
 
   host.innerHTML = semanas.map((segIso, wi) => `
     <div class="gcwo-calweek">
-      <div class="gcwo-calweek-label">Semana ${wi + 1} <span>${escHtml(fmtIntervaloIso(segIso, addDiasIso(segIso, 6)))}</span></div>
+      <div class="gcwo-calweek-label">${escHtml(fmtIntervaloIso(segIso, addDiasIso(segIso, 6)))}</div>
       <div class="gcwo-calrow">
         ${DIAS_SEMANA.map((d, di) => {
           const iso = addDiasIso(segIso, di);
@@ -1285,7 +1285,7 @@ function renderDayPicker() {
         <p class="gcwo-daypicker-hint">${mover ? 'Clica no dia de destino.' : 'Escolhe um ou vários dias e confirma. Cada dia recebe uma cópia independente.'}</p>
         ${semanas.map((segIso, wi) => `
           <div class="gcwo-daypicker-week">
-            <div class="gcwo-calweek-label">Semana ${wi + 1} <span>${escHtml(fmtIntervaloIso(segIso, addDiasIso(segIso, 6)))}</span></div>
+            <div class="gcwo-calweek-label">${escHtml(fmtIntervaloIso(segIso, addDiasIso(segIso, 6)))}</div>
             <div class="gcwo-daypicker-row">
               ${DIAS_SEMANA.map((d, di) => {
                 const iso = addDiasIso(segIso, di);
