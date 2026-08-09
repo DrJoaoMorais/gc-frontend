@@ -327,6 +327,7 @@ export async function initPrescricao() {
 
   ensurePrescricaoCss();
   _state = freshState();
+  _landing = null;
   _expandedCardIds = new Set();
   _panelExpandedTarefaId = null;
   _panelDraft = null;
@@ -376,28 +377,67 @@ function iniciaisClinica(nome) {
    é só o lugar reservado no ecrã (decisão de 9 ago 2026).
    ================================================================ */
 let _landing = null;
+let _landingDocClickWired = false;
 
 function freshLanding() {
   return { clinicFilter: null, search: '', tab: 'todos', rows: [], loading: true, error: '' };
 }
 
+// Fecha o popover da clínica ao clicar fora — anexado uma única vez ao document
+// (nunca duplicado, mesmo re-renderizando o ecrã muitas vezes).
+function wireLandingDocClickOnce() {
+  if (_landingDocClickWired) return;
+  _landingDocClickWired = true;
+  document.addEventListener('click', (e) => {
+    const menu = document.getElementById('gcwoLandingClinicMenu');
+    const btn = document.getElementById('gcwoLandingClinicBtn');
+    if (!menu || menu.hidden) return;
+    if (btn && (btn.contains(e.target) || menu.contains(e.target))) return;
+    menu.hidden = true;
+  });
+}
+
 function renderLanding() {
   const root = document.getElementById('gcwoPrescricaoRoot');
   if (!root) return;
-  _landing = freshLanding();
+  // Só reinicia tudo (incl. filtro de clínica) na primeira entrada no ecrã. Escolher
+  // uma clínica chama renderLanding() outra vez para redesenhar — se isto fizesse
+  // sempre freshLanding(), o filtro escolhido era apagado no mesmo instante em que
+  // era escolhido.
+  if (!_landing) _landing = freshLanding();
+  else { _landing.loading = true; _landing.rows = []; _landing.error = ''; }
 
   const clinicas = G.clinics || [];
   const multiClinica = clinicas.length > 1;
-  // Sem menu a abrir — o utilizador rejeitou o dropdown de clínicas (9 ago 2026).
-  // A pill fica só como etiqueta; _landing.clinicFilter mantém-se null (todas as
-  // clínicas visíveis). Se um dia for preciso filtrar por 1 clínica, faz-se com
-  // uma grelha de cartões clicáveis, não com uma lista a abrir por cima.
-  const filtroLabel = multiClinica ? 'Todas as clínicas' : (clinicas[0]?.name || '—');
+  // Filtro por clínica precisa de continuar a existir para quem tem mais do que uma
+  // (super admin com 6, ou um colega em 2) — o que se corrigiu a pedido não foi a
+  // função, foi o aspeto: em vez de uma lista a abrir, é uma grelha de cartões
+  // clicáveis (mesmo padrão do Passo 1), sem o estado azul estranho que apareceu.
+  const filtroLabel = _landing.clinicFilter
+    ? (clinicas.find(c => c.id === _landing.clinicFilter)?.name || '—')
+    : (multiClinica ? 'Todas as clínicas' : (clinicas[0]?.name || '—'));
 
   root.innerHTML = `
     <div class="gc-page-header">
       <div><div class="gc-page-title">Exercício</div><div class="gc-page-sub">Prescrição, documentos e catálogo</div></div>
-      <div class="gcwo-landing-clinicpill static"><span>${multiClinica ? 'A mostrar' : 'Clínica'}</span><strong>${escHtml(filtroLabel)}</strong></div>
+      ${multiClinica ? `
+      <div class="gcwo-landing-clinicpill-wrap">
+        <button type="button" class="gcwo-landing-clinicpill" id="gcwoLandingClinicBtn">
+          <span>A mostrar</span><strong>${escHtml(filtroLabel)}</strong>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="gcwo-landing-clinicpop" id="gcwoLandingClinicMenu" hidden>
+          <button type="button" class="gcwo-landing-clinicoption${!_landing.clinicFilter ? ' on' : ''}" data-cid="">
+            <span class="avatar all">${clinicas.length}</span><span class="name">Todas as clínicas</span>
+          </button>
+          ${clinicas.map(c => `
+          <button type="button" class="gcwo-landing-clinicoption${_landing.clinicFilter === c.id ? ' on' : ''}" data-cid="${escAttr(c.id)}">
+            <span class="avatar">${escHtml(iniciaisClinica(c.name || c.slug))}</span><span class="name">${escHtml(c.name || c.slug || '')}</span>
+          </button>`).join('')}
+        </div>
+      </div>` : `
+      <div class="gcwo-landing-clinicpill static"><span>Clínica</span><strong>${escHtml(filtroLabel)}</strong></div>
+      `}
     </div>
 
     <div class="gcwo-landing-cards">
@@ -448,6 +488,19 @@ function renderLanding() {
   document.getElementById('gcwoCardCatalogo').addEventListener('click', () => {
     initCatalogo({ onVoltar: () => { loadExercisesCatalog(); renderLanding(); } });
   });
+  if (multiClinica) {
+    const btn = document.getElementById('gcwoLandingClinicBtn');
+    const menu = document.getElementById('gcwoLandingClinicMenu');
+    btn.addEventListener('click', () => { menu.hidden = !menu.hidden; });
+    menu.querySelectorAll('[data-cid]').forEach(item => {
+      item.addEventListener('click', () => {
+        _landing.clinicFilter = item.getAttribute('data-cid') || null;
+        renderLanding();
+      });
+    });
+    wireLandingDocClickOnce();
+  }
+
   let searchTimer = null;
   document.getElementById('gcwoLandingSearch').addEventListener('input', (e) => {
     _landing.search = e.target.value;
