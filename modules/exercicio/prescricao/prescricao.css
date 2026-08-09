@@ -272,7 +272,7 @@
   flex-shrink:0; width:20px; height:20px; border:none; border-radius:6px; background:transparent; cursor:pointer;
   display:flex; align-items:center; justify-content:center; color:#94a3b8 !important; outline:none;
 }
-.gcwo-calsession-menubtn svg { width:13px; height:13px; }
+.gcwo-calsession-menubtn svg { width:13px; height:13px; flex-shrink:0; }
 .gcwo-calsession-menubtn:hover { background:rgba(15,23,42,.08); color:#1a56db !important; }
 .gcwo-calsession-menubtn:focus-visible { outline:2px solid #93c5fd; outline-offset:1px; }
 .gcwo-calsession-menu {
