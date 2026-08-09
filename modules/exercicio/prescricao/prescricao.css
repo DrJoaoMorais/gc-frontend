@@ -351,6 +351,9 @@
 .gcwo-field-sm input, .gcwo-field-sm select { width:100px; }
 .gcwo-field-label { font-size:12px; font-weight:600; color:#0f172a; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:.02em; }
 
+/* ── sugestão de bpm junto à Zona (secção 3 do briefing — FC por doente) ── */
+.gcwo-int-zone-hint { font-size:11px; font-weight:500; color:#1a56db; min-height:14px; }
+
 /* ── duração em minutos+segundos (bug #3) ── */
 .gcwo-mmss { display:flex; align-items:center; gap:5px; }
 .gcwo-field-sm .gcwo-mmss input { width:52px; }

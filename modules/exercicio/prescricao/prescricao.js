@@ -235,6 +235,31 @@ function calcIdade(dob) {
   return idade;
 }
 
+// Intervalo de bpm sugerido para a zona escolhida (secção 3 do briefing, 8 ago 2026).
+// Prioridade: hr_zones_bpm manual do doente (prova de esforço) > fórmula (Tanaka/Fox) + idade.
+// Só há dados de FC para Z1–Z5 — Z6/Z7 do select genérico ficam sem sugestão.
+function calcFcMaxFormula(formula, idade) {
+  if (idade == null) return null;
+  return formula === 'fox' ? Math.round(220 - idade) : Math.round(208 - 0.7 * idade);
+}
+function bpmRangeParaZona(zona) {
+  const p = _state.patient;
+  if (!p || !zona) return '';
+  const idx = Number(String(zona).replace('Z', ''));
+  if (!(idx >= 1 && idx <= 5)) return '';
+  const key = 'z' + idx;
+  const manual = p.hr_zones_bpm && p.hr_zones_bpm[key];
+  if (manual && (manual.min != null || manual.max != null)) {
+    return `${manual.min ?? '?'}–${manual.max ?? '?'} bpm`;
+  }
+  const fcmax = calcFcMaxFormula(p.hr_zone_formula || 'tanaka', calcIdade(p.dob));
+  if (fcmax == null) return '';
+  const pct = [0, .60, .70, .80, .90, 1];
+  const min = Math.round(fcmax * pct[idx - 1]);
+  const max = Math.round(fcmax * pct[idx]);
+  return `${min}–${max} bpm`;
+}
+
 function restricoesAtuais() {
   const lista = [..._state.restricoesPredefinidas];
   const texto = (_state.restricoesTexto || '').trim();
@@ -1577,6 +1602,7 @@ function renderIntensidadeCampos(intensity, mostrarZona, modality) {
           <option value="">—</option>
           ${ZONAS.map(z => `<option value="${z}" ${intensity.zone === z ? 'selected' : ''}>${z}</option>`).join('')}
         </select>
+        <span class="gcwo-int-zone-hint">${bpmRangeParaZona(intensity.zone) ? `${intensity.zone} · ${bpmRangeParaZona(intensity.zone)}` : ''}</span>
       </label>` : ''}
       ${isNatacao
         ? `<label class="gcwo-field"><span>Ritmo (min:seg/100m)</span><input type="text" inputmode="numeric" placeholder="1:35" class="gcwo-int-pace100" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_100m))}"></label>`
@@ -1743,7 +1769,15 @@ function wireIntensidadeForms(s) {
     const intensity = intensidadeDoScope(b, scope);
 
     const zoneEl = box.querySelector('.gcwo-int-zone');
-    if (zoneEl) zoneEl.addEventListener('change', (e) => { intensity.zone = e.target.value || null; refreshZonaResumo(s); });
+    if (zoneEl) zoneEl.addEventListener('change', (e) => {
+      intensity.zone = e.target.value || null;
+      const hintEl = box.querySelector('.gcwo-int-zone-hint');
+      if (hintEl) {
+        const range = bpmRangeParaZona(intensity.zone);
+        hintEl.textContent = range ? `${intensity.zone} · ${range}` : '';
+      }
+      refreshZonaResumo(s);
+    });
     const paceEl = box.querySelector('.gcwo-int-pace');
     if (paceEl) paceEl.addEventListener('input', (e) => { intensity.pace_sec_per_km = parsePaceParaSegundos(e.target.value); });
     const pace100El = box.querySelector('.gcwo-int-pace100');

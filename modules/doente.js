@@ -620,6 +620,29 @@ function openPatientViewModal(patient) {
 /* ==== FIM BLOCO 06B/12 ==== */
 
 
+/* ==== Zonas de FC — cálculo por fórmula (secção 3 do briefing de prescrição, 8 ago 2026) ==== */
+  function calcFcMax(formula, idade) {
+    if (idade == null) return null;
+    return formula === "fox" ? Math.round(220 - idade) : Math.round(208 - 0.7 * idade);
+  }
+  function calcZonasFormula(fcmax) {
+    if (fcmax == null) return null;
+    const pct = [0, .60, .70, .80, .90, 1];
+    const z = {};
+    for (let i = 1; i <= 5; i++) z["z" + i] = { min: Math.round(fcmax * pct[i - 1]), max: Math.round(fcmax * pct[i]) };
+    return z;
+  }
+  function hrZonasPreviewTexto(formula, dob) {
+    let idade = null;
+    try { idade = calcAgeYears ? calcAgeYears(dob, new Date()) : null; } catch (e) { idade = null; }
+    const fcmax = calcFcMax(formula, idade);
+    if (fcmax == null) return "Sem data de nascimento — não é possível calcular a FC máx.";
+    const z = calcZonasFormula(fcmax);
+    const nome = formula === "fox" ? "Fox (220 − idade)" : "Tanaka (208 − 0,7×idade)";
+    return `${nome} · FC máx. estimada ${fcmax} bpm · ` +
+      ["z1", "z2", "z3", "z4", "z5"].map((k, i) => `Z${i + 1} ${z[k].min}–${z[k].max}`).join(" · ");
+  }
+
 /* ==== INÍCIO BLOCO 06C/12 — Identificação do doente ==== */
 
   function openPatientIdentity(mode) {
@@ -643,7 +666,9 @@ function openPatientViewModal(patient) {
       insurance_provider: p.insurance_provider || "",
       insurance_policy_number: p.insurance_policy_number || "",
       notes: p.notes || "",
-      active_clinic_id: activeClinicId || ""
+      active_clinic_id: activeClinicId || "",
+      hr_zone_formula: p.hr_zone_formula || "tanaka",
+      hr_zones_bpm: p.hr_zones_bpm ? JSON.parse(JSON.stringify(p.hr_zones_bpm)) : null
     };
 
     render();
@@ -798,6 +823,38 @@ function openPatientViewModal(patient) {
             </div>
           </div>
 
+          <div style="margin-top:12px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#f8fafc;">
+            <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; margin-bottom:8px;">
+              Zonas de frequência cardíaca (desporto)
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 2fr; gap:12px; align-items:end;">
+              <div>
+                <label>Fórmula (usada quando não há valores manuais)</label>
+                <select id="hr_formula" ${dis} style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; background:#fff;">
+                  <option value="tanaka" ${identDraft.hr_zone_formula === "tanaka" ? "selected" : ""}>Tanaka — 208 − 0,7×idade</option>
+                  <option value="fox" ${identDraft.hr_zone_formula === "fox" ? "selected" : ""}>Fox — 220 − idade</option>
+                </select>
+              </div>
+              <div style="font-size:12px; color:#374151;">
+                <span id="hr_zonas_preview">${escAttr(hrZonasPreviewTexto(identDraft.hr_zone_formula, identDraft.dob))}</span>
+              </div>
+            </div>
+            <div style="margin-top:12px;">
+              <label style="font-weight:700; font-size:12px; color:#374151;">Valores manuais (prova de esforço) — opcional, tem sempre prioridade sobre a fórmula</label>
+              <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:6px;">
+                ${["z1", "z2", "z3", "z4", "z5"].map((z, i) => `
+                  <div>
+                    <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:3px;">Z${i + 1}</div>
+                    <div style="display:flex; gap:4px;">
+                      <input type="number" min="0" id="hr_${z}_min" ${ro} placeholder="mín" value="${escAttr((identDraft.hr_zones_bpm && identDraft.hr_zones_bpm[z] && identDraft.hr_zones_bpm[z].min != null) ? identDraft.hr_zones_bpm[z].min : "")}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
+                      <input type="number" min="0" id="hr_${z}_max" ${ro} placeholder="máx" value="${escAttr((identDraft.hr_zones_bpm && identDraft.hr_zones_bpm[z] && identDraft.hr_zones_bpm[z].max != null) ? identDraft.hr_zones_bpm[z].max : "")}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          </div>
+
           <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
             <div id="identStatus" style="color:#64748b;">
               ${identSaving ? "A gravar..." : ""}
@@ -852,6 +909,44 @@ function openPatientViewModal(patient) {
     bindVal("id_insurance_policy_number", "insurance_policy_number");
     bindVal("id_notes", "notes");
 
+    function refreshHrPreview() {
+      const el = document.getElementById("hr_zonas_preview");
+      if (el) el.textContent = hrZonasPreviewTexto(identDraft.hr_zone_formula, identDraft.dob);
+    }
+
+    const selFormula = document.getElementById("hr_formula");
+    if (selFormula) {
+      selFormula.onchange = (e) => {
+        identDraft.hr_zone_formula = e?.target?.value || "tanaka";
+        refreshHrPreview();
+      };
+    }
+
+    const dobEl = document.getElementById("id_dob");
+    if (dobEl) dobEl.addEventListener("input", refreshHrPreview);
+
+    ["z1", "z2", "z3", "z4", "z5"].forEach((z) => {
+      const minEl = document.getElementById(`hr_${z}_min`);
+      const maxEl = document.getElementById(`hr_${z}_max`);
+      function ensureZone() {
+        if (!identDraft.hr_zones_bpm) identDraft.hr_zones_bpm = {};
+        if (!identDraft.hr_zones_bpm[z]) identDraft.hr_zones_bpm[z] = { min: null, max: null };
+        return identDraft.hr_zones_bpm[z];
+      }
+      if (minEl) {
+        minEl.oninput = (e) => {
+          const v = e?.target?.value;
+          ensureZone().min = v === "" ? null : Number(v);
+        };
+      }
+      if (maxEl) {
+        maxEl.oninput = (e) => {
+          const v = e?.target?.value;
+          ensureZone().max = v === "" ? null : Number(v);
+        };
+      }
+    });
+
     const selClinic = document.getElementById("id_active_clinic");
     if (selClinic) {
       selClinic.onchange = (e) => {
@@ -895,6 +990,11 @@ function openPatientViewModal(patient) {
             insurance_policy_number: String(identDraft.insurance_policy_number || "").trim() || null,
             notes: String(identDraft.notes || "").trim() || null
           };
+
+          const hrz = identDraft.hr_zones_bpm;
+          const hasAnyManual = hrz && Object.values(hrz).some(v => v && (v.min != null || v.max != null));
+          payload.hr_zone_formula = identDraft.hr_zone_formula || "tanaka";
+          payload.hr_zones_bpm = hasAnyManual ? hrz : null;
 
           const { data, error } = await window.sb
             .from("patients")
