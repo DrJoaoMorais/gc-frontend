@@ -23,7 +23,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-09-9';
+const PRESCRICAO_CSS_VERSION = '2026-08-09-10';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -1124,6 +1124,25 @@ function semanasParaMostrar() {
   return Array.from({ length: n }, (_, i) => addDiasIso(segInicio, i * 7));
 }
 
+// Posiciona o menu ⋮ como position:fixed calculado a partir do botão que o abriu.
+// Bug reportado 9 ago 2026: o menu "ia para baixo" e ficava cortado — a causa era
+// o overflow-x:auto de .gcwo-calrow, que em CSS também recorta a vertical. Fixed
+// escapa a esse corte (não depende do overflow de nenhum antepassado) e, se não
+// houver espaço por baixo do botão, abre para cima em vez de ficar escondido.
+function posicionarMenuFlutuante(btn, menu) {
+  const r = btn.getBoundingClientRect();
+  const menuW = 172;
+  const menuHEstimado = 200;
+  let left = r.right - menuW;
+  if (left < 8) left = 8;
+  if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+  let top = r.bottom + 4;
+  if (top + menuHEstimado > window.innerHeight - 8) top = Math.max(8, r.top - menuHEstimado - 4);
+  menu.style.position = 'fixed';
+  menu.style.left = left + 'px';
+  menu.style.top = top + 'px';
+}
+
 function renderCalGrid() {
   const host = document.getElementById('gcwoCalGrid');
   if (!host) return;
@@ -1193,6 +1212,7 @@ function renderCalGrid() {
       const menu = document.getElementById('gcwoCalMenu-' + sid);
       const abrir = menu.hidden;
       host.querySelectorAll('.gcwo-calchip-menu').forEach(m => { m.hidden = true; });
+      if (abrir) posicionarMenuFlutuante(btn, menu);
       menu.hidden = !abrir;
     });
   });

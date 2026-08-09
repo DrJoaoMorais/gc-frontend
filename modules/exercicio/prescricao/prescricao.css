@@ -226,11 +226,11 @@
 .gcwo-calday-top { display:flex; align-items:center; justify-content:space-between; }
 .gcwo-calday .num { font-size:13px; font-weight:700; color:#0f172a; }
 .gcwo-calday-add {
-  width:24px; height:24px; border-radius:7px; border:none; background:transparent; color:#475569; cursor:pointer;
+  width:26px; height:26px; border-radius:50%; border:none; background:#eaf0fd; color:#1a56db; cursor:pointer;
   display:flex; align-items:center; justify-content:center; flex-shrink:0;
 }
-.gcwo-calday-add svg { width:14px; height:14px; }
-.gcwo-calday-add:hover { background:#eaf0fd; color:#1a56db; }
+.gcwo-calday-add svg { width:15px; height:15px; stroke-width:2.2; }
+.gcwo-calday-add:hover { background:#1a56db; color:#fff; }
 .gcwo-calday-chips { display:flex; flex-direction:column; gap:5px; margin-top:8px; min-height:4px; }
 .gcwo-calday-chip {
   display:flex; align-items:center; gap:5px; border:none; border-radius:7px; padding:5px 7px; font-size:11px;
@@ -250,8 +250,11 @@
 .gcwo-calchip-menubtn:hover { background:rgba(15,23,42,.08); color:#1a56db !important; }
 .gcwo-calchip-menubtn:focus-visible { outline:2px solid #93c5fd; outline-offset:1px; }
 .gcwo-calchip-menu {
-  position:absolute; top:100%; left:0; margin-top:3px; background:#fff; border:0.5px solid #e2e8f0; border-radius:10px;
-  box-shadow:0 10px 26px rgba(15,23,42,.16); padding:5px; z-index:15; min-width:154px; display:flex; flex-direction:column; gap:1px;
+  /* position:fixed com top/left calculados em JS (posicionarMenuFlutuante) — não é
+     mais filho posicionado do .gcwo-calchip-wrap, para escapar ao overflow-x:auto
+     de .gcwo-calrow que antes cortava o menu (bug "vai para baixo", 9 ago 2026). */
+  position:fixed; background:#fff; border:0.5px solid #e2e8f0; border-radius:10px;
+  box-shadow:0 10px 26px rgba(15,23,42,.16); padding:5px; z-index:200; min-width:154px; display:flex; flex-direction:column; gap:1px;
 }
 .gcwo-calchip-menu button {
   display:flex; align-items:center; gap:8px; border:none; background:transparent; border-radius:7px; padding:7px 8px;
