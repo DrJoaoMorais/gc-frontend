@@ -198,30 +198,41 @@
 .gcwo-duracao-section .gcwo-chips { margin-top:10px; }
 .gcwo-duracao-info { margin-top:10px; font-size:12.5px; color:#64748b; }
 
-/* ── layout de duas colunas: plano à esquerda, painel à direita ── */
-.gcwo-plano-body { display:flex; gap:16px; margin-top:14px; align-items:flex-start; }
-.gcwo-plano-main { flex:1; min-width:0; display:flex; flex-direction:column; }
-.gcwo-plano-main > section + section,
-.gcwo-plano-main > .gcwo-card { margin-top:20px; }
-
 .gcwo-section-title { font-size:16px; font-weight:600; color:#0f2d52; margin:0; }
 
-/* ── separadores de semana ── */
-.gcwo-weektabs { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
-.gcwo-weektab {
-  border:1.5px solid #e2e8f0; border-radius:20px; background:#fff; padding:6px 14px;
-  font-size:12.5px; font-weight:600; color:#374151; cursor:pointer; font-family:inherit;
+/* ── ecrã de 2 modos do Passo 2 (9 ago 2026): calendário sempre visível quando não
+   se está a editar; ao editar, recolhe para a barra .gcwo-editbar e o painel ocupa
+   tudo o resto. Sem coluna lateral, sem scroll entre calendário e editor. ── */
+.gcwo-cal-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:16px; flex-wrap:wrap; }
+
+/* ── calendário — semanas com datas reais ── */
+.gcwo-calweek { margin-top:16px; }
+.gcwo-calweek:first-of-type { margin-top:12px; }
+.gcwo-calweek-label { font-size:12.5px; font-weight:700; color:#0f2d52; margin-bottom:8px; }
+.gcwo-calweek-label span { font-weight:500; color:#94a3b8; margin-left:6px; }
+.gcwo-calrow { display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; }
+.gcwo-calday {
+  flex:1 0 128px; min-width:128px; border:1.5px solid #e2e8f0; border-radius:12px; background:#fff; padding:9px 10px;
 }
-.gcwo-weektab:hover { border-color:#cbd5e1; }
-.gcwo-weektab.selected { background:#0f2d52; border-color:#0f2d52; color:#fff; }
-.gcwo-weektab-dot {
-  display:inline-block; width:6px; height:6px; border-radius:50%; background:currentColor;
-  margin-left:5px; vertical-align:middle; opacity:.55;
+.gcwo-calday.before-start { opacity:.45; background:#f8fafc; }
+.gcwo-calday-top { display:flex; align-items:center; justify-content:space-between; }
+.gcwo-calday-top .dname { font-size:10.5px; font-weight:700; letter-spacing:.03em; color:#94a3b8; text-transform:uppercase; }
+.gcwo-calday .num { display:block; font-size:13px; font-weight:700; color:#0f172a; margin-top:2px; }
+.gcwo-calday-add {
+  width:22px; height:22px; border-radius:7px; border:none; background:transparent; color:#94a3b8; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
 }
-.gcwo-weektab.selected .gcwo-weektab-dot { opacity:1; }
+.gcwo-calday-add svg { width:12px; height:12px; }
+.gcwo-calday-add:hover { background:#eaf0fd; color:#1a56db; }
+.gcwo-calday-chips { display:flex; flex-direction:column; gap:5px; margin-top:8px; min-height:4px; }
+.gcwo-calday-chip {
+  display:flex; align-items:center; gap:5px; border:none; border-radius:7px; padding:5px 7px; font-size:11px;
+  font-weight:600; cursor:pointer; font-family:inherit; text-align:left; width:100%;
+}
+.gcwo-calday-chip svg { width:12px; height:12px; flex-shrink:0; }
+.gcwo-calday-chip span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* ── copiar semana N para as outras ── */
-.gcwo-copyweek-trigger { margin-top:10px; }
 .gcwo-copyweek {
   margin-top:10px; background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; padding:14px 16px;
 }
@@ -234,31 +245,22 @@
 .gcwo-copyweek-status.altered { color:#c2410c; }
 .gcwo-copyweek-actions { display:flex; align-items:center; gap:8px; margin-top:14px; }
 
-/* ── plano semanal — fila de dias ── */
-.gcwo-daystrip { display:flex; gap:8px; overflow-x:auto; margin-top:10px; padding-bottom:2px; }
-.gcwo-daycard {
-  flex:1 0 100px; min-width:100px; border:1.5px solid #e2e8f0; border-radius:12px; background:#fff;
-  padding:9px 11px; cursor:pointer; text-align:left; font-family:inherit;
+/* ── barra compacta do modo de edição ── */
+.gcwo-editbar {
+  display:flex; align-items:center; gap:10px; background:#f8fafc; border:0.5px solid #e2e8f0; border-radius:10px;
+  padding:10px 14px; margin-top:16px; font-size:13px; flex-wrap:wrap;
 }
-.gcwo-daycard:hover { border-color:#cbd5e1; }
-.gcwo-daycard.selected { border-color:#1a56db; background:#eaf0fd; }
-.gcwo-daycard .dname { display:block; font-size:11.5px; font-weight:700; letter-spacing:.03em; color:#0f2d52; text-transform:uppercase; }
-.gcwo-daycard.selected .dname { color:#1a56db; }
-.gcwo-daycard .dcount { display:block; font-size:11px; color:#64748b; margin-top:1px; }
-.gcwo-daycard .dicons { display:flex; gap:3px; margin-top:7px; flex-wrap:wrap; min-height:16px; }
-.gcwo-daycard .dicons span { width:16px; height:16px; border-radius:5px; display:flex; align-items:center; justify-content:center; }
-.gcwo-daycard .dicons svg { width:10px; height:10px; }
-.gcwo-daycard-add {
-  flex:0 0 76px; border:1.5px dashed #cbd5e1; border-radius:12px; background:transparent; color:#94a3b8;
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:11px; cursor:not-allowed;
-}
-.gcwo-daycard-add svg { width:14px; height:14px; }
+.gcwo-editbar-back { border:none; background:transparent; color:#1a56db; font-weight:600; cursor:pointer; font-family:inherit; padding:0; font-size:13px; }
+.gcwo-editbar-back:hover { text-decoration:underline; }
+.gcwo-editbar-sep { color:#cbd5e1; }
+.gcwo-editbar-day { font-weight:600; color:#0f172a; }
+.gcwo-editbar-modalidade { color:#64748b; }
 
-/* ── dia selecionado ── */
-.gcwo-daydetail-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
-
-.gcwo-addpicker { margin-top:12px; }
 .gcwo-typegrid { display:grid; grid-template-columns:repeat(6, minmax(84px,1fr)); gap:8px; margin-top:8px; }
+.gcwo-typegrid-lg { grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); }
+.gcwo-typegrid-lg .gcwo-typecard { padding:18px 10px; }
+.gcwo-typegrid-lg .ticon { width:40px; height:40px; }
+.gcwo-typegrid-lg .ticon svg { width:20px; height:20px; }
 .gcwo-typecard {
   border:1.5px solid #e2e8f0; border-radius:12px; background:#fff; padding:11px 8px; display:flex; flex-direction:column;
   align-items:center; gap:6px; cursor:pointer; text-align:center; font-family:inherit;
@@ -315,8 +317,9 @@
 .gcwo-zonapill { font-size:10.5px; font-weight:600; padding:2px 7px; border-radius:6px; background:#eef2f6; color:#475569; }
 
 /* ── painel lateral — criar/editar sessão ── */
-.gcwo-panel { width:480px; flex-shrink:0; background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; overflow:hidden; }
-.gcwo-panel.empty { padding:30px; text-align:center; color:#94a3b8; font-size:12.5px; }
+/* Ocupa sempre a largura toda — desde os 2 modos (9 ago 2026) já não vive ao lado de
+   mais nada, é a única coisa no ecrã enquanto se edita uma sessão. */
+.gcwo-panel { width:100%; background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; overflow:hidden; margin-top:14px; }
 .gcwo-panel-head { display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid #e2e8f0; }
 .gcwo-panel-icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .gcwo-panel-icon svg { width:18px; height:18px; }
@@ -341,11 +344,6 @@
 .gcwo-stat svg { width:15px; height:15px; color:#64748b; flex-shrink:0; }
 .gcwo-stat b { display:block; font-size:13px; color:#0f2d52; font-variant-numeric:tabular-nums; }
 .gcwo-stat small { display:block; font-size:10px; color:#94a3b8; }
-
-@media (max-width: 1180px) {
-  .gcwo-plano-body { flex-direction:column; }
-  .gcwo-panel { width:100%; }
-}
 
 /* ── painel — grelha de escolha do catálogo (favoritos por omissão) ── */
 .gcwo-catpick-grid {

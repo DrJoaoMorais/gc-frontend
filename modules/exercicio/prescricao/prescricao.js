@@ -182,6 +182,9 @@ let _panelCatalogBusca = '';
 let _panelEquipFiltro = new Set();      // filtro de equipamento (multi-selecção) dentro do painel de ginásio
 let _copyWeekOpen = false;              // "Copiar semana N para as outras" — painel aberto/fechado
 let _copyWeekSelected = new Set();      // semanas de destino marcadas no painel de cópia
+let _copyWeekSource = 1;                // semana de origem, escolhida dentro do próprio painel (9 ago 2026)
+let _historyTargetWeek = 1;             // semana de destino ao aplicar uma semana do histórico
+let _pendingSlot = null;                // {week, day} — dia escolhido na grelha, modalidade por escolher (ecrã de 2 modos, 9 ago 2026)
 let _historyOpen = false;               // modal "Ver planos anteriores" aberto/fechado
 let _historyLoading = false;
 let _historyError = '';
@@ -296,6 +299,37 @@ function fmtRelativo(data) {
   if (dias === 1) return 'Ontem';
   if (dias < 7) return `Há ${dias} dias`;
   return `${data.getDate()} ${MESES_ABREV[data.getMonth()]}.`;
+}
+
+// Datas reais da grelha do Passo 2 (ecrã de 2 modos, 9 ago 2026). Dia 1 do plano é
+// sempre amanhã — a mesma base que computeExpiresAt já usa para o fim do plano. As
+// semanas mostradas são semanas reais seg-dom (ISO); se "amanhã" não calhar a
+// segunda-feira, os dias da semana 1 anteriores a amanhã aparecem na grelha (para as
+// colunas SEG..DOM baterem com dias da semana verdadeiros) mas ficam desativados —
+// não se prescreve num dia que já passou antes do início do plano.
+function planStartDate() {
+  const hoje = hojeEmLisboa();
+  return new Date(Date.UTC(hoje.year, hoje.month - 1, hoje.day + 1));
+}
+function segundaFeiraDaSemanaDe(data) {
+  const dow = data.getUTCDay(); // 0=Dom..6=Sáb
+  const diff = dow === 0 ? -6 : 1 - dow;
+  const seg = new Date(data);
+  seg.setUTCDate(seg.getUTCDate() + diff);
+  return seg;
+}
+function realDateFor(week, dayValue) {
+  const idx = DIAS_SEMANA.findIndex(d => d.value === dayValue);
+  const seg1 = segundaFeiraDaSemanaDe(planStartDate());
+  const d = new Date(seg1);
+  d.setUTCDate(d.getUTCDate() + idx + (week - 1) * 7);
+  return d;
+}
+function fmtDiaMesCurto(d) {
+  return `${d.getUTCDate()} ${MESES_ABREV[d.getUTCMonth()]}.`;
+}
+function fmtIntervaloSemana(week) {
+  return fmtIntervaloPlano(realDateFor(week, 'seg'), realDateFor(week, 'dom'));
 }
 
 // Sessão nova (secção 5): session_id/week/day/order/kind/modality/local + o contentor
@@ -607,6 +641,7 @@ function renderLandingTableHost() {
       if (!row || !row.patient) return;
       _state.clinicId = row.clinicId;
       _state.patient = row.patient;
+      _panelDraft = null; _panelIsNovo = false; _pendingSlot = null; // doente novo — nunca herdar edição do doente anterior
       renderStep2();
     });
   });
@@ -769,6 +804,7 @@ function renderStep1() {
         if (!p) return;
         _state.patient = p;
         _state.clinicId = p.active_clinic_id || _state.clinicId;
+        _panelDraft = null; _panelIsNovo = false; _pendingSlot = null; // doente novo — nunca herdar edição do doente anterior
         renderStep2();
       });
     });
@@ -849,8 +885,7 @@ function wireDuracaoSection() {
   document.querySelectorAll('#gcwoDuracaoChips [data-semanas]').forEach(chip => {
     chip.addEventListener('click', () => {
       _state.planWeeks = Number(chip.getAttribute('data-semanas'));
-      _state.selectedWeek = 1; // muda a duração pode reduzir o nº de semanas — volta sempre à 1ª
-      renderStep2(); // revela (ou reconstrói) o esqueleto de semanas/dias
+      renderStep2(); // revela (ou reconstrói) o calendário
     });
   });
 }
@@ -863,9 +898,13 @@ function renderStep2() {
   if (!root) return;
 
   const p = _state.patient;
-  const semanasEscolhidas = !!_state.planWeeks;
   _copyWeekOpen = false;
   _copyWeekSelected = new Set();
+  _copyWeekSource = 1;
+  // _panelDraft/_pendingSlot NÃO se reiniciam aqui — renderStep2() é chamado outra vez
+  // ao voltar do Catálogo (topActionsHtml) a meio de uma edição, e essa edição tem de
+  // sobreviver à viagem (o comportamento de sempre, antes dos 2 modos).
+
   root.innerHTML = `
     <div class="gc-page-header">
       <div><div class="gc-page-title">Prescrição de exercício</div><div class="gc-page-sub">${escHtml(p.full_name)} <button type="button" class="gcwo-linkbtn" id="gcwoVerHistorico">Ver planos anteriores</button></div></div>
@@ -874,53 +913,11 @@ function renderStep2() {
 
     ${renderPatientBanner()}
 
-    <div class="gcwo-plano-body">
-      <main class="gcwo-plano-main">
-        ${renderDuracaoSection()}
-
-        ${semanasEscolhidas ? `
-        <section>
-          <h2 class="gcwo-section-title">Semanas e dias</h2>
-          <div class="gcwo-weektabs" id="gcwoWeekTabs"></div>
-          <div class="gcwo-daystrip" id="gcwoDaystrip"></div>
-          ${_state.planWeeks > 1 ? `
-          <div class="gcwo-copyweek-trigger">
-            <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoBtnCopiarSemana">Copiar semana <span id="gcwoCopiarSemanaNum">${_state.selectedWeek}</span> para as outras</button>
-          </div>
-          <div class="gcwo-copyweek" id="gcwoCopyWeekPanel" hidden></div>
-          ` : ''}
-        </section>
-
-        <section>
-          <div class="gcwo-daydetail-head">
-            <h2 class="gcwo-section-title" id="gcwoDayTitle">—</h2>
-            <button type="button" class="gcBtnPrimary" id="gcwoAddSessao">+ Adicionar sessão</button>
-          </div>
-          <div class="gcwo-sessions" id="gcwoDaySessions"></div>
-          <div class="gcwo-addpicker" id="gcwoAddPicker" hidden>
-            <span class="gcwo-field-label">Escolher tipo de sessão</span>
-            <div class="gcwo-typegrid" id="gcwoTypegrid"></div>
-          </div>
-        </section>
-        ` : `
-        <section class="gcwo-card">
-          <span class="gcwo-muted">Escolhe a duração do plano, acima, para começares a construir as semanas.</span>
-        </section>
-        `}
-
-        <div class="gcwo-generate">
-          <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.'}">Gerar prescrição e link</button>
-          <span id="gcwoGerarErro" class="gcwo-erro"></span>
-        </div>
-      </main>
-
-      <aside class="gcwo-panel empty" id="gcwoPanel">Seleciona o lápis numa sessão para editar, ou "+ Adicionar sessão".</aside>
-    </div>
+    <div id="gcwoStep2Body"></div>
   `;
 
   wireTopActions();
   wirePatientBanner();
-  wireDuracaoSection();
   document.getElementById('gcwoVerHistorico').addEventListener('click', () => openHistoryModal());
   document.getElementById('gcwoTrocarDoente').addEventListener('click', () => {
     closeHistoryModal();
@@ -930,59 +927,114 @@ function renderStep2() {
     _state.restricoesEditing = false;
     _state.planWeeks = null;
     _state.sessions = [];
-    _state.selectedWeek = 1;
     renderStep1();
   });
 
-  if (semanasEscolhidas) {
-    renderTypegrid();
-    document.getElementById('gcwoAddSessao').addEventListener('click', () => {
-      const picker = document.getElementById('gcwoAddPicker');
-      picker.hidden = !picker.hidden;
-    });
-    renderWeekTabs();
-    renderDaystrip();
-    renderDayDetail();
-    updateGerarButtonState();
-    document.getElementById('gcwoBtnCopiarSemana')?.addEventListener('click', () => {
-      _copyWeekOpen = !_copyWeekOpen;
-      _copyWeekSelected = new Set();
-      renderCopyWeekPanel();
-    });
-  }
-
-  document.getElementById('gcwoGerar').addEventListener('click', handleGerar);
-
-  renderPanel();
+  renderStep2Body();
 }
 
-/* ── Separadores de semana ────────────────────────────────── */
+// Só isto troca entre "calendário" (modo 1) e "edição em ecrã inteiro" (modo 2) —
+// cabeçalho e ficha do doente ficam sempre visíveis, por cima (decisão de 9 ago 2026).
+// A condição de qual modo mostrar é _panelDraft/_pendingSlot — não há uma 3ª variável
+// de "modo actual" para manter sincronizada à parte.
+function step2EmEdicao() {
+  return !!(_panelDraft || _pendingSlot);
+}
+function renderStep2Body() {
+  const host = document.getElementById('gcwoStep2Body');
+  if (!host) return;
+  if (step2EmEdicao()) renderEditMode(host);
+  else renderCalendarMode(host);
+}
+
+/* ================================================================
+   MODO 1 — calendário (datas reais, todas as semanas visíveis)
+   ================================================================ */
+function renderCalendarMode(host) {
+  const semanasEscolhidas = !!_state.planWeeks;
+
+  host.innerHTML = `
+    ${renderDuracaoSection()}
+    ${semanasEscolhidas ? `
+    <section>
+      <div class="gcwo-cal-head">
+        <h2 class="gcwo-section-title">Calendário do plano</h2>
+        ${_state.planWeeks > 1 ? `<button type="button" class="gcBtnGhost gcBtnSm" id="gcwoBtnCopiarSemana">Copiar uma semana para as outras</button>` : ''}
+      </div>
+      <div class="gcwo-copyweek" id="gcwoCopyWeekPanel" hidden></div>
+      <div id="gcwoCalGrid"></div>
+    </section>
+
+    <div class="gcwo-generate">
+      <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.'}">Gerar prescrição e link</button>
+      <span id="gcwoGerarErro" class="gcwo-erro"></span>
+    </div>
+    ` : `
+    <section class="gcwo-card">
+      <span class="gcwo-muted">Escolhe a duração do plano, acima, para começares a construir o calendário.</span>
+    </section>
+    `}
+  `;
+
+  wireDuracaoSection();
+  if (!semanasEscolhidas) return;
+
+  renderCalGrid();
+  document.getElementById('gcwoGerar').addEventListener('click', handleGerar);
+  document.getElementById('gcwoBtnCopiarSemana')?.addEventListener('click', () => {
+    _copyWeekOpen = !_copyWeekOpen;
+    _copyWeekSelected = new Set();
+    renderCopyWeekPanel();
+  });
+}
+
+// weekHasSessions ainda serve ao painel de "copiar semana" (avisar que o destino já
+// tem conteúdo antes de o substituir).
 function weekHasSessions(week) {
   return _state.sessions.some(s => s.week === week);
 }
 
-function renderWeekTabs() {
-  const host = document.getElementById('gcwoWeekTabs');
+function renderCalGrid() {
+  const host = document.getElementById('gcwoCalGrid');
   if (!host) return;
   const n = _state.planWeeks || 1;
+  const inicio = planStartDate();
+
   host.innerHTML = Array.from({ length: n }, (_, i) => i + 1).map(w => `
-    <button type="button" class="gcwo-weektab${w === _state.selectedWeek ? ' selected' : ''}" data-week="${w}">Semana ${w}${weekHasSessions(w) ? '<span class="gcwo-weektab-dot" title="Semana alterada"></span>' : ''}</button>
+    <div class="gcwo-calweek">
+      <div class="gcwo-calweek-label">Semana ${w} <span>${escHtml(fmtIntervaloSemana(w))}</span></div>
+      <div class="gcwo-calrow">
+        ${DIAS_SEMANA.map(d => {
+          const data = realDateFor(w, d.value);
+          const antesDoInicio = data < inicio;
+          const sessions = _state.sessions.filter(s => s.week === w && s.day === d.value).sort((a, b) => a.order - b.order);
+          return `
+          <div class="gcwo-calday${antesDoInicio ? ' before-start' : ''}">
+            <div class="gcwo-calday-top">
+              <span class="dname">${d.label}</span>
+              ${!antesDoInicio ? `<button type="button" class="gcwo-calday-add" data-add-week="${w}" data-add-day="${d.value}" title="Adicionar sessão">${ICON_MAIS}</button>` : ''}
+            </div>
+            <span class="num">${escHtml(fmtDiaMesCurto(data))}</span>
+            <div class="gcwo-calday-chips">
+              ${sessions.map(s => {
+                const meta = TIPO_META[tipoKey(s)];
+                return `<button type="button" class="gcwo-calday-chip" style="background:${meta.bg};color:${meta.fg}" data-edit-session="${s.session_id}">${meta.icon}<span>${escHtml(meta.label)}</span></button>`;
+              }).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
   `).join('');
-  host.querySelectorAll('[data-week]').forEach(btn => {
+
+  host.querySelectorAll('[data-add-week]').forEach(btn => {
     btn.addEventListener('click', () => {
-      _state.selectedWeek = Number(btn.getAttribute('data-week'));
-      const picker = document.getElementById('gcwoAddPicker');
-      if (picker) picker.hidden = true;
-      _copyWeekOpen = false;
-      _copyWeekSelected = new Set();
-      const copyNum = document.getElementById('gcwoCopiarSemanaNum');
-      if (copyNum) copyNum.textContent = _state.selectedWeek;
-      const copyPanel = document.getElementById('gcwoCopyWeekPanel');
-      if (copyPanel) copyPanel.hidden = true;
-      renderWeekTabs();
-      renderDaystrip();
-      renderDayDetail();
+      _pendingSlot = { week: Number(btn.getAttribute('data-add-week')), day: btn.getAttribute('data-add-day') };
+      renderStep2Body();
     });
+  });
+  host.querySelectorAll('[data-edit-session]').forEach(btn => {
+    btn.addEventListener('click', () => openPanelEditar(btn.getAttribute('data-edit-session')));
   });
 }
 
@@ -993,11 +1045,16 @@ function renderCopyWeekPanel() {
   panel.hidden = !_copyWeekOpen;
   if (!_copyWeekOpen) return;
 
-  const source = _state.selectedWeek;
-  const destinos = Array.from({ length: _state.planWeeks }, (_, i) => i + 1).filter(w => w !== source);
+  const todasSemanas = Array.from({ length: _state.planWeeks }, (_, i) => i + 1);
+  const source = _copyWeekSource;
+  const destinos = todasSemanas.filter(w => w !== source);
 
   panel.innerHTML = `
-    <span class="gcwo-field-label">Copiar para</span>
+    <span class="gcwo-field-label">Copiar a semana</span>
+    <div class="gcwo-chips" id="gcwoCopyWeekSourceChips">
+      ${todasSemanas.map(w => `<button type="button" class="gcwo-chip${w === source ? ' on' : ''}" data-source-week="${w}">Semana ${w}</button>`).join('')}
+    </div>
+    <span class="gcwo-field-label" style="margin-top:10px;">Para</span>
     <div class="gcwo-copyweek-list">
       ${destinos.map(w => {
         const altered = weekHasSessions(w);
@@ -1018,6 +1075,13 @@ function renderCopyWeekPanel() {
     </div>
   `;
 
+  panel.querySelectorAll('[data-source-week]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _copyWeekSource = Number(btn.getAttribute('data-source-week'));
+      _copyWeekSelected = new Set();
+      renderCopyWeekPanel();
+    });
+  });
   panel.querySelectorAll('[data-week]').forEach(cb => {
     cb.addEventListener('change', (e) => {
       const w = Number(cb.getAttribute('data-week'));
@@ -1059,15 +1123,13 @@ function copyWeekDayLevel(sourceWeek, destWeek) {
 }
 
 function handleCopiarSemana() {
-  const source = _state.selectedWeek;
+  const source = _copyWeekSource;
   const destinos = [..._copyWeekSelected];
   destinos.forEach(destWeek => copyWeekDayLevel(source, destWeek));
 
   _copyWeekOpen = false;
   _copyWeekSelected = new Set();
-  renderWeekTabs();
-  renderDaystrip();
-  renderDayDetail();
+  renderCalGrid();
   updateGerarButtonState();
   const panel = document.getElementById('gcwoCopyWeekPanel');
   if (panel) panel.hidden = true;
@@ -1138,7 +1200,12 @@ function renderHistoryModal() {
           <button type="button" id="gcwoHistClose" title="Fechar">${ICON_CLOSE}</button>
         </div>
         <div class="gcwo-modal-body">
-          <p class="gcwo-muted" style="margin-top:0;">A copiar para: Semana ${_state.selectedWeek} do plano actual.</p>
+          <div style="margin-top:0;">
+            <span class="gcwo-field-label" style="display:inline; margin-right:8px;">Copiar para a semana</span>
+            <div class="gcwo-chips" id="gcwoHistTargetWeek" style="display:inline-flex;">
+              ${Array.from({ length: _state.planWeeks || 1 }, (_, i) => i + 1).map(w => `<button type="button" class="gcwo-chip${w === _historyTargetWeek ? ' on' : ''}" data-target-week="${w}">Semana ${w}</button>`).join('')}
+            </div>
+          </div>
           ${renderHistoryDetailHtml(_historyDetail)}
         </div>
       </div>`
@@ -1212,6 +1279,12 @@ function wireHistoryModal() {
       renderHistoryModal();
     });
   });
+  document.querySelectorAll('#gcwoHistoryOverlay [data-target-week]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _historyTargetWeek = Number(btn.getAttribute('data-target-week'));
+      renderHistoryModal();
+    });
+  });
   document.querySelectorAll('#gcwoHistoryOverlay [data-copiar-semana]').forEach(btn => {
     btn.addEventListener('click', () => {
       const w = Number(btn.getAttribute('data-copiar-semana'));
@@ -1228,7 +1301,7 @@ function copiarSemanaDoHistorico(prescricao, sourceWeek) {
   const origem = (prescricao?.data?.sessions || []).filter(s => s.week === sourceWeek);
   if (!origem.length) return;
 
-  const destWeek = _state.selectedWeek;
+  const destWeek = _historyTargetWeek;
   const diasTocados = [...new Set(origem.map(s => s.day))];
   const diasComConflito = diasTocados.filter(d => _state.sessions.some(s => s.week === destWeek && s.day === d));
   if (diasComConflito.length) {
@@ -1251,120 +1324,50 @@ function copiarSemanaDoHistorico(prescricao, sourceWeek) {
   });
 
   closeHistoryModal();
-  renderWeekTabs();
-  renderDaystrip();
-  renderDayDetail();
+  renderStep2Body();
   updateGerarButtonState();
 }
 
-/* ── Fila de dias, dentro da semana seleccionada ─────────── */
-function renderDaystrip() {
-  const host = document.getElementById('gcwoDaystrip');
-  if (!host) return;
+/* ================================================================
+   MODO 2 — edição em ecrã inteiro (barra compacta + editor)
+   Substitui a fila de dias + lista do dia + painel lateral (9 ago 2026):
+   o calendário recolhe para uma linha, o editor ocupa o resto do ecrã.
+   ================================================================ */
+function renderEditMode(host) {
+  const week = _panelDraft ? _panelDraft.week : _pendingSlot.week;
+  const dayValue = _panelDraft ? _panelDraft.day : _pendingSlot.day;
+  const dia = DIAS_SEMANA.find(d => d.value === dayValue) || DIAS_SEMANA[0];
+  const data = realDateFor(week, dayValue);
+  const modalidadeLabel = _panelDraft ? TIPO_META[tipoKey(_panelDraft)].label : 'Escolher tipo de sessão';
 
-  host.innerHTML = DIAS_SEMANA.map(d => {
-    const sessions = _state.sessions.filter(s => s.week === _state.selectedWeek && s.day === d.value);
-    const icons = sessions.map(s => {
-      const meta = TIPO_META[tipoKey(s)];
-      return `<span style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>`;
-    }).join('');
-    return `
-      <button type="button" class="gcwo-daycard${d.value === _state.selectedDay ? ' selected' : ''}" data-day="${d.value}">
-        <span class="dname">${d.label}</span>
-        <span class="dcount">${sessions.length === 1 ? '1 sessão' : sessions.length + ' sessões'}</span>
-        <span class="dicons">${icons}</span>
-      </button>`;
-  }).join('');
+  host.innerHTML = `
+    <div class="gcwo-editbar">
+      <button type="button" class="gcwo-editbar-back" id="gcwoEditBack">← Calendário</button>
+      <span class="gcwo-editbar-sep">|</span>
+      <span class="gcwo-editbar-day">${dia.full}, ${escHtml(fmtDiaMesCurto(data))}</span>
+      <span class="gcwo-editbar-sep">|</span>
+      <span class="gcwo-editbar-modalidade">${escHtml(modalidadeLabel)}</span>
+    </div>
+    <div id="gcwoEditArea"></div>
+  `;
 
-  host.querySelectorAll('[data-day]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _state.selectedDay = btn.getAttribute('data-day');
-      const picker = document.getElementById('gcwoAddPicker');
-      if (picker) picker.hidden = true;
-      renderDaystrip();
-      renderDayDetail();
-    });
-  });
-}
+  document.getElementById('gcwoEditBack').addEventListener('click', fecharPanel);
 
-/* ── Dia seleccionado, dentro da semana seleccionada ─────── */
-function renderDayDetail() {
-  const dia = DIAS_SEMANA.find(d => d.value === _state.selectedDay) || DIAS_SEMANA[0];
-  const titleEl = document.getElementById('gcwoDayTitle');
-  if (titleEl) titleEl.textContent = `${dia.full} · Semana ${_state.selectedWeek}`;
-
-  const sessions = _state.sessions
-    .filter(s => s.week === _state.selectedWeek && s.day === dia.value)
-    .sort((a, b) => a.order - b.order);
-  const host = document.getElementById('gcwoDaySessions');
-  if (!host) return;
-  host.innerHTML = sessions.length
-    ? sessions.map(renderSessaoCardHtml).join('')
-    : `<div class="gcwo-muted">Sem sessões atribuídas a ${dia.full.toLowerCase()}.</div>`;
-  wireSessaoCards(host);
-}
-
-// Linhas curtas para a lista expandida do cartão — uma por item/bloco/caminhada.
-function sessaoPreviewLinhas(s) {
-  if (s.kind === 'walk') {
-    const linhas = (s.walks || []).map(w => `${w.label || 'Caminhada'} — ${w.duration_sec ? fmtDuracaoTotal(w.duration_sec) : '—'}`);
-    if (s.stairs_flights != null) linhas.push(`Escadas — ${s.stairs_flights} lanços`);
-    return linhas;
+  const area = document.getElementById('gcwoEditArea');
+  if (_panelDraft) {
+    area.innerHTML = `<div class="gcwo-panel" id="gcwoPanel"></div>`;
+    renderPanel();
+  } else {
+    area.innerHTML = `
+      <div class="gcwo-card">
+        <span class="gcwo-field-label">Escolher tipo de sessão</span>
+        <div class="gcwo-typegrid gcwo-typegrid-lg" id="gcwoTypegrid"></div>
+      </div>`;
+    renderTypegrid();
   }
-  if (s.kind === 'card' || s.kind === 'circuit') {
-    return (s.blocks || []).map(b => b.name || TIPO_BLOCO_LABELS_PT[b.type] || 'Bloco');
-  }
-  return (s.items || []).map(it => it.name);
 }
 
-/* ── Cartão de sessão — leitura, colapsável ──────────────── */
-function renderSessaoCardHtml(s) {
-  const meta = TIPO_META[tipoKey(s)];
-  const expanded = _expandedCardIds.has(s.session_id);
-  const cont = sessaoContagem(s);
-  const resumo = `${s.local ? escHtml(s.local) + ' · ' : ''}${cont.n ? cont.n + ' ' + cont.label : 'Sem conteúdo ainda.'}`;
-
-  const linhas = sessaoPreviewLinhas(s);
-  const bodyHtml = expanded
-    ? `<div class="gcwo-plano-session-body">${linhas.length
-        ? `<ul class="gcwo-plano-itemlist">${linhas.map(l => `<li>${escHtml(l)}</li>`).join('')}</ul>`
-        : `<div class="gcwo-muted">Sem conteúdo ainda.</div>`}</div>`
-    : '';
-
-  return `
-    <div class="gcwo-plano-session" data-id="${s.session_id}">
-      <div class="gcwo-plano-session-bar">
-        <div class="accent" style="background:${meta.fg}"></div>
-        <div class="main">
-          <button type="button" class="gcwo-plano-session-head" data-toggle="${s.session_id}">
-            <span class="icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
-            <span class="titles"><span class="nome">${meta.label}</span><span class="resumo">${resumo}</span></span>
-            <span class="chevron">${expanded ? '▾' : '▸'}</span>
-          </button>
-          ${bodyHtml}
-        </div>
-        <button type="button" class="gcwo-plano-session-edit" data-edit="${s.session_id}" title="Editar sessão">${ICON_PENCIL}</button>
-      </div>
-    </div>`;
-}
-
-function wireSessaoCards(container) {
-  container.querySelectorAll('[data-toggle]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-toggle');
-      if (_expandedCardIds.has(id)) _expandedCardIds.delete(id); else _expandedCardIds.add(id);
-      renderDayDetail();
-    });
-  });
-  container.querySelectorAll('[data-edit]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openPanelEditar(btn.getAttribute('data-edit'));
-    });
-  });
-}
-
-/* ── "+ Adicionar sessão" — escolha do tipo ──────────────── */
+/* ── "Escolher tipo de sessão" (dentro do modo de edição) ── */
 function renderTypegrid() {
   const host = document.getElementById('gcwoTypegrid');
   if (!host) return;
@@ -1387,17 +1390,19 @@ function renderTypegrid() {
 }
 
 /* ================================================================
-   Painel lateral — criar/editar sessão
+   Painel — criar/editar sessão (mesma lógica de sempre; só muda de
+   moldura — deixou de ser uma aside estreita e passa a ocupar o
+   ecrã inteiro dentro do modo de edição)
    ================================================================ */
 function openPanelNovo(modality, kind) {
-  _panelDraft = novaSessaoSkeleton(modality, kind, _state.selectedWeek, _state.selectedDay);
+  if (!_pendingSlot) return;
+  _panelDraft = novaSessaoSkeleton(modality, kind, _pendingSlot.week, _pendingSlot.day);
   _panelIsNovo = true;
   _panelCatalogFiltro = 'favoritos';
   _panelCatalogBusca = '';
   _panelEquipFiltro = new Set();
-  const picker = document.getElementById('gcwoAddPicker');
-  if (picker) picker.hidden = true;
-  renderPanel();
+  _pendingSlot = null;
+  renderStep2Body();
 }
 function openPanelEditar(sessionId) {
   const s = _state.sessions.find(x => x.session_id === sessionId);
@@ -1407,25 +1412,20 @@ function openPanelEditar(sessionId) {
   _panelEquipFiltro = new Set();
   _panelDraft = cloneSession(s);
   _panelIsNovo = false;
-  renderPanel();
+  _pendingSlot = null;
+  renderStep2Body();
 }
 function fecharPanel() {
   _panelDraft = null;
   _panelIsNovo = false;
-  renderPanel();
+  _pendingSlot = null;
+  renderStep2Body();
 }
 
 function renderPanel() {
   const panel = document.getElementById('gcwoPanel');
-  if (!panel) return;
+  if (!panel || !_panelDraft) return;
 
-  if (!_panelDraft) {
-    panel.className = 'gcwo-panel empty';
-    panel.textContent = 'Seleciona o lápis numa sessão para editar, ou "+ Adicionar sessão".';
-    return;
-  }
-
-  panel.className = 'gcwo-panel';
   const s = _panelDraft;
   const meta = TIPO_META[tipoKey(s)];
   const dia = DIAS_SEMANA.find(d => d.value === s.day);
@@ -1469,9 +1469,6 @@ function wirePanel() {
   document.getElementById('gcwoPanelApagar')?.addEventListener('click', () => {
     _state.sessions = _state.sessions.filter(x => x.session_id !== s.session_id);
     fecharPanel();
-    renderWeekTabs();
-    renderDaystrip();
-    renderDayDetail();
     updateGerarButtonState();
   });
   document.getElementById('gcwoPGuardar').addEventListener('click', handleGuardarSessao);
@@ -2489,9 +2486,6 @@ function handleGuardarSessao() {
   }
 
   fecharPanel();
-  renderWeekTabs();
-  renderDaystrip();
-  renderDayDetail();
   updateGerarButtonState();
 }
 
