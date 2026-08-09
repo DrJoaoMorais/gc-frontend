@@ -185,12 +185,24 @@ function freshState() {
     restricoesPredefinidas: [],
     restricoesTexto: '',
     restricoesEditing: false,
-    planWeeks: null,
+    // Duração vem já escolhida (2 semanas) para o calendário aparecer logo ao entrar —
+    // antes disto o ecrã pedia para escolher a duração primeiro e só depois mostrava o
+    // calendário, contra o desenho de "Modo 1 sempre visível" (9 ago 2026). Continua
+    // ajustável nos chips por cima do calendário.
+    planWeeks: 2,
     savedLink: null,
     savedExpiresAt: null,
+    // Plano activo carregado para edição directa (9 ago 2026) — ver carregarPlanoActivoSeExistir().
+    // activePrescriptionId != null ⇒ gravar actualiza esta linha tal como está no ecrã,
+    // sem fundir por chave semana+dia+ordem (essa fusão só faz sentido quando o ecrã
+    // nunca mostrou o que já existia). planStartOverride ancora a semana 1 do calendário
+    // na data real de início do plano carregado, em vez de "amanhã".
+    activePrescriptionId: null,
+    planStartOverride: null,
   };
 }
 let _state = freshState();
+let _loadingPlanoActivo = false;        // a verificar/carregar o plano activo do doente escolhido (9 ago 2026)
 let _expandedCardIds = new Set();       // sessões expandidas na lista principal (leitura)
 let _panelExpandedTarefaId = null;      // dentro do painel, tarefa expandida (só uma)
 let _panelDraft = null;                 // clone de trabalho da sessão em edição — null = painel fechado
@@ -296,9 +308,18 @@ function fmtDataPt(d) {
   return `${d.getDate()} de ${MESES_PT[d.getMonth()]} de ${d.getFullYear()}`;
 }
 // Janela de datas do plano — só pré-visualização; expires_at real é calculado no momento de gerar o link (Passo 1g).
+// Quando há um plano activo carregado (planStartOverride), ancora a pré-visualização na
+// data real em que esse plano começou — senão mostraria sempre "a começar hoje", mesmo a
+// editar um plano que já está a decorrer há dias (9 ago 2026).
 function fmtJanelaPlano(semanas) {
   const dias = semanas * 7;
-  const inicio = new Date(); inicio.setHours(0, 0, 0, 0);
+  let inicio;
+  if (_state.planStartOverride) {
+    const o = _state.planStartOverride;
+    inicio = new Date(o.getUTCFullYear(), o.getUTCMonth(), o.getUTCDate());
+  } else {
+    inicio = new Date(); inicio.setHours(0, 0, 0, 0);
+  }
   const fim = new Date(inicio); fim.setDate(fim.getDate() + dias - 1);
   const aviso = new Date(fim); aviso.setDate(aviso.getDate() - 4);
   return `${dias} dias · válido de ${fmtDataPt(inicio)} a ${fmtDataPt(fim)} · aviso a partir de ${fmtDataPt(aviso)}`;
@@ -321,13 +342,17 @@ function fmtRelativo(data) {
   return `${data.getDate()} ${MESES_ABREV[data.getMonth()]}.`;
 }
 
-// Datas reais da grelha do Passo 2 (ecrã de 2 modos, 9 ago 2026). Dia 1 do plano é
-// sempre amanhã — a mesma base que computeExpiresAt já usa para o fim do plano. As
-// semanas mostradas são semanas reais seg-dom (ISO); se "amanhã" não calhar a
-// segunda-feira, os dias da semana 1 anteriores a amanhã aparecem na grelha (para as
-// colunas SEG..DOM baterem com dias da semana verdadeiros) mas ficam desativados —
-// não se prescreve num dia que já passou antes do início do plano.
+// Datas reais da grelha do Passo 2 (ecrã de 2 modos, 9 ago 2026). Sem plano activo
+// carregado, dia 1 é sempre amanhã — a mesma base que computeExpiresAt usa por omissão
+// para o fim do plano. Com um plano activo carregado (planStartOverride), a semana 1
+// ancora-se na data real em que esse plano começou, para as sessões carregadas caírem
+// nos dias certos em vez de saltarem para a semana errada. As semanas mostradas são
+// semanas reais seg-dom (ISO); se o dia 1 não calhar à segunda-feira, os dias da semana 1
+// anteriores a ele aparecem na grelha (para as colunas SEG..DOM baterem com dias da
+// semana verdadeiros) mas ficam desativados — não se prescreve num dia já passado antes
+// do início do plano.
 function planStartDate() {
+  if (_state.planStartOverride) return _state.planStartOverride;
   const hoje = hojeEmLisboa();
   return new Date(Date.UTC(hoje.year, hoje.month - 1, hoje.day + 1));
 }
@@ -372,6 +397,43 @@ function novaSessaoSkeleton(modality, kind, week, day) {
 }
 function cloneSession(s) {
   return structuredClone(s);
+}
+
+// Ao escolher um doente (landing ou pesquisa), verifica se já tem um plano activo e, se
+// tiver, carrega-o tal como está — sessões reais nas datas reais, prontas a editar (9 ago
+// 2026). Antes disto o ecrã começava sempre vazio e só se fundia com o plano activo ao
+// gravar (mesclarSessoes/chaveSessao) — com o calendário sempre visível isso passou a
+// parecer avariado (o doente via "não tenho nada", mesmo já tendo um plano a decorrer).
+// planStartOverride ancora a semana 1 na data real de criação do plano carregado, para as
+// sessões não caírem em dias errados por o calendário assumir "dia 1 = amanhã".
+async function carregarPlanoActivoSeExistir() {
+  _state.activePrescriptionId = null;
+  _state.planStartOverride = null;
+  if (!_state.patient) return;
+
+  const { data, error } = await window.sb
+    .from('wo_prescriptions')
+    .select('id,created_at,expires_at,data')
+    .eq('patient_id', _state.patient.id)
+    .eq('status', 'active')
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    // Falhar a verificação não deve impedir a prescrição — fica como plano novo (o
+    // comportamento de sempre); é mais seguro do que bloquear o médico a meio de uma consulta.
+    console.error('[prescricao] falha a verificar plano activo:', error);
+    return;
+  }
+  if (!data) return; // sem plano activo — quadro em branco, como sempre foi para doentes novos
+
+  _state.activePrescriptionId = data.id;
+  _state.planWeeks = data.data?.weeks || 2;
+  _state.sessions = structuredClone(data.data?.sessions || []);
+  const inicio = dataLisboaDe(new Date(data.created_at));
+  _state.planStartOverride = new Date(Date.UTC(inicio.year, inicio.month - 1, inicio.day));
 }
 
 /* ── Entry point ─────────────────────────────────────────── */
@@ -664,7 +726,12 @@ function renderLandingTableHost() {
       _state.clinicId = row.clinicId;
       _state.patient = row.patient;
       _panelDraft = null; _panelIsNovo = false; _pendingSlot = null; // doente novo — nunca herdar edição do doente anterior
+      _loadingPlanoActivo = true;
       renderStep2();
+      carregarPlanoActivoSeExistir().finally(() => {
+        _loadingPlanoActivo = false;
+        renderStep2Body();
+      });
     });
   });
 }
@@ -827,7 +894,12 @@ function renderStep1() {
         _state.patient = p;
         _state.clinicId = p.active_clinic_id || _state.clinicId;
         _panelDraft = null; _panelIsNovo = false; _pendingSlot = null; // doente novo — nunca herdar edição do doente anterior
+        _loadingPlanoActivo = true;
         renderStep2();
+        carregarPlanoActivoSeExistir().finally(() => {
+          _loadingPlanoActivo = false;
+          renderStep2Body();
+        });
       });
     });
   }
@@ -947,8 +1019,10 @@ function renderStep2() {
     _state.restricoesPredefinidas = [];
     _state.restricoesTexto = '';
     _state.restricoesEditing = false;
-    _state.planWeeks = null;
+    _state.planWeeks = 2;
     _state.sessions = [];
+    _state.activePrescriptionId = null;
+    _state.planStartOverride = null;
     renderStep1();
   });
 
@@ -973,6 +1047,10 @@ function renderStep2Body() {
    MODO 1 — calendário (datas reais, todas as semanas visíveis)
    ================================================================ */
 function renderCalendarMode(host) {
+  if (_loadingPlanoActivo) {
+    host.innerHTML = `<section class="gcwo-card"><span class="gcwo-muted">A verificar se este doente já tem um plano activo…</span></section>`;
+    return;
+  }
   const semanasEscolhidas = !!_state.planWeeks;
 
   host.innerHTML = `
@@ -2740,10 +2818,23 @@ function hojeEmLisboa() {
     .formatToParts(new Date()).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
   return { year: +parts.year, month: +parts.month, day: +parts.day };
 }
-// Duração exacta do plano, sem folga — dia 1 é hoje (Lisboa), último dia às 23:59:59 (Lisboa).
-function computeExpiresAt(weeks) {
+// Igual a hojeEmLisboa(), mas para uma data qualquer — usado para saber em que dia de
+// calendário (Lisboa) um wo_prescriptions.created_at caiu, ao carregar um plano activo
+// para edição (9 ago 2026).
+function dataLisboaDe(date) {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(date).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+  return { year: +parts.year, month: +parts.month, day: +parts.day };
+}
+// Duração exacta do plano, sem folga — dia 1 é hoje (Lisboa) ou, se startOverride vier
+// preenchido (a editar um plano activo já carregado), o dia real em que esse plano
+// começou — nunca "hoje" nesse caso, para não ir empurrando o fim do plano cada vez que
+// o Morais volta a gravá-lo num dia diferente (9 ago 2026). Último dia às 23:59:59 (Lisboa).
+function computeExpiresAt(weeks, startOverride) {
   const dias = weeks * 7;
-  const hoje = hojeEmLisboa();
+  const hoje = startOverride
+    ? { year: startOverride.getUTCFullYear(), month: startOverride.getUTCMonth() + 1, day: startOverride.getUTCDate() }
+    : hojeEmLisboa();
   const fim = new Date(Date.UTC(hoje.year, hoje.month - 1, hoje.day));
   fim.setUTCDate(fim.getUTCDate() + dias - 1);
   const y = fim.getUTCFullYear(), m = fim.getUTCMonth() + 1, d = fim.getUTCDate();
@@ -2782,19 +2873,23 @@ function buildFinalData() {
   };
 }
 
-// Chave de "slot" para casar sessões novas com as já existentes na prescrição activa.
-// O builder começa sempre vazio (nunca carrega o plano activo para edição), por isso
-// week+day+order é a única correspondência disponível — fiável quando há uma sessão
-// por dia, mas pode falhar se um dia tiver várias sessões numa ordem diferente da
-// versão anterior. Nesse caso a sessão fica tratada como nova (session_id próprio).
+// Chave de "slot" para casar sessões novas com as já existentes na prescrição activa —
+// só entra em jogo quando o ecrã NÃO carregou o plano activo para edição directa (ver
+// carregarPlanoActivoSeExistir(), 9 ago 2026: doente novo, ou o plano activo mudou de id
+// a meio da edição). Nesse cenário week+day+order é a única correspondência disponível —
+// fiável quando há uma sessão por dia, mas pode falhar se um dia tiver várias sessões
+// numa ordem diferente da versão anterior. Nesse caso a sessão fica tratada como nova
+// (session_id próprio).
 function chaveSessao(s) {
   return `${s.week}|${s.day}|${s.order}`;
 }
 
-// Edição de plano activo (secção 5 do briefing): preserva session_id das sessões que
+// Fusão "às cegas" (secção 5 do briefing) — só usada quando o ecrã não carregou o plano
+// activo (ver editandoPlanoCarregado em handleGerar): preserva session_id das sessões que
 // correspondem a um slot já existente (para os registos do doente continuarem ligados
 // à sessão certa) e nunca apaga em silêncio uma sessão antiga que não voltou a aparecer
-// nesta gravação — só desaparece quando o Morais revogar a prescrição explicitamente.
+// nesta gravação. Quando o plano activo FOI carregado para edição, esta função deixa de
+// ser chamada — o ecrã já mostra tudo, por isso apagar no calendário deve mesmo apagar.
 function mesclarSessoes(existentes, novas) {
   const porChave = new Map();
   (existentes || []).forEach(s => porChave.set(chaveSessao(s), s));
@@ -2860,19 +2955,32 @@ async function handleGerar() {
     if (erroActiva) throw new Error(`Falha ao verificar prescrição activa: ${erroActiva.message || erroActiva}`);
 
     const novaData = buildFinalData();
-    const expiresAtNovo = computeExpiresAt(_state.planWeeks);
+    const expiresAtNovo = computeExpiresAt(_state.planWeeks, _state.planStartOverride);
     let token, linkExpiresAt;
 
     if (activaExistente) {
       tokensAEscrubar.push(activaExistente.token);
 
-      const sessoesMescladas = mesclarSessoes(activaExistente.data?.sessions, novaData.sessions);
-      // Nunca encurtar por engano a validade que o doente já tem, nem tornar semanas
-      // antigas inacessíveis por a gravação actual ter escolhido uma duração menor.
-      const weeksFinal = Math.max(activaExistente.data?.weeks || 0, novaData.weeks);
+      // Se este ecrã carregou este MESMO plano activo para edição directa (9 ago 2026),
+      // o que está em _state.sessions já É a lista completa e verdadeira — incluindo o
+      // que o Morais tenha apagado no calendário. Gravar sobrepõe tal e qual, sem fundir
+      // por chave semana+dia+ordem: essa fusão só existe para proteger o caso em que o
+      // ecrã NUNCA mostrou o que já lá estava, o que deixou de acontecer aqui.
+      const editandoPlanoCarregado = _state.activePrescriptionId === activaExistente.id;
+
+      const sessoesFinais = editandoPlanoCarregado
+        ? novaData.sessions
+        : mesclarSessoes(activaExistente.data?.sessions, novaData.sessions);
+      // Fora do caso "plano carregado": nunca encurtar por engano a validade que o doente
+      // já tem, nem tornar semanas antigas inacessíveis por esta gravação ter escolhido
+      // uma duração menor. A editar um plano carregado, a duração escolhida no ecrã é que
+      // manda — é exactamente o que está à vista.
+      const weeksFinal = editandoPlanoCarregado ? novaData.weeks : Math.max(activaExistente.data?.weeks || 0, novaData.weeks);
       const expiresAtExistente = new Date(activaExistente.expires_at);
-      const expiresAtFinal = expiresAtNovo > expiresAtExistente ? expiresAtNovo : expiresAtExistente;
-      const dataFinal = { ...novaData, weeks: weeksFinal, sessions: sessoesMescladas };
+      const expiresAtFinal = editandoPlanoCarregado
+        ? expiresAtNovo
+        : (expiresAtNovo > expiresAtExistente ? expiresAtNovo : expiresAtExistente);
+      const dataFinal = { ...novaData, weeks: weeksFinal, sessions: sessoesFinais };
 
       const { error } = await window.sb.from('wo_prescriptions')
         .update({
