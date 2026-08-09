@@ -280,6 +280,23 @@ function fmtJanelaPlano(semanas) {
   return `${dias} dias · válido de ${fmtDataPt(inicio)} a ${fmtDataPt(fim)} · aviso a partir de ${fmtDataPt(aviso)}`;
 }
 
+// Datas reais do ecrã inicial (landing) — created_at/expires_at já são datas exactas
+// gravadas em wo_prescriptions (secção "Gravação"), não há aproximação nenhuma aqui.
+const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+function fmtIntervaloPlano(inicio, fim) {
+  const mesmoMes = inicio.getMonth() === fim.getMonth() && inicio.getFullYear() === fim.getFullYear();
+  if (mesmoMes) return `${inicio.getDate()}–${fim.getDate()} ${MESES_PT[fim.getMonth()]}`;
+  return `${inicio.getDate()} ${MESES_ABREV[inicio.getMonth()]}. – ${fim.getDate()} ${MESES_ABREV[fim.getMonth()]}.`;
+}
+function fmtRelativo(data) {
+  if (!data) return '—';
+  const dias = Math.floor((Date.now() - data.getTime()) / 86400000);
+  if (dias <= 0) return 'Hoje';
+  if (dias === 1) return 'Ontem';
+  if (dias < 7) return `Há ${dias} dias`;
+  return `${data.getDate()} ${MESES_ABREV[data.getMonth()]}.`;
+}
+
 // Sessão nova (secção 5): session_id/week/day/order/kind/modality/local + o contentor
 // próprio de cada kind — items (ginásio), blocks (cardio/circuito) ou walks+stairs_flights (caminhada).
 function novaSessaoSkeleton(modality, kind, week, day) {
@@ -322,7 +339,7 @@ export async function initPrescricao() {
 
   loadExercisesCatalog(); // não bloqueia o primeiro render
 
-  renderStep1();
+  renderLanding();
 }
 
 /* ── Catálogo de exercícios (wo_exercises, global ao sistema) ── */
@@ -351,6 +368,285 @@ function iniciaisClinica(nome) {
 }
 
 /* ================================================================
+   PASSO 0 — ecrã inicial do módulo Exercício (landing)
+   4 cartões de acesso rápido + lista de doentes com prescrição activa
+   (filtrável por clínica, pesquisa e situação). "Exercícios por
+   patologia" fica marcado "Em breve" — ainda não tem código nenhum,
+   é só o lugar reservado no ecrã (decisão de 9 ago 2026).
+   ================================================================ */
+let _landing = null;
+let _landingDocClickWired = false;
+
+function freshLanding() {
+  return { clinicFilter: null, search: '', tab: 'todos', rows: [], loading: true, error: '' };
+}
+
+// Fecha o menu da clínica ao clicar fora — anexado uma única vez ao
+// document (nunca duplicado, mesmo re-renderizando o ecrã várias vezes).
+function wireLandingDocClickOnce() {
+  if (_landingDocClickWired) return;
+  _landingDocClickWired = true;
+  document.addEventListener('click', (e) => {
+    const menu = document.getElementById('gcwoLandingClinicMenu');
+    const btn = document.getElementById('gcwoLandingClinicBtn');
+    if (!menu || menu.hidden) return;
+    if (btn && (btn.contains(e.target) || menu.contains(e.target))) return;
+    menu.hidden = true;
+  });
+}
+
+function renderLanding() {
+  const root = document.getElementById('gcwoPrescricaoRoot');
+  if (!root) return;
+  _landing = freshLanding();
+
+  const clinicas = G.clinics || [];
+  const multiClinica = clinicas.length > 1;
+  const filtroLabel = _landing.clinicFilter
+    ? (clinicas.find(c => c.id === _landing.clinicFilter)?.name || '—')
+    : (multiClinica ? 'Todas as clínicas' : (clinicas[0]?.name || '—'));
+
+  root.innerHTML = `
+    <div class="gc-page-header">
+      <div><div class="gc-page-title">Exercício</div><div class="gc-page-sub">Prescrição, documentos e catálogo</div></div>
+      ${multiClinica ? `
+      <div class="gcwo-landing-clinicpill-wrap">
+        <button type="button" class="gcwo-landing-clinicpill" id="gcwoLandingClinicBtn">
+          <span>A mostrar</span><strong>${escHtml(filtroLabel)}</strong>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="gcwo-landing-clinicmenu" id="gcwoLandingClinicMenu" hidden>
+          <button type="button" data-cid="">Todas as clínicas</button>
+          ${clinicas.map(c => `<button type="button" data-cid="${escAttr(c.id)}">${escHtml(c.name || c.slug || '')}</button>`).join('')}
+        </div>
+      </div>` : `
+      <div class="gcwo-landing-clinicpill static"><span>Clínica</span><strong>${escHtml(filtroLabel)}</strong></div>
+      `}
+    </div>
+
+    <div class="gcwo-landing-cards">
+      <button type="button" class="gcwo-landing-card primary" id="gcwoCardPrescrever">
+        <span class="gcwo-landing-card-icon">${ICON_MAIS}</span>
+        <span class="gcwo-landing-card-title">Prescrever exercício</span>
+        <span class="gcwo-landing-card-sub">Procurar um doente e criar ou atualizar o seu plano de exercício.</span>
+        <span class="gcwo-landing-card-cta">Procurar doente →</span>
+      </button>
+      <button type="button" class="gcwo-landing-card" id="gcwoCardPatologia" disabled title="Em breve — ainda não construído">
+        <span class="gcwo-landing-card-icon doc">${ICON_FLAG}</span>
+        <span class="gcwo-landing-card-title">Exercícios por patologia <span class="gcwo-landing-soon">Em breve</span></span>
+        <span class="gcwo-landing-card-sub">Escolher um documento em PDF para entregar ao doente.</span>
+      </button>
+      <button type="button" class="gcwo-landing-card" id="gcwoCardCatalogo">
+        <span class="gcwo-landing-card-icon cat">${ICON_GINASIO}</span>
+        <span class="gcwo-landing-card-title">Catálogo de exercícios</span>
+        <span class="gcwo-landing-card-sub">Gerir exercícios, imagens, equipamento e tempos de execução.</span>
+        <span class="gcwo-landing-card-cta">Abrir catálogo →</span>
+      </button>
+      <button type="button" class="gcwo-landing-card" id="gcwoCardRever">
+        <span class="gcwo-landing-card-icon rev">${ICON_CLOCK}</span>
+        <span class="gcwo-landing-card-title">Prescrições a rever</span>
+        <span class="gcwo-landing-card-sub">Planos a terminar, terminados ou com feedback novo do doente.</span>
+      </button>
+    </div>
+
+    <section class="gcwo-landing-tablesec" id="gcwoLandingTableSec">
+      <div class="gcwo-landing-tablehead">
+        <h2 class="gcwo-section-title">Doentes ativos com exercício prescrito <span class="count" id="gcwoLandingCount"></span></h2>
+      </div>
+      <div class="gcwo-landing-toolbar">
+        <div class="gc-search-bar">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <input id="gcwoLandingSearch" type="search" class="gc-search-input" placeholder="Pesquisar doente…" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="gcwo-landing-tabs" id="gcwoLandingTabs">
+          <button type="button" class="on" data-tab="todos">Todos</button>
+          <button type="button" data-tab="aterminar">A terminar</button>
+          <button type="button" data-tab="feedback">Feedback novo</button>
+        </div>
+      </div>
+      <div id="gcwoLandingTableHost"></div>
+    </section>
+  `;
+
+  document.getElementById('gcwoCardPrescrever').addEventListener('click', () => renderStep1());
+  document.getElementById('gcwoCardCatalogo').addEventListener('click', () => {
+    initCatalogo({ onVoltar: () => { loadExercisesCatalog(); renderLanding(); } });
+  });
+  document.getElementById('gcwoCardRever').addEventListener('click', () => {
+    _landing.tab = 'aterminar';
+    document.getElementById('gcwoLandingTabs').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.getAttribute('data-tab') === 'aterminar'));
+    renderLandingTableHost();
+    document.getElementById('gcwoLandingTableSec').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  if (multiClinica) {
+    const btn = document.getElementById('gcwoLandingClinicBtn');
+    const menu = document.getElementById('gcwoLandingClinicMenu');
+    btn.addEventListener('click', () => { menu.hidden = !menu.hidden; });
+    menu.querySelectorAll('[data-cid]').forEach(item => {
+      item.addEventListener('click', () => {
+        _landing.clinicFilter = item.getAttribute('data-cid') || null;
+        renderLanding();
+      });
+    });
+    wireLandingDocClickOnce();
+  }
+
+  let searchTimer = null;
+  document.getElementById('gcwoLandingSearch').addEventListener('input', (e) => {
+    _landing.search = e.target.value;
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(renderLandingTableHost, 150);
+  });
+
+  document.getElementById('gcwoLandingTabs').querySelectorAll('[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _landing.tab = btn.getAttribute('data-tab');
+      document.getElementById('gcwoLandingTabs').querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
+      renderLandingTableHost();
+    });
+  });
+
+  loadLandingRows();
+}
+
+// Situação da linha — prioridade: feedback novo > a terminar/terminada > em curso
+// (ponto 8 do briefing de 9 ago 2026). "Feedback novo" é uma aproximação: não existe
+// ainda uma coluna "revisto pelo médico" em wo_prescriptions — usa-se um registo em
+// wo_session_logs nos últimos 3 dias como sinal. Fica documentado para decidir depois
+// se vale a pena a migração que acrescenta o campo real.
+function situacaoLinha(row, now) {
+  const TRES_DIAS_MS = 3 * 24 * 3600 * 1000;
+  if (row.lastLogAt && (now - row.lastLogAt) < TRES_DIAS_MS) return { cls: 'feedback', label: 'Feedback novo' };
+  if (row.expiresAt < now) return { cls: 'terminada', label: 'Terminada · por rever' };
+  if (row.expiresAt - now < TRES_DIAS_MS) return { cls: 'aterminar', label: 'A terminar' };
+  return { cls: 'curso', label: 'Em curso' };
+}
+
+function renderLandingTableHost() {
+  const host = document.getElementById('gcwoLandingTableHost');
+  const countEl = document.getElementById('gcwoLandingCount');
+  if (!host || !_landing) return;
+
+  if (_landing.loading) {
+    host.innerHTML = `<div class="gcwo-muted" style="padding:14px 2px;">A carregar…</div>`;
+    return;
+  }
+  if (_landing.error) {
+    host.innerHTML = `<div class="gcwo-muted" style="padding:14px 2px;">${escHtml(_landing.error)}</div>`;
+    return;
+  }
+  if (countEl) countEl.textContent = `${_landing.rows.length} doente${_landing.rows.length === 1 ? '' : 's'}`;
+
+  const now = new Date();
+  const termo = _landing.search.trim().toLowerCase();
+  const linhas = _landing.rows
+    .map(r => ({ ...r, situacao: situacaoLinha(r, now) }))
+    .filter(r => !termo || (r.patient?.full_name || '').toLowerCase().includes(termo))
+    .filter(r => {
+      if (_landing.tab === 'aterminar') return r.situacao.cls === 'aterminar' || r.situacao.cls === 'terminada';
+      if (_landing.tab === 'feedback') return r.situacao.cls === 'feedback';
+      return true;
+    });
+
+  if (!linhas.length) {
+    host.innerHTML = `<div class="gcwo-muted" style="padding:14px 2px;">Sem doentes para mostrar aqui.</div>`;
+    return;
+  }
+
+  host.innerHTML = `
+    <div class="gcwo-tablewrap">
+      <table class="gcwo-readtable gcwo-landing-table">
+        <thead><tr>
+          <th>Doente</th><th>Clínica</th><th>Plano</th><th>Último treino</th><th>Situação</th>
+        </tr></thead>
+        <tbody>
+          ${linhas.map(r => `
+            <tr data-rid="${escAttr(r.id)}" class="gcwo-landing-row">
+              <td><strong>${escHtml(r.patient?.full_name || '—')}</strong></td>
+              <td class="muted">${escHtml(r.clinicName)}</td>
+              <td class="muted">${escHtml(fmtIntervaloPlano(r.createdAt, r.expiresAt))}</td>
+              <td class="muted">${escHtml(fmtRelativo(r.lastLogAt))}</td>
+              <td><span class="gcwo-situacao-dot ${r.situacao.cls}"></span>${escHtml(r.situacao.label)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  host.querySelectorAll('[data-rid]').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const row = _landing.rows.find(x => x.id === tr.getAttribute('data-rid'));
+      if (!row || !row.patient) return;
+      _state.clinicId = row.clinicId;
+      _state.patient = row.patient;
+      renderStep2();
+    });
+  });
+}
+
+// Lê wo_prescriptions activas (filtradas por clínica visível ou escolhida) + o último
+// registo de wo_session_logs por prescrição, para a tabela do ecrã inicial.
+async function loadLandingRows() {
+  const clinicas = G.clinics || [];
+  const clinicIds = _landing.clinicFilter ? [_landing.clinicFilter] : clinicas.map(c => c.id);
+
+  if (!clinicIds.length) {
+    _landing.rows = [];
+    _landing.loading = false;
+    renderLandingTableHost();
+    return;
+  }
+
+  const { data, error } = await window.sb
+    .from('wo_prescriptions')
+    .select('id,patient_id,clinic_id,created_at,expires_at,status,patients(id,full_name,dob,hr_zone_formula,hr_zones_bpm),clinics(name)')
+    .eq('status', 'active')
+    .in('clinic_id', clinicIds)
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (error) {
+    console.error('[prescricao] falha a carregar prescrições activas:', error);
+    _landing.error = 'Erro ao carregar a lista de doentes.';
+    _landing.loading = false;
+    renderLandingTableHost();
+    return;
+  }
+
+  const rows = data || [];
+  const ids = rows.map(r => r.id);
+  const logsByRx = new Map();
+  if (ids.length) {
+    const { data: logs, error: logsErr } = await window.sb
+      .from('wo_session_logs')
+      .select('prescription_id, logged_at')
+      .in('prescription_id', ids)
+      .order('logged_at', { ascending: false });
+    if (logsErr) {
+      console.error('[prescricao] falha a carregar wo_session_logs:', logsErr);
+    } else {
+      (logs || []).forEach(l => {
+        if (!logsByRx.has(l.prescription_id)) logsByRx.set(l.prescription_id, new Date(l.logged_at));
+      });
+    }
+  }
+
+  _landing.rows = rows
+    .filter(r => r.patients) // doente inativo/apagado — não mostra linha órfã
+    .map(r => ({
+      id: r.id,
+      patient: r.patients,
+      clinicName: r.clinics?.name || '',
+      clinicId: r.clinic_id,
+      createdAt: new Date(r.created_at),
+      expiresAt: new Date(r.expires_at),
+      lastLogAt: logsByRx.get(r.id) || null,
+    }));
+  _landing.loading = false;
+  renderLandingTableHost();
+}
+
+/* ================================================================
    PASSO 1 — clínica (cartões) + pesquisa/seleção de doente
    ================================================================ */
 function renderStep1() {
@@ -369,7 +665,10 @@ function renderStep1() {
 
   root.innerHTML = `
     <div class="gc-page-header">
-      <div><div class="gc-page-title">Prescrição de exercício</div><div class="gc-page-sub">Nova prescrição</div></div>
+      <div>
+        <button type="button" class="gcwo-backlink" id="gcwoBackToLanding">← Exercício</button>
+        <div class="gc-page-title">Prescrição de exercício</div><div class="gc-page-sub">Nova prescrição</div>
+      </div>
       ${topActionsHtml()}
     </div>
     <div class="gcwo-step1-wrap">
@@ -397,6 +696,7 @@ function renderStep1() {
     </div>
   `;
   wireTopActions();
+  document.getElementById('gcwoBackToLanding').addEventListener('click', () => renderLanding());
 
   document.getElementById('gcwoClinicGrid').querySelectorAll('[data-id]').forEach(btn => {
     btn.addEventListener('click', () => {
