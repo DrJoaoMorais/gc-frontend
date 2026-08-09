@@ -1471,7 +1471,7 @@ function renderWalkCard(w) {
         <button type="button" class="gcwo-exercicio-remove" data-remove-wid="${escAttr(w.walk_id)}" title="Remover caminhada">✕</button>
       </div>
       <div class="gcwo-row2">
-        <label class="gcwo-field gcwo-field-sm"><span>Duração (min)</span><input type="number" min="0" class="gcwo-walk-duracaomin" value="${w.duration_sec != null ? w.duration_sec / 60 : ''}"></label>
+        ${campoDuracaoMMSS('gcwo-walk-duracaomin', w.duration_sec, 'Duração')}
         <label class="gcwo-field gcwo-field-sm"><span>Passo</span>
           <select class="gcwo-walk-pace">${PACE_OPCOES.map(p => `<option value="${p.value}" ${w.pace === p.value ? 'selected' : ''}>${p.label}</option>`).join('')}</select>
         </label>
@@ -1499,9 +1499,7 @@ function wireWalksListItems(s) {
     const w = s.walks.find(x => x.walk_id === wid);
     if (!w) return;
     card.querySelector('.gcwo-walk-label').addEventListener('input', (e) => { w.label = e.target.value; });
-    card.querySelector('.gcwo-walk-duracaomin').addEventListener('input', (e) => {
-      w.duration_sec = e.target.value === '' ? null : Math.round(Number(e.target.value) * 60);
-    });
+    wireDuracaoMMSS(card, 'gcwo-walk-duracaomin', (sec) => { w.duration_sec = sec; });
     card.querySelector('.gcwo-walk-pace').addEventListener('change', (e) => { w.pace = e.target.value; });
     card.querySelector('.gcwo-walk-rpe').addEventListener('input', (e) => { w.rpe_local = e.target.value === '' ? null : Number(e.target.value); });
   });
@@ -1594,6 +1592,36 @@ function intensidadeDoScope(b, scope) {
   return b.intensity;
 }
 
+// Campo de duração em minutos+segundos (bug #3 — minutos inteiros não chegam para 20"/30").
+// Guarda sempre em segundos; renderiza sempre como dois inputs pequenos, min e seg.
+function campoDuracaoMMSS(baseClass, totalSec, label) {
+  const min = totalSec != null ? Math.floor(totalSec / 60) : '';
+  const seg = totalSec != null ? totalSec % 60 : '';
+  return `
+    <div class="gcwo-field gcwo-field-sm">
+      <span>${escHtml(label)}</span>
+      <div class="gcwo-mmss">
+        <input type="number" min="0" class="${baseClass}-min" placeholder="min" value="${min}">
+        <span class="gcwo-mmss-sep">:</span>
+        <input type="number" min="0" max="59" class="${baseClass}-seg" placeholder="seg" value="${seg}">
+      </div>
+    </div>`;
+}
+function wireDuracaoMMSS(container, baseClass, onChange) {
+  const minEl = container.querySelector(`.${baseClass}-min`);
+  const segEl = container.querySelector(`.${baseClass}-seg`);
+  if (!minEl || !segEl) return;
+  const emit = () => {
+    const temValor = minEl.value !== '' || segEl.value !== '';
+    if (!temValor) { onChange(null); return; }
+    const min = minEl.value === '' ? 0 : Number(minEl.value);
+    const seg = segEl.value === '' ? 0 : Number(segEl.value);
+    onChange(min * 60 + seg);
+  };
+  minEl.addEventListener('input', emit);
+  segEl.addEventListener('input', emit);
+}
+
 function renderBlocoContinuo(b, temZona) {
   return `
     <div class="gcwo-exercicio" data-bid="${escAttr(b.block_id)}">
@@ -1601,12 +1629,13 @@ function renderBlocoContinuo(b, temZona) {
         <strong>Contínuo</strong>
         <button type="button" class="gcwo-exercicio-remove" data-remove-bid="${escAttr(b.block_id)}" title="Remover bloco">✕</button>
       </div>
-      <label class="gcwo-field gcwo-field-sm" style="margin-top:8px;"><span>Duração (min)</span><input type="number" min="0" class="gcwo-bloco-duracaomin" value="${b.duration_sec != null ? b.duration_sec / 60 : ''}"></label>
+      <div style="margin-top:8px;">${campoDuracaoMMSS('gcwo-bloco-duracaomin', b.duration_sec, 'Duração')}</div>
       <span class="gcwo-field-label" style="margin-top:10px;">Intensidade</span>
       ${wrapIntensidade(b.block_id, 'main', b.intensity, temZona)}
     </div>`;
 }
-function renderBlocoFecho(b, temZona) {
+function renderBlocoFecho(b, temZona, modality) {
+  const modos = modality === 'Natação' ? CLOSING_MODES.filter(m => m.value !== 'walk') : CLOSING_MODES;
   return `
     <div class="gcwo-exercicio" data-bid="${escAttr(b.block_id)}">
       <div class="gcwo-exercicio-head">
@@ -1615,9 +1644,9 @@ function renderBlocoFecho(b, temZona) {
       </div>
       <div class="gcwo-row2" style="margin-top:8px;">
         <label class="gcwo-field gcwo-field-sm"><span>Modo</span>
-          <select class="gcwo-bloco-mode">${CLOSING_MODES.map(m => `<option value="${m.value}" ${b.mode === m.value ? 'selected' : ''}>${m.label}</option>`).join('')}</select>
+          <select class="gcwo-bloco-mode">${modos.map(m => `<option value="${m.value}" ${b.mode === m.value ? 'selected' : ''}>${m.label}</option>`).join('')}</select>
         </label>
-        <label class="gcwo-field gcwo-field-sm"><span>Duração (min)</span><input type="number" min="0" class="gcwo-bloco-duracaomin" value="${b.duration_sec != null ? b.duration_sec / 60 : ''}"></label>
+        ${campoDuracaoMMSS('gcwo-bloco-duracaomin', b.duration_sec, 'Duração')}
       </div>
       <span class="gcwo-field-label" style="margin-top:10px;">Intensidade</span>
       ${wrapIntensidade(b.block_id, 'main', b.intensity, temZona)}
@@ -1640,12 +1669,13 @@ function renderBlocoSeries(b, temZona, soDistancia) {
           <label><input type="radio" name="gcwo-medida-${b.block_id}" value="time" ${medida === 'time' ? 'checked' : ''}> Tempo</label>
         </div>
       </div>`}
-      <label class="gcwo-field gcwo-field-sm"><span>${medida === 'distance' ? 'Distância (m)' : 'Duração (min)'}</span>
-        <input type="number" min="0" class="gcwo-bloco-workvalue" value="${b.work.value != null ? (medida === 'distance' ? b.work.value : b.work.value / 60) : ''}">
-      </label>
+      ${medida === 'distance'
+        ? `<label class="gcwo-field gcwo-field-sm"><span>Distância (m)</span><input type="number" min="0" class="gcwo-bloco-workvalue" value="${b.work.value ?? ''}"></label>`
+        : campoDuracaoMMSS('gcwo-bloco-workvalue', b.work.value, 'Duração do trabalho')
+      }
       <span class="gcwo-field-label" style="margin-top:10px;">Intensidade do trabalho</span>
       ${wrapIntensidade(b.block_id, 'work', b.work.intensity, temZona)}
-      <label class="gcwo-field gcwo-field-sm" style="margin-top:10px;"><span>Recuperação (min)</span><input type="number" min="0" class="gcwo-bloco-recdur" value="${b.recovery.duration_sec != null ? b.recovery.duration_sec / 60 : ''}"></label>
+      <div style="margin-top:10px;">${campoDuracaoMMSS('gcwo-bloco-recdur', b.recovery.duration_sec, 'Recuperação')}</div>
       <span class="gcwo-field-label" style="margin-top:10px;">Intensidade da recuperação</span>
       ${wrapIntensidade(b.block_id, 'recovery', b.recovery.intensity, temZona)}
     </div>`;
@@ -1657,7 +1687,7 @@ function renderBlocoCardio(b, s) {
     if (soDistancia) b.work.measure = 'distance';
     return renderBlocoSeries(b, temZona, soDistancia);
   }
-  if (b.type === 'closing') return renderBlocoFecho(b, temZona);
+  if (b.type === 'closing') return renderBlocoFecho(b, temZona, s.modality);
   return renderBlocoContinuo(b, temZona);
 }
 function renderBlocosListInner(s) {
@@ -1716,11 +1746,7 @@ function wireBlocosList(s) {
     const b = s.blocks.find(x => x.block_id === bid);
     if (!b) return;
 
-    const duracaoEl = card.querySelector('.gcwo-bloco-duracaomin');
-    if (duracaoEl) duracaoEl.addEventListener('input', (e) => {
-      b.duration_sec = e.target.value === '' ? null : Math.round(Number(e.target.value) * 60);
-      refreshZonaResumo(s);
-    });
+    wireDuracaoMMSS(card, 'gcwo-bloco-duracaomin', (sec) => { b.duration_sec = sec; refreshZonaResumo(s); });
 
     const modeEl = card.querySelector('.gcwo-bloco-mode');
     if (modeEl) modeEl.addEventListener('change', (e) => { b.mode = e.target.value; });
@@ -1731,18 +1757,19 @@ function wireBlocosList(s) {
       refreshZonaResumo(s);
     });
 
-    const workValEl = card.querySelector('.gcwo-bloco-workvalue');
-    if (workValEl) workValEl.addEventListener('input', (e) => {
-      const n = e.target.value === '' ? null : Number(e.target.value);
-      b.work.value = n == null ? null : (b.work.measure === 'distance' ? n : Math.round(n * 60));
-      refreshZonaResumo(s);
-    });
+    if (b.work && b.work.measure === 'distance') {
+      const workValEl = card.querySelector('.gcwo-bloco-workvalue');
+      if (workValEl) workValEl.addEventListener('input', (e) => {
+        b.work.value = e.target.value === '' ? null : Number(e.target.value);
+        refreshZonaResumo(s);
+      });
+    } else if (b.work) {
+      wireDuracaoMMSS(card, 'gcwo-bloco-workvalue', (sec) => { b.work.value = sec; refreshZonaResumo(s); });
+    }
 
-    const recDurEl = card.querySelector('.gcwo-bloco-recdur');
-    if (recDurEl) recDurEl.addEventListener('input', (e) => {
-      b.recovery.duration_sec = e.target.value === '' ? null : Math.round(Number(e.target.value) * 60);
-      refreshZonaResumo(s);
-    });
+    if (b.recovery) {
+      wireDuracaoMMSS(card, 'gcwo-bloco-recdur', (sec) => { b.recovery.duration_sec = sec; refreshZonaResumo(s); });
+    }
 
     card.querySelectorAll(`input[name="gcwo-medida-${CSS.escape(bid)}"]`).forEach(radio => {
       radio.addEventListener('change', (e) => {
@@ -1827,16 +1854,32 @@ function refreshTempoTotalCircuito(s) {
   if (host) host.innerHTML = renderTempoTotalCircuitoHtml(s);
 }
 
+// Grelha de fotos para escolher o exercício do circuito (bug #4 — era dropdown de texto).
+// Mesmo padrão visual do picker de Ginásio (gcwo-catpick-*), mas selecção única por linha.
+function renderCircExGridHtml(filtro) {
+  if (!_state.catalogLoaded) return `<div class="gcwo-muted">A carregar catálogo…</div>`;
+  const q = (filtro || '').trim().toLowerCase();
+  const list = q ? _state.exercisesCatalog.filter(c => (c.name || '').toLowerCase().includes(q)) : _state.exercisesCatalog;
+  if (!list.length) return `<div class="gcwo-muted">Nenhum exercício encontrado.</div>`;
+  return list.map(c => `
+    <button type="button" class="gcwo-catpick-card" data-pick-exercise="${escAttr(c.id)}">
+      ${c.photo_url ? `<span class="gcwo-catpick-photo"><img src="${escAttr(c.photo_url)}" alt=""></span>` : `<span class="gcwo-catpick-photo empty"></span>`}
+      <span class="gcwo-catpick-name">${escHtml(c.name)}</span>
+    </button>`).join('');
+}
 function renderCircExercicioRow(ex) {
-  const catalogOpts = _state.exercisesCatalog.map(c => `<option value="${escAttr(c.id)}" ${ex.exercise_id === c.id ? 'selected' : ''}>${escHtml(c.name)}</option>`).join('');
+  const catEx = _state.exercisesCatalog.find(c => c.id === ex.exercise_id);
   return `
     <div class="gcwo-circ-exrow" data-exid="${escAttr(ex.id)}" style="border-top:0.5px solid #e2e8f0;padding-top:8px;margin-top:8px;">
-      <div style="display:flex;gap:8px;align-items:center;">
-        <select class="gcwo-circ-ex-select" style="flex:1;">
-          <option value="">Escolher exercício…</option>
-          ${catalogOpts}
-        </select>
+      <div class="gcwo-circ-ex-picked">
+        ${catEx?.photo_url ? `<img class="gcwo-circ-ex-thumb" src="${escAttr(catEx.photo_url)}" alt="">` : `<span class="gcwo-circ-ex-thumb empty"></span>`}
+        <span class="gcwo-circ-ex-name">${escHtml(ex.name || 'Escolher exercício…')}</span>
+        <button type="button" class="gcBtnGhost gcBtnSm gcwo-circ-ex-trocar">${ex.exercise_id ? 'Trocar' : 'Escolher'}</button>
         <button type="button" class="gcwo-exercicio-remove" data-remove-exid="${escAttr(ex.id)}" title="Remover exercício">✕</button>
+      </div>
+      <div class="gcwo-circ-ex-picker" hidden>
+        <input type="text" class="gcwo-circ-ex-search" placeholder="Pesquisar exercício…" autocomplete="off">
+        <div class="gcwo-catpick-grid gcwo-circ-ex-grid">${renderCircExGridHtml('')}</div>
       </div>
       <div class="gcwo-row3" style="margin-top:8px;">
         <label class="gcwo-field"><span>Modo</span>
@@ -1873,7 +1916,7 @@ function renderCircBlocoFixo(b) {
         <input type="text" class="gcwo-circ-nome" placeholder="Nome do bloco (ex.: Mobilização geral)" value="${escAttr(b.name)}" style="flex:1;">
         <button type="button" class="gcwo-exercicio-remove" data-remove-cbid="${escAttr(b.block_id)}" title="Remover bloco">✕</button>
       </div>
-      <label class="gcwo-field gcwo-field-sm" style="margin-top:8px;"><span>Duração (min)</span><input type="number" min="0" class="gcwo-circ-fixodur" value="${b.duration_sec != null ? b.duration_sec / 60 : ''}"></label>
+      <div style="margin-top:8px;">${campoDuracaoMMSS('gcwo-circ-fixodur', b.duration_sec, 'Duração')}</div>
     </div>`;
 }
 function renderCircBloco(b) {
@@ -1934,8 +1977,7 @@ function wireCircBlocosList(s) {
     const restRoundsEl = card.querySelector('.gcwo-circ-restrounds');
     if (restRoundsEl) restRoundsEl.addEventListener('input', (e) => { b.rest_between_rounds_s = e.target.value === '' ? null : Number(e.target.value); refreshTempoTotalCircuito(s); });
 
-    const fixoDurEl = card.querySelector('.gcwo-circ-fixodur');
-    if (fixoDurEl) fixoDurEl.addEventListener('input', (e) => { b.duration_sec = e.target.value === '' ? null : Math.round(Number(e.target.value) * 60); refreshTempoTotalCircuito(s); });
+    wireDuracaoMMSS(card, 'gcwo-circ-fixodur', (sec) => { b.duration_sec = sec; refreshTempoTotalCircuito(s); });
 
     card.querySelectorAll('.gcwo-circ-exrow').forEach(row => {
       const exid = row.getAttribute('data-exid');
@@ -1946,12 +1988,29 @@ function wireCircBlocosList(s) {
         b.exercicios = b.exercicios.filter(x => x.id !== exid);
         refreshCircBlocosListDom(s);
       });
-      row.querySelector('.gcwo-circ-ex-select').addEventListener('change', (e) => {
-        const catEx = _state.exercisesCatalog.find(c => c.id === e.target.value);
-        ex.exercise_id = e.target.value || null;
-        ex.name = catEx ? catEx.name : '';
-        refreshTempoTotalCircuito(s);
+
+      const picker = row.querySelector('.gcwo-circ-ex-picker');
+      const grid = row.querySelector('.gcwo-circ-ex-grid');
+      const search = row.querySelector('.gcwo-circ-ex-search');
+      const wireGridCards = () => {
+        grid.querySelectorAll('[data-pick-exercise]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const catEx = _state.exercisesCatalog.find(c => c.id === btn.getAttribute('data-pick-exercise'));
+            ex.exercise_id = catEx ? catEx.id : null;
+            ex.name = catEx ? catEx.name : '';
+            refreshCircBlocosListDom(s);
+          });
+        });
+      };
+      row.querySelector('.gcwo-circ-ex-trocar').addEventListener('click', () => {
+        picker.hidden = !picker.hidden;
       });
+      search.addEventListener('input', (e) => {
+        grid.innerHTML = renderCircExGridHtml(e.target.value);
+        wireGridCards();
+      });
+      wireGridCards();
+
       row.querySelector('.gcwo-circ-ex-measure').addEventListener('change', (e) => {
         ex.measure = e.target.value;
         ex.value = null;

@@ -351,6 +351,23 @@
 .gcwo-field-sm input, .gcwo-field-sm select { width:100px; }
 .gcwo-field-label { font-size:12px; font-weight:600; color:#0f172a; display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:.02em; }
 
+/* ── duração em minutos+segundos (bug #3) ── */
+.gcwo-mmss { display:flex; align-items:center; gap:5px; }
+.gcwo-field-sm .gcwo-mmss input { width:52px; }
+.gcwo-mmss-sep { color:#94a3b8; font-size:13px; }
+
+/* ── circuito — selector de exercício em grelha de fotos (bug #4) ── */
+.gcwo-circ-ex-picked { display:flex; align-items:center; gap:8px; }
+.gcwo-circ-ex-thumb { width:32px; height:32px; border-radius:7px; object-fit:cover; border:0.5px solid #e2e8f0; flex-shrink:0; background:#f1f5f9; }
+.gcwo-circ-ex-thumb.empty { display:inline-block; }
+.gcwo-circ-ex-name { flex:1; min-width:0; font-size:13px; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gcwo-circ-ex-picker { margin-top:8px; background:#f8fafc; border:0.5px solid #e2e8f0; border-radius:10px; padding:10px; }
+.gcwo-circ-ex-picker[hidden] { display:none; }
+.gcwo-circ-ex-search {
+  width:100%; box-sizing:border-box; border:0.5px solid #e2e8f0; border-radius:8px; padding:7px 9px;
+  font-family:inherit; font-size:13px; margin-bottom:8px;
+}
+
 .gcwo-card { background:#fff; border:0.5px solid #e2e8f0; border-radius:12px; padding:14px 16px; }
 .gcwo-card textarea {
   width:100%; box-sizing:border-box; border:0.5px solid #e2e8f0; border-radius:8px; padding:9px 11px;
