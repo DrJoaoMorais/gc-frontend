@@ -365,8 +365,27 @@ async function loadExercisesCatalog() {
   if (_panelDraft) renderPanel();
 }
 
+// "dos"/"do"/"da"/"das"/"e" nunca ajudam a identificar a clínica — ficam de fora tanto
+// das iniciais do avatar como do nome curto (bug da "Liga dos Amigos do Hospital de
+// Santarém" a esticar a grelha do popover, 9 ago 2026).
+const STOPWORDS_CLINICA = new Set(['de', 'do', 'da', 'dos', 'das', 'e']);
+function palavrasSignificativasClinica(nome) {
+  return String(nome || '').trim().split(/\s+/).filter(Boolean).filter(p => !STOPWORDS_CLINICA.has(p.toLowerCase()));
+}
 function iniciaisClinica(nome) {
-  return String(nome || '?').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  const palavras = palavrasSignificativasClinica(nome);
+  if (!palavras.length) return '?';
+  return palavras.slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+// Nomes compridos ficam "Primeira palavra (SIGLA)" só neste ecrã (grelha do popover
+// e pill) — nunca se toca no nome real da clínica gravado na base de dados.
+function nomeCurtoClinica(nome, limite = 16) {
+  const texto = String(nome || '').trim();
+  if (texto.length <= limite) return texto;
+  const palavras = palavrasSignificativasClinica(texto);
+  if (palavras.length < 2) return texto;
+  const sigla = palavras.map(w => w[0].toUpperCase()).join('');
+  return `${palavras[0]} (${sigla})`;
 }
 
 /* ================================================================
@@ -414,8 +433,8 @@ function renderLanding() {
   // função, foi o aspeto: em vez de uma lista a abrir, é uma grelha de cartões
   // clicáveis (mesmo padrão do Passo 1), sem o estado azul estranho que apareceu.
   const filtroLabel = _landing.clinicFilter
-    ? (clinicas.find(c => c.id === _landing.clinicFilter)?.name || '—')
-    : (multiClinica ? 'Todas as clínicas' : (clinicas[0]?.name || '—'));
+    ? nomeCurtoClinica(clinicas.find(c => c.id === _landing.clinicFilter)?.name || '—')
+    : (multiClinica ? 'Todas as clínicas' : nomeCurtoClinica(clinicas[0]?.name || '—'));
 
   root.innerHTML = `
     <div class="gc-page-header">
@@ -432,7 +451,7 @@ function renderLanding() {
           </button>
           ${clinicas.map(c => `
           <button type="button" class="gcwo-landing-clinicoption${_landing.clinicFilter === c.id ? ' on' : ''}" data-cid="${escAttr(c.id)}">
-            <span class="avatar">${escHtml(iniciaisClinica(c.name || c.slug))}</span><span class="name">${escHtml(c.name || c.slug || '')}</span>
+            <span class="avatar">${escHtml(iniciaisClinica(c.name || c.slug))}</span><span class="name">${escHtml(nomeCurtoClinica(c.name || c.slug || ''))}</span>
           </button>`).join('')}
         </div>
       </div>` : `

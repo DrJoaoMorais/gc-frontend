@@ -72,7 +72,7 @@
   display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:700;
 }
 .gcwo-landing-clinicoption .avatar.all { background:#0f2d52; color:#fff; }
-.gcwo-landing-clinicoption .name { font-size:11.5px; font-weight:600; color:#0f172a; line-height:1.25; }
+.gcwo-landing-clinicoption .name { flex:1; min-width:0; font-size:11.5px; font-weight:600; color:#0f172a; line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 @media (max-width:420px) { .gcwo-landing-clinicpop { grid-template-columns:1fr; width:240px; } }
 
 .gcwo-landing-cards { display:flex; gap:14px; overflow-x:auto; padding:4px 2px 10px; margin-top:6px; }
