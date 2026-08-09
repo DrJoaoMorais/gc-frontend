@@ -56,6 +56,7 @@ const ICON_CLOCK = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" s
 const ICON_RULER = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l4-4 10 10-4 4-10-10z"/><path d="M8 9l1.5 1.5M10.5 6.5L12 8M13 4l1.5 1.5"/></svg>`;
 const ICON_CAMINHADA = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11.5" cy="3.6" r="1.4" fill="currentColor" stroke="none"/><path d="M9 6l3 2-1 3 3 3M11 8l-3 1-2 4M8 11l-2.5 1.5"/></svg>`;
 const ICON_CIRCUITO = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a6 6 0 0110-4.5M16 12a6 6 0 01-10 4.5"/><path d="M13 2l1.5 1.5L13 5M7 18l-1.5-1.5L7 15"/></svg>`;
+const ICON_DIAMOND = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M10 2.5l7.5 7.5-7.5 7.5-7.5-7.5z"/></svg>`;
 
 // kind por sessão: só 'list' (ginásio) está activo — 'card'/'walk'/'circuit' ficam para os Passos 4/5 (secção 5 do briefing).
 const SESSAO_MODALIDADES = [
@@ -375,24 +376,9 @@ function iniciaisClinica(nome) {
    é só o lugar reservado no ecrã (decisão de 9 ago 2026).
    ================================================================ */
 let _landing = null;
-let _landingDocClickWired = false;
 
 function freshLanding() {
   return { clinicFilter: null, search: '', tab: 'todos', rows: [], loading: true, error: '' };
-}
-
-// Fecha o menu da clínica ao clicar fora — anexado uma única vez ao
-// document (nunca duplicado, mesmo re-renderizando o ecrã várias vezes).
-function wireLandingDocClickOnce() {
-  if (_landingDocClickWired) return;
-  _landingDocClickWired = true;
-  document.addEventListener('click', (e) => {
-    const menu = document.getElementById('gcwoLandingClinicMenu');
-    const btn = document.getElementById('gcwoLandingClinicBtn');
-    if (!menu || menu.hidden) return;
-    if (btn && (btn.contains(e.target) || menu.contains(e.target))) return;
-    menu.hidden = true;
-  });
 }
 
 function renderLanding() {
@@ -402,26 +388,16 @@ function renderLanding() {
 
   const clinicas = G.clinics || [];
   const multiClinica = clinicas.length > 1;
-  const filtroLabel = _landing.clinicFilter
-    ? (clinicas.find(c => c.id === _landing.clinicFilter)?.name || '—')
-    : (multiClinica ? 'Todas as clínicas' : (clinicas[0]?.name || '—'));
+  // Sem menu a abrir — o utilizador rejeitou o dropdown de clínicas (9 ago 2026).
+  // A pill fica só como etiqueta; _landing.clinicFilter mantém-se null (todas as
+  // clínicas visíveis). Se um dia for preciso filtrar por 1 clínica, faz-se com
+  // uma grelha de cartões clicáveis, não com uma lista a abrir por cima.
+  const filtroLabel = multiClinica ? 'Todas as clínicas' : (clinicas[0]?.name || '—');
 
   root.innerHTML = `
     <div class="gc-page-header">
       <div><div class="gc-page-title">Exercício</div><div class="gc-page-sub">Prescrição, documentos e catálogo</div></div>
-      ${multiClinica ? `
-      <div class="gcwo-landing-clinicpill-wrap">
-        <button type="button" class="gcwo-landing-clinicpill" id="gcwoLandingClinicBtn">
-          <span>A mostrar</span><strong>${escHtml(filtroLabel)}</strong>
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-        <div class="gcwo-landing-clinicmenu" id="gcwoLandingClinicMenu" hidden>
-          <button type="button" data-cid="">Todas as clínicas</button>
-          ${clinicas.map(c => `<button type="button" data-cid="${escAttr(c.id)}">${escHtml(c.name || c.slug || '')}</button>`).join('')}
-        </div>
-      </div>` : `
-      <div class="gcwo-landing-clinicpill static"><span>Clínica</span><strong>${escHtml(filtroLabel)}</strong></div>
-      `}
+      <div class="gcwo-landing-clinicpill static"><span>${multiClinica ? 'A mostrar' : 'Clínica'}</span><strong>${escHtml(filtroLabel)}</strong></div>
     </div>
 
     <div class="gcwo-landing-cards">
@@ -442,10 +418,10 @@ function renderLanding() {
         <span class="gcwo-landing-card-sub">Gerir exercícios, imagens, equipamento e tempos de execução.</span>
         <span class="gcwo-landing-card-cta">Abrir catálogo →</span>
       </button>
-      <button type="button" class="gcwo-landing-card" id="gcwoCardRever">
-        <span class="gcwo-landing-card-icon rev">${ICON_CLOCK}</span>
-        <span class="gcwo-landing-card-title">Prescrições a rever</span>
-        <span class="gcwo-landing-card-sub">Planos a terminar, terminados ou com feedback novo do doente.</span>
+      <button type="button" class="gcwo-landing-card" id="gcwoCardModelos" disabled title="Em breve — ainda não construído">
+        <span class="gcwo-landing-card-icon rev">${ICON_DIAMOND}</span>
+        <span class="gcwo-landing-card-title">Modelos de treino <span class="gcwo-landing-soon">Em breve</span></span>
+        <span class="gcwo-landing-card-sub">Criar sessões e planos reutilizáveis para aplicar e adaptar rapidamente.</span>
       </button>
     </div>
 
@@ -472,26 +448,6 @@ function renderLanding() {
   document.getElementById('gcwoCardCatalogo').addEventListener('click', () => {
     initCatalogo({ onVoltar: () => { loadExercisesCatalog(); renderLanding(); } });
   });
-  document.getElementById('gcwoCardRever').addEventListener('click', () => {
-    _landing.tab = 'aterminar';
-    document.getElementById('gcwoLandingTabs').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.getAttribute('data-tab') === 'aterminar'));
-    renderLandingTableHost();
-    document.getElementById('gcwoLandingTableSec').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-
-  if (multiClinica) {
-    const btn = document.getElementById('gcwoLandingClinicBtn');
-    const menu = document.getElementById('gcwoLandingClinicMenu');
-    btn.addEventListener('click', () => { menu.hidden = !menu.hidden; });
-    menu.querySelectorAll('[data-cid]').forEach(item => {
-      item.addEventListener('click', () => {
-        _landing.clinicFilter = item.getAttribute('data-cid') || null;
-        renderLanding();
-      });
-    });
-    wireLandingDocClickOnce();
-  }
-
   let searchTimer = null;
   document.getElementById('gcwoLandingSearch').addEventListener('input', (e) => {
     _landing.search = e.target.value;
