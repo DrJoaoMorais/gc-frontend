@@ -23,7 +23,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-09-4';
+const PRESCRICAO_CSS_VERSION = '2026-08-09-5';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -204,6 +204,7 @@ let _copyWeekSource = 1;                // semana de origem, escolhida dentro do
 let _historyTargetWeek = 1;             // semana de destino ao aplicar uma semana do histórico
 let _pendingSlot = null;                // {week, day} — dia escolhido na grelha, modalidade por escolher (ecrã de 2 modos, 9 ago 2026)
 let _calMenuDocClickWired = false;      // menu ⋮ por sessão no calendário — fecha ao clicar fora (9 ago 2026)
+let _dayPicker = null;                  // {sessionId, mode:'mover'|'duplicar', selecionados:Set("week-day")} — modal de escolha de dia(s) (9 ago 2026)
 let _historyOpen = false;               // modal "Ver planos anteriores" aberto/fechado
 let _historyLoading = false;
 let _historyError = '';
@@ -388,6 +389,8 @@ export async function initPrescricao() {
   _historyOpen = false;
   _historyDetail = null;
   document.getElementById('gcwoHistoryOverlay')?.remove();
+  _dayPicker = null;
+  document.getElementById('gcwoDayPickerOverlay')?.remove();
 
   const clinicas = G.clinics || [];
   if (clinicas.length === 1) _state.clinicId = clinicas[0].id;
@@ -1043,8 +1046,8 @@ function renderCalGrid() {
                   <button type="button" class="gcwo-calchip-menubtn" style="color:${meta.fg}" data-menu-session="${s.session_id}" title="Mais ações">${ICON_DOTS}</button>
                   <div class="gcwo-calchip-menu" id="gcwoCalMenu-${s.session_id}" hidden>
                     <button type="button" data-menu-action="editar" data-sid="${s.session_id}">${ICON_PENCIL}<span>Editar</span></button>
-                    <button type="button" data-menu-action="mover" data-sid="${s.session_id}" disabled title="Em breve">${ICON_MOVE}<span>Mover para…</span></button>
-                    <button type="button" data-menu-action="duplicar" data-sid="${s.session_id}" disabled title="Em breve">${ICON_COPY}<span>Duplicar para…</span></button>
+                    <button type="button" data-menu-action="mover" data-sid="${s.session_id}">${ICON_MOVE}<span>Mover para…</span></button>
+                    <button type="button" data-menu-action="duplicar" data-sid="${s.session_id}">${ICON_COPY}<span>Duplicar para…</span></button>
                     <button type="button" class="danger" data-menu-action="apagar" data-sid="${s.session_id}">${ICON_TRASH}<span>Apagar</span></button>
                   </div>
                 </div>`;
@@ -1086,7 +1089,8 @@ function renderCalGrid() {
       document.getElementById('gcwoCalMenu-' + sid).hidden = true;
       if (action === 'editar') openPanelEditar(sid);
       else if (action === 'apagar') apagarSessaoNoCalendario(sid);
-      // 'mover' e 'duplicar' chegam nos próximos passos (picker de dias).
+      else if (action === 'mover') abrirDayPicker(sid, 'mover');
+      else if (action === 'duplicar') abrirDayPicker(sid, 'duplicar');
     });
   });
   wireCalMenuDocClickOnce();
@@ -1120,6 +1124,142 @@ function wireCalMenuDocClickOnce() {
       menu.hidden = true;
     });
   });
+}
+
+/* ================================================================
+   "Mover para…" / "Duplicar para…" — modal de escolha de dia(s)
+   Mover: 1 clique num dia executa logo (troca week/day, mantém
+   session_id). Duplicar: escolhe vários dias (podem ser de semanas
+   diferentes) e confirma — cada cópia recebe um session_id novo.
+   Em ambos: se o dia de destino já tiver outras sessões, a sessão
+   junta-se-lhes — nunca substitui (decisão de 9 ago 2026).
+   ================================================================ */
+function abrirDayPicker(sessionId, mode) {
+  _dayPicker = { sessionId, mode, selecionados: new Set() };
+  renderDayPicker();
+}
+function fecharDayPicker() {
+  _dayPicker = null;
+  document.getElementById('gcwoDayPickerOverlay')?.remove();
+}
+
+function renderDayPicker() {
+  let overlay = document.getElementById('gcwoDayPickerOverlay');
+  if (!_dayPicker) { overlay?.remove(); return; }
+
+  const s = _state.sessions.find(x => x.session_id === _dayPicker.sessionId);
+  if (!s) { fecharDayPicker(); return; }
+
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'gcwoDayPickerOverlay';
+    overlay.className = 'gcwo-modal-overlay';
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) fecharDayPicker(); });
+    document.body.appendChild(overlay);
+  }
+
+  const meta = TIPO_META[tipoKey(s)];
+  const n = _state.planWeeks || 1;
+  const mover = _dayPicker.mode === 'mover';
+  const nSel = _dayPicker.selecionados.size;
+
+  overlay.innerHTML = `
+    <div class="gcwo-modal gcwo-daypicker-modal">
+      <div class="gcwo-modal-head">
+        <span class="gcwo-panel-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
+        <h3>${mover ? 'Mover sessão para…' : 'Duplicar sessão para…'}</h3>
+        <button type="button" id="gcwoDayPickerClose" title="Fechar">${ICON_CLOSE}</button>
+      </div>
+      <div class="gcwo-modal-body">
+        <p class="gcwo-daypicker-hint">${mover ? 'Clica no dia de destino.' : 'Escolhe um ou vários dias e confirma. Cada dia recebe uma cópia independente.'}</p>
+        ${Array.from({ length: n }, (_, i) => i + 1).map(w => `
+          <div class="gcwo-daypicker-week">
+            <div class="gcwo-calweek-label">Semana ${w} <span>${escHtml(fmtIntervaloSemana(w))}</span></div>
+            <div class="gcwo-daypicker-row">
+              ${DIAS_SEMANA.map(d => {
+                const isSource = s.week === w && s.day === d.value;
+                const key = w + '-' + d.value;
+                const temSessoes = _state.sessions.some(x => x.week === w && x.day === d.value && x.session_id !== s.session_id);
+                const selecionado = _dayPicker.selecionados.has(key);
+                return `
+                <button type="button" class="gcwo-daypicker-cell${isSource ? ' source' : ''}${selecionado ? ' on' : ''}" data-week="${w}" data-day="${d.value}" ${isSource ? 'disabled' : ''}>
+                  <span class="dname">${d.label}</span>
+                  <span class="num">${escHtml(fmtDiaMesCurto(realDateFor(w, d.value)))}</span>
+                  ${isSource ? '<span class="tag">actual</span>' : (temSessoes ? '<span class="dot" title="Já tem sessões — esta junta-se"></span>' : '')}
+                </button>`;
+              }).join('')}
+            </div>
+          </div>`).join('')}
+      </div>
+      ${mover ? '' : `
+      <div class="gcwo-panel-footer">
+        <button type="button" class="gcBtnGhost" id="gcwoDayPickerCancelar">Cancelar</button>
+        <button type="button" class="gcBtnSuccess" id="gcwoDayPickerConfirmar" ${nSel ? '' : 'disabled'}>Duplicar para ${nSel} dia${nSel === 1 ? '' : 's'}</button>
+      </div>`}
+    </div>
+  `;
+  wireDayPicker();
+}
+
+function wireDayPicker() {
+  document.getElementById('gcwoDayPickerClose').addEventListener('click', fecharDayPicker);
+  document.getElementById('gcwoDayPickerCancelar')?.addEventListener('click', fecharDayPicker);
+
+  document.querySelectorAll('#gcwoDayPickerOverlay [data-week]').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const week = Number(cell.getAttribute('data-week'));
+      const day = cell.getAttribute('data-day');
+      if (_dayPicker.mode === 'mover') {
+        moverSessaoParaDia(_dayPicker.sessionId, week, day);
+        return;
+      }
+      const key = week + '-' + day;
+      if (_dayPicker.selecionados.has(key)) _dayPicker.selecionados.delete(key);
+      else _dayPicker.selecionados.add(key);
+      renderDayPicker();
+    });
+  });
+
+  document.getElementById('gcwoDayPickerConfirmar')?.addEventListener('click', () => {
+    const alvos = [..._dayPicker.selecionados].map(key => {
+      const idx = key.indexOf('-');
+      return { week: Number(key.slice(0, idx)), day: key.slice(idx + 1) };
+    });
+    duplicarSessaoParaDias(_dayPicker.sessionId, alvos);
+  });
+}
+
+// Muda week/day da própria sessão — mantém session_id (é a mesma sessão, só de dia
+// diferente). Se o destino já tiver sessões, a movida entra a seguir às existentes.
+function moverSessaoParaDia(sessionId, week, day) {
+  const s = _state.sessions.find(x => x.session_id === sessionId);
+  if (!s) return;
+  if (s.week === week && s.day === day) { fecharDayPicker(); return; }
+  s.week = week;
+  s.day = day;
+  s.order = _state.sessions.filter(x => x.week === week && x.day === day && x.session_id !== sessionId).length;
+  fecharDayPicker();
+  renderCalGrid();
+  updateGerarButtonState();
+}
+
+// Cria uma cópia com session_id novo por cada dia escolhido — nunca reaproveita o
+// session_id de origem (mesmo padrão do "copiar semana"), para não misturar registos
+// que o doente já tenha feito numa sessão com os de outra.
+function duplicarSessaoParaDias(sessionId, alvos) {
+  const s = _state.sessions.find(x => x.session_id === sessionId);
+  if (!s || !alvos.length) return;
+  alvos.forEach(({ week, day }) => {
+    const copy = structuredClone(s);
+    copy.session_id = uuid();
+    copy.week = week;
+    copy.day = day;
+    copy.order = _state.sessions.filter(x => x.week === week && x.day === day).length;
+    _state.sessions.push(copy);
+  });
+  fecharDayPicker();
+  renderCalGrid();
+  updateGerarButtonState();
 }
 
 /* ── "Copiar semana N para as outras" ────────────────────── */
