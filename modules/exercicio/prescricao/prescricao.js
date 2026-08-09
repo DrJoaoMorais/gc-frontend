@@ -677,19 +677,15 @@ async function loadLandingRows() {
 /* ================================================================
    PASSO 1 — clínica (cartões) + pesquisa/seleção de doente
    ================================================================ */
+// A pesquisa já não pede a clínica primeiro (decisão de 9 ago 2026): a RPC
+// search_patients_v2 nunca filtrou por p_clinic_id — só o usava para ordenar
+// (in_target_clinic). Já procura em todas as clínicas do utilizador (a RLS de
+// `patients`/`patient_clinic` é que continua a limitar quem aparece). Por isso a
+// clínica de cada doente sai da própria pesquisa (active_clinic_id) e fica escrita
+// ao lado do nome — só se define _state.clinicId quando se escolhe o doente.
 function renderStep1() {
   const root = document.getElementById('gcwoPrescricaoRoot');
   if (!root) return;
-
-  const clinicas = G.clinics || [];
-  const clinicaEscolhida = clinicas.find(c => c.id === _state.clinicId) || null;
-
-  const clinicCardsHtml = clinicas.map(c => `
-    <button type="button" class="gcwo-clinic-card" data-id="${escAttr(c.id)}">
-      <span class="avatar">${escHtml(iniciaisClinica(c.name || c.slug))}</span>
-      <span class="name">${escHtml(c.name || c.slug || c.id)}</span>
-    </button>
-  `).join('');
 
   root.innerHTML = `
     <div class="gc-page-header">
@@ -703,52 +699,21 @@ function renderStep1() {
       <div class="gcwo-step1-card">
         <p class="gcwo-step1-intro">Cria uma prescrição de exercício para um doente — sessões de ginásio ou de modalidade, com tarefas e séries — e gera um link de acesso sem login para ele seguir o plano.</p>
 
-        <div id="gcwoClinicStage" ${clinicaEscolhida ? 'hidden' : ''}>
-          <span class="gcwo-field-label">Escolhe a clínica</span>
-          <div class="gcwo-clinicgrid" id="gcwoClinicGrid">${clinicCardsHtml}</div>
+        <span class="gcwo-field-label">Procura o doente</span>
+        <div class="gc-search-bar">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <input id="gcwoPatientQuery" type="search" class="gc-search-input" placeholder="Nome, SNS, NIF, Telefone…" autocomplete="off" spellcheck="false">
         </div>
-
-        <div id="gcwoPatientStage" ${clinicaEscolhida ? '' : 'hidden'}>
-          <div class="gcwo-step1-selectedclinic">
-            <span>Clínica: <strong id="gcwoSelectedClinicName">${clinicaEscolhida ? escHtml(clinicaEscolhida.name || clinicaEscolhida.slug || '') : ''}</strong></span>
-            <button type="button" class="gcwo-linkbtn" id="gcwoBtnTrocarClinica">Trocar</button>
-          </div>
-          <span class="gcwo-field-label">Procura o doente</span>
-          <div class="gc-search-bar">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
-            <input id="gcwoPatientQuery" type="search" class="gc-search-input" placeholder="Nome, SNS, NIF, Telefone…" autocomplete="off" spellcheck="false">
-          </div>
-          <div id="gcwoPatientResults" class="gcwo-results" style="display:none;"></div>
-        </div>
+        <div id="gcwoPatientResults" class="gcwo-results" style="display:none;"></div>
       </div>
     </div>
   `;
   wireTopActions();
   document.getElementById('gcwoBackToLanding').addEventListener('click', () => renderLanding());
 
-  document.getElementById('gcwoClinicGrid').querySelectorAll('[data-id]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _state.clinicId = btn.getAttribute('data-id');
-      const c = clinicas.find(x => x.id === _state.clinicId);
-      document.getElementById('gcwoSelectedClinicName').textContent = c?.name || c?.slug || '';
-      document.getElementById('gcwoClinicStage').hidden = true;
-      document.getElementById('gcwoPatientStage').hidden = false;
-      document.getElementById('gcwoPatientQuery').focus();
-    });
-  });
-
-  document.getElementById('gcwoBtnTrocarClinica').addEventListener('click', () => {
-    _state.clinicId = null;
-    document.getElementById('gcwoPatientStage').hidden = true;
-    document.getElementById('gcwoClinicStage').hidden = false;
-    const rh = document.getElementById('gcwoPatientResults');
-    rh.style.display = 'none';
-    rh.innerHTML = '';
-    document.getElementById('gcwoPatientQuery').value = '';
-  });
-
   const input = document.getElementById('gcwoPatientQuery');
   const resHost = document.getElementById('gcwoPatientResults');
+  input.focus();
 
   let timer = null;
   input.addEventListener('input', () => {
@@ -758,7 +723,7 @@ function renderStep1() {
 
   async function runPatientSearch(term) {
     term = (term || '').trim();
-    if (!_state.clinicId || term.length < 2) {
+    if (term.length < 2) {
       resHost.style.display = 'none';
       resHost.innerHTML = '';
       return;
@@ -767,7 +732,7 @@ function renderStep1() {
     resHost.innerHTML = `<div class="gcwo-muted">A pesquisar…</div>`;
 
     const { data, error } = await window.sb.rpc('search_patients_v2', {
-      p_clinic_id: _state.clinicId,
+      p_clinic_id: _state.clinicId || null,
       p_term: term,
       p_limit: 15,
     });
@@ -784,12 +749,18 @@ function renderStep1() {
       return;
     }
 
-    resHost.innerHTML = results.map(p => `
+    const clinicas = G.clinics || [];
+    resHost.innerHTML = results.map(p => {
+      const clinicaNome = clinicas.find(c => c.id === p.active_clinic_id)?.name || '';
+      return `
       <button type="button" class="gcwo-result-item" data-pid="${escAttr(p.id)}">
         <span class="gcwo-result-name">${escHtml(p.full_name)}</span>
-        <span class="gcwo-result-meta">${p.dob ? new Date(p.dob).toLocaleDateString('pt-PT') : '—'}${p.phone ? ' · ' + escHtml(p.phone) : ''}</span>
-      </button>
-    `).join('');
+        <span class="gcwo-result-meta">
+          ${p.dob ? new Date(p.dob).toLocaleDateString('pt-PT') : '—'}${p.phone ? ' · ' + escHtml(p.phone) : ''}
+          ${clinicaNome ? ` · <span class="gcwo-result-clinic">${escHtml(clinicaNome)}</span>` : ''}
+        </span>
+      </button>`;
+    }).join('');
 
     resHost.querySelectorAll('[data-pid]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -797,6 +768,7 @@ function renderStep1() {
         const p = results.find(r => r.id === pid);
         if (!p) return;
         _state.patient = p;
+        _state.clinicId = p.active_clinic_id || _state.clinicId;
         renderStep2();
       });
     });
