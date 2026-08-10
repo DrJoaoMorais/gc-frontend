@@ -44,6 +44,7 @@ import { openExameObjectivoMenu, openExameObjectivoForm } from "./exame-objectiv
 import { openNewPatientMainModal } from "./novo-doente.js";
 import { buildReportShell } from "./relatorios/_shared/report-shell.js";
 import { openPrpViscoPanel, closePrpViscoPanel } from "./relatorios/prp-visco.js";
+import { fmtPaceEditavel, parsePaceParaSegundos } from "./exercicio/shared/pace.js";
 
 /* ========================================================
    EXAME MÉDICO DESPORTIVO — painel lateral (viewer)
@@ -1038,6 +1039,399 @@ function openPatientViewModal(patient) {
     }
   }
 /* ==== FIM BLOCO 06C/12 ==== */
+
+
+/* ==== INÍCIO BLOCO 06C.1/12 — Perfil de zonas de treino (corrida, Fase 1) ====
+   spec-zonas-treino.md, Fase 1 — perfis por modalidade+métrica em wo_zone_profiles/
+   wo_zone_ranges, activados via RPC activate_wo_zone_profile. Não mexe nos campos
+   antigos hr_zone_formula/hr_zones_bpm do bloco anterior — ficam como estão. */
+
+  const CORRIDA_ZONAS = [
+    { key: "Z1", order: 1, label: "Recuperação" },
+    { key: "Z2", order: 2, label: "Endurance / Corrida leve" },
+    { key: "Z3", order: 3, label: "Tempo / Limiar aeróbico" },
+    { key: "Z4", order: 4, label: "Limiar anaeróbico / Lactato" },
+    { key: "Z5", order: 5, label: "VO₂ Max / Cap. anaeróbica" },
+  ];
+
+  let zonasTreinoOpen = false;
+  let zonasTreinoLoading = false;
+  let zonasTreinoSaving = false;
+  let zonasTreinoErro = "";
+  let zonasTreinoMetrica = "heart_rate"; // aba activa: 'heart_rate' | 'pace'
+  let zonasTreinoAtivos = { heart_rate: null, pace: null };
+  let zonasTreinoDraft = null;
+
+  function novoZonasTreinoDraft() {
+    return {
+      heart_rate: {
+        method: "estimado", formula: "tanaka",
+        resting_hr_bpm: "", max_hr_bpm: "",
+        test_used: "", test_date: "", reassessment_recommended_at: "",
+        zonas: Object.fromEntries(CORRIDA_ZONAS.map((z) => [z.key, { min: "", max: "" }])),
+      },
+      pace: {
+        method: "manual", formula: "",
+        test_used: "", test_date: "", reassessment_recommended_at: "",
+        zonas: Object.fromEntries(CORRIDA_ZONAS.map((z) => [z.key, { lento: "", rapido: "" }])),
+      },
+    };
+  }
+
+  async function fetchZonasTreinoAtivos(patientId) {
+    const { data, error } = await window.sb
+      .from("wo_zone_profiles")
+      .select("*, wo_zone_ranges(*)")
+      .eq("patient_id", patientId)
+      .eq("modality", "corrida")
+      .eq("is_active", true);
+    if (error) {
+      console.error("[doente] falha a carregar wo_zone_profiles:", error);
+      return { heart_rate: null, pace: null };
+    }
+    const out = { heart_rate: null, pace: null };
+    (data || []).forEach((row) => { out[row.metric] = row; });
+    return out;
+  }
+
+  function draftFromPerfilAtivo(perfil, metric) {
+    const base = novoZonasTreinoDraft()[metric];
+    if (!perfil) return base;
+    const ranges = {};
+    (perfil.wo_zone_ranges || []).forEach((r) => { ranges[r.zone_key] = r; });
+    const zonas = {};
+    CORRIDA_ZONAS.forEach((z) => {
+      const r = ranges[z.key];
+      if (metric === "heart_rate") {
+        zonas[z.key] = {
+          min: r && r.lower_value != null ? String(r.lower_value) : "",
+          max: r && r.upper_value != null ? String(r.upper_value) : "",
+        };
+      } else {
+        // pace: lower_value = mais rápido (nº menor), upper_value = mais lento (nº maior) —
+        // nunca mostramos "lower/upper" ao médico, só "mais lento"/"mais rápido" (secção 3).
+        zonas[z.key] = {
+          rapido: r && r.lower_value != null ? fmtPaceEditavel(r.lower_value) : "",
+          lento: r && r.upper_value != null ? fmtPaceEditavel(r.upper_value) : "",
+        };
+      }
+    });
+    return {
+      method: perfil.method,
+      formula: perfil.formula || (metric === "heart_rate" ? "tanaka" : ""),
+      resting_hr_bpm: perfil.resting_hr_bpm != null ? String(perfil.resting_hr_bpm) : "",
+      max_hr_bpm: perfil.max_hr_bpm != null ? String(perfil.max_hr_bpm) : "",
+      test_used: perfil.test_used || "",
+      test_date: perfil.test_date || "",
+      reassessment_recommended_at: perfil.reassessment_recommended_at || "",
+      zonas,
+    };
+  }
+
+  async function openZonasTreino() {
+    zonasTreinoOpen = true;
+    zonasTreinoLoading = true;
+    zonasTreinoErro = "";
+    zonasTreinoMetrica = "heart_rate";
+    zonasTreinoDraft = novoZonasTreinoDraft();
+    render();
+    bindZonasTreinoEvents();
+
+    zonasTreinoAtivos = await fetchZonasTreinoAtivos(p.id);
+    zonasTreinoDraft = {
+      heart_rate: draftFromPerfilAtivo(zonasTreinoAtivos.heart_rate, "heart_rate"),
+      pace: draftFromPerfilAtivo(zonasTreinoAtivos.pace, "pace"),
+    };
+    zonasTreinoLoading = false;
+    render();
+    bindZonasTreinoEvents();
+  }
+
+  function closeZonasTreino() {
+    zonasTreinoOpen = false;
+    zonasTreinoDraft = null;
+    zonasTreinoErro = "";
+    render();
+  }
+
+  // Continuidade (spec-zonas-treino.md Fase 1): zonas ordenadas por intensidade crescente
+  // (Z1→Z5); a fronteira "mais intensa" de uma zona tem de ser igual à fronteira "menos
+  // intensa" da seguinte — sem lacuna, sem sobreposição. Para FC, número maior = mais
+  // intenso; para ritmo é o inverso (número menor = mais rápido = mais intenso) — por isso
+  // comparamos sempre pelo lado semântico ("mais intenso"), nunca por min/max cru.
+  function validarContinuidadeZonas(pares, higherIsMoreIntense) {
+    for (let i = 0; i < pares.length; i++) {
+      const { lower, upper } = pares[i];
+      if (lower != null && upper != null && !(lower < upper)) {
+        return `${CORRIDA_ZONAS[i].key}: o limite inferior tem de ser menor que o superior.`;
+      }
+      const ladoMenosIntenso = higherIsMoreIntense ? lower : upper;
+      const ladoMaisIntenso = higherIsMoreIntense ? upper : lower;
+      if (ladoMenosIntenso == null && i !== 0) {
+        return `${CORRIDA_ZONAS[i].key}: falta o limite do lado menos intenso.`;
+      }
+      if (ladoMaisIntenso == null && i !== pares.length - 1) {
+        return `${CORRIDA_ZONAS[i].key}: falta o limite do lado mais intenso.`;
+      }
+      if (i > 0) {
+        const anterior = pares[i - 1];
+        const anteriorMaisIntenso = higherIsMoreIntense ? anterior.upper : anterior.lower;
+        if (anteriorMaisIntenso == null || ladoMenosIntenso == null || anteriorMaisIntenso !== ladoMenosIntenso) {
+          return `${CORRIDA_ZONAS[i - 1].key}/${CORRIDA_ZONAS[i].key}: a fronteira tem de coincidir (sem lacuna nem sobreposição).`;
+        }
+      }
+    }
+    return null;
+  }
+
+  async function salvarZonasTreino(metric) {
+    const draft = zonasTreinoDraft[metric];
+    if (!draft.method) { zonasTreinoErro = "Escolhe o método."; render(); bindZonasTreinoEvents(); return; }
+    if (metric === "heart_rate" && draft.method === "estimado" && !draft.formula) {
+      zonasTreinoErro = "Escolhe a fórmula (Tanaka ou Gulati).";
+      render(); bindZonasTreinoEvents();
+      return;
+    }
+
+    const pares = CORRIDA_ZONAS.map((z) => {
+      const zv = draft.zonas[z.key];
+      if (metric === "heart_rate") {
+        return {
+          lower: zv.min === "" ? null : Number(zv.min),
+          upper: zv.max === "" ? null : Number(zv.max),
+        };
+      }
+      return {
+        lower: parsePaceParaSegundos(zv.rapido), // mais rápido = nº menor
+        upper: parsePaceParaSegundos(zv.lento),  // mais lento = nº maior
+      };
+    });
+
+    const higherIsMoreIntense = metric !== "pace";
+    const erro = validarContinuidadeZonas(pares, higherIsMoreIntense);
+    if (erro) { zonasTreinoErro = erro; render(); bindZonasTreinoEvents(); return; }
+
+    zonasTreinoSaving = true;
+    zonasTreinoErro = "";
+    render();
+    bindZonasTreinoEvents();
+
+    const ranges = CORRIDA_ZONAS.map((z, i) => ({
+      zone_key: z.key,
+      zone_order: z.order,
+      zone_label: z.label,
+      lower_value: pares[i].lower,
+      upper_value: pares[i].upper,
+    }));
+
+    try {
+      const { error } = await window.sb.rpc("activate_wo_zone_profile", {
+        p_patient_id: p.id,
+        p_clinic_id: activeClinicId || null,
+        p_modality: "corrida",
+        p_metric: metric,
+        p_method: draft.method,
+        p_formula: metric === "heart_rate" && draft.method === "estimado" ? draft.formula : null,
+        p_resting_hr_bpm: metric === "heart_rate" && draft.resting_hr_bpm !== "" ? Number(draft.resting_hr_bpm) : null,
+        p_max_hr_bpm: metric === "heart_rate" && draft.max_hr_bpm !== "" ? Number(draft.max_hr_bpm) : null,
+        p_test_used: draft.test_used ? draft.test_used.trim() : null,
+        p_test_date: draft.test_date || null,
+        p_reassessment_recommended_at: draft.reassessment_recommended_at || null,
+        p_unit: metric === "heart_rate" ? "bpm" : "sec_per_km",
+        p_ranges: ranges,
+      });
+
+      if (error) {
+        console.error("[doente] falha a activar perfil de zonas:", error);
+        zonasTreinoErro = "Erro a gravar o perfil.";
+        zonasTreinoSaving = false;
+        render(); bindZonasTreinoEvents();
+        return;
+      }
+
+      zonasTreinoAtivos = await fetchZonasTreinoAtivos(p.id);
+      zonasTreinoDraft = {
+        heart_rate: draftFromPerfilAtivo(zonasTreinoAtivos.heart_rate, "heart_rate"),
+        pace: draftFromPerfilAtivo(zonasTreinoAtivos.pace, "pace"),
+      };
+      zonasTreinoSaving = false;
+      render(); bindZonasTreinoEvents();
+    } catch (e) {
+      console.error(e);
+      zonasTreinoErro = "Erro a gravar o perfil.";
+      zonasTreinoSaving = false;
+      render(); bindZonasTreinoEvents();
+    }
+  }
+
+  function renderZonasTreinoModal() {
+    const d = zonasTreinoDraft || novoZonasTreinoDraft();
+    const tab = zonasTreinoMetrica;
+    const draft = d[tab];
+
+    function campoZona(z) {
+      const zv = draft.zonas[z.key];
+      if (tab === "heart_rate") {
+        return `
+          <div>
+            <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:3px;">${z.key} · ${escAttr(z.label)}</div>
+            <div style="display:flex; gap:4px;">
+              <input type="number" min="0" class="zt-min" data-zone="${z.key}" placeholder="mín" value="${escAttr(zv.min)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
+              <input type="number" min="0" class="zt-max" data-zone="${z.key}" placeholder="máx" value="${escAttr(zv.max)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
+            </div>
+          </div>`;
+      }
+      return `
+        <div>
+          <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:3px;">${z.key} · ${escAttr(z.label)}</div>
+          <div style="display:flex; gap:4px;">
+            <input type="text" inputmode="numeric" class="zt-lento" data-zone="${z.key}" placeholder="mais lento m:ss" value="${escAttr(zv.lento)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
+            <input type="text" inputmode="numeric" class="zt-rapido" data-zone="${z.key}" placeholder="mais rápido m:ss" value="${escAttr(zv.rapido)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
+          </div>
+        </div>`;
+    }
+
+    return `
+      <div id="zonasTreinoOverlay"
+           style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
+                  display:flex; align-items:center; justify-content:center; padding:12px; z-index:2000;">
+        <div style="background:#fff; width:min(900px,96vw); max-height:92vh; overflow:auto;
+                    border-radius:14px; border:1px solid #e5e5e5; padding:16px;">
+
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+            <div style="font-weight:900; font-size:16px;">Perfil de zonas de treino — Corrida</div>
+            <button id="btnZonasTreinoClose" class="gcBtnGhost">Fechar</button>
+          </div>
+
+          <div style="margin-top:12px; display:flex; gap:8px;">
+            <button id="btnZtTabHr" class="${tab === "heart_rate" ? "gcBtnPrimary" : "gcBtnGhost"}" style="font-weight:800;">Frequência cardíaca</button>
+            <button id="btnZtTabPace" class="${tab === "pace" ? "gcBtnPrimary" : "gcBtnGhost"}" style="font-weight:800;">Ritmo</button>
+          </div>
+
+          ${zonasTreinoLoading ? `<div style="margin-top:16px; color:#64748b;">A carregar…</div>` : `
+
+          <div style="margin-top:12px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#f8fafc;">
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+              <div>
+                <label>Método</label>
+                <select id="zt_method" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; background:#fff;">
+                  <option value="medido" ${draft.method === "medido" ? "selected" : ""}>Medido (teste)</option>
+                  ${tab === "heart_rate" ? `<option value="estimado" ${draft.method === "estimado" ? "selected" : ""}>Estimado (fórmula)</option>` : ""}
+                  <option value="manual" ${draft.method === "manual" ? "selected" : ""}>Manual</option>
+                </select>
+              </div>
+              ${tab === "heart_rate" && draft.method === "estimado" ? `
+              <div>
+                <label>Fórmula</label>
+                <select id="zt_formula" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; background:#fff;">
+                  <option value="tanaka" ${draft.formula === "tanaka" ? "selected" : ""}>Tanaka — 208 − 0,7×idade (ambos os sexos)</option>
+                  <option value="gulati" ${draft.formula === "gulati" ? "selected" : ""}>Gulati — 206 − 0,88×idade (mulheres assintomáticas)</option>
+                </select>
+              </div>` : ""}
+            </div>
+
+            ${tab === "heart_rate" ? `
+            <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+              <div>
+                <label>FC de repouso (bpm)</label>
+                <input type="number" min="0" id="zt_resting_hr" value="${escAttr(draft.resting_hr_bpm)}" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;">
+              </div>
+              <div>
+                <label>FC máxima utilizada (bpm)</label>
+                <input type="number" min="0" id="zt_max_hr" value="${escAttr(draft.max_hr_bpm)}" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;">
+              </div>
+            </div>` : ""}
+
+            <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+              <div>
+                <label>Teste utilizado</label>
+                <input type="text" id="zt_test_used" value="${escAttr(draft.test_used)}" placeholder="ex.: prova de esforço em tapete" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;">
+              </div>
+              <div>
+                <label>Data do teste</label>
+                <input type="date" id="zt_test_date" value="${escAttr(draft.test_date)}" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;">
+              </div>
+              <div>
+                <label>Reavaliação recomendada</label>
+                <input type="date" id="zt_reassessment" value="${escAttr(draft.reassessment_recommended_at)}" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;">
+              </div>
+            </div>
+
+            <div style="margin-top:12px;">
+              <label style="font-weight:700; font-size:12px; color:#374151;">
+                Z1–Z5 ${tab === "pace" ? "(ritmo min:seg/km — deixa em branco \"mais lento\" da Z1 ou \"mais rápido\" da Z5 se não houver limite)" : "(bpm — deixa em branco o mínimo da Z1 ou o máximo da Z5 se não houver limite)"}
+              </label>
+              <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:6px;">
+                ${CORRIDA_ZONAS.map(campoZona).join("")}
+              </div>
+            </div>
+
+          </div>
+
+          <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <div style="color:#dc2626; font-size:13px;">${escAttr(zonasTreinoErro)}</div>
+            <button id="btnZtSave" class="gcBtnSuccess" style="font-weight:900;" ${zonasTreinoSaving ? "disabled" : ""}>
+              ${zonasTreinoSaving ? "A gravar…" : "Gravar perfil"}
+            </button>
+          </div>
+          `}
+        </div>
+      </div>
+    `;
+  }
+
+  function bindZonasTreinoEvents() {
+    const closeBtn = document.getElementById("btnZonasTreinoClose");
+    if (closeBtn) closeBtn.onclick = () => closeZonasTreino();
+
+    if (!zonasTreinoOpen || zonasTreinoLoading || !zonasTreinoDraft) return;
+
+    const tabHr = document.getElementById("btnZtTabHr");
+    if (tabHr) tabHr.onclick = () => { zonasTreinoMetrica = "heart_rate"; zonasTreinoErro = ""; render(); bindZonasTreinoEvents(); };
+    const tabPace = document.getElementById("btnZtTabPace");
+    if (tabPace) tabPace.onclick = () => { zonasTreinoMetrica = "pace"; zonasTreinoErro = ""; render(); bindZonasTreinoEvents(); };
+
+    const draft = zonasTreinoDraft[zonasTreinoMetrica];
+
+    const methodEl = document.getElementById("zt_method");
+    if (methodEl) methodEl.onchange = (e) => { draft.method = e.target.value; render(); bindZonasTreinoEvents(); };
+
+    const formulaEl = document.getElementById("zt_formula");
+    if (formulaEl) formulaEl.onchange = (e) => { draft.formula = e.target.value; };
+
+    const restingEl = document.getElementById("zt_resting_hr");
+    if (restingEl) restingEl.oninput = (e) => { draft.resting_hr_bpm = e.target.value; };
+
+    const maxHrEl = document.getElementById("zt_max_hr");
+    if (maxHrEl) maxHrEl.oninput = (e) => { draft.max_hr_bpm = e.target.value; };
+
+    const testUsedEl = document.getElementById("zt_test_used");
+    if (testUsedEl) testUsedEl.oninput = (e) => { draft.test_used = e.target.value; };
+
+    const testDateEl = document.getElementById("zt_test_date");
+    if (testDateEl) testDateEl.oninput = (e) => { draft.test_date = e.target.value; };
+
+    const reassessEl = document.getElementById("zt_reassessment");
+    if (reassessEl) reassessEl.oninput = (e) => { draft.reassessment_recommended_at = e.target.value; };
+
+    document.querySelectorAll(".zt-min").forEach((el) => {
+      el.oninput = (e) => { draft.zonas[e.target.dataset.zone].min = e.target.value; };
+    });
+    document.querySelectorAll(".zt-max").forEach((el) => {
+      el.oninput = (e) => { draft.zonas[e.target.dataset.zone].max = e.target.value; };
+    });
+    document.querySelectorAll(".zt-lento").forEach((el) => {
+      el.oninput = (e) => { draft.zonas[e.target.dataset.zone].lento = e.target.value; };
+    });
+    document.querySelectorAll(".zt-rapido").forEach((el) => {
+      el.oninput = (e) => { draft.zonas[e.target.dataset.zone].rapido = e.target.value; };
+    });
+
+    const saveBtn = document.getElementById("btnZtSave");
+    if (saveBtn) saveBtn.onclick = () => salvarZonasTreino(zonasTreinoMetrica);
+  }
+/* ==== FIM BLOCO 06C.1/12 ==== */
 
 
 /* ==== INÍCIO BLOCO 06D/12 — Diagnósticos ==== */
@@ -4384,6 +4778,10 @@ function openPatientViewModal(patient) {
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><polyline points="2,12 5,8 8,10 11,5 14,7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
               Evolução
             </button>
+            <button class="gc-pv-tab" id="btnZonasTreino">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M2 8h2.5l1.5-4 2.5 8 1.5-6 1.5 4H14" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Zonas de treino
+            </button>
           </div>
           ` : ''}
 
@@ -4399,6 +4797,7 @@ function openPatientViewModal(patient) {
 
       ${identOpen ? renderIdentityModal() : ""}
       ${docOpen ? renderDocumentEditorModal() : ""}
+      ${zonasTreinoOpen ? renderZonasTreinoModal() : ""}
     `;
 
     document.getElementById("btnOpenFeed")?.addEventListener("click", (e) => {
@@ -4414,6 +4813,7 @@ function openPatientViewModal(patient) {
     document.getElementById("btnViewIdent")?.addEventListener("click", () => openPatientIdentity("view"));
     document.getElementById("btnEditIdent")?.addEventListener("click", () => openPatientIdentity("edit"));
     document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
+    document.getElementById("btnZonasTreino")?.addEventListener("click", () => openZonasTreino());
 
     const TYPE_LABELS_GUARD = {
       rgpd: "RGPD", prp: "PRP", ah: "Ác. Hialurónico", corticoide: "Corticosteroide",
@@ -4816,6 +5216,7 @@ function openPatientViewModal(patient) {
     if (creatingConsult) bindConsultEvents();
     if (identOpen) bindIdentityEvents();
     if (docOpen) bindDocEvents();
+    if (zonasTreinoOpen) bindZonasTreinoEvents();
   }
 
   (async function boot() {
