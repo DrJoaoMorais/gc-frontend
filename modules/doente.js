@@ -832,7 +832,6 @@ function openPatientViewModal(patient) {
                 <label>Fórmula (usada quando não há valores manuais)</label>
                 <select id="hr_formula" ${dis} style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; background:#fff;">
                   <option value="tanaka" ${identDraft.hr_zone_formula === "tanaka" ? "selected" : ""}>Tanaka — 208 − 0,7×idade</option>
-                  <option value="fox" ${identDraft.hr_zone_formula === "fox" ? "selected" : ""}>Fox — 220 − idade</option>
                 </select>
               </div>
               <div style="font-size:12px; color:#374151;">
