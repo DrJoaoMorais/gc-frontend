@@ -1041,12 +1041,16 @@ function openPatientViewModal(patient) {
 /* ==== FIM BLOCO 06C/12 ==== */
 
 
-/* ==== INÍCIO BLOCO 06C.1/12 — Perfil de zonas de treino (corrida, Fase 1) ====
-   spec-zonas-treino.md, Fase 1 — perfis por modalidade+métrica em wo_zone_profiles/
-   wo_zone_ranges, activados via RPC activate_wo_zone_profile. Não mexe nos campos
-   antigos hr_zone_formula/hr_zones_bpm do bloco anterior — ficam como estão. */
+/* ==== INÍCIO BLOCO 06C.1/12 — Perfil de zonas de treino (corrida + ciclismo, Fases 1-2) ====
+   spec-zonas-treino.md — perfis por modalidade+métrica em wo_zone_profiles/wo_zone_ranges,
+   activados via RPC activate_wo_zone_profile. Não mexe nos campos antigos
+   hr_zone_formula/hr_zones_bpm do bloco anterior — ficam como estão.
+   Catálogo de zonas depende só da MÉTRICA (não da modalidade): FC e ritmo partilham o
+   modelo tradicional de 5 zonas; potência usa sempre o modelo de Coggan de 7 zonas —
+   uma bicicleta e uma corrida têm a mesma fisiologia de FC, por isso não duplicamos o
+   catálogo de 5 zonas por modalidade. */
 
-  const CORRIDA_ZONAS = [
+  const ZONAS_5 = [
     { key: "Z1", order: 1, label: "Recuperação" },
     { key: "Z2", order: 2, label: "Endurance / Corrida leve" },
     { key: "Z3", order: 3, label: "Tempo / Limiar aeróbico" },
@@ -1054,65 +1058,96 @@ function openPatientViewModal(patient) {
     { key: "Z5", order: 5, label: "VO₂ Max / Cap. anaeróbica" },
   ];
 
+  const ZONAS_POTENCIA = [
+    { key: "Z1", order: 1, label: "Recuperação activa (<55% FTP)" },
+    { key: "Z2", order: 2, label: "Resistência aeróbica / Endurance (55–75% FTP)" },
+    { key: "Z3", order: 3, label: "Tempo (76–90% FTP)" },
+    { key: "Z4", order: 4, label: "Limiar de lactato / FTP (91–105% FTP)" },
+    { key: "Z5", order: 5, label: "Capacidade aeróbica / VO₂ Max (106–120% FTP)" },
+    { key: "Z6", order: 6, label: "Capacidade anaeróbica (121–150% FTP)" },
+    { key: "Z7", order: 7, label: "Potência neuromuscular / Sprint (>150% FTP)" },
+  ];
+
+  function catalogoZonas(metric) {
+    return metric === "power" ? ZONAS_POTENCIA : ZONAS_5;
+  }
+
+  // Que abas de métrica aparecem por modalidade — Velocidade NÃO entra aqui: não tem
+  // zonas próprias no spec (só a tabela de Coggan tem fronteiras), fica ao nível de
+  // Cadência/RPE, campo por bloco em prescricao.js.
+  const ABAS_POR_MODALIDADE = {
+    corrida: [
+      { metric: "heart_rate", label: "Frequência cardíaca" },
+      { metric: "pace", label: "Ritmo" },
+    ],
+    ciclismo: [
+      { metric: "heart_rate", label: "Frequência cardíaca" },
+      { metric: "power", label: "Potência" },
+    ],
+  };
+
   let zonasTreinoOpen = false;
   let zonasTreinoLoading = false;
   let zonasTreinoSaving = false;
   let zonasTreinoErro = "";
-  let zonasTreinoMetrica = "heart_rate"; // aba activa: 'heart_rate' | 'pace'
-  let zonasTreinoAtivos = { heart_rate: null, pace: null };
+  let zonasTreinoModalidade = "corrida"; // 'corrida' | 'ciclismo'
+  let zonasTreinoMetrica = "heart_rate"; // aba activa: 'heart_rate' | 'pace' | 'power'
+  let zonasTreinoAtivos = { heart_rate: null, pace: null, power: null };
   let zonasTreinoDraft = null;
 
-  function novoZonasTreinoDraft() {
+  function novoZonaDraft(metric) {
+    const zonas = Object.fromEntries(catalogoZonas(metric).map((z) => [
+      z.key,
+      metric === "pace" ? { lento: "", rapido: "" } : { min: "", max: "" },
+    ]));
     return {
-      heart_rate: {
-        method: "estimado", formula: "tanaka",
-        resting_hr_bpm: "", max_hr_bpm: "",
-        test_used: "", test_date: "", reassessment_recommended_at: "",
-        zonas: Object.fromEntries(CORRIDA_ZONAS.map((z) => [z.key, { min: "", max: "" }])),
-      },
-      pace: {
-        method: "manual", formula: "",
-        test_used: "", test_date: "", reassessment_recommended_at: "",
-        zonas: Object.fromEntries(CORRIDA_ZONAS.map((z) => [z.key, { lento: "", rapido: "" }])),
-      },
+      method: metric === "heart_rate" ? "estimado" : (metric === "power" ? "medido" : "manual"),
+      formula: metric === "heart_rate" ? "tanaka" : "",
+      resting_hr_bpm: "", max_hr_bpm: "", ftp_w: "",
+      test_used: "", test_date: "", reassessment_recommended_at: "",
+      zonas,
     };
   }
 
-  async function fetchZonasTreinoAtivos(patientId) {
+  function novoZonasTreinoDraft() {
+    return { heart_rate: novoZonaDraft("heart_rate"), pace: novoZonaDraft("pace"), power: novoZonaDraft("power") };
+  }
+
+  async function fetchZonasTreinoAtivos(patientId, modalidade) {
     const { data, error } = await window.sb
       .from("wo_zone_profiles")
       .select("*, wo_zone_ranges(*)")
       .eq("patient_id", patientId)
-      .eq("modality", "corrida")
+      .eq("modality", modalidade)
       .eq("is_active", true);
     if (error) {
       console.error("[doente] falha a carregar wo_zone_profiles:", error);
-      return { heart_rate: null, pace: null };
+      return { heart_rate: null, pace: null, power: null };
     }
-    const out = { heart_rate: null, pace: null };
+    const out = { heart_rate: null, pace: null, power: null };
     (data || []).forEach((row) => { out[row.metric] = row; });
     return out;
   }
 
   function draftFromPerfilAtivo(perfil, metric) {
-    const base = novoZonasTreinoDraft()[metric];
+    const base = novoZonaDraft(metric);
     if (!perfil) return base;
     const ranges = {};
     (perfil.wo_zone_ranges || []).forEach((r) => { ranges[r.zone_key] = r; });
     const zonas = {};
-    CORRIDA_ZONAS.forEach((z) => {
+    catalogoZonas(metric).forEach((z) => {
       const r = ranges[z.key];
-      if (metric === "heart_rate") {
-        zonas[z.key] = {
-          min: r && r.lower_value != null ? String(r.lower_value) : "",
-          max: r && r.upper_value != null ? String(r.upper_value) : "",
-        };
-      } else {
-        // pace: lower_value = mais rápido (nº menor), upper_value = mais lento (nº maior) —
+      if (metric === "pace") {
+        // lower_value = mais rápido (nº menor), upper_value = mais lento (nº maior) —
         // nunca mostramos "lower/upper" ao médico, só "mais lento"/"mais rápido" (secção 3).
         zonas[z.key] = {
           rapido: r && r.lower_value != null ? fmtPaceEditavel(r.lower_value) : "",
           lento: r && r.upper_value != null ? fmtPaceEditavel(r.upper_value) : "",
+        };
+      } else {
+        zonas[z.key] = {
+          min: r && r.lower_value != null ? String(r.lower_value) : "",
+          max: r && r.upper_value != null ? String(r.upper_value) : "",
         };
       }
     });
@@ -1121,6 +1156,7 @@ function openPatientViewModal(patient) {
       formula: perfil.formula || (metric === "heart_rate" ? "tanaka" : ""),
       resting_hr_bpm: perfil.resting_hr_bpm != null ? String(perfil.resting_hr_bpm) : "",
       max_hr_bpm: perfil.max_hr_bpm != null ? String(perfil.max_hr_bpm) : "",
+      ftp_w: perfil.ftp_w != null ? String(perfil.ftp_w) : "",
       test_used: perfil.test_used || "",
       test_date: perfil.test_date || "",
       reassessment_recommended_at: perfil.reassessment_recommended_at || "",
@@ -1128,23 +1164,37 @@ function openPatientViewModal(patient) {
     };
   }
 
-  async function openZonasTreino() {
-    zonasTreinoOpen = true;
+  async function carregarAtivosDaModalidade() {
     zonasTreinoLoading = true;
-    zonasTreinoErro = "";
-    zonasTreinoMetrica = "heart_rate";
-    zonasTreinoDraft = novoZonasTreinoDraft();
     render();
     bindZonasTreinoEvents();
 
-    zonasTreinoAtivos = await fetchZonasTreinoAtivos(p.id);
+    zonasTreinoAtivos = await fetchZonasTreinoAtivos(p.id, zonasTreinoModalidade);
     zonasTreinoDraft = {
       heart_rate: draftFromPerfilAtivo(zonasTreinoAtivos.heart_rate, "heart_rate"),
       pace: draftFromPerfilAtivo(zonasTreinoAtivos.pace, "pace"),
+      power: draftFromPerfilAtivo(zonasTreinoAtivos.power, "power"),
     };
     zonasTreinoLoading = false;
     render();
     bindZonasTreinoEvents();
+  }
+
+  async function openZonasTreino() {
+    zonasTreinoOpen = true;
+    zonasTreinoErro = "";
+    zonasTreinoModalidade = "corrida";
+    zonasTreinoMetrica = "heart_rate";
+    zonasTreinoDraft = novoZonasTreinoDraft();
+    await carregarAtivosDaModalidade();
+  }
+
+  function trocarModalidadeZonasTreino(modalidade) {
+    if (modalidade === zonasTreinoModalidade) return;
+    zonasTreinoModalidade = modalidade;
+    zonasTreinoMetrica = ABAS_POR_MODALIDADE[modalidade][0].metric;
+    zonasTreinoErro = "";
+    carregarAtivosDaModalidade();
   }
 
   function closeZonasTreino() {
@@ -1154,38 +1204,46 @@ function openPatientViewModal(patient) {
     render();
   }
 
-  // Continuidade (spec-zonas-treino.md Fase 1): zonas ordenadas por intensidade crescente
-  // (Z1→Z5); a fronteira "mais intensa" de uma zona tem de ser igual à fronteira "menos
-  // intensa" da seguinte — sem lacuna, sem sobreposição. Para FC, número maior = mais
-  // intenso; para ritmo é o inverso (número menor = mais rápido = mais intenso) — por isso
-  // comparamos sempre pelo lado semântico ("mais intenso"), nunca por min/max cru.
-  function validarContinuidadeZonas(pares, higherIsMoreIntense) {
+  // Continuidade (spec-zonas-treino.md): zonas ordenadas por intensidade crescente (Z1→
+  // última); a fronteira "mais intensa" de uma zona tem de ser igual à fronteira "menos
+  // intensa" da seguinte — sem lacuna, sem sobreposição. Para FC e potência, número maior
+  // = mais intenso; para ritmo é o inverso (número menor = mais rápido = mais intenso) —
+  // por isso comparamos sempre pelo lado semântico ("mais intenso"), nunca por min/max cru.
+  // Genérico ao catálogo (5 zonas ou 7 de Coggan) — não assume nenhum comprimento fixo.
+  function validarContinuidadeZonas(pares, higherIsMoreIntense, zonaCatalogo) {
     for (let i = 0; i < pares.length; i++) {
       const { lower, upper } = pares[i];
       if (lower != null && upper != null && !(lower < upper)) {
-        return `${CORRIDA_ZONAS[i].key}: o limite inferior tem de ser menor que o superior.`;
+        return `${zonaCatalogo[i].key}: o limite inferior tem de ser menor que o superior.`;
       }
       const ladoMenosIntenso = higherIsMoreIntense ? lower : upper;
       const ladoMaisIntenso = higherIsMoreIntense ? upper : lower;
       if (ladoMenosIntenso == null && i !== 0) {
-        return `${CORRIDA_ZONAS[i].key}: falta o limite do lado menos intenso.`;
+        return `${zonaCatalogo[i].key}: falta o limite do lado menos intenso.`;
       }
       if (ladoMaisIntenso == null && i !== pares.length - 1) {
-        return `${CORRIDA_ZONAS[i].key}: falta o limite do lado mais intenso.`;
+        return `${zonaCatalogo[i].key}: falta o limite do lado mais intenso.`;
       }
       if (i > 0) {
         const anterior = pares[i - 1];
         const anteriorMaisIntenso = higherIsMoreIntense ? anterior.upper : anterior.lower;
         if (anteriorMaisIntenso == null || ladoMenosIntenso == null || anteriorMaisIntenso !== ladoMenosIntenso) {
-          return `${CORRIDA_ZONAS[i - 1].key}/${CORRIDA_ZONAS[i].key}: a fronteira tem de coincidir (sem lacuna nem sobreposição).`;
+          return `${zonaCatalogo[i - 1].key}/${zonaCatalogo[i].key}: a fronteira tem de coincidir (sem lacuna nem sobreposição).`;
         }
       }
     }
     return null;
   }
 
+  function unidadeDaMetrica(metric) {
+    if (metric === "pace") return "sec_per_km";
+    if (metric === "power") return "watt";
+    return "bpm";
+  }
+
   async function salvarZonasTreino(metric) {
     const draft = zonasTreinoDraft[metric];
+    const zonaCatalogo = catalogoZonas(metric);
     if (!draft.method) { zonasTreinoErro = "Escolhe o método."; render(); bindZonasTreinoEvents(); return; }
     if (metric === "heart_rate" && draft.method === "estimado" && !draft.formula) {
       zonasTreinoErro = "Escolhe a fórmula (Tanaka ou Gulati).";
@@ -1193,22 +1251,22 @@ function openPatientViewModal(patient) {
       return;
     }
 
-    const pares = CORRIDA_ZONAS.map((z) => {
+    const pares = zonaCatalogo.map((z) => {
       const zv = draft.zonas[z.key];
-      if (metric === "heart_rate") {
+      if (metric === "pace") {
         return {
-          lower: zv.min === "" ? null : Number(zv.min),
-          upper: zv.max === "" ? null : Number(zv.max),
+          lower: parsePaceParaSegundos(zv.rapido), // mais rápido = nº menor
+          upper: parsePaceParaSegundos(zv.lento),  // mais lento = nº maior
         };
       }
       return {
-        lower: parsePaceParaSegundos(zv.rapido), // mais rápido = nº menor
-        upper: parsePaceParaSegundos(zv.lento),  // mais lento = nº maior
+        lower: zv.min === "" ? null : Number(zv.min),
+        upper: zv.max === "" ? null : Number(zv.max),
       };
     });
 
-    const higherIsMoreIntense = metric !== "pace";
-    const erro = validarContinuidadeZonas(pares, higherIsMoreIntense);
+    const higherIsMoreIntense = metric !== "pace"; // FC e potência: número maior = mais intenso
+    const erro = validarContinuidadeZonas(pares, higherIsMoreIntense, zonaCatalogo);
     if (erro) { zonasTreinoErro = erro; render(); bindZonasTreinoEvents(); return; }
 
     zonasTreinoSaving = true;
@@ -1216,7 +1274,7 @@ function openPatientViewModal(patient) {
     render();
     bindZonasTreinoEvents();
 
-    const ranges = CORRIDA_ZONAS.map((z, i) => ({
+    const ranges = zonaCatalogo.map((z, i) => ({
       zone_key: z.key,
       zone_order: z.order,
       zone_label: z.label,
@@ -1228,7 +1286,7 @@ function openPatientViewModal(patient) {
       const { error } = await window.sb.rpc("activate_wo_zone_profile", {
         p_patient_id: p.id,
         p_clinic_id: activeClinicId || null,
-        p_modality: "corrida",
+        p_modality: zonasTreinoModalidade,
         p_metric: metric,
         p_method: draft.method,
         p_formula: metric === "heart_rate" && draft.method === "estimado" ? draft.formula : null,
@@ -1237,8 +1295,9 @@ function openPatientViewModal(patient) {
         p_test_used: draft.test_used ? draft.test_used.trim() : null,
         p_test_date: draft.test_date || null,
         p_reassessment_recommended_at: draft.reassessment_recommended_at || null,
-        p_unit: metric === "heart_rate" ? "bpm" : "sec_per_km",
+        p_unit: unidadeDaMetrica(metric),
         p_ranges: ranges,
+        p_ftp_w: metric === "power" && draft.ftp_w !== "" ? Number(draft.ftp_w) : null,
       });
 
       if (error) {
@@ -1249,11 +1308,7 @@ function openPatientViewModal(patient) {
         return;
       }
 
-      zonasTreinoAtivos = await fetchZonasTreinoAtivos(p.id);
-      zonasTreinoDraft = {
-        heart_rate: draftFromPerfilAtivo(zonasTreinoAtivos.heart_rate, "heart_rate"),
-        pace: draftFromPerfilAtivo(zonasTreinoAtivos.pace, "pace"),
-      };
+      await carregarAtivosDaModalidade();
       zonasTreinoSaving = false;
       render(); bindZonasTreinoEvents();
     } catch (e) {
@@ -1265,19 +1320,23 @@ function openPatientViewModal(patient) {
   }
 
   function renderZonasTreinoModal() {
+    const modalidade = zonasTreinoModalidade;
+    const abas = ABAS_POR_MODALIDADE[modalidade];
     const d = zonasTreinoDraft || novoZonasTreinoDraft();
     const tab = zonasTreinoMetrica;
     const draft = d[tab];
+    const zonaCatalogo = catalogoZonas(tab);
+    const primeiraZona = zonaCatalogo[0].key, ultimaZona = zonaCatalogo[zonaCatalogo.length - 1].key;
 
     function campoZona(z) {
       const zv = draft.zonas[z.key];
-      if (tab === "heart_rate") {
+      if (tab === "pace") {
         return `
           <div>
             <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:3px;">${z.key} · ${escAttr(z.label)}</div>
             <div style="display:flex; gap:4px;">
-              <input type="number" min="0" class="zt-min" data-zone="${z.key}" placeholder="mín" value="${escAttr(zv.min)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
-              <input type="number" min="0" class="zt-max" data-zone="${z.key}" placeholder="máx" value="${escAttr(zv.max)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
+              <input type="text" inputmode="numeric" class="zt-lento" data-zone="${z.key}" placeholder="mais lento m:ss" value="${escAttr(zv.lento)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
+              <input type="text" inputmode="numeric" class="zt-rapido" data-zone="${z.key}" placeholder="mais rápido m:ss" value="${escAttr(zv.rapido)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
             </div>
           </div>`;
       }
@@ -1285,11 +1344,13 @@ function openPatientViewModal(patient) {
         <div>
           <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:3px;">${z.key} · ${escAttr(z.label)}</div>
           <div style="display:flex; gap:4px;">
-            <input type="text" inputmode="numeric" class="zt-lento" data-zone="${z.key}" placeholder="mais lento m:ss" value="${escAttr(zv.lento)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
-            <input type="text" inputmode="numeric" class="zt-rapido" data-zone="${z.key}" placeholder="mais rápido m:ss" value="${escAttr(zv.rapido)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
+            <input type="number" min="0" class="zt-min" data-zone="${z.key}" placeholder="mín" value="${escAttr(zv.min)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
+            <input type="number" min="0" class="zt-max" data-zone="${z.key}" placeholder="máx" value="${escAttr(zv.max)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
           </div>
         </div>`;
     }
+
+    const unidadeTexto = tab === "pace" ? "ritmo min:seg/km" : (tab === "power" ? "W" : "bpm");
 
     return `
       <div id="zonasTreinoOverlay"
@@ -1299,13 +1360,17 @@ function openPatientViewModal(patient) {
                     border-radius:14px; border:1px solid #e5e5e5; padding:16px;">
 
           <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-            <div style="font-weight:900; font-size:16px;">Perfil de zonas de treino — Corrida</div>
+            <div style="font-weight:900; font-size:16px;">Perfil de zonas de treino</div>
             <button id="btnZonasTreinoClose" class="gcBtnGhost">Fechar</button>
           </div>
 
           <div style="margin-top:12px; display:flex; gap:8px;">
-            <button id="btnZtTabHr" class="${tab === "heart_rate" ? "gcBtnPrimary" : "gcBtnGhost"}" style="font-weight:800;">Frequência cardíaca</button>
-            <button id="btnZtTabPace" class="${tab === "pace" ? "gcBtnPrimary" : "gcBtnGhost"}" style="font-weight:800;">Ritmo</button>
+            <button data-modalidade="corrida" class="zt-modalidade ${modalidade === "corrida" ? "gcBtnPrimary" : "gcBtnGhost"}" style="font-weight:800;">Corrida</button>
+            <button data-modalidade="ciclismo" class="zt-modalidade ${modalidade === "ciclismo" ? "gcBtnPrimary" : "gcBtnGhost"}" style="font-weight:800;">Ciclismo</button>
+          </div>
+
+          <div style="margin-top:8px; display:flex; gap:8px;">
+            ${abas.map((a) => `<button data-metric="${a.metric}" class="zt-tab ${tab === a.metric ? "gcBtnPrimary" : "gcBtnGhost"}" style="font-weight:800;">${escAttr(a.label)}</button>`).join("")}
           </div>
 
           ${zonasTreinoLoading ? `<div style="margin-top:16px; color:#64748b;">A carregar…</div>` : `
@@ -1329,6 +1394,11 @@ function openPatientViewModal(patient) {
                   <option value="gulati" ${draft.formula === "gulati" ? "selected" : ""}>Gulati — 206 − 0,88×idade (mulheres assintomáticas)</option>
                 </select>
               </div>` : ""}
+              ${tab === "power" ? `
+              <div>
+                <label>FTP de referência (W)</label>
+                <input type="number" min="0" id="zt_ftp_w" value="${escAttr(draft.ftp_w)}" placeholder="ex.: 250" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;">
+              </div>` : ""}
             </div>
 
             ${tab === "heart_rate" ? `
@@ -1346,7 +1416,7 @@ function openPatientViewModal(patient) {
             <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
               <div>
                 <label>Teste utilizado</label>
-                <input type="text" id="zt_test_used" value="${escAttr(draft.test_used)}" placeholder="ex.: prova de esforço em tapete" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;">
+                <input type="text" id="zt_test_used" value="${escAttr(draft.test_used)}" placeholder="${tab === "power" ? "ex.: FTP 20min ou cicloergómetro" : (modalidade === "ciclismo" ? "ex.: prova de esforço em cicloergómetro" : "ex.: prova de esforço em tapete")}" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;">
               </div>
               <div>
                 <label>Data do teste</label>
@@ -1360,10 +1430,10 @@ function openPatientViewModal(patient) {
 
             <div style="margin-top:12px;">
               <label style="font-weight:700; font-size:12px; color:#374151;">
-                Z1–Z5 ${tab === "pace" ? "(ritmo min:seg/km — deixa em branco \"mais lento\" da Z1 ou \"mais rápido\" da Z5 se não houver limite)" : "(bpm — deixa em branco o mínimo da Z1 ou o máximo da Z5 se não houver limite)"}
+                ${escAttr(primeiraZona)}–${escAttr(ultimaZona)} (${unidadeTexto} — deixa em branco ${tab === "pace" ? `"mais lento" da ${escAttr(primeiraZona)} ou "mais rápido" da ${escAttr(ultimaZona)}` : `o mínimo da ${escAttr(primeiraZona)} ou o máximo da ${escAttr(ultimaZona)}`} se não houver limite)
               </label>
-              <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:6px;">
-                ${CORRIDA_ZONAS.map(campoZona).join("")}
+              <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:8px; margin-top:6px;">
+                ${zonaCatalogo.map(campoZona).join("")}
               </div>
             </div>
 
@@ -1385,12 +1455,17 @@ function openPatientViewModal(patient) {
     const closeBtn = document.getElementById("btnZonasTreinoClose");
     if (closeBtn) closeBtn.onclick = () => closeZonasTreino();
 
-    if (!zonasTreinoOpen || zonasTreinoLoading || !zonasTreinoDraft) return;
+    if (!zonasTreinoOpen) return;
 
-    const tabHr = document.getElementById("btnZtTabHr");
-    if (tabHr) tabHr.onclick = () => { zonasTreinoMetrica = "heart_rate"; zonasTreinoErro = ""; render(); bindZonasTreinoEvents(); };
-    const tabPace = document.getElementById("btnZtTabPace");
-    if (tabPace) tabPace.onclick = () => { zonasTreinoMetrica = "pace"; zonasTreinoErro = ""; render(); bindZonasTreinoEvents(); };
+    document.querySelectorAll(".zt-modalidade").forEach((el) => {
+      el.onclick = () => trocarModalidadeZonasTreino(el.dataset.modalidade);
+    });
+
+    if (zonasTreinoLoading || !zonasTreinoDraft) return;
+
+    document.querySelectorAll(".zt-tab").forEach((el) => {
+      el.onclick = () => { zonasTreinoMetrica = el.dataset.metric; zonasTreinoErro = ""; render(); bindZonasTreinoEvents(); };
+    });
 
     const draft = zonasTreinoDraft[zonasTreinoMetrica];
 
@@ -1399,6 +1474,9 @@ function openPatientViewModal(patient) {
 
     const formulaEl = document.getElementById("zt_formula");
     if (formulaEl) formulaEl.onchange = (e) => { draft.formula = e.target.value; };
+
+    const ftpEl = document.getElementById("zt_ftp_w");
+    if (ftpEl) ftpEl.oninput = (e) => { draft.ftp_w = e.target.value; };
 
     const restingEl = document.getElementById("zt_resting_hr");
     if (restingEl) restingEl.oninput = (e) => { draft.resting_hr_bpm = e.target.value; };

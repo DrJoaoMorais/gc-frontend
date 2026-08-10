@@ -301,26 +301,39 @@ function modalidadeCanonica(modality) {
   return tipoKey({ modality });
 }
 
-// Prioridade (Fase 1, spec-zonas-treino.md): perfil activo em wo_zone_profiles/
-// wo_zone_ranges (carregado uma vez por doente em carregarZonaPerfilCorrida(), síncrono
-// aqui porque o render monta HTML em string) > hr_zones_bpm manual do doente (prova de
-// esforço antiga) > fórmula (Tanaka) + idade. Só corrida tem perfil na Fase 1 — outras
-// modalidades caem sempre no comportamento antigo, sem aviso (é o esperado, não uma
-// falha: ainda não têm perfil para cair).
+// Modalidades que já têm perfis em wo_zone_profiles (Fases 1-2 do spec-zonas-treino.md).
+// Ciclismo entra na Fase 2 — natação (Fase 3) continua sem perfil, cai sempre no
+// comportamento antigo/genérico, como sempre foi.
+const MODALIDADES_COM_PERFIL = ['corrida', 'ciclismo'];
+
+// Prioridade: perfil activo em wo_zone_profiles/wo_zone_ranges (carregado uma vez por
+// doente em carregarZonaPerfis(), síncrono aqui porque o render monta HTML em string) >
+// hr_zones_bpm manual do doente (prova de esforço antiga, só fazia sentido para corrida)
+// > fórmula (Tanaka) + idade. Modalidades sem perfil (natação) caem sempre no
+// comportamento antigo, sem aviso (é o esperado, não uma falha: ainda não têm perfil
+// para cair).
 function bpmRangeParaZona(zona, modality) {
   const p = _state.patient;
   if (!p || !zona) return '';
   const idx = Number(String(zona).replace('Z', ''));
   if (!(idx >= 1 && idx <= 5)) return '';
   const key = 'z' + idx;
+  const modalidade = modalidadeCanonica(modality);
 
-  if (modalidadeCanonica(modality) === 'corrida') {
-    const perfil = _state.zonaPerfilCorrida && _state.zonaPerfilCorrida.heart_rate;
+  if (MODALIDADES_COM_PERFIL.includes(modalidade)) {
+    const perfil = _state.zonaPerfis && _state.zonaPerfis[modalidade] && _state.zonaPerfis[modalidade].heart_rate;
     if (perfil) {
       const r = (perfil.wo_zone_ranges || []).find(r => r.zone_key === zona);
       return r ? `${r.lower_value ?? '?'}–${r.upper_value ?? '?'} bpm` : '';
     }
-    console.warn('[prescricao] fallback a hr_zone_formula/hr_zones_bpm — sem perfil activo em wo_zone_profiles para corrida', { patientId: p.id });
+    // Só corrida tinha hr_zones_bpm/hr_zone_formula antes da Fase 1 — para ciclismo não
+    // há fallback antigo com sentido nenhum (nunca existiu perfil de FC de ciclismo em
+    // patients.*), por isso só avisamos quando é mesmo corrida a cair no antigo.
+    if (modalidade === 'corrida') {
+      console.warn('[prescricao] fallback a hr_zone_formula/hr_zones_bpm — sem perfil activo em wo_zone_profiles para corrida', { patientId: p.id });
+    } else {
+      return '';
+    }
   }
 
   const manual = p.hr_zones_bpm && p.hr_zones_bpm[key];
@@ -333,6 +346,18 @@ function bpmRangeParaZona(zona, modality) {
   const min = Math.round(fcmax * pct[idx - 1]);
   const max = Math.round(fcmax * pct[idx]);
   return `${min}–${max} bpm`;
+}
+
+// Fase 2 (ciclismo) — zonas de Coggan são Z1-Z7, nunca 5, por isso não reaproveita o
+// early-return de bpmRangeParaZona (que só existe para o modelo antigo Z1-Z5). Só
+// ciclismo tem perfil de potência; sem perfil activo devolve '' sem aviso (natação/
+// outras modalidades nunca tiveram potência prescrita, não é uma regressão).
+function potenciaRangeParaZona(zona, modality) {
+  if (!zona || modalidadeCanonica(modality) !== 'ciclismo') return '';
+  const perfil = _state.zonaPerfis && _state.zonaPerfis.ciclismo && _state.zonaPerfis.ciclismo.power;
+  if (!perfil) return '';
+  const r = (perfil.wo_zone_ranges || []).find(r => r.zone_key === zona);
+  return r ? `${r.lower_value ?? '?'}–${r.upper_value ?? '?'} W` : '';
 }
 
 function restricoesAtuais() {
@@ -448,27 +473,35 @@ function cloneSession(s) {
   return structuredClone(s);
 }
 
-// Fase 1 (corrida) do spec-zonas-treino.md — perfil(is) activo(s) em wo_zone_profiles/
-// wo_zone_ranges para o doente escolhido. Carregado uma vez aqui (não a cada render) porque
-// bpmRangeParaZona() é chamada a meio de uma construção de HTML em string — não pode ser
-// assíncrona. Guardado em _state.zonaPerfilCorrida = { heart_rate, pace }, cada um null ou
-// a linha de wo_zone_profiles com wo_zone_ranges embutido.
-async function carregarZonaPerfilCorrida() {
-  _state.zonaPerfilCorrida = { heart_rate: null, pace: null };
+// Fases 1-2 (corrida + ciclismo) do spec-zonas-treino.md — todos os perfis activos em
+// wo_zone_profiles/wo_zone_ranges para o doente escolhido, de qualquer modalidade (um
+// plano pode ter sessões de corrida e de ciclismo em simultâneo). Carregado uma vez aqui
+// (não a cada render) porque bpmRangeParaZona()/potenciaRangeParaZona() são chamadas a
+// meio de uma construção de HTML em string — não podem ser assíncronas. Guardado em
+// _state.zonaPerfis = { corrida: {heart_rate, pace}, ciclismo: {heart_rate, power} },
+// cada entrada null ou a linha de wo_zone_profiles com wo_zone_ranges embutido.
+function zonaPerfisVazio() {
+  return { corrida: { heart_rate: null, pace: null }, ciclismo: { heart_rate: null, power: null } };
+}
+
+async function carregarZonaPerfis() {
+  _state.zonaPerfis = zonaPerfisVazio();
   if (!_state.patient) return;
 
   const { data, error } = await window.sb
     .from('wo_zone_profiles')
     .select('*, wo_zone_ranges(*)')
     .eq('patient_id', _state.patient.id)
-    .eq('modality', 'corrida')
     .eq('is_active', true);
 
   if (error) {
     console.error('[prescricao] falha a carregar wo_zone_profiles:', error);
     return;
   }
-  (data || []).forEach(row => { _state.zonaPerfilCorrida[row.metric] = row; });
+  (data || []).forEach(row => {
+    if (!_state.zonaPerfis[row.modality]) _state.zonaPerfis[row.modality] = {};
+    _state.zonaPerfis[row.modality][row.metric] = row;
+  });
 }
 
 // Ao escolher um doente (landing ou pesquisa), verifica se já tem um plano activo e, se
@@ -827,7 +860,7 @@ function renderLandingTableHost() {
       _panelDraft = null; _panelIsNovo = false; _pendingSlot = null; // doente novo — nunca herdar edição do doente anterior
       _loadingPlanoActivo = true;
       renderStep2();
-      Promise.all([carregarPlanoActivoSeExistir(), carregarZonaPerfilCorrida()]).finally(() => {
+      Promise.all([carregarPlanoActivoSeExistir(), carregarZonaPerfis()]).finally(() => {
         _loadingPlanoActivo = false;
         renderStep2Body();
       });
@@ -999,7 +1032,7 @@ function renderStep1() {
         _panelDraft = null; _panelIsNovo = false; _pendingSlot = null; // doente novo — nunca herdar edição do doente anterior
         _loadingPlanoActivo = true;
         renderStep2();
-        Promise.all([carregarPlanoActivoSeExistir(), carregarZonaPerfilCorrida()]).finally(() => {
+        Promise.all([carregarPlanoActivoSeExistir(), carregarZonaPerfis()]).finally(() => {
           _loadingPlanoActivo = false;
           renderStep2Body();
         });
@@ -1129,7 +1162,7 @@ function renderStep2() {
   document.getElementById('gcwoTrocarDoente').addEventListener('click', () => {
     closeHistoryModal();
     _state.patient = null;
-    _state.zonaPerfilCorrida = { heart_rate: null, pace: null };
+    _state.zonaPerfis = zonaPerfisVazio();
     _state.restricoesPredefinidas = [];
     _state.restricoesTexto = '';
     _state.restricoesEditing = false;
@@ -2207,7 +2240,7 @@ function wirePanelCaminhada(s) {
 
 /* ── Painel — Corrida/Ciclismo/Natação (secção 3/5 do briefing: blocos contínuo/séries/fecho) ── */
 function novaIntensidade() {
-  return { zone: null, pace_sec_per_km: null, pace_sec_per_100m: null, heart_rate_bpm: null, power_w: null, cadence_rpm: null, rpe: null };
+  return { zone: null, pace_sec_per_km: null, pace_sec_per_100m: null, speed_kmh: null, heart_rate_bpm: null, power_w: null, cadence_rpm: null, rpe: null };
 }
 function novoBlocoContinuo() {
   return { block_id: uuid(), type: 'continuous', duration_sec: null, intensity: novaIntensidade() };
@@ -2257,6 +2290,11 @@ function refreshZonaResumo(s) {
 
 function renderIntensidadeCampos(intensity, mostrarZona, modality) {
   const isNatacao = modality === 'Natação';
+  // Ciclismo (Fase 2, spec-zonas-treino.md): ritmo min/km "desaparece" — substituído por
+  // velocidade (km/h), campo opcional/secundário, sem zonas próprias (só Cadência/RPE ao
+  // lado). A "Zona" passa a apontar para a tabela de Coggan (potência), não FC.
+  const isCiclismo = modalidadeCanonica(modality) === 'ciclismo';
+  const zonaHint = isCiclismo ? potenciaRangeParaZona(intensity.zone, modality) : bpmRangeParaZona(intensity.zone, modality);
   return `
     <div class="gcwo-row3">
       ${mostrarZona ? `
@@ -2265,11 +2303,13 @@ function renderIntensidadeCampos(intensity, mostrarZona, modality) {
           <option value="">—</option>
           ${ZONAS.map(z => `<option value="${z}" ${intensity.zone === z ? 'selected' : ''}>${z}</option>`).join('')}
         </select>
-        <span class="gcwo-int-zone-hint">${bpmRangeParaZona(intensity.zone, modality) ? `${intensity.zone} · ${bpmRangeParaZona(intensity.zone, modality)}` : ''}</span>
+        <span class="gcwo-int-zone-hint">${zonaHint ? `${intensity.zone} · ${zonaHint}` : ''}</span>
       </label>` : ''}
       ${isNatacao
         ? `<label class="gcwo-field"><span>Ritmo (min:seg/100m)</span><input type="text" inputmode="numeric" placeholder="1:35" class="gcwo-int-pace100" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_100m))}"></label>`
-        : `<label class="gcwo-field"><span>Ritmo (min/km)</span><input type="text" inputmode="numeric" placeholder="5:00" class="gcwo-int-pace" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_km))}"></label>`
+        : isCiclismo
+          ? `<label class="gcwo-field"><span>Velocidade (km/h, opcional)</span><input type="number" min="0" step="0.1" class="gcwo-int-speed" value="${intensity.speed_kmh ?? ''}"></label>`
+          : `<label class="gcwo-field"><span>Ritmo (min/km)</span><input type="text" inputmode="numeric" placeholder="5:00" class="gcwo-int-pace" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_km))}"></label>`
       }
       <label class="gcwo-field"><span>FC (bpm)</span><input type="number" min="0" class="gcwo-int-fc" value="${intensity.heart_rate_bpm ?? ''}"></label>
       <label class="gcwo-field"><span>Potência (W)</span><input type="number" min="0" class="gcwo-int-power" value="${intensity.power_w ?? ''}"></label>
@@ -2436,7 +2476,9 @@ function wireIntensidadeForms(s) {
       intensity.zone = e.target.value || null;
       const hintEl = box.querySelector('.gcwo-int-zone-hint');
       if (hintEl) {
-        const range = bpmRangeParaZona(intensity.zone, s.modality);
+        const range = modalidadeCanonica(s.modality) === 'ciclismo'
+          ? potenciaRangeParaZona(intensity.zone, s.modality)
+          : bpmRangeParaZona(intensity.zone, s.modality);
         hintEl.textContent = range ? `${intensity.zone} · ${range}` : '';
       }
       refreshZonaResumo(s);
@@ -2445,6 +2487,8 @@ function wireIntensidadeForms(s) {
     if (paceEl) paceEl.addEventListener('input', (e) => { intensity.pace_sec_per_km = parsePaceParaSegundos(e.target.value); });
     const pace100El = box.querySelector('.gcwo-int-pace100');
     if (pace100El) pace100El.addEventListener('input', (e) => { intensity.pace_sec_per_100m = parsePaceParaSegundos(e.target.value); });
+    const speedEl = box.querySelector('.gcwo-int-speed');
+    if (speedEl) speedEl.addEventListener('input', (e) => { intensity.speed_kmh = e.target.value === '' ? null : Number(e.target.value); });
     box.querySelector('.gcwo-int-fc').addEventListener('input', (e) => { intensity.heart_rate_bpm = e.target.value === '' ? null : Number(e.target.value); });
     box.querySelector('.gcwo-int-power').addEventListener('input', (e) => { intensity.power_w = e.target.value === '' ? null : Number(e.target.value); });
     box.querySelector('.gcwo-int-cadence').addEventListener('input', (e) => { intensity.cadence_rpm = e.target.value === '' ? null : Number(e.target.value); });
@@ -2929,17 +2973,19 @@ function sessaoParaGravar(s) {
   if (s.kind === 'card') return { ...base, blocks: s.blocks };
   return { ...base, items: s.items };
 }
-// Fotografia das zonas em vigor no momento de gravar (Fase 1, spec-zonas-treino.md) —
-// zero alteração a wo_prescriptions: `data` já é jsonb, isto é só mais uma chave nova.
-// Planos antigos não a têm e continuam a abrir sem ela (ver leitura em renderStep3/
-// histórico, que trata zone_snapshots como opcional). Guarda o perfil como estava no
-// momento da gravação, não só a zona usada num bloco — se a fórmula ou os intervalos
-// mudarem depois, este plano continua interpretável tal como foi prescrito.
+// Fotografia das zonas em vigor no momento de gravar (spec-zonas-treino.md) — zero
+// alteração a wo_prescriptions: `data` já é jsonb, isto é só mais uma chave nova. Planos
+// antigos não a têm e continuam a abrir sem ela (ver leitura em renderStep3/histórico,
+// que trata zone_snapshots como opcional). Guarda o perfil como estava no momento da
+// gravação, não só a zona usada num bloco — se a fórmula ou os intervalos mudarem
+// depois, este plano continua interpretável tal como foi prescrito. Percorre todas as
+// modalidades/métricas activas do doente (Fase 2: corrida + ciclismo em simultâneo),
+// não só as de corrida.
 function buildZoneSnapshots() {
-  const perfis = _state.zonaPerfilCorrida;
+  const perfis = _state.zonaPerfis;
   if (!perfis) return [];
-  return ['heart_rate', 'pace']
-    .map(metric => perfis[metric])
+  return Object.values(perfis)
+    .flatMap(porModalidade => Object.values(porModalidade || {}))
     .filter(Boolean)
     .map(perfil => ({
       profile_id: perfil.id,
@@ -2947,6 +2993,7 @@ function buildZoneSnapshots() {
       metric: perfil.metric,
       unit: perfil.unit,
       method: perfil.method,
+      ftp_w: perfil.ftp_w ?? null,
       ranges: (perfil.wo_zone_ranges || [])
         .slice()
         .sort((a, b) => a.zone_order - b.zone_order)
