@@ -1,2 +1,16 @@
+# boot.js é o ponto de entrada que decide qual a versão de cada módulo dinâmico
+# a importar (ex.: PRESCRICAO_JS_VERSION) — se ele próprio ficar em cache
+# stale na edge da Cloudflare depois de um deploy, bumpar essas constantes
+# não serve de nada, porque o browser nunca chega a ver o bump. "no-cache,
+# must-revalidate" (a regra abaixo, para o resto de /modules/*) já ficou
+# comprovado insuficiente aqui: mesmo depois de "deploy successful" na
+# Cloudflare, um curl a boot.js chegou a devolver cf-cache-status: EXPIRED
+# com conteúdo antigo (9 ago 2026). "no-store" impede que este ficheiro em
+# concreto seja guardado em cache — nem pelo browser, nem pela edge — logo
+# não há janela nenhuma em que possa ficar stale. Fica antes da regra geral
+# de /modules/* de propósito (mais específico primeiro).
+/modules/boot.js
+  Cache-Control: no-store
+
 /modules/*
   Cache-Control: no-cache, must-revalidate
