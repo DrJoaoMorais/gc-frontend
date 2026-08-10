@@ -11,6 +11,7 @@
 
 import { G } from '../../state.js';
 import { initCatalogo } from '../catalogo/catalogo.js';
+import { fmtPaceEditavel, parsePaceParaSegundos } from '../shared/pace.js';
 
 const escAttr = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -273,19 +274,6 @@ function fmtDuracaoTotal(totalS) {
   const h = Math.floor(totalMin / 60), mm = totalMin % 60;
   return h > 0 ? `${h}h${String(mm).padStart(2, '0')}` : `${totalMin} min`;
 }
-// Ritmo — sempre min:seg no ecrã, nunca decimal, nunca guardado como texto livre
-// (unidade interna é segundos por quilómetro, secção 3 do briefing).
-function fmtPaceEditavel(sec) {
-  if (sec == null) return '';
-  const m = Math.floor(sec / 60), s = Math.round(sec % 60);
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
-function parsePaceParaSegundos(txt) {
-  const m = String(txt || '').trim().match(/^(\d+):(\d{1,2})$/);
-  if (!m) return null;
-  return Number(m[1]) * 60 + Number(m[2]);
-}
-
 function calcIdade(dob) {
   if (!dob) return null;
   const d = new Date(dob);
@@ -304,12 +292,37 @@ function calcFcMaxFormula(formula, idade) {
   if (idade == null) return null;
   return formula === 'fox' ? Math.round(220 - idade) : Math.round(208 - 0.7 * idade);
 }
-function bpmRangeParaZona(zona) {
+// tipoKey() espera um objecto com .modality (é o que lê de uma sessão `s`), não uma
+// string em bruto — este wrapper reutiliza a mesma normalização (minúsculas, acentos)
+// sem precisar de passar a sessão inteira até aqui. NUNCA comparar modality em bruto
+// (ex.: "Corrida" capitalizado) com wo_zone_profiles.modality (sempre minúsculo) —
+// spec-zonas-treino.md, Fase 1.
+function modalidadeCanonica(modality) {
+  return tipoKey({ modality });
+}
+
+// Prioridade (Fase 1, spec-zonas-treino.md): perfil activo em wo_zone_profiles/
+// wo_zone_ranges (carregado uma vez por doente em carregarZonaPerfilCorrida(), síncrono
+// aqui porque o render monta HTML em string) > hr_zones_bpm manual do doente (prova de
+// esforço antiga) > fórmula (Tanaka) + idade. Só corrida tem perfil na Fase 1 — outras
+// modalidades caem sempre no comportamento antigo, sem aviso (é o esperado, não uma
+// falha: ainda não têm perfil para cair).
+function bpmRangeParaZona(zona, modality) {
   const p = _state.patient;
   if (!p || !zona) return '';
   const idx = Number(String(zona).replace('Z', ''));
   if (!(idx >= 1 && idx <= 5)) return '';
   const key = 'z' + idx;
+
+  if (modalidadeCanonica(modality) === 'corrida') {
+    const perfil = _state.zonaPerfilCorrida && _state.zonaPerfilCorrida.heart_rate;
+    if (perfil) {
+      const r = (perfil.wo_zone_ranges || []).find(r => r.zone_key === zona);
+      return r ? `${r.lower_value ?? '?'}–${r.upper_value ?? '?'} bpm` : '';
+    }
+    console.warn('[prescricao] fallback a hr_zone_formula/hr_zones_bpm — sem perfil activo em wo_zone_profiles para corrida', { patientId: p.id });
+  }
+
   const manual = p.hr_zones_bpm && p.hr_zones_bpm[key];
   if (manual && (manual.min != null || manual.max != null)) {
     return `${manual.min ?? '?'}–${manual.max ?? '?'} bpm`;
@@ -433,6 +446,29 @@ function novaSessaoSkeleton(modality, kind, date) {
 }
 function cloneSession(s) {
   return structuredClone(s);
+}
+
+// Fase 1 (corrida) do spec-zonas-treino.md — perfil(is) activo(s) em wo_zone_profiles/
+// wo_zone_ranges para o doente escolhido. Carregado uma vez aqui (não a cada render) porque
+// bpmRangeParaZona() é chamada a meio de uma construção de HTML em string — não pode ser
+// assíncrona. Guardado em _state.zonaPerfilCorrida = { heart_rate, pace }, cada um null ou
+// a linha de wo_zone_profiles com wo_zone_ranges embutido.
+async function carregarZonaPerfilCorrida() {
+  _state.zonaPerfilCorrida = { heart_rate: null, pace: null };
+  if (!_state.patient) return;
+
+  const { data, error } = await window.sb
+    .from('wo_zone_profiles')
+    .select('*, wo_zone_ranges(*)')
+    .eq('patient_id', _state.patient.id)
+    .eq('modality', 'corrida')
+    .eq('is_active', true);
+
+  if (error) {
+    console.error('[prescricao] falha a carregar wo_zone_profiles:', error);
+    return;
+  }
+  (data || []).forEach(row => { _state.zonaPerfilCorrida[row.metric] = row; });
 }
 
 // Ao escolher um doente (landing ou pesquisa), verifica se já tem um plano activo e, se
@@ -791,7 +827,7 @@ function renderLandingTableHost() {
       _panelDraft = null; _panelIsNovo = false; _pendingSlot = null; // doente novo — nunca herdar edição do doente anterior
       _loadingPlanoActivo = true;
       renderStep2();
-      carregarPlanoActivoSeExistir().finally(() => {
+      Promise.all([carregarPlanoActivoSeExistir(), carregarZonaPerfilCorrida()]).finally(() => {
         _loadingPlanoActivo = false;
         renderStep2Body();
       });
@@ -963,7 +999,7 @@ function renderStep1() {
         _panelDraft = null; _panelIsNovo = false; _pendingSlot = null; // doente novo — nunca herdar edição do doente anterior
         _loadingPlanoActivo = true;
         renderStep2();
-        carregarPlanoActivoSeExistir().finally(() => {
+        Promise.all([carregarPlanoActivoSeExistir(), carregarZonaPerfilCorrida()]).finally(() => {
           _loadingPlanoActivo = false;
           renderStep2Body();
         });
@@ -1093,6 +1129,7 @@ function renderStep2() {
   document.getElementById('gcwoTrocarDoente').addEventListener('click', () => {
     closeHistoryModal();
     _state.patient = null;
+    _state.zonaPerfilCorrida = { heart_rate: null, pace: null };
     _state.restricoesPredefinidas = [];
     _state.restricoesTexto = '';
     _state.restricoesEditing = false;
@@ -2228,7 +2265,7 @@ function renderIntensidadeCampos(intensity, mostrarZona, modality) {
           <option value="">—</option>
           ${ZONAS.map(z => `<option value="${z}" ${intensity.zone === z ? 'selected' : ''}>${z}</option>`).join('')}
         </select>
-        <span class="gcwo-int-zone-hint">${bpmRangeParaZona(intensity.zone) ? `${intensity.zone} · ${bpmRangeParaZona(intensity.zone)}` : ''}</span>
+        <span class="gcwo-int-zone-hint">${bpmRangeParaZona(intensity.zone, modality) ? `${intensity.zone} · ${bpmRangeParaZona(intensity.zone, modality)}` : ''}</span>
       </label>` : ''}
       ${isNatacao
         ? `<label class="gcwo-field"><span>Ritmo (min:seg/100m)</span><input type="text" inputmode="numeric" placeholder="1:35" class="gcwo-int-pace100" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_100m))}"></label>`
@@ -2399,7 +2436,7 @@ function wireIntensidadeForms(s) {
       intensity.zone = e.target.value || null;
       const hintEl = box.querySelector('.gcwo-int-zone-hint');
       if (hintEl) {
-        const range = bpmRangeParaZona(intensity.zone);
+        const range = bpmRangeParaZona(intensity.zone, s.modality);
         hintEl.textContent = range ? `${intensity.zone} · ${range}` : '';
       }
       refreshZonaResumo(s);
@@ -2892,6 +2929,36 @@ function sessaoParaGravar(s) {
   if (s.kind === 'card') return { ...base, blocks: s.blocks };
   return { ...base, items: s.items };
 }
+// Fotografia das zonas em vigor no momento de gravar (Fase 1, spec-zonas-treino.md) —
+// zero alteração a wo_prescriptions: `data` já é jsonb, isto é só mais uma chave nova.
+// Planos antigos não a têm e continuam a abrir sem ela (ver leitura em renderStep3/
+// histórico, que trata zone_snapshots como opcional). Guarda o perfil como estava no
+// momento da gravação, não só a zona usada num bloco — se a fórmula ou os intervalos
+// mudarem depois, este plano continua interpretável tal como foi prescrito.
+function buildZoneSnapshots() {
+  const perfis = _state.zonaPerfilCorrida;
+  if (!perfis) return [];
+  return ['heart_rate', 'pace']
+    .map(metric => perfis[metric])
+    .filter(Boolean)
+    .map(perfil => ({
+      profile_id: perfil.id,
+      modality: perfil.modality,
+      metric: perfil.metric,
+      unit: perfil.unit,
+      method: perfil.method,
+      ranges: (perfil.wo_zone_ranges || [])
+        .slice()
+        .sort((a, b) => a.zone_order - b.zone_order)
+        .map(r => ({
+          zone_key: r.zone_key,
+          zone_order: r.zone_order,
+          lower_value: r.lower_value,
+          upper_value: r.upper_value,
+        })),
+    }));
+}
+
 function buildFinalData() {
   return {
     startDate: _state.startDate,
@@ -2901,6 +2968,7 @@ function buildFinalData() {
     diasPorSemanaHabitual: _state.diasPorSemanaHabitual,
     restricoes: restricoesAtuais(),
     sessions: _state.sessions.map(sessaoParaGravar),
+    zone_snapshots: buildZoneSnapshots(),
   };
 }
 
