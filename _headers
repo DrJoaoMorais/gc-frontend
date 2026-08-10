@@ -12,5 +12,17 @@
 /modules/boot.js
   Cache-Control: no-store
 
+# main.js (raiz) é quem importa boot.js — e app.html é quem carrega main.js.
+# Nenhum dos dois estava coberto pela regra de /modules/* (estão fora dessa
+# pasta), por isso ficavam sujeitos só ao cache por omissão da Cloudflare
+# Pages, o mesmo padrão de risco que já causou o boot.js stale (9-10 ago
+# 2026). Mesma correcção: no-store, para nunca ficarem presos em cache na
+# edge nem no browser.
+/main.js
+  Cache-Control: no-store
+
+/app.html
+  Cache-Control: no-store
+
 /modules/*
   Cache-Control: no-cache, must-revalidate
