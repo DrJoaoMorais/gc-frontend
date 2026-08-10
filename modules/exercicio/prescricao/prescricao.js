@@ -2302,12 +2302,16 @@ function renderIntensidadeCampos(intensity, mostrarZona, modality) {
   // lado). A "Zona" passa a apontar para a tabela de Coggan (potência), não FC.
   const isCiclismo = modalidadeCanonica(modality) === 'ciclismo';
   const zonaHint = isCiclismo ? potenciaRangeParaZona(intensity.zone, modality) : bpmRangeParaZona(intensity.zone, modality);
+  // Z6/Z7 só existem no modelo de potência de Coggan (ciclismo) — as restantes
+  // modalidades (corrida, natação, ginásio, caminhada, circuito) usam o modelo
+  // tradicional de 5 zonas, mesmo quando mostram este dropdown genérico.
+  const zonasDisponiveis = isCiclismo ? ZONAS : ZONAS.slice(0, 5);
 
   const campoZona = mostrarZona ? `
       <label class="gcwo-field"><span>Zona</span>
         <select class="gcwo-int-zone">
           <option value="">—</option>
-          ${ZONAS.map(z => `<option value="${z}" ${intensity.zone === z ? 'selected' : ''}>${z}</option>`).join('')}
+          ${zonasDisponiveis.map(z => `<option value="${z}" ${intensity.zone === z ? 'selected' : ''}>${z}</option>`).join('')}
         </select>
         <span class="gcwo-int-zone-hint">${zonaHint ? `${intensity.zone} · ${zonaHint}` : ''}</span>
       </label>` : '';
