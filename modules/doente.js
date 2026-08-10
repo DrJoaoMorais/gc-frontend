@@ -1052,7 +1052,7 @@ function openPatientViewModal(patient) {
 
   const ZONAS_5 = [
     { key: "Z1", order: 1, label: "Recuperação" },
-    { key: "Z2", order: 2, label: "Endurance / Corrida leve" },
+    { key: "Z2", order: 2, label: "Endurance" },
     { key: "Z3", order: 3, label: "Tempo / Limiar aeróbico" },
     { key: "Z4", order: 4, label: "Limiar anaeróbico / Lactato" },
     { key: "Z5", order: 5, label: "VO₂ Max / Cap. anaeróbica" },

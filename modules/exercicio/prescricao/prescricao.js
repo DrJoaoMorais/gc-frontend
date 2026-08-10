@@ -2295,26 +2295,34 @@ function renderIntensidadeCampos(intensity, mostrarZona, modality) {
   // lado). A "Zona" passa a apontar para a tabela de Coggan (potência), não FC.
   const isCiclismo = modalidadeCanonica(modality) === 'ciclismo';
   const zonaHint = isCiclismo ? potenciaRangeParaZona(intensity.zone, modality) : bpmRangeParaZona(intensity.zone, modality);
-  return `
-    <div class="gcwo-row3">
-      ${mostrarZona ? `
+
+  const campoZona = mostrarZona ? `
       <label class="gcwo-field"><span>Zona</span>
         <select class="gcwo-int-zone">
           <option value="">—</option>
           ${ZONAS.map(z => `<option value="${z}" ${intensity.zone === z ? 'selected' : ''}>${z}</option>`).join('')}
         </select>
         <span class="gcwo-int-zone-hint">${zonaHint ? `${intensity.zone} · ${zonaHint}` : ''}</span>
-      </label>` : ''}
-      ${isNatacao
-        ? `<label class="gcwo-field"><span>Ritmo (min:seg/100m)</span><input type="text" inputmode="numeric" placeholder="1:35" class="gcwo-int-pace100" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_100m))}"></label>`
-        : isCiclismo
-          ? `<label class="gcwo-field"><span>Velocidade (km/h, opcional)</span><input type="number" min="0" step="0.1" class="gcwo-int-speed" value="${intensity.speed_kmh ?? ''}"></label>`
-          : `<label class="gcwo-field"><span>Ritmo (min/km)</span><input type="text" inputmode="numeric" placeholder="5:00" class="gcwo-int-pace" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_km))}"></label>`
-      }
-      <label class="gcwo-field"><span>FC (bpm)</span><input type="number" min="0" class="gcwo-int-fc" value="${intensity.heart_rate_bpm ?? ''}"></label>
-      <label class="gcwo-field"><span>Potência (W)</span><input type="number" min="0" class="gcwo-int-power" value="${intensity.power_w ?? ''}"></label>
-      <label class="gcwo-field"><span>Cadência (rpm)</span><input type="number" min="0" class="gcwo-int-cadence" value="${intensity.cadence_rpm ?? ''}"></label>
-      <label class="gcwo-field"><span>RPE</span><input type="number" min="1" max="10" class="gcwo-int-rpe" value="${intensity.rpe ?? ''}"></label>
+      </label>` : '';
+  const campoRitmo = isNatacao
+    ? `<label class="gcwo-field"><span>Ritmo (min:seg/100m)</span><input type="text" inputmode="numeric" placeholder="1:35" class="gcwo-int-pace100" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_100m))}"></label>`
+    : `<label class="gcwo-field"><span>Ritmo (min/km)</span><input type="text" inputmode="numeric" placeholder="5:00" class="gcwo-int-pace" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_km))}"></label>`;
+  const campoVelocidade = `<label class="gcwo-field"><span>Velocidade (km/h, opcional)</span><input type="number" min="0" step="0.1" class="gcwo-int-speed" value="${intensity.speed_kmh ?? ''}"></label>`;
+  const campoFc = `<label class="gcwo-field"><span>FC (bpm)</span><input type="number" min="0" class="gcwo-int-fc" value="${intensity.heart_rate_bpm ?? ''}"></label>`;
+  const campoPotencia = `<label class="gcwo-field"><span>Potência (W)</span><input type="number" min="0" class="gcwo-int-power" value="${intensity.power_w ?? ''}"></label>`;
+  const campoCadencia = `<label class="gcwo-field"><span>Cadência (rpm)</span><input type="number" min="0" class="gcwo-int-cadence" value="${intensity.cadence_rpm ?? ''}"></label>`;
+  const campoRpe = `<label class="gcwo-field"><span>RPE</span><input type="number" min="1" max="10" class="gcwo-int-rpe" value="${intensity.rpe ?? ''}"></label>`;
+
+  // Ordem no ecrã (spec-zonas-treino.md): Corrida/Natação mantêm Ritmo→FC→Potência→
+  // Cadência→RPE; Ciclismo passa a Potência→FC→Cadência→Velocidade→RPE (Zona → Potência
+  // → FC → Cadência → Velocidade → RPE).
+  const camposOrdenados = isCiclismo
+    ? [campoZona, campoPotencia, campoFc, campoCadencia, campoVelocidade, campoRpe]
+    : [campoZona, campoRitmo, campoFc, campoPotencia, campoCadencia, campoRpe];
+
+  return `
+    <div class="gcwo-row3">
+      ${camposOrdenados.join('')}
     </div>`;
 }
 function wrapIntensidade(bid, scope, intensity, mostrarZona, modality) {
