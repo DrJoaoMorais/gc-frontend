@@ -12,6 +12,7 @@
 import { G } from '../../state.js';
 import { initCatalogo } from '../catalogo/catalogo.js';
 import { fmtPaceEditavel, parsePaceParaSegundos } from '../shared/pace.js';
+import { abrirZonasTreino } from '../shared/zonas-treino.js';
 
 const escAttr = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -1148,7 +1149,10 @@ function renderStep2() {
   root.innerHTML = `
     <div class="gc-page-header">
       <div><div class="gc-page-title">Prescrição de exercício</div><div class="gc-page-sub">${escHtml(p.full_name)} <button type="button" class="gcwo-linkbtn" id="gcwoVerHistorico">Ver planos anteriores</button></div></div>
-      ${topActionsHtml('<button type="button" class="gcBtnGhost" id="gcwoTrocarDoente">Trocar doente</button>')}
+      ${topActionsHtml(`
+        <button type="button" class="gcBtnGhost" id="gcwoBtnZonasTreino">Perfis de zonas</button>
+        <button type="button" class="gcBtnGhost" id="gcwoTrocarDoente">Trocar doente</button>
+      `)}
     </div>
 
     ${renderPatientBanner()}
@@ -1159,6 +1163,9 @@ function renderStep2() {
   wireTopActions();
   wirePatientBanner();
   document.getElementById('gcwoVerHistorico').addEventListener('click', () => openHistoryModal());
+  document.getElementById('gcwoBtnZonasTreino').addEventListener('click', () => {
+    abrirZonasTreino(_state.patient.id);
+  });
   document.getElementById('gcwoTrocarDoente').addEventListener('click', () => {
     closeHistoryModal();
     _state.patient = null;
