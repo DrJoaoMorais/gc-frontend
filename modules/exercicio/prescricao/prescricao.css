@@ -224,7 +224,9 @@
 .gcwo-mode-card strong { color:#0f2d52; font-size:14px; }
 .gcwo-mode-card span { font-size:12px; line-height:1.35; }
 .gcwo-mode-card.on { border-color:#1a56db; background:#eff6ff; box-shadow:0 0 0 1px #1a56db; }
+.gcwo-tempo-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:10px; }
 @media (max-width:700px) { .gcwo-mode-choice { grid-template-columns:1fr; } }
+@media (max-width:900px) { .gcwo-tempo-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 
 /* ── calendário — semanas com datas reais ── */
 /* Cabeçalho SEG..DOM uma única vez no topo do calendário (9 ago 2026) — substitui

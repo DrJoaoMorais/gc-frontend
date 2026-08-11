@@ -25,7 +25,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-11-2';
+const PRESCRICAO_CSS_VERSION = '2026-08-11-3';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -2065,7 +2065,13 @@ function renderItemCardSeriesFields(it) {
         <label class="gcwo-field gcwo-field-sm"><span>Carga (kg)</span><input type="number" min="0" step="0.5" class="gcwo-it-carga" value="${it.load ?? ''}"></label>
         <label class="gcwo-field gcwo-field-sm"><span>Incremento (kg)</span><input type="number" min="0" step="0.5" class="gcwo-it-incremento" value="${it.incremento ?? ''}"></label>
       </div>
-      <label class="gcwo-field gcwo-field-sm"><span>Descanso entre séries (s)</span><input type="number" min="0" class="gcwo-it-restset" value="${it.rest_set ?? ''}"></label>`;
+      <label class="gcwo-field gcwo-field-sm"><span>Descanso entre séries (s)</span><input type="number" min="0" class="gcwo-it-restset" value="${it.rest_set ?? ''}"></label>
+      <div class="gcwo-tempo-grid">
+        <label class="gcwo-field gcwo-field-sm"><span>Descer (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-tempoexc" value="${it.tempo_excentrico_s ?? ''}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>Pausa em baixo (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-pausainf" value="${it.pausa_inferior_s ?? 0}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>Subir (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-tempocon" value="${it.tempo_concentrico_s ?? ''}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>Pausa em cima (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-pausasup" value="${it.pausa_superior_s ?? 0}"></label>
+      </div>`;
 }
 
 function toggleExercicioNaSessao(s, exId) {
@@ -2088,6 +2094,10 @@ function toggleExercicioNaSessao(s, exId) {
       incremento: ex.incremento_default ?? null,
       rest_set: 60,
       rest_next: 90,
+      tempo_excentrico_s: ex.tempo_excentrico_s ?? 2,
+      pausa_inferior_s: 0,
+      tempo_concentrico_s: ex.tempo_concentrico_s ?? 1,
+      pausa_superior_s: 0,
     });
   }
   refreshCatalogPickerDom(s);
@@ -2144,6 +2154,10 @@ function wirePickedItems(s) {
     bindNum('.gcwo-it-incremento', 'incremento');
     bindNum('.gcwo-it-restset', 'rest_set');
     bindNum('.gcwo-it-restnext', 'rest_next');
+    bindNum('.gcwo-it-tempoexc', 'tempo_excentrico_s');
+    bindNum('.gcwo-it-pausainf', 'pausa_inferior_s');
+    bindNum('.gcwo-it-tempocon', 'tempo_concentrico_s');
+    bindNum('.gcwo-it-pausasup', 'pausa_superior_s');
 
     const duracaoEl = card.querySelector('.gcwo-it-duracaomin');
     if (duracaoEl) duracaoEl.addEventListener('input', (e) => {
