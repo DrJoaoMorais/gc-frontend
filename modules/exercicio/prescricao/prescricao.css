@@ -116,11 +116,34 @@
 .gcwo-landing-table { min-width:640px; }
 .gcwo-landing-row { cursor:pointer; }
 .gcwo-landing-row:hover td { background:#f8fafc; }
+.gcwo-feedback-btn { border:1px solid #c7d2fe; background:#eef2ff; color:#3730a3; border-radius:18px; padding:6px 11px; font:600 11.5px inherit; cursor:pointer; white-space:nowrap; }
+.gcwo-feedback-btn:hover { background:#e0e7ff; }
 .gcwo-situacao-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; }
 .gcwo-situacao-dot.curso { background:#15803d; }
 .gcwo-situacao-dot.aterminar { background:#f59e0b; }
 .gcwo-situacao-dot.terminada { background:#dc2626; }
 .gcwo-situacao-dot.feedback { background:#be185d; }
+
+.gcwo-feedback-who { display:flex; flex-direction:column; gap:3px; margin-bottom:14px; }
+.gcwo-feedback-who strong { color:#0f2d52; font-size:16px; }
+.gcwo-feedback-who span { color:#64748b; font-size:12.5px; }
+.gcwo-feedback-metrics { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+.gcwo-feedback-metrics div { background:#f8fafc; border-radius:11px; padding:12px; text-align:center; }
+.gcwo-feedback-metrics b { display:block; color:#0f2d52; font-size:18px; }
+.gcwo-feedback-metrics span { display:block; color:#64748b; font-size:11px; margin-top:2px; }
+.gcwo-feedback-list { display:flex; flex-direction:column; gap:9px; }
+.gcwo-feedback-item { border:1px solid #e2e8f0; border-radius:11px; padding:11px 12px; }
+.gcwo-feedback-item-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.gcwo-feedback-item-head strong { color:#0f172a; font-size:13.5px; }
+.gcwo-feedback-item-head span { font-size:10.5px; font-weight:700; border-radius:20px; padding:3px 8px; }
+.gcwo-feedback-item-head .feito { background:#dcfce7; color:#15803d; }
+.gcwo-feedback-item-head .alterado { background:#fef3c7; color:#b45309; }
+.gcwo-feedback-item-head .nao { background:#fee2e2; color:#b91c1c; }
+.gcwo-feedback-series { display:flex; flex-direction:column; gap:4px; margin-top:9px; }
+.gcwo-feedback-series div { display:flex; justify-content:space-between; gap:10px; font-size:11.5px; color:#64748b; }
+.gcwo-feedback-series b { color:#334155; }
+.gcwo-feedback-series .nao { color:#b91c1c; }
+.gcwo-feedback-note { margin-top:14px; padding:11px 12px; border-left:3px solid #1a56db; background:#f8fafc; border-radius:8px; color:#334155; font-size:12.5px; line-height:1.45; white-space:pre-wrap; }
 
 @media (max-width:640px) { .gcwo-landing-card { flex-basis:220px; } }
 
@@ -206,6 +229,27 @@
    se está a editar; ao editar, recolhe para a barra .gcwo-editbar e o painel ocupa
    tudo o resto. Sem coluna lateral, sem scroll entre calendário e editor. ── */
 .gcwo-cal-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:16px; flex-wrap:wrap; }
+.gcwo-cal-nav { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.gcwo-cal-nav-label { min-width:120px; text-align:center; font-size:12px; font-weight:700; color:#475569; }
+.gcwo-cal-nav button:disabled { opacity:.4; cursor:not-allowed; }
+.gcwo-session-notes { display:flex; flex-direction:column; gap:6px; margin-top:14px; }
+.gcwo-session-notes textarea {
+  width:100%; resize:vertical; min-height:62px; border:1px solid #d8dee8; border-radius:10px;
+  padding:10px 12px; font:inherit; color:#0f172a; background:#fff;
+}
+.gcwo-session-notes textarea:focus { outline:2px solid #bfdbfe; border-color:#60a5fa; }
+.gcwo-mode-choice { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:7px; }
+.gcwo-mode-card {
+  display:flex; flex-direction:column; align-items:flex-start; gap:5px; min-height:92px;
+  padding:13px 14px; border:1.5px solid #d8dee8; border-radius:12px; background:#fff;
+  color:#475569; text-align:left; cursor:pointer; font:inherit;
+}
+.gcwo-mode-card strong { color:#0f2d52; font-size:14px; }
+.gcwo-mode-card span { font-size:12px; line-height:1.35; }
+.gcwo-mode-card.on { border-color:#1a56db; background:#eff6ff; box-shadow:0 0 0 1px #1a56db; }
+.gcwo-tempo-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:10px; }
+@media (max-width:700px) { .gcwo-mode-choice { grid-template-columns:1fr; } }
+@media (max-width:900px) { .gcwo-tempo-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 
 /* ── calendário — semanas com datas reais ── */
 /* Cabeçalho SEG..DOM uma única vez no topo do calendário (9 ago 2026) — substitui

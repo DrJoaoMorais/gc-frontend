@@ -25,7 +25,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-09-15';
+const PRESCRICAO_CSS_VERSION = '2026-08-11-4';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -131,6 +131,10 @@ function tipoKey(s) {
   return 'ginasio';
 }
 
+function modoExecucaoGinasio(s) {
+  return s?.execution_mode === 'guided' ? 'guided' : 'free';
+}
+
 function uuid() { return crypto.randomUUID(); }
 
 // Contagem de conteúdo por kind — usada onde antes só se olhava para `s.items`
@@ -215,6 +219,8 @@ function freshState() {
     restricoesEditing: false,
     startDate: inicio,
     endDate: addDiasIso(inicio, 27), // 4 semanas por omissão — ajustável nos campos de data
+    linkExpiryMode: 'last_session',
+    linkExpiryDate: null,
     dataRevisao: null,
     duracaoSessaoPadrao: 30,
     diasPorSemanaHabitual: null,
@@ -245,6 +251,7 @@ let _pendingSlot = null;                // {date} — dia escolhido na grelha, m
 let _calMenuDocClickWired = false;      // menu ⋮ por sessão no calendário — fecha ao clicar fora (9 ago 2026)
 let _beforeUnloadWired = false;         // aviso ao sair com sessões só locais, nunca gravadas (9 ago 2026)
 let _dayPicker = null;                  // {sessionId, mode:'mover'|'duplicar', selecionados:Set(iso)} — modal de escolha de dia(s) (9 ago 2026)
+let _calendarFirstMonday = null;        // primeira das duas semanas visíveis no calendário
 let _historyOpen = false;               // modal "Ver planos anteriores" aberto/fechado
 let _historyLoading = false;
 let _historyError = '';
@@ -464,6 +471,8 @@ function novaSessaoSkeleton(modality, kind, date) {
     modality,
     local: null,
     momento: null,
+    notes: '',
+    execution_mode: kind === 'list' ? 'free' : null,
   };
   if (kind === 'walk') return { ...base, walks: [], stairs_flights: null };
   if (kind === 'card' && modality === 'Natação') return { ...base, blocks: [], pool_length_m: 25, stroke: 'crol' };
@@ -537,6 +546,8 @@ async function carregarPlanoActivoSeExistir() {
   _state.activePrescriptionId = data.id;
   _state.startDate = data.data?.startDate || _state.startDate;
   _state.endDate = data.data?.endDate || _state.endDate;
+  _state.linkExpiryMode = data.data?.linkExpiryMode || 'selected_date';
+  _state.linkExpiryDate = data.data?.linkExpiryDate || data.data?.endDate || null;
   _state.dataRevisao = data.data?.dataRevisao || null;
   _state.duracaoSessaoPadrao = data.data?.duracaoSessaoPadrao || 30;
   _state.diasPorSemanaHabitual = data.data?.diasPorSemanaHabitual ?? null;
@@ -837,7 +848,7 @@ function renderLandingTableHost() {
     <div class="gcwo-tablewrap">
       <table class="gcwo-readtable gcwo-landing-table">
         <thead><tr>
-          <th>Doente</th><th>Clínica</th><th>Plano</th><th>Último treino</th><th>Situação</th>
+          <th>Doente</th><th>Clínica</th><th>Plano</th><th>Último treino</th><th>Situação</th><th>Resultado</th>
         </tr></thead>
         <tbody>
           ${linhas.map(r => `
@@ -847,6 +858,7 @@ function renderLandingTableHost() {
               <td class="muted">${escHtml(fmtIntervaloPlano(r.startDate, r.expiresAt))}</td>
               <td class="muted">${escHtml(fmtRelativo(r.lastLogAt))}</td>
               <td><span class="gcwo-situacao-dot ${r.situacao.cls}"></span>${escHtml(r.situacao.label)}</td>
+              <td>${r.lastLog ? `<button type="button" class="gcwo-feedback-btn" data-feedback-rid="${escAttr(r.id)}">Ver treino</button>` : '<span class="muted">—</span>'}</td>
             </tr>`).join('')}
         </tbody>
       </table>
@@ -867,6 +879,69 @@ function renderLandingTableHost() {
       });
     });
   });
+  host.querySelectorAll('[data-feedback-rid]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const row = _landing.rows.find(x => x.id === btn.getAttribute('data-feedback-rid'));
+      if (row?.lastLog) abrirFeedbackModal(row);
+    });
+  });
+}
+
+function fecharFeedbackModal() {
+  document.getElementById('gcwoFeedbackOverlay')?.remove();
+}
+
+function nomeEntradaFeedback(entrada, sessao) {
+  const item = (sessao?.items || []).find(it => it.exercise_id === entrada.exercise_id);
+  if (item) return item.name;
+  const block = (sessao?.blocks || []).find(b => b.block_id === entrada.block_id);
+  if (block) return block.name || block.label || 'Bloco';
+  const walk = (sessao?.walks || []).find(w => w.walk_id === entrada.walk_id);
+  return walk?.label || entrada.exercise_name || 'Exercício';
+}
+
+function renderSeriesFeedback(series) {
+  if (!Array.isArray(series) || !series.length) return '';
+  return `<div class="gcwo-feedback-series">${series.map((s, i) => {
+    if (s.skipped) return `<div><b>Série ${i + 1}</b><span class="nao">Não realizada</span></div>`;
+    const partes = [];
+    if (s.reps != null) partes.push(`${escHtml(String(s.reps))} repetições`);
+    if (s.load != null && s.load !== '') partes.push(`${escHtml(String(s.load))} kg`);
+    if (s.duration_sec != null) partes.push(`${Math.round(Number(s.duration_sec) / 60 * 10) / 10} min`);
+    return `<div><b>Série ${i + 1}</b><span>${partes.join(' · ') || 'Realizada'}</span></div>`;
+  }).join('')}</div>`;
+}
+
+function abrirFeedbackModal(row) {
+  fecharFeedbackModal();
+  const log = row.lastLog;
+  const sessao = (row.prescriptionData?.sessions || []).find(s => s.session_id === log.session_id);
+  const entradas = Array.isArray(log.sets) ? log.sets : [];
+  const feelLabels = ['—', 'Muito mal', 'Mal', 'Normal', 'Bem', 'Muito bem'];
+  const overlay = document.createElement('div');
+  overlay.id = 'gcwoFeedbackOverlay';
+  overlay.className = 'gcwo-modal-overlay';
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) fecharFeedbackModal(); });
+  overlay.innerHTML = `
+    <div class="gcwo-modal">
+      <div class="gcwo-modal-head"><h3>Resultado do treino</h3><button type="button" id="gcwoFeedbackClose" title="Fechar">${ICON_CLOSE}</button></div>
+      <div class="gcwo-modal-body">
+        <div class="gcwo-feedback-who"><strong>${escHtml(row.patient?.full_name || '')}</strong><span>${escHtml(sessao?.modality || 'Sessão')} · ${escHtml(new Date(log.logged_at).toLocaleString('pt-PT', { dateStyle: 'medium', timeStyle: 'short' }))}</span></div>
+        <div class="gcwo-feedback-metrics">
+          <div><b>${escHtml(String(log.rpe))}/10</b><span>Esforço</span></div>
+          <div><b>${escHtml(String(log.feel))}/5</b><span>${escHtml(feelLabels[log.feel] || 'Bem-estar')}</span></div>
+        </div>
+        <div class="gcwo-feedback-list">${entradas.map(entrada => {
+          const estado = entrada.status === 'as_prescribed' ? 'Como planeado' : entrada.status === 'skipped' ? 'Não realizado' : 'Alterado';
+          const cls = entrada.status === 'as_prescribed' ? 'feito' : entrada.status === 'skipped' ? 'nao' : 'alterado';
+          return `<div class="gcwo-feedback-item"><div class="gcwo-feedback-item-head"><strong>${escHtml(nomeEntradaFeedback(entrada, sessao))}</strong><span class="${cls}">${estado}</span></div>${renderSeriesFeedback(entrada.series)}</div>`;
+        }).join('') || '<div class="gcwo-muted">Sem detalhe de exercícios neste registo.</div>'}</div>
+        ${log.note ? `<div class="gcwo-feedback-note"><b>Nota do doente</b><br>${escHtml(log.note)}</div>` : ''}
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('gcwoFeedbackClose').addEventListener('click', fecharFeedbackModal);
 }
 
 // Lê wo_prescriptions activas (filtradas por clínica visível ou escolhida) + o último
@@ -904,14 +979,14 @@ async function loadLandingRows() {
   if (ids.length) {
     const { data: logs, error: logsErr } = await window.sb
       .from('wo_session_logs')
-      .select('prescription_id, logged_at')
+      .select('prescription_id, session_id, logged_at, rpe, feel, sets, note')
       .in('prescription_id', ids)
       .order('logged_at', { ascending: false });
     if (logsErr) {
       console.error('[prescricao] falha a carregar wo_session_logs:', logsErr);
     } else {
       (logs || []).forEach(l => {
-        if (!logsByRx.has(l.prescription_id)) logsByRx.set(l.prescription_id, new Date(l.logged_at));
+        if (!logsByRx.has(l.prescription_id)) logsByRx.set(l.prescription_id, l);
       });
     }
   }
@@ -929,7 +1004,9 @@ async function loadLandingRows() {
       // created_at só em registos antigos sem data.startDate gravado (9 ago 2026).
       startDate: r.data?.startDate ? dataDeIso(r.data.startDate) : new Date(r.created_at),
       expiresAt: new Date(r.expires_at),
-      lastLogAt: logsByRx.get(r.id) || null,
+      prescriptionData: r.data || {},
+      lastLog: logsByRx.get(r.id) || null,
+      lastLogAt: logsByRx.has(r.id) ? new Date(logsByRx.get(r.id).logged_at) : null,
     }));
   _landing.loading = false;
   renderLandingTableHost();
@@ -1104,6 +1181,7 @@ function wirePatientBanner() {
    O calendário passa a mostrar-se sempre (ver renderCalendarMode) — escolher datas
    aqui só ajusta a janela, nunca é uma condição para o calendário aparecer. */
 function renderDatasPlanoSection() {
+  const ultimoTreino = ultimoDiaPrescrito();
   return `
     <section class="gcwo-duracao-section">
       <h2 class="gcwo-section-title">Datas do plano</h2>
@@ -1113,6 +1191,14 @@ function renderDatasPlanoSection() {
         <label class="gcwo-field"><span>Revisão (opcional)</span><input type="date" id="gcwoDataRevisao" value="${_state.dataRevisao || ''}"></label>
       </div>
       <div class="gcwo-duracao-info" id="gcwoDuracaoInfo">${escHtml(fmtJanelaPlanoIso(_state.startDate, _state.endDate))}</div>
+      <div class="gcwo-datasplano-row" style="margin-top:14px;">
+        <label class="gcwo-field"><span>Validade do link</span><select id="gcwoValidadeLink">
+          <option value="last_session"${_state.linkExpiryMode === 'last_session' ? ' selected' : ''}>Até ao último treino prescrito</option>
+          <option value="selected_date"${_state.linkExpiryMode === 'selected_date' ? ' selected' : ''}>Escolher outra data</option>
+        </select></label>
+        ${_state.linkExpiryMode === 'selected_date' ? `<label class="gcwo-field"><span>Link válido até</span><input type="date" id="gcwoDataValidadeLink" value="${_state.linkExpiryDate || _state.endDate}" min="${ultimoTreino || _state.startDate}"></label>` : ''}
+      </div>
+      <div class="gcwo-duracao-info">${_state.linkExpiryMode === 'last_session' ? (ultimoTreino ? `O link termina no dia ${escHtml(fmtDataPtIso(ultimoTreino))}.` : 'A validade será calculada quando adicionar treinos.') : 'A data escolhida nunca pode ser anterior ao último treino.'}</div>
     </section>`;
 }
 function wireDatasPlanoSection() {
@@ -1132,6 +1218,18 @@ function wireDatasPlanoSection() {
   document.getElementById('gcwoDataRevisao').addEventListener('change', (e) => {
     _state.dataRevisao = e.target.value || null;
   });
+  document.getElementById('gcwoValidadeLink').addEventListener('change', (e) => {
+    _state.linkExpiryMode = e.target.value;
+    if (_state.linkExpiryMode === 'selected_date' && !_state.linkExpiryDate) _state.linkExpiryDate = _state.endDate;
+    renderStep2Body();
+  });
+  document.getElementById('gcwoDataValidadeLink')?.addEventListener('change', (e) => {
+    _state.linkExpiryDate = e.target.value || null;
+  });
+}
+
+function ultimoDiaPrescrito() {
+  return (_state.sessions || []).map(s => s.date).filter(Boolean).sort().at(-1) || null;
 }
 
 /* ================================================================
@@ -1217,6 +1315,11 @@ function renderCalendarMode(host) {
     <section>
       <div class="gcwo-cal-head">
         <h2 class="gcwo-section-title">Calendário do plano</h2>
+        <div class="gcwo-cal-nav">
+          <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalAnterior">‹ Duas anteriores</button>
+          <span id="gcwoCalIntervalo" class="gcwo-cal-nav-label"></span>
+          <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalSeguinte">Duas seguintes ›</button>
+        </div>
       </div>
       <div id="gcwoCalGrid"></div>
     </section>
@@ -1230,6 +1333,8 @@ function renderCalendarMode(host) {
 
   wireDatasPlanoSection();
   renderCalGrid();
+  document.getElementById('gcwoCalAnterior').addEventListener('click', () => navegarCalendario(-14));
+  document.getElementById('gcwoCalSeguinte').addEventListener('click', () => navegarCalendario(14));
   document.getElementById('gcwoGerar').addEventListener('click', handleGerar);
 }
 
@@ -1241,9 +1346,15 @@ function renderCalendarMode(host) {
 function semanasParaMostrar() {
   const segInicio = segundaFeiraDeIso(_state.startDate);
   const segFim = segundaFeiraDeIso(_state.endDate);
-  const diffSemanas = Math.round((dataDeIso(segFim) - dataDeIso(segInicio)) / (7 * 86400000)) + 1;
-  const n = Math.max(4, diffSemanas);
-  return Array.from({ length: n }, (_, i) => addDiasIso(segInicio, i * 7));
+  if (!_calendarFirstMonday || _calendarFirstMonday < segInicio || _calendarFirstMonday > segFim) {
+    _calendarFirstMonday = segInicio;
+  }
+  return [_calendarFirstMonday, addDiasIso(_calendarFirstMonday, 7)];
+}
+
+function navegarCalendario(dias) {
+  _calendarFirstMonday = addDiasIso(_calendarFirstMonday || segundaFeiraDeIso(_state.startDate), dias);
+  renderCalGrid();
 }
 
 // Posiciona o menu ⋮ como position:fixed calculado a partir do botão que o abriu.
@@ -1269,6 +1380,14 @@ function renderCalGrid() {
   const host = document.getElementById('gcwoCalGrid');
   if (!host) return;
   const semanas = semanasParaMostrar();
+  const primeiroDia = semanas[0];
+  const ultimoDia = addDiasIso(semanas[1], 6);
+  const intervalo = document.getElementById('gcwoCalIntervalo');
+  if (intervalo) intervalo.textContent = `${fmtDiaMesCurtoIso(primeiroDia)} – ${fmtDiaMesCurtoIso(ultimoDia)}`;
+  const anterior = document.getElementById('gcwoCalAnterior');
+  const seguinte = document.getElementById('gcwoCalSeguinte');
+  if (anterior) anterior.disabled = addDiasIso(primeiroDia, -1) < segundaFeiraDeIso(_state.startDate);
+  if (seguinte) seguinte.disabled = addDiasIso(ultimoDia, 1) > addDiasIso(segundaFeiraDeIso(_state.endDate), 6);
 
   // Cabeçalho dos dias da semana (SEG..DOM) uma única vez no topo — antes cada
   // linha de semana repetia isto por baixo do intervalo de datas, o que o Morais
@@ -1297,12 +1416,13 @@ function renderCalGrid() {
               ${sessions.map(s => {
                 const meta = TIPO_META[tipoKey(s)];
                 const momentoLabel = MOMENTOS_SESSAO.find(m => m.value === s.momento)?.label;
+                const modoLabel = s.kind === 'list' && modoExecucaoGinasio(s) === 'guided' ? 'Guiado' : null;
                 return `
                 <div class="gcwo-calsession-row" data-sid="${s.session_id}">
                   <span class="gcwo-calsession-handle" data-drag-sid="${s.session_id}" title="Arrastar para mover">${ICON_GRIP}</span>
                   <button type="button" class="gcwo-calsession-body" data-edit-session="${s.session_id}">
                     <span class="gcwo-calsession-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
-                    <span class="gcwo-calsession-name">${escHtml(meta.label)}${momentoLabel ? ' · ' + escHtml(momentoLabel) : ''}</span>
+                    <span class="gcwo-calsession-name">${escHtml(meta.label)}${modoLabel ? ' · ' + modoLabel : ''}${momentoLabel ? ' · ' + escHtml(momentoLabel) : ''}</span>
                   </button>
                   <button type="button" class="gcwo-calsession-menubtn" data-menu-session="${s.session_id}" title="Mais ações">${ICON_DOTS}</button>
                   <div class="gcwo-calsession-menu" id="gcwoCalMenu-${s.session_id}" hidden>
@@ -1842,6 +1962,25 @@ function renderPanel() {
         ${MOMENTOS_SESSAO.map(m => `<button type="button" class="gcwo-chip${s.momento === m.value ? ' on' : ''}" data-momento="${m.value}">${escHtml(m.label)}</button>`).join('')}
       </div>
 
+      ${s.kind === 'list' ? `
+        <span class="gcwo-field-label" style="margin-top:14px;">Como o doente realizará o treino</span>
+        <div class="gcwo-mode-choice" id="gcwoPExecutionMode">
+          <button type="button" class="gcwo-mode-card${modoExecucaoGinasio(s) === 'free' ? ' on' : ''}" data-execution-mode="free">
+            <strong>Sem Tempo</strong>
+            <span>Consulta os exercícios e regista séries, repetições e cargas ao seu ritmo.</span>
+          </button>
+          <button type="button" class="gcwo-mode-card${modoExecucaoGinasio(s) === 'guided' ? ' on' : ''}" data-execution-mode="guided">
+            <strong>Guiado</strong>
+            <span>O telefone conduz a sequência, os descansos e a passagem ao exercício seguinte.</span>
+          </button>
+        </div>
+      ` : ''}
+
+      <label class="gcwo-field gcwo-session-notes">
+        <span>Anotações para esta sessão (opcional)</span>
+        <textarea id="gcwoPNotes" rows="2" placeholder="Atividades programadas, alternativas ou instruções específicas…">${escHtml(s.notes || '')}</textarea>
+      </label>
+
       ${s.kind === 'list' ? renderCatalogPickerSection(s) : ''}
       ${s.kind === 'walk' ? renderPanelCaminhada(s) : ''}
       ${s.kind === 'card' ? renderPanelCardio(s) : ''}
@@ -1883,6 +2022,13 @@ function wirePanel() {
     chip.addEventListener('click', () => {
       s.momento = chip.getAttribute('data-momento') || null;
       document.querySelectorAll('#gcwoPMomentoChips .gcwo-chip').forEach(c => c.classList.toggle('on', c === chip));
+    });
+  });
+  document.getElementById('gcwoPNotes').addEventListener('input', (e) => { s.notes = e.target.value; });
+  document.getElementById('gcwoPExecutionMode')?.querySelectorAll('[data-execution-mode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      s.execution_mode = btn.getAttribute('data-execution-mode');
+      document.querySelectorAll('#gcwoPExecutionMode .gcwo-mode-card').forEach(card => card.classList.toggle('on', card === btn));
     });
   });
 
@@ -2010,7 +2156,13 @@ function renderItemCardSeriesFields(it) {
         <label class="gcwo-field gcwo-field-sm"><span>Carga (kg)</span><input type="number" min="0" step="0.5" class="gcwo-it-carga" value="${it.load ?? ''}"></label>
         <label class="gcwo-field gcwo-field-sm"><span>Incremento (kg)</span><input type="number" min="0" step="0.5" class="gcwo-it-incremento" value="${it.incremento ?? ''}"></label>
       </div>
-      <label class="gcwo-field gcwo-field-sm"><span>Descanso entre séries (s)</span><input type="number" min="0" class="gcwo-it-restset" value="${it.rest_set ?? ''}"></label>`;
+      <label class="gcwo-field gcwo-field-sm"><span>Descanso entre séries (s)</span><input type="number" min="0" class="gcwo-it-restset" value="${it.rest_set ?? ''}"></label>
+      <div class="gcwo-tempo-grid">
+        <label class="gcwo-field gcwo-field-sm"><span>Descer (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-tempoexc" value="${it.tempo_excentrico_s ?? ''}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>Pausa em baixo (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-pausainf" value="${it.pausa_inferior_s ?? 0}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>Subir (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-tempocon" value="${it.tempo_concentrico_s ?? ''}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>Pausa em cima (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-pausasup" value="${it.pausa_superior_s ?? 0}"></label>
+      </div>`;
 }
 
 function toggleExercicioNaSessao(s, exId) {
@@ -2024,6 +2176,8 @@ function toggleExercicioNaSessao(s, exId) {
       exercise_id: ex.id,
       name: ex.name,
       photo_url: ex.photo_url || null,
+      video_url: ex.video_url || null,
+      tecnica_notas: ex.tecnica_notas || null,
       categoria: ex.categoria || [],
       sets: 3,
       reps_min: 8,
@@ -2033,6 +2187,10 @@ function toggleExercicioNaSessao(s, exId) {
       incremento: ex.incremento_default ?? null,
       rest_set: 60,
       rest_next: 90,
+      tempo_excentrico_s: ex.tempo_excentrico_s ?? 2,
+      pausa_inferior_s: 0,
+      tempo_concentrico_s: ex.tempo_concentrico_s ?? 1,
+      pausa_superior_s: 0,
     });
   }
   refreshCatalogPickerDom(s);
@@ -2089,6 +2247,10 @@ function wirePickedItems(s) {
     bindNum('.gcwo-it-incremento', 'incremento');
     bindNum('.gcwo-it-restset', 'rest_set');
     bindNum('.gcwo-it-restnext', 'rest_next');
+    bindNum('.gcwo-it-tempoexc', 'tempo_excentrico_s');
+    bindNum('.gcwo-it-pausainf', 'pausa_inferior_s');
+    bindNum('.gcwo-it-tempocon', 'tempo_concentrico_s');
+    bindNum('.gcwo-it-pausasup', 'pausa_superior_s');
 
     const duracaoEl = card.querySelector('.gcwo-it-duracaomin');
     if (duracaoEl) duracaoEl.addEventListener('input', (e) => {
@@ -2983,7 +3145,17 @@ function fmtDataPtLisboa(date) {
 // `intervals` já expandido — o `rounds`/`exercicios` é só o modelo do ecrã de edição,
 // nunca o que fica na base de dados (decisão de 8 de agosto de 2026).
 function sessaoParaGravar(s) {
-  const base = { session_id: s.session_id, date: s.date, order: s.order, kind: s.kind, modality: s.modality, local: s.local, momento: s.momento || null };
+  const base = {
+    session_id: s.session_id,
+    date: s.date,
+    order: s.order,
+    kind: s.kind,
+    modality: s.modality,
+    local: s.local,
+    momento: s.momento || null,
+    notes: (s.notes || '').trim() || null,
+    execution_mode: s.kind === 'list' ? modoExecucaoGinasio(s) : null,
+  };
   if (s.kind === 'walk') return { ...base, walks: s.walks, stairs_flights: s.stairs_flights };
   if (s.kind === 'circuit') return { ...base, blocks: flattenBlocosCircuitoParaGravar(s.blocks) };
   if (s.kind === 'card' && s.modality === 'Natação') {
@@ -3029,6 +3201,8 @@ function buildFinalData() {
   return {
     startDate: _state.startDate,
     endDate: _state.endDate,
+    linkExpiryMode: _state.linkExpiryMode,
+    linkExpiryDate: _state.linkExpiryMode === 'selected_date' ? _state.linkExpiryDate : null,
     dataRevisao: _state.dataRevisao,
     duracaoSessaoPadrao: _state.duracaoSessaoPadrao,
     diasPorSemanaHabitual: _state.diasPorSemanaHabitual,
@@ -3080,6 +3254,9 @@ function validarPrescricao() {
   if (!_state.startDate || !_state.endDate) return 'Falta escolher as datas do plano.';
   if (_state.endDate < _state.startDate) return 'A data de fim não pode ser antes da data de início.';
   if (!_state.sessions.length) return 'Adiciona pelo menos uma sessão.';
+  const ultimoTreino = ultimoDiaPrescrito();
+  if (_state.linkExpiryMode === 'selected_date' && !_state.linkExpiryDate) return 'Falta escolher a validade do link.';
+  if (_state.linkExpiryMode === 'selected_date' && ultimoTreino && _state.linkExpiryDate < ultimoTreino) return 'A validade do link não pode terminar antes do último treino.';
   for (const s of _state.sessions) {
     if (!s.local) return 'Há uma sessão sem local escolhido.';
   }
@@ -3121,7 +3298,9 @@ async function handleGerar() {
     if (erroActiva) throw new Error(`Falha ao verificar prescrição activa: ${erroActiva.message || erroActiva}`);
 
     const novaData = buildFinalData();
-    const expiresAtNovo = expiresAtDeIso(_state.endDate);
+    const ultimoTreino = ultimoDiaPrescrito();
+    const dataValidade = _state.linkExpiryMode === 'selected_date' ? _state.linkExpiryDate : ultimoTreino;
+    const expiresAtNovo = expiresAtDeIso(dataValidade);
     let token, linkExpiresAt;
 
     if (activaExistente) {
