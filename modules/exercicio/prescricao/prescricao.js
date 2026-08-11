@@ -219,6 +219,8 @@ function freshState() {
     restricoesEditing: false,
     startDate: inicio,
     endDate: addDiasIso(inicio, 27), // 4 semanas por omissão — ajustável nos campos de data
+    linkExpiryMode: 'last_session',
+    linkExpiryDate: null,
     dataRevisao: null,
     duracaoSessaoPadrao: 30,
     diasPorSemanaHabitual: null,
@@ -544,6 +546,8 @@ async function carregarPlanoActivoSeExistir() {
   _state.activePrescriptionId = data.id;
   _state.startDate = data.data?.startDate || _state.startDate;
   _state.endDate = data.data?.endDate || _state.endDate;
+  _state.linkExpiryMode = data.data?.linkExpiryMode || 'selected_date';
+  _state.linkExpiryDate = data.data?.linkExpiryDate || data.data?.endDate || null;
   _state.dataRevisao = data.data?.dataRevisao || null;
   _state.duracaoSessaoPadrao = data.data?.duracaoSessaoPadrao || 30;
   _state.diasPorSemanaHabitual = data.data?.diasPorSemanaHabitual ?? null;
@@ -1111,6 +1115,7 @@ function wirePatientBanner() {
    O calendário passa a mostrar-se sempre (ver renderCalendarMode) — escolher datas
    aqui só ajusta a janela, nunca é uma condição para o calendário aparecer. */
 function renderDatasPlanoSection() {
+  const ultimoTreino = ultimoDiaPrescrito();
   return `
     <section class="gcwo-duracao-section">
       <h2 class="gcwo-section-title">Datas do plano</h2>
@@ -1120,6 +1125,14 @@ function renderDatasPlanoSection() {
         <label class="gcwo-field"><span>Revisão (opcional)</span><input type="date" id="gcwoDataRevisao" value="${_state.dataRevisao || ''}"></label>
       </div>
       <div class="gcwo-duracao-info" id="gcwoDuracaoInfo">${escHtml(fmtJanelaPlanoIso(_state.startDate, _state.endDate))}</div>
+      <div class="gcwo-datasplano-row" style="margin-top:14px;">
+        <label class="gcwo-field"><span>Validade do link</span><select id="gcwoValidadeLink">
+          <option value="last_session"${_state.linkExpiryMode === 'last_session' ? ' selected' : ''}>Até ao último treino prescrito</option>
+          <option value="selected_date"${_state.linkExpiryMode === 'selected_date' ? ' selected' : ''}>Escolher outra data</option>
+        </select></label>
+        ${_state.linkExpiryMode === 'selected_date' ? `<label class="gcwo-field"><span>Link válido até</span><input type="date" id="gcwoDataValidadeLink" value="${_state.linkExpiryDate || _state.endDate}" min="${ultimoTreino || _state.startDate}"></label>` : ''}
+      </div>
+      <div class="gcwo-duracao-info">${_state.linkExpiryMode === 'last_session' ? (ultimoTreino ? `O link termina no dia ${escHtml(fmtDataPtIso(ultimoTreino))}.` : 'A validade será calculada quando adicionar treinos.') : 'A data escolhida nunca pode ser anterior ao último treino.'}</div>
     </section>`;
 }
 function wireDatasPlanoSection() {
@@ -1139,6 +1152,18 @@ function wireDatasPlanoSection() {
   document.getElementById('gcwoDataRevisao').addEventListener('change', (e) => {
     _state.dataRevisao = e.target.value || null;
   });
+  document.getElementById('gcwoValidadeLink').addEventListener('change', (e) => {
+    _state.linkExpiryMode = e.target.value;
+    if (_state.linkExpiryMode === 'selected_date' && !_state.linkExpiryDate) _state.linkExpiryDate = _state.endDate;
+    renderStep2Body();
+  });
+  document.getElementById('gcwoDataValidadeLink')?.addEventListener('change', (e) => {
+    _state.linkExpiryDate = e.target.value || null;
+  });
+}
+
+function ultimoDiaPrescrito() {
+  return (_state.sessions || []).map(s => s.date).filter(Boolean).sort().at(-1) || null;
 }
 
 /* ================================================================
@@ -3110,6 +3135,8 @@ function buildFinalData() {
   return {
     startDate: _state.startDate,
     endDate: _state.endDate,
+    linkExpiryMode: _state.linkExpiryMode,
+    linkExpiryDate: _state.linkExpiryMode === 'selected_date' ? _state.linkExpiryDate : null,
     dataRevisao: _state.dataRevisao,
     duracaoSessaoPadrao: _state.duracaoSessaoPadrao,
     diasPorSemanaHabitual: _state.diasPorSemanaHabitual,
@@ -3161,6 +3188,9 @@ function validarPrescricao() {
   if (!_state.startDate || !_state.endDate) return 'Falta escolher as datas do plano.';
   if (_state.endDate < _state.startDate) return 'A data de fim não pode ser antes da data de início.';
   if (!_state.sessions.length) return 'Adiciona pelo menos uma sessão.';
+  const ultimoTreino = ultimoDiaPrescrito();
+  if (_state.linkExpiryMode === 'selected_date' && !_state.linkExpiryDate) return 'Falta escolher a validade do link.';
+  if (_state.linkExpiryMode === 'selected_date' && ultimoTreino && _state.linkExpiryDate < ultimoTreino) return 'A validade do link não pode terminar antes do último treino.';
   for (const s of _state.sessions) {
     if (!s.local) return 'Há uma sessão sem local escolhido.';
   }
@@ -3202,7 +3232,9 @@ async function handleGerar() {
     if (erroActiva) throw new Error(`Falha ao verificar prescrição activa: ${erroActiva.message || erroActiva}`);
 
     const novaData = buildFinalData();
-    const expiresAtNovo = expiresAtDeIso(_state.endDate);
+    const ultimoTreino = ultimoDiaPrescrito();
+    const dataValidade = _state.linkExpiryMode === 'selected_date' ? _state.linkExpiryDate : ultimoTreino;
+    const expiresAtNovo = expiresAtDeIso(dataValidade);
     let token, linkExpiresAt;
 
     if (activaExistente) {
