@@ -25,7 +25,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-09-15';
+const PRESCRICAO_CSS_VERSION = '2026-08-11-1';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -245,6 +245,7 @@ let _pendingSlot = null;                // {date} — dia escolhido na grelha, m
 let _calMenuDocClickWired = false;      // menu ⋮ por sessão no calendário — fecha ao clicar fora (9 ago 2026)
 let _beforeUnloadWired = false;         // aviso ao sair com sessões só locais, nunca gravadas (9 ago 2026)
 let _dayPicker = null;                  // {sessionId, mode:'mover'|'duplicar', selecionados:Set(iso)} — modal de escolha de dia(s) (9 ago 2026)
+let _calendarFirstMonday = null;        // primeira das duas semanas visíveis no calendário
 let _historyOpen = false;               // modal "Ver planos anteriores" aberto/fechado
 let _historyLoading = false;
 let _historyError = '';
@@ -464,6 +465,7 @@ function novaSessaoSkeleton(modality, kind, date) {
     modality,
     local: null,
     momento: null,
+    notes: '',
   };
   if (kind === 'walk') return { ...base, walks: [], stairs_flights: null };
   if (kind === 'card' && modality === 'Natação') return { ...base, blocks: [], pool_length_m: 25, stroke: 'crol' };
@@ -1217,6 +1219,11 @@ function renderCalendarMode(host) {
     <section>
       <div class="gcwo-cal-head">
         <h2 class="gcwo-section-title">Calendário do plano</h2>
+        <div class="gcwo-cal-nav">
+          <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalAnterior">‹ Duas anteriores</button>
+          <span id="gcwoCalIntervalo" class="gcwo-cal-nav-label"></span>
+          <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalSeguinte">Duas seguintes ›</button>
+        </div>
       </div>
       <div id="gcwoCalGrid"></div>
     </section>
@@ -1230,6 +1237,8 @@ function renderCalendarMode(host) {
 
   wireDatasPlanoSection();
   renderCalGrid();
+  document.getElementById('gcwoCalAnterior').addEventListener('click', () => navegarCalendario(-14));
+  document.getElementById('gcwoCalSeguinte').addEventListener('click', () => navegarCalendario(14));
   document.getElementById('gcwoGerar').addEventListener('click', handleGerar);
 }
 
@@ -1241,9 +1250,15 @@ function renderCalendarMode(host) {
 function semanasParaMostrar() {
   const segInicio = segundaFeiraDeIso(_state.startDate);
   const segFim = segundaFeiraDeIso(_state.endDate);
-  const diffSemanas = Math.round((dataDeIso(segFim) - dataDeIso(segInicio)) / (7 * 86400000)) + 1;
-  const n = Math.max(4, diffSemanas);
-  return Array.from({ length: n }, (_, i) => addDiasIso(segInicio, i * 7));
+  if (!_calendarFirstMonday || _calendarFirstMonday < segInicio || _calendarFirstMonday > segFim) {
+    _calendarFirstMonday = segInicio;
+  }
+  return [_calendarFirstMonday, addDiasIso(_calendarFirstMonday, 7)];
+}
+
+function navegarCalendario(dias) {
+  _calendarFirstMonday = addDiasIso(_calendarFirstMonday || segundaFeiraDeIso(_state.startDate), dias);
+  renderCalGrid();
 }
 
 // Posiciona o menu ⋮ como position:fixed calculado a partir do botão que o abriu.
@@ -1269,6 +1284,14 @@ function renderCalGrid() {
   const host = document.getElementById('gcwoCalGrid');
   if (!host) return;
   const semanas = semanasParaMostrar();
+  const primeiroDia = semanas[0];
+  const ultimoDia = addDiasIso(semanas[1], 6);
+  const intervalo = document.getElementById('gcwoCalIntervalo');
+  if (intervalo) intervalo.textContent = `${fmtDiaMesCurtoIso(primeiroDia)} – ${fmtDiaMesCurtoIso(ultimoDia)}`;
+  const anterior = document.getElementById('gcwoCalAnterior');
+  const seguinte = document.getElementById('gcwoCalSeguinte');
+  if (anterior) anterior.disabled = addDiasIso(primeiroDia, -1) < segundaFeiraDeIso(_state.startDate);
+  if (seguinte) seguinte.disabled = addDiasIso(ultimoDia, 1) > addDiasIso(segundaFeiraDeIso(_state.endDate), 6);
 
   // Cabeçalho dos dias da semana (SEG..DOM) uma única vez no topo — antes cada
   // linha de semana repetia isto por baixo do intervalo de datas, o que o Morais
@@ -1842,6 +1865,11 @@ function renderPanel() {
         ${MOMENTOS_SESSAO.map(m => `<button type="button" class="gcwo-chip${s.momento === m.value ? ' on' : ''}" data-momento="${m.value}">${escHtml(m.label)}</button>`).join('')}
       </div>
 
+      <label class="gcwo-field gcwo-session-notes">
+        <span>Anotações para esta sessão (opcional)</span>
+        <textarea id="gcwoPNotes" rows="2" placeholder="Atividades programadas, alternativas ou instruções específicas…">${escHtml(s.notes || '')}</textarea>
+      </label>
+
       ${s.kind === 'list' ? renderCatalogPickerSection(s) : ''}
       ${s.kind === 'walk' ? renderPanelCaminhada(s) : ''}
       ${s.kind === 'card' ? renderPanelCardio(s) : ''}
@@ -1885,6 +1913,7 @@ function wirePanel() {
       document.querySelectorAll('#gcwoPMomentoChips .gcwo-chip').forEach(c => c.classList.toggle('on', c === chip));
     });
   });
+  document.getElementById('gcwoPNotes').addEventListener('input', (e) => { s.notes = e.target.value; });
 
   if (s.kind === 'list') wireCatalogPicker(s);
   if (s.kind === 'walk') wirePanelCaminhada(s);
@@ -2983,7 +3012,7 @@ function fmtDataPtLisboa(date) {
 // `intervals` já expandido — o `rounds`/`exercicios` é só o modelo do ecrã de edição,
 // nunca o que fica na base de dados (decisão de 8 de agosto de 2026).
 function sessaoParaGravar(s) {
-  const base = { session_id: s.session_id, date: s.date, order: s.order, kind: s.kind, modality: s.modality, local: s.local, momento: s.momento || null };
+  const base = { session_id: s.session_id, date: s.date, order: s.order, kind: s.kind, modality: s.modality, local: s.local, momento: s.momento || null, notes: (s.notes || '').trim() || null };
   if (s.kind === 'walk') return { ...base, walks: s.walks, stairs_flights: s.stairs_flights };
   if (s.kind === 'circuit') return { ...base, blocks: flattenBlocosCircuitoParaGravar(s.blocks) };
   if (s.kind === 'card' && s.modality === 'Natação') {
