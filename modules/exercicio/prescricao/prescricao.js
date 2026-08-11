@@ -25,7 +25,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-11-6';
+const PRESCRICAO_CSS_VERSION = '2026-08-11-7';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -1982,18 +1982,21 @@ function renderPanel() {
       <button type="button" class="gcwo-panel-headbtn close" id="gcwoPanelFechar" title="Fechar">${ICON_CLOSE}</button>
     </div>
     <div class="gcwo-panel-body">
+      <div class="gcwo-session-local-top">
+        <span class="gcwo-field-label">Local</span>
+        <div class="gcwo-chips" id="gcwoPLocalChips">
+          ${LOCAIS_SESSAO.map(l => `<button type="button" class="gcwo-chip${s.local === l ? ' on' : ''}" data-local="${escAttr(l)}">${escHtml(l)}</button>`).join('')}
+        </div>
+      </div>
+
       ${s.kind === 'list' ? renderCatalogPickerSection(s) : ''}
       ${s.kind === 'walk' ? renderPanelCaminhada(s) : ''}
       ${s.kind === 'card' ? renderPanelCardio(s) : ''}
       ${s.kind === 'circuit' ? renderPanelCircuito(s) : ''}
 
       <details class="gcwo-session-details">
-        <summary>Detalhes da sessão: local, horário e anotações</summary>
+        <summary>Horário, modo de realização e anotações</summary>
         <div class="gcwo-session-details-body">
-          <span class="gcwo-field-label">Local</span>
-          <div class="gcwo-chips" id="gcwoPLocalChips">
-            ${LOCAIS_SESSAO.map(l => `<button type="button" class="gcwo-chip${s.local === l ? ' on' : ''}" data-local="${escAttr(l)}">${escHtml(l)}</button>`).join('')}
-          </div>
           <span class="gcwo-field-label">Momento do dia (opcional)</span>
           <div class="gcwo-chips" id="gcwoPMomentoChips">
             <button type="button" class="gcwo-chip${!s.momento ? ' on' : ''}" data-momento="">Sem indicar</button>
