@@ -2085,6 +2085,8 @@ function toggleExercicioNaSessao(s, exId) {
       exercise_id: ex.id,
       name: ex.name,
       photo_url: ex.photo_url || null,
+      video_url: ex.video_url || null,
+      tecnica_notas: ex.tecnica_notas || null,
       categoria: ex.categoria || [],
       sets: 3,
       reps_min: 8,
