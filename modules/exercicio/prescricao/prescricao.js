@@ -25,7 +25,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-11-4';
+const PRESCRICAO_CSS_VERSION = '2026-08-11-7';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -85,6 +85,7 @@ const SESSAO_MODALIDADES = [
   { modality: 'Natação',   kind: 'card',    enabled: true },
   { modality: 'Caminhada', kind: 'walk',    enabled: true },
   { modality: 'Circuito',  kind: 'circuit', enabled: true },
+  { modality: 'Outra atividade', kind: 'custom', enabled: false },
 ];
 const LOCAIS_SESSAO = ['Ginásio', 'Casa', 'Clínica', 'Exterior', 'Piscina'];
 // Chips de momento do dia — inclui as "rotinas curtas" (pós-almoço/pós-jantar) como
@@ -101,15 +102,17 @@ const MOMENTOS_SESSAO = [
 ];
 const TIPO_BLOCO_LABELS_PT = { continuous: 'Contínuo', series: 'Séries', closing: 'Fecho' };
 const ZONAS = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5', 'Z6', 'Z7'];
+const ZONAS_NATACAO = ['A1', 'A2', 'A3', 'SP1', 'SP2', 'SP3'];
 const CLOSING_MODES = [
   { value: 'rest', label: 'Descanso' },
   { value: 'cooldown', label: 'Arrefecimento' },
   { value: 'walk', label: 'Caminhada' },
   { value: 'easy', label: 'Fácil' },
 ];
-// Zona só se aplica a corrida e ciclismo (briefing secção 3) — natação usa só valor absoluto/RPE.
+// Cada modalidade mantém o seu sistema: corrida Z1-Z5, ciclismo Coggan Z1-Z7
+// e natação A1/A2/A3/SP1/SP2/SP3.
 function modalidadeTemZona(modality) {
-  return modality === 'Corrida' || modality === 'Ciclismo';
+  return modality === 'Corrida' || modality === 'Ciclismo' || modality === 'Natação';
 }
 
 const TIPO_META = {
@@ -119,6 +122,7 @@ const TIPO_META = {
   ciclismo:  { label: 'Ciclismo',  icon: ICON_CICLISMO,  fg: '#0f8a74', bg: '#e3f6f2' },
   caminhada: { label: 'Caminhada', icon: ICON_CAMINHADA, fg: '#15803d', bg: '#dcfce7' },
   circuito:  { label: 'Circuito',  icon: ICON_CIRCUITO,  fg: '#be185d', bg: '#fce7f3' },
+  outra:     { label: 'Outra atividade', icon: ICON_MAIS, fg: '#475569', bg: '#f1f5f9' },
 };
 // Sessões novas usam { kind, modality, local } (secção 5). tipoKey mapeia a modalidade para a chave de TIPO_META.
 function tipoKey(s) {
@@ -128,6 +132,7 @@ function tipoKey(s) {
   if (m === 'ciclismo') return 'ciclismo';
   if (m === 'caminhada') return 'caminhada';
   if (m === 'circuito') return 'circuito';
+  if (m === 'outra atividade') return 'outra';
   return 'ginasio';
 }
 
@@ -156,12 +161,12 @@ function sessaoTemConteudo(s) {
 }
 
 /* ── Ações do topo (Biblioteca/Modelos inertes; Catálogo funcional) ── */
-function topActionsHtml(extraButtonsHtml = '') {
+function topActionsHtml(extraButtonsHtml = '', mostrarCatalogo = true) {
   return `
     <div class="gcwo-headeractions">
       <button type="button" class="gcBtnGhost" disabled title="Em breve">Biblioteca de sessões</button>
       <button type="button" class="gcBtnGhost" disabled title="Em breve">Modelos</button>
-      <button type="button" class="gcBtnOutline" id="gcwoBtnCatalogo">Catálogo</button>
+      ${mostrarCatalogo ? '<button type="button" class="gcBtnOutline" id="gcwoBtnCatalogo">Catálogo</button>' : ''}
       ${extraButtonsHtml}
     </div>`;
 }
@@ -312,7 +317,7 @@ function modalidadeCanonica(modality) {
 // Modalidades que já têm perfis em wo_zone_profiles (Fases 1-2 do spec-zonas-treino.md).
 // Ciclismo entra na Fase 2 — natação (Fase 3) continua sem perfil, cai sempre no
 // comportamento antigo/genérico, como sempre foi.
-const MODALIDADES_COM_PERFIL = ['corrida', 'ciclismo'];
+const MODALIDADES_COM_PERFIL = ['corrida', 'ciclismo', 'natacao'];
 
 // Prioridade: perfil activo em wo_zone_profiles/wo_zone_ranges (carregado uma vez por
 // doente em carregarZonaPerfis(), síncrono aqui porque o render monta HTML em string) >
@@ -323,11 +328,16 @@ const MODALIDADES_COM_PERFIL = ['corrida', 'ciclismo'];
 function bpmRangeParaZona(zona, modality) {
   const p = _state.patient;
   if (!p || !zona) return '';
+  const modalidade = modalidadeCanonica(modality);
+  if (modalidade === 'natacao') {
+    const perfil = _state.zonaPerfis && _state.zonaPerfis.natacao && _state.zonaPerfis.natacao.heart_rate;
+    if (!perfil) return '';
+    const r = (perfil.wo_zone_ranges || []).find(r => r.zone_key === zona);
+    return r ? `${r.lower_value ?? '?'}–${r.upper_value ?? '?'} bpm` : '';
+  }
   const idx = Number(String(zona).replace('Z', ''));
   if (!(idx >= 1 && idx <= 5)) return '';
   const key = 'z' + idx;
-  const modalidade = modalidadeCanonica(modality);
-
   if (MODALIDADES_COM_PERFIL.includes(modalidade)) {
     const perfil = _state.zonaPerfis && _state.zonaPerfis[modalidade] && _state.zonaPerfis[modalidade].heart_rate;
     if (perfil) {
@@ -1250,7 +1260,7 @@ function renderStep2() {
       ${topActionsHtml(`
         <button type="button" class="gcBtnGhost" id="gcwoBtnZonasTreino">Perfis de zonas</button>
         <button type="button" class="gcBtnGhost" id="gcwoTrocarDoente">Trocar doente</button>
-      `)}
+      `, false)}
     </div>
 
     ${renderPatientBanner()}
@@ -1410,6 +1420,12 @@ function renderCalGrid() {
           <div class="gcwo-calday${fora ? ' before-start' : ''}"${fora ? '' : ` data-day="${iso}"`}>
             <div class="gcwo-calday-top">
               <span class="num">${escHtml(fmtDiaMesCurtoIso(iso))}</span>
+              <span class="gcwo-calday-symbols" aria-label="${sessions.length} treino${sessions.length === 1 ? '' : 's'} neste dia">
+                ${sessions.map(s => {
+                  const simboloMeta = TIPO_META[tipoKey(s)];
+                  return `<span class="gcwo-calday-symbol" style="background:${simboloMeta.bg};color:${simboloMeta.fg}" title="${escAttr(simboloMeta.label)}">${simboloMeta.icon}</span>`;
+                }).join('')}
+              </span>
               ${!fora ? `<button type="button" class="gcwo-calday-add" data-add-date="${iso}" title="Adicionar sessão">${ICON_MAIS}</button>` : ''}
             </div>
             <div class="gcwo-calsessions">
@@ -1892,6 +1908,15 @@ function renderTypegrid() {
         ${t.enabled ? '' : 'disabled title="Disponível numa próxima etapa"'}>
         <span class="ticon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
         <span class="tname">${escHtml(t.modality)}</span>
+        <span class="tdesc">${escHtml({
+          'Ginásio': 'Máquinas, TRX, bandas e peso corporal',
+          'Corrida': 'Tempo, distância, ritmo e zonas Z1–Z5',
+          'Ciclismo': 'Tempo, distância, potência e Coggan Z1–Z7',
+          'Natação': 'Distância, ritmo/100 m e zonas A1–SP3',
+          'Caminhada': 'Tempo, distância e intensidade',
+          'Circuito': 'Exercícios organizados por voltas',
+          'Outra atividade': 'Nome e instruções personalizadas',
+        }[t.modality] || '')}</span>
       </button>`;
   }).join('');
 
@@ -1944,6 +1969,12 @@ function renderPanel() {
   const dia = diaSemanaDeIso(s.date);
 
   panel.innerHTML = `
+    <div class="gcwo-flow-steps" aria-label="Etapas da prescrição">
+      <span class="done">1. Tipo de treino</span>
+      <span class="on">2. Construir</span>
+      <span>3. Intensidade</span>
+      <span>4. Rever e repetir</span>
+    </div>
     <div class="gcwo-panel-head">
       <span class="gcwo-panel-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
       <span class="gcwo-panel-titles"><h3>${meta.label}</h3><span class="sub">${dia.full}, ${escHtml(fmtDiaMesCurtoIso(s.date))}</span></span>
@@ -1951,46 +1982,46 @@ function renderPanel() {
       <button type="button" class="gcwo-panel-headbtn close" id="gcwoPanelFechar" title="Fechar">${ICON_CLOSE}</button>
     </div>
     <div class="gcwo-panel-body">
-      <span class="gcwo-field-label">Local</span>
-      <div class="gcwo-chips" id="gcwoPLocalChips">
-        ${LOCAIS_SESSAO.map(l => `<button type="button" class="gcwo-chip${s.local === l ? ' on' : ''}" data-local="${escAttr(l)}">${escHtml(l)}</button>`).join('')}
-      </div>
-
-      <span class="gcwo-field-label" style="margin-top:10px;">Momento do dia (opcional)</span>
-      <div class="gcwo-chips" id="gcwoPMomentoChips">
-        <button type="button" class="gcwo-chip${!s.momento ? ' on' : ''}" data-momento="">Sem indicar</button>
-        ${MOMENTOS_SESSAO.map(m => `<button type="button" class="gcwo-chip${s.momento === m.value ? ' on' : ''}" data-momento="${m.value}">${escHtml(m.label)}</button>`).join('')}
-      </div>
-
-      ${s.kind === 'list' ? `
-        <span class="gcwo-field-label" style="margin-top:14px;">Como o doente realizará o treino</span>
-        <div class="gcwo-mode-choice" id="gcwoPExecutionMode">
-          <button type="button" class="gcwo-mode-card${modoExecucaoGinasio(s) === 'free' ? ' on' : ''}" data-execution-mode="free">
-            <strong>Sem Tempo</strong>
-            <span>Consulta os exercícios e regista séries, repetições e cargas ao seu ritmo.</span>
-          </button>
-          <button type="button" class="gcwo-mode-card${modoExecucaoGinasio(s) === 'guided' ? ' on' : ''}" data-execution-mode="guided">
-            <strong>Guiado</strong>
-            <span>O telefone conduz a sequência, os descansos e a passagem ao exercício seguinte.</span>
-          </button>
+      <div class="gcwo-session-local-top">
+        <span class="gcwo-field-label">Local</span>
+        <div class="gcwo-chips" id="gcwoPLocalChips">
+          ${LOCAIS_SESSAO.map(l => `<button type="button" class="gcwo-chip${s.local === l ? ' on' : ''}" data-local="${escAttr(l)}">${escHtml(l)}</button>`).join('')}
         </div>
-      ` : ''}
-
-      <label class="gcwo-field gcwo-session-notes">
-        <span>Anotações para esta sessão (opcional)</span>
-        <textarea id="gcwoPNotes" rows="2" placeholder="Atividades programadas, alternativas ou instruções específicas…">${escHtml(s.notes || '')}</textarea>
-      </label>
+      </div>
 
       ${s.kind === 'list' ? renderCatalogPickerSection(s) : ''}
       ${s.kind === 'walk' ? renderPanelCaminhada(s) : ''}
       ${s.kind === 'card' ? renderPanelCardio(s) : ''}
       ${s.kind === 'circuit' ? renderPanelCircuito(s) : ''}
 
+      <details class="gcwo-session-details">
+        <summary>Horário, modo de realização e anotações</summary>
+        <div class="gcwo-session-details-body">
+          <span class="gcwo-field-label">Momento do dia (opcional)</span>
+          <div class="gcwo-chips" id="gcwoPMomentoChips">
+            <button type="button" class="gcwo-chip${!s.momento ? ' on' : ''}" data-momento="">Sem indicar</button>
+            ${MOMENTOS_SESSAO.map(m => `<button type="button" class="gcwo-chip${s.momento === m.value ? ' on' : ''}" data-momento="${m.value}">${escHtml(m.label)}</button>`).join('')}
+          </div>
+          ${s.kind === 'list' ? `
+            <span class="gcwo-field-label">Como o doente realizará o treino</span>
+            <div class="gcwo-mode-choice" id="gcwoPExecutionMode">
+              <button type="button" class="gcwo-mode-card${modoExecucaoGinasio(s) === 'free' ? ' on' : ''}" data-execution-mode="free"><strong>Sem Tempo</strong><span>Regista séries, repetições e cargas ao seu ritmo.</span></button>
+              <button type="button" class="gcwo-mode-card${modoExecucaoGinasio(s) === 'guided' ? ' on' : ''}" data-execution-mode="guided"><strong>Guiado</strong><span>O telefone conduz a sequência e os descansos.</span></button>
+            </div>` : ''}
+          <label class="gcwo-field gcwo-session-notes"><span>Anotações para esta sessão (opcional)</span><textarea id="gcwoPNotes" rows="2" placeholder="Atividades programadas, alternativas ou instruções específicas…">${escHtml(s.notes || '')}</textarea></label>
+        </div>
+      </details>
+
+      <div class="gcwo-review-strip">
+        <div><strong>Rever antes de colocar no calendário</strong><span id="gcwoPReviewCount">${sessaoContagem(s).n} ${sessaoContagem(s).label} · ${escHtml(meta.label)}</span></div>
+        <span class="gcwo-review-safe">Nada é gravado antes da confirmação</span>
+      </div>
+
       <span class="gcwo-erro" id="gcwoPErro"></span>
     </div>
     <div class="gcwo-panel-footer">
       <button type="button" class="gcBtnGhost" id="gcwoPCancelar">Cancelar</button>
-      <button type="button" class="gcBtnSuccess" id="gcwoPGuardar">Guardar sessão</button>
+      <button type="button" class="gcBtnSuccess" id="gcwoPGuardar">Colocar no calendário</button>
     </div>
   `;
 
@@ -2038,27 +2069,44 @@ function wirePanel() {
   if (s.kind === 'circuit') wirePanelCircuito(s);
 }
 
+function refreshReviewCount(s) {
+  const el = document.getElementById('gcwoPReviewCount');
+  if (!el) return;
+  const contagem = sessaoContagem(s);
+  el.textContent = `${contagem.n} ${contagem.label} · ${TIPO_META[tipoKey(s)].label}`;
+}
+
 /* ── Painel — catálogo de exercícios (grelha, favoritos por omissão) ── */
 function renderCatalogPickerSection(s) {
   return `
-    <span class="gcwo-field-label" style="margin-top:14px;">Exercícios</span>
-    <div class="gcwo-chips" id="gcwoPCatFiltro">
-      ${CATALOG_FILTROS.map(f => `<button type="button" class="gcwo-chip${_panelCatalogFiltro === f.value ? ' on' : ''}" data-filtro="${escAttr(f.value)}">${escHtml(f.label)}</button>`).join('')}
-    </div>
-    <span class="gcwo-field-label" style="margin-top:8px;">Equipamento</span>
-    <div class="gcwo-chips" id="gcwoPEquipFiltro">
-      ${EQUIPAMENTO_FILTROS.map(eq => `<button type="button" class="gcwo-chip${_panelEquipFiltro.has(eq) ? ' on' : ''}" data-equip="${escAttr(eq)}">${escHtml(eq)}</button>`).join('')}
-    </div>
-    <div class="gc-search-bar" style="margin-top:8px;">
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
-      <input id="gcwoPCatBusca" type="search" class="gc-search-input" placeholder="Pesquisar exercício…" autocomplete="off" spellcheck="false" value="${escAttr(_panelCatalogBusca)}">
-    </div>
-    <div class="gcwo-catpick-grid" id="gcwoPCatGrid">${renderCatalogPickerGrid(s)}</div>
+    <div class="gcwo-gym-workspace">
+      <section class="gcwo-gym-catalog">
+        <div class="gcwo-workspace-title"><strong>1. Escolher exercícios</strong><span id="gcwoPPickedCount">${s.items.length} escolhido${s.items.length === 1 ? '' : 's'}</span></div>
+        <div class="gcwo-chips" id="gcwoPCatFiltro">
+          ${CATALOG_FILTROS.map(f => `<button type="button" class="gcwo-chip${_panelCatalogFiltro === f.value ? ' on' : ''}" data-filtro="${escAttr(f.value)}">${escHtml(f.label)}</button>`).join('')}
+        </div>
+        <div class="gcwo-chips gcwo-equip-chips" id="gcwoPEquipFiltro">
+          ${EQUIPAMENTO_FILTROS.map(eq => `<button type="button" class="gcwo-chip${_panelEquipFiltro.has(eq) ? ' on' : ''}" data-equip="${escAttr(eq)}">${escHtml(eq)}</button>`).join('')}
+        </div>
+        <div class="gc-search-bar">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <input id="gcwoPCatBusca" type="search" class="gc-search-input" placeholder="Pesquisar exercício…" autocomplete="off" spellcheck="false" value="${escAttr(_panelCatalogBusca)}">
+        </div>
+        <div class="gcwo-catpick-grid" id="gcwoPCatGrid">${renderCatalogPickerGrid(s)}</div>
+      </section>
 
-    <span class="gcwo-field-label" style="margin-top:14px;">Seleccionados</span>
-    <div class="gcwo-exercicios" id="gcwoPPickedList">${renderPickedListInner(s)}</div>
-
-    <div class="gcwo-progressao-nota">Sobe para o topo do intervalo em todas as séries → sugere incremento no treino seguinte.</div>
+      <section class="gcwo-gym-plan">
+        <div class="gcwo-workspace-title"><strong>2. Montar o treino</strong></div>
+        <div class="gcwo-presets" id="gcwoPPresets">
+          <button type="button" data-preset="perda">Perda de gordura</button>
+          <button type="button" data-preset="hipertrofia">Hipertrofia</button>
+          <button type="button" data-preset="forca">Força</button>
+          <button type="button" data-preset="personalizado">Personalizado</button>
+        </div>
+        <div class="gcwo-exercicios" id="gcwoPPickedList">${renderPickedListInner(s)}</div>
+        <div class="gcwo-progressao-nota">A prescrição por série permite cargas e repetições diferentes no mesmo exercício.</div>
+      </section>
+    </div>
   `;
 }
 
@@ -2084,12 +2132,30 @@ function renderCatalogPickerGrid(s) {
   return list.map(ex => {
     const added = s.items.some(it => it.exercise_id === ex.id);
     return `
-      <button type="button" class="gcwo-catpick-card${added ? ' added' : ''}" data-exid="${escAttr(ex.id)}" title="${added ? 'Remover da sessão' : 'Adicionar à sessão'}">
+      <div class="gcwo-catpick-card${added ? ' added' : ''}" data-exid="${escAttr(ex.id)}" role="button" tabindex="0" title="${added ? 'Remover da sessão' : 'Adicionar à sessão'}">
+        <button type="button" class="gcwo-catpick-star${ex.is_favorite ? ' on' : ''}" data-favorite-exid="${escAttr(ex.id)}" aria-label="${ex.is_favorite ? 'Retirar dos favoritos' : 'Adicionar aos favoritos'}">${ex.is_favorite ? '★' : '☆'}</button>
         ${ex.photo_url ? `<span class="gcwo-catpick-photo"><img src="${escAttr(ex.photo_url)}" alt=""></span>` : `<span class="gcwo-catpick-photo empty"></span>`}
         <span class="gcwo-catpick-name">${escHtml(ex.name)}</span>
         ${added ? `<span class="gcwo-catpick-check">✓</span>` : ''}
-      </button>`;
+      </div>`;
   }).join('');
+}
+
+async function alternarFavoritoCatalogo(exId, s) {
+  const ex = _state.exercisesCatalog.find(e => e.id === exId);
+  if (!ex) return;
+  const anterior = Boolean(ex.is_favorite);
+  ex.is_favorite = !anterior;
+  const grid = document.getElementById('gcwoPCatGrid');
+  if (grid) grid.innerHTML = renderCatalogPickerGrid(s);
+  wireGridCardClicks(s);
+  const { error } = await window.sb.from('wo_exercises').update({ is_favorite: ex.is_favorite }).eq('id', exId);
+  if (error) {
+    ex.is_favorite = anterior;
+    console.error('[prescricao] falha a actualizar favorito:', error);
+    if (grid) grid.innerHTML = renderCatalogPickerGrid(s);
+    wireGridCardClicks(s);
+  }
 }
 
 // Sem reps_fixed definido → intervalo (o modo por omissão de qualquer exercício novo).
@@ -2104,6 +2170,29 @@ function itemDuracaoMode(it) {
   return it.duration_sec != null ? 'duracao' : 'series';
 }
 
+function seriesPrescritasItem(it) {
+  if (Array.isArray(it.series) && it.series.length) return it.series;
+  const total = Math.max(1, Number(it.sets) || 3);
+  const reps = it.reps_fixed != null ? it.reps_fixed : (it.reps_max ?? 12);
+  return Array.from({ length: total }, () => ({ reps, load: it.load ?? null }));
+}
+
+function sincronizarResumoSeries(it) {
+  const series = seriesPrescritasItem(it);
+  it.series = series;
+  it.sets = series.length;
+  const reps = series.map(s => s.reps).filter(v => v != null && v !== '');
+  const cargas = series.map(s => s.load).filter(v => v != null && v !== '');
+  if (reps.length === series.length && reps.every(v => Number(v) === Number(reps[0]))) {
+    it.reps_fixed = Number(reps[0]); it.reps_min = null; it.reps_max = null;
+  } else {
+    it.reps_fixed = null;
+    it.reps_min = reps.length ? Math.min(...reps.map(Number)) : null;
+    it.reps_max = reps.length ? Math.max(...reps.map(Number)) : null;
+  }
+  it.load = cargas.length === series.length && cargas.every(v => Number(v) === Number(cargas[0])) ? Number(cargas[0]) : null;
+}
+
 function renderPickedListInner(s) {
   if (!s.items.length) return `<div class="gcwo-muted">Nenhum exercício seleccionado ainda.</div>`;
   return s.items.map(renderItemCard).join('');
@@ -2112,9 +2201,11 @@ function renderPickedListInner(s) {
 function renderItemCard(it) {
   const modoDuracao = itemDuracaoMode(it);
   const duracaoRadioName = `gcwo-duracaomode-${it.exercise_id}`;
+  const series = modoDuracao === 'series' ? seriesPrescritasItem(it) : [];
   return `
     <div class="gcwo-exercicio" data-exid="${escAttr(it.exercise_id)}">
       <div class="gcwo-exercicio-head">
+        <span class="gcwo-exercicio-drag" title="Arrastar para ordenar">${ICON_GRIP}</span>
         ${it.photo_url ? `<img class="gcwo-exercicio-foto" src="${escAttr(it.photo_url)}" alt="">` : ''}
         <strong>${escHtml(it.name)}</strong>
         <button type="button" class="gcwo-exercicio-remove" data-remove-exid="${escAttr(it.exercise_id)}" title="Remover exercício">✕</button>
@@ -2128,8 +2219,30 @@ function renderItemCard(it) {
       </div>
       ${modoDuracao === 'duracao' ? `
       <label class="gcwo-field" style="margin-top:8px;"><span>Duração (min)</span><input type="number" min="0" step="0.5" class="gcwo-it-duracaomin" value="${it.duration_sec != null ? it.duration_sec / 60 : ''}"></label>
-      ` : renderItemCardSeriesFields(it)}
-      <label class="gcwo-field gcwo-field-sm" style="margin-top:8px;"><span>Descanso p/ próximo (s)</span><input type="number" min="0" class="gcwo-it-restnext" value="${it.rest_next ?? ''}"></label>
+      ` : `
+        <div class="gcwo-series-table">
+          <div class="gcwo-series-head"><span>Série</span><span>Repetições</span><span>Carga (kg)</span><span></span></div>
+          ${series.map((serie, index) => `<div class="gcwo-series-row" data-series-index="${index}">
+            <b>${index + 1}</b>
+            <input type="number" min="0" class="gcwo-serie-reps" value="${serie.reps ?? ''}" aria-label="Repetições da série ${index + 1}">
+            <input type="number" min="0" step="0.5" class="gcwo-serie-load" value="${serie.load ?? ''}" aria-label="Carga da série ${index + 1}">
+            <button type="button" class="gcwo-serie-delete" title="Remover série" ${series.length <= 1 ? 'disabled' : ''}>✕</button>
+          </div>`).join('')}
+          <button type="button" class="gcwo-add-serie">+ Série</button>
+        </div>
+      `}
+      <details class="gcwo-exercicio-mais">
+        <summary>Mais opções: descanso, ritmo e progressão</summary>
+        <div class="gcwo-exercicio-mais-grid">
+          <label class="gcwo-field gcwo-field-sm"><span>Descanso entre séries (s)</span><input type="number" min="0" class="gcwo-it-restset" value="${it.rest_set ?? ''}"></label>
+          <label class="gcwo-field gcwo-field-sm"><span>Antes do próximo (s)</span><input type="number" min="0" class="gcwo-it-restnext" value="${it.rest_next ?? ''}"></label>
+          <label class="gcwo-field gcwo-field-sm"><span>Incremento (kg)</span><input type="number" min="0" step="0.5" class="gcwo-it-incremento" value="${it.incremento ?? ''}"></label>
+          <label class="gcwo-field gcwo-field-sm"><span>Descer (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-tempoexc" value="${it.tempo_excentrico_s ?? ''}"></label>
+          <label class="gcwo-field gcwo-field-sm"><span>Pausa em baixo (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-pausainf" value="${it.pausa_inferior_s ?? 0}"></label>
+          <label class="gcwo-field gcwo-field-sm"><span>Subir (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-tempocon" value="${it.tempo_concentrico_s ?? ''}"></label>
+          <label class="gcwo-field gcwo-field-sm"><span>Pausa em cima (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-pausasup" value="${it.pausa_superior_s ?? 0}"></label>
+        </div>
+      </details>
     </div>`;
 }
 
@@ -2191,6 +2304,11 @@ function toggleExercicioNaSessao(s, exId) {
       pausa_inferior_s: 0,
       tempo_concentrico_s: ex.tempo_concentrico_s ?? 1,
       pausa_superior_s: 0,
+      series: [
+        { reps: 12, load: null },
+        { reps: 12, load: null },
+        { reps: 12, load: null },
+      ],
     });
   }
   refreshCatalogPickerDom(s);
@@ -2202,9 +2320,12 @@ function refreshCatalogPickerDom(s) {
   if (grid) grid.innerHTML = renderCatalogPickerGrid(s);
   const picked = document.getElementById('gcwoPPickedList');
   if (picked) picked.innerHTML = renderPickedListInner(s);
+  const count = document.getElementById('gcwoPPickedCount');
+  if (count) count.textContent = `${s.items.length} escolhido${s.items.length === 1 ? '' : 's'}`;
   wireGridCardClicks(s);
   wireRemoveButtons(s);
   wirePickedItems(s);
+  refreshReviewCount(s);
 }
 
 // Só o cartão do exercício muda de forma (intervalo↔fixo) — a grelha fica intacta, não se reata.
@@ -2217,7 +2338,21 @@ function refreshPickedListDom(s) {
 
 function wireGridCardClicks(s) {
   document.querySelectorAll('#gcwoPCatGrid [data-exid]').forEach(btn => {
-    btn.addEventListener('click', () => toggleExercicioNaSessao(s, btn.getAttribute('data-exid')));
+    btn.addEventListener('click', (e) => {
+      if (e.target.closest('[data-favorite-exid]')) return;
+      toggleExercicioNaSessao(s, btn.getAttribute('data-exid'));
+    });
+    btn.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      toggleExercicioNaSessao(s, btn.getAttribute('data-exid'));
+    });
+  });
+  document.querySelectorAll('#gcwoPCatGrid [data-favorite-exid]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      alternarFavoritoCatalogo(btn.getAttribute('data-favorite-exid'), s);
+    });
   });
 }
 
@@ -2235,6 +2370,26 @@ function wirePickedItems(s) {
     const it = s.items.find(i => i.exercise_id === exId);
     if (!it) return;
 
+    card.setAttribute('draggable', 'true');
+    card.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', exId);
+      e.dataTransfer.effectAllowed = 'move';
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+    card.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+    card.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const origemId = e.dataTransfer.getData('text/plain');
+      if (!origemId || origemId === exId) return;
+      const origem = s.items.findIndex(x => x.exercise_id === origemId);
+      const destino = s.items.findIndex(x => x.exercise_id === exId);
+      if (origem < 0 || destino < 0) return;
+      const [movido] = s.items.splice(origem, 1);
+      s.items.splice(destino, 0, movido);
+      refreshPickedListDom(s);
+    });
+
     const bindNum = (selector, field) => {
       const el = card.querySelector(selector);
       if (el) el.addEventListener('input', (e) => { it[field] = e.target.value === '' ? null : Number(e.target.value); });
@@ -2251,6 +2406,32 @@ function wirePickedItems(s) {
     bindNum('.gcwo-it-pausainf', 'pausa_inferior_s');
     bindNum('.gcwo-it-tempocon', 'tempo_concentrico_s');
     bindNum('.gcwo-it-pausasup', 'pausa_superior_s');
+
+    card.querySelectorAll('.gcwo-series-row').forEach(row => {
+      const index = Number(row.getAttribute('data-series-index'));
+      const series = seriesPrescritasItem(it);
+      row.querySelector('.gcwo-serie-reps')?.addEventListener('input', (e) => {
+        series[index].reps = e.target.value === '' ? null : Number(e.target.value);
+        sincronizarResumoSeries(it);
+      });
+      row.querySelector('.gcwo-serie-load')?.addEventListener('input', (e) => {
+        series[index].load = e.target.value === '' ? null : Number(e.target.value);
+        sincronizarResumoSeries(it);
+      });
+      row.querySelector('.gcwo-serie-delete')?.addEventListener('click', () => {
+        if (series.length <= 1) return;
+        series.splice(index, 1);
+        sincronizarResumoSeries(it);
+        refreshPickedListDom(s);
+      });
+    });
+    card.querySelector('.gcwo-add-serie')?.addEventListener('click', () => {
+      const series = seriesPrescritasItem(it);
+      const anterior = series.at(-1) || { reps: 12, load: null };
+      series.push({ reps: anterior.reps ?? 12, load: anterior.load ?? null });
+      sincronizarResumoSeries(it);
+      refreshPickedListDom(s);
+    });
 
     const duracaoEl = card.querySelector('.gcwo-it-duracaomin');
     if (duracaoEl) duracaoEl.addEventListener('input', (e) => {
@@ -2284,12 +2465,14 @@ function wirePickedItems(s) {
           it.load = null;
           it.incremento = null;
           it.rest_set = null;
+          it.series = null;
           if (it.duration_sec == null) it.duration_sec = 600;
         } else {
           it.duration_sec = null;
           if (it.sets == null) it.sets = 3;
           if (it.reps_min == null && it.reps_fixed == null) { it.reps_min = 8; it.reps_max = 12; }
           if (it.rest_set == null) it.rest_set = 60;
+          if (!Array.isArray(it.series) || !it.series.length) it.series = Array.from({ length: it.sets || 3 }, () => ({ reps: it.reps_fixed ?? it.reps_max ?? 12, load: it.load ?? null }));
         }
         refreshPickedListDom(s);
       });
@@ -2298,6 +2481,32 @@ function wirePickedItems(s) {
 }
 
 function wireCatalogPicker(s) {
+  document.querySelectorAll('#gcwoPPresets [data-preset]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const modelos = {
+        perda: { reps: [15, 15, 15], rest_set: 60, rest_next: 60, tempo_excentrico_s: 2, tempo_concentrico_s: 1 },
+        hipertrofia: { reps: [10, 12, 12], rest_set: 90, rest_next: 120, tempo_excentrico_s: 3, tempo_concentrico_s: 1 },
+        forca: { reps: [8, 8, 8], rest_set: 150, rest_next: 150, tempo_excentrico_s: 2, tempo_concentrico_s: 1 },
+        personalizado: null,
+      };
+      const modelo = modelos[btn.getAttribute('data-preset')];
+      if (modelo) {
+        s.items.forEach(it => {
+          it.duration_sec = null;
+          it.series = modelo.reps.map(reps => ({ reps, load: it.load ?? null }));
+          it.rest_set = modelo.rest_set;
+          it.rest_next = modelo.rest_next;
+          it.tempo_excentrico_s = modelo.tempo_excentrico_s;
+          it.tempo_concentrico_s = modelo.tempo_concentrico_s;
+          it.pausa_inferior_s = 0;
+          it.pausa_superior_s = 0;
+          sincronizarResumoSeries(it);
+        });
+        refreshPickedListDom(s);
+      }
+      document.querySelectorAll('#gcwoPPresets [data-preset]').forEach(x => x.classList.toggle('on', x === btn));
+    });
+  });
   document.querySelectorAll('#gcwoPCatFiltro [data-filtro]').forEach(chip => {
     chip.addEventListener('click', () => {
       _panelCatalogFiltro = chip.getAttribute('data-filtro');
@@ -2375,6 +2584,7 @@ function refreshWalksListDom(s) {
   const host = document.getElementById('gcwoPWalksList');
   if (host) host.innerHTML = renderWalksListInner(s);
   wireWalksListItems(s);
+  refreshReviewCount(s);
 }
 
 function wireWalksListItems(s) {
@@ -2446,11 +2656,13 @@ function calcularCargaPorZona(s) {
 function renderIndicadorZonaHtml(s) {
   const { minutosPorZona, totalComZona } = calcularCargaPorZona(s);
   if (!totalComZona) return '';
+  const zonasAltasNatacao = new Set(['A3', 'SP1', 'SP2', 'SP3']);
   const z3mais = Object.entries(minutosPorZona)
-    .filter(([z]) => Number(z.replace('Z', '')) >= 3)
+    .filter(([z]) => modalidadeCanonica(s.modality) === 'natacao' ? zonasAltasNatacao.has(z) : Number(z.replace('Z', '')) >= 3)
     .reduce((a, [, v]) => a + v, 0);
   const pct = Math.round((z3mais / totalComZona) * 100);
-  return `<div class="gcwo-progressao-nota">Z3+: ${fmtDuracaoTotal(z3mais)} de ${fmtDuracaoTotal(totalComZona)} · ${pct}% acima da base</div>`;
+  const etiqueta = modalidadeCanonica(s.modality) === 'natacao' ? 'A3/SP' : 'Z3+';
+  return `<div class="gcwo-progressao-nota">${etiqueta}: ${fmtDuracaoTotal(z3mais)} de ${fmtDuracaoTotal(totalComZona)} · ${pct}% acima da base</div>`;
 }
 function refreshZonaResumo(s) {
   const host = document.getElementById('gcwoPZonaResumo');
@@ -2458,7 +2670,7 @@ function refreshZonaResumo(s) {
 }
 
 function renderIntensidadeCampos(intensity, mostrarZona, modality) {
-  const isNatacao = modality === 'Natação';
+  const isNatacao = modalidadeCanonica(modality) === 'natacao';
   // Ciclismo (Fase 2, spec-zonas-treino.md): ritmo min/km "desaparece" — substituído por
   // velocidade (km/h), campo opcional/secundário, sem zonas próprias (só Cadência/RPE ao
   // lado). A "Zona" passa a apontar para a tabela de Coggan (potência), não FC.
@@ -2467,7 +2679,7 @@ function renderIntensidadeCampos(intensity, mostrarZona, modality) {
   // Z6/Z7 só existem no modelo de potência de Coggan (ciclismo) — as restantes
   // modalidades (corrida, natação, ginásio, caminhada, circuito) usam o modelo
   // tradicional de 5 zonas, mesmo quando mostram este dropdown genérico.
-  const zonasDisponiveis = isCiclismo ? ZONAS : ZONAS.slice(0, 5);
+  const zonasDisponiveis = isNatacao ? ZONAS_NATACAO : (isCiclismo ? ZONAS : ZONAS.slice(0, 5));
 
   const campoZona = mostrarZona ? `
       <label class="gcwo-field"><span>Zona</span>
@@ -2481,8 +2693,8 @@ function renderIntensidadeCampos(intensity, mostrarZona, modality) {
     ? `<label class="gcwo-field"><span>Ritmo (min:seg/100m)</span><input type="text" inputmode="numeric" placeholder="1:35" class="gcwo-int-pace100" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_100m))}"></label>`
     : `<label class="gcwo-field"><span>Ritmo (min/km)</span><input type="text" inputmode="numeric" placeholder="5:00" class="gcwo-int-pace" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_km))}"></label>`;
   const campoVelocidade = `<label class="gcwo-field"><span>Velocidade (km/h, opcional)</span><input type="number" min="0" step="0.1" class="gcwo-int-speed" value="${intensity.speed_kmh ?? ''}"></label>`;
-  const campoFc = `<label class="gcwo-field"><span>FC (bpm)</span><input type="number" min="0" class="gcwo-int-fc" value="${intensity.heart_rate_bpm ?? ''}"></label>`;
-  const campoPotencia = `<label class="gcwo-field"><span>Potência (W)</span><input type="number" min="0" class="gcwo-int-power" value="${intensity.power_w ?? ''}"></label>`;
+  const campoFc = `<label class="gcwo-field"><span class="gcwo-metric-label"><b class="heart">♥</b> Frequência cardíaca (bpm)</span><input type="number" min="0" class="gcwo-int-fc" value="${intensity.heart_rate_bpm ?? ''}"></label>`;
+  const campoPotencia = `<label class="gcwo-field"><span class="gcwo-metric-label"><b class="power">⚡</b> Potência (W)</span><input type="number" min="0" class="gcwo-int-power" value="${intensity.power_w ?? ''}"></label>`;
   const campoCadencia = `<label class="gcwo-field"><span>Cadência (rpm)</span><input type="number" min="0" class="gcwo-int-cadence" value="${intensity.cadence_rpm ?? ''}"></label>`;
   const campoRpe = `<label class="gcwo-field"><span>RPE</span><input type="number" min="1" max="10" class="gcwo-int-rpe" value="${intensity.rpe ?? ''}"></label>`;
 
@@ -2682,6 +2894,7 @@ function refreshBlocosListDom(s) {
   if (host) host.innerHTML = renderBlocosListInner(s);
   wireBlocosList(s);
   refreshZonaResumo(s);
+  refreshReviewCount(s);
 }
 
 function wireBlocosList(s) {
