@@ -25,7 +25,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-11-1';
+const PRESCRICAO_CSS_VERSION = '2026-08-11-2';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -129,6 +129,10 @@ function tipoKey(s) {
   if (m === 'caminhada') return 'caminhada';
   if (m === 'circuito') return 'circuito';
   return 'ginasio';
+}
+
+function modoExecucaoGinasio(s) {
+  return s?.execution_mode === 'guided' ? 'guided' : 'free';
 }
 
 function uuid() { return crypto.randomUUID(); }
@@ -466,6 +470,7 @@ function novaSessaoSkeleton(modality, kind, date) {
     local: null,
     momento: null,
     notes: '',
+    execution_mode: kind === 'list' ? 'free' : null,
   };
   if (kind === 'walk') return { ...base, walks: [], stairs_flights: null };
   if (kind === 'card' && modality === 'Natação') return { ...base, blocks: [], pool_length_m: 25, stroke: 'crol' };
@@ -1320,12 +1325,13 @@ function renderCalGrid() {
               ${sessions.map(s => {
                 const meta = TIPO_META[tipoKey(s)];
                 const momentoLabel = MOMENTOS_SESSAO.find(m => m.value === s.momento)?.label;
+                const modoLabel = s.kind === 'list' && modoExecucaoGinasio(s) === 'guided' ? 'Guiado' : null;
                 return `
                 <div class="gcwo-calsession-row" data-sid="${s.session_id}">
                   <span class="gcwo-calsession-handle" data-drag-sid="${s.session_id}" title="Arrastar para mover">${ICON_GRIP}</span>
                   <button type="button" class="gcwo-calsession-body" data-edit-session="${s.session_id}">
                     <span class="gcwo-calsession-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
-                    <span class="gcwo-calsession-name">${escHtml(meta.label)}${momentoLabel ? ' · ' + escHtml(momentoLabel) : ''}</span>
+                    <span class="gcwo-calsession-name">${escHtml(meta.label)}${modoLabel ? ' · ' + modoLabel : ''}${momentoLabel ? ' · ' + escHtml(momentoLabel) : ''}</span>
                   </button>
                   <button type="button" class="gcwo-calsession-menubtn" data-menu-session="${s.session_id}" title="Mais ações">${ICON_DOTS}</button>
                   <div class="gcwo-calsession-menu" id="gcwoCalMenu-${s.session_id}" hidden>
@@ -1865,6 +1871,20 @@ function renderPanel() {
         ${MOMENTOS_SESSAO.map(m => `<button type="button" class="gcwo-chip${s.momento === m.value ? ' on' : ''}" data-momento="${m.value}">${escHtml(m.label)}</button>`).join('')}
       </div>
 
+      ${s.kind === 'list' ? `
+        <span class="gcwo-field-label" style="margin-top:14px;">Como o doente realizará o treino</span>
+        <div class="gcwo-mode-choice" id="gcwoPExecutionMode">
+          <button type="button" class="gcwo-mode-card${modoExecucaoGinasio(s) === 'free' ? ' on' : ''}" data-execution-mode="free">
+            <strong>Sem Tempo</strong>
+            <span>Consulta os exercícios e regista séries, repetições e cargas ao seu ritmo.</span>
+          </button>
+          <button type="button" class="gcwo-mode-card${modoExecucaoGinasio(s) === 'guided' ? ' on' : ''}" data-execution-mode="guided">
+            <strong>Guiado</strong>
+            <span>O telefone conduz a sequência, os descansos e a passagem ao exercício seguinte.</span>
+          </button>
+        </div>
+      ` : ''}
+
       <label class="gcwo-field gcwo-session-notes">
         <span>Anotações para esta sessão (opcional)</span>
         <textarea id="gcwoPNotes" rows="2" placeholder="Atividades programadas, alternativas ou instruções específicas…">${escHtml(s.notes || '')}</textarea>
@@ -1914,6 +1934,12 @@ function wirePanel() {
     });
   });
   document.getElementById('gcwoPNotes').addEventListener('input', (e) => { s.notes = e.target.value; });
+  document.getElementById('gcwoPExecutionMode')?.querySelectorAll('[data-execution-mode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      s.execution_mode = btn.getAttribute('data-execution-mode');
+      document.querySelectorAll('#gcwoPExecutionMode .gcwo-mode-card').forEach(card => card.classList.toggle('on', card === btn));
+    });
+  });
 
   if (s.kind === 'list') wireCatalogPicker(s);
   if (s.kind === 'walk') wirePanelCaminhada(s);
@@ -3012,7 +3038,17 @@ function fmtDataPtLisboa(date) {
 // `intervals` já expandido — o `rounds`/`exercicios` é só o modelo do ecrã de edição,
 // nunca o que fica na base de dados (decisão de 8 de agosto de 2026).
 function sessaoParaGravar(s) {
-  const base = { session_id: s.session_id, date: s.date, order: s.order, kind: s.kind, modality: s.modality, local: s.local, momento: s.momento || null, notes: (s.notes || '').trim() || null };
+  const base = {
+    session_id: s.session_id,
+    date: s.date,
+    order: s.order,
+    kind: s.kind,
+    modality: s.modality,
+    local: s.local,
+    momento: s.momento || null,
+    notes: (s.notes || '').trim() || null,
+    execution_mode: s.kind === 'list' ? modoExecucaoGinasio(s) : null,
+  };
   if (s.kind === 'walk') return { ...base, walks: s.walks, stairs_flights: s.stairs_flights };
   if (s.kind === 'circuit') return { ...base, blocks: flattenBlocosCircuitoParaGravar(s.blocks) };
   if (s.kind === 'card' && s.modality === 'Natação') {

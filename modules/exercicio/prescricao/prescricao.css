@@ -215,6 +215,16 @@
   padding:10px 12px; font:inherit; color:#0f172a; background:#fff;
 }
 .gcwo-session-notes textarea:focus { outline:2px solid #bfdbfe; border-color:#60a5fa; }
+.gcwo-mode-choice { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:7px; }
+.gcwo-mode-card {
+  display:flex; flex-direction:column; align-items:flex-start; gap:5px; min-height:92px;
+  padding:13px 14px; border:1.5px solid #d8dee8; border-radius:12px; background:#fff;
+  color:#475569; text-align:left; cursor:pointer; font:inherit;
+}
+.gcwo-mode-card strong { color:#0f2d52; font-size:14px; }
+.gcwo-mode-card span { font-size:12px; line-height:1.35; }
+.gcwo-mode-card.on { border-color:#1a56db; background:#eff6ff; box-shadow:0 0 0 1px #1a56db; }
+@media (max-width:700px) { .gcwo-mode-choice { grid-template-columns:1fr; } }
 
 /* ── calendário — semanas com datas reais ── */
 /* Cabeçalho SEG..DOM uma única vez no topo do calendário (9 ago 2026) — substitui
