@@ -25,7 +25,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-11-3';
+const PRESCRICAO_CSS_VERSION = '2026-08-11-4';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -848,7 +848,7 @@ function renderLandingTableHost() {
     <div class="gcwo-tablewrap">
       <table class="gcwo-readtable gcwo-landing-table">
         <thead><tr>
-          <th>Doente</th><th>Clínica</th><th>Plano</th><th>Último treino</th><th>Situação</th>
+          <th>Doente</th><th>Clínica</th><th>Plano</th><th>Último treino</th><th>Situação</th><th>Resultado</th>
         </tr></thead>
         <tbody>
           ${linhas.map(r => `
@@ -858,6 +858,7 @@ function renderLandingTableHost() {
               <td class="muted">${escHtml(fmtIntervaloPlano(r.startDate, r.expiresAt))}</td>
               <td class="muted">${escHtml(fmtRelativo(r.lastLogAt))}</td>
               <td><span class="gcwo-situacao-dot ${r.situacao.cls}"></span>${escHtml(r.situacao.label)}</td>
+              <td>${r.lastLog ? `<button type="button" class="gcwo-feedback-btn" data-feedback-rid="${escAttr(r.id)}">Ver treino</button>` : '<span class="muted">—</span>'}</td>
             </tr>`).join('')}
         </tbody>
       </table>
@@ -878,6 +879,69 @@ function renderLandingTableHost() {
       });
     });
   });
+  host.querySelectorAll('[data-feedback-rid]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const row = _landing.rows.find(x => x.id === btn.getAttribute('data-feedback-rid'));
+      if (row?.lastLog) abrirFeedbackModal(row);
+    });
+  });
+}
+
+function fecharFeedbackModal() {
+  document.getElementById('gcwoFeedbackOverlay')?.remove();
+}
+
+function nomeEntradaFeedback(entrada, sessao) {
+  const item = (sessao?.items || []).find(it => it.exercise_id === entrada.exercise_id);
+  if (item) return item.name;
+  const block = (sessao?.blocks || []).find(b => b.block_id === entrada.block_id);
+  if (block) return block.name || block.label || 'Bloco';
+  const walk = (sessao?.walks || []).find(w => w.walk_id === entrada.walk_id);
+  return walk?.label || entrada.exercise_name || 'Exercício';
+}
+
+function renderSeriesFeedback(series) {
+  if (!Array.isArray(series) || !series.length) return '';
+  return `<div class="gcwo-feedback-series">${series.map((s, i) => {
+    if (s.skipped) return `<div><b>Série ${i + 1}</b><span class="nao">Não realizada</span></div>`;
+    const partes = [];
+    if (s.reps != null) partes.push(`${escHtml(String(s.reps))} repetições`);
+    if (s.load != null && s.load !== '') partes.push(`${escHtml(String(s.load))} kg`);
+    if (s.duration_sec != null) partes.push(`${Math.round(Number(s.duration_sec) / 60 * 10) / 10} min`);
+    return `<div><b>Série ${i + 1}</b><span>${partes.join(' · ') || 'Realizada'}</span></div>`;
+  }).join('')}</div>`;
+}
+
+function abrirFeedbackModal(row) {
+  fecharFeedbackModal();
+  const log = row.lastLog;
+  const sessao = (row.prescriptionData?.sessions || []).find(s => s.session_id === log.session_id);
+  const entradas = Array.isArray(log.sets) ? log.sets : [];
+  const feelLabels = ['—', 'Muito mal', 'Mal', 'Normal', 'Bem', 'Muito bem'];
+  const overlay = document.createElement('div');
+  overlay.id = 'gcwoFeedbackOverlay';
+  overlay.className = 'gcwo-modal-overlay';
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) fecharFeedbackModal(); });
+  overlay.innerHTML = `
+    <div class="gcwo-modal">
+      <div class="gcwo-modal-head"><h3>Resultado do treino</h3><button type="button" id="gcwoFeedbackClose" title="Fechar">${ICON_CLOSE}</button></div>
+      <div class="gcwo-modal-body">
+        <div class="gcwo-feedback-who"><strong>${escHtml(row.patient?.full_name || '')}</strong><span>${escHtml(sessao?.modality || 'Sessão')} · ${escHtml(new Date(log.logged_at).toLocaleString('pt-PT', { dateStyle: 'medium', timeStyle: 'short' }))}</span></div>
+        <div class="gcwo-feedback-metrics">
+          <div><b>${escHtml(String(log.rpe))}/10</b><span>Esforço</span></div>
+          <div><b>${escHtml(String(log.feel))}/5</b><span>${escHtml(feelLabels[log.feel] || 'Bem-estar')}</span></div>
+        </div>
+        <div class="gcwo-feedback-list">${entradas.map(entrada => {
+          const estado = entrada.status === 'as_prescribed' ? 'Como planeado' : entrada.status === 'skipped' ? 'Não realizado' : 'Alterado';
+          const cls = entrada.status === 'as_prescribed' ? 'feito' : entrada.status === 'skipped' ? 'nao' : 'alterado';
+          return `<div class="gcwo-feedback-item"><div class="gcwo-feedback-item-head"><strong>${escHtml(nomeEntradaFeedback(entrada, sessao))}</strong><span class="${cls}">${estado}</span></div>${renderSeriesFeedback(entrada.series)}</div>`;
+        }).join('') || '<div class="gcwo-muted">Sem detalhe de exercícios neste registo.</div>'}</div>
+        ${log.note ? `<div class="gcwo-feedback-note"><b>Nota do doente</b><br>${escHtml(log.note)}</div>` : ''}
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('gcwoFeedbackClose').addEventListener('click', fecharFeedbackModal);
 }
 
 // Lê wo_prescriptions activas (filtradas por clínica visível ou escolhida) + o último
@@ -915,14 +979,14 @@ async function loadLandingRows() {
   if (ids.length) {
     const { data: logs, error: logsErr } = await window.sb
       .from('wo_session_logs')
-      .select('prescription_id, logged_at')
+      .select('prescription_id, session_id, logged_at, rpe, feel, sets, note')
       .in('prescription_id', ids)
       .order('logged_at', { ascending: false });
     if (logsErr) {
       console.error('[prescricao] falha a carregar wo_session_logs:', logsErr);
     } else {
       (logs || []).forEach(l => {
-        if (!logsByRx.has(l.prescription_id)) logsByRx.set(l.prescription_id, new Date(l.logged_at));
+        if (!logsByRx.has(l.prescription_id)) logsByRx.set(l.prescription_id, l);
       });
     }
   }
@@ -940,7 +1004,9 @@ async function loadLandingRows() {
       // created_at só em registos antigos sem data.startDate gravado (9 ago 2026).
       startDate: r.data?.startDate ? dataDeIso(r.data.startDate) : new Date(r.created_at),
       expiresAt: new Date(r.expires_at),
-      lastLogAt: logsByRx.get(r.id) || null,
+      prescriptionData: r.data || {},
+      lastLog: logsByRx.get(r.id) || null,
+      lastLogAt: logsByRx.has(r.id) ? new Date(logsByRx.get(r.id).logged_at) : null,
     }));
   _landing.loading = false;
   renderLandingTableHost();
