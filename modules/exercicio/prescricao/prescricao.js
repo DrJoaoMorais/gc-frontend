@@ -25,7 +25,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-11-7';
+const PRESCRICAO_CSS_VERSION = '2026-08-11-8';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -161,11 +161,10 @@ function sessaoTemConteudo(s) {
 }
 
 /* ── Ações do topo (Biblioteca/Modelos inertes; Catálogo funcional) ── */
-function topActionsHtml(extraButtonsHtml = '', mostrarCatalogo = true) {
+function topActionsHtml(extraButtonsHtml = '', mostrarCatalogo = true, mostrarFuturos = true) {
   return `
     <div class="gcwo-headeractions">
-      <button type="button" class="gcBtnGhost" disabled title="Em breve">Biblioteca de sessões</button>
-      <button type="button" class="gcBtnGhost" disabled title="Em breve">Modelos</button>
+      ${mostrarFuturos ? '<button type="button" class="gcBtnGhost" disabled title="Em breve">Biblioteca de sessões</button><button type="button" class="gcBtnGhost" disabled title="Em breve">Modelos</button>' : ''}
       ${mostrarCatalogo ? '<button type="button" class="gcBtnOutline" id="gcwoBtnCatalogo">Catálogo</button>' : ''}
       ${extraButtonsHtml}
     </div>`;
@@ -249,7 +248,7 @@ let _expandedCardIds = new Set();       // sessões expandidas na lista principa
 let _panelExpandedTarefaId = null;      // dentro do painel, tarefa expandida (só uma)
 let _panelDraft = null;                 // clone de trabalho da sessão em edição — null = painel fechado
 let _panelIsNovo = false;
-let _panelCatalogFiltro = 'favoritos';  // filtro do catálogo dentro do painel de ginásio
+let _panelCatalogFiltro = 'todos';  // mostra o catálogo; "Favoritos" continua a um clique
 let _panelCatalogBusca = '';
 let _panelEquipFiltro = new Set();      // filtro de equipamento (multi-selecção) dentro do painel de ginásio
 let _pendingSlot = null;                // {date} — dia escolhido na grelha, modalidade por escolher (ecrã de 2 modos, 9 ago 2026)
@@ -1131,11 +1130,8 @@ function renderStep1() {
 
 /* ── Cabeçalho do doente — idade + restrições em chips numa linha ── */
 function renderPatientBanner() {
-  const p = _state.patient;
-  const idade = calcIdade(p.dob);
   return `
     <div class="gcwo-patient-banner">
-      ${idade != null ? `<span class="gcwo-patient-age">${idade} anos</span>` : ''}
       <div class="gcwo-restricoes-line" id="gcwoRestricoesLine">${restricoesLineHtml()}</div>
       <button type="button" class="gcwo-restricoes-editbtn" id="gcwoRestricoesEditBtn" title="Editar restrições">${ICON_PENCIL}</button>
     </div>
@@ -1250,17 +1246,18 @@ function renderStep2() {
   if (!root) return;
 
   const p = _state.patient;
+  const idade = calcIdade(p.dob);
   // _panelDraft/_pendingSlot NÃO se reiniciam aqui — renderStep2() é chamado outra vez
   // ao voltar do Catálogo (topActionsHtml) a meio de uma edição, e essa edição tem de
   // sobreviver à viagem (o comportamento de sempre, antes dos 2 modos).
 
   root.innerHTML = `
-    <div class="gc-page-header">
-      <div><div class="gc-page-title">Prescrição de exercício</div><div class="gc-page-sub">${escHtml(p.full_name)} <button type="button" class="gcwo-linkbtn" id="gcwoVerHistorico">Ver planos anteriores</button></div></div>
+    <div class="gc-page-header gcwo-patient-header">
+      <div><div class="gc-page-eyebrow">Prescrição de exercício</div><div class="gc-page-title">${escHtml(p.full_name)}</div><div class="gc-page-sub">${idade != null ? `${idade} anos · ` : ''}<button type="button" class="gcwo-linkbtn" id="gcwoVerHistorico">Ver planos anteriores</button></div></div>
       ${topActionsHtml(`
-        <button type="button" class="gcBtnGhost" id="gcwoBtnZonasTreino">Perfis de zonas</button>
-        <button type="button" class="gcBtnGhost" id="gcwoTrocarDoente">Trocar doente</button>
-      `, false)}
+        <button type="button" class="gcBtnGhost" id="gcwoBtnZonasTreino">♥ ⚡ Zonas do doente</button>
+        <button type="button" class="gcBtnGhost" id="gcwoTrocarDoente">Escolher doente</button>
+      `, false, false)}
     </div>
 
     ${renderPatientBanner()}
@@ -1936,7 +1933,7 @@ function openPanelNovo(modality, kind) {
   if (!_pendingSlot) return;
   _panelDraft = novaSessaoSkeleton(modality, kind, _pendingSlot.date);
   _panelIsNovo = true;
-  _panelCatalogFiltro = 'favoritos';
+  _panelCatalogFiltro = 'todos';
   _panelCatalogBusca = '';
   _panelEquipFiltro = new Set();
   _pendingSlot = null;
@@ -1945,7 +1942,7 @@ function openPanelNovo(modality, kind) {
 function openPanelEditar(sessionId) {
   const s = _state.sessions.find(x => x.session_id === sessionId);
   if (!s) return;
-  _panelCatalogFiltro = 'favoritos';
+  _panelCatalogFiltro = 'todos';
   _panelCatalogBusca = '';
   _panelEquipFiltro = new Set();
   _panelDraft = cloneSession(s);
@@ -1969,12 +1966,6 @@ function renderPanel() {
   const dia = diaSemanaDeIso(s.date);
 
   panel.innerHTML = `
-    <div class="gcwo-flow-steps" aria-label="Etapas da prescrição">
-      <span class="done">1. Tipo de treino</span>
-      <span class="on">2. Construir</span>
-      <span>3. Intensidade</span>
-      <span>4. Rever e repetir</span>
-    </div>
     <div class="gcwo-panel-head">
       <span class="gcwo-panel-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
       <span class="gcwo-panel-titles"><h3>${meta.label}</h3><span class="sub">${dia.full}, ${escHtml(fmtDiaMesCurtoIso(s.date))}</span></span>
@@ -2079,15 +2070,25 @@ function refreshReviewCount(s) {
 /* ── Painel — catálogo de exercícios (grelha, favoritos por omissão) ── */
 function renderCatalogPickerSection(s) {
   return `
+    <div class="gcwo-objective-row">
+      <span class="gcwo-field-label">Objectivo</span>
+      <div class="gcwo-presets" id="gcwoPPresets">
+        <button type="button" data-preset="perda">Perda de gordura</button>
+        <button type="button" data-preset="hipertrofia">Hipertrofia</button>
+        <button type="button" data-preset="forca">Força</button>
+        <button type="button" data-preset="personalizado">Personalizado</button>
+      </div>
+      <button type="button" class="gcBtnGhost gcwo-model-placeholder" disabled title="Em breve">Usar modelo · em breve</button>
+    </div>
     <div class="gcwo-gym-workspace">
       <section class="gcwo-gym-catalog">
         <div class="gcwo-workspace-title"><strong>1. Escolher exercícios</strong><span id="gcwoPPickedCount">${s.items.length} escolhido${s.items.length === 1 ? '' : 's'}</span></div>
-        <div class="gcwo-chips" id="gcwoPCatFiltro">
+        <div class="gcwo-filter-line"><span class="gcwo-filter-label">Mostrar</span><div class="gcwo-chips" id="gcwoPCatFiltro">
           ${CATALOG_FILTROS.map(f => `<button type="button" class="gcwo-chip${_panelCatalogFiltro === f.value ? ' on' : ''}" data-filtro="${escAttr(f.value)}">${escHtml(f.label)}</button>`).join('')}
-        </div>
-        <div class="gcwo-chips gcwo-equip-chips" id="gcwoPEquipFiltro">
+        </div></div>
+        <div class="gcwo-filter-line"><span class="gcwo-filter-label">Material</span><div class="gcwo-chips gcwo-equip-chips" id="gcwoPEquipFiltro">
           ${EQUIPAMENTO_FILTROS.map(eq => `<button type="button" class="gcwo-chip${_panelEquipFiltro.has(eq) ? ' on' : ''}" data-equip="${escAttr(eq)}">${escHtml(eq)}</button>`).join('')}
-        </div>
+        </div></div>
         <div class="gc-search-bar">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
           <input id="gcwoPCatBusca" type="search" class="gc-search-input" placeholder="Pesquisar exercício…" autocomplete="off" spellcheck="false" value="${escAttr(_panelCatalogBusca)}">
@@ -2096,13 +2097,7 @@ function renderCatalogPickerSection(s) {
       </section>
 
       <section class="gcwo-gym-plan">
-        <div class="gcwo-workspace-title"><strong>2. Montar o treino</strong></div>
-        <div class="gcwo-presets" id="gcwoPPresets">
-          <button type="button" data-preset="perda">Perda de gordura</button>
-          <button type="button" data-preset="hipertrofia">Hipertrofia</button>
-          <button type="button" data-preset="forca">Força</button>
-          <button type="button" data-preset="personalizado">Personalizado</button>
-        </div>
+        <div class="gcwo-workspace-title"><strong>2. Montar o treino</strong><span>2 exercícios por linha</span></div>
         <div class="gcwo-exercicios" id="gcwoPPickedList">${renderPickedListInner(s)}</div>
         <div class="gcwo-progressao-nota">A prescrição por série permite cargas e repetições diferentes no mesmo exercício.</div>
       </section>
@@ -2167,7 +2162,24 @@ function itemRepsMode(it) {
 // ginásio tem `duration_sec` OU sets/reps/carga/incremento/rest_set, nunca os dois. `rest_next`
 // aplica-se sempre, independentemente do modo.
 function itemDuracaoMode(it) {
-  return it.duration_sec != null ? 'duracao' : 'series';
+  return it.duration_sec != null || (Array.isArray(it.duration_series) && it.duration_series.length) ? 'duracao' : 'series';
+}
+
+function seriesDuracaoPrescritasItem(it) {
+  if (Array.isArray(it.duration_series) && it.duration_series.length) return it.duration_series;
+  return [{ duration_sec: it.duration_sec ?? 30 }];
+}
+
+function sincronizarResumoDuracao(it) {
+  const series = seriesDuracaoPrescritasItem(it);
+  it.duration_series = series;
+  it.duration_sec = series.length === 1 ? series[0].duration_sec : null;
+  it.sets = series.length;
+}
+
+function exercicioUsaTempoPorDefeito(ex) {
+  const nome = (ex?.name || '').toLowerCase();
+  return ['bicicleta', 'prancha', 'plank', 'wall sit', 'cadeira na parede', 'isométric'].some(termo => nome.includes(termo));
 }
 
 function seriesPrescritasItem(it) {
@@ -2202,6 +2214,7 @@ function renderItemCard(it) {
   const modoDuracao = itemDuracaoMode(it);
   const duracaoRadioName = `gcwo-duracaomode-${it.exercise_id}`;
   const series = modoDuracao === 'series' ? seriesPrescritasItem(it) : [];
+  const seriesDuracao = modoDuracao === 'duracao' ? seriesDuracaoPrescritasItem(it) : [];
   return `
     <div class="gcwo-exercicio" data-exid="${escAttr(it.exercise_id)}">
       <div class="gcwo-exercicio-head">
@@ -2218,7 +2231,15 @@ function renderItemCard(it) {
         </div>
       </div>
       ${modoDuracao === 'duracao' ? `
-      <label class="gcwo-field" style="margin-top:8px;"><span>Duração (min)</span><input type="number" min="0" step="0.5" class="gcwo-it-duracaomin" value="${it.duration_sec != null ? it.duration_sec / 60 : ''}"></label>
+        <div class="gcwo-series-table">
+          <div class="gcwo-series-head gcwo-duration-head"><span>Série</span><span>Tempo (s)</span><span></span></div>
+          ${seriesDuracao.map((serie, index) => `<div class="gcwo-series-row gcwo-duration-row" data-duration-series-index="${index}">
+            <b>${index + 1}</b>
+            <input type="number" min="1" class="gcwo-serie-duration" value="${serie.duration_sec ?? ''}" aria-label="Tempo da série ${index + 1} em segundos">
+            <button type="button" class="gcwo-duration-delete" title="Remover série" ${seriesDuracao.length <= 1 ? 'disabled' : ''}>✕</button>
+          </div>`).join('')}
+          <button type="button" class="gcwo-add-duration-serie">+ Série</button>
+        </div>
       ` : `
         <div class="gcwo-series-table">
           <div class="gcwo-series-head"><span>Série</span><span>Repetições</span><span>Carga (kg)</span><span></span></div>
@@ -2232,7 +2253,7 @@ function renderItemCard(it) {
         </div>
       `}
       <details class="gcwo-exercicio-mais">
-        <summary>Mais opções: descanso, ritmo e progressão</summary>
+        <summary>＋ Opções personalizadas</summary>
         <div class="gcwo-exercicio-mais-grid">
           <label class="gcwo-field gcwo-field-sm"><span>Descanso entre séries (s)</span><input type="number" min="0" class="gcwo-it-restset" value="${it.rest_set ?? ''}"></label>
           <label class="gcwo-field gcwo-field-sm"><span>Antes do próximo (s)</span><input type="number" min="0" class="gcwo-it-restnext" value="${it.rest_next ?? ''}"></label>
@@ -2285,6 +2306,7 @@ function toggleExercicioNaSessao(s, exId) {
   } else {
     const ex = _state.exercisesCatalog.find(e => e.id === exId);
     if (!ex) return;
+    const usaTempo = exercicioUsaTempoPorDefeito(ex);
     s.items.push({
       exercise_id: ex.id,
       name: ex.name,
@@ -2292,19 +2314,21 @@ function toggleExercicioNaSessao(s, exId) {
       video_url: ex.video_url || null,
       tecnica_notas: ex.tecnica_notas || null,
       categoria: ex.categoria || [],
-      sets: 3,
-      reps_min: 8,
-      reps_max: 12,
+      sets: usaTempo ? (ex.name.toLowerCase().includes('bicicleta') ? 1 : 3) : 3,
+      reps_min: usaTempo ? null : 8,
+      reps_max: usaTempo ? null : 12,
       reps_fixed: null,
       load: null,
       incremento: ex.incremento_default ?? null,
-      rest_set: 60,
+      rest_set: usaTempo ? 15 : 60,
       rest_next: 90,
       tempo_excentrico_s: ex.tempo_excentrico_s ?? 2,
       pausa_inferior_s: 0,
       tempo_concentrico_s: ex.tempo_concentrico_s ?? 1,
       pausa_superior_s: 0,
-      series: [
+      duration_sec: usaTempo && ex.name.toLowerCase().includes('bicicleta') ? 600 : null,
+      duration_series: usaTempo ? (ex.name.toLowerCase().includes('bicicleta') ? [{ duration_sec: 600 }] : [{ duration_sec: 30 }, { duration_sec: 30 }, { duration_sec: 30 }]) : null,
+      series: usaTempo ? null : [
         { reps: 12, load: null },
         { reps: 12, load: null },
         { reps: 12, load: null },
@@ -2433,9 +2457,26 @@ function wirePickedItems(s) {
       refreshPickedListDom(s);
     });
 
-    const duracaoEl = card.querySelector('.gcwo-it-duracaomin');
-    if (duracaoEl) duracaoEl.addEventListener('input', (e) => {
-      it.duration_sec = e.target.value === '' ? null : Math.round(Number(e.target.value) * 60);
+    card.querySelectorAll('.gcwo-duration-row').forEach(row => {
+      const index = Number(row.getAttribute('data-duration-series-index'));
+      const series = seriesDuracaoPrescritasItem(it);
+      row.querySelector('.gcwo-serie-duration')?.addEventListener('input', (e) => {
+        series[index].duration_sec = e.target.value === '' ? null : Number(e.target.value);
+        sincronizarResumoDuracao(it);
+      });
+      row.querySelector('.gcwo-duration-delete')?.addEventListener('click', () => {
+        if (series.length <= 1) return;
+        series.splice(index, 1);
+        sincronizarResumoDuracao(it);
+        refreshPickedListDom(s);
+      });
+    });
+    card.querySelector('.gcwo-add-duration-serie')?.addEventListener('click', () => {
+      const series = seriesDuracaoPrescritasItem(it);
+      const anterior = series.at(-1) || { duration_sec: 30 };
+      series.push({ duration_sec: anterior.duration_sec ?? 30 });
+      sincronizarResumoDuracao(it);
+      refreshPickedListDom(s);
     });
 
     card.querySelectorAll(`input[name="gcwo-repsmode-${CSS.escape(exId)}"]`).forEach(radio => {
@@ -2466,9 +2507,11 @@ function wirePickedItems(s) {
           it.incremento = null;
           it.rest_set = null;
           it.series = null;
-          if (it.duration_sec == null) it.duration_sec = 600;
+          if (!Array.isArray(it.duration_series) || !it.duration_series.length) it.duration_series = [{ duration_sec: it.duration_sec ?? 30 }];
+          sincronizarResumoDuracao(it);
         } else {
           it.duration_sec = null;
+          it.duration_series = null;
           if (it.sets == null) it.sets = 3;
           if (it.reps_min == null && it.reps_fixed == null) { it.reps_min = 8; it.reps_max = 12; }
           if (it.rest_set == null) it.rest_set = 60;
