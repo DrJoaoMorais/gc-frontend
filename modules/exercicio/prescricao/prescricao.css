@@ -273,6 +273,9 @@
    9 ago 2026) — só um fundo claro transitório, nunca um cartão permanente. */
 .gcwo-calday.drop-target { background:#eaf0fd; }
 .gcwo-calday-top { display:flex; align-items:center; justify-content:space-between; }
+.gcwo-calday-symbols { display:flex; align-items:center; gap:3px; margin-left:auto; margin-right:4px; min-height:20px; }
+.gcwo-calday-symbol { width:20px; height:20px; border-radius:6px; display:flex; align-items:center; justify-content:center; }
+.gcwo-calday-symbol svg { width:11px; height:11px; }
 .gcwo-calday .num { font-size:13px; font-weight:700; color:#0f172a; }
 /* "+" simples, sem botão azul preenchido (redesenho do calendário, 9 ago 2026) — o
    círculo sólido dava demasiado peso visual a uma ação secundária. */
@@ -480,6 +483,45 @@
 .gcwo-catpick-grid {
   display:grid; grid-template-columns:repeat(auto-fill, minmax(92px,1fr)); gap:8px; margin-top:8px;
   max-height:300px; overflow-y:auto; padding:2px;
+}
+
+/* Nova montagem de Ginásio: catálogo e treino permanecem visíveis lado a lado. */
+.gcwo-gym-workspace { display:grid; grid-template-columns:minmax(260px,.8fr) minmax(420px,1.4fr); gap:14px; align-items:start; margin-top:2px; }
+.gcwo-gym-catalog, .gcwo-gym-plan { border:1px solid #e2e8f0; border-radius:14px; padding:14px; background:#fff; min-width:0; }
+.gcwo-workspace-title { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; color:#0f2d52; font-size:13px; }
+.gcwo-workspace-title span { color:#64748b; font-size:11.5px; }
+.gcwo-gym-catalog .gc-search-bar { margin-top:8px; }
+.gcwo-gym-catalog .gcwo-catpick-grid { grid-template-columns:repeat(2,minmax(0,1fr)); max-height:560px; overflow:auto; }
+.gcwo-equip-chips { margin-top:7px; }
+.gcwo-presets { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+.gcwo-presets button { border:1px solid #dbe3ee; border-radius:18px; background:#fff; color:#334155; padding:6px 10px; font:600 11.5px inherit; cursor:pointer; }
+.gcwo-presets button:hover, .gcwo-presets button.on { border-color:#1a56db; background:#eaf0fd; color:#1a56db; }
+.gcwo-gym-plan .gcwo-exercicios { margin-top:0; }
+.gcwo-gym-plan .gcwo-exercicio { background:#fff; border:1px solid #e2e8f0; border-radius:13px; padding:12px; }
+.gcwo-gym-plan .gcwo-exercicio.dragging { opacity:.45; }
+.gcwo-exercicio-drag { color:#94a3b8; display:flex; cursor:grab; }
+.gcwo-exercicio-drag svg { width:15px; height:15px; }
+.gcwo-series-table { margin-top:10px; }
+.gcwo-series-head, .gcwo-series-row { display:grid; grid-template-columns:44px minmax(86px,1fr) minmax(86px,1fr) 28px; gap:7px; align-items:center; }
+.gcwo-series-head { color:#64748b; font-size:10.5px; font-weight:700; text-align:center; margin-bottom:5px; }
+.gcwo-series-row { margin-bottom:6px; }
+.gcwo-series-row b { text-align:center; color:#0f2d52; font-size:13px; }
+.gcwo-series-row input { min-width:0; width:100%; border:1px solid #dbe3ee; border-radius:9px; padding:8px 6px; text-align:center; font:600 13px inherit; color:#0f172a; }
+.gcwo-serie-delete { width:28px; height:28px; border:0; border-radius:7px; background:transparent; color:#cbd5e1; cursor:pointer; }
+.gcwo-serie-delete:hover { background:#fef2f2; color:#dc2626; }
+.gcwo-serie-delete:disabled { opacity:.3; cursor:default; }
+.gcwo-add-serie { border:0; background:transparent; color:#1a56db; font:600 11.5px inherit; cursor:pointer; padding:4px 0; }
+.gcwo-exercicio-mais { margin-top:9px; }
+.gcwo-exercicio-mais summary { color:#1a56db; font-size:11.5px; font-weight:600; cursor:pointer; }
+.gcwo-exercicio-mais-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:9px; }
+
+@media (max-width:900px) {
+  .gcwo-gym-workspace { grid-template-columns:1fr; }
+  .gcwo-gym-catalog .gcwo-catpick-grid { grid-template-columns:repeat(3,minmax(0,1fr)); max-height:none; }
+}
+@media (max-width:560px) {
+  .gcwo-gym-catalog .gcwo-catpick-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .gcwo-exercicio-mais-grid { grid-template-columns:1fr; }
 }
 .gcwo-catpick-card {
   position:relative; border:1.5px solid #e2e8f0; border-radius:10px; background:#fff; padding:6px;
