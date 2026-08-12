@@ -31,8 +31,28 @@ serve(async (req) => {
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
   try {
-    const form = await req.formData();
-    const action = String(form.get("action") || "upload");
+    const isJson = (req.headers.get("content-type") || "").includes("application/json");
+    const payload = isJson ? await req.json() : null;
+    const form = isJson ? new FormData() : await req.formData();
+    const action = String(payload?.action || form.get("action") || "upload");
+
+    if (action === "cleanup") {
+      const cleanupSecret = Deno.env.get("SESSION_IMAGE_CLEANUP_SECRET") ?? "";
+      if (!cleanupSecret || req.headers.get("x-cleanup-secret") !== cleanupSecret) {
+        return reply({ error: "sem acesso" }, 403);
+      }
+      const { data: expired, error: expiredError } = await admin.rpc("wo_expired_session_images");
+      if (expiredError) throw expiredError;
+      const rows = expired || [];
+      if (!rows.length) return reply({ ok: true, deleted: 0 });
+      const paths = rows.map((row: { storage_path: string }) => row.storage_path);
+      const removed = await admin.storage.from(BUCKET).remove(paths);
+      if (removed.error) throw removed.error;
+      const ids = rows.map((row: { image_id: string }) => row.image_id);
+      const { error: deleteError } = await admin.from("wo_session_images").delete().in("id", ids);
+      if (deleteError) throw deleteError;
+      return reply({ ok: true, deleted: ids.length });
+    }
 
     if (action === "list") {
       const authHeader = req.headers.get("authorization") ?? "";
