@@ -408,6 +408,10 @@ function addDiasIso(iso, n) {
   d.setUTCDate(d.getUTCDate() + n);
   return isoDeData(d);
 }
+function diasEntreInclusivo(startIso, endIso) {
+  if (!startIso || !endIso) return 0;
+  return Math.round((dataDeIso(endIso) - dataDeIso(startIso)) / 86400000) + 1;
+}
 function isoHoje() {
   const h = hojeEmLisboa();
   return isoDeData(new Date(Date.UTC(h.year, h.month - 1, h.day)));
@@ -533,6 +537,7 @@ async function carregarZonaPerfis() {
 // tal e qual em `data` — já não é preciso derivar nada de created_at.
 async function carregarPlanoActivoSeExistir() {
   _state.activePrescriptionId = null;
+  _patientHasFeedback = false;
   if (!_state.patient) return;
 
   const { data, error } = await window.sb
@@ -554,6 +559,13 @@ async function carregarPlanoActivoSeExistir() {
   if (!data) return; // sem plano activo — quadro em branco, como sempre foi para doentes novos
 
   _state.activePrescriptionId = data.id;
+  const { data: feedback } = await window.sb
+    .from('wo_session_logs')
+    .select('session_id')
+    .eq('prescription_id', data.id)
+    .limit(1);
+  _patientHasFeedback = !!feedback?.length;
+  refreshPatientFeedbackDot();
   _state.startDate = data.data?.startDate || _state.startDate;
   _state.endDate = data.data?.endDate || _state.endDate;
   _state.linkExpiryMode = data.data?.linkExpiryMode || 'selected_date';
@@ -672,6 +684,9 @@ function nomeCurtoClinica(nome, limite = 16) {
    ================================================================ */
 let _landing = null;
 let _landingDocClickWired = false;
+let _patientFollowupTab = 'readiness';
+let _patientMainTab = 'prescription';
+let _patientHasFeedback = false;
 
 function freshLanding() {
   return { clinicFilter: null, search: '', tab: 'todos', rows: [], loading: true, error: '' };
@@ -734,7 +749,12 @@ function renderLanding() {
       `}
     </div>
 
-    <div class="gcwo-landing-cards">
+    <section class="gcwo-landing-group" aria-labelledby="gcwoPrescricaoTitle">
+      <div class="gcwo-landing-group-head">
+        <div><span class="gcwo-landing-kicker">Área de trabalho</span><h2 id="gcwoPrescricaoTitle">Prescrição de exercício</h2></div>
+        <p>Criar, rever e preparar os planos dos doentes.</p>
+      </div>
+      <div class="gcwo-landing-cards">
       <button type="button" class="gcwo-landing-card primary" id="gcwoCardPrescrever">
         <span class="gcwo-landing-card-icon">${ICON_MAIS}</span>
         <span class="gcwo-landing-card-title">Prescrever exercício</span>
@@ -757,11 +777,12 @@ function renderLanding() {
         <span class="gcwo-landing-card-title">Modelos de treino <span class="gcwo-landing-soon">Em breve</span></span>
         <span class="gcwo-landing-card-sub">Criar sessões e planos reutilizáveis para aplicar e adaptar rapidamente.</span>
       </button>
-    </div>
+      </div>
+    </section>
 
     <section class="gcwo-landing-tablesec" id="gcwoLandingTableSec">
       <div class="gcwo-landing-tablehead">
-        <h2 class="gcwo-section-title">Doentes ativos com exercício prescrito <span class="count" id="gcwoLandingCount"></span></h2>
+        <h2 class="gcwo-section-title" id="gcwoLandingTableTitle">Leitura dos treinos <span class="count" id="gcwoLandingCount"></span></h2>
       </div>
       <div class="gcwo-landing-toolbar">
         <div class="gc-search-bar">
@@ -839,8 +860,6 @@ function renderLandingTableHost() {
     host.innerHTML = `<div class="gcwo-muted" style="padding:14px 2px;">${escHtml(_landing.error)}</div>`;
     return;
   }
-  if (countEl) countEl.textContent = `${_landing.rows.length} doente${_landing.rows.length === 1 ? '' : 's'}`;
-
   const now = new Date();
   const termo = _landing.search.trim().toLowerCase();
   const linhas = _landing.rows
@@ -851,6 +870,7 @@ function renderLandingTableHost() {
       if (_landing.tab === 'feedback') return r.situacao.cls === 'feedback';
       return true;
     });
+  if (countEl) countEl.textContent = `${linhas.length} doente${linhas.length === 1 ? '' : 's'}`;
 
   if (!linhas.length) {
     host.innerHTML = `<div class="gcwo-muted" style="padding:14px 2px;">Sem doentes para mostrar aqui.</div>`;
@@ -951,10 +971,29 @@ function abrirFeedbackModal(row) {
           return `<div class="gcwo-feedback-item"><div class="gcwo-feedback-item-head"><strong>${escHtml(nomeEntradaFeedback(entrada, sessao))}</strong><span class="${cls}">${estado}</span></div>${renderSeriesFeedback(entrada.series)}</div>`;
         }).join('') || '<div class="gcwo-muted">Sem detalhe de exercícios neste registo.</div>'}</div>
         ${log.note ? `<div class="gcwo-feedback-note"><b>Nota do doente</b><br>${escHtml(log.note)}</div>` : ''}
+        <div class="gcwo-feedback-images" id="gcwoFeedbackImages"><span>A carregar imagens privadas…</span></div>
       </div>
     </div>`;
   document.body.appendChild(overlay);
   document.getElementById('gcwoFeedbackClose').addEventListener('click', fecharFeedbackModal);
+  carregarImagensFeedback(row.id, log.session_id);
+}
+
+async function carregarImagensFeedback(prescriptionId, sessionId) {
+  const host = document.getElementById('gcwoFeedbackImages');
+  if (!host) return;
+  try {
+    const body = new FormData();
+    body.append('action', 'list');
+    body.append('prescription_id', prescriptionId);
+    const { data, error } = await window.sb.functions.invoke('wo-session-image', { body });
+    if (error || !data?.ok) throw new Error('sem acesso');
+    const images = (data.images || []).filter(image => image.session_id === sessionId && image.signed_url);
+    if (!images.length) { host.innerHTML = '<span>Sem imagens associadas a este treino.</span>'; return; }
+    host.innerHTML = `<b>Imagens do treino</b><div>${images.map((image, index) => `<a href="${escAttr(image.signed_url)}" target="_blank" rel="noopener"><img src="${escAttr(image.signed_url)}" alt="Imagem ${index + 1} enviada pelo doente"></a>`).join('')}</div>`;
+  } catch (_) {
+    host.innerHTML = '<span>Não foi possível carregar as imagens privadas.</span>';
+  }
 }
 
 // Lê wo_prescriptions activas (filtradas por clínica visível ou escolhida) + o último
@@ -1050,10 +1089,10 @@ function renderStep1() {
       <div class="gcwo-step1-card">
         <p class="gcwo-step1-intro">Cria uma prescrição de exercício para um doente — sessões de ginásio ou de modalidade, com tarefas e séries — e gera um link de acesso sem login para ele seguir o plano.</p>
 
-        <span class="gcwo-field-label">Procura o doente</span>
-        <div class="gc-search-bar">
+        <span class="gcwo-field-label">Procurar doente</span>
+        <div class="gc-search-bar gcwo-patient-search-wrap">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
-          <input id="gcwoPatientQuery" type="search" class="gc-search-input" placeholder="Nome, SNS, NIF, Telefone…" autocomplete="off" spellcheck="false">
+          <div id="gcwoPatientQuery" class="gc-search-input gcwo-patient-searchbox" role="searchbox" aria-label="Nome, SNS, NIF ou telefone" contenteditable="plaintext-only" data-placeholder="Nome, SNS, NIF ou telefone" spellcheck="false"></div>
         </div>
         <div id="gcwoPatientResults" class="gcwo-results" style="display:none;"></div>
       </div>
@@ -1069,7 +1108,7 @@ function renderStep1() {
   let timer = null;
   input.addEventListener('input', () => {
     if (timer) clearTimeout(timer);
-    timer = setTimeout(() => runPatientSearch(input.value), 250);
+    timer = setTimeout(() => runPatientSearch(input.textContent), 250);
   });
 
   async function runPatientSearch(term) {
@@ -1193,23 +1232,33 @@ function wirePatientBanner() {
 function renderDatasPlanoSection() {
   const ultimoTreino = ultimoDiaPrescrito();
   return `
-    <section class="gcwo-duracao-section">
-      <h2 class="gcwo-section-title">Datas do plano</h2>
-      <div class="gcwo-datasplano-row">
-        <label class="gcwo-field"><span>Início</span><input type="date" id="gcwoDataInicio" value="${_state.startDate}"></label>
-        <label class="gcwo-field"><span>Fim</span><input type="date" id="gcwoDataFim" value="${_state.endDate}" min="${_state.startDate}"></label>
-        <label class="gcwo-field"><span>Revisão (opcional)</span><input type="date" id="gcwoDataRevisao" value="${_state.dataRevisao || ''}"></label>
+    <div class="gcwo-plan-settings">
+      <div class="gcwo-settings-head">
+        <div><h2 class="gcwo-section-title">Configuração do plano</h2><p>Defina o período e a validade do acesso do doente.</p></div>
+        <div class="gcwo-plan-summary" id="gcwoDuracaoInfo">${escHtml(fmtJanelaPlanoIso(_state.startDate, _state.endDate))}</div>
       </div>
-      <div class="gcwo-duracao-info" id="gcwoDuracaoInfo">${escHtml(fmtJanelaPlanoIso(_state.startDate, _state.endDate))}</div>
-      <div class="gcwo-datasplano-row" style="margin-top:14px;">
-        <label class="gcwo-field"><span>Validade do link</span><select id="gcwoValidadeLink">
-          <option value="last_session"${_state.linkExpiryMode === 'last_session' ? ' selected' : ''}>Até ao último treino prescrito</option>
-          <option value="selected_date"${_state.linkExpiryMode === 'selected_date' ? ' selected' : ''}>Escolher outra data</option>
-        </select></label>
-        ${_state.linkExpiryMode === 'selected_date' ? `<label class="gcwo-field"><span>Link válido até</span><input type="date" id="gcwoDataValidadeLink" value="${_state.linkExpiryDate || _state.endDate}" min="${ultimoTreino || _state.startDate}"></label>` : ''}
+      <div class="gcwo-settings-grid">
+        <div class="gcwo-settings-group">
+          <span class="gcwo-settings-label">Período do plano</span>
+          <div class="gcwo-datasplano-row">
+            <label class="gcwo-field"><span>Início</span><input type="date" id="gcwoDataInicio" value="${_state.startDate}"></label>
+            <label class="gcwo-field"><span>Fim</span><input type="date" id="gcwoDataFim" value="${_state.endDate}" min="${_state.startDate}"></label>
+            <label class="gcwo-field"><span>Revisão <small>opcional</small></span><input type="date" id="gcwoDataRevisao" value="${_state.dataRevisao || ''}"></label>
+          </div>
+        </div>
+        <div class="gcwo-settings-group gcwo-link-settings">
+          <span class="gcwo-settings-label">Acesso do doente</span>
+          <div class="gcwo-datasplano-row">
+            <label class="gcwo-field gcwo-link-mode"><span>Validade do link</span><select id="gcwoValidadeLink">
+              <option value="last_session"${_state.linkExpiryMode === 'last_session' ? ' selected' : ''}>Até ao último treino</option>
+              <option value="selected_date"${_state.linkExpiryMode === 'selected_date' ? ' selected' : ''}>Escolher outra data</option>
+            </select></label>
+            ${_state.linkExpiryMode === 'selected_date' ? `<label class="gcwo-field"><span>Link válido até</span><input type="date" id="gcwoDataValidadeLink" value="${_state.linkExpiryDate || _state.endDate}" min="${ultimoTreino || _state.startDate}"></label>` : ''}
+          </div>
+          <div class="gcwo-link-hint">${_state.linkExpiryMode === 'last_session' ? (ultimoTreino ? `Termina em ${escHtml(fmtDataPtIso(ultimoTreino))}.` : 'Será calculada ao adicionar o primeiro treino.') : 'Nunca pode terminar antes do último treino.'}</div>
+        </div>
       </div>
-      <div class="gcwo-duracao-info">${_state.linkExpiryMode === 'last_session' ? (ultimoTreino ? `O link termina no dia ${escHtml(fmtDataPtIso(ultimoTreino))}.` : 'A validade será calculada quando adicionar treinos.') : 'A data escolhida nunca pode ser anterior ao último treino.'}</div>
-    </section>`;
+    </div>`;
 }
 function wireDatasPlanoSection() {
   document.getElementById('gcwoDataInicio').addEventListener('change', (e) => {
@@ -1256,6 +1305,7 @@ function renderStep2() {
   // sobreviver à viagem (o comportamento de sempre, antes dos 2 modos).
 
   root.innerHTML = `
+    <div class="gcwo-step2-shell">
     <div class="gc-page-header gcwo-patient-header">
       <div class="gcwo-patient-main"><div class="gc-page-eyebrow">Prescrição de exercício</div><div class="gcwo-patient-name-row"><div class="gc-page-title">${escHtml(p.full_name)}</div><span class="gcwo-patient-age">${idade != null ? `${idade} anos` : 'Idade não indicada'}</span><button type="button" class="gcwo-linkbtn" id="gcwoVerHistorico">Planos anteriores</button>${renderPatientBanner()}</div></div>
       ${topActionsHtml(`
@@ -1263,11 +1313,17 @@ function renderStep2() {
       `, false, false)}
     </div>
 
+    <div class="gcwo-patient-main-tabs" role="tablist" aria-label="Áreas da ficha de exercício">
+      <button type="button" role="tab" data-patient-main-tab="prescription" class="${_patientMainTab === 'prescription' ? 'on' : ''}">Prescrição</button>
+      <button type="button" role="tab" data-patient-main-tab="followup" class="${_patientMainTab === 'followup' ? 'on' : ''}">Acompanhamento<span class="gcwo-main-tab-dot" title="Existem resultados de treino" ${_patientHasFeedback ? '' : 'hidden'}></span></button>
+    </div>
     <div id="gcwoStep2Body"></div>
+    </div>
   `;
 
   wireTopActions();
   wirePatientBanner();
+  wirePatientMainTabs();
   document.getElementById('gcwoVerHistorico').addEventListener('click', () => openHistoryModal());
   document.getElementById('gcwoTrocarDoente').addEventListener('click', () => {
     closeHistoryModal();
@@ -1281,6 +1337,7 @@ function renderStep2() {
     _state.dataRevisao = null;
     _state.sessions = [];
     _state.activePrescriptionId = null;
+    _patientHasFeedback = false;
     renderStep1();
   });
 
@@ -1297,8 +1354,32 @@ function step2EmEdicao() {
 function renderStep2Body() {
   const host = document.getElementById('gcwoStep2Body');
   if (!host) return;
-  if (step2EmEdicao()) renderEditMode(host);
-  else renderCalendarMode(host);
+  if (step2EmEdicao()) {
+    _patientMainTab = 'prescription';
+    refreshPatientMainTabs();
+    renderEditMode(host);
+  } else if (_patientMainTab === 'followup') {
+    host.innerHTML = renderPatientFollowupSection();
+    wirePatientFollowupSection();
+  } else renderCalendarMode(host);
+}
+
+function refreshPatientMainTabs() {
+  document.querySelectorAll('[data-patient-main-tab]').forEach(btn => btn.classList.toggle('on', btn.getAttribute('data-patient-main-tab') === _patientMainTab));
+}
+
+function refreshPatientFeedbackDot() {
+  const dot = document.querySelector('.gcwo-main-tab-dot');
+  if (dot) dot.hidden = !_patientHasFeedback;
+}
+
+function wirePatientMainTabs() {
+  document.querySelectorAll('[data-patient-main-tab]').forEach(btn => btn.addEventListener('click', () => {
+    if (step2EmEdicao() && btn.getAttribute('data-patient-main-tab') !== 'prescription') return;
+    _patientMainTab = btn.getAttribute('data-patient-main-tab');
+    refreshPatientMainTabs();
+    renderStep2Body();
+  }));
 }
 
 /* ================================================================
@@ -1316,10 +1397,12 @@ function renderCalendarMode(host) {
   // de fazer sentido — "Duplicar para…" no menu ⋮ de cada sessão cobre o mesmo caso e
   // mais (pode duplicar para dias de semanas diferentes de uma vez).
   host.innerHTML = `
-    ${renderDatasPlanoSection()}
-    <section>
+    <section class="gcwo-prescription-card">
+      <div class="gcwo-prescription-head"><div><h2>Prescrição de exercício</h2><p>Definição do plano e calendário.</p></div><span>${escHtml(diasEntreInclusivo(_state.startDate, _state.endDate))} dias</span></div>
+      ${renderDatasPlanoSection()}
+    <div class="gcwo-calendar-card">
       <div class="gcwo-cal-head">
-        <h2 class="gcwo-section-title">Calendário do plano</h2>
+        <div><h2 class="gcwo-section-title">Calendário do plano</h2><p>Adicione um treino no dia pretendido.</p></div>
         <div class="gcwo-cal-nav">
           <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalAnterior">‹ Duas anteriores</button>
           <span id="gcwoCalIntervalo" class="gcwo-cal-nav-label"></span>
@@ -1327,13 +1410,15 @@ function renderCalendarMode(host) {
         </div>
       </div>
       <div id="gcwoCalGrid"></div>
-    </section>
+    </div>
 
     <div class="gcwo-generate">
-      <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.'}">${labelBotaoGerar()}</button>
+      <div class="gcwo-generate-copy"><strong>Plano pronto?</strong><span>O link só fica disponível depois de guardar a prescrição.</span></div>
       <span id="gcwoGerarErro" class="gcwo-erro"></span>
       <span id="gcwoPorGravarAviso" class="gcwo-porgravar-aviso" style="display:${haSessoesPorGravar() ? '' : 'none'}">⚠ As sessões do calendário só ficam realmente gravadas depois de clicares aqui.</span>
+      <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.'}">${labelBotaoGerar()}</button>
     </div>
+    </section>
   `;
 
   wireDatasPlanoSection();
@@ -1341,6 +1426,45 @@ function renderCalendarMode(host) {
   document.getElementById('gcwoCalAnterior').addEventListener('click', () => navegarCalendario(-14));
   document.getElementById('gcwoCalSeguinte').addEventListener('click', () => navegarCalendario(14));
   document.getElementById('gcwoGerar').addEventListener('click', handleGerar);
+}
+
+function renderPatientFollowupSection() {
+  return `<section class="gcwo-patient-followup gcwo-patient-followup-tab">
+    <div class="gcwo-followup-title"><div><h2>Acompanhamento</h2><span>O que condiciona e o que resultou.</span></div></div>
+    <div class="gcwo-followup-tabs" role="tablist">
+      <button type="button" role="tab" data-followup-tab="readiness" class="${_patientFollowupTab === 'readiness' ? 'on' : ''}">Prontidão de hoje</button>
+      <button type="button" role="tab" data-followup-tab="sessions" class="${_patientFollowupTab === 'sessions' ? 'on' : ''}">Leitura dos treinos</button>
+    </div>
+    <div class="gcwo-followup-content" id="gcwoPatientFollowupContent">${_patientFollowupTab === 'readiness' ? `
+      <div class="gcwo-readiness-empty"><span class="dot"></span><div><b>Sem dados de prontidão para hoje</b><p>Ainda não existe avaliação pré-treino nem ligação a VRC, sono ou energia. Não são usados dados inventados.</p></div></div>
+      <div class="gcwo-planned-session">${sessaoHojeResumoHtml()}</div>` : '<div class="gcwo-muted">A carregar os treinos registados…</div>'}</div>
+  </section>`;
+}
+
+function sessaoHojeResumoHtml() {
+  const sessoes = (_state.sessions || []).filter(s => s.date === isoHoje());
+  if (!sessoes.length) return '<span>Sem sessão prevista para hoje.</span>';
+  return `<div><b>Sessão prevista</b><span>${sessoes.map(s => TIPO_META[tipoKey(s)]?.label || s.modality || 'Sessão').join(' · ')}</span></div>`;
+}
+
+function wirePatientFollowupSection() {
+  document.querySelectorAll('[data-followup-tab]').forEach(btn => btn.addEventListener('click', () => {
+    _patientFollowupTab = btn.getAttribute('data-followup-tab');
+    const current = document.querySelector('.gcwo-patient-followup');
+    const wrap = document.createElement('div'); wrap.innerHTML = renderPatientFollowupSection();
+    current?.replaceWith(wrap.firstElementChild); wirePatientFollowupSection();
+  }));
+  if (_patientFollowupTab === 'sessions') carregarLeituraTreinosDoDoente();
+}
+
+async function carregarLeituraTreinosDoDoente() {
+  const host = document.getElementById('gcwoPatientFollowupContent');
+  if (!host) return;
+  if (!_state.activePrescriptionId) { host.innerHTML = '<div class="gcwo-readiness-empty"><div><b>Ainda não há plano activo</b><p>Os resultados surgirão depois da primeira prescrição e do primeiro treino registado.</p></div></div>'; return; }
+  const { data, error } = await window.sb.from('wo_session_logs').select('session_id,logged_at,rpe,feel,note').eq('prescription_id', _state.activePrescriptionId).order('logged_at', { ascending:false }).limit(30);
+  if (error) { host.innerHTML = '<div class="gcwo-muted">Não foi possível carregar os treinos.</div>'; return; }
+  if (!data?.length) { host.innerHTML = '<div class="gcwo-readiness-empty"><div><b>Sem treinos registados</b><p>O feedback aparecerá aqui ligado à sessão correspondente.</p></div></div>'; return; }
+  host.innerHTML = `<div class="gcwo-training-reading">${data.map(log => { const sessao = (_state.sessions || []).find(s => s.session_id === log.session_id); return `<article><div><b>${escHtml(TIPO_META[tipoKey(sessao || {})]?.label || sessao?.modality || 'Treino')}</b><span>${escHtml(new Date(log.logged_at).toLocaleString('pt-PT', { dateStyle:'medium', timeStyle:'short' }))}</span></div><div class="metrics"><span>Esforço <b>${escHtml(log.rpe ?? '—')}/10</b></span><span>Bem-estar <b>${escHtml(log.feel ?? '—')}/5</b></span></div>${log.note ? `<p>${escHtml(log.note)}</p>` : ''}</article>`; }).join('')}</div>`;
 }
 
 // Segundas-feiras (ISO) das semanas a desenhar: sempre pelo menos 4, e nunca menos do
@@ -1415,12 +1539,6 @@ function renderCalGrid() {
           <div class="gcwo-calday${fora ? ' before-start' : ''}"${fora ? '' : ` data-day="${iso}"`}>
             <div class="gcwo-calday-top">
               <span class="num">${escHtml(fmtDiaMesCurtoIso(iso))}</span>
-              <span class="gcwo-calday-symbols" aria-label="${sessions.length} treino${sessions.length === 1 ? '' : 's'} neste dia">
-                ${sessions.map(s => {
-                  const simboloMeta = TIPO_META[tipoKey(s)];
-                  return `<span class="gcwo-calday-symbol" style="background:${simboloMeta.bg};color:${simboloMeta.fg}" title="${escAttr(simboloMeta.label)}">${simboloMeta.icon}</span>`;
-                }).join('')}
-              </span>
               ${!fora ? `<button type="button" class="gcwo-calday-add" data-add-date="${iso}" title="Adicionar sessão">${ICON_MAIS}</button>` : ''}
             </div>
             <div class="gcwo-calsessions">
@@ -1433,7 +1551,7 @@ function renderCalGrid() {
                   <span class="gcwo-calsession-handle" data-drag-sid="${s.session_id}" title="Arrastar para mover">${ICON_GRIP}</span>
                   <button type="button" class="gcwo-calsession-body" data-edit-session="${s.session_id}">
                     <span class="gcwo-calsession-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
-                    <span class="gcwo-calsession-name">${escHtml(meta.label)}${modoLabel ? ' · ' + modoLabel : ''}${momentoLabel ? ' · ' + escHtml(momentoLabel) : ''}</span>
+                    <span class="gcwo-calsession-name">${escHtml(nomeCurtoSessao(s))}</span>
                   </button>
                   <button type="button" class="gcwo-calsession-menubtn" data-menu-session="${s.session_id}" title="Mais ações">${ICON_DOTS}</button>
                   <div class="gcwo-calsession-menu" id="gcwoCalMenu-${s.session_id}" hidden>
@@ -1488,6 +1606,11 @@ function renderCalGrid() {
   });
   wireCalMenuDocClickOnce();
   wireCalDragAndDrop(host);
+}
+
+function nomeCurtoSessao(s) {
+  const nomes = { list:'Gin.', ginasio:'Gin.', corrida:'Corrida', ciclismo:'Cicl.', natacao:'Natação', caminhada:'Caminh.', walk:'Caminh.', circuito:'Circuito', circuit:'Circuito' };
+  return nomes[tipoKey(s)] || TIPO_META[tipoKey(s)]?.label || 'Treino';
 }
 
 // Arrastar pela pega de 6 pontos (⠿) — elemento à parte do corpo da sessão e do menu ⋮
