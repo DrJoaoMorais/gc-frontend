@@ -17,7 +17,7 @@ const escHtml = escAttr;
 
 const MIME_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 
-const CATEGORIA_OPCOES = ['Membro Superior', 'Membro Inferior', 'Core'];
+const CATEGORIA_OPCOES = ['Corpo Inteiro', 'Membro Superior', 'Membro Inferior', 'Core'];
 const LOCAIS_OPCOES = ['Casa', 'Ginásio', 'Clínica'];
 const EQUIPAMENTO_OPCOES = ['Máquina', 'TRX', 'Elásticos', 'Halteres', 'Peso Corporal'];
 

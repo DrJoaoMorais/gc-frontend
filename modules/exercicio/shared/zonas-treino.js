@@ -41,7 +41,17 @@ const ZONAS_POTENCIA = [
   { key: "Z7", order: 7, label: "Potência neuromuscular / Sprint (>150% FTP)" },
 ];
 
-function catalogoZonas(metric) {
+const ZONAS_NATACAO = [
+  { key: "A1", order: 1, label: "Recuperação / técnica" },
+  { key: "A2", order: 2, label: "Resistência aeróbica" },
+  { key: "A3", order: 3, label: "Limiar aeróbico" },
+  { key: "SP1", order: 4, label: "Potência aeróbica" },
+  { key: "SP2", order: 5, label: "Tolerância láctica" },
+  { key: "SP3", order: 6, label: "Velocidade / potência neuromuscular" },
+];
+
+function catalogoZonas(metric, modalidade = zonasTreinoModalidade) {
+  if (modalidade === "natacao") return ZONAS_NATACAO;
   return metric === "power" ? ZONAS_POTENCIA : ZONAS_5;
 }
 
@@ -57,6 +67,10 @@ const ABAS_POR_MODALIDADE = {
     { metric: "heart_rate", label: "Frequência cardíaca" },
     { metric: "power", label: "Potência" },
   ],
+  natacao: [
+    { metric: "pace", label: "Ritmo / 100 m" },
+    { metric: "heart_rate", label: "Frequência cardíaca" },
+  ],
 };
 
 let _patientId = null;
@@ -66,13 +80,14 @@ let zonasTreinoOpen = false;
 let zonasTreinoLoading = false;
 let zonasTreinoSaving = false;
 let zonasTreinoErro = "";
-let zonasTreinoModalidade = "corrida"; // 'corrida' | 'ciclismo'
+let zonasTreinoModalidade = "corrida"; // 'corrida' | 'ciclismo' | 'natacao'
 let zonasTreinoMetrica = "heart_rate"; // aba activa: 'heart_rate' | 'pace' | 'power'
 let zonasTreinoAtivos = { heart_rate: null, pace: null, power: null };
 let zonasTreinoDraft = null;
+let _onSaved = null;
 
-function novoZonaDraft(metric) {
-  const zonas = Object.fromEntries(catalogoZonas(metric).map((z) => [
+function novoZonaDraft(metric, modalidade = zonasTreinoModalidade) {
+  const zonas = Object.fromEntries(catalogoZonas(metric, modalidade).map((z) => [
     z.key,
     metric === "pace" ? { lento: "", rapido: "" } : { min: "", max: "" },
   ]));
@@ -85,8 +100,8 @@ function novoZonaDraft(metric) {
   };
 }
 
-function novoZonasTreinoDraft() {
-  return { heart_rate: novoZonaDraft("heart_rate"), pace: novoZonaDraft("pace"), power: novoZonaDraft("power") };
+function novoZonasTreinoDraft(modalidade = zonasTreinoModalidade) {
+  return { heart_rate: novoZonaDraft("heart_rate", modalidade), pace: novoZonaDraft("pace", modalidade), power: novoZonaDraft("power", modalidade) };
 }
 
 async function fetchClinicIdDoPaciente(patientId) {
@@ -119,13 +134,13 @@ async function fetchZonasTreinoAtivos(patientId, modalidade) {
   return out;
 }
 
-function draftFromPerfilAtivo(perfil, metric) {
-  const base = novoZonaDraft(metric);
+function draftFromPerfilAtivo(perfil, metric, modalidade = zonasTreinoModalidade) {
+  const base = novoZonaDraft(metric, modalidade);
   if (!perfil) return base;
   const ranges = {};
   (perfil.wo_zone_ranges || []).forEach((r) => { ranges[r.zone_key] = r; });
   const zonas = {};
-  catalogoZonas(metric).forEach((z) => {
+  catalogoZonas(metric, modalidade).forEach((z) => {
     const r = ranges[z.key];
     if (metric === "pace") {
       // lower_value = mais rápido (nº menor), upper_value = mais lento (nº maior) —
@@ -176,9 +191,9 @@ async function carregarAtivosDaModalidade() {
 
   zonasTreinoAtivos = await fetchZonasTreinoAtivos(_patientId, zonasTreinoModalidade);
   zonasTreinoDraft = {
-    heart_rate: draftFromPerfilAtivo(zonasTreinoAtivos.heart_rate, "heart_rate"),
-    pace: draftFromPerfilAtivo(zonasTreinoAtivos.pace, "pace"),
-    power: draftFromPerfilAtivo(zonasTreinoAtivos.power, "power"),
+    heart_rate: draftFromPerfilAtivo(zonasTreinoAtivos.heart_rate, "heart_rate", zonasTreinoModalidade),
+    pace: draftFromPerfilAtivo(zonasTreinoAtivos.pace, "pace", zonasTreinoModalidade),
+    power: draftFromPerfilAtivo(zonasTreinoAtivos.power, "power", zonasTreinoModalidade),
   };
   zonasTreinoLoading = false;
   render();
@@ -187,14 +202,16 @@ async function carregarAtivosDaModalidade() {
 // Ponto de entrada do módulo — monta e abre o modal para o doente indicado. Resolve a
 // clínica activa sozinho (patient_clinic), não depende de nenhum estado já carregado
 // pelo chamador.
-export async function abrirZonasTreino(patientId) {
+export async function abrirZonasTreino(patientId, { onSaved } = {}) {
   _patientId = patientId;
   _clinicId = null;
+  _onSaved = typeof onSaved === "function" ? onSaved : null;
   zonasTreinoOpen = true;
+  zonasTreinoLoading = true;
   zonasTreinoErro = "";
   zonasTreinoModalidade = "corrida";
   zonasTreinoMetrica = "heart_rate";
-  zonasTreinoDraft = novoZonasTreinoDraft();
+  zonasTreinoDraft = novoZonasTreinoDraft("corrida");
   render();
 
   _clinicId = await fetchClinicIdDoPaciente(patientId);
@@ -247,15 +264,37 @@ function validarContinuidadeZonas(pares, higherIsMoreIntense, zonaCatalogo) {
   return null;
 }
 
-function unidadeDaMetrica(metric) {
-  if (metric === "pace") return "sec_per_km";
+function unidadeDaMetrica(metric, modalidade) {
+  if (metric === "pace") return modalidade === "natacao" ? "sec_per_100m" : "sec_per_km";
   if (metric === "power") return "watt";
   return "bpm";
 }
 
+function calcularZonasFcPorPercentagem() {
+  const draft = zonasTreinoDraft?.heart_rate;
+  if (zonasTreinoModalidade === "natacao") return;
+  const fcMax = Number(draft?.max_hr_bpm);
+  if (!Number.isFinite(fcMax) || fcMax <= 0) {
+    zonasTreinoErro = "Indica primeiro uma FC máxima válida.";
+    render();
+    return;
+  }
+  const limites = [0.60, 0.70, 0.80, 0.90];
+  const fronteiras = limites.map(p => Math.round(fcMax * p));
+  const catalogo = catalogoZonas("heart_rate", zonasTreinoModalidade);
+  catalogo.forEach((zona, index) => {
+    draft.zonas[zona.key] = {
+      min: index === 0 ? "" : String(fronteiras[index - 1]),
+      max: index === catalogo.length - 1 ? "" : String(fronteiras[index]),
+    };
+  });
+  zonasTreinoErro = "";
+  render();
+}
+
 async function salvarZonasTreino(metric) {
   const draft = zonasTreinoDraft[metric];
-  const zonaCatalogo = catalogoZonas(metric);
+  const zonaCatalogo = catalogoZonas(metric, zonasTreinoModalidade);
   if (!draft.method) { zonasTreinoErro = "Escolhe o método."; render(); return; }
   if (metric === "heart_rate" && draft.method === "estimado" && !draft.formula) {
     zonasTreinoErro = "Escolhe a fórmula (Tanaka ou Gulati).";
@@ -306,7 +345,7 @@ async function salvarZonasTreino(metric) {
       p_test_used: draft.test_used ? draft.test_used.trim() : null,
       p_test_date: draft.test_date || null,
       p_reassessment_recommended_at: draft.reassessment_recommended_at || null,
-      p_unit: unidadeDaMetrica(metric),
+      p_unit: unidadeDaMetrica(metric, zonasTreinoModalidade),
       p_ranges: ranges,
       p_ftp_w: metric === "power" && draft.ftp_w !== "" ? Number(draft.ftp_w) : null,
     });
@@ -322,6 +361,7 @@ async function salvarZonasTreino(metric) {
     await carregarAtivosDaModalidade();
     zonasTreinoSaving = false;
     render();
+    await _onSaved?.();
   } catch (e) {
     console.error(e);
     zonasTreinoErro = "Erro a gravar o perfil.";
@@ -333,77 +373,80 @@ async function salvarZonasTreino(metric) {
 function renderZonasTreinoModal() {
   const modalidade = zonasTreinoModalidade;
   const abas = ABAS_POR_MODALIDADE[modalidade];
-  const d = zonasTreinoDraft || novoZonasTreinoDraft();
+  const d = zonasTreinoDraft || novoZonasTreinoDraft(modalidade);
   const tab = zonasTreinoMetrica;
   const draft = d[tab];
-  const zonaCatalogo = catalogoZonas(tab);
+  const zonaCatalogo = catalogoZonas(tab, modalidade);
   const primeiraZona = zonaCatalogo[0].key, ultimaZona = zonaCatalogo[zonaCatalogo.length - 1].key;
 
   function campoZona(z) {
     const zv = draft.zonas[z.key];
     if (tab === "pace") {
       return `
-        <div>
-          <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:3px;">${z.key} · ${escAttr(z.label)}</div>
-          <div style="display:flex; gap:4px;">
-            <input type="text" inputmode="numeric" class="zt-lento" data-zone="${z.key}" placeholder="mais lento m:ss" value="${escAttr(zv.lento)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
-            <input type="text" inputmode="numeric" class="zt-rapido" data-zone="${z.key}" placeholder="mais rápido m:ss" value="${escAttr(zv.rapido)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
+        <div class="zt-zone-item zt-zone-${z.order}">
+          <div class="zt-zone-title"><b>${z.key}</b><span>${escAttr(z.label)}</span></div>
+          <div class="zt-zone-inputs">
+            <label><span>Mais lento</span><input type="text" inputmode="numeric" class="zt-lento" data-zone="${z.key}" placeholder="m:ss" value="${escAttr(zv.lento)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;"></label>
+            <label><span>Mais rápido</span><input type="text" inputmode="numeric" class="zt-rapido" data-zone="${z.key}" placeholder="m:ss" value="${escAttr(zv.rapido)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;"></label>
           </div>
         </div>`;
     }
     return `
-      <div>
-        <div style="font-size:11px; font-weight:700; color:#64748b; margin-bottom:3px;">${z.key} · ${escAttr(z.label)}</div>
-        <div style="display:flex; gap:4px;">
-          <input type="number" min="0" class="zt-min" data-zone="${z.key}" placeholder="mín" value="${escAttr(zv.min)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
-          <input type="number" min="0" class="zt-max" data-zone="${z.key}" placeholder="máx" value="${escAttr(zv.max)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;">
+      <div class="zt-zone-item zt-zone-${z.order}">
+        <div class="zt-zone-title"><b>${z.key}</b><span>${escAttr(z.label)}</span></div>
+        <div class="zt-zone-inputs">
+          <label><span>Mínimo</span><input type="number" min="0" class="zt-min" data-zone="${z.key}" placeholder="sem limite" value="${escAttr(zv.min)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;"></label>
+          <label><span>Máximo</span><input type="number" min="0" class="zt-max" data-zone="${z.key}" placeholder="sem limite" value="${escAttr(zv.max)}" style="width:100%; padding:7px; border:1px solid #ddd; border-radius:8px; font-size:12px;"></label>
         </div>
       </div>`;
   }
 
-  const unidadeTexto = tab === "pace" ? "ritmo min:seg/km" : (tab === "power" ? "W" : "bpm");
+  const unidadeTexto = tab === "pace" ? (modalidade === "natacao" ? "ritmo min:seg/100 m" : "ritmo min:seg/km") : (tab === "power" ? "W" : "bpm");
 
   return `
-    <div id="zonasTreinoOverlay"
+    <div id="zonasTreinoOverlay" class="zt-overlay"
          style="position:fixed; inset:0; background:rgba(0,0,0,0.35);
                 display:flex; align-items:center; justify-content:center; padding:12px; z-index:2000;">
-      <div style="background:#fff; width:min(900px,96vw); max-height:92vh; overflow:auto;
+      <div class="zt-modal-shell" style="background:#fff; width:min(1080px,96vw); max-height:92vh; overflow:auto;
                   border-radius:14px; border:1px solid #e5e5e5; padding:16px;">
 
         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-          <div style="font-weight:900; font-size:16px;">Perfil de zonas de treino</div>
+          <div><div class="zt-eyebrow">Zonas do doente</div><div style="font-weight:900; font-size:19px;">Definir zonas de treino</div><div class="zt-subtitle">Escolha a modalidade e a forma de medir a intensidade.</div></div>
           <button id="btnZonasTreinoClose" class="gcBtnGhost">Fechar</button>
         </div>
 
-        <div style="margin-top:12px; display:flex; gap:8px;">
-          <button data-modalidade="corrida" class="zt-modalidade ${modalidade === "corrida" ? "gcBtnPrimary" : "gcBtnGhost"}" style="font-weight:800;">Corrida</button>
-          <button data-modalidade="ciclismo" class="zt-modalidade ${modalidade === "ciclismo" ? "gcBtnPrimary" : "gcBtnGhost"}" style="font-weight:800;">Ciclismo</button>
+        <div class="zt-modalidades" style="margin-top:12px; display:flex; gap:8px;">
+          <button data-modalidade="corrida" class="zt-modalidade ${modalidade === "corrida" ? "gcBtnPrimary" : "gcBtnGhost"}" style="font-weight:800;"><span>🏃</span> Corrida</button>
+          <button data-modalidade="ciclismo" class="zt-modalidade ${modalidade === "ciclismo" ? "gcBtnPrimary" : "gcBtnGhost"}" style="font-weight:800;"><span>🚲</span> Ciclismo</button>
+          <button data-modalidade="natacao" class="zt-modalidade ${modalidade === "natacao" ? "gcBtnPrimary" : "gcBtnGhost"}" style="font-weight:800;"><span>🏊</span> Natação <small>A1–SP3</small></button>
         </div>
 
-        <div style="margin-top:8px; display:flex; gap:8px;">
-          ${abas.map((a) => `<button data-metric="${a.metric}" class="zt-tab ${tab === a.metric ? "gcBtnPrimary" : "gcBtnGhost"}" style="font-weight:800;">${escAttr(a.label)}</button>`).join("")}
+        <div class="zt-metricas" style="margin-top:8px; display:flex; gap:8px;">
+          ${abas.map((a) => `<button data-metric="${a.metric}" class="zt-tab ${tab === a.metric ? "gcBtnPrimary" : "gcBtnGhost"}" style="font-weight:800;">${a.metric === 'heart_rate' ? '♥' : (a.metric === 'power' ? '⚡' : '◷')} ${escAttr(a.label)}</button>`).join("")}
         </div>
 
         ${zonasTreinoLoading ? `<div style="margin-top:16px; color:#64748b;">A carregar…</div>` : `
 
-        <div style="margin-top:12px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#f8fafc;">
+        <div class="zt-editor-layout" style="margin-top:12px;">
+          <section class="zt-config-panel">
+            <div class="zt-panel-heading">Dados do perfil</div>
 
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="zt-form-grid zt-method-row">
             <div>
               <label>Método</label>
-              <select id="zt_method" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; background:#fff;">
-                <option value="medido" ${draft.method === "medido" ? "selected" : ""}>Medido (teste)</option>
-                ${tab === "heart_rate" ? `<option value="estimado" ${draft.method === "estimado" ? "selected" : ""}>Estimado (fórmula)</option>` : ""}
-                <option value="manual" ${draft.method === "manual" ? "selected" : ""}>Manual</option>
-              </select>
+              <div class="zt-choice-group" id="zt_method">
+                <button type="button" data-value="medido" class="${draft.method === "medido" ? "on" : ""}">Medido</button>
+                ${tab === "heart_rate" ? `<button type="button" data-value="estimado" class="${draft.method === "estimado" ? "on" : ""}">Estimado</button>` : ""}
+                <button type="button" data-value="manual" class="${draft.method === "manual" ? "on" : ""}">Manual</button>
+              </div>
             </div>
             ${tab === "heart_rate" && draft.method === "estimado" ? `
             <div>
               <label>Fórmula</label>
-              <select id="zt_formula" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; background:#fff;">
-                <option value="tanaka" ${draft.formula === "tanaka" ? "selected" : ""}>Tanaka — 208 − 0,7×idade (ambos os sexos)</option>
-                <option value="gulati" ${draft.formula === "gulati" ? "selected" : ""}>Gulati — 206 − 0,88×idade (mulheres assintomáticas)</option>
-              </select>
+              <div class="zt-formula-group" id="zt_formula">
+                <button type="button" data-value="tanaka" class="${draft.formula === "tanaka" ? "on" : ""}"><b>Tanaka</b><span>208 − 0,7 × idade</span></button>
+                <button type="button" data-value="gulati" class="${draft.formula === "gulati" ? "on" : ""}"><b>Gulati</b><span>206 − 0,88 × idade</span></button>
+              </div>
             </div>` : ""}
             ${tab === "power" ? `
             <div>
@@ -412,23 +455,30 @@ function renderZonasTreinoModal() {
             </div>` : ""}
           </div>
 
+          <div class="zt-form-grid zt-test-row">
+            <div>
+              <label>Teste utilizado</label>
+              <input type="text" id="zt_test_used" value="${escAttr(draft.test_used)}" placeholder="${modalidade === 'natacao' ? 'ex.: teste de 400 m / 200 m' : (tab === "power" ? "ex.: FTP 20min ou cicloergómetro" : (modalidade === "ciclismo" ? "ex.: prova de esforço em cicloergómetro" : "ex.: prova de esforço em tapete"))}" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;">
+            </div>
+          </div>
+
           ${tab === "heart_rate" ? `
-          <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="zt-form-grid zt-fc-row">
             <div>
               <label>FC de repouso (bpm)</label>
               <input type="number" min="0" id="zt_resting_hr" value="${escAttr(draft.resting_hr_bpm)}" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;">
             </div>
-            <div>
+            <div class="zt-fcmax-field">
               <label>FC máxima utilizada (bpm)</label>
               <input type="number" min="0" id="zt_max_hr" value="${escAttr(draft.max_hr_bpm)}" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;">
             </div>
+            ${modalidade === "natacao" ? "" : `<button type="button" id="btnZtCalcularFc" class="gcBtnGhost gcBtnSm zt-calc-button">Calcular zonas por % da FC máxima</button>`}
           </div>` : ""}
 
-          <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
-            <div>
-              <label>Teste utilizado</label>
-              <input type="text" id="zt_test_used" value="${escAttr(draft.test_used)}" placeholder="${tab === "power" ? "ex.: FTP 20min ou cicloergómetro" : (modalidade === "ciclismo" ? "ex.: prova de esforço em cicloergómetro" : "ex.: prova de esforço em tapete")}" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;">
-            </div>
+          </section>
+
+          <section class="zt-zones-panel">
+            <div class="zt-date-row">
             <div>
               <label>Data do teste</label>
               <input type="date" id="zt_test_date" value="${escAttr(draft.test_date)}" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;">
@@ -439,18 +489,19 @@ function renderZonasTreinoModal() {
             </div>
           </div>
 
-          <div style="margin-top:12px;">
+          <div class="zt-ranges-section">
             <label style="font-weight:700; font-size:12px; color:#374151;">
               ${escAttr(primeiraZona)}–${escAttr(ultimaZona)} (${unidadeTexto} — deixa em branco ${tab === "pace" ? `"mais lento" da ${escAttr(primeiraZona)} ou "mais rápido" da ${escAttr(ultimaZona)}` : `o mínimo da ${escAttr(primeiraZona)} ou o máximo da ${escAttr(ultimaZona)}`} se não houver limite)
             </label>
-            <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:8px; margin-top:6px;">
+            <div class="zt-zone-columns" aria-hidden="true"><span>Zona e objetivo</span><span>${tab === "pace" ? "Mais lento" : "Mínimo"}</span><span>${tab === "pace" ? "Mais rápido" : "Máximo"}</span></div>
+            <div class="zt-zone-grid" style="display:grid; grid-template-columns:1fr; gap:6px; margin-top:5px;">
               ${zonaCatalogo.map(campoZona).join("")}
             </div>
           </div>
-
+          </section>
         </div>
 
-        <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+        <div class="zt-footer" style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:10px;">
           <div style="color:#dc2626; font-size:13px;">${escAttr(zonasTreinoErro)}</div>
           <button id="btnZtSave" class="gcBtnSuccess" style="font-weight:900;" ${zonasTreinoSaving ? "disabled" : ""}>
             ${zonasTreinoSaving ? "A gravar…" : "Gravar perfil"}
@@ -483,11 +534,13 @@ function bindZonasTreinoEvents() {
 
   const draft = zonasTreinoDraft[zonasTreinoMetrica];
 
-  const methodEl = host.querySelector("#zt_method");
-  if (methodEl) methodEl.onchange = (e) => { draft.method = e.target.value; render(); };
+  host.querySelectorAll("#zt_method [data-value]").forEach((el) => {
+    el.onclick = () => { draft.method = el.dataset.value; render(); };
+  });
 
-  const formulaEl = host.querySelector("#zt_formula");
-  if (formulaEl) formulaEl.onchange = (e) => { draft.formula = e.target.value; };
+  host.querySelectorAll("#zt_formula [data-value]").forEach((el) => {
+    el.onclick = () => { draft.formula = el.dataset.value; render(); };
+  });
 
   const ftpEl = host.querySelector("#zt_ftp_w");
   if (ftpEl) ftpEl.oninput = (e) => { draft.ftp_w = e.target.value; };
@@ -497,6 +550,9 @@ function bindZonasTreinoEvents() {
 
   const maxHrEl = host.querySelector("#zt_max_hr");
   if (maxHrEl) maxHrEl.oninput = (e) => { draft.max_hr_bpm = e.target.value; };
+
+  const calcularFcBtn = host.querySelector("#btnZtCalcularFc");
+  if (calcularFcBtn) calcularFcBtn.onclick = () => calcularZonasFcPorPercentagem();
 
   const testUsedEl = host.querySelector("#zt_test_used");
   if (testUsedEl) testUsedEl.oninput = (e) => { draft.test_used = e.target.value; };
