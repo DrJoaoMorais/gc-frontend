@@ -770,6 +770,59 @@
 .gcwo-exercicio-extra { display:flex; gap:14px; margin-top:10px; flex-wrap:wrap; }
 
 .gcwo-exercicio-add { display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap; }
+
+/* Construtor visual de corrida e ciclismo */
+.gcwo-cardio-builder { margin:14px 0 10px; padding:14px; border:1px solid #dbe3ee; border-radius:14px; background:#f8fafc; }
+.gcwo-cardio-builder-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.gcwo-cardio-builder-head strong,.gcwo-cardio-builder-head span { display:block; }
+.gcwo-cardio-builder-head strong { color:#0f2d52; font-size:14px; }
+.gcwo-cardio-builder-head span { margin-top:2px; color:#64748b; font-size:11px; }
+.gcwo-cardio-zone-tray { display:flex; gap:8px; flex-wrap:wrap; }
+.gcwo-cardio-zone { width:112px; min-height:68px; padding:8px; border:2px solid transparent; border-radius:11px; background:color-mix(in srgb,var(--zone-color) 17%,white); color:#334155; text-align:left; cursor:grab; }
+.gcwo-cardio-zone:hover { border-color:var(--zone-color); transform:translateY(-1px); }
+.gcwo-cardio-zone strong,.gcwo-cardio-zone span,.gcwo-cardio-zone small { display:block; }
+.gcwo-cardio-zone strong { color:var(--zone-color); font-size:18px; }
+.gcwo-cardio-zone span { overflow:hidden; text-overflow:ellipsis; font-size:10px; white-space:nowrap; }
+.gcwo-cardio-zone small { margin-top:4px; color:#475569; font-size:10px; font-weight:800; }
+.gcwo-cardio-series { --zone-color:#475569; border-style:dashed; background:#fff; }
+.gcwo-cardio-series strong { color:#0f2d52; }
+.gcwo-cardio-overview { margin:14px 0 18px; padding:16px; border:1px solid #dbe3ee; border-radius:14px; background:#fff; }
+.gcwo-cardio-overview.is-dragover,.gcwo-cardio-empty.is-dragover { border-color:#1a56db; box-shadow:0 0 0 3px rgba(26,86,219,.13); background:#eff6ff; }
+.gcwo-cardio-total { display:flex; align-items:baseline; justify-content:space-between; color:#334155; }
+.gcwo-cardio-total span { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+.gcwo-cardio-total strong { font-size:24px; color:#0f2d52; }
+.gcwo-cardio-timeline { display:flex; height:62px; margin-top:12px; overflow:hidden; border-radius:9px; background:#e2e8f0; }
+.gcwo-cardio-timeline > div { min-width:34px; display:flex; align-items:center; justify-content:center; border-right:2px solid #fff; color:#fff; text-shadow:0 1px 2px #334155; }
+.gcwo-cardio-timeline > div:last-child { border-right:0; }
+.gcwo-cardio-timeline span,.gcwo-cardio-timeline small { display:block; }
+.gcwo-cardio-timeline span { font-size:13px; font-weight:900; }
+.gcwo-cardio-timeline small { margin-top:3px; font-size:9px; font-weight:700; }
+.gcwo-cardio-empty { margin:14px 0 18px; padding:20px 16px; border:1px dashed #bfd0e3; border-radius:14px; color:#64748b; background:#f8fafc; text-align:center; }
+.gcwo-cardio-empty strong,.gcwo-cardio-empty span { display:block; }
+.gcwo-cardio-empty strong { color:#334155; font-size:14px; }
+.gcwo-cardio-empty span { margin-top:3px; font-size:11px; }
+.gcwo-zone-field { grid-column:1 / -1; }
+.gcwo-zone-palette { display:grid; grid-template-columns:repeat(7,minmax(72px,1fr)); gap:7px; }
+.gcwo-zone-palette .gcwo-int-zone { min-height:55px; padding:7px 5px; border:2px solid transparent; border-radius:10px; background:color-mix(in srgb,var(--zone-color) 16%,white); color:#334155; cursor:pointer; }
+.gcwo-zone-palette .gcwo-int-zone strong,.gcwo-zone-palette .gcwo-int-zone small { display:block; }
+.gcwo-zone-palette .gcwo-int-zone strong { font-size:16px; color:var(--zone-color); }
+.gcwo-zone-palette .gcwo-int-zone small { margin-top:2px; overflow:hidden; text-overflow:ellipsis; font-size:9px; white-space:nowrap; }
+.gcwo-zone-palette .gcwo-int-zone.on { border-color:var(--zone-color); box-shadow:0 0 0 2px color-mix(in srgb,var(--zone-color) 18%,transparent); background:color-mix(in srgb,var(--zone-color) 25%,white); }
+.gcwo-int-zone-hint { min-height:17px; color:#64748b; font-size:11px; }
+.gcwo-intensidade .gcwo-row3 { grid-template-columns:repeat(auto-fit,minmax(104px,142px)); justify-content:start; }
+.gcwo-intensidade .gcwo-zone-field { width:min(100%,820px); }
+.gcwo-intensidade .gcwo-field input { box-sizing:border-box; }
+.gcwo-intensidade .gcwo-field-sm { width:max-content; }
+.gcwo-intensidade .gcwo-field-sm .gcwo-mmss input { width:46px; padding-left:6px; padding-right:6px; text-align:center; }
+.gcwo-pace-field { grid-column:span 2; width:238px; }
+.gcwo-pace-pair { display:grid; grid-template-columns:100px 54px 32px; gap:5px; align-items:center; }
+.gcwo-pace-pair > div { position:relative; }
+.gcwo-pace-pair input { width:100px !important; padding-right:8px; }
+.gcwo-pace-pair > div small { display:block; margin-top:2px; color:#94a3b8; font-size:9px; }
+.gcwo-pace-pair output { min-width:54px; padding:7px 6px; border:1px solid #dbe3ee; border-radius:8px; background:#f8fafc; color:#0f2d52; font-size:13px; font-weight:800; text-align:center; box-sizing:border-box; }
+.gcwo-pace-pair > small { color:#64748b; font-size:10px; }
+@media (max-width:900px) { .gcwo-zone-palette { grid-template-columns:repeat(4,1fr); } }
+@media (max-width:560px) { .gcwo-zone-palette { grid-template-columns:repeat(2,1fr); } }
 .gcwo-catalog-select { flex:1; min-width:0; }
 
 .gcwo-modalidade { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
