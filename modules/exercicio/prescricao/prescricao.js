@@ -2888,34 +2888,32 @@ function novaIntensidade() {
   return { zone: null, pace_sec_per_km: null, pace_sec_per_100m: null, speed_kmh: null, heart_rate_bpm: null, power_w: null, cadence_rpm: null, rpe: null };
 }
 function novoBlocoContinuo() {
-  return { block_id: uuid(), type: 'continuous', duration_sec: null, intensity: novaIntensidade() };
+  return { block_id: uuid(), type: 'continuous', measure: 'time', duration_sec: null, distance_m: null, intensity: novaIntensidade() };
 }
 function novoBlocoSeries() {
-  return { block_id: uuid(), type: 'series', count: 4, work: { measure: 'distance', value: null, unit: 'm', intensity: novaIntensidade() }, recovery: { duration_sec: null, intensity: novaIntensidade() } };
+  return { block_id: uuid(), type: 'series', count: 4, work: { measure: 'distance', value: null, distance_m: null, duration_sec: null, unit: 'm', intensity: novaIntensidade() }, recovery: { measure: 'time', duration_sec: null, distance_m: null, intensity: novaIntensidade() } };
 }
 function novoBlocoFecho() {
   return { block_id: uuid(), type: 'closing', mode: 'rest', duration_sec: null, intensity: novaIntensidade() };
 }
 
-// Soma minutos por zona a partir dos blocos com duração conhecida (nunca converte
-// distância em tempo estimado — um bloco de séries por distância fica fora do cálculo,
-// mesmo princípio do indicador descrito na secção 3). É um espelho, não uma previsão.
 function calcularCargaPorZona(s) {
   const minutosPorZona = {};
   let totalComZona = 0, totalGeral = 0;
-  (s.blocks || []).forEach(b => {
-    let segundos = 0, zone = null;
-    if (b.type === 'continuous' || b.type === 'closing') {
-      segundos = b.duration_sec || 0;
-      zone = b.intensity && b.intensity.zone;
-    } else if (b.type === 'series' && b.work && b.work.measure === 'time' && b.work.value != null) {
-      const recDur = b.recovery ? (b.recovery.duration_sec || 0) : 0;
-      segundos = (b.count || 0) * (b.work.value + recDur);
-      zone = b.work.intensity && b.work.intensity.zone;
-    }
+  const somar = (segundos, zone) => {
     if (!segundos) return;
     totalGeral += segundos;
     if (zone) { minutosPorZona[zone] = (minutosPorZona[zone] || 0) + segundos; totalComZona += segundos; }
+  };
+  (s.blocks || []).forEach(b => {
+    if (b.type === 'continuous' || b.type === 'closing') {
+      somar(tempoBlocoContinuo(b, s.modality), b.intensity?.zone);
+    } else if (b.type === 'series') {
+      if (serieTemDistanciaSemTempo(b, s.modality)) return;
+      const repeticoes = Math.max(0, Number(b.count) || 0);
+      somar(repeticoes * tempoParteSeries(b.work, s.modality), b.work?.intensity?.zone);
+      somar(repeticoes * tempoParteSeries(b.recovery, s.modality), b.recovery?.intensity?.zone);
+    }
   });
   return { minutosPorZona, totalComZona, totalGeral };
 }
@@ -2955,6 +2953,66 @@ function duracaoInicialZona(modality, zona) {
 function ritmoParaKmh(segundosPorKm) {
   const segundos = Number(segundosPorKm);
   return Number.isFinite(segundos) && segundos > 0 ? (3600 / segundos).toFixed(1) : '';
+}
+function cardioPermiteDistancia(modality) {
+  return modalidadeCanonica(modality) !== 'ciclismo';
+}
+function medidaContinua(b, modality) {
+  return cardioPermiteDistancia(modality) && b?.measure === 'distance' ? 'distance' : 'time';
+}
+function medidaParteSeries(parte, modality) {
+  return cardioPermiteDistancia(modality) && parte?.measure === 'distance' ? 'distance' : 'time';
+}
+function distanciaParteSeries(parte) {
+  return Number(parte?.distance_m ?? (parte?.measure === 'distance' ? parte?.value : null)) || 0;
+}
+function duracaoParteSeries(parte) {
+  return Number(parte?.duration_sec ?? (parte?.measure !== 'distance' ? parte?.value : null)) || 0;
+}
+function ritmoParaCalculo(intensidade, zona, modality) {
+  const canonica = modalidadeCanonica(modality);
+  const exacto = canonica === 'natacao' ? Number(intensidade?.pace_sec_per_100m) : Number(intensidade?.pace_sec_per_km);
+  if (exacto > 0) return { min:exacto, max:exacto, exacto:true };
+  const range = rangePerfilParaZona(zona, modality, 'pace');
+  const min = Number(range?.lower_value), max = Number(range?.upper_value);
+  return min > 0 && max > 0 ? { min, max, exacto:false } : null;
+}
+function calcularTempoPorDistancia(distanciaM, intensidade, modality) {
+  const distancia = Number(distanciaM);
+  if (!(distancia > 0) || !cardioPermiteDistancia(modality)) return null;
+  const ritmo = ritmoParaCalculo(intensidade, intensidade?.zone, modality);
+  if (!ritmo) return null;
+  const factor = modalidadeCanonica(modality) === 'natacao' ? distancia / 100 : distancia / 1000;
+  const min = Math.round(factor * ritmo.min), max = Math.round(factor * ritmo.max);
+  return { min, max, estimado:Math.round((min + max) / 2), exacto:ritmo.exacto || min === max };
+}
+function fmtTempoCalculado(segundos) {
+  const total = Math.max(0, Math.round(Number(segundos) || 0));
+  const h = Math.floor(total / 3600), min = Math.floor((total % 3600) / 60), seg = total % 60;
+  return h ? `${h}:${String(min).padStart(2, '0')}:${String(seg).padStart(2, '0')}` : `${min}:${String(seg).padStart(2, '0')}`;
+}
+function textoTempoDistancia(distanciaM, intensidade, modality) {
+  const calculo = calcularTempoPorDistancia(distanciaM, intensidade, modality);
+  if (!calculo) return 'Tempo por calcular';
+  return calculo.exacto ? `Tempo calculado: ${fmtTempoCalculado(calculo.estimado)}` : `Tempo estimado: ${fmtTempoCalculado(calculo.min)}–${fmtTempoCalculado(calculo.max)}`;
+}
+function tempoBlocoContinuo(b, modality) {
+  if (medidaContinua(b, modality) === 'distance') return calcularTempoPorDistancia(b.distance_m, b.intensity, modality)?.estimado || 0;
+  return Number(b.duration_sec) || 0;
+}
+function tempoParteSeries(parte, modality) {
+  if (medidaParteSeries(parte, modality) === 'distance') return calcularTempoPorDistancia(distanciaParteSeries(parte), parte?.intensity, modality)?.estimado || 0;
+  return duracaoParteSeries(parte);
+}
+function serieTemDistanciaSemTempo(b, modality) {
+  return [b?.work, b?.recovery].some(parte => medidaParteSeries(parte, modality) === 'distance' && !calcularTempoPorDistancia(distanciaParteSeries(parte), parte?.intensity, modality));
+}
+function selectorMedidaCardio(nome, medida, modality) {
+  if (!cardioPermiteDistancia(modality)) return '';
+  return `<div class="gcwo-modo gcwo-cardio-measure"><label><input type="radio" name="${escAttr(nome)}" value="time" ${medida === 'time' ? 'checked' : ''}> Tempo</label><label><input type="radio" name="${escAttr(nome)}" value="distance" ${medida === 'distance' ? 'checked' : ''}> Distância</label></div>`;
+}
+function campoDistanciaCardio(classe, valor, intensidade, modality, label='Distância') {
+  return `<label class="gcwo-field gcwo-distance-field"><span>${escHtml(label)} (m)</span><input type="number" min="0" step="10" class="${classe}" value="${valor || ''}"><small class="gcwo-derived-time">${escHtml(textoTempoDistancia(valor, intensidade, modality))}</small></label>`;
 }
 function centroRange(r) {
   if (r?.lower_value == null || r?.upper_value == null) return null;
@@ -3023,8 +3081,12 @@ function renderEditorRapidoCardio(s) {
   if (!bloco) return `<div class="gcwo-cardio-quick-empty"><strong>Seleccione uma zona</strong><span>O bloco aparece aqui pronto a editar.</span></div>`;
   if (bloco.type !== 'continuous') return `<div class="gcwo-cardio-quick-empty"><strong>${bloco.type === 'series' ? 'Séries seleccionadas' : 'Fecho seleccionado'}</strong><span>Os detalhes deste bloco aparecem abaixo do gráfico.</span></div>`;
   const numero = s.blocks.indexOf(bloco) + 1;
+  const medida = medidaContinua(bloco, s.modality);
+  const campoMedida = medida === 'distance'
+    ? campoDistanciaCardio('gcwo-bloco-distance', bloco.distance_m, bloco.intensity, s.modality)
+    : campoDuracaoMMSS('gcwo-bloco-duracaomin', bloco.duration_sec, 'Duração');
   return `<div class="gcwo-cardio-quick-card gcwo-exercicio" data-bid="${escAttr(bloco.block_id)}">
-    <div class="gcwo-cardio-quick-head"><strong>Bloco ${numero} · ${escHtml(bloco.intensity?.zone || 'Sem zona')}</strong>${campoDuracaoMMSS('gcwo-bloco-duracaomin', bloco.duration_sec, 'Duração')}<button type="button" class="gcwo-exercicio-remove" data-remove-bid="${escAttr(bloco.block_id)}" title="Remover bloco">✕</button></div>
+    <div class="gcwo-cardio-quick-head"><strong>Bloco ${numero} · ${escHtml(bloco.intensity?.zone || 'Sem zona')}</strong>${selectorMedidaCardio(`gcwo-cont-medida-${bloco.block_id}`, medida, s.modality)}${campoMedida}<button type="button" class="gcwo-exercicio-remove" data-remove-bid="${escAttr(bloco.block_id)}" title="Remover bloco">✕</button></div>
     ${wrapIntensidade(bloco.block_id, 'main', bloco.intensity, false, s.modality)}
     <span class="gcwo-cardio-quick-range">${escHtml(intervalosZonaCardio(bloco.intensity?.zone, s.modality).join(' · '))}</span>
   </div>`;
@@ -3045,8 +3107,8 @@ function renderPaletaCardio(s) {
 function renderResumoVisualCardio(s) {
   const blocos = (s.blocks || []).map((b) => {
     const zona = b.type === 'series' ? b.work?.intensity?.zone : b.intensity?.zone;
-    let segundos = b.duration_sec || 0;
-    if (b.type === 'series' && b.work?.measure === 'time') segundos = (b.count || 0) * ((b.work.value || 0) + (b.recovery?.duration_sec || 0));
+    let segundos = b.type === 'closing' ? (Number(b.duration_sec) || 0) : tempoBlocoContinuo(b, s.modality);
+    if (b.type === 'series') segundos = serieTemDistanciaSemTempo(b, s.modality) ? 0 : (Number(b.count) || 0) * (tempoParteSeries(b.work, s.modality) + tempoParteSeries(b.recovery, s.modality));
     const intensidade = b.type === 'series' ? b.work?.intensity : b.intensity;
     const metrica = alvoOuIntervaloCardio(intensidade, zona, s.modality);
     const zonaRecuperacao = b.type === 'series' ? b.recovery?.intensity?.zone : null;
@@ -3058,21 +3120,21 @@ function renderResumoVisualCardio(s) {
   const valoresVerticais = blocos.flatMap(b => [b.valorVertical, b.valorRecuperacao]).filter(Number.isFinite);
   const valorMin = Math.min(...valoresVerticais), valorMax = Math.max(...valoresVerticais);
   const alturaParaValor = valor => valorMax > valorMin ? Math.round(44 + ((valor - valorMin) / (valorMax - valorMin)) * 56) : 72;
-  return `<div class="gcwo-cardio-overview" data-zone-drop="true"><div class="gcwo-cardio-total"><span>Duração total</span><strong>${fmtDuracaoTotal(total)}</strong></div><div class="gcwo-cardio-chart"><div class="gcwo-cardio-axis"><span>Mais rápido</span><span>Mais lento</span></div><div class="gcwo-cardio-timeline">${blocos.map(b => {
+  return `<div class="gcwo-cardio-overview" data-zone-drop="true"><div class="gcwo-cardio-total"><span>Duração total</span><strong>${fmtTempoCalculado(total)}</strong></div><div class="gcwo-cardio-chart"><div class="gcwo-cardio-axis"><span>Mais rápido</span><span>Mais lento</span></div><div class="gcwo-cardio-timeline">${blocos.map(b => {
     const isSeries = b.bloco.type === 'series';
     const largura = Math.max(isSeries ? 220 : 128, Math.min(isSeries ? 520 : 360, Math.round((b.segundos / total) * 1080)));
     const altura = alturaParaValor(b.valorVertical);
     const activa = s._selectedBlockId === b.bloco.block_id;
     if (isSeries) {
       const repeticoes = Math.max(1, Number(b.bloco.count) || 1);
-      const trabalhoSec = b.bloco.work?.measure === 'time' ? Number(b.bloco.work.value) || 0 : 0;
-      const recuperacaoSec = Number(b.bloco.recovery?.duration_sec) || 0;
+      const trabalhoSec = tempoParteSeries(b.bloco.work, s.modality);
+      const recuperacaoSec = tempoParteSeries(b.bloco.recovery, s.modality);
       const alturaRec = alturaParaValor(b.valorRecuperacao);
       const zonaRec = b.zonaRecuperacao || 'REC';
       const intervaloTrabalho = alvoOuIntervaloCardio(b.bloco.work?.intensity, b.zona, s.modality);
       const intervaloRecuperacao = alvoOuIntervaloCardio(b.bloco.recovery?.intensity, b.zonaRecuperacao, s.modality);
       const padrao = Array.from({ length:repeticoes }, () => `<i class="gcwo-series-effort" title="${escAttr(intervaloTrabalho)}" style="--series-flex:${Math.max(1,trabalhoSec)};--series-height:${altura}%;background:${cardioZoneMeta(b.zona).cor}"><em>${escHtml(b.zona || 'TR')}</em></i><i class="gcwo-series-recovery" title="${escAttr(intervaloRecuperacao)}" style="--series-flex:${Math.max(1,recuperacaoSec)};--series-height:${alturaRec}%;background:${cardioZoneMeta(b.zonaRecuperacao).cor}"><em>${escHtml(zonaRec)}</em></i>`).join('');
-      return `<div class="gcwo-timeline-block gcwo-timeline-series-group${activa ? ' is-selected' : ''}" draggable="true" data-timeline-bid="${escAttr(b.bloco.block_id)}" title="${repeticoes} séries: trabalho e recuperação" style="--block-width:${largura}px"><button type="button" class="gcwo-timeline-select gcwo-timeline-series" data-select-bid="${escAttr(b.bloco.block_id)}"><span class="gcwo-series-pattern">${padrao}</span><strong class="gcwo-series-count">${repeticoes}×</strong><small class="gcwo-series-caption">${fmtDuracaoTotal(trabalhoSec)} + ${fmtDuracaoTotal(recuperacaoSec)}</small></button></div>`;
+      return `<div class="gcwo-timeline-block gcwo-timeline-series-group${activa ? ' is-selected' : ''}" draggable="true" data-timeline-bid="${escAttr(b.bloco.block_id)}" title="${repeticoes} séries: trabalho e recuperação" style="--block-width:${largura}px"><button type="button" class="gcwo-timeline-select gcwo-timeline-series" data-select-bid="${escAttr(b.bloco.block_id)}"><span class="gcwo-series-pattern">${padrao}</span><strong class="gcwo-series-count">${repeticoes}×</strong><small class="gcwo-series-caption">${fmtTempoCalculado(trabalhoSec)} + ${fmtTempoCalculado(recuperacaoSec)}</small></button></div>`;
     }
     return `<div class="gcwo-timeline-block${activa ? ' is-selected' : ''}" draggable="true" data-timeline-bid="${escAttr(b.bloco.block_id)}" title="Arraste para mudar a ordem" style="--block-width:${largura}px;--block-height:${altura}%;background:${cardioZoneMeta(b.zona).cor}"><button type="button" class="gcwo-timeline-select" data-select-bid="${escAttr(b.bloco.block_id)}"><strong>${escHtml(b.zona || b.label)}</strong><span>${fmtDuracaoTotal(b.segundos)}</span><small>${escHtml(b.metrica || b.label)}</small></button></div>`;
   }).join('')}</div></div><div class="gcwo-timeline-help">Largura = duração · Altura = velocidade/intensidade · Arraste para ordenar · Clique para editar</div></div>`;
@@ -3167,13 +3229,14 @@ function wireDuracaoMMSS(container, baseClass, onChange) {
 }
 
 function renderBlocoContinuo(b, temZona, modality) {
+  const medida = medidaContinua(b, modality);
   return `
     <div class="gcwo-exercicio" data-bid="${escAttr(b.block_id)}">
       <div class="gcwo-exercicio-head">
         <strong>Contínuo</strong>
         <button type="button" class="gcwo-exercicio-remove" data-remove-bid="${escAttr(b.block_id)}" title="Remover bloco">✕</button>
       </div>
-      <div style="margin-top:8px;">${campoDuracaoMMSS('gcwo-bloco-duracaomin', b.duration_sec, 'Duração')}</div>
+      <div class="gcwo-series-general">${selectorMedidaCardio(`gcwo-cont-medida-${b.block_id}`, medida, modality)}${medida === 'distance' ? campoDistanciaCardio('gcwo-bloco-distance', b.distance_m, b.intensity, modality) : campoDuracaoMMSS('gcwo-bloco-duracaomin', b.duration_sec, 'Duração')}</div>
       <span class="gcwo-field-label" style="margin-top:10px;">Intensidade</span>
       ${wrapIntensidade(b.block_id, 'main', b.intensity, temZona, modality)}
     </div>`;
@@ -3197,7 +3260,8 @@ function renderBlocoFecho(b, temZona, modality) {
     </div>`;
 }
 function renderBlocoSeries(b, temZona, soDistancia, modality) {
-  const medida = b.work.measure;
+  const medida = medidaParteSeries(b.work, modality);
+  const medidaRecuperacao = medidaParteSeries(b.recovery, modality);
   return `
     <div class="gcwo-exercicio gcwo-cardio-series-editor" data-bid="${escAttr(b.block_id)}">
       <div class="gcwo-exercicio-head">
@@ -3206,20 +3270,21 @@ function renderBlocoSeries(b, temZona, soDistancia, modality) {
       </div>
       <div class="gcwo-series-general">
         <label class="gcwo-field gcwo-field-sm"><span>Nº de séries</span><input type="number" min="1" class="gcwo-bloco-count" value="${b.count ?? ''}"></label>
-        ${soDistancia ? '' : `<div class="gcwo-field"><span>Medida</span><div class="gcwo-modo"><label><input type="radio" name="gcwo-medida-${b.block_id}" value="distance" ${medida === 'distance' ? 'checked' : ''}> Distância</label><label><input type="radio" name="gcwo-medida-${b.block_id}" value="time" ${medida === 'time' ? 'checked' : ''}> Tempo</label></div></div>`}
       </div>
       <div class="gcwo-series-split">
         <section class="gcwo-series-side gcwo-series-work">
           <span class="gcwo-field-label">Trabalho</span>
+          ${soDistancia ? '' : selectorMedidaCardio(`gcwo-medida-${b.block_id}`, medida, modality)}
           ${medida === 'distance'
-            ? `<label class="gcwo-field gcwo-field-sm"><span>Distância (m)</span><input type="number" min="0" class="gcwo-bloco-workvalue" value="${b.work.value ?? ''}"></label>`
-            : campoDuracaoMMSS('gcwo-bloco-workvalue', b.work.value, 'Duração')
+            ? campoDistanciaCardio('gcwo-bloco-workdistance', distanciaParteSeries(b.work), b.work.intensity, modality)
+            : campoDuracaoMMSS('gcwo-bloco-workvalue', duracaoParteSeries(b.work), 'Duração')
           }
           ${wrapIntensidade(b.block_id, 'work', b.work.intensity, temZona, modality)}
         </section>
         <section class="gcwo-series-side gcwo-series-recovery">
           <span class="gcwo-field-label">Recuperação</span>
-          ${campoDuracaoMMSS('gcwo-bloco-recdur', b.recovery.duration_sec, 'Duração')}
+          ${selectorMedidaCardio(`gcwo-rec-medida-${b.block_id}`, medidaRecuperacao, modality)}
+          ${medidaRecuperacao === 'distance' ? campoDistanciaCardio('gcwo-bloco-recdistance', distanciaParteSeries(b.recovery), b.recovery.intensity, modality) : campoDuracaoMMSS('gcwo-bloco-recdur', duracaoParteSeries(b.recovery), 'Duração')}
           ${wrapIntensidade(b.block_id, 'recovery', b.recovery.intensity, temZona, modality)}
         </section>
       </div>
@@ -3303,6 +3368,7 @@ function wireIntensidadeForms(s) {
         const ranges = intervalosZonaCardio(intensity.zone, s.modality);
         hintEl.textContent = ranges.length ? `${intensity.zone} · ${ranges.join(' · ')}` : '';
       }
+      actualizarTempoDerivadoCardio(box, intensity, s.modality);
       refreshZonaResumo(s);
     }));
     const paceEl = box.querySelector('.gcwo-int-pace');
@@ -3310,10 +3376,11 @@ function wireIntensidadeForms(s) {
       intensity.pace_sec_per_km = parsePaceParaSegundos(e.target.value);
       const kmhEl = box.querySelector('.gcwo-pace-kmh');
       if (kmhEl) kmhEl.textContent = ritmoParaKmh(intensity.pace_sec_per_km) || '—';
+      actualizarTempoDerivadoCardio(box, intensity, s.modality);
       refreshZonaResumo(s);
     });
     const pace100El = box.querySelector('.gcwo-int-pace100');
-    if (pace100El) pace100El.addEventListener('input', (e) => { intensity.pace_sec_per_100m = parsePaceParaSegundos(e.target.value); refreshZonaResumo(s); });
+    if (pace100El) pace100El.addEventListener('input', (e) => { intensity.pace_sec_per_100m = parsePaceParaSegundos(e.target.value); actualizarTempoDerivadoCardio(box, intensity, s.modality); refreshZonaResumo(s); });
     const speedEl = box.querySelector('.gcwo-int-speed');
     if (speedEl) speedEl.addEventListener('input', (e) => { intensity.speed_kmh = e.target.value === '' ? null : Number(e.target.value); });
     box.querySelector('.gcwo-int-fc').addEventListener('input', (e) => { intensity.heart_rate_bpm = e.target.value === '' ? null : Number(e.target.value); });
@@ -3321,6 +3388,15 @@ function wireIntensidadeForms(s) {
     box.querySelector('.gcwo-int-cadence').addEventListener('input', (e) => { intensity.cadence_rpm = e.target.value === '' ? null : Number(e.target.value); });
     box.querySelector('.gcwo-int-rpe').addEventListener('input', (e) => { intensity.rpe = e.target.value === '' ? null : Number(e.target.value); });
   });
+}
+
+function actualizarTempoDerivadoCardio(box, intensity, modality) {
+  const scope = box.getAttribute('data-scope');
+  const card = box.closest('.gcwo-exercicio');
+  const selector = scope === 'work' ? '.gcwo-bloco-workdistance' : (scope === 'recovery' ? '.gcwo-bloco-recdistance' : '.gcwo-bloco-distance');
+  const input = card?.querySelector(selector);
+  const output = input?.closest('.gcwo-distance-field')?.querySelector('.gcwo-derived-time');
+  if (output) output.textContent = textoTempoDistancia(input.value, intensity, modality);
 }
 
 function refreshBlocosListDom(s) {
@@ -3355,6 +3431,19 @@ function wireBlocosList(s) {
 
     wireDuracaoMMSS(card, 'gcwo-bloco-duracaomin', (sec) => { b.duration_sec = sec; refreshZonaResumo(s); });
 
+    const distanceEl = card.querySelector('.gcwo-bloco-distance');
+    if (distanceEl) distanceEl.addEventListener('input', (e) => {
+      b.distance_m = e.target.value === '' ? null : Number(e.target.value);
+      actualizarTempoDerivadoCardio(card.querySelector('[data-scope="main"]'), b.intensity, s.modality);
+      refreshZonaResumo(s);
+    });
+
+    card.querySelectorAll(`input[name="gcwo-cont-medida-${CSS.escape(bid)}"]`).forEach(radio => radio.addEventListener('change', (e) => {
+      if (!e.target.checked) return;
+      b.measure = e.target.value;
+      refreshBlocosListDom(s);
+    }));
+
     const modeEl = card.querySelector('.gcwo-bloco-mode');
     if (modeEl) modeEl.addEventListener('change', (e) => { b.mode = e.target.value; });
 
@@ -3364,29 +3453,47 @@ function wireBlocosList(s) {
       refreshZonaResumo(s);
     });
 
-    if (b.work && b.work.measure === 'distance') {
-      const workValEl = card.querySelector('.gcwo-bloco-workvalue');
+    if (b.work && medidaParteSeries(b.work, s.modality) === 'distance') {
+      const workValEl = card.querySelector('.gcwo-bloco-workdistance');
       if (workValEl) workValEl.addEventListener('input', (e) => {
-        b.work.value = e.target.value === '' ? null : Number(e.target.value);
+        b.work.distance_m = e.target.value === '' ? null : Number(e.target.value);
+        b.work.value = b.work.distance_m;
+        actualizarTempoDerivadoCardio(card.querySelector('[data-scope="work"]'), b.work.intensity, s.modality);
         refreshZonaResumo(s);
       });
     } else if (b.work) {
-      wireDuracaoMMSS(card, 'gcwo-bloco-workvalue', (sec) => { b.work.value = sec; refreshZonaResumo(s); });
+      wireDuracaoMMSS(card, 'gcwo-bloco-workvalue', (sec) => { b.work.duration_sec = sec; b.work.value = sec; refreshZonaResumo(s); });
     }
 
     if (b.recovery) {
-      wireDuracaoMMSS(card, 'gcwo-bloco-recdur', (sec) => { b.recovery.duration_sec = sec; refreshZonaResumo(s); });
+      if (medidaParteSeries(b.recovery, s.modality) === 'distance') {
+        const recDistanceEl = card.querySelector('.gcwo-bloco-recdistance');
+        if (recDistanceEl) recDistanceEl.addEventListener('input', (e) => {
+          b.recovery.distance_m = e.target.value === '' ? null : Number(e.target.value);
+          actualizarTempoDerivadoCardio(card.querySelector('[data-scope="recovery"]'), b.recovery.intensity, s.modality);
+          refreshZonaResumo(s);
+        });
+      } else {
+        wireDuracaoMMSS(card, 'gcwo-bloco-recdur', (sec) => { b.recovery.duration_sec = sec; refreshZonaResumo(s); });
+      }
     }
 
     card.querySelectorAll(`input[name="gcwo-medida-${CSS.escape(bid)}"]`).forEach(radio => {
       radio.addEventListener('change', (e) => {
         if (!e.target.checked) return;
+        if (b.work.measure === 'distance') b.work.distance_m = distanciaParteSeries(b.work);
+        else b.work.duration_sec = duracaoParteSeries(b.work);
         b.work.measure = e.target.value;
         b.work.unit = e.target.value === 'distance' ? 'm' : 's';
-        b.work.value = null;
+        b.work.value = e.target.value === 'distance' ? b.work.distance_m : b.work.duration_sec;
         refreshBlocosListDom(s);
       });
     });
+    card.querySelectorAll(`input[name="gcwo-rec-medida-${CSS.escape(bid)}"]`).forEach(radio => radio.addEventListener('change', (e) => {
+      if (!e.target.checked) return;
+      b.recovery.measure = e.target.value;
+      refreshBlocosListDom(s);
+    }));
   });
   wireIntensidadeForms(s);
 }
