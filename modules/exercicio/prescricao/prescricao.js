@@ -2903,6 +2903,22 @@ function ritmoParaKmh(segundosPorKm) {
   const segundos = Number(segundosPorKm);
   return Number.isFinite(segundos) && segundos > 0 ? (3600 / segundos).toFixed(1) : '';
 }
+function valorVerticalCardio(intensidade, zona, modality) {
+  const canonica = modalidadeCanonica(modality);
+  if (canonica === 'ciclismo') {
+    const watts = Number(intensidade?.power_w);
+    if (watts > 0) return watts;
+    return ({ Z1:100, Z2:150, Z3:210, Z4:260, Z5:320, Z6:400, Z7:500 })[zona] || 100;
+  }
+  if (canonica === 'natacao') {
+    const pace100 = Number(intensidade?.pace_sec_per_100m);
+    if (pace100 > 0) return 1000 / pace100;
+    return ({ A1:5.5, A2:6.5, A3:7.5, SP1:9, SP2:10.5, SP3:12 })[zona] || 5.5;
+  }
+  const paceKm = Number(intensidade?.pace_sec_per_km);
+  if (paceKm > 0) return 3600 / paceKm;
+  return ({ Z1:8.5, Z2:10, Z3:12, Z4:14, Z5:16 })[zona] || 8.5;
+}
 function adicionarBlocoZona(s, zona) {
   if (!zonasDisponiveisCardio(s.modality).includes(zona)) return;
   const bloco = novoBlocoContinuo();
@@ -2953,15 +2969,18 @@ function renderResumoVisualCardio(s) {
     if (modalidadeCanonica(s.modality) === 'ciclismo') metrica = intensidade?.power_w ? `${intensidade.power_w} W` : '';
     else if (modalidadeCanonica(s.modality) === 'natacao') metrica = intensidade?.pace_sec_per_100m ? `${fmtPaceEditavel(intensidade.pace_sec_per_100m)}/100 m` : '';
     else if (intensidade?.pace_sec_per_km) metrica = `${fmtPaceEditavel(intensidade.pace_sec_per_km)}/km · ${ritmoParaKmh(intensidade.pace_sec_per_km)} km/h`;
-    return { bloco:b, zona, segundos, metrica, label: b.type === 'series' ? `${b.count || 0}× Séries` : (b.type === 'closing' ? 'Fecho' : 'Contínuo') };
+    return { bloco:b, zona, segundos, metrica, valorVertical:valorVerticalCardio(intensidade, zona, s.modality), label: b.type === 'series' ? `${b.count || 0}× Séries` : (b.type === 'closing' ? 'Fecho' : 'Contínuo') };
   }).filter(x => x.segundos > 0);
   if (!blocos.length) return `<div class="gcwo-cardio-empty" data-zone-drop="true"><strong>Arraste uma zona para aqui</strong><span>ou clique numa zona acima</span></div>`;
   const total = blocos.reduce((n, b) => n + b.segundos, 0);
-  return `<div class="gcwo-cardio-overview" data-zone-drop="true"><div class="gcwo-cardio-total"><span>Duração total</span><strong>${fmtDuracaoTotal(total)}</strong></div><div class="gcwo-cardio-timeline">${blocos.map(b => {
+  const valoresVerticais = blocos.map(b => b.valorVertical).filter(Number.isFinite);
+  const valorMin = Math.min(...valoresVerticais), valorMax = Math.max(...valoresVerticais);
+  return `<div class="gcwo-cardio-overview" data-zone-drop="true"><div class="gcwo-cardio-total"><span>Duração total</span><strong>${fmtDuracaoTotal(total)}</strong></div><div class="gcwo-cardio-chart"><div class="gcwo-cardio-axis"><span>Mais rápido</span><span>Mais lento</span></div><div class="gcwo-cardio-timeline">${blocos.map(b => {
     const largura = Math.max(128, Math.min(360, Math.round((b.segundos / total) * 1080)));
+    const altura = valorMax > valorMin ? Math.round(44 + ((b.valorVertical - valorMin) / (valorMax - valorMin)) * 56) : 72;
     const activa = s._selectedBlockId === b.bloco.block_id;
-    return `<div class="gcwo-timeline-block${activa ? ' is-selected' : ''}" draggable="true" data-timeline-bid="${escAttr(b.bloco.block_id)}" title="Arraste para mudar a ordem" style="--block-width:${largura}px;background:${cardioZoneMeta(b.zona).cor}"><button type="button" class="gcwo-timeline-select" data-select-bid="${escAttr(b.bloco.block_id)}"><strong>${escHtml(b.zona || b.label)}</strong><span>${fmtDuracaoTotal(b.segundos)}</span><small>${escHtml(b.metrica || b.label)}</small></button></div>`;
-  }).join('')}</div><div class="gcwo-timeline-help">Arraste para ordenar · Clique para editar</div></div>`;
+    return `<div class="gcwo-timeline-block${activa ? ' is-selected' : ''}" draggable="true" data-timeline-bid="${escAttr(b.bloco.block_id)}" title="Arraste para mudar a ordem" style="--block-width:${largura}px;--block-height:${altura}%;background:${cardioZoneMeta(b.zona).cor}"><button type="button" class="gcwo-timeline-select" data-select-bid="${escAttr(b.bloco.block_id)}"><strong>${escHtml(b.zona || b.label)}</strong><span>${fmtDuracaoTotal(b.segundos)}</span><small>${escHtml(b.metrica || b.label)}</small></button></div>`;
+  }).join('')}</div></div><div class="gcwo-timeline-help">Largura = duração · Altura = velocidade/intensidade · Arraste para ordenar · Clique para editar</div></div>`;
 }
 function refreshZonaResumo(s) {
   const host = document.getElementById('gcwoPZonaResumo');
