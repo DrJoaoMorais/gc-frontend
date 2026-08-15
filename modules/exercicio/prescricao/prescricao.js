@@ -3199,29 +3199,30 @@ function renderBlocoFecho(b, temZona, modality) {
 function renderBlocoSeries(b, temZona, soDistancia, modality) {
   const medida = b.work.measure;
   return `
-    <div class="gcwo-exercicio" data-bid="${escAttr(b.block_id)}">
+    <div class="gcwo-exercicio gcwo-cardio-series-editor" data-bid="${escAttr(b.block_id)}">
       <div class="gcwo-exercicio-head">
         <strong>Séries</strong>
         <button type="button" class="gcwo-exercicio-remove" data-remove-bid="${escAttr(b.block_id)}" title="Remover bloco">✕</button>
       </div>
-      <label class="gcwo-field gcwo-field-sm" style="margin-top:8px;"><span>Nº de séries</span><input type="number" min="1" class="gcwo-bloco-count" value="${b.count ?? ''}"></label>
-      ${soDistancia ? '' : `
-      <div class="gcwo-field" style="margin-top:8px;">
-        <span>Trabalho — medida</span>
-        <div class="gcwo-modo">
-          <label><input type="radio" name="gcwo-medida-${b.block_id}" value="distance" ${medida === 'distance' ? 'checked' : ''}> Distância</label>
-          <label><input type="radio" name="gcwo-medida-${b.block_id}" value="time" ${medida === 'time' ? 'checked' : ''}> Tempo</label>
-        </div>
-      </div>`}
-      ${medida === 'distance'
-        ? `<label class="gcwo-field gcwo-field-sm"><span>Distância (m)</span><input type="number" min="0" class="gcwo-bloco-workvalue" value="${b.work.value ?? ''}"></label>`
-        : campoDuracaoMMSS('gcwo-bloco-workvalue', b.work.value, 'Duração do trabalho')
-      }
-      <span class="gcwo-field-label" style="margin-top:10px;">Intensidade do trabalho</span>
-      ${wrapIntensidade(b.block_id, 'work', b.work.intensity, temZona, modality)}
-      <div style="margin-top:10px;">${campoDuracaoMMSS('gcwo-bloco-recdur', b.recovery.duration_sec, 'Recuperação')}</div>
-      <span class="gcwo-field-label" style="margin-top:10px;">Intensidade da recuperação</span>
-      ${wrapIntensidade(b.block_id, 'recovery', b.recovery.intensity, temZona, modality)}
+      <div class="gcwo-series-general">
+        <label class="gcwo-field gcwo-field-sm"><span>Nº de séries</span><input type="number" min="1" class="gcwo-bloco-count" value="${b.count ?? ''}"></label>
+        ${soDistancia ? '' : `<div class="gcwo-field"><span>Medida</span><div class="gcwo-modo"><label><input type="radio" name="gcwo-medida-${b.block_id}" value="distance" ${medida === 'distance' ? 'checked' : ''}> Distância</label><label><input type="radio" name="gcwo-medida-${b.block_id}" value="time" ${medida === 'time' ? 'checked' : ''}> Tempo</label></div></div>`}
+      </div>
+      <div class="gcwo-series-split">
+        <section class="gcwo-series-side gcwo-series-work">
+          <span class="gcwo-field-label">Trabalho</span>
+          ${medida === 'distance'
+            ? `<label class="gcwo-field gcwo-field-sm"><span>Distância (m)</span><input type="number" min="0" class="gcwo-bloco-workvalue" value="${b.work.value ?? ''}"></label>`
+            : campoDuracaoMMSS('gcwo-bloco-workvalue', b.work.value, 'Duração')
+          }
+          ${wrapIntensidade(b.block_id, 'work', b.work.intensity, temZona, modality)}
+        </section>
+        <section class="gcwo-series-side gcwo-series-recovery">
+          <span class="gcwo-field-label">Recuperação</span>
+          ${campoDuracaoMMSS('gcwo-bloco-recdur', b.recovery.duration_sec, 'Duração')}
+          ${wrapIntensidade(b.block_id, 'recovery', b.recovery.intensity, temZona, modality)}
+        </section>
+      </div>
     </div>`;
 }
 function renderBlocoCardio(b, s) {
