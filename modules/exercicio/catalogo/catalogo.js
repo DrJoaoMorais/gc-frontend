@@ -45,11 +45,29 @@ function freshState() {
     panelFotoRemovida: false,
     panelErro: '',
     panelSaving: false,
+    tecnicaInfoDisponivel: false,
   };
 }
 
 function novoExercicioVazio() {
-  return { id: null, name: '', categoria: [], locais: [], equipamento: [], tempo_concentrico_s: null, tempo_excentrico_s: null, ajustes_maquina: [], photo_url: null, is_active: true, is_favorite: false, incremento_default: null };
+  return { id: null, name: '', categoria: [], locais: [], equipamento: [], tempo_concentrico_s: null, tempo_excentrico_s: null, ajustes_maquina: [], photo_url: null, is_active: true, is_favorite: false, incremento_default: null, tecnica_info: tecnicaInfoVazia(), tecnica_notas: null };
+}
+
+const TECNICA_SECCOES = [
+  ['posicao_inicial', 'Posição inicial'], ['execucao', 'Execução'], ['pontos_chave', 'Pontos-chave'],
+  ['erros_comuns', 'Erros comuns'], ['dicas', 'Dicas'],
+];
+function tecnicaInfoVazia() { return Object.fromEntries(TECNICA_SECCOES.map(([chave]) => [chave, []])); }
+function normalizarTecnicaInfo(valor) {
+  const base = tecnicaInfoVazia();
+  if (!valor || typeof valor !== 'object' || Array.isArray(valor)) return base;
+  TECNICA_SECCOES.forEach(([chave]) => { base[chave] = Array.isArray(valor[chave]) ? valor[chave].map(String).filter(Boolean) : []; });
+  return base;
+}
+function linhasTecnica(texto) { return String(texto || '').split('\n').map(v => v.trim()).filter(Boolean); }
+function tecnicaTemConteudo(info) { return TECNICA_SECCOES.some(([chave]) => info?.[chave]?.length); }
+function tecnicaTextoLegado(info) {
+  return TECNICA_SECCOES.map(([chave, titulo]) => info[chave]?.length ? `${titulo}\n${info[chave].map(v => `• ${v}`).join('\n')}` : '').filter(Boolean).join('\n\n') || null;
 }
 
 /* ── Entry point ─────────────────────────────────────────── */
@@ -67,10 +85,18 @@ export async function initCatalogo({ onVoltar } = {}) {
 
 /* ── Leitura ─────────────────────────────────────────────── */
 async function loadExercicios() {
-  const { data, error } = await window.sb
+  const camposBase = 'id,name,categoria,locais,equipamento,tempo_concentrico_s,tempo_excentrico_s,ajustes_maquina,photo_url,is_active,is_favorite,incremento_default,tecnica_notas';
+  let { data, error } = await window.sb
     .from('wo_exercises')
-    .select('id,name,categoria,locais,equipamento,tempo_concentrico_s,tempo_excentrico_s,ajustes_maquina,photo_url,is_active,is_favorite,incremento_default')
+    .select(`${camposBase},tecnica_info`)
     .order('name');
+
+  if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+    ({ data, error } = await window.sb.from('wo_exercises').select(camposBase).order('name'));
+    _state.tecnicaInfoDisponivel = false;
+  } else {
+    _state.tecnicaInfoDisponivel = !error;
+  }
 
   if (error) {
     console.error('[catalogo] falha a carregar wo_exercises:', error);
@@ -121,10 +147,28 @@ function renderShell() {
    Grelha
    ================================================================ */
 function photoTileHtml(ex) {
+  const info = normalizarTecnicaInfo(ex.tecnica_info);
+  const botaoInfo = tecnicaTemConteudo(info) ? `<button type="button" class="gcwo-cat-info-btn" data-info="${escAttr(ex.id)}" aria-label="Ver execução correta">i</button>` : '';
   if (ex.photo_url) {
-    return `<div class="gcwo-cat-photo"><div class="frame"><img src="${escAttr(ex.photo_url)}" alt=""></div></div>`;
+    return `<div class="gcwo-cat-photo"><div class="frame"><img src="${escAttr(ex.photo_url)}" alt=""></div>${botaoInfo}</div>`;
   }
-  return `<div class="gcwo-cat-photo empty"><div class="frame">${ICON_PHOTO}</div><span class="semfoto">Sem foto</span></div>`;
+  return `<div class="gcwo-cat-photo empty"><div class="frame">${ICON_PHOTO}</div><span class="semfoto">Sem foto</span>${botaoInfo}</div>`;
+}
+
+function abrirTecnicaModal(ex) {
+  const info = normalizarTecnicaInfo(ex.tecnica_info);
+  if (!tecnicaTemConteudo(info)) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'gcwo-tech-overlay';
+  overlay.innerHTML = `<section class="gcwo-tech-modal" role="dialog" aria-modal="true" aria-label="Execução correta de ${escAttr(ex.name)}">
+    <header><div><small>Execução correta</small><h3>${escHtml(ex.name)}</h3></div><button type="button" aria-label="Fechar">×</button></header>
+    <div class="gcwo-tech-grid">${TECNICA_SECCOES.map(([chave, titulo], i) => info[chave]?.length ? `<section class="${chave === 'pontos_chave' ? 'positive' : chave === 'erros_comuns' ? 'negative' : ''}"><h4>${i < 2 ? `${i + 1}. ` : ''}${titulo}</h4><ul>${info[chave].map(v => `<li>${escHtml(v)}</li>`).join('')}</ul></section>` : '').join('')}</div>
+    <p class="gcwo-tech-note">A amplitude, a carga e as adaptações dependem da prescrição individual.</p>
+  </section>`;
+  document.body.appendChild(overlay);
+  const fechar = () => overlay.remove();
+  overlay.querySelector('header button').addEventListener('click', fechar);
+  overlay.addEventListener('click', e => { if (e.target === overlay) fechar(); });
 }
 
 const ICON_PHOTO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 15l-5-5-4 4-2-2-4 4"/></svg>`;
@@ -183,6 +227,10 @@ function renderGrid() {
     const ex = _state.exercicios.find(e => e.id === b.getAttribute('data-editar'));
     if (ex) openPanel(ex);
   }));
+  grid.querySelectorAll('[data-info]').forEach(b => b.addEventListener('click', () => {
+    const ex = _state.exercicios.find(e => e.id === b.getAttribute('data-info'));
+    if (ex) abrirTecnicaModal(ex);
+  }));
   grid.querySelectorAll('[data-desativar]').forEach(b => b.addEventListener('click', () => handleAtivar(b.getAttribute('data-desativar'), false)));
   grid.querySelectorAll('[data-reativar]').forEach(b => b.addEventListener('click', () => handleAtivar(b.getAttribute('data-reativar'), true)));
 }
@@ -208,6 +256,7 @@ function openPanel(ex) {
     locais: [...(ex.locais || [])],
     equipamento: [...(ex.equipamento || [])],
     ajustes_maquina: (ex.ajustes_maquina || []).map(a => ({ ...a })),
+    tecnica_info: normalizarTecnicaInfo(ex.tecnica_info),
   } : novoExercicioVazio();
   _state.panelFotoFile = null;
   _state.panelFotoPreviewUrl = null;
@@ -293,6 +342,11 @@ function renderPanel() {
       </div>
       <div class="gcwo-ajustelist" id="gcwoCatAjustes"></div>
 
+      <div class="gcwo-cat-technique">
+        <h4>Execução correta</h4>
+        ${_state.tecnicaInfoDisponivel ? TECNICA_SECCOES.map(([chave, titulo]) => `<label class="gcwo-cat-field"><span>${titulo}</span><textarea data-tecnica="${chave}" rows="4" placeholder="Uma indicação por linha">${escHtml((ex.tecnica_info[chave] || []).join('\n'))}</textarea></label>`).join('') : '<p>A informação estruturada ficará disponível depois de aplicar a migração aprovada.</p>'}
+      </div>
+
       <span class="gcwo-cat-erro" id="gcwoCatErro">${escHtml(_state.panelErro)}</span>
     </div>
     <div class="gcwo-cat-panel-footer">
@@ -313,6 +367,7 @@ function renderPanel() {
   wireChipGroup('gcwoCatCategoria', ex.categoria);
   wireChipGroup('gcwoCatLocais', ex.locais);
   wireChipGroup('gcwoCatEquipamento', ex.equipamento);
+  panel.querySelectorAll('[data-tecnica]').forEach(campo => campo.addEventListener('input', e => { ex.tecnica_info[e.target.dataset.tecnica] = linhasTecnica(e.target.value); }));
 
   document.getElementById('gcwoCatRitmoToggle').addEventListener('change', e => {
     document.getElementById('gcwoCatRitmoFields').style.display = e.target.checked ? '' : 'none';
@@ -460,6 +515,10 @@ async function handleGuardar() {
       is_favorite: !!ex.is_favorite,
       incremento_default: ex.incremento_default,
     };
+    if (_state.tecnicaInfoDisponivel) {
+      payload.tecnica_info = tecnicaTemConteudo(ex.tecnica_info) ? ex.tecnica_info : null;
+      payload.tecnica_notas = tecnicaTextoLegado(ex.tecnica_info);
+    }
 
     if (!ex.id) {
       payload.created_by = G.sessionUser.id;

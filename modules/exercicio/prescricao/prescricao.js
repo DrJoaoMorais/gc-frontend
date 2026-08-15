@@ -677,12 +677,17 @@ function wireAvisoSairSemGravar() {
 
 /* ── Catálogo de exercícios (wo_exercises, global ao sistema) ── */
 async function loadExercisesCatalog() {
-  const { data, error } = await window.sb
+  const camposBase = 'id,name,categoria,equipamento,photo_url,tempo_concentrico_s,tempo_excentrico_s,tempo_exercicio_s,ajustes_maquina,is_favorite,incremento_default,video_url,tecnica_notas';
+  let { data, error } = await window.sb
     .from('wo_exercises')
-    .select('id,name,categoria,equipamento,photo_url,tempo_concentrico_s,tempo_excentrico_s,tempo_exercicio_s,ajustes_maquina,is_favorite,incremento_default,video_url,tecnica_notas')
+    .select(`${camposBase},tecnica_info`)
     .eq('is_active', true)
     .order('categoria')
     .order('name');
+
+  if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+    ({ data, error } = await window.sb.from('wo_exercises').select(camposBase).eq('is_active', true).order('categoria').order('name'));
+  }
 
   if (error) {
     console.error('[prescricao] falha a carregar wo_exercises:', error);
@@ -2531,6 +2536,7 @@ function toggleExercicioNaSessao(s, exId) {
       photo_url: ex.photo_url || null,
       video_url: ex.video_url || null,
       tecnica_notas: ex.tecnica_notas || null,
+      tecnica_info: ex.tecnica_info || null,
       categoria: ex.categoria || [],
       sets: usaTempo ? (ex.name.toLowerCase().includes('bicicleta') ? 1 : 3) : 3,
       reps_min: usaTempo ? null : 8,
@@ -3877,7 +3883,7 @@ function flattenBlocosCircuitoParaGravar(blocks) {
         name: b.name,
         intervals: [{
           type: 'mobilizacao', label: b.name, duration_sec: b.duration_sec,
-          exercise_id: null, exercise_name: null, photo_url: null, video_url: null, tecnica_notas: null,
+          exercise_id: null, exercise_name: null, photo_url: null, video_url: null, tecnica_notas: null, tecnica_info: null,
           exercise_index: null, exercise_total: null, round_index: null, round_total: null,
         }],
       };
@@ -3892,14 +3898,14 @@ function flattenBlocosCircuitoParaGravar(blocks) {
         intervals.push({
           type: 'trabalho', label: ex.name, duration_sec: Math.round(segundos),
           exercise_id: ex.exercise_id, exercise_name: ex.name,
-          photo_url: catEx?.photo_url || null, video_url: catEx?.video_url || null, tecnica_notas: catEx?.tecnica_notas || null,
+          photo_url: catEx?.photo_url || null, video_url: catEx?.video_url || null, tecnica_notas: catEx?.tecnica_notas || null, tecnica_info: catEx?.tecnica_info || null,
           exercise_index: ei + 1, exercise_total: exs.length, round_index: r, round_total: R,
         });
         if (ex.rest_after_s) {
           intervals.push({
             type: 'descanso', label: ex.name, duration_sec: ex.rest_after_s,
             exercise_id: ex.exercise_id, exercise_name: ex.name,
-            photo_url: catEx?.photo_url || null, video_url: catEx?.video_url || null, tecnica_notas: catEx?.tecnica_notas || null,
+            photo_url: catEx?.photo_url || null, video_url: catEx?.video_url || null, tecnica_notas: catEx?.tecnica_notas || null, tecnica_info: catEx?.tecnica_info || null,
             exercise_index: ei + 1, exercise_total: exs.length, round_index: r, round_total: R,
           });
         }
@@ -3910,7 +3916,7 @@ function flattenBlocosCircuitoParaGravar(blocks) {
         intervals.push({
           type: 'descanso', label: proximo ? proximo.name : b.name, duration_sec: b.rest_between_rounds_s,
           exercise_id: proximo ? proximo.exercise_id : null, exercise_name: proximo ? proximo.name : null,
-          photo_url: catProx?.photo_url || null, video_url: catProx?.video_url || null, tecnica_notas: catProx?.tecnica_notas || null,
+          photo_url: catProx?.photo_url || null, video_url: catProx?.video_url || null, tecnica_notas: catProx?.tecnica_notas || null, tecnica_info: catProx?.tecnica_info || null,
           exercise_index: proximo ? 1 : null, exercise_total: exs.length || null, round_index: r + 1, round_total: R,
         });
       }
