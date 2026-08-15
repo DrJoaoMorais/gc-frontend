@@ -2129,16 +2129,25 @@ function renderPanel() {
   const s = _panelDraft;
   const meta = TIPO_META[tipoKey(s)];
   const dia = diaSemanaDeIso(s.date);
+  const cabecalhoCardio = s.kind === 'card' ? `
+      <div class="gcwo-cardio-head-local">
+        <span class="gcwo-field-label">Local</span>
+        <div class="gcwo-chips" id="gcwoPLocalChips">
+          ${LOCAIS_SESSAO.map(l => `<button type="button" class="gcwo-chip${s.local === l ? ' on' : ''}" data-local="${escAttr(l)}">${escHtml(l)}</button>`).join('')}
+        </div>
+      </div>
+      <button type="button" class="gcBtnGhost gcwo-session-zones" id="gcwoBtnZonasTreino">♥ ⚡ Zonas</button>` : '';
 
   panel.innerHTML = `
-    <div class="gcwo-panel-head">
+    <div class="gcwo-panel-head${s.kind === 'card' ? ' gcwo-cardio-panel-head' : ''}">
       <span class="gcwo-panel-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
       <span class="gcwo-panel-titles"><h3>${meta.label}</h3><span class="sub">${dia.full}, ${escHtml(fmtDiaMesCurtoIso(s.date))}</span></span>
+      ${cabecalhoCardio}
       ${!_panelIsNovo ? `<button type="button" class="gcwo-panel-headbtn" id="gcwoPanelApagar" title="Apagar sessão">${ICON_TRASH}</button>` : ''}
       <button type="button" class="gcwo-panel-headbtn close" id="gcwoPanelFechar" title="Fechar">${ICON_CLOSE}</button>
     </div>
     <div class="gcwo-panel-body">
-      <div class="gcwo-session-setup-row${s.kind === 'list' ? '' : ' no-objective'}">
+      ${s.kind === 'card' ? '' : `<div class="gcwo-session-setup-row${s.kind === 'list' ? '' : ' no-objective'}">
         <div class="gcwo-session-local-top">
           <span class="gcwo-field-label">Local</span>
           <div class="gcwo-chips" id="gcwoPLocalChips">
@@ -2147,7 +2156,7 @@ function renderPanel() {
         </div>
         ${s.kind === 'list' ? renderObjectiveControls() : ''}
         <button type="button" class="gcBtnGhost gcwo-session-zones" id="gcwoBtnZonasTreino">♥ ⚡ Zonas</button>
-      </div>
+      </div>`}
 
       ${s.kind === 'list' ? renderCatalogPickerSection(s) : ''}
       ${s.kind === 'walk' ? renderPanelCaminhada(s) : ''}
@@ -3006,12 +3015,30 @@ function adicionarSeriesPreformatadas(s) {
   s._selectedBlockId = bloco.block_id;
   refreshBlocosListDom(s);
 }
+function blocoSelecionadoCardio(s) {
+  return (s.blocks || []).find(b => b.block_id === s._selectedBlockId) || (s.blocks || [])[0] || null;
+}
+function renderEditorRapidoCardio(s) {
+  const bloco = blocoSelecionadoCardio(s);
+  if (!bloco) return `<div class="gcwo-cardio-quick-empty"><strong>Seleccione uma zona</strong><span>O bloco aparece aqui pronto a editar.</span></div>`;
+  if (bloco.type !== 'continuous') return `<div class="gcwo-cardio-quick-empty"><strong>${bloco.type === 'series' ? 'Séries seleccionadas' : 'Fecho seleccionado'}</strong><span>Os detalhes deste bloco aparecem abaixo do gráfico.</span></div>`;
+  const numero = s.blocks.indexOf(bloco) + 1;
+  return `<div class="gcwo-cardio-quick-card gcwo-exercicio" data-bid="${escAttr(bloco.block_id)}">
+    <div class="gcwo-cardio-quick-head"><strong>Bloco ${numero} · ${escHtml(bloco.intensity?.zone || 'Sem zona')}</strong>${campoDuracaoMMSS('gcwo-bloco-duracaomin', bloco.duration_sec, 'Duração')}<button type="button" class="gcwo-exercicio-remove" data-remove-bid="${escAttr(bloco.block_id)}" title="Remover bloco">✕</button></div>
+    ${wrapIntensidade(bloco.block_id, 'main', bloco.intensity, false, s.modality)}
+    <span class="gcwo-cardio-quick-range">${escHtml(intervalosZonaCardio(bloco.intensity?.zone, s.modality).join(' · '))}</span>
+  </div>`;
+}
 function renderPaletaCardio(s) {
+  const seleccionado = blocoSelecionadoCardio(s);
+  const zonaSeleccionada = seleccionado?.type === 'series' ? seleccionado.work?.intensity?.zone : seleccionado?.intensity?.zone;
   return `<section class="gcwo-cardio-builder" aria-label="Adicionar bloco por zona">
-    <div class="gcwo-cardio-builder-head"><div><strong>Escolha a zona</strong><span>Clique ou arraste para a linha da sessão</span></div></div>
-    <div class="gcwo-cardio-zone-tray">
-      ${zonasDisponiveisCardio(s.modality).map(z => { const meta = cardioZoneMeta(z); return `<button type="button" class="gcwo-cardio-zone" draggable="true" data-add-zone="${z}" style="--zone-color:${meta.cor}" title="Adicionar ${z}"><strong>${z}</strong><span>${escHtml(meta.nome)}</span><small>${fmtDuracaoTotal(duracaoInicialZona(s.modality, z))}</small></button>`; }).join('')}
-      <button type="button" class="gcwo-cardio-zone gcwo-cardio-series" draggable="true" data-add-series="true" title="Adicionar 3 séries com descanso"><strong>3×</strong><span>Séries</span><small>${modalidadeCanonica(s.modality) === 'natacao' ? '100 m · 30 s' : '3 min · 1:30'}</small></button>
+    <div class="gcwo-cardio-compact-workspace">
+      <div class="gcwo-cardio-zone-tray">
+        ${zonasDisponiveisCardio(s.modality).map(z => { const meta = cardioZoneMeta(z); return `<button type="button" class="gcwo-cardio-zone${zonaSeleccionada === z ? ' is-current' : ''}" draggable="true" data-add-zone="${z}" style="--zone-color:${meta.cor}" title="Adicionar ${z}"><strong>${z}</strong><span>${escHtml(meta.nome)}</span><small>${fmtDuracaoTotal(duracaoInicialZona(s.modality, z))}</small></button>`; }).join('')}
+        <button type="button" class="gcwo-cardio-zone gcwo-cardio-series${seleccionado?.type === 'series' ? ' is-current' : ''}" draggable="true" data-add-series="true" title="Adicionar 3 séries com descanso"><strong>3×</strong><span>Séries</span><small>${modalidadeCanonica(s.modality) === 'natacao' ? '100 m · 30 s' : '3 min · 1:30'}</small></button>
+      </div>
+      <div id="gcwoPCardioQuickEdit">${renderEditorRapidoCardio(s)}</div>
     </div>
   </section>`;
 }
@@ -3213,6 +3240,7 @@ function renderBlocosListInner(s) {
   let bloco = s.blocks.find(b => b.block_id === s._selectedBlockId);
   if (!bloco) bloco = s.blocks[0];
   s._selectedBlockId = bloco.block_id;
+  if (bloco.type === 'continuous') return '';
   return `<div class="gcwo-cardio-editor"><div class="gcwo-cardio-editor-head"><strong>A editar o bloco ${s.blocks.indexOf(bloco) + 1}</strong><span>As alterações aparecem imediatamente na linha da sessão.</span></div>${renderBlocoCardio(bloco, s)}</div>`;
 }
 
@@ -3260,7 +3288,7 @@ function wireTimelineCardio(s) {
 }
 
 function wireIntensidadeForms(s) {
-  document.querySelectorAll('#gcwoPBlocosList .gcwo-intensidade').forEach(box => {
+  document.querySelectorAll('#gcwoPBlocosList .gcwo-intensidade, #gcwoPCardioQuickEdit .gcwo-intensidade').forEach(box => {
     const bid = box.getAttribute('data-bid');
     const scope = box.getAttribute('data-scope');
     const b = s.blocks.find(x => x.block_id === bid);
@@ -3298,6 +3326,12 @@ function wireIntensidadeForms(s) {
 function refreshBlocosListDom(s) {
   const host = document.getElementById('gcwoPBlocosList');
   if (host) host.innerHTML = renderBlocosListInner(s);
+  const quick = document.getElementById('gcwoPCardioQuickEdit');
+  if (quick) quick.innerHTML = renderEditorRapidoCardio(s);
+  const seleccionado = blocoSelecionadoCardio(s);
+  const zonaSeleccionada = seleccionado?.type === 'series' ? seleccionado.work?.intensity?.zone : seleccionado?.intensity?.zone;
+  document.querySelectorAll('.gcwo-cardio-zone[data-add-zone]').forEach(btn => btn.classList.toggle('is-current', btn.getAttribute('data-add-zone') === zonaSeleccionada));
+  document.querySelector('.gcwo-cardio-series')?.classList.toggle('is-current', seleccionado?.type === 'series');
   wireBlocosList(s);
   refreshZonaResumo(s);
   const overview = document.getElementById('gcwoPCardioOverview');
@@ -3307,14 +3341,14 @@ function refreshBlocosListDom(s) {
 }
 
 function wireBlocosList(s) {
-  document.querySelectorAll('#gcwoPBlocosList [data-remove-bid]').forEach(btn => {
+  document.querySelectorAll('#gcwoPBlocosList [data-remove-bid], #gcwoPCardioQuickEdit [data-remove-bid]').forEach(btn => {
     btn.addEventListener('click', () => {
       const bid = btn.getAttribute('data-remove-bid');
       s.blocks = s.blocks.filter(b => b.block_id !== bid);
       refreshBlocosListDom(s);
     });
   });
-  document.querySelectorAll('#gcwoPBlocosList .gcwo-exercicio').forEach(card => {
+  document.querySelectorAll('#gcwoPBlocosList .gcwo-exercicio, #gcwoPCardioQuickEdit .gcwo-exercicio').forEach(card => {
     const bid = card.getAttribute('data-bid');
     const b = s.blocks.find(x => x.block_id === bid);
     if (!b) return;
