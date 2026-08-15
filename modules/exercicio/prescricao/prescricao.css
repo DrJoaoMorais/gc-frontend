@@ -990,7 +990,8 @@
 .gcwo-generate-copy { display:flex; flex:1; min-width:220px; flex-direction:column; gap:2px; }
 .gcwo-generate-copy strong { color:#0f2d52; font-size:13px; }
 .gcwo-generate-copy span { color:#64748b; font-size:11.5px; }
-.gcwo-generate .gcBtnSuccess { margin-left:auto; white-space:nowrap; }
+.gcwo-generate-actions { display:flex; align-items:center; gap:9px; margin-left:auto; }
+.gcwo-generate-actions button { white-space:nowrap; }
 
 @media (max-width:980px) {
   .gcwo-settings-grid { grid-template-columns:1fr; gap:16px; }
@@ -1002,7 +1003,8 @@
   .gcwo-plan-summary { align-self:flex-start; }
   .gcwo-datasplano-row { display:grid; grid-template-columns:1fr; }
   .gcwo-generate { align-items:flex-start; flex-direction:column; }
-  .gcwo-generate .gcBtnSuccess { width:100%; margin-left:0; }
+  .gcwo-generate-actions { width:100%; margin-left:0; flex-direction:column-reverse; }
+  .gcwo-generate-actions button { width:100%; }
   .gcwo-patient-header { padding:14px; }
   .gcwo-patient-main-tabs { width:100%; }
   .gcwo-patient-main-tabs button { flex:1; min-width:0; }

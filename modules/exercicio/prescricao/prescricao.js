@@ -1462,10 +1462,13 @@ function renderCalendarMode(host) {
     </div>
 
     <div class="gcwo-generate">
-      <div class="gcwo-generate-copy"><strong>Plano pronto?</strong><span>O link só fica disponível depois de guardar a prescrição.</span></div>
+      <div class="gcwo-generate-copy"><strong>${_state.activePrescriptionId ? 'Plano em curso' : 'Plano pronto?'}</strong><span>${_state.activePrescriptionId ? 'Guarde as alterações ou termine o plano quando deixar de ser necessário.' : 'O link só fica disponível depois de guardar a prescrição.'}</span></div>
       <span id="gcwoGerarErro" class="gcwo-erro"></span>
       <span id="gcwoPorGravarAviso" class="gcwo-porgravar-aviso" style="display:${haSessoesPorGravar() ? '' : 'none'}">⚠ As sessões do calendário só ficam realmente gravadas depois de clicares aqui.</span>
-      <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.'}">${labelBotaoGerar()}</button>
+      <div class="gcwo-generate-actions">
+        ${_state.activePrescriptionId ? '<button type="button" id="gcwoTerminarPlano" class="gcBtnDanger gcBtnLg">Terminar plano</button>' : ''}
+        <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.'}">${labelBotaoGerar()}</button>
+      </div>
     </div>
     </section>
   `;
@@ -1475,6 +1478,7 @@ function renderCalendarMode(host) {
   document.getElementById('gcwoCalAnterior').addEventListener('click', () => navegarCalendario(-14));
   document.getElementById('gcwoCalSeguinte').addEventListener('click', () => navegarCalendario(14));
   document.getElementById('gcwoGerar').addEventListener('click', handleGerar);
+  document.getElementById('gcwoTerminarPlano')?.addEventListener('click', (e) => terminarPlanoActivo(_state.activePrescriptionId, e.currentTarget));
 }
 
 function renderPatientFollowupSection() {
@@ -1876,6 +1880,10 @@ function prescricaoStatusInfo(p) {
   return { label: 'Activo', cls: 'active' };
 }
 
+function prescricaoEstaActiva(p) {
+  return p?.status === 'active' && (!p.expires_at || new Date(p.expires_at) > new Date());
+}
+
 async function openHistoryModal() {
   _historyOpen = true;
   _historyLoading = true;
@@ -1930,6 +1938,7 @@ function renderHistoryModal() {
         <div class="gcwo-modal-body">
           <div style="margin-bottom:12px;">
             <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoHistAplicar" ${(_historyDetail.data?.sessions || []).length && _historyDetail.data?.startDate ? '' : 'disabled'}>Aplicar este plano ao actual, a partir de ${escHtml(fmtDataPtIso(_state.startDate))}</button>
+            ${prescricaoEstaActiva(_historyDetail) ? '<button type="button" class="gcBtnDanger gcBtnSm" id="gcwoHistTerminar">Terminar este plano</button>' : ''}
           </div>
           ${renderHistoryDetailHtml(_historyDetail)}
         </div>
@@ -1992,6 +2001,49 @@ function wireHistoryModal() {
     });
   });
   document.getElementById('gcwoHistAplicar')?.addEventListener('click', () => aplicarPrescricaoDoHistorico(_historyDetail));
+  document.getElementById('gcwoHistTerminar')?.addEventListener('click', (e) => terminarPlanoActivo(_historyDetail?.id, e.currentTarget));
+}
+
+async function terminarPlanoActivo(prescriptionId, btn) {
+  if (!prescriptionId || !_state.patient) return;
+  const nome = _state.patient.full_name || 'este doente';
+  const confirmou = window.confirm(
+    `Terminar o plano de ${nome}?\n\nO link deixa imediatamente de funcionar. Os treinos realizados e o histórico ficam guardados.`
+  );
+  if (!confirmou) return;
+
+  const textoAnterior = btn?.textContent || 'Terminar plano';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'A terminar…';
+  }
+
+  const { data, error } = await window.sb
+    .from('wo_prescriptions')
+    .update({ status: 'revoked' })
+    .eq('id', prescriptionId)
+    .eq('patient_id', _state.patient.id)
+    .eq('status', 'active')
+    .select('id')
+    .maybeSingle();
+
+  if (error || !data) {
+    console.error('[prescricao] falha ao terminar plano:', error?.message || 'plano já não estava activo');
+    window.alert('Não foi possível terminar o plano. Actualize a página e tente novamente.');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = textoAnterior;
+    }
+    return;
+  }
+
+  closeHistoryModal();
+  _state.activePrescriptionId = null;
+  _state.patient = null;
+  _state.sessions = [];
+  _state.__ultimoSnapshotGravado = null;
+  window.alert('Plano terminado. O link deixou de funcionar e o histórico foi preservado.');
+  renderLanding();
 }
 
 // Aplica um plano antigo ao plano actual, deslocando as datas pela diferença entre o
