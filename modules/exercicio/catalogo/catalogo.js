@@ -242,7 +242,7 @@ function renderPanel() {
   } else if (ex.photo_url && !_state.panelFotoRemovida) {
     fotoBodyHtml = `<img src="${escAttr(ex.photo_url)}" alt="">`;
   } else {
-    fotoBodyHtml = `<div class="hint">${ICON_UPLOAD}<span>Clica para escolher uma foto</span></div>`;
+    fotoBodyHtml = `<div class="hint">${ICON_UPLOAD}<strong>Adicionar fotografia</strong><span>Arraste uma fotografia para aqui<br>ou clique para escolher</span><small>PNG, JPG ou WebP</small></div>`;
   }
 
   panel.innerHTML = `
@@ -251,7 +251,7 @@ function renderPanel() {
       <button type="button" id="gcwoCatFechar" title="Fechar">${ICON_CLOSE}</button>
     </div>
     <div class="gcwo-cat-panel-body">
-      <div class="gcwo-photo-drop" id="gcwoCatFotoDrop">
+      <div class="gcwo-photo-drop${_state.panelFotoPreviewUrl || (ex.photo_url && !_state.panelFotoRemovida) ? ' has-photo' : ''}" id="gcwoCatFotoDrop" role="button" tabindex="0" aria-label="Adicionar fotografia. Arraste uma fotografia para aqui ou clique para escolher.">
         ${fotoBodyHtml}
         <input type="file" id="gcwoCatFotoInput" accept="image/png,image/jpeg,image/webp" style="display:none">
       </div>
@@ -322,14 +322,31 @@ function renderPanel() {
 
   const drop = document.getElementById('gcwoCatFotoDrop');
   const input = document.getElementById('gcwoCatFotoInput');
-  drop.addEventListener('click', () => input.click());
-  input.addEventListener('change', () => {
-    const file = input.files[0];
-    if (!file) return;
+  const selecionarFoto = (file) => {
+    if (!file || !file.type.startsWith('image/')) return;
     _state.panelFotoFile = file;
     _state.panelFotoRemovida = false;
     _state.panelFotoPreviewUrl = URL.createObjectURL(file);
     renderPanel();
+  };
+  drop.addEventListener('click', () => input.click());
+  drop.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      input.click();
+    }
+  });
+  ['dragenter', 'dragover'].forEach(eventName => drop.addEventListener(eventName, (e) => {
+    e.preventDefault();
+    drop.classList.add('is-dragging');
+  }));
+  ['dragleave', 'drop'].forEach(eventName => drop.addEventListener(eventName, (e) => {
+    e.preventDefault();
+    drop.classList.remove('is-dragging');
+  }));
+  drop.addEventListener('drop', (e) => selecionarFoto(e.dataTransfer?.files?.[0]));
+  input.addEventListener('change', () => {
+    selecionarFoto(input.files[0]);
   });
   document.getElementById('gcwoCatTrocarFoto').addEventListener('click', (e) => { e.stopPropagation(); input.click(); });
   document.getElementById('gcwoCatRemoverFoto').addEventListener('click', (e) => {
