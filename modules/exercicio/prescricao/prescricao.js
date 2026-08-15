@@ -2941,7 +2941,9 @@ function cardioZoneMeta(zona) { return CARDIO_ZONE_META[zona] || { cor:'#cbd5e1'
 const CARDIO_ZONE_DEFAULT_SECONDS = {
   corrida: { Z1:600, Z2:1200, Z3:600, Z4:300, Z5:60 },
   ciclismo: { Z1:900, Z2:1800, Z3:900, Z4:480, Z5:180, Z6:60, Z7:15 },
-  natacao: { A1:600, A2:480, A3:300, SP1:180, SP2:60, SP3:20 },
+};
+const CARDIO_ZONE_DEFAULT_DISTANCE = {
+  natacao: { A1:500, A2:400, A3:200, SP1:100, SP2:50, SP3:25 },
 };
 function zonasDisponiveisCardio(modality) {
   const canonica = modalidadeCanonica(modality);
@@ -2949,6 +2951,9 @@ function zonasDisponiveisCardio(modality) {
 }
 function duracaoInicialZona(modality, zona) {
   return CARDIO_ZONE_DEFAULT_SECONDS[modalidadeCanonica(modality)]?.[zona] || 300;
+}
+function distanciaInicialZona(modality, zona) {
+  return CARDIO_ZONE_DEFAULT_DISTANCE[modalidadeCanonica(modality)]?.[zona] || 100;
 }
 function ritmoParaKmh(segundosPorKm) {
   const segundos = Number(segundosPorKm);
@@ -3045,7 +3050,13 @@ function valorVerticalCardio(intensidade, zona, modality) {
 function adicionarBlocoZona(s, zona) {
   if (!zonasDisponiveisCardio(s.modality).includes(zona)) return;
   const bloco = novoBlocoContinuo();
-  bloco.duration_sec = duracaoInicialZona(s.modality, zona);
+  if (modalidadeCanonica(s.modality) === 'natacao') {
+    bloco.measure = 'distance';
+    bloco.distance_m = distanciaInicialZona(s.modality, zona);
+    bloco.duration_sec = null;
+  } else {
+    bloco.duration_sec = duracaoInicialZona(s.modality, zona);
+  }
   bloco.intensity.zone = zona;
   s.blocks.push(bloco);
   s._selectedBlockId = bloco.block_id;
@@ -3053,13 +3064,20 @@ function adicionarBlocoZona(s, zona) {
 }
 function criarSeriesPreformatadas(modality) {
   const bloco = novoBlocoSeries();
-  bloco.count = 3;
   if (modalidadeCanonica(modality) === 'natacao') {
+    bloco.count = 4;
     bloco.work.measure = 'distance';
     bloco.work.unit = 'm';
     bloco.work.value = 100;
+    bloco.work.distance_m = 100;
+    bloco.work.duration_sec = null;
+    bloco.work.intensity.zone = 'SP1';
+    bloco.recovery.measure = 'time';
     bloco.recovery.duration_sec = 30;
+    bloco.recovery.distance_m = null;
+    bloco.recovery.intensity.zone = null;
   } else {
+    bloco.count = 3;
     bloco.work.measure = 'time';
     bloco.work.unit = 's';
     bloco.work.value = 180;
@@ -3081,12 +3099,14 @@ function renderEditorRapidoCardio(s) {
   if (!bloco) return `<div class="gcwo-cardio-quick-empty"><strong>Seleccione uma zona</strong><span>O bloco aparece aqui pronto a editar.</span></div>`;
   if (bloco.type !== 'continuous') return `<div class="gcwo-cardio-quick-empty"><strong>${bloco.type === 'series' ? 'Séries seleccionadas' : 'Fecho seleccionado'}</strong><span>Os detalhes deste bloco aparecem abaixo do gráfico.</span></div>`;
   const numero = s.blocks.indexOf(bloco) + 1;
+  const isNatacao = modalidadeCanonica(s.modality) === 'natacao';
+  if (isNatacao) bloco.measure = 'distance';
   const medida = medidaContinua(bloco, s.modality);
   const campoMedida = medida === 'distance'
     ? campoDistanciaCardio('gcwo-bloco-distance', bloco.distance_m, bloco.intensity, s.modality)
     : campoDuracaoMMSS('gcwo-bloco-duracaomin', bloco.duration_sec, 'Duração');
   return `<div class="gcwo-cardio-quick-card gcwo-exercicio" data-bid="${escAttr(bloco.block_id)}">
-    <div class="gcwo-cardio-quick-head"><strong>Bloco ${numero} · ${escHtml(bloco.intensity?.zone || 'Sem zona')}</strong>${selectorMedidaCardio(`gcwo-cont-medida-${bloco.block_id}`, medida, s.modality)}${campoMedida}<button type="button" class="gcwo-exercicio-remove" data-remove-bid="${escAttr(bloco.block_id)}" title="Remover bloco">✕</button></div>
+    <div class="gcwo-cardio-quick-head"><strong>Bloco ${numero} · ${escHtml(bloco.intensity?.zone || 'Sem zona')}</strong>${isNatacao ? '' : selectorMedidaCardio(`gcwo-cont-medida-${bloco.block_id}`, medida, s.modality)}${campoMedida}<button type="button" class="gcwo-exercicio-remove" data-remove-bid="${escAttr(bloco.block_id)}" title="Remover bloco">✕</button></div>
     ${wrapIntensidade(bloco.block_id, 'main', bloco.intensity, false, s.modality)}
     <span class="gcwo-cardio-quick-range">${escHtml(intervalosZonaCardio(bloco.intensity?.zone, s.modality).join(' · '))}</span>
   </div>`;
@@ -3097,8 +3117,8 @@ function renderPaletaCardio(s) {
   return `<section class="gcwo-cardio-builder" aria-label="Adicionar bloco por zona">
     <div class="gcwo-cardio-compact-workspace">
       <div class="gcwo-cardio-zone-tray">
-        ${zonasDisponiveisCardio(s.modality).map(z => { const meta = cardioZoneMeta(z); return `<button type="button" class="gcwo-cardio-zone${zonaSeleccionada === z ? ' is-current' : ''}" draggable="true" data-add-zone="${z}" style="--zone-color:${meta.cor}" title="Adicionar ${z}"><strong>${z}</strong><span>${escHtml(meta.nome)}</span><small>${fmtDuracaoTotal(duracaoInicialZona(s.modality, z))}</small></button>`; }).join('')}
-        <button type="button" class="gcwo-cardio-zone gcwo-cardio-series${seleccionado?.type === 'series' ? ' is-current' : ''}" draggable="true" data-add-series="true" title="Adicionar 3 séries com descanso"><strong>3×</strong><span>Séries</span><small>${modalidadeCanonica(s.modality) === 'natacao' ? '100 m · 30 s' : '3 min · 1:30'}</small></button>
+        ${zonasDisponiveisCardio(s.modality).map(z => { const meta = cardioZoneMeta(z); const predefinido = modalidadeCanonica(s.modality) === 'natacao' ? `${distanciaInicialZona(s.modality, z)} m` : fmtDuracaoTotal(duracaoInicialZona(s.modality, z)); return `<button type="button" class="gcwo-cardio-zone${zonaSeleccionada === z ? ' is-current' : ''}" data-add-zone="${z}" style="--zone-color:${meta.cor}" title="Adicionar ${z}"><strong>${z}</strong><span>${escHtml(meta.nome)}</span><small>${predefinido}</small></button>`; }).join('')}
+        <button type="button" class="gcwo-cardio-zone gcwo-cardio-series${seleccionado?.type === 'series' ? ' is-current' : ''}" data-add-series="true" title="Adicionar séries com descanso"><strong>${modalidadeCanonica(s.modality) === 'natacao' ? '4×' : '3×'}</strong><span>Séries</span><small>${modalidadeCanonica(s.modality) === 'natacao' ? '100 m · 30 s' : '3 min · 1:30'}</small></button>
       </div>
       <div id="gcwoPCardioQuickEdit">${renderEditorRapidoCardio(s)}</div>
     </div>
@@ -3108,21 +3128,27 @@ function renderResumoVisualCardio(s) {
   const blocos = (s.blocks || []).map((b) => {
     const zona = b.type === 'series' ? b.work?.intensity?.zone : b.intensity?.zone;
     let segundos = b.type === 'closing' ? (Number(b.duration_sec) || 0) : tempoBlocoContinuo(b, s.modality);
-    if (b.type === 'series') segundos = serieTemDistanciaSemTempo(b, s.modality) ? 0 : (Number(b.count) || 0) * (tempoParteSeries(b.work, s.modality) + tempoParteSeries(b.recovery, s.modality));
+    const porCalcular = b.type === 'series'
+      ? serieTemDistanciaSemTempo(b, s.modality)
+      : medidaContinua(b, s.modality) === 'distance' && !tempoBlocoContinuo(b, s.modality);
+    if (b.type === 'series') segundos = (Number(b.count) || 0) * (tempoParteSeries(b.work, s.modality) + tempoParteSeries(b.recovery, s.modality));
     const intensidade = b.type === 'series' ? b.work?.intensity : b.intensity;
     const metrica = alvoOuIntervaloCardio(intensidade, zona, s.modality);
     const zonaRecuperacao = b.type === 'series' ? b.recovery?.intensity?.zone : null;
-    const valorRecuperacao = b.type === 'series' ? valorVerticalCardio(b.recovery?.intensity, zonaRecuperacao, s.modality) : null;
-    return { bloco:b, zona, zonaRecuperacao, segundos, metrica, valorVertical:valorVerticalCardio(intensidade, zona, s.modality), valorRecuperacao, label: b.type === 'series' ? `${b.count || 0}× Séries` : (b.type === 'closing' ? 'Fecho' : 'Contínuo') };
-  }).filter(x => x.segundos > 0);
+    const valorRecuperacao = b.type === 'series' ? (modalidadeCanonica(s.modality) === 'natacao' ? 0 : valorVerticalCardio(b.recovery?.intensity, zonaRecuperacao, s.modality)) : null;
+    return { bloco:b, zona, zonaRecuperacao, segundos, porCalcular, metrica, valorVertical:valorVerticalCardio(intensidade, zona, s.modality), valorRecuperacao, label: b.type === 'series' ? `${b.count || 0}× Séries` : (b.type === 'closing' ? 'Fecho' : 'Contínuo') };
+  }).filter(x => x.segundos > 0 || x.porCalcular);
   if (!blocos.length) return `<div class="gcwo-cardio-empty" data-zone-drop="true"><strong>Arraste uma zona para aqui</strong><span>ou clique numa zona acima</span></div>`;
   const total = blocos.reduce((n, b) => n + b.segundos, 0);
+  const temTempoPorCalcular = blocos.some(b => b.porCalcular);
+  const divisorLargura = total || 1;
   const valoresVerticais = blocos.flatMap(b => [b.valorVertical, b.valorRecuperacao]).filter(Number.isFinite);
   const valorMin = Math.min(...valoresVerticais), valorMax = Math.max(...valoresVerticais);
   const alturaParaValor = valor => valorMax > valorMin ? Math.round(44 + ((valor - valorMin) / (valorMax - valorMin)) * 56) : 72;
-  return `<div class="gcwo-cardio-overview" data-zone-drop="true"><div class="gcwo-cardio-total"><span>Duração total</span><strong>${fmtTempoCalculado(total)}</strong></div><div class="gcwo-cardio-chart"><div class="gcwo-cardio-axis"><span>Mais rápido</span><span>Mais lento</span></div><div class="gcwo-cardio-timeline">${blocos.map(b => {
+  const totalTexto = temTempoPorCalcular ? (total > 0 ? `${fmtTempoCalculado(total)} + por calcular` : 'Por calcular') : fmtTempoCalculado(total);
+  return `<div class="gcwo-cardio-overview" data-zone-drop="true"><div class="gcwo-cardio-total"><span>Duração total</span><strong>${totalTexto}</strong></div><div class="gcwo-cardio-chart"><div class="gcwo-cardio-axis"><span>Mais rápido</span><span>Mais lento</span></div><div class="gcwo-cardio-timeline">${blocos.map(b => {
     const isSeries = b.bloco.type === 'series';
-    const largura = Math.max(isSeries ? 220 : 128, Math.min(isSeries ? 520 : 360, Math.round((b.segundos / total) * 1080)));
+    const largura = Math.max(isSeries ? 220 : 128, Math.min(isSeries ? 520 : 360, Math.round((b.segundos / divisorLargura) * 1080)));
     const altura = alturaParaValor(b.valorVertical);
     const activa = s._selectedBlockId === b.bloco.block_id;
     if (isSeries) {
@@ -3133,10 +3159,15 @@ function renderResumoVisualCardio(s) {
       const zonaRec = b.zonaRecuperacao || 'REC';
       const intervaloTrabalho = alvoOuIntervaloCardio(b.bloco.work?.intensity, b.zona, s.modality);
       const intervaloRecuperacao = alvoOuIntervaloCardio(b.bloco.recovery?.intensity, b.zonaRecuperacao, s.modality);
-      const padrao = Array.from({ length:repeticoes }, () => `<i class="gcwo-series-effort" title="${escAttr(intervaloTrabalho)}" style="--series-flex:${Math.max(1,trabalhoSec)};--series-height:${altura}%;background:${cardioZoneMeta(b.zona).cor}"><em>${escHtml(b.zona || 'TR')}</em></i><i class="gcwo-series-recovery" title="${escAttr(intervaloRecuperacao)}" style="--series-flex:${Math.max(1,recuperacaoSec)};--series-height:${alturaRec}%;background:${cardioZoneMeta(b.zonaRecuperacao).cor}"><em>${escHtml(zonaRec)}</em></i>`).join('');
-      return `<div class="gcwo-timeline-block gcwo-timeline-series-group${activa ? ' is-selected' : ''}" draggable="true" data-timeline-bid="${escAttr(b.bloco.block_id)}" title="${repeticoes} séries: trabalho e recuperação" style="--block-width:${largura}px"><button type="button" class="gcwo-timeline-select gcwo-timeline-series" data-select-bid="${escAttr(b.bloco.block_id)}"><span class="gcwo-series-pattern">${padrao}</span><strong class="gcwo-series-count">${repeticoes}×</strong><small class="gcwo-series-caption">${fmtTempoCalculado(trabalhoSec)} + ${fmtTempoCalculado(recuperacaoSec)}</small></button></div>`;
+      const trabalhoFlex = trabalhoSec || 60;
+      const recuperacaoFlex = recuperacaoSec || 30;
+      const padrao = Array.from({ length:repeticoes }, () => `<i class="gcwo-series-effort" title="${escAttr(intervaloTrabalho)}" style="--series-flex:${trabalhoFlex};--series-height:${altura}%;background:${cardioZoneMeta(b.zona).cor}"><em>${escHtml(b.zona || 'TR')}</em></i><i class="gcwo-series-recovery" title="${escAttr(intervaloRecuperacao)}" style="--series-flex:${recuperacaoFlex};--series-height:${alturaRec}%;background:${cardioZoneMeta(b.zonaRecuperacao).cor}"><em>${escHtml(zonaRec)}</em></i>`).join('');
+      const trabalhoTexto = medidaParteSeries(b.bloco.work, s.modality) === 'distance' ? `${distanciaParteSeries(b.bloco.work)} m` : fmtTempoCalculado(trabalhoSec);
+      const recuperacaoTexto = medidaParteSeries(b.bloco.recovery, s.modality) === 'distance' ? `${distanciaParteSeries(b.bloco.recovery)} m` : fmtTempoCalculado(recuperacaoSec);
+      return `<div class="gcwo-timeline-block gcwo-timeline-series-group${activa ? ' is-selected' : ''}" data-timeline-bid="${escAttr(b.bloco.block_id)}" title="${repeticoes} séries: trabalho e recuperação" style="--block-width:${largura}px"><button type="button" class="gcwo-timeline-select gcwo-timeline-series" data-select-bid="${escAttr(b.bloco.block_id)}"><span class="gcwo-series-pattern">${padrao}</span><strong class="gcwo-series-count">${repeticoes}×</strong><small class="gcwo-series-caption">${trabalhoTexto} + ${recuperacaoTexto}</small></button></div>`;
     }
-    return `<div class="gcwo-timeline-block${activa ? ' is-selected' : ''}" draggable="true" data-timeline-bid="${escAttr(b.bloco.block_id)}" title="Arraste para mudar a ordem" style="--block-width:${largura}px;--block-height:${altura}%;background:${cardioZoneMeta(b.zona).cor}"><button type="button" class="gcwo-timeline-select" data-select-bid="${escAttr(b.bloco.block_id)}"><strong>${escHtml(b.zona || b.label)}</strong><span>${fmtDuracaoTotal(b.segundos)}</span><small>${escHtml(b.metrica || b.label)}</small></button></div>`;
+    const duracaoTexto = b.porCalcular ? `${Number(b.bloco.distance_m) || 0} m` : fmtDuracaoTotal(b.segundos);
+    return `<div class="gcwo-timeline-block${activa ? ' is-selected' : ''}" data-timeline-bid="${escAttr(b.bloco.block_id)}" title="Arraste para mudar a ordem" style="--block-width:${largura}px;--block-height:${altura}%;background:${cardioZoneMeta(b.zona).cor}"><button type="button" class="gcwo-timeline-select" data-select-bid="${escAttr(b.bloco.block_id)}"><strong>${escHtml(b.zona || b.label)}</strong><span>${duracaoTexto}</span><small>${escHtml(b.metrica || b.label)}</small></button></div>`;
   }).join('')}</div></div><div class="gcwo-timeline-help">Largura = duração · Altura = velocidade/intensidade · Arraste para ordenar · Clique para editar</div></div>`;
 }
 function refreshZonaResumo(s) {
@@ -3260,6 +3291,7 @@ function renderBlocoFecho(b, temZona, modality) {
     </div>`;
 }
 function renderBlocoSeries(b, temZona, soDistancia, modality) {
+  const isNatacao = modalidadeCanonica(modality) === 'natacao';
   const medida = medidaParteSeries(b.work, modality);
   const medidaRecuperacao = medidaParteSeries(b.recovery, modality);
   return `
@@ -3283,9 +3315,9 @@ function renderBlocoSeries(b, temZona, soDistancia, modality) {
         </section>
         <section class="gcwo-series-side gcwo-series-recovery">
           <span class="gcwo-field-label">Recuperação</span>
-          ${selectorMedidaCardio(`gcwo-rec-medida-${b.block_id}`, medidaRecuperacao, modality)}
+          ${isNatacao ? '<small class="gcwo-muted">Parado</small>' : selectorMedidaCardio(`gcwo-rec-medida-${b.block_id}`, medidaRecuperacao, modality)}
           ${medidaRecuperacao === 'distance' ? campoDistanciaCardio('gcwo-bloco-recdistance', distanciaParteSeries(b.recovery), b.recovery.intensity, modality) : campoDuracaoMMSS('gcwo-bloco-recdur', duracaoParteSeries(b.recovery), 'Duração')}
-          ${wrapIntensidade(b.block_id, 'recovery', b.recovery.intensity, temZona, modality)}
+          ${isNatacao ? '' : wrapIntensidade(b.block_id, 'recovery', b.recovery.intensity, temZona, modality)}
         </section>
       </div>
     </div>`;
@@ -3294,7 +3326,12 @@ function renderBlocoCardio(b, s) {
   const temZona = modalidadeTemZona(s.modality);
   if (b.type === 'series') {
     const soDistancia = s.modality === 'Natação';
-    if (soDistancia) b.work.measure = 'distance';
+    if (soDistancia) {
+      b.work.measure = 'distance';
+      b.recovery.measure = 'time';
+      b.recovery.distance_m = null;
+      b.recovery.intensity.zone = null;
+    }
     return renderBlocoSeries(b, temZona, soDistancia, s.modality);
   }
   if (b.type === 'closing') return renderBlocoFecho(b, temZona, s.modality);
@@ -3339,17 +3376,68 @@ function renderPanelCardio(s) {
   `;
 }
 
+let _ignorarCliqueCardioAte = 0;
+function wireArrastoPonteiroCardio(elemento, aoLargar) {
+  elemento.addEventListener('pointerdown', (inicio) => {
+    if (inicio.button !== 0) return;
+    const origemX = inicio.clientX, origemY = inicio.clientY;
+    let arrastou = false;
+    const overview = document.getElementById('gcwoPCardioOverview');
+    const mover = (e) => {
+      if (!arrastou && Math.hypot(e.clientX - origemX, e.clientY - origemY) < 7) return;
+      arrastou = true;
+      elemento.classList.add('is-pointer-dragging');
+      const sobPonteiro = document.elementFromPoint(e.clientX, e.clientY);
+      overview?.classList.toggle('is-dragover', !!sobPonteiro && overview.contains(sobPonteiro));
+      e.preventDefault();
+    };
+    const terminar = (e) => {
+      document.removeEventListener('pointermove', mover);
+      document.removeEventListener('pointerup', terminar);
+      document.removeEventListener('pointercancel', cancelar);
+      elemento.classList.remove('is-pointer-dragging');
+      overview?.classList.remove('is-dragover');
+      if (!arrastou) return;
+      _ignorarCliqueCardioAte = Date.now() + 350;
+      const sobPonteiro = document.elementFromPoint(e.clientX, e.clientY);
+      if (overview && sobPonteiro && overview.contains(sobPonteiro)) aoLargar(sobPonteiro);
+      e.preventDefault();
+    };
+    const cancelar = () => {
+      document.removeEventListener('pointermove', mover);
+      document.removeEventListener('pointerup', terminar);
+      document.removeEventListener('pointercancel', cancelar);
+      elemento.classList.remove('is-pointer-dragging');
+      overview?.classList.remove('is-dragover');
+    };
+    document.addEventListener('pointermove', mover, { passive:false });
+    document.addEventListener('pointerup', terminar, { passive:false });
+    document.addEventListener('pointercancel', cancelar);
+  });
+}
+
+function moverBlocoCardio(s, moverBid, alvoBid=null) {
+  const origem = s.blocks.findIndex(b => b.block_id === moverBid);
+  if (origem < 0 || alvoBid === moverBid) return;
+  const [movido] = s.blocks.splice(origem, 1);
+  const destino = alvoBid ? s.blocks.findIndex(b => b.block_id === alvoBid) : s.blocks.length;
+  s.blocks.splice(destino < 0 ? s.blocks.length : destino, 0, movido);
+  s._selectedBlockId = moverBid;
+  refreshBlocosListDom(s);
+}
+
 function wireTimelineCardio(s) {
   const overview = document.getElementById('gcwoPCardioOverview');
   if (!overview) return;
-  overview.querySelectorAll('[data-select-bid]').forEach(btn => btn.addEventListener('click', () => {
+  overview.querySelectorAll('[data-select-bid]').forEach(btn => btn.addEventListener('click', (e) => {
+    if (Date.now() < _ignorarCliqueCardioAte) { e.preventDefault(); return; }
     s._selectedBlockId = btn.getAttribute('data-select-bid');
     refreshBlocosListDom(s);
   }));
-  overview.querySelectorAll('[data-timeline-bid]').forEach(card => card.addEventListener('dragstart', (e) => {
-    e.dataTransfer.setData('text/gcwo-move-bid', card.getAttribute('data-timeline-bid'));
-    e.dataTransfer.effectAllowed = 'move';
-  }));
+  overview.querySelectorAll('[data-timeline-bid]').forEach(card => {
+    const bid = card.getAttribute('data-timeline-bid');
+    wireArrastoPonteiroCardio(card, (sobPonteiro) => moverBlocoCardio(s, bid, sobPonteiro.closest('[data-timeline-bid]')?.getAttribute('data-timeline-bid') || null));
+  });
 }
 
 function wireIntensidadeForms(s) {
@@ -3500,40 +3588,20 @@ function wireBlocosList(s) {
 
 function wirePanelCardio(s) {
   document.querySelectorAll('[data-add-zone]').forEach(btn => {
-    btn.addEventListener('click', () => adicionarBlocoZona(s, btn.getAttribute('data-add-zone')));
-    btn.addEventListener('dragstart', (e) => {
-      e.dataTransfer.setData('text/gcwo-zone', btn.getAttribute('data-add-zone'));
-      e.dataTransfer.effectAllowed = 'copy';
+    const zona = btn.getAttribute('data-add-zone');
+    btn.addEventListener('click', (e) => {
+      if (Date.now() < _ignorarCliqueCardioAte) { e.preventDefault(); return; }
+      adicionarBlocoZona(s, zona);
     });
+    wireArrastoPonteiroCardio(btn, () => adicionarBlocoZona(s, zona));
   });
   document.querySelectorAll('[data-add-series]').forEach(btn => {
-    btn.addEventListener('click', () => adicionarSeriesPreformatadas(s));
-    btn.addEventListener('dragstart', (e) => {
-      e.dataTransfer.setData('text/gcwo-block', 'series');
-      e.dataTransfer.effectAllowed = 'copy';
+    btn.addEventListener('click', (e) => {
+      if (Date.now() < _ignorarCliqueCardioAte) { e.preventDefault(); return; }
+      adicionarSeriesPreformatadas(s);
     });
+    wireArrastoPonteiroCardio(btn, () => adicionarSeriesPreformatadas(s));
   });
-  const overview = document.getElementById('gcwoPCardioOverview');
-  if (overview) {
-    overview.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; overview.classList.add('is-dragover'); });
-    overview.addEventListener('dragleave', () => overview.classList.remove('is-dragover'));
-    overview.addEventListener('drop', (e) => {
-      e.preventDefault(); overview.classList.remove('is-dragover');
-      const moverBid = e.dataTransfer.getData('text/gcwo-move-bid');
-      const alvo = e.target.closest('[data-timeline-bid]');
-      if (moverBid && alvo && alvo.getAttribute('data-timeline-bid') !== moverBid) {
-        const origem = s.blocks.findIndex(b => b.block_id === moverBid);
-        const destino = s.blocks.findIndex(b => b.block_id === alvo.getAttribute('data-timeline-bid'));
-        if (origem >= 0 && destino >= 0) {
-          const [movido] = s.blocks.splice(origem, 1);
-          s.blocks.splice(destino, 0, movido);
-          s._selectedBlockId = moverBid;
-          refreshBlocosListDom(s);
-        }
-      } else if (e.dataTransfer.getData('text/gcwo-block') === 'series') adicionarSeriesPreformatadas(s);
-      else adicionarBlocoZona(s, e.dataTransfer.getData('text/gcwo-zone'));
-    });
-  }
   wireBlocosList(s);
   wireTimelineCardio(s);
   refreshZonaResumo(s);
