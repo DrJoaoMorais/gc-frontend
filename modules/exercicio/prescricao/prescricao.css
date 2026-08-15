@@ -537,6 +537,12 @@
 .gcwo-panel-headbtn svg { width:15px; height:15px; }
 .gcwo-panel-headbtn:hover { background:#fef2f2; color:#dc2626; }
 .gcwo-panel-headbtn.close:hover { background:#f1f5f9; color:#0f172a; }
+.gcwo-cardio-panel-head { min-height:72px; padding-top:10px; padding-bottom:10px; }
+.gcwo-cardio-panel-head .gcwo-panel-titles { flex:0 0 190px; }
+.gcwo-cardio-head-local { align-self:stretch; flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:10px; padding:0 14px; border-left:1px solid #e2e8f0; }
+.gcwo-cardio-head-local .gcwo-field-label,.gcwo-cardio-head-local .gcwo-chips { margin:0; }
+.gcwo-cardio-head-local .gcwo-field-label { flex-shrink:0; }
+.gcwo-cardio-panel-head .gcwo-session-zones { align-self:stretch; min-height:44px; padding:0 18px; border-radius:11px; }
 .gcwo-panel-body { padding:16px; display:flex; flex-direction:column; gap:14px; }
 .gcwo-panel-footer { display:flex; gap:8px; padding:14px 16px; border-top:1px solid #e2e8f0; }
 .gcwo-panel-footer button { flex:1; justify-content:center; height:36px; font-size:13px; }
@@ -778,14 +784,37 @@
 .gcwo-cardio-builder-head strong { color:#0f2d52; font-size:14px; }
 .gcwo-cardio-builder-head span { margin-top:2px; color:#64748b; font-size:11px; }
 .gcwo-cardio-zone-tray { display:flex; gap:8px; flex-wrap:wrap; }
+.gcwo-cardio-compact-workspace { display:grid; grid-template-columns:minmax(520px,auto) minmax(430px,1fr); gap:12px; align-items:stretch; }
+.gcwo-cardio-compact-workspace .gcwo-cardio-zone-tray { align-content:center; flex-wrap:nowrap; }
+.gcwo-cardio-compact-workspace .gcwo-cardio-zone { width:96px; min-width:82px; min-height:76px; }
 .gcwo-cardio-zone { width:112px; min-height:68px; padding:8px; border:2px solid transparent; border-radius:11px; background:color-mix(in srgb,var(--zone-color) 17%,white); color:#334155; text-align:left; cursor:grab; }
 .gcwo-cardio-zone:hover { border-color:var(--zone-color); transform:translateY(-1px); }
+.gcwo-cardio-zone.is-current { border-color:var(--zone-color); box-shadow:0 0 0 2px color-mix(in srgb,var(--zone-color) 18%,transparent); }
 .gcwo-cardio-zone strong,.gcwo-cardio-zone span,.gcwo-cardio-zone small { display:block; }
 .gcwo-cardio-zone strong { color:var(--zone-color); font-size:18px; }
 .gcwo-cardio-zone span { overflow:hidden; text-overflow:ellipsis; font-size:10px; white-space:nowrap; }
 .gcwo-cardio-zone small { margin-top:4px; color:#475569; font-size:10px; font-weight:800; }
 .gcwo-cardio-series { --zone-color:#475569; border-style:dashed; background:#fff; }
 .gcwo-cardio-series strong { color:#0f2d52; }
+.gcwo-cardio-quick-card,.gcwo-cardio-quick-empty { height:100%; min-height:76px; border:1px solid #dbe3ee; border-radius:12px; background:#fff; }
+.gcwo-cardio-quick-card { padding:9px 11px !important; }
+.gcwo-cardio-quick-head { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+.gcwo-cardio-quick-head > strong { margin-right:auto; color:#0f2d52; font-size:12px; }
+.gcwo-cardio-quick-head .gcwo-field-sm { flex-direction:row; align-items:center; width:auto; }
+.gcwo-cardio-quick-head .gcwo-field-sm > span { margin:0; }
+.gcwo-cardio-quick-head .gcwo-mmss input { width:42px; padding:6px; }
+.gcwo-cardio-quick-card .gcwo-row3 { display:flex; flex-wrap:nowrap; gap:7px; }
+.gcwo-cardio-quick-card .gcwo-intensidade .gcwo-field { flex:1 1 96px; min-width:76px; }
+.gcwo-cardio-quick-card .gcwo-intensidade .gcwo-pace-field { flex:1.7 1 190px; width:auto; }
+.gcwo-cardio-quick-card .gcwo-field > span { min-height:25px; font-size:10px; }
+.gcwo-cardio-quick-card .gcwo-field input { padding:7px 8px; }
+.gcwo-cardio-quick-card .gcwo-pace-pair { grid-template-columns:92px 50px 28px; }
+.gcwo-cardio-quick-card .gcwo-pace-pair input { width:92px !important; }
+.gcwo-cardio-quick-card .gcwo-pace-pair output { min-width:50px; padding:6px 4px; }
+.gcwo-cardio-quick-range { display:block; margin-top:5px; color:#1a56db; font-size:10px; font-weight:700; }
+.gcwo-cardio-quick-empty { display:flex; flex-direction:column; justify-content:center; padding:12px 14px; color:#64748b; }
+.gcwo-cardio-quick-empty strong { color:#0f2d52; font-size:13px; }
+.gcwo-cardio-quick-empty span { margin-top:3px; font-size:10px; }
 .gcwo-cardio-overview { margin:14px 0 18px; padding:16px; border:1px solid #dbe3ee; border-radius:14px; background:#fff; }
 .gcwo-cardio-overview.is-dragover,.gcwo-cardio-empty.is-dragover { border-color:#1a56db; box-shadow:0 0 0 3px rgba(26,86,219,.13); background:#eff6ff; }
 .gcwo-cardio-total { display:flex; align-items:baseline; justify-content:space-between; color:#334155; }
@@ -842,6 +871,17 @@
 .gcwo-pace-pair > small { color:#64748b; font-size:10px; }
 @media (max-width:900px) { .gcwo-zone-palette { grid-template-columns:repeat(4,1fr); } }
 @media (max-width:560px) { .gcwo-zone-palette { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:1120px) {
+  .gcwo-cardio-panel-head { flex-wrap:wrap; }
+  .gcwo-cardio-panel-head .gcwo-panel-titles { flex:1 1 160px; }
+  .gcwo-cardio-head-local { order:3; flex-basis:100%; min-height:48px; border-top:1px solid #e2e8f0; border-left:0; }
+  .gcwo-cardio-compact-workspace { grid-template-columns:1fr; }
+  .gcwo-cardio-compact-workspace .gcwo-cardio-zone-tray { overflow-x:auto; }
+}
+@media (max-width:720px) {
+  .gcwo-cardio-quick-card .gcwo-row3 { flex-wrap:wrap; }
+  .gcwo-cardio-head-local { overflow-x:auto; }
+}
 .gcwo-catalog-select { flex:1; min-width:0; }
 
 .gcwo-modalidade { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
