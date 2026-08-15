@@ -333,7 +333,7 @@ function bpmRangeParaZona(zona, modality) {
     const perfil = _state.zonaPerfis && _state.zonaPerfis.natacao && _state.zonaPerfis.natacao.heart_rate;
     if (!perfil) return '';
     const r = (perfil.wo_zone_ranges || []).find(r => r.zone_key === zona);
-    return r ? `${r.lower_value ?? '?'}–${r.upper_value ?? '?'} bpm` : '';
+    return formatarRangeNumerico(r, 'bpm');
   }
   const idx = Number(String(zona).replace('Z', ''));
   if (!(idx >= 1 && idx <= 5)) return '';
@@ -342,7 +342,7 @@ function bpmRangeParaZona(zona, modality) {
     const perfil = _state.zonaPerfis && _state.zonaPerfis[modalidade] && _state.zonaPerfis[modalidade].heart_rate;
     if (perfil) {
       const r = (perfil.wo_zone_ranges || []).find(r => r.zone_key === zona);
-      return r ? `${r.lower_value ?? '?'}–${r.upper_value ?? '?'} bpm` : '';
+      return formatarRangeNumerico(r, 'bpm');
     }
     // Só corrida tinha hr_zones_bpm/hr_zone_formula antes da Fase 1 — para ciclismo não
     // há fallback antigo com sentido nenhum (nunca existiu perfil de FC de ciclismo em
@@ -356,14 +356,14 @@ function bpmRangeParaZona(zona, modality) {
 
   const manual = p.hr_zones_bpm && p.hr_zones_bpm[key];
   if (manual && (manual.min != null || manual.max != null)) {
-    return `${manual.min ?? '?'}–${manual.max ?? '?'} bpm`;
+    return formatarRangeNumerico({ lower_value:manual.min, upper_value:manual.max }, 'bpm');
   }
   const fcmax = calcFcMaxFormula(p.hr_zone_formula || 'tanaka', calcIdade(p.dob));
   if (fcmax == null) return '';
   const pct = [0, .60, .70, .80, .90, 1];
   const min = Math.round(fcmax * pct[idx - 1]);
   const max = Math.round(fcmax * pct[idx]);
-  return `${min}–${max} bpm`;
+  return formatarRangeNumerico({ lower_value:idx === 1 ? null : min, upper_value:idx === 5 ? null : max }, 'bpm');
 }
 
 // Fase 2 (ciclismo) — zonas de Coggan são Z1-Z7, nunca 5, por isso não reaproveita o
@@ -375,7 +375,51 @@ function potenciaRangeParaZona(zona, modality) {
   const perfil = _state.zonaPerfis && _state.zonaPerfis.ciclismo && _state.zonaPerfis.ciclismo.power;
   if (!perfil) return '';
   const r = (perfil.wo_zone_ranges || []).find(r => r.zone_key === zona);
-  return r ? `${r.lower_value ?? '?'}–${r.upper_value ?? '?'} W` : '';
+  return formatarRangeNumerico(r, 'W');
+}
+
+function rangePerfilParaZona(zona, modality, metric) {
+  const modalidade = modalidadeCanonica(modality);
+  const perfil = _state.zonaPerfis?.[modalidade]?.[metric];
+  if (!perfil || !zona) return null;
+  return (perfil.wo_zone_ranges || []).find(r => r.zone_key === zona) || null;
+}
+function formatarRangeNumerico(r, unidade) {
+  if (!r) return '';
+  const inferior = r.lower_value;
+  const superior = r.upper_value;
+  if (inferior == null && superior == null) return '';
+  if (inferior == null) return `<${superior} ${unidade}`;
+  if (superior == null) return `≥${inferior} ${unidade}`;
+  return `${inferior}–${superior} ${unidade}`;
+}
+function ritmoRangeParaZona(zona, modality) {
+  const r = rangePerfilParaZona(zona, modality, 'pace');
+  if (!r) return '';
+  const unidade = modalidadeCanonica(modality) === 'natacao' ? '/100 m' : '/km';
+  const inferior = r.lower_value;
+  const superior = r.upper_value;
+  if (inferior == null && superior == null) return '';
+  if (inferior == null) return `<${fmtPaceEditavel(superior)}${unidade}`;
+  if (superior == null) return `≥${fmtPaceEditavel(inferior)}${unidade}`;
+  return `${fmtPaceEditavel(inferior)}–${fmtPaceEditavel(superior)}${unidade}`;
+}
+function intervalosZonaCardio(zona, modality) {
+  if (!zona) return [];
+  const modalidade = modalidadeCanonica(modality);
+  const fc = bpmRangeParaZona(zona, modality);
+  if (modalidade === 'ciclismo') return [potenciaRangeParaZona(zona, modality), fc].filter(Boolean);
+  return [ritmoRangeParaZona(zona, modality), fc].filter(Boolean);
+}
+function alvoOuIntervaloCardio(intensidade, zona, modality) {
+  const modalidade = modalidadeCanonica(modality);
+  const intervaloPrincipal = modalidade === 'ciclismo'
+    ? potenciaRangeParaZona(zona, modality)
+    : ritmoRangeParaZona(zona, modality);
+  if (modalidade === 'ciclismo' && Number(intensidade?.power_w) > 0) return `Alvo ${intensidade.power_w} W${intervaloPrincipal ? ` · ${intervaloPrincipal}` : ''}`;
+  if (modalidade === 'natacao' && Number(intensidade?.pace_sec_per_100m) > 0) return `Alvo ${fmtPaceEditavel(intensidade.pace_sec_per_100m)}/100 m${intervaloPrincipal ? ` · ${intervaloPrincipal}` : ''}`;
+  if (modalidade === 'corrida' && Number(intensidade?.pace_sec_per_km) > 0) return `Alvo ${fmtPaceEditavel(intensidade.pace_sec_per_km)}/km · ${ritmoParaKmh(intensidade.pace_sec_per_km)} km/h${intervaloPrincipal ? ` · ${intervaloPrincipal}` : ''}`;
+  return intervaloPrincipal;
 }
 
 function restricoesAtuais() {
@@ -2903,20 +2947,32 @@ function ritmoParaKmh(segundosPorKm) {
   const segundos = Number(segundosPorKm);
   return Number.isFinite(segundos) && segundos > 0 ? (3600 / segundos).toFixed(1) : '';
 }
+function centroRange(r) {
+  if (r?.lower_value == null || r?.upper_value == null) return null;
+  const inferior = Number(r.lower_value), superior = Number(r.upper_value);
+  if (Number.isFinite(inferior) && Number.isFinite(superior)) return (inferior + superior) / 2;
+  return null;
+}
 function valorVerticalCardio(intensidade, zona, modality) {
   const canonica = modalidadeCanonica(modality);
   if (canonica === 'ciclismo') {
     const watts = Number(intensidade?.power_w);
     if (watts > 0) return watts;
+    const centroWatts = centroRange(rangePerfilParaZona(zona, modality, 'power'));
+    if (centroWatts != null) return centroWatts;
     return ({ Z1:100, Z2:150, Z3:210, Z4:260, Z5:320, Z6:400, Z7:500 })[zona] || 100;
   }
   if (canonica === 'natacao') {
     const pace100 = Number(intensidade?.pace_sec_per_100m);
     if (pace100 > 0) return 1000 / pace100;
+    const centroPace100 = centroRange(rangePerfilParaZona(zona, modality, 'pace'));
+    if (centroPace100 != null) return 1000 / centroPace100;
     return ({ A1:5.5, A2:6.5, A3:7.5, SP1:9, SP2:10.5, SP3:12 })[zona] || 5.5;
   }
   const paceKm = Number(intensidade?.pace_sec_per_km);
   if (paceKm > 0) return 3600 / paceKm;
+  const centroPaceKm = centroRange(rangePerfilParaZona(zona, modality, 'pace'));
+  if (centroPaceKm != null) return 3600 / centroPaceKm;
   return ({ Z1:8.5, Z2:10, Z3:12, Z4:14, Z5:16 })[zona] || 8.5;
 }
 function adicionarBlocoZona(s, zona) {
@@ -2965,10 +3021,7 @@ function renderResumoVisualCardio(s) {
     let segundos = b.duration_sec || 0;
     if (b.type === 'series' && b.work?.measure === 'time') segundos = (b.count || 0) * ((b.work.value || 0) + (b.recovery?.duration_sec || 0));
     const intensidade = b.type === 'series' ? b.work?.intensity : b.intensity;
-    let metrica = '';
-    if (modalidadeCanonica(s.modality) === 'ciclismo') metrica = intensidade?.power_w ? `${intensidade.power_w} W` : '';
-    else if (modalidadeCanonica(s.modality) === 'natacao') metrica = intensidade?.pace_sec_per_100m ? `${fmtPaceEditavel(intensidade.pace_sec_per_100m)}/100 m` : '';
-    else if (intensidade?.pace_sec_per_km) metrica = `${fmtPaceEditavel(intensidade.pace_sec_per_km)}/km · ${ritmoParaKmh(intensidade.pace_sec_per_km)} km/h`;
+    const metrica = alvoOuIntervaloCardio(intensidade, zona, s.modality);
     const zonaRecuperacao = b.type === 'series' ? b.recovery?.intensity?.zone : null;
     const valorRecuperacao = b.type === 'series' ? valorVerticalCardio(b.recovery?.intensity, zonaRecuperacao, s.modality) : null;
     return { bloco:b, zona, zonaRecuperacao, segundos, metrica, valorVertical:valorVerticalCardio(intensidade, zona, s.modality), valorRecuperacao, label: b.type === 'series' ? `${b.count || 0}× Séries` : (b.type === 'closing' ? 'Fecho' : 'Contínuo') };
@@ -2989,7 +3042,9 @@ function renderResumoVisualCardio(s) {
       const recuperacaoSec = Number(b.bloco.recovery?.duration_sec) || 0;
       const alturaRec = alturaParaValor(b.valorRecuperacao);
       const zonaRec = b.zonaRecuperacao || 'REC';
-      const padrao = Array.from({ length:repeticoes }, () => `<i class="gcwo-series-effort" style="--series-flex:${Math.max(1,trabalhoSec)};--series-height:${altura}%;background:${cardioZoneMeta(b.zona).cor}"><em>${escHtml(b.zona || 'TR')}</em></i><i class="gcwo-series-recovery" style="--series-flex:${Math.max(1,recuperacaoSec)};--series-height:${alturaRec}%;background:${cardioZoneMeta(b.zonaRecuperacao).cor}"><em>${escHtml(zonaRec)}</em></i>`).join('');
+      const intervaloTrabalho = alvoOuIntervaloCardio(b.bloco.work?.intensity, b.zona, s.modality);
+      const intervaloRecuperacao = alvoOuIntervaloCardio(b.bloco.recovery?.intensity, b.zonaRecuperacao, s.modality);
+      const padrao = Array.from({ length:repeticoes }, () => `<i class="gcwo-series-effort" title="${escAttr(intervaloTrabalho)}" style="--series-flex:${Math.max(1,trabalhoSec)};--series-height:${altura}%;background:${cardioZoneMeta(b.zona).cor}"><em>${escHtml(b.zona || 'TR')}</em></i><i class="gcwo-series-recovery" title="${escAttr(intervaloRecuperacao)}" style="--series-flex:${Math.max(1,recuperacaoSec)};--series-height:${alturaRec}%;background:${cardioZoneMeta(b.zonaRecuperacao).cor}"><em>${escHtml(zonaRec)}</em></i>`).join('');
       return `<div class="gcwo-timeline-block gcwo-timeline-series-group${activa ? ' is-selected' : ''}" draggable="true" data-timeline-bid="${escAttr(b.bloco.block_id)}" title="${repeticoes} séries: trabalho e recuperação" style="--block-width:${largura}px"><button type="button" class="gcwo-timeline-select gcwo-timeline-series" data-select-bid="${escAttr(b.bloco.block_id)}"><span class="gcwo-series-pattern">${padrao}</span><strong class="gcwo-series-count">${repeticoes}×</strong><small class="gcwo-series-caption">${fmtDuracaoTotal(trabalhoSec)} + ${fmtDuracaoTotal(recuperacaoSec)}</small></button></div>`;
     }
     return `<div class="gcwo-timeline-block${activa ? ' is-selected' : ''}" draggable="true" data-timeline-bid="${escAttr(b.bloco.block_id)}" title="Arraste para mudar a ordem" style="--block-width:${largura}px;--block-height:${altura}%;background:${cardioZoneMeta(b.zona).cor}"><button type="button" class="gcwo-timeline-select" data-select-bid="${escAttr(b.bloco.block_id)}"><strong>${escHtml(b.zona || b.label)}</strong><span>${fmtDuracaoTotal(b.segundos)}</span><small>${escHtml(b.metrica || b.label)}</small></button></div>`;
@@ -3011,7 +3066,7 @@ function renderIntensidadeCampos(intensity, mostrarZona, modality) {
   // velocidade (km/h), campo opcional/secundário, sem zonas próprias (só Cadência/RPE ao
   // lado). A "Zona" passa a apontar para a tabela de Coggan (potência), não FC.
   const isCiclismo = modalidadeCanonica(modality) === 'ciclismo';
-  const zonaHint = isCiclismo ? potenciaRangeParaZona(intensity.zone, modality) : bpmRangeParaZona(intensity.zone, modality);
+  const zonaHint = intervalosZonaCardio(intensity.zone, modality).join(' · ');
   // Z6/Z7 só existem no modelo de potência de Coggan (ciclismo) — as restantes
   // modalidades (corrida, natação, ginásio, caminhada, circuito) usam o modelo
   // tradicional de 5 zonas, mesmo quando mostram este dropdown genérico.
@@ -3025,11 +3080,11 @@ function renderIntensidadeCampos(intensity, mostrarZona, modality) {
         <span class="gcwo-int-zone-hint">${zonaHint ? `${intensity.zone} · ${zonaHint}` : 'Seleccione a zona clínica deste passo.'}</span>
       </div>` : '';
   const campoRitmo = isNatacao
-    ? `<label class="gcwo-field"><span>Ritmo (min:seg/100m)</span><input type="text" inputmode="numeric" placeholder="1:35" class="gcwo-int-pace100" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_100m))}"></label>`
-    : `<label class="gcwo-field gcwo-pace-field"><span>Ritmo</span><div class="gcwo-pace-pair"><div><input type="text" inputmode="numeric" placeholder="5:00" class="gcwo-int-pace" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_km))}"><small>min/km</small></div><output class="gcwo-pace-kmh">${ritmoParaKmh(intensity.pace_sec_per_km) || '—'}</output><small>km/h</small></div></label>`;
+    ? `<label class="gcwo-field"><span>Alvo de ritmo (opcional)</span><input type="text" inputmode="numeric" placeholder="1:35" class="gcwo-int-pace100" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_100m))}"><small>min:seg/100 m</small></label>`
+    : `<label class="gcwo-field gcwo-pace-field"><span>Alvo de ritmo (opcional)</span><div class="gcwo-pace-pair"><div><input type="text" inputmode="numeric" placeholder="5:00" class="gcwo-int-pace" value="${escAttr(fmtPaceEditavel(intensity.pace_sec_per_km))}"><small>min/km</small></div><output class="gcwo-pace-kmh">${ritmoParaKmh(intensity.pace_sec_per_km) || '—'}</output><small>km/h</small></div></label>`;
   const campoVelocidade = `<label class="gcwo-field"><span>Velocidade (km/h, opcional)</span><input type="number" min="0" step="0.1" class="gcwo-int-speed" value="${intensity.speed_kmh ?? ''}"></label>`;
-  const campoFc = `<label class="gcwo-field"><span class="gcwo-metric-label"><b class="heart">♥</b> Frequência cardíaca (bpm)</span><input type="number" min="0" class="gcwo-int-fc" value="${intensity.heart_rate_bpm ?? ''}"></label>`;
-  const campoPotencia = `<label class="gcwo-field"><span class="gcwo-metric-label"><b class="power">⚡</b> Potência (W)</span><input type="number" min="0" class="gcwo-int-power" value="${intensity.power_w ?? ''}"></label>`;
+  const campoFc = `<label class="gcwo-field"><span class="gcwo-metric-label"><b class="heart">♥</b> Alvo de FC (opcional)</span><input type="number" min="0" placeholder="bpm" class="gcwo-int-fc" value="${intensity.heart_rate_bpm ?? ''}"></label>`;
+  const campoPotencia = `<label class="gcwo-field"><span class="gcwo-metric-label"><b class="power">⚡</b> Alvo de potência (opcional)</span><input type="number" min="0" placeholder="W" class="gcwo-int-power" value="${intensity.power_w ?? ''}"></label>`;
   const campoCadencia = `<label class="gcwo-field"><span>Cadência (rpm)</span><input type="number" min="0" class="gcwo-int-cadence" value="${intensity.cadence_rpm ?? ''}"></label>`;
   const campoRpe = `<label class="gcwo-field"><span>RPE</span><input type="number" min="1" max="10" class="gcwo-int-rpe" value="${intensity.rpe ?? ''}"></label>`;
 
@@ -3216,10 +3271,8 @@ function wireIntensidadeForms(s) {
       box.querySelectorAll('.gcwo-int-zone').forEach(btn => btn.classList.toggle('on', btn === e.currentTarget));
       const hintEl = box.querySelector('.gcwo-int-zone-hint');
       if (hintEl) {
-        const range = modalidadeCanonica(s.modality) === 'ciclismo'
-          ? potenciaRangeParaZona(intensity.zone, s.modality)
-          : bpmRangeParaZona(intensity.zone, s.modality);
-        hintEl.textContent = range ? `${intensity.zone} · ${range}` : '';
+        const ranges = intervalosZonaCardio(intensity.zone, s.modality);
+        hintEl.textContent = ranges.length ? `${intensity.zone} · ${ranges.join(' · ')}` : '';
       }
       refreshZonaResumo(s);
     }));
@@ -3228,13 +3281,14 @@ function wireIntensidadeForms(s) {
       intensity.pace_sec_per_km = parsePaceParaSegundos(e.target.value);
       const kmhEl = box.querySelector('.gcwo-pace-kmh');
       if (kmhEl) kmhEl.textContent = ritmoParaKmh(intensity.pace_sec_per_km) || '—';
+      refreshZonaResumo(s);
     });
     const pace100El = box.querySelector('.gcwo-int-pace100');
-    if (pace100El) pace100El.addEventListener('input', (e) => { intensity.pace_sec_per_100m = parsePaceParaSegundos(e.target.value); });
+    if (pace100El) pace100El.addEventListener('input', (e) => { intensity.pace_sec_per_100m = parsePaceParaSegundos(e.target.value); refreshZonaResumo(s); });
     const speedEl = box.querySelector('.gcwo-int-speed');
     if (speedEl) speedEl.addEventListener('input', (e) => { intensity.speed_kmh = e.target.value === '' ? null : Number(e.target.value); });
     box.querySelector('.gcwo-int-fc').addEventListener('input', (e) => { intensity.heart_rate_bpm = e.target.value === '' ? null : Number(e.target.value); });
-    box.querySelector('.gcwo-int-power').addEventListener('input', (e) => { intensity.power_w = e.target.value === '' ? null : Number(e.target.value); });
+    box.querySelector('.gcwo-int-power').addEventListener('input', (e) => { intensity.power_w = e.target.value === '' ? null : Number(e.target.value); refreshZonaResumo(s); });
     box.querySelector('.gcwo-int-cadence').addEventListener('input', (e) => { intensity.cadence_rpm = e.target.value === '' ? null : Number(e.target.value); });
     box.querySelector('.gcwo-int-rpe').addEventListener('input', (e) => { intensity.rpe = e.target.value === '' ? null : Number(e.target.value); });
   });
