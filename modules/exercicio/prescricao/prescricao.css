@@ -802,6 +802,14 @@
 .gcwo-timeline-select strong { font-size:16px; font-weight:900; }
 .gcwo-timeline-select span { margin-top:5px; font-size:13px; font-weight:900; }
 .gcwo-timeline-select small { margin-top:4px; overflow:hidden; text-overflow:ellipsis; font-size:10px; font-weight:700; white-space:nowrap; }
+.gcwo-cardio-timeline > .gcwo-timeline-series-group { height:100%; background:transparent; }
+.gcwo-timeline-series { position:relative; height:100%; padding:0; overflow:hidden; }
+.gcwo-series-pattern { display:flex !important; align-items:flex-end; width:100%; height:100%; }
+.gcwo-series-pattern i { position:relative; flex:var(--series-flex,1) 1 0; min-width:18px; height:var(--series-height,50%); border-right:2px solid rgba(255,255,255,.9); font-style:normal; transition:height .18s ease; }
+.gcwo-series-pattern i:last-child { border-right:0; }
+.gcwo-series-pattern em { position:absolute; left:50%; bottom:8px; transform:translateX(-50%); color:#fff; font-size:10px; font-style:normal; font-weight:900; text-shadow:0 1px 2px #334155; }
+.gcwo-series-count { position:absolute; top:7px; left:8px; z-index:2; padding:2px 6px; border-radius:7px; background:rgba(15,45,82,.82); color:#fff; font-size:12px !important; }
+.gcwo-series-caption { position:absolute; right:7px; top:7px; z-index:2; margin:0 !important; padding:2px 5px; border-radius:6px; background:rgba(255,255,255,.86); color:#0f2d52; font-size:9px !important; text-shadow:none; }
 .gcwo-timeline-help { margin-top:7px; color:#64748b; font-size:10px; text-align:right; }
 .gcwo-cardio-editor { margin-top:12px; }
 .gcwo-cardio-editor-head { display:flex; align-items:baseline; gap:10px; margin-bottom:7px; }
