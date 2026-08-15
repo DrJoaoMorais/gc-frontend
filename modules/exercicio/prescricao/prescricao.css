@@ -845,6 +845,18 @@
 .gcwo-cardio-editor-head strong { color:#0f2d52; font-size:13px; }
 .gcwo-cardio-editor-head span { color:#64748b; font-size:10px; }
 .gcwo-cardio-editor > .gcwo-exercicio { padding:12px; }
+.gcwo-series-general { display:flex; align-items:flex-end; gap:16px; margin-top:8px; }
+.gcwo-series-split { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:12px; }
+.gcwo-series-side { min-width:0; padding:11px; border:1px solid #dbe3ee; border-radius:11px; background:#fff; }
+.gcwo-series-side > .gcwo-field-label { margin:0 0 8px; color:#0f2d52; }
+.gcwo-series-side > .gcwo-field-sm { margin-bottom:9px; }
+.gcwo-series-side .gcwo-zone-palette { grid-template-columns:repeat(5,minmax(62px,1fr)); }
+.gcwo-series-side .gcwo-zone-palette .gcwo-int-zone { min-height:52px; }
+.gcwo-series-side .gcwo-intensidade .gcwo-zone-field { width:100%; }
+.gcwo-series-side .gcwo-intensidade .gcwo-row3 { grid-template-columns:repeat(5,minmax(82px,1fr)); gap:7px; }
+.gcwo-series-side .gcwo-pace-field { grid-column:span 1; width:auto; }
+.gcwo-series-side .gcwo-pace-pair { grid-template-columns:minmax(78px,1fr) 48px 28px; }
+.gcwo-series-side .gcwo-pace-pair input { width:100% !important; }
 .gcwo-cardio-empty { margin:14px 0 18px; padding:20px 16px; border:1px dashed #bfd0e3; border-radius:14px; color:#64748b; background:#f8fafc; text-align:center; }
 .gcwo-cardio-empty strong,.gcwo-cardio-empty span { display:block; }
 .gcwo-cardio-empty strong { color:#334155; font-size:14px; }
@@ -877,6 +889,7 @@
   .gcwo-cardio-head-local { order:3; flex-basis:100%; min-height:48px; border-top:1px solid #e2e8f0; border-left:0; }
   .gcwo-cardio-compact-workspace { grid-template-columns:1fr; }
   .gcwo-cardio-compact-workspace .gcwo-cardio-zone-tray { overflow-x:auto; }
+  .gcwo-series-split { grid-template-columns:1fr; }
 }
 @media (max-width:720px) {
   .gcwo-cardio-quick-card .gcwo-row3 { flex-wrap:wrap; }
