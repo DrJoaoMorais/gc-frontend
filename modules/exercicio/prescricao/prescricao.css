@@ -762,6 +762,9 @@
 .gcwo-exercicio-head { display:flex; align-items:center; gap:8px; }
 .gcwo-exercicio-head strong { font-size:13.5px; color:#0f172a; }
 .gcwo-exercicio-foto { width:36px; height:36px; border-radius:8px; object-fit:cover; border:0.5px solid #e2e8f0; }
+.gcwo-exercicio-nota-clinica { display:block; margin-top:10px; }
+.gcwo-exercicio-nota-clinica span { display:block; font-size:11.5px; font-weight:700; color:#92400e; margin-bottom:4px; }
+.gcwo-exercicio-nota-clinica textarea { width:100%; min-height:46px; resize:vertical; border:1px solid #f0c36a; border-radius:8px; padding:8px 10px; background:#fffbeb; color:#78350f; font:inherit; font-size:12.5px; line-height:1.35; }
 
 .gcwo-ajustes { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
 .gcwo-ajuste { display:flex; flex-direction:column; gap:3px; font-size:11.5px; color:#64748b; }
@@ -821,6 +824,26 @@
 .gcwo-cardio-quick-empty strong { color:#0f2d52; font-size:13px; }
 .gcwo-cardio-quick-empty span { margin-top:3px; font-size:10px; }
 .gcwo-cardio-overview { margin:14px 0 18px; padding:16px; border:1px solid #dbe3ee; border-radius:14px; background:#fff; }
+.gcwo-training-analysis-actions { display:flex; justify-content:flex-end; margin:12px 0; }
+.gcwo-training-analysis-result { margin:0 0 16px; padding:16px; border:1px solid #dbe3ee; border-radius:14px; background:#fff; }
+.gcwo-training-analysis-result.review { border-color:#f2cf83; }
+.gcwo-training-analysis-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding-bottom:12px; border-bottom:1px solid #e5ebf2; }
+.gcwo-training-analysis-head strong,.gcwo-training-analysis-head span { display:block; }
+.gcwo-training-analysis-head strong { color:#0f2d52; font-size:15px; }
+.gcwo-training-analysis-head span { margin-top:3px; color:#74869f; font-size:11px; }
+.gcwo-training-analysis-head em { padding:6px 9px; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-style:normal; font-weight:700; white-space:nowrap; }
+.gcwo-training-analysis-result.review .gcwo-training-analysis-head em { background:#fff7e6; color:#9a6200; }
+.gcwo-training-analysis-result.limited .gcwo-training-analysis-head em { background:#edf4ff; color:#174b9c; }
+.gcwo-training-analysis-grid { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr); gap:16px; padding-top:13px; }
+.gcwo-training-analysis-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
+.gcwo-training-analysis-metrics > div { padding:11px; border:1px solid #e2e8f0; border-radius:11px; background:#f8fafc; }
+.gcwo-training-analysis-metrics span,.gcwo-training-analysis-metrics strong,.gcwo-training-analysis-metrics small { display:block; }
+.gcwo-training-analysis-metrics span { color:#64748b; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.035em; }
+.gcwo-training-analysis-metrics strong { margin-top:5px; color:#0f2d52; font-size:17px; }
+.gcwo-training-analysis-metrics small { margin-top:4px; color:#74869f; font-size:10px; }
+.gcwo-training-analysis-messages { display:flex; flex-direction:column; gap:7px; }
+.gcwo-training-analysis-messages > div { padding:10px 11px; border-radius:10px; background:#fff7e6; color:#8a5a00; font-size:11px; line-height:1.4; }
+.gcwo-training-analysis-messages > div.ok { background:#ecfdf5; color:#047857; }
 .gcwo-cardio-overview.is-dragover,.gcwo-cardio-empty.is-dragover { border-color:#1a56db; box-shadow:0 0 0 3px rgba(26,86,219,.13); background:#eff6ff; }
 .gcwo-cardio-total { display:flex; align-items:baseline; justify-content:space-between; color:#334155; }
 .gcwo-cardio-total span { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
@@ -896,8 +919,12 @@
   .gcwo-cardio-compact-workspace { grid-template-columns:1fr; }
   .gcwo-cardio-compact-workspace .gcwo-cardio-zone-tray { overflow-x:auto; }
   .gcwo-series-split { grid-template-columns:1fr; }
+  .gcwo-training-analysis-grid { grid-template-columns:1fr; }
 }
 @media (max-width:720px) {
+  .gcwo-training-analysis-head { align-items:flex-start; flex-direction:column; }
+  .gcwo-training-analysis-head em { white-space:normal; }
+  .gcwo-training-analysis-metrics { grid-template-columns:1fr; }
   .gcwo-cardio-quick-card .gcwo-row3,.gcwo-cardio-quick-head { flex-wrap:wrap; }
   .gcwo-cardio-head-local { overflow-x:auto; }
 }
@@ -979,6 +1006,9 @@
 .gcwo-followup-tabs button { padding:12px 18px; border:0; border-bottom:4px solid transparent; background:transparent; color:#74869f; font:600 14px inherit; cursor:pointer; }
 .gcwo-followup-tabs button.on { border-bottom-color:#2d78d4; color:#1a63bb; }
 .gcwo-followup-content { padding-top:18px; }
+.gcwo-followup-context { display:flex; align-items:flex-start; flex-direction:column; gap:4px; margin-bottom:12px; padding:14px 16px; border:1px solid #cfe0f7; border-radius:12px; background:#f4f8ff; }
+.gcwo-followup-context strong { color:#0f2d52; font-size:13px; }
+.gcwo-followup-context span { color:#64748b; font-size:11.5px; line-height:1.4; }
 .gcwo-readiness-empty { display:flex; align-items:center; gap:15px; padding:22px 24px; border:1px solid #f0d88a; border-radius:14px; background:#fff8e5; color:#76530c; }
 .gcwo-readiness-empty .dot { width:12px; height:12px; flex-shrink:0; border-radius:50%; background:#e5a400; }
 .gcwo-readiness-empty b { display:block; font-size:15px; }.gcwo-readiness-empty p { margin:6px 0 0; color:#806a3c; font-size:12.5px; }
@@ -987,6 +1017,12 @@
 .gcwo-training-reading { display:grid; gap:10px; }.gcwo-training-reading article { padding:16px 18px; border:1px solid #dbe3ee; border-radius:13px; background:#fff; }
 .gcwo-training-reading article > div:first-child { display:flex; justify-content:space-between; gap:16px; }.gcwo-training-reading article span { color:#74869f; font-size:12px; }
 .gcwo-training-reading .metrics { display:flex; gap:10px; margin-top:10px; }.gcwo-training-reading .metrics span { padding:6px 9px; border-radius:8px; background:#f1f5f9; }.gcwo-training-reading article p { margin:10px 0 0; color:#475569; font-size:12.5px; }
+.gcwo-training-before { display:flex; align-items:center; flex-wrap:wrap; gap:7px 14px; margin-top:11px; padding:10px 12px; border:1px solid #d7e5f7; border-radius:10px; background:#f6f9fe; }
+.gcwo-training-before b { color:#0f2d52; font-size:11.5px; }
+.gcwo-training-before span { color:#64748b; }
+.gcwo-training-before span strong { color:#0f2d52; }
+.gcwo-training-before p { flex-basis:100%; margin:0 !important; padding-top:6px; border-top:1px solid #e1eaf5; }
+.gcwo-training-before.empty { color:#74869f; background:#f8fafc; border-color:#e2e8f0; }
 .gcwo-generate-copy { display:flex; flex:1; min-width:220px; flex-direction:column; gap:2px; }
 .gcwo-generate-copy strong { color:#0f2d52; font-size:13px; }
 .gcwo-generate-copy span { color:#64748b; font-size:11.5px; }
