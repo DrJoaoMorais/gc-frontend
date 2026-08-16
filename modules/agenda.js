@@ -1498,7 +1498,7 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
 /* ==== 09C/D/E — Modal marcação ==== */
 
 /* ---- openApptModal ---- */
-export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, prefillPatientName, prefillClinicId }) {
+export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, prefillPatientName, prefillClinicId, rescheduledFromId }) {
   const root = document.getElementById("modalRoot");
   if (!root) return;
 
@@ -1669,6 +1669,8 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
           <div id="mMsg" style="font-size:11px;color:#64748b;"></div>
           <div style="display:flex;gap:8px;">
             ${canDeleteAppt ? `<button id="btnDeleteAppt" class="gcBtnDanger" type="button" style="font-size:12px;padding:7px 14px;border-radius:8px;">Registar falta</button>` : ""}
+            ${canDeleteAppt ? `<button id="btnReschedule" class="gcBtnGhost" type="button" style="font-size:12px;padding:7px 14px;border-radius:8px;">Remarcar</button>` : ""}
+            ${canDeleteAppt ? `<button id="btnEliminar" class="gcBtnDanger" type="button" style="font-size:12px;padding:7px 14px;border-radius:8px;">Eliminar</button>` : ""}
             <button id="btnCancel" class="gcBtnGhost" style="font-size:12px;padding:7px 14px;border-radius:8px;">Cancelar</button>
             <button id="btnSave" class="gcBtnSuccess" style="font-size:12px;padding:7px 18px;border-radius:8px;font-weight:600;">Guardar</button>
           </div>
@@ -1683,6 +1685,8 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   const btnSave          = document.getElementById("btnSave");
   const btnNewPatient    = document.getElementById("btnNewPatient");
   const btnDeleteAppt    = document.getElementById("btnDeleteAppt");
+  const btnReschedule    = document.getElementById("btnReschedule");
+  const btnEliminar      = document.getElementById("btnEliminar");
   const mConsultOnlyWrap = document.getElementById("mConsultOnlyWrap");
   const mClinic          = document.getElementById("mClinic");
   const mStatus          = document.getElementById("mStatus");
@@ -2180,6 +2184,43 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   }
   btnDeleteAppt?.addEventListener("click", onDeleteAppt);
 
+  async function onEliminarAppt() {
+    if (!canDeleteAppt || !row?.id) return;
+    if (!confirm("Eliminar esta marcação? Esta acção não pode ser desfeita.")) return;
+    btnEliminar.disabled = true;
+    try {
+      const { error } = await window.sb.from("appointments").delete().eq("id", row.id);
+      if (error) throw error;
+    } catch (e) {
+      alert("Não foi possível eliminar: " + (e?.message || e));
+      btnEliminar.disabled = false;
+      return;
+    }
+    safeCloseModal();
+    await refreshAgenda();
+  }
+  btnEliminar?.addEventListener("click", onEliminarAppt);
+
+  async function onRemarcarAppt() {
+    if (!canDeleteAppt || !row?.id) return;
+    const oldId = row.id;
+    const oldPatientId = row.patient_id;
+    const oldPatientName = getPatientForAppointmentRow(row)?.full_name || "";
+    const oldClinicId = row.clinic_id;
+    const oldStart = row.start_at;
+    safeCloseModal();
+    openApptModal({
+      mode: "new",
+      row: null,
+      prefillPatientId: oldPatientId || null,
+      prefillPatientName: oldPatientName || null,
+      prefillClinicId: oldClinicId || null,
+      prefillDatetime: oldStart || null,
+      rescheduledFromId: oldId,
+    });
+  }
+  btnReschedule?.addEventListener("click", onRemarcarAppt);
+
   async function onSave() {
     btnSave.disabled = true;
     mMsg.style.color = "#666"; mMsg.textContent = "A guardar…";
@@ -2219,6 +2260,7 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
         provider_id: document.getElementById("mProvider")?.value || G.sessionUser?.id || null,
       };
       if (payload.notes === "") payload.notes = null;
+      if (!isEdit && rescheduledFromId) payload.rescheduled_from_id = rescheduledFromId;
 
       const oldDayISO = isEdit && row?.start_at ? String(row.start_at).slice(0, 10) : "";
       const newDayISO = String(times.startAt || G.selectedDayISO || "").slice(0, 10);
@@ -2233,6 +2275,10 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
         if (error) throw error;
         savedApptId = insertData?.[0]?.id || null;
         console.log("[APPT] insert ok id=", savedApptId);
+        if (rescheduledFromId) {
+          const { error: rescheduleErr } = await window.sb.from("appointments").update({ status: "rescheduled" }).eq("id", rescheduledFromId);
+          if (rescheduleErr) alert("A marcação nova foi criada, mas a antiga não foi marcada como remarcada. Verifica manualmente: " + rescheduleErr.message);
+        }
       }
 
       // Prompt FT apenas em novas consultas com doente
