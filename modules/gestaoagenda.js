@@ -1109,11 +1109,11 @@ function _renderPanel(row, patientsById = {}) {
       ? window.__gc_openFeedPanel(row.patient_id, _state.selectedClinicId || G.activeClinicId || null)
       : window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(row.patient_id)}&sessionClinicId=${encodeURIComponent(_state.selectedClinicId || G.activeClinicId || '')}`, '_blank');
   });
-  el.querySelector("[data-action='marcada']")?.addEventListener("click", () => _updateStatus(row.id, "scheduled"));
-  el.querySelector("[data-action='chegou']")?.addEventListener("click", () => _updateStatus(row.id, "arrived"));
-  el.querySelector("[data-action='realizada']")?.addEventListener("click", () => _updateStatus(row.id, "done"));
-  el.querySelector("[data-action='falta']")?.addEventListener("click", () => _updateStatus(row.id, "no_show"));
-  el.querySelector("[data-action='honorarios']")?.addEventListener("click", () => _updateStatus(row.id, "honorarios_dispensados"));
+  el.querySelector("[data-action='marcada']")?.addEventListener("click", () => _updateStatus(row.id, "scheduled", row.status));
+  el.querySelector("[data-action='chegou']")?.addEventListener("click", () => _updateStatus(row.id, "arrived", row.status));
+  el.querySelector("[data-action='realizada']")?.addEventListener("click", () => _updateStatus(row.id, "done", row.status));
+  el.querySelector("[data-action='falta']")?.addEventListener("click", () => _updateStatus(row.id, "no_show", row.status));
+  el.querySelector("[data-action='honorarios']")?.addEventListener("click", () => _updateStatus(row.id, "honorarios_dispensados", row.status));
   el.querySelector("[data-action='remover-bloq']")?.addEventListener("click", async () => {
     if (!confirm("Remover este bloqueio?")) return;
     await window.sb.from("appointments").delete().eq("id", row.id);
@@ -1141,7 +1141,8 @@ function _renderPanel(row, patientsById = {}) {
   }
 }
 
-async function _updateStatus(id, status) {
+async function _updateStatus(id, status, currentStatus) {
+  if (currentStatus === "rescheduled" && !confirm("Esta marcação já foi remarcada para outra data. Alterar o estado mesmo assim?")) return;
   try {
     await window.sb.from("appointments").update({ status }).eq("id", id);
     _loadAndRender();
