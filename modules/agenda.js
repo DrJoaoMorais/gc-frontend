@@ -1557,7 +1557,7 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
     return;
   }
 
-  const canDeleteAppt    = !!(isEdit && row?.id);
+  const canDeleteAppt    = !!(isEdit && row?.id && !["rescheduled","no_show","cancelled"].includes(row?.status));
 
   function optLabel(s) { const m = statusMeta(s); return `${m.icon} ${m.label}`; }
 
