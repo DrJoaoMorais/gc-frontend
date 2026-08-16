@@ -677,12 +677,17 @@ function wireAvisoSairSemGravar() {
 
 /* ── Catálogo de exercícios (wo_exercises, global ao sistema) ── */
 async function loadExercisesCatalog() {
-  const { data, error } = await window.sb
+  const camposBase = 'id,name,categoria,equipamento,photo_url,tempo_concentrico_s,tempo_excentrico_s,tempo_exercicio_s,ajustes_maquina,is_favorite,incremento_default,video_url,tecnica_notas';
+  let { data, error } = await window.sb
     .from('wo_exercises')
-    .select('id,name,categoria,equipamento,photo_url,tempo_concentrico_s,tempo_excentrico_s,tempo_exercicio_s,ajustes_maquina,is_favorite,incremento_default,video_url,tecnica_notas')
+    .select(`${camposBase},tecnica_info`)
     .eq('is_active', true)
     .order('categoria')
     .order('name');
+
+  if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+    ({ data, error } = await window.sb.from('wo_exercises').select(camposBase).eq('is_active', true).order('categoria').order('name'));
+  }
 
   if (error) {
     console.error('[prescricao] falha a carregar wo_exercises:', error);
@@ -1457,10 +1462,13 @@ function renderCalendarMode(host) {
     </div>
 
     <div class="gcwo-generate">
-      <div class="gcwo-generate-copy"><strong>Plano pronto?</strong><span>O link só fica disponível depois de guardar a prescrição.</span></div>
+      <div class="gcwo-generate-copy"><strong>${_state.activePrescriptionId ? 'Plano em curso' : 'Plano pronto?'}</strong><span>${_state.activePrescriptionId ? 'Guarde as alterações ou termine o plano quando deixar de ser necessário.' : 'O link só fica disponível depois de guardar a prescrição.'}</span></div>
       <span id="gcwoGerarErro" class="gcwo-erro"></span>
       <span id="gcwoPorGravarAviso" class="gcwo-porgravar-aviso" style="display:${haSessoesPorGravar() ? '' : 'none'}">⚠ As sessões do calendário só ficam realmente gravadas depois de clicares aqui.</span>
-      <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.'}">${labelBotaoGerar()}</button>
+      <div class="gcwo-generate-actions">
+        ${_state.activePrescriptionId ? '<button type="button" id="gcwoTerminarPlano" class="gcBtnDanger gcBtnLg">Terminar plano</button>' : ''}
+        <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.'}">${labelBotaoGerar()}</button>
+      </div>
     </div>
     </section>
   `;
@@ -1470,14 +1478,15 @@ function renderCalendarMode(host) {
   document.getElementById('gcwoCalAnterior').addEventListener('click', () => navegarCalendario(-14));
   document.getElementById('gcwoCalSeguinte').addEventListener('click', () => navegarCalendario(14));
   document.getElementById('gcwoGerar').addEventListener('click', handleGerar);
+  document.getElementById('gcwoTerminarPlano')?.addEventListener('click', (e) => terminarPlanoActivo(_state.activePrescriptionId, e.currentTarget));
 }
 
 function renderPatientFollowupSection() {
   return `<section class="gcwo-patient-followup gcwo-patient-followup-tab">
-    <div class="gcwo-followup-title"><div><h2>Acompanhamento</h2><span>O que condiciona e o que resultou.</span></div></div>
+    <div class="gcwo-followup-title"><div><h2>Acompanhamento</h2><span>Dados recolhidos antes e depois do treino.</span></div></div>
     <div class="gcwo-followup-tabs" role="tablist">
       <button type="button" role="tab" data-followup-tab="readiness" class="${_patientFollowupTab === 'readiness' ? 'on' : ''}">Prontidão de hoje</button>
-      <button type="button" role="tab" data-followup-tab="sessions" class="${_patientFollowupTab === 'sessions' ? 'on' : ''}">Leitura dos treinos</button>
+      <button type="button" role="tab" data-followup-tab="sessions" class="${_patientFollowupTab === 'sessions' ? 'on' : ''}">Treinos realizados</button>
     </div>
     <div class="gcwo-followup-content" id="gcwoPatientFollowupContent">${_patientFollowupTab === 'readiness' ? `
       <div class="gcwo-readiness-empty"><span class="dot"></span><div><b>Sem dados de prontidão para hoje</b><p>Ainda não existe avaliação pré-treino nem ligação a VRC, sono ou energia. Não são usados dados inventados.</p></div></div>
@@ -1508,7 +1517,15 @@ async function carregarLeituraTreinosDoDoente() {
   const { data, error } = await window.sb.from('wo_session_logs').select('session_id,logged_at,rpe,feel,note').eq('prescription_id', _state.activePrescriptionId).order('logged_at', { ascending:false }).limit(30);
   if (error) { host.innerHTML = '<div class="gcwo-muted">Não foi possível carregar os treinos.</div>'; return; }
   if (!data?.length) { host.innerHTML = '<div class="gcwo-readiness-empty"><div><b>Sem treinos registados</b><p>O feedback aparecerá aqui ligado à sessão correspondente.</p></div></div>'; return; }
-  host.innerHTML = `<div class="gcwo-training-reading">${data.map(log => { const sessao = (_state.sessions || []).find(s => s.session_id === log.session_id); return `<article><div><b>${escHtml(TIPO_META[tipoKey(sessao || {})]?.label || sessao?.modality || 'Treino')}</b><span>${escHtml(new Date(log.logged_at).toLocaleString('pt-PT', { dateStyle:'medium', timeStyle:'short' }))}</span></div><div class="metrics"><span>Esforço <b>${escHtml(log.rpe ?? '—')}/10</b></span><span>Bem-estar <b>${escHtml(log.feel ?? '—')}/5</b></span></div>${log.note ? `<p>${escHtml(log.note)}</p>` : ''}</article>`; }).join('')}</div>`;
+  const { data: readinessData, error: readinessError } = await window.sb.from('wo_session_readiness').select('session_id,feeling,has_symptoms,symptom_note,answered_at').eq('prescription_id', _state.activePrescriptionId);
+  const readinessPorSessao = new Map((readinessError ? [] : readinessData || []).map(registo => [registo.session_id, registo]));
+  const nomesSentir = [null, 'Muito mal', 'Mal', 'Razoável', 'Bem', 'Muito bem'];
+  host.innerHTML = `<div class="gcwo-followup-context"><strong>Treino realizado pelo doente</strong><span>Compara como o doente estava antes da sessão com a resposta registada no final. Uma resposta isolada não condiciona automaticamente o treino.</span></div><div class="gcwo-training-reading">${data.map(log => {
+    const sessao = (_state.sessions || []).find(s => s.session_id === log.session_id);
+    const readiness = readinessPorSessao.get(log.session_id);
+    const antes = readiness ? `<div class="gcwo-training-before"><b>Antes do treino</b><span>Como se sentia: <strong>${escHtml(nomesSentir[readiness.feeling] || '—')}</strong></span><span>Sintomas ou dor: <strong>${readiness.has_symptoms ? 'Sim' : 'Não'}</strong></span>${readiness.symptom_note ? `<p>${escHtml(readiness.symptom_note)}</p>` : ''}</div>` : '<div class="gcwo-training-before empty"><b>Antes do treino</b><span>Prontidão não avaliada.</span></div>';
+    return `<article><div><b>${escHtml(TIPO_META[tipoKey(sessao || {})]?.label || sessao?.modality || 'Treino')}</b><span>Realizado em ${escHtml(new Date(log.logged_at).toLocaleString('pt-PT', { dateStyle:'medium', timeStyle:'short' }))}</span></div>${antes}<div class="metrics"><span>Esforço final <b>${escHtml(log.rpe ?? '—')}/10</b></span><span>Bem-estar final <b>${escHtml(log.feel ?? '—')}/5</b></span></div>${log.note ? `<p>${escHtml(log.note)}</p>` : ''}</article>`;
+  }).join('')}</div>`;
 }
 
 // Segundas-feiras (ISO) das semanas a desenhar: sempre pelo menos 4, e nunca menos do
@@ -1871,6 +1888,10 @@ function prescricaoStatusInfo(p) {
   return { label: 'Activo', cls: 'active' };
 }
 
+function prescricaoEstaActiva(p) {
+  return p?.status === 'active' && (!p.expires_at || new Date(p.expires_at) > new Date());
+}
+
 async function openHistoryModal() {
   _historyOpen = true;
   _historyLoading = true;
@@ -1925,6 +1946,7 @@ function renderHistoryModal() {
         <div class="gcwo-modal-body">
           <div style="margin-bottom:12px;">
             <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoHistAplicar" ${(_historyDetail.data?.sessions || []).length && _historyDetail.data?.startDate ? '' : 'disabled'}>Aplicar este plano ao actual, a partir de ${escHtml(fmtDataPtIso(_state.startDate))}</button>
+            ${prescricaoEstaActiva(_historyDetail) ? '<button type="button" class="gcBtnDanger gcBtnSm" id="gcwoHistTerminar">Terminar este plano</button>' : ''}
           </div>
           ${renderHistoryDetailHtml(_historyDetail)}
         </div>
@@ -1987,6 +2009,49 @@ function wireHistoryModal() {
     });
   });
   document.getElementById('gcwoHistAplicar')?.addEventListener('click', () => aplicarPrescricaoDoHistorico(_historyDetail));
+  document.getElementById('gcwoHistTerminar')?.addEventListener('click', (e) => terminarPlanoActivo(_historyDetail?.id, e.currentTarget));
+}
+
+async function terminarPlanoActivo(prescriptionId, btn) {
+  if (!prescriptionId || !_state.patient) return;
+  const nome = _state.patient.full_name || 'este doente';
+  const confirmou = window.confirm(
+    `Terminar o plano de ${nome}?\n\nO link deixa imediatamente de funcionar. Os treinos realizados e o histórico ficam guardados.`
+  );
+  if (!confirmou) return;
+
+  const textoAnterior = btn?.textContent || 'Terminar plano';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'A terminar…';
+  }
+
+  const { data, error } = await window.sb
+    .from('wo_prescriptions')
+    .update({ status: 'revoked' })
+    .eq('id', prescriptionId)
+    .eq('patient_id', _state.patient.id)
+    .eq('status', 'active')
+    .select('id')
+    .maybeSingle();
+
+  if (error || !data) {
+    console.error('[prescricao] falha ao terminar plano:', error?.message || 'plano já não estava activo');
+    window.alert('Não foi possível terminar o plano. Actualize a página e tente novamente.');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = textoAnterior;
+    }
+    return;
+  }
+
+  closeHistoryModal();
+  _state.activePrescriptionId = null;
+  _state.patient = null;
+  _state.sessions = [];
+  _state.__ultimoSnapshotGravado = null;
+  window.alert('Plano terminado. O link deixou de funcionar e o histórico foi preservado.');
+  renderLanding();
 }
 
 // Aplica um plano antigo ao plano actual, deslocando as datas pela diferença entre o
@@ -2448,6 +2513,10 @@ function renderItemCard(it, index) {
           <label><input type="radio" name="${duracaoRadioName}" value="duracao" ${modoDuracao === 'duracao' ? 'checked' : ''}> Duração</label>
         </div>
       </div>
+      <label class="gcwo-exercicio-nota-clinica">
+        <span>Instrução específica para este doente</span>
+        <textarea class="gcwo-it-prescription-note" rows="2" placeholder="Ex.: Executar apenas entre 0–45°. Não completar até 90°.">${escHtml(it.prescription_note || '')}</textarea>
+      </label>
       ${modoDuracao === 'duracao' ? `
         <div class="gcwo-series-table">
           <div class="gcwo-series-head gcwo-duration-head"><span>Série</span><span>Tempo (s)</span><span></span></div>
@@ -2531,6 +2600,12 @@ function toggleExercicioNaSessao(s, exId) {
       photo_url: ex.photo_url || null,
       video_url: ex.video_url || null,
       tecnica_notas: ex.tecnica_notas || null,
+      tecnica_info: ex.tecnica_info || null,
+      equipamento: ex.equipamento || [],
+      machine_adjustment_suggestions: Array.isArray(ex.ajustes_maquina)
+        ? ex.ajustes_maquina.map(a => a?.etiqueta).filter(Boolean)
+        : [],
+      prescription_note: null,
       categoria: ex.categoria || [],
       sets: usaTempo ? (ex.name.toLowerCase().includes('bicicleta') ? 1 : 3) : 3,
       reps_min: usaTempo ? null : 8,
@@ -2650,6 +2725,9 @@ function wirePickedItems(s) {
     bindNum('.gcwo-it-pausainf', 'pausa_inferior_s');
     bindNum('.gcwo-it-tempocon', 'tempo_concentrico_s');
     bindNum('.gcwo-it-pausasup', 'pausa_superior_s');
+    card.querySelector('.gcwo-it-prescription-note')?.addEventListener('input', (e) => {
+      it.prescription_note = e.target.value;
+    });
 
     card.querySelectorAll('.gcwo-series-row').forEach(row => {
       const index = Number(row.getAttribute('data-series-index'));
@@ -2928,6 +3006,117 @@ function renderIndicadorZonaHtml(s) {
   const etiqueta = modalidadeCanonica(s.modality) === 'natacao' ? 'A3/SP' : 'Z3+';
   return `<div class="gcwo-progressao-nota">${etiqueta}: ${fmtDuracaoTotal(z3mais)} de ${fmtDuracaoTotal(totalComZona)} · ${pct}% acima da base</div>`;
 }
+
+// Análise local da sessão prescrita. Não decide se o treino é "seguro" e não cria
+// limiares clínicos: resume o que está prescrito, assinala dados incompletos e compara
+// apenas com a sessão anterior da mesma modalidade quando ela existe.
+function distanciaTotalCardio(s) {
+  let total = 0;
+  (s.blocks || []).forEach(b => {
+    if (b.type === 'series') {
+      const repeticoes = Math.max(0, Number(b.count) || 0);
+      if (medidaParteSeries(b.work, s.modality) === 'distance') total += repeticoes * distanciaParteSeries(b.work);
+      if (medidaParteSeries(b.recovery, s.modality) === 'distance') total += repeticoes * distanciaParteSeries(b.recovery);
+      return;
+    }
+    if (medidaContinua(b, s.modality) === 'distance') total += Number(b.distance_m) || 0;
+  });
+  return total;
+}
+
+function zonaElevadaParaAnalise(zona, modality) {
+  if (!zona) return false;
+  const canonica = modalidadeCanonica(modality);
+  if (canonica === 'natacao') return ['A3', 'SP1', 'SP2', 'SP3'].includes(zona);
+  return Number(String(zona).replace('Z', '')) >= 3;
+}
+
+function cargaElevadaCardio(s) {
+  const { minutosPorZona } = calcularCargaPorZona(s);
+  return Object.entries(minutosPorZona)
+    .filter(([zona]) => zonaElevadaParaAnalise(zona, s.modality))
+    .reduce((total, [, segundos]) => total + segundos, 0);
+}
+
+function sessaoAnteriorComparavel(s) {
+  return (_state.sessions || [])
+    .filter(outra => outra.session_id !== s.session_id && outra.kind === 'card' && modalidadeCanonica(outra.modality) === modalidadeCanonica(s.modality) && outra.date && s.date && outra.date < s.date)
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)))[0] || null;
+}
+
+function analisarSessaoCardio(s) {
+  const carga = calcularCargaPorZona(s);
+  const distancia = distanciaTotalCardio(s);
+  const elevada = cargaElevadaCardio(s);
+  const anterior = sessaoAnteriorComparavel(s);
+  const cargaAnterior = anterior ? calcularCargaPorZona(anterior) : null;
+  const distanciaAnterior = anterior ? distanciaTotalCardio(anterior) : 0;
+  const elevadaAnterior = anterior ? cargaElevadaCardio(anterior) : 0;
+  const avisos = [];
+  const dadosEmFalta = [];
+
+  (s.blocks || []).forEach((b, indice) => {
+    const intensidade = b.type === 'series' ? b.work?.intensity : b.intensity;
+    if (!intensidade?.zone) dadosEmFalta.push(`Bloco ${indice + 1} sem zona definida.`);
+    if (b.type === 'series') {
+      if (!(Number(b.count) > 0)) dadosEmFalta.push(`Bloco ${indice + 1} sem número de séries.`);
+      if (!(tempoParteSeries(b.recovery, s.modality) > 0) && !(distanciaParteSeries(b.recovery) > 0)) dadosEmFalta.push(`Bloco ${indice + 1} sem recuperação definida.`);
+    }
+  });
+
+  if (restricoesAtuais().includes('Sem impacto') && modalidadeCanonica(s.modality) === 'corrida') {
+    avisos.push('A modalidade corrida não é compatível com a restrição registada “Sem impacto”.');
+  }
+  if (anterior && elevada > elevadaAnterior) {
+    avisos.push(`O tempo em zonas moderadas/altas aumentou de ${fmtDuracaoTotal(elevadaAnterior)} para ${fmtDuracaoTotal(elevada)}.`);
+  }
+
+  let estado = 'Coerente com os dados disponíveis';
+  let classe = 'ok';
+  if (dadosEmFalta.length || avisos.length) { estado = 'Rever antes de guardar'; classe = 'review'; }
+  else if (!anterior) { estado = 'Sem sessão anterior para comparar'; classe = 'limited'; }
+
+  return { carga, distancia, elevada, anterior, cargaAnterior, distanciaAnterior, elevadaAnterior, avisos, dadosEmFalta, estado, classe };
+}
+
+function diferencaAnalise(actual, anterior, formatar) {
+  if (!anterior) return '—';
+  const delta = actual - anterior;
+  if (!delta) return 'Sem alteração';
+  return `${delta > 0 ? '+' : '−'}${formatar(Math.abs(delta))}`;
+}
+
+function renderAnaliseSessaoCardioResultado(s) {
+  const a = analisarSessaoCardio(s);
+  const etiquetaElevada = modalidadeCanonica(s.modality) === 'natacao' ? 'A3/SP' : 'Z3+';
+  const totalAnterior = a.cargaAnterior?.totalGeral || 0;
+  const mensagens = [...a.dadosEmFalta, ...a.avisos];
+  return `<section class="gcwo-training-analysis-result ${a.classe}" aria-live="polite">
+    <div class="gcwo-training-analysis-head"><div><strong>Validação da prescrição</strong><span>Verifica a estrutura planeada antes de colocar a sessão no calendário. Não analisa o treino realizado.</span></div><em>${escHtml(a.estado)}</em></div>
+    <div class="gcwo-training-analysis-grid">
+      <div class="gcwo-training-analysis-metrics">
+        <div><span>Duração calculável</span><strong>${fmtDuracaoTotal(a.carga.totalGeral)}</strong><small>${a.anterior ? `Anterior: ${fmtDuracaoTotal(totalAnterior)} · ${diferencaAnalise(a.carga.totalGeral, totalAnterior, fmtDuracaoTotal)}` : 'Sem comparação anterior'}</small></div>
+        <div><span>Distância prescrita</span><strong>${a.distancia ? fmtDistanciaTotal(a.distancia) : '—'}</strong><small>${a.anterior && a.distanciaAnterior ? `Anterior: ${fmtDistanciaTotal(a.distanciaAnterior)} · ${diferencaAnalise(a.distancia, a.distanciaAnterior, fmtDistanciaTotal)}` : 'Sem comparação disponível'}</small></div>
+        <div><span>${etiquetaElevada}</span><strong>${fmtDuracaoTotal(a.elevada)}</strong><small>${a.anterior ? `Anterior: ${fmtDuracaoTotal(a.elevadaAnterior)}` : 'Primeira referência desta modalidade'}</small></div>
+      </div>
+      <div class="gcwo-training-analysis-messages">${mensagens.length ? mensagens.map(texto => `<div>${escHtml(texto)}</div>`).join('') : '<div class="ok">Não foram encontrados dados incompletos nem incompatibilidades automáticas.</div>'}</div>
+    </div>
+  </section>`;
+}
+
+function renderAnaliseSessaoCardioHtml(s) {
+  return `<div class="gcwo-training-analysis-actions"><button type="button" class="gcBtnPrimary" id="gcwoPAnalisarTreino">${s._analysisOpen ? 'Fechar validação' : 'Validar prescrição'}</button></div>${s._analysisOpen ? renderAnaliseSessaoCardioResultado(s) : ''}`;
+}
+
+function refreshAnaliseSessaoCardio(s) {
+  const host = document.getElementById('gcwoPAnaliseTreino');
+  if (!host) return;
+  host.innerHTML = renderAnaliseSessaoCardioHtml(s);
+  document.getElementById('gcwoPAnalisarTreino')?.addEventListener('click', () => {
+    s._analysisOpen = !s._analysisOpen;
+    refreshAnaliseSessaoCardio(s);
+  });
+}
 const CARDIO_ZONE_META = {
   Z1: { cor:'#aebdca', nome:'Recuperação' }, Z2: { cor:'#20a7db', nome:'Endurance' },
   Z3: { cor:'#35b978', nome:'Tempo' }, Z4: { cor:'#ffb20d', nome:'Limiar' },
@@ -3178,6 +3367,7 @@ function refreshZonaResumo(s) {
     overview.innerHTML = renderResumoVisualCardio(s);
     wireTimelineCardio(s);
   }
+  if (s._analysisOpen) refreshAnaliseSessaoCardio(s);
 }
 
 function renderIntensidadeCampos(intensity, mostrarZona, modality) {
@@ -3372,6 +3562,7 @@ function renderPanelCardio(s) {
     ${modalidadeTemZona(s.modality) ? renderPaletaCardio(s) : ''}
     ${modalidadeTemZona(s.modality) ? `<div id="gcwoPCardioOverview">${renderResumoVisualCardio(s)}</div>` : ''}
     ${modalidadeTemZona(s.modality) ? `<div id="gcwoPZonaResumo">${renderIndicadorZonaHtml(s)}</div>` : ''}
+    ${modalidadeTemZona(s.modality) ? `<div id="gcwoPAnaliseTreino">${renderAnaliseSessaoCardioHtml(s)}</div>` : ''}
     <div class="gcwo-exercicios" id="gcwoPBlocosList">${renderBlocosListInner(s)}</div>
   `;
 }
@@ -3605,6 +3796,7 @@ function wirePanelCardio(s) {
   wireBlocosList(s);
   wireTimelineCardio(s);
   refreshZonaResumo(s);
+  refreshAnaliseSessaoCardio(s);
 
   const piscina = document.getElementById('gcwoPPiscina');
   if (piscina) piscina.querySelectorAll('[data-pool]').forEach(btn => {
@@ -3877,7 +4069,7 @@ function flattenBlocosCircuitoParaGravar(blocks) {
         name: b.name,
         intervals: [{
           type: 'mobilizacao', label: b.name, duration_sec: b.duration_sec,
-          exercise_id: null, exercise_name: null, photo_url: null, video_url: null, tecnica_notas: null,
+          exercise_id: null, exercise_name: null, photo_url: null, video_url: null, tecnica_notas: null, tecnica_info: null,
           exercise_index: null, exercise_total: null, round_index: null, round_total: null,
         }],
       };
@@ -3892,14 +4084,14 @@ function flattenBlocosCircuitoParaGravar(blocks) {
         intervals.push({
           type: 'trabalho', label: ex.name, duration_sec: Math.round(segundos),
           exercise_id: ex.exercise_id, exercise_name: ex.name,
-          photo_url: catEx?.photo_url || null, video_url: catEx?.video_url || null, tecnica_notas: catEx?.tecnica_notas || null,
+          photo_url: catEx?.photo_url || null, video_url: catEx?.video_url || null, tecnica_notas: catEx?.tecnica_notas || null, tecnica_info: catEx?.tecnica_info || null,
           exercise_index: ei + 1, exercise_total: exs.length, round_index: r, round_total: R,
         });
         if (ex.rest_after_s) {
           intervals.push({
             type: 'descanso', label: ex.name, duration_sec: ex.rest_after_s,
             exercise_id: ex.exercise_id, exercise_name: ex.name,
-            photo_url: catEx?.photo_url || null, video_url: catEx?.video_url || null, tecnica_notas: catEx?.tecnica_notas || null,
+            photo_url: catEx?.photo_url || null, video_url: catEx?.video_url || null, tecnica_notas: catEx?.tecnica_notas || null, tecnica_info: catEx?.tecnica_info || null,
             exercise_index: ei + 1, exercise_total: exs.length, round_index: r, round_total: R,
           });
         }
@@ -3910,7 +4102,7 @@ function flattenBlocosCircuitoParaGravar(blocks) {
         intervals.push({
           type: 'descanso', label: proximo ? proximo.name : b.name, duration_sec: b.rest_between_rounds_s,
           exercise_id: proximo ? proximo.exercise_id : null, exercise_name: proximo ? proximo.name : null,
-          photo_url: catProx?.photo_url || null, video_url: catProx?.video_url || null, tecnica_notas: catProx?.tecnica_notas || null,
+          photo_url: catProx?.photo_url || null, video_url: catProx?.video_url || null, tecnica_notas: catProx?.tecnica_notas || null, tecnica_info: catProx?.tecnica_info || null,
           exercise_index: proximo ? 1 : null, exercise_total: exs.length || null, round_index: r + 1, round_total: R,
         });
       }
