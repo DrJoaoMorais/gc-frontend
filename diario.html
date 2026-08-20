@@ -89,19 +89,8 @@
   .day .lbl{font-size:10px;color:var(--muted);}
   .day.today .lbl{color:var(--navy);font-weight:600;}
 
-  .exo-chips{display:none;flex-wrap:wrap;gap:7px;margin-top:13px;padding-top:13px;border-top:1px solid var(--mist);}
-  .exo-chips.show{display:flex;}
-  .exo-form{display:none;gap:8px;margin-top:10px;align-items:center;}
-  .exo-form.show{display:flex;}
-  .exo-form input{width:80px;border:1px solid var(--mist);border-radius:10px;padding:9px 10px;font-family:'Outfit',sans-serif;font-size:14px;}
-  .exo-form input:focus{outline:none;border-color:var(--blue);}
-  .exo-form span{font-size:12.5px;color:var(--muted);}
-
   .divider{display:flex;align-items:center;gap:10px;margin:10px 0 2px;font-size:12px;color:var(--muted);}
   .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--mist);}
-  .tag-chip{display:none;align-items:center;gap:6px;background:var(--blue-soft);color:var(--blue);font-size:12.5px;font-weight:500;padding:6px 10px;border-radius:20px;width:fit-content;margin-bottom:8px;}
-  .tag-chip.show{display:inline-flex;}
-  .tag-chip button{border:none;background:none;color:var(--blue);cursor:pointer;font-size:13px;line-height:1;padding:0;}
 
   textarea{width:100%;min-height:90px;border:1px solid var(--mist);border-radius:14px;padding:13px;font-family:'Outfit',sans-serif;font-size:15px;line-height:1.5;color:var(--ink);resize:vertical;background:var(--paper);}
   textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,.13);}
@@ -134,6 +123,50 @@
   .empty{font-size:13px;color:var(--muted);padding:6px 0 0;}
   .note{margin-top:6px;padding:13px 15px;background:#fff;border:1px dashed var(--mist);border-radius:12px;font-size:12px;color:var(--muted);line-height:1.5;}
 
+  /* --- V2: cartões de ação grandes --- */
+  .action{display:flex;align-items:center;gap:14px;background:var(--paper);border:1px solid var(--mist);border-radius:16px;padding:17px 16px;cursor:pointer;text-align:left;width:100%;font-family:'Outfit',sans-serif;}
+  .action:active{transform:scale(.99);}
+  .action .icon{width:42px;height:42px;border-radius:11px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .action .icon svg{width:21px;height:21px;}
+  .action .txt strong{display:block;font-size:15.5px;font-weight:500;color:var(--ink);}
+  .action .txt span{font-size:12.5px;color:var(--muted);}
+  .divider-lbl{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 -2px;}
+  .today-card{background:var(--paper);border:1px solid var(--mist);border-radius:16px;padding:15px 16px;}
+  .today-row{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13.5px;}
+  .today-row:not(:last-child){border-bottom:1px solid var(--mist);}
+  .today-row .ok-dot{width:16px;height:16px;border-radius:50%;background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;}
+  .today-row .pending-dot{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--mist);flex-shrink:0;}
+  .today-row .muted{color:var(--muted);}
+  .tuck{display:flex;justify-content:center;margin-top:6px;}
+  .tuck button{background:none;border:none;color:var(--muted);font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+  .mini-form.show-toggle{display:none;margin-top:10px;padding-top:0;border-top:none;}
+  .mini-form.show-toggle.show{display:flex;}
+
+  /* --- V2: ecrãs dedicados --- */
+  .ecra{padding:0 0 40px;}
+  .back-head{display:flex;align-items:center;gap:12px;background:var(--paper);padding:20px 20px 16px;border-bottom:1px solid var(--mist);}
+  .back-btn{background:none;border:none;color:var(--blue);font-size:20px;cursor:pointer;padding:4px;line-height:1;}
+  .back-head h2{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:22px;margin:0;color:var(--navy);}
+  .ecra-body{padding:16px 18px 40px;display:flex;flex-direction:column;gap:2px;}
+  .qgroup{margin-bottom:18px;}
+  .qgroup .qlabel{font-size:13.5px;font-weight:500;color:var(--ink);margin:0 0 9px;}
+  .qgroup .qnum{color:var(--muted);font-weight:400;}
+  .qopt{color:var(--muted);font-weight:400;font-size:12px;}
+  .chiprow{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{padding:9px 14px;border-radius:20px;border:1px solid var(--mist);background:#fff;font-size:13px;color:var(--ink);cursor:pointer;font-family:'Outfit',sans-serif;}
+  .chip.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+  .sub-chiprow{display:none;margin-top:9px;padding-top:9px;border-top:1px dashed var(--mist);}
+  .sub-chiprow.show{display:flex;}
+  .time-row{display:flex;gap:12px;}
+  .time-field{flex:1;display:flex;flex-direction:column;gap:5px;}
+  .time-field span{font-size:11.5px;color:var(--muted);}
+  .time-field input{border:1px solid var(--mist);border-radius:10px;padding:9px 10px;font-family:'Outfit',sans-serif;font-size:14.5px;color:var(--ink);width:100%;}
+  .time-field input:focus{outline:none;border-color:var(--blue);}
+  .sono-calc{font-size:13px;color:var(--navy);font-weight:500;margin:9px 0 0;min-height:16px;}
+  .guardar{width:100%;margin-top:6px;padding:14px;border:none;border-radius:14px;background:var(--blue);color:#fff;font-size:15.5px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;}
+  .guardar:disabled{opacity:.55;cursor:default;}
+  #ecra-refeicao textarea, #ecra-refeicao .ecra-body > textarea{margin-bottom:2px;}
+
   .gate{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;gap:10px;}
   .gate h2{font-family:'Cormorant Garamond',serif;color:var(--navy);font-size:22px;margin:0;}
   .gate p{color:var(--muted);font-size:14px;max-width:280px;line-height:1.5;margin:0;}
@@ -157,74 +190,42 @@
 </div>
 
 <div class="phone" id="app" style="display:none;">
-  <header>
+  <header id="app-header">
     <div class="dots" id="dots"></div>
     <h1>Olá, <span id="saudacao-nome"></span></h1>
     <p class="sub" id="dia-sub"></p>
   </header>
 
-  <div class="safety">
+  <div class="safety" id="app-safety">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9L2.7 18a2 2 0 001.7 3h15.2a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
     <span>Isto não é para emergências. Em caso de urgência liga <strong>112</strong>.</span>
   </div>
 
-  <main>
-    <!-- PESO (opcional) -->
-    <div class="card tap-card" onclick="document.getElementById('peso-form').classList.toggle('show')">
-      <div class="card-head">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 4l1.5 4M16 4l-1.5 4" stroke-linecap="round"/></svg></div>
-        <h3>Peso</h3>
-        <span class="state" id="st-peso">—</span>
-      </div>
-      <div class="mini-form" id="peso-form" onclick="event.stopPropagation()">
-        <input type="number" step="0.1" id="peso-input" placeholder="ex: 88.7">
-        <button class="mini-btn" onclick="guardarPeso()">Guardar</button>
-      </div>
-    </div>
+  <main id="tela-home">
+    <!-- CARTÕES DE AÇÃO -->
+    <div class="divider-lbl">O que quer registar agora?</div>
 
-    <!-- REFEIÇÃO -->
-    <div class="card tap-card" onclick="abrirComposer('Refeição')">
-      <div class="card-head">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3v7a2 2 0 002 2v9M7 3v7M11 3v7M15 3c0 4-2 5-2 9v6"/></svg></div>
-        <h3>Refeição</h3>
-        <span class="state" id="st-refeicao">Ainda não</span>
-      </div>
-    </div>
+    <button class="action" onclick="abrirEcra('ecra-refeicao')">
+      <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3v7a2 2 0 002 2v9M7 3v7M11 3v7M15 3c0 4-2 5-2 9v6"/></svg></div>
+      <div class="txt"><strong>Refeição</strong><span id="st-refeicao">Ainda sem registo hoje</span></div>
+    </button>
 
-    <!-- EXERCÍCIO -->
-    <div class="card">
-      <div class="card-head">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></div>
-        <h3>Exercício</h3>
-        <span class="state" id="ex-count">2/7 dias</span>
-      </div>
-      <div class="week" id="week"></div>
-      <div style="display:flex;gap:16px;margin-top:12px;">
-        <button class="link" onclick="document.getElementById('exo-chips').classList.toggle('show')">+ registar hoje</button>
-        <button class="link" onclick="abrirComposer('Exercício')">+ descrever</button>
-      </div>
-      <div class="exo-chips" id="exo-chips">
-        <span class="lead">O quê?</span>
-        <div class="chip" data-tipo="Corrida">Corrida</div>
-        <div class="chip" data-tipo="Ginásio">Ginásio</div>
-        <div class="chip" data-tipo="Nadar">Nadar</div>
-        <div class="chip" data-tipo="Bicicleta">Bicicleta</div>
-        <div class="chip" data-tipo="Andar">Andar</div>
-        <div class="chip" data-tipo="Outro">Outro</div>
-      </div>
-      <div class="exo-form" id="exo-form">
-        <input type="number" id="exo-min" placeholder="40">
-        <span>minutos</span>
-        <button class="mini-btn" onclick="guardarExercicio()">Guardar</button>
-      </div>
-      <div class="scale-block">
-        <div class="scale-top"><span class="lbl">Dor</span><span class="val" id="dor-val">—</span></div>
-        <div class="bar" id="bar-dor"></div>
-        <button class="mini-btn" id="bar-dor-btn" style="display:none;margin-top:8px;width:100%;">Guardar</button>
-      </div>
-    </div>
+    <button class="action" onclick="abrirEcra('ecra-sono')">
+      <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg></div>
+      <div class="txt"><strong>Sono</strong><span id="st-sono">Ainda sem registo hoje</span></div>
+    </button>
 
-    <!-- MEDICAÇÃO (definida por ti; só aparece se configurada) -->
+    <button class="action" onclick="abrirEcra('ecra-movimento')">
+      <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></div>
+      <div class="txt"><strong>Movimento / Exercício</strong><span id="ex-count">2/7 dias</span></div>
+    </button>
+
+    <button class="action" onclick="abrirEcra('ecra-sentiu')">
+      <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2" stroke-linecap="round"/><circle cx="9" cy="10" r=".5" fill="currentColor"/><circle cx="15" cy="10" r=".5" fill="currentColor"/></svg></div>
+      <div class="txt"><strong>Como se sentiu</strong><span>Fome · energia</span></div>
+    </button>
+
+    <!-- MEDICAÇÃO (definida por ti; só aparece se configurada) — inalterado -->
     <div class="card" id="med-card" style="display:none;">
       <div class="med-row" id="med-display"></div>
       <div class="mini-form" id="med-dose-form">
@@ -241,34 +242,160 @@
       </div>
     </div>
 
-    <!-- COMO TE SENTES -->
-    <div class="card">
-      <div class="card-head">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2" stroke-linecap="round"/><circle cx="9" cy="10" r=".5" fill="currentColor"/><circle cx="15" cy="10" r=".5" fill="currentColor"/></svg></div>
-        <h3>Como te sentes?</h3>
-      </div>
-      <div class="scale-block"><div class="scale-top"><span class="lbl">Fome</span><span class="val" id="fome-val">—</span></div><div class="bar" id="bar-fome"></div></div>
-      <div class="scale-block"><div class="scale-top"><span class="lbl">Energia</span><span class="val" id="energia-val">—</span></div><div class="bar" id="bar-energia"></div></div>
-      <div class="scale-block"><div class="scale-top"><span class="lbl">Sono</span><span class="val" id="sono-val">—</span></div><div class="bar" id="bar-sono"></div></div>
-      <button class="mini-btn" id="sentes-btn" style="display:none;margin-top:12px;width:100%;">Guardar</button>
+    <!-- RESUMO "HOJE" -->
+    <div class="divider-lbl">Hoje</div>
+    <div class="today-card" id="hoje-resumo">
+      <div class="today-row" id="hoje-sono"><span class="pending-dot"></span> <span class="muted">Sono — sem registo</span></div>
+      <div class="today-row" id="hoje-refeicao"><span class="pending-dot"></span> <span class="muted">Refeição — sem registo</span></div>
+      <div class="today-row" id="hoje-movimento"><span class="pending-dot"></span> <span class="muted">Movimento — sem registo</span></div>
+      <div class="today-row" id="hoje-sentiu"><span class="pending-dot"></span> <span class="muted">Como se sentiu — sem registo</span></div>
     </div>
 
-    <div class="divider">ou escreve livremente</div>
+    <div class="tuck">
+      <button onclick="document.getElementById('nota-livre').classList.toggle('show')">+ outra nota</button>
+    </div>
 
-    <div class="tag-chip" id="tagChip"><span id="tagChipText"></span><button onclick="limparTag()">✕</button></div>
-    <textarea id="txt" placeholder="Alguma coisa que não encaixe nos cartões acima…"></textarea>
-    <div class="row"><button class="photo-btn" onclick="document.getElementById('cam').click()">📷 Foto</button></div>
-    <input type="file" id="cam" accept="image/*" capture="environment" multiple>
-    <div class="thumbs" id="thumbs"></div>
-    <button class="send" onclick="enviar()">Enviar nota</button>
-    <div class="toast" id="toast">Enviado ✓</div>
-    <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px;">Isto envia só o texto/foto acima. Os cartões lá em cima já ficaram guardados sozinhos.</p>
+    <div class="mini-form show-toggle" id="nota-livre">
+      <div style="display:flex;flex-direction:column;gap:10px;width:100%;">
+        <textarea id="txt" placeholder="Alguma coisa que não encaixe nos cartões acima…"></textarea>
+        <div class="row"><button class="photo-btn" onclick="document.getElementById('cam').click()">📷 Foto</button></div>
+        <input type="file" id="cam" accept="image/*" capture="environment" multiple>
+        <div class="thumbs" id="thumbs"></div>
+        <button class="send" onclick="enviar()">Enviar nota</button>
+        <div class="toast" id="toast">Enviado ✓</div>
+      </div>
+    </div>
 
     <div class="today-list">
       <h2>Histórico</h2>
       <div id="list"></div>
     </div>
+  </main>
 
+  <!-- ECRÃ REFEIÇÃO -->
+  <main id="ecra-refeicao" class="ecra" style="display:none;">
+    <div class="back-head"><button class="back-btn" onclick="fecharEcra()">←</button><h2>Refeição</h2></div>
+    <div class="ecra-body">
+      <div class="qgroup">
+        <p class="qlabel"><span class="qnum">1. </span>Qual foi?</p>
+        <div class="chiprow" data-single id="ref-tipo">
+          <div class="chip">Pequeno-almoço</div><div class="chip">Almoço</div><div class="chip">Jantar</div><div class="chip">Snack</div>
+        </div>
+      </div>
+      <div class="qgroup">
+        <p class="qlabel"><span class="qnum">2. </span>O que comeu ou bebeu?</p>
+        <textarea id="ref-texto" placeholder="Ex.: sopa, bife grelhado, arroz, salada e água"></textarea>
+      </div>
+      <div class="qgroup">
+        <p class="qlabel"><span class="qnum">3. </span>Como estava a fome antes?</p>
+        <div class="chiprow" data-single id="ref-fome">
+          <div class="chip">Pouca</div><div class="chip">Normal</div><div class="chip">Muita</div>
+        </div>
+      </div>
+      <div class="qgroup">
+        <p class="qlabel"><span class="qnum">4. </span>Mexeu-se depois?</p>
+        <div class="chiprow" data-single id="ref-mexeu">
+          <div class="chip">Não</div><div class="chip">~10 min</div><div class="chip">+10 min</div>
+        </div>
+      </div>
+      <div class="qgroup">
+        <p class="qlabel">Se não foi apenas fome ou hora habitual, aconteceu alguma coisa? <span class="qopt">(opcional)</span></p>
+        <div class="chiprow" data-single id="ref-motivo">
+          <div class="chip">Apetecia-me</div><div class="chip">Stress</div><div class="chip">Cansaço</div><div class="chip">Convívio</div><div class="chip">Outro</div>
+        </div>
+      </div>
+      <button class="guardar" id="ref-guardar-btn" onclick="guardarRefeicao()">Guardar</button>
+    </div>
+  </main>
+
+  <!-- ECRÃ SONO -->
+  <main id="ecra-sono" class="ecra" style="display:none;">
+    <div class="back-head"><button class="back-btn" onclick="fecharEcra()">←</button><h2>Sono</h2></div>
+    <div class="ecra-body">
+      <div class="qgroup">
+        <p class="qlabel"><span class="qnum">1. </span>A que horas se deitou e levantou?</p>
+        <div class="time-row">
+          <div class="time-field"><span>Deitou-se</span><input type="time" id="sono-deitar" onchange="calcularSono()"></div>
+          <div class="time-field"><span>Levantou-se</span><input type="time" id="sono-levantar" onchange="calcularSono()"></div>
+        </div>
+        <p class="sono-calc" id="sono-calc"></p>
+      </div>
+      <div class="qgroup">
+        <p class="qlabel"><span class="qnum">2. </span>Como foi a qualidade do sono?</p>
+        <div class="chiprow" data-single id="sono-qual">
+          <div class="chip">Muito má</div><div class="chip">Má</div><div class="chip">Razoável</div><div class="chip">Boa</div><div class="chip">Ótima</div>
+        </div>
+      </div>
+      <div class="qgroup">
+        <p class="qlabel"><span class="qnum">3. </span>Acordou durante a noite?</p>
+        <div class="chiprow" data-single id="sono-acordou">
+          <div class="chip">Não</div><div class="chip">1×</div><div class="chip">2×</div><div class="chip">3× ou +</div>
+        </div>
+      </div>
+      <div class="qgroup">
+        <p class="qlabel"><span class="qnum">4. </span>Sonolência durante o dia?</p>
+        <div class="chiprow" data-single id="sono-sonolencia">
+          <div class="chip">Não</div><div class="chip">Sim</div>
+        </div>
+      </div>
+      <button class="guardar" id="sono-guardar-btn" onclick="guardarSono()">Guardar</button>
+    </div>
+  </main>
+
+  <!-- ECRÃ MOVIMENTO / EXERCÍCIO -->
+  <main id="ecra-movimento" class="ecra" style="display:none;">
+    <div class="back-head"><button class="back-btn" onclick="fecharEcra()">←</button><h2>Movimento / Exercício</h2></div>
+    <div class="ecra-body">
+      <div class="week" id="week"></div>
+      <div class="qgroup" style="margin-top:16px;">
+        <p class="qlabel"><span class="qnum">1. </span>O que fez?</p>
+        <div class="chiprow" data-single id="mov-tipo">
+          <div class="chip">Corrida</div><div class="chip">Ginásio</div><div class="chip">Nadar</div><div class="chip">Bicicleta</div><div class="chip">Andar</div><div class="chip">Outro</div>
+        </div>
+      </div>
+      <div class="qgroup">
+        <p class="qlabel"><span class="qnum">2. </span>Quanto tempo?</p>
+        <div class="chiprow" data-single id="mov-tempo">
+          <div class="chip">&lt;10 min</div><div class="chip">10–20</div><div class="chip">20–30</div><div class="chip">30–45</div><div class="chip">&gt;45 min</div>
+        </div>
+      </div>
+      <div class="qgroup">
+        <p class="qlabel"><span class="qnum">3. </span>Dor durante ou depois?</p>
+        <div class="chiprow" data-single id="mov-dor">
+          <div class="chip">Nenhuma</div><div class="chip">Ligeira</div><div class="chip">Moderada</div><div class="chip">Forte</div>
+        </div>
+      </div>
+      <button class="guardar" id="mov-guardar-btn" onclick="guardarMovimento()">Guardar</button>
+    </div>
+  </main>
+
+  <!-- ECRÃ COMO SE SENTIU -->
+  <main id="ecra-sentiu" class="ecra" style="display:none;">
+    <div class="back-head"><button class="back-btn" onclick="fecharEcra()">←</button><h2>Como se sentiu</h2></div>
+    <div class="ecra-body">
+      <div class="qgroup">
+        <p class="qlabel"><span class="qnum">1. </span>Fome ao longo do dia</p>
+        <div class="chiprow" data-single id="sent-fome">
+          <div class="chip">Nenhuma</div><div class="chip">Pouca</div><div class="chip">Moderada</div><div class="chip">Bastante</div><div class="chip">Muita</div>
+        </div>
+      </div>
+      <div class="qgroup">
+        <p class="qlabel"><span class="qnum">2. </span>Energia</p>
+        <div class="chiprow" data-single id="sent-energia">
+          <div class="chip">Muito baixa</div><div class="chip">Baixa</div><div class="chip">Razoável</div><div class="chip">Boa</div><div class="chip">Muito boa</div>
+        </div>
+      </div>
+      <div class="qgroup">
+        <p class="qlabel"><span class="qnum">3. </span>Teve vontade de comer fora das refeições?</p>
+        <div class="chiprow" data-single id="sent-vontade">
+          <div class="chip">Não</div><div class="chip">Sim</div>
+        </div>
+        <div class="chiprow sub-chiprow" data-single id="sent-vontade-quando">
+          <div class="chip">Manhã</div><div class="chip">Tarde</div><div class="chip">Noite</div><div class="chip">Madrugada</div>
+        </div>
+      </div>
+      <button class="guardar" id="sent-guardar-btn" onclick="guardarComoSentiu()">Guardar</button>
+    </div>
   </main>
 </div>
 
@@ -422,78 +549,124 @@
     el.textContent = Math.min(atual+1,7) + '/7 dias';
   }
 
-  // escalas barra+etiqueta — toque escolhe; quem chama decide quando gravar e quando limpar
-  function montarEscala(barId, valId, labels, textoBase, aoTocar){
-    const bar = document.getElementById(barId);
-    let valorPendente = null;
-    for(let i=1;i<=5;i++){
-      const s = document.createElement('div');
-      s.className = 'seg';
-      s.onclick = () => {
-        [...bar.children].forEach((c,idx)=>c.classList.toggle('on', idx < i));
-        document.getElementById(valId).textContent = labels[i-1];
-        valorPendente = i;
-        aoTocar();
-      };
-      bar.appendChild(s);
-    }
-    return {
-      pendente: () => valorPendente,
-      texto: () => `${textoBase}: ${valorPendente}/5`,
-      limpar: () => {
-        valorPendente = null;
-        [...bar.children].forEach(c => c.classList.remove('on'));
-        document.getElementById(valId).textContent = '—';
-      }
-    };
+  // --- V2: navegação entre ecrãs ---
+  function abrirEcra(id){
+    document.getElementById('tela-home').style.display = 'none';
+    document.getElementById('app-header').style.display = 'none';
+    document.getElementById('app-safety').style.display = 'none';
+    document.getElementById(id).style.display = 'block';
+  }
+  function fecharEcra(){
+    document.querySelectorAll('.ecra').forEach(e => e.style.display = 'none');
+    document.getElementById('tela-home').style.display = 'flex';
+    document.getElementById('app-header').style.display = 'block';
+    document.getElementById('app-safety').style.display = 'flex';
   }
 
-  const sentesBtn = document.getElementById('sentes-btn');
-  const mostrarBotaoSentes = () => { sentesBtn.style.display = 'block'; };
-  const escalaFome = montarEscala('bar-fome','fome-val', ['Nenhuma','Pouca','Moderada','Bastante','Muita'], 'Fome', mostrarBotaoSentes);
-  const escalaEnergia = montarEscala('bar-energia','energia-val', ['Muito baixa','Baixa','Razoável','Boa','Muito boa'], 'Energia', mostrarBotaoSentes);
-  const escalaSono = montarEscala('bar-sono','sono-val', ['Muito mau','Mau','Razoável','Bom','Muito bom'], 'Sono', mostrarBotaoSentes);
-  sentesBtn.onclick = async () => {
-    sentesBtn.disabled = true;
-    try{
-      const escalas = [escalaFome, escalaEnergia, escalaSono].filter(e => e.pendente() !== null);
-      const resultados = await Promise.all(escalas.map(async e => {
-        const texto = e.texto();
-        const entryEl = registarEntradaDireta(texto);
-        const ok = await persistirEntrada(texto);
-        if(ok) e.limpar(); else entryEl.remove();
-        return ok;
-      }));
-      if(resultados.length && resultados.every(Boolean)) sentesBtn.style.display = 'none';
-      if(resultados.some(ok => !ok)) avisarFalha();
-    } finally {
-      sentesBtn.disabled = false;
-    }
-  };
-
-  const dorBtn = document.getElementById('bar-dor-btn');
-  const escalaDor = montarEscala('bar-dor','dor-val', ['Nenhuma','Ligeira','Moderada','Forte','Muito forte'], 'Dor no exercício', () => { dorBtn.style.display = 'block'; });
-  dorBtn.onclick = async () => {
-    if(escalaDor.pendente() !== null){
-      dorBtn.disabled = true;
-      try{
-        const texto = escalaDor.texto();
-        const entryEl = registarEntradaDireta(texto);
-        const ok = await persistirEntrada(texto);
-        if(ok){
-          escalaDor.limpar();
-          dorBtn.style.display = 'none';
-        } else {
-          entryEl.remove();
-          avisarFalha();
+  // --- V2: chips de seleção única (um grupo = uma escolha; toque de novo no mesmo desmarca) ---
+  document.querySelectorAll('.chiprow').forEach(row => {
+    row.querySelectorAll('.chip').forEach(chip => {
+      chip.onclick = () => {
+        const jaEstava = chip.classList.contains('on');
+        row.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+        if(!jaEstava) chip.classList.add('on');
+        if(row.id === 'sent-vontade'){
+          document.getElementById('sent-vontade-quando').classList.toggle('show', !jaEstava && chip.textContent === 'Sim');
         }
-      } finally {
-        dorBtn.disabled = false;
-      }
-    } else {
-      dorBtn.style.display = 'none';
-    }
-  };
+      };
+    });
+  });
+  function chipEscolhido(rowId){
+    return document.querySelector(`#${rowId} .chip.on`)?.textContent || null;
+  }
+
+  // --- V2: resumo "Hoje" (4 linhas, sem juízo de valor) ---
+  function marcarHoje(id, texto){
+    const el = document.getElementById(id);
+    el.querySelector('.pending-dot')?.replaceWith(Object.assign(document.createElement('span'), { className: 'ok-dot', textContent: '✓' }));
+    el.querySelector('.muted').textContent = texto;
+    el.querySelector('.muted').style.color = '';
+  }
+
+  // --- V2: Refeição ---
+  async function guardarRefeicao(){
+    const tipo = chipEscolhido('ref-tipo'), texto = document.getElementById('ref-texto').value.trim(),
+          fome = chipEscolhido('ref-fome'), mexeu = chipEscolhido('ref-mexeu'), motivo = chipEscolhido('ref-motivo');
+    if(!tipo || !texto || !fome || !mexeu){ avisarFalha('Falta responder a alguma pergunta acima.'); return; }
+    const btn = document.getElementById('ref-guardar-btn'); btn.disabled = true; btn.textContent = 'A guardar…';
+    let raw = `Refeição — ${tipo}: ${texto}. Fome antes: ${fome}. Mexeu-se depois: ${mexeu}.`;
+    if(motivo) raw += ` Motivo: ${motivo}.`;
+    const ok = await persistirEntrada(raw);
+    if(ok){
+      registarEntradaDireta(raw);
+      document.getElementById('st-refeicao').textContent = `${tipo} registada`;
+      document.getElementById('st-refeicao').style.color = 'var(--ok)';
+      marcarHoje('hoje-refeicao', `Refeição — ${tipo} registada`);
+      fecharEcra();
+    } else avisarFalha();
+    btn.disabled = false; btn.textContent = 'Guardar';
+  }
+
+  // --- V2: Sono ---
+  function calcularSono(){
+    const d = document.getElementById('sono-deitar').value, l = document.getElementById('sono-levantar').value;
+    const calcEl = document.getElementById('sono-calc');
+    if(!d || !l){ calcEl.textContent = ''; return; }
+    const [dh,dm] = d.split(':').map(Number), [lh,lm] = l.split(':').map(Number);
+    let minutos = (lh*60+lm) - (dh*60+dm);
+    if(minutos < 0) minutos += 24*60;
+    calcEl.textContent = `= ${Math.floor(minutos/60)}h${(minutos%60).toString().padStart(2,'0')} de sono`;
+  }
+  async function guardarSono(){
+    const d = document.getElementById('sono-deitar').value, l = document.getElementById('sono-levantar').value,
+          qual = chipEscolhido('sono-qual'), acordou = chipEscolhido('sono-acordou'), sonolencia = chipEscolhido('sono-sonolencia');
+    if(!d || !l || !qual || !acordou || !sonolencia){ avisarFalha('Falta responder a alguma pergunta acima.'); return; }
+    const btn = document.getElementById('sono-guardar-btn'); btn.disabled = true; btn.textContent = 'A guardar…';
+    const dur = document.getElementById('sono-calc').textContent.replace('= ','').replace(' de sono','');
+    const raw = `Sono — deitou-se ${d}, levantou-se ${l} (${dur}). Qualidade: ${qual}. Acordou durante a noite: ${acordou}. Sonolência diurna: ${sonolencia}.`;
+    const ok = await persistirEntrada(raw);
+    if(ok){
+      registarEntradaDireta(raw);
+      document.getElementById('st-sono').textContent = 'Registado';
+      document.getElementById('st-sono').style.color = 'var(--ok)';
+      marcarHoje('hoje-sono', `Sono — ${dur}`);
+      fecharEcra();
+    } else avisarFalha();
+    btn.disabled = false; btn.textContent = 'Guardar';
+  }
+
+  // --- V2: Movimento / Exercício (reaproveita montarSemana/marcarDiaExercicio já existentes) ---
+  async function guardarMovimento(){
+    const tipo = chipEscolhido('mov-tipo'), tempo = chipEscolhido('mov-tempo'), dor = chipEscolhido('mov-dor');
+    if(!tipo || !tempo || !dor){ avisarFalha('Falta responder a alguma pergunta acima.'); return; }
+    const btn = document.getElementById('mov-guardar-btn'); btn.disabled = true; btn.textContent = 'A guardar…';
+    const raw = `🏃 ${tipo} — ${tempo}. Dor: ${dor}.`;
+    const ok = await persistirEntrada(raw);
+    if(ok){
+      registarEntradaDireta(raw);
+      marcarDiaExercicio();
+      marcarHoje('hoje-movimento', `Movimento — ${tipo}`);
+      fecharEcra();
+    } else avisarFalha();
+    btn.disabled = false; btn.textContent = 'Guardar';
+  }
+
+  // --- V2: Como se sentiu ---
+  async function guardarComoSentiu(){
+    const fome = chipEscolhido('sent-fome'), energia = chipEscolhido('sent-energia'), vontade = chipEscolhido('sent-vontade');
+    if(!fome || !energia || !vontade){ avisarFalha('Falta responder a alguma pergunta acima.'); return; }
+    const quando = vontade === 'Sim' ? chipEscolhido('sent-vontade-quando') : null;
+    const btn = document.getElementById('sent-guardar-btn'); btn.disabled = true; btn.textContent = 'A guardar…';
+    let raw = `Como se sentiu — Fome: ${fome}. Energia: ${energia}. Vontade de comer fora das refeições: ${vontade}`;
+    raw += quando ? ` (${quando}).` : '.';
+    const ok = await persistirEntrada(raw);
+    if(ok){
+      registarEntradaDireta(raw);
+      marcarHoje('hoje-sentiu', 'Como se sentiu — registado');
+      fecharEcra();
+    } else avisarFalha();
+    btn.disabled = false; btn.textContent = 'Guardar';
+  }
 
   // validação do link + carregamento inicial
   async function init(){
@@ -534,19 +707,30 @@
         renderMed();
       }
 
-      const ultimoPeso = entradas.find(e => e.raw_text && e.raw_text.startsWith('⚖️ Peso:'));
-      document.getElementById('st-peso').innerHTML = ultimoPeso
-        ? ultimoPeso.raw_text.replace('⚖️ Peso: ', '')
-        : '—';
-
-      const ultimaRefeicao = entradas.find(e => e.raw_text && e.raw_text.startsWith('Refeição'));
+      // --- V2: repor estado dos 4 cartões a partir do histórico de hoje ---
       const hojeStr = new Date().toDateString();
-      if(ultimaRefeicao && new Date(ultimaRefeicao.entered_at).toDateString() === hojeStr){
-        document.getElementById('st-refeicao').outerHTML = '<span class="state" id="st-refeicao" style="color:var(--ok);font-weight:500;">Registado ✓</span>';
-      } else if(ultimaRefeicao){
-        const horas = Math.max(0, Math.round((new Date() - new Date(ultimaRefeicao.entered_at)) / 3600000));
-        document.getElementById('st-refeicao').textContent = `há ${horas}h`;
+      const deHoje = raw => e => e.raw_text && e.raw_text.startsWith(raw) && new Date(e.entered_at).toDateString() === hojeStr;
+
+      const refeicaoHoje = entradas.find(deHoje('Refeição'));
+      if(refeicaoHoje){
+        const tipo = refeicaoHoje.raw_text.split(' — ')[1]?.split(':')[0] || 'Refeição';
+        document.getElementById('st-refeicao').textContent = `${tipo} registada`;
+        document.getElementById('st-refeicao').style.color = 'var(--ok)';
+        marcarHoje('hoje-refeicao', `Refeição — ${tipo} registada`);
       }
+
+      const sonoHoje = entradas.find(deHoje('Sono'));
+      if(sonoHoje){
+        document.getElementById('st-sono').textContent = 'Registado';
+        document.getElementById('st-sono').style.color = 'var(--ok)';
+        marcarHoje('hoje-sono', 'Sono registado');
+      }
+
+      const movimentoHoje = entradas.find(deHoje('🏃'));
+      if(movimentoHoje) marcarHoje('hoje-movimento', 'Movimento registado');
+
+      const sentiuHoje = entradas.find(deHoje('Como se sentiu'));
+      if(sentiuHoje) marcarHoje('hoje-sentiu', 'Como se sentiu — registado');
 
       document.getElementById('gate-loading').style.display='none';
       document.getElementById('app').style.display='block';
@@ -559,22 +743,6 @@
   }
   init();
   document.getElementById('btnTentarNovamente')?.addEventListener('click', () => location.reload());
-
-  // peso
-  async function guardarPeso(){
-    const v = document.getElementById('peso-input').value;
-    if(!v) return;
-    const entryEl = registarEntradaDireta(`⚖️ Peso: ${v} kg`);
-    const ok = await persistirEntrada(`⚖️ Peso: ${v} kg`);
-    if(ok){
-      document.getElementById('st-peso').innerHTML = `${v} kg`;
-      document.getElementById('peso-input').value = '';
-      document.getElementById('peso-form').classList.remove('show');
-    } else {
-      entryEl.remove();
-      avisarFalha();
-    }
-  }
 
   // medicação (definida por ti ao gerar o link; o doente só confirma e reporta efeitos)
   let medState = null;
@@ -655,44 +823,9 @@
     };
   });
 
-  // exercício: chips de tipo + duração
-  let tipoExercicio = null;
-  document.querySelectorAll('#exo-chips .chip').forEach(chip => {
-    chip.onclick = () => {
-      document.querySelectorAll('#exo-chips .chip').forEach(c=>c.classList.remove('on'));
-      chip.classList.add('on');
-      tipoExercicio = chip.dataset.tipo;
-      document.getElementById('exo-form').classList.add('show');
-    };
-  });
-  async function guardarExercicio(){
-    const min = document.getElementById('exo-min').value || '?';
-    const texto = `🏃 ${tipoExercicio} — ${min} min`;
-    const entryEl = registarEntradaDireta(texto);
-    const ok = await persistirEntrada(texto);
-    if(ok){
-      marcarDiaExercicio();
-      document.getElementById('exo-chips').classList.remove('show');
-      document.getElementById('exo-form').classList.remove('show');
-      document.getElementById('exo-min').value = '';
-    } else {
-      entryEl.remove();
-      avisarFalha();
-    }
-  }
 
-  // composer livre
-  let tagAtiva = null;
-  function abrirComposer(tag){
-    tagAtiva = tag;
-    document.getElementById('tagChip').classList.add('show');
-    document.getElementById('tagChipText').textContent = (tag==='Refeição'?'🍽 ':'🏃 ') + tag;
-    document.getElementById('txt').focus();
-    document.getElementById('txt').scrollIntoView({behavior:'smooth', block:'center'});
-    if(tag==='Refeição') document.getElementById('st-refeicao').outerHTML = '<span class="state" id="st-refeicao" style="color:var(--ok);font-weight:500;">Registado ✓</span>';
-  }
-  function limparTag(){ tagAtiva = null; document.getElementById('tagChip').classList.remove('show'); }
 
+  // nota livre + foto (só para o que não encaixa nos 4 cartões)
   let fotos = [];
   document.getElementById('cam').addEventListener('change', e => {
     const thumbs = document.getElementById('thumbs'); thumbs.innerHTML = '';
@@ -708,8 +841,7 @@
     btn.disabled = true; btn.textContent = 'A enviar…';
 
     const fotosParaEnviar = fotos;
-    const prefixo = tagAtiva ? `${tagAtiva} — ` : '';
-    const textoFinal = prefixo + (txt.value ? txt.value.trim() : '(foto)');
+    const textoFinal = txt.value.trim() || '(foto)';
 
     const paths = fotosParaEnviar.length ? await uploadFotos(fotosParaEnviar) : [];
     const ok = await persistirEntrada(textoFinal, paths);
@@ -717,12 +849,12 @@
     if(ok){
       let fotosHtml = '';
       fotosParaEnviar.forEach(f => { fotosHtml += `<img src="${URL.createObjectURL(f)}">`; });
-      inserirEntradaHoje(`<div class="time">${horaAgora()}</div><div class="text"><strong>${prefixo}</strong>${txt.value ? txt.value.replace(/</g,'&lt;') : '<em>(sem texto)</em>'}${fotosHtml}</div>`);
+      inserirEntradaHoje(`<div class="time">${horaAgora()}</div><div class="text">${txt.value ? txt.value.replace(/</g,'&lt;') : '<em>(sem texto)</em>'}${fotosHtml}</div>`);
 
       txt.value = ''; fotos = [];
       document.getElementById('thumbs').innerHTML = '';
       document.getElementById('cam').value = '';
-      limparTag();
+      document.getElementById('nota-livre').classList.remove('show');
 
       const toast = document.getElementById('toast');
       toast.classList.add('show');
