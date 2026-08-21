@@ -143,6 +143,10 @@ export default {
         { id: 's6_limitacao_texto', tipo: 'escolha_unica', label: 'Se respondeu Sim, descreva brevemente.',
           opcoes: ['Não aplicável'],
           outro: true },
+        { id: 's6_transito', tipo: 'escolha_unica', label: 'Como descreveria o seu trânsito intestinal habitual?',
+          opcoes: ['Regular, sem queixas', 'Tendência para prisão de ventre', 'Tendência para diarreia', 'Alternância entre os dois'] },
+        { id: 's6_refluxo', tipo: 'escolha_unica', label: 'Com que frequência sente azia, refluxo ou queimadura no peito/garganta?',
+          opcoes: ['Nunca', 'Raramente', 'Algumas vezes por semana', 'Quase diariamente'] },
       ],
     },
 
