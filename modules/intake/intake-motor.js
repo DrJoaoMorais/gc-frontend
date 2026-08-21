@@ -196,6 +196,10 @@ function _render() {
     '<div class="progress-label">Secção ' + (_secaoIdx + 1) + ' de ' + total + ' <span class="chevron">▾</span></div>' +
     '</button></header>';
 
+  if (_secaoIdx === 0 && _cfg.intro) {
+    h += '<div class="questionario-intro">' + _cfg.intro.split('\n\n').map(function(p){ return '<p>' + p + '</p>'; }).join('') + '</div>';
+  }
+
   h += '<div class="secao-head"><div class="secao-kicker">SECÇÃO ' + (_secaoIdx + 1) + ' DE ' + total + '</div><h2>' + sec.titulo + '</h2></div>';
 
   h += '<div class="perguntas">';

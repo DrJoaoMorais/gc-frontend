@@ -4,6 +4,7 @@ export default {
   id: 'pre_consulta_v2',
   titulo: 'Questionário Pré-Consulta',
   subtitle: 'Avaliação inicial de saúde e estilo de vida',
+  intro: 'Reserve cerca de 10–15 minutos para responder.\n\nA maioria das perguntas é de resposta rápida. Responda de forma espontânea, de acordo com a sua situação habitual — não precisa de procurar informação nem de pensar demasiado em cada resposta.\n\nAs suas respostas vão ajudar-nos a aproveitar melhor o tempo da consulta e a preparar um plano mais adequado a si.\n\nNão existem respostas certas ou erradas. Se tiver dúvidas entre duas opções, escolha a que melhor representa a sua situação na maioria dos dias.',
 
   seccoes: [
     { id: 'objetivos_expectativas', titulo: 'Objetivos e Expectativas',
