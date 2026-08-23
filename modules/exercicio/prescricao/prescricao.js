@@ -4545,7 +4545,100 @@ function freshPatologia() {
     adicionadosCatalogo: [], // exercise_ids acrescentados por "+ Adicionar exercício" (para distinguir da lista do protocolo)
     catalogAberto: false, catalogFiltro: 'todos', catalogBusca: '', catalogEquip: new Set(),
     loading: false, erro: '',
+    // Particularidades cirúrgicas (adenda EX-07) — só estado local do fluxo, nunca gravado em
+    // protocol_phase_exercises/protocols_catalog/protocol_phases nem em nova tabela. Estrutura
+    // pensada para dar depois para condicionar exercícios/dose, mas essa lógica não existe ainda.
+    surgicalModifiers: {
+      subscapular: false,
+      extensiveOrRevision: false,
+      bicepsTenodesis: false,
+      bicepsTenotomy: false,
+      surgeonRestriction: false,
+      surgeonRestrictionText: '',
+    },
   };
+}
+
+// Particularidades cirúrgicas — só para "Sutura da coifa" (adenda EX-07). Comparação por
+// nome porque protocols_catalog não tem código/slug próprio; excepção deliberada e pedida ao
+// "nunca hardcode nomes de protocolo" do EX-07 base — não generalizar a outros protocolos.
+const PROTOCOLO_SUTURA_COIFA_NOME = 'Sutura da coifa';
+function protocoloActualEhSuturaDaCoifa() {
+  const p = _patologia.protocolos.find(x => x.id === _patologia.protocoloId);
+  return !!p && p.name === PROTOCOLO_SUTURA_COIFA_NOME;
+}
+
+const MODIFICADORES_CIRURGICOS = [
+  { key: 'subscapular', label: 'Subescapular reparado' },
+  { key: 'extensiveOrRevision', label: 'Rotura extensa/massiva ou revisão' },
+  { key: 'bicepsTenodesis', label: 'Tenodese da longa porção do bicípite' },
+  { key: 'bicepsTenotomy', label: 'Tenotomia da longa porção do bicípite' },
+  { key: 'surgeonRestriction', label: 'Restrição específica do cirurgião' },
+];
+// Mensagens curtas e prudentes, sem graus/semanas/cargas inventados — pedido explícito da
+// adenda. surgeonRestriction não tem entrada aqui: usa sempre o texto tal como escrito.
+const MODIFICADOR_CUIDADO_TEXTO = {
+  subscapular: 'Atenção à progressão da rotação externa e da rotação interna resistida. Respeitar os limites definidos pelo cirurgião.',
+  extensiveOrRevision: 'Progressão mais conservadora. Não progredir apenas com base no tempo pós-operatório.',
+  bicepsTenodesis: 'Considerar as restrições específicas da tenodese na progressão da carga sobre o bicípite. Respeitar as indicações do cirurgião.',
+  bicepsTenotomy: 'Procedimento associado registado. Não aplicar automaticamente as restrições de uma tenodese.',
+};
+
+// Só entram na lista os modificadores com conteúdo real a mostrar — "Restrição específica do
+// cirurgião" só conta quando há texto escrito (mostrar exactamente o texto, nunca uma linha
+// vazia); desmarcar uma opção fá-la desaparecer daqui de imediato (ponto 5 dos testes).
+function listaCuidadosEspecificosPatologia() {
+  const m = _patologia.surgicalModifiers;
+  const cuidados = [];
+  MODIFICADORES_CIRURGICOS.forEach(opt => {
+    if (!m[opt.key]) return;
+    if (opt.key === 'surgeonRestriction') {
+      const texto = (m.surgeonRestrictionText || '').trim();
+      if (texto) cuidados.push({ label: opt.label, texto });
+    } else {
+      cuidados.push({ label: opt.label, texto: MODIFICADOR_CUIDADO_TEXTO[opt.key] });
+    }
+  });
+  return cuidados;
+}
+
+function renderModificadoresCirurgicosPatologia() {
+  if (!protocoloActualEhSuturaDaCoifa()) return '';
+  const m = _patologia.surgicalModifiers;
+  return `
+    <div class="gcwo-field gcwo-pat-modificadores-field">
+      <span class="gcwo-field-label">Particularidades cirúrgicas</span>
+      <div class="gcwo-pat-modificadores-hint">Selecione apenas se aplicável</div>
+      <div class="gcwo-pat-modificadores-lista">
+        ${MODIFICADORES_CIRURGICOS.map(opt => `
+          <label class="gcwo-pat-modificador-item">
+            <input type="checkbox" data-pat-modificador="${escAttr(opt.key)}" ${m[opt.key] ? 'checked' : ''}>
+            <span>${escHtml(opt.label)}</span>
+          </label>`).join('')}
+      </div>
+      ${m.surgeonRestriction ? `
+      <label class="gcwo-field gcwo-field-sm gcwo-pat-restricao-texto">
+        <span>Indicações/restrições específicas</span>
+        <input type="text" id="gcwoPatRestricaoTexto" value="${escAttr(m.surgeonRestrictionText)}" placeholder="Ex.: sem rotação interna resistida até à 10ª semana">
+      </label>` : ''}
+    </div>`;
+}
+
+function renderCuidadosEspecificosPatologia() {
+  const cuidados = listaCuidadosEspecificosPatologia();
+  if (!cuidados.length) return '';
+  return `
+    <div class="gcwo-pat-cuidados">
+      <span class="gcwo-field-label">Cuidados específicos</span>
+      <ul>${cuidados.map(c => `<li><b>${escHtml(c.label)}:</b> ${escHtml(c.texto)}</li>`).join('')}</ul>
+    </div>`;
+}
+// Actualiza só o bloco "Cuidados específicos" a cada tecla no campo de texto da restrição do
+// cirurgião — mesmo princípio dos campos numéricos do editor de dose: nunca volta a desenhar
+// o ecrã todo, senão o campo de texto perdia o foco a meio de escrever.
+function refreshCuidadosEspecificosPatologia() {
+  const wrap = document.getElementById('gcwoPatCuidadosWrap');
+  if (wrap) wrap.innerHTML = renderCuidadosEspecificosPatologia();
 }
 
 // Semanas decorridas desde a cirurgia (0 no próprio dia) — só orientação visual, nunca decide
@@ -4588,6 +4681,7 @@ async function carregarFasesPatologia(protocolId) {
   _patologia.exercicios = [];
   _patologia.selecionados = new Map();
   _patologia.adicionadosCatalogo = [];
+  _patologia.surgicalModifiers = freshPatologia().surgicalModifiers; // troca de protocolo — particularidades são só do protocolo anterior
   _patologia.loading = true; _patologia.erro = ''; renderPatologiaBody();
 
   const { data, error } = await window.sb
@@ -4788,6 +4882,7 @@ function renderPatologiaBody() {
   host.innerHTML = `
     ${_patologia.erro ? `<div class="gcwo-pat-erro">${escHtml(_patologia.erro)}</div>` : ''}
     ${renderSeletorProtocoloPatologia()}
+    ${_patologia.protocoloId ? renderModificadoresCirurgicosPatologia() : ''}
     ${_patologia.protocoloId ? renderFasesPatologia() : ''}
     ${_patologia.faseId ? renderFaseDetalheEExerciciosPatologia() : ''}
     ${renderCatalogoPatologiaOverlay()}
@@ -4876,6 +4971,7 @@ function renderFaseDetalheEExerciciosPatologia() {
   return `
     <div class="gcwo-pat-fase-detalhe">
       <h3 class="gcwo-pat-fase-titulo">${escHtml(fase.phase_order)}. ${escHtml(fase.name)}</h3>
+      <div id="gcwoPatCuidadosWrap">${renderCuidadosEspecificosPatologia()}</div>
       ${d.nota_ancora ? `<p class="gcwo-pat-nota">${escHtml(d.nota_ancora)}</p>` : ''}
       ${semConteudoClinico ? `<div class="gcwo-pat-vazio">Conteúdo clínico ainda não definido.</div>` : `
         ${temCriterios ? `<div class="gcwo-pat-criterios"><span class="gcwo-field-label">Critérios</span><ul>${d.objetivos_serie.map(c => `<li>${escHtml(c.texto || '')}${(c.op && c.valor != null) ? ` ${escHtml(c.op)} ${escHtml(c.valor)}${escHtml(c.unidade || '')}` : ''}${c.nota ? ` <small>(${escHtml(c.nota)})</small>` : ''}</li>`).join('')}</ul></div>` : ''}
@@ -4998,6 +5094,7 @@ function wirePatologiaBody() {
     if (_patologia.regiao === r) return;
     _patologia.regiao = r; _patologia.tipo = null; _patologia.protocoloId = null; _patologia.faseId = null;
     _patologia.fases = []; _patologia.exercicios = []; _patologia.selecionados = new Map(); _patologia.adicionadosCatalogo = [];
+    _patologia.surgicalModifiers = freshPatologia().surgicalModifiers;
     renderPatologiaBody();
   }));
   host.querySelectorAll('[data-pat-tipo]').forEach(btn => btn.addEventListener('click', () => {
@@ -5005,6 +5102,7 @@ function wirePatologiaBody() {
     if (_patologia.tipo === t) return;
     _patologia.tipo = t; _patologia.protocoloId = null; _patologia.faseId = null;
     _patologia.fases = []; _patologia.exercicios = []; _patologia.selecionados = new Map(); _patologia.adicionadosCatalogo = [];
+    _patologia.surgicalModifiers = freshPatologia().surgicalModifiers;
     renderPatologiaBody();
   }));
   host.querySelectorAll('[data-pat-protocolo]').forEach(btn => btn.addEventListener('click', () => {
@@ -5017,6 +5115,20 @@ function wirePatologiaBody() {
     if (_patologia.faseId === id) return;
     carregarExerciciosFasePatologia(id);
   }));
+  host.querySelectorAll('[data-pat-modificador]').forEach(chk => chk.addEventListener('change', () => {
+    const key = chk.getAttribute('data-pat-modificador');
+    _patologia.surgicalModifiers[key] = chk.checked;
+    // Desmarcar "Restrição específica do cirurgião" limpa o texto — não fica um cuidado
+    // "fantasma" sem checkbox nenhuma a explicá-lo.
+    if (key === 'surgeonRestriction' && !chk.checked) _patologia.surgicalModifiers.surgeonRestrictionText = '';
+    renderPatologiaBody();
+  }));
+  document.getElementById('gcwoPatRestricaoTexto')?.addEventListener('input', (e) => {
+    _patologia.surgicalModifiers.surgeonRestrictionText = e.target.value;
+    // O bloco "Cuidados específicos" só depende do fase seleccionada, que não se altera aqui —
+    // actualiza-se só o texto no estado; refreshCuidadosEspecificosPatologia evita perder o foco do campo.
+    refreshCuidadosEspecificosPatologia();
+  });
   document.getElementById('gcwoPatDataCirurgia')?.addEventListener('change', (e) => {
     _patologia.dataCirurgia = e.target.value || '';
     renderPatologiaBody();

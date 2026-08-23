@@ -1129,6 +1129,21 @@
 .gcwo-pat-footer-resumo { font-size:12.5px; color:#64748b; }
 
 .gcwo-pat-catalog-modal { max-width:920px; max-height:86vh; }
+
+/* ── Particularidades cirúrgicas — só "Sutura da coifa" (adenda EX-07) ── */
+.gcwo-pat-modificadores-field { max-width:520px; margin-bottom:22px; border:1px solid #e2e8f0; border-radius:13px; background:#fbfcfe; padding:14px 16px; }
+.gcwo-pat-modificadores-hint { font-size:11.5px; color:#94a3b8; margin:-2px 0 10px; }
+.gcwo-pat-modificadores-lista { display:flex; flex-direction:column; gap:9px; }
+.gcwo-pat-modificador-item { display:flex; align-items:flex-start; gap:9px; font-size:13px; color:#0f172a; cursor:pointer; }
+.gcwo-pat-modificador-item input { width:16px; height:16px; margin-top:1px; flex-shrink:0; cursor:pointer; accent-color:#1a56db; }
+.gcwo-pat-restricao-texto { margin:12px 0 0; }
+.gcwo-pat-restricao-texto input { width:100%; border:1.5px solid #cfd9e7; border-radius:9px; padding:8px 10px; font:inherit; font-size:13px; color:#0f172a; }
+
+.gcwo-pat-cuidados { margin:0 0 14px; border:1px solid #fde68a; background:#fffbeb; border-radius:11px; padding:11px 14px; }
+.gcwo-pat-cuidados .gcwo-field-label { color:#92400e; }
+.gcwo-pat-cuidados ul { margin:0; padding-left:18px; font-size:12.5px; color:#78350f; line-height:1.55; }
+.gcwo-pat-cuidados li b { color:#92400e; }
+
 @media (max-width:640px) {
   .gcwo-pat-fase-grid { grid-template-columns:1fr; }
   .gcwo-pat-footer { flex-direction:column; align-items:stretch; }
