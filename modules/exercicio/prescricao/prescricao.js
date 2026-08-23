@@ -2545,9 +2545,9 @@ function renderItemCard(it, index) {
           <label class="gcwo-field gcwo-field-sm"><span>Descanso entre séries (s)</span><input type="number" min="0" class="gcwo-it-restset" value="${it.rest_set ?? ''}"></label>
           <label class="gcwo-field gcwo-field-sm"><span>Antes do próximo (s)</span><input type="number" min="0" class="gcwo-it-restnext" value="${it.rest_next ?? ''}"></label>
           <label class="gcwo-field gcwo-field-sm"><span>Incremento (kg)</span><input type="number" min="0" step="0.5" class="gcwo-it-incremento" value="${it.incremento ?? ''}"></label>
-          <label class="gcwo-field gcwo-field-sm"><span>Descer (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-tempoexc" value="${it.tempo_excentrico_s ?? ''}"></label>
+          <label class="gcwo-field gcwo-field-sm"><span>Excêntrico (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-tempoexc" value="${it.tempo_excentrico_s ?? ''}"></label>
           <label class="gcwo-field gcwo-field-sm"><span>Pausa em baixo (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-pausainf" value="${it.pausa_inferior_s ?? 0}"></label>
-          <label class="gcwo-field gcwo-field-sm"><span>Subir (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-tempocon" value="${it.tempo_concentrico_s ?? ''}"></label>
+          <label class="gcwo-field gcwo-field-sm"><span>Concêntrico (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-tempocon" value="${it.tempo_concentrico_s ?? ''}"></label>
           <label class="gcwo-field gcwo-field-sm"><span>Pausa em cima (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-pausasup" value="${it.pausa_superior_s ?? 0}"></label>
         </div>
       </details>
