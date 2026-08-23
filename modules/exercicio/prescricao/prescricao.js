@@ -4663,7 +4663,7 @@ async function carregarProtocolosCatalogo() {
   _patologia.loading = true; _patologia.erro = ''; renderPatologiaBody();
   const { data, error } = await window.sb
     .from('protocols_catalog')
-    .select('id,region,name,kind,sort_order')
+    .select('id,region,name,kind,sort_order,data')
     .eq('is_active', true)
     .order('region').order('sort_order').order('name');
   _patologia.loading = false;
