@@ -270,8 +270,20 @@ const CATALOG_FILTROS = [
   { value: 'Core', label: 'Core' },
   { value: 'Membro Superior', label: 'Membro Superior' },
 ];
-// Mesmos valores de wo_exercises.equipamento (catalogo.js, EQUIPAMENTO_OPCOES) — tem de bater certo com o que lá é gravado.
-const EQUIPAMENTO_FILTROS = ['Máquina', 'TRX', 'Elásticos', 'Halteres', 'Peso Corporal'];
+// Taxonomia visual dos filtros de equipamento (decisão de produto, 23 ago 2026) — fechada
+// nestes 6 chips; "Outros" nunca é gravado em wo_exercises.equipamento, é só uma agregação
+// da UI. Um acessório novo mantém o seu valor técnico real na BD e cai em "Outros" por
+// omissão — só ganha chip próprio com decisão explícita (ver EQUIPAMENTO_OUTROS_VALORES).
+// "Polia" fica de fora de "Máquina": tem significado funcional próprio no treino-frontend
+// (ver itemUsaMaquina) — misturar os dois mudaria o que o doente vê lá, por isso "Máquina"
+// só encontra exercícios tecnicamente equipamento="Máquina".
+const EQUIPAMENTO_FILTROS = ['Máquina', 'TRX', 'Elásticos', 'Halteres', 'Peso Corporal', 'Outros'];
+const EQUIPAMENTO_OUTROS_VALORES = ['Bastão', 'Bola', 'Polia'];
+function exercicioBateFiltroEquipamento(ex, filtroSet) {
+  if (!filtroSet.size) return true;
+  const equipamento = Array.isArray(ex.equipamento) ? ex.equipamento : [];
+  return equipamento.some(eq => filtroSet.has(eq) || (filtroSet.has('Outros') && EQUIPAMENTO_OUTROS_VALORES.includes(eq)));
+}
 
 function fmtNum(n) {
   if (n == null) return '';
@@ -2370,7 +2382,7 @@ function filteredCatalogForPanel() {
   let list = _state.exercisesCatalog;
   if (_panelCatalogFiltro === 'favoritos') list = list.filter(e => e.is_favorite);
   else if (_panelCatalogFiltro !== 'todos') list = list.filter(e => Array.isArray(e.categoria) && e.categoria.includes(_panelCatalogFiltro));
-  if (_panelEquipFiltro.size) list = list.filter(e => Array.isArray(e.equipamento) && e.equipamento.some(eq => _panelEquipFiltro.has(eq)));
+  list = list.filter(e => exercicioBateFiltroEquipamento(e, _panelEquipFiltro));
   if (busca) list = list.filter(e => (e.name || '').toLowerCase().includes(busca));
   return list;
 }
@@ -5090,7 +5102,7 @@ function filteredCatalogoPatologia() {
   let list = _state.exercisesCatalog;
   if (_patologia.catalogFiltro === 'favoritos') list = list.filter(e => e.is_favorite);
   else if (_patologia.catalogFiltro !== 'todos') list = list.filter(e => Array.isArray(e.categoria) && e.categoria.includes(_patologia.catalogFiltro));
-  if (_patologia.catalogEquip.size) list = list.filter(e => Array.isArray(e.equipamento) && e.equipamento.some(eq => _patologia.catalogEquip.has(eq)));
+  list = list.filter(e => exercicioBateFiltroEquipamento(e, _patologia.catalogEquip));
   if (busca) list = list.filter(e => (e.name || '').toLowerCase().includes(busca));
   return list;
 }
