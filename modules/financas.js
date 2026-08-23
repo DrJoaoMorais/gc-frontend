@@ -729,6 +729,239 @@ function computeClinicMetrics(entId, entidades, registosFiltrados) {
   return { porTipo, totalEnt, regs };
 }
 
+/* ============================================================
+   FASE 2A — Panorama Geral (novo, coexiste com a vista clássica)
+   ------------------------------------------------------------
+   Não substitui renderFinancas()/render() — é chamado a partir de lá
+   quando vistaGeral==="novo". Reutiliza computeClinicMetrics (FB.11),
+   resolveFaturado/classificarAto/buildClinicPricesByProc (Fase 0) e o
+   entidadesExternasHTML já calculado por render() (Avenças/Presenças
+   externas, sem alteração nenhuma). Não toca em PDFs, na BD nem na
+   agenda — só lê dados já carregados e devolve HTML.
+   ============================================================ */
+
+const PG_CLINIC_CORES = ["#185FA5","#0F6E56","#854F0B","#534AB7","#993C1D","#27500A"];
+const PG_ATOS_CONSULTA = new Set(["Primeira Consulta", "Reavaliação", "Teleconsulta"]);
+
+function pgEur(v) {
+  return Number(v || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
+}
+
+/* ---- calcula Faturado/Honorário/Resultado de uma clínica a partir dos
+   registos já agregados por computeClinicMetrics — sem tocar em
+   registos_financeiros.valor (honorário, sempre o valor persistido) ---- */
+function pgFinancaClinica(entidade, regs, entidades, clinicPricesByProc) {
+  let fat = 0, hon = 0, semPreco = 0;
+  regs.forEach(r => {
+    if (!contaParaTotal(r.appt_status, r.financial_status)) return;
+    const entR = entidades.find(x => x.id === r.entidade_id) || entidade;
+    const rf = resolveFaturado(r, entR, clinicPricesByProc);
+    hon += rf.honorario;
+    if (rf.valor == null) semPreco += 1;
+    else fat += rf.valor;
+  });
+  return { fat, hon, resultado: fat - hon, semPreco };
+}
+
+/* ---- separa Consultas vs Procedimentos (PRP/Visco/Outros) para a faixa
+   "Produção" do cartão — usa classificarAto (Fase 0) ---- */
+function pgProducaoMini(entidade, regs, entidades, clinicPricesByProc) {
+  const cons = { n: 0, fat: 0 };
+  const proc = { n: 0, fat: 0, items: [] };
+  const porAto = {};
+  regs.forEach(r => {
+    if (!contaParaTotal(r.appt_status, r.financial_status)) return;
+    if (r.tipo_acto === "Avença mensal") return;
+    const entR = entidades.find(x => x.id === r.entidade_id) || entidade;
+    const rf = resolveFaturado(r, entR, clinicPricesByProc);
+    const val = rf.valor ?? 0;
+    const cat = classificarAto(r.tipo_acto);
+    if (PG_ATOS_CONSULTA.has(cat)) { cons.n += 1; cons.fat += val; }
+    else {
+      proc.n += 1; proc.fat += val;
+      porAto[cat] = (porAto[cat] || 0) + 1;
+    }
+  });
+  proc.items = Object.entries(porAto).map(([k, n]) => `${k} ×${n}`);
+  return { cons, proc };
+}
+
+function pgCardHTML(e, idx, ctx) {
+  const { entidades, registosFiltrados, clinicPricesByClinicId } = ctx;
+  const { regs, porTipo } = computeClinicMetrics(e.id, entidades, registosFiltrados);
+  const cp = e.clinic_id ? clinicPricesByClinicId[e.clinic_id] : null;
+  const { fat, hon, resultado, semPreco } = pgFinancaClinica(e, regs, entidades, cp);
+  const done  = Object.values(porTipo).reduce((s, v) => s + v.done, 0);
+  const falta = Object.values(porTipo).reduce((s, v) => s + v.falta, 0);
+  const disp  = Object.values(porTipo).reduce((s, v) => s + v.disp, 0);
+  const isEmpty = done === 0 && falta === 0 && disp === 0;
+  const cor = PG_CLINIC_CORES[idx % PG_CLINIC_CORES.length];
+  const ABREV_CARTAO = { "Liga dos Amigos do Hospital de Santarém": "Liga AH Santarém" };
+  const nomeCli = ABREV_CARTAO[e.nome] || e.nome;
+
+  let corpo;
+  if (isEmpty) {
+    corpo = `<div class="pg-empty">Sem registos neste período.</div>`;
+  } else {
+    const { cons, proc } = pgProducaoMini(e, regs, entidades, cp);
+    corpo = `
+        <div class="pg-metric-row">
+          <div class="pg-metric"><div class="l">Faturado</div><div class="v fat">${pgEur(fat)}${semPreco > 0 ? " *" : ""}</div></div>
+          <div class="pg-metric"><div class="l">Honorário</div><div class="v hon">${pgEur(hon)}</div></div>
+          <div class="pg-metric"><div class="l">Resultado</div><div class="v res">${pgEur(resultado)}</div></div>
+        </div>
+        <div class="pg-count-row">
+          <span class="pg-pill pg-pill-d">${done} realizadas</span>
+          ${falta > 0 ? `<span class="pg-pill pg-pill-f">${falta} falta${falta !== 1 ? "s" : ""}</span>` : ""}
+          ${disp > 0 ? `<span class="pg-pill pg-pill-disp">${disp} dispensa${disp !== 1 ? "s" : ""}</span>` : ""}
+        </div>
+        <div class="pg-prod-mini">
+          <div><div class="l">Consultas</div><div class="v">${cons.n} · ${pgEur(cons.fat)}</div></div>
+          <div><div class="l">Procedimentos</div><div class="v">${proc.n} · ${pgEur(proc.fat)}</div>${proc.items.length ? `<div style="font-size:9.5px;color:#94a3b8;margin-top:2px;">${escapeHtml(proc.items.join(", "))}</div>` : ""}</div>
+        </div>
+        ${semPreco > 0 ? `<div style="padding:0 14px 8px;font-size:10px;color:#94a3b8;">* ${semPreco} acto(s) sem preço actual definido</div>` : ""}`;
+  }
+
+  return `
+      <div class="pg-card" data-entid="${e.id}" style="--pg-c:${cor};">
+        <div class="pg-card-head">
+          <div><div class="pg-card-name">${escapeHtml(nomeCli)}</div><div class="pg-card-meta">${done} consulta(s) realizada(s)</div></div>
+        </div>
+        ${corpo}
+        <div class="pg-actions">
+          <button class="pg-btn-detail" data-entid="${e.id}">Ver detalhe</button>
+          ${e.gera_pdf_consulta ? `<button class="pg-btn-pdf pgBtnPdfCli" data-entid="${e.id}">PDF contabilista</button>` : ""}
+        </div>
+      </div>`;
+}
+
+function buildPanoramaGeralHTML(ctx) {
+  const {
+    entidades, registosFiltrados, entClinicasTodas, clinicPricesByClinicId,
+    mes, ano, modoAtivo, navLabel, periodoIni, periodoFim, entidadesExternasHTML,
+  } = ctx;
+
+  /* Totais do ribbon = soma dos cartões visíveis (números sempre batem certo) */
+  let fatTotal = 0, honTotal = 0, consultasTotal = 0, faltasTotal = 0, dispensasTotal = 0, semPrecoTotal = 0;
+  entClinicasTodas.forEach(e => {
+    const { regs, porTipo } = computeClinicMetrics(e.id, entidades, registosFiltrados);
+    const cp = e.clinic_id ? clinicPricesByClinicId[e.clinic_id] : null;
+    const f = pgFinancaClinica(e, regs, entidades, cp);
+    fatTotal += f.fat; honTotal += f.hon; semPrecoTotal += f.semPreco;
+    consultasTotal += Object.values(porTipo).reduce((s, v) => s + v.done, 0);
+    faltasTotal    += Object.values(porTipo).reduce((s, v) => s + v.falta, 0);
+    dispensasTotal += Object.values(porTipo).reduce((s, v) => s + v.disp, 0);
+  });
+  const resultadoTotal = fatTotal - honTotal;
+
+  const periodBarHTML = `
+    ${modoAtivo !== "intervalo" ? `<div style="display:flex;align-items:center;border:0.5px solid #cbd5e1;border-radius:8px;background:#fff;">
+      <button id="finNavPrev" aria-label="Anterior" style="border:none;background:none;padding:6px 11px;cursor:pointer;color:#0f2d52;font-size:18px;line-height:1;">‹</button>
+      ${modoAtivo === "dia"
+        ? `<input type="date" id="finDiaPick" value="${periodoIni}" style="border:none;outline:none;background:none;font-size:13px;font-weight:600;color:#0f2d52;font-family:inherit;text-align:center;width:150px;cursor:pointer;">`
+        : `<span style="font-size:13px;font-weight:600;color:#0f2d52;min-width:118px;text-align:center;text-transform:capitalize;">${navLabel}</span>`}
+      <button id="finNavNext" aria-label="Seguinte" style="border:none;background:none;padding:6px 11px;cursor:pointer;color:#0f2d52;font-size:18px;line-height:1;">›</button>
+    </div>` : ""}
+    <button id="finHoje" style="border:0.5px solid #e2e8f0;background:#fff;font-size:12px;padding:6px 13px;border-radius:8px;color:#0f2d52;cursor:pointer;font-family:inherit;font-weight:600;">Hoje</button>
+    <div style="display:flex;background:#f1f5f9;border-radius:8px;padding:3px;gap:2px;">
+      <button data-modo="dia" class="finPreset" style="border:none;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:inherit;${modoAtivo === "dia" ? "background:#0f2d52;color:#fff;" : "background:none;color:#64748b;"}">Dia</button>
+      <button data-modo="semana" class="finPreset" style="border:none;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:inherit;${modoAtivo === "semana" ? "background:#0f2d52;color:#fff;" : "background:none;color:#64748b;"}">Semana</button>
+      <button data-modo="mes" class="finPreset" style="border:none;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:inherit;${modoAtivo === "mes" ? "background:#0f2d52;color:#fff;" : "background:none;color:#64748b;"}">Mês</button>
+      <button data-modo="intervalo" class="finPreset" style="border:none;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:inherit;${modoAtivo === "intervalo" ? "background:#0f2d52;color:#fff;" : "background:none;color:#64748b;"}">Intervalo</button>
+    </div>
+    ${modoAtivo === "intervalo" ? `<div style="display:flex;align-items:center;gap:4px;background:#fff;border:0.5px solid #e2e8f0;border-radius:8px;padding:4px 10px;">
+      <span style="font-size:11px;color:#94a3b8;white-space:nowrap;">De</span>
+      <input id="finPeriodoIni" type="date" value="${periodoIni}" style="border:none;outline:none;font-size:12px;color:#0f172a;font-family:inherit;width:120px;" />
+      <span style="font-size:11px;color:#94a3b8;white-space:nowrap;">Até</span>
+      <input id="finPeriodoFim" type="date" value="${periodoFim}" style="border:none;outline:none;font-size:12px;color:#0f172a;font-family:inherit;width:120px;" />
+    </div>` : ""}`;
+
+  return `
+<style>
+.pg-shadow{box-shadow:0 1px 2px rgba(15,45,82,.04), 0 8px 24px -12px rgba(15,45,82,.18);}
+.pg-kpi-ribbon{display:grid;grid-template-columns:repeat(7,minmax(148px,1fr));gap:10px;margin-bottom:20px;overflow-x:auto;padding-bottom:2px;}
+.pg-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 15px;min-width:0;box-shadow:0 1px 2px rgba(15,45,82,.04), 0 8px 24px -12px rgba(15,45,82,.18);}
+.pg-kpi .l{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pg-kpi .v{font-size:21px;font-weight:800;letter-spacing:-.01em;}
+.pg-kpi .v.fat{color:#0f2d52;} .pg-kpi .v.hon{color:#0f6e56;} .pg-kpi .v.res{color:#534ab7;} .pg-kpi .v.bad{color:#DC2626;} .pg-kpi .v.warn{color:#D97706;}
+.pg-kpi.placeholder{opacity:.6;border-style:dashed;box-shadow:none;}
+.pg-kpi.placeholder .v{font-size:13px;color:#94a3b8;font-weight:700;}
+.pg-kpi-note{font-size:9.5px;color:#cbd5e1;margin-top:5px;}
+.pg-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+@media(max-width:1100px){.pg-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:720px){.pg-grid{grid-template-columns:1fr;}}
+.pg-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;border-left:4px solid var(--pg-c,#0f2d52);box-shadow:0 1px 2px rgba(15,45,82,.04), 0 8px 24px -12px rgba(15,45,82,.18);transition:transform .12s ease;}
+.pg-card:hover{transform:translateY(-1px);}
+.pg-card-head{padding:14px 16px 10px;}
+.pg-card-name{font-size:14px;font-weight:800;color:#0f172a;letter-spacing:-.005em;}
+.pg-card-meta{font-size:11px;color:#94a3b8;margin-top:2px;font-weight:600;}
+.pg-metric-row{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:2px 16px 12px;}
+.pg-metric .l{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;margin-bottom:3px;}
+.pg-metric .v{font-size:16px;font-weight:800;}
+.pg-metric .v.fat{color:#0f2d52;} .pg-metric .v.hon{color:#0f6e56;} .pg-metric .v.res{color:#534ab7;}
+.pg-count-row{display:flex;gap:6px;padding:0 16px 12px;flex-wrap:wrap;}
+.pg-pill{display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;}
+.pg-pill-d{background:#d1fae5;color:#065f46;}
+.pg-pill-f{background:#fee2e2;color:#991b1b;}
+.pg-pill-disp{background:#fef3c7;color:#92400e;}
+.pg-prod-mini{display:grid;grid-template-columns:1fr 1fr;margin:0 16px 12px;background:#f8fafc;border:0.5px solid #eef2f7;border-radius:9px;overflow:hidden;}
+.pg-prod-mini > div{padding:8px 12px;}
+.pg-prod-mini > div + div{border-left:0.5px solid #e2e8f0;}
+.pg-prod-mini .l{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:#94a3b8;margin-bottom:2px;}
+.pg-prod-mini .v{font-size:12.5px;font-weight:800;color:#0f172a;}
+.pg-actions{display:flex;gap:8px;padding:12px 16px;border-top:0.5px solid #f1f5f9;background:#f8fafc;}
+.pg-actions button{flex:1;font-family:inherit;font-size:12px;font-weight:700;border-radius:8px;padding:8px 10px;cursor:pointer;}
+.pg-btn-detail{background:#0f2d52;color:#fff;border:1px solid #0f2d52;}
+.pg-btn-detail:hover{opacity:.92;}
+.pg-btn-pdf{background:#fff;color:#0f2d52;border:1px solid #e2e8f0;}
+.pg-btn-pdf:hover{background:#f8fafc;}
+.pg-empty{padding:18px 16px;font-size:12px;color:#94a3b8;}
+.pg-layout{display:block;}
+.pg-side-wrap{margin-top:20px;}
+@media(min-width:1101px){
+  .pg-layout{display:flex;gap:18px;align-items:flex-start;}
+  .pg-main{flex:0 0 62%;min-width:0;}
+  .pg-side{flex:1 1 38%;min-width:0;}
+  .pg-side .pg-side-wrap{margin-top:0;}
+  .pg-main .pg-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+</style>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
+  <div>
+    <div style="font-size:20px;font-weight:800;color:#0f2d52;">Panorama Geral</div>
+    <div style="font-size:12px;color:#94a3b8;margin-top:3px;">${mesLabel(ano, mes)} · Dr. João Morais</div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${periodBarHTML}</div>
+</div>
+
+<div class="pg-kpi-ribbon">
+  <div class="pg-kpi"><div class="l">Valor faturado</div><div class="v fat">${pgEur(fatTotal)}</div><div class="pg-kpi-note">preçário actual</div></div>
+  <div class="pg-kpi"><div class="l">Honorário médico</div><div class="v hon">${pgEur(honTotal)}</div></div>
+  <div class="pg-kpi"><div class="l">Resultado</div><div class="v res">${pgEur(resultadoTotal)}</div><div class="pg-kpi-note">preçário actual</div></div>
+  <div class="pg-kpi"><div class="l">Consultas</div><div class="v">${consultasTotal}</div></div>
+  <div class="pg-kpi"><div class="l">Faltas</div><div class="v bad">${faltasTotal}</div></div>
+  <div class="pg-kpi"><div class="l">Dispensas</div><div class="v warn">${dispensasTotal}</div></div>
+  <div class="pg-kpi placeholder"><div class="l">Pedidos online</div><div class="v">— em breve</div></div>
+</div>
+${semPrecoTotal > 0 ? `<div style="font-size:11px;color:#94a3b8;margin:-12px 0 16px;">* ${semPrecoTotal} acto(s) no total sem preço actual definido em clinic_prices — não entram no Faturado/Resultado.</div>` : ""}
+
+<div class="pg-layout">
+  <div class="pg-main">
+    <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-weight:500;margin-bottom:10px;">Clínicas</div>
+    <div class="pg-grid">
+      ${entClinicasTodas.map((e, idx) => pgCardHTML(e, idx, { entidades, registosFiltrados, clinicPricesByClinicId })).join("")}
+    </div>
+  </div>
+  <div class="pg-side">
+    <div class="pg-side-wrap">
+      ${entidadesExternasHTML || `<div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-weight:500;margin-bottom:10px;">Entidades externas</div><div class="pg-empty">Sem entidades externas.</div>`}
+    </div>
+  </div>
+</div>
+`;
+}
+
 /* ==== FC — Render principal ==== */
 
 /* ---- FC.1 — renderFinancas ---- */
@@ -745,6 +978,13 @@ export async function renderFinancas() {
   let clinicaFiltro = ""; // "" = todas
   let periodoIni    = ""; // data livre de/até
   let periodoFim    = "";
+  /* FASE 2A — Panorama Geral, coexiste com a vista clássica (não a substitui). */
+  /* FASE 2A.1 — toggle temporariamente escondido durante o alinhamento
+     visual do Panorama Geral (pedido explícito); a vista clássica continua
+     100% intacta no código, só não está acessível pela UI neste momento.
+     Reverter para "classico" (e voltar a mostrar o toggle) faz parte da
+     Fase 2B. */
+  let vistaGeral    = "novo"; // classico | novo
 
   async function render() {
     let entidades = [], registos = [], presencas = [];
@@ -761,6 +1001,24 @@ export async function renderFinancas() {
       console.error("renderFinancas load falhou:", e);
       content.innerHTML = `<div style="color:#b00020;padding:20px;">Erro ao carregar. Vê a consola.</div>`;
       return;
+    }
+
+    /* FASE 2A — clinic_prices só é preciso para o Panorama Geral (Faturado/
+       Resultado). Só carrega quando essa vista está activa, para não pesar
+       a vista clássica. Um pedido por clínica com entidade tipo 'acto'. */
+    let clinicPricesByClinicId = {};
+    if (vistaGeral === "novo") {
+      const clinicIdsAto = [...new Set(
+        entidades.filter(e => e.clinic_id && e.tipo === "acto").map(e => e.clinic_id)
+      )];
+      try {
+        const pares = await Promise.all(
+          clinicIdsAto.map(async id => [id, buildClinicPricesByProc(await loadClinicPrices(id))])
+        );
+        clinicPricesByClinicId = Object.fromEntries(pares);
+      } catch (e) {
+        console.error("Panorama Geral: falha a carregar clinic_prices:", e);
+      }
     }
 
     /* ── Filtro por clínica ── */
@@ -848,6 +1106,100 @@ export async function renderFinancas() {
       return presencas.filter(p => p.entidade_id === entId);
     }
 
+    /* FASE 2A — extraído para reutilizar tal-qual na vista clássica E no
+       Panorama Geral (mesma expressão, computada uma vez por render()). */
+    const entidadesExternasHTML = (avencas.length > 0 || entExternas.length > 0) ? `
+  <div class="fin-ext-wrap">
+    <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-weight:500;margin-bottom:10px;">Entidades externas</div>
+
+    <!-- ── G1: Fixo mensal (HBA) ── -->
+    ${avencas.length > 0 ? `
+    <div style="font-size:10px;color:#26215C;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0 0 5px 2px;">Fixo mensal</div>
+    <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:14px;">
+      ${avencas.map(e => {
+        const reg = registosFiltrados.find(r => r.entidade_id === e.id && r.tipo_acto === "Avença mensal" && r.appt_status === "done");
+        const fs  = reg?.financial_status || "normal";
+        const btnRecibo = fs === "normal"
+          ? `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="recibo" style="flex:1;font-size:11px;">Recibo enviado</button>`
+          : `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="recibo" style="flex:1;font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Recibo enviado</button>`;
+        const btnPago = fs === "pago"
+          ? `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="pago" style="flex:1;font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Pago</button>`
+          : `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="pago" style="flex:1;font-size:11px;">Pagamento recebido</button>`;
+        return `<div style="padding:10px 14px;border-bottom:0.5px solid #f1f5f9;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;">
+            <span style="font-size:13px;font-weight:500;color:#0f172a;">${escapeHtml(e.nome)} <span style="font-size:10px;background:#CECBF6;color:#26215C;padding:2px 7px;border-radius:8px;">mensal fixo</span></span>
+            <span style="font-size:13px;font-weight:700;color:#0f2d52;">${Number(e.avenca_valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span>
+          </div>
+          <div style="font-size:10px;color:#94a3b8;margin-top:1px;">${Number(e.avenca_valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}/mês</div>
+          <div style="display:flex;gap:6px;margin-top:8px;">${btnRecibo}${btnPago}</div>
+        </div>`;
+      }).join("")}
+    </div>
+    ` : ""}
+
+    <!-- ── G2: Por dia de consultas (sempre visíveis) ── -->
+    ${entFixasDia.length > 0 ? `
+    <div style="font-size:10px;color:#854F0B;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0 0 5px 2px;">Por dia de consultas</div>
+    <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:14px;">
+      ${entFixasDia.map(e => {
+        const ps  = presencasPorEntidade(e.id).slice().sort((a,b) => (a.data_inicio < b.data_inicio ? -1 : 1));
+        const tot = ps.reduce((s,p) => s + Number(p.valor_calculado||0), 0);
+        return `<div style="padding:9px 14px;border-bottom:0.5px solid #f1f5f9;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:13px;font-weight:600;color:#0f172a;">${escapeHtml(e.nome)}</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              ${tot > 0
+                ? `<span style="font-size:13px;font-weight:700;color:#0f2d52;">${tot.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span>`
+                : `<span style="font-size:11px;color:#cbd5e1;">sem dias este mês</span>`}
+              <button class="gc-btn-sm btnFinNovaPresenca" data-entid="${e.id}" data-nome="${escapeHtml(e.nome)}" data-tipo="${e.tipo}" style="font-size:11px;padding:3px 10px;border-color:#1a56db;background:#1a56db;color:#fff;">+ dia</button>
+            </div>
+          </div>
+          ${ps.map(p => {
+            const dI = new Date(p.data_inicio+"T00:00:00").toLocaleDateString("pt-PT");
+            return `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:4px 10px;background:#f8fafc;border-radius:6px;">
+              <span style="font-size:11px;color:#64748b;">${dI}${p.descricao ? " · "+escapeHtml(p.descricao) : ""}</span>
+              <span style="font-size:11px;color:#64748b;display:flex;gap:8px;align-items:center;"><b style="color:#0f2d52;">${Number(p.valor_calculado||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</b><button class="btnFinEditPresenca" data-pid="${p.id}" style="border:none;background:none;color:#1a56db;cursor:pointer;font-size:11px;padding:0;">editar</button></span>
+            </div>`;
+          }).join("")}
+          ${e.usa_subsistemas ? `<div style="border-top:0.5px solid #f1f5f9;padding:7px 10px;display:flex;align-items:center;justify-content:space-between;margin-top:4px;"><span style="font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:4px;"><i class="ti ti-layout-list" style="font-size:13px;" aria-hidden="true"></i> Preços por subsistema</span><button class="gc-btn-sm btnFinConfigSubsistemas" data-entid="${e.id}" data-nome="${escapeHtml(e.nome)}" style="font-size:11px;padding:3px 8px;">⚙ Configurar</button></div>` : ""}
+        </div>`;
+      }).join("")}
+    </div>
+    ` : ""}
+
+    <!-- ── G3: Quando requisitado (FPF, Católica) ── -->
+    ${entManuais.length > 0 ? `
+    <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0 0 5px 2px;">Quando requisitado</div>
+    <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <div style="display:flex;gap:6px;padding:9px 14px;border-bottom:0.5px solid #f1f5f9;flex-wrap:wrap;">
+        ${entManuais.map(e => `<button class="gc-btn-sm btnFinNovaPresenca" data-entid="${e.id}" data-nome="${escapeHtml(e.nome)}" data-tipo="${e.tipo}" style="font-size:11px;">+ ${escapeHtml(e.nome.split(" ")[0])}</button>`).join("")}
+      </div>
+      ${(() => {
+        const todas = entManuais.flatMap(e => presencasPorEntidade(e.id).map(p => ({ e, p })));
+        if (todas.length === 0) return `<div style="padding:16px;text-align:center;color:#cbd5e1;font-size:12px;">Sem registos este mês.</div>`;
+        return todas.map(({ e, p }) => {
+          const dI = new Date(p.data_inicio+"T00:00:00").toLocaleDateString("pt-PT");
+          const dF = p.data_inicio !== p.data_fim ? new Date(p.data_fim+"T00:00:00").toLocaleDateString("pt-PT") : null;
+          const fs = p.financial_status || "normal";
+          return `<div style="padding:9px 14px;border-bottom:0.5px solid #f1f5f9;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;">
+              <span style="font-size:13px;font-weight:600;color:#0f172a;">${escapeHtml(e.nome)}${p.descricao ? " — "+escapeHtml(p.descricao) : ""}</span>
+              <span style="font-size:13px;font-weight:700;color:#0f2d52;">${Number(p.valor_calculado||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span>
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:1px;">${dI}${dF ? " → "+dF : ""}${p.num_dias > 1 ? " · "+p.num_dias+" dias" : ""}</div>
+            <div style="display:flex;gap:6px;margin-top:8px;">
+              <button class="gc-btn-sm btnPresEstado" data-pid="${p.id}" data-fs="${fs}" style="flex:1;font-size:11px;${fs !== "normal" ? "border-color:#9FE1CB;background:#E1F5EE;color:#085041;" : ""}">${fs !== "normal" ? "✓ Recibo enviado" : "Recibo enviado"}</button>
+              <button class="gc-btn-sm btnPresEstado2" data-pid="${p.id}" data-fs="${fs}" style="flex:1;font-size:11px;${fs === "pago" ? "border-color:#9FE1CB;background:#E1F5EE;color:#085041;" : ""}">${fs === "pago" ? "✓ Pago" : "Pagamento recebido"}</button>
+              <button class="gc-btn-sm btnFinEditPresenca" data-pid="${p.id}" style="font-size:11px;">Editar</button>
+            </div>
+          </div>`;
+        }).join("");
+      })()}
+    </div>
+    ` : ""}
+  </div>
+  ` : "";
+
     /* ============================================================
        HTML
     ============================================================ */
@@ -864,7 +1216,10 @@ export async function renderFinancas() {
     else if (modoAtivo === "dia") navLabel = new Date(periodoIni + "T00:00:00").toLocaleDateString("pt-PT", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
     else if (modoAtivo === "semana") navLabel = semanaInfo(periodoIni).label;
     else if (modoAtivo === "ano") navLabel = periodoIni.slice(0, 4);
-    content.innerHTML = `
+    /* FASE 2A: o template gigante abaixo (idêntico ao de sempre) passa a
+       ficar guardado numa variável em vez de ir directo para content.innerHTML,
+       para poder coexistir com o Panorama Geral — ver despacho no fim. */
+    const classicoHTML = `
 <style>
 .fin-mc{background:#f8fafc;border-radius:10px;padding:14px 16px}
 .fin-mc-l{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;font-weight:500}
@@ -1068,98 +1423,7 @@ ${pendVencidos.length > 0 ? `
   </div><!-- /fin-cli-main -->
   <div class="fin-cli-side">
 
-  <!-- ════ ENTIDADES EXTERNAS (não uso o GC) ════ -->
-  ${(avencas.length > 0 || entExternas.length > 0) ? `
-  <div class="fin-ext-wrap">
-    <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-weight:500;margin-bottom:10px;">Entidades externas</div>
-
-    <!-- ── G1: Fixo mensal (HBA) ── -->
-    ${avencas.length > 0 ? `
-    <div style="font-size:10px;color:#26215C;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0 0 5px 2px;">Fixo mensal</div>
-    <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:14px;">
-      ${avencas.map(e => {
-        const reg = registosFiltrados.find(r => r.entidade_id === e.id && r.tipo_acto === "Avença mensal" && r.appt_status === "done");
-        const fs  = reg?.financial_status || "normal";
-        const btnRecibo = fs === "normal"
-          ? `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="recibo" style="flex:1;font-size:11px;">Recibo enviado</button>`
-          : `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="recibo" style="flex:1;font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Recibo enviado</button>`;
-        const btnPago = fs === "pago"
-          ? `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="pago" style="flex:1;font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Pago</button>`
-          : `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="pago" style="flex:1;font-size:11px;">Pagamento recebido</button>`;
-        return `<div style="padding:10px 14px;border-bottom:0.5px solid #f1f5f9;">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;">
-            <span style="font-size:13px;font-weight:500;color:#0f172a;">${escapeHtml(e.nome)} <span style="font-size:10px;background:#CECBF6;color:#26215C;padding:2px 7px;border-radius:8px;">mensal fixo</span></span>
-            <span style="font-size:13px;font-weight:700;color:#0f2d52;">${Number(e.avenca_valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span>
-          </div>
-          <div style="font-size:10px;color:#94a3b8;margin-top:1px;">${Number(e.avenca_valor||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}/mês</div>
-          <div style="display:flex;gap:6px;margin-top:8px;">${btnRecibo}${btnPago}</div>
-        </div>`;
-      }).join("")}
-    </div>
-    ` : ""}
-
-    <!-- ── G2: Por dia de consultas (sempre visíveis) ── -->
-    ${entFixasDia.length > 0 ? `
-    <div style="font-size:10px;color:#854F0B;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0 0 5px 2px;">Por dia de consultas</div>
-    <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:14px;">
-      ${entFixasDia.map(e => {
-        const ps  = presencasPorEntidade(e.id).slice().sort((a,b) => (a.data_inicio < b.data_inicio ? -1 : 1));
-        const tot = ps.reduce((s,p) => s + Number(p.valor_calculado||0), 0);
-        return `<div style="padding:9px 14px;border-bottom:0.5px solid #f1f5f9;">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:13px;font-weight:600;color:#0f172a;">${escapeHtml(e.nome)}</span>
-            <div style="display:flex;align-items:center;gap:8px;">
-              ${tot > 0
-                ? `<span style="font-size:13px;font-weight:700;color:#0f2d52;">${tot.toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span>`
-                : `<span style="font-size:11px;color:#cbd5e1;">sem dias este mês</span>`}
-              <button class="gc-btn-sm btnFinNovaPresenca" data-entid="${e.id}" data-nome="${escapeHtml(e.nome)}" data-tipo="${e.tipo}" style="font-size:11px;padding:3px 10px;border-color:#1a56db;background:#1a56db;color:#fff;">+ dia</button>
-            </div>
-          </div>
-          ${ps.map(p => {
-            const dI = new Date(p.data_inicio+"T00:00:00").toLocaleDateString("pt-PT");
-            return `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:4px 10px;background:#f8fafc;border-radius:6px;">
-              <span style="font-size:11px;color:#64748b;">${dI}${p.descricao ? " · "+escapeHtml(p.descricao) : ""}</span>
-              <span style="font-size:11px;color:#64748b;display:flex;gap:8px;align-items:center;"><b style="color:#0f2d52;">${Number(p.valor_calculado||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</b><button class="btnFinEditPresenca" data-pid="${p.id}" style="border:none;background:none;color:#1a56db;cursor:pointer;font-size:11px;padding:0;">editar</button></span>
-            </div>`;
-          }).join("")}
-          ${e.usa_subsistemas ? `<div style="border-top:0.5px solid #f1f5f9;padding:7px 10px;display:flex;align-items:center;justify-content:space-between;margin-top:4px;"><span style="font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:4px;"><i class="ti ti-layout-list" style="font-size:13px;" aria-hidden="true"></i> Preços por subsistema</span><button class="gc-btn-sm btnFinConfigSubsistemas" data-entid="${e.id}" data-nome="${escapeHtml(e.nome)}" style="font-size:11px;padding:3px 8px;">⚙ Configurar</button></div>` : ""}
-        </div>`;
-      }).join("")}
-    </div>
-    ` : ""}
-
-    <!-- ── G3: Quando requisitado (FPF, Católica) ── -->
-    ${entManuais.length > 0 ? `
-    <div style="font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0 0 5px 2px;">Quando requisitado</div>
-    <div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-      <div style="display:flex;gap:6px;padding:9px 14px;border-bottom:0.5px solid #f1f5f9;flex-wrap:wrap;">
-        ${entManuais.map(e => `<button class="gc-btn-sm btnFinNovaPresenca" data-entid="${e.id}" data-nome="${escapeHtml(e.nome)}" data-tipo="${e.tipo}" style="font-size:11px;">+ ${escapeHtml(e.nome.split(" ")[0])}</button>`).join("")}
-      </div>
-      ${(() => {
-        const todas = entManuais.flatMap(e => presencasPorEntidade(e.id).map(p => ({ e, p })));
-        if (todas.length === 0) return `<div style="padding:16px;text-align:center;color:#cbd5e1;font-size:12px;">Sem registos este mês.</div>`;
-        return todas.map(({ e, p }) => {
-          const dI = new Date(p.data_inicio+"T00:00:00").toLocaleDateString("pt-PT");
-          const dF = p.data_inicio !== p.data_fim ? new Date(p.data_fim+"T00:00:00").toLocaleDateString("pt-PT") : null;
-          const fs = p.financial_status || "normal";
-          return `<div style="padding:9px 14px;border-bottom:0.5px solid #f1f5f9;">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;">
-              <span style="font-size:13px;font-weight:600;color:#0f172a;">${escapeHtml(e.nome)}${p.descricao ? " — "+escapeHtml(p.descricao) : ""}</span>
-              <span style="font-size:13px;font-weight:700;color:#0f2d52;">${Number(p.valor_calculado||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}</span>
-            </div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:1px;">${dI}${dF ? " → "+dF : ""}${p.num_dias > 1 ? " · "+p.num_dias+" dias" : ""}</div>
-            <div style="display:flex;gap:6px;margin-top:8px;">
-              <button class="gc-btn-sm btnPresEstado" data-pid="${p.id}" data-fs="${fs}" style="flex:1;font-size:11px;${fs !== "normal" ? "border-color:#9FE1CB;background:#E1F5EE;color:#085041;" : ""}">${fs !== "normal" ? "✓ Recibo enviado" : "Recibo enviado"}</button>
-              <button class="gc-btn-sm btnPresEstado2" data-pid="${p.id}" data-fs="${fs}" style="flex:1;font-size:11px;${fs === "pago" ? "border-color:#9FE1CB;background:#E1F5EE;color:#085041;" : ""}">${fs === "pago" ? "✓ Pago" : "Pagamento recebido"}</button>
-              <button class="gc-btn-sm btnFinEditPresenca" data-pid="${p.id}" style="font-size:11px;">Editar</button>
-            </div>
-          </div>`;
-        }).join("");
-      })()}
-    </div>
-    ` : ""}
-  </div>
-  ` : ""}
+  ${entidadesExternasHTML}
   </div><!-- /fin-cli-side -->
   </div><!-- /fin-cli-layout -->
 </div>
@@ -1317,7 +1581,58 @@ ${pendVencidos.length > 0 ? `
 </div>
     `;
 
+    /* FASE 2A — despacho: Panorama Geral (novo) só é construído quando
+       activo, para não gastar trabalho à toa na vista clássica (default). */
+    const panoramaGeralHTML = vistaGeral === "novo"
+      ? buildPanoramaGeralHTML({
+          entidades, registosFiltrados: registos, entClinicasTodas, clinicPricesByClinicId,
+          mes, ano, modoAtivo, navLabel, periodoIni, periodoFim, entidadesExternasHTML,
+        })
+      : "";
+
+    /* FASE 2A.1 — barra de alternância construída mas NÃO incluída no
+       content.innerHTML por agora (pedido explícito, "remover
+       temporariamente o toggle"). Fica pronta para a Fase 2B. */
+    const vistaToggleHTML = `
+<div style="display:flex;gap:6px;margin-bottom:14px;">
+  <button id="btnVistaClassico" style="font-family:inherit;font-size:12px;font-weight:600;padding:6px 14px;border-radius:8px;border:0.5px solid #e2e8f0;cursor:pointer;${vistaGeral === "classico" ? "background:#0f2d52;color:#fff;border-color:#0f2d52;" : "background:#fff;color:#0f2d52;"}">Clássico</button>
+  <button id="btnVistaNovo" style="font-family:inherit;font-size:12px;font-weight:600;padding:6px 14px;border-radius:8px;border:0.5px solid #e2e8f0;cursor:pointer;${vistaGeral === "novo" ? "background:#0f2d52;color:#fff;border-color:#0f2d52;" : "background:#fff;color:#0f2d52;"}">Panorama Geral (novo)</button>
+</div>`;
+    void vistaToggleHTML; // silencia "unused" — propositadamente não usado nesta fase
+
+    content.innerHTML = vistaGeral === "novo" ? panoramaGeralHTML : classicoHTML;
+
     /* ══════ WIRING ══════ */
+
+    /* FASE 2A — alternância Clássico / Panorama Geral (novo) */
+    document.getElementById("btnVistaClassico")?.addEventListener("click", () => {
+      vistaGeral = "classico";
+      render();
+    });
+    document.getElementById("btnVistaNovo")?.addEventListener("click", () => {
+      vistaGeral = "novo";
+      clinicaFiltro = "";
+      if (modoAtivo === "ano") { periodoIni = ""; periodoFim = ""; }
+      render();
+    });
+
+    /* FASE 2A — cartões do Panorama Geral: "Ver detalhe" preparado, sem
+       implementação completa ainda (Fase 2B) — e "PDF contabilista",
+       que reutiliza a mesma função de sempre, sem alterações. */
+    content.querySelectorAll(".pg-btn-detail").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const entId = btn.dataset.entid;
+        const ent = entidades.find(x => x.id === entId);
+        console.log("[Panorama Geral] Ver detalhe (Fase 2B, ainda por implementar) →", ent?.nome || entId);
+      });
+    });
+    content.querySelectorAll(".pgBtnPdfCli").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const entId   = btn.dataset.entid;
+        const regsEnt = registos.filter(r => r.entidade_id === entId);
+        openModalPdfAthletix(regsEnt, mes, ano);
+      });
+    });
 
     /* Tabs de mês */
     /* Navegador de mês (setas) */
