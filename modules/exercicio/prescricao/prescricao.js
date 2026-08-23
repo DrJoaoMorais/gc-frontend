@@ -2408,10 +2408,19 @@ function itemRepsMode(it) {
 }
 
 // Variante "por duração" (decisão de 8 de agosto de 2026, briefing secção 3): um item de
-// ginásio tem `duration_sec` OU sets/reps/carga/incremento/rest_set, nunca os dois. `rest_next`
-// aplica-se sempre, independentemente do modo.
+// ginásio tem `duration_sec` OU sets/reps/incremento/rest_set, nunca os dois. `rest_next`
+// aplica-se sempre, independentemente do modo. Excepção (decisão de 23 de agosto de 2026):
+// `load` deixa de ser sempre nulo em modo duração quando o exercício usa equipamento
+// externo — ver itemUsaEquipamentoExterno.
 function itemDuracaoMode(it) {
   return it.duration_sec != null || (Array.isArray(it.duration_series) && it.duration_series.length) ? 'duracao' : 'series';
+}
+
+// Exercícios só de peso corporal (equipamento vazio ou só "Peso Corporal") nunca mostram/gravam
+// carga em modo Duração. Qualquer outra etiqueta (Halteres, Máquina, TRX, Elásticos) — mesmo
+// combinada com "Peso Corporal", caso do Hip Thrust com Halteres — conta como equipamento externo.
+function itemUsaEquipamentoExterno(it) {
+  return (it.equipamento || []).some(eq => eq && eq !== 'Peso Corporal');
 }
 
 function seriesDuracaoPrescritasItem(it) {
@@ -2527,6 +2536,9 @@ function renderItemCard(it, index) {
           </div>`).join('')}
           <button type="button" class="gcwo-add-duration-serie">+ Série</button>
         </div>
+        ${itemUsaEquipamentoExterno(it) ? `
+        <label class="gcwo-field gcwo-field-sm" style="margin-top:8px;"><span>Carga (kg)</span><input type="number" min="0" step="0.5" class="gcwo-it-carga" value="${it.load ?? ''}" aria-label="Carga (kg)"></label>
+        ` : ''}
       ` : `
         <div class="gcwo-series-table">
           <div class="gcwo-series-head"><span>Série</span><span>Repetições</span><span>Carga (kg)</span><span></span></div>
@@ -2804,7 +2816,7 @@ function wirePickedItems(s) {
           it.reps_min = null;
           it.reps_max = null;
           it.reps_fixed = null;
-          it.load = null;
+          if (!itemUsaEquipamentoExterno(it)) it.load = null;
           it.incremento = null;
           it.rest_set = null;
           it.series = null;
