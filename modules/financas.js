@@ -83,7 +83,10 @@ async function loadClinicPrices(clinicId) {
   if (!clinicId) return [];
   const { data, error } = await window.sb
     .from("clinic_prices")
-    .select("procedure_type, price")
+    /* preco_doente acrescentado para o cálculo de "Valor faturado" do Panorama
+       Geral / Detalhe da Clínica — ver FB.3c resolveFaturado(). Só leitura,
+       nenhum consumidor ainda usa este campo (Fase 0). */
+    .select("procedure_type, price, preco_doente")
     .eq("clinic_id", clinicId)
     .order("procedure_type", { ascending: true });
   if (error) throw error;
@@ -213,6 +216,117 @@ function periodoFromDate(date) {
 function contaParaTotal(apptStatus, financialStatus) {
   if (financialStatus === "honorarios_dispensados") return false;
   return String(apptStatus || "").toLowerCase() === "done";
+}
+
+/* ============================================================
+   PANORAMA GERAL / DETALHE DA CLÍNICA — Fase 0 (funções puras,
+   aditivas, sem nenhum consumidor ainda). Não alteram o cálculo
+   de registos_financeiros.valor (honorário médico), que continua
+   a vir sempre da BD tal como hoje.
+   ============================================================ */
+
+/* ---- FB.3b — normalizarActo ----
+   Replica exactamente a normalização feita pelo trigger Postgres
+   sync_appointment_to_financeiro() (confirmado em produção em 2026-08-23):
+     TRIM(REGEXP_REPLACE(texto, '[^\w\sÀ-ɏ/áéíóú...]', '', 'g'))
+   Remove emojis/símbolos, mantém letras/dígitos/acentos/espaços/"/", depois
+   apara espaços nas pontas. Preserva capitalização — a comparação entre
+   valores normalizados é sempre feita em minúsculas por quem consome esta
+   função (tal como o trigger faz com LOWER() na query de clinic_prices).
+   Necessário porque nem todo o tipo_acto em produção já vem limpo (ex.:
+   existe pelo menos 1 registo legado "📌 Outro", gravado pelo trigger antigo
+   fn_auto_registo_financeiro, que não normaliza). */
+function normalizarActo(texto) {
+  return String(texto || "")
+    .replace(/[^\w\sÀ-ɏ/]/g, "")
+    .trim();
+}
+
+/* ---- FB.3c — resolveFaturado ----
+   Determina o "Valor faturado" de um registo para apresentação (Panorama
+   Geral / Detalhe da Clínica). NUNCA toca em registos_financeiros.valor
+   (o honorário médico, que continua a ser a fonte única do cálculo
+   financeiro existente) — isto é só uma leitura adicional, não persistida.
+
+   Ordem de resolução:
+     1) registo.valor_faturado — coluna que ainda NÃO existe hoje em
+        registos_financeiros; se um dia for criada (Fase futura, fora
+        deste plano), esta função passa a usá-la automaticamente sem
+        precisar de ser reescrita.
+     2) Entidade sem clinic_id, tipo 'avenca', ou tipo_acto = 'Avença
+        mensal' → é um valor fixo passe-through: faturado = honorário,
+        resultado = 0. Não há clinic_prices para avenças.
+     3) Cruzamento normalizado (normalizarActo + comparação
+        case-insensitive, tal como o trigger faz com LOWER()) contra
+        clinicPricesByProc — mapa já preparado por quem chama esta função,
+        chave = normalizarActo(procedure_type).toLowerCase().
+     4) Sem linha correspondente OU preco_doente null (caso real em
+        produção: ex. "Revalidação de tratamentos" tem price=0 mas
+        preco_doente=null; os actos da Liga têm price=0/preco_doente=null
+        de propósito, porque são cobertos pela avença) → indisponível.
+        NUNCA devolve 0€ neste caso — quem apresenta mostra "—"/"por
+        confirmar", nunca um valor que pareça um facto.
+
+   registo   — linha de registos_financeiros (com .valor e .tipo_acto)
+   entidade  — a entidades_financeiras correspondente (.clinic_id, .tipo)
+   clinicPricesByProc — objecto { chaveNormalizada: { preco_doente, price } } */
+function resolveFaturado(registo, entidade, clinicPricesByProc) {
+  const honorario = Number(registo?.valor || 0);
+
+  if (registo?.valor_faturado != null) {
+    return { valor: Number(registo.valor_faturado), honorario, origem: "historico" };
+  }
+
+  const isAvenca = !entidade?.clinic_id
+    || entidade?.tipo === "avenca"
+    || registo?.tipo_acto === "Avença mensal";
+  if (isAvenca) {
+    return { valor: honorario, honorario, origem: "avenca" };
+  }
+
+  const chave = normalizarActo(registo?.tipo_acto).toLowerCase();
+  const preco = clinicPricesByProc ? clinicPricesByProc[chave] : null;
+  if (!preco || preco.preco_doente == null) {
+    return { valor: null, honorario, origem: "indisponivel" };
+  }
+  return { valor: Number(preco.preco_doente), honorario, origem: "atual" };
+}
+
+/* ---- FB.3d — buildClinicPricesByProc ----
+   Constrói o mapa de lookup usado por resolveFaturado a partir do array
+   devolvido por loadClinicPrices(clinicId). Chave normalizada da mesma
+   forma que o tipo_acto, para o cruzamento bater certo em ambos os lados. */
+function buildClinicPricesByProc(clinicPrices) {
+  const out = {};
+  (clinicPrices || []).forEach(cp => {
+    const chave = normalizarActo(cp.procedure_type).toLowerCase();
+    out[chave] = cp;
+  });
+  return out;
+}
+
+/* ---- FB.3e — classificarAto ----
+   Classifica um tipo_acto numa das 6 categorias fixas usadas na secção
+   "Produção" do Detalhe da Clínica (Primeira Consulta / Reavaliação /
+   Teleconsulta / PRP / Visco / Outros). Mapa calibrado com os valores
+   reais hoje em registos_financeiros.tipo_acto (confirmado em produção
+   em 2026-08-23): "Primeira Consulta", "Consulta de Reavaliação",
+   "Teleconsulta", "Plasma Rico em Plaquetas", "Viscossuplementação",
+   "Outro", "Avença mensal", "Revalidação de tratamentos", "Relatórios".
+   Tipos não reconhecidos (incluindo entradas manuais de texto livre,
+   ex. "Relatórios") caem em "Outros" — nunca falha. */
+const CLASSIFICACAO_ATO = {
+  "primeira consulta": "Primeira Consulta",
+  "consulta de reavaliação": "Reavaliação",
+  "reavaliação": "Reavaliação",
+  "teleconsulta": "Teleconsulta",
+  "plasma rico em plaquetas": "PRP",
+  "prp": "PRP",
+  "viscossuplementação": "Visco",
+};
+function classificarAto(tipoActo) {
+  const chave = normalizarActo(tipoActo).toLowerCase();
+  return CLASSIFICACAO_ATO[chave] || "Outros";
 }
 
 /* ---- FB.7 — agrupamento por semana ISO (Contabilidade) ---- */
@@ -512,6 +626,109 @@ function badgeStatus(apptStatus, financialStatus) {
   return `<span style="font-size:11px;background:${s.bg};color:${s.fg};padding:2px 7px;border-radius:4px;font-weight:500;">${escapeHtml(s.label)}</span>`;
 }
 
+/* ============================================================
+   FASE 1 — refactor seguro de renderFinancas()
+   ------------------------------------------------------------
+   Extracção mecânica (cut/paste/wrap) de dois blocos que viviam
+   dentro do closure render(), para uso futuro do Panorama Geral
+   e do Detalhe da Clínica. Corpo idêntico ao original — mesmas
+   variáveis, mesma ordem, mesmo resultado. render() passa a
+   chamar estas funções em vez de calcular inline; os nomes das
+   variáveis usadas no resto do template mantêm-se todos iguais
+   (destructuring com os mesmos nomes / wrapper de 1 linha).
+   ============================================================ */
+
+/* ---- FB.10 — computeGlobalTotals ----
+   Corpo idêntico ao antigo bloco "Métricas globais" / "Avenças" /
+   "Avenças realizadas" / "Presenças" / "Totais" de renderFinancas(). */
+function computeGlobalTotals(registosFiltrados, entidades, presencas, clinicaFiltro) {
+  const realizadas  = registosFiltrados.filter(r => {
+    if (!contaParaTotal(r.appt_status, r.financial_status)) return false;
+    const ent = entidades.find(e => e.id === r.entidade_id);
+    return ent?.tipo !== "avenca";
+  });
+  const dispensadas = registosFiltrados.filter(r => r.financial_status === "honorarios_dispensados");
+  const faltas      = registosFiltrados.filter(r => String(r.appt_status || "").toLowerCase() === "no_show");
+  /* Pendentes = marcadas/chegou com data até HOJE (não futuras) */
+  const _hoje = new Date(); _hoje.setHours(0,0,0,0);
+  const pendentes   = registosFiltrados.filter(r => {
+    const s = String(r.appt_status || "").toLowerCase();
+    if (!((s === "scheduled" || s === "arrived") && r.financial_status !== "honorarios_dispensados")) return false;
+    if (!r.data) return false;
+    return new Date(r.data + "T00:00:00") <= _hoje;
+  });
+  const totalReal    = realizadas.reduce((s, r) => s + Number(r.valor || 0), 0);
+  const totalPend    = pendentes.reduce((s, r) => s + Number(r.valor || 0), 0);
+  const valorPerdido = [...faltas, ...dispensadas].reduce((s, r) => s + Number(r.valor || 0), 0);
+  const mediaConsulta = realizadas.length > 0 ? Math.round(totalReal / realizadas.length) : 0;
+
+  /* ── Avenças ── */
+  const avencas = entidades.filter(e => {
+    if (e.tipo !== "avenca") return false;
+    if (e.clinic_id) return false;
+    if (!clinicaFiltro) return true;
+    // Se há filtro: mostrar só avenças da entidade seleccionada ou da mesma clínica
+    const entSel = entidades.find(x => x.id === clinicaFiltro);
+    return e.clinic_id === entSel?.clinic_id;
+  });
+  const totalAvencas = avencas.reduce((s, e) => s + Number(e.avenca_valor || 0), 0);
+
+  /* Avenças realizadas — registos em registos_financeiros com tipo avenca */
+  const avencasRealizadas = registosFiltrados.filter(r => {
+    const ent = entidades.find(e => e.id === r.entidade_id);
+    return ent?.tipo === "avenca" && r.appt_status === "done";
+  });
+  const totalAvencasRealizadas = avencasRealizadas.reduce((s, r) => s + Number(r.valor || 0), 0);
+
+  /* Presenças (FPF, Católica, clínicas externas por dia) */
+  const totalPresencas = presencas.reduce((s, p) => s + Number(p.valor_calculado || 0), 0);
+  /* Avença externa = sem clínica (HBA). Internas (Alfra, Liga) ficam nos cartões. */
+  const totalAvExternas = avencasRealizadas
+    .filter(r => { const e = entidades.find(x => x.id === r.entidade_id); return e && !e.clinic_id; })
+    .reduce((s, r) => s + Number(r.valor || 0), 0);
+  /* Actividade externa = HBA + clínicas-dia + FPF/Católica (tudo presencas + HBA) */
+  const totalActividadeExterna = totalAvExternas + totalPresencas;
+  const totalGeral = totalReal + totalAvencasRealizadas + totalPresencas;
+
+  return {
+    realizadas, dispensadas, faltas, _hoje, pendentes,
+    totalReal, totalPend, valorPerdido, mediaConsulta,
+    avencas, totalAvencas, avencasRealizadas, totalAvencasRealizadas,
+    totalPresencas, totalAvExternas, totalActividadeExterna, totalGeral,
+  };
+}
+
+/* ---- FB.11 — computeClinicMetrics ----
+   Corpo idêntico ao antigo dadosPorEntidade(entId) de renderFinancas(). */
+function computeClinicMetrics(entId, entidades, registosFiltrados) {
+  const entThis = entidades.find(x => x.id === entId);
+  const idsAgregar = new Set([entId]);
+  if (entThis?.clinic_id) {
+    entidades
+      .filter(x => x.tipo === "avenca" && x.clinic_id === entThis.clinic_id)
+      .forEach(x => idsAgregar.add(x.id));
+  }
+  const regs = registosFiltrados.filter(r => idsAgregar.has(r.entidade_id));
+  const porTipo = {};
+  regs.forEach(r => {
+    const t = r.tipo_acto || "—";
+    const s = String(r.appt_status || "").toLowerCase();
+    if (!porTipo[t]) porTipo[t] = { done: 0, pend: 0, falta: 0, disp: 0, valor: 0 };
+    if (contaParaTotal(r.appt_status, r.financial_status)) {
+      porTipo[t].done++;
+      porTipo[t].valor += Number(r.valor || 0);
+    } else if (s === "scheduled" || s === "arrived") {
+      porTipo[t].pend++;
+    } else if (s === "no_show") {
+      porTipo[t].falta++;
+    } else if (r.financial_status === "honorarios_dispensados") {
+      porTipo[t].disp++;
+    }
+  });
+  const totalEnt = Object.values(porTipo).reduce((s, v) => s + v.valor, 0);
+  return { porTipo, totalEnt, regs };
+}
+
 /* ==== FC — Render principal ==== */
 
 /* ---- FC.1 — renderFinancas ---- */
@@ -552,54 +769,15 @@ export async function renderFinancas() {
       : registos;
     _contabCache = { entidades, registos: registosFiltrados, presencas, periodoLabel: (periodoIni && periodoFim) ? `${periodoIni} a ${periodoFim}` : mesLabel(ano, mes) };
 
-    /* ── Métricas globais ── */
-    const realizadas  = registosFiltrados.filter(r => {
-      if (!contaParaTotal(r.appt_status, r.financial_status)) return false;
-      const ent = entidades.find(e => e.id === r.entidade_id);
-      return ent?.tipo !== "avenca";
-    });
-    const dispensadas = registosFiltrados.filter(r => r.financial_status === "honorarios_dispensados");
-    const faltas      = registosFiltrados.filter(r => String(r.appt_status || "").toLowerCase() === "no_show");
-    /* Pendentes = marcadas/chegou com data até HOJE (não futuras) */
-    const _hoje = new Date(); _hoje.setHours(0,0,0,0);
-    const pendentes   = registosFiltrados.filter(r => {
-      const s = String(r.appt_status || "").toLowerCase();
-      if (!((s === "scheduled" || s === "arrived") && r.financial_status !== "honorarios_dispensados")) return false;
-      if (!r.data) return false;
-      return new Date(r.data + "T00:00:00") <= _hoje;
-    });
-    const totalReal    = realizadas.reduce((s, r) => s + Number(r.valor || 0), 0);
-    const totalPend    = pendentes.reduce((s, r) => s + Number(r.valor || 0), 0);
-    const valorPerdido = [...faltas, ...dispensadas].reduce((s, r) => s + Number(r.valor || 0), 0);
-    const mediaConsulta = realizadas.length > 0 ? Math.round(totalReal / realizadas.length) : 0;
-
-    /* ── Avenças ── */
-    const avencas = entidades.filter(e => {
-      if (e.tipo !== "avenca") return false;
-      if (e.clinic_id) return false;
-      if (!clinicaFiltro) return true;
-      // Se há filtro: mostrar só avenças da entidade seleccionada ou da mesma clínica
-      const entSel = entidades.find(x => x.id === clinicaFiltro);
-      return e.clinic_id === entSel?.clinic_id;
-    });
-    const totalAvencas = avencas.reduce((s, e) => s + Number(e.avenca_valor || 0), 0);
-
-    /* Avenças realizadas — registos em registos_financeiros com tipo avenca */
-    const avencasRealizadas = registosFiltrados.filter(r => {
-      const ent = entidades.find(e => e.id === r.entidade_id);
-      return ent?.tipo === "avenca" && r.appt_status === "done";
-    });
-    const totalAvencasRealizadas = avencasRealizadas.reduce((s, r) => s + Number(r.valor || 0), 0);
-
-    /* Presenças (FPF, Católica, clínicas externas por dia) */
-    const totalPresencas = presencas.reduce((s, p) => s + Number(p.valor_calculado || 0), 0);
-    /* Avença externa = sem clínica (HBA). Internas (Alfra, Liga) ficam nos cartões. */
-    const totalAvExternas = avencasRealizadas
-      .filter(r => { const e = entidades.find(x => x.id === r.entidade_id); return e && !e.clinic_id; })
-      .reduce((s, r) => s + Number(r.valor || 0), 0);
-    /* Actividade externa = HBA + clínicas-dia + FPF/Católica (tudo presencas + HBA) */
-    const totalActividadeExterna = totalAvExternas + totalPresencas;
-    const totalGeral = totalReal + totalAvencasRealizadas + totalPresencas;
+    /* ── Métricas globais / Avenças / Totais ── */
+    /* FASE 1: extraído para computeGlobalTotals() (FB.10) — corpo idêntico,
+       mesmos nomes de variável, só mudou de sítio. */
+    const {
+      realizadas, dispensadas, faltas, _hoje, pendentes,
+      totalReal, totalPend, valorPerdido, mediaConsulta,
+      avencas, totalAvencas, avencasRealizadas, totalAvencasRealizadas,
+      totalPresencas, totalAvExternas, totalActividadeExterna, totalGeral,
+    } = computeGlobalTotals(registosFiltrados, entidades, presencas, clinicaFiltro);
 
     /* ── Pendentes vencidos ── */
     const hoje = new Date(); hoje.setHours(0,0,0,0);
@@ -642,33 +820,11 @@ export async function renderFinancas() {
       : entClinicasTodas;
 
     /* ── Dados por clínica para vista "Por clínica" ── */
+    /* FASE 1: extraído para computeClinicMetrics() (FB.11) — mesmo corpo,
+       wrapper de 1 linha para não obrigar a renomear as ~dezenas de
+       chamadas a dadosPorEntidade(...) espalhadas pelo template abaixo. */
     function dadosPorEntidade(entId) {
-      const entThis = entidades.find(x => x.id === entId);
-      const idsAgregar = new Set([entId]);
-      if (entThis?.clinic_id) {
-        entidades
-          .filter(x => x.tipo === "avenca" && x.clinic_id === entThis.clinic_id)
-          .forEach(x => idsAgregar.add(x.id));
-      }
-      const regs = registosFiltrados.filter(r => idsAgregar.has(r.entidade_id));
-      const porTipo = {};
-      regs.forEach(r => {
-        const t = r.tipo_acto || "—";
-        const s = String(r.appt_status || "").toLowerCase();
-        if (!porTipo[t]) porTipo[t] = { done: 0, pend: 0, falta: 0, disp: 0, valor: 0 };
-        if (contaParaTotal(r.appt_status, r.financial_status)) {
-          porTipo[t].done++;
-          porTipo[t].valor += Number(r.valor || 0);
-        } else if (s === "scheduled" || s === "arrived") {
-          porTipo[t].pend++;
-        } else if (s === "no_show") {
-          porTipo[t].falta++;
-        } else if (r.financial_status === "honorarios_dispensados") {
-          porTipo[t].disp++;
-        }
-      });
-      const totalEnt = Object.values(porTipo).reduce((s, v) => s + v.valor, 0);
-      return { porTipo, totalEnt, regs };
+      return computeClinicMetrics(entId, entidades, registosFiltrados);
     }
 
     /* ── Dados analíticos ── */
@@ -2045,7 +2201,7 @@ function openModalPdfAthletix(registos, mes, ano) {
   const linhas = athletix.map(r => {
     const p   = r.patients || {};
     const ent = r.entidades_financeiras || {};
-    const valorFaturado = Number(ent.valor_faturado || r.valor || 0);
+    const valorFaturado = Number(ent.valor_faturado != null ? ent.valor_faturado : (r.valor || 0));
     return `
       <tr>
         <td style="padding:8px 12px;border-bottom:0.5px solid #e2e8f0;">${new Date(r.data + "T00:00:00").toLocaleDateString("pt-PT")}</td>
@@ -2059,7 +2215,7 @@ function openModalPdfAthletix(registos, mes, ano) {
 
   const totalFaturado = athletix.reduce((s, r) => {
     const ent = r.entidades_financeiras || {};
-    return s + Number(ent.valor_faturado || r.valor || 0);
+    return s + Number(ent.valor_faturado != null ? ent.valor_faturado : (r.valor || 0));
   }, 0);
 
   const html = `<!doctype html><html><head><meta charset="utf-8">
