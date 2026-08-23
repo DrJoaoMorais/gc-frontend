@@ -4585,6 +4585,17 @@ const MODIFICADOR_CUIDADO_TEXTO = {
   bicepsTenotomy: 'Procedimento associado registado. Não aplicar automaticamente as restrições de proteção de uma tenodese.',
 };
 
+// Cada fase pode definir o seu próprio texto em data.modificadores_cuidados[key] (jsonb, sem
+// schema novo) — quando a fase actual não tiver essa chave (ou não a definir para este
+// modificador em particular), cai no fallback global MODIFICADOR_CUIDADO_TEXTO. A Fase 1
+// (já aprovada) nunca define esta chave, por isso continua a usar sempre o fallback — os
+// textos que já tinha, byte a byte, sem precisar de nenhuma escrita na Fase 1.
+function textoCuidadoModificadorPatologia(key) {
+  const fase = _patologia.fases.find(f => f.id === _patologia.faseId);
+  const overrideFase = fase?.data?.modificadores_cuidados?.[key];
+  return overrideFase || MODIFICADOR_CUIDADO_TEXTO[key];
+}
+
 // Só entram na lista os modificadores com conteúdo real a mostrar — "Restrição específica do
 // cirurgião" só conta quando há texto escrito (mostrar exactamente o texto, nunca uma linha
 // vazia); desmarcar uma opção fá-la desaparecer daqui de imediato (ponto 5 dos testes).
@@ -4597,7 +4608,7 @@ function listaCuidadosEspecificosPatologia() {
       const texto = (m.surgeonRestrictionText || '').trim();
       if (texto) cuidados.push({ label: opt.label, texto });
     } else {
-      cuidados.push({ label: opt.label, texto: MODIFICADOR_CUIDADO_TEXTO[opt.key] });
+      cuidados.push({ label: opt.label, texto: textoCuidadoModificadorPatologia(opt.key) });
     }
   });
   return cuidados;
