@@ -87,7 +87,7 @@ const SESSAO_MODALIDADES = [
   { modality: 'Circuito',  kind: 'circuit', enabled: true },
   { modality: 'Outra atividade', kind: 'custom', enabled: false },
 ];
-const LOCAIS_SESSAO = ['Ginásio', 'Casa', 'Clínica', 'Exterior', 'Piscina'];
+const LOCAIS_SESSAO = ['Ginásio', 'Casa', 'Clínica'];
 // Chips de momento do dia — inclui as "rotinas curtas" (pós-almoço/pós-jantar) como
 // valores do mesmo campo, em vez de um conceito à parte (9 ago 2026). Simplificação
 // consciente: por agora são etiquetas fixas, não uma hora exacta (HH:MM) — fica para
