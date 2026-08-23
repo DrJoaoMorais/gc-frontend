@@ -1141,7 +1141,7 @@
 
 .gcwo-pat-catalog-modal { max-width:920px; max-height:86vh; }
 
-/* ── Particularidades cirúrgicas — só "Sutura da coifa" (adenda EX-07) ── */
+/* ── Particularidades cirúrgicas — qualquer protocolo com data.modificadores (adenda EX-07) ── */
 .gcwo-pat-modificadores-field { max-width:520px; margin-bottom:22px; border:1px solid #e2e8f0; border-radius:13px; background:#fbfcfe; padding:14px 16px; }
 .gcwo-pat-modificadores-hint { font-size:11.5px; color:#94a3b8; margin:-2px 0 10px; }
 .gcwo-pat-modificadores-lista { display:flex; flex-direction:column; gap:9px; }
