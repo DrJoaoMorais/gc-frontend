@@ -4557,67 +4557,45 @@ function freshPatologia() {
     adicionadosCatalogo: [], // exercise_ids acrescentados por "+ Adicionar exercício" (para distinguir da lista do protocolo)
     catalogAberto: false, catalogFiltro: 'todos', catalogBusca: '', catalogEquip: new Set(),
     loading: false, erro: '',
-    // Particularidades cirúrgicas (adenda EX-07) — só estado local do fluxo, nunca gravado em
-    // protocol_phase_exercises/protocols_catalog/protocol_phases nem em nova tabela. Estrutura
-    // pensada para dar depois para condicionar exercícios/dose, mas essa lógica não existe ainda.
-    surgicalModifiers: {
-      subscapular: false,
-      extensiveOrRevision: false,
-      bicepsTenodesis: false,
-      bicepsTenotomy: false,
-      surgeonRestriction: false,
-      surgeonRestrictionText: '',
-    },
+    // Particularidades cirúrgicas (adenda EX-07, generalizado a qualquer protocolo) — só estado
+    // local do fluxo, nunca gravado em protocol_phase_exercises/protocol_phases nem em nova
+    // tabela. Chaves dinâmicas: vêm de protocols_catalog.data.modificadores do protocolo activo.
+    surgicalModifiers: {},     // key -> boolean (checkbox marcado)
+    surgicalModifiersText: {}, // key -> string (só para modificadores type:'text')
   };
 }
 
-// Particularidades cirúrgicas — só para "Sutura da coifa" (adenda EX-07). Comparação por
-// nome porque protocols_catalog não tem código/slug próprio; excepção deliberada e pedida ao
-// "nunca hardcode nomes de protocolo" do EX-07 base — não generalizar a outros protocolos.
-const PROTOCOLO_SUTURA_COIFA_NOME = 'Sutura da coifa';
-function protocoloActualEhSuturaDaCoifa() {
+// Particularidades cirúrgicas (adenda EX-07, generalizado): a lista de modificadores, os seus
+// rótulos e o texto-fallback vêm de protocols_catalog.data.modificadores do protocolo activo.
+// Protocolo sem modificadores definidos (ainda o caso de TSA/RSA/Capsulite) → secção não aparece.
+function modificadoresDoProtocoloActual() {
   const p = _patologia.protocolos.find(x => x.id === _patologia.protocoloId);
-  return !!p && p.name === PROTOCOLO_SUTURA_COIFA_NOME;
+  return (p?.data?.modificadores) || [];
 }
-
-const MODIFICADORES_CIRURGICOS = [
-  { key: 'subscapular', label: 'Subescapular reparado' },
-  { key: 'extensiveOrRevision', label: 'Rotura extensa/massiva ou revisão' },
-  { key: 'bicepsTenodesis', label: 'Tenodese da longa porção do bicípite' },
-  { key: 'bicepsTenotomy', label: 'Tenotomia da longa porção do bicípite' },
-  { key: 'surgeonRestriction', label: 'Restrição específica do cirurgião' },
-];
-// Mensagens curtas e prudentes, sem graus/semanas/cargas inventados — texto revisto no
-// preenchimento clínico da Fase 1 (Sutura da coifa). surgeonRestriction não tem entrada
-// aqui: usa sempre o texto tal como escrito.
-const MODIFICADOR_CUIDADO_TEXTO = {
-  subscapular: 'Proteger particularmente a rotação externa e evitar carga/ativação precoce do subescapular. Os limites de rotação externa e abdução devem respeitar a reparação e as indicações operatórias.',
-  extensiveOrRevision: 'Adotar progressão mais conservadora. A mobilidade passiva pode necessitar de início mais tardio ou limites mais restritos. A progressão não deve ser determinada exclusivamente pelo número de semanas pós-operatórias.',
-  bicepsTenodesis: 'Proteger a tenodese e evitar carga precoce sobre o bicípite. A mobilidade/ativação do cotovelo e a introdução de flexão do cotovelo ou supinação contra resistência devem respeitar a técnica e indicação do cirurgião.',
-  bicepsTenotomy: 'Procedimento associado registado. Não aplicar automaticamente as restrições de proteção de uma tenodese.',
-};
 
 // Cada fase pode definir o seu próprio texto em data.modificadores_cuidados[key] (jsonb, sem
 // schema novo) — quando a fase actual não tiver essa chave (ou não a definir para este
-// modificador em particular), cai no fallback global MODIFICADOR_CUIDADO_TEXTO. A Fase 1
-// (já aprovada) nunca define esta chave, por isso continua a usar sempre o fallback — os
-// textos que já tinha, byte a byte, sem precisar de nenhuma escrita na Fase 1.
+// modificador em particular), cai no fallback default_text definido no protocolo. A Fase 1 da
+// Sutura da coifa (já aprovada) nunca define esta chave, por isso continua a usar sempre o
+// fallback — os textos que já tinha, byte a byte, sem precisar de nenhuma escrita na Fase 1.
 function textoCuidadoModificadorPatologia(key) {
   const fase = _patologia.fases.find(f => f.id === _patologia.faseId);
   const overrideFase = fase?.data?.modificadores_cuidados?.[key];
-  return overrideFase || MODIFICADOR_CUIDADO_TEXTO[key];
+  if (overrideFase) return overrideFase;
+  const def = modificadoresDoProtocoloActual().find(m => m.key === key);
+  return def?.default_text || '';
 }
 
-// Só entram na lista os modificadores com conteúdo real a mostrar — "Restrição específica do
-// cirurgião" só conta quando há texto escrito (mostrar exactamente o texto, nunca uma linha
-// vazia); desmarcar uma opção fá-la desaparecer daqui de imediato (ponto 5 dos testes).
+// Só entram na lista os modificadores com conteúdo real a mostrar — modificadores type:'text'
+// só contam quando há texto escrito (mostrar exactamente o texto, nunca uma linha vazia);
+// desmarcar uma opção fá-la desaparecer daqui de imediato (ponto 5 dos testes).
 function listaCuidadosEspecificosPatologia() {
   const m = _patologia.surgicalModifiers;
   const cuidados = [];
-  MODIFICADORES_CIRURGICOS.forEach(opt => {
+  modificadoresDoProtocoloActual().forEach(opt => {
     if (!m[opt.key]) return;
-    if (opt.key === 'surgeonRestriction') {
-      const texto = (m.surgeonRestrictionText || '').trim();
+    if (opt.type === 'text') {
+      const texto = (_patologia.surgicalModifiersText[opt.key] || '').trim();
       if (texto) cuidados.push({ label: opt.label, texto });
     } else {
       cuidados.push({ label: opt.label, texto: textoCuidadoModificadorPatologia(opt.key) });
@@ -4627,24 +4605,25 @@ function listaCuidadosEspecificosPatologia() {
 }
 
 function renderModificadoresCirurgicosPatologia() {
-  if (!protocoloActualEhSuturaDaCoifa()) return '';
+  const modificadores = modificadoresDoProtocoloActual();
+  if (!modificadores.length) return '';
   const m = _patologia.surgicalModifiers;
   return `
     <div class="gcwo-field gcwo-pat-modificadores-field">
       <span class="gcwo-field-label">Particularidades cirúrgicas</span>
       <div class="gcwo-pat-modificadores-hint">Selecione apenas se aplicável</div>
       <div class="gcwo-pat-modificadores-lista">
-        ${MODIFICADORES_CIRURGICOS.map(opt => `
+        ${modificadores.map(opt => `
           <label class="gcwo-pat-modificador-item">
             <input type="checkbox" data-pat-modificador="${escAttr(opt.key)}" ${m[opt.key] ? 'checked' : ''}>
             <span>${escHtml(opt.label)}</span>
           </label>`).join('')}
       </div>
-      ${m.surgeonRestriction ? `
+      ${modificadores.filter(opt => opt.type === 'text' && m[opt.key]).map(opt => `
       <label class="gcwo-field gcwo-field-sm gcwo-pat-restricao-texto">
         <span>Indicações/restrições específicas</span>
-        <input type="text" id="gcwoPatRestricaoTexto" value="${escAttr(m.surgeonRestrictionText)}" placeholder="Ex.: sem rotação interna resistida até à 10ª semana">
-      </label>` : ''}
+        <input type="text" data-pat-modificador-texto="${escAttr(opt.key)}" value="${escAttr(_patologia.surgicalModifiersText[opt.key] || '')}" placeholder="Ex.: sem rotação interna resistida até à 10ª semana">
+      </label>`).join('')}
     </div>`;
 }
 
@@ -4705,7 +4684,7 @@ async function carregarFasesPatologia(protocolId) {
   _patologia.exercicios = [];
   _patologia.selecionados = new Map();
   _patologia.adicionadosCatalogo = [];
-  _patologia.surgicalModifiers = freshPatologia().surgicalModifiers; // troca de protocolo — particularidades são só do protocolo anterior
+  _patologia.surgicalModifiers = {}; _patologia.surgicalModifiersText = {}; // troca de protocolo — particularidades são só do protocolo anterior
   _patologia.loading = true; _patologia.erro = ''; renderPatologiaBody();
 
   const { data, error } = await window.sb
@@ -4948,13 +4927,17 @@ function renderSeletorProtocoloPatologia() {
 function renderFasesPatologia() {
   if (_patologia.loading && !_patologia.fases.length) return `<div class="gcwo-muted">A carregar fases…</div>`;
   if (!_patologia.fases.length) return `<div class="gcwo-pat-vazio">Este protocolo ainda não tem fases definidas.</div>`;
-  const semanasPos = semanasPosCirurgiaPatologia();
+  // "Data da cirurgia" só faz sentido em protocolos cirúrgicos — protocolos conservadores
+  // (ex.: Capsulite adesiva) não têm âncora pós-operatória.
+  const protocolo = _patologia.protocolos.find(p => p.id === _patologia.protocoloId);
+  const ehCirurgico = protocolo?.kind === 'cirurgico';
+  const semanasPos = ehCirurgico ? semanasPosCirurgiaPatologia() : null;
   return `
-    <div class="gcwo-field gcwo-pat-cirurgia-field">
+    ${ehCirurgico ? `<div class="gcwo-field gcwo-pat-cirurgia-field">
       <span class="gcwo-field-label">Data da cirurgia <small>(opcional)</small></span>
       <input type="date" id="gcwoPatDataCirurgia" value="${escAttr(_patologia.dataCirurgia || '')}" max="${escAttr(isoHoje())}">
       ${semanasPos != null ? `<div class="gcwo-pat-hint">${semanasPos} semana${semanasPos === 1 ? '' : 's'} pós-operatório.</div>` : ''}
-    </div>
+    </div>` : ''}
     <div class="gcwo-field">
       <span class="gcwo-field-label">Fase</span>
       <div class="gcwo-pat-fase-grid">${_patologia.fases.map(f => renderFaseCardPatologia(f, semanasPos)).join('')}</div>
@@ -4992,8 +4975,9 @@ function renderFaseDetalheEExerciciosPatologia() {
   const temPermitido = Array.isArray(d.permitido) && d.permitido.length;
   const temContra = Array.isArray(d.contraindicacoes) && d.contraindicacoes.length;
   const temCriteriosProgressao = Array.isArray(d.criterios_progressao) && d.criterios_progressao.length;
+  const temPrincipioClinico = !!d.principio_clinico;
   const temCuidadosBase = temPermitido || temContra;
-  const semConteudoClinico = !temCriteriosDetalhados && !temObjetivos && !temHep && !temCuidadosBase && !temCriteriosProgressao && !d.nota_ancora;
+  const semConteudoClinico = !temCriteriosDetalhados && !temObjetivos && !temHep && !temCuidadosBase && !temCriteriosProgressao && !temPrincipioClinico && !d.nota_ancora;
 
   return `
     <div class="gcwo-pat-fase-detalhe">
@@ -5001,6 +4985,7 @@ function renderFaseDetalheEExerciciosPatologia() {
       <div id="gcwoPatCuidadosWrap">${renderCuidadosEspecificosPatologia()}</div>
       ${d.nota_ancora ? `<p class="gcwo-pat-nota">${escHtml(d.nota_ancora)}</p>` : ''}
       ${semConteudoClinico ? `<div class="gcwo-pat-vazio">Conteúdo clínico ainda não definido.</div>` : `
+        ${temPrincipioClinico ? `<p class="gcwo-pat-principio">${escHtml(d.principio_clinico)}</p>` : ''}
         ${temObjetivos ? `<div class="gcwo-pat-objetivos"><span class="gcwo-field-label">Objetivos</span><ul>${d.objetivos.map(o => `<li>${escHtml(o.label || '')}</li>`).join('')}</ul></div>` : ''}
         ${temCuidadosBase ? `<div class="gcwo-pat-cuidados-base"><span class="gcwo-field-label">Cuidados / Restrições</span>
           ${temPermitido ? `<div class="gcwo-pat-permitido"><b>Permitido</b><ul>${d.permitido.map(p => `<li>${escHtml(p)}</li>`).join('')}</ul></div>` : ''}
@@ -5146,7 +5131,7 @@ function wirePatologiaBody() {
     if (_patologia.regiao === r) return;
     _patologia.regiao = r; _patologia.tipo = null; _patologia.protocoloId = null; _patologia.faseId = null;
     _patologia.fases = []; _patologia.exercicios = []; _patologia.selecionados = new Map(); _patologia.adicionadosCatalogo = [];
-    _patologia.surgicalModifiers = freshPatologia().surgicalModifiers;
+    _patologia.surgicalModifiers = {}; _patologia.surgicalModifiersText = {};
     renderPatologiaBody();
   }));
   host.querySelectorAll('[data-pat-tipo]').forEach(btn => btn.addEventListener('click', () => {
@@ -5154,7 +5139,7 @@ function wirePatologiaBody() {
     if (_patologia.tipo === t) return;
     _patologia.tipo = t; _patologia.protocoloId = null; _patologia.faseId = null;
     _patologia.fases = []; _patologia.exercicios = []; _patologia.selecionados = new Map(); _patologia.adicionadosCatalogo = [];
-    _patologia.surgicalModifiers = freshPatologia().surgicalModifiers;
+    _patologia.surgicalModifiers = {}; _patologia.surgicalModifiersText = {};
     renderPatologiaBody();
   }));
   host.querySelectorAll('[data-pat-protocolo]').forEach(btn => btn.addEventListener('click', () => {
@@ -5170,17 +5155,18 @@ function wirePatologiaBody() {
   host.querySelectorAll('[data-pat-modificador]').forEach(chk => chk.addEventListener('change', () => {
     const key = chk.getAttribute('data-pat-modificador');
     _patologia.surgicalModifiers[key] = chk.checked;
-    // Desmarcar "Restrição específica do cirurgião" limpa o texto — não fica um cuidado
-    // "fantasma" sem checkbox nenhuma a explicá-lo.
-    if (key === 'surgeonRestriction' && !chk.checked) _patologia.surgicalModifiers.surgeonRestrictionText = '';
+    // Desmarcar um modificador de texto livre (ex.: "Restrição específica do cirurgião") limpa
+    // o texto — não fica um cuidado "fantasma" sem checkbox nenhuma a explicá-lo.
+    if (!chk.checked) _patologia.surgicalModifiersText[key] = '';
     renderPatologiaBody();
   }));
-  document.getElementById('gcwoPatRestricaoTexto')?.addEventListener('input', (e) => {
-    _patologia.surgicalModifiers.surgeonRestrictionText = e.target.value;
-    // O bloco "Cuidados específicos" só depende do fase seleccionada, que não se altera aqui —
+  host.querySelectorAll('[data-pat-modificador-texto]').forEach(inp => inp.addEventListener('input', (e) => {
+    const key = inp.getAttribute('data-pat-modificador-texto');
+    _patologia.surgicalModifiersText[key] = e.target.value;
+    // O bloco "Cuidados específicos" só depende da fase seleccionada, que não se altera aqui —
     // actualiza-se só o texto no estado; refreshCuidadosEspecificosPatologia evita perder o foco do campo.
     refreshCuidadosEspecificosPatologia();
-  });
+  }));
   document.getElementById('gcwoPatDataCirurgia')?.addEventListener('change', (e) => {
     _patologia.dataCirurgia = e.target.value || '';
     renderPatologiaBody();
