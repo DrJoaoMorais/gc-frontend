@@ -4575,13 +4575,14 @@ const MODIFICADORES_CIRURGICOS = [
   { key: 'bicepsTenotomy', label: 'Tenotomia da longa porção do bicípite' },
   { key: 'surgeonRestriction', label: 'Restrição específica do cirurgião' },
 ];
-// Mensagens curtas e prudentes, sem graus/semanas/cargas inventados — pedido explícito da
-// adenda. surgeonRestriction não tem entrada aqui: usa sempre o texto tal como escrito.
+// Mensagens curtas e prudentes, sem graus/semanas/cargas inventados — texto revisto no
+// preenchimento clínico da Fase 1 (Sutura da coifa). surgeonRestriction não tem entrada
+// aqui: usa sempre o texto tal como escrito.
 const MODIFICADOR_CUIDADO_TEXTO = {
-  subscapular: 'Atenção à progressão da rotação externa e da rotação interna resistida. Respeitar os limites definidos pelo cirurgião.',
-  extensiveOrRevision: 'Progressão mais conservadora. Não progredir apenas com base no tempo pós-operatório.',
-  bicepsTenodesis: 'Considerar as restrições específicas da tenodese na progressão da carga sobre o bicípite. Respeitar as indicações do cirurgião.',
-  bicepsTenotomy: 'Procedimento associado registado. Não aplicar automaticamente as restrições de uma tenodese.',
+  subscapular: 'Proteger particularmente a rotação externa e evitar carga/ativação precoce do subescapular. Os limites de rotação externa e abdução devem respeitar a reparação e as indicações operatórias.',
+  extensiveOrRevision: 'Adotar progressão mais conservadora. A mobilidade passiva pode necessitar de início mais tardio ou limites mais restritos. A progressão não deve ser determinada exclusivamente pelo número de semanas pós-operatórias.',
+  bicepsTenodesis: 'Proteger a tenodese e evitar carga precoce sobre o bicípite. A mobilidade/ativação do cotovelo e a introdução de flexão do cotovelo ou supinação contra resistência devem respeitar a técnica e indicação do cirurgião.',
+  bicepsTenotomy: 'Procedimento associado registado. Não aplicar automaticamente as restrições de proteção de uma tenodese.',
 };
 
 // Só entram na lista os modificadores com conteúdo real a mostrar — "Restrição específica do
@@ -4962,11 +4963,14 @@ function renderFaseDetalheEExerciciosPatologia() {
   const fase = _patologia.fases.find(f => f.id === _patologia.faseId);
   if (!fase) return '';
   const d = fase.data || {};
-  const temCriterios = Array.isArray(d.objetivos_serie) && d.objetivos_serie.length;
+  const temCriteriosDetalhados = Array.isArray(d.objetivos_serie) && d.objetivos_serie.length;
   const temObjetivos = Array.isArray(d.objetivos) && d.objetivos.length;
   const temHep = Array.isArray(d.hep) && d.hep.length;
+  const temPermitido = Array.isArray(d.permitido) && d.permitido.length;
   const temContra = Array.isArray(d.contraindicacoes) && d.contraindicacoes.length;
-  const semConteudoClinico = !temCriterios && !temObjetivos && !temHep && !temContra && !d.nota_ancora;
+  const temCriteriosProgressao = Array.isArray(d.criterios_progressao) && d.criterios_progressao.length;
+  const temCuidadosBase = temPermitido || temContra;
+  const semConteudoClinico = !temCriteriosDetalhados && !temObjetivos && !temHep && !temCuidadosBase && !temCriteriosProgressao && !d.nota_ancora;
 
   return `
     <div class="gcwo-pat-fase-detalhe">
@@ -4974,14 +4978,18 @@ function renderFaseDetalheEExerciciosPatologia() {
       <div id="gcwoPatCuidadosWrap">${renderCuidadosEspecificosPatologia()}</div>
       ${d.nota_ancora ? `<p class="gcwo-pat-nota">${escHtml(d.nota_ancora)}</p>` : ''}
       ${semConteudoClinico ? `<div class="gcwo-pat-vazio">Conteúdo clínico ainda não definido.</div>` : `
-        ${temCriterios ? `<div class="gcwo-pat-criterios"><span class="gcwo-field-label">Critérios</span><ul>${d.objetivos_serie.map(c => `<li>${escHtml(c.texto || '')}${(c.op && c.valor != null) ? ` ${escHtml(c.op)} ${escHtml(c.valor)}${escHtml(c.unidade || '')}` : ''}${c.nota ? ` <small>(${escHtml(c.nota)})</small>` : ''}</li>`).join('')}</ul></div>` : ''}
         ${temObjetivos ? `<div class="gcwo-pat-objetivos"><span class="gcwo-field-label">Objetivos</span><ul>${d.objetivos.map(o => `<li>${escHtml(o.label || '')}</li>`).join('')}</ul></div>` : ''}
+        ${temCuidadosBase ? `<div class="gcwo-pat-cuidados-base"><span class="gcwo-field-label">Cuidados / Restrições</span>
+          ${temPermitido ? `<div class="gcwo-pat-permitido"><b>Permitido</b><ul>${d.permitido.map(p => `<li>${escHtml(p)}</li>`).join('')}</ul></div>` : ''}
+          ${temContra ? `<div class="gcwo-pat-contra"><b>Evitar</b><ul>${d.contraindicacoes.map(c => `<li>${escHtml(c)}</li>`).join('')}</ul></div>` : ''}
+        </div>` : ''}
         ${temHep ? `<div class="gcwo-pat-hep"><span class="gcwo-field-label">Programa domiciliário (HEP)</span><ul>${d.hep.map(h => `<li>${escHtml(h)}</li>`).join('')}</ul></div>` : ''}
-        ${temContra ? `<div class="gcwo-pat-contra"><span class="gcwo-field-label">Contraindicações</span><ul>${d.contraindicacoes.map(c => `<li>${escHtml(c)}</li>`).join('')}</ul></div>` : ''}
+        ${temCriteriosDetalhados ? `<details class="gcwo-pat-criterios-detalhe"><summary>Critérios detalhados (ROM / EVA)</summary><div class="gcwo-pat-criterios"><ul>${d.objetivos_serie.map(c => `<li>${escHtml(c.texto || '')}${(c.op && c.valor != null) ? ` ${escHtml(c.op)} ${escHtml(c.valor)}${escHtml(c.unidade || '')}` : ''}${c.nota ? ` <small>(${escHtml(c.nota)})</small>` : ''}</li>`).join('')}</ul></div></details>` : ''}
+        ${temCriteriosProgressao ? `<div class="gcwo-pat-criterios-avancar"><span class="gcwo-field-label">Critérios para avançar</span><ul>${d.criterios_progressao.map(c => `<li>${escHtml(c.texto || '')}</li>`).join('')}</ul></div>` : ''}
       `}
     </div>
     <div class="gcwo-pat-exercicios">
-      <div class="gcwo-workspace-title"><strong>Exercícios da fase</strong><span>${_patologia.selecionados.size} seleccionado${_patologia.selecionados.size === 1 ? '' : 's'}</span></div>
+      <div class="gcwo-workspace-title"><strong>Exercícios sugeridos</strong><span>${_patologia.selecionados.size} seleccionado${_patologia.selecionados.size === 1 ? '' : 's'}</span></div>
       ${renderListaExerciciosPatologia()}
       <button type="button" class="gcBtnGhost" id="gcwoPatAdicionarExercicio">+ Adicionar exercício</button>
     </div>
@@ -4992,21 +5000,42 @@ function algumExercicioAdicionadoPatologia() {
   return _patologia.adicionadosCatalogo.length > 0;
 }
 
+// Agrupa por context (Casa/Clínica/Ginásio, mesma ordem do resto do EX-07; sem
+// context/'indiferente' cai num grupo à parte) só para leitura — não altera a selecção
+// nem o agrupamento em sessões, que continua a ser feito por agruparSelecaoPatologiaPorLocal().
+const ORDEM_CONTEXTO_LISTA_PATOLOGIA = ['Casa', 'Clínica', 'Ginásio'];
 function renderListaExerciciosPatologia() {
   if (_patologia.loading) return `<div class="gcwo-muted">A carregar exercícios…</div>`;
   if (!_patologia.exercicios.length && !algumExercicioAdicionadoPatologia()) {
     return `<div class="gcwo-pat-vazio">0 exercícios associados a esta fase.</div>`;
   }
-  const linhas = [];
+  const entradas = [];
   _patologia.exercicios.forEach(row => {
     const ex = _state.exercisesCatalog.find(e => e.id === row.exercise_id);
-    if (ex) linhas.push(renderLinhaExercicioPatologia(ex, row, 'protocolo'));
+    if (ex) entradas.push({ ex, meta: row, origemTag: 'protocolo', context: row.context });
   });
   _patologia.adicionadosCatalogo.forEach(exId => {
     const ex = _state.exercisesCatalog.find(e => e.id === exId);
-    if (ex) linhas.push(renderLinhaExercicioPatologia(ex, {}, 'catalogo'));
+    if (ex) entradas.push({ ex, meta: {}, origemTag: 'catalogo', context: null });
   });
-  return `<div class="gcwo-pat-exercicio-lista">${linhas.join('')}</div>`;
+
+  const grupos = new Map();
+  entradas.forEach(entrada => {
+    const chave = (entrada.context && entrada.context !== 'indiferente') ? entrada.context : null;
+    if (!grupos.has(chave)) grupos.set(chave, []);
+    grupos.get(chave).push(entrada);
+  });
+  const chavesOrdenadas = [...grupos.keys()].sort((a, b) => {
+    const ia = a ? ORDEM_CONTEXTO_LISTA_PATOLOGIA.indexOf(a) : -1;
+    const ib = b ? ORDEM_CONTEXTO_LISTA_PATOLOGIA.indexOf(b) : -1;
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+
+  const blocos = chavesOrdenadas.map(chave => {
+    const linhas = grupos.get(chave).map(({ ex, meta, origemTag }) => renderLinhaExercicioPatologia(ex, meta, origemTag)).join('');
+    return `<div class="gcwo-pat-exercicio-grupo"><div class="gcwo-pat-exercicio-grupo-titulo">${escHtml(chave || 'Sem contexto definido')}</div>${linhas}</div>`;
+  });
+  return `<div class="gcwo-pat-exercicio-lista">${blocos.join('')}</div>`;
 }
 
 function renderLinhaExercicioPatologia(ex, meta, origemTag) {
