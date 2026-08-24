@@ -284,10 +284,8 @@ function normalizarActo(texto) {
    financeiro existente) — isto é só uma leitura adicional, não persistida.
 
    Ordem de resolução:
-     1) registo.valor_faturado — coluna que ainda NÃO existe hoje em
-        registos_financeiros; se um dia for criada (Fase futura, fora
-        deste plano), esta função passa a usá-la automaticamente sem
-        precisar de ser reescrita.
+     1) registo.valor_faturado — snapshot do preço ao doente no momento
+        em que o registo financeiro foi criado.
      2) Entidade sem clinic_id, tipo 'avenca', ou tipo_acto = 'Avença
         mensal' → é um valor fixo passe-through: faturado = honorário,
         resultado = 0. Não há clinic_prices para avenças.
@@ -1407,6 +1405,14 @@ function buildDashboardRendimentosHTML(ctx) {
         linhas, estado: guardado?.estado || "por_enviar",
         registoId: e.faturacao_granularidade === "registo" ? linhas[0]?.id || null : null,
         valor: linhas.reduce((s, r) => s + Number(r.valor || 0), 0),
+        valorFaturado: linhas.reduce((s, r) => {
+          const cp = e.clinic_id ? clinicPricesByClinicId[e.clinic_id] : null;
+          const resolvido = resolveFaturado(r, e, cp);
+          const v = resolvido.valor != null
+            ? resolvido.valor
+            : (e.valor_faturado != null ? e.valor_faturado : r.valor);
+          return s + Number(v || 0);
+        }, 0),
       });
     };
     if (e.faturacao_granularidade === "mensal") {
@@ -1650,7 +1656,7 @@ table.dash-cron tr:hover td{background:#f8faff;}
                   <td>${dataFmt}</td>
                   <td style="font-weight:700;color:#0f172a;">${escapeHtml(t.entidade.nome)}</td>
                   <td>${escapeHtml(documento)}</td>
-                  <td class="valor">${pgEur(t.valor)}</td>
+                  <td class="valor">${pgEur(t.valorFaturado)}</td>
                   <td><span class="dash-fat-status ${t.estado}">${fatEstadoLabel[t.estado]}</span></td>
                   <td><div class="dash-fat-actions">
                     <button class="dash-fat-pdf" data-entidade="${t.entidade.id}" data-granularidade="${t.granularidade}" data-chave="${escapeHtml(t.chave)}" data-data="${t.data}" data-registo="${t.registoId || ""}">Gerar PDF</button>
@@ -3906,9 +3912,11 @@ function openPdfContabilista(registos, nomeClinica, labelPeriodo, { usarValorFat
   const linhasHtml = linhas.map(r => {
     const p = r.patients || {};
     const ent = r.entidades_financeiras || {};
-    const valor = usarValorFaturado && ent.valor_faturado != null
-      ? Number(ent.valor_faturado)
-      : Number(r.valor || 0);
+    const valor = usarValorFaturado && r.valor_faturado != null
+      ? Number(r.valor_faturado)
+      : usarValorFaturado && ent.valor_faturado != null
+        ? Number(ent.valor_faturado)
+        : Number(r.valor || 0);
     return `<tr>
       <td>${r.data ? new Date(r.data+"T00:00:00").toLocaleDateString("pt-PT") : "—"}</td>
       <td>${escapeHtml(p.full_name || "—")}</td>
@@ -3922,9 +3930,11 @@ function openPdfContabilista(registos, nomeClinica, labelPeriodo, { usarValorFat
 
   const total = linhas.reduce((s, r) => {
     const ent = r.entidades_financeiras || {};
-    const valor = usarValorFaturado && ent.valor_faturado != null
-      ? Number(ent.valor_faturado)
-      : Number(r.valor || 0);
+    const valor = usarValorFaturado && r.valor_faturado != null
+      ? Number(r.valor_faturado)
+      : usarValorFaturado && ent.valor_faturado != null
+        ? Number(ent.valor_faturado)
+        : Number(r.valor || 0);
     return s + valor;
   }, 0);
 

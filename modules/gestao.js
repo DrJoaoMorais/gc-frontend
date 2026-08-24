@@ -1008,7 +1008,8 @@ function renderSeccaoPrecos(container, precos, procedureTypes, clinicaFiltro) {
     <thead>
       <tr style="background:#f8fafc;border-bottom:0.5px solid #e2e8f0;">
         <th style="padding:7px 16px;text-align:left;font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;">Procedimento</th>
-        <th style="padding:7px 16px;text-align:right;font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;">Preço</th>
+        <th style="padding:7px 16px;text-align:right;font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;">Honorário médico</th>
+        <th style="padding:7px 16px;text-align:right;font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;">Preço ao doente</th>
         <th style="padding:7px 16px;text-align:right;font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;">Duração</th>
         <th style="padding:7px 8px;width:40px;"></th>
       </tr>
@@ -1018,6 +1019,7 @@ function renderSeccaoPrecos(container, precos, procedureTypes, clinicaFiltro) {
       <tr style="border-bottom:0.5px solid #f1f5f9;" class="gest-row-tr">
         <td style="padding:8px 16px;font-weight:500;color:#0f172a;">${escapeHtml(p.procedure_type)}</td>
         <td style="padding:8px 16px;text-align:right;color:#059669;font-weight:600;">${Number(p.price || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" })}</td>
+        <td style="padding:8px 16px;text-align:right;color:#0f2d52;font-weight:600;">${p.preco_doente != null ? Number(p.preco_doente).toLocaleString("pt-PT", { style: "currency", currency: "EUR" }) : "—"}</td>
         <td style="padding:8px 16px;text-align:right;color:#94a3b8;">${p.duracao_min ? `${p.duracao_min} min` : "—"}</td>
         <td style="padding:8px 8px;text-align:right;">
           <button class="gest-btn-sm btn-editar-preco" data-preco-id="${escapeHtml(p.id)}" data-clinic-id="${escapeHtml(clinica.id)}" style="padding:4px 10px;font-size:11px;">Editar</button>
@@ -1073,7 +1075,7 @@ async function openModalPreco(precoId, clinicId, procedureTypes) {
       }
     </div>
     <div>
-      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Preço (€) <span style="color:#ef4444;">*</span></label>
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Honorário médico (€) <span style="color:#ef4444;">*</span></label>
       <input id="gPrcPreco" type="number" min="0" step="0.01" value="${preco ? Number(preco.price || 0).toFixed(2) : ""}" placeholder="0.00" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
@@ -1118,7 +1120,7 @@ async function openModalPreco(precoId, clinicId, procedureTypes) {
   });
 
   const calcRecebes = () => {
-    const p    = parseFloat(overlay.querySelector("#gPrcPreco").value);
+    const p    = parseFloat(overlay.querySelector("#gPrcPrecoDoente").value);
     const pct  = parseFloat(overlay.querySelector("#gPrcPercMedico").value);
     const info = overlay.querySelector("#gPrcCalcInfo");
     const val  = overlay.querySelector("#gPrcCalcVal");
@@ -1129,7 +1131,7 @@ async function openModalPreco(precoId, clinicId, procedureTypes) {
       info.style.display = "none";
     }
   };
-  overlay.querySelector("#gPrcPreco").addEventListener("input", calcRecebes);
+  overlay.querySelector("#gPrcPrecoDoente").addEventListener("input", calcRecebes);
   overlay.querySelector("#gPrcPercMedico").addEventListener("input", calcRecebes);
   calcRecebes();
 
