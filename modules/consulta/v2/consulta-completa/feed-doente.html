@@ -199,6 +199,14 @@
     .fd-doc-chip:hover { background: var(--azul); color: #fff; border-color: var(--azul); }
     .fd-doc-chip .fd-doc-data { color: var(--tenue); font-size: 11px; }
     .fd-doc-chip:hover .fd-doc-data { color: rgba(255,255,255,.8); }
+    .fd-doc-wrap { display: inline-flex; align-items: center; gap: 3px; }
+    .fd-doc-x {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 18px; height: 18px; border-radius: 50%; border: 1px solid #fca5a5;
+      background: #fef2f2; color: #dc2626; font-size: 12px; line-height: 1;
+      cursor: pointer; padding: 0; flex-shrink: 0; font-weight: 700;
+    }
+    .fd-doc-x:hover { background: #dc2626; color: #fff; border-color: #dc2626; }
     .fd-card-docs-count {
       font-size: 11px; color: var(--suave); background: var(--fundo);
       border: 1px solid var(--linha); border-radius: 20px; padding: 2px 8px;
@@ -2043,6 +2051,40 @@
       analises:              'PedidoAnalises',
       exames:                 'PedidoExames',
     };
+
+    /* ── arquivar documento (popup Sim/Cancelar + UPDATE status, nunca DELETE) ── */
+    function fdConfirmArquivarDocumento(docId) {
+      document.getElementById('fdArquivarOverlay')?.remove();
+      const overlay = document.createElement('div');
+      overlay.id = 'fdArquivarOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,45,82,.35);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+      overlay.innerHTML = `
+        <div style="background:#fff;border-radius:16px;max-width:320px;width:100%;padding:24px;font-family:inherit;text-align:center;">
+          <p style="margin:0 0 18px;font-size:15px;font-weight:700;color:#0f2d52;">Arquivar?</p>
+          <div style="display:flex;gap:8px;">
+            <button id="fdArquivarCancelar" style="flex:1;padding:10px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;cursor:pointer;font-size:13px;">Cancelar</button>
+            <button id="fdArquivarSim" style="flex:1;padding:10px;border-radius:10px;border:none;background:#dc2626;color:#fff;font-weight:600;cursor:pointer;font-size:13px;">Sim</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      const fechar = () => overlay.remove();
+      overlay.addEventListener('click', e => { if (e.target === overlay) fechar(); });
+      document.getElementById('fdArquivarCancelar')?.addEventListener('click', fechar);
+      document.getElementById('fdArquivarSim')?.addEventListener('click', async () => {
+        const btn = document.getElementById('fdArquivarSim');
+        if (btn) { btn.disabled = true; btn.textContent = 'A arquivar…'; }
+        try {
+          const sb = window.sb;
+          const { error } = await sb.from('documents').update({ status: 'arquivado' }).eq('id', docId);
+          if (error) { alert('Erro ao arquivar documento: ' + (error.message || error)); return; }
+          fechar();
+          await boot();
+        } catch (e) {
+          alert('Erro ao arquivar documento: ' + (e?.message || e));
+        }
+      });
+    }
+
     function renderDocumentos(docs) {
       if (!docs || !docs.length) return '';
       const chips = docs.map(d => {
@@ -2052,7 +2094,10 @@
         const friendlyName = buildFriendlyFileName(tipoSlug, fdPatientData?.full_name, dataSimples);
         const url = window.sb.storage.from('documents').getPublicUrl(d.storage_path, { download: friendlyName })?.data?.publicUrl || '#';
         const data = fmtDataHora(d.created_at);
-        return `<a class="fd-doc-chip" href="${esc(url)}" target="_blank" rel="noopener" title="${esc(d.title || tipo.lbl)}">${tipo.ic} ${esc(tipo.lbl)} <span class="fd-doc-data">${data}</span></a>`;
+        return `<span class="fd-doc-wrap">
+          <a class="fd-doc-chip" href="${esc(url)}" target="_blank" rel="noopener" title="${esc(d.title || tipo.lbl)}">${tipo.ic} ${esc(tipo.lbl)} <span class="fd-doc-data">${data}</span></a>
+          <button type="button" class="fd-doc-x" data-doc-id="${esc(d.id)}" title="Arquivar documento">×</button>
+        </span>`;
       }).join('');
       return `<div class="fd-docs"><span class="fd-docs-titulo">Documentos</span>${chips}</div>`;
     }
@@ -2260,6 +2305,15 @@
       /* ── evolutivo por card ── */
       preencherEvolutivos(todosAssessments);
 
+      /* ── botão arquivar documento ── */
+      feed.querySelectorAll('.fd-doc-x').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.preventDefault();
+          e.stopPropagation();
+          fdConfirmArquivarDocumento(btn.getAttribute('data-doc-id'));
+        });
+      });
+
       /* ── acordeões ── */
       feed.querySelectorAll('.fd-card-head').forEach(head => {
         head.addEventListener('click', e => {
@@ -2358,6 +2412,7 @@
         sb.from('documents')
           .select('id, consultation_id, title, category, storage_path, created_at')
           .eq('patient_id', PATIENT_ID)
+          .neq('status', 'arquivado')
           .order('created_at', { ascending: false }),
       ]);
       fdUserRole = roleRes;
