@@ -196,6 +196,41 @@ async function deletePresenca(id) {
   if (error) throw error;
 }
 
+/* ---- FA.11 — controlo administrativo de faturação (separado dos honorários) ---- */
+async function loadControloFaturacao({ mes, ano, dataIni, dataFim } = {}) {
+  let inicio, fim;
+  if (dataIni && dataFim) {
+    inicio = dataIni;
+    const d = new Date(dataFim + "T00:00:00");
+    d.setDate(d.getDate() + 1);
+    fim = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  } else {
+    inicio = `${ano}-${String(mes).padStart(2, "0")}-01`;
+    const mesFim = mes === 12 ? 1 : mes + 1;
+    const anoFim = mes === 12 ? ano + 1 : ano;
+    fim = `${anoFim}-${String(mesFim).padStart(2, "0")}-01`;
+  }
+  const { data, error } = await window.sb
+    .from("controlo_faturacao")
+    .select("*")
+    .gte("data_referencia", inicio)
+    .lt("data_referencia", fim);
+  if (error) throw error;
+  return data || [];
+}
+
+async function gravarEstadoFaturacao(payload) {
+  const agora = new Date().toISOString();
+  const linha = { ...payload };
+  if (linha.estado === "enviado_contabilista") linha.enviado_contabilista_at = agora;
+  if (linha.estado === "recibo_emitido") linha.recibo_emitido_at = agora;
+  if (linha.estado === "pago") linha.pago_at = agora;
+  const { error } = await window.sb
+    .from("controlo_faturacao")
+    .upsert(linha, { onConflict: "entidade_id,granularidade,chave" });
+  if (error) throw error;
+}
+
 /* ==== FB — Helpers ==== */
 
 /* ---- FB.1 — mesLabel ---- */
@@ -1205,6 +1240,484 @@ ${semPrecoTotal > 0 ? `<div style="font-size:11px;color:#94a3b8;margin:-12px 0 1
 `;
 }
 
+/* ============================================================
+   FASE 3 — Dashboard Rendimentos
+   ------------------------------------------------------------
+   Coexiste com o Panorama Geral e o Detalhe da Clínica. Reutiliza
+   computeClinicMetrics (FB.11), pgFinancaClinica/resolveFaturado/
+   classificarAto (Fase 0/2A) — sem nenhum cálculo novo. Sem gráficos,
+   sem comparação com meses anteriores, sem queries novas — só
+   HTML/CSS próprio e independente (tal como o Panorama Geral e o
+   Detalhe têm o seu <style> autónomo).
+
+   FASE 3 Passo 4 — revisão conceptual (2026-08-24): o Dashboard é do
+   Dr. João Morais enquanto PRESTADOR DE SERVIÇOS às clínicas, não da
+   clínica em si. Por isso deixa de existir "Valor faturado ao doente"
+   ou "Resultado" (fat - hon) neste ecrã — essa diferença pertence à
+   clínica, não ao médico. O único KPI monetário é o Rendimento =
+   honorários dos actos + componentes fixas mensais, que é exactamente
+   o `hon` que pgFinancaClinica já calculava (computeClinicMetrics já
+   agrega, por clinic_id, os registos das entidades tipo "avença" como
+   a Direção Clínica — nenhum cálculo novo foi necessário). O valor
+   faturado ao doente continua a existir nos dados (resolveFaturado
+   inalterado) só para os PDFs contabilísticos, fora deste ecrã.
+   ============================================================ */
+
+const DASH_TIPO_ORDEM = ["Primeira Consulta", "Reavaliação", "Teleconsulta", "PRP", "Visco", "Outros"];
+
+/* Rendimento do médico por tipo de acto = registos_financeiros.valor
+   (honorário, sempre persistido pelo trigger — nunca "indisponível"
+   como o valor faturado ao doente). "—" só quando não há nenhuma
+   ocorrência do tipo no período, nunca escondido. */
+function dashHonorarioOuIndisponivel(d) {
+  return d.n === 0 ? "—" : pgEur(d.hon);
+}
+
+/* Componente fixa (Direção Clínica, avenças) — "—" quando a clínica não
+   tem nenhuma componente fixa associada no período, nunca "0,00 €". */
+function dashComponenteFixaOuTraco(v) {
+  return v === 0 ? "—" : pgEur(v);
+}
+
+function buildDashboardRendimentosHTML(ctx) {
+  const {
+    entidades, registosFiltrados, entClinicasTodas, clinicPricesByClinicId,
+    controloFaturacao, mes, ano, modoAtivo, navLabel, periodoIni, periodoFim,
+  } = ctx;
+
+  /* ---- Produção por clínica — mesma base do Panorama Geral. Fase 3
+     Passo 5 — decompõe `hon` (inalterado) em Honorários clínicos vs.
+     Componentes fixas, para tornar essa composição visualmente explícita.
+     "Avença mensal" é a mesma marca já usada em toda a parte do módulo
+     (Detalhe da Clínica, Discriminação por tipo) para distinguir uma
+     componente fixa (Direção Clínica, avenças) de um acto clínico — por
+     construção, honorariosClinicos + componentesFixas === c.hon sempre,
+     porque particiona exactamente o mesmo conjunto de registos que
+     pgFinancaClinica já soma em `hon`. ---- */
+  const porClinica = entClinicasTodas.map(e => {
+    const { regs, porTipo } = computeClinicMetrics(e.id, entidades, registosFiltrados);
+    const cp = e.clinic_id ? clinicPricesByClinicId[e.clinic_id] : null;
+    const fin = pgFinancaClinica(e, regs, entidades, cp);
+    const done  = Object.values(porTipo).reduce((s, v) => s + v.done, 0);
+    const falta = Object.values(porTipo).reduce((s, v) => s + v.falta, 0);
+    const disp  = Object.values(porTipo).reduce((s, v) => s + v.disp, 0);
+    let honorariosClinicos = 0;
+    regs.forEach(r => {
+      if (!contaParaTotal(r.appt_status, r.financial_status)) return;
+      if (r.tipo_acto === "Avença mensal") return;
+      honorariosClinicos += Number(r.valor || 0);
+    });
+    const componentesFixas = fin.hon - honorariosClinicos;
+    /* Fase 3 Passo 6 — nome real da(s) componente(s) fixa(s), tal como
+       entidades_financeiras já as configura (mesma entidade tipo "avença"
+       do mesmo clinic_id que o Detalhe da Clínica lista em "Componentes
+       fixos" — mesma convenção de rótulo aí usada: nome depois do "—"
+       quando existir, senão o nome completo). Não inventa nomes nem
+       recalcula o valor — só identifica a origem do `componentesFixas`
+       já calculado acima. */
+    const componentesFixosEnt = e.clinic_id
+      ? entidades.filter(x => x.tipo === "avenca" && x.clinic_id === e.clinic_id)
+      : [];
+    const componentesFixasLabel = componentesFixosEnt.length > 0
+      ? componentesFixosEnt.map(av => av.nome.includes("—") ? av.nome.split("—")[1].trim() : av.nome).join(", ")
+      : null;
+    return { entidade: e, regs, cp, done, falta, disp, honorariosClinicos, componentesFixas, componentesFixasLabel, ...fin };
+  });
+
+  /* ---- Fase 3 Passo 6 — Lista cronológica: mesmo critério de inclusão já
+     usado na Lista cronológica do Detalhe da Clínica (contaParaTotal ||
+     no_show || honorarios_dispensados) — exactamente os registos que já
+     alimentam Consultas/Faltas/Dispensas no Dashboard, agora agregados
+     por todas as clínicas em vez de uma só. Sem dados do doente, sem
+     hora, sem Faturado/Resultado — só o que o médico recebe. ---- */
+  const listaCronologica = porClinica
+    .flatMap(c => c.regs
+      .filter(r => {
+        const s = String(r.appt_status || "").toLowerCase();
+        return contaParaTotal(r.appt_status, r.financial_status)
+          || s === "no_show"
+          || r.financial_status === "honorarios_dispensados";
+      })
+      .map(r => ({ ...r, _clinica: c.entidade.nome })))
+    .sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : 0));
+
+  /* ---- Rendimento do médico = soma dos honorários por clínica (`c.hon`,
+     de pgFinancaClinica) — já inclui as componentes fixas mensais, porque
+     computeClinicMetrics agrega os registos das entidades tipo "avença"
+     do mesmo clinic_id (ex.: Direção Clínica da AlfraClinic). Não existe
+     "Valor faturado ao doente" nem "Resultado" (fat - hon) neste ecrã —
+     essa é uma grandeza da clínica, não do médico. ---- */
+  let rendimentoTotal = 0, honorariosClinicosTotal = 0, componentesFixasTotal = 0;
+  let faltasTotal = 0, dispensasTotal = 0, semPrecoTotal = 0, consultasTotal = 0;
+  porClinica.forEach(c => {
+    rendimentoTotal += c.hon;
+    honorariosClinicosTotal += c.honorariosClinicos;
+    componentesFixasTotal += c.componentesFixas;
+    faltasTotal += c.falta; dispensasTotal += c.disp; semPrecoTotal += c.semPreco;
+    consultasTotal += c.done;
+  });
+
+  /* ---- Produção por tipo — honorário do médico por tipo de acto
+     (registos_financeiros.valor directo, igual ao que resolveFaturado()
+     devolveria em .honorario — não precisa de clinic_prices porque o
+     honorário nunca depende do preçário ao doente). ---- */
+  const porTipoGlobal = {};
+  DASH_TIPO_ORDEM.forEach(k => { porTipoGlobal[k] = { n: 0, hon: 0 }; });
+  porClinica.forEach(c => {
+    c.regs.forEach(r => {
+      if (!contaParaTotal(r.appt_status, r.financial_status)) return;
+      if (r.tipo_acto === "Avença mensal") return;
+      const cat = classificarAto(r.tipo_acto);
+      const chave = porTipoGlobal[cat] ? cat : "Outros";
+      porTipoGlobal[chave].n += 1;
+      porTipoGlobal[chave].hon += Number(r.valor || 0);
+    });
+  });
+
+  /* ---- agrupamento visual "Consultas" / "Procedimentos" e magnitude
+     relativa da barra de ranking, calculada sobre o Rendimento (honorário)
+     do próprio período — nunca inventa percentagens, só a largura visual. ---- */
+  const grupoConsultasTipos     = DASH_TIPO_ORDEM.slice(0, 3); // Primeira Consulta, Reavaliação, Teleconsulta
+  const grupoProcedimentosTipos = DASH_TIPO_ORDEM.slice(3);    // PRP, Visco, Outros
+  const maxHonClinica = Math.max(1, ...porClinica.map(c => c.hon || 0));
+  /* Mesma ordenação (por Rendimento) usada no ranking "Produção por
+     clínica" — extraída para reutilizar também nos chips de filtro da
+     Atividade recente, sem duplicar o critério. */
+  const porClinicaOrdenada = porClinica.slice().sort((a, b) => b.hon - a.hon);
+
+  /* Tarefas administrativas reais. A granularidade vem da configuração da
+     entidade na BD: avenças/mensal, Athletix/dia, Web/registo. A ausência
+     de uma linha em controlo_faturacao significa "por enviar"; não altera
+     financial_status nem qualquer cálculo de rendimentos. */
+  const controloPorChave = new Map((controloFaturacao || []).map(x => [`${x.entidade_id}|${x.granularidade}|${x.chave}`, x]));
+  const tarefasFaturacao = [];
+  entidades.filter(e => e.faturacao_granularidade).forEach(e => {
+    const regs = registosFiltrados.filter(r => {
+      if (r.entidade_id !== e.id) return false;
+      if (e.faturacao_granularidade === "mensal") {
+        return r.tipo_acto === "Avença mensal" && String(r.appt_status || "").toLowerCase() === "done";
+      }
+      return contaParaTotal(r.appt_status, r.financial_status) && Number(r.valor || 0) > 0;
+    });
+    const adicionar = ({ chave, data, linhas }) => {
+      const lookup = `${e.id}|${e.faturacao_granularidade}|${chave}`;
+      const guardado = controloPorChave.get(lookup);
+      tarefasFaturacao.push({
+        entidade: e, granularidade: e.faturacao_granularidade, chave, data,
+        linhas, estado: guardado?.estado || "por_enviar",
+        registoId: e.faturacao_granularidade === "registo" ? linhas[0]?.id || null : null,
+        valor: linhas.reduce((s, r) => s + Number(r.valor || 0), 0),
+      });
+    };
+    if (e.faturacao_granularidade === "mensal") {
+      const porMes = new Map();
+      regs.filter(r => r.tipo_acto === "Avença mensal").forEach(r => {
+        const k = String(r.data || "").slice(0, 7);
+        if (k) porMes.set(k, [...(porMes.get(k) || []), r]);
+      });
+      porMes.forEach((linhas, chave) => adicionar({ chave, data: `${chave}-01`, linhas }));
+    } else if (e.faturacao_granularidade === "dia") {
+      const porDia = new Map();
+      regs.forEach(r => porDia.set(r.data, [...(porDia.get(r.data) || []), r]));
+      porDia.forEach((linhas, chave) => adicionar({ chave, data: chave, linhas }));
+    } else {
+      regs.forEach(r => adicionar({ chave: r.id, data: r.data, linhas: [r] }));
+    }
+  });
+  tarefasFaturacao.sort((a, b) => a.data < b.data ? 1 : a.data > b.data ? -1 : 0);
+  const fatContagens = { por_enviar: 0, enviado_contabilista: 0, recibo_emitido: 0, pago: 0 };
+  tarefasFaturacao.forEach(t => { if (fatContagens[t.estado] != null) fatContagens[t.estado]++; });
+  const fatEstadoLabel = {
+    por_enviar: "Por enviar", enviado_contabilista: "Enviado à contabilista",
+    recibo_emitido: "Recibo emitido", pago: "Pago",
+  };
+  const fatNext = { por_enviar: "enviado_contabilista", enviado_contabilista: "recibo_emitido", recibo_emitido: "pago" };
+  const fatNextLabel = { por_enviar: "Marcar enviado", enviado_contabilista: "Marcar recibo emitido", recibo_emitido: "Marcar pago" };
+  const tipoRowHTML = (k) => {
+    const d = porTipoGlobal[k];
+    const vazio = d.n === 0;
+    return `
+        <div class="dash-tipo-row${vazio ? " empty" : ""}">
+          <span class="dash-tipo-nome">${k}</span>
+          <span class="dash-tipo-nums"><span class="dash-tipo-n">${vazio ? "—" : d.n}</span><span class="dash-tipo-val">${dashHonorarioOuIndisponivel(d)}</span></span>
+        </div>`;
+  };
+
+  const periodBarHTML = `
+    ${modoAtivo !== "intervalo" ? `<div style="display:flex;align-items:center;border:0.5px solid #cbd5e1;border-radius:8px;background:#fff;">
+      <button id="finNavPrev" aria-label="Anterior" style="border:none;background:none;padding:6px 11px;cursor:pointer;color:#0f2d52;font-size:18px;line-height:1;">‹</button>
+      ${modoAtivo === "dia"
+        ? `<input type="date" id="finDiaPick" value="${periodoIni}" style="border:none;outline:none;background:none;font-size:13px;font-weight:600;color:#0f2d52;font-family:inherit;text-align:center;width:150px;cursor:pointer;">`
+        : `<span style="font-size:13px;font-weight:600;color:#0f2d52;min-width:118px;text-align:center;text-transform:capitalize;">${navLabel}</span>`}
+      <button id="finNavNext" aria-label="Seguinte" style="border:none;background:none;padding:6px 11px;cursor:pointer;color:#0f2d52;font-size:18px;line-height:1;">›</button>
+    </div>` : ""}
+    <button id="finHoje" style="border:0.5px solid #e2e8f0;background:#fff;font-size:12px;padding:6px 13px;border-radius:8px;color:#0f2d52;cursor:pointer;font-family:inherit;font-weight:600;">Hoje</button>
+    <div style="display:flex;background:#f1f5f9;border-radius:8px;padding:3px;gap:2px;">
+      <button data-modo="dia" class="finPreset" style="border:none;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:inherit;${modoAtivo === "dia" ? "background:#0f2d52;color:#fff;" : "background:none;color:#64748b;"}">Dia</button>
+      <button data-modo="semana" class="finPreset" style="border:none;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:inherit;${modoAtivo === "semana" ? "background:#0f2d52;color:#fff;" : "background:none;color:#64748b;"}">Semana</button>
+      <button data-modo="mes" class="finPreset" style="border:none;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:inherit;${modoAtivo === "mes" ? "background:#0f2d52;color:#fff;" : "background:none;color:#64748b;"}">Mês</button>
+      <button data-modo="intervalo" class="finPreset" style="border:none;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:inherit;${modoAtivo === "intervalo" ? "background:#0f2d52;color:#fff;" : "background:none;color:#64748b;"}">Intervalo</button>
+    </div>
+    ${modoAtivo === "intervalo" ? `<div style="display:flex;align-items:center;gap:4px;background:#fff;border:0.5px solid #e2e8f0;border-radius:8px;padding:4px 10px;">
+      <span style="font-size:11px;color:#94a3b8;white-space:nowrap;">De</span>
+      <input id="finPeriodoIni" type="date" value="${periodoIni}" style="border:none;outline:none;font-size:12px;color:#0f172a;font-family:inherit;width:120px;" />
+      <span style="font-size:11px;color:#94a3b8;white-space:nowrap;">Até</span>
+      <input id="finPeriodoFim" type="date" value="${periodoFim}" style="border:none;outline:none;font-size:12px;color:#0f172a;font-family:inherit;width:120px;" />
+    </div>` : ""}`;
+
+  return `
+<style>
+.dash-header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;margin-bottom:26px;}
+.dash-eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;margin-bottom:4px;}
+.dash-title{font-size:24px;font-weight:800;color:#0f2d52;letter-spacing:-.01em;}
+.dash-sub{font-size:12px;color:#94a3b8;margin-top:4px;}
+.dash-period{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+
+.dash-topbar{display:flex;flex-wrap:wrap;align-items:stretch;background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 1px 2px rgba(15,45,82,.04), 0 10px 28px -14px rgba(15,45,82,.22);margin-bottom:22px;overflow:hidden;}
+.dash-stat{flex:1 1 0;min-width:96px;padding:16px 20px;border-left:0.5px solid #f1f5f9;display:flex;flex-direction:column;justify-content:center;}
+.dash-stat:first-child{border-left:none;}
+.dash-stat-l{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin-bottom:7px;white-space:nowrap;}
+.dash-stat-v{font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-.01em;}
+.dash-stat-primary{flex:1.7 1 0;background:#f8fafc;}
+.dash-stat-primary .dash-stat-v{font-size:32px;color:#0f2d52;}
+.dash-stat-sm .dash-stat-v{font-size:19px;}
+.dash-stat-bad .dash-stat-v{color:#DC2626;}
+.dash-stat-info .dash-stat-v{color:#0f2d52;}
+.dash-stat-op{flex:0 0 auto;display:flex;align-items:center;justify-content:center;padding:0 2px;color:#cbd5e1;font-size:15px;font-weight:700;}
+@media(max-width:900px){.dash-topbar{flex-wrap:wrap;} .dash-stat{flex:1 1 33%;border-top:0.5px solid #f1f5f9;} .dash-stat-op{display:none;}}
+
+.dash-section-label{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin:22px 0 10px;}
+
+.dash-layout{display:block;}
+.dash-main{min-width:0;}
+.dash-side{min-width:0;margin-top:22px;}
+
+.dash-ranking{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;}
+.dash-rank-row{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:11px 16px;box-shadow:0 1px 2px rgba(15,45,82,.04), 0 8px 24px -12px rgba(15,45,82,.18);}
+.dash-rank-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px;}
+.dash-rank-name{font-size:13.5px;font-weight:800;color:#0f172a;}
+.dash-rank-value{font-size:15px;font-weight:800;color:#0f2d52;white-space:nowrap;}
+.dash-rank-bar-track{height:4px;background:#f1f5f9;border-radius:3px;overflow:hidden;margin-bottom:7px;}
+.dash-rank-bar-fill{height:100%;background:linear-gradient(90deg,#0f2d52,#1a56db);border-radius:3px;}
+.dash-rank-detail{display:block;font-size:11.5px;color:#94a3b8;}
+.dash-rank-detail b{color:#0f172a;font-weight:700;}
+.dash-rank-detail .sep{margin:0 6px;color:#e2e8f0;}
+.dash-rank-sub{font-size:10.5px;color:#cbd5e1;font-weight:600;margin-top:3px;}
+.dash-empty{padding:20px 16px;font-size:12px;color:#94a3b8;background:#fff;border:1px solid #e2e8f0;border-radius:14px;text-align:center;}
+@media(max-width:760px){.dash-ranking{grid-template-columns:1fr;}}
+@media(min-width:761px) and (max-width:1100px){.dash-ranking{grid-template-columns:repeat(2,minmax(0,1fr));}}
+
+.dash-fat-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:10px;overflow:hidden;}
+.dash-fat-count{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 14px;border-left:.5px solid #e2e8f0;font-size:11.5px;color:#64748b;}
+.dash-fat-count:first-child{border-left:none;}
+.dash-fat-count b{font-size:17px;color:#0f2d52;}
+.dash-fat-wrap{overflow-x:auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 1px 2px rgba(15,45,82,.04),0 8px 24px -12px rgba(15,45,82,.18);}
+.dash-fat-table{width:100%;border-collapse:collapse;min-width:900px;font-size:12px;}
+.dash-fat-table th{background:#f8fafc;text-align:left;padding:9px 12px;border-bottom:1px solid #e2e8f0;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;}
+.dash-fat-table td{padding:9px 12px;border-bottom:.5px solid #f1f5f9;color:#334155;vertical-align:middle;}
+.dash-fat-table tr:last-child td{border-bottom:none;}
+.dash-fat-table td.valor{text-align:right;font-weight:800;color:#0f172a;white-space:nowrap;}
+.dash-fat-status{display:inline-block;border-radius:8px;padding:3px 8px;font-size:10.5px;font-weight:700;white-space:nowrap;}
+.dash-fat-status.por_enviar{background:#fef3c7;color:#92400e;}
+.dash-fat-status.enviado_contabilista{background:#dbeafe;color:#1e40af;}
+.dash-fat-status.recibo_emitido{background:#ede9fe;color:#5b21b6;}
+.dash-fat-status.pago{background:#d1fae5;color:#065f46;}
+.dash-fat-actions{display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.dash-fat-pdf{border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:7px;padding:4px 8px;font:600 10.5px inherit;cursor:pointer;}
+.dash-fat-btn{border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:7px;padding:4px 8px;font:600 10.5px inherit;cursor:pointer;}
+@media(max-width:760px){.dash-fat-summary{grid-template-columns:repeat(2,minmax(0,1fr));}.dash-fat-count:nth-child(3){border-left:none;border-top:.5px solid #e2e8f0;}.dash-fat-count:nth-child(4){border-top:.5px solid #e2e8f0;}}
+.dash-lower{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start;margin-top:22px;}
+@media(max-width:760px){.dash-lower{grid-template-columns:1fr;}}
+
+.dash-tipo-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:6px 16px 12px;box-shadow:0 1px 2px rgba(15,45,82,.04), 0 8px 24px -12px rgba(15,45,82,.18);margin-bottom:26px;}
+.dash-tipo-group-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;padding-top:10px;}
+.dash-tipo-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid #f1f5f9;}
+.dash-tipo-row:last-child{border-bottom:none;}
+.dash-tipo-row.empty{opacity:.5;}
+.dash-tipo-nome{font-size:12.5px;color:#334155;}
+.dash-tipo-nums{display:flex;align-items:center;gap:8px;}
+.dash-tipo-n{font-size:11px;color:#94a3b8;min-width:14px;text-align:right;}
+.dash-tipo-val{font-size:12.5px;font-weight:700;color:#0f172a;min-width:64px;text-align:right;}
+
+.dash-atencao{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:4px 16px;box-shadow:0 1px 2px rgba(15,45,82,.04), 0 8px 24px -12px rgba(15,45,82,.18);}
+.dash-atencao-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid #f1f5f9;}
+.dash-atencao-item:last-child{border-bottom:none;}
+.dash-atencao-item .l{font-size:12px;color:#64748b;font-weight:500;}
+.dash-atencao-item .n{font-size:16px;font-weight:800;}
+.dash-atencao-item.bad .n{color:#DC2626;}
+.dash-atencao-item.warn .n{color:#D97706;}
+.dash-atencao-item.info .n{color:#0f2d52;}
+
+.dash-atividade-filtros{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+.dash-chip-row{display:flex;flex-wrap:wrap;gap:6px;}
+.dash-chip{font-family:inherit;font-size:11.5px;font-weight:600;padding:5px 12px;border-radius:20px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;}
+.dash-chip:hover{border-color:#cbd5e1;color:#0f2d52;}
+.dash-chip.active{background:#0f2d52;border-color:#0f2d52;color:#fff;}
+
+.dash-cron-wrap{overflow-x:auto;border:1px solid #e2e8f0;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(15,45,82,.04), 0 8px 24px -12px rgba(15,45,82,.18);}
+table.dash-cron{width:100%;border-collapse:collapse;font-size:12.5px;min-width:640px;}
+table.dash-cron thead th{background:#f8fafc;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;padding:9px 14px;border-bottom:1px solid #e2e8f0;}
+table.dash-cron td{padding:8px 14px;border-bottom:0.5px solid #f1f5f9;color:#334155;white-space:nowrap;}
+table.dash-cron tr:last-child td{border-bottom:none;}
+table.dash-cron td.num{text-align:right;font-weight:700;color:#0f172a;}
+table.dash-cron tr:hover td{background:#f8faff;}
+.dash-cron-empty-msg{padding:20px 16px;text-align:center;color:#94a3b8;font-size:12px;}
+.dash-cron-footer{padding:12px 16px;text-align:center;border-top:0.5px solid #f1f5f9;}
+.dash-link-btn{font-family:inherit;font-size:12px;font-weight:700;color:#1a56db;background:none;border:none;cursor:pointer;padding:4px 8px;}
+.dash-link-btn:hover{text-decoration:underline;}
+</style>
+
+<div class="dash-header">
+  <div>
+    <div class="dash-eyebrow">Rendimentos</div>
+    <div class="dash-title">Dashboard</div>
+    <div class="dash-sub">${mesLabel(ano, mes)} · Dr. João Morais</div>
+  </div>
+  <div class="dash-period">${periodBarHTML}</div>
+</div>
+
+<div class="dash-topbar">
+  <div class="dash-stat dash-stat-primary">
+    <div class="dash-stat-l">Rendimento total</div>
+    <div class="dash-stat-v">${pgEur(rendimentoTotal)}</div>
+  </div>
+  <div class="dash-stat dash-stat-sm">
+    <div class="dash-stat-l">Honorários clínicos</div>
+    <div class="dash-stat-v">${dashComponenteFixaOuTraco(honorariosClinicosTotal)}</div>
+  </div>
+  <div class="dash-stat-op">+</div>
+  <div class="dash-stat dash-stat-sm">
+    <div class="dash-stat-l">Componentes fixas</div>
+    <div class="dash-stat-v">${dashComponenteFixaOuTraco(componentesFixasTotal)}</div>
+  </div>
+  <div class="dash-stat dash-stat-sm">
+    <div class="dash-stat-l">Consultas</div>
+    <div class="dash-stat-v">${consultasTotal}</div>
+  </div>
+  <div class="dash-stat dash-stat-sm dash-stat-bad">
+    <div class="dash-stat-l">Faltas</div>
+    <div class="dash-stat-v">${faltasTotal}</div>
+  </div>
+  <div class="dash-stat dash-stat-sm dash-stat-info">
+    <div class="dash-stat-l">Dispensas</div>
+    <div class="dash-stat-v">${dispensasTotal}</div>
+  </div>
+</div>
+
+<div class="dash-layout">
+  <div class="dash-main">
+    <div class="dash-section-label" style="margin-top:0;">Produção por clínica</div>
+    <div class="dash-ranking">
+      ${porClinicaOrdenada.length === 0
+        ? `<div class="dash-empty">Sem clínicas neste período.</div>`
+        : porClinicaOrdenada.map(c => {
+            const pct = Math.round((Math.max(0, c.hon) / maxHonClinica) * 100);
+            return `
+      <div class="dash-rank-row">
+        <div class="dash-rank-top">
+          <span class="dash-rank-name">${escapeHtml(c.entidade.nome)}</span>
+          <span class="dash-rank-value">${pgEur(c.hon)}</span>
+        </div>
+        <div class="dash-rank-bar-track"><div class="dash-rank-bar-fill" style="width:${pct}%;"></div></div>
+        <span class="dash-rank-detail">Honorários clínicos <b>${dashComponenteFixaOuTraco(c.honorariosClinicos)}</b><span class="sep">|</span>${c.componentesFixasLabel ? escapeHtml(c.componentesFixasLabel) : "Componentes fixas"} <b>${dashComponenteFixaOuTraco(c.componentesFixas)}</b></span>
+        <div class="dash-rank-sub">${c.done} consulta${c.done === 1 ? "" : "s"}</div>
+      </div>`;
+          }).join("")}
+    </div>
+  </div>
+
+  <div class="dash-side">
+    <div class="dash-section-label" style="margin-top:0;">Faturação / Recibos</div>
+    <div class="dash-fat-summary">
+      <div class="dash-fat-count"><span>Por enviar</span><b>${fatContagens.por_enviar}</b></div>
+      <div class="dash-fat-count"><span>Enviado à contabilista</span><b>${fatContagens.enviado_contabilista}</b></div>
+      <div class="dash-fat-count"><span>Recibos emitidos</span><b>${fatContagens.recibo_emitido}</b></div>
+      <div class="dash-fat-count"><span>Pagos</span><b>${fatContagens.pago}</b></div>
+    </div>
+    <div class="dash-fat-wrap">
+      <table class="dash-fat-table">
+        <thead><tr><th>Data</th><th>Entidade</th><th>Documento</th><th style="text-align:right;">Valor</th><th>Estado</th><th>Ações</th></tr></thead>
+        <tbody>
+          ${tarefasFaturacao.length === 0
+            ? `<tr><td colspan="6" style="padding:20px;text-align:center;color:#94a3b8;">Sem tarefas de faturação neste período.</td></tr>`
+            : tarefasFaturacao.map(t => {
+                const dataFmt = new Date(t.data + "T00:00:00").toLocaleDateString("pt-PT");
+                const documento = t.granularidade === "mensal" ? "Mensal"
+                  : t.granularidade === "dia" ? `${t.linhas.length} consulta${t.linhas.length === 1 ? "" : "s"}`
+                  : (t.linhas[0]?.tipo_acto || "Consulta individual");
+                const next = fatNext[t.estado];
+                return `<tr>
+                  <td>${dataFmt}</td>
+                  <td style="font-weight:700;color:#0f172a;">${escapeHtml(t.entidade.nome)}</td>
+                  <td>${escapeHtml(documento)}</td>
+                  <td class="valor">${pgEur(t.valor)}</td>
+                  <td><span class="dash-fat-status ${t.estado}">${fatEstadoLabel[t.estado]}</span></td>
+                  <td><div class="dash-fat-actions">
+                    <button class="dash-fat-pdf" data-entidade="${t.entidade.id}" data-granularidade="${t.granularidade}" data-chave="${escapeHtml(t.chave)}" data-data="${t.data}" data-registo="${t.registoId || ""}">Gerar PDF</button>
+                    ${next ? `<button class="dash-fat-btn" data-entidade="${t.entidade.id}" data-granularidade="${t.granularidade}" data-chave="${escapeHtml(t.chave)}" data-data="${t.data}" data-registo="${t.registoId || ""}" data-estado="${next}">${fatNextLabel[t.estado]}</button>` : ""}
+                  </div></td>
+                </tr>`;
+              }).join("")}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="dash-lower">
+  <div>
+    <div class="dash-section-label" style="margin-top:0;">Produção por tipo</div>
+    <div class="dash-tipo-card">
+      <div class="dash-tipo-group-label">Consultas</div>
+      ${grupoConsultasTipos.map(tipoRowHTML).join("")}
+      <div class="dash-tipo-group-label">Procedimentos</div>
+      ${grupoProcedimentosTipos.map(tipoRowHTML).join("")}
+    </div>
+  </div>
+  <div>
+    <div class="dash-section-label" style="margin-top:0;">Atenção</div>
+    <div class="dash-atencao">
+      <div class="dash-atencao-item bad"><span class="l">Faltas no período</span><span class="n">${faltasTotal}</span></div>
+      <div class="dash-atencao-item info"><span class="l">Dispensas de honorários</span><span class="n">${dispensasTotal}</span></div>
+      <div class="dash-atencao-item warn"><span class="l">Actos sem preço definido</span><span class="n">${semPrecoTotal}</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="dash-section-label">Atividade recente</div>
+<div class="dash-atividade-filtros">
+  <div class="dash-chip-row">
+    <button class="dash-chip dash-chip-clinica active" data-clinica="Todas">Todas</button>
+    ${porClinicaOrdenada.map(c => `<button class="dash-chip dash-chip-clinica" data-clinica="${escapeHtml(c.entidade.nome)}" title="${escapeHtml(c.entidade.nome)}">${escapeHtml(c.entidade.nome)}</button>`).join("")}
+  </div>
+  <div class="dash-chip-row">
+    <button class="dash-chip dash-chip-periodo active" data-periodo="7d">Últimos 7 dias</button>
+    <button class="dash-chip dash-chip-periodo" data-periodo="mes">Este mês</button>
+  </div>
+</div>
+${listaCronologica.length === 0 ? `<div class="dash-empty">Sem registos neste período.</div>` : `
+<div class="dash-cron-wrap">
+  <table class="dash-cron">
+    <thead><tr><th>Data</th><th>Clínica</th><th>Acto</th><th style="text-align:right;">Honorário</th><th>Estado</th></tr></thead>
+    <tbody id="dashAtividadeBody">
+      ${listaCronologica.map(r => {
+        const dataFmt = r.data ? new Date(r.data + "T00:00:00").toLocaleDateString("pt-PT") : "—";
+        return `<tr class="dash-cron-row" data-clinica="${escapeHtml(r._clinica)}" data-data="${r.data}">
+          <td>${dataFmt}</td>
+          <td>${escapeHtml(r._clinica)}</td>
+          <td>${badgeTipo(r.tipo_acto)}</td>
+          <td class="num">${pgEur(Number(r.valor || 0))}</td>
+          <td>${badgeStatus(r.appt_status, r.financial_status)}</td>
+        </tr>`;
+      }).join("")}
+    </tbody>
+  </table>
+  <div id="dashAtividadeVazia" class="dash-cron-empty-msg" style="display:none;">Sem movimentos para este filtro.</div>
+</div>
+<div class="dash-cron-footer"><button id="btnDashVerMes" class="dash-link-btn">Ver todos os movimentos do mês</button></div>`}
+`;
+}
+
 /* ==== FC — Render principal ==== */
 
 /* ---- FC.1 — renderFinancas ---- */
@@ -1233,16 +1746,27 @@ export async function renderFinancas() {
   let vistaRendimentos = "panorama"; // panorama | detalhe
   let clinicaDetalheId = null;
 
+  /* FASE 3.2 — vista principal do módulo Rendimentos (dentro da vista
+     "novo"): dashboard | panorama. Reutiliza a variável já criada no
+     Passo 1 (vistaDashboard) em vez de introduzir vistaPrincipalRendimentos
+     — não havia nenhum uso prévio a preservar, por isso é seguro dar-lhe
+     agora o significado real de "vista principal activa". vistaGeral
+     continua a decidir Clássico vs. família nova (inalterado); vistaRendimentos
+     continua a ter prioridade sempre que === "detalhe" (Detalhe da Clínica).
+     "dashboard" é a vista inicial, como pedido. */
+  let vistaDashboard = "dashboard"; // dashboard | panorama
+
   async function render() {
-    let entidades = [], registos = [], presencas = [];
+    let entidades = [], registos = [], presencas = [], controloFaturacao = [];
     try {
       const loadParams = periodoIni && periodoFim
         ? { dataIni: periodoIni, dataFim: periodoFim }
         : { mes, ano };
-      [entidades, registos, presencas] = await Promise.all([
+      [entidades, registos, presencas, controloFaturacao] = await Promise.all([
         loadEntidades(),
         loadRegistos(loadParams),
-        loadPresencas(loadParams)
+        loadPresencas(loadParams),
+        loadControloFaturacao(loadParams)
       ]);
     } catch (e) {
       console.error("renderFinancas load falhou:", e);
@@ -1837,6 +2361,26 @@ ${pendVencidos.length > 0 ? `
         })
       : "";
 
+    /* FASE 3.2 — Dashboard Rendimentos: mesmo padrão de despacho do
+       Panorama Geral (FASE 2A) — só é construído quando a vista "novo"
+       está activa. Mesmo ctx (mesmo período, mesmas entidades/registos). */
+    const dashboardHTML = vistaGeral === "novo"
+      ? buildDashboardRendimentosHTML({
+          entidades, registosFiltrados: registos, entClinicasTodas, clinicPricesByClinicId,
+          controloFaturacao, mes, ano, modoAtivo, navLabel, periodoIni, periodoFim,
+        })
+      : "";
+
+    /* FASE 3.2 — navegação interna Dashboard ⇄ Panorama Geral. Só aparece
+       quando não se está no Detalhe da Clínica (que tem o seu próprio
+       "← Voltar"). O período seleccionado (mes/ano/periodoIni/periodoFim)
+       vive fora deste toggle, por isso mantém-se ao trocar de vista. */
+    const vistaPrincipalToggleHTML = `
+<div style="display:flex;gap:6px;margin-bottom:14px;">
+  <button id="btnVistaDashboard" style="font-family:inherit;font-size:12px;font-weight:600;padding:6px 14px;border-radius:8px;border:0.5px solid #e2e8f0;cursor:pointer;${vistaDashboard === "dashboard" ? "background:#0f2d52;color:#fff;border-color:#0f2d52;" : "background:#fff;color:#0f2d52;"}">Dashboard</button>
+  <button id="btnVistaPanoramaGeral" style="font-family:inherit;font-size:12px;font-weight:600;padding:6px 14px;border-radius:8px;border:0.5px solid #e2e8f0;cursor:pointer;${vistaDashboard === "panorama" ? "background:#0f2d52;color:#fff;border-color:#0f2d52;" : "background:#fff;color:#0f2d52;"}">Panorama Geral</button>
+</div>`;
+
     /* FASE 2A.1 — barra de alternância construída mas NÃO incluída no
        content.innerHTML por agora (pedido explícito, "remover
        temporariamente o toggle"). Fica pronta para a Fase 2B. */
@@ -1852,7 +2396,9 @@ ${pendVencidos.length > 0 ? `
         ? buildDetalheClinicaHTML(clinicaDetalheId, {
             entidades, registosFiltrados: registos, clinicPricesByClinicId, navLabel,
           })
-        : (vistaGeral === "novo" ? panoramaGeralHTML : classicoHTML);
+        : (vistaGeral === "novo"
+            ? vistaPrincipalToggleHTML + (vistaDashboard === "dashboard" ? dashboardHTML : panoramaGeralHTML)
+            : classicoHTML);
 
     /* ══════ WIRING ══════ */
 
@@ -1868,6 +2414,115 @@ ${pendVencidos.length > 0 ? `
       render();
     });
 
+    /* FASE 3.2 — alternância Dashboard / Panorama Geral. Não mexe em
+       mes/ano/periodoIni/periodoFim — o período mantém-se ao trocar. */
+    document.getElementById("btnVistaDashboard")?.addEventListener("click", () => {
+      vistaDashboard = "dashboard";
+      render();
+    });
+    document.getElementById("btnVistaPanoramaGeral")?.addEventListener("click", () => {
+      vistaDashboard = "panorama";
+      render();
+    });
+
+    /* PDF da linha: diário para Athletix, individual para Web e mensal
+       para avenças. A linha determina exactamente os registos incluídos. */
+    content.querySelectorAll(".dash-fat-pdf").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const ent = entidades.find(e => e.id === btn.dataset.entidade);
+        if (!ent) return;
+        const granularidade = btn.dataset.granularidade;
+        if (granularidade === "mensal") {
+          const linhas = registos.filter(r =>
+            r.entidade_id === ent.id && String(r.data || "").slice(0, 7) === String(btn.dataset.data || "").slice(0, 7)
+            && r.tipo_acto === "Avença mensal" && String(r.appt_status || "").toLowerCase() === "done"
+          );
+          const total = linhas.reduce((s, r) => s + Number(r.valor || 0), 0);
+          openPdfAgregado({
+            titulo: ent.nome,
+            subtitulo: mesLabel(Number(btn.dataset.data.slice(0, 4)), Number(btn.dataset.data.slice(5, 7))),
+            porTipo: total > 0 ? { "Avença mensal": { n: linhas.length, valor: total } } : {},
+          });
+          return;
+        }
+        const linhas = granularidade === "dia"
+          ? registos.filter(r => r.entidade_id === ent.id && r.data === btn.dataset.data && contaParaTotal(r.appt_status, r.financial_status) && Number(r.valor || 0) > 0)
+          : registos.filter(r => r.id === btn.dataset.registo);
+        const dataLabel = new Date(btn.dataset.data + "T00:00:00").toLocaleDateString("pt-PT");
+        openPdfContabilista(linhas, ent.nome, dataLabel, { usarValorFaturado: true });
+      });
+    });
+
+    /* Faturação/Recibos — avança uma etapa administrativa sem tocar em
+       registos_financeiros.financial_status nem nos valores do Dashboard. */
+    content.querySelectorAll(".dash-fat-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        try {
+          await gravarEstadoFaturacao({
+            entidade_id: btn.dataset.entidade,
+            granularidade: btn.dataset.granularidade,
+            chave: btn.dataset.chave,
+            data_referencia: btn.dataset.data,
+            registo_financeiro_id: btn.dataset.registo || null,
+            estado: btn.dataset.estado,
+          });
+          await render();
+        } catch (e) {
+          console.error("Falha ao atualizar faturação:", e);
+          alert("Não foi possível atualizar o estado de faturação.");
+          btn.disabled = false;
+        }
+      });
+    });
+
+    /* FASE 3 Passo 7 — "Atividade recente" do Dashboard: filtro por clique
+       (clínica + período) só no lado do cliente, sobre a lista cronológica
+       já carregada — nunca recarrega dados nem chama render(). Máximo
+       12 linhas visíveis (mostrar/esconder <tr>, sem paginação nem
+       scroll interno). "Hoje" é sempre a data actual do browser, não o
+       período seleccionado na barra principal do Dashboard. */
+    const dashAtividadeMaxLinhas = 12;
+    function dashAtividadeAplicarFiltro() {
+      const corpo = document.getElementById("dashAtividadeBody");
+      if (!corpo) return;
+      const clinicaActiva = content.querySelector(".dash-chip-clinica.active")?.dataset.clinica || "Todas";
+      const periodoActivo = content.querySelector(".dash-chip-periodo.active")?.dataset.periodo || "7d";
+      const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+      const limite7dias = new Date(hoje); limite7dias.setDate(limite7dias.getDate() - 6);
+      let visiveis = 0;
+      corpo.querySelectorAll(".dash-cron-row").forEach(tr => {
+        const matchClinica = clinicaActiva === "Todas" || tr.dataset.clinica === clinicaActiva;
+        const dataRow = new Date(tr.dataset.data + "T00:00:00");
+        const matchPeriodo = periodoActivo === "mes" || dataRow >= limite7dias;
+        const visivel = matchClinica && matchPeriodo && visiveis < dashAtividadeMaxLinhas;
+        tr.style.display = visivel ? "" : "none";
+        if (visivel) visiveis++;
+      });
+      const msgVazia = document.getElementById("dashAtividadeVazia");
+      if (msgVazia) msgVazia.style.display = visiveis === 0 ? "" : "none";
+    }
+    content.querySelectorAll(".dash-chip-clinica").forEach(btn => {
+      btn.addEventListener("click", () => {
+        content.querySelectorAll(".dash-chip-clinica").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        dashAtividadeAplicarFiltro();
+      });
+    });
+    content.querySelectorAll(".dash-chip-periodo").forEach(btn => {
+      btn.addEventListener("click", () => {
+        content.querySelectorAll(".dash-chip-periodo").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        dashAtividadeAplicarFiltro();
+      });
+    });
+    document.getElementById("btnDashVerMes")?.addEventListener("click", () => {
+      content.querySelectorAll(".dash-chip-periodo").forEach(b => b.classList.remove("active"));
+      content.querySelector('.dash-chip-periodo[data-periodo="mes"]')?.classList.add("active");
+      dashAtividadeAplicarFiltro();
+    });
+    dashAtividadeAplicarFiltro();
+
     /* FASE 2B.1 — cartões do Panorama Geral: "Ver detalhe" navega para o
        estado "detalhe" (Detalhe da Clínica, implementado nos Passos 2-4C) —
        e "PDF contabilista", que reutiliza a mesma função de sempre, sem
@@ -1882,6 +2537,10 @@ ${pendVencidos.length > 0 ? `
     });
     document.getElementById("btnVoltarPanorama")?.addEventListener("click", () => {
       vistaRendimentos = "panorama";
+      /* FASE 3.2 — "Voltar" regressa sempre ao Panorama Geral (nunca ao
+         Dashboard), como pedido, independentemente de onde o Detalhe
+         tenha sido aberto. */
+      vistaDashboard = "panorama";
       clinicaDetalheId = null;
       render();
     });
@@ -3220,7 +3879,7 @@ async function openModalPresenca({ ent, presenca, onSave }) {
 
 
 /* ---- FD.4b — openPdfContabilista ---- */
-function openPdfContabilista(registos, nomeClinica, labelPeriodo) {
+function openPdfContabilista(registos, nomeClinica, labelPeriodo, { usarValorFaturado = false } = {}) {
   const linhas = registos.filter(r =>
     contaParaTotal(r.appt_status, r.financial_status) && r.patients
   );
@@ -3246,7 +3905,10 @@ function openPdfContabilista(registos, nomeClinica, labelPeriodo) {
 
   const linhasHtml = linhas.map(r => {
     const p = r.patients || {};
-    const valor = Number(r.valor || 0);
+    const ent = r.entidades_financeiras || {};
+    const valor = usarValorFaturado && ent.valor_faturado != null
+      ? Number(ent.valor_faturado)
+      : Number(r.valor || 0);
     return `<tr>
       <td>${r.data ? new Date(r.data+"T00:00:00").toLocaleDateString("pt-PT") : "—"}</td>
       <td>${escapeHtml(p.full_name || "—")}</td>
@@ -3258,7 +3920,13 @@ function openPdfContabilista(registos, nomeClinica, labelPeriodo) {
     </tr>`;
   }).join("");
 
-  const total = linhas.reduce((s, r) => s + Number(r.valor || 0), 0);
+  const total = linhas.reduce((s, r) => {
+    const ent = r.entidades_financeiras || {};
+    const valor = usarValorFaturado && ent.valor_faturado != null
+      ? Number(ent.valor_faturado)
+      : Number(r.valor || 0);
+    return s + valor;
+  }, 0);
 
   const html = `<!doctype html><html><head><meta charset="utf-8">
     <title>Consultas — ${escapeHtml(nomeClinica)} — ${escapeHtml(labelPeriodo)}</title>
