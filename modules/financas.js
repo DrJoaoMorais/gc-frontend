@@ -835,6 +835,249 @@ function pgCardHTML(e, idx, ctx) {
       </div>`;
 }
 
+/* ---- FASE 2B.2 — Detalhe da Clínica: cabeçalho + resumo de 6 cartões ----
+   Reutiliza computeClinicMetrics (FB.11), resolveFaturado/pgFinancaClinica
+   (Fase 0/2A) — nenhum cálculo novo. Honorário vem sempre de r.valor (via
+   pgFinancaClinica), Faturado de resolveFaturado(), Resultado = diferença
+   entre os dois. Bloco <style> próprio e independente do Panorama Geral —
+   não toca nos estilos/HTML dessa vista. */
+function buildDetalheClinicaHTML(entId, ctx) {
+  const { entidades, registosFiltrados, clinicPricesByClinicId, navLabel } = ctx;
+  const e = entidades.find(x => x.id === entId);
+  if (!e) {
+    return `
+<div>
+  <button id="btnVoltarPanorama" class="dc-back">← Voltar ao Panorama Geral</button>
+  <p style="margin-top:16px;color:#94a3b8;font-size:13px;">Clínica não encontrada.</p>
+</div>`;
+  }
+
+  const { regs, porTipo } = computeClinicMetrics(entId, entidades, registosFiltrados);
+  const cp = e.clinic_id ? clinicPricesByClinicId[e.clinic_id] : null;
+  const { fat, hon, resultado, semPreco } = pgFinancaClinica(e, regs, entidades, cp);
+  const done  = Object.values(porTipo).reduce((s, v) => s + v.done, 0);
+  const falta = Object.values(porTipo).reduce((s, v) => s + v.falta, 0);
+  const disp  = Object.values(porTipo).reduce((s, v) => s + v.disp, 0);
+
+  const resumo = [
+    { l: "Valor faturado",   v: pgEur(fat),        cls: "fat", note: "preçário actual" },
+    { l: "Honorário médico", v: pgEur(hon),         cls: "hon" },
+    { l: "Resultado",        v: pgEur(resultado),   cls: "res", note: "preçário actual" },
+    { l: "Consultas",        v: done,               cls: "" },
+    { l: "Faltas",           v: falta,              cls: "bad" },
+    { l: "Dispensas",        v: disp,               cls: "warn" },
+  ];
+
+  /* FASE 2B.3 — Produção (4 cartões fixos) + Discriminação por tipo de acto
+     (6 linhas fixas). Usa classificarAto() (FB.3e) e resolveFaturado()
+     (FB.3c) sobre os mesmos regs já devolvidos por computeClinicMetrics —
+     nenhum cálculo novo, só uma classificação/agregação de apresentação.
+     Actos sem preço NUNCA entram como 0€ — ficam de fora da soma e contam
+     à parte em semPreco, tal como a regra já em vigor no resumo acima. */
+  const DC_DISC_ORDEM = ["Primeira Consulta", "Reavaliação", "Teleconsulta", "PRP", "Visco", "Outros"];
+  const producao4 = {
+    consultas: { n: 0, fat: 0, semPreco: 0 },
+    prp:       { n: 0, fat: 0, semPreco: 0 },
+    visco:     { n: 0, fat: 0, semPreco: 0 },
+    outros:    { n: 0, fat: 0, semPreco: 0 },
+  };
+  const discriminacao = {};
+  DC_DISC_ORDEM.forEach(k => { discriminacao[k] = { n: 0, fat: 0, semPreco: 0 }; });
+
+  regs.forEach(r => {
+    if (!contaParaTotal(r.appt_status, r.financial_status)) return;
+    if (r.tipo_acto === "Avença mensal") return;
+    const entR = entidades.find(x => x.id === r.entidade_id) || e;
+    const rf = resolveFaturado(r, entR, cp);
+    const cat = classificarAto(r.tipo_acto);
+    const chave = discriminacao[cat] ? cat : "Outros";
+
+    discriminacao[chave].n += 1;
+    if (rf.valor == null) discriminacao[chave].semPreco += 1;
+    else discriminacao[chave].fat += rf.valor;
+
+    const bucket = PG_ATOS_CONSULTA.has(cat) ? producao4.consultas
+      : cat === "PRP" ? producao4.prp
+      : cat === "Visco" ? producao4.visco
+      : producao4.outros;
+    bucket.n += 1;
+    if (rf.valor == null) bucket.semPreco += 1;
+    else bucket.fat += rf.valor;
+  });
+
+  /* Nunca 0€ quando não há correspondência — "—" quando não há nenhum
+     valor resolvido, valor + "*" quando há mistura de resolvido/indisponível. */
+  const dcValorOuIndisponivel = (d) => {
+    if (d.n === 0 || d.semPreco === d.n) return "—";
+    return pgEur(d.fat) + (d.semPreco > 0 ? " *" : "");
+  };
+
+  const producaoDefs = [
+    { l: "Consultas",            d: producao4.consultas },
+    { l: "PRP",                  d: producao4.prp },
+    { l: "Visco",                d: producao4.visco },
+    { l: "Outros procedimentos", d: producao4.outros },
+  ];
+
+  const maxDiscFat = Math.max(1, ...DC_DISC_ORDEM.map(k => discriminacao[k].fat));
+
+  /* FASE 2B — ajuste ao Passo 3: "Avença mensal" fica de fora da Produção
+     (não é um acto clínico), mas continua no Resumo (via pgFinancaClinica,
+     inalterado). Esta secção só existe para explicar visualmente essa
+     diferença — não é um cálculo novo, é a mesma entidades_financeiras
+     tipo='avenca' já usada em computeGlobalTotals/Panorama Geral. */
+  const componentesFixos = e.clinic_id
+    ? entidades.filter(x => x.tipo === "avenca" && x.clinic_id === e.clinic_id)
+    : [];
+
+  /* ---- FASE 2B.4A — Lista cronológica (apenas leitura) ----
+     Mesmas linhas que alimentam Consultas/Faltas/Dispensas do Resumo
+     (done/no_show/honorarios_dispensados — exclui marcadas/chegou, que
+     não entram nesses totais). Honorário = registos_financeiros.valor
+     directo; Faturado = resolveFaturado() (nunca 0€ quando indisponível).
+     registos_financeiros.data não tem componente de hora — "Hora" fica
+     "—" (não inventar um valor que a BD não tem). */
+  const linhasCronologicas = regs
+    .filter(r => {
+      const s = String(r.appt_status || "").toLowerCase();
+      return contaParaTotal(r.appt_status, r.financial_status)
+        || s === "no_show"
+        || r.financial_status === "honorarios_dispensados";
+    })
+    .slice()
+    .sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : 0));
+
+  return `
+<style>
+.dc-back{font-family:inherit;font-size:12px;font-weight:600;padding:6px 14px;border-radius:8px;border:0.5px solid #e2e8f0;background:#fff;color:#0f2d52;cursor:pointer;}
+.dc-back:hover{background:#f8fafc;}
+.dc-header{display:flex;justify-content:space-between;align-items:flex-start;margin:16px 0 18px;flex-wrap:wrap;gap:10px;}
+.dc-title{font-size:20px;font-weight:800;color:#0f2d52;}
+.dc-period{font-size:12px;color:#94a3b8;margin-top:3px;}
+.dc-pdf-btn{font-family:inherit;font-size:12px;font-weight:700;padding:8px 16px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;color:#0f2d52;cursor:pointer;}
+.dc-pdf-btn:hover{background:#f8fafc;}
+.dc-section-label{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-weight:500;margin:22px 0 10px;}
+.dc-resumo-grid{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:10px;overflow-x:auto;padding-bottom:2px;}
+@media(max-width:900px){.dc-resumo-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media(max-width:520px){.dc-resumo-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+.dc-tile{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 15px;min-width:0;box-shadow:0 1px 2px rgba(15,45,82,.04), 0 8px 24px -12px rgba(15,45,82,.18);}
+.dc-tile .l{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin-bottom:8px;}
+.dc-tile .v{font-size:20px;font-weight:800;letter-spacing:-.01em;color:#0f172a;}
+.dc-tile .v.fat{color:#0f2d52;} .dc-tile .v.hon{color:#0f6e56;} .dc-tile .v.res{color:#534ab7;} .dc-tile .v.bad{color:#DC2626;} .dc-tile .v.warn{color:#D97706;}
+.dc-tile-note{font-size:9.5px;color:#cbd5e1;margin-top:5px;}
+.dc-fixos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+.dc-fixo-tile{background:#fef9ec;border:0.5px solid #f6c94e;border-radius:12px;padding:14px 15px;}
+.dc-fixo-label{font-size:12.5px;font-weight:700;color:#854F0B;}
+.dc-fixo-valor{font-size:18px;font-weight:800;color:#854F0B;margin-top:6px;}
+.dc-fixo-valor .dc-fixo-mes{font-size:11px;font-weight:600;color:#a16207;margin-left:3px;}
+.dc-fixo-note{font-size:11px;color:#94a3b8;margin-top:8px;}
+.dc-prod-grid{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:10px;}
+@media(max-width:760px){.dc-prod-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+.dc-prod-tile{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 15px;box-shadow:0 1px 2px rgba(15,45,82,.04), 0 8px 24px -12px rgba(15,45,82,.18);}
+.dc-prod-tile.zero{opacity:.55;}
+.dc-prod-tile .l{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin-bottom:8px;}
+.dc-prod-tile .n{font-size:20px;font-weight:800;color:#0f172a;}
+.dc-prod-tile .n small{font-family:inherit;font-size:11px;font-weight:700;color:#94a3b8;margin-left:4px;}
+.dc-prod-tile .amt{font-size:12.5px;font-weight:700;color:#0f2d52;margin-top:3px;}
+.dc-disc-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 1px 2px rgba(15,45,82,.04), 0 8px 24px -12px rgba(15,45,82,.18);padding:4px 18px;}
+.dc-disc-row{display:flex;align-items:center;gap:14px;padding:10px 0;border-top:0.5px solid #f1f5f9;}
+.dc-disc-row:first-child{border-top:none;}
+.dc-disc-row.zero{opacity:.45;}
+.dc-disc-row .label{font-size:12.5px;font-weight:700;color:#334155;width:150px;flex-shrink:0;}
+.dc-disc-bar-track{flex:1;height:7px;background:#f1f5f9;border-radius:5px;overflow:hidden;}
+.dc-disc-bar-fill{height:100%;border-radius:5px;background:#0f2d52;}
+.dc-disc-row .n{font-size:11px;font-weight:700;color:#94a3b8;width:56px;text-align:right;flex-shrink:0;}
+.dc-disc-row .amt{font-size:12.5px;font-weight:800;color:#0f172a;width:92px;text-align:right;flex-shrink:0;}
+.dc-tbl-wrap{overflow-x:auto;border:1px solid #e2e8f0;border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(15,45,82,.04), 0 8px 24px -12px rgba(15,45,82,.18);}
+table.dc-tbl{width:100%;border-collapse:collapse;font-size:12.5px;min-width:680px;}
+table.dc-tbl thead th{position:sticky;top:0;background:#f8fafc;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;padding:9px 14px;border-bottom:1px solid #e2e8f0;}
+table.dc-tbl td{padding:8px 14px;border-bottom:0.5px solid #f1f5f9;color:#334155;white-space:nowrap;}
+table.dc-tbl tr:last-child td{border-bottom:none;}
+table.dc-tbl td.num{text-align:right;font-weight:700;color:#0f172a;}
+table.dc-tbl tr.det-registo-row{cursor:pointer;}
+table.dc-tbl tr:hover td{background:#f8faff;}
+.dc-tbl-empty{padding:24px;text-align:center;font-size:12.5px;color:#94a3b8;}
+</style>
+<div>
+  <button id="btnVoltarPanorama" class="dc-back">← Voltar ao Panorama Geral</button>
+  <div class="dc-header">
+    <div>
+      <div class="dc-title">${escapeHtml(e.nome)}</div>
+      <div class="dc-period">${escapeHtml(navLabel || "")}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button id="btnDetNovoRegisto" class="dc-pdf-btn">+ Novo registo</button>
+      ${e.gera_pdf_consulta ? `<button class="dc-pdf-btn pgBtnPdfCli" data-entid="${e.id}">PDF contabilista</button>` : ""}
+    </div>
+  </div>
+  <div class="dc-section-label" style="margin-top:0;">Resumo</div>
+  <div class="dc-resumo-grid">
+    ${resumo.map(r => `<div class="dc-tile"><div class="l">${r.l}</div><div class="v ${r.cls}">${r.v}</div>${r.note ? `<div class="dc-tile-note">${r.note}</div>` : ""}</div>`).join("")}
+  </div>
+  ${semPreco > 0 ? `<div style="font-size:11px;color:#94a3b8;margin-top:12px;">* ${semPreco} acto(s) sem preço actual definido em clinic_prices — não entram no Faturado/Resultado.</div>` : ""}
+
+  ${componentesFixos.length > 0 ? `
+  <div class="dc-section-label">Componentes fixos</div>
+  <div class="dc-fixos-grid">
+    ${componentesFixos.map(av => {
+      const label = av.nome.includes("—") ? av.nome.split("—")[1].trim() : av.nome;
+      return `<div class="dc-fixo-tile">
+        <div class="dc-fixo-label">🔒 ${escapeHtml(label)}</div>
+        <div class="dc-fixo-valor">${pgEur(av.avenca_valor)}<span class="dc-fixo-mes">/mês</span></div>
+      </div>`;
+    }).join("")}
+  </div>
+  <div class="dc-fixo-note">Valor incluído no resumo financeiro, mas não associado a actos clínicos.</div>
+  ` : ""}
+
+  <div class="dc-section-label">Produção</div>
+  <div class="dc-prod-grid">
+    ${producaoDefs.map(p => `<div class="dc-prod-tile${p.d.n === 0 ? " zero" : ""}"><div class="l">${p.l}</div><div class="n">${p.d.n}<small>${p.d.n === 1 ? "acto" : "actos"}</small></div><div class="amt">${dcValorOuIndisponivel(p.d)}</div></div>`).join("")}
+  </div>
+
+  <div class="dc-section-label">Discriminação por tipo de acto</div>
+  <div class="dc-disc-wrap">
+    ${DC_DISC_ORDEM.map(k => {
+      const d = discriminacao[k];
+      const pct = d.n === 0 ? 0 : Math.max(4, Math.round((d.fat / maxDiscFat) * 100));
+      return `<div class="dc-disc-row${d.n === 0 ? " zero" : ""}">
+        <div class="label">${k}</div>
+        <div class="dc-disc-bar-track"><div class="dc-disc-bar-fill" style="width:${pct}%;"></div></div>
+        <div class="n">${d.n}×</div>
+        <div class="amt">${dcValorOuIndisponivel(d)}</div>
+      </div>`;
+    }).join("")}
+  </div>
+
+  <div class="dc-section-label">Lista cronológica</div>
+  ${linhasCronologicas.length === 0 ? `<div class="dc-tbl-empty">Sem registos neste período.</div>` : `
+  <div class="dc-tbl-wrap">
+    <table class="dc-tbl">
+      <thead><tr><th>Data</th><th>Hora</th><th>Doente</th><th>Acto</th><th style="text-align:right;">Valor faturado</th><th style="text-align:right;">Honorário</th><th>Estado</th></tr></thead>
+      <tbody>
+        ${linhasCronologicas.map(r => {
+          const dataFmt = r.data ? new Date(r.data + "T00:00:00").toLocaleDateString("pt-PT") : "—";
+          const doente  = r.patients?.full_name ? escapeHtml(r.patients.full_name) : "—";
+          const entR    = entidades.find(x => x.id === r.entidade_id) || e;
+          const rf      = resolveFaturado(r, entR, cp);
+          const faturadoTxt = rf.valor == null ? "—" : pgEur(rf.valor);
+          const honorarioTxt = pgEur(Number(r.valor || 0));
+          return `<tr class="det-registo-row" data-id="${r.id}" title="Clique para editar este registo">
+            <td>${dataFmt}</td>
+            <td>—</td>
+            <td>${doente}</td>
+            <td>${badgeTipo(r.tipo_acto)}</td>
+            <td class="num">${faturadoTxt}</td>
+            <td class="num">${honorarioTxt}</td>
+            <td>${badgeStatus(r.appt_status, r.financial_status)}</td>
+          </tr>`;
+        }).join("")}
+      </tbody>
+    </table>
+  </div>`}
+</div>`;
+}
+
 function buildPanoramaGeralHTML(ctx) {
   const {
     entidades, registosFiltrados, entClinicasTodas, clinicPricesByClinicId,
@@ -985,6 +1228,10 @@ export async function renderFinancas() {
      Reverter para "classico" (e voltar a mostrar o toggle) faz parte da
      Fase 2B. */
   let vistaGeral    = "novo"; // classico | novo
+
+  /* FASE 2B.1 — navegação Panorama Geral → Detalhe da Clínica */
+  let vistaRendimentos = "panorama"; // panorama | detalhe
+  let clinicaDetalheId = null;
 
   async function render() {
     let entidades = [], registos = [], presencas = [];
@@ -1600,7 +1847,12 @@ ${pendVencidos.length > 0 ? `
 </div>`;
     void vistaToggleHTML; // silencia "unused" — propositadamente não usado nesta fase
 
-    content.innerHTML = vistaGeral === "novo" ? panoramaGeralHTML : classicoHTML;
+    content.innerHTML =
+      vistaRendimentos === "detalhe"
+        ? buildDetalheClinicaHTML(clinicaDetalheId, {
+            entidades, registosFiltrados: registos, clinicPricesByClinicId, navLabel,
+          })
+        : (vistaGeral === "novo" ? panoramaGeralHTML : classicoHTML);
 
     /* ══════ WIRING ══════ */
 
@@ -1616,15 +1868,51 @@ ${pendVencidos.length > 0 ? `
       render();
     });
 
-    /* FASE 2A — cartões do Panorama Geral: "Ver detalhe" preparado, sem
-       implementação completa ainda (Fase 2B) — e "PDF contabilista",
-       que reutiliza a mesma função de sempre, sem alterações. */
+    /* FASE 2B.1 — cartões do Panorama Geral: "Ver detalhe" navega para o
+       estado "detalhe" (Detalhe da Clínica, implementado nos Passos 2-4C) —
+       e "PDF contabilista", que reutiliza a mesma função de sempre, sem
+       alterações. */
     content.querySelectorAll(".pg-btn-detail").forEach(btn => {
       btn.addEventListener("click", () => {
         const entId = btn.dataset.entid;
-        const ent = entidades.find(x => x.id === entId);
-        console.log("[Panorama Geral] Ver detalhe (Fase 2B, ainda por implementar) →", ent?.nome || entId);
+        clinicaDetalheId = entId;
+        vistaRendimentos = "detalhe";
+        render();
       });
+    });
+    document.getElementById("btnVoltarPanorama")?.addEventListener("click", () => {
+      vistaRendimentos = "panorama";
+      clinicaDetalheId = null;
+      render();
+    });
+
+    /* FASE 2B.4B — Lista cronológica do Detalhe: clicar numa linha abre o
+       modal de edição já existente (mesmo modal usado em ".btnFinEditar"
+       na vista clássica) — sem modal novo, sem alterar a gravação. */
+    content.querySelectorAll(".det-registo-row").forEach(row => {
+      row.addEventListener("click", () => {
+        const regId = row.dataset.id;
+        const r = registos.find(x => x.id === regId);
+        if (r) openModalEditarRegisto(r, entidades, render);
+      });
+    });
+
+    /* FASE 2B.4C — "+ Novo registo" só existe dentro do Detalhe da Clínica.
+       Mesmo padrão de carregamento de clinicPrices e mesma função de
+       sempre (openModalNovoRegisto) que já é usada pelo botão da vista
+       clássica (btnFinNovoRegisto) — só muda a entidade pré-seleccionada.
+       onSave: render mantém-se no Detalhe (vistaRendimentos/clinicaDetalheId
+       não são tocados aqui), actualizando Resumo/Produção/Lista sozinho. */
+    document.getElementById("btnDetNovoRegisto")?.addEventListener("click", async () => {
+      try {
+        const clinicPrices = {};
+        for (const ent of entidades.filter(x => x.clinic_id)) {
+          if (!clinicPrices[ent.clinic_id]) {
+            clinicPrices[ent.clinic_id] = await loadClinicPrices(ent.clinic_id);
+          }
+        }
+        openModalNovoRegisto({ entidades, clinicPrices, onSave: render, ano, mes, defaultEntidadeId: clinicaDetalheId });
+      } catch (err) { console.error(err); }
     });
     content.querySelectorAll(".pgBtnPdfCli").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -2191,7 +2479,7 @@ window.__gc_renderFechoV2 = renderFechoV2;
 /* ==== FD — Modais ==== */
 
 /* ---- FD.1 — openModalNovoRegisto ---- */
-function openModalNovoRegisto({ entidades, clinicPrices, onSave, ano, mes }) {
+function openModalNovoRegisto({ entidades, clinicPrices, onSave, ano, mes, defaultEntidadeId = "" }) {
   document.getElementById("gcFinModal")?.remove();
 
   const overlay = document.createElement("div");
@@ -2305,6 +2593,14 @@ function openModalNovoRegisto({ entidades, clinicPrices, onSave, ano, mes }) {
       inpValor.value = "";
     }
   });
+
+  /* FASE 2B.4C — contexto da clínica ao abrir a partir do Detalhe da
+     Clínica: pré-selecciona a entidade (o utilizador continua a poder
+     mudá-la, comportamento igual ao da vista clássica em tudo o resto). */
+  if (defaultEntidadeId) {
+    selEnt.value = defaultEntidadeId;
+    selEnt.dispatchEvent(new Event("change"));
+  }
 
   /* Ao mudar acto — preencher valor */
   selActo.addEventListener("change", () => {
