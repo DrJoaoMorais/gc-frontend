@@ -317,8 +317,14 @@ export async function renderDoentePanorama(patientId) {
     if (typeof window.__gc_renderCurrentView === "function") window.__gc_renderCurrentView();
   });
 
-  document.getElementById("dpaOpenProcessoBtn").addEventListener("click", () => {
-    if (typeof window.__gc_openPatientViewModal === "function") window.__gc_openPatientViewModal(pt);
+  document.getElementById("dpaOpenProcessoBtn").addEventListener("click", (e) => {
+    e.preventDefault();
+    if (typeof window.__gc_openFeedPanel === 'function') {
+      window.__gc_openFeedPanel(pt.id, clinicaId || null);
+    } else {
+      const url = `/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(pt.id)}&sessionClinicId=${encodeURIComponent(clinicaId || '')}`;
+      window.open(url, '_blank');
+    }
   });
 
   document.getElementById("dpaEditBtn").addEventListener("click", () => {
