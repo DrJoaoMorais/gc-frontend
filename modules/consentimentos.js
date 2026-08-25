@@ -47,36 +47,157 @@ const CONSENT_TITLES = {
 };
 
 /* ======================================================== */
-/*  02 — checkConsentStatus                                 */
+/*  02 — checkConsentStatus / checkConsentPrinted            */
+/*       + fetch partilhado com de-dupe de leituras          */
 /* ======================================================== */
 
+const DOC_TYPE_TO_UI  = { acido_hialuronico: "ah" };
+const PROCEDURE_TYPES = ["prp", "ah", "corticoide"];
+
+// Cache de promises em curso, por "patientId|clinicId".
+const _consentFetchCache = new Map();
+
+function _consentCacheKey(patientId, clinicId) {
+  return `${patientId}|${clinicId}`;
+}
+
+async function _fetchAllConsentRows(patientId, clinicId) {
+  if (!patientId || !clinicId) return { oldRows: [], tokenRows: [] };
+
+  const key = _consentCacheKey(patientId, clinicId);
+  if (_consentFetchCache.has(key)) {
+    return _consentFetchCache.get(key);
+  }
+
+  const promise = (async () => {
+    const [{ data: oldRows, error: oldErr }, { data: tokenRows, error: tokenErr }] = await Promise.all([
+      window.sb
+        .from("consents")
+        .select("id, type, status, created_at, signed_at, storage_path")
+        .eq("patient_id", patientId)
+        .eq("clinic_id", clinicId),
+      window.sb
+        .from("consent_tokens")
+        .select("id, document_type, status, created_at, signed_at")
+        .eq("patient_id", patientId)
+        .eq("clinic_id", clinicId),
+    ]);
+    if (oldErr)   console.warn("checkConsentStatus/Printed (consents):", oldErr);
+    if (tokenErr) console.warn("checkConsentStatus/Printed (consent_tokens):", tokenErr);
+    return { oldRows: oldRows || [], tokenRows: tokenRows || [] };
+  })();
+
+  _consentFetchCache.set(key, promise);
+  promise.finally(() => {
+    if (_consentFetchCache.get(key) === promise) {
+      _consentFetchCache.delete(key);
+    }
+  });
+
+  return promise;
+}
+
+function _normalizeConsentRows(oldRows, tokenRows) {
+  return [
+    ...oldRows.map(r => ({
+      id: r.id,
+      type: r.type, // já vem 'ah' na tabela consents
+      status: r.status,
+      created_at: r.created_at,
+      signed_at: r.signed_at,
+      storage_path: r.storage_path,
+      source: "consents",
+    })),
+    ...tokenRows.map(r => ({
+      id: r.id,
+      type: DOC_TYPE_TO_UI[r.document_type] || r.document_type,
+      status: r.status,
+      created_at: r.created_at,
+      signed_at: r.signed_at,
+      storage_path: null,
+      source: "consent_tokens",
+    })),
+  ];
+}
+
+function _latestOfType(rows, type) {
+  const rowsOfType = rows.filter(r => r.type === type);
+  if (!rowsOfType.length) return null;
+  return rowsOfType.reduce((a, b) => (new Date(b.created_at) > new Date(a.created_at) ? b : a));
+}
+
+function _rgpdEverSigned(rows) {
+  return rows.some(r => r.type === "rgpd" && (r.status === "signed" || r.status === "paper_signed"));
+}
+
+/* ======================================================== */
+/*  02C — API reutilizável pelo hub de consentimentos        */
+/*        (modules/consentimentos_hub.js)                    */
+/* ======================================================== */
+
+// Mesma fonte de "último episódio" usada por checkConsentStatus/checkConsentPrinted.
+export async function getConsentEpisodes(patientId, clinicId) {
+  const { oldRows, tokenRows } = await _fetchAllConsentRows(patientId, clinicId);
+  return _normalizeConsentRows(oldRows, tokenRows);
+}
+
+export function latestConsentOfType(rows, type) {
+  return _latestOfType(rows, type);
+}
+
+// Episódio mais recente COM status signed/paper_signed (pode não ser o último
+// episódio em absoluto — ex.: RGPD assinado há meses com um token pendente
+// mais recente). Mesma regra usada em checkConsentStatus.
+export function latestSignedConsentOfType(rows, type) {
+  return _latestOfType(rows.filter(r => r.status === "signed" || r.status === "paper_signed"), type);
+}
+
+// RGPD: qualquer signed/paper_signed histórico mantém o RGPD resolvido,
+// independentemente de existir um episódio mais recente pending/expired/
+// printed/paper_sent. Mesma fonte usada por checkConsentStatus/checkConsentPrinted.
+export function rgpdEverSigned(rows) {
+  return _rgpdEverSigned(rows);
+}
+
+// printed OU paper_sent (legado) → paper_signed. Usado pelo hub, para
+// qualquer tipo (procedimentos e RGPD). consentId identifica o episódio
+// exacto — sem ele o UPDATE afectaria todos os registos printed/paper_sent
+// do mesmo doente/clínica/tipo.
+export async function confirmPaperSigned(patientId, clinicId, type, consentId) {
+  const { data, error } = await window.sb
+    .from("consents")
+    .update({ status: "paper_signed", signed_at: new Date().toISOString() })
+    .eq("patient_id", patientId)
+    .eq("clinic_id", clinicId)
+    .eq("type", type)
+    .eq("id", consentId)
+    .in("status", ["printed", "paper_sent"])
+    .select("id");
+
+  if (error) throw error;
+  if (!data || data.length !== 1) {
+    throw new Error(`confirmPaperSigned: esperado 1 registo afectado, obtidos ${data?.length ?? 0}.`);
+  }
+  return data[0];
+}
+
 export async function checkConsentStatus(patientId, clinicId) {
-  if (!patientId || !clinicId) return {};
   try {
+    const { oldRows, tokenRows } = await _fetchAllConsentRows(patientId, clinicId);
+    const rows = _normalizeConsentRows(oldRows, tokenRows);
     const signed = {};
 
-    // Fluxo antigo — tabela consents
-    const { data: oldData } = await window.sb
-      .from("consents")
-      .select("type")
-      .eq("patient_id", patientId)
-      .eq("clinic_id", clinicId)
-      .in("status", ["signed", "paper_signed"]);
-    (oldData || []).forEach(r => { signed[r.type] = true; });
+    // RGPD — qualquer signed/paper_signed histórico conta, independentemente
+    // de existir um pending/expired mais recente.
+    if (_rgpdEverSigned(rows)) signed.rgpd = true;
 
-    // Fluxo QR — tabela consent_tokens
-    // document_type 'acido_hialuronico' mapeia para chave 'ah
-    const typeMap = { acido_hialuronico: "ah" };
-    const { data: newData } = await window.sb
-      .from("consent_tokens")
-      .select("document_type")
-      .eq("patient_id", patientId)
-      .eq("clinic_id", clinicId)
-      .in("status", ["signed", "paper_signed"]);
-    (newData || []).forEach(r => {
-      const key = typeMap[r.document_type] || r.document_type;
-      signed[key] = true;
-    });
+    // Procedimentos (prp/ah/corticoide) — só o registo mais recente decide.
+    for (const type of PROCEDURE_TYPES) {
+      const latest = _latestOfType(rows, type);
+      if (latest && (latest.status === "signed" || latest.status === "paper_signed")) {
+        signed[type] = true;
+      }
+    }
 
     return signed;
   } catch (e) {
@@ -85,19 +206,31 @@ export async function checkConsentStatus(patientId, clinicId) {
   }
 }
 
-/* ======================================================== */
-/*  02B — checkConsentPrinted                               */
-/* ======================================================== */
 export async function checkConsentPrinted(patientId, clinicId) {
   try {
+    const { oldRows, tokenRows } = await _fetchAllConsentRows(patientId, clinicId);
+    const rows = _normalizeConsentRows(oldRows, tokenRows);
     const printed = {};
-    const { data } = await window.sb
-      .from("consents")
-      .select("type")
-      .eq("patient_id", patientId)
-      .eq("clinic_id", clinicId)
-      .eq("status", "printed");
-    (data || []).forEach(r => { printed[r.type] = true; });
+
+    // RGPD — só pode aparecer "printed" se NUNCA tiver havido signed/paper_signed.
+    // Se já houve, o RGPD é considerado resolvido e este estado é irrelevante,
+    // mesmo que haja um printed/paper_sent mais recente.
+    if (!_rgpdEverSigned(rows)) {
+      const latestRgpd = _latestOfType(rows, "rgpd");
+      if (latestRgpd && (latestRgpd.status === "printed" || latestRgpd.status === "paper_sent")) {
+        printed.rgpd = true;
+      }
+    }
+
+    // Procedimentos — só o registo mais recente decide.
+    // printed OU paper_sent no registo mais recente → printed[type] = true.
+    for (const type of PROCEDURE_TYPES) {
+      const latest = _latestOfType(rows, type);
+      if (latest && (latest.status === "printed" || latest.status === "paper_sent")) {
+        printed[type] = true;
+      }
+    }
+
     return printed;
   } catch (e) {
     console.warn("checkConsentPrinted:", e);

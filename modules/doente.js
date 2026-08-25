@@ -39,7 +39,7 @@ import { examsUiState, buildExamRequestHtml } from "./exames.js";
 import { analisesUiState, openAnalisesPanel, closeAnalisesPanel } from "./analises.js";
 import { evolucaoUiState, openEvolucaoPanel, closeEvolucaoPanel } from "./evolucao.js";
 import { checkConsentStatus, checkConsentPrinted } from "./consentimentos.js";
-import { openQrModal } from "./consentimentos_qr.js";
+import { openConsentHub } from "./consentimentos_hub.js";
 import { openExameObjectivoMenu, openExameObjectivoForm } from "./exame-objectivo.js";
 import { openNewPatientMainModal } from "./novo-doente.js";
 import { buildReportShell } from "./relatorios/_shared/report-shell.js";
@@ -4283,7 +4283,6 @@ function openPatientViewModal(patient) {
             <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="3" y="2" width="10" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5.5 6h5M5.5 8.5h5M5.5 11h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
             <span>RGPD${consentStatus.rgpd ? ' <span style="color:#16a34a;font-size:11px;margin-left:4px;">✓</span>' : consentPrinted.rgpd ? ' <span style="color:#f59e0b;font-size:11px;margin-left:4px;">🖨 Por assinar</span>' : ''}</span>
           </button>
-          ${consentPrinted.rgpd && !consentStatus.rgpd ? `<button id="btnConfirmarRgpd" class="gc-sb-btn" style="font-size:11px;color:#f59e0b;margin-top:2px;">✔ Confirmar assinatura manual</button>` : ''}
 
           <button id="btnPedidosOnline" class="gc-sb-btn ${pedidosOnlineUiState?.isOpen ? 'gc-sb-btn--active' : ''}">
             <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v6M5 8h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
@@ -4303,19 +4302,16 @@ function openPatientViewModal(patient) {
             <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M4 8l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span>PRP${consentStatus.prp ? ' <span style="color:#16a34a;font-size:11px;margin-left:4px;">✓</span>' : consentPrinted.prp ? ' <span style="color:#f59e0b;font-size:11px;margin-left:4px;">🖨 Por assinar</span>' : ''}</span>
           </button>
-          ${consentPrinted.prp && !consentStatus.prp ? `<button id="btnConfirmarPrp" class="gc-sb-btn" style="font-size:11px;color:#f59e0b;margin-top:2px;">✔ Confirmar assinatura manual</button>` : ''}
 
           <button id="btnConsentAh" class="gc-sb-btn ${consentStatus.ah ? 'gc-sb-btn--signed' : ''}">
             <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M4 8l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span>Ác. Hialurónico${consentStatus.ah ? ' <span style="color:#16a34a;font-size:11px;margin-left:4px;">✓</span>' : consentPrinted.ah ? ' <span style="color:#f59e0b;font-size:11px;margin-left:4px;">🖨 Por assinar</span>' : ''}</span>
           </button>
-          ${consentPrinted.ah && !consentStatus.ah ? `<button id="btnConfirmarAh" class="gc-sb-btn" style="font-size:11px;color:#f59e0b;margin-top:2px;">✔ Confirmar assinatura manual</button>` : ''}
 
           <button id="btnConsentInfilt" class="gc-sb-btn ${consentStatus.corticoide ? 'gc-sb-btn--signed' : ''}">
             <svg class="gc-sb-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M4 8l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span>Corticosteróide${consentStatus.corticoide ? ' <span style="color:#16a34a;font-size:11px;margin-left:4px;">✓</span>' : consentPrinted.corticoide ? ' <span style="color:#f59e0b;font-size:11px;margin-left:4px;">🖨 Por assinar</span>' : ''}</span>
           </button>
-          ${consentPrinted.corticoide && !consentStatus.corticoide ? `<button id="btnConfirmarInfilt" class="gc-sb-btn" style="font-size:11px;color:#f59e0b;margin-top:2px;">✔ Confirmar assinatura manual</button>` : ''}
 
           <!-- ── Agendar (visível a todos) ── -->
           <div class="gc-sb-div"></div>
@@ -4415,123 +4411,17 @@ function openPatientViewModal(patient) {
     document.getElementById("btnEditIdent")?.addEventListener("click", () => openPatientIdentity("edit"));
     document.getElementById("btnClosePView")?.addEventListener("click", closeModalSafe);
 
-    const TYPE_LABELS_GUARD = {
-      rgpd: "RGPD", prp: "PRP", ah: "Ác. Hialurónico", corticoide: "Corticosteroide",
-    };
-
-    async function openQrGuarded(type) {
-      // Normalizar "ah" → "acido_hialuronico" para corresponder ao enum na BD
-      const docType = type === "ah" ? "acido_hialuronico" : type;
-
-      if (!consentStatus[type]) {
-        openQrModal({ type: docType, patient: p, clinicId: activeClinicId, clinic: activeClinicData,
-          onSigned: async () => { await loadConsentStatus(); render(); } });
-        return;
-      }
-
-      // Buscar data de assinatura e PDF do token mais recente
-      const { data: tokens } = await window.sb
-        .from("consent_tokens")
-        .select("id, signed_at")
-        .eq("patient_id", p.id)
-        .eq("clinic_id", activeClinicId)
-        .eq("document_type", docType)
-        .eq("status", "signed")
-        .order("signed_at", { ascending: false })
-        .limit(1);
-
-      const token   = tokens?.[0];
-      const sigDate = token?.signed_at
-        ? new Date(token.signed_at).toLocaleDateString("pt-PT", { day:"numeric", month:"long", year:"numeric" })
-        : "data desconhecida";
-
-      // Buscar PDF da assinatura
-      let pdfUrl = null;
-      if (token) {
-        const { data: sigs } = await window.sb
-          .from("consent_signatures")
-          .select("pdf_url")
-          .eq("token_id", token.id)
-          .not("pdf_url", "is", null)
-          .limit(1);
-        pdfUrl = sigs?.[0]?.pdf_url || null;
-      }
-
-      // Modal de escolha
-      const overlay = document.createElement("div");
-      Object.assign(overlay.style, {
-        position:"fixed", inset:"0", zIndex:"6000",
-        background:"rgba(15,23,42,0.55)",
-        display:"flex", alignItems:"center", justifyContent:"center", padding:"16px",
-      });
-      overlay.innerHTML = `
-        <div style="background:#fff; border-radius:14px; padding:28px 24px; width:min(380px,96vw);
-                    box-shadow:0 20px 60px rgba(0,0,0,0.3); display:flex; flex-direction:column; gap:16px;">
-          <div style="font-size:15px; font-weight:700; color:#0f2d52;">
-            ${TYPE_LABELS_GUARD[type] || type} — já assinado
-          </div>
-          <div style="font-size:13px; color:#475569;">
-            Assinado em <strong>${sigDate}</strong>.
-          </div>
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            ${pdfUrl
-              ? `<a id="gcGuardView" href="${pdfUrl}" target="_blank"
-                   style="display:block; text-align:center; padding:10px; border-radius:10px;
-                          background:#0f2d52; color:#fff; font-weight:700; font-size:14px;
-                          text-decoration:none; cursor:pointer;">
-                   📄 Visualizar consentimento
-                 </a>`
-              : `<div style="text-align:center; padding:10px; border-radius:10px;
-                             background:#f1f5f9; color:#94a3b8; font-size:13px;">
-                   PDF não disponível
-                 </div>`}
-            <button id="gcGuardNew" style="padding:10px; border-radius:10px; border:1.5px solid #e2e8f0;
-              background:#fff; color:#0f2d52; font-size:14px; font-weight:600; cursor:pointer;">
-              + Gerar novo consentimento
-            </button>
-            <button id="gcGuardCancel" style="padding:8px; border-radius:10px; border:none;
-              background:none; color:#94a3b8; font-size:13px; cursor:pointer;">
-              Cancelar
-            </button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(overlay);
-
-      const close = () => overlay.remove();
-      document.getElementById("gcGuardCancel")?.addEventListener("click", close);
-      overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
-      document.getElementById("gcGuardNew")?.addEventListener("click", () => {
-        close();
-        openQrModal({ type: docType, patient: p, clinicId: activeClinicId, clinic: activeClinicData,
-          onSigned: async () => { await loadConsentStatus(); render(); } });
+    // Consentimentos (RGPD + procedimentos) — hub QR/LINK/PAPEL para todos os tipos.
+    function openConsentHubFor(tipo) {
+      openConsentHub({
+        type: tipo, patient: p, clinicId: activeClinicId, clinic: activeClinicData,
+        onChanged: async () => { await loadConsentStatus(); render(); },
       });
     }
-
-    // RGPD
-    document.getElementById("btnRgpd")?.addEventListener("click", () => openQrGuarded("rgpd"));
-
-    // Consentimentos
-    document.getElementById("btnConsentPrp")?.addEventListener("click",    () => openQrGuarded("prp"));
-    document.getElementById("btnConsentAh")?.addEventListener("click",     () => openQrGuarded("ah"));
-    document.getElementById("btnConsentInfilt")?.addEventListener("click", () => openQrGuarded("corticoide"));
-
-    // Confirmar assinatura manual
-    async function confirmarAssinaturaManual(type) {
-      if (!confirm(`Confirmar que o consentimento de ${type.toUpperCase()} foi assinado manualmente pelo doente?`)) return;
-      await window.sb.from("consents")
-        .update({ status: "paper_signed", signed_at: new Date().toISOString() })
-        .eq("patient_id", p.id)
-        .eq("clinic_id", activeClinicId)
-        .eq("type", type)
-        .eq("status", "printed");
-      await loadConsentStatus();
-      render();
-    }
-    document.getElementById("btnConfirmarRgpd")?.addEventListener("click",   () => confirmarAssinaturaManual("rgpd"));
-    document.getElementById("btnConfirmarPrp")?.addEventListener("click",    () => confirmarAssinaturaManual("prp"));
-    document.getElementById("btnConfirmarAh")?.addEventListener("click",     () => confirmarAssinaturaManual("ah"));
-    document.getElementById("btnConfirmarInfilt")?.addEventListener("click", () => confirmarAssinaturaManual("corticoide"));
+    document.getElementById("btnRgpd")?.addEventListener("click",          () => openConsentHubFor("rgpd"));
+    document.getElementById("btnConsentPrp")?.addEventListener("click",    () => openConsentHubFor("prp"));
+    document.getElementById("btnConsentAh")?.addEventListener("click",     () => openConsentHubFor("ah"));
+    document.getElementById("btnConsentInfilt")?.addEventListener("click", () => openConsentHubFor("corticoide"));
 
     document.getElementById("btnEvolucao")?.addEventListener("click", () => {
       if (evolucaoUiState.isOpen) {

@@ -7,7 +7,7 @@ import { G, STATUS_OPTIONS, statusMeta } from "./state.js";
 import { escapeHtml } from "./helpers.js";
 import { openApptModal, renderQuickPatientResults, openPatientFeedFromAny } from "./agenda.js";
 import { searchPatientsScoped } from "./db.js";
-import { openQrModal } from "./consentimentos_qr.js";
+import { openConsentHub } from "./consentimentos_hub.js";
 
 const GCAL_WORKER_URL = window.__GC_GCAL_WORKER_URL__ || "";
 
@@ -883,7 +883,7 @@ function _gaConsentBadges(patientId, consentMap, clinicId) {
   const _rgpdTip = rgpd === 'paper_signed' ? 'RGPD manual (papel)' : 'RGPD digital';
   let b = '<div style="display:flex;gap:3px;flex-wrap:wrap;">';
   if (rgpd === 'signed' || rgpd === 'paper_signed') {
-    b += `<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:#d1fae5;color:#065f46;font-weight:700;" title="${_rgpdTip}">✓ RGPD</span>`;
+    b += `<span class="ga-rgpd-badge" data-pid="${patientId}" data-cid="${clinicId}" style="font-size:10px;padding:1px 6px;border-radius:4px;background:#d1fae5;color:#065f46;font-weight:700;cursor:pointer;" title="${_rgpdTip}">✓ RGPD</span>`;
   } else {
     b += `<span class="ga-rgpd-badge" data-pid="${patientId}" data-cid="${clinicId}" style="font-size:10px;padding:1px 5px;border-radius:4px;background:#fee2e2;color:#991b1b;font-weight:600;cursor:pointer;" title="Consentimento RGPD não assinado">! RGPD</span>`;
   }
@@ -975,7 +975,7 @@ function _renderTimeline(rows, patientsById = {}, consentMap = {}, physioMap = {
       const cid = badge.dataset.cid;
       const patient = patientsById[pid] || { id: pid };
       const clinic  = (G.clinics||[]).find(c => c.id === cid);
-      openQrModal({ type: "rgpd", patient, clinicId: cid, clinic, onSigned: () => _loadAndRender() });
+      openConsentHub({ type: "rgpd", patient, clinicId: cid, clinic, onChanged: () => _loadAndRender() });
     });
   });
 
