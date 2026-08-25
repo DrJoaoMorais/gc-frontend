@@ -164,7 +164,7 @@
   text-align: right;
   font-size: 11px;
   color: var(--gcv2-ink);
-  margin-bottom: 16px;
+  margin-bottom: 24px;
 }
 .gcv2-footer-row {
   display: grid;
@@ -190,7 +190,7 @@
   min-height: 32px;
 }
 .gcv2-sig-line {
-  width: 180px;
+  width: 230px;
   border-top: 1px solid var(--gcv2-ink);
   margin: 0 0 0 auto;
   padding-top: 4px;
