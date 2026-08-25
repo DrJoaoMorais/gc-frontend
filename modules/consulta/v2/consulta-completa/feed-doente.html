@@ -951,6 +951,7 @@
     import { mount as pdv2Mount, unmount as pdv2Unmount } from '../../../pedidos/pedidos-v2.js';
     import { checkConsentStatus, checkConsentPrinted } from '../../../consentimentos.js';
     import { openQrModal } from '../../../consentimentos_qr.js';
+    import { openConsentHub } from '../../../consentimentos_hub.js';
     import { fetchMyRole } from '../../../auth.js';
     import { buildFriendlyFileName } from '../../../relatorios/v2/_shell/shell-v2.js';
     import { openIntakeResponseModal } from '../../../relatorios/v2/intake-viewer/intake-viewer.js';
@@ -3607,9 +3608,23 @@
 
     document.getElementById('fdBtnRgpd')?.addEventListener('click', () => fdOpenQrGuarded('rgpd'));
     document.getElementById('fdBtnDocumentos')?.addEventListener('click', fdOpenDocumentosModal);
-    document.getElementById('fdBtnConsentPrp')?.addEventListener('click', () => fdOpenQrGuarded('prp'));
-    document.getElementById('fdBtnConsentAh')?.addEventListener('click', () => fdOpenQrGuarded('ah'));
-    document.getElementById('fdBtnConsentInfilt')?.addEventListener('click', () => fdOpenQrGuarded('corticoide'));
+
+    // Consentimentos (procedimentos) — hub QR/LINK/PAPEL. RGPD mantém-se acima, sem alterações.
+    function fdOpenConsentHubFor(tipo) {
+      const clinicId = TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null;
+      openConsentHub({
+        type: tipo, patient: { id: PATIENT_ID, ...fdPatientData },
+        clinicId, clinic: fdActiveClinicData,
+        onChanged: async () => {
+          fdConsentStatus = await checkConsentStatus(PATIENT_ID, clinicId);
+          fdConsentPrinted = await checkConsentPrinted(PATIENT_ID, clinicId);
+          fdAtualizarTagsConsentimento();
+        },
+      });
+    }
+    document.getElementById('fdBtnConsentPrp')?.addEventListener('click', () => fdOpenConsentHubFor('prp'));
+    document.getElementById('fdBtnConsentAh')?.addEventListener('click', () => fdOpenConsentHubFor('ah'));
+    document.getElementById('fdBtnConsentInfilt')?.addEventListener('click', () => fdOpenConsentHubFor('corticoide'));
 
     document.getElementById('fdBtnAgendarConsulta')?.addEventListener('click', () => {
       const host = getHostWindow();

@@ -28,17 +28,70 @@ function escH(s) {
     .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function buildQrImgUrl(tokenValue) {
+export function buildQrImgUrl(tokenValue) {
   const target = `${SIGN_BASE_URL}?token=${encodeURIComponent(tokenValue)}`;
   return `${QR_API_URL}?size=200x200&data=${encodeURIComponent(target)}`;
 }
 
-function buildSignUrl(tokenValue) {
+export function buildSignUrl(tokenValue) {
   return `${SIGN_BASE_URL}?token=${encodeURIComponent(tokenValue)}`;
 }
 
 function toShortType(t) {
   return t === 'acido_hialuronico' ? 'ah' : t;
+}
+
+/* ======================================================== */
+/*  01B — API reutilizável (hub de consentimentos)          */
+/*        Fonte única para criar token e detectar assinatura */
+/* ======================================================== */
+
+export async function createConsentToken({ patient, clinicId, docType }) {
+  const userRes   = await window.sb.auth.getUser();
+  const userId    = userRes?.data?.user?.id || null;
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24h
+
+  const { data: row, error } = await window.sb
+    .from("consent_tokens")
+    .insert({
+      patient_id:    patient?.id,
+      clinic_id:     clinicId,
+      document_type: docType,
+      token:         crypto.randomUUID(),
+      status:        "pending",
+      expires_at:    expiresAt,
+      created_by:    userId,
+    })
+    .select("id, token")
+    .single();
+
+  if (error) throw error;
+  return row; // { id, token }
+}
+
+export function watchConsentTokenSigned(tokenId, onSigned) {
+  let signed = false;
+  const timer = setInterval(async () => {
+    if (signed) return;
+    try {
+      const { data, error } = await window.sb
+        .from("consent_tokens")
+        .select("status")
+        .eq("id", tokenId)
+        .single();
+
+      if (error) { console.warn("QR poll:", error); return; }
+      if (data?.status === "signed") {
+        signed = true;
+        clearInterval(timer);
+        onSigned();
+      }
+    } catch (e) {
+      console.warn("QR poll exception:", e);
+    }
+  }, POLL_INTERVAL);
+
+  return () => clearInterval(timer);
 }
 
 /* ======================================================== */
@@ -64,7 +117,7 @@ export function openQrModal({ patient, clinicId, clinic, type, onSigned }) {
   let selectedType   = null;
 
   function close() {
-    clearInterval(pollTimer);
+    if (typeof pollTimer === "function") pollTimer();
     overlay.remove();
   }
 
@@ -243,54 +296,19 @@ export function openQrModal({ patient, clinicId, clinic, type, onSigned }) {
 
   /* ── Polling ────────────────────────────────────────── */
   function startPolling(id) {
-    pollTimer = setInterval(async () => {
-      if (signed) return;
-      try {
-        const { data, error } = await window.sb
-          .from("consent_tokens")
-          .select("status")
-          .eq("id", id)
-          .single();
-
-        if (error) { console.warn("QR poll:", error); return; }
-        if (data?.status === "signed") {
-          signed = true;
-          clearInterval(pollTimer);
-          renderSigned();
-        }
-      } catch (e) {
-        console.warn("QR poll exception:", e);
-      }
-    }, POLL_INTERVAL);
+    pollTimer = watchConsentTokenSigned(id, () => {
+      signed = true;
+      renderSigned();
+    });
   }
 
   /* ── Gerar token ────────────────────────────────────── */
   async function generateToken(docType) {
     try {
-      const userRes   = await window.sb.auth.getUser();
-      const userId    = userRes?.data?.user?.id || null;
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24h
-
-      const { data: row, error } = await window.sb
-        .from("consent_tokens")
-        .insert({
-          patient_id:    patient?.id,
-          clinic_id:     clinicId,
-          document_type: docType,
-          token:         crypto.randomUUID(),
-          status:        "pending",
-          expires_at:    expiresAt,
-          created_by:    userId,
-        })
-        .select("id, token")
-        .single();
-
-      if (error) throw error;
-
+      const row = await createConsentToken({ patient, clinicId, docType });
       rowId = row.id;
       renderQr(row.token);
       startPolling(rowId);
-
     } catch (e) {
       console.error("INSERT error:", JSON.stringify(e, null, 2));
       renderError("Erro ao gerar token. Tente de novo.");
