@@ -104,7 +104,7 @@ window.__gc_openFeedPanel = openFeedPanel;
 import "./modules/relatorio-v2-bridge.js";
 
 // Boot
-import { boot }                             from "./modules/boot.js";
+import { boot }                             from "./modules/boot.js?v=2026-08-25-3";
 
 /* ── pontes window.__gc_* ────────────────────────────────────────────── */
 /*

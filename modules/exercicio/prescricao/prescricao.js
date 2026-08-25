@@ -25,7 +25,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-12-5';
+const PRESCRICAO_CSS_VERSION = '2026-08-25-3';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -752,7 +752,10 @@ let _patientMainTab = 'prescription';
 let _patientHasFeedback = false;
 
 function freshLanding() {
-  return { clinicFilter: null, search: '', tab: 'todos', rows: [], loading: true, error: '' };
+  return {
+    clinicFilter: null, search: '', tab: 'todos', rows: [], attention: [],
+    loading: true, attentionLoading: true, error: '', attentionError: ''
+  };
 }
 
 // Fecha o popover da clínica ao clicar fora — anexado uma única vez ao document
@@ -782,7 +785,10 @@ function renderLanding() {
   // sempre freshLanding(), o filtro escolhido era apagado no mesmo instante em que
   // era escolhido.
   if (!_landing) _landing = freshLanding();
-  else { _landing.loading = true; _landing.rows = []; _landing.error = ''; }
+  else {
+    _landing.loading = true; _landing.attentionLoading = true;
+    _landing.rows = []; _landing.attention = []; _landing.error = ''; _landing.attentionError = '';
+  }
 
   const clinicas = G.clinics || [];
   const multiClinica = clinicas.length > 1;
@@ -849,9 +855,17 @@ function renderLanding() {
       </div>
     </section>
 
+    <section class="gcwo-attention" aria-labelledby="gcwoAttentionTitle">
+      <div class="gcwo-landing-tablehead">
+        <h2 class="gcwo-section-title" id="gcwoAttentionTitle">Precisa da minha atenção <span class="count" id="gcwoAttentionCount"></span></h2>
+        <p>Exercício, diário e questionários numa fila clínica única.</p>
+      </div>
+      <div id="gcwoAttentionHost"><div class="gcwo-muted" style="padding:14px 2px;">A carregar…</div></div>
+    </section>
+
     <section class="gcwo-landing-tablesec" id="gcwoLandingTableSec">
       <div class="gcwo-landing-tablehead">
-        <h2 class="gcwo-section-title" id="gcwoLandingTableTitle">Leitura dos treinos <span class="count" id="gcwoLandingCount"></span></h2>
+        <h2 class="gcwo-section-title" id="gcwoLandingTableTitle">Doentes em acompanhamento <span class="count" id="gcwoLandingCount"></span></h2>
       </div>
       <div class="gcwo-landing-toolbar">
         <div class="gc-search-bar">
@@ -861,7 +875,7 @@ function renderLanding() {
         <div class="gcwo-landing-tabs" id="gcwoLandingTabs">
           <button type="button" class="on" data-tab="todos">Todos</button>
           <button type="button" data-tab="aterminar">A terminar</button>
-          <button type="button" data-tab="feedback">Feedback novo</button>
+          <button type="button" data-tab="feedback">Com atividade nova</button>
         </div>
       </div>
       <div id="gcwoLandingTableHost"></div>
@@ -890,7 +904,7 @@ function renderLanding() {
   document.getElementById('gcwoLandingSearch').addEventListener('input', (e) => {
     _landing.search = e.target.value;
     if (searchTimer) clearTimeout(searchTimer);
-    searchTimer = setTimeout(renderLandingTableHost, 150);
+    searchTimer = setTimeout(() => { renderLandingTableHost(); renderLandingAttention(); }, 150);
   });
 
   document.getElementById('gcwoLandingTabs').querySelectorAll('[data-tab]').forEach(btn => {
@@ -915,6 +929,144 @@ function situacaoLinha(row, now) {
   if (row.expiresAt < now) return { cls: 'terminada', label: 'Terminada · por rever' };
   if (row.expiresAt - now < TRES_DIAS_MS) return { cls: 'aterminar', label: 'A terminar' };
   return { cls: 'curso', label: 'Em curso' };
+}
+
+function podeLerDiarioClinico() {
+  if (window.__GC_IS_SUPERADMIN__) return true;
+  if (String(G.role || '').toLowerCase() === 'medico') return true;
+  return Object.values(G.myClinicRoles || {}).some(role => ['medico', 'super_admin'].includes(String(role || '').toLowerCase()));
+}
+
+function fmtDataHoraClinica(value) {
+  if (!value) return '—';
+  try { return new Date(value).toLocaleString('pt-PT', { dateStyle: 'medium', timeStyle: 'short' }); }
+  catch (_) { return String(value); }
+}
+
+function tipoAtencaoMeta(tipo) {
+  const mapa = {
+    exercise_readiness: { rotulo: 'Exercício · Antes de começar', cls: 'exercise' },
+    exercise_session: { rotulo: 'Exercício · Treino', cls: 'exercise' },
+    diary_entry: { rotulo: 'Diário clínico', cls: 'diary' },
+    intake_completed: { rotulo: 'Questionário concluído', cls: 'intake' },
+  };
+  return mapa[tipo] || { rotulo: tipo, cls: 'other' };
+}
+
+function renderLandingAttention() {
+  const host = document.getElementById('gcwoAttentionHost');
+  const count = document.getElementById('gcwoAttentionCount');
+  if (!host || !_landing) return;
+  if (_landing.attentionLoading) { host.innerHTML = '<div class="gcwo-muted" style="padding:14px 2px;">A carregar…</div>'; return; }
+  if (_landing.attentionError) { host.innerHTML = `<div class="gcwo-muted" style="padding:14px 2px;">${escHtml(_landing.attentionError)}</div>`; return; }
+  const termo = _landing.search.trim().toLowerCase();
+  const items = _landing.attention.filter(item => !termo || (item.patientName || '').toLowerCase().includes(termo));
+  if (count) count.textContent = `${items.length} registo${items.length === 1 ? '' : 's'}`;
+  if (!items.length) { host.innerHTML = '<div class="gcwo-attention-empty">Sem novos registos clínicos para mostrar.</div>'; return; }
+  host.innerHTML = `<div class="gcwo-attention-list">${items.map(item => {
+    const meta = tipoAtencaoMeta(item.type);
+    return `<article class="gcwo-attention-item">
+      <span class="gcwo-attention-dot ${meta.cls}"></span>
+      <div class="gcwo-attention-main"><strong>${escHtml(item.patientName)}</strong><span>${escHtml(meta.rotulo)} · ${escHtml(fmtDataHoraClinica(item.at))}</span><small>${escHtml(item.summary || '')}</small></div>
+      <span class="gcwo-attention-new">NOVO</span>
+      <button type="button" class="gcBtnOutline gcBtnSm" data-attention-open="${escAttr(item.key)}">Ver</button>
+    </article>`;
+  }).join('')}</div>`;
+  host.querySelectorAll('[data-attention-open]').forEach(btn => btn.addEventListener('click', () => {
+    const item = _landing.attention.find(row => row.key === btn.getAttribute('data-attention-open'));
+    if (item) abrirAtencao(item);
+  }));
+}
+
+function abrirFeedDoente(patientId, clinicId) {
+  const params = new URLSearchParams({ patientId: patientId || '', sessionClinicId: clinicId || '' });
+  window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?${params.toString()}`, '_blank', 'noopener');
+}
+
+function fecharModalClinico() { document.getElementById('gcwoClinicalViewer')?.remove(); }
+
+function imprimirModalClinico() {
+  const modal = document.getElementById('gcwoClinicalViewer');
+  const titulo = modal?.querySelector('.gcwo-modal-head h3')?.textContent || 'Registo clínico';
+  const subtitulo = modal?.querySelector('.gcwo-modal-head small')?.textContent || '';
+  const corpo = modal?.querySelector('#gcwoClinicalBody')?.innerHTML || '';
+  if (!modal || !corpo) return;
+  const pagina = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>${escHtml(titulo)}</title><style>
+    @page{size:A4;margin:16mm}*{box-sizing:border-box}body{margin:0;color:#0f172a;font:12px/1.45 Arial,sans-serif}.printbar{position:sticky;top:0;z-index:2;display:flex;justify-content:flex-end;padding:10px 16px;background:#0f2d52}.printbar button{padding:9px 16px;border:0;border-radius:7px;background:#fff;color:#0f2d52;font-weight:700;cursor:pointer}.page{max-width:900px;margin:0 auto;padding:22px}h1{margin:0;color:#0f2d52;font-size:20px}header{padding-bottom:12px;border-bottom:2px solid #0f2d52;margin-bottom:14px}header p{margin:4px 0 0;color:#64748b}.gcwo-readonly-note{display:none}.gcwo-answer-section{break-inside:avoid;margin:0 0 14px}.gcwo-answer-section h4{margin:0;padding:7px 9px;border-radius:5px;background:#edf2f7;color:#0f2d52;font-size:13px}.gcwo-answer-row{display:grid;grid-template-columns:42% 58%;gap:12px;padding:7px 9px;border-bottom:1px solid #e2e8f0;break-inside:avoid}.gcwo-answer-row span{color:#64748b}.gcwo-answer-row strong{font-weight:600;white-space:pre-wrap}.gcwo-diary-timeline{display:block}.gcwo-diary-timeline article{break-inside:avoid;margin-bottom:9px;padding:9px 11px;border:1px solid #e2e8f0;border-left:3px solid #0f8a74;border-radius:6px}.gcwo-diary-timeline time{color:#64748b;font-size:10px;font-weight:700}.gcwo-diary-timeline p{margin:5px 0 0;white-space:pre-wrap}.gcwo-diary-images{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}.gcwo-diary-images span{display:none}.gcwo-diary-images img{width:110px;height:82px;border-radius:5px;object-fit:cover}.muted{color:#94a3b8}@media print{.printbar{display:none}.page{max-width:none;margin:0;padding:0}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style></head><body><div class="printbar"><button type="button" onclick="window.print()">Imprimir esta página</button></div><main class="page"><header><h1>${escHtml(titulo)}</h1><p>${escHtml(subtitulo)}</p></header>${corpo}</main></body></html>`;
+  const url = URL.createObjectURL(new Blob([pagina], { type: 'text/html;charset=utf-8' }));
+  const janela = window.open(url, '_blank');
+  if (!janela) { URL.revokeObjectURL(url); alert('O navegador bloqueou a janela de impressão. Autorize janelas pop-up para este endereço.'); return; }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+function criarModalClinico(titulo, subtitulo) {
+  fecharModalClinico();
+  const overlay = document.createElement('div');
+  overlay.id = 'gcwoClinicalViewer'; overlay.className = 'gcwo-modal-overlay';
+  overlay.innerHTML = `<div class="gcwo-modal gcwo-clinical-modal"><div class="gcwo-modal-head"><div><h3>${escHtml(titulo)}</h3><small>${escHtml(subtitulo || '')}</small></div><button type="button" class="gcwo-print-btn" id="gcwoClinicalPrint">Imprimir</button><button type="button" id="gcwoClinicalClose" title="Fechar">${ICON_CLOSE}</button></div><div class="gcwo-modal-body" id="gcwoClinicalBody"><div class="gcwo-muted">A carregar…</div></div></div>`;
+  overlay.addEventListener('click', event => { if (event.target === overlay) fecharModalClinico(); });
+  document.body.appendChild(overlay);
+  document.getElementById('gcwoClinicalClose')?.addEventListener('click', fecharModalClinico);
+  document.getElementById('gcwoClinicalPrint')?.addEventListener('click', imprimirModalClinico);
+  return document.getElementById('gcwoClinicalBody');
+}
+
+function respostaClinicaHtml(value) {
+  if (value == null || value === '') return '<span class="muted">Sem resposta</span>';
+  if (Array.isArray(value)) return escHtml(value.join(', '));
+  if (typeof value === 'object') {
+    if ('v' in value) {
+      const principal = Array.isArray(value.v) ? value.v.join(', ') : value.v;
+      return escHtml([principal, value.outro_texto].filter(Boolean).join(' · '));
+    }
+    return escHtml(Object.entries(value).map(([k, v]) => `${k}: ${v}`).join(' · '));
+  }
+  return escHtml(String(value));
+}
+
+async function abrirQuestionarioLeitura(item) {
+  const body = criarModalClinico(`Questionário — ${item.patientName}`, `Concluído em ${fmtDataHoraClinica(item.at)} · apenas leitura`);
+  try {
+    const [{ data: respostas, error }, configModule] = await Promise.all([
+      window.sb.from('intake_responses').select('question_id,answer,updated_at').eq('token_id', item.sourceId),
+      import(`../../intake/configs/${item.questionnaireType}.js`),
+    ]);
+    if (error) throw error;
+    const cfg = configModule.default;
+    const porId = new Map((respostas || []).map(r => [r.question_id, r.answer]));
+    body.innerHTML = `<div class="gcwo-readonly-note">Histórico protegido: este ecrã não altera nem elimina respostas.</div>${(cfg.seccoes || []).map(sec => {
+      const perguntas = (sec.perguntas || []).filter(p => porId.has(p.id));
+      if (!perguntas.length) return '';
+      return `<section class="gcwo-answer-section"><h4>${escHtml(sec.titulo)}</h4>${perguntas.map(p => `<div class="gcwo-answer-row"><span>${escHtml(p.label)}</span><strong>${respostaClinicaHtml(porId.get(p.id))}</strong></div>`).join('')}</section>`;
+    }).join('')}`;
+  } catch (error) {
+    console.error('[prescricao] falha a ler questionário:', error);
+    body.innerHTML = '<div class="gcwo-muted">Não foi possível abrir as respostas deste questionário.</div>';
+  }
+}
+
+async function abrirDiarioLeitura(item) {
+  if (!podeLerDiarioClinico()) return;
+  const body = criarModalClinico(`Diário clínico — ${item.patientName}`, 'Registos cronológicos · apenas leitura');
+  const { data, error } = await window.sb.from('patient_diary_entries')
+    .select('id,entered_at,raw_text,images').eq('patient_id', item.patientId).order('entered_at', { ascending: false }).limit(200);
+  if (error) { console.error('[prescricao] falha a ler diário:', error); body.innerHTML = '<div class="gcwo-muted">Não foi possível abrir o diário clínico.</div>'; return; }
+  body.innerHTML = `<div class="gcwo-readonly-note">Registos do doente. Este ecrã não permite editar ou apagar.</div><div class="gcwo-diary-timeline">${(data || []).map(row => `<article><time>${escHtml(fmtDataHoraClinica(row.entered_at))}</time><p>${escHtml(row.raw_text || 'Registo com imagem')}</p>${Array.isArray(row.images) && row.images.length ? `<div class="gcwo-diary-images">${row.images.map((path, index) => `<span data-diary-image="${escAttr(path)}">Imagem ${index + 1} a carregar…</span>`).join('')}</div>` : ''}</article>`).join('') || '<div class="gcwo-muted">Sem registos no diário.</div>'}</div>`;
+  await Promise.all(Array.from(body.querySelectorAll('[data-diary-image]')).map(async host => {
+    const path = host.getAttribute('data-diary-image');
+    const { data: signed, error: signedError } = await window.sb.storage.from('patient-diary').createSignedUrl(path, 300);
+    if (signedError || !signed?.signedUrl) { host.textContent = 'Imagem indisponível'; return; }
+    host.innerHTML = `<a href="${escAttr(signed.signedUrl)}" target="_blank" rel="noopener"><img src="${escAttr(signed.signedUrl)}" alt="Imagem enviada pelo doente"></a>`;
+  }));
+}
+
+function abrirAtencao(item) {
+  if (item.type === 'intake_completed') { abrirQuestionarioLeitura(item); return; }
+  if (item.type === 'diary_entry') { abrirDiarioLeitura(item); return; }
+  const row = _landing.rows.find(r => r.patient?.id === item.patientId && r.id === item.prescriptionId);
+  if (item.type === 'exercise_session' && row?.lastLog) { abrirFeedbackModal(row); return; }
+  abrirFeedDoente(item.patientId, item.clinicId);
 }
 
 function renderLandingTableHost() {
@@ -951,17 +1103,18 @@ function renderLandingTableHost() {
     <div class="gcwo-tablewrap">
       <table class="gcwo-readtable gcwo-landing-table">
         <thead><tr>
-          <th>Doente</th><th>Clínica</th><th>Plano</th><th>Último treino</th><th>Situação</th><th>Resultado</th>
+          <th>Doente</th><th>Plano</th><th>Exercício</th><th>Diário</th><th>Questionário</th><th>Última atividade</th><th>Situação</th>
         </tr></thead>
         <tbody>
           ${linhas.map(r => `
             <tr data-rid="${escAttr(r.id)}" class="gcwo-landing-row">
               <td><strong>${escHtml(r.patient?.full_name || '—')}</strong></td>
-              <td class="muted">${escHtml(r.clinicName)}</td>
               <td class="muted">${escHtml(fmtIntervaloPlano(r.startDate, r.expiresAt))}</td>
-              <td class="muted">${escHtml(fmtRelativo(r.lastLogAt))}</td>
+              <td>${r.lastLog ? `<button type="button" class="gcwo-feedback-btn" data-feedback-rid="${escAttr(r.id)}">Ver treino</button>` : '<span class="muted">Sem treino</span>'}</td>
+              <td>${podeLerDiarioClinico() ? (r.lastDiary ? `<button type="button" class="gcwo-clinical-link" data-diary-rid="${escAttr(r.id)}">${escHtml(fmtRelativo(new Date(r.lastDiary.entered_at)))}</button>` : '<span class="muted">Sem registo</span>') : '<span class="muted">Restrito</span>'}</td>
+              <td>${r.lastIntake ? `<button type="button" class="gcwo-clinical-link" data-intake-rid="${escAttr(r.id)}">Respondido</button>` : '<span class="muted">—</span>'}</td>
+              <td class="muted">${escHtml(fmtRelativo(r.lastActivityAt))}</td>
               <td><span class="gcwo-situacao-dot ${r.situacao.cls}"></span>${escHtml(r.situacao.label)}</td>
-              <td>${r.lastLog ? `<button type="button" class="gcwo-feedback-btn" data-feedback-rid="${escAttr(r.id)}">Ver treino</button>` : '<span class="muted">—</span>'}</td>
             </tr>`).join('')}
         </tbody>
       </table>
@@ -989,6 +1142,16 @@ function renderLandingTableHost() {
       if (row?.lastLog) abrirFeedbackModal(row);
     });
   });
+  host.querySelectorAll('[data-diary-rid]').forEach(btn => btn.addEventListener('click', event => {
+    event.stopPropagation();
+    const row = _landing.rows.find(x => x.id === btn.getAttribute('data-diary-rid'));
+    if (row?.lastDiary) abrirDiarioLeitura({ patientId: row.patient.id, patientName: row.patient.full_name, at: row.lastDiary.entered_at });
+  }));
+  host.querySelectorAll('[data-intake-rid]').forEach(btn => btn.addEventListener('click', event => {
+    event.stopPropagation();
+    const row = _landing.rows.find(x => x.id === btn.getAttribute('data-intake-rid'));
+    if (row?.lastIntake) abrirQuestionarioLeitura({ patientName: row.patient.full_name, at: row.lastIntake.completed_at || row.lastIntake.created_at, sourceId: row.lastIntake.id, questionnaireType: row.lastIntake.questionnaire_type });
+  }));
 }
 
 function fecharFeedbackModal() {
@@ -1132,6 +1295,90 @@ async function loadLandingRows() {
     }));
   _landing.loading = false;
   renderLandingTableHost();
+  await loadLandingAttention(clinicIds);
+}
+
+async function loadLandingAttention(clinicIds) {
+  _landing.attentionLoading = true;
+  renderLandingAttention();
+  try {
+    const prescriptionIds = _landing.rows.map(row => row.id);
+    const canReadDiary = podeLerDiarioClinico();
+    const [readinessRes, diaryRes, intakeRes] = await Promise.all([
+      prescriptionIds.length
+        ? window.sb.from('wo_session_readiness')
+          .select('id,prescription_id,patient_id,clinic_id,feeling,has_symptoms,symptom_note,answered_at')
+          .in('prescription_id', prescriptionIds).eq('has_symptoms', true).order('answered_at', { ascending: false }).limit(100)
+        : Promise.resolve({ data: [], error: null }),
+      canReadDiary
+        ? window.sb.from('patient_diary_entries')
+          .select('id,patient_id,clinic_id,entered_at,raw_text,images,patients(id,full_name)')
+          .in('clinic_id', clinicIds).order('entered_at', { ascending: false }).limit(200)
+        : Promise.resolve({ data: [], error: null }),
+      window.sb.from('intake_tokens')
+        .select('id,patient_id,clinic_id,questionnaire_type,status,completed_at,created_at,patients(id,full_name)')
+        .in('clinic_id', clinicIds).eq('status', 'completed').order('completed_at', { ascending: false }).limit(100),
+    ]);
+
+    [readinessRes, diaryRes, intakeRes].forEach(result => {
+      if (result.error) throw result.error;
+    });
+    const rowByPatient = new Map(_landing.rows.map(row => [row.patient?.id, row]));
+    const latestDiaryByPatient = new Map();
+    (diaryRes.data || []).forEach(entry => {
+      if (!latestDiaryByPatient.has(entry.patient_id)) latestDiaryByPatient.set(entry.patient_id, entry);
+    });
+    const attention = [];
+    (readinessRes.data || []).forEach(entry => {
+      const row = rowByPatient.get(entry.patient_id);
+      if (!row) return;
+      attention.push({
+        key: `readiness:${entry.id}`, type: 'exercise_readiness', sourceId: entry.id,
+        prescriptionId: entry.prescription_id, patientId: entry.patient_id, clinicId: entry.clinic_id,
+        patientName: row.patient.full_name, at: entry.answered_at,
+        summary: entry.symptom_note || 'O doente indicou sintomas ou dor antes do treino.',
+      });
+    });
+    _landing.rows.filter(row => row.lastLog).forEach(row => {
+      const sets = Array.isArray(row.lastLog.sets) ? row.lastLog.sets : [];
+      const alterado = sets.some(entry => entry.status && entry.status !== 'as_prescribed');
+      if (!row.lastLog.note && !alterado && Number(row.lastLog.rpe || 0) < 8) return;
+      attention.push({
+        key: `session:${row.id}:${row.lastLog.session_id}`, type: 'exercise_session', sourceId: row.lastLog.session_id,
+        prescriptionId: row.id, patientId: row.patient.id, clinicId: row.clinicId,
+        patientName: row.patient.full_name, at: row.lastLog.logged_at,
+        summary: row.lastLog.note || (alterado ? 'Treino realizado com alterações.' : `Esforço elevado: ${row.lastLog.rpe}/10.`),
+      });
+    });
+    latestDiaryByPatient.forEach(entry => attention.push({
+      key: `diary:${entry.id}`, type: 'diary_entry', sourceId: entry.id,
+      patientId: entry.patient_id, clinicId: entry.clinic_id,
+      patientName: entry.patients?.full_name || rowByPatient.get(entry.patient_id)?.patient?.full_name || 'Doente',
+      at: entry.entered_at, summary: entry.raw_text || 'Novo registo com imagem.',
+    }));
+    (intakeRes.data || []).forEach(token => attention.push({
+      key: `intake:${token.id}`, type: 'intake_completed', sourceId: token.id,
+      patientId: token.patient_id, clinicId: token.clinic_id, questionnaireType: token.questionnaire_type,
+      patientName: token.patients?.full_name || rowByPatient.get(token.patient_id)?.patient?.full_name || 'Doente',
+      at: token.completed_at || token.created_at, summary: 'Respostas disponíveis para leitura clínica.',
+    }));
+    const latestIntakeByPatient = new Map();
+    (intakeRes.data || []).forEach(token => { if (!latestIntakeByPatient.has(token.patient_id)) latestIntakeByPatient.set(token.patient_id, token); });
+    _landing.rows.forEach(row => {
+      row.lastDiary = latestDiaryByPatient.get(row.patient.id) || null;
+      row.lastIntake = latestIntakeByPatient.get(row.patient.id) || null;
+      const dates = [row.lastLogAt, row.lastDiary?.entered_at, row.lastIntake?.completed_at || row.lastIntake?.created_at].filter(Boolean).map(value => new Date(value));
+      row.lastActivityAt = dates.length ? new Date(Math.max(...dates.map(value => value.getTime()))) : null;
+    });
+    _landing.attention = attention.sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
+  } catch (error) {
+    console.error('[prescricao] falha a carregar fila de atenção:', error);
+    _landing.attentionError = 'Não foi possível carregar todos os registos clínicos.';
+  } finally {
+    _landing.attentionLoading = false;
+    renderLandingTableHost();
+    renderLandingAttention();
+  }
 }
 
 /* ================================================================
