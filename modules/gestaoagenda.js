@@ -7,7 +7,7 @@ import { G, STATUS_OPTIONS, statusMeta } from "./state.js";
 import { escapeHtml } from "./helpers.js";
 import { openApptModal, renderQuickPatientResults, openPatientFeedFromAny } from "./agenda.js";
 import { searchPatientsScoped } from "./db.js";
-import { openQrModal } from "./consentimentos_qr.js";
+import { openConsentHub } from "./consentimentos_hub.js";
 
 const GCAL_WORKER_URL = window.__GC_GCAL_WORKER_URL__ || "";
 
@@ -975,7 +975,7 @@ function _renderTimeline(rows, patientsById = {}, consentMap = {}, physioMap = {
       const cid = badge.dataset.cid;
       const patient = patientsById[pid] || { id: pid };
       const clinic  = (G.clinics||[]).find(c => c.id === cid);
-      openQrModal({ type: "rgpd", patient, clinicId: cid, clinic, onSigned: () => _loadAndRender() });
+      openConsentHub({ type: "rgpd", patient, clinicId: cid, clinic, onChanged: () => _loadAndRender() });
     });
   });
 

@@ -1,18 +1,22 @@
 /* ========================================================
-   CONSENTIMENTOS_HUB.JS — Hub de consentimentos (procedimentos)
+   CONSENTIMENTOS_HUB.JS — Hub de consentimentos
    --------------------------------------------------------
-   Ecrã único para PRP / Ácido Hialurónico / Corticosteróide:
-   estado actual (último episódio), QR / LINK / PAPEL com o
-   mesmo peso visual, e histórico por procedimento.
+   Ecrã único para RGPD / PRP / Ácido Hialurónico / Corticosteróide:
+   estado actual, QR / LINK / PAPEL com o mesmo peso visual, e
+   histórico por tipo.
 
-   O RGPD NÃO passa por aqui — mantém o fluxo antigo
-   (openQrGuarded/openQrModal em doente.js e feed-doente.html).
+   RGPD tem uma regra própria de "Estado actual" (ver isSigned em
+   renderMain): qualquer signed/paper_signed histórico mantém o RGPD
+   resolvido, independentemente de existir um episódio mais recente
+   pending/expired/printed/paper_sent. Os restantes tipos usam apenas
+   o último episódio (latestConsentOfType). QR/LINK/PAPEL/Histórico
+   funcionam de forma idêntica para todos os tipos.
 
    01 — Helpers e constantes
    02 — openConsentHub  (exportada)
    ======================================================== */
 
-import { openConsentModal, getConsentEpisodes, latestConsentOfType, confirmPaperSigned } from "./consentimentos.js";
+import { openConsentModal, getConsentEpisodes, latestConsentOfType, latestSignedConsentOfType, rgpdEverSigned, confirmPaperSigned } from "./consentimentos.js";
 import { createConsentToken, watchConsentTokenSigned, buildSignUrl, buildQrImgUrl } from "./consentimentos_qr.js";
 
 /* ======================================================== */
@@ -20,7 +24,7 @@ import { createConsentToken, watchConsentTokenSigned, buildSignUrl, buildQrImgUr
 /* ======================================================== */
 
 const DOC_TYPE_BY_UI = { ah: "acido_hialuronico" };
-const TYPE_LABELS    = { prp: "PRP", ah: "Ácido Hialurónico", corticoide: "Corticosteróide" };
+const TYPE_LABELS    = { rgpd: "RGPD", prp: "PRP", ah: "Ácido Hialurónico", corticoide: "Corticosteróide" };
 
 const STATUS_LABELS_PT = {
   signed:       "Assinado (digital)",
@@ -141,15 +145,22 @@ export function openConsentHub({ type, patient, clinicId, clinic, onChanged }) {
 
     const { typeRows, latest } = await loadState();
 
-    const isSigned        = !!latest && (latest.status === "signed" || latest.status === "paper_signed");
-    const isPaperPending   = !!latest && (latest.status === "printed" || latest.status === "paper_sent");
+    // RGPD: qualquer signed/paper_signed histórico mantém o RGPD resolvido,
+    // mesmo com um episódio mais recente pending/expired/printed/paper_sent.
+    // Restantes tipos: só o último episódio decide (comportamento inalterado).
+    const isRgpd = type === "rgpd";
+    const signedRow = isRgpd
+      ? latestSignedConsentOfType(typeRows, type)
+      : (latest && (latest.status === "signed" || latest.status === "paper_signed") ? latest : null);
+    const isSigned = isRgpd ? rgpdEverSigned(typeRows) : !!signedRow;
+    const isPaperPending = !isSigned && !!latest && (latest.status === "printed" || latest.status === "paper_sent");
 
     let statusHtml;
     if (isSigned) {
       statusHtml = `
         <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:12px 14px;">
-          <div style="font-weight:700;color:#065f46;font-size:13px;">✓ Último consentimento assinado</div>
-          <div style="font-size:12px;color:#047857;margin-top:2px;">${escH(fmtDatePt(latest.signed_at || latest.created_at) || "—")}</div>
+          <div style="font-weight:700;color:#065f46;font-size:13px;">✓ Consentimento assinado</div>
+          <div style="font-size:12px;color:#047857;margin-top:2px;">${escH(fmtDatePt(signedRow?.signed_at || signedRow?.created_at) || "—")}</div>
         </div>`;
     } else if (isPaperPending) {
       statusHtml = `
@@ -172,7 +183,7 @@ export function openConsentHub({ type, patient, clinicId, clinic, onChanged }) {
         </div>
 
         <div>
-          <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">Novo procedimento</div>
+          <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">${isRgpd ? "Novo consentimento" : "Novo procedimento"}</div>
           <div style="font-size:12px;color:#64748b;margin-bottom:10px;">Como pretende obter o consentimento?</div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
             ${hubOptionButton("gcHubQr",    "📷", "QR CODE", "Mostrar ao doente")}

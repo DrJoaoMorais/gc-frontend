@@ -950,7 +950,6 @@
     import { carregarConsulta, carregarConsultasEmLote } from './cc-queries.js';
     import { mount as pdv2Mount, unmount as pdv2Unmount } from '../../../pedidos/pedidos-v2.js';
     import { checkConsentStatus, checkConsentPrinted } from '../../../consentimentos.js';
-    import { openQrModal } from '../../../consentimentos_qr.js';
     import { openConsentHub } from '../../../consentimentos_hub.js';
     import { fetchMyRole } from '../../../auth.js';
     import { buildFriendlyFileName } from '../../../relatorios/v2/_shell/shell-v2.js';
@@ -1153,101 +1152,6 @@
           el.style.display = 'none';
         }
       }
-    }
-
-    const FD_TYPE_LABELS = { rgpd: 'RGPD', prp: 'PRP', ah: 'Ác. Hialurónico', corticoide: 'Corticosteroide' };
-
-    async function fdOpenQrGuarded(tipo) {
-      const sb = window.sb;
-      // Normalizar "ah" → "acido_hialuronico" para corresponder ao enum na BD
-      const docType = tipo === 'ah' ? 'acido_hialuronico' : tipo;
-      const clinicId = TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null;
-
-      if (!fdConsentStatus[tipo]) {
-        openQrModal({
-          type: docType, patient: { id: PATIENT_ID, ...fdPatientData },
-          clinicId, clinic: fdActiveClinicData,
-          onSigned: async () => {
-            fdConsentStatus = await checkConsentStatus(PATIENT_ID, clinicId);
-            fdConsentPrinted = await checkConsentPrinted(PATIENT_ID, clinicId);
-            fdAtualizarTagsConsentimento();
-          }
-        });
-        return;
-      }
-
-      // Buscar data de assinatura e PDF do token mais recente
-      const { data: tokens } = await sb.from('consent_tokens')
-        .select('id, signed_at')
-        .eq('patient_id', PATIENT_ID).eq('clinic_id', clinicId)
-        .eq('document_type', docType).eq('status', 'signed')
-        .order('signed_at', { ascending: false }).limit(1);
-
-      const token = tokens?.[0];
-      let sigDate = token?.signed_at
-        ? new Date(token.signed_at).toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' })
-        : null;
-
-      // Buscar PDF da assinatura
-      let pdfUrl = null;
-      if (token) {
-        const { data: sigs } = await sb.from('consent_signatures')
-          .select('pdf_url').eq('token_id', token.id).not('pdf_url', 'is', null).limit(1);
-        pdfUrl = sigs?.[0]?.pdf_url || null;
-      }
-
-      // Fallback — fluxo antigo, tabela 'consents'
-      if (!sigDate) {
-        const { data: oldRows } = await sb.from('consents')
-          .select('signed_at, storage_path, created_at')
-          .eq('patient_id', PATIENT_ID).eq('clinic_id', clinicId).eq('type', tipo)
-          .in('status', ['signed', 'paper_signed'])
-          .order('created_at', { ascending: false })
-          .limit(1);
-        const old = oldRows?.[0];
-        if (old) {
-          sigDate = new Date(old.signed_at || old.created_at).toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' });
-          if (old.storage_path) {
-            const { data: signedUrlData } = await sb.storage.from('documents').createSignedUrl(old.storage_path, 3600);
-            pdfUrl = signedUrlData?.signedUrl || null;
-          }
-        }
-      }
-      sigDate = sigDate || 'data desconhecida';
-
-      // Modal de escolha
-      const overlay = document.createElement('div');
-      Object.assign(overlay.style, {
-        position: 'fixed', inset: '0', zIndex: '6000',
-        background: 'rgba(15,23,42,0.55)', display: 'flex',
-        alignItems: 'center', justifyContent: 'center', padding: '16px',
-      });
-      overlay.innerHTML = `
-        <div style="background:#fff;border-radius:14px;padding:28px 24px;width:min(380px,96vw);box-shadow:0 20px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column;gap:16px;">
-          <div style="font-size:15px;font-weight:700;color:#0f2d52;">${FD_TYPE_LABELS[tipo] || tipo} — já assinado</div>
-          <div style="font-size:13px;color:#475569;">Assinado em <strong>${sigDate}</strong>.</div>
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            ${pdfUrl
-              ? `<a id="fdGuardView" href="${pdfUrl}" target="_blank" style="display:block;text-align:center;padding:10px;border-radius:10px;background:#0f2d52;color:#fff;font-weight:700;font-size:14px;text-decoration:none;">📄 Visualizar consentimento</a>`
-              : `<div style="text-align:center;padding:10px;border-radius:10px;background:#f1f5f9;color:#94a3b8;font-size:13px;">PDF não disponível</div>`}
-            <button id="fdGuardNew" style="padding:10px;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;color:#0f2d52;font-size:14px;font-weight:600;cursor:pointer;">+ Gerar novo consentimento</button>
-            <button id="fdGuardCancel" style="padding:8px;border-radius:10px;border:none;background:none;color:#94a3b8;font-size:13px;cursor:pointer;">Cancelar</button>
-          </div>
-        </div>`;
-      document.body.appendChild(overlay);
-      const close = () => overlay.remove();
-      document.getElementById('fdGuardCancel')?.addEventListener('click', close);
-      overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-      document.getElementById('fdGuardNew')?.addEventListener('click', () => {
-        close();
-        openQrModal({ type: docType, patient: { id: PATIENT_ID, ...fdPatientData }, clinicId, clinic: fdActiveClinicData,
-          onSigned: async () => {
-            fdConsentStatus = await checkConsentStatus(PATIENT_ID, clinicId);
-            fdConsentPrinted = await checkConsentPrinted(PATIENT_ID, clinicId);
-            fdAtualizarTagsConsentimento();
-          }
-        });
-      });
     }
 
     function fdOpenIdentidadeModal(mode) {
@@ -3606,10 +3510,9 @@
       await openRelatorioClinicoModal({ patientId: PATIENT_ID, onClose: async () => { await boot(); } });
     });
 
-    document.getElementById('fdBtnRgpd')?.addEventListener('click', () => fdOpenQrGuarded('rgpd'));
     document.getElementById('fdBtnDocumentos')?.addEventListener('click', fdOpenDocumentosModal);
 
-    // Consentimentos (procedimentos) — hub QR/LINK/PAPEL. RGPD mantém-se acima, sem alterações.
+    // Consentimentos (RGPD + procedimentos) — hub QR/LINK/PAPEL para todos os tipos.
     function fdOpenConsentHubFor(tipo) {
       const clinicId = TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null;
       openConsentHub({
@@ -3622,8 +3525,9 @@
         },
       });
     }
-    document.getElementById('fdBtnConsentPrp')?.addEventListener('click', () => fdOpenConsentHubFor('prp'));
-    document.getElementById('fdBtnConsentAh')?.addEventListener('click', () => fdOpenConsentHubFor('ah'));
+    document.getElementById('fdBtnRgpd')?.addEventListener('click',         () => fdOpenConsentHubFor('rgpd'));
+    document.getElementById('fdBtnConsentPrp')?.addEventListener('click',    () => fdOpenConsentHubFor('prp'));
+    document.getElementById('fdBtnConsentAh')?.addEventListener('click',     () => fdOpenConsentHubFor('ah'));
     document.getElementById('fdBtnConsentInfilt')?.addEventListener('click', () => fdOpenConsentHubFor('corticoide'));
 
     document.getElementById('fdBtnAgendarConsulta')?.addEventListener('click', () => {

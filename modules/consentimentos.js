@@ -145,10 +145,24 @@ export function latestConsentOfType(rows, type) {
   return _latestOfType(rows, type);
 }
 
-// printed OU paper_sent (legado) → paper_signed. Usado pelo hub para
-// procedimentos; o fluxo RGPD mantém a sua própria confirmação em doente.js.
-// consentId identifica o episódio exacto — sem ele o UPDATE afectaria
-// todos os registos printed/paper_sent do mesmo doente/clínica/tipo.
+// Episódio mais recente COM status signed/paper_signed (pode não ser o último
+// episódio em absoluto — ex.: RGPD assinado há meses com um token pendente
+// mais recente). Mesma regra usada em checkConsentStatus.
+export function latestSignedConsentOfType(rows, type) {
+  return _latestOfType(rows.filter(r => r.status === "signed" || r.status === "paper_signed"), type);
+}
+
+// RGPD: qualquer signed/paper_signed histórico mantém o RGPD resolvido,
+// independentemente de existir um episódio mais recente pending/expired/
+// printed/paper_sent. Mesma fonte usada por checkConsentStatus/checkConsentPrinted.
+export function rgpdEverSigned(rows) {
+  return _rgpdEverSigned(rows);
+}
+
+// printed OU paper_sent (legado) → paper_signed. Usado pelo hub, para
+// qualquer tipo (procedimentos e RGPD). consentId identifica o episódio
+// exacto — sem ele o UPDATE afectaria todos os registos printed/paper_sent
+// do mesmo doente/clínica/tipo.
 export async function confirmPaperSigned(patientId, clinicId, type, consentId) {
   const { data, error } = await window.sb
     .from("consents")
