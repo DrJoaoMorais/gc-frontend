@@ -3122,7 +3122,7 @@ function _openPendenteModal(row) {
     if (!row.patient_id) { msgEl.textContent = "Associa ou cria primeiro a ficha do doente."; return; }
     const dtVal = overlay.querySelector("#gcPendDT")?.value || null;
     close();
-    openApptModal({ mode: "new", row: null, prefillPatientId: row.patient_id || null, prefillPatientName: row.atleta_nome || null, prefillDatetime: dtVal });
+    openApptModal({ mode: "new", row: null, prefillPatientId: row.patient_id || null, prefillPatientName: row.atleta_nome || null, prefillDatetime: dtVal, prefillClinicId: row.clinic_id || null });
   });
 
   /* Cancelar pedido */
