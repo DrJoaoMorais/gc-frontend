@@ -1374,59 +1374,80 @@ async function _renderSemana() {
     }
     const horas = [...horasSet].sort();
 
+    const _baseRowHeight = 34;
+    const _rowHeightFor = (hora) => {
+      const maxConcurrent = Math.max(0, ...dias.map(iso => (bySlot[iso+"T"+hora] || []).length));
+      return maxConcurrent > 2 ? 65 : _baseRowHeight;
+    };
+
     // Header
     const headerCols = dias.map((iso, i) => {
       const isHoje     = iso === hoje;
       const isSelected = iso === _state.selectedDayISO;
       const dt = new Date(iso+"T00:00:00");
-      return `<div onclick="window.__gaGoDay('${iso}')" style="font-size:10px;font-weight:600;text-align:center;padding:6px 2px;border-right:0.5px solid #e2e8f0;color:${isHoje||isSelected?"#1a56db":"#94a3b8"};background:${isSelected?"#eff6ff":""};cursor:pointer;">${DAYS[i]}<br>${dt.getDate()}</div>`;
+      const dayBg = isSelected ? "#eff6ff" : (isHoje ? "#f8fbff" : "transparent");
+      const dateBg = isHoje ? "#1a56db" : (isSelected ? "#dbeafe" : "transparent");
+      const dateColor = isHoje ? "#fff" : (isSelected ? "#1e40af" : "#475569");
+      return `<div onclick="window.__gaGoDay('${iso}')" style="min-width:0;text-align:center;padding:8px 2px 7px;border-right:0.5px solid #edf2f7;background:${dayBg};cursor:pointer;">
+        <div style="font-size:9px;font-weight:650;letter-spacing:0.04em;text-transform:uppercase;color:${isHoje||isSelected?"#1a56db":"#94a3b8"};line-height:1;">${DAYS[i]}</div>
+        <div style="width:24px;height:24px;margin:4px auto 0;border-radius:999px;background:${dateBg};color:${dateColor};font-size:12px;font-weight:650;display:flex;align-items:center;justify-content:center;">${dt.getDate()}</div>
+      </div>`;
     }).join("");
 
     // Linhas
     const linhas = horas.map((hora, _ri) => {
+      const rowHeight = _rowHeightFor(hora);
       const cells = dias.map(iso => {
         const key         = iso+"T"+hora;
         const rList       = bySlot[key];
         const slotClinicId = slotsDispMap.get(key);
         const isDisp      = slotClinicId !== undefined;
         const slotCC      = isDisp ? (CLINIC_COLORS[slotClinicId] || DEFAULT_COLOR) : null;
+        const isSelectedDay = iso === _state.selectedDayISO;
 
         if (!rList || !rList.length) {
-          const bg = slotCC ? slotCC.light : "";
-          return `<div onclick="window.__gaSlotClick('${iso}','${hora}')" style="border-right:0.5px solid #f1f5f9;padding:2px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:${bg};" onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background='${bg}'"></div>`;
+          const bg = slotCC ? slotCC.light : (isSelectedDay ? "#f8fbff" : "transparent");
+          return `<div onclick="window.__gaSlotClick('${iso}','${hora}')" style="border-right:0.5px solid #f3f6f9;padding:3px;height:${rowHeight}px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;cursor:pointer;background:${bg};transition:background 120ms ease;" onmouseover="this.style.background='#eef6ff'" onmouseout="this.style.background='${bg}'"></div>`;
         }
 
-        const r = rList[0];
-        const extras = rList.length - 1;
-        const isBlocked = r.mode === "bloqueio";
-        const nome = patientsById[r.patient_id]?.full_name || "";
-        const nomeCurto = nome
-          ? (nome.split(" ")[0]+" "+nome.split(" ").slice(-1)[0])
-          : (isBlocked ? "Bloq." : r.title || "");
-
-        const apptClr = CLINIC_COLORS[r.clinic_id] || DEFAULT_COLOR;
-        let bg, color;
-        if (isBlocked) { bg="#fee2e2"; color="#991b1b"; }
-        else           { bg=apptClr.solid; color="#fff"; }
-
-        const extrasBadge = extras > 0 ? ` <span style="font-size:9px;opacity:0.85;">+${extras}</span>` : "";
-        return `<div onclick="window.__gaSlotClickAppt('${r.id}')" style="border-right:0.5px solid #f1f5f9;padding:2px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
-          <div style="width:100%;height:20px;border-radius:4px;background:${bg};color:${color};font-size:10px;font-weight:500;display:flex;align-items:center;justify-content:center;padding:0 3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="${escapeHtml(nome)}">${escapeHtml(nomeCurto)}${extrasBadge}</div>
+        const visibleAppts = rList.slice(0, 4);
+        const hiddenCount = Math.max(0, rList.length - visibleAppts.length);
+        const apptCards = visibleAppts.map((r, index) => {
+          const isBlocked = r.mode === "bloqueio";
+          const nome = patientsById[r.patient_id]?.full_name || "";
+          const nomeCurto = nome
+            ? (nome.split(" ")[0]+" "+nome.split(" ").slice(-1)[0])
+            : (isBlocked ? "Bloq." : r.title || "");
+          const apptClr = CLINIC_COLORS[r.clinic_id] || DEFAULT_COLOR;
+          const bg = isBlocked ? "#fee2e2" : apptClr.solid;
+          const color = isBlocked ? "#991b1b" : "#fff";
+          const hiddenBadge = hiddenCount > 0 && index === visibleAppts.length - 1
+            ? `<span style="font-size:8px;line-height:1;opacity:0.9;flex-shrink:0;">+${hiddenCount}</span>`
+            : "";
+          const fullLastCard = visibleAppts.length === 3 && index === 2;
+          const cardBasis = visibleAppts.length === 1 || fullLastCard ? "100%" : "calc(50% - 1.5px)";
+          return `<div onclick="window.__gaSlotClickAppt('${r.id}')" style="min-width:0;flex:1 1 ${cardBasis};max-width:${cardBasis};height:28px;border-radius:7px;background:${bg};color:${color};box-shadow:0 1px 2px rgba(15,45,82,0.12);display:flex;align-items:center;gap:3px;padding:0 5px;box-sizing:border-box;overflow:hidden;cursor:pointer;" title="${escapeHtml(nome)} — ${hora}">
+            <span style="font-size:8px;font-weight:650;line-height:1;opacity:0.82;flex-shrink:0;">${hora}</span>
+            <span style="min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:10px;font-weight:600;line-height:1;">${escapeHtml(nomeCurto)}</span>${hiddenBadge}
+          </div>`;
+        }).join("");
+        return `<div style="border-right:0.5px solid #f3f6f9;padding:3px;height:${rowHeight}px;box-sizing:border-box;display:flex;flex-wrap:wrap;align-content:center;gap:3px;background:${isSelectedDay?"#f8fbff":"transparent"};">
+          ${apptCards}
         </div>`;
       }).join("");
 
-      return `<div style="display:grid;grid-template-columns:38px 1fr 1fr 1fr 1fr 1fr 0.5fr 0.5fr;border-bottom:0.5px solid #f1f5f9;background:${_ri % 2 ? '#f7f9fb' : '#ffffff'};">
-        <div style="font-size:10px;color:#94a3b8;padding:0 4px;height:24px;display:flex;align-items:center;justify-content:flex-end;border-right:0.5px solid #e2e8f0;flex-shrink:0;">${hora}</div>
+      return `<div style="display:grid;grid-template-columns:38px 1fr 1fr 1fr 1fr 1fr 0.5fr 0.5fr;border-bottom:0.5px solid #f3f6f9;background:#fff;">
+        <div style="font-size:9px;font-weight:500;color:#94a3b8;padding:0 5px;height:${rowHeight}px;box-sizing:border-box;display:flex;align-items:flex-start;justify-content:flex-end;border-right:0.5px solid #edf2f7;flex-shrink:0;transform:translateY(-5px);">${hora}</div>
         ${cells}
       </div>`;
     }).join("");
 
-    banner.innerHTML = `<div style="background:#fff;border:0.5px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:10px;">
-      <div style="display:grid;grid-template-columns:38px 1fr 1fr 1fr 1fr 1fr 0.5fr 0.5fr;background:#f8fafc;border-bottom:0.5px solid #e2e8f0;position:sticky;top:0;z-index:5;">
-        <div style="border-right:0.5px solid #e2e8f0;"></div>
+    banner.innerHTML = `<div style="background:#fff;border:1px solid #e8eef5;border-radius:14px;box-shadow:0 1px 3px rgba(15,45,82,0.05);overflow:hidden;margin-bottom:10px;">
+      <div style="display:grid;grid-template-columns:38px 1fr 1fr 1fr 1fr 1fr 0.5fr 0.5fr;background:rgba(255,255,255,0.97);border-bottom:1px solid #e8eef5;position:sticky;top:0;z-index:5;backdrop-filter:blur(6px);">
+        <div style="border-right:0.5px solid #edf2f7;"></div>
         ${headerCols}
       </div>
-      <div id="gaSemanScroll" style="max-height:360px;overflow-y:auto;">
+      <div id="gaSemanScroll" style="max-height:360px;overflow-y:auto;scrollbar-gutter:stable;">
         ${linhas}
       </div>
     </div>`;
@@ -1447,7 +1468,7 @@ async function _renderSemana() {
       if (_idx > 0) {
         requestAnimationFrame(() => {
           const sc = document.getElementById("gaSemanScroll");
-          if (sc) sc.scrollTop = _idx * 24;
+          if (sc) sc.scrollTop = horas.slice(0, _idx).reduce((total, hora) => total + _rowHeightFor(hora), 0);
         });
       }
     }
