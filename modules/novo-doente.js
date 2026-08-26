@@ -11,7 +11,7 @@ import { rpcCreatePatientForClinic } from "./db.js";
 
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
-function openNewPatientMainModal({ clinicId }) {
+function openNewPatientMainModal({ clinicId, prefill = null, onCreated = null } = {}) {
   const root = document.getElementById("modalRoot");
   if (!root) return;
 
@@ -27,7 +27,7 @@ function openNewPatientMainModal({ clinicId }) {
         <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:0.5px solid #e2e8f0;position:sticky;top:0;background:#fff;z-index:10;">
           <div>
             <div style="font-size:16px;font-weight:500;color:#0f172a;">Novo doente</div>
-            <div style="font-size:12px;color:#64748b;margin-top:3px;">Nome obrigatório. SNS/NIF (9 dígitos), CC (8 dígitos), Passaporte (4–20).</div>
+            <div style="font-size:12px;color:#64748b;margin-top:3px;">Nome, nascimento, telefone e email obrigatórios. Identificação oficial opcional.</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
             <div id="npMsg" style="font-size:12px;color:#64748b;max-width:200px;text-align:right;"></div>
@@ -163,6 +163,13 @@ function openNewPatientMainModal({ clinicId }) {
   const npCountry = document.getElementById("npCountry");
   const npNotes = document.getElementById("npNotes");
 
+  if (prefill) {
+    if (npFullName) npFullName.value = prefill.full_name || "";
+    if (npDob) npDob.value = prefill.dob || "";
+    if (npPhone) npPhone.value = prefill.phone || "";
+    if (npEmail) npEmail.value = prefill.email || "";
+  }
+
   /* ---- 07B — Estado local e fecho ---- */
   function setErr(msg) { if (npMsg) { npMsg.style.color = "#b00020"; npMsg.textContent = msg; } }
   function setInfo(msg) { if (npMsg) { npMsg.style.color = "#666"; npMsg.textContent = msg; } }
@@ -177,6 +184,13 @@ function openNewPatientMainModal({ clinicId }) {
   function validate() {
     const fullName = (npFullName.value || "").trim();
     if (!fullName) return { ok: false, msg: "Nome completo é obrigatório." };
+    const dob = npDob.value || "";
+    const phone = (npPhone.value || "").trim();
+    const email = (npEmail.value || "").trim();
+    if (!dob) return { ok: false, msg: "Data de nascimento é obrigatória." };
+    if (!phone) return { ok: false, msg: "Telefone é obrigatório." };
+    if (!email) return { ok: false, msg: "Email é obrigatório." };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, msg: "Email inválido." };
 
     const sns = normalizeDigits(npSNS.value);
     const nif = normalizeDigits(npNIF.value);
@@ -187,14 +201,12 @@ function openNewPatientMainModal({ clinicId }) {
     if (nif && !/^[0-9]{9}$/.test(nif)) return { ok: false, msg: "NIF inválido: tem de ter 9 dígitos." };
     if (pass && !/^[A-Za-z0-9]{4,20}$/.test(pass)) return { ok: false, msg: "Passaporte/ID inválido: 4–20 alfanum." };
 
-    if (!sns && !nif && !pass && !cc) return { ok: false, msg: "Identificação obrigatória: CC, SNS, NIF ou Passaporte/ID." };
-
     return {
       ok: true,
       full_name: fullName,
-      dob: npDob.value ? npDob.value : null,
-      phone: npPhone.value ? npPhone.value.trim() : null,
-      email: npEmail.value ? npEmail.value.trim() : null,
+      dob,
+      phone,
+      email,
       sns: sns || null,
       nif: nif || null,
       passport_id: pass || null,
@@ -284,8 +296,9 @@ function openNewPatientMainModal({ clinicId }) {
 
         close();
 
-        /* fluxo encadeado: abrir a marcação já com o doente e clínica preenchidos */
-        if (typeof window.__gc_openApptModal === "function") {
+        if (typeof onCreated === "function") {
+          await onCreated({ patientId: newPatientId, patient: minimal });
+        } else if (typeof window.__gc_openApptModal === "function") {
           window.__gc_openApptModal({
             mode: "new",
             row: null,
@@ -304,7 +317,6 @@ function openNewPatientMainModal({ clinicId }) {
         else if (msg.includes("patients_sns_format_check")) setErr("SNS inválido (9 dígitos).");
         else if (msg.includes("patients_nif_format_check")) setErr("NIF inválido (9 dígitos).");
         else if (msg.includes("patients_passport_format_check")) setErr("Passaporte/ID inválido (4–20 alfanum).");
-        else if (msg.includes("patients_sns_or_nif_or_passport_check")) setErr("Identificação obrigatória: SNS/NIF/Passaporte.");
         else setErr("Erro ao criar doente. Vê a consola.");
 
         npCreate.disabled = false;
@@ -313,7 +325,7 @@ function openNewPatientMainModal({ clinicId }) {
   }
 
   npCreate.disabled = true;
-  setInfo("Preenche o Nome e um identificador (SNS/NIF/Passaporte).");
+  setInfo("Preenche nome, nascimento, telefone e email.");
   refreshButtonState();
 }
 /* ==== FIM BLOCO 07/12 ==== */
