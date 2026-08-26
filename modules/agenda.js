@@ -2747,7 +2747,7 @@ export async function loadAndRenderPendentes(clinicId) {
   try {
     let q = window.sb
       .from("patient_uploads")
-      .select("id, created_at, tipo, clinic_id, atleta_nome, atleta_email, atleta_tel, atleta_dob, atleta_sns, atleta_cc, atleta_nif, atleta_passport, disponibilidade, pdf_url, status, patient_id")
+      .select("id, created_at, tipo, clinic_id, atleta_nome, atleta_email, atleta_tel, atleta_dob, atleta_sns, atleta_cc, atleta_nif, atleta_passport, proposed_date, proposed_time, disponibilidade, pdf_url, status, patient_id")
       .eq("status", "pendente")
       .order("created_at", { ascending: true });
     if (clinicId) q = q.eq("clinic_id", clinicId);
@@ -2781,13 +2781,16 @@ function _renderPendentes(rows) {
   const cards = rows.map(r => {
     const tipo = _TIPO_LABEL[r.tipo] || r.tipo || "—";
     const date = new Date(r.created_at).toLocaleDateString("pt-PT", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
-    const disp = r.disponibilidade ? `<div style="font-size:11px;color:#374151;margin-top:3px;"><span style="color:#9CA3AF;">Disponível: </span>${escapeHtml(r.disponibilidade)}</div>` : "";
+    const proposal = r.proposed_date && r.proposed_time
+      ? `<div style="font-size:11px;color:#374151;margin-top:3px;"><span style="color:#9CA3AF;">Proposta: </span>${escapeHtml(r.proposed_date)} · ${escapeHtml(String(r.proposed_time).slice(0,5))}</div>`
+      : "";
+    const disp = r.disponibilidade ? `<div style="font-size:11px;color:#374151;margin-top:3px;"><span style="color:#9CA3AF;">Alternativa: </span>${escapeHtml(r.disponibilidade)}</div>` : "";
     return `<div class="gc-pend-card" data-id="${r.id}" style="background:#fff;border:1px solid #FCD34D;border-left:3px solid #F59E0B;border-radius:10px;padding:11px 13px;cursor:pointer;transition:box-shadow 0.15s;" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.10)'" onmouseout="this.style.boxShadow=''">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:700;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(r.atleta_nome || "—")}</div>
           <div style="font-size:11px;color:#D97706;font-weight:600;margin-top:1px;">${tipo}</div>
-          ${disp}
+          ${proposal}${disp}
         </div>
         <div style="text-align:right;flex-shrink:0;">
           <div style="font-size:10px;color:#9CA3AF;">${date}</div>
@@ -2822,6 +2825,9 @@ function _openPendenteModal(row) {
 
   const isWebClinic = row.clinic_id === _WEB_CLINIC_ID;
   const tipo        = _TIPO_LABEL[row.tipo] || row.tipo || "—";
+  const proposalValue = row.proposed_date && row.proposed_time
+    ? `${row.proposed_date}T${String(row.proposed_time).slice(0,5)}`
+    : "";
 
   const ids = [
     row.atleta_sns      && `SNS: ${row.atleta_sns}`,
@@ -2864,7 +2870,7 @@ function _openPendenteModal(row) {
       <div style="padding:16px 20px;display:flex;flex-direction:column;gap:14px;">
         <div>
           <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">Data e hora confirmada <span style="color:#EF4444;">*</span></label>
-          <input id="gcPendDT" type="datetime-local" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:14px;color:#111827;font-family:inherit;box-sizing:border-box;">
+          <input id="gcPendDT" type="datetime-local" value="${escapeHtml(proposalValue)}" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:14px;color:#111827;font-family:inherit;box-sizing:border-box;">
         </div>
 
         ${isWebClinic ? `
@@ -2983,9 +2989,12 @@ function _openPendenteModal(row) {
     btn.textContent = "A enviar…";
 
     try {
+      const { data: sessionData } = await window.sb.auth.getSession();
+      const token = sessionData?.session?.access_token || "";
+      if (!token) throw new Error("Sessão expirada. Volta a iniciar sessão.");
       const res  = await fetch(`${_UPLOADS_WORKER}/confirm`, {
         method:  "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "Authorization": `Bearer ${token}` },
         body:    JSON.stringify({ upload_id: row.id, confirmed_datetime: dt, payment_url: payUrl, meet_url: meetUrl || null }),
       });
       const data = await res.json().catch(() => ({}));
