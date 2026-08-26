@@ -2841,7 +2841,7 @@ function _openPendenteModal(row) {
   Object.assign(overlay.style, { position:"fixed", inset:"0", background:"rgba(15,45,82,0.45)", zIndex:"9000", display:"flex", alignItems:"center", justifyContent:"center", padding:"16px" });
 
   overlay.innerHTML = `
-    <div style="background:#fff;border-radius:16px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.25);display:flex;flex-direction:column;">
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:620px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.25);display:flex;flex-direction:column;">
 
       <!-- Cabeçalho -->
       <div style="padding:18px 20px 14px;border-bottom:1px solid #E5E7EB;display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;">
@@ -2864,6 +2864,14 @@ function _openPendenteModal(row) {
           ${row.disponibilidade ? `<div style="grid-column:1/-1;"><div style="font-size:10px;color:#9CA3AF;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Disponibilidade pedida</div><div style="color:#374151;line-height:1.5;">${escapeHtml(row.disponibilidade)}</div></div>` : ""}
         </div>
         ${row.pdf_url ? `<button data-pdf-url="${escapeHtml(row.pdf_url)}" style="display:inline-flex;align-items:center;gap:5px;margin-top:10px;font-size:12px;font-weight:600;color:#1a56db;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Ver PDF enviado</button>` : ""}
+      </div>
+
+      <!-- Associação à ficha clínica -->
+      <div style="padding:14px 20px;border-bottom:1px solid #F3F4F6;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#9CA3AF;letter-spacing:0.06em;margin-bottom:8px;">Ficha clínica</div>
+        <div id="gcPendPatientLink" style="font-size:12px;color:#6B7280;">${row.patient_id ? "Pedido associado a um doente existente." : "A procurar possíveis correspondências…"}</div>
+        <div id="gcPendPatientMatches" style="display:flex;flex-direction:column;gap:6px;margin-top:8px;"></div>
+        <button id="gcPendCreatePatient" type="button" style="${row.patient_id ? "display:none;" : "display:inline-flex;"}margin-top:9px;background:#fff;color:#1a56db;border:1px solid #93C5FD;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Criar novo doente com estes dados</button>
       </div>
 
       <!-- Formulário de resposta -->
@@ -2910,6 +2918,106 @@ function _openPendenteModal(row) {
   const msgEl    = overlay.querySelector("#gcPendMsg");
   const meetInp  = overlay.querySelector("#gcPendMeet");
   const meetStat = overlay.querySelector("#gcPendMeetStatus");
+  const linkEl   = overlay.querySelector("#gcPendPatientLink");
+  const matchesEl = overlay.querySelector("#gcPendPatientMatches");
+  const createPatientBtn = overlay.querySelector("#gcPendCreatePatient");
+  const confirmBtn = overlay.querySelector("#gcPendBtnConfirm");
+  const scheduleBtn = overlay.querySelector("#gcPendBtnAgendar");
+
+  function refreshPatientLinkState(patientName = "") {
+    const linked = Boolean(row.patient_id);
+    if (linkEl) {
+      linkEl.style.color = linked ? "#047857" : "#6B7280";
+      linkEl.textContent = linked
+        ? `✓ Associado a ${patientName || row.atleta_nome || "doente existente"}`
+        : "Confirma uma correspondência ou cria um novo doente antes de marcar.";
+    }
+    if (createPatientBtn) createPatientBtn.style.display = linked ? "none" : "inline-flex";
+    if (confirmBtn) confirmBtn.disabled = !linked;
+    if (scheduleBtn) scheduleBtn.disabled = !linked;
+    [confirmBtn, scheduleBtn].forEach(btn => {
+      if (!btn) return;
+      btn.style.opacity = linked ? "1" : "0.45";
+      btn.style.cursor = linked ? "pointer" : "not-allowed";
+    });
+  }
+
+  async function linkPatient(patient) {
+    if (!patient?.id) return;
+    if (patient.active_clinic_id && String(patient.active_clinic_id) !== String(row.clinic_id)) {
+      const transfer = await maybeTransferPatientToClinic({ patientId: patient.id, targetClinicId: row.clinic_id });
+      if (transfer.cancelled) return;
+    } else if (!confirm(`Associar este pedido a "${patient.full_name || "este doente"}"?`)) {
+      return;
+    }
+    if (matchesEl) matchesEl.textContent = "A associar…";
+    const { data, error } = await window.sb
+      .from("patient_uploads")
+      .update({ patient_id: patient.id })
+      .eq("id", row.id)
+      .select("id")
+      .single();
+    if (error || !data?.id) throw error || new Error("O pedido não foi atualizado.");
+    row.patient_id = patient.id;
+    if (matchesEl) matchesEl.innerHTML = "";
+    refreshPatientLinkState(patient.full_name || "");
+  }
+
+  async function loadPatientMatches() {
+    if (row.patient_id) { refreshPatientLinkState(); return; }
+    const terms = [row.atleta_nome, row.atleta_email, row.atleta_tel]
+      .map(v => String(v || "").trim())
+      .filter(v => v.length >= 2);
+    try {
+      const batches = await Promise.all(terms.map(q => searchPatientsScoped({ clinicId: row.clinic_id, q, limit: 10 })));
+      const unique = new Map();
+      batches.flat().forEach(p => unique.set(p.id, p));
+      const candidates = [...unique.values()].map(p => {
+        const sameDob = Boolean(row.atleta_dob && p.dob === row.atleta_dob);
+        const sameEmail = Boolean(row.atleta_email && p.email && p.email.toLowerCase() === row.atleta_email.toLowerCase());
+        const reqPhone = normalizeDigits(row.atleta_tel || "");
+        const samePhone = Boolean(reqPhone && normalizeDigits(p.phone || "") === reqPhone);
+        return { ...p, sameDob, sameEmail, samePhone, score: Number(sameDob) + Number(sameEmail) + Number(samePhone) };
+      }).filter(p => p.score > 0).sort((a,b) => b.score - a.score).slice(0, 6);
+
+      if (!candidates.length) {
+        if (matchesEl) matchesEl.innerHTML = `<div style="font-size:12px;color:#92400E;background:#FFFBEB;border-radius:8px;padding:8px 10px;">Nenhuma correspondência suficientemente segura.</div>`;
+        refreshPatientLinkState();
+        return;
+      }
+      if (linkEl) linkEl.textContent = "Possíveis correspondências — confirme manualmente:";
+      if (matchesEl) matchesEl.innerHTML = candidates.map(p => {
+        const matches = [p.sameDob && "nascimento", p.sameEmail && "email", p.samePhone && "telefone"].filter(Boolean).join(" + ");
+        return `<button type="button" data-patient-match="${escapeHtml(p.id)}" style="text-align:left;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:8px 10px;cursor:pointer;font-family:inherit;"><strong style="color:#111827;">${escapeHtml(p.full_name || "—")}</strong><span style="display:block;font-size:11px;color:#047857;margin-top:2px;">Coincide: ${escapeHtml(matches)}</span></button>`;
+      }).join("");
+      matchesEl?.querySelectorAll("[data-patient-match]").forEach(btn => btn.addEventListener("click", async () => {
+        const patient = candidates.find(p => p.id === btn.dataset.patientMatch);
+        try { await linkPatient(patient); }
+        catch (e) { if (matchesEl) matchesEl.textContent = `Erro ao associar: ${e?.message || e}`; }
+      }));
+    } catch (e) {
+      if (matchesEl) matchesEl.textContent = "Não foi possível procurar correspondências.";
+      refreshPatientLinkState();
+    }
+  }
+
+  createPatientBtn?.addEventListener("click", () => {
+    const requestSnapshot = { ...row };
+    close();
+    window.openNewPatientMainModal?.({
+      clinicId: row.clinic_id,
+      prefill: { full_name: row.atleta_nome, dob: row.atleta_dob, phone: row.atleta_tel, email: row.atleta_email },
+      onCreated: async ({ patientId, patient }) => {
+        const { data, error } = await window.sb.from("patient_uploads").update({ patient_id: patientId }).eq("id", row.id).select("id").single();
+        if (error || !data?.id) throw error || new Error("O pedido não foi associado ao novo doente.");
+        requestSnapshot.patient_id = patientId;
+        _openPendenteModal(requestSnapshot);
+      },
+    });
+  });
+
+  refreshPatientLinkState();
+  loadPatientMatches();
 
   overlay.querySelector("#gcPendClose").addEventListener("click", close);
   overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
@@ -3011,6 +3119,7 @@ function _openPendenteModal(row) {
 
   /* Agendar na agenda */
   overlay.querySelector("#gcPendBtnAgendar").addEventListener("click", () => {
+    if (!row.patient_id) { msgEl.textContent = "Associa ou cria primeiro a ficha do doente."; return; }
     const dtVal = overlay.querySelector("#gcPendDT")?.value || null;
     close();
     openApptModal({ mode: "new", row: null, prefillPatientId: row.patient_id || null, prefillPatientName: row.atleta_nome || null, prefillDatetime: dtVal });
