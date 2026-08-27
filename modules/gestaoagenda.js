@@ -287,16 +287,28 @@ async function _loadAndRender() {
     } catch(_) {}
   }
 
+  // consentMap: por patient_id (PRP/AH — comportamento inalterado, último episódio decide).
+  // rgpdByPatientClinic: por "patient_id::clinic_id" — RGPD é específico do local de
+  // consulta (ver nota multi-clínica do próprio documento legal), por isso não pode
+  // ser resolvido por uma assinatura noutra clínica. "Ever signed": qualquer episódio
+  // histórico signed/paper_signed para o mesmo par resolve, independentemente da ordem.
   let consentMap = {};
+  let rgpdByPatientClinic = {};
   if (patientIds.length) {
     try {
       const { data: cd } = await window.sb
         .from("consents")
-        .select("patient_id, type, status")
+        .select("patient_id, clinic_id, type, status")
         .in("patient_id", patientIds)
         .in("type", ["rgpd", "prp", "ah"])
         .order("created_at", { ascending: false });
       (cd || []).forEach(c => {
+        if (c.type === "rgpd") {
+          if (c.status === "signed" || c.status === "paper_signed") {
+            rgpdByPatientClinic[`${c.patient_id}::${c.clinic_id}`] = c.status;
+          }
+          return;
+        }
         if (!consentMap[c.patient_id]) consentMap[c.patient_id] = {};
         if (!consentMap[c.patient_id][c.type]) consentMap[c.patient_id][c.type] = c.status;
       });
@@ -305,10 +317,14 @@ async function _loadAndRender() {
     try {
       const { data: ct } = await window.sb
         .from("consent_tokens")
-        .select("patient_id, document_type")
+        .select("patient_id, clinic_id, document_type")
         .in("patient_id", patientIds)
         .eq("status", "signed");
       (ct || []).forEach(t => {
+        if (t.document_type === "rgpd") {
+          rgpdByPatientClinic[`${t.patient_id}::${t.clinic_id}`] = "signed";
+          return;
+        }
         if (!consentMap[t.patient_id]) consentMap[t.patient_id] = {};
         consentMap[t.patient_id][t.document_type] = "signed";
       });
@@ -341,7 +357,7 @@ async function _loadAndRender() {
     if (recBanner) recBanner.innerHTML = "";
   }
   _renderStatsCards();
-  _renderTimeline(_state.rows, patientsById, consentMap, physioMap);
+  _renderTimeline(_state.rows, patientsById, consentMap, physioMap, rgpdByPatientClinic);
   _renderReavaliacoes();
 }
 
@@ -877,9 +893,9 @@ const ESTADO_META = {
   extra:     { label:"Extra",    bg:"#fef3c7", color:"#92400e", dot:"#f59e0b" },
 };
 
-function _gaConsentBadges(patientId, consentMap, clinicId) {
+function _gaConsentBadges(patientId, consentMap, clinicId, rgpdByPatientClinic = {}) {
   const pc = consentMap[patientId] || {};
-  const rgpd = pc.rgpd;
+  const rgpd = rgpdByPatientClinic[`${patientId}::${clinicId}`];
   const _rgpdTip = rgpd === 'paper_signed' ? 'RGPD manual (papel)' : 'RGPD digital';
   let b = '<div style="display:flex;gap:3px;flex-wrap:wrap;">';
   if (rgpd === 'signed' || rgpd === 'paper_signed') {
@@ -893,7 +909,7 @@ function _gaConsentBadges(patientId, consentMap, clinicId) {
   return b;
 }
 
-function _renderTimeline(rows, patientsById = {}, consentMap = {}, physioMap = {}) {
+function _renderTimeline(rows, patientsById = {}, consentMap = {}, physioMap = {}, rgpdByPatientClinic = {}) {
   const el = document.getElementById("gaTimeline");
   if (!el) return;
 
@@ -955,7 +971,7 @@ function _renderTimeline(rows, patientsById = {}, consentMap = {}, physioMap = {
         </div>
       </div>
       <div style="font-size:14px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${isSlot||isBlocked?"":escapeHtml(tipo)}</div>
-      <div style="overflow:hidden;">${(!isSlot&&!isBlocked&&r.patient_id)?_gaConsentBadges(r.patient_id, consentMap, r.clinic_id):""}</div>
+      <div style="overflow:hidden;">${(!isSlot&&!isBlocked&&r.patient_id)?_gaConsentBadges(r.patient_id, consentMap, r.clinic_id, rgpdByPatientClinic):""}</div>
       <div style="display:flex;align-items:center;gap:6px;">
         <span style="padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;background:${meta.bg};color:${meta.color};white-space:nowrap;">${meta.label}</span>
         ${isSlot?`<button class="ga-btn-marcar" data-idx="${i}" style="font-size:12px;color:#1a56db;border:0.5px solid #93c5fd;background:#eff6ff;border-radius:6px;padding:2px 8px;cursor:pointer;">+ Marcar</button>`:""}
