@@ -10,7 +10,7 @@
     * { box-sizing:border-box; }
     body { margin:0; min-height:100vh; background:var(--bg); font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#1f2937; }
     .state { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; text-align:center; }
-    .card { width:min(440px,100%); background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:24px; box-shadow:0 8px 30px rgba(15,45,82,.08); }
+    .card { width:min(520px,100%); background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:24px; box-shadow:0 8px 30px rgba(15,45,82,.08); }
     h1 { margin:0 0 8px; color:var(--navy); font-size:22px; }
     p { margin:0; color:var(--muted); line-height:1.5; }
     .actions { display:flex; gap:10px; justify-content:center; margin-top:18px; flex-wrap:wrap; }
@@ -29,10 +29,8 @@
 
   <script type="module">
     const SUPABASE_URL = 'https://nxfnzzcuqzxmzsihbrtp.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA';
 
-    // O valor acima é a mesma chave anon pública usada pelo GC. A autorização real
-    // continua dependente da sessão do utilizador e das políticas RLS do Supabase.
     window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const params = new URLSearchParams(window.location.search);
@@ -44,11 +42,20 @@
       ? `/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(patientId)}`
       : '/';
 
+    function escHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     function showError(title, message) {
       state.innerHTML = `
         <div class="card">
-          <h1>${title}</h1>
-          <p>${message}</p>
+          <h1>${escHtml(title)}</h1>
+          <p>${escHtml(message)}</p>
           <div class="actions">
             ${patientId ? `<a class="primary" href="${feedUrl}">Abrir ficha do doente</a>` : ''}
             <a class="secondary" href="/">Voltar ao GC</a>
@@ -59,8 +66,8 @@
     if (!patientId || !intakeTokenId) {
       showError('Ligação incompleta', 'Falta a identificação do doente ou do questionário.');
     } else {
-      const { data: userData, error: userError } = await window.sb.auth.getUser();
-      if (userError || !userData?.user) {
+      const { data: sessionData, error: sessionError } = await window.sb.auth.getSession();
+      if (sessionError || !sessionData?.session) {
         showError('Sessão necessária', 'Inicie sessão no Gestão Clínica neste dispositivo e volte a abrir a notificação.');
       } else {
         const { data: tokenRow, error: tokenError } = await window.sb
@@ -71,6 +78,7 @@
           .maybeSingle();
 
         if (tokenError || !tokenRow) {
+          console.error('[intake-deeplink] erro ao obter intake_token:', tokenError);
           showError('Questionário não encontrado', 'Não foi possível abrir este questionário ou não tem acesso a este registo.');
         } else if (tokenRow.status !== 'completed') {
           showError('Questionário ainda não concluído', 'Este questionário ainda não está disponível para leitura final.');
