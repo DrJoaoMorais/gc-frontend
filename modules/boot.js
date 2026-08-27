@@ -14,7 +14,7 @@ import {
   renderAppShell,
   hydrateShellHeader
 }                                          from "./shell.js";
-import { setHomeDashboardConsultasHoje }   from "./home-dashboard.js";
+import { setHomeDashboardConsultasHoje, setHomeDashboardPedidosOnline } from "./home-dashboard.js";
 import {
   setAgendaSubtitleForSelectedDay,
   refreshAgenda,
@@ -203,7 +203,10 @@ async function renderCurrentView() {
 
   /* Vista Início */
   if (view === "home") {
-    await loadHomeConsultasHoje();
+    await Promise.all([
+      loadHomeConsultasHoje(),
+      loadHomePedidosOnlinePendentes(),
+    ]);
     return;
   }
 
@@ -367,6 +370,28 @@ async function loadHomeConsultasHoje() {
   } catch (e) {
     console.warn("Home: falha ao carregar consultas de hoje:", e);
     setHomeDashboardConsultasHoje(null);
+  }
+}
+
+/* ====================================================================
+   loadHomePedidosOnlinePendentes — mesma tabela/filtro/scope de clínica
+   que a Agenda usa em loadAndRenderPendentes (agenda.js), mas sem a
+   parte de UI (não depende de #pendentesSection).
+   ==================================================================== */
+async function loadHomePedidosOnlinePendentes() {
+  try {
+    let q = window.sb
+      .from("patient_uploads")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pendente");
+    if (G.activeClinicId) q = q.eq("clinic_id", G.activeClinicId);
+
+    const { count, error } = await q;
+    if (error) throw error;
+    setHomeDashboardPedidosOnline(count ?? 0);
+  } catch (e) {
+    console.warn("Home: falha ao carregar pedidos online pendentes:", e);
+    setHomeDashboardPedidosOnline(null);
   }
 }
 

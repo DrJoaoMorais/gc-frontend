@@ -32,7 +32,7 @@ export function homeDashboardHtml() {
       <div class="gc-home-section-head gc-home-today-head"><div><h2>Hoje</h2><p>Resumo rápido da atividade</p></div></div>
       <div class="gc-home-today">
         <div><b>Consultas</b><strong id="gcHomeStatConsultas">—</strong><small>A ligar à agenda</small></div>
-        <div><b>Pedidos online</b><strong>—</strong><small>A ligar aos pedidos</small></div>
+        <div><b>Pedidos online</b><strong id="gcHomeStatPedidosOnline">—</strong><small>A ligar aos pedidos</small></div>
         <div><b>Consentimentos</b><strong>—</strong><small>A ligar aos pendentes</small></div>
       </div>
     </section>`;
@@ -50,5 +50,10 @@ export function wireHomeDashboard(onAgenda) {
 
 export function setHomeDashboardConsultasHoje(value) {
   const el = document.getElementById("gcHomeStatConsultas");
+  if (el) el.textContent = value == null ? "—" : String(value);
+}
+
+export function setHomeDashboardPedidosOnline(value) {
+  const el = document.getElementById("gcHomeStatPedidosOnline");
   if (el) el.textContent = value == null ? "—" : String(value);
 }
