@@ -11,6 +11,7 @@
 import { G } from "./state.js";
 import { UI } from "./config.js";
 import { injectDesignSystem } from "./ui.js";
+import { homeDashboardHtml, homeDashboardStyles, wireHomeDashboard } from "./home-dashboard.js";
 
 /* ==== 03F — Render shell (HTML + CSS) ==== */
 
@@ -21,6 +22,7 @@ export function renderAppShell() {
   const currentView = String(G.currentView || "agenda").toLowerCase();
 
   /* ── Ícones SVG ─────────────────────────────────── */
+  const iconHome = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 9.5 10 3l7 6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 8.5V17h10V8.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 17v-5h4v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const iconAgenda = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="15" rx="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M2 8h16M7 1v4M13 1v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M6 12h2M9.5 12h2M13 12h2M6 15h2M9.5 15h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
   const iconDoentes = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="7" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M3 18c0-3.866 3.134-6 7-6s7 2.134 7 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
   const iconHistorico = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.6"/><path d="M10 6v4.5l3 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -31,6 +33,7 @@ export function renderAppShell() {
   const iconExercicio = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="1.5" y="7" width="3" height="6" rx="1" stroke="currentColor" stroke-width="1.6"/><rect x="15.5" y="7" width="3" height="6" rx="1" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 10h11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M6.5 8v4M13.5 8v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
 
   const navItems = [
+    { id: "home",          icon: iconHome,         label: "Início" },
     { id: "agenda",        icon: iconAgenda,       label: "Agenda" },
     { id: "gestaoagenda",  icon: iconGestaAgenda,  label: "Gestão de agenda" },
     { id: "doentes",       icon: iconDoentes,      label: "Doentes" },
@@ -43,7 +46,9 @@ export function renderAppShell() {
   /* ── Conteúdo por vista ─────────────────────────── */
   let mainHtml = "";
 
-  if (currentView === "financas") {
+  if (currentView === "home") {
+    mainHtml = `<style>${homeDashboardStyles()}</style>${homeDashboardHtml()}`;
+  } else if (currentView === "financas") {
     mainHtml = `<div id="gcFinancasRoot"></div>`;
   } else if (currentView === "management") {
     mainHtml = ``;
@@ -291,6 +296,19 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
       }
     });
   });
+
+  /* ── Wire Home dashboard actions (mesmo mecanismo de navegação) ───── */
+  if (currentView === "home") {
+    wireHomeDashboard(async () => {
+      G.currentView = "agenda";
+      if (typeof window.__gc_renderCurrentView === "function") {
+        await window.__gc_renderCurrentView();
+      } else {
+        renderAppShell();
+        hydrateShellHeader();
+      }
+    });
+  }
 
   window.__gc_renderAppShell = renderAppShell;
 }
