@@ -33,7 +33,7 @@ export function homeDashboardHtml() {
       <div class="gc-home-today">
         <div><b>Consultas</b><strong id="gcHomeStatConsultas">—</strong><small>A ligar à agenda</small></div>
         <div><b>Pedidos online</b><strong id="gcHomeStatPedidosOnline">—</strong><small>A ligar aos pedidos</small></div>
-        <div><b>Consentimentos</b><strong>—</strong><small>A ligar aos pendentes</small></div>
+        <div><b>Consentimentos</b><strong id="gcHomeStatConsentimentos">—</strong><small>A ligar aos pendentes</small></div>
       </div>
     </section>`;
 }
@@ -55,5 +55,10 @@ export function setHomeDashboardConsultasHoje(value) {
 
 export function setHomeDashboardPedidosOnline(value) {
   const el = document.getElementById("gcHomeStatPedidosOnline");
+  if (el) el.textContent = value == null ? "—" : String(value);
+}
+
+export function setHomeDashboardConsentimentos(value) {
+  const el = document.getElementById("gcHomeStatConsentimentos");
   if (el) el.textContent = value == null ? "—" : String(value);
 }

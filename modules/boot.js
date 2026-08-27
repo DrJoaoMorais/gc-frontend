@@ -14,7 +14,7 @@ import {
   renderAppShell,
   hydrateShellHeader
 }                                          from "./shell.js";
-import { setHomeDashboardConsultasHoje, setHomeDashboardPedidosOnline } from "./home-dashboard.js";
+import { setHomeDashboardConsultasHoje, setHomeDashboardPedidosOnline, setHomeDashboardConsentimentos } from "./home-dashboard.js";
 import {
   setAgendaSubtitleForSelectedDay,
   refreshAgenda,
@@ -206,6 +206,7 @@ async function renderCurrentView() {
     await Promise.all([
       loadHomeConsultasHoje(),
       loadHomePedidosOnlinePendentes(),
+      loadHomeConsentimentosPendentes(),
     ]);
     return;
   }
@@ -392,6 +393,67 @@ async function loadHomePedidosOnlinePendentes() {
   } catch (e) {
     console.warn("Home: falha ao carregar pedidos online pendentes:", e);
     setHomeDashboardPedidosOnline(null);
+  }
+}
+
+/* ====================================================================
+   loadHomeConsentimentosPendentes — pares patient_id::clinic_id de
+   consultas de hoje sem RGPD resolvido (signed/paper_signed), mesma
+   regra "ever signed" e o mesmo scope patient_id+clinic_id corrigidos
+   em gestaoagenda.js (commit df1a897). Loader independente — não
+   reutiliza loadHomeConsultasHoje() para não lhe alterar o contrato.
+   ==================================================================== */
+async function loadHomeConsentimentosPendentes() {
+  try {
+    const r = isoLocalDayRangeFromISODate(fmtDateISO(new Date()));
+    if (!r) { setHomeDashboardConsentimentos(null); return; }
+
+    const { data } = await loadAppointmentsForRange({
+      clinicId: G.activeClinicId || null,
+      startISO: r.startISO,
+      endISO:   r.endISO,
+    });
+
+    const todayPairs = new Set();
+    (data || []).forEach((row) => {
+      if (String(row?.mode || "").toLowerCase() === "bloqueio") return;
+      if (!row?.patient_id || !row?.clinic_id) return;
+      todayPairs.add(`${row.patient_id}::${row.clinic_id}`);
+    });
+
+    if (!todayPairs.size) { setHomeDashboardConsentimentos(0); return; }
+
+    const patientIds = [...new Set([...todayPairs].map((key) => key.split("::")[0]))];
+    const resolvedPairs = new Set();
+
+    const { data: cd, error: cdErr } = await window.sb
+      .from("consents")
+      .select("patient_id, clinic_id, status")
+      .in("patient_id", patientIds)
+      .eq("type", "rgpd");
+    if (cdErr) throw cdErr;
+    (cd || []).forEach((c) => {
+      if (c.status === "signed" || c.status === "paper_signed") {
+        resolvedPairs.add(`${c.patient_id}::${c.clinic_id}`);
+      }
+    });
+
+    const { data: ct, error: ctErr } = await window.sb
+      .from("consent_tokens")
+      .select("patient_id, clinic_id")
+      .in("patient_id", patientIds)
+      .eq("document_type", "rgpd")
+      .eq("status", "signed");
+    if (ctErr) throw ctErr;
+    (ct || []).forEach((t) => {
+      resolvedPairs.add(`${t.patient_id}::${t.clinic_id}`);
+    });
+
+    const pending = [...todayPairs].filter((key) => !resolvedPairs.has(key)).length;
+    setHomeDashboardConsentimentos(pending);
+  } catch (e) {
+    console.warn("Home: falha ao carregar consentimentos pendentes:", e);
+    setHomeDashboardConsentimentos(null);
   }
 }
 
