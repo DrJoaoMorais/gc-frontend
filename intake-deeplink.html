@@ -31,8 +31,6 @@
     const SUPABASE_URL = 'https://nxfnzzcuqzxmzsihbrtp.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA';
 
-    // O valor acima é a mesma chave anon pública usada pelo GC. A autorização real
-    // continua dependente da sessão do utilizador e das políticas RLS do Supabase.
     window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const params = new URLSearchParams(window.location.search);
@@ -59,8 +57,8 @@
     if (!patientId || !intakeTokenId) {
       showError('Ligação incompleta', 'Falta a identificação do doente ou do questionário.');
     } else {
-      const { data: userData, error: userError } = await window.sb.auth.getUser();
-      if (userError || !userData?.user) {
+      const { data: sessionData, error: sessionError } = await window.sb.auth.getSession();
+      if (sessionError || !sessionData?.session) {
         showError('Sessão necessária', 'Inicie sessão no Gestão Clínica neste dispositivo e volte a abrir a notificação.');
       } else {
         const { data: tokenRow, error: tokenError } = await window.sb
