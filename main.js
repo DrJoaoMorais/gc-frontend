@@ -227,5 +227,19 @@ window.openCalendarOverlay     = openCalendarOverlay;
 window.refreshAgenda           = refreshAgenda;
 window.initGestaoAgenda        = initGestaoAgenda;
 
+/* ── PWA / Service Worker ────────────────────────────────────────────── */
+async function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+
+  try {
+    await navigator.serviceWorker.register("/service-worker.js", { scope: "/" });
+  } catch (error) {
+    console.warn("[PWA] Não foi possível registar o service worker:", error);
+  }
+}
+
 /* ── arranque ────────────────────────────────────────────────────────── */
-document.addEventListener("DOMContentLoaded", boot);
+document.addEventListener("DOMContentLoaded", () => {
+  registerServiceWorker();
+  boot();
+});

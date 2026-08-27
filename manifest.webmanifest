@@ -1,0 +1,12 @@
+{
+  "name": "Gestão Clínica",
+  "short_name": "GC",
+  "description": "Gestão Clínica — João Morais",
+  "start_url": "/app.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#123761",
+  "lang": "pt-PT",
+  "orientation": "any"
+}
