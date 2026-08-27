@@ -14,7 +14,13 @@ import {
   renderAppShell,
   hydrateShellHeader
 }                                          from "./shell.js";
-import { setHomeDashboardConsultasHoje, setHomeDashboardPedidosOnline, setHomeDashboardConsentimentos } from "./home-dashboard.js";
+import {
+  setHomeDashboardConsultasHoje,
+  setHomeDashboardPedidosOnline,
+  setHomeDashboardConsentimentos,
+  setHomeDashboardAlertStats,
+  renderHomeDashboardAlerts,
+}                                          from "./home-dashboard.js";
 import {
   setAgendaSubtitleForSelectedDay,
   refreshAgenda,
@@ -207,6 +213,7 @@ async function renderCurrentView() {
       loadHomeConsultasHoje(),
       loadHomePedidosOnlinePendentes(),
       loadHomeConsentimentosPendentes(),
+      loadHomeAlerts(),
     ]);
     return;
   }
@@ -454,6 +461,86 @@ async function loadHomeConsentimentosPendentes() {
   } catch (e) {
     console.warn("Home: falha ao carregar consentimentos pendentes:", e);
     setHomeDashboardConsentimentos(null);
+  }
+}
+
+/* ====================================================================
+   loadHomeAlerts — tabela alerts (fonte central de alertas do GC; o
+   Push é só um canal externo). "Lido" (seen_at) é distinto de
+   "Resolvido" (resolved_at) — só resolved_at conta como tratado.
+   severity/source usam exclusivamente os valores validados em
+   create_alert() no Supabase: severity ∈ {urgent,attention,info},
+   source ∈ {website,exercise,diary,questionnaire,consent,system}.
+   ==================================================================== */
+const HOME_ALERT_SEVERITY_ORDER = { urgent: 0, attention: 1, info: 2 };
+
+async function loadHomeAlerts() {
+  try {
+    let q = window.sb
+      .from("alerts")
+      .select("id, clinic_id, patient_id, source, event_type, severity, title, message, target_url, created_at")
+      .is("resolved_at", null)
+      .order("created_at", { ascending: false });
+    if (G.activeClinicId) q = q.eq("clinic_id", G.activeClinicId);
+
+    const { data: pending, error } = await q;
+    if (error) throw error;
+
+    const rows = pending || [];
+    const urgent    = rows.filter((a) => a.severity === "urgent").length;
+    const attention = rows.filter((a) => a.severity === "attention").length;
+    const info      = rows.filter((a) => a.severity === "info").length;
+
+    let resolvedToday = 0;
+    const r = isoLocalDayRangeFromISODate(fmtDateISO(new Date()));
+    if (r) {
+      let rq = window.sb
+        .from("alerts")
+        .select("id", { count: "exact", head: true })
+        .gte("resolved_at", r.startISO)
+        .lt("resolved_at", r.endISO);
+      if (G.activeClinicId) rq = rq.eq("clinic_id", G.activeClinicId);
+      const { count, error: rErr } = await rq;
+      if (rErr) throw rErr;
+      resolvedToday = count ?? 0;
+    }
+
+    setHomeDashboardAlertStats({ urgent, attention, info, resolvedToday });
+
+    const sorted = rows.slice().sort((a, b) => {
+      const sa = HOME_ALERT_SEVERITY_ORDER[a.severity] ?? 3;
+      const sb = HOME_ALERT_SEVERITY_ORDER[b.severity] ?? 3;
+      if (sa !== sb) return sa - sb;
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+
+    renderHomeDashboardAlerts(sorted, {
+      onOpen: (url) => { if (url) window.open(url, "_blank", "noopener"); },
+      onResolve: (alertId) => { resolveHomeAlert(alertId); },
+    });
+  } catch (e) {
+    console.warn("Home: falha ao carregar alertas:", e);
+    setHomeDashboardAlertStats(null);
+    renderHomeDashboardAlerts(null);
+  }
+}
+
+/* resolveHomeAlert — marca explicitamente como resolvido (resolved_at/
+   resolved_by); nunca apaga o registo. Abrir (onOpen) nunca chama isto. */
+async function resolveHomeAlert(alertId) {
+  try {
+    const userRes = await window.sb.auth.getUser();
+    const userId  = userRes?.data?.user?.id || null;
+
+    const { error } = await window.sb
+      .from("alerts")
+      .update({ resolved_at: new Date().toISOString(), resolved_by: userId })
+      .eq("id", alertId);
+    if (error) throw error;
+
+    await loadHomeAlerts();
+  } catch (e) {
+    console.warn("Home: falha ao marcar alerta como resolvido:", e);
   }
 }
 
