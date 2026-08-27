@@ -10,9 +10,10 @@
     * { box-sizing:border-box; }
     body { margin:0; min-height:100vh; background:var(--bg); font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#1f2937; }
     .state { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; text-align:center; }
-    .card { width:min(440px,100%); background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:24px; box-shadow:0 8px 30px rgba(15,45,82,.08); }
+    .card { width:min(520px,100%); background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:24px; box-shadow:0 8px 30px rgba(15,45,82,.08); }
     h1 { margin:0 0 8px; color:var(--navy); font-size:22px; }
     p { margin:0; color:var(--muted); line-height:1.5; }
+    .debug { margin-top:14px; padding:12px; border-radius:10px; background:#f8fafc; border:1px solid #e2e8f0; color:#475569; text-align:left; font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace; white-space:pre-wrap; word-break:break-word; }
     .actions { display:flex; gap:10px; justify-content:center; margin-top:18px; flex-wrap:wrap; }
     a,button { border:0; border-radius:10px; padding:10px 14px; font:600 14px/1.2 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; cursor:pointer; text-decoration:none; }
     .primary { background:var(--blue); color:#fff; }
@@ -29,7 +30,7 @@
 
   <script type="module">
     const SUPABASE_URL = 'https://nxfnzzcuqzxmzsihbrtp.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJIUzI1NiIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA';
 
     window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -42,11 +43,21 @@
       ? `/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(patientId)}`
       : '/';
 
-    function showError(title, message) {
+    function escHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function showError(title, message, debugText = '') {
       state.innerHTML = `
         <div class="card">
-          <h1>${title}</h1>
-          <p>${message}</p>
+          <h1>${escHtml(title)}</h1>
+          <p>${escHtml(message)}</p>
+          ${debugText ? `<div class="debug">${escHtml(debugText)}</div>` : ''}
           <div class="actions">
             ${patientId ? `<a class="primary" href="${feedUrl}">Abrir ficha do doente</a>` : ''}
             <a class="secondary" href="/">Voltar ao GC</a>
@@ -59,7 +70,10 @@
     } else {
       const { data: sessionData, error: sessionError } = await window.sb.auth.getSession();
       if (sessionError || !sessionData?.session) {
-        showError('Sessão necessária', 'Inicie sessão no Gestão Clínica neste dispositivo e volte a abrir a notificação.');
+        const debug = sessionError
+          ? `sessionError\nmessage: ${sessionError.message || ''}\nstatus: ${sessionError.status || ''}\ncode: ${sessionError.code || ''}`
+          : 'Sem sessão persistida devolvida por getSession().';
+        showError('Sessão necessária', 'Inicie sessão no Gestão Clínica neste dispositivo e volte a abrir a notificação.', debug);
       } else {
         const { data: tokenRow, error: tokenError } = await window.sb
           .from('intake_tokens')
@@ -68,10 +82,30 @@
           .eq('patient_id', patientId)
           .maybeSingle();
 
-        if (tokenError || !tokenRow) {
-          showError('Questionário não encontrado', 'Não foi possível abrir este questionário ou não tem acesso a este registo.');
+        if (tokenError) {
+          const debug = [
+            'Supabase intake_tokens lookup error',
+            `message: ${tokenError.message || ''}`,
+            `code: ${tokenError.code || ''}`,
+            `details: ${tokenError.details || ''}`,
+            `hint: ${tokenError.hint || ''}`,
+            `status: ${tokenError.status || ''}`,
+            `patientId: ${patientId}`,
+            `intakeTokenId: ${intakeTokenId}`,
+            `sessionUserId: ${sessionData.session.user?.id || ''}`
+          ].join('\n');
+          console.error('[intake-deeplink] erro ao obter intake_token:', tokenError);
+          showError('Erro ao consultar questionário', 'O Supabase devolveu um erro ao tentar abrir este questionário.', debug);
+        } else if (!tokenRow) {
+          const debug = [
+            'Consulta sem erro, mas sem registo devolvido.',
+            `patientId: ${patientId}`,
+            `intakeTokenId: ${intakeTokenId}`,
+            `sessionUserId: ${sessionData.session.user?.id || ''}`
+          ].join('\n');
+          showError('Questionário não encontrado', 'Não foi possível abrir este questionário ou não tem acesso a este registo.', debug);
         } else if (tokenRow.status !== 'completed') {
-          showError('Questionário ainda não concluído', 'Este questionário ainda não está disponível para leitura final.');
+          showError('Questionário ainda não concluído', 'Este questionário ainda não está disponível para leitura final.', `status: ${tokenRow.status || ''}`);
         } else {
           try {
             const { openIntakeResponseModal } = await import('/modules/relatorios/v2/intake-viewer/intake-viewer.js');
@@ -96,7 +130,11 @@
             await abrir();
           } catch (err) {
             console.error('[intake-deeplink] erro ao abrir viewer:', err);
-            showError('Não foi possível abrir o questionário', 'Abra a ficha do doente e consulte o questionário a partir do painel habitual.');
+            const debug = [
+              `message: ${err?.message || err || ''}`,
+              `stack: ${err?.stack || ''}`
+            ].join('\n');
+            showError('Não foi possível abrir o questionário', 'Abra a ficha do doente e consulte o questionário a partir do painel habitual.', debug);
           }
         }
       }
