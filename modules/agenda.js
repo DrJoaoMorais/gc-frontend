@@ -1498,7 +1498,7 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
 /* ==== 09C/D/E — Modal marcação ==== */
 
 /* ---- openApptModal ---- */
-export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, prefillPatientName, prefillClinicId, rescheduledFromId }) {
+export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, prefillPatientName, prefillClinicId, rescheduledFromId, onlineRequestId }) {
   const root = document.getElementById("modalRoot");
   if (!root) return;
 
@@ -2261,6 +2261,7 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
       };
       if (payload.notes === "") payload.notes = null;
       if (!isEdit && rescheduledFromId) payload.rescheduled_from_id = rescheduledFromId;
+      if (!isEdit && onlineRequestId) payload.online_request_id = onlineRequestId;
 
       const oldDayISO = isEdit && row?.start_at ? String(row.start_at).slice(0, 10) : "";
       const newDayISO = String(times.startAt || G.selectedDayISO || "").slice(0, 10);
@@ -2275,6 +2276,17 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
         if (error) throw error;
         savedApptId = insertData?.[0]?.id || null;
         console.log("[APPT] insert ok id=", savedApptId);
+        if (onlineRequestId) {
+          const { data: requestData, error: requestError } = await window.sb
+            .from("patient_uploads")
+            .update({ status: "agendado" })
+            .eq("id", onlineRequestId)
+            .eq("status", "pendente")
+            .select("id")
+            .maybeSingle();
+          if (requestError) throw requestError;
+          if (!requestData?.id) throw new Error("A consulta foi criada, mas o pedido já não estava pendente. Atualiza a Agenda antes de tentar novamente.");
+        }
         if (rescheduledFromId) {
           const { error: rescheduleErr } = await window.sb.from("appointments").update({ status: "rescheduled" }).eq("id", rescheduledFromId);
           if (rescheduleErr) alert("A marcação nova foi criada, mas a antiga não foi marcada como remarcada. Verifica manualmente: " + rescheduleErr.message);
@@ -2311,7 +2323,11 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
       console.error("Guardar falhou:", e);
       const msg = String(e?.message || e?.details || e?.hint || e);
       mMsg.style.color = "#b00020";
-      mMsg.textContent = msg.toLowerCase().includes("bloqueio") ? "Não permitido: conflito com bloqueio existente." : (msg || "Erro ao guardar. Vê a consola.");
+      if (msg.includes("appointments_online_request_id_unique")) {
+        mMsg.textContent = "Este pedido já originou uma consulta. Atualiza a Agenda.";
+      } else {
+        mMsg.textContent = msg.toLowerCase().includes("bloqueio") ? "Não permitido: conflito com bloqueio existente." : (msg || "Erro ao guardar. Vê a consola.");
+      }
       btnSave.disabled = false;
     }
   }
@@ -3122,7 +3138,7 @@ function _openPendenteModal(row) {
     if (!row.patient_id) { msgEl.textContent = "Associa ou cria primeiro a ficha do doente."; return; }
     const dtVal = overlay.querySelector("#gcPendDT")?.value || null;
     close();
-    openApptModal({ mode: "new", row: null, prefillPatientId: row.patient_id || null, prefillPatientName: row.atleta_nome || null, prefillDatetime: dtVal, prefillClinicId: row.clinic_id || null });
+    openApptModal({ mode: "new", row: null, prefillPatientId: row.patient_id || null, prefillPatientName: row.atleta_nome || null, prefillDatetime: dtVal, prefillClinicId: row.clinic_id || null, onlineRequestId: row.id });
   });
 
   /* Cancelar pedido */
