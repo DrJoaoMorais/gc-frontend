@@ -32,7 +32,7 @@ export function homeDashboardHtml() {
       <div class="gc-home-section-head gc-home-today-head"><div><h2>Hoje</h2><p>Resumo rápido da atividade</p></div></div>
       <div class="gc-home-today">
         <button data-home-action="agenda"><span>${ICON.calendar}</span><b>Agenda</b><small>Abrir consultas de hoje</small><i>→</i></button>
-        <div><b>Consultas</b><strong>—</strong><small>A ligar à agenda</small></div>
+        <div><b>Consultas</b><strong id="gcHomeStatConsultas">—</strong><small>A ligar à agenda</small></div>
         <div><b>Pedidos online</b><strong>—</strong><small>A ligar aos pedidos</small></div>
         <div><b>Consentimentos</b><strong>—</strong><small>A ligar aos pendentes</small></div>
       </div>
@@ -47,4 +47,9 @@ export function homeDashboardStyles() {
 
 export function wireHomeDashboard(onAgenda) {
   document.querySelectorAll('[data-home-action="agenda"]').forEach((el) => el.addEventListener('click', () => onAgenda?.()));
+}
+
+export function setHomeDashboardConsultasHoje(value) {
+  const el = document.getElementById("gcHomeStatConsultas");
+  if (el) el.textContent = value == null ? "—" : String(value);
 }

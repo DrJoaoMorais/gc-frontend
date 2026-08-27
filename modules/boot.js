@@ -9,11 +9,12 @@
 
 import { G }                              from "./state.js";
 import { fetchMyRole, fetchVisibleClinics } from "./auth.js";
-import { fetchProcedureTypes } from "./db.js";
+import { fetchProcedureTypes, loadAppointmentsForRange } from "./db.js";
 import {
   renderAppShell,
   hydrateShellHeader
 }                                          from "./shell.js";
+import { setHomeDashboardConsultasHoje }   from "./home-dashboard.js";
 import {
   setAgendaSubtitleForSelectedDay,
   refreshAgenda,
@@ -24,7 +25,7 @@ import { openNewPatientMainModal }         from "./novo-doente.js";
 import { wireQuickPatientSearch }                      from "./pesquisa.js";
 import { openCalendarOverlay, openWeekView }           from "./agenda.js";
 import { wireLogout, ensureAAL2, __gcForceSessionLock, __gcIsAuthError, __gcSessionLockActive } from "./session.js";
-import { fmtDateISO }                      from "./helpers.js";
+import { fmtDateISO, isoLocalDayRangeFromISODate } from "./helpers.js";
 import { renderDoentePanorama } from "./doente-admin.js";
 import { renderFinancas }                  from "./financas.js";
 import { renderGestao }                    from "./gestao.js";
@@ -200,6 +201,12 @@ async function renderCurrentView() {
 
   const view = String(G.currentView || "agenda").toLowerCase();
 
+  /* Vista Início */
+  if (view === "home") {
+    await loadHomeConsultasHoje();
+    return;
+  }
+
   /* Vista Doentes — wirar pesquisa */
   if (view === "doentes") {
     await wireQuickPatientSearch();
@@ -338,6 +345,29 @@ async function renderCurrentView() {
   }
 
   await refreshAgenda();
+}
+
+/* ====================================================================
+   loadHomeConsultasHoje — mesma fonte/scope de clínica da Agenda,
+   restrito ao dia de hoje e excluindo bloqueios.
+   ==================================================================== */
+async function loadHomeConsultasHoje() {
+  try {
+    const r = isoLocalDayRangeFromISODate(fmtDateISO(new Date()));
+    if (!r) { setHomeDashboardConsultasHoje(null); return; }
+
+    const { data } = await loadAppointmentsForRange({
+      clinicId: G.activeClinicId || null,
+      startISO: r.startISO,
+      endISO:   r.endISO,
+    });
+
+    const count = (data || []).filter((row) => String(row?.mode || "").toLowerCase() !== "bloqueio").length;
+    setHomeDashboardConsultasHoje(count);
+  } catch (e) {
+    console.warn("Home: falha ao carregar consultas de hoje:", e);
+    setHomeDashboardConsultasHoje(null);
+  }
 }
 
 /* Expor renderCurrentView globalmente para shell.js */
