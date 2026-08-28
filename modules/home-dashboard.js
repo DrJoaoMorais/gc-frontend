@@ -163,7 +163,9 @@ button.gc-home-alertbar-item:hover{border-color:#93c5fd}
 .gc-home-acomp-item-name{font-size:13px;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gc-home-acomp-item-sub{font-size:11.5px;color:#475569}
 .gc-home-acomp-item-meta{font-size:11px;color:#94a3b8}
-.gc-home-acomp-item-open{flex-shrink:0;font-size:11.5px;font-weight:650;border-radius:8px;padding:6px 10px;white-space:nowrap;font-family:inherit;border:1px solid #e2e8f0;background:#f8fafc;color:#94a3b8;cursor:not-allowed}
+.gc-home-acomp-item-open{flex-shrink:0;font-size:11.5px;font-weight:650;border-radius:8px;padding:6px 10px;white-space:nowrap;font-family:inherit;border:1px solid #cbd5e1;background:#fff;color:#0f2d52;cursor:pointer}
+.gc-home-acomp-item-open:hover{border-color:#93c5fd;background:#f8fbff}
+.gc-home-acomp-item-open:disabled{border-color:#e2e8f0;background:#f8fafc;color:#94a3b8;cursor:not-allowed}
 .gc-home-acomp-viewall{margin-top:14px;width:100%;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;border-radius:10px;padding:10px;font:650 12.5px inherit;cursor:not-allowed}
 
 .gc-home [data-home-action="agenda"]:hover{border-color:#93c5fd;background:#f8fbff}
