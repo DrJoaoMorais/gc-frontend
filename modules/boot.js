@@ -9,11 +9,23 @@
 
 import { G }                              from "./state.js";
 import { fetchMyRole, fetchVisibleClinics } from "./auth.js";
-import { fetchProcedureTypes } from "./db.js";
+import { fetchProcedureTypes, loadAppointmentsForRange } from "./db.js";
 import {
   renderAppShell,
   hydrateShellHeader
 }                                          from "./shell.js";
+import {
+  setHomeDashboardConsultasHoje,
+  setHomeDashboardPedidosOnline,
+  setHomeDashboardAlertStats,
+  renderHomeDashboardAlerts,
+  renderHomeClinicSelect,
+  renderHomeConsultasBreakdown,
+  wireHomeAlertFilterBar,
+  wirePedidosOnlineToggle,
+  renderHomePedidosOnlineList,
+  setHomeAcompanhamentoStats,
+}                                          from "./home-dashboard.js";
 import {
   setAgendaSubtitleForSelectedDay,
   refreshAgenda,
@@ -24,7 +36,7 @@ import { openNewPatientMainModal }         from "./novo-doente.js";
 import { wireQuickPatientSearch }                      from "./pesquisa.js";
 import { openCalendarOverlay, openWeekView }           from "./agenda.js";
 import { wireLogout, ensureAAL2, __gcForceSessionLock, __gcIsAuthError, __gcSessionLockActive } from "./session.js";
-import { fmtDateISO }                      from "./helpers.js";
+import { fmtDateISO, isoLocalDayRangeFromISODate } from "./helpers.js";
 import { renderDoentePanorama } from "./doente-admin.js";
 import { renderFinancas }                  from "./financas.js";
 import { renderGestao }                    from "./gestao.js";
@@ -34,6 +46,20 @@ import { initGestaoAgenda }               from "./gestaoagenda.js";
 // uma cópia antiga de prescricao.js depois de um deploy — mesmo problema que
 // já resolvemos para o CSS, aqui aplicado ao próprio módulo JS.
 const PRESCRICAO_JS_VERSION = '2026-08-25-3';
+
+/* Estado próprio do Home (scope de clínica) — independente de G.activeClinicId.
+   Só é seedado a partir de G.activeClinicId uma vez, na primeira vez que a
+   vista Home é aberta na sessão; depois disso é controlado só pelo seletor
+   do Home. Nunca escrito automaticamente de volta em G.activeClinicId — só
+   é copiado para lá no momento explícito de abrir a Agenda. */
+let homeClinicId = null;
+let homeClinicIdInitialized = false;
+
+/* Filtro da barra de alertas do Home — filtra só em memória as listas já
+   carregadas por loadHomeAlerts(); nunca dispara uma query nova. */
+let homeAlertFilter = "all";
+let homePendingAlertsSorted = [];
+let homeResolvedTodayAlerts = [];
 
 /* ====================================================================
    BLOCO 11B — Boot principal
@@ -200,6 +226,51 @@ async function renderCurrentView() {
 
   const view = String(G.currentView || "agenda").toLowerCase();
 
+  /* Vista Início */
+  if (view === "home") {
+    if (!homeClinicIdInitialized) {
+      homeClinicIdInitialized = true;
+      homeClinicId = (G.activeClinicId && (G.clinics || []).some((c) => c.id === G.activeClinicId))
+        ? G.activeClinicId
+        : null;
+    }
+
+    renderHomeClinicSelect(G.clinics, homeClinicId, (newClinicId) => {
+      homeClinicId = newClinicId || null;
+      /* Só recarrega dados clinic-scoped já reais do Home — nunca navega
+         nem toca em G.activeClinicId aqui. */
+      Promise.all([
+        loadHomeConsultasHoje(),
+        loadHomePedidosOnlinePendentes(),
+        loadHomeAlerts(),
+        loadHomeAcompanhamentoAtivo(),
+      ]);
+      /* Painel de Pedidos online: só recarrega a lista se já estiver
+         aberto (sem o atributo "hidden"); fechado, não faz query extra. */
+      const pedidosExpand = document.getElementById("gcHomePedidosExpand");
+      if (pedidosExpand && !pedidosExpand.hasAttribute("hidden")) {
+        loadHomePedidosOnlineList();
+      }
+    });
+
+    wireHomeAlertFilterBar(homeAlertFilter, (newFilter) => {
+      homeAlertFilter = newFilter || "all";
+      applyHomeAlertFilter();
+    });
+
+    wirePedidosOnlineToggle(() => {
+      loadHomePedidosOnlineList();
+    });
+
+    await Promise.all([
+      loadHomeConsultasHoje(),
+      loadHomePedidosOnlinePendentes(),
+      loadHomeAlerts(),
+      loadHomeAcompanhamentoAtivo(),
+    ]);
+    return;
+  }
+
   /* Vista Doentes — wirar pesquisa */
   if (view === "doentes") {
     await wireQuickPatientSearch();
@@ -338,6 +409,309 @@ async function renderCurrentView() {
   }
 
   await refreshAgenda();
+}
+
+/* ====================================================================
+   loadHomeConsultasHoje — mesma fonte/scope de clínica da Agenda,
+   restrito ao dia de hoje e excluindo bloqueios.
+   ==================================================================== */
+async function loadHomeConsultasHoje() {
+  try {
+    const r = isoLocalDayRangeFromISODate(fmtDateISO(new Date()));
+    if (!r) {
+      setHomeDashboardConsultasHoje(null);
+      renderHomeConsultasBreakdown(null, { onClinicClick: openHomeAgendaForClinic });
+      return;
+    }
+
+    const { data } = await loadAppointmentsForRange({
+      clinicId: homeClinicId || null,
+      startISO: r.startISO,
+      endISO:   r.endISO,
+    });
+
+    const rows = (data || []).filter((row) => String(row?.mode || "").toLowerCase() !== "bloqueio");
+    setHomeDashboardConsultasHoje(rows.length);
+
+    const byClinic = new Map();
+    rows.forEach((row) => {
+      byClinic.set(row.clinic_id, (byClinic.get(row.clinic_id) || 0) + 1);
+    });
+    const breakdown = [...byClinic.entries()]
+      .map(([clinicId, count]) => ({
+        clinicId,
+        count,
+        name: G.clinicsById?.[clinicId]?.name || G.clinicsById?.[clinicId]?.slug || clinicId,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    renderHomeConsultasBreakdown(breakdown, { onClinicClick: openHomeAgendaForClinic });
+  } catch (e) {
+    console.warn("Home: falha ao carregar consultas de hoje:", e);
+    setHomeDashboardConsultasHoje(null);
+    renderHomeConsultasBreakdown(null, { onClinicClick: openHomeAgendaForClinic });
+  }
+}
+
+/* openHomeAgendaForClinic — copia o scope escolhido no Home para
+   G.activeClinicId só no momento explícito de navegar, e abre a Agenda
+   pelo mecanismo já existente (renderClinicsSelect/refreshAgenda lêem
+   G.activeClinicId). Nunca sincronizado fora deste clique. */
+function openHomeAgendaForClinic(clinicId) {
+  G.activeClinicId = clinicId || null;
+  G.currentView = "agenda";
+  if (typeof window.__gc_renderCurrentView === "function") {
+    window.__gc_renderCurrentView();
+  }
+}
+
+/* ====================================================================
+   loadHomePedidosOnlinePendentes — mesma tabela/filtro/scope de clínica
+   que a Agenda usa em loadAndRenderPendentes (agenda.js), mas sem a
+   parte de UI (não depende de #pendentesSection).
+   ==================================================================== */
+async function loadHomePedidosOnlinePendentes() {
+  try {
+    let q = window.sb
+      .from("patient_uploads")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pendente");
+    if (homeClinicId) q = q.eq("clinic_id", homeClinicId);
+
+    const { count, error } = await q;
+    if (error) throw error;
+    setHomeDashboardPedidosOnline(count ?? 0);
+  } catch (e) {
+    console.warn("Home: falha ao carregar pedidos online pendentes:", e);
+    setHomeDashboardPedidosOnline(null);
+  }
+}
+
+/* ====================================================================
+   loadHomePedidosOnlineList — lista real dos pedidos pendentes, só
+   carregada quando o cartão "Pedidos online" é expandido (não corre no
+   Promise.all inicial). Mesma tabela/filtro/scope de clínica que
+   loadHomePedidosOnlinePendentes() e que loadAndRenderPendentes()
+   (agenda.js) — mesmas colunas relevantes, sem a parte de UI/estado
+   dessa função (que é privada e depende de #pendentesSection).
+   ==================================================================== */
+async function loadHomePedidosOnlineList() {
+  try {
+    let q = window.sb
+      .from("patient_uploads")
+      .select("id, created_at, tipo, clinic_id, atleta_nome")
+      .eq("status", "pendente")
+      .order("created_at", { ascending: true });
+    if (homeClinicId) q = q.eq("clinic_id", homeClinicId);
+
+    const { data, error } = await q;
+    if (error) throw error;
+    renderHomePedidosOnlineList(data || [], { onOpenAgenda: openHomeAgendaForClinic });
+  } catch (e) {
+    console.warn("Home: falha ao carregar lista de pedidos online:", e);
+    renderHomePedidosOnlineList(null, { onOpenAgenda: openHomeAgendaForClinic });
+  }
+}
+
+/* ====================================================================
+   loadHomeAcompanhamentoAtivo — usa apenas regras já existentes:
+   - plano ativo: status=active e expires_at no futuro;
+   - precisa de ação: sintomas na readiness, ou o último log tem nota,
+     exercício alterado/omitido, ou RPE >= 8;
+   - a terminar: expires_at no futuro e a menos de 3 dias.
+   Não calcula "Sem atividade" nem "Regular".
+   ==================================================================== */
+async function loadHomeAcompanhamentoAtivo() {
+  const agora = new Date();
+  const TRES_DIAS_MS = 3 * 24 * 60 * 60 * 1000;
+  const clinicIds = homeClinicId
+    ? [homeClinicId]
+    : (G.clinics || []).map((clinic) => clinic.id).filter(Boolean);
+
+  if (!clinicIds.length) {
+    setHomeAcompanhamentoStats({ total: 0, precisaAcao: 0, aTerminar: 0 });
+    return;
+  }
+
+  try {
+    const { data: prescriptions, error: prescriptionsError } = await window.sb
+      .from("wo_prescriptions")
+      .select("id, patient_id, clinic_id, expires_at")
+      .eq("status", "active")
+      .gt("expires_at", agora.toISOString())
+      .in("clinic_id", clinicIds)
+      .limit(500);
+    if (prescriptionsError) throw prescriptionsError;
+
+    const rows = prescriptions || [];
+    const prescriptionIds = rows.map((row) => row.id);
+    const patientByPrescription = new Map(rows.map((row) => [row.id, row.patient_id]));
+    const activePatients = new Set(rows.map((row) => row.patient_id).filter(Boolean));
+    const endingPatients = new Set(
+      rows
+        .filter((row) => {
+          const remaining = new Date(row.expires_at).getTime() - agora.getTime();
+          return remaining > 0 && remaining < TRES_DIAS_MS;
+        })
+        .map((row) => row.patient_id)
+        .filter(Boolean)
+    );
+
+    if (!prescriptionIds.length) {
+      setHomeAcompanhamentoStats({ total: 0, precisaAcao: 0, aTerminar: 0 });
+      return;
+    }
+
+    const [readinessResult, logsResult] = await Promise.all([
+      window.sb
+        .from("wo_session_readiness")
+        .select("prescription_id, patient_id")
+        .in("prescription_id", prescriptionIds)
+        .eq("has_symptoms", true)
+        .limit(1000),
+      window.sb
+        .from("wo_session_logs")
+        .select("prescription_id, session_id, logged_at, rpe, sets, note")
+        .in("prescription_id", prescriptionIds)
+        .order("logged_at", { ascending: false })
+        .limit(2000),
+    ]);
+    if (readinessResult.error) throw readinessResult.error;
+    if (logsResult.error) throw logsResult.error;
+
+    const actionPatients = new Set(
+      (readinessResult.data || []).map((row) => row.patient_id).filter(Boolean)
+    );
+
+    const latestLogByPrescription = new Map();
+    (logsResult.data || []).forEach((log) => {
+      if (!latestLogByPrescription.has(log.prescription_id)) {
+        latestLogByPrescription.set(log.prescription_id, log);
+      }
+    });
+
+    latestLogByPrescription.forEach((log, prescriptionId) => {
+      const sets = Array.isArray(log.sets) ? log.sets : [];
+      const altered = sets.some((entry) => entry?.status && entry.status !== "as_prescribed");
+      const hasNote = Boolean(String(log.note || "").trim());
+      const highRpe = Number(log.rpe || 0) >= 8;
+      if (hasNote || altered || highRpe) {
+        const patientId = patientByPrescription.get(prescriptionId);
+        if (patientId) actionPatients.add(patientId);
+      }
+    });
+
+    setHomeAcompanhamentoStats({
+      total: activePatients.size,
+      precisaAcao: actionPatients.size,
+      aTerminar: endingPatients.size,
+    });
+  } catch (error) {
+    console.warn("Home: falha ao carregar acompanhamento ativo:", error);
+    setHomeAcompanhamentoStats(null);
+  }
+}
+
+/* ====================================================================
+   loadHomeAlerts — tabela alerts (fonte central de alertas do GC; o
+   Push é só um canal externo). "Lido" (seen_at) é distinto de
+   "Resolvido" (resolved_at) — só resolved_at conta como tratado.
+   severity/source usam exclusivamente os valores validados em
+   create_alert() no Supabase: severity ∈ {urgent,attention,info},
+   source ∈ {website,exercise,diary,questionnaire,consent,system}.
+   ==================================================================== */
+const HOME_ALERT_SEVERITY_ORDER = { urgent: 0, attention: 1, info: 2 };
+const HOME_ALERT_SELECT_COLUMNS = "id, clinic_id, patient_id, source, event_type, severity, title, message, target_url, created_at, resolved_at";
+
+async function loadHomeAlerts() {
+  try {
+    let q = window.sb
+      .from("alerts")
+      .select(HOME_ALERT_SELECT_COLUMNS)
+      .is("resolved_at", null)
+      .order("created_at", { ascending: false });
+    if (homeClinicId) q = q.eq("clinic_id", homeClinicId);
+
+    const { data: pending, error } = await q;
+    if (error) throw error;
+
+    const rows = pending || [];
+    const urgent    = rows.filter((a) => a.severity === "urgent").length;
+    const attention = rows.filter((a) => a.severity === "attention").length;
+    const info      = rows.filter((a) => a.severity === "info").length;
+
+    /* Mesma leitura que antes só contava (head:true) — transformada em
+       leitura das linhas para poder alimentar o filtro "Resolvidos" sem
+       criar uma segunda query. */
+    let resolvedRows = [];
+    const r = isoLocalDayRangeFromISODate(fmtDateISO(new Date()));
+    if (r) {
+      let rq = window.sb
+        .from("alerts")
+        .select(HOME_ALERT_SELECT_COLUMNS)
+        .gte("resolved_at", r.startISO)
+        .lt("resolved_at", r.endISO)
+        .order("resolved_at", { ascending: false });
+      if (homeClinicId) rq = rq.eq("clinic_id", homeClinicId);
+      const { data: resolved, error: rErr } = await rq;
+      if (rErr) throw rErr;
+      resolvedRows = resolved || [];
+    }
+
+    setHomeDashboardAlertStats({ urgent, attention, info, resolvedToday: resolvedRows.length });
+
+    homePendingAlertsSorted = rows.slice().sort((a, b) => {
+      const sa = HOME_ALERT_SEVERITY_ORDER[a.severity] ?? 3;
+      const sb = HOME_ALERT_SEVERITY_ORDER[b.severity] ?? 3;
+      if (sa !== sb) return sa - sb;
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
+    homeResolvedTodayAlerts = resolvedRows;
+
+    applyHomeAlertFilter();
+  } catch (e) {
+    console.warn("Home: falha ao carregar alertas:", e);
+    setHomeDashboardAlertStats(null);
+    homePendingAlertsSorted = [];
+    homeResolvedTodayAlerts = [];
+    renderHomeDashboardAlerts(null);
+  }
+}
+
+/* applyHomeAlertFilter — filtra em memória (pendentes ou resolvidosHoje,
+   já carregados por loadHomeAlerts) segundo homeAlertFilter; nunca faz
+   query. No filtro "resolved", os itens já têm resolved_at preenchido —
+   renderHomeDashboardAlerts omite o botão "Resolvido" nesses casos. */
+function applyHomeAlertFilter() {
+  const filtered = homeAlertFilter === "resolved"
+    ? homeResolvedTodayAlerts
+    : homeAlertFilter === "all"
+      ? homePendingAlertsSorted
+      : homePendingAlertsSorted.filter((a) => a.severity === homeAlertFilter);
+
+  renderHomeDashboardAlerts(filtered, {
+    onOpen: (url) => { if (url) window.open(url, "_blank", "noopener"); },
+    onResolve: (alertId) => { resolveHomeAlert(alertId); },
+  });
+}
+
+/* resolveHomeAlert — marca explicitamente como resolvido (resolved_at/
+   resolved_by); nunca apaga o registo. Abrir (onOpen) nunca chama isto. */
+async function resolveHomeAlert(alertId) {
+  try {
+    const userRes = await window.sb.auth.getUser();
+    const userId  = userRes?.data?.user?.id || null;
+
+    const { error } = await window.sb
+      .from("alerts")
+      .update({ resolved_at: new Date().toISOString(), resolved_by: userId })
+      .eq("id", alertId);
+    if (error) throw error;
+
+    await loadHomeAlerts();
+  } catch (e) {
+    console.warn("Home: falha ao marcar alerta como resolvido:", e);
+  }
 }
 
 /* Expor renderCurrentView globalmente para shell.js */
