@@ -766,13 +766,18 @@ async function loadHomeAcompanhamentoExercicio() {
       const lastSessionAt  = lastLog?.logged_at || null;
 
       /* Precisa de ação — motivos + pertença, a partir dos mesmos 2 sinais
-         já validados (readiness mais recente / último log). */
+         já validados (readiness mais recente / último log). prescriptionId
+         guardado é o da prescrição cujo sinal (answered_at/logged_at) é o
+         mais recente entre as prescrições ativas deste doente — nunca uma
+         escolha arbitrária quando há várias prescrições ativas. */
       let flagged = false;
       const reasons = [];
+      let signalAt = null;
       const latestReadiness = latestReadinessByPrescription.get(p.id);
       if (latestReadiness?.has_symptoms === true) {
         reasons.push("Sintomas reportados antes do treino");
         flagged = true;
+        if (latestReadiness.answered_at && (!signalAt || latestReadiness.answered_at > signalAt)) signalAt = latestReadiness.answered_at;
       }
       if (lastLog) {
         const rpeNum = Number(lastLog.rpe || 0);
@@ -780,17 +785,23 @@ async function loadHomeAcompanhamentoExercicio() {
         const hasSkipped        = sets.some((entry) => entry.status === "skipped");
         const hasAlteradoOutro  = sets.some((entry) => entry.status && entry.status !== "as_prescribed" && entry.status !== "skipped");
         const alteradoQualquer  = sets.some((entry) => entry.status && entry.status !== "as_prescribed");
-        if (rpeNum >= 8) { reasons.push(`Esforço elevado: RPE ${rpeNum}/10`); flagged = true; }
-        if (lastLog.note) { reasons.push("Comentário do doente"); flagged = true; }
+        let logFlagged = false;
+        if (rpeNum >= 8) { reasons.push(`Esforço elevado: RPE ${rpeNum}/10`); flagged = true; logFlagged = true; }
+        if (lastLog.note) { reasons.push("Comentário do doente"); flagged = true; logFlagged = true; }
         if (hasAlteradoOutro) reasons.push("Exercício alterado");
         if (hasSkipped) reasons.push("Exercício não realizado/skipped");
-        if (alteradoQualquer) flagged = true;
+        if (alteradoQualquer) { flagged = true; logFlagged = true; }
+        if (logFlagged && lastLog.logged_at && (!signalAt || lastLog.logged_at > signalAt)) signalAt = lastLog.logged_at;
       }
       if (flagged) {
         needsAction.add(p.patient_id);
-        const acc = needsActionAcc.get(p.patient_id) || { reasons: new Set(), lastSessionAt: null };
+        const acc = needsActionAcc.get(p.patient_id) || { reasons: new Set(), lastSessionAt: null, prescriptionId: null, signalAt: null };
         reasons.forEach((r) => acc.reasons.add(r));
         if (lastSessionAt && (!acc.lastSessionAt || lastSessionAt > acc.lastSessionAt)) acc.lastSessionAt = lastSessionAt;
+        if (!acc.signalAt || (signalAt && signalAt > acc.signalAt)) {
+          acc.signalAt = signalAt;
+          acc.prescriptionId = p.id;
+        }
         needsActionAcc.set(p.patient_id, acc);
       }
 
@@ -798,7 +809,7 @@ async function loadHomeAcompanhamentoExercicio() {
       if (expiresAtMs - nowMs <= SEVEN_DAYS_MS) {
         endingSoon.add(p.patient_id);
         const acc = endingSoonAcc.get(p.patient_id);
-        if (!acc || expiresAtMs < acc.expiresAtMs) endingSoonAcc.set(p.patient_id, { expiresAtMs });
+        if (!acc || expiresAtMs < acc.expiresAtMs) endingSoonAcc.set(p.patient_id, { expiresAtMs, prescriptionId: p.id });
       }
 
       /* Sem atividade — sessões vencidas (date < hoje) sem log. */
@@ -809,9 +820,12 @@ async function loadHomeAcompanhamentoExercicio() {
       if (overdueDates.length) {
         inactive.add(p.patient_id);
         const mostRecentOverdue = overdueDates.reduce((a, b) => (b > a ? b : a));
-        const acc = inactiveAcc.get(p.patient_id) || { overdueCount: 0, mostRecentOverdueDate: null, lastSessionAt: null };
+        const acc = inactiveAcc.get(p.patient_id) || { overdueCount: 0, mostRecentOverdueDate: null, lastSessionAt: null, prescriptionId: null };
         acc.overdueCount += overdueDates.length;
-        if (!acc.mostRecentOverdueDate || mostRecentOverdue > acc.mostRecentOverdueDate) acc.mostRecentOverdueDate = mostRecentOverdue;
+        if (!acc.mostRecentOverdueDate || mostRecentOverdue > acc.mostRecentOverdueDate) {
+          acc.mostRecentOverdueDate = mostRecentOverdue;
+          acc.prescriptionId = p.id;
+        }
         if (lastSessionAt && (!acc.lastSessionAt || lastSessionAt > acc.lastSessionAt)) acc.lastSessionAt = lastSessionAt;
         inactiveAcc.set(p.patient_id, acc);
       }
@@ -822,14 +836,17 @@ async function loadHomeAcompanhamentoExercicio() {
     const regularPatientIds = new Set(
       [...allPatients].filter((pid) => !needsAction.has(pid) && !endingSoon.has(pid) && !inactive.has(pid))
     );
-    const regularAcc = new Map(); // patientId -> { expiresAtMs, lastSessionAt }
+    const regularAcc = new Map(); // patientId -> { expiresAtMs, lastSessionAt, prescriptionId }
     rows.forEach((p) => {
       if (!regularPatientIds.has(p.patient_id)) return;
       const expiresAtMs  = new Date(p.expires_at).getTime();
       const lastLog       = lastLogByPrescription.get(p.id);
       const lastSessionAt = lastLog?.logged_at || null;
-      const acc = regularAcc.get(p.patient_id) || { expiresAtMs: Infinity, lastSessionAt: null };
-      if (expiresAtMs < acc.expiresAtMs) acc.expiresAtMs = expiresAtMs;
+      const acc = regularAcc.get(p.patient_id) || { expiresAtMs: Infinity, lastSessionAt: null, prescriptionId: null };
+      if (expiresAtMs < acc.expiresAtMs) {
+        acc.expiresAtMs = expiresAtMs;
+        acc.prescriptionId = p.id;
+      }
       if (lastSessionAt && (!acc.lastSessionAt || lastSessionAt > acc.lastSessionAt)) acc.lastSessionAt = lastSessionAt;
       regularAcc.set(p.patient_id, acc);
     });
@@ -847,6 +864,7 @@ async function loadHomeAcompanhamentoExercicio() {
 
     const needsActionItems = [...needsActionAcc.entries()].map(([pid, acc]) => ({
       patientId: pid,
+      prescriptionId: acc.prescriptionId,
       name: nameByPatient.get(pid) || "—",
       subtitle: [...acc.reasons].join(" · "),
       meta: acc.lastSessionAt ? `Última sessão: ${fmtHomeAcompDatePt(acc.lastSessionAt)}` : null,
@@ -862,6 +880,7 @@ async function loadHomeAcompanhamentoExercicio() {
           })();
       return {
         patientId: pid,
+        prescriptionId: acc.prescriptionId,
         name: nameByPatient.get(pid) || "—",
         subtitle,
         meta: `Fim: ${fmtHomeAcompDatePt(acc.expiresAtMs)}`,
@@ -875,6 +894,7 @@ async function loadHomeAcompanhamentoExercicio() {
       if (acc.lastSessionAt) metaParts.push(`Última sessão realizada: ${fmtHomeAcompDatePt(acc.lastSessionAt)}`);
       return {
         patientId: pid,
+        prescriptionId: acc.prescriptionId,
         name: nameByPatient.get(pid) || "—",
         subtitle,
         meta: metaParts.join(" · ") || null,
@@ -883,6 +903,7 @@ async function loadHomeAcompanhamentoExercicio() {
 
     const regularItems = [...regularAcc.entries()].map(([pid, acc]) => ({
       patientId: pid,
+      prescriptionId: acc.prescriptionId,
       name: nameByPatient.get(pid) || "—",
       subtitle: "Acompanhamento regular",
       meta: [
