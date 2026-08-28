@@ -475,8 +475,11 @@ const ACOMP_CATEGORY_LABELS = {
 
 /* renderHomeAcompanhamentoList — lista compacta por doente, para a
    categoria selecionada. `items` já vem formatado (nome/subtítulo/meta)
-   por boot.js — este módulo só apresenta, não calcula regras. */
-export function renderHomeAcompanhamentoList(category, items, { onClose } = {}) {
+   por boot.js — este módulo só apresenta, não calcula regras. "Abrir
+   acompanhamento" só fica ativo quando o item já traz patientId E
+   prescriptionId (definidos por boot.js) — sem isso, fica desativado,
+   sem fallback nem escolha arbitrária de prescrição. */
+export function renderHomeAcompanhamentoList(category, items, { onClose, onOpen } = {}) {
   const root = document.getElementById("gcHomeAcompList");
   if (!root) return;
 
@@ -492,16 +495,27 @@ export function renderHomeAcompanhamentoList(category, items, { onClose } = {}) 
   if (!items || !items.length) {
     root.innerHTML = `${heading}<div class="gc-home-empty"><div class="gc-home-empty-icon">${ICON.check}</div><div><b>Sem doentes nesta categoria</b><p>Não há ninguém em "${escHomeHtml(title)}" neste âmbito.</p></div></div>`;
   } else {
-    root.innerHTML = `${heading}<div class="gc-home-acomp-items">${items.map((it) => `
+    root.innerHTML = `${heading}<div class="gc-home-acomp-items">${items.map((it) => {
+      const canOpen = !!(it.patientId && it.prescriptionId);
+      const openBtn = canOpen
+        ? `<button type="button" class="gc-home-acomp-item-open" data-patient-id="${escHomeHtml(it.patientId)}" data-prescription-id="${escHomeHtml(it.prescriptionId)}">Abrir acompanhamento</button>`
+        : `<button type="button" class="gc-home-acomp-item-open" disabled title="Sem prescrição associada">Abrir acompanhamento</button>`;
+      return `
       <div class="gc-home-acomp-item">
         <div class="gc-home-acomp-item-info">
           <span class="gc-home-acomp-item-name">${escHomeHtml(it.name || "—")}</span>
           <span class="gc-home-acomp-item-sub">Exercício${it.subtitle ? ` · ${escHomeHtml(it.subtitle)}` : ""}</span>
           ${it.meta ? `<span class="gc-home-acomp-item-meta">${escHomeHtml(it.meta)}</span>` : ""}
         </div>
-        <button type="button" class="gc-home-acomp-item-open" disabled title="Em preparação">Abrir acompanhamento</button>
-      </div>`).join("")}</div>`;
+        ${openBtn}
+      </div>`;
+    }).join("")}</div>`;
   }
 
   document.getElementById("gcHomeAcompClose")?.addEventListener("click", () => onClose?.());
+  root.querySelectorAll(".gc-home-acomp-item-open[data-patient-id]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      onOpen?.(btn.getAttribute("data-patient-id") || null, btn.getAttribute("data-prescription-id") || null);
+    });
+  });
 }

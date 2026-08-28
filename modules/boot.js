@@ -275,7 +275,7 @@ async function renderCurrentView() {
 
     wireHomeAcompFilterBar(homeAcompSelectedCategory, (category) => {
       homeAcompSelectedCategory = category;
-      renderHomeAcompanhamentoList(category, homeAcompDetail[category], { onClose: closeHomeAcompList });
+      renderHomeAcompanhamentoList(category, homeAcompDetail[category], { onClose: closeHomeAcompList, onOpen: onOpenAcompanhamento });
     });
 
     await Promise.all([
@@ -653,6 +653,21 @@ function closeHomeAcompList() {
   renderHomeAcompanhamentoList(null, null);
 }
 
+/* onOpenAcompanhamento — callback passado a renderHomeAcompanhamentoList,
+   invocado pelo botão "Abrir acompanhamento" de uma linha específica.
+   Usa exatamente o patientId/prescriptionId já presentes nesse item (nunca
+   procura de novo uma prescrição por patientId) e reutiliza o mecanismo de
+   navegação já existente (G.currentView + window.__gc_renderCurrentView),
+   o mesmo usado por agenda.js para abrir o Panorama do Doente. Segurança:
+   sem os dois IDs, não navega — o botão já vem desativado nesse caso. */
+function onOpenAcompanhamento(patientId, prescriptionId) {
+  if (!patientId || !prescriptionId) return;
+  G._exerciseFollowupPatientId = patientId;
+  G._exerciseFollowupPrescriptionId = prescriptionId;
+  G.currentView = "exercicio-acompanhamento";
+  if (typeof window.__gc_renderCurrentView === "function") window.__gc_renderCurrentView();
+}
+
 /* dd-mm-aaaa — aceita ISO completo, "yyyy-mm-dd" (datas de sessão) ou ms. */
 function fmtHomeAcompDatePt(value) {
   if (value == null) return null;
@@ -704,7 +719,7 @@ async function loadHomeAcompanhamentoExercicio() {
     if (!rows.length) {
       homeAcompDetail = { needsAction: [], endingSoon: [], inactive: [], regular: [] };
       setHomeAcompanhamentoStats({ total: 0, precisaAcao: 0, aTerminar: 0, semAtividade: 0, regular: 0 });
-      if (homeAcompSelectedCategory) renderHomeAcompanhamentoList(homeAcompSelectedCategory, [], { onClose: closeHomeAcompList });
+      if (homeAcompSelectedCategory) renderHomeAcompanhamentoList(homeAcompSelectedCategory, [], { onClose: closeHomeAcompList, onOpen: onOpenAcompanhamento });
       return;
     }
 
@@ -930,7 +945,7 @@ async function loadHomeAcompanhamentoExercicio() {
     /* Se já havia uma categoria selecionada (ex.: reentrada na vista Home
        com o DOM reconstruído), refrescar a lista com os dados novos. */
     if (homeAcompSelectedCategory) {
-      renderHomeAcompanhamentoList(homeAcompSelectedCategory, homeAcompDetail[homeAcompSelectedCategory], { onClose: closeHomeAcompList });
+      renderHomeAcompanhamentoList(homeAcompSelectedCategory, homeAcompDetail[homeAcompSelectedCategory], { onClose: closeHomeAcompList, onOpen: onOpenAcompanhamento });
     }
   } catch (e) {
     console.warn("Home: falha ao carregar acompanhamento de exercício:", e);
