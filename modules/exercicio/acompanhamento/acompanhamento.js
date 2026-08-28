@@ -33,6 +33,38 @@ function fmtDateTime(value) {
   }).format(d);
 }
 
+/* fmtSessionDate — formata datas "yyyy-mm-dd" (session_date/data de sessão)
+   como dd-mm-aaaa, forçando meia-noite LOCAL (evita o dia mudar por causa
+   de fuso horário quando a string não tem hora, mesmo padrão já usado em
+   fmtHomeAcompDatePt no Home). Devolve null (não "—") para poder distinguir
+   "sem data" de "data inválida" em quem chama. */
+function fmtSessionDate(value) {
+  if (!value) return null;
+  const isDateOnly = typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const d = isDateOnly ? new Date(`${value}T00:00:00`) : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
+}
+
+/* todayISODate — "yyyy-mm-dd" local, para comparar com session_date (string
+   ISO), sem depender de fuso do servidor. */
+function todayISODate() {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/* computeSetsCounts — contagem objetiva de sets[] alterados/não realizados
+   de um log, sem nomes de exercício (sem query a wo_exercises). Partilhada
+   pelo Bloco 1 e pela Linha temporal para não duplicar a mesma regra. */
+function computeSetsCounts(log) {
+  const sets = Array.isArray(log?.sets) ? log.sets : [];
+  const altered = sets.filter((e) => e?.status && e.status !== "as_prescribed" && e.status !== "skipped").length;
+  const skipped = sets.filter((e) => e?.status === "skipped").length;
+  return { altered, skipped };
+}
+
 function daysUntil(value) {
   if (!value) return null;
   const end = new Date(value);
@@ -64,6 +96,19 @@ function styles() {
 .gc-exfollow-quote{margin-top:10px;border:1px solid #e2e8f0;background:#f8fafc;border-radius:10px;padding:10px 12px;font-size:12.5px;color:#334155;white-space:pre-wrap}
 .gc-exfollow-quote b{display:block;font-size:11px;color:#64748b;margin-bottom:3px;font-weight:650}
 .gc-exfollow-meta{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:11.5px;color:#64748b}
+.gc-exfollow-timeline{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.gc-exfollow-tl-item{border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:10px 12px}
+.gc-exfollow-tl-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.gc-exfollow-tl-date{font-size:12.5px;font-weight:700;color:#0f172a}
+.gc-exfollow-tl-badge{font-size:11px;font-weight:650;border-radius:999px;padding:3px 9px;white-space:nowrap}
+.gc-exfollow-tl-lines{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;font-size:11.5px;color:#64748b}
+.gc-exfollow-tl-ok .gc-exfollow-tl-badge{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+.gc-exfollow-tl-today .gc-exfollow-tl-badge{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.gc-exfollow-tl-neutral .gc-exfollow-tl-badge{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}
+.gc-exfollow-tl-warn .gc-exfollow-tl-badge{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+.gc-exfollow-tl-removed{opacity:.7}
+.gc-exfollow-tl-removed .gc-exfollow-tl-badge{background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0}
+.gc-exfollow-tl-attention .gc-exfollow-tl-badge{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}
 .gc-exfollow-error{border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:10px;padding:12px 14px;font-size:12px}
 @media(max-width:800px){.gc-exfollow-grid{grid-template-columns:1fr}.gc-exfollow-head{flex-direction:column}.gc-exfollow-back{order:-1}}
 `;
@@ -99,9 +144,7 @@ function renderAttentionBlock(readiness, log) {
       signals.push("Comentário do doente");
       quotes.push({ label: "Comentário do doente", text: noteText });
     }
-    const sets = Array.isArray(log.sets) ? log.sets : [];
-    const alteredCount = sets.filter((e) => e?.status && e.status !== "as_prescribed" && e.status !== "skipped").length;
-    const skippedCount = sets.filter((e) => e?.status === "skipped").length;
+    const { altered: alteredCount, skipped: skippedCount } = computeSetsCounts(log);
     if (alteredCount > 0) signals.push(`${alteredCount} exercício${alteredCount === 1 ? "" : "s"} alterado${alteredCount === 1 ? "" : "s"}`);
     if (skippedCount > 0) signals.push(`${skippedCount} exercício${skippedCount === 1 ? "" : "s"} não realizado${skippedCount === 1 ? "" : "s"}`);
   }
@@ -123,7 +166,153 @@ function renderAttentionBlock(readiness, log) {
   return `${signalsHtml}${quotesHtml}${metaHtml}`;
 }
 
-function renderShell(root, patient, prescription, readiness, log) {
+/* buildTimelineSessions — união por session_id de 4 fontes (nunca só
+   data.sessions[], para não fazer desaparecer sessões removidas):
+   1) sessões presentes em prescription.data.sessions[]
+   2) wo_session_prescription_snapshots
+   3) wo_session_logs
+   4) wo_session_readiness
+   Nunca agrupa por data — há legitimamente duas sessões no mesmo dia. */
+function buildTimelineSessions(prescription, snapshots, readinessRows, logRows) {
+  const bySessionId = new Map();
+  const ensure = (sessionId) => {
+    if (!sessionId) return null;
+    if (!bySessionId.has(sessionId)) {
+      bySessionId.set(sessionId, { sessionId, inPlan: false, planDate: null, kind: null, snapshot: null, readiness: null, log: null });
+    }
+    return bySessionId.get(sessionId);
+  };
+
+  const planSessions = Array.isArray(prescription?.data?.sessions) ? prescription.data.sessions : [];
+  planSessions.forEach((s) => {
+    const entry = ensure(s?.session_id);
+    if (!entry) return;
+    entry.inPlan = true;
+    entry.planDate = s.date || null;
+    entry.kind = s.kind || null;
+  });
+
+  (snapshots || []).forEach((snap) => {
+    const entry = ensure(snap?.session_id);
+    if (entry) entry.snapshot = snap;
+  });
+
+  (readinessRows || []).forEach((r) => {
+    const entry = ensure(r?.session_id);
+    if (!entry) return;
+    const prevAt = entry.readiness ? new Date(entry.readiness.answered_at).getTime() : -Infinity;
+    const curAt = new Date(r?.answered_at).getTime();
+    if (!entry.readiness || (Number.isFinite(curAt) && curAt >= prevAt)) entry.readiness = r;
+  });
+
+  (logRows || []).forEach((l) => {
+    const entry = ensure(l?.session_id);
+    if (!entry) return;
+    const prevAt = entry.log ? new Date(entry.log.logged_at).getTime() : -Infinity;
+    const curAt = new Date(l?.logged_at).getTime();
+    if (!entry.log || (Number.isFinite(curAt) && curAt >= prevAt)) entry.log = l;
+  });
+
+  return [...bySessionId.values()];
+}
+
+/* resolveSessionDate — prioridade: snapshot.session_date > session.date do
+   array atual > null (nunca inventar). Devolve string "yyyy-mm-dd" crua,
+   própria para comparação lexicográfica com todayISODate(). */
+function resolveSessionDate(entry) {
+  return entry?.snapshot?.session_date || entry?.planDate || null;
+}
+
+/* classifySession — ordem obrigatória exata (log tem sempre prioridade
+   máxima: uma sessão com log nunca é classificada como removida, mesmo
+   com removed_at preenchido). */
+function classifySession(entry, todayISO) {
+  const hasLog = !!entry.log;
+  const hasReadiness = !!entry.readiness;
+  const frozenAt = entry.snapshot?.frozen_at || null;
+  const removedAt = entry.snapshot?.removed_at || null;
+  const sessionDate = resolveSessionDate(entry);
+
+  if (hasLog) return "REALIZADA";
+  if (removedAt && frozenAt) return "REMOVIDA_DEPOIS";
+  if (removedAt && !frozenAt) return "REMOVIDA_ANTES";
+  if (frozenAt || hasReadiness) return "INICIADA_SEM_REGISTO";
+  if (sessionDate && sessionDate < todayISO) return "NAO_REALIZADA";
+  if (sessionDate && sessionDate === todayISO && entry.inPlan) return "HOJE";
+  if (sessionDate && sessionDate > todayISO && entry.inPlan) return "PREVISTA";
+  return "INDETERMINADO";
+}
+
+const TIMELINE_STATUS_META = {
+  REALIZADA:            { label: "Realizada",                    css: "ok" },
+  HOJE:                 { label: "Hoje · Prevista",               css: "today" },
+  PREVISTA:             { label: "Prevista",                      css: "neutral" },
+  NAO_REALIZADA:        { label: "Não realizada",                 css: "warn" },
+  REMOVIDA_ANTES:       { label: "Removida antes de iniciar",     css: "removed" },
+  REMOVIDA_DEPOIS:      { label: "Removida depois de iniciada",   css: "removed" },
+  INICIADA_SEM_REGISTO: { label: "Iniciada · sem registo final",  css: "attention" },
+  INDETERMINADO:        { label: "Estado indeterminado",          css: "neutral" },
+};
+
+/* renderTimelineItem — cartão compacto por sessão. Só mostra o que existir
+   objetivamente nas 4 fontes; nunca nomes de exercício (sem wo_exercises). */
+function renderTimelineItem(entry, todayISO) {
+  const status = classifySession(entry, todayISO);
+  const meta = TIMELINE_STATUS_META[status] || TIMELINE_STATUS_META.INDETERMINADO;
+  const sessionDateRaw = resolveSessionDate(entry);
+  const sessionDateLabel = fmtSessionDate(sessionDateRaw) || "Data desconhecida";
+
+  const lines = [];
+  if (entry.kind) lines.push(entry.kind);
+  if (entry.readiness?.answered_at) lines.push(`Readiness: ${fmtDateTime(entry.readiness.answered_at)}`);
+  if (entry.readiness?.has_symptoms === true) lines.push("Sintomas reportados antes do treino");
+  if (entry.log?.logged_at) lines.push(`Registo final: ${fmtDateTime(entry.log.logged_at)}`);
+  if (entry.log?.rpe != null && entry.log?.rpe !== "") lines.push(`RPE ${entry.log.rpe}/10`);
+  if (entry.log?.feel != null && entry.log?.feel !== "") lines.push(`Sensação pós-treino: ${entry.log.feel}/5`);
+  const { altered, skipped } = computeSetsCounts(entry.log);
+  if (altered > 0) lines.push(`${altered} exercício${altered === 1 ? "" : "s"} alterado${altered === 1 ? "" : "s"}`);
+  if (skipped > 0) lines.push(`${skipped} exercício${skipped === 1 ? "" : "s"} não realizado${skipped === 1 ? "" : "s"}`);
+
+  const quotes = [];
+  const symptomNote = entry.readiness?.has_symptoms === true ? String(entry.readiness?.symptom_note || "").trim() : "";
+  if (symptomNote) quotes.push({ label: "Sintomas reportados pelo doente", text: symptomNote });
+  const noteText = String(entry.log?.note || "").trim();
+  if (noteText) quotes.push({ label: "Comentário do doente", text: noteText });
+
+  return `
+    <div class="gc-exfollow-tl-item gc-exfollow-tl-${meta.css}">
+      <div class="gc-exfollow-tl-head">
+        <span class="gc-exfollow-tl-date">${esc(sessionDateLabel)}</span>
+        <span class="gc-exfollow-tl-badge">${esc(meta.label)}</span>
+      </div>
+      ${lines.length ? `<div class="gc-exfollow-tl-lines">${lines.map((l) => `<span>${esc(l)}</span>`).join("")}</div>` : ""}
+      ${quotes.map((q) => `<div class="gc-exfollow-quote"><b>${esc(q.label)}</b>${esc(q.text)}</div>`).join("")}
+    </div>`;
+}
+
+/* renderTimelineBlock — Bloco 2 ("Linha temporal do plano"). Ordena por
+   data resolvida (sessões sem data conhecida ficam no fim, sem inventar
+   posição cronológica para elas). */
+function renderTimelineBlock(prescription, snapshots, readinessRows, logRows) {
+  const entries = buildTimelineSessions(prescription, snapshots, readinessRows, logRows);
+  if (!entries.length) {
+    return `<div class="gc-exfollow-empty">Não existem sessões disponíveis para apresentar.</div>`;
+  }
+
+  const todayISO = todayISODate();
+  entries.sort((a, b) => {
+    const da = resolveSessionDate(a);
+    const db = resolveSessionDate(b);
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    return da < db ? -1 : da > db ? 1 : 0;
+  });
+
+  return `<div class="gc-exfollow-timeline">${entries.map((e) => renderTimelineItem(e, todayISO)).join("")}</div>`;
+}
+
+function renderShell(root, patient, prescription, readiness, log, snapshots, readinessRows, logRows) {
   const remaining = daysUntil(prescription?.expires_at);
   const endLabel = remaining === null
     ? "—"
@@ -160,7 +349,7 @@ function renderShell(root, patient, prescription, readiness, log) {
       <div class="gc-exfollow-section">
         <h2>Linha temporal do plano</h2>
         <p>Sessões realizadas, previstas, não realizadas e removidas.</p>
-        <div class="gc-exfollow-empty">Estrutura preparada.</div>
+        ${renderTimelineBlock(prescription, snapshots, readinessRows, logRows)}
       </div>
 
       <div class="gc-exfollow-section">
@@ -192,15 +381,17 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
     return;
   }
 
-  const [patientRes, prescriptionRes, readinessRes, logsRes] = await Promise.all([
+  const [patientRes, prescriptionRes, snapshotsRes, readinessRes, logsRes] = await Promise.all([
     window.sb.from("patients").select("id, full_name").eq("id", patientId).maybeSingle(),
-    window.sb.from("wo_prescriptions").select("id, patient_id, clinic_id, status, created_at, expires_at, first_opened_at").eq("id", prescriptionId).eq("patient_id", patientId).maybeSingle(),
-    window.sb.from("wo_session_readiness").select("session_id, has_symptoms, symptom_note, answered_at").eq("prescription_id", prescriptionId).order("answered_at", { ascending: false }).limit(1),
-    window.sb.from("wo_session_logs").select("session_id, logged_at, rpe, feel, note, sets").eq("prescription_id", prescriptionId).order("logged_at", { ascending: false }).limit(1),
+    window.sb.from("wo_prescriptions").select("id, patient_id, clinic_id, status, created_at, expires_at, first_opened_at, data").eq("id", prescriptionId).eq("patient_id", patientId).maybeSingle(),
+    window.sb.from("wo_session_prescription_snapshots").select("session_id, session_date, frozen_at, removed_at").eq("prescription_id", prescriptionId),
+    window.sb.from("wo_session_readiness").select("session_id, answered_at, has_symptoms, symptom_note").eq("prescription_id", prescriptionId),
+    window.sb.from("wo_session_logs").select("session_id, logged_at, rpe, feel, note, sets").eq("prescription_id", prescriptionId),
   ]);
 
   if (patientRes.error) throw patientRes.error;
   if (prescriptionRes.error) throw prescriptionRes.error;
+  if (snapshotsRes.error) throw snapshotsRes.error;
   if (readinessRes.error) throw readinessRes.error;
   if (logsRes.error) throw logsRes.error;
   if (!patientRes.data || !prescriptionRes.data) {
@@ -208,10 +399,16 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
     return;
   }
 
-  const latestReadiness = (readinessRes.data || [])[0] || null;
-  const latestLog = (logsRes.data || [])[0] || null;
+  const snapshots = snapshotsRes.data || [];
+  const readinessRows = readinessRes.data || [];
+  const logRows = logsRes.data || [];
 
-  renderShell(root, patientRes.data, prescriptionRes.data, latestReadiness, latestLog);
+  /* Bloco 1 reutiliza os mesmos arrays completos (sem query duplicada):
+     "mais recente" = maior answered_at/logged_at dentro do array já carregado. */
+  const latestReadiness = [...readinessRows].sort((a, b) => new Date(b.answered_at) - new Date(a.answered_at))[0] || null;
+  const latestLog = [...logRows].sort((a, b) => new Date(b.logged_at) - new Date(a.logged_at))[0] || null;
+
+  renderShell(root, patientRes.data, prescriptionRes.data, latestReadiness, latestLog, snapshots, readinessRows, logRows);
 
   document.getElementById("gcExFollowBack")?.addEventListener("click", () => {
     if (typeof onBack === "function") onBack();
