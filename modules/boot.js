@@ -17,11 +17,13 @@ import {
 import {
   setHomeDashboardConsultasHoje,
   setHomeDashboardPedidosOnline,
-  setHomeDashboardConsentimentos,
   setHomeDashboardAlertStats,
   renderHomeDashboardAlerts,
   renderHomeClinicSelect,
   renderHomeConsultasBreakdown,
+  wireHomeAlertFilterBar,
+  wirePedidosOnlineToggle,
+  renderHomePedidosOnlineList,
 }                                          from "./home-dashboard.js";
 import {
   setAgendaSubtitleForSelectedDay,
@@ -51,6 +53,12 @@ const PRESCRICAO_JS_VERSION = '2026-08-25-3';
    é copiado para lá no momento explícito de abrir a Agenda. */
 let homeClinicId = null;
 let homeClinicIdInitialized = false;
+
+/* Filtro da barra de alertas do Home — filtra só em memória as listas já
+   carregadas por loadHomeAlerts(); nunca dispara uma query nova. */
+let homeAlertFilter = "all";
+let homePendingAlertsSorted = [];
+let homeResolvedTodayAlerts = [];
 
 /* ====================================================================
    BLOCO 11B — Boot principal
@@ -228,13 +236,33 @@ async function renderCurrentView() {
 
     renderHomeClinicSelect(G.clinics, homeClinicId, (newClinicId) => {
       homeClinicId = newClinicId || null;
-      loadHomeConsultasHoje();
+      /* Só recarrega dados clinic-scoped já reais do Home — nunca navega
+         nem toca em G.activeClinicId aqui. */
+      Promise.all([
+        loadHomeConsultasHoje(),
+        loadHomePedidosOnlinePendentes(),
+        loadHomeAlerts(),
+      ]);
+      /* Painel de Pedidos online: só recarrega a lista se já estiver
+         aberto (sem o atributo "hidden"); fechado, não faz query extra. */
+      const pedidosExpand = document.getElementById("gcHomePedidosExpand");
+      if (pedidosExpand && !pedidosExpand.hasAttribute("hidden")) {
+        loadHomePedidosOnlineList();
+      }
+    });
+
+    wireHomeAlertFilterBar(homeAlertFilter, (newFilter) => {
+      homeAlertFilter = newFilter || "all";
+      applyHomeAlertFilter();
+    });
+
+    wirePedidosOnlineToggle(() => {
+      loadHomePedidosOnlineList();
     });
 
     await Promise.all([
       loadHomeConsultasHoje(),
       loadHomePedidosOnlinePendentes(),
-      loadHomeConsentimentosPendentes(),
       loadHomeAlerts(),
     ]);
     return;
@@ -445,7 +473,7 @@ async function loadHomePedidosOnlinePendentes() {
       .from("patient_uploads")
       .select("id", { count: "exact", head: true })
       .eq("status", "pendente");
-    if (G.activeClinicId) q = q.eq("clinic_id", G.activeClinicId);
+    if (homeClinicId) q = q.eq("clinic_id", homeClinicId);
 
     const { count, error } = await q;
     if (error) throw error;
@@ -457,63 +485,28 @@ async function loadHomePedidosOnlinePendentes() {
 }
 
 /* ====================================================================
-   loadHomeConsentimentosPendentes — pares patient_id::clinic_id de
-   consultas de hoje sem RGPD resolvido (signed/paper_signed), mesma
-   regra "ever signed" e o mesmo scope patient_id+clinic_id corrigidos
-   em gestaoagenda.js (commit df1a897). Loader independente — não
-   reutiliza loadHomeConsultasHoje() para não lhe alterar o contrato.
+   loadHomePedidosOnlineList — lista real dos pedidos pendentes, só
+   carregada quando o cartão "Pedidos online" é expandido (não corre no
+   Promise.all inicial). Mesma tabela/filtro/scope de clínica que
+   loadHomePedidosOnlinePendentes() e que loadAndRenderPendentes()
+   (agenda.js) — mesmas colunas relevantes, sem a parte de UI/estado
+   dessa função (que é privada e depende de #pendentesSection).
    ==================================================================== */
-async function loadHomeConsentimentosPendentes() {
+async function loadHomePedidosOnlineList() {
   try {
-    const r = isoLocalDayRangeFromISODate(fmtDateISO(new Date()));
-    if (!r) { setHomeDashboardConsentimentos(null); return; }
+    let q = window.sb
+      .from("patient_uploads")
+      .select("id, created_at, tipo, clinic_id, atleta_nome")
+      .eq("status", "pendente")
+      .order("created_at", { ascending: true });
+    if (homeClinicId) q = q.eq("clinic_id", homeClinicId);
 
-    const { data } = await loadAppointmentsForRange({
-      clinicId: G.activeClinicId || null,
-      startISO: r.startISO,
-      endISO:   r.endISO,
-    });
-
-    const todayPairs = new Set();
-    (data || []).forEach((row) => {
-      if (String(row?.mode || "").toLowerCase() === "bloqueio") return;
-      if (!row?.patient_id || !row?.clinic_id) return;
-      todayPairs.add(`${row.patient_id}::${row.clinic_id}`);
-    });
-
-    if (!todayPairs.size) { setHomeDashboardConsentimentos(0); return; }
-
-    const patientIds = [...new Set([...todayPairs].map((key) => key.split("::")[0]))];
-    const resolvedPairs = new Set();
-
-    const { data: cd, error: cdErr } = await window.sb
-      .from("consents")
-      .select("patient_id, clinic_id, status")
-      .in("patient_id", patientIds)
-      .eq("type", "rgpd");
-    if (cdErr) throw cdErr;
-    (cd || []).forEach((c) => {
-      if (c.status === "signed" || c.status === "paper_signed") {
-        resolvedPairs.add(`${c.patient_id}::${c.clinic_id}`);
-      }
-    });
-
-    const { data: ct, error: ctErr } = await window.sb
-      .from("consent_tokens")
-      .select("patient_id, clinic_id")
-      .in("patient_id", patientIds)
-      .eq("document_type", "rgpd")
-      .eq("status", "signed");
-    if (ctErr) throw ctErr;
-    (ct || []).forEach((t) => {
-      resolvedPairs.add(`${t.patient_id}::${t.clinic_id}`);
-    });
-
-    const pending = [...todayPairs].filter((key) => !resolvedPairs.has(key)).length;
-    setHomeDashboardConsentimentos(pending);
+    const { data, error } = await q;
+    if (error) throw error;
+    renderHomePedidosOnlineList(data || [], { onOpenAgenda: openHomeAgendaForClinic });
   } catch (e) {
-    console.warn("Home: falha ao carregar consentimentos pendentes:", e);
-    setHomeDashboardConsentimentos(null);
+    console.warn("Home: falha ao carregar lista de pedidos online:", e);
+    renderHomePedidosOnlineList(null, { onOpenAgenda: openHomeAgendaForClinic });
   }
 }
 
@@ -526,15 +519,16 @@ async function loadHomeConsentimentosPendentes() {
    source ∈ {website,exercise,diary,questionnaire,consent,system}.
    ==================================================================== */
 const HOME_ALERT_SEVERITY_ORDER = { urgent: 0, attention: 1, info: 2 };
+const HOME_ALERT_SELECT_COLUMNS = "id, clinic_id, patient_id, source, event_type, severity, title, message, target_url, created_at, resolved_at";
 
 async function loadHomeAlerts() {
   try {
     let q = window.sb
       .from("alerts")
-      .select("id, clinic_id, patient_id, source, event_type, severity, title, message, target_url, created_at")
+      .select(HOME_ALERT_SELECT_COLUMNS)
       .is("resolved_at", null)
       .order("created_at", { ascending: false });
-    if (G.activeClinicId) q = q.eq("clinic_id", G.activeClinicId);
+    if (homeClinicId) q = q.eq("clinic_id", homeClinicId);
 
     const { data: pending, error } = await q;
     if (error) throw error;
@@ -544,38 +538,59 @@ async function loadHomeAlerts() {
     const attention = rows.filter((a) => a.severity === "attention").length;
     const info      = rows.filter((a) => a.severity === "info").length;
 
-    let resolvedToday = 0;
+    /* Mesma leitura que antes só contava (head:true) — transformada em
+       leitura das linhas para poder alimentar o filtro "Resolvidos" sem
+       criar uma segunda query. */
+    let resolvedRows = [];
     const r = isoLocalDayRangeFromISODate(fmtDateISO(new Date()));
     if (r) {
       let rq = window.sb
         .from("alerts")
-        .select("id", { count: "exact", head: true })
+        .select(HOME_ALERT_SELECT_COLUMNS)
         .gte("resolved_at", r.startISO)
-        .lt("resolved_at", r.endISO);
-      if (G.activeClinicId) rq = rq.eq("clinic_id", G.activeClinicId);
-      const { count, error: rErr } = await rq;
+        .lt("resolved_at", r.endISO)
+        .order("resolved_at", { ascending: false });
+      if (homeClinicId) rq = rq.eq("clinic_id", homeClinicId);
+      const { data: resolved, error: rErr } = await rq;
       if (rErr) throw rErr;
-      resolvedToday = count ?? 0;
+      resolvedRows = resolved || [];
     }
 
-    setHomeDashboardAlertStats({ urgent, attention, info, resolvedToday });
+    setHomeDashboardAlertStats({ urgent, attention, info, resolvedToday: resolvedRows.length });
 
-    const sorted = rows.slice().sort((a, b) => {
+    homePendingAlertsSorted = rows.slice().sort((a, b) => {
       const sa = HOME_ALERT_SEVERITY_ORDER[a.severity] ?? 3;
       const sb = HOME_ALERT_SEVERITY_ORDER[b.severity] ?? 3;
       if (sa !== sb) return sa - sb;
       return new Date(b.created_at) - new Date(a.created_at);
     });
+    homeResolvedTodayAlerts = resolvedRows;
 
-    renderHomeDashboardAlerts(sorted, {
-      onOpen: (url) => { if (url) window.open(url, "_blank", "noopener"); },
-      onResolve: (alertId) => { resolveHomeAlert(alertId); },
-    });
+    applyHomeAlertFilter();
   } catch (e) {
     console.warn("Home: falha ao carregar alertas:", e);
     setHomeDashboardAlertStats(null);
+    homePendingAlertsSorted = [];
+    homeResolvedTodayAlerts = [];
     renderHomeDashboardAlerts(null);
   }
+}
+
+/* applyHomeAlertFilter — filtra em memória (pendentes ou resolvidosHoje,
+   já carregados por loadHomeAlerts) segundo homeAlertFilter; nunca faz
+   query. No filtro "resolved", os itens já têm resolved_at preenchido —
+   renderHomeDashboardAlerts omite o botão "Resolvido" nesses casos. */
+function applyHomeAlertFilter() {
+  const filtered = homeAlertFilter === "resolved"
+    ? homeResolvedTodayAlerts
+    : homeAlertFilter === "all"
+      ? homePendingAlertsSorted
+      : homePendingAlertsSorted.filter((a) => a.severity === homeAlertFilter);
+
+  renderHomeDashboardAlerts(filtered, {
+    onOpen: (url) => { if (url) window.open(url, "_blank", "noopener"); },
+    onResolve: (alertId) => { resolveHomeAlert(alertId); },
+  });
 }
 
 /* resolveHomeAlert — marca explicitamente como resolvido (resolved_at/

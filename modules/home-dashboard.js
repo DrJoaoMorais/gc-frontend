@@ -1,4 +1,4 @@
-/* Home Dashboard — esqueleto visual validado; sem dados reais nesta fase. */
+/* Home Dashboard — painel clínico-operacional do médico (V1). */
 
 const ICON = {
   alert: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 2.9 1.8 17a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 2.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`,
@@ -12,18 +12,29 @@ export function homeDashboardHtml() {
   return `
     <section class="gc-home">
       <div class="gc-home-head">
-        <div><div class="gc-home-title">Bom dia, Dr. João</div><div class="gc-home-sub">Aqui está o que precisa da sua atenção hoje.</div></div>
+        <div><div class="gc-home-title">Início</div><div class="gc-home-sub">Panorama clínico e operacional</div></div>
         <div class="gc-home-head-actions">
           <select id="gcHomeClinicSelect" class="gc-home-clinic-select"><option value="">Todas as clínicas</option></select>
           <button class="gc-home-agenda-btn" data-home-action="agenda">${ICON.calendar}<span>Agenda de hoje</span></button>
         </div>
       </div>
 
-      <div class="gc-home-kpis">
-        <div class="gc-home-kpi gc-home-kpi-red"><div class="gc-home-kpi-icon">${ICON.alert}</div><div><b>Urgentes</b><strong id="gcHomeStatUrgentes">—</strong><span>A ligar aos alertas</span></div></div>
-        <div class="gc-home-kpi gc-home-kpi-orange"><div class="gc-home-kpi-icon">${ICON.clock}</div><div><b>Atenção</b><strong id="gcHomeStatAtencao">—</strong><span>A ligar aos alertas</span></div></div>
-        <div class="gc-home-kpi gc-home-kpi-blue"><div class="gc-home-kpi-icon">${ICON.inbox}</div><div><b>Novos</b><strong id="gcHomeStatNovos">—</strong><span>A ligar aos alertas</span></div></div>
-        <div class="gc-home-kpi gc-home-kpi-green"><div class="gc-home-kpi-icon">${ICON.check}</div><div><b>Resolvidos</b><strong id="gcHomeStatResolvidos">—</strong><span>Hoje</span></div></div>
+      <div class="gc-home-today">
+        <div><b>Consultas hoje</b><strong id="gcHomeStatConsultas">—</strong><div id="gcHomeConsultasBreakdown" class="gc-home-consultas-breakdown"></div></div>
+        <div id="gcHomePedidosCard" class="gc-home-clickable-card" role="button" tabindex="0" aria-expanded="false">
+          <b>Pedidos online</b><strong id="gcHomeStatPedidosOnline">—</strong>
+          <small class="gc-home-card-hint">Pendentes <span class="gc-home-pedidos-caret">▾</span></small>
+        </div>
+        <div><b>Assuntos a tratar</b><strong id="gcHomeStatAssuntos">—</strong><small class="gc-home-card-muted">Ainda não configurado</small></div>
+      </div>
+      <div id="gcHomePedidosExpand" class="gc-home-pedidos-expand" hidden></div>
+
+      <div class="gc-home-alertbar" id="gcHomeAlertBar">
+        <button type="button" class="gc-home-alertbar-item on" data-alert-filter="all"><span>Todos</span><strong id="gcHomeStatTodos">—</strong></button>
+        <button type="button" class="gc-home-alertbar-item urgent" data-alert-filter="urgent"><span>Urgentes</span><strong id="gcHomeStatUrgentes">—</strong></button>
+        <button type="button" class="gc-home-alertbar-item attention" data-alert-filter="attention"><span>Atenção</span><strong id="gcHomeStatAtencao">—</strong></button>
+        <button type="button" class="gc-home-alertbar-item info" data-alert-filter="info"><span>Novos</span><strong id="gcHomeStatNovos">—</strong></button>
+        <button type="button" class="gc-home-alertbar-item resolved" data-alert-filter="resolved"><span>Resolvidos</span><strong id="gcHomeStatResolvidos">—</strong></button>
       </div>
 
       <div class="gc-home-section-head"><div><h2>Precisa da sua atenção</h2><p>Alertas clínicos e operacionais pendentes</p></div><button type="button" id="gcHomeAlertsToggle" style="display:none;">Ver todos</button></div>
@@ -34,18 +45,131 @@ export function homeDashboardHtml() {
         </div>
       </div>
 
-      <div class="gc-home-section-head gc-home-today-head"><div><h2>Hoje</h2><p>Resumo rápido da atividade</p></div></div>
-      <div class="gc-home-today">
-        <div><b>Consultas</b><strong id="gcHomeStatConsultas">—</strong><div id="gcHomeConsultasBreakdown" class="gc-home-consultas-breakdown"></div></div>
-        <div><b>Pedidos online</b><strong id="gcHomeStatPedidosOnline">—</strong><small>A ligar aos pedidos</small></div>
-        <div><b>Consentimentos</b><strong id="gcHomeStatConsentimentos">—</strong><small>A ligar aos pendentes</small></div>
+      <div class="gc-home-section-head"><div><h2>Acompanhamento ativo</h2><p id="gcHomeAcompSub">— doentes</p></div></div>
+      <div class="gc-home-acomp">
+        <div class="gc-home-acomp-stats">
+          <div><b>Precisa de ação</b><strong id="gcHomeAcompAcao">—</strong></div>
+          <div><b>A terminar</b><strong id="gcHomeAcompTerminar">—</strong></div>
+          <div><b>Sem atividade</b><strong id="gcHomeAcompSemAtiv">—</strong></div>
+          <div><b>Regular</b><strong id="gcHomeAcompRegular">—</strong></div>
+        </div>
+        <div id="gcHomeAcompList" class="gc-home-acomp-list"></div>
+        <button type="button" class="gc-home-acomp-viewall" id="gcHomeAcompViewAll" disabled>Ver todos os acompanhamentos</button>
       </div>
     </section>`;
 }
 
 export function homeDashboardStyles() {
   return `
-.gc-home{max-width:1180px;margin:0 auto;padding:4px 2px 36px}.gc-home-head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:24px}.gc-home-title{font-size:27px;font-weight:780;letter-spacing:-.6px;color:#0f2d52}.gc-home-sub{margin-top:4px;color:#64748b;font-size:13px}.gc-home-agenda-btn{display:flex;align-items:center;gap:8px;border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:10px;padding:9px 13px;font:650 13px/1.2 inherit;cursor:pointer}.gc-home-head-actions{display:flex;align-items:center;gap:10px}.gc-home-clinic-select{border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:10px;padding:9px 12px;font:600 13px/1.2 inherit;cursor:pointer}.gc-home-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.gc-home-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:13px;padding:16px;display:flex;gap:13px;min-height:112px;box-shadow:0 1px 3px rgba(15,45,82,.04)}.gc-home-kpi-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}.gc-home-kpi b{display:block;font-size:12px;color:#475569;margin-bottom:3px}.gc-home-kpi strong{display:block;font-size:27px;line-height:1.05;color:#0f172a}.gc-home-kpi span{display:block;font-size:11px;color:#94a3b8;margin-top:7px}.gc-home-kpi-red{border-left:3px solid #dc2626}.gc-home-kpi-red .gc-home-kpi-icon{background:#fef2f2;color:#dc2626}.gc-home-kpi-orange{border-left:3px solid #ea580c}.gc-home-kpi-orange .gc-home-kpi-icon{background:#fff7ed;color:#ea580c}.gc-home-kpi-blue{border-left:3px solid #2563eb}.gc-home-kpi-blue .gc-home-kpi-icon{background:#eff6ff;color:#2563eb}.gc-home-kpi-green{border-left:3px solid #16a34a}.gc-home-kpi-green .gc-home-kpi-icon{background:#f0fdf4;color:#16a34a}.gc-home-section-head{display:flex;align-items:end;justify-content:space-between;margin-top:28px;margin-bottom:10px}.gc-home-section-head h2{font-size:16px;color:#0f2d52;margin:0}.gc-home-section-head p{font-size:11px;color:#94a3b8;margin:3px 0 0}.gc-home-section-head button{border:0;background:transparent;color:#2563eb;font:650 12px inherit;cursor:pointer}.gc-home-empty{background:#fff;border:1px solid #e2e8f0;border-radius:13px;min-height:138px;display:flex;align-items:center;justify-content:center;gap:13px;color:#475569}.gc-home-empty-icon{width:42px;height:42px;border-radius:50%;background:#f1f5f9;color:#64748b;display:flex;align-items:center;justify-content:center}.gc-home-empty b{font-size:13px}.gc-home-empty p{font-size:11px;color:#94a3b8;margin:4px 0 0}.gc-home-alerts{display:flex;flex-direction:column;gap:8px}.gc-home-alerts-extra{flex-direction:column;gap:8px;margin-top:8px}.gc-home-alert-row{display:flex;align-items:flex-start;gap:12px;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #cbd5e1;border-radius:12px;padding:12px 14px}.gc-home-alert-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;background:#f1f5f9;color:#64748b}.gc-home-alert-urgent{border-left-color:#dc2626}.gc-home-alert-urgent .gc-home-alert-icon{background:#fef2f2;color:#dc2626}.gc-home-alert-attention{border-left-color:#ea580c}.gc-home-alert-attention .gc-home-alert-icon{background:#fff7ed;color:#ea580c}.gc-home-alert-info{border-left-color:#2563eb}.gc-home-alert-info .gc-home-alert-icon{background:#eff6ff;color:#2563eb}.gc-home-alert-body{flex:1;min-width:0}.gc-home-alert-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.gc-home-alert-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:#475569}.gc-home-alert-source{font-size:11px;color:#94a3b8}.gc-home-alert-time{font-size:11px;color:#94a3b8;margin-left:auto}.gc-home-alert-title{font-size:13px;font-weight:700;color:#0f172a;margin-top:2px}.gc-home-alert-msg{font-size:12px;color:#64748b;margin-top:2px}.gc-home-alert-actions{display:flex;gap:6px;flex:0 0 auto;align-items:flex-start}.gc-home-alert-open,.gc-home-alert-resolve{font-size:11.5px;font-weight:650;border-radius:8px;padding:6px 10px;cursor:pointer;white-space:nowrap;font-family:inherit}.gc-home-alert-open{border:1px solid #cbd5e1;background:#fff;color:#0f2d52}.gc-home-alert-resolve{border:1px solid #a7f3d0;background:#ecfdf5;color:#065f46}.gc-home-today-head{margin-top:24px}.gc-home-today{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start}.gc-home-today>div{border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:14px 16px;text-align:left;min-height:91px;font-family:inherit;color:#0f172a}.gc-home-today>div b{display:block;font-size:12px;color:#475569}.gc-home-today>div strong{display:block;font-size:22px;margin-top:4px}.gc-home-today>div small{font-size:11px;color:#94a3b8}.gc-home-consultas-breakdown{margin-top:8px;display:flex;flex-direction:column;gap:2px}.gc-home-consultas-row{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;border:none;background:transparent;padding:3px 0;font:inherit;cursor:pointer;text-align:left}.gc-home-consultas-row:hover .gc-home-consultas-row-name{color:#1a56db;text-decoration:underline}.gc-home-consultas-row-name{font-size:11.5px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gc-home-consultas-row-count{font-size:11.5px;font-weight:700;color:#0f172a;flex-shrink:0}.gc-home [data-home-action="agenda"]:hover{border-color:#93c5fd;background:#f8fbff}@media(max-width:900px){.gc-home-kpis{grid-template-columns:repeat(2,1fr)}.gc-home-today{grid-template-columns:repeat(2,1fr)}}@media(max-width:600px){.gc-home{padding:2px 0 24px}.gc-home-head{align-items:flex-start}.gc-home-head-actions{width:100%;justify-content:space-between}.gc-home-title{font-size:22px}.gc-home-agenda-btn span{display:none}.gc-home-kpis{grid-template-columns:1fr 1fr;gap:9px}.gc-home-kpi{padding:12px;min-height:98px}.gc-home-kpi-icon{display:none}.gc-home-today{grid-template-columns:1fr}.gc-home-empty{padding:22px 16px;justify-content:flex-start}}
+.gc-home{max-width:1180px;margin:0 auto;padding:4px 2px 36px}
+.gc-home-head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:24px}
+.gc-home-title{font-size:27px;font-weight:780;letter-spacing:-.6px;color:#0f2d52}
+.gc-home-sub{margin-top:4px;color:#64748b;font-size:13px}
+.gc-home-agenda-btn{display:flex;align-items:center;gap:8px;border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:10px;padding:9px 13px;font:650 13px/1.2 inherit;cursor:pointer}
+.gc-home-head-actions{display:flex;align-items:center;gap:10px}
+.gc-home-clinic-select{border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:10px;padding:9px 12px;font:600 13px/1.2 inherit;cursor:pointer}
+.gc-home-section-head{display:flex;align-items:end;justify-content:space-between;margin-top:28px;margin-bottom:10px}
+.gc-home-section-head h2{font-size:16px;color:#0f2d52;margin:0}
+.gc-home-section-head p{font-size:11px;color:#94a3b8;margin:3px 0 0}
+.gc-home-section-head button{border:0;background:transparent;color:#2563eb;font:650 12px inherit;cursor:pointer}
+.gc-home-empty{background:#fff;border:1px solid #e2e8f0;border-radius:13px;min-height:138px;display:flex;align-items:center;justify-content:center;gap:13px;color:#475569}
+.gc-home-empty-icon{width:42px;height:42px;border-radius:50%;background:#f1f5f9;color:#64748b;display:flex;align-items:center;justify-content:center}
+.gc-home-empty b{font-size:13px}
+.gc-home-empty p{font-size:11px;color:#94a3b8;margin:4px 0 0}
+
+/* Primeira linha — 3 cartões */
+.gc-home-today{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start}
+.gc-home-today>div{border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:14px 16px;text-align:left;min-height:91px;font-family:inherit;color:#0f172a}
+.gc-home-today>div b{display:block;font-size:12px;color:#475569}
+.gc-home-today>div strong{display:block;font-size:22px;margin-top:4px}
+.gc-home-today>div small{font-size:11px;color:#94a3b8}
+.gc-home-card-muted{font-style:italic}
+.gc-home-consultas-breakdown{margin-top:8px;display:flex;flex-direction:column;gap:2px}
+.gc-home-consultas-row{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;border:none;background:transparent;padding:3px 0;font:inherit;cursor:pointer;text-align:left}
+.gc-home-consultas-row:hover .gc-home-consultas-row-name{color:#1a56db;text-decoration:underline}
+.gc-home-consultas-row-name{font-size:11.5px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gc-home-consultas-row-count{font-size:11.5px;font-weight:700;color:#0f172a;flex-shrink:0}
+.gc-home-clickable-card{cursor:pointer;transition:border-color .12s,box-shadow .12s}
+.gc-home-clickable-card:hover{border-color:#93c5fd;box-shadow:0 1px 4px rgba(15,45,82,.08)}
+.gc-home-clickable-card:focus-visible{outline:2px solid #93c5fd;outline-offset:2px}
+.gc-home-card-hint{display:flex;align-items:center;gap:4px}
+.gc-home-pedidos-caret{display:inline-block;transition:transform .15s}
+.gc-home-clickable-card[aria-expanded="true"] .gc-home-pedidos-caret{transform:rotate(180deg)}
+
+/* Pedidos online — expansão */
+.gc-home-pedidos-expand{margin-top:10px}
+.gc-home-pedidos-list{display:flex;flex-direction:column;gap:8px}
+.gc-home-pedido-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #f59e0b;border-radius:12px;padding:11px 14px}
+.gc-home-pedido-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.gc-home-pedido-info strong{font-size:13px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gc-home-pedido-info span{font-size:11.5px;color:#94a3b8}
+.gc-home-pedido-open{flex-shrink:0;font-size:11.5px;font-weight:650;border-radius:8px;padding:6px 10px;cursor:pointer;white-space:nowrap;font-family:inherit;border:1px solid #cbd5e1;background:#fff;color:#0f2d52}
+.gc-home-pedido-open:hover{border-color:#93c5fd;background:#f8fbff}
+
+/* Barra compacta de alertas */
+.gc-home-alertbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.gc-home-alertbar-item{display:flex;align-items:center;gap:6px;border:1px solid #e2e8f0;background:#fff;border-radius:999px;padding:6px 12px;font:inherit;cursor:default}
+button.gc-home-alertbar-item{cursor:pointer}
+button.gc-home-alertbar-item:hover{border-color:#93c5fd}
+.gc-home-alertbar-item span{font-size:11.5px;color:#64748b;font-weight:600}
+.gc-home-alertbar-item strong{font-size:13px;color:#0f172a;font-weight:800}
+.gc-home-alertbar-item.on{border-color:#0f2d52;background:#0f2d52}
+.gc-home-alertbar-item.on span{color:rgba(255,255,255,.75)}
+.gc-home-alertbar-item.on strong{color:#fff}
+.gc-home-alertbar-item.urgent strong{color:#dc2626}
+.gc-home-alertbar-item.attention strong{color:#ea580c}
+.gc-home-alertbar-item.info strong{color:#2563eb}
+.gc-home-alertbar-item.resolved strong{color:#16a34a}
+.gc-home-alertbar-item.on.urgent strong,.gc-home-alertbar-item.on.attention strong,.gc-home-alertbar-item.on.info strong{color:#fff}
+
+/* Precisa da sua atenção */
+.gc-home-alerts{display:flex;flex-direction:column;gap:8px}
+.gc-home-alerts-extra{flex-direction:column;gap:8px;margin-top:8px}
+.gc-home-alert-row{display:flex;align-items:flex-start;gap:12px;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #cbd5e1;border-radius:12px;padding:12px 14px}
+.gc-home-alert-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;background:#f1f5f9;color:#64748b}
+.gc-home-alert-urgent{border-left-color:#dc2626}
+.gc-home-alert-urgent .gc-home-alert-icon{background:#fef2f2;color:#dc2626}
+.gc-home-alert-attention{border-left-color:#ea580c}
+.gc-home-alert-attention .gc-home-alert-icon{background:#fff7ed;color:#ea580c}
+.gc-home-alert-info{border-left-color:#2563eb}
+.gc-home-alert-info .gc-home-alert-icon{background:#eff6ff;color:#2563eb}
+.gc-home-alert-body{flex:1;min-width:0}
+.gc-home-alert-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gc-home-alert-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:#475569}
+.gc-home-alert-source{font-size:11px;color:#94a3b8}
+.gc-home-alert-time{font-size:11px;color:#94a3b8;margin-left:auto}
+.gc-home-alert-title{font-size:13px;font-weight:700;color:#0f172a;margin-top:2px}
+.gc-home-alert-msg{font-size:12px;color:#64748b;margin-top:2px}
+.gc-home-alert-actions{display:flex;gap:6px;flex:0 0 auto;align-items:flex-start}
+.gc-home-alert-open,.gc-home-alert-resolve{font-size:11.5px;font-weight:650;border-radius:8px;padding:6px 10px;cursor:pointer;white-space:nowrap;font-family:inherit}
+.gc-home-alert-open{border:1px solid #cbd5e1;background:#fff;color:#0f2d52}
+.gc-home-alert-resolve{border:1px solid #a7f3d0;background:#ecfdf5;color:#065f46}
+
+/* Acompanhamento ativo — só estrutura nesta fase */
+.gc-home-acomp{border:1px solid #e2e8f0;background:#fff;border-radius:13px;padding:16px}
+.gc-home-acomp-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.gc-home-acomp-stats>div{border:1px solid #f1f5f9;border-radius:10px;padding:10px 12px}
+.gc-home-acomp-stats b{display:block;font-size:11.5px;color:#64748b}
+.gc-home-acomp-stats strong{display:block;font-size:20px;color:#0f172a;margin-top:3px}
+.gc-home-acomp-list{margin-top:14px;min-height:0}
+.gc-home-acomp-viewall{margin-top:14px;width:100%;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;border-radius:10px;padding:10px;font:650 12.5px inherit;cursor:not-allowed}
+
+.gc-home [data-home-action="agenda"]:hover{border-color:#93c5fd;background:#f8fbff}
+
+@media(max-width:900px){
+  .gc-home-today{grid-template-columns:repeat(2,1fr)}
+  .gc-home-acomp-stats{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:600px){
+  .gc-home{padding:2px 0 24px}
+  .gc-home-head{align-items:flex-start}
+  .gc-home-head-actions{width:100%;justify-content:space-between}
+  .gc-home-title{font-size:22px}
+  .gc-home-agenda-btn span{display:none}
+  .gc-home-today{grid-template-columns:1fr}
+  .gc-home-acomp-stats{grid-template-columns:1fr}
+  .gc-home-empty{padding:22px 16px;justify-content:flex-start}
+}
   `;
 }
 
@@ -90,9 +214,63 @@ export function setHomeDashboardPedidosOnline(value) {
   if (el) el.textContent = value == null ? "—" : String(value);
 }
 
-export function setHomeDashboardConsentimentos(value) {
-  const el = document.getElementById("gcHomeStatConsentimentos");
-  if (el) el.textContent = value == null ? "—" : String(value);
+/* Mesma etiqueta de tipo já usada em agenda.js (_TIPO_LABEL) — duplicada aqui
+   por ser apenas um mapa de apresentação estático, não lógica de negócio;
+   _TIPO_LABEL não é exportado por agenda.js. */
+const HOME_PEDIDO_TIPO_LABELS = {
+  videoconsulta: "Videoconsulta",
+  exame_desportivo: "Exame Médico Desportivo",
+};
+
+export function wirePedidosOnlineToggle(onOpen) {
+  const card = document.getElementById("gcHomePedidosCard");
+  const expand = document.getElementById("gcHomePedidosExpand");
+  if (!card || !expand) return;
+
+  const toggle = () => {
+    const isHidden = expand.hasAttribute("hidden");
+    if (isHidden) {
+      expand.removeAttribute("hidden");
+      card.setAttribute("aria-expanded", "true");
+      onOpen?.();
+    } else {
+      expand.setAttribute("hidden", "");
+      card.setAttribute("aria-expanded", "false");
+    }
+  };
+
+  card.addEventListener("click", toggle);
+  card.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); toggle(); }
+  });
+}
+
+export function renderHomePedidosOnlineList(rows, { onOpenAgenda } = {}) {
+  const root = document.getElementById("gcHomePedidosExpand");
+  if (!root) return;
+
+  if (rows == null) {
+    root.innerHTML = `<div class="gc-home-empty"><div class="gc-home-empty-icon">${ICON.inbox}</div><div><b>Não foi possível carregar os pedidos</b><p>Tente novamente mais tarde.</p></div></div>`;
+    return;
+  }
+
+  if (!rows.length) {
+    root.innerHTML = `<div class="gc-home-empty"><div class="gc-home-empty-icon">${ICON.check}</div><div><b>Sem pedidos pendentes</b><p>Não há pedidos online por tratar neste âmbito.</p></div></div>`;
+    return;
+  }
+
+  root.innerHTML = `<div class="gc-home-pedidos-list">${rows.map((r) => `
+    <div class="gc-home-pedido-row">
+      <div class="gc-home-pedido-info">
+        <strong>${escHomeHtml(r.atleta_nome || "—")}</strong>
+        <span>${escHomeHtml(HOME_PEDIDO_TIPO_LABELS[r.tipo] || r.tipo || "—")} · ${fmtHomeAlertTime(r.created_at)}</span>
+      </div>
+      <button type="button" class="gc-home-pedido-open" data-clinic-id="${escHomeHtml(r.clinic_id || "")}">Abrir na Agenda</button>
+    </div>`).join("")}</div>`;
+
+  root.querySelectorAll("[data-clinic-id]").forEach((btn) => {
+    btn.addEventListener("click", () => onOpenAgenda?.(btn.getAttribute("data-clinic-id") || null));
+  });
 }
 
 const ALERT_SOURCE_LABELS = {
@@ -127,7 +305,9 @@ function fmtHomeAlertTime(iso) {
 }
 
 export function setHomeDashboardAlertStats(stats) {
+  const total = stats == null ? null : (Number(stats.urgent || 0) + Number(stats.attention || 0) + Number(stats.info || 0));
   const map = {
+    gcHomeStatTodos:      total,
     gcHomeStatUrgentes:   stats?.urgent,
     gcHomeStatAtencao:    stats?.attention,
     gcHomeStatNovos:      stats?.info,
@@ -136,6 +316,22 @@ export function setHomeDashboardAlertStats(stats) {
   Object.entries(map).forEach(([id, value]) => {
     const el = document.getElementById(id);
     if (el) el.textContent = (stats == null || value == null) ? "—" : String(value);
+  });
+}
+
+/* wireHomeAlertFilterBar — só filtra em memória as listas já carregadas
+   (via callback do chamador: pendentes por severidade, ou resolvidosHoje
+   para o filtro "resolved"); nunca faz query nova aqui. */
+export function wireHomeAlertFilterBar(currentFilter, onFilterChange) {
+  const bar = document.getElementById("gcHomeAlertBar");
+  if (!bar) return;
+  const buttons = bar.querySelectorAll("[data-alert-filter]");
+  buttons.forEach((btn) => {
+    btn.classList.toggle("on", btn.getAttribute("data-alert-filter") === (currentFilter || "all"));
+    btn.addEventListener("click", () => {
+      buttons.forEach((b) => b.classList.toggle("on", b === btn));
+      onFilterChange?.(btn.getAttribute("data-alert-filter"));
+    });
   });
 }
 
@@ -154,7 +350,7 @@ function homeAlertRowHtml(a) {
       </div>
       <div class="gc-home-alert-actions">
         ${a.target_url ? `<button type="button" class="gc-home-alert-open" data-alert-open="${escHomeHtml(a.id)}">Abrir</button>` : ""}
-        <button type="button" class="gc-home-alert-resolve" data-alert-resolve="${escHomeHtml(a.id)}">Resolvido</button>
+        ${a.resolved_at ? "" : `<button type="button" class="gc-home-alert-resolve" data-alert-resolve="${escHomeHtml(a.id)}">Resolvido</button>`}
       </div>
     </div>`;
 }
@@ -222,4 +418,21 @@ export function renderHomeDashboardAlerts(alerts, { onOpen, onResolve } = {}) {
       toggleBtn.onclick = null;
     }
   }
+}
+
+/* setHomeAcompanhamentoStats — só estrutura/preparação para ligação futura.
+   Não é chamado ainda nesta passagem (sem tabela/regras aprovadas). */
+export function setHomeAcompanhamentoStats(stats) {
+  const sub = document.getElementById("gcHomeAcompSub");
+  if (sub) sub.textContent = stats?.total != null ? `${stats.total} doentes` : "— doentes";
+  const map = {
+    gcHomeAcompAcao:     stats?.precisaAcao,
+    gcHomeAcompTerminar: stats?.aTerminar,
+    gcHomeAcompSemAtiv:  stats?.semAtividade,
+    gcHomeAcompRegular:  stats?.regular,
+  };
+  Object.entries(map).forEach(([id, value]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = (stats == null || value == null) ? "—" : String(value);
+  });
 }
