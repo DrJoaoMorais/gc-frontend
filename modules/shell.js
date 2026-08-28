@@ -77,6 +77,8 @@ export function renderAppShell() {
     mainHtml = `<div id="gcwoPrescricaoRoot"></div>`;
   } else if (currentView === "gestaoagenda") {
     mainHtml = `<div id="gcGestaoAgendaRoot"></div>`;
+  } else if (currentView === "exercicio-acompanhamento") {
+    mainHtml = `<div id="gcExFollowRoot"></div>`;
   } else {
     /* ── AGENDA ──────────────────────────────────────── */
     mainHtml = `

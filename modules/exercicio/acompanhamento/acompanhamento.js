@@ -112,8 +112,8 @@ function renderShell(root, patient, prescription) {
 }
 
 export async function initAcompanhamentoExercicio({ patientId, prescriptionId, onBack } = {}) {
-  const root = document.getElementById("view");
-  if (!root) throw new Error("Contentor #view não encontrado.");
+  const root = document.getElementById("gcExFollowRoot");
+  if (!root) throw new Error("Contentor #gcExFollowRoot não encontrado.");
 
   if (!patientId || !prescriptionId) {
     root.innerHTML = `<style>${styles()}</style><div class="gc-exfollow"><div class="gc-exfollow-error">Não foi possível abrir o acompanhamento: falta identificar o doente ou o plano.</div></div>`;
