@@ -300,6 +300,10 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
   /* ── Wire Home dashboard actions (mesmo mecanismo de navegação) ───── */
   if (currentView === "home") {
     wireHomeDashboard(async () => {
+      /* Copia o scope de clínica do Home (seletor próprio) só neste
+         momento de navegação explícita — nunca sincronizado fora daqui. */
+      const homeClinicSel = document.getElementById("gcHomeClinicSelect");
+      G.activeClinicId = homeClinicSel?.value || null;
       G.currentView = "agenda";
       if (typeof window.__gc_renderCurrentView === "function") {
         await window.__gc_renderCurrentView();

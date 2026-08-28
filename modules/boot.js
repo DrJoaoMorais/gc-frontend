@@ -20,6 +20,8 @@ import {
   setHomeDashboardConsentimentos,
   setHomeDashboardAlertStats,
   renderHomeDashboardAlerts,
+  renderHomeClinicSelect,
+  renderHomeConsultasBreakdown,
 }                                          from "./home-dashboard.js";
 import {
   setAgendaSubtitleForSelectedDay,
@@ -41,6 +43,14 @@ import { initGestaoAgenda }               from "./gestaoagenda.js";
 // uma cópia antiga de prescricao.js depois de um deploy — mesmo problema que
 // já resolvemos para o CSS, aqui aplicado ao próprio módulo JS.
 const PRESCRICAO_JS_VERSION = '2026-08-25-3';
+
+/* Estado próprio do Home (scope de clínica) — independente de G.activeClinicId.
+   Só é seedado a partir de G.activeClinicId uma vez, na primeira vez que a
+   vista Home é aberta na sessão; depois disso é controlado só pelo seletor
+   do Home. Nunca escrito automaticamente de volta em G.activeClinicId — só
+   é copiado para lá no momento explícito de abrir a Agenda. */
+let homeClinicId = null;
+let homeClinicIdInitialized = false;
 
 /* ====================================================================
    BLOCO 11B — Boot principal
@@ -209,6 +219,18 @@ async function renderCurrentView() {
 
   /* Vista Início */
   if (view === "home") {
+    if (!homeClinicIdInitialized) {
+      homeClinicIdInitialized = true;
+      homeClinicId = (G.activeClinicId && (G.clinics || []).some((c) => c.id === G.activeClinicId))
+        ? G.activeClinicId
+        : null;
+    }
+
+    renderHomeClinicSelect(G.clinics, homeClinicId, (newClinicId) => {
+      homeClinicId = newClinicId || null;
+      loadHomeConsultasHoje();
+    });
+
     await Promise.all([
       loadHomeConsultasHoje(),
       loadHomePedidosOnlinePendentes(),
@@ -365,19 +387,50 @@ async function renderCurrentView() {
 async function loadHomeConsultasHoje() {
   try {
     const r = isoLocalDayRangeFromISODate(fmtDateISO(new Date()));
-    if (!r) { setHomeDashboardConsultasHoje(null); return; }
+    if (!r) {
+      setHomeDashboardConsultasHoje(null);
+      renderHomeConsultasBreakdown(null, { onClinicClick: openHomeAgendaForClinic });
+      return;
+    }
 
     const { data } = await loadAppointmentsForRange({
-      clinicId: G.activeClinicId || null,
+      clinicId: homeClinicId || null,
       startISO: r.startISO,
       endISO:   r.endISO,
     });
 
-    const count = (data || []).filter((row) => String(row?.mode || "").toLowerCase() !== "bloqueio").length;
-    setHomeDashboardConsultasHoje(count);
+    const rows = (data || []).filter((row) => String(row?.mode || "").toLowerCase() !== "bloqueio");
+    setHomeDashboardConsultasHoje(rows.length);
+
+    const byClinic = new Map();
+    rows.forEach((row) => {
+      byClinic.set(row.clinic_id, (byClinic.get(row.clinic_id) || 0) + 1);
+    });
+    const breakdown = [...byClinic.entries()]
+      .map(([clinicId, count]) => ({
+        clinicId,
+        count,
+        name: G.clinicsById?.[clinicId]?.name || G.clinicsById?.[clinicId]?.slug || clinicId,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    renderHomeConsultasBreakdown(breakdown, { onClinicClick: openHomeAgendaForClinic });
   } catch (e) {
     console.warn("Home: falha ao carregar consultas de hoje:", e);
     setHomeDashboardConsultasHoje(null);
+    renderHomeConsultasBreakdown(null, { onClinicClick: openHomeAgendaForClinic });
+  }
+}
+
+/* openHomeAgendaForClinic — copia o scope escolhido no Home para
+   G.activeClinicId só no momento explícito de navegar, e abre a Agenda
+   pelo mecanismo já existente (renderClinicsSelect/refreshAgenda lêem
+   G.activeClinicId). Nunca sincronizado fora deste clique. */
+function openHomeAgendaForClinic(clinicId) {
+  G.activeClinicId = clinicId || null;
+  G.currentView = "agenda";
+  if (typeof window.__gc_renderCurrentView === "function") {
+    window.__gc_renderCurrentView();
   }
 }
 
