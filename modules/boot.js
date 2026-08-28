@@ -25,6 +25,8 @@ import {
   wirePedidosOnlineToggle,
   renderHomePedidosOnlineList,
   setHomeAcompanhamentoStats,
+  wireHomeAcompFilterBar,
+  renderHomeAcompanhamentoList,
 }                                          from "./home-dashboard.js";
 import {
   setAgendaSubtitleForSelectedDay,
@@ -60,6 +62,11 @@ let homeClinicIdInitialized = false;
 let homeAlertFilter = "all";
 let homePendingAlertsSorted = [];
 let homeResolvedTodayAlerts = [];
+
+/* Detalhe do Acompanhamento ativo — populado só por loadHomeAcompanhamentoExercicio();
+   clicar num contador nunca faz query nova, só lê daqui. */
+let homeAcompDetail = { needsAction: [], endingSoon: [], inactive: [], regular: [] };
+let homeAcompSelectedCategory = null;
 
 /* ====================================================================
    BLOCO 11B — Boot principal
@@ -237,6 +244,10 @@ async function renderCurrentView() {
 
     renderHomeClinicSelect(G.clinics, homeClinicId, (newClinicId) => {
       homeClinicId = newClinicId || null;
+      /* Mudar de clínica limpa a seleção de Acompanhamento ativo em vez de
+         recalcular a lista no scope antigo — evita mostrar dados da
+         clínica anterior. */
+      closeHomeAcompList();
       /* Só recarrega dados clinic-scoped já reais do Home — nunca navega
          nem toca em G.activeClinicId aqui. */
       Promise.all([
@@ -260,6 +271,11 @@ async function renderCurrentView() {
 
     wirePedidosOnlineToggle(() => {
       loadHomePedidosOnlineList();
+    });
+
+    wireHomeAcompFilterBar(homeAcompSelectedCategory, (category) => {
+      homeAcompSelectedCategory = category;
+      renderHomeAcompanhamentoList(category, homeAcompDetail[category], { onClose: closeHomeAcompList });
     });
 
     await Promise.all([
@@ -615,34 +631,48 @@ async function resolveHomeAlert(alertId) {
   }
 }
 
+/* closeHomeAcompList — limpa a seleção do Acompanhamento ativo e o
+   destaque visual do contador, sem tocar nos contadores/dados. */
+function closeHomeAcompList() {
+  homeAcompSelectedCategory = null;
+  document.querySelectorAll('#gcHomeAcompStats [data-acomp-filter]').forEach((b) => b.classList.remove("on"));
+  renderHomeAcompanhamentoList(null, null);
+}
+
+/* dd-mm-aaaa — aceita ISO completo, "yyyy-mm-dd" (datas de sessão) ou ms. */
+function fmtHomeAcompDatePt(value) {
+  if (value == null) return null;
+  const d = (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value))
+    ? new Date(`${value}T00:00:00`)
+    : new Date(value);
+  if (isNaN(d.getTime())) return null;
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}-${mm}-${d.getFullYear()}`;
+}
+
 /* ====================================================================
-   loadHomeAcompanhamentoExercicio — só contadores (Precisa de ação /
-   A terminar / Sem atividade / Regular), por doente distinto, a partir
+   loadHomeAcompanhamentoExercicio — contadores (Precisa de ação /
+   A terminar / Sem atividade / Regular) + detalhe por doente, a partir
    de planos REALMENTE ativos (status='active' E expires_at > agora).
    Scope de clínica: homeClinicId (RLS já restringe às clínicas do
-   utilizador quando null). Sem lista de doentes, sem escrita em alerts,
-   sem alteração a prescricao.js.
+   utilizador quando null). Sem escrita em alerts, sem alteração a
+   prescricao.js. Só 4 queries no total (prescrições, logs, readiness,
+   doentes) — nenhuma delas por doente/prescrição (sem N+1).
 
-   Sinais de "Precisa de ação" — estado MAIS RECENTE por prescrição
-   (não "alguma vez aconteceu"), para não manter um doente eternamente
-   marcado depois de uma resposta/registo entretanto normal:
+   Sinais de "Precisa de ação" — estado MAIS RECENTE por prescrição:
      - a readiness MAIS RECENTE dessa prescrição (por answered_at) tem
-       has_symptoms === true — uma readiness antiga com sintomas deixa
-       de contar assim que existir uma mais recente sem sintomas;
-     - o ÚLTIMO log dessa prescrição (mesma semântica de "row.lastLog"
-       em loadLandingRows) tem: note preenchida, OU rpe >= 8, OU algum
-       exercício com status !== 'as_prescribed' (alterado/skipped).
+       has_symptoms === true;
+     - o ÚLTIMO log dessa prescrição tem: note preenchida, OU rpe >= 8,
+       OU algum exercício com status !== 'as_prescribed' (inclui
+       'skipped'). Os motivos mostrados na lista distinguem "alterado"
+       de "skipped", mas a condição de pertença à categoria é a mesma
+       já validada (qualquer status diferente de 'as_prescribed').
 
-   "A terminar": expires_at > agora e <= agora + 7 dias (threshold
-   validado nesta tarefa — substitui o de 3 dias usado noutro contexto
-   em situacaoLinha(), que não se aplica aqui).
-
-   "Sem atividade": existe pelo menos uma sessão em data.sessions[]
-   com date < hoje local sem linha correspondente em wo_session_logs
-   para esse session_id.
-
-   "Regular": doente com plano ativo que não cai em nenhuma das três
-   categorias anteriores.
+   "A terminar": expires_at > agora e <= agora + 7 dias.
+   "Sem atividade": pelo menos uma sessão em data.sessions[] com
+   date < hoje local sem linha correspondente em wo_session_logs.
+   "Regular": doente ativo que não cai em nenhuma das três anteriores.
    ==================================================================== */
 async function loadHomeAcompanhamentoExercicio() {
   try {
@@ -658,7 +688,9 @@ async function loadHomeAcompanhamentoExercicio() {
 
     const rows = prescriptions || [];
     if (!rows.length) {
+      homeAcompDetail = { needsAction: [], endingSoon: [], inactive: [], regular: [] };
       setHomeAcompanhamentoStats({ total: 0, precisaAcao: 0, aTerminar: 0, semAtividade: 0, regular: 0 });
+      if (homeAcompSelectedCategory) renderHomeAcompanhamentoList(homeAcompSelectedCategory, [], { onClose: closeHomeAcompList });
       return;
     }
 
@@ -666,11 +698,12 @@ async function loadHomeAcompanhamentoExercicio() {
 
     /* Logs de todas as prescrições ativas — usados para 2 fins a partir
        da MESMA query (evita N+1): (a) o log mais recente por prescrição
-       decide "Precisa de ação"; (b) o conjunto completo de session_ids
-       já logados decide "Sem atividade". */
+       decide "Precisa de ação" e alimenta "última sessão"; (b) o
+       conjunto completo de session_ids já logados decide "Sem
+       atividade". */
     const { data: logs, error: logsErr } = await window.sb
       .from("wo_session_logs")
-      .select("prescription_id, session_id, rpe, note, sets")
+      .select("prescription_id, session_id, logged_at, rpe, note, sets")
       .in("prescription_id", prescriptionIds)
       .order("logged_at", { ascending: false });
     if (logsErr) throw logsErr;
@@ -707,45 +740,168 @@ async function loadHomeAcompanhamentoExercicio() {
     const endingSoon   = new Set();
     const inactive     = new Set();
 
+    const needsActionAcc = new Map(); // patientId -> { reasons:Set<string>, lastSessionAt }
+    const endingSoonAcc  = new Map(); // patientId -> { expiresAtMs }
+    const inactiveAcc    = new Map(); // patientId -> { overdueCount, mostRecentOverdueDate, lastSessionAt }
+
     rows.forEach((p) => {
       allPatients.add(p.patient_id);
 
-      const expiresAtMs = new Date(p.expires_at).getTime();
-      if (expiresAtMs - nowMs <= SEVEN_DAYS_MS) endingSoon.add(p.patient_id);
+      const expiresAtMs   = new Date(p.expires_at).getTime();
+      const lastLog        = lastLogByPrescription.get(p.id);
+      const lastSessionAt  = lastLog?.logged_at || null;
 
+      /* Precisa de ação — motivos + pertença, a partir dos mesmos 2 sinais
+         já validados (readiness mais recente / último log). */
+      let flagged = false;
+      const reasons = [];
       const latestReadiness = latestReadinessByPrescription.get(p.id);
-      if (latestReadiness?.has_symptoms === true) needsAction.add(p.patient_id);
-      const lastLog = lastLogByPrescription.get(p.id);
+      if (latestReadiness?.has_symptoms === true) {
+        reasons.push("Sintomas reportados antes do treino");
+        flagged = true;
+      }
       if (lastLog) {
-        const sets     = Array.isArray(lastLog.sets) ? lastLog.sets : [];
-        const alterado = sets.some((entry) => entry.status && entry.status !== "as_prescribed");
-        if (lastLog.note || alterado || Number(lastLog.rpe || 0) >= 8) needsAction.add(p.patient_id);
+        const rpeNum = Number(lastLog.rpe || 0);
+        const sets = Array.isArray(lastLog.sets) ? lastLog.sets : [];
+        const hasSkipped        = sets.some((entry) => entry.status === "skipped");
+        const hasAlteradoOutro  = sets.some((entry) => entry.status && entry.status !== "as_prescribed" && entry.status !== "skipped");
+        const alteradoQualquer  = sets.some((entry) => entry.status && entry.status !== "as_prescribed");
+        if (rpeNum >= 8) { reasons.push(`Esforço elevado: RPE ${rpeNum}/10`); flagged = true; }
+        if (lastLog.note) { reasons.push("Comentário do doente"); flagged = true; }
+        if (hasAlteradoOutro) reasons.push("Exercício alterado");
+        if (hasSkipped) reasons.push("Exercício não realizado/skipped");
+        if (alteradoQualquer) flagged = true;
+      }
+      if (flagged) {
+        needsAction.add(p.patient_id);
+        const acc = needsActionAcc.get(p.patient_id) || { reasons: new Set(), lastSessionAt: null };
+        reasons.forEach((r) => acc.reasons.add(r));
+        if (lastSessionAt && (!acc.lastSessionAt || lastSessionAt > acc.lastSessionAt)) acc.lastSessionAt = lastSessionAt;
+        needsActionAcc.set(p.patient_id, acc);
       }
 
+      /* A terminar — guarda o plano com expiração mais próxima. */
+      if (expiresAtMs - nowMs <= SEVEN_DAYS_MS) {
+        endingSoon.add(p.patient_id);
+        const acc = endingSoonAcc.get(p.patient_id);
+        if (!acc || expiresAtMs < acc.expiresAtMs) endingSoonAcc.set(p.patient_id, { expiresAtMs });
+      }
+
+      /* Sem atividade — sessões vencidas (date < hoje) sem log. */
       const sessions = Array.isArray(p.data?.sessions) ? p.data.sessions : [];
-      const hasOverdue = sessions.some((s) => {
-        if (!s?.date || !s?.session_id) return false;
-        if (s.date >= todayISO) return false;
-        return !loggedSessionKeys.has(`${p.id}::${s.session_id}`);
-      });
-      if (hasOverdue) inactive.add(p.patient_id);
+      const overdueDates = sessions
+        .filter((s) => s?.date && s?.session_id && s.date < todayISO && !loggedSessionKeys.has(`${p.id}::${s.session_id}`))
+        .map((s) => s.date);
+      if (overdueDates.length) {
+        inactive.add(p.patient_id);
+        const mostRecentOverdue = overdueDates.reduce((a, b) => (b > a ? b : a));
+        const acc = inactiveAcc.get(p.patient_id) || { overdueCount: 0, mostRecentOverdueDate: null, lastSessionAt: null };
+        acc.overdueCount += overdueDates.length;
+        if (!acc.mostRecentOverdueDate || mostRecentOverdue > acc.mostRecentOverdueDate) acc.mostRecentOverdueDate = mostRecentOverdue;
+        if (lastSessionAt && (!acc.lastSessionAt || lastSessionAt > acc.lastSessionAt)) acc.lastSessionAt = lastSessionAt;
+        inactiveAcc.set(p.patient_id, acc);
+      }
     });
 
-    let regularCount = 0;
-    allPatients.forEach((pid) => {
-      if (!needsAction.has(pid) && !endingSoon.has(pid) && !inactive.has(pid)) regularCount += 1;
+    /* Regular — por exclusão; segunda passada só para os doentes que
+       sobrarem, sem query nova (mesmos `rows` já em memória). */
+    const regularPatientIds = new Set(
+      [...allPatients].filter((pid) => !needsAction.has(pid) && !endingSoon.has(pid) && !inactive.has(pid))
+    );
+    const regularAcc = new Map(); // patientId -> { expiresAtMs, lastSessionAt }
+    rows.forEach((p) => {
+      if (!regularPatientIds.has(p.patient_id)) return;
+      const expiresAtMs  = new Date(p.expires_at).getTime();
+      const lastLog       = lastLogByPrescription.get(p.id);
+      const lastSessionAt = lastLog?.logged_at || null;
+      const acc = regularAcc.get(p.patient_id) || { expiresAtMs: Infinity, lastSessionAt: null };
+      if (expiresAtMs < acc.expiresAtMs) acc.expiresAtMs = expiresAtMs;
+      if (lastSessionAt && (!acc.lastSessionAt || lastSessionAt > acc.lastSessionAt)) acc.lastSessionAt = lastSessionAt;
+      regularAcc.set(p.patient_id, acc);
     });
+
+    /* Nomes — UMA query agrupada, nunca uma por doente. */
+    let nameByPatient = new Map();
+    if (allPatients.size) {
+      const { data: patients, error: patErr } = await window.sb
+        .from("patients")
+        .select("id, full_name")
+        .in("id", [...allPatients]);
+      if (patErr) throw patErr;
+      nameByPatient = new Map((patients || []).map((pt) => [pt.id, pt.full_name]));
+    }
+
+    const needsActionItems = [...needsActionAcc.entries()].map(([pid, acc]) => ({
+      patientId: pid,
+      name: nameByPatient.get(pid) || "—",
+      subtitle: [...acc.reasons].join(" · "),
+      meta: acc.lastSessionAt ? `Última sessão: ${fmtHomeAcompDatePt(acc.lastSessionAt)}` : null,
+    }));
+
+    const endingSoonItems = [...endingSoonAcc.entries()].map(([pid, acc]) => {
+      const expiresDateISO = fmtDateISO(new Date(acc.expiresAtMs));
+      const subtitle = expiresDateISO === todayISO
+        ? "Plano termina hoje"
+        : (() => {
+            const daysLeft = Math.round((new Date(`${expiresDateISO}T00:00:00`) - new Date(`${todayISO}T00:00:00`)) / 86400000);
+            return `Plano termina em ${daysLeft} dia${daysLeft === 1 ? "" : "s"}`;
+          })();
+      return {
+        patientId: pid,
+        name: nameByPatient.get(pid) || "—",
+        subtitle,
+        meta: `Fim: ${fmtHomeAcompDatePt(acc.expiresAtMs)}`,
+      };
+    });
+
+    const inactiveItems = [...inactiveAcc.entries()].map(([pid, acc]) => {
+      const subtitle = `${acc.overdueCount} sessão${acc.overdueCount === 1 ? "" : "ões"} prevista${acc.overdueCount === 1 ? "" : "s"} não realizada${acc.overdueCount === 1 ? "" : "s"}`;
+      const metaParts = [];
+      if (acc.mostRecentOverdueDate) metaParts.push(`Sessão vencida mais recente: ${fmtHomeAcompDatePt(acc.mostRecentOverdueDate)}`);
+      if (acc.lastSessionAt) metaParts.push(`Última sessão realizada: ${fmtHomeAcompDatePt(acc.lastSessionAt)}`);
+      return {
+        patientId: pid,
+        name: nameByPatient.get(pid) || "—",
+        subtitle,
+        meta: metaParts.join(" · ") || null,
+      };
+    });
+
+    const regularItems = [...regularAcc.entries()].map(([pid, acc]) => ({
+      patientId: pid,
+      name: nameByPatient.get(pid) || "—",
+      subtitle: "Acompanhamento regular",
+      meta: [
+        acc.lastSessionAt ? `Última sessão: ${fmtHomeAcompDatePt(acc.lastSessionAt)}` : null,
+        acc.expiresAtMs !== Infinity ? `Fim do plano: ${fmtHomeAcompDatePt(acc.expiresAtMs)}` : null,
+      ].filter(Boolean).join(" · ") || null,
+    }));
+
+    homeAcompDetail = {
+      needsAction: needsActionItems,
+      endingSoon: endingSoonItems,
+      inactive: inactiveItems,
+      regular: regularItems,
+    };
 
     setHomeAcompanhamentoStats({
       total: allPatients.size,
       precisaAcao: needsAction.size,
       aTerminar: endingSoon.size,
       semAtividade: inactive.size,
-      regular: regularCount,
+      regular: regularItems.length,
     });
+
+    /* Se já havia uma categoria selecionada (ex.: reentrada na vista Home
+       com o DOM reconstruído), refrescar a lista com os dados novos. */
+    if (homeAcompSelectedCategory) {
+      renderHomeAcompanhamentoList(homeAcompSelectedCategory, homeAcompDetail[homeAcompSelectedCategory], { onClose: closeHomeAcompList });
+    }
   } catch (e) {
     console.warn("Home: falha ao carregar acompanhamento de exercício:", e);
+    homeAcompDetail = { needsAction: [], endingSoon: [], inactive: [], regular: [] };
     setHomeAcompanhamentoStats(null);
+    if (homeAcompSelectedCategory) renderHomeAcompanhamentoList(homeAcompSelectedCategory, null);
   }
 }
 

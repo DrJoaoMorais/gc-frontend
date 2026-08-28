@@ -47,11 +47,11 @@ export function homeDashboardHtml() {
 
       <div class="gc-home-section-head"><div><h2>Acompanhamento ativo</h2><p id="gcHomeAcompSub">— doentes</p></div></div>
       <div class="gc-home-acomp">
-        <div class="gc-home-acomp-stats">
-          <div><b>Precisa de ação</b><strong id="gcHomeAcompAcao">—</strong></div>
-          <div><b>A terminar</b><strong id="gcHomeAcompTerminar">—</strong></div>
-          <div><b>Sem atividade</b><strong id="gcHomeAcompSemAtiv">—</strong></div>
-          <div><b>Regular</b><strong id="gcHomeAcompRegular">—</strong></div>
+        <div class="gc-home-acomp-stats" id="gcHomeAcompStats">
+          <button type="button" data-acomp-filter="needsAction"><b>Precisa de ação</b><strong id="gcHomeAcompAcao">—</strong></button>
+          <button type="button" data-acomp-filter="endingSoon"><b>A terminar</b><strong id="gcHomeAcompTerminar">—</strong></button>
+          <button type="button" data-acomp-filter="inactive"><b>Sem atividade</b><strong id="gcHomeAcompSemAtiv">—</strong></button>
+          <button type="button" data-acomp-filter="regular"><b>Regular</b><strong id="gcHomeAcompRegular">—</strong></button>
         </div>
         <div id="gcHomeAcompList" class="gc-home-acomp-list"></div>
         <button type="button" class="gc-home-acomp-viewall" id="gcHomeAcompViewAll" disabled>Ver todos os acompanhamentos</button>
@@ -145,13 +145,25 @@ button.gc-home-alertbar-item:hover{border-color:#93c5fd}
 .gc-home-alert-open{border:1px solid #cbd5e1;background:#fff;color:#0f2d52}
 .gc-home-alert-resolve{border:1px solid #a7f3d0;background:#ecfdf5;color:#065f46}
 
-/* Acompanhamento ativo — só estrutura nesta fase */
+/* Acompanhamento ativo */
 .gc-home-acomp{border:1px solid #e2e8f0;background:#fff;border-radius:13px;padding:16px}
 .gc-home-acomp-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.gc-home-acomp-stats>div{border:1px solid #f1f5f9;border-radius:10px;padding:10px 12px}
+.gc-home-acomp-stats>button{border:1px solid #f1f5f9;background:#fff;border-radius:10px;padding:10px 12px;text-align:left;font-family:inherit;cursor:pointer}
+.gc-home-acomp-stats>button:hover{border-color:#93c5fd}
+.gc-home-acomp-stats>button.on{border-color:#0f2d52;background:#f0f6ff}
 .gc-home-acomp-stats b{display:block;font-size:11.5px;color:#64748b}
 .gc-home-acomp-stats strong{display:block;font-size:20px;color:#0f172a;margin-top:3px}
 .gc-home-acomp-list{margin-top:14px;min-height:0}
+.gc-home-acomp-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.gc-home-acomp-heading>span{font-size:12.5px;font-weight:700;color:#0f2d52;text-transform:uppercase;letter-spacing:.03em}
+.gc-home-acomp-close{border:0;background:transparent;color:#2563eb;font:650 12px inherit;cursor:pointer}
+.gc-home-acomp-items{display:flex;flex-direction:column;gap:8px}
+.gc-home-acomp-item{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:11px 14px}
+.gc-home-acomp-item-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.gc-home-acomp-item-name{font-size:13px;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gc-home-acomp-item-sub{font-size:11.5px;color:#475569}
+.gc-home-acomp-item-meta{font-size:11px;color:#94a3b8}
+.gc-home-acomp-item-open{flex-shrink:0;font-size:11.5px;font-weight:650;border-radius:8px;padding:6px 10px;white-space:nowrap;font-family:inherit;border:1px solid #e2e8f0;background:#f8fafc;color:#94a3b8;cursor:not-allowed}
 .gc-home-acomp-viewall{margin-top:14px;width:100%;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;border-radius:10px;padding:10px;font:650 12.5px inherit;cursor:not-allowed}
 
 .gc-home [data-home-action="agenda"]:hover{border-color:#93c5fd;background:#f8fbff}
@@ -420,8 +432,8 @@ export function renderHomeDashboardAlerts(alerts, { onOpen, onResolve } = {}) {
   }
 }
 
-/* setHomeAcompanhamentoStats — só estrutura/preparação para ligação futura.
-   Não é chamado ainda nesta passagem (sem tabela/regras aprovadas). */
+/* setHomeAcompanhamentoStats — preenche os 4 contadores + total, a partir
+   de loadHomeAcompanhamentoExercicio() (boot.js). */
 export function setHomeAcompanhamentoStats(stats) {
   const sub = document.getElementById("gcHomeAcompSub");
   if (sub) sub.textContent = stats?.total != null ? `${stats.total} doentes` : "— doentes";
@@ -435,4 +447,61 @@ export function setHomeAcompanhamentoStats(stats) {
     const el = document.getElementById(id);
     if (el) el.textContent = (stats == null || value == null) ? "—" : String(value);
   });
+}
+
+/* wireHomeAcompFilterBar — liga os 4 contadores clicáveis; o clique só
+   chama o callback do chamador (boot.js), que já tem os dados em memória
+   — nunca faz query aqui. */
+export function wireHomeAcompFilterBar(currentCategory, onCategoryClick) {
+  const bar = document.getElementById("gcHomeAcompStats");
+  if (!bar) return;
+  const buttons = bar.querySelectorAll("[data-acomp-filter]");
+  buttons.forEach((btn) => {
+    btn.classList.toggle("on", btn.getAttribute("data-acomp-filter") === currentCategory);
+    btn.addEventListener("click", () => {
+      const category = btn.getAttribute("data-acomp-filter");
+      buttons.forEach((b) => b.classList.toggle("on", b === btn));
+      onCategoryClick?.(category);
+    });
+  });
+}
+
+const ACOMP_CATEGORY_LABELS = {
+  needsAction: "Precisa de ação",
+  endingSoon:  "A terminar",
+  inactive:    "Sem atividade",
+  regular:     "Regular",
+};
+
+/* renderHomeAcompanhamentoList — lista compacta por doente, para a
+   categoria selecionada. `items` já vem formatado (nome/subtítulo/meta)
+   por boot.js — este módulo só apresenta, não calcula regras. */
+export function renderHomeAcompanhamentoList(category, items, { onClose } = {}) {
+  const root = document.getElementById("gcHomeAcompList");
+  if (!root) return;
+
+  if (!category) { root.innerHTML = ""; return; }
+
+  const title = ACOMP_CATEGORY_LABELS[category] || category;
+  const heading = `
+    <div class="gc-home-acomp-heading">
+      <span>${escHomeHtml(title)}</span>
+      <button type="button" class="gc-home-acomp-close" id="gcHomeAcompClose">Fechar</button>
+    </div>`;
+
+  if (!items || !items.length) {
+    root.innerHTML = `${heading}<div class="gc-home-empty"><div class="gc-home-empty-icon">${ICON.check}</div><div><b>Sem doentes nesta categoria</b><p>Não há ninguém em "${escHomeHtml(title)}" neste âmbito.</p></div></div>`;
+  } else {
+    root.innerHTML = `${heading}<div class="gc-home-acomp-items">${items.map((it) => `
+      <div class="gc-home-acomp-item">
+        <div class="gc-home-acomp-item-info">
+          <span class="gc-home-acomp-item-name">${escHomeHtml(it.name || "—")}</span>
+          <span class="gc-home-acomp-item-sub">Exercício${it.subtitle ? ` · ${escHomeHtml(it.subtitle)}` : ""}</span>
+          ${it.meta ? `<span class="gc-home-acomp-item-meta">${escHomeHtml(it.meta)}</span>` : ""}
+        </div>
+        <button type="button" class="gc-home-acomp-item-open" disabled title="Em preparação">Abrir acompanhamento</button>
+      </div>`).join("")}</div>`;
+  }
+
+  document.getElementById("gcHomeAcompClose")?.addEventListener("click", () => onClose?.());
 }
