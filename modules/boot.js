@@ -24,6 +24,7 @@ import {
   wireHomeAlertFilterBar,
   wirePedidosOnlineToggle,
   renderHomePedidosOnlineList,
+  setHomeAcompanhamentoStats,
 }                                          from "./home-dashboard.js";
 import {
   setAgendaSubtitleForSelectedDay,
@@ -242,6 +243,7 @@ async function renderCurrentView() {
         loadHomeConsultasHoje(),
         loadHomePedidosOnlinePendentes(),
         loadHomeAlerts(),
+        loadHomeAcompanhamentoExercicio(),
       ]);
       /* Painel de Pedidos online: só recarrega a lista se já estiver
          aberto (sem o atributo "hidden"); fechado, não faz query extra. */
@@ -264,6 +266,7 @@ async function renderCurrentView() {
       loadHomeConsultasHoje(),
       loadHomePedidosOnlinePendentes(),
       loadHomeAlerts(),
+      loadHomeAcompanhamentoExercicio(),
     ]);
     return;
   }
@@ -609,6 +612,140 @@ async function resolveHomeAlert(alertId) {
     await loadHomeAlerts();
   } catch (e) {
     console.warn("Home: falha ao marcar alerta como resolvido:", e);
+  }
+}
+
+/* ====================================================================
+   loadHomeAcompanhamentoExercicio — só contadores (Precisa de ação /
+   A terminar / Sem atividade / Regular), por doente distinto, a partir
+   de planos REALMENTE ativos (status='active' E expires_at > agora).
+   Scope de clínica: homeClinicId (RLS já restringe às clínicas do
+   utilizador quando null). Sem lista de doentes, sem escrita em alerts,
+   sem alteração a prescricao.js.
+
+   Sinais de "Precisa de ação" — estado MAIS RECENTE por prescrição
+   (não "alguma vez aconteceu"), para não manter um doente eternamente
+   marcado depois de uma resposta/registo entretanto normal:
+     - a readiness MAIS RECENTE dessa prescrição (por answered_at) tem
+       has_symptoms === true — uma readiness antiga com sintomas deixa
+       de contar assim que existir uma mais recente sem sintomas;
+     - o ÚLTIMO log dessa prescrição (mesma semântica de "row.lastLog"
+       em loadLandingRows) tem: note preenchida, OU rpe >= 8, OU algum
+       exercício com status !== 'as_prescribed' (alterado/skipped).
+
+   "A terminar": expires_at > agora e <= agora + 7 dias (threshold
+   validado nesta tarefa — substitui o de 3 dias usado noutro contexto
+   em situacaoLinha(), que não se aplica aqui).
+
+   "Sem atividade": existe pelo menos uma sessão em data.sessions[]
+   com date < hoje local sem linha correspondente em wo_session_logs
+   para esse session_id.
+
+   "Regular": doente com plano ativo que não cai em nenhuma das três
+   categorias anteriores.
+   ==================================================================== */
+async function loadHomeAcompanhamentoExercicio() {
+  try {
+    let pq = window.sb
+      .from("wo_prescriptions")
+      .select("id, patient_id, clinic_id, expires_at, data")
+      .eq("status", "active")
+      .gt("expires_at", new Date().toISOString());
+    if (homeClinicId) pq = pq.eq("clinic_id", homeClinicId);
+
+    const { data: prescriptions, error } = await pq;
+    if (error) throw error;
+
+    const rows = prescriptions || [];
+    if (!rows.length) {
+      setHomeAcompanhamentoStats({ total: 0, precisaAcao: 0, aTerminar: 0, semAtividade: 0, regular: 0 });
+      return;
+    }
+
+    const prescriptionIds = rows.map((p) => p.id);
+
+    /* Logs de todas as prescrições ativas — usados para 2 fins a partir
+       da MESMA query (evita N+1): (a) o log mais recente por prescrição
+       decide "Precisa de ação"; (b) o conjunto completo de session_ids
+       já logados decide "Sem atividade". */
+    const { data: logs, error: logsErr } = await window.sb
+      .from("wo_session_logs")
+      .select("prescription_id, session_id, rpe, note, sets")
+      .in("prescription_id", prescriptionIds)
+      .order("logged_at", { ascending: false });
+    if (logsErr) throw logsErr;
+
+    const lastLogByPrescription = new Map();
+    const loggedSessionKeys = new Set();
+    (logs || []).forEach((l) => {
+      if (!lastLogByPrescription.has(l.prescription_id)) lastLogByPrescription.set(l.prescription_id, l);
+      loggedSessionKeys.add(`${l.prescription_id}::${l.session_id}`);
+    });
+
+    /* Readiness mais recente por prescrição (não "alguma vez teve
+       sintomas") — sem filtro de has_symptoms na query, para poder
+       ver também as respostas normais mais recentes que anulam uma
+       readiness antiga com sintomas. */
+    const { data: readiness, error: rErr } = await window.sb
+      .from("wo_session_readiness")
+      .select("prescription_id, has_symptoms, answered_at")
+      .in("prescription_id", prescriptionIds)
+      .order("answered_at", { ascending: false });
+    if (rErr) throw rErr;
+
+    const latestReadinessByPrescription = new Map();
+    (readiness || []).forEach((r) => {
+      if (!latestReadinessByPrescription.has(r.prescription_id)) latestReadinessByPrescription.set(r.prescription_id, r);
+    });
+
+    const todayISO = fmtDateISO(new Date());
+    const SEVEN_DAYS_MS = 7 * 24 * 3600 * 1000;
+    const nowMs = Date.now();
+
+    const allPatients  = new Set();
+    const needsAction  = new Set();
+    const endingSoon   = new Set();
+    const inactive     = new Set();
+
+    rows.forEach((p) => {
+      allPatients.add(p.patient_id);
+
+      const expiresAtMs = new Date(p.expires_at).getTime();
+      if (expiresAtMs - nowMs <= SEVEN_DAYS_MS) endingSoon.add(p.patient_id);
+
+      const latestReadiness = latestReadinessByPrescription.get(p.id);
+      if (latestReadiness?.has_symptoms === true) needsAction.add(p.patient_id);
+      const lastLog = lastLogByPrescription.get(p.id);
+      if (lastLog) {
+        const sets     = Array.isArray(lastLog.sets) ? lastLog.sets : [];
+        const alterado = sets.some((entry) => entry.status && entry.status !== "as_prescribed");
+        if (lastLog.note || alterado || Number(lastLog.rpe || 0) >= 8) needsAction.add(p.patient_id);
+      }
+
+      const sessions = Array.isArray(p.data?.sessions) ? p.data.sessions : [];
+      const hasOverdue = sessions.some((s) => {
+        if (!s?.date || !s?.session_id) return false;
+        if (s.date >= todayISO) return false;
+        return !loggedSessionKeys.has(`${p.id}::${s.session_id}`);
+      });
+      if (hasOverdue) inactive.add(p.patient_id);
+    });
+
+    let regularCount = 0;
+    allPatients.forEach((pid) => {
+      if (!needsAction.has(pid) && !endingSoon.has(pid) && !inactive.has(pid)) regularCount += 1;
+    });
+
+    setHomeAcompanhamentoStats({
+      total: allPatients.size,
+      precisaAcao: needsAction.size,
+      aTerminar: endingSoon.size,
+      semAtividade: inactive.size,
+      regular: regularCount,
+    });
+  } catch (e) {
+    console.warn("Home: falha ao carregar acompanhamento de exercício:", e);
+    setHomeAcompanhamentoStats(null);
   }
 }
 
