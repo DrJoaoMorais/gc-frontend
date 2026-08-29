@@ -126,6 +126,17 @@ function styles() {
 .gc-exfollow-tl-removed{opacity:.7}
 .gc-exfollow-tl-removed .gc-exfollow-tl-badge{background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0}
 .gc-exfollow-tl-attention .gc-exfollow-tl-badge{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}
+.gc-exfollow-reply{margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px}
+.gc-exfollow-reply b{display:block;font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:6px}
+.gc-exfollow-reply-textarea{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:9px;padding:8px 10px;font:400 12.5px inherit;color:#0f172a;resize:vertical}
+.gc-exfollow-reply-actions{display:flex;gap:8px;margin-top:8px}
+.gc-exfollow-reply-save{border:1px solid #0f2d52;background:#0f2d52;color:#fff;border-radius:8px;padding:7px 12px;font:650 12px inherit;cursor:pointer}
+.gc-exfollow-reply-save:disabled{opacity:.6;cursor:default}
+.gc-exfollow-reply-cancel{border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:8px;padding:7px 12px;font:650 12px inherit;cursor:pointer}
+.gc-exfollow-reply-cancel:disabled{opacity:.6;cursor:default}
+.gc-exfollow-reply-open{margin-top:10px;border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:8px;padding:6px 11px;font:650 11.5px inherit;cursor:pointer}
+.gc-exfollow-reply-error{margin-top:8px;font-size:11.5px;color:#b91c1c}
+.gc-exfollow-reply-success{margin-top:10px;font-size:11.5px;color:#047857;font-weight:650}
 .gc-exfollow-tl-toggle{margin-top:8px;border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:8px;padding:5px 10px;font:650 11.5px inherit;cursor:pointer}
 .gc-exfollow-tl-toggle:hover{border-color:#93c5fd;background:#f8fbff}
 .gc-exfollow-tl-detail{margin-top:8px;border:1px dashed #cbd5e1;border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#475569}
@@ -501,34 +512,86 @@ function renderCardSessionDetail(entry, meta, sessionDateLabel) {
     </div>`;
 }
 
+/* Mapa mínimo de reasons devolvidos por wo_send_session_message — texto
+   legível para o médico. Reason desconhecido cai no fallback genérico. */
+const REPLY_ERROR_MESSAGES = {
+  nao_autenticado: "Sessão de utilizador inválida.",
+  sessao_invalida: "Sessão de treino inválida.",
+  mensagem_vazia: "Escreva uma mensagem antes de enviar.",
+  prescricao_nao_encontrada: "Plano não encontrado.",
+  expirado: "Este plano já não está ativo.",
+  sem_permissao: "Não tem permissão para enviar esta mensagem.",
+  sessao_nao_encontrada: "Esta sessão já não está disponível.",
+};
+const REPLY_ERROR_FALLBACK = "Não foi possível disponibilizar a mensagem.";
+
+/* renderReplyBlock — "Responder ao doente" dentro do painel expandido.
+   Estado (replyState) é sempre o mesmo objeto do módulo, nunca G. Só
+   aparece aberto para entry.sessionId === replyState.sessionId — nunca
+   mistura texto/estado entre sessões. Depois de um envio com sucesso,
+   volta ao botão fechado (texto sempre limpo), com uma nota de
+   confirmação por cima — nunca mostra a textarea com o texto já enviado. */
+function renderReplyBlock(entry, replyState) {
+  const isThisSession = replyState && replyState.sessionId === entry.sessionId;
+  const successNote = isThisSession && replyState.success
+    ? `<div class="gc-exfollow-reply-success">Mensagem disponibilizada ao doente.</div>`
+    : "";
+
+  const isOpen = isThisSession && !replyState.success;
+
+  if (!isOpen) {
+    return `${successNote}<button type="button" class="gc-exfollow-reply-open" data-reply-open="${esc(entry.sessionId)}">Responder ao doente</button>`;
+  }
+
+  const disabledAttr = replyState.sending ? "disabled" : "";
+  const errorHtml = replyState.error
+    ? `<div class="gc-exfollow-reply-error">${esc(replyState.error)}</div>`
+    : "";
+
+  return `
+    <div class="gc-exfollow-reply">
+      <b>Responder ao doente</b>
+      <textarea class="gc-exfollow-reply-textarea" rows="4" data-reply-textarea placeholder="Escreva a sua resposta..." ${disabledAttr}>${esc(replyState.body || "")}</textarea>
+      ${errorHtml}
+      <div class="gc-exfollow-reply-actions">
+        <button type="button" class="gc-exfollow-reply-save" data-reply-save ${disabledAttr}>${replyState.sending ? "A guardar…" : "Guardar e disponibilizar ao doente"}</button>
+        <button type="button" class="gc-exfollow-reply-cancel" data-reply-cancel ${disabledAttr}>Cancelar</button>
+      </div>
+    </div>`;
+}
+
 /* renderTimelineDetailPanel — painel de "Ver treino". Para kind="card"
    (identificado por entry.kind ou, na ausência dele — sessão já removida
    do array atual —, por snapshot.snapshot.kind), usa a visualização
    clínica de renderCardSessionDetail(). Para os restantes kinds
    (list/walk/circuit/desconhecido), mantém inalterado o painel técnico da
-   1ª fase (data/kind/estado/disponibilidade/congelamento). */
-function renderTimelineDetailPanel(entry, meta, sessionDateLabel) {
+   1ª fase (data/kind/estado/disponibilidade/congelamento). "Responder ao
+   doente" é comum aos dois casos, sempre no fim do painel. */
+function renderTimelineDetailPanel(entry, meta, sessionDateLabel, replyState) {
   const effectiveKind = entry.kind || entry.snapshot?.snapshot?.kind || null;
+  let detailHtml;
+
   if (effectiveKind === "card") {
-    return renderCardSessionDetail(entry, meta, sessionDateLabel);
+    detailHtml = renderCardSessionDetail(entry, meta, sessionDateLabel);
+  } else {
+    const lines = [];
+    lines.push(`Data: ${sessionDateLabel}`);
+    lines.push(`session_id: ${entry.sessionId}`);
+    if (entry.kind) lines.push(`Kind: ${entry.kind}`);
+    lines.push(`Estado: ${meta.label}`);
+    lines.push(entry.snapshot ? "Prescrito histórico disponível" : "Prescrito histórico não disponível");
+    lines.push(entry.log ? "Registo realizado disponível" : "Sem registo final");
+    if (entry.readiness?.answered_at) lines.push(`Readiness: ${fmtDateTime(entry.readiness.answered_at)}`);
+    if (entry.snapshot?.frozen_at) lines.push(`Prescrição congelada: ${fmtDateTime(entry.snapshot.frozen_at)}`);
+    detailHtml = `<div class="gc-exfollow-tl-detail">${lines.map((l) => `<div>${esc(l)}</div>`).join("")}</div>`;
   }
 
-  const lines = [];
-  lines.push(`Data: ${sessionDateLabel}`);
-  lines.push(`session_id: ${entry.sessionId}`);
-  if (entry.kind) lines.push(`Kind: ${entry.kind}`);
-  lines.push(`Estado: ${meta.label}`);
-  lines.push(entry.snapshot ? "Prescrito histórico disponível" : "Prescrito histórico não disponível");
-  lines.push(entry.log ? "Registo realizado disponível" : "Sem registo final");
-  if (entry.readiness?.answered_at) lines.push(`Readiness: ${fmtDateTime(entry.readiness.answered_at)}`);
-  if (entry.snapshot?.frozen_at) lines.push(`Prescrição congelada: ${fmtDateTime(entry.snapshot.frozen_at)}`);
-
-  return `<div class="gc-exfollow-tl-detail">${lines.map((l) => `<div>${esc(l)}</div>`).join("")}</div>`;
+  return `${detailHtml}${renderReplyBlock(entry, replyState)}`;
 }
 
 /* renderTimelineItem — cartão compacto por sessão. Só mostra o que existir
    objetivamente nas 4 fontes; nunca nomes de exercício (sem wo_exercises). */
-function renderTimelineItem(entry, todayISO, expandedSessionId) {
+function renderTimelineItem(entry, todayISO, expandedSessionId, replyState) {
   const status = classifySession(entry, todayISO);
   const meta = TIMELINE_STATUS_META[status] || TIMELINE_STATUS_META.INDETERMINADO;
   const sessionDateRaw = resolveSessionDate(entry);
@@ -561,7 +624,7 @@ function renderTimelineItem(entry, todayISO, expandedSessionId) {
       ${lines.length ? `<div class="gc-exfollow-tl-lines">${lines.map((l) => `<span>${esc(l)}</span>`).join("")}</div>` : ""}
       ${quotes.map((q) => `<div class="gc-exfollow-quote"><b>${esc(q.label)}</b>${esc(q.text)}</div>`).join("")}
       <button type="button" class="gc-exfollow-tl-toggle" data-toggle-session="${esc(entry.sessionId)}">${isExpanded ? "Fechar treino" : "Ver treino"}</button>
-      ${isExpanded ? renderTimelineDetailPanel(entry, meta, sessionDateLabel) : ""}
+      ${isExpanded ? renderTimelineDetailPanel(entry, meta, sessionDateLabel, replyState) : ""}
     </div>`;
 }
 
@@ -570,7 +633,7 @@ function renderTimelineItem(entry, todayISO, expandedSessionId) {
    posição cronológica para elas). expandedSessionId identifica, por
    session_id, qual painel de "Ver treino" (se algum) deve aparecer
    expandido — nunca mais do que um em simultâneo. */
-function renderTimelineBlock(prescription, snapshots, readinessRows, logRows, expandedSessionId) {
+function renderTimelineBlock(prescription, snapshots, readinessRows, logRows, expandedSessionId, replyState) {
   const entries = buildTimelineSessions(prescription, snapshots, readinessRows, logRows);
   if (!entries.length) {
     return `<div class="gc-exfollow-empty">Não existem sessões disponíveis para apresentar.</div>`;
@@ -586,10 +649,10 @@ function renderTimelineBlock(prescription, snapshots, readinessRows, logRows, ex
     return da < db ? -1 : da > db ? 1 : 0;
   });
 
-  return `<div class="gc-exfollow-timeline">${entries.map((e) => renderTimelineItem(e, todayISO, expandedSessionId)).join("")}</div>`;
+  return `<div class="gc-exfollow-timeline">${entries.map((e) => renderTimelineItem(e, todayISO, expandedSessionId, replyState)).join("")}</div>`;
 }
 
-function renderShell(root, patient, prescription, readiness, log, snapshots, readinessRows, logRows, expandedSessionId) {
+function renderShell(root, patient, prescription, readiness, log, snapshots, readinessRows, logRows, expandedSessionId, replyState) {
   const remaining = daysUntil(prescription?.expires_at);
   const endLabel = remaining === null
     ? "—"
@@ -626,7 +689,7 @@ function renderShell(root, patient, prescription, readiness, log, snapshots, rea
       <div class="gc-exfollow-section">
         <h2>Linha temporal do plano</h2>
         <p>Sessões realizadas, previstas, não realizadas e removidas.</p>
-        ${renderTimelineBlock(prescription, snapshots, readinessRows, logRows, expandedSessionId)}
+        ${renderTimelineBlock(prescription, snapshots, readinessRows, logRows, expandedSessionId, replyState)}
       </div>
 
       <div class="gc-exfollow-section">
@@ -690,8 +753,63 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
      ao expandir/fechar — repinta com os mesmos arrays já carregados acima. */
   let expandedSessionId = null;
 
+  /* Estado local (não G) do "Responder ao doente". replyState.sessionId
+     identifica a QUE sessão pertence o texto em curso — nunca se escolhe
+     por data, nunca se troca de prescrição. Reposto sempre que se muda de
+     sessão expandida (nunca transporta texto escrito para outra sessão). */
+  let replyState = { sessionId: null, body: "", sending: false, success: false, error: null };
+
+  function resetReplyState() {
+    replyState = { sessionId: null, body: "", sending: false, success: false, error: null };
+  }
+
+  async function handleReplySave() {
+    const body = String(replyState.body || "").trim();
+    const sessionId = replyState.sessionId;
+
+    if (!body) {
+      replyState.error = REPLY_ERROR_MESSAGES.mensagem_vazia;
+      paint();
+      return;
+    }
+    if (!prescriptionId || !sessionId) {
+      replyState.error = REPLY_ERROR_FALLBACK;
+      paint();
+      return;
+    }
+
+    replyState.sending = true;
+    replyState.error = null;
+    replyState.success = false;
+    paint();
+
+    const { data, error } = await window.sb.rpc("wo_send_session_message", {
+      p_prescription_id: prescriptionId,
+      p_session_id: sessionId,
+      p_body: body,
+    });
+
+    replyState.sending = false;
+
+    if (error) {
+      replyState.error = REPLY_ERROR_FALLBACK;
+      paint();
+      return;
+    }
+
+    if (data?.ok) {
+      replyState.success = true;
+      replyState.body = "";
+      paint();
+      return;
+    }
+
+    replyState.error = REPLY_ERROR_MESSAGES[data?.reason] || REPLY_ERROR_FALLBACK;
+    paint();
+  }
+
   function paint() {
-    renderShell(root, patientRes.data, prescriptionRes.data, latestReadiness, latestLog, snapshots, readinessRows, logRows, expandedSessionId);
+    renderShell(root, patientRes.data, prescriptionRes.data, latestReadiness, latestLog, snapshots, readinessRows, logRows, expandedSessionId, replyState);
 
     document.getElementById("gcExFollowBack")?.addEventListener("click", () => {
       if (typeof onBack === "function") onBack();
@@ -701,8 +819,34 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
       btn.addEventListener("click", () => {
         const sid = btn.getAttribute("data-toggle-session");
         expandedSessionId = expandedSessionId === sid ? null : sid;
+        resetReplyState();
         paint();
       });
+    });
+
+    root.querySelectorAll("[data-reply-open]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const sid = btn.getAttribute("data-reply-open");
+        replyState = { sessionId: sid, body: "", sending: false, success: false, error: null };
+        paint();
+      });
+    });
+
+    root.querySelectorAll("[data-reply-cancel]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        resetReplyState();
+        paint();
+      });
+    });
+
+    root.querySelectorAll("[data-reply-textarea]").forEach((el) => {
+      el.addEventListener("input", () => {
+        replyState.body = el.value;
+      });
+    });
+
+    root.querySelectorAll("[data-reply-save]").forEach((btn) => {
+      btn.addEventListener("click", () => { handleReplySave(); });
     });
   }
 
