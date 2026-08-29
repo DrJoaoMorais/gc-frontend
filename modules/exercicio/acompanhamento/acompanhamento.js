@@ -55,6 +55,23 @@ function todayISODate() {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
+/* fmtDurationHuman — segundos → texto humano ("1 min", "1 min 30 s", "1 h").
+   null quando o valor não é um número válido (nunca inventar "0 s" para um
+   campo ausente). */
+function fmtDurationHuman(totalSec) {
+  const n = Number(totalSec);
+  if (!Number.isFinite(n) || n < 0) return null;
+  const sec = Math.round(n);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  const parts = [];
+  if (h > 0) parts.push(`${h} h`);
+  if (m > 0) parts.push(`${m} min`);
+  if (s > 0) parts.push(`${s} s`);
+  return parts.length ? parts.join(" ") : "0 s";
+}
+
 /* computeSetsCounts — contagem objetiva de sets[] alterados/não realizados
    de um log, sem nomes de exercício (sem query a wo_exercises). Partilhada
    pelo Bloco 1 e pela Linha temporal para não duplicar a mesma regra. */
@@ -112,6 +129,20 @@ function styles() {
 .gc-exfollow-tl-toggle{margin-top:8px;border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:8px;padding:5px 10px;font:650 11.5px inherit;cursor:pointer}
 .gc-exfollow-tl-toggle:hover{border-color:#93c5fd;background:#f8fbff}
 .gc-exfollow-tl-detail{margin-top:8px;border:1px dashed #cbd5e1;border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#475569}
+.gc-exfollow-card-detail{margin-top:8px;display:flex;flex-direction:column;gap:10px}
+.gc-exfollow-card-section{border-top:1px solid #e2e8f0;padding-top:8px}
+.gc-exfollow-card-section b{display:block;font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:6px}
+.gc-exfollow-card-timeline{display:flex;gap:2px;border-radius:8px;overflow:hidden;height:30px;margin-bottom:8px}
+.gc-exfollow-card-timeline-seg{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden}
+.gc-exfollow-card-zone-z1{background:#94a3b8}
+.gc-exfollow-card-zone-z2{background:#60a5fa}
+.gc-exfollow-card-zone-z3{background:#34d399}
+.gc-exfollow-card-zone-z4{background:#fbbf24}
+.gc-exfollow-card-zone-z5{background:#f87171}
+.gc-exfollow-card-zone-none{background:#cbd5e1}
+.gc-exfollow-card-blocks{display:flex;flex-wrap:wrap;gap:6px}
+.gc-exfollow-card-block{border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;padding:6px 9px;display:flex;flex-direction:column;gap:2px;font-size:11px;color:#334155;min-width:90px}
+.gc-exfollow-card-block b{font-size:10.5px;color:#0f2d52;font-weight:750}
 .gc-exfollow-error{border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:10px;padding:12px 14px;font-size:12px}
 @media(max-width:800px){.gc-exfollow-grid{grid-template-columns:1fr}.gc-exfollow-head{flex-direction:column}.gc-exfollow-back{order:-1}}
 `;
@@ -257,13 +288,194 @@ const TIMELINE_STATUS_META = {
   INDETERMINADO:        { label: "Estado indeterminado",          css: "neutral" },
 };
 
-/* renderTimelineDetailPanel — 1ª fase de "Ver treino": só valida a
-   associação session_id → dados corretos (data/kind/estado/disponibilidade
-   de snapshot/log/readiness/congelamento). Sem exercícios, séries, cargas,
-   blocos cardio nem comparação prescrito vs realizado — isso fica para uma
-   passagem seguinte. session_id em texto pequeno é só para validação
-   técnica no Preview. */
+const CARD_ZONE_CLASS = {
+  Z1: "gc-exfollow-card-zone-z1",
+  Z2: "gc-exfollow-card-zone-z2",
+  Z3: "gc-exfollow-card-zone-z3",
+  Z4: "gc-exfollow-card-zone-z4",
+  Z5: "gc-exfollow-card-zone-z5",
+};
+function cardZoneClass(zone) {
+  return CARD_ZONE_CLASS[zone] || "gc-exfollow-card-zone-none";
+}
+
+/* computeCardBlockVisualDuration — duração usada só para a LARGURA da
+   timeline visual. "continuous": duration_sec direto. "series": só quando
+   count/work.duration_sec/recovery.duration_sec existirem TODOS — nunca
+   inventar proporção a partir de dados parciais (fica largura neutra). */
+function computeCardBlockVisualDuration(block) {
+  if (block?.type === "continuous") {
+    const sec = Number(block.duration_sec);
+    return Number.isFinite(sec) && sec > 0 ? sec : null;
+  }
+  if (block?.type === "series") {
+    const workSec = Number(block.work?.duration_sec);
+    const recSec = Number(block.recovery?.duration_sec);
+    const count = Number(block.count);
+    if (Number.isFinite(workSec) && Number.isFinite(recSec) && Number.isFinite(count) && count > 0) {
+      return count * (workSec + recSec);
+    }
+  }
+  return null;
+}
+
+/* renderCardPrescribedTimeline — timeline horizontal simples: largura
+   proporcional à duração visual quando conhecida, largura mínima/neutra
+   (flex:0 0 36px) quando não. Cor só diferencia a zona (Z1..Z5, texto
+   literal) — nunca converte zona em FC/potência/ritmo. */
+function renderCardPrescribedTimeline(blocks) {
+  const segs = blocks.map((block, i) => {
+    const zone = block?.type === "continuous" ? block?.intensity?.zone : block?.work?.intensity?.zone;
+    const visualSec = computeCardBlockVisualDuration(block);
+    const flexStyle = visualSec ? `flex:${visualSec} 0 auto` : "flex:0 0 36px";
+    return `<div class="gc-exfollow-card-timeline-seg ${cardZoneClass(zone)}" style="${flexStyle}" title="Bloco ${i + 1}">${zone ? esc(zone) : ""}</div>`;
+  });
+  return `<div class="gc-exfollow-card-timeline">${segs.join("")}</div>`;
+}
+
+/* renderCardBlockCards — cartões compactos por bloco, pela ordem original
+   de blocks[]. Nomenclatura neutra "Bloco N" — nunca "Aquecimento"/
+   "Arrefecimento" (semântica não disponível nos dados). Só mostra campos
+   realmente existentes. */
+function renderCardBlockCards(blocks) {
+  const cards = blocks.map((block, i) => {
+    const lines = [];
+    if (block?.type === "continuous") {
+      lines.push("Contínuo");
+      const dur = fmtDurationHuman(block.duration_sec);
+      if (dur) lines.push(dur);
+      if (block.intensity?.zone) lines.push(block.intensity.zone);
+      if (block.intensity?.rpe != null) lines.push(`RPE ${block.intensity.rpe}`);
+      const paceLabel = fmtDurationHuman(block.intensity?.pace_sec_per_km);
+      if (paceLabel) lines.push(`${paceLabel}/km`);
+    } else if (block?.type === "series") {
+      const workDur = fmtDurationHuman(block.work?.duration_sec);
+      if (block.count != null && workDur) lines.push(`${block.count} × ${workDur}`);
+      else if (workDur) lines.push(workDur);
+      if (block.work?.intensity?.zone) lines.push(block.work.intensity.zone);
+      if (block.work?.intensity?.rpe != null) lines.push(`RPE ${block.work.intensity.rpe}`);
+      const recDur = fmtDurationHuman(block.recovery?.duration_sec);
+      if (recDur) lines.push(`Recuperação: ${recDur}`);
+      if (block.recovery?.intensity?.zone) lines.push(`Recuperação: ${block.recovery.intensity.zone}`);
+      if (block.recovery?.intensity?.rpe != null) lines.push(`Recuperação RPE ${block.recovery.intensity.rpe}`);
+    } else if (block?.type) {
+      lines.push(String(block.type));
+    }
+    return `<div class="gc-exfollow-card-block"><b>Bloco ${i + 1}</b>${lines.map((l) => `<span>${esc(l)}</span>`).join("")}</div>`;
+  });
+  return `<div class="gc-exfollow-card-blocks">${cards.join("")}</div>`;
+}
+
+/* computeCardRealized — só entry.log.sets (nunca o snapshot para o
+   realizado). Trata as 3 variantes reais já auditadas: A) resumo de sessão;
+   B) entradas por block_id+status (associadas ao snapshot só por
+   igualdade exata de block_id, sem transformar status em dado
+   fisiológico); C) sem detalhe estruturado nenhum. */
+function computeCardRealized(entry) {
+  const log = entry.log;
+  const lines = [];
+
+  if (log) {
+    const sets = Array.isArray(log.sets) ? log.sets : [];
+    const resumo = sets.find((e) => e?.tipo === "resumo");
+    const blockEntries = sets.filter((e) => e && typeof e === "object" && Object.prototype.hasOwnProperty.call(e, "block_id"));
+
+    if (resumo) {
+      const dur = fmtDurationHuman(resumo.tempo_total_sec);
+      if (dur) lines.push(`Tempo total: ${dur}`);
+      const distM = Number(resumo.distancia_total_m);
+      if (Number.isFinite(distM)) lines.push(`Distância total: ${(distM / 1000).toFixed(2).replace(".", ",")} km`);
+    }
+
+    if (blockEntries.length) {
+      lines.push("Registo por blocos disponível");
+      const prescribedBlocks = entry.snapshot?.snapshot?.blocks;
+      const indexByBlockId = new Map();
+      if (Array.isArray(prescribedBlocks)) {
+        prescribedBlocks.forEach((b, i) => { if (b?.block_id) indexByBlockId.set(b.block_id, i + 1); });
+      }
+      blockEntries.forEach((be) => {
+        const idx = be.block_id ? indexByBlockId.get(be.block_id) : null;
+        const label = idx ? `Bloco ${idx}` : String(be.block_id || "—");
+        lines.push(`${label}: ${be.status != null ? be.status : "—"}`);
+      });
+    }
+
+    if (!resumo && !blockEntries.length) {
+      lines.push("Sem detalhe estruturado do treino realizado.");
+    }
+  } else {
+    lines.push("Sem registo final.");
+  }
+
+  return {
+    lines,
+    rpe: log?.rpe,
+    feel: log?.feel,
+    noteText: String(log?.note || "").trim(),
+  };
+}
+
+/* renderCardSessionDetail — visualização clínica de "Ver treino" para
+   kind="card". Prescrito vem EXCLUSIVAMENTE de entry.snapshot.snapshot
+   (nunca da prescrição atual); realizado vem EXCLUSIVAMENTE de
+   entry.log.sets. Secções visualmente separadas — nunca mistura valores
+   realizados dentro da timeline prescrita. session_id nunca aparece aqui. */
+function renderCardSessionDetail(entry, meta, sessionDateLabel) {
+  const snap = entry.snapshot?.snapshot || null;
+  const blocks = Array.isArray(snap?.blocks) ? snap.blocks : null;
+
+  const headerParts = [];
+  if (snap?.modality) headerParts.push(snap.modality);
+  headerParts.push(sessionDateLabel);
+  headerParts.push(meta.label);
+
+  const prescribedHtml = blocks && blocks.length
+    ? `${renderCardPrescribedTimeline(blocks)}${renderCardBlockCards(blocks)}`
+    : `<div class="gc-exfollow-empty">Prescrito histórico não disponível.</div>`;
+
+  const realized = computeCardRealized(entry);
+  const realizedLinesHtml = realized.lines.length
+    ? `<div class="gc-exfollow-tl-lines">${realized.lines.map((l) => `<span>${esc(l)}</span>`).join("")}</div>`
+    : "";
+  const realizedMetaParts = [];
+  if (realized.rpe != null && realized.rpe !== "") realizedMetaParts.push(`RPE: ${realized.rpe}/10`);
+  if (realized.feel != null && realized.feel !== "") realizedMetaParts.push(`Sensação pós-treino: ${realized.feel}/5`);
+  const realizedMetaHtml = realizedMetaParts.length
+    ? `<div class="gc-exfollow-meta">${realizedMetaParts.map((m) => `<span>${esc(m)}</span>`).join("")}</div>`
+    : "";
+  const realizedNoteHtml = realized.noteText
+    ? `<div class="gc-exfollow-quote"><b>Comentário do doente</b>${esc(realized.noteText)}</div>`
+    : "";
+
+  return `
+    <div class="gc-exfollow-card-detail">
+      <div class="gc-exfollow-tl-lines">${headerParts.map((l) => `<span>${esc(l)}</span>`).join("")}</div>
+      <div class="gc-exfollow-card-section">
+        <b>Prescrito</b>
+        ${prescribedHtml}
+      </div>
+      <div class="gc-exfollow-card-section">
+        <b>Realizado</b>
+        ${realizedLinesHtml}
+        ${realizedMetaHtml}
+        ${realizedNoteHtml}
+      </div>
+    </div>`;
+}
+
+/* renderTimelineDetailPanel — painel de "Ver treino". Para kind="card"
+   (identificado por entry.kind ou, na ausência dele — sessão já removida
+   do array atual —, por snapshot.snapshot.kind), usa a visualização
+   clínica de renderCardSessionDetail(). Para os restantes kinds
+   (list/walk/circuit/desconhecido), mantém inalterado o painel técnico da
+   1ª fase (data/kind/estado/disponibilidade/congelamento). */
 function renderTimelineDetailPanel(entry, meta, sessionDateLabel) {
+  const effectiveKind = entry.kind || entry.snapshot?.snapshot?.kind || null;
+  if (effectiveKind === "card") {
+    return renderCardSessionDetail(entry, meta, sessionDateLabel);
+  }
+
   const lines = [];
   lines.push(`Data: ${sessionDateLabel}`);
   lines.push(`session_id: ${entry.sessionId}`);
@@ -412,7 +624,7 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
   const [patientRes, prescriptionRes, snapshotsRes, readinessRes, logsRes] = await Promise.all([
     window.sb.from("patients").select("id, full_name").eq("id", patientId).maybeSingle(),
     window.sb.from("wo_prescriptions").select("id, patient_id, clinic_id, status, created_at, expires_at, first_opened_at, data").eq("id", prescriptionId).eq("patient_id", patientId).maybeSingle(),
-    window.sb.from("wo_session_prescription_snapshots").select("session_id, session_date, frozen_at, removed_at").eq("prescription_id", prescriptionId),
+    window.sb.from("wo_session_prescription_snapshots").select("session_id, session_date, frozen_at, removed_at, snapshot").eq("prescription_id", prescriptionId),
     window.sb.from("wo_session_readiness").select("session_id, answered_at, has_symptoms, symptom_note").eq("prescription_id", prescriptionId),
     window.sb.from("wo_session_logs").select("session_id, logged_at, rpe, feel, note, sets").eq("prescription_id", prescriptionId),
   ]);
