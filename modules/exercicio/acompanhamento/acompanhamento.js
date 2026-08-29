@@ -1537,6 +1537,80 @@ function itemIsDuracao(item) {
   return item?.duration_sec != null || (Array.isArray(item?.duration_series) && item.duration_series.length > 0);
 }
 
+/* valuesEquivalent — dois valores (reps, load ou duration_sec) são
+   equivalentes quando ambos são ausência (null/""/undefined) ou quando
+   representam o mesmo número (ex.: "30" e 30). Reutiliza parseNumericLoad
+   (já validado) mesmo para reps/duration_sec — o nome do helper refere-se
+   ao caso mais comum (load), mas a conversão Number(...)+finito é
+   genérica e correta para os três campos. Nunca ignora uma diferença
+   real. */
+function valuesEquivalent(a, b) {
+  return parseNumericLoad(a) === parseNumericLoad(b);
+}
+
+/* seriesFromPrescribedItem — deriva a lista de séries REALMENTE
+   prescritas para este item, replicando exatamente seriesDaPrescricao(item)
+   do frontend do doente (treino.joaomorais.pt/index.html, já auditado):
+   duration_series[] > duration_sec único > series[] > sets/reps_fixed/
+   reps_min/reps_max/load repetido. Fonte EXCLUSIVA: o item do snapshot
+   histórico desta sessão (nunca a prescrição atual). */
+function seriesFromPrescribedItem(item) {
+  if (Array.isArray(item?.duration_series) && item.duration_series.length) {
+    return item.duration_series.map((s) => ({ duration_sec: s?.duration_sec != null ? s.duration_sec : null }));
+  }
+  if (item?.duration_sec != null) {
+    return [{ duration_sec: item.duration_sec }];
+  }
+  if (Array.isArray(item?.series) && item.series.length) {
+    return item.series.map((s) => ({
+      reps: s?.reps != null ? s.reps : null,
+      load: s?.load != null && s.load !== "" ? s.load : null,
+    }));
+  }
+  const n = item?.sets || 1;
+  const reps = item?.reps_fixed != null ? item.reps_fixed : item?.reps_max;
+  const out = [];
+  for (let i = 0; i < n; i++) out.push({ reps: reps != null ? reps : null, load: item?.load != null ? item.load : null });
+  return out;
+}
+
+/* seriesArraysEquivalent — compara série a série (nº de séries, reps,
+   load, duration_sec) com a mesma normalização usada na correção do
+   treino-frontend (commit d1a329f): ausência ≡ ausência, valores
+   numericamente iguais ≡ iguais. Qualquer series[i].skipped===true na
+   série realizada é sempre uma diferença real. */
+function seriesArraysEquivalent(prescribedSeries, actualSeries) {
+  const p = Array.isArray(prescribedSeries) ? prescribedSeries : [];
+  const a = Array.isArray(actualSeries) ? actualSeries : [];
+  if (p.length !== a.length) return false;
+  for (let i = 0; i < p.length; i++) {
+    if (a[i]?.skipped === true) return false;
+    if (!valuesEquivalent(p[i]?.reps, a[i]?.reps)) return false;
+    if (!valuesEquivalent(p[i]?.load, a[i]?.load)) return false;
+    if (!valuesEquivalent(p[i]?.duration_sec, a[i]?.duration_sec)) return false;
+  }
+  return true;
+}
+
+/* exerciseEffectiveStatus — status EFETIVO de um exercício numa sessão,
+   para apresentação/cálculos do GC, SEM alterar logEntry.status nem
+   qualquer dado gravado. "as_prescribed"/"skipped" (ou ausência de
+   registo) passam tal e qual — só "adjusted" é reinterpretado: compara
+   as séries realmente gravadas (logEntry.series) com a prescrição REAL
+   desta sessão (item do snapshot histórico, nunca a prescrição atual,
+   via seriesFromPrescribedItem). Se forem semanticamente iguais, o
+   registo histórico "adjusted" (produzido pelo bug já corrigido na
+   origem — treino-frontend commit d1a329f — que marcava "adjusted" só
+   por o formulário ter sido guardado, mesmo sem alterar valores) passa a
+   "as_prescribed". Havendo qualquer diferença real, mantém-se
+   "adjusted". */
+function exerciseEffectiveStatus(item, logEntry) {
+  const raw = logEntry?.status || null;
+  if (raw !== "adjusted") return raw;
+  const prescribedSeries = seriesFromPrescribedItem(item);
+  return seriesArraysEquivalent(prescribedSeries, logEntry?.series) ? "as_prescribed" : "adjusted";
+}
+
 /* buildExerciseSummaries — agrega, por exercise_id, as sessões
    kind="list" dentro do período filtrado, usando EXCLUSIVAMENTE
    buildTimelineSessions/findLogEntryForExercise já validados. Identidade
@@ -1578,7 +1652,7 @@ function buildExerciseSummaries(prescription, snapshots, readinessRows, logRows,
         date: resolveSessionDate(entry),
         item,
         logEntry,
-        status: logEntry.status,
+        status: exerciseEffectiveStatus(item, logEntry), // status EFETIVO — logEntry.status (raw) preservado tal e qual, inalterado
       });
     });
   });
