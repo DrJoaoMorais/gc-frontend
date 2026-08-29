@@ -1065,11 +1065,9 @@ function computeEvolucaoClinica(prescription, snapshots, readinessRows, logRows,
     else if (status === "NAO_REALIZADA") naoRealizadas++;
     else if (status === "INICIADA_SEM_REGISTO") iniciadasSemRegisto++;
 
-    if (entry.log) {
-      const { altered, skipped } = computeSetsCounts(entry.log);
-      alteradosTotal += altered;
-      naoRealizadosExTotal += skipped;
-    }
+    const { altered, skipped } = computeEffectiveExerciseCounts(entry);
+    alteradosTotal += altered;
+    naoRealizadosExTotal += skipped;
 
     if (status === "REALIZADA" || status === "NAO_REALIZADA" || status === "INICIADA_SEM_REGISTO" || status === "HOJE") {
       tabelaRows.push({ entry, status, date });
@@ -1609,6 +1607,32 @@ function exerciseEffectiveStatus(item, logEntry) {
   if (raw !== "adjusted") return raw;
   const prescribedSeries = seriesFromPrescribedItem(item);
   return seriesArraysEquivalent(prescribedSeries, logEntry?.series) ? "as_prescribed" : "adjusted";
+}
+
+/* computeEffectiveExerciseCounts — altered/skipped por SESSÃO (uma
+   sessão inteira, não uma série), usando o mesmo status EFETIVO já
+   validado em exerciseEffectiveStatus — nunca o raw status de
+   computeSetsCounts. Deliberadamente SEPARADO de computeSetsCounts (que
+   continua, sem qualquer alteração, a servir o Bloco 1 "Porque precisa
+   da minha atenção agora?" e a Linha Temporal, ambos já validados e
+   fora do âmbito desta correção). Fonte: entry.snapshot.snapshot.items[]
+   (já disponível no entry, sem tocar em buildTimelineSessions) +
+   findLogEntryForExercise (já validado) — nunca por série, sempre por
+   exercício. Ausência de logEntry.status nunca é contabilizada. */
+function computeEffectiveExerciseCounts(entry) {
+  const items = Array.isArray(entry.snapshot?.snapshot?.items) ? entry.snapshot.snapshot.items : [];
+  let altered = 0;
+  let skipped = 0;
+  items.forEach((item) => {
+    const exerciseId = item?.exercise_id;
+    if (!exerciseId) return;
+    const logEntry = findLogEntryForExercise(entry.log, exerciseId);
+    if (!logEntry?.status) return; // ausência de registo — nunca contabilizar
+    const effectiveStatus = exerciseEffectiveStatus(item, logEntry);
+    if (effectiveStatus === "adjusted") altered++;
+    else if (effectiveStatus === "skipped") skipped++;
+  });
+  return { altered, skipped };
 }
 
 /* buildExerciseSummaries — agrega, por exercise_id, as sessões
