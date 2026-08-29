@@ -199,13 +199,22 @@ function styles() {
 .gc-exfollow-treino-modalidade{font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:8px}
 
 /* Respostas reais do doente — Antes do treino / Depois do treino, um
-   cartão compacto por pergunta, grelha de 3 por linha em desktop. */
+   cartão compacto por pergunta, grelha de 3 por linha em desktop. Linha
+   lateral fina (mesmo princípio dos cartões de clínica do GC: cartão
+   quase branco, só uma linha de cor para identificar a categoria — nunca
+   fundo saturado nem borda à volta de todos os lados). */
 .gc-exfollow-answers{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.gc-exfollow-answer{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 11px;min-width:0}
+.gc-exfollow-answer{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 11px 8px 9px;min-width:0}
 .gc-exfollow-answer b{display:block;font-size:9.5px;font-weight:650;color:#64748b;text-transform:uppercase;letter-spacing:.02em;margin-bottom:3px}
 .gc-exfollow-answer strong{display:block;font-size:12.5px;font-weight:700;color:#0f172a;line-height:1.35;white-space:pre-wrap;word-break:break-word}
-.gc-exfollow-answer-neutral{grid-column:1 / -1;background:#f1f5f9}
+.gc-exfollow-answer-neutral{grid-column:1 / -1;background:#f1f5f9;padding-left:11px}
 .gc-exfollow-answer-neutral strong{color:#64748b;font-weight:650}
+.gc-exfollow-block-before>b{color:#1d4ed8}
+.gc-exfollow-answer-before{border-left:3px solid #3b82f6}
+.gc-exfollow-block-after>b{color:#047857}
+.gc-exfollow-answer-after{border-left:3px solid #10b981}
+.gc-exfollow-answer-symptom{border-left:3px solid #db2777}
+.gc-exfollow-answer-note{border-left:3px solid #f97316}
 .gc-exfollow-block-reply>b{color:#047857}
 @media(max-width:640px){.gc-exfollow-answers{grid-template-columns:1fr}}
 
@@ -242,7 +251,7 @@ function styles() {
 
 /* Resposta médica — preservada (só reposicionada). */
 .gc-exfollow-reply-messages{display:flex;flex-direction:column;gap:6px}
-.gc-exfollow-reply-message{border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:8px 10px}
+.gc-exfollow-reply-message{border:1px solid #e2e8f0;border-left-width:3px;border-left-color:#10b981;background:#fff;border-radius:8px;padding:8px 10px 8px 8px}
 .gc-exfollow-reply-message p{margin:0;font-size:12px;color:#0f172a;white-space:pre-wrap}
 .gc-exfollow-reply-message-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:5px;font-size:10px;color:#64748b}
 .gc-exfollow-reply{display:flex;flex-direction:column;gap:2px}
@@ -665,29 +674,29 @@ function renderAvaliacaoDoente(readiness, log) {
     const feelingNum = readiness.feeling != null ? Number(readiness.feeling) : null;
     const feelingLabel = Number.isFinite(feelingNum) ? READINESS_FEELING_LABELS[feelingNum] : null;
     const antesCards = [
-      { label: "Como se sente hoje?", value: feelingLabel || "Não respondido" },
-      { label: "Tem sintomas ou dor?", value: readiness.has_symptoms === true ? "SIM" : readiness.has_symptoms === false ? "NÃO" : "Não respondido" },
+      { label: "Como se sente hoje?", value: feelingLabel || "Não respondido", cls: "gc-exfollow-answer-before" },
+      { label: "Tem sintomas ou dor?", value: readiness.has_symptoms === true ? "SIM" : readiness.has_symptoms === false ? "NÃO" : "Não respondido", cls: "gc-exfollow-answer-before" },
     ];
     const symptomNote = String(readiness.symptom_note || "").trim();
-    if (symptomNote) antesCards.push({ label: "Sintoma / dor", value: symptomNote });
+    if (symptomNote) antesCards.push({ label: "Sintoma / dor", value: symptomNote, cls: "gc-exfollow-answer-symptom" });
 
-    const antesItemsHtml = antesCards.map((c) => `<div class="gc-exfollow-answer"><b>${esc(c.label)}</b><strong>${esc(c.value)}</strong></div>`).join("");
-    antesHtml = `<div class="gc-exfollow-block"><b>Antes do treino</b><div class="gc-exfollow-answers">${antesItemsHtml}</div></div>`;
+    const antesItemsHtml = antesCards.map((c) => `<div class="gc-exfollow-answer ${c.cls}"><b>${esc(c.label)}</b><strong>${esc(c.value)}</strong></div>`).join("");
+    antesHtml = `<div class="gc-exfollow-block gc-exfollow-block-before"><b>Antes do treino</b><div class="gc-exfollow-answers">${antesItemsHtml}</div></div>`;
   } else if (hasLog) {
-    antesHtml = `<div class="gc-exfollow-block"><b>Antes do treino</b><div class="gc-exfollow-answers"><div class="gc-exfollow-answer gc-exfollow-answer-neutral"><b>Avaliação pré-treino</b><strong>Não disponível</strong></div></div></div>`;
+    antesHtml = `<div class="gc-exfollow-block gc-exfollow-block-before"><b>Antes do treino</b><div class="gc-exfollow-answers"><div class="gc-exfollow-answer gc-exfollow-answer-neutral"><b>Avaliação pré-treino</b><strong>Não disponível</strong></div></div></div>`;
   }
 
   let depoisHtml = "";
   if (hasLog) {
     const depoisCards = [
-      { label: "Esforço percebido", value: log.rpe != null && log.rpe !== "" ? `${log.rpe}/10` : "Não respondido" },
-      { label: "Bem-estar", value: log.feel != null && log.feel !== "" ? `${log.feel}/5` : "Não respondido" },
+      { label: "Esforço percebido", value: log.rpe != null && log.rpe !== "" ? `${log.rpe}/10` : "Não respondido", cls: "gc-exfollow-answer-after" },
+      { label: "Bem-estar", value: log.feel != null && log.feel !== "" ? `${log.feel}/5` : "Não respondido", cls: "gc-exfollow-answer-after" },
     ];
     const noteText = String(log.note || "").trim();
-    if (noteText) depoisCards.push({ label: "Nota após o treino", value: noteText });
+    if (noteText) depoisCards.push({ label: "Nota após o treino", value: noteText, cls: "gc-exfollow-answer-note" });
 
-    const depoisItemsHtml = depoisCards.map((c) => `<div class="gc-exfollow-answer"><b>${esc(c.label)}</b><strong>${esc(c.value)}</strong></div>`).join("");
-    depoisHtml = `<div class="gc-exfollow-block"><b>Depois do treino</b><div class="gc-exfollow-answers">${depoisItemsHtml}</div></div>`;
+    const depoisItemsHtml = depoisCards.map((c) => `<div class="gc-exfollow-answer ${c.cls}"><b>${esc(c.label)}</b><strong>${esc(c.value)}</strong></div>`).join("");
+    depoisHtml = `<div class="gc-exfollow-block gc-exfollow-block-after"><b>Depois do treino</b><div class="gc-exfollow-answers">${depoisItemsHtml}</div></div>`;
   }
 
   return `${antesHtml}${depoisHtml}`;
