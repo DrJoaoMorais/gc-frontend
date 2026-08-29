@@ -177,14 +177,15 @@ function styles() {
 .gc-exfollow-metric b{display:block;font-size:9.5px;font-weight:650;color:#64748b;margin-bottom:2px}
 .gc-exfollow-metric strong{font-size:15px;color:#0f172a;font-weight:750}
 
-/* Como se sentiu — antes/depois com mini-escala 1-5 real. */
-.gc-exfollow-avaliacoes{display:flex;align-items:center;gap:12px}
+/* Avaliação da sessão — antes do treino (readiness.feeling, pergunta "Como
+   se sente hoje?") e após o treino (log.feel, "Bem-estar"). Duas perguntas
+   distintas — lado a lado, sem seta de equivalência. */
+.gc-exfollow-avaliacoes{display:flex;align-items:stretch;gap:12px}
 .gc-exfollow-avaliacao{flex:1;background:#f8fafc;border:1px solid #e2e8f0;border-radius:11px;padding:9px 12px;text-align:center}
 .gc-exfollow-avaliacao b{display:block;font-size:10px;font-weight:650;color:#64748b;margin-bottom:6px}
-.gc-exfollow-avaliacao-arrow{flex:0 0 auto;font-size:16px;color:#94a3b8}
-.gc-exfollow-scale{display:flex;gap:4px;justify-content:center}
-.gc-exfollow-scale-dot{width:20px;height:20px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:#e2e8f0;color:#94a3b8}
-.gc-exfollow-scale-dot.is-active{background:#0f2d52;color:#fff}
+.gc-exfollow-avaliacao-pergunta{display:block;font-size:10.5px;color:#94a3b8;margin-bottom:3px}
+.gc-exfollow-avaliacao-texto{display:block;font-size:13px;font-weight:650;color:#0f172a;margin-bottom:2px}
+.gc-exfollow-avaliacao strong{display:block;font-size:15px;color:#0f2d52;font-weight:750}
 
 /* Sintomas / Comentário / Resposta — 3 colunas ao mesmo nível. */
 .gc-exfollow-triple{display:flex;gap:10px}
@@ -251,7 +252,6 @@ function styles() {
   .gc-exfollow-row{flex-wrap:wrap;row-gap:8px}
   .gc-exfollow-tl-toggle{margin-left:0}
   .gc-exfollow-avaliacoes{flex-direction:column}
-  .gc-exfollow-avaliacao-arrow{transform:rotate(90deg)}
   .gc-exfollow-triple{flex-direction:column}
 }
 `;
@@ -613,7 +613,7 @@ function renderMetricasBlock(log) {
   if (!log) return "";
   const metrics = [];
   if (log.rpe != null && log.rpe !== "") metrics.push({ label: "RPE (esforço)", value: `${log.rpe}/10` });
-  if (log.feel != null && log.feel !== "") metrics.push({ label: "Recuperação pós-treino", value: `${log.feel}/5` });
+  if (log.feel != null && log.feel !== "") metrics.push({ label: "Bem-estar pós-treino", value: `${log.feel}/5` });
   const sets = Array.isArray(log.sets) ? log.sets : [];
   const resumo = sets.find((e) => e?.tipo === "resumo");
   if (resumo) {
@@ -630,29 +630,42 @@ function renderMetricasBlock(log) {
   return `<div class="gc-exfollow-block"><b>Métricas</b><div class="gc-exfollow-metrics">${itemsHtml}</div></div>`;
 }
 
-/* renderMiniScale — escala 1-5 real (readiness.feeling / log.feel), sem
-   converter para outra escala nem inventar labels. */
-function renderMiniScale(value) {
-  const v = Number(value);
-  const dots = [1, 2, 3, 4, 5].map((n) => `<span class="gc-exfollow-scale-dot${n === v ? " is-active" : ""}">${n}</span>`).join("");
-  return `<div class="gc-exfollow-scale">${dots}</div>`;
-}
+/* READINESS_FEELING_LABELS — texto real das 5 opções da pergunta de
+   readiness ("Como se sente hoje?"), tal como apresentadas ao doente.
+   Nunca usado para o valor pós-treino (log.feel), que não tem estas
+   palavras associadas no questionário final. */
+const READINESS_FEELING_LABELS = { 1: "Muito mal", 2: "Mal", 3: "Razoável", 4: "Bem", 5: "Muito bem" };
 
-/* renderAvaliacoes — "antes de começar" (readiness.feeling) → "depois de
-   terminar" (log.feel). Só os valores reais 1-5 já gravados. Mostra só
-   o(s) lado(s) que existirem. */
+/* renderAvaliacoes — duas perguntas distintas, nunca apresentadas como
+   comparação direta da mesma variável: "Como se sente hoje?"
+   (readiness.feeling, com o texto real da opção) antes do treino, e
+   "Bem-estar" (log.feel, só o número — o questionário final não tem
+   texto associado) depois do treino. Mostra só o(s) lado(s) que
+   existirem, lado a lado sem seta de equivalência. */
 function renderAvaliacoes(readiness, log) {
   const antes = readiness?.feeling != null ? Number(readiness.feeling) : null;
   const depois = log?.feel != null ? Number(log.feel) : null;
-  const temAntes = Number.isFinite(antes);
+  const temAntes = Number.isFinite(antes) && antes >= 1 && antes <= 5;
   const temDepois = Number.isFinite(depois);
   if (!temAntes && !temDepois) return "";
 
-  const cardAntes = temAntes ? `<div class="gc-exfollow-avaliacao"><b>Antes de começar</b>${renderMiniScale(antes)}</div>` : "";
-  const arrow = temAntes && temDepois ? `<div class="gc-exfollow-avaliacao-arrow">→</div>` : "";
-  const cardDepois = temDepois ? `<div class="gc-exfollow-avaliacao"><b>Depois de terminar</b>${renderMiniScale(depois)}</div>` : "";
+  const antesLabel = temAntes ? READINESS_FEELING_LABELS[antes] : null;
+  const cardAntes = temAntes ? `
+    <div class="gc-exfollow-avaliacao">
+      <b>Antes do treino</b>
+      <span class="gc-exfollow-avaliacao-pergunta">Como se sente hoje?</span>
+      ${antesLabel ? `<span class="gc-exfollow-avaliacao-texto">${esc(antesLabel)}</span>` : ""}
+      <strong>${esc(antes)}/5</strong>
+    </div>` : "";
 
-  return `<div class="gc-exfollow-block"><b>Como se sentiu</b><div class="gc-exfollow-avaliacoes">${cardAntes}${arrow}${cardDepois}</div></div>`;
+  const cardDepois = temDepois ? `
+    <div class="gc-exfollow-avaliacao">
+      <b>Após o treino</b>
+      <span class="gc-exfollow-avaliacao-pergunta">Bem-estar</span>
+      <strong>${esc(depois)}/5</strong>
+    </div>` : "";
+
+  return `<div class="gc-exfollow-block"><b>Avaliação da sessão</b><div class="gc-exfollow-avaliacoes">${cardAntes}${cardDepois}</div></div>`;
 }
 
 /* Mapa mínimo de reasons devolvidos por wo_send_session_message — texto
@@ -804,7 +817,7 @@ function renderTimelineItem(entry, todayISO, expandedSessionId, replyState, mess
     fields.push(`<div class="gc-exfollow-field"><b>RPE</b><span>${esc(entry.log.rpe)}/10</span></div>`);
   }
   if (entry.log?.feel != null && entry.log?.feel !== "") {
-    fields.push(`<div class="gc-exfollow-field"><b>Recuperação</b><span>${esc(entry.log.feel)}/5</span></div>`);
+    fields.push(`<div class="gc-exfollow-field"><b>Bem-estar pós-treino</b><span>${esc(entry.log.feel)}/5</span></div>`);
   }
   if (hasSymptoms) {
     const preview = truncateText(entry.readiness?.symptom_note, 40) || "Reportados";
