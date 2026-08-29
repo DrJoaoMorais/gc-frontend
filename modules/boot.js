@@ -317,6 +317,20 @@ async function renderCurrentView() {
     return;
   }
 
+  /* Vista Acompanhamento individual de Exercício */
+  if (view === "exercicio-acompanhamento") {
+    const { initAcompanhamentoExercicio } = await import("./exercicio/acompanhamento/acompanhamento.js");
+    await initAcompanhamentoExercicio({
+      patientId: G._exerciseFollowupPatientId || null,
+      prescriptionId: G._exerciseFollowupPrescriptionId || null,
+      onBack: () => {
+        G.currentView = "home";
+        renderCurrentView();
+      },
+    });
+    return;
+  }
+
   /* Se não é a view de agenda, termina aqui */
   if (view !== "agenda") return;
 
