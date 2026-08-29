@@ -134,6 +134,12 @@ function styles() {
 .gc-exfollow-card-section b{display:block;font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:6px}
 .gc-exfollow-card-timeline{display:flex;gap:2px;border-radius:8px;overflow:hidden;height:30px;margin-bottom:8px}
 .gc-exfollow-card-timeline-seg{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden}
+.gc-exfollow-card-timeline-group{position:relative;display:flex;overflow:hidden;min-width:60px}
+.gc-exfollow-card-series-pattern{display:flex;width:100%;height:100%}
+.gc-exfollow-card-series-seg{flex:1 1 0;min-width:3px;border-right:1px solid rgba(255,255,255,.7)}
+.gc-exfollow-card-series-seg:last-child{border-right:0}
+.gc-exfollow-card-series-rec{opacity:.55}
+.gc-exfollow-card-timeline-caption{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-size:9px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(15,23,42,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 3px;pointer-events:none}
 .gc-exfollow-card-zone-z1{background:#94a3b8}
 .gc-exfollow-card-zone-z2{background:#60a5fa}
 .gc-exfollow-card-zone-z3{background:#34d399}
@@ -319,15 +325,46 @@ function computeCardBlockVisualDuration(block) {
   return null;
 }
 
-/* renderCardPrescribedTimeline — timeline horizontal simples: largura
-   proporcional à duração visual quando conhecida, largura mínima/neutra
-   (flex:0 0 36px) quando não. Cor só diferencia a zona (Z1..Z5, texto
-   literal) — nunca converte zona em FC/potência/ritmo. */
+/* renderCardPrescribedTimeline — timeline horizontal. "continuous": um
+   único segmento (como antes). "series": grupo com `count` pares
+   work/recovery repetidos lado a lado — mesma lógica visual já validada
+   em prescricao.js:renderResumoVisualCardio (largura relativa work:
+   recovery dentro de cada par, cor por zona de cada lado, legenda
+   "N × duração · Rec. duração"). A largura TOTAL do grupo continua a vir,
+   inalterada, de computeCardBlockVisualDuration — largura mínima/neutra
+   (flex:0 0 36px) quando não é possível calculá-la; nesse caso nunca se
+   inventa a subdivisão interna, cai-se no segmento único neutro (como
+   continuous). Só quando `count` é um número válido é que se desenham os
+   pares — nunca se inventa um nº de repetições. */
 function renderCardPrescribedTimeline(blocks) {
   const segs = blocks.map((block, i) => {
-    const zone = block?.type === "continuous" ? block?.intensity?.zone : block?.work?.intensity?.zone;
     const visualSec = computeCardBlockVisualDuration(block);
     const flexStyle = visualSec ? `flex:${visualSec} 0 auto` : "flex:0 0 36px";
+    const count = block?.type === "series" ? Number(block.count) : NaN;
+    const workSec = block?.type === "series" ? Number(block.work?.duration_sec) : NaN;
+    const recSec = block?.type === "series" ? Number(block.recovery?.duration_sec) : NaN;
+    // Só desenha o padrão repetido work/recovery quando TODOS os 4 dados são
+    // válidos (count, work.duration_sec, recovery.duration_sec,
+    // computeCardBlockVisualDuration) — sem fallback 60/30. Falta qualquer
+    // um → cai sempre na representação simples/neutra abaixo, sem inventar
+    // duração nem proporção.
+    const canDrawPairs = Number.isFinite(count) && count > 0
+      && Number.isFinite(workSec) && workSec > 0
+      && Number.isFinite(recSec) && recSec > 0
+      && Number.isFinite(visualSec) && visualSec > 0;
+
+    if (canDrawPairs) {
+      const workZone = block.work?.intensity?.zone;
+      const recZone = block.recovery?.intensity?.zone;
+      const pairs = Array.from({ length: count }, () =>
+        `<i class="gc-exfollow-card-series-seg ${cardZoneClass(workZone)}" style="flex:${workSec} 0 0"></i>` +
+        `<i class="gc-exfollow-card-series-seg gc-exfollow-card-series-rec ${cardZoneClass(recZone)}" style="flex:${recSec} 0 0"></i>`
+      ).join("");
+      const caption = `${count} × ${fmtDurationHuman(workSec)} · Rec. ${fmtDurationHuman(recSec)}`;
+      return `<div class="gc-exfollow-card-timeline-group" style="${flexStyle}" title="Bloco ${i + 1}"><span class="gc-exfollow-card-series-pattern">${pairs}</span><span class="gc-exfollow-card-timeline-caption">${esc(caption)}</span></div>`;
+    }
+
+    const zone = block?.intensity?.zone || block?.work?.intensity?.zone || null;
     return `<div class="gc-exfollow-card-timeline-seg ${cardZoneClass(zone)}" style="${flexStyle}" title="Bloco ${i + 1}">${zone ? esc(zone) : ""}</div>`;
   });
   return `<div class="gc-exfollow-card-timeline">${segs.join("")}</div>`;
