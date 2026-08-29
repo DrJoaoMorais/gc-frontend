@@ -179,21 +179,31 @@ function styles() {
 .gc-exclinic-note{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:9px 11px}
 .gc-exclinic-note-meta{font-size:10px;font-weight:650;color:#64748b;margin-bottom:4px}
 .gc-exclinic-note p{margin:0;font-size:12.5px;color:#0f172a;white-space:pre-wrap;line-height:1.4}
-.gc-exclinic-chart-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:10.5px;color:#64748b;margin:8px 0 4px}
+.gc-exclinic-chart-block{margin-top:16px}
+.gc-exclinic-chart-block:first-of-type{margin-top:8px}
+.gc-exclinic-chart-title{font-size:12px;font-weight:750;color:#0f2d52}
+.gc-exclinic-chart-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:10.5px;color:#64748b;margin:3px 0 6px}
 .gc-exclinic-chart-legend span{display:inline-flex;align-items:center;gap:5px}
 .gc-exclinic-chart-legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
-.gc-exclinic-chart-wrap{overflow-x:auto;padding-bottom:2px}
-.gc-exclinic-chart-svg{display:block}
+.gc-exclinic-chart-wrap{width:100%;overflow-x:auto;padding-bottom:2px}
+.gc-exclinic-chart-svg{display:block;width:100%}
+.gc-exclinic-chart-svg--wellbeing{height:170px}
+.gc-exclinic-chart-svg--rpe{height:150px}
 .gc-exclinic-chart-grid{stroke:#f1f5f9;stroke-width:1}
-.gc-exclinic-chart-tick{font-size:8px;fill:#94a3b8}
-.gc-exclinic-chart-line{stroke-width:1.6}
+.gc-exclinic-chart-tick{font-size:9px;fill:#94a3b8}
+.gc-exclinic-chart-axis-label{font-size:8px;fill:#94a3b8}
+.gc-exclinic-chart-line{stroke-width:1.6;vector-effect:non-scaling-stroke}
 .gc-exclinic-chart-line-feeling{stroke:#3b82f6}
 .gc-exclinic-chart-line-feel{stroke:#10b981}
 .gc-exclinic-chart-line-rpe{stroke:#f59e0b}
-.gc-exclinic-chart-dot{stroke:#fff;stroke-width:1.2}
+.gc-exclinic-chart-dot{stroke:#fff;stroke-width:1.2;vector-effect:non-scaling-stroke}
 .gc-exclinic-chart-dot-feeling{fill:#3b82f6}
 .gc-exclinic-chart-dot-feel{fill:#10b981}
 .gc-exclinic-chart-dot-rpe{fill:#f59e0b}
+.gc-exclinic-chart-point-value{font-size:9px;font-weight:750}
+.gc-exclinic-chart-point-value-feeling{fill:#1d4ed8}
+.gc-exclinic-chart-point-value-feel{fill:#047857}
+.gc-exclinic-chart-point-value-rpe{fill:#c2410c}
 @media(max-width:800px){.gc-exclinic-stats{grid-template-columns:repeat(2,1fr)}}
 
 /* Linha temporal — lista compacta tipo tabela, uma linha por sessão. */
@@ -1158,31 +1168,63 @@ function buildChartPoints(rows, valueFn) {
     .filter(Boolean);
 }
 
+/* buildChartXLabels — um rótulo de data por linha de `rows` (mesma ordem
+   sequencial). "dd/mm" quando a data é única nesse dia dentro do
+   conjunto; quando há mais do que uma sessão no mesmo dia, acrescenta a
+   modalidade real (sessionModalityLabel, sem alterar essa função) para
+   nunca ficarem ambíguas — a associação em si continua exclusivamente
+   por session_id (row.entry), a data só decide o texto do rótulo. */
+function buildChartXLabels(rows) {
+  const countByDay = new Map();
+  rows.forEach((row) => {
+    if (!row.date) return;
+    countByDay.set(row.date, (countByDay.get(row.date) || 0) + 1);
+  });
+  return rows.map((row) => {
+    if (!row.date) return "—";
+    const shortDate = `${row.date.slice(8, 10)}/${row.date.slice(5, 7)}`;
+    const isDuplicateDay = (countByDay.get(row.date) || 0) > 1;
+    return isDuplicateDay ? `${shortDate} · ${sessionModalityLabel(row.entry)}` : shortDate;
+  });
+}
+
 /* renderChartSvg — gráfico de linha em SVG puro (sem biblioteca), uma ou
-   mais séries sobre o MESMO eixo X sequencial (`rows` = tabelaRows). Cada
-   ponto tem um <title> nativo com data + modalidade (sessionModalityLabel,
-   já garante sessões do mesmo dia distinguíveis) + valor real. Linha só
-   liga pontos que realmente existem — nunca interpola nem inventa um
+   mais séries sobre o MESMO eixo X sequencial (`rows` = tabelaRows).
+   viewBox de largura lógica fixa (1000) com preserveAspectRatio="none" +
+   CSS width:100% — os pontos distribuem-se pela largura real do cartão
+   em vez de um gráfico estreito com espaço vazio à direita; min-width
+   inline garante que, com muitas sessões, cada ponto mantém espaço
+   legível e o wrapper faz scroll horizontal em vez de espremer tudo.
+   Cada ponto tem: o valor numérico junto ao ponto, um <title> nativo com
+   data + modalidade (sessionModalityLabel, já garante sessões do mesmo
+   dia distinguíveis) + valor real, e um rótulo de data no eixo X. Linha
+   só liga pontos que realmente existem — nunca interpola nem inventa um
    valor no índice em falta. */
-function renderChartSvg({ rows, series, valueMin, valueMax, height }) {
+function renderChartSvg({ rows, series, valueMin, valueMax, height, widthClass }) {
   if (!rows.length) {
-    return `<div class="gc-exfollow-note-muted">Sem sessões com dados neste período.</div>`;
+    return `<div class="gc-exfollow-note-muted">Sem dados neste período.</div>`;
   }
 
-  const paddingX = 18;
-  const paddingY = 14;
-  const pointSpacing = 34;
-  const plotHeight = height - paddingY * 2;
-  const chartWidth = Math.max(80, paddingX * 2 + Math.max(rows.length - 1, 0) * pointSpacing);
+  const viewW = 1000;
+  const paddingLeft = 26;
+  const paddingRight = 12;
+  const paddingTop = 24;
+  const paddingBottom = 24;
+  const plotWidth = viewW - paddingLeft - paddingRight;
+  const plotHeight = height - paddingTop - paddingBottom;
+  const n = rows.length;
 
-  const xFor = (index) => paddingX + index * pointSpacing;
-  const yFor = (value) => paddingY + (1 - (value - valueMin) / (valueMax - valueMin)) * plotHeight;
+  const xFor = (index) => paddingLeft + (n <= 1 ? plotWidth / 2 : (index * plotWidth) / (n - 1));
+  const yFor = (value) => paddingTop + (1 - (value - valueMin) / (valueMax - valueMin)) * plotHeight;
 
   const ticks = buildAxisTicks(valueMin, valueMax);
   const gridHtml = ticks.map((t) => {
     const y = yFor(t);
-    return `<line x1="14" y1="${y}" x2="${chartWidth - 6}" y2="${y}" class="gc-exclinic-chart-grid" /><text x="0" y="${y + 3}" class="gc-exclinic-chart-tick">${esc(t)}</text>`;
+    return `<line x1="${paddingLeft - 4}" y1="${y}" x2="${viewW - paddingRight + 4}" y2="${y}" class="gc-exclinic-chart-grid" /><text x="0" y="${y + 3}" class="gc-exclinic-chart-tick">${esc(t)}</text>`;
   }).join("");
+
+  const xLabels = buildChartXLabels(rows);
+  const axisHtml = rows.map((row, index) => `<text x="${xFor(index)}" y="${height - 6}" text-anchor="middle" class="gc-exclinic-chart-axis-label">${esc(xLabels[index])}</text>`).join("");
 
   const seriesHtml = series.map((s) => {
     const pts = buildChartPoints(rows, s.valueFn);
@@ -1193,39 +1235,47 @@ function renderChartSvg({ rows, series, valueMin, valueMax, height }) {
       const modality = sessionModalityLabel(p.row.entry);
       const valueLabel = s.formatValue ? s.formatValue(p.value) : String(p.value);
       const tooltip = `${dateLabel} · ${modality} · ${s.label}: ${valueLabel}`;
-      return `<circle cx="${xFor(p.index)}" cy="${yFor(p.value)}" r="3.5" class="gc-exclinic-chart-dot gc-exclinic-chart-dot-${s.cls}"><title>${esc(tooltip)}</title></circle>`;
+      const x = xFor(p.index);
+      const y = yFor(p.value);
+      return `<circle cx="${x}" cy="${y}" r="4" class="gc-exclinic-chart-dot gc-exclinic-chart-dot-${s.cls}"><title>${esc(tooltip)}</title></circle><text x="${x}" y="${y - (s.labelOffset || 9)}" text-anchor="middle" class="gc-exclinic-chart-point-value gc-exclinic-chart-point-value-${s.cls}">${esc(p.value)}</text>`;
     }).join("");
     return `<path d="${pathD}" class="gc-exclinic-chart-line gc-exclinic-chart-line-${s.cls}" fill="none" />${dotsHtml}`;
   }).join("");
 
+  const minWidth = Math.max(320, n * 46);
+
   return `
     <div class="gc-exclinic-chart-wrap">
-      <svg class="gc-exclinic-chart-svg" viewBox="0 0 ${chartWidth} ${height}" width="${chartWidth}" height="${height}">
+      <svg class="gc-exclinic-chart-svg ${widthClass}" viewBox="0 0 ${viewW} ${height}" preserveAspectRatio="none" style="min-width:${minWidth}px">
         ${gridHtml}
+        ${axisHtml}
         ${seriesHtml}
       </svg>
     </div>`;
 }
 
-/* renderEvolucaoCharts — os dois gráficos longitudinais. Fonte EXCLUSIVA:
+/* renderEvolucaoCharts — UM único cartão "Evolução da sessão" com os dois
+   gráficos longitudinais, um por baixo do outro. Fonte EXCLUSIVA:
    tabelaRows já calculado por computeEvolucaoClinica (mesmo array usado
    pela tabela "Evolução por sessão" — já filtrado pelo período, já
    ordenado cronologicamente, uma entrada por session_id). Sem query
    nova, sem tocar em buildTimelineSessions/classifySession/
-   resolveSessionDate. Gráfico 1: readiness.feeling ("Como se sente
-   hoje?") + log.feel ("Bem-estar pós-treino"), escala 1-5. Gráfico 2:
-   log.rpe ("Esforço percebido"), escala 1-10. Nunca deriva/rotula
-   "fadiga" ou "cansaço" — só os valores reais das duas perguntas. */
+   resolveSessionDate. Bem-estar: readiness.feeling ("Como se sente
+   hoje?") + log.feel ("Bem-estar pós-treino"), escala 1-5. Esforço
+   percebido: log.rpe, escala 1-10. Nunca deriva/rotula "fadiga" ou
+   "cansaço" — só os valores reais das duas perguntas. */
 function renderEvolucaoCharts(tabelaRows) {
   const bemEstarHtml = renderChartSvg({
     rows: tabelaRows,
     valueMin: 1,
     valueMax: 5,
-    height: 110,
+    height: 170,
+    widthClass: "gc-exclinic-chart-svg--wellbeing",
     series: [
       {
         cls: "feeling",
         label: "Como se sente hoje?",
+        labelOffset: 9,
         valueFn: (entry) => entry.readiness?.feeling,
         formatValue: (v) => {
           const label = READINESS_FEELING_LABELS[v];
@@ -1235,6 +1285,7 @@ function renderEvolucaoCharts(tabelaRows) {
       {
         cls: "feel",
         label: "Bem-estar pós-treino",
+        labelOffset: 18,
         valueFn: (entry) => entry.log?.feel,
         formatValue: (v) => `${v}/5`,
       },
@@ -1245,11 +1296,13 @@ function renderEvolucaoCharts(tabelaRows) {
     rows: tabelaRows,
     valueMin: 1,
     valueMax: 10,
-    height: 100,
+    height: 150,
+    widthClass: "gc-exclinic-chart-svg--rpe",
     series: [
       {
         cls: "rpe",
         label: "RPE",
+        labelOffset: 9,
         valueFn: (entry) => entry.log?.rpe,
         formatValue: (v) => `${v}/10`,
       },
@@ -1258,22 +1311,25 @@ function renderEvolucaoCharts(tabelaRows) {
 
   return `
     <div class="gc-exfollow-section">
-      <h2>Evolução do bem-estar</h2>
-      <p>Como se sente hoje (antes do treino) e bem-estar pós-treino — um ponto por sessão.</p>
-      <div class="gc-exclinic-chart-legend">
-        <span><i class="gc-exclinic-chart-legend-dot gc-exclinic-chart-dot-feeling"></i>Como se sente hoje?</span>
-        <span><i class="gc-exclinic-chart-legend-dot gc-exclinic-chart-dot-feel"></i>Bem-estar pós-treino</span>
-      </div>
-      ${bemEstarHtml}
-    </div>
+      <h2>Evolução da sessão</h2>
+      <p>Sinais objetivos ao longo do plano — sem interpretação clínica.</p>
 
-    <div class="gc-exfollow-section">
-      <h2>Esforço percebido</h2>
-      <p>RPE por sessão.</p>
-      <div class="gc-exclinic-chart-legend">
-        <span><i class="gc-exclinic-chart-legend-dot gc-exclinic-chart-dot-rpe"></i>RPE</span>
+      <div class="gc-exclinic-chart-block">
+        <div class="gc-exclinic-chart-title">Bem-estar</div>
+        <div class="gc-exclinic-chart-legend">
+          <span><i class="gc-exclinic-chart-legend-dot gc-exclinic-chart-dot-feeling"></i>Como se sente hoje?</span>
+          <span><i class="gc-exclinic-chart-legend-dot gc-exclinic-chart-dot-feel"></i>Bem-estar pós-treino</span>
+        </div>
+        ${bemEstarHtml}
       </div>
-      ${rpeHtml}
+
+      <div class="gc-exclinic-chart-block">
+        <div class="gc-exclinic-chart-title">Esforço percebido</div>
+        <div class="gc-exclinic-chart-legend">
+          <span><i class="gc-exclinic-chart-legend-dot gc-exclinic-chart-dot-rpe"></i>RPE</span>
+        </div>
+        ${rpeHtml}
+      </div>
     </div>`;
 }
 
