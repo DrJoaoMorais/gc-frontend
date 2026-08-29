@@ -24,6 +24,9 @@ import {
   wireHomeAlertFilterBar,
   wirePedidosOnlineToggle,
   renderHomePedidosOnlineList,
+  setHomeQuestionarioStats,
+  wireHomeQuestionariosToggle,
+  renderHomeQuestionariosList,
   setHomeAcompanhamentoStats,
   wireHomeAcompanhamentoToggle,
   renderHomeAcompanhamentoList,
@@ -250,6 +253,7 @@ async function renderCurrentView() {
       Promise.all([
         loadHomeConsultasHoje(),
         loadHomePedidosOnlinePendentes(),
+        loadHomeQuestionarioStats(),
         loadHomeAlerts(),
         loadHomeAcompanhamentoAtivo(),
       ]);
@@ -259,6 +263,8 @@ async function renderCurrentView() {
       if (pedidosExpand && !pedidosExpand.hasAttribute("hidden")) {
         loadHomePedidosOnlineList();
       }
+      const questionariosExpand = document.getElementById("gcHomeQuestionariosExpand");
+      if (questionariosExpand && !questionariosExpand.hasAttribute("hidden")) loadHomeQuestionariosList();
     });
 
     wireHomeAlertFilterBar(homeAlertFilter, (newFilter) => {
@@ -269,6 +275,7 @@ async function renderCurrentView() {
     wirePedidosOnlineToggle(() => {
       loadHomePedidosOnlineList();
     });
+    wireHomeQuestionariosToggle(() => loadHomeQuestionariosList());
 
     wireHomeAcompanhamentoToggle({
       onOpenAction: () => renderHomeAcompanhamentoList(homeAcompActionItems, { kind: "action", onOpen: openHomeExerciseFollowup }),
@@ -278,6 +285,7 @@ async function renderCurrentView() {
     await Promise.all([
       loadHomeConsultasHoje(),
       loadHomePedidosOnlinePendentes(),
+      loadHomeQuestionarioStats(),
       loadHomeAlerts(),
       loadHomeAcompanhamentoAtivo(),
     ]);
@@ -538,6 +546,61 @@ async function loadHomePedidosOnlineList() {
     console.warn("Home: falha ao carregar lista de pedidos online:", e);
     renderHomePedidosOnlineList(null, { onOpenAgenda: openHomeAgendaForClinic });
   }
+}
+
+function homeQuestionarioQuery(status, { countOnly = false } = {}) {
+  let q = window.sb.from("intake_tokens")
+    .select(countOnly ? "id" : "id, patient_id, clinic_id, questionnaire_type, status, created_at, expires_at, rgpd_accepted_at, completed_at, patients(id, full_name)", countOnly ? { count: "exact", head: true } : undefined)
+    .eq("status", status);
+  if (homeClinicId) q = q.eq("clinic_id", homeClinicId);
+  if (status !== "completed") q = q.gt("expires_at", new Date().toISOString());
+  return q;
+}
+
+async function loadHomeQuestionarioStats() {
+  try {
+    const [enviados, emPreenchimento, respondidos] = await Promise.all([
+      homeQuestionarioQuery("pending_rgpd", { countOnly: true }),
+      homeQuestionarioQuery("in_progress", { countOnly: true }),
+      homeQuestionarioQuery("completed", { countOnly: true }),
+    ]);
+    [enviados, emPreenchimento, respondidos].forEach((result) => { if (result.error) throw result.error; });
+    setHomeQuestionarioStats({
+      enviados: enviados.count ?? 0,
+      emPreenchimento: emPreenchimento.count ?? 0,
+      respondidos: respondidos.count ?? 0,
+    });
+  } catch (e) {
+    console.warn("Home: falha ao carregar contadores de questionários:", e);
+    setHomeQuestionarioStats(null);
+  }
+}
+
+async function loadHomeQuestionariosList() {
+  try {
+    const [enviados, emPreenchimento, respondidos] = await Promise.all([
+      homeQuestionarioQuery("pending_rgpd").order("created_at", { ascending: false }).limit(100),
+      homeQuestionarioQuery("in_progress").order("rgpd_accepted_at", { ascending: false }).limit(100),
+      homeQuestionarioQuery("completed").order("completed_at", { ascending: false }).limit(100),
+    ]);
+    [enviados, emPreenchimento, respondidos].forEach((result) => { if (result.error) throw result.error; });
+    const rows = [...(enviados.data || []), ...(emPreenchimento.data || []), ...(respondidos.data || [])]
+      .sort((a, b) => new Date(b.completed_at || b.rgpd_accepted_at || b.created_at) - new Date(a.completed_at || a.rgpd_accepted_at || a.created_at));
+    renderHomeQuestionariosList(rows, { onOpen: openHomeQuestionario });
+  } catch (e) {
+    console.warn("Home: falha ao carregar lista de questionários:", e);
+    renderHomeQuestionariosList(null, { onOpen: openHomeQuestionario });
+  }
+}
+
+function openHomeQuestionario(row) {
+  if (!row?.patient_id) return;
+  if (row.status === "completed") {
+    window.open(`/intake-deeplink.html?patientId=${encodeURIComponent(row.patient_id)}&intakeTokenId=${encodeURIComponent(row.id)}`, "_blank", "noopener");
+    return;
+  }
+  const params = new URLSearchParams({ patientId: row.patient_id, sessionClinicId: row.clinic_id || "" });
+  window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?${params.toString()}`, "_blank", "noopener");
 }
 
 /* ====================================================================
