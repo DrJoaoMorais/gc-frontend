@@ -109,6 +109,9 @@ function styles() {
 .gc-exfollow-tl-removed{opacity:.7}
 .gc-exfollow-tl-removed .gc-exfollow-tl-badge{background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0}
 .gc-exfollow-tl-attention .gc-exfollow-tl-badge{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}
+.gc-exfollow-tl-toggle{margin-top:8px;border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:8px;padding:5px 10px;font:650 11.5px inherit;cursor:pointer}
+.gc-exfollow-tl-toggle:hover{border-color:#93c5fd;background:#f8fbff}
+.gc-exfollow-tl-detail{margin-top:8px;border:1px dashed #cbd5e1;border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#475569}
 .gc-exfollow-error{border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:10px;padding:12px 14px;font-size:12px}
 @media(max-width:800px){.gc-exfollow-grid{grid-template-columns:1fr}.gc-exfollow-head{flex-direction:column}.gc-exfollow-back{order:-1}}
 `;
@@ -254,13 +257,34 @@ const TIMELINE_STATUS_META = {
   INDETERMINADO:        { label: "Estado indeterminado",          css: "neutral" },
 };
 
+/* renderTimelineDetailPanel — 1ª fase de "Ver treino": só valida a
+   associação session_id → dados corretos (data/kind/estado/disponibilidade
+   de snapshot/log/readiness/congelamento). Sem exercícios, séries, cargas,
+   blocos cardio nem comparação prescrito vs realizado — isso fica para uma
+   passagem seguinte. session_id em texto pequeno é só para validação
+   técnica no Preview. */
+function renderTimelineDetailPanel(entry, meta, sessionDateLabel) {
+  const lines = [];
+  lines.push(`Data: ${sessionDateLabel}`);
+  lines.push(`session_id: ${entry.sessionId}`);
+  if (entry.kind) lines.push(`Kind: ${entry.kind}`);
+  lines.push(`Estado: ${meta.label}`);
+  lines.push(entry.snapshot ? "Prescrito histórico disponível" : "Prescrito histórico não disponível");
+  lines.push(entry.log ? "Registo realizado disponível" : "Sem registo final");
+  if (entry.readiness?.answered_at) lines.push(`Readiness: ${fmtDateTime(entry.readiness.answered_at)}`);
+  if (entry.snapshot?.frozen_at) lines.push(`Prescrição congelada: ${fmtDateTime(entry.snapshot.frozen_at)}`);
+
+  return `<div class="gc-exfollow-tl-detail">${lines.map((l) => `<div>${esc(l)}</div>`).join("")}</div>`;
+}
+
 /* renderTimelineItem — cartão compacto por sessão. Só mostra o que existir
    objetivamente nas 4 fontes; nunca nomes de exercício (sem wo_exercises). */
-function renderTimelineItem(entry, todayISO) {
+function renderTimelineItem(entry, todayISO, expandedSessionId) {
   const status = classifySession(entry, todayISO);
   const meta = TIMELINE_STATUS_META[status] || TIMELINE_STATUS_META.INDETERMINADO;
   const sessionDateRaw = resolveSessionDate(entry);
   const sessionDateLabel = fmtSessionDate(sessionDateRaw) || "Data desconhecida";
+  const isExpanded = expandedSessionId === entry.sessionId;
 
   const lines = [];
   if (entry.kind) lines.push(entry.kind);
@@ -287,13 +311,17 @@ function renderTimelineItem(entry, todayISO) {
       </div>
       ${lines.length ? `<div class="gc-exfollow-tl-lines">${lines.map((l) => `<span>${esc(l)}</span>`).join("")}</div>` : ""}
       ${quotes.map((q) => `<div class="gc-exfollow-quote"><b>${esc(q.label)}</b>${esc(q.text)}</div>`).join("")}
+      <button type="button" class="gc-exfollow-tl-toggle" data-toggle-session="${esc(entry.sessionId)}">${isExpanded ? "Fechar treino" : "Ver treino"}</button>
+      ${isExpanded ? renderTimelineDetailPanel(entry, meta, sessionDateLabel) : ""}
     </div>`;
 }
 
 /* renderTimelineBlock — Bloco 2 ("Linha temporal do plano"). Ordena por
    data resolvida (sessões sem data conhecida ficam no fim, sem inventar
-   posição cronológica para elas). */
-function renderTimelineBlock(prescription, snapshots, readinessRows, logRows) {
+   posição cronológica para elas). expandedSessionId identifica, por
+   session_id, qual painel de "Ver treino" (se algum) deve aparecer
+   expandido — nunca mais do que um em simultâneo. */
+function renderTimelineBlock(prescription, snapshots, readinessRows, logRows, expandedSessionId) {
   const entries = buildTimelineSessions(prescription, snapshots, readinessRows, logRows);
   if (!entries.length) {
     return `<div class="gc-exfollow-empty">Não existem sessões disponíveis para apresentar.</div>`;
@@ -309,10 +337,10 @@ function renderTimelineBlock(prescription, snapshots, readinessRows, logRows) {
     return da < db ? -1 : da > db ? 1 : 0;
   });
 
-  return `<div class="gc-exfollow-timeline">${entries.map((e) => renderTimelineItem(e, todayISO)).join("")}</div>`;
+  return `<div class="gc-exfollow-timeline">${entries.map((e) => renderTimelineItem(e, todayISO, expandedSessionId)).join("")}</div>`;
 }
 
-function renderShell(root, patient, prescription, readiness, log, snapshots, readinessRows, logRows) {
+function renderShell(root, patient, prescription, readiness, log, snapshots, readinessRows, logRows, expandedSessionId) {
   const remaining = daysUntil(prescription?.expires_at);
   const endLabel = remaining === null
     ? "—"
@@ -349,7 +377,7 @@ function renderShell(root, patient, prescription, readiness, log, snapshots, rea
       <div class="gc-exfollow-section">
         <h2>Linha temporal do plano</h2>
         <p>Sessões realizadas, previstas, não realizadas e removidas.</p>
-        ${renderTimelineBlock(prescription, snapshots, readinessRows, logRows)}
+        ${renderTimelineBlock(prescription, snapshots, readinessRows, logRows, expandedSessionId)}
       </div>
 
       <div class="gc-exfollow-section">
@@ -408,9 +436,26 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
   const latestReadiness = [...readinessRows].sort((a, b) => new Date(b.answered_at) - new Date(a.answered_at))[0] || null;
   const latestLog = [...logRows].sort((a, b) => new Date(b.logged_at) - new Date(a.logged_at))[0] || null;
 
-  renderShell(root, patientRes.data, prescriptionRes.data, latestReadiness, latestLog, snapshots, readinessRows, logRows);
+  /* Estado local do módulo (não G): qual session_id, se algum, está com o
+     painel de "Ver treino" expandido. Nunca mais do que um. Sem query nova
+     ao expandir/fechar — repinta com os mesmos arrays já carregados acima. */
+  let expandedSessionId = null;
 
-  document.getElementById("gcExFollowBack")?.addEventListener("click", () => {
-    if (typeof onBack === "function") onBack();
-  });
+  function paint() {
+    renderShell(root, patientRes.data, prescriptionRes.data, latestReadiness, latestLog, snapshots, readinessRows, logRows, expandedSessionId);
+
+    document.getElementById("gcExFollowBack")?.addEventListener("click", () => {
+      if (typeof onBack === "function") onBack();
+    });
+
+    root.querySelectorAll("[data-toggle-session]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const sid = btn.getAttribute("data-toggle-session");
+        expandedSessionId = expandedSessionId === sid ? null : sid;
+        paint();
+      });
+    });
+  }
+
+  paint();
 }
