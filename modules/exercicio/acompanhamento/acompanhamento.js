@@ -148,6 +148,7 @@ function styles() {
 .gc-exfollow-mini-card--purple .gc-exfollow-mini-icon{background:#f5f3ff;color:#7c3aed}
 .gc-exfollow-mini-card--purple h3,.gc-exfollow-mini-card--purple .gc-exfollow-mini-link{color:#7c3aed}
 .gc-exfollow-mini-link[data-open-evolucao]{border:0;background:none;padding:0;font-family:inherit;cursor:pointer}
+.gc-exfollow-mini-link[data-open-evolucao-exercicio]{border:0;background:none;padding:0;font-family:inherit;cursor:pointer}
 
 /* Evolução clínica global — vista interna do cartão verde. Mesma
    linguagem visual do resto do módulo: cartões brancos, densidade alta,
@@ -161,6 +162,7 @@ function styles() {
 .gc-exclinic-filter-btn.is-active{border-color:#0f2d52;background:#0f2d52;color:#fff}
 .gc-exclinic-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
 .gc-exclinic-stats-2{grid-template-columns:repeat(2,1fr)}
+.gc-exclinic-stats-4{grid-template-columns:repeat(4,1fr)}
 .gc-exclinic-stat{background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:9px 12px}
 .gc-exclinic-stat b{display:block;font-size:9.5px;font-weight:650;color:#64748b;text-transform:uppercase;letter-spacing:.02em;margin-bottom:3px}
 .gc-exclinic-stat strong{display:block;font-size:18px;color:#0f172a;font-weight:750}
@@ -205,6 +207,28 @@ function styles() {
 .gc-exclinic-chart-point-value-feel{fill:#047857}
 .gc-exclinic-chart-point-value-rpe{fill:#c2410c}
 @media(max-width:800px){.gc-exclinic-stats{grid-template-columns:repeat(2,1fr)}}
+
+/* Evolução por exercício — lista de cartões + detalhe de um exercício.
+   Mesma linguagem visual das restantes vistas internas (cartão branco,
+   borda discreta, densidade alta). */
+.gc-exexer{display:flex;flex-direction:column;gap:12px}
+.gc-exexer-list{display:flex;flex-direction:column;gap:8px}
+.gc-exexer-card{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;text-align:left;cursor:pointer;font:inherit;width:100%}
+.gc-exexer-card:hover{border-color:#93c5fd}
+.gc-exexer-photo{width:40px;height:40px;flex:0 0 auto;object-fit:cover;border-radius:8px;background:#e2e8f0;display:block}
+.gc-exexer-photo-empty{display:flex;align-items:center;justify-content:center}
+.gc-exexer-body{flex:1 1 auto;min-width:0}
+.gc-exexer-name{font-size:13px;font-weight:750;color:#0f172a}
+.gc-exexer-sessions{font-size:10.5px;color:#64748b;margin-top:1px}
+.gc-exexer-counts{display:flex;flex-wrap:wrap;gap:10px;margin-top:5px;font-size:11px;font-weight:650}
+.gc-exexer-count-ok{color:#047857}
+.gc-exexer-count-attention{color:#9a3412}
+.gc-exexer-count-warn{color:#475569}
+.gc-exexer-arrow{flex:0 0 auto;font-size:11.5px;font-weight:650;color:#0f2d52}
+.gc-exexer-detail-head{display:flex;align-items:center;gap:12px;margin-bottom:2px}
+.gc-exexer-detail-photo{width:56px;height:56px;flex:0 0 auto;object-fit:cover;border-radius:10px;background:#e2e8f0;display:block}
+.gc-exexer-detail-photo-empty{display:flex;align-items:center;justify-content:center}
+.gc-exexer-detail-name{font-size:18px;font-weight:750;color:#0f2d52}
 
 /* Linha temporal — lista compacta tipo tabela, uma linha por sessão. */
 .gc-exfollow-timeline{border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff;margin-top:10px}
@@ -1283,7 +1307,11 @@ function renderChartSvg({ rows, series, valueMin, valueMax, height, widthClass }
     const dotsHtml = pts.map((p, i) => {
       const dateLabel = fmtSessionDate(p.row.date) || "Data desconhecida";
       const modality = sessionModalityLabel(p.row.entry);
-      const valueLabel = s.formatValue ? s.formatValue(p.value) : String(p.value);
+      /* 2º argumento (p.row) é opcional e aditivo: os formatValue da
+         Evolução clínica global (só 1 parâmetro) ignoram-no, comportamento
+         idêntico ao anterior. Só a Evolução por exercício o usa, para
+         poder mostrar a execução completa da sessão no tooltip. */
+      const valueLabel = s.formatValue ? s.formatValue(p.value, p.row) : String(p.value);
       const tooltip = `${dateLabel} · ${modality} · ${s.label}: ${valueLabel}`;
       const x = xFor(p.index);
       const y = yFor(p.value);
@@ -1454,13 +1482,412 @@ function renderEvolucaoClinicaView(prescription, snapshots, readinessRows, logRo
     </div>`;
 }
 
+/* ==================== Evolução por exercício ==================== */
+
+/* EXERCISE_STATUS_META — rótulos/cor dos 3 estados REAIS de
+   log.sets[].status para um exercício ("as_prescribed"/"adjusted"/
+   "skipped", confirmados no código e nos dados do frontend do doente).
+   Reutiliza as mesmas classes de cor (gc-exfollow-legend-dot-*) já
+   validadas na Evolução clínica global. */
+const EXERCISE_STATUS_META = {
+  as_prescribed: { label: "Conforme", css: "ok" },
+  adjusted: { label: "Alterado", css: "attention" },
+  skipped: { label: "Não realizado", css: "warn" },
+};
+
+/* parseNumericLoad — log.sets[].series[].load é sempre string ou null
+   (confirmado exaustivamente nos dados reais). Converte com Number(...)
+   + Number.isFinite; null/""/valor inválido → null, NUNCA 0. */
+function parseNumericLoad(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/* describeAdjustedSeries — texto da coluna/tooltip "Realizado" quando
+   status==="adjusted", a partir EXCLUSIVAMENTE de logEntry.series[] real
+   (nunca inventa valores ausentes). Cada série marca-se individualmente:
+   series[i].skipped===true → "Não realizada" nessa posição, sem alterar
+   o estado global do exercício (que continua "Alterado"). Duração ou
+   reps/carga consoante o próprio exercício seja baseado em duração. */
+function describeAdjustedSeries(logEntry, isDuracao) {
+  const series = Array.isArray(logEntry?.series) ? logEntry.series : [];
+  if (!series.length) return "—";
+
+  if (isDuracao) {
+    const tokens = series.map((s) => (s?.skipped === true ? "Não realizada" : (fmtDurationHuman(s?.duration_sec) || "—")));
+    return tokens.join(" / ");
+  }
+
+  const hasLoad = series.some((s) => s?.skipped !== true && parseNumericLoad(s?.load) != null);
+  const tokens = series.map((s) => {
+    if (s?.skipped === true) return "Não realizada";
+    const reps = s?.reps != null ? s.reps : "—";
+    if (!hasLoad) return String(reps);
+    const load = parseNumericLoad(s?.load);
+    return load != null ? `${reps}×${load}` : `${reps}×—`;
+  });
+  return tokens.join(" / ") + (hasLoad ? " kg" : "");
+}
+
+/* itemIsDuracao — mesmo critério de itemPorDuracao no frontend do doente
+   (treino.joaomorais.pt): um item é baseado em duração quando tem
+   duration_sec ou duration_series[] preenchidos. */
+function itemIsDuracao(item) {
+  return item?.duration_sec != null || (Array.isArray(item?.duration_series) && item.duration_series.length > 0);
+}
+
+/* buildExerciseSummaries — agrega, por exercise_id, as sessões
+   kind="list" dentro do período filtrado, usando EXCLUSIVAMENTE
+   buildTimelineSessions/findLogEntryForExercise já validados. Identidade
+   longitudinal = exercise_id. Ordem = primeira aparição, percorrendo as
+   sessões elegíveis pela ordem natural de buildTimelineSessions (ordem
+   do plano para sessões nele presentes) e, dentro de cada sessão, a
+   ordem de snapshot.snapshot.items[]. Uma sessão só conta para um
+   exercício quando existir logEntry.status real — ausência de registo
+   nunca é contabilizada como conforme/alterado/não realizado. */
+function buildExerciseSummaries(prescription, snapshots, readinessRows, logRows, todayISO, filter) {
+  const entries = buildTimelineSessions(prescription, snapshots, readinessRows, logRows);
+  const windowStart = filter === "14d" ? addDaysISO(todayISO, -13) : null;
+
+  const eligible = entries.filter((entry) => {
+    const effectiveKind = entry.kind || entry.snapshot?.snapshot?.kind || null;
+    if (effectiveKind !== "list") return false;
+    const date = resolveSessionDate(entry);
+    if (filter !== "14d") return true;
+    if (!date) return false;
+    return date >= windowStart && date <= todayISO;
+  });
+
+  const order = [];
+  const byExerciseId = new Map();
+
+  eligible.forEach((entry) => {
+    const items = Array.isArray(entry.snapshot?.snapshot?.items) ? entry.snapshot.snapshot.items : [];
+    items.forEach((item) => {
+      const exerciseId = item?.exercise_id;
+      if (!exerciseId) return;
+      if (!byExerciseId.has(exerciseId)) {
+        byExerciseId.set(exerciseId, { exerciseId, name: item.name || "Exercício", photoUrl: item.photo_url || null, sessions: [] });
+        order.push(exerciseId);
+      }
+      const logEntry = findLogEntryForExercise(entry.log, exerciseId);
+      if (!logEntry?.status) return; // ausência de registo — nunca contabilizar
+      byExerciseId.get(exerciseId).sessions.push({
+        entry,
+        date: resolveSessionDate(entry),
+        item,
+        logEntry,
+        status: logEntry.status,
+      });
+    });
+  });
+
+  return order
+    .map((exerciseId) => byExerciseId.get(exerciseId))
+    .filter((summary) => summary.sessions.length > 0)
+    .map((summary) => {
+      summary.sessions.sort((a, b) => {
+        if (!a.date && !b.date) return 0;
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+      });
+      const asPrescribedCount = summary.sessions.filter((s) => s.status === "as_prescribed").length;
+      const adjustedCount = summary.sessions.filter((s) => s.status === "adjusted").length;
+      const skippedCount = summary.sessions.filter((s) => s.status === "skipped").length;
+      return {
+        ...summary,
+        totalSessions: summary.sessions.length,
+        asPrescribedCount,
+        adjustedCount,
+        skippedCount,
+        realizadoCount: asPrescribedCount + adjustedCount,
+      };
+    });
+}
+
+/* detectExerciseMetric — decide automaticamente qual gráfico faz sentido
+   para este exercício, só com base em dados reais já presentes nas suas
+   sessões (nunca artificial): duração > carga > repetições > nenhum. */
+function detectExerciseMetric(sessions) {
+  const isDuracao = sessions.some((s) => itemIsDuracao(s.item));
+  if (isDuracao) return "duracao";
+
+  const hasLoad = sessions.some((s) => {
+    if (s.status === "as_prescribed") {
+      const loads = Array.isArray(s.item?.series) && s.item.series.length
+        ? s.item.series.map((x) => x.load)
+        : (s.item?.load != null ? [s.item.load] : []);
+      return loads.some((v) => parseNumericLoad(v) != null);
+    }
+    if (s.status === "adjusted") {
+      return (s.logEntry?.series || []).some((x) => x?.skipped !== true && parseNumericLoad(x?.load) != null);
+    }
+    return false;
+  });
+  if (hasLoad) return "carga";
+
+  const hasReps = sessions.some((s) => {
+    if (s.status === "as_prescribed") {
+      if (s.item?.reps_fixed != null || s.item?.reps_min != null || s.item?.reps_max != null) return true;
+      return (Array.isArray(s.item?.series) ? s.item.series : []).some((x) => x?.reps != null);
+    }
+    if (s.status === "adjusted") {
+      return (s.logEntry?.series || []).some((x) => x?.skipped !== true && x?.reps != null);
+    }
+    return false;
+  });
+  if (hasReps) return "repeticoes";
+
+  return null;
+}
+
+/* computeSessionMetricValue — valor de tendência de UMA sessão para a
+   métrica escolhida: máximo entre as séries efetivamente executadas.
+   as_prescribed → valores da prescrição dessa sessão (o doente confirmou
+   "fiz exatamente como prescrito"). adjusted → logEntry.series[] reais,
+   excluindo séries skipped. skipped → sem ponto (null). Nunca inventa. */
+function computeSessionMetricValue(s, metricType) {
+  if (s.status === "skipped") return null;
+
+  if (metricType === "carga") {
+    if (s.status === "as_prescribed") {
+      const loads = (Array.isArray(s.item?.series) && s.item.series.length ? s.item.series.map((x) => x.load) : (s.item?.load != null ? [s.item.load] : []))
+        .map(parseNumericLoad).filter((v) => v != null);
+      return loads.length ? Math.max(...loads) : null;
+    }
+    const loads = (s.logEntry?.series || []).filter((x) => x?.skipped !== true).map((x) => parseNumericLoad(x?.load)).filter((v) => v != null);
+    return loads.length ? Math.max(...loads) : null;
+  }
+
+  if (metricType === "repeticoes") {
+    if (s.status === "as_prescribed") {
+      const reps = (Array.isArray(s.item?.series) ? s.item.series : []).map((x) => Number(x?.reps)).filter(Number.isFinite);
+      if (reps.length) return Math.max(...reps);
+      const fallback = s.item?.reps_fixed != null ? Number(s.item.reps_fixed) : (s.item?.reps_max != null ? Number(s.item.reps_max) : null);
+      return Number.isFinite(fallback) ? fallback : null;
+    }
+    const reps = (s.logEntry?.series || []).filter((x) => x?.skipped !== true).map((x) => Number(x?.reps)).filter(Number.isFinite);
+    return reps.length ? Math.max(...reps) : null;
+  }
+
+  if (metricType === "duracao") {
+    if (s.status === "as_prescribed") {
+      const durs = (Array.isArray(s.item?.duration_series) && s.item.duration_series.length ? s.item.duration_series.map((x) => x.duration_sec) : (s.item?.duration_sec != null ? [s.item.duration_sec] : []))
+        .map(Number).filter(Number.isFinite);
+      return durs.length ? Math.max(...durs) : null;
+    }
+    const durs = (s.logEntry?.series || []).filter((x) => x?.skipped !== true).map((x) => Number(x?.duration_sec)).filter(Number.isFinite);
+    return durs.length ? Math.max(...durs) : null;
+  }
+
+  return null;
+}
+
+const EXERCISE_METRIC_META = {
+  carga: { title: "Evolução da carga", label: "Carga máxima da sessão" },
+  repeticoes: { title: "Evolução das repetições", label: "Repetições máximas da sessão" },
+  duracao: { title: "Evolução da duração", label: "Duração máxima da sessão" },
+};
+
+/* renderExerciseMetricChart — no máximo 1 gráfico por exercício, só com
+   >= 2 sessões com valor numérico válido (nunca uma caixa vazia).
+   Reutiliza renderChartSvg tal e qual (mesmo motor da Evolução clínica
+   global) — cls "rpe" reaproveita a cor/estilo já validados (só um
+   gráfico aparece por exercício, sem risco de confundir com o RPE da
+   sessão, que não é usado aqui). Tooltip: data + valor de tendência +
+   execução completa da sessão (texto real, nunca resumido/inventado). */
+function renderExerciseMetricChart(sessions, metricType) {
+  const valueBySessionId = new Map();
+  sessions.forEach((s) => {
+    const v = computeSessionMetricValue(s, metricType);
+    if (v != null) valueBySessionId.set(s.entry.sessionId, v);
+  });
+  if (valueBySessionId.size < 2) return "";
+
+  const meta = EXERCISE_METRIC_META[metricType];
+  const isDuracao = metricType === "duracao";
+  const maxValue = Math.max(...valueBySessionId.values());
+  const valueMax = metricType === "carga" ? Math.max(10, Math.ceil(maxValue / 5) * 5)
+    : metricType === "duracao" ? Math.max(30, Math.ceil(maxValue / 10) * 10)
+      : Math.max(5, Math.ceil(maxValue));
+
+  const chartHtml = renderChartSvg({
+    rows: sessions,
+    valueMin: 0,
+    valueMax,
+    height: 150,
+    widthClass: "gc-exclinic-chart-svg--rpe",
+    series: [{
+      cls: "rpe",
+      label: meta.label,
+      labelOffset: 9,
+      valueFn: (entry) => valueBySessionId.get(entry.sessionId),
+      formatValue: (value, row) => {
+        const unitLabel = metricType === "carga" ? `${value} kg` : metricType === "duracao" ? (fmtDurationHuman(value) || `${value} s`) : `${value} reps`;
+        const execucao = row.status === "as_prescribed"
+          ? `Conforme prescrito — ${[describeItemPrescribed(row.item), describeItemLoad(row.item)].filter(Boolean).join(" · ") || "—"}`
+          : describeAdjustedSeries(row.logEntry, isDuracao);
+        return `${unitLabel}\n${execucao}`;
+      },
+    }],
+  });
+
+  return `
+    <div class="gc-exfollow-section">
+      <h2>${esc(meta.title)}</h2>
+      <div class="gc-exclinic-chart-legend">
+        <span><i class="gc-exclinic-chart-legend-dot gc-exclinic-chart-dot-rpe"></i>${esc(meta.label)}</span>
+      </div>
+      ${chartHtml}
+    </div>`;
+}
+
+/* renderExerciseTableRow — uma linha por sessão com registo real deste
+   exercício. PRESCRITO reutiliza describeItemPrescribed/describeItemLoad
+   tal e qual. REALIZADO: as_prescribed → "Conforme prescrito"; skipped →
+   "Não realizado"; adjusted → describeAdjustedSeries (todas as séries
+   reais, séries skipped marcadas individualmente). */
+function renderExerciseTableRow(s) {
+  const dateLabel = fmtSessionDate(s.date) || "—";
+  const meta = EXERCISE_STATUS_META[s.status] || { label: s.status, css: "neutral" };
+  const isDuracao = itemIsDuracao(s.item);
+  const prescrito = [describeItemPrescribed(s.item), describeItemLoad(s.item)].filter(Boolean).join(" · ") || "—";
+  const realizado = s.status === "as_prescribed" ? "Conforme prescrito"
+    : s.status === "skipped" ? "Não realizado"
+      : describeAdjustedSeries(s.logEntry, isDuracao);
+
+  return `
+    <tr>
+      <td>${esc(dateLabel)}</td>
+      <td><span class="gc-exclinic-status-dot gc-exfollow-legend-dot-${esc(meta.css)}"></span>${esc(meta.label)}</td>
+      <td>${esc(prescrito)}</td>
+      <td>${esc(realizado)}</td>
+    </tr>`;
+}
+
+/* renderExerciseSummaryCard — cartão da lista: foto, nome, nº de sessões
+   (conforme+alterado+não realizado) e as 3 contagens reais. */
+function renderExerciseSummaryCard(summary) {
+  const photoHtml = summary.photoUrl
+    ? `<img class="gc-exexer-photo" src="${esc(summary.photoUrl)}" alt="">`
+    : `<div class="gc-exexer-photo gc-exexer-photo-empty"></div>`;
+  const sessoesLabel = summary.totalSessions === 1 ? "1 sessão" : `${summary.totalSessions} sessões`;
+
+  return `
+    <button type="button" class="gc-exexer-card" data-open-exercise="${esc(summary.exerciseId)}">
+      ${photoHtml}
+      <div class="gc-exexer-body">
+        <div class="gc-exexer-name">${esc(summary.name)}</div>
+        <div class="gc-exexer-sessions">${esc(sessoesLabel)}</div>
+        <div class="gc-exexer-counts">
+          <span class="gc-exexer-count-ok">✓ Conforme ${summary.asPrescribedCount}</span>
+          <span class="gc-exexer-count-attention">△ Alterado ${summary.adjustedCount}</span>
+          <span class="gc-exexer-count-warn">— Não realizado ${summary.skippedCount}</span>
+        </div>
+      </div>
+      <span class="gc-exexer-arrow">Ver →</span>
+    </button>`;
+}
+
+/* renderExerciseListView — lista de exercícios, ordem de aparição no
+   plano (já resolvida por buildExerciseSummaries). Estado vazio quando
+   nenhum exercício tem registo real no período. */
+function renderExerciseListView(summaries) {
+  if (!summaries.length) {
+    return `<div class="gc-exfollow-empty">Não existem exercícios com registo neste período.</div>`;
+  }
+  return `<div class="gc-exexer-list">${summaries.map(renderExerciseSummaryCard).join("")}</div>`;
+}
+
+/* renderExerciseDetailView — REALIZADO = as_prescribed + adjusted (nunca
+   inclui skipped), mais os 3 cartões dos estados reais, o gráfico (só se
+   detectExerciseMetric devolver um tipo e houver >= 2 pontos) e a tabela
+   cronológica completa. */
+function renderExerciseDetailView(summary) {
+  const photoHtml = summary.photoUrl
+    ? `<img class="gc-exexer-detail-photo" src="${esc(summary.photoUrl)}" alt="">`
+    : `<div class="gc-exexer-detail-photo gc-exexer-detail-photo-empty"></div>`;
+
+  const statsHtml = `
+    <div class="gc-exclinic-stats gc-exclinic-stats-4">
+      ${renderEvolucaoStatCard("gc-exclinic-stat-ok", "Realizado", String(summary.realizadoCount))}
+      ${renderEvolucaoStatCard("gc-exclinic-stat-ok", "Conforme prescrito", String(summary.asPrescribedCount))}
+      ${renderEvolucaoStatCard("gc-exclinic-stat-attention", "Alterado", String(summary.adjustedCount))}
+      ${renderEvolucaoStatCard("gc-exclinic-stat-warn", "Não realizado", String(summary.skippedCount))}
+    </div>`;
+
+  const metricType = detectExerciseMetric(summary.sessions);
+  const chartHtml = metricType ? renderExerciseMetricChart(summary.sessions, metricType) : "";
+
+  const tableHtml = `
+    <div class="gc-exclinic-table-wrap"><table class="gc-exclinic-table">
+      <thead><tr><th>Data</th><th>Estado</th><th>Prescrito</th><th>Realizado</th></tr></thead>
+      <tbody>${summary.sessions.map(renderExerciseTableRow).join("")}</tbody>
+    </table></div>`;
+
+  return `
+    <div>
+      <button type="button" class="gc-exclinic-back" data-close-exercise-detail>← Todos os exercícios</button>
+
+      <div class="gc-exexer-detail-head">
+        ${photoHtml}
+        <div class="gc-exexer-detail-name">${esc(summary.name)}</div>
+      </div>
+
+      ${statsHtml}
+
+      ${chartHtml}
+
+      <div class="gc-exfollow-section">
+        <h2>Evolução por sessão</h2>
+        ${tableHtml}
+      </div>
+    </div>`;
+}
+
+/* renderEvolucaoExercicioView — vista interna do cartão "Evolução por
+   exercício". Âmbito EXCLUSIVO: sessões kind="list" (cardio fica de fora
+   nesta passagem). Filtro independente do da Evolução clínica global
+   (parâmetro próprio, sem tocar em evolutionFilter). Zero query nova —
+   usa só prescription/snapshots/readinessRows/logRows já carregados. */
+function renderEvolucaoExercicioView(prescription, snapshots, readinessRows, logRows, filter, selectedExerciseId) {
+  const todayISO = todayISODate();
+  const summaries = buildExerciseSummaries(prescription, snapshots, readinessRows, logRows, todayISO, filter);
+  const selected = selectedExerciseId ? summaries.find((s) => s.exerciseId === selectedExerciseId) : null;
+
+  const bodyHtml = selectedExerciseId
+    ? (selected
+      ? renderExerciseDetailView(selected)
+      : `<button type="button" class="gc-exclinic-back" data-close-exercise-detail>← Todos os exercícios</button><div class="gc-exfollow-empty">Este exercício não tem registo neste período.</div>`)
+    : renderExerciseListView(summaries);
+
+  return `
+    <div class="gc-exexer">
+      <button type="button" class="gc-exclinic-back" data-close-evolucao-exercicio>← Voltar à Linha Temporal</button>
+
+      <div class="gc-exclinic-head">
+        <h2>Evolução por exercício</h2>
+        <p>Prescrição, execução e progressão ao longo do plano.</p>
+      </div>
+
+      <div class="gc-exclinic-filter">
+        <button type="button" class="gc-exclinic-filter-btn${filter === "14d" ? " is-active" : ""}" data-exercise-filter="14d">Últimos 14 dias</button>
+        <button type="button" class="gc-exclinic-filter-btn${filter === "completo" ? " is-active" : ""}" data-exercise-filter="completo">Plano completo</button>
+      </div>
+
+      ${bodyHtml}
+    </div>`;
+}
+
 /* renderShell — topo compacto (voltar + rótulo, depois nome/plano, depois
    os 3 cartões pequenos), Bloco 1 ("Porque precisa da minha atenção
    agora?") mantém a posição atual. "Evolução clínica global" / "Evolução
    por exercício" / "Decisão / Ação médica" em 3 cartões de ação com
    identidade de cor própria (verde/laranja/roxo), antes da linha
    temporal, que passou a ter legenda de estados no cabeçalho da secção. */
-function renderShell(root, patient, prescription, readiness, log, snapshots, readinessRows, logRows, expandedSessionId, replyState, messagesBySessionId, activeView, evolutionFilter) {
+function renderShell(root, patient, prescription, readiness, log, snapshots, readinessRows, logRows, expandedSessionId, replyState, messagesBySessionId, activeView, evolutionFilter, exerciseEvolutionFilter, selectedExerciseId) {
   const remaining = daysUntil(prescription?.expires_at);
   const endLabel = remaining === null
     ? "—"
@@ -1472,7 +1899,9 @@ function renderShell(root, patient, prescription, readiness, log, snapshots, rea
 
   const mainContentHtml = activeView === "evolucao-clinica"
     ? renderEvolucaoClinicaView(prescription, snapshots, readinessRows, logRows, evolutionFilter)
-    : `
+    : activeView === "evolucao-exercicio"
+      ? renderEvolucaoExercicioView(prescription, snapshots, readinessRows, logRows, exerciseEvolutionFilter, selectedExerciseId)
+      : `
       <div class="gc-exfollow-section">
         <h2>Porque precisa da minha atenção agora?</h2>
         <p>Sinais objetivos do registo mais recente — sem interpretação clínica.</p>
@@ -1490,7 +1919,7 @@ function renderShell(root, patient, prescription, readiness, log, snapshots, rea
           <div class="gc-exfollow-mini-icon" aria-hidden="true">▦</div>
           <h3>Evolução por exercício</h3>
           <p>Prescrito versus realizado e progressão ao longo das sessões.</p>
-          <span class="gc-exfollow-mini-link">Ver evolução →</span>
+          <button type="button" class="gc-exfollow-mini-link" data-open-evolucao-exercicio>Ver evolução →</button>
         </div>
         <div class="gc-exfollow-mini-card gc-exfollow-mini-card--purple">
           <div class="gc-exfollow-mini-icon" aria-hidden="true">✎</div>
@@ -1599,6 +2028,14 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
   let activeView = "timeline";
   let evolutionFilter = "14d";
 
+  /* Estado local (não G) da Evolução por exercício: filtro INDEPENDENTE
+     do da Evolução clínica global (nunca mexe em evolutionFilter) e qual
+     exercise_id, se algum, está selecionado para detalhe (null = lista).
+     Sem query nova ao mudar — repinta com snapshots/logRows já
+     carregados. */
+  let exerciseEvolutionFilter = "14d";
+  let selectedExerciseId = null;
+
   /* Estado local (não G) do "Responder ao doente". replyState.sessionId
      identifica a QUE sessão pertence o texto em curso — nunca se escolhe
      por data, nunca se troca de prescrição. Reposto sempre que se muda de
@@ -1670,7 +2107,7 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
   }
 
   function paint() {
-    renderShell(root, patientRes.data, prescriptionRes.data, latestReadiness, latestLog, snapshots, readinessRows, logRows, expandedSessionId, replyState, messagesBySessionId, activeView, evolutionFilter);
+    renderShell(root, patientRes.data, prescriptionRes.data, latestReadiness, latestLog, snapshots, readinessRows, logRows, expandedSessionId, replyState, messagesBySessionId, activeView, evolutionFilter, exerciseEvolutionFilter, selectedExerciseId);
 
     document.getElementById("gcExFollowBack")?.addEventListener("click", () => {
       if (typeof onBack === "function") onBack();
@@ -1696,6 +2133,46 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
       btn.addEventListener("click", () => {
         const val = btn.getAttribute("data-evolution-filter");
         if (val) evolutionFilter = val;
+        paint();
+      });
+    });
+
+    root.querySelectorAll("[data-open-evolucao-exercicio]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeView = "evolucao-exercicio";
+        selectedExerciseId = null;
+        paint();
+      });
+    });
+
+    root.querySelectorAll("[data-close-evolucao-exercicio]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeView = "timeline";
+        selectedExerciseId = null;
+        expandedSessionId = null;
+        resetReplyState();
+        paint();
+      });
+    });
+
+    root.querySelectorAll("[data-exercise-filter]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const val = btn.getAttribute("data-exercise-filter");
+        if (val) exerciseEvolutionFilter = val;
+        paint();
+      });
+    });
+
+    root.querySelectorAll("[data-open-exercise]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        selectedExerciseId = btn.getAttribute("data-open-exercise");
+        paint();
+      });
+    });
+
+    root.querySelectorAll("[data-close-exercise-detail]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        selectedExerciseId = null;
         paint();
       });
     });
