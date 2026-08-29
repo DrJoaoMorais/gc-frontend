@@ -104,18 +104,27 @@ function daysUntil(value) {
 function styles() {
   return `
 .gc-exfollow{max-width:1180px;margin:0 auto;padding:4px 2px 40px;color:#0f172a}
-.gc-exfollow-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:16px}
-.gc-exfollow-back{border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:9px;padding:8px 11px;font:650 12px inherit;cursor:pointer}
-.gc-exfollow-kicker{font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.05em;color:#64748b}
-.gc-exfollow-title{margin:3px 0 0;font-size:26px;line-height:1.15;color:#0f2d52;letter-spacing:-.4px}
-.gc-exfollow-sub{margin:5px 0 0;font-size:12px;color:#64748b}
-.gc-exfollow-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0 14px}
-.gc-exfollow-card{border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:11px 14px}
-.gc-exfollow-card b{display:block;font-size:11px;color:#64748b;margin-bottom:4px}
-.gc-exfollow-card strong{font-size:14px;color:#0f172a}
+.gc-exfollow-topbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:10px}
+.gc-exfollow-topbar-label{font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.05em;color:#64748b}
+.gc-exfollow-back{border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:9px;padding:7px 11px;font:650 12px inherit;cursor:pointer}
+.gc-exfollow-titlecard{margin-bottom:10px}
+.gc-exfollow-title{margin:0;font-size:24px;line-height:1.15;color:#0f2d52;letter-spacing:-.4px}
+.gc-exfollow-sub{margin:4px 0 0;font-size:12px;color:#64748b}
+.gc-exfollow-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 14px}
+.gc-exfollow-card{border:1px solid #e2e8f0;background:#fff;border-radius:11px;padding:8px 13px}
+.gc-exfollow-card b{display:block;font-size:10px;color:#64748b;margin-bottom:2px}
+.gc-exfollow-card strong{font-size:13px;color:#0f172a}
 .gc-exfollow-section{border:1px solid #e2e8f0;background:#fff;border-radius:13px;padding:14px 16px;margin-top:10px}
 .gc-exfollow-section h2{font-size:15px;color:#0f2d52;margin:0 0 4px}
 .gc-exfollow-section p{font-size:12px;color:#64748b;margin:0}
+.gc-exfollow-section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.gc-exfollow-legend{display:flex;flex-wrap:wrap;gap:10px;font-size:10.5px;color:#64748b;padding-top:3px}
+.gc-exfollow-legend span{display:inline-flex;align-items:center;gap:4px}
+.gc-exfollow-legend-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.gc-exfollow-legend-dot-ok{background:#10b981}
+.gc-exfollow-legend-dot-today{background:#3b82f6}
+.gc-exfollow-legend-dot-warn{background:#94a3b8}
+.gc-exfollow-legend-dot-removed{background:#f87171}
 .gc-exfollow-empty{margin-top:10px;border:1px dashed #cbd5e1;border-radius:10px;padding:14px;color:#94a3b8;font-size:12px;text-align:center}
 .gc-exfollow-note-muted{font-size:11.5px;color:#94a3b8;font-style:italic;padding:2px 0}
 .gc-exfollow-signals{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
@@ -124,24 +133,30 @@ function styles() {
 .gc-exfollow-quote b{display:block;font-size:11px;color:#64748b;margin-bottom:3px;font-weight:650}
 .gc-exfollow-meta{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:11.5px;color:#64748b}
 
-/* 3 cartões compactos (Evolução clínica / Evolução por exercício / Decisão). */
+/* 3 cartões de ação — identidade visual própria por cartão. */
 .gc-exfollow-mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
 .gc-exfollow-mini-card{border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:13px 14px}
-.gc-exfollow-mini-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-size:14px;margin-bottom:7px}
-.gc-exfollow-mini-card h3{font-size:12.5px;margin:0 0 3px;color:#0f2d52}
+.gc-exfollow-mini-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;font-size:14px;margin-bottom:7px}
+.gc-exfollow-mini-card h3{font-size:12.5px;margin:0 0 3px}
 .gc-exfollow-mini-card p{font-size:11px;color:#64748b;margin:0 0 8px;line-height:1.4}
-.gc-exfollow-mini-link{font-size:11px;font-weight:650;color:#1d4ed8}
+.gc-exfollow-mini-link{font-size:11px;font-weight:650}
+.gc-exfollow-mini-card--green .gc-exfollow-mini-icon{background:#ecfdf5;color:#047857}
+.gc-exfollow-mini-card--green h3,.gc-exfollow-mini-card--green .gc-exfollow-mini-link{color:#047857}
+.gc-exfollow-mini-card--orange .gc-exfollow-mini-icon{background:#fff7ed;color:#c2410c}
+.gc-exfollow-mini-card--orange h3,.gc-exfollow-mini-card--orange .gc-exfollow-mini-link{color:#c2410c}
+.gc-exfollow-mini-card--purple .gc-exfollow-mini-icon{background:#f5f3ff;color:#7c3aed}
+.gc-exfollow-mini-card--purple h3,.gc-exfollow-mini-card--purple .gc-exfollow-mini-link{color:#7c3aed}
 
 /* Linha temporal — lista compacta tipo tabela, uma linha por sessão. */
 .gc-exfollow-timeline{border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff;margin-top:10px}
-.gc-exfollow-tl-item{padding:9px 14px;border-bottom:1px solid #eef2f6}
+.gc-exfollow-tl-item{padding:10px 14px;border-bottom:1px solid #eef2f6}
 .gc-exfollow-tl-item:last-child{border-bottom:none}
 .gc-exfollow-tl-item.gc-exfollow-tl-flagged{border-left:3px solid #f59e0b;padding-left:11px}
-.gc-exfollow-row{display:flex;align-items:center;gap:16px}
-.gc-exfollow-row-date{display:flex;align-items:flex-start;gap:7px;flex:0 0 auto;min-width:112px}
-.gc-exfollow-row-icon{width:9px;height:9px;border-radius:50%;flex:0 0 auto;margin-top:6px;background:#cbd5e1}
-.gc-exfollow-tl-date{font-size:13px;font-weight:750;color:#0f172a;line-height:1.3}
-.gc-exfollow-tl-badge{display:inline-block;font-size:10.5px;font-weight:650;border-radius:999px;padding:2px 8px;white-space:nowrap;margin-top:2px}
+.gc-exfollow-row{display:flex;align-items:center;gap:14px}
+.gc-exfollow-row-date{display:flex;align-items:center;gap:8px;flex:0 0 auto;min-width:110px}
+.gc-exfollow-row-icon{width:22px;height:22px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;background:#cbd5e1}
+.gc-exfollow-tl-date{font-size:14.5px;font-weight:750;color:#0f172a;line-height:1.25}
+.gc-exfollow-tl-badge{display:inline-block;font-size:10px;font-weight:650;border-radius:999px;padding:2px 8px;white-space:nowrap;margin-top:2px}
 .gc-exfollow-tl-ok .gc-exfollow-row-icon{background:#10b981}
 .gc-exfollow-tl-ok .gc-exfollow-tl-badge{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
 .gc-exfollow-tl-today .gc-exfollow-row-icon{background:#3b82f6}
@@ -155,59 +170,64 @@ function styles() {
 .gc-exfollow-tl-removed .gc-exfollow-tl-date{color:#94a3b8}
 .gc-exfollow-tl-attention .gc-exfollow-row-icon{background:#f59e0b}
 .gc-exfollow-tl-attention .gc-exfollow-tl-badge{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}
-.gc-exfollow-row-fields{display:flex;flex-wrap:wrap;align-items:center;gap:16px;flex:1 1 auto;min-width:0}
-.gc-exfollow-field{display:flex;flex-direction:column;gap:1px;min-width:60px;max-width:220px}
-.gc-exfollow-field b{font-size:9px;font-weight:650;color:#94a3b8;text-transform:uppercase;letter-spacing:.03em}
-.gc-exfollow-field span{font-size:12px;font-weight:650;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.gc-exfollow-field-symptom span{color:#be185d}
-.gc-exfollow-field-comment span{color:#c2410c}
-.gc-exfollow-field-reply span{color:#047857}
+
+/* Campos da linha (RPE / Bem-estar / Sintomas / Comentário / Resposta),
+   separados por um traço vertical discreto — nunca uma tabela dura. */
+.gc-exfollow-row-fields{display:flex;flex-wrap:wrap;align-items:center;gap:0;flex:1 1 auto;min-width:0;row-gap:6px}
+.gc-exfollow-field{display:flex;align-items:flex-start;gap:5px;padding:0 12px;min-width:0}
+.gc-exfollow-field:first-child{padding-left:0}
+.gc-exfollow-field:not(:first-child){border-left:1px solid #e2e8f0}
+.gc-exfollow-field-icon{flex:0 0 auto;font-size:11px;line-height:1.5;margin-top:1px;color:#94a3b8}
+.gc-exfollow-field-text{display:flex;flex-direction:column;gap:0;min-width:0}
+.gc-exfollow-field-label{font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.03em}
+.gc-exfollow-field-value{font-size:12.5px;font-weight:700;color:#0f172a;line-height:1.35}
+.gc-exfollow-field-caption{font-size:9.5px;color:#94a3b8}
+.gc-exfollow-field-wellbeing .gc-exfollow-field-icon,.gc-exfollow-field-wellbeing .gc-exfollow-field-value{color:#047857}
+.gc-exfollow-field-symptom .gc-exfollow-field-icon{color:#be185d}
+.gc-exfollow-field-symptom .gc-exfollow-field-value{color:#be185d;font-size:10.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
+.gc-exfollow-field-comment .gc-exfollow-field-icon{color:#c2410c}
+.gc-exfollow-field-comment .gc-exfollow-field-value{color:#c2410c;font-size:10.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px}
+.gc-exfollow-field-reply .gc-exfollow-field-icon,.gc-exfollow-field-reply .gc-exfollow-field-value{color:#047857}
+
 .gc-exfollow-tl-toggle{flex:0 0 auto;margin-left:auto;border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:8px;padding:5px 11px;font:650 11.5px inherit;cursor:pointer;white-space:nowrap}
 .gc-exfollow-tl-toggle:hover{border-color:#93c5fd;background:#f8fbff}
 
 /* Painel expandido — blocos empilhados, dentro da mesma sessão. */
-.gc-exfollow-detail{margin-top:11px;padding-top:11px;border-top:1px solid #e2e8f0;display:flex;flex-direction:column;gap:13px}
+.gc-exfollow-detail{margin-top:11px;padding-top:11px;border-top:1px solid #e2e8f0;display:flex;flex-direction:column;gap:11px}
 .gc-exfollow-block{display:flex;flex-direction:column;gap:7px}
 .gc-exfollow-block>b{display:block;font-size:10.5px;font-weight:750;text-transform:uppercase;letter-spacing:.04em;color:#64748b}
 .gc-exfollow-treino-modalidade{font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:8px}
 
-/* Métricas — colunas compactas. */
+/* Faixa única de métricas + avaliação da sessão — até 5 cartões, só os que
+   existirem. */
 .gc-exfollow-metrics{display:flex;flex-wrap:wrap;gap:8px}
-.gc-exfollow-metric{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:7px 11px;min-width:92px}
-.gc-exfollow-metric b{display:block;font-size:9.5px;font-weight:650;color:#64748b;margin-bottom:2px}
-.gc-exfollow-metric strong{font-size:15px;color:#0f172a;font-weight:750}
-
-/* Avaliação da sessão — antes do treino (readiness.feeling, pergunta "Como
-   se sente hoje?") e após o treino (log.feel, "Bem-estar"). Duas perguntas
-   distintas — lado a lado, sem seta de equivalência. */
-.gc-exfollow-avaliacoes{display:flex;align-items:stretch;gap:12px}
-.gc-exfollow-avaliacao{flex:1;background:#f8fafc;border:1px solid #e2e8f0;border-radius:11px;padding:9px 12px;text-align:center}
-.gc-exfollow-avaliacao b{display:block;font-size:10px;font-weight:650;color:#64748b;margin-bottom:6px}
-.gc-exfollow-avaliacao-pergunta{display:block;font-size:10.5px;color:#94a3b8;margin-bottom:3px}
-.gc-exfollow-avaliacao-texto{display:block;font-size:13px;font-weight:650;color:#0f172a;margin-bottom:2px}
-.gc-exfollow-avaliacao strong{display:block;font-size:15px;color:#0f2d52;font-weight:750}
+.gc-exfollow-metric{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:7px 11px;min-width:90px}
+.gc-exfollow-metric b{display:block;font-size:9.5px;font-weight:650;color:#64748b;margin-bottom:2px;text-transform:uppercase;letter-spacing:.02em}
+.gc-exfollow-metric strong{display:block;font-size:15px;color:#0f172a;font-weight:750}
+.gc-exfollow-metric-eval{min-width:116px}
+.gc-exfollow-metric-pergunta{display:block;font-size:9.5px;color:#94a3b8;margin-bottom:1px}
+.gc-exfollow-metric-texto{display:block;font-size:12px;font-weight:650;color:#0f172a;margin-bottom:1px}
 
 /* Sintomas / Comentário / Resposta — 3 colunas ao mesmo nível. */
 .gc-exfollow-triple{display:flex;gap:10px}
-.gc-exfollow-col{flex:1;min-width:0;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:9px 11px}
+.gc-exfollow-col{flex:1;min-width:0;max-width:460px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:9px 11px}
 .gc-exfollow-col b{display:block;font-size:10px;font-weight:750;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px}
 .gc-exfollow-col p{margin:0;font-size:12px;color:#334155;white-space:pre-wrap;line-height:1.4}
 .gc-exfollow-col-symptom b{color:#be185d}
 .gc-exfollow-col-comment b{color:#c2410c}
 .gc-exfollow-col-reply b{color:#047857}
 
-/* Exercícios kind=list — sequência horizontal compacta. */
+/* Exercícios — faixa horizontal baixa, imagem à esquerda, texto à direita. */
 .gc-exfollow-ex-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
-.gc-exfollow-ex-card{flex:0 0 104px;display:flex;flex-direction:column;gap:3px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:7px;font-size:11px}
-.gc-exfollow-ex-photo{width:100%;height:62px;object-fit:cover;border-radius:7px;background:#e2e8f0;display:block}
+.gc-exfollow-ex-card{position:relative;flex:0 0 auto;display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:6px 14px 6px 6px;min-width:150px}
+.gc-exfollow-ex-photo{width:38px;height:38px;flex:0 0 auto;object-fit:cover;border-radius:7px;background:#e2e8f0;display:block}
 .gc-exfollow-ex-photo-empty{display:flex;align-items:center;justify-content:center}
-.gc-exfollow-ex-name{font-weight:700;color:#0f172a;font-size:11.5px;line-height:1.25}
-.gc-exfollow-ex-prescrito{color:#334155;font-weight:650}
-.gc-exfollow-ex-carga{color:#64748b}
-.gc-exfollow-ex-status{margin-top:2px;font-size:10px;font-weight:700;border-radius:6px;padding:2px 6px;display:inline-block;width:fit-content}
-.gc-exfollow-ex-status-ok{background:#ecfdf5;color:#047857}
-.gc-exfollow-ex-status-alt{background:#fff7ed;color:#9a3412}
-.gc-exfollow-ex-status-skip{background:#fef2f2;color:#b91c1c}
+.gc-exfollow-ex-text{display:flex;flex-direction:column;gap:1px;min-width:0}
+.gc-exfollow-ex-name{font-weight:700;color:#0f172a;font-size:11.5px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.gc-exfollow-ex-meta{font-size:10.5px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.gc-exfollow-ex-dot{position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%}
+.gc-exfollow-ex-dot-alt{background:#f59e0b}
+.gc-exfollow-ex-dot-skip{background:#ef4444}
 
 /* Cardio — timeline horizontal (preservada). */
 .gc-exfollow-card-timeline{display:flex;gap:2px;border-radius:8px;overflow:hidden;height:28px;margin-bottom:8px}
@@ -240,18 +260,15 @@ function styles() {
 .gc-exfollow-reply-save:disabled{opacity:.6;cursor:default}
 .gc-exfollow-reply-cancel{border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:8px;padding:7px 12px;font:650 12px inherit;cursor:pointer}
 .gc-exfollow-reply-cancel:disabled{opacity:.6;cursor:default}
-.gc-exfollow-reply-open{border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:8px;padding:6px 11px;font:650 11.5px inherit;cursor:pointer}
+.gc-exfollow-reply-open{border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:8px;padding:6px 12px;font:650 11.5px inherit;cursor:pointer}
 .gc-exfollow-reply-error{margin-top:8px;font-size:11.5px;color:#b91c1c}
 .gc-exfollow-reply-success{margin-bottom:8px;font-size:11.5px;color:#047857;font-weight:650}
 
 .gc-exfollow-error{border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:10px;padding:12px 14px;font-size:12px}
 @media(max-width:800px){
   .gc-exfollow-grid,.gc-exfollow-mini-grid{grid-template-columns:1fr}
-  .gc-exfollow-head{flex-direction:column}
-  .gc-exfollow-back{order:-1}
   .gc-exfollow-row{flex-wrap:wrap;row-gap:8px}
   .gc-exfollow-tl-toggle{margin-left:0}
-  .gc-exfollow-avaliacoes{flex-direction:column}
   .gc-exfollow-triple{flex-direction:column}
 }
 `;
@@ -263,7 +280,7 @@ function styles() {
    (has_symptoms) e último log (rpe>=8, note, sets[].status). Sem
    interpretação clínica, sem IA, sem query a wo_exercises — sets[]
    alterados/não realizados aparecem só como contagem. Inalterado nesta
-   passagem (só camada visual da timeline foi redesenhada). */
+   passagem. */
 function renderAttentionBlock(readiness, log) {
   const signals = [];
   const quotes = [];
@@ -399,6 +416,17 @@ const TIMELINE_STATUS_META = {
   REMOVIDA_DEPOIS:      { label: "Removida depois de iniciada",   css: "removed" },
   INICIADA_SEM_REGISTO: { label: "Iniciada · sem registo final",  css: "attention" },
   INDETERMINADO:        { label: "Estado indeterminado",          css: "neutral" },
+};
+
+/* STATUS_ICON_GLYPH — símbolo dentro do círculo de estado, por classe de
+   cor (css) já usada em TIMELINE_STATUS_META. Só apresentação. */
+const STATUS_ICON_GLYPH = {
+  ok: "✓",
+  today: "",
+  warn: "",
+  removed: "⊘",
+  attention: "!",
+  neutral: "",
 };
 
 const CARD_ZONE_CLASS = {
@@ -562,31 +590,31 @@ function findLogEntryForExercise(log, exerciseId) {
   return sets.find((e) => e?.exercise_id === exerciseId) || null;
 }
 
-/* renderListItemCard — cartão compacto por exercício. photo_url já vem
-   embutido no snapshot (sem query a wo_exercises). Sem foto: placeholder
-   discreto, nunca imagem partida. Estado (conforme/alterado/não
-   realizado) só aparece quando o log tiver esse exercise_id — sem
-   inventar comparação onde não existe. */
+/* renderListItemCard — cartão baixo por exercício: foto pequena à esquerda,
+   nome + "séries × reps · carga" à direita. photo_url já vem embutido no
+   snapshot (sem query a wo_exercises). Sem foto: placeholder discreto,
+   nunca imagem partida. Alteração/não realização (só quando o log tiver
+   esse exercise_id) aparece só como um ponto discreto — nunca um badge de
+   texto em todos os cartões. */
 function renderListItemCard(item, log) {
   const photo = item?.photo_url;
   const name = item?.name || "Exercício";
   const prescrito = describeItemPrescribed(item);
   const carga = describeItemLoad(item);
+  const metaText = [prescrito, carga].filter(Boolean).join(" · ");
   const logEntry = findLogEntryForExercise(log, item?.exercise_id);
   const rawStatus = logEntry?.status || null;
-  const statusLabel = rawStatus === "as_prescribed" ? "Conforme prescrito"
-    : rawStatus === "skipped" ? "Não realizado"
-    : rawStatus ? "Alterado"
-    : null;
-  const statusClass = rawStatus === "as_prescribed" ? "ok" : rawStatus === "skipped" ? "skip" : "alt";
+  const dotClass = rawStatus === "skipped" ? "gc-exfollow-ex-dot-skip" : (rawStatus && rawStatus !== "as_prescribed") ? "gc-exfollow-ex-dot-alt" : null;
+  const dotTitle = rawStatus === "skipped" ? "Não realizado" : "Alterado";
 
   return `
     <div class="gc-exfollow-ex-card">
+      ${dotClass ? `<span class="gc-exfollow-ex-dot ${dotClass}" title="${esc(dotTitle)}" aria-hidden="true"></span>` : ""}
       ${photo ? `<img class="gc-exfollow-ex-photo" src="${esc(photo)}" alt="">` : `<div class="gc-exfollow-ex-photo gc-exfollow-ex-photo-empty"></div>`}
-      <div class="gc-exfollow-ex-name">${esc(name)}</div>
-      ${prescrito ? `<div class="gc-exfollow-ex-prescrito">${esc(prescrito)}</div>` : ""}
-      ${carga ? `<div class="gc-exfollow-ex-carga">${esc(carga)}</div>` : ""}
-      ${statusLabel ? `<div class="gc-exfollow-ex-status gc-exfollow-ex-status-${statusClass}">${esc(statusLabel)}</div>` : ""}
+      <div class="gc-exfollow-ex-text">
+        <div class="gc-exfollow-ex-name">${esc(name)}</div>
+        ${metaText ? `<div class="gc-exfollow-ex-meta">${esc(metaText)}</div>` : ""}
+      </div>
     </div>`;
 }
 
@@ -605,67 +633,64 @@ function renderListTreinoVisual(entry) {
 
 /* ==================== Blocos partilhados (card + list) ==================== */
 
-/* renderMetricasBlock — linha compacta de métricas (RPE, recuperação
-   pós-treino, duração/distância quando existir resumo de sessão,
-   exercícios alterados/não realizados). Só a partir de entry.log — nada
-   inventado, nada omitido que exista. */
-function renderMetricasBlock(log) {
-  if (!log) return "";
-  const metrics = [];
-  if (log.rpe != null && log.rpe !== "") metrics.push({ label: "RPE (esforço)", value: `${log.rpe}/10` });
-  if (log.feel != null && log.feel !== "") metrics.push({ label: "Bem-estar pós-treino", value: `${log.feel}/5` });
-  const sets = Array.isArray(log.sets) ? log.sets : [];
-  const resumo = sets.find((e) => e?.tipo === "resumo");
-  if (resumo) {
-    const dur = fmtDurationHuman(resumo.tempo_total_sec);
-    if (dur) metrics.push({ label: "Duração do treino", value: dur });
-    const distM = Number(resumo.distancia_total_m);
-    if (Number.isFinite(distM)) metrics.push({ label: "Distância", value: `${(distM / 1000).toFixed(2).replace(".", ",")} km` });
-  }
-  const { altered, skipped } = computeSetsCounts(log);
-  if (altered > 0) metrics.push({ label: "Exercícios alterados", value: String(altered) });
-  if (skipped > 0) metrics.push({ label: "Exercícios não realizados", value: String(skipped) });
-  if (!metrics.length) return "";
-  const itemsHtml = metrics.map((m) => `<div class="gc-exfollow-metric"><b>${esc(m.label)}</b><strong>${esc(m.value)}</strong></div>`).join("");
-  return `<div class="gc-exfollow-block"><b>Métricas</b><div class="gc-exfollow-metrics">${itemsHtml}</div></div>`;
-}
-
 /* READINESS_FEELING_LABELS — texto real das 5 opções da pergunta de
    readiness ("Como se sente hoje?"), tal como apresentadas ao doente.
    Nunca usado para o valor pós-treino (log.feel), que não tem estas
    palavras associadas no questionário final. */
 const READINESS_FEELING_LABELS = { 1: "Muito mal", 2: "Mal", 3: "Razoável", 4: "Bem", 5: "Muito bem" };
 
-/* renderAvaliacoes — duas perguntas distintas, nunca apresentadas como
-   comparação direta da mesma variável: "Como se sente hoje?"
-   (readiness.feeling, com o texto real da opção) antes do treino, e
-   "Bem-estar" (log.feel, só o número — o questionário final não tem
-   texto associado) depois do treino. Mostra só o(s) lado(s) que
-   existirem, lado a lado sem seta de equivalência. */
-function renderAvaliacoes(readiness, log) {
+/* renderMetricasBlock — faixa única com métricas objetivas (RPE, bem-estar
+   pós-treino, duração/distância quando existir resumo de sessão,
+   exercícios alterados/não realizados) e a avaliação da sessão (antes:
+   readiness.feeling com o texto real da opção; depois: log.feel, só o
+   número). Duas perguntas distintas, nunca como comparação direta da
+   mesma variável. Só a partir de log/readiness já carregados — nada
+   inventado, nada omitido que exista; cartão sem dado correspondente não
+   aparece. */
+function renderMetricasBlock(log, readiness) {
+  const cards = [];
+
+  if (log?.rpe != null && log.rpe !== "") cards.push({ label: "RPE (esforço)", value: `${log.rpe}/10` });
+  if (log?.feel != null && log.feel !== "") cards.push({ label: "Bem-estar pós-treino", value: `${log.feel}/5` });
+
+  const sets = Array.isArray(log?.sets) ? log.sets : [];
+  const resumo = sets.find((e) => e?.tipo === "resumo");
+  if (resumo) {
+    const dur = fmtDurationHuman(resumo.tempo_total_sec);
+    if (dur) cards.push({ label: "Duração do treino", value: dur });
+    const distM = Number(resumo.distancia_total_m);
+    if (Number.isFinite(distM)) cards.push({ label: "Distância", value: `${(distM / 1000).toFixed(2).replace(".", ",")} km` });
+  }
+
+  const { altered, skipped } = computeSetsCounts(log);
+  if (altered > 0) cards.push({ label: "Exercícios alterados", value: String(altered) });
+  if (skipped > 0) cards.push({ label: "Exercícios não realizados", value: String(skipped) });
+
   const antes = readiness?.feeling != null ? Number(readiness.feeling) : null;
+  if (Number.isFinite(antes) && antes >= 1 && antes <= 5) {
+    cards.push({ eval: true, label: "Antes do treino", pergunta: "Como se sente hoje?", texto: READINESS_FEELING_LABELS[antes], value: `${antes}/5` });
+  }
+
   const depois = log?.feel != null ? Number(log.feel) : null;
-  const temAntes = Number.isFinite(antes) && antes >= 1 && antes <= 5;
-  const temDepois = Number.isFinite(depois);
-  if (!temAntes && !temDepois) return "";
+  if (Number.isFinite(depois)) {
+    cards.push({ eval: true, label: "Após o treino", pergunta: "Bem-estar", texto: null, value: `${depois}/5` });
+  }
 
-  const antesLabel = temAntes ? READINESS_FEELING_LABELS[antes] : null;
-  const cardAntes = temAntes ? `
-    <div class="gc-exfollow-avaliacao">
-      <b>Antes do treino</b>
-      <span class="gc-exfollow-avaliacao-pergunta">Como se sente hoje?</span>
-      ${antesLabel ? `<span class="gc-exfollow-avaliacao-texto">${esc(antesLabel)}</span>` : ""}
-      <strong>${esc(antes)}/5</strong>
-    </div>` : "";
+  if (!cards.length) return "";
 
-  const cardDepois = temDepois ? `
-    <div class="gc-exfollow-avaliacao">
-      <b>Após o treino</b>
-      <span class="gc-exfollow-avaliacao-pergunta">Bem-estar</span>
-      <strong>${esc(depois)}/5</strong>
-    </div>` : "";
+  const itemsHtml = cards.map((c) => {
+    if (c.eval) {
+      return `<div class="gc-exfollow-metric gc-exfollow-metric-eval">
+        <b>${esc(c.label)}</b>
+        <span class="gc-exfollow-metric-pergunta">${esc(c.pergunta)}</span>
+        ${c.texto ? `<span class="gc-exfollow-metric-texto">${esc(c.texto)}</span>` : ""}
+        <strong>${esc(c.value)}</strong>
+      </div>`;
+    }
+    return `<div class="gc-exfollow-metric"><b>${esc(c.label)}</b><strong>${esc(c.value)}</strong></div>`;
+  }).join("");
 
-  return `<div class="gc-exfollow-block"><b>Avaliação da sessão</b><div class="gc-exfollow-avaliacoes">${cardAntes}${cardDepois}</div></div>`;
+  return `<div class="gc-exfollow-block"><div class="gc-exfollow-metrics">${itemsHtml}</div></div>`;
 }
 
 /* Mapa mínimo de reasons devolvidos por wo_send_session_message — texto
@@ -685,9 +710,8 @@ const REPLY_ERROR_FALLBACK = "Não foi possível disponibilizar a mensagem.";
 /* renderSessionMessages — mensagens já enviadas para esta sessão (body,
    published_at, read_at) — usadas na coluna "A minha resposta". Ordem
    cronológica ascendente (já vem assim da query, por created_at). Nunca
-   mostra id/author_user_id/prescription_id/session_id. Inalterado
-   funcionalmente — só deixou de repetir o título "A minha resposta" por
-   mensagem, que passou a vir da coluna que a envolve. */
+   mostra id/author_user_id/prescription_id/session_id. Inalterado nesta
+   passagem. */
 function renderSessionMessages(messages) {
   if (!messages || !messages.length) return "";
   const items = messages.map((m) => {
@@ -708,7 +732,9 @@ function renderSessionMessages(messages) {
 /* renderSintomasComentarioResposta — sintomas / comentário / a minha
    resposta lado a lado (3 colunas em desktop, empilhadas em mobile via
    CSS). Coluna só aparece quando existir conteúdo real; as restantes
-   ocupam o espaço disponível (flex:1 cada). */
+   ocupam o espaço disponível. Largura máxima por coluna evita que uma
+   única coluna presente pareça uma caixa gigante. Inalterado
+   funcionalmente nesta passagem. */
 function renderSintomasComentarioResposta(readiness, log, messages) {
   const cols = [];
 
@@ -731,12 +757,12 @@ function renderSintomasComentarioResposta(readiness, log, messages) {
   return `<div class="gc-exfollow-block"><div class="gc-exfollow-triple">${cols.join("")}</div></div>`;
 }
 
-/* renderResponderAction — "Responder ao doente"/"Responder novamente" e,
-   quando aberto, o formulário. Lógica RPC e estado (replyState)
-   inalterados nesta passagem — só deixou de incluir a listagem de
-   mensagens já enviadas (agora na coluna "A minha resposta"). */
+/* renderResponderAction — botão pequeno "💬 Responder ao doente"/
+   "💬 Responder novamente" e, quando aberto, o formulário. Lógica RPC e
+   estado (replyState) inalterados nesta passagem — só o texto do botão
+   ganhou o ícone do mockup e deixou de ter largura total. */
 function renderResponderAction(entry, replyState, messages) {
-  const openLabel = messages && messages.length ? "Responder novamente" : "Responder ao doente";
+  const openLabel = messages && messages.length ? "💬 Responder novamente" : "💬 Responder ao doente";
 
   const isThisSession = replyState && replyState.sessionId === entry.sessionId;
   const successNote = isThisSession && replyState.success
@@ -766,12 +792,13 @@ function renderResponderAction(entry, replyState, messages) {
 }
 
 /* renderTimelineDetailPanel — painel de "Ver treino", continuação da
-   mesma sessão. Ordem obrigatória: A) treino visual, B) métricas,
-   C) como se sentiu antes→depois, D) sintomas/comentário/resposta em 3
-   colunas, E) ação de responder. O visual do treino depende só do kind
-   efetivo (entry.kind ou, na ausência dele — sessão removida do array
-   atual —, snapshot.snapshot.kind). */
-function renderTimelineDetailPanel(entry, replyState, messagesBySessionId) {
+   mesma sessão. Ordem: A) "Treino realizado"/"Treino prescrito" (rótulo
+   dinâmico consoante a sessão já tenha log) com o visual do treino,
+   B) faixa única de métricas + avaliação da sessão, C) sintomas/
+   comentário/resposta em 3 colunas, D) ação de responder. O visual do
+   treino depende só do kind efetivo (entry.kind ou, na ausência dele —
+   sessão removida do array atual —, snapshot.snapshot.kind). */
+function renderTimelineDetailPanel(entry, status, replyState, messagesBySessionId) {
   const effectiveKind = entry.kind || entry.snapshot?.snapshot?.kind || null;
 
   let treinoHtml = "";
@@ -780,26 +807,41 @@ function renderTimelineDetailPanel(entry, replyState, messagesBySessionId) {
   } else if (effectiveKind === "list") {
     treinoHtml = renderListTreinoVisual(entry);
   }
+  const treinoLabel = status === "REALIZADA" ? "Treino realizado" : "Treino prescrito";
+  const treinoBlockHtml = treinoHtml ? `<div class="gc-exfollow-block"><b>${esc(treinoLabel)}</b>${treinoHtml}</div>` : "";
 
-  const metricasHtml = renderMetricasBlock(entry.log);
-  const avaliacoesHtml = renderAvaliacoes(entry.readiness, entry.log);
+  const metricasHtml = renderMetricasBlock(entry.log, entry.readiness);
 
   const messages = messagesBySessionId ? (messagesBySessionId.get(entry.sessionId) || []) : [];
   const tripleHtml = renderSintomasComentarioResposta(entry.readiness, entry.log, messages);
-  const responderHtml = `<div class="gc-exfollow-block"><b>Responder</b>${renderResponderAction(entry, replyState, messages)}</div>`;
+  const responderHtml = `<div class="gc-exfollow-block">${renderResponderAction(entry, replyState, messages)}</div>`;
 
-  const blocks = [treinoHtml, metricasHtml, avaliacoesHtml, tripleHtml, responderHtml].filter(Boolean);
+  const blocks = [treinoBlockHtml, metricasHtml, tripleHtml, responderHtml].filter(Boolean);
   return `<div class="gc-exfollow-detail">${blocks.join("")}</div>`;
 }
 
+/* renderRowField — um campo compacto da linha fechada da sessão (ícone +
+   label + valor + legenda opcional), separado dos vizinhos por um traço
+   vertical (CSS, via :not(:first-child)). Só apresentação. */
+function renderRowField(cls, icon, label, value, caption) {
+  return `<div class="gc-exfollow-field${cls ? ` ${cls}` : ""}">
+    ${icon ? `<span class="gc-exfollow-field-icon" aria-hidden="true">${icon}</span>` : ""}
+    <div class="gc-exfollow-field-text">
+      <span class="gc-exfollow-field-label">${esc(label)}</span>
+      <span class="gc-exfollow-field-value">${esc(value)}</span>
+      ${caption ? `<span class="gc-exfollow-field-caption">${esc(caption)}</span>` : ""}
+    </div>
+  </div>`;
+}
+
 /* renderTimelineItem — uma linha compacta por sessão (lista tipo tabela).
-   Fechada por defeito: ícone de estado + data + badge, colunas de campos
-   só quando EXISTIREM (RPE, recuperação, sintomas/comentário com trecho
-   curto, "respondido") e o botão à direita. Sessões que já eram
-   objetivamente classificadas como merecendo atenção (mesmos sinais do
-   Bloco 1: RPE≥8, sintomas, comentário, exercícios alterados/não
-   realizados, ou estado NAO_REALIZADA) recebem só um indicador lateral
-   discreto — nunca uma moldura à volta de todo o cartão. */
+   Fechada por defeito: círculo de estado + data + badge, campos com traço
+   vertical só quando EXISTIREM (RPE, bem-estar pós-treino, sintomas/
+   comentário com trecho curto, "respondido") e o botão à direita. Sessões
+   que já eram objetivamente classificadas como merecendo atenção (mesmos
+   sinais do Bloco 1: RPE≥8, sintomas, comentário, exercícios alterados/
+   não realizados, ou estado NAO_REALIZADA) recebem só um indicador
+   lateral discreto — nunca uma moldura à volta de todo o cartão. */
 function renderTimelineItem(entry, todayISO, expandedSessionId, replyState, messagesBySessionId) {
   const status = classifySession(entry, todayISO);
   const meta = TIMELINE_STATUS_META[status] || TIMELINE_STATUS_META.INDETERMINADO;
@@ -814,20 +856,20 @@ function renderTimelineItem(entry, todayISO, expandedSessionId, replyState, mess
 
   const fields = [];
   if (entry.log?.rpe != null && entry.log?.rpe !== "") {
-    fields.push(`<div class="gc-exfollow-field"><b>RPE</b><span>${esc(entry.log.rpe)}/10</span></div>`);
+    fields.push(renderRowField("", "", "RPE", `${entry.log.rpe}/10`, "Esforço"));
   }
   if (entry.log?.feel != null && entry.log?.feel !== "") {
-    fields.push(`<div class="gc-exfollow-field"><b>Bem-estar pós-treino</b><span>${esc(entry.log.feel)}/5</span></div>`);
+    fields.push(renderRowField("gc-exfollow-field-wellbeing", "✓", "Bem-estar", `${entry.log.feel}/5`, "Pós-treino"));
   }
   if (hasSymptoms) {
     const preview = truncateText(entry.readiness?.symptom_note, 40) || "Reportados";
-    fields.push(`<div class="gc-exfollow-field gc-exfollow-field-symptom"><b>Sintomas</b><span>${esc(preview)}</span></div>`);
+    fields.push(renderRowField("gc-exfollow-field-symptom", "⚠", "Sintomas", preview, null));
   }
   if (hasComment) {
-    fields.push(`<div class="gc-exfollow-field gc-exfollow-field-comment"><b>Comentário</b><span>${esc(truncateText(entry.log?.note, 56))}</span></div>`);
+    fields.push(renderRowField("gc-exfollow-field-comment", "💬", "Comentário", truncateText(entry.log?.note, 56), null));
   }
   if (hasReply) {
-    fields.push(`<div class="gc-exfollow-field gc-exfollow-field-reply"><b>A minha resposta</b><span>Respondido</span></div>`);
+    fields.push(renderRowField("gc-exfollow-field-reply", "✓", "A minha resposta", "Respondido", null));
   }
 
   const rpeNum = Number(entry.log?.rpe);
@@ -836,12 +878,13 @@ function renderTimelineItem(entry, todayISO, expandedSessionId, replyState, mess
     || (Number.isFinite(rpeNum) && rpeNum >= 8) || altered > 0 || skipped > 0;
 
   const itemClass = `gc-exfollow-tl-item gc-exfollow-tl-${meta.css}${precisaAtencao ? " gc-exfollow-tl-flagged" : ""}`;
+  const iconGlyph = STATUS_ICON_GLYPH[meta.css] || "";
 
   return `
     <div class="${itemClass}">
       <div class="gc-exfollow-row">
         <div class="gc-exfollow-row-date">
-          <span class="gc-exfollow-row-icon" aria-hidden="true"></span>
+          <span class="gc-exfollow-row-icon" aria-hidden="true">${iconGlyph}</span>
           <div>
             <div class="gc-exfollow-tl-date">${esc(sessionDateLabel)}</div>
             <span class="gc-exfollow-tl-badge">${esc(meta.label)}</span>
@@ -850,7 +893,7 @@ function renderTimelineItem(entry, todayISO, expandedSessionId, replyState, mess
         <div class="gc-exfollow-row-fields">${fields.join("")}</div>
         <button type="button" class="gc-exfollow-tl-toggle" data-toggle-session="${esc(entry.sessionId)}">${isExpanded ? "Fechar treino" : "Ver treino"}</button>
       </div>
-      ${isExpanded ? renderTimelineDetailPanel(entry, replyState, messagesBySessionId) : ""}
+      ${isExpanded ? renderTimelineDetailPanel(entry, status, replyState, messagesBySessionId) : ""}
     </div>`;
 }
 
@@ -879,11 +922,12 @@ function renderTimelineBlock(prescription, snapshots, readinessRows, logRows, ex
   return `<div class="gc-exfollow-timeline">${entries.map((e) => renderTimelineItem(e, todayISO, expandedSessionId, replyState, messagesBySessionId)).join("")}</div>`;
 }
 
-/* renderShell — cabeçalho inalterado; Bloco 1 ("Porque precisa da minha
-   atenção agora?") mantém a posição atual. "Evolução clínica global" /
-   "Evolução por exercício" / "Decisão / Ação médica" passaram a 3
-   cartões compactos na mesma linha (sem conteúdo/análise nova, sem
-   navegação funcional nesta passagem), antes da linha temporal. */
+/* renderShell — topo compacto (voltar + rótulo, depois nome/plano, depois
+   os 3 cartões pequenos), Bloco 1 ("Porque precisa da minha atenção
+   agora?") mantém a posição atual. "Evolução clínica global" / "Evolução
+   por exercício" / "Decisão / Ação médica" em 3 cartões de ação com
+   identidade de cor própria (verde/laranja/roxo), antes da linha
+   temporal, que passou a ter legenda de estados no cabeçalho da secção. */
 function renderShell(root, patient, prescription, readiness, log, snapshots, readinessRows, logRows, expandedSessionId, replyState, messagesBySessionId) {
   const remaining = daysUntil(prescription?.expires_at);
   const endLabel = remaining === null
@@ -897,13 +941,14 @@ function renderShell(root, patient, prescription, readiness, log, snapshots, rea
   root.innerHTML = `
     <style>${styles()}</style>
     <section class="gc-exfollow">
-      <div class="gc-exfollow-head">
-        <div>
-          <div class="gc-exfollow-kicker">Acompanhamento de Exercício</div>
-          <h1 class="gc-exfollow-title">${esc(patient?.full_name || "Doente")}</h1>
-          <p class="gc-exfollow-sub">Plano ${fmtDate(prescription?.created_at)} → ${fmtDate(prescription?.expires_at)}</p>
-        </div>
-        <button type="button" class="gc-exfollow-back" id="gcExFollowBack">Voltar ao Início</button>
+      <div class="gc-exfollow-topbar">
+        <button type="button" class="gc-exfollow-back" id="gcExFollowBack">← Voltar ao Início</button>
+        <span class="gc-exfollow-topbar-label">Acompanhamento de exercício</span>
+      </div>
+
+      <div class="gc-exfollow-titlecard">
+        <h1 class="gc-exfollow-title">${esc(patient?.full_name || "Doente")}</h1>
+        <p class="gc-exfollow-sub">Plano ${fmtDate(prescription?.created_at)} → ${fmtDate(prescription?.expires_at)}</p>
       </div>
 
       <div class="gc-exfollow-grid">
@@ -919,19 +964,19 @@ function renderShell(root, patient, prescription, readiness, log, snapshots, rea
       </div>
 
       <div class="gc-exfollow-mini-grid">
-        <div class="gc-exfollow-mini-card">
+        <div class="gc-exfollow-mini-card gc-exfollow-mini-card--green">
           <div class="gc-exfollow-mini-icon" aria-hidden="true">↗</div>
           <h3>Evolução clínica global</h3>
           <p>Sintomas, RPE, sensação pós-treino, adesão e alterações.</p>
           <span class="gc-exfollow-mini-link">Ver evolução →</span>
         </div>
-        <div class="gc-exfollow-mini-card">
+        <div class="gc-exfollow-mini-card gc-exfollow-mini-card--orange">
           <div class="gc-exfollow-mini-icon" aria-hidden="true">▦</div>
           <h3>Evolução por exercício</h3>
           <p>Prescrito versus realizado e progressão ao longo das sessões.</p>
           <span class="gc-exfollow-mini-link">Ver evolução →</span>
         </div>
-        <div class="gc-exfollow-mini-card">
+        <div class="gc-exfollow-mini-card gc-exfollow-mini-card--purple">
           <div class="gc-exfollow-mini-icon" aria-hidden="true">✎</div>
           <h3>Decisão / Ação médica</h3>
           <p>Área preparada para fechar o circuito de acompanhamento.</p>
@@ -940,8 +985,18 @@ function renderShell(root, patient, prescription, readiness, log, snapshots, rea
       </div>
 
       <div class="gc-exfollow-section">
-        <h2>Linha temporal do plano</h2>
-        <p>Sessões realizadas, previstas, não realizadas e removidas.</p>
+        <div class="gc-exfollow-section-head">
+          <div>
+            <h2>Linha temporal do plano</h2>
+            <p>Sessões realizadas, previstas, não realizadas e removidas.</p>
+          </div>
+          <div class="gc-exfollow-legend">
+            <span><i class="gc-exfollow-legend-dot gc-exfollow-legend-dot-ok"></i>Realizada</span>
+            <span><i class="gc-exfollow-legend-dot gc-exfollow-legend-dot-today"></i>Prevista</span>
+            <span><i class="gc-exfollow-legend-dot gc-exfollow-legend-dot-warn"></i>Não realizada</span>
+            <span><i class="gc-exfollow-legend-dot gc-exfollow-legend-dot-removed"></i>Removida</span>
+          </div>
+        </div>
         ${renderTimelineBlock(prescription, snapshots, readinessRows, logRows, expandedSessionId, replyState, messagesBySessionId)}
       </div>
     </section>`;
