@@ -179,6 +179,21 @@ function styles() {
 .gc-exclinic-note{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:9px 11px}
 .gc-exclinic-note-meta{font-size:10px;font-weight:650;color:#64748b;margin-bottom:4px}
 .gc-exclinic-note p{margin:0;font-size:12.5px;color:#0f172a;white-space:pre-wrap;line-height:1.4}
+.gc-exclinic-chart-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:10.5px;color:#64748b;margin:8px 0 4px}
+.gc-exclinic-chart-legend span{display:inline-flex;align-items:center;gap:5px}
+.gc-exclinic-chart-legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.gc-exclinic-chart-wrap{overflow-x:auto;padding-bottom:2px}
+.gc-exclinic-chart-svg{display:block}
+.gc-exclinic-chart-grid{stroke:#f1f5f9;stroke-width:1}
+.gc-exclinic-chart-tick{font-size:8px;fill:#94a3b8}
+.gc-exclinic-chart-line{stroke-width:1.6}
+.gc-exclinic-chart-line-feeling{stroke:#3b82f6}
+.gc-exclinic-chart-line-feel{stroke:#10b981}
+.gc-exclinic-chart-line-rpe{stroke:#f59e0b}
+.gc-exclinic-chart-dot{stroke:#fff;stroke-width:1.2}
+.gc-exclinic-chart-dot-feeling{fill:#3b82f6}
+.gc-exclinic-chart-dot-feel{fill:#10b981}
+.gc-exclinic-chart-dot-rpe{fill:#f59e0b}
 @media(max-width:800px){.gc-exclinic-stats{grid-template-columns:repeat(2,1fr)}}
 
 /* Linha temporal — lista compacta tipo tabela, uma linha por sessão. */
@@ -1110,6 +1125,158 @@ function renderEvolucaoNote(n) {
     </div>`;
 }
 
+/* buildAxisTicks — valores inteiros a marcar no eixo de um gráfico. Só
+   apresentação (nunca influencia que pontos existem). */
+function buildAxisTicks(min, max) {
+  const span = max - min;
+  if (span <= 5) {
+    const ticks = [];
+    for (let v = min; v <= max; v++) ticks.push(v);
+    return ticks;
+  }
+  const step = Math.ceil(span / 4);
+  const ticks = [];
+  for (let v = min; v <= max; v += step) ticks.push(v);
+  if (ticks[ticks.length - 1] !== max) ticks.push(max);
+  return ticks;
+}
+
+/* buildChartPoints — um ponto por session_id com valor real (nunca
+   inventa/zera valores ausentes: sem valor, sem ponto). `rows` é sempre
+   tabelaRows já calculado por computeEvolucaoClinica (mesma ordem
+   cronológica, uma entrada por sessão), nunca reagrupado por data — a
+   posição `index` é a posição sequencial nesse array, por isso duas
+   sessões no mesmo dia ocupam índices (posições) distintos. */
+function buildChartPoints(rows, valueFn) {
+  return rows
+    .map((row, index) => {
+      const raw = valueFn(row.entry);
+      const value = raw != null && raw !== "" ? Number(raw) : NaN;
+      if (!Number.isFinite(value)) return null;
+      return { index, value, row };
+    })
+    .filter(Boolean);
+}
+
+/* renderChartSvg — gráfico de linha em SVG puro (sem biblioteca), uma ou
+   mais séries sobre o MESMO eixo X sequencial (`rows` = tabelaRows). Cada
+   ponto tem um <title> nativo com data + modalidade (sessionModalityLabel,
+   já garante sessões do mesmo dia distinguíveis) + valor real. Linha só
+   liga pontos que realmente existem — nunca interpola nem inventa um
+   valor no índice em falta. */
+function renderChartSvg({ rows, series, valueMin, valueMax, height }) {
+  if (!rows.length) {
+    return `<div class="gc-exfollow-note-muted">Sem sessões com dados neste período.</div>`;
+  }
+
+  const paddingX = 18;
+  const paddingY = 14;
+  const pointSpacing = 34;
+  const plotHeight = height - paddingY * 2;
+  const chartWidth = Math.max(80, paddingX * 2 + Math.max(rows.length - 1, 0) * pointSpacing);
+
+  const xFor = (index) => paddingX + index * pointSpacing;
+  const yFor = (value) => paddingY + (1 - (value - valueMin) / (valueMax - valueMin)) * plotHeight;
+
+  const ticks = buildAxisTicks(valueMin, valueMax);
+  const gridHtml = ticks.map((t) => {
+    const y = yFor(t);
+    return `<line x1="14" y1="${y}" x2="${chartWidth - 6}" y2="${y}" class="gc-exclinic-chart-grid" /><text x="0" y="${y + 3}" class="gc-exclinic-chart-tick">${esc(t)}</text>`;
+  }).join("");
+
+  const seriesHtml = series.map((s) => {
+    const pts = buildChartPoints(rows, s.valueFn);
+    if (!pts.length) return "";
+    const pathD = pts.map((p, i) => `${i === 0 ? "M" : "L"}${xFor(p.index)},${yFor(p.value)}`).join(" ");
+    const dotsHtml = pts.map((p) => {
+      const dateLabel = fmtSessionDate(p.row.date) || "Data desconhecida";
+      const modality = sessionModalityLabel(p.row.entry);
+      const valueLabel = s.formatValue ? s.formatValue(p.value) : String(p.value);
+      const tooltip = `${dateLabel} · ${modality} · ${s.label}: ${valueLabel}`;
+      return `<circle cx="${xFor(p.index)}" cy="${yFor(p.value)}" r="3.5" class="gc-exclinic-chart-dot gc-exclinic-chart-dot-${s.cls}"><title>${esc(tooltip)}</title></circle>`;
+    }).join("");
+    return `<path d="${pathD}" class="gc-exclinic-chart-line gc-exclinic-chart-line-${s.cls}" fill="none" />${dotsHtml}`;
+  }).join("");
+
+  return `
+    <div class="gc-exclinic-chart-wrap">
+      <svg class="gc-exclinic-chart-svg" viewBox="0 0 ${chartWidth} ${height}" width="${chartWidth}" height="${height}">
+        ${gridHtml}
+        ${seriesHtml}
+      </svg>
+    </div>`;
+}
+
+/* renderEvolucaoCharts — os dois gráficos longitudinais. Fonte EXCLUSIVA:
+   tabelaRows já calculado por computeEvolucaoClinica (mesmo array usado
+   pela tabela "Evolução por sessão" — já filtrado pelo período, já
+   ordenado cronologicamente, uma entrada por session_id). Sem query
+   nova, sem tocar em buildTimelineSessions/classifySession/
+   resolveSessionDate. Gráfico 1: readiness.feeling ("Como se sente
+   hoje?") + log.feel ("Bem-estar pós-treino"), escala 1-5. Gráfico 2:
+   log.rpe ("Esforço percebido"), escala 1-10. Nunca deriva/rotula
+   "fadiga" ou "cansaço" — só os valores reais das duas perguntas. */
+function renderEvolucaoCharts(tabelaRows) {
+  const bemEstarHtml = renderChartSvg({
+    rows: tabelaRows,
+    valueMin: 1,
+    valueMax: 5,
+    height: 110,
+    series: [
+      {
+        cls: "feeling",
+        label: "Como se sente hoje?",
+        valueFn: (entry) => entry.readiness?.feeling,
+        formatValue: (v) => {
+          const label = READINESS_FEELING_LABELS[v];
+          return label ? `${label} (${v}/5)` : `${v}/5`;
+        },
+      },
+      {
+        cls: "feel",
+        label: "Bem-estar pós-treino",
+        valueFn: (entry) => entry.log?.feel,
+        formatValue: (v) => `${v}/5`,
+      },
+    ],
+  });
+
+  const rpeHtml = renderChartSvg({
+    rows: tabelaRows,
+    valueMin: 1,
+    valueMax: 10,
+    height: 100,
+    series: [
+      {
+        cls: "rpe",
+        label: "RPE",
+        valueFn: (entry) => entry.log?.rpe,
+        formatValue: (v) => `${v}/10`,
+      },
+    ],
+  });
+
+  return `
+    <div class="gc-exfollow-section">
+      <h2>Evolução do bem-estar</h2>
+      <p>Como se sente hoje (antes do treino) e bem-estar pós-treino — um ponto por sessão.</p>
+      <div class="gc-exclinic-chart-legend">
+        <span><i class="gc-exclinic-chart-legend-dot gc-exclinic-chart-dot-feeling"></i>Como se sente hoje?</span>
+        <span><i class="gc-exclinic-chart-legend-dot gc-exclinic-chart-dot-feel"></i>Bem-estar pós-treino</span>
+      </div>
+      ${bemEstarHtml}
+    </div>
+
+    <div class="gc-exfollow-section">
+      <h2>Esforço percebido</h2>
+      <p>RPE por sessão.</p>
+      <div class="gc-exclinic-chart-legend">
+        <span><i class="gc-exclinic-chart-legend-dot gc-exclinic-chart-dot-rpe"></i>RPE</span>
+      </div>
+      ${rpeHtml}
+    </div>`;
+}
+
 /* renderEvolucaoClinicaView — vista interna do cartão "Evolução clínica
    global". Usa exclusivamente prescription/snapshots/readinessRows/
    logRows já carregados e buildTimelineSessions/classifySession/
@@ -1160,6 +1327,8 @@ function renderEvolucaoClinicaView(prescription, snapshots, readinessRows, logRo
       </div>
 
       ${statsHtml}
+
+      ${renderEvolucaoCharts(data.tabelaRows)}
 
       <div class="gc-exfollow-section">
         <h2>Exercícios</h2>
