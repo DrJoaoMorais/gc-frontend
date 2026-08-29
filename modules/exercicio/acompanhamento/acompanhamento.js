@@ -126,6 +126,11 @@ function styles() {
 .gc-exfollow-tl-removed{opacity:.7}
 .gc-exfollow-tl-removed .gc-exfollow-tl-badge{background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0}
 .gc-exfollow-tl-attention .gc-exfollow-tl-badge{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}
+.gc-exfollow-reply-messages{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.gc-exfollow-reply-message{border:1px solid #e2e8f0;background:#f8fafc;border-radius:9px;padding:9px 11px}
+.gc-exfollow-reply-message b{display:block;font-size:10.5px;font-weight:750;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:4px}
+.gc-exfollow-reply-message p{margin:0;font-size:12.5px;color:#0f172a;white-space:pre-wrap}
+.gc-exfollow-reply-message-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;font-size:10.5px;color:#64748b}
 .gc-exfollow-reply{margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px}
 .gc-exfollow-reply b{display:block;font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:6px}
 .gc-exfollow-reply-textarea{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:9px;padding:8px 10px;font:400 12.5px inherit;color:#0f172a;resize:vertical}
@@ -525,13 +530,40 @@ const REPLY_ERROR_MESSAGES = {
 };
 const REPLY_ERROR_FALLBACK = "Não foi possível disponibilizar a mensagem.";
 
-/* renderReplyBlock — "Responder ao doente" dentro do painel expandido.
-   Estado (replyState) é sempre o mesmo objeto do módulo, nunca G. Só
-   aparece aberto para entry.sessionId === replyState.sessionId — nunca
-   mistura texto/estado entre sessões. Depois de um envio com sucesso,
-   volta ao botão fechado (texto sempre limpo), com uma nota de
-   confirmação por cima — nunca mostra a textarea com o texto já enviado. */
-function renderReplyBlock(entry, replyState) {
+/* renderSessionMessages — mensagens já enviadas para esta sessão, sempre
+   antes da área de resposta. Ordem cronológica ascendente (já vem assim
+   da query, ordenada por created_at). Nunca mostra id/author_user_id/
+   prescription_id/session_id — só corpo (escapado) e datas. */
+function renderSessionMessages(messages) {
+  if (!messages || !messages.length) return "";
+  const items = messages.map((m) => {
+    const publishedLabel = m.published_at ? `Disponibilizada em ${fmtDateTime(m.published_at)}` : "";
+    const readLabel = m.read_at ? `Lida pelo doente em ${fmtDateTime(m.read_at)}` : "Ainda não lida";
+    return `
+      <div class="gc-exfollow-reply-message">
+        <b>A minha resposta</b>
+        <p>${esc(m.body || "")}</p>
+        <div class="gc-exfollow-reply-message-meta">
+          <span>${esc(publishedLabel)}</span>
+          <span>${esc(readLabel)}</span>
+        </div>
+      </div>`;
+  }).join("");
+  return `<div class="gc-exfollow-reply-messages">${items}</div>`;
+}
+
+/* renderReplyBlock — mensagens já enviadas + "Responder ao doente" dentro
+   do painel expandido. Estado (replyState) é sempre o mesmo objeto do
+   módulo, nunca G. A área de escrita só aparece aberta para
+   entry.sessionId === replyState.sessionId — nunca mistura texto/estado
+   entre sessões. Depois de um envio com sucesso, volta ao botão fechado
+   (texto sempre limpo), com uma nota de confirmação por cima — nunca
+   mostra a textarea com o texto já enviado. Label do botão de abertura
+   depende só de existirem ou não mensagens já enviadas para esta sessão. */
+function renderReplyBlock(entry, replyState, messages) {
+  const messagesHtml = renderSessionMessages(messages);
+  const openLabel = messages && messages.length ? "Responder novamente" : "Responder ao doente";
+
   const isThisSession = replyState && replyState.sessionId === entry.sessionId;
   const successNote = isThisSession && replyState.success
     ? `<div class="gc-exfollow-reply-success">Mensagem disponibilizada ao doente.</div>`
@@ -540,7 +572,7 @@ function renderReplyBlock(entry, replyState) {
   const isOpen = isThisSession && !replyState.success;
 
   if (!isOpen) {
-    return `${successNote}<button type="button" class="gc-exfollow-reply-open" data-reply-open="${esc(entry.sessionId)}">Responder ao doente</button>`;
+    return `${messagesHtml}${successNote}<button type="button" class="gc-exfollow-reply-open" data-reply-open="${esc(entry.sessionId)}">${esc(openLabel)}</button>`;
   }
 
   const disabledAttr = replyState.sending ? "disabled" : "";
@@ -549,6 +581,7 @@ function renderReplyBlock(entry, replyState) {
     : "";
 
   return `
+    ${messagesHtml}
     <div class="gc-exfollow-reply">
       <b>Responder ao doente</b>
       <textarea class="gc-exfollow-reply-textarea" rows="4" data-reply-textarea placeholder="Escreva a sua resposta..." ${disabledAttr}>${esc(replyState.body || "")}</textarea>
@@ -567,7 +600,7 @@ function renderReplyBlock(entry, replyState) {
    (list/walk/circuit/desconhecido), mantém inalterado o painel técnico da
    1ª fase (data/kind/estado/disponibilidade/congelamento). "Responder ao
    doente" é comum aos dois casos, sempre no fim do painel. */
-function renderTimelineDetailPanel(entry, meta, sessionDateLabel, replyState) {
+function renderTimelineDetailPanel(entry, meta, sessionDateLabel, replyState, messagesBySessionId) {
   const effectiveKind = entry.kind || entry.snapshot?.snapshot?.kind || null;
   let detailHtml;
 
@@ -586,12 +619,13 @@ function renderTimelineDetailPanel(entry, meta, sessionDateLabel, replyState) {
     detailHtml = `<div class="gc-exfollow-tl-detail">${lines.map((l) => `<div>${esc(l)}</div>`).join("")}</div>`;
   }
 
-  return `${detailHtml}${renderReplyBlock(entry, replyState)}`;
+  const messages = messagesBySessionId ? (messagesBySessionId.get(entry.sessionId) || []) : [];
+  return `${detailHtml}${renderReplyBlock(entry, replyState, messages)}`;
 }
 
 /* renderTimelineItem — cartão compacto por sessão. Só mostra o que existir
    objetivamente nas 4 fontes; nunca nomes de exercício (sem wo_exercises). */
-function renderTimelineItem(entry, todayISO, expandedSessionId, replyState) {
+function renderTimelineItem(entry, todayISO, expandedSessionId, replyState, messagesBySessionId) {
   const status = classifySession(entry, todayISO);
   const meta = TIMELINE_STATUS_META[status] || TIMELINE_STATUS_META.INDETERMINADO;
   const sessionDateRaw = resolveSessionDate(entry);
@@ -624,7 +658,7 @@ function renderTimelineItem(entry, todayISO, expandedSessionId, replyState) {
       ${lines.length ? `<div class="gc-exfollow-tl-lines">${lines.map((l) => `<span>${esc(l)}</span>`).join("")}</div>` : ""}
       ${quotes.map((q) => `<div class="gc-exfollow-quote"><b>${esc(q.label)}</b>${esc(q.text)}</div>`).join("")}
       <button type="button" class="gc-exfollow-tl-toggle" data-toggle-session="${esc(entry.sessionId)}">${isExpanded ? "Fechar treino" : "Ver treino"}</button>
-      ${isExpanded ? renderTimelineDetailPanel(entry, meta, sessionDateLabel, replyState) : ""}
+      ${isExpanded ? renderTimelineDetailPanel(entry, meta, sessionDateLabel, replyState, messagesBySessionId) : ""}
     </div>`;
 }
 
@@ -633,7 +667,7 @@ function renderTimelineItem(entry, todayISO, expandedSessionId, replyState) {
    posição cronológica para elas). expandedSessionId identifica, por
    session_id, qual painel de "Ver treino" (se algum) deve aparecer
    expandido — nunca mais do que um em simultâneo. */
-function renderTimelineBlock(prescription, snapshots, readinessRows, logRows, expandedSessionId, replyState) {
+function renderTimelineBlock(prescription, snapshots, readinessRows, logRows, expandedSessionId, replyState, messagesBySessionId) {
   const entries = buildTimelineSessions(prescription, snapshots, readinessRows, logRows);
   if (!entries.length) {
     return `<div class="gc-exfollow-empty">Não existem sessões disponíveis para apresentar.</div>`;
@@ -649,10 +683,10 @@ function renderTimelineBlock(prescription, snapshots, readinessRows, logRows, ex
     return da < db ? -1 : da > db ? 1 : 0;
   });
 
-  return `<div class="gc-exfollow-timeline">${entries.map((e) => renderTimelineItem(e, todayISO, expandedSessionId, replyState)).join("")}</div>`;
+  return `<div class="gc-exfollow-timeline">${entries.map((e) => renderTimelineItem(e, todayISO, expandedSessionId, replyState, messagesBySessionId)).join("")}</div>`;
 }
 
-function renderShell(root, patient, prescription, readiness, log, snapshots, readinessRows, logRows, expandedSessionId, replyState) {
+function renderShell(root, patient, prescription, readiness, log, snapshots, readinessRows, logRows, expandedSessionId, replyState, messagesBySessionId) {
   const remaining = daysUntil(prescription?.expires_at);
   const endLabel = remaining === null
     ? "—"
@@ -689,7 +723,7 @@ function renderShell(root, patient, prescription, readiness, log, snapshots, rea
       <div class="gc-exfollow-section">
         <h2>Linha temporal do plano</h2>
         <p>Sessões realizadas, previstas, não realizadas e removidas.</p>
-        ${renderTimelineBlock(prescription, snapshots, readinessRows, logRows, expandedSessionId, replyState)}
+        ${renderTimelineBlock(prescription, snapshots, readinessRows, logRows, expandedSessionId, replyState, messagesBySessionId)}
       </div>
 
       <div class="gc-exfollow-section">
@@ -721,12 +755,13 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
     return;
   }
 
-  const [patientRes, prescriptionRes, snapshotsRes, readinessRes, logsRes] = await Promise.all([
+  const [patientRes, prescriptionRes, snapshotsRes, readinessRes, logsRes, messagesRes] = await Promise.all([
     window.sb.from("patients").select("id, full_name").eq("id", patientId).maybeSingle(),
     window.sb.from("wo_prescriptions").select("id, patient_id, clinic_id, status, created_at, expires_at, first_opened_at, data").eq("id", prescriptionId).eq("patient_id", patientId).maybeSingle(),
     window.sb.from("wo_session_prescription_snapshots").select("session_id, session_date, frozen_at, removed_at, snapshot").eq("prescription_id", prescriptionId),
     window.sb.from("wo_session_readiness").select("session_id, answered_at, has_symptoms, symptom_note").eq("prescription_id", prescriptionId),
     window.sb.from("wo_session_logs").select("session_id, logged_at, rpe, feel, note, sets").eq("prescription_id", prescriptionId),
+    window.sb.from("wo_session_doctor_messages").select("id,prescription_id,session_id,body,published_at,read_at,created_at,author_user_id").eq("prescription_id", prescriptionId).not("published_at", "is", null).order("created_at", { ascending: true }),
   ]);
 
   if (patientRes.error) throw patientRes.error;
@@ -734,6 +769,7 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
   if (snapshotsRes.error) throw snapshotsRes.error;
   if (readinessRes.error) throw readinessRes.error;
   if (logsRes.error) throw logsRes.error;
+  if (messagesRes.error) throw messagesRes.error;
   if (!patientRes.data || !prescriptionRes.data) {
     root.innerHTML = `<style>${styles()}</style><div class="gc-exfollow"><div class="gc-exfollow-error">Acompanhamento não encontrado ou sem acesso.</div></div>`;
     return;
@@ -742,6 +778,16 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
   const snapshots = snapshotsRes.data || [];
   const readinessRows = readinessRes.data || [];
   const logRows = logsRes.data || [];
+
+  /* Mensagens do médico já enviadas, agrupadas por session_id — já vêm
+     ordenadas cronologicamente pela própria query (created_at ascendente).
+     Nunca N+1: uma query só, para toda a prescrição. */
+  const messagesBySessionId = new Map();
+  (messagesRes.data || []).forEach((m) => {
+    const list = messagesBySessionId.get(m.session_id) || [];
+    list.push(m);
+    messagesBySessionId.set(m.session_id, list);
+  });
 
   /* Bloco 1 reutiliza os mesmos arrays completos (sem query duplicada):
      "mais recente" = maior answered_at/logged_at dentro do array já carregado. */
@@ -798,6 +844,21 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
     }
 
     if (data?.ok) {
+      /* Sem nova query: a RPC só devolve {ok,id,created_at,published_at} —
+         confirmado no corpo real. Construir a mensagem em memória com o
+         que já sabemos localmente (session_id, body só acabado de enviar)
+         e acrescentar ao Map desta sessão, para aparecer imediatamente. */
+      const list = messagesBySessionId.get(sessionId) || [];
+      list.push({
+        id: data.id,
+        session_id: sessionId,
+        body,
+        created_at: data.created_at,
+        published_at: data.published_at,
+        read_at: null,
+      });
+      messagesBySessionId.set(sessionId, list);
+
       replyState.success = true;
       replyState.body = "";
       paint();
@@ -809,7 +870,7 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
   }
 
   function paint() {
-    renderShell(root, patientRes.data, prescriptionRes.data, latestReadiness, latestLog, snapshots, readinessRows, logRows, expandedSessionId, replyState);
+    renderShell(root, patientRes.data, prescriptionRes.data, latestReadiness, latestLog, snapshots, readinessRows, logRows, expandedSessionId, replyState, messagesBySessionId);
 
     document.getElementById("gcExFollowBack")?.addEventListener("click", () => {
       if (typeof onBack === "function") onBack();
