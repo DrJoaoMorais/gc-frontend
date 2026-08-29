@@ -361,10 +361,16 @@ function styles() {
    Usa EXATAMENTE os mesmos sinais objetivos já usados no Home
    (loadHomeAcompanhamentoExercicio em boot.js): readiness mais recente
    (has_symptoms) e último log (rpe>=8, note, sets[].status). Sem
-   interpretação clínica, sem IA, sem query a wo_exercises — sets[]
-   alterados/não realizados aparecem só como contagem. Inalterado nesta
-   passagem. */
-function renderAttentionBlock(readiness, log) {
+   interpretação clínica, sem IA, sem query a wo_exercises. A contagem de
+   exercícios alterados/não realizados usa o mesmo status EFETIVO já
+   validado em "Evolução clínica global" (computeEffectiveExerciseCounts/
+   exerciseEffectiveStatus) — nunca o raw status de computeSetsCounts,
+   que continua a servir, sem qualquer alteração, a Linha Temporal
+   (fora do âmbito desta correção). effectiveEntry é a entry de
+   buildTimelineSessions correspondente à sessão de `log`; se por algum
+   motivo não existir, cai-se no raw count como último recurso, nunca
+   escondendo o sinal. */
+function renderAttentionBlock(readiness, log, effectiveEntry) {
   const signals = [];
   const quotes = [];
 
@@ -388,7 +394,9 @@ function renderAttentionBlock(readiness, log) {
       signals.push("Comentário do doente");
       quotes.push({ label: "Comentário do doente", text: noteText });
     }
-    const { altered: alteredCount, skipped: skippedCount } = computeSetsCounts(log);
+    const { altered: alteredCount, skipped: skippedCount } = effectiveEntry
+      ? computeEffectiveExerciseCounts(effectiveEntry)
+      : computeSetsCounts(log);
     if (alteredCount > 0) signals.push(`${alteredCount} exercício${alteredCount === 1 ? "" : "s"} alterado${alteredCount === 1 ? "" : "s"}`);
     if (skippedCount > 0) signals.push(`${skippedCount} exercício${skippedCount === 1 ? "" : "s"} não realizado${skippedCount === 1 ? "" : "s"}`);
   }
@@ -1995,6 +2003,14 @@ function renderShell(root, patient, prescription, readiness, log, snapshots, rea
         ? "Termina hoje"
         : `Termina em ${remaining} dia${remaining === 1 ? "" : "s"}`;
 
+  /* Entry (buildTimelineSessions) da sessão do log mais recente — só para
+     dar a computeEffectiveExerciseCounts o snapshot de itens prescritos
+     que ela exige; não substitui nem duplica a Linha Temporal, que
+     continua a chamar buildTimelineSessions/computeSetsCounts por si. */
+  const attentionEntry = log
+    ? (buildTimelineSessions(prescription, snapshots, readinessRows, logRows).find((e) => e.sessionId === log.session_id) || null)
+    : null;
+
   const mainContentHtml = activeView === "evolucao-clinica"
     ? renderEvolucaoClinicaView(prescription, snapshots, readinessRows, logRows, evolutionFilter)
     : activeView === "evolucao-exercicio"
@@ -2003,7 +2019,7 @@ function renderShell(root, patient, prescription, readiness, log, snapshots, rea
       <div class="gc-exfollow-section">
         <h2>Porque precisa da minha atenção agora?</h2>
         <p>Sinais objetivos do registo mais recente — sem interpretação clínica.</p>
-        ${renderAttentionBlock(readiness, log)}
+        ${renderAttentionBlock(readiness, log, attentionEntry)}
       </div>
 
       <div class="gc-exfollow-mini-grid">
