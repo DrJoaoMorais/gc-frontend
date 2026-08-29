@@ -24,12 +24,9 @@ import {
   wireHomeAlertFilterBar,
   wirePedidosOnlineToggle,
   renderHomePedidosOnlineList,
-  setHomeQuestionarioStats,
-  wireHomeQuestionariosToggle,
-  renderHomeQuestionariosList,
-  setHomeAcompanhamentoStats,
-  wireHomeAcompanhamentoToggle,
-  renderHomeAcompanhamentoList,
+  setHomeAcompanhamentoUnificadoStats,
+  wireHomeAcompanhamentoUnificado,
+  renderHomeAcompanhamentoUnificado,
 }                                          from "./home-dashboard.js";
 import {
   setAgendaSubtitleForSelectedDay,
@@ -66,11 +63,8 @@ let homeAlertFilter = "all";
 let homePendingAlertsSorted = [];
 let homeResolvedTodayAlerts = [];
 
-/* Listas por PRESCRIÇÃO já preparadas por loadHomeAcompanhamentoAtivo()
-   (patientName incluído) — os cartões "Precisa de ação"/"A terminar"
-   só as leem ao expandir, sem query nova. null = falha ao carregar. */
-let homeAcompActionItems = [];
-let homeAcompEndingItems = [];
+/* Uma linha por doente, agregando questionários e planos ativos. */
+let homeAcompItems = [];
 
 /* ====================================================================
    BLOCO 11B — Boot principal
@@ -253,7 +247,6 @@ async function renderCurrentView() {
       Promise.all([
         loadHomeConsultasHoje(),
         loadHomePedidosOnlinePendentes(),
-        loadHomeQuestionarioStats(),
         loadHomeAlerts(),
         loadHomeAcompanhamentoAtivo(),
       ]);
@@ -263,8 +256,7 @@ async function renderCurrentView() {
       if (pedidosExpand && !pedidosExpand.hasAttribute("hidden")) {
         loadHomePedidosOnlineList();
       }
-      const questionariosExpand = document.getElementById("gcHomeQuestionariosExpand");
-      if (questionariosExpand && !questionariosExpand.hasAttribute("hidden")) loadHomeQuestionariosList();
+      document.getElementById("gcHomeQuestionarioDrawer")?.remove();
     });
 
     wireHomeAlertFilterBar(homeAlertFilter, (newFilter) => {
@@ -275,17 +267,16 @@ async function renderCurrentView() {
     wirePedidosOnlineToggle(() => {
       loadHomePedidosOnlineList();
     });
-    wireHomeQuestionariosToggle(() => loadHomeQuestionariosList());
-
-    wireHomeAcompanhamentoToggle({
-      onOpenAction: () => renderHomeAcompanhamentoList(homeAcompActionItems, { kind: "action", onOpen: openHomeExerciseFollowup }),
-      onOpenEnding: () => renderHomeAcompanhamentoList(homeAcompEndingItems, { kind: "ending", onOpen: openHomeExerciseFollowup }),
-    });
+    wireHomeAcompanhamentoUnificado(() => renderHomeAcompanhamentoUnificado(homeAcompItems, {
+      onOpenQuestionnaire: openHomeQuestionario,
+      onResolveQuestionnaire: resolveHomeQuestionario,
+      onOpenExercise: openHomeExerciseFollowup,
+      onStopFollowup: stopHomeFollowup,
+    }));
 
     await Promise.all([
       loadHomeConsultasHoje(),
       loadHomePedidosOnlinePendentes(),
-      loadHomeQuestionarioStats(),
       loadHomeAlerts(),
       loadHomeAcompanhamentoAtivo(),
     ]);
@@ -557,60 +548,40 @@ function homeQuestionarioQuery(status, { countOnly = false } = {}) {
   return q;
 }
 
-async function loadHomeQuestionarioStats() {
-  try {
-    const [enviados, emPreenchimento, respondidos] = await Promise.all([
-      homeQuestionarioQuery("pending_rgpd", { countOnly: true }),
-      homeQuestionarioQuery("in_progress", { countOnly: true }),
-      homeQuestionarioQuery("completed", { countOnly: true }),
-    ]);
-    [enviados, emPreenchimento, respondidos].forEach((result) => { if (result.error) throw result.error; });
-    setHomeQuestionarioStats({
-      enviados: enviados.count ?? 0,
-      emPreenchimento: emPreenchimento.count ?? 0,
-      respondidos: respondidos.count ?? 0,
-    });
-  } catch (e) {
-    console.warn("Home: falha ao carregar contadores de questionários:", e);
-    setHomeQuestionarioStats(null);
-  }
-}
-
-async function loadHomeQuestionariosList() {
-  try {
-    const [enviados, emPreenchimento, respondidos] = await Promise.all([
-      homeQuestionarioQuery("pending_rgpd").order("created_at", { ascending: false }).limit(100),
-      homeQuestionarioQuery("in_progress").order("rgpd_accepted_at", { ascending: false }).limit(100),
-      homeQuestionarioQuery("completed").order("completed_at", { ascending: false }).limit(100),
-    ]);
-    [enviados, emPreenchimento, respondidos].forEach((result) => { if (result.error) throw result.error; });
-    const rows = [...(enviados.data || []), ...(emPreenchimento.data || []), ...(respondidos.data || [])]
-      .sort((a, b) => new Date(b.completed_at || b.rgpd_accepted_at || b.created_at) - new Date(a.completed_at || a.rgpd_accepted_at || a.created_at));
-    renderHomeQuestionariosList(rows, { onOpen: openHomeQuestionario });
-  } catch (e) {
-    console.warn("Home: falha ao carregar lista de questionários:", e);
-    renderHomeQuestionariosList(null, { onOpen: openHomeQuestionario });
-  }
-}
-
 function openHomeQuestionario(row) {
   if (!row?.patient_id) return;
-  if (row.status === "completed") {
-    window.open(`/intake-deeplink.html?patientId=${encodeURIComponent(row.patient_id)}&intakeTokenId=${encodeURIComponent(row.id)}`, "_blank", "noopener");
+  if (row.kind === "review" && row.target_url) {
+    window.open(row.target_url, "_blank", "noopener");
     return;
   }
   const params = new URLSearchParams({ patientId: row.patient_id, sessionClinicId: row.clinic_id || "" });
   window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?${params.toString()}`, "_blank", "noopener");
 }
 
-/* ====================================================================
-   loadHomeAcompanhamentoAtivo — usa apenas regras já existentes:
-   - plano ativo: status=active e expires_at no futuro;
-   - precisa de ação: sintomas na readiness, ou o último log tem nota,
-     exercício alterado/omitido, ou RPE >= 8;
-   - a terminar: expires_at no futuro e a menos de 3 dias.
-   Não calcula "Sem atividade" nem "Regular".
-   ==================================================================== */
+async function resolveHomeQuestionario(row) {
+  if (!row?.id) return;
+  try {
+    const userRes = await window.sb.auth.getUser();
+    const userId = userRes?.data?.user?.id || null;
+    const { error } = await window.sb.from("alerts")
+      .update({ resolved_at: new Date().toISOString(), resolved_by: userId })
+      .eq("id", row.id)
+      .eq("source", "questionnaire");
+    if (error) throw error;
+    await Promise.all([loadHomeAcompanhamentoAtivo(), loadHomeAlerts()]);
+    renderHomeAcompanhamentoUnificado(homeAcompItems, {
+      onOpenQuestionnaire: openHomeQuestionario,
+      onResolveQuestionnaire: resolveHomeQuestionario,
+      onOpenExercise: openHomeExerciseFollowup,
+      onStopFollowup: stopHomeFollowup,
+    });
+  } catch (e) {
+    console.warn("Home: falha ao marcar questionário como analisado:", e);
+  }
+}
+
+/* Uma linha por doente. A inclusão é uma união: questionário relevante OU
+   plano ativo. Assim, um doente não desaparece por ter apenas uma vertente. */
 async function loadHomeAcompanhamentoAtivo() {
   const agora = new Date();
   const TRES_DIAS_MS = 3 * 24 * 60 * 60 * 1000;
@@ -619,59 +590,62 @@ async function loadHomeAcompanhamentoAtivo() {
     : (G.clinics || []).map((clinic) => clinic.id).filter(Boolean);
 
   if (!clinicIds.length) {
-    setHomeAcompanhamentoStats({ total: 0, precisaAcao: 0, aTerminar: 0 });
-    homeAcompActionItems = [];
-    homeAcompEndingItems = [];
+    setHomeAcompanhamentoUnificadoStats({ total: 0, questionarios: 0, planos: 0 });
+    homeAcompItems = [];
     return;
   }
 
   try {
-    const { data: prescriptions, error: prescriptionsError } = await window.sb
+    const reviewQuery = window.sb.from("alerts")
+      .select("id, patient_id, clinic_id, created_at, target_url, metadata, patients(id, full_name)")
+      .eq("source", "questionnaire")
+      .eq("event_type", "questionnaire_completed")
+      .is("resolved_at", null)
+      .in("clinic_id", clinicIds)
+      .order("created_at", { ascending: true })
+      .limit(500);
+    const [prescriptionsResult, sentResult, progressResult, reviewResult] = await Promise.all([
+      window.sb
       .from("wo_prescriptions")
       .select("id, patient_id, clinic_id, expires_at")
       .eq("status", "active")
       .gt("expires_at", agora.toISOString())
       .in("clinic_id", clinicIds)
-      .limit(500);
-    if (prescriptionsError) throw prescriptionsError;
+      .limit(500),
+      homeQuestionarioQuery("pending_rgpd").in("clinic_id", clinicIds).order("created_at", { ascending: true }).limit(500),
+      homeQuestionarioQuery("in_progress").in("clinic_id", clinicIds).order("created_at", { ascending: true }).limit(500),
+      reviewQuery,
+    ]);
+    [prescriptionsResult, sentResult, progressResult, reviewResult].forEach((result) => { if (result.error) throw result.error; });
 
-    const rows = prescriptions || [];
+    const rows = prescriptionsResult.data || [];
     const prescriptionIds = rows.map((row) => row.id);
     const patientByPrescription = new Map(rows.map((row) => [row.id, row.patient_id]));
-    const activePatients = new Set(rows.map((row) => row.patient_id).filter(Boolean));
     const endingRows = rows.filter((row) => {
       const remaining = new Date(row.expires_at).getTime() - agora.getTime();
       return remaining > 0 && remaining < TRES_DIAS_MS;
     });
-    const endingPatients = new Set(endingRows.map((row) => row.patient_id).filter(Boolean));
 
-    if (!prescriptionIds.length) {
-      setHomeAcompanhamentoStats({ total: 0, precisaAcao: 0, aTerminar: 0 });
-      homeAcompActionItems = [];
-      homeAcompEndingItems = [];
-      return;
-    }
-
-    const [readinessResult, logsResult] = await Promise.all([
-      window.sb
+    let readinessResult = { data: [], error: null };
+    let logsResult = { data: [], error: null };
+    if (prescriptionIds.length) {
+      [readinessResult, logsResult] = await Promise.all([
+        window.sb
         .from("wo_session_readiness")
         .select("prescription_id, patient_id")
         .in("prescription_id", prescriptionIds)
         .eq("has_symptoms", true)
         .limit(1000),
-      window.sb
+        window.sb
         .from("wo_session_logs")
         .select("prescription_id, session_id, logged_at, rpe, sets, note")
         .in("prescription_id", prescriptionIds)
         .order("logged_at", { ascending: false })
         .limit(2000),
-    ]);
+      ]);
+    }
     if (readinessResult.error) throw readinessResult.error;
     if (logsResult.error) throw logsResult.error;
-
-    const actionPatients = new Set(
-      (readinessResult.data || []).map((row) => row.patient_id).filter(Boolean)
-    );
 
     const latestLogByPrescription = new Map();
     (logsResult.data || []).forEach((log) => {
@@ -704,62 +678,112 @@ async function loadHomeAcompanhamentoAtivo() {
       if (hasNote) addReason(prescriptionId, "Nota após treino");
       if (altered) addReason(prescriptionId, "Treino alterado/não realizado");
       if (highRpe) addReason(prescriptionId, "RPE elevado");
-      if (hasNote || altered || highRpe) {
-        const patientId = patientByPrescription.get(prescriptionId);
-        if (patientId) actionPatients.add(patientId);
-      }
     });
 
-    /* Listas por PRESCRIÇÃO (nunca deduplicadas por doente — se um doente
-       tiver 2 planos ativos sinalizados, aparecem 2 linhas). */
-    const actionItems = Array.from(reasonsByPrescription.entries()).map(([prescriptionId, reasonSet]) => ({
-      patientId: patientByPrescription.get(prescriptionId) || null,
-      prescriptionId,
-      patientName: null,
-      reasons: HOME_ACOMP_REASON_ORDER.filter((r) => reasonSet.has(r)),
-    }));
-    const endingItems = endingRows.map((row) => ({
-      patientId: row.patient_id || null,
-      prescriptionId: row.id,
-      patientName: null,
-      expiresAt: row.expires_at,
-    }));
+    const byPatient = new Map();
+    const ensure = (patientId, name = null) => {
+      if (!patientId) return null;
+      if (!byPatient.has(patientId)) byPatient.set(patientId, { patientId, patientName: name, questionnaire: null, exercise: null });
+      const item = byPatient.get(patientId);
+      if (!item.patientName && name) item.patientName = name;
+      return item;
+    };
 
-    /* Nome do doente — única query adicional, só com os IDs que a lista
-       vai mesmo mostrar (união de action+ending), nunca N+1. Falha aqui
-       nunca invalida os contadores já calculados acima nem faz crashar
-       o Home — só cai para o fallback "Doente" em renderHomeAcompanhamentoList. */
-    const patientIds = Array.from(new Set(
-      [...actionItems, ...endingItems].map((it) => it.patientId).filter(Boolean)
-    ));
+    rows.forEach((row) => {
+      const item = ensure(row.patient_id);
+      if (!item) return;
+      const reasons = reasonsByPrescription.get(row.id);
+      const ending = endingRows.some((candidate) => candidate.id === row.id);
+      const previous = item.exercise;
+      const combinedReasons = new Set([...(previous?.reasons || []), ...HOME_ACOMP_REASON_ORDER.filter((reason) => reasons?.has(reason))]);
+      item.exercise = {
+        active: true,
+        prescriptionId: reasons?.size ? row.id : (previous?.prescriptionId || row.id),
+        needsAction: Boolean(previous?.needsAction || reasons?.size),
+        reasons: HOME_ACOMP_REASON_ORDER.filter((reason) => combinedReasons.has(reason)),
+        hasActivity: Boolean(previous?.hasActivity || latestLogByPrescription.has(row.id)),
+        ending: Boolean(previous?.ending || ending),
+        expiresAt: previous?.expiresAt && new Date(previous.expiresAt) < new Date(row.expires_at) ? previous.expiresAt : row.expires_at,
+      };
+    });
+
+    const applyQuestionnaire = (row, priority) => {
+      const item = ensure(row.patient_id, row.patients?.full_name || null);
+      if (!item || (item.questionnaire?.priority || 0) >= priority) return;
+      item.questionnaire = { ...row, priority };
+    };
+    (sentResult.data || []).forEach((row) => applyQuestionnaire(row, 1));
+    (progressResult.data || []).forEach((row) => applyQuestionnaire(row, 2));
+    (reviewResult.data || []).forEach((row) => applyQuestionnaire({ ...row, kind: "review" }, 3));
+
+    const patientIds = Array.from(byPatient.keys());
     if (patientIds.length) {
-      try {
-        const { data: patientsData, error: patientsError } = await window.sb
-          .from("patients")
-          .select("id, full_name")
-          .in("id", patientIds);
-        if (patientsError) throw patientsError;
-        const nameById = new Map((patientsData || []).map((p) => [p.id, p.full_name]));
-        actionItems.forEach((it) => { it.patientName = nameById.get(it.patientId) || null; });
-        endingItems.forEach((it) => { it.patientName = nameById.get(it.patientId) || null; });
-      } catch (namesError) {
-        console.warn("Home: falha ao carregar nomes de acompanhamento ativo:", namesError);
-      }
+      const { data: patientsData, error: patientsError } = await window.sb.from("patients").select("id, full_name").in("id", patientIds);
+      if (patientsError) throw patientsError;
+      (patientsData || []).forEach((patient) => { ensure(patient.id, patient.full_name); });
     }
 
-    homeAcompActionItems = actionItems;
-    homeAcompEndingItems = endingItems;
-
-    setHomeAcompanhamentoStats({
-      total: activePatients.size,
-      precisaAcao: actionPatients.size,
-      aTerminar: endingPatients.size,
+    homeAcompItems = Array.from(byPatient.values()).map((item) => ({
+      ...item,
+      canStopFollowup: item.questionnaire?.kind !== "review" && !item.exercise?.hasActivity,
+    })).sort((a, b) => {
+      const priority = (item) => item.questionnaire?.kind === "review" ? 0 : item.exercise?.needsAction ? 1 : item.questionnaire ? 2 : item.exercise?.ending ? 3 : 4;
+      return priority(a) - priority(b) || String(a.patientName || "").localeCompare(String(b.patientName || ""), "pt");
+    });
+    setHomeAcompanhamentoUnificadoStats({
+      total: homeAcompItems.length,
+      questionarios: homeAcompItems.filter((item) => item.questionnaire).length,
+      planos: homeAcompItems.filter((item) => item.exercise?.active).length,
     });
   } catch (error) {
     console.warn("Home: falha ao carregar acompanhamento ativo:", error);
-    setHomeAcompanhamentoStats(null);
-    homeAcompActionItems = null;
-    homeAcompEndingItems = null;
+    setHomeAcompanhamentoUnificadoStats(null);
+    homeAcompItems = null;
+  }
+}
+
+async function stopHomeFollowup(item) {
+  if (!item?.patientId || !item.canStopFollowup) return;
+  const name = item.patientName || "este doente";
+  const confirmed = window.confirm(
+    `Retirar ${name} do acompanhamento ativo?\n\nO questionário deixa de aceitar respostas e o plano deixa de funcionar. O doente e todo o histórico ficam guardados.`
+  );
+  if (!confirmed) return;
+
+  const clinicIds = homeClinicId
+    ? [homeClinicId]
+    : (G.clinics || []).map((clinic) => clinic.id).filter(Boolean);
+  try {
+    const operations = [];
+    if (item.questionnaire && clinicIds.length) {
+      operations.push(window.sb.from("intake_tokens")
+        .update({ status: "expired" })
+        .eq("patient_id", item.patientId)
+        .in("clinic_id", clinicIds)
+        .in("status", ["pending_rgpd", "in_progress"])
+        .gt("expires_at", new Date().toISOString()));
+    }
+    if (item.exercise?.active && clinicIds.length) {
+      operations.push(window.sb.from("wo_prescriptions")
+        .update({ status: "revoked" })
+        .eq("patient_id", item.patientId)
+        .in("clinic_id", clinicIds)
+        .eq("status", "active")
+        .gt("expires_at", new Date().toISOString()));
+    }
+    const results = await Promise.all(operations);
+    const failed = results.find((result) => result.error);
+    if (failed) throw failed.error;
+    await loadHomeAcompanhamentoAtivo();
+    renderHomeAcompanhamentoUnificado(homeAcompItems, {
+      onOpenQuestionnaire: openHomeQuestionario,
+      onResolveQuestionnaire: resolveHomeQuestionario,
+      onOpenExercise: openHomeExerciseFollowup,
+      onStopFollowup: stopHomeFollowup,
+    });
+  } catch (error) {
+    console.warn("Home: falha ao retirar doente do acompanhamento:", error);
+    window.alert("Não foi possível retirar o doente do acompanhamento. Atualize a página e tente novamente.");
   }
 }
 

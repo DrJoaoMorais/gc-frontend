@@ -25,20 +25,14 @@ export function homeDashboardHtml() {
           <b>Pedidos online</b><strong id="gcHomeStatPedidosOnline">—</strong>
           <small class="gc-home-card-hint">Pendentes <span class="gc-home-pedidos-caret">▾</span></small>
         </div>
-        <!-- "Assuntos a tratar" fica reservado para futura integração na Gestão da Agenda;
-             este espaço do Home passa agora a acompanhar questionários. -->
-        <div id="gcHomeQuestionariosCard" class="gc-home-clickable-card" role="button" tabindex="0" aria-expanded="false">
-          <b>Questionários</b>
-          <div class="gc-home-questionario-stats">
-            <span>Enviados <strong id="gcHomeQuestionariosEnviados">—</strong></span>
-            <span>Em preenchimento <strong id="gcHomeQuestionariosCurso">—</strong></span>
-            <span>Respondidos <strong id="gcHomeQuestionariosRespondidos">—</strong></span>
-          </div>
-          <small class="gc-home-card-hint">Ver questionários <span class="gc-home-pedidos-caret">▾</span></small>
+        <!-- "Assuntos a tratar" fica reservado para futura integração na Gestão da Agenda. -->
+        <div id="gcHomeAcompUnificadoCard" class="gc-home-clickable-card" role="button" tabindex="0">
+          <b>Acompanhamento ativo</b><strong id="gcHomeAcompUnificadoTotal">—</strong>
+          <small id="gcHomeAcompUnificadoResumo">Questionários — · Planos —</small>
+          <small class="gc-home-card-hint">Ver doentes →</small>
         </div>
       </div>
       <div id="gcHomePedidosExpand" class="gc-home-pedidos-expand" hidden></div>
-      <div id="gcHomeQuestionariosExpand" class="gc-home-pedidos-expand" hidden></div>
 
       <div class="gc-home-alertbar" id="gcHomeAlertBar">
         <button type="button" class="gc-home-alertbar-item on" data-alert-filter="all"><span>Todos</span><strong id="gcHomeStatTodos">—</strong></button>
@@ -56,14 +50,6 @@ export function homeDashboardHtml() {
         </div>
       </div>
 
-      <div class="gc-home-section-head"><div><h2>Acompanhamento ativo</h2><p id="gcHomeAcompSub">— doentes</p></div></div>
-      <div class="gc-home-acomp">
-        <div class="gc-home-acomp-stats">
-          <div id="gcHomeAcompCardAcao" class="gc-home-clickable-card" role="button" tabindex="0" aria-expanded="false"><b>Precisa de ação</b><strong id="gcHomeAcompAcao">—</strong></div>
-          <div id="gcHomeAcompCardTerminar" class="gc-home-clickable-card" role="button" tabindex="0" aria-expanded="false"><b>A terminar</b><strong id="gcHomeAcompTerminar">—</strong></div>
-        </div>
-        <div id="gcHomeAcompExpand" class="gc-home-pedidos-expand" hidden></div>
-      </div>
     </section>`;
 }
 
@@ -92,9 +78,15 @@ export function homeDashboardStyles() {
 .gc-home-today>div strong{display:block;font-size:22px;margin-top:4px}
 .gc-home-today>div small{font-size:11px;color:#94a3b8}
 .gc-home-card-muted{font-style:italic}
-.gc-home-questionario-stats{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0 5px}
-.gc-home-questionario-stats span{font-size:10.5px;color:#64748b;white-space:nowrap}
-.gc-home-questionario-stats span strong{display:inline;font-size:13px;margin:0 0 0 3px;color:#0f172a}
+.gc-home-today #gcHomeAcompUnificadoCard{display:flex;flex-direction:column}
+.gc-home-today #gcHomeAcompUnificadoCard .gc-home-card-hint{margin-top:auto;color:#2563eb;font-weight:650}
+.gc-home-questionario-queues{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.gc-home-questionario-queues button{border:1px solid #e2e8f0;background:#f8fafc;border-radius:9px;padding:7px 9px;text-align:left;cursor:pointer;font:inherit;min-width:0}
+.gc-home-questionario-queues button:hover{border-color:#93c5fd;background:#f8fbff}
+.gc-home-questionario-queues button span{display:block;font-size:10.5px;color:#64748b;white-space:nowrap}
+.gc-home-questionario-queues button strong{display:block;font-size:18px;line-height:1.1;margin-top:2px;color:#0f172a}
+.gc-home-questionario-queues button small{display:block;margin-top:3px;font-size:9.5px;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gc-home-questionario-queues button small b{display:inline;font-size:9.5px;color:#64748b}
 .gc-home-consultas-breakdown{margin-top:8px;display:flex;flex-direction:column;gap:2px}
 .gc-home-consultas-row{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;border:none;background:transparent;padding:3px 0;font:inherit;cursor:pointer;text-align:left}
 .gc-home-consultas-row:hover .gc-home-consultas-row-name{color:#1a56db;text-decoration:underline}
@@ -109,7 +101,6 @@ export function homeDashboardStyles() {
 
 /* Pedidos online — expansão */
 .gc-home-pedidos-expand{margin-top:10px}
-#gcHomeQuestionariosExpand{max-height:360px;overflow:auto;overscroll-behavior:contain}
 .gc-home-pedidos-list{display:flex;flex-direction:column;gap:8px}
 .gc-home-pedido-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #f59e0b;border-radius:12px;padding:11px 14px}
 .gc-home-pedido-info{display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -117,13 +108,28 @@ export function homeDashboardStyles() {
 .gc-home-pedido-info span{font-size:11.5px;color:#94a3b8}
 .gc-home-pedido-open{flex-shrink:0;font-size:11.5px;font-weight:650;border-radius:8px;padding:6px 10px;cursor:pointer;white-space:nowrap;font-family:inherit;border:1px solid #cbd5e1;background:#fff;color:#0f2d52}
 .gc-home-pedido-open:hover{border-color:#93c5fd;background:#f8fbff}
-.gc-home-questionario-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #64748b;border-radius:12px;padding:10px 14px}
+.gc-home-questionario-drawer-bg{position:fixed;inset:0;z-index:10020;background:rgba(15,23,42,.35);display:flex;justify-content:flex-end}
+.gc-home-questionario-drawer{width:min(560px,94vw);height:100%;background:#f8fafc;box-shadow:-8px 0 30px rgba(15,23,42,.16);display:flex;flex-direction:column}
+.gc-home-questionario-drawer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 22px 14px;background:#fff;border-bottom:1px solid #e2e8f0}
+.gc-home-questionario-drawer-head h2{margin:0;color:#0f2d52;font-size:18px}.gc-home-questionario-drawer-head p{margin:3px 0 0;color:#94a3b8;font-size:11.5px}
+.gc-home-questionario-close{border:0;background:transparent;color:#64748b;font-size:24px;cursor:pointer;line-height:1}
+.gc-home-questionario-search{margin:14px 16px 8px;border:1px solid #cbd5e1;border-radius:9px;padding:9px 11px;font:13px inherit;background:#fff}
+.gc-home-questionario-list{padding:8px 16px;display:flex;flex-direction:column;gap:8px;overflow:auto;flex:1}
+.gc-home-questionario-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #64748b;border-radius:12px;padding:10px 12px}
 .gc-home-questionario-row.enviado{border-left-color:#f59e0b}
 .gc-home-questionario-row.em-preenchimento{border-left-color:#2563eb}
 .gc-home-questionario-row.respondido{border-left-color:#16a34a}
-.gc-home-questionario-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.gc-home-questionario-row.prioritario{border-left-color:#dc2626}
+.gc-home-questionario-info{display:flex;flex:1;flex-direction:column;gap:2px;min-width:0}
 .gc-home-questionario-info strong{font-size:13px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gc-home-questionario-info span{font-size:11.5px;color:#94a3b8}
+.gc-home-acomp-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.gc-home-acomp-tag{display:inline-flex;align-items:center;border-radius:999px;padding:3px 7px;background:#f1f5f9;color:#475569!important;font-size:10.5px!important}
+.gc-home-acomp-tag.questionario{background:#fff7ed;color:#9a3412!important}.gc-home-acomp-tag.exercicio{background:#eff6ff;color:#1d4ed8!important}.gc-home-acomp-tag.acao{background:#fef2f2;color:#b91c1c!important}.gc-home-acomp-tag.analisar{background:#ecfdf5;color:#047857!important}
+.gc-home-questionario-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;flex-shrink:0}.gc-home-questionario-actions button{font:650 11px inherit;border-radius:7px;padding:6px 9px;cursor:pointer;white-space:nowrap}
+.gc-home-questionario-open{border:1px solid #cbd5e1;background:#fff;color:#0f2d52}.gc-home-questionario-resolve{border:1px solid #a7f3d0;background:#ecfdf5;color:#065f46}.gc-home-acomp-stop{border:1px solid #fecaca;background:#fff;color:#b91c1c}
+.gc-home-questionario-pages{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 16px;background:#fff;border-top:1px solid #e2e8f0;color:#64748b;font-size:11.5px}
+.gc-home-questionario-pages button{border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:7px;padding:6px 10px;cursor:pointer}.gc-home-questionario-pages button:disabled{opacity:.4;cursor:default}
 
 /* Acompanhamento ativo — expansão (mesmo padrão de Pedidos online) */
 .gc-home-acomp-list{display:flex;flex-direction:column;gap:8px}
@@ -173,13 +179,6 @@ button.gc-home-alertbar-item:hover{border-color:#93c5fd}
 .gc-home-alert-open{border:1px solid #cbd5e1;background:#fff;color:#0f2d52}
 .gc-home-alert-resolve{border:1px solid #a7f3d0;background:#ecfdf5;color:#065f46}
 
-/* Acompanhamento ativo — apenas as duas regras clínicas aprovadas. */
-.gc-home-acomp{border:1px solid #e2e8f0;background:#fff;border-radius:13px;padding:16px}
-.gc-home-acomp-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.gc-home-acomp-stats>div{border:1px solid #f1f5f9;border-radius:10px;padding:10px 12px}
-.gc-home-acomp-stats b{display:block;font-size:11.5px;color:#64748b}
-.gc-home-acomp-stats strong{display:block;font-size:20px;color:#0f172a;margin-top:3px}
-
 .gc-home [data-home-action="agenda"]:hover{border-color:#93c5fd;background:#f8fbff}
 
 @media(max-width:900px){
@@ -195,6 +194,8 @@ button.gc-home-alertbar-item:hover{border-color:#93c5fd}
   .gc-home-today{grid-template-columns:1fr}
   .gc-home-acomp-stats{grid-template-columns:1fr}
   .gc-home-empty{padding:22px 16px;justify-content:flex-start}
+  .gc-home-questionario-row{align-items:flex-start;flex-direction:column}
+  .gc-home-questionario-actions{justify-content:flex-start;width:100%}
 }
   `;
 }
@@ -242,9 +243,10 @@ export function setHomeDashboardPedidosOnline(value) {
 
 export function setHomeQuestionarioStats(stats) {
   const map = {
+    gcHomeQuestionariosAguardam: stats?.aguardamResposta,
     gcHomeQuestionariosEnviados: stats?.enviados,
     gcHomeQuestionariosCurso: stats?.emPreenchimento,
-    gcHomeQuestionariosRespondidos: stats?.respondidos,
+    gcHomeQuestionariosAnalisar: stats?.porAnalisar,
   };
   Object.entries(map).forEach(([id, value]) => {
     const el = document.getElementById(id);
@@ -252,58 +254,135 @@ export function setHomeQuestionarioStats(stats) {
   });
 }
 
-export function wireHomeQuestionariosToggle(onOpen) {
+export function wireHomeQuestionariosToggle({ onOpenWaiting, onOpenReview } = {}) {
   const card = document.getElementById("gcHomeQuestionariosCard");
-  const expand = document.getElementById("gcHomeQuestionariosExpand");
-  if (!card || !expand) return;
+  if (!card) return;
+  card.querySelector('[data-questionario-fila="aguardam"]')?.addEventListener("click", () => onOpenWaiting?.());
+  card.querySelector('[data-questionario-fila="analisar"]')?.addEventListener("click", () => onOpenReview?.());
+}
 
-  const toggle = () => {
-    const isHidden = expand.hasAttribute("hidden");
-    const pedidosCard = document.getElementById("gcHomePedidosCard");
-    const pedidosExpand = document.getElementById("gcHomePedidosExpand");
-    if (isHidden) {
-      pedidosExpand?.setAttribute("hidden", "");
-      pedidosCard?.setAttribute("aria-expanded", "false");
-      expand.removeAttribute("hidden");
-      card.setAttribute("aria-expanded", "true");
-      onOpen?.();
-    } else {
-      expand.setAttribute("hidden", "");
-      card.setAttribute("aria-expanded", "false");
-    }
+export function renderHomeQuestionariosList(rows, { kind = "waiting", onOpen, onResolve } = {}) {
+  document.getElementById("gcHomeQuestionarioDrawer")?.remove();
+  const bg = document.createElement("div");
+  bg.id = "gcHomeQuestionarioDrawer";
+  bg.className = "gc-home-questionario-drawer-bg";
+  const titulo = kind === "review" ? "Questionários por analisar" : "Questionários que aguardam resposta";
+  bg.innerHTML = `<aside class="gc-home-questionario-drawer" role="dialog" aria-modal="true" aria-label="${titulo}">
+    <div class="gc-home-questionario-drawer-head"><div><h2>${titulo}</h2><p>${kind === "review" ? "Respostas concluídas ainda não marcadas como analisadas." : "Links válidos enviados ou em preenchimento."}</p></div><button type="button" class="gc-home-questionario-close" aria-label="Fechar">×</button></div>
+    <input class="gc-home-questionario-search" type="search" placeholder="Pesquisar doente…" autocomplete="off">
+    <div class="gc-home-questionario-list"></div><div class="gc-home-questionario-pages"></div>
+  </aside>`;
+  document.body.appendChild(bg);
+  const close = () => bg.remove();
+  bg.addEventListener("click", (event) => { if (event.target === bg) close(); });
+  bg.querySelector(".gc-home-questionario-close")?.addEventListener("click", close);
+  const root = bg.querySelector(".gc-home-questionario-list");
+  const pages = bg.querySelector(".gc-home-questionario-pages");
+  if (rows == null) {
+    root.innerHTML = `<div class="gc-home-empty"><div class="gc-home-empty-icon">${ICON.inbox}</div><div><b>${rows === undefined ? "A carregar questionários…" : "Não foi possível carregar os questionários"}</b></div></div>`;
+    pages.innerHTML = "";
+    return;
+  }
+  let page = 0;
+  const pageSize = 20;
+  const estado = (row) => row.kind === "review" ? { label: "Por analisar", cls: "respondido", at: row.created_at } : row.status === "in_progress"
+      ? { label: "Em preenchimento", cls: "em-preenchimento", at: row.rgpd_accepted_at || row.created_at }
+      : { label: "Enviado", cls: "enviado", at: row.created_at };
+  const render = () => {
+    const query = String(bg.querySelector(".gc-home-questionario-search")?.value || "").trim().toLowerCase();
+    const filtered = rows.filter((row) => !query || String(row.patients?.full_name || "").toLowerCase().includes(query));
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    page = Math.min(page, totalPages - 1);
+    const visible = filtered.slice(page * pageSize, (page + 1) * pageSize);
+    root.innerHTML = visible.length ? visible.map((row) => {
+      const e = estado(row);
+      return `<div class="gc-home-questionario-row ${e.cls}"><div class="gc-home-questionario-info"><strong>${escHomeHtml(row.patients?.full_name || "Doente")}</strong><span>${e.label} · ${fmtHomeAlertTime(e.at)}</span></div><div class="gc-home-questionario-actions"><button type="button" class="gc-home-questionario-open" data-questionario-open="${escHomeHtml(row.id)}">Ver</button>${kind === "review" ? `<button type="button" class="gc-home-questionario-resolve" data-questionario-resolve="${escHomeHtml(row.id)}">Marcar analisado</button>` : ""}</div></div>`;
+    }).join("") : `<div class="gc-home-empty"><div class="gc-home-empty-icon">${ICON.check}</div><div><b>Sem questionários para mostrar</b></div></div>`;
+    pages.innerHTML = `<button type="button" data-page="prev" ${page === 0 ? "disabled" : ""}>Anterior</button><span>${filtered.length} registo${filtered.length === 1 ? "" : "s"} · Página ${page + 1} de ${totalPages}</span><button type="button" data-page="next" ${page >= totalPages - 1 ? "disabled" : ""}>Seguinte</button>`;
+    root.querySelectorAll("[data-questionario-open]").forEach((btn) => btn.addEventListener("click", () => onOpen?.(rows.find((row) => String(row.id) === btn.getAttribute("data-questionario-open")) || null)));
+    root.querySelectorAll("[data-questionario-resolve]").forEach((btn) => btn.addEventListener("click", () => onResolve?.(rows.find((row) => String(row.id) === btn.getAttribute("data-questionario-resolve")) || null)));
+    pages.querySelector('[data-page="prev"]')?.addEventListener("click", () => { page--; render(); });
+    pages.querySelector('[data-page="next"]')?.addEventListener("click", () => { page++; render(); });
   };
-  card.addEventListener("click", toggle);
-  card.addEventListener("keydown", (ev) => {
-    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); toggle(); }
+  bg.querySelector(".gc-home-questionario-search")?.addEventListener("input", () => { page = 0; render(); });
+  render();
+}
+
+export function setHomeAcompanhamentoUnificadoStats(stats) {
+  const total = document.getElementById("gcHomeAcompUnificadoTotal");
+  const resumo = document.getElementById("gcHomeAcompUnificadoResumo");
+  if (total) total.textContent = stats?.total == null ? "—" : String(stats.total);
+  if (resumo) resumo.textContent = stats == null
+    ? "Questionários — · Planos —"
+    : `Questionários ${stats.questionarios ?? 0} · Planos ${stats.planos ?? 0}`;
+}
+
+export function wireHomeAcompanhamentoUnificado(onOpen) {
+  const card = document.getElementById("gcHomeAcompUnificadoCard");
+  if (!card) return;
+  const open = () => onOpen?.();
+  card.addEventListener("click", open);
+  card.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(); }
   });
 }
 
-export function renderHomeQuestionariosList(rows, { onOpen } = {}) {
-  const root = document.getElementById("gcHomeQuestionariosExpand");
-  if (!root) return;
-  if (rows == null) {
-    root.innerHTML = `<div class="gc-home-empty"><div class="gc-home-empty-icon">${ICON.inbox}</div><div><b>Não foi possível carregar os questionários</b><p>Tente novamente mais tarde.</p></div></div>`;
+export function renderHomeAcompanhamentoUnificado(items, { onOpenQuestionnaire, onResolveQuestionnaire, onOpenExercise, onStopFollowup } = {}) {
+  document.getElementById("gcHomeQuestionarioDrawer")?.remove();
+  const bg = document.createElement("div");
+  bg.id = "gcHomeQuestionarioDrawer";
+  bg.className = "gc-home-questionario-drawer-bg";
+  bg.innerHTML = `<aside class="gc-home-questionario-drawer" role="dialog" aria-modal="true" aria-label="Acompanhamento ativo">
+    <div class="gc-home-questionario-drawer-head"><div><h2>Acompanhamento ativo</h2><p>Doentes com questionário relevante, plano de treino ativo, ou ambos.</p></div><button type="button" class="gc-home-questionario-close" aria-label="Fechar">×</button></div>
+    <input class="gc-home-questionario-search" type="search" placeholder="Pesquisar doente…" autocomplete="off">
+    <div class="gc-home-questionario-list"></div><div class="gc-home-questionario-pages"></div>
+  </aside>`;
+  document.body.appendChild(bg);
+  const close = () => bg.remove();
+  bg.addEventListener("click", (event) => { if (event.target === bg) close(); });
+  bg.querySelector(".gc-home-questionario-close")?.addEventListener("click", close);
+  const root = bg.querySelector(".gc-home-questionario-list");
+  const pages = bg.querySelector(".gc-home-questionario-pages");
+  if (items == null) {
+    root.innerHTML = `<div class="gc-home-empty"><div class="gc-home-empty-icon">${ICON.alert}</div><div><b>Não foi possível carregar o acompanhamento</b></div></div>`;
     return;
   }
-  if (!rows.length) {
-    root.innerHTML = `<div class="gc-home-empty"><div class="gc-home-empty-icon">${ICON.check}</div><div><b>Sem questionários para mostrar</b></div></div>`;
-    return;
-  }
-  const estado = (row) => row.status === "completed"
-    ? { label: "Respondido", cls: "respondido", at: row.completed_at || row.created_at }
-    : row.status === "in_progress"
-      ? { label: "Em preenchimento", cls: "em-preenchimento", at: row.rgpd_accepted_at || row.created_at }
-      : { label: "Enviado", cls: "enviado", at: row.created_at };
-  root.innerHTML = `<div class="gc-home-pedidos-list">${rows.map((row) => {
-    const e = estado(row);
-    return `<div class="gc-home-questionario-row ${e.cls}">
-      <div class="gc-home-questionario-info"><strong>${escHomeHtml(row.patients?.full_name || "Doente")}</strong><span>${e.label} · ${fmtHomeAlertTime(e.at)}</span></div>
-      <button type="button" class="gc-home-pedido-open" data-questionario-id="${escHomeHtml(row.id)}">Ver</button>
-    </div>`;
-  }).join("")}</div>`;
-  root.querySelectorAll("[data-questionario-id]").forEach((btn) => {
-    btn.addEventListener("click", () => onOpen?.(rows.find((row) => String(row.id) === btn.getAttribute("data-questionario-id")) || null));
-  });
+  let page = 0;
+  const pageSize = 20;
+  const render = () => {
+    const query = String(bg.querySelector(".gc-home-questionario-search")?.value || "").trim().toLowerCase();
+    const filtered = items.filter((item) => !query || String(item.patientName || "").toLowerCase().includes(query));
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    page = Math.min(page, totalPages - 1);
+    const visible = filtered.slice(page * pageSize, (page + 1) * pageSize);
+    root.innerHTML = visible.length ? visible.map((item) => {
+      const q = item.questionnaire;
+      const qLabel = q?.kind === "review" ? "Questionário: por analisar" : q?.status === "in_progress" ? "Questionário: em preenchimento" : q ? "Questionário: enviado" : "";
+      const exerciseTags = item.exercise?.active
+        ? [`<span class="gc-home-acomp-tag exercicio">Exercício: plano ativo</span>`, item.exercise.needsAction ? `<span class="gc-home-acomp-tag acao">Precisa de ação</span>` : "", item.exercise.ending ? `<span class="gc-home-acomp-tag">A terminar</span>` : ""].join("") : "";
+      return `<div class="gc-home-questionario-row ${q?.kind === "review" || item.exercise?.needsAction ? "prioritario" : ""}">
+        <div class="gc-home-questionario-info"><strong>${escHomeHtml(item.patientName || "Doente")}</strong><div class="gc-home-acomp-tags">${qLabel ? `<span class="gc-home-acomp-tag ${q?.kind === "review" ? "analisar" : "questionario"}">${qLabel}</span>` : ""}${exerciseTags}</div></div>
+        <div class="gc-home-questionario-actions">
+          ${q ? `<button type="button" class="gc-home-questionario-open" data-q-open="${escHomeHtml(item.patientId)}">Ver questionário</button>` : ""}
+          ${q?.kind === "review" ? `<button type="button" class="gc-home-questionario-resolve" data-q-resolve="${escHomeHtml(item.patientId)}">Marcar analisado</button>` : ""}
+          ${item.exercise?.active ? `<button type="button" class="gc-home-questionario-open" data-exercise-open="${escHomeHtml(item.patientId)}">Ver exercício</button>` : ""}
+          ${item.canStopFollowup ? `<button type="button" class="gc-home-acomp-stop" data-followup-stop="${escHomeHtml(item.patientId)}">Retirar do acompanhamento</button>` : ""}
+        </div>
+      </div>`;
+    }).join("") : `<div class="gc-home-empty"><div class="gc-home-empty-icon">${ICON.check}</div><div><b>Sem doentes em acompanhamento ativo</b></div></div>`;
+    pages.innerHTML = `<button type="button" data-page="prev" ${page === 0 ? "disabled" : ""}>Anterior</button><span>${filtered.length} doente${filtered.length === 1 ? "" : "s"} · Página ${page + 1} de ${totalPages}</span><button type="button" data-page="next" ${page >= totalPages - 1 ? "disabled" : ""}>Seguinte</button>`;
+    root.querySelectorAll("[data-q-open]").forEach((btn) => btn.addEventListener("click", () => onOpenQuestionnaire?.(items.find((item) => String(item.patientId) === btn.getAttribute("data-q-open"))?.questionnaire || null)));
+    root.querySelectorAll("[data-q-resolve]").forEach((btn) => btn.addEventListener("click", () => onResolveQuestionnaire?.(items.find((item) => String(item.patientId) === btn.getAttribute("data-q-resolve"))?.questionnaire || null)));
+    root.querySelectorAll("[data-exercise-open]").forEach((btn) => btn.addEventListener("click", () => {
+      const item = items.find((candidate) => String(candidate.patientId) === btn.getAttribute("data-exercise-open"));
+      onOpenExercise?.(item?.patientId || null, item?.exercise?.prescriptionId || null);
+    }));
+    root.querySelectorAll("[data-followup-stop]").forEach((btn) => btn.addEventListener("click", () => onStopFollowup?.(items.find((item) => String(item.patientId) === btn.getAttribute("data-followup-stop")) || null)));
+    pages.querySelector('[data-page="prev"]')?.addEventListener("click", () => { page--; render(); });
+    pages.querySelector('[data-page="next"]')?.addEventListener("click", () => { page++; render(); });
+  };
+  bg.querySelector(".gc-home-questionario-search")?.addEventListener("input", () => { page = 0; render(); });
+  render();
 }
 
 /* Mesma etiqueta de tipo já usada em agenda.js (_TIPO_LABEL) — duplicada aqui
@@ -322,8 +401,6 @@ export function wirePedidosOnlineToggle(onOpen) {
   const toggle = () => {
     const isHidden = expand.hasAttribute("hidden");
     if (isHidden) {
-      document.getElementById("gcHomeQuestionariosExpand")?.setAttribute("hidden", "");
-      document.getElementById("gcHomeQuestionariosCard")?.setAttribute("aria-expanded", "false");
       expand.removeAttribute("hidden");
       card.setAttribute("aria-expanded", "true");
       onOpen?.();
