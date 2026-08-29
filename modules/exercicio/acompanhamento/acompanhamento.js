@@ -82,6 +82,15 @@ function computeSetsCounts(log) {
   return { altered, skipped };
 }
 
+/* truncateText — trecho curto para pré-visualização no cabeçalho fechado da
+   sessão (sintomas/comentário). Nunca inventa texto: só corta o real. */
+function truncateText(text, maxLen) {
+  const t = String(text || "").trim();
+  if (!t) return "";
+  if (t.length <= maxLen) return t;
+  return `${t.slice(0, maxLen - 1).trimEnd()}…`;
+}
+
 function daysUntil(value) {
   if (!value) return null;
   const end = new Date(value);
@@ -95,66 +104,103 @@ function daysUntil(value) {
 function styles() {
   return `
 .gc-exfollow{max-width:1180px;margin:0 auto;padding:4px 2px 40px;color:#0f172a}
-.gc-exfollow-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}
+.gc-exfollow-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:16px}
 .gc-exfollow-back{border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:9px;padding:8px 11px;font:650 12px inherit;cursor:pointer}
 .gc-exfollow-kicker{font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.05em;color:#64748b}
 .gc-exfollow-title{margin:3px 0 0;font-size:26px;line-height:1.15;color:#0f2d52;letter-spacing:-.4px}
 .gc-exfollow-sub{margin:5px 0 0;font-size:12px;color:#64748b}
-.gc-exfollow-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 22px}
-.gc-exfollow-card{border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:13px 15px}
-.gc-exfollow-card b{display:block;font-size:11px;color:#64748b;margin-bottom:5px}
+.gc-exfollow-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0 14px}
+.gc-exfollow-card{border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:11px 14px}
+.gc-exfollow-card b{display:block;font-size:11px;color:#64748b;margin-bottom:4px}
 .gc-exfollow-card strong{font-size:14px;color:#0f172a}
-.gc-exfollow-section{border:1px solid #e2e8f0;background:#fff;border-radius:13px;padding:16px;margin-top:12px}
+.gc-exfollow-section{border:1px solid #e2e8f0;background:#fff;border-radius:13px;padding:14px 16px;margin-top:10px}
 .gc-exfollow-section h2{font-size:15px;color:#0f2d52;margin:0 0 4px}
 .gc-exfollow-section p{font-size:12px;color:#64748b;margin:0}
-.gc-exfollow-empty{margin-top:12px;border:1px dashed #cbd5e1;border-radius:10px;padding:18px;color:#94a3b8;font-size:12px;text-align:center}
+.gc-exfollow-empty{margin-top:10px;border:1px dashed #cbd5e1;border-radius:10px;padding:14px;color:#94a3b8;font-size:12px;text-align:center}
+.gc-exfollow-note-muted{font-size:11.5px;color:#94a3b8;font-style:italic;padding:2px 0}
 .gc-exfollow-signals{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .gc-exfollow-signal{display:inline-flex;align-items:center;font-size:11.5px;font-weight:650;color:#9a3412;background:#fff7ed;border:1px solid #fed7aa;border-radius:999px;padding:5px 10px}
 .gc-exfollow-quote{margin-top:10px;border:1px solid #e2e8f0;background:#f8fafc;border-radius:10px;padding:10px 12px;font-size:12.5px;color:#334155;white-space:pre-wrap}
 .gc-exfollow-quote b{display:block;font-size:11px;color:#64748b;margin-bottom:3px;font-weight:650}
 .gc-exfollow-meta{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:11.5px;color:#64748b}
 
-/* Linha temporal — cartões com separação clara entre dias. */
-.gc-exfollow-timeline{display:flex;flex-direction:column;gap:14px;margin-top:14px}
-.gc-exfollow-tl-item{border:1px solid #e2e8f0;background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
-.gc-exfollow-tl-item.gc-exfollow-tl-flagged{border-color:#fbbf24;box-shadow:0 0 0 1px #fbbf24 inset}
-.gc-exfollow-tl-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.gc-exfollow-tl-date{font-size:14px;font-weight:750;color:#0f172a}
-.gc-exfollow-tl-badge{font-size:11px;font-weight:650;border-radius:999px;padding:3px 9px;white-space:nowrap}
+/* 3 cartões compactos (Evolução clínica / Evolução por exercício / Decisão). */
+.gc-exfollow-mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+.gc-exfollow-mini-card{border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:13px 14px}
+.gc-exfollow-mini-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-size:14px;margin-bottom:7px}
+.gc-exfollow-mini-card h3{font-size:12.5px;margin:0 0 3px;color:#0f2d52}
+.gc-exfollow-mini-card p{font-size:11px;color:#64748b;margin:0 0 8px;line-height:1.4}
+.gc-exfollow-mini-link{font-size:11px;font-weight:650;color:#1d4ed8}
+
+/* Linha temporal — lista compacta tipo tabela, uma linha por sessão. */
+.gc-exfollow-timeline{border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff;margin-top:10px}
+.gc-exfollow-tl-item{padding:9px 14px;border-bottom:1px solid #eef2f6}
+.gc-exfollow-tl-item:last-child{border-bottom:none}
+.gc-exfollow-tl-item.gc-exfollow-tl-flagged{border-left:3px solid #f59e0b;padding-left:11px}
+.gc-exfollow-row{display:flex;align-items:center;gap:16px}
+.gc-exfollow-row-date{display:flex;align-items:flex-start;gap:7px;flex:0 0 auto;min-width:112px}
+.gc-exfollow-row-icon{width:9px;height:9px;border-radius:50%;flex:0 0 auto;margin-top:6px;background:#cbd5e1}
+.gc-exfollow-tl-date{font-size:13px;font-weight:750;color:#0f172a;line-height:1.3}
+.gc-exfollow-tl-badge{display:inline-block;font-size:10.5px;font-weight:650;border-radius:999px;padding:2px 8px;white-space:nowrap;margin-top:2px}
+.gc-exfollow-tl-ok .gc-exfollow-row-icon{background:#10b981}
 .gc-exfollow-tl-ok .gc-exfollow-tl-badge{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+.gc-exfollow-tl-today .gc-exfollow-row-icon{background:#3b82f6}
 .gc-exfollow-tl-today .gc-exfollow-tl-badge{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.gc-exfollow-tl-neutral .gc-exfollow-row-icon{background:#cbd5e1}
 .gc-exfollow-tl-neutral .gc-exfollow-tl-badge{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}
-.gc-exfollow-tl-warn .gc-exfollow-tl-badge{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
-.gc-exfollow-tl-removed{opacity:.7}
-.gc-exfollow-tl-removed .gc-exfollow-tl-badge{background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0}
+.gc-exfollow-tl-warn .gc-exfollow-row-icon{background:#94a3b8}
+.gc-exfollow-tl-warn .gc-exfollow-tl-badge{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0}
+.gc-exfollow-tl-removed .gc-exfollow-row-icon{background:#f87171}
+.gc-exfollow-tl-removed .gc-exfollow-tl-badge{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+.gc-exfollow-tl-removed .gc-exfollow-tl-date{color:#94a3b8}
+.gc-exfollow-tl-attention .gc-exfollow-row-icon{background:#f59e0b}
 .gc-exfollow-tl-attention .gc-exfollow-tl-badge{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}
-.gc-exfollow-tl-lines{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;font-size:11.5px;color:#64748b}
-.gc-exfollow-tl-quick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:9px;font-size:12.5px;font-weight:650;color:#334155}
-.gc-exfollow-tl-quick em{font-style:normal;color:#cbd5e1}
-.gc-exfollow-tl-flags{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
-.gc-exfollow-tl-flag{font-size:10.5px;font-weight:650;color:#9a3412;background:#fff7ed;border:1px solid #fed7aa;border-radius:999px;padding:3px 9px}
-.gc-exfollow-tl-toggle{margin-top:11px;border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:8px;padding:6px 12px;font:650 12px inherit;cursor:pointer}
+.gc-exfollow-row-fields{display:flex;flex-wrap:wrap;align-items:center;gap:16px;flex:1 1 auto;min-width:0}
+.gc-exfollow-field{display:flex;flex-direction:column;gap:1px;min-width:60px;max-width:220px}
+.gc-exfollow-field b{font-size:9px;font-weight:650;color:#94a3b8;text-transform:uppercase;letter-spacing:.03em}
+.gc-exfollow-field span{font-size:12px;font-weight:650;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gc-exfollow-field-symptom span{color:#be185d}
+.gc-exfollow-field-comment span{color:#c2410c}
+.gc-exfollow-field-reply span{color:#047857}
+.gc-exfollow-tl-toggle{flex:0 0 auto;margin-left:auto;border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:8px;padding:5px 11px;font:650 11.5px inherit;cursor:pointer;white-space:nowrap}
 .gc-exfollow-tl-toggle:hover{border-color:#93c5fd;background:#f8fbff}
 
-/* Painel expandido — blocos empilhados, sem texto técnico. */
-.gc-exfollow-detail{margin-top:13px;padding-top:13px;border-top:1px solid #e2e8f0;display:flex;flex-direction:column;gap:16px}
-.gc-exfollow-block{display:flex;flex-direction:column;gap:8px}
-.gc-exfollow-block>b{display:block;font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.04em;color:#64748b}
+/* Painel expandido — blocos empilhados, dentro da mesma sessão. */
+.gc-exfollow-detail{margin-top:11px;padding-top:11px;border-top:1px solid #e2e8f0;display:flex;flex-direction:column;gap:13px}
+.gc-exfollow-block{display:flex;flex-direction:column;gap:7px}
+.gc-exfollow-block>b{display:block;font-size:10.5px;font-weight:750;text-transform:uppercase;letter-spacing:.04em;color:#64748b}
 .gc-exfollow-treino-modalidade{font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:8px}
 
-/* Avaliações antes/depois. */
+/* Métricas — colunas compactas. */
+.gc-exfollow-metrics{display:flex;flex-wrap:wrap;gap:8px}
+.gc-exfollow-metric{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:7px 11px;min-width:92px}
+.gc-exfollow-metric b{display:block;font-size:9.5px;font-weight:650;color:#64748b;margin-bottom:2px}
+.gc-exfollow-metric strong{font-size:15px;color:#0f172a;font-weight:750}
+
+/* Como se sentiu — antes/depois com mini-escala 1-5 real. */
 .gc-exfollow-avaliacoes{display:flex;align-items:center;gap:12px}
-.gc-exfollow-avaliacao{flex:1;background:#f8fafc;border:1px solid #e2e8f0;border-radius:11px;padding:11px 12px;text-align:center}
-.gc-exfollow-avaliacao b{display:block;font-size:10.5px;font-weight:650;color:#64748b;margin-bottom:4px}
-.gc-exfollow-avaliacao strong{font-size:20px;color:#0f2d52;font-weight:750}
-.gc-exfollow-avaliacao-arrow{flex:0 0 auto;font-size:18px;color:#94a3b8}
+.gc-exfollow-avaliacao{flex:1;background:#f8fafc;border:1px solid #e2e8f0;border-radius:11px;padding:9px 12px;text-align:center}
+.gc-exfollow-avaliacao b{display:block;font-size:10px;font-weight:650;color:#64748b;margin-bottom:6px}
+.gc-exfollow-avaliacao-arrow{flex:0 0 auto;font-size:16px;color:#94a3b8}
+.gc-exfollow-scale{display:flex;gap:4px;justify-content:center}
+.gc-exfollow-scale-dot{width:20px;height:20px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;background:#e2e8f0;color:#94a3b8}
+.gc-exfollow-scale-dot.is-active{background:#0f2d52;color:#fff}
+
+/* Sintomas / Comentário / Resposta — 3 colunas ao mesmo nível. */
+.gc-exfollow-triple{display:flex;gap:10px}
+.gc-exfollow-col{flex:1;min-width:0;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:9px 11px}
+.gc-exfollow-col b{display:block;font-size:10px;font-weight:750;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px}
+.gc-exfollow-col p{margin:0;font-size:12px;color:#334155;white-space:pre-wrap;line-height:1.4}
+.gc-exfollow-col-symptom b{color:#be185d}
+.gc-exfollow-col-comment b{color:#c2410c}
+.gc-exfollow-col-reply b{color:#047857}
 
 /* Exercícios kind=list — sequência horizontal compacta. */
-.gc-exfollow-ex-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
-.gc-exfollow-ex-card{flex:0 0 110px;display:flex;flex-direction:column;gap:3px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:11px;padding:8px;font-size:11px}
-.gc-exfollow-ex-photo{width:100%;height:74px;object-fit:cover;border-radius:8px;background:#e2e8f0;display:block}
+.gc-exfollow-ex-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.gc-exfollow-ex-card{flex:0 0 104px;display:flex;flex-direction:column;gap:3px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:7px;font-size:11px}
+.gc-exfollow-ex-photo{width:100%;height:62px;object-fit:cover;border-radius:7px;background:#e2e8f0;display:block}
 .gc-exfollow-ex-photo-empty{display:flex;align-items:center;justify-content:center}
-.gc-exfollow-ex-name{font-weight:700;color:#0f172a;font-size:11.5px;line-height:1.25;min-height:2.4em}
+.gc-exfollow-ex-name{font-weight:700;color:#0f172a;font-size:11.5px;line-height:1.25}
 .gc-exfollow-ex-prescrito{color:#334155;font-weight:650}
 .gc-exfollow-ex-carga{color:#64748b}
 .gc-exfollow-ex-status{margin-top:2px;font-size:10px;font-weight:700;border-radius:6px;padding:2px 6px;display:inline-block;width:fit-content}
@@ -163,7 +209,7 @@ function styles() {
 .gc-exfollow-ex-status-skip{background:#fef2f2;color:#b91c1c}
 
 /* Cardio — timeline horizontal (preservada). */
-.gc-exfollow-card-timeline{display:flex;gap:2px;border-radius:8px;overflow:hidden;height:30px;margin-bottom:8px}
+.gc-exfollow-card-timeline{display:flex;gap:2px;border-radius:8px;overflow:hidden;height:28px;margin-bottom:8px}
 .gc-exfollow-card-timeline-seg{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden}
 .gc-exfollow-card-timeline-group{position:relative;display:flex;overflow:hidden;min-width:60px}
 .gc-exfollow-card-series-pattern{display:flex;width:100%;height:100%}
@@ -181,26 +227,33 @@ function styles() {
 .gc-exfollow-card-block{border:1px solid #e2e8f0;background:#f8fafc;border-radius:8px;padding:6px 9px;display:flex;flex-direction:column;gap:2px;font-size:11px;color:#334155;min-width:90px}
 .gc-exfollow-card-block b{font-size:10.5px;color:#0f2d52;font-weight:750}
 
-/* Resposta médica — preservada. */
-.gc-exfollow-reply-messages{display:flex;flex-direction:column;gap:8px}
-.gc-exfollow-reply-message{border:1px solid #e2e8f0;background:#f8fafc;border-radius:9px;padding:9px 11px}
-.gc-exfollow-reply-message b{display:block;font-size:10.5px;font-weight:750;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:4px}
-.gc-exfollow-reply-message p{margin:0;font-size:12.5px;color:#0f172a;white-space:pre-wrap}
-.gc-exfollow-reply-message-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;font-size:10.5px;color:#64748b}
-.gc-exfollow-reply{border-top:1px solid #e2e8f0;padding-top:10px}
-.gc-exfollow-reply b{display:block;font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:6px}
+/* Resposta médica — preservada (só reposicionada). */
+.gc-exfollow-reply-messages{display:flex;flex-direction:column;gap:6px}
+.gc-exfollow-reply-message{border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:8px 10px}
+.gc-exfollow-reply-message p{margin:0;font-size:12px;color:#0f172a;white-space:pre-wrap}
+.gc-exfollow-reply-message-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:5px;font-size:10px;color:#64748b}
+.gc-exfollow-reply{display:flex;flex-direction:column;gap:2px}
 .gc-exfollow-reply-textarea{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:9px;padding:8px 10px;font:400 12.5px inherit;color:#0f172a;resize:vertical}
 .gc-exfollow-reply-actions{display:flex;gap:8px;margin-top:8px}
 .gc-exfollow-reply-save{border:1px solid #0f2d52;background:#0f2d52;color:#fff;border-radius:8px;padding:7px 12px;font:650 12px inherit;cursor:pointer}
 .gc-exfollow-reply-save:disabled{opacity:.6;cursor:default}
 .gc-exfollow-reply-cancel{border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:8px;padding:7px 12px;font:650 12px inherit;cursor:pointer}
 .gc-exfollow-reply-cancel:disabled{opacity:.6;cursor:default}
-.gc-exfollow-reply-open{margin-top:2px;border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:8px;padding:6px 11px;font:650 11.5px inherit;cursor:pointer}
+.gc-exfollow-reply-open{border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:8px;padding:6px 11px;font:650 11.5px inherit;cursor:pointer}
 .gc-exfollow-reply-error{margin-top:8px;font-size:11.5px;color:#b91c1c}
-.gc-exfollow-reply-success{margin-top:2px;margin-bottom:8px;font-size:11.5px;color:#047857;font-weight:650}
+.gc-exfollow-reply-success{margin-bottom:8px;font-size:11.5px;color:#047857;font-weight:650}
 
 .gc-exfollow-error{border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:10px;padding:12px 14px;font-size:12px}
-@media(max-width:800px){.gc-exfollow-grid{grid-template-columns:1fr}.gc-exfollow-head{flex-direction:column}.gc-exfollow-back{order:-1}.gc-exfollow-avaliacoes{flex-direction:column}.gc-exfollow-avaliacao-arrow{transform:rotate(90deg)}}
+@media(max-width:800px){
+  .gc-exfollow-grid,.gc-exfollow-mini-grid{grid-template-columns:1fr}
+  .gc-exfollow-head{flex-direction:column}
+  .gc-exfollow-back{order:-1}
+  .gc-exfollow-row{flex-wrap:wrap;row-gap:8px}
+  .gc-exfollow-tl-toggle{margin-left:0}
+  .gc-exfollow-avaliacoes{flex-direction:column}
+  .gc-exfollow-avaliacao-arrow{transform:rotate(90deg)}
+  .gc-exfollow-triple{flex-direction:column}
+}
 `;
 }
 
@@ -334,10 +387,13 @@ function classifySession(entry, todayISO) {
   return "INDETERMINADO";
 }
 
+/* TIMELINE_STATUS_META — rótulos inalterados; cores (css) alinhadas com a
+   linguagem do mockup: verde=realizada, azul=hoje/prevista, cinza=não
+   realizada, vermelho discreto=removida, âmbar=iniciada sem registo. */
 const TIMELINE_STATUS_META = {
   REALIZADA:            { label: "Realizada",                    css: "ok" },
-  HOJE:                 { label: "Hoje · Prevista",               css: "today" },
-  PREVISTA:             { label: "Prevista",                      css: "neutral" },
+  HOJE:                 { label: "Hoje",                          css: "today" },
+  PREVISTA:             { label: "Prevista",                      css: "today" },
   NAO_REALIZADA:        { label: "Não realizada",                 css: "warn" },
   REMOVIDA_ANTES:       { label: "Removida antes de iniciar",     css: "removed" },
   REMOVIDA_DEPOIS:      { label: "Removida depois de iniciada",   css: "removed" },
@@ -442,14 +498,14 @@ function renderCardBlockCards(blocks) {
 }
 
 /* renderCardTreinoVisual — visual do treino prescrito para kind="card".
-   Fonte EXCLUSIVA: entry.snapshot.snapshot (nunca a prescrição atual).
-   Sem session_id/kind/texto técnico — só modalidade (dado clínico real,
-   não debug) + a timeline + os cartões de bloco, já validados. */
+   Fonte EXCLUSIVA: entry.snapshot.snapshot (nunca a prescrição atual). Sem
+   snapshot: frase discreta, nunca painel tracejado grande (dados históricos
+   nunca são reconstruídos a partir da prescrição atual). */
 function renderCardTreinoVisual(entry) {
   const snap = entry.snapshot?.snapshot || null;
   const blocks = Array.isArray(snap?.blocks) ? snap.blocks : null;
   if (!blocks || !blocks.length) {
-    return `<div class="gc-exfollow-empty">Sem detalhe do treino prescrito para esta sessão.</div>`;
+    return `<div class="gc-exfollow-note-muted">Detalhe histórico do treino não disponível.</div>`;
   }
   const modalidadeHtml = snap?.modality ? `<div class="gc-exfollow-treino-modalidade">${esc(snap.modality)}</div>` : "";
   return `${modalidadeHtml}${renderCardPrescribedTimeline(blocks)}${renderCardBlockCards(blocks)}`;
@@ -536,44 +592,55 @@ function renderListItemCard(item, log) {
 
 /* renderListTreinoVisual — sequência horizontal de exercícios para
    kind="list". Fonte EXCLUSIVA: entry.snapshot.snapshot.items[] (nunca a
-   prescrição atual, nunca wo_exercises). */
+   prescrição atual, nunca wo_exercises). Sem snapshot: frase discreta, sem
+   painel tracejado grande — nunca reconstruir a partir do treino atual. */
 function renderListTreinoVisual(entry) {
   const snap = entry.snapshot?.snapshot || null;
   const items = Array.isArray(snap?.items) ? snap.items : null;
   if (!items || !items.length) {
-    return `<div class="gc-exfollow-empty">Sem detalhe do treino prescrito para esta sessão.</div>`;
+    return `<div class="gc-exfollow-note-muted">Detalhe histórico do treino não disponível.</div>`;
   }
   return `<div class="gc-exfollow-ex-row">${items.map((it) => renderListItemCard(it, entry.log)).join("")}</div>`;
 }
 
 /* ==================== Blocos partilhados (card + list) ==================== */
 
-/* renderComoCorreuGeral — RPE, sensação pós-treino, duração/distância
-   (quando existir resumo de sessão), exercícios alterados/não realizados.
-   Só a partir de entry.log — nada inventado, nada omitido que exista. */
-function renderComoCorreuGeral(log) {
+/* renderMetricasBlock — linha compacta de métricas (RPE, recuperação
+   pós-treino, duração/distância quando existir resumo de sessão,
+   exercícios alterados/não realizados). Só a partir de entry.log — nada
+   inventado, nada omitido que exista. */
+function renderMetricasBlock(log) {
   if (!log) return "";
-  const lines = [];
-  if (log.rpe != null && log.rpe !== "") lines.push(`RPE ${log.rpe}/10`);
-  if (log.feel != null && log.feel !== "") lines.push(`Sensação pós-treino: ${log.feel}/5`);
+  const metrics = [];
+  if (log.rpe != null && log.rpe !== "") metrics.push({ label: "RPE (esforço)", value: `${log.rpe}/10` });
+  if (log.feel != null && log.feel !== "") metrics.push({ label: "Recuperação pós-treino", value: `${log.feel}/5` });
   const sets = Array.isArray(log.sets) ? log.sets : [];
   const resumo = sets.find((e) => e?.tipo === "resumo");
   if (resumo) {
     const dur = fmtDurationHuman(resumo.tempo_total_sec);
-    if (dur) lines.push(`Duração: ${dur}`);
+    if (dur) metrics.push({ label: "Duração do treino", value: dur });
     const distM = Number(resumo.distancia_total_m);
-    if (Number.isFinite(distM)) lines.push(`Distância: ${(distM / 1000).toFixed(2).replace(".", ",")} km`);
+    if (Number.isFinite(distM)) metrics.push({ label: "Distância", value: `${(distM / 1000).toFixed(2).replace(".", ",")} km` });
   }
   const { altered, skipped } = computeSetsCounts(log);
-  if (altered > 0) lines.push(`${altered} exercício${altered === 1 ? "" : "s"} alterado${altered === 1 ? "" : "s"}`);
-  if (skipped > 0) lines.push(`${skipped} exercício${skipped === 1 ? "" : "s"} não realizado${skipped === 1 ? "" : "s"}`);
-  if (!lines.length) return "";
-  return `<div class="gc-exfollow-block"><b>Como correu o treino</b><div class="gc-exfollow-tl-lines">${lines.map((l) => `<span>${esc(l)}</span>`).join("")}</div></div>`;
+  if (altered > 0) metrics.push({ label: "Exercícios alterados", value: String(altered) });
+  if (skipped > 0) metrics.push({ label: "Exercícios não realizados", value: String(skipped) });
+  if (!metrics.length) return "";
+  const itemsHtml = metrics.map((m) => `<div class="gc-exfollow-metric"><b>${esc(m.label)}</b><strong>${esc(m.value)}</strong></div>`).join("");
+  return `<div class="gc-exfollow-block"><b>Métricas</b><div class="gc-exfollow-metrics">${itemsHtml}</div></div>`;
 }
 
-/* renderAvaliacoes — "como chegou" (readiness.feeling) → "como terminou"
-   (log.feel). Só os valores reais 1-5 já gravados — sem escalas novas,
-   sem converter para outro conceito. Mostra só o(s) lado(s) que existirem. */
+/* renderMiniScale — escala 1-5 real (readiness.feeling / log.feel), sem
+   converter para outra escala nem inventar labels. */
+function renderMiniScale(value) {
+  const v = Number(value);
+  const dots = [1, 2, 3, 4, 5].map((n) => `<span class="gc-exfollow-scale-dot${n === v ? " is-active" : ""}">${n}</span>`).join("");
+  return `<div class="gc-exfollow-scale">${dots}</div>`;
+}
+
+/* renderAvaliacoes — "antes de começar" (readiness.feeling) → "depois de
+   terminar" (log.feel). Só os valores reais 1-5 já gravados. Mostra só
+   o(s) lado(s) que existirem. */
 function renderAvaliacoes(readiness, log) {
   const antes = readiness?.feeling != null ? Number(readiness.feeling) : null;
   const depois = log?.feel != null ? Number(log.feel) : null;
@@ -581,27 +648,11 @@ function renderAvaliacoes(readiness, log) {
   const temDepois = Number.isFinite(depois);
   if (!temAntes && !temDepois) return "";
 
-  const cardAntes = temAntes ? `<div class="gc-exfollow-avaliacao"><b>Como chegou ao treino</b><strong>${esc(antes)}/5</strong></div>` : "";
+  const cardAntes = temAntes ? `<div class="gc-exfollow-avaliacao"><b>Antes de começar</b>${renderMiniScale(antes)}</div>` : "";
   const arrow = temAntes && temDepois ? `<div class="gc-exfollow-avaliacao-arrow">→</div>` : "";
-  const cardDepois = temDepois ? `<div class="gc-exfollow-avaliacao"><b>Como terminou o treino</b><strong>${esc(depois)}/5</strong></div>` : "";
+  const cardDepois = temDepois ? `<div class="gc-exfollow-avaliacao"><b>Depois de terminar</b>${renderMiniScale(depois)}</div>` : "";
 
-  return `<div class="gc-exfollow-block"><div class="gc-exfollow-avaliacoes">${cardAntes}${arrow}${cardDepois}</div></div>`;
-}
-
-/* renderSintomasComentario — texto real do doente, sempre escapado, cada
-   bloco só aparece se houver conteúdo real. */
-function renderSintomasComentario(readiness, log) {
-  const parts = [];
-  const symptomNote = readiness?.has_symptoms === true ? String(readiness?.symptom_note || "").trim() : "";
-  if (symptomNote) {
-    parts.push(`<div class="gc-exfollow-quote"><b>Sintomas antes do treino</b>${esc(symptomNote)}</div>`);
-  }
-  const noteText = String(log?.note || "").trim();
-  if (noteText) {
-    parts.push(`<div class="gc-exfollow-quote"><b>Comentário do doente</b>${esc(noteText)}</div>`);
-  }
-  if (!parts.length) return "";
-  return `<div class="gc-exfollow-block">${parts.join("")}</div>`;
+  return `<div class="gc-exfollow-block"><b>Como se sentiu</b><div class="gc-exfollow-avaliacoes">${cardAntes}${arrow}${cardDepois}</div></div>`;
 }
 
 /* Mapa mínimo de reasons devolvidos por wo_send_session_message — texto
@@ -618,10 +669,12 @@ const REPLY_ERROR_MESSAGES = {
 };
 const REPLY_ERROR_FALLBACK = "Não foi possível disponibilizar a mensagem.";
 
-/* renderSessionMessages — mensagens já enviadas para esta sessão, sempre
-   antes da área de resposta. Ordem cronológica ascendente (já vem assim
-   da query, ordenada por created_at). Nunca mostra id/author_user_id/
-   prescription_id/session_id — só corpo (escapado) e datas. Inalterado. */
+/* renderSessionMessages — mensagens já enviadas para esta sessão (body,
+   published_at, read_at) — usadas na coluna "A minha resposta". Ordem
+   cronológica ascendente (já vem assim da query, por created_at). Nunca
+   mostra id/author_user_id/prescription_id/session_id. Inalterado
+   funcionalmente — só deixou de repetir o título "A minha resposta" por
+   mensagem, que passou a vir da coluna que a envolve. */
 function renderSessionMessages(messages) {
   if (!messages || !messages.length) return "";
   const items = messages.map((m) => {
@@ -629,7 +682,6 @@ function renderSessionMessages(messages) {
     const readLabel = m.read_at ? `Lida pelo doente em ${fmtDateTime(m.read_at)}` : "Ainda não lida";
     return `
       <div class="gc-exfollow-reply-message">
-        <b>A minha resposta</b>
         <p>${esc(m.body || "")}</p>
         <div class="gc-exfollow-reply-message-meta">
           <span>${esc(publishedLabel)}</span>
@@ -640,11 +692,37 @@ function renderSessionMessages(messages) {
   return `<div class="gc-exfollow-reply-messages">${items}</div>`;
 }
 
-/* renderReplyBlock — mensagens já enviadas + "Responder ao doente"/
-   "Responder novamente". Lógica RPC e estado (replyState) inalterados
-   nesta passagem — só o local onde é chamado dentro do painel mudou. */
-function renderReplyBlock(entry, replyState, messages) {
-  const messagesHtml = renderSessionMessages(messages);
+/* renderSintomasComentarioResposta — sintomas / comentário / a minha
+   resposta lado a lado (3 colunas em desktop, empilhadas em mobile via
+   CSS). Coluna só aparece quando existir conteúdo real; as restantes
+   ocupam o espaço disponível (flex:1 cada). */
+function renderSintomasComentarioResposta(readiness, log, messages) {
+  const cols = [];
+
+  const symptomNote = readiness?.has_symptoms === true ? String(readiness?.symptom_note || "").trim() : "";
+  if (symptomNote) {
+    cols.push(`<div class="gc-exfollow-col gc-exfollow-col-symptom"><b>Sintomas antes do treino</b><p>${esc(symptomNote)}</p></div>`);
+  }
+
+  const noteText = String(log?.note || "").trim();
+  if (noteText) {
+    cols.push(`<div class="gc-exfollow-col gc-exfollow-col-comment"><b>Comentário do doente</b><p>${esc(noteText)}</p></div>`);
+  }
+
+  const respostaHtml = renderSessionMessages(messages);
+  if (respostaHtml) {
+    cols.push(`<div class="gc-exfollow-col gc-exfollow-col-reply"><b>A minha resposta</b>${respostaHtml}</div>`);
+  }
+
+  if (!cols.length) return "";
+  return `<div class="gc-exfollow-block"><div class="gc-exfollow-triple">${cols.join("")}</div></div>`;
+}
+
+/* renderResponderAction — "Responder ao doente"/"Responder novamente" e,
+   quando aberto, o formulário. Lógica RPC e estado (replyState)
+   inalterados nesta passagem — só deixou de incluir a listagem de
+   mensagens já enviadas (agora na coluna "A minha resposta"). */
+function renderResponderAction(entry, replyState, messages) {
   const openLabel = messages && messages.length ? "Responder novamente" : "Responder ao doente";
 
   const isThisSession = replyState && replyState.sessionId === entry.sessionId;
@@ -655,7 +733,7 @@ function renderReplyBlock(entry, replyState, messages) {
   const isOpen = isThisSession && !replyState.success;
 
   if (!isOpen) {
-    return `${messagesHtml}${successNote}<button type="button" class="gc-exfollow-reply-open" data-reply-open="${esc(entry.sessionId)}">${esc(openLabel)}</button>`;
+    return `${successNote}<button type="button" class="gc-exfollow-reply-open" data-reply-open="${esc(entry.sessionId)}">${esc(openLabel)}</button>`;
   }
 
   const disabledAttr = replyState.sending ? "disabled" : "";
@@ -664,9 +742,7 @@ function renderReplyBlock(entry, replyState, messages) {
     : "";
 
   return `
-    ${messagesHtml}
     <div class="gc-exfollow-reply">
-      <b>Responder ao doente</b>
       <textarea class="gc-exfollow-reply-textarea" rows="4" data-reply-textarea placeholder="Escreva a sua resposta..." ${disabledAttr}>${esc(replyState.body || "")}</textarea>
       ${errorHtml}
       <div class="gc-exfollow-reply-actions">
@@ -676,14 +752,12 @@ function renderReplyBlock(entry, replyState, messages) {
     </div>`;
 }
 
-/* renderTimelineDetailPanel — painel de "Ver treino", sem qualquer
-   session_id/kind/UUID nem texto de debug. O visual do treino depende só
-   do kind efetivo (entry.kind ou, na ausência dele — sessão removida do
-   array atual —, snapshot.snapshot.kind): "card" usa a timeline cardio,
-   "list" a sequência horizontal de exercícios; outros kinds (sem visual
-   específico ainda nesta fase) não mostram secção de treino, só os
-   blocos partilhados abaixo. "Resposta médica" é sempre o último bloco,
-   lógica RPC preservada. */
+/* renderTimelineDetailPanel — painel de "Ver treino", continuação da
+   mesma sessão. Ordem obrigatória: A) treino visual, B) métricas,
+   C) como se sentiu antes→depois, D) sintomas/comentário/resposta em 3
+   colunas, E) ação de responder. O visual do treino depende só do kind
+   efetivo (entry.kind ou, na ausência dele — sessão removida do array
+   atual —, snapshot.snapshot.kind). */
 function renderTimelineDetailPanel(entry, replyState, messagesBySessionId) {
   const effectiveKind = entry.kind || entry.snapshot?.snapshot?.kind || null;
 
@@ -694,24 +768,25 @@ function renderTimelineDetailPanel(entry, replyState, messagesBySessionId) {
     treinoHtml = renderListTreinoVisual(entry);
   }
 
-  const comoCorreuHtml = renderComoCorreuGeral(entry.log);
+  const metricasHtml = renderMetricasBlock(entry.log);
   const avaliacoesHtml = renderAvaliacoes(entry.readiness, entry.log);
-  const sintomasComentarioHtml = renderSintomasComentario(entry.readiness, entry.log);
 
   const messages = messagesBySessionId ? (messagesBySessionId.get(entry.sessionId) || []) : [];
-  const respostaHtml = renderReplyBlock(entry, replyState, messages);
+  const tripleHtml = renderSintomasComentarioResposta(entry.readiness, entry.log, messages);
+  const responderHtml = `<div class="gc-exfollow-block"><b>Responder</b>${renderResponderAction(entry, replyState, messages)}</div>`;
 
-  const blocks = [treinoHtml, comoCorreuHtml, avaliacoesHtml, sintomasComentarioHtml, respostaHtml].filter(Boolean);
+  const blocks = [treinoHtml, metricasHtml, avaliacoesHtml, tripleHtml, responderHtml].filter(Boolean);
   return `<div class="gc-exfollow-detail">${blocks.join("")}</div>`;
 }
 
-/* renderTimelineItem — cartão de treino no acordeão. Fechado por defeito:
-   só data, estado, indicadores rápidos que EXISTAM e o botão — nunca uma
-   sessão sem informação relevante ocupa espaço desnecessário. Sinaliza
-   visualmente (borda âmbar) sessões que já eram objetivamente
-   classificadas como merecendo atenção (mesmos sinais do Bloco 1: RPE≥8,
-   sintomas, comentário, exercícios alterados/não realizados, ou estado
-   NAO_REALIZADA) — nenhum threshold novo. */
+/* renderTimelineItem — uma linha compacta por sessão (lista tipo tabela).
+   Fechada por defeito: ícone de estado + data + badge, colunas de campos
+   só quando EXISTIREM (RPE, recuperação, sintomas/comentário com trecho
+   curto, "respondido") e o botão à direita. Sessões que já eram
+   objetivamente classificadas como merecendo atenção (mesmos sinais do
+   Bloco 1: RPE≥8, sintomas, comentário, exercícios alterados/não
+   realizados, ou estado NAO_REALIZADA) recebem só um indicador lateral
+   discreto — nunca uma moldura à volta de todo o cartão. */
 function renderTimelineItem(entry, todayISO, expandedSessionId, replyState, messagesBySessionId) {
   const status = classifySession(entry, todayISO);
   const meta = TIMELINE_STATUS_META[status] || TIMELINE_STATUS_META.INDETERMINADO;
@@ -724,14 +799,23 @@ function renderTimelineItem(entry, todayISO, expandedSessionId, replyState, mess
   const messages = messagesBySessionId ? (messagesBySessionId.get(entry.sessionId) || []) : [];
   const hasReply = messages.length > 0;
 
-  const quickIndicators = [];
-  if (entry.log?.rpe != null && entry.log?.rpe !== "") quickIndicators.push(`RPE ${entry.log.rpe}/10`);
-  if (entry.log?.feel != null && entry.log?.feel !== "") quickIndicators.push(`Recuperação ${entry.log.feel}/5`);
-
-  const flagBadges = [];
-  if (hasSymptoms) flagBadges.push("Sintomas");
-  if (hasComment) flagBadges.push("Comentário do doente");
-  if (hasReply) flagBadges.push("Respondido");
+  const fields = [];
+  if (entry.log?.rpe != null && entry.log?.rpe !== "") {
+    fields.push(`<div class="gc-exfollow-field"><b>RPE</b><span>${esc(entry.log.rpe)}/10</span></div>`);
+  }
+  if (entry.log?.feel != null && entry.log?.feel !== "") {
+    fields.push(`<div class="gc-exfollow-field"><b>Recuperação</b><span>${esc(entry.log.feel)}/5</span></div>`);
+  }
+  if (hasSymptoms) {
+    const preview = truncateText(entry.readiness?.symptom_note, 40) || "Reportados";
+    fields.push(`<div class="gc-exfollow-field gc-exfollow-field-symptom"><b>Sintomas</b><span>${esc(preview)}</span></div>`);
+  }
+  if (hasComment) {
+    fields.push(`<div class="gc-exfollow-field gc-exfollow-field-comment"><b>Comentário</b><span>${esc(truncateText(entry.log?.note, 56))}</span></div>`);
+  }
+  if (hasReply) {
+    fields.push(`<div class="gc-exfollow-field gc-exfollow-field-reply"><b>A minha resposta</b><span>Respondido</span></div>`);
+  }
 
   const rpeNum = Number(entry.log?.rpe);
   const { altered, skipped } = computeSetsCounts(entry.log);
@@ -742,13 +826,17 @@ function renderTimelineItem(entry, todayISO, expandedSessionId, replyState, mess
 
   return `
     <div class="${itemClass}">
-      <div class="gc-exfollow-tl-head">
-        <span class="gc-exfollow-tl-date">${esc(sessionDateLabel)}</span>
-        <span class="gc-exfollow-tl-badge">${esc(meta.label)}</span>
+      <div class="gc-exfollow-row">
+        <div class="gc-exfollow-row-date">
+          <span class="gc-exfollow-row-icon" aria-hidden="true"></span>
+          <div>
+            <div class="gc-exfollow-tl-date">${esc(sessionDateLabel)}</div>
+            <span class="gc-exfollow-tl-badge">${esc(meta.label)}</span>
+          </div>
+        </div>
+        <div class="gc-exfollow-row-fields">${fields.join("")}</div>
+        <button type="button" class="gc-exfollow-tl-toggle" data-toggle-session="${esc(entry.sessionId)}">${isExpanded ? "Fechar treino" : "Ver treino"}</button>
       </div>
-      ${quickIndicators.length ? `<div class="gc-exfollow-tl-quick">${quickIndicators.map((l) => `<span>${esc(l)}</span>`).join("<em>·</em>")}</div>` : ""}
-      ${flagBadges.length ? `<div class="gc-exfollow-tl-flags">${flagBadges.map((l) => `<span class="gc-exfollow-tl-flag">${esc(l)}</span>`).join("")}</div>` : ""}
-      <button type="button" class="gc-exfollow-tl-toggle" data-toggle-session="${esc(entry.sessionId)}">${isExpanded ? "Fechar treino" : "Ver treino"}</button>
       ${isExpanded ? renderTimelineDetailPanel(entry, replyState, messagesBySessionId) : ""}
     </div>`;
 }
@@ -779,10 +867,10 @@ function renderTimelineBlock(prescription, snapshots, readinessRows, logRows, ex
 }
 
 /* renderShell — cabeçalho inalterado; Bloco 1 ("Porque precisa da minha
-   atenção agora?") mantém a posição atual; "Evolução clínica global" /
-   "Evolução por exercício" / "Decisão / Ação médica" passam a aparecer
-   ANTES da linha temporal (só reordenados, conteúdo placeholder
-   inalterado — sem nova análise nem novos dados nesta passagem). */
+   atenção agora?") mantém a posição atual. "Evolução clínica global" /
+   "Evolução por exercício" / "Decisão / Ação médica" passaram a 3
+   cartões compactos na mesma linha (sem conteúdo/análise nova, sem
+   navegação funcional nesta passagem), antes da linha temporal. */
 function renderShell(root, patient, prescription, readiness, log, snapshots, readinessRows, logRows, expandedSessionId, replyState, messagesBySessionId) {
   const remaining = daysUntil(prescription?.expires_at);
   const endLabel = remaining === null
@@ -817,22 +905,25 @@ function renderShell(root, patient, prescription, readiness, log, snapshots, rea
         ${renderAttentionBlock(readiness, log)}
       </div>
 
-      <div class="gc-exfollow-section">
-        <h2>Evolução clínica global</h2>
-        <p>Sintomas, RPE, sensação pós-treino, adesão e alterações.</p>
-        <div class="gc-exfollow-empty">Estrutura preparada.</div>
-      </div>
-
-      <div class="gc-exfollow-section">
-        <h2>Evolução por exercício</h2>
-        <p>Prescrito versus realizado e progressão ao longo das sessões.</p>
-        <div class="gc-exfollow-empty">Estrutura preparada.</div>
-      </div>
-
-      <div class="gc-exfollow-section">
-        <h2>Decisão / Ação médica</h2>
-        <p>Área preparada para fechar o circuito de acompanhamento.</p>
-        <div class="gc-exfollow-empty">Sem ações implementadas nesta passagem.</div>
+      <div class="gc-exfollow-mini-grid">
+        <div class="gc-exfollow-mini-card">
+          <div class="gc-exfollow-mini-icon" aria-hidden="true">↗</div>
+          <h3>Evolução clínica global</h3>
+          <p>Sintomas, RPE, sensação pós-treino, adesão e alterações.</p>
+          <span class="gc-exfollow-mini-link">Ver evolução →</span>
+        </div>
+        <div class="gc-exfollow-mini-card">
+          <div class="gc-exfollow-mini-icon" aria-hidden="true">▦</div>
+          <h3>Evolução por exercício</h3>
+          <p>Prescrito versus realizado e progressão ao longo das sessões.</p>
+          <span class="gc-exfollow-mini-link">Ver evolução →</span>
+        </div>
+        <div class="gc-exfollow-mini-card">
+          <div class="gc-exfollow-mini-icon" aria-hidden="true">✎</div>
+          <h3>Decisão / Ação médica</h3>
+          <p>Área preparada para fechar o circuito de acompanhamento.</p>
+          <span class="gc-exfollow-mini-link">Ver decisões / ações →</span>
+        </div>
       </div>
 
       <div class="gc-exfollow-section">
@@ -856,9 +947,6 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
     window.sb.from("patients").select("id, full_name").eq("id", patientId).maybeSingle(),
     window.sb.from("wo_prescriptions").select("id, patient_id, clinic_id, status, created_at, expires_at, first_opened_at, data").eq("id", prescriptionId).eq("patient_id", patientId).maybeSingle(),
     window.sb.from("wo_session_prescription_snapshots").select("session_id, session_date, frozen_at, removed_at, snapshot").eq("prescription_id", prescriptionId),
-    // "feeling" acrescentado (única alteração de query nesta passagem) —
-    // necessário para "Como chegou ao treino"; mesma query, mesma tabela,
-    // sem query nova.
     window.sb.from("wo_session_readiness").select("session_id, answered_at, has_symptoms, symptom_note, feeling").eq("prescription_id", prescriptionId),
     window.sb.from("wo_session_logs").select("session_id, logged_at, rpe, feel, note, sets").eq("prescription_id", prescriptionId),
     window.sb.from("wo_session_doctor_messages").select("id,prescription_id,session_id,body,published_at,read_at,created_at,author_user_id").eq("prescription_id", prescriptionId).not("published_at", "is", null).order("created_at", { ascending: true }),
