@@ -198,24 +198,16 @@ function styles() {
 .gc-exfollow-block>b{display:block;font-size:10.5px;font-weight:750;text-transform:uppercase;letter-spacing:.04em;color:#64748b}
 .gc-exfollow-treino-modalidade{font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:8px}
 
-/* Faixa única de métricas + avaliação da sessão — até 5 cartões, só os que
-   existirem. */
-.gc-exfollow-metrics{display:flex;flex-wrap:wrap;gap:8px}
-.gc-exfollow-metric{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:7px 11px;min-width:90px}
-.gc-exfollow-metric b{display:block;font-size:9.5px;font-weight:650;color:#64748b;margin-bottom:2px;text-transform:uppercase;letter-spacing:.02em}
-.gc-exfollow-metric strong{display:block;font-size:15px;color:#0f172a;font-weight:750}
-.gc-exfollow-metric-eval{min-width:116px}
-.gc-exfollow-metric-pergunta{display:block;font-size:9.5px;color:#94a3b8;margin-bottom:1px}
-.gc-exfollow-metric-texto{display:block;font-size:12px;font-weight:650;color:#0f172a;margin-bottom:1px}
-
-/* Sintomas / Comentário / Resposta — 3 colunas ao mesmo nível. */
-.gc-exfollow-triple{display:flex;gap:10px}
-.gc-exfollow-col{flex:1;min-width:0;max-width:460px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:9px 11px}
-.gc-exfollow-col b{display:block;font-size:10px;font-weight:750;text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px}
-.gc-exfollow-col p{margin:0;font-size:12px;color:#334155;white-space:pre-wrap;line-height:1.4}
-.gc-exfollow-col-symptom b{color:#be185d}
-.gc-exfollow-col-comment b{color:#c2410c}
-.gc-exfollow-col-reply b{color:#047857}
+/* Respostas reais do doente — Antes do treino / Depois do treino, um
+   cartão compacto por pergunta, grelha de 3 por linha em desktop. */
+.gc-exfollow-answers{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.gc-exfollow-answer{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 11px;min-width:0}
+.gc-exfollow-answer b{display:block;font-size:9.5px;font-weight:650;color:#64748b;text-transform:uppercase;letter-spacing:.02em;margin-bottom:3px}
+.gc-exfollow-answer strong{display:block;font-size:12.5px;font-weight:700;color:#0f172a;line-height:1.35;white-space:pre-wrap;word-break:break-word}
+.gc-exfollow-answer-neutral{grid-column:1 / -1;background:#f1f5f9}
+.gc-exfollow-answer-neutral strong{color:#64748b;font-weight:650}
+.gc-exfollow-block-reply>b{color:#047857}
+@media(max-width:640px){.gc-exfollow-answers{grid-template-columns:1fr}}
 
 /* Exercícios — faixa horizontal baixa, imagem à esquerda, texto à direita. */
 .gc-exfollow-ex-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
@@ -269,7 +261,6 @@ function styles() {
   .gc-exfollow-grid,.gc-exfollow-mini-grid{grid-template-columns:1fr}
   .gc-exfollow-row{flex-wrap:wrap;row-gap:8px}
   .gc-exfollow-tl-toggle{margin-left:0}
-  .gc-exfollow-triple{flex-direction:column}
 }
 `;
 }
@@ -639,58 +630,77 @@ function renderListTreinoVisual(entry) {
    palavras associadas no questionário final. */
 const READINESS_FEELING_LABELS = { 1: "Muito mal", 2: "Mal", 3: "Razoável", 4: "Bem", 5: "Muito bem" };
 
-/* renderMetricasBlock — faixa única com métricas objetivas (RPE, bem-estar
-   pós-treino, duração/distância quando existir resumo de sessão,
-   exercícios alterados/não realizados) e a avaliação da sessão (antes:
-   readiness.feeling com o texto real da opção; depois: log.feel, só o
-   número). Duas perguntas distintas, nunca como comparação direta da
-   mesma variável. Só a partir de log/readiness já carregados — nada
-   inventado, nada omitido que exista; cartão sem dado correspondente não
-   aparece. */
-function renderMetricasBlock(log, readiness) {
-  const cards = [];
+/* renderAvaliacaoDoente — respostas REAIS do doente aos dois
+   questionários do link de treino, em cartões curtos e diretamente
+   legíveis (sem escalas gráficas 1-5 nesta passagem).
 
-  if (log?.rpe != null && log.rpe !== "") cards.push({ label: "RPE (esforço)", value: `${log.rpe}/10` });
-  if (log?.feel != null && log.feel !== "") cards.push({ label: "Bem-estar pós-treino", value: `${log.feel}/5` });
+   ANTES DO TREINO (a partir de wo_session_readiness, quando a linha
+   existir): "Como se sente hoje?" (readiness.feeling, com o texto real
+   da opção 1-5), "Tem sintomas ou dor?" (readiness.has_symptoms, SIM/NÃO/
+   Não respondido conforme o valor for true/false/null) e "Sintoma / dor"
+   (readiness.symptom_note) — este último só aparece quando existir texto
+   real, nunca "Sem sintomas" por inferência.
 
-  const sets = Array.isArray(log?.sets) ? log.sets : [];
-  const resumo = sets.find((e) => e?.tipo === "resumo");
-  if (resumo) {
-    const dur = fmtDurationHuman(resumo.tempo_total_sec);
-    if (dur) cards.push({ label: "Duração do treino", value: dur });
-    const distM = Number(resumo.distancia_total_m);
-    if (Number.isFinite(distM)) cards.push({ label: "Distância", value: `${(distM / 1000).toFixed(2).replace(".", ",")} km` });
+   Quando NÃO existe linha de readiness mas existe log (a sessão foi
+   registada): o modelo de dados atual não tem nenhum campo que distinga
+   de forma inequívoca "o doente iniciou o treino sem responder ao
+   questionário pré-treino" de "não há registo de readiness por outro
+   motivo" — a única informação disponível é a ausência da linha, que por
+   si só não prova a causa. Por isso usa-se sempre a mensagem neutra e
+   conservadora "Avaliação pré-treino não disponível.", nunca a afirmação
+   mais específica de "iniciou sem responder".
+
+   DEPOIS DO TREINO (a partir de wo_session_logs, quando a linha existir):
+   "Esforço percebido" (log.rpe), "Bem-estar" (log.feel — nunca chamado
+   "recuperação") e "Nota após o treino" (log.note, só quando existir
+   texto real). RPE/Bem-estar mostram "Não respondido" quando o log
+   existe mas o campo específico é null — nunca convertido para 0 ou
+   qualquer outro valor. */
+function renderAvaliacaoDoente(readiness, log) {
+  const hasReadiness = !!readiness;
+  const hasLog = !!log;
+
+  let antesHtml = "";
+  if (hasReadiness) {
+    const feelingNum = readiness.feeling != null ? Number(readiness.feeling) : null;
+    const feelingLabel = Number.isFinite(feelingNum) ? READINESS_FEELING_LABELS[feelingNum] : null;
+    const antesCards = [
+      { label: "Como se sente hoje?", value: feelingLabel || "Não respondido" },
+      { label: "Tem sintomas ou dor?", value: readiness.has_symptoms === true ? "SIM" : readiness.has_symptoms === false ? "NÃO" : "Não respondido" },
+    ];
+    const symptomNote = String(readiness.symptom_note || "").trim();
+    if (symptomNote) antesCards.push({ label: "Sintoma / dor", value: symptomNote });
+
+    const antesItemsHtml = antesCards.map((c) => `<div class="gc-exfollow-answer"><b>${esc(c.label)}</b><strong>${esc(c.value)}</strong></div>`).join("");
+    antesHtml = `<div class="gc-exfollow-block"><b>Antes do treino</b><div class="gc-exfollow-answers">${antesItemsHtml}</div></div>`;
+  } else if (hasLog) {
+    antesHtml = `<div class="gc-exfollow-block"><b>Antes do treino</b><div class="gc-exfollow-answers"><div class="gc-exfollow-answer gc-exfollow-answer-neutral"><b>Avaliação pré-treino</b><strong>Não disponível</strong></div></div></div>`;
   }
 
-  const { altered, skipped } = computeSetsCounts(log);
-  if (altered > 0) cards.push({ label: "Exercícios alterados", value: String(altered) });
-  if (skipped > 0) cards.push({ label: "Exercícios não realizados", value: String(skipped) });
+  let depoisHtml = "";
+  if (hasLog) {
+    const depoisCards = [
+      { label: "Esforço percebido", value: log.rpe != null && log.rpe !== "" ? `${log.rpe}/10` : "Não respondido" },
+      { label: "Bem-estar", value: log.feel != null && log.feel !== "" ? `${log.feel}/5` : "Não respondido" },
+    ];
+    const noteText = String(log.note || "").trim();
+    if (noteText) depoisCards.push({ label: "Nota após o treino", value: noteText });
 
-  const antes = readiness?.feeling != null ? Number(readiness.feeling) : null;
-  if (Number.isFinite(antes) && antes >= 1 && antes <= 5) {
-    cards.push({ eval: true, label: "Antes do treino", pergunta: "Como se sente hoje?", texto: READINESS_FEELING_LABELS[antes], value: `${antes}/5` });
+    const depoisItemsHtml = depoisCards.map((c) => `<div class="gc-exfollow-answer"><b>${esc(c.label)}</b><strong>${esc(c.value)}</strong></div>`).join("");
+    depoisHtml = `<div class="gc-exfollow-block"><b>Depois do treino</b><div class="gc-exfollow-answers">${depoisItemsHtml}</div></div>`;
   }
 
-  const depois = log?.feel != null ? Number(log.feel) : null;
-  if (Number.isFinite(depois)) {
-    cards.push({ eval: true, label: "Após o treino", pergunta: "Bem-estar", texto: null, value: `${depois}/5` });
-  }
+  return `${antesHtml}${depoisHtml}`;
+}
 
-  if (!cards.length) return "";
-
-  const itemsHtml = cards.map((c) => {
-    if (c.eval) {
-      return `<div class="gc-exfollow-metric gc-exfollow-metric-eval">
-        <b>${esc(c.label)}</b>
-        <span class="gc-exfollow-metric-pergunta">${esc(c.pergunta)}</span>
-        ${c.texto ? `<span class="gc-exfollow-metric-texto">${esc(c.texto)}</span>` : ""}
-        <strong>${esc(c.value)}</strong>
-      </div>`;
-    }
-    return `<div class="gc-exfollow-metric"><b>${esc(c.label)}</b><strong>${esc(c.value)}</strong></div>`;
-  }).join("");
-
-  return `<div class="gc-exfollow-block"><div class="gc-exfollow-metrics">${itemsHtml}</div></div>`;
+/* renderRespostaMedicaBlock — "A minha resposta": mensagens já enviadas
+   para esta sessão (renderSessionMessages, inalterada). Mantida separada
+   e exatamente como estava antes desta passagem; só deixou de partilhar
+   bloco com sintomas/comentário (agora cobertos por renderAvaliacaoDoente). */
+function renderRespostaMedicaBlock(messages) {
+  const respostaHtml = renderSessionMessages(messages);
+  if (!respostaHtml) return "";
+  return `<div class="gc-exfollow-block gc-exfollow-block-reply"><b>A minha resposta</b>${respostaHtml}</div>`;
 }
 
 /* Mapa mínimo de reasons devolvidos por wo_send_session_message — texto
@@ -727,34 +737,6 @@ function renderSessionMessages(messages) {
       </div>`;
   }).join("");
   return `<div class="gc-exfollow-reply-messages">${items}</div>`;
-}
-
-/* renderSintomasComentarioResposta — sintomas / comentário / a minha
-   resposta lado a lado (3 colunas em desktop, empilhadas em mobile via
-   CSS). Coluna só aparece quando existir conteúdo real; as restantes
-   ocupam o espaço disponível. Largura máxima por coluna evita que uma
-   única coluna presente pareça uma caixa gigante. Inalterado
-   funcionalmente nesta passagem. */
-function renderSintomasComentarioResposta(readiness, log, messages) {
-  const cols = [];
-
-  const symptomNote = readiness?.has_symptoms === true ? String(readiness?.symptom_note || "").trim() : "";
-  if (symptomNote) {
-    cols.push(`<div class="gc-exfollow-col gc-exfollow-col-symptom"><b>Sintomas antes do treino</b><p>${esc(symptomNote)}</p></div>`);
-  }
-
-  const noteText = String(log?.note || "").trim();
-  if (noteText) {
-    cols.push(`<div class="gc-exfollow-col gc-exfollow-col-comment"><b>Comentário do doente</b><p>${esc(noteText)}</p></div>`);
-  }
-
-  const respostaHtml = renderSessionMessages(messages);
-  if (respostaHtml) {
-    cols.push(`<div class="gc-exfollow-col gc-exfollow-col-reply"><b>A minha resposta</b>${respostaHtml}</div>`);
-  }
-
-  if (!cols.length) return "";
-  return `<div class="gc-exfollow-block"><div class="gc-exfollow-triple">${cols.join("")}</div></div>`;
 }
 
 /* renderResponderAction — botão pequeno "💬 Responder ao doente"/
@@ -794,10 +776,11 @@ function renderResponderAction(entry, replyState, messages) {
 /* renderTimelineDetailPanel — painel de "Ver treino", continuação da
    mesma sessão. Ordem: A) "Treino realizado"/"Treino prescrito" (rótulo
    dinâmico consoante a sessão já tenha log) com o visual do treino,
-   B) faixa única de métricas + avaliação da sessão, C) sintomas/
-   comentário/resposta em 3 colunas, D) ação de responder. O visual do
-   treino depende só do kind efetivo (entry.kind ou, na ausência dele —
-   sessão removida do array atual —, snapshot.snapshot.kind). */
+   B) Antes do treino / Depois do treino — respostas reais do doente,
+   C) "A minha resposta" (mensagens médicas, inalterada), D) ação de
+   responder. O visual do treino depende só do kind efetivo (entry.kind
+   ou, na ausência dele — sessão removida do array atual —,
+   snapshot.snapshot.kind). */
 function renderTimelineDetailPanel(entry, status, replyState, messagesBySessionId) {
   const effectiveKind = entry.kind || entry.snapshot?.snapshot?.kind || null;
 
@@ -810,13 +793,13 @@ function renderTimelineDetailPanel(entry, status, replyState, messagesBySessionI
   const treinoLabel = status === "REALIZADA" ? "Treino realizado" : "Treino prescrito";
   const treinoBlockHtml = treinoHtml ? `<div class="gc-exfollow-block"><b>${esc(treinoLabel)}</b>${treinoHtml}</div>` : "";
 
-  const metricasHtml = renderMetricasBlock(entry.log, entry.readiness);
+  const respostasHtml = renderAvaliacaoDoente(entry.readiness, entry.log);
 
   const messages = messagesBySessionId ? (messagesBySessionId.get(entry.sessionId) || []) : [];
-  const tripleHtml = renderSintomasComentarioResposta(entry.readiness, entry.log, messages);
+  const respostaMedicaHtml = renderRespostaMedicaBlock(messages);
   const responderHtml = `<div class="gc-exfollow-block">${renderResponderAction(entry, replyState, messages)}</div>`;
 
-  const blocks = [treinoBlockHtml, metricasHtml, tripleHtml, responderHtml].filter(Boolean);
+  const blocks = [treinoBlockHtml, respostasHtml, respostaMedicaHtml, responderHtml].filter(Boolean);
   return `<div class="gc-exfollow-detail">${blocks.join("")}</div>`;
 }
 
