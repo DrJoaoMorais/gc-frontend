@@ -25,6 +25,8 @@ import {
   wirePedidosOnlineToggle,
   renderHomePedidosOnlineList,
   setHomeAcompanhamentoStats,
+  wireHomeAcompanhamentoToggle,
+  renderHomeAcompanhamentoList,
 }                                          from "./home-dashboard.js";
 import {
   setAgendaSubtitleForSelectedDay,
@@ -60,6 +62,12 @@ let homeClinicIdInitialized = false;
 let homeAlertFilter = "all";
 let homePendingAlertsSorted = [];
 let homeResolvedTodayAlerts = [];
+
+/* Listas por PRESCRIÇÃO já preparadas por loadHomeAcompanhamentoAtivo()
+   (patientName incluído) — os cartões "Precisa de ação"/"A terminar"
+   só as leem ao expandir, sem query nova. null = falha ao carregar. */
+let homeAcompActionItems = [];
+let homeAcompEndingItems = [];
 
 /* ====================================================================
    BLOCO 11B — Boot principal
@@ -260,6 +268,11 @@ async function renderCurrentView() {
 
     wirePedidosOnlineToggle(() => {
       loadHomePedidosOnlineList();
+    });
+
+    wireHomeAcompanhamentoToggle({
+      onOpenAction: () => renderHomeAcompanhamentoList(homeAcompActionItems, { kind: "action", onOpen: openHomeExerciseFollowup }),
+      onOpenEnding: () => renderHomeAcompanhamentoList(homeAcompEndingItems, { kind: "ending", onOpen: openHomeExerciseFollowup }),
     });
 
     await Promise.all([
@@ -544,6 +557,8 @@ async function loadHomeAcompanhamentoAtivo() {
 
   if (!clinicIds.length) {
     setHomeAcompanhamentoStats({ total: 0, precisaAcao: 0, aTerminar: 0 });
+    homeAcompActionItems = [];
+    homeAcompEndingItems = [];
     return;
   }
 
@@ -561,18 +576,16 @@ async function loadHomeAcompanhamentoAtivo() {
     const prescriptionIds = rows.map((row) => row.id);
     const patientByPrescription = new Map(rows.map((row) => [row.id, row.patient_id]));
     const activePatients = new Set(rows.map((row) => row.patient_id).filter(Boolean));
-    const endingPatients = new Set(
-      rows
-        .filter((row) => {
-          const remaining = new Date(row.expires_at).getTime() - agora.getTime();
-          return remaining > 0 && remaining < TRES_DIAS_MS;
-        })
-        .map((row) => row.patient_id)
-        .filter(Boolean)
-    );
+    const endingRows = rows.filter((row) => {
+      const remaining = new Date(row.expires_at).getTime() - agora.getTime();
+      return remaining > 0 && remaining < TRES_DIAS_MS;
+    });
+    const endingPatients = new Set(endingRows.map((row) => row.patient_id).filter(Boolean));
 
     if (!prescriptionIds.length) {
       setHomeAcompanhamentoStats({ total: 0, precisaAcao: 0, aTerminar: 0 });
+      homeAcompActionItems = [];
+      homeAcompEndingItems = [];
       return;
     }
 
@@ -604,16 +617,75 @@ async function loadHomeAcompanhamentoAtivo() {
       }
     });
 
+    /* Motivos reais de "Precisa de ação", por prescription_id (nunca por
+       patient_id — um sinal de uma prescrição nunca deve aparecer
+       associado a outra prescrição do mesmo doente). Mesmos 4 critérios
+       já usados para os contadores acima, sem alterar nenhum. */
+    const HOME_ACOMP_REASON_ORDER = ["Sintomas/dor", "Nota após treino", "Treino alterado/não realizado", "RPE elevado"];
+    const reasonsByPrescription = new Map();
+    const addReason = (prescriptionId, reason) => {
+      if (!prescriptionId) return;
+      if (!reasonsByPrescription.has(prescriptionId)) reasonsByPrescription.set(prescriptionId, new Set());
+      reasonsByPrescription.get(prescriptionId).add(reason);
+    };
+
+    (readinessResult.data || []).forEach((row) => {
+      addReason(row.prescription_id, "Sintomas/dor");
+    });
+
     latestLogByPrescription.forEach((log, prescriptionId) => {
       const sets = Array.isArray(log.sets) ? log.sets : [];
       const altered = sets.some((entry) => entry?.status && entry.status !== "as_prescribed");
       const hasNote = Boolean(String(log.note || "").trim());
       const highRpe = Number(log.rpe || 0) >= 8;
+      if (hasNote) addReason(prescriptionId, "Nota após treino");
+      if (altered) addReason(prescriptionId, "Treino alterado/não realizado");
+      if (highRpe) addReason(prescriptionId, "RPE elevado");
       if (hasNote || altered || highRpe) {
         const patientId = patientByPrescription.get(prescriptionId);
         if (patientId) actionPatients.add(patientId);
       }
     });
+
+    /* Listas por PRESCRIÇÃO (nunca deduplicadas por doente — se um doente
+       tiver 2 planos ativos sinalizados, aparecem 2 linhas). */
+    const actionItems = Array.from(reasonsByPrescription.entries()).map(([prescriptionId, reasonSet]) => ({
+      patientId: patientByPrescription.get(prescriptionId) || null,
+      prescriptionId,
+      patientName: null,
+      reasons: HOME_ACOMP_REASON_ORDER.filter((r) => reasonSet.has(r)),
+    }));
+    const endingItems = endingRows.map((row) => ({
+      patientId: row.patient_id || null,
+      prescriptionId: row.id,
+      patientName: null,
+      expiresAt: row.expires_at,
+    }));
+
+    /* Nome do doente — única query adicional, só com os IDs que a lista
+       vai mesmo mostrar (união de action+ending), nunca N+1. Falha aqui
+       nunca invalida os contadores já calculados acima nem faz crashar
+       o Home — só cai para o fallback "Doente" em renderHomeAcompanhamentoList. */
+    const patientIds = Array.from(new Set(
+      [...actionItems, ...endingItems].map((it) => it.patientId).filter(Boolean)
+    ));
+    if (patientIds.length) {
+      try {
+        const { data: patientsData, error: patientsError } = await window.sb
+          .from("patients")
+          .select("id, full_name")
+          .in("id", patientIds);
+        if (patientsError) throw patientsError;
+        const nameById = new Map((patientsData || []).map((p) => [p.id, p.full_name]));
+        actionItems.forEach((it) => { it.patientName = nameById.get(it.patientId) || null; });
+        endingItems.forEach((it) => { it.patientName = nameById.get(it.patientId) || null; });
+      } catch (namesError) {
+        console.warn("Home: falha ao carregar nomes de acompanhamento ativo:", namesError);
+      }
+    }
+
+    homeAcompActionItems = actionItems;
+    homeAcompEndingItems = endingItems;
 
     setHomeAcompanhamentoStats({
       total: activePatients.size,
@@ -623,7 +695,21 @@ async function loadHomeAcompanhamentoAtivo() {
   } catch (error) {
     console.warn("Home: falha ao carregar acompanhamento ativo:", error);
     setHomeAcompanhamentoStats(null);
+    homeAcompActionItems = null;
+    homeAcompEndingItems = null;
   }
+}
+
+/* openHomeExerciseFollowup — clique numa linha da lista de acompanhamento
+   ativo do Home. Nunca "primeiro doente": vem sempre do par exato
+   {patientId, prescriptionId} da linha clicada. Mesmo mecanismo genérico
+   já usado pelo router de renderCurrentView (view "exercicio-acompanhamento"). */
+function openHomeExerciseFollowup(patientId, prescriptionId) {
+  if (!patientId || !prescriptionId) return;
+  G._exerciseFollowupPatientId = patientId;
+  G._exerciseFollowupPrescriptionId = prescriptionId;
+  G.currentView = "exercicio-acompanhamento";
+  renderCurrentView();
 }
 
 /* ====================================================================

@@ -48,9 +48,10 @@ export function homeDashboardHtml() {
       <div class="gc-home-section-head"><div><h2>Acompanhamento ativo</h2><p id="gcHomeAcompSub">— doentes</p></div></div>
       <div class="gc-home-acomp">
         <div class="gc-home-acomp-stats">
-          <div><b>Precisa de ação</b><strong id="gcHomeAcompAcao">—</strong></div>
-          <div><b>A terminar</b><strong id="gcHomeAcompTerminar">—</strong></div>
+          <div id="gcHomeAcompCardAcao" class="gc-home-clickable-card" role="button" tabindex="0" aria-expanded="false"><b>Precisa de ação</b><strong id="gcHomeAcompAcao">—</strong></div>
+          <div id="gcHomeAcompCardTerminar" class="gc-home-clickable-card" role="button" tabindex="0" aria-expanded="false"><b>A terminar</b><strong id="gcHomeAcompTerminar">—</strong></div>
         </div>
+        <div id="gcHomeAcompExpand" class="gc-home-pedidos-expand" hidden></div>
       </div>
     </section>`;
 }
@@ -101,6 +102,15 @@ export function homeDashboardStyles() {
 .gc-home-pedido-info span{font-size:11.5px;color:#94a3b8}
 .gc-home-pedido-open{flex-shrink:0;font-size:11.5px;font-weight:650;border-radius:8px;padding:6px 10px;cursor:pointer;white-space:nowrap;font-family:inherit;border:1px solid #cbd5e1;background:#fff;color:#0f2d52}
 .gc-home-pedido-open:hover{border-color:#93c5fd;background:#f8fbff}
+
+/* Acompanhamento ativo — expansão (mesmo padrão de Pedidos online) */
+.gc-home-acomp-list{display:flex;flex-direction:column;gap:8px}
+.gc-home-acomp-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #2563eb;border-radius:12px;padding:11px 14px}
+.gc-home-acomp-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.gc-home-acomp-info strong{font-size:13px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gc-home-acomp-info span{font-size:11.5px;color:#94a3b8}
+.gc-home-acomp-open{flex-shrink:0;font-size:11.5px;font-weight:650;border-radius:8px;padding:6px 10px;cursor:pointer;white-space:nowrap;font-family:inherit;border:1px solid #cbd5e1;background:#fff;color:#0f2d52}
+.gc-home-acomp-open:hover{border-color:#93c5fd;background:#f8fbff}
 
 /* Barra compacta de alertas */
 .gc-home-alertbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
@@ -267,6 +277,85 @@ export function renderHomePedidosOnlineList(rows, { onOpenAgenda } = {}) {
   });
 }
 
+/* wireHomeAcompanhamentoToggle — 2 cartões partilham 1 único painel de
+   expansão (nunca 2 painéis abertos ao mesmo tempo): clicar no cartão
+   ativo fecha; clicar no outro troca o conteúdo. Mesmo mecanismo de
+   card+aria-expanded+painel hidden já usado por wirePedidosOnlineToggle. */
+export function wireHomeAcompanhamentoToggle({ onOpenAction, onOpenEnding } = {}) {
+  const cardAction = document.getElementById("gcHomeAcompCardAcao");
+  const cardEnding = document.getElementById("gcHomeAcompCardTerminar");
+  const expand = document.getElementById("gcHomeAcompExpand");
+  if (!cardAction || !cardEnding || !expand) return;
+
+  let openKind = null;
+
+  const close = () => {
+    expand.setAttribute("hidden", "");
+    cardAction.setAttribute("aria-expanded", "false");
+    cardEnding.setAttribute("aria-expanded", "false");
+    openKind = null;
+  };
+
+  const openAs = (kind) => {
+    expand.removeAttribute("hidden");
+    cardAction.setAttribute("aria-expanded", String(kind === "action"));
+    cardEnding.setAttribute("aria-expanded", String(kind === "ending"));
+    openKind = kind;
+    (kind === "action" ? onOpenAction : onOpenEnding)?.();
+  };
+
+  const toggle = (kind) => (openKind === kind ? close() : openAs(kind));
+
+  cardAction.addEventListener("click", () => toggle("action"));
+  cardAction.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); toggle("action"); }
+  });
+  cardEnding.addEventListener("click", () => toggle("ending"));
+  cardEnding.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); toggle("ending"); }
+  });
+}
+
+/* renderHomeAcompanhamentoList — lista por PRESCRIÇÃO (nunca deduplicada
+   por doente): cada item já vem pronto do boot.js
+   ({patientId, prescriptionId, patientName, expiresAt, reasons}). Sem
+   query aqui — home-dashboard.js só renderiza. */
+export function renderHomeAcompanhamentoList(items, { kind, onOpen } = {}) {
+  const root = document.getElementById("gcHomeAcompExpand");
+  if (!root) return;
+
+  if (items == null) {
+    root.innerHTML = `<div class="gc-home-empty"><div class="gc-home-empty-icon">${ICON.alert}</div><div><b>Não foi possível carregar a lista</b><p>Tente novamente mais tarde.</p></div></div>`;
+    return;
+  }
+
+  if (!items.length) {
+    root.innerHTML = `<div class="gc-home-empty"><div class="gc-home-empty-icon">${ICON.check}</div><div><b>Nenhum acompanhamento.</b></div></div>`;
+    return;
+  }
+
+  root.innerHTML = `<div class="gc-home-acomp-list">${items.map((it) => {
+    const detail = kind === "ending"
+      ? `Termina em ${escHomeHtml(fmtHomeDateShort(it.expiresAt))}`
+      : escHomeHtml((it.reasons || []).join(" · ") || "—");
+    return `
+    <div class="gc-home-acomp-row">
+      <div class="gc-home-acomp-info">
+        <strong>${escHomeHtml(it.patientName || "Doente")}</strong>
+        <span>${detail}</span>
+      </div>
+      <button type="button" class="gc-home-acomp-open" data-patient-id="${escHomeHtml(it.patientId || "")}" data-prescription-id="${escHomeHtml(it.prescriptionId || "")}">Ver acompanhamento →</button>
+    </div>`;
+  }).join("")}</div>`;
+
+  root.querySelectorAll("[data-prescription-id]").forEach((btn) => {
+    btn.addEventListener("click", () => onOpen?.(
+      btn.getAttribute("data-patient-id") || null,
+      btn.getAttribute("data-prescription-id") || null
+    ));
+  });
+}
+
 const ALERT_SOURCE_LABELS = {
   website:      "Site",
   exercise:     "Exercício",
@@ -293,6 +382,15 @@ function fmtHomeAlertTime(iso) {
   try {
     const d = new Date(iso);
     return d.toLocaleString("pt-PT", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  } catch (_) {
+    return "—";
+  }
+}
+
+function fmtHomeDateShort(iso) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString("pt-PT", { day: "2-digit", month: "2-digit" });
   } catch (_) {
     return "—";
   }
