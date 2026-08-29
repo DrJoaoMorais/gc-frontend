@@ -1188,6 +1188,52 @@ function buildChartXLabels(rows) {
   });
 }
 
+/* computeLabelStep — intervalo de rótulos visíveis num eixo/série com
+   `count` posições, para períodos longos ("Plano completo" com muitas
+   sessões) continuarem legíveis. NUNCA remove pontos/dados — só decide
+   que fração dos rótulos de TEXTO fica visível:
+     count <= 14  → todos (comportamento atual, inalterado)
+     15-21        → ~1 em cada 2
+     22-35        → ~1 em cada 3
+     > 35         → intervalo automático para ~10-12 rótulos visíveis */
+function computeLabelStep(count) {
+  if (count <= 14) return 1;
+  if (count <= 21) return 2;
+  if (count <= 35) return 3;
+  return Math.max(1, Math.round(count / 11));
+}
+
+/* buildVisibleLabelIndices — índices (0-based) cujo rótulo de texto deve
+   aparecer, dado `computeLabelStep`. O primeiro e o último índice ficam
+   SEMPRE visíveis, mesmo que não caiam no intervalo. Reutilizada tanto
+   para as datas do eixo X (count = nº de sessões) como para os valores
+   junto aos pontos de cada série (count = nº de pontos reais dessa
+   série) — os pontos/linhas em si nunca dependem disto, só o texto. */
+function buildVisibleLabelIndices(count) {
+  const step = computeLabelStep(count);
+  const visible = new Set();
+  for (let i = 0; i < count; i += step) visible.add(i);
+  if (count > 0) {
+    visible.add(0);
+    visible.add(count - 1);
+  }
+  return visible;
+}
+
+/* buildChartMinWidth — largura mínima do SVG (o wrapper faz scroll
+   horizontal se o espaço real do cartão for menor). Para n<=14 é EXATAMENTE
+   a fórmula anterior (n*46, mínimo 320) — zero alteração visual nesse
+   caso, incluindo em ecrãs estreitos. Acima de 14 sessões, o espaço por
+   ponto reduz gradualmente (1px a menos por sessão além de 14, nunca
+   abaixo de 16px) e a largura total tem um teto de 1600px, para "Plano
+   completo" com 30-40+ sessões nunca produzir uma página horizontal
+   interminável, mantendo os pontos ainda distinguíveis. */
+function buildChartMinWidth(n) {
+  if (n <= 14) return Math.max(320, n * 46);
+  const spacing = Math.max(16, 46 - (n - 14));
+  return Math.min(1600, Math.max(320, n * spacing));
+}
+
 /* renderChartSvg — gráfico de linha em SVG puro (sem biblioteca), uma ou
    mais séries sobre o MESMO eixo X sequencial (`rows` = tabelaRows).
    viewBox de largura lógica fixa (1000) com preserveAspectRatio="none" +
@@ -1224,25 +1270,30 @@ function renderChartSvg({ rows, series, valueMin, valueMax, height, widthClass }
   }).join("");
 
   const xLabels = buildChartXLabels(rows);
-  const axisHtml = rows.map((row, index) => `<text x="${xFor(index)}" y="${height - 6}" text-anchor="middle" class="gc-exclinic-chart-axis-label">${esc(xLabels[index])}</text>`).join("");
+  const visibleAxisIndices = buildVisibleLabelIndices(n);
+  const axisHtml = rows
+    .map((row, index) => (visibleAxisIndices.has(index) ? `<text x="${xFor(index)}" y="${height - 6}" text-anchor="middle" class="gc-exclinic-chart-axis-label">${esc(xLabels[index])}</text>` : ""))
+    .join("");
 
   const seriesHtml = series.map((s) => {
     const pts = buildChartPoints(rows, s.valueFn);
     if (!pts.length) return "";
     const pathD = pts.map((p, i) => `${i === 0 ? "M" : "L"}${xFor(p.index)},${yFor(p.value)}`).join(" ");
-    const dotsHtml = pts.map((p) => {
+    const visibleValueIndices = buildVisibleLabelIndices(pts.length);
+    const dotsHtml = pts.map((p, i) => {
       const dateLabel = fmtSessionDate(p.row.date) || "Data desconhecida";
       const modality = sessionModalityLabel(p.row.entry);
       const valueLabel = s.formatValue ? s.formatValue(p.value) : String(p.value);
       const tooltip = `${dateLabel} · ${modality} · ${s.label}: ${valueLabel}`;
       const x = xFor(p.index);
       const y = yFor(p.value);
-      return `<circle cx="${x}" cy="${y}" r="4" class="gc-exclinic-chart-dot gc-exclinic-chart-dot-${s.cls}"><title>${esc(tooltip)}</title></circle><text x="${x}" y="${y - (s.labelOffset || 9)}" text-anchor="middle" class="gc-exclinic-chart-point-value gc-exclinic-chart-point-value-${s.cls}">${esc(p.value)}</text>`;
+      const valueTextHtml = visibleValueIndices.has(i) ? `<text x="${x}" y="${y - (s.labelOffset || 9)}" text-anchor="middle" class="gc-exclinic-chart-point-value gc-exclinic-chart-point-value-${s.cls}">${esc(p.value)}</text>` : "";
+      return `<circle cx="${x}" cy="${y}" r="4" class="gc-exclinic-chart-dot gc-exclinic-chart-dot-${s.cls}"><title>${esc(tooltip)}</title></circle>${valueTextHtml}`;
     }).join("");
     return `<path d="${pathD}" class="gc-exclinic-chart-line gc-exclinic-chart-line-${s.cls}" fill="none" />${dotsHtml}`;
   }).join("");
 
-  const minWidth = Math.max(320, n * 46);
+  const minWidth = buildChartMinWidth(n);
 
   return `
     <div class="gc-exclinic-chart-wrap">
