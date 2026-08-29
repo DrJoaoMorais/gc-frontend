@@ -125,6 +125,7 @@ function styles() {
 .gc-exfollow-legend-dot-today{background:#3b82f6}
 .gc-exfollow-legend-dot-warn{background:#94a3b8}
 .gc-exfollow-legend-dot-removed{background:#f87171}
+.gc-exfollow-legend-dot-attention{background:#f59e0b}
 .gc-exfollow-empty{margin-top:10px;border:1px dashed #cbd5e1;border-radius:10px;padding:14px;color:#94a3b8;font-size:12px;text-align:center}
 .gc-exfollow-note-muted{font-size:11.5px;color:#94a3b8;font-style:italic;padding:2px 0}
 .gc-exfollow-signals{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
@@ -146,6 +147,39 @@ function styles() {
 .gc-exfollow-mini-card--orange h3,.gc-exfollow-mini-card--orange .gc-exfollow-mini-link{color:#c2410c}
 .gc-exfollow-mini-card--purple .gc-exfollow-mini-icon{background:#f5f3ff;color:#7c3aed}
 .gc-exfollow-mini-card--purple h3,.gc-exfollow-mini-card--purple .gc-exfollow-mini-link{color:#7c3aed}
+.gc-exfollow-mini-link[data-open-evolucao]{border:0;background:none;padding:0;font-family:inherit;cursor:pointer}
+
+/* Evolução clínica global — vista interna do cartão verde. Mesma
+   linguagem visual do resto do módulo: cartões brancos, densidade alta,
+   linha lateral de cor só quando útil. */
+.gc-exclinic{display:flex;flex-direction:column;gap:12px}
+.gc-exclinic-back{align-self:flex-start;border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:9px;padding:7px 11px;font:650 12px inherit;cursor:pointer}
+.gc-exclinic-head h2{margin:0 0 3px;font-size:17px;color:#0f2d52}
+.gc-exclinic-head p{margin:0;font-size:12px;color:#64748b}
+.gc-exclinic-filter{display:flex;gap:8px}
+.gc-exclinic-filter-btn{border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:8px;padding:6px 12px;font:650 11.5px inherit;cursor:pointer}
+.gc-exclinic-filter-btn.is-active{border-color:#0f2d52;background:#0f2d52;color:#fff}
+.gc-exclinic-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.gc-exclinic-stats-2{grid-template-columns:repeat(2,1fr)}
+.gc-exclinic-stat{background:#fff;border:1px solid #e2e8f0;border-radius:11px;padding:9px 12px}
+.gc-exclinic-stat b{display:block;font-size:9.5px;font-weight:650;color:#64748b;text-transform:uppercase;letter-spacing:.02em;margin-bottom:3px}
+.gc-exclinic-stat strong{display:block;font-size:18px;color:#0f172a;font-weight:750}
+.gc-exclinic-stat-ok{border-left:3px solid #10b981}
+.gc-exclinic-stat-warn{border-left:3px solid #94a3b8}
+.gc-exclinic-stat-attention{border-left:3px solid #f59e0b}
+.gc-exclinic-stat-neutral{border-left:3px solid #3b82f6}
+.gc-exclinic-stat-muted{border-left:3px solid #cbd5e1}
+.gc-exclinic-table-wrap{overflow-x:auto;margin-top:6px}
+.gc-exclinic-table{width:100%;border-collapse:collapse;font-size:12px}
+.gc-exclinic-table th{text-align:left;font-size:9.5px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.02em;padding:6px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap}
+.gc-exclinic-table td{padding:7px 10px;border-bottom:1px solid #f1f5f9;color:#0f172a;white-space:nowrap}
+.gc-exclinic-table tbody tr:last-child td{border-bottom:none}
+.gc-exclinic-status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.gc-exclinic-notes{display:flex;flex-direction:column;gap:8px}
+.gc-exclinic-note{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:9px 11px}
+.gc-exclinic-note-meta{font-size:10px;font-weight:650;color:#64748b;margin-bottom:4px}
+.gc-exclinic-note p{margin:0;font-size:12.5px;color:#0f172a;white-space:pre-wrap;line-height:1.4}
+@media(max-width:800px){.gc-exclinic-stats{grid-template-columns:repeat(2,1fr)}}
 
 /* Linha temporal — lista compacta tipo tabela, uma linha por sessão. */
 .gc-exfollow-timeline{border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;background:#fff;margin-top:10px}
@@ -914,13 +948,243 @@ function renderTimelineBlock(prescription, snapshots, readinessRows, logRows, ex
   return `<div class="gc-exfollow-timeline">${entries.map((e) => renderTimelineItem(e, todayISO, expandedSessionId, replyState, messagesBySessionId)).join("")}</div>`;
 }
 
+/* ==================== Evolução clínica global ==================== */
+
+/* sessionModalityLabel — rótulo do tipo de treino por sessão, a partir
+   EXCLUSIVAMENTE de entry.kind/snapshot.snapshot.kind (campo técnico já
+   real, já usado em todo o ficheiro) e snapshot.snapshot.modality (texto
+   real já usado em renderCardTreinoVisual). "Ginásio"/"Cardio" são
+   rótulos fixos do vocabulário de `kind` (mesma categoria de coisa que
+   TIMELINE_STATUS_META/READINESS_FEELING_LABELS — mapear um código real
+   para uma palavra, nunca inferir por sessão/exercício/data). Sem kind
+   conhecido (nem no array atual, nem no snapshot) → "—". */
+function sessionModalityLabel(entry) {
+  const effectiveKind = entry.kind || entry.snapshot?.snapshot?.kind || null;
+  if (effectiveKind === "list") return "Ginásio";
+  if (effectiveKind === "card") return entry.snapshot?.snapshot?.modality || "Cardio";
+  return "—";
+}
+
+/* addDaysISO — soma/subtrai dias a uma data "yyyy-mm-dd", devolvendo
+   "yyyy-mm-dd". Só usado pelo filtro "Últimos 14 dias". */
+function addDaysISO(isoDate, days) {
+  const d = new Date(`${isoDate}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+/* computeEvolucaoClinica — todas as agregações objetivas da Evolução
+   clínica global, calculadas sobre o MESMO array deduplicado (uma
+   entrada por session_id) que buildTimelineSessions já produz para a
+   Linha temporal — sem query nova, sem reagrupar por data.
+
+   Adesão: denominador = REALIZADA + NAO_REALIZADA + INICIADA_SEM_REGISTO
+   (dentro do período); numerador = REALIZADA. HOJE ainda não realizada,
+   PREVISTA, REMOVIDA_ANTES, REMOVIDA_DEPOIS e INDETERMINADO nunca entram
+   no denominador — uma sessão de hoje ainda por realizar não reduz a
+   adesão antes do dia terminar, e uma sessão removida não conta como
+   exigível. Sem risco de dupla contagem: cada session_id contribui para
+   exatamente um estado, percorrido uma única vez. */
+function computeEvolucaoClinica(prescription, snapshots, readinessRows, logRows, todayISO, filter) {
+  const entries = buildTimelineSessions(prescription, snapshots, readinessRows, logRows);
+  const windowStart = filter === "14d" ? addDaysISO(todayISO, -13) : null;
+
+  const classified = entries.map((entry) => ({
+    entry,
+    status: classifySession(entry, todayISO),
+    date: resolveSessionDate(entry),
+  }));
+
+  const inPeriod = classified.filter(({ date }) => {
+    if (filter !== "14d") return true;
+    if (!date) return false;
+    return date >= windowStart && date <= todayISO;
+  });
+
+  let realizadas = 0;
+  let naoRealizadas = 0;
+  let iniciadasSemRegisto = 0;
+  let alteradosTotal = 0;
+  let naoRealizadosExTotal = 0;
+  const tabelaRows = [];
+  const notas = [];
+
+  inPeriod.forEach(({ entry, status, date }) => {
+    if (status === "REALIZADA") realizadas++;
+    else if (status === "NAO_REALIZADA") naoRealizadas++;
+    else if (status === "INICIADA_SEM_REGISTO") iniciadasSemRegisto++;
+
+    if (entry.log) {
+      const { altered, skipped } = computeSetsCounts(entry.log);
+      alteradosTotal += altered;
+      naoRealizadosExTotal += skipped;
+    }
+
+    if (status === "REALIZADA" || status === "NAO_REALIZADA" || status === "INICIADA_SEM_REGISTO" || status === "HOJE") {
+      tabelaRows.push({ entry, status, date });
+    }
+
+    const symptomNote = String(entry.readiness?.symptom_note || "").trim();
+    if (symptomNote) {
+      notas.push({ entry, date, label: "Sintoma / dor", text: symptomNote, sortKey: entry.readiness?.answered_at || date || "" });
+    }
+    const noteText = String(entry.log?.note || "").trim();
+    if (noteText) {
+      notas.push({ entry, date, label: "Nota após o treino", text: noteText, sortKey: entry.log?.logged_at || date || "" });
+    }
+  });
+
+  const adesaoDenominador = realizadas + naoRealizadas + iniciadasSemRegisto;
+  const adesaoPct = adesaoDenominador > 0 ? Math.round((realizadas / adesaoDenominador) * 100) : null;
+
+  tabelaRows.sort((a, b) => {
+    if (!a.date && !b.date) return 0;
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+  });
+
+  notas.sort((a, b) => new Date(b.sortKey) - new Date(a.sortKey));
+
+  return {
+    totalAnalisadas: inPeriod.length,
+    realizadas,
+    naoRealizadas,
+    iniciadasSemRegisto,
+    adesaoDenominador,
+    adesaoPct,
+    alteradosTotal,
+    naoRealizadosExTotal,
+    tabelaRows,
+    notas,
+  };
+}
+
+function renderEvolucaoStatCard(cls, label, value) {
+  return `<div class="gc-exclinic-stat ${cls}"><b>${esc(label)}</b><strong>${esc(value)}</strong></div>`;
+}
+
+/* renderEvolucaoTableRow — uma linha por sessão exigível (REALIZADA/
+   NAO_REALIZADA/INICIADA_SEM_REGISTO/HOJE). Suporta múltiplas sessões no
+   mesmo dia sem qualquer mistura: cada linha vem de um `entry` já
+   individual (por session_id) devolvido por buildTimelineSessions —
+   nunca se agrupa nem associa por data. */
+function renderEvolucaoTableRow({ entry, status, date }) {
+  const meta = TIMELINE_STATUS_META[status] || TIMELINE_STATUS_META.INDETERMINADO;
+  const dateLabel = fmtSessionDate(date) || "—";
+  const modality = sessionModalityLabel(entry);
+
+  const feelingNum = entry.readiness?.feeling != null ? Number(entry.readiness.feeling) : null;
+  const feelingLabel = Number.isFinite(feelingNum) ? READINESS_FEELING_LABELS[feelingNum] : null;
+  const comoSeSente = feelingLabel ? `${feelingLabel} (${feelingNum}/5)` : "—";
+
+  const sintomas = entry.readiness?.has_symptoms === true ? "Sim" : entry.readiness?.has_symptoms === false ? "Não" : "—";
+  const rpe = entry.log?.rpe != null && entry.log?.rpe !== "" ? `${entry.log.rpe}/10` : "—";
+  const bemEstar = entry.log?.feel != null && entry.log?.feel !== "" ? `${entry.log.feel}/5` : "—";
+
+  return `
+    <tr>
+      <td>${esc(dateLabel)}</td>
+      <td>${esc(modality)}</td>
+      <td><span class="gc-exclinic-status-dot gc-exfollow-legend-dot-${esc(meta.css)}"></span>${esc(meta.label)}</td>
+      <td>${esc(comoSeSente)}</td>
+      <td>${esc(sintomas)}</td>
+      <td>${esc(rpe)}</td>
+      <td>${esc(bemEstar)}</td>
+    </tr>`;
+}
+
+/* renderEvolucaoNote — nota real do doente (symptom_note ou log.note),
+   texto integral, com data + tipo de treino + origem — a coluna "treino"
+   garante que duas notas do mesmo dia (sessões diferentes) nunca se
+   confundem. */
+function renderEvolucaoNote(n) {
+  const dateLabel = fmtSessionDate(n.date) || "—";
+  const modality = sessionModalityLabel(n.entry);
+  return `
+    <div class="gc-exclinic-note">
+      <div class="gc-exclinic-note-meta">${esc(dateLabel)} · ${esc(modality)} · ${esc(n.label)}</div>
+      <p>${esc(n.text)}</p>
+    </div>`;
+}
+
+/* renderEvolucaoClinicaView — vista interna do cartão "Evolução clínica
+   global". Usa exclusivamente prescription/snapshots/readinessRows/
+   logRows já carregados e buildTimelineSessions/classifySession/
+   resolveSessionDate/computeSetsCounts já validados — zero query nova,
+   zero interpretação clínica, zero score. */
+function renderEvolucaoClinicaView(prescription, snapshots, readinessRows, logRows, evolutionFilter) {
+  const todayISO = todayISODate();
+  const data = computeEvolucaoClinica(prescription, snapshots, readinessRows, logRows, todayISO, evolutionFilter);
+
+  const statsHtml = `
+    <div class="gc-exclinic-stats">
+      ${renderEvolucaoStatCard("gc-exclinic-stat-ok", "Realizadas", String(data.realizadas))}
+      ${renderEvolucaoStatCard("gc-exclinic-stat-warn", "Não realizadas", String(data.naoRealizadas))}
+      ${renderEvolucaoStatCard("gc-exclinic-stat-attention", "Iniciadas sem concluir", String(data.iniciadasSemRegisto))}
+      ${renderEvolucaoStatCard("gc-exclinic-stat-neutral", "Adesão", data.adesaoPct == null ? "—" : `${data.adesaoPct}%`)}
+      ${renderEvolucaoStatCard("gc-exclinic-stat-muted", "Sessões analisadas", String(data.totalAnalisadas))}
+    </div>`;
+
+  const exerciciosHtml = `
+    <div class="gc-exclinic-stats gc-exclinic-stats-2">
+      ${renderEvolucaoStatCard("gc-exclinic-stat-attention", "Exercícios alterados", String(data.alteradosTotal))}
+      ${renderEvolucaoStatCard("gc-exclinic-stat-warn", "Exercícios não realizados", String(data.naoRealizadosExTotal))}
+    </div>`;
+
+  const tabelaHtml = data.tabelaRows.length
+    ? `<div class="gc-exclinic-table-wrap"><table class="gc-exclinic-table">
+        <thead><tr><th>Data</th><th>Treino</th><th>Estado</th><th>Como se sente hoje?</th><th>Sintomas</th><th>RPE</th><th>Bem-estar</th></tr></thead>
+        <tbody>${data.tabelaRows.map((row) => renderEvolucaoTableRow(row)).join("")}</tbody>
+      </table></div>`
+    : `<div class="gc-exfollow-empty">Não existem sessões com dados neste período.</div>`;
+
+  const notasHtml = data.notas.length
+    ? `<div class="gc-exclinic-notes">${data.notas.map((n) => renderEvolucaoNote(n)).join("")}</div>`
+    : `<div class="gc-exfollow-note-muted">Sem notas do doente neste período.</div>`;
+
+  return `
+    <div class="gc-exclinic">
+      <button type="button" class="gc-exclinic-back" data-close-evolucao>← Voltar à Linha Temporal</button>
+
+      <div class="gc-exclinic-head">
+        <h2>Evolução clínica global</h2>
+        <p>Sinais objetivos ao longo do plano — sem interpretação clínica.</p>
+      </div>
+
+      <div class="gc-exclinic-filter">
+        <button type="button" class="gc-exclinic-filter-btn${evolutionFilter === "14d" ? " is-active" : ""}" data-evolution-filter="14d">Últimos 14 dias</button>
+        <button type="button" class="gc-exclinic-filter-btn${evolutionFilter === "completo" ? " is-active" : ""}" data-evolution-filter="completo">Plano completo</button>
+      </div>
+
+      ${statsHtml}
+
+      <div class="gc-exfollow-section">
+        <h2>Exercícios</h2>
+        ${exerciciosHtml}
+      </div>
+
+      <div class="gc-exfollow-section">
+        <h2>Evolução por sessão</h2>
+        ${tabelaHtml}
+      </div>
+
+      <div class="gc-exfollow-section">
+        <h2>Notas do doente</h2>
+        ${notasHtml}
+      </div>
+    </div>`;
+}
+
 /* renderShell — topo compacto (voltar + rótulo, depois nome/plano, depois
    os 3 cartões pequenos), Bloco 1 ("Porque precisa da minha atenção
    agora?") mantém a posição atual. "Evolução clínica global" / "Evolução
    por exercício" / "Decisão / Ação médica" em 3 cartões de ação com
    identidade de cor própria (verde/laranja/roxo), antes da linha
    temporal, que passou a ter legenda de estados no cabeçalho da secção. */
-function renderShell(root, patient, prescription, readiness, log, snapshots, readinessRows, logRows, expandedSessionId, replyState, messagesBySessionId) {
+function renderShell(root, patient, prescription, readiness, log, snapshots, readinessRows, logRows, expandedSessionId, replyState, messagesBySessionId, activeView, evolutionFilter) {
   const remaining = daysUntil(prescription?.expires_at);
   const endLabel = remaining === null
     ? "—"
@@ -930,25 +1194,9 @@ function renderShell(root, patient, prescription, readiness, log, snapshots, rea
         ? "Termina hoje"
         : `Termina em ${remaining} dia${remaining === 1 ? "" : "s"}`;
 
-  root.innerHTML = `
-    <style>${styles()}</style>
-    <section class="gc-exfollow">
-      <div class="gc-exfollow-topbar">
-        <button type="button" class="gc-exfollow-back" id="gcExFollowBack">← Voltar ao Início</button>
-        <span class="gc-exfollow-topbar-label">Acompanhamento de exercício</span>
-      </div>
-
-      <div class="gc-exfollow-titlecard">
-        <h1 class="gc-exfollow-title">${esc(patient?.full_name || "Doente")}</h1>
-        <p class="gc-exfollow-sub">Plano ${fmtDate(prescription?.created_at)} → ${fmtDate(prescription?.expires_at)}</p>
-      </div>
-
-      <div class="gc-exfollow-grid">
-        <div class="gc-exfollow-card"><b>Estado do plano</b><strong>${esc(prescription?.status || "—")}</strong></div>
-        <div class="gc-exfollow-card"><b>Fim do plano</b><strong>${esc(endLabel)}</strong></div>
-        <div class="gc-exfollow-card"><b>Primeira abertura</b><strong>${fmtDate(prescription?.first_opened_at)}</strong></div>
-      </div>
-
+  const mainContentHtml = activeView === "evolucao-clinica"
+    ? renderEvolucaoClinicaView(prescription, snapshots, readinessRows, logRows, evolutionFilter)
+    : `
       <div class="gc-exfollow-section">
         <h2>Porque precisa da minha atenção agora?</h2>
         <p>Sinais objetivos do registo mais recente — sem interpretação clínica.</p>
@@ -960,7 +1208,7 @@ function renderShell(root, patient, prescription, readiness, log, snapshots, rea
           <div class="gc-exfollow-mini-icon" aria-hidden="true">↗</div>
           <h3>Evolução clínica global</h3>
           <p>Sintomas, RPE, sensação pós-treino, adesão e alterações.</p>
-          <span class="gc-exfollow-mini-link">Ver evolução →</span>
+          <button type="button" class="gc-exfollow-mini-link" data-open-evolucao>Ver evolução →</button>
         </div>
         <div class="gc-exfollow-mini-card gc-exfollow-mini-card--orange">
           <div class="gc-exfollow-mini-icon" aria-hidden="true">▦</div>
@@ -990,7 +1238,28 @@ function renderShell(root, patient, prescription, readiness, log, snapshots, rea
           </div>
         </div>
         ${renderTimelineBlock(prescription, snapshots, readinessRows, logRows, expandedSessionId, replyState, messagesBySessionId)}
+      </div>`;
+
+  root.innerHTML = `
+    <style>${styles()}</style>
+    <section class="gc-exfollow">
+      <div class="gc-exfollow-topbar">
+        <button type="button" class="gc-exfollow-back" id="gcExFollowBack">← Voltar ao Início</button>
+        <span class="gc-exfollow-topbar-label">Acompanhamento de exercício</span>
       </div>
+
+      <div class="gc-exfollow-titlecard">
+        <h1 class="gc-exfollow-title">${esc(patient?.full_name || "Doente")}</h1>
+        <p class="gc-exfollow-sub">Plano ${fmtDate(prescription?.created_at)} → ${fmtDate(prescription?.expires_at)}</p>
+      </div>
+
+      <div class="gc-exfollow-grid">
+        <div class="gc-exfollow-card"><b>Estado do plano</b><strong>${esc(prescription?.status || "—")}</strong></div>
+        <div class="gc-exfollow-card"><b>Fim do plano</b><strong>${esc(endLabel)}</strong></div>
+        <div class="gc-exfollow-card"><b>Primeira abertura</b><strong>${fmtDate(prescription?.first_opened_at)}</strong></div>
+      </div>
+
+      ${mainContentHtml}
     </section>`;
 }
 
@@ -1046,6 +1315,13 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
      painel de "Ver treino" expandido. Nunca mais do que um. Sem query nova
      ao expandir/fechar — repinta com os mesmos arrays já carregados acima. */
   let expandedSessionId = null;
+
+  /* Estado local (não G) da Evolução clínica global: qual vista está
+     ativa ("timeline" ou "evolucao-clinica") e o filtro temporal
+     selecionado. Sem query nova ao mudar — repinta com os mesmos arrays
+     já carregados acima. */
+  let activeView = "timeline";
+  let evolutionFilter = "14d";
 
   /* Estado local (não G) do "Responder ao doente". replyState.sessionId
      identifica a QUE sessão pertence o texto em curso — nunca se escolhe
@@ -1118,10 +1394,34 @@ export async function initAcompanhamentoExercicio({ patientId, prescriptionId, o
   }
 
   function paint() {
-    renderShell(root, patientRes.data, prescriptionRes.data, latestReadiness, latestLog, snapshots, readinessRows, logRows, expandedSessionId, replyState, messagesBySessionId);
+    renderShell(root, patientRes.data, prescriptionRes.data, latestReadiness, latestLog, snapshots, readinessRows, logRows, expandedSessionId, replyState, messagesBySessionId, activeView, evolutionFilter);
 
     document.getElementById("gcExFollowBack")?.addEventListener("click", () => {
       if (typeof onBack === "function") onBack();
+    });
+
+    root.querySelectorAll("[data-open-evolucao]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeView = "evolucao-clinica";
+        paint();
+      });
+    });
+
+    root.querySelectorAll("[data-close-evolucao]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeView = "timeline";
+        expandedSessionId = null;
+        resetReplyState();
+        paint();
+      });
+    });
+
+    root.querySelectorAll("[data-evolution-filter]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const val = btn.getAttribute("data-evolution-filter");
+        if (val) evolutionFilter = val;
+        paint();
+      });
     });
 
     root.querySelectorAll("[data-toggle-session]").forEach((btn) => {
