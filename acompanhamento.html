@@ -89,7 +89,7 @@
         document.getElementById('app').style.display='block';
       }catch(_){ document.getElementById('loading').hidden=true; document.getElementById('ended').hidden=false; }
     }
-    document.getElementById('activateDevice').onclick=async e=>{e.currentTarget.disabled=true;const secret=newDeviceSecret(),result=await authorizeDevice(secret);if(result?.authorized){saveDeviceSecret(secret);showGate('loading');await initHome(result.patient_name);return}e.currentTarget.disabled=false;showGate(result?.reason==='outro_dispositivo'?'blocked':'ended')};
+    document.getElementById('activateDevice').onclick=async e=>{const button=e.currentTarget;button.disabled=true;const secret=newDeviceSecret(),result=await authorizeDevice(secret);if(result?.authorized){saveDeviceSecret(secret);showGate('loading');await initHome(result.patient_name);return}button.disabled=false;showGate(result?.reason==='outro_dispositivo'?'blocked':'ended')};
     (async function init(){if(!token){showGate('ended');return}const secret=decodeURIComponent(getDeviceSecret());if(!secret){showGate('activation');return}const result=await authorizeDevice(secret);if(result?.authorized){await initHome(result.patient_name);return}showGate(result?.reason==='outro_dispositivo'?'blocked':'activation')})();
   </script>
 </body>
