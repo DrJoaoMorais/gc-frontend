@@ -3629,7 +3629,12 @@
     document.getElementById('fd-btn-ter')?.addEventListener('click', fdAbrirComposerTerapeuta);
     document.getElementById('fd-btn-ter-wide')?.addEventListener('click', fdAbrirComposerTerapeuta);
 
-    boot();
+    boot().then(() => {
+      if (params.get('openPanel') === 'questionarios') {
+        document.getElementById('fdBtnIntake')?.click();
+        history.replaceState(null, '', `${location.pathname}?${new URLSearchParams({ patientId: PATIENT_ID, sessionClinicId: SESSION_CLINIC_ID || '' })}`);
+      }
+    });
   </script>
 
 </div>
