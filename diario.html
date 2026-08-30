@@ -177,8 +177,9 @@
 <div class="gate" id="gate-loading"><p>A abrir…</p></div>
 
 <div class="gate" id="gate-invalido" style="display:none;">
-  <h2>Este link já não é válido</h2>
-  <p>Pode ter expirado ou já ter sido substituído por um novo. Contacta a clínica para receberes um link actualizado.</p>
+  <h2>O seu acompanhamento terminou</h2>
+  <p>Para analisar os registos e decidir os próximos passos, agende uma consulta de Reabilitação Metabólica.</p>
+  <a href="https://www.joaomorais.pt" style="display:inline-flex;margin-top:10px;padding:12px 18px;border-radius:12px;background:var(--blue);color:#fff;text-decoration:none;font-weight:600;">Agendar consulta</a>
   <p id="debug-info" style="font-size:10px;color:#c00;margin-top:10px;word-break:break-all;"></p>
 </div>
 
@@ -672,7 +673,7 @@
   async function init(){
     if(!token){ document.getElementById('gate-loading').style.display='none'; document.getElementById('gate-invalido').style.display='flex'; return; }
     try{
-      const { data, error } = await window.sb.rpc('get_diary_context', { p_token: token });
+      const { data, error } = await window.sb.rpc('get_diary_episode', { p_token: token });
       const row = data && data[0];
       if(error || !row || !row.valid){
         document.getElementById('gate-loading').style.display='none';
@@ -681,15 +682,17 @@
         return;
       }
       document.getElementById('saudacao-nome').textContent = row.first_name || '';
-      const diasRestantes = Math.max(0, Math.ceil((new Date(row.expires_at) - new Date()) / 86400000));
-      const diaAtual = Math.min(15, Math.max(1, 15 - diasRestantes + 1));
+      const duracaoDias = Math.max(1, Number(row.duration_days) || 15);
+      const inicio = new Date(row.started_at);
+      const diaAtual = Math.min(duracaoDias, Math.max(1, Math.floor((new Date() - inicio) / 86400000) + 1));
       const dotsEl = document.getElementById('dots');
-      for(let i=1;i<=15;i++){
+      dotsEl.innerHTML = '';
+      for(let i=1;i<=duracaoDias;i++){
         const d = document.createElement('div');
         d.className = 'dot' + (i < diaAtual ? ' done' : i === diaAtual ? ' today' : '');
         dotsEl.appendChild(d);
       }
-      document.getElementById('dia-sub').textContent = `Dia ${diaAtual} de 15`;
+      document.getElementById('dia-sub').textContent = `Dia ${diaAtual} de ${duracaoDias}`;
 
       const { data: recentes } = await window.sb.rpc('get_diary_recent', { p_token: token });
       const entradas = recentes || [];

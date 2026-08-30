@@ -28,7 +28,7 @@ export function homeDashboardHtml() {
         <!-- "Assuntos a tratar" fica reservado para futura integração na Gestão da Agenda. -->
         <div id="gcHomeAcompUnificadoCard" class="gc-home-clickable-card" role="button" tabindex="0">
           <b>Acompanhamento ativo</b><strong id="gcHomeAcompUnificadoTotal">—</strong>
-          <small id="gcHomeAcompUnificadoResumo">Questionários — · Planos —</small>
+          <small id="gcHomeAcompUnificadoResumo">Diários — · Questionários — · Planos —</small>
           <small class="gc-home-card-hint">Ver doentes →</small>
         </div>
       </div>
@@ -125,7 +125,7 @@ export function homeDashboardStyles() {
 .gc-home-questionario-info span{font-size:11.5px;color:#94a3b8}
 .gc-home-acomp-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
 .gc-home-acomp-tag{display:inline-flex;align-items:center;border-radius:999px;padding:3px 7px;background:#f1f5f9;color:#475569!important;font-size:10.5px!important}
-.gc-home-acomp-tag.questionario{background:#fff7ed;color:#9a3412!important}.gc-home-acomp-tag.exercicio{background:#eff6ff;color:#1d4ed8!important}.gc-home-acomp-tag.acao{background:#fef2f2;color:#b91c1c!important}.gc-home-acomp-tag.analisar{background:#ecfdf5;color:#047857!important}
+.gc-home-acomp-tag.diario{background:#eef2ff;color:#4338ca!important}.gc-home-acomp-tag.questionario{background:#fff7ed;color:#9a3412!important}.gc-home-acomp-tag.exercicio{background:#eff6ff;color:#1d4ed8!important}.gc-home-acomp-tag.acao{background:#fef2f2;color:#b91c1c!important}.gc-home-acomp-tag.analisar{background:#ecfdf5;color:#047857!important}
 .gc-home-questionario-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;flex-shrink:0}.gc-home-questionario-actions button{font:650 11px inherit;border-radius:7px;padding:6px 9px;cursor:pointer;white-space:nowrap}
 .gc-home-questionario-open{border:1px solid #cbd5e1;background:#fff;color:#0f2d52}.gc-home-questionario-resolve{border:1px solid #a7f3d0;background:#ecfdf5;color:#065f46}.gc-home-acomp-stop{border:1px solid #fecaca;background:#fff;color:#b91c1c}
 .gc-home-questionario-pages{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 16px;background:#fff;border-top:1px solid #e2e8f0;color:#64748b;font-size:11.5px}
@@ -313,8 +313,8 @@ export function setHomeAcompanhamentoUnificadoStats(stats) {
   const resumo = document.getElementById("gcHomeAcompUnificadoResumo");
   if (total) total.textContent = stats?.total == null ? "—" : String(stats.total);
   if (resumo) resumo.textContent = stats == null
-    ? "Questionários — · Planos —"
-    : `Questionários ${stats.questionarios ?? 0} · Planos ${stats.planos ?? 0}`;
+    ? "Diários — · Questionários — · Planos —"
+    : `Diários ${stats.diarios ?? 0} · Questionários ${stats.questionarios ?? 0} · Planos ${stats.planos ?? 0}`;
 }
 
 export function wireHomeAcompanhamentoUnificado(onOpen) {
@@ -327,13 +327,13 @@ export function wireHomeAcompanhamentoUnificado(onOpen) {
   });
 }
 
-export function renderHomeAcompanhamentoUnificado(items, { onOpenQuestionnaire, onResolveQuestionnaire, onOpenExercise, onStopFollowup } = {}) {
+export function renderHomeAcompanhamentoUnificado(items, { onOpenQuestionnaire, onResolveQuestionnaire, onOpenDiary, onOpenExercise, onStopFollowup } = {}) {
   document.getElementById("gcHomeQuestionarioDrawer")?.remove();
   const bg = document.createElement("div");
   bg.id = "gcHomeQuestionarioDrawer";
   bg.className = "gc-home-questionario-drawer-bg";
   bg.innerHTML = `<aside class="gc-home-questionario-drawer" role="dialog" aria-modal="true" aria-label="Acompanhamento ativo">
-    <div class="gc-home-questionario-drawer-head"><div><h2>Acompanhamento ativo</h2><p>Doentes com questionário relevante, plano de treino ativo, ou ambos.</p></div><button type="button" class="gc-home-questionario-close" aria-label="Fechar">×</button></div>
+    <div class="gc-home-questionario-drawer-head"><div><h2>Acompanhamento ativo</h2><p>Doentes com Diário, questionário ou plano de exercício ativo.</p></div><button type="button" class="gc-home-questionario-close" aria-label="Fechar">×</button></div>
     <input class="gc-home-questionario-search" type="search" placeholder="Pesquisar doente…" autocomplete="off">
     <div class="gc-home-questionario-list"></div><div class="gc-home-questionario-pages"></div>
   </aside>`;
@@ -358,11 +358,13 @@ export function renderHomeAcompanhamentoUnificado(items, { onOpenQuestionnaire, 
     root.innerHTML = visible.length ? visible.map((item) => {
       const q = item.questionnaire;
       const qLabel = q?.kind === "review" ? "Questionário: por analisar" : q?.status === "in_progress" ? "Questionário: em preenchimento" : q ? "Questionário: enviado" : "";
+      const diaryTag = item.diary ? `<span class="gc-home-acomp-tag diario">${item.diary.durationDays === 7 ? "Diário experimental" : "Diário ativo"}: dia ${item.diary.day} de ${item.diary.durationDays}</span>` : "";
       const exerciseTags = item.exercise?.active
         ? [`<span class="gc-home-acomp-tag exercicio">Exercício: plano ativo</span>`, item.exercise.needsAction ? `<span class="gc-home-acomp-tag acao">Precisa de ação</span>` : "", item.exercise.ending ? `<span class="gc-home-acomp-tag">A terminar</span>` : ""].join("") : "";
       return `<div class="gc-home-questionario-row ${q?.kind === "review" || item.exercise?.needsAction ? "prioritario" : ""}">
-        <div class="gc-home-questionario-info"><strong>${escHomeHtml(item.patientName || "Doente")}</strong><div class="gc-home-acomp-tags">${qLabel ? `<span class="gc-home-acomp-tag ${q?.kind === "review" ? "analisar" : "questionario"}">${qLabel}</span>` : ""}${exerciseTags}</div></div>
+        <div class="gc-home-questionario-info"><strong>${escHomeHtml(item.patientName || "Doente")}</strong><div class="gc-home-acomp-tags">${diaryTag}${qLabel ? `<span class="gc-home-acomp-tag ${q?.kind === "review" ? "analisar" : "questionario"}">${qLabel}</span>` : ""}${exerciseTags}</div></div>
         <div class="gc-home-questionario-actions">
+          ${item.diary ? `<button type="button" class="gc-home-questionario-open" data-diary-open="${escHomeHtml(item.patientId)}">Ver Diário</button>` : ""}
           ${q ? `<button type="button" class="gc-home-questionario-open" data-q-open="${escHomeHtml(item.patientId)}">Ver questionário</button>` : ""}
           ${q?.kind === "review" ? `<button type="button" class="gc-home-questionario-resolve" data-q-resolve="${escHomeHtml(item.patientId)}">Marcar analisado</button>` : ""}
           ${item.exercise?.active ? `<button type="button" class="gc-home-questionario-open" data-exercise-open="${escHomeHtml(item.patientId)}">Ver exercício</button>` : ""}
@@ -371,6 +373,7 @@ export function renderHomeAcompanhamentoUnificado(items, { onOpenQuestionnaire, 
       </div>`;
     }).join("") : `<div class="gc-home-empty"><div class="gc-home-empty-icon">${ICON.check}</div><div><b>Sem doentes em acompanhamento ativo</b></div></div>`;
     pages.innerHTML = `<button type="button" data-page="prev" ${page === 0 ? "disabled" : ""}>Anterior</button><span>${filtered.length} doente${filtered.length === 1 ? "" : "s"} · Página ${page + 1} de ${totalPages}</span><button type="button" data-page="next" ${page >= totalPages - 1 ? "disabled" : ""}>Seguinte</button>`;
+    root.querySelectorAll("[data-diary-open]").forEach((btn) => btn.addEventListener("click", () => onOpenDiary?.(items.find((item) => String(item.patientId) === btn.getAttribute("data-diary-open"))?.diary?.token || null)));
     root.querySelectorAll("[data-q-open]").forEach((btn) => btn.addEventListener("click", () => onOpenQuestionnaire?.(items.find((item) => String(item.patientId) === btn.getAttribute("data-q-open"))?.questionnaire || null)));
     root.querySelectorAll("[data-q-resolve]").forEach((btn) => btn.addEventListener("click", () => onResolveQuestionnaire?.(items.find((item) => String(item.patientId) === btn.getAttribute("data-q-resolve"))?.questionnaire || null)));
     root.querySelectorAll("[data-exercise-open]").forEach((btn) => btn.addEventListener("click", () => {

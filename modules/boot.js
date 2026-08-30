@@ -270,6 +270,7 @@ async function renderCurrentView() {
     wireHomeAcompanhamentoUnificado(() => renderHomeAcompanhamentoUnificado(homeAcompItems, {
       onOpenQuestionnaire: openHomeQuestionario,
       onResolveQuestionnaire: resolveHomeQuestionario,
+      onOpenDiary: openHomeDiary,
       onOpenExercise: openHomeExerciseFollowup,
       onStopFollowup: stopHomeFollowup,
     }));
@@ -572,6 +573,7 @@ async function resolveHomeQuestionario(row) {
     renderHomeAcompanhamentoUnificado(homeAcompItems, {
       onOpenQuestionnaire: openHomeQuestionario,
       onResolveQuestionnaire: resolveHomeQuestionario,
+      onOpenDiary: openHomeDiary,
       onOpenExercise: openHomeExerciseFollowup,
       onStopFollowup: stopHomeFollowup,
     });
@@ -590,7 +592,7 @@ async function loadHomeAcompanhamentoAtivo() {
     : (G.clinics || []).map((clinic) => clinic.id).filter(Boolean);
 
   if (!clinicIds.length) {
-    setHomeAcompanhamentoUnificadoStats({ total: 0, questionarios: 0, planos: 0 });
+    setHomeAcompanhamentoUnificadoStats({ total: 0, diarios: 0, questionarios: 0, planos: 0 });
     homeAcompItems = [];
     return;
   }
@@ -604,7 +606,7 @@ async function loadHomeAcompanhamentoAtivo() {
       .in("clinic_id", clinicIds)
       .order("created_at", { ascending: true })
       .limit(500);
-    const [prescriptionsResult, sentResult, progressResult, reviewResult] = await Promise.all([
+    const [prescriptionsResult, sentResult, progressResult, reviewResult, diaryResult] = await Promise.all([
       window.sb
       .from("wo_prescriptions")
       .select("id, patient_id, clinic_id, expires_at")
@@ -615,8 +617,15 @@ async function loadHomeAcompanhamentoAtivo() {
       homeQuestionarioQuery("pending_rgpd").in("clinic_id", clinicIds).order("created_at", { ascending: true }).limit(500),
       homeQuestionarioQuery("in_progress").in("clinic_id", clinicIds).order("created_at", { ascending: true }).limit(500),
       reviewQuery,
+      window.sb.from("patient_diary_tokens")
+        .select("id, token, patient_id, clinic_id, created_at, expires_at, duration_days, med_nome")
+        .eq("status", "active")
+        .gt("expires_at", agora.toISOString())
+        .in("clinic_id", clinicIds)
+        .order("created_at", { ascending: false })
+        .limit(500),
     ]);
-    [prescriptionsResult, sentResult, progressResult, reviewResult].forEach((result) => { if (result.error) throw result.error; });
+    [prescriptionsResult, sentResult, progressResult, reviewResult, diaryResult].forEach((result) => { if (result.error) throw result.error; });
 
     const rows = prescriptionsResult.data || [];
     const prescriptionIds = rows.map((row) => row.id);
@@ -683,7 +692,7 @@ async function loadHomeAcompanhamentoAtivo() {
     const byPatient = new Map();
     const ensure = (patientId, name = null) => {
       if (!patientId) return null;
-      if (!byPatient.has(patientId)) byPatient.set(patientId, { patientId, patientName: name, questionnaire: null, exercise: null });
+      if (!byPatient.has(patientId)) byPatient.set(patientId, { patientId, patientName: name, diary: null, questionnaire: null, exercise: null });
       const item = byPatient.get(patientId);
       if (!item.patientName && name) item.patientName = name;
       return item;
@@ -715,6 +724,13 @@ async function loadHomeAcompanhamentoAtivo() {
     (sentResult.data || []).forEach((row) => applyQuestionnaire(row, 1));
     (progressResult.data || []).forEach((row) => applyQuestionnaire(row, 2));
     (reviewResult.data || []).forEach((row) => applyQuestionnaire({ ...row, kind: "review" }, 3));
+    (diaryResult.data || []).forEach((row) => {
+      const item = ensure(row.patient_id);
+      if (!item || item.diary) return;
+      const durationDays = Math.max(1, Number(row.duration_days) || 15);
+      const day = Math.min(durationDays, Math.max(1, Math.floor((agora - new Date(row.created_at)) / 86400000) + 1));
+      item.diary = { ...row, durationDays, day };
+    });
 
     const patientIds = Array.from(byPatient.keys());
     if (patientIds.length) {
@@ -727,11 +743,12 @@ async function loadHomeAcompanhamentoAtivo() {
       ...item,
       canStopFollowup: item.questionnaire?.kind !== "review" && !item.exercise?.hasActivity,
     })).sort((a, b) => {
-      const priority = (item) => item.questionnaire?.kind === "review" ? 0 : item.exercise?.needsAction ? 1 : item.questionnaire ? 2 : item.exercise?.ending ? 3 : 4;
+      const priority = (item) => item.questionnaire?.kind === "review" ? 0 : item.exercise?.needsAction ? 1 : item.questionnaire ? 2 : item.exercise?.ending ? 3 : item.diary ? 4 : 5;
       return priority(a) - priority(b) || String(a.patientName || "").localeCompare(String(b.patientName || ""), "pt");
     });
     setHomeAcompanhamentoUnificadoStats({
       total: homeAcompItems.length,
+      diarios: homeAcompItems.filter((item) => item.diary).length,
       questionarios: homeAcompItems.filter((item) => item.questionnaire).length,
       planos: homeAcompItems.filter((item) => item.exercise?.active).length,
     });
@@ -746,7 +763,7 @@ async function stopHomeFollowup(item) {
   if (!item?.patientId || !item.canStopFollowup) return;
   const name = item.patientName || "este doente";
   const confirmed = window.confirm(
-    `Retirar ${name} do acompanhamento ativo?\n\nO questionário deixa de aceitar respostas e o plano deixa de funcionar. O doente e todo o histórico ficam guardados.`
+    `Retirar ${name} do acompanhamento ativo?\n\nO Diário, o questionário e o plano deixam de funcionar. O doente e todo o histórico ficam guardados.`
   );
   if (!confirmed) return;
 
@@ -755,6 +772,9 @@ async function stopHomeFollowup(item) {
     : (G.clinics || []).map((clinic) => clinic.id).filter(Boolean);
   try {
     const operations = [];
+    if (item.diary) {
+      operations.push(window.sb.rpc("end_diary_episode", { p_patient_id: item.patientId, p_clinic_id: item.diary.clinic_id }));
+    }
     if (item.questionnaire && clinicIds.length) {
       operations.push(window.sb.from("intake_tokens")
         .update({ status: "expired" })
@@ -778,6 +798,7 @@ async function stopHomeFollowup(item) {
     renderHomeAcompanhamentoUnificado(homeAcompItems, {
       onOpenQuestionnaire: openHomeQuestionario,
       onResolveQuestionnaire: resolveHomeQuestionario,
+      onOpenDiary: openHomeDiary,
       onOpenExercise: openHomeExerciseFollowup,
       onStopFollowup: stopHomeFollowup,
     });
@@ -785,6 +806,11 @@ async function stopHomeFollowup(item) {
     console.warn("Home: falha ao retirar doente do acompanhamento:", error);
     window.alert("Não foi possível retirar o doente do acompanhamento. Atualize a página e tente novamente.");
   }
+}
+
+function openHomeDiary(token) {
+  if (!token) return;
+  window.open(`https://gc.joaomorais.pt/diario?t=${encodeURIComponent(token)}`, "_blank", "noopener");
 }
 
 /* openHomeExerciseFollowup — clique numa linha da lista de acompanhamento
