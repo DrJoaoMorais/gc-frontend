@@ -47,7 +47,7 @@ import { initGestaoAgenda }               from "./gestaoagenda.js";
 // Import dinâmico e versionado (não estático): evita que o browser/CDN sirva
 // uma cópia antiga de prescricao.js depois de um deploy — mesmo problema que
 // já resolvemos para o CSS, aqui aplicado ao próprio módulo JS.
-const PRESCRICAO_JS_VERSION = '2026-08-25-3';
+const PRESCRICAO_JS_VERSION = '2026-08-30-1';
 
 /* Estado próprio do Home (scope de clínica) — independente de G.activeClinicId.
    Só é seedado a partir de G.activeClinicId uma vez, na primeira vez que a
@@ -326,7 +326,9 @@ async function renderCurrentView() {
   /* Vista Prescrição de Exercício */
   if (view === "exercicio") {
     const { initPrescricao } = await import(`./exercicio/prescricao/prescricao.js?v=${PRESCRICAO_JS_VERSION}`);
-    await initPrescricao();
+    const launch = G._exerciseLaunch || null;
+    G._exerciseLaunch = null;
+    await initPrescricao(launch || {});
     return;
   }
 
@@ -929,3 +931,17 @@ async function resolveHomeAlert(alertId) {
 
 /* Expor renderCurrentView globalmente para shell.js */
 window.__gc_renderCurrentView = renderCurrentView;
+
+window.addEventListener("message", (event) => {
+  if (event.origin !== window.location.origin) return;
+  if (event.data?.type !== "gc_open_exercise_prescription") return;
+  const patientId = event.data.patientId || null;
+  if (!patientId) return;
+  G._exerciseLaunch = {
+    patientId,
+    clinicId: event.data.clinicId || null,
+    mode: event.data.mode || null,
+  };
+  G.currentView = "exercicio";
+  renderCurrentView();
+});

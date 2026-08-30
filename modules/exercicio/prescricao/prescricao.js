@@ -639,7 +639,7 @@ async function carregarPlanoActivoSeExistir() {
 }
 
 /* ── Entry point ─────────────────────────────────────────── */
-export async function initPrescricao() {
+export async function initPrescricao(options = {}) {
   const root = document.getElementById('gcwoPrescricaoRoot');
   if (!root) return;
 
@@ -664,7 +664,30 @@ export async function initPrescricao() {
   loadExercisesCatalog(); // não bloqueia o primeiro render
   wireAvisoSairSemGravar();
 
-  renderLanding();
+  const patientId = options.patientId || null;
+  const clinicId = options.clinicId || null;
+  if (!patientId) {
+    renderLanding();
+    return;
+  }
+
+  _state.clinicId = clinicId || _state.clinicId;
+  const { data: patient, error } = await window.sb
+    .from('patients')
+    .select('id,full_name,dob,phone,hr_zone_formula,hr_zones_bpm')
+    .eq('id', patientId)
+    .maybeSingle();
+  if (error || !patient) {
+    console.error('[prescricao] falha a abrir doente pré-seleccionado:', error);
+    renderStep1();
+    return;
+  }
+  _state.patient = patient;
+  _loadingPlanoActivo = true;
+  await Promise.all([carregarPlanoActivoSeExistir(), carregarZonaPerfis()]);
+  _loadingPlanoActivo = false;
+  if (options.mode === 'pathology') abrirPatologia();
+  else renderStep2();
 }
 
 // Sessões adicionadas ao calendário só existem em memória (_state.sessions) até se
@@ -5089,6 +5112,11 @@ function avancarParaPrescricaoPatologia() {
   });
   _patologiaPendente = { protocoloNome: protocolo?.name || '', faseNome: fase?.name || '', grupos: gruposArr };
   _patologia = null;
+  if (_state.patient) {
+    aplicarPatologiaPendenteAoEstado();
+    renderStep2();
+    return;
+  }
   renderStep1();
 }
 
