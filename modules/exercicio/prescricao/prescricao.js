@@ -688,6 +688,8 @@ export async function initPrescricao(options = {}) {
   await Promise.all([carregarPlanoActivoSeExistir(), carregarZonaPerfis()]);
   _loadingPlanoActivo = false;
   if (options.mode === 'pathology') abrirPatologia();
+  else if (options.mode === 'previous') { renderStep2(); openHistoryModal(); }
+  else if (options.mode === 'catalog') initCatalogo({ onVoltar: voltarDaCatalogo });
   else renderStep2();
 }
 
@@ -1651,7 +1653,7 @@ function renderStep2() {
   root.innerHTML = `
     <div class="gcwo-step2-shell">
     <div class="gc-page-header gcwo-patient-header">
-      <div class="gcwo-patient-main"><div class="gc-page-eyebrow">Prescrição de exercício</div><div class="gcwo-patient-name-row"><div class="gc-page-title">${escHtml(p.full_name)}</div><span class="gcwo-patient-age">${idade != null ? `${idade} anos` : 'Idade não indicada'}</span><button type="button" class="gcwo-linkbtn" id="gcwoVerHistorico">Planos anteriores</button>${renderPatientBanner()}</div></div>
+      <div class="gcwo-patient-main">${_returnToAcompanhamento ? '<button type="button" class="gcwo-backlink" id="gcwoStep2BackToAcompanhamento">← Acompanhamento</button>' : ''}<div class="gc-page-eyebrow">Prescrição de exercício</div><div class="gcwo-patient-name-row"><div class="gc-page-title">${escHtml(p.full_name)}</div><span class="gcwo-patient-age">${idade != null ? `${idade} anos` : 'Idade não indicada'}</span><button type="button" class="gcwo-linkbtn" id="gcwoVerHistorico">Planos anteriores</button>${renderPatientBanner()}</div></div>
       ${topActionsHtml(`
         <button type="button" class="gcBtnGhost" id="gcwoTrocarDoente">Escolher doente</button>
       `, false, false)}
@@ -1668,9 +1670,14 @@ function renderStep2() {
   wireTopActions();
   wirePatientBanner();
   wirePatientMainTabs();
+  document.getElementById('gcwoStep2BackToAcompanhamento')?.addEventListener('click', () => {
+    if (haSessoesPorGravar() && !window.confirm('Há sessões no calendário que ainda não foram gravadas — se saíres agora, perdem-se.\n\nSair mesmo assim?')) return;
+    window.__gc_openAcompanhamentoPanel(_returnToAcompanhamento.patientId, _returnToAcompanhamento.clinicId);
+  });
   document.getElementById('gcwoVerHistorico').addEventListener('click', () => openHistoryModal());
   document.getElementById('gcwoTrocarDoente').addEventListener('click', () => {
     closeHistoryModal();
+    _returnToAcompanhamento = null; // doente escolhido à mão deixa de ter ligação ao acompanhamento de que se partiu
     _state.patient = null;
     _state.zonaPerfis = zonaPerfisVazio();
     _state.restricoesPredefinidas = [];
