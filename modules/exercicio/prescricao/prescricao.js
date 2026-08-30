@@ -657,6 +657,7 @@ export async function initPrescricao(options = {}) {
   document.getElementById('gcwoDayPickerOverlay')?.remove();
   _patologia = null;
   _patologiaPendente = null;
+  _returnToAcompanhamento = options.returnToAcompanhamento || null;
 
   const clinicas = G.clinics || [];
   if (clinicas.length === 1) _state.clinicId = clinicas[0].id;
@@ -4809,6 +4810,7 @@ function renderStep3() {
    ================================================================= */
 let _patologia = null;         // null fora do fluxo; objecto de trabalho quando activo
 let _patologiaPendente = null; // selecção já confirmada, à espera de doente (ver renderStep1)
+let _returnToAcompanhamento = null; // {patientId,clinicId} quando lançado a partir de acompanhamento-clinico.html — ver initPrescricao()
 
 const TIPO_PATOLOGIA_LABELS = { cirurgico: 'Cirúrgico', conservador: 'Conservador / Não cirúrgico' };
 function rotuloTipoPatologia(k) {
@@ -5150,7 +5152,14 @@ function renderPatologia() {
     </div>
     <div id="gcwoPatologiaBody"></div>
   `;
-  document.getElementById('gcwoPatBackToLanding').addEventListener('click', () => { _patologia = null; renderLanding(); });
+  document.getElementById('gcwoPatBackToLanding').addEventListener('click', () => {
+    _patologia = null;
+    if (_returnToAcompanhamento && typeof window.__gc_openAcompanhamentoPanel === 'function') {
+      window.__gc_openAcompanhamentoPanel(_returnToAcompanhamento.patientId, _returnToAcompanhamento.clinicId);
+      return;
+    }
+    renderLanding();
+  });
   renderPatologiaBody();
 }
 

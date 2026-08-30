@@ -97,8 +97,9 @@ import { renderDoentePanorama } from "./modules/doente-admin.js";
 window.__gc_renderDoentePanorama = renderDoentePanorama;
 
 // Painel iframe do feed do doente (Passo 2/6 — isolado, sem ligação à agenda)
-import { openFeedPanel } from "./modules/feed-panel.js";
+import { openFeedPanel, openAcompanhamentoPanel } from "./modules/feed-panel.js";
 window.__gc_openFeedPanel = openFeedPanel;
+window.__gc_openAcompanhamentoPanel = openAcompanhamentoPanel;
 
 // Campainha do Relatório v2 (janelas filhas — feed-doente)
 import "./modules/relatorio-v2-bridge.js";

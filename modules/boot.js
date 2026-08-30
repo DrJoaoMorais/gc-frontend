@@ -941,6 +941,9 @@ window.addEventListener("message", (event) => {
     patientId,
     clinicId: event.data.clinicId || null,
     mode: event.data.mode || null,
+    // Único emissor desta mensagem é acompanhamento-clinico.html — "voltar" no
+    // fluxo de prescrição deve reabrir essa área, não a landing do módulo Exercício.
+    returnToAcompanhamento: { patientId, clinicId: event.data.clinicId || null },
   };
   G.currentView = "exercicio";
   renderCurrentView();

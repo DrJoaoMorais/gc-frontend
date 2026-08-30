@@ -34,3 +34,34 @@ export function openFeedPanel(patientId, sessionClinicId) {
   iframe.src = `${FEED_DOENTE_URL}?${params.toString()}`;
   return iframe;
 }
+
+const ACOMPANHAMENTO_URL = "/modules/acompanhamento-clinico.html";
+
+/* ---- openAcompanhamentoPanel ----
+   Mesmo iframe/mecanismo do openFeedPanel, mas reabre directamente a área de
+   Acompanhamento do doente — usado para o botão "voltar" a partir de um fluxo
+   de prescrição lançado por lá (ex: Exercícios por patologia), já que entrar
+   nesse fluxo troca G.currentView e destrói o iframe original do feed. */
+export function openAcompanhamentoPanel(patientId, clinicId) {
+  const content = document.querySelector(".gc-content");
+  if (!content) return null;
+
+  let iframe = document.getElementById("gcFeedPanelIframe");
+  if (!iframe) {
+    iframe = document.createElement("iframe");
+    iframe.id = "gcFeedPanelIframe";
+    iframe.style.width  = "100%";
+    iframe.style.height = "100%";
+    iframe.style.border = "none";
+    iframe.style.display = "block";
+    content.innerHTML = "";
+    content.appendChild(iframe);
+  }
+
+  const params = new URLSearchParams();
+  if (patientId) params.set("patientId", patientId);
+  if (clinicId)  params.set("clinicId", clinicId);
+
+  iframe.src = `${ACOMPANHAMENTO_URL}?${params.toString()}`;
+  return iframe;
+}
