@@ -35,6 +35,7 @@ import {
 }                                          from "./agenda.js";
 import { openApptModal }                   from "./agenda.js";
 import { openNewPatientMainModal }         from "./novo-doente.js";
+import { openClinicalDiary }               from "./diario-clinico.js";
 import { wireQuickPatientSearch }                      from "./pesquisa.js";
 import { openCalendarOverlay, openWeekView }           from "./agenda.js";
 import { wireLogout, ensureAAL2, __gcForceSessionLock, __gcIsAuthError, __gcSessionLockActive } from "./session.js";
@@ -934,6 +935,14 @@ window.__gc_renderCurrentView = renderCurrentView;
 
 window.addEventListener("message", (event) => {
   if (event.origin !== window.location.origin) return;
+  if (event.data?.type === "gc_open_clinical_diary") {
+    openClinicalDiary({
+      patientId: event.data.patientId || null,
+      clinicId: event.data.clinicId || null,
+      patientName: event.data.patientName || "Doente",
+    });
+    return;
+  }
   if (event.data?.type !== "gc_open_exercise_prescription") return;
   const patientId = event.data.patientId || null;
   if (!patientId) return;
