@@ -206,25 +206,15 @@
     <!-- CARTÕES DE AÇÃO -->
     <div class="divider-lbl">O que quer registar agora?</div>
 
-    <button class="action" onclick="abrirEcra('ecra-refeicao')">
-      <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3v7a2 2 0 002 2v9M7 3v7M11 3v7M15 3c0 4-2 5-2 9v6"/></svg></div>
-      <div class="txt"><strong>Refeição</strong><span id="st-refeicao">Ainda sem registo hoje</span></div>
-    </button>
+    <button class="action" onclick="abrirEcra('ecra-sentiu')"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2" stroke-linecap="round"/></svg></div><div class="txt"><strong>Como se sente</strong><span>Fome · energia</span></div></button>
 
     <button class="action" onclick="abrirEcra('ecra-sono')">
       <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg></div>
       <div class="txt"><strong>Sono</strong><span id="st-sono">Ainda sem registo hoje</span></div>
     </button>
 
-    <button class="action" onclick="abrirEcra('ecra-movimento')">
-      <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></div>
-      <div class="txt"><strong>Movimento / Exercício</strong><span id="ex-count">2/7 dias</span></div>
-    </button>
-
-    <button class="action" onclick="abrirEcra('ecra-sentiu')">
-      <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2" stroke-linecap="round"/><circle cx="9" cy="10" r=".5" fill="currentColor"/><circle cx="15" cy="10" r=".5" fill="currentColor"/></svg></div>
-      <div class="txt"><strong>Como se sentiu</strong><span>Fome · energia</span></div>
-    </button>
+    <button class="action" onclick="abrirEcra('ecra-refeicao')"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3v7a2 2 0 002 2v9M7 3v7M11 3v7M15 3c0 4-2 5-2 9v6"/></svg></div><div class="txt"><strong>Refeição</strong><span id="st-refeicao">Ainda sem registo hoje</span></div></button>
+    <button class="action" onclick="abrirEcra('ecra-movimento')"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></div><div class="txt"><strong>Movimento / Exercício livre</strong><span id="ex-count">0/7 dias</span></div></button>
 
     <!-- MEDICAÇÃO (definida por ti; só aparece se configurada) — inalterado -->
     <div class="card" id="med-card" style="display:none;">
@@ -322,19 +312,27 @@
         <p class="sono-calc" id="sono-calc"></p>
       </div>
       <div class="qgroup">
-        <p class="qlabel"><span class="qnum">2. </span>Como foi a qualidade do sono?</p>
+        <p class="qlabel"><span class="qnum">2. </span>Quanto tempo dormiu? <span class="qopt">(opcional)</span></p>
+        <div class="chiprow" data-single id="sono-duracao"><div class="chip">Menos de 5 h</div><div class="chip">5–6 h</div><div class="chip">6–7 h</div><div class="chip">7–8 h</div><div class="chip">Mais de 8 h</div></div>
+      </div>
+      <div class="qgroup">
+        <p class="qlabel"><span class="qnum">3. </span>Quanto tempo demorou a adormecer? <span class="qopt">(opcional)</span></p>
+        <div class="chiprow" data-single id="sono-adormecer"><div class="chip">Menos de 15 min</div><div class="chip">15–30 min</div><div class="chip">30–60 min</div><div class="chip">Mais de 60 min</div></div>
+      </div>
+      <div class="qgroup">
+        <p class="qlabel"><span class="qnum">4. </span>Como foi a qualidade do sono?</p>
         <div class="chiprow" data-single id="sono-qual">
           <div class="chip">Muito má</div><div class="chip">Má</div><div class="chip">Razoável</div><div class="chip">Boa</div><div class="chip">Ótima</div>
         </div>
       </div>
       <div class="qgroup">
-        <p class="qlabel"><span class="qnum">3. </span>Acordou durante a noite?</p>
+        <p class="qlabel"><span class="qnum">5. </span>Acordou durante a noite?</p>
         <div class="chiprow" data-single id="sono-acordou">
           <div class="chip">Não</div><div class="chip">1×</div><div class="chip">2×</div><div class="chip">3× ou +</div>
         </div>
       </div>
       <div class="qgroup">
-        <p class="qlabel"><span class="qnum">4. </span>Sonolência durante o dia?</p>
+        <p class="qlabel"><span class="qnum">6. </span>Sonolência durante o dia?</p>
         <div class="chiprow" data-single id="sono-sonolencia">
           <div class="chip">Não</div><div class="chip">Sim</div>
         </div>
@@ -370,9 +368,9 @@
     </div>
   </main>
 
-  <!-- ECRÃ COMO SE SENTIU -->
+  <!-- ECRÃ COMO SE SENTE -->
   <main id="ecra-sentiu" class="ecra" style="display:none;">
-    <div class="back-head"><button class="back-btn" onclick="fecharEcra()">←</button><h2>Como se sentiu</h2></div>
+    <div class="back-head"><button class="back-btn" onclick="fecharEcra()">←</button><h2>Como se sente</h2></div>
     <div class="ecra-body">
       <div class="qgroup">
         <p class="qlabel"><span class="qnum">1. </span>Fome ao longo do dia</p>
@@ -617,20 +615,24 @@
     let minutos = (lh*60+lm) - (dh*60+dm);
     if(minutos < 0) minutos += 24*60;
     calcEl.textContent = `= ${Math.floor(minutos/60)}h${(minutos%60).toString().padStart(2,'0')} de sono`;
+    const horas=minutos/60,classe=horas<5?'Menos de 5 h':horas<6?'5–6 h':horas<7?'6–7 h':horas<=8?'7–8 h':'Mais de 8 h';
+    document.querySelectorAll('#sono-duracao .chip').forEach(c=>c.classList.toggle('on',c.textContent===classe));
   }
   async function guardarSono(){
     const d = document.getElementById('sono-deitar').value, l = document.getElementById('sono-levantar').value,
+          duracao = chipEscolhido('sono-duracao'), adormecer = chipEscolhido('sono-adormecer'),
           qual = chipEscolhido('sono-qual'), acordou = chipEscolhido('sono-acordou'), sonolencia = chipEscolhido('sono-sonolencia');
-    if(!d || !l || !qual || !acordou || !sonolencia){ avisarFalha('Falta responder a alguma pergunta acima.'); return; }
+    if(!d&&!l&&!duracao&&!adormecer&&!qual&&!acordou&&!sonolencia){ avisarFalha('Selecione pelo menos uma informação que queira registar.'); return; }
     const btn = document.getElementById('sono-guardar-btn'); btn.disabled = true; btn.textContent = 'A guardar…';
     const dur = document.getElementById('sono-calc').textContent.replace('= ','').replace(' de sono','');
-    const raw = `Sono — deitou-se ${d}, levantou-se ${l} (${dur}). Qualidade: ${qual}. Acordou durante a noite: ${acordou}. Sonolência diurna: ${sonolencia}.`;
+    const partes=[];if(d)partes.push(`deitou-se ${d}`);if(l)partes.push(`levantou-se ${l}`);if(dur)partes.push(`duração calculada ${dur}`);if(duracao)partes.push(`duração ${duracao}`);if(adormecer)partes.push(`demorou a adormecer: ${adormecer}`);if(qual)partes.push(`qualidade: ${qual}`);if(acordou)partes.push(`acordou durante a noite: ${acordou}`);if(sonolencia)partes.push(`sonolência diurna: ${sonolencia}`);
+    const raw = `Sono — ${partes.join('. ')}.`;
     const ok = await persistirEntrada(raw);
     if(ok){
       registarEntradaDireta(raw);
       document.getElementById('st-sono').textContent = 'Registado';
       document.getElementById('st-sono').style.color = 'var(--ok)';
-      marcarHoje('hoje-sono', `Sono — ${dur}`);
+      marcarHoje('hoje-sono', `Sono — ${dur||duracao||'registado'}`);
       fecharEcra();
     } else avisarFalha();
     btn.disabled = false; btn.textContent = 'Guardar';
@@ -658,12 +660,12 @@
     if(!fome || !energia || !vontade){ avisarFalha('Falta responder a alguma pergunta acima.'); return; }
     const quando = vontade === 'Sim' ? chipEscolhido('sent-vontade-quando') : null;
     const btn = document.getElementById('sent-guardar-btn'); btn.disabled = true; btn.textContent = 'A guardar…';
-    let raw = `Como se sentiu — Fome: ${fome}. Energia: ${energia}. Vontade de comer fora das refeições: ${vontade}`;
+    let raw = `Como se sente — Fome: ${fome}. Energia: ${energia}. Vontade de comer fora das refeições: ${vontade}`;
     raw += quando ? ` (${quando}).` : '.';
     const ok = await persistirEntrada(raw);
     if(ok){
       registarEntradaDireta(raw);
-      marcarHoje('hoje-sentiu', 'Como se sentiu — registado');
+      marcarHoje('hoje-sentiu', 'Como se sente — registado');
       fecharEcra();
     } else avisarFalha();
     btn.disabled = false; btn.textContent = 'Guardar';
@@ -732,8 +734,8 @@
       const movimentoHoje = entradas.find(deHoje('🏃'));
       if(movimentoHoje) marcarHoje('hoje-movimento', 'Movimento registado');
 
-      const sentiuHoje = entradas.find(deHoje('Como se sentiu'));
-      if(sentiuHoje) marcarHoje('hoje-sentiu', 'Como se sentiu — registado');
+      const sentiuHoje = entradas.find(deHoje('Como se sente')) || entradas.find(deHoje('Como se sentiu'));
+      if(sentiuHoje) marcarHoje('hoje-sentiu', 'Como se sente — registado');
 
       document.getElementById('gate-loading').style.display='none';
       document.getElementById('app').style.display='block';

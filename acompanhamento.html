@@ -20,7 +20,7 @@
     *{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);font-family:Inter,system-ui,-apple-system,sans-serif;color:var(--ink)}
     .gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;text-align:center}.gate-card{max-width:390px}.gate h1{font-family:Georgia,serif;color:var(--navy);font-size:27px;margin:0 0 10px}.gate p{color:var(--muted);font-size:14px;line-height:1.5}.primary{display:inline-flex;justify-content:center;border:0;border-radius:12px;padding:13px 17px;background:var(--blue);color:#fff;text-decoration:none;font:700 14px inherit;cursor:pointer}
     .app{display:none;max-width:560px;min-height:100vh;margin:auto;background:#fff}.head{background:var(--navy);color:#fff;padding:28px 22px 24px}.head small{display:block;color:#c6d4e5;font-size:12px;margin-bottom:7px}.head h1{font-family:Georgia,serif;font-size:29px;margin:0}.head p{margin:7px 0 0;color:#dbe5f0;font-size:13px}.content{padding:20px 16px 40px}.episode{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#eef4ff;border-radius:14px;padding:13px 14px;margin-bottom:16px}.episode b{color:var(--navy);font-size:13px}.episode span{display:block;color:#61718a;font-size:11.5px;margin-top:3px}.day{min-width:62px;text-align:center;color:var(--blue);font-size:12px;font-weight:750}
-    .section-title{font-size:12px;color:#8a96a8;text-transform:uppercase;letter-spacing:.09em;margin:18px 2px 10px}.cards{display:flex;flex-direction:column;gap:10px}.card{display:grid;grid-template-columns:48px 1fr auto;align-items:center;gap:12px;border:1px solid var(--line);border-radius:15px;padding:15px;background:#fff}.icon{width:46px;height:46px;border-radius:13px;background:#edf3ff;display:grid;place-items:center;font-size:22px}.card h2{font-size:16px;color:var(--navy);margin:0 0 4px}.card p{font-size:12px;color:var(--muted);margin:0;line-height:1.35}.state{font-size:10.5px;font-weight:750;border-radius:999px;padding:5px 8px;background:#eef2f7;color:#64748b;white-space:nowrap}.state.on{background:#e7f7f0;color:var(--green)}.card.active{cursor:pointer}.card.active:hover{border-color:#9ab8f0}.arrow{font-size:19px;color:var(--blue)}.notice{margin-top:18px;padding:13px 14px;border-radius:12px;background:#fff8e8;color:#8b5b12;font-size:11.5px;line-height:1.45}.foot{text-align:center;color:#9aa5b5;font-size:10.5px;margin-top:22px}
+    .section-title{font-size:12px;color:#8a96a8;text-transform:uppercase;letter-spacing:.09em;margin:18px 2px 10px}.cards{display:flex;flex-direction:column;gap:10px}.card{display:grid;grid-template-columns:48px 1fr auto;align-items:center;gap:12px;border:1px solid var(--line);border-radius:15px;padding:15px;background:#fff}.icon{width:46px;height:46px;border-radius:13px;background:#edf3ff;display:grid;place-items:center;font-size:22px}.card h2{font-size:16px;color:var(--navy);margin:0 0 4px}.card p{font-size:12px;color:var(--muted);margin:0;line-height:1.35}.state{font-size:10.5px;font-weight:750;border-radius:999px;padding:5px 8px;background:#eef2f7;color:#64748b;white-space:nowrap}.state.on{background:#e7f7f0;color:var(--green)}.card.active{cursor:pointer}.card.active:hover{border-color:#9ab8f0}.arrow{font-size:19px;color:var(--blue)}.notice{margin-top:18px;padding:13px 14px;border-radius:12px;background:#fff8e8;color:#8b5b12;font-size:11.5px;line-height:1.45}.foot{text-align:center;color:#9aa5b5;font-size:10.5px;margin-top:22px}.plan{padding:18px 16px 40px}.plan-head{display:flex;align-items:center;gap:10px;margin-bottom:16px}.plan-head button{border:0;background:none;color:var(--blue);font-size:22px;cursor:pointer}.plan-head h2{margin:0;color:var(--navy);font-size:20px}.week-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 0}.week-nav button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px;color:var(--navy);font-weight:700}.week-label{font-size:12px;color:var(--muted);text-align:center}.session{border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}.session h3{margin:0 0 5px;color:var(--navy);font-size:15px}.session small{color:var(--muted)}.exercise-row{border-top:1px solid #edf1f6;margin-top:10px;padding-top:10px;font-size:12.5px}.exercise-row b{display:block;color:var(--ink)}
     @media(min-width:561px){body{padding:24px}.app{min-height:calc(100vh - 48px);border-radius:20px;overflow:hidden;box-shadow:0 14px 40px rgba(15,45,82,.12)}}
   </style>
 </head>
@@ -30,41 +30,46 @@
   <main class="app" id="app">
     <header class="head"><small>ACOMPANHAMENTO DIGITAL</small><h1>Olá, <span id="name"></span></h1><p>O seu espaço de acompanhamento entre consultas.</p></header>
     <div class="content">
-      <div class="episode"><div><b>Diário experimental</b><span id="period"></span></div><div class="day" id="day"></div></div>
+      <div class="episode" id="episode" hidden><div><b>Diário</b><span id="period"></span></div><div class="day" id="day"></div></div>
       <div class="section-title">Disponível agora</div>
       <div class="cards">
-        <article class="card active" id="diaryCard" role="button" tabindex="0"><div class="icon">📓</div><div><h2>Diário</h2><p>Alimentação, sono, movimento e como se sente.</p></div><div class="arrow">›</div></article>
+        <article class="card" id="diaryCard"><div class="icon">📓</div><div><h2>Diário</h2><p id="diaryText">Alimentação, sono, movimento e como se sente.</p></div><span class="state" id="diaryState">Não ativo</span></article>
+        <article class="card" id="exerciseCard"><div class="icon">🏃</div><div><h2>Exercício</h2><p id="exerciseText">O plano aparecerá aqui quando for prescrito.</p></div><span class="state" id="exerciseState">Não prescrito</span></article>
         <article class="card" id="medCard"><div class="icon">💊</div><div><h2>Medicação</h2><p id="medText">Ainda não adicionada ao acompanhamento.</p></div><span class="state" id="medState">Não ativa</span></article>
-        <article class="card"><div class="icon">📋</div><div><h2>Questionários</h2><p>Quando existir um questionário pendente, aparecerá aqui.</p></div><span class="state">Sem pedidos</span></article>
-        <article class="card"><div class="icon">🏃</div><div><h2>Exercício</h2><p>O plano aparecerá aqui quando for prescrito.</p></div><span class="state">Não prescrito</span></article>
+        <article class="card" id="questionCard"><div class="icon">📋</div><div><h2>Questionários</h2><p id="questionText">Quando existir um questionário pendente, aparecerá aqui.</p></div><span class="state" id="questionState">Sem pedidos</span></article>
       </div>
       <div class="notice">Isto não é um serviço de emergência. Em caso de urgência, ligue 112.</div>
       <div class="foot">João Morais · Reabilitação Metabólica</div>
     </div>
   </main>
+  <section class="plan" id="planView" hidden><div class="plan-head"><button id="planBack">←</button><h2>Plano de exercício</h2></div><div class="week-nav"><button id="prevWeek">‹ Anterior</button><div class="week-label" id="weekLabel"></div><button id="nextWeek">Seguinte ›</button></div><div id="sessions"></div></section>
   <script>
     const token = new URLSearchParams(location.search).get('t') || '';
-    const diaryUrl = `/diario?t=${encodeURIComponent(token)}`;
-    const openDiary = () => { location.href = diaryUrl; };
-    document.getElementById('diaryCard').addEventListener('click', openDiary);
-    document.getElementById('diaryCard').addEventListener('keydown', (event) => { if(event.key === 'Enter' || event.key === ' '){ event.preventDefault(); openDiary(); } });
+    let home=null, plan=null, weekOffset=0;
+    const activate=(el,fn)=>{el.classList.add('active');el.setAttribute('role','button');el.tabIndex=0;el.onclick=fn;el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();fn()}}};
+    const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const monday=(date)=>{const d=new Date(date);const n=d.getDay()||7;d.setHours(0,0,0,0);d.setDate(d.getDate()-n+1+weekOffset*7);return d};
+    const iso=d=>d.toISOString().slice(0,10);
+    function renderWeek(){const start=monday(new Date()),end=new Date(start);end.setDate(start.getDate()+6);document.getElementById('weekLabel').textContent=`${start.toLocaleDateString('pt-PT',{day:'2-digit',month:'short'})} – ${end.toLocaleDateString('pt-PT',{day:'2-digit',month:'short'})}`;const sessions=(plan?.sessions||[]).filter(s=>s.date>=iso(start)&&s.date<=iso(end));document.getElementById('sessions').innerHTML=sessions.length?sessions.map(s=>`<article class="session"><h3>${esc(new Date(s.date+'T12:00:00').toLocaleDateString('pt-PT',{weekday:'long',day:'numeric',month:'long'}))}</h3><small>${esc(s.local||s.modality||'Treino prescrito')}</small>${(s.items||[]).map(i=>`<div class="exercise-row"><b>${esc(i.name||i.exercise_name||'Exercício')}</b>${esc(i.sets||i.series||'')} ${i.reps_fixed?`· ${esc(i.reps_fixed)} repetições`:''}</div>`).join('')}</article>`).join(''):'<div class="notice">Não existem treinos prescritos nesta semana.</div>'}
+    async function openPlan(){document.querySelector('.content').hidden=true;document.getElementById('planView').hidden=false;if(!plan){const {data}=await window.sb.rpc('get_acompanhamento_exercise',{p_token:token});plan=data?.ok?data.plan:null}renderWeek()}
+    document.getElementById('planBack').onclick=()=>{document.getElementById('planView').hidden=true;document.querySelector('.content').hidden=false};document.getElementById('prevWeek').onclick=()=>{weekOffset--;renderWeek()};document.getElementById('nextWeek').onclick=()=>{weekOffset++;renderWeek()};
 
     (async function init(){
       if(!token){ document.getElementById('loading').hidden=true; document.getElementById('ended').hidden=false; return; }
       try{
-        const { data, error } = await window.sb.rpc('get_diary_episode', { p_token: token });
-        const row = data && data[0];
-        if(error || !row?.valid){ document.getElementById('loading').hidden=true; document.getElementById('ended').hidden=false; return; }
-        const duration = Math.max(1, Number(row.duration_days) || 7);
-        const start = new Date(row.started_at);
+        const { data, error } = await window.sb.rpc('get_acompanhamento_home', { p_token: token }); home=data;
+        if(error || !home?.valid){ document.getElementById('loading').hidden=true; document.getElementById('ended').hidden=false; return; }
+        document.getElementById('name').textContent = home.first_name || '';
+        if(home.diario?.enabled){const row=home.diario,duration=Math.max(1,Number(row.duration_days)||7),start=new Date(row.started_at);
         const current = Math.min(duration, Math.max(1, Math.floor((new Date() - start) / 86400000) + 1));
-        document.getElementById('name').textContent = row.first_name || '';
+        document.getElementById('episode').hidden=false;
         document.getElementById('period').textContent = `Ativo durante ${duration} dias`;
         document.getElementById('day').textContent = `Dia ${current} de ${duration}`;
-        if(row.med_nome){
-          document.getElementById('medText').textContent = [row.med_nome,row.med_dose,row.med_freq].filter(Boolean).join(' · ');
-          const state=document.getElementById('medState'); state.textContent='Ativa'; state.classList.add('on');
-        }
+        const ds=document.getElementById('diaryState');ds.textContent='Ativo';ds.classList.add('on');activate(document.getElementById('diaryCard'),()=>location.href=`/diario?t=${encodeURIComponent(row.episode_token)}`)}
+        if(home.exercicio?.enabled){const s=document.getElementById('exerciseState');s.textContent='Plano ativo';s.classList.add('on');document.getElementById('exerciseText').textContent='Consulte o treino de hoje e as semanas seguintes.';activate(document.getElementById('exerciseCard'),openPlan)}
+        if(home.medicacao?.length){document.getElementById('medText').textContent=home.medicacao.map(m=>[m.nome,m.dose,m.freq].filter(Boolean).join(' · ')).join(' | ');const s=document.getElementById('medState');s.textContent='Ativa';s.classList.add('on')}
+        if(home.questionario?.pending){document.getElementById('questionText').textContent=home.questionario.status==='in_progress'?'Continue o questionário que começou.':'Tem um questionário para responder.';const s=document.getElementById('questionState');s.textContent=home.questionario.status==='in_progress'?'Em preenchimento':'Pendente';s.classList.add('on');activate(document.getElementById('questionCard'),()=>location.href=`/intake.html?t=${encodeURIComponent(home.questionario.token)}`)}
+        const any=home.diario?.enabled||home.exercicio?.enabled||home.medicacao?.length||home.questionario?.pending;if(!any){document.getElementById('loading').hidden=true;document.getElementById('ended').hidden=false;return}
         document.getElementById('loading').style.display='none';
         document.getElementById('app').style.display='block';
       }catch(_){ document.getElementById('loading').hidden=true; document.getElementById('ended').hidden=false; }
