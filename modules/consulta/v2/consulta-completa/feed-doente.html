@@ -3260,9 +3260,9 @@
         if (error) { alert('Erro ao gerar link: ' + error.message); btn.disabled = false; btn.textContent = 'Enviar ligação'; return; }
 
         overlay.remove();
-        const link = `https://gc.joaomorais.pt/diario?t=${token}`;
+        const link = `https://gc.joaomorais.pt/acompanhamento?t=${token}`;
         const msg = encodeURIComponent(
-          `Olá ${patientName},\n\nAqui está o seu Diário experimental de acompanhamento, válido durante 7 dias:\n\n${link}\n\nPode registar alimentação, sono, movimento e como se sente. Não é obrigatório. No final, poderá agendar uma consulta de Reabilitação Metabólica em www.joaomorais.pt.`
+          `Olá ${patientName},\n\nAqui está o acesso ao seu acompanhamento digital, válido durante 7 dias:\n\n${link}\n\nNesta primeira fase terá disponível o Diário para registar alimentação, sono, movimento e como se sente. Não é obrigatório. No final, poderá agendar uma consulta de Reabilitação Metabólica em www.joaomorais.pt.`
         );
         const w = window.open(`https://wa.me/?text=${msg}`, '_blank');
         if (!w) prompt('O browser bloqueou a janela do WhatsApp. Copie o link e envie à mão:', link);
@@ -3271,9 +3271,9 @@
 
     document.getElementById('fdBtnDiario')?.addEventListener('click', () => {
       const clinicId = TODAY_APPT_CLINIC_ID || PATIENT_CLINIC_ID || null;
-      if (!clinicId) { alert('Clínica do doente não identificada — não é possível gerar o link.'); return; }
-      const patientName = fdPatientData?.full_name || 'Doente';
-      abrirModalLinkDiario(clinicId, patientName);
+      if (!clinicId) { alert('Clínica do doente não identificada — não é possível abrir o acompanhamento.'); return; }
+      const qs = new URLSearchParams({ patientId: PATIENT_ID, clinicId });
+      location.href = `/modules/acompanhamento-clinico.html?${qs.toString()}`;
     });
 
     /* ── Questionários pré-consulta (intake) ── */

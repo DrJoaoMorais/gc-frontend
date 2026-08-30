@@ -1,0 +1,10 @@
+{
+  "name": "O meu acompanhamento",
+  "short_name": "Acompanhamento",
+  "description": "Diário, medicação, questionários e exercício",
+  "display": "standalone",
+  "background_color": "#f3f6fa",
+  "theme_color": "#0f2d52",
+  "lang": "pt-PT",
+  "orientation": "portrait"
+}

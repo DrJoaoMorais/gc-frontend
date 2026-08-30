@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0f2d52">
+  <title>O meu acompanhamento</title>
+  <link rel="manifest" href="/acompanhamento.webmanifest">
+  <link rel="icon" href="/favicon-32.png">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.sb = window.supabase.createClient(
+      "https://nxfnzzcuqzxmzsihbrtp.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA",
+      { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+    );
+  </script>
+  <style>
+    :root{--navy:#0f2d52;--blue:#1a56db;--ink:#182235;--muted:#738096;--bg:#f3f6fa;--line:#e1e7ef;--green:#11875d}
+    *{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);font-family:Inter,system-ui,-apple-system,sans-serif;color:var(--ink)}
+    .gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;text-align:center}.gate-card{max-width:390px}.gate h1{font-family:Georgia,serif;color:var(--navy);font-size:27px;margin:0 0 10px}.gate p{color:var(--muted);font-size:14px;line-height:1.5}.primary{display:inline-flex;justify-content:center;border:0;border-radius:12px;padding:13px 17px;background:var(--blue);color:#fff;text-decoration:none;font:700 14px inherit;cursor:pointer}
+    .app{display:none;max-width:560px;min-height:100vh;margin:auto;background:#fff}.head{background:var(--navy);color:#fff;padding:28px 22px 24px}.head small{display:block;color:#c6d4e5;font-size:12px;margin-bottom:7px}.head h1{font-family:Georgia,serif;font-size:29px;margin:0}.head p{margin:7px 0 0;color:#dbe5f0;font-size:13px}.content{padding:20px 16px 40px}.episode{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#eef4ff;border-radius:14px;padding:13px 14px;margin-bottom:16px}.episode b{color:var(--navy);font-size:13px}.episode span{display:block;color:#61718a;font-size:11.5px;margin-top:3px}.day{min-width:62px;text-align:center;color:var(--blue);font-size:12px;font-weight:750}
+    .section-title{font-size:12px;color:#8a96a8;text-transform:uppercase;letter-spacing:.09em;margin:18px 2px 10px}.cards{display:flex;flex-direction:column;gap:10px}.card{display:grid;grid-template-columns:48px 1fr auto;align-items:center;gap:12px;border:1px solid var(--line);border-radius:15px;padding:15px;background:#fff}.icon{width:46px;height:46px;border-radius:13px;background:#edf3ff;display:grid;place-items:center;font-size:22px}.card h2{font-size:16px;color:var(--navy);margin:0 0 4px}.card p{font-size:12px;color:var(--muted);margin:0;line-height:1.35}.state{font-size:10.5px;font-weight:750;border-radius:999px;padding:5px 8px;background:#eef2f7;color:#64748b;white-space:nowrap}.state.on{background:#e7f7f0;color:var(--green)}.card.active{cursor:pointer}.card.active:hover{border-color:#9ab8f0}.arrow{font-size:19px;color:var(--blue)}.notice{margin-top:18px;padding:13px 14px;border-radius:12px;background:#fff8e8;color:#8b5b12;font-size:11.5px;line-height:1.45}.foot{text-align:center;color:#9aa5b5;font-size:10.5px;margin-top:22px}
+    @media(min-width:561px){body{padding:24px}.app{min-height:calc(100vh - 48px);border-radius:20px;overflow:hidden;box-shadow:0 14px 40px rgba(15,45,82,.12)}}
+  </style>
+</head>
+<body>
+  <div class="gate" id="loading"><div class="gate-card"><p>A abrir o seu acompanhamento…</p></div></div>
+  <div class="gate" id="ended" hidden><div class="gate-card"><h1>O seu acompanhamento terminou</h1><p>Para analisar os registos e decidir os próximos passos, agende uma consulta de Reabilitação Metabólica.</p><a class="primary" href="https://www.joaomorais.pt">Agendar consulta</a></div></div>
+  <main class="app" id="app">
+    <header class="head"><small>ACOMPANHAMENTO DIGITAL</small><h1>Olá, <span id="name"></span></h1><p>O seu espaço de acompanhamento entre consultas.</p></header>
+    <div class="content">
+      <div class="episode"><div><b>Diário experimental</b><span id="period"></span></div><div class="day" id="day"></div></div>
+      <div class="section-title">Disponível agora</div>
+      <div class="cards">
+        <article class="card active" id="diaryCard" role="button" tabindex="0"><div class="icon">📓</div><div><h2>Diário</h2><p>Alimentação, sono, movimento e como se sente.</p></div><div class="arrow">›</div></article>
+        <article class="card" id="medCard"><div class="icon">💊</div><div><h2>Medicação</h2><p id="medText">Ainda não adicionada ao acompanhamento.</p></div><span class="state" id="medState">Não ativa</span></article>
+        <article class="card"><div class="icon">📋</div><div><h2>Questionários</h2><p>Quando existir um questionário pendente, aparecerá aqui.</p></div><span class="state">Sem pedidos</span></article>
+        <article class="card"><div class="icon">🏃</div><div><h2>Exercício</h2><p>O plano aparecerá aqui quando for prescrito.</p></div><span class="state">Não prescrito</span></article>
+      </div>
+      <div class="notice">Isto não é um serviço de emergência. Em caso de urgência, ligue 112.</div>
+      <div class="foot">João Morais · Reabilitação Metabólica</div>
+    </div>
+  </main>
+  <script>
+    const token = new URLSearchParams(location.search).get('t') || '';
+    const diaryUrl = `/diario?t=${encodeURIComponent(token)}`;
+    const openDiary = () => { location.href = diaryUrl; };
+    document.getElementById('diaryCard').addEventListener('click', openDiary);
+    document.getElementById('diaryCard').addEventListener('keydown', (event) => { if(event.key === 'Enter' || event.key === ' '){ event.preventDefault(); openDiary(); } });
+
+    (async function init(){
+      if(!token){ document.getElementById('loading').hidden=true; document.getElementById('ended').hidden=false; return; }
+      try{
+        const { data, error } = await window.sb.rpc('get_diary_episode', { p_token: token });
+        const row = data && data[0];
+        if(error || !row?.valid){ document.getElementById('loading').hidden=true; document.getElementById('ended').hidden=false; return; }
+        const duration = Math.max(1, Number(row.duration_days) || 7);
+        const start = new Date(row.started_at);
+        const current = Math.min(duration, Math.max(1, Math.floor((new Date() - start) / 86400000) + 1));
+        document.getElementById('name').textContent = row.first_name || '';
+        document.getElementById('period').textContent = `Ativo durante ${duration} dias`;
+        document.getElementById('day').textContent = `Dia ${current} de ${duration}`;
+        if(row.med_nome){
+          document.getElementById('medText').textContent = [row.med_nome,row.med_dose,row.med_freq].filter(Boolean).join(' · ');
+          const state=document.getElementById('medState'); state.textContent='Ativa'; state.classList.add('on');
+        }
+        document.getElementById('loading').style.display='none';
+        document.getElementById('app').style.display='block';
+      }catch(_){ document.getElementById('loading').hidden=true; document.getElementById('ended').hidden=false; }
+    })();
+  </script>
+</body>
+</html>

@@ -810,7 +810,7 @@ async function stopHomeFollowup(item) {
 
 function openHomeDiary(token) {
   if (!token) return;
-  window.open(`https://gc.joaomorais.pt/diario?t=${encodeURIComponent(token)}`, "_blank", "noopener");
+  window.open(`https://gc.joaomorais.pt/acompanhamento?t=${encodeURIComponent(token)}`, "_blank", "noopener");
 }
 
 /* openHomeExerciseFollowup — clique numa linha da lista de acompanhamento

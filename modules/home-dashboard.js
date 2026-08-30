@@ -364,7 +364,7 @@ export function renderHomeAcompanhamentoUnificado(items, { onOpenQuestionnaire, 
       return `<div class="gc-home-questionario-row ${q?.kind === "review" || item.exercise?.needsAction ? "prioritario" : ""}">
         <div class="gc-home-questionario-info"><strong>${escHomeHtml(item.patientName || "Doente")}</strong><div class="gc-home-acomp-tags">${diaryTag}${qLabel ? `<span class="gc-home-acomp-tag ${q?.kind === "review" ? "analisar" : "questionario"}">${qLabel}</span>` : ""}${exerciseTags}</div></div>
         <div class="gc-home-questionario-actions">
-          ${item.diary ? `<button type="button" class="gc-home-questionario-open" data-diary-open="${escHomeHtml(item.patientId)}">Ver Diário</button>` : ""}
+          ${item.diary ? `<button type="button" class="gc-home-questionario-open" data-diary-open="${escHomeHtml(item.patientId)}">Abrir acompanhamento</button>` : ""}
           ${q ? `<button type="button" class="gc-home-questionario-open" data-q-open="${escHomeHtml(item.patientId)}">Ver questionário</button>` : ""}
           ${q?.kind === "review" ? `<button type="button" class="gc-home-questionario-resolve" data-q-resolve="${escHomeHtml(item.patientId)}">Marcar analisado</button>` : ""}
           ${item.exercise?.active ? `<button type="button" class="gc-home-questionario-open" data-exercise-open="${escHomeHtml(item.patientId)}">Ver exercício</button>` : ""}
