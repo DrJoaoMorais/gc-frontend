@@ -97,7 +97,7 @@ import { renderDoentePanorama } from "./modules/doente-admin.js";
 window.__gc_renderDoentePanorama = renderDoentePanorama;
 
 // Painel iframe do feed do doente (Passo 2/6 — isolado, sem ligação à agenda)
-import { openFeedPanel, openAcompanhamentoPanel } from "./modules/feed-panel.js";
+import { openFeedPanel, openAcompanhamentoPanel } from "./modules/feed-panel.js?v=2026-08-31-1";
 window.__gc_openFeedPanel = openFeedPanel;
 window.__gc_openAcompanhamentoPanel = openAcompanhamentoPanel;
 

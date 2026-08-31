@@ -35,7 +35,7 @@ export function openFeedPanel(patientId, sessionClinicId) {
   return iframe;
 }
 
-const ACOMPANHAMENTO_URL = "/modules/acompanhamento-clinico.html";
+const ACOMPANHAMENTO_URL = "/modules/acompanhamento-clinico.html?v=2026-08-31-1";
 
 /* ---- openAcompanhamentoPanel ----
    Mesmo iframe/mecanismo do openFeedPanel, mas reabre directamente a área de
@@ -62,6 +62,6 @@ export function openAcompanhamentoPanel(patientId, clinicId) {
   if (patientId) params.set("patientId", patientId);
   if (clinicId)  params.set("clinicId", clinicId);
 
-  iframe.src = `${ACOMPANHAMENTO_URL}?${params.toString()}`;
+  iframe.src = `${ACOMPANHAMENTO_URL}&${params.toString()}`;
   return iframe;
 }
