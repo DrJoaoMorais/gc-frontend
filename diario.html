@@ -26,7 +26,8 @@
   *{box-sizing:border-box;}
   body{margin:0;background:var(--bg);font-family:'Outfit',sans-serif;color:var(--ink);display:flex;justify-content:center;min-height:100vh;}
   .phone{width:100%;max-width:420px;min-height:100vh;background:var(--bg);}
-  header{background:var(--paper);padding:26px 22px 18px;border-bottom:1px solid var(--mist);}
+  header{background:var(--paper);padding:18px 22px 18px;border-bottom:1px solid var(--mist);}
+  .portal-back{display:inline-flex;align-items:center;gap:6px;margin-bottom:14px;color:var(--blue);font-size:12.5px;font-weight:600;text-decoration:none;}
   .dots{display:flex;gap:6px;margin-bottom:14px;}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--mist);}
   .dot.done{background:var(--navy);}
@@ -192,6 +193,7 @@
 
 <div class="phone" id="app" style="display:none;">
   <header id="app-header">
+    <a class="portal-back" id="portal-back" href="#">← Voltar ao acompanhamento</a>
     <div class="dots" id="dots"></div>
     <h1>Olá, <span id="saudacao-nome"></span></h1>
     <p class="sub" id="dia-sub"></p>
@@ -401,7 +403,15 @@
 <div class="alerta-falha" id="alertaFalha"></div>
 
 <script>
-  const token = new URLSearchParams(location.search).get('t');
+  const diaryParams = new URLSearchParams(location.search);
+  const token = diaryParams.get('t');
+  const returnToken = diaryParams.get('return');
+  const portalBack = document.getElementById('portal-back');
+  if(returnToken){
+    portalBack.href = `/acompanhamento?t=${encodeURIComponent(returnToken)}`;
+  }else{
+    portalBack.addEventListener('click', event => { event.preventDefault(); history.back(); });
+  }
 
   function horaAgora(){
     const n = new Date();
