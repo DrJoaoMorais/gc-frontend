@@ -245,6 +245,7 @@ function freshState() {
   };
 }
 let _state = freshState();
+let _step1Destination = 'prescription'; // 'acompanhamento' quando a entrada deve abrir o cérebro do doente
 let _loadingPlanoActivo = false;        // a verificar/carregar o plano activo do doente escolhido (9 ago 2026)
 let _expandedCardIds = new Set();       // sessões expandidas na lista principal (leitura)
 let _panelExpandedTarefaId = null;      // dentro do painel, tarefa expandida (só uma)
@@ -652,6 +653,7 @@ export async function initPrescricao(options = {}) {
   _panelExpandedTarefaId = null;
   _panelDraft = null;
   _panelIsNovo = false;
+  _step1Destination = 'prescription';
   _historyOpen = false;
   _historyDetail = null;
   document.getElementById('gcwoHistoryOverlay')?.remove();
@@ -860,14 +862,14 @@ function renderLanding() {
       <button type="button" class="gcwo-landing-card primary" id="gcwoCardPrescrever">
         <span class="gcwo-landing-card-icon">${ICON_MAIS}</span>
         <span class="gcwo-landing-card-title">Prescrever exercício</span>
-        <span class="gcwo-landing-card-sub">Procurar um doente e criar ou atualizar o seu plano de exercício.</span>
+        <span class="gcwo-landing-card-sub">Escolher um doente e abrir o respetivo acompanhamento digital.</span>
         <span class="gcwo-landing-card-cta">Procurar doente →</span>
       </button>
       <button type="button" class="gcwo-landing-card" id="gcwoCardPatologia">
         <span class="gcwo-landing-card-icon doc">${ICON_FLAG}</span>
         <span class="gcwo-landing-card-title">Exercícios por patologia</span>
-        <span class="gcwo-landing-card-sub">Partir de um protocolo clínico (região, tipo, fase) para pré-preencher a prescrição.</span>
-        <span class="gcwo-landing-card-cta">Escolher protocolo →</span>
+        <span class="gcwo-landing-card-sub">Escolher um doente e preparar o programa por patologia no seu acompanhamento.</span>
+        <span class="gcwo-landing-card-cta">Procurar doente →</span>
       </button>
       <button type="button" class="gcwo-landing-card" id="gcwoCardCatalogo">
         <span class="gcwo-landing-card-icon cat">${ICON_GINASIO}</span>
@@ -910,11 +912,17 @@ function renderLanding() {
     </section>
   `;
 
-  document.getElementById('gcwoCardPrescrever').addEventListener('click', () => renderStep1());
+  document.getElementById('gcwoCardPrescrever').addEventListener('click', () => {
+    _step1Destination = 'acompanhamento';
+    renderStep1();
+  });
   document.getElementById('gcwoCardCatalogo').addEventListener('click', () => {
     initCatalogo({ onVoltar: () => { loadExercisesCatalog(); renderLanding(); } });
   });
-  document.getElementById('gcwoCardPatologia').addEventListener('click', () => abrirPatologia());
+  document.getElementById('gcwoCardPatologia').addEventListener('click', () => {
+    _step1Destination = 'acompanhamento';
+    renderStep1();
+  });
   if (multiClinica) {
     const btn = document.getElementById('gcwoLandingClinicBtn');
     const menu = document.getElementById('gcwoLandingClinicMenu');
@@ -1426,13 +1434,13 @@ function renderStep1() {
     <div class="gc-page-header">
       <div>
         <button type="button" class="gcwo-backlink" id="gcwoBackToLanding">← Exercício</button>
-        <div class="gc-page-title">Prescrição de exercício</div><div class="gc-page-sub">Nova prescrição</div>
+        <div class="gc-page-title">Escolher doente</div><div class="gc-page-sub">${_step1Destination === 'acompanhamento' ? 'Abrir configuração do acompanhamento' : 'Nova prescrição'}</div>
       </div>
       ${topActionsHtml()}
     </div>
     <div class="gcwo-step1-wrap">
       <div class="gcwo-step1-card">
-        <p class="gcwo-step1-intro">Cria uma prescrição de exercício para um doente — sessões de ginásio ou de modalidade, com tarefas e séries — e gera um link de acesso sem login para ele seguir o plano.</p>
+        <p class="gcwo-step1-intro">${_step1Destination === 'acompanhamento' ? 'Selecione o doente para configurar, prescrever e gerir a sua ligação única de acompanhamento.' : 'Cria uma prescrição de exercício para um doente — sessões de ginásio ou de modalidade, com tarefas e séries — e gera um link de acesso sem login para ele seguir o plano.'}</p>
 
         <span class="gcwo-field-label">Procurar doente</span>
         <div class="gc-search-bar gcwo-patient-search-wrap">
@@ -1502,8 +1510,21 @@ function renderStep1() {
         const pid = btn.getAttribute('data-pid');
         const p = results.find(r => r.id === pid);
         if (!p) return;
+        const selectedClinicId = p.active_clinic_id || _state.clinicId;
+        if (_step1Destination === 'acompanhamento') {
+          if (!selectedClinicId) {
+            alert('Este doente não tem uma clínica ativa identificada.');
+            return;
+          }
+          if (typeof window.__gc_openAcompanhamentoPanel !== 'function') {
+            alert('Não foi possível abrir a configuração do acompanhamento.');
+            return;
+          }
+          window.__gc_openAcompanhamentoPanel(p.id, selectedClinicId);
+          return;
+        }
         _state.patient = p;
-        _state.clinicId = p.active_clinic_id || _state.clinicId;
+        _state.clinicId = selectedClinicId;
         _panelDraft = null; _panelIsNovo = false; _pendingSlot = null; // doente novo — nunca herdar edição do doente anterior
         _loadingPlanoActivo = true;
         renderStep2();
