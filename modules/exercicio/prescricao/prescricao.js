@@ -1792,7 +1792,7 @@ function renderCalendarMode(host) {
       <span id="gcwoPorGravarAviso" class="gcwo-porgravar-aviso" style="display:${haSessoesPorGravar() ? '' : 'none'}">⚠ As sessões do calendário só ficam realmente gravadas depois de clicares aqui.</span>
       <div class="gcwo-generate-actions">
         ${_state.activePrescriptionId ? '<button type="button" id="gcwoTerminarPlano" class="gcBtnDanger gcBtnLg">Terminar plano</button>' : ''}
-        <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.'}">${labelBotaoGerar()}</button>
+        <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para criar o plano.'}">${labelBotaoGerar()}</button>
       </div>
     </div>
     </section>
@@ -4475,7 +4475,9 @@ function handleGuardarSessao() {
 
 /* ── "Gerar prescrição e link" — só activo com pelo menos uma sessão com exercícios ── */
 function hasSessionComExercicios() {
-  return _state.sessions.some(sessaoTemConteudo);
+  // Um plano novo precisa de conteúdo. Um plano já existente pode ser gravado
+  // sem sessões para permitir retirar toda a programação sem apagar o histórico.
+  return Boolean(_state.activePrescriptionId) || _state.sessions.some(sessaoTemConteudo);
 }
 // Texto do botão único de gravar — diz a verdade sobre o que vai acontecer em vez de
 // dizer sempre "Gerar…": para um doente com plano activo já carregado neste ecrã
@@ -4492,7 +4494,7 @@ function updateGerarButtonState() {
   const ok = hasSessionComExercicios();
   btn.disabled = !ok;
   btn.textContent = labelBotaoGerar();
-  btn.title = ok ? '' : 'Adiciona pelo menos uma sessão com conteúdo para gerar o link.';
+  btn.title = ok ? '' : 'Adiciona pelo menos uma sessão com conteúdo para criar o plano.';
   // Usa style.display em vez do atributo "hidden" de propósito — já tivemos um bug em
   // que um CSS com a mesma especificidade do que [hidden] anulava o "hidden" (9 ago
   // 2026, menu ⋮). style.display inline ganha sempre, sem essa armadilha.
@@ -4647,7 +4649,7 @@ function validarPrescricao() {
   if (!_state.patient) return 'Falta selecionar o doente.';
   if (!_state.startDate || !_state.endDate) return 'Falta escolher as datas do plano.';
   if (_state.endDate < _state.startDate) return 'A data de fim não pode ser antes da data de início.';
-  if (!_state.sessions.length) return 'Adiciona pelo menos uma sessão.';
+  if (!_state.sessions.length && !_state.activePrescriptionId) return 'Adiciona pelo menos uma sessão.';
   const ultimoTreino = ultimoDiaPrescrito();
   if (_state.linkExpiryMode === 'selected_date' && !_state.linkExpiryDate) return 'Falta escolher a validade do link.';
   if (_state.linkExpiryMode === 'selected_date' && ultimoTreino && _state.linkExpiryDate < ultimoTreino) return 'A validade do link não pode terminar antes do último treino.';
@@ -4664,6 +4666,13 @@ async function handleGerar() {
 
   const problema = validarPrescricao();
   if (problema) { erroEl.textContent = problema; return; }
+
+  if (_state.activePrescriptionId && !_state.sessions.length) {
+    const confirmou = window.confirm(
+      'Guardar o plano sem sessões?\n\nO doente deixará de ter exercícios programados. O acompanhamento e o histórico mantêm-se.'
+    );
+    if (!confirmou) return;
+  }
 
   btn.disabled = true;
   btn.textContent = 'A gravar…';
@@ -4693,7 +4702,7 @@ async function handleGerar() {
 
     const novaData = buildFinalData();
     const ultimoTreino = ultimoDiaPrescrito();
-    const dataValidade = _state.linkExpiryMode === 'selected_date' ? _state.linkExpiryDate : ultimoTreino;
+    const dataValidade = _state.linkExpiryMode === 'selected_date' ? _state.linkExpiryDate : (ultimoTreino || _state.endDate);
     const expiresAtNovo = expiresAtDeIso(dataValidade);
     let token, linkExpiresAt;
 

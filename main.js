@@ -105,7 +105,7 @@ window.__gc_openAcompanhamentoPanel = openAcompanhamentoPanel;
 import "./modules/relatorio-v2-bridge.js";
 
 // Boot
-import { boot }                             from "./modules/boot.js?v=2026-08-31-2";
+import { boot }                             from "./modules/boot.js?v=2026-08-31-3";
 
 /* ── pontes window.__gc_* ────────────────────────────────────────────── */
 /*
