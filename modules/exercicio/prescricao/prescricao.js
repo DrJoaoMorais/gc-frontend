@@ -1676,7 +1676,7 @@ function renderStep2() {
   root.innerHTML = `
     <div class="gcwo-step2-shell">
     <div class="gc-page-header gcwo-patient-header">
-      <div class="gcwo-patient-main">${_returnToAcompanhamento ? '<button type="button" class="gcwo-backlink" id="gcwoStep2BackToAcompanhamento">← Acompanhamento</button>' : ''}<div class="gc-page-eyebrow">Prescrição de exercício</div><div class="gcwo-patient-name-row"><div class="gc-page-title">${escHtml(p.full_name)}</div><span class="gcwo-patient-age">${idade != null ? `${idade} anos` : 'Idade não indicada'}</span><button type="button" class="gcwo-linkbtn" id="gcwoVerHistorico">Planos anteriores</button>${renderPatientBanner()}</div></div>
+      <div class="gcwo-patient-main">${_returnToAcompanhamento ? '<button type="button" class="gcwo-backlink acompanhamento" id="gcwoStep2BackToAcompanhamento">← Voltar ao acompanhamento do doente</button>' : ''}<div class="gc-page-eyebrow">Prescrição de exercício</div><div class="gcwo-patient-name-row"><div class="gc-page-title">${escHtml(p.full_name)}</div><span class="gcwo-patient-age">${idade != null ? `${idade} anos` : 'Idade não indicada'}</span><button type="button" class="gcwo-linkbtn" id="gcwoVerHistorico">Planos anteriores</button>${renderPatientBanner()}</div></div>
       ${topActionsHtml(`
         <button type="button" class="gcBtnGhost" id="gcwoTrocarDoente">Escolher doente</button>
       `, false, false)}
@@ -2340,6 +2340,9 @@ function wireHistoryModal() {
 async function terminarPlanoActivo(prescriptionId, btn) {
   if (!prescriptionId || !_state.patient) return;
   const nome = _state.patient.full_name || 'este doente';
+  const regressoAcompanhamento = _returnToAcompanhamento
+    ? { ..._returnToAcompanhamento }
+    : null;
   const confirmou = window.confirm(
     `Terminar o plano de ${nome}?\n\nO link deixa imediatamente de funcionar. Os treinos realizados e o histórico ficam guardados.`
   );
@@ -2375,6 +2378,11 @@ async function terminarPlanoActivo(prescriptionId, btn) {
   _state.patient = null;
   _state.sessions = [];
   _state.__ultimoSnapshotGravado = null;
+  if (regressoAcompanhamento && typeof window.__gc_openAcompanhamentoPanel === 'function') {
+    window.alert('Plano terminado. Os exercícios foram retirados do calendário e o histórico foi preservado.');
+    window.__gc_openAcompanhamentoPanel(regressoAcompanhamento.patientId, regressoAcompanhamento.clinicId);
+    return;
+  }
   window.alert('Plano terminado. O link deixou de funcionar e o histórico foi preservado.');
   renderLanding();
 }

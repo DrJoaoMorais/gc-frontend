@@ -40,6 +40,13 @@
 /* ── ecrã inicial (landing) do módulo Exercício ── */
 .gcwo-backlink { display:block; border:none; background:transparent; padding:0; margin:0 0 4px; font-size:12px; font-weight:600; color:#94a3b8; cursor:pointer; font-family:inherit; }
 .gcwo-backlink:hover { color:#1a56db; }
+.gcwo-backlink.acompanhamento {
+  display:inline-flex; align-items:center; gap:8px; min-height:42px; margin:0 0 14px;
+  padding:10px 16px; border:1px solid #1a56db; border-radius:10px;
+  background:#1a56db; color:#fff; font-size:14px; font-weight:750;
+  box-shadow:0 5px 14px rgba(26,86,219,.18);
+}
+.gcwo-backlink.acompanhamento:hover { background:#164bbd; border-color:#164bbd; color:#fff; }
 
 .gcwo-landing-clinicpill-wrap { position:relative; }
 .gcwo-landing-clinicpill {
