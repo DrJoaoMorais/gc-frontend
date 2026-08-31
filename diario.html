@@ -128,6 +128,8 @@
   .action{display:flex;align-items:center;gap:14px;background:var(--paper);border:1px solid var(--mist);border-radius:16px;padding:17px 16px;cursor:pointer;text-align:left;width:100%;font-family:'Outfit',sans-serif;}
   .action:active{transform:scale(.99);}
   .action .icon{width:42px;height:42px;border-radius:11px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .planned-activity{display:none;margin-bottom:16px;padding:14px;border:1px solid #bdd2f6;border-radius:14px;background:#f7faff;}
+  .planned-activity.show{display:block}.planned-activity h3{margin:0 0 5px;color:var(--navy);font-size:15px}.planned-activity p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.4}.planned-activity .planned-state{display:inline-block;margin-top:9px;border-radius:999px;padding:5px 8px;background:#fff3dc;color:#8b5b12;font-size:11px;font-weight:600}.planned-activity.done .planned-state{background:#e7f7ef;color:var(--ok)}.planned-activity .planned-open{display:block;width:100%;margin-top:11px;border:0;border-radius:10px;padding:10px;background:var(--blue);color:#fff;font:600 13px 'Outfit',sans-serif;cursor:pointer}
   .action .icon svg{width:21px;height:21px;}
   .action .txt strong{display:block;font-size:15.5px;font-weight:500;color:var(--ink);}
   .action .txt span{font-size:12.5px;color:var(--muted);}
@@ -216,7 +218,7 @@
     </button>
 
     <button class="action" onclick="abrirEcra('ecra-refeicao')"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3v7a2 2 0 002 2v9M7 3v7M11 3v7M15 3c0 4-2 5-2 9v6"/></svg></div><div class="txt"><strong>Refeição</strong><span id="st-refeicao">Ainda sem registo hoje</span></div></button>
-    <button class="action" onclick="abrirEcra('ecra-movimento')"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></div><div class="txt"><strong>Movimento / Exercício livre</strong><span id="ex-count">0/7 dias</span></div></button>
+    <button class="action" onclick="abrirMovimento()"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></div><div class="txt"><strong>Movimento / Exercício livre</strong><span id="ex-count">0/7 dias</span></div></button>
 
     <!-- MEDICAÇÃO (definida por ti; só aparece se configurada) — inalterado -->
     <div class="card" id="med-card" style="display:none;">
@@ -347,6 +349,7 @@
   <main id="ecra-movimento" class="ecra" style="display:none;">
     <div class="back-head"><button class="back-btn" onclick="fecharEcra()">←</button><h2>Movimento / Exercício</h2></div>
     <div class="ecra-body">
+      <section class="planned-activity" id="planned-activity"><h3 id="planned-title">Atividade programada</h3><p id="planned-detail"></p><span class="planned-state" id="planned-state"></span><button type="button" class="planned-open" id="planned-open">Abrir treino</button></section>
       <div class="week" id="week"></div>
       <div class="qgroup" style="margin-top:16px;">
         <p class="qlabel"><span class="qnum">1. </span>O que fez?</p>
@@ -571,6 +574,32 @@
     document.getElementById('app-header').style.display = 'block';
     document.getElementById('app-safety').style.display = 'flex';
   }
+
+  function sessionName(session){
+    if(String(session?.notes||'').startsWith('Origem:')){
+      const local=String(session?.local||'').toLowerCase(),place=local==='casa'?'HEP · em casa':local==='clínica'||local==='clinica'?'Na clínica':'Exercícios por patologia';
+      return `${place} — ${String(session.notes).replace(/^Origem:\s*/,'').replace(/\.$/,'')}`;
+    }
+    return session?.title||session?.name||session?.modality||session?.local||'Treino prescrito';
+  }
+  async function carregarAtividadeProgramada(){
+    const card=document.getElementById('planned-activity');card.classList.remove('show','done');
+    if(!returnToken)return;
+    const {data:exercise}=await window.sb.rpc('get_acompanhamento_exercise',{p_token:returnToken});
+    if(!exercise?.ok||!exercise.plan_token)return;
+    const {data:workout}=await window.sb.rpc('wo_get_plan',{p_token:exercise.plan_token});
+    if(!workout?.ok)return;
+    const today=new Date().toISOString().slice(0,10),sessions=(workout.plan?.sessions||[]).filter(session=>session.date===today);
+    if(!sessions.length)return;
+    const completedIds=new Set((workout.logs||[]).map(log=>String(log.session_id))),completed=sessions.every(session=>completedIds.has(String(session.session_id||session.id)));
+    document.getElementById('planned-title').textContent=sessions.length===1?'Atividade programada para hoje':`${sessions.length} atividades programadas para hoje`;
+    document.getElementById('planned-detail').textContent=sessions.map(sessionName).join(' · ');
+    document.getElementById('planned-state').textContent=completed?'Realizada ✓':'Por realizar';
+    card.classList.add('show');if(completed)card.classList.add('done');
+    document.getElementById('planned-open').textContent=completed?'Ver treino realizado':'Realizar treino';
+    document.getElementById('planned-open').onclick=()=>location.href=`/acompanhamento?t=${encodeURIComponent(returnToken)}&open=activity`;
+  }
+  function abrirMovimento(){abrirEcra('ecra-movimento');carregarAtividadeProgramada()}
 
   // --- V2: chips de seleção única (um grupo = uma escolha; toque de novo no mesmo desmarca) ---
   document.querySelectorAll('.chiprow').forEach(row => {

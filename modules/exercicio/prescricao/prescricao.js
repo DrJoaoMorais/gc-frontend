@@ -137,6 +137,13 @@ function tipoKey(s) {
   if (m === 'outra atividade') return 'outra';
   return 'ginasio';
 }
+function metaSessao(s) {
+  if (tipoKey(s) !== 'patologia') return TIPO_META[tipoKey(s)];
+  const local = String(s?.local || '').toLowerCase();
+  if (local === 'casa') return { ...TIPO_META.patologia, label: 'HEP · em casa', icon: '<span aria-hidden="true">🏠</span>' };
+  if (local === 'clínica' || local === 'clinica') return { ...TIPO_META.patologia, label: 'Na clínica', icon: '<span aria-hidden="true">🏥</span>' };
+  return TIPO_META.patologia;
+}
 
 function modoExecucaoGinasio(s) {
   return s?.execution_mode === 'guided' ? 'guided' : 'free';
@@ -1929,7 +1936,7 @@ function renderCalGrid() {
             </div>
             <div class="gcwo-calsessions">
               ${sessions.map(s => {
-                const meta = TIPO_META[tipoKey(s)];
+                const meta = metaSessao(s);
                 const momentoLabel = MOMENTOS_SESSAO.find(m => m.value === s.momento)?.label;
                 const modoLabel = s.kind === 'list' && modoExecucaoGinasio(s) === 'guided' ? 'Guiado' : null;
                 return `
@@ -1995,6 +2002,7 @@ function renderCalGrid() {
 }
 
 function nomeCurtoSessao(s) {
+  if (tipoKey(s) === 'patologia') return metaSessao(s).label;
   const nomes = { list:'Gin.', ginasio:'Gin.', corrida:'Corrida', ciclismo:'Cicl.', natacao:'Natação', caminhada:'Caminh.', walk:'Caminh.', circuito:'Circuito', circuit:'Circuito' };
   return nomes[tipoKey(s)] || TIPO_META[tipoKey(s)]?.label || 'Treino';
 }
