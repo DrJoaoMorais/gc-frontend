@@ -117,6 +117,7 @@ function modalidadeTemZona(modality) {
 
 const TIPO_META = {
   ginasio:   { label: 'Ginásio',   icon: ICON_GINASIO,   fg: '#7c3aed', bg: '#f3e8ff' },
+  patologia: { label: 'Exercícios por patologia', icon: '<span aria-hidden="true">🦵</span>', fg: '#b45309', bg: '#fff4d6' },
   corrida:   { label: 'Corrida',   icon: ICON_CORRIDA,   fg: '#c2410c', bg: '#ffedd5' },
   natacao:   { label: 'Natação',   icon: ICON_NATACAO,   fg: '#1a56db', bg: '#eaf0fd' },
   ciclismo:  { label: 'Ciclismo',  icon: ICON_CICLISMO,  fg: '#0f8a74', bg: '#e3f6f2' },
@@ -126,6 +127,7 @@ const TIPO_META = {
 };
 // Sessões novas usam { kind, modality, local } (secção 5). tipoKey mapeia a modalidade para a chave de TIPO_META.
 function tipoKey(s) {
+  if (String(s?.notes || '').startsWith('Origem:')) return 'patologia';
   const m = (s.modality || '').toLowerCase();
   if (m === 'corrida') return 'corrida';
   if (m === 'natação' || m === 'natacao') return 'natacao';
@@ -1764,7 +1766,7 @@ function renderCalendarMode(host) {
     </div>
 
     <div class="gcwo-generate">
-      <div class="gcwo-generate-copy"><strong>${_state.activePrescriptionId ? 'Plano em curso' : 'Plano pronto?'}</strong><span>${_state.activePrescriptionId ? 'Guarde as alterações ou termine o plano quando deixar de ser necessário.' : 'O link só fica disponível depois de guardar a prescrição.'}</span></div>
+      <div class="gcwo-generate-copy"><strong>${_returnToAcompanhamento ? 'Pronto para guardar?' : (_state.activePrescriptionId ? 'Plano em curso' : 'Plano pronto?')}</strong><span>${_returnToAcompanhamento ? 'O plano ficará disponível na ligação geral do doente.' : (_state.activePrescriptionId ? 'Guarde as alterações ou termine o plano quando deixar de ser necessário.' : 'O link só fica disponível depois de guardar a prescrição.')}</span></div>
       <span id="gcwoGerarErro" class="gcwo-erro"></span>
       <span id="gcwoPorGravarAviso" class="gcwo-porgravar-aviso" style="display:${haSessoesPorGravar() ? '' : 'none'}">⚠ As sessões do calendário só ficam realmente gravadas depois de clicares aqui.</span>
       <div class="gcwo-generate-actions">
@@ -4460,6 +4462,7 @@ function hasSessionComExercicios() {
 // doente já tem; só cria prescrição+link novos quando não há nenhum plano activo. Não
 // muda o comportamento (já era assim), só o rótulo (9 ago 2026).
 function labelBotaoGerar() {
+  if (_returnToAcompanhamento) return 'Guardar e voltar ao acompanhamento';
   return _state.activePrescriptionId ? 'Atualizar plano' : 'Gerar prescrição e link';
 }
 function updateGerarButtonState() {
@@ -4733,6 +4736,13 @@ async function handleGerar() {
     _state.savedLink = TREINO_BASE_URL + token;
     _state.savedExpiresAt = linkExpiresAt;
     _state.__ultimoSnapshotGravado = JSON.stringify(_state.sessions);
+    // Quando a prescrição nasceu no acompanhamento digital, o endereço que se
+    // envia ao doente é a ligação geral. O token próprio do motor de treino fica
+    // interno e regressamos ao menu, que recarrega o estado acabado de gravar.
+    if (_returnToAcompanhamento && typeof window.__gc_openAcompanhamentoPanel === 'function') {
+      window.__gc_openAcompanhamentoPanel(_returnToAcompanhamento.patientId, _returnToAcompanhamento.clinicId);
+      return;
+    }
     renderStep3();
   } catch (err) {
     // Nenhum token aparece em logs nem em mensagens de erro — mesmo na (muitíssimo improvável)
