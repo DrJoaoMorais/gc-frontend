@@ -471,6 +471,9 @@
 /* ── modal "Mover para…" / "Duplicar para…" (9 ago 2026) ── */
 .gcwo-daypicker-modal { max-width:660px; }
 .gcwo-daypicker-hint { margin:0 0 14px; font-size:12.5px; color:#64748b; }
+.gcwo-daypicker-nav { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 14px; }
+.gcwo-daypicker-nav span { color:#64748b; font-size:11px; font-weight:700; text-align:center; }
+.gcwo-daypicker-nav button { min-width:140px; }
 .gcwo-daypicker-week { margin-bottom:14px; }
 .gcwo-daypicker-week:last-child { margin-bottom:0; }
 .gcwo-daypicker-row { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; }
@@ -481,10 +484,12 @@
 .gcwo-daypicker-cell:hover { border-color:#cbd5e1; background:#f8fafc; }
 .gcwo-daypicker-cell.on { border-color:#1a56db; background:#eaf0fd; }
 .gcwo-daypicker-cell.source { opacity:.45; cursor:not-allowed; }
+.gcwo-daypicker-cell.out { opacity:.3; cursor:not-allowed; }
 .gcwo-daypicker-cell .dname { font-size:9.5px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.03em; }
 .gcwo-daypicker-cell .num { font-size:12px; font-weight:700; color:#0f172a; }
 .gcwo-daypicker-cell .tag { font-size:8.5px; font-weight:600; color:#94a3b8; }
 .gcwo-daypicker-cell .dot { position:absolute; top:5px; right:5px; width:6px; height:6px; border-radius:50%; background:#f59e0b; }
+@media(max-width:620px){.gcwo-daypicker-nav{align-items:stretch;flex-direction:column}.gcwo-daypicker-nav button{min-width:0;width:100%}}
 
 /* ── copiar semana N para as outras ── */
 .gcwo-copyweek {

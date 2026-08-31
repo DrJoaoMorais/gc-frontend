@@ -2084,7 +2084,13 @@ function wireCalMenuDocClickOnce() {
    estão visíveis no calendário (semanasParaMostrar()).
    ================================================================ */
 function abrirDayPicker(sessionId, mode) {
-  _dayPicker = { sessionId, mode, selecionados: new Set() };
+  const sessao = _state.sessions.find(x => x.session_id === sessionId);
+  _dayPicker = {
+    sessionId,
+    mode,
+    selecionados: new Set(),
+    firstMonday: segundaFeiraDeIso(sessao?.date || _state.startDate)
+  };
   renderDayPicker();
 }
 function fecharDayPicker() {
@@ -2108,7 +2114,12 @@ function renderDayPicker() {
   }
 
   const meta = TIPO_META[tipoKey(s)];
-  const semanas = semanasParaMostrar();
+  const segInicioPlano = segundaFeiraDeIso(_state.startDate);
+  const segFimPlano = segundaFeiraDeIso(_state.endDate);
+  const primeiraSegunda = _dayPicker.firstMonday || segInicioPlano;
+  const semanas = [primeiraSegunda, addDiasIso(primeiraSegunda, 7)];
+  const podeAnterior = primeiraSegunda > segInicioPlano;
+  const podeSeguinte = addDiasIso(primeiraSegunda, 14) <= segFimPlano;
   const mover = _dayPicker.mode === 'mover';
   const nSel = _dayPicker.selecionados.size;
 
@@ -2121,6 +2132,11 @@ function renderDayPicker() {
       </div>
       <div class="gcwo-modal-body">
         <p class="gcwo-daypicker-hint">${mover ? 'Clica no dia de destino.' : 'Escolhe um ou vários dias e confirma. Cada dia recebe uma cópia independente.'}</p>
+        <div class="gcwo-daypicker-nav">
+          <button type="button" class="gcBtnGhost" id="gcwoDayPickerPrev" ${podeAnterior ? '' : 'disabled'}>‹ Semanas anteriores</button>
+          <span>${escHtml(fmtIntervaloIso(primeiraSegunda, addDiasIso(primeiraSegunda, 13)))}</span>
+          <button type="button" class="gcBtnGhost" id="gcwoDayPickerNext" ${podeSeguinte ? '' : 'disabled'}>Semanas seguintes ›</button>
+        </div>
         ${semanas.map((segIso, wi) => `
           <div class="gcwo-daypicker-week">
             <div class="gcwo-calweek-label">${escHtml(fmtIntervaloIso(segIso, addDiasIso(segIso, 6)))}</div>
@@ -2128,13 +2144,14 @@ function renderDayPicker() {
               ${DIAS_SEMANA.map((d, di) => {
                 const iso = addDiasIso(segIso, di);
                 const isSource = s.date === iso;
+                const foraDoPlano = iso < _state.startDate || iso > _state.endDate;
                 const temSessoes = _state.sessions.some(x => x.date === iso && x.session_id !== s.session_id);
                 const selecionado = _dayPicker.selecionados.has(iso);
                 return `
-                <button type="button" class="gcwo-daypicker-cell${isSource ? ' source' : ''}${selecionado ? ' on' : ''}" data-date="${iso}" ${isSource ? 'disabled' : ''}>
+                <button type="button" class="gcwo-daypicker-cell${isSource ? ' source' : ''}${foraDoPlano ? ' out' : ''}${selecionado ? ' on' : ''}" data-date="${iso}" ${isSource || foraDoPlano ? 'disabled' : ''}>
                   <span class="dname">${d.label}</span>
                   <span class="num">${escHtml(fmtDiaMesCurtoIso(iso))}</span>
-                  ${isSource ? '<span class="tag">actual</span>' : (temSessoes ? '<span class="dot" title="Já tem sessões — esta junta-se"></span>' : '')}
+                  ${isSource ? '<span class="tag">actual</span>' : (foraDoPlano ? '<span class="tag">fora do plano</span>' : (temSessoes ? '<span class="dot" title="Já tem sessões — esta junta-se"></span>' : ''))}
                 </button>`;
               }).join('')}
             </div>
@@ -2153,6 +2170,14 @@ function renderDayPicker() {
 function wireDayPicker() {
   document.getElementById('gcwoDayPickerClose').addEventListener('click', fecharDayPicker);
   document.getElementById('gcwoDayPickerCancelar')?.addEventListener('click', fecharDayPicker);
+  document.getElementById('gcwoDayPickerPrev')?.addEventListener('click', () => {
+    _dayPicker.firstMonday = addDiasIso(_dayPicker.firstMonday, -14);
+    renderDayPicker();
+  });
+  document.getElementById('gcwoDayPickerNext')?.addEventListener('click', () => {
+    _dayPicker.firstMonday = addDiasIso(_dayPicker.firstMonday, 14);
+    renderDayPicker();
+  });
 
   document.querySelectorAll('#gcwoDayPickerOverlay [data-date]').forEach(cell => {
     cell.addEventListener('click', () => {
