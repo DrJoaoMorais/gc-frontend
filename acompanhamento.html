@@ -67,7 +67,8 @@
         if(data?.ok){plan=data.plan;exerciseToken=data.plan_token||exerciseToken}
       }
       if(filter==='activity'&&exerciseToken){
-        location.href=`https://treino.joaomorais.pt/t/${encodeURIComponent(exerciseToken)}`;
+        const returnUrl=`https://gc.joaomorais.pt/acompanhamento?t=${encodeURIComponent(token)}`;
+        location.href=`https://treino.joaomorais.pt/t/${encodeURIComponent(exerciseToken)}?return=${encodeURIComponent(returnUrl)}`;
         return;
       }
       document.querySelector('.content').hidden=true;
