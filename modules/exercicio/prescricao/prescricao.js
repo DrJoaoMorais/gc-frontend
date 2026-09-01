@@ -116,7 +116,8 @@ function modalidadeTemZona(modality) {
 }
 
 const TIPO_META = {
-  ginasio:   { label: 'Ginásio',   icon: ICON_GINASIO,   fg: '#7c3aed', bg: '#f3e8ff' },
+  // O valor antigo "Ginásio" continua nos dados para não quebrar planos existentes.
+  ginasio:   { label: 'Fortalecimento', icon: ICON_GINASIO, fg: '#7c3aed', bg: '#f3e8ff' },
   patologia: { label: 'Exercícios por patologia', icon: '<span aria-hidden="true">🦵</span>', fg: '#b45309', bg: '#fff4d6' },
   corrida:   { label: 'Corrida',   icon: ICON_CORRIDA,   fg: '#c2410c', bg: '#ffedd5' },
   natacao:   { label: 'Natação',   icon: ICON_NATACAO,   fg: '#1a56db', bg: '#eaf0fd' },
@@ -2003,7 +2004,7 @@ function renderCalGrid() {
 
 function nomeCurtoSessao(s) {
   if (tipoKey(s) === 'patologia') return metaSessao(s).label;
-  const nomes = { list:'Gin.', ginasio:'Gin.', corrida:'Corrida', ciclismo:'Cicl.', natacao:'Natação', caminhada:'Caminh.', walk:'Caminh.', circuito:'Circuito', circuit:'Circuito' };
+  const nomes = { list:'Fortal.', ginasio:'Fortal.', corrida:'Corrida', ciclismo:'Cicl.', natacao:'Natação', caminhada:'Caminh.', walk:'Caminh.', circuito:'Circuito', circuit:'Circuito' };
   return nomes[tipoKey(s)] || TIPO_META[tipoKey(s)]?.label || 'Treino';
 }
 
@@ -2500,7 +2501,7 @@ function renderTypegrid() {
       <button type="button" class="gcwo-typecard" data-modality="${escAttr(t.modality)}" data-kind="${t.kind}"
         ${t.enabled ? '' : 'disabled title="Disponível numa próxima etapa"'}>
         <span class="ticon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
-        <span class="tname">${escHtml(t.modality)}</span>
+        <span class="tname">${escHtml(meta.label)}</span>
         <span class="tdesc">${escHtml({
           'Ginásio': 'Máquinas, TRX, bandas e peso corporal',
           'Corrida': 'Tempo, distância, ritmo e zonas Z1–Z5',
