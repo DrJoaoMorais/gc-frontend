@@ -1,5 +1,5 @@
 /* Config de região — Punho / Mão. Lida pelo motor.js. Só dados, zero lógica. */
-import { seccaoCicatriz, seccaoAtrofia, NIVEIS_MS } from './_comuns.js?v=1';
+import { seccaoCicatriz, seccaoAtrofia, NIVEIS_MS } from './_comuns.js?v=3';
 
 export default {
   id: 'punho-mao',

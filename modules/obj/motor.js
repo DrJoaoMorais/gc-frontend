@@ -7,6 +7,25 @@ let _romState = {};
 let _romConfigs = {};
 let _savedOnce = false;
 
+/* Modelo transversal de funcionalidade.
+ * Capacidade e dor são dimensões independentes em todas as regiões.
+ */
+const FUNC_CAPACIDADE_OPTS = [
+  { v: 'Sem dificuldade', lbl: 'Sem dificuldade' },
+  { v: 'Dificuldade ligeira', lbl: 'Ligeira' },
+  { v: 'Dificuldade moderada', lbl: 'Moderada' },
+  { v: 'Dificuldade grave', lbl: 'Grave' },
+  { v: 'Impossível', lbl: 'Impossível' },
+  { v: 'Não aplicável / não realiza habitualmente', lbl: 'N/A' }
+];
+const FUNC_DOR_OPTS = [
+  { v: 'Sem dor', lbl: 'Sem dor' },
+  { v: 'Dor ligeira', lbl: 'Ligeira' },
+  { v: 'Dor moderada', lbl: 'Moderada' },
+  { v: 'Dor intensa', lbl: 'Intensa' },
+  { v: 'Não aplicável', lbl: 'N/A' }
+];
+
 /* ════════ ENTRY ════════ */
 (async function () {
   const qp = new URLSearchParams(location.search);
@@ -15,7 +34,7 @@ let _savedOnce = false;
     document.body.innerHTML = '<p style="padding:20px;color:#dc2626;font-weight:600">Região inválida: ' + r + '</p>';
     return;
   }
-  const config = (await import('./configs/' + r + '.js')).default;
+  const config = (await import('./configs/' + r + '.js?v=3')).default;
   window._examCtx = { patientId: qp.get('p') || null, clinicId: qp.get('c') || null, consultationId: qp.get('s') || null, patientName: qp.get('n') || null, assessmentId: qp.get('a') || null };
   _motorCfg = config;
   _renderPage(config);
@@ -50,7 +69,20 @@ function _hidratarFormData(d) {
     const el = document.getElementById(id);
     if (!el) return;
     el.querySelectorAll('.opt').forEach(function (b) { b.classList.remove('sel'); });
-    const btn = el.querySelector('[data-v="' + String(val) + '"]');
+    let btn = Array.from(el.querySelectorAll('.opt')).find(function (b) {
+      return b.dataset.v === String(val);
+    });
+    /* Compatibilidade: um valor antigo mantém-se visível e gravável sem ser
+     * reinterpretado como uma das novas categorias. Desaparece da selecção
+     * assim que o médico escolher deliberadamente uma opção actual.
+     */
+    if (!btn && el.closest('.func-escala')) {
+      btn = document.createElement('div');
+      btn.className = 'opt legacy-opt';
+      btn.dataset.v = String(val);
+      btn.textContent = 'Registo anterior: ' + String(val);
+      el.appendChild(btn);
+    }
     if (btn) btn.classList.add('sel');
   }
   function selMulti(id, vals) {
@@ -325,15 +357,17 @@ function _renderMrc(sec, n) {
 }
 
 function _renderFunc(sec, n) {
-  let h = '<div class="sec"><div class="sec-title">' + n + ' · ' + sec.titulo + '</div>';
+  let h = '<div class="sec func-sec"><div class="sec-title func-title"><span>' + n + ' · ' + sec.titulo + '</span>' +
+    '<button type="button" class="func-fill-normal" onclick="window._funcPreencherNormal()">Tudo sem dificuldade e sem dor</button></div>';
   h += '<div class="func-grid">';
+  h += '<div class="func-head"><span>Actividade</span><span>Capacidade</span><span>Dor</span></div>';
   sec.rows.forEach(function (row) {
     h += '<div class="func-row"><div class="func-lbl">' + row.label + '</div>';
     h += '<div class="func-escala"><span class="func-escala-lbl">Capacidade</span><div class="opts sg" id="' + row.id + '">';
-    sec.opts.forEach(function (o) { h += '<div class="opt" data-v="' + o + '">' + o + '</div>'; });
+    FUNC_CAPACIDADE_OPTS.forEach(function (o) { h += '<div class="opt" data-v="' + o.v + '">' + o.lbl + '</div>'; });
     h += '</div></div>';
     h += '<div class="func-escala"><span class="func-escala-lbl">Dor</span><div class="opts sg" id="' + row.id + '_dor">' +
-         ['Sem dor', 'Dor ligeira', 'Dor moderada', 'Dor intensa'].map(function(o){return '<div class="opt" data-v="'+o+'">'+o+'</div>';}).join('') +
+         FUNC_DOR_OPTS.map(function(o){return '<div class="opt" data-v="'+o.v+'">'+o.lbl+'</div>';}).join('') +
          '</div></div>';
     h += '</div>';
   });
@@ -341,6 +375,15 @@ function _renderFunc(sec, n) {
   if (sec.notas) h += '<textarea id="' + sec.notas + '" placeholder="Notas sobre funcionalidade…"></textarea>';
   return h + '</div>';
 }
+
+window._funcPreencherNormal = function () {
+  document.querySelectorAll('.func-row').forEach(function (row) {
+    const capacidade = row.querySelector('.opts:not([id$="_dor"]) .opt[data-v="Sem dificuldade"]');
+    const dor = row.querySelector('.opts[id$="_dor"] .opt[data-v="Sem dor"]');
+    if (capacidade && !capacidade.classList.contains('sel')) capacidade.click();
+    if (dor && !dor.classList.contains('sel')) dor.click();
+  });
+};
 
 function _renderRom(sec, n) {
   sec.movimentos.forEach(function (m) { _romState[m.key] = { a: null, p: null }; });
@@ -405,14 +448,29 @@ function _renderKapandji(sec, n) {
 
 function _renderGrupos(sec, n) {
   let h = '<div class="sec" id="sec-' + sec.id + '"><div class="sec-title">' + n + ' · ' + sec.label + '</div>';
-  sec.grupos.forEach(function (g) {
-    h += '<div class="gl">' + g.label + '</div>';
-    h += '<div class="opts ' + (g.tipo === 'sg' ? 'sg' : 'mg') + '" data-key="' + g.key + '">';
+  if (sec.id === 'cicatriz') h += '<div class="clinical-grid scar-grid"><div class="clinical-grid-head"><span>Item</span><span>Avaliação</span></div>';
+  const gruposRender = sec.id === 'cicatriz' ? sec.grupos.slice().sort(function (a, b) {
+    const ordem = ['aspeto_geral', 'bordas', 'secrecao', 'sinais_locais', 'tipo', 'vascularizacao', 'pigmentacao', 'nivel_superficie', 'espessura', 'relevo', 'maleabilidade', 'aderencia', 'mobilidade', 'dor_palpacao', 'dor_presente', 'prurido', 'sensibilidade_tatil', 'fenomenos_sensitivos', 'repuxamento', 'impacto_funcional', 'impressao_clinica'];
+    return ordem.indexOf(a.key) - ordem.indexOf(b.key);
+  }) : sec.grupos;
+  gruposRender.forEach(function (g) {
+    if (sec.id === 'cicatriz') {
+      const titulos = {
+        aspeto_geral: 'Integridade e possíveis complicações',
+        tipo: 'Características da cicatriz',
+        dor_palpacao: 'Sintomas e repercussão',
+        impressao_clinica: 'Síntese médica'
+      };
+      if (titulos[g.key]) h += '<div class="clinical-grid-section">' + titulos[g.key] + '</div>';
+    }
+    if (sec.id === 'cicatriz') h += '<div class="clinical-grid-row"><div class="clinical-grid-label">' + g.label + '</div><div class="opts ' + (g.tipo === 'sg' ? 'sg' : 'mg') + '" data-key="' + g.key + '">';
+    else h += '<div class="gl">' + g.label + '</div><div class="opts ' + (g.tipo === 'sg' ? 'sg' : 'mg') + '" data-key="' + g.key + '">';
     g.opcoes.forEach(function (op) {
       h += '<div class="opt" data-v="' + op + '">' + op + '</div>';
     });
-    h += '</div>';
+    h += sec.id === 'cicatriz' ? '</div></div>' : '</div>';
   });
+  if (sec.id === 'cicatriz') h += '</div>';
   if (sec.perimetria) {
     h += '<div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:12px">' +
          '<thead style="background:#0f2d52"><tr>' +
@@ -1297,7 +1355,7 @@ window._gerarResumo = function () {
           const el = document.querySelector('#' + row.id + ' .opt.sel');
           const elDor = document.querySelector('#' + row.id + '_dor .opt.sel');
           const partes = [];
-          if (el && el.dataset.v !== 'Normal') partes.push(el.dataset.v);
+          if (el && el.dataset.v !== 'Sem dificuldade') partes.push(el.dataset.v);
           if (elDor && elDor.dataset.v !== 'Sem dor') partes.push(elDor.dataset.v);
           if (partes.length) linhas.push('  ' + row.label + ': ' + partes.join(' · '));
         });
