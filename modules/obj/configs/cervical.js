@@ -1,5 +1,5 @@
 /* Config de região — Coluna Cervical. Lida pelo motor.js. Só dados, zero lógica. */
-import { seccaoCicatriz, seccaoAtrofia } from './_comuns.js?v=1';
+import { seccaoCicatriz, seccaoAtrofia } from './_comuns.js?v=3';
 
 export default {
   id: 'cervical',

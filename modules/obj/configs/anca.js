@@ -1,5 +1,5 @@
 /* Config de região — Anca. Lida pelo motor.js. Só dados, zero lógica. */
-import { seccaoCicatriz, seccaoAtrofia, NIVEIS_MI } from './_comuns.js?v=1';
+import { seccaoCicatriz, seccaoAtrofia, NIVEIS_MI } from './_comuns.js?v=3';
 
 export default {
   id: 'anca',

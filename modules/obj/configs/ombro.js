@@ -1,5 +1,5 @@
 /* Config de região — Ombro. Lida pelo motor.js. Só dados, zero lógica. */
-import { seccaoCicatriz, seccaoAtrofia, NIVEIS_MS } from './_comuns.js?v=1';
+import { seccaoCicatriz, seccaoAtrofia, NIVEIS_MS } from './_comuns.js?v=3';
 
 export default {
   id: 'ombro',
@@ -57,14 +57,13 @@ export default {
     },
 
     { tipo: 'func', id: 'func', titulo: 'Avaliação Funcional', col: 'dir', zona: 'baixo', notas: 'notas_func',
-      opts: ['Normal', 'Com dor', 'Dificuldade', 'Impossível'],
       rows: [
-        { id: 'func_elev', label: 'Elevação acima cabeça' },
-        { id: 'func_cos',  label: 'Alcançar costas' },
-        { id: 'func_vest', label: 'Vestir camisola' },
-        { id: 'func_prof', label: 'Actividade profissional' },
-        { id: 'func_desp', label: 'Actividade desportiva' },
-        { id: 'func_cond', label: 'Conduzir' },
+        { id: 'func_elev', label: 'Colocar ou retirar um objecto acima da cabeça' },
+        { id: 'func_cos',  label: 'Levar a mão atrás das costas (higiene ou ajustar a roupa)' },
+        { id: 'func_vest', label: 'Vestir ou despir uma camisola ou casaco' },
+        { id: 'func_prof', label: 'Realizar a actividade profissional habitual' },
+        { id: 'func_desp', label: 'Realizar a actividade desportiva ou recreativa habitual' },
+        { id: 'func_cond', label: 'Conduzir e manobrar o volante' },
       ],
     },
 

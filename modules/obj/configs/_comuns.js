@@ -11,7 +11,7 @@ export const seccaoCicatriz = {
   notasPlaceholder: 'Notas sobre a cicatriz...',
   grupos: [
     {
-      label: 'Aspeto geral',
+      label: 'Integridade cutânea',
       key: 'aspeto_geral',
       tipo: 'sg',
       opcoes: ['Fechada', 'Parcialmente aberta', 'Deiscente']
@@ -21,6 +21,42 @@ export const seccaoCicatriz = {
       key: 'tipo',
       tipo: 'sg',
       opcoes: ['Plana', 'Hipertrófica', 'Queloide', 'Atrófica']
+    },
+    {
+      label: 'Vascularização / cor',
+      key: 'vascularizacao',
+      tipo: 'sg',
+      opcoes: ['Sem alteração', 'Pálida', 'Rosada', 'Vermelha', 'Violácea']
+    },
+    {
+      label: 'Pigmentação',
+      key: 'pigmentacao',
+      tipo: 'sg',
+      opcoes: ['Sem alteração', 'Hipopigmentada', 'Hiperpigmentada', 'Mista']
+    },
+    {
+      label: 'Nível da superfície',
+      key: 'nivel_superficie',
+      tipo: 'sg',
+      opcoes: ['Ao nível da pele', 'Elevada', 'Deprimida', 'Mista']
+    },
+    {
+      label: 'Espessura',
+      key: 'espessura',
+      tipo: 'sg',
+      opcoes: ['Sem alteração', 'Ligeiramente aumentada', 'Muito aumentada']
+    },
+    {
+      label: 'Relevo da superfície',
+      key: 'relevo',
+      tipo: 'sg',
+      opcoes: ['Regular', 'Irregular']
+    },
+    {
+      label: 'Maleabilidade',
+      key: 'maleabilidade',
+      tipo: 'sg',
+      opcoes: ['Normal', 'Flexível', 'Firme', 'Endurecida']
     },
     {
       label: 'Bordas',
@@ -41,13 +77,13 @@ export const seccaoCicatriz = {
       opcoes: ['Eritema', 'Calor', 'Edema', 'Induração', 'Flutuação', 'Necrose', 'Crosta', 'Odor']
     },
     {
-      label: 'Aderência',
+      label: 'Aderência aos planos profundos',
       key: 'aderencia',
       tipo: 'sg',
       opcoes: ['Ausente', 'Discreta', 'Importante']
     },
     {
-      label: 'Mobilidade da cicatriz',
+      label: 'Mobilidade relativamente aos planos profundos',
       key: 'mobilidade',
       tipo: 'sg',
       opcoes: ['Preservada', 'Reduzida']
@@ -63,6 +99,12 @@ export const seccaoCicatriz = {
       key: 'dor_presente',
       tipo: 'mg',
       opcoes: ['Espontânea', 'Em repouso', 'Ao movimento/tração']
+    },
+    {
+      label: 'Prurido',
+      key: 'prurido',
+      tipo: 'sg',
+      opcoes: ['Ausente', 'Ligeiro', 'Moderado', 'Intenso']
     },
     {
       label: 'Sensibilidade tátil',
@@ -89,7 +131,7 @@ export const seccaoCicatriz = {
       opcoes: ['Sem limitação', 'Ligeira', 'Moderada', 'Importante']
     },
     {
-      label: 'Impressão clínica',
+      label: 'Conclusão / complicações clínicas',
       key: 'impressao_clinica',
       tipo: 'mg',
       opcoes: [
@@ -108,7 +150,7 @@ export const seccaoCicatriz = {
 
 export const seccaoAtrofia = {
   id: 'atrofia',
-  label: 'Atrofia Muscular',
+  label: 'Perimetria',
   tipo: 'grupos',
   col: 'dir',
   notasKey: 'notas_atrofia',
