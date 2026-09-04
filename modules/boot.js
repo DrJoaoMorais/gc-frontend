@@ -270,7 +270,7 @@ async function renderCurrentView() {
     wirePedidosOnlineToggle(() => {
       loadHomePedidosOnlineList();
     });
-    wireHomeAcompanhamentoUnificado(() => renderHomeAcompanhamentoUnificado(homeAcompItems, { onOpenFollowup: openHomeFollowup }));
+    wireHomeAcompanhamentoUnificado(() => renderHomeAcompanhamentoUnificado(homeAcompItems, { onOpenFollowup: openHomeFollowup, onStopFollowup: stopHomeFollowup }));
 
     await Promise.all([
       loadHomeConsultasHoje(),
@@ -569,7 +569,7 @@ async function resolveHomeQuestionario(row) {
       .eq("source", "questionnaire");
     if (error) throw error;
     await Promise.all([loadHomeAcompanhamentoAtivo(), loadHomeAlerts()]);
-    renderHomeAcompanhamentoUnificado(homeAcompItems, { onOpenFollowup: openHomeFollowup });
+    renderHomeAcompanhamentoUnificado(homeAcompItems, { onOpenFollowup: openHomeFollowup, onStopFollowup: stopHomeFollowup });
   } catch (e) {
     console.warn("Home: falha ao marcar questionário como analisado:", e);
   }
@@ -737,7 +737,7 @@ async function loadHomeAcompanhamentoAtivo() {
 
     homeAcompItems = Array.from(byPatient.values()).map((item) => ({
       ...item,
-      canStopFollowup: item.questionnaire?.kind !== "review" && !item.exercise?.hasActivity,
+      canStopFollowup: true,
     })).sort((a, b) => {
       const priority = (item) => item.questionnaire?.kind === "review" ? 0 : item.exercise?.needsAction ? 1 : item.questionnaire ? 2 : item.exercise?.ending ? 3 : item.diary ? 4 : 5;
       return priority(a) - priority(b) || String(a.patientName || "").localeCompare(String(b.patientName || ""), "pt");
@@ -757,22 +757,25 @@ async function loadHomeAcompanhamentoAtivo() {
 }
 
 async function stopHomeFollowup(item) {
-  if (!item?.patientId || !item.canStopFollowup) return;
+  if (!item?.patientId || !item?.clinicId) return;
   const name = item.patientName || "este doente";
   const confirmed = window.confirm(
     `Retirar ${name} do acompanhamento ativo?\n\nO Diário, o questionário e o plano deixam de funcionar. O doente e todo o histórico ficam guardados.`
   );
   if (!confirmed) return;
 
-  const clinicIds = homeClinicId
-    ? [homeClinicId]
-    : (G.clinics || []).map((clinic) => clinic.id).filter(Boolean);
+  const clinicIds = [item.clinicId];
   try {
     const operations = [];
     if (item.diary) {
       operations.push(window.sb.rpc("end_diary_episode", { p_patient_id: item.patientId, p_clinic_id: item.diary.clinic_id }));
     }
-    if (item.questionnaire && clinicIds.length) {
+    if (item.questionnaire?.kind === "review") {
+      const userRes = await window.sb.auth.getUser();
+      operations.push(window.sb.from("alerts")
+        .update({ resolved_at: new Date().toISOString(), resolved_by: userRes?.data?.user?.id || null })
+        .eq("id", item.questionnaire.id));
+    } else if (item.questionnaire && clinicIds.length) {
       operations.push(window.sb.from("intake_tokens")
         .update({ status: "expired" })
         .eq("patient_id", item.patientId)
@@ -791,8 +794,8 @@ async function stopHomeFollowup(item) {
     const results = await Promise.all(operations);
     const failed = results.find((result) => result.error);
     if (failed) throw failed.error;
-    await loadHomeAcompanhamentoAtivo();
-    renderHomeAcompanhamentoUnificado(homeAcompItems, { onOpenFollowup: openHomeFollowup });
+    await Promise.all([loadHomeAcompanhamentoAtivo(), loadHomeAlerts()]);
+    renderHomeAcompanhamentoUnificado(homeAcompItems, { onOpenFollowup: openHomeFollowup, onStopFollowup: stopHomeFollowup });
   } catch (error) {
     console.warn("Home: falha ao retirar doente do acompanhamento:", error);
     window.alert("Não foi possível retirar o doente do acompanhamento. Atualize a página e tente novamente.");
@@ -801,6 +804,7 @@ async function stopHomeFollowup(item) {
 
 function openHomeFollowup(item) {
   if (!item?.patientId || !item?.clinicId) return;
+  document.getElementById("gcHomeQuestionarioDrawer")?.remove();
   window.__gc_openAcompanhamentoPanel?.(item.patientId, item.clinicId);
 }
 

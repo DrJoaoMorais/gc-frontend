@@ -328,7 +328,7 @@ export function wireHomeAcompanhamentoUnificado(onOpen) {
   });
 }
 
-export function renderHomeAcompanhamentoUnificado(items, { onOpenFollowup } = {}) {
+export function renderHomeAcompanhamentoUnificado(items, { onOpenFollowup, onStopFollowup } = {}) {
   document.getElementById("gcHomeQuestionarioDrawer")?.remove();
   const bg = document.createElement("div");
   bg.id = "gcHomeQuestionarioDrawer";
@@ -366,12 +366,16 @@ export function renderHomeAcompanhamentoUnificado(items, { onOpenFollowup } = {}
         <div class="gc-home-questionario-info"><button type="button" class="gc-home-patient-link" data-followup-open="${escHomeHtml(item.itemKey)}">${escHomeHtml(item.patientName || "Doente")}</button><div class="gc-home-acomp-tags">${diaryTag}${qLabel ? `<span class="gc-home-acomp-tag ${q?.kind === "review" ? "analisar" : "questionario"}">${qLabel}</span>` : ""}${exerciseTags}</div></div>
         <div class="gc-home-questionario-actions">
           <button type="button" class="gc-home-questionario-open" data-followup-open="${escHomeHtml(item.itemKey)}">Abrir acompanhamento</button>
+          <button type="button" class="gc-home-acomp-stop" data-followup-stop="${escHomeHtml(item.itemKey)}">Retirar do acompanhamento</button>
         </div>
       </div>`;
     }).join("") : `<div class="gc-home-empty"><div class="gc-home-empty-icon">${ICON.check}</div><div><b>Sem doentes em acompanhamento ativo</b></div></div>`;
     pages.innerHTML = `<button type="button" data-page="prev" ${page === 0 ? "disabled" : ""}>Anterior</button><span>${filtered.length} doente${filtered.length === 1 ? "" : "s"} · Página ${page + 1} de ${totalPages}</span><button type="button" data-page="next" ${page >= totalPages - 1 ? "disabled" : ""}>Seguinte</button>`;
     root.querySelectorAll("[data-followup-open]").forEach((btn) => btn.addEventListener("click", () => {
       onOpenFollowup?.(items.find((item) => String(item.itemKey) === btn.getAttribute("data-followup-open")) || null);
+    }));
+    root.querySelectorAll("[data-followup-stop]").forEach((btn) => btn.addEventListener("click", () => {
+      onStopFollowup?.(items.find((item) => String(item.itemKey) === btn.getAttribute("data-followup-stop")) || null);
     }));
     pages.querySelector('[data-page="prev"]')?.addEventListener("click", () => { page--; render(); });
     pages.querySelector('[data-page="next"]')?.addEventListener("click", () => { page++; render(); });
