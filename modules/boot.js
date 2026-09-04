@@ -63,6 +63,8 @@ let homeClinicIdInitialized = false;
 let homeAlertFilter = "all";
 let homePendingAlertsSorted = [];
 let homeResolvedTodayAlerts = [];
+let homeStoredPendingAlerts = [];
+let homeResolvedTodayCount = 0;
 
 /* Uma linha por doente, agregando questionários e planos ativos. */
 let homeAcompItems = [];
@@ -632,7 +634,7 @@ async function loadHomeAcompanhamentoAtivo() {
       [readinessResult, logsResult] = await Promise.all([
         window.sb
         .from("wo_session_readiness")
-        .select("prescription_id, patient_id")
+        .select("prescription_id, patient_id, answered_at")
         .in("prescription_id", prescriptionIds)
         .eq("has_symptoms", true)
         .limit(1000),
@@ -705,6 +707,7 @@ async function loadHomeAcompanhamentoAtivo() {
         hasActivity: Boolean(previous?.hasActivity || latestLogByPrescription.has(row.id)),
         ending: Boolean(previous?.ending || ending),
         expiresAt: previous?.expiresAt && new Date(previous.expiresAt) < new Date(row.expires_at) ? previous.expiresAt : row.expires_at,
+        signalAt: latestLogByPrescription.get(row.id)?.logged_at || (readinessResult.data || []).find((value) => value.prescription_id === row.id)?.answered_at || previous?.signalAt || row.expires_at,
       };
     });
 
@@ -745,6 +748,7 @@ async function loadHomeAcompanhamentoAtivo() {
       questionarios: homeAcompItems.filter((item) => item.questionnaire).length,
       planos: homeAcompItems.filter((item) => item.exercise?.active).length,
     });
+    rebuildHomeAlerts();
   } catch (error) {
     console.warn("Home: falha ao carregar acompanhamento ativo:", error);
     setHomeAcompanhamentoUnificadoStats(null);
@@ -823,6 +827,39 @@ function openHomeExerciseFollowup(patientId, prescriptionId) {
 const HOME_ALERT_SEVERITY_ORDER = { urgent: 0, attention: 1, info: 2 };
 const HOME_ALERT_SELECT_COLUMNS = "id, clinic_id, patient_id, source, event_type, severity, title, message, target_url, created_at, resolved_at";
 
+function rebuildHomeAlerts() {
+  const exerciseAlerts = (homeAcompItems || []).filter((item) => item.exercise?.needsAction).map((item) => ({
+    id: `exercise-followup:${item.itemKey}`,
+    clinic_id: item.clinicId,
+    patient_id: item.patientId,
+    source: "exercise",
+    event_type: "exercise_followup_attention",
+    severity: "attention",
+    title: item.patientName || "Doente em acompanhamento",
+    message: (item.exercise.reasons || []).join(" · ") || "O treino necessita de revisão.",
+    target_url: null,
+    created_at: item.exercise.signalAt || null,
+    resolved_at: null,
+    synthetic: true,
+  }));
+  const storedKeys = new Set(homeStoredPendingAlerts.map((alert) => `${alert.clinic_id}:${alert.patient_id}:${alert.source}`));
+  const derived = exerciseAlerts.filter((alert) => !storedKeys.has(`${alert.clinic_id}:${alert.patient_id}:${alert.source}`));
+  const rows = [...homeStoredPendingAlerts, ...derived];
+  setHomeDashboardAlertStats({
+    urgent: rows.filter((alert) => alert.severity === "urgent").length,
+    attention: rows.filter((alert) => alert.severity === "attention").length,
+    info: rows.filter((alert) => alert.severity === "info").length,
+    resolvedToday: homeResolvedTodayCount,
+  });
+  homePendingAlertsSorted = rows.slice().sort((a, b) => {
+    const severityA = HOME_ALERT_SEVERITY_ORDER[a.severity] ?? 3;
+    const severityB = HOME_ALERT_SEVERITY_ORDER[b.severity] ?? 3;
+    if (severityA !== severityB) return severityA - severityB;
+    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+  });
+  applyHomeAlertFilter();
+}
+
 async function loadHomeAlerts() {
   try {
     let q = window.sb
@@ -836,9 +873,6 @@ async function loadHomeAlerts() {
     if (error) throw error;
 
     const rows = pending || [];
-    const urgent    = rows.filter((a) => a.severity === "urgent").length;
-    const attention = rows.filter((a) => a.severity === "attention").length;
-    const info      = rows.filter((a) => a.severity === "info").length;
 
     /* Mesma leitura que antes só contava (head:true) — transformada em
        leitura das linhas para poder alimentar o filtro "Resolvidos" sem
@@ -858,20 +892,14 @@ async function loadHomeAlerts() {
       resolvedRows = resolved || [];
     }
 
-    setHomeDashboardAlertStats({ urgent, attention, info, resolvedToday: resolvedRows.length });
-
-    homePendingAlertsSorted = rows.slice().sort((a, b) => {
-      const sa = HOME_ALERT_SEVERITY_ORDER[a.severity] ?? 3;
-      const sb = HOME_ALERT_SEVERITY_ORDER[b.severity] ?? 3;
-      if (sa !== sb) return sa - sb;
-      return new Date(b.created_at) - new Date(a.created_at);
-    });
+    homeStoredPendingAlerts = rows;
+    homeResolvedTodayCount = resolvedRows.length;
     homeResolvedTodayAlerts = resolvedRows;
-
-    applyHomeAlertFilter();
+    rebuildHomeAlerts();
   } catch (e) {
     console.warn("Home: falha ao carregar alertas:", e);
     setHomeDashboardAlertStats(null);
+    homeStoredPendingAlerts = [];
     homePendingAlertsSorted = [];
     homeResolvedTodayAlerts = [];
     renderHomeDashboardAlerts(null);
@@ -890,7 +918,13 @@ function applyHomeAlertFilter() {
       : homePendingAlertsSorted.filter((a) => a.severity === homeAlertFilter);
 
   renderHomeDashboardAlerts(filtered, {
-    onOpen: (url) => { if (url) window.open(url, "_blank", "noopener"); },
+    onOpen: (url, _alertId, alert) => {
+      if (alert?.synthetic && alert?.patient_id && alert?.clinic_id) {
+        openHomeFollowup({ patientId: alert.patient_id, clinicId: alert.clinic_id });
+      } else if (url) {
+        window.open(url, "_blank", "noopener");
+      }
+    },
     onResolve: (alertId) => { resolveHomeAlert(alertId); },
   });
 }

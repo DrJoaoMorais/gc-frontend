@@ -122,6 +122,7 @@ export function homeDashboardStyles() {
 .gc-home-questionario-row.prioritario{border-left-color:#dc2626}
 .gc-home-questionario-info{display:flex;flex:1;flex-direction:column;gap:2px;min-width:0}
 .gc-home-questionario-info strong{font-size:13px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gc-home-patient-link{display:block;width:fit-content;max-width:100%;border:0;background:transparent;padding:0;color:#0f172a;font:700 13px inherit;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}.gc-home-patient-link:hover{color:#1d5de2;text-decoration:underline}
 .gc-home-questionario-info span{font-size:11.5px;color:#94a3b8}
 .gc-home-acomp-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
 .gc-home-acomp-tag{display:inline-flex;align-items:center;border-radius:999px;padding:3px 7px;background:#f1f5f9;color:#475569!important;font-size:10.5px!important}
@@ -362,7 +363,7 @@ export function renderHomeAcompanhamentoUnificado(items, { onOpenFollowup } = {}
       const exerciseTags = item.exercise?.active
         ? [`<span class="gc-home-acomp-tag exercicio">Exercício: plano ativo</span>`, item.exercise.needsAction ? `<span class="gc-home-acomp-tag acao">Precisa de ação</span>` : "", item.exercise.ending ? `<span class="gc-home-acomp-tag">A terminar</span>` : ""].join("") : "";
       return `<div class="gc-home-questionario-row ${q?.kind === "review" || item.exercise?.needsAction ? "prioritario" : ""}">
-        <div class="gc-home-questionario-info"><strong>${escHomeHtml(item.patientName || "Doente")}</strong><div class="gc-home-acomp-tags">${diaryTag}${qLabel ? `<span class="gc-home-acomp-tag ${q?.kind === "review" ? "analisar" : "questionario"}">${qLabel}</span>` : ""}${exerciseTags}</div></div>
+        <div class="gc-home-questionario-info"><button type="button" class="gc-home-patient-link" data-followup-open="${escHomeHtml(item.itemKey)}">${escHomeHtml(item.patientName || "Doente")}</button><div class="gc-home-acomp-tags">${diaryTag}${qLabel ? `<span class="gc-home-acomp-tag ${q?.kind === "review" ? "analisar" : "questionario"}">${qLabel}</span>` : ""}${exerciseTags}</div></div>
         <div class="gc-home-questionario-actions">
           <button type="button" class="gc-home-questionario-open" data-followup-open="${escHomeHtml(item.itemKey)}">Abrir acompanhamento</button>
         </div>
@@ -602,8 +603,8 @@ function homeAlertRowHtml(a) {
         ${a.message ? `<div class="gc-home-alert-msg">${escHomeHtml(a.message)}</div>` : ""}
       </div>
       <div class="gc-home-alert-actions">
-        ${a.target_url ? `<button type="button" class="gc-home-alert-open" data-alert-open="${escHomeHtml(a.id)}">Abrir</button>` : ""}
-        ${a.resolved_at ? "" : `<button type="button" class="gc-home-alert-resolve" data-alert-resolve="${escHomeHtml(a.id)}">Resolvido</button>`}
+        ${a.target_url || (a.synthetic && a.patient_id && a.clinic_id) ? `<button type="button" class="gc-home-alert-open" data-alert-open="${escHomeHtml(a.id)}">${a.synthetic ? "Abrir acompanhamento" : "Abrir"}</button>` : ""}
+        ${a.resolved_at || a.synthetic ? "" : `<button type="button" class="gc-home-alert-resolve" data-alert-resolve="${escHomeHtml(a.id)}">Resolvido</button>`}
       </div>
     </div>`;
 }
@@ -644,7 +645,7 @@ export function renderHomeDashboardAlerts(alerts, { onOpen, onResolve } = {}) {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-alert-open");
       const a = alerts.find((x) => String(x.id) === id);
-      onOpen?.(a?.target_url || null, id);
+      onOpen?.(a?.target_url || null, id, a || null);
     });
   });
 
