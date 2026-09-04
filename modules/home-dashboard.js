@@ -115,7 +115,7 @@ export function homeDashboardStyles() {
 .gc-home-questionario-close{border:0;background:transparent;color:#64748b;font-size:24px;cursor:pointer;line-height:1}
 .gc-home-questionario-search{margin:14px 16px 8px;border:1px solid #cbd5e1;border-radius:9px;padding:9px 11px;font:13px inherit;background:#fff}
 .gc-home-questionario-list{padding:8px 16px;display:flex;flex-direction:column;gap:8px;overflow:auto;flex:1}
-.gc-home-questionario-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #64748b;border-radius:12px;padding:10px 12px}
+.gc-home-questionario-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;background:#fff;border:1px solid #e2e8f0;border-left:3px solid #64748b;border-radius:12px;padding:10px 12px}
 .gc-home-questionario-row.enviado{border-left-color:#f59e0b}
 .gc-home-questionario-row.em-preenchimento{border-left-color:#2563eb}
 .gc-home-questionario-row.respondido{border-left-color:#16a34a}
@@ -327,7 +327,7 @@ export function wireHomeAcompanhamentoUnificado(onOpen) {
   });
 }
 
-export function renderHomeAcompanhamentoUnificado(items, { onOpenQuestionnaire, onResolveQuestionnaire, onOpenDiary, onOpenExercise, onStopFollowup } = {}) {
+export function renderHomeAcompanhamentoUnificado(items, { onOpenFollowup } = {}) {
   document.getElementById("gcHomeQuestionarioDrawer")?.remove();
   const bg = document.createElement("div");
   bg.id = "gcHomeQuestionarioDrawer";
@@ -364,23 +364,14 @@ export function renderHomeAcompanhamentoUnificado(items, { onOpenQuestionnaire, 
       return `<div class="gc-home-questionario-row ${q?.kind === "review" || item.exercise?.needsAction ? "prioritario" : ""}">
         <div class="gc-home-questionario-info"><strong>${escHomeHtml(item.patientName || "Doente")}</strong><div class="gc-home-acomp-tags">${diaryTag}${qLabel ? `<span class="gc-home-acomp-tag ${q?.kind === "review" ? "analisar" : "questionario"}">${qLabel}</span>` : ""}${exerciseTags}</div></div>
         <div class="gc-home-questionario-actions">
-          ${item.diary ? `<button type="button" class="gc-home-questionario-open" data-diary-open="${escHomeHtml(item.patientId)}">Abrir acompanhamento</button>` : ""}
-          ${q ? `<button type="button" class="gc-home-questionario-open" data-q-open="${escHomeHtml(item.patientId)}">Ver questionário</button>` : ""}
-          ${q?.kind === "review" ? `<button type="button" class="gc-home-questionario-resolve" data-q-resolve="${escHomeHtml(item.patientId)}">Marcar analisado</button>` : ""}
-          ${item.exercise?.active ? `<button type="button" class="gc-home-questionario-open" data-exercise-open="${escHomeHtml(item.patientId)}">Ver exercício</button>` : ""}
-          ${item.canStopFollowup ? `<button type="button" class="gc-home-acomp-stop" data-followup-stop="${escHomeHtml(item.patientId)}">Retirar do acompanhamento</button>` : ""}
+          <button type="button" class="gc-home-questionario-open" data-followup-open="${escHomeHtml(item.itemKey)}">Abrir acompanhamento</button>
         </div>
       </div>`;
     }).join("") : `<div class="gc-home-empty"><div class="gc-home-empty-icon">${ICON.check}</div><div><b>Sem doentes em acompanhamento ativo</b></div></div>`;
     pages.innerHTML = `<button type="button" data-page="prev" ${page === 0 ? "disabled" : ""}>Anterior</button><span>${filtered.length} doente${filtered.length === 1 ? "" : "s"} · Página ${page + 1} de ${totalPages}</span><button type="button" data-page="next" ${page >= totalPages - 1 ? "disabled" : ""}>Seguinte</button>`;
-    root.querySelectorAll("[data-diary-open]").forEach((btn) => btn.addEventListener("click", () => onOpenDiary?.(items.find((item) => String(item.patientId) === btn.getAttribute("data-diary-open"))?.diary?.token || null)));
-    root.querySelectorAll("[data-q-open]").forEach((btn) => btn.addEventListener("click", () => onOpenQuestionnaire?.(items.find((item) => String(item.patientId) === btn.getAttribute("data-q-open"))?.questionnaire || null)));
-    root.querySelectorAll("[data-q-resolve]").forEach((btn) => btn.addEventListener("click", () => onResolveQuestionnaire?.(items.find((item) => String(item.patientId) === btn.getAttribute("data-q-resolve"))?.questionnaire || null)));
-    root.querySelectorAll("[data-exercise-open]").forEach((btn) => btn.addEventListener("click", () => {
-      const item = items.find((candidate) => String(candidate.patientId) === btn.getAttribute("data-exercise-open"));
-      onOpenExercise?.(item?.patientId || null, item?.exercise?.prescriptionId || null);
+    root.querySelectorAll("[data-followup-open]").forEach((btn) => btn.addEventListener("click", () => {
+      onOpenFollowup?.(items.find((item) => String(item.itemKey) === btn.getAttribute("data-followup-open")) || null);
     }));
-    root.querySelectorAll("[data-followup-stop]").forEach((btn) => btn.addEventListener("click", () => onStopFollowup?.(items.find((item) => String(item.patientId) === btn.getAttribute("data-followup-stop")) || null)));
     pages.querySelector('[data-page="prev"]')?.addEventListener("click", () => { page--; render(); });
     pages.querySelector('[data-page="next"]')?.addEventListener("click", () => { page++; render(); });
   };

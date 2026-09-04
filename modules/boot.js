@@ -268,13 +268,7 @@ async function renderCurrentView() {
     wirePedidosOnlineToggle(() => {
       loadHomePedidosOnlineList();
     });
-    wireHomeAcompanhamentoUnificado(() => renderHomeAcompanhamentoUnificado(homeAcompItems, {
-      onOpenQuestionnaire: openHomeQuestionario,
-      onResolveQuestionnaire: resolveHomeQuestionario,
-      onOpenDiary: openHomeDiary,
-      onOpenExercise: openHomeExerciseFollowup,
-      onStopFollowup: stopHomeFollowup,
-    }));
+    wireHomeAcompanhamentoUnificado(() => renderHomeAcompanhamentoUnificado(homeAcompItems, { onOpenFollowup: openHomeFollowup }));
 
     await Promise.all([
       loadHomeConsultasHoje(),
@@ -573,13 +567,7 @@ async function resolveHomeQuestionario(row) {
       .eq("source", "questionnaire");
     if (error) throw error;
     await Promise.all([loadHomeAcompanhamentoAtivo(), loadHomeAlerts()]);
-    renderHomeAcompanhamentoUnificado(homeAcompItems, {
-      onOpenQuestionnaire: openHomeQuestionario,
-      onResolveQuestionnaire: resolveHomeQuestionario,
-      onOpenDiary: openHomeDiary,
-      onOpenExercise: openHomeExerciseFollowup,
-      onStopFollowup: stopHomeFollowup,
-    });
+    renderHomeAcompanhamentoUnificado(homeAcompItems, { onOpenFollowup: openHomeFollowup });
   } catch (e) {
     console.warn("Home: falha ao marcar questionário como analisado:", e);
   }
@@ -693,16 +681,17 @@ async function loadHomeAcompanhamentoAtivo() {
     });
 
     const byPatient = new Map();
-    const ensure = (patientId, name = null) => {
-      if (!patientId) return null;
-      if (!byPatient.has(patientId)) byPatient.set(patientId, { patientId, patientName: name, diary: null, questionnaire: null, exercise: null });
-      const item = byPatient.get(patientId);
+    const ensure = (patientId, clinicId, name = null) => {
+      if (!patientId || !clinicId) return null;
+      const itemKey = `${patientId}:${clinicId}`;
+      if (!byPatient.has(itemKey)) byPatient.set(itemKey, { itemKey, patientId, clinicId, patientName: name, diary: null, questionnaire: null, exercise: null });
+      const item = byPatient.get(itemKey);
       if (!item.patientName && name) item.patientName = name;
       return item;
     };
 
     rows.forEach((row) => {
-      const item = ensure(row.patient_id);
+      const item = ensure(row.patient_id, row.clinic_id);
       if (!item) return;
       const reasons = reasonsByPrescription.get(row.id);
       const ending = endingRows.some((candidate) => candidate.id === row.id);
@@ -720,7 +709,7 @@ async function loadHomeAcompanhamentoAtivo() {
     });
 
     const applyQuestionnaire = (row, priority) => {
-      const item = ensure(row.patient_id, row.patients?.full_name || null);
+      const item = ensure(row.patient_id, row.clinic_id, row.patients?.full_name || null);
       if (!item || (item.questionnaire?.priority || 0) >= priority) return;
       item.questionnaire = { ...row, priority };
     };
@@ -728,18 +717,19 @@ async function loadHomeAcompanhamentoAtivo() {
     (progressResult.data || []).forEach((row) => applyQuestionnaire(row, 2));
     (reviewResult.data || []).forEach((row) => applyQuestionnaire({ ...row, kind: "review" }, 3));
     (diaryResult.data || []).forEach((row) => {
-      const item = ensure(row.patient_id);
+      const item = ensure(row.patient_id, row.clinic_id);
       if (!item || item.diary) return;
       const durationDays = Math.max(1, Number(row.duration_days) || 15);
       const day = Math.min(durationDays, Math.max(1, Math.floor((agora - new Date(row.created_at)) / 86400000) + 1));
       item.diary = { ...row, durationDays, day };
     });
 
-    const patientIds = Array.from(byPatient.keys());
+    const patientIds = Array.from(new Set(Array.from(byPatient.values()).map((item) => item.patientId)));
     if (patientIds.length) {
       const { data: patientsData, error: patientsError } = await window.sb.from("patients").select("id, full_name").in("id", patientIds);
       if (patientsError) throw patientsError;
-      (patientsData || []).forEach((patient) => { ensure(patient.id, patient.full_name); });
+      const names = new Map((patientsData || []).map((patient) => [patient.id, patient.full_name]));
+      byPatient.forEach((item) => { if (!item.patientName) item.patientName = names.get(item.patientId) || null; });
     }
 
     homeAcompItems = Array.from(byPatient.values()).map((item) => ({
@@ -798,22 +788,16 @@ async function stopHomeFollowup(item) {
     const failed = results.find((result) => result.error);
     if (failed) throw failed.error;
     await loadHomeAcompanhamentoAtivo();
-    renderHomeAcompanhamentoUnificado(homeAcompItems, {
-      onOpenQuestionnaire: openHomeQuestionario,
-      onResolveQuestionnaire: resolveHomeQuestionario,
-      onOpenDiary: openHomeDiary,
-      onOpenExercise: openHomeExerciseFollowup,
-      onStopFollowup: stopHomeFollowup,
-    });
+    renderHomeAcompanhamentoUnificado(homeAcompItems, { onOpenFollowup: openHomeFollowup });
   } catch (error) {
     console.warn("Home: falha ao retirar doente do acompanhamento:", error);
     window.alert("Não foi possível retirar o doente do acompanhamento. Atualize a página e tente novamente.");
   }
 }
 
-function openHomeDiary(token) {
-  if (!token) return;
-  window.open(`https://gc.joaomorais.pt/acompanhamento?t=${encodeURIComponent(token)}`, "_blank", "noopener");
+function openHomeFollowup(item) {
+  if (!item?.patientId || !item?.clinicId) return;
+  window.__gc_openAcompanhamentoPanel?.(item.patientId, item.clinicId);
 }
 
 /* openHomeExerciseFollowup — clique numa linha da lista de acompanhamento
