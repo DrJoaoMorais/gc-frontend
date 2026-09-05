@@ -204,6 +204,36 @@ export async function searchPatientsScoped({ clinicId, q, limit = 30 }) {
   return Array.isArray(data) ? data : [];
 }
 
+/* ---- 02E.2 — findPatientDuplicateCandidates ---- */
+export async function findPatientDuplicateCandidates({
+  clinicId,
+  fullName,
+  dob = null,
+  phone = null,
+  email = null,
+  sns = null,
+  nif = null,
+  passportId = null,
+  ccNumber = null,
+  limit = 8,
+}) {
+  requireClinicId(clinicId, "findPatientDuplicateCandidates");
+  const { data, error } = await window.sb.rpc("find_patient_duplicate_candidates", {
+    p_clinic_id: clinicId,
+    p_full_name: fullName,
+    p_dob: dob,
+    p_phone: phone,
+    p_email: email,
+    p_sns: sns,
+    p_nif: nif,
+    p_passport_id: passportId,
+    p_cc_number: ccNumber,
+    p_limit: limit,
+  });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
 
 /* ==== 02F — RPC criação/transferência de doente ==== */
 
