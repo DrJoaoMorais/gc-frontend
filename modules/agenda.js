@@ -3022,8 +3022,13 @@ function _openPendenteModal(row) {
     close();
     window.openNewPatientMainModal?.({
       clinicId: row.clinic_id,
+      creationSource: "online_request",
       prefill: { full_name: row.atleta_nome, dob: row.atleta_dob, phone: row.atleta_tel, email: row.atleta_email },
       onCreated: async ({ patientId, patient }) => {
+        if (patient?.active_clinic_id && String(patient.active_clinic_id) !== String(row.clinic_id)) {
+          const transfer = await maybeTransferPatientToClinic({ patientId, targetClinicId: row.clinic_id });
+          if (transfer.cancelled) throw new Error("TRANSFER_CANCELLED");
+        }
         const { data, error } = await window.sb.from("patient_uploads").update({ patient_id: patientId }).eq("id", row.id).select("id").single();
         if (error || !data?.id) throw error || new Error("O pedido não foi associado ao novo doente.");
         requestSnapshot.patient_id = patientId;

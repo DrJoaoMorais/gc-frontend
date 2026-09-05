@@ -1,8 +1,8 @@
 import { UI } from "./config.js";
 import { G } from "./state.js";
 import { closeModalRoot } from "./agenda.js";
-import { normalizeDigits } from "./helpers.js";
-import { rpcCreatePatientForClinic } from "./db.js";
+import { escapeHtml, normalizeDigits } from "./helpers.js";
+import { findPatientDuplicateCandidates, rpcCreatePatientForClinic } from "./db.js";
 
 /* ========================================================
    NOVO DOENTE — Modal da página inicial
@@ -11,9 +11,20 @@ import { rpcCreatePatientForClinic } from "./db.js";
 
 /* ==== INÍCIO BLOCO 07/12 — Novo doente (modal página inicial) ==== */
 
-function openNewPatientMainModal({ clinicId, prefill = null, onCreated = null } = {}) {
+function openNewPatientMainModal({
+  clinicId,
+  prefill = null,
+  onCreated = null,
+  creationSource = "manual",
+} = {}) {
   const root = document.getElementById("modalRoot");
   if (!root) return;
+
+  const isOnlineRequest = creationSource === "online_request";
+  const requiredFieldsText = isOnlineRequest
+    ? "Nome, nascimento, telefone e email obrigatórios. Identificação oficial opcional."
+    : "Nome obrigatório. Os restantes dados são opcionais.";
+  const onlineRequiredMark = isOnlineRequest ? " *" : "";
 
   if (!clinicId) {
     alert("Seleciona uma clínica (não pode ser 'Todas') para criar um doente.");
@@ -27,7 +38,7 @@ function openNewPatientMainModal({ clinicId, prefill = null, onCreated = null } 
         <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:0.5px solid #e2e8f0;position:sticky;top:0;background:#fff;z-index:10;">
           <div>
             <div style="font-size:16px;font-weight:500;color:#0f172a;">Novo doente</div>
-            <div style="font-size:12px;color:#64748b;margin-top:3px;">Nome, nascimento, telefone e email obrigatórios. Identificação oficial opcional.</div>
+            <div style="font-size:12px;color:#64748b;margin-top:3px;">${requiredFieldsText}</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
             <div id="npMsg" style="font-size:12px;color:#64748b;max-width:200px;text-align:right;"></div>
@@ -46,17 +57,17 @@ function openNewPatientMainModal({ clinicId, prefill = null, onCreated = null } 
 
           <div style="display:grid;grid-template-columns:160px 150px 1fr;gap:10px;">
             <div style="display:flex;flex-direction:column;gap:4px;">
-              <label style="font-size:11px;color:#64748b;">Data de nascimento</label>
+              <label style="font-size:11px;color:#64748b;">Data de nascimento${onlineRequiredMark}</label>
               <input id="npDob" type="date"
                 style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
-              <label style="font-size:11px;color:#64748b;">Telefone</label>
+              <label style="font-size:11px;color:#64748b;">Telefone${onlineRequiredMark}</label>
               <input id="npPhone" type="tel" placeholder="+351 9XX XXX XXX" autocomplete="off" spellcheck="false"
                 style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
-              <label style="font-size:11px;color:#64748b;">Email</label>
+              <label style="font-size:11px;color:#64748b;">Email${onlineRequiredMark}</label>
               <input id="npEmail" type="email" placeholder="email@exemplo.pt" autocomplete="off" spellcheck="false"
                 style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:${UI.fs13}px;font-family:inherit;" />
             </div>
@@ -136,6 +147,8 @@ function openNewPatientMainModal({ clinicId, prefill = null, onCreated = null } 
               style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #e2e8f0;resize:vertical;font-size:${UI.fs13}px;font-family:inherit;"></textarea>
           </div>
 
+          <div id="npDuplicateBox" style="display:none;border:1px solid #f59e0b;background:#fffbeb;border-radius:10px;padding:12px;"></div>
+
         </div>
       </div>
     </div>
@@ -162,6 +175,8 @@ function openNewPatientMainModal({ clinicId, prefill = null, onCreated = null } 
   const npCity = document.getElementById("npCity");
   const npCountry = document.getElementById("npCountry");
   const npNotes = document.getElementById("npNotes");
+  const npDuplicateBox = document.getElementById("npDuplicateBox");
+  let duplicateReviewFingerprint = null;
 
   if (prefill) {
     if (npFullName) npFullName.value = prefill.full_name || "";
@@ -175,6 +190,30 @@ function openNewPatientMainModal({ clinicId, prefill = null, onCreated = null } 
   function setInfo(msg) { if (npMsg) { npMsg.style.color = "#666"; npMsg.textContent = msg; } }
   function close() { closeModalRoot(); }
 
+  function duplicateFingerprint(v) {
+    return JSON.stringify([
+      v.full_name, v.dob, v.phone, v.email,
+      v.sns, v.nif, v.passport_id, v.cc_number,
+    ]);
+  }
+
+  function matchLabels(patient) {
+    return [
+      patient.same_sns && "SNS",
+      patient.same_nif && "NIF",
+      patient.same_passport && "passaporte/ID",
+      patient.same_cc && "Cartão de Cidadão",
+      patient.same_name && "nome",
+      patient.same_dob && "nascimento",
+      patient.same_phone && "telefone",
+      patient.same_email && "email",
+    ].filter(Boolean);
+  }
+
+  function isOfficialIdentifierMatch(patient) {
+    return Boolean(patient.same_sns || patient.same_nif || patient.same_passport || patient.same_cc);
+  }
+
   if (btnClose) btnClose.addEventListener("click", close);
   if (npCancel) npCancel.addEventListener("click", close);
   /* a janela NÃO fecha ao clicar fora — evita perder dados por engano.
@@ -184,13 +223,13 @@ function openNewPatientMainModal({ clinicId, prefill = null, onCreated = null } 
   function validate() {
     const fullName = (npFullName.value || "").trim();
     if (!fullName) return { ok: false, msg: "Nome completo é obrigatório." };
-    const dob = npDob.value || "";
+    const dob = npDob.value || null;
     const phone = (npPhone.value || "").trim();
     const email = (npEmail.value || "").trim();
-    if (!dob) return { ok: false, msg: "Data de nascimento é obrigatória." };
-    if (!phone) return { ok: false, msg: "Telefone é obrigatório." };
-    if (!email) return { ok: false, msg: "Email é obrigatório." };
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, msg: "Email inválido." };
+    if (isOnlineRequest && !dob) return { ok: false, msg: "Data de nascimento é obrigatória neste pedido online." };
+    if (isOnlineRequest && !phone) return { ok: false, msg: "Telefone é obrigatório neste pedido online." };
+    if (isOnlineRequest && !email) return { ok: false, msg: "Email é obrigatório neste pedido online." };
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, msg: "Email inválido." };
 
     const sns = normalizeDigits(npSNS.value);
     const nif = normalizeDigits(npNIF.value);
@@ -205,8 +244,8 @@ function openNewPatientMainModal({ clinicId, prefill = null, onCreated = null } 
       ok: true,
       full_name: fullName,
       dob,
-      phone,
-      email,
+      phone: phone || null,
+      email: email || null,
       sns: sns || null,
       nif: nif || null,
       passport_id: pass || null,
@@ -223,12 +262,95 @@ function openNewPatientMainModal({ clinicId, prefill = null, onCreated = null } 
 
   /* ---- 07D — Estado do botão ---- */
   function refreshButtonState() {
+    duplicateReviewFingerprint = null;
+    if (npDuplicateBox) {
+      npDuplicateBox.style.display = "none";
+      npDuplicateBox.innerHTML = "";
+    }
     if (npSNS) { const d = normalizeDigits(npSNS.value); if (npSNS.value !== d) npSNS.value = d; }
     if (npNIF) { const d = normalizeDigits(npNIF.value); if (npNIF.value !== d) npNIF.value = d; }
 
     const v = validate();
     if (!v.ok) { npCreate.disabled = true; setErr(v.msg); }
     else { npCreate.disabled = false; setInfo("OK para criar."); }
+  }
+
+  async function finishWithPatient(patient) {
+    const selected = {
+      id: patient.id,
+      full_name: patient.full_name,
+      dob: patient.dob || null,
+      phone: patient.phone || null,
+      email: patient.email || null,
+      sns: patient.sns || null,
+      nif: patient.nif || null,
+      passport_id: patient.passport_id || null,
+      active_clinic_id: patient.active_clinic_id || null,
+    };
+    G.patientQuick.selected = selected;
+    close();
+
+    if (typeof onCreated === "function") {
+      await onCreated({ patientId: selected.id, patient: selected, existing: true });
+    } else if (typeof window.__gc_openApptModal === "function") {
+      window.__gc_openApptModal({
+        mode: "new",
+        row: null,
+        prefillPatientId: selected.id,
+        prefillPatientName: selected.full_name,
+        prefillClinicId: clinicId,
+      });
+    }
+  }
+
+  function showDuplicateCandidates(candidates, fingerprint) {
+    if (!npDuplicateBox) return;
+    const hasOfficialMatch = candidates.some(isOfficialIdentifierMatch);
+    npDuplicateBox.style.display = "block";
+    npDuplicateBox.innerHTML = `
+      <div style="font-size:13px;font-weight:600;color:#92400e;">Possível ficha já existente</div>
+      <div style="font-size:12px;color:#78350f;margin-top:4px;">
+        ${hasOfficialMatch
+          ? "Existe uma correspondência por identificação oficial. Não é permitido criar outra ficha."
+          : "Confirma se alguma destas fichas pertence à mesma pessoa."}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:7px;margin-top:10px;">
+        ${candidates.map((patient, index) => `
+          <button type="button" data-use-existing="${index}" style="text-align:left;background:#fff;border:1px solid #fcd34d;border-radius:8px;padding:8px 10px;cursor:pointer;font-family:inherit;">
+            <strong style="color:#111827;">${escapeHtml(patient.full_name || "—")}</strong>
+            <span style="display:block;font-size:11px;color:#047857;margin-top:2px;">Coincide: ${escapeHtml(matchLabels(patient).join(" + "))}</span>
+          </button>
+        `).join("")}
+      </div>
+      ${hasOfficialMatch ? "" : `
+        <button type="button" id="npCreateDespiteDuplicate" style="margin-top:10px;background:#fff;color:#92400e;border:1px solid #f59e0b;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;font-family:inherit;">
+          Não é a mesma pessoa — criar nova ficha
+        </button>
+      `}
+    `;
+
+    npDuplicateBox.querySelectorAll("[data-use-existing]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const patient = candidates[Number(button.dataset.useExisting)];
+        if (!patient) return;
+        try {
+          npCreate.disabled = true;
+          setInfo("A usar a ficha existente…");
+          await finishWithPatient(patient);
+        } catch (e) {
+          console.error("Usar ficha existente falhou:", e);
+          setErr("Não foi possível usar a ficha existente. Vê a consola.");
+          npCreate.disabled = false;
+        }
+      });
+    });
+
+    document.getElementById("npCreateDespiteDuplicate")?.addEventListener("click", () => {
+      duplicateReviewFingerprint = fingerprint;
+      npDuplicateBox.style.display = "none";
+      npCreate.disabled = false;
+      npCreate.click();
+    });
   }
 
   [
@@ -247,9 +369,31 @@ function openNewPatientMainModal({ clinicId, prefill = null, onCreated = null } 
       if (!v.ok) { setErr(v.msg); return; }
 
       npCreate.disabled = true;
-      setInfo("A criar…");
+      setInfo("A verificar possíveis duplicados…");
 
       try {
+        const fingerprint = duplicateFingerprint(v);
+        if (duplicateReviewFingerprint !== fingerprint) {
+          const candidates = await findPatientDuplicateCandidates({
+            clinicId,
+            fullName: v.full_name,
+            dob: v.dob,
+            phone: v.phone,
+            email: v.email,
+            sns: v.sns,
+            nif: v.nif,
+            passportId: v.passport_id,
+            ccNumber: v.cc_number,
+          });
+          if (candidates.length) {
+            showDuplicateCandidates(candidates, fingerprint);
+            setErr("Confirma a possível ficha existente.");
+            npCreate.disabled = false;
+            return;
+          }
+        }
+
+        setInfo("A criar…");
         const payload = {
           p_clinic_id: clinicId,
           p_full_name: v.full_name,
@@ -325,7 +469,9 @@ function openNewPatientMainModal({ clinicId, prefill = null, onCreated = null } 
   }
 
   npCreate.disabled = true;
-  setInfo("Preenche nome, nascimento, telefone e email.");
+  setInfo(isOnlineRequest
+    ? "Preenche nome, nascimento, telefone e email."
+    : "Preenche o nome.");
   refreshButtonState();
 }
 /* ==== FIM BLOCO 07/12 ==== */
