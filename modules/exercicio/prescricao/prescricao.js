@@ -270,13 +270,10 @@ const CATALOG_FILTROS = [
   { value: 'Core', label: 'Core' },
   { value: 'Membro Superior', label: 'Membro Superior' },
 ];
-// Taxonomia visual dos filtros de equipamento (decisão de produto, 23 ago 2026) — fechada
-// nestes 6 chips; "Outros" nunca é gravado em wo_exercises.equipamento, é só uma agregação
-// da UI. Um acessório novo mantém o seu valor técnico real na BD e cai em "Outros" por
-// omissão — só ganha chip próprio com decisão explícita (ver EQUIPAMENTO_OUTROS_VALORES).
-// "Polia" fica de fora de "Máquina": tem significado funcional próprio no treino-frontend
-// (ver itemUsaMaquina) — misturar os dois mudaria o que o doente vê lá, por isso "Máquina"
-// só encontra exercícios tecnicamente equipamento="Máquina".
+// Taxonomia visual dos filtros de equipamento.
+// "Outros" nunca é gravado em wo_exercises.equipamento; é apenas uma agregação da UI.
+// Atualmente agrupa Bastão, Bola, Polia e Sem equipamento.
+// "Polia" mantém o seu valor técnico próprio na BD e não é convertida em "Máquina".
 const EQUIPAMENTO_FILTROS = ['Máquina', 'TRX', 'Elásticos', 'Halteres', 'Peso Corporal', 'Outros'];
 const EQUIPAMENTO_OUTROS_VALORES = ['Bastão', 'Bola', 'Polia', 'Sem equipamento'];
 function exercicioBateFiltroEquipamento(ex, filtroSet) {
@@ -2687,9 +2684,8 @@ function itemDuracaoMode(it) {
   return it.duration_sec != null || (Array.isArray(it.duration_series) && it.duration_series.length) ? 'duracao' : 'series';
 }
 
-// Exercícios só de peso corporal (equipamento vazio ou só "Peso Corporal") nunca mostram/gravam
-// carga em modo Duração. Qualquer outra etiqueta (Halteres, Máquina, TRX, Elásticos) — mesmo
-// combinada com "Peso Corporal", caso do Hip Thrust com Halteres — conta como equipamento externo.
+// Em modo Duração, exercícios com apenas Peso Corporal ou Sem equipamento não mostram/gravam
+// carga em kg. Qualquer outro equipamento presente pode justificar manter o campo de carga.
 function itemUsaEquipamentoExterno(it) {
   return (it.equipamento || []).some(eq => eq && eq !== 'Peso Corporal' && eq !== 'Sem equipamento');
 }
