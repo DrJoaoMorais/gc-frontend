@@ -289,7 +289,7 @@ const CATALOG_FILTROS = [
 // (ver itemUsaMaquina) — misturar os dois mudaria o que o doente vê lá, por isso "Máquina"
 // só encontra exercícios tecnicamente equipamento="Máquina".
 const EQUIPAMENTO_FILTROS = ['Máquina', 'TRX', 'Elásticos', 'Halteres', 'Peso Corporal', 'Outros'];
-const EQUIPAMENTO_OUTROS_VALORES = ['Bastão', 'Bola', 'Polia'];
+const EQUIPAMENTO_OUTROS_VALORES = ['Bastão', 'Bola', 'Polia', 'Sem equipamento'];
 function exercicioBateFiltroEquipamento(ex, filtroSet) {
   if (!filtroSet.size) return true;
   const equipamento = Array.isArray(ex.equipamento) ? ex.equipamento : [];
