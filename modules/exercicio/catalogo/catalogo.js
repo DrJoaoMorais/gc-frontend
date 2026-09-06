@@ -19,7 +19,7 @@ const MIME_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp'
 
 const CATEGORIA_OPCOES = ['Corpo Inteiro', 'Membro Superior', 'Membro Inferior', 'Core'];
 const LOCAIS_OPCOES = ['Casa', 'Ginásio', 'Clínica'];
-const EQUIPAMENTO_OPCOES = ['Máquina', 'TRX', 'Elásticos', 'Halteres', 'Peso Corporal'];
+const EQUIPAMENTO_OPCOES = ['Máquina', 'TRX', 'Elásticos', 'Halteres', 'Peso Corporal', 'Sem equipamento', 'Bastão', 'Polia', 'Bola'];
 
 function ensureCatalogoCss() {
   if (document.querySelector('link[data-gcwo-catalogo]')) return;
