@@ -20,6 +20,8 @@ const MIME_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp'
 const CATEGORIA_OPCOES = ['Corpo Inteiro', 'Membro Superior', 'Membro Inferior', 'Core'];
 const LOCAIS_OPCOES = ['Casa', 'Ginásio', 'Clínica'];
 const EQUIPAMENTO_OPCOES = ['Máquina', 'TRX', 'Elásticos', 'Halteres', 'Peso Corporal', 'Sem equipamento', 'Bastão', 'Polia', 'Bola'];
+const CONTEXTOS_EXERCICIO_OPCOES = ['Reabilitação', 'Treino'];
+const OBJETIVOS_EXERCICIO_OPCOES = ['Mobilidade / Alongamento', 'Fortalecimento', 'Propriocepção / Equilíbrio', 'Cardiovascular'];
 
 function ensureCatalogoCss() {
   if (document.querySelector('link[data-gcwo-catalogo]')) return;
@@ -50,7 +52,7 @@ function freshState() {
 }
 
 function novoExercicioVazio() {
-  return { id: null, name: '', categoria: [], locais: [], equipamento: [], tempo_concentrico_s: null, tempo_excentrico_s: null, ajustes_maquina: [], photo_url: null, is_active: true, is_favorite: false, incremento_default: null, tecnica_info: tecnicaInfoVazia(), tecnica_notas: null };
+  return { id: null, name: '', categoria: [], locais: [], equipamento: [], contextos_exercicio: [], objetivos_exercicio: [], tempo_concentrico_s: null, tempo_excentrico_s: null, ajustes_maquina: [], photo_url: null, is_active: true, is_favorite: false, incremento_default: null, tecnica_info: tecnicaInfoVazia(), tecnica_notas: null };
 }
 
 const TECNICA_SECCOES = [
@@ -85,7 +87,7 @@ export async function initCatalogo({ onVoltar } = {}) {
 
 /* ── Leitura ─────────────────────────────────────────────── */
 async function loadExercicios() {
-  const camposBase = 'id,name,categoria,locais,equipamento,tempo_concentrico_s,tempo_excentrico_s,ajustes_maquina,photo_url,is_active,is_favorite,incremento_default,tecnica_notas';
+  const camposBase = 'id,name,categoria,locais,equipamento,contextos_exercicio,objetivos_exercicio,tempo_concentrico_s,tempo_excentrico_s,ajustes_maquina,photo_url,is_active,is_favorite,incremento_default,tecnica_notas';
   let { data, error } = await window.sb
     .from('wo_exercises')
     .select(`${camposBase},tecnica_info`)
@@ -255,6 +257,8 @@ function openPanel(ex) {
     categoria: [...(ex.categoria || [])],
     locais: [...(ex.locais || [])],
     equipamento: [...(ex.equipamento || [])],
+    contextos_exercicio: Array.isArray(ex.contextos_exercicio) ? [...ex.contextos_exercicio] : [],
+    objetivos_exercicio: Array.isArray(ex.objetivos_exercicio) ? [...ex.objetivos_exercicio] : [],
     ajustes_maquina: (ex.ajustes_maquina || []).map(a => ({ ...a })),
     tecnica_info: normalizarTecnicaInfo(ex.tecnica_info),
   } : novoExercicioVazio();
@@ -323,6 +327,8 @@ function renderPanel() {
       <div class="gcwo-cat-field"><span>Categoria</span>${chipGroupHtml('gcwoCatCategoria', CATEGORIA_OPCOES, ex.categoria)}</div>
       <div class="gcwo-cat-field"><span>Locais</span>${chipGroupHtml('gcwoCatLocais', LOCAIS_OPCOES, ex.locais)}</div>
       <div class="gcwo-cat-field"><span>Equipamento</span>${chipGroupHtml('gcwoCatEquipamento', EQUIPAMENTO_OPCOES, ex.equipamento)}</div>
+      <div class="gcwo-cat-field"><span>Contexto do exercício</span>${chipGroupHtml('gcwoCatContextos', CONTEXTOS_EXERCICIO_OPCOES, ex.contextos_exercicio)}</div>
+      <div class="gcwo-cat-field"><span>Objetivo</span>${chipGroupHtml('gcwoCatObjetivos', OBJETIVOS_EXERCICIO_OPCOES, ex.objetivos_exercicio)}</div>
 
       <div class="gcwo-cat-togglerow">
         <span class="gcwo-cat-togglelabel">Definir ritmo desta série</span>
@@ -367,6 +373,8 @@ function renderPanel() {
   wireChipGroup('gcwoCatCategoria', ex.categoria);
   wireChipGroup('gcwoCatLocais', ex.locais);
   wireChipGroup('gcwoCatEquipamento', ex.equipamento);
+  wireChipGroup('gcwoCatContextos', ex.contextos_exercicio);
+  wireChipGroup('gcwoCatObjetivos', ex.objetivos_exercicio);
   panel.querySelectorAll('[data-tecnica]').forEach(campo => campo.addEventListener('input', e => { ex.tecnica_info[e.target.dataset.tecnica] = linhasTecnica(e.target.value); }));
 
   document.getElementById('gcwoCatRitmoToggle').addEventListener('change', e => {
@@ -468,10 +476,14 @@ async function handleGuardar() {
   const categoria = ex.categoria || [];
   const locais = ex.locais || [];
   const equipamento = ex.equipamento || [];
+  const contextosExercicio = ex.contextos_exercicio || [];
+  const objetivosExercicio = ex.objetivos_exercicio || [];
   if (!nome) { erroEl.textContent = 'Falta o nome do exercício.'; return; }
   if (!categoria.length) { erroEl.textContent = 'Falta pelo menos uma categoria.'; return; }
   if (!locais.length) { erroEl.textContent = 'Falta pelo menos um local.'; return; }
   if (!equipamento.length) { erroEl.textContent = 'Falta pelo menos um equipamento.'; return; }
+  if (!contextosExercicio.length) { erroEl.textContent = 'Falta pelo menos um contexto do exercício.'; return; }
+  if (!objetivosExercicio.length) { erroEl.textContent = 'Falta pelo menos um objetivo do exercício.'; return; }
 
   const ritmoOn = document.getElementById('gcwoCatRitmoToggle').checked;
   const tempoConcentrico = ritmoOn ? ex.tempo_concentrico_s : null;
@@ -508,6 +520,8 @@ async function handleGuardar() {
       categoria,
       locais,
       equipamento,
+      contextos_exercicio: contextosExercicio,
+      objetivos_exercicio: objetivosExercicio,
       tempo_concentrico_s: tempoConcentrico,
       tempo_excentrico_s: tempoExcentrico,
       ajustes_maquina: ajustesLimpos,
