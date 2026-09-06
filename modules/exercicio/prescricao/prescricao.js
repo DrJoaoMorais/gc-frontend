@@ -2787,7 +2787,7 @@ function itemDuracaoMode(it) {
 // carga em modo Duração. Qualquer outra etiqueta (Halteres, Máquina, TRX, Elásticos) — mesmo
 // combinada com "Peso Corporal", caso do Hip Thrust com Halteres — conta como equipamento externo.
 function itemUsaEquipamentoExterno(it) {
-  return (it.equipamento || []).some(eq => eq && eq !== 'Peso Corporal');
+  return (it.equipamento || []).some(eq => eq && eq !== 'Peso Corporal' && eq !== 'Sem equipamento');
 }
 
 function seriesDuracaoPrescritasItem(it) {
