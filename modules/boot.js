@@ -1,3 +1,4 @@
+import { wireAgendaWorkspace } from './agenda-workspace.js';
 /**
  * boot.js — Passo 7
  * BLOCO 11B: Boot principal da aplicação
@@ -347,6 +348,7 @@ async function renderCurrentView() {
   if (view !== "agenda") return;
 
   /* ---- View de Agenda ---- */
+  wireAgendaWorkspace(refreshAgenda, setAgendaSubtitleForSelectedDay);
   renderClinicsSelect(G.clinics);
   setAgendaSubtitleForSelectedDay();
   await wireQuickPatientSearch();

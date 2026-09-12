@@ -1,3 +1,4 @@
+import { appointmentCard, enhanceAgendaRows } from './agenda-workspace.js';
 /* ========================================================
    AGENDA.JS — Agenda, Marcações, Calendário e Google Calendar
    --------------------------------------------------------
@@ -243,14 +244,13 @@ export async function updateAppointmentStatus(apptId, newStatus) {
 
   const s = (raw === "cancelled") ? "no_show" : raw;
 
-  if (idx >= 0) {
-    G.agenda.rows[idx].status = s;
-    renderAgendaList();
-  }
-
+  const select = document.querySelector(`#gcAgendaWorkspace li[data-appt-id="${CSS.escape(apptId)}"] select`);
+  if (select) select.disabled = true;
   try {
-    const { error } = await window.sb.from("appointments").update({ status: s }).eq("id", apptId);
+    const { data, error } = await window.sb.from("appointments").update({status:s}).eq("id",apptId).select("id");
     if (error) throw error;
+    if (!data?.length) throw new Error("Sem autorização para alterar esta marcação.");
+    await refreshAgenda();
   } catch (e) {
     console.error("Update status falhou:", e);
     await refreshAgenda();
@@ -411,41 +411,24 @@ export function renderAgendaList() {
 
   const rows        = G.agenda.rows || [];
   const timeColUsed = G.agenda.timeColUsed || "start_at";
+  const pageScope = `${G.selectedDayISO}|${G.activeClinicId || ''}`;
+  if (G.agenda.pageScope !== pageScope) { G.agenda.pageScope = pageScope; G.agenda.page = 0; }
+  const pageSize = G.agenda.pageSize === 12 ? 12 : 6;
+  const maxPage = Math.max(0, Math.ceil(rows.length / pageSize) - 1);
+  G.agenda.page = Math.min(G.agenda.page || 0, maxPage);
+  const page = G.agenda.page;
+  const visibleRows = rows.slice(page * pageSize, (page + 1) * pageSize);
+
 
   if (rows.length === 0) {
+    enhanceAgendaRows([]);
     ul.innerHTML = `<li style="padding:10px 0; font-size:${UI.fs12}px; color:#666;">Sem marcações para este dia.</li>`;
     return;
   }
 
-  const header = `
-    <li style="padding:8px 0 10px 0; border-bottom:1px solid #ededed;">
-      <div class="gcAgendaGrid gcAgendaHeader">
-        <div class="gcAgendaH">Horário</div>
-        <div class="gcAgendaH">Nome</div>
-        <div class="gcAgendaH">Tipo</div>
-        <div class="gcAgendaH">Estado</div>
-        <div class="gcAgendaH">Telefone</div>
-        <div class="gcAgendaH">Clínica</div>
-      </div>
-      <style>
-        .gcAgendaGrid{ display:grid; grid-template-columns: 110px 2.4fr 0.9fr 160px 120px 140px; column-gap:16px; align-items:center; width:100%; }
-        .gcAgendaHeader .gcAgendaH{ font-size:${UI.fs12}px; color:#666; font-weight:700; letter-spacing:.2px; }
-        .gcAgendaRow{ padding:10px 0; border-bottom:1px solid #f2f2f2; }
-        .gcAgendaRow:hover{ background:#f8f8f8; border-radius:10px; }
-        .gcAgendaTime{ font-size:${UI.fs14}px; font-weight:800; color:#111; white-space:nowrap; }
-        .gcAgendaNameWrap{ min-width:0; }
-        .gcAgendaNameText{ display:block; min-width:0; font-size:${UI.fs14}px; font-weight:800; color:#111; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .gcAgendaNotesBelow{ display:block; margin-top:4px; min-width:0; font-size:${UI.fs12}px; color:#666; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .gcAgendaCell{ min-width:0; font-size:${UI.fs12}px; color:#111; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .gcAgendaCellType{ padding-left:8px; }
-        .gcAgendaStatusWrap{ min-width:0; }
-        .gcStatusSelect{ width:100%; max-width:100%; min-width:0; font-size:${UI.fs12}px; font-weight:800; padding:6px 10px; border-radius:999px; border:1px solid #ddd; outline:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .gcStatusSelect:disabled{ opacity:0.75; cursor:not-allowed; }
-        .gcAgendaFooter{ margin-top:12px; padding-top:12px; border-top:1px dashed #e5e5e5; display:flex; justify-content:flex-end; }
-      </style>
-    </li>`;
+  const header = "";
 
-  const body = rows.map((r) => {
+  const body = visibleRows.map((r) => {
     const startVal  = r[timeColUsed] ?? r[pickFirstExisting(r, APPT_TIME_COL_CANDIDATES)];
     const endVal    = r[pickFirstExisting(r, APPT_END_COL_CANDIDATES)];
     const start     = startVal ? new Date(startVal) : null;
@@ -479,43 +462,30 @@ export function renderAgendaList() {
            }).join("")}
          </select>`;
 
-    return `
-      <li data-appt-id="${escapeHtml(r.id)}" class="gcAgendaRow">
-        <div class="gcAgendaGrid">
-          <div class="gcAgendaTime">${escapeHtml(timeTxt)}</div>
-          <div class="gcAgendaNameWrap">
-            <div style="display:flex; align-items:center; gap:2px; min-width:0;">
-              ${isBlock
-                ? `<span class="gcAgendaNameText">${escapeHtml("—")}</span>`
-                : `<span data-patient-open="1" class="gcPatientLink gcAgendaNameText" style="min-width:0;">${escapeHtml(patName)}</span>`
-              }
-              ${isBlock ? "" : `<button type="button" data-open-feed-legacy="${escapeHtml(r.patient_id || "")}" title="Feed antigo"
-                style="border:none;background:transparent;cursor:pointer;font-size:13px;flex-shrink:0;color:#0f2d52;">⏱️</button>`}
-            </div>
-            ${notes ? `<span class="gcAgendaNotesBelow">Notas: ${escapeHtml(notes)}</span>` : ""}
-          </div>
-          <div class="gcAgendaCell gcAgendaCellType" title="${escapeHtml(proc)}">${escapeHtml(proc)}</div>
-          <div class="gcAgendaStatusWrap">${statusSelectHtml}</div>
-          <div class="gcAgendaCell" title="${escapeHtml(patPhone)}">${escapeHtml(patPhone)}</div>
-          <div class="gcAgendaCell" title="${escapeHtml(clinicName)}">${escapeHtml(clinicName)}</div>
-        </div>
-      </li>`;
+    return appointmentCard(r, {patient:p,time:timeTxt,clinic:clinicName,procedure:proc,statusHTML:statusSelectHtml});
   }).join("");
 
   const footer = `
     <li style="padding:10px 0 0 0;">
-      <div class="gcAgendaFooter">
+      <div class="aw-footer">
+        <div class="aw-actions"><button id="awPagePrev" ${page===0?'disabled':''} aria-label="Doentes anteriores">‹</button><span>${page*pageSize+1}–${Math.min((page+1)*pageSize,rows.length)} de ${rows.length}</span><button id="awPageNext" ${page===maxPage?'disabled':''} aria-label="Doentes seguintes">›</button><span>Por página:</span><button id="awSix" aria-pressed="${pageSize===6}">6</button><button id="awTwelve" aria-pressed="${pageSize===12}">12</button></div>
         <button id="btnPrintAgendaDay" class="gcBtnOutline" type="button">Imprimir lista do dia</button>
         <button id="btnSyncGcal" class="gcBtnOutline" type="button" title="Sincronizar este dia com o Google Calendar">🔄 Sync GCal</button>
       </div>
     </li>`;
 
   ul.innerHTML = header + body + footer;
+  enhanceAgendaRows(rows);
+  document.getElementById('awPagePrev').onclick = () => { G.agenda.page--; renderAgendaList(); };
+  document.getElementById('awPageNext').onclick = () => { G.agenda.page++; renderAgendaList(); };
+  document.getElementById('awSix').onclick = () => { G.agenda.pageSize=6;G.agenda.page=0;renderAgendaList(); };
+  document.getElementById('awTwelve').onclick = () => { G.agenda.pageSize=12;G.agenda.page=0;renderAgendaList(); };
+
 
   ul.querySelectorAll("li[data-appt-id]").forEach((li) => {
     li.addEventListener("click", (ev) => {
       const t = ev.target;
-      if (t?.closest?.("[data-status-select='1']")) return;
+      if (t?.closest?.("button,select,a,input,textarea")) return;
       if (t?.closest?.("[data-patient-open='1']")) return;
       if (t?.closest?.("[data-open-feed-legacy]")) return;
       const id  = li.getAttribute("data-appt-id");
@@ -531,7 +501,7 @@ export function renderAgendaList() {
         const row    = rows.find((x) => x.id === apptId);
         if (!row) return;
         if (!row.patient_id) { alert("Marcação sem patient_id."); return; }
-        window.__gc_openFeedPanel(row.patient_id, G.activeClinicId || null);
+        window.__gc_openFeedPanel(row.patient_id, row.clinic_id || G.activeClinicId || null);
       });
     }
 

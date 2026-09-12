@@ -8,6 +8,7 @@
       03G.1  hydrateShellHeader()
    ======================================================== */
 
+import { agendaWorkspaceHTML, agendaWorkspaceStyles } from './agenda-workspace.js';
 import { G } from "./state.js";
 import { UI } from "./config.js";
 import { injectDesignSystem } from "./ui.js";
@@ -80,60 +81,7 @@ export function renderAppShell() {
   } else if (currentView === "exercicio-acompanhamento") {
     mainHtml = `<div id="gcExFollowRoot"></div>`;
   } else {
-    /* ── AGENDA ──────────────────────────────────────── */
-    mainHtml = `
-      <div class="gc-page-header" style="padding-bottom:10px;">
-        <div>
-          <div class="gc-page-title">Agenda</div>
-          <div class="gc-page-sub" id="agendaSubtitle">—</div>
-        </div>
-      </div>
-
-      <div id="agendaStats" style="margin-bottom:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;"></div>
-
-      <!-- Toolbar unificada -->
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:8px 12px;box-shadow:0 1px 4px rgba(15,45,82,0.06);">
-
-        <!-- Navegação temporal -->
-        <div style="display:flex;align-items:center;gap:2px;background:#f1f5f9;border-radius:10px;padding:2px;">
-          <button id="btnPrevDay" title="Dia anterior" style="border:none;background:transparent;cursor:pointer;width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#475569;font-size:16px;font-weight:700;transition:background 0.15s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='transparent'">‹</button>
-          <button id="btnToday" style="border:none;background:transparent;cursor:pointer;padding:0 10px;height:28px;border-radius:7px;font-size:13px;font-weight:600;color:#0f2d52;white-space:nowrap;transition:background 0.15s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='transparent'">Hoje</button>
-          <button id="btnNextDay" title="Próximo dia" style="border:none;background:transparent;cursor:pointer;width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#475569;font-size:16px;font-weight:700;transition:background 0.15s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='transparent'">›</button>
-        </div>
-        <button id="btnWeek"  class="gcBtnGhost" style="white-space:nowrap;">Semana</button>
-        <button id="btnCal"   class="gcBtnGhost" style="white-space:nowrap;">Calendário</button>
-
-        <!-- Separador -->
-        <div style="width:1px;height:24px;background:#e2e8f0;flex-shrink:0;"></div>
-
-        <!-- Acções -->
-        <button id="btnNewAppt" class="gcBtnPrimary" style="white-space:nowrap;">Agendar consulta</button>
-        <button id="btnNewPatientMain" class="gcBtnOutline" style="white-space:nowrap;">Novo doente</button>
-
-        <!-- Separador -->
-        <div style="width:1px;height:24px;background:#e2e8f0;flex-shrink:0;"></div>
-
-        <!-- Pesquisa + Clínica -->
-        <div class="gc-search-bar" style="flex:1;min-width:180px;max-width:360px;">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
-          <input id="pQuickQuery" type="search" placeholder="Pesquisar doente — Nome, SNS, NIF..." autocomplete="off" spellcheck="false" class="gc-search-input"/>
-        </div>
-        <select id="selClinic" class="gc-select" style="min-width:160px;max-width:220px;"></select>
-
-      </div>
-
-      <div id="pQuickResults" style="margin-top:6px;border:0.5px solid #e2e8f0;border-radius:10px;background:#fff;max-height:200px;overflow:auto;display:none;padding:8px;"></div>
-
-      <div id="agendaStatus" style="margin-top:8px;"></div>
-
-      <div id="pendentesSection" style="margin-top:14px;"></div>
-
-      <div id="vencidosSection" style="margin-top:8px;"></div>
-
-      <div style="margin-top:14px;">
-        <ul id="agendaList" style="list-style:none;padding:0;margin:0;"></ul>
-      </div>
-    `;
+    mainHtml = `<style>${agendaWorkspaceStyles()}</style>${agendaWorkspaceHTML()}`;
   }
 
   /* ── HTML completo ──────────────────────────────────── */

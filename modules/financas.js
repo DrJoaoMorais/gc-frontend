@@ -4313,3 +4313,24 @@ export function initFinancas() {
 }
 
 initFinancas();
+
+// Leitura reutilizada pela Agenda. Não altera o funcionamento dos ecrãs de Finanças.
+export async function loadFinanceForAgenda({ day, clinicId, monthly = false }) {
+  const year=Number(day.slice(0,4)),month=Number(day.slice(5,7));
+  const [entities,records]=await Promise.all([loadEntidades(),loadRegistos(monthly?{ano:year,mes:month}:{dataIni:day,dataFim:day})]);
+  const selected=entities.filter(x=>!clinicId||x.clinic_id===clinicId);
+  const prices=Object.fromEntries(await Promise.all([...new Set(selected.map(x=>x.clinic_id).filter(Boolean))].map(async id=>[id,buildClinicPricesByProc(await loadClinicPrices(id))])));
+  const allowed=new Map(selected.map(x=>[x.id,x]));
+  return {entities:selected,records:records.filter(r=>allowed.has(r.entidade_id)).map(r=>{
+    const ent=allowed.get(r.entidade_id),counts=contaParaTotal(r.appt_status,r.financial_status),value=resolveFaturado(r,ent,prices[ent.clinic_id]);
+    return {...r,agendaClinicId:ent.clinic_id,agendaEntityName:ent.nome,agendaCounts:counts,agendaBilled:counts?value.valor:0,agendaFee:counts?Number(r.valor||0):0,agendaSource:value.origem};
+  })};
+}
+export function printFinanceForAgenda(records,clinicName,period) {
+  if (records.some(r => r.agendaCounts && (!r.patients || r.agendaBilled == null))) {
+    alert('Existem dados de faturação por confirmar. O PDF não foi gerado.');
+    return;
+  }
+  // Mesmo PDF administrativo, com os valores resolvidos pela mesma origem.
+  openPdfContabilista(records.map(r=>({...r,valor_faturado:r.agendaBilled})),clinicName,period,{usarValorFaturado:true});
+}
