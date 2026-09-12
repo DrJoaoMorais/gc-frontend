@@ -1,4 +1,4 @@
-import { appointmentCard, enhanceAgendaRows } from './agenda-workspace.js';
+import { appointmentCard, enhanceAgendaRows, selectAgendaRow } from './agenda-workspace.js';
 /* ========================================================
    AGENDA.JS — Agenda, Marcações, Calendário e Google Calendar
    --------------------------------------------------------
@@ -490,7 +490,13 @@ export function renderAgendaList() {
       if (t?.closest?.("[data-open-feed-legacy]")) return;
       const id  = li.getAttribute("data-appt-id");
       const row = rows.find((x) => x.id === id);
-      if (row) openApptModal({ mode: "edit", row });
+      if (row) selectAgendaRow(row);
+    });
+
+    li.querySelector('[data-aw-edit]')?.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const row = rows.find(x => String(x.id) === li.dataset.apptId);
+      if (row) openApptModal({ mode: 'edit', row });
     });
 
     const pLink = li.querySelector("[data-patient-open='1']");
