@@ -411,13 +411,7 @@ export function renderAgendaList() {
 
   const rows        = G.agenda.rows || [];
   const timeColUsed = G.agenda.timeColUsed || "start_at";
-  const pageScope = `${G.selectedDayISO}|${G.activeClinicId || ''}`;
-  if (G.agenda.pageScope !== pageScope) { G.agenda.pageScope = pageScope; G.agenda.page = 0; }
-  const pageSize = G.agenda.pageSize === 12 ? 12 : 6;
-  const maxPage = Math.max(0, Math.ceil(rows.length / pageSize) - 1);
-  G.agenda.page = Math.min(G.agenda.page || 0, maxPage);
-  const page = G.agenda.page;
-  const visibleRows = rows.slice(page * pageSize, (page + 1) * pageSize);
+  const visibleRows = rows;
 
 
   if (rows.length === 0) {
@@ -468,7 +462,7 @@ export function renderAgendaList() {
   const footer = `
     <li style="padding:10px 0 0 0;">
       <div class="aw-footer">
-        <div class="aw-actions"><button id="awPagePrev" ${page===0?'disabled':''} aria-label="Doentes anteriores">‹</button><span>${page*pageSize+1}–${Math.min((page+1)*pageSize,rows.length)} de ${rows.length}</span><button id="awPageNext" ${page===maxPage?'disabled':''} aria-label="Doentes seguintes">›</button><span>Por página:</span><button id="awSix" aria-pressed="${pageSize===6}">6</button><button id="awTwelve" aria-pressed="${pageSize===12}">12</button></div>
+        <span>${rows.length} marcações</span>
         <button id="btnPrintAgendaDay" class="gcBtnOutline" type="button">Imprimir lista do dia</button>
         <button id="btnSyncGcal" class="gcBtnOutline" type="button" title="Sincronizar este dia com o Google Calendar">🔄 Sync GCal</button>
       </div>
@@ -476,10 +470,7 @@ export function renderAgendaList() {
 
   ul.innerHTML = header + body + footer;
   enhanceAgendaRows(rows);
-  document.getElementById('awPagePrev').onclick = () => { G.agenda.page--; renderAgendaList(); };
-  document.getElementById('awPageNext').onclick = () => { G.agenda.page++; renderAgendaList(); };
-  document.getElementById('awSix').onclick = () => { G.agenda.pageSize=6;G.agenda.page=0;renderAgendaList(); };
-  document.getElementById('awTwelve').onclick = () => { G.agenda.pageSize=12;G.agenda.page=0;renderAgendaList(); };
+
 
 
   ul.querySelectorAll("li[data-appt-id]").forEach((li) => {
