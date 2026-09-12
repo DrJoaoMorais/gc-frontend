@@ -176,17 +176,24 @@ export function renderClinicsSelect(clinics) {
     const label = c.name || c.slug || c.id;
     opts.push(`<option value="${escapeHtml(c.id)}">${escapeHtml(label)}</option>`);
   }
-  /* preserva a escolha actual antes de reconstruir as opções */
-  const prev = sel.value || G.activeClinicId || "";
-
-  sel.innerHTML = opts.join("");
-
-  /* restaura a escolha anterior se a clínica ainda existir */
-  if (prev && [...sel.options].some((o) => o.value === String(prev))) {
-    sel.value = String(prev);
-  } else if (clinics.length === 1) {
-    sel.value = clinics[0].id;
+  sel.innerHTML = opts.join('');
+  const host = document.getElementById('awClinicChoices');
+  if (!host) { sel.value = G.activeClinicId || ''; return; }
+  const key = 'gc-agenda-clinics:' + (G.sessionUser?.id || 'local');
+  if (!Array.isArray(G.agendaClinicIds)) {
+    try { const saved = JSON.parse(sessionStorage.getItem(key)); if (Array.isArray(saved)) G.agendaClinicIds = saved; } catch {}
   }
+  if (!Array.isArray(G.agendaClinicIds)) G.agendaClinicIds = G.activeClinicId ? [G.activeClinicId] : clinics.map(c => String(c.id));
+  G.agendaClinicIds = G.agendaClinicIds.filter(id => clinics.some(c => String(c.id) === id));
+  sel.value = G.agendaClinicIds.length === 1 ? G.agendaClinicIds[0] : '';
+  host.innerHTML = `<label><input type="checkbox" data-all ${G.agendaClinicIds.length===clinics.length?'checked':''}> Todas</label>` + clinics.map(c => `<label><input type="checkbox" data-clinic="${escapeHtml(c.id)}" ${G.agendaClinicIds.includes(String(c.id))?'checked':''}>${escapeHtml(c.name || c.slug || c.id)}</label>`).join('');
+  host.onchange = async event => {
+    if (event.target.hasAttribute('data-all')) G.agendaClinicIds = event.target.checked ? clinics.map(c => String(c.id)) : [];
+    else G.agendaClinicIds = [...host.querySelectorAll('[data-clinic]:checked')].map(el => el.dataset.clinic);
+    try { sessionStorage.setItem(key, JSON.stringify(G.agendaClinicIds)); } catch {}
+    renderClinicsSelect(clinics);
+    await refreshAgenda();
+  };
 }
 
 /* ---- 04A.4 — getPatientForAppointmentRow ---- */
@@ -2323,7 +2330,9 @@ export async function refreshAgenda() {
   setAgendaStatus("loading", "A carregar marcações…");
 
   try {
-    const { data, timeColUsed } = await loadAppointmentsForRange({ clinicId, startISO: r.startISO, endISO: r.endISO });
+    const loaded = await loadAppointmentsForRange({ clinicId, startISO: r.startISO, endISO: r.endISO });
+    const timeColUsed = loaded.timeColUsed;
+    const data = (loaded.data || []).filter(row => !Array.isArray(G.agendaClinicIds) || G.agendaClinicIds.includes(String(row.clinic_id)) || (G.agendaClinicIds.length > 0 && !row.clinic_id && row.mode === "bloqueio"));
 
     const patientIds = (data || []).map((x) => x?.patient_id).filter(Boolean);
     try {
