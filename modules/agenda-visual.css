@@ -44,3 +44,59 @@
 #gcAgendaWorkspace .aw-share-bar{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px;background:#f0f5fb;border-radius:7px;font-size:11px;margin:0 -5px}#gcAgendaWorkspace .aw-share-bar button{font-size:11px}#gcAgendaWorkspace .aw-pending{font-size:11px}
 @media(max-width:1250px){#gcAgendaWorkspace:has(#awDocuments:not([hidden])){grid-template-columns:minmax(0,1fr) 350px}#gcAgendaWorkspace .aw-approved-header{grid-template-columns:110px 180px;gap:12px}#gcAgendaWorkspace .aw-header-controls{grid-column:1/-1}#gcAgendaWorkspace .aw-row-main,#gcAgendaWorkspace .aw-table-head{grid-template-columns:80px minmax(135px,1fr) 90px 125px 28px 30px 35px 40px;min-width:710px}#gcAgendaWorkspace .aw-list{max-height:65vh}}
 @media(max-width:800px){#gcAgendaWorkspace:has(#awDocuments:not([hidden])){grid-template-columns:minmax(0,1fr)}#gcAgendaWorkspace #awDocuments{position:relative;max-height:none}#gcAgendaWorkspace .aw-approved-header{grid-template-columns:110px minmax(160px,1fr)}#gcAgendaWorkspace .aw-dates{flex-wrap:wrap}#gcAgendaWorkspace .aw-main-actions{flex-wrap:wrap}#gcAgendaWorkspace #awFinanceBody{width:90vw}}
+
+/* Proporções da referência; sem expandir o cabeçalho quando o painel fecha. */
+body:has(#gcAgendaWorkspace) .gc-sidebar{width:100px;background:linear-gradient(160deg,#102e50,#0d3559)}
+body:has(#gcAgendaWorkspace) .gc-sidebar-logo,body:has(#gcAgendaWorkspace) .gc-sidebar-bottom{width:100%;height:56px}
+body:has(#gcAgendaWorkspace) .gc-sidebar-nav{overflow-y:auto;min-height:0;padding:2px 0;gap:2px}
+body:has(#gcAgendaWorkspace) .gc-nav-btn{height:64px;min-height:64px;flex-direction:column;gap:8px;margin-left:0;border-left-width:3px;color:#cad7e6}
+body:has(#gcAgendaWorkspace) .gc-nav-btn::after{content:attr(title);position:static;transform:none;opacity:1;background:none;padding:0;white-space:normal;text-align:center;font-size:11px;line-height:1.15;max-width:92px;color:inherit}
+body:has(#gcAgendaWorkspace) .gc-nav-btn.active{background:#064471;color:white;border-left-color:#008aff;border-radius:0 6px 6px 0}
+body:has(#gcAgendaWorkspace) .gc-content{padding:14px 16px;background:linear-gradient(120deg,#edf4f9,#f4f7fa)}
+#gcAgendaWorkspace{max-width:1500px;gap:24px;margin:0}
+#gcAgendaWorkspace:not(:has(#awDocuments:not([hidden]))){max-width:1000px}
+#gcAgendaWorkspace:has(#awDocuments:not([hidden])){grid-template-columns:minmax(0,1fr) minmax(385px,30%)}
+#gcAgendaWorkspace .aw-approved-header{grid-template-columns:minmax(130px,.85fr) minmax(190px,1fr) minmax(390px,2fr);gap:24px;min-height:156px;margin:8px 4px 14px}
+#gcAgendaWorkspace .aw-title h1{font-size:28px;letter-spacing:-.7px}
+#gcAgendaWorkspace .aw-clinic-pop summary{font-size:12px;font-weight:500;justify-content:flex-start;min-height:30px}
+#gcAgendaWorkspace .aw-clinic-pop summary .aw-icon:last-child{margin-left:auto}
+#gcAgendaWorkspace .aw-dates{gap:2px;justify-content:flex-start;margin-bottom:20px}
+#gcAgendaWorkspace .aw-segments{margin-left:10px;flex:1}
+#gcAgendaWorkspace .aw-segments button{padding:7px 10px;flex:1}
+#gcAgendaWorkspace .aw-main-actions{gap:12px}
+#gcAgendaWorkspace .aw-messages{min-height:108px;padding:10px 13px;margin-bottom:22px}
+#gcAgendaWorkspace .aw-row-main,#gcAgendaWorkspace .aw-table-head{grid-template-columns:88px minmax(150px,1fr) 122px 140px 30px 36px 42px 48px;gap:7px}
+#gcAgendaWorkspace .aw-row{min-height:48px;padding:7px 10px}
+#gcAgendaWorkspace .aw-person button,#gcAgendaWorkspace .aw-time{font-size:13px}
+#gcAgendaWorkspace .aw-meta{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#gcAgendaWorkspace .aw-notes{font-size:12px;color:#173961}
+#gcAgendaWorkspace .aw-row-main>[data-status-select]{font-size:11px;appearance:none;padding:5px 7px;cursor:pointer}
+#gcAgendaWorkspace .aw-row-main>[data-status-select]:focus{outline:2px solid #76aaff;outline-offset:1px}
+#gcAgendaWorkspace #awDocuments{padding:18px 14px 0;max-height:calc(100vh - 70px);margin-top:-12px}
+#gcAgendaWorkspace .aw-patient-heading h2{font-size:25px}
+#gcAgendaWorkspace .aw-contact-lines{font-size:13px}
+#gcAgendaWorkspace .aw-panel-tabs button{font-size:11px}
+#gcAgendaWorkspace .aw-card-title{font-size:13px}
+#gcAgendaWorkspace .aw-panel-card p{font-size:13px;line-height:1.4}
+#gcAgendaWorkspace .aw-digital b,#gcAgendaWorkspace .aw-document b{font-size:12px}
+#gcAgendaWorkspace .aw-link-actions button,#gcAgendaWorkspace .aw-valid,#gcAgendaWorkspace .aw-unavailable{font-size:11px}
+#gcAgendaWorkspace .aw-document{padding:9px 0;border-bottom:1px solid #eef3f8}
+@media(max-width:1400px){
+ #gcAgendaWorkspace:has(#awDocuments:not([hidden])) .aw-approved-header{grid-template-columns:140px minmax(190px,1fr);gap:14px}
+ #gcAgendaWorkspace:has(#awDocuments:not([hidden])) .aw-header-controls{grid-column:1/-1}
+ #gcAgendaWorkspace .aw-row-main,#gcAgendaWorkspace .aw-table-head{min-width:790px}
+}
+@media(min-width:1251px){#gcAgendaWorkspace:not(:has(#awDocuments:not([hidden]))) .aw-header-controls{grid-column:auto}}
+@media(max-width:1250px){#gcAgendaWorkspace .aw-approved-header{grid-template-columns:140px minmax(190px,1fr);gap:14px}#gcAgendaWorkspace .aw-header-controls{grid-column:1/-1}}
+@media(max-width:1000px){
+ #gcAgendaWorkspace:has(#awDocuments:not([hidden])){grid-template-columns:minmax(0,1fr)}
+ #gcAgendaWorkspace #awDocuments{position:relative;margin-top:0;max-height:none}
+}
+@media(max-width:600px){
+ body:has(#gcAgendaWorkspace) .gc-sidebar{width:64px}
+ body:has(#gcAgendaWorkspace) .gc-nav-btn::after{font-size:9px;max-width:58px}
+ body:has(#gcAgendaWorkspace) .gc-content{padding:10px}
+ #gcAgendaWorkspace .aw-approved-header,#gcAgendaWorkspace:has(#awDocuments:not([hidden])) .aw-approved-header{grid-template-columns:100px minmax(130px,1fr);gap:10px;margin-left:0;margin-right:0}
+ #gcAgendaWorkspace .aw-segments{margin-left:0;flex-basis:100%;margin-top:6px}
+ #gcAgendaWorkspace .aw-clinic-menu{min-width:170px}
+}
