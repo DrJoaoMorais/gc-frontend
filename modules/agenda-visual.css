@@ -100,3 +100,14 @@ body:has(#gcAgendaWorkspace) .gc-content{padding:14px 16px;background:linear-gra
  #gcAgendaWorkspace .aw-segments{margin-left:0;flex-basis:100%;margin-top:6px}
  #gcAgendaWorkspace .aw-clinic-menu{min-width:170px}
 }
+
+/* Pesquisa e ações na mesma linha, abaixo da navegação. */
+#gcAgendaWorkspace .aw-approved-header{min-height:0;row-gap:16px;margin-bottom:18px;align-items:start}
+#gcAgendaWorkspace .aw-dates{margin-bottom:0}
+#gcAgendaWorkspace .aw-search-actions{grid-column:1/-1;display:flex;gap:12px;align-items:center;min-width:0}
+#gcAgendaWorkspace .aw-search-group{position:relative;flex:1;min-width:160px}
+#gcAgendaWorkspace .aw-search{margin-bottom:0;min-height:34px}
+#gcAgendaWorkspace .aw-main-actions{flex-shrink:0;align-items:center}
+#gcAgendaWorkspace .aw-search-group #pQuickResults{position:absolute;top:100%;left:0;right:0;z-index:30;background:white;max-height:45vh;overflow:auto;box-shadow:0 6px 18px #16325225}
+#gcAgendaWorkspace .aw-euro{font-size:18px;font-weight:700;line-height:1}
+@media(max-width:750px){#gcAgendaWorkspace .aw-search-actions{flex-wrap:wrap}#gcAgendaWorkspace .aw-search-group{flex-basis:100%}#gcAgendaWorkspace .aw-main-actions{flex-wrap:wrap}}
