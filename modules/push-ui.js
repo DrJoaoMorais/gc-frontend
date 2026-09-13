@@ -1,6 +1,6 @@
 import { getPushStatus, enablePushNotifications } from "./push-notifications.js";
 
-const BELL_ICON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>`;
+const BELL_ICON = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FF684F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>`;
 
 function ensureModalStyles() {
   if (document.getElementById("gcPushUiStyles")) return;
