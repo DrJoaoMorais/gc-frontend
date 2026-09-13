@@ -1,3 +1,4 @@
+import { stylePatient } from './marcacao-visual.js';
 import { UI } from "./config.js";
 import { G } from "./state.js";
 import { closeModalRoot } from "./agenda.js";
@@ -15,10 +16,12 @@ function openNewPatientMainModal({
   clinicId,
   prefill = null,
   onCreated = null,
+  appointmentOverlay = null,
   creationSource = "manual",
 } = {}) {
-  const root = document.getElementById("modalRoot");
-  if (!root) return;
+  const modalRoot = document.getElementById("modalRoot");
+  if (!modalRoot) return;
+  const root = appointmentOverlay ? document.createElement('div') : modalRoot;
 
   const isOnlineRequest = creationSource === "online_request";
   const requiredFieldsText = isOnlineRequest
@@ -31,6 +34,11 @@ function openNewPatientMainModal({
     return;
   }
 
+  if (appointmentOverlay) {
+    modalRoot.append(root);
+    appointmentOverlay.inert = true;
+    appointmentOverlay.classList.add('gm-parent');
+  }
   root.innerHTML = `
     <div id="npMainOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;">
       <div style="background:#fff;border-radius:14px;border:0.5px solid #e2e8f0;width:min(720px,100%);overflow:hidden;">
@@ -154,7 +162,9 @@ function openNewPatientMainModal({
     </div>
   `;
 
-  const overlay = document.getElementById("npMainOverlay");
+  const overlay = root.querySelector("#npMainOverlay");
+  stylePatient(overlay, !!appointmentOverlay);
+  if (appointmentOverlay?.classList.contains('gm-overlay')) overlay.classList.add('gm-child');
   const btnClose = document.getElementById("npMainClose");
   const npCancel = document.getElementById("npCancel");
   const npCreate = document.getElementById("npCreate");
@@ -188,7 +198,14 @@ function openNewPatientMainModal({
   /* ---- 07B — Estado local e fecho ---- */
   function setErr(msg) { if (npMsg) { npMsg.style.color = "#b00020"; npMsg.textContent = msg; } }
   function setInfo(msg) { if (npMsg) { npMsg.style.color = "#666"; npMsg.textContent = msg; } }
-  function close() { closeModalRoot(); }
+  function close() {
+    if (appointmentOverlay) {
+      root.remove();
+      appointmentOverlay.inert = false;
+      appointmentOverlay.classList.remove('gm-parent');
+      appointmentOverlay.querySelector('#btnNewPatient')?.focus();
+    } else closeModalRoot();
+  }
 
   function duplicateFingerprint(v) {
     return JSON.stringify([

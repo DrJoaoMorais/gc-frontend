@@ -1,3 +1,4 @@
+import { styleAppointment } from './marcacao-visual.js';
 import { appointmentCard, enhanceAgendaRows, selectAgendaRow } from './agenda-workspace.js';
 /* ========================================================
    AGENDA.JS — Agenda, Marcações, Calendário e Google Calendar
@@ -1782,6 +1783,8 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   if (mProc)     mProc.value     = procSelectValue;
   if (mNotes)    mNotes.value    = notesInit;
 
+  if (!isEdit) styleAppointment(overlay, __modalClinicLabel);
+
   /* --- pesquisa doente (modal) --- */
   function setSelectedPatient({ id, name }) {
     if (mPatientId)   mPatientId.value   = id   || "";
@@ -2141,12 +2144,20 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   });
   mPatientQuery?.addEventListener("focus", scheduleSearch);
   btnNewPatient?.addEventListener("click", () => {
-    /* UNIFICADO: abre a MESMA janela do "+ Novo doente" do topo.
-       Ao gravar, reabre a marcação com o doente preenchido.
-       Elimina a confusão dos dois botões (Criar e marcar vs Guardar). */
+    /* Mantém a marcação montada enquanto o formulário partilhado cria
+       ou seleciona um doente. Cancelar também regressa sem perder dados. */
     const cid = mClinic?.value || document.getElementById("selClinic")?.value || "";
     if (typeof window.openNewPatientMainModal === "function") {
-      window.openNewPatientMainModal({ clinicId: cid });
+      window.openNewPatientMainModal({
+        clinicId: cid,
+        appointmentOverlay: overlay,
+        onCreated: ({ patientId, patient }) => {
+          setSelectedPatient({ id: patientId, name: patient.full_name });
+          if (mPatientQuery) mPatientQuery.value = patient.full_name || "";
+          closeResults();
+          mPatientQuery?.focus();
+        },
+      });
     }
   });
 
