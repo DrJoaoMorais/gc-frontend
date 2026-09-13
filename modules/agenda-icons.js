@@ -1,0 +1,5 @@
+// SVG inline, seguindo o sistema vetorial já usado no shell (sem dependências).
+export function icon(name) {
+ const paths={search:'<circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/>',mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/>',file:'<path d="M14 2H5v20h14V7zM14 2v5h5M8 12h8M8 16h8"/>',copy:'<rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/>',calendar:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M7 2v5M17 2v5M3 10h18"/>',check:'<path d="m5 12 4 4L19 6"/>',edit:'<path d="m4 16 12-12 4 4L8 20H4zM14 6l4 4"/>',send:'<path d="m3 3 18 9-18 9 4-9zM7 12h14"/>',phone:'<path d="M5 3h4l2 5-3 2a15 15 0 0 0 6 6l2-3 5 2v4c-9 5-23-9-16-16z"/>',whatsapp:'<path d="M20 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-4.2A8.5 8.5 0 1 1 20 11.5Z"/><path d="M8 7c-2 3 3 8 6 7l1-2-3-1-1 1-2-2 1-1z"/>',clinic:'<path d="M4 21V5h16v16M9 21v-5h6v5M9 9h6M12 6v6"/>',chevron:'<path d="m6 9 6 6 6-6"/>'};
+ return `<svg class="aw-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.file}</svg>`;
+}

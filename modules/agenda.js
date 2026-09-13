@@ -155,7 +155,7 @@ export function setAgendaSubtitleForSelectedDay() {
   const r   = isoLocalDayRangeFromISODate(G.selectedDayISO);
   const sub = document.getElementById("agendaSubtitle");
   if (!sub || !r) return;
-  sub.textContent = `${fmtDatePt(r.start)} (00:00–24:00)`;
+  sub.textContent = r.start.toLocaleDateString('pt-PT',{weekday:'long'}) + ',\n' + r.start.toLocaleDateString('pt-PT',{day:'numeric',month:'long',year:'numeric'});
 }
 
 /* ---- 04A.2 — setAgendaStatus ---- */
@@ -186,6 +186,7 @@ export function renderClinicsSelect(clinics) {
   if (!Array.isArray(G.agendaClinicIds)) G.agendaClinicIds = G.activeClinicId ? [G.activeClinicId] : clinics.map(c => String(c.id));
   G.agendaClinicIds = G.agendaClinicIds.filter(id => clinics.some(c => String(c.id) === id));
   sel.value = G.agendaClinicIds.length === 1 ? G.agendaClinicIds[0] : '';
+  const count = document.getElementById('awClinicCount'); if(count) count.textContent = G.agendaClinicIds.length === clinics.length ? 'Todas as clínicas' : `${G.agendaClinicIds.length} clínicas selecionadas`;
   host.innerHTML = `<label><input type="checkbox" data-all ${G.agendaClinicIds.length===clinics.length?'checked':''}> Todas</label>` + clinics.map(c => `<label><input type="checkbox" data-clinic="${escapeHtml(c.id)}" ${G.agendaClinicIds.includes(String(c.id))?'checked':''}>${escapeHtml(c.name || c.slug || c.id)}</label>`).join('');
   host.onchange = async event => {
     if (event.target.hasAttribute('data-all')) G.agendaClinicIds = event.target.checked ? clinics.map(c => String(c.id)) : [];
@@ -427,7 +428,7 @@ export function renderAgendaList() {
     return;
   }
 
-  const header = "";
+  const header = `<li class="aw-table-head"><span>Hora</span><span>Doente</span><span>Clínica</span><span>Estado</span><span></span><span>RGPD</span><span>FT</span><span>PDFs</span></li>`;
 
   const body = visibleRows.map((r) => {
     const startVal  = r[timeColUsed] ?? r[pickFirstExisting(r, APPT_TIME_COL_CANDIDATES)];

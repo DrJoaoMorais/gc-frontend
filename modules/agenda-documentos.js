@@ -1,4 +1,5 @@
-import { G } from './state.js';
+import { icon } from './agenda-icons.js';
+import { G, statusMeta } from './state.js';
 import { escapeHtml as e } from './helpers.js';
 import { emailURL, whatsappURL } from './agenda-contactos.js';
 
@@ -25,7 +26,7 @@ export async function loadPatientResources(sb, patientId) {
     ['Consentimentos em papel', () => sb.from('consents').select('id,type,status,created_at,signed_at,storage_path,clinic_id').eq('patient_id', patientId).order('created_at', { ascending: false }).order('id')],
     ['Consentimentos digitais', () => sb.from('consent_tokens').select('id,document_type,status,created_at,signed_at,clinic_id').eq('patient_id', patientId).order('created_at', { ascending: false }).order('id')],
     ['Planos de exercício', () => sb.from('wo_prescriptions').select('id,token,status,expires_at,created_at,data,clinic_id').eq('patient_id', patientId).eq('status', 'active').order('created_at', { ascending: false }).order('id')],
-    ['Consultas', () => sb.from('consultations').select('id,report_date,clinic_id').eq('patient_id', patientId).order('id')],
+    ['Consultas', () => sb.from('consultations').select('id,report_date,clinic_id,appointment_id').eq('patient_id', patientId).order('id')],
     ['Acompanhamento digital', () => sb.from('patient_portal_links').select('id,token,created_at,revoked_at,created_clinic_id').eq('patient_id', patientId).order('created_at', { ascending: false }).order('id')]
   ];
   const results = await Promise.allSettled(sources.map(([, query]) => allRows(query)));
@@ -80,29 +81,19 @@ export async function resourceURL(sb, item) {
   return safeURL(data?.signedUrl);
 }
 
-export function renderResourceGroups(items, consultations) {
-  const itemHTML = item => {
-    const i = items.indexOf(item);
-    return `<div class="aw-document"><label><input type="checkbox" data-resource="${i}"> ${e(item.title)}</label><small>${e(date(item.created_at))} · ${e(G.clinicsById[item.clinic_id]?.name || 'Clínica não identificada')}${item.status === 'arquivado' ? ' · Arquivado' : ''}${item.signed_at ? ' · Assinado' : ''}</small><button data-open="${i}">Abrir</button></div>`;
-  };
-  const group = (label, rows) => `<div class="aw-doc-category"><h4>${label}</h4>${rows.length ? rows.map(itemHTML).join('') : '<small>Sem documentos disponíveis.</small>'}</div>`;
-  const documents = items.filter(x => x.key.startsWith('0:'));
-  const byConsult = new Map();
-  documents.forEach(item => { const key = item.consultation_id || ''; if (!byConsult.has(key)) byConsult.set(key, []); byConsult.get(key).push(item); });
-  const groups = [...byConsult].sort(([a], [b]) => String(consultations.get(b)?.report_date || '').localeCompare(String(consultations.get(a)?.report_date || '')));
-  let html = groups.map(([id, rows]) => {
-    const consult = consultations.get(id);
-    const heading = !id ? 'Documentos sem consulta associada' : consult?.report_date ? 'Consulta · '+date(consult.report_date) : 'Consulta associada · data indisponível';
-    const known = ['relatorio_consulta','exames','analises','relatorio-clinico','simples','atestado_doenca','atestado_edfisica','PRP','prp_visco'];
-    return `<details open><summary>${e(heading)} · ${rows.length}</summary>${group('Relatório da consulta', rows.filter(x => x.category === 'relatorio_consulta'))}${group('Meios Complementares', rows.filter(x => ['exames','analises'].includes(x.category)))}${group('Relatórios / Atestados', rows.filter(x => ['relatorio-clinico','simples','atestado_doenca','atestado_edfisica','PRP','prp_visco'].includes(x.category)))}${rows.some(x => !known.includes(x.category)) ? group('Outros documentos', rows.filter(x => !known.includes(x.category))) : ''}</details>`;
-  }).join('');
-  if (!groups.length) html += '<p>Sem documentos de consultas disponíveis.</p>';
-  html += `<details open><summary>RGPD e consentimentos</summary>${items.filter(x => x.key.startsWith('1:') || x.key.startsWith('2:')).map(itemHTML).join('') || '<p>Sem consentimentos disponíveis.</p>'}</details>`;
-  html += `<details open><summary>Acompanhamento digital</summary>${[['diary','📓 Diário'],['activity','🏃 Atividade física e desportiva'],['pathology','🏠 Exercícios por patologia'],['med','💊 Medicação'],['question','📋 Questionários']].map(([scope,label]) => {
-    const available = items.filter(x => x.scope === scope);
-    return available.length ? group(label, available) : `<div class="aw-doc-category"><h4>${label}</h4><button disabled>Indisponível</button></div>`;
-  }).join('')}</details>`;
-  return html;
+export function renderResourceGroups(items, consultations, row = {}) {
+  const docs = items.filter(x => x.kind !== 'link');
+  const todayIds = new Set([...consultations.values()].filter(c => c.appointment_id === row.id).map(c => c.id));
+  const todayDocs = docs.filter(x => todayIds.has(x.consultation_id));
+  const category = item => ['relatorio_consulta','relatorio-clinico','simples'].includes(item.category) ? 'Relatórios' : ['exames','analises'].includes(item.category) ? 'Exames' : ['atestado_doenca','atestado_edfisica','PRP','prp_visco'].includes(item.category) ? 'Atestados' : 'Outros';
+  const meta = statusMeta(row.status);
+  const time = iso => iso ? new Date(iso).toLocaleTimeString('pt-PT',{timeZone:'Europe/Lisbon',hour:'2-digit',minute:'2-digit'}) : '';
+  return `<section class="aw-panel-card" data-panel-section="today"><div class="aw-card-title"><strong>Consulta do dia — ${e(date(row.start_at))}</strong><span class="aw-state" style="background:${meta.bg};color:${meta.fg}">${e(meta.label)}</span></div><p>${e(time(row.start_at))}${row.end_at?' – '+e(time(row.end_at)):''} · ${e(G.clinicsById[row.clinic_id]?.name || '')}</p>${row.notes?`<p class="aw-panel-note"><b>Notas:</b> ${e(row.notes)}</p>`:''}<div class="aw-actions">${todayDocs.map(item=>`<button data-open="${items.indexOf(item)}">${icon('file')}${e(item.title)}</button>`).join('')}<button data-process>＋ Abrir processo</button></div>${!todayDocs.length?'<small>Sem documentos associados a esta marcação.</small>':''}</section>
+  <section class="aw-panel-card" data-panel-section="digital"><div class="aw-card-title"><strong>Acompanhamento digital</strong></div>${[['diary','Diário'],['activity','Atividade física e desportiva'],['pathology','Exercícios por patologia'],['med','Medicação'],['question','Questionários']].map(([scope,label])=>{
+    const available = items.filter(x=>x.scope===scope);
+    return `<div class="aw-digital"><b>${icon(scope==='diary'?'file':'calendar')}${label}</b>${available.length?available.map(item=>`<div class="aw-link-actions"><span class="aw-valid">✓ Link ativo</span><button data-open="${items.indexOf(item)}">Abrir</button><button data-link-copy="${items.indexOf(item)}" aria-label="Copiar link de ${label}">${icon('copy')}</button></div>`).join(''):'<span class="aw-unavailable">Indisponível</span>'}</div>`;
+  }).join('')}</section>
+  <section class="aw-panel-card" data-panel-section="documents"><div class="aw-card-title"><strong>Documentos</strong><button data-all-documents>Ver todos (${docs.length})</button></div><div class="aw-doc-filters">${['Todos','Relatórios','Exames','Atestados','Outros'].map((label,i)=>`<button data-doc-filter="${label}" class="${i?'':'is-active'}">${label}</button>`).join('')}</div><div data-doc-list>${docs.map((item,i)=>`<div class="aw-document" data-doc-category="${category(item)}" data-doc-history="${!todayIds.has(item.consultation_id)}" ${i>=5?'hidden':''}><input type="checkbox" aria-label="Selecionar ${e(item.title)}" data-resource="${items.indexOf(item)}">${icon('file')}<div><b>${e(item.title)}</b><small>${e(date(item.created_at))} · ${e(G.clinicsById[item.clinic_id]?.name||'')}${item.status==='arquivado'?' · Arquivado':''}${todayIds.has(item.consultation_id)?' · Consulta selecionada':' · Histórico'}</small></div><button data-open="${items.indexOf(item)}">Abrir</button></div>`).join('')||'<p>Sem documentos disponíveis.</p>'}</div></section>`;
 }
 
 export async function openPatientDocuments(row) {
@@ -121,16 +112,29 @@ export async function openPatientDocuments(row) {
   const { items, warnings, consultations = new Map() } = resources.status === 'fulfilled' ? resources.value : { items: [], warnings: ['Não foi possível carregar a documentação.'] };
   if (!patient) warnings.push('Contactos indisponíveis. Não é possível preparar envio para o doente.');
   const clinic = G.clinicsById[context.clinicId]?.name || 'Clínica não identificada';
-  host.innerHTML = `<div class="aw-heading"><h2>${e(patient?.full_name || 'Documentação do doente')}</h2><button data-close aria-label="Fechar documentação">×</button></div>
-    <p>${e(clinic)} · ${e(date(row.start_at))}</p><p>${e(patient?.phone || 'Sem telefone')}<br>${e(patient?.email || 'Sem email')}</p><div class="aw-actions">${whatsappURL(patient?.phone) ? `<a class="aw-contact" href="${e(whatsappURL(patient.phone))}" target="_blank" rel="noopener noreferrer">WhatsApp</a>` : ''}${emailURL(patient?.email) ? `<a class="aw-contact" href="${e(emailURL(patient.email))}">Email</a>` : ''}</div>
-    <p>Documentos de todas as consultas disponíveis para este doente.</p>
-    ${warnings.map(w => `<p role="alert">${e(w)}</p>`).join('')}
-    <div class="aw-actions"><button data-prepare>Preparar partilha</button><span data-count>0 selecionados</span></div>
-    <div data-resources>${renderResourceGroups(items, consultations)}</div>
-    <div data-draft hidden></div><p data-feedback role="status"></p>`;
+  host.innerHTML = `<div class="aw-patient-heading"><h2>${e(patient?.full_name || 'Documentação do doente')}</h2><button data-close aria-label="Fechar documentação">×</button></div><div class="aw-contact-lines"><span>${icon('clinic')}${e(clinic)}</span><span>${icon('phone')}${e(patient?.phone || 'Sem telefone')}</span><span>${icon('mail')}${e(patient?.email || 'Sem email')}</span></div><div class="aw-actions aw-contact-buttons">${whatsappURL(patient?.phone)?`<a class="aw-contact aw-whatsapp" href="${e(whatsappURL(patient.phone))}" target="_blank" rel="noopener noreferrer">${icon('whatsapp')} WhatsApp</a>`:''}${emailURL(patient?.email)?`<a class="aw-contact aw-email" href="${e(emailURL(patient.email))}">${icon('mail')} Email</a>`:''}<button data-process title="Abrir processo clínico">•••</button></div><nav class="aw-panel-tabs">${[['summary','Resumo'],['documents','Documentos'],['today','Consulta do dia'],['history','Histórico']].map(([key,label],i)=>`<button data-tab="${key}" class="${i?'':'is-active'}">${label}</button>`).join('')}</nav>${warnings.map(w=>`<p role="alert">${e(w)}</p>`).join('')}<div data-resources>${renderResourceGroups(items,consultations,row)}</div><div data-draft hidden></div><p data-feedback role="status"></p><div class="aw-share-bar"><span data-count>0 selecionados</span><button class="aw-primary" data-prepare disabled>${icon('send')} Partilhar selecionados ${icon('chevron')}</button></div>`;
   const feedback = host.querySelector('[data-feedback]');
-  host.querySelector('[data-close]').onclick = () => { closePatientDocuments(); host.hidden = true; document.querySelectorAll('.aw-selected').forEach(el => el.classList.remove('aw-selected')); };
+  host.querySelector('[data-close]').onclick = () => { closePatientDocuments(); G.agendaSelectedId=null; host.hidden = true; document.querySelectorAll('.aw-selected').forEach(el => el.classList.remove('aw-selected')); };
+  host.querySelectorAll('[data-process]').forEach(button=>button.onclick=()=>window.__gc_openFeedPanel(context.patientId,context.clinicId));
+  let filter='Todos', all=false, tab='summary';
+  const filterDocs=()=>{
+    let count=0;
+    host.querySelectorAll('[data-doc-category]').forEach(el=>{
+      const match=(filter==='Todos'||el.dataset.docCategory===filter)&&(tab!=='history'||el.dataset.docHistory==='true');
+      el.hidden=!match||(!all&&count>=5);if(match)count++;
+    });
+  };
+  host.querySelector('[data-all-documents]').onclick=()=>{all=!all;filterDocs();host.querySelector('[data-all-documents]').textContent=all?'Mostrar menos':`Ver todos (${items.filter(x=>x.kind!=='link').length})`};
+  host.querySelectorAll('[data-doc-filter]').forEach(button=>button.onclick=()=>{filter=button.dataset.docFilter;host.querySelectorAll('[data-doc-filter]').forEach(b=>b.classList.toggle('is-active',b===button));filterDocs()});
+  host.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>{
+    tab=button.dataset.tab;host.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('is-active',b===button));
+    host.querySelectorAll('[data-panel-section]').forEach(el=>el.hidden=tab!=='summary'&&el.dataset.panelSection!==(tab==='history'?'documents':tab));filterDocs();
+  });
+  host.querySelectorAll('[data-link-copy]').forEach(button=>button.onclick=async()=>{
+    try {const url=await resourceURL(window.sb,items[Number(button.dataset.linkCopy)]);if(!current()||!url)return;await navigator.clipboard.writeText(url);if(current())feedback.textContent='Link copiado.'}catch{if(current())feedback.textContent='Não foi possível copiar o link.'}
+  });
   host.querySelectorAll('[data-resource]').forEach(input => input.onchange = () => {
+    host.querySelector('[data-prepare]').disabled = !host.querySelector('[data-resource]:checked');
     host.querySelector('[data-count]').textContent = `${host.querySelectorAll('[data-resource]:checked').length} selecionados`;
     host.querySelector('[data-draft]').hidden = true;
   });
