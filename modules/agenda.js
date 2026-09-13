@@ -2576,25 +2576,41 @@ window.__gc_wireAgendaTopbar = wireAgendaTopbar;
    VENCIDOS — consultas passadas não fechadas
    ======================================================== */
 
+function updateRegularizarSummary(section, count) {
+  if (!section?.isConnected) return;
+  section.dataset.pendingCount = Number.isInteger(count) ? String(count) : '';
+  const block = section.closest('.aw-pending');
+  const summary = block?.querySelector('#awPendingSummary');
+  if (!summary) return;
+  const values = ['pendentesSection', 'vencidosSection'].map(id => block.querySelector('#' + id)?.dataset.pendingCount);
+  const known = values.every(v => v !== undefined && v !== '');
+  const total = values.reduce((n, v) => n + (Number(v) || 0), 0);
+  summary.textContent = `Consultas por regularizar · ${known ? total : total ? total + '+' : '…'}`;
+  summary.title = known ? 'Pedidos pendentes e consultas por fechar' : 'A contagem ainda não está totalmente disponível';
+  block.classList.toggle('aw-has-pending', total > 0);
+}
+
 async function loadAndRenderVencidos() {
   const section = document.getElementById("vencidosSection");
   if (!section) return;
   try {
     const hoje = new Date().toISOString().slice(0, 10);
-    const { data, error } = await window.sb
+    const { data, error, count } = await window.sb
       .from("registos_financeiros")
-      .select("id, data, patient_id, appointment_id, tipo_acto, appt_status, financial_status, entidades_financeiras(nome), patients(full_name)")
+      .select("id, data, patient_id, appointment_id, tipo_acto, appt_status, financial_status, entidades_financeiras(nome), patients(full_name)", { count: "exact" })
       .in("appt_status", ["scheduled", "arrived"])
       .lt("data", hoje)
       .order("data", { ascending: false })
       .limit(20);
     if (error) throw error;
     const rows = data || [];
+    updateRegularizarSummary(section, count ?? rows.length);
     if (!rows.length) { section.innerHTML = ""; return; }
     _renderVencidos(rows);
   } catch (e) {
     console.warn("loadAndRenderVencidos:", e);
     section.innerHTML = "";
+    updateRegularizarSummary(section, null);
   }
 }
 
@@ -2699,6 +2715,7 @@ function _renderVencidos(rows) {
         /* Remover o card da lista se o estado foi fechado */
         const closed = ["done", "no_show", "cancelled", "honorarios_dispensados"];
         if (closed.includes(newVal)) {
+          updateRegularizarSummary(section, Math.max(0, Number(section.dataset.pendingCount || 0) - 1));
           const card = sel.closest(".gc-venc-card");
           if (card) card.remove();
 
@@ -2740,17 +2757,19 @@ export async function loadAndRenderPendentes(clinicId) {
   try {
     let q = window.sb
       .from("patient_uploads")
-      .select("id, created_at, tipo, clinic_id, atleta_nome, atleta_email, atleta_tel, atleta_dob, atleta_sns, atleta_cc, atleta_nif, atleta_passport, proposed_date, proposed_time, disponibilidade, pdf_url, status, patient_id")
+      .select("id, created_at, tipo, clinic_id, atleta_nome, atleta_email, atleta_tel, atleta_dob, atleta_sns, atleta_cc, atleta_nif, atleta_passport, proposed_date, proposed_time, disponibilidade, pdf_url, status, patient_id", { count: "exact" })
       .eq("status", "pendente")
       .order("created_at", { ascending: true });
     if (clinicId) q = q.eq("clinic_id", clinicId);
-    const { data, error } = await q;
+    const { data, error, count } = await q;
     if (error) throw error;
     _renderPendentes(data || []);
+    updateRegularizarSummary(section, count ?? (data || []).length);
     _updatePendentesBadge((data || []).length);
   } catch (e) {
     console.warn("loadAndRenderPendentes:", e);
     section.innerHTML = "";
+    updateRegularizarSummary(section, null);
   }
 }
 
