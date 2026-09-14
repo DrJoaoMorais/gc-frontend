@@ -1,3 +1,4 @@
+import { requireExerciseAccess } from '../permissoes.js';
 /* Acompanhamento de Exercício — vista individual do doente. */
 
 function esc(value) {
@@ -2083,6 +2084,7 @@ function renderShell(root, patient, prescription, readiness, log, snapshots, rea
 }
 
 export async function initAcompanhamentoExercicio({ patientId, prescriptionId, onBack } = {}) {
+  requireExerciseAccess();
   const root = document.getElementById("gcExFollowRoot");
   if (!root) throw new Error("Contentor #gcExFollowRoot não encontrado.");
 

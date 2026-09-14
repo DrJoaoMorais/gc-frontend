@@ -1,3 +1,4 @@
+import { requireExerciseAccess } from '../permissoes.js';
 /* =================================================================
    CATALOGO.JS — Gestão do catálogo de exercícios (wo_exercises)
    -----------------------------------------------------------------
@@ -74,6 +75,7 @@ function tecnicaTextoLegado(info) {
 
 /* ── Entry point ─────────────────────────────────────────── */
 export async function initCatalogo({ onVoltar } = {}) {
+  requireExerciseAccess();
   const root = document.getElementById('gcwoPrescricaoRoot');
   if (!root) return;
 

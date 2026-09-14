@@ -1,3 +1,4 @@
+import { canAccessExercise } from './exercicio/permissoes.js';
 /* ========================================================
    SHELL.JS — Render HTML + CSS principal da aplicação
    --------------------------------------------------------
@@ -20,6 +21,7 @@ import { homeDashboardHtml, homeDashboardStyles, wireHomeDashboard } from "./hom
 export function renderAppShell() {
   injectDesignSystem();
   const canSeeManagement = ["super_admin", "admin"].includes(String(G.role || "").toLowerCase());
+  if (String(G.currentView || "").toLowerCase().startsWith("exercicio") && !canAccessExercise()) G.currentView = "agenda";
   const currentView = String(G.currentView || "agenda").toLowerCase();
 
   /* ── Ícones SVG ─────────────────────────────────── */
@@ -39,7 +41,7 @@ export function renderAppShell() {
     { id: "gestaoagenda",  icon: iconGestaAgenda,  label: "Gestão de agenda" },
     { id: "doentes",       icon: iconDoentes,      label: "Doentes" },
     { id: "historico",     icon: iconHistorico,    label: "Histórico" },
-    { id: "exercicio",     icon: iconExercicio,    label: "Exercício" },
+    ...(canAccessExercise() ? [{ id: "exercicio", icon: iconExercicio, label: "Exercício" }] : []),
     ...(canSeeManagement ? [{ id: "financas",   icon: iconFinancas,  label: "Rendimentos" }] : []),
     ...(canSeeManagement ? [{ id: "management", icon: iconGestao,    label: "Gestão" }] : []),
   ];

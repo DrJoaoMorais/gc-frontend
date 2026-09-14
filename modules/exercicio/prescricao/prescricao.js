@@ -1,3 +1,4 @@
+import { requireExerciseAccess } from '../permissoes.js';
 import { mountClinicPicker, normalizeClinicIds } from '../../clinic-picker.js';
 /* =================================================================
    PRESCRICAO.JS — Prescrição de exercício físico (Vertente 1)
@@ -649,6 +650,7 @@ async function carregarPlanoActivoSeExistir() {
 
 /* ── Entry point ─────────────────────────────────────────── */
 export async function initPrescricao(options = {}) {
+  requireExerciseAccess();
   const root = document.getElementById('gcwoPrescricaoRoot');
   if (!root) return;
 
