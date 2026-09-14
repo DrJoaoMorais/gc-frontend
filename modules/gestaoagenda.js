@@ -1,3 +1,4 @@
+import { mountClinicPicker, normalizeClinicIds } from './clinic-picker.js';
 import { modalStyles } from './marcacao-visual.js';
 import { openScheduleModal, overlaps } from './agenda-disponibilidade.js';
 /* ========================================================
@@ -42,11 +43,19 @@ function gerarSlots(horaInicio, horaFim, durMin) {
 let _state = {
   selectedDayISO: todayISO(),
   selectedClinicId: null,
+  selectedClinicIds: null,
   rows: [],
   horarios: [],
   avulsos: [],
   loading: false,
 };
+let _clinicRevision = 0;
+const gaScope = () => `${_clinicRevision}|${_state.selectedDayISO}`;
+// Clinic IDs come from the visible-clinic list; global blocks apply to every clinic.
+function filterGAAppointments(query) {
+  const ids = _state.selectedClinicIds || [];
+  return ids.length ? query.or(`clinic_id.in.(${ids.map(id => JSON.stringify(String(id))).join(',')}),and(clinic_id.is.null,mode.eq.bloqueio)`) : query.in('clinic_id', []);
+}
 let _ravRows = [];
 let _ravExpanded = false;
 
@@ -61,6 +70,8 @@ export async function initGestaoAgenda() {
   _state.selectedClinicId = (_isAdm || _clinicsList.length === 1) && _clinicsList.length > 0
     ? _clinicsList[0].id
     : null;
+
+  _state.selectedClinicIds = normalizeClinicIds(_clinicsList, _state.selectedClinicId ? [_state.selectedClinicId] : null);
 
   root.innerHTML = _buildShell();
   _wireShell();
@@ -82,12 +93,6 @@ export async function initGestaoAgenda() {
 
 /* ── HTML shell ───────────────────────────────────────── */
 function _buildShell() {
-  const clinicas = G.clinics || [];
-  const _showTodas = clinicas.length > 1 && String(G.role||"").toLowerCase() !== "administrativo";
-  const clinicOpts = (_showTodas ? `<option value="">Todas as clínicas</option>` : "") + clinicas.map(c =>
-    `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name||c.slug||c.id)}</option>`
-  ).join("");
-
   return `
 <div style="padding:0 0 2rem;">
 
@@ -111,7 +116,7 @@ function _buildShell() {
         <input id="pQuickQuery" type="search" placeholder="Pesquisar doente — Nome, SNS, NIF…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search" style="width:100%;box-sizing:border-box;padding:6px 10px 6px 30px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;font-family:inherit;color:#1e293b;background:#fff;" />
         <div id="pQuickResults" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:0.5px solid #e2e8f0;border-radius:10px;box-shadow:0 6px 24px rgba(15,45,82,0.12);padding:8px;max-height:340px;overflow-y:auto;z-index:50;"></div>
       </div>
-      <select id="gaSelClinica" class="gcSelect" style="font-size:12px;padding:5px 8px;max-width:140px;">${clinicOpts}</select>
+      <div id="gaClinicPicker"></div>
       <div id="gaRecBanner" style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;"></div>
     </div>
   </div>
@@ -155,11 +160,7 @@ function _wireShell() {
   document.getElementById("gaBtnHoje")?.addEventListener("click", async () => { _state.selectedDayISO = todayISO(); await _loadAndRender(); if (_semanaVisible) _renderSemana(); });
   // mini-calendário: saltar para qualquer semana
   document.getElementById("gaJumpDate")?.addEventListener("change", async (e) => { if (!e.target.value) return; _state.selectedDayISO = e.target.value; await _loadAndRender(); if (_semanaVisible) _renderSemana(); });
-  document.getElementById("gaSelClinica")?.addEventListener("change", async e => {
-    _state.selectedClinicId = e.target.value || null;
-    await _loadAndRender();
-    if (_semanaVisible) _renderSemana();
-  });
+  _wireClinicPicker();
   document.getElementById("gaBtnBloq")?.addEventListener("click", () => {
     _openModalBloqueio();
   });
@@ -174,11 +175,6 @@ function _wireShell() {
     _openModalCriarSlots();
   });
 
-  if (_state.selectedClinicId) {
-    const sel = document.getElementById("gaSelClinica");
-    if (sel) sel.value = _state.selectedClinicId;
-  }
-
   // Clique fora dos slots — limpa o painel
   document.getElementById("gaTimeline")?.addEventListener("click", e => {
     if (!e.target.closest(".ga-tl-row")) {
@@ -189,6 +185,21 @@ function _wireShell() {
 
   // Pesquisa rápida de doente (lê a clínica seleccionada na Gestão de Agenda)
   _wireQuickSearchGA();
+}
+
+function _wireClinicPicker() {
+  mountClinicPicker(document.getElementById('gaClinicPicker'), {
+    clinics: G.clinics, selected: _state.selectedClinicIds,
+    onChange: async ids => {
+      _clinicRevision++;
+      _state.selectedClinicIds = ids;
+      const search = document.getElementById('pQuickQuery'); if (search) search.value = '';
+      const results = document.getElementById('pQuickResults'); if (results) { results.innerHTML = ''; results.style.display = 'none'; }
+      _state.selectedClinicId = ids.length === 1 ? ids[0] : null;
+      await _loadAndRender();
+      if (_semanaVisible) await _renderSemana();
+    }
+  });
 }
 
 /* ── Pesquisa rápida de doente (Gestão de Agenda) ─────── */
@@ -207,27 +218,14 @@ function _wireQuickSearchGA() {
     const term = (input.value || "").trim();
     if (!term || term.length < 2) { resHost.innerHTML = ""; resHost.style.display = "none"; return; }
 
-    const clinicId = _state.selectedClinicId || null;
+    const scope = gaScope();
+    const clinicIds = [..._state.selectedClinicIds];
     resHost.style.display = "block";
-
-    if (!clinicId && String(G.role||"").toLowerCase() !== "super_admin") {
-      resHost.innerHTML = '<div style="font-size:12px;color:#666;">Selecciona uma clínica para pesquisar.</div>';
-      return;
-    }
-
     resHost.innerHTML = '<div style="font-size:12px;color:#666;">A pesquisar…</div>';
     try {
-      let pts;
-      if (!clinicId) {
-        // super_admin sem clínica seleccionada — db.js exige clinicId, chamar RPC directamente
-        const { data, error } = await window.sb.rpc("search_patients_v2", {
-          p_clinic_id: null, p_term: term, p_limit: 30
-        });
-        if (error) throw error;
-        pts = data || [];
-      } else {
-        pts = await searchPatientsScoped({ clinicId, q: term, limit: 30 });
-      }
+      const batches = await Promise.all(clinicIds.map(clinicId => searchPatientsScoped({ clinicId, q: term, limit: 30 })));
+      if (scope !== gaScope() || input.value.trim() !== term) return;
+      const pts = [...new Map(batches.flat().map(patient => [patient.id, patient])).values()].slice(0, 30);
       if (!pts || pts.length === 0) {
         resHost.innerHTML = '<div style="font-size:12px;color:#666;">Sem resultados.</div>';
         return;
@@ -247,6 +245,7 @@ function _wireQuickSearchGA() {
 
 /* ── Load & render ────────────────────────────────────── */
 async function _loadAndRender() {
+  const scope = gaScope();
   _renderDayLabel();
   _renderTimeline([]);
   _renderStatsCards();
@@ -269,12 +268,14 @@ async function _loadAndRender() {
       .gte("start_at", startISO)
       .lte("start_at", endISO)
       .order("start_at", { ascending: true });
-    if (clinicId) _q = _q.eq("clinic_id", clinicId);
+    _q = filterGAAppointments(_q);
     const { data, error } = await _q;
+    if (scope !== gaScope()) return;
 
     if (error) throw error;
     _state.rows = data || [];
   } catch(e) {
+    if (scope !== gaScope()) return;
     console.error("gestaoagenda load:", e);
     _state.rows = [];
   }
@@ -284,6 +285,7 @@ async function _loadAndRender() {
   if (patientIds.length) {
     try {
       const { data } = await window.sb.from("patients").select("id, full_name, sns").in("id", patientIds);
+      if (scope !== gaScope()) return;
       (data||[]).forEach(p => { patientsById[p.id] = p; });
     } catch(_) {}
   }
@@ -331,16 +333,22 @@ async function _loadAndRender() {
     } catch(_) {}
   }
 
+  if (scope !== gaScope()) return;
   if (clinicId) {
     await _loadHorarios(clinicId);
+    if (scope !== gaScope()) return;
     await _loadAvulsos(clinicId);
+    if (scope !== gaScope()) return;
     _renderRecBanner(clinicId);
   } else {
-    _state.horarios = [];
+    const { data: horarios } = await window.sb.from('horarios_recorrentes').select('*').eq('is_active', true).in('clinic_id', _state.selectedClinicIds);
+    if (scope !== gaScope()) return;
+    _state.horarios = horarios || [];
     _state.avulsos = [];
     const recBanner = document.getElementById("gaRecBanner");
     if (recBanner) recBanner.innerHTML = "";
   }
+  if (scope !== gaScope()) return;
   _renderStatsCards();
   _renderTimeline(_state.rows, patientsById, consentMap, physioMap);
   _renderReavaliacoes();
@@ -355,17 +363,20 @@ function _renderDayLabel() {
 
 /* ── Horários recorrentes ─────────────────────────────── */
 async function _loadHorarios(clinicId) {
+  const scope = gaScope();
   try {
     const { data } = await window.sb
       .from("horarios_recorrentes")
       .select("*")
       .eq("clinic_id", clinicId)
       .eq("is_active", true);
+    if (scope !== gaScope()) return;
     _state.horarios = data || [];
-  } catch(_) { _state.horarios = []; }
+  } catch(_) { if (scope === gaScope()) _state.horarios = []; }
 }
 
 async function _loadAvulsos(clinicId) {
+  const scope = gaScope();
   try {
     const d = new Date(_state.selectedDayISO + "T00:00:00");
     const dow = (d.getDay()+6)%7;
@@ -379,8 +390,9 @@ async function _loadAvulsos(clinicId) {
       .gte("data", isoOf(seg))
       .lte("data", isoOf(dom))
       .order("data");
+    if (scope !== gaScope()) return;
     _state.avulsos = data || [];
-  } catch(_) { _state.avulsos = []; }
+  } catch(_) { if (scope === gaScope()) _state.avulsos = []; }
 }
 
 function _renderRecBanner(clinicId) {
@@ -469,6 +481,7 @@ function _renderRecBanner(clinicId) {
 }
 
 async function _renderPadroesFixos() {
+  const scope = gaScope();
   const el = document.getElementById("gaPadroesFixos");
   if (!el) return;
   const isSuperAdmin = String(G.role||"").toLowerCase() === "super_admin";
@@ -492,8 +505,9 @@ async function _renderPadroesFixos() {
   let futureAvulsos = [];
   try {
     let q = window.sb.from("dias_consulta_avulsos").select("*").gte("data", todayISO).order("data");
-    if (clinicId) q = q.eq("clinic_id", clinicId);
+    q = q.in("clinic_id", _state.selectedClinicIds);
     const { data } = await q;
+    if (scope !== gaScope()) return;
     futureAvulsos = data || [];
   } catch(_) {}
 
@@ -539,6 +553,7 @@ async function _renderPadroesFixos() {
 }
 
 async function _renderStatsCards() {
+  const scope = gaScope();
   const el = document.getElementById("gaStats");
   if (!el) return;
   const clinicId = _state.selectedClinicId;
@@ -572,8 +587,9 @@ async function _renderStatsCards() {
       .select("start_at,end_at,patient_id,mode,clinic_id")
       .gte("start_at", lo+"T00:00:00"+_tz)
       .lte("start_at", hi+"T23:59:59"+_tz);
-    if (clinicId) q = q.eq("clinic_id", clinicId);
+    q = filterGAAppointments(q);
     const { data } = await q;
+    if (scope !== gaScope()) return;
     (data||[]).forEach(r => {
       if (r.mode === "bloqueio") { blocks.push(r); return; }
       if (r.mode === "slot" || !r.patient_id) return;
@@ -582,17 +598,19 @@ async function _renderStatsCards() {
       if (iso >= segISO && iso <= domISO) semana++;
       if (iso >= mesIni && iso <= mesFim) mes++;
     });
-    let hq = window.sb.from("horarios_recorrentes").select("day_of_week,hora_inicio,hora_fim,duracao_min").eq("is_active",true);
-    if (clinicId) hq = hq.eq("clinic_id", clinicId);
+    let hq = window.sb.from("horarios_recorrentes").select("clinic_id,day_of_week,hora_inicio,hora_fim,duracao_min").eq("is_active",true);
+    hq = hq.in("clinic_id", _state.selectedClinicIds);
     const { data: hd } = await hq;
+    if (scope !== gaScope()) return;
     horarios = hd || [];
 
     // turnos avulsos no intervalo lo–hi
     let avq = window.sb.from("dias_consulta_avulsos")
       .select("clinic_id,data,hora_inicio,hora_fim,duracao_min")
       .gte("data", lo).lte("data", hi);
-    if (clinicId) avq = avq.eq("clinic_id", clinicId);
+    avq = avq.in("clinic_id", _state.selectedClinicIds);
     const { data: avd } = await avq;
+    if (scope !== gaScope()) return;
     avulsos = avd || [];
 
     temHorario = horarios.length > 0 || avulsos.length > 0;
@@ -712,6 +730,7 @@ function _ravDiasTxt(dataReavISO) {
 }
 
 async function _renderReavaliacoes() {
+  const scope = gaScope();
   const el = document.getElementById('gaReavaliacoes');
   if (!el) return;
   try {
@@ -719,13 +738,15 @@ async function _renderReavaliacoes() {
       .from('v_reavaliacoes_pendentes')
       .select('consultation_id, patient_id, patient_name, clinic_id, total, semana, sessoes_decorridas, data_reavaliacao, estado')
       .order('data_reavaliacao', { ascending: true });
-    if (_state.selectedClinicId) q = q.eq('clinic_id', _state.selectedClinicId);
+    q = q.in('clinic_id', _state.selectedClinicIds);
     const { data, error } = await q;
+    if (scope !== gaScope()) return;
     if (error) throw error;
     _ravRows = data || [];
     _ravExpanded = false;
     _renderReavaliacoesLista(el);
   } catch (e) {
+    if (scope !== gaScope()) return;
     el.innerHTML = '';
     console.error('reavaliacoes', e);
   }
@@ -1237,6 +1258,7 @@ async function _toggleSemana() {
 }
 
 async function _renderSemana() {
+  const scope = gaScope();
   const CLINIC_COLORS = {
     "692c518d-a9e2-4eba-96a7-e13a08809b5b": { solid:"#1a56db", light:"#dbeafe", text:"#1e40af" },
     "1c18862e-0ab1-4488-8f52-1112b7e77405": { solid:"#0891b2", light:"#cffafe", text:"#155e75" },
@@ -1274,8 +1296,9 @@ async function _renderSemana() {
       .select("id, start_at, end_at, status, mode, patient_id, procedure_type, title, clinic_id")
       .gte("start_at", dias[0]+"T00:00:00"+_tzOff)
       .lte("start_at", dias[6]+"T23:59:59"+_tzOff);
-    if (clinicId) _sq = _sq.eq("clinic_id", clinicId);
+    _sq = filterGAAppointments(_sq);
     const { data } = await _sq;
+    if (scope !== gaScope()) return;
 
     // Excluir slots de disponibilidade (mode="slot") — a fonte de verdade são os horarios_recorrentes
     const appts = (data || []).filter(r => r.mode !== "slot");
@@ -1284,6 +1307,7 @@ async function _renderSemana() {
     let patientsById = {};
     if (patientIds.length) {
       const { data: pts } = await window.sb.from("patients").select("id, full_name").in("id", patientIds);
+      if (scope !== gaScope()) return;
       (pts||[]).forEach(p => { patientsById[p.id] = p; });
     }
 
@@ -1305,8 +1329,9 @@ async function _renderSemana() {
     let horariosDisp = [];
     try {
       let hq = window.sb.from("horarios_recorrentes").select("*").eq("is_active", true);
-      if (clinicId) hq = hq.eq("clinic_id", clinicId);
+      hq = hq.in("clinic_id", _state.selectedClinicIds);
       const { data: hd } = await hq;
+      if (scope !== gaScope()) return;
       horariosDisp = hd || [];
     } catch(_) {}
 
@@ -1327,8 +1352,9 @@ async function _renderSemana() {
     try {
       let _aq = window.sb.from("dias_consulta_avulsos").select("clinic_id,data,hora_inicio,hora_fim,duracao_min")
         .gte("data", dias[0]).lte("data", dias[6]);
-      if (clinicId) _aq = _aq.eq("clinic_id", clinicId);
+      _aq = _aq.in("clinic_id", _state.selectedClinicIds);
       const { data: _avd } = await _aq;
+      if (scope !== gaScope()) return;
       (_avd || []).forEach(a => {
         _avulsosDurs.push(a.duracao_min);
         gerarSlots(a.hora_inicio.slice(0,5), a.hora_fim.slice(0,5), a.duracao_min)
@@ -1470,6 +1496,7 @@ async function _renderSemana() {
     }
 
   } catch(e) {
+    if (scope !== gaScope()) return;
     banner.innerHTML = `<div style="color:#b00020;font-size:13px;padding:12px;">Erro ao carregar semana.</div>`;
   }
 
@@ -1493,7 +1520,7 @@ async function _renderSemana() {
 
 /* ── Modal criar slots (tabs: Recorrente + Pontual) ───── */
 async function _openModalCriarSlots(defaultTab = "pontual") {
-  if(defaultTab === 'pontual') return openScheduleModal({clinicId:_state.selectedClinicId,day:_state.selectedDayISO,onSaved:async(result)=>{if(result?.day)_state.selectedDayISO=result.day;await _loadAndRender();if(_semanaVisible)await _renderSemana();},onRecurring:(id)=>{_state.selectedClinicId=id;_openModalCriarSlots('recorrente');}});
+  if(defaultTab === 'pontual') return openScheduleModal({clinicId:_state.selectedClinicId,day:_state.selectedDayISO,onSaved:async(result)=>{if(result?.day)_state.selectedDayISO=result.day;await _loadAndRender();if(_semanaVisible)await _renderSemana();},onRecurring:(id)=>{_state.selectedClinicId=id;_state.selectedClinicIds=[String(id)];_clinicRevision++;_wireClinicPicker();_openModalCriarSlots('recorrente');}});
   const clinicas = G.clinics || [];
   const selClinic = clinicas.find(c => c.id === _state.selectedClinicId);
   const clinicName = escapeHtml(selClinic?.name || selClinic?.slug || "");

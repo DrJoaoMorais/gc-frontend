@@ -1,3 +1,4 @@
+import { mountClinicPicker, normalizeClinicIds } from '../../clinic-picker.js';
 /* =================================================================
    PRESCRICAO.JS — Prescrição de exercício físico (Vertente 1)
    -----------------------------------------------------------------
@@ -781,30 +782,16 @@ function nomeCurtoClinica(nome, limite = 16) {
    é só o lugar reservado no ecrã (decisão de 9 ago 2026).
    ================================================================ */
 let _landing = null;
-let _landingDocClickWired = false;
+let _landingRequest = 0;
 let _patientFollowupTab = 'readiness';
 let _patientMainTab = 'prescription';
 let _patientHasFeedback = false;
 
 function freshLanding() {
   return {
-    clinicFilter: null, search: '', tab: 'todos', rows: [], attention: [],
+    clinicIds: null, search: '', tab: 'todos', rows: [], attention: [],
     loading: true, attentionLoading: true, error: '', attentionError: ''
   };
-}
-
-// Fecha o popover da clínica ao clicar fora — anexado uma única vez ao document
-// (nunca duplicado, mesmo re-renderizando o ecrã muitas vezes).
-function wireLandingDocClickOnce() {
-  if (_landingDocClickWired) return;
-  _landingDocClickWired = true;
-  document.addEventListener('click', (e) => {
-    const menu = document.getElementById('gcwoLandingClinicMenu');
-    const btn = document.getElementById('gcwoLandingClinicBtn');
-    if (!menu || menu.hidden) return;
-    if (btn && (btn.contains(e.target) || menu.contains(e.target))) return;
-    menu.hidden = true;
-  });
 }
 
 function renderLanding() {
@@ -826,36 +813,10 @@ function renderLanding() {
   }
 
   const clinicas = G.clinics || [];
-  const multiClinica = clinicas.length > 1;
-  // Filtro por clínica precisa de continuar a existir para quem tem mais do que uma
-  // (super admin com 6, ou um colega em 2) — o que se corrigiu a pedido não foi a
-  // função, foi o aspeto: em vez de uma lista a abrir, é uma grelha de cartões
-  // clicáveis (mesmo padrão do Passo 1), sem o estado azul estranho que apareceu.
-  const filtroLabel = _landing.clinicFilter
-    ? nomeCurtoClinica(clinicas.find(c => c.id === _landing.clinicFilter)?.name || '—')
-    : (multiClinica ? 'Todas as clínicas' : nomeCurtoClinica(clinicas[0]?.name || '—'));
-
   root.innerHTML = `
     <div class="gc-page-header">
       <div><div class="gc-page-title">Exercício</div><div class="gc-page-sub">Prescrição, documentos e catálogo</div></div>
-      ${multiClinica ? `
-      <div class="gcwo-landing-clinicpill-wrap">
-        <button type="button" class="gcwo-landing-clinicpill" id="gcwoLandingClinicBtn">
-          <span>A mostrar</span><strong>${escHtml(filtroLabel)}</strong>
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-        <div class="gcwo-landing-clinicpop" id="gcwoLandingClinicMenu" hidden>
-          <button type="button" class="gcwo-landing-clinicoption${!_landing.clinicFilter ? ' on' : ''}" data-cid="">
-            <span class="avatar all">${clinicas.length}</span><span class="name">Todas as clínicas</span>
-          </button>
-          ${clinicas.map(c => `
-          <button type="button" class="gcwo-landing-clinicoption${_landing.clinicFilter === c.id ? ' on' : ''}" data-cid="${escAttr(c.id)}">
-            <span class="avatar">${escHtml(iniciaisClinica(c.name || c.slug))}</span><span class="name">${escHtml(nomeCurtoClinica(c.name || c.slug || ''))}</span>
-          </button>`).join('')}
-        </div>
-      </div>` : `
-      <div class="gcwo-landing-clinicpill static"><span>Clínica</span><strong>${escHtml(filtroLabel)}</strong></div>
-      `}
+      <div id="gcwoLandingClinicPicker"></div>
     </div>
 
     <section class="gcwo-landing-group" aria-labelledby="gcwoPrescricaoTitle">
@@ -928,18 +889,10 @@ function renderLanding() {
     _step1Destination = 'acompanhamento';
     renderStep1();
   });
-  if (multiClinica) {
-    const btn = document.getElementById('gcwoLandingClinicBtn');
-    const menu = document.getElementById('gcwoLandingClinicMenu');
-    btn.addEventListener('click', () => { menu.hidden = !menu.hidden; });
-    menu.querySelectorAll('[data-cid]').forEach(item => {
-      item.addEventListener('click', () => {
-        _landing.clinicFilter = item.getAttribute('data-cid') || null;
-        renderLanding();
-      });
-    });
-    wireLandingDocClickOnce();
-  }
+  mountClinicPicker(document.getElementById('gcwoLandingClinicPicker'), {
+    clinics: clinicas, selected: _landing.clinicIds,
+    onChange: ids => { _landing.clinicIds = ids; renderLanding(); document.querySelector('#gcwoLandingClinicPicker summary')?.focus(); }
+  });
 
   let searchTimer = null;
   document.getElementById('gcwoLandingSearch').addEventListener('input', (e) => {
@@ -1273,8 +1226,9 @@ async function carregarImagensFeedback(prescriptionId, sessionId) {
 // Lê wo_prescriptions activas (filtradas por clínica visível ou escolhida) + o último
 // registo de wo_session_logs por prescrição, para a tabela do ecrã inicial.
 async function loadLandingRows() {
+  const request = ++_landingRequest;
   const clinicas = G.clinics || [];
-  const clinicIds = _landing.clinicFilter ? [_landing.clinicFilter] : clinicas.map(c => c.id);
+  const clinicIds = normalizeClinicIds(clinicas, _landing.clinicIds);
 
   if (!clinicIds.length) {
     _landing.rows = [];
@@ -1291,6 +1245,7 @@ async function loadLandingRows() {
     .order('created_at', { ascending: false })
     .limit(200);
 
+  if (request !== _landingRequest) return;
   if (error) {
     console.error('[prescricao] falha a carregar prescrições activas:', error);
     _landing.error = 'Erro ao carregar a lista de doentes.';
@@ -1317,6 +1272,7 @@ async function loadLandingRows() {
     }
   }
 
+  if (request !== _landingRequest) return;
   _landing.rows = rows
     .filter(r => r.patients) // doente inativo/apagado — não mostra linha órfã
     .map(r => ({
@@ -1336,10 +1292,10 @@ async function loadLandingRows() {
     }));
   _landing.loading = false;
   renderLandingTableHost();
-  await loadLandingAttention(clinicIds);
+  await loadLandingAttention(clinicIds, request);
 }
 
-async function loadLandingAttention(clinicIds) {
+async function loadLandingAttention(clinicIds, request) {
   _landing.attentionLoading = true;
   renderLandingAttention();
   try {
@@ -1361,6 +1317,7 @@ async function loadLandingAttention(clinicIds) {
         .in('clinic_id', clinicIds).eq('status', 'completed').order('completed_at', { ascending: false }).limit(100),
     ]);
 
+    if (request !== _landingRequest) return;
     [readinessRes, diaryRes, intakeRes].forEach(result => {
       if (result.error) throw result.error;
     });
@@ -1413,9 +1370,11 @@ async function loadLandingAttention(clinicIds) {
     });
     _landing.attention = attention.sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
   } catch (error) {
+    if (request !== _landingRequest) return;
     console.error('[prescricao] falha a carregar fila de atenção:', error);
     _landing.attentionError = 'Não foi possível carregar todos os registos clínicos.';
   } finally {
+    if (request !== _landingRequest) return;
     _landing.attentionLoading = false;
     renderLandingTableHost();
     renderLandingAttention();

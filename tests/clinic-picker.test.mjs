@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {normalizeClinicIds, toggleClinicSelection, clinicSelectionLabel} from '../modules/clinic-picker.js';
+const clinics=['a','b','c'].map(id=>({id}));
+assert.deepEqual(toggleClinicSelection(clinics,['a','b','c'],'b'),['b']);
+assert.deepEqual(toggleClinicSelection(clinics,['b'],'c'),['b','c']);
+assert.deepEqual(toggleClinicSelection(clinics,['b','c'],'b'),['c']);
+assert.deepEqual(toggleClinicSelection(clinics,['c'],null),['a','b','c']);
+assert.deepEqual(toggleClinicSelection(clinics,['c'],'c'),['c']);
+assert.deepEqual(normalizeClinicIds(clinics,['b','b','unknown']),['b']);
+assert.deepEqual(toggleClinicSelection([{id:'a'}],['a'],'a'),['a']);
+assert.deepEqual(normalizeClinicIds([],null),[]);
+assert.equal(clinicSelectionLabel(clinics,['a','c']),'2 clínicas selecionadas');
+console.log('9 verificações de seleção concluídas.');

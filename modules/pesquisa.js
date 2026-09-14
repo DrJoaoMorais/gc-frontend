@@ -56,7 +56,10 @@ export async function wireQuickPatientSearch() {
     resHost.innerHTML     = `<div style="font-size:${UI.fs12}px; color:#666;">A pesquisar…</div>`;
 
     try {
-      const pts = await searchPatientsScoped({ clinicId, q: term, limit: 30 });
+      const clinicIds = document.getElementById('awClinicPicker') && Array.isArray(G.agendaClinicIds) ? [...G.agendaClinicIds] : [clinicId];
+      const batches = await Promise.all(clinicIds.map(id => searchPatientsScoped({ clinicId: id, q: term, limit: 30 })));
+      if (input.value.trim() !== term || (document.getElementById('awClinicPicker') && JSON.stringify(clinicIds) !== JSON.stringify(G.agendaClinicIds))) return;
+      const pts = [...new Map(batches.flat().map(patient => [patient.id, patient])).values()].slice(0, 30);
       G.patientQuick.lastResults = pts;
 
       renderQuickPatientResults(pts);

@@ -1,3 +1,4 @@
+import { normalizeClinicIds } from './clinic-picker.js';
 import { wireAgendaWorkspace } from './agenda-workspace.js';
 /**
  * boot.js — Passo 7
@@ -49,14 +50,16 @@ import { initGestaoAgenda }               from "./gestaoagenda.js";
 // Import dinâmico e versionado (não estático): evita que o browser/CDN sirva
 // uma cópia antiga de prescricao.js depois de um deploy — mesmo problema que
 // já resolvemos para o CSS, aqui aplicado ao próprio módulo JS.
-const PRESCRICAO_JS_VERSION = '2026-08-31-3';
+const PRESCRICAO_JS_VERSION = '2026-09-14-clinicas';
 
 /* Estado próprio do Home (scope de clínica) — independente de G.activeClinicId.
    Só é seedado a partir de G.activeClinicId uma vez, na primeira vez que a
    vista Home é aberta na sessão; depois disso é controlado só pelo seletor
    do Home. Nunca escrito automaticamente de volta em G.activeClinicId — só
    é copiado para lá no momento explícito de abrir a Agenda. */
-let homeClinicId = null;
+let homeClinicIds = null;
+let homeClinicRevision = 0;
+const homeSelectedClinicIds = () => normalizeClinicIds(G.clinics, homeClinicIds);
 let homeClinicIdInitialized = false;
 
 /* Filtro da barra de alertas do Home — filtra só em memória as listas já
@@ -239,13 +242,14 @@ async function renderCurrentView() {
   if (view === "home") {
     if (!homeClinicIdInitialized) {
       homeClinicIdInitialized = true;
-      homeClinicId = (G.activeClinicId && (G.clinics || []).some((c) => c.id === G.activeClinicId))
-        ? G.activeClinicId
+      homeClinicIds = (G.activeClinicId && (G.clinics || []).some((c) => c.id === G.activeClinicId))
+        ? [G.activeClinicId]
         : null;
     }
 
-    renderHomeClinicSelect(G.clinics, homeClinicId, (newClinicId) => {
-      homeClinicId = newClinicId || null;
+    renderHomeClinicSelect(G.clinics, homeSelectedClinicIds(), (ids) => {
+      homeClinicIds = ids;
+      homeClinicRevision++;
       /* Só recarrega dados clinic-scoped já reais do Home — nunca navega
          nem toca em G.activeClinicId aqui. */
       Promise.all([
@@ -444,6 +448,7 @@ async function renderCurrentView() {
    restrito ao dia de hoje e excluindo bloqueios.
    ==================================================================== */
 async function loadHomeConsultasHoje() {
+  const revision = homeClinicRevision;
   try {
     const r = isoLocalDayRangeFromISODate(fmtDateISO(new Date()));
     if (!r) {
@@ -453,12 +458,13 @@ async function loadHomeConsultasHoje() {
     }
 
     const { data } = await loadAppointmentsForRange({
-      clinicId: homeClinicId || null,
+      clinicId: homeSelectedClinicIds().length === 1 ? homeSelectedClinicIds()[0] : null,
       startISO: r.startISO,
       endISO:   r.endISO,
     });
 
-    const rows = (data || []).filter((row) => String(row?.mode || "").toLowerCase() !== "bloqueio");
+    if (revision !== homeClinicRevision) return;
+    const rows = (data || []).filter((row) => String(row?.mode || "").toLowerCase() !== "bloqueio" && homeSelectedClinicIds().includes(String(row.clinic_id)));
     setHomeDashboardConsultasHoje(rows.length);
 
     const byClinic = new Map();
@@ -475,6 +481,7 @@ async function loadHomeConsultasHoje() {
 
     renderHomeConsultasBreakdown(breakdown, { onClinicClick: openHomeAgendaForClinic });
   } catch (e) {
+    if (revision !== homeClinicRevision) return;
     console.warn("Home: falha ao carregar consultas de hoje:", e);
     setHomeDashboardConsultasHoje(null);
     renderHomeConsultasBreakdown(null, { onClinicClick: openHomeAgendaForClinic });
@@ -487,6 +494,7 @@ async function loadHomeConsultasHoje() {
    G.activeClinicId). Nunca sincronizado fora deste clique. */
 function openHomeAgendaForClinic(clinicId) {
   G.activeClinicId = clinicId || null;
+  G.agendaClinicIds = clinicId ? [String(clinicId)] : homeSelectedClinicIds();
   G.currentView = "agenda";
   if (typeof window.__gc_renderCurrentView === "function") {
     window.__gc_renderCurrentView();
@@ -499,17 +507,20 @@ function openHomeAgendaForClinic(clinicId) {
    parte de UI (não depende de #pendentesSection).
    ==================================================================== */
 async function loadHomePedidosOnlinePendentes() {
+  const revision = homeClinicRevision;
   try {
     let q = window.sb
       .from("patient_uploads")
       .select("id", { count: "exact", head: true })
       .eq("status", "pendente");
-    if (homeClinicId) q = q.eq("clinic_id", homeClinicId);
+    q = q.in("clinic_id", homeSelectedClinicIds());
 
     const { count, error } = await q;
+    if (revision !== homeClinicRevision) return;
     if (error) throw error;
     setHomeDashboardPedidosOnline(count ?? 0);
   } catch (e) {
+    if (revision !== homeClinicRevision) return;
     console.warn("Home: falha ao carregar pedidos online pendentes:", e);
     setHomeDashboardPedidosOnline(null);
   }
@@ -524,18 +535,21 @@ async function loadHomePedidosOnlinePendentes() {
    dessa função (que é privada e depende de #pendentesSection).
    ==================================================================== */
 async function loadHomePedidosOnlineList() {
+  const revision = homeClinicRevision;
   try {
     let q = window.sb
       .from("patient_uploads")
       .select("id, created_at, tipo, clinic_id, atleta_nome")
       .eq("status", "pendente")
       .order("created_at", { ascending: true });
-    if (homeClinicId) q = q.eq("clinic_id", homeClinicId);
+    q = q.in("clinic_id", homeSelectedClinicIds());
 
     const { data, error } = await q;
+    if (revision !== homeClinicRevision) return;
     if (error) throw error;
     renderHomePedidosOnlineList(data || [], { onOpenAgenda: openHomeAgendaForClinic });
   } catch (e) {
+    if (revision !== homeClinicRevision) return;
     console.warn("Home: falha ao carregar lista de pedidos online:", e);
     renderHomePedidosOnlineList(null, { onOpenAgenda: openHomeAgendaForClinic });
   }
@@ -545,7 +559,7 @@ function homeQuestionarioQuery(status, { countOnly = false } = {}) {
   let q = window.sb.from("intake_tokens")
     .select(countOnly ? "id" : "id, patient_id, clinic_id, questionnaire_type, status, created_at, expires_at, rgpd_accepted_at, completed_at, patients(id, full_name)", countOnly ? { count: "exact", head: true } : undefined)
     .eq("status", status);
-  if (homeClinicId) q = q.eq("clinic_id", homeClinicId);
+  q = q.in("clinic_id", homeSelectedClinicIds());
   if (status !== "completed") q = q.gt("expires_at", new Date().toISOString());
   return q;
 }
@@ -580,11 +594,10 @@ async function resolveHomeQuestionario(row) {
 /* Uma linha por doente. A inclusão é uma união: questionário relevante OU
    plano ativo. Assim, um doente não desaparece por ter apenas uma vertente. */
 async function loadHomeAcompanhamentoAtivo() {
+  const revision = homeClinicRevision;
   const agora = new Date();
   const TRES_DIAS_MS = 3 * 24 * 60 * 60 * 1000;
-  const clinicIds = homeClinicId
-    ? [homeClinicId]
-    : (G.clinics || []).map((clinic) => clinic.id).filter(Boolean);
+  const clinicIds = homeSelectedClinicIds();
 
   if (!clinicIds.length) {
     setHomeAcompanhamentoUnificadoStats({ total: 0, diarios: 0, questionarios: 0, planos: 0 });
@@ -620,6 +633,7 @@ async function loadHomeAcompanhamentoAtivo() {
         .order("created_at", { ascending: false })
         .limit(500),
     ]);
+    if (revision !== homeClinicRevision) return;
     [prescriptionsResult, sentResult, progressResult, reviewResult, diaryResult].forEach((result) => { if (result.error) throw result.error; });
 
     const rows = prescriptionsResult.data || [];
@@ -737,6 +751,7 @@ async function loadHomeAcompanhamentoAtivo() {
       byPatient.forEach((item) => { if (!item.patientName) item.patientName = names.get(item.patientId) || null; });
     }
 
+    if (revision !== homeClinicRevision) return;
     homeAcompItems = Array.from(byPatient.values()).map((item) => ({
       ...item,
       canStopFollowup: true,
@@ -752,6 +767,7 @@ async function loadHomeAcompanhamentoAtivo() {
     });
     rebuildHomeAlerts();
   } catch (error) {
+    if (revision !== homeClinicRevision) return;
     console.warn("Home: falha ao carregar acompanhamento ativo:", error);
     setHomeAcompanhamentoUnificadoStats(null);
     homeAcompItems = null;
@@ -867,15 +883,17 @@ function rebuildHomeAlerts() {
 }
 
 async function loadHomeAlerts() {
+  const revision = homeClinicRevision;
   try {
     let q = window.sb
       .from("alerts")
       .select(HOME_ALERT_SELECT_COLUMNS)
       .is("resolved_at", null)
       .order("created_at", { ascending: false });
-    if (homeClinicId) q = q.eq("clinic_id", homeClinicId);
+    q = q.in("clinic_id", homeSelectedClinicIds());
 
     const { data: pending, error } = await q;
+    if (revision !== homeClinicRevision) return;
     if (error) throw error;
 
     const rows = pending || [];
@@ -892,17 +910,19 @@ async function loadHomeAlerts() {
         .gte("resolved_at", r.startISO)
         .lt("resolved_at", r.endISO)
         .order("resolved_at", { ascending: false });
-      if (homeClinicId) rq = rq.eq("clinic_id", homeClinicId);
+      rq = rq.in("clinic_id", homeSelectedClinicIds());
       const { data: resolved, error: rErr } = await rq;
       if (rErr) throw rErr;
       resolvedRows = resolved || [];
     }
 
+    if (revision !== homeClinicRevision) return;
     homeStoredPendingAlerts = rows;
     homeResolvedTodayCount = resolvedRows.length;
     homeResolvedTodayAlerts = resolvedRows;
     rebuildHomeAlerts();
   } catch (e) {
+    if (revision !== homeClinicRevision) return;
     console.warn("Home: falha ao carregar alertas:", e);
     setHomeDashboardAlertStats(null);
     homeStoredPendingAlerts = [];

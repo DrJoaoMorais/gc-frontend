@@ -1,3 +1,4 @@
+import { mountClinicPicker } from './clinic-picker.js';
 /* Home Dashboard — painel clínico-operacional do médico (V1). */
 
 const ICON = {
@@ -14,7 +15,7 @@ export function homeDashboardHtml() {
       <div class="gc-home-head">
         <div><div class="gc-home-title">Início</div><div class="gc-home-sub">Panorama clínico e operacional</div></div>
         <div class="gc-home-head-actions">
-          <select id="gcHomeClinicSelect" class="gc-home-clinic-select"><option value="">Todas as clínicas</option></select>
+          <div id="gcHomeClinicSelect"></div>
           <button class="gc-home-agenda-btn" data-home-action="agenda">${ICON.calendar}<span>Agenda de hoje</span></button>
         </div>
       </div>
@@ -210,15 +211,8 @@ export function setHomeDashboardConsultasHoje(value) {
   if (el) el.textContent = value == null ? "—" : String(value);
 }
 
-export function renderHomeClinicSelect(clinics, selectedId, onChange) {
-  const sel = document.getElementById("gcHomeClinicSelect");
-  if (!sel) return;
-  const opts = [`<option value="">Todas as clínicas</option>`].concat(
-    (clinics || []).map((c) => `<option value="${escHomeHtml(c.id)}">${escHomeHtml(c.name || c.slug || c.id)}</option>`)
-  );
-  sel.innerHTML = opts.join("");
-  sel.value = selectedId || "";
-  sel.onchange = () => onChange?.(sel.value || null);
+export function renderHomeClinicSelect(clinics, selectedIds, onChange) {
+  mountClinicPicker(document.getElementById("gcHomeClinicSelect"), { clinics, selected: selectedIds, onChange });
 }
 
 export function renderHomeConsultasBreakdown(breakdown, { onClinicClick } = {}) {

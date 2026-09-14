@@ -1,3 +1,4 @@
+import { mountClinicPicker, normalizeClinicIds } from './clinic-picker.js';
 import { assertNoBlock } from './agenda-disponibilidade.js';
 import { styleAppointment } from './marcacao-visual.js';
 import { appointmentCard, enhanceAgendaRows, selectAgendaRow } from './agenda-workspace.js';
@@ -179,24 +180,22 @@ export function renderClinicsSelect(clinics) {
     opts.push(`<option value="${escapeHtml(c.id)}">${escapeHtml(label)}</option>`);
   }
   sel.innerHTML = opts.join('');
-  const host = document.getElementById('awClinicChoices');
+  const host = document.getElementById('awClinicPicker');
   if (!host) { sel.value = G.activeClinicId || ''; return; }
   const key = 'gc-agenda-clinics:' + (G.sessionUser?.id || 'local');
   if (!Array.isArray(G.agendaClinicIds)) {
     try { const saved = JSON.parse(sessionStorage.getItem(key)); if (Array.isArray(saved)) G.agendaClinicIds = saved; } catch {}
   }
-  if (!Array.isArray(G.agendaClinicIds)) G.agendaClinicIds = G.activeClinicId ? [G.activeClinicId] : clinics.map(c => String(c.id));
-  G.agendaClinicIds = G.agendaClinicIds.filter(id => clinics.some(c => String(c.id) === id));
+  G.agendaClinicIds = normalizeClinicIds(clinics, G.agendaClinicIds || (G.activeClinicId ? [G.activeClinicId] : null));
   sel.value = G.agendaClinicIds.length === 1 ? G.agendaClinicIds[0] : '';
-  const count = document.getElementById('awClinicCount'); if(count) count.textContent = G.agendaClinicIds.length === clinics.length ? 'Todas as clínicas' : `${G.agendaClinicIds.length} clínicas selecionadas`;
-  host.innerHTML = `<label><input type="checkbox" data-all ${G.agendaClinicIds.length===clinics.length?'checked':''}> Todas</label>` + clinics.map(c => `<label><input type="checkbox" data-clinic="${escapeHtml(c.id)}" ${G.agendaClinicIds.includes(String(c.id))?'checked':''}>${escapeHtml(c.name || c.slug || c.id)}</label>`).join('');
-  host.onchange = async event => {
-    if (event.target.hasAttribute('data-all')) G.agendaClinicIds = event.target.checked ? clinics.map(c => String(c.id)) : [];
-    else G.agendaClinicIds = [...host.querySelectorAll('[data-clinic]:checked')].map(el => el.dataset.clinic);
-    try { sessionStorage.setItem(key, JSON.stringify(G.agendaClinicIds)); } catch {}
-    renderClinicsSelect(clinics);
+  mountClinicPicker(host, { clinics, selected: G.agendaClinicIds, onChange: async ids => {
+    G.agendaClinicIds = ids;
+    const search = document.getElementById('pQuickQuery'); if (search) search.value = '';
+    const results = document.getElementById('pQuickResults'); if (results) { results.innerHTML = ''; results.style.display = 'none'; }
+    sel.value = ids.length === 1 ? ids[0] : '';
+    try { sessionStorage.setItem(key, JSON.stringify(ids)); } catch {}
     await refreshAgenda();
-  };
+  }});
 }
 
 /* ---- 04A.4 — getPatientForAppointmentRow ---- */
@@ -1055,7 +1054,7 @@ export async function openWeekView() {
   let appts = [];
   try {
     const { data } = await loadAppointmentsForRange({ clinicId: weekClinicId, startISO: weekRangeStart, endISO: weekRangeEnd });
-    appts = data || [];
+    appts = (data || []).filter(row => _existingWeekSel || !Array.isArray(G.agendaClinicIds) || G.agendaClinicIds.includes(String(row.clinic_id)) || (!row.clinic_id && row.mode === "bloqueio"));
   } catch (_) {}
 
   /* Carregar nomes dos doentes — completa G.patientsById com os que faltam */
@@ -2334,7 +2333,9 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
 /* ==== 10C — Refresh agenda ==== */
 
 /* ---- 10C.1 — refreshAgenda ---- */
+let agendaRefreshRequest = 0;
 export async function refreshAgenda() {
+  const request = ++agendaRefreshRequest;
   if (isSessionLocked()) return;
 
   const sel      = document.getElementById("selClinic");
@@ -2348,12 +2349,15 @@ export async function refreshAgenda() {
 
   try {
     const loaded = await loadAppointmentsForRange({ clinicId, startISO: r.startISO, endISO: r.endISO });
+    if (request !== agendaRefreshRequest) return;
     const timeColUsed = loaded.timeColUsed;
     const data = (loaded.data || []).filter(row => !Array.isArray(G.agendaClinicIds) || G.agendaClinicIds.includes(String(row.clinic_id)) || (G.agendaClinicIds.length > 0 && !row.clinic_id && row.mode === "bloqueio"));
 
     const patientIds = (data || []).map((x) => x?.patient_id).filter(Boolean);
     try {
-      G.patientsById = await fetchPatientsByIds(patientIds);
+      const patients = await fetchPatientsByIds(patientIds);
+      if (request !== agendaRefreshRequest) return;
+      G.patientsById = patients;
     } catch (e) {
       if (__gcIsAuthError(e)) { await __gcForceSessionLock("Sessão expirada ou inválida. Volte a iniciar sessão."); return; }
       console.error("Falha ao carregar pacientes para agenda:", e);
@@ -2369,6 +2373,7 @@ export async function refreshAgenda() {
     if (typeof window.__gc_onApptSaved === "function") window.__gc_onApptSaved();
   } catch (e) {
     if (__gcIsAuthError(e)) { await __gcForceSessionLock("Sessão expirada ou inválida. Volte a iniciar sessão."); return; }
+    if (request !== agendaRefreshRequest) return;
     console.error("Agenda load falhou:", e);
     setAgendaStatus("error", "Erro ao carregar agenda. Vê a consola.");
     G.agenda.rows = [];
@@ -2607,17 +2612,20 @@ function updateRegularizarSummary(section, count) {
 }
 
 async function loadAndRenderVencidos() {
+  const request = agendaRefreshRequest;
   const section = document.getElementById("vencidosSection");
   if (!section) return;
   try {
     const hoje = new Date().toISOString().slice(0, 10);
     const { data, error, count } = await window.sb
       .from("registos_financeiros")
-      .select("id, data, patient_id, appointment_id, tipo_acto, appt_status, financial_status, entidades_financeiras(nome), patients(full_name)", { count: "exact" })
+      .select("id, data, patient_id, appointment_id, tipo_acto, appt_status, financial_status, entidades_financeiras!inner(nome,clinic_id), patients(full_name)", { count: "exact" })
+      .in("entidades_financeiras.clinic_id", normalizeClinicIds(G.clinics, G.agendaClinicIds))
       .in("appt_status", ["scheduled", "arrived"])
       .lt("data", hoje)
       .order("data", { ascending: false })
       .limit(20);
+    if (request !== agendaRefreshRequest) return;
     if (error) throw error;
     const rows = data || [];
     updateRegularizarSummary(section, count ?? rows.length);
@@ -2768,6 +2776,7 @@ const _TIPO_LABEL        = { videoconsulta: "Videoconsulta", exame_desportivo: "
 
 /* ---- Carregar e renderizar pendentes ---- */
 export async function loadAndRenderPendentes(clinicId) {
+  const request = agendaRefreshRequest;
   const section = document.getElementById("pendentesSection");
   if (!section) return;
   try {
@@ -2776,8 +2785,10 @@ export async function loadAndRenderPendentes(clinicId) {
       .select("id, created_at, tipo, clinic_id, atleta_nome, atleta_email, atleta_tel, atleta_dob, atleta_sns, atleta_cc, atleta_nif, atleta_passport, proposed_date, proposed_time, disponibilidade, pdf_url, status, patient_id", { count: "exact" })
       .eq("status", "pendente")
       .order("created_at", { ascending: true });
-    if (clinicId) q = q.eq("clinic_id", clinicId);
+    if (Array.isArray(G.agendaClinicIds)) q = q.in("clinic_id", G.agendaClinicIds);
+    else if (clinicId) q = q.eq("clinic_id", clinicId);
     const { data, error, count } = await q;
+    if (request !== agendaRefreshRequest) return;
     if (error) throw error;
     _renderPendentes(data || []);
     updateRegularizarSummary(section, count ?? (data || []).length);
