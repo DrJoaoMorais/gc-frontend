@@ -1046,7 +1046,11 @@ function renderSeccaoPrecos(container, precos, procedureTypes, clinicaFiltro) {
 async function openModalPreco(precoId, clinicId, procedureTypes) {
   let preco = null;
   if (precoId) {
-    const { data } = await window.sb.from("clinic_prices").select("*").eq("id", precoId).single();
+    const { data, error } = await window.sb.from("clinic_prices").select("*").eq("id", precoId).single();
+    if (error || !data) {
+      alert("Não foi possível carregar o preço. Volta a abrir a edição.");
+      return;
+    }
     preco = data;
   }
   const isEdit = !!preco;
@@ -1166,12 +1170,21 @@ async function openModalPreco(precoId, clinicId, procedureTypes) {
         preco_doente:       precoDoente !== "" ? parseFloat(precoDoente) : null,
         percentagem_medico: percMedico  !== "" ? parseFloat(percMedico)  : null,
       };
-      if (isEdit) {
-        const { error } = await window.sb.from("clinic_prices").update(payload).eq("id", precoId);
-        if (error) throw error;
-      } else {
-        const { error } = await window.sb.from("clinic_prices").insert(payload);
-        if (error) throw error;
+      const query = isEdit
+        ? window.sb.from("clinic_prices").update(payload).eq("id", precoId).eq("clinic_id", clinicId)
+        : window.sb.from("clinic_prices").insert(payload);
+      const { data: saved, error } = await query.select("id, clinic_id, procedure_type, price, preco_doente, percentagem_medico, duracao_min").single();
+      if (error || !saved) {
+        throw new Error("Não foi possível confirmar a gravação. Verifica as permissões ou a ligação e tenta novamente.");
+      }
+      const numericFields = ["price", "preco_doente", "percentagem_medico", "duracao_min"];
+      const matches = saved.clinic_id === clinicId && saved.procedure_type === procVal
+        && (!isEdit || saved.id === precoId)
+        && numericFields.every(key => payload[key] === null
+          ? saved[key] === null
+          : saved[key] != null && Math.abs(Number(saved[key]) - payload[key]) < 0.000001);
+      if (!matches) {
+        throw new Error("O Supabase devolveu valores diferentes. Mantém esta janela aberta e verifica os valores antes de voltar a guardar.");
       }
       close();
       renderGestao();
