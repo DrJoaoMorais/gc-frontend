@@ -106,3 +106,5 @@ body:has(#gcAgendaWorkspace) .gc-content{padding:14px 16px;background:linear-gra
 
 #gcAgendaWorkspace .aw-pending.aw-has-pending{border-color:#ef9a9a;border-left:4px solid #dc2626;background:#fff5f5}
 #gcAgendaWorkspace .aw-pending.aw-has-pending>summary{color:#b91c1c;font-weight:700}
+
+#gcAgendaWorkspace .aw-schedule-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}#gcAgendaWorkspace .aw-schedule-actions button{font:inherit;border:1px solid #d7e1ed;border-radius:8px;padding:8px 12px;background:#fff;color:#0f2d52;cursor:pointer}

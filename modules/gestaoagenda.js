@@ -1,3 +1,5 @@
+import { modalStyles } from './marcacao-visual.js';
+import { openScheduleModal, overlaps } from './agenda-disponibilidade.js';
 /* ========================================================
    GESTAOAGENDA.JS — Timeline clínica com slots, bloqueios
    e horários recorrentes
@@ -31,7 +33,8 @@ function gerarSlots(horaInicio, horaFim, durMin) {
   let cur = h1*60+m1;
   const end = h2*60+m2;
   const slots = [];
-  while (cur < end) { slots.push(pad2(Math.floor(cur/60))+":"+pad2(cur%60)); cur += durMin; }
+  if(!Number.isFinite(durMin)||durMin<=0)return slots;
+  while (cur + durMin <= end) { slots.push(pad2(Math.floor(cur/60))+":"+pad2(cur%60)); cur += durMin; }
   return slots;
 }
 
@@ -102,7 +105,7 @@ function _buildShell() {
       <button id="gaBtnAgendar" class="gcBtnPrimary" style="font-size:12px;padding:5px 14px;">Agendar consulta</button>
       <button id="gaBtnNovoDoente" class="gcBtnOutline" style="font-size:12px;padding:5px 14px;">Novo doente</button>
       <button id="gaBtnCriarSlots" class="gcBtnSuccess" style="font-size:12px;padding:5px 14px;">+ Disponibilidade</button>
-      <button id="gaBtnBloq" class="gcBtnDanger" style="font-size:12px;padding:5px 14px;">Bloquear</button>
+      <button id="gaBtnBloq" class="gcBtnDanger" style="font-size:12px;padding:5px 14px;">Bloqueios</button>
       <div style="flex:1;min-width:180px;position:relative;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         <input id="pQuickQuery" type="search" placeholder="Pesquisar doente — Nome, SNS, NIF…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search" style="width:100%;box-sizing:border-box;padding:6px 10px 6px 30px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;font-family:inherit;color:#1e293b;background:#fff;" />
@@ -158,7 +161,6 @@ function _wireShell() {
     if (_semanaVisible) _renderSemana();
   });
   document.getElementById("gaBtnBloq")?.addEventListener("click", () => {
-    if (!_state.selectedClinicId) { alert("Selecciona uma clínica primeiro."); return; }
     _openModalBloqueio();
   });
   document.getElementById("gaBtnSemana")?.addEventListener("click", () => _toggleSemana());
@@ -169,7 +171,6 @@ function _wireShell() {
     window.openNewPatientMainModal({ clinicId: _state.selectedClinicId });
   });
   document.getElementById("gaBtnCriarSlots")?.addEventListener("click", () => {
-    if (!_state.selectedClinicId) { alert("Selecciona uma clínica primeiro."); return; }
     _openModalCriarSlots();
   });
 
@@ -533,7 +534,6 @@ async function _renderPadroesFixos() {
     <button id="gaBtnNovoPadrao" style="margin-top:8px;width:100%;border:0.5px dashed #cbd5e1;background:transparent;color:#64748b;padding:7px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;">+ Próxima Disponibilidade</button>`;
 
   el.querySelector("#gaBtnNovoPadrao")?.addEventListener("click", () => {
-    if (!_state.selectedClinicId) { alert("Selecciona uma clínica primeiro."); return; }
     _openModalCriarSlots();
   });
 }
@@ -616,7 +616,7 @@ async function _renderStatsCards() {
     });
     if(!slots.length) return null;
     const blocosDia = blocks.filter(b=>isoLocal(b.start_at)===diaISO)
-      .map(b=>({ini:minLocal(b.start_at), fim:b.end_at?minLocal(b.end_at):minLocal(b.start_at)+1}));
+      .map(b=>({ini:minLocal(b.start_at), fim:b.end_at?(isoLocal(b.end_at)>diaISO?1440:minLocal(b.end_at)):minLocal(b.start_at)+1}));
     const capLiq = slots.filter(m=>!blocosDia.some(b=>m>=b.ini && m<b.fim)).length;
     const ok = appts.filter(a=>isoLocal(a.start_at)===diaISO).length;
     return { ok, capLiq, bloq:slots.length-capLiq };
@@ -1050,7 +1050,7 @@ function _renderPanel(row, patientsById = {}) {
   let warn = "";
   if (isBlocked) {
     const notaHtml = row.notes ? `<div style="font-weight:600;margin-bottom:2px;">${escapeHtml(row.notes)}</div>` : "";
-    warn = `<div style="padding:8px 10px;background:#fef3c7;border:0.5px solid #fcd34d;border-radius:8px;font-size:11px;color:#92400e;margin-bottom:8px;">${notaHtml}Slot indisponível — para marcar contacte o Dr. João Morais.</div>`;
+    warn = `<div style="padding:8px 10px;background:#fef3c7;border:0.5px solid #fcd34d;border-radius:8px;font-size:11px;color:#92400e;margin-bottom:8px;">${notaHtml}Período bloqueado. Remove o bloqueio apenas se voltares a estar disponível.</div>`;
   }
   if (isExtra)   warn = `<div style="padding:8px 10px;background:#fef3c7;border:0.5px solid #fcd34d;border-radius:8px;font-size:11px;color:#92400e;margin-bottom:8px;">Consulta extra — fora de slot recorrente.</div>`;
 
@@ -1060,7 +1060,7 @@ function _renderPanel(row, patientsById = {}) {
   } else if (isBlocked) {
     actions = `
       <button class="ga-pa-btn ga-pa-red" data-action="remover-bloq">Remover bloqueio</button>
-      <button class="ga-pa-btn ga-pa-amber" data-action="forcar">Forçar mesmo assim</button>`;
+      `;
   } else {
     actions = `
       <button class="ga-pa-btn ga-pa-blue2" data-action="marcada">Marcada</button>
@@ -1116,19 +1116,11 @@ function _renderPanel(row, patientsById = {}) {
   el.querySelector("[data-action='honorarios']")?.addEventListener("click", () => _updateStatus(row.id, "honorarios_dispensados", row.status));
   el.querySelector("[data-action='remover-bloq']")?.addEventListener("click", async () => {
     if (!confirm("Remover este bloqueio?")) return;
-    await window.sb.from("appointments").delete().eq("id", row.id);
+    const {error}=await window.sb.from("appointments").delete().eq("id", row.id).eq("mode","bloqueio");
+    if(error){alert("Não foi possível remover o bloqueio.");return;}
     el.innerHTML = '<div style="font-size:12px;color:#94a3b8;text-align:center;padding:1rem 0;">Clica num slot para ver detalhes e acções.</div>';
     await _loadAndRender();
     if (_semanaVisible) _renderSemana();
-  });
-  el.querySelector("[data-action='forcar']")?.addEventListener("click", async () => {
-    if (!confirm("Este horário está bloqueado.\n\nO bloqueio será removido e a marcação criada.\n\nConfirmar?")) return;
-    try {
-      await window.sb.from("appointments").delete().eq("id", row.id);
-      el.innerHTML = '<div style="font-size:12px;color:#94a3b8;text-align:center;padding:1rem 0;">Clica num slot para ver detalhes e acções.</div>';
-      _loadAndRender();
-      openApptModal({ mode:"new", row:null, prefillDatetime: row.start_at, prefillClinicId: _state.selectedClinicId });
-    } catch(e) { alert("Erro: " + (e.message||e)); }
   });
   el.querySelector("[data-action='enviar-link-ft']")?.addEventListener("click", () => {
     _enviarLinkFT(row, nome);
@@ -1399,10 +1391,14 @@ async function _renderSemana() {
       const rowHeight = _rowHeightFor(hora);
       const cells = dias.map(iso => {
         const key         = iso+"T"+hora;
-        const rList       = bySlot[key];
+        let rList       = bySlot[key];
         const slotClinicId = slotsDispMap.get(key);
         const isDisp      = slotClinicId !== undefined;
         const slotCC      = isDisp ? (CLINIC_COLORS[slotClinicId] || DEFAULT_COLOR) : null;
+        const cellStart = new Date(iso+'T'+hora+':00');
+        const cellEnd = new Date(cellStart.getTime()+_minDur*60000);
+        const covering = appts.filter(b=>b.mode==='bloqueio'&&!['cancelled','rescheduled','no_show'].includes(b.status)&&overlaps(b,{start_at:cellStart,end_at:cellEnd}));
+        rList = [...(rList||[]),...covering.filter(b=>!(rList||[]).some(r=>r.id===b.id))];
         const isSelectedDay = iso === _state.selectedDayISO;
 
         if (!rList || !rList.length) {
@@ -1497,6 +1493,7 @@ async function _renderSemana() {
 
 /* ── Modal criar slots (tabs: Recorrente + Pontual) ───── */
 async function _openModalCriarSlots(defaultTab = "pontual") {
+  if(defaultTab === 'pontual') return openScheduleModal({clinicId:_state.selectedClinicId,day:_state.selectedDayISO,onSaved:async(result)=>{if(result?.day)_state.selectedDayISO=result.day;await _loadAndRender();if(_semanaVisible)await _renderSemana();},onRecurring:(id)=>{_state.selectedClinicId=id;_openModalCriarSlots('recorrente');}});
   const clinicas = G.clinics || [];
   const selClinic = clinicas.find(c => c.id === _state.selectedClinicId);
   const clinicName = escapeHtml(selClinic?.name || selClinic?.slug || "");
@@ -1531,7 +1528,7 @@ async function _openModalCriarSlots(defaultTab = "pontual") {
   const isRec = defaultTab === "recorrente";
 
   _showModal(`
-    <div style="font-size:16px;font-weight:700;color:#0f2d52;margin-bottom:2px;">Criar slots</div>
+    <div style="font-size:16px;font-weight:700;color:#0f2d52;margin-bottom:2px;">Disponibilidade semanal</div>
     <div style="font-size:12px;color:#64748b;margin-bottom:10px;">${clinicName} · consultas de ${durDefault} min</div>
 
     <div style="display:flex;gap:4px;background:#f1f5f9;border-radius:10px;padding:3px;margin-bottom:14px;">
@@ -1591,11 +1588,14 @@ async function _openModalCriarSlots(defaultTab = "pontual") {
     </div>
   `);
 
+  modalStyles();
   const modalBox = document.getElementById("gaModalBox");
+  modalBox.classList.add('gs-legacy');
 
   /* ── Tabs ── */
   function switchTab(tab) {
     const r = tab === "recorrente";
+    if (!r) { document.getElementById('gaModalOverlay').style.display='none';_openModalCriarSlots('pontual');return; }
     document.getElementById("gaCSTRec").style.display = r ? "block" : "none";
     document.getElementById("gaCSTPoint").style.display = r ? "none" : "block";
     const tR = document.getElementById("gaCSTabRec"), tP = document.getElementById("gaCSTabPont");
@@ -1652,10 +1652,11 @@ async function _openModalCriarSlots(defaultTab = "pontual") {
     const dur = parseInt(document.getElementById("gaCSRecDur")?.value || String(durDefault));
     const sems = parseInt(document.getElementById("gaCSRecSemanas")?.value || "0");
     try {
-      await window.sb.from("horarios_recorrentes").insert({
+      const { error } = await window.sb.from("horarios_recorrentes").insert({
         clinic_id: _state.selectedClinicId, day_of_week: dow,
         hora_inicio: ini, hora_fim: fim, duracao_min: dur, semanas: sems, is_active: true
       });
+      if(error) throw error;
       document.getElementById("gaModalOverlay").style.display = "none";
       alert("Disponibilidade guardada.");
       await _loadAndRender();
@@ -1867,116 +1868,7 @@ async function _openModalRecorrente(existing = null) {
 
 /* ── Modal bloqueio ───────────────────────────────────── */
 function _openModalBloqueio() {
-  const clinicas = G.clinics||[];
-  const checks = clinicas.map(c =>
-    `<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;cursor:pointer;border:0.5px solid #e2e8f0;font-size:13px;">
-      <input type="checkbox" data-cid="${escapeHtml(c.id)}" style="accent-color:#1a56db;" ${c.id===_state.selectedClinicId?"checked":""}/>
-      ${escapeHtml(c.name||c.slug||c.id)}
-    </label>`).join("");
-
-  _showModal(`
-    <div style="font-size:16px;font-weight:700;color:#0f2d52;margin-bottom:4px;">Bloquear disponibilidade</div>
-    <div style="font-size:12px;color:#64748b;margin-bottom:1rem;">O slot fica indisponível mas pode ser forçado com aviso.</div>
-
-    <div style="display:flex;gap:6px;margin-bottom:12px;">
-      <button id="gaBTDia" onclick="setBloqTipo('dia')" style="padding:5px 12px;font-size:12px;border-radius:999px;border:0.5px solid #1a56db;background:#eff6ff;color:#1a56db;cursor:pointer;">Dia inteiro</button>
-      <button id="gaBTHoras" onclick="setBloqTipo('horas')" style="padding:5px 12px;font-size:12px;border-radius:999px;border:0.5px solid #e2e8f0;background:transparent;color:#64748b;cursor:pointer;">Período de horas</button>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-      <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">De</label><input id="gaBloqDe" type="date" style="padding:6px 8px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;"/></div>
-      <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Até</label><input id="gaBloqAte" type="date" style="padding:6px 8px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;"/></div>
-    </div>
-    <div id="gaBloqHorasRow" style="display:none;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-      <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Das</label><input id="gaBloqHoraIni" type="time" value="16:40" style="padding:6px 8px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;"/></div>
-      <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Às</label><input id="gaBloqHoraFim" type="time" value="17:00" style="padding:6px 8px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;"/></div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-      <div style="display:flex;flex-direction:column;gap:4px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <label style="font-size:11px;color:#64748b;">Clínicas</label>
-          <button id="gaBloqSelTodas" type="button" style="font-size:11px;color:#1a56db;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">Seleccionar todas</button>
-        </div>
-        <div id="gaBloqChecks" style="display:flex;flex-direction:column;gap:4px;">${checks}</div>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Motivo</label>
-          <select id="gaBloqMotivo" class="gcSelect" style="font-size:12px;">
-            <option>Férias</option><option>FPF</option><option>Congresso</option><option>Outro</option>
-          </select></div>
-        <div style="display:flex;flex-direction:column;gap:4px;"><label style="font-size:11px;color:#64748b;">Nota (opcional)</label>
-          <input id="gaBloqNota" type="text" placeholder="Ex: FPF — estágio" style="padding:6px 8px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;font-family:inherit;"/></div>
-      </div>
-    </div>
-
-    <div style="padding:8px 10px;background:#fef3c7;border:0.5px solid #fcd34d;border-radius:8px;font-size:11px;color:#92400e;margin-bottom:12px;">
-      Não apaga marcações existentes. Pode ser forçado com aviso "Contactar Dr. João Morais".
-    </div>
-
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button onclick="document.getElementById('gaModalOverlay').style.display='none'" class="gcBtnGhost" style="font-size:12px;padding:6px 14px;">Cancelar</button>
-      <button id="gaBloqSaveBtn" class="gcBtnDanger" style="font-size:12px;padding:6px 18px;font-weight:600;">Bloquear</button>
-    </div>`);
-
-  window.setBloqTipo = (t) => {
-    document.getElementById("gaBloqHorasRow").style.display = t==="horas" ? "grid" : "none";
-    document.getElementById("gaBTDia").style.background  = t==="dia"   ? "#eff6ff" : "transparent";
-    document.getElementById("gaBTDia").style.color       = t==="dia"   ? "#1a56db" : "#64748b";
-    document.getElementById("gaBTDia").style.borderColor = t==="dia"   ? "#1a56db" : "#e2e8f0";
-    document.getElementById("gaBTHoras").style.background  = t==="horas" ? "#eff6ff" : "transparent";
-    document.getElementById("gaBTHoras").style.color       = t==="horas" ? "#1a56db" : "#64748b";
-    document.getElementById("gaBTHoras").style.borderColor = t==="horas" ? "#1a56db" : "#e2e8f0";
-  };
-
-  const today = todayISO();
-  document.getElementById("gaBloqDe").value  = today;
-  document.getElementById("gaBloqAte").value = today;
-
-  document.getElementById("gaBloqSelTodas")?.addEventListener("click", () => {
-    document.querySelectorAll("#gaBloqChecks input[type=checkbox][data-cid]").forEach(cb => { cb.checked = true; });
-  });
-
-  document.getElementById("gaBloqSaveBtn")?.addEventListener("click", async () => {
-    const de     = document.getElementById("gaBloqDe")?.value;
-    const ate    = document.getElementById("gaBloqAte")?.value;
-    const hi     = document.getElementById("gaBloqHoraIni")?.value || "00:00";
-    const hf     = document.getElementById("gaBloqHoraFim")?.value || "23:59";
-    const motivo = document.getElementById("gaBloqMotivo")?.value || "Bloqueio";
-    const nota   = document.getElementById("gaBloqNota")?.value?.trim() || "";
-    const isHoras = document.getElementById("gaBloqHorasRow")?.style.display !== "none";
-
-    if (!de||!ate) { alert("Preenche as datas."); return; }
-
-    const targetIds = [];
-    document.querySelectorAll("#gaModalBox input[type=checkbox][data-cid]").forEach(cb => {
-      if (cb.checked) targetIds.push(cb.getAttribute("data-cid"));
-    });
-    if (!targetIds.length) { alert("Selecciona pelo menos uma clínica."); return; }
-
-    const rows = [];
-    let cur = new Date(de+"T00:00:00");
-    const end = new Date(ate+"T00:00:00");
-    while (cur <= end) {
-      const isoDate = cur.getFullYear()+"-"+pad2(cur.getMonth()+1)+"-"+pad2(cur.getDate());
-      const startStr = isHoras ? isoDate+"T"+hi+":00" : isoDate+"T00:00:00";
-      const endStr   = isHoras ? isoDate+"T"+hf+":00" : isoDate+"T23:59:59";
-      for (const cid of targetIds) {
-        rows.push({ clinic_id: cid, patient_id: null, start_at: new Date(startStr).toISOString(), end_at: new Date(endStr).toISOString(), status: "confirmed", procedure_type: null, title: "BLOQUEIO", notes: nota||motivo, mode: "bloqueio" // ← manter como estava
-        });
-      }
-      cur.setDate(cur.getDate()+1);
-    }
-
-    try {
-      const { error } = await window.sb.from("appointments").insert(rows);
-      if (error) throw error;
-      document.getElementById("gaModalOverlay").style.display = "none";
-      alert("Bloqueio criado com sucesso.");
-      await _loadAndRender();
-      if (_semanaVisible) _renderSemana();
-    } catch(e) { alert("Erro: " + (e.message||e)); }
-  });
+  return openScheduleModal({kind:'block',clinicId:_state.selectedClinicId,day:_state.selectedDayISO,onSaved:async(result)=>{if(result?.day)_state.selectedDayISO=result.day;await _loadAndRender();if(_semanaVisible)await _renderSemana();}});
 }
 
 /* ── Fecho do mês ─────────────────────────────────────── */
@@ -2138,6 +2030,7 @@ async function _gaFechoLoad(mes, ano, clinicId) {
 function _showModal(html, opts = {}) {
   const ov  = document.getElementById("gaModalOverlay");
   const box = document.getElementById("gaModalBox");
+  box?.classList.remove("gs-legacy");
   if (!ov||!box) return;
   box.style.width = opts.wide ? "min(860px,96vw)" : "min(420px,100%)";
   box.innerHTML = html;

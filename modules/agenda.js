@@ -1,3 +1,4 @@
+import { assertNoBlock } from './agenda-disponibilidade.js';
 import { styleAppointment } from './marcacao-visual.js';
 import { appointmentCard, enhanceAgendaRows, selectAgendaRow } from './agenda-workspace.js';
 /* ========================================================
@@ -2231,6 +2232,10 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
       const times = calcEndFromStartAndDuration(mStart.value, dur);
       if (!times) throw new Error("Data/hora inválida.");
 
+      const scheduleChanged = !isEdit || row?.clinic_id !== mClinic.value ||
+        +new Date(row?.start_at) !== +new Date(times.startAt) || +new Date(row?.end_at) !== +new Date(times.endAt);
+      if (scheduleChanged) await assertNoBlock(window.sb, {clinicId:mClinic.value,startAt:times.startAt,endAt:times.endAt,excludeId:isEdit?row?.id:null});
+
       const tRes = await maybeTransferPatientToClinic({ patientId: pid, targetClinicId: mClinic.value });
       if (tRes?.cancelled) { mMsg.style.color = "#b00020"; mMsg.textContent = "Operação cancelada (transferência não confirmada)."; btnSave.disabled = false; return; }
 
@@ -2312,7 +2317,7 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
       if (msg.includes("appointments_online_request_id_unique")) {
         mMsg.textContent = "Este pedido já originou uma consulta. Atualiza a Agenda.";
       } else {
-        mMsg.textContent = msg.toLowerCase().includes("bloqueio") ? "Não permitido: conflito com bloqueio existente." : (msg || "Erro ao guardar. Vê a consola.");
+        mMsg.textContent = msg.startsWith("Este período está bloqueado.") ? msg : msg.toLowerCase().includes("bloqueio") ? "Não permitido: conflito com bloqueio existente." : (msg || "Erro ao guardar. Vê a consola.");
       }
       btnSave.disabled = false;
     }
