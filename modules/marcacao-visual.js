@@ -81,13 +81,35 @@ export function styleAppointment(overlay, clinicName) {
   timeField.innerHTML = '<label for="gmTime">Hora de início</label><input id="gmTime" type="time">';
   const date = dateField.lastElementChild, time = timeField.lastElementChild;
   const subtitle = header.firstElementChild.lastElementChild;
-  function fromStart() {
-    [date.value,time.value] = (start.value || 'T').split('T');
+  let editingDateTime = false;
+  function updateSubtitle() {
     const d = date.value ? new Date(date.value+'T12:00:00') : null;
     subtitle.textContent = [d?.toLocaleDateString('pt-PT',{weekday:'short',day:'numeric',month:'short',year:'numeric'}),time.value,clinicName].filter(Boolean).join(' · ');
   }
-  function toStart() { start.value = date.value && time.value ? date.value+'T'+time.value : ''; start.dispatchEvent(new Event('change',{bubbles:true})); }
-  date.addEventListener('change',toStart); time.addEventListener('change',toStart);
+  function fromStart() {
+    // Não reescrever campos durante uma edição parcial: apagar a hora
+    // não pode apagar a data nem interromper a escrita dos minutos.
+    if (!editingDateTime) {
+      const [day = '', hour = ''] = (start.value || '').split('T');
+      date.value = day;
+      time.value = hour;
+    }
+    updateSubtitle();
+  }
+  function toStart() {
+    const value = date.value && time.value ? date.value+'T'+time.value : '';
+    if (start.value !== value) {
+      start.value = value;
+      editingDateTime = true;
+      try { start.dispatchEvent(new Event('change',{bubbles:true})); }
+      finally { editingDateTime = false; }
+    }
+    updateSubtitle();
+  }
+  for (const input of [date,time]) {
+    input.addEventListener('input',toStart);
+    input.addEventListener('change',toStart);
+  }
   start.addEventListener('change',fromStart); fromStart();
   const duration = $('mDuration').parentElement;
   const provider = $('mProvider').parentElement;
