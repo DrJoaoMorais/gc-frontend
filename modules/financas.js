@@ -48,7 +48,7 @@ async function loadEntidades() {
 }
 
 /* ---- FA.2 — loadRegistos ---- */
-async function loadRegistos({ mes, ano, dataIni, dataFim } = {}) {
+async function loadRegistos({ mes, ano, dataIni, dataFim, allPages = false } = {}) {
   let inicio, fim;
   if (dataIni && dataFim) {
     inicio = dataIni;
@@ -63,7 +63,7 @@ async function loadRegistos({ mes, ano, dataIni, dataFim } = {}) {
     fim = `${anoFim}-${String(mesFim).padStart(2, "0")}-01`;
   }
 
-  const { data, error } = await window.sb
+  const query = () => window.sb
     .from("registos_financeiros")
     .select(`
       *,
@@ -72,8 +72,17 @@ async function loadRegistos({ mes, ano, dataIni, dataFim } = {}) {
     `)
     .gte("data", inicio)
     .lt("data", fim)
-    .order("data", { ascending: false });
-
+    .order("data", { ascending: false }).order("id");
+  if (allPages) {
+    const rows = [];
+    for (let offset=0;;offset+=500) {
+      const {data,error} = await query().range(offset,offset+499);
+      if (error) throw error;
+      rows.push(...(data||[]));
+      if ((data||[]).length<500) return rows;
+    }
+  }
+  const { data, error } = await query();
   if (error) throw error;
   return data || [];
 }
@@ -4315,15 +4324,15 @@ export function initFinancas() {
 initFinancas();
 
 // Leitura reutilizada pela Agenda. Não altera o funcionamento dos ecrãs de Finanças.
-export async function loadFinanceForAgenda({ day, clinicId, monthly = false }) {
+export async function loadFinanceForAgenda({ day, clinicId, monthly = false, start = day, end = day }) {
   const year=Number(day.slice(0,4)),month=Number(day.slice(5,7));
-  const [entities,records]=await Promise.all([loadEntidades(),loadRegistos(monthly?{ano:year,mes:month}:{dataIni:day,dataFim:day})]);
+  const [entities,records]=await Promise.all([loadEntidades(),loadRegistos(monthly?{ano:year,mes:month,allPages:true}:{dataIni:start,dataFim:end,allPages:true})]);
   const selected=entities.filter(x=>!clinicId||x.clinic_id===clinicId);
   const prices=Object.fromEntries(await Promise.all([...new Set(selected.map(x=>x.clinic_id).filter(Boolean))].map(async id=>[id,buildClinicPricesByProc(await loadClinicPrices(id))])));
   const allowed=new Map(selected.map(x=>[x.id,x]));
   return {entities:selected,records:records.filter(r=>allowed.has(r.entidade_id)).map(r=>{
     const ent=allowed.get(r.entidade_id),counts=contaParaTotal(r.appt_status,r.financial_status),value=resolveFaturado(r,ent,prices[ent.clinic_id]);
-    return {...r,agendaClinicId:ent.clinic_id,agendaEntityName:ent.nome,agendaCounts:counts,agendaBilled:counts?value.valor:0,agendaFee:counts?Number(r.valor||0):0,agendaSource:value.origem};
+    return {...r,agendaClinicId:ent.clinic_id,agendaEntityName:ent.nome,agendaCounts:counts,agendaBilled:counts?value.valor:0,agendaFee:counts?(r.valor==null?null:Number(r.valor)):0,agendaSource:value.origem};
   })};
 }
 export function printFinanceForAgenda(records,clinicName,period) {

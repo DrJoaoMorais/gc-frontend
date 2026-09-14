@@ -108,3 +108,25 @@ body:has(#gcAgendaWorkspace) .gc-content{padding:14px 16px;background:linear-gra
 #gcAgendaWorkspace .aw-pending.aw-has-pending>summary{color:#b91c1c;font-weight:700}
 
 #gcAgendaWorkspace .aw-schedule-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}#gcAgendaWorkspace .aw-schedule-actions button{font:inherit;border:1px solid #d7e1ed;border-radius:8px;padding:8px 12px;background:#fff;color:#0f2d52;cursor:pointer}
+#gcAgendaWorkspace .aw-fecho-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:4px 0 12px}
+#gcAgendaWorkspace .aw-fecho-heading h2{margin:0;font-size:17px}
+#gcAgendaWorkspace .aw-fecho-heading span{font-size:12px;color:#64748b}
+#gcAgendaWorkspace .aw-fecho-card{border:1px solid #dde5ed;border-radius:10px;padding:14px;margin:12px 0}
+#gcAgendaWorkspace .aw-fecho-card label,#gcAgendaWorkspace .aw-fecho-other label{display:flex;flex-direction:column;gap:5px;margin:10px 0}
+#gcAgendaWorkspace .aw-fecho-card input,#gcAgendaWorkspace .aw-fecho-card textarea,#gcAgendaWorkspace .aw-fecho-other input,#gcAgendaWorkspace .aw-fecho-other select{max-width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font:inherit}
+#gcAgendaWorkspace .aw-fecho-card textarea{width:100%;min-height:220px;resize:vertical}
+#gcAgendaWorkspace .aw-fecho-dates{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+#gcAgendaWorkspace .aw-fecho-card .aw-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+#gcAgendaWorkspace .aw-fecho-card button,#gcAgendaWorkspace .aw-fecho-other button{border:1px solid #cbd5e1;border-radius:7px;background:#f8fafc;padding:9px 12px;color:#183047;cursor:pointer}
+#gcAgendaWorkspace .aw-fecho-card [data-day]{background:#0f2d52;color:#fff;border-color:#0f2d52}
+#gcAgendaWorkspace .aw-fecho-card button:disabled{opacity:.5;cursor:default}
+#gcAgendaWorkspace .aw-fecho-card .aw-fecho-confirm{flex-direction:row;align-items:center}
+#gcAgendaWorkspace .aw-fecho-notice{background:#eff6ff;color:#23496d;padding:10px;border-radius:6px}
+#gcAgendaWorkspace .aw-fecho-warning{background:#fff7ed;color:#92400e;padding:8px 12px;border-radius:6px}
+#gcAgendaWorkspace #awFinance .aw-fecho-other>summary,#gcAgendaWorkspace #awFinance [data-history] summary{white-space:normal;background:#f8fafc;border-color:#e2e8f0;color:#334155;margin-top:12px;cursor:pointer}
+#gcAgendaWorkspace .aw-fecho-card pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:12px}
+.aw-fecho-dialog{max-width:min(520px,90vw);border:1px solid #cbd5e1;border-radius:14px;padding:24px;color:#183047;font-family:inherit}
+.aw-fecho-dialog::backdrop{background:#12263a66}
+.aw-fecho-dialog .aw-actions{display:flex;gap:8px;flex-wrap:wrap}
+.aw-fecho-dialog button{padding:10px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;cursor:pointer}
+.aw-fecho-dialog button:first-child{background:#0f2d52;color:#fff}
