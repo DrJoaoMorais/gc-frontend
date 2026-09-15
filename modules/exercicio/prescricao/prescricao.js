@@ -255,6 +255,7 @@ function freshState() {
   };
 }
 let _state = freshState();
+let _embeddedCare = null;
 let _step1Destination = 'prescription'; // 'acompanhamento' quando a entrada deve abrir o cérebro do doente
 let _loadingPlanoActivo = false;        // a verificar/carregar o plano activo do doente escolhido (9 ago 2026)
 let _expandedCardIds = new Set();       // sessões expandidas na lista principal (leitura)
@@ -610,6 +611,7 @@ async function carregarPlanoActivoSeExistir() {
     .from('wo_prescriptions')
     .select('id,data')
     .eq('patient_id', _state.patient.id)
+    .eq('clinic_id', _state.clinicId)
     .eq('status', 'active')
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
@@ -620,6 +622,7 @@ async function carregarPlanoActivoSeExistir() {
     // Falhar a verificação não deve impedir a prescrição — fica como plano novo (o
     // comportamento de sempre); é mais seguro do que bloquear o médico a meio de uma consulta.
     console.error('[prescricao] falha a verificar plano activo:', error);
+    if (_embeddedCare) throw new Error('Não foi possível carregar o plano. Tente novamente.');
     return;
   }
   if (!data) return; // sem plano activo — quadro em branco, como sempre foi para doentes novos
@@ -655,11 +658,13 @@ export async function initPrescricao(options = {}) {
   if (!root) return;
 
   ensurePrescricaoCss();
+  _embeddedCare = options.embeddedCare || null;
   _state = freshState();
   _landing = null;
   _expandedCardIds = new Set();
   _panelExpandedTarefaId = null;
   _panelDraft = null;
+  if (_embeddedCare) _pendingSlot = null;
   _panelIsNovo = false;
   _step1Destination = 'prescription';
   _historyOpen = false;
@@ -691,6 +696,7 @@ export async function initPrescricao(options = {}) {
     .eq('id', patientId)
     .maybeSingle();
   if (error || !patient) {
+    if (_embeddedCare) throw new Error('Não foi possível carregar o doente.');
     console.error('[prescricao] falha a abrir doente pré-seleccionado:', error);
     renderStep1();
     return;
@@ -705,6 +711,28 @@ export async function initPrescricao(options = {}) {
   else renderStep2();
 }
 
+
+// Mantém o editor junto dos formulários do acompanhamento, incluindo os rascunhos.
+export async function initCarePrescription({ patientId, clinicId, onCalendar, onSaved, onChange }) {
+  const { data, error } = await window.sb.auth.getUser();
+  if (error || !data?.user) throw new Error('Não foi possível confirmar a sessão.');
+  G.sessionUser = data.user;
+  G.clinics = [{ id: clinicId }];
+  await initPrescricao({ patientId, clinicId, embeddedCare: { onCalendar, onSaved, onChange } });
+  _calendarFirstMonday = segundaFeiraDeIso(isoHoje());
+  _embeddedCare.savedFingerprint = JSON.stringify(buildFinalData());
+  renderStep2();
+  return {
+    refreshCalendar() { if (!step2EmEdicao() && !_patologia) renderCalGrid(); },
+    hasUnsavedChanges() { return haSessoesPorGravar() || !!_panelDraft || !!_pendingSlot; },
+    open(mode) {
+      if (_embeddedCare.saving) return;
+      if (mode === 'pathology' && !step2EmEdicao()) abrirPatologia();
+      else if (!_patologia && !step2EmEdicao()) renderStep2();
+    },
+  };
+}
+
 // Sessões adicionadas ao calendário só existem em memória (_state.sessions) até se
 // clicar em "Gerar prescrição e link" — foi isto que causou o bug reportado 9 ago 2026
 // ("faço vários treinos, dou refresh, desaparecem"): os treinos apareciam no calendário
@@ -713,6 +741,7 @@ export async function initPrescricao(options = {}) {
 // resolve sozinho a confusão de "o que é que já ficou gravado", mas evita perder o
 // trabalho sem aviso nenhum.
 function haSessoesPorGravar() {
+  if (_embeddedCare?.savedFingerprint) return JSON.stringify(buildFinalData()) !== _embeddedCare.savedFingerprint;
   if (!_state.sessions.length) return false;
   const actual = JSON.stringify(_state.sessions);
   return actual !== _state.__ultimoSnapshotGravado;
@@ -1611,6 +1640,7 @@ function wireDatasPlanoSection() {
   });
   document.getElementById('gcwoDataRevisao').addEventListener('change', (e) => {
     _state.dataRevisao = e.target.value || null;
+    updateGerarButtonState();
   });
   document.getElementById('gcwoValidadeLink').addEventListener('change', (e) => {
     _state.linkExpiryMode = e.target.value;
@@ -1619,6 +1649,7 @@ function wireDatasPlanoSection() {
   });
   document.getElementById('gcwoDataValidadeLink')?.addEventListener('change', (e) => {
     _state.linkExpiryDate = e.target.value || null;
+    updateGerarButtonState();
   });
 }
 
@@ -1632,6 +1663,15 @@ function ultimoDiaPrescrito() {
 function renderStep2() {
   const root = document.getElementById('gcwoPrescricaoRoot');
   if (!root) return;
+
+  if (_embeddedCare) {
+    root.innerHTML = `<div class="gcwo-step2-shell gcwo-care-editor"><div class="gcwo-care-tools"><button type="button" class="gcBtnGhost" id="gcwoVerHistorico">Planos anteriores</button>${renderPatientBanner()}</div><div id="gcwoStep2Body"></div></div>`;
+    document.getElementById('gcwoVerHistorico').onclick = openHistoryModal;
+    wirePatientBanner();
+    _patientMainTab = 'prescription';
+    renderStep2Body();
+    return;
+  }
 
   const p = _state.patient;
   const idade = calcIdade(p.dob);
@@ -1702,6 +1742,7 @@ function renderStep2Body() {
     host.innerHTML = renderPatientFollowupSection();
     wirePatientFollowupSection();
   } else renderCalendarMode(host);
+  _embeddedCare?.onChange?.(haSessoesPorGravar() || step2EmEdicao());
 }
 
 function refreshPatientMainTabs() {
@@ -1742,7 +1783,7 @@ function renderCalendarMode(host) {
       ${renderDatasPlanoSection()}
     <div class="gcwo-calendar-card">
       <div class="gcwo-cal-head">
-        <div><h2 class="gcwo-section-title">Calendário do plano</h2><p>Adicione um treino no dia pretendido.</p></div>
+        <div><h2 class="gcwo-section-title">${_embeddedCare ? 'Calendário do acompanhamento' : 'Calendário do plano'}</h2><p>Adicione um treino ou arraste-o para mudar de dia.</p></div>
         <div class="gcwo-cal-nav">
           <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalAnterior">‹ Duas anteriores</button>
           <span id="gcwoCalIntervalo" class="gcwo-cal-nav-label"></span>
@@ -1827,7 +1868,7 @@ async function carregarLeituraTreinosDoDoente() {
 function semanasParaMostrar() {
   const segInicio = segundaFeiraDeIso(_state.startDate);
   const segFim = segundaFeiraDeIso(_state.endDate);
-  if (!_calendarFirstMonday || _calendarFirstMonday < segInicio || _calendarFirstMonday > segFim) {
+  if (!_calendarFirstMonday || (!_embeddedCare && (_calendarFirstMonday < segInicio || _calendarFirstMonday > segFim))) {
     _calendarFirstMonday = segInicio;
   }
   return [_calendarFirstMonday, addDiasIso(_calendarFirstMonday, 7)];
@@ -1867,8 +1908,8 @@ function renderCalGrid() {
   if (intervalo) intervalo.textContent = `${fmtDiaMesCurtoIso(primeiroDia)} – ${fmtDiaMesCurtoIso(ultimoDia)}`;
   const anterior = document.getElementById('gcwoCalAnterior');
   const seguinte = document.getElementById('gcwoCalSeguinte');
-  if (anterior) anterior.disabled = addDiasIso(primeiroDia, -1) < segundaFeiraDeIso(_state.startDate);
-  if (seguinte) seguinte.disabled = addDiasIso(ultimoDia, 1) > addDiasIso(segundaFeiraDeIso(_state.endDate), 6);
+  if (anterior) anterior.disabled = !_embeddedCare && addDiasIso(primeiroDia, -1) < segundaFeiraDeIso(_state.startDate);
+  if (seguinte) seguinte.disabled = !_embeddedCare && addDiasIso(ultimoDia, 1) > addDiasIso(segundaFeiraDeIso(_state.endDate), 6);
 
   // Cabeçalho dos dias da semana (SEG..DOM) uma única vez no topo — antes cada
   // linha de semana repetia isto por baixo do intervalo de datas, o que o Morais
@@ -1888,7 +1929,7 @@ function renderCalGrid() {
           const fora = iso < _state.startDate || iso > _state.endDate;
           const sessions = _state.sessions.filter(s => s.date === iso).sort((a, b) => a.order - b.order);
           return `
-          <div class="gcwo-calday${fora ? ' before-start' : ''}"${fora ? '' : ` data-day="${iso}"`}>
+          <div class="gcwo-calday${fora ? ' before-start' : ''}" data-calendar-date="${iso}"${fora ? '' : ` data-day="${iso}"`}>
             <div class="gcwo-calday-top">
               <span class="num">${escHtml(fmtDiaMesCurtoIso(iso))}</span>
               ${!fora ? `<button type="button" class="gcwo-calday-add" data-add-date="${iso}" title="Adicionar sessão">${ICON_MAIS}</button>` : ''}
@@ -1958,6 +1999,7 @@ function renderCalGrid() {
   });
   wireCalMenuDocClickOnce();
   wireCalDragAndDrop(host);
+  _embeddedCare?.onCalendar?.(host, _state.sessions);
 }
 
 function nomeCurtoSessao(s) {
@@ -2351,6 +2393,7 @@ async function terminarPlanoActivo(prescriptionId, btn) {
     .update({ status: 'revoked' })
     .eq('id', prescriptionId)
     .eq('patient_id', _state.patient.id)
+    .eq('clinic_id', _state.clinicId)
     .eq('status', 'active')
     .select('id')
     .maybeSingle();
@@ -2367,9 +2410,15 @@ async function terminarPlanoActivo(prescriptionId, btn) {
 
   closeHistoryModal();
   _state.activePrescriptionId = null;
-  _state.patient = null;
   _state.sessions = [];
-  _state.__ultimoSnapshotGravado = null;
+  _state.__ultimoSnapshotGravado = JSON.stringify([]);
+  if (_embeddedCare) {
+    _embeddedCare.savedFingerprint = JSON.stringify(buildFinalData());
+    renderStep2();
+    await _embeddedCare.onSaved?.();
+    return;
+  }
+  _state.patient = null;
   if (regressoAcompanhamento && typeof window.__gc_openAcompanhamentoPanel === 'function') {
     window.alert('Plano terminado. Os exercícios foram retirados do calendário e o histórico foi preservado.');
     window.__gc_openAcompanhamentoPanel(regressoAcompanhamento.patientId, regressoAcompanhamento.clinicId);
@@ -4484,10 +4533,12 @@ function hasSessionComExercicios() {
 // doente já tem; só cria prescrição+link novos quando não há nenhum plano activo. Não
 // muda o comportamento (já era assim), só o rótulo (9 ago 2026).
 function labelBotaoGerar() {
+  if (_embeddedCare) return 'Guardar plano';
   if (_returnToAcompanhamento) return 'Guardar e voltar ao acompanhamento';
   return _state.activePrescriptionId ? 'Atualizar plano' : 'Gerar prescrição e link';
 }
 function updateGerarButtonState() {
+  _embeddedCare?.onChange?.(haSessoesPorGravar() || step2EmEdicao());
   const btn = document.getElementById('gcwoGerar');
   if (!btn) return;
   const ok = hasSessionComExercicios();
@@ -4659,6 +4710,7 @@ function validarPrescricao() {
 }
 
 async function handleGerar() {
+  if (_embeddedCare?.saving) return;
   const btn = document.getElementById('gcwoGerar');
   const erroEl = document.getElementById('gcwoGerarErro');
   erroEl.textContent = '';
@@ -4675,6 +4727,7 @@ async function handleGerar() {
 
   btn.disabled = true;
   btn.textContent = 'A gravar…';
+  if (_embeddedCare) { _embeddedCare.saving = true; document.getElementById('gcwoPrescricaoRoot').inert = true; }
 
   // Guarda todos os tokens que passem a ser conhecidos durante a gravação (o candidato
   // novo e, se existir, o da prescrição activa encontrada) para o catch conseguir sempre
@@ -4692,6 +4745,7 @@ async function handleGerar() {
       .from('wo_prescriptions')
       .select('id, token, data, expires_at')
       .eq('patient_id', _state.patient.id)
+      .eq('clinic_id', _state.clinicId)
       .eq('status', 'active')
       .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false })
@@ -4703,7 +4757,7 @@ async function handleGerar() {
     const ultimoTreino = ultimoDiaPrescrito();
     const dataValidade = _state.linkExpiryMode === 'selected_date' ? _state.linkExpiryDate : (ultimoTreino || _state.endDate);
     const expiresAtNovo = expiresAtDeIso(dataValidade);
-    let token, linkExpiresAt;
+    let token, linkExpiresAt, savedPrescription;
 
     if (activaExistente) {
       tokensAEscrubar.push(activaExistente.token);
@@ -4736,21 +4790,24 @@ async function handleGerar() {
             sessions: sessoesFinais,
           };
 
-      const { error } = await window.sb.from('wo_prescriptions')
+      const updateQuery = window.sb.from('wo_prescriptions')
         .update({
           clinic_id: _state.clinicId,
           created_by: G.sessionUser.id,
           expires_at: expiresAtFinal.toISOString(),
           data: dataFinal,
         })
-        .eq('id', activaExistente.id);
+        .eq('id', activaExistente.id).eq('patient_id', _state.patient.id).eq('clinic_id', _state.clinicId);
+      const { data: savedRow, error } = await (_embeddedCare ? updateQuery.select('id,data,expires_at').single() : updateQuery);
+      if (_embeddedCare && !error && !savedRow) throw new Error('Não foi possível confirmar a gravação do plano.');
+      savedPrescription = savedRow;
       if (error) throw new Error(`Falha ao actualizar prescrição: ${error.message || error}`);
 
       token = activaExistente.token;
       linkExpiresAt = expiresAtFinal;
     } else {
       token = tokenCandidato;
-      const { error } = await window.sb.from('wo_prescriptions').insert({
+      const insertQuery = window.sb.from('wo_prescriptions').insert({
         token,
         patient_id: _state.patient.id,
         clinic_id: _state.clinicId,
@@ -4758,6 +4815,9 @@ async function handleGerar() {
         expires_at: expiresAtNovo.toISOString(),
         data: novaData,
       });
+      const { data: savedRow, error } = await (_embeddedCare ? insertQuery.select('id,data,expires_at').single() : insertQuery);
+      if (_embeddedCare && !error && !savedRow) throw new Error('Não foi possível confirmar a gravação do plano.');
+      savedPrescription = savedRow;
       if (error) throw new Error(`Falha ao gravar prescrição: ${error.message || error}`);
       linkExpiresAt = expiresAtNovo;
     }
@@ -4765,6 +4825,16 @@ async function handleGerar() {
     _state.savedLink = TREINO_BASE_URL + token;
     _state.savedExpiresAt = linkExpiresAt;
     _state.__ultimoSnapshotGravado = JSON.stringify(_state.sessions);
+    if (_embeddedCare) {
+      _state.savedLink = null;
+      _state.activePrescriptionId = savedPrescription.id;
+      _state.sessions = structuredClone(savedPrescription.data.sessions || []);
+      _state.__ultimoSnapshotGravado = JSON.stringify(_state.sessions);
+      _embeddedCare.savedFingerprint = JSON.stringify(buildFinalData());
+      renderStep2();
+      await _embeddedCare.onSaved?.();
+      return;
+    }
     // Quando a prescrição nasceu no acompanhamento digital, o endereço que se
     // envia ao doente é a ligação geral. O token próprio do motor de treino fica
     // interno e regressamos ao menu, que recarrega o estado acabado de gravar.
@@ -4782,6 +4852,8 @@ async function handleGerar() {
     erroEl.textContent = 'Erro ao gravar: ' + safeMsg;
     btn.disabled = false;
     btn.textContent = labelBotaoGerar();
+  } finally {
+    if (_embeddedCare) { _embeddedCare.saving = false; document.getElementById('gcwoPrescricaoRoot').inert = false; }
   }
 }
 
@@ -5200,6 +5272,7 @@ function renderPatologia() {
   `;
   document.getElementById('gcwoPatBackToLanding').addEventListener('click', () => {
     _patologia = null;
+    if (_embeddedCare) { renderStep2(); return; }
     if (_returnToAcompanhamento && typeof window.__gc_openAcompanhamentoPanel === 'function') {
       window.__gc_openAcompanhamentoPanel(_returnToAcompanhamento.patientId, _returnToAcompanhamento.clinicId);
       return;
