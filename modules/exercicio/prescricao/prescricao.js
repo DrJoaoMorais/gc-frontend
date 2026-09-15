@@ -654,13 +654,19 @@ async function carregarPlanoActivoSeExistir() {
 /* ── Entry point ─────────────────────────────────────────── */
 export async function initPrescricao(options = {}) {
   requireExerciseAccess();
+  if (options.patientId && !options.embeddedCare) {
+    return openPatientCare(options.patientId, options.clinicId, options.mode);
+  }
   const root = document.getElementById('gcwoPrescricaoRoot');
   if (!root) return;
 
   ensurePrescricaoCss();
   _embeddedCare = options.embeddedCare || null;
   _state = freshState();
-  _landing = null;
+  _landing = options.restoreList && _landingReturnContext
+    ? { ...freshLanding(), clinicIds: _landingReturnContext.clinicIds, search: _landingReturnContext.search, tab: _landingReturnContext.tab }
+    : null;
+  _restoreLandingScroll = options.restoreList ? _landingReturnContext?.scrollTop ?? null : null;
   _expandedCardIds = new Set();
   _panelExpandedTarefaId = null;
   _panelDraft = null;
@@ -728,6 +734,8 @@ export async function initCarePrescription({ patientId, clinicId, onCalendar, on
     open(mode) {
       if (_embeddedCare.saving) return;
       if (mode === 'pathology' && !step2EmEdicao()) abrirPatologia();
+      else if (mode === 'previous' && !step2EmEdicao()) openHistoryModal();
+      else if (mode === 'catalog' && !step2EmEdicao()) initCatalogo({ onVoltar: voltarDaCatalogo });
       else if (!_patologia && !step2EmEdicao()) renderStep2();
     },
   };
@@ -813,6 +821,9 @@ function nomeCurtoClinica(nome, limite = 16) {
    é só o lugar reservado no ecrã (decisão de 9 ago 2026).
    ================================================================ */
 let _landing = null;
+let _landingReturnContext = null;
+let _restoreLandingScroll = null;
+let _careEntryMode = 'blank';
 let _landingRequest = 0;
 let _patientFollowupTab = 'readiness';
 let _patientMainTab = 'prescription';
@@ -911,6 +922,7 @@ function renderLanding() {
 
   document.getElementById('gcwoCardPrescrever').addEventListener('click', () => {
     _step1Destination = 'acompanhamento';
+    _careEntryMode = 'blank';
     renderStep1();
   });
   document.getElementById('gcwoCardCatalogo').addEventListener('click', () => {
@@ -918,6 +930,7 @@ function renderLanding() {
   });
   document.getElementById('gcwoCardPatologia').addEventListener('click', () => {
     _step1Destination = 'acompanhamento';
+    _careEntryMode = 'pathology';
     renderStep1();
   });
   mountClinicPicker(document.getElementById('gcwoLandingClinicPicker'), {
@@ -925,6 +938,8 @@ function renderLanding() {
     onChange: ids => { _landing.clinicIds = ids; renderLanding(); document.querySelector('#gcwoLandingClinicPicker summary')?.focus(); }
   });
 
+  document.getElementById('gcwoLandingSearch').value = _landing.search;
+  document.querySelectorAll('#gcwoLandingTabs [data-tab]').forEach(button => button.classList.toggle('on', button.dataset.tab === _landing.tab));
   let searchTimer = null;
   document.getElementById('gcwoLandingSearch').addEventListener('input', (e) => {
     _landing.search = e.target.value;
@@ -1094,6 +1109,19 @@ function abrirAtencao(item) {
   abrirFeedDoente(item.patientId, item.clinicId);
 }
 
+function openPatientCare(patientId, clinicId, mode) {
+  if (!patientId || !clinicId) { window.alert('Não foi possível identificar o doente e a clínica.'); return; }
+  if (typeof window.__gc_openAcompanhamentoPanel !== 'function') { window.alert('Não foi possível abrir o acompanhamento do doente.'); return; }
+  if (_landing) {
+    _landingReturnContext = {
+      clinicIds: _landing.clinicIds ? [..._landing.clinicIds] : null,
+      search: _landing.search, tab: _landing.tab,
+      scrollTop: document.querySelector('.gc-content')?.scrollTop || 0,
+    };
+  }
+  return window.__gc_openAcompanhamentoPanel(patientId, clinicId, { mode });
+}
+
 function renderLandingTableHost() {
   const host = document.getElementById('gcwoLandingTableHost');
   const countEl = document.getElementById('gcwoLandingCount');
@@ -1133,7 +1161,7 @@ function renderLandingTableHost() {
         <tbody>
           ${linhas.map(r => `
             <tr data-rid="${escAttr(r.id)}" class="gcwo-landing-row">
-              <td><strong>${escHtml(r.patient?.full_name || '—')}</strong></td>
+              <td><button type="button" class="gcwo-clinical-link" aria-label="Abrir acompanhamento de ${escAttr(r.patient?.full_name || 'doente')}"><strong>${escHtml(r.patient?.full_name || '—')}</strong></button></td>
               <td class="muted">${escHtml(fmtIntervaloPlano(r.startDate, r.expiresAt))}</td>
               <td>${r.lastLog ? `<button type="button" class="gcwo-feedback-btn" data-feedback-rid="${escAttr(r.id)}">Ver treino</button>` : '<span class="muted">Sem treino</span>'}</td>
               <td>${podeLerDiarioClinico() ? (r.lastDiary ? `<button type="button" class="gcwo-clinical-link" data-diary-rid="${escAttr(r.id)}">${escHtml(fmtRelativo(new Date(r.lastDiary.entered_at)))}</button>` : '<span class="muted">Sem registo</span>') : '<span class="muted">Restrito</span>'}</td>
@@ -1149,15 +1177,7 @@ function renderLandingTableHost() {
     tr.addEventListener('click', () => {
       const row = _landing.rows.find(x => x.id === tr.getAttribute('data-rid'));
       if (!row || !row.patient) return;
-      _state.clinicId = row.clinicId;
-      _state.patient = row.patient;
-      _panelDraft = null; _panelIsNovo = false; _pendingSlot = null; // doente novo — nunca herdar edição do doente anterior
-      _loadingPlanoActivo = true;
-      renderStep2();
-      Promise.all([carregarPlanoActivoSeExistir(), carregarZonaPerfis()]).finally(() => {
-        _loadingPlanoActivo = false;
-        renderStep2Body();
-      });
+      openPatientCare(row.patient.id, row.clinicId);
     });
   });
   host.querySelectorAll('[data-feedback-rid]').forEach(btn => {
@@ -1409,6 +1429,11 @@ async function loadLandingAttention(clinicIds, request) {
     _landing.attentionLoading = false;
     renderLandingTableHost();
     renderLandingAttention();
+    if (_restoreLandingScroll != null) {
+      const top = _restoreLandingScroll;
+      _restoreLandingScroll = null;
+      requestAnimationFrame(() => { const content = document.querySelector('.gc-content'); if (content) content.scrollTop = top; });
+    }
   }
 }
 
@@ -1515,7 +1540,7 @@ function renderStep1() {
             alert('Não foi possível abrir a configuração do acompanhamento.');
             return;
           }
-          window.__gc_openAcompanhamentoPanel(p.id, selectedClinicId);
+          openPatientCare(p.id, selectedClinicId, _careEntryMode);
           return;
         }
         _state.patient = p;
