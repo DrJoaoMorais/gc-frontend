@@ -1,3 +1,5 @@
+import { canAccessExercise } from './exercicio/permissoes.js';
+import { loadExerciseHome } from './exercicio/followup-home.js';
 import { normalizeClinicIds } from './clinic-picker.js';
 import { wireAgendaWorkspace } from './agenda-workspace.js';
 /**
@@ -257,6 +259,7 @@ async function renderCurrentView() {
         loadHomePedidosOnlinePendentes(),
         loadHomeAlerts(),
         loadHomeAcompanhamentoAtivo(),
+        loadExerciseHome({clinics:G.clinics,clinicIds:homeSelectedClinicIds(),onOpen:openHomeFollowup}),
       ]);
       /* Painel de Pedidos online: só recarrega a lista se já estiver
          aberto (sem o atributo "hidden"); fechado, não faz query extra. */
@@ -282,6 +285,7 @@ async function renderCurrentView() {
       loadHomePedidosOnlinePendentes(),
       loadHomeAlerts(),
       loadHomeAcompanhamentoAtivo(),
+      loadExerciseHome({clinics:G.clinics,clinicIds:homeSelectedClinicIds(),onOpen:openHomeFollowup}),
     ]);
     return;
   }
@@ -759,6 +763,7 @@ async function loadHomeAcompanhamentoAtivo() {
       const priority = (item) => item.questionnaire?.kind === "review" ? 0 : item.exercise?.needsAction ? 1 : item.questionnaire ? 2 : item.exercise?.ending ? 3 : item.diary ? 4 : 5;
       return priority(a) - priority(b) || String(a.patientName || "").localeCompare(String(b.patientName || ""), "pt");
     });
+    if (canAccessExercise()) homeAcompItems = homeAcompItems.filter(item => item.diary).map(item => ({...item, questionnaire:null, exercise:null}));
     setHomeAcompanhamentoUnificadoStats({
       total: homeAcompItems.length,
       diarios: homeAcompItems.filter((item) => item.diary).length,

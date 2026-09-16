@@ -27,10 +27,11 @@ function selectPanelNavigation(view) {
 export async function openAcompanhamentoList() {
   if (!allowCareNavigation()) return false;
   if (typeof window.__gc_renderCurrentView !== 'function') return false;
-  const view = canAccessExercise() ? 'exercicio' : 'doentes';
-  G._exerciseLaunch = view === 'exercicio' ? { restoreList: true } : null;
+  const view = canAccessExercise() ? 'home' : 'doentes';
+  G._exerciseLaunch = null;
   selectPanelNavigation(view);
   await window.__gc_renderCurrentView();
+  document.getElementById('gcExerciseHome')?.scrollIntoView({block:'start'});
   return true;
 }
 
@@ -96,7 +97,7 @@ export function openAcompanhamentoPanel(patientId, clinicId, options = {}) {
   if (clinicId)  params.set("clinicId", clinicId);
 
   if (['blank', 'pathology', 'previous', 'catalog'].includes(options.mode)) params.set('mode', options.mode);
-  selectPanelNavigation(canAccessExercise() ? 'exercicio' : 'doentes');
+  selectPanelNavigation(canAccessExercise() ? 'home' : 'doentes');
   content.scrollTop = 0;
   iframe.src = `${ACOMPANHAMENTO_URL}&${params.toString()}`;
   return iframe;

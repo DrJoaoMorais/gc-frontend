@@ -1,3 +1,4 @@
+import { canAccessExercise } from './exercicio/permissoes.js';
 import { mountClinicPicker } from './clinic-picker.js';
 /* Home Dashboard — painel clínico-operacional do médico (V1). */
 
@@ -28,12 +29,14 @@ export function homeDashboardHtml() {
         </div>
         <!-- "Assuntos a tratar" fica reservado para futura integração na Gestão da Agenda. -->
         <div id="gcHomeAcompUnificadoCard" class="gc-home-clickable-card" role="button" tabindex="0">
-          <b>Acompanhamento ativo</b><strong id="gcHomeAcompUnificadoTotal">—</strong>
-          <small id="gcHomeAcompUnificadoResumo">Diários — · Questionários — · Planos —</small>
+          <b>${canAccessExercise() ? "Diários ativos" : "Acompanhamento ativo"}</b><strong id="gcHomeAcompUnificadoTotal">—</strong>
+          <small id="gcHomeAcompUnificadoResumo">${canAccessExercise() ? "A carregar diários…" : "Diários — · Questionários — · Planos —"}</small>
           <small class="gc-home-card-hint">Ver doentes →</small>
         </div>
       </div>
       <div id="gcHomePedidosExpand" class="gc-home-pedidos-expand" hidden></div>
+
+      ${canAccessExercise() ? '<section id="gcExerciseHome" class="gc-fh" aria-label="Acompanhamento de exercício"></section>' : ""}
 
       <div class="gc-home-alertbar" id="gcHomeAlertBar">
         <button type="button" class="gc-home-alertbar-item on" data-alert-filter="all"><span>Todos</span><strong id="gcHomeStatTodos">—</strong></button>
@@ -56,6 +59,9 @@ export function homeDashboardHtml() {
 
 export function homeDashboardStyles() {
   return `
+.gc-fh{margin:26px 0;color:#193553}.gc-fh-heading{display:flex;align-items:center;justify-content:space-between;gap:14px}.gc-fh h2{font-size:19px;margin:0}.gc-fh p{font-size:12px;color:#64748b;margin:6px 0}.gc-fh button{font:600 12px inherit;cursor:pointer;border:1px solid #dbe3ed;border-radius:8px;background:#fff;color:#244367;padding:8px 12px}.gc-fh button:disabled{opacity:.5;cursor:default}.gc-fh button:focus-visible,.gc-fh input:focus-visible,.gc-fh select:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.gc-fh-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}.gc-fh-stats button{text-align:left;padding:14px;background:#fff}.gc-fh-stats strong{display:block;font-size:24px;margin-bottom:4px}.gc-fh-stats [aria-pressed=true]{border-color:#628cc2;background:#edf4fc}.gc-fh-controls{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}.gc-fh label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#475569}.gc-fh input,.gc-fh select,.gc-fh textarea{font:inherit;border:1px solid #cbd5e1;background:#fff;color:#193553;border-radius:7px;padding:9px;max-width:100%}.gc-fh-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(0,2fr);gap:18px;padding:18px;background:#fff;border:1px solid #e2e8f0;border-bottom:0}.gc-fh-row:first-child{border-radius:10px 10px 0 0}.gc-fh-row:last-child{border-bottom:1px solid #e2e8f0;border-radius:0 0 10px 10px}.gc-fh-patient strong{display:block;font-size:14px}.gc-fh-status{display:inline-block;margin-top:6px;font-size:12px;color:#226b55}.gc-fh-status.attention{color:#935611}.gc-fh-context+ .gc-fh-context{border-top:1px solid #e2e8f0;padding-top:12px;margin-top:12px}.gc-fh small{display:block;font-size:12px;color:#64748b}.gc-fh-signals{margin:10px 0;font-size:13px}.gc-fh-signals summary{cursor:pointer;color:#925811}.gc-fh-signal{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid #edf0f5;padding:8px 0}.gc-fh-clear{color:#426d5e}.gc-fh-actions{display:flex;gap:8px;flex-wrap:wrap}.gc-fh .gc-fh-open{color:#fff;background:#173d69;border-color:#173d69}.gc-fh-pages{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:12px;font-size:12px}.gc-fh-editor{background:#fff;padding:18px;border:1px solid #93b2d7;border-radius:10px;margin-top:18px}.gc-fh-editor h3{font-size:16px;margin:0}.gc-fh-editor label{margin:12px 0}.gc-fh-editor [role=alert]{color:#b42318}.gc-fh-foot{margin-top:12px!important}
+@media(max-width:680px){.gc-fh-row{grid-template-columns:1fr;gap:12px}.gc-fh-controls{flex-direction:column}.gc-fh-stats button{padding:10px;font-size:11px}.gc-fh-actions button{min-height:44px}.gc-fh input,.gc-fh select,.gc-fh textarea{font-size:16px}}
+
 .gc-home{max-width:1180px;margin:0 auto;padding:4px 2px 36px}
 .gc-home-head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:24px}
 .gc-home-title{font-size:27px;font-weight:780;letter-spacing:-.6px;color:#0f2d52}
@@ -308,8 +314,8 @@ export function setHomeAcompanhamentoUnificadoStats(stats) {
   const resumo = document.getElementById("gcHomeAcompUnificadoResumo");
   if (total) total.textContent = stats?.total == null ? "—" : String(stats.total);
   if (resumo) resumo.textContent = stats == null
-    ? "Diários — · Questionários — · Planos —"
-    : `Diários ${stats.diarios ?? 0} · Questionários ${stats.questionarios ?? 0} · Planos ${stats.planos ?? 0}`;
+    ? (canAccessExercise() ? "Diários indisponíveis" : "Diários — · Questionários — · Planos —")
+    : canAccessExercise() ? `${stats.diarios ?? 0} diário(s) em curso` : `Diários ${stats.diarios ?? 0} · Questionários ${stats.questionarios ?? 0} · Planos ${stats.planos ?? 0}`;
 }
 
 export function wireHomeAcompanhamentoUnificado(onOpen) {

@@ -893,31 +893,6 @@ function renderLanding() {
       </div>
     </section>
 
-    <section class="gcwo-attention" aria-labelledby="gcwoAttentionTitle">
-      <div class="gcwo-landing-tablehead">
-        <h2 class="gcwo-section-title" id="gcwoAttentionTitle">Precisa da minha atenção <span class="count" id="gcwoAttentionCount"></span></h2>
-        <p>Exercício, diário e questionários numa fila clínica única.</p>
-      </div>
-      <div id="gcwoAttentionHost"><div class="gcwo-muted" style="padding:14px 2px;">A carregar…</div></div>
-    </section>
-
-    <section class="gcwo-landing-tablesec" id="gcwoLandingTableSec">
-      <div class="gcwo-landing-tablehead">
-        <h2 class="gcwo-section-title" id="gcwoLandingTableTitle">Doentes em acompanhamento <span class="count" id="gcwoLandingCount"></span></h2>
-      </div>
-      <div class="gcwo-landing-toolbar">
-        <div class="gc-search-bar">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
-          <input id="gcwoLandingSearch" type="search" class="gc-search-input" placeholder="Pesquisar doente…" autocomplete="off" spellcheck="false">
-        </div>
-        <div class="gcwo-landing-tabs" id="gcwoLandingTabs">
-          <button type="button" class="on" data-tab="todos">Todos</button>
-          <button type="button" data-tab="aterminar">A terminar</button>
-          <button type="button" data-tab="feedback">Com atividade nova</button>
-        </div>
-      </div>
-      <div id="gcwoLandingTableHost"></div>
-    </section>
   `;
 
   document.getElementById('gcwoCardPrescrever').addEventListener('click', () => {
@@ -938,24 +913,7 @@ function renderLanding() {
     onChange: ids => { _landing.clinicIds = ids; renderLanding(); document.querySelector('#gcwoLandingClinicPicker summary')?.focus(); }
   });
 
-  document.getElementById('gcwoLandingSearch').value = _landing.search;
-  document.querySelectorAll('#gcwoLandingTabs [data-tab]').forEach(button => button.classList.toggle('on', button.dataset.tab === _landing.tab));
-  let searchTimer = null;
-  document.getElementById('gcwoLandingSearch').addEventListener('input', (e) => {
-    _landing.search = e.target.value;
-    if (searchTimer) clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => { renderLandingTableHost(); renderLandingAttention(); }, 150);
-  });
 
-  document.getElementById('gcwoLandingTabs').querySelectorAll('[data-tab]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _landing.tab = btn.getAttribute('data-tab');
-      document.getElementById('gcwoLandingTabs').querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
-      renderLandingTableHost();
-    });
-  });
-
-  loadLandingRows();
 }
 
 // Situação da linha — prioridade: feedback novo > a terminar/terminada > em curso
