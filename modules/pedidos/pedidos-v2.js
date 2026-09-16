@@ -40,6 +40,7 @@
  *   unmount(container);
  */
 
+import { fetchPrivatePdf } from "../relatorios/_shared/doctor-signature.js";
 import { ANALISES_GRUPOS, ANALISES_PERFIS } from "./analises-catalog-v2.js";
 import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl } from "../relatorios/v2/_shell/shell-v2.js";
 import { buildPatientCard } from "../relatorios/v2/_components/patient-card.js";
@@ -215,7 +216,7 @@ function slugifyLabel(s) {
  * como erro, não sucesso silencioso.
  */
 async function renderPdfViaProxy(html) {
-  const resp = await fetch(PDF_PROXY_URL, {
+  const resp = await fetchPrivatePdf(PDF_PROXY_URL, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ html, media: "print" })
