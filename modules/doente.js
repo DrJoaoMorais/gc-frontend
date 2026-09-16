@@ -1,4 +1,4 @@
-import { buildDoctorSignature } from "./relatorios/_shared/doctor-signature.js";
+import { buildDoctorSignature, fetchPrivatePdf } from "./relatorios/_shared/doctor-signature.js";
 
 /* ========================================================
    doente.js — Módulo ES6
@@ -1630,7 +1630,7 @@ function openPatientViewModal(patient) {
   }
 
   async function renderPdfViaProxy(html) {
-    const res = await fetch(PDF_PROXY_URL, {
+    const res = await fetchPrivatePdf(PDF_PROXY_URL, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ html: String(html || "") })

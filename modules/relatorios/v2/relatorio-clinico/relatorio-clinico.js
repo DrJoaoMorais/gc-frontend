@@ -1,3 +1,5 @@
+import { fetchPrivatePdf } from "../../_shared/doctor-signature.js";
+
 // =================================================================
 // relatorio-clinico.js  ·  Relatório Clínico v2
 // =================================================================
@@ -336,7 +338,7 @@ export async function openRelatorioClinicoModal({ patientId, onClose } = {}) {
         .map(l => `<link rel="stylesheet" href="${l.href}">`).join('\n');
       const fullHtml = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}</body></html>`;
 
-      const resp = await fetch('https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf', {
+      const resp = await fetchPrivatePdf('https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ html: fullHtml, media: 'print' }),
