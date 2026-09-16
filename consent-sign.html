@@ -863,7 +863,7 @@
       const res = await fetch(PDF_PROXY, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ html }),
+        body: JSON.stringify({ html, consentToken: new URLSearchParams(window.location.search).get("token"), consentId: payload.token_id }),
       });
       if (!res.ok) throw new Error(`PDF proxy ${res.status}`);
       const pdfBlob = new Blob([await res.arrayBuffer()], { type: 'application/pdf' });
