@@ -1,3 +1,4 @@
+import { attachmentEmail, downloadFile, fetchPdf } from './agenda-documentos-envio.js';
 import { icon } from './agenda-icons.js';
 import { G, statusMeta } from './state.js';
 import { escapeHtml as e } from './helpers.js';
@@ -112,7 +113,7 @@ export async function openPatientDocuments(row) {
   const { items, warnings, consultations = new Map() } = resources.status === 'fulfilled' ? resources.value : { items: [], warnings: ['Não foi possível carregar a documentação.'] };
   if (!patient) warnings.push('Contactos indisponíveis. Não é possível preparar envio para o doente.');
   const clinic = G.clinicsById[context.clinicId]?.name || 'Clínica não identificada';
-  host.innerHTML = `<div class="aw-patient-heading"><h2>${e(patient?.full_name || 'Documentação do doente')}</h2><button data-close aria-label="Fechar documentação">×</button></div><div class="aw-contact-lines"><span>${icon('clinic')}${e(clinic)}</span><span>${icon('phone')}${e(patient?.phone || 'Sem telefone')}</span><span>${icon('mail')}${e(patient?.email || 'Sem email')}</span></div><div class="aw-actions aw-contact-buttons">${whatsappURL(patient?.phone)?`<a class="aw-contact aw-whatsapp" href="${e(whatsappURL(patient.phone))}" target="_blank" rel="noopener noreferrer">${icon('whatsapp')} WhatsApp</a>`:''}${emailURL(patient?.email)?`<a class="aw-contact aw-email" href="${e(emailURL(patient.email))}">${icon('mail')} Email</a>`:''}<button data-process title="Abrir processo clínico">•••</button></div><nav class="aw-panel-tabs">${[['summary','Resumo'],['documents','Documentos'],['today','Consulta do dia'],['history','Histórico']].map(([key,label],i)=>`<button data-tab="${key}" class="${i?'':'is-active'}">${label}</button>`).join('')}</nav>${warnings.map(w=>`<p role="alert">${e(w)}</p>`).join('')}<div data-resources>${renderResourceGroups(items,consultations,row)}</div><div data-draft hidden></div><p data-feedback role="status"></p><div class="aw-share-bar"><span data-count>0 selecionados</span><button class="aw-primary" data-prepare disabled>${icon('send')} Partilhar selecionados ${icon('chevron')}</button></div>`;
+  host.innerHTML = `<div class="aw-patient-heading"><h2>${e(patient?.full_name || 'Documentação do doente')}</h2><button data-close aria-label="Fechar documentação">×</button></div><div class="aw-contact-lines"><span>${icon('clinic')}${e(clinic)}</span><span>${icon('phone')}${e(patient?.phone || 'Sem telefone')}</span><span>${icon('mail')}${e(patient?.email || 'Sem email')}</span></div><div class="aw-actions aw-contact-buttons">${whatsappURL(patient?.phone)?`<a class="aw-contact aw-whatsapp" href="${e(whatsappURL(patient.phone))}" target="_blank" rel="noopener noreferrer">${icon('whatsapp')} WhatsApp</a>`:''}${emailURL(patient?.email)?`<a class="aw-contact aw-email" href="${e(emailURL(patient.email))}">${icon('mail')} Email</a>`:''}<button data-process title="Abrir processo clínico">•••</button></div><nav class="aw-panel-tabs">${[['summary','Resumo'],['documents','Documentos'],['today','Consulta do dia'],['history','Histórico']].map(([key,label],i)=>`<button data-tab="${key}" class="${i?'':'is-active'}">${label}</button>`).join('')}</nav>${warnings.map(w=>`<p role="alert">${e(w)}</p>`).join('')}<div data-resources>${renderResourceGroups(items,consultations,row)}</div><div data-draft hidden></div><p data-feedback role="status"></p><div class="aw-share-bar"><span data-count>0 selecionados</span><button class="aw-primary" data-prepare disabled>${icon('send')} Preparar mensagem</button></div>`;
   const feedback = host.querySelector('[data-feedback]');
   host.querySelector('[data-close]').onclick = () => { closePatientDocuments(); G.agendaSelectedId=null; host.hidden = true; document.querySelectorAll('.aw-selected').forEach(el => el.classList.remove('aw-selected')); };
   host.querySelectorAll('[data-process]').forEach(button=>button.onclick=()=>window.__gc_openFeedPanel(context.patientId,context.clinicId));
@@ -133,7 +134,11 @@ export async function openPatientDocuments(row) {
   host.querySelectorAll('[data-link-copy]').forEach(button=>button.onclick=async()=>{
     try {const url=await resourceURL(window.sb,items[Number(button.dataset.linkCopy)]);if(!current()||!url)return;await navigator.clipboard.writeText(url);if(current())feedback.textContent='Link copiado.'}catch{if(current())feedback.textContent='Não foi possível copiar o link.'}
   });
+  let selectionVersion = 0;
   host.querySelectorAll('[data-resource]').forEach(input => input.onchange = () => {
+    selectionVersion++;
+    feedback.textContent = '';
+    host.querySelector('[data-draft]').replaceChildren();
     host.querySelector('[data-prepare]').disabled = !host.querySelector('[data-resource]:checked');
     host.querySelector('[data-count]').textContent = `${host.querySelectorAll('[data-resource]:checked').length} selecionados`;
     host.querySelector('[data-draft]').hidden = true;
@@ -152,28 +157,47 @@ export async function openPatientDocuments(row) {
   host.querySelector('[data-prepare]').onclick = async ev => {
     const selected = [...host.querySelectorAll('[data-resource]:checked')].map(input => items[Number(input.dataset.resource)]);
     if (!selected.length) { feedback.textContent = 'Selecione os documentos ou links que pretende partilhar.'; return; }
+    const version = selectionVersion;
+    const valid = () => current() && version === selectionVersion;
     const button = ev.currentTarget; button.disabled = true;
     try {
-      const links = await Promise.all(selected.map(async item => {
+      const files = await Promise.all(selected.map(async (item, index) => {
         const url = await resourceURL(window.sb, item);
         if (!url) throw new Error('unavailable');
-        return `${item.title}\n${url}`;
+        return fetchPdf(url, item.title, index);
       }));
-      if (!current()) return;
-      const body = `Bom dia,\n\nSegue a documentação selecionada:\n\n${links.join('\n\n')}\n\nOs links temporários dos documentos são válidos durante 1 hora.\n\nCom os melhores cumprimentos.`;
+      if (!valid()) return;
+      const body = `Bom dia,\n\nSegue a documentação selecionada:\n\n${selected.map(item => item.title).join('\n')}\n\nCom os melhores cumprimentos.`;
       const draft = host.querySelector('[data-draft]'); draft.hidden = false;
-      draft.innerHTML = '<h3>Rever antes de enviar</h3><p>Os documentos seguem como links, não como anexos. Links temporários: 1 hora.</p><textarea aria-label="Mensagem a enviar"></textarea><div class="aw-actions" data-share></div>';
+      draft.innerHTML = '<h3>Rever antes de enviar</h3><p>Email: abra o ficheiro de email descarregado, com os PDFs anexados. WhatsApp: arraste os PDFs descarregados para a conversa antes de enviar.</p><textarea aria-label="Mensagem a enviar"></textarea><div class="aw-actions" data-share></div>';
       draft.querySelector('textarea').value = body;
       const actions = draft.querySelector('[data-share]');
       const update = () => {
         const text = draft.querySelector('textarea').value;
         const email = emailURL(patient?.email, 'Documentação', text), wa = whatsappURL(patient?.phone);
-        actions.innerHTML = `${email && email.length <= 1800 ? `<a class="aw-contact" href="${e(email)}">Preparar email</a>` : '<small>Para email: copie o texto para a aplicação de email.</small>'}${wa ? `<a class="aw-contact" target="_blank" rel="noopener noreferrer" href="${e(wa+'?text='+encodeURIComponent(text))}">Preparar WhatsApp</a>` : '<small>WhatsApp: telefone indisponível ou inválido.</small>'}<button data-copy>Copiar texto</button>`;
+        actions.innerHTML = `${email ? `<button class="aw-contact aw-email" data-email-file title="Preparar email para ${e(patient.email)}">${icon('mail')} Email com PDFs</button>` : '<small>Email indisponível ou inválido na ficha do doente.</small>'}${wa ? `<a class="aw-contact aw-whatsapp" data-whatsapp target="_blank" rel="noopener noreferrer" href="${e(wa+'?text='+encodeURIComponent(text))}" title="Abrir WhatsApp para ${e(patient.phone)}">${icon('whatsapp')} WhatsApp</a>` : '<small>WhatsApp: telefone indisponível ou inválido.</small>'}<button data-copy>Copiar texto</button><div data-downloads></div>`;
+        actions.querySelector('[data-email-file]')?.addEventListener('click', () => {
+          if (!valid()) return;
+          downloadFile(attachmentEmail(String(patient.email).trim(), text, files), 'documentacao-doente.eml');
+          feedback.textContent = 'Email guardado com destinatário e PDFs anexados. Abra-o no Mail. Se abrir apenas para leitura, use Mensagem → Enviar novamente e confirme o destinatário.';
+        });
+        const downloads = actions.querySelector('[data-downloads]');
+        files.forEach(file => {
+          const button = document.createElement('button');
+          button.textContent = `Descarregar ${file.name}`;
+          button.onclick = () => { if (valid()) downloadFile(new Blob([file.bytes], {type: 'application/pdf'}), file.name); };
+          downloads.append(button);
+        });
+        actions.querySelector('[data-whatsapp]')?.addEventListener('click', event => {
+          if (!valid()) { event.preventDefault(); return; }
+          files.forEach(file => downloadFile(new Blob([file.bytes], {type: 'application/pdf'}), file.name));
+          feedback.textContent = 'Arraste os PDFs de Descargas para a conversa do doente. Se o navegador bloquear alguma descarga, use os botões de cada documento. Reveja antes de enviar.';
+        });
         actions.querySelector('[data-copy]').onclick = async () => { try { await navigator.clipboard.writeText(text); if (current()) feedback.textContent = 'Texto copiado. O envio é confirmado na aplicação de email ou WhatsApp.'; } catch { if (current()) feedback.textContent = 'Selecione e copie o texto manualmente.'; } };
       };
       update(); draft.querySelector('textarea').oninput = update;
       feedback.textContent = 'Partilha preparada. Nenhuma mensagem foi enviada.';
-    } catch { if (current()) feedback.textContent = 'Não foi possível preparar todos os documentos selecionados. Confirme os ficheiros e permissões no processo do doente.'; }
+    } catch { if (valid()) feedback.textContent = 'Não foi possível obter todos os PDFs. Confirme que os documentos selecionados são PDFs e que consegue abri-los. Nenhum envio foi preparado.'; }
     finally { if (current()) button.disabled = false; }
   };
 }
