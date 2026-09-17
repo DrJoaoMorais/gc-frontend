@@ -1,0 +1,77 @@
+import preConsultaV2 from './pre_consulta_v2.js';
+
+const atividadeFisicaV3 = {
+  id: 'atividade_fisica',
+  titulo: 'Atividade Física e Sedentarismo',
+  perguntas: [
+    { id: 's4_dias_exercicio', tipo: 'numero', label: 'Em quantos dias por semana faz atualmente exercício físico planeado?', min: 0, max: 7 },
+    { id: 's4_duracao_sessao', tipo: 'escolha_unica', label: 'Quanto tempo dura habitualmente cada sessão?',
+      opcoes: ['Não faço exercício atualmente', 'Menos de 15 min', '15–30 min', '30–45 min', '45–60 min', 'Mais de 60 min'] },
+    { id: 's4_tipo_exercicio', tipo: 'escolha_multipla', label: 'Que tipo de exercício pratica atualmente?',
+      opcoes: ['Não faço exercício atualmente', 'Caminhada', 'Corrida', 'Ciclismo', 'Natação', 'Ginásio/musculação', 'Exercícios em casa', 'Aulas de grupo', 'Pilates', 'Yoga', 'Desporto coletivo'],
+      outro: true },
+    { id: 's4_dias_forca', tipo: 'numero', label: 'Quantos dias por semana faz treino de força/musculação?', min: 0, max: 7 },
+    { id: 's4_tempo_sentado', tipo: 'escolha_unica', label: 'Num dia habitual, aproximadamente quanto tempo passa sentado(a)?',
+      opcoes: ['Menos de 4 h', '4–6 h', '6–8 h', '8–10 h', 'Mais de 10 h', 'Não sei'] },
+    { id: 's4_passos_dia', tipo: 'escolha_unica', label: 'Se utiliza relógio ou telemóvel para contar passos, qual é aproximadamente a sua média diária?',
+      opcoes: ['Menos de 3.000', '3.000–4.999', '5.000–6.999', '7.000–9.999', '10.000 ou mais', 'Não sei/não monitorizo'] },
+
+    { id: 's4_dor_limita', tipo: 'escolha_unica', label: 'Tem atualmente alguma dor ou limitação que possa interferir com o exercício?',
+      opcoes: ['Não', 'Sim'], atualiza_visibilidade: true },
+    { id: 's4_dor_principal', tipo: 'escolha_unica', label: 'Qual é a região que mais interfere com o exercício?',
+      apoio: 'Escolha apenas a região principal.',
+      opcoes: ['Cervical', 'Ombro', 'Cotovelo', 'Punho/mão', 'Dorsal', 'Lombar', 'Anca', 'Joelho', 'Tornozelo/pé', 'Tendão de Aquiles'],
+      outro: true, atualiza_visibilidade: true, mostrar_se: { id: 's4_dor_limita', igual: 'Sim' } },
+    { id: 's4_dor_lado', tipo: 'escolha_unica', label: 'Onde se localiza predominantemente?',
+      opcoes: ['Direita', 'Esquerda', 'Ambos os lados', 'Central ou difusa', 'Não se aplica'],
+      mostrar_se: { id: 's4_dor_principal', preenchido: true } },
+    { id: 's4_dor_intensidade', tipo: 'escala', label: 'Qual foi a intensidade máxima desta dor nos últimos 7 dias?',
+      apoio: '0 = Sem dor, 10 = Dor máxima imaginável', min: 0, max: 10, botoes: true,
+      mostrar_se: { id: 's4_dor_principal', preenchido: true } },
+    { id: 's4_dor_momento', tipo: 'escolha_multipla', label: 'Quando aparece ou piora habitualmente?',
+      opcoes: ['Em repouso', 'Antes do exercício', 'Durante o exercício', 'Imediatamente depois', 'Nas 24 horas seguintes', 'Não identifico um padrão'],
+      mostrar_se: { id: 's4_dor_principal', preenchido: true } },
+    { id: 's4_dor_detalhe', tipo: 'texto_curto', label: 'Se considerar necessário, explique brevemente o que agrava ou limita.',
+      apoio: 'Resposta opcional.', mostrar_se: { id: 's4_dor_principal', preenchido: true } },
+    { id: 's4_outra_dor', tipo: 'escolha_unica', label: 'Existe outra dor ou limitação que também devamos considerar?',
+      opcoes: ['Não', 'Sim'], atualiza_visibilidade: true, mostrar_se: { id: 's4_dor_principal', preenchido: true } },
+    { id: 's4_outra_dor_texto', tipo: 'texto_curto', label: 'Indique a localização e em que situação incomoda.',
+      mostrar_se: { id: 's4_outra_dor', igual: 'Sim' } },
+
+    { id: 's4_indicacao_medica', tipo: 'escolha_unica', label: 'Algum profissional de saúde lhe recomendou evitar ou limitar exercício?',
+      opcoes: ['Não', 'Sim', 'Não sei'], atualiza_visibilidade: true },
+    { id: 's4_indicacao_medica_texto', tipo: 'texto_curto', label: 'O que lhe recomendaram evitar ou limitar?',
+      mostrar_se: { id: 's4_indicacao_medica', igual: 'Sim' } },
+    { id: 's4_indicacao_medica_ativa', tipo: 'escolha_unica', label: 'Considera que essa recomendação ainda está ativa?',
+      opcoes: ['Sim', 'Não', 'Não sei'], mostrar_se: { id: 's4_indicacao_medica', igual: 'Sim' } },
+
+    { id: 's4_dificuldade_exercicio', tipo: 'escolha_multipla', label: 'Qual é atualmente a principal dificuldade para fazer exercício?',
+      opcoes: ['Não tenho dificuldade importante', 'Falta de tempo', 'Cansaço', 'Dor ou lesão', 'Falta de motivação', 'Não sei que exercício fazer', 'Não gosto de fazer exercício', 'Horários profissionais', 'Responsabilidades familiares', 'Falta de acesso a local/material'],
+      outro: true },
+    { id: 's4_disponibilidade_semanal', tipo: 'disponibilidade_semanal',
+      label: 'Em que dias consegue, realisticamente, fazer treino estruturado e quanto tempo teria disponível?',
+      apoio: 'Selecione os dias. Depois indique a duração disponível em cada um.',
+      dias: [
+        { id: 'segunda', label: '2.ª feira' }, { id: 'terca', label: '3.ª feira' },
+        { id: 'quarta', label: '4.ª feira' }, { id: 'quinta', label: '5.ª feira' },
+        { id: 'sexta', label: '6.ª feira' }, { id: 'sabado', label: 'Sábado' },
+        { id: 'domingo', label: 'Domingo' },
+      ],
+      duracoes: ['10–15 min', '15–30 min', '30–45 min', '45–60 min', 'Mais de 60 min'] },
+    { id: 's4_movimento_leve', tipo: 'escolha_unica',
+      label: 'Nos dias sem treino, estaria disponível para períodos curtos de movimento, como caminhar após uma refeição?',
+      opcoes: ['Não', 'Talvez', 'Sim'] },
+    { id: 's4_atividades_preferidas', tipo: 'escolha_multipla', label: 'Que atividades gostaria mais de fazer?',
+      opcoes: ['Caminhar', 'Correr', 'Nadar', 'Ciclismo', 'Ginásio/musculação', 'Exercícios em casa', 'TRX', 'Aulas de grupo', 'Dança', 'Yoga', 'Pilates'],
+      outro: true },
+  ],
+};
+
+const preConsultaV3 = {
+  ...preConsultaV2,
+  id: 'pre_consulta_v3',
+  titulo: 'Questionário Pré-Consulta',
+  seccoes: preConsultaV2.seccoes.map((sec) => sec.id === 'atividade_fisica' ? atividadeFisicaV3 : sec),
+};
+
+export default preConsultaV3;

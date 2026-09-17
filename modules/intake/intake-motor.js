@@ -8,6 +8,7 @@
      escolha_unica   → string (ou { v, outro_texto } se a pergunta tiver outro:true)
      escolha_multipla→ string[] (ou { v: string[], outro_texto } se outro:true)
      grelha          → { [linha_id]: coluna_selecionada }
+     disponibilidade_semanal → { [dia]: duração }
 */
 
 let _cfg = null;
@@ -147,10 +148,20 @@ async function _iniciarQuestionario(root) {
 function _calcularMaxAlcancada() {
   let max = 0;
   _cfg.seccoes.forEach(function (sec, i) {
-    const temResposta = sec.perguntas.some(function (p) { return _perguntaTemAlgumaResposta(p); });
+    const temResposta = sec.perguntas.some(function (p) { return _perguntaVisivel(p) && _perguntaTemAlgumaResposta(p); });
     if (temResposta) max = i;
   });
   return max;
+}
+
+function _perguntaVisivel(p) {
+  const cond = p.mostrar_se;
+  if (!cond) return true;
+  const atual = _valorAtual(cond.id);
+  if (Object.prototype.hasOwnProperty.call(cond, 'igual')) return atual === cond.igual;
+  if (Array.isArray(cond.um_de)) return cond.um_de.indexOf(atual) > -1;
+  if (cond.preenchido) return atual != null && atual !== '' && (!Array.isArray(atual) || atual.length > 0);
+  return true;
 }
 
 /* progresso parcial — usado para saber até onde o doente já chegou (não exige a secção completa) */
@@ -158,6 +169,7 @@ function _perguntaTemAlgumaResposta(p) {
   const v = _respostas[p.id];
   if (v == null) return false;
   if (p.tipo === 'grelha') return typeof v === 'object' && Object.keys(v).length > 0;
+  if (p.tipo === 'disponibilidade_semanal') return typeof v === 'object' && Object.keys(v).length > 0;
   if (p.tipo === 'escolha_multipla') {
     if (p.outro) return (Array.isArray(v.v) && v.v.length > 0) || !!(v.outro_texto);
     return Array.isArray(v) && v.length > 0;
@@ -172,6 +184,9 @@ function _perguntaRespondida(p) {
   const v = _respostas[p.id];
   if (v == null) return false;
   if (p.tipo === 'grelha') return typeof v === 'object' && Object.keys(v).length >= p.linhas.length;
+  if (p.tipo === 'disponibilidade_semanal') {
+    return typeof v === 'object' && Object.keys(v).length > 0 && Object.values(v).every(Boolean);
+  }
   if (p.tipo === 'escolha_multipla') {
     if (p.outro) return Array.isArray(v.v) && v.v.length > 0;
     return Array.isArray(v) && v.length > 0;
@@ -203,7 +218,7 @@ function _render() {
   h += '<div class="secao-head"><div class="secao-kicker">SECÇÃO ' + (_secaoIdx + 1) + ' DE ' + total + '</div><h2>' + sec.titulo + '</h2></div>';
 
   h += '<div class="perguntas">';
-  sec.perguntas.forEach(function (p) { h += _renderPergunta(p); });
+  sec.perguntas.filter(_perguntaVisivel).forEach(function (p) { h += _renderPergunta(p); });
   h += '</div>';
 
   h += '<div class="navbar">' +
@@ -223,13 +238,14 @@ function _render() {
 
   root.innerHTML = h;
   _wireApp();
-  sec.perguntas.forEach(function (p) { _wirePergunta(p); });
+  sec.perguntas.filter(_perguntaVisivel).forEach(function (p) { _wirePergunta(p); });
 }
 
 function _renderIndexList() {
   return _cfg.seccoes.map(function (sec, i) {
     const alcancavel = i <= _maxSecaoAlcancada;
-    const completa = sec.perguntas.every(_perguntaRespondida);
+    const visiveis = sec.perguntas.filter(_perguntaVisivel);
+    const completa = visiveis.length > 0 && visiveis.every(_perguntaRespondida);
     let cls = 'index-item';
     if (i === _secaoIdx) cls += ' atual';
     if (!alcancavel) cls += ' bloqueada';
@@ -296,6 +312,7 @@ function _renderPergunta(p) {
     case 'escala':           return _renderEscala(p);
     case 'dropdown':         return _renderDropdown(p);
     case 'grelha':           return _renderGrelha(p);
+    case 'disponibilidade_semanal': return _renderDisponibilidadeSemanal(p);
     default: return '';
   }
 }
@@ -368,11 +385,43 @@ function _renderEscala(p) {
     '<div class="q-lbl">' + p.label + '</div>' +
     _renderApoio(p) +
     '<div class="escala-top"><span class="escala-val">' + (val != null ? val : '—') + '</span></div>' +
-    '<div class="bar escala-bar">';
+    '<div class="bar escala-bar' + (p.botoes ? ' escala-botoes' : '') + '">';
   for (let v = p.min; v <= p.max; v++) {
-    h += '<div class="seg' + (val != null && v <= val ? ' on' : '') + '" data-v="' + v + '"></div>';
+    h += '<button type="button" class="seg' + (val != null && (p.botoes ? v === val : v <= val) ? ' on' : '') + '" data-v="' + v + '">' + (p.botoes ? v : '') + '</button>';
   }
   return h + '</div><div class="escala-minmax"><span>' + p.min + '</span><span>' + p.max + '</span></div></div>';
+}
+
+function _renderDisponibilidadeSemanal(p) {
+  const val = _valorAtual(p.id);
+  const atual = val && typeof val === 'object' && !Array.isArray(val) ? val : {};
+  const dias = p.dias || [];
+  const duracoes = p.duracoes || [];
+  let h = '<div class="q q-disponibilidade" data-id="' + p.id + '">' +
+    '<div class="q-lbl">' + p.label + '</div>' + _renderApoio(p) +
+    '<div class="dias-grid">';
+  dias.forEach(function (dia) {
+    const sel = Object.prototype.hasOwnProperty.call(atual, dia.id);
+    h += '<button type="button" class="dia-btn' + (sel ? ' sel' : '') + '" data-dia="' + dia.id + '">' + dia.label + '</button>';
+  });
+  h += '</div>';
+  const selecionados = dias.filter(function (dia) { return Object.prototype.hasOwnProperty.call(atual, dia.id); });
+  if (selecionados.length) {
+    h += '<div class="duracao-todos"><div class="q-apoio">Aplicar a mesma duração a todos os dias selecionados</div><div class="duracao-opcoes" data-todos="1">';
+    duracoes.forEach(function (duracao) {
+      h += '<button type="button" class="duracao-btn" data-duracao="' + _esc(duracao) + '">' + duracao + '</button>';
+    });
+    h += '</div></div><div class="duracao-dias">';
+    selecionados.forEach(function (dia) {
+      h += '<div class="duracao-dia" data-dia-row="' + dia.id + '"><strong>' + dia.label + '</strong><div class="duracao-opcoes">';
+      duracoes.forEach(function (duracao) {
+        h += '<button type="button" class="duracao-btn' + (atual[dia.id] === duracao ? ' sel' : '') + '" data-duracao="' + _esc(duracao) + '">' + duracao + '</button>';
+      });
+      h += '</div></div>';
+    });
+    h += '</div>';
+  }
+  return h + '</div>';
 }
 
 function _renderDropdown(p) {
@@ -432,9 +481,42 @@ function _wirePergunta(p) {
     el.querySelectorAll('.seg').forEach(function (seg) {
       seg.addEventListener('click', function () {
         const v = parseInt(seg.dataset.v, 10);
-        el.querySelectorAll('.seg').forEach(function (s) { s.classList.toggle('on', parseInt(s.dataset.v, 10) <= v); });
+        el.querySelectorAll('.seg').forEach(function (s) { s.classList.toggle('on', p.botoes ? parseInt(s.dataset.v, 10) === v : parseInt(s.dataset.v, 10) <= v); });
         el.querySelector('.escala-val').textContent = v;
         _gravarResposta(p.id, v);
+      });
+    });
+    return;
+  }
+
+  if (p.tipo === 'disponibilidade_semanal') {
+    function guardar(atual) {
+      _gravarResposta(p.id, atual);
+      _render();
+    }
+    el.querySelectorAll('.dia-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const atual = Object.assign({}, _valorAtual(p.id) || {});
+        if (Object.prototype.hasOwnProperty.call(atual, btn.dataset.dia)) delete atual[btn.dataset.dia];
+        else atual[btn.dataset.dia] = null;
+        guardar(atual);
+      });
+    });
+    el.querySelectorAll('.duracao-dia').forEach(function (linha) {
+      linha.querySelectorAll('.duracao-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          const atual = Object.assign({}, _valorAtual(p.id) || {});
+          atual[linha.dataset.diaRow] = btn.dataset.duracao;
+          guardar(atual);
+        });
+      });
+    });
+    const todos = el.querySelector('[data-todos="1"]');
+    if (todos) todos.querySelectorAll('.duracao-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const atual = Object.assign({}, _valorAtual(p.id) || {});
+        Object.keys(atual).forEach(function (dia) { atual[dia] = btn.dataset.duracao; });
+        guardar(atual);
       });
     });
     return;
@@ -488,11 +570,24 @@ function _wirePergunta(p) {
           outroInput.style.display = outroSel ? '' : 'none';
         }
         _gravarResposta(p.id, coletar());
+        if (p.atualiza_visibilidade) {
+          _limparRespostasOcultas();
+          _render();
+        }
       });
     });
     if (outroInput) outroInput.addEventListener('blur', function () { _gravarResposta(p.id, coletar()); });
     return;
   }
+}
+
+function _limparRespostasOcultas() {
+  _cfg.seccoes.forEach(function (sec) {
+    sec.perguntas.forEach(function (p) {
+      if (_perguntaVisivel(p) || !Object.prototype.hasOwnProperty.call(_respostas, p.id) || _respostas[p.id] == null) return;
+      _gravarResposta(p.id, null);
+    });
+  });
 }
 
 function _gravarResposta(questionId, valor) {

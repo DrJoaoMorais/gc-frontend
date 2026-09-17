@@ -88,6 +88,23 @@
   .seg{height:9px;flex:1;border-radius:5px;background:var(--mist);cursor:pointer;}
   .seg.on{background:var(--blue);}
   .escala-minmax{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px;}
+  .escala-botoes{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;}
+  .escala-botoes .seg{height:40px;border:1px solid var(--mist);border-radius:10px;background:var(--paper);color:var(--ink);font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;}
+  .escala-botoes .seg.on{border-color:var(--blue);background:var(--blue-soft);color:var(--blue);}
+  .escala-botoes + .escala-minmax{display:none;}
+
+  /* --- disponibilidade semanal: dias + duração por dia, sem dropdowns --- */
+  .dias-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .dia-btn,.duracao-btn{border:1px solid var(--mist);border-radius:10px;background:var(--paper);color:var(--ink);font-family:'Outfit',sans-serif;cursor:pointer;}
+  .dia-btn{padding:11px 8px;font-size:13px;font-weight:500;}
+  .dia-btn.sel,.duracao-btn.sel{border-color:var(--blue);background:var(--blue-soft);color:var(--blue);}
+  .duracao-todos{margin-top:14px;padding:12px;border-radius:12px;background:var(--blue-soft);}
+  .duracao-todos .q-apoio{margin:0 0 8px;color:var(--navy);font-weight:500;}
+  .duracao-dias{display:flex;flex-direction:column;gap:14px;margin-top:16px;}
+  .duracao-dia{padding-top:12px;border-top:1px solid var(--mist);}
+  .duracao-dia strong{display:block;color:var(--navy);font-size:13px;margin-bottom:8px;}
+  .duracao-opcoes{display:flex;flex-wrap:wrap;gap:6px;}
+  .duracao-btn{padding:8px 9px;font-size:11.5px;line-height:1.2;}
 
   /* --- grelha --- */
   .q-grelha .grelha-header{display:grid;grid-template-columns:minmax(0,1fr) repeat(4,54px);align-items:end;gap:3px;margin-bottom:6px;}
