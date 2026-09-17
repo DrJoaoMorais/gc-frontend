@@ -1,3 +1,4 @@
+import { fetchPrivatePdf } from "./relatorios/_shared/doctor-signature.js";
 /* ========================================================
    CONSENTIMENTOS.JS — Consentimentos informados + RGPD
    --------------------------------------------------------
@@ -663,7 +664,7 @@ export function openConsentModal({ type, patient, clinicId, clinic, onSaved }) {
 /* ======================================================== */
 
 async function renderPdfViaProxy(html) {
-  const res = await fetch(PDF_PROXY_URL, {
+  const res = await fetchPrivatePdf(PDF_PROXY_URL, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ html: String(html || "") }),

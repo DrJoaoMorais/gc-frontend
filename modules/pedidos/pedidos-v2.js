@@ -1,3 +1,4 @@
+import { fetchPrivatePdf } from "../relatorios/_shared/doctor-signature.js";
 /**
  * pedidos-v2.js
  * Modal "Pedidos" (Análises + Exames) — Passo 5: ligado aos botões do feed.
@@ -215,7 +216,7 @@ function slugifyLabel(s) {
  * como erro, não sucesso silencioso.
  */
 async function renderPdfViaProxy(html) {
-  const resp = await fetch(PDF_PROXY_URL, {
+  const resp = await fetchPrivatePdf(PDF_PROXY_URL, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ html, media: "print" })

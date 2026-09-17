@@ -1,3 +1,5 @@
+import { buildDoctorSignature } from "./relatorios/_shared/doctor-signature.js";
+
 /**
  * exames.js — Passo 7
  * BLOCO 12A–12G: Catálogo de exames complementares, painel lateral,
@@ -932,11 +934,12 @@ export function buildExamRequestHtml({ clinic, examName, clinicalInfo, examDate,
           ${vinhetaUrl ? `<img class="vinheta" src="${escUrl(vinhetaUrl)}"/>` : ""}
         </div>
         <div style="flex:1;">
-          ${localityDate ? `<div class="locDate">${escHtml(localityDate)}</div>` : ""}
+          ${localityDate ? `<div class="locDate" style="position:relative;top:104px;">${escHtml(localityDate)}</div>` : ""}
           <div class="sig">
             <div class="sigBox">
 
-              <div class="sigLine"></div>
+              ${buildDoctorSignature()}
+              <div class="sigLine" style="padding-top:72px;"></div>
               <div class="sigName">Dr. João Morais</div>
               <div class="sigRole">Médico Fisiatra</div>
               <div class="sigRole">Sports Medicine &amp; Rehabilitation</div>

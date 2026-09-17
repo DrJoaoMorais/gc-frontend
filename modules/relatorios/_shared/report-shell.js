@@ -1,3 +1,5 @@
+import { buildDoctorSignature } from "./doctor-signature.js";
+
 /**
  * report-shell.js — Cabeçalho, bloco de dados do doente e rodapé partilhados
  *
@@ -99,7 +101,7 @@ export async function buildReportShell({ patient, clinic }) {
         .web { font-size:14px; font-weight:700; }
         .locDate { text-align:right; font-size:14px; margin-top:14px; }
         .sig { margin-top:40px; display:flex; justify-content:flex-end; }
-        .sigBox { width:360px; text-align:center; }
+        .sigBox { width:360px; text-align:center; page-break-inside:avoid;break-inside:avoid;}
         .sigLine { border-top:1px solid #111; padding-top:10px; }
         .sigName { font-weight:900; font-size:17px; margin-top:6px; }
         .sigRole { font-size:13px; margin-top:2px; }
@@ -131,10 +133,11 @@ export async function buildReportShell({ patient, clinic }) {
               ${vinhetaTag}
             </div>
             <div style="flex:1;">
-              <div class="locDate">${escAttr(localityDate)}</div>
+              <div class="locDate" style="position:relative;top:104px;">${escAttr(localityDate)}</div>
               <div class="sig">
                 <div class="sigBox">
-                  <div class="sigLine"></div>
+                  ${buildDoctorSignature()}
+              <div class="sigLine" style="padding-top:72px;"></div>
                   <div class="sigName">Dr. João Morais</div>
                   <div class="sigRole">Médico Fisiatra</div>
                   <div class="sigRole">Sports Medicine &amp; Rehabilitation</div>

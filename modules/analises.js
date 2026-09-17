@@ -1,3 +1,5 @@
+import { buildDoctorSignature } from "./relatorios/_shared/doctor-signature.js";
+
 /**
  * analises.js — Passo 7
  * BLOCO 12H: Módulo Análises Laboratoriais
@@ -932,7 +934,7 @@ export function buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatur
   .vinheta{margin-top:8px;width:4cm;height:2.5cm;object-fit:contain;display:block;}
   .locDate{text-align:right;font-size:14px;margin-top:14px;}
   .sig{margin-top:40px;display:flex;justify-content:flex-end;}
-  .sigBox{width:360px;text-align:center;}
+  .sigBox{width:360px;text-align:center;page-break-inside:avoid;break-inside:avoid;}
   .sigLine{border-top:1px solid #111;padding-top:10px;}
   .sigName{font-weight:900;font-size:18px;margin-top:6px;}
   .sigRole{font-size:14px;margin-top:2px;}
@@ -969,11 +971,12 @@ export function buildAnalisesHtml({ clinic, state, vinhetaUrl, logoUrl, signatur
         ${vinhetaUrl ? `<img class="vinheta" src="${escUrl(vinhetaUrl)}"/>` : ""}
       </div>
       <div style="flex:1;">
-        ${localityDate ? `<div class="locDate">${escHtml(localityDate)}</div>` : ""}
+        ${localityDate ? `<div class="locDate" style="position:relative;top:104px;">${escHtml(localityDate)}</div>` : ""}
         <div class="sig">
           <div class="sigBox">
 
-            <div class="sigLine"></div>
+            ${buildDoctorSignature()}
+              <div class="sigLine" style="padding-top:72px;"></div>
             <div class="sigName">Dr. João Morais</div>
             <div class="sigRole">Médico Fisiatra</div>
             <div class="sigRole">Sports Medicine &amp; Rehabilitation</div>

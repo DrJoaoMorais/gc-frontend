@@ -1,3 +1,5 @@
+import { fetchPrivatePdf } from "../../_shared/doctor-signature.js";
+
 // =================================================================
 // intake-viewer.js  ·  Leitura de respostas de Questionário (intake) + PDF
 // =================================================================
@@ -141,6 +143,17 @@ function formatAnswer(p, val) {
       return `<table class="gcv2-iv-grelha">${linhas}</table>`;
     }
 
+    case 'disponibilidade_semanal': {
+      if (!val || typeof val !== 'object' || Array.isArray(val) || !Object.keys(val).length) {
+        return '<span class="gcv2-iv-empty">— sem resposta —</span>';
+      }
+      const labels = new Map((p.dias || []).map(d => [d.id, d.label]));
+      const itens = Object.entries(val).map(([dia, duracao]) =>
+        `<li>${escHtml(labels.get(dia) || dia)}: ${escHtml(duracao || '—')}</li>`
+      );
+      return `<ul class="gcv2-iv-list">${itens.join('')}</ul>`;
+    }
+
     default:
       return escHtml(String(val));
   }
@@ -159,7 +172,7 @@ function buildIntakeBody({ patient, tokenRow, cfg, answersByQid }) {
     </div>`;
 
   const seccoesHtml = (cfg.seccoes || []).map(sec => {
-    const perguntasHtml = (sec.perguntas || []).map(p => {
+    const perguntasHtml = (sec.perguntas || []).filter(p => answersByQid.has(p.id)).map(p => {
       const val = answersByQid.has(p.id) ? answersByQid.get(p.id) : null;
       const label = p.label || p.titulo || '';
       return `
@@ -267,7 +280,7 @@ export async function openIntakeResponseModal({ patientId, clinicId, tokenRow, o
 
       const fullHtml = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}</body></html>`;
 
-      const resp = await fetch('https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf', {
+      const resp = await fetchPrivatePdf('https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ html: fullHtml, media: 'print' }),

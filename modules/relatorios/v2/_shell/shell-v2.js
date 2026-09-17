@@ -1,3 +1,5 @@
+import { buildDoctorSignature } from "../../_shared/doctor-signature.js";
+
 /**
  * GC · Shell Visual v2 · Relatórios
  * Construído sobre window.sb (cliente global Supabase).
@@ -171,16 +173,19 @@ export function buildShellV2({ clinic, doctor, config = {}, contentHtml = '' }) 
     </div>
 
     <div class="gcv2-footer">
-      <div class="gcv2-footer-topline">
+      <div class="gcv2-footer-topline" style="position:relative;top:94px;">
         ${[clinic?.city, dateStr].filter(Boolean).join(' · ')}
       </div>
       <div class="gcv2-footer-row">
         <div>${vinhetaHtml}</div>
         <div class="gcv2-footer-verify"></div>
-        <div class="gcv2-sig-line">
+        <div style="width:230px;margin-left:auto;break-inside:avoid;page-break-inside:avoid;">
+          ${buildDoctorSignature(doctorName)}
+        <div class="gcv2-sig-line" style="padding-top:72px;">
           <div class="gcv2-doctor-sig">${escAttr(doctorName)}</div>
           <div class="gcv2-doctor-role">${escAttr(doctorRole)}</div>
           <div class="gcv2-doctor-role">${escAttr(doctorRoleDetail)}</div>
+        </div>
         </div>
       </div>
     </div>
