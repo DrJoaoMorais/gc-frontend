@@ -51,6 +51,10 @@ export function buildRequest({name, start, end, records, policy = clinicPolicy(n
       const p = rows[0].patients || {};
       if (![p.full_name,p.nif,p.address_line1,p.postal_code,p.city].every(v => String(v||'').trim())) issues.push('Faltam nome, NIF ou morada completa de um ou mais doentes.');
       lines.push(`Doente: ${p.full_name || 'Por confirmar'}`, `NIF: ${p.nif || 'Por confirmar'}`, `Morada: ${[p.address_line1,p.postal_code,p.city].filter(Boolean).join(', ') || 'Por confirmar'}`);
+      const insurance = String(p.insurance_provider || '').trim();
+      const policyNumber = String(p.insurance_policy_number || '').trim();
+      if (insurance) lines.push(`Seguro: ${insurance}`);
+      if (policyNumber) lines.push(`N.º do seguro/apólice: ${policyNumber}`);
       rows.forEach(r => lines.push(`${dateLabel(String(r.data).slice(0,10))} — ${r.tipo_acto || 'Ato por identificar'}: ${euro(r.agendaBilled)}`));
       lines.push(`Total da fatura: ${euro(rows.reduce((s,r) => s+Number(r.agendaBilled||0),0))}`, '');
     } else lines.push(`${rows[0].tipo_acto || 'Ato por identificar'}: ${rows.length} — ${euro(rows.reduce((s,r)=>s+Number(r.agendaFee||0),0))}`);
