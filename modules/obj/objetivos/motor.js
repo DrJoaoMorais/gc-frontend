@@ -22,7 +22,7 @@ import {
   CATEGORIAS, ADM_TREE, ADM_ARTICULACOES, RETORNO_FASES, FORCA_ESCALAS, EQUILIBRIO_ESCALAS,
   DEPENDENCIA_DIAGNOSIS_CODES, DEPENDENCIA_NIVEIS, DEPENDENCIA_SEDESTACAO_OPCOES,
   DEPENDENCIA_REACOES_OPCOES, DEPENDENCIA_MARCHA_AUXILIAR_OPCOES, DEPENDENCIA_MARCHA_ASSIST_OPCOES,
-  FORCA_GRAU_OPCOES, ASHWORTH_OPCOES, ESTADO_OPCOES,
+  FORCA_GRAU_OPCOES, ASHWORTH_OPCOES, ESTADO_OPCOES, MOTOR_NIVEIS, MOTOR_TAGS,
 } from './config.js';
 
 let root = null;
@@ -240,6 +240,7 @@ function resumoAnterior(cat, a) {
     case 'dor': return 'EVA ' + (a.evaAtual != null ? a.evaAtual : '—') + '/10 · Meta ' + (a.metaEva != null ? a.metaEva : '—') + '/10';
     case 'forca': return escHtml([a.articulacao, a.movimento].filter(Boolean).join(' · ')) + ': ' + escHtml(String(a.meta || a.valor || '—'));
     case 'ashworth': return 'Ashworth ' + (a.atual || '—') + ' · Meta ' + (a.meta || '—');
+    case 'motor': return escHtml([a.nivel, (a.foco || []).length ? (a.foco || []).join(', ') : null].filter(Boolean).join(' · ') || '—');
     default: return escHtml(String(a.meta || a.basal || '—'));
   }
 }
@@ -275,6 +276,12 @@ function renderColunaHoje(cat) {
       h += campoNumero('draft-' + cat.id + '-graus', 'Graus', d.graus, '°');
       break;
     }
+    case 'motor':
+      h += '<div class="obj-field"><label>Nível</label><div class="obj-chips">' +
+        MOTOR_NIVEIS.map(function (o) { return chip('draft-' + cat.id + '-nivel', o, o, d.nivel === o); }).join('') + '</div></div>';
+      h += '<div class="obj-field"><label>Foco (vários)</label><div class="obj-chips">' +
+        MOTOR_TAGS.map(function (o) { return chip('draft-' + cat.id + '-foco', o, o, Array.isArray(d.foco) && d.foco.indexOf(o) !== -1); }).join('') + '</div></div>';
+      break;
     case 'ashworth':
       h += '<div class="obj-field"><label>Ashworth atual</label><div class="obj-chips">' +
         ASHWORTH_OPCOES.map(function (o) { return chip('draft-' + cat.id + '-atual', o, o, d.atual === o); }).join('') + '</div></div>';
@@ -373,6 +380,13 @@ function aplicarChip(grupo, valor) {
     const i = resto.indexOf('-');
     const catId = resto.slice(0, i), campo = resto.slice(i + 1);
     if (!state.draft[catId]) state.draft[catId] = {};
+    if (campo === 'foco') {
+      // Único campo multi-select do motor — chip liga/desliga a sua presença no array.
+      const atual = Array.isArray(state.draft[catId].foco) ? state.draft[catId].foco : [];
+      const i = atual.indexOf(valor);
+      state.draft[catId].foco = i === -1 ? atual.concat([valor]) : atual.slice(0, i).concat(atual.slice(i + 1));
+      return;
+    }
     // Guardado sempre como veio do chip (string) — todas as comparações no
     // render fazem String(...) dos dois lados, por isso não há coerção aqui.
     state.draft[catId][campo] = valor;
