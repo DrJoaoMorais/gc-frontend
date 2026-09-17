@@ -2507,6 +2507,7 @@
     let fdBindTreatDone = false;
     let fdCopiaAnterior = null;
     let fdCopiaPedido = 0;
+    let fdClinicId = null; // definido em fdActivarRegioes — reaproveitado pelos links de Objetivos por diagnóstico
 
     function fdEstadoCopia() {
       for (const tipo of ['dx', 'tx']) {
@@ -2649,6 +2650,9 @@
             border-radius:3px;padding:1px 4px;">${d.system?.includes('10')?'ICD-10':'ICD-9'}</span>
           <span style="font-weight:600;color:var(--navy);">${esc(d.code)}</span>
           <span style="color:var(--texto);">${esc(d.label)}</span>
+          ${fdRascunhoId ? `<span data-diag-obj="${d.id}" style="cursor:pointer;color:#1a56db;
+            font-size:11px;font-weight:600;margin-left:4px;text-decoration:underline;"
+            title="Objetivos deste diagnóstico">Objetivos</span>` : ''}
           <span data-diag-id="${d.id}" style="cursor:pointer;color:var(--tenue);font-size:14px;
             line-height:1;margin-left:2px;" title="Remover">×</span>
         </span>`).join('');
@@ -2656,6 +2660,19 @@
         x.addEventListener('click', () => {
           fdDiagSelecionados = fdDiagSelecionados.filter(d => String(d.id) !== x.dataset.diagId);
           fdRenderDiagChips();
+        });
+      });
+      el.querySelectorAll('[data-diag-obj]').forEach(x => {
+        x.addEventListener('click', () => {
+          if (!fdRascunhoId) return;
+          const nome = document.getElementById('fd-nome')?.textContent || '';
+          const base = new URL('../../../obj/objetivos/objetivos.test.html', window.location.href);
+          base.searchParams.set('p', PATIENT_ID);
+          base.searchParams.set('c', fdClinicId || '');
+          base.searchParams.set('s', fdRascunhoId);
+          base.searchParams.set('d', x.dataset.diagObj);
+          base.searchParams.set('n', nome);
+          window.open(base.toString(), '_blank');
         });
       });
     }
@@ -2895,6 +2912,7 @@
 
     /* ── activar botões de região após criar consulta ── */
     function fdActivarRegioes(consultId, clinicId) {
+      fdClinicId = clinicId;
       const nome = document.getElementById('fd-nome')?.textContent || '';
       document.querySelectorAll('.fd-regiao-btn').forEach(btn => {
         btn.disabled = false;

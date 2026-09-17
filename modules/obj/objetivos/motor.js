@@ -72,7 +72,13 @@ async function carregar() {
       .eq('consultation_id', state.ctx.consultationId)
       .eq('diagnosis_id', state.ctx.diagnosisId)
       .single();
-    if (errDiag) throw errDiag;
+    if (errDiag) {
+      // PGRST116 = single() sem linhas — o diagnóstico ainda só existe no
+      // rascunho em memória de feed-doente.html, a consulta ainda não foi
+      // gravada com ele. Mensagem específica em vez do erro cru do Postgrest.
+      if (errDiag.code === 'PGRST116') throw new Error('Grava a consulta com este diagnóstico primeiro — os Objetivos só ficam disponíveis depois de gravado.');
+      throw errDiag;
+    }
     if (!diagRow) throw new Error('Diagnóstico não encontrado nesta consulta.');
     state.diagRow = diagRow;
     state.generatesObjectives = diagRow.generates_objectives !== false; // default true
