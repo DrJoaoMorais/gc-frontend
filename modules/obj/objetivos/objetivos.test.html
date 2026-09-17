@@ -1,0 +1,121 @@
+<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8">
+<title>Objetivos — teste standalone</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:14px;color:#1a2233;background:#eef1f5}
+.page{max-width:980px;margin:0 auto;padding:20px 20px 80px}
+h1{font-size:18px;font-weight:700;color:#0f2d52;margin-bottom:2px}
+.subtitle{font-size:12px;color:#6b7488;margin-bottom:16px}
+.obj-msg{background:#fff;border:1px solid #dfe4ec;border-radius:12px;padding:20px;text-align:center;color:#6b7488}
+.obj-msg-err{color:#a12f42;background:#fbe7ea;border-color:#eba6b0}
+.obj-card{background:#fff;border:1px solid #dfe4ec;border-radius:12px;padding:18px 20px;margin-bottom:14px}
+.obj-kicker{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7488;margin-bottom:10px}
+.obj-tenue{color:#9aa2b1;font-weight:400;text-transform:none;letter-spacing:0}
+.obj-diag-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.obj-diag-chip{display:inline-flex;align-items:center;gap:8px;background:#eaf0fd;border:1px solid #c3d4f7;border-radius:999px;padding:7px 14px;font-size:14px;font-weight:600}
+.obj-diag-code{font-size:12px;font-weight:700;color:#1a56db;background:#fff;border-radius:999px;padding:2px 8px}
+.obj-toggle-wrap{display:flex;align-items:center;gap:8px;cursor:default}
+.obj-toggle{border:none;cursor:pointer;width:38px;height:21px;border-radius:999px;background:#c7cdd9;position:relative;padding:0;flex-shrink:0}
+.obj-toggle.on{background:#1a56db}
+.obj-toggle.on.warn{background:#c05621}
+.obj-toggle-dot{position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;transition:left .15s}
+.obj-toggle.on .obj-toggle-dot{left:19px}
+.obj-toggle-lbl{font-size:12px;color:#4a5266;font-weight:500}
+.obj-chips{display:flex;gap:6px;flex-wrap:wrap}
+.obj-chip{border-radius:999px;padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:#4a5266;border:1px solid #d5dae3}
+.obj-chip:hover{border-color:#1a56db;color:#1a56db}
+.obj-chip.sel{background:#1a56db;color:#fff;border-color:#1a56db}
+.obj-chip-estado.sel.obj-chip-estado-cumprido{background:#eaf7ee;color:#1f7a3d;border-color:#8fd4a6}
+.obj-chip-estado.sel.obj-chip-estado-parcial{background:#fdf3d9;color:#8a6a10;border-color:#e6c568}
+.obj-chip-estado.sel.obj-chip-estado-nao{background:#fbe7ea;color:#a12f42;border-color:#eba6b0}
+.obj-field{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
+.obj-field label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#9aa2b1}
+.obj-subrow{display:flex;gap:28px;flex-wrap:wrap;border-top:1px solid #eef0f4;padding-top:14px;margin-top:4px}
+.obj-input{font-size:13px;border:1px solid #d5dae3;border-radius:7px;padding:6px 10px;font-family:inherit}
+.obj-input-num{width:90px}
+.obj-cats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.obj-cat-card{padding:0;overflow:hidden}
+.obj-cat-head{width:100%;background:none;border:none;cursor:pointer;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;text-align:left;font:inherit}
+.obj-cat-title{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:600;color:#1a2233}
+.obj-cat-n{width:26px;height:26px;border-radius:50%;background:#1a56db;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.obj-cat-right{display:flex;align-items:center;gap:10px}
+.obj-badge{border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700}
+.obj-badge-grey{background:#f2f3f6;border:1px solid #e2e5ea;color:#9aa2b1}
+.obj-badge-blue{background:#eaf0fd;border:1px solid #c3d4f7;color:#1a56db}
+.obj-badge-cumprido{background:#eaf7ee;border:1px solid #8fd4a6;color:#1f7a3d}
+.obj-badge-parcial{background:#fdf3d9;border:1px solid #e6c568;color:#8a6a10}
+.obj-badge-nao{background:#fbe7ea;border:1px solid #eba6b0;color:#a12f42}
+.obj-chevron{font-size:13px;color:#9aa2b1}
+.obj-cat-body{padding:0 18px 18px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.obj-col{border-radius:10px;padding:12px}
+.obj-col-anterior{background:#f7f8fa;border:1px solid #e6e9ef}
+.obj-col-hoje{background:#fff;border:1px solid #c3d4f7}
+.obj-anterior-label,.obj-hoje-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#9aa2b1;margin-bottom:8px}
+.obj-hoje-label{color:#1a56db}
+.obj-anterior-resumo{font-size:13px;font-weight:600;margin-bottom:10px}
+.obj-sem-anterior{font-size:12px;color:#9aa2b1;font-style:italic;text-align:center;padding:14px 0}
+.obj-savebar{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:6px}
+.obj-btn-save{padding:9px 22px;border:none;border-radius:8px;background:#1a56db;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+.obj-btn-save[disabled]{opacity:.6;cursor:default}
+.obj-saved-ok{color:#1f7a3d;font-size:13px;font-weight:600}
+@media(max-width:800px){.obj-cats{grid-template-columns:1fr}.obj-cat-body{grid-template-columns:1fr}}
+</style></head><body>
+<div class="page">
+  <h1>Objetivos</h1>
+  <div class="subtitle">Teste standalone · modules/obj/objetivos/ · requer ?p=&amp;c=&amp;s=&amp;d= na URL</div>
+  <div id="obj-root"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  window.SUPABASE_URL = "https://nxfnzzcuqzxmzsihbrtp.supabase.co";
+  window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA";
+  window.sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+  /* Modo fixture (?fixture=1) — só para testar o render/interação ANTES da
+     migração SQL existir (as colunas generates_objectives/is_new_episode/
+     objectives ainda não existem em produção). Substitui window.sb por um
+     mock local, offline, sem tocar em Supabase real. Remover quando a
+     migração estiver aplicada e este teste passar a usar dados reais. */
+  if (new URLSearchParams(location.search).get('fixture') === '1') {
+    const DIAG = { id: 'fixture-row-1', consultation_id: 'c1', diagnosis_id: 'd1',
+      generates_objectives: true, is_new_episode: false, objectives: {},
+      diagnoses_catalog: { code: '728.2', label: 'Sindrome de imobilidade' } };
+    const DESTINO = { id: 'c1', patient_id: 'p1', report_date: '2026-09-17', created_at: '2026-09-17T10:00:00Z' };
+    const ANTERIOR = [{ id: 'row-prev', objectives: {
+        dor: { evaAtual: '6', metaEva: '3' },
+        forca: { articulacao: 'Ombro', movimento: 'Flexão', escala: 'grau', valor: '3', meta: 'Grau 4' },
+        equilibrio: { basal: 'TUG 15s', meta: 'TUG < 12s' },
+        avd: { basal: 'Ajuda parcial', meta: 'Independente' },
+        dependencia: { nivel: 2, marchaDistancia: '30', marchaAuxiliar: 'Andarilho', marchaAssist: 'Supervisão' },
+      }, consultations: { report_date: '2026-08-20', created_at: '2026-08-20T09:00:00Z', patient_id: 'p1' } }];
+
+    function mockQB(table) {
+      const calls = { eq: [], neq: [] };
+      let single = false, op = 'select';
+      const qb = {
+        select() { return qb; },
+        eq(col, val) { calls.eq.push([col, val]); return qb; },
+        neq(col, val) { calls.neq.push([col, val]); return qb; },
+        order() { return qb; },
+        limit() { return qb; },
+        single() { single = true; return qb; },
+        maybeSingle() { single = true; return qb; },
+        update() { op = 'update'; return qb; },
+        then(resolve) {
+          if (op === 'update') return resolve({ error: null });
+          if (table === 'consultations') return resolve({ data: DESTINO, error: null });
+          if (table === 'consultation_diagnoses') {
+            if (calls.neq.length) return resolve({ data: ANTERIOR, error: null });
+            return resolve({ data: DIAG, error: null });
+          }
+          return resolve({ data: null, error: null });
+        },
+      };
+      return qb;
+    }
+    window.sb = { from(table) { return mockQB(table); } };
+    console.info('[objetivos] modo fixture activo — dados fictícios, sem tocar Supabase.');
+  }
+</script>
+<script type="module" src="motor.js?v=1"></script>
+</body></html>
