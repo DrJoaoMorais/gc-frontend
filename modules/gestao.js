@@ -1046,7 +1046,11 @@ function renderSeccaoPrecos(container, precos, procedureTypes, clinicaFiltro) {
 async function openModalPreco(precoId, clinicId, procedureTypes) {
   let preco = null;
   if (precoId) {
-    const { data } = await window.sb.from("clinic_prices").select("*").eq("id", precoId).single();
+    const { data, error } = await window.sb.from("clinic_prices").select("*").eq("id", precoId).single();
+    if (error || !data) {
+      alert("Não foi possível carregar o preço. Volta a abrir a edição.");
+      return;
+    }
     preco = data;
   }
   const isEdit = !!preco;
@@ -1085,7 +1089,7 @@ async function openModalPreco(precoId, clinicId, procedureTypes) {
       </div>
       <div>
         <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px;">% Médico</label>
-        <input id="gPrcPercMedico" type="number" min="0" max="100" step="1" value="${preco?.percentagem_medico != null ? Number(preco.percentagem_medico) : ""}" placeholder="Ex: 60" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+        <input id="gPrcPercMedico" type="number" min="0" max="100" step="0.01" value="${preco?.percentagem_medico != null ? Number(preco.percentagem_medico) : ""}" placeholder="Ex: 60" style="width:100%;border:1px solid #D1D5DB;border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;box-sizing:border-box;">
       </div>
     </div>
     <div id="gPrcCalcInfo" style="font-size:12px;color:#185FA5;background:#E6F1FB;border-radius:8px;padding:7px 11px;display:none;">
@@ -1119,21 +1123,40 @@ async function openModalPreco(precoId, clinicId, procedureTypes) {
     if (outro) outro.style.display = e.target.value === "__outro" ? "" : "none";
   });
 
-  const calcRecebes = () => {
-    const p    = parseFloat(overlay.querySelector("#gPrcPrecoDoente").value);
-    const pct  = parseFloat(overlay.querySelector("#gPrcPercMedico").value);
-    const info = overlay.querySelector("#gPrcCalcInfo");
-    const val  = overlay.querySelector("#gPrcCalcVal");
-    if (!isNaN(p) && !isNaN(pct) && p > 0 && pct > 0) {
-      val.textContent = (p * pct / 100).toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
-      info.style.display = "";
+  const honorarioInput = overlay.querySelector("#gPrcPreco");
+  const doenteInput = overlay.querySelector("#gPrcPrecoDoente");
+  const percentagemInput = overlay.querySelector("#gPrcPercMedico");
+  const readAmount = input => input.value === "" ? NaN : Number(input.value);
+  const syncPreco = (source = "honorario") => {
+    const p = readAmount(doenteInput);
+    let honorario = readAmount(honorarioInput);
+    const hasBase = Number.isFinite(p) && p > 0;
+    percentagemInput.disabled = !hasBase;
+    if (source === "percentagem" && hasBase) {
+      const pct = readAmount(percentagemInput);
+      if (Number.isFinite(pct) && pct >= 0 && pct <= 100) {
+        honorario = Math.round((p * pct / 100 + Number.EPSILON) * 100) / 100;
+        honorarioInput.value = honorario.toFixed(2);
+      } else {
+        honorarioInput.value = "";
+        honorario = NaN;
+      }
     } else {
-      info.style.display = "none";
+      // O honorário guardado prevalece ao abrir e ao alterar o preço ao doente.
+      percentagemInput.value = hasBase && Number.isFinite(honorario) && honorario >= 0
+        ? (honorario / p * 100).toFixed(2) : "";
     }
+    const info = overlay.querySelector("#gPrcCalcInfo");
+    const val = overlay.querySelector("#gPrcCalcVal");
+    const valid = Number.isFinite(honorario) && honorario >= 0;
+    info.style.display = valid ? "" : "none";
+    val.textContent = valid
+      ? honorario.toLocaleString("pt-PT", { style: "currency", currency: "EUR" }) : "—";
   };
-  overlay.querySelector("#gPrcPrecoDoente").addEventListener("input", calcRecebes);
-  overlay.querySelector("#gPrcPercMedico").addEventListener("input", calcRecebes);
-  calcRecebes();
+  honorarioInput.addEventListener("input", () => syncPreco("honorario"));
+  doenteInput.addEventListener("input", () => syncPreco("doente"));
+  percentagemInput.addEventListener("input", () => syncPreco("percentagem"));
+  syncPreco();
 
   overlay.querySelector("#gPrcSave").addEventListener("click", async () => {
     const btn = overlay.querySelector("#gPrcSave");
@@ -1152,7 +1175,12 @@ async function openModalPreco(precoId, clinicId, procedureTypes) {
     }
 
     if (!procVal) { msg.textContent = "Selecciona o procedimento."; return; }
-    if (isNaN(precoVal)) { msg.textContent = "Preço inválido."; return; }
+    if (!Number.isFinite(precoVal) || precoVal < 0) { msg.textContent = "Honorário inválido."; return; }
+    if (doenteInput.value !== "" && (!Number.isFinite(readAmount(doenteInput)) || readAmount(doenteInput) < 0)) {
+      msg.textContent = "Preço ao doente inválido."; return;
+    }
+    honorarioInput.value = precoVal.toFixed(2);
+    syncPreco();
 
     btn.disabled = true; btn.textContent = "A guardar…";
     try {
@@ -1160,18 +1188,27 @@ async function openModalPreco(precoId, clinicId, procedureTypes) {
       const percMedico   = overlay.querySelector("#gPrcPercMedico").value;
       const payload = {
         procedure_type:     procVal,
-        price:              precoVal,
+        price:              Number(honorarioInput.value),
         duracao_min:        durVal ? parseInt(durVal, 10) : null,
         clinic_id:          clinicId,
         preco_doente:       precoDoente !== "" ? parseFloat(precoDoente) : null,
         percentagem_medico: percMedico  !== "" ? parseFloat(percMedico)  : null,
       };
-      if (isEdit) {
-        const { error } = await window.sb.from("clinic_prices").update(payload).eq("id", precoId);
-        if (error) throw error;
-      } else {
-        const { error } = await window.sb.from("clinic_prices").insert(payload);
-        if (error) throw error;
+      const query = isEdit
+        ? window.sb.from("clinic_prices").update(payload).eq("id", precoId).eq("clinic_id", clinicId)
+        : window.sb.from("clinic_prices").insert(payload);
+      const { data: saved, error } = await query.select("id, clinic_id, procedure_type, price, preco_doente, percentagem_medico, duracao_min").single();
+      if (error || !saved) {
+        throw new Error("Não foi possível confirmar a gravação. Verifica as permissões ou a ligação e tenta novamente.");
+      }
+      const numericFields = ["price", "preco_doente", "percentagem_medico", "duracao_min"];
+      const matches = saved.clinic_id === clinicId && saved.procedure_type === procVal
+        && (!isEdit || saved.id === precoId)
+        && numericFields.every(key => payload[key] === null
+          ? saved[key] === null
+          : saved[key] != null && Math.abs(Number(saved[key]) - payload[key]) < 0.000001);
+      if (!matches) {
+        throw new Error("O Supabase devolveu valores diferentes. Mantém esta janela aberta e verifica os valores antes de voltar a guardar.");
       }
       close();
       renderGestao();
