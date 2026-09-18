@@ -133,11 +133,11 @@ export async function buildReportShell({ patient, clinic }) {
               ${vinhetaTag}
             </div>
             <div style="flex:1;">
-              <div class="locDate" style="position:relative;top:104px;">${escAttr(localityDate)}</div>
+              <div class="locDate">${escAttr(localityDate)}</div>
               <div class="sig">
                 <div class="sigBox">
                   ${buildDoctorSignature()}
-              <div class="sigLine" style="padding-top:72px;"></div>
+              <div class="sigLine" style="padding-top:4px;"></div>
                   <div class="sigName">Dr. João Morais</div>
                   <div class="sigRole">Médico Fisiatra</div>
                   <div class="sigRole">Sports Medicine &amp; Rehabilitation</div>

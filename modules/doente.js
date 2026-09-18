@@ -1933,11 +1933,11 @@ function openPatientViewModal(patient) {
           ${vinhetaUrl ? `<img class="vinheta" src="${escUrlAttr(vinhetaUrl)}" />` : ``}
         </div>
         <div style="flex:1;">
-          ${localityDate ? `<div class="locDate" style="position:relative;top:104px;">${escAttr(localityDate)}</div>` : ``}
+          ${localityDate ? `<div class="locDate">${escAttr(localityDate)}</div>` : ``}
           <div class="sig">
             <div class="sigBox">
               ${buildDoctorSignature()}
-              <div class="sigLine" style="padding-top:72px;"></div>
+              <div class="sigLine" style="padding-top:4px;"></div>
               <div class="sigName">Dr. João Morais</div>
               <div class="sigRole">Médico Fisiatra</div>
               <div class="sigRole">Sports Medicine &amp; Rehabilitation</div>
@@ -5150,11 +5150,11 @@ function openPatientViewModal(patient) {
               ${vinhetaTag}
             </div>
             <div style="flex:1;">
-              <div class="locDate" style="position:relative;top:104px;">${locality}</div>
+              <div class="locDate">${locality}</div>
               <div class="sig">
                 <div class="sigBox">
                   ${buildDoctorSignature()}
-              <div class="sigLine" style="padding-top:72px;"></div>
+              <div class="sigLine" style="padding-top:4px;"></div>
                   <div class="sigName">Dr. João Morais</div>
                   <div class="sigRole">Especialista em Medicina Física e de Reabilitação</div>
                   <div class="sigRole">OM n.º 44380</div>
@@ -5329,11 +5329,11 @@ function openPatientViewModal(patient) {
               ${vinhetaTag}
             </div>
             <div style="flex:1;">
-              <div class="locDate" style="position:relative;top:104px;">${locality}</div>
+              <div class="locDate">${locality}</div>
               <div class="sig">
                 <div class="sigBox">
                   ${buildDoctorSignature()}
-              <div class="sigLine" style="padding-top:72px;"></div>
+              <div class="sigLine" style="padding-top:4px;"></div>
                   <div class="sigName">Dr. João Morais</div>
                   <div class="sigRole">Especialista em Medicina Física e de Reabilitação</div>
                   <div class="sigRole">OM n.º 44380</div>
@@ -7274,10 +7274,10 @@ function selSens(el) {
           <div class="footRow">
             <div><div class="web">${websiteHtml}</div>${vinhetaTag}</div>
             <div style="flex:1;">
-              <div class="locDate" style="position:relative;top:104px;">${locality}</div>
+              <div class="locDate">${locality}</div>
               <div class="sig"><div class="sigBox">
                 ${buildDoctorSignature()}
-              <div class="sigLine" style="padding-top:72px;"></div>
+              <div class="sigLine" style="padding-top:4px;"></div>
                 <div class="sigName">Dr. João Morais</div>
                 <div class="sigRole">Médico Fisiatra</div>
                 <div class="sigRole">Sports Medicine &amp; Rehabilitation</div>
