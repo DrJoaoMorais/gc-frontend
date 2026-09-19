@@ -39,7 +39,7 @@ function openExameObjectivoMenu(anchorBtn, ctx = {}) {
       items: [
         { id: "pfp",       label: "🥴 Paresia Facial Periférica",         ready: true },
         { id: "rpp",       label: "🩺 Pavimento Pélvico",                 ready: true },
-        { id: "teleconsulta", label: "Teleconsulta Funcional", ready: true },
+        { id: "teleconsulta", label: "Avaliação Funcional", ready: true },
         { id: "neuro_sum", label: "🧠 Neurológico Sumário",               ready: false },
       ]
     },

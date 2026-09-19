@@ -30,7 +30,7 @@ const assert=require('node:assert/strict');
  await staff.locator('#therapist-create').click();await staff.locator('#therapist-link:not([hidden])').waitFor();
  const link=await staff.locator('#therapist-url').inputValue();assert.ok(/#t=[a-f0-9]{64}$/.test(link));assert.ok(!link.includes(ids.p));
  const phone=await context.newPage();await phone.setViewportSize({width:390,height:844});await phone.goto(link);
- await phone.locator('#meta_name').fill('Terapeuta teste');await phone.locator('#meta_profession').fill('Fisioterapeuta');await phone.locator('#meta_date').fill(new Date().toISOString().slice(0,10));await phone.locator('#attested').check();await phone.locator('#next').click();
+ await phone.locator('#meta_name').fill('Terapeuta teste');await phone.locator('[name=profession][value=Fisioterapeuta]').check();await phone.locator('#meta_date').fill(new Date().toISOString().slice(0,10));await phone.locator('#attested').check();await phone.locator('#next').click();
  await phone.locator('h1').filter({hasText:'Barthel'}).waitFor();
  await phone.locator('input[name=status][value=done]').check();
  await phone.locator('#next').click();await phone.locator('#error').filter({hasText:'Preenche'}).waitFor();
@@ -49,7 +49,7 @@ const assert=require('node:assert/strict');
  // Direct completion uses the same persisted, attributed evaluation.
  await staff.locator('#therapist-direct').click();
  const direct=staff.frameLocator('dialog iframe');
- await direct.locator('#meta_name').fill('Médico teste');await direct.locator('#meta_profession').fill('Médico');await direct.locator('#meta_date').fill(new Date().toISOString().slice(0,10));await direct.locator('#attested').check();await direct.locator('#next').click();
+ await direct.locator('#meta_name').fill('Médico teste');await direct.locator('[name=profession][value=Médico]').check();await direct.locator('#meta_date').fill(new Date().toISOString().slice(0,10));await direct.locator('#attested').check();await direct.locator('#next').click();
  await direct.locator('input[name=status][value=done]').check();
  for(const group of await direct.locator('#fields [data-field]').all())await group.locator('input').last().check();
  await direct.locator('#next').click();
@@ -60,9 +60,29 @@ const assert=require('node:assert/strict');
  await staff.locator('summary').filter({hasText:'Ver respostas'}).first().click();
  await staff.locator('.therapist-result').filter({hasText:'Médico teste'}).waitFor();
  assert.ok((await staff.locator('.therapist-result').filter({hasText:'Médico teste'}).textContent()).includes('100/100'));
+ // Feed receives late results without writing or replacing consultation content.
+ const feedCheck=await staff.evaluate(async()=>{
+  const {mountFunctionalResults}=await import('/modules/terapeuta/feed.js');
+  const root=document.createElement('div');root.innerHTML='<div data-functional-results="consultation-a"></div><div data-functional-results="consultation-b"></div>';document.body.append(root);
+  let completed=false,calls=[];
+  const request={id:'request-a',status:'completed',definitions:[{id:'tug',title:'TUG',fields:[]}],answers:{tug:{status:'done',values:{tempo:14}}},results:{},respondent:{name:'<img src=x onerror=alert(1)>',profession:'Fisioterapeuta',date:'2026-09-19'},completed_at:'2026-09-19T12:00:00Z'};
+  const cleanup=mountFunctionalResults(root,{rpc:async(name,args)=>{calls.push([name,args.p_consultation]);return {data:args.p_consultation==='consultation-a'?[completed?request:{...request,status:'pending'}]:[]};}},{intervalMs:50});
+  await new Promise(r=>setTimeout(r,80));const pending=root.textContent.includes('Aguarda preenchimento');completed=true;await new Promise(r=>setTimeout(r,130));
+  const result={pending,late:root.firstElementChild.textContent.includes('14 s'),isolated:!root.lastElementChild.textContent.includes('14 s'),escaped:!root.querySelector('img'),readOnly:calls.every(c=>c[0]==='therapist_scale_list')};cleanup();root.remove();return result;
+ });
+ assert.deepEqual(feedCheck,{pending:true,late:true,isolated:true,escaped:true,readOnly:true});
  // All other previews open without selected scores and repeated muscle rows remain independent.
  for(const id of ['sppb','tinetti','berg','dor','mrc','ashworth']){
    await phone.goto(base+'/avaliacao-terapeuta.html?preview='+id);await phone.locator('#fields').waitFor();assert.equal(await phone.locator('#fields input:checked').count(),0);
+   if(id==='sppb'){
+    assert.equal(await phone.locator('[data-component=marcha] [data-field=percurso]').count(),1);
+    assert.match(await phone.locator('[data-field=percurso]').textContent(),/3 metros/);
+    await phone.locator('[data-component=marcha] [data-field=tempo_marcha_1]').fill('8.2');
+    await phone.locator('[data-component=cadeira] [data-field=tempo_cadeira]').fill('14.3');
+    const measured=await phone.evaluate(async()=>{const m=await import('/modules/terapeuta/forms.js');const c=await m.catalog();return m.readFields(document.querySelector('#fields'),c.find(s=>s.id==='sppb').fields);});
+    assert.equal(measured.tempo_marcha_1,8.2);assert.equal(measured.tempo_cadeira,14.3);
+    await phone.locator('#save').click();
+   }
    if(id==='mrc'||id==='ashworth'){
      await phone.locator('input[name=status][value=done]').check();await phone.locator('[data-muscle]').first().click();const picked=await phone.locator('[data-muscle]').first().textContent();assert.equal(await phone.locator('[data-field=musculo]').inputValue(),picked);assert.equal(await phone.locator('[data-muscle]').first().getAttribute('aria-pressed'),'true');await phone.locator('[data-field=musculo]').fill('Extensão joelho');assert.equal(await phone.locator('[data-muscle][aria-pressed=true]').count(),0);await phone.locator('[data-field=lado] input').first().check();await phone.locator('[data-field=grau] input').last().check();await phone.locator('[data-add]').click();assert.equal(await phone.locator('[data-row]').count(),2);assert.equal(await phone.locator('[data-row]').first().locator('[data-field=musculo]').inputValue(),'Extensão joelho');
      await phone.locator('[data-row]').last().locator('[data-remove]').click();assert.equal(await phone.locator('[data-row]').count(),1);

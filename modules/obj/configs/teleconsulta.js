@@ -10,7 +10,7 @@ const notas = {
 };
 const sec = (id, titulo, rows, open = false) => ({ tipo: 'params', id, titulo, rows, notas: 'notas_' + id, notasPlaceholder: notas[id] || 'Medições, observações ou motivo para não testar…', recolhivel: true, aberto: open });
 export default {
-  id: 'teleconsulta', titulo: 'Teleconsulta Funcional',
+  id: 'teleconsulta', titulo: 'Avaliação Funcional',
   subtitle: 'Preenche apenas o que foi avaliado. Abre os blocos necessários; usa as notas para medições, lado e contexto.',
   layout: 'lista', tabs: { pedidos: true },
   pedidos: [
