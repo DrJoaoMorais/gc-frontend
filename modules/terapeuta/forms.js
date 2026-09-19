@@ -91,14 +91,14 @@ export function interpretation(scale, answer) {
  if(scale.id==='berg')return `${score}/56 — equilíbrio durante tarefas funcionais. Maior pontuação corresponde a melhor desempenho; a pontuação máxima não exclui risco de queda.`;
  return scale.direction||'Resultados por item; sem pontuação global.';
 }
-export function resultHtml(request) {
+export function resultHtml(request, {heading=true, performedOnly=false} = {}) {
   const e=escapeHtml, meta=request.respondent || {}, responses=request.answers || {};
-  return `<article class="therapist-result"><h3>Avaliações realizadas</h3><p>${e(meta.name)} · ${e(meta.profession)} · ${e(meta.date)}</p>${(request.definitions||[]).map(scale=>{
-    const a=responses[scale.id]; if(!a)return '';
+  return `<article class="therapist-result">${heading?'<h3>Avaliações realizadas</h3>':''}<p>${e(meta.name)} · ${e(meta.profession)} · ${e(meta.date)}</p>${(request.definitions||[]).map(scale=>{
+    const a=responses[scale.id]; if(!a || (performedOnly && a.status!=='done'))return '';
     if(a.status==='not_done')return `<h4>${e(scale.title)}</h4><p>Não realizado: ${e(a.reason)}</p>`;
     function lines(fields,vals) { return fields.map(f=>{
       const v=vals?.[f.id]; if(v==null||v==='')return '';
-      if(f.type==='repeat') return (Array.isArray(v)?v:[]).map(row=>'<li>'+f.fields.map(sf=>e(sf.label)+': '+e(row[sf.id])).join(' · ')+'</li>').join('');
+      if(f.type==='repeat') return (Array.isArray(v)?v:[]).map(row=>'<li>'+f.fields.map(sf=>e(sf.label)+': '+e(row[sf.id])+(sf.labels?.[row[sf.id]]?' — '+e(sf.labels[row[sf.id]]):'')).join(' · ')+'</li>').join('');
       return '<li>'+e(f.label)+': '+e(v)+(f.labels?.[v]?' — '+e(f.labels[v]):'')+'</li>';
     }).join(''); }
     const score=request.results?.[scale.id]?.total;
@@ -120,4 +120,10 @@ export function resultSummaryHtml(request) {
   return `<li>${e(s.title.replace(/ — 0[–-]\d+/,''))}: <strong>${e(value)}</strong></li>`;
  });
  return rows.length?`<article class="evaluation-summary"><p>${e(meta.name)} · ${e(meta.profession)} · ${e(meta.date)}</p><ul>${rows.join('')}</ul></article>`:'';
+}
+
+// Shared complete clinical presentation for feed and consultation report.
+export function clinicalResultHtml(request) {
+ if(!(request.definitions||[]).some(s=>request.answers?.[s.id]?.status==='done'))return '';
+ return resultHtml(request,{heading:false,performedOnly:true});
 }

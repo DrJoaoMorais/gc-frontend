@@ -1,4 +1,4 @@
-import {escapeHtml as e,resultSummaryHtml} from './forms.js';
+import {escapeHtml as e,clinicalResultHtml} from './forms.js';
 // Read only: the authenticated RPC restricts requests to their author and clinic.
 export function mountFunctionalResults(root,sb,{intervalMs=60000}={}) {
  root._functionalCleanup?.();
@@ -15,7 +15,7 @@ export function mountFunctionalResults(root,sb,{intervalMs=60000}={}) {
     if(stopped||!node.isConnected)return;
     if(error)throw error;
     const rows=(data||[]).filter(r=>r.status==='completed');
-    const html=rows.map(resultSummaryHtml).join('');
+    const html=rows.map(clinicalResultHtml).join('');
     node.hidden=!html;
     if(target.dataset.content!==html){const open=new Set([...target.querySelectorAll('details[open]')].map(d=>d.dataset.response));target.innerHTML=html;target.dataset.content=html;target.querySelectorAll('details').forEach(d=>{d.open=open.has(d.dataset.response);});}
    }catch{if(!stopped&&node.isConnected)target.textContent='Não foi possível atualizar os resultados. Tenta novamente.';}
