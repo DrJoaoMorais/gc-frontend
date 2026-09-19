@@ -172,6 +172,17 @@ textarea{width:100%;border:1px solid #e2e8f0;border-radius:7px;padding:4px 7px;f
   .ob-tab-content{display:block!important;}
   .page{padding-bottom:10px;}
 }
+.pedido-card{display:flex;flex-direction:column;gap:8px}.pedido-card .pedido-item{flex:1}.pedido-card .btn-pdf{align-self:flex-start}
+.pedidos-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+.pedido-item{display:flex;align-items:flex-start;gap:10px;border:1px solid #dbe3ee;border-radius:10px;padding:14px;cursor:pointer}
+.pedido-item input{margin-top:3px;accent-color:#1a56db}.pedido-item small{display:block;color:#64748b;margin-top:5px;line-height:1.5}
+.pedido-item:has(input:checked){background:#eff6ff;border-color:#1a56db}
+.exam-details{margin:8px 0;background:#fff;border:1px solid #dbe3ee;border-radius:10px;padding:12px}
+.exam-details summary{cursor:pointer;font-weight:600;color:#1a56db}
+.exam-details .sec{border:0;margin-top:10px}.exam-details .sec-title{display:none}
+.exam-details .palp-row{display:grid;grid-template-columns:220px 1fr;gap:12px;padding:8px 0}
+@media(max-width:650px){.exam-details .palp-row{grid-template-columns:1fr}}
+@media print{.exam-details::details-content{display:block}.exam-details{break-inside:avoid}}
 </style></head><body>
 <div class="page">
   <div id="hdr"></div>
@@ -180,6 +191,7 @@ textarea{width:100%;border:1px solid #e2e8f0;border-radius:7px;padding:4px 7px;f
   <div id="tab-exame" class="ob-tab-content active"></div>
   <div id="tab-dinamometria" class="ob-tab-content"></div>
   <div id="tab-escalas" class="ob-tab-content"></div>
+  <div id="tab-pedidos" class="ob-tab-content"></div>
   <div id="tab-historia" class="ob-tab-content"></div>
 </div>
 <div id="toast">&#10003; Guardado</div>
@@ -198,5 +210,5 @@ textarea{width:100%;border:1px solid #e2e8f0;border-radius:7px;padding:4px 7px;f
   window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54Zm56emN1cXp4bXpzaWhicnRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAyODg3MjEsImV4cCI6MjA4NTg2NDcyMX0.Vk3-Aiq13fNMQWDyicHWErERWB5JBC9wZQ7OnVLmCnA";
   window.sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 </script>
-<script type="module" src="motor.js?v=11"></script>
+<script type="module" src="motor.js?v=14"></script>
 </body></html>

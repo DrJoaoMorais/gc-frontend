@@ -225,6 +225,20 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     loadAssessments(consultationId),
   ]);
 
+  let therapistHtml = '';
+  if (assessments.some(a => a.assessment_type === 'teleconsulta')) {
+    try {
+      const { data: requests, error } = await window.sb.rpc('therapist_scale_list', { p_consultation: consultationId });
+      if (error && error.code !== 'PGRST202') throw error;
+      if (!error) {
+        const { resultHtml } = await import('../../../terapeuta/forms.js');
+        therapistHtml = (requests || []).filter(r => r.status === 'completed').map(resultHtml).join('');
+      }
+    } catch (error) {
+      console.warn('[rc] respostas do terapeuta indisponíveis', error);
+      therapistHtml = '<p>Não foi possível carregar os resultados do terapeuta. Atualize antes de emitir.</p>';
+    }
+  }
   await Promise.all([ensureExameRender(), ensureDinamometriaTable()]);
 
   // ── Quadro Evolutivo: dados brutos para a selecção de regiões no modal ──
@@ -432,6 +446,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
           console.warn('[rc] config não encontrada para:', a.assessment_type, e);
         }
       }
+      if (therapistHtml) parts.push('<section class="gcv2-rc-section">' + therapistHtml + '</section>');
       return parts.join('\n');
     })();
 

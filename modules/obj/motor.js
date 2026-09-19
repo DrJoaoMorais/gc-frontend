@@ -1,6 +1,7 @@
+import { wireTherapistRequests } from '../terapeuta/staff.js';
 /* motor.js — motor genérico exame objectivo. Config de ./configs/<r>.js */
 
-const REGIOES = ['cotovelo', 'ombro', 'punho-mao', 'anca', 'joelho', 'tibio', 'cervical', 'lombar', 'pfp', 'rpp'];
+const REGIOES = ['cotovelo', 'ombro', 'punho-mao', 'anca', 'joelho', 'tibio', 'cervical', 'lombar', 'pfp', 'rpp', 'teleconsulta'];
 
 let _motorCfg = null;
 let _romState = {};
@@ -189,6 +190,13 @@ function _hidratarFormData(d) {
       block.dispatchEvent(new Event('recalc'));
     });
   }
+  if (cfg.tabs?.pedidos) {
+    const pedidos = d.pedidos_avaliacao || {};
+    document.querySelectorAll('[data-pedido]').forEach(function (el) {
+      el.checked = Array.isArray(pedidos.ids) && pedidos.ids.includes(el.dataset.pedido);
+    });
+    document.getElementById('pedidos_notas').value = pedidos.notas || '';
+  }
   if (d.historia) {
     const histTab = document.getElementById('tab-historia');
     if (histTab) {
@@ -235,6 +243,10 @@ function _renderPage(cfg) {
       '</div>';
   }
 
+  if (!cfg.lado) {
+    document.getElementById('lado-bar-slot').innerHTML = '<div class="lado-bar"><label for="examDate">Data do exame</label><input type="date" id="examDate" style="width:auto"></div>';
+  }
+
   const tabsSlot = document.getElementById('tabs-slot');
   if (tabsSlot) {
     let h = '<div class="ob-tabs">';
@@ -246,6 +258,7 @@ function _renderPage(cfg) {
     }
     if (cfg.tabs && cfg.tabs.dinamometria) h += '<button class="ob-tab" data-tab="dinamometria">📈 Dinamometria</button>';
     if (cfg.tabs && cfg.tabs.escalas) h += '<button class="ob-tab" data-tab="escalas">📊 Escalas Funcionais</button>';
+    if (cfg.tabs && cfg.tabs.pedidos) h += '<button class="ob-tab" data-tab="pedidos">Escalas e testes a pedir</button>';
     tabsSlot.innerHTML = h + '</div>';
   }
 
@@ -269,6 +282,12 @@ function _renderPage(cfg) {
     if (baixoEsq || baixoDir) {
       htmlExame += '<div class="two-col-baixo"><div class="col-scroll">' + baixoEsq + '</div><div class="col-scroll">' + baixoDir + '</div></div>';
     }
+    if (cfg.layout === 'lista') {
+      htmlExame = cfg.seccoes.map(function (sec, i) {
+        const content = _renderSec(sec, i + 1);
+        return sec.recolhivel ? '<details class="exam-details"' + (sec.aberto ? ' open' : '') + '><summary>' + (i + 1) + ' · ' + sec.titulo + '</summary>' + content + '</details>' : content;
+      }).join('');
+    }
     tabExame.innerHTML = htmlExame;
   }
 
@@ -280,6 +299,16 @@ function _renderPage(cfg) {
     const el = document.getElementById('tab-escalas');
     if (el) el.innerHTML = _renderEscalas(cfg.escalas);
   }
+  if (cfg.tabs && cfg.tabs.pedidos) {
+    document.getElementById('tab-pedidos').innerHTML =
+      '<div class="sec"><h2 style="font-size:16px;margin-bottom:8px">Avaliações a pedir ao terapeuta</h2>' +
+      '<p style="margin-bottom:14px;color:#64748b">Seleciona apenas as necessárias. O pedido fica guardado com o exame e aparece no relatório; não é enviado automaticamente.</p>' +
+      '<div class="pedidos-grid">' + (cfg.pedidos || []).map(function (item) {
+        return '<div class="pedido-card"><label class="pedido-item"><input type="checkbox" data-pedido="' + item.id + '"><span><strong>' + item.nome + '</strong><small>' + item.descricao + '</small></span></label><button type="button" class="btn-pdf" data-ver-escala="' + item.id + '">Ver escala</button></div>';
+      }).join('') + '</div><label for="pedidos_notas" style="display:block;margin:16px 0 6px;font-weight:600">Instruções ou outra avaliação a pedir</label>' +
+      '<textarea id="pedidos_notas" placeholder="Ex.: avaliar força dos extensores do joelho direito; devolver antes da próxima consulta…"></textarea></div>';
+  }
+  if (cfg.tabs?.pedidos) wireTherapistRequests(document.getElementById('tab-pedidos'));
   if (cfg.tabs && cfg.tabs.historia) {
     const el = document.getElementById('tab-historia');
     if (el) {
@@ -290,6 +319,16 @@ function _renderPage(cfg) {
     }
   }
 
+  if (cfg.layout === 'lista') {
+    let closedBeforePrint = [];
+    window.addEventListener('beforeprint', function () {
+      closedBeforePrint = Array.from(document.querySelectorAll('.exam-details:not([open])'));
+      closedBeforePrint.forEach(function (el) { el.open = true; });
+    });
+    window.addEventListener('afterprint', function () {
+      closedBeforePrint.forEach(function (el) { el.open = false; });
+    });
+  }
   _wireHandlers(cfg);
 }
 
@@ -341,7 +380,7 @@ function _renderParams(sec, n) {
     });
     h += '</div></div>';
   });
-  if (sec.notas) h += '<textarea id="' + sec.notas + '" placeholder="Notas…"></textarea>';
+  if (sec.notas) h += '<textarea id="' + sec.notas + '" placeholder="' + (sec.notasPlaceholder || 'Notas…') + '"></textarea>';
   return h + '</div>';
 }
 
@@ -1294,6 +1333,12 @@ window._gerarData = function () {
     });
     data.historia = hist;
   }
+  if (cfg.tabs?.pedidos) {
+    data.pedidos_avaliacao = {
+      ids: Array.from(document.querySelectorAll('[data-pedido]:checked')).map(function (el) { return el.dataset.pedido; }),
+      notas: rs('pedidos_notas')
+    };
+  }
   return data;
 };
 
@@ -1327,6 +1372,7 @@ window._gerarResumo = function () {
         break;
       }
       case 'params': {
+        if (cfg.id === 'teleconsulta' && !sec.rows.some(function (row) { return document.querySelector('#' + row.id + ' .opt.sel'); }) && !(sec.notas && document.getElementById(sec.notas)?.value.trim())) break;
         linhas.push('');
         linhas.push(sec.titulo.toUpperCase());
         sec.rows.forEach(function (row) {
@@ -1530,6 +1576,15 @@ window._gerarResumo = function () {
   }
 
   linhas.push('────────────────────────────────────────');
+  if (cfg.tabs?.pedidos) {
+    const pedidos = window._gerarData().pedidos_avaliacao;
+    const selecionados = (cfg.pedidos || []).filter(function (item) { return pedidos.ids.includes(item.id); });
+    if (selecionados.length || pedidos.notas) {
+      linhas.push('\nAVALIAÇÕES A PEDIR AO TERAPEUTA');
+      selecionados.forEach(function (item) { linhas.push('• ' + item.pedido); });
+      if (pedidos.notas) linhas.push('Instruções: ' + pedidos.notas);
+    }
+  }
   return linhas.join('\n');
 };
 
@@ -2050,6 +2105,23 @@ window._saveExamToSupabase = async function (txt, dataObj) {
       assessment_date: document.getElementById('examDate')?.value || new Date().toISOString().split('T')[0],
       data: payload
     };
+    if (_motorCfg && _motorCfg.id === 'teleconsulta') {
+      if (userRes.error || !authorId) throw new Error('Sessão inválida');
+      const query = c.assessmentId
+        ? sb.from('consultation_assessments').update(fields).eq('id', c.assessmentId).eq('consultation_id', c.consultationId)
+        : sb.from('consultation_assessments').insert(Object.assign({}, fields, {
+            consultation_id: c.consultationId, patient_id: c.patientId, clinic_id: c.clinicId,
+            author_user_id: authorId, assessment_type: 'teleconsulta'
+          }));
+      const result = await query.select('id').single();
+      if (result.error || !result.data?.id) throw result.error || new Error('Gravação não confirmada');
+      c.assessmentId = result.data.id;
+      const url = new URL(window.location.href);
+      url.searchParams.set('a', c.assessmentId);
+      window.history.replaceState(null, '', url);
+      document.getElementById('toast-err')?.classList.remove('show');
+      return true;
+    }
     const res = c.assessmentId
       ? await sb.from('consultation_assessments').update(fields).eq('id', c.assessmentId)
       : await sb.from('consultation_assessments').upsert(Object.assign({}, fields, {
@@ -2065,5 +2137,10 @@ window._saveExamToSupabase = async function (txt, dataObj) {
     if (res.error) console.error('saveExam:', res.error);
   } catch (e) {
     console.error('saveExam:', e);
+    if (_motorCfg && _motorCfg.id === 'teleconsulta') {
+      const te = document.getElementById('toast-err');
+      if (te) { te.textContent = 'Não foi possível guardar. Os dados continuam no formulário; tenta novamente.'; te.classList.add('show'); }
+      return false;
+    }
   }
 };

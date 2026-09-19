@@ -1,0 +1,1256 @@
+[
+  {
+    "id": "barthel",
+    "title": "Índice de Barthel — 0–100",
+    "version": "2026-09-19.1",
+    "source": "https://www.sralab.org/rehabilitation-measures/barthel-index",
+    "description": "Avalia o desempenho habitual e a ajuda efetivamente necessária.",
+    "fields": [
+      {
+        "id": "alimentacao",
+        "label": "Alimentação",
+        "type": "choice",
+        "values": [
+          0,
+          5,
+          10
+        ],
+        "required": true,
+        "score": true,
+        "labels": {
+          "0": "Incapaz",
+          "5": "Necessita ajuda",
+          "10": "Independente"
+        }
+      },
+      {
+        "id": "banho",
+        "label": "Banho",
+        "type": "choice",
+        "values": [
+          0,
+          5
+        ],
+        "required": true,
+        "score": true,
+        "labels": {
+          "0": "Dependente",
+          "5": "Independente"
+        }
+      },
+      {
+        "id": "higiene",
+        "label": "Higiene pessoal",
+        "type": "choice",
+        "values": [
+          0,
+          5
+        ],
+        "required": true,
+        "score": true,
+        "labels": {
+          "0": "Necessita ajuda",
+          "5": "Independente"
+        }
+      },
+      {
+        "id": "vestir",
+        "label": "Vestir",
+        "type": "choice",
+        "values": [
+          0,
+          5,
+          10
+        ],
+        "required": true,
+        "score": true,
+        "labels": {
+          "0": "Dependente",
+          "5": "Ajuda parcial",
+          "10": "Independente"
+        }
+      },
+      {
+        "id": "intestinal",
+        "label": "Controlo intestinal",
+        "type": "choice",
+        "values": [
+          0,
+          5,
+          10
+        ],
+        "required": true,
+        "score": true,
+        "labels": {
+          "0": "Incontinente",
+          "5": "Acidente ocasional",
+          "10": "Continente"
+        }
+      },
+      {
+        "id": "vesical",
+        "label": "Controlo vesical",
+        "type": "choice",
+        "values": [
+          0,
+          5,
+          10
+        ],
+        "required": true,
+        "score": true,
+        "labels": {
+          "0": "Incontinente / algália sem autonomia",
+          "5": "Acidente ocasional",
+          "10": "Continente / autónomo com algália"
+        }
+      },
+      {
+        "id": "sanita",
+        "label": "Utilização da sanita",
+        "type": "choice",
+        "values": [
+          0,
+          5,
+          10
+        ],
+        "required": true,
+        "score": true,
+        "labels": {
+          "0": "Dependente",
+          "5": "Alguma ajuda",
+          "10": "Independente"
+        }
+      },
+      {
+        "id": "transferencia",
+        "label": "Transferência cama/cadeira",
+        "type": "choice",
+        "values": [
+          0,
+          5,
+          10,
+          15
+        ],
+        "required": true,
+        "score": true,
+        "labels": {
+          "0": "Incapaz / sem equilíbrio sentado",
+          "5": "Ajuda importante; senta-se",
+          "10": "Ajuda mínima / supervisão",
+          "15": "Independente"
+        }
+      },
+      {
+        "id": "mobilidade",
+        "label": "Marcha / cadeira de rodas",
+        "type": "choice",
+        "values": [
+          0,
+          5,
+          10,
+          15
+        ],
+        "required": true,
+        "score": true,
+        "labels": {
+          "0": "Imóvel",
+          "5": "Cadeira de rodas autónoma >50 m",
+          "10": "Marcha com ajuda >50 m",
+          "15": "Marcha independente >50 m"
+        }
+      },
+      {
+        "id": "escadas",
+        "label": "Escadas",
+        "type": "choice",
+        "values": [
+          0,
+          5,
+          10
+        ],
+        "required": true,
+        "score": true,
+        "labels": {
+          "0": "Incapaz",
+          "5": "Necessita ajuda",
+          "10": "Independente"
+        }
+      }
+    ],
+    "maxScore": 100,
+    "domain": "Autonomia nas atividades básicas da vida diária",
+    "direction": "0 = dependência máxima nos itens avaliados · 100 = independência nesses itens. Cada item tem máximo próprio.",
+    "interpretationVersion": "descriptive-2026-09-19"
+  },
+  {
+    "id": "tug",
+    "title": "TUG — Timed Up and Go",
+    "version": "2026-09-19.1",
+    "source": "https://www.cdc.gov/steadi/media/pdfs/steadi-assessment-tug-508.pdf",
+    "description": "Cadeira com braços, calçado habitual e percurso de 3 m. Cronometrar do comando de início até voltar a sentar. Pode usar o auxiliar habitual.",
+    "fields": [
+      {
+        "id": "tempo",
+        "label": "Tempo (segundos)",
+        "type": "number",
+        "min": 0.01,
+        "max": 3600,
+        "step": 0.01,
+        "score": false,
+        "required": true
+      },
+      {
+        "id": "auxiliar",
+        "label": "Auxiliar",
+        "type": "choice",
+        "values": [
+          "Sem auxiliar",
+          "Bengala",
+          "Canadiana(s)",
+          "Andarilho",
+          "Outro"
+        ],
+        "required": true
+      },
+      {
+        "id": "ajuda",
+        "label": "Ajuda durante o teste",
+        "type": "choice",
+        "values": [
+          "Sem ajuda",
+          "Supervisão",
+          "Ajuda física ligeira",
+          "Ajuda física moderada / importante"
+        ],
+        "required": true
+      },
+      {
+        "id": "contexto",
+        "label": "Contexto para interpretação",
+        "type": "choice",
+        "values": [
+          "Idoso (≥65 anos)",
+          "Adulto <65 anos",
+          "Não indicado"
+        ],
+        "required": true
+      },
+      {
+        "id": "protocolo",
+        "label": "Execução",
+        "type": "choice",
+        "values": [
+          "Protocolo habitual — 3 m",
+          "Execução adaptada"
+        ],
+        "required": true
+      },
+      {
+        "id": "condicoes",
+        "label": "Condições ou adaptações",
+        "type": "text",
+        "maxLength": 500,
+        "required": false
+      },
+      {
+        "id": "passos_curtos",
+        "label": "Passos curtos",
+        "type": "choice",
+        "values": [
+          "Sim",
+          "Não",
+          "Não observado"
+        ],
+        "required": false,
+        "optionalGroup": "Observações da marcha"
+      },
+      {
+        "id": "hesitacao",
+        "label": "Hesitação",
+        "type": "choice",
+        "values": [
+          "Sim",
+          "Não",
+          "Não observado"
+        ],
+        "required": false,
+        "optionalGroup": "Observações da marcha"
+      },
+      {
+        "id": "desequilibrio",
+        "label": "Desequilíbrio",
+        "type": "choice",
+        "values": [
+          "Sim",
+          "Não",
+          "Não observado"
+        ],
+        "required": false,
+        "optionalGroup": "Observações da marcha"
+      },
+      {
+        "id": "arrastamento",
+        "label": "Marcha arrastada",
+        "type": "choice",
+        "values": [
+          "Sim",
+          "Não",
+          "Não observado"
+        ],
+        "required": false,
+        "optionalGroup": "Observações da marcha"
+      },
+      {
+        "id": "balanco",
+        "label": "Balanço dos MS reduzido",
+        "type": "choice",
+        "values": [
+          "Sim",
+          "Não",
+          "Não observado"
+        ],
+        "required": false,
+        "optionalGroup": "Observações da marcha"
+      },
+      {
+        "id": "paredes",
+        "label": "Apoio em paredes / mobiliário",
+        "type": "choice",
+        "values": [
+          "Sim",
+          "Não",
+          "Não observado"
+        ],
+        "required": false,
+        "optionalGroup": "Observações da marcha"
+      },
+      {
+        "id": "viragem",
+        "label": "Viragem em bloco",
+        "type": "choice",
+        "values": [
+          "Sim",
+          "Não",
+          "Não observado"
+        ],
+        "required": false,
+        "optionalGroup": "Observações da marcha"
+      }
+    ],
+    "maxScore": null,
+    "domain": "Mobilidade funcional e rastreio de risco de queda",
+    "direction": "Resultado em segundos: menos tempo = execução mais rápida. Não é uma pontuação de independência.",
+    "interpretationVersion": "descriptive-2026-09-19"
+  },
+  {
+    "id": "sppb",
+    "title": "SPPB — 0–12",
+    "version": "2026-09-19.1",
+    "source": "https://www.sralab.org/sites/default/files/2018-03/SPPB-Score-Tool.pdf",
+    "description": "Aplicar o protocolo correspondente ao percurso escolhido (3 ou 4 m). Registar as três componentes e os tempos medidos. Marcha: usar a tentativa mais rápida, em centésimos de segundo. Cadeira: cinco levantamentos sem usar os membros superiores (MS). As pontuações são selecionadas pelo profissional; os tempos não as substituem automaticamente.",
+    "fields": [
+      {
+        "id": "equilibrio",
+        "label": "Pontuação do equilíbrio",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "Não mantém pés juntos 10 s",
+          "1": "Pés juntos 10 s; semi-tandem <10 s",
+          "2": "Semi-tandem 10 s; tandem <3 s",
+          "3": "Semi-tandem 10 s; tandem ≥3 e <10 s",
+          "4": "Tandem 10 s"
+        },
+        "compactLabels": true
+      },
+      {
+        "id": "marcha",
+        "label": "Pontuação da marcha",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "Não realiza, segundo protocolo",
+          "1": "4 m: >8,70 s · 3 m: >6,52 s",
+          "2": "4 m: 6,21–8,70 s · 3 m: 4,66–6,52 s",
+          "3": "4 m: 4,82–6,20 s · 3 m: 3,62–4,65 s",
+          "4": "4 m: <4,82 s · 3 m: <3,62 s"
+        },
+        "compactLabels": true
+      },
+      {
+        "id": "cadeira",
+        "label": "Pontuação de levantar da cadeira",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "Não completa 5 vezes sem MS em 60 s",
+          "1": "≥16,70 e ≤60 s",
+          "2": "13,70–16,69 s",
+          "3": "11,20–13,69 s",
+          "4": "≤11,19 s"
+        },
+        "compactLabels": true
+      },
+      {
+        "id": "percurso",
+        "label": "Percurso da marcha (metros)",
+        "type": "choice",
+        "values": [
+          3,
+          4
+        ],
+        "required": true
+      },
+      {
+        "id": "medicoes",
+        "label": "Tempos medidos e condições de realização",
+        "type": "text",
+        "maxLength": 500,
+        "required": false
+      },
+      {
+        "id": "tempo_marcha_1",
+        "label": "Marcha — tentativa 1 (s)",
+        "type": "number",
+        "min": 0.01,
+        "max": 3600,
+        "step": 0.01,
+        "score": false,
+        "required": false,
+        "optionalGroup": "Tempos medidos"
+      },
+      {
+        "id": "tempo_marcha_2",
+        "label": "Marcha — tentativa 2 (s)",
+        "type": "number",
+        "min": 0.01,
+        "max": 3600,
+        "step": 0.01,
+        "score": false,
+        "required": false,
+        "optionalGroup": "Tempos medidos"
+      },
+      {
+        "id": "tempo_cadeira",
+        "label": "Cinco levantamentos — tempo (s)",
+        "type": "number",
+        "min": 0.01,
+        "max": 3600,
+        "step": 0.01,
+        "score": false,
+        "required": false,
+        "optionalGroup": "Tempos medidos"
+      }
+    ],
+    "maxScore": 12,
+    "domain": "Desempenho físico dos membros inferiores",
+    "direction": "0–12: maior pontuação = melhor desempenho. Equilíbrio, marcha e cadeira: 0–4 cada.",
+    "interpretationVersion": "descriptive-2026-09-19"
+  },
+  {
+    "id": "tinetti",
+    "title": "Tinetti / POMA — 0–28",
+    "version": "2026-09-19.1",
+    "source": "https://www.tendertouch.com/wp-content/uploads/user_uploads/Training%20admin/1629903865_Tinettti-Test-Score-Sheet.pdf",
+    "description": "Versão POMA de 28 pontos. A rotação e o passo têm subitens próprios; não são tarefas adicionais.",
+    "fields": [
+      {
+        "id": "sentado",
+        "label": "Equilíbrio sentado",
+        "type": "number",
+        "min": 0,
+        "max": 1,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Equilíbrio",
+        "labels": {
+          "0": "Instável / desliza",
+          "1": "Estável"
+        }
+      },
+      {
+        "id": "levantar",
+        "label": "Levantar da cadeira",
+        "type": "number",
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Equilíbrio",
+        "labels": {
+          "0": "Precisa de ajuda",
+          "1": "Usa MS",
+          "2": "Sem usar MS"
+        }
+      },
+      {
+        "id": "tentativas",
+        "label": "Tentativas de levantar",
+        "type": "number",
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Equilíbrio",
+        "labels": {
+          "0": "Não consegue sem ajuda",
+          "1": "Mais de uma tentativa",
+          "2": "Uma tentativa"
+        }
+      },
+      {
+        "id": "imediato",
+        "label": "Equilíbrio inicial de pé",
+        "type": "number",
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Equilíbrio",
+        "labels": {
+          "0": "Instável",
+          "1": "Estável com apoio",
+          "2": "Estável sem apoio"
+        }
+      },
+      {
+        "id": "pe",
+        "label": "Equilíbrio de pé",
+        "type": "number",
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Equilíbrio",
+        "labels": {
+          "0": "Instável",
+          "1": "Base alargada / apoio",
+          "2": "Base estreita sem apoio"
+        }
+      },
+      {
+        "id": "perturbacao",
+        "label": "Resposta à perturbação",
+        "type": "number",
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Equilíbrio",
+        "labels": {
+          "0": "Começa a cair",
+          "1": "Oscila; recupera equilíbrio",
+          "2": "Estável"
+        }
+      },
+      {
+        "id": "olhos",
+        "label": "Olhos fechados",
+        "type": "number",
+        "min": 0,
+        "max": 1,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Equilíbrio",
+        "labels": {
+          "0": "Instável",
+          "1": "Estável"
+        }
+      },
+      {
+        "id": "rot_passos",
+        "label": "Rotação 360° — continuidade",
+        "type": "number",
+        "min": 0,
+        "max": 1,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Equilíbrio",
+        "labels": {
+          "0": "Passos descontínuos",
+          "1": "Passos contínuos"
+        }
+      },
+      {
+        "id": "rot_estabilidade",
+        "label": "Rotação 360° — estabilidade",
+        "type": "number",
+        "min": 0,
+        "max": 1,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Equilíbrio",
+        "labels": {
+          "0": "Instável",
+          "1": "Estável"
+        }
+      },
+      {
+        "id": "sentar",
+        "label": "Sentar",
+        "type": "number",
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Equilíbrio",
+        "labels": {
+          "0": "Inseguro",
+          "1": "Usa MS / movimento irregular",
+          "2": "Seguro e suave"
+        }
+      },
+      {
+        "id": "inicio",
+        "label": "Início da marcha",
+        "type": "number",
+        "min": 0,
+        "max": 1,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Marcha",
+        "labels": {
+          "0": "Hesitação",
+          "1": "Sem hesitação"
+        }
+      },
+      {
+        "id": "passo_d",
+        "label": "Comprimento do passo direito",
+        "type": "number",
+        "min": 0,
+        "max": 1,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Marcha",
+        "labels": {
+          "0": "Não ultrapassa pé de apoio",
+          "1": "Ultrapassa pé de apoio"
+        }
+      },
+      {
+        "id": "passo_e",
+        "label": "Comprimento do passo esquerdo",
+        "type": "number",
+        "min": 0,
+        "max": 1,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Marcha",
+        "labels": {
+          "0": "Não ultrapassa pé de apoio",
+          "1": "Ultrapassa pé de apoio"
+        }
+      },
+      {
+        "id": "altura_d",
+        "label": "Elevação do pé direito",
+        "type": "number",
+        "min": 0,
+        "max": 1,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Marcha",
+        "labels": {
+          "0": "Não eleva do chão",
+          "1": "Eleva do chão"
+        }
+      },
+      {
+        "id": "altura_e",
+        "label": "Elevação do pé esquerdo",
+        "type": "number",
+        "min": 0,
+        "max": 1,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Marcha",
+        "labels": {
+          "0": "Não eleva do chão",
+          "1": "Eleva do chão"
+        }
+      },
+      {
+        "id": "simetria",
+        "label": "Simetria dos passos",
+        "type": "number",
+        "min": 0,
+        "max": 1,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Marcha",
+        "labels": {
+          "0": "Passos desiguais",
+          "1": "Passos iguais"
+        }
+      },
+      {
+        "id": "continuidade",
+        "label": "Continuidade dos passos",
+        "type": "number",
+        "min": 0,
+        "max": 1,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Marcha",
+        "labels": {
+          "0": "Descontínuos",
+          "1": "Contínuos"
+        }
+      },
+      {
+        "id": "trajeto",
+        "label": "Trajeto",
+        "type": "number",
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Marcha",
+        "labels": {
+          "0": "Desvio marcado",
+          "1": "Desvio ligeiro / usa auxiliar",
+          "2": "Reto sem auxiliar"
+        }
+      },
+      {
+        "id": "tronco",
+        "label": "Tronco",
+        "type": "number",
+        "min": 0,
+        "max": 2,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Marcha",
+        "labels": {
+          "0": "Oscilação marcada / auxiliar",
+          "1": "Compensações posturais",
+          "2": "Sem compensações"
+        }
+      },
+      {
+        "id": "base",
+        "label": "Base de marcha",
+        "type": "number",
+        "min": 0,
+        "max": 1,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "group": "Marcha",
+        "labels": {
+          "0": "Calcanhares afastados",
+          "1": "Calcanhares próximos"
+        }
+      }
+    ],
+    "maxScore": 28,
+    "domain": "Equilíbrio e marcha",
+    "direction": "0–28: maior pontuação = melhor desempenho. Equilíbrio /16 + marcha /12.",
+    "interpretationVersion": "descriptive-2026-09-19"
+  },
+  {
+    "id": "berg",
+    "title": "Equilíbrio de Berg — 0–56",
+    "version": "2026-09-19.1",
+    "source": "https://www.sralab.org/sites/default/files/2024-03/core-measure-berg-balance-scale-(bbs)_final-2019.pdf",
+    "description": "Selecionar o critério mais baixo aplicável. Considerar ajuda, supervisão, tempo e distância próprios de cada tarefa.",
+    "fields": [
+      {
+        "id": "item_1",
+        "label": "Levantar-se",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "Ajuda moderada/máxima",
+          "1": "Ajuda mínima",
+          "2": "Várias tentativas com MS",
+          "3": "Usa MS",
+          "4": "Sem MS; estável"
+        },
+        "compactLabels": true
+      },
+      {
+        "id": "item_2",
+        "label": "Manter-se de pé sem apoio",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "<30 s",
+          "1": "Várias tentativas: 30 s",
+          "2": "30 s",
+          "3": "2 min supervisionados",
+          "4": "2 min seguros"
+        },
+        "compactLabels": true
+      },
+      {
+        "id": "item_3",
+        "label": "Sentar-se sem apoio do tronco",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "Não mantém 10 s",
+          "1": "10 s",
+          "2": "30 s",
+          "3": "2 min supervisionados",
+          "4": "2 min seguros"
+        },
+        "compactLabels": true
+      },
+      {
+        "id": "item_4",
+        "label": "Sentar a partir de pé",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "Ajuda para sentar",
+          "1": "Descida descontrolada",
+          "2": "Apoia pernas na cadeira",
+          "3": "Controla com MS",
+          "4": "Seguro; mínimo uso MS"
+        },
+        "compactLabels": true
+      },
+      {
+        "id": "item_5",
+        "label": "Transferências",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "Duas pessoas",
+          "1": "Uma pessoa",
+          "2": "Orientação/supervisão",
+          "3": "Uso marcado MS",
+          "4": "Uso mínimo MS"
+        },
+        "compactLabels": true
+      },
+      {
+        "id": "item_6",
+        "label": "De pé com olhos fechados",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "Ajuda para não cair",
+          "1": "<3 s; mantém-se estável",
+          "2": "3 s",
+          "3": "10 s supervisionados",
+          "4": "10 s seguros"
+        },
+        "compactLabels": true
+      },
+      {
+        "id": "item_7",
+        "label": "De pé com pés juntos",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "Ajuda; <15 s",
+          "1": "Ajuda: mantém 15 s",
+          "2": "Coloca sozinho; <30 s",
+          "3": "1 min supervisionado",
+          "4": "1 min seguro"
+        },
+        "compactLabels": true
+      },
+      {
+        "id": "item_8",
+        "label": "Alcance anterior",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "Perde equilíbrio",
+          "1": "Supervisão",
+          "2": "Alcança 5 cm",
+          "3": "Alcança 12 cm",
+          "4": "Alcança 25 cm"
+        },
+        "compactLabels": true
+      },
+      {
+        "id": "item_9",
+        "label": "Apanhar objeto do chão",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "Não tenta / ajuda",
+          "1": "Não apanha; supervisão",
+          "2": "Fica a 2–5 cm",
+          "3": "Apanha supervisionado",
+          "4": "Apanha facilmente"
+        },
+        "compactLabels": true
+      },
+      {
+        "id": "item_10",
+        "label": "Olhar para trás",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "Ajuda",
+          "1": "Supervisão",
+          "2": "Roda apenas de lado",
+          "3": "Um lado completo",
+          "4": "Ambos os lados"
+        },
+        "compactLabels": true
+      },
+      {
+        "id": "item_11",
+        "label": "Rodar 360°",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "Ajuda",
+          "1": "Supervisão/orientação",
+          "2": "Seguro, lento",
+          "3": "≤4 s num sentido",
+          "4": "≤4 s nos dois sentidos"
+        },
+        "compactLabels": true
+      },
+      {
+        "id": "item_12",
+        "label": "Alternar pés no degrau",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "Ajuda / incapaz",
+          "1": ">2 passos; ajuda mínima",
+          "2": "4 passos supervisionados",
+          "3": "8 passos; >20 s",
+          "4": "8 passos; ≤20 s"
+        },
+        "compactLabels": true
+      },
+      {
+        "id": "item_13",
+        "label": "Um pé à frente do outro",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "Perde equilíbrio",
+          "1": "Ajuda a posicionar: 15 s",
+          "2": "Pequeno passo: 30 s",
+          "3": "Pé à frente: 30 s",
+          "4": "Tandem: 30 s"
+        },
+        "compactLabels": true
+      },
+      {
+        "id": "item_14",
+        "label": "Apoio num só pé",
+        "type": "number",
+        "min": 0,
+        "max": 4,
+        "step": 1,
+        "score": true,
+        "required": true,
+        "labels": {
+          "0": "Não tenta / ajuda",
+          "1": "<3 s",
+          "2": "≥3 e <5 s",
+          "3": "5–10 s",
+          "4": ">10 s"
+        },
+        "compactLabels": true
+      }
+    ],
+    "maxScore": 56,
+    "domain": "Equilíbrio funcional",
+    "direction": "0–56: maior pontuação = melhor desempenho. Cada tarefa tem critérios próprios de 0 a 4.",
+    "interpretationVersion": "descriptive-2026-09-19"
+  },
+  {
+    "id": "dor",
+    "title": "Dor — escala numérica",
+    "version": "2026-09-19.1",
+    "source": "https://www.sralab.org/rehabilitation-measures/numeric-pain-rating-scale",
+    "description": "Manter separados repouso, atividade e pico. Identificar a tarefa e o período de referência.",
+    "fields": [
+      {
+        "id": "repouso",
+        "label": "Dor em repouso (0–10)",
+        "type": "number",
+        "min": 0,
+        "max": 10,
+        "step": 1,
+        "score": false,
+        "required": true,
+        "buttons": true
+      },
+      {
+        "id": "atividade",
+        "label": "Dor em atividade (0–10)",
+        "type": "number",
+        "min": 0,
+        "max": 10,
+        "step": 1,
+        "score": false,
+        "required": true,
+        "buttons": true
+      },
+      {
+        "id": "tarefa",
+        "label": "Atividade avaliada",
+        "type": "text",
+        "maxLength": 500,
+        "required": true
+      },
+      {
+        "id": "pico",
+        "label": "Pico de dor (0–10)",
+        "type": "number",
+        "min": 0,
+        "max": 10,
+        "step": 1,
+        "score": false,
+        "required": true,
+        "buttons": true
+      },
+      {
+        "id": "periodo",
+        "label": "Período de referência do pico",
+        "type": "text",
+        "maxLength": 500,
+        "required": true
+      }
+    ],
+    "maxScore": null,
+    "domain": "Intensidade da dor",
+    "direction": "0 = sem dor · 10 = pior dor imaginável. Maior valor = mais dor.",
+    "interpretationVersion": "descriptive-2026-09-19"
+  },
+  {
+    "id": "mrc",
+    "title": "Força muscular — MRC",
+    "version": "2026-09-19.1",
+    "source": "https://www.ukri.org/councils/mrc/facilities-and-resources/find-an-mrc-facility-or-resource/mrc-muscle-scale/",
+    "description": "Teste presencial. Used with the permission of the Medical Research Council. Descrições de apoio em português, adaptadas.",
+    "fields": [
+      {
+        "id": "grupos",
+        "label": "Grupos musculares avaliados",
+        "type": "repeat",
+        "required": true,
+        "maxItems": 20,
+        "fields": [
+          {
+            "id": "musculo",
+            "label": "Movimento / grupo muscular",
+            "type": "text",
+            "maxLength": 500,
+            "required": true,
+            "suggestions": [
+              "Abdução do ombro",
+              "Flexão do ombro",
+              "Flexão do cotovelo",
+              "Extensão do cotovelo",
+              "Extensão do punho",
+              "Flexão do punho",
+              "Preensão da mão",
+              "Pinça",
+              "Flexão da anca",
+              "Extensão do joelho",
+              "Dorsiflexão da tibiotársica",
+              "Flexão plantar da tibiotársica"
+            ]
+          },
+          {
+            "id": "lado",
+            "label": "Lado",
+            "type": "choice",
+            "values": [
+              "Direito",
+              "Esquerdo"
+            ],
+            "required": true
+          },
+          {
+            "id": "grau",
+            "label": "Grau",
+            "type": "choice",
+            "values": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "required": true,
+            "labels": {
+              "0": "Sem contração",
+              "1": "Contração sem movimento",
+              "2": "Movimento sem gravidade",
+              "3": "Contra a gravidade",
+              "4": "Contra resistência",
+              "5": "Força normal"
+            },
+            "compactLabels": true
+          }
+        ]
+      }
+    ],
+    "maxScore": null,
+    "domain": "Força muscular por movimento e lado",
+    "direction": "0 = sem contração · 5 = força normal esperada. Não somar grupos musculares.",
+    "interpretationVersion": "descriptive-2026-09-19"
+  },
+  {
+    "id": "ashworth",
+    "title": "Ashworth modificada",
+    "version": "2026-09-19.1",
+    "source": "https://www.sralab.org/rehabilitation-measures/ashworth-scale-modified-ashworth-scale",
+    "description": "Avaliar com o doente relaxado. Não distingue, isoladamente, espasticidade de outras causas de resistência passiva.",
+    "fields": [
+      {
+        "id": "grupos",
+        "label": "Grupos musculares avaliados",
+        "type": "repeat",
+        "required": true,
+        "maxItems": 20,
+        "fields": [
+          {
+            "id": "musculo",
+            "label": "Movimento / grupo muscular",
+            "type": "text",
+            "maxLength": 500,
+            "required": true,
+            "suggestions": [
+              "Flexores do cotovelo",
+              "Extensores do cotovelo",
+              "Flexores do punho",
+              "Extensores do punho",
+              "Flexores do joelho",
+              "Extensores do joelho",
+              "Dorsiflexores da tibiotársica",
+              "Flexores plantares da tibiotársica"
+            ]
+          },
+          {
+            "id": "lado",
+            "label": "Lado",
+            "type": "choice",
+            "values": [
+              "Direito",
+              "Esquerdo"
+            ],
+            "required": true
+          },
+          {
+            "id": "grau",
+            "label": "Grau",
+            "type": "choice",
+            "values": [
+              "0",
+              "1",
+              "1+",
+              "2",
+              "3",
+              "4"
+            ],
+            "required": true,
+            "labels": {
+              "0": "Sem aumento",
+              "1": "Ressalto/libertação ou resistência final",
+              "1+": "Ressalto + resistência em <½ amplitude",
+              "2": "Resistência em grande parte; mobiliza facilmente",
+              "3": "Movimento passivo difícil",
+              "4": "Rigidez"
+            },
+            "compactLabels": true
+          }
+        ]
+      }
+    ],
+    "maxScore": null,
+    "domain": "Resistência ao movimento passivo / tónus",
+    "direction": "0 = sem aumento do tónus · 4 = rigidez. 1+ é um grau próprio; não equivale a 1,5.",
+    "interpretationVersion": "descriptive-2026-09-19"
+  }
+]

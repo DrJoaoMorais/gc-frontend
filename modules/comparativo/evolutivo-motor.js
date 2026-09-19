@@ -514,6 +514,7 @@ export function extrairDatasDisponiveis(registos) {
 
 export function labelRegiao(tipo, lado) {
   const nomes = {
+    teleconsulta: 'Teleconsulta Funcional',
     ombro: 'Ombro', cervical: 'Coluna Cervical', lombar: 'Coluna Lombar',
     joelho: 'Joelho', anca: 'Anca', cotovelo: 'Cotovelo',
     tibio: 'Tibiotársica', pfp: 'Paresia Facial Periférica', rpp: 'Raqui',

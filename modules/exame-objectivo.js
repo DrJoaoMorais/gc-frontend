@@ -39,6 +39,7 @@ function openExameObjectivoMenu(anchorBtn, ctx = {}) {
       items: [
         { id: "pfp",       label: "🥴 Paresia Facial Periférica",         ready: true },
         { id: "rpp",       label: "🩺 Pavimento Pélvico",                 ready: true },
+        { id: "teleconsulta", label: "Teleconsulta Funcional", ready: true },
         { id: "neuro_sum", label: "🧠 Neurológico Sumário",               ready: false },
       ]
     },
@@ -242,6 +243,11 @@ async function openExameObjectivoForm(formId, ctx = {}) {
   /* ══════════════════════════════════════════════════════════════
      OMBRO
   ══════════════════════════════════════════════════════════════ */
+  if (formId === "teleconsulta") {
+    const params = new URLSearchParams({r: formId, p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||'', n: ctx.patientName||''});
+    window.open('/modules/obj/regiao.html?' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
+    return;
+  }
   if (formId === "ombro") {
     const params = new URLSearchParams({p: ctx.patientId||'', c: ctx.clinicId||'', s: ctx.consultationId||'', n: ctx.patientName||''});
     window.open('/modules/obj/regiao.html?r=ombro&' + params.toString(), '_blank', 'width=1100,height=820,scrollbars=yes');
