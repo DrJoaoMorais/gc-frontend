@@ -417,16 +417,6 @@
         case 'kapandji': cards.push(blocoKapandji(sec, data)); break;
       }
     });
-    if (cfg.pedidos && data.pedidos_avaliacao) {
-      var pedidos = data.pedidos_avaliacao;
-      var ids = Array.isArray(pedidos.ids) ? pedidos.ids : [];
-      var items = cfg.pedidos.filter(function (item) { return ids.indexOf(item.id) !== -1; });
-      if (items.length || hasVal(pedidos.notas)) {
-        var inner = items.length ? '<ul>' + items.map(function (item) { return '<li>' + esc(item.pedido) + '</li>'; }).join('') + '</ul>' : '';
-        if (hasVal(pedidos.notas)) inner += '<p class="gx2-nota">Instruções: ' + esc(pedidos.notas) + '</p>';
-        cards.push(card('Avaliações a pedir ao terapeuta', inner, 3));
-      }
-    }
     cards.push(blocoDyn(cfg, data));
     cards.push(blocoEscalas(cfg, data));
     /* Notas de secção saem dentro do respectivo cartão via nota() —

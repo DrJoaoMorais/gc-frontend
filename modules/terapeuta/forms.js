@@ -93,7 +93,7 @@ export function interpretation(scale, answer) {
 }
 export function resultHtml(request) {
   const e=escapeHtml, meta=request.respondent || {}, responses=request.answers || {};
-  return `<article class="therapist-result"><h3>Avaliação registada — por rever</h3><p>${e(meta.name)} · ${e(meta.profession)} · ${e(meta.date)}</p>${(request.definitions||[]).map(scale=>{
+  return `<article class="therapist-result"><h3>Avaliações realizadas</h3><p>${e(meta.name)} · ${e(meta.profession)} · ${e(meta.date)}</p>${(request.definitions||[]).map(scale=>{
     const a=responses[scale.id]; if(!a)return '';
     if(a.status==='not_done')return `<h4>${e(scale.title)}</h4><p>Não realizado: ${e(a.reason)}</p>`;
     function lines(fields,vals) { return fields.map(f=>{
@@ -106,4 +106,18 @@ export function resultHtml(request) {
     const groupText=Object.keys(groups).map(k=>e(k)+': '+e(groups[k])).join(' · ');
     return `<h4>${e(scale.title)}${score!=null?' — '+e(score)+'/'+e(scale.maxScore):''}</h4>${groupText?'<p>'+groupText+'</p>':''}<p>${e(interpretation(scale,a))}</p><ul>${lines(scale.fields,a.values)}</ul>${a.notes?'<p>'+e(a.notes)+'</p>':''}`;
   }).join('')}</article>`;
+}
+
+export function resultSummaryHtml(request) {
+ const e=escapeHtml,meta=request.respondent||{};
+ const rows=(request.definitions||[]).filter(s=>request.answers?.[s.id]?.status==='done').map(s=>{
+  const a=request.answers[s.id],score=request.results?.[s.id]?.total;
+  let value=score!=null?`${score}/${s.maxScore}`:s.id==='tug'?`${a.values?.tempo} s`:s.fields.map(f=>{
+   const v=a.values?.[f.id];if(v==null||v==='')return '';
+   if(f.type==='repeat')return v.map(row=>f.fields.map(sf=>row[sf.id]).filter(x=>x!=null).join(' · ')).join('; ');
+   return `${f.label}: ${v}`;
+  }).filter(Boolean).join('; ');
+  return `<li>${e(s.title.replace(/ — 0[–-]\d+/,''))}: <strong>${e(value)}</strong></li>`;
+ });
+ return rows.length?`<article class="evaluation-summary"><p>${e(meta.name)} · ${e(meta.profession)} · ${e(meta.date)}</p><ul>${rows.join('')}</ul></article>`:'';
 }

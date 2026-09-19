@@ -1576,15 +1576,6 @@ window._gerarResumo = function () {
   }
 
   linhas.push('────────────────────────────────────────');
-  if (cfg.tabs?.pedidos) {
-    const pedidos = window._gerarData().pedidos_avaliacao;
-    const selecionados = (cfg.pedidos || []).filter(function (item) { return pedidos.ids.includes(item.id); });
-    if (selecionados.length || pedidos.notas) {
-      linhas.push('\nAVALIAÇÕES A PEDIR AO TERAPEUTA');
-      selecionados.forEach(function (item) { linhas.push('• ' + item.pedido); });
-      if (pedidos.notas) linhas.push('Instruções: ' + pedidos.notas);
-    }
-  }
   return linhas.join('\n');
 };
 

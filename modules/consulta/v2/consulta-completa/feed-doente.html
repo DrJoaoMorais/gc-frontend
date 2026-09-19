@@ -1778,7 +1778,7 @@
           <a href="#" style="margin-left:auto;font-size:11px;color:#1a56db;text-decoration:none;border:1px solid #bcd4f5;border-radius:6px;padding:2px 9px;" onclick="fdAbrirExame('${esc(ex.assessment_type)}','${esc(ex.patient_id||'')}','${esc(ex.consultation_id||'')}','${esc(ex.clinic_id||'')}','${esc(ex.id||'')}');return false;">↗ Ver</a>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-          ${ex.assessment_type === 'teleconsulta' ? '<div style="grid-column:1/-1;white-space:pre-wrap;line-height:1.6;">' + esc((d.resumo || '').replace(/TELECONSULTA FUNCIONAL/g, 'AVALIAÇÃO FUNCIONAL')) + '</div>' : cartoes}
+          ${ex.assessment_type === 'teleconsulta' ? '<div style="grid-column:1/-1;white-space:pre-wrap;line-height:1.6;">' + esc((d.resumo || '').replace(/TELECONSULTA FUNCIONAL/g, 'AVALIAÇÃO FUNCIONAL').split('AVALIAÇÕES A PEDIR AO TERAPEUTA')[0].trimEnd()) + '</div>' : cartoes}
         </div>
       </div>`;
     }
@@ -1799,8 +1799,7 @@
 
       /* Exame objectivo — antes do diagnóstico */
       if (exames?.length) {
-        html += `<div class="fd-sep"></div><div class="fd-bloco">
-          <div class="fd-bloco-titulo">Exame Objectivo</div>
+        html += `<div class="fd-sep"></div><details class="fd-exam-collapse"><summary class="fd-bloco-titulo" style="cursor:pointer;padding:10px 0">Exame Objectivo e avaliações realizadas</summary><div class="fd-bloco">
           ${exames.map(ex => {
             const tipo = ex.assessment_type || 'exame';
             const lado = ex.assessment_side ? ` · ${ex.assessment_side}` : '';
@@ -1812,6 +1811,8 @@
       }
 
       if (exames?.some(ex => ex.assessment_type === 'teleconsulta')) html += `<section class="fd-bloco" data-functional-results="${esc(consulta.id)}"></section>`;
+
+      if (exames?.length) html += '</details>';
 
       /* Quadro Evolutivo — depois do exame objectivo */
       if (exames?.length) {

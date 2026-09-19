@@ -231,8 +231,9 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       const { data: requests, error } = await window.sb.rpc('therapist_scale_list', { p_consultation: consultationId });
       if (error && error.code !== 'PGRST202') throw error;
       if (!error) {
-        const { resultHtml } = await import('../../../terapeuta/forms.js');
-        therapistHtml = (requests || []).filter(r => r.status === 'completed').map(resultHtml).join('');
+        const { resultSummaryHtml } = await import('../../../terapeuta/forms.js');
+        therapistHtml = (requests || []).filter(r => r.status === 'completed').map(resultSummaryHtml).join('');
+        if (therapistHtml) therapistHtml = '<h3>Avaliações realizadas</h3>' + therapistHtml;
       }
     } catch (error) {
       console.warn('[rc] respostas do terapeuta indisponíveis', error);

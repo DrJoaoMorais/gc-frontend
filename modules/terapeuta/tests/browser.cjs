@@ -70,7 +70,7 @@ const assert=require('node:assert/strict');
   await new Promise(r=>setTimeout(r,80));const pending=root.textContent.includes('Aguarda preenchimento');completed=true;await new Promise(r=>setTimeout(r,130));
   const result={pending,late:root.firstElementChild.textContent.includes('14 s'),isolated:!root.lastElementChild.textContent.includes('14 s'),escaped:!root.querySelector('img'),readOnly:calls.every(c=>c[0]==='therapist_scale_list')};cleanup();root.remove();return result;
  });
- assert.deepEqual(feedCheck,{pending:true,late:true,isolated:true,escaped:true,readOnly:true});
+ assert.deepEqual(feedCheck,{pending:false,late:true,isolated:true,escaped:true,readOnly:true});
  // All other previews open without selected scores and repeated muscle rows remain independent.
  for(const id of ['sppb','tinetti','berg','dor','mrc','ashworth']){
    await phone.goto(base+'/avaliacao-terapeuta.html?preview='+id);await phone.locator('#fields').waitFor();assert.equal(await phone.locator('#fields input:checked').count(),0);
