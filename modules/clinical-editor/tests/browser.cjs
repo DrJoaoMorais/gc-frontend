@@ -42,16 +42,24 @@ const path=require('node:path');
   assert.equal(await page.evaluate(()=>content.editorHTML(q)),'<p>Forte Itálico</p>');
   await page.evaluate(html=>content.loadClinicalHTML(q,html),pasted);
   assert.equal(await page.evaluate(()=>calls.length),0,'formatting never calls AI');
-  // Proposal is editable, accept is explicit, cancel preserves original and undo works.
+  // Proposal preview is a read-only visual render built only from validated blocks
+  // (paragraph/bullet/ordered/indented — never AI HTML). Accept is explicit,
+  // cancel preserves original, and undo reverts the structured acceptance.
+  const expectedStructured='<p>História actual</p><ul><li>Sem queixas<ul><li>Mantém autonomia</li></ul></li></ul><ol><li>Reavaliar em 4 semanas</li></ol>';
   await page.getByRole('button',{name:'Estruturar com IA',exact:true}).click();
   await page.waitForFunction(()=>!document.querySelector('[data-accept]').disabled);
   assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted);
+  const preview=await page.evaluate(()=>document.querySelector('[data-preview]').innerHTML);
+  assert.match(preview,/<p>História actual<\/p>/,'preview: paragraph');
+  assert.match(preview,/<ul><li>Sem queixas<ul><li>Mantém autonomia<\/li><\/ul><\/li><\/ul>/,'preview: bullet + indented bullet');
+  assert.match(preview,/<ol><li>Reavaliar em 4 semanas<\/li><\/ol>/,'preview: ordered');
+  assert.ok(!/<script|onerror=|onclick=/i.test(preview),'preview never contains executable markup');
   await page.getByRole('button',{name:'Manter original'}).click();assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted);
   await page.getByRole('button',{name:'Estruturar com IA',exact:true}).click();
   await page.waitForFunction(()=>!document.querySelector('[data-accept]').disabled);
-  await page.locator('textarea').fill('Proposta revista pelo médico.');await page.getByRole('button',{name:'Aceitar',exact:true}).click();
-  assert.equal(await page.evaluate(()=>q.getText()),'Proposta revista pelo médico.\n');
-  await page.getByRole('button',{name:'Desfazer',exact:true}).click();assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted);
+  await page.getByRole('button',{name:'Aceitar',exact:true}).click();
+  assert.equal(await page.evaluate(()=>content.editorHTML(q)),expectedStructured,'accept builds Quill content from validated blocks');
+  await page.getByRole('button',{name:'Desfazer',exact:true}).click();assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted,'undo after accept restores original');
   await page.evaluate(()=>window.delayAI=true);
   await page.getByRole('button',{name:'Estruturar com IA',exact:true}).click();
   await page.waitForFunction(()=>window.resolveAI);
@@ -62,6 +70,14 @@ const path=require('node:path');
   await page.evaluate(()=>{window.delayAI=false;window.aiFailure=true});
   await page.getByRole('button',{name:'Estruturar com IA',exact:true}).click();await page.waitForFunction(()=>document.querySelector('[data-status]').textContent.includes('Não foi possível'));
   assert.equal(await page.locator('[data-accept]').isDisabled(),true);
+  assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted,'original preserved when the API call fails');
+  await page.getByRole('button',{name:'Manter original'}).click();
+  // Malformed/disallowed blocks are rejected client-side too and never reach the editor.
+  await page.evaluate(()=>{window.aiFailure=false;window.aiResult={blocks:[{type:'heading',text:'x',level:0}]}});
+  await page.getByRole('button',{name:'Estruturar com IA',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('[data-status]').textContent.includes('formato inesperado'));
+  assert.equal(await page.locator('[data-accept]').isDisabled(),true);
+  assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted,'invalid blocks never modify the editor');
   await page.getByRole('button',{name:'Manter original'}).click();
   await verify('<p><strong>Objectivos</strong></p><ul><li>Melhorar mobilidade<ul><li>Treino funcional</li></ul></li><li>Preservar autonomia</li></ul><ol><li>Reavaliar</li><li>Ajustar plano</li></ol>');
   if(process.env.OUTPUT_DIR){await page.screenshot({path:path.join(process.env.OUTPUT_DIR,'editor-validado.png'),fullPage:true});await page.pdf({path:path.join(process.env.OUTPUT_DIR,'listas-validacao.pdf'),format:'A4',printBackground:true});}
@@ -97,6 +113,6 @@ const path=require('node:path');
   assert.match(await page.evaluate(()=>reopenSaved.payload.hda),/Nota nova\./,'a real user edit must still autosave');
   await page.evaluate(()=>document.querySelector('#reopen-hda').remove());
   assert.deepEqual(errors,[]);
-  console.log('PASS: UL, OL, mixed/nested and legacy lists; serialization/reopen/feed/report; Enter/Tab; paste; undo/redo; AI click/cancel/edit/accept/conflict/failure; no AI for formatting.');
+  console.log('PASS: UL, OL, mixed/nested and legacy lists; serialization/reopen/feed/report; Enter/Tab; paste; undo/redo; AI structured blocks preview/accept/undo/cancel/conflict/failure/invalid-blocks; no AI for formatting; no HDA autosave on load.');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});

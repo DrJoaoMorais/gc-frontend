@@ -9,7 +9,7 @@ import { preencherHDA } from '../../consulta/v2/consulta-completa/cc-feed.js';
 import '../../relatorios/v2/relatorio-consulta/relatorio-consulta.js';
 window.content=content;window.editor=editor;
 window.q=new Quill('#editor',{theme:'snow',modules:{toolbar:[['bold','italic','underline'],[{list:'bullet'},{list:'ordered'}],['clean']]}});
-window.calls=[];window.aiResult={text:'História actual\nSem queixas.\nMantém autonomia.'};
+window.calls=[];window.aiResult={blocks:[{type:'paragraph',text:'História actual',level:0},{type:'bullet',text:'Sem queixas',level:0},{type:'bullet',text:'Mantém autonomia',level:1},{type:'ordered',text:'Reavaliar em 4 semanas',level:0}]};
 window.sb={auth:{getSession:async()=>({data:{session:{access_token:'fictional'}}})},functions:{invoke:async(name,args)=>{calls.push({name,args});if(window.delayAI)await new Promise(r=>window.resolveAI=r);return window.aiFailure?{error:{message:'test failure'}}:{data:window.aiResult}}}};
 editor.enhanceClinicalEditor(q,{ai:true});
 document.querySelector('#save').onclick=()=>{
