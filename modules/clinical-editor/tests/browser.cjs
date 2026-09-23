@@ -81,6 +81,21 @@ const path=require('node:path');
   await page.waitForFunction(()=>window.savedPayload?.payload.hda.includes('<ol>'));
   assert.equal(await page.evaluate(()=>savedPayload.payload.hda),'<ol><li>Bola A</li><li>Bola B</li></ol>');
   await page.evaluate(()=>document.querySelector('#actual-hda').remove());
+  // Reopening a consultation with existing HDA must not autosave; a real user edit must still trigger it.
+  await page.evaluate(async()=>{
+    const {montarEditorHDA}=await import('/modules/consulta/v2/nova-consulta/hda-quill.js');
+    const host=document.createElement('div');host.id='reopen-hda';document.body.appendChild(host);
+    window.reopenSaved=null;
+    const fakeDB={from:table=>({update:payload=>({eq:(key,id)=>({select:async()=>{window.reopenSaved={table,key,id,payload};return {data:[{id}]}}})})})};
+    montarEditorHDA(host,{id:'reopen-id',hda:'<p>Texto antigo</p>'},fakeDB);
+    window.reopenQ=Quill.find(host.querySelector('#nc-hda-editor'));
+  });
+  await page.waitForTimeout(2300);
+  assert.equal(await page.evaluate(()=>window.reopenSaved),null,'opening an existing HDA must not autosave');
+  await page.evaluate(()=>reopenQ.insertText(reopenQ.getLength()-1,' Nota nova.','user'));
+  await page.waitForFunction(()=>window.reopenSaved!==null);
+  assert.match(await page.evaluate(()=>reopenSaved.payload.hda),/Nota nova\./,'a real user edit must still autosave');
+  await page.evaluate(()=>document.querySelector('#reopen-hda').remove());
   assert.deepEqual(errors,[]);
   console.log('PASS: UL, OL, mixed/nested and legacy lists; serialization/reopen/feed/report; Enter/Tab; paste; undo/redo; AI click/cancel/edit/accept/conflict/failure; no AI for formatting.');
  }finally{await browser.close()}

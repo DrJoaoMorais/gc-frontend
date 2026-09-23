@@ -40,6 +40,7 @@ export function montarEditorHDA(el, consulta, sb) {
   const diz = txt => { if (estadoEl) estadoEl.textContent = txt; };
 
   let _timer = null;
+  let _dirty = false;
 
   const guardar = async () => {
     if (!consulta?.id || !sb) return;
@@ -52,6 +53,7 @@ export function montarEditorHDA(el, consulta, sb) {
         .select('id');
       if (error) throw error;
       if (!data?.length) throw new Error('RLS');
+      _dirty = false;
       diz('Guardado ✓');
       setTimeout(() => diz(''), 3000);
     } catch (_) {
@@ -59,12 +61,17 @@ export function montarEditorHDA(el, consulta, sb) {
     }
   };
 
-  quill.on('text-change', () => {
+  // Só edição real do utilizador ('user') marca a HDA como alterada.
+  // Carregar conteúdo existente (loadClinicalHTML, source 'silent') não deve gravar.
+  quill.on('text-change', (_delta, _oldDelta, source) => {
+    if (source !== 'user') return;
+    _dirty = true;
     clearTimeout(_timer);
     _timer = setTimeout(guardar, 2000);
   });
 
   window.addEventListener('beforeunload', () => {
+    if (!_dirty) return;
     clearTimeout(_timer);
     guardar();
   });
