@@ -1,0 +1,22 @@
+<!doctype html><html lang="pt-PT"><meta charset="utf-8"><title>Editor clínico — teste local</title>
+<link rel="stylesheet" href="/__quill.css"><script src="/__quill.js"></script>
+<style>body{font:15px Arial;max-width:900px;margin:30px auto;color:#0f172a}#editor .ql-editor{min-height:180px}#feed,#report{border:1px solid #ddd;padding:16px;margin:12px 0}</style>
+<h1>Editor clínico</h1><div id="editor"></div><button id="save">Gravar e reabrir (simulado)</button><h2>Consulta / FEED</h2><div id="feed"></div><h2>Relatório / PDF</h2><div id="report"></div>
+<script type="module">
+import * as content from '../content.js';
+import * as editor from '../editor.js';
+import { preencherHDA } from '../../consulta/v2/consulta-completa/cc-feed.js';
+import '../../relatorios/v2/relatorio-consulta/relatorio-consulta.js';
+window.content=content;window.editor=editor;
+window.q=new Quill('#editor',{theme:'snow',modules:{toolbar:[['bold','italic','underline'],[{list:'bullet'},{list:'ordered'}],['clean']]}});
+window.calls=[];window.aiResult={text:'História actual\nSem queixas.\nMantém autonomia.'};
+window.sb={auth:{getSession:async()=>({data:{session:{access_token:'fictional'}}})},functions:{invoke:async(name,args)=>{calls.push({name,args});if(window.delayAI)await new Promise(r=>window.resolveAI=r);return window.aiFailure?{error:{message:'test failure'}}:{data:window.aiResult}}}};
+editor.enhanceClinicalEditor(q,{ai:true});
+document.querySelector('#save').onclick=()=>{
+ const saved=content.editorHTML(q);localStorage.setItem('fictional-consultation',JSON.stringify({hda:saved}));
+ const row=JSON.parse(localStorage.getItem('fictional-consultation'));
+ content.loadClinicalHTML(q,row.hda);preencherHDA(document.querySelector('#feed'),row);
+ document.querySelector('#report').innerHTML=window.gcv2SanitizeHTML(row.hda);
+};
+window.ready=true;
+</script></html>

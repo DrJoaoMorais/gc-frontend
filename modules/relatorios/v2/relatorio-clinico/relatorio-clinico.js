@@ -1,3 +1,4 @@
+import { clinicalHTML } from "../../../clinical-editor/content.js";
 import { fetchPrivatePdf } from "../../_shared/doctor-signature.js";
 
 // =================================================================
@@ -44,32 +45,7 @@ function generateDocNumber() {
 // Sanitização do corpo (mesmo padrão de relatorio-consulta.js
 // gcv2SanitizeHTML — cópia local para não depender de ordem de carga).
 // -----------------------------------------------------------------
-function sanitizeBodyHtml(html) {
-  if (!html) return '';
-  const allowed = ['P','BR','UL','OL','LI','STRONG','B','EM','I','U','SPAN','DIV'];
-  const tmp = document.createElement('div');
-  tmp.innerHTML = String(html);
-  const walk = (node) => {
-    const children = Array.from(node.childNodes);
-    for (const child of children) {
-      if (child.nodeType === 1) {
-        if (!allowed.includes(child.tagName)) {
-          child.replaceWith(document.createTextNode(child.textContent || ''));
-          continue;
-        }
-        for (const attr of Array.from(child.attributes)) {
-          const n = attr.name.toLowerCase();
-          if (n.startsWith('on') || n === 'style') child.removeAttribute(attr.name);
-        }
-        walk(child);
-      } else if (child.nodeType === 8) {
-        child.remove();
-      }
-    }
-  };
-  walk(tmp);
-  return tmp.innerHTML;
-}
+function sanitizeBodyHtml(html) { return clinicalHTML(html); }
 
 // -----------------------------------------------------------------
 // Helpers de CSS (padrão atestado.js)

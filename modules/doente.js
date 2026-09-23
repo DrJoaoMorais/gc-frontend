@@ -1,3 +1,5 @@
+import { clinicalHTML, editorHTML, loadClinicalHTML } from "./clinical-editor/content.js";
+import { enhanceClinicalEditor } from "./clinical-editor/editor.js";
 import { buildDoctorSignature, fetchPrivatePdf } from "./relatorios/_shared/doctor-signature.js";
 
 /* ========================================================
@@ -567,34 +569,7 @@ function openPatientViewModal(patient) {
   }
 
   /* ================= SANITIZE/ESC ================= */
-  function sanitizeHTML(html) {
-    try {
-      const allowed = new Set(["B","STRONG","U","BR","P","DIV","UL","OL","LI"]);
-      const doc = new DOMParser().parseFromString(String(html || ""), "text/html");
-
-      doc.querySelectorAll("script,style").forEach(n => n.remove());
-
-      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT, null);
-      const nodes = [];
-      while (walker.nextNode()) nodes.push(walker.currentNode);
-
-      nodes.forEach(el => {
-        [...el.attributes].forEach(a => el.removeAttribute(a.name));
-        if (!allowed.has(el.tagName)) {
-          const text = doc.createTextNode(el.textContent || "");
-          el.replaceWith(text);
-        }
-      });
-
-      return doc.body.innerHTML || "";
-    } catch (e) {
-      console.error(e);
-      return String(html || "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;");
-    }
-  }
+  function sanitizeHTML(html) { return clinicalHTML(html); }
 
   function escAttr(s) {
     return String(s || "")
@@ -2954,7 +2929,7 @@ function openPatientViewModal(patient) {
 
     var sanitized = sanitizeHTML(String(hda));
 
-    if (sanitized.indexOf('EXAME OBJECTIVO') === -1) {
+    if (sanitized.indexOf('EXAME OBJECTIVO') === -1 || /<(ul|ol)\b/i.test(sanitized)) {
       return sanitized;
     }
 
@@ -3357,7 +3332,7 @@ function openPatientViewModal(patient) {
 
         try {
           const q = window.__gcPhysioQuill;
-          if (q && q.root) s.draftHtml = q.root.innerHTML || "";
+          if (q && q.root) s.draftHtml = editorHTML(q) || "";
         } catch (_) {}
 
         const html = String(s.draftHtml || "").trim();
@@ -3475,17 +3450,18 @@ function openPatientViewModal(patient) {
         const s = __ps();
         const initialHtml = String(s.draftHtml || "");
         if (initialHtml.trim().length) {
-          try { q.clipboard.dangerouslyPasteHTML(initialHtml); }
+          try { loadClinicalHTML(q, initialHtml); }
           catch (_) { q.setText(initialHtml); }
         } else {
           q.setText("");
         }
 
+        enhanceClinicalEditor(q);
         q.on("text-change", () => {
-          s.draftHtml = q.root.innerHTML || "";
+          s.draftHtml = editorHTML(q) || "";
         });
 
-        s.draftHtml = q.root.innerHTML || "";
+        s.draftHtml = editorHTML(q) || "";
         window.__gcPhysioQuill = q;
 
         document.getElementById("physioQuillToolbar")?.querySelector(".ql-bold")?.addEventListener("mousedown", (e) => {
@@ -3699,113 +3675,6 @@ function openPatientViewModal(patient) {
   `;
   }
 
-  async function openHdaAiPanel() {
-    const quill = window.__gcQuillHDA;
-    const originalHtml = quill ? (quill.root.innerHTML || "") : draftHDAHtml;
-    const originalText = quill ? quill.getText().trim() : originalHtml.replace(/<[^>]+>/g,"").trim();
-    if (!originalText) { alert("Escreve primeiro a HDA antes de optimizar."); return; }
-
-    // Remover painel anterior
-    document.getElementById("gcHdaAiPanel")?.remove();
-
-    // Criar painel
-    const panel = document.createElement("div");
-    panel.id = "gcHdaAiPanel";
-    panel.innerHTML = `
-      <div style="padding:12px 14px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
-        <div style="font-size:13px;font-weight:700;color:#111827;display:flex;align-items:center;gap:7px;">
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#1a56db" stroke-width="1.6" stroke-linecap="round"><path d="M8 2l1.2 3.5L13 7l-3.8 1.5L8 12l-1.2-3.5L3 7l3.8-1.5z"/></svg>
-          Assistente IA — HDA
-        </div>
-        <button id="gcHdaAiClose" style="width:26px;height:26px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;color:#6b7280;display:flex;align-items:center;justify-content:center;">✕</button>
-      </div>
-      <div style="padding:8px 14px;border-bottom:1px solid #f1f5f9;display:flex;gap:6px;flex-shrink:0;">
-        <button class="gcHdaMode" data-mode="optimizar" style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;border:1px solid #1a56db;background:#1a56db;color:#fff;cursor:pointer;font-family:inherit;">Optimizar</button>
-        <button class="gcHdaMode" data-mode="junta" style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer;font-family:inherit;">Junta médica</button>
-        <button class="gcHdaMode" data-mode="tribunal" style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;border:1px solid #e5e7eb;background:#fff;color:#374151;cursor:pointer;font-family:inherit;">Tribunal</button>
-      </div>
-      <div id="gcHdaAiBody" style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;">
-        <div>
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:5px;">Original</div>
-          <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;font-size:12px;color:#64748b;line-height:1.5;">${originalText.slice(0,300)}${originalText.length>300?"…":""}</div>
-        </div>
-        <div id="gcHdaAiResult" style="display:flex;align-items:center;justify-content:center;padding:24px 0;">
-          <span style="font-size:12px;color:#94a3b8;">Selecciona um modo e clica em Gerar</span>
-        </div>
-      </div>
-      <div style="padding:10px 14px;border-top:1px solid #f1f5f9;display:flex;gap:8px;flex-shrink:0;">
-        <button id="gcHdaAiGenerate" style="flex:1;padding:8px;background:#1a56db;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Gerar</button>
-        <button id="gcHdaAiAccept" style="display:none;flex:1;padding:8px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">✓ Substituir HDA</button>
-        <button id="gcHdaAiClose2" style="padding:8px 14px;background:#fff;color:#374151;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">Fechar</button>
-      </div>`;
-
-    const wrap = document.querySelector(".gcQuillWrap");
-    if (!wrap) return;
-    if (getComputedStyle(wrap).position === "static") wrap.style.position = "relative";
-    wrap.appendChild(panel);
-
-    let currentMode = "optimizar";
-    let resultHtml = "";
-
-    // Fechar
-    const closePanel = () => panel.remove();
-    document.getElementById("gcHdaAiClose")?.addEventListener("click", closePanel);
-    document.getElementById("gcHdaAiClose2")?.addEventListener("click", closePanel);
-
-    // Modos
-    panel.querySelectorAll(".gcHdaMode").forEach(btn => {
-      btn.addEventListener("click", () => {
-        panel.querySelectorAll(".gcHdaMode").forEach(b => {
-          b.style.background="#fff"; b.style.color="#374151"; b.style.borderColor="#e5e7eb";
-        });
-        btn.style.background="#1a56db"; btn.style.color="#fff"; btn.style.borderColor="#1a56db";
-        currentMode = btn.dataset.mode;
-      });
-    });
-
-    // Gerar
-    document.getElementById("gcHdaAiGenerate")?.addEventListener("click", async () => {
-      const resultEl = document.getElementById("gcHdaAiResult");
-      const acceptBtn = document.getElementById("gcHdaAiAccept");
-      if (!resultEl) return;
-
-      resultEl.innerHTML = '<div style="display:flex;gap:5px;padding:12px 0;align-items:center;justify-content:center;"><span style="font-size:12px;color:#94a3b8;margin-right:6px;">A processar</span><span style="width:6px;height:6px;border-radius:50%;background:#1a56db;animation:gcDot 1.2s infinite;display:inline-block"></span><span style="width:6px;height:6px;border-radius:50%;background:#1a56db;animation:gcDot 1.2s 0.2s infinite;display:inline-block"></span><span style="width:6px;height:6px;border-radius:50%;background:#1a56db;animation:gcDot 1.2s 0.4s infinite;display:inline-block"></span></div><style>@keyframes gcDot{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}</style>';
-      if (acceptBtn) acceptBtn.style.display = "none";
-
-      try {
-        const supabaseUrl = window.sb?.supabaseUrl || window.__gcConfig?.supabaseUrl || "";
-        const resp = await fetch(`${supabaseUrl}/functions/v1/ai-proxy`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: originalText, mode: currentMode })
-        });
-        const data = await resp.json();
-        const text = data?.text || "";
-        if (!text) throw new Error("Resposta vazia");
-
-        resultHtml = text.split("\n").map(l => `<p>${l}</p>`).join("");
-        resultEl.innerHTML = `
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1a56db;margin-bottom:6px;">Resultado IA</div>
-          <div style="background:#f0f7ff;border:1px solid #bcd4f5;border-radius:8px;padding:10px 12px;font-size:13px;color:#1e293b;line-height:1.6;">${text}</div>`;
-        if (acceptBtn) acceptBtn.style.display = "block";
-
-      } catch(e) {
-        resultEl.innerHTML = `<div style="color:#dc2626;font-size:12px;padding:8px;">Erro: ${e.message}</div>`;
-      }
-    });
-
-    // Aceitar — substitui conteúdo do Quill
-    document.getElementById("gcHdaAiAccept")?.addEventListener("click", () => {
-      const q = window.__gcQuillHDA;
-      if (q && resultHtml) {
-        try { q.clipboard.dangerouslyPasteHTML(resultHtml); }
-        catch(_) { q.setText(resultHtml.replace(/<[^>]+>/g,"")); }
-        draftHDAHtml = q.root.innerHTML || "";
-      }
-      closePanel();
-    });
-  }
-
   function bindConsultEvents() {
     /* ---- Editor HDA — Quill nativo ---- */
     window.__gcQuillHDA = null;
@@ -3821,13 +3690,13 @@ function openPatientViewModal(patient) {
       quill.root.setAttribute("autocapitalize", "sentences");
       const initial = String(draftHDAHtml || "").trim();
       if (initial) {
-        try { quill.clipboard.dangerouslyPasteHTML(initial); }
+        try { loadClinicalHTML(quill, initial); }
         catch(_) { quill.setText(initial); }
       }
-      quill.on("text-change", () => { draftHDAHtml = quill.root.innerHTML || ""; });
+      quill.on("text-change", () => { draftHDAHtml = editorHTML(quill) || ""; });
       window.__gcQuillHDA = quill;
       // ---- Botão IA — HDA ----
-      document.getElementById("btnHdaAi")?.addEventListener("click", () => openHdaAiPanel());
+      enhanceClinicalEditor(quill, { ai: true });
     }
 
     const diagInput = document.getElementById("diagSearch");
@@ -3906,7 +3775,7 @@ function openPatientViewModal(patient) {
 
         try {
           const q = window.__gcQuillHDA;
-          if (q) draftHDAHtml = q.root.innerHTML || "";
+          if (q) draftHDAHtml = editorHTML(q) || "";
         } catch (_) {}
 
         const ok = await saveConsult();

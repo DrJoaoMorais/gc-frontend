@@ -1,3 +1,5 @@
+import { editorHTML, loadClinicalHTML } from "../../../clinical-editor/content.js";
+import { enhanceClinicalEditor } from "../../../clinical-editor/editor.js";
 // hda-quill.js
 // Monta o editor HDA (Quill 2.0) com guião de anamnese colapsável.
 // Grava com debounce 2 s + tentativa em beforeunload.
@@ -24,9 +26,10 @@ export function montarEditorHDA(el, consulta, sb) {
     }
   });
 
+  enhanceClinicalEditor(quill, { ai: true, sb: () => sb });
   const initial = String(consulta?.hda || '').trim();
   if (initial) {
-    try { quill.clipboard.dangerouslyPasteHTML(initial); }
+    try { loadClinicalHTML(quill, initial); }
     catch (_) { quill.setText(initial); }
   }
 
@@ -44,7 +47,7 @@ export function montarEditorHDA(el, consulta, sb) {
     try {
       const { data, error } = await sb
         .from('consultations')
-        .update({ hda: quill.root.innerHTML })
+        .update({ hda: editorHTML(quill) })
         .eq('id', consulta.id)
         .select('id');
       if (error) throw error;

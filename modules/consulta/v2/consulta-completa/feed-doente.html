@@ -949,6 +949,8 @@
   </div><!-- /fd-layout -->
 
   <script type="module">
+    import { clinicalHTML, editorHTML, loadClinicalHTML } from "../../../clinical-editor/content.js";
+    import { enhanceClinicalEditor } from "../../../clinical-editor/editor.js";
     import { carregarConsulta, carregarConsultasEmLote } from './cc-queries.js';
     import { carregarCopiaAnterior, juntarSemDuplicar } from './cc-copia-anterior.js';
     import { mount as pdv2Mount, unmount as pdv2Unmount } from '../../../pedidos/pedidos-v2.js';
@@ -1007,19 +1009,7 @@
       return `${d}-${m}-${a} às ${hh}:${mm}`;
     }
 
-    function sanitizarHTML(html) {
-      if (!html) return '';
-      const div = document.createElement('div');
-      div.innerHTML = html;
-      div.querySelectorAll('script,style,iframe,object,embed').forEach(n => n.remove());
-      div.querySelectorAll('*').forEach(el => {
-        [...el.attributes].forEach(a => {
-          if (/^on/i.test(a.name) || (a.name === 'href' && /^javascript:/i.test(a.value)))
-            el.removeAttribute(a.name);
-        });
-      });
-      return div.innerHTML;
-    }
+    function sanitizarHTML(html) { return clinicalHTML(html); }
 
     /* Conteúdo de registo de terapeuta: chega em texto simples (textarea do
        ft.html) ou em HTML (editor Quill do doente.js). Se tiver uma etiqueta
@@ -2601,6 +2591,8 @@
         },
       });
 
+      enhanceClinicalEditor(fdQuill, { ai: true });
+
       /* snippets rápidos */
       const SNIPS = [
         ['Localização',    'Localização: '],
@@ -2929,7 +2921,7 @@
         );
         if (!ok) { fdDiz('', ''); return; }
       }
-      const hda = fdQuill.root.innerHTML;
+      const hda = editorHTML(fdQuill);
       fdDiz('A gravar…', 'var(--suave)');
 
       try {
@@ -2988,7 +2980,7 @@
         if (tituloEl) tituloEl.textContent = 'Nova Consulta';
 
         /* 4. reset + reload do feed */
-        fdQuill.setText('');
+        loadClinicalHTML(fdQuill, '');
         fdObjetivos?.setObjetivos([]);
         fdMostrarObjetivosAntigo('');
         fdDiagSelecionados = [];
@@ -3052,7 +3044,7 @@
 
         fdIniciarQuill();
         if (fdQuill) {
-          fdQuill.root.innerHTML = c?.hda || '';
+          loadClinicalHTML(fdQuill, c?.hda || '');
           fdQuill.history.clear();
         }
         fdIniciarObjetivos();
@@ -3119,7 +3111,7 @@
       if (fdModoEdicao) {
         fdRascunhoId = null;
         fdModoEdicao = false;
-        fdQuill?.setText('');
+        if (fdQuill) loadClinicalHTML(fdQuill, '');
         fdDiagSelecionados = [];
         fdTreatSelecionados = [];
         fdRenderDiagChips();
@@ -3658,6 +3650,7 @@
           ],
         },
       });
+      enhanceClinicalEditor(fdTerQuill);
       document.getElementById('fd-ter-cancel')?.addEventListener('click', fdFecharComposerTerapeuta);
       document.getElementById('fd-ter-gravar')?.addEventListener('click', fdGravarRegistoTerapeuta);
     }
@@ -3670,7 +3663,7 @@
 
     async function fdGravarRegistoTerapeuta() {
       if (!fdTerQuill) return;
-      const html = fdTerQuill.root.innerHTML.trim();
+      const html = editorHTML(fdTerQuill).trim();
       if (!html || html === '<p><br></p>') { alert('Escreva o registo antes de gravar.'); return; }
 
       const btn = document.getElementById('fd-ter-gravar');

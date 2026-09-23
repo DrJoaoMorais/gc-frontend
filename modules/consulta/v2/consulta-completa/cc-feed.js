@@ -1,3 +1,4 @@
+import { clinicalHTML } from "../../../clinical-editor/content.js";
 /* ============================================================
    Consulta Completa (V2) — cc-feed.js (ficheiro 2)
    Preenche os blocos do feed com os dados lidos. Modo leitura.
@@ -5,20 +6,7 @@
 
 /* HDA do Quill vem como HTML. Sanitização mínima: manter tags
    de formatação seguras, remover scripts. (Render, não edição.) */
-function sanitizarHTML(html) {
-  if (!html) return '';
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  div.querySelectorAll('script, style, iframe, object, embed').forEach(n => n.remove());
-  div.querySelectorAll('*').forEach(el => {
-    [...el.attributes].forEach(a => {
-      if (/^on/i.test(a.name) || (a.name === 'href' && /^javascript:/i.test(a.value))) {
-        el.removeAttribute(a.name);
-      }
-    });
-  });
-  return div.innerHTML;
-}
+function sanitizarHTML(html) { return clinicalHTML(html); }
 
 function escapeTexto(s) {
   if (s == null) return '';
