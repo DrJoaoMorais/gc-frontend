@@ -43,6 +43,11 @@ const assert=require('node:assert/strict');
  assert.match(payload.instructions,/CONTEXTO CONHECIDO/,'instructions explain the HDA/CONTEXTO CONHECIDO split');
  assert.match(payload.instructions,/EXCLUSIVAMENTE a informação da secção "HDA:"/,'clinical_note is scoped to HDA only');
  assert.match(payload.instructions,/Nunca perguntes algo que já esteja respondido/,'missing_information must not ask about known context');
+ assert.match(payload.instructions,/considera a informação mais recente como o estado actual/,'later corrections in the text prevail conceptually');
+ assert.match(payload.instructions,/cria um alert de inconsistência/,'unclear later-correction is flagged, never silently resolved');
+ assert.match(payload.instructions,/COERÊNCIA REGIONAL E DIAGNÓSTICA/,'regional/anatomical coherence rule present');
+ assert.match(payload.instructions,/Não sugiras ecografia do joelho de forma rotineira/,'knee: ultrasound is not suggested routinely');
+ assert.match(payload.instructions,/"condromalácia patelar" não deve aparecer como hipótese clínica provável sem suporte/,'knee: condromalácia not used without adequate support');
  assert.equal(payload.text.format.type,'json_schema');assert.equal(payload.text.format.strict,true);
 
  incomplete=true;assert.equal((await handler(request())).status,502);incomplete=false;

@@ -11,6 +11,12 @@ const path=require('node:path');
   const quillDir=path.dirname(require.resolve('quill/package.json'));
   await page.route('**/__quill.js',r=>r.fulfill({path:path.join(quillDir,'dist/quill.js'),contentType:'text/javascript'}));
   await page.route('**/__quill.css',r=>r.fulfill({path:path.join(quillDir,'dist/quill.snow.css'),contentType:'text/css'}));
+  // Stub the clipboard instead of relying on OS/browser permissions: captures
+  // exactly what "Copiar" writes, with no dependency on clipboard grants.
+  await page.addInitScript(()=>{
+    window.__copies=[];
+    Object.defineProperty(navigator,'clipboard',{value:{writeText:async text=>{window.__copies.push(text);}},configurable:true});
+  });
   await page.goto((process.env.BASE_URL||'http://127.0.0.1:8766')+'/modules/clinical-editor/tests/fixture.html');
   await page.waitForFunction(()=>window.ready);
   const verify=async(html)=>page.evaluate(html=>{content.loadClinicalHTML(q,html);document.querySelector('#save').click();return {saved:JSON.parse(localStorage.getItem('fictional-consultation')).hda,reopened:content.editorHTML(q),feed:document.querySelector('#feed .cc-hda').innerHTML,report:document.querySelector('#report').innerHTML}},html);
@@ -46,7 +52,7 @@ const path=require('node:path');
   // applied to the HDA, everything else (alerts/hypotheses/exams/...) is read-only.
   const expectedStructured='<p>História actual</p><ul><li>Sem queixas<ul><li>Mantém autonomia</li></ul></li></ul><ol><li>Reavaliar em 4 semanas</li></ol>';
   let callsBefore=await page.evaluate(()=>calls.length);
-  await page.getByRole('button',{name:'Assistente IA',exact:true}).click();
+  await page.getByRole('button',{name:'✦ Assistente clínico IA',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('[data-counter]')?.textContent.includes('1 análise'));
   assert.equal(await page.evaluate(()=>calls.length)-callsBefore,1,'opening the assistant makes exactly one call');
   assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted,'HDA untouched merely by opening the assistant');
@@ -68,7 +74,7 @@ const path=require('node:path');
   assert.ok(await page.evaluate(()=>!!document.querySelector('.clinical-ai-panel')),'side panel present');
 
   const sectionHeadings=await page.evaluate(()=>[...document.querySelectorAll('.clinical-ai-section h4')].map(h=>h.textContent));
-  for (const heading of ['Alertas','Informação em falta','Texto estruturado','Hipóteses a considerar','Exames a ponderar','Tratamento','Objetivos','HEP']) {
+  for (const heading of ['Alertas','Informação em falta','Exame objectivo a completar','HDA enriquecida','Hipóteses a considerar','Exames a ponderar','Tratamento / Programa de reabilitação','Objetivos','HEP']) {
     assert.ok(sectionHeadings.includes(heading), `section rendered: ${heading}`);
   }
   const panelHtml=await page.evaluate(()=>document.querySelector('[data-body]').innerHTML);
@@ -84,6 +90,48 @@ const path=require('node:path');
   assert.match(notePreview,/<p>História actual<\/p>/,'clinical_note preview: paragraph');
   assert.match(notePreview,/<ul><li>Sem queixas<ul><li>Mantém autonomia<\/li><\/ul><\/li><\/ul>/,'clinical_note preview: bullet + indented bullet');
   assert.match(notePreview,/<ol><li>Reavaliar em 4 semanas<\/li><\/ol>/,'clinical_note preview: ordered');
+
+  // "Exame objectivo a completar" is a heuristic client-side split of the SAME
+  // missing_information array — history questions stay in "Informação em falta".
+  const missingSplit=await page.evaluate(()=>{
+    const headers=[...document.querySelectorAll('[data-body] .clinical-ai-section h4')];
+    const infoSection=headers.find(h=>h.textContent==='Informação em falta')?.closest('.clinical-ai-section');
+    const examSection=headers.find(h=>h.textContent==='Exame objectivo a completar')?.closest('.clinical-ai-section');
+    return {
+      info:[...(infoSection?.querySelectorAll('li')||[])].map(li=>li.textContent),
+      exam:[...(examSection?.querySelectorAll('li')||[])].map(li=>li.textContent)
+    };
+  });
+  assert.ok(missingSplit.info.includes('Profissão?'),'history question stays in Informação em falta');
+  assert.ok(missingSplit.info.includes('Exames já realizados?'),'history question stays in Informação em falta');
+  assert.ok(!missingSplit.info.some(t=>t.includes('LCA')),'exam item not duplicated in Informação em falta');
+  assert.ok(missingSplit.exam.some(t=>t.includes('LCA')),'exam item (LCA/LCP/LLI) classified into Exame objectivo a completar');
+
+  // Copy buttons: one per rendered section, read data only, never call the API or touch the HDA.
+  const copyButtonCount=await page.evaluate(()=>document.querySelectorAll('[data-body] .clinical-ai-copy-row button').length);
+  assert.equal(copyButtonCount,9,'one Copiar button per rendered section');
+  callsBefore=await page.evaluate(()=>calls.length);
+  const hdaBeforeCopy=await page.evaluate(()=>content.editorHTML(q));
+  await page.evaluate(()=>{
+    const heading=[...document.querySelectorAll('[data-body] h4')].find(h=>h.textContent==='HDA enriquecida');
+    heading.closest('.clinical-ai-section').querySelector('.clinical-ai-copy-row button').click();
+  });
+  await page.waitForFunction(()=>window.__copies.length>0);
+  assert.equal(await page.evaluate(()=>calls.length),callsBefore,'Copiar (HDA enriquecida) never calls the API');
+  assert.equal(await page.evaluate(()=>content.editorHTML(q)),hdaBeforeCopy,'Copiar never touches the HDA');
+  let copiedText=await page.evaluate(()=>window.__copies.at(-1));
+  assert.ok(!/[<>]/.test(copiedText),'copied HDA text contains no HTML');
+  assert.match(copiedText,/História actual/,'copied HDA text is readable PT-PT content');
+  callsBefore=await page.evaluate(()=>calls.length);
+  await page.evaluate(()=>{
+    const heading=[...document.querySelectorAll('[data-body] h4')].find(h=>h.textContent==='Hipóteses a considerar');
+    heading.closest('.clinical-ai-section').querySelector('.clinical-ai-copy-row button').click();
+  });
+  await page.waitForFunction(()=>window.__copies.length>1);
+  assert.equal(await page.evaluate(()=>calls.length),callsBefore,'Copiar (hipóteses) never calls the API');
+  copiedText=await page.evaluate(()=>window.__copies.at(-1));
+  assert.ok(!/[<>]/.test(copiedText),'copied hypotheses text contains no HTML');
+  assert.match(copiedText,/Síndrome subacromial/,'copied hypotheses text is readable');
 
   // Clicking a plain list item (e.g. a missing-information question) never calls the API.
   callsBefore=await page.evaluate(()=>calls.length);
@@ -198,6 +246,6 @@ const path=require('node:path');
   assert.match(await page.evaluate(()=>reopenSaved.payload.hda),/Nota nova\./,'a real user edit must still autosave');
   await page.evaluate(()=>document.querySelector('#reopen-hda').remove());
   assert.deepEqual(errors,[]);
-  console.log('PASS: UL, OL, mixed/nested and legacy lists; serialization/reopen/feed/report; Enter/Tab; paste; undo/redo; Assistente IA side panel (one call per click, all 8 sections, apply/keep/undo/conflict/failure/invalid-analysis/no-HTML-execution/close); prompt = HDA + non-identifying CONTEXTO CONHECIDO only (age/profissão/desporto/antecedentes/alertas, never nome/SNS/NIF/telefone/email/morada), omitted entirely without a patient; no AI for formatting; no HDA autosave on load.');
+  console.log('PASS: UL, OL, mixed/nested and legacy lists; serialization/reopen/feed/report; Enter/Tab; paste; undo/redo; more visible "✦ Assistente clínico IA" trigger; side panel (one call per click, all 9 sections incl. Exame objectivo a completar split from Informação em falta, apply/keep/undo/conflict/failure/invalid-analysis/no-HTML-execution/close); Copiar buttons (no API call, no HDA change, no HTML in copied text); prompt = HDA + non-identifying CONTEXTO CONHECIDO only (age/profissão/desporto/antecedentes/alertas, never nome/SNS/NIF/telefone/email/morada), omitted entirely without a patient; no AI for formatting; no HDA autosave on load.');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});

@@ -37,6 +37,7 @@ export function enhanceClinicalEditor(quill, { ai = false, sb = () => window.sb,
     Object.entries(labels).forEach(([name,label]) => toolbar.querySelectorAll(`.ql-${name}`).forEach(b => { b.title=label; b.setAttribute('aria-label',label); }));
     toolbar.querySelectorAll('.ql-list').forEach(b => { b.title=b.value==='bullet'?'Lista com bolas':'Lista numerada'; b.setAttribute('aria-label',b.title); });
     if (ai) {
+      ensureAssistantStyles();
       let button = toolbar.querySelector('#btnHdaAi');
       if (!button) {
         const aiGroup = document.createElement('span');
@@ -44,10 +45,16 @@ export function enhanceClinicalEditor(quill, { ai = false, sb = () => window.sb,
         button=document.createElement('button'); button.type='button';
         aiGroup.appendChild(button); toolbar.appendChild(aiGroup);
       }
-      button.textContent = 'Assistente IA';
-      button.title = 'Assistente IA'; button.setAttribute('aria-label', 'Assistente IA');
-      button.style.cssText = 'width:auto;font:inherit;font-size:12px;color:#1a56db;padding:0 8px;';
+      button.className = 'clinical-ai-trigger';
+      button.title = 'Assistente clínico IA'; button.setAttribute('aria-label', 'Assistente clínico IA');
       button.onclick = () => openAiAssistant(quill, sb(), patient());
+      quill.__aiTriggerButton = button;
+      updateAiTriggerLabel(quill);
+      // Subtle indicator: label switches to "Actualizar" once the HDA changes after the last analysis.
+      quill.on('text-change', (_delta, _oldDelta, source) => {
+        if (source !== 'user') return;
+        updateAiTriggerLabel(quill);
+      });
     }
   }
   // Capture before Quill's clipboard listener: normalize legacy lists and remove
@@ -228,6 +235,8 @@ function ensureAssistantStyles() {
   stylesInjected = true;
   const style = document.createElement('style');
   style.textContent = `
+    .ql-toolbar .clinical-ai-trigger{display:inline-flex;align-items:center;height:26px;padding:0 10px;margin-left:2px;font:inherit;font-size:12.5px;font-weight:700;color:#1a56db;background:#eaf1ff !important;border:1px solid #a9c8f5 !important;border-radius:6px;cursor:pointer;white-space:nowrap;}
+    .ql-toolbar .clinical-ai-trigger:hover{background:#dbe9ff !important;}
     .clinical-ai-layout{display:flex;gap:14px;align-items:flex-start;}
     .clinical-ai-layout>.ql-container{flex:1 1 auto;min-width:0;}
     .clinical-ai-panel{flex:0 0 340px;max-width:340px;box-sizing:border-box;padding:12px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;max-height:520px;overflow:auto;}
@@ -247,14 +256,91 @@ function ensureAssistantStyles() {
     .clinical-ai-alert-inconsistency strong{color:#b45309;}
     .clinical-ai-caution{font-style:italic;}
     .clinical-ai-note-preview{background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:4px 12px;margin:4px 0 8px;}
-    .clinical-ai-note-actions button{margin-right:8px;}
+    .clinical-ai-note-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;}
+    .clinical-ai-note-actions button{margin-right:0;}
     .clinical-ai-note-status{min-height:1.2em;font-size:12px;}
+    .clinical-ai-copy-row{display:inline-flex;align-items:center;gap:6px;margin-top:6px;}
+    .clinical-ai-copy-status{font-size:11px;color:#64748b;}
   `;
   document.head.appendChild(style);
 }
 
+// Toggles the toolbar trigger label as a subtle "content changed since last
+// analysis" indicator — no extra state beyond the last analyzed snapshot.
+function updateAiTriggerLabel(quill) {
+  const button = quill.__aiTriggerButton;
+  if (!button) return;
+  const changed = quill.__aiLastAnalyzedHTML != null && editorHTML(quill) !== quill.__aiLastAnalyzedHTML;
+  button.textContent = changed ? '✦ Actualizar Assistente IA' : '✦ Assistente clínico IA';
+}
+
+// Small "Copiar" control appended to any section. Never calls the API, never
+// touches the HDA/BD — just navigator.clipboard.writeText of plain PT-PT text.
+function addCopyButton(container, getText) {
+  const row = document.createElement('div');
+  row.className = 'clinical-ai-copy-row';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = 'Copiar';
+  const status = document.createElement('span');
+  status.className = 'clinical-ai-copy-status';
+  status.setAttribute('role', 'status');
+  button.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(getText());
+      status.textContent = 'Copiado.';
+    } catch {
+      status.textContent = 'Não foi possível copiar.';
+    }
+    setTimeout(() => { status.textContent = ''; }, 2000);
+  };
+  row.append(button, status);
+  container.append(row);
+  return row;
+}
+
+const alertsText = items => items.map(a => `${a.type === 'inconsistency' ? 'Inconsistência' : 'Aviso'}: ${a.title} — ${a.text}`).join('\n');
+const missingInfoText = items => items.map(i => `${i.question} (${i.reason})`).join('\n');
+const hypothesesText = items => items.map(h => `${h.label} [${CONFIDENCE_LABEL[h.confidence]}]: ${h.reason}`).join('\n');
+const examsText = items => items.map(e => `${e.exam}: ${e.reason}`).join('\n');
+const treatmentText = items => items.map(t => `${t.item}: ${t.reason}`).join('\n');
+const objectivesText = items => items.map(o => `- ${o.item}`).join('\n');
+const hepText = items => items.map(h => `${h.exercise} — ${h.reason} (Cautela: ${h.caution})`).join('\n');
+
+// Plain-text rendering of clinical_note.blocks for the "Copiar" button —
+// same nesting rules as the visual preview, no HTML.
+function blocksToPlainText(blocks) {
+  const counters = [];
+  const lines = [];
+  for (const block of blocks) {
+    if (block.type === 'paragraph') { counters.length = 0; lines.push(block.text); continue; }
+    const indent = '  '.repeat(block.level);
+    if (block.type === 'ordered') {
+      counters[block.level] = (counters[block.level] || 0) + 1;
+      counters.length = block.level + 1;
+      lines.push(`${indent}${counters[block.level]}. ${block.text}`);
+    } else {
+      counters.length = 0;
+      lines.push(`${indent}- ${block.text}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+// Heuristic-only split of the SAME missing_information array (schema/API unchanged)
+// into history questions vs physical-exam items still to complete, for display only.
+const EXAM_ITEM_PATTERN = /\b(LCA|LCP|LLI|LLE|Lachman|gaveta|arco doloroso|ritmo escapulo|for[çc]a (comparativa|contralateral)|compara[çc][ãa]o de for[çc]a|exame neurol[oó]gic|teste (de|especial)|manobra|sinal de|Adams|gibosidade|dismetria|amplitude (articular|de movimento)|ADM\b|reflexos?|sensibilidade|palpa[çc][ãa]o|contralateral|neurol[oó]gica dirigida)\b/i;
+function classifyMissingInformation(items) {
+  const history = [];
+  const exam = [];
+  for (const item of items) {
+    (EXAM_ITEM_PATTERN.test(`${item.question} ${item.reason}`) ? exam : history).push(item);
+  }
+  return { history, exam };
+}
+
 // Builds a heading + <ul> section only when there is at least one item to show.
-function renderListSection(container, heading, items, fillItem) {
+function renderListSection(container, heading, items, fillItem, copyText) {
   if (!items.length) return;
   const section = document.createElement('section');
   section.className = 'clinical-ai-section';
@@ -268,6 +354,7 @@ function renderListSection(container, heading, items, fillItem) {
     list.append(li);
   }
   section.append(list);
+  if (copyText) addCopyButton(section, () => copyText(items));
   container.append(section);
 }
 
@@ -275,7 +362,7 @@ function renderClinicalNoteSection(container, state, blocks, snapshot) {
   const section = document.createElement('section');
   section.className = 'clinical-ai-section';
   const h = document.createElement('h4');
-  h.textContent = 'Texto estruturado';
+  h.textContent = 'HDA enriquecida';
   section.append(h);
   const preview = document.createElement('div');
   preview.className = 'clinical-ai-note-preview';
@@ -311,6 +398,7 @@ function renderClinicalNoteSection(container, state, blocks, snapshot) {
   };
 
   actions.append(applyBtn, keepBtn);
+  addCopyButton(actions, () => blocksToPlainText(blocks));
   section.append(actions, noteStatus);
   container.append(section);
 }
@@ -364,14 +452,16 @@ function fillHep(li, hep) {
 function renderAnalysis(state, analysis, snapshot) {
   const { bodyEl, counterEl } = state;
   bodyEl.replaceChildren();
-  renderListSection(bodyEl, 'Alertas', analysis.alerts, fillAlert);
-  renderListSection(bodyEl, 'Informação em falta', analysis.missing_information, fillMissingInfo);
+  renderListSection(bodyEl, 'Alertas', analysis.alerts, fillAlert, alertsText);
+  const { history, exam } = classifyMissingInformation(analysis.missing_information);
+  renderListSection(bodyEl, 'Informação em falta', history, fillMissingInfo, missingInfoText);
+  renderListSection(bodyEl, 'Exame objectivo a completar', exam, fillMissingInfo, missingInfoText);
   renderClinicalNoteSection(bodyEl, state, analysis.clinical_note.blocks, snapshot);
-  renderListSection(bodyEl, 'Hipóteses a considerar', analysis.diagnostic_hypotheses, fillHypothesis);
-  renderListSection(bodyEl, 'Exames a ponderar', analysis.suggested_exams, fillExam);
-  renderListSection(bodyEl, 'Tratamento', analysis.treatment_options, fillTreatment);
-  renderListSection(bodyEl, 'Objetivos', analysis.objectives, fillObjective);
-  renderListSection(bodyEl, 'HEP', analysis.hep_suggestions, fillHep);
+  renderListSection(bodyEl, 'Hipóteses a considerar', analysis.diagnostic_hypotheses, fillHypothesis, hypothesesText);
+  renderListSection(bodyEl, 'Exames a ponderar', analysis.suggested_exams, fillExam, examsText);
+  renderListSection(bodyEl, 'Tratamento / Programa de reabilitação', analysis.treatment_options, fillTreatment, treatmentText);
+  renderListSection(bodyEl, 'Objetivos', analysis.objectives, fillObjective, objectivesText);
+  renderListSection(bodyEl, 'HEP', analysis.hep_suggestions, fillHep, hepText);
   counterEl.textContent = `IA · ${state.callCount} ${state.callCount === 1 ? 'análise' : 'análises'}`;
 }
 
@@ -431,6 +521,8 @@ async function runAnalysis(state) {
     if (!analysis) throw new Error('A IA devolveu uma resposta em formato inesperado.');
     bodyEl.replaceChildren();
     renderAnalysis(state, analysis, snapshot);
+    quill.__aiLastAnalyzedHTML = snapshot;
+    updateAiTriggerLabel(quill);
     statusEl.textContent = '';
   } catch (err) {
     if (panel.isConnected) statusEl.textContent = err.message;
