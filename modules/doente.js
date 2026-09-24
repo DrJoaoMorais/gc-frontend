@@ -3696,7 +3696,7 @@ function openPatientViewModal(patient) {
       quill.on("text-change", () => { draftHDAHtml = editorHTML(quill) || ""; });
       window.__gcQuillHDA = quill;
       // ---- Botão IA — HDA ----
-      enhanceClinicalEditor(quill, { ai: true });
+      enhanceClinicalEditor(quill, { ai: true, patient: () => p });
     }
 
     const diagInput = document.getElementById("diagSearch");

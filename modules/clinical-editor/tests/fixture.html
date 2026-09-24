@@ -9,9 +9,47 @@ import { preencherHDA } from '../../consulta/v2/consulta-completa/cc-feed.js';
 import '../../relatorios/v2/relatorio-consulta/relatorio-consulta.js';
 window.content=content;window.editor=editor;
 window.q=new Quill('#editor',{theme:'snow',modules:{toolbar:[['bold','italic','underline'],[{list:'bullet'},{list:'ordered'}],['clean']]}});
-window.calls=[];window.aiResult={blocks:[{type:'paragraph',text:'História actual',level:0},{type:'bullet',text:'Sem queixas',level:0},{type:'bullet',text:'Mantém autonomia',level:1},{type:'ordered',text:'Reavaliar em 4 semanas',level:0}]};
+window.calls=[];
+window.aiResult={
+  clinical_note:{blocks:[
+    {type:'paragraph',text:'História actual',level:0},
+    {type:'bullet',text:'Sem queixas',level:0},
+    {type:'bullet',text:'Mantém autonomia',level:1},
+    {type:'ordered',text:'Reavaliar em 4 semanas',level:0}
+  ]},
+  alerts:[
+    {type:'inconsistency',title:'Lateralidade inconsistente',text:'HDA refere ombro esquerdo; exame objectivo refere ombro direito.'}
+  ],
+  missing_information:[
+    {question:'Profissão?',reason:'Relevante para avaliar exigência funcional.'},
+    {question:'Exames já realizados?',reason:'Não referidos no texto.'}
+  ],
+  diagnostic_hypotheses:[
+    {label:'Síndrome subacromial',reason:'Testes de conflito positivos.',confidence:'moderate'}
+  ],
+  suggested_exams:[
+    {exam:'Ecografia do ombro',reason:'Caracterizar estruturas do manguito rotador.'}
+  ],
+  treatment_options:[
+    {item:'Fisioterapia orientada ao manguito rotador',reason:'Padrão clínico compatível com conflito subacromial.'}
+  ],
+  objectives:[
+    {item:'Reduzir dor noturna'}
+  ],
+  hep_suggestions:[
+    {exercise:'Pendulares de Codman',reason:'Mobilização suave inicial.',caution:'Suspender se agravar a dor noturna.'}
+  ]
+};
 window.sb={auth:{getSession:async()=>({data:{session:{access_token:'fictional'}}})},functions:{invoke:async(name,args)=>{calls.push({name,args});if(window.delayAI)await new Promise(r=>window.resolveAI=r);return window.aiFailure?{error:{message:'test failure'}}:{data:window.aiResult}}}};
-editor.enhanceClinicalEditor(q,{ai:true});
+// Includes identifiers on purpose so tests can assert they are NEVER sent to the AI.
+window.fixturePatient={
+  full_name:'Doente Fictício',sns:'123456789',nif:'987654321',phone:'910000000',
+  email:'doente@example.com',address_line1:'Rua Fictícia 1',
+  dob:'1978-05-10',profissao:'Enfermeira',atividade_desportiva:'Corrida recreativa',
+  antecedentes_pessoais:'Hipertensão arterial controlada',antecedentes_medicamentosos:'Losartan 50mg',
+  antecedentes_cirurgicos:'',alertas:{pacemaker:false,alergias:'Penicilina',outros:''}
+};
+editor.enhanceClinicalEditor(q,{ai:true,patient:()=>window.fixturePatient});
 document.querySelector('#save').onclick=()=>{
  const saved=content.editorHTML(q);localStorage.setItem('fictional-consultation',JSON.stringify({hda:saved}));
  const row=JSON.parse(localStorage.getItem('fictional-consultation'));

@@ -2591,7 +2591,7 @@
         },
       });
 
-      enhanceClinicalEditor(fdQuill, { ai: true });
+      enhanceClinicalEditor(fdQuill, { ai: true, patient: () => fdPatientData });
 
       /* snippets rápidos */
       const SNIPS = [

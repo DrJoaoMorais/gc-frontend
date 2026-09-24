@@ -44,7 +44,12 @@ const PATIENT_FIELDS =
   "insurance_provider, insurance_policy_number, address_line1, postal_code, " +
   "city, country, notes";
 
-const PATIENT_FIELDS_FULL = PATIENT_FIELDS + ", is_active";
+// Adds non-identifying clinical context (used to inform the AI assistant,
+// never sent as identifiers) to the single-patient fetch/update only — not to
+// the bulk agenda lookup (fetchPatientsByIds), which stays on PATIENT_FIELDS.
+const PATIENT_FIELDS_FULL = PATIENT_FIELDS +
+  ", is_active, profissao, atividade_desportiva, antecedentes_pessoais, " +
+  "antecedentes_medicamentosos, antecedentes_cirurgicos, alertas";
 
 
 /* ==== 02A — Constantes e helpers da agenda ==== */

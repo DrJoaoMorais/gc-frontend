@@ -42,43 +42,128 @@ const path=require('node:path');
   assert.equal(await page.evaluate(()=>content.editorHTML(q)),'<p>Forte Itálico</p>');
   await page.evaluate(html=>content.loadClinicalHTML(q,html),pasted);
   assert.equal(await page.evaluate(()=>calls.length),0,'formatting never calls AI');
-  // Proposal preview is a read-only visual render built only from validated blocks
-  // (paragraph/bullet/ordered/indented — never AI HTML). Accept is explicit,
-  // cancel preserves original, and undo reverts the structured acceptance.
+  // "Assistente IA": side panel, one call per click, only clinical_note can be
+  // applied to the HDA, everything else (alerts/hypotheses/exams/...) is read-only.
   const expectedStructured='<p>História actual</p><ul><li>Sem queixas<ul><li>Mantém autonomia</li></ul></li></ul><ol><li>Reavaliar em 4 semanas</li></ol>';
-  await page.getByRole('button',{name:'Estruturar com IA',exact:true}).click();
-  await page.waitForFunction(()=>!document.querySelector('[data-accept]').disabled);
+  let callsBefore=await page.evaluate(()=>calls.length);
+  await page.getByRole('button',{name:'Assistente IA',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('[data-counter]')?.textContent.includes('1 análise'));
+  assert.equal(await page.evaluate(()=>calls.length)-callsBefore,1,'opening the assistant makes exactly one call');
+  assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted,'HDA untouched merely by opening the assistant');
+
+  // The prompt combines HDA + non-identifying context only — never name/SNS/NIF/phone/email/address.
+  const sentPrompt=await page.evaluate(()=>calls.at(-1).args.body.prompt);
+  assert.match(sentPrompt,/^HDA:\n/,'prompt starts with the HDA section');
+  assert.match(sentPrompt,/\n\nCONTEXTO CONHECIDO:\n/,'prompt includes CONTEXTO CONHECIDO when patient context exists');
+  assert.match(sentPrompt,/Idade: \d+ anos/,'context includes age computed from dob');
+  assert.match(sentPrompt,/Profissão: Enfermeira/,'context includes profissão');
+  assert.match(sentPrompt,/Atividade desportiva: Corrida recreativa/,'context includes atividade desportiva');
+  assert.match(sentPrompt,/Antecedentes pessoais: Hipertensão arterial controlada/,'context includes antecedentes pessoais');
+  assert.match(sentPrompt,/Antecedentes medicamentosos: Losartan 50mg/,'context includes antecedentes medicamentosos (not renamed)');
+  assert.ok(!/Antecedentes cirúrgicos:/.test(sentPrompt),'empty antecedentes_cirurgicos is omitted, not sent as an empty field');
+  assert.match(sentPrompt,/Alertas clínicos: Alergias: Penicilina/,'alertas only includes its non-empty sub-fields');
+  assert.ok(!/Doente Fictício|123456789|987654321|910000000|doente@example\.com|Rua Fictícia/.test(sentPrompt),'never sends nome/SNS/NIF/telefone/email/morada');
+
+  assert.ok(await page.evaluate(()=>!!document.querySelector('.clinical-ai-layout')),'side panel layout created');
+  assert.ok(await page.evaluate(()=>!!document.querySelector('.clinical-ai-panel')),'side panel present');
+
+  const sectionHeadings=await page.evaluate(()=>[...document.querySelectorAll('.clinical-ai-section h4')].map(h=>h.textContent));
+  for (const heading of ['Alertas','Informação em falta','Texto estruturado','Hipóteses a considerar','Exames a ponderar','Tratamento','Objetivos','HEP']) {
+    assert.ok(sectionHeadings.includes(heading), `section rendered: ${heading}`);
+  }
+  const panelHtml=await page.evaluate(()=>document.querySelector('[data-body]').innerHTML);
+  assert.match(panelHtml,/Lateralidade inconsistente/,'alert title rendered');
+  assert.match(panelHtml,/HDA refere ombro esquerdo/,'alert text rendered');
+  assert.match(panelHtml,/Profissão\?/,'missing information question rendered');
+  assert.match(panelHtml,/Síndrome subacromial/,'hypothesis rendered');
+  assert.match(panelHtml,/Ecografia do ombro/,'suggested exam rendered');
+  assert.match(panelHtml,/Fisioterapia orientada/,'treatment option rendered');
+  assert.match(panelHtml,/Reduzir dor noturna/,'objective rendered');
+  assert.match(panelHtml,/Pendulares de Codman/,'HEP suggestion rendered');
+  const notePreview=await page.evaluate(()=>document.querySelector('.clinical-ai-note-preview').innerHTML);
+  assert.match(notePreview,/<p>História actual<\/p>/,'clinical_note preview: paragraph');
+  assert.match(notePreview,/<ul><li>Sem queixas<ul><li>Mantém autonomia<\/li><\/ul><\/li><\/ul>/,'clinical_note preview: bullet + indented bullet');
+  assert.match(notePreview,/<ol><li>Reavaliar em 4 semanas<\/li><\/ol>/,'clinical_note preview: ordered');
+
+  // Clicking a plain list item (e.g. a missing-information question) never calls the API.
+  callsBefore=await page.evaluate(()=>calls.length);
+  await page.evaluate(()=>document.querySelector('[data-body] li')?.click());
+  assert.equal(await page.evaluate(()=>calls.length),callsBefore,'clicking a list item never calls the API');
+
+  // "Manter original" on the clinical_note section preserves the HDA untouched.
+  await page.getByRole('button',{name:'Manter original',exact:true}).click();
   assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted);
-  const preview=await page.evaluate(()=>document.querySelector('[data-preview]').innerHTML);
-  assert.match(preview,/<p>História actual<\/p>/,'preview: paragraph');
-  assert.match(preview,/<ul><li>Sem queixas<ul><li>Mantém autonomia<\/li><\/ul><\/li><\/ul>/,'preview: bullet + indented bullet');
-  assert.match(preview,/<ol><li>Reavaliar em 4 semanas<\/li><\/ol>/,'preview: ordered');
-  assert.ok(!/<script|onerror=|onclick=/i.test(preview),'preview never contains executable markup');
-  await page.getByRole('button',{name:'Manter original'}).click();assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted);
-  await page.getByRole('button',{name:'Estruturar com IA',exact:true}).click();
-  await page.waitForFunction(()=>!document.querySelector('[data-accept]').disabled);
-  await page.getByRole('button',{name:'Aceitar',exact:true}).click();
-  assert.equal(await page.evaluate(()=>content.editorHTML(q)),expectedStructured,'accept builds Quill content from validated blocks');
-  await page.getByRole('button',{name:'Desfazer',exact:true}).click();assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted,'undo after accept restores original');
+
+  // "Atualizar análise" makes exactly one more call and only replaces the panel content.
+  callsBefore=await page.evaluate(()=>calls.length);
+  await page.getByRole('button',{name:'Atualizar análise',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('[data-counter]')?.textContent.includes('2 análises'));
+  assert.equal(await page.evaluate(()=>calls.length)-callsBefore,1,'"Atualizar análise" makes exactly one more call');
+  assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted,'HDA still untouched after a refresh alone');
+
+  // "Aplicar à HDA" applies only clinical_note.blocks, nothing else, and can be undone.
+  await page.getByRole('button',{name:'Aplicar à HDA',exact:true}).click();
+  assert.equal(await page.evaluate(()=>content.editorHTML(q)),expectedStructured,'apply builds Quill content from clinical_note.blocks only');
+  await page.getByRole('button',{name:'Desfazer',exact:true}).click();
+  assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted,'undo after apply restores original');
+
+  // Conflict: editing the HDA while a new analysis is in flight blocks "Aplicar à HDA".
   await page.evaluate(()=>window.delayAI=true);
-  await page.getByRole('button',{name:'Estruturar com IA',exact:true}).click();
+  await page.getByRole('button',{name:'Atualizar análise',exact:true}).click();
   await page.waitForFunction(()=>window.resolveAI);
   await page.evaluate(()=>{q.insertText(0,'Alterado entretanto. ','user');resolveAI();});
-  await page.waitForFunction(()=>!document.querySelector('[data-accept]').disabled);
-  await page.getByRole('button',{name:'Aceitar',exact:true}).click();assert.match(await page.locator('[data-status]').innerText(),/alterado entretanto/);
-  await page.getByRole('button',{name:'Manter original'}).click();
-  await page.evaluate(()=>{window.delayAI=false;window.aiFailure=true});
-  await page.getByRole('button',{name:'Estruturar com IA',exact:true}).click();await page.waitForFunction(()=>document.querySelector('[data-status]').textContent.includes('Não foi possível'));
-  assert.equal(await page.locator('[data-accept]').isDisabled(),true);
+  await page.waitForFunction(()=>document.querySelector('[data-counter]')?.textContent.includes('3 análises'));
+  await page.getByRole('button',{name:'Aplicar à HDA',exact:true}).click();
+  assert.match(await page.locator('.clinical-ai-note-status').innerText(),/alterado entretanto/);
+  await page.getByRole('button',{name:'Manter original',exact:true}).click();
+  await page.evaluate(()=>window.delayAI=false);
+
+  // Adversarial: HTML/script-looking text in any AI field renders as literal text, never as markup.
+  await page.evaluate(()=>{window.aiResult={
+    clinical_note:{blocks:[{type:'paragraph',text:'Nota segura.',level:0}]},
+    alerts:[{type:'warning',title:'<img src=x onerror="window.__xss=true">',text:'<script>window.__xss2=true<\/script>'}],
+    missing_information:[],diagnostic_hypotheses:[],suggested_exams:[],treatment_options:[],objectives:[],hep_suggestions:[]
+  }});
+  await page.getByRole('button',{name:'Atualizar análise',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('[data-body] h4')?.textContent==='Alertas');
+  assert.equal(await page.evaluate(()=>window.__xss),undefined,'no script/handler from AI text ever executes');
+  assert.equal(await page.evaluate(()=>document.querySelectorAll('[data-body] img,[data-body] script').length),0,'AI text never becomes real HTML elements');
+  const alertOuterHtml=await page.evaluate(()=>document.querySelector('[data-body] .clinical-ai-alert-warning').outerHTML);
+  assert.match(alertOuterHtml,/&lt;img/,'AI text is escaped (textContent), not parsed, when rendered');
+
+  // API failure preserves the original HDA and shows an error in the panel.
+  await page.evaluate(()=>window.aiFailure=true);
+  await page.getByRole('button',{name:'Atualizar análise',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('[data-status]').textContent.includes('Não foi possível'));
   assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted,'original preserved when the API call fails');
-  await page.getByRole('button',{name:'Manter original'}).click();
-  // Malformed/disallowed blocks are rejected client-side too and never reach the editor.
-  await page.evaluate(()=>{window.aiFailure=false;window.aiResult={blocks:[{type:'heading',text:'x',level:0}]}});
-  await page.getByRole('button',{name:'Estruturar com IA',exact:true}).click();
+  await page.evaluate(()=>window.aiFailure=false);
+
+  // Structurally invalid analysis (disallowed field) is rejected client-side too, never reaching the editor.
+  await page.evaluate(()=>{window.aiResult={clinical_note:{blocks:[{type:'heading',text:'x',level:0}]}}});
+  await page.getByRole('button',{name:'Atualizar análise',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('[data-status]').textContent.includes('formato inesperado'));
-  assert.equal(await page.locator('[data-accept]').isDisabled(),true);
-  assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted,'invalid blocks never modify the editor');
-  await page.getByRole('button',{name:'Manter original'}).click();
+  assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted,'invalid analysis never modifies the editor');
+
+  await page.getByRole('button',{name:'Fechar',exact:true}).click();
+  assert.equal(await page.evaluate(()=>!!document.querySelector('.clinical-ai-panel')),false,'panel closes');
+
+  // Without a patient (e.g. no context available), the prompt is HDA-only — no empty CONTEXTO CONHECIDO section.
+  await page.evaluate(async()=>{
+    window.aiResult={clinical_note:{blocks:[{type:'paragraph',text:'Nota.',level:0}]},alerts:[],missing_information:[],diagnostic_hypotheses:[],suggested_exams:[],treatment_options:[],objectives:[],hep_suggestions:[]};
+    const host=document.createElement('div');host.id='no-context-host';document.body.appendChild(host);
+    const noContextQuill=new Quill(host,{theme:'snow',modules:{toolbar:[['bold'],[{list:'bullet'}]]}});
+    noContextQuill.setText('Texto sem doente associado.','user');
+    window.editor.enhanceClinicalEditor(noContextQuill,{ai:true,sb:()=>window.sb});
+    await window.editor.openAiAssistant(noContextQuill,window.sb);
+  });
+  const noContextPrompt=await page.evaluate(()=>calls.at(-1).args.body.prompt);
+  assert.equal(noContextPrompt,'HDA:\nTexto sem doente associado.','no patient ⇒ HDA-only prompt, no CONTEXTO CONHECIDO section at all');
+  await page.evaluate(()=>{
+    const host=document.querySelector('#no-context-host');
+    host.previousElementSibling?.remove();
+    host.remove();
+  });
+
   await verify('<p><strong>Objectivos</strong></p><ul><li>Melhorar mobilidade<ul><li>Treino funcional</li></ul></li><li>Preservar autonomia</li></ul><ol><li>Reavaliar</li><li>Ajustar plano</li></ol>');
   if(process.env.OUTPUT_DIR){await page.screenshot({path:path.join(process.env.OUTPUT_DIR,'editor-validado.png'),fullPage:true});await page.pdf({path:path.join(process.env.OUTPUT_DIR,'listas-validacao.pdf'),format:'A4',printBackground:true});}
   // Actual HDA save module, with a fake database adapter (no patient data).
@@ -113,6 +198,6 @@ const path=require('node:path');
   assert.match(await page.evaluate(()=>reopenSaved.payload.hda),/Nota nova\./,'a real user edit must still autosave');
   await page.evaluate(()=>document.querySelector('#reopen-hda').remove());
   assert.deepEqual(errors,[]);
-  console.log('PASS: UL, OL, mixed/nested and legacy lists; serialization/reopen/feed/report; Enter/Tab; paste; undo/redo; AI structured blocks preview/accept/undo/cancel/conflict/failure/invalid-blocks; no AI for formatting; no HDA autosave on load.');
+  console.log('PASS: UL, OL, mixed/nested and legacy lists; serialization/reopen/feed/report; Enter/Tab; paste; undo/redo; Assistente IA side panel (one call per click, all 8 sections, apply/keep/undo/conflict/failure/invalid-analysis/no-HTML-execution/close); prompt = HDA + non-identifying CONTEXTO CONHECIDO only (age/profissão/desporto/antecedentes/alertas, never nome/SNS/NIF/telefone/email/morada), omitted entirely without a patient; no AI for formatting; no HDA autosave on load.');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});
