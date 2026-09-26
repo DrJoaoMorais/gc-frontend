@@ -15,7 +15,16 @@ const path=require('node:path');
   // exactly what "Copiar" writes, with no dependency on clipboard grants.
   await page.addInitScript(()=>{
     window.__copies=[];
-    Object.defineProperty(navigator,'clipboard',{value:{writeText:async text=>{window.__copies.push(text);}},configurable:true});
+    window.__copyAllWrites=[];
+    Object.defineProperty(navigator,'clipboard',{value:{
+      writeText:async text=>{window.__copies.push(text);},
+      write:async items=>{
+        const item=items[0];
+        const html=await(await item.getType('text/html')).text();
+        const plain=await(await item.getType('text/plain')).text();
+        window.__copyAllWrites.push({html,plain});
+      }
+    },configurable:true});
   });
   await page.goto((process.env.BASE_URL||'http://127.0.0.1:8766')+'/modules/clinical-editor/tests/fixture.html');
   await page.waitForFunction(()=>window.ready);
@@ -107,6 +116,42 @@ const path=require('node:path');
   assert.ok(!missingSplit.info.some(t=>t.includes('LCA')),'exam item not duplicated in Informação em falta');
   assert.ok(missingSplit.exam.some(t=>t.includes('LCA')),'exam item (LCA/LCP/LLI) classified into Exame objectivo a completar');
 
+  // Answering "missing_information" questions inline in the panel: local-only state
+  // (never saved, never calls the API while typing, never touches the HDA).
+  const answerTextareaCount=await page.evaluate(()=>document.querySelectorAll('[data-body] .clinical-ai-answer').length);
+  assert.equal(answerTextareaCount,3,'one answer textarea per missing_information item (history + exam)');
+  callsBefore=await page.evaluate(()=>calls.length);
+  await page.evaluate(()=>{
+    const li=[...document.querySelectorAll('[data-body] li')].find(li=>li.firstChild?.textContent==='Profissão?');
+    const textarea=li.querySelector('.clinical-ai-answer');
+    textarea.value='Enfermeira.';
+    textarea.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  assert.equal(await page.evaluate(()=>calls.length),callsBefore,'typing an answer never calls the API');
+  assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted,'typing an answer never touches the HDA');
+  assert.equal(await page.evaluate(()=>{const li=[...document.querySelectorAll('[data-body] li')].find(li=>li.firstChild?.textContent==='Profissão?');return li.querySelector('.clinical-ai-answer-check').hidden}),false,'✓ indicator shown once answered');
+
+  // Next analysis: the answer is bundled as a RESPOSTAS block; a resolved question
+  // disappears from the new response and a fresh one raised by the answer can appear.
+  await page.evaluate(()=>{window.aiResult={
+    ...window.aiResult,
+    missing_information:[
+      {question:'Exames já realizados?',reason:'Não referidos no texto.'},
+      {question:'Testes ligamentares (LCA/LCP/LLI)?',reason:'Não descritos no exame objectivo.'},
+      {question:'Antecedentes familiares de patologia do ombro?',reason:'Nova dúvida levantada pela resposta dada.'}
+    ]
+  }});
+  callsBefore=await page.evaluate(()=>calls.length);
+  await page.getByRole('button',{name:'Atualizar análise',exact:true}).click();
+  await page.waitForFunction(()=>[...document.querySelectorAll('[data-body] li')].some(li=>li.firstChild?.textContent==='Antecedentes familiares de patologia do ombro?'));
+  assert.equal(await page.evaluate(()=>calls.length)-callsBefore,1,'"Atualizar análise" with an answer makes exactly one more call');
+  const promptWithAnswer=await page.evaluate(()=>calls.at(-1).args.body.prompt);
+  assert.match(promptWithAnswer,/RESPOSTAS ÀS PERGUNTAS DO ASSISTENTE:\n- Pergunta: Profissão\?\n {2}Resposta: Enfermeira\./,'prompt bundles the answer under RESPOSTAS ÀS PERGUNTAS DO ASSISTENTE');
+  const questionsAfter=await page.evaluate(()=>[...document.querySelectorAll('[data-body] li')].map(li=>li.firstChild?.textContent));
+  assert.ok(!questionsAfter.includes('Profissão?'),'resolved question disappears from the new analysis');
+  assert.ok(questionsAfter.includes('Antecedentes familiares de patologia do ombro?'),'a new question raised by the answer can appear');
+  assert.equal(await page.evaluate(()=>[...document.querySelectorAll('[data-body] .clinical-ai-answer')].every(t=>t.value==='')),true,'answers are cleared after a successful analysis');
+
   // Copy buttons: one per rendered section, read data only, never call the API or touch the HDA.
   const copyButtonCount=await page.evaluate(()=>document.querySelectorAll('[data-body] .clinical-ai-copy-row button').length);
   assert.equal(copyButtonCount,9,'one Copiar button per rendered section');
@@ -133,6 +178,33 @@ const path=require('node:path');
   assert.ok(!/[<>]/.test(copiedText),'copied hypotheses text contains no HTML');
   assert.match(copiedText,/Síndrome subacromial/,'copied hypotheses text is readable');
 
+  // "Copiar tudo": copies the whole visible analysis (section order preserved) as
+  // text/html + text/plain, never calls the API, never touches the HDA, and never
+  // includes buttons/inputs/textareas.
+  callsBefore=await page.evaluate(()=>calls.length);
+  await page.getByRole('button',{name:'Copiar tudo',exact:true}).click();
+  await page.waitForFunction(()=>window.__copyAllWrites.length>0);
+  assert.equal(await page.evaluate(()=>calls.length),callsBefore,'"Copiar tudo" never calls the API');
+  assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted,'"Copiar tudo" never touches the HDA');
+  let copyAll=await page.evaluate(()=>window.__copyAllWrites.at(-1));
+  assert.ok(!/<button|<input|<textarea/i.test(copyAll.html),'copied HTML contains no buttons/inputs/textareas');
+  assert.match(copyAll.html,/<h4>Alertas<\/h4>/,'copied HTML preserves section headings');
+  assert.match(copyAll.html,/<strong>[^<]*Lateralidade inconsistente<\/strong>/,'copied HTML preserves bold');
+  assert.match(copyAll.html,/<ul>|<ol>/,'copied HTML preserves lists');
+  assert.match(copyAll.html,/<em>Cautela: /,'copied HTML preserves italics (Cautela)');
+  assert.match(copyAll.plain,/^Alertas\n/,'copied plain text preserves section order/structure');
+  assert.match(copyAll.plain,/Síndrome subacromial/,'copied plain text includes other sections');
+
+  // Fallback: when ClipboardItem/write aren't available, "Copiar tudo" uses writeText.
+  callsBefore=await page.evaluate(()=>calls.length);
+  await page.evaluate(()=>{window.__savedClipboardItem=window.ClipboardItem;delete window.ClipboardItem;});
+  const copiesBefore=await page.evaluate(()=>window.__copies.length);
+  await page.getByRole('button',{name:'Copiar tudo',exact:true}).click();
+  await page.waitForFunction(n=>window.__copies.length>n,copiesBefore);
+  assert.equal(await page.evaluate(()=>calls.length),callsBefore,'"Copiar tudo" fallback never calls the API');
+  assert.match(await page.evaluate(()=>window.__copies.at(-1)),/^Alertas\n/,'fallback writeText receives the plain-text version');
+  await page.evaluate(()=>{window.ClipboardItem=window.__savedClipboardItem;});
+
   // Clicking a plain list item (e.g. a missing-information question) never calls the API.
   callsBefore=await page.evaluate(()=>calls.length);
   await page.evaluate(()=>document.querySelector('[data-body] li')?.click());
@@ -145,7 +217,7 @@ const path=require('node:path');
   // "Atualizar análise" makes exactly one more call and only replaces the panel content.
   callsBefore=await page.evaluate(()=>calls.length);
   await page.getByRole('button',{name:'Atualizar análise',exact:true}).click();
-  await page.waitForFunction(()=>document.querySelector('[data-counter]')?.textContent.includes('2 análises'));
+  await page.waitForFunction(()=>document.querySelector('[data-counter]')?.textContent.includes('3 análises'));
   assert.equal(await page.evaluate(()=>calls.length)-callsBefore,1,'"Atualizar análise" makes exactly one more call');
   assert.equal(await page.evaluate(()=>content.editorHTML(q)),pasted,'HDA still untouched after a refresh alone');
 
@@ -160,7 +232,7 @@ const path=require('node:path');
   await page.getByRole('button',{name:'Atualizar análise',exact:true}).click();
   await page.waitForFunction(()=>window.resolveAI);
   await page.evaluate(()=>{q.insertText(0,'Alterado entretanto. ','user');resolveAI();});
-  await page.waitForFunction(()=>document.querySelector('[data-counter]')?.textContent.includes('3 análises'));
+  await page.waitForFunction(()=>document.querySelector('[data-counter]')?.textContent.includes('4 análises'));
   await page.getByRole('button',{name:'Aplicar à HDA',exact:true}).click();
   assert.match(await page.locator('.clinical-ai-note-status').innerText(),/alterado entretanto/);
   await page.getByRole('button',{name:'Manter original',exact:true}).click();
@@ -246,6 +318,6 @@ const path=require('node:path');
   assert.match(await page.evaluate(()=>reopenSaved.payload.hda),/Nota nova\./,'a real user edit must still autosave');
   await page.evaluate(()=>document.querySelector('#reopen-hda').remove());
   assert.deepEqual(errors,[]);
-  console.log('PASS: UL, OL, mixed/nested and legacy lists; serialization/reopen/feed/report; Enter/Tab; paste; undo/redo; more visible "✦ Assistente clínico IA" trigger; side panel (one call per click, all 9 sections incl. Exame objectivo a completar split from Informação em falta, apply/keep/undo/conflict/failure/invalid-analysis/no-HTML-execution/close); Copiar buttons (no API call, no HDA change, no HTML in copied text); prompt = HDA + non-identifying CONTEXTO CONHECIDO only (age/profissão/desporto/antecedentes/alertas, never nome/SNS/NIF/telefone/email/morada), omitted entirely without a patient; no AI for formatting; no HDA autosave on load.');
+  console.log('PASS: UL, OL, mixed/nested and legacy lists; serialization/reopen/feed/report; Enter/Tab; paste; undo/redo; more visible "✦ Assistente clínico IA" trigger; side panel (one call per click, all 9 sections incl. Exame objectivo a completar split from Informação em falta, apply/keep/undo/conflict/failure/invalid-analysis/no-HTML-execution/close); inline answers to missing_information (no API call/no HDA change while typing, bundled as RESPOSTAS ÀS PERGUNTAS DO ASSISTENTE on the next call, resolved questions disappear/new ones can appear, cleared after a successful analysis); Copiar buttons (no API call, no HDA change, no HTML in copied text); Copiar tudo (ClipboardItem text/html+text/plain with writeText fallback, no API call, no HDA change, no buttons/inputs in copied HTML); prompt = HDA + non-identifying CONTEXTO CONHECIDO only (age/profissão/desporto/antecedentes/alertas, never nome/SNS/NIF/telefone/email/morada), omitted entirely without a patient; no AI for formatting; no HDA autosave on load.');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});

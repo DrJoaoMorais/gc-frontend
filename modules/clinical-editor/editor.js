@@ -235,31 +235,70 @@ function ensureAssistantStyles() {
   stylesInjected = true;
   const style = document.createElement('style');
   style.textContent = `
-    .ql-toolbar .clinical-ai-trigger{display:inline-flex;align-items:center;height:26px;padding:0 10px;margin-left:2px;font:inherit;font-size:12.5px;font-weight:700;color:#1a56db;background:#eaf1ff !important;border:1px solid #a9c8f5 !important;border-radius:6px;cursor:pointer;white-space:nowrap;}
+    /* Toolbar trigger — deliberately separated from the Quill B/I/U/list commands. */
+    .ql-toolbar .clinical-ai-trigger{display:inline-flex;align-items:center;height:28px;padding:0 11px;margin-left:9px;font:inherit;font-size:12.5px;font-weight:700;color:#1a56db;background:#eaf1ff !important;border:1px solid #a9c8f5 !important;border-radius:7px;cursor:pointer;white-space:nowrap;}
     .ql-toolbar .clinical-ai-trigger:hover{background:#dbe9ff !important;}
-    .clinical-ai-layout{display:flex;gap:14px;align-items:flex-start;}
-    .clinical-ai-layout>.ql-container{flex:1 1 auto;min-width:0;}
-    .clinical-ai-panel{flex:0 0 340px;max-width:340px;box-sizing:border-box;padding:12px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;max-height:520px;overflow:auto;}
-    @media (max-width:860px){
-      .clinical-ai-layout{flex-direction:column;}
+    .ql-toolbar .clinical-ai-trigger:focus-visible{outline:2px solid #1a56db;outline-offset:1px;}
+
+    /* Layout: HDA stays comfortably wide, panel is a real clinical sidebar. */
+    .clinical-ai-layout{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;}
+    .clinical-ai-layout>.ql-container{flex:1 1 520px;min-width:520px;}
+    .clinical-ai-panel{flex:0 0 clamp(440px,34vw,540px);max-width:540px;box-sizing:border-box;padding:0;border:1px solid #dbe3ee;border-radius:10px;background:#fff;box-shadow:0 4px 16px rgba(15,23,42,.07);max-height:min(680px,calc(100vh - 180px));overflow-y:auto;outline:none;}
+    @media (max-width:1080px){
+      .clinical-ai-layout>.ql-container{min-width:0;flex-basis:auto;}
       .clinical-ai-panel{flex:1 1 auto;max-width:none;width:100%;}
     }
-    .clinical-ai-header{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px;}
-    .clinical-ai-header strong{margin-right:auto;}
-    .clinical-ai-counter{font-size:12px;color:#64748b;}
-    .clinical-ai-section{margin-top:12px;padding-top:10px;border-top:1px solid #e2e8f0;}
-    .clinical-ai-section:first-of-type{margin-top:0;padding-top:0;border-top:0;}
-    .clinical-ai-section h4{margin:0 0 6px;font-size:13px;}
-    .clinical-ai-section ul{margin:0;padding-left:18px;}
-    .clinical-ai-section li{margin-bottom:8px;}
-    .clinical-ai-section li p{margin:2px 0 0;font-size:12px;color:#475569;}
+
+    /* Header — sticky, one clear title, no visual duplication. flex-wrap is a
+       safety net so the extra "Copiar tudo" button never forces overflow. */
+    .clinical-ai-header{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:13px 14px;background:#fff;border-bottom:1px solid #eef2f7;border-radius:10px 10px 0 0;}
+    .clinical-ai-title{font-size:14px;font-weight:800;color:#0f172a;}
+    .clinical-ai-counter{font-size:11.5px;color:#8b96a8;margin-right:auto;}
+    .clinical-ai-status{padding:8px 14px 0;font-size:12.5px;color:#8b96a8;min-height:1.2em;}
+
+    /* Shared button system — every Assistant button has its own CSS, never native. */
+    .clinical-ai-btn{font:inherit;font-size:12.5px;font-weight:600;border-radius:6px;cursor:pointer;padding:6px 12px;border:1px solid #dbe3ee;background:#fff;color:#334155;line-height:1.3;}
+    .clinical-ai-btn:hover{background:#f1f5f9;}
+    .clinical-ai-btn:focus-visible{outline:2px solid #1a56db;outline-offset:1px;}
+    .clinical-ai-btn:disabled{opacity:.5;cursor:not-allowed;}
+    .clinical-ai-btn-primary{background:#1a56db;border-color:#1a56db;color:#fff;}
+    .clinical-ai-btn-primary:hover:not(:disabled){background:#1547b8;}
+    .clinical-ai-btn-ghost{background:transparent;border-color:#dbe3ee;color:#475569;}
+    .clinical-ai-btn-ghost:hover:not(:disabled){background:#f8fafc;}
+    .clinical-ai-btn-sm{padding:4px 10px;font-size:11.5px;}
+    .clinical-ai-btn-icon{width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:7px;font-size:14px;line-height:1;color:#64748b;background:transparent;border-color:transparent;}
+    .clinical-ai-btn-icon:hover{background:#f1f5f9;color:#0f172a;}
+
+    /* Sections — thin unit, no boxed-in look. */
+    .clinical-ai-body{padding:2px 0 6px;}
+    .clinical-ai-section{padding:12px 14px;border-bottom:1px solid #eef2f7;}
+    .clinical-ai-section:last-child{border-bottom:0;}
+    .clinical-ai-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+    .clinical-ai-section h4{margin:0;font-size:13.5px;font-weight:700;color:#0f172a;}
+    .clinical-ai-section ul{margin:0;padding-left:16px;list-style:disc;}
+    .clinical-ai-section li{margin-bottom:8px;font-size:13px;line-height:1.5;color:#1e293b;}
+    .clinical-ai-section li:last-child{margin-bottom:0;}
+    .clinical-ai-section li strong{font-weight:700;color:#0f172a;}
+    .clinical-ai-section li p{margin:2px 0 0;font-size:12.5px;line-height:1.5;color:#64748b;font-weight:400;}
     .clinical-ai-alert-inconsistency strong{color:#b45309;}
-    .clinical-ai-caution{font-style:italic;}
-    .clinical-ai-note-preview{background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:4px 12px;margin:4px 0 8px;}
+    .clinical-ai-confidence{display:inline-block;font-size:11px;font-weight:600;color:#64748b;background:#f1f5f9;border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:middle;}
+    .clinical-ai-caution{font-style:italic;color:#94a3b8 !important;}
+
+    /* Inline answers to "Informação em falta" — local-only, own compact look. */
+    .clinical-ai-answer-wrap{display:flex;align-items:flex-start;gap:6px;margin-top:6px;}
+    .clinical-ai-answer{flex:1;min-width:0;font:inherit;font-size:12.5px;line-height:1.4;padding:6px 8px;border:1px solid #dbe3ee;border-radius:6px;background:#fbfcfe;color:#1e293b;resize:vertical;min-height:30px;}
+    .clinical-ai-answer:focus{outline:2px solid #1a56db;outline-offset:1px;border-color:#1a56db;}
+    .clinical-ai-answer-check{flex:0 0 auto;color:#16a34a;font-weight:700;font-size:13px;line-height:1.8;}
+
+    /* HDA enriquecida */
+    .clinical-ai-note-preview{background:#f8fafc;border:1px solid #e7ecf3;border-radius:8px;padding:11px 12px;margin-bottom:10px;font-size:13px;line-height:1.55;color:#1e293b;}
+    .clinical-ai-note-preview p{margin:0 0 6px;}
+    .clinical-ai-note-preview p:last-child{margin-bottom:0;}
     .clinical-ai-note-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;}
-    .clinical-ai-note-actions button{margin-right:0;}
-    .clinical-ai-note-status{min-height:1.2em;font-size:12px;}
-    .clinical-ai-copy-row{display:inline-flex;align-items:center;gap:6px;margin-top:6px;}
+    .clinical-ai-note-status{min-height:1.2em;font-size:12px;color:#64748b;margin:6px 0 0;}
+
+    /* Copiar — small, ghost, inline with the status message. */
+    .clinical-ai-copy-row{display:inline-flex;align-items:center;gap:6px;}
     .clinical-ai-copy-status{font-size:11px;color:#64748b;}
   `;
   document.head.appendChild(style);
@@ -281,6 +320,7 @@ function addCopyButton(container, getText) {
   row.className = 'clinical-ai-copy-row';
   const button = document.createElement('button');
   button.type = 'button';
+  button.className = 'clinical-ai-btn clinical-ai-btn-ghost clinical-ai-btn-sm';
   button.textContent = 'Copiar';
   const status = document.createElement('span');
   status.className = 'clinical-ai-copy-status';
@@ -340,13 +380,18 @@ function classifyMissingInformation(items) {
 }
 
 // Builds a heading + <ul> section only when there is at least one item to show.
+// Copiar sits on the same row as the heading, at the right.
 function renderListSection(container, heading, items, fillItem, copyText) {
   if (!items.length) return;
   const section = document.createElement('section');
   section.className = 'clinical-ai-section';
+  const head = document.createElement('div');
+  head.className = 'clinical-ai-section-head';
   const h = document.createElement('h4');
   h.textContent = heading;
-  section.append(h);
+  head.append(h);
+  if (copyText) addCopyButton(head, () => copyText(items));
+  section.append(head);
   const list = document.createElement('ul');
   for (const item of items) {
     const li = document.createElement('li');
@@ -354,7 +399,6 @@ function renderListSection(container, heading, items, fillItem, copyText) {
     list.append(li);
   }
   section.append(list);
-  if (copyText) addCopyButton(section, () => copyText(items));
   container.append(section);
 }
 
@@ -372,9 +416,9 @@ function renderClinicalNoteSection(container, state, blocks, snapshot) {
   const actions = document.createElement('div');
   actions.className = 'clinical-ai-note-actions';
   const applyBtn = document.createElement('button');
-  applyBtn.type = 'button'; applyBtn.textContent = 'Aplicar à HDA';
+  applyBtn.type = 'button'; applyBtn.className = 'clinical-ai-btn clinical-ai-btn-primary'; applyBtn.textContent = 'Aplicar à HDA';
   const keepBtn = document.createElement('button');
-  keepBtn.type = 'button'; keepBtn.textContent = 'Manter original';
+  keepBtn.type = 'button'; keepBtn.className = 'clinical-ai-btn clinical-ai-btn-ghost'; keepBtn.textContent = 'Manter original';
   const noteStatus = document.createElement('p');
   noteStatus.className = 'clinical-ai-note-status';
   noteStatus.setAttribute('role', 'status');
@@ -411,15 +455,41 @@ function fillAlert(li, alert) {
   p.textContent = alert.text;
   li.append(strong, p);
 }
-function fillMissingInfo(li, info) {
+// 'state' is null when building a read-only copy (e.g. "Copiar tudo"), in
+// which case no answer textarea is added — only the question text itself.
+function fillMissingInfo(li, info, state) {
   li.textContent = info.question;
+  if (!state) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'clinical-ai-answer-wrap';
+  const textarea = document.createElement('textarea');
+  textarea.className = 'clinical-ai-answer';
+  textarea.placeholder = 'Responder…';
+  textarea.rows = 1;
+  textarea.value = state.answers.get(info.question) || '';
+  const check = document.createElement('span');
+  check.className = 'clinical-ai-answer-check';
+  check.textContent = '✓';
+  check.hidden = !textarea.value.trim();
+  check.setAttribute('aria-hidden', 'true');
+  textarea.addEventListener('input', () => {
+    const value = textarea.value;
+    if (value.trim()) state.answers.set(info.question, value);
+    else state.answers.delete(info.question);
+    check.hidden = !value.trim();
+  });
+  wrap.append(textarea, check);
+  li.append(wrap);
 }
 function fillHypothesis(li, hypothesis) {
   const strong = document.createElement('strong');
-  strong.textContent = `${hypothesis.label} (${CONFIDENCE_LABEL[hypothesis.confidence]})`;
+  strong.textContent = hypothesis.label;
+  const badge = document.createElement('span');
+  badge.className = 'clinical-ai-confidence';
+  badge.textContent = CONFIDENCE_LABEL[hypothesis.confidence];
   const p = document.createElement('p');
   p.textContent = hypothesis.reason;
-  li.append(strong, p);
+  li.append(strong, badge, p);
 }
 function fillExam(li, exam) {
   const strong = document.createElement('strong');
@@ -445,7 +515,9 @@ function fillHep(li, hep) {
   p.textContent = hep.reason;
   const caution = document.createElement('p');
   caution.className = 'clinical-ai-caution';
-  caution.textContent = 'Cautela: ' + hep.caution;
+  const em = document.createElement('em');
+  em.textContent = 'Cautela: ' + hep.caution;
+  caution.append(em);
   li.append(strong, p, caution);
 }
 
@@ -454,8 +526,8 @@ function renderAnalysis(state, analysis, snapshot) {
   bodyEl.replaceChildren();
   renderListSection(bodyEl, 'Alertas', analysis.alerts, fillAlert, alertsText);
   const { history, exam } = classifyMissingInformation(analysis.missing_information);
-  renderListSection(bodyEl, 'Informação em falta', history, fillMissingInfo, missingInfoText);
-  renderListSection(bodyEl, 'Exame objectivo a completar', exam, fillMissingInfo, missingInfoText);
+  renderListSection(bodyEl, 'Informação em falta', history, (li, item) => fillMissingInfo(li, item, state), missingInfoText);
+  renderListSection(bodyEl, 'Exame objectivo a completar', exam, (li, item) => fillMissingInfo(li, item, state), missingInfoText);
   renderClinicalNoteSection(bodyEl, state, analysis.clinical_note.blocks, snapshot);
   renderListSection(bodyEl, 'Hipóteses a considerar', analysis.diagnostic_hypotheses, fillHypothesis, hypothesesText);
   renderListSection(bodyEl, 'Exames a ponderar', analysis.suggested_exams, fillExam, examsText);
@@ -463,6 +535,73 @@ function renderAnalysis(state, analysis, snapshot) {
   renderListSection(bodyEl, 'Objetivos', analysis.objectives, fillObjective, objectivesText);
   renderListSection(bodyEl, 'HEP', analysis.hep_suggestions, fillHep, hepText);
   counterEl.textContent = `IA · ${state.callCount} ${state.callCount === 1 ? 'análise' : 'análises'}`;
+}
+
+// Read-only heading + <ul> section for "Copiar tudo" — no buttons/inputs,
+// same fill functions as the panel (never raw HTML from the AI).
+function appendListSection(container, heading, items, fillItem) {
+  if (!items.length) return;
+  const section = document.createElement('section');
+  const h = document.createElement('h4');
+  h.textContent = heading;
+  section.append(h);
+  const list = document.createElement('ul');
+  for (const item of items) {
+    const li = document.createElement('li');
+    fillItem(li, item);
+    list.append(li);
+  }
+  section.append(list);
+  container.append(section);
+}
+
+// Detached container with the full visible analysis, section order preserved,
+// built the same safe way as the panel (textContent-first, no buttons/inputs/
+// empty fields). Returns null when there is nothing analyzed yet.
+function buildAnalysisContainer(state) {
+  const analysis = state.lastAnalysis;
+  if (!analysis) return null;
+  const container = document.createElement('div');
+  appendListSection(container, 'Alertas', analysis.alerts, fillAlert);
+  const { history, exam } = classifyMissingInformation(analysis.missing_information);
+  appendListSection(container, 'Informação em falta', history, (li, item) => fillMissingInfo(li, item, null));
+  appendListSection(container, 'Exame objectivo a completar', exam, (li, item) => fillMissingInfo(li, item, null));
+  if (analysis.clinical_note.blocks.length) {
+    const section = document.createElement('section');
+    const h = document.createElement('h4');
+    h.textContent = 'HDA enriquecida';
+    section.append(h);
+    const preview = document.createElement('div');
+    renderBlocksPreview(preview, analysis.clinical_note.blocks);
+    section.append(preview);
+    container.append(section);
+  }
+  appendListSection(container, 'Hipóteses a considerar', analysis.diagnostic_hypotheses, fillHypothesis);
+  appendListSection(container, 'Exames a ponderar', analysis.suggested_exams, fillExam);
+  appendListSection(container, 'Tratamento / Programa de reabilitação', analysis.treatment_options, fillTreatment);
+  appendListSection(container, 'Objetivos', analysis.objectives, fillObjective);
+  appendListSection(container, 'HEP', analysis.hep_suggestions, fillHep);
+  return container.childElementCount ? container : null;
+}
+
+// Same section order/content as buildAnalysisContainer, as plain PT-PT text —
+// reuses the same builders already used by the per-section "Copiar" buttons.
+function buildFullAnalysisPlainText(state) {
+  const analysis = state.lastAnalysis;
+  if (!analysis) return '';
+  const parts = [];
+  const add = (heading, items, textFn) => { if (items.length) parts.push(`${heading}\n${textFn(items)}`); };
+  add('Alertas', analysis.alerts, alertsText);
+  const { history, exam } = classifyMissingInformation(analysis.missing_information);
+  add('Informação em falta', history, missingInfoText);
+  add('Exame objectivo a completar', exam, missingInfoText);
+  if (analysis.clinical_note.blocks.length) parts.push(`HDA enriquecida\n${blocksToPlainText(analysis.clinical_note.blocks)}`);
+  add('Hipóteses a considerar', analysis.diagnostic_hypotheses, hypothesesText);
+  add('Exames a ponderar', analysis.suggested_exams, examsText);
+  add('Tratamento / Programa de reabilitação', analysis.treatment_options, treatmentText);
+  add('Objetivos', analysis.objectives, objectivesText);
+  add('HEP', analysis.hep_suggestions, hepText);
+  return parts.join('\n\n');
 }
 
 // Builds "CONTEXTO CONHECIDO:" from already-known, non-identifying clinical
@@ -492,9 +631,25 @@ function buildClinicalContext(patient) {
   return lines.join('\n');
 }
 
-function buildPrompt(hdaText, patient) {
+// Answers typed by the doctor in the panel — local-only state (never saved to
+// the HDA/BD) — bundled as opaque prompt text only when "Atualizar análise" runs.
+function buildAnswersBlock(answers) {
+  if (!answers || !answers.size) return '';
+  const lines = [];
+  for (const [question, answer] of answers) {
+    if (!isNonEmptyString(answer)) continue;
+    lines.push(`- Pergunta: ${question}\n  Resposta: ${answer.trim()}`);
+  }
+  return lines.length ? `RESPOSTAS ÀS PERGUNTAS DO ASSISTENTE:\n${lines.join('\n')}` : '';
+}
+
+function buildPrompt(hdaText, patient, answers) {
   const context = buildClinicalContext(patient);
-  return context ? `HDA:\n${hdaText}\n\nCONTEXTO CONHECIDO:\n${context}` : `HDA:\n${hdaText}`;
+  const answersBlock = buildAnswersBlock(answers);
+  let prompt = `HDA:\n${hdaText}`;
+  if (context) prompt += `\n\nCONTEXTO CONHECIDO:\n${context}`;
+  if (answersBlock) prompt += `\n\n${answersBlock}`;
+  return prompt;
 }
 
 // One call per click — no per-section calls, no automatic call on load.
@@ -510,7 +665,7 @@ async function runAnalysis(state) {
     if (!sb?.functions?.invoke) throw new Error('A ligação de IA não está disponível.');
     const { data: session, error: sessionError } = await sb.auth.getSession();
     if (sessionError || !session?.session) throw new Error('Inicia sessão para utilizar a IA.');
-    const prompt = buildPrompt(quill.getText().trim(), patient);
+    const prompt = buildPrompt(quill.getText().trim(), patient, state.answers);
     const { data, error } = await sb.functions.invoke('ai-proxy', { body: { mode: 'estruturar', prompt } });
     if (!panel.isConnected || !quill.container.isConnected) return;
     sessionAnalysisCount += 1;
@@ -519,6 +674,8 @@ async function runAnalysis(state) {
     if (error || data?.error) throw new Error('Não foi possível obter a análise. O original foi mantido.');
     const analysis = validateAnalysis(data);
     if (!analysis) throw new Error('A IA devolveu uma resposta em formato inesperado.');
+    state.lastAnalysis = analysis;
+    state.answers.clear();
     bodyEl.replaceChildren();
     renderAnalysis(state, analysis, snapshot);
     quill.__aiLastAnalyzedHTML = snapshot;
@@ -528,6 +685,35 @@ async function runAnalysis(state) {
     if (panel.isConnected) statusEl.textContent = err.message;
   } finally {
     if (panel.isConnected) refreshBtn.disabled = false;
+  }
+}
+
+// "Copiar tudo" — never calls the API, never touches the HDA/BD. Copies the
+// whole visible analysis (section order preserved) as text/html + text/plain,
+// falling back to writeText when ClipboardItem/write isn't supported.
+async function copyFullAnalysis(state) {
+  const { copyAllStatusEl } = state;
+  const show = message => {
+    copyAllStatusEl.textContent = message;
+    setTimeout(() => { copyAllStatusEl.textContent = ''; }, 2000);
+  };
+  const container = buildAnalysisContainer(state);
+  const text = buildFullAnalysisPlainText(state);
+  if (!container || !text) { show('Sem análise para copiar.'); return; }
+  try {
+    if (window.ClipboardItem && navigator.clipboard?.write) {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': new Blob([container.innerHTML], { type: 'text/html' }),
+          'text/plain': new Blob([text], { type: 'text/plain' })
+        })
+      ]);
+    } else {
+      await navigator.clipboard.writeText(text);
+    }
+    show('Tudo copiado.');
+  } catch {
+    show('Não foi possível copiar.');
   }
 }
 
@@ -548,8 +734,8 @@ export async function openAiAssistant(quill, sb, patient = null) {
   const panel = document.createElement('section');
   panel.tabIndex = -1;
   panel.className = 'clinical-ai-panel';
-  panel.setAttribute('aria-label', 'Assistente IA');
-  panel.innerHTML = '<header class="clinical-ai-header"><strong>Assistente IA</strong><span data-counter class="clinical-ai-counter"></span><button type="button" data-refresh>Atualizar análise</button><button type="button" data-close aria-label="Fechar">✕</button></header><p data-status role="status"></p><div data-body></div>';
+  panel.setAttribute('aria-label', 'Assistente clínico IA');
+  panel.innerHTML = '<header class="clinical-ai-header"><span class="clinical-ai-title">Assistente clínico</span><span data-counter class="clinical-ai-counter"></span><span data-copy-all-status role="status" class="clinical-ai-copy-status"></span><button type="button" data-copy-all class="clinical-ai-btn clinical-ai-btn-ghost clinical-ai-btn-sm">Copiar tudo</button><button type="button" data-refresh class="clinical-ai-btn clinical-ai-btn-ghost clinical-ai-btn-sm">Atualizar análise</button><button type="button" data-close class="clinical-ai-btn clinical-ai-btn-icon" aria-label="Fechar">✕</button></header><p data-status role="status" class="clinical-ai-status"></p><div data-body class="clinical-ai-body"></div>';
   layout.append(panel);
   quill.__aiPanel = panel;
 
@@ -559,11 +745,16 @@ export async function openAiAssistant(quill, sb, patient = null) {
     bodyEl: panel.querySelector('[data-body]'),
     counterEl: panel.querySelector('[data-counter]'),
     refreshBtn: panel.querySelector('[data-refresh]'),
-    callCount: sessionAnalysisCount
+    copyAllBtn: panel.querySelector('[data-copy-all]'),
+    copyAllStatusEl: panel.querySelector('[data-copy-all-status]'),
+    callCount: sessionAnalysisCount,
+    answers: new Map(),
+    lastAnalysis: null
   };
   state.counterEl.textContent = `IA · ${state.callCount} ${state.callCount === 1 ? 'análise' : 'análises'}`;
   panel.querySelector('[data-close]').onclick = () => { panel.remove(); quill.__aiPanel = null; quill.focus(); };
   state.refreshBtn.onclick = () => runAnalysis(state);
+  state.copyAllBtn.onclick = () => copyFullAnalysis(state);
 
   await runAnalysis(state);
   if (panel.isConnected) panel.focus();

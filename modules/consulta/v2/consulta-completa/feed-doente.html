@@ -389,6 +389,11 @@
       flex: 1;
       min-width: 0;
     }
+    /* Assistente IA aberto: liberta a largura que hoje fica vazia à direita.
+       Sem o painel, a página mantém a largura actual (900px). */
+    .fd-page:has(.clinical-ai-layout) {
+      max-width: 1400px;
+    }
 
     /* ── LOADING ── */
     .fd-loading {
@@ -789,6 +794,7 @@
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
         <span id="fd-form-titulo" style="font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:var(--navy);">Nova Consulta</span>
         <button id="fd-btn-antecedentes-novo" class="fd-btn-antec-novo">📋 Antecedentes</button>
+        <span id="fd-rec-slot"></span>
         <span id="fd-nova-estado" style="font-size:12px;color:var(--suave);margin-left:4px;"></span>
         <button class="fd-nova-fechar" id="fd-nova-fechar" style="margin-left:auto;">×</button>
       </div>
@@ -951,6 +957,8 @@
   <script type="module">
     import { clinicalHTML, editorHTML, loadClinicalHTML } from "../../../clinical-editor/content.js";
     import { enhanceClinicalEditor } from "../../../clinical-editor/editor.js";
+    import { mountAssistantPanel } from "../../../clinical-editor/assistant-panel.js";
+    import { mountRecordingBar } from "../../../clinical-editor/recording-bar.js";
     import { carregarConsulta, carregarConsultasEmLote } from './cc-queries.js';
     import { carregarCopiaAnterior, juntarSemDuplicar } from './cc-copia-anterior.js';
     import { mount as pdv2Mount, unmount as pdv2Unmount } from '../../../pedidos/pedidos-v2.js';
@@ -2591,7 +2599,85 @@
         },
       });
 
-      enhanceClinicalEditor(fdQuill, { ai: true, patient: () => fdPatientData });
+      enhanceClinicalEditor(fdQuill);
+
+      // Nesta ronda ainda não há integração real com o subsistema estruturado
+      // de Exame Objectivo (só fica editável depois de gravar a consulta pela
+      // 1ª vez) — devolve-se null de propósito, para o mock refletir com
+      // honestidade o que está realmente disponível agora. A função existe já
+      // no encadeamento para, numa ronda futura, passar a ler o EO real sem
+      // precisar de tocar em assistant-panel.js nem no mockRespond em si.
+      function fdGetConsultationContext() {
+        return { eo: null };
+      }
+
+      // melhorar_hda: única ligação REAL a IA nesta ronda — função separada
+      // "melhorar-hda" (prompt curto próprio, gpt-5-mini, schema estrito
+      // { hdaMelhorada }), nunca o ai-proxy/mega-prompt. Nunca envia EO: só
+      // context.hdaAtual, context.transcript e um resumo anamnéstico curto
+      // (já filtrado a montante em assistant-panel.js, que só deixa passar
+      // "dob" de patient()).
+      async function callMelhorarHdaReal(context) {
+        const hdaAtual = (context?.hdaAtual || '').trim();
+        const transcript = (context?.transcript || '').trim();
+        const dob = context?.patient?.dob;
+        const patientContext = dob ? `Data de nascimento: ${dob}` : '';
+        const { data, error } = await window.sb.functions.invoke('melhorar-hda', {
+          body: { hdaAtual, transcript, patientContext }
+        });
+        if (error) throw new Error(data?.error || 'Não foi possível melhorar a HDA.');
+        if (typeof data?.hdaMelhorada !== 'string' || !data.hdaMelhorada.trim()) throw new Error('Resposta vazia.');
+        return { hdaMelhorada: data.hdaMelhorada };
+      }
+
+      // Ronda de integração local/segura: 'analisar' e 'plano' continuam
+      // FICTÍCIOS, sem qualquer chamada a ai-proxy — trocam-se por chamadas
+      // reais numa ronda futura; assistant-panel.js não muda.
+      function mockRespond(kind, userText, context) {
+        if (kind === 'melhorar_hda') return callMelhorarHdaReal(context);
+        return new Promise(resolve => {
+          setTimeout(() => {
+            if (kind === 'analisar') {
+              // Prova visível (ainda mock) de que o contexto é sempre relido no
+              // momento do pedido — nunca preso à 1ª leitura nem à transcrição inicial.
+              const hdaSnippet = (context?.hda || '').slice(0, 70);
+              const eoLine = context?.eo
+                ? `Exame objectivo actual: ${context.eo}`
+                : 'Exame objectivo: ainda sem dados registados nesta consulta.';
+              resolve([
+                { text: `A reler o estado actual da consulta — HDA: "${hdaSnippet}${context?.hda?.length > 70 ? '…' : ''}"` },
+                { heading: 'Perguntas em falta', items: ['Profissão e exigência funcional do ombro?', 'Existe irradiação ou parestesias?', 'Já foi feito algum exame de imagem?'] },
+                { heading: 'Alertas', items: ['Nenhuma inconsistência encontrada no texto.'] },
+                { heading: 'Hipóteses a considerar', items: ['Síndrome subacromial (confiança moderada) — dor nocturna compatível, mas falta exame objectivo.'] },
+                { heading: 'Interpretação do Exame Objectivo', text: eoLine },
+                { heading: 'Exame objectivo a completar', items: ['Arco doloroso, testes de conflito (Neer/Hawkins), força comparativa.'] },
+                { heading: 'Próximos passos', items: ['Completar exame objectivo dirigido ao ombro antes de decidir sobre exames de imagem.'] },
+                { text: 'Não sugiro exames complementares nem plano de tratamento aqui — pede "Plano" se quiseres isso.' }
+              ]);
+            } else if (kind === 'plano') {
+              resolve([
+                { heading: 'Tratamento / Programa de reabilitação', items: ['AGORA: programa de reabilitação orientado ao manguito rotador.', 'REAVALIAR em 4 semanas.'] },
+                { heading: 'Objectivos', items: ['Reduzir dor nocturna.', 'Recuperar força do supra-espinhoso.'] },
+                { heading: 'HEP', items: ['Pendulares de Codman — mobilização suave inicial.', 'Fortalecimento isométrico progressivo, sem dor.'] }
+              ]);
+            } else {
+              const lower = (userText || '').toLowerCase();
+              if (lower.includes('explica melhor')) {
+                resolve([{ heading: 'A explicar melhor a última resposta', text: 'A hipótese de síndrome subacromial baseia-se sobretudo na dor nocturna referida — mas isso, isoladamente, é um sinal inespecífico. Por isso a "confidence" ficou moderada: falta o exame objectivo para a sustentar melhor.' }]);
+              } else if (lower.includes('só quero os objectivos') || lower.includes('so quero os objectivos')) {
+                resolve([{ heading: 'Objectivos', items: ['Reduzir dor nocturna.', 'Recuperar força do supra-espinhoso.'] }]);
+              } else if (lower.includes('spurling')) {
+                resolve([{ heading: 'Se o Spurling for positivo à direita', text: 'Isso reforça a hipótese de envolvimento radicular cervical associado — passaria a considerar cervicobraquialgia como hipótese adicional.' }]);
+              } else {
+                resolve([{ text: `Isto é só uma demonstração local — ainda não interpreto pedidos livres arbitrários (perguntaste: "${userText}"). Experimenta um dos 3 atalhos acima.` }]);
+              }
+            }
+          }, 700);
+        });
+      }
+
+      const fdAssistant = mountAssistantPanel(fdQuill, { patient: () => fdPatientData, respond: mockRespond, getConsultationContext: fdGetConsultationContext });
+      mountRecordingBar(document.getElementById('fd-rec-slot'), { onImprove: (transcript) => fdAssistant.improveFromTranscript(transcript), sb: window.sb });
 
       /* snippets rápidos */
       const SNIPS = [
