@@ -27,7 +27,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-08-25-3';
+const PRESCRICAO_CSS_VERSION = '2026-09-27-patient-entry';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -892,21 +892,25 @@ function renderLanding() {
       </button>
       </div>
     </section>
-
+    ${patientPickerHtml()}
   `;
+
+  _step1Destination = 'acompanhamento';
+  _careEntryMode = null;
+  wirePatientPicker();
 
   document.getElementById('gcwoCardPrescrever').addEventListener('click', () => {
     _step1Destination = 'acompanhamento';
-    _careEntryMode = 'blank';
-    renderStep1();
+    _careEntryMode = null;
+    document.getElementById('gcwoPatientQuery').focus();
   });
   document.getElementById('gcwoCardCatalogo').addEventListener('click', () => {
     initCatalogo({ onVoltar: () => { loadExercisesCatalog(); renderLanding(); } });
   });
   document.getElementById('gcwoCardPatologia').addEventListener('click', () => {
     _step1Destination = 'acompanhamento';
-    _careEntryMode = 'pathology';
-    renderStep1();
+    _careEntryMode = null;
+    document.getElementById('gcwoPatientQuery').focus();
   });
   mountClinicPicker(document.getElementById('gcwoLandingClinicPicker'), {
     clinics: clinicas, selected: _landing.clinicIds,
@@ -1416,9 +1420,18 @@ function renderStep1() {
       </div>
       ${topActionsHtml()}
     </div>
-    <div class="gcwo-step1-wrap">
+    ${patientPickerHtml()}
+  `;
+  wireTopActions();
+  document.getElementById('gcwoBackToLanding').addEventListener('click', () => renderLanding());
+
+  wirePatientPicker({ focus: true });
+}
+
+function patientPickerHtml() {
+  return `    <div class="gcwo-step1-wrap gcwo-inline-patient-picker">
       <div class="gcwo-step1-card">
-        <p class="gcwo-step1-intro">${_step1Destination === 'acompanhamento' ? 'Selecione o doente para configurar, prescrever e gerir a sua ligação única de acompanhamento.' : 'Cria uma prescrição de exercício para um doente — sessões de ginásio ou de modalidade, com tarefas e séries — e gera um link de acesso sem login para ele seguir o plano.'}</p>
+        <p class="gcwo-step1-intro">Selecione o doente para abrir a ligação, os módulos e o acompanhamento.</p>
 
         <span class="gcwo-field-label">Procurar doente</span>
         <div class="gc-search-bar gcwo-patient-search-wrap">
@@ -1427,22 +1440,24 @@ function renderStep1() {
         </div>
         <div id="gcwoPatientResults" class="gcwo-results" style="display:none;"></div>
       </div>
-    </div>
-  `;
-  wireTopActions();
-  document.getElementById('gcwoBackToLanding').addEventListener('click', () => renderLanding());
+    </div>`;
+}
 
+function wirePatientPicker({ focus = false } = {}) {
   const input = document.getElementById('gcwoPatientQuery');
   const resHost = document.getElementById('gcwoPatientResults');
-  input.focus();
+  if (focus) input.focus();
 
   let timer = null;
+  let searchVersion = 0;
   input.addEventListener('input', () => {
     if (timer) clearTimeout(timer);
+    searchVersion++;
     timer = setTimeout(() => runPatientSearch(input.textContent), 250);
   });
 
   async function runPatientSearch(term) {
+    const version = ++searchVersion;
     term = (term || '').trim();
     if (term.length < 2) {
       resHost.style.display = 'none';
@@ -1457,6 +1472,8 @@ function renderStep1() {
       p_term: term,
       p_limit: 15,
     });
+
+    if (!input.isConnected || version !== searchVersion) return;
 
     if (error) {
       console.error('[prescricao] search_patients_v2 falhou:', error);

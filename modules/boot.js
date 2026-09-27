@@ -52,7 +52,7 @@ import { initGestaoAgenda }               from "./gestaoagenda.js";
 // Import dinâmico e versionado (não estático): evita que o browser/CDN sirva
 // uma cópia antiga de prescricao.js depois de um deploy — mesmo problema que
 // já resolvemos para o CSS, aqui aplicado ao próprio módulo JS.
-const PRESCRICAO_JS_VERSION = '2026-09-15-navigation';
+const PRESCRICAO_JS_VERSION = '2026-09-27-patient-entry';
 
 /* Estado próprio do Home (scope de clínica) — independente de G.activeClinicId.
    Só é seedado a partir de G.activeClinicId uma vez, na primeira vez que a

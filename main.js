@@ -97,7 +97,7 @@ import { renderDoentePanorama } from "./modules/doente-admin.js";
 window.__gc_renderDoentePanorama = renderDoentePanorama;
 
 // Painel iframe do feed do doente (Passo 2/6 — isolado, sem ligação à agenda)
-import { openFeedPanel, openAcompanhamentoPanel, openAcompanhamentoList } from "./modules/feed-panel.js?v=2026-09-15-navigation";
+import { openFeedPanel, openAcompanhamentoPanel, openAcompanhamentoList } from "./modules/feed-panel.js?v=2026-09-27-patient-entry";
 window.__gc_openFeedPanel = openFeedPanel;
 window.__gc_openAcompanhamentoPanel = openAcompanhamentoPanel;
 window.__gc_openAcompanhamentoList = openAcompanhamentoList;
@@ -106,7 +106,7 @@ window.__gc_openAcompanhamentoList = openAcompanhamentoList;
 import "./modules/relatorio-v2-bridge.js";
 
 // Boot
-import { boot }                             from "./modules/boot.js?v=2026-09-15-navigation";
+import { boot }                             from "./modules/boot.js?v=2026-09-27-patient-entry";
 
 /* ── pontes window.__gc_* ────────────────────────────────────────────── */
 /*
