@@ -68,12 +68,12 @@ export function openFeedPanel(patientId, sessionClinicId, options = {}) {
   return iframe;
 }
 
-const ACOMPANHAMENTO_URL = "/modules/acompanhamento-clinico.html?v=2026-09-27-patient-entry";
+const ACOMPANHAMENTO_URL = "/modules/acompanhamento-clinico.html?v=2026-09-27-module-names";
 
 /* ---- openAcompanhamentoPanel ----
    Mesmo iframe/mecanismo do openFeedPanel, mas reabre directamente a área de
    Acompanhamento do doente — usado para o botão "voltar" a partir de um fluxo
-   de prescrição lançado por lá (ex: Exercícios por patologia), já que entrar
+   de prescrição lançado por lá (ex: Patologias/Protocolos), já que entrar
    nesse fluxo troca G.currentView e destrói o iframe original do feed. */
 export function openAcompanhamentoPanel(patientId, clinicId, options = {}) {
   if (!patientId || !clinicId || !allowCareNavigation()) return null;

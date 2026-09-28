@@ -27,7 +27,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-09-27-patient-entry';
+const PRESCRICAO_CSS_VERSION = '2026-09-27-module-names';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -120,7 +120,7 @@ function modalidadeTemZona(modality) {
 const TIPO_META = {
   // O valor antigo "Ginásio" continua nos dados para não quebrar planos existentes.
   ginasio:   { label: 'Fortalecimento', icon: ICON_GINASIO, fg: '#7c3aed', bg: '#f3e8ff' },
-  patologia: { label: 'Exercícios por patologia', icon: '<span aria-hidden="true">🦵</span>', fg: '#b45309', bg: '#fff4d6' },
+  patologia: { label: 'Patologias/Protocolos', icon: '<span aria-hidden="true">🦵</span>', fg: '#b45309', bg: '#fff4d6' },
   corrida:   { label: 'Corrida',   icon: ICON_CORRIDA,   fg: '#c2410c', bg: '#ffedd5' },
   natacao:   { label: 'Natação',   icon: ICON_NATACAO,   fg: '#1a56db', bg: '#eaf0fd' },
   ciclismo:  { label: 'Ciclismo',  icon: ICON_CICLISMO,  fg: '#0f8a74', bg: '#e3f6f2' },
@@ -875,7 +875,7 @@ function renderLanding() {
       </button>
       <button type="button" class="gcwo-landing-card" id="gcwoCardPatologia">
         <span class="gcwo-landing-card-icon doc">${ICON_FLAG}</span>
-        <span class="gcwo-landing-card-title">Exercícios por patologia</span>
+        <span class="gcwo-landing-card-title">Patologias/Protocolos</span>
         <span class="gcwo-landing-card-sub">Escolher um doente e preparar o programa por patologia no seu acompanhamento.</span>
         <span class="gcwo-landing-card-cta">Procurar doente →</span>
       </button>
@@ -1526,7 +1526,7 @@ function wirePatientPicker({ focus = false } = {}) {
         Promise.all([carregarPlanoActivoSeExistir(), carregarZonaPerfis()]).finally(() => {
           _loadingPlanoActivo = false;
           // Só depois do plano activo (se existir) já ter resolvido startDate/sessions — a(s)
-          // sessão(ões) vinda(s) de "Exercícios por patologia" (EX-07) caem na janela certa.
+          // sessão(ões) vinda(s) de "Patologias/Protocolos" (EX-07) caem na janela certa.
           aplicarPatologiaPendenteAoEstado();
           renderStep2Body();
         });
@@ -4917,7 +4917,7 @@ function renderStep3() {
 /* ================================================================
    EXERCÍCIOS POR PATOLOGIA (EX-07)
    -----------------------------------------------------------------
-   Ponto de entrada a partir do cartão "Exercícios por patologia" na
+   Ponto de entrada a partir do cartão "Patologias/Protocolos" na
    landing do módulo. Fluxo: Região → Tipo → Protocolo → Fase →
    Exercícios → "Avançar para prescrição". 100% data-driven a partir
    de protocols_catalog/protocol_phases/protocol_phase_exercises — sem
@@ -5264,7 +5264,7 @@ function renderPatologia() {
     <div class="gc-page-header">
       <div>
         <button type="button" class="gcwo-backlink" id="gcwoPatBackToLanding">← Exercício</button>
-        <div class="gc-page-title">Exercícios por patologia</div>
+        <div class="gc-page-title">Patologias/Protocolos</div>
         <div class="gc-page-sub">Partir de um protocolo clínico para pré-preencher a prescrição.</div>
       </div>
     </div>
