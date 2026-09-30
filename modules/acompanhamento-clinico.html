@@ -259,12 +259,12 @@ async function loadTrainingResults(page=trainingPage,{scroll=false}={}){
     renderTrainingResults(logs||[],readinessRows,snapshotRows,messageRows);
     count.textContent=`${trainingTotal} treino${trainingTotal===1?'':'s'}`;
     restoreTrainingUI();trainingHasLoaded=true;
-    if(page===0){const log=logs?.[0];latestTrainingSummary=log?{log,session:trainingSessionFromSnapshot(snapshotRows.find(row=>row.prescription_id===log.prescription_id&&row.session_id===log.session_id)?.snapshot)}:null;latestTrainingError=false;renderCareSummary()}
+    if(page===0){const log=logs?.[0];latestTrainingSummary=log?{log,session:trainingSessionFromSnapshot(snapshotRows.find(row=>row.prescription_id===log.prescription_id&&row.session_id===log.session_id)?.snapshot)}:null;latestTrainingError=false;if(typeof renderCareSummary==='function')renderCareSummary()}
     $('trainingLoadError')?.remove();
     if(scroll)$('trainingHistory').scrollIntoView({behavior:'smooth',block:'start'});
   }catch(error){
     console.error('Não foi possível carregar os resultados dos treinos.',error);
-    if(page===0){latestTrainingError=true;renderCareSummary()}
+    if(page===0){latestTrainingError=true;if(typeof renderCareSummary==='function')renderCareSummary()}
     $('trainingLoadError')?.remove();
     const notice=document.createElement('div');notice.id='trainingLoadError';notice.className='training-results-empty';notice.setAttribute('role','alert');notice.innerHTML='Não foi possível carregar estes treinos. <button class="btn" type="button">Tentar novamente</button>';
     notice.querySelector('button').onclick=()=>loadTrainingResults(page,{scroll});
