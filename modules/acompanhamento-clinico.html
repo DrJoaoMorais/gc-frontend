@@ -162,7 +162,7 @@ async function initCareCalendar(){
   careExerciseLoading=(async()=>{
     try{
       window.sb=sb;
-      const {initCarePrescription}=await import('./exercicio/prescricao/prescricao.js?v=2026-09-29-protocol-catalog');
+      const {initCarePrescription}=await import('./exercicio/prescricao/prescricao.js?v=2026-09-30-pathology-nav');
       careExercise=await initCarePrescription({patientId,clinicId,onCalendar:decorateCareCalendar,onSaved:refreshCareExercise,onChange:pending=>{const status=$('carePlanState');status.textContent=pending?'Plano com alterações por guardar':'Plano sem alterações por guardar';status.classList.toggle('pending',pending)}});
     }catch(error){console.error('Não foi possível abrir o calendário.',error);$('gcwoPrescricaoRoot').innerHTML='<p class="training-results-empty">Não foi possível carregar o calendário. <button class="btn" id="retryCalendar" type="button">Tentar novamente</button></p>';$('retryCalendar').onclick=()=>initCareCalendar()}
     finally{careExerciseLoading=null}
@@ -678,7 +678,7 @@ function mountAccessOverview(){
  document.body.classList.add('overview-mode');
  document.querySelectorAll('[data-access-open]').forEach(b=>b.onclick=()=>b.dataset.accessOpen==='pathology'&&!accessTerminated?openExercise('pathology'):showAccessEditor(b.dataset.accessOpen));
  document.querySelectorAll('[data-access-switch]').forEach(b=>b.onclick=()=>toggleAccessModule(b.dataset.accessSwitch));
- $('returnAccess').onclick=()=>{document.body.classList.add('overview-mode');$('shareStatus').textContent=dirty?'Existem alterações clínicas por guardar. O doente continua a ver a última versão guardada.':'';$('returnAccess').hidden=true;$('accessDomains').hidden=false;panel.scrollIntoView({behavior:'smooth'})};
+ $('returnAccess').onclick=()=>{careExercise?.closePathology?.();document.body.classList.add('overview-mode');$('shareStatus').textContent=dirty?'Existem alterações clínicas por guardar. O doente continua a ver a última versão guardada.':'';$('returnAccess').hidden=true;$('accessDomains').hidden=false;panel.scrollIntoView({behavior:'smooth'})};
  $('showCareHistory').onclick=()=>showAccessEditor('history');
  document.querySelectorAll('[data-validity]').forEach(b=>b.onclick=()=>{const d=new Date();d.setDate(d.getDate()+Number(b.dataset.validity||0));$('accessExpiry').value=b.dataset.validity==='none'?'':isoDay(d);document.querySelectorAll('[data-validity]').forEach(x=>x.classList.toggle('selected',x===b));$('accessExpiry').dataset.dirty='true';$('saveAccessExpiry').disabled=false});
  $('accessExpiry').oninput=()=>{$('accessExpiry').dataset.dirty='true';$('saveAccessExpiry').disabled=false};
@@ -686,6 +686,7 @@ function mountAccessOverview(){
  refreshAccessCards();
 }
 function showAccessEditor(key){
+ if(key!=='pathology')careExercise?.closePathology?.();
  document.body.classList.remove('overview-mode');$('returnAccess').hidden=false;$('accessDomains').hidden=true;
  const ids=key==='history'?[]:[key+'Module'];document.querySelectorAll('.config .module').forEach(n=>n.hidden=!ids.includes(n.id));
  document.querySelector('.layout').hidden=key==='history';document.querySelector('.config-actions').hidden=!['diary','med'].includes(key);$('carePlan').hidden=!['activity','pathology','history','med'].includes(key);

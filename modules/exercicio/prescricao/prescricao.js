@@ -738,6 +738,13 @@ export async function initCarePrescription({ patientId, clinicId, onCalendar, on
       else if (mode === 'catalog' && !step2EmEdicao()) initCatalogo({ onVoltar: voltarDaCatalogo });
       else if (!_patologia && !step2EmEdicao()) renderStep2();
     },
+    // Sai da subvista Patologias/Protocolos (só o estado de navegação dessa subvista) e volta à
+    // vista inicial do Exercício. Sessões, calendário e restante estado do plano ficam intactos.
+    closePathology() {
+      if (!_patologia) return;
+      _patologia = null;
+      renderStep2();
+    },
   };
 }
 
