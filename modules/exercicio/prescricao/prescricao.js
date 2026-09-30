@@ -27,7 +27,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-09-29-protocol-split';
+const PRESCRICAO_CSS_VERSION = '2026-09-29-protocol-catalog';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -5326,32 +5326,159 @@ const FILTROS_TIPO_PATOLOGIA = [
 function normalizarPesquisaPatologia(t) {
   return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
-function protocolosFiltradosPatologia() {
-  const busca = normalizarPesquisaPatologia(_patologia.busca);
-  return _patologia.protocolos.filter(p => {
-    if (_patologia.filtroTipo === 'cirurgico' && p.kind !== 'cirurgico') return false;
-    if (_patologia.filtroTipo === 'nao_cirurgico' && p.kind === 'cirurgico') return false;
-    return !busca || normalizarPesquisaPatologia(p.name).includes(busca);
+// Catálogo visual (nomes, áreas e imagens definidos pelo Dr. João Morais, 29 set 2026). Só
+// apresentação: cada cartão liga-se aos protocolos já existentes em protocols_catalog pelo
+// nome (match). Cartões sem protocolo correspondente aparecem desactivados ("Em preparação");
+// nada é criado na base de dados. Protocolos activos que não correspondam a nenhum cartão
+// aparecem em "Outros" na secção do seu tipo, para nunca ficarem escondidos.
+const IMG_PROTOCOLOS_PATOLOGIA = '/assets/protocolos/';
+const CATALOGO_VISUAL_PATOLOGIA = [
+  { tipo: 'cirurgico', titulo: 'Cirúrgicos (pós-operatórios)', areas: [
+    { area: 'Ombro', itens: [
+      { nome: 'Reparação da Coifa dos Rotadores', img: 'ombro-coifa', match: ['sutura da coifa'] },
+      { nome: 'Artroscopia de Descompressão / Acromioplastia', img: 'ombro-descompressao' },
+      { nome: 'Estabilização Artroscópica (Bankart)', img: 'ombro-bankart' },
+      { nome: 'Artroplastia do Ombro (Total ou Invertida)', img: 'ombro-artroplastia', match: [
+        { q: 'artroplastia anatomica do ombro', rotulo: 'Total (TSA)' },
+        { q: 'artroplastia invertida do ombro', rotulo: 'Invertida (RSA)' }] },
+    ] },
+    { area: 'Cotovelo', itens: [
+      { nome: 'Artroscopia do Cotovelo', img: 'cotovelo-artroscopia' },
+      { nome: 'Reconstrução do Ligamento Colateral Ulnar (Tommy John)', img: 'cotovelo-tommy-john' },
+      { nome: 'Liberação do Epicôndilo', img: 'cotovelo-epicondilo' },
+      { nome: 'Osteossíntese de Fraturas', img: 'cotovelo-osteossintese' },
+      { nome: 'Reparação do Bicípite Distal', img: 'cotovelo-epicondilo' }, // imagem provisória (sem ícone próprio na folha)
+    ] },
+    { area: 'Punho / Mão', itens: [
+      { nome: 'Descompressão do Túnel do Carpo', img: 'punho-tunel-carpo' },
+      { nome: 'Liberação da Polia A1 (Dedo em Gatilho)', img: 'punho-polia-a1' },
+      { nome: 'Osteossíntese de Fratura do Rádio Distal', img: 'punho-radio-distal' },
+      { nome: 'Artroscopia do Punho', img: 'punho-artroscopia' },
+    ] },
+    { area: 'Anca', itens: [
+      { nome: 'Artroplastia Total da Anca (Prótese Total)', img: 'anca-artroplastia' },
+      { nome: 'Osteossíntese de Fratura do Fémur Proximal', img: 'anca-femur-proximal' },
+      { nome: 'Artroscopia da Anca', img: 'anca-artroscopia' },
+    ] },
+    { area: 'Joelho', itens: [
+      { nome: 'Reconstrução do Ligamento Cruzado Anterior (LCA)', img: 'joelho-lca' },
+      { nome: 'Artroscopia de Meniscectomia e/ou Sutura Meniscal', img: 'joelho-menisco' },
+      { nome: 'Artroplastia Total do Joelho (Prótese)', img: 'joelho-artroplastia' },
+      { nome: 'Osteotomia (Tibial ou Femoral)', img: 'joelho-osteotomia' },
+      { nome: 'Reconstrução do Ligamento Cruzado Posterior (LCP)', img: 'joelho-lcp' },
+    ] },
+    { area: 'Tornozelo / Pé', itens: [
+      { nome: 'Reconstrução dos Ligamentos Laterais', img: 'pe-ligamentos' },
+      { nome: 'Correção de Joanetes (Hálux Valgo)', img: 'pe-hallux' },
+      { nome: 'Artroscopia do Tornozelo', img: 'pe-artroscopia' },
+      { nome: 'Artrodese do Tornozelo / Pé', img: 'pe-artrodese' },
+    ] },
+  ] },
+  { tipo: 'nao_cirurgico', titulo: 'Não cirúrgicos (conservadores)', areas: [
+    { area: 'Ombro', itens: [
+      { nome: 'Tendinite ou Bursite da Coifa dos Rotadores', img: 'c-ombro-coifa' },
+      { nome: 'Capsulite Adesiva do Ombro (Ombro Congelado)', img: 'c-ombro-capsulite', match: ['capsulite adesiva'] },
+      { nome: 'Tendinopatia Calcificada', img: 'c-ombro-calcificada' },
+      { nome: 'Instabilidade / Luxação Aguda Reduzida', img: 'c-ombro-instabilidade' },
+    ] },
+    { area: 'Cotovelo', itens: [
+      { nome: 'Epicondilite Lateral (Cotovelo de Tenista)', img: 'c-cotovelo-lateral' },
+      { nome: 'Epicondilite Medial (Cotovelo de Golfe)', img: 'c-cotovelo-medial' },
+      { nome: 'Síndrome do Pronador Redondo / Túnel Radial', img: 'c-cotovelo-pronador' },
+    ] },
+    { area: 'Punho / Mão', itens: [
+      { nome: 'Síndrome do Túnel do Carpo (Fase Inicial)', img: 'c-punho-tunel' },
+      { nome: 'Tenossinovite de De Quervain', img: 'c-punho-quervain' },
+      { nome: 'Dedo em Gatilho (Fase Inicial)', img: 'c-punho-dedo-gatilho' },
+      { nome: 'Osteoartrite / Rizartrose', img: 'c-punho-rizartrose' },
+    ] },
+    { area: 'Anca', itens: [
+      { nome: 'Trocanterite', img: 'c-anca-trocanterite' },
+      { nome: 'Coxartrose', img: 'anca-artroscopia' }, // imagem provisória (sem ícone próprio na folha)
+    ] },
+    { area: 'Joelho', itens: [
+      { nome: 'SHER – Síndrome Hiperpressão Externa da Rótula', img: 'c-joelho-sher' },
+      { nome: 'Tendinopatia do Rotuliano', img: 'c-joelho-rotuliano' },
+      { nome: 'Síndrome da Banda Iliotibial', img: 'c-joelho-sher' }, // imagem provisória (sem ícone próprio na folha)
+      { nome: 'Gonartrose', img: 'c-joelho-sher' }, // imagem provisória (sem ícone próprio na folha)
+      { nome: 'Entorse do Joelho', img: 'joelho-lca' }, // imagem provisória (sem ícone próprio na folha)
+    ] },
+    { area: 'Tornozelo / Pé', itens: [
+      { nome: 'Tendinopatia do Aquiles', img: 'c-pe-aquiles' },
+      { nome: 'Tenossinovite dos Peroneais', img: 'c-pe-peroneais' },
+      { nome: 'Entorse do Tornozelo', img: 'c-pe-entorse' },
+    ] },
+    { area: 'Coluna / Outros', itens: [
+      { nome: 'Lombalgia', img: 'c-coluna-lombalgia' },
+      { nome: 'Cervicalgia', img: 'c-coluna-cervicalgia' },
+      { nome: 'Paresia Facial Periférica', img: 'c-coluna-paresia-facial' },
+      { nome: 'Incontinência Urinária', img: 'c-coluna-incontinencia' },
+    ] },
+  ] },
+];
+
+// Liga cada cartão aos protocolos existentes → [{ secao, areas:[{ area, itens:[{ nome, img, opcoes:[{protocolo, rotulo}] }] }] }]
+function catalogoVisualResolvidoPatologia() {
+  const usados = new Set();
+  const encontrar = (q) => _patologia.protocolos.find(p => !usados.has(p.id) && normalizarPesquisaPatologia(p.name).includes(q));
+  const secoes = CATALOGO_VISUAL_PATOLOGIA.map(sec => ({
+    tipo: sec.tipo, titulo: sec.titulo,
+    areas: sec.areas.map(a => ({ area: a.area, itens: a.itens.map(item => {
+      const opcoes = [];
+      (item.match || []).forEach(m => {
+        const q = typeof m === 'string' ? m : m.q;
+        const protocolo = encontrar(q);
+        if (protocolo) { usados.add(protocolo.id); opcoes.push({ protocolo, rotulo: typeof m === 'string' ? null : m.rotulo }); }
+      });
+      return { nome: item.nome, img: item.img, opcoes };
+    }) })),
+  }));
+  const outros = _patologia.protocolos.filter(p => !usados.has(p.id));
+  secoes.forEach(sec => {
+    const daSecao = outros.filter(p => (sec.tipo === 'cirurgico') === (p.kind === 'cirurgico'));
+    if (daSecao.length) sec.areas.push({ area: 'Outros', itens: daSecao.map(p => ({ nome: p.name, img: null, opcoes: [{ protocolo: p, rotulo: null }] })) });
   });
+  return secoes;
 }
+
+function renderCartaoProtocoloPatologia(item) {
+  const img = item.img
+    ? `<img class="gcwo-pat-card-img" src="${escAttr(IMG_PROTOCOLOS_PATOLOGIA + item.img + '.png')}" alt="" loading="lazy">`
+    : `<span class="gcwo-pat-card-img vazio" aria-hidden="true"></span>`;
+  const on = item.opcoes.some(o => o.protocolo.id === _patologia.protocoloId);
+  if (!item.opcoes.length) {
+    return `<div class="gcwo-pat-card soon" aria-disabled="true" title="Protocolo em preparação">${img}<span class="gcwo-pat-card-txt"><span class="gcwo-pat-card-nome">${escHtml(item.nome)}</span><span class="gcwo-pat-card-estado">Em preparação</span></span></div>`;
+  }
+  if (item.opcoes.length === 1) {
+    return `<button type="button" class="gcwo-pat-card${on ? ' on' : ''}" data-pat-protocolo="${escAttr(item.opcoes[0].protocolo.id)}">${img}<span class="gcwo-pat-card-txt"><span class="gcwo-pat-card-nome">${escHtml(item.nome)}</span></span></button>`;
+  }
+  // Um cartão com mais de um protocolo (ex.: TSA / RSA) — escolha directa no próprio cartão.
+  return `<div class="gcwo-pat-card multi${on ? ' on' : ''}">${img}<span class="gcwo-pat-card-txt"><span class="gcwo-pat-card-nome">${escHtml(item.nome)}</span><span class="gcwo-pat-card-opcoes">${item.opcoes.map(o => `<button type="button" class="gcwo-pat-card-opcao${o.protocolo.id === _patologia.protocoloId ? ' on' : ''}" data-pat-protocolo="${escAttr(o.protocolo.id)}">${escHtml(o.rotulo || o.protocolo.name)}</button>`).join('')}</span></span></div>`;
+}
+
 function renderGrelhaProtocolosPatologia() {
-  const lista = protocolosFiltradosPatologia();
-  const variasRegioes = new Set(_patologia.protocolos.map(p => p.region)).size > 1;
+  const busca = normalizarPesquisaPatologia(_patologia.busca);
+  let total = 0, disponiveis = 0;
+  const html = catalogoVisualResolvidoPatologia()
+    .filter(sec => _patologia.filtroTipo === 'todos' || _patologia.filtroTipo === sec.tipo)
+    .map(sec => {
+      const areas = sec.areas.map(a => {
+        const itens = a.itens.filter(item => !busca || normalizarPesquisaPatologia([a.area, item.nome, ...item.opcoes.map(o => o.protocolo.name)].join(' ')).includes(busca));
+        total += itens.length; disponiveis += itens.filter(i => i.opcoes.length).length;
+        return itens.length ? `<div class="gcwo-pat-area"><div class="gcwo-pat-area-titulo">${escHtml(a.area)}</div><div class="gcwo-pat-area-cards">${itens.map(renderCartaoProtocoloPatologia).join('')}</div></div>` : '';
+      }).join('');
+      return areas ? `<section class="gcwo-pat-secao ${sec.tipo}"><h3 class="gcwo-pat-secao-titulo">${escHtml(sec.titulo)}</h3><div class="gcwo-pat-areas">${areas}</div></section>` : '';
+    }).join('');
   return `
-    <div class="gcwo-pat-contagem">${lista.length} protocolo${lista.length === 1 ? '' : 's'}</div>
-    ${lista.length ? `<div class="gcwo-pat-protocol-grid">${lista.map(p => `
-      <button type="button" class="gcwo-pat-protocol-card${_patologia.protocoloId === p.id ? ' on' : ''}" data-pat-protocolo="${escAttr(p.id)}">
-        <span class="gcwo-pat-protocol-nome">${escHtml(p.name)}</span>
-        <span class="gcwo-pat-protocol-tipo">${escHtml(rotuloTipoPatologia(p.kind))}${variasRegioes && p.region ? ` · ${escHtml(rotuloRegiaoPatologia(p.region))}` : ''}</span>
-      </button>`).join('')}</div>` : `<div class="gcwo-pat-vazio">Nenhum protocolo encontrado.</div>`}`;
+    <div class="gcwo-pat-contagem">${total} protocolo${total === 1 ? '' : 's'} · ${disponiveis} disponíve${disponiveis === 1 ? 'l' : 'is'}</div>
+    ${html || `<div class="gcwo-pat-vazio">Nenhum protocolo encontrado.</div>`}`;
 }
 function renderSeletorProtocoloPatologia() {
   if (_patologia.loading && !_patologia.protocolos.length) return `<div class="gcwo-muted">A carregar protocolos…</div>`;
-  if (!_patologia.protocolos.length) return `<div class="gcwo-muted">Sem protocolos activos no catálogo.</div>`;
   return `
     <div class="gcwo-pat-selector">
       <div class="gcwo-pat-toolbar">
-        <input type="search" id="gcwoPatBusca" class="gcwo-pat-busca" placeholder="Pesquisar protocolo…" autocomplete="off" spellcheck="false" value="${escAttr(_patologia.busca)}" aria-label="Pesquisar protocolo">
+        <input type="search" id="gcwoPatBusca" class="gcwo-pat-busca" placeholder="Pesquisar protocolo… (ex.: ombro, joelho, LCA, capsulite…)" autocomplete="off" spellcheck="false" value="${escAttr(_patologia.busca)}" aria-label="Pesquisar protocolo">
         <div class="gcwo-pat-filtros" role="group" aria-label="Tipo de protocolo">${FILTROS_TIPO_PATOLOGIA.map(f => `<button type="button" class="gcwo-pat-filtro${_patologia.filtroTipo === f.value ? ' on' : ''}" data-pat-filtro-tipo="${escAttr(f.value)}" aria-pressed="${_patologia.filtroTipo === f.value}">${escHtml(f.label)}</button>`).join('')}</div>
       </div>
       <div id="gcwoPatProtocolGrid">${renderGrelhaProtocolosPatologia()}</div>
