@@ -27,7 +27,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-09-29-protocol-catalog';
+const PRESCRICAO_CSS_VERSION = '2026-09-30-plan-strip';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -1628,8 +1628,26 @@ function renderDatasPlanoSection() {
           </div>
           <div class="gcwo-link-hint">${_state.linkExpiryMode === 'last_session' ? (ultimoTreino ? `Termina em ${escHtml(fmtDataPtIso(ultimoTreino))}.` : 'Será calculada ao adicionar o primeiro treino.') : 'Nunca pode terminar antes do último treino.'}</div>
         </div>
+        ${renderEstadoPlanoGroup()}
       </div>
     </div>`;
+}
+// Estado do plano + Terminar/Guardar, na mesma faixa do período (antes ficava num bloco por
+// baixo do calendário). Mesmos ids e handlers de sempre — só mudou de sítio.
+function renderEstadoPlanoGroup() {
+  return `
+        <div class="gcwo-settings-group gcwo-estado-settings">
+          <span class="gcwo-settings-label">Estado</span>
+          <div class="gcwo-estado-row">
+            <strong class="gcwo-estado-plano">${_returnToAcompanhamento ? 'Pronto para guardar?' : (_state.activePrescriptionId ? 'Plano em curso' : 'Plano pronto?')}</strong>
+            <div class="gcwo-generate-actions">
+              ${_state.activePrescriptionId ? '<button type="button" id="gcwoTerminarPlano" class="gcBtnDanger">Terminar plano</button>' : ''}
+              <button type="button" id="gcwoGerar" class="gcBtnSuccess" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para criar o plano.'}">${labelBotaoGerar()}</button>
+            </div>
+          </div>
+          <span id="gcwoGerarErro" class="gcwo-erro"></span>
+          <span id="gcwoPorGravarAviso" class="gcwo-porgravar-aviso" style="display:${haSessoesPorGravar() ? '' : 'none'}">⚠ As sessões do calendário só ficam realmente gravadas depois de guardar o plano.</span>
+        </div>`;
 }
 function wireDatasPlanoSection() {
   document.getElementById('gcwoDataInicio').addEventListener('change', (e) => {
@@ -1800,15 +1818,6 @@ function renderCalendarMode(host) {
       <div id="gcwoCalGrid"></div>
     </div>
 
-    <div class="gcwo-generate">
-      <div class="gcwo-generate-copy"><strong>${_returnToAcompanhamento ? 'Pronto para guardar?' : (_state.activePrescriptionId ? 'Plano em curso' : 'Plano pronto?')}</strong><span>${_returnToAcompanhamento ? 'O plano ficará disponível na ligação geral do doente.' : (_state.activePrescriptionId ? 'Guarde as alterações ou termine o plano quando deixar de ser necessário.' : 'O link só fica disponível depois de guardar a prescrição.')}</span></div>
-      <span id="gcwoGerarErro" class="gcwo-erro"></span>
-      <span id="gcwoPorGravarAviso" class="gcwo-porgravar-aviso" style="display:${haSessoesPorGravar() ? '' : 'none'}">⚠ As sessões do calendário só ficam realmente gravadas depois de clicares aqui.</span>
-      <div class="gcwo-generate-actions">
-        ${_state.activePrescriptionId ? '<button type="button" id="gcwoTerminarPlano" class="gcBtnDanger gcBtnLg">Terminar plano</button>' : ''}
-        <button type="button" id="gcwoGerar" class="gcBtnSuccess gcBtnLg" ${hasSessionComExercicios() ? '' : 'disabled'} title="${hasSessionComExercicios() ? '' : 'Adiciona pelo menos uma sessão com conteúdo para criar o plano.'}">${labelBotaoGerar()}</button>
-      </div>
-    </div>
     </section>
   `;
 
