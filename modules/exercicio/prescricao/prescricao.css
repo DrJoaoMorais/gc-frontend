@@ -1441,11 +1441,26 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-inline-patient-picker .gcwo-step1-card { max-width:none; width:100%; }
 .gcwo-inline-patient-picker .gcwo-step1-intro { text-align:left; }
 
-/* Edição no mesmo espaço: estrutura à esquerda, parâmetros à direita. */
-.gcwo-walk-card { display:grid; grid-template-columns:minmax(180px,1fr) minmax(0,2fr); gap:20px; align-items:center; }
+/* Caminhada compacta: estrutura à esquerda, parâmetros à direita. */
+.gcwo-walk-workspace { padding:10px; border:1px solid #dbe3ee; border-radius:12px; background:#f8fafc; }
+.gcwo-walk-toolbar { display:flex; align-items:flex-end; gap:10px; margin-bottom:8px; }
+.gcwo-walk-toolbar > div { flex:1; min-width:180px; }
+.gcwo-walk-toolbar strong,.gcwo-walk-toolbar span { display:block; }
+.gcwo-walk-toolbar strong { color:#0f2d52; font-size:13px; }
+.gcwo-walk-toolbar > div span { margin-top:2px; color:#64748b; font-size:10.5px; }
+.gcwo-walk-toolbar .gcwo-walk-stairs { flex:0 1 180px; }
+.gcwo-walk-toolbar .gcwo-walk-stairs input { height:34px; }
+.gcwo-walk-toolbar .gcBtnGhost { height:34px; white-space:nowrap; }
+.gcwo-walk-workspace .gcwo-exercicios { gap:7px; margin-top:0; }
+.gcwo-walk-card { display:grid; grid-template-columns:minmax(180px,1.1fr) minmax(0,2fr); gap:12px; align-items:end; padding:8px 10px; background:#fff; }
 .gcwo-walk-card .gcwo-exercicio-head { margin:0; min-width:0; }
-.gcwo-walk-label { min-width:0; }
-.gcwo-walk-fields { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; }
+.gcwo-walk-label { width:100%; min-width:0; height:34px; }
+.gcwo-walk-fields { display:grid; grid-template-columns:minmax(90px,.75fr) minmax(105px,1fr) minmax(90px,.75fr) 30px; gap:8px; align-items:end; }
+.gcwo-walk-fields .gcwo-field input,.gcwo-walk-fields .gcwo-field select { width:100%; min-width:0; height:34px; }
+.gcwo-walk-fields .gcwo-exercicio-remove { align-self:end; width:30px; height:34px; padding:0; }
+.gcwo-panel:has(.gcwo-walk-workspace) .gcwo-panel-body { gap:9px; padding:12px; }
+.gcwo-panel:has(.gcwo-walk-workspace) .gcwo-session-details summary { padding:9px 11px; }
+.gcwo-panel:has(.gcwo-walk-workspace) .gcwo-review-strip { padding:8px 11px; }
 .gcwo-cardio-compact-workspace { grid-template-columns:minmax(180px,1fr) minmax(0,3fr); align-items:start; }
 .gcwo-cardio-compact-workspace .gcwo-cardio-zone-tray { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
 .gcwo-cardio-compact-workspace .gcwo-cardio-zone { width:100%; min-width:0; }
@@ -1468,6 +1483,14 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 }
 @media (max-width:720px) {
   .gcwo-walk-card,.gcwo-cardio-compact-workspace { grid-template-columns:minmax(0,1fr); }
+  .gcwo-walk-toolbar { align-items:stretch; flex-wrap:wrap; }
+  .gcwo-walk-toolbar > div { flex-basis:100%; }
+  .gcwo-walk-toolbar .gcwo-walk-stairs { flex:1 1 150px; }
+  .gcwo-walk-fields { grid-template-columns:repeat(3,minmax(0,1fr)) 30px; }
   .gcwo-cardio-compact-workspace .gcwo-cardio-zone-tray { grid-template-columns:repeat(4,minmax(0,1fr)); }
   #gcwoPCardioQuickEdit .gcwo-series-split { grid-template-columns:minmax(0,1fr); }
+}
+@media (max-width:480px) {
+  .gcwo-walk-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .gcwo-walk-fields .gcwo-exercicio-remove { grid-column:2; justify-self:end; }
 }

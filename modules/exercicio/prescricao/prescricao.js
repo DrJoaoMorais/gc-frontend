@@ -27,7 +27,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-10-03-calendario-v7';
+const PRESCRICAO_CSS_VERSION = '2026-10-03-caminhada-compacta-v8';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -158,7 +158,8 @@ function uuid() { return crypto.randomUUID(); }
 // (lista do dia, histórico, botão "Gerar", validação ao guardar).
 function sessaoContagem(s) {
   if (s.kind === 'walk') {
-    const n = (s.walks || []).length + (s.stairs_flights != null ? 1 : 0);
+    const n = (s.walks || []).filter(w => Number(w.duration_sec) > 0 || String(w.label || '').trim()).length
+      + (Number(s.stairs_flights) > 0 ? 1 : 0);
     return { n, label: n === 1 ? 'item' : 'itens' };
   }
   if (s.kind === 'card' || s.kind === 'circuit') {
@@ -556,7 +557,7 @@ function novaSessaoSkeleton(modality, kind, date) {
     notes: '',
     execution_mode: kind === 'list' ? 'free' : null,
   };
-  if (kind === 'walk') return { ...base, walks: [], stairs_flights: null };
+  if (kind === 'walk') return { ...base, walks: [novaCaminhada()], stairs_flights: null };
   if (kind === 'card' && modality === 'Natação') return { ...base, blocks: [], pool_length_m: 25, stroke: 'crol' };
   if (kind === 'card' || kind === 'circuit') return { ...base, blocks: [] };
   return { ...base, items: [] };
@@ -3185,7 +3186,8 @@ function renderPanel() {
   const s = _panelDraft;
   const meta = TIPO_META[tipoKey(s)];
   const dia = diaSemanaDeIso(s.date);
-  const cabecalhoCardio = s.kind === 'card' ? `
+  const painelCompacto = s.kind === 'card' || s.kind === 'walk';
+  const cabecalhoCompacto = painelCompacto ? `
       <div class="gcwo-cardio-head-local">
         <span class="gcwo-field-label">Local</span>
         <div class="gcwo-chips" id="gcwoPLocalChips">
@@ -3195,15 +3197,15 @@ function renderPanel() {
       <button type="button" class="gcBtnGhost gcwo-session-zones" id="gcwoBtnZonasTreino">♥ ⚡ Zonas</button>` : '';
 
   panel.innerHTML = `
-    <div class="gcwo-panel-head${s.kind === 'card' ? ' gcwo-cardio-panel-head' : ''}">
+    <div class="gcwo-panel-head${painelCompacto ? ' gcwo-cardio-panel-head' : ''}">
       <span class="gcwo-panel-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
       <span class="gcwo-panel-titles"><h3>${meta.label}</h3><span class="sub">${dia.full}, ${escHtml(fmtDiaMesCurtoIso(s.date))}</span></span>
-      ${cabecalhoCardio}
+      ${cabecalhoCompacto}
       ${!_panelIsNovo && !_panelDestino ? `<button type="button" class="gcwo-panel-headbtn" id="gcwoPanelApagar" title="Apagar sessão">${ICON_TRASH}</button>` : ''}
       <button type="button" class="gcwo-panel-headbtn close" id="gcwoPanelFechar" title="Fechar">${ICON_CLOSE}</button>
     </div>
     <div class="gcwo-panel-body">
-      ${s.kind === 'card' ? '' : `<div class="gcwo-session-setup-row${s.kind === 'list' ? '' : ' no-objective'}">
+      ${painelCompacto ? '' : `<div class="gcwo-session-setup-row${s.kind === 'list' ? '' : ' no-objective'}">
         <div class="gcwo-session-local-top">
           <span class="gcwo-field-label">Local</span>
           <div class="gcwo-chips" id="gcwoPLocalChips">
@@ -3901,12 +3903,14 @@ function novaCaminhada() {
 
 function renderPanelCaminhada(s) {
   return `
-    <span class="gcwo-field-label" style="margin-top:14px;">Caminhadas</span>
-    <div class="gcwo-exercicios" id="gcwoPWalksList">${renderWalksListInner(s)}</div>
-    <button type="button" class="gcwo-add-exercicio gcBtnGhost" id="gcwoPAddWalk">+ Caminhada</button>
-
-    <span class="gcwo-field-label" style="margin-top:14px;">Escadas (opcional)</span>
-    <label class="gcwo-field gcwo-field-sm"><span>Lanços de escadas</span><input type="number" min="0" id="gcwoPStairs" value="${s.stairs_flights ?? ''}"></label>
+    <section class="gcwo-walk-workspace">
+      <header class="gcwo-walk-toolbar">
+        <div><strong>Períodos de caminhada</strong><span>Defina quanto tempo e a intensidade de cada período.</span></div>
+        <label class="gcwo-field gcwo-field-sm gcwo-walk-stairs"><span>Escadas (lanços, opcional)</span><input type="number" min="0" id="gcwoPStairs" value="${s.stairs_flights ?? ''}"></label>
+        <button type="button" class="gcBtnGhost" id="gcwoPAddWalk">+ Outro período</button>
+      </header>
+      <div class="gcwo-exercicios" id="gcwoPWalksList">${renderWalksListInner(s)}</div>
+    </section>
   `;
 }
 
@@ -3916,18 +3920,19 @@ function renderWalksListInner(s) {
 }
 
 function renderWalkCard(w) {
+  const minutos = w.duration_sec == null ? '' : Math.round((Number(w.duration_sec) / 60) * 10) / 10;
   return `
     <div class="gcwo-exercicio gcwo-walk-card" data-wid="${escAttr(w.walk_id)}">
       <div class="gcwo-exercicio-head">
-        <input type="text" class="gcwo-walk-label" placeholder="Etiqueta (ex.: após almoço)" value="${escAttr(w.label)}" style="flex:1;">
-        <button type="button" class="gcwo-exercicio-remove" data-remove-wid="${escAttr(w.walk_id)}" title="Remover caminhada">✕</button>
+        <input type="text" class="gcwo-walk-label" placeholder="Etiqueta opcional (ex.: após almoço)" value="${escAttr(w.label)}" style="flex:1;">
       </div>
       <div class="gcwo-walk-fields">
-        ${campoDuracaoMMSS('gcwo-walk-duracaomin', w.duration_sec, 'Duração')}
-        <label class="gcwo-field gcwo-field-sm"><span>Passo</span>
+        <label class="gcwo-field gcwo-field-sm"><span>Duração (min)</span><input type="number" min="0" step="0.5" class="gcwo-walk-duration-min" value="${minutos}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>Ritmo</span>
           <select class="gcwo-walk-pace">${PACE_OPCOES.map(p => `<option value="${p.value}" ${w.pace === p.value ? 'selected' : ''}>${p.label}</option>`).join('')}</select>
         </label>
-      <label class="gcwo-field gcwo-field-sm"><span>RPE local (opcional)</span><input type="number" min="1" max="10" class="gcwo-walk-rpe" value="${w.rpe_local ?? ''}"></label>
+        <label class="gcwo-field gcwo-field-sm"><span>RPE (opcional)</span><input type="number" min="1" max="10" class="gcwo-walk-rpe" value="${w.rpe_local ?? ''}"></label>
+        <button type="button" class="gcwo-exercicio-remove" data-remove-wid="${escAttr(w.walk_id)}" title="Remover período">✕</button>
       </div>
     </div>`;
 }
@@ -3952,7 +3957,9 @@ function wireWalksListItems(s) {
     const w = s.walks.find(x => x.walk_id === wid);
     if (!w) return;
     card.querySelector('.gcwo-walk-label').addEventListener('input', (e) => { w.label = e.target.value; });
-    wireDuracaoMMSS(card, 'gcwo-walk-duracaomin', (sec) => { w.duration_sec = sec; });
+    card.querySelector('.gcwo-walk-duration-min').addEventListener('input', (e) => {
+      w.duration_sec = e.target.value === '' ? null : Math.round(Number(e.target.value) * 60);
+    });
     card.querySelector('.gcwo-walk-pace').addEventListener('change', (e) => { w.pace = e.target.value; });
     card.querySelector('.gcwo-walk-rpe').addEventListener('input', (e) => { w.rpe_local = e.target.value === '' ? null : Number(e.target.value); });
   });
