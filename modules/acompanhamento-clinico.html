@@ -181,7 +181,7 @@ async function initCareCalendar(){
   careExerciseLoading=(async()=>{
     try{
       window.sb=sb;
-      const {initCarePrescription}=await import('./exercicio/prescricao/prescricao.js?v=2026-10-03-calendario-espelho-v9');
+      const {initCarePrescription}=await import('./exercicio/prescricao/prescricao.js?v=2026-10-03-alternar-modalidade-v10');
       careExercise=await initCarePrescription({patientId,clinicId,onCalendar:decorateCareCalendar,onSaved:refreshCareExercise,onChange:pending=>{const status=$('carePlanState');status.textContent=pending?'Plano com alterações por guardar':'Plano sem alterações por guardar';status.classList.toggle('pending',pending)}});
     }catch(error){console.error('Não foi possível abrir o calendário.',error);$('gcwoPrescricaoRoot').innerHTML='<p class="training-results-empty">Não foi possível carregar o calendário. <button class="btn" id="retryCalendar" type="button">Tentar novamente</button></p>';$('retryCalendar').onclick=()=>initCareCalendar()}
     finally{careExerciseLoading=null}

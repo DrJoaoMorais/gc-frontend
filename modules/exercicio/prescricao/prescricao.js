@@ -27,7 +27,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-10-03-calendario-espelho-v9';
+const PRESCRICAO_CSS_VERSION = '2026-10-03-alternar-modalidade-v10';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -1848,6 +1848,9 @@ function ctMinutosSessao(s) {
   else if (s.kind === 'card') seg = calcularCargaPorZona(s).totalGeral;
   return Math.round(seg / 60);
 }
+function ctTreinoAtualPronto() {
+  return Boolean(_criarTreino?.atual && sessaoTemConteudo(_criarTreino.atual.sessao));
+}
 
 function ctTemValor(arr, vals) { return !vals || !vals.length || (Array.isArray(arr) && arr.some(v => vals.includes(v))); }
 function ctExerciciosDoModelo(m) {
@@ -1953,6 +1956,7 @@ function abrirCriarTreino() {
     semanaFoco: 0,        // semana onde "Aplicar aos dias disponíveis" coloca o treino escolhido
     tipo: 'exercicios', grupo: 'Todos', personalizado: null,
     atual: null,          // { nome, sessao } — treino escolhido, pronto a aplicar aos dias
+    treinosPorTipo: {},   // conserva cada treino configurado ao alternar Corrida/Ciclismo/Natação/etc.
     editar: null,         // { alvo: 'atual' } | { alvo: 'slot', w, dia, id }
     erro: '',
   };
@@ -1974,7 +1978,11 @@ function ctAbrirEditor(sessao, alvo) {
   _panelDestino = {
     onGuardar: (editada) => {
       const ct = _criarTreino;
-      if (alvo.alvo === 'atual') ct.atual.sessao = editada;
+      if (alvo.alvo === 'atual') {
+        const treinoGuardado = { ...ct.atual, sessao: cloneSession(editada) };
+        ct.atual = treinoGuardado;
+        ct.treinosPorTipo[ct.tipo] = treinoGuardado;
+      }
       else { const slot = ct.semanas[alvo.w]?.dias[alvo.dia].find(x => x.id === alvo.id); if (slot) slot.sessao = editada; }
       ct.editar = null; ctRender();
     },
@@ -1990,7 +1998,7 @@ function ctFecharEditorSemGuardar() {
 
 function ctAplicarAoDia(w, d) {
   const ct = _criarTreino;
-  if (!ct.atual || !ctDisp(w, d).ativo || !ctNoPlano(ctDataDoDia(d, w))) return;
+  if (!ctTreinoAtualPronto() || !ctDisp(w, d).ativo || !ctNoPlano(ctDataDoDia(d, w))) return;
   const sessao = cloneSession(ct.atual.sessao);
   sessao.local = ctDisp(w, d).local;
   sessao.date = ctDataDoDia(d, w);
@@ -2109,19 +2117,21 @@ function ctRenderEscolha() {
   } else {
     const meta = TIPO_META[tipoKey({ modality: tipo.modality })];
     const atualDoTipo = ct.atual && ct.atual.sessao.modality === tipo.modality ? ct.atual : null;
+    const atualDoTipoPronto = Boolean(atualDoTipo && sessaoTemConteudo(atualDoTipo.sessao));
     corpo = `
       <div class="gcwo-ct-cardio">
         <span class="gcwo-ct-cardio-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
         <div><strong>Sessão de ${escHtml(tipo.label)}</strong><span>Configure a sessão no editor habitual${tipo.kind === 'card' ? ' (blocos, zonas' + (tipo.modality === 'Natação' ? ', piscina e estilo' : '') + ')' : ' (caminhadas e escadas)'}.</span>
           ${atualDoTipo ? `<span>${sessaoTemConteudo(atualDoTipo.sessao) ? `≈ ${ctMinutosSessao(atualDoTipo.sessao)} min · ${sessaoContagem(atualDoTipo.sessao).n} ${sessaoContagem(atualDoTipo.sessao).label}` : 'Ainda sem conteúdo'}</span>` : ''}</div>
-        <button type="button" class="gcwo-ct-primario" data-ct="cardio">${atualDoTipo ? 'Editar sessão' : 'Configurar sessão'}</button>
+        <button type="button" class="gcwo-ct-primario" data-ct="cardio">${atualDoTipoPronto ? 'Editar sessão' : `Configurar ${escHtml(tipo.label)}`}</button>
       </div>`;
   }
+  const atualPronto = ctTreinoAtualPronto();
   const atual = ct.atual ? `
     <div class="gcwo-ct-atual">
       <div><small>Treino escolhido</small><strong>${escHtml(ct.atual.nome)}</strong><span>${sessaoTemConteudo(ct.atual.sessao) ? `≈ ${ctMinutosSessao(ct.atual.sessao)} min · ${sessaoContagem(ct.atual.sessao).n} ${sessaoContagem(ct.atual.sessao).label}` : 'Ainda sem conteúdo'}</span></div>
-      <span class="gcwo-ct-atual-dica">Clique em <b>+ Colocar</b> no dia do calendário onde o quer.</span>
-      <button type="button" class="gcBtnGhost" data-ct="editar-atual">Editar treino</button>
+      <span class="gcwo-ct-atual-dica">${atualPronto ? 'Clique em <b>+ Colocar</b> no dia do calendário onde o quer.' : `Configure ${escHtml(ct.atual.nome)} antes de o colocar no calendário.`}</span>
+      <button type="button" class="gcBtnGhost" data-ct="editar-atual">${atualPronto ? 'Editar treino' : `Configurar ${escHtml(ct.atual.nome)}`}</button>
     </div>` : '';
   return ctBloco(3, 'Escolha os treinos', 'Escolha um treino rápido ou crie um treino personalizado. Pode usar o mesmo treino em vários dias.', `${tipos}${corpo}${atual}`);
 }
@@ -2188,6 +2198,7 @@ function ctRenderColuna(w, i) {
   const iso = ctDataDoDia(i, w), d = ctDisp(w, i), noPlano = ctNoPlano(iso);
   const slots = ct.semanas[w].dias[i];
   const total = slots.reduce((t, slot) => t + ctMinutosSessao(slot.sessao), 0);
+  const atualPronto = ctTreinoAtualPronto();
   const herdado = w > 0 && !ct.semanas[w].disp[i];
   const compat = !slots.length || !noPlano ? '' : !d.ativo
     ? `<span class="gcwo-ct-compat aviso" title="Treino num dia sem tempo disponível">⚠ ${total} min / sem tempo</span>`
@@ -2214,14 +2225,14 @@ function ctRenderColuna(w, i) {
               <span><strong>${escHtml(slot.nome)}</strong><small>${sessaoTemConteudo(slot.sessao) ? `≈ ${ctMinutosSessao(slot.sessao)} min` : 'Sem conteúdo'} · ${escHtml(slot.sessao.local || '')}</small></span>
             </button>
             <span class="gcwo-ct-slot-acoes">
-              <button type="button" data-ct-slot-trocar="${ref}" ${ct.atual ? '' : 'disabled'} title="Substituir pelo treino escolhido">Alterar</button>
+              <button type="button" data-ct-slot-trocar="${ref}" ${atualPronto ? '' : 'disabled'} title="Substituir pelo treino escolhido">Alterar</button>
               <button type="button" data-ct-slot-remover="${ref}" title="Remover">Remover</button>
             </span>
           </div>`;
       }).join('')}
       ${noPlano && !slots.length ? `<span class="gcwo-ct-sem-treino">Sem treino</span>` : ''}
       ${compat}
-      ${noPlano ? `<button type="button" class="gcwo-ct-add${ct.atual && d.ativo ? ' pronto' : ''}" data-ct-add="${w}:${i}" ${ct.atual && d.ativo ? '' : 'disabled'} title="${ct.atual ? `Colocar ${escAttr(ct.atual.nome)} neste dia` : 'Escolha primeiro um treino'}">${ct.atual ? `+ Colocar ${escHtml(ct.atual.nome)}` : '+ Adicionar treino'}</button>` : ''}
+      ${noPlano ? `<button type="button" class="gcwo-ct-add${atualPronto && d.ativo ? ' pronto' : ''}" data-ct-add="${w}:${i}" ${atualPronto && d.ativo ? '' : 'disabled'} title="${atualPronto ? `Colocar ${escAttr(ct.atual.nome)} neste dia` : ct.atual ? `Configure primeiro ${escAttr(ct.atual.nome)}` : 'Escolha primeiro um treino'}">${atualPronto ? `+ Colocar ${escHtml(ct.atual.nome)}` : ct.atual ? `Configure ${escHtml(ct.atual.nome)}` : '+ Adicionar treino'}</button>` : ''}
     </div>`;
 }
 function ctRenderCalendario() {
@@ -2240,7 +2251,7 @@ function ctRenderCalendario() {
           <div class="gcwo-ct-semana-acoes">
             <button type="button" class="gcBtnGhost" data-ct-copiar-semana="${w}" ${temTreinos ? '' : 'disabled'}>Copiar para semana seguinte ↓</button>
             <button type="button" class="gcBtnGhost" data-ct-limpar-semana="${w}" ${temTreinos ? '' : 'disabled'}>Limpar semana</button>
-            <button type="button" class="gcBtnGhost" data-ct-aplicar-semana="${w}" ${ct.atual ? '' : 'disabled'} title="Coloca o treino escolhido em todos os dias com tempo disponível desta semana">Colocar em todos os dias disponíveis</button>
+            <button type="button" class="gcBtnGhost" data-ct-aplicar-semana="${w}" ${ctTreinoAtualPronto() ? '' : 'disabled'} title="Coloca o treino escolhido em todos os dias com tempo disponível desta semana">Colocar em todos os dias disponíveis</button>
             ${w === n - 1 ? `<button type="button" class="gcBtnGhost" data-ct="add-semana">+ Adicionar semana</button>` : ''}
             ${w === n - 1 && n > 1 ? `<button type="button" class="gcBtnGhost gcwo-ct-remover-semana" data-ct-remover-semana="${w}">Remover semana</button>` : ''}
           </div>
@@ -2311,12 +2322,14 @@ function ctWire() {
       const exs = ct.personalizado.escolhidos.map(id => _state.exercisesCatalog.find(x => x.id === id)).filter(Boolean);
       const sessao = ctSessaoExercicios(exs); sessao.local = ct.personalizado.local;
       ct.atual = { nome: 'Treino personalizado', sessao };
+      ct.treinosPorTipo.exercicios = ct.atual;
     } else if (ds.ct === 'cardio') {
       const tipo = CT_TIPOS.find(t => t.value === ct.tipo);
       if (!ct.atual || ct.atual.sessao.modality !== tipo.modality) {
         const sessao = novaSessaoSkeleton(tipo.modality, tipo.kind, ct.inicio);
         sessao.local = ctLocalPorDefeito();
         ct.atual = { nome: tipo.label, sessao };
+        ct.treinosPorTipo[ct.tipo] = ct.atual;
       }
       return ctAbrirEditor(ct.atual.sessao, { alvo: 'atual' });
     } else if (ds.ct === 'editar-atual') {
@@ -2341,11 +2354,21 @@ function ctWire() {
       ctDefinirSemanas(ct.semanas.length - 1); ct.mostrarFim = false;
     } else if (ds.ctTipo) {
       ct.tipo = ds.ctTipo;
+      const tipo = CT_TIPOS.find(t => t.value === ct.tipo);
+      let treino = ct.treinosPorTipo[ct.tipo] || null;
+      if (!treino && tipo.kind !== 'list') {
+        const sessao = novaSessaoSkeleton(tipo.modality, tipo.kind, ct.inicio);
+        sessao.local = ctLocalPorDefeito();
+        treino = { nome: tipo.label, sessao };
+        ct.treinosPorTipo[ct.tipo] = treino;
+      }
+      ct.atual = treino;
     } else if (ds.ctGrupo) {
       ct.grupo = ds.ctGrupo; ct.personalizado = null;
     } else if (ds.ctModelo) {
       const m = CT_MODELOS.find(x => x.id === ds.ctModelo);
       ct.atual = { nome: m.nome, modeloId: m.id, sessao: ctSessaoExercicios(ctItensDoModelo(m)) };
+      ct.treinosPorTipo.exercicios = ct.atual;
     } else if (ds.ctAdd) {
       const { w, d } = slotDe(ds.ctAdd);
       ctAplicarAoDia(w, d);
@@ -4639,7 +4662,6 @@ function renderPanelCardio(s) {
     ${modalidadeTemZona(s.modality) ? renderPaletaCardio(s) : ''}
     ${modalidadeTemZona(s.modality) ? `<div id="gcwoPCardioOverview">${renderResumoVisualCardio(s)}</div>` : ''}
     ${modalidadeTemZona(s.modality) ? `<div id="gcwoPZonaResumo">${renderIndicadorZonaHtml(s)}</div>` : ''}
-    ${modalidadeTemZona(s.modality) ? `<div id="gcwoPAnaliseTreino">${renderAnaliseSessaoCardioHtml(s)}</div>` : ''}
     <div class="gcwo-exercicios" id="gcwoPBlocosList">${renderBlocosListInner(s)}</div>
   `;
 }
@@ -4873,7 +4895,6 @@ function wirePanelCardio(s) {
   wireBlocosList(s);
   wireTimelineCardio(s);
   refreshZonaResumo(s);
-  refreshAnaliseSessaoCardio(s);
 
   const piscina = document.getElementById('gcwoPPiscina');
   if (piscina) piscina.querySelectorAll('[data-pool]').forEach(btn => {
