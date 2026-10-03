@@ -27,7 +27,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-10-01-criar-treino-v5';
+const PRESCRICAO_CSS_VERSION = '2026-10-03-layout-treino-v6';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -2008,8 +2008,8 @@ function ctRender() {
   const root = document.getElementById('gcwoPrescricaoRoot');
   const ct = _criarTreino;
   if (!root || !ct) return;
-  const passo = ct.editar ? 3 : ct.atual ? 2 : 1;
-  const passos = ['Escolha dos treinos', 'Calendário do plano', 'Detalhe do treino', 'Definições e finalização'];
+  const passo = ct.editar ? 4 : ct.atual ? 3 : 1;
+  const passos = ['Definições do plano', 'Calendário do plano', 'Escolha dos treinos', 'Detalhe do treino'];
   root.innerHTML = `
     <section class="gcwo-ct" id="gcwoCt">
       <div class="gcwo-ct-top">
@@ -2020,10 +2020,10 @@ function ctRender() {
         </div>
         <ol class="gcwo-ct-passos">${passos.map((t, i) => `<li class="${i + 1 === passo ? 'on' : i + 1 < passo ? 'feito' : ''}"><span>${i + 1}</span>${escHtml(t)}</li>`).join('')}</ol>
       </div>
-      ${ctRenderEscolha()}
-      ${ctRenderCalendario()}
-      ${ctRenderDetalhe()}
       ${ctRenderDefinicoes()}
+      ${ctRenderCalendario()}
+      ${ctRenderEscolha()}
+      ${ctRenderDetalhe()}
       <div class="gcwo-ct-footer">
         <button type="button" class="gcBtnGhost" data-ct="voltar">← Voltar</button>
         ${ct.erro ? `<span class="gcwo-erro">${escHtml(ct.erro)}</span>` : ''}
@@ -2068,7 +2068,7 @@ function ctRenderEscolha() {
       <span class="gcwo-ct-atual-dica">Clique em <b>+ Colocar</b> no dia do calendário onde o quer.</span>
       <button type="button" class="gcBtnGhost" data-ct="editar-atual">Editar treino</button>
     </div>` : '';
-  return ctBloco(1, 'Escolha os treinos', 'Escolha um treino rápido ou crie um treino personalizado. Pode usar o mesmo treino em vários dias.', `${tipos}${corpo}${atual}`);
+  return ctBloco(3, 'Escolha os treinos', 'Escolha um treino rápido ou crie um treino personalizado. Pode usar o mesmo treino em vários dias.', `${tipos}${corpo}${atual}`);
 }
 
 function ctRenderModelos() {
@@ -2210,7 +2210,7 @@ function ctRenderDetalhe() {
   let titulo = '';
   if (ct.editar?.alvo === 'slot') { const iso = ctDataDoDia(ct.editar.dia, ct.editar.w); const d = ctDisp(ct.editar.w, ct.editar.dia); titulo = `Semana ${ct.editar.w + 1} · ${diaSemanaDeIso(iso).full}, ${ctFmtDia(iso)} · ${d.ativo ? `${d.min} min disponíveis` : 'sem tempo disponível'}`; }
   else if (ct.editar?.alvo === 'atual') titulo = 'Treino escolhido (antes de o colocar nos dias)';
-  return ctBloco(3, 'Detalhe do treino selecionado', 'Ajuste exercícios e parâmetros. As alterações aplicam-se só ao treino selecionado.', `
+  return ctBloco(4, 'Detalhe do treino selecionado', 'Ajuste exercícios e parâmetros. As alterações aplicam-se só ao treino selecionado.', `
     <div class="gcwo-ct-det" id="gcwoCtDetalhe">
       ${ct.editar ? `<div class="gcwo-ct-det-titulo">${escHtml(titulo)}</div><div class="gcwo-panel" id="gcwoPanel"></div>`
         : `<div class="gcwo-pat-vazio">Clique num treino do calendário para ver e editar os exercícios (séries, repetições, carga, descanso, tempos, ordem).</div>`}
@@ -2221,7 +2221,7 @@ function ctRenderDefinicoes() {
   const ct = _criarTreino;
   const n = ct.semanas.length;
   const chip = [2, 3, 4].find(k => k === n && ct.fim === ctDomingoDaSemana(k - 1) && !ct.mostrarFim);
-  return ctBloco(4, 'Definições e finalização', 'O plano termina numa data concreta, para reavaliar o doente e criar o bloco seguinte.', `
+  return ctBloco(1, 'Definições do plano', 'O plano termina numa data concreta, para reavaliar o doente e criar o bloco seguinte.', `
     <div class="gcwo-ct-plano">
       <span class="gcwo-settings-label">Duração do plano</span>
       <div class="gcwo-ct-plano-linha">
@@ -3917,18 +3917,18 @@ function renderWalksListInner(s) {
 
 function renderWalkCard(w) {
   return `
-    <div class="gcwo-exercicio" data-wid="${escAttr(w.walk_id)}">
+    <div class="gcwo-exercicio gcwo-walk-card" data-wid="${escAttr(w.walk_id)}">
       <div class="gcwo-exercicio-head">
         <input type="text" class="gcwo-walk-label" placeholder="Etiqueta (ex.: após almoço)" value="${escAttr(w.label)}" style="flex:1;">
         <button type="button" class="gcwo-exercicio-remove" data-remove-wid="${escAttr(w.walk_id)}" title="Remover caminhada">✕</button>
       </div>
-      <div class="gcwo-row2">
+      <div class="gcwo-walk-fields">
         ${campoDuracaoMMSS('gcwo-walk-duracaomin', w.duration_sec, 'Duração')}
         <label class="gcwo-field gcwo-field-sm"><span>Passo</span>
           <select class="gcwo-walk-pace">${PACE_OPCOES.map(p => `<option value="${p.value}" ${w.pace === p.value ? 'selected' : ''}>${p.label}</option>`).join('')}</select>
         </label>
-      </div>
       <label class="gcwo-field gcwo-field-sm"><span>RPE local (opcional)</span><input type="number" min="1" max="10" class="gcwo-walk-rpe" value="${w.rpe_local ?? ''}"></label>
+      </div>
     </div>`;
 }
 
@@ -4294,7 +4294,7 @@ function blocoSelecionadoCardio(s) {
 function renderEditorRapidoCardio(s) {
   const bloco = blocoSelecionadoCardio(s);
   if (!bloco) return `<div class="gcwo-cardio-quick-empty"><strong>Seleccione uma zona</strong><span>O bloco aparece aqui pronto a editar.</span></div>`;
-  if (bloco.type !== 'continuous') return `<div class="gcwo-cardio-quick-empty"><strong>${bloco.type === 'series' ? 'Séries seleccionadas' : 'Fecho seleccionado'}</strong><span>Os detalhes deste bloco aparecem abaixo do gráfico.</span></div>`;
+  if (bloco.type !== 'continuous') return renderBlocoCardio(bloco, s);
   const numero = s.blocks.indexOf(bloco) + 1;
   const isNatacao = modalidadeCanonica(s.modality) === 'natacao';
   if (isNatacao) bloco.measure = 'distance';
@@ -4540,7 +4540,7 @@ function renderBlocosListInner(s) {
   let bloco = s.blocks.find(b => b.block_id === s._selectedBlockId);
   if (!bloco) bloco = s.blocks[0];
   s._selectedBlockId = bloco.block_id;
-  if (bloco.type === 'continuous') return '';
+  if (modalidadeTemZona(s.modality) || bloco.type === 'continuous') return '';
   return `<div class="gcwo-cardio-editor"><div class="gcwo-cardio-editor-head"><strong>A editar o bloco ${s.blocks.indexOf(bloco) + 1}</strong><span>As alterações aparecem imediatamente na linha da sessão.</span></div>${renderBlocoCardio(bloco, s)}</div>`;
 }
 

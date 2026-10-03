@@ -1436,3 +1436,34 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-step1-wrap.gcwo-inline-patient-picker { display:block; max-width:none; padding:0; margin:24px 0; }
 .gcwo-inline-patient-picker .gcwo-step1-card { max-width:none; width:100%; }
 .gcwo-inline-patient-picker .gcwo-step1-intro { text-align:left; }
+
+/* Edição no mesmo espaço: estrutura à esquerda, parâmetros à direita. */
+.gcwo-walk-card { display:grid; grid-template-columns:minmax(180px,1fr) minmax(0,2fr); gap:20px; align-items:center; }
+.gcwo-walk-card .gcwo-exercicio-head { margin:0; min-width:0; }
+.gcwo-walk-label { min-width:0; }
+.gcwo-walk-fields { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; }
+.gcwo-cardio-compact-workspace { grid-template-columns:minmax(180px,1fr) minmax(0,3fr); align-items:start; }
+.gcwo-cardio-compact-workspace .gcwo-cardio-zone-tray { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.gcwo-cardio-compact-workspace .gcwo-cardio-zone { width:100%; min-width:0; }
+#gcwoPCardioQuickEdit { min-width:0; }
+#gcwoPCardioQuickEdit > .gcwo-exercicio { margin:0; padding:10px; }
+#gcwoPCardioQuickEdit .gcwo-series-general { margin-top:0; }
+#gcwoPCardioQuickEdit .gcwo-series-split { gap:8px; margin-top:8px; }
+#gcwoPCardioQuickEdit .gcwo-series-side { padding:8px; }
+#gcwoPCardioQuickEdit .gcwo-series-side .gcwo-zone-palette { grid-template-columns:repeat(auto-fit,minmax(40px,1fr)); gap:4px; }
+#gcwoPCardioQuickEdit .gcwo-series-side .gcwo-int-zone { min-height:36px; padding:4px 2px; }
+#gcwoPCardioQuickEdit .gcwo-series-side .gcwo-int-zone small { display:none; }
+#gcwoPCardioQuickEdit .gcwo-series-side .gcwo-row3 { display:flex; flex-wrap:wrap; gap:8px; }
+#gcwoPCardioQuickEdit .gcwo-series-side .gcwo-field { flex:1 1 90px; min-width:0; }
+#gcwoPCardioQuickEdit .gcwo-series-side .gcwo-zone-field { flex-basis:100%; }
+#gcwoPCardioQuickEdit .gcwo-series-side .gcwo-pace-field { flex-basis:190px; }
+#gcwoPCardioQuickEdit .gcwo-series-side input { max-width:100%; box-sizing:border-box; }
+@media (max-width:1120px) {
+  #gcwoPCardioQuickEdit .gcwo-series-split { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .gcwo-cardio-quick-card .gcwo-row3,.gcwo-cardio-quick-head { flex-wrap:wrap; }
+}
+@media (max-width:720px) {
+  .gcwo-walk-card,.gcwo-cardio-compact-workspace { grid-template-columns:minmax(0,1fr); }
+  .gcwo-cardio-compact-workspace .gcwo-cardio-zone-tray { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  #gcwoPCardioQuickEdit .gcwo-series-split { grid-template-columns:minmax(0,1fr); }
+}
