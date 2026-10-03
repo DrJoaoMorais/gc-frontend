@@ -27,7 +27,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-10-03-caminhada-compacta-v8';
+const PRESCRICAO_CSS_VERSION = '2026-10-03-calendario-espelho-v9';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -1910,15 +1910,45 @@ function ctLocalPorDefeito() {
   return ctDisp(0, d ?? 0).local;
 }
 
+function ctNomeSessaoExistente(sessao) {
+  return sessao.modality || TIPO_META[tipoKey(sessao)]?.label || 'Treino';
+}
+
+// O calendário de "Criar treino" é uma vista de trabalho do calendário principal.
+// Copia as sessões existentes para os mesmos dias, mas só altera _state.sessions quando
+// o médico confirma no fim. `origemSessionId` permite actualizar/remover sem duplicar e
+// preserva a ligação aos registos que o doente possa já ter feito nessa sessão.
+function ctCarregarCalendarioExistente() {
+  const ct = _criarTreino;
+  const segunda = segundaFeiraDeIso(ct.inicio);
+  (_state.sessions || [])
+    .filter(sessao => sessao.date >= ct.inicio && sessao.date <= ct.fim)
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date) || (Number(a.order) || 0) - (Number(b.order) || 0))
+    .forEach(sessao => {
+      const deslocamento = Math.round((dataDeIso(sessao.date) - dataDeIso(segunda)) / 86400000);
+      const w = Math.floor(deslocamento / 7), d = ((deslocamento % 7) + 7) % 7;
+      if (!ct.semanas[w]) return;
+      ct.semanas[w].dias[d].push({
+        id: uuid(),
+        nome: ctNomeSessaoExistente(sessao),
+        sessao: cloneSession(sessao),
+        origemSessionId: sessao.session_id,
+      });
+    });
+}
+
 function abrirCriarTreino() {
   const root = document.getElementById('gcwoPrescricaoRoot');
   if (!root) return;
   const hoje = isoHoje();
-  const inicio = _state.startDate && _state.startDate > hoje ? _state.startDate : hoje;
+  const temCalendario = Boolean((_state.sessions || []).length || _state.activePrescriptionId);
+  const inicio = temCalendario && _state.startDate ? _state.startDate : (_state.startDate && _state.startDate > hoje ? _state.startDate : hoje);
+  const fim = temCalendario && _state.endDate && _state.endDate >= inicio ? _state.endDate : inicio;
   const semana1 = ctSemanaVazia();
   semana1.disp = Array.from({ length: 7 }, () => ({ ativo: true, min: 30, local: 'Casa' }));
   _criarTreino = {
-    inicio, fim: inicio, mostrarFim: false,
+    inicio, fim, mostrarFim: false,
     semanas: [semana1],   // por semana: { disp[7] (null = herda), dias[7]: [{ id, nome, sessao }] }
     semanaFoco: 0,        // semana onde "Aplicar aos dias disponíveis" coloca o treino escolhido
     tipo: 'exercicios', grupo: 'Todos', personalizado: null,
@@ -1926,7 +1956,12 @@ function abrirCriarTreino() {
     editar: null,         // { alvo: 'atual' } | { alvo: 'slot', w, dia, id }
     erro: '',
   };
-  ctDefinirSemanas(1); // começa na semana da data de início; cresce com "+ Adicionar semana" / "Copiar"
+  if (temCalendario) {
+    ctAjustarSemanas();
+    ctCarregarCalendarioExistente();
+  } else {
+    ctDefinirSemanas(1); // começa na semana da data de início; cresce com "+ Adicionar semana" / "Copiar"
+  }
   ctRender();
   root.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -1958,6 +1993,8 @@ function ctAplicarAoDia(w, d) {
   if (!ct.atual || !ctDisp(w, d).ativo || !ctNoPlano(ctDataDoDia(d, w))) return;
   const sessao = cloneSession(ct.atual.sessao);
   sessao.local = ctDisp(w, d).local;
+  sessao.date = ctDataDoDia(d, w);
+  sessao.order = ct.semanas[w].dias[d].length;
   ct.semanas[w].dias[d].push({ id: uuid(), nome: ct.atual.nome, sessao });
   ct.semanaFoco = w;
 }
@@ -1974,7 +2011,12 @@ function ctCopiarSemana(w, modo = 'substituir') {
   const destino = ct.semanas[w + 1];
   destino.dias = ct.semanas[w].dias.map((lista, d) => {
     const copias = ctNoPlano(ctDataDoDia(d, w + 1))
-      ? lista.map(slot => ({ id: uuid(), nome: slot.nome, sessao: cloneSession(slot.sessao) }))
+      ? lista.map((slot, order) => {
+          const sessao = cloneSession(slot.sessao);
+          sessao.date = ctDataDoDia(d, w + 1);
+          sessao.order = order;
+          return { id: uuid(), nome: slot.nome, sessao };
+        })
       : [];
     return modo === 'juntar' ? [...destino.dias[d], ...copias] : copias;
   });
@@ -1993,8 +2035,20 @@ function ctAdicionarAPrescricao() {
     ct.erro = `Sem conteúdo: ${vazios.map(({ date, slot }) => `${diaSemanaDeIso(date).full} ${ctFmtDia(date)} (${slot.nome})`).join(', ')}. Edite ou remova antes de adicionar.`;
     ctRender(); return;
   }
-  // Cada semana é explícita (sem progressões automáticas): cada treino vai para a sua data.
-  slots.forEach(({ date, slot }) => copiarSessaoParaData(slot.sessao, date));
+  // Este calendário é o espelho editável do principal: substitui apenas o intervalo que
+  // esteve visível. Sessões existentes mantêm o ID; sessões novas recebem um ID único.
+  const foraDoIntervalo = _state.sessions.filter(sessao => sessao.date < ct.inicio || sessao.date > ct.fim);
+  const ordensPorDia = new Map();
+  const calendarioConfirmado = slots.map(({ date, slot }) => {
+    const sessao = cloneSession(slot.sessao);
+    sessao.session_id = slot.origemSessionId || uuid();
+    sessao.date = date;
+    sessao.order = ordensPorDia.get(date) || 0;
+    ordensPorDia.set(date, sessao.order + 1);
+    return sessao;
+  });
+  _state.sessions = [...foraDoIntervalo, ...calendarioConfirmado]
+    .sort((a, b) => a.date.localeCompare(b.date) || (Number(a.order) || 0) - (Number(b.order) || 0));
   const fimAntigo = _state.endDate;
   if (ct.inicio < _state.startDate) _state.startDate = ct.inicio;
   if (ct.fim > _state.endDate) _state.endDate = ct.fim;
@@ -2303,7 +2357,15 @@ function ctWire() {
     } else if (ds.ctSlotTrocar) {
       const { w, d, id } = slotDe(ds.ctSlotTrocar);
       const slot = ct.semanas[w].dias[d].find(x => x.id === id);
-      if (slot && ct.atual) { slot.nome = ct.atual.nome; slot.sessao = cloneSession(ct.atual.sessao); slot.sessao.local = ctDisp(w, d).local; }
+      if (slot && ct.atual) {
+        const origemSessionId = slot.origemSessionId;
+        slot.nome = ct.atual.nome;
+        slot.sessao = cloneSession(ct.atual.sessao);
+        slot.sessao.local = ctDisp(w, d).local;
+        slot.sessao.date = ctDataDoDia(d, w);
+        slot.sessao.order = ct.semanas[w].dias[d].indexOf(slot);
+        if (origemSessionId) slot.origemSessionId = origemSessionId;
+      }
       if (ct.editar?.id === id) ctFecharEditorSemGuardar();
     } else if (ds.ctSlotRemover) {
       const { w, d, id } = slotDe(ds.ctSlotRemover);
