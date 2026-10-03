@@ -304,6 +304,7 @@
 .gcwo-ct-semana { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:8px; }
 .gcwo-ct-col { display:flex; flex-direction:column; gap:6px; min-width:0; border:1px solid #dce5f0; border-radius:10px; padding:7px; background:#fbfcfe; }
 .gcwo-ct-col.off { background:#f4f6f9; }
+.gcwo-ct-col.off > :not(.gcwo-ct-col-head),.gcwo-ct-col.off .gcwo-ct-col-disp { opacity:.5; }
 .gcwo-ct-col.fora { background:#f4f6f9; opacity:.65; }
 .gcwo-ct-col-head .gcwo-ct-col-disp-label { font-size:10px; font-weight:750; color:#708197; text-transform:uppercase; letter-spacing:.03em; }
 .gcwo-ct-sem-treino { font-size:11px; color:#94a3b8; text-align:center; padding:6px 0; }
@@ -314,9 +315,12 @@
 .gcwo-ct-plano-linha { display:flex; flex-wrap:wrap; align-items:flex-end; gap:10px 16px; }
 .gcwo-ct-plano-linha .gcwo-ct-datas { margin-top:0; }
 .gcwo-ct-plano-linha .gcwo-ct-intervalo { margin-top:0; padding-bottom:8px; }
-.gcwo-ct-col-head { display:flex; flex-direction:column; align-items:center; text-align:center; padding:4px 2px 7px; border-bottom:1px solid #e6edf5; }
+.gcwo-ct-col-head { display:flex; flex-direction:column; gap:4px; text-align:left; padding:2px 0 5px; border-bottom:1px solid #e6edf5; }
 .gcwo-ct-col-head strong { color:#10345d; font-size:12.5px; }
-.gcwo-ct-col-head strong { text-transform:uppercase; letter-spacing:.03em; }
+.gcwo-ct-col-date { display:flex; align-items:center; justify-content:space-between; gap:4px; width:100%; }
+.gcwo-ct-day-toggle { display:flex; align-items:center; gap:4px; cursor:pointer; }
+.gcwo-ct-day-toggle input { margin:0; width:14px; height:14px; accent-color:#1a56db; cursor:pointer; }
+.gcwo-ct-col-date > span { white-space:nowrap; }
 .gcwo-ct-col-head span { color:#10345d; font-size:12px; font-weight:700; }
 .gcwo-ct-col-head small { color:#708197; font-size:10.5px; }
 .gcwo-ct-slot { border:1px solid #dce5f0; border-radius:9px; background:#fff; overflow:hidden; }
@@ -347,7 +351,7 @@
 .gcwo-ct-confirmar { display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; margin:0 0 10px; padding:10px 12px; border:1px solid #f5c98b; border-radius:10px; background:#fff8ec; font-size:12.5px; color:#10345d; }
 .gcwo-ct-confirmar > span { flex:1 1 260px; }
 .gcwo-ct-confirmar small { display:block; color:#708197; font-size:11px; }
-.gcwo-ct-col-disp { display:flex; flex-direction:column; gap:3px; width:100%; margin-top:5px; }
+.gcwo-ct-col-disp { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:4px; width:100%; margin-top:0; }
 .gcwo-ct-col-disp select { width:100%; min-width:0; height:26px; border:1px solid #c9d5e4; border-radius:7px; background:#fff; padding:0 4px; font:inherit; font-size:11px; color:#172a43; }
 .gcwo-ct-col-disp.herdado select { color:#708197; background:#f8fafc; }
 .gcwo-ct-add-semana { width:100%; margin-top:12px; border:1px dashed #1d5de2; border-radius:10px; background:#f7faff; color:#1d5de2; padding:10px; font:inherit; font-size:13px; font-weight:800; cursor:pointer; }

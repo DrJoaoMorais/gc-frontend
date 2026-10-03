@@ -27,7 +27,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-10-03-layout-treino-v6';
+const PRESCRICAO_CSS_VERSION = '2026-10-03-calendario-v7';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -1954,7 +1954,7 @@ function ctFecharEditorSemGuardar() {
 
 function ctAplicarAoDia(w, d) {
   const ct = _criarTreino;
-  if (!ct.atual || !ctNoPlano(ctDataDoDia(d, w))) return;
+  if (!ct.atual || !ctDisp(w, d).ativo || !ctNoPlano(ctDataDoDia(d, w))) return;
   const sessao = cloneSession(ct.atual.sessao);
   sessao.local = ctDisp(w, d).local;
   ct.semanas[w].dias[d].push({ id: uuid(), nome: ct.atual.nome, sessao });
@@ -2141,13 +2141,12 @@ function ctRenderColuna(w, i) {
       : `<span class="gcwo-ct-compat ok" title="${total} min de treino para ${d.min} min disponíveis">✓ ${total} / ${d.min} min</span>`;
   const disp = !noPlano ? `<small class="gcwo-ct-fora">Fora do plano</small>` : `
     <span class="gcwo-ct-col-disp${herdado ? ' herdado' : ''}" title="${herdado ? 'Herdado da semana anterior — altere para mudar só a partir desta semana' : 'Tempo disponível e local'}">
-      <span class="gcwo-ct-col-disp-label">Disponível</span>
-      <select data-ct-col-min="${w}:${i}" aria-label="Tempo disponível">${[['0', 'Sem tempo'], ...CT_MINUTOS.map(m => [String(m), `${m} min`])].map(([v, l]) => `<option value="${v}"${(d.ativo ? String(d.min) : '0') === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
-      <select data-ct-col-local="${w}:${i}" aria-label="Local">${LOCAIS_SESSAO.map(l => `<option${d.local === l ? ' selected' : ''}>${escHtml(l)}</option>`).join('')}</select>
+      <select data-ct-col-min="${w}:${i}" aria-label="Tempo disponível" ${d.ativo ? '' : 'disabled'}>${CT_MINUTOS.map(m => [String(m), `${m} min`]).map(([v, l]) => `<option value="${v}"${String(d.min) === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
+      <select data-ct-col-local="${w}:${i}" aria-label="Local" ${d.ativo ? '' : 'disabled'}>${LOCAIS_SESSAO.map(l => `<option${d.local === l ? ' selected' : ''}>${escHtml(l)}</option>`).join('')}</select>
     </span>`;
   return `
     <div class="gcwo-ct-col${noPlano ? '' : ' fora'}${noPlano && !d.ativo ? ' off' : ''}">
-      <div class="gcwo-ct-col-head"><strong>${escHtml(diaSemanaDeIso(iso).label)}</strong><span>${escHtml(ctFmtDia(iso))}</span>${disp}</div>
+      <div class="gcwo-ct-col-head"><div class="gcwo-ct-col-date"><label class="gcwo-ct-day-toggle">${noPlano ? `<input type="checkbox" data-ct-col-ativo="${w}:${i}" ${d.ativo ? 'checked' : ''} aria-label="Disponibilidade de ${escAttr(diaSemanaDeIso(iso).full)}, ${escAttr(ctFmtDia(iso))}">` : ''}<strong>${escHtml(diaSemanaDeIso(iso).label)}</strong></label><span>${escHtml(ctFmtDia(iso))}</span></div>${disp}</div>
       ${slots.map(slot => {
         const foto = (slot.sessao.items || []).find(it => it.photo_url)?.photo_url;
         const meta = TIPO_META[tipoKey(slot.sessao)];
@@ -2167,7 +2166,7 @@ function ctRenderColuna(w, i) {
       }).join('')}
       ${noPlano && !slots.length ? `<span class="gcwo-ct-sem-treino">Sem treino</span>` : ''}
       ${compat}
-      ${noPlano ? `<button type="button" class="gcwo-ct-add${ct.atual ? ' pronto' : ''}" data-ct-add="${w}:${i}" ${ct.atual ? '' : 'disabled'} title="${ct.atual ? `Colocar ${escAttr(ct.atual.nome)} neste dia` : 'Escolha primeiro um treino'}">${ct.atual ? `+ Colocar ${escHtml(ct.atual.nome)}` : '+ Adicionar treino'}</button>` : ''}
+      ${noPlano ? `<button type="button" class="gcwo-ct-add${ct.atual && d.ativo ? ' pronto' : ''}" data-ct-add="${w}:${i}" ${ct.atual && d.ativo ? '' : 'disabled'} title="${ct.atual ? `Colocar ${escAttr(ct.atual.nome)} neste dia` : 'Escolha primeiro um treino'}">${ct.atual ? `+ Colocar ${escHtml(ct.atual.nome)}` : '+ Adicionar treino'}</button>` : ''}
     </div>`;
 }
 function ctRenderCalendario() {
@@ -2201,7 +2200,7 @@ function ctRenderCalendario() {
         <div class="gcwo-ct-semana">${[0, 1, 2, 3, 4, 5, 6].map(i => ctRenderColuna(w, i)).join('')}</div>
       </div>`;
   }).join('');
-  return ctBloco(2, 'Calendário do plano', 'Em cada dia defina o tempo disponível e o local, e coloque o treino escolhido. As semanas seguintes herdam a disponibilidade da anterior.',
+  return ctBloco(2, 'Calendário do plano', 'Assinale os dias disponíveis, defina o tempo e o local, e coloque o treino escolhido. As semanas seguintes herdam a disponibilidade da anterior.',
     semanas);
 }
 
@@ -2330,7 +2329,8 @@ function ctWire() {
     if (e.target.closest('#gcwoPanel')) return;
     const ds = e.target.dataset;
     const wd = (v) => { const [w, d] = v.split(':').map(Number); return { w, d }; };
-    if (ds.ctColMin) { const { w, d } = wd(ds.ctColMin); const v = Number(e.target.value); ctSetDisp(w, d, v ? { ativo: true, min: v } : { ativo: false }); }
+    if (ds.ctColAtivo) { const { w, d } = wd(ds.ctColAtivo); ctSetDisp(w, d, { ativo: e.target.checked }); }
+    else if (ds.ctColMin) { const { w, d } = wd(ds.ctColMin); const v = Number(e.target.value); ctSetDisp(w, d, v ? { ativo: true, min: v } : { ativo: false }); }
     else if (ds.ctColLocal) { const { w, d } = wd(ds.ctColLocal); ctSetDisp(w, d, { local: e.target.value }); }
     else if ('ctInicio' in ds) {
       if (!e.target.value) return;
