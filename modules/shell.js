@@ -9,7 +9,7 @@ import { canAccessExercise } from './exercicio/permissoes.js';
       03G.1  hydrateShellHeader()
    ======================================================== */
 
-import { agendaWorkspaceHTML, agendaWorkspaceStyles } from './agenda-workspace.js';
+import { agendaWorkspaceHTML } from './agenda-workspace.js';
 import { G } from "./state.js";
 import { UI } from "./config.js";
 import { injectDesignSystem } from "./ui.js";
@@ -83,7 +83,7 @@ export function renderAppShell() {
   } else if (currentView === "exercicio-acompanhamento") {
     mainHtml = `<div id="gcExFollowRoot"></div>`;
   } else {
-    mainHtml = `<style>${agendaWorkspaceStyles()}</style>${agendaWorkspaceHTML()}`;
+    mainHtml = agendaWorkspaceHTML();
   }
 
   /* ── HTML completo ──────────────────────────────────── */
