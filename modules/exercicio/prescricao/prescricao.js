@@ -3991,7 +3991,6 @@ function renderPanelCaminhada(s) {
     <section class="gcwo-walk-workspace">
       <header class="gcwo-walk-toolbar">
         <div><strong>Períodos de caminhada</strong><span>Defina quanto tempo e a intensidade de cada período.</span></div>
-        <label class="gcwo-field gcwo-field-sm gcwo-walk-stairs"><span>Escadas (lanços, opcional)</span><input type="number" min="0" id="gcwoPStairs" value="${s.stairs_flights ?? ''}"></label>
         <button type="button" class="gcBtnGhost" id="gcwoPAddWalk">+ Outro período</button>
       </header>
       <div class="gcwo-exercicios" id="gcwoPWalksList">${renderWalksListInner(s)}</div>
@@ -4001,22 +4000,24 @@ function renderPanelCaminhada(s) {
 
 function renderWalksListInner(s) {
   if (!s.walks.length) return `<div class="gcwo-muted">Nenhuma caminhada adicionada ainda.</div>`;
-  return s.walks.map(renderWalkCard).join('');
+  return s.walks.map((walk, index) => renderWalkCard(walk, index === 0, s.stairs_flights)).join('');
 }
 
-function renderWalkCard(w) {
+function renderWalkCard(w, showStairs = false, stairsFlights = null) {
   const minutos = w.duration_sec == null ? '' : Math.round((Number(w.duration_sec) / 60) * 10) / 10;
   return `
     <div class="gcwo-exercicio gcwo-walk-card" data-wid="${escAttr(w.walk_id)}">
-      <div class="gcwo-exercicio-head">
-        <input type="text" class="gcwo-walk-label" placeholder="Etiqueta opcional (ex.: após almoço)" value="${escAttr(w.label)}" style="flex:1;">
-      </div>
+      <label class="gcwo-field gcwo-field-sm gcwo-walk-label-field"><span>Etiqueta (opcional)</span><input type="text" class="gcwo-walk-label" placeholder="Ex.: após almoço" value="${escAttr(w.label)}"></label>
       <div class="gcwo-walk-fields">
-        <label class="gcwo-field gcwo-field-sm"><span>Duração (min)</span><input type="number" min="0" step="0.5" class="gcwo-walk-duration-min" value="${minutos}"></label>
+        <div class="gcwo-field gcwo-field-sm gcwo-walk-duration-field"><span>Duração (min)</span><div class="gcwo-walk-duration-control">
+          ${[10, 20, 30, 45, 60].map(value => `<button type="button" class="gcwo-walk-duration-quick${Number(minutos) === value ? ' selected' : ''}" data-walk-minutes="${value}" aria-label="Definir ${value} minutos">${value}′</button>`).join('')}
+          <input type="number" min="0" step="0.5" class="gcwo-walk-duration-min" value="${minutos}" placeholder="Outro" aria-label="Outra duração em minutos">
+        </div></div>
         <label class="gcwo-field gcwo-field-sm"><span>Ritmo</span>
           <select class="gcwo-walk-pace">${PACE_OPCOES.map(p => `<option value="${p.value}" ${w.pace === p.value ? 'selected' : ''}>${p.label}</option>`).join('')}</select>
         </label>
         <label class="gcwo-field gcwo-field-sm"><span>RPE (opcional)</span><input type="number" min="1" max="10" class="gcwo-walk-rpe" value="${w.rpe_local ?? ''}"></label>
+        ${showStairs ? `<label class="gcwo-field gcwo-field-sm gcwo-walk-stairs"><span>Escadas (lanços)</span><input type="number" min="0" id="gcwoPStairs" value="${stairsFlights ?? ''}"></label>` : '<div class="gcwo-walk-stairs-placeholder" aria-hidden="true"></div>'}
         <button type="button" class="gcwo-exercicio-remove" data-remove-wid="${escAttr(w.walk_id)}" title="Remover período">✕</button>
       </div>
     </div>`;
@@ -4030,6 +4031,9 @@ function refreshWalksListDom(s) {
 }
 
 function wireWalksListItems(s) {
+  document.getElementById('gcwoPStairs')?.addEventListener('input', (e) => {
+    s.stairs_flights = e.target.value === '' ? null : Number(e.target.value);
+  });
   document.querySelectorAll('#gcwoPWalksList [data-remove-wid]').forEach(btn => {
     btn.addEventListener('click', () => {
       const wid = btn.getAttribute('data-remove-wid');
@@ -4042,9 +4046,19 @@ function wireWalksListItems(s) {
     const w = s.walks.find(x => x.walk_id === wid);
     if (!w) return;
     card.querySelector('.gcwo-walk-label').addEventListener('input', (e) => { w.label = e.target.value; });
-    card.querySelector('.gcwo-walk-duration-min').addEventListener('input', (e) => {
+    const durationInput = card.querySelector('.gcwo-walk-duration-min');
+    const syncDurationQuick = () => {
+      card.querySelectorAll('[data-walk-minutes]').forEach(btn => btn.classList.toggle('selected', Number(durationInput.value) === Number(btn.dataset.walkMinutes)));
+    };
+    durationInput.addEventListener('input', (e) => {
       w.duration_sec = e.target.value === '' ? null : Math.round(Number(e.target.value) * 60);
+      syncDurationQuick();
     });
+    card.querySelectorAll('[data-walk-minutes]').forEach(btn => btn.addEventListener('click', () => {
+      durationInput.value = btn.dataset.walkMinutes;
+      w.duration_sec = Number(btn.dataset.walkMinutes) * 60;
+      syncDurationQuick();
+    }));
     card.querySelector('.gcwo-walk-pace').addEventListener('change', (e) => { w.pace = e.target.value; });
     card.querySelector('.gcwo-walk-rpe').addEventListener('input', (e) => { w.rpe_local = e.target.value === '' ? null : Number(e.target.value); });
   });
@@ -4054,9 +4068,6 @@ function wirePanelCaminhada(s) {
   document.getElementById('gcwoPAddWalk').addEventListener('click', () => {
     s.walks.push(novaCaminhada());
     refreshWalksListDom(s);
-  });
-  document.getElementById('gcwoPStairs').addEventListener('input', (e) => {
-    s.stairs_flights = e.target.value === '' ? null : Number(e.target.value);
   });
   wireWalksListItems(s);
 }

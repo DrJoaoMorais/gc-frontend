@@ -1443,21 +1443,34 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 
 /* Caminhada compacta: estrutura à esquerda, parâmetros à direita. */
 .gcwo-walk-workspace { padding:10px; border:1px solid #dbe3ee; border-radius:12px; background:#f8fafc; }
-.gcwo-walk-toolbar { display:flex; align-items:flex-end; gap:10px; margin-bottom:8px; }
+.gcwo-walk-toolbar { display:flex; align-items:flex-end; gap:10px; margin-bottom:10px; padding:0 2px; }
 .gcwo-walk-toolbar > div { flex:1; min-width:180px; }
 .gcwo-walk-toolbar strong,.gcwo-walk-toolbar span { display:block; }
 .gcwo-walk-toolbar strong { color:#0f2d52; font-size:13px; }
 .gcwo-walk-toolbar > div span { margin-top:2px; color:#64748b; font-size:10.5px; }
-.gcwo-walk-toolbar .gcwo-walk-stairs { flex:0 1 180px; }
-.gcwo-walk-toolbar .gcwo-walk-stairs input { height:34px; }
-.gcwo-walk-toolbar .gcBtnGhost { height:34px; white-space:nowrap; }
+.gcwo-walk-toolbar .gcBtnGhost { height:36px; white-space:nowrap; border-color:#cbd8e8; background:#fff; }
 .gcwo-walk-workspace .gcwo-exercicios { gap:7px; margin-top:0; }
-.gcwo-walk-card { display:grid; grid-template-columns:minmax(180px,1.1fr) minmax(0,2fr); gap:12px; align-items:end; padding:8px 10px; background:#fff; }
-.gcwo-walk-card .gcwo-exercicio-head { margin:0; min-width:0; }
-.gcwo-walk-label { width:100%; min-width:0; height:34px; }
-.gcwo-walk-fields { display:grid; grid-template-columns:minmax(90px,.75fr) minmax(105px,1fr) minmax(90px,.75fr) 30px; gap:8px; align-items:end; }
-.gcwo-walk-fields .gcwo-field input,.gcwo-walk-fields .gcwo-field select { width:100%; min-width:0; height:34px; }
-.gcwo-walk-fields .gcwo-exercicio-remove { align-self:end; width:30px; height:34px; padding:0; }
+.gcwo-walk-card { display:grid; grid-template-columns:minmax(130px,.6fr) minmax(760px,4fr); gap:8px; align-items:end; padding:11px 12px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 1px 2px rgba(15,45,82,.03); }
+.gcwo-walk-card input,.gcwo-walk-card select,.gcwo-walk-card button { box-sizing:border-box; }
+.gcwo-walk-label-field { min-width:0; }
+.gcwo-walk-label { width:100%!important; min-width:0; height:36px!important; }
+.gcwo-walk-fields { display:grid; grid-template-columns:minmax(330px,2.5fr) minmax(95px,.7fr) minmax(72px,.5fr) minmax(95px,.65fr) 30px; gap:6px; align-items:end; }
+.gcwo-walk-card .gcwo-field { display:grid; grid-template-rows:13px 36px; gap:5px; align-content:end; margin:0; }
+.gcwo-walk-card .gcwo-field > span { min-height:13px; color:#64748b; font-size:10.5px; font-weight:700; line-height:13px; white-space:nowrap; }
+.gcwo-walk-fields .gcwo-field input,.gcwo-walk-fields .gcwo-field select { width:100%; min-width:0; height:36px; border-color:#d5dfeb; background:#fff; }
+.gcwo-walk-duration-field { min-width:0; }
+.gcwo-walk-duration-control { display:grid; grid-template-columns:repeat(5,minmax(38px,.55fr)) minmax(62px,1fr); gap:4px; }
+.gcwo-walk-duration-quick { min-width:0; height:36px; border:1px solid var(--minute-border,#cbd8e8); border-radius:9px; background:var(--minute-bg,#f8fafc); color:var(--minute-ink,#0f2d52); font-family:inherit; font-size:11.5px; font-weight:750; cursor:pointer; transition:.12s ease; }
+.gcwo-walk-duration-quick:nth-child(1) { --minute-bg:#edf9f5; --minute-border:#bde5d7; --minute-ink:#18745c; --minute-active:#23856a; }
+.gcwo-walk-duration-quick:nth-child(2) { --minute-bg:#edf8fb; --minute-border:#b9deea; --minute-ink:#176d86; --minute-active:#24829c; }
+.gcwo-walk-duration-quick:nth-child(3) { --minute-bg:#eef4ff; --minute-border:#c5d6f5; --minute-ink:#2b5fa8; --minute-active:#356fbd; }
+.gcwo-walk-duration-quick:nth-child(4) { --minute-bg:#f4f1ff; --minute-border:#d8cef5; --minute-ink:#6651a7; --minute-active:#7761b9; }
+.gcwo-walk-duration-quick:nth-child(5) { --minute-bg:#fff5e9; --minute-border:#efd5b7; --minute-ink:#9a5d24; --minute-active:#ae6c2e; }
+.gcwo-walk-duration-quick:hover { border-color:var(--minute-active,#8db2f4); filter:saturate(1.08); transform:translateY(-1px); }
+.gcwo-walk-duration-quick.selected { border-color:var(--minute-active,#0f2d52); background:var(--minute-active,#0f2d52); color:#fff; box-shadow:0 2px 5px rgba(15,45,82,.18); }
+.gcwo-walk-duration-control .gcwo-walk-duration-min { height:36px; text-align:center; padding-inline:6px; border-color:#b9c8da; background:#fff; }
+.gcwo-walk-stairs-placeholder { min-width:0; }
+.gcwo-walk-fields .gcwo-exercicio-remove { align-self:end; width:30px; height:36px; padding:0; }
 .gcwo-panel:has(.gcwo-walk-workspace) .gcwo-panel-body { gap:9px; padding:12px; }
 .gcwo-panel:has(.gcwo-walk-workspace) .gcwo-session-details summary { padding:9px 11px; }
 .gcwo-panel:has(.gcwo-walk-workspace) .gcwo-review-strip { padding:8px 11px; }
@@ -1481,16 +1494,22 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
   #gcwoPCardioQuickEdit .gcwo-series-split { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .gcwo-cardio-quick-card .gcwo-row3,.gcwo-cardio-quick-head { flex-wrap:wrap; }
 }
+@media (max-width:980px) {
+  .gcwo-walk-card { grid-template-columns:minmax(0,1fr); }
+}
 @media (max-width:720px) {
   .gcwo-walk-card,.gcwo-cardio-compact-workspace { grid-template-columns:minmax(0,1fr); }
   .gcwo-walk-toolbar { align-items:stretch; flex-wrap:wrap; }
   .gcwo-walk-toolbar > div { flex-basis:100%; }
-  .gcwo-walk-toolbar .gcwo-walk-stairs { flex:1 1 150px; }
   .gcwo-walk-fields { grid-template-columns:repeat(3,minmax(0,1fr)) 30px; }
+  .gcwo-walk-duration-field { grid-column:1 / span 3; }
+  .gcwo-walk-duration-control { grid-template-columns:repeat(5,minmax(0,1fr)); }
+  .gcwo-walk-duration-control .gcwo-walk-duration-min { grid-column:1 / -1; }
   .gcwo-cardio-compact-workspace .gcwo-cardio-zone-tray { grid-template-columns:repeat(4,minmax(0,1fr)); }
   #gcwoPCardioQuickEdit .gcwo-series-split { grid-template-columns:minmax(0,1fr); }
 }
 @media (max-width:480px) {
   .gcwo-walk-fields { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .gcwo-walk-duration-field { grid-column:1 / -1; }
   .gcwo-walk-fields .gcwo-exercicio-remove { grid-column:2; justify-self:end; }
 }
