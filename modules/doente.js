@@ -4532,7 +4532,7 @@ function openPatientViewModal(patient) {
       btn.addEventListener("click", async () => {
         const consultId = btn.getAttribute("data-consult-id") || "";
         if (!consultId) return;
-        const { openRelatorioConsultaModal } = await import("./relatorios/v2/relatorio-consulta/relatorio-consulta.js");
+        const { openRelatorioConsultaModal } = await import("./relatorios/v2/relatorio-consulta/relatorio-consulta.js?v=2026-10-05-pdf-paginas");
         await openRelatorioConsultaModal({
           patientId: p.id,
           consultationId: consultId,

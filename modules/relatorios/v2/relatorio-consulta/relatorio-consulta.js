@@ -1,3 +1,5 @@
+import { createPdfPages } from "./pdf-pages.js";
+import { createPdfDraft } from "./pdf-draft.js";
 import { clinicalHTML } from "../../../clinical-editor/content.js";
 import { fetchPrivatePdf } from "../../_shared/doctor-signature.js";
 
@@ -58,7 +60,7 @@ function ensureRelConsultaCss() {
   if (document.querySelector('link[data-gcv2-rc]')) return;
   const lnk = document.createElement('link');
   lnk.rel = 'stylesheet';
-  lnk.href = new URL('./relatorio-consulta.css', import.meta.url).href;
+  lnk.href = new URL('./relatorio-consulta.css?v=2026-10-05-pdf-paginas', import.meta.url).href;
   lnk.dataset.gcv2Rc = '1';
   document.head.appendChild(lnk);
 }
@@ -259,6 +261,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
     objectives: consultation.objectives || '',
     incluirObjectivos: !!(consultation.objectives && consultation.objectives.trim()),
     conclusao: '',
+    compacto: false,
     sessoes: 20,
     docNumber: 'JM-' + _y + '-' + _s + '-A',
     evoSelecionadas: new Set(
@@ -366,15 +369,25 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
             <textarea id="gcv2-rc-conclusao" rows="4" placeholder="Síntese clínica / parecer (opcional)…"></textarea>
           </label>
 
-          <div class="gcv2-at-actions">
+          <label class="gcv2-at-field">
+            <span>Espaçamento do relatório</span>
+            <select id="gcv2-rc-spacing">
+              <option value="normal">Normal</option>
+              <option value="compact">Compacto</option>
+            </select>
+          </label>
+          <p id="gcv2-rc-pdf-status" role="status" aria-live="polite">Ver PDF mostra as páginas reais à direita, sem guardar o documento.</p>
+          <div class="gcv2-at-actions" style="flex-wrap:wrap;">
             <button class="gcv2-btn gcv2-btn-secondary" id="gcv2-rc-cancel">Fechar</button>
-            <button class="gcv2-btn gcv2-btn-primary" id="gcv2-rc-gen">Gerar PDF</button>
+            <button class="gcv2-btn gcv2-btn-secondary" id="gcv2-rc-view">Ver PDF</button>
+            <button class="gcv2-btn gcv2-btn-primary" id="gcv2-rc-gen" disabled>Guardar PDF</button>
           </div>
 
         </aside>
 
         <main class="gcv2-atestado-preview">
           <div id="gcv2-rc-preview-host"></div>
+          <div id="gcv2-rc-pdf-pages" hidden></div>
         </main>
       </div>
     </div>
@@ -495,7 +508,13 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
   }
 
   // -------- Render do preview --------
-  async function renderPreview() {
+  let previewRevision = 0;
+  let previewReady;
+  function renderPreview() {
+    previewReady = updatePreview(++previewRevision);
+    return previewReady;
+  }
+  async function updatePreview(revision) {
     const contentHtml = await buildReportContent();
     const shellHtml = buildShellV2({
       clinic, doctor,
@@ -508,8 +527,9 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
       contentHtml,
     });
     const host = overlay.querySelector('#gcv2-rc-preview-host');
-    if (host) {
+    if (host && overlay.isConnected && revision === previewRevision) {
       host.innerHTML = shellHtml;
+      host.classList.toggle('gcv2-rc-compact', state.compacto);
       if (typeof window.gcv2HydrateDynTables === 'function') window.gcv2HydrateDynTables(host);
     }
   }
@@ -619,35 +639,86 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
   overlay.querySelector('#gcv2-rc-evo-de').addEventListener('change', aplicarIntervaloEvo);
   overlay.querySelector('#gcv2-rc-evo-ate').addEventListener('change', aplicarIntervaloEvo);
 
-  // -------- Gerar PDF --------
-  overlay.querySelector('#gcv2-rc-gen').addEventListener('click', async (e) => {
-    const btn = e.currentTarget;
-    btn.disabled = true;
-    btn.textContent = 'A gerar PDF…';
-
-    try {
-      const html = overlay.querySelector('#gcv2-rc-preview-host').innerHTML;
+  // -------- Pré-visualização PDF sem persistência --------
+  const viewBtn = overlay.querySelector('#gcv2-rc-view');
+  const saveBtn = overlay.querySelector('#gcv2-rc-gen');
+  const pdfStatus = overlay.querySelector('#gcv2-rc-pdf-status');
+  let busy = false;
+  const pdfPages = createPdfPages(overlay.querySelector('#gcv2-rc-pdf-pages'));
+  const draft = createPdfDraft({
+    async buildHtml() {
+      await previewReady;
+      const host = overlay.querySelector('#gcv2-rc-preview-host');
+      const html = host.innerHTML;
       const styles = Array.from(document.querySelectorAll('link[data-gcv2-shell], link[data-gcv2-atestado], link[data-gcv2-rc], link[data-gcv2-evo]'))
         .map(l => `<link rel="stylesheet" href="${l.href}${l.href.includes('?') ? '&' : '?'}v=${Date.now()}">`).join('\n');
-
-      // Gerar código do documento localmente
-
-      const fullHtml = `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body>${html}</body></html>`;
-
-
+      return `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8">${styles}</head><body class="${state.compacto ? 'gcv2-rc-compact' : ''}">${html}</body></html>`;
+    },
+    async generate(fullHtml) {
       const resp = await fetchPrivatePdf('https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ html: fullHtml, media: 'print' }),
       });
+      if (!resp.ok) throw new Error(`PDF worker erro ${resp.status}: ${(await resp.text().catch(() => '')).slice(0, 200)}`);
+      return new Blob([await resp.arrayBuffer()], { type: 'application/pdf' });
+    },
+  });
+  function invalidatePdf() {
+    draft.invalidate();
+    pdfPages.clear();
+    overlay.querySelector('#gcv2-rc-preview-host').hidden = false;
+    saveBtn.disabled = true;
+    pdfStatus.textContent = 'O relatório mudou. Selecione Ver PDF para rever as páginas antes de guardar.';
+  }
+  const form = overlay.querySelector('.gcv2-atestado-form');
+  form.addEventListener('input', invalidatePdf, true);
+  form.addEventListener('change', invalidatePdf, true);
+  form.addEventListener('click', event => {
+    if (event.target.closest('#gcv2-rc-evo-all, #gcv2-rc-evo-none')) invalidatePdf();
+  }, true);
+  overlay.querySelector('#gcv2-rc-spacing').addEventListener('change', event => {
+    state.compacto = event.target.value === 'compact';
+    renderPreview();
+  });
+  function lockForm() {
+    busy = true;
+    const controls = [...form.querySelectorAll('input, textarea, select, button')];
+    const disabled = controls.map(control => control.disabled);
+    controls.forEach(control => { control.disabled = true; });
+    form.querySelectorAll('a').forEach(link => { link.style.pointerEvents = 'none'; });
+    return () => {
+      busy = false;
+      controls.forEach((control, index) => { control.disabled = disabled[index]; });
+      form.querySelectorAll('a').forEach(link => { link.style.pointerEvents = ''; });
+      saveBtn.disabled = !draft.current();
+    };
+  }
+  viewBtn.addEventListener('click', async () => {
+    if (busy) return;
+    const unlock = lockForm();
+    viewBtn.textContent = 'A preparar PDF…';
+    try {
+      const { blob } = await draft.preview();
+      if (!overlay.isConnected) return;
+      overlay.querySelector('#gcv2-rc-preview-host').hidden = true;
+      const count = await pdfPages.show(blob);
+      if (count === null) return;
+      pdfStatus.textContent = `PDF real: ${count} ${count === 1 ? 'página' : 'páginas'}. Veja o conteúdo de cada página à direita. Guardar PDF guarda esta versão.`;
+    } catch (error) {
+      pdfPages.clear();
+      draft.invalidate();
+      overlay.querySelector('#gcv2-rc-preview-host').hidden = false;
+      pdfStatus.textContent = 'Não foi possível mostrar as páginas do PDF: ' + (error?.message || error);
+    } finally { unlock(); viewBtn.textContent = 'Ver PDF'; }
+  });
 
-      if (!resp.ok) {
-        const errText = await resp.text().catch(() => '');
-        throw new Error(`PDF worker erro ${resp.status}: ${errText.slice(0, 200)}`);
-      }
-      const buf = await resp.arrayBuffer();
-      const blob = new Blob([buf], { type: 'application/pdf' });
-
+  // -------- Guardar exatamente o PDF revisto --------
+  saveBtn.addEventListener('click', async () => {
+    if (busy || !draft.current()) return;
+    const { blob, html: fullHtml } = draft.current();
+    const unlock = lockForm();
+    saveBtn.textContent = 'A guardar PDF…';
+    try {
       const friendlyFileName = buildFriendlyFileName('RelatorioConsulta', patient?.full_name, state.date);
       openAndDownloadPdf(blob, friendlyFileName);
 
@@ -660,7 +731,7 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
         contentType: 'application/pdf',
         upsert: true,
       });
-      if (upErr) console.warn('[rc] upload storage falhou:', upErr);
+      if (upErr) throw upErr;
 
       const { error: insErr } = await window.sb.from('documents').insert({
         clinic_id: clinicId,
@@ -672,19 +743,23 @@ export async function openRelatorioConsultaModal({ patientId, consultationId, on
         category: 'relatorio_consulta',
         doc_number: state.docNumber,
       });
-      if (insErr) console.warn('[rc] insert documents falhou:', insErr);
+      if (insErr) throw insErr;
 
       closeModal();
     } catch (err) {
       console.error('[rc] erro a gerar PDF:', err);
-      alert('Erro a gerar PDF: ' + (err?.message || err));
-      btn.disabled = false;
-      btn.textContent = 'Gerar PDF';
+      pdfStatus.textContent = 'Erro ao guardar PDF: ' + (err?.message || err);
+    } finally {
+      unlock();
+      saveBtn.textContent = 'Guardar PDF';
     }
   });
 
   // -------- Fechar --------
   function closeModal() {
+    draft.invalidate();
+    pdfPages.clear();
+    previewRevision++;
     overlay.remove();
     if (typeof onClose === 'function') onClose();
   }
