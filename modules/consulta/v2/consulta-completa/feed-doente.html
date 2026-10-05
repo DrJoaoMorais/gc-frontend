@@ -804,7 +804,43 @@
         <div class="fd-bloco-titulo">História da Doença Actual</div>
         <div id="fd-quill-editor" style="background:#fff;border-radius:0 0 8px 8px;min-height:160px;"></div>
         <style>#fd-quill-editor .ql-editor { font-size: 15px; line-height: 1.5;
-          padding: 12px 16px; }</style>
+          padding: 12px 16px; }
+          #fd-nova-wrap .gc-hda-toolbar-integrated.ql-toolbar.ql-snow {
+            display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:7px 10px;
+            background:#f6f8fa;border:1px solid #e5e9ee;border-radius:11px 11px 0 0;
+            font-family:inherit;
+          }
+          #fd-nova-wrap .gc-hda-toolbar-integrated .ql-formats {
+            display:inline-flex;align-items:center;gap:2px;margin:0;
+          }
+          #fd-nova-wrap .gc-hda-toolbar-integrated .ql-formats + .ql-formats {
+            border-left:1px solid #e5e9ee;padding-left:8px;
+          }
+          #fd-nova-wrap .gc-hda-toolbar-integrated button {
+            float:none;width:32px;height:32px;padding:7px;border-radius:7px;
+          }
+          #fd-nova-wrap .gc-hda-toolbar-integrated button:hover,
+          #fd-nova-wrap .gc-hda-toolbar-integrated button.ql-active {background:#e8edf3;}
+          #fd-nova-wrap .gc-hda-toolbar-integrated button svg {width:18px;height:18px;}
+          #fd-nova-wrap .gc-hda-toolbar-integrated .gcai-tab {
+            margin-left:auto;width:auto;height:32px;padding:0 11px;font-size:12.5px;
+            font-weight:600;background:#eef4ff;border-color:#cbdcf7;color:#285ec8;
+          }
+          #fd-nova-wrap .gc-hda-toolbar-integrated .gcai-tab:hover {background:#e0ebff;}
+          #fd-nova-wrap .gc-hda-toolbar-integrated [hidden],
+          #fd-nova-wrap .gcai-rail[hidden] {display:none;}
+          #fd-nova-wrap #fd-quill-editor.ql-container {
+            border-color:#e5e9ee;border-radius:0 0 11px 11px !important;
+          }
+          #fd-nova-wrap .gcai-layout:has(>.gcai-rail[hidden]) {gap:0;}
+          #fd-nova-wrap .gcai-layout:has(>.gcai-rail[hidden]) > .ql-container {
+            flex:1 1 100%;min-width:0;
+          }
+          @media(pointer:coarse) {
+            #fd-nova-wrap .gc-hda-toolbar-integrated button {width:44px;height:44px;}
+            #fd-nova-wrap .gc-hda-toolbar-integrated .gcai-tab {width:auto;height:44px;}
+          }
+        </style>
         <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;" id="fd-snips"></div>
       </div>
 
@@ -956,8 +992,8 @@
 
   <script type="module">
     import { clinicalHTML, editorHTML, loadClinicalHTML } from "../../../clinical-editor/content.js";
-    import { enhanceClinicalEditor } from "../../../clinical-editor/editor.js";
-    import { mountAssistantPanel } from "../../../clinical-editor/assistant-panel.js";
+    import { enhanceClinicalEditor } from "../../../clinical-editor/editor.js?v=2026-10-05-hda-barra-integrada";
+    import { mountAssistantPanel } from "../../../clinical-editor/assistant-panel.js?v=2026-10-05-hda-barra-integrada";
     import { mountRecordingBar } from "../../../clinical-editor/recording-bar.js";
     import { carregarConsulta, carregarConsultasEmLote } from './cc-queries.js';
     import { carregarCopiaAnterior, juntarSemDuplicar } from './cc-copia-anterior.js';
@@ -2599,7 +2635,7 @@
         },
       });
 
-      enhanceClinicalEditor(fdQuill);
+      enhanceClinicalEditor(fdQuill, { integratedToolbar: true });
 
       // Nesta ronda ainda não há integração real com o subsistema estruturado
       // de Exame Objectivo (só fica editável depois de gravar a consulta pela

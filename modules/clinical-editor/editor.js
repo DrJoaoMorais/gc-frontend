@@ -1,7 +1,7 @@
 import { clinicalHTML, editorHTML } from './content.js';
 import { calcAgeYears } from '../helpers.js';
 
-export function enhanceClinicalEditor(quill, { ai = false, sb = () => window.sb, patient = () => null } = {}) {
+export function enhanceClinicalEditor(quill, { ai = false, integratedToolbar = false, sb = () => window.sb, patient = () => null } = {}) {
   if (quill.__clinicalEnhanced) return;
   quill.__clinicalEnhanced = true;
   quill.root.lang = 'pt-PT';
@@ -19,20 +19,27 @@ export function enhanceClinicalEditor(quill, { ai = false, sb = () => window.sb,
   if (toolbar) {
     const group = document.createElement('span');
     group.className = 'ql-formats';
-    const add = (label, text, action) => {
+    const add = (label, text, action, icon) => {
       const button = document.createElement('button');
       button.type = 'button'; button.title = label; button.setAttribute('aria-label', label);
-      button.textContent = text;
-      button.style.fontSize = '18px';
+      if (integratedToolbar) button.innerHTML = icon;
+      else { button.textContent = text; button.style.fontSize = '18px'; }
       button.addEventListener('mousedown', e => e.preventDefault());
       button.addEventListener('click', action);
       group.appendChild(button);
     };
-    add('Diminuir nível (Shift+Tab)', '⇤', () => quill.format('indent', '-1', 'user'));
-    add('Aumentar nível (Tab)', '⇥', () => quill.format('indent', '+1', 'user'));
-    add('Desfazer', '↶', () => quill.history.undo());
-    add('Refazer', '↷', () => quill.history.redo());
+    const icons = integratedToolbar ? window.Quill.import('ui/icons') : null;
+    add('Diminuir nível (Shift+Tab)', '⇤', () => quill.format('indent', '-1', 'user'), icons?.indent['-1']);
+    add('Aumentar nível (Tab)', '⇥', () => quill.format('indent', '+1', 'user'), icons?.indent['+1']);
+    const historyIcon = (redo) => `<svg viewBox="0 0 18 18" aria-hidden="true"><g${redo ? ' transform="translate(18 0) scale(-1 1)"' : ''}><path class="ql-stroke" fill="none" d="M6 3L2 7l4 4M2 7h8a5 5 0 0 1 0 10"/></g></svg>`;
+    add('Desfazer', '↶', () => quill.history.undo(), historyIcon(false));
+    add('Refazer', '↷', () => quill.history.redo(), historyIcon(true));
     toolbar.appendChild(group);
+    if (integratedToolbar) {
+      toolbar.classList.add('gc-hda-toolbar-integrated');
+      toolbar.setAttribute('role', 'toolbar');
+      toolbar.setAttribute('aria-label', 'Formatação da História da Doença Actual');
+    }
     const labels = { bold:'Negrito', italic:'Itálico', underline:'Sublinhado', clean:'Limpar formatação' };
     Object.entries(labels).forEach(([name,label]) => toolbar.querySelectorAll(`.ql-${name}`).forEach(b => { b.title=label; b.setAttribute('aria-label',label); }));
     toolbar.querySelectorAll('.ql-list').forEach(b => { b.title=b.value==='bullet'?'Lista com bolas':'Lista numerada'; b.setAttribute('aria-label',b.title); });

@@ -128,6 +128,12 @@ export function mountAssistantPanel(quill, { patient = () => null, respond, getC
   const thread = rail.querySelector('[data-thread]');
   const composer = rail.querySelector('[data-composer]');
   const input = rail.querySelector('[data-input]');
+  const toolbar = quill.getModule('toolbar')?.container;
+  const integratedToolbar = toolbar?.classList.contains('gc-hda-toolbar-integrated');
+  if (integratedToolbar) {
+    toolbar.append(tabBtn);
+    rail.hidden = true;
+  }
 
   let opened = false;
   // Rótulos por atalho — mutáveis por instância (nunca partilhados entre painéis).
@@ -145,6 +151,7 @@ export function mountAssistantPanel(quill, { patient = () => null, respond, getC
   let hdaProposalEl = null;
 
   function open() {
+    if (integratedToolbar) rail.hidden = false;
     panel.hidden = false;
     tabBtn.hidden = true;
     if (!opened) {
@@ -152,7 +159,10 @@ export function mountAssistantPanel(quill, { patient = () => null, respond, getC
       addAssistant([{ text: 'Tenho o contexto desta consulta. Em que posso ajudar?' }]);
     }
   }
-  function close() { panel.hidden = true; tabBtn.hidden = false; }
+  function close() {
+    panel.hidden = true; tabBtn.hidden = false;
+    if (integratedToolbar) rail.hidden = true;
+  }
   tabBtn.onclick = open;
   closeBtn.onclick = close;
 
