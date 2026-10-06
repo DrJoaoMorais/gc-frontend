@@ -112,7 +112,7 @@ export function mountAssistantPanel(quill, { patient = () => null, respond, getC
     '<div class="gcai-thread" data-thread></div>' +
     '<div class="gcai-shortcuts">' +
     '<button type="button" class="gcai-shortcut-btn" data-shortcut="melhorar">Melhorar HDA</button>' +
-    '<button type="button" class="gcai-shortcut-btn" data-shortcut="analisar">Analisar caso</button>' +
+    '<button type="button" class="gcai-shortcut-btn" data-shortcut="analisar" disabled aria-disabled="true" title="Análise clínica por IA desativada">Analisar caso</button>' +
     '<button type="button" class="gcai-shortcut-btn" data-shortcut="plano">Plano / Reabilitação</button>' +
     '</div>' +
     '<form class="gcai-composer" data-composer>' +
@@ -156,7 +156,7 @@ export function mountAssistantPanel(quill, { patient = () => null, respond, getC
     tabBtn.hidden = true;
     if (!opened) {
       opened = true;
-      addAssistant([{ text: 'Tenho o contexto desta consulta. Em que posso ajudar?' }]);
+      addAssistant([{ text: 'A análise clínica da HDA está desativada.' }]);
     }
   }
   function close() {
@@ -309,6 +309,7 @@ export function mountAssistantPanel(quill, { patient = () => null, respond, getC
   }
 
   async function ask(kind, label, userText) {
+    if (kind === 'analisar') return;
     open();
     addUser(label);
     const stopTyping = addTyping();

@@ -827,6 +827,17 @@
             font-weight:600;background:#eef4ff;border-color:#cbdcf7;color:#285ec8;
           }
           #fd-nova-wrap .gc-hda-toolbar-integrated .gcai-tab:hover {background:#e0ebff;}
+          #fd-nova-wrap .gc-hda-toolbar-integrated #fd-rec-slot {
+            margin-left:auto;display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;max-width:100%;
+          }
+          #fd-nova-wrap .gc-hda-toolbar-integrated #fd-rec-slot + .gcai-tab {margin-left:0;}
+          #fd-nova-wrap .gc-hda-toolbar-integrated #fd-rec-slot button {
+            width:auto;height:32px;padding:0 11px;font-family:inherit;
+          }
+          @media(pointer:coarse) {
+            #fd-nova-wrap .gc-hda-toolbar-integrated #fd-rec-slot button {height:44px;}
+          }
+
           #fd-nova-wrap .gc-hda-toolbar-integrated [hidden],
           #fd-nova-wrap .gcai-rail[hidden] {display:none;}
           #fd-nova-wrap #fd-quill-editor.ql-container {
@@ -993,7 +1004,7 @@
   <script type="module">
     import { clinicalHTML, editorHTML, loadClinicalHTML } from "../../../clinical-editor/content.js";
     import { enhanceClinicalEditor } from "../../../clinical-editor/editor.js?v=2026-10-05-hda-barra-integrada";
-    import { mountAssistantPanel } from "../../../clinical-editor/assistant-panel.js?v=2026-10-05-hda-barra-integrada";
+    import { mountAssistantPanel } from "../../../clinical-editor/assistant-panel.js?v=2026-10-06-gravacao-analise-desativada";
     import { mountRecordingBar } from "../../../clinical-editor/recording-bar.js";
     import { carregarConsulta, carregarConsultasEmLote } from './cc-queries.js';
     import { carregarCopiaAnterior, juntarSemDuplicar } from './cc-copia-anterior.js';
@@ -2671,6 +2682,7 @@
       // reais numa ronda futura; assistant-panel.js não muda.
       function mockRespond(kind, userText, context) {
         if (kind === 'melhorar_hda') return callMelhorarHdaReal(context);
+        if (kind === 'analisar') return Promise.resolve([{ text: 'Análise clínica por IA desativada.' }]);
         return new Promise(resolve => {
           setTimeout(() => {
             if (kind === 'analisar') {
@@ -2714,6 +2726,17 @@
 
       const fdAssistant = mountAssistantPanel(fdQuill, { patient: () => fdPatientData, respond: mockRespond, getConsultationContext: fdGetConsultationContext });
       mountRecordingBar(document.getElementById('fd-rec-slot'), { onImprove: (transcript) => fdAssistant.improveFromTranscript(transcript), sb: window.sb });
+      const recordingSlot = document.getElementById('fd-rec-slot');
+      const hdaToolbar = fdQuill.getModule('toolbar')?.container;
+      const assistantButton = hdaToolbar?.querySelector('.gcai-tab');
+      if (recordingSlot && assistantButton) {
+        const transcriptPreview = recordingSlot.nextElementSibling;
+        hdaToolbar.insertBefore(recordingSlot, assistantButton);
+        if (transcriptPreview?.classList.contains('gcai-rec-transcript')) {
+          hdaToolbar.insertAdjacentElement('afterend', transcriptPreview);
+        }
+      }
+
 
       /* snippets rápidos */
       const SNIPS = [
