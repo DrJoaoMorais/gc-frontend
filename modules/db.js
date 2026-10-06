@@ -41,7 +41,7 @@ function requireClinicId(clinicId, fnName) {
 /* Campos de doente usados em todos os SELECTs */
 const PATIENT_FIELDS =
   "id, full_name, dob, phone, email, external_id, sns, nif, passport_id, cc_number, " +
-  "insurance_provider, insurance_policy_number, address_line1, postal_code, " +
+  "insurance_provider, insurance_policy_number, insurances, address_line1, postal_code, " +
   "city, country, notes";
 
 // Adds non-identifying clinical context (used to inform the AI assistant,

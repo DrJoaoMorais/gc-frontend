@@ -178,7 +178,7 @@ async function loadPatientData(patientId) {
   const [patientRes, clinicRes] = await Promise.all([
     window.sb
       .from("patients")
-      .select("full_name, dob, nif, sns, cc_number, address_line1, postal_code, city, insurance_provider, insurance_policy_number")
+      .select("full_name, dob, nif, sns, cc_number, address_line1, postal_code, city, insurance_provider, insurance_policy_number, insurances")
       .eq("id", patientId)
       .single(),
     window.sb

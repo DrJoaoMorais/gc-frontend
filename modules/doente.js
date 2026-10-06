@@ -2,6 +2,7 @@ import { clinicalHTML, editorHTML, loadClinicalHTML } from "./clinical-editor/co
 import { enhanceClinicalEditor } from "./clinical-editor/editor.js";
 import { buildDoctorSignature, fetchPrivatePdf } from "./relatorios/_shared/doctor-signature.js";
 
+import { patientInsurances, insurancePayload, insuranceHeaderHtml, insuranceEditorHtml, bindInsuranceEditor } from "./patient-insurances.js";
 /* ========================================================
    doente.js — Módulo ES6
    Blocos 06 e 07 do app.js original
@@ -640,6 +641,7 @@ function openPatientViewModal(patient) {
       postal_code: p.postal_code || "",
       city: p.city || "",
       country: p.country || "",
+      insurances: patientInsurances(p),
       insurance_provider: p.insurance_provider || "",
       insurance_policy_number: p.insurance_policy_number || "",
       notes: p.notes || "",
@@ -758,17 +760,7 @@ function openPatientViewModal(patient) {
               <input id="id_passport_id" ${ro} value="${escAttr(identDraft.passport_id)}"
                      style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
             </div>
-            <div>
-              <label>Seguradora</label>
-              <input id="id_insurance_provider" ${ro} value="${escAttr(identDraft.insurance_provider)}"
-                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
-            </div>
-
-            <div>
-              <label>Nº apólice</label>
-              <input id="id_insurance_policy_number" ${ro} value="${escAttr(identDraft.insurance_policy_number)}"
-                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:10px;" />
-            </div>
+            ${insuranceEditorHtml(identDraft, "id-insurances", identMode === 'edit' && !identSaving)}
 
             <div style="grid-column:1 / -1;">
               <label>Morada</label>
@@ -881,8 +873,7 @@ function openPatientViewModal(patient) {
     bindVal("id_postal_code", "postal_code");
     bindVal("id_city", "city");
     bindVal("id_country", "country");
-    bindVal("id_insurance_provider", "insurance_provider");
-    bindVal("id_insurance_policy_number", "insurance_policy_number");
+    bindInsuranceEditor(document.getElementById("id-insurances"), identDraft, { editable: identMode === 'edit' && !identSaving, sb: window.sb });
     bindVal("id_notes", "notes");
 
     function refreshHrPreview() {
@@ -962,8 +953,7 @@ function openPatientViewModal(patient) {
             postal_code: String(identDraft.postal_code || "").trim() || null,
             city: String(identDraft.city || "").trim() || null,
             country: String(identDraft.country || "").trim() || null,
-            insurance_provider: String(identDraft.insurance_provider || "").trim() || null,
-            insurance_policy_number: String(identDraft.insurance_policy_number || "").trim() || null,
+            ...insurancePayload(identDraft),
             notes: String(identDraft.notes || "").trim() || null
           };
 
@@ -1782,8 +1772,7 @@ function openPatientViewModal(patient) {
     if (p.sns) lineParts.push(`<b>Nº Utente:</b> ${escAttr(p.sns)}`);
     if (p.dob) lineParts.push(`<b>DN:</b> ${escAttr(fmtDobPt(p.dob))}`);
     if (p.nif) lineParts.push(`<b>NIF:</b> ${escAttr(p.nif)}`);
-    if (p.insurance_provider) lineParts.push(`<b>Seguro:</b> ${escAttr(p.insurance_provider)}`);
-    if (p.insurance_policy_number) lineParts.push(`<b>Nº:</b> ${escAttr(p.insurance_policy_number)}`);
+    lineParts.push(insuranceHeaderHtml(p, { tag: "span" }));
     const line2 = lineParts.join("&nbsp;&nbsp;&nbsp;");
 
     const addr = patientAddressCompact();
@@ -2122,6 +2111,10 @@ function openPatientViewModal(patient) {
             window.__gc_pendingExamQueue = queue;
 
             const nextHtml = buildExamRequestHtml({
+              patientName: next.patientName,
+              patientDob: next.patientDob,
+              patientNif: next.patientNif,
+              patientProfile: next.patientProfile,
               clinic:        next.clinic,
               examName:      next.examName,
               clinicalInfo:  next.clinicalInfo  || "",
@@ -4223,8 +4216,7 @@ function openPatientViewModal(patient) {
               <div><b>Clínica:</b> ${escAttr(activeClinicName || "—")}</div>
               ${p.sns ? `<div><b>SNS:</b> ${escAttr(p.sns)}</div>` : ''}
               ${p.phone ? `<div><b>Tel:</b> ${escAttr(p.phone)}</div>` : ''}
-              ${p.insurance_provider ? `<div><b>Seguro:</b> ${escAttr(p.insurance_provider)}</div>` : ''}
-              ${p.insurance_policy_number ? `<div><b>Nº apólice:</b> ${escAttr(p.insurance_policy_number)}</div>` : ''}
+              ${insuranceHeaderHtml(p)}
               ${ageTextToday() !== '—' ? `<div><b>Idade:</b> ${escAttr(ageTextToday())}</div>` : ''}
             </div>
           </div>

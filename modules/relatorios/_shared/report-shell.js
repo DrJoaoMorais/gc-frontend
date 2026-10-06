@@ -1,5 +1,6 @@
 import { buildDoctorSignature } from "./doctor-signature.js";
 
+import { insuranceHeaderHtml } from "../../patient-insurances.js";
 /**
  * report-shell.js — Cabeçalho, bloco de dados do doente e rodapé partilhados
  *
@@ -121,6 +122,7 @@ export async function buildReportShell({ patient, clinic }) {
   const patientBlock = `
         <div class="row"><b>Nome:</b> ${name}</div>
         ${patientLine2 ? `<div class="row">${patientLine2}</div>` : ""}
+        ${insuranceHeaderHtml(patient)}
         <div class="hr" style="margin-top:14px;opacity:0.5;"></div>
       `;
 

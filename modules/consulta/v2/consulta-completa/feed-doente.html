@@ -1011,6 +1011,7 @@
     import { enhanceClinicalEditor } from "../../../clinical-editor/editor.js?v=2026-10-05-hda-barra-integrada";
     import { mountAssistantPanel } from "../../../clinical-editor/assistant-panel.js?v=2026-10-06-assistente-bloqueado";
     import { mountRecordingBar } from "../../../clinical-editor/recording-bar.js";
+    import { patientInsurances, insurancePayload, insuranceHeaderHtml, insuranceEditorHtml, bindInsuranceEditor } from "../../../patient-insurances.js";
     import { carregarConsulta, carregarConsultasEmLote } from './cc-queries.js';
     import { carregarCopiaAnterior, juntarSemDuplicar } from './cc-copia-anterior.js';
     import { mount as pdv2Mount, unmount as pdv2Unmount } from '../../../pedidos/pedidos-v2.js';
@@ -1230,6 +1231,7 @@
           postal_code: fdPatientData?.postal_code || '',
           city: fdPatientData?.city || '',
           country: fdPatientData?.country || '',
+          insurances: patientInsurances(fdPatientData),
           insurance_provider: fdPatientData?.insurance_provider || '',
           insurance_policy_number: fdPatientData?.insurance_policy_number || '',
           notes: fdPatientData?.notes || '',
@@ -1303,15 +1305,7 @@
               <label>Passaporte</label>
               <input id="fdIdPassportId" ${ro} value="${esc(p.passport_id)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
             </div>
-            <div>
-              <label>Seguradora</label>
-              <input id="fdIdInsuranceProvider" ${ro} value="${esc(p.insurance_provider)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
-            </div>
-
-            <div>
-              <label>Nº apólice</label>
-              <input id="fdIdInsurancePolicyNumber" ${ro} value="${esc(p.insurance_policy_number)}" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;" />
-            </div>
+            ${insuranceEditorHtml(canEdit ? fdIdentDraft : p, "fdId-insurances", canEdit)}
 
             <div style="grid-column:1 / -1;">
               <label>Morada</label>
@@ -1372,8 +1366,7 @@
       bindVal('fdIdPostalCode', 'postal_code');
       bindVal('fdIdCity', 'city');
       bindVal('fdIdCountry', 'country');
-      bindVal('fdIdInsuranceProvider', 'insurance_provider');
-      bindVal('fdIdInsurancePolicyNumber', 'insurance_policy_number');
+      bindInsuranceEditor(document.getElementById("fdId-insurances"), fdIdentDraft, { editable: canEdit, sb });
       bindVal('fdIdNotes', 'notes');
 
       async function fdEnsurePatientActiveInClinic(patientId, targetClinicId) {
@@ -1416,8 +1409,7 @@
           postal_code: String(fdIdentDraft.postal_code || '').trim() || null,
           city: String(fdIdentDraft.city || '').trim() || null,
           country: String(fdIdentDraft.country || '').trim() || null,
-          insurance_provider: String(fdIdentDraft.insurance_provider || '').trim() || null,
-          insurance_policy_number: String(fdIdentDraft.insurance_policy_number || '').trim() || null,
+          ...insurancePayload(fdIdentDraft),
           notes: String(fdIdentDraft.notes || '').trim() || null,
         };
 
@@ -1435,6 +1427,8 @@
 
         if (data) {
           Object.keys(payload).forEach(k => { fdPatientData[k] = data[k]; });
+          const seguroEl = document.getElementById('fd-seguro');
+          if (seguroEl) seguroEl.innerHTML = insuranceHeaderHtml(fdPatientData);
           const nomeEl = document.getElementById('fd-nome');
           if (nomeEl) nomeEl.textContent = fdPatientData.full_name || 'Doente';
         }
@@ -2386,7 +2380,7 @@
       const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1);
       const [pacienteRes, consultasRes, clinicaRes, marcacaoHojeRes, roleRes, docsRes, allClinicsRes] = await Promise.all([
         sb.from('patients')
-          .select('full_name, dob, sns, phone, nif, email, external_id, passport_id, address_line1, postal_code, city, country, notes, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas, contexto_habitacional, profissao, atividade_desportiva, insurance_provider, insurance_policy_number')
+          .select('full_name, dob, sns, phone, nif, email, external_id, passport_id, address_line1, postal_code, city, country, notes, antecedentes_pessoais, antecedentes_medicamentosos, antecedentes_cirurgicos, alertas, contexto_habitacional, profissao, atividade_desportiva, insurance_provider, insurance_policy_number, insurances')
           .eq('id', PATIENT_ID)
           .single(),
         sb.from('consultations')
@@ -2454,8 +2448,8 @@
         if (clinicaEl && clinicaNome) { clinicaEl.textContent = `Clínica: ${clinicaNome}`; metaVisible = true; }
 
         const seguroEl = document.getElementById('fd-seguro');
-        if (seguroEl && p.insurance_provider) {
-          seguroEl.textContent = `Seguro: ${p.insurance_provider}${p.insurance_policy_number ? ' · Apólice: ' + p.insurance_policy_number : ''}`;
+        if (seguroEl && insuranceHeaderHtml(p)) {
+          seguroEl.innerHTML = insuranceHeaderHtml(p);
           metaVisible = true;
         }
 

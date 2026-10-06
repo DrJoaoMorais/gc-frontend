@@ -59,7 +59,7 @@ function ensureIntakeViewerCss() {
 async function loadPatient(patientId) {
   const { data, error } = await window.sb
     .from('patients')
-    .select('id, full_name, dob, sex, nif, sns, cc_number, passport_id, address_line1, postal_code, city')
+    .select('id, full_name, dob, sex, nif, sns, cc_number, passport_id, address_line1, postal_code, city, insurance_provider, insurance_policy_number, insurances')
     .eq('id', patientId)
     .single();
   if (error) { console.error('[intake-viewer] erro a obter doente:', error); return null; }
@@ -152,7 +152,7 @@ function formatAnswer(p, val) {
 // Corpo do documento (preview + PDF)
 // -----------------------------------------------------------------
 function buildIntakeBody({ patient, tokenRow, cfg, answersByQid }) {
-  const patientCard = buildPatientCard({ patient, mode: 'full', hideInsurance: true });
+  const patientCard = buildPatientCard({ patient, mode: 'full' });
 
   const metaHtml = `
     <div class="gcv2-iv-meta">
