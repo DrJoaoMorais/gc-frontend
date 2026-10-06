@@ -38,7 +38,7 @@ import { searchPatientsScoped }             from "./modules/db.js";
 import {
   renderAppShell,
   hydrateShellHeader
-}                                           from "./modules/shell.js";
+}                                           from "./modules/shell.js?v=2026-10-06-agenda-messages-v1";
 
 // Agenda
 import {
@@ -46,7 +46,7 @@ import {
   refreshAgenda,
   openApptModal,
   renderClinicsSelect
-}                                           from "./modules/agenda.js";
+}                                           from "./modules/agenda.js?v=2026-10-06-agenda-messages-v1";
 
 // Doente
 import { abrirFichaDoente } from "./modules/abrir-doente.js";
@@ -106,7 +106,7 @@ window.__gc_openAcompanhamentoList = openAcompanhamentoList;
 import "./modules/relatorio-v2-bridge.js";
 
 // Boot
-import { boot }                             from "./modules/boot.js?v=2026-09-28-care-summary";
+import { boot }                             from "./modules/boot.js?v=2026-10-06-agenda-messages-v1";
 
 /* ── pontes window.__gc_* ────────────────────────────────────────────── */
 /*

@@ -1,7 +1,7 @@
 import { stylePatient } from './marcacao-visual.js';
 import { UI } from "./config.js";
 import { G } from "./state.js";
-import { closeModalRoot } from "./agenda.js";
+import { closeModalRoot } from "./agenda.js?v=2026-10-06-agenda-messages-v1";
 import { escapeHtml, normalizeDigits } from "./helpers.js";
 import { findPatientDuplicateCandidates, rpcCreatePatientForClinic } from "./db.js";
 

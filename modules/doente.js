@@ -37,7 +37,7 @@ import {
   fmtTime,
   normalizeDigits,
 } from "./helpers.js";
-import { closeModalRoot, ensurePatientActiveInClinic } from "./agenda.js";
+import { closeModalRoot, ensurePatientActiveInClinic } from "./agenda.js?v=2026-10-06-agenda-messages-v1";
 import { rpcCreatePatientForClinic } from "./db.js";
 import { examsUiState, buildExamRequestHtml } from "./exames.js";
 import { analisesUiState, openAnalisesPanel, closeAnalisesPanel } from "./analises.js";

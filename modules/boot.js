@@ -1,7 +1,7 @@
 import { canAccessExercise } from './exercicio/permissoes.js';
 import { loadExerciseHome } from './exercicio/followup-home.js';
 import { normalizeClinicIds } from './clinic-picker.js';
-import { wireAgendaWorkspace } from './agenda-workspace.js';
+import { wireAgendaWorkspace } from './agenda-workspace.js?v=2026-10-06-agenda-messages-v1';
 /**
  * boot.js — Passo 7
  * BLOCO 11B: Boot principal da aplicação
@@ -17,7 +17,7 @@ import { fetchProcedureTypes, loadAppointmentsForRange } from "./db.js";
 import {
   renderAppShell,
   hydrateShellHeader
-}                                          from "./shell.js";
+}                                          from "./shell.js?v=2026-10-06-agenda-messages-v1";
 import {
   setHomeDashboardConsultasHoje,
   setHomeDashboardPedidosOnline,
@@ -36,12 +36,12 @@ import {
   setAgendaSubtitleForSelectedDay,
   refreshAgenda,
   renderClinicsSelect
-}                                          from "./agenda.js";
-import { openApptModal }                   from "./agenda.js";
+}                                          from "./agenda.js?v=2026-10-06-agenda-messages-v1";
+import { openApptModal }                   from "./agenda.js?v=2026-10-06-agenda-messages-v1";
 import { openNewPatientMainModal }         from "./novo-doente.js";
 import { openClinicalDiary }               from "./diario-clinico.js";
 import { wireQuickPatientSearch }                      from "./pesquisa.js";
-import { openCalendarOverlay, openWeekView }           from "./agenda.js";
+import { openCalendarOverlay, openWeekView }           from "./agenda.js?v=2026-10-06-agenda-messages-v1";
 import { wireLogout, ensureAAL2, __gcForceSessionLock, __gcIsAuthError, __gcSessionLockActive } from "./session.js";
 import { fmtDateISO, isoLocalDayRangeFromISODate } from "./helpers.js";
 import { renderDoentePanorama } from "./doente-admin.js";

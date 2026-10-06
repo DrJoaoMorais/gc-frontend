@@ -18,9 +18,9 @@ import {
   parseISODateToLocalStart,
   escapeHtml
 } from "./helpers.js";
-import { setAgendaSubtitleForSelectedDay, refreshAgenda } from "./agenda.js";
+import { setAgendaSubtitleForSelectedDay, refreshAgenda } from "./agenda.js?v=2026-10-06-agenda-messages-v1";
 import { searchPatientsScoped } from "./db.js";
-import { renderQuickPatientResults } from "./agenda.js";
+import { renderQuickPatientResults } from "./agenda.js?v=2026-10-06-agenda-messages-v1";
 
 /* ====================================================================
    BLOCO 08A — Wiring da pesquisa rápida

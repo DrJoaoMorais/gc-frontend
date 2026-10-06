@@ -8,7 +8,7 @@ import { openScheduleModal, overlaps } from './agenda-disponibilidade.js';
 
 import { G, STATUS_OPTIONS, statusMeta } from "./state.js";
 import { escapeHtml } from "./helpers.js";
-import { openApptModal, renderQuickPatientResults, openPatientFeedFromAny } from "./agenda.js";
+import { openApptModal, renderQuickPatientResults, openPatientFeedFromAny } from "./agenda.js?v=2026-10-06-agenda-messages-v1";
 import { searchPatientsScoped } from "./db.js";
 import { openConsentHub } from "./consentimentos_hub.js";
 

@@ -132,3 +132,28 @@ body:has(#gcAgendaWorkspace) .gc-content{padding:14px 16px;background:linear-gra
 .aw-fecho-dialog .aw-actions{display:flex;gap:8px;flex-wrap:wrap}
 .aw-fecho-dialog button{padding:10px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;cursor:pointer}
 .aw-fecho-dialog button:first-child{background:#0f2d52;color:#fff}
+
+/* Compact clinic messages and native modal. */
+#gcAgendaWorkspace #awMessageList{display:block;font-size:12px;margin-top:8px}
+.aw-message-row{display:flex;gap:10px;align-items:center;border-top:1px solid #e9dfbe;padding:9px 0;font-size:12px}
+.aw-message-row time{flex:0 0 80px;color:#756b52;font-size:11px}
+.aw-message-text{flex:1;min-width:0}.aw-message-text strong,.aw-message-text small{display:block}
+.aw-message-text small{color:#756b52;font-size:11px}.aw-message-text p{margin:3px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+#gcAgendaWorkspace .aw-message-text p{color:#4e4534;margin:3px 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.aw-message-row button{flex-shrink:0;font-size:11px;border:1px solid #dfd6bf;background:white;border-radius:5px;padding:5px 8px;cursor:pointer}
+.aw-message-dialog{width:min(640px,calc(100vw - 40px));max-height:85vh;box-sizing:border-box;overflow:auto;border:1px solid #d8dfeb;border-radius:10px;padding:18px;font:14px system-ui;color:#273044;background:white}
+.aw-message-dialog::backdrop{background:rgba(25,35,50,.3)}
+.aw-message-dialog header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:12px}
+:is(.aw-message-dialog,.aw-message-composer) label{display:block;margin:12px 0}:is(.aw-message-dialog,.aw-message-composer) input[type=search],:is(.aw-message-dialog,.aw-message-composer) select,:is(.aw-message-dialog,.aw-message-composer) textarea{box-sizing:border-box;width:100%;margin-top:5px;padding:8px;border:1px solid #cbd3df;border-radius:5px;font:inherit}
+:is(.aw-message-dialog,.aw-message-composer) .aw-message-task{display:flex;align-items:center;gap:6px}:is(.aw-message-dialog,.aw-message-composer) footer{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+:is(.aw-message-dialog,.aw-message-composer) button{border:1px solid #cbd3df;background:#f7f9fc;padding:7px 10px;border-radius:5px;cursor:pointer}:is(.aw-message-dialog,.aw-message-composer) button[type=submit]{background:#2563eb;color:white;border-color:#2563eb}
+:is(.aw-message-dialog,.aw-message-composer) [data-error]{color:#a32727}.aw-message-body{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:650px){#gcAgendaWorkspace .aw-messages>div:first-child{align-items:flex-start;gap:8px;flex-wrap:wrap}.aw-message-row{flex-wrap:wrap}.aw-message-row time{flex-basis:65px}.aw-message-text{flex-basis:calc(100% - 90px)}.aw-message-row [data-status]{margin-left:75px}}
+
+#gcAgendaWorkspace #awMessageComposer{display:block}
+.aw-message-composer{margin:10px 0 12px;padding:0 0 12px;border-bottom:1px solid #e9dfbe;max-width:700px;font-size:12px}
+.aw-message-composer form{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.aw-message-composer label{margin:8px 0}
+.aw-message-composer [data-patients],.aw-message-composer [data-selected],.aw-message-composer label:has(textarea),.aw-message-composer .aw-message-task,.aw-message-composer [data-error],.aw-message-composer footer{grid-column:1/-1}
+.aw-message-composer [data-selected]:empty,.aw-message-composer [data-error]:empty{display:none}
+@media(max-width:550px){.aw-message-composer form{grid-template-columns:1fr}}

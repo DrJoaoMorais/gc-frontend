@@ -1,7 +1,8 @@
+import { refreshAgendaMessages } from './agenda-messages.js?v=2026-10-06-agenda-messages-v1';
 import { mountClinicPicker, normalizeClinicIds } from './clinic-picker.js';
 import { assertNoBlock } from './agenda-disponibilidade.js';
 import { styleAppointment } from './marcacao-visual.js';
-import { appointmentCard, enhanceAgendaRows, selectAgendaRow } from './agenda-workspace.js';
+import { appointmentCard, enhanceAgendaRows, selectAgendaRow } from './agenda-workspace.js?v=2026-10-06-agenda-messages-v1';
 /* ========================================================
    AGENDA.JS — Agenda, Marcações, Calendário e Google Calendar
    --------------------------------------------------------
@@ -2341,6 +2342,7 @@ export async function refreshAgenda() {
   const sel      = document.getElementById("selClinic");
   const clinicId = sel?.value || null;
   G.activeClinicId = clinicId;   /* persiste a escolha de clínica */
+  void refreshAgendaMessages();
   const r        = isoLocalDayRangeFromISODate(G.selectedDayISO);
 
   if (!r) { setAgendaStatus("error", "Dia inválido."); return; }

@@ -9,7 +9,7 @@ import { canAccessExercise } from './exercicio/permissoes.js';
       03G.1  hydrateShellHeader()
    ======================================================== */
 
-import { agendaWorkspaceHTML } from './agenda-workspace.js';
+import { agendaWorkspaceHTML } from './agenda-workspace.js?v=2026-10-06-agenda-messages-v1';
 import { G } from "./state.js";
 import { UI } from "./config.js";
 import { injectDesignSystem } from "./ui.js";
