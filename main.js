@@ -103,7 +103,7 @@ window.__gc_openAcompanhamentoPanel = openAcompanhamentoPanel;
 window.__gc_openAcompanhamentoList = openAcompanhamentoList;
 
 // Campainha do Relatório v2 (janelas filhas — feed-doente)
-import "./modules/relatorio-v2-bridge.js";
+import "./modules/relatorio-v2-bridge.js?v=2026-10-06-seguros-v2";
 
 // Boot
 import { boot }                             from "./modules/boot.js?v=2026-10-06-agenda-messages-v1";

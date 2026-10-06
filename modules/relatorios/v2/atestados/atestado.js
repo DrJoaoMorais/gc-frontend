@@ -8,7 +8,7 @@ import { fetchPrivatePdf } from "../../_shared/doctor-signature.js";
 // =================================================================
 
 import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl, buildFriendlyFileName, openAndDownloadPdf } from '../_shell/shell-v2.js';
-import { buildPatientCard } from '../_components/patient-card.js';
+import { buildPatientCard } from '../_components/patient-card.js?v=2026-10-06-seguros-v2';
 import { buildPeriodEditor, bindPeriodEditor, readPeriodState, formatPeriodPt, defaultPeriodState } from '../_components/period.js';
 import { makeModalDraggable } from '../shared/modal-drag.js';
 

@@ -1,4 +1,4 @@
-import { insuranceHeaderHtml } from '../../../patient-insurances.js';
+import { insuranceHeaderHtml } from '../../../patient-insurances.js?v=2026-10-06-seguros-v2';
 // =================================================================
 // patient-card.js  ·  Componente universal v2
 // Bloco de identificação do doente para relatórios e atestados

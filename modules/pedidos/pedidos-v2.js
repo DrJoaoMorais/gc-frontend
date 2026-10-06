@@ -43,7 +43,7 @@
 import { fetchPrivatePdf } from "../relatorios/_shared/doctor-signature.js";
 import { ANALISES_GRUPOS, ANALISES_PERFIS } from "./analises-catalog-v2.js";
 import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl } from "../relatorios/v2/_shell/shell-v2.js";
-import { buildPatientCard } from "../relatorios/v2/_components/patient-card.js";
+import { buildPatientCard } from "../relatorios/v2/_components/patient-card.js?v=2026-10-06-seguros-v2";
 
 const STYLE_ID = "pdv2-styles";
 
