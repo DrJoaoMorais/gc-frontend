@@ -34,6 +34,7 @@ function ensureAssistantPanelStyles() {
     .gcai-tab{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;border:1px solid #a9c8f5;background:#eaf1ff;color:#1a56db;font-weight:700;font-size:12.5px;cursor:pointer;white-space:nowrap;font-family:inherit}
     .gcai-tab:hover{background:#dbe9ff}
     .gcai-tab[hidden]{display:none}
+    .gcai-tab:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(1)}
     .gcai-panel{width:min(420px,32vw);min-width:360px;background:#fff;border:1px solid #e7ecf3;border-radius:10px;display:flex;flex-direction:column;height:calc(100vh - 40px);font-family:inherit}
     .gcai-panel[hidden]{display:none}
     .gcai-header{padding:13px 14px;border-bottom:1px solid #e7ecf3;display:flex;align-items:center;gap:8px}
@@ -106,7 +107,7 @@ export function mountAssistantPanel(quill, { patient = () => null, respond, getC
 
   const rail = document.createElement('div');
   rail.className = 'gcai-rail';
-  rail.innerHTML = '<button type="button" class="gcai-tab" data-action="open">✦ Assistente IA</button>' +
+  rail.innerHTML = '<button type="button" class="gcai-tab" data-action="open" disabled aria-disabled="true" title="Assistente IA desativado">✦ Assistente IA</button>' +
     '<aside class="gcai-panel" hidden aria-label="Assistente IA">' +
     '<div class="gcai-header"><b>Assistente IA</b><button type="button" class="gcai-close" data-action="close" aria-label="Fechar">✕</button></div>' +
     '<div class="gcai-thread" data-thread></div>' +
@@ -163,7 +164,7 @@ export function mountAssistantPanel(quill, { patient = () => null, respond, getC
     panel.hidden = true; tabBtn.hidden = false;
     if (integratedToolbar) rail.hidden = true;
   }
-  tabBtn.onclick = open;
+  tabBtn.onclick = () => { if (!tabBtn.disabled) open(); };
   closeBtn.onclick = close;
 
   function scrollThread() { thread.scrollTop = thread.scrollHeight; }
