@@ -11,7 +11,7 @@ import { fetchPrivatePdf } from "../../_shared/doctor-signature.js";
 // PDF e exame objectivo entram nos sub-passos seguintes (3.5.b/c).
 // =================================================================
 
-import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl, buildFriendlyFileName, openAndDownloadPdf } from '../_shell/shell-v2.js';
+import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl, buildFriendlyFileName, openAndDownloadPdf } from '../_shell/shell-v2.js?v=2026-10-08-pdf-nomes';
 import { buildPatientCard } from '../_components/patient-card.js?v=2026-10-06-seguros-v2';
 import { makeModalDraggable } from '../shared/modal-drag.js';
 

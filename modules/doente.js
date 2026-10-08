@@ -46,7 +46,7 @@ import { evolucaoUiState, openEvolucaoPanel, closeEvolucaoPanel } from "./evoluc
 import { checkConsentStatus, checkConsentPrinted } from "./consentimentos.js";
 import { openConsentHub } from "./consentimentos_hub.js";
 import { openExameObjectivoMenu, openExameObjectivoForm } from "./exame-objectivo.js";
-import { openNewPatientMainModal } from "./novo-doente.js";
+import { openNewPatientMainModal } from "./novo-doente.js?v=2026-10-08-pdf-nomes";
 import { buildReportShell } from "./relatorios/_shared/report-shell.js";
 import { openPrpViscoPanel, closePrpViscoPanel } from "./relatorios/prp-visco.js";
 
@@ -4432,7 +4432,7 @@ function openPatientViewModal(patient) {
 
       document.getElementById("btnTesteShellV2")?.addEventListener("click", async () => {
         const { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl } =
-          await import("./relatorios/v2/_shell/shell-v2.js");
+          await import("./relatorios/v2/_shell/shell-v2.js?v=2026-10-08-pdf-nomes");
 
         if (!document.querySelector('link[data-gcv2-shell]')) {
           const lnk = document.createElement("link");
@@ -4498,12 +4498,12 @@ function openPatientViewModal(patient) {
       });
 
       document.getElementById("btnAtestadoDoencaV2")?.addEventListener("click", async () => {
-        const { openAtestadoModal } = await import("./relatorios/v2/atestados/atestado.js");
+        const { openAtestadoModal } = await import("./relatorios/v2/atestados/atestado.js?v=2026-10-08-pdf-nomes");
         await openAtestadoModal({ tipo: 'doenca', patientId: p.id, onClose: async () => { await loadDocuments(); render(); } });
       });
 
       document.getElementById("btnAtestadoEdfisicaV2")?.addEventListener("click", async () => {
-        const { openAtestadoModal } = await import("./relatorios/v2/atestados/atestado.js");
+        const { openAtestadoModal } = await import("./relatorios/v2/atestados/atestado.js?v=2026-10-08-pdf-nomes");
         await openAtestadoModal({ tipo: 'edfisica', patientId: p.id, onClose: async () => { await loadDocuments(); render(); } });
       });
 
@@ -4524,7 +4524,7 @@ function openPatientViewModal(patient) {
       btn.addEventListener("click", async () => {
         const consultId = btn.getAttribute("data-consult-id") || "";
         if (!consultId) return;
-        const { openRelatorioConsultaModal } = await import("./relatorios/v2/relatorio-consulta/relatorio-consulta.js?v=2026-10-06-seguros-v2");
+        const { openRelatorioConsultaModal } = await import("./relatorios/v2/relatorio-consulta/relatorio-consulta.js?v=2026-10-08-pdf-nomes");
         await openRelatorioConsultaModal({
           patientId: p.id,
           consultationId: consultId,
@@ -7167,4 +7167,4 @@ function selSens(el) {
 export {
   openPatientViewModal,
 };
-export { openNewPatientMainModal } from "./novo-doente.js";
+export { openNewPatientMainModal } from "./novo-doente.js?v=2026-10-08-pdf-nomes";

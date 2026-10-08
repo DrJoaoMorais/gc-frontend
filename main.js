@@ -49,7 +49,7 @@ import {
 }                                           from "./modules/agenda.js?v=2026-10-06-agenda-messages-v1";
 
 // Doente
-import { abrirFichaDoente } from "./modules/abrir-doente.js";
+import { abrirFichaDoente } from "./modules/abrir-doente.js?v=2026-10-08-pdf-nomes";
 import { openNewPatientMainModal } from "./modules/novo-doente.js";
 
 // Pesquisa + Calendário
@@ -103,7 +103,7 @@ window.__gc_openAcompanhamentoPanel = openAcompanhamentoPanel;
 window.__gc_openAcompanhamentoList = openAcompanhamentoList;
 
 // Campainha do Relatório v2 (janelas filhas — feed-doente)
-import "./modules/relatorio-v2-bridge.js?v=2026-10-06-seguros-v2";
+import "./modules/relatorio-v2-bridge.js?v=2026-10-08-pdf-nomes";
 
 // Boot
 import { boot }                             from "./modules/boot.js?v=2026-10-06-agenda-messages-v1";

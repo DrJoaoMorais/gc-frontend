@@ -1018,8 +1018,8 @@
     import { checkConsentStatus, checkConsentPrinted } from '../../../consentimentos.js';
     import { openConsentHub } from '../../../consentimentos_hub.js';
     import { fetchMyRole } from '../../../auth.js';
-    import { buildFriendlyFileName } from '../../../relatorios/v2/_shell/shell-v2.js';
-    import { openIntakeResponseModal } from '../../../relatorios/v2/intake-viewer/intake-viewer.js';
+    import { buildFriendlyFileName } from '../../../relatorios/v2/_shell/shell-v2.js?v=2026-10-08-pdf-nomes';
+    import { openIntakeResponseModal } from '../../../relatorios/v2/intake-viewer/intake-viewer.js?v=2026-10-08-pdf-nomes';
     import { initObjetivosCatalogo } from './objetivos-catalogo.js';
     import { gerarFraseObjectivos } from './objetivos-frase.js';
 
@@ -2085,7 +2085,7 @@
         const tipo = DOC_TIPOS[d.category] || { ic: '📄', lbl: d.title || 'Documento' };
         const tipoSlug = DOC_TIPO_SLUG[d.category] || 'Documento';
         const dataSimples = d.created_at ? String(d.created_at).slice(0, 10) : null;
-        const friendlyName = buildFriendlyFileName(tipoSlug, fdPatientData?.full_name, dataSimples);
+        const friendlyName = buildFriendlyFileName(tipoSlug, fdPatientData?.full_name, dataSimples, d.id);
         const url = window.sb.storage.from('documents').getPublicUrl(d.storage_path, { download: friendlyName })?.data?.publicUrl || '#';
         const data = fmtDataHora(d.created_at);
         return `<span class="fd-doc-wrap">
@@ -2111,7 +2111,7 @@
         const tipo = DOC_TIPOS[d.category] || { ic: '📄', lbl: d.title || 'Documento' };
         const tipoSlug = DOC_TIPO_SLUG[d.category] || 'Documento';
         const dataSimples = d.created_at ? String(d.created_at).slice(0, 10) : null;
-        const friendlyName = buildFriendlyFileName(tipoSlug, fdPatientData?.full_name, dataSimples);
+        const friendlyName = buildFriendlyFileName(tipoSlug, fdPatientData?.full_name, dataSimples, d.id);
         const url = window.sb.storage.from('documents').getPublicUrl(d.storage_path, { download: friendlyName })?.data?.publicUrl || '#';
         const data = fmtDataHora(d.created_at);
         html += `<a class="fd-doc-chip" href="${esc(url)}" target="_blank" rel="noopener" title="${esc(d.title || tipo.lbl)}" style="display:inline-block;margin:2px;">${tipo.ic} ${esc(tipo.lbl)} <span class="fd-doc-data">${data}</span></a>`;
@@ -3384,12 +3384,12 @@
     document.getElementById('fdBtnAnalises')?.addEventListener('click', () => fdAbrirPedidos('analises'));
 
     document.getElementById('fdBtnAtestadoDoenca')?.addEventListener('click', async () => {
-      const { openAtestadoModal } = await import('../../../relatorios/v2/atestados/atestado.js');
+      const { openAtestadoModal } = await import('../../../relatorios/v2/atestados/atestado.js?v=2026-10-08-pdf-nomes');
       await openAtestadoModal({ tipo: 'doenca', patientId: PATIENT_ID, onClose: async () => { await boot(); } });
     });
 
     document.getElementById('fdBtnPrpVisco')?.addEventListener('click', async () => {
-      const { openPrpModal } = await import('../../../relatorios/v2/prp/prp.js');
+      const { openPrpModal } = await import('../../../relatorios/v2/prp/prp.js?v=2026-10-08-pdf-nomes');
       await openPrpModal({ patientId: PATIENT_ID, onClose: async () => { await boot(); } });
     });
 
@@ -3744,7 +3744,7 @@
     });
 
     document.getElementById('fdBtnRelatorioClinico')?.addEventListener('click', async () => {
-      const { openRelatorioClinicoModal } = await import('../../../relatorios/v2/relatorio-clinico/relatorio-clinico.js');
+      const { openRelatorioClinicoModal } = await import('../../../relatorios/v2/relatorio-clinico/relatorio-clinico.js?v=2026-10-08-pdf-nomes');
       await openRelatorioClinicoModal({ patientId: PATIENT_ID, onClose: async () => { await boot(); } });
     });
 

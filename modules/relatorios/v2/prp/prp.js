@@ -21,7 +21,7 @@ import { fetchPrivatePdf } from "../../_shared/doctor-signature.js";
 // fixa; os atalhos são só sugestões e não apagam texto escrito à mão.
 // =================================================================
 
-import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl, buildFriendlyFileName, openAndDownloadPdf } from '../_shell/shell-v2.js';
+import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl, buildFriendlyFileName, openAndDownloadPdf } from '../_shell/shell-v2.js?v=2026-10-08-pdf-nomes';
 import { buildPatientCard } from '../_components/patient-card.js?v=2026-10-06-seguros-v2';
 
 const escAttr = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({

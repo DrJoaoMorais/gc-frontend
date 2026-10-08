@@ -205,24 +205,31 @@ window.__gcv2_formatDatePT = formatDatePT;
 
 const DIACRITICS_RE = new RegExp('[' + String.fromCharCode(0x0300) + '-' + String.fromCharCode(0x036f) + ']', 'g');
 
-export function buildFriendlyFileName(tipo, patientFullName, dateIso) {
+export function buildFriendlyFileName(tipo, patientFullName, dateIso, documentId) {
   const palavras = String(patientFullName || 'Doente').trim().split(/\s+/);
-  const nome = palavras.length > 1
-    ? `${palavras[0]}${palavras[palavras.length - 1]}`
-    : (palavras[0] || 'Doente');
-  const apelido = nome
+  const nome = palavras[0] || 'Doente';
+  const primeiroNome = nome
     .normalize('NFD').replace(DIACRITICS_RE, '')
     .replace(/[^a-zA-Z0-9]/g, '');
-  const d = dateIso ? new Date(dateIso + 'T00:00:00') : new Date();
-  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mes = meses[d.getMonth()];
-  const aaaa = d.getFullYear();
-  return `${tipo}_${apelido}_${dd}${mes}${aaaa}.pdf`;
+  const tipoLegivel = ['RelatorioConsulta', 'RelatorioClinico', 'RelatorioSimples'].includes(tipo) ? 'Relatorio' : tipo;
+  // Conservar os 128 bits do UUID: não truncar o código nem usar a data.
+  const uuid = documentId || crypto.randomUUID();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uuid)) {
+    throw new Error('Identificador de documento inválido.');
+  }
+  const codigo = BigInt('0x' + uuid.replace(/-/g, '')).toString(36).toUpperCase().padStart(25, '0');
+  return `${tipoLegivel}_${codigo}_${primeiroNome || 'Doente'}.pdf`;
 }
 
 export function openAndDownloadPdf(blob, fileName) {
   const file = new File([blob], fileName, { type: 'application/pdf' });
   const url = URL.createObjectURL(file);
   window.open(url, '_blank');
+  // O visualizador nativo pode ignorar File.name; definir o nome na descarga.
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
