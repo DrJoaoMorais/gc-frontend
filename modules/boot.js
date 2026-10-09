@@ -1,5 +1,5 @@
 import { canAccessExercise } from './exercicio/permissoes.js';
-import { loadExerciseHome } from './exercicio/followup-home.js?v=20261009-compact';
+import { loadExerciseHome } from './exercicio/followup-home.js?v=20261009-listas';
 import { normalizeClinicIds } from './clinic-picker.js';
 import { wireAgendaWorkspace } from './agenda-workspace.js?v=2026-10-06-agenda-messages-v1';
 /**
@@ -31,7 +31,7 @@ import {
   setHomeAcompanhamentoUnificadoStats,
   wireHomeAcompanhamentoUnificado,
   renderHomeAcompanhamentoUnificado,
-}                                          from "./home-dashboard.js?v=20261009-compact";
+}                                          from "./home-dashboard.js?v=20261009-listas";
 import {
   setAgendaSubtitleForSelectedDay,
   refreshAgenda,

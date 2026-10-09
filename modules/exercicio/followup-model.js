@@ -1,4 +1,4 @@
-import { episodeState, latestEpisodeEvents, withinEpisode, newest } from './followup-episodes.js?v=20261009-compact';
+import { episodeState, latestEpisodeEvents, withinEpisode, newest } from './followup-episodes.js?v=20261009-listas';
 // Estado do acompanhamento separado da validade das prescrições e dos links.
 export const FOLLOWUP_STATES = {active:'Em acompanhamento',waiting:'A aguardar questionário',contact:'Sem resposta / contactar',review:'Plano terminado / rever',prepare:'Preparar plano',paused:'Pausado',completed:'Concluído',abandoned:'Encerrado por abandono'};
 const stamp = value => new Date(value || 0).getTime() || 0;

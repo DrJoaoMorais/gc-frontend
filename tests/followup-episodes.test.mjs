@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildFollowup} from '../modules/exercicio/followup-model.js';
-import {selectFollowupRows} from '../modules/exercicio/followup-episodes.js';
+import {selectFollowupRows,currentSignals,historicalSignals} from '../modules/exercicio/followup-episodes.js';
 const now=new Date('2026-10-09T12:00:00Z');
 const rx={id:'rx-old',patient_id:'p',clinic_id:'c',patients:{full_name:'Luís Portela'},created_at:'2026-09-01',status:'active',expires_at:'2030-01-01',data:{sessions:[{session_id:'s',date:'2026-10-20'}]}};
 const old={id:'close',episode_id:'old',patient_id:'p',clinic_id:'c',state:'interrupted',interruption_kind:'abandonment',reason:'Abandono confirmado',started_at:null,closed_at:'2026-10-02T12:00:00Z',prescription_ids:['rx-old'],questionnaire_ids:[],created_at:'2026-10-02T12:00:00Z'};
@@ -20,10 +20,10 @@ test('Nova prescrição pertence ao novo episódio e não ao anterior',()=>{
  assert.deepEqual(selectFollowupRows(rows,'current')[0].contexts[0].rx.map(r=>r.id),['rx-new']);
  assert.deepEqual(selectFollowupRows(rows,'interrupted')[0].contexts[0].rx.map(r=>r.id),['rx-old']);
 });
-test('Respostas clínicas encerradas continuam na atenção; testes não entram',()=>{
+test('Respostas clínicas encerradas ficam no histórico; atenção só inclui episódios ativos',()=>{
  const testEpisode={...old,id:'test',episode_id:'test',patient_id:'test-p',state:'archived',is_test:true};
  const rows=buildFollowup({prescriptions:[rx],logs:[log],episodeEvents:[old,testEpisode]},now);
- assert.equal(selectFollowupRows(rows,'current').length,0);assert.equal(selectFollowupRows(rows,'attention').length,1);assert.equal(selectFollowupRows(rows,'archived').length,1);
+ assert.equal(selectFollowupRows(rows,'current').length,0);assert.equal(selectFollowupRows(rows,'attention').length,0);assert.equal(selectFollowupRows(rows,'archived').length,1);
 });
 test('Filtra por contexto: mesmo doente pode ter episódio concluído e um atual em outra clínica',()=>{
  const completed={...old,state:'completed'},other={...rx,id:'other',clinic_id:'c2'};
@@ -78,4 +78,13 @@ test('Novo episódio sem plano mostra mensagens; preparação pendente não dupl
  assert.equal(buildFollowup(data,now)[0].signals.filter(s=>s.key==='episode:prepare').length,1);
  data.events.push({...data.events[0],id:'closed',decision:'closed',created_at:'2026-10-09T10:02:00Z'});
  assert(!buildFollowup(data,now)[0].signals.some(s=>s.key==='episode:prepare'));
+});
+
+test('Feedback de planos antigos fica no histórico; continuidade é uma decisão atual',()=>{
+ const data={prescriptions:[{...rx,expires_at:'2026-10-01'}],logs:[log],questionnaires:[{id:'q',patient_id:'p',clinic_id:'c',questionnaire_type:'pre_consulta_v2',status:'completed',created_at:'2026-08-20',completed_at:'2026-08-22'}]};
+ const c=buildFollowup(data,now)[0].contexts[0];assert.equal(currentSignals(c).length,1);assert.equal(currentSignals(c)[0].key,'plan:expired');assert.equal(historicalSignals(c).length,2);assert(c.signals.some(s=>s.key==='log:rx-old:s'));
+});
+test('Contacto decidido sobre fonte antiga continua na fila do episódio ativo',()=>{
+ const data={prescriptions:[{...rx,expires_at:'2026-10-01'}],logs:[log]};const signal=buildFollowup(data,now)[0].signals.find(s=>s.key.startsWith('log:'));
+ data.events=[{id:'decision',kind:'review',patient_id:'p',clinic_id:'c',source_key:signal.key,source_version:signal.version,decision:'contact',reason:'Telefonar',created_at:'2026-10-09T11:00:00Z'}];assert(currentSignals(buildFollowup(data,now)[0].contexts[0]).some(s=>s.pendingDecision==='contact'));
 });

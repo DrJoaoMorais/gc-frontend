@@ -4,7 +4,23 @@ export const FOLLOWUP_TABS = [['current','Em curso'],['attention','Precisam de a
 const time=v=>new Date(v||0).getTime()||0;
 export const newest=(a,b)=>time(b.created_at)-time(a.created_at)||String(b.created_at).localeCompare(String(a.created_at))||String(b.id).localeCompare(String(a.id));
 export function episodeState(state){return state==='completed'?'completed':['paused','abandoned','interrupted'].includes(state)?'interrupted':state==='archived'?'archived':'active';}
-export function contextMatches(c,filter){return filter==='attention'?!c.episode.is_test&&c.signals.some(s=>!s.informational):c.episodeState===({current:'active'}[filter]||filter);}
+// Fontes antigas conservam-se no histórico; só fontes atuais alimentam a fila diária.
+export function currentSignals(c){
+ if(c.episodeState!=='active'||c.episode.is_test)return [];
+ const valid=new Set((c.valid||[]).map(r=>r.id));
+ const latestRx=(c.rx||[]).slice().sort(newest)[0];
+ const selected=c.signals.map((s,i)=>({...s,reviewIndex:i})).filter(s=>{
+  if(s.informational)return false;if(s.pendingDecision)return true;
+  if(s.key.startsWith('log:')||s.key.startsWith('readiness:'))return valid.has(s.source?.prescription_id);
+  if(s.key.startsWith('response:')||s.key.startsWith('prepare:'))return !latestRx||time(s.at)>=time(latestRx.created_at);
+  return true;
+ });
+ // Plano terminado e preparar plano descrevem a mesma decisão de continuidade.
+ const plan=selected.find(s=>s.key.startsWith('plan:'));
+ return selected.filter(s=>!plan||!s.key.startsWith('prepare:')||s.pendingDecision);
+}
+export function historicalSignals(c){const current=new Set(currentSignals(c).map(s=>s.reviewIndex));return c.signals.map((s,i)=>({...s,reviewIndex:i})).filter(s=>!current.has(s.reviewIndex)&&!s.informational&&(s.kind==='clinical'||s.pendingDecision));}
+export function contextMatches(c,filter){return filter==='attention'?currentSignals(c).length>0:c.episodeState===({current:'active'}[filter]||filter);}
 export function selectFollowupRows(rows,filter,search=''){
  const term=search.toLocaleLowerCase('pt');
  return rows.filter(p=>p.name.toLocaleLowerCase('pt').includes(term)).map(p=>({...p,contexts:p.contexts.filter(c=>contextMatches(c,filter))})).filter(p=>p.contexts.length).sort((a,b)=>{
