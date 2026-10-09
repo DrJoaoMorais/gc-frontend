@@ -22,16 +22,16 @@ export function homeDashboardHtml() {
       </div>
 
       <div class="gc-home-today">
-        <div><b>Consultas hoje</b><strong id="gcHomeStatConsultas">—</strong><div id="gcHomeConsultasBreakdown" class="gc-home-consultas-breakdown"></div></div>
+        <div><b>Consultas hoje</b><button type="button" class="gc-home-agenda-btn" data-home-action="agenda">Ver agenda de hoje →</button><strong id="gcHomeStatConsultas">—</strong><div id="gcHomeConsultasBreakdown" class="gc-home-consultas-breakdown"></div></div>
         <div id="gcHomePedidosCard" class="gc-home-clickable-card" role="button" tabindex="0" aria-expanded="false">
           <b>Pedidos online</b><strong id="gcHomeStatPedidosOnline">—</strong>
-          <small class="gc-home-card-hint">Pendentes <span class="gc-home-pedidos-caret">▾</span></small>
+          <small class="gc-home-card-hint">Rever pedidos pendentes <span class="gc-home-pedidos-caret">▾</span></small>
         </div>
         <!-- "Assuntos a tratar" fica reservado para futura integração na Gestão da Agenda. -->
         <div id="gcHomeAcompUnificadoCard" class="gc-home-clickable-card" role="button" tabindex="0">
           <b>${canAccessExercise() ? "Diários ativos" : "Acompanhamento ativo"}</b><strong id="gcHomeAcompUnificadoTotal">—</strong>
           <small id="gcHomeAcompUnificadoResumo">${canAccessExercise() ? "A carregar diários…" : "Diários — · Questionários — · Planos —"}</small>
-          <small class="gc-home-card-hint">Ver doentes →</small>
+          <small class="gc-home-card-hint">Consultar evolução →</small>
         </div>
       </div>
       <div id="gcHomePedidosExpand" class="gc-home-pedidos-expand" hidden></div>
@@ -42,11 +42,11 @@ export function homeDashboardHtml() {
         <button type="button" class="gc-home-alertbar-item on" data-alert-filter="all"><span>Todos</span><strong id="gcHomeStatTodos">—</strong></button>
         <button type="button" class="gc-home-alertbar-item urgent" data-alert-filter="urgent"><span>Urgentes</span><strong id="gcHomeStatUrgentes">—</strong></button>
         <button type="button" class="gc-home-alertbar-item attention" data-alert-filter="attention"><span>Atenção</span><strong id="gcHomeStatAtencao">—</strong></button>
-        <button type="button" class="gc-home-alertbar-item info" data-alert-filter="info"><span>Novos</span><strong id="gcHomeStatNovos">—</strong></button>
-        <button type="button" class="gc-home-alertbar-item resolved" data-alert-filter="resolved"><span>Resolvidos</span><strong id="gcHomeStatResolvidos">—</strong></button>
+        <button type="button" class="gc-home-alertbar-item info" data-alert-filter="info"><span>Informativos</span><strong id="gcHomeStatNovos">—</strong></button>
+        <button type="button" class="gc-home-alertbar-item resolved" data-alert-filter="resolved"><span>Resolvidos hoje</span><strong id="gcHomeStatResolvidos">—</strong></button>
       </div>
 
-      <div class="gc-home-section-head"><div><h2>Precisa da sua atenção</h2><p>Alertas clínicos e operacionais pendentes</p></div><button type="button" id="gcHomeAlertsToggle" style="display:none;">Ver todos</button></div>
+      <div class="gc-home-section-head"><div><h2>Outros avisos do GC</h2><p>Avisos que não estão na lista de acompanhamento acima</p></div><button type="button" id="gcHomeAlertsToggle" style="display:none;">Ver todos</button></div>
       <div id="gcHomeAlertsList">
         <div class="gc-home-empty">
           <div class="gc-home-empty-icon">${ICON.inbox}</div>
@@ -60,7 +60,8 @@ export function homeDashboardHtml() {
 export function homeDashboardStyles() {
   return `
 .gc-fh{margin:26px 0;color:#193553}.gc-fh-heading{display:flex;align-items:center;justify-content:space-between;gap:14px}.gc-fh h2{font-size:19px;margin:0}.gc-fh p{font-size:12px;color:#64748b;margin:6px 0}.gc-fh button{font:600 12px inherit;cursor:pointer;border:1px solid #dbe3ed;border-radius:8px;background:#fff;color:#244367;padding:8px 12px}.gc-fh button:disabled{opacity:.5;cursor:default}.gc-fh button:focus-visible,.gc-fh input:focus-visible,.gc-fh select:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.gc-fh-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}.gc-fh-stats button{text-align:left;padding:14px;background:#fff}.gc-fh-stats strong{display:block;font-size:24px;margin-bottom:4px}.gc-fh-stats [aria-pressed=true]{border-color:#628cc2;background:#edf4fc}.gc-fh-controls{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0}.gc-fh label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#475569}.gc-fh input,.gc-fh select,.gc-fh textarea{font:inherit;border:1px solid #cbd5e1;background:#fff;color:#193553;border-radius:7px;padding:9px;max-width:100%}.gc-fh-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(0,2fr);gap:18px;padding:18px;background:#fff;border:1px solid #e2e8f0;border-bottom:0}.gc-fh-row:first-child{border-radius:10px 10px 0 0}.gc-fh-row:last-child{border-bottom:1px solid #e2e8f0;border-radius:0 0 10px 10px}.gc-fh-patient strong{display:block;font-size:14px}.gc-fh-status{display:inline-block;margin-top:6px;font-size:12px;color:#226b55}.gc-fh-status.attention{color:#935611}.gc-fh-context+ .gc-fh-context{border-top:1px solid #e2e8f0;padding-top:12px;margin-top:12px}.gc-fh small{display:block;font-size:12px;color:#64748b}.gc-fh-signals{margin:10px 0;font-size:13px}.gc-fh-signals summary{cursor:pointer;color:#925811}.gc-fh-signal{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid #edf0f5;padding:8px 0}.gc-fh-clear{color:#426d5e}.gc-fh-actions{display:flex;gap:8px;flex-wrap:wrap}.gc-fh .gc-fh-open{color:#fff;background:#173d69;border-color:#173d69}.gc-fh-pages{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:12px;font-size:12px}.gc-fh-editor{background:#fff;padding:18px;border:1px solid #93b2d7;border-radius:10px;margin-top:18px}.gc-fh-editor h3{font-size:16px;margin:0}.gc-fh-editor label{margin:12px 0}.gc-fh-editor [role=alert]{color:#b42318}.gc-fh-foot{margin-top:12px!important}
-@media(max-width:680px){.gc-fh-row{grid-template-columns:1fr;gap:12px}.gc-fh-controls{flex-direction:column}.gc-fh-stats button{padding:10px;font-size:11px}.gc-fh-actions button{min-height:44px}.gc-fh input,.gc-fh select,.gc-fh textarea{font-size:16px}}
+.gc-fh-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0}.gc-fh-tabs button{display:flex;align-items:center;gap:10px;padding:11px 13px}.gc-fh-tabs span{font-size:12px;opacity:.8}.gc-fh-tabs [aria-pressed=true]{background:#173d69;color:#fff;border-color:#173d69}.gc-fh-controls{align-items:center}.gc-fh-context-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}.gc-fh-context-heading .gc-fh-status{margin:0}.gc-fh .gc-fh-history-link{display:block;padding:0;border:0;background:transparent;color:#456892;font-size:12px;margin-top:8px;text-align:left}.gc-fh-row{grid-template-columns:minmax(180px,1fr) minmax(0,2fr);padding:16px 18px}.gc-fh-history{border-top:1px solid #e2e8f0;padding:14px 0}.gc-fh-history summary{cursor:pointer}.gc-fh-history-data{padding:12px 0}.gc-fh-history-data strong{display:block;margin:12px 0 6px}.gc-fh-history pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:260px;overflow:auto}.gc-fh [hidden]{display:none!important}.gc-fh-editor input[type=checkbox]{width:auto}.gc-fh-editor [data-test] span{display:flex;align-items:center;gap:8px}
+@media(max-width:680px){.gc-fh-row{grid-template-columns:1fr;gap:12px}.gc-fh-controls{flex-direction:column;align-items:stretch}.gc-fh-tabs button{min-height:44px;flex:1 1 140px}.gc-fh-stats button{padding:10px;font-size:11px}.gc-fh-actions button{min-height:44px}.gc-fh input,.gc-fh select,.gc-fh textarea{font-size:16px}}
 
 .gc-home{max-width:1180px;margin:0 auto;padding:4px 2px 36px}
 .gc-home-head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:24px}
@@ -333,8 +334,8 @@ export function renderHomeAcompanhamentoUnificado(items, { onOpenFollowup, onSto
   const bg = document.createElement("div");
   bg.id = "gcHomeQuestionarioDrawer";
   bg.className = "gc-home-questionario-drawer-bg";
-  bg.innerHTML = `<aside class="gc-home-questionario-drawer" role="dialog" aria-modal="true" aria-label="Acompanhamento ativo">
-    <div class="gc-home-questionario-drawer-head"><div><h2>Acompanhamento ativo</h2><p>Doentes com Diário, questionário ou plano de exercício ativo.</p></div><button type="button" class="gc-home-questionario-close" aria-label="Fechar">×</button></div>
+  bg.innerHTML = `<aside class="gc-home-questionario-drawer" role="dialog" aria-modal="true" aria-label="${canAccessExercise()?'Diários ativos':'Acompanhamento ativo'}">
+    <div class="gc-home-questionario-drawer-head"><div><h2>${canAccessExercise()?'Diários ativos':'Acompanhamento ativo'}</h2><p>${canAccessExercise()?'Consultar a evolução ou terminar a recolha do diário. As mensagens por rever mantêm-se pendentes.':'Doentes com Diário, questionário ou plano de exercício ativo.'}</p></div><button type="button" class="gc-home-questionario-close" aria-label="Fechar">×</button></div>
     <input class="gc-home-questionario-search" type="search" placeholder="Pesquisar doente…" autocomplete="off">
     <div class="gc-home-questionario-list"></div><div class="gc-home-questionario-pages"></div>
   </aside>`;
@@ -366,7 +367,7 @@ export function renderHomeAcompanhamentoUnificado(items, { onOpenFollowup, onSto
         <div class="gc-home-questionario-info"><button type="button" class="gc-home-patient-link" data-followup-open="${escHomeHtml(item.itemKey)}">${escHomeHtml(item.patientName || "Doente")}</button><div class="gc-home-acomp-tags">${diaryTag}${qLabel ? `<span class="gc-home-acomp-tag ${q?.kind === "review" ? "analisar" : "questionario"}">${qLabel}</span>` : ""}${exerciseTags}</div></div>
         <div class="gc-home-questionario-actions">
           <button type="button" class="gc-home-questionario-open" data-followup-open="${escHomeHtml(item.itemKey)}">Abrir acompanhamento</button>
-          <button type="button" class="gc-home-acomp-stop" data-followup-stop="${escHomeHtml(item.itemKey)}">Retirar do acompanhamento</button>
+          <button type="button" class="gc-home-acomp-stop" data-followup-stop="${escHomeHtml(item.itemKey)}">${canAccessExercise()?'Terminar diário':'Retirar do acompanhamento'}</button>
         </div>
       </div>`;
     }).join("") : `<div class="gc-home-empty"><div class="gc-home-empty-icon">${ICON.check}</div><div><b>Sem doentes em acompanhamento ativo</b></div></div>`;
@@ -607,8 +608,8 @@ function homeAlertRowHtml(a) {
         ${a.message ? `<div class="gc-home-alert-msg">${escHomeHtml(a.message)}</div>` : ""}
       </div>
       <div class="gc-home-alert-actions">
-        ${a.target_url || (a.synthetic && a.patient_id && a.clinic_id) ? `<button type="button" class="gc-home-alert-open" data-alert-open="${escHomeHtml(a.id)}">${a.synthetic ? "Abrir acompanhamento" : "Abrir"}</button>` : ""}
-        ${a.resolved_at || a.synthetic ? "" : `<button type="button" class="gc-home-alert-resolve" data-alert-resolve="${escHomeHtml(a.id)}">Resolvido</button>`}
+        ${a.target_url || (a.synthetic && a.patient_id && a.clinic_id) ? `<button type="button" class="gc-home-alert-open" data-alert-open="${escHomeHtml(a.id)}">${a.synthetic ? "Abrir acompanhamento" : a.source === "diary" ? "Rever mensagem" : a.source === "consent" ? "Verificar documento" : "Rever aviso"}</button>` : ""}
+        ${a.resolved_at || a.synthetic ? "" : `<button type="button" class="gc-home-alert-resolve" data-alert-resolve="${escHomeHtml(a.id)}">Registar como resolvido</button>`}
       </div>
     </div>`;
 }
@@ -632,7 +633,7 @@ export function renderHomeDashboardAlerts(alerts, { onOpen, onResolve } = {}) {
     root.innerHTML = `
       <div class="gc-home-empty">
         <div class="gc-home-empty-icon">${ICON.check}</div>
-        <div><b>Sem alertas pendentes</b><p>Não há situações a exigir a sua atenção neste momento.</p></div>
+        <div><b>Sem alertas pendentes</b><p>Não há outros avisos neste filtro. Consulte também o acompanhamento acima.</p></div>
       </div>`;
     if (toggleBtn) { toggleBtn.style.display = "none"; toggleBtn.onclick = null; }
     return;

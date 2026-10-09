@@ -1,5 +1,5 @@
 import { canAccessExercise } from './exercicio/permissoes.js';
-import { loadExerciseHome } from './exercicio/followup-home.js';
+import { loadExerciseHome } from './exercicio/followup-home.js?v=20261009-episodios';
 import { normalizeClinicIds } from './clinic-picker.js';
 import { wireAgendaWorkspace } from './agenda-workspace.js?v=2026-10-06-agenda-messages-v1';
 /**
@@ -31,7 +31,7 @@ import {
   setHomeAcompanhamentoUnificadoStats,
   wireHomeAcompanhamentoUnificado,
   renderHomeAcompanhamentoUnificado,
-}                                          from "./home-dashboard.js";
+}                                          from "./home-dashboard.js?v=20261009-episodios";
 import {
   setAgendaSubtitleForSelectedDay,
   refreshAgenda,
@@ -252,6 +252,7 @@ async function renderCurrentView() {
     renderHomeClinicSelect(G.clinics, homeSelectedClinicIds(), (ids) => {
       homeClinicIds = ids;
       homeClinicRevision++;
+      followupOwnedAlertIds = new Set();
       /* Só recarrega dados clinic-scoped já reais do Home — nunca navega
          nem toca em G.activeClinicId aqui. */
       Promise.all([
@@ -259,7 +260,7 @@ async function renderCurrentView() {
         loadHomePedidosOnlinePendentes(),
         loadHomeAlerts(),
         loadHomeAcompanhamentoAtivo(),
-        loadExerciseHome({clinics:G.clinics,clinicIds:homeSelectedClinicIds(),onOpen:openHomeFollowup}),
+        loadExerciseHome({clinics:G.clinics,clinicIds:homeSelectedClinicIds(),onOpen:openHomeFollowup,onOwnership:setFollowupAlertOwnership}),
       ]);
       /* Painel de Pedidos online: só recarrega a lista se já estiver
          aberto (sem o atributo "hidden"); fechado, não faz query extra. */
@@ -285,7 +286,7 @@ async function renderCurrentView() {
       loadHomePedidosOnlinePendentes(),
       loadHomeAlerts(),
       loadHomeAcompanhamentoAtivo(),
-      loadExerciseHome({clinics:G.clinics,clinicIds:homeSelectedClinicIds(),onOpen:openHomeFollowup}),
+      loadExerciseHome({clinics:G.clinics,clinicIds:homeSelectedClinicIds(),onOpen:openHomeFollowup,onOwnership:setFollowupAlertOwnership}),
     ]);
     return;
   }
@@ -783,7 +784,7 @@ async function stopHomeFollowup(item) {
   if (!item?.patientId || !item?.clinicId) return;
   const name = item.patientName || "este doente";
   const confirmed = window.confirm(
-    `Retirar ${name} do acompanhamento ativo?\n\nO Diário, o questionário e o plano deixam de funcionar. O doente e todo o histórico ficam guardados.`
+    canAccessExercise()?`Terminar o diário de ${name}?\n\nA recolha de novas entradas termina. O histórico e as mensagens por rever ficam guardados.`:`Retirar ${name} do acompanhamento ativo?\n\nO Diário, o questionário e o plano deixam de funcionar. O doente e todo o histórico ficam guardados.`
   );
   if (!confirmed) return;
 
@@ -851,6 +852,8 @@ function openHomeExerciseFollowup(patientId, prescriptionId) {
    create_alert() no Supabase: severity ∈ {urgent,attention,info},
    source ∈ {website,exercise,diary,questionnaire,consent,system}.
    ==================================================================== */
+let followupOwnedAlertIds = new Set();
+function setFollowupAlertOwnership(ids){followupOwnedAlertIds=new Set(ids);rebuildHomeAlerts();}
 const HOME_ALERT_SEVERITY_ORDER = { urgent: 0, attention: 1, info: 2 };
 const HOME_ALERT_SELECT_COLUMNS = "id, clinic_id, patient_id, source, event_type, severity, title, message, target_url, created_at, resolved_at";
 
@@ -871,7 +874,7 @@ function rebuildHomeAlerts() {
   }));
   const storedKeys = new Set(homeStoredPendingAlerts.map((alert) => `${alert.clinic_id}:${alert.patient_id}:${alert.source}`));
   const derived = exerciseAlerts.filter((alert) => !storedKeys.has(`${alert.clinic_id}:${alert.patient_id}:${alert.source}`));
-  const rows = [...homeStoredPendingAlerts, ...derived];
+  const rows = [...homeStoredPendingAlerts, ...derived].filter(a=>!followupOwnedAlertIds.has(a.id));
   setHomeDashboardAlertStats({
     urgent: rows.filter((alert) => alert.severity === "urgent").length,
     attention: rows.filter((alert) => alert.severity === "attention").length,
