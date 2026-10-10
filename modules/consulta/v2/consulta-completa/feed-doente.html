@@ -2079,6 +2079,26 @@
       });
     }
 
+    // Resolve a temporary URL only when the authenticated user opens a document.
+    document.addEventListener('click', async (event) => {
+      const link = event.target.closest?.('a[data-private-pdf]');
+      if (!link) return;
+      event.preventDefault();
+      const path = link.dataset.privatePdf;
+      if (!path) { alert('Este documento não tem ficheiro associado.'); return; }
+      const preview = window.open('about:blank', '_blank');
+      if (preview) preview.opener = null;
+      try {
+        const { data, error } = await window.sb.storage.from('documents').createSignedUrl(path, 300, { download: link.dataset.downloadName || true });
+        if (error || !data?.signedUrl) throw new Error('Não foi possível autorizar o acesso ao documento.');
+        if (preview) preview.location.replace(data.signedUrl);
+        else window.location.assign(data.signedUrl);
+      } catch (error) {
+        preview?.close();
+        alert('Não foi possível abrir o documento. Confirme a sessão e as permissões de acesso.');
+      }
+    });
+
     function renderDocumentos(docs) {
       if (!docs || !docs.length) return '';
       const chips = docs.map(d => {
@@ -2086,10 +2106,10 @@
         const tipoSlug = DOC_TIPO_SLUG[d.category] || 'Documento';
         const dataSimples = d.created_at ? String(d.created_at).slice(0, 10) : null;
         const friendlyName = buildFriendlyFileName(tipoSlug, fdPatientData?.full_name, dataSimples, d.id);
-        const url = window.sb.storage.from('documents').getPublicUrl(d.storage_path, { download: friendlyName })?.data?.publicUrl || '#';
+        const path = d.storage_path || '';
         const data = fmtDataHora(d.created_at);
         return `<span class="fd-doc-wrap">
-          <a class="fd-doc-chip" href="${esc(url)}" target="_blank" rel="noopener" title="${esc(d.title || tipo.lbl)}">${tipo.ic} ${esc(tipo.lbl)} <span class="fd-doc-data">${data}</span></a>
+          <a class="fd-doc-chip" href="#" data-private-pdf="${esc(path)}" data-download-name="${esc(friendlyName)}" title="${esc(d.title || tipo.lbl)}">${tipo.ic} ${esc(tipo.lbl)} <span class="fd-doc-data">${data}</span></a>
           <button type="button" class="fd-doc-x" data-doc-id="${esc(d.id)}" title="Arquivar documento">×</button>
         </span>`;
       }).join('');
@@ -2112,9 +2132,9 @@
         const tipoSlug = DOC_TIPO_SLUG[d.category] || 'Documento';
         const dataSimples = d.created_at ? String(d.created_at).slice(0, 10) : null;
         const friendlyName = buildFriendlyFileName(tipoSlug, fdPatientData?.full_name, dataSimples, d.id);
-        const url = window.sb.storage.from('documents').getPublicUrl(d.storage_path, { download: friendlyName })?.data?.publicUrl || '#';
+        const path = d.storage_path || '';
         const data = fmtDataHora(d.created_at);
-        html += `<a class="fd-doc-chip" href="${esc(url)}" target="_blank" rel="noopener" title="${esc(d.title || tipo.lbl)}" style="display:inline-block;margin:2px;">${tipo.ic} ${esc(tipo.lbl)} <span class="fd-doc-data">${data}</span></a>`;
+        html += `<a class="fd-doc-chip" href="#" data-private-pdf="${esc(path)}" data-download-name="${esc(friendlyName)}" title="${esc(d.title || tipo.lbl)}" style="display:inline-block;margin:2px;">${tipo.ic} ${esc(tipo.lbl)} <span class="fd-doc-data">${data}</span></a>`;
       });
       return html;
     }

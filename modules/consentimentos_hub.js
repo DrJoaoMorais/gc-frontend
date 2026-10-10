@@ -51,11 +51,20 @@ async function resolvePdfUrl(row) {
     if (row.source === "consent_tokens" && row.id) {
       const { data: sig } = await window.sb
         .from("consent_signatures")
-        .select("pdf_url")
+        .select("pdf_path, pdf_url")
         .eq("token_id", row.id)
-        .not("pdf_url", "is", null)
         .limit(1);
-      return sig?.[0]?.pdf_url || null;
+      const signature = sig?.[0];
+      let path = signature?.pdf_path;
+      if (!path && signature?.pdf_url) {
+        const oldUrl = new URL(signature.pdf_url);
+        if (oldUrl.origin !== new URL(window.SUPABASE_URL).origin) return null;
+        const prefix = '/storage/v1/object/public/documents/';
+        if (oldUrl.pathname.startsWith(prefix)) path = decodeURIComponent(oldUrl.pathname.slice(prefix.length));
+      }
+      if (!path) return null;
+      const { data, error } = await window.sb.storage.from('documents').createSignedUrl(path, 300);
+      return error ? null : data?.signedUrl || null;
     }
     if (row.source === "consents" && row.storage_path) {
       const { data } = await window.sb.storage.from("documents").createSignedUrl(row.storage_path, 3600);

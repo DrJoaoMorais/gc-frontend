@@ -72,9 +72,20 @@ export async function loadPatientResources(sb, patientId) {
 export async function resourceURL(sb, item) {
   if (item.kind === 'link') return safeURL(item.url);
   if (item.kind === 'digital') {
-    const { data, error } = await sb.from('consent_signatures').select('pdf_url').eq('token_id', item.id).not('pdf_url', 'is', null).limit(1);
+    const { data, error } = await sb.from('consent_signatures').select('pdf_path, pdf_url').eq('token_id', item.id).limit(1);
     if (error) throw error;
-    return safeURL(data?.[0]?.pdf_url);
+    const signature = data?.[0];
+    let path = signature?.pdf_path;
+    if (!path && signature?.pdf_url) {
+      const oldUrl = new URL(signature.pdf_url);
+      if (oldUrl.origin !== new URL(window.SUPABASE_URL).origin) return null;
+      const prefix = '/storage/v1/object/public/documents/';
+      if (oldUrl.pathname.startsWith(prefix)) path = decodeURIComponent(oldUrl.pathname.slice(prefix.length));
+    }
+    if (!path) return null;
+    const signed = await sb.storage.from('documents').createSignedUrl(path, 300);
+    if (signed.error) throw signed.error;
+    return safeURL(signed.data?.signedUrl);
   }
   if (!item.storage_path) return null;
   const { data, error } = await sb.storage.from('documents').createSignedUrl(item.storage_path, 3600);

@@ -875,9 +875,8 @@
         .upload(path, pdfBlob, { contentType: 'application/pdf', upsert: false });
       if (upErr) throw upErr;
 
-      // URL pública
-      const { data: urlData } = supabase.storage.from(DOC_BUCKET).getPublicUrl(path);
-      const pdfUrl = urlData?.publicUrl || null;
+      // Persist the private object path; staff resolve an authenticated URL on demand.
+      const pdfUrl = null;
 
       // Actualizar registo
       await supabase.rpc('update_consent_pdf', {
