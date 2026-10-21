@@ -983,6 +983,10 @@
 
     <!-- feed de consultas -->
     <div id="fd-ter-comp-wrap" hidden></div>
+    <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:8px;">
+      <span id="fd-docs-status" role="status" style="font-size:12px;color:var(--suave);"></span>
+      <button type="button" class="fd-btn-sm" id="fd-docs-refresh" title="Atualizar documentos sem sair da ficha">Atualizar</button>
+    </div>
     <div id="fd-feed"></div>
   </div><!-- /fd-page -->
 
@@ -1014,7 +1018,7 @@
     import { patientInsurances, insurancePayload, insuranceHeaderHtml, insuranceEditorHtml, bindInsuranceEditor } from "../../../patient-insurances.js";
     import { carregarConsulta, carregarConsultasEmLote } from './cc-queries.js';
     import { carregarCopiaAnterior, juntarSemDuplicar } from './cc-copia-anterior.js';
-    import { mount as pdv2Mount, unmount as pdv2Unmount } from '../../../pedidos/pedidos-v2.js';
+    import { mount as pdv2Mount, unmount as pdv2Unmount } from '../../../pedidos/pedidos-v2.js?v=2026-10-21-feed-refresh';
     import { checkConsentStatus, checkConsentPrinted } from '../../../consentimentos.js';
     import { openConsentHub } from '../../../consentimentos_hub.js';
     import { fetchMyRole } from '../../../auth.js';
@@ -2152,7 +2156,7 @@
       overlay.innerHTML = `
         <div style="background:#fff;width:min(640px,96vw);max-height:80vh;overflow:auto;border-radius:14px;padding:20px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <div style="font-weight:900;font-size:16px;color:#0f2d52;">Documentos (${docsOrdenados.length})</div>
+            <div id="fdDocsTitle" style="font-weight:900;font-size:16px;color:#0f2d52;">Documentos (${docsOrdenados.length})</div>
             <button id="fdDocsClose" style="border:none;background:none;font-size:20px;cursor:pointer;color:#64748b;">×</button>
           </div>
           <input id="fdDocsSearch" type="text" placeholder="Pesquisar documentos…" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:8px;font-size:13px;margin-bottom:8px;box-sizing:border-box;" />
@@ -2164,21 +2168,99 @@
       overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
       document.getElementById('fdDocsSearch')?.addEventListener('input', (e) => {
         const q = e.target.value.trim().toLowerCase();
-        const filtrados = !q ? docsOrdenados : docsOrdenados.filter(d => (d.title || '').toLowerCase().includes(q));
+        const filtrados = !q ? fdAllDocs : fdAllDocs.filter(d => (d.title || '').toLowerCase().includes(q));
         document.getElementById('fdDocsList').innerHTML = fdRenderDocumentosModal(filtrados);
       });
     }
+
+    // Atualiza apenas as zonas de documentos. Não recria consultas nem editores.
+    function fdRenderDocumentosAtualizados() {
+      const feed = document.getElementById('fd-feed');
+      if (!feed) return;
+      let semConsulta = document.getElementById('fd-docs-sem-consulta');
+      if (!semConsulta) {
+        semConsulta = document.createElement('div');
+        semConsulta.id = 'fd-docs-sem-consulta';
+        feed.prepend(semConsulta);
+      }
+      const docsSemConsulta = fdAllDocs.filter(d => !d.consultation_id);
+      semConsulta.innerHTML = docsSemConsulta.length
+        ? `<div style="border:1px solid #fbbf24;background:#fffbeb;border-radius:14px;padding:12px 16px;margin-bottom:14px;">
+            <div style="font-weight:900;font-size:13px;color:#92400e;margin-bottom:8px;">⚠️ Documentos sem consulta associada</div>
+            ${renderDocumentos(docsSemConsulta)}</div>` : '';
+      feed.querySelectorAll('.fd-card[data-consult-id]').forEach(card => {
+        const docs = fdAllDocs.filter(d => d.consultation_id === card.dataset.consultId);
+        const body = card.querySelector('.fd-card-body');
+        body?.querySelector(':scope > .fd-docs')?.remove();
+        body?.insertAdjacentHTML('afterbegin', renderDocumentos(docs));
+        const head = card.querySelector('.fd-card-head');
+        head?.querySelector('.fd-card-docs-count')?.remove();
+        if (docs.length) head?.querySelector('.fd-card-acoes')?.insertAdjacentHTML('beforebegin',
+          `<span class="fd-card-docs-count" title="${docs.length} documento(s)">📄 ${docs.length}</span>`);
+      });
+      feed.querySelectorAll('.fd-doc-x').forEach(btn => {
+        btn.onclick = e => {
+          e.preventDefault();
+          e.stopPropagation();
+          fdConfirmArquivarDocumento(btn.dataset.docId);
+        };
+      });
+      const list = document.getElementById('fdDocsList');
+      if (list) {
+        const q = document.getElementById('fdDocsSearch').value.trim().toLowerCase();
+        list.innerHTML = fdRenderDocumentosModal(fdAllDocs.filter(d => !q || (d.title || '').toLowerCase().includes(q)));
+        document.getElementById('fdDocsTitle').textContent = `Documentos (${fdAllDocs.length})`;
+      }
+    }
+
+    let fdDocsPending = false;
+    let fdDocsRefresh = null;
+    function fdAtualizarDocumentos() {
+      fdDocsPending = true;
+      if (fdDocsRefresh) return fdDocsRefresh;
+      const btn = document.getElementById('fd-docs-refresh');
+      const status = document.getElementById('fd-docs-status');
+      btn.disabled = true;
+      status.textContent = 'A atualizar…';
+      fdDocsRefresh = (async () => {
+        try {
+          // Se outro pedido for guardado durante a consulta, repetir no fim.
+          while (fdDocsPending) {
+            fdDocsPending = false;
+            const { data, error } = await window.sb.from('documents')
+              .select('id, consultation_id, title, category, storage_path, created_at')
+              .eq('patient_id', PATIENT_ID)
+              .neq('status', 'arquivado')
+              .order('created_at', { ascending: false });
+            if (error) throw error;
+            fdAllDocs = data || [];
+            fdRenderDocumentosAtualizados();
+          }
+          status.textContent = '';
+        } catch {
+          status.textContent = 'Não foi possível atualizar. Tente novamente em Atualizar.';
+        } finally {
+          btn.disabled = false;
+          fdDocsRefresh = null;
+        }
+      })();
+      return fdDocsRefresh;
+    }
+    document.getElementById('fd-docs-refresh').addEventListener('click', fdAtualizarDocumentos);
+    window.addEventListener('gc:documents-changed', event => {
+      if (event.detail?.patientId === PATIENT_ID) fdAtualizarDocumentos();
+    });
 
     /* ── render do feed completo ── */
     function renderFeed(consultas, dadosPorId, docsPorId, docsSemConsulta = [], todosAssessments = [], registosTerapeutas = []) {
       const feed = document.getElementById('fd-feed');
       const contagemEls = document.querySelectorAll('.fd-contagem-inline');
-      const blocoSemConsulta = docsSemConsulta.length
+      const blocoSemConsulta = `<div id="fd-docs-sem-consulta">${docsSemConsulta.length
         ? `<div style="border:1px solid #fbbf24;background:#fffbeb;border-radius:14px;padding:12px 16px;margin-bottom:14px;">
             <div style="font-weight:900;font-size:13px;color:#92400e;margin-bottom:8px;">⚠️ Documentos sem consulta associada</div>
             ${renderDocumentos(docsSemConsulta)}
           </div>`
-        : '';
+        : ''}</div>`;
       if (!consultas.length && !registosTerapeutas.length) {
         feed.innerHTML = blocoSemConsulta + `<p class="fd-vazio" style="text-align:center;padding:40px 0;">Sem consultas registadas.</p>`;
         contagemEls.forEach(el => el.textContent = 'Sem consultas');

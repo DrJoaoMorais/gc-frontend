@@ -262,6 +262,10 @@ async function uploadAndRegisterDocument({ blob, clinicId, patientId, consultati
   }).select("id").single();
   if (ins.error) throw new Error(`Falha ao registar em documents: ${ins.error.message || ins.error}`);
 
+  // Só anunciar depois de o documento estar efetivamente registado.
+  window.dispatchEvent(new CustomEvent('gc:documents-changed', {
+    detail: { patientId }
+  }));
   return { path, id: ins.data?.id || null };
 }
 
