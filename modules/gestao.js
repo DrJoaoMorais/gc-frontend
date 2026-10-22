@@ -580,7 +580,6 @@ async function openModalEditarProfissional(memberId, userId) {
           especialidade:        espVal || null,
           especialidade_detail: espDetVal || null,
           numero_ordem:         ordemVal || null,
-          role:                 roleVal,
           updated_at:           new Date().toISOString(),
         })
         .eq("id", userId);
