@@ -779,11 +779,17 @@
         }
 
         // Inserir assinatura + marcar token como signed (RPC SECURITY DEFINER)
-        const { data: sigId, error: submitError } = await supabase.rpc('submit_consent_signature', {
+        const { data: signatureResult, error: submitError } = await supabase.rpc('submit_consent_signature_v2', {
           payload,
+          p_link_token: new URLSearchParams(window.location.search).get('token'),
         });
 
-        if (submitError) { console.error('submit_consent_signature rpc:', JSON.stringify(submitError, null, 2)); throw submitError; }
+        if (submitError) throw submitError;
+        if (!signatureResult?.signature_id || !signatureResult?.signed_at) {
+          throw new Error('Não foi possível confirmar a assinatura. Contacte a clínica.');
+        }
+        const sigId = signatureResult.signature_id;
+        payload.signed_at = signatureResult.signed_at;
 
         // Mostrar estado de sucesso imediatamente
         hide('state-form');
@@ -814,6 +820,10 @@
     // ── Geração de PDF ───────────────────────────────────────────────────────────
     const PDF_PROXY = 'https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf';
     const DOC_BUCKET = 'documents';
+
+    function escapeConsentPdfText(value) {
+      return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+    }
 
     async function generateAndStorePdf({ sigId, payload, type, name }) {
       if (!sigId) return;
@@ -848,7 +858,7 @@
       </div>
       <div class="title">${content.title.toUpperCase()}</div>
       <div class="sec">Identificação</div>
-      <div class="field"><b>Nome:</b> ${name}</div>
+      <div class="field"><b>Nome:</b> ${escapeConsentPdfText(name)}</div>
       <div class="field"><b>Data de assinatura:</b> ${signedAt}</div>
       <div class="sec">Conteúdo do consentimento</div>
       <div class="body">${content.body}</div>
@@ -869,21 +879,21 @@
       const pdfBlob = new Blob([await res.arrayBuffer()], { type: 'application/pdf' });
 
       // Upload para storage
-      const path = `consents/${payload.token_id}/signed_${Date.now()}.pdf`;
+      const path = `consents/${payload.token_id}/signed_${sigId}.pdf`;
       const { error: upErr } = await supabase.storage
         .from(DOC_BUCKET)
         .upload(path, pdfBlob, { contentType: 'application/pdf', upsert: false });
       if (upErr) throw upErr;
 
       // Persist the private object path; staff resolve an authenticated URL on demand.
-      const pdfUrl = null;
 
       // Actualizar registo
-      await supabase.rpc('update_consent_pdf', {
+      const { error: linkError } = await supabase.rpc('update_consent_pdf_v2', {
+        p_link_token: new URLSearchParams(window.location.search).get('token'),
         p_sig_id: sigId,
         p_pdf_path: path,
-        p_pdf_url: pdfUrl,
       });
+      if (linkError) throw linkError;
     }
 
     // ── Arranque ─────────────────────────────────────────────────────────────────
