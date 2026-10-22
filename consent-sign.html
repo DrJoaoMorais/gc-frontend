@@ -755,6 +755,7 @@
         // Construir payload da assinatura
         const payload = {
           token_id: tokenData.id,
+          pdf_upload_mode: 'server-v1',
           patient_name_typed: name,
           user_agent: navigator.userAgent,
           signed_at: new Date().toISOString(),
@@ -819,7 +820,6 @@
 
     // ── Geração de PDF ───────────────────────────────────────────────────────────
     const PDF_PROXY = 'https://gc-pdf-proxy.dr-joao-morais.workers.dev/pdf';
-    const DOC_BUCKET = 'documents';
 
     function escapeConsentPdfText(value) {
       return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
@@ -878,22 +878,13 @@
       if (!res.ok) throw new Error(`PDF proxy ${res.status}`);
       const pdfBlob = new Blob([await res.arrayBuffer()], { type: 'application/pdf' });
 
-      // Upload para storage
-      const path = `consents/${payload.token_id}/signed_${sigId}.pdf`;
-      const { error: upErr } = await supabase.storage
-        .from(DOC_BUCKET)
-        .upload(path, pdfBlob, { contentType: 'application/pdf', upsert: false });
-      if (upErr) throw upErr;
-
-      // Persist the private object path; staff resolve an authenticated URL on demand.
-
-      // Actualizar registo
-      const { error: linkError } = await supabase.rpc('update_consent_pdf_v2', {
-        p_link_token: new URLSearchParams(window.location.search).get('token'),
-        p_sig_id: sigId,
-        p_pdf_path: path,
-      });
-      if (linkError) throw linkError;
+      // O servidor valida o link e guarda/associa o PDF num caminho fixo.
+      const form = new FormData();
+      form.set('token', new URLSearchParams(window.location.search).get('token') || '');
+      form.set('signature_id', sigId);
+      form.set('file', pdfBlob, 'consentimento.pdf');
+      const { data: saved, error: uploadError } = await supabase.functions.invoke('consent-pdf-upload', { body: form });
+      if (uploadError || !saved?.ok) throw new Error('Não foi possível guardar o PDF. Contacte a clínica.');
     }
 
     // ── Arranque ─────────────────────────────────────────────────────────────────
