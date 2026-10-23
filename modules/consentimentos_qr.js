@@ -6,9 +6,9 @@
    ======================================================== */
 
 import { openConsentModal } from "./consentimentos.js";
+import qrcode from "./vendor/qrcode-generator-2.0.4.mjs";
 
 const SIGN_BASE_URL = "https://gc.joaomorais.pt/consent-sign.html";
-const QR_API_URL    = "https://api.qrserver.com/v1/create-qr-code/";
 const POLL_INTERVAL = 5000; // ms
 
 const DOC_LABELS = {
@@ -29,8 +29,10 @@ function escH(s) {
 }
 
 export function buildQrImgUrl(tokenValue) {
-  const target = `${SIGN_BASE_URL}?token=${encodeURIComponent(tokenValue)}`;
-  return `${QR_API_URL}?size=200x200&data=${encodeURIComponent(target)}`;
+  const qr = qrcode(0, "M");
+  qr.addData(buildSignUrl(tokenValue));
+  qr.make();
+  return qr.createDataURL(4, 16);
 }
 
 export function buildSignUrl(tokenValue) {
