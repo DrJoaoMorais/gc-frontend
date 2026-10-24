@@ -45,6 +45,8 @@ import { ANALISES_GRUPOS, ANALISES_PERFIS } from "./analises-catalog-v2.js";
 import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl } from "../relatorios/v2/_shell/shell-v2.js";
 import { buildPatientCard } from "../relatorios/v2/_components/patient-card.js?v=2026-10-06-seguros-v2";
 
+import { createPdfPages } from "../relatorios/v2/relatorio-consulta/pdf-pages.js";
+
 const STYLE_ID = "pdv2-styles";
 
 const EXAM_GROUP_ICONS = {
@@ -99,6 +101,19 @@ const DOC_EXTRA_CSS = `
   .pdv2-doc-list li{margin-bottom:2px;}
   .pdv2-doc-prose{font-size:13px;line-height:1.6;white-space:pre-wrap;}
   .pdv2-clinical-info{font-size:11px;color:#555;margin:2px 0 0 4px;white-space:pre-wrap;}
+  .pdv2-analysis-doc .pdv2-doc-list{font-size:13px;line-height:1.5;}
+  .pdv2-analysis-doc .pdv2-doc-list li{break-inside:avoid;overflow-wrap:anywhere;}
+  .pdv2-analysis-divider{border-top:1px solid #e2e2e6;padding-top:6px;margin-top:6px;}
+  .pdv2-analysis-clinical{margin-top:16px;font-size:13px;overflow-wrap:anywhere;}
+  .pdv2-analysis-clinical strong{break-after:avoid;}
+  .pdv2-analysis-clinical .pdv2-doc-prose{margin:4px 0;orphans:3;widows:3;}
+  /* Compactar apenas espaços; manter o tamanho da letra e a identidade V2. */
+  .pdv2-analysis-compact .pdv2-analysis-doc .pdv2-doc-list{line-height:1.35;}
+  .pdv2-analysis-compact .pdv2-analysis-doc .pdv2-doc-list li{margin-bottom:0;}
+  .pdv2-analysis-compact .pdv2-analysis-divider{padding-top:3px;margin-top:3px;}
+  .pdv2-analysis-compact .pdv2-analysis-clinical{margin-top:10px;}
+  .pdv2-analysis-compact .pdv2-doc-prose{line-height:1.35;}
+
 `;
 
 function escHtml(v) {
@@ -340,6 +355,10 @@ export function mount(container, options = {}) {
     analises: {
       selected: new Set(),      // nomes exactos (ANALISES_GRUPOS[].items[].name)
       openGroups: new Set(),    // ids de grupo abertos manualmente
+      view: "perfis",
+      profile: "habitual",
+      category: ANALISES_GRUPOS[0].id,
+      expanded: false,
       search: "",
       clinicalInfo: "",
       date: today,
@@ -370,6 +389,17 @@ export function mount(container, options = {}) {
       state.analises.openGroups.add(grp.id);
     }
   });
+
+  let analysisPreview = null;
+  let analysisPreviewTimer;
+  let analysisPreviewRevision = 0;
+  let analysisPdfPages = null;
+  function disposeAnalysisPreview() {
+    clearTimeout(analysisPreviewTimer);
+    analysisPreviewRevision++;
+    analysisPdfPages?.clear();
+    analysisPreview = null;
+  }
 
   const initialTab = options.initialTab === "exames" ? "exames" : "analises";
 
@@ -402,112 +432,76 @@ export function mount(container, options = {}) {
      ANÁLISES
      ================================================================ */
 
-  function buildAnalisesQuickHtml() {
-    const chips = ANALISES_PERFIS.map((p) => {
-      if (!p.submenu) {
-        return `<button class="pdv2-chip" data-pdv2-perfil="${escHtml(p.id)}">${escHtml(p.label)}</button>`;
-      }
-      const opts = p.submenu.map((s) =>
-        `<button class="pdv2-op" data-pdv2-perfil="${escHtml(p.id)}" data-pdv2-sub="${escHtml(s.id)}">${escHtml(s.label)}</button>`
-      ).join("");
-      return `
-        <div class="pdv2-chipWrap" data-pdv2="chipwrap">
-          <button class="pdv2-chip">${escHtml(p.label)} ▾</button>
-          <div class="pdv2-chipMenu">${opts}</div>
-        </div>`;
-    }).join("");
+  function analysisProfiles() {
+    return [
+      { id: 'habitual', label: 'Pedido habitual', analises: ANALISES_PRESELECAO_DEFAULT },
+      ...ANALISES_PERFIS.flatMap(p => p.submenu
+        ? p.submenu.map(s => ({ ...s, id: `${p.id}/${s.id}` })) : [p])
+    ];
+  }
 
-    return `
-      <span class="pdv2-lbl">Perfis rápidos</span>
-      ${chips}
-      <input class="pdv2-search" type="text" data-pdv2-role="search"
-        placeholder="Pesquisar análise… (ferritina, PCR, TSH)" value="${escHtml(state.analises.search)}">
-    `;
+  function analysisItems() {
+    const names = new Map();
+    ANALISES_GRUPOS.forEach(g => g.items.forEach(it => {
+      if (!names.has(it.name)) names.set(it.name, it);
+    }));
+    analysisProfiles().forEach(p => p.analises.forEach(name => {
+      if (!names.has(name)) names.set(name, { name });
+    }));
+    return [...names.values()];
+  }
+
+  function buildAnalisesQuickHtml() {
+    const a = state.analises;
+    const profiles = analysisProfiles();
+    const options = a.view === 'perfis'
+      ? profiles.map(p => `<button type="button" class="pdv2-chip ${a.profile === p.id ? 'pdv2-chip--active' : ''}" data-analysis-profile="${escHtml(p.id)}" aria-pressed="${a.profile === p.id}">${escHtml(p.label)}</button>`).join('')
+      : a.view === 'individuais'
+        ? `<label class="pdv2-category-label">Categoria<select data-pdv2-role="category">${ANALISES_GRUPOS.map(g => `<option value="${g.id}" ${g.id === a.category ? 'selected' : ''}>${escHtml(g.label)}</option>`).join('')}</select></label>` : '';
+    return `<div class="pdv2-analysis-nav" aria-label="Escolher análises">
+      ${[['perfis','Conjuntos por tema'],['individuais','Análises individuais'],['selecionadas',`Selecionadas · ${a.selected.size}`]].map(([value,label]) => `<button type="button" data-analysis-view="${value}" aria-pressed="${a.view === value}" class="${a.view === value ? 'pdv2-active' : ''}">${label}</button>`).join('')}
+      </div><input class="pdv2-search" type="search" data-pdv2-role="search" aria-label="Pesquisar qualquer análise" placeholder="Pesquisar qualquer análise…" value="${escHtml(a.search)}">
+      <div class="pdv2-analysis-profiles">${options}</div>`;
   }
 
   function buildAnalisesGroupsHtml() {
-    const qNorm = normalizeTxt(state.analises.search.trim());
-    let anyGroup = false;
-    const html = ANALISES_GRUPOS.map((grp) => {
-      const filtered = qNorm ? grp.items.filter((it) => normalizeTxt(it.name).includes(qNorm)) : grp.items;
-      if (qNorm && filtered.length === 0) return "";
-      anyGroup = true;
-      const isOpen = qNorm ? true : state.analises.openGroups.has(grp.id);
-      const selCount = grp.items.reduce((n, it) => n + (state.analises.selected.has(it.name) ? 1 : 0), 0);
-      const allSelected = filtered.length > 0 && filtered.every((it) => state.analises.selected.has(it.name));
-      const itemsHtml = filtered.map((it) => {
-        const checked = state.analises.selected.has(it.name);
-        const infoBits = [it.info, it.subcategoria].filter(Boolean).join(" · ");
-        return `
-          <label class="pdv2-item">
-            <input type="checkbox" data-pdv2-name="${escHtml(it.name)}" ${checked ? "checked" : ""}>
-            <span>${escHtml(it.name)}${infoBits ? `<span class="pdv2-info">${escHtml(infoBits)}</span>` : ""}</span>
-          </label>`;
-      }).join("");
-      return `
-        <div class="pdv2-grp ${isOpen ? "pdv2-grp--open" : ""}" data-pdv2-grpid="${escHtml(grp.id)}">
-          <div class="pdv2-grpHead">
-            <span class="pdv2-nome">${grp.icon} ${escHtml(grp.label)} ${selCount ? `<span class="pdv2-badge">${selCount} sel.</span>` : ""}</span>
-            <button type="button" class="pdv2-selall" data-pdv2-selall="${escHtml(grp.id)}">${allSelected ? "Nenhum" : "Tudo"}</button>
-            <span class="pdv2-chev">${isOpen ? "▲" : "▼"}</span>
-          </div>
-          <div class="pdv2-grpItems">${itemsHtml}</div>
-        </div>`;
-    }).join("");
-    return anyGroup ? html : `<div class="pdv2-vazio">Sem resultados para a pesquisa.</div>`;
+    const a = state.analises;
+    const term = normalizeTxt(a.search.trim());
+    const profile = analysisProfiles().find(p => p.id === a.profile);
+    const category = ANALISES_GRUPOS.find(g => g.id === a.category);
+    let items = term ? analysisItems().filter(it => normalizeTxt(it.name).includes(term))
+      : a.view === 'perfis' ? profile.analises.map(name => ({ name }))
+      : a.view === 'selecionadas' ? analysisItems().filter(it => a.selected.has(it.name))
+      : category.items;
+    const count = items.filter(it => a.selected.has(it.name)).length;
+    const title = term ? 'Resultados da pesquisa' : a.view === 'perfis' ? profile.label : a.view === 'selecionadas' ? 'Todas as análises do pedido' : category.label;
+    return `<div class="pdv2-analysis-set"><div><strong>${escHtml(title)}</strong><span>${count} de ${items.length} selecionadas</span></div>
+      ${!term && a.view === 'perfis' ? `<button type="button" data-analysis-add ${count === items.length ? 'disabled' : ''}>${count === items.length ? '✓ Conjunto completo' : `Adicionar conjunto · ${items.length - count}`}</button>` : ''}</div>
+      <div class="pdv2-analysis-items">${items.map(it => `<label class="pdv2-item ${a.selected.has(it.name) ? 'pdv2-item--checked' : ''}"><input type="checkbox" data-pdv2-name="${escHtml(it.name)}" ${a.selected.has(it.name) ? 'checked' : ''}><span>${escHtml(it.name)}</span>${a.selected.has(it.name) ? '<span class="pdv2-analysis-check" aria-hidden="true">✓</span>' : ''}</label>`).join('') || '<div class="pdv2-vazio">Sem análises para mostrar.</div>'}</div>`;
   }
 
   function getAnalisesByGroupForSelected() {
-    const firstGroupLabel = new Map();
-    ANALISES_GRUPOS.forEach((grp) => {
-      grp.items.forEach((it) => {
-        if (!firstGroupLabel.has(it.name)) firstGroupLabel.set(it.name, grp.label);
-      });
-    });
-
     const byGroup = new Map();
-    ANALISES_GRUPOS.forEach((grp) => {
-      grp.items.forEach((it) => {
-        if (!state.analises.selected.has(it.name)) return;
-        if (firstGroupLabel.get(it.name) !== grp.label) return;
-        if (!byGroup.has(grp.label)) byGroup.set(grp.label, []);
-        if (!byGroup.get(grp.label).includes(it.name)) byGroup.get(grp.label).push(it.name);
-      });
-    });
+    const seen = new Set();
+    ANALISES_GRUPOS.forEach(group => group.items.forEach(item => {
+      if (!state.analises.selected.has(item.name) || seen.has(item.name)) return;
+      seen.add(item.name);
+      if (!byGroup.has(group.label)) byGroup.set(group.label, []);
+      byGroup.get(group.label).push(item.name);
+    }));
+    // Alguns perfis existentes contêm análises fora dos grupos do catálogo.
+    // Nunca omitir essas escolhas do PDF (por exemplo Cobre/Ceruloplasmina).
+    const extra = [...state.analises.selected].filter(name => !seen.has(name));
+    if (extra.length) byGroup.set('Outras análises', extra);
     return byGroup;
   }
 
-  function buildAnalisesPillsHtml() {
-    if (!state.analises.selected.size) return `<div class="pdv2-vazio">Sem análises seleccionadas.</div>`;
-    const byGroup = getAnalisesByGroupForSelected();
-    let html = "";
-    byGroup.forEach((names, label) => {
-      html += `<div class="pdv2-pillGrp">${escHtml(label)}</div>`;
-      names.forEach((name) => {
-        html += `<div class="pdv2-pill"><span class="pdv2-miolo">${escHtml(name)}</span><span class="pdv2-x" data-pdv2-removename="${escHtml(name)}">×</span></div>`;
-      });
-    });
-    return html;
-  }
-
   function buildAnalisesDocBodyHtml() {
-    // Sem título de secção (label do grupo) no PDF — só a lista, separada por
-    // linha (border-top em .pdv2-doc-cols .pdv2-doc-section, ver DOC_EXTRA_CSS).
-    // O título continua visível no ecrã (.pdv2-grpHead, buildAnalisesGroupsHtml)
-    // — só desaparece no PDF final, não é tocado ali.
-    const byGroup = getAnalisesByGroupForSelected();
-    let html = "";
-    byGroup.forEach((names) => {
-      html += `<div class="pdv2-doc-section"><ul class="pdv2-doc-list">`;
-      names.forEach((name) => { html += `<li>${escHtml(name)}</li>`; });
-      html += `</ul></div>`;
-    });
-    if (state.analises.clinicalInfo.trim()) {
-      html += `<div class="pdv2-doc-section"><p class="pdv2-doc-prose">${escHtml(state.analises.clinicalInfo)}</p></div>`;
-    }
-    // Só Análises — layout a 2 colunas para caber numa página com muitos itens
-    // seleccionados (ex: pré-selecção de 26). Exames fica a 1 coluna (não tocar).
-    return `<div class="pdv2-doc-cols">${html}</div>`;
+    const list = [...getAnalisesByGroupForSelected().values()].map((names, index) =>
+      names.map((name, item) => `<li${index && !item ? ' class="pdv2-analysis-divider"' : ''}>${escHtml(name)}</li>`).join('')
+    ).join('');
+    const info = state.analises.clinicalInfo.trim();
+    return `<div class="pdv2-analysis-doc"><div class="pdv2-doc-cols"><ul class="pdv2-doc-list">${list}</ul></div>${info ? `<div class="pdv2-analysis-clinical"><strong>Informação clínica / motivo do pedido</strong><p class="pdv2-doc-prose">${escHtml(info)}</p></div>` : ''}</div>`;
   }
 
   /* ---- PDF: assets partilhados (clínica/médico/vinheta) + shell ---- */
@@ -544,17 +538,15 @@ export function mount(container, options = {}) {
 
   async function onGerarAnalisesPdf() {
     if (state.analises.generating || !state.analises.selected.size) return;
+    const prepared = analysisPreview;
+    if (!prepared || prepared.key !== analysisPreviewKey()) return;
     state.analises.generating = true;
     state.analises.statusMsg = { type: "info", text: "A gerar PDF…" };
     renderAnalisesPanel();
 
     try {
-      const fullHtml = await buildFullDocHtml({
-        title: "Pedido de Análises",
-        contentHtml: buildAnalisesDocBodyHtml(),
-        date: state.analises.date
-      });
-      const blob = await renderPdfViaProxy(fullHtml);
+      // Emitir exatamente o PDF revisto, sem voltar a gerar um documento diferente.
+      const { html: fullHtml, blob } = prepared;
       await uploadAndRegisterDocument({
         blob,
         clinicId: state.patient.clinicId,
@@ -600,148 +592,154 @@ export function mount(container, options = {}) {
   }
 
   function buildAnalisesPanelHtml() {
-    const n = state.analises.selected.size;
-    return `
-      <div class="pdv2-quick">${buildAnalisesQuickHtml()}</div>
-      <div class="pdv2-body">
-        <div class="pdv2-colEsq">${buildAnalisesGroupsHtml()}</div>
-        <div class="pdv2-colDir">
-          <h3>Pedido actual</h3>
-
-          ${buildIdCardHtml()}
-
-          <div class="pdv2-pills">${buildAnalisesPillsHtml()}</div>
-
-          <div class="pdv2-miniDoc">
-            <div class="pdv2-mh"><div class="pdv2-logo"></div><div class="pdv2-tit">Pedido de Análises</div></div>
-            <div class="pdv2-corpo"></div>
-            <div class="pdv2-mf"><span>Dr. João Morais · OM 44380</span><span>Vinheta</span></div>
-            <div class="pdv2-cap">Pré-visualização — sai com cabeçalho e rodapé do Relatório V2</div>
-          </div>
-
-          <div class="pdv2-rodape">
-            <div class="pdv2-linha">
-              <input type="text" data-pdv2-role="clininfo" placeholder="Informação clínica (opcional)…" value="${escHtml(state.analises.clinicalInfo)}">
-              <input type="date" data-pdv2-role="date" value="${escHtml(state.analises.date)}">
-            </div>
-            <button class="pdv2-btnPdf" data-pdv2="gerarpdf-analises" ${(state.analises.generating || !n) ? "disabled" : ""}>${state.analises.generating ? "A gerar PDF…" : `Gerar PDF · ${n} análise${n === 1 ? "" : "s"}`}</button>
-            ${state.analises.statusMsg ? `<div class="pdv2-docstatus pdv2-docstatus--${state.analises.statusMsg.type}">${escHtml(state.analises.statusMsg.text)}</div>` : ""}
-            <div class="pdv2-notaPdf">Um único PDF com todas as análises seleccionadas</div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  function applyPerfilAnalises(perfilId, subId) {
-    const perfil = ANALISES_PERFIS.find((p) => p.id === perfilId);
-    if (!perfil) return;
-    const lista = subId ? perfil.submenu?.find((s) => s.id === subId)?.analises : perfil.analises;
-    if (!lista) return;
-    lista.forEach((name) => state.analises.selected.add(name));
-    ANALISES_GRUPOS.forEach((grp) => {
-      if (grp.items.some((it) => lista.includes(it.name))) state.analises.openGroups.add(grp.id);
-    });
-    renderAnalisesPanel();
+    const a = state.analises;
+    return `<div class="pdv2-body pdv2-analysis-body ${a.expanded ? 'pdv2-analysis-expanded' : ''}">
+      <section class="pdv2-analysis-catalogue" ${a.generating ? 'inert' : ''}><div class="pdv2-analysis-toolbar">${buildAnalisesQuickHtml()}</div><div class="pdv2-colEsq">${buildAnalisesGroupsHtml()}</div></section>
+      <section class="pdv2-colDir pdv2-analysis-document">
+        <div class="pdv2-analysis-document-head"><h3>Documento · ${a.selected.size} análises</h3><button type="button" data-analysis-expand>${a.expanded ? 'Voltar à seleção' : 'Ampliar'}</button></div>
+        <div class="pdv2-analysis-clinical-editor"><label for="pdv2-analysis-clinical">Informação clínica / motivo do pedido</label><textarea id="pdv2-analysis-clinical" data-pdv2-role="clininfo" rows="2" placeholder="Escreve o motivo: rotina, rastreio, sintomas ou hipótese diagnóstica…" ${a.generating ? 'disabled' : ''}>${escHtml(a.clinicalInfo)}</textarea></div>
+        <div class="pdv2-analysis-preview-scroll"><div class="pdv2-analysis-preview-status" role="status" aria-live="polite"></div><div class="pdv2-analysis-pdf-pages" hidden></div><button type="button" class="pdv2-analysis-retry" data-analysis-retry hidden>Voltar a tentar a pré-visualização</button></div>
+        <div class="pdv2-rodape"><div class="pdv2-analysis-actions"><label>Data do pedido<input type="date" data-pdv2-role="date" aria-label="Data do pedido" value="${escHtml(a.date)}" ${a.generating ? 'disabled' : ''}></label><button type="button" data-analysis-clear ${a.generating ? 'disabled' : ''}>Limpar seleção</button></div>
+        <button class="pdv2-btnPdf" data-pdv2="gerarpdf-analises" disabled>${a.generating ? 'A guardar PDF…' : 'A preparar pré-visualização…'}</button>
+        ${a.statusMsg ? `<div class="pdv2-docstatus pdv2-docstatus--${a.statusMsg.type}">${escHtml(a.statusMsg.text)}</div>` : ''}</div>
+      </section></div>`;
   }
 
   function bindAnalisesPanelEvents(panel) {
-    panel.querySelectorAll('[data-pdv2="chipwrap"] > .pdv2-chip').forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const wrap = btn.parentElement;
-        const estava = wrap.classList.contains("pdv2-chipWrap--open");
-        panel.querySelectorAll(".pdv2-chipWrap--open").forEach((w) => w.classList.remove("pdv2-chipWrap--open"));
-        if (!estava) wrap.classList.add("pdv2-chipWrap--open");
-      });
+    panel.querySelectorAll('[data-analysis-view]').forEach(button => button.addEventListener('click', () => {
+      state.analises.view = button.dataset.analysisView;
+      state.analises.search = '';
+      renderAnalisesPanel();
+    }));
+    panel.querySelectorAll('[data-analysis-profile]').forEach(button => button.addEventListener('click', () => {
+      state.analises.profile = button.dataset.analysisProfile;
+      renderAnalisesPanel();
+    }));
+    panel.querySelector('[data-analysis-add]')?.addEventListener('click', () => {
+      analysisProfiles().find(p => p.id === state.analises.profile).analises.forEach(n => state.analises.selected.add(n));
+      renderAnalisesPanel();
     });
-
-    panel.querySelectorAll("[data-pdv2-perfil]").forEach((btn) => {
-      btn.addEventListener("click", () => applyPerfilAnalises(btn.dataset.pdv2Perfil, btn.dataset.pdv2Sub || null));
+    panel.querySelector('[data-pdv2-role="category"]')?.addEventListener('change', e => {
+      state.analises.category = e.target.value;
+      renderAnalisesPanel();
     });
-
-    panel.querySelectorAll(".pdv2-grpHead").forEach((head) => {
-      head.addEventListener("click", () => {
-        const grpEl = head.closest(".pdv2-grp");
-        if (!grpEl) return;
-        const nowOpen = grpEl.classList.toggle("pdv2-grp--open");
-        const grpId = grpEl.dataset.pdv2Grpid;
-        if (nowOpen) state.analises.openGroups.add(grpId); else state.analises.openGroups.delete(grpId);
-        const chev = head.querySelector(".pdv2-chev");
-        if (chev) chev.textContent = nowOpen ? "▲" : "▼";
-      });
-    });
-
-    panel.querySelectorAll("[data-pdv2-selall]").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const grp = ANALISES_GRUPOS.find((g) => g.id === btn.dataset.pdv2Selall);
-        if (!grp) return;
-        const qNorm = normalizeTxt(state.analises.search.trim());
-        const filtered = qNorm ? grp.items.filter((it) => normalizeTxt(it.name).includes(qNorm)) : grp.items;
-        const allSelected = filtered.length > 0 && filtered.every((it) => state.analises.selected.has(it.name));
-        filtered.forEach((it) => {
-          if (allSelected) state.analises.selected.delete(it.name); else state.analises.selected.add(it.name);
-        });
-        renderAnalisesPanel();
-      });
-    });
-
-    panel.querySelectorAll(".pdv2-item input[data-pdv2-name]").forEach((cb) => {
-      cb.addEventListener("change", () => {
-        const name = cb.dataset.pdv2Name;
-        if (cb.checked) state.analises.selected.add(name); else state.analises.selected.delete(name);
-        renderAnalisesPanel();
-      });
-    });
-
-    panel.querySelectorAll("[data-pdv2-removename]").forEach((x) => {
-      x.addEventListener("click", () => {
-        state.analises.selected.delete(x.dataset.pdv2Removename);
-        renderAnalisesPanel();
-      });
-    });
-
-    const searchEl = panel.querySelector('[data-pdv2-role="search"]');
-    searchEl?.addEventListener("input", (e) => {
+    panel.querySelectorAll('[data-pdv2-name]').forEach(input => input.addEventListener('change', () => {
+      if (input.checked) state.analises.selected.add(input.dataset.pdv2Name);
+      else state.analises.selected.delete(input.dataset.pdv2Name);
+      renderAnalisesPanel();
+    }));
+    panel.querySelector('[data-pdv2-role="search"]')?.addEventListener('input', e => {
       state.analises.search = e.target.value;
-      renderAnalisesPanel({ preserveFocus: "search" });
+      renderAnalisesPanel({ preserveFocus: 'search' });
     });
-
-    panel.querySelector('[data-pdv2-role="clininfo"]')?.addEventListener("input", (e) => {
+    panel.querySelector('[data-pdv2-role="clininfo"]')?.addEventListener('input', e => {
       state.analises.clinicalInfo = e.target.value;
+      scheduleAnalisesPreview(panel);
     });
-    panel.querySelector('[data-pdv2-role="date"]')?.addEventListener("input", (e) => {
+    panel.querySelector('[data-pdv2-role="date"]')?.addEventListener('input', e => {
       state.analises.date = e.target.value;
+      scheduleAnalisesPreview(panel);
     });
+    panel.querySelector('[data-analysis-clear]')?.addEventListener('click', () => {
+      state.analises.selected.clear();
+      renderAnalisesPanel();
+    });
+    panel.querySelector('[data-analysis-expand]')?.addEventListener('click', () => {
+      state.analises.expanded = !state.analises.expanded;
+      renderAnalisesPanel();
+    });
+    panel.querySelector('[data-analysis-retry]')?.addEventListener('click', () => scheduleAnalisesPreview(panel, true));
+    panel.querySelector('[data-pdv2="gerarpdf-analises"]')?.addEventListener('click', onGerarAnalisesPdf);
+  }
 
-    panel.querySelector('[data-pdv2="gerarpdf-analises"]')?.addEventListener("click", onGerarAnalisesPdf);
+  function analysisPreviewKey() {
+    return JSON.stringify({ names: [...state.analises.selected].sort(), info: state.analises.clinicalInfo, date: state.analises.date,
+      patient: state.patient.raw, clinicId: state.patient.clinicId, ready: state.pdfAssets.loaded });
+  }
+
+  function scheduleAnalisesPreview(panel, force = false) {
+    if (!panel || panel.style.display === "none") return;
+    clearTimeout(analysisPreviewTimer);
+    const revision = ++analysisPreviewRevision;
+    analysisPdfPages?.clear();
+    const host = panel.querySelector('.pdv2-analysis-pdf-pages');
+    analysisPdfPages = createPdfPages(host);
+    const renderer = analysisPdfPages;
+    const key = analysisPreviewKey();
+    const status = panel.querySelector('.pdv2-analysis-preview-status');
+    const retry = panel.querySelector('[data-analysis-retry]');
+    const button = panel.querySelector('[data-pdv2="gerarpdf-analises"]');
+    button.disabled = true;
+    button.textContent = state.analises.generating ? 'A guardar PDF…' : 'A preparar pré-visualização…';
+    retry.hidden = true;
+    if (force || analysisPreview?.key !== key) analysisPreview = null;
+    if (!state.analises.selected.size) {
+      status.textContent = 'Seleciona análises para veres o documento.';
+      button.textContent = 'Emitir pedido';
+      return;
+    }
+    if (state.patient.status !== 'ready' || !state.patient.raw || !state.patient.clinicId) {
+      status.textContent = state.patient.status === 'error' ? 'Não foi possível carregar os dados do doente.' : 'A carregar os dados do documento…';
+      return;
+    }
+    status.textContent = 'A preparar o PDF real…';
+    analysisPreviewTimer = setTimeout(async () => {
+      const current = () => revision === analysisPreviewRevision && panel.isConnected;
+      try {
+        let result = analysisPreview;
+        if (!result) {
+          let html = await buildFullDocHtml({ title: 'Pedido de Análises', contentHtml: buildAnalisesDocBodyHtml(), date: state.analises.date });
+          if (!current()) return;
+          let blob = await renderPdfViaProxy(html);
+          if (!current()) return;
+          let count = await renderer.show(blob);
+          if (!current() || !count) return;
+          if (count > 1) {
+            status.textContent = 'A ajustar os espaços para tentar uma página…';
+            html = html.replace('<body>', '<body class="pdv2-analysis-compact">');
+            blob = await renderPdfViaProxy(html);
+            if (!current()) return;
+            count = await renderer.show(blob);
+            if (!current() || !count) return;
+          }
+          result = { key, html, blob, count };
+          analysisPreview = result;
+        } else {
+          await renderer.show(result.blob);
+          if (!current()) return;
+        }
+        status.textContent = result.count === 1 ? '1 página · PDF pronto a emitir' : `${result.count} páginas · O conteúdo excede uma página. Revê o pedido ou emite com ${result.count} páginas.`;
+        button.textContent = state.analises.generating ? 'A guardar PDF…' : `Emitir pedido · ${result.count} ${result.count === 1 ? 'página' : 'páginas'}`;
+        button.disabled = state.analises.generating;
+      } catch (error) {
+        if (!current()) return;
+        analysisPreview = null;
+        status.textContent = 'Não foi possível preparar o PDF: ' + (error?.message || error);
+        retry.hidden = false;
+        button.textContent = 'Pré-visualização indisponível';
+      }
+    }, analysisPreview ? 0 : 650);
   }
 
   function renderAnalisesPanel(opts = {}) {
     const panel = container.querySelector('[data-pdv2-panel="analises"]');
     if (!panel) return;
-
-    let focusInfo = null;
+    let focus = null;
     if (opts.preserveFocus) {
-      const el = panel.querySelector(`[data-pdv2-role="${opts.preserveFocus}"]`);
-      if (el && document.activeElement === el) {
-        focusInfo = { role: opts.preserveFocus, start: el.selectionStart, end: el.selectionEnd };
-      }
+      const input = panel.querySelector(`[data-pdv2-role="${opts.preserveFocus}"]`);
+      if (input === document.activeElement) focus = { start: input.selectionStart, end: input.selectionEnd };
     }
-    const scrollTop = panel.querySelector(".pdv2-colEsq")?.scrollTop ?? 0;
-
+    const scrollTop = panel.querySelector('.pdv2-colEsq')?.scrollTop || 0;
     panel.innerHTML = buildAnalisesPanelHtml();
     bindAnalisesPanelEvents(panel);
-
-    if (focusInfo) {
-      const el = panel.querySelector(`[data-pdv2-role="${focusInfo.role}"]`);
-      if (el) { el.focus(); el.setSelectionRange?.(focusInfo.start, focusInfo.end); }
+    panel.querySelector('.pdv2-colEsq').scrollTop = scrollTop;
+    if (focus) {
+      const input = panel.querySelector(`[data-pdv2-role="${opts.preserveFocus}"]`);
+      input.focus();
+      input.setSelectionRange?.(focus.start, focus.end);
     }
-    const colEsq = panel.querySelector(".pdv2-colEsq");
-    if (colEsq) colEsq.scrollTop = scrollTop;
-
     updateTabBadges();
+    scheduleAnalisesPreview(panel);
   }
 
   /* ================================================================
@@ -1153,12 +1151,14 @@ export function mount(container, options = {}) {
   const tabs = container.querySelectorAll("[data-pdv2-tab]");
   const onTabClick = (e) => {
     const alvo = e.currentTarget.dataset.pdv2Tab;
+    if (alvo !== 'analises') { clearTimeout(analysisPreviewTimer); analysisPreviewRevision++; }
     tabs.forEach((t) => t.classList.toggle("pdv2-tab--on", t === e.currentTarget));
     container.querySelectorAll("[data-pdv2-panel]").forEach((p) => {
       const isAlvo = p.dataset.pdv2Panel === alvo;
       p.style.display = isAlvo ? "flex" : "none";
       p.classList.toggle("pdv2-tabpanel--on", isAlvo);
     });
+    if (alvo === "analises") scheduleAnalisesPreview(container.querySelector('[data-pdv2-panel="analises"]'));
   };
   tabs.forEach((t) => t.addEventListener("click", onTabClick));
 
@@ -1171,7 +1171,7 @@ export function mount(container, options = {}) {
   };
   container.querySelector('[data-pdv2="fechar"]')?.addEventListener("click", onFechar);
 
-  container.__pdv2State = { onDocClick };
+  container.__pdv2State = { onDocClick, disposeAnalysisPreview };
 
   /* ---- renderização inicial + carregamento assíncrono (exames + doente) ---- */
   renderAnalisesPanel();
@@ -1192,6 +1192,7 @@ export function unmount(container) {
   if (!container) return;
   const state = container.__pdv2State;
   if (state?.onDocClick) document.removeEventListener("click", state.onDocClick);
+  state?.disposeAnalysisPreview?.();
   container.__pdv2State = null;
   container.innerHTML = "";
   removeStyles();
@@ -1317,4 +1318,56 @@ const CSS = `
 .pdv2-corpo{height:26px;background:repeating-linear-gradient(#fff,#fff 4px,var(--bg) 4px,var(--bg) 6px);border-radius:3px;margin:4px 0;}
 .pdv2-mf{border-top:1px solid var(--line);padding-top:3px;display:flex;justify-content:space-between;font-size:8px;}
 .pdv2-cap{font-size:9px;text-align:center;margin-top:5px;color:#94a3b8;}
+/* Pedido de análises: um único catálogo editável e o PDF real ao lado. */
+[data-pdv2-panel="analises"]{min-height:0;}
+.pdv2-analysis-body{grid-template-columns:minmax(350px,1fr) minmax(390px,1.1fr);min-height:0;}
+.pdv2-analysis-catalogue{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;}
+.pdv2-analysis-toolbar{padding:14px 16px 12px;border-bottom:1px solid var(--line);background:#fff;flex-shrink:0;}
+.pdv2-analysis-nav{display:flex;gap:5px;flex-wrap:wrap;}
+.pdv2-analysis-nav button,.pdv2-analysis-set button,.pdv2-analysis-document-head button,.pdv2-analysis-actions button,.pdv2-analysis-retry{font:inherit;font-size:12px;border:1px solid #cbd5e1;border-radius:7px;padding:7px 9px;background:#fff;color:var(--navy);cursor:pointer;}
+.pdv2-analysis-nav .pdv2-active,.pdv2-chip--active{background:var(--navy);color:#fff;border-color:var(--navy);}
+.pdv2-analysis-toolbar .pdv2-search{display:block;width:100%;margin:10px 0;font-size:13px;}
+.pdv2-analysis-profiles{display:flex;flex-wrap:wrap;gap:5px;}
+.pdv2-analysis-profiles .pdv2-chip{border-radius:6px;font-weight:500;padding:5px 8px;font-size:11.5px;}
+.pdv2-analysis-profiles .pdv2-chip--active:hover{background:var(--navy);color:#fff;}
+.pdv2-category-label{display:flex;gap:8px;align-items:center;font-size:12px;width:100%;}
+.pdv2-category-label select{font:inherit;max-width:100%;min-width:0;flex:1;padding:7px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:var(--ink);}
+.pdv2-analysis-catalogue .pdv2-colEsq{padding:0 12px 12px;min-height:0;}
+.pdv2-analysis-set{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:12px 4px;border-bottom:1px solid var(--line);margin-bottom:6px;position:sticky;top:0;background:#fff;z-index:1;}
+.pdv2-analysis-set strong{font-size:13px;display:block;}
+.pdv2-analysis-set span{font-size:11px;color:var(--mut);display:block;margin-top:3px;}
+.pdv2-analysis-set button{background:var(--ok-soft);font-size:11px;flex-shrink:0;}
+.pdv2-analysis-set button:disabled{color:var(--mut);cursor:default;}
+.pdv2-analysis-items{display:grid;grid-template-columns:1fr 1fr;gap:4px 7px;}
+.pdv2-analysis-items .pdv2-item{padding:8px 6px;min-width:0;}
+.pdv2-analysis-items .pdv2-item span{overflow-wrap:anywhere;}
+.pdv2-analysis-items .pdv2-item--checked{background:var(--ok-soft);color:var(--navy);}
+.pdv2-analysis-check{margin-left:auto;font-size:12px;}
+.pdv2-analysis-document{min-width:0;min-height:0;}
+.pdv2-analysis-document-head{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;gap:8px;flex-shrink:0;background:#fff;}
+.pdv2-analysis-document-head h3{padding:0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink);}
+.pdv2-analysis-clinical-editor{padding:5px 14px 10px;background:#fff;flex-shrink:0;}
+.pdv2-analysis-clinical-editor label{display:block;font-size:12px;font-weight:600;margin-bottom:5px;}
+.pdv2-analysis-clinical-editor textarea{width:100%;min-height:56px;max-height:120px;padding:7px 9px;font:inherit;font-size:12px;border:1px solid #cbd5e1;border-radius:7px;resize:vertical;color:var(--ink);background:#fff;}
+.pdv2-analysis-preview-scroll{flex:1;min-height:0;overflow:auto;padding:8px 12px;}
+.pdv2-analysis-preview-status{font-size:12px;color:var(--navy);padding:0 2px 8px;}
+.pdv2-analysis-pdf-pages .gcv2-rc-pdf-count{font-size:11px;color:var(--mut);padding-bottom:8px;}
+.pdv2-analysis-pdf-pages figure{margin:0 0 14px;}
+.pdv2-analysis-pdf-pages figcaption{font-size:11px;color:var(--mut);margin-bottom:5px;}
+.pdv2-analysis-pdf-pages canvas{display:block;width:100%;height:auto;box-shadow:0 2px 8px #0f2d521a;background:#fff;}
+.pdv2-analysis-actions{display:flex;justify-content:space-between;align-items:end;gap:8px;margin-bottom:8px;}
+.pdv2-analysis-actions label{font-size:11px;color:var(--mut);display:flex;flex-direction:column;gap:3px;}
+.pdv2-analysis-actions input{font:inherit;font-size:12px;padding:6px;border:1px solid #cbd5e1;border-radius:6px;color:var(--ink);background:#fff;}
+.pdv2-analysis-expanded{grid-template-columns:1fr;}
+.pdv2-analysis-expanded .pdv2-analysis-catalogue,.pdv2-analysis-expanded .pdv2-analysis-clinical-editor{display:none;}
+.pdv2-analysis-expanded .pdv2-analysis-document{border-left:0;}
+.pdv2-analysis-expanded .pdv2-analysis-pdf-pages{max-width:820px;margin:0 auto;}
+@media(max-width:800px){
+ .pdv2-analysis-body{grid-template-columns:1fr;overflow-y:auto;display:block;}
+ .pdv2-analysis-catalogue{max-height:56vh;min-height:240px;}
+ .pdv2-analysis-document{min-height:440px;height:68vh;border-left:0;border-top:1px solid var(--line);}
+ .pdv2-analysis-expanded .pdv2-analysis-document{height:100%;}
+}
+@media(max-width:440px){.pdv2-analysis-items{grid-template-columns:1fr;}.pdv2-overlay{padding:5px;}.pdv2-head{padding:10px;gap:8px;}.pdv2-doente{font-size:11px;}.pdv2-analysis-nav button{font-size:11px;padding:6px;}}
+
 `;
