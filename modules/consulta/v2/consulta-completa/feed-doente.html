@@ -890,6 +890,21 @@
           #fd-nova-wrap .gcai-layout:has(>.gcai-rail[hidden]) > .ql-container {
             flex:1 1 100%;min-width:0;
           }
+          #fd-nova-wrap .gc-hda-toolbar-integrated.ql-toolbar.ql-snow {gap:8px;padding:9px 10px;}
+          #fd-nova-wrap .gc-hda-toolbar-integrated .ql-formats,
+          #fd-nova-wrap .gc-hda-toolbar-integrated .ql-formats + .ql-formats {
+            border:1px solid #dfe6ef;border-radius:7px;background:#fff;padding:3px;gap:2px;
+          }
+          #fd-nova-wrap .gc-hda-toolbar-integrated .gc-spacing {border:0;background:transparent;padding:0;gap:10px;flex-wrap:wrap;}
+          #fd-nova-wrap .gc-hda-classic-actions {display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+            padding:8px 10px;background:#f6f8fa;border:1px solid #e5e9ee;border-top:0;border-radius:0 0 11px 11px;}
+          #fd-nova-wrap .gc-hda-classic-actions #fd-rec-slot {display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;max-width:100%;}
+          #fd-nova-wrap .gc-hda-classic-actions button {min-height:32px;padding:6px 10px;font-family:inherit;border-radius:7px;}
+          #fd-nova-wrap .gc-hda-classic-actions .gcai-tab {margin:0;height:auto;font-size:12px;}
+          #fd-nova-wrap .gc-hda-classic-actions .fd-copy-hda {margin-left:auto;border:1px solid #dce4ed;background:#fff;color:#193450;font-size:12px;font-weight:600;cursor:pointer;}
+          #fd-nova-wrap #fd-quill-editor.ql-container {border-radius:0 !important;}
+          #fd-nova-wrap .gc-hda-classic-actions [hidden] {display:none;}
+          @media(pointer:coarse) {#fd-nova-wrap .gc-hda-classic-actions button {min-height:44px;}}
           @media(pointer:coarse) {
             #fd-nova-wrap .gc-hda-toolbar-integrated button {width:44px;height:44px;}
             #fd-nova-wrap .gc-hda-toolbar-integrated .gcai-tab {width:auto;height:44px;}
@@ -2892,8 +2907,13 @@
           }
           copyFeedbackTimer = setTimeout(() => { copyHdaButton.textContent = 'Copiar HDA'; }, 2000);
         });
-        hdaToolbar.insertBefore(copyHdaButton, assistantButton);
-        hdaToolbar.insertBefore(recordingSlot, assistantButton);
+        const actionBar = document.createElement('div');
+        actionBar.className = 'gc-hda-classic-actions';
+        actionBar.setAttribute('role', 'group');
+        actionBar.setAttribute('aria-label', 'Acções da História da Doença Actual');
+        actionBar.append(recordingSlot, assistantButton, copyHdaButton);
+        const editorLayout = fdQuill.container.closest('.gcai-layout') || fdQuill.container;
+        editorLayout.insertAdjacentElement('afterend', actionBar);
         if (transcriptPreview?.classList.contains('gcai-rec-transcript')) {
           hdaToolbar.insertAdjacentElement('afterend', transcriptPreview);
         }
