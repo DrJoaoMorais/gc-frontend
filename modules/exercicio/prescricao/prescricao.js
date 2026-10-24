@@ -5870,10 +5870,9 @@ async function carregarExerciciosFasePatologia(faseId) {
     return;
   }
   _patologia.exercicios = data || [];
-  // Sugestões do protocolo entram já seleccionadas — o médico desmarca o que não quiser
-  // (ponto 6: "remover exercício sugerido do plano sem apagar da BD" — nunca escreve na BD aqui).
+  // Selecionar apenas sugestões de base. As opções exigem seleção explícita do médico.
   (data || []).forEach(row => {
-    if (!_state.exercisesCatalog.find(e => e.id === row.exercise_id)) return; // exercício inactivo/removido — não quebra
+    if (row.is_optional || !_state.exercisesCatalog.find(e => e.id === row.exercise_id)) return;
     _patologia.selecionados.set(row.exercise_id, {
       origem: 'protocolo', context: row.context, is_optional: row.is_optional,
       prescription_defaults: row.prescription_defaults || {}, clinical_note: row.clinical_note,
@@ -5939,7 +5938,7 @@ function criarItemPatologia(ex, info) {
     tecnica_info: ex.tecnica_info || null,
     equipamento: ex.equipamento || [],
     machine_adjustment_suggestions: Array.isArray(ex.ajustes_maquina) ? ex.ajustes_maquina.map(a => a?.etiqueta).filter(Boolean) : [],
-    prescription_note: null,
+    prescription_note: (typeof info?.clinical_note === 'string' && info.clinical_note.trim() && info.clinical_note.trim() !== '{}') ? info.clinical_note.trim() : null,
     categoria: ex.categoria || [],
     sets: usaTempo ? (ex.name.toLowerCase().includes('bicicleta') ? 1 : 3) : 3,
     reps_min: usaTempo ? null : 8,
@@ -6303,12 +6302,13 @@ function renderFaseDetalheEExerciciosPatologia() {
   const temCriteriosDetalhados = Array.isArray(d.objetivos_serie) && d.objetivos_serie.length;
   const temObjetivos = Array.isArray(d.objetivos) && d.objetivos.length;
   const temHep = Array.isArray(d.hep) && d.hep.length;
+  const temClinica = Array.isArray(d.clinica) && d.clinica.length;
   const temPermitido = Array.isArray(d.permitido) && d.permitido.length;
   const temContra = Array.isArray(d.contraindicacoes) && d.contraindicacoes.length;
   const temCriteriosProgressao = Array.isArray(d.criterios_progressao) && d.criterios_progressao.length;
   const temPrincipioClinico = !!d.principio_clinico;
   const temCuidadosBase = temPermitido || temContra;
-  const semConteudoClinico = !temCriteriosDetalhados && !temObjetivos && !temHep && !temCuidadosBase && !temCriteriosProgressao && !temPrincipioClinico && !d.nota_ancora;
+  const semConteudoClinico = !temCriteriosDetalhados && !temObjetivos && !temHep && !temClinica && !temCuidadosBase && !temCriteriosProgressao && !temPrincipioClinico && !d.nota_ancora;
 
   return `
     <div class="gcwo-pat-fase-detalhe">
@@ -6323,6 +6323,7 @@ function renderFaseDetalheEExerciciosPatologia() {
           ${temContra ? `<div class="gcwo-pat-contra"><b>Evitar</b><ul>${d.contraindicacoes.map(c => `<li>${escHtml(c)}</li>`).join('')}</ul></div>` : ''}
         </div>` : ''}
         ${temHep ? `<div class="gcwo-pat-hep"><span class="gcwo-field-label">Programa domiciliário (HEP)</span><ul>${d.hep.map(h => `<li>${escHtml(h)}</li>`).join('')}</ul></div>` : ''}
+        ${temClinica ? `<div class="gcwo-pat-clinica"><span class="gcwo-field-label">Trabalho na clínica</span><ul>${d.clinica.map(c => `<li>${escHtml(c)}</li>`).join('')}</ul></div>` : ''}
         ${temCriteriosDetalhados ? `<details class="gcwo-pat-criterios-detalhe"><summary>Critérios detalhados (ROM / EVA)</summary><div class="gcwo-pat-criterios"><ul>${d.objetivos_serie.map(c => `<li>${escHtml(c.texto || '')}${(c.op && c.valor != null) ? ` ${escHtml(c.op)} ${escHtml(c.valor)}${escHtml(c.unidade || '')}` : ''}${c.nota ? ` <small>(${escHtml(c.nota)})</small>` : ''}</li>`).join('')}</ul></div></details>` : ''}
         ${temCriteriosProgressao ? `<div class="gcwo-pat-criterios-avancar"><span class="gcwo-field-label">Critérios para avançar</span><ul>${d.criterios_progressao.map(c => `<li>${escHtml(c.texto || '')}</li>`).join('')}</ul></div>` : ''}
       `}
