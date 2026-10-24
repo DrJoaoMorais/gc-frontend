@@ -222,14 +222,14 @@ export function initObjetivosCatalogo({ root, initial, onChange } = {}) {
   function cardHtml(n, id, titulo, corpoHtml) {
     const selected = active === id;
     const summary = resumo(id);
-    if (selected) activePanel = `<div class="goc-edit-panel">
+    if (selected) activePanel = `<div class="goc-edit-panel" data-objectivo="${id}">
       <div class="goc-panel-head"><span>${esc(titulo)}</span>
       <button type="button" class="goc-concluir" data-concluir>Concluir</button></div>
       <div class="goc-body">${corpoHtml}</div></div>`;
     return `<button type="button" class="goc-tile${summary !== '—' ? ' preenchido' : ''}"
       data-toggle="${id}" aria-pressed="${selected}">
-      <span class="goc-card-titulo">${esc(titulo)}</span>
-      <span class="goc-resumo">${esc(summary === '—' ? 'Por definir' : summary)}</span>
+      <span class="goc-card-titulo">${esc(titulo)}</span><span class="goc-tile-mark" aria-hidden="true">${summary !== '—' ? '✓' : '+'}</span>
+      <span class="goc-resumo">${esc(summary === '—' ? '' : summary)}</span>
     </button>`;
   }
 
@@ -300,6 +300,19 @@ export function initObjetivosCatalogo({ root, initial, onChange } = {}) {
         `)}
       </div>${activePanel}</details>
     `;
+    // Keep each label and its existing controls together, preserving handlers and data.
+    const body = root.querySelector('.goc-body');
+    if (body) {
+      let field;
+      [...body.children].forEach(node => {
+        if (node.classList.contains('gl') || !field) {
+          field = document.createElement('div');
+          field.className = 'goc-inline-field';
+          body.append(field);
+        }
+        field.append(node);
+      });
+    }
     root.querySelector('details').addEventListener('toggle', e => { expanded = e.currentTarget.open; });
     notificar();
   }

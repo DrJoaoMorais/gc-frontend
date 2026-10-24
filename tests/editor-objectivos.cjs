@@ -28,7 +28,15 @@ assert.equal(await page.locator('#goals .goc-grid').evaluate(el=>getComputedStyl
 await page.setViewportSize({width:1000,height:900});
 await page.locator('#goals [data-toggle="dor"]').click();
 
-console.log('Oito cartões, painel único, edição e adaptação ao ecrã: OK');
+await page.locator('#goals [data-toggle="forca"]').click();
+await page.locator('#goals [data-grupo="forca-tipo"][data-v="grau"]').click();
+await page.locator('#goals [data-grupo="forca-grau"][data-v="4"]').click();
+const rows=await page.locator('#goals .goc-inline-field').evaluateAll(els=>els.map(el=>Math.round(el.getBoundingClientRect().top)));
+assert.equal(rows.length,2);assert.ok(Math.abs(rows[0]-rows[1])<8,'Método e meta devem ficar na mesma linha');
+await page.setViewportSize({width:390,height:900});
+assert.ok(await page.locator('#goals').evaluate(el=>el.scrollWidth<=el.clientWidth),'Sem transbordo horizontal');
+await page.setViewportSize({width:1000,height:900});
+console.log('Oito cartões, painel único, campos horizontais e adaptação ao ecrã: OK');
 await page.addStyleTag({content:fs.readFileSync(base+'/modules/consulta/v2/consulta-completa/feed-doente.html','utf8').split('<style>#fd-quill-editor')[1].split('</style>')[0].replace(/^/, '#fd-quill-editor')});
 await page.evaluate(()=>{document.body.id='fd-nova-wrap';const q=Quill.find(document.querySelector('#editor'));q.container.id='fd-quill-editor';q.setText(Array.from({length:90},(_,i)=>'Linha fictícia '+i).join('\n'));});
 const geometry=await page.evaluate(()=>{const root=document.querySelector('.ql-editor'),toolbar=document.querySelector('.ql-toolbar');const before=toolbar.getBoundingClientRect().top;root.scrollTop=root.scrollHeight;return {scroll:root.scrollTop,max:root.clientHeight,viewport:innerHeight,toolbarMoved:toolbar.getBoundingClientRect().top-before};});
