@@ -4,6 +4,7 @@ import { calcAgeYears } from '../helpers.js';
 export function enhanceClinicalEditor(quill, { ai = false, integratedToolbar = false, sb = () => window.sb, patient = () => null } = {}) {
   if (quill.__clinicalEnhanced) return;
   quill.__clinicalEnhanced = true;
+  registerSpacing();
   quill.root.lang = 'pt-PT';
   quill.root.spellcheck = true;
   // Quill only indents with Tab at the start of a line by default.
@@ -37,6 +38,7 @@ export function enhanceClinicalEditor(quill, { ai = false, integratedToolbar = f
     toolbar.appendChild(group);
     if (integratedToolbar) {
       toolbar.classList.add('gc-hda-toolbar-integrated');
+      addSpacingControls(quill, toolbar);
       toolbar.setAttribute('role', 'toolbar');
       toolbar.setAttribute('aria-label', 'Formatação da História da Doença Actual');
     }
@@ -765,4 +767,50 @@ export async function openAiAssistant(quill, sb, patient = null) {
 
   await runAnalysis(state);
   if (panel.isConnected) panel.focus();
+}
+
+// Restrict persisted spacing to deliberate, supported block formats.
+function registerSpacing() {
+  const Quill = window.Quill;
+  if (Quill.__gcSpacing) return;
+  const Parchment = Quill.import('parchment');
+  for (const [name, property, whitelist] of [
+    ['lineheight', 'line-height', ['1', '1.15', '1.5', '2']],
+    ['paragraphspace', 'margin-bottom', ['0px', '6px', '12px', '18px']],
+  ]) Quill.register(new Parchment.StyleAttributor(name, property, { scope: Parchment.Scope.BLOCK, whitelist }), true);
+  Quill.__gcSpacing = true;
+}
+
+function addSpacingControls(quill, toolbar) {
+  const group = document.createElement('span');
+  group.className = 'ql-formats gc-spacing';
+  let range = { index: 0, length: 0 };
+  quill.on('selection-change', selection => { if (selection) { range = selection; sync(); } });
+  const controls = [];
+  function sync() {
+    const formats = quill.getFormat(range.index, range.length);
+    controls.forEach(([select, format, fallback]) => { select.value = formats[format] || fallback; });
+  }
+  for (const [title, format, options, fallback] of [
+    ['Entrelinha', 'lineheight', [['1','1'], ['1.15','1,15'], ['1.5','1,5'], ['2','2']], '1.5'],
+    ['Após parágrafo', 'paragraphspace', [['0px','0'], ['6px','6 px'], ['12px','12 px'], ['18px','18 px']], '0px'],
+  ]) {
+    const label = document.createElement('label');
+    label.style.cssText = 'display:inline-flex;align-items:center;gap:4px;font-size:12px;';
+    label.append(title + ' ');
+    const select = document.createElement('select');
+    select.setAttribute('aria-label', title);
+    select.style.cssText = 'font:inherit;width:auto;height:30px;border:1px solid #dbe3ee;border-radius:5px;background:white;';
+    options.forEach(([value, text]) => select.add(new Option(text, value)));
+    select.value = fallback;
+    select.addEventListener('change', () => {
+      quill.setSelection(range.index, range.length, 'silent');
+      quill.formatLine(range.index, range.length, format, select.value, 'user');
+      quill.focus();
+    });
+    label.append(select); group.append(label);
+    controls.push([select, format, fallback]);
+  }
+  toolbar.append(group);
+  quill.on('text-change', sync);
 }

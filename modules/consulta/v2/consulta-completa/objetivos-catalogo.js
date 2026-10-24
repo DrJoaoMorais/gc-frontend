@@ -37,9 +37,8 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
 
 /* Inverso de gerarSaida(): repovoa o estado interno a partir de um
    array {chave,valor,unidade}[] já gravado (objectives_data de uma
-   consulta antiga). Abre os cards que já têm valor, para o médico
-   ver de imediato o que está preenchido em vez de ter de clicar
-   card a card. Com `dados` vazio/null devolve o estado em branco
+   consulta antiga). Os valores existentes aparecem no resumo de cada cartão;
+   o painel de preenchimento só abre quando o médico o selecciona. Com `dados` vazio/null devolve o estado em branco
    de sempre (comportamento igual ao de antes desta função existir). */
 function estadoInicial(dados) {
   const st = {
@@ -86,7 +85,6 @@ function estadoInicial(dados) {
     if (o.chave === 'hipertrofia') { st.hipertrofia = o.valor; st.aberto.add('hipertrofia'); return; }
   });
 
-  if (!st.aberto.size) st.aberto.add('dor'); // nada preenchido — abre o primeiro card, como sempre foi
   return st;
 }
 
@@ -94,6 +92,9 @@ export function initObjetivosCatalogo({ root, initial, onChange } = {}) {
   if (!root) return;
 
   let state = estadoInicial(initial);
+  let expanded = false;
+  let active = null;
+  let activePanel = "";
 
   /* ── Saída {chave, valor, unidade}[] ─────────────────────── */
   function gerarSaida() {
@@ -219,23 +220,27 @@ export function initObjetivosCatalogo({ root, initial, onChange } = {}) {
 
   /* ── Render de um card ────────────────────────────────────── */
   function cardHtml(n, id, titulo, corpoHtml) {
-    const aberto = state.aberto.has(id);
-    return `
-      <div class="sec goc-card">
-        <div class="sec-title goc-card-head" data-toggle="${id}">
-          <div class="num">${n}</div>
-          <span class="goc-card-titulo">${esc(titulo)}</span>
-          <span class="goc-resumo">${esc(resumo(id))}</span>
-          <span class="goc-chev${aberto ? ' aberto' : ''}">›</span>
-        </div>
-        <div class="goc-body${aberto ? '' : ' fechado'}">${corpoHtml}</div>
-      </div>`;
+    const selected = active === id;
+    const summary = resumo(id);
+    if (selected) activePanel = `<div class="goc-edit-panel">
+      <div class="goc-panel-head"><span>${esc(titulo)}</span>
+      <button type="button" class="goc-concluir" data-concluir>Concluir</button></div>
+      <div class="goc-body">${corpoHtml}</div></div>`;
+    return `<button type="button" class="goc-tile${summary !== '—' ? ' preenchido' : ''}"
+      data-toggle="${id}" aria-pressed="${selected}">
+      <span class="goc-card-titulo">${esc(titulo)}</span>
+      <span class="goc-resumo">${esc(summary === '—' ? 'Por definir' : summary)}</span>
+    </button>`;
   }
 
   /* ── Render geral ─────────────────────────────────────────── */
   function render() {
+    activePanel = "";
+    const count = gerarSaida().length;
     root.innerHTML = `
-      <div class="goc-wrap">
+      <details class="goc-disclosure" ${expanded ? 'open' : ''}>
+      <summary style="cursor:pointer;padding:10px 0;font-weight:600;">${count ? `Objectivos registados (${count}) — rever` : 'Definir objectivos (opcional)'}</summary>
+      <div class="goc-wrap goc-grid">
         ${cardHtml(1, 'dor', 'Dor', `
           <div class="gl">Meta de dor (EVA 0–10)</div>
           <div class="eva-btns opts sg">${pillsHtml('dor', Array.from({ length: 11 }, (_, i) => i), state.dor != null ? [state.dor] : [])}</div>
@@ -293,8 +298,9 @@ export function initObjetivosCatalogo({ root, initial, onChange } = {}) {
           <div class="gl">Perímetro alvo (cm)</div>
           <input type="number" class="goc-inp" data-campo="hipertrofia" value="${esc(state.hipertrofia ?? '')}" placeholder="cm" min="0" step="0.1">
         `)}
-      </div>
+      </div>${activePanel}</details>
     `;
+    root.querySelector('details').addEventListener('toggle', e => { expanded = e.currentTarget.open; });
     notificar();
   }
 
@@ -399,10 +405,11 @@ export function initObjetivosCatalogo({ root, initial, onChange } = {}) {
 
   /* ── Delegação de eventos (raiz fixa, sobrevive a re-render) ── */
   root.addEventListener('click', (e) => {
+    if (e.target.closest('[data-concluir]')) { active = null; render(); return; }
     const toggleEl = e.target.closest('[data-toggle]');
     if (toggleEl) {
       const id = toggleEl.getAttribute('data-toggle');
-      if (state.aberto.has(id)) state.aberto.delete(id); else state.aberto.add(id);
+      active = active === id ? null : id;
       render();
       return;
     }
@@ -422,6 +429,8 @@ export function initObjetivosCatalogo({ root, initial, onChange } = {}) {
      em feed-doente.html: uma instância só, conteúdo trocado por baixo. */
   function setObjetivos(dados) {
     state = estadoInicial(dados);
+    expanded = false;
+    active = null;
     render();
   }
 

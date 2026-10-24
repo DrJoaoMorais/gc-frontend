@@ -26,11 +26,17 @@ export function clinicalHTML(html) {
   const allowed = new Set(['P','BR','DIV','UL','OL','LI','STRONG','B','EM','I','U','S','SPAN','H1','H2','H3','H4','BLOCKQUOTE','A','SUB','SUP']);
   [...doc.body.querySelectorAll('*')].reverse().forEach(el => {
     if (!allowed.has(el.tagName)) { el.replaceWith(...el.childNodes); return; }
+    const spacing = [];
+    if (['P','DIV','LI','H1','H2','H3','H4','BLOCKQUOTE'].includes(el.tagName)) {
+      if (['1','1.15','1.5','2'].includes(el.style.lineHeight)) spacing.push(`line-height:${el.style.lineHeight}`);
+      if (['0px','6px','12px','18px'].includes(el.style.marginBottom)) spacing.push(`margin-bottom:${el.style.marginBottom}`);
+    }
     [...el.attributes].forEach(attr => {
       const safeHref = el.tagName === 'A' && attr.name === 'href' && /^(https?:|mailto:)/i.test(attr.value);
       const safeStart = el.tagName === 'OL' && attr.name === 'start' && /^\d+$/.test(attr.value);
       if (!safeHref && !safeStart) el.removeAttribute(attr.name);
     });
+    if (spacing.length) el.setAttribute('style', spacing.join(';'));
   });
   return doc.body.innerHTML;
 }
