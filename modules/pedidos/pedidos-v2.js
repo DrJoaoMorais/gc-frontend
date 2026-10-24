@@ -45,7 +45,7 @@ import { ANALISES_GRUPOS, ANALISES_PERFIS } from "./analises-catalog-v2.js";
 import { buildShellV2, loadClinicById, loadCurrentDoctor, getVinhetaDataUrl } from "../relatorios/v2/_shell/shell-v2.js";
 import { buildPatientCard } from "../relatorios/v2/_components/patient-card.js?v=2026-10-06-seguros-v2";
 
-import { createPdfPages } from "../relatorios/v2/relatorio-consulta/pdf-pages.js";
+import { createPdfPages, countPdfPages } from "../relatorios/v2/relatorio-consulta/pdf-pages.js?v=2026-10-24-exames-count";
 
 const STYLE_ID = "pdv2-styles";
 
@@ -113,6 +113,12 @@ const DOC_EXTRA_CSS = `
   .pdv2-analysis-compact .pdv2-analysis-divider{padding-top:3px;margin-top:3px;}
   .pdv2-analysis-compact .pdv2-analysis-clinical{margin-top:10px;}
   .pdv2-analysis-compact .pdv2-doc-prose{line-height:1.35;}
+
+  .pdv2-exam-doc{font-size:13px;line-height:1.5;overflow-wrap:anywhere;}
+  .pdv2-exam-doc-item{margin:14px 0 20px;}
+  .pdv2-exam-doc-item h2{font-family:inherit;font-size:14px;font-weight:600;color:#0f2d52;margin:0 0 8px;break-after:avoid;page-break-after:avoid;}
+  .pdv2-exam-doc-label{font-size:12px;font-weight:600;margin-bottom:3px;break-after:avoid;page-break-after:avoid;}
+  .pdv2-exam-doc-item p{margin:0;white-space:pre-wrap;orphans:3;widows:3;}
 
 `;
 
@@ -366,6 +372,7 @@ export function mount(container, options = {}) {
       statusMsg: null           // { type: 'info'|'success'|'error', text }
     },
     exames: {
+      view: 'catalogo', category: '', region: '', expanded: false, previewIndex: 0, customOpen: false,
       rows: [],
       loaded: false,
       selected: new Set(),      // exam ids (uuid)
@@ -390,6 +397,15 @@ export function mount(container, options = {}) {
     }
   });
 
+  let examPreview = null;
+  let examPreviewTimer;
+  let examPreviewRevision = 0;
+  let examPdfPages = null;
+  const examPreviewCache = new Map();
+  function disposeExamPreview() {
+    clearTimeout(examPreviewTimer); examPreviewRevision++;
+    examPdfPages?.clear(); examPreview = null; examPreviewCache.clear();
+  }
   let analysisPreview = null;
   let analysisPreviewTimer;
   let analysisPreviewRevision = 0;
@@ -747,25 +763,19 @@ export function mount(container, options = {}) {
      ================================================================ */
 
   function buildExamesQuickHtml() {
-    const cats = EXAM_QUICK_CATEGORIAS.map((c) =>
-      `<button class="pdv2-chip" data-pdv2-examsearch="${escHtml(c)}">${escHtml(c)}</button>`
-    ).join("");
-    const regioes = EXAM_QUICK_REGIOES.map((r) =>
-      `<button class="pdv2-chip" data-pdv2-examsearch="${escHtml(r)}">${escHtml(r)}</button>`
-    ).join("");
-    return `
-      <span class="pdv2-lbl">Perfis</span>
-      ${cats}
-      <span class="pdv2-lbl" style="margin-left:10px;">Região</span>
-      ${regioes}
-      <input class="pdv2-search" type="text" data-pdv2-role="examsearch"
-        placeholder="Pesquisar exame… (RM ombro, eco, RX)" value="${escHtml(state.exames.search)}">
-    `;
+    const e = state.exames;
+    const groups = [...groupExamRows().keys()];
+    return `<div class="pdv2-analysis-nav">
+      <button type="button" data-exam-view="catalogo" aria-pressed="${e.view === 'catalogo'}" class="${e.view === 'catalogo' ? 'pdv2-active' : ''}">Catálogo de exames</button>
+      <button type="button" data-exam-view="selecionados" aria-pressed="${e.view === 'selecionados'}" class="${e.view === 'selecionados' ? 'pdv2-active' : ''}">Selecionados · ${e.selected.size + (e.customExam.name.trim() ? 1 : 0)}</button></div>
+      <input class="pdv2-search" type="search" data-pdv2-role="examsearch" aria-label="Pesquisar qualquer exame" placeholder="Pesquisar exame… (RM joelho, ecografia, RX)" value="${escHtml(e.search)}">
+      <label class="pdv2-category-label">Modalidade<select data-pdv2-role="examcategory"><option value="">Todas</option>${groups.map(label => `<option value="${escHtml(label)}" ${e.category === label ? 'selected' : ''}>${escHtml(label)}</option>`).join('')}</select></label>
+      <div class="pdv2-exam-regions" aria-label="Filtrar por região">${['', ...EXAM_QUICK_REGIOES].map(region => `<button type="button" class="pdv2-chip ${e.region === region ? 'pdv2-chip--active' : ''}" data-exam-region="${escHtml(region)}" aria-pressed="${e.region === region}">${region || 'Todas as regiões'}</button>`).join('')}</div>`;
   }
 
   function groupExamRows() {
     const map = new Map();
-    state.exames.rows.forEach((exam) => {
+    state.exames.rows.forEach(exam => {
       const label = examGroupLabel(exam);
       if (!map.has(label)) map.set(label, []);
       map.get(label).push(exam);
@@ -775,72 +785,45 @@ export function mount(container, options = {}) {
 
   function matchesExamSearch(exam, qNorm) {
     if (!qNorm) return true;
-    const hay = normalizeTxt([exam.exam_name, exam.body_region, exam.category, exam.subcategory].filter(Boolean).join(" "));
-    return hay.includes(qNorm);
+    const category = normalizeTxt(exam.category);
+    const alias = category.includes('ressonancia') ? 'rm rmn' : category.includes('tomografia') ? 'tc tac' : category.includes('radiografia') ? 'rx' : category.includes('ecografia') ? 'eco' : '';
+    const hay = normalizeTxt([exam.exam_name, exam.body_region, exam.category, exam.subcategory, alias].filter(Boolean).join(' '));
+    return qNorm.split(/\s+/).filter(Boolean).every(token => hay.includes(token));
   }
 
   function buildExamesGroupsHtml() {
-    if (!state.exames.loaded) return `<div class="pdv2-vazio">A carregar catálogo de exames…</div>` + buildCustomExamHtml();
-    if (!state.exames.rows.length) return `<div class="pdv2-vazio">Sem exames activos no catálogo.</div>` + buildCustomExamHtml();
-
-    const qNorm = normalizeTxt(state.exames.search.trim());
-    const groups = groupExamRows();
-    let anyGroup = false;
-
-    let html = "";
-    groups.forEach((items, label) => {
-      const filtered = qNorm ? items.filter((e) => matchesExamSearch(e, qNorm)) : items;
-      if (qNorm && filtered.length === 0) return;
-      anyGroup = true;
-      const isOpen = qNorm ? true : state.exames.openGroups.has(label);
-      const selCount = items.reduce((n, e) => n + (state.exames.selected.has(e.id) ? 1 : 0), 0);
-      const itemsHtml = filtered.map((e) => {
-        const checked = state.exames.selected.has(e.id);
-        const infoVal = checked ? (state.exames.clinicalInfoByExam.get(e.id) || "") : "";
-        return `
-          <div class="pdv2-examRow">
-            <label class="pdv2-item">
-              <input type="checkbox" data-pdv2-examid="${escHtml(e.id)}" ${checked ? "checked" : ""}>
-              <span>${escHtml(e.exam_name)}</span>
-            </label>
-            ${checked ? `
-            <textarea class="pdv2-examinfo" data-pdv2-examinfo="${escHtml(e.id)}"
-              placeholder="Informação clínica para este exame…">${escHtml(infoVal)}</textarea>` : ""}
-          </div>`;
-      }).join("");
-      html += `
-        <div class="pdv2-grp ${isOpen ? "pdv2-grp--open" : ""}" data-pdv2-grplabel="${escHtml(label)}">
-          <div class="pdv2-grpHead">
-            <span class="pdv2-nome">${examGroupIcon(label)} ${escHtml(label)} ${selCount ? `<span class="pdv2-badge">${selCount} sel.</span>` : ""}</span>
-            <span class="pdv2-chev">${isOpen ? "▲" : "▼"}</span>
-          </div>
-          <div class="pdv2-grpItems">${itemsHtml}</div>
-        </div>`;
+    const e = state.exames;
+    if (!e.loaded) return '<div class="pdv2-vazio">A carregar catálogo de exames…</div>';
+    const query = normalizeTxt(e.search.trim());
+    const rows = e.rows.filter(exam =>
+      (e.view !== 'selecionados' || e.selected.has(exam.id)) &&
+      (!e.category || examGroupLabel(exam) === e.category) &&
+      (!e.region || normalizeTxt([exam.body_region, exam.exam_name].filter(Boolean).join(' ')).includes(normalizeTxt(e.region))) &&
+      matchesExamSearch(exam, query));
+    const groups = new Map();
+    rows.forEach(exam => {
+      const label = examGroupLabel(exam);
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label).push(exam);
     });
-    return (anyGroup ? html : `<div class="pdv2-vazio">Sem resultados para a pesquisa.</div>`) + buildCustomExamHtml();
+    return [...groups].map(([label, exams]) => `<section class="pdv2-exam-group"><h4>${escHtml(label)}</h4><div class="pdv2-exam-items">${exams.map(exam => {
+      const checked = e.selected.has(exam.id);
+      const info = e.clinicalInfoByExam.get(exam.id) || '';
+      return `<div class="pdv2-examRow ${checked ? 'pdv2-examRow--selected' : ''}"><label class="pdv2-item ${checked ? 'pdv2-item--checked' : ''}"><input type="checkbox" data-pdv2-examid="${escHtml(exam.id)}" ${checked ? 'checked' : ''}><span>${escHtml(exam.exam_name)}</span>${checked ? '<span class="pdv2-analysis-check" aria-hidden="true">✓</span>' : ''}</label>
+        ${checked ? `<label class="pdv2-exam-clinical-label">Informação clínica / motivo deste exame<textarea class="pdv2-examinfo" data-pdv2-examinfo="${escHtml(exam.id)}" aria-label="Informação clínica: ${escHtml(exam.exam_name)}" placeholder="Sintomas, hipótese diagnóstica ou motivo do pedido…">${escHtml(info)}</textarea></label>` : ''}</div>`;
+    }).join('')}</div></section>`).join('') || `<div class="pdv2-vazio">${e.rows.length ? 'Sem exames para estes filtros.' : 'Sem exames ativos no catálogo.'}</div>`;
   }
 
-  /**
-   * buildCustomExamHtml
-   * Bloco fixo "+ Outro exame" no fundo da lista (dentro de .pdv2-colEsq, depois do
-   * último grupo) — texto livre, fora de exams_catalog. Sempre visível, mesmo com
-   * pesquisa activa ou catálogo vazio/a carregar.
-   */
   function buildCustomExamHtml() {
-    const custom = state.exames.customExam;
-    return `
-      <div class="pdv2-customExam">
-        <div class="pdv2-customExamTitle">+ Outro exame</div>
-        <input type="text" class="pdv2-customExamName" data-pdv2-role="customexamname"
-          placeholder="Nome do exame…" value="${escHtml(custom.name)}">
-        <textarea class="pdv2-examinfo" data-pdv2-role="customexaminfo"
-          placeholder="Informação clínica (opcional)…">${escHtml(custom.info)}</textarea>
-      </div>`;
+    const e = state.exames, custom = e.customExam;
+    return `<details class="pdv2-customExam" ${e.customOpen || custom.name || custom.info ? 'open' : ''}><summary>+ Outro exame · texto livre</summary><div class="pdv2-customExam-fields">
+      <label>Nome do exame, incluindo o lado quando aplicável<input type="text" class="pdv2-customExamName" data-pdv2-role="customexamname" placeholder="Nome completo do exame…" value="${escHtml(custom.name)}"></label>
+      <label>Informação clínica / motivo do pedido<textarea class="pdv2-examinfo" data-pdv2-role="customexaminfo" placeholder="Escreve o motivo deste exame…">${escHtml(custom.info)}</textarea></label></div></details>`;
   }
 
   function selectedExamsByGroup() {
     const byGroup = new Map();
-    state.exames.rows.forEach((exam) => {
+    state.exames.rows.forEach(exam => {
       if (!state.exames.selected.has(exam.id)) return;
       const label = examGroupLabel(exam);
       if (!byGroup.has(label)) byGroup.set(label, []);
@@ -849,51 +832,32 @@ export function mount(container, options = {}) {
     return byGroup;
   }
 
-  function buildExamesPillsHtml() {
-    if (!state.exames.selected.size) return `<div class="pdv2-vazio">Sem exames seleccionados.</div>`;
-    const byGroup = selectedExamsByGroup();
-    let html = "";
-    byGroup.forEach((exams, label) => {
-      html += `<div class="pdv2-pillGrp">${escHtml(label)} · 1 PDF</div>`;
-      exams.forEach((e) => {
-        html += `<div class="pdv2-pill"><span class="pdv2-miolo">${escHtml(e.exam_name)}</span><span class="pdv2-x" data-pdv2-removeexamid="${escHtml(e.id)}">×</span></div>`;
-      });
-    });
-    return html;
-  }
-
   function buildExamesDocBodyHtml(examsInGroup) {
-    let html = `<div class="pdv2-doc-section"><ul class="pdv2-doc-list">`;
-    examsInGroup.forEach((e) => {
-      const info = state.exames.clinicalInfoByExam.get(e.id) || "";
-      html += `<li>${escHtml(e.exam_name)}${info ? `<div class="pdv2-clinical-info">${escHtml(info)}</div>` : ""}</li>`;
-    });
-    html += `</ul></div>`;
-    return html;
+    return `<div class="pdv2-exam-doc">${examsInGroup.map(exam => {
+      const info = (state.exames.clinicalInfoByExam.get(exam.id) || '').trim();
+      return `<section class="pdv2-exam-doc-item"><h2>${escHtml(exam.exam_name)}</h2>${info ? `<div class="pdv2-exam-doc-label">Informação clínica / motivo do pedido</div><p>${escHtml(info)}</p>` : ''}</section>`;
+    }).join('')}</div>`;
   }
 
-  /**
-   * buildCustomExamDocBodyHtml
-   * Mesmo padrão de buildExamesDocBodyHtml (nome + info clínica por baixo, se
-   * houver), a partir de state.exames.customExam em vez de uma linha do catálogo.
-   */
   function buildCustomExamDocBodyHtml() {
-    const name = state.exames.customExam.name.trim();
-    const info = state.exames.customExam.info.trim();
-    let html = `<div class="pdv2-doc-section"><ul class="pdv2-doc-list">`;
-    html += `<li>${escHtml(name)}${info ? `<div class="pdv2-clinical-info">${escHtml(info)}</div>` : ""}</li>`;
-    html += `</ul></div>`;
-    return html;
+    const custom = state.exames.customExam;
+    return `<div class="pdv2-exam-doc"><section class="pdv2-exam-doc-item"><h2>${escHtml(custom.name.trim())}</h2>${custom.info.trim() ? `<div class="pdv2-exam-doc-label">Informação clínica / motivo do pedido</div><p>${escHtml(custom.info.trim())}</p>` : ''}</section></div>`;
+  }
+
+  function examEntries() {
+    const entries = [...selectedExamsByGroup()].map(([label, exams]) => ({ label, custom: false, contentHtml: buildExamesDocBodyHtml(exams) }));
+    const custom = state.exames.customExam;
+    if (custom.name.trim()) entries.push({ label: custom.name.trim(), custom: true, contentHtml: buildCustomExamDocBodyHtml() });
+    return entries;
   }
 
   /* ---- PDF: Exames (1 documento por modalidade, em sequência) ---- */
 
   async function onGerarExamesPdf() {
     if (state.exames.generating) return;
-    const byGroup = selectedExamsByGroup();
-    const customName = state.exames.customExam.name.trim();
-    const entries = [...byGroup.entries()].map(([label, exams]) => ({ label, exams, custom: false }));
-    if (customName) entries.push({ label: customName, exams: null, custom: true });
+    const prepared = examPreview;
+    if (!prepared || prepared.key !== examPreviewKey()) return;
+    const entries = prepared.documents;
     if (!entries.length) return;
 
     state.exames.generating = true;
@@ -908,12 +872,8 @@ export function mount(container, options = {}) {
       renderExamesPanel();
 
       try {
-        const fullHtml = await buildFullDocHtml({
-          title: `Pedido de Exame — ${entry.label}`,
-          contentHtml: entry.custom ? buildCustomExamDocBodyHtml() : buildExamesDocBodyHtml(entry.exams),
-          date: state.exames.date
-        });
-        const blob = await renderPdfViaProxy(fullHtml);
+        // Guardar o mesmo PDF que foi revisto, incluindo a informação clínica por exame.
+        const { html: fullHtml, blob } = entry;
         await uploadAndRegisterDocument({
           blob,
           clinicId: state.patient.clinicId,
@@ -962,145 +922,163 @@ export function mount(container, options = {}) {
   }
 
   function buildExamesPanelHtml() {
-    const n = state.exames.selected.size;
-    const nGroups = selectedExamsByGroup().size;
-    const hasCustom = !!state.exames.customExam.name.trim();
-    const nTotal = n + (hasCustom ? 1 : 0);
-    const nGroupsTotal = nGroups + (hasCustom ? 1 : 0);
-    return `
-      <div class="pdv2-quick">${buildExamesQuickHtml()}</div>
-      <div class="pdv2-body">
-        <div class="pdv2-colEsq">${buildExamesGroupsHtml()}</div>
-        <div class="pdv2-colDir">
-          <h3>Pedido actual</h3>
-
-          ${buildIdCardHtml()}
-
-          <div class="pdv2-pills">${buildExamesPillsHtml()}</div>
-
-          <div class="pdv2-miniDoc">
-            <div class="pdv2-mh"><div class="pdv2-logo"></div><div class="pdv2-tit">Pedido de Exame</div></div>
-            <div class="pdv2-corpo"></div>
-            <div class="pdv2-mf"><span>Dr. João Morais · OM 44380</span><span>Vinheta</span></div>
-            <div class="pdv2-cap">Pré-visualização — cabeçalho e rodapé do Relatório V2</div>
-          </div>
-
-          <div class="pdv2-rodape">
-            <div class="pdv2-linha">
-              <input type="date" data-pdv2-role="examdate" style="flex:1;" value="${escHtml(state.exames.date)}">
-            </div>
-            <button class="pdv2-btnPdf" data-pdv2="gerarpdf-exames" ${(state.exames.generating || !nGroupsTotal) ? "disabled" : ""}>${
-              state.exames.generating
-                ? `A gerar PDF ${state.exames.progress.current} de ${state.exames.progress.total} — ${escHtml(state.exames.progress.label)}…`
-                : `Gerar ${nGroupsTotal || 0} PDF${nGroupsTotal === 1 ? "" : "s"} · ${nTotal} exame${nTotal === 1 ? "" : "s"}`
-            }</button>
-            ${renderExamesResultsSummary()}
-            <div class="pdv2-notaPdf">Um PDF por modalidade</div>
-          </div>
-        </div>
-      </div>
-    `;
+    const e = state.exames, entries = examEntries();
+    return `<div class="pdv2-body pdv2-analysis-body pdv2-exams-body ${e.expanded ? 'pdv2-analysis-expanded' : ''}">
+      <section class="pdv2-analysis-catalogue" ${e.generating ? 'inert' : ''}><div class="pdv2-analysis-toolbar">${buildExamesQuickHtml()}</div><div class="pdv2-colEsq">${buildExamesGroupsHtml()}${buildCustomExamHtml()}</div></section>
+      <section class="pdv2-colDir pdv2-analysis-document"><div class="pdv2-analysis-document-head"><h3>Documento · ${entries.length} PDF${entries.length === 1 ? '' : 's'}</h3><button type="button" data-exam-expand>${e.expanded ? 'Voltar à seleção' : 'Ampliar'}</button></div>
+      <div class="pdv2-exam-doc-picker"><label>Pré-visualizar<select data-exam-document aria-label="Documento a pré-visualizar" ${e.generating ? 'disabled' : ''}>${entries.length ? entries.map((entry, i) => `<option value="${i}" ${i === e.previewIndex ? 'selected' : ''}>${i + 1} de ${entries.length} · ${escHtml(entry.label)}</option>`).join('') : '<option>Nenhum exame selecionado</option>'}</select></label></div>
+      <div class="pdv2-analysis-preview-scroll"><div class="pdv2-exam-preview-status" role="status" aria-live="polite"></div><div class="pdv2-exam-pdf-pages" hidden></div><button type="button" class="pdv2-analysis-retry" data-exam-retry hidden>Voltar a tentar a pré-visualização</button></div>
+      <div class="pdv2-rodape"><div class="pdv2-analysis-actions"><label>Data do pedido<input type="date" data-pdv2-role="examdate" aria-label="Data do pedido de exames" value="${escHtml(e.date)}" ${e.generating ? 'disabled' : ''}></label><button type="button" data-exam-clear ${e.generating ? 'disabled' : ''}>Limpar seleção</button></div>
+      <button class="pdv2-btnPdf" data-pdv2="gerarpdf-exames" disabled>${e.generating ? `A guardar PDF ${e.progress?.current || 0} de ${e.progress?.total || entries.length}…` : 'A preparar pré-visualização…'}</button><div class="pdv2-exam-results">${renderExamesResultsSummary()}</div><div class="pdv2-notaPdf">Um PDF por modalidade. Outro exame origina um documento separado.</div></div></section></div>`;
   }
 
   function bindExamesPanelEvents(panel) {
-    panel.querySelectorAll("[data-pdv2-examsearch]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        state.exames.search = btn.dataset.pdv2Examsearch;
-        renderExamesPanel();
-      });
+    panel.querySelectorAll('[data-exam-view]').forEach(button => button.addEventListener('click', () => {
+      state.exames.view = button.dataset.examView;
+      state.exames.search = ''; state.exames.category = ''; state.exames.region = '';
+      renderExamesPanel();
+    }));
+    panel.querySelectorAll('[data-exam-region]').forEach(button => button.addEventListener('click', () => {
+      state.exames.region = button.dataset.examRegion;
+      renderExamesPanel();
+    }));
+    panel.querySelector('[data-pdv2-role="examcategory"]')?.addEventListener('change', e => {
+      state.exames.category = e.target.value; renderExamesPanel();
     });
-
-    panel.querySelectorAll(".pdv2-grpHead").forEach((head) => {
-      head.addEventListener("click", () => {
-        const grpEl = head.closest(".pdv2-grp");
-        if (!grpEl) return;
-        const nowOpen = grpEl.classList.toggle("pdv2-grp--open");
-        const label = grpEl.dataset.pdv2Grplabel;
-        if (nowOpen) state.exames.openGroups.add(label); else state.exames.openGroups.delete(label);
-        const chev = head.querySelector(".pdv2-chev");
-        if (chev) chev.textContent = nowOpen ? "▲" : "▼";
-      });
+    panel.querySelectorAll('[data-pdv2-examid]').forEach(input => input.addEventListener('change', () => {
+      const id = input.dataset.pdv2Examid;
+      state.exames.lastRun = null;
+      panel.querySelector(".pdv2-exam-results")?.replaceChildren();
+      if (input.checked) state.exames.selected.add(id);
+      else state.exames.selected.delete(id);
+      // Conservar o texto no estado da sessão para permitir desfazer uma remoção.
+      renderExamesPanel();
+    }));
+    panel.querySelectorAll('[data-pdv2-examinfo]').forEach(input => input.addEventListener('input', () => {
+      state.exames.lastRun = null;
+      panel.querySelector(".pdv2-exam-results")?.replaceChildren();
+      state.exames.clinicalInfoByExam.set(input.dataset.pdv2Examinfo, input.value);
+      scheduleExamesPreview(panel);
+    }));
+    panel.querySelector('[data-pdv2-role="examsearch"]')?.addEventListener('input', e => {
+      state.exames.search = e.target.value; renderExamesPanel({ preserveFocus: 'examsearch' });
     });
+    panel.querySelector('[data-pdv2-role="examdate"]')?.addEventListener('input', e => {
+      state.exames.lastRun = null;
+      panel.querySelector(".pdv2-exam-results")?.replaceChildren();
+      state.exames.date = e.target.value; scheduleExamesPreview(panel);
+    });
+    panel.querySelector('.pdv2-customExam')?.addEventListener('toggle', e => { state.exames.customOpen = e.target.open; });
+    panel.querySelector('[data-pdv2-role="customexamname"]')?.addEventListener('input', e => {
+      state.exames.lastRun = null;
+      panel.querySelector(".pdv2-exam-results")?.replaceChildren();
+      state.exames.customExam.name = e.target.value; renderExamesPanel({ preserveFocus: 'customexamname' });
+    });
+    panel.querySelector('[data-pdv2-role="customexaminfo"]')?.addEventListener('input', e => {
+      state.exames.lastRun = null;
+      panel.querySelector(".pdv2-exam-results")?.replaceChildren();
+      state.exames.customExam.info = e.target.value; scheduleExamesPreview(panel);
+    });
+    panel.querySelector('[data-exam-document]')?.addEventListener('change', e => {
+      state.exames.previewIndex = Number(e.target.value); scheduleExamesPreview(panel);
+    });
+    panel.querySelector('[data-exam-expand]')?.addEventListener('click', () => {
+      state.exames.expanded = !state.exames.expanded; renderExamesPanel();
+    });
+    panel.querySelector('[data-exam-clear]')?.addEventListener('click', () => {
+      state.exames.selected.clear(); state.exames.clinicalInfoByExam.clear();
+      state.exames.customExam = { name: '', info: '' }; state.exames.lastRun = null;
+      state.exames.previewIndex = 0; renderExamesPanel();
+    });
+    panel.querySelector('[data-exam-retry]')?.addEventListener('click', () => scheduleExamesPreview(panel, true));
+    panel.querySelector('[data-pdv2="gerarpdf-exames"]')?.addEventListener('click', onGerarExamesPdf);
+    panel.querySelectorAll('[data-pdv2-openurl]').forEach(button => button.addEventListener('click', () => window.open(button.dataset.pdv2Openurl, '_blank')));
+  }
 
-    panel.querySelectorAll(".pdv2-item input[data-pdv2-examid]").forEach((cb) => {
-      cb.addEventListener("change", () => {
-        const id = cb.dataset.pdv2Examid;
-        if (cb.checked) {
-          state.exames.selected.add(id);
-        } else {
-          state.exames.selected.delete(id);
-          state.exames.clinicalInfoByExam.delete(id);
+  function examPreviewKey(entries = examEntries()) {
+    return JSON.stringify({ entries, date: state.exames.date, patient: state.patient.raw,
+      clinicId: state.patient.clinicId, ready: state.pdfAssets.loaded });
+  }
+
+  function scheduleExamesPreview(panel, force = false) {
+    if (!panel || panel.style.display === 'none') return;
+    clearTimeout(examPreviewTimer);
+    const revision = ++examPreviewRevision;
+    examPdfPages?.clear();
+    examPdfPages = createPdfPages(panel.querySelector('.pdv2-exam-pdf-pages'));
+    const renderer = examPdfPages, entries = examEntries(), key = examPreviewKey(entries);
+    const status = panel.querySelector('.pdv2-exam-preview-status');
+    const retry = panel.querySelector('[data-exam-retry]');
+    const button = panel.querySelector('[data-pdv2="gerarpdf-exames"]');
+    retry.hidden = true; button.disabled = true;
+    if (force || examPreview?.key !== key) examPreview = null;
+    if (!entries.length) { examPreviewCache.clear(); status.textContent = 'Seleciona exames para veres o documento.'; button.textContent = 'Emitir pedidos'; return; }
+    if (!state.exames.date) { status.textContent = 'Indica a data do pedido.'; return; }
+    if (state.patient.status !== 'ready' || !state.patient.raw || !state.patient.clinicId) {
+      status.textContent = state.patient.status === 'error' ? 'Não foi possível carregar os dados do doente.' : 'A carregar os dados do documento…'; return;
+    }
+    status.textContent = 'A preparar os PDFs reais…';
+    if (!state.exames.generating) button.textContent = 'A preparar pré-visualização…';
+    examPreviewTimer = setTimeout(async () => {
+      const current = () => revision === examPreviewRevision && panel.isConnected;
+      try {
+        let result = examPreview;
+        if (!result) {
+          const documents = [];
+          for (let i = 0; i < entries.length; i++) {
+            status.textContent = `A preparar PDF ${i + 1} de ${entries.length} · ${entries[i].label}…`;
+            const html = await buildFullDocHtml({ title: `Pedido de Exame — ${entries[i].label}`, contentHtml: entries[i].contentHtml, date: state.exames.date });
+            if (!current()) return;
+            const cached = examPreviewCache.get(html);
+            const blob = cached?.blob || await renderPdfViaProxy(html);
+            if (!current()) return;
+            const count = cached?.count || await countPdfPages(blob);
+            if (!current()) return;
+            // Guardar só documentos da sessão atual. Nenhum registo é criado nesta fase.
+            examPreviewCache.set(html, { blob, count });
+            documents.push({ ...entries[i], html, blob, count });
+          }
+          result = { key, documents }; examPreview = result;
+          const activeHtml = new Set(documents.map(d => d.html));
+          for (const html of examPreviewCache.keys()) if (!activeHtml.has(html)) examPreviewCache.delete(html);
         }
-        renderExamesPanel();
-      });
-    });
-
-    panel.querySelectorAll("[data-pdv2-removeexamid]").forEach((x) => {
-      x.addEventListener("click", () => {
-        const id = x.dataset.pdv2Removeexamid;
-        state.exames.selected.delete(id);
-        state.exames.clinicalInfoByExam.delete(id);
-        renderExamesPanel();
-      });
-    });
-
-    panel.querySelectorAll("textarea[data-pdv2-examinfo]").forEach((ta) => {
-      ta.addEventListener("input", () => {
-        const id = ta.dataset.pdv2Examinfo;
-        const val = ta.value;
-        if (val) state.exames.clinicalInfoByExam.set(id, val); else state.exames.clinicalInfoByExam.delete(id);
-      });
-    });
-
-    const searchEl = panel.querySelector('[data-pdv2-role="examsearch"]');
-    searchEl?.addEventListener("input", (e) => {
-      state.exames.search = e.target.value;
-      renderExamesPanel({ preserveFocus: "examsearch" });
-    });
-
-    panel.querySelector('[data-pdv2-role="examdate"]')?.addEventListener("input", (e) => {
-      state.exames.date = e.target.value;
-    });
-
-    panel.querySelector('[data-pdv2-role="customexamname"]')?.addEventListener("input", (e) => {
-      state.exames.customExam.name = e.target.value;
-      renderExamesPanel({ preserveFocus: "customexamname" });
-    });
-
-    panel.querySelector('[data-pdv2-role="customexaminfo"]')?.addEventListener("input", (e) => {
-      state.exames.customExam.info = e.target.value;
-    });
-
-    panel.querySelector('[data-pdv2="gerarpdf-exames"]')?.addEventListener("click", onGerarExamesPdf);
-    panel.querySelectorAll("[data-pdv2-openurl]").forEach((b) => {
-      b.addEventListener("click", () => window.open(b.dataset.pdv2Openurl, "_blank"));
-    });
+        const index = Math.min(state.exames.previewIndex, result.documents.length - 1);
+        state.exames.previewIndex = index;
+        panel.querySelector('[data-exam-document]').value = String(index);
+        const active = result.documents[index];
+        await renderer.show(active.blob);
+        if (!current()) return;
+        const warning = active.count > 1 ? ' · O conteúdo excede uma página; revê o pedido ou emite com estas páginas.' : '';
+        status.textContent = `${index + 1} de ${result.documents.length} PDFs · ${active.count} ${active.count === 1 ? 'página' : 'páginas'}${warning}`;
+        const totalPages = result.documents.reduce((sum, d) => sum + d.count, 0);
+        button.textContent = state.exames.generating ? `A guardar PDF ${state.exames.progress?.current || 0} de ${state.exames.progress?.total}…` : `Emitir ${result.documents.length} pedido${result.documents.length === 1 ? '' : 's'} · ${totalPages} ${totalPages === 1 ? 'página' : 'páginas'}`;
+        button.disabled = state.exames.generating;
+      } catch (error) {
+        if (!current()) return;
+        examPreview = null; status.textContent = 'Não foi possível preparar o PDF: ' + (error?.message || error);
+        retry.hidden = false; button.textContent = 'Pré-visualização indisponível';
+      }
+    }, examPreview ? 0 : 650);
   }
 
   function renderExamesPanel(opts = {}) {
     const panel = container.querySelector('[data-pdv2-panel="exames"]');
     if (!panel) return;
-
     let focusInfo = null;
     if (opts.preserveFocus) {
-      const el = panel.querySelector(`[data-pdv2-role="${opts.preserveFocus}"]`);
-      if (el && document.activeElement === el) {
-        focusInfo = { role: opts.preserveFocus, start: el.selectionStart, end: el.selectionEnd };
-      }
+      const input = panel.querySelector(`[data-pdv2-role="${opts.preserveFocus}"]`);
+      if (input && document.activeElement === input) focusInfo = { start: input.selectionStart, end: input.selectionEnd };
     }
-    const scrollTop = panel.querySelector(".pdv2-colEsq")?.scrollTop ?? 0;
-
-    panel.innerHTML = buildExamesPanelHtml();
-    bindExamesPanelEvents(panel);
-
+    const scrollTop = panel.querySelector('.pdv2-colEsq')?.scrollTop || 0;
+    const entries = examEntries();
+    state.exames.previewIndex = Math.max(0, Math.min(state.exames.previewIndex, entries.length - 1));
+    panel.innerHTML = buildExamesPanelHtml(); bindExamesPanelEvents(panel);
+    panel.querySelector('.pdv2-colEsq').scrollTop = scrollTop;
     if (focusInfo) {
-      const el = panel.querySelector(`[data-pdv2-role="${focusInfo.role}"]`);
-      if (el) { el.focus(); el.setSelectionRange?.(focusInfo.start, focusInfo.end); }
+      const input = panel.querySelector(`[data-pdv2-role="${opts.preserveFocus}"]`);
+      input.focus(); input.setSelectionRange?.(focusInfo.start, focusInfo.end);
     }
-    const colEsq = panel.querySelector(".pdv2-colEsq");
-    if (colEsq) colEsq.scrollTop = scrollTop;
-
-    updateTabBadges();
+    updateTabBadges(); scheduleExamesPreview(panel);
   }
 
   /* ================================================================
@@ -1111,7 +1089,7 @@ export function mount(container, options = {}) {
     const nA = container.querySelector('[data-pdv2-tab="analises"] .pdv2-n');
     const nE = container.querySelector('[data-pdv2-tab="exames"] .pdv2-n');
     if (nA) nA.textContent = String(state.analises.selected.size);
-    if (nE) nE.textContent = String(state.exames.selected.size);
+    if (nE) nE.textContent = String(state.exames.selected.size + (state.exames.customExam.name.trim() ? 1 : 0));
   }
 
   function renderPatientHeader() {
@@ -1151,6 +1129,7 @@ export function mount(container, options = {}) {
   const tabs = container.querySelectorAll("[data-pdv2-tab]");
   const onTabClick = (e) => {
     const alvo = e.currentTarget.dataset.pdv2Tab;
+    if (alvo !== 'exames') { clearTimeout(examPreviewTimer); examPreviewRevision++; }
     if (alvo !== 'analises') { clearTimeout(analysisPreviewTimer); analysisPreviewRevision++; }
     tabs.forEach((t) => t.classList.toggle("pdv2-tab--on", t === e.currentTarget));
     container.querySelectorAll("[data-pdv2-panel]").forEach((p) => {
@@ -1158,6 +1137,7 @@ export function mount(container, options = {}) {
       p.style.display = isAlvo ? "flex" : "none";
       p.classList.toggle("pdv2-tabpanel--on", isAlvo);
     });
+    if (alvo === 'exames') scheduleExamesPreview(container.querySelector('[data-pdv2-panel="exames"]'));
     if (alvo === "analises") scheduleAnalisesPreview(container.querySelector('[data-pdv2-panel="analises"]'));
   };
   tabs.forEach((t) => t.addEventListener("click", onTabClick));
@@ -1171,7 +1151,7 @@ export function mount(container, options = {}) {
   };
   container.querySelector('[data-pdv2="fechar"]')?.addEventListener("click", onFechar);
 
-  container.__pdv2State = { onDocClick, disposeAnalysisPreview };
+  container.__pdv2State = { onDocClick, disposeAnalysisPreview, disposeExamPreview };
 
   /* ---- renderização inicial + carregamento assíncrono (exames + doente) ---- */
   renderAnalisesPanel();
@@ -1193,6 +1173,7 @@ export function unmount(container) {
   const state = container.__pdv2State;
   if (state?.onDocClick) document.removeEventListener("click", state.onDocClick);
   state?.disposeAnalysisPreview?.();
+  state?.disposeExamPreview?.();
   container.__pdv2State = null;
   container.innerHTML = "";
   removeStyles();
@@ -1369,5 +1350,38 @@ const CSS = `
  .pdv2-analysis-expanded .pdv2-analysis-document{height:100%;}
 }
 @media(max-width:440px){.pdv2-analysis-items{grid-template-columns:1fr;}.pdv2-overlay{padding:5px;}.pdv2-head{padding:10px;gap:8px;}.pdv2-doente{font-size:11px;}.pdv2-analysis-nav button{font-size:11px;padding:6px;}}
+
+/* Exames: lateralidade já explícita no catálogo, motivo por exame e PDF real. */
+.pdv2-exam-regions{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;}
+.pdv2-exam-regions .pdv2-chip{font-size:11.5px;padding:5px 8px;border-radius:6px;font-weight:500;}
+.pdv2-exam-regions .pdv2-chip--active:hover{background:var(--navy);color:#fff;}
+.pdv2-exam-group h4{font-size:12px;font-weight:600;color:var(--navy);margin:0 0 6px;padding:10px 4px 7px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;z-index:1;}
+.pdv2-exam-group{margin-bottom:10px;}
+.pdv2-exam-items{display:grid;grid-template-columns:1fr 1fr;gap:6px;align-items:start;}
+.pdv2-examRow{min-width:0;border-radius:7px;}
+.pdv2-examRow--selected{background:var(--ok-soft);}
+.pdv2-exam-items .pdv2-item{font-size:12px;padding:9px 7px;min-height:40px;}
+.pdv2-exam-items .pdv2-item--checked{color:var(--navy);}
+.pdv2-exam-items .pdv2-item span{overflow-wrap:anywhere;}
+.pdv2-exam-clinical-label{display:block;padding:0 8px 8px;font-size:11px;color:var(--navy);}
+.pdv2-exam-clinical-label .pdv2-examinfo{margin:5px 0 0;min-height:66px;width:100%;font-size:12px;}
+.pdv2-exams-body .pdv2-customExam{margin-top:12px;}
+.pdv2-customExam summary{font-size:12px;color:var(--navy);font-weight:600;cursor:pointer;padding:4px 0;}
+.pdv2-customExam-fields{padding-top:8px;}
+.pdv2-customExam-fields label{display:block;font-size:11px;color:var(--mut);margin-bottom:6px;}
+.pdv2-customExam-fields input{margin-top:5px;}
+.pdv2-customExam-fields textarea{font-size:12px;}
+.pdv2-exam-doc-picker{padding:4px 14px 12px;background:#fff;flex-shrink:0;}
+.pdv2-exam-doc-picker label{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--mut);}
+.pdv2-exam-doc-picker select{min-width:0;flex:1;max-width:100%;font:inherit;font-size:12px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:var(--ink);}
+.pdv2-exam-preview-status{font-size:12px;line-height:1.5;color:var(--navy);padding:0 2px 8px;}
+.pdv2-exam-pdf-pages .gcv2-rc-pdf-count{font-size:11px;color:var(--mut);padding-bottom:8px;}
+.pdv2-exam-pdf-pages figure{margin:0 0 14px;}
+.pdv2-exam-pdf-pages figcaption{font-size:11px;color:var(--mut);margin-bottom:5px;}
+.pdv2-exam-pdf-pages canvas{display:block;width:100%;height:auto;box-shadow:0 2px 8px #0f2d521a;background:#fff;}
+.pdv2-analysis-expanded .pdv2-exam-pdf-pages{max-width:820px;margin:0 auto;}
+.pdv2-exams-body .pdv2-rodape{max-height:35%;overflow-y:auto;}
+.pdv2-exams-body .pdv2-docresult{font-size:11px;padding:4px 8px;}
+@media(max-width:500px){.pdv2-exam-items{grid-template-columns:1fr;}}
 
 `;

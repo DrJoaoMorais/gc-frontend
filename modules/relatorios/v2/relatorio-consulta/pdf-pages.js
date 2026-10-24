@@ -57,3 +57,13 @@ export function createPdfPages(host) {
     },
   };
 }
+
+// Contar sem desenhar páginas intermédias ao preparar pedidos de várias modalidades.
+export async function countPdfPages(blob) {
+  library ||= import('https://cdn.jsdelivr.net/npm/pdfjs-dist@6.4.299/build/pdf.mjs').catch(error => { library = null; throw error; });
+  const pdfjs = await library;
+  pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.4.299/build/pdf.worker.mjs';
+  const task = pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()), isEvalSupported: false });
+  try { return (await task.promise).numPages; }
+  finally { await task.destroy().catch(() => {}); }
+}
