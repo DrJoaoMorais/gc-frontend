@@ -1,3 +1,4 @@
+import { isMobileGC } from './mobile.js';
 import { refreshAgendaMessages } from './agenda-messages.js?v=2026-10-06-agenda-messages-v1';
 import { mountClinicPicker, normalizeClinicIds } from './clinic-picker.js';
 import { assertNoBlock } from './agenda-disponibilidade.js';
@@ -698,7 +699,7 @@ export function renderQuickPatientResults(results) {
     if (hostNow) hostNow.style.display = "none";
 
     try {
-      if (G.currentView === "doentes" && typeof window.__gc_renderDoentePanorama === "function") {
+      if (!isMobileGC() && G.currentView === "doentes" && typeof window.__gc_renderDoentePanorama === "function") {
         G.currentView = "doente-panorama";
         G._panoramaPatientId = pid;
         if (typeof window.__gc_renderCurrentView === "function") await window.__gc_renderCurrentView();

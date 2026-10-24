@@ -1,3 +1,5 @@
+import { isMobileGC } from '../../../mobile.js';
+import { openMobilePdf } from '../../../mobile-pdf.js';
 import { buildDoctorSignature } from "../../_shared/doctor-signature.js";
 
 /**
@@ -222,6 +224,9 @@ export function buildFriendlyFileName(tipo, patientFullName, dateIso, documentId
 }
 
 export function openAndDownloadPdf(blob, fileName) {
+  if (isMobileGC()) {
+    return openMobilePdf({ name: fileName, load: async () => blob });
+  }
   const file = new File([blob], fileName, { type: 'application/pdf' });
   const url = URL.createObjectURL(file);
   window.open(url, '_blank');

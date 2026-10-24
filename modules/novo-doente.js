@@ -1,3 +1,4 @@
+import { isMobileGC } from './mobile.js';
 import { stylePatient } from './marcacao-visual.js';
 import { UI } from "./config.js";
 import { G } from "./state.js";
@@ -309,6 +310,8 @@ function openNewPatientMainModal({
 
     if (typeof onCreated === "function") {
       await onCreated({ patientId: selected.id, patient: selected, existing: true });
+    } else if (isMobileGC() && typeof window.__gc_openFeedPanel === 'function') {
+      window.__gc_openFeedPanel(selected.id, clinicId);
     } else if (typeof window.__gc_openApptModal === "function") {
       window.__gc_openApptModal({
         mode: "new",
@@ -459,6 +462,8 @@ function openNewPatientMainModal({
 
         if (typeof onCreated === "function") {
           await onCreated({ patientId: newPatientId, patient: minimal });
+        } else if (isMobileGC() && typeof window.__gc_openFeedPanel === 'function') {
+          window.__gc_openFeedPanel(newPatientId, clinicId);
         } else if (typeof window.__gc_openApptModal === "function") {
           window.__gc_openApptModal({
             mode: "new",

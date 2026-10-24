@@ -1,3 +1,4 @@
+import { canLeaveClinicalPanel } from './mobile.js';
 import { G } from './state.js';
 import { canAccessExercise } from './exercicio/permissoes.js';
 
@@ -10,8 +11,7 @@ import { canAccessExercise } from './exercicio/permissoes.js';
 
 
 function allowCareNavigation() {
-  const frame = document.getElementById('gcFeedPanelIframe');
-  return frame?.contentWindow?.__gc_canLeaveCare?.() !== false;
+  return canLeaveClinicalPanel();
 }
 
 function selectPanelNavigation(view) {
@@ -64,6 +64,13 @@ export function openFeedPanel(patientId, sessionClinicId, options = {}) {
 
   if (options.fromCare) selectPanelNavigation("doentes");
   content.scrollTop = 0;
+  document.querySelectorAll('.gc-mobile-nav button').forEach(button => {
+    const active = button.dataset.nav === 'doentes';
+    button.classList.toggle('active', active);
+    if (active) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  });
+  iframe.title = 'Processo clínico do doente';
   iframe.src = `${FEED_DOENTE_URL}?${params.toString()}`;
   return iframe;
 }

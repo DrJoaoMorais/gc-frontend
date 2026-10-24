@@ -38,7 +38,7 @@ import { searchPatientsScoped }             from "./modules/db.js";
 import {
   renderAppShell,
   hydrateShellHeader
-}                                           from "./modules/shell.js?v=2026-10-06-agenda-messages-v1";
+}                                           from "./modules/shell.js?v=20261024-iphone";
 
 // Agenda
 import {
@@ -46,7 +46,7 @@ import {
   refreshAgenda,
   openApptModal,
   renderClinicsSelect
-}                                           from "./modules/agenda.js?v=2026-10-06-agenda-messages-v1";
+}                                           from "./modules/agenda.js?v=20261024-iphone";
 
 // Doente
 import { abrirFichaDoente } from "./modules/abrir-doente.js?v=2026-10-08-pdf-nomes";
@@ -97,7 +97,7 @@ import { renderDoentePanorama } from "./modules/doente-admin.js";
 window.__gc_renderDoentePanorama = renderDoentePanorama;
 
 // Painel iframe do feed do doente (Passo 2/6 — isolado, sem ligação à agenda)
-import { openFeedPanel, openAcompanhamentoPanel, openAcompanhamentoList } from "./modules/feed-panel.js?v=2026-09-28-care-summary";
+import { openFeedPanel, openAcompanhamentoPanel, openAcompanhamentoList } from "./modules/feed-panel.js?v=20261024-iphone";
 window.__gc_openFeedPanel = openFeedPanel;
 window.__gc_openAcompanhamentoPanel = openAcompanhamentoPanel;
 window.__gc_openAcompanhamentoList = openAcompanhamentoList;
@@ -106,7 +106,7 @@ window.__gc_openAcompanhamentoList = openAcompanhamentoList;
 import "./modules/relatorio-v2-bridge.js?v=2026-10-08-pdf-nomes";
 
 // Boot
-import { boot }                             from "./modules/boot.js?v=20261009-listas";
+import { boot }                             from "./modules/boot.js?v=20261024-iphone";
 
 /* ── pontes window.__gc_* ────────────────────────────────────────────── */
 /*

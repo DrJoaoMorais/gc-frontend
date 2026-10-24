@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Feed do Doente — GC</title>
+  <link id="gcMobileStyles" rel="stylesheet" href="/modules/mobile.css?v=20261024-iphone">
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" />
@@ -745,6 +746,7 @@
 
   <!-- BARRA DE ACÇÃO: Nova Consulta + nota da marcação -->
   <div class="fd-acao-bar">
+    <button type="button" class="gc-mobile-more-trigger" id="fd-mobile-options" aria-expanded="false" aria-controls="fd-mobile-sidebar">Opções</button>
     <div class="fd-nova-caixa">
       <button class="fd-btn-nova fd-btn-nova-trigger" id="fd-btn-nova">+ Nova Consulta</button>
       <button class="fd-btn-nova fd-btn-ter" id="fd-btn-ter" hidden>+ Registo de Fisioterapia</button>
@@ -775,7 +777,7 @@
   <div class="fd-layout">
 
     <!-- SIDEBAR -->
-    <div class="fd-sb">
+    <div class="fd-sb" id="fd-mobile-sidebar">
 
       <div id="fd-sec-meios">
         <div class="fd-sb-titulo">Meios Complementares</div>
@@ -1064,6 +1066,9 @@
   </div><!-- /fd-layout -->
 
   <script type="module">
+    import { isMobileGC } from '../../../mobile.js';
+    import { openMobilePdf } from '../../../mobile-pdf.js';
+    import { installConsultationGuard } from '../../../consultation-guard.js';
     import { clinicalHTML, editorHTML, loadClinicalHTML } from "../../../clinical-editor/content.js";
     import { enhanceClinicalEditor } from "../../../clinical-editor/editor.js?v=2026-10-24-espacamento";
     import { mountAssistantPanel } from "../../../clinical-editor/assistant-panel.js?v=2026-10-06-assistente-bloqueado";
@@ -2136,6 +2141,13 @@
       });
     }
 
+    document.getElementById('fd-mobile-options')?.addEventListener('click', event => {
+      const sidebar = document.getElementById('fd-mobile-sidebar');
+      const open = sidebar.classList.toggle('gc-mobile-open');
+      event.currentTarget.setAttribute('aria-expanded', String(open));
+      if (open) sidebar.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+
     // Resolve a temporary URL only when the authenticated user opens a document.
     document.addEventListener('click', async (event) => {
       const link = event.target.closest?.('a[data-private-pdf]');
@@ -2143,6 +2155,14 @@
       event.preventDefault();
       const path = link.dataset.privatePdf;
       if (!path) { alert('Este documento não tem ficheiro associado.'); return; }
+      if (isMobileGC()) {
+        openMobilePdf({ name: link.dataset.downloadName || 'Consulta.pdf', load: async () => {
+          const { data, error } = await window.sb.storage.from('documents').download(path);
+          if (error || !data) throw new Error('access');
+          return data;
+        }});
+        return;
+      }
       const preview = window.open('about:blank', '_blank');
       if (preview) preview.opener = null;
       try {
@@ -3236,6 +3256,15 @@
       if (aviso) aviso.style.display = 'none';
     }
 
+    const fdGuard = installConsultationGuard(() => JSON.stringify({
+      hda: fdQuill ? editorHTML(fdQuill) : '',
+      diagnoses: fdDiagSelecionados,
+      treatments: fdTreatSelecionados,
+      objectives: fdObjetivos?.getObjetivos() || [],
+      total: document.getElementById('fd-sessoes-total')?.value,
+      weekly: document.getElementById('fd-sessoes-semana')?.value,
+    }), () => !!fdRascunhoId);
+
     /* ── gravar nova consulta ── */
     async function fdGravar() {
       const sb = window.sb;
@@ -3301,6 +3330,7 @@
           if (tErr) throw tErr;
         }
 
+        fdGuard.reset();
         fdDiz('Gravado ✓', 'var(--verde)');
         fdModoEdicao = false;
         const tituloEl = document.getElementById('fd-form-titulo');
@@ -3411,6 +3441,7 @@
           if (t) t.textContent = 'Nova Consulta';
         });
 
+        fdGuard.reset();
         fdDiz('', '');
       } catch(e) {
         fdDiz('Erro ao carregar: ' + (e.message || e), 'var(--vermelho)');
@@ -3461,6 +3492,7 @@
       fdBindDiag();
       fdBindTreat();
       fdAtualizarTextoR();
+      fdGuard.reset();
 
       /* criar rascunho imediatamente (ou reutilizar um já existente e vazio) */
       try {

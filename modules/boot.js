@@ -17,7 +17,7 @@ import { fetchProcedureTypes, loadAppointmentsForRange } from "./db.js";
 import {
   renderAppShell,
   hydrateShellHeader
-}                                          from "./shell.js?v=2026-10-06-agenda-messages-v1";
+}                                          from "./shell.js?v=20261024-iphone";
 import {
   setHomeDashboardConsultasHoje,
   setHomeDashboardPedidosOnline,
@@ -36,12 +36,12 @@ import {
   setAgendaSubtitleForSelectedDay,
   refreshAgenda,
   renderClinicsSelect
-}                                          from "./agenda.js?v=2026-10-06-agenda-messages-v1";
-import { openApptModal }                   from "./agenda.js?v=2026-10-06-agenda-messages-v1";
+}                                          from "./agenda.js?v=20261024-iphone";
+import { openApptModal }                   from "./agenda.js?v=20261024-iphone";
 import { openNewPatientMainModal }         from "./novo-doente.js";
 import { openClinicalDiary }               from "./diario-clinico.js";
 import { wireQuickPatientSearch }                      from "./pesquisa.js";
-import { openCalendarOverlay, openWeekView }           from "./agenda.js?v=2026-10-06-agenda-messages-v1";
+import { openCalendarOverlay, openWeekView }           from "./agenda.js?v=20261024-iphone";
 import { wireLogout, ensureAAL2, __gcForceSessionLock, __gcIsAuthError, __gcSessionLockActive } from "./session.js";
 import { fmtDateISO, isoLocalDayRangeFromISODate } from "./helpers.js";
 import { renderDoentePanorama } from "./doente-admin.js";
@@ -293,6 +293,18 @@ async function renderCurrentView() {
 
   /* Vista Doentes — wirar pesquisa */
   if (view === "doentes") {
+    renderClinicsSelect(G.clinics);
+    const patientClinic = document.getElementById('selClinic');
+    if (!G.activeClinicId && G.clinics?.length === 1) patientClinic.value = G.clinics[0].id;
+    patientClinic?.addEventListener('change', () => {
+      G.activeClinicId = patientClinic.value || null;
+      const input = document.getElementById('pQuickQuery');
+      input.value = '';
+      input.dispatchEvent(new Event('input'));
+      const results = document.getElementById('pQuickResults');
+      results.innerHTML = '';
+      results.style.display = 'none';
+    });
     await wireQuickPatientSearch();
     const btnNewPatDt = document.getElementById("btnNewPatientMain");
     if (btnNewPatDt) {

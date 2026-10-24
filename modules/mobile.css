@@ -1,0 +1,92 @@
+/* Shared iPhone layout. Desktop rules and print layouts remain authoritative. */
+.gc-mobile-nav,.gc-mobile-more-trigger{display:none}
+.gc-mobile-more{border:1px solid #d6e0eb;border-radius:18px;padding:18px;max-width:420px;width:calc(100% - 24px);max-height:80dvh;overflow:auto;color:#0f2d52;background:#fff}
+.gc-mobile-more::backdrop{background:#0f2d5280}
+.gc-mobile-more header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.gc-mobile-more button{font:inherit;min-height:44px;padding:10px;border:1px solid #d6e0eb;border-radius:9px;background:#fff;color:#0f2d52}
+.gc-mobile-more [data-nav]{width:100%;display:flex;align-items:center;gap:12px;margin:8px 0;text-align:left}
+.gc-pdf-viewer{border:0;border-radius:14px;padding:16px;width:min(900px,calc(100% - 20px));max-height:94dvh;overflow:auto;color:#0f2d52;background:#fff}
+.gc-pdf-viewer::backdrop{background:#0f2d5299}
+.gc-pdf-viewer header,.gc-pdf-viewer footer{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.gc-pdf-viewer header strong{flex:1;min-width:0;overflow-wrap:anywhere}
+.gc-pdf-viewer button,.gc-pdf-viewer a{font:inherit;min-height:44px;padding:10px 14px;border:1px solid #d6e0eb;border-radius:9px;background:#fff;color:#0f2d52;text-decoration:none}
+.gc-pdf-viewer iframe{width:100%;height:55dvh;border:1px solid #d6e0eb;margin:12px 0}
+.gc-pdf-viewer [data-pdf-share]{background:#0f2d52;color:#fff}
+@media screen and (max-width:767px), screen and (max-width:1023px) and (pointer:coarse){
+  :root html,:root body{max-width:100%;margin:0}
+  :root .gc-app{height:100dvh;flex-direction:column}
+  :root .gc-sidebar{display:none}
+  :root .gc-main{min-height:0}
+  :root .gc-topbar{padding:8px 12px;height:auto;min-height:50px;gap:8px}
+  :root .gc-topbar-logo{height:28px}
+  :root .gc-topbar-user{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  :root .gc-topbar-role,:root .gc-topbar-clinics{display:none}
+  :root .gc-content{padding:12px;min-height:0;min-width:0;overscroll-behavior-y:contain}
+  :root .gc-content:has(#gcFeedPanelIframe){padding:0;overflow:hidden}
+  :root .gc-mobile-nav{display:flex;flex-shrink:0;gap:6px;padding:6px 10px max(8px,env(safe-area-inset-bottom));background:#fff;border-top:1px solid #d6e0eb}
+  :root .gc-mobile-nav button{flex:1;min-height:48px;border:0;border-radius:10px;background:#fff;color:#0f2d52;font:500 14px system-ui}
+  :root .gc-mobile-nav button.active{background:#e8eff8}
+  :root .gc-app button,:root .gc-app select,:root .gc-mobile-more button{min-height:44px}
+  :root .gc-app input:not([type=checkbox]):not([type=radio]),:root .gc-app select,:root .gc-app textarea{font-size:16px!important;min-height:44px;max-width:100%;min-width:0}
+  :root .gc-app input[type=checkbox],:root .gc-app input[type=radio]{min-height:22px;min-width:22px}
+  :root .gc-page-header{align-items:center}
+  :root #gcAgendaWorkspace .aw-approved-header{padding:12px}
+  :root #gcAgendaWorkspace .aw-header-controls,:root #gcAgendaWorkspace .aw-search-actions,:root #gcAgendaWorkspace .aw-main-actions{flex-wrap:wrap;min-width:0;width:100%}
+  :root #gcAgendaWorkspace .aw-search-group,:root #gcAgendaWorkspace .aw-search{width:100%;min-width:0;max-width:none}
+  :root #gcAgendaWorkspace .aw-dates{flex-wrap:wrap;gap:6px}
+  :root #gcAgendaWorkspace .aw-dates input{flex:1;max-width:170px}
+  :root #gcAgendaWorkspace .aw-messages{min-height:0;margin-bottom:12px}
+  :root #gcAgendaWorkspace .aw-approved-header{row-gap:10px;margin-bottom:12px}
+  :root #gcAgendaWorkspace .aw-list{max-height:none;overflow:visible}
+  :root #gcAgendaWorkspace .aw-row-main{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px;overflow:visible;min-width:0!important}
+  :root #gcAgendaWorkspace .aw-table-head{display:none}
+  :root #gcAgendaWorkspace .aw-time{grid-column:1/-1;font-size:14px}
+  :root #gcAgendaWorkspace .aw-person{grid-column:1/-1;min-width:0}
+  :root #gcAgendaWorkspace .aw-person button{white-space:normal;font-size:16px;overflow-wrap:anywhere;width:100%;text-align:left}
+  :root #gcAgendaWorkspace .aw-meta{grid-column:1/3;max-width:none;white-space:normal}
+  :root #gcAgendaWorkspace .aw-row-main>[data-status-select]{grid-column:3/5;width:100%;min-width:0;font-size:14px!important}
+  :root #gcAgendaWorkspace .aw-row-main>button{min-width:0;white-space:normal;font-size:13px}
+  :root #gcAgendaWorkspace #awDocuments{position:fixed;inset:8px 8px calc(72px + env(safe-area-inset-bottom));width:auto;max-width:none;z-index:650;overflow:auto;box-shadow:0 4px 30px #0f2d5240}
+  :root #gcAgendaWorkspace .aw-panel-tabs,:root #gcAgendaWorkspace .aw-actions,:root #gcAgendaWorkspace .aw-share-bar{flex-wrap:wrap}
+  :root #gcAgendaWorkspace .aw-link-actions{flex-wrap:wrap}
+  :root #pQuickResults [data-pid]{max-width:100%;overflow-wrap:anywhere}
+  :root #npMainOverlay,:root #modalOverlay{padding:8px!important;max-height:100dvh;overflow:auto}
+  :root #npMainOverlay>div,:root #modalOverlay>div{max-height:calc(100dvh - 16px)!important;overflow-y:auto!important;min-width:0}
+  :root #npMainOverlay>div>div:first-child{flex-wrap:wrap;gap:10px;padding:12px!important}
+  :root #npMainOverlay [style*="grid-template-columns"],:root #modalOverlay [style*="grid-template-columns"]{grid-template-columns:minmax(0,1fr)!important}
+  :root #npMainOverlay input,:root #modalOverlay input{width:100%}
+  :root #npMsg{max-width:100%!important}
+  :root .fd-app .fd-topbar{position:sticky;top:0;height:auto;min-height:54px;padding:10px 12px;flex-wrap:wrap;gap:8px}
+  :root .fd-app .fd-topbar-nome{font-size:21px;white-space:normal;overflow-wrap:anywhere;flex-basis:100%}
+  :root .fd-app .fd-topbar-meta{flex-wrap:wrap;white-space:normal;gap:6px}
+  :root .fd-app .fd-acao-bar,:root .fd-app .fd-antec,:root .fd-app .fd-alerta{position:static;height:auto;min-height:44px;padding:10px 12px;flex-wrap:wrap}
+  :root .fd-app .fd-antec-inner{padding:0;white-space:normal;flex-wrap:wrap;overflow:visible}
+  :root .fd-app .fd-antec-txt{max-width:none;white-space:normal}
+  :root .fd-app .fd-layout{display:block}
+  :root .fd-app .fd-sb{display:none;width:100%;min-height:0;padding:8px 0;border-bottom:1px solid #d6e0eb}
+  :root .fd-app .fd-sb.gc-mobile-open{display:block;padding-top:8px!important}
+  :root .fd-app .gc-mobile-more-trigger{display:inline-flex;align-items:center;justify-content:center;min-height:44px;border:1px solid #d6e0eb;border-radius:8px;padding:8px 12px;color:#0f2d52;background:#fff;font:inherit}
+  :root .fd-app .fd-page{padding:12px 10px 28px!important;max-width:100%;margin:0}
+  :root .fd-app .fd-nova-wrap{padding:12px;scroll-margin-top:110px}
+  :root .fd-app .fd-nova-wrap [style*="min-width:260px"],:root .fd-app .fd-nova-wrap [style*="min-width: 260px"]{min-width:0!important;flex-basis:100%!important}
+  :root .fd-app .fd-nova-wrap>div,:root .fd-app .fd-card-head,:root .fd-app .fd-card-acoes{flex-wrap:wrap}
+  :root .fd-app .fd-card-head{gap:8px;padding:12px}
+  :root .fd-app .fd-card-body{padding:12px}
+  :root .fd-app .fd-card-dx{flex-basis:100%;white-space:normal}
+  :root .fd-app button,:root .fd-app input:not([type=checkbox]):not([type=radio]),:root .fd-app select{min-height:44px}
+  :root .fd-app input,:root .fd-app textarea,:root .fd-app select,:root .fd-app .ql-editor{font-size:16px!important;max-width:100%;min-width:0}
+  :root .fd-app .ql-toolbar{display:flex;flex-wrap:wrap;gap:4px}
+  :root .fd-app .ql-toolbar button{min-width:36px;min-height:36px}
+  :root .fd-app .fd-doc-chip{min-height:44px;white-space:normal;overflow-wrap:anywhere}
+  :root .fd-app .fd-docs,:root .fd-app .fd-doc-wrap{flex-wrap:wrap}
+  :root .fd-app .fd-nota-marcacao{max-width:100%;white-space:normal}
+  :root .fd-app .fd-nova-wrap [style*="grid-template-columns"]{grid-template-columns:minmax(0,1fr)!important}
+  :root .gcv2-atestado-overlay{padding:6px;align-items:flex-start}
+  :root .gcv2-atestado-modal{width:100%;max-height:calc(100dvh - 12px)}
+  :root .gcv2-atestado-head{padding:12px;gap:8px;flex-wrap:wrap}
+  :root .gcv2-atestado-split{display:block;overflow:auto}
+  :root .gcv2-atestado-form{padding:12px;overflow:visible}
+  :root .gcv2-atestado-modal input,:root .gcv2-atestado-modal textarea,:root .gcv2-atestado-modal select{font-size:16px;min-height:44px;max-width:100%}
+  :root .gcv2-atestado-modal button{min-height:44px}
+  :root .fd-app #fdModalRoot [style*="width:9"],:root .fd-app #fdModalRoot [style*="min-width"]{min-width:0!important;max-width:100%!important}
+}

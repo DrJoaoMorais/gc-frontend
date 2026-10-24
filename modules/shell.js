@@ -1,3 +1,4 @@
+import { installMobileStyles, wireMobileNavigation, canLeaveClinicalPanel } from './mobile.js';
 import { canAccessExercise } from './exercicio/permissoes.js';
 /* ========================================================
    SHELL.JS — Render HTML + CSS principal da aplicação
@@ -20,6 +21,7 @@ import { homeDashboardHtml, homeDashboardStyles, wireHomeDashboard } from "./hom
 /* ---- 03F.1 — renderAppShell ---- */
 export function renderAppShell() {
   injectDesignSystem();
+  installMobileStyles();
   const canSeeManagement = ["super_admin", "admin"].includes(String(G.role || "").toLowerCase());
   if (String(G.currentView || "").toLowerCase().startsWith("exercicio") && !canAccessExercise()) G.currentView = "agenda";
   const currentView = String(G.currentView || "agenda").toLowerCase();
@@ -65,6 +67,7 @@ export function renderAppShell() {
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
         <input id="pQuickQuery" type="search" placeholder="Nome, SNS, NIF, Telefone..." autocomplete="off" spellcheck="false" class="gc-search-input"/>
       </div>
+      <label for="selClinic" class="gcLabel" style="display:block;margin-top:12px">Clínica</label><select id="selClinic" class="gc-select" aria-label="Clínica para pesquisa e criação de doentes"></select>
       <div id="pQuickResults" style="margin-top:6px;"></div>
     `;
   } else if (currentView === "doente-panorama") {
@@ -227,6 +230,16 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
 
   </div>
 
+  <nav class="gc-mobile-nav" aria-label="Navegação principal">
+    <button type="button" data-mobile-today class="${currentView === 'agenda' ? 'active' : ''}">Hoje</button>
+    <button type="button" data-nav="doentes" class="${['doentes','doente-panorama'].includes(currentView) ? 'active' : ''}">Doentes</button>
+    <button type="button" id="gcMobileMoreButton" aria-haspopup="dialog" aria-controls="gcMobileMore" aria-expanded="false">Mais</button>
+  </nav>
+  <dialog id="gcMobileMore" class="gc-mobile-more" aria-labelledby="gcMobileMoreTitle">
+    <header><strong id="gcMobileMoreTitle">Mais opções</strong><button type="button" data-close-more aria-label="Fechar opções">Fechar</button></header>
+    ${navItems.map(item => `<button type="button" data-nav="${item.id}">${item.icon}<span>${item.label}</span></button>`).join('')}
+    <button type="button" id="gcMobileLogout">Terminar sessão</button>
+  </dialog>
   <!-- MODAL ROOT -->
   <div id="modalRoot"></div>
 
@@ -236,6 +249,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
   /* ── Wire sidebar navigation ─────────────────────── */
   document.querySelectorAll("[data-nav]").forEach(btn => {
     btn.addEventListener("click", async () => {
+      if (!canLeaveClinicalPanel()) return;
       const view = btn.getAttribute("data-nav");
       G.currentView = view;
       // Usa renderCurrentView do boot.js que reconstrói o DOM E rewirea todos os botões
@@ -266,6 +280,8 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
     });
   }
 
+  wireMobileNavigation();
+  document.getElementById("gcMobileLogout")?.addEventListener("click", () => { if (canLeaveClinicalPanel()) document.getElementById("btnLogout")?.click(); });
   window.__gc_renderAppShell = renderAppShell;
 }
 

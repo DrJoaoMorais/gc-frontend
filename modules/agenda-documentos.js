@@ -1,3 +1,5 @@
+import { isMobileGC } from './mobile.js';
+import { openMobilePdf } from './mobile-pdf.js';
 import { attachmentEmail, downloadFile, fetchPdf } from './agenda-documentos-envio.js';
 import { icon } from './agenda-icons.js';
 import { G, statusMeta } from './state.js';
@@ -155,6 +157,17 @@ export async function openPatientDocuments(row) {
     host.querySelector('[data-draft]').hidden = true;
   });
   host.querySelectorAll('[data-open]').forEach(button => button.onclick = async () => {
+    const item = items[Number(button.dataset.open)];
+    if (isMobileGC() && item.kind !== 'link') {
+      openMobilePdf({ name: item.title, load: async () => {
+        const url = await resourceURL(window.sb, item);
+        if (!url || !current()) throw new Error('unavailable');
+        const file = await fetchPdf(url, item.title, 0);
+        if (!current()) throw new Error('changed');
+        return new Blob([file.bytes], { type: 'application/pdf' });
+      }});
+      return;
+    }
     const popup = window.open('about:blank', '_blank');
     if (popup) popup.opener = null;
     try {
@@ -192,6 +205,24 @@ export async function openPatientDocuments(row) {
           downloadFile(attachmentEmail(String(patient.email).trim(), text, files), 'documentacao-doente.eml');
           feedback.textContent = 'Email guardado com destinatário e PDFs anexados. Abra-o no Mail. Se abrir apenas para leitura, use Mensagem → Enviar novamente e confirme o destinatário.';
         });
+        const nativeFiles = files.map(file => new File([file.bytes], file.name, { type: 'application/pdf' }));
+        if (isMobileGC() && navigator.share && navigator.canShare?.({ files: nativeFiles })) {
+          const native = document.createElement('button');
+          native.textContent = 'Partilhar PDFs no iPhone';
+          native.className = 'aw-primary';
+          native.onclick = async () => {
+            if (!valid()) return;
+            native.disabled = true;
+            try {
+              await navigator.share({ files: nativeFiles });
+              if (current()) feedback.textContent = 'Partilha aberta. Confirme o destinatário e o envio na aplicação escolhida.';
+            } catch (error) {
+              if (current()) feedback.textContent = error?.name === 'AbortError' ? 'Partilha cancelada.' : 'Não foi possível partilhar. Use a descarga dos PDFs.';
+            } finally { native.disabled = false; }
+          };
+          actions.prepend(native);
+          draft.querySelector('p').textContent = 'No iPhone, use Partilhar PDFs e escolha a aplicação e o destinatário. Reveja os documentos antes de enviar.';
+        }
         const downloads = actions.querySelector('[data-downloads]');
         files.forEach(file => {
           const button = document.createElement('button');
