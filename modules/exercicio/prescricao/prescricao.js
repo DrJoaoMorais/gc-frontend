@@ -6105,7 +6105,7 @@ const CATALOGO_VISUAL_PATOLOGIA = [
   ] },
   { tipo: 'nao_cirurgico', titulo: 'Não cirúrgicos (conservadores)', areas: [
     { area: 'Ombro', itens: [
-      { nome: 'Tendinite ou Bursite da Coifa dos Rotadores', img: 'c-ombro-coifa' },
+      { nome: 'Tendinopatia da Coifa dos Rotadores', img: 'c-ombro-coifa', match: ['tendinopatia da coifa'] },
       { nome: 'Capsulite Adesiva do Ombro (Ombro Congelado)', img: 'c-ombro-capsulite', match: ['capsulite adesiva'] },
       { nome: 'Tendinopatia Calcificada', img: 'c-ombro-calcificada' },
       { nome: 'Instabilidade / Luxação Aguda Reduzida', img: 'c-ombro-instabilidade' },
