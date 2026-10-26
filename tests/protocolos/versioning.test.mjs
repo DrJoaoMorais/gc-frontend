@@ -12,6 +12,20 @@ create table consultation_protocols(id uuid default gen_random_uuid(), protocol_
 create table wo_prescriptions(data jsonb);
 `);
 await db.exec(readFileSync(process.argv[2],'utf8'));
+await db.exec(readFileSync(process.argv[3],'utf8'));
+await db.exec(`
+grant usage on schema public,auth to authenticated;
+grant all on all tables in schema public to authenticated;
+alter table protocols_catalog enable row level security;
+alter table protocol_phases enable row level security;
+alter table protocol_phase_exercises enable row level security;
+create policy read_catalog on protocols_catalog for select to authenticated using(true);
+create policy read_phases on protocol_phases for select to authenticated using(true);
+create policy read_exercises on protocol_phase_exercises for select to authenticated using(true);
+create policy write_none on protocols_catalog for all to authenticated using(false) with check(false);
+create policy write_none on protocol_phases for all to authenticated using(false) with check(false);
+create policy write_none on protocol_phase_exercises for all to authenticated using(false) with check(false);
+`);
 const p = (await db.query(`insert into protocols_catalog(region,name,kind,data) values('ombro','Teste','cirurgico','{"modificadores":[{"key":"test"}]}') returning id`)).rows[0].id;
 const f = (await db.query(`insert into protocol_phases(protocol_id,phase_order,name,anchor_kind,data) values($1,1,'Original','evolucao_clinica','{"preservar":{"x":1}}') returning id`,[p])).rows[0].id;
 await db.query(`insert into protocol_phases(protocol_id,phase_order,name,anchor_kind,data) values($1,2,'Fase 2','evolucao_clinica','{}')`,[p]);
@@ -24,8 +38,10 @@ const plan = JSON.stringify((await db.query('select * from wo_prescriptions')).r
 const patch = {name:'Revista',anchor_kind:'evolucao_clinica',anchor_from:null,anchor_to:null,data:{preservar:{x:1},hep:['Revisto']}};
 const rows = [{exercise_id:ex,sort_order:0,context:'Clínica',is_optional:true,prescription_defaults:{sets:3},clinical_note:'Nota revista'}];
 const save = (id=p,r=rows) => db.query('select gc_save_protocol_version($1,$2,$3,$4) as id',[id,f,patch,r]);
+await db.exec('set role authenticated');
 await assert.rejects(save(),/Acesso reservado/);
 await db.exec(`set test.uid = '32a24abe-cd69-42d9-bf3a-3355f4f6e28c'`);
+await assert.rejects(db.query(`insert into protocols_catalog(name) values('Direto')`), /row-level security/);
 await assert.rejects(save(p,[...rows,...rows]),/unique/);
 assert.equal((await db.query('select count(*)::int as n from protocols_catalog')).rows[0].n,1);
 assert.equal((await db.query('select is_active from protocols_catalog')).rows[0].is_active,true);
@@ -38,5 +54,5 @@ assert.deepEqual((await db.query('select data from protocols_catalog where id=$1
 assert.equal(JSON.stringify((await db.query('select * from consultation_protocols')).rows),old);
 assert.equal(JSON.stringify((await db.query('select * from wo_prescriptions')).rows),plan);
 await assert.rejects(save(),/versão mais recente/);
-console.log('SQL: autorização, rollback integral, nova versão, cópia de fases, preservação de modificadores, consultas e planos antigos, rejeição de versão desatualizada: OK');
+console.log('SQL (authenticated, RLS e escrita direta bloqueada): autorização, rollback integral, nova versão, cópia de fases, preservação de modificadores, consultas e planos antigos, rejeição de versão desatualizada: OK');
 await db.close();
