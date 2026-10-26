@@ -6066,7 +6066,7 @@ const CATALOGO_VISUAL_PATOLOGIA = [
     { area: 'Ombro', itens: [
       { nome: 'Reparação da Coifa dos Rotadores', img: 'ombro-coifa', match: ['sutura da coifa'] },
       { nome: 'Artroscopia de Descompressão / Acromioplastia', img: 'ombro-descompressao' },
-      { nome: 'Estabilização Artroscópica (Bankart)', img: 'ombro-bankart' },
+      { nome: 'Estabilização Artroscópica — Bankart + Remplissage', img: 'ombro-bankart', match: ['bankart com remplissage'] },
       { nome: 'Artroplastia do Ombro (Total ou Invertida)', img: 'ombro-artroplastia', match: [
         { q: 'artroplastia anatomica do ombro', rotulo: 'Total (TSA)' },
         { q: 'artroplastia invertida do ombro', rotulo: 'Invertida (RSA)' }] },
