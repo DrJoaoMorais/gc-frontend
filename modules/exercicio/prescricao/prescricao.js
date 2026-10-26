@@ -1,4 +1,5 @@
 import { requireExerciseAccess } from '../permissoes.js';
+import { abrirEditorProtocolo } from './protocolo-editor.js';
 import { mountClinicPicker, normalizeClinicIds } from '../../clinic-picker.js';
 /* =================================================================
    PRESCRICAO.JS — Prescrição de exercício físico (Vertente 1)
@@ -27,7 +28,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-10-04-caminhada-v11';
+const PRESCRICAO_CSS_VERSION = '2026-10-26-protocolos-v1';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -887,8 +888,8 @@ function renderLanding() {
       <button type="button" class="gcwo-landing-card" id="gcwoCardPatologia">
         <span class="gcwo-landing-card-icon doc">${ICON_FLAG}</span>
         <span class="gcwo-landing-card-title">Patologias/Protocolos</span>
-        <span class="gcwo-landing-card-sub">Escolher um doente e preparar o programa por patologia no seu acompanhamento.</span>
-        <span class="gcwo-landing-card-cta">Procurar doente →</span>
+        <span class="gcwo-landing-card-sub">Consultar e gerir os protocolos de reabilitação.</span>
+        <span class="gcwo-landing-card-cta">Abrir protocolos →</span>
       </button>
       <button type="button" class="gcwo-landing-card" id="gcwoCardCatalogo">
         <span class="gcwo-landing-card-icon cat">${ICON_GINASIO}</span>
@@ -918,11 +919,7 @@ function renderLanding() {
   document.getElementById('gcwoCardCatalogo').addEventListener('click', () => {
     initCatalogo({ onVoltar: () => { loadExercisesCatalog(); renderLanding(); } });
   });
-  document.getElementById('gcwoCardPatologia').addEventListener('click', () => {
-    _step1Destination = 'acompanhamento';
-    _careEntryMode = null;
-    document.getElementById('gcwoPatientQuery').focus();
-  });
+  document.getElementById('gcwoCardPatologia').addEventListener('click', () => abrirPatologia({ biblioteca: true }));
   mountClinicPicker(document.getElementById('gcwoLandingClinicPicker'), {
     clinics: clinicas, selected: _landing.clinicIds,
     onChange: ids => { _landing.clinicIds = ids; renderLanding(); document.querySelector('#gcwoLandingClinicPicker summary')?.focus(); }
@@ -5774,19 +5771,22 @@ function semanasPosCirurgiaPatologia() {
   return Math.floor((diasEntreInclusivo(_patologia.dataCirurgia, hoje) - 1) / 7);
 }
 
-function abrirPatologia() {
+function abrirPatologia({ biblioteca = false } = {}) {
   _patologia = freshPatologia();
+  _patologia.biblioteca = biblioteca;
   renderPatologia();
   carregarProtocolosCatalogo();
 }
 
 async function carregarProtocolosCatalogo() {
+  const alvo = _patologia;
   _patologia.loading = true; _patologia.erro = ''; renderPatologiaBody();
   const { data, error } = await window.sb
     .from('protocols_catalog')
     .select('id,region,name,kind,sort_order,data')
     .eq('is_active', true)
     .order('region').order('sort_order').order('name');
+  if (_patologia !== alvo) return;
   _patologia.loading = false;
   if (error) {
     console.error('[prescricao] falha a carregar protocols_catalog:', error);
@@ -5798,6 +5798,7 @@ async function carregarProtocolosCatalogo() {
 }
 
 async function carregarFasesPatologia(protocolId) {
+  const alvo = _patologia;
   _patologia.protocoloId = protocolId;
   _patologia.faseId = null;
   _patologia.fases = [];
@@ -5813,6 +5814,7 @@ async function carregarFasesPatologia(protocolId) {
     .select('id,protocol_id,phase_order,name,anchor_kind,anchor_from,anchor_to,data')
     .eq('protocol_id', protocolId)
     .order('phase_order');
+  if (_patologia !== alvo || alvo.protocoloId !== protocolId) return;
   _patologia.loading = false;
   if (error) {
     console.error('[prescricao] falha a carregar protocol_phases:', error);
@@ -5840,9 +5842,11 @@ async function abrirFaseInicialPatologia(protocolId) {
 // Contagem de exercícios por fase para os cartões de fase (ponto 3) — uma query só,
 // contada em memória (protocol_phase_exercises é uma tabela pequena, sem necessidade de RPC).
 async function carregarContagemExerciciosFasesPatologia() {
+  const alvo = _patologia, protocolId = alvo.protocoloId;
   const ids = _patologia.fases.map(f => f.id);
   if (!ids.length) return;
   const { data, error } = await window.sb.from('protocol_phase_exercises').select('id,phase_id').in('phase_id', ids);
+  if (_patologia !== alvo || alvo.protocoloId !== protocolId) return;
   if (error) { console.error('[prescricao] falha a contar exercícios por fase:', error); return; }
   const contagem = {};
   (data || []).forEach(r => { contagem[r.phase_id] = (contagem[r.phase_id] || 0) + 1; });
@@ -5851,6 +5855,7 @@ async function carregarContagemExerciciosFasesPatologia() {
 }
 
 async function carregarExerciciosFasePatologia(faseId) {
+  const alvo = _patologia;
   _patologia.faseId = faseId;
   _patologia.exercicios = [];
   _patologia.selecionados = new Map();
@@ -5862,6 +5867,7 @@ async function carregarExerciciosFasePatologia(faseId) {
     .select('id,exercise_id,sort_order,context,is_optional,prescription_defaults,clinical_note')
     .eq('phase_id', faseId)
     .order('sort_order', { ascending: true, nullsFirst: false });
+  if (_patologia !== alvo || alvo.faseId !== faseId) return;
   _patologia.loading = false;
   if (error) {
     console.error('[prescricao] falha a carregar protocol_phase_exercises:', error);
@@ -5965,6 +5971,7 @@ function criarItemPatologia(ex, info) {
 // plano activo dele, ver aplicarPatologiaPendente); guarda a selecção já agrupada por local e
 // segue para a procura de doente actual (ponto 11: só doente GC, fluxo já existente).
 function avancarParaPrescricaoPatologia() {
+  if (_patologia?.biblioteca) return;
   const grupos = agruparSelecaoPatologiaPorLocal();
   if (!grupos.size) return;
   const protocolo = _patologia.protocolos.find(p => p.id === _patologia.protocoloId);
@@ -6008,13 +6015,15 @@ function renderPatologia() {
       <div>
         <button type="button" class="gcwo-backlink" id="gcwoPatBackToLanding">← Exercício</button>
         <div class="gc-page-title gcwo-pat-titulo">Patologias/Protocolos</div>
-        <div class="gc-page-sub gcwo-pat-sub">Escolha um protocolo para ver o resumo e criar o plano de exercícios.</div>
+        <div class="gc-page-sub gcwo-pat-sub">${_patologia.biblioteca ? 'Biblioteca de protocolos — consulta e edição do protocolo-base.' : 'Escolha um protocolo para ver o resumo e criar o plano de exercícios.'}</div>
       </div>
     </div>
     <div id="gcwoPatologiaBody"></div>
   `;
   document.getElementById('gcwoPatBackToLanding').addEventListener('click', () => {
+    const biblioteca = _patologia.biblioteca;
     _patologia = null;
+    if (biblioteca) { renderLanding(); return; }
     if (_embeddedCare) { renderStep2(); return; }
     if (_returnToAcompanhamento && typeof window.__gc_openAcompanhamentoPanel === 'function') {
       window.__gc_openAcompanhamentoPanel(_returnToAcompanhamento.patientId, _returnToAcompanhamento.clinicId);
@@ -6034,11 +6043,11 @@ function renderPatologiaBody() {
     ${_patologia.protocoloId ? `
     <div class="gcwo-pat-layout" id="gcwoPatLayout">
       <div class="gcwo-pat-main">
-        ${renderModificadoresCirurgicosPatologia()}
+        ${_patologia.biblioteca ? '' : renderModificadoresCirurgicosPatologia()}
         ${renderFasesPatologia()}
         ${_patologia.faseId ? renderFaseDetalheEExerciciosPatologia() : ''}
       </div>
-      <aside class="gcwo-pat-aside">${renderResumoProtocoloPatologia()}</aside>
+      <aside class="gcwo-pat-aside">${_patologia.biblioteca ? renderGestaoProtocoloPatologia() : renderResumoProtocoloPatologia()}</aside>
     </div>` : ''}
     ${renderCatalogoPatologiaOverlay()}
   `;
@@ -6265,7 +6274,7 @@ function renderFasesPatologia() {
   const ehCirurgico = protocolo?.kind === 'cirurgico';
   const semanasPos = ehCirurgico ? semanasPosCirurgiaPatologia() : null;
   return `
-    ${ehCirurgico ? `<div class="gcwo-field gcwo-pat-cirurgia-field">
+    ${ehCirurgico && !_patologia.biblioteca ? `<div class="gcwo-field gcwo-pat-cirurgia-field">
       <span class="gcwo-field-label">Data da cirurgia <small>(opcional)</small></span>
       <input type="date" id="gcwoPatDataCirurgia" value="${escAttr(_patologia.dataCirurgia || '')}" max="${escAttr(isoHoje())}">
       ${semanasPos != null ? `<div class="gcwo-pat-hint">${semanasPos} semana${semanasPos === 1 ? '' : 's'} pós-operatório.</div>` : ''}
@@ -6329,9 +6338,9 @@ function renderFaseDetalheEExerciciosPatologia() {
       `}
     </div>
     <div class="gcwo-pat-exercicios">
-      <div class="gcwo-workspace-title"><strong>Exercícios sugeridos</strong><span>${_patologia.selecionados.size} seleccionado${_patologia.selecionados.size === 1 ? '' : 's'}</span></div>
+      <div class="gcwo-workspace-title"><strong>Exercícios sugeridos</strong><span>${_patologia.biblioteca ? `${_patologia.exercicios.length} associado${_patologia.exercicios.length === 1 ? '' : 's'}` : `${_patologia.selecionados.size} seleccionado${_patologia.selecionados.size === 1 ? '' : 's'}`}</span></div>
       ${renderListaExerciciosPatologia()}
-      <button type="button" class="gcBtnGhost" id="gcwoPatAdicionarExercicio">+ Adicionar exercício</button>
+      ${_patologia.biblioteca ? '' : '<button type="button" class="gcBtnGhost" id="gcwoPatAdicionarExercicio">+ Adicionar exercício</button>'}
     </div>
     `;
 }
@@ -6384,7 +6393,7 @@ function renderLinhaExercicioPatologia(ex, meta, origemTag) {
   const temDefaults = meta.prescription_defaults && Object.keys(meta.prescription_defaults).length > 0;
   return `
     <div class="gcwo-pat-exercicio-row${marcado ? ' on' : ''}">
-      ${origemTag === 'protocolo'
+      ${_patologia.biblioteca ? '' : origemTag === 'protocolo'
         ? `<label class="gcwo-pat-exercicio-check-wrap"><input type="checkbox" class="gcwo-pat-exercicio-check" data-pat-exid="${escAttr(ex.id)}" ${marcado ? 'checked' : ''}></label>`
         : `<button type="button" class="gcwo-pat-remove-btn" data-pat-remover="${escAttr(ex.id)}" title="Remover">${ICON_CLOSE}</button>`}
       ${ex.photo_url ? `<img class="gcwo-pat-exercicio-foto" src="${escAttr(ex.photo_url)}" alt="">` : `<span class="gcwo-pat-exercicio-foto empty"></span>`}
@@ -6467,6 +6476,19 @@ function wirePatologiaBody() {
     if (grid) { grid.innerHTML = renderGrelhaProtocolosPatologia(); wireCartoesProtocoloPatologia(grid); }
   });
   wireCartoesProtocoloPatologia(host);
+  document.getElementById('gcwoPatEditarBase')?.addEventListener('click', () => {
+    const fase = _patologia.fases.find(f => f.id === _patologia.faseId);
+    abrirEditorProtocolo({
+      protocolo: _patologia.protocolos.find(p => p.id === _patologia.protocoloId),
+      fase, exercicios: _patologia.exercicios, catalogo: _state.exercisesCatalog,
+      onSaved: async id => {
+        await carregarProtocolosCatalogo();
+        await carregarFasesPatologia(id);
+        const novaFase = _patologia.fases.find(f => f.phase_order === fase.phase_order);
+        if (novaFase) await carregarExerciciosFasePatologia(novaFase.id);
+      }
+    });
+  });
   host.querySelectorAll('[data-pat-fase]').forEach(btn => btn.addEventListener('click', () => {
     const id = btn.getAttribute('data-pat-fase');
     if (_patologia.faseId === id) return;
@@ -6528,4 +6550,13 @@ function wirePatologiaBody() {
   host.querySelectorAll('[data-pat-cat-exid]').forEach(card => card.addEventListener('click', () => {
     adicionarExercicioCatalogoPatologia(card.getAttribute('data-pat-cat-exid'));
   }));
+}
+
+function renderGestaoProtocoloPatologia() {
+  const protocolo = _patologia.protocolos.find(p => p.id === _patologia.protocoloId);
+  return `<div class="gcwo-pat-resumo"><h3>${escHtml(protocolo?.name)}</h3>
+    <p>Consulta do protocolo-base · versão ${escHtml(protocolo?.data?.version || 1)}</p>
+    <p>Escolha uma fase para analisar ou editar o conteúdo clínico e os exercícios associados.</p>
+    <p>Guardar uma alteração cria uma nova versão. Os protocolos associados a consultas e os planos já prescritos mantêm-se.</p>
+    <button type="button" class="gcBtnSuccess" id="gcwoPatEditarBase" ${!_patologia.faseId || _patologia.loading ? 'disabled' : ''}>Editar esta fase do protocolo-base</button></div>`;
 }

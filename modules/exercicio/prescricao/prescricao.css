@@ -1513,3 +1513,16 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
   .gcwo-walk-duration-field { grid-column:1 / -1; }
   .gcwo-walk-fields .gcwo-exercicio-remove { grid-column:2; justify-self:end; }
 }
+
+/* Biblioteca e edição do protocolo-base */
+.gcwo-protocol-editor { width:min(840px,96vw); max-width:840px; max-height:92vh; overflow:auto; }
+.gcwo-protocol-editor .gcwo-modal-body { display:grid; gap:14px; }
+.gcwo-protocol-editor fieldset { border:1px solid #dbe3ef; border-radius:10px; padding:14px; margin:10px 0; display:grid; gap:10px; min-width:0; }
+.gcwo-protocol-editor legend { font-weight:700; color:#17365b; }
+.gcwo-protocol-editor input:not([type=checkbox]), .gcwo-protocol-editor select, .gcwo-protocol-editor textarea { box-sizing:border-box; width:100%; border:1px solid #cbd5e1; border-radius:7px; padding:9px; font:inherit; background:white; color:#17365b; }
+.gcwo-protocol-editor textarea { resize:vertical; }
+.gcwo-protocol-editor .gcwo-modal-foot { display:flex; gap:12px; justify-content:flex-end; padding:16px; position:sticky; bottom:0; background:white; border-top:1px solid #dbe3ef; }
+.gcwo-protocol-period { display:flex; gap:16px; flex-wrap:wrap; }
+.gcwo-protocol-editor [data-error] { color:#b91c1c; }
+
+.gcwo-protocol-editor form { overflow:auto; min-height:0; }
