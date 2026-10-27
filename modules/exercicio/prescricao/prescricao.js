@@ -1,6 +1,6 @@
 import { requireExerciseAccess } from '../permissoes.js';
-import { abrirEditorProtocolo } from './protocolo-editor.js?v=2026-10-27-texto-doente-1';
-import { renderRecomendacoesFase, recomendacoesParaSessao, textoParaDoente, conteudoParaDoente } from './recomendacoes.js?v=2026-10-27-texto-doente-1';
+import { abrirEditorProtocolo } from './protocolo-editor.js?v=2026-10-27-recomendacoes-link-1';
+import { renderRecomendacoesFase, recomendacoesParaSessao, orientacaoParaSessao, textoParaDoente, conteudoParaDoente } from './recomendacoes.js?v=2026-10-27-recomendacoes-link-1';
 import { mountClinicPicker, normalizeClinicIds } from '../../clinic-picker.js';
 /* =================================================================
    PRESCRICAO.JS — Prescrição de exercício físico (Vertente 1)
@@ -5332,6 +5332,7 @@ function sessaoParaGravarBase(s) {
     momento: s.momento || null,
     notes: (s.notes || '').trim() || null,
     execution_mode: s.kind === 'list' ? modoExecucaoGinasio(s) : null,
+    ...(Array.isArray(s.recommendations) ? { recommendations: s.recommendations, recommendations_image: s.recommendations_image || null, recommendations_image_alt: s.recommendations_image_alt || null } : {}),
   };
   if (s.kind === 'walk') return { ...base, walks: s.walks, stairs_flights: s.stairs_flights };
   if (s.kind === 'circuit') return { ...base, blocks: flattenBlocosCircuitoParaGravar(s.blocks) };
@@ -5984,7 +5985,8 @@ function avancarParaPrescricaoPatologia() {
   grupos.forEach((entradas, local) => {
     gruposArr.push({ local, items: entradas.map(({ ex, info }) => criarItemPatologia(ex, info)) });
   });
-  _patologiaPendente = { protocoloNome: protocolo?.name || '', faseNome: fase?.name || '', recomendacoes: recomendacoesParaSessao(fase), grupos: gruposArr };
+  const orientacao = orientacaoParaSessao(fase, listaCuidadosEspecificosPatologia());
+  _patologiaPendente = { ...orientacao, protocoloNome: protocolo?.name || '', faseNome: fase?.name || '', recomendacoes: recomendacoesParaSessao(fase), grupos: gruposArr };
   _patologia = null;
   if (_state.patient) {
     aplicarPatologiaPendenteAoEstado();
@@ -6006,7 +6008,9 @@ function aplicarPatologiaPendenteAoEstado() {
     const sessao = novaSessaoSkeleton('Ginásio', 'list', _state.startDate);
     sessao.local = grupo.local; // null fica por escolher (context 'indiferente' ou ausente) — nunca força
     sessao.items = grupo.items;
+    // Mantém o texto para leitores anteriores; o portal atual apresenta o bloco estruturado.
     sessao.notes = [origemTxt, pendente.recomendacoes].filter(Boolean).join('\n\n');
+    Object.assign(sessao, conteudoParaDoente({ recommendations: pendente.recommendations || [], recommendations_image: pendente.recommendations_image || null, recommendations_image_alt: pendente.recommendations_image_alt || null }));
     _state.sessions.push(sessao);
   });
 }

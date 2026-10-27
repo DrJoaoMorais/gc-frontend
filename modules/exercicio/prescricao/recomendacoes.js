@@ -20,6 +20,18 @@ export function normalizarRecomendacoes(items) {
   }).filter(item => item.text);
 }
 
+// Fotografia da orientação aprovada para esta sessão; nunca inclui notas profissionais.
+export function orientacaoParaSessao(fase, cuidados = []) {
+  const data = fase?.data || {};
+  const recommendations = conteudoParaDoente(normalizarRecomendacoes(data.recomendacoes));
+  cuidados.forEach(item => {
+    if (item?.texto) recommendations.push({title: textoParaDoente(item.label || 'Cuidados específicos'), text: textoParaDoente(item.texto)});
+  });
+  const image = typeof data.recomendacoes_imagem === 'string' && /^(https:\/\/|\/assets\/)/.test(data.recomendacoes_imagem) ? data.recomendacoes_imagem : '';
+  return { recommendations, recommendations_image: image || null,
+    recommendations_image_alt: image ? textoParaDoente(data.recomendacoes_imagem_alt || 'Orientação ilustrada; ajuste individual pelo profissional') : null };
+}
+
 // Copiar apenas a orientação do doente; as notas clínicas ficam no protocolo.
 export function recomendacoesParaSessao(fase) {
   const items = conteudoParaDoente(normalizarRecomendacoes(fase?.data?.recomendacoes));

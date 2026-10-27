@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const root=new URL('../../',import.meta.url);
 const utils=readFileSync(new URL('modules/exercicio/prescricao/recomendacoes.js',root),'utf8');
-const {normalizarRecomendacoes,recomendacoesParaSessao,renderRecomendacoesFase}=await import('data:text/javascript;base64,'+Buffer.from(utils).toString('base64'));
+const {normalizarRecomendacoes,recomendacoesParaSessao,renderRecomendacoesFase,orientacaoParaSessao}=await import('data:text/javascript;base64,'+Buffer.from(utils).toString('base64'));
 assert.deepEqual(normalizarRecomendacoes([null,{},' ',{title:'A',text:' B '},' C ']),[{title:'A',text:'B'},{title:'',text:'C'}]);
 assert.equal(renderRecomendacoesFase({data:{}}),'');
 assert.equal(recomendacoesParaSessao({data:{}}),'');
@@ -21,7 +21,7 @@ const ctx=vm.createContext({
  _state:{patient:{id:'fixture'},startDate:'2026-10-27',sessions:originals},
  _patologiaPendente:null,
  agruparSelecaoPatologiaPorLocal:()=>new Map([['Casa',[{ex:{id:'selected'},info:{}}]]]),
- criarItemPatologia:ex=>({exercise_id:ex.id}),recomendacoesParaSessao,
+ criarItemPatologia:ex=>({exercise_id:ex.id}),recomendacoesParaSessao,orientacaoParaSessao,conteudoParaDoente: x=>JSON.parse(JSON.stringify(x)),listaCuidadosEspecificosPatologia:()=>[{label:"Reparação associada",texto:"Respeitar o limite individual"}],
  novaSessaoSkeleton:()=>({session_id:'new'}),renderStep2:()=>{},renderStep1:()=>{},
  escHtml:x=>String(x??'').replaceAll('<','&lt;'),renderCuidadosEspecificosPatologia:()=>'',
  renderRecomendacoesFase,renderListaExerciciosPatologia:()=>'<div>Lista de exercícios</div>',
@@ -58,3 +58,11 @@ const saved=saveCtx.sessaoParaGravar({...old,session_id:'new',kind:'list'});
 assert.ok(!JSON.stringify(saved).match(/\[(Certo|Provável|Palpite)\]/));
 assert.equal(JSON.stringify(old),beforeJSON);
 console.log('Texto do doente: sem rótulos, precauções e doses preservadas; notas profissionais separadas; original intacto: OK');
+
+assert.equal(originals[1].recommendations.length,2);
+assert.equal(originals[1].recommendations[1].title,'Reparação associada');
+assert.ok(!JSON.stringify(originals[1].recommendations).includes('Apenas para o médico'));
+const structured=saveCtx.sessaoParaGravar({...originals[1],kind:'list'});
+assert.equal(structured.recommendations[1].text,'Respeitar o limite individual');
+assert.equal(orientacaoParaSessao(fase).recommendations_image,null);
+console.log('Orientação estruturada e cuidados selecionados preservados na gravação: OK');
