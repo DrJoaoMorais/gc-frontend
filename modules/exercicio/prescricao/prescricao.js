@@ -6120,7 +6120,7 @@ const CATALOGO_VISUAL_PATOLOGIA = [
       { nome: 'Instabilidade / Luxação Aguda Reduzida', img: 'c-ombro-instabilidade' },
     ] },
     { area: 'Cotovelo', itens: [
-      { nome: 'Epicondilite Lateral (Cotovelo de Tenista)', img: 'c-cotovelo-lateral' },
+      { nome: 'Epicondilite Lateral (Cotovelo de Tenista)', img: 'c-cotovelo-lateral', match: ['epicondilite lateral'] },
       { nome: 'Epicondilite Medial (Cotovelo de Golfe)', img: 'c-cotovelo-medial' },
       { nome: 'Síndrome do Pronador Redondo / Túnel Radial', img: 'c-cotovelo-pronador' },
     ] },
