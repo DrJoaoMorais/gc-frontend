@@ -5332,7 +5332,7 @@ function sessaoParaGravarBase(s) {
     momento: s.momento || null,
     notes: (s.notes || '').trim() || null,
     execution_mode: s.kind === 'list' ? modoExecucaoGinasio(s) : null,
-    ...(Array.isArray(s.recommendations) ? { recommendations: s.recommendations, recommendations_image: s.recommendations_image || null, recommendations_image_alt: s.recommendations_image_alt || null } : {}),
+    ...(Array.isArray(s.recommendations) ? { recommendations_scope: s.recommendations_scope || null, recommendations: s.recommendations, recommendations_image: s.recommendations_image || null, recommendations_image_alt: s.recommendations_image_alt || null } : {}),
   };
   if (s.kind === 'walk') return { ...base, walks: s.walks, stairs_flights: s.stairs_flights };
   if (s.kind === 'circuit') return { ...base, blocks: flattenBlocosCircuitoParaGravar(s.blocks) };
@@ -5986,7 +5986,7 @@ function avancarParaPrescricaoPatologia() {
     gruposArr.push({ local, items: entradas.map(({ ex, info }) => criarItemPatologia(ex, info)) });
   });
   const orientacao = orientacaoParaSessao(fase, listaCuidadosEspecificosPatologia());
-  _patologiaPendente = { ...orientacao, protocoloNome: protocolo?.name || '', faseNome: fase?.name || '', recomendacoes: recomendacoesParaSessao(fase), grupos: gruposArr };
+  _patologiaPendente = { ...orientacao, recommendations_scope: `${protocolo?.id || ''}:${fase?.id || ''}`, protocoloNome: protocolo?.name || '', faseNome: fase?.name || '', recomendacoes: recomendacoesParaSessao(fase), grupos: gruposArr };
   _patologia = null;
   if (_state.patient) {
     aplicarPatologiaPendenteAoEstado();
@@ -6010,7 +6010,7 @@ function aplicarPatologiaPendenteAoEstado() {
     sessao.items = grupo.items;
     // Mantém o texto para leitores anteriores; o portal atual apresenta o bloco estruturado.
     sessao.notes = [origemTxt, pendente.recomendacoes].filter(Boolean).join('\n\n');
-    Object.assign(sessao, conteudoParaDoente({ recommendations: pendente.recommendations || [], recommendations_image: pendente.recommendations_image || null, recommendations_image_alt: pendente.recommendations_image_alt || null }));
+    Object.assign(sessao, conteudoParaDoente({ recommendations_scope: pendente.recommendations_scope || null, recommendations: pendente.recommendations || [], recommendations_image: pendente.recommendations_image || null, recommendations_image_alt: pendente.recommendations_image_alt || null }));
     _state.sessions.push(sessao);
   });
 }

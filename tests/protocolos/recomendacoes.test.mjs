@@ -66,3 +66,7 @@ const structured=saveCtx.sessaoParaGravar({...originals[1],kind:'list'});
 assert.equal(structured.recommendations[1].text,'Respeitar o limite individual');
 assert.equal(orientacaoParaSessao(fase).recommendations_image,null);
 console.log('Orientação estruturada e cuidados selecionados preservados na gravação: OK');
+
+assert.equal(originals[1].recommendations_scope,'p:f1');
+assert.equal(structured.recommendations_scope,'p:f1');
+console.log('Identidade da fase preservada entre sessões e na gravação: OK');
