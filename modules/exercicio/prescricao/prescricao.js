@@ -1,5 +1,6 @@
 import { requireExerciseAccess } from '../permissoes.js';
-import { abrirEditorProtocolo } from './protocolo-editor.js';
+import { abrirEditorProtocolo } from './protocolo-editor.js?v=2026-10-27-recomendacoes';
+import { renderRecomendacoesFase, recomendacoesParaSessao } from './recomendacoes.js?v=2026-10-27-1';
 import { mountClinicPicker, normalizeClinicIds } from '../../clinic-picker.js';
 /* =================================================================
    PRESCRICAO.JS — Prescrição de exercício físico (Vertente 1)
@@ -28,7 +29,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-10-26-protocolos-v1';
+const PRESCRICAO_CSS_VERSION = '2026-10-27-recomendacoes-v1';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -5980,7 +5981,7 @@ function avancarParaPrescricaoPatologia() {
   grupos.forEach((entradas, local) => {
     gruposArr.push({ local, items: entradas.map(({ ex, info }) => criarItemPatologia(ex, info)) });
   });
-  _patologiaPendente = { protocoloNome: protocolo?.name || '', faseNome: fase?.name || '', grupos: gruposArr };
+  _patologiaPendente = { protocoloNome: protocolo?.name || '', faseNome: fase?.name || '', recomendacoes: recomendacoesParaSessao(fase), grupos: gruposArr };
   _patologia = null;
   if (_state.patient) {
     aplicarPatologiaPendenteAoEstado();
@@ -6002,7 +6003,7 @@ function aplicarPatologiaPendenteAoEstado() {
     const sessao = novaSessaoSkeleton('Ginásio', 'list', _state.startDate);
     sessao.local = grupo.local; // null fica por escolher (context 'indiferente' ou ausente) — nunca força
     sessao.items = grupo.items;
-    sessao.notes = origemTxt;
+    sessao.notes = [origemTxt, pendente.recomendacoes].filter(Boolean).join('\n\n');
     _state.sessions.push(sessao);
   });
 }
@@ -6126,7 +6127,7 @@ const CATALOGO_VISUAL_PATOLOGIA = [
     ] },
     { area: 'Punho / Mão', itens: [
       { nome: 'Síndrome do Túnel do Carpo (Fase Inicial)', img: 'c-punho-tunel' },
-      { nome: 'Tenossinovite de De Quervain', img: 'c-punho-quervain' },
+      { nome: 'Tenossinovite de De Quervain', img: 'c-punho-quervain', match: ['tenossinovite de de quervain'] },
       { nome: 'Dedo em Gatilho (Fase Inicial)', img: 'c-punho-dedo-gatilho' },
       { nome: 'Osteoartrite / Rizartrose', img: 'c-punho-rizartrose' },
     ] },
@@ -6337,6 +6338,7 @@ function renderFaseDetalheEExerciciosPatologia() {
         ${temCriteriosProgressao ? `<div class="gcwo-pat-criterios-avancar"><span class="gcwo-field-label">Critérios para avançar</span><ul>${d.criterios_progressao.map(c => `<li>${escHtml(c.texto || '')}</li>`).join('')}</ul></div>` : ''}
       `}
     </div>
+    ${renderRecomendacoesFase(fase)}
     <div class="gcwo-pat-exercicios">
       <div class="gcwo-workspace-title"><strong>Exercícios sugeridos</strong><span>${_patologia.biblioteca ? `${_patologia.exercicios.length} associado${_patologia.exercicios.length === 1 ? '' : 's'}` : `${_patologia.selecionados.size} seleccionado${_patologia.selecionados.size === 1 ? '' : 's'}`}</span></div>
       ${renderListaExerciciosPatologia()}

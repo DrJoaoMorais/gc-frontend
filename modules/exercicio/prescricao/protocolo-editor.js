@@ -1,4 +1,5 @@
 import { requireExerciseAccess } from '../permissoes.js';
+import { normalizarRecomendacoes } from './recomendacoes.js?v=2026-10-27-1';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const LISTAS = { permitido:'Permitido', contraindicacoes:'Evitar', hep:'Programa domiciliário', clinica:'Trabalho na clínica' };
 const OBJETOS = { objetivos:['Objetivos','label'], criterios_progressao:['Critérios para avançar','texto'], objetivos_serie:['Critérios detalhados','texto'] };
@@ -32,6 +33,10 @@ export function construirFaseEditada(fase, form) {
       return item;
     }).filter(x => x[prop]);
   }
+  if (form.has('recomendacoes_presentes')) {
+    const titulos = form.getAll('recomendacao_titulo');
+    data.recomendacoes = normalizarRecomendacoes(form.getAll('recomendacao_texto').map((text,i) => ({ title:titulos[i], text })));
+  }
   const number = key => form.get(key) === '' ? null : Number(form.get(key));
   const from = number('anchor_from'), to = number('anchor_to');
   if ((from !== null && (!Number.isInteger(from) || from < 0)) || (to !== null && (!Number.isInteger(to) || to < 0)) || (from !== null && to !== null && to <= from)) throw new Error('O fim do período deve ser posterior ao início.');
@@ -46,6 +51,7 @@ export async function abrirEditorProtocolo({ protocolo, fase, exercicios, catalo
   const overlay = document.createElement('div');
   overlay.className = 'gcwo-modal-overlay';
   const text = (name,label,value) => `<label class="gcwo-field"><span class="gcwo-field-label">${esc(label)}</span><textarea name="${esc(name)}" rows="3">${esc(value)}</textarea></label>`;
+  const recommendationFields = item => text('recomendacao_titulo','Título da recomendação',item.title) + text('recomendacao_texto','Orientação para o doente (deixar vazia para remover)',item.text);
   const rows = exercicios.map(x => structuredClone(x));
   const data = fase.data || {};
   overlay.innerHTML = `<div class="gcwo-modal gcwo-protocol-editor" role="dialog" aria-modal="true" aria-labelledby="gcProtocolEditTitle">
@@ -61,6 +67,10 @@ export async function abrirEditorProtocolo({ protocolo, fase, exercicios, catalo
     ${Object.entries(OBJETOS).map(([key,[label,prop]]) => `<fieldset><legend>${esc(label)}</legend>${[...(data[key] || []),{}].map((item,i) => text(key,label,item[prop]) + (key === 'objetivos_serie' && item[prop] ? `
       ${item.tipo === 'mensuravel' ? `<p>Critério mensurável · ${esc(item.unidade)}</p><label>Comparação<select name="criterio_op_${i}">${['<','<=','=','>=','>'].map(op => `<option value="${esc(op)}" ${item.op === op ? 'selected':''}>${esc(op)}</option>`).join('')}</select></label><label>Valor (${esc(item.unidade)})<input name="criterio_valor_${i}" type="number" step="any" required value="${esc(item.valor)}"></label>` : ''}
       ${text(`criterio_nota_${i}`,'Nota do critério',item.nota)}` : '')).join('')}<button type="button" data-add-field="${key}">+ Acrescentar item</button></fieldset>`).join('')}
+    <fieldset><legend>Recomendações antes dos exercícios</legend><input type="hidden" name="recomendacoes_presentes" value="1">
+    <p>Estas orientações acompanham as novas sessões criadas a partir do protocolo. Não alteram os planos já prescritos.</p>
+    ${normalizarRecomendacoes(data.recomendacoes).map(recommendationFields).join('')}
+    <button type="button" data-add-recommendation>+ Adicionar recomendação</button></fieldset>
     <h4>Exercícios desta fase</h4><div data-exercises></div>
     <label class="gcwo-field"><span class="gcwo-field-label">Adicionar exercício</span><input type="search" data-search placeholder="Pesquisar no catálogo"><select data-catalog aria-label="Exercício do catálogo"></select></label><button type="button" data-add-exercise>+ Adicionar exercício à fase</button>
     <p role="alert" data-error></p>
@@ -109,6 +119,11 @@ export async function abrirEditorProtocolo({ protocolo, fase, exercicios, catalo
     overlay.querySelectorAll('[data-remove]').forEach(button => button.onclick = () => { rows.splice(Number(button.dataset.remove),1); dirty = true; renderRows(); renderCatalog(); });
   };
   renderRows(); renderCatalog();
+  overlay.querySelector('[data-add-recommendation]').onclick = event => {
+    event.currentTarget.insertAdjacentHTML('beforebegin', recommendationFields({}));
+    dirty = true;
+    event.currentTarget.previousElementSibling.querySelector('textarea').focus();
+  };
   overlay.querySelector('[data-search]').oninput = renderCatalog;
   overlay.querySelector('[data-add-exercise]').onclick = () => {
     const id = overlay.querySelector('[data-catalog]').value;

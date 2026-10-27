@@ -1526,3 +1526,13 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-protocol-editor [data-error] { color:#b91c1c; }
 
 .gcwo-protocol-editor form { overflow:auto; min-height:0; }
+
+/* Recomendações do protocolo, antes da seleção de exercícios. */
+.gcwo-pat-recomendacoes { border:1px solid #d5e1ef; border-radius:14px; background:#f4f8fd; padding:18px 20px; margin-bottom:22px; }
+.gcwo-pat-recomendacoes h3 { margin:0 0 8px; font-size:18px; color:#153554; }
+.gcwo-recomendacao h4 { margin:14px 0 4px; font-size:14px; color:#153554; }
+.gcwo-recomendacao p { margin:0; font-size:13px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+.gcwo-recomendacoes-imagem { display:block; max-width:100%; width:300px; max-height:210px; object-fit:contain; margin:12px 0; border-radius:10px; }
+.gcwo-pat-recomendacoes details { margin-top:16px; }
+.gcwo-pat-recomendacoes summary { cursor:pointer; font-weight:600; }
+@media (max-width:600px) { .gcwo-pat-recomendacoes { padding:14px; } }
