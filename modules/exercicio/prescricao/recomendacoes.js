@@ -24,7 +24,7 @@ export function renderRecomendacoesFase(fase) {
   return `<section class="gcwo-pat-recomendacoes" aria-label="Recomendações">
     <h3>Recomendações</h3>
     <p class="gcwo-muted">Rever antes de selecionar os exercícios. A orientação para o doente acompanha as novas sessões deste protocolo.</p>
-    ${imagem ? `<img class="gcwo-recomendacoes-imagem" src="${esc(imagem)}" alt="Exemplo de ortótese de punho e polegar; ajuste individual pelo profissional" loading="lazy">` : ''}
+    ${imagem ? `<img class="gcwo-recomendacoes-imagem" src="${esc(imagem)}" alt="${esc(data.recomendacoes_imagem_alt || 'Exemplo de ortótese; ajuste individual pelo profissional')}" loading="lazy">` : ''}
     ${renderItems(items)}
     ${clinicas.length ? `<details><summary>Notas para o médico</summary>${renderItems(clinicas)}</details>` : ''}
   </section>`;

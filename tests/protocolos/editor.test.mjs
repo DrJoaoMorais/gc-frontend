@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import { webcrypto } from 'node:crypto';
 globalThis.crypto ||= webcrypto;
 const recommendationsURL='data:text/javascript;base64,'+Buffer.from(readFileSync(new URL('../../modules/exercicio/prescricao/recomendacoes.js',import.meta.url),'utf8')).toString('base64');
-const source=readFileSync(process.argv[2],'utf8').replace("import { requireExerciseAccess } from '../permissoes.js';",'const requireExerciseAccess = () => {};').replace("import { normalizarRecomendacoes } from './recomendacoes.js?v=2026-10-27-1';",`const {normalizarRecomendacoes} = await import('${recommendationsURL}');`);
+const source=readFileSync(process.argv[2],'utf8').replace("import { requireExerciseAccess } from '../permissoes.js';",'const requireExerciseAccess = () => {};').replace("import { normalizarRecomendacoes } from './recomendacoes.js?v=2026-10-27-2';",`const {normalizarRecomendacoes} = await import('${recommendationsURL}');`);
 const {construirFaseEditada}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
 const original={name:'Original',data:{modificadores:{a:1},objetivos:[{id:'o1',label:'Antigo',extra:true}],objetivos_serie:[{id:'s1',tipo:'mensuravel',param:'rom.flex_p',valor:120,op:'>=',unidade:'°',texto:'Flexão'}]}};
 const before=JSON.stringify(original);

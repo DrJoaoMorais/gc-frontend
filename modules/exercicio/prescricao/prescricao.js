@@ -1,6 +1,6 @@
 import { requireExerciseAccess } from '../permissoes.js';
-import { abrirEditorProtocolo } from './protocolo-editor.js?v=2026-10-27-recomendacoes';
-import { renderRecomendacoesFase, recomendacoesParaSessao } from './recomendacoes.js?v=2026-10-27-1';
+import { abrirEditorProtocolo } from './protocolo-editor.js?v=2026-10-27-gatilho';
+import { renderRecomendacoesFase, recomendacoesParaSessao } from './recomendacoes.js?v=2026-10-27-2';
 import { mountClinicPicker, normalizeClinicIds } from '../../clinic-picker.js';
 /* =================================================================
    PRESCRICAO.JS — Prescrição de exercício físico (Vertente 1)
@@ -6128,7 +6128,7 @@ const CATALOGO_VISUAL_PATOLOGIA = [
     { area: 'Punho / Mão', itens: [
       { nome: 'Síndrome do Túnel do Carpo (Fase Inicial)', img: 'c-punho-tunel' },
       { nome: 'Tenossinovite de De Quervain', img: 'c-punho-quervain', match: ['tenossinovite de de quervain'] },
-      { nome: 'Dedo em Gatilho (Fase Inicial)', img: 'c-punho-dedo-gatilho' },
+      { nome: 'Dedo em Gatilho', img: 'c-punho-dedo-gatilho', match: ['dedo em gatilho'] },
       { nome: 'Osteoartrite / Rizartrose', img: 'c-punho-rizartrose' },
     ] },
     { area: 'Anca', itens: [
