@@ -1,5 +1,5 @@
 import { requireExerciseAccess } from '../permissoes.js';
-import { normalizarRecomendacoes } from './recomendacoes.js?v=2026-10-27-2';
+import { normalizarRecomendacoes, conteudoParaDoente } from './recomendacoes.js?v=2026-10-27-texto-doente-1';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const LISTAS = { permitido:'Permitido', contraindicacoes:'Evitar', hep:'Programa domiciliário', clinica:'Trabalho na clínica' };
 const OBJETOS = { objetivos:['Objetivos','label'], criterios_progressao:['Critérios para avançar','texto'], objetivos_serie:['Critérios detalhados','texto'] };
@@ -35,7 +35,7 @@ export function construirFaseEditada(fase, form) {
   }
   if (form.has('recomendacoes_presentes')) {
     const titulos = form.getAll('recomendacao_titulo');
-    data.recomendacoes = normalizarRecomendacoes(form.getAll('recomendacao_texto').map((text,i) => ({ title:titulos[i], text })));
+    data.recomendacoes = conteudoParaDoente(normalizarRecomendacoes(form.getAll('recomendacao_texto').map((text,i) => ({ title:titulos[i], text }))));
   }
   const number = key => form.get(key) === '' ? null : Number(form.get(key));
   const from = number('anchor_from'), to = number('anchor_to');
@@ -67,8 +67,8 @@ export async function abrirEditorProtocolo({ protocolo, fase, exercicios, catalo
     ${Object.entries(OBJETOS).map(([key,[label,prop]]) => `<fieldset><legend>${esc(label)}</legend>${[...(data[key] || []),{}].map((item,i) => text(key,label,item[prop]) + (key === 'objetivos_serie' && item[prop] ? `
       ${item.tipo === 'mensuravel' ? `<p>Critério mensurável · ${esc(item.unidade)}</p><label>Comparação<select name="criterio_op_${i}">${['<','<=','=','>=','>'].map(op => `<option value="${esc(op)}" ${item.op === op ? 'selected':''}>${esc(op)}</option>`).join('')}</select></label><label>Valor (${esc(item.unidade)})<input name="criterio_valor_${i}" type="number" step="any" required value="${esc(item.valor)}"></label>` : ''}
       ${text(`criterio_nota_${i}`,'Nota do critério',item.nota)}` : '')).join('')}<button type="button" data-add-field="${key}">+ Acrescentar item</button></fieldset>`).join('')}
-    <fieldset><legend>Recomendações antes dos exercícios</legend><input type="hidden" name="recomendacoes_presentes" value="1">
-    <p>Estas orientações acompanham as novas sessões criadas a partir do protocolo. Não alteram os planos já prescritos.</p>
+    <fieldset><legend>Recomendações para o doente, antes dos exercícios</legend><input type="hidden" name="recomendacoes_presentes" value="1">
+    <p>Texto para partilhar com o doente, sem rótulos de confiança. As dúvidas e o grau de evidência ficam nas notas para o médico. Estas orientações acompanham apenas novas sessões.</p>
     ${normalizarRecomendacoes(data.recomendacoes).map(recommendationFields).join('')}
     <button type="button" data-add-recommendation>+ Adicionar recomendação</button></fieldset>
     <h4>Exercícios desta fase</h4><div data-exercises></div>

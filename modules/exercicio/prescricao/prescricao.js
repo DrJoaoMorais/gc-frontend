@@ -1,6 +1,6 @@
 import { requireExerciseAccess } from '../permissoes.js';
-import { abrirEditorProtocolo } from './protocolo-editor.js?v=2026-10-27-gatilho';
-import { renderRecomendacoesFase, recomendacoesParaSessao } from './recomendacoes.js?v=2026-10-27-2';
+import { abrirEditorProtocolo } from './protocolo-editor.js?v=2026-10-27-texto-doente-1';
+import { renderRecomendacoesFase, recomendacoesParaSessao, textoParaDoente, conteudoParaDoente } from './recomendacoes.js?v=2026-10-27-texto-doente-1';
 import { mountClinicPicker, normalizeClinicIds } from '../../clinic-picker.js';
 /* =================================================================
    PRESCRICAO.JS — Prescrição de exercício físico (Vertente 1)
@@ -3682,8 +3682,8 @@ function novoItemDeExercicio(ex) {
     name: ex.name,
     photo_url: ex.photo_url || null,
     video_url: ex.video_url || null,
-    tecnica_notas: ex.tecnica_notas || null,
-    tecnica_info: ex.tecnica_info || null,
+    tecnica_notas: textoParaDoente(ex.tecnica_notas) || null,
+    tecnica_info: conteudoParaDoente(ex.tecnica_info || null),
     equipamento: ex.equipamento || [],
     machine_adjustment_suggestions: Array.isArray(ex.ajustes_maquina)
       ? ex.ajustes_maquina.map(a => a?.etiqueta).filter(Boolean)
@@ -5319,6 +5319,9 @@ function fmtDataPtLisboa(date) {
 // `intervals` já expandido — o `rounds`/`exercicios` é só o modelo do ecrã de edição,
 // nunca o que fica na base de dados (decisão de 8 de agosto de 2026).
 function sessaoParaGravar(s) {
+  return conteudoParaDoente(sessaoParaGravarBase(s));
+}
+function sessaoParaGravarBase(s) {
   const base = {
     session_id: s.session_id,
     date: s.date,
@@ -5941,11 +5944,11 @@ function criarItemPatologia(ex, info) {
     name: ex.name,
     photo_url: ex.photo_url || null,
     video_url: ex.video_url || null,
-    tecnica_notas: ex.tecnica_notas || null,
-    tecnica_info: ex.tecnica_info || null,
+    tecnica_notas: textoParaDoente(ex.tecnica_notas) || null,
+    tecnica_info: conteudoParaDoente(ex.tecnica_info || null),
     equipamento: ex.equipamento || [],
     machine_adjustment_suggestions: Array.isArray(ex.ajustes_maquina) ? ex.ajustes_maquina.map(a => a?.etiqueta).filter(Boolean) : [],
-    prescription_note: (typeof info?.clinical_note === 'string' && info.clinical_note.trim() && info.clinical_note.trim() !== '{}') ? info.clinical_note.trim() : null,
+    prescription_note: (typeof info?.clinical_note === 'string' && info.clinical_note.trim() && info.clinical_note.trim() !== '{}') ? textoParaDoente(info.clinical_note.trim()) : null,
     categoria: ex.categoria || [],
     sets: usaTempo ? (ex.name.toLowerCase().includes('bicicleta') ? 1 : 3) : 3,
     reps_min: usaTempo ? null : 8,
@@ -6478,6 +6481,19 @@ function wirePatologiaBody() {
     if (grid) { grid.innerHTML = renderGrelhaProtocolosPatologia(); wireCartoesProtocoloPatologia(grid); }
   });
   wireCartoesProtocoloPatologia(host);
+  host.querySelector('[data-pat-copiar-recomendacoes]')?.addEventListener('click', async () => {
+    const fase = _patologia.fases.find(f => f.id === _patologia.faseId);
+    const texto = recomendacoesParaSessao(fase);
+    const status = host.querySelector('[data-pat-copia-status]');
+    try {
+      await navigator.clipboard.writeText(texto);
+      if (status) status.textContent = ' Recomendações copiadas, prontas para partilhar com o doente.';
+    } catch {
+      const field = host.querySelector('[data-pat-texto-doente]');
+      if (field) { field.hidden = false; field.value = texto; field.focus(); field.select(); }
+      if (status) status.textContent = ' Texto selecionado para copiar.';
+    }
+  });
   document.getElementById('gcwoPatEditarBase')?.addEventListener('click', () => {
     const fase = _patologia.fases.find(f => f.id === _patologia.faseId);
     abrirEditorProtocolo({
