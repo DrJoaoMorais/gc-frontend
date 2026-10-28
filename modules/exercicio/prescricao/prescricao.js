@@ -6166,7 +6166,7 @@ const CATALOGO_VISUAL_PATOLOGIA = [
       { nome: 'Osteoartrite / Rizartrose', img: 'c-punho-rizartrose' },
     ] },
     { area: 'Anca', itens: [
-      { nome: 'Trocanterite', img: 'c-anca-trocanterite' },
+      { nome: 'Trocanterite', img: 'c-anca-trocanterite', match: ['trocanterite'] },
       { nome: 'Coxartrose', img: 'anca-artroscopia' }, // imagem provisória (sem ícone próprio na folha)
     ] },
     { area: 'Joelho', itens: [

@@ -1,0 +1,16 @@
+{
+  "ferramenta": "image_gen incorporado",
+  "referencia": "Modelo masculino enviado pelo utilizador",
+  "instrucao_visual_comum": "Mesmo modelo masculino da referência fornecida: cabelo escuro, camisola cinzenta, calções pretos, sapatilhas pretas, ilustração clínica 3D em fundo branco. Postura anatómica natural, mãos com cinco dedos quando visíveis, dois membros superiores e dois inferiores. Sem texto.",
+  "instrucoes_por_imagem": {
+    "isometrico-deitado": "Vista lateral, deitado de costas, cabeça apoiada, bacia no tapete, joelhos fletidos e pés apoiados. Elástico azul em laço acima dos joelhos. Sem movimento dos joelhos.",
+    "isometrico-sentado": "Vista frontal, sentado direito em cadeira alta, pés paralelos apoiados, joelhos à largura da bacia. Elástico azul em laço acima dos joelhos. Sem movimento.",
+    "ponte-bilateral": "Duas posições de perfil: início deitado, joelhos fletidos e pés apoiados; fim com bacia elevada e alinhamento ombros-anca-joelhos, sem hiperextensão lombar.",
+    "sentar-levantar": "Duas posições de perfil: sentado em cadeira alta com tronco ligeiramente inclinado; em pé diante da mesma cadeira. Pés mantêm a posição.",
+    "transferencia-peso": "Vista frontal, ambos os pés apoiados, mãos numa barra estável. Transferência pequena de peso, sem deixar cair a bacia.",
+    "abducao-sem-carga": "Vista frontal, mão apoiada em cadeira, pequena abdução da perna contralateral sem elástico, tronco vertical e bacia nivelada.",
+    "step-up": "Duas posições de perfil, degrau baixo com corrimão. Mesmo pé no degrau no início e no fim. Pé livre apenas ao lado do degrau, sem elevação exagerada do joelho.",
+    "apoio-unipodal": "Vista frontal, mão apoiada numa cadeira, um pé apoiado no chão, outro apenas ligeiramente elevado, bacia nivelada e tronco vertical."
+  },
+  "observacao": "Instruções consolidadas após correções; série inicial rejeitada."
+}
