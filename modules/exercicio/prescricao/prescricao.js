@@ -6167,7 +6167,7 @@ const CATALOGO_VISUAL_PATOLOGIA = [
     ] },
     { area: 'Anca', itens: [
       { nome: 'Trocanterite', img: 'c-anca-trocanterite', match: ['trocanterite'] },
-      { nome: 'Coxartrose', img: 'anca-artroscopia' }, // imagem provisória (sem ícone próprio na folha)
+      { nome: 'Coxartrose', img: 'anca-artroscopia', match: ['coxartrose', 'osteoartrose da anca'] }, // imagem provisória do cartão
     ] },
     { area: 'Joelho', itens: [
       { nome: 'SHER – Síndrome Hiperpressão Externa da Rótula', img: 'c-joelho-sher' },

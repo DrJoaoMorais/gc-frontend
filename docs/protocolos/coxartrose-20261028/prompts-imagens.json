@@ -1,0 +1,19 @@
+{
+  "ferramenta": "image_gen incorporado",
+  "referencia": "Modelo masculino enviado pelo utilizador",
+  "imagens": [
+    {
+      "key": "deslizar-lateral",
+      "prompt": "Use reference image ONLY as character identity and illustration style. SAME male model dark swept hair grey short-sleeve fitted shirt black shorts black trainers, clean smooth clinical 3D illustration on white background. NEW SUPINE HIP ABDUCTION HEEL SLIDE, TWO separate side-by-side panels in STRICT TOP DOWN overhead view, entire body from head to feet. In each panel man lies FLAT on back on rectangular mat, head on small pillow, shoulders pelvis and both arms resting, palms down with normal hands. LEFT START legs straight parallel hipwidth, kneecaps and toes face ceiling. RIGHT END RIGHT leg (viewer left in overhead view) slides a SMALL distance sideways away from body through hip abduction about 15degrees, knee stays straight and heel STAYS touching mat. Other leg stays straight in initial position. Pelvis square and completely unchanged no rotation, torso straight no twisting, NO bending hips up, NO crossing legs. Exactly two arms two legs per person, natural joints. Short blue sideways arrow near sliding heel. No bands weights stick muscle overlays text numbers. Maintain whole body aligned on flat mat, show true small lateral slide not lifting leg."
+    },
+    {
+      "key": "extensao",
+      "prompt": "EDIT this image, keep the SAME male character, clothing, face, countertop, white background and clean 3D clinical style. Correct ONLY exaggerated hip extension: bring the backward leg much CLOSER to supporting leg. The moving heel should be just 10–15cm BEHIND supporting heel and only 2–3cm above floor, not far out. Moving thigh is ALMOST VERTICAL, hip extension only about 5–10 degrees, knee stays naturally straight, toes point forward toward counter. Supporting foot stays flat. Keep pelvis neutral, torso vertical, no lumbar arch, no forward tilt. Do NOT change hand or head posture. Draw a very SMALL backward arrow or omit it. Natural small rehab movement, NOT a dramatic sports leg lift. Exactly two legs. Fullbody uncropped."
+    },
+    {
+      "key": "extensao-elastico",
+      "prompt": "EDIT this illustration into the BANDED progression of the same standing hip extension exercise. Preserve EXACTLY the same male, face, grey shirt, black shorts, black shoes, countertop, natural upright torso, neutral lumbar posture, supporting leg, SMALL backward movement and camera angle. Add a thin BLUE ELASTIC RESISTANCE LOOP encircling BOTH lower legs just ABOVE the ankles, connected between the supporting ankle and the backward moving ankle with light visible tension. The moving thigh must remain nearly vertical with only a small backward movement. Keep supporting foot flat. Do NOT enlarge movement or lift leg farther back. No straps buckles no wall anchor no extra limbs no muscle overlays no text. Maintain natural hands feet and joint alignment, white background fullbody."
+    }
+  ],
+  "revisao": "Extensão inicial com amplitude excessiva rejeitada; selecionada versão de movimento curto antes de criar variante com elástico."
+}
