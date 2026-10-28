@@ -6173,7 +6173,7 @@ const CATALOGO_VISUAL_PATOLOGIA = [
       { nome: 'SHER – Síndrome Hiperpressão Externa da Rótula', img: 'c-joelho-sher' },
       { nome: 'Tendinopatia do Rotuliano', img: 'c-joelho-rotuliano' },
       { nome: 'Síndrome da Banda Iliotibial', img: 'c-joelho-sher' }, // imagem provisória (sem ícone próprio na folha)
-      { nome: 'Gonartrose', img: 'c-joelho-sher' }, // imagem provisória (sem ícone próprio na folha)
+      { nome: 'Gonartrose', img: 'c-joelho-sher', match: ['gonartrose', 'osteoartrose do joelho'] }, // imagem provisória do cartão
       { nome: 'Entorse do Joelho', img: 'joelho-lca' }, // imagem provisória (sem ícone próprio na folha)
     ] },
     { area: 'Tornozelo / Pé', itens: [

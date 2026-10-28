@@ -1,0 +1,144 @@
+[
+  {
+    "id": "21eb4c19-43b3-4c92-984f-39cb62cb27ab",
+    "name": "Bicicleta",
+    "photo_url": "https://nxfnzzcuqzxmzsihbrtp.supabase.co/storage/v1/object/public/wo-exercises/75536e39-ff44-4a86-97cd-5c4300457826.jpg",
+    "tecnica_info": {
+      "dicas": [
+        "Confirmar os ajustes antes de iniciar o tempo prescrito.",
+        "Manter respiração regular.",
+        "Usar a intensidade indicada no plano, não apenas a sensação de velocidade."
+      ],
+      "execucao": [
+        "Iniciar com resistência baixa e cadência confortável.",
+        "Pedalar de forma contínua, mantendo joelhos e pés alinhados.",
+        "Aplicar a intensidade e a duração prescritas.",
+        "Reduzir gradualmente a intensidade antes de parar."
+      ],
+      "erros_comuns": [
+        "Selim demasiado baixo ou alto.",
+        "Joelhos desviarem-se para dentro ou para fora.",
+        "Apoiar peso excessivo nas mãos.",
+        "Começar com resistência elevada."
+      ],
+      "pontos_chave": [
+        "Bacia estável no selim.",
+        "Joelhos acompanham a direção dos pés.",
+        "Ombros relaxados.",
+        "Cadência regular.",
+        "Parar se sentir dor aguda."
+      ],
+      "posicao_inicial": [
+        "Ajustar a altura do selim para manter ligeira flexão do joelho no ponto mais baixo do pedal.",
+        "Ajustar a distância ao guiador sem obrigar a arredondar excessivamente o tronco.",
+        "Colocar os pés centrados e seguros nos pedais."
+      ]
+    }
+  },
+  {
+    "id": "f891a081-cc41-4074-8010-72267a3f6dd6",
+    "name": "Horizontal Leg Press",
+    "photo_url": "https://nxfnzzcuqzxmzsihbrtp.supabase.co/storage/v1/object/public/wo-exercises/d66a347d-2d1e-4807-981f-62a062dee72c.png",
+    "tecnica_info": {
+      "dicas": [
+        "Ajustar a profundidade à mobilidade e ao objetivo clínico.",
+        "Expirar ao empurrar.",
+        "Confirmar o travão antes de retirar os pés da plataforma."
+      ],
+      "execucao": [
+        "Empurrar a plataforma, estendendo ancas e joelhos sem bloquear os joelhos com força.",
+        "Regressar lentamente até à amplitude prescrita.",
+        "Manter a bacia e a região lombar apoiadas."
+      ],
+      "erros_comuns": [
+        "Descer até a bacia rodar ou levantar do banco.",
+        "Joelhos colapsarem para dentro.",
+        "Bloquear abruptamente os joelhos.",
+        "Usar amplitude ou carga excessivas."
+      ],
+      "pontos_chave": [
+        "Pés totalmente apoiados.",
+        "Joelhos acompanham a direção dos pés.",
+        "Movimento simétrico.",
+        "Segurança da máquina controlada.",
+        "Parar se sentir dor aguda."
+      ],
+      "posicao_inicial": [
+        "Ajustar o banco para manter a bacia e a coluna apoiadas.",
+        "Colocar os pés na plataforma à largura da bacia ou dos ombros.",
+        "Alinhar joelhos e pés.",
+        "Libertar o mecanismo de segurança apenas após confirmar a posição."
+      ]
+    }
+  },
+  {
+    "id": "6edc07d1-d5bd-43c9-9ac6-b1f79cb53af9",
+    "name": "Leg Curl",
+    "photo_url": "https://nxfnzzcuqzxmzsihbrtp.supabase.co/storage/v1/object/public/wo-exercises/214e7a9d-fb28-4f69-8780-9738016a6c60.jpg",
+    "tecnica_info": {
+      "dicas": [
+        "Confirmar o alinhamento dos joelhos com o eixo da máquina.",
+        "Expirar ao fletir os joelhos.",
+        "Reduzir a carga se a bacia perder contacto."
+      ],
+      "execucao": [
+        "Fletir os joelhos e aproximar os calcanhares da região glútea.",
+        "Parar antes de a bacia levantar ou de perder o controlo.",
+        "Estender lentamente os joelhos até à posição inicial."
+      ],
+      "erros_comuns": [
+        "Levantar a bacia.",
+        "Arquear a região lombar.",
+        "Usar impulso.",
+        "Deixar as placas bater."
+      ],
+      "pontos_chave": [
+        "Bacia permanece apoiada.",
+        "Movimento ocorre nos joelhos.",
+        "Tornozelos relaxados ou na posição prescrita.",
+        "Regresso lento.",
+        "Parar se sentir dor aguda."
+      ],
+      "posicao_inicial": [
+        "Deitar-se de barriga para baixo com os joelhos alinhados com o eixo da máquina.",
+        "Colocar a almofada acima dos calcanhares, na região distal das pernas.",
+        "Manter a bacia apoiada e segurar as pegas."
+      ]
+    }
+  },
+  {
+    "id": "6376c4ff-c79f-45e8-a1f3-945ee18a684d",
+    "name": "Leg Extension",
+    "photo_url": "https://nxfnzzcuqzxmzsihbrtp.supabase.co/storage/v1/object/public/wo-exercises/395aed57-b71d-4f35-b05b-d8bba747e7cf.jpg",
+    "tecnica_info": {
+      "dicas": [
+        "Ajustar amplitude e carga à tolerância do joelho.",
+        "Expirar durante a extensão.",
+        "Parar perante dor articular, distinguindo-a do esforço muscular esperado."
+      ],
+      "execucao": [
+        "Estender os joelhos até à amplitude prescrita.",
+        "Evitar bloquear os joelhos com impacto.",
+        "Regressar lentamente à flexão definida."
+      ],
+      "erros_comuns": [
+        "Levantar a bacia do assento.",
+        "Pontapear a carga com impulso.",
+        "Forçar extensão terminal dolorosa.",
+        "Deixar as placas bater."
+      ],
+      "pontos_chave": [
+        "Joelhos alinhados com o eixo da máquina.",
+        "Movimento simétrico.",
+        "Tronco apoiado.",
+        "Fase descendente controlada.",
+        "Parar se sentir dor aguda."
+      ],
+      "posicao_inicial": [
+        "Ajustar o encosto para alinhar os joelhos com o eixo da máquina.",
+        "Colocar a almofada na região distal das pernas, acima dos tornozelos.",
+        "Apoiar o tronco e a bacia e segurar as pegas."
+      ]
+    }
+  }
+]

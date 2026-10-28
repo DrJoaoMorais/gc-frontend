@@ -1,0 +1,25 @@
+{
+  "ferramenta": "image_gen incorporado",
+  "imagens": [
+    {
+      "key": "isometrico-quadricipite",
+      "prompt": "Use attached image ONLY as male character identity and clean medical 3D illustration style. SAME man dark swept hair, light grey short sleeve fitted shirt, black shorts, black trainers white soles. New SINGLE FULLBODY STRICT SIDE PROFILE medical exercise illustration on white. SUPINE QUADRICEPS ISOMETRIC WITH SMALL TOWEL: man lying flat on back on horizontal mat, head supported small flat pillow, both arms relaxed alongside torso, BOTH legs straight resting along mat. Put SMALL rolled towel under the knee NEAREST camera, producing only slight natural knee flexion. Heel of that leg STAYS resting on mat; toes point up. Show gentle downward small blue arrow above knee indicating pressing BACK of knee down into towel WITHOUT lifting pelvis or leg. Far leg straight naturally beside near leg, no crossing. Both shoulders pelvis head supported. Exactly two arms two legs normal joints and five digits on visible hand. NO band, NO neck curl, NO head lift, NO forceful hyperextension, NO text numbers."
+    },
+    {
+      "key": "deslizar-calcanhar",
+      "prompt": "Same male character and clean 3D clinical illustrated style as reference, grey short sleeve shirt black shorts black trainers, white background. TWO separate side-by-side fullbody STRICT SIDE PROFILE panels of HEEL SLIDE lying supine on mat. Head supported small flat pillow, shoulders back pelvis and arms rest on mat in BOTH panels. LEFT START both legs resting straight along mat, heels supported. RIGHT FINISH leg NEAREST camera has slid its heel TOWARDS buttock along mat, bending knee to a comfortable moderate angle about 50 degrees, heel REMAINS touching mat. FAR leg remains straight on mat. No twisted pelvis no lifting legs no head lift no lumbar arch. Exactly two arms two legs normal natural joints and hand anatomy per panel. Small horizontal arrow on mat pointing heel towards body is optional. No bands straps weights text numbers. Different frames show same person same side, not a bilateral knee to chest."
+    },
+    {
+      "key": "perna-estendida",
+      "prompt": "Same male character grey short sleeve shirt black shorts black trainers and smooth clinical 3D illustration style white background. SINGLE fullbody STRICT SIDE PROFILE view of SUPINE STRAIGHT LEG RAISE. Man lies on back on mat head supported small pillow, shoulders back pelvis stay resting, arms relaxed on mat. FAR knee is bent and FAR foot planted on mat. NEAR leg is STRAIGHT at knee and raised only 20 degrees from mat through hip flexion; straight natural line hip knee ankle, toe points up. Clear visual separation of the TWO legs, no third leg, no crossing, no rotating pelvis, no elevated head. Small blue curved arrow beside lifted heel indicates lifting. No weights no towel under knee no band no text. Anatomically normal hip knee ankle positions, fullbody uncropped."
+    },
+    {
+      "key": "calcanhares",
+      "prompt": "Use reference ONLY for SAME male identity and smooth medical 3D illustration style: dark swept hair light grey short sleeve shirt black shorts black trainers white soles. White background TWO separate side by side fullbody STRICT SIDE PROFILE panels of BILATERAL HEEL RAISE WITH SUPPORT ON LEVEL FLOOR. Man stands tall facing stable waist high support bar, both hands lightly rest on bar, both feet parallel hip width. LEFT start both soles fully planted flat on floor. RIGHT finish BOTH heels raised slightly above floor, toes and balls of BOTH feet still touch floor, body rises vertically a few cm as one straight line head hips knees ankles, knees naturally straight, no leaning no hip thrust no tiptoe ballet. BOTH legs share weight. Normal two arms two legs per panel, five digits where visible. No steps platforms bands weights arrows text labels. Feet remain parallel ankle alignment natural."
+    },
+    {
+      "key": "marcha-curta",
+      "prompt": "Same male character grey short sleeve fitted shirt black shorts black trainers dark swept hair and same smooth clinical 3D exercise illustration style as reference. White background SINGLE fullbody STRICT SIDE PROFILE view of EASY LEVEL WALKING with SHORT comfortable step on a horizontal floor. Natural upright torso neutral head eyes forward, shoulders relaxed, small natural arm swing opposite legs. One foot is planted under body in stance, other heel just makes contact a SHORT distance in front, not a long stride and no running flight. Exactly two legs two arms naturally connected with normal joints and five digits on visible hand. Feet point along direction of walking, no twisted ankles no crossed legs. No weights no bands no arrows no text numbers. Ordinary gentle walking, not exaggerated marching or high knee exercise."
+    }
+  ]
+}

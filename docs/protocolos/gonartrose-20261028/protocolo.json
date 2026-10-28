@@ -1,0 +1,1924 @@
+{
+  "protocol": {
+    "id": "ba537e5a-9374-5776-b18d-10d59d802f82",
+    "region": "joelho",
+    "name": "Gonartrose — osteoartrose do joelho",
+    "kind": "conservador",
+    "is_active": true,
+    "sort_order": 11,
+    "data": {
+      "version": 1,
+      "versao_clinica": "2026-10-28",
+      "contextos": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "fontes": [
+        {
+          "title": "NICE NG226 — exercício, educação e peso",
+          "url": "https://www.nice.org.uk/guidance/ng226/chapter/recommendations"
+        },
+        {
+          "title": "EULAR — atualização 2023, publicada em 2024",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11103326/"
+        },
+        {
+          "title": "Núñez-Cortés et al., JOSPT 2026 — intensidade e volume; certeza baixa a muito baixa",
+          "url": "https://pubmed.ncbi.nlm.nih.gov/42676087/",
+          "doi": "10.2519/jospt.2026.13477"
+        },
+        {
+          "title": "START, JAMA 2021 — alta intensidade sem superioridade na dor aos 18 meses",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7887656/"
+        },
+        {
+          "title": "BMJ 2025 — modalidades de exercício",
+          "url": "https://www.bmj.com/content/391/bmj-2025-085242"
+        }
+      ],
+      "status_revisao": "revisto_com_limites_de_evidencia_2026-10-28",
+      "nota_clinica": "Quatro fases por evolução clínica, seis opções por fase e seleção individual. Exercício de força e aeróbio, com educação. Sem calendário obrigatório. Não é um protocolo pós-operatório.",
+      "dose": "Doses iniciais práticas, ajustáveis pelo prescritor. Não representam um conjunto ou dose ótima experimentalmente validados.",
+      "auditoria_cientifica": {
+        "data": "2026-10-28",
+        "limites": "A evidência apoia exercício individualizado. Não valida seis exercícios obrigatórios, um limiar universal de dor, percentagens automáticas de progressão ou ângulos fixos.",
+        "imagens": "Cinco imagens novas no modelo masculino e nove imagens reutilizadas do catálogo, inspecionadas antes da publicação."
+      }
+    }
+  },
+  "phases": [
+    {
+      "id": "716e284a-7b9a-5667-bf8b-317f5fdc5540",
+      "protocol_id": "ba537e5a-9374-5776-b18d-10d59d802f82",
+      "phase_order": 1,
+      "name": "A — Agudização e recuperação de tolerância",
+      "anchor_kind": "evolucao_clinica",
+      "anchor_from": null,
+      "anchor_to": null,
+      "data": {
+        "nota_ancora": "Fase definida pela evolução clínica, sem semanas obrigatórias.",
+        "objetivos": [
+          {
+            "id": "o1",
+            "label": "Manter movimento e ativação com uma dose tolerada."
+          }
+        ],
+        "permitido": [
+          "Movimento e carga tolerados, de acordo com a seleção individual."
+        ],
+        "contraindicacoes": [
+          "Não forçar dor aguda, amplitude ou carga que provoquem perda de controlo.",
+          "Não prosseguir sem avaliação perante sinais de alarme."
+        ],
+        "hep": [
+          "As seis opções não são obrigatórias. Fazer apenas os exercícios e as doses selecionados."
+        ],
+        "recomendacoes": [
+          {
+            "title": "O seu plano",
+            "text": "Faça apenas as opções selecionadas para si. Começar habitualmente com 2–3 opções; não fazer as seis por obrigação."
+          },
+          {
+            "title": "Frequência",
+            "text": "Mobilidade e ativação em períodos curtos, conforme prescrito. Comece a ponte e o levantar da cadeira em dias alternados, se tolerados."
+          },
+          {
+            "title": "Atividade",
+            "text": "Mantenha deslocações curtas em plano, com pausas. Evite repouso prolongado e aumentos bruscos; não existe um número obrigatório de passos."
+          },
+          {
+            "title": "Resposta ao exercício",
+            "text": "Desconforto ligeiro pode acontecer. Reduza ou pare se a dor aumentar, perder controlo ou começar a coxear. Se piorarem o inchaço, o sono ou a manhã seguinte, reduza a dose e peça ajuste do plano."
+          },
+          {
+            "title": "Hábitos",
+            "text": "Mantenha atividade regular e evite aumentos bruscos. Se tiver excesso de peso, peça apoio para uma redução gradual. Não precisa de esperar por emagrecer para começar a mexer-se."
+          },
+          {
+            "title": "Quando pedir ajuda",
+            "text": "Procure avaliação urgente se o joelho ficar muito quente e inchado com febre, ou se deixar subitamente de conseguir apoiar a perna. Contacte a equipa perante bloqueio novo, inchaço súbito importante ou agravamento persistente."
+          }
+        ],
+        "recomendacoes_clinicas": [
+          {
+            "title": "Âmbito e entrada na fase",
+            "text": "Confirmar diagnóstico clínico, lado, irritabilidade, derrame, mobilidade, força, comorbilidades e objetivo. A pessoa com quadro estável pode começar na fase B ou C; não exigir passagem pela agudização. Não aplicar a artroplastia recente, traumatismo agudo ou suspeita de infeção/fratura."
+          },
+          {
+            "title": "Dose e evidência",
+            "text": "Escolher opções e individualizar dose, amplitude, resistência, apoio e frequência. As doses do catálogo são propostas práticas. Revisão JOSPT 2026: certeza baixa a muito baixa; não converter estimativas de dose-resposta em quotas de repetições. Carga elevada não é requisito universal para analgesia."
+          },
+          {
+            "title": "Adaptações",
+            "text": "Sintomas patelofemorais: ajustar amplitude e carga por exercício, sem proibir flexão acima de um ângulo fixo. Obesidade não exclui exercício em carga. Treino de equilíbrio em chão firme; instabilidade não é progressão obrigatória. Se dor persistente, avaliar também sono, receio do movimento e fatores psicossociais, sem presumir sensibilização central."
+          },
+          {
+            "title": "Acompanhamento",
+            "text": "Rever adesão, dor, derrame e uma tarefa relevante, por exemplo cadeira, escadas ou caminhada. Usar medida funcional consistente quando útil. Progredir uma variável de cada vez. Se ausência de evolução, rever dose e diagnóstico; não repetir imagem por rotina. Impacto importante apesar de tratamento adequado pode justificar referenciação."
+          }
+        ],
+        "criterios_progressao": [
+          {
+            "id": "p1",
+            "texto": "Movimentos e dose inicial tolerados sem agravamento persistente do inchaço, do sono ou da marcha."
+          },
+          {
+            "id": "p2",
+            "texto": "Caminhar e levantar da cadeira com tolerância estável ou em melhoria, dentro da capacidade individual."
+          }
+        ],
+        "objetivos_serie": [
+          {
+            "id": "s1",
+            "tipo": "qualitativo",
+            "texto": "Resposta do joelho e tarefa funcional revistas.",
+            "escala": "binario"
+          }
+        ],
+        "recommendations_scope": "ba537e5a-9374-5776-b18d-10d59d802f82:716e284a-7b9a-5667-bf8b-317f5fdc5540",
+        "revisao_cientifica": "2026-10-28"
+      }
+    },
+    {
+      "id": "99370da8-8d7b-56b3-9cf6-41a49d635369",
+      "protocol_id": "ba537e5a-9374-5776-b18d-10d59d802f82",
+      "phase_order": 2,
+      "name": "B — Base e função",
+      "anchor_kind": "evolucao_clinica",
+      "anchor_from": null,
+      "anchor_to": null,
+      "data": {
+        "nota_ancora": "Fase definida pela evolução clínica, sem semanas obrigatórias.",
+        "objetivos": [
+          {
+            "id": "o1",
+            "label": "Aprender os movimentos e melhorar a tolerância nas tarefas diárias."
+          }
+        ],
+        "permitido": [
+          "Movimento e carga tolerados, de acordo com a seleção individual."
+        ],
+        "contraindicacoes": [
+          "Não forçar dor aguda, amplitude ou carga que provoquem perda de controlo.",
+          "Não prosseguir sem avaliação perante sinais de alarme."
+        ],
+        "hep": [
+          "As seis opções não são obrigatórias. Fazer apenas os exercícios e as doses selecionados."
+        ],
+        "recomendacoes": [
+          {
+            "title": "O seu plano",
+            "text": "Habitualmente 3–4 opções por sessão, escolhidas com a equipa. Não precisa de fazer todas as opções da fase."
+          },
+          {
+            "title": "Frequência",
+            "text": "Força em 2–3 dias por semana, de preferência alternados. Comece com carga que permita movimento lento e controlado."
+          },
+          {
+            "title": "Caminhada ou bicicleta",
+            "text": "Inclua períodos curtos da atividade que melhor tolera. Aumente gradualmente o tempo; pode dividi-lo ao longo do dia."
+          },
+          {
+            "title": "Resposta ao exercício",
+            "text": "Desconforto ligeiro pode acontecer. Reduza ou pare se a dor aumentar, perder controlo ou começar a coxear. Se piorarem o inchaço, o sono ou a manhã seguinte, reduza a dose e peça ajuste do plano."
+          },
+          {
+            "title": "Hábitos",
+            "text": "Mantenha atividade regular e evite aumentos bruscos. Se tiver excesso de peso, peça apoio para uma redução gradual. Não precisa de esperar por emagrecer para começar a mexer-se."
+          },
+          {
+            "title": "Quando pedir ajuda",
+            "text": "Procure avaliação urgente se o joelho ficar muito quente e inchado com febre, ou se deixar subitamente de conseguir apoiar a perna. Contacte a equipa perante bloqueio novo, inchaço súbito importante ou agravamento persistente."
+          }
+        ],
+        "recomendacoes_clinicas": [
+          {
+            "title": "Âmbito e entrada na fase",
+            "text": "Confirmar diagnóstico clínico, lado, irritabilidade, derrame, mobilidade, força, comorbilidades e objetivo. A pessoa com quadro estável pode começar na fase B ou C; não exigir passagem pela agudização. Não aplicar a artroplastia recente, traumatismo agudo ou suspeita de infeção/fratura."
+          },
+          {
+            "title": "Dose e evidência",
+            "text": "Escolher opções e individualizar dose, amplitude, resistência, apoio e frequência. As doses do catálogo são propostas práticas. Revisão JOSPT 2026: certeza baixa a muito baixa; não converter estimativas de dose-resposta em quotas de repetições. Carga elevada não é requisito universal para analgesia."
+          },
+          {
+            "title": "Adaptações",
+            "text": "Sintomas patelofemorais: ajustar amplitude e carga por exercício, sem proibir flexão acima de um ângulo fixo. Obesidade não exclui exercício em carga. Treino de equilíbrio em chão firme; instabilidade não é progressão obrigatória. Se dor persistente, avaliar também sono, receio do movimento e fatores psicossociais, sem presumir sensibilização central."
+          },
+          {
+            "title": "Acompanhamento",
+            "text": "Rever adesão, dor, derrame e uma tarefa relevante, por exemplo cadeira, escadas ou caminhada. Usar medida funcional consistente quando útil. Progredir uma variável de cada vez. Se ausência de evolução, rever dose e diagnóstico; não repetir imagem por rotina. Impacto importante apesar de tratamento adequado pode justificar referenciação."
+          }
+        ],
+        "criterios_progressao": [
+          {
+            "id": "p1",
+            "texto": "Completar a seleção prescrita com controlo e sem agravamento sustentado."
+          },
+          {
+            "id": "p2",
+            "texto": "Melhorar a tarefa escolhida com a equipa, como cadeira, caminhada ou escadas."
+          }
+        ],
+        "objetivos_serie": [
+          {
+            "id": "s1",
+            "tipo": "qualitativo",
+            "texto": "Resposta do joelho e tarefa funcional revistas.",
+            "escala": "binario"
+          }
+        ],
+        "recommendations_scope": "ba537e5a-9374-5776-b18d-10d59d802f82:99370da8-8d7b-56b3-9cf6-41a49d635369",
+        "revisao_cientifica": "2026-10-28"
+      }
+    },
+    {
+      "id": "5c0f9e1c-f49e-5056-b556-41ff36346deb",
+      "protocol_id": "ba537e5a-9374-5776-b18d-10d59d802f82",
+      "phase_order": 3,
+      "name": "C — Reforço e capacidade funcional",
+      "anchor_kind": "evolucao_clinica",
+      "anchor_from": null,
+      "anchor_to": null,
+      "data": {
+        "nota_ancora": "Fase definida pela evolução clínica, sem semanas obrigatórias.",
+        "objetivos": [
+          {
+            "id": "o1",
+            "label": "Aumentar força e capacidade para as atividades importantes."
+          }
+        ],
+        "permitido": [
+          "Movimento e carga tolerados, de acordo com a seleção individual."
+        ],
+        "contraindicacoes": [
+          "Não forçar dor aguda, amplitude ou carga que provoquem perda de controlo.",
+          "Não prosseguir sem avaliação perante sinais de alarme."
+        ],
+        "hep": [
+          "As seis opções não são obrigatórias. Fazer apenas os exercícios e as doses selecionados."
+        ],
+        "recomendacoes": [
+          {
+            "title": "O seu plano",
+            "text": "Faça as 3–4 opções selecionadas para o seu objetivo. As máquinas são opções para quem tem acesso; não são obrigatórias."
+          },
+          {
+            "title": "Frequência e esforço",
+            "text": "Força habitualmente 2–3 dias por semana, em dias alternados. Termine inicialmente com capacidade para mais 2–3 repetições, sem perder controlo."
+          },
+          {
+            "title": "Progressão",
+            "text": "Se tolerar bem várias sessões, aumente uma variável de cada vez: repetições, carga, amplitude ou duração. Mantenha caminhada ou bicicleta adaptada à sua capacidade."
+          },
+          {
+            "title": "Resposta ao exercício",
+            "text": "Desconforto ligeiro pode acontecer. Reduza ou pare se a dor aumentar, perder controlo ou começar a coxear. Se piorarem o inchaço, o sono ou a manhã seguinte, reduza a dose e peça ajuste do plano."
+          },
+          {
+            "title": "Hábitos",
+            "text": "Mantenha atividade regular e evite aumentos bruscos. Se tiver excesso de peso, peça apoio para uma redução gradual. Não precisa de esperar por emagrecer para começar a mexer-se."
+          },
+          {
+            "title": "Quando pedir ajuda",
+            "text": "Procure avaliação urgente se o joelho ficar muito quente e inchado com febre, ou se deixar subitamente de conseguir apoiar a perna. Contacte a equipa perante bloqueio novo, inchaço súbito importante ou agravamento persistente."
+          }
+        ],
+        "recomendacoes_clinicas": [
+          {
+            "title": "Âmbito e entrada na fase",
+            "text": "Confirmar diagnóstico clínico, lado, irritabilidade, derrame, mobilidade, força, comorbilidades e objetivo. A pessoa com quadro estável pode começar na fase B ou C; não exigir passagem pela agudização. Não aplicar a artroplastia recente, traumatismo agudo ou suspeita de infeção/fratura."
+          },
+          {
+            "title": "Dose e evidência",
+            "text": "Escolher opções e individualizar dose, amplitude, resistência, apoio e frequência. As doses do catálogo são propostas práticas. Revisão JOSPT 2026: certeza baixa a muito baixa; não converter estimativas de dose-resposta em quotas de repetições. Carga elevada não é requisito universal para analgesia."
+          },
+          {
+            "title": "Adaptações",
+            "text": "Sintomas patelofemorais: ajustar amplitude e carga por exercício, sem proibir flexão acima de um ângulo fixo. Obesidade não exclui exercício em carga. Treino de equilíbrio em chão firme; instabilidade não é progressão obrigatória. Se dor persistente, avaliar também sono, receio do movimento e fatores psicossociais, sem presumir sensibilização central."
+          },
+          {
+            "title": "Acompanhamento",
+            "text": "Rever adesão, dor, derrame e uma tarefa relevante, por exemplo cadeira, escadas ou caminhada. Usar medida funcional consistente quando útil. Progredir uma variável de cada vez. Se ausência de evolução, rever dose e diagnóstico; não repetir imagem por rotina. Impacto importante apesar de tratamento adequado pode justificar referenciação."
+          }
+        ],
+        "criterios_progressao": [
+          {
+            "id": "p1",
+            "texto": "Tarefas relevantes realizadas com maior capacidade e sem agravamento persistente."
+          },
+          {
+            "id": "p2",
+            "texto": "Conseguir gerir a dose e reconhecer quando deve reduzir temporariamente a carga."
+          }
+        ],
+        "objetivos_serie": [
+          {
+            "id": "s1",
+            "tipo": "qualitativo",
+            "texto": "Resposta do joelho e tarefa funcional revistas.",
+            "escala": "binario"
+          }
+        ],
+        "recommendations_scope": "ba537e5a-9374-5776-b18d-10d59d802f82:5c0f9e1c-f49e-5056-b556-41ff36346deb",
+        "revisao_cientifica": "2026-10-28"
+      }
+    },
+    {
+      "id": "c0421d39-cbfe-5e06-9b34-6f8468ae03c4",
+      "protocol_id": "ba537e5a-9374-5776-b18d-10d59d802f82",
+      "phase_order": 4,
+      "name": "D — Manutenção",
+      "anchor_kind": "evolucao_clinica",
+      "anchor_from": null,
+      "anchor_to": null,
+      "data": {
+        "nota_ancora": "Fase definida pela evolução clínica, sem semanas obrigatórias.",
+        "objetivos": [
+          {
+            "id": "o1",
+            "label": "Manter os ganhos e uma rotina sustentável."
+          }
+        ],
+        "permitido": [
+          "Movimento e carga tolerados, de acordo com a seleção individual."
+        ],
+        "contraindicacoes": [
+          "Não forçar dor aguda, amplitude ou carga que provoquem perda de controlo.",
+          "Não prosseguir sem avaliação perante sinais de alarme."
+        ],
+        "hep": [
+          "As seis opções não são obrigatórias. Fazer apenas os exercícios e as doses selecionados."
+        ],
+        "recomendacoes": [
+          {
+            "title": "O seu plano",
+            "text": "Mantenha as opções mais úteis para si. Pode alterná-las entre sessões, sem obrigação de fazer as seis."
+          },
+          {
+            "title": "Frequência",
+            "text": "Mantenha habitualmente duas sessões de força por semana. Ajuste a carga à capacidade atual; o programa não tem de terminar ao fim de 12 semanas."
+          },
+          {
+            "title": "Atividade regular",
+            "text": "Mantenha caminhada, bicicleta ou outra atividade de que goste. Acumule períodos tolerados e aumente aos poucos. A meta de atividade é adaptada à sua saúde e capacidade."
+          },
+          {
+            "title": "Resposta ao exercício",
+            "text": "Desconforto ligeiro pode acontecer. Reduza ou pare se a dor aumentar, perder controlo ou começar a coxear. Se piorarem o inchaço, o sono ou a manhã seguinte, reduza a dose e peça ajuste do plano."
+          },
+          {
+            "title": "Hábitos",
+            "text": "Mantenha atividade regular e evite aumentos bruscos. Se tiver excesso de peso, peça apoio para uma redução gradual. Não precisa de esperar por emagrecer para começar a mexer-se."
+          },
+          {
+            "title": "Quando pedir ajuda",
+            "text": "Procure avaliação urgente se o joelho ficar muito quente e inchado com febre, ou se deixar subitamente de conseguir apoiar a perna. Contacte a equipa perante bloqueio novo, inchaço súbito importante ou agravamento persistente."
+          }
+        ],
+        "recomendacoes_clinicas": [
+          {
+            "title": "Âmbito e entrada na fase",
+            "text": "Confirmar diagnóstico clínico, lado, irritabilidade, derrame, mobilidade, força, comorbilidades e objetivo. A pessoa com quadro estável pode começar na fase B ou C; não exigir passagem pela agudização. Não aplicar a artroplastia recente, traumatismo agudo ou suspeita de infeção/fratura."
+          },
+          {
+            "title": "Dose e evidência",
+            "text": "Escolher opções e individualizar dose, amplitude, resistência, apoio e frequência. As doses do catálogo são propostas práticas. Revisão JOSPT 2026: certeza baixa a muito baixa; não converter estimativas de dose-resposta em quotas de repetições. Carga elevada não é requisito universal para analgesia."
+          },
+          {
+            "title": "Adaptações",
+            "text": "Sintomas patelofemorais: ajustar amplitude e carga por exercício, sem proibir flexão acima de um ângulo fixo. Obesidade não exclui exercício em carga. Treino de equilíbrio em chão firme; instabilidade não é progressão obrigatória. Se dor persistente, avaliar também sono, receio do movimento e fatores psicossociais, sem presumir sensibilização central."
+          },
+          {
+            "title": "Acompanhamento",
+            "text": "Rever adesão, dor, derrame e uma tarefa relevante, por exemplo cadeira, escadas ou caminhada. Usar medida funcional consistente quando útil. Progredir uma variável de cada vez. Se ausência de evolução, rever dose e diagnóstico; não repetir imagem por rotina. Impacto importante apesar de tratamento adequado pode justificar referenciação."
+          }
+        ],
+        "criterios_progressao": [
+          {
+            "id": "p1",
+            "texto": "Manter a rotina e rever o plano se as necessidades ou a capacidade mudarem."
+          },
+          {
+            "id": "p2",
+            "texto": "Pedir reavaliação perante agravamento persistente ou perda de função."
+          }
+        ],
+        "objetivos_serie": [
+          {
+            "id": "s1",
+            "tipo": "qualitativo",
+            "texto": "Resposta do joelho e tarefa funcional revistas.",
+            "escala": "binario"
+          }
+        ],
+        "recommendations_scope": "ba537e5a-9374-5776-b18d-10d59d802f82:c0421d39-cbfe-5e06-9b34-6f8468ae03c4",
+        "revisao_cientifica": "2026-10-28"
+      }
+    }
+  ],
+  "exercises": [
+    {
+      "id": "e28170cb-bcc6-54d7-bb7e-12a24a3a7a25",
+      "name": "Isométrico de quadricípite com toalha",
+      "locais": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Sem equipamento"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://gc.joaomorais.pt/assets/exercicios/gonartrose/2026-10-28/isometrico-quadricipite.png",
+      "video_url": null,
+      "tecnica_info": {
+        "posicao_inicial": [
+          "De costas, cabeça apoiada, perna alongada e pequena toalha enrolada debaixo do joelho."
+        ],
+        "execucao": [
+          "Contraia a parte anterior da coxa, pressionando suavemente o joelho contra a toalha.",
+          "Mantenha pelo tempo prescrito, relaxe e repita."
+        ],
+        "pontos_chave": [
+          "Não levante a bacia nem force a extensão. Não é necessário fazer força máxima.",
+          "Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo."
+        ],
+        "erros_comuns": [
+          "Usar impulso, prender a respiração ou aumentar a dificuldade sem controlo."
+        ],
+        "dicas": [
+          "Respire normalmente e peça ensino da técnica se tiver dúvidas."
+        ]
+      },
+      "tecnica_notas": "posicao inicial\n• De costas, cabeça apoiada, perna alongada e pequena toalha enrolada debaixo do joelho.\n\nexecucao\n• Contraia a parte anterior da coxa, pressionando suavemente o joelho contra a toalha.\n• Mantenha pelo tempo prescrito, relaxe e repita.\n\npontos chave\n• Não levante a bacia nem force a extensão. Não é necessário fazer força máxima.\n• Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo.\n\nerros comuns\n• Usar impulso, prender a respiração ou aumentar a dificuldade sem controlo.\n\ndicas\n• Respire normalmente e peça ensino da técnica se tiver dúvidas.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Fortalecimento"
+      ]
+    },
+    {
+      "id": "b2d076af-2d15-55ed-8d10-9b66be02cdab",
+      "name": "Deslizamento do calcanhar deitado",
+      "locais": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Sem equipamento"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://gc.joaomorais.pt/assets/exercicios/gonartrose/2026-10-28/deslizar-calcanhar.png",
+      "video_url": null,
+      "tecnica_info": {
+        "posicao_inicial": [
+          "De costas, cabeça apoiada e pernas numa posição confortável."
+        ],
+        "execucao": [
+          "Deslize o calcanhar na direção da bacia, fletindo o joelho dentro da amplitude tolerada.",
+          "Deslize de novo para alongar a perna, sem forçar o fim do movimento."
+        ],
+        "pontos_chave": [
+          "O calcanhar mantém contacto com a superfície. A imagem não define a amplitude obrigatória.",
+          "Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo."
+        ],
+        "erros_comuns": [
+          "Usar impulso, prender a respiração ou aumentar a dificuldade sem controlo."
+        ],
+        "dicas": [
+          "Respire normalmente e peça ensino da técnica se tiver dúvidas."
+        ]
+      },
+      "tecnica_notas": "posicao inicial\n• De costas, cabeça apoiada e pernas numa posição confortável.\n\nexecucao\n• Deslize o calcanhar na direção da bacia, fletindo o joelho dentro da amplitude tolerada.\n• Deslize de novo para alongar a perna, sem forçar o fim do movimento.\n\npontos chave\n• O calcanhar mantém contacto com a superfície. A imagem não define a amplitude obrigatória.\n• Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo.\n\nerros comuns\n• Usar impulso, prender a respiração ou aumentar a dificuldade sem controlo.\n\ndicas\n• Respire normalmente e peça ensino da técnica se tiver dúvidas.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Mobilidade / Alongamento"
+      ]
+    },
+    {
+      "id": "15ef932e-9776-5ed2-905e-ea3d6adb3cc2",
+      "name": "Elevação da perna estendida",
+      "locais": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Peso Corporal"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://gc.joaomorais.pt/assets/exercicios/gonartrose/2026-10-28/perna-estendida.png",
+      "video_url": null,
+      "tecnica_info": {
+        "posicao_inicial": [
+          "De costas, uma perna fletida com o pé apoiado e a perna a exercitar alongada."
+        ],
+        "execucao": [
+          "Contraia a coxa e eleve ligeiramente a perna, mantendo o joelho estendido dentro da capacidade.",
+          "Desça lentamente e descanse conforme prescrito."
+        ],
+        "pontos_chave": [
+          "Não levantar a cabeça ou arquear a região lombar.",
+          "Se não conseguir manter o joelho estendido ou aumentar a dor, pare e peça uma alternativa.",
+          "Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo."
+        ],
+        "erros_comuns": [
+          "Usar impulso, prender a respiração ou aumentar a dificuldade sem controlo."
+        ],
+        "dicas": [
+          "Respire normalmente e peça ensino da técnica se tiver dúvidas."
+        ]
+      },
+      "tecnica_notas": "posicao inicial\n• De costas, uma perna fletida com o pé apoiado e a perna a exercitar alongada.\n\nexecucao\n• Contraia a coxa e eleve ligeiramente a perna, mantendo o joelho estendido dentro da capacidade.\n• Desça lentamente e descanse conforme prescrito.\n\npontos chave\n• Não levantar a cabeça ou arquear a região lombar.\n• Se não conseguir manter o joelho estendido ou aumentar a dor, pare e peça uma alternativa.\n• Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo.\n\nerros comuns\n• Usar impulso, prender a respiração ou aumentar a dificuldade sem controlo.\n\ndicas\n• Respire normalmente e peça ensino da técnica se tiver dúvidas.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Fortalecimento"
+      ]
+    },
+    {
+      "id": "66f15958-4911-55f0-9ca9-5170c36fe821",
+      "name": "Caminhada curta em plano",
+      "locais": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Sem equipamento"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://gc.joaomorais.pt/assets/exercicios/gonartrose/2026-10-28/marcha-curta.png",
+      "video_url": null,
+      "tecnica_info": {
+        "posicao_inicial": [
+          "Percurso plano, desimpedido e com calçado estável. Utilize a ajuda de marcha prescrita, se indicada."
+        ],
+        "execucao": [
+          "Caminhe com passos confortáveis e ritmo tolerado.",
+          "Faça pausas antes de começar a coxear ou perder controlo."
+        ],
+        "pontos_chave": [
+          "O tempo inicial é ajustável; não é uma duração mínima obrigatória.",
+          "A imagem mostra o gesto de caminhar e não substitui uma ajuda de marcha prescrita.",
+          "Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo."
+        ],
+        "erros_comuns": [
+          "Usar impulso, prender a respiração ou aumentar a dificuldade sem controlo."
+        ],
+        "dicas": [
+          "Respire normalmente e peça ensino da técnica se tiver dúvidas."
+        ]
+      },
+      "tecnica_notas": "posicao inicial\n• Percurso plano, desimpedido e com calçado estável. Utilize a ajuda de marcha prescrita, se indicada.\n\nexecucao\n• Caminhe com passos confortáveis e ritmo tolerado.\n• Faça pausas antes de começar a coxear ou perder controlo.\n\npontos chave\n• O tempo inicial é ajustável; não é uma duração mínima obrigatória.\n• A imagem mostra o gesto de caminhar e não substitui uma ajuda de marcha prescrita.\n• Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo.\n\nerros comuns\n• Usar impulso, prender a respiração ou aumentar a dificuldade sem controlo.\n\ndicas\n• Respire normalmente e peça ensino da técnica se tiver dúvidas.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Cardiovascular"
+      ]
+    },
+    {
+      "id": "cd8e917c-de32-56e7-9bfd-7c6ba3c1b6ba",
+      "name": "Elevação bilateral dos calcanhares com apoio",
+      "locais": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Peso Corporal"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://gc.joaomorais.pt/assets/exercicios/gonartrose/2026-10-28/calcanhares.png",
+      "video_url": null,
+      "tecnica_info": {
+        "posicao_inicial": [
+          "De pé no chão plano, pés paralelos e mãos num apoio estável."
+        ],
+        "execucao": [
+          "Eleve os dois calcanhares lentamente, mantendo a parte anterior dos pés apoiada.",
+          "Baixe os calcanhares com controlo até ao chão."
+        ],
+        "pontos_chave": [
+          "Distribua o peso pelos dois pés. Não usar um degrau nesta variante.",
+          "Reduza a amplitude ou a dose se o joelho ou o tornozelo agravarem.",
+          "Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo."
+        ],
+        "erros_comuns": [
+          "Usar impulso, prender a respiração ou aumentar a dificuldade sem controlo."
+        ],
+        "dicas": [
+          "Respire normalmente e peça ensino da técnica se tiver dúvidas."
+        ]
+      },
+      "tecnica_notas": "posicao inicial\n• De pé no chão plano, pés paralelos e mãos num apoio estável.\n\nexecucao\n• Eleve os dois calcanhares lentamente, mantendo a parte anterior dos pés apoiada.\n• Baixe os calcanhares com controlo até ao chão.\n\npontos chave\n• Distribua o peso pelos dois pés. Não usar um degrau nesta variante.\n• Reduza a amplitude ou a dose se o joelho ou o tornozelo agravarem.\n• Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo.\n\nerros comuns\n• Usar impulso, prender a respiração ou aumentar a dificuldade sem controlo.\n\ndicas\n• Respire normalmente e peça ensino da técnica se tiver dúvidas.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Fortalecimento"
+      ]
+    },
+    {
+      "id": "d581440b-9034-5c7c-b3b3-d2434f728a06",
+      "name": "Ponte glútea bilateral — joelho",
+      "locais": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Peso Corporal"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://gc.joaomorais.pt/assets/exercicios/trocanterite/2026-10-28/ponte-bilateral.png",
+      "video_url": null,
+      "tecnica_info": {
+        "posicao_inicial": [
+          "De costas num tapete, joelhos fletidos, pés apoiados à largura da bacia e braços ao lado do corpo."
+        ],
+        "execucao": [
+          "Empurre o chão com os dois pés e eleve a bacia apenas até à altura tolerada.",
+          "Regresse lentamente, sem arquear excessivamente a região lombar."
+        ],
+        "pontos_chave": [
+          "Distribua o esforço pelos dois pés e não deixe os joelhos cair para dentro.",
+          "Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo."
+        ],
+        "erros_comuns": [
+          "Aumentar a carga ou a amplitude sem conseguir manter o controlo.",
+          "Prender a respiração ou continuar apesar de agravamento."
+        ],
+        "dicas": [
+          "Respire normalmente. Peça ensino da técnica e adapte o lado exercitado."
+        ]
+      },
+      "tecnica_notas": "Posição inicial\n• De costas num tapete, joelhos fletidos, pés apoiados à largura da bacia e braços ao lado do corpo.\n\nExecução\n• Empurre o chão com os dois pés e eleve a bacia apenas até à altura tolerada.\n• Regresse lentamente, sem arquear excessivamente a região lombar.\n\nPontos-chave\n• Distribua o esforço pelos dois pés e não deixe os joelhos cair para dentro.\n• Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo.\n\nErros comuns\n• Aumentar a carga ou a amplitude sem conseguir manter o controlo.\n• Prender a respiração ou continuar apesar de agravamento.\n\nDicas\n• Respire normalmente. Peça ensino da técnica e adapte o lado exercitado.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Fortalecimento"
+      ]
+    },
+    {
+      "id": "f04870ba-11ce-5d5a-98df-df3d4312e9e3",
+      "name": "Sentar e levantar de cadeira — joelho",
+      "locais": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Peso Corporal"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://gc.joaomorais.pt/assets/exercicios/trocanterite/2026-10-28/sentar-levantar.png",
+      "video_url": null,
+      "tecnica_info": {
+        "posicao_inicial": [
+          "Cadeira firme encostada à parede, com altura que permita levantar sem esforço excessivo. Pés apoiados à largura da bacia."
+        ],
+        "execucao": [
+          "Incline ligeiramente o tronco para a frente e levante-se sem impulso.",
+          "Volte a sentar-se devagar, mantendo os joelhos na direção dos pés."
+        ],
+        "pontos_chave": [
+          "Use apoio dos braços se necessário; reduza-o apenas quando conseguir.",
+          "Ajuste altura e amplitude ao conforto.",
+          "Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo."
+        ],
+        "erros_comuns": [
+          "Aumentar a carga ou a amplitude sem conseguir manter o controlo.",
+          "Prender a respiração ou continuar apesar de agravamento."
+        ],
+        "dicas": [
+          "Respire normalmente. Peça ensino da técnica e adapte o lado exercitado."
+        ]
+      },
+      "tecnica_notas": "Posição inicial\n• Cadeira firme encostada à parede, com altura que permita levantar sem esforço excessivo. Pés apoiados à largura da bacia.\n\nExecução\n• Incline ligeiramente o tronco para a frente e levante-se sem impulso.\n• Volte a sentar-se devagar, mantendo os joelhos na direção dos pés.\n\nPontos-chave\n• Use apoio dos braços se necessário; reduza-o apenas quando conseguir.\n• Ajuste altura e amplitude ao conforto.\n• Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo.\n\nErros comuns\n• Aumentar a carga ou a amplitude sem conseguir manter o controlo.\n• Prender a respiração ou continuar apesar de agravamento.\n\nDicas\n• Respire normalmente. Peça ensino da técnica e adapte o lado exercitado.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Fortalecimento"
+      ]
+    },
+    {
+      "id": "ff0f94fd-8f4a-52b6-8bc8-3663422d5c38",
+      "name": "Abdução da anca em pé com apoio — joelho",
+      "locais": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Sem equipamento"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://gc.joaomorais.pt/assets/exercicios/trocanterite/2026-10-28/abducao-sem-carga.png",
+      "video_url": null,
+      "tecnica_info": {
+        "posicao_inicial": [
+          "De pé junto a uma cadeira firme, segurando o encosto. Tronco vertical, bacia nivelada e pés paralelos."
+        ],
+        "execucao": [
+          "Afaste ligeiramente a perna a exercitar para o lado, mantendo o pé para a frente.",
+          "Regresse até à posição inicial, sem cruzar a linha do corpo."
+        ],
+        "pontos_chave": [
+          "Comece com amplitude pequena e sem elástico.",
+          "O apoio na outra perna também exige esforço: se agravar os sintomas, escolha uma opção deitada ou sentada.",
+          "Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo."
+        ],
+        "erros_comuns": [
+          "Aumentar a carga ou a amplitude sem conseguir manter o controlo.",
+          "Prender a respiração ou continuar apesar de agravamento."
+        ],
+        "dicas": [
+          "Respire normalmente. Peça ensino da técnica e adapte o lado exercitado."
+        ]
+      },
+      "tecnica_notas": "Posição inicial\n• De pé junto a uma cadeira firme, segurando o encosto. Tronco vertical, bacia nivelada e pés paralelos.\n\nExecução\n• Afaste ligeiramente a perna a exercitar para o lado, mantendo o pé para a frente.\n• Regresse até à posição inicial, sem cruzar a linha do corpo.\n\nPontos-chave\n• Comece com amplitude pequena e sem elástico.\n• O apoio na outra perna também exige esforço: se agravar os sintomas, escolha uma opção deitada ou sentada.\n• Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo.\n\nErros comuns\n• Aumentar a carga ou a amplitude sem conseguir manter o controlo.\n• Prender a respiração ou continuar apesar de agravamento.\n\nDicas\n• Respire normalmente. Peça ensino da técnica e adapte o lado exercitado.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Fortalecimento"
+      ]
+    },
+    {
+      "id": "647921fa-41f3-5ec6-9813-44a064ead9d2",
+      "name": "Equilíbrio numa perna com apoio — joelho",
+      "locais": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Sem equipamento"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://gc.joaomorais.pt/assets/exercicios/trocanterite/2026-10-28/apoio-unipodal.png",
+      "video_url": null,
+      "tecnica_info": {
+        "posicao_inicial": [
+          "De pé ao lado de uma cadeira firme, em chão plano e com olhos abertos. Uma mão apoiada no encosto."
+        ],
+        "execucao": [
+          "Transfira o peso para a perna a exercitar e eleve ligeiramente o outro pé.",
+          "Mantenha a bacia nivelada pelo tempo prescrito. Volte aos dois apoios e descanse."
+        ],
+        "pontos_chave": [
+          "Ajuste o apoio da mão e o tempo à tolerância. Não deixe a bacia cair.",
+          "Não progrida automaticamente para olhos fechados ou superfície instável.",
+          "Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo."
+        ],
+        "erros_comuns": [
+          "Aumentar a carga ou a amplitude sem conseguir manter o controlo.",
+          "Prender a respiração ou continuar apesar de agravamento."
+        ],
+        "dicas": [
+          "Respire normalmente. Peça ensino da técnica e adapte o lado exercitado."
+        ]
+      },
+      "tecnica_notas": "Posição inicial\n• De pé ao lado de uma cadeira firme, em chão plano e com olhos abertos. Uma mão apoiada no encosto.\n\nExecução\n• Transfira o peso para a perna a exercitar e eleve ligeiramente o outro pé.\n• Mantenha a bacia nivelada pelo tempo prescrito. Volte aos dois apoios e descanse.\n\nPontos-chave\n• Ajuste o apoio da mão e o tempo à tolerância. Não deixe a bacia cair.\n• Não progrida automaticamente para olhos fechados ou superfície instável.\n• Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo.\n\nErros comuns\n• Aumentar a carga ou a amplitude sem conseguir manter o controlo.\n• Prender a respiração ou continuar apesar de agravamento.\n\nDicas\n• Respire normalmente. Peça ensino da técnica e adapte o lado exercitado.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Propriocepção / Equilíbrio"
+      ]
+    },
+    {
+      "id": "865798e5-4926-5084-924c-7a3623d7d1a3",
+      "name": "Subida de degrau baixo com apoio — joelho",
+      "locais": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Peso Corporal"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://gc.joaomorais.pt/assets/exercicios/trocanterite/2026-10-28/step-up.png",
+      "video_url": null,
+      "tecnica_info": {
+        "posicao_inicial": [
+          "Diante de um degrau baixo, firme e antiderrapante, com corrimão ao lado. Pé da perna a exercitar totalmente apoiado no degrau."
+        ],
+        "execucao": [
+          "Suba com controlo, sem impulso excessivo da perna de trás.",
+          "Desça devagar e repita na altura e amplitude prescritas."
+        ],
+        "pontos_chave": [
+          "Mantenha o joelho orientado com o pé e a bacia controlada.",
+          "Use o corrimão. Não existe uma altura obrigatória; não use bancos instáveis.",
+          "Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo."
+        ],
+        "erros_comuns": [
+          "Aumentar a carga ou a amplitude sem conseguir manter o controlo.",
+          "Prender a respiração ou continuar apesar de agravamento."
+        ],
+        "dicas": [
+          "Respire normalmente. Peça ensino da técnica e adapte o lado exercitado."
+        ]
+      },
+      "tecnica_notas": "Posição inicial\n• Diante de um degrau baixo, firme e antiderrapante, com corrimão ao lado. Pé da perna a exercitar totalmente apoiado no degrau.\n\nExecução\n• Suba com controlo, sem impulso excessivo da perna de trás.\n• Desça devagar e repita na altura e amplitude prescritas.\n\nPontos-chave\n• Mantenha o joelho orientado com o pé e a bacia controlada.\n• Use o corrimão. Não existe uma altura obrigatória; não use bancos instáveis.\n• Faça apenas a dose e a amplitude prescritas. Pare perante dor aguda ou perda de controlo.\n\nErros comuns\n• Aumentar a carga ou a amplitude sem conseguir manter o controlo.\n• Prender a respiração ou continuar apesar de agravamento.\n\nDicas\n• Respire normalmente. Peça ensino da técnica e adapte o lado exercitado.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Fortalecimento"
+      ]
+    },
+    {
+      "id": "f72b9fd0-05d0-596b-8750-2f4f7a825b3e",
+      "name": "Leg press horizontal — joelho",
+      "locais": [
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Máquina"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://nxfnzzcuqzxmzsihbrtp.supabase.co/storage/v1/object/public/wo-exercises/d66a347d-2d1e-4807-981f-62a062dee72c.png",
+      "video_url": null,
+      "tecnica_info": {
+        "dicas": [
+          "Ajustar a profundidade à mobilidade e ao objetivo clínico.",
+          "Expirar ao empurrar.",
+          "Confirmar o travão antes de retirar os pés da plataforma."
+        ],
+        "execucao": [
+          "Empurrar a plataforma, estendendo ancas e joelhos sem bloquear os joelhos com força.",
+          "Regressar lentamente até à amplitude prescrita.",
+          "Manter a bacia e a região lombar apoiadas."
+        ],
+        "erros_comuns": [
+          "Descer até a bacia rodar ou levantar do banco.",
+          "Joelhos colapsarem para dentro.",
+          "Bloquear abruptamente os joelhos.",
+          "Usar amplitude ou carga excessivas."
+        ],
+        "pontos_chave": [
+          "Pés totalmente apoiados.",
+          "Joelhos acompanham a direção dos pés.",
+          "Movimento simétrico.",
+          "Segurança da máquina controlada.",
+          "Parar se sentir dor aguda.",
+          "A carga, a amplitude e a dose são individuais. Reduza se piorarem o inchaço, o sono ou a manhã seguinte."
+        ],
+        "posicao_inicial": [
+          "Ajustar o banco para manter a bacia e a coluna apoiadas.",
+          "Colocar os pés na plataforma à largura da bacia ou dos ombros.",
+          "Alinhar joelhos e pés.",
+          "Libertar o mecanismo de segurança apenas após confirmar a posição."
+        ]
+      },
+      "tecnica_notas": "dicas\n• Ajustar a profundidade à mobilidade e ao objetivo clínico.\n• Expirar ao empurrar.\n• Confirmar o travão antes de retirar os pés da plataforma.\n\nexecucao\n• Empurrar a plataforma, estendendo ancas e joelhos sem bloquear os joelhos com força.\n• Regressar lentamente até à amplitude prescrita.\n• Manter a bacia e a região lombar apoiadas.\n\nerros comuns\n• Descer até a bacia rodar ou levantar do banco.\n• Joelhos colapsarem para dentro.\n• Bloquear abruptamente os joelhos.\n• Usar amplitude ou carga excessivas.\n\npontos chave\n• Pés totalmente apoiados.\n• Joelhos acompanham a direção dos pés.\n• Movimento simétrico.\n• Segurança da máquina controlada.\n• Parar se sentir dor aguda.\n• A carga, a amplitude e a dose são individuais. Reduza se piorarem o inchaço, o sono ou a manhã seguinte.\n\nposicao inicial\n• Ajustar o banco para manter a bacia e a coluna apoiadas.\n• Colocar os pés na plataforma à largura da bacia ou dos ombros.\n• Alinhar joelhos e pés.\n• Libertar o mecanismo de segurança apenas após confirmar a posição.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Fortalecimento"
+      ]
+    },
+    {
+      "id": "2355ccb5-3b36-552a-967f-da913eb5c732",
+      "name": "Extensão de joelho na máquina — joelho",
+      "locais": [
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Máquina"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://nxfnzzcuqzxmzsihbrtp.supabase.co/storage/v1/object/public/wo-exercises/395aed57-b71d-4f35-b05b-d8bba747e7cf.jpg",
+      "video_url": null,
+      "tecnica_info": {
+        "dicas": [
+          "Ajustar amplitude e carga à tolerância do joelho.",
+          "Expirar durante a extensão."
+        ],
+        "execucao": [
+          "Estender os joelhos até à amplitude prescrita.",
+          "Evitar bloquear os joelhos com impacto.",
+          "Regressar lentamente à flexão definida."
+        ],
+        "erros_comuns": [
+          "Levantar a bacia do assento.",
+          "Pontapear a carga com impulso.",
+          "Forçar extensão terminal dolorosa.",
+          "Deixar as placas bater."
+        ],
+        "pontos_chave": [
+          "Joelhos alinhados com o eixo da máquina.",
+          "Movimento simétrico.",
+          "Tronco apoiado.",
+          "Fase descendente controlada.",
+          "Parar se sentir dor aguda.",
+          "A carga, a amplitude e a dose são individuais. Reduza se piorarem o inchaço, o sono ou a manhã seguinte."
+        ],
+        "posicao_inicial": [
+          "Ajustar o encosto para alinhar os joelhos com o eixo da máquina.",
+          "Colocar a almofada na região distal das pernas, acima dos tornozelos.",
+          "Apoiar o tronco e a bacia e segurar as pegas."
+        ]
+      },
+      "tecnica_notas": "dicas\n• Ajustar amplitude e carga à tolerância do joelho.\n• Expirar durante a extensão.\n\nexecucao\n• Estender os joelhos até à amplitude prescrita.\n• Evitar bloquear os joelhos com impacto.\n• Regressar lentamente à flexão definida.\n\nerros comuns\n• Levantar a bacia do assento.\n• Pontapear a carga com impulso.\n• Forçar extensão terminal dolorosa.\n• Deixar as placas bater.\n\npontos chave\n• Joelhos alinhados com o eixo da máquina.\n• Movimento simétrico.\n• Tronco apoiado.\n• Fase descendente controlada.\n• Parar se sentir dor aguda.\n• A carga, a amplitude e a dose são individuais. Reduza se piorarem o inchaço, o sono ou a manhã seguinte.\n\nposicao inicial\n• Ajustar o encosto para alinhar os joelhos com o eixo da máquina.\n• Colocar a almofada na região distal das pernas, acima dos tornozelos.\n• Apoiar o tronco e a bacia e segurar as pegas.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Fortalecimento"
+      ]
+    },
+    {
+      "id": "b6b7b2ee-1eed-5e57-a6f7-f4871e1f1c14",
+      "name": "Flexão de joelho na máquina — joelho",
+      "locais": [
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Máquina"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://nxfnzzcuqzxmzsihbrtp.supabase.co/storage/v1/object/public/wo-exercises/214e7a9d-fb28-4f69-8780-9738016a6c60.jpg",
+      "video_url": null,
+      "tecnica_info": {
+        "dicas": [
+          "Confirmar o alinhamento dos joelhos com o eixo da máquina.",
+          "Expirar ao fletir os joelhos.",
+          "Reduzir a carga se a bacia perder contacto."
+        ],
+        "execucao": [
+          "Fletir os joelhos e aproximar os calcanhares da região glútea.",
+          "Parar antes de a bacia levantar ou de perder o controlo.",
+          "Estender lentamente os joelhos até à posição inicial."
+        ],
+        "erros_comuns": [
+          "Levantar a bacia.",
+          "Arquear a região lombar.",
+          "Usar impulso.",
+          "Deixar as placas bater."
+        ],
+        "pontos_chave": [
+          "Bacia permanece apoiada.",
+          "Movimento ocorre nos joelhos.",
+          "Tornozelos relaxados ou na posição prescrita.",
+          "Regresso lento.",
+          "Parar se sentir dor aguda.",
+          "A carga, a amplitude e a dose são individuais. Reduza se piorarem o inchaço, o sono ou a manhã seguinte."
+        ],
+        "posicao_inicial": [
+          "Deitar-se de barriga para baixo com os joelhos alinhados com o eixo da máquina.",
+          "Colocar a almofada acima dos calcanhares, na região distal das pernas.",
+          "Manter a bacia apoiada e segurar as pegas."
+        ]
+      },
+      "tecnica_notas": "dicas\n• Confirmar o alinhamento dos joelhos com o eixo da máquina.\n• Expirar ao fletir os joelhos.\n• Reduzir a carga se a bacia perder contacto.\n\nexecucao\n• Fletir os joelhos e aproximar os calcanhares da região glútea.\n• Parar antes de a bacia levantar ou de perder o controlo.\n• Estender lentamente os joelhos até à posição inicial.\n\nerros comuns\n• Levantar a bacia.\n• Arquear a região lombar.\n• Usar impulso.\n• Deixar as placas bater.\n\npontos chave\n• Bacia permanece apoiada.\n• Movimento ocorre nos joelhos.\n• Tornozelos relaxados ou na posição prescrita.\n• Regresso lento.\n• Parar se sentir dor aguda.\n• A carga, a amplitude e a dose são individuais. Reduza se piorarem o inchaço, o sono ou a manhã seguinte.\n\nposicao inicial\n• Deitar-se de barriga para baixo com os joelhos alinhados com o eixo da máquina.\n• Colocar a almofada acima dos calcanhares, na região distal das pernas.\n• Manter a bacia apoiada e segurar as pegas.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Fortalecimento"
+      ]
+    },
+    {
+      "id": "12c84d5c-a5f4-53ea-a83c-0910ef5547f5",
+      "name": "Bicicleta estática — joelho",
+      "locais": [
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Máquina"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://nxfnzzcuqzxmzsihbrtp.supabase.co/storage/v1/object/public/wo-exercises/75536e39-ff44-4a86-97cd-5c4300457826.jpg",
+      "video_url": null,
+      "tecnica_info": {
+        "dicas": [
+          "Confirmar os ajustes antes de iniciar o tempo prescrito.",
+          "Manter respiração regular.",
+          "Usar a intensidade indicada no plano, não apenas a sensação de velocidade."
+        ],
+        "execucao": [
+          "Iniciar com resistência baixa e cadência confortável.",
+          "Pedalar de forma contínua, mantendo joelhos e pés alinhados.",
+          "Aplicar a intensidade e a duração prescritas.",
+          "Reduzir gradualmente a intensidade antes de parar."
+        ],
+        "erros_comuns": [
+          "Selim demasiado baixo ou alto.",
+          "Joelhos desviarem-se para dentro ou para fora.",
+          "Apoiar peso excessivo nas mãos.",
+          "Começar com resistência elevada."
+        ],
+        "pontos_chave": [
+          "Bacia estável no selim.",
+          "Joelhos acompanham a direção dos pés.",
+          "Ombros relaxados.",
+          "Cadência regular.",
+          "Parar se sentir dor aguda.",
+          "A carga, a amplitude e a dose são individuais. Reduza se piorarem o inchaço, o sono ou a manhã seguinte."
+        ],
+        "posicao_inicial": [
+          "Ajustar a altura do selim para manter ligeira flexão do joelho no ponto mais baixo do pedal.",
+          "Ajustar a distância ao guiador sem obrigar a arredondar excessivamente o tronco.",
+          "Colocar os pés centrados e seguros nos pedais."
+        ]
+      },
+      "tecnica_notas": "dicas\n• Confirmar os ajustes antes de iniciar o tempo prescrito.\n• Manter respiração regular.\n• Usar a intensidade indicada no plano, não apenas a sensação de velocidade.\n\nexecucao\n• Iniciar com resistência baixa e cadência confortável.\n• Pedalar de forma contínua, mantendo joelhos e pés alinhados.\n• Aplicar a intensidade e a duração prescritas.\n• Reduzir gradualmente a intensidade antes de parar.\n\nerros comuns\n• Selim demasiado baixo ou alto.\n• Joelhos desviarem-se para dentro ou para fora.\n• Apoiar peso excessivo nas mãos.\n• Começar com resistência elevada.\n\npontos chave\n• Bacia estável no selim.\n• Joelhos acompanham a direção dos pés.\n• Ombros relaxados.\n• Cadência regular.\n• Parar se sentir dor aguda.\n• A carga, a amplitude e a dose são individuais. Reduza se piorarem o inchaço, o sono ou a manhã seguinte.\n\nposicao inicial\n• Ajustar a altura do selim para manter ligeira flexão do joelho no ponto mais baixo do pedal.\n• Ajustar a distância ao guiador sem obrigar a arredondar excessivamente o tronco.\n• Colocar os pés centrados e seguros nos pedais.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Cardiovascular"
+      ]
+    }
+  ],
+  "associations": [
+    {
+      "id": "db061f36-c4f6-5066-9747-33d23356d939",
+      "phase_id": "716e284a-7b9a-5667-bf8b-317f5fdc5540",
+      "exercise_id": "e28170cb-bcc6-54d7-bb7e-12a24a3a7a25",
+      "sort_order": 1,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 5,
+        "load": null,
+        "reps_min": null,
+        "reps_max": null,
+        "reps_fixed": null,
+        "series": null,
+        "duration_sec": null,
+        "duration_series": [
+          {
+            "duration_sec": 10
+          },
+          {
+            "duration_sec": 10
+          },
+          {
+            "duration_sec": 10
+          },
+          {
+            "duration_sec": 10
+          },
+          {
+            "duration_sec": 10
+          }
+        ],
+        "rest_set": 20,
+        "rest_next": 20,
+        "tempo_concentrico_s": null,
+        "tempo_excentrico_s": null,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 5 exposições de 10 segundos, com 20 segundos de repouso. Dose no lado selecionado; adaptar ao treino de ambos os lados se indicado. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "b1720c63-ed4f-59bc-b2fa-042593c58c2f",
+      "phase_id": "716e284a-7b9a-5667-bf8b-317f5fdc5540",
+      "exercise_id": "b2d076af-2d15-55ed-8d10-9b66be02cdab",
+      "sort_order": 2,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 1,
+        "load": null,
+        "reps_min": 10,
+        "reps_max": 10,
+        "reps_fixed": 10,
+        "series": [
+          {
+            "reps": 10,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 30,
+        "rest_next": 30,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 1 séries de 10 repetições, com 30 segundos de repouso. Dose no lado selecionado; adaptar ao treino de ambos os lados se indicado. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "1a6b56c0-cacf-58a0-a1ae-4b2473e8bb8d",
+      "phase_id": "716e284a-7b9a-5667-bf8b-317f5fdc5540",
+      "exercise_id": "15ef932e-9776-5ed2-905e-ea3d6adb3cc2",
+      "sort_order": 3,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 1,
+        "load": null,
+        "reps_min": 8,
+        "reps_max": 8,
+        "reps_fixed": 8,
+        "series": [
+          {
+            "reps": 8,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 1 séries de 8 repetições, com 60 segundos de repouso. Dose no lado selecionado; adaptar ao treino de ambos os lados se indicado. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "ce0b6e83-ca63-53ef-9a26-4680a25cab7f",
+      "phase_id": "716e284a-7b9a-5667-bf8b-317f5fdc5540",
+      "exercise_id": "d581440b-9034-5c7c-b3b3-d2434f728a06",
+      "sort_order": 4,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 1,
+        "load": null,
+        "reps_min": 8,
+        "reps_max": 8,
+        "reps_fixed": 8,
+        "series": [
+          {
+            "reps": 8,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 1 séries de 8 repetições, com 60 segundos de repouso. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "4b650658-9718-569e-815d-64a26ea3fd30",
+      "phase_id": "716e284a-7b9a-5667-bf8b-317f5fdc5540",
+      "exercise_id": "f04870ba-11ce-5d5a-98df-df3d4312e9e3",
+      "sort_order": 5,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 1,
+        "load": null,
+        "reps_min": 5,
+        "reps_max": 5,
+        "reps_fixed": 5,
+        "series": [
+          {
+            "reps": 5,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 1 séries de 5 repetições, com 60 segundos de repouso. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "0365114a-845f-5b8f-b7c3-b3dad88aec06",
+      "phase_id": "716e284a-7b9a-5667-bf8b-317f5fdc5540",
+      "exercise_id": "66f15958-4911-55f0-9ca9-5170c36fe821",
+      "sort_order": 6,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 1,
+        "load": null,
+        "reps_min": null,
+        "reps_max": null,
+        "reps_fixed": null,
+        "series": null,
+        "duration_sec": null,
+        "duration_series": [
+          {
+            "duration_sec": 120
+          }
+        ],
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": null,
+        "tempo_excentrico_s": null,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 1 exposições de 120 segundos, com 60 segundos de repouso. Tempo contínuo apenas se tolerado; pode dividir em períodos mais curtos. Ritmo ou resistência iniciais leves, individualizados. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "cfe0fe34-c676-5449-a422-87fea8b8b175",
+      "phase_id": "99370da8-8d7b-56b3-9cf6-41a49d635369",
+      "exercise_id": "f04870ba-11ce-5d5a-98df-df3d4312e9e3",
+      "sort_order": 1,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 2,
+        "load": null,
+        "reps_min": 8,
+        "reps_max": 8,
+        "reps_fixed": 8,
+        "series": [
+          {
+            "reps": 8,
+            "load": null
+          },
+          {
+            "reps": 8,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 2 séries de 8 repetições, com 60 segundos de repouso. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "c76d52a0-ada2-560e-88ab-7640b70a19fd",
+      "phase_id": "99370da8-8d7b-56b3-9cf6-41a49d635369",
+      "exercise_id": "2355ccb5-3b36-552a-967f-da913eb5c732",
+      "sort_order": 2,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 2,
+        "load": null,
+        "reps_min": 10,
+        "reps_max": 10,
+        "reps_fixed": 10,
+        "series": [
+          {
+            "reps": 10,
+            "load": null
+          },
+          {
+            "reps": 10,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 2 séries de 10 repetições, com 60 segundos de repouso. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "d71addf7-5456-5e0b-9384-95f28a5c64a5",
+      "phase_id": "99370da8-8d7b-56b3-9cf6-41a49d635369",
+      "exercise_id": "d581440b-9034-5c7c-b3b3-d2434f728a06",
+      "sort_order": 3,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 2,
+        "load": null,
+        "reps_min": 10,
+        "reps_max": 10,
+        "reps_fixed": 10,
+        "series": [
+          {
+            "reps": 10,
+            "load": null
+          },
+          {
+            "reps": 10,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 2 séries de 10 repetições, com 60 segundos de repouso. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "a350e0c2-fa84-57c7-add4-57e51327e423",
+      "phase_id": "99370da8-8d7b-56b3-9cf6-41a49d635369",
+      "exercise_id": "ff0f94fd-8f4a-52b6-8bc8-3663422d5c38",
+      "sort_order": 4,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 2,
+        "load": null,
+        "reps_min": 10,
+        "reps_max": 10,
+        "reps_fixed": 10,
+        "series": [
+          {
+            "reps": 10,
+            "load": null
+          },
+          {
+            "reps": 10,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 2 séries de 10 repetições, com 60 segundos de repouso. Dose no lado selecionado; adaptar ao treino de ambos os lados se indicado. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "34584747-6691-5c84-9dd5-aa88065ce429",
+      "phase_id": "99370da8-8d7b-56b3-9cf6-41a49d635369",
+      "exercise_id": "cd8e917c-de32-56e7-9bfd-7c6ba3c1b6ba",
+      "sort_order": 5,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 2,
+        "load": null,
+        "reps_min": 10,
+        "reps_max": 10,
+        "reps_fixed": 10,
+        "series": [
+          {
+            "reps": 10,
+            "load": null
+          },
+          {
+            "reps": 10,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 2 séries de 10 repetições, com 60 segundos de repouso. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "209d0cbd-2f17-5781-8c36-bf422bc22ff6",
+      "phase_id": "99370da8-8d7b-56b3-9cf6-41a49d635369",
+      "exercise_id": "647921fa-41f3-5ec6-9813-44a064ead9d2",
+      "sort_order": 6,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 3,
+        "load": null,
+        "reps_min": null,
+        "reps_max": null,
+        "reps_fixed": null,
+        "series": null,
+        "duration_sec": null,
+        "duration_series": [
+          {
+            "duration_sec": 15
+          },
+          {
+            "duration_sec": 15
+          },
+          {
+            "duration_sec": 15
+          }
+        ],
+        "rest_set": 30,
+        "rest_next": 30,
+        "tempo_concentrico_s": null,
+        "tempo_excentrico_s": null,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 3 exposições de 15 segundos, com 30 segundos de repouso. Dose no lado selecionado; adaptar ao treino de ambos os lados se indicado. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "7453859f-b365-5a7a-94b2-f7c26bf8c758",
+      "phase_id": "5c0f9e1c-f49e-5056-b556-41ff36346deb",
+      "exercise_id": "f72b9fd0-05d0-596b-8750-2f4f7a825b3e",
+      "sort_order": 1,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 2,
+        "load": null,
+        "reps_min": 10,
+        "reps_max": 10,
+        "reps_fixed": 10,
+        "series": [
+          {
+            "reps": 10,
+            "load": null
+          },
+          {
+            "reps": 10,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 90,
+        "rest_next": 90,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 2 séries de 10 repetições, com 90 segundos de repouso. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "5d020ee4-57d7-53fc-9771-28e04ff215a6",
+      "phase_id": "5c0f9e1c-f49e-5056-b556-41ff36346deb",
+      "exercise_id": "2355ccb5-3b36-552a-967f-da913eb5c732",
+      "sort_order": 2,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 2,
+        "load": null,
+        "reps_min": 10,
+        "reps_max": 10,
+        "reps_fixed": 10,
+        "series": [
+          {
+            "reps": 10,
+            "load": null
+          },
+          {
+            "reps": 10,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 90,
+        "rest_next": 90,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 2 séries de 10 repetições, com 90 segundos de repouso. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "2e513ce6-dc7b-5ae7-b9da-0a5eb635b2c6",
+      "phase_id": "5c0f9e1c-f49e-5056-b556-41ff36346deb",
+      "exercise_id": "865798e5-4926-5084-924c-7a3623d7d1a3",
+      "sort_order": 3,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 2,
+        "load": null,
+        "reps_min": 8,
+        "reps_max": 8,
+        "reps_fixed": 8,
+        "series": [
+          {
+            "reps": 8,
+            "load": null
+          },
+          {
+            "reps": 8,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 2 séries de 8 repetições, com 60 segundos de repouso. Dose no lado selecionado; adaptar ao treino de ambos os lados se indicado. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "d051f843-3f58-5549-9cbc-7b6df9e98d72",
+      "phase_id": "5c0f9e1c-f49e-5056-b556-41ff36346deb",
+      "exercise_id": "b6b7b2ee-1eed-5e57-a6f7-f4871e1f1c14",
+      "sort_order": 4,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 2,
+        "load": null,
+        "reps_min": 10,
+        "reps_max": 10,
+        "reps_fixed": 10,
+        "series": [
+          {
+            "reps": 10,
+            "load": null
+          },
+          {
+            "reps": 10,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 2 séries de 10 repetições, com 60 segundos de repouso. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "782f3db9-8141-55eb-8bfc-8679bc888b84",
+      "phase_id": "5c0f9e1c-f49e-5056-b556-41ff36346deb",
+      "exercise_id": "cd8e917c-de32-56e7-9bfd-7c6ba3c1b6ba",
+      "sort_order": 5,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 2,
+        "load": null,
+        "reps_min": 12,
+        "reps_max": 12,
+        "reps_fixed": 12,
+        "series": [
+          {
+            "reps": 12,
+            "load": null
+          },
+          {
+            "reps": 12,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 2 séries de 12 repetições, com 60 segundos de repouso. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "5c360b7c-c3e3-531c-b353-4d86ddc41cf5",
+      "phase_id": "5c0f9e1c-f49e-5056-b556-41ff36346deb",
+      "exercise_id": "647921fa-41f3-5ec6-9813-44a064ead9d2",
+      "sort_order": 6,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 3,
+        "load": null,
+        "reps_min": null,
+        "reps_max": null,
+        "reps_fixed": null,
+        "series": null,
+        "duration_sec": null,
+        "duration_series": [
+          {
+            "duration_sec": 20
+          },
+          {
+            "duration_sec": 20
+          },
+          {
+            "duration_sec": 20
+          }
+        ],
+        "rest_set": 30,
+        "rest_next": 30,
+        "tempo_concentrico_s": null,
+        "tempo_excentrico_s": null,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 3 exposições de 20 segundos, com 30 segundos de repouso. Dose no lado selecionado; adaptar ao treino de ambos os lados se indicado. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "82f4c4b5-d82f-57c4-b82a-e5b3ddf4abe5",
+      "phase_id": "c0421d39-cbfe-5e06-9b34-6f8468ae03c4",
+      "exercise_id": "f04870ba-11ce-5d5a-98df-df3d4312e9e3",
+      "sort_order": 1,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 2,
+        "load": null,
+        "reps_min": 10,
+        "reps_max": 10,
+        "reps_fixed": 10,
+        "series": [
+          {
+            "reps": 10,
+            "load": null
+          },
+          {
+            "reps": 10,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 2 séries de 10 repetições, com 60 segundos de repouso. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "5cbf236d-f240-5183-a6de-0cd5931f7492",
+      "phase_id": "c0421d39-cbfe-5e06-9b34-6f8468ae03c4",
+      "exercise_id": "2355ccb5-3b36-552a-967f-da913eb5c732",
+      "sort_order": 2,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 2,
+        "load": null,
+        "reps_min": 10,
+        "reps_max": 10,
+        "reps_fixed": 10,
+        "series": [
+          {
+            "reps": 10,
+            "load": null
+          },
+          {
+            "reps": 10,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 2 séries de 10 repetições, com 60 segundos de repouso. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "1045e279-cc73-57e4-84d3-c7f44bc5520a",
+      "phase_id": "c0421d39-cbfe-5e06-9b34-6f8468ae03c4",
+      "exercise_id": "865798e5-4926-5084-924c-7a3623d7d1a3",
+      "sort_order": 3,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 2,
+        "load": null,
+        "reps_min": 10,
+        "reps_max": 10,
+        "reps_fixed": 10,
+        "series": [
+          {
+            "reps": 10,
+            "load": null
+          },
+          {
+            "reps": 10,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 2 séries de 10 repetições, com 60 segundos de repouso. Dose no lado selecionado; adaptar ao treino de ambos os lados se indicado. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "4bee25c9-6284-5b40-9a4b-695aed00f02c",
+      "phase_id": "c0421d39-cbfe-5e06-9b34-6f8468ae03c4",
+      "exercise_id": "cd8e917c-de32-56e7-9bfd-7c6ba3c1b6ba",
+      "sort_order": 4,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 2,
+        "load": null,
+        "reps_min": 12,
+        "reps_max": 12,
+        "reps_fixed": 12,
+        "series": [
+          {
+            "reps": 12,
+            "load": null
+          },
+          {
+            "reps": 12,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 2 séries de 12 repetições, com 60 segundos de repouso. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "03ca1e2b-22e0-5900-8d39-1970608c40ec",
+      "phase_id": "c0421d39-cbfe-5e06-9b34-6f8468ae03c4",
+      "exercise_id": "ff0f94fd-8f4a-52b6-8bc8-3663422d5c38",
+      "sort_order": 5,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 2,
+        "load": null,
+        "reps_min": 12,
+        "reps_max": 12,
+        "reps_fixed": 12,
+        "series": [
+          {
+            "reps": 12,
+            "load": null
+          },
+          {
+            "reps": 12,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 3,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 2 séries de 12 repetições, com 60 segundos de repouso. Dose no lado selecionado; adaptar ao treino de ambos os lados se indicado. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    },
+    {
+      "id": "257d4a48-a61e-59c5-93ff-f73306ef4620",
+      "phase_id": "c0421d39-cbfe-5e06-9b34-6f8468ae03c4",
+      "exercise_id": "12c84d5c-a5f4-53ea-a83c-0910ef5547f5",
+      "sort_order": 6,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 1,
+        "load": null,
+        "reps_min": null,
+        "reps_max": null,
+        "reps_fixed": null,
+        "series": null,
+        "duration_sec": null,
+        "duration_series": [
+          {
+            "duration_sec": 600
+          }
+        ],
+        "rest_set": 60,
+        "rest_next": 60,
+        "tempo_concentrico_s": null,
+        "tempo_excentrico_s": null,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão inicial ajustável: 1 exposições de 600 segundos, com 60 segundos de repouso. Tempo contínuo apenas se tolerado; pode dividir em períodos mais curtos. Ritmo ou resistência iniciais leves, individualizados. Confirmar carga, amplitude, apoio e frequência para este doente. Fazer apenas a seleção prescrita. Reduzir se piorarem o inchaço, a marcha, o sono ou a manhã seguinte."
+    }
+  ]
+}
