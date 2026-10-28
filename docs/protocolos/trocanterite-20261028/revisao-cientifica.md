@@ -38,4 +38,4 @@ Oito ilustrações novas com o modelo masculino de referência enviado pelo util
 
 O ficheiro `protocolo.json` contém o conteúdo para integrar no GC. `aplicar.sql` insere apenas novos registos. Não modifica prescrições, sessões, respostas, mensagens ou versões anteriores. A integração visual do cartão foi preparada no código local.
 
-**Estado:** preparado localmente. A publicação das imagens, atualização do cartão e ativação definitiva na base de dados devem ser coordenadas para evitar imagens em falta. A confirmação da interface autenticada e de um link real de doente não é substituída pelos testes de estrutura.
+**Estado:** publicado e ativo em 28/10/2026. Fonte e imagens publicadas no commit a71b735. Confirmados os ficheiros públicos por SHA-256 antes da ativação: três fases, 18 opções e 14 fichas. Confirmada a preservação das prescrições, snapshots e catálogo anterior. O fluxo autenticado e um link real de doente não foram testados nesta aplicação.
