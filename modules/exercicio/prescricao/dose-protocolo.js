@@ -15,15 +15,22 @@ export function doseProtocoloCompleta(dose) {
   return Number.isInteger(dose.reps_min) && dose.reps_min > 0 && Number.isInteger(dose.reps_max) && dose.reps_max >= dose.reps_min;
 }
 
-export function construirDoseIndividual({sets,mode,amount,rest,instruction}) {
+export function construirDoseIndividual({sets,mode,amount,rest,instruction,previous = {}}) {
   if (String(sets).trim() === '' || String(amount).trim() === '' || String(rest).trim() === '' || !String(instruction || '').trim()) throw new Error('Defina a dose, o repouso e a carga/amplitude individual.');
   sets = Number(sets); amount = Number(amount); rest = Number(rest);
   if (!Number.isInteger(sets) || sets < 1 || !Number.isFinite(rest) || rest < 0 || !positive(amount) || !['reps','seconds'].includes(mode) || (mode === 'reps' && !Number.isInteger(amount))) throw new Error('Indique séries e repetições inteiras positivas, ou duração positiva, e repouso não negativo.');
   const timed = mode === 'seconds';
-  return {sets,load:null,reps_min:timed ? null : amount,reps_max:timed ? null : amount,reps_fixed:timed ? null : amount,
+  const dose = {sets,load:null,reps_min:timed ? null : amount,reps_max:timed ? null : amount,reps_fixed:timed ? null : amount,
     series:timed ? null : Array.from({length:sets},()=>({reps:amount,load:null})),
     duration_sec:null,duration_series:timed ? Array.from({length:sets},()=>({duration_sec:amount})) : null,
     rest_set:rest,rest_next:rest,tempo_concentrico_s:null,tempo_excentrico_s:null,pausa_inferior_s:0,pausa_superior_s:0};
+  const previousTimed = !!(previous.duration_series?.length || previous.duration_sec > 0);
+  if (timed === previousTimed) {
+    for (const key of ['tempo_concentrico_s','tempo_excentrico_s','pausa_inferior_s','pausa_superior_s']) {
+      if (typeof previous[key] === 'number' && Number.isFinite(previous[key]) && previous[key] >= 0) dose[key] = previous[key];
+    }
+  }
+  return dose;
 }
 
 // Apenas a nova seleção: nunca altera o catálogo, a prescrição anterior ou o histórico.
@@ -35,13 +42,13 @@ export function pedirDosesIndividuais(entries) {
     overlay.innerHTML = `<div class="gcwo-modal gcwo-protocol-editor" role="dialog" aria-modal="true" aria-labelledby="gcDoseTitle"><form>
       <div class="gcwo-modal-head"><h3 id="gcDoseTitle">Definir a dose individual</h3><button type="button" data-cancel aria-label="Fechar">×</button></div>
       <div class="gcwo-modal-body"><p>Estes exercícios não têm dose específica completa. Defina a dose e os limites autorizados para este doente. Não serão usados valores automáticos.</p>
-      ${entries.map(({ex},i)=>`<fieldset data-dose-index="${i}"><legend>${esc(ex.name)}</legend>
-        <label>Séries ou exposições<input name="sets" type="number" min="1" step="1" required></label>
-        <label>Forma de execução<select name="mode"><option value="reps">Repetições por série</option><option value="seconds">Segundos por exposição</option></select></label>
-        <label>Repetições ou segundos<input name="amount" type="number" min="1" step="1" required></label>
-        <label>Repouso (segundos)<input name="rest" type="number" min="0" step="1" required></label>
+      ${entries.map(({ex,info},i)=>{ const d=info?.prescription_defaults || {}; const timed=!!(d.duration_series?.length || d.duration_sec > 0); return `<fieldset data-dose-index="${i}"><legend>${esc(ex.name)}</legend>
+        <label>Séries ou exposições<input name="sets" type="number" min="1" step="1" value="${esc(d.sets)}" required></label>
+        <label>Forma de execução<select name="mode"><option value="reps" ${!timed ? 'selected' : ''}>Repetições por série</option><option value="seconds" ${timed ? 'selected' : ''}>Segundos por exposição</option></select></label>
+        <label>Repetições ou segundos<input name="amount" type="number" min="1" step="1" value="${esc(timed ? d.duration_series?.[0]?.duration_sec ?? d.duration_sec : d.reps_fixed ?? d.reps_min ?? d.series?.[0]?.reps)}" required></label>
+        <label>Repouso (segundos)<input name="rest" type="number" min="0" step="1" value="${esc(d.rest_set)}" required></label>
         <label>Carga, amplitude e cuidados autorizados<textarea name="instruction" required placeholder="Indique a resistência ou ausência de carga, a amplitude e os cuidados individuais."></textarea></label>
-      </fieldset>`).join('')}<p role="alert" data-error></p></div>
+      </fieldset>`; }).join('')}<p role="alert" data-error></p></div>
       <div class="gcwo-modal-foot"><button type="button" data-cancel>Cancelar</button><button type="submit" class="gcBtnSuccess">Aplicar doses e continuar</button></div>
     </form></div>`;
     const close = result => { overlay.remove(); previousFocus?.focus(); resolve(result); };
@@ -56,10 +63,10 @@ export function pedirDosesIndividuais(entries) {
     overlay.querySelector('form').onsubmit = event => {
       event.preventDefault();
       try {
-        const rows = [...overlay.querySelectorAll('[data-dose-index]')].map(field=>{
+        const rows = [...overlay.querySelectorAll('[data-dose-index]')].map((field,i)=>{
           const read = name => field.querySelector(`[name="${name}"]`).value;
           const input = Object.fromEntries(['sets','mode','amount','rest','instruction'].map(k=>[k,read(k)]));
-          return {dose:construirDoseIndividual(input),instruction:input.instruction.trim()};
+          return {dose:construirDoseIndividual({...input,previous:entries[i].info?.prescription_defaults || {}}),instruction:input.instruction.trim()};
         });
         close(rows);
       } catch (error) { overlay.querySelector('[data-error]').textContent=error.message; }

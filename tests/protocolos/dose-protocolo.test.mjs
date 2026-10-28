@@ -31,3 +31,9 @@ assert.equal(asked,1);assert.equal(created,0);assert.deepEqual(info.prescription
 answer=[{dose:reps,instruction:'Carga individual autorizada'}];transfer.avancarParaPrescricaoPatologia();await new Promise(r=>setTimeout(r,0));
 assert.equal(asked,2);assert.equal(created,1);assert.equal(info.prescription_defaults.series.length,2);
 console.log('Dose: ausência/partes inválidas bloqueadas; dose expressa, cancelamento, transferência e modo coerente: OK');
+
+const maintained=construirDoseIndividual({sets:2,mode:'reps',amount:10,rest:30,instruction:'Manter posição ensinada',previous:{sets:2,reps_fixed:10,pausa_superior_s:5}});
+assert.equal(maintained.pausa_superior_s,5);
+const changedMode=construirDoseIndividual({sets:2,mode:'seconds',amount:10,rest:30,instruction:'Exposição temporizada',previous:{sets:2,reps_fixed:10,pausa_superior_s:5}});
+assert.equal(changedMode.pausa_superior_s,0);
+console.log('Dose parcial: preserva manutenção no mesmo modo e limpa parâmetros incompatíveis ao mudar: OK');

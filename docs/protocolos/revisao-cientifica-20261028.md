@@ -250,7 +250,7 @@ Os identificadores abaixo permitem distinguir publicações, consensos e program
 ## 9. Implementação desta revisão
 As correções F01–F16 são implementadas em novas versões dos nove protocolos. As versões anteriores e as suas fases/associações são preservadas. As 12 fichas corrigidas têm novas identidades, reutilizando as imagens existentes. Não existe certificação anatómica integral das imagens.
 
-Foram acrescentadas 23 opções conservadoras às fases vazias de TSA/RSA e retirada a associação contraditória de rotação interna da TSA. As opções cirúrgicas e as variantes da tendinopatia da coifa exigem seleção manual. O novo catálogo tem 248 associações; 92 dependem de definição expressa da dose individual antes de criar a sessão. Não se inventam valores científicos para preencher a ausência de dose.
+Foram acrescentadas 23 opções conservadoras às fases vazias de TSA/RSA e retirada a associação contraditória de rotação interna da TSA. As opções cirúrgicas e as variantes da tendinopatia da coifa exigem seleção manual. O novo catálogo tem 248 associações; 92 estão sem dose específica e outras 29 não definem o repouso. As 121 opções exigem completar a dose individual antes de criar a sessão, aproveitando os parâmetros já preenchidos. Não se inventam valores científicos para preencher a ausência de dose.
 
 O ficheiro SQL de dados contém verificações otimistas dos originais e impressões digitais das prescrições e snapshots antes/depois. Nenhum plano individual é reescrito. O código do editor impede transferência de doses ausentes ou estruturalmente incompletas e recolhe dose, repouso, carga e amplitude individuais. O link apresenta as recomendações e permite dispensar leitura repetida sem retirar instruções de cada exercício.
 

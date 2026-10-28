@@ -1,4 +1,4 @@
-import { doseProtocoloCompleta, pedirDosesIndividuais } from './dose-protocolo.js?v=2026-10-28-ciencia-1';
+import { doseProtocoloCompleta, pedirDosesIndividuais } from './dose-protocolo.js?v=2026-10-28-ciencia-2';
 import { requireExerciseAccess } from '../permissoes.js';
 import { abrirEditorProtocolo } from './protocolo-editor.js?v=2026-10-28-ciencia-1';
 import { renderRecomendacoesFase, recomendacoesParaSessao, orientacaoParaSessao, textoParaDoente, conteudoParaDoente } from './recomendacoes.js?v=2026-10-28-ciencia-1';
