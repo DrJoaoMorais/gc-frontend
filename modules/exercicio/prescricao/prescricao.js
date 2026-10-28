@@ -1,6 +1,7 @@
+import { doseProtocoloCompleta, pedirDosesIndividuais } from './dose-protocolo.js?v=2026-10-28-ciencia-1';
 import { requireExerciseAccess } from '../permissoes.js';
-import { abrirEditorProtocolo } from './protocolo-editor.js?v=2026-10-27-recomendacoes-link-1';
-import { renderRecomendacoesFase, recomendacoesParaSessao, orientacaoParaSessao, textoParaDoente, conteudoParaDoente } from './recomendacoes.js?v=2026-10-27-recomendacoes-link-1';
+import { abrirEditorProtocolo } from './protocolo-editor.js?v=2026-10-28-ciencia-1';
+import { renderRecomendacoesFase, recomendacoesParaSessao, orientacaoParaSessao, textoParaDoente, conteudoParaDoente } from './recomendacoes.js?v=2026-10-28-ciencia-1';
 import { mountClinicPicker, normalizeClinicIds } from '../../clinic-picker.js';
 /* =================================================================
    PRESCRICAO.JS — Prescrição de exercício físico (Vertente 1)
@@ -5939,6 +5940,7 @@ function agruparSelecaoPatologiaPorLocal() {
 const PATOLOGIA_CHAVES_DOSE = ['sets', 'reps_min', 'reps_max', 'reps_fixed', 'load', 'incremento', 'rest_set', 'rest_next',
   'tempo_excentrico_s', 'pausa_inferior_s', 'tempo_concentrico_s', 'pausa_superior_s', 'duration_sec', 'duration_series', 'series'];
 function criarItemPatologia(ex, info) {
+  if (!doseProtocoloCompleta(info?.prescription_defaults)) throw new Error('Defina a dose individual antes de criar a sessão.');
   const usaTempo = exercicioUsaTempoPorDefeito(ex);
   const item = {
     exercise_id: ex.id,
@@ -5969,6 +5971,15 @@ function criarItemPatologia(ex, info) {
   };
   const defaults = (info && info.prescription_defaults) || {};
   PATOLOGIA_CHAVES_DOSE.forEach(k => { if (defaults[k] !== undefined) item[k] = defaults[k]; });
+  // A dose escolhida determina todos os blocos, sem herdar séries genéricas.
+  const timed = Array.isArray(defaults.duration_series) && defaults.duration_series.length || defaults.duration_sec > 0;
+  if (timed) {
+    item.series = null; item.reps_min = null; item.reps_max = null; item.reps_fixed = null;
+    item.duration_series = (defaults.duration_series?.length ? defaults.duration_series : null) || Array.from({length:defaults.sets}, () => ({duration_sec:defaults.duration_sec}));
+  } else {
+    item.duration_sec = null; item.duration_series = null;
+    item.series = defaults.series || Array.from({length:defaults.sets}, () => ({reps:defaults.reps_fixed || defaults.reps_min,load:defaults.load ?? null}));
+  }
   return item;
 }
 
@@ -5979,6 +5990,22 @@ function avancarParaPrescricaoPatologia() {
   if (_patologia?.biblioteca) return;
   const grupos = agruparSelecaoPatologiaPorLocal();
   if (!grupos.size) return;
+  const pendentes = [...grupos.values()].flat().filter(({info}) => !doseProtocoloCompleta(info.prescription_defaults));
+  if (pendentes.length) {
+    const alvo = _patologia;
+    if (alvo.definindoDoses) return;
+    alvo.definindoDoses = true;
+    pedirDosesIndividuais(pendentes).then(rows => {
+      alvo.definindoDoses = false;
+      if (!rows || _patologia !== alvo) return;
+      rows.forEach((row,i) => {
+        pendentes[i].info.prescription_defaults = row.dose;
+        pendentes[i].info.clinical_note = [row.instruction,String(pendentes[i].info.clinical_note || '').replace(/Dose não especificada no texto:.*?essa decisão\./g, '').trim()].filter(Boolean).join('\n\n');
+      });
+      avancarParaPrescricaoPatologia();
+    }).catch(error => { alvo.definindoDoses = false; console.error('[prescricao] doses individuais:', error); });
+    return;
+  }
   const protocolo = _patologia.protocolos.find(p => p.id === _patologia.protocoloId);
   const fase = _patologia.fases.find(f => f.id === _patologia.faseId);
   const gruposArr = [];
@@ -5986,7 +6013,7 @@ function avancarParaPrescricaoPatologia() {
     gruposArr.push({ local, items: entradas.map(({ ex, info }) => criarItemPatologia(ex, info)) });
   });
   const orientacao = orientacaoParaSessao(fase, listaCuidadosEspecificosPatologia());
-  _patologiaPendente = { ...orientacao, recommendations_scope: `${protocolo?.id || ''}:${fase?.id || ''}`, protocoloNome: protocolo?.name || '', faseNome: fase?.name || '', recomendacoes: recomendacoesParaSessao(fase), grupos: gruposArr };
+  _patologiaPendente = { ...orientacao, recommendations_scope: fase?.data?.recommendations_scope || `${protocolo?.id || ''}:${fase?.id || ''}`, protocoloNome: protocolo?.name || '', faseNome: fase?.name || '', recomendacoes: recomendacoesParaSessao(fase), grupos: gruposArr };
   _patologia = null;
   if (_state.patient) {
     aplicarPatologiaPendenteAoEstado();
@@ -6399,7 +6426,7 @@ function renderListaExerciciosPatologia() {
 function renderLinhaExercicioPatologia(ex, meta, origemTag) {
   const marcado = _patologia.selecionados.has(ex.id);
   const origemLabel = origemTag === 'protocolo' ? 'Protocolo' : 'Adicionado';
-  const temDefaults = meta.prescription_defaults && Object.keys(meta.prescription_defaults).length > 0;
+  const temDefaults = doseProtocoloCompleta(meta.prescription_defaults);
   return `
     <div class="gcwo-pat-exercicio-row${marcado ? ' on' : ''}">
       ${_patologia.biblioteca ? '' : origemTag === 'protocolo'
@@ -6412,7 +6439,7 @@ function renderLinhaExercicioPatologia(ex, meta, origemTag) {
           <span class="gcwo-pat-origem-tag ${origemTag}">${escHtml(origemLabel)}</span>
           ${meta.context ? `<span class="gcwo-pat-context-tag">${escHtml(meta.context)}</span>` : ''}
           ${meta.is_optional ? `<span class="gcwo-pat-optional-tag">Opcional</span>` : ''}
-          ${temDefaults ? `<span class="gcwo-pat-defaults-tag">Dose sugerida</span>` : ''}
+          ${temDefaults ? `<span class="gcwo-pat-defaults-tag">Dose inicial individualizável</span>` : `<span class="gcwo-pat-defaults-tag">Definir dose antes de prescrever</span>`}
         </span>
         ${meta.clinical_note ? `<span class="gcwo-pat-clinical-note">${escHtml(meta.clinical_note)}</span>` : ''}
       </span>

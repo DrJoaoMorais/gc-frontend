@@ -1,5 +1,5 @@
 import { requireExerciseAccess } from '../permissoes.js';
-import { normalizarRecomendacoes, conteudoParaDoente } from './recomendacoes.js?v=2026-10-27-recomendacoes-link-1';
+import { normalizarRecomendacoes, conteudoParaDoente } from './recomendacoes.js?v=2026-10-28-ciencia-1';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const LISTAS = { permitido:'Permitido', contraindicacoes:'Evitar', hep:'Programa domiciliário', clinica:'Trabalho na clínica' };
 const OBJETOS = { objetivos:['Objetivos','label'], criterios_progressao:['Critérios para avançar','texto'], objetivos_serie:['Critérios detalhados','texto'] };

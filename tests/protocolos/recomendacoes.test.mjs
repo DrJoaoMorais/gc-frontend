@@ -19,7 +19,7 @@ const oldSnapshot=JSON.stringify(originals);
 const ctx=vm.createContext({
  _patologia:{biblioteca:false,protocolos:[{id:'p',name:'De Quervain'}],protocoloId:'p',fases:[fase],faseId:'f1'},
  _state:{patient:{id:'fixture'},startDate:'2026-10-27',sessions:originals},
- _patologiaPendente:null,
+ _patologiaPendente:null,doseProtocoloCompleta:()=>true,
  agruparSelecaoPatologiaPorLocal:()=>new Map([['Casa',[{ex:{id:'selected'},info:{}}]]]),
  criarItemPatologia:ex=>({exercise_id:ex.id}),recomendacoesParaSessao,orientacaoParaSessao,conteudoParaDoente: x=>JSON.parse(JSON.stringify(x)),listaCuidadosEspecificosPatologia:()=>[{label:"Reparação associada",texto:"Respeitar o limite individual"}],
  novaSessaoSkeleton:()=>({session_id:'new'}),renderStep2:()=>{},renderStep1:()=>{},
