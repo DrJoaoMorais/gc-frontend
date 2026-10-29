@@ -1,0 +1,578 @@
+{
+  "existing_protocol_id": "814aadc3-d054-536c-b67b-a854de80d655",
+  "phases": [
+    {
+      "id": "9d4081b1-f807-5421-8bfc-4ab8ddad623b",
+      "protocol_id": "814aadc3-d054-536c-b67b-a854de80d655",
+      "phase_order": 5,
+      "name": "Mobilidade dinâmica — opções complementares",
+      "anchor_kind": "evolucao_clinica",
+      "anchor_from": null,
+      "anchor_to": null,
+      "data": {
+        "nota_ancora": "Bloco complementar selecionável em qualquer fase, após avaliação; não é uma quinta etapa obrigatória.",
+        "objetivos": [
+          {
+            "id": "o1",
+            "label": "Explorar movimentos confortáveis com adaptações e apoio."
+          }
+        ],
+        "hep": [
+          "Seis opções complementares; fazer apenas a seleção prescrita."
+        ],
+        "permitido": [
+          "Movimentos lentos em amplitude tolerada, com apoio estável."
+        ],
+        "contraindicacoes": [
+          "Não forçar dor aguda, bloqueio ou perda de equilíbrio."
+        ],
+        "recomendacoes": [
+          {
+            "title": "Opções complementares",
+            "text": "Este bloco complementa o seu plano. Faça apenas os exercícios selecionados para si; não é obrigatório realizar os seis nem somá-los a todos os exercícios de força."
+          },
+          {
+            "title": "Como começar",
+            "text": "Comece com movimentos pequenos e lentos, sem forçar. A sugestão inicial é uma série de cinco repetições, conforme a dose prescrita. A equipa pode ajustar o lado e a frequência. Nos círculos, faça cinco em cada sentido se essa for a indicação."
+          },
+          {
+            "title": "Como evoluir",
+            "text": "Se tolerar bem várias sessões, pode aumentar gradualmente até oito a dez repetições, conforme o plano. Altere uma coisa de cada vez. Ir ao chão ou retirar o apoio não são objetivos obrigatórios."
+          },
+          {
+            "title": "Quando reduzir ou parar",
+            "text": "Pare esse movimento se surgir pontada na virilha, dor crescente, bloqueio ou perda de equilíbrio. Se piorarem a marcha, o sono ou a manhã seguinte, reduza a dose e peça ajuste do plano."
+          },
+          {
+            "title": "Apoios e adaptações",
+            "text": "Use cadeira, bancada e degrau estáveis. A variante depende do que consegue fazer com conforto e controlo. Após cirurgia da anca, siga as restrições específicas e confirme este plano com a equipa."
+          },
+          {
+            "title": "Quando pedir ajuda",
+            "text": "Procure avaliação urgente se tiver dor súbita e forte com dificuldade em apoiar a perna, sobretudo após queda, ou febre com dor importante. Contacte a equipa perante agravamento persistente ou perda rápida de movimento."
+          }
+        ],
+        "recomendacoes_clinicas": [
+          {
+            "title": "Evidência e limites",
+            "text": "A norma APTA/JOSPT 2025 apoia exercício individualizado, incluindo flexibilidade, força e resistência. Não demonstra superioridade desta sequência, destas adaptações ou da dose proposta. NHS inform apoia introdução gradual e ajuste se os sintomas piorarem. A dose de cinco a dez repetições é prática, não um limiar validado."
+          },
+          {
+            "title": "Seleção e progressão",
+            "text": "Este bloco não depende da conclusão da manutenção. Escolher pela mobilidade, irritabilidade, equilíbrio, tarefas e preferências. Idade ou IMC isolados não determinam capacidade. Não excluir nem impor variantes no chão com base nesses fatores. Manter reforço e atividade aeróbia. Posições avançadas exigem avaliação e ensino próprios; não estão prescritas pelas imagens acessíveis."
+          },
+          {
+            "title": "Figura 4 na cadeira — mobilidade dinâmica — escolha da variante",
+            "text": "Inspirado no objetivo de mobilidade do pigeon; não é uma variante biomecanicamente equivalente comprovada. Pigeon elevado ou no chão apenas após avaliação e ensino próprios; não é uma progressão obrigatória."
+          },
+          {
+            "title": "Transição em passada — frente e parte posterior da coxa — escolha da variante",
+            "text": "Adaptação em pé da transição flexores da anca/isquiotibiais em meio-ajoelhado. A variante ajoelhada depende da tolerância da anca e joelho e da capacidade de transferência; requer ensino separado."
+          },
+          {
+            "title": "Abertura da anca com pé num degrau baixo — escolha da variante",
+            "text": "Adaptação apoiada do hip opener. Confirmar que o pé acompanha a rotação, sem torção tibiofemoral. Meio-ajoelhado apenas com capacidade e tolerância adequadas; sem progressão automática da altura."
+          },
+          {
+            "title": "Passada curta com apoio na bancada — mobilidade da anca — escolha da variante",
+            "text": "Adaptação acessível inspirada no Spiderman; não reproduz integralmente o exercício no chão. Redundância parcial com passada-transição: selecionar conforme défice e preferência, não somar por rotina. Apoio baixo/chão só com tolerância de anca, joelho e punho e ensino próprio."
+          },
+          {
+            "title": "Círculos pequenos da anca em pé com apoio — escolha da variante",
+            "text": "Dose inicial de cinco círculos em cada sentido no lado selecionado, com pausas conforme necessário. Quadrupedia é alternativa, não grau obrigatório; avaliar tolerância de punhos/joelhos e capacidade de ir ao chão."
+          },
+          {
+            "title": "Recuo da bacia com mãos na bancada — escolha da variante",
+            "text": "Adaptação em pé do rock-back/dynamic child pose. Quadrupedia com recuo curto apenas após avaliação das transferências e da tolerância de joelhos/punhos. Não exigir sentar nos calcanhares."
+          }
+        ],
+        "criterios_progressao": [
+          {
+            "id": "p1",
+            "texto": "Ajustar pela resposta e controlo; não há prazo, amplitude ou transição para o chão obrigatórios."
+          }
+        ],
+        "objetivos_serie": [],
+        "fontes": [
+          {
+            "title": "APTA/JOSPT 2025 — programa individualizado na coxartrose",
+            "url": "https://www.orthopt.org/uploads/content_files/files/Hip_pain_and_mobility_deficits_hip_osteoarthritis_2025.pdf",
+            "doi": "10.2519/jospt.2025.0301"
+          },
+          {
+            "title": "NHS inform — exercício e adaptação dos sintomas na artrose da anca",
+            "url": "https://www.nhsinform.scot/illnesses-and-conditions/muscle-bone-and-joints/leg-and-foot-problems-and-conditions/exercises-for-osteoarthritis-of-the-hip/"
+          }
+        ],
+        "recommendations_scope": "814aadc3-d054-536c-b67b-a854de80d655:9d4081b1-f807-5421-8bfc-4ab8ddad623b",
+        "revisao_cientifica": "2026-10-29"
+      }
+    }
+  ],
+  "exercises": [
+    {
+      "id": "2941dff1-2a25-52ff-83d0-eb5759140092",
+      "name": "Figura 4 na cadeira — mobilidade dinâmica",
+      "locais": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Sem equipamento"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://gc.joaomorais.pt/assets/exercicios/mobilidade-anca/2026-10-29/figura-quatro.png",
+      "video_url": null,
+      "tecnica_info": {
+        "posicao_inicial": [
+          "Sente-se numa cadeira firme e suficientemente alta. Apoie um pé no chão e coloque o tornozelo oposto sobre a coxa, acima do joelho, apenas se o conseguir fazer sem forçar."
+        ],
+        "execucao": [
+          "Mantenha o joelho da perna cruzada numa posição confortável, sem o empurrar.",
+          "Incline ligeiramente o tronco à frente a partir da anca, com as costas direitas, e volte à posição inicial. Um avanço e regresso contam como uma repetição."
+        ],
+        "pontos_chave": [
+          "Se não conseguir colocar o tornozelo sem dor, não faça esta variante; peça uma alternativa.",
+          "Não comprima o joelho nem procure chegar com o peito à perna. Pare perante pontada na virilha.",
+          "Adaptação e progressão: Comece com uma inclinação muito pequena. Aumente-a apenas se confortável, mantendo o apoio e sem empurrar o joelho."
+        ],
+        "erros_comuns": [
+          "Forçar amplitude, usar balanços ou continuar perante dor aguda."
+        ],
+        "dicas": [
+          "Respire normalmente. Execute apenas a dose e o lado selecionados para si."
+        ]
+      },
+      "tecnica_notas": "posicao inicial\n• Sente-se numa cadeira firme e suficientemente alta. Apoie um pé no chão e coloque o tornozelo oposto sobre a coxa, acima do joelho, apenas se o conseguir fazer sem forçar.\n\nexecucao\n• Mantenha o joelho da perna cruzada numa posição confortável, sem o empurrar.\n• Incline ligeiramente o tronco à frente a partir da anca, com as costas direitas, e volte à posição inicial. Um avanço e regresso contam como uma repetição.\n\npontos chave\n• Se não conseguir colocar o tornozelo sem dor, não faça esta variante; peça uma alternativa.\n• Não comprima o joelho nem procure chegar com o peito à perna. Pare perante pontada na virilha.\n• Adaptação e progressão: Comece com uma inclinação muito pequena. Aumente-a apenas se confortável, mantendo o apoio e sem empurrar o joelho.\n\nerros comuns\n• Forçar amplitude, usar balanços ou continuar perante dor aguda.\n\ndicas\n• Respire normalmente. Execute apenas a dose e o lado selecionados para si.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Mobilidade / Alongamento"
+      ]
+    },
+    {
+      "id": "144adb7e-da93-5091-a07b-1c8f97e86e3c",
+      "name": "Transição em passada — frente e parte posterior da coxa",
+      "locais": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Sem equipamento"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://gc.joaomorais.pt/assets/exercicios/mobilidade-anca/2026-10-29/passada-transicao.png",
+      "video_url": null,
+      "tecnica_info": {
+        "posicao_inicial": [
+          "De pé, com as duas mãos numa bancada firme, coloque um pé à frente e outro atrás, mantendo distância lateral entre eles."
+        ],
+        "execucao": [
+          "Avance suavemente a bacia, dobrando o joelho da frente, sem arquear as costas. O calcanhar de trás pode levantar ligeiramente.",
+          "Recue a bacia, estenda parcialmente o joelho da frente e mantenha esse calcanhar apoiado, levantando ligeiramente os dedos se confortável. Regresse ao avanço. O ciclo completo conta como uma repetição."
+        ],
+        "pontos_chave": [
+          "Use uma passada curta e movimente-se devagar, sem balanços.",
+          "Não force o joelho a esticar nem procure uma sensação de alongamento intensa.",
+          "Adaptação e progressão: Aumente primeiro o controlo e depois, se tolerado, um pouco a amplitude. Mantenha as mãos apoiadas."
+        ],
+        "erros_comuns": [
+          "Forçar amplitude, usar balanços ou continuar perante dor aguda."
+        ],
+        "dicas": [
+          "Respire normalmente. Execute apenas a dose e o lado selecionados para si."
+        ]
+      },
+      "tecnica_notas": "posicao inicial\n• De pé, com as duas mãos numa bancada firme, coloque um pé à frente e outro atrás, mantendo distância lateral entre eles.\n\nexecucao\n• Avance suavemente a bacia, dobrando o joelho da frente, sem arquear as costas. O calcanhar de trás pode levantar ligeiramente.\n• Recue a bacia, estenda parcialmente o joelho da frente e mantenha esse calcanhar apoiado, levantando ligeiramente os dedos se confortável. Regresse ao avanço. O ciclo completo conta como uma repetição.\n\npontos chave\n• Use uma passada curta e movimente-se devagar, sem balanços.\n• Não force o joelho a esticar nem procure uma sensação de alongamento intensa.\n• Adaptação e progressão: Aumente primeiro o controlo e depois, se tolerado, um pouco a amplitude. Mantenha as mãos apoiadas.\n\nerros comuns\n• Forçar amplitude, usar balanços ou continuar perante dor aguda.\n\ndicas\n• Respire normalmente. Execute apenas a dose e o lado selecionados para si.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Mobilidade / Alongamento"
+      ]
+    },
+    {
+      "id": "00e23ba2-c2c0-564e-aab3-47e5e43c7521",
+      "name": "Abertura da anca com pé num degrau baixo",
+      "locais": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Sem equipamento"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://gc.joaomorais.pt/assets/exercicios/mobilidade-anca/2026-10-29/abertura-degrau.png",
+      "video_url": null,
+      "tecnica_info": {
+        "posicao_inicial": [
+          "De pé junto de uma bancada firme, apoie uma mão e coloque o pé oposto num degrau baixo e estável, inicialmente cerca de 10–15 cm."
+        ],
+        "execucao": [
+          "Com o tronco direito, abra ligeiramente o joelho da perna elevada para fora, num movimento pequeno da anca.",
+          "Deixe o pé acompanhar suavemente a orientação do joelho, sem o prender ao degrau. Regresse ao centro. Abertura e regresso contam como uma repetição."
+        ],
+        "pontos_chave": [
+          "Não empurre o joelho com a mão nem torça o joelho sobre um pé fixo.",
+          "Mantenha o outro pé no chão e a bacia estável. Não suba para o degrau durante este exercício.",
+          "Adaptação e progressão: Use menor altura ou menor abertura se necessário. Aumente apenas a abertura confortável, mantendo apoio e controlo."
+        ],
+        "erros_comuns": [
+          "Forçar amplitude, usar balanços ou continuar perante dor aguda."
+        ],
+        "dicas": [
+          "Respire normalmente. Execute apenas a dose e o lado selecionados para si."
+        ]
+      },
+      "tecnica_notas": "posicao inicial\n• De pé junto de uma bancada firme, apoie uma mão e coloque o pé oposto num degrau baixo e estável, inicialmente cerca de 10–15 cm.\n\nexecucao\n• Com o tronco direito, abra ligeiramente o joelho da perna elevada para fora, num movimento pequeno da anca.\n• Deixe o pé acompanhar suavemente a orientação do joelho, sem o prender ao degrau. Regresse ao centro. Abertura e regresso contam como uma repetição.\n\npontos chave\n• Não empurre o joelho com a mão nem torça o joelho sobre um pé fixo.\n• Mantenha o outro pé no chão e a bacia estável. Não suba para o degrau durante este exercício.\n• Adaptação e progressão: Use menor altura ou menor abertura se necessário. Aumente apenas a abertura confortável, mantendo apoio e controlo.\n\nerros comuns\n• Forçar amplitude, usar balanços ou continuar perante dor aguda.\n\ndicas\n• Respire normalmente. Execute apenas a dose e o lado selecionados para si.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Mobilidade / Alongamento"
+      ]
+    },
+    {
+      "id": "4c08209f-752c-5f99-8c0d-6f899d95a094",
+      "name": "Passada curta com apoio na bancada — mobilidade da anca",
+      "locais": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Sem equipamento"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://gc.joaomorais.pt/assets/exercicios/mobilidade-anca/2026-10-29/passada-bancada.png",
+      "video_url": null,
+      "tecnica_info": {
+        "posicao_inicial": [
+          "De pé diante de uma bancada firme, apoie as duas mãos. Coloque um pé à frente e outro atrás, sem alinhar os pés numa linha estreita."
+        ],
+        "execucao": [
+          "Mantenha o pé da frente apoiado e avance ligeiramente a bacia, dobrando o joelho da frente. O calcanhar de trás pode ficar levantado.",
+          "Conserve o peito elevado e regresse à posição inicial. O avanço e regresso contam como uma repetição; não há rotação do tronco."
+        ],
+        "pontos_chave": [
+          "Use um avanço pequeno, sem afundar a bacia nem arquear a região lombar.",
+          "Ao contrário da transição frente/trás, o objetivo aqui é um avanço controlado, sem procurar alongar a parte posterior da coxa. Pode escolher apenas um destes dois exercícios.",
+          "Adaptação e progressão: Aumente ligeiramente o avanço se tolerado. Mantenha o apoio alto; não desça as mãos para o chão por iniciativa própria."
+        ],
+        "erros_comuns": [
+          "Forçar amplitude, usar balanços ou continuar perante dor aguda."
+        ],
+        "dicas": [
+          "Respire normalmente. Execute apenas a dose e o lado selecionados para si."
+        ]
+      },
+      "tecnica_notas": "posicao inicial\n• De pé diante de uma bancada firme, apoie as duas mãos. Coloque um pé à frente e outro atrás, sem alinhar os pés numa linha estreita.\n\nexecucao\n• Mantenha o pé da frente apoiado e avance ligeiramente a bacia, dobrando o joelho da frente. O calcanhar de trás pode ficar levantado.\n• Conserve o peito elevado e regresse à posição inicial. O avanço e regresso contam como uma repetição; não há rotação do tronco.\n\npontos chave\n• Use um avanço pequeno, sem afundar a bacia nem arquear a região lombar.\n• Ao contrário da transição frente/trás, o objetivo aqui é um avanço controlado, sem procurar alongar a parte posterior da coxa. Pode escolher apenas um destes dois exercícios.\n• Adaptação e progressão: Aumente ligeiramente o avanço se tolerado. Mantenha o apoio alto; não desça as mãos para o chão por iniciativa própria.\n\nerros comuns\n• Forçar amplitude, usar balanços ou continuar perante dor aguda.\n\ndicas\n• Respire normalmente. Execute apenas a dose e o lado selecionados para si.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Mobilidade / Alongamento"
+      ]
+    },
+    {
+      "id": "dff811d0-0dec-5088-b31e-2549f0619bd5",
+      "name": "Círculos pequenos da anca em pé com apoio",
+      "locais": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Sem equipamento"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://gc.joaomorais.pt/assets/exercicios/mobilidade-anca/2026-10-29/circulos-anca.png",
+      "video_url": null,
+      "tecnica_info": {
+        "posicao_inicial": [
+          "De pé junto de uma bancada firme, apoie uma mão. Dobre ligeiramente a perna mais afastada da bancada e levante o pé apenas o necessário para o libertar do chão."
+        ],
+        "execucao": [
+          "Desenhe pequenos círculos com o joelho, com movimento lento da anca e sem rodar o tronco.",
+          "Complete os círculos no sentido prescrito e depois inverta. Cada círculo conta como uma repetição. Pouse o pé para descansar quando necessário."
+        ],
+        "pontos_chave": [
+          "Mantenha a bacia nivelada. Não é necessário elevar o joelho à altura da anca.",
+          "Se perder equilíbrio ou inclinar o tronco, faça círculos menores ou pare e peça adaptação.",
+          "Adaptação e progressão: Comece com círculos muito pequenos e apoio firme. Aumente apenas a amplitude confortável, sem retirar o apoio para dificultar."
+        ],
+        "erros_comuns": [
+          "Forçar amplitude, usar balanços ou continuar perante dor aguda."
+        ],
+        "dicas": [
+          "Respire normalmente. Execute apenas a dose e o lado selecionados para si."
+        ]
+      },
+      "tecnica_notas": "posicao inicial\n• De pé junto de uma bancada firme, apoie uma mão. Dobre ligeiramente a perna mais afastada da bancada e levante o pé apenas o necessário para o libertar do chão.\n\nexecucao\n• Desenhe pequenos círculos com o joelho, com movimento lento da anca e sem rodar o tronco.\n• Complete os círculos no sentido prescrito e depois inverta. Cada círculo conta como uma repetição. Pouse o pé para descansar quando necessário.\n\npontos chave\n• Mantenha a bacia nivelada. Não é necessário elevar o joelho à altura da anca.\n• Se perder equilíbrio ou inclinar o tronco, faça círculos menores ou pare e peça adaptação.\n• Adaptação e progressão: Comece com círculos muito pequenos e apoio firme. Aumente apenas a amplitude confortável, sem retirar o apoio para dificultar.\n\nerros comuns\n• Forçar amplitude, usar balanços ou continuar perante dor aguda.\n\ndicas\n• Respire normalmente. Execute apenas a dose e o lado selecionados para si.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Mobilidade / Alongamento"
+      ]
+    },
+    {
+      "id": "2d94e172-afbd-58c6-af0a-a8255c97e7d0",
+      "name": "Recuo da bacia com mãos na bancada",
+      "locais": [
+        "Casa",
+        "Clínica",
+        "Ginásio"
+      ],
+      "categoria": [
+        "Membro Inferior"
+      ],
+      "equipamento": [
+        "Sem equipamento"
+      ],
+      "is_active": true,
+      "created_by": "32a24abe-cd69-42d9-bf3a-3355f4f6e28c",
+      "photo_url": "https://gc.joaomorais.pt/assets/exercicios/mobilidade-anca/2026-10-29/recuo-bacia.png",
+      "video_url": null,
+      "tecnica_info": {
+        "posicao_inicial": [
+          "De pé diante de uma bancada firme, apoie as duas mãos. Mantenha os pés paralelos numa largura confortável e os joelhos ligeiramente dobrados."
+        ],
+        "execucao": [
+          "Leve devagar a bacia para trás, dobrando na anca e mantendo as costas numa posição confortável, sem as arredondar de propósito.",
+          "Regresse à posição inicial. Um recuo e regresso contam como uma repetição. Mantenha as mãos apoiadas e os pés no chão."
+        ],
+        "pontos_chave": [
+          "Não é um agachamento profundo. Não force o peito para baixo nem procure a amplitude da imagem.",
+          "Ajuste a distância à bancada para manter o apoio e não provocar dor na anca ou nos ombros.",
+          "Adaptação e progressão: Comece com um recuo curto. Aumente-o apenas se confortável; mantenha a altura e o apoio que permitem controlo."
+        ],
+        "erros_comuns": [
+          "Forçar amplitude, usar balanços ou continuar perante dor aguda."
+        ],
+        "dicas": [
+          "Respire normalmente. Execute apenas a dose e o lado selecionados para si."
+        ]
+      },
+      "tecnica_notas": "posicao inicial\n• De pé diante de uma bancada firme, apoie as duas mãos. Mantenha os pés paralelos numa largura confortável e os joelhos ligeiramente dobrados.\n\nexecucao\n• Leve devagar a bacia para trás, dobrando na anca e mantendo as costas numa posição confortável, sem as arredondar de propósito.\n• Regresse à posição inicial. Um recuo e regresso contam como uma repetição. Mantenha as mãos apoiadas e os pés no chão.\n\npontos chave\n• Não é um agachamento profundo. Não force o peito para baixo nem procure a amplitude da imagem.\n• Ajuste a distância à bancada para manter o apoio e não provocar dor na anca ou nos ombros.\n• Adaptação e progressão: Comece com um recuo curto. Aumente-o apenas se confortável; mantenha a altura e o apoio que permitem controlo.\n\nerros comuns\n• Forçar amplitude, usar balanços ou continuar perante dor aguda.\n\ndicas\n• Respire normalmente. Execute apenas a dose e o lado selecionados para si.",
+      "ajustes_maquina": [],
+      "contextos_exercicio": [
+        "Reabilitação"
+      ],
+      "objetivos_exercicio": [
+        "Mobilidade / Alongamento"
+      ]
+    }
+  ],
+  "associations": [
+    {
+      "id": "b6d90007-0446-5c04-92d3-4b8f60aa1cda",
+      "phase_id": "9d4081b1-f807-5421-8bfc-4ab8ddad623b",
+      "exercise_id": "2941dff1-2a25-52ff-83d0-eb5759140092",
+      "sort_order": 1,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 1,
+        "load": null,
+        "reps_min": 5,
+        "reps_max": 5,
+        "reps_fixed": 5,
+        "series": [
+          {
+            "reps": 5,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 30,
+        "rest_next": 30,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 2,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão ajustável: uma série de cinco repetições no lado selecionado, com 30 segundos de repouso conforme necessário. Confirmar lado, apoio, amplitude e frequência antes de prescrever. Fazer apenas a seleção individual; não somar os seis por rotina."
+    },
+    {
+      "id": "70cc1e0f-5120-599e-9d64-3c88c03c464e",
+      "phase_id": "9d4081b1-f807-5421-8bfc-4ab8ddad623b",
+      "exercise_id": "144adb7e-da93-5091-a07b-1c8f97e86e3c",
+      "sort_order": 2,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 1,
+        "load": null,
+        "reps_min": 5,
+        "reps_max": 5,
+        "reps_fixed": 5,
+        "series": [
+          {
+            "reps": 5,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 30,
+        "rest_next": 30,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 2,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão ajustável: uma série de cinco repetições no lado selecionado, com 30 segundos de repouso conforme necessário. Confirmar lado, apoio, amplitude e frequência antes de prescrever. Fazer apenas a seleção individual; não somar os seis por rotina."
+    },
+    {
+      "id": "55fd4c87-1be7-536a-819e-965c97f881ce",
+      "phase_id": "9d4081b1-f807-5421-8bfc-4ab8ddad623b",
+      "exercise_id": "00e23ba2-c2c0-564e-aab3-47e5e43c7521",
+      "sort_order": 3,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 1,
+        "load": null,
+        "reps_min": 5,
+        "reps_max": 5,
+        "reps_fixed": 5,
+        "series": [
+          {
+            "reps": 5,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 30,
+        "rest_next": 30,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 2,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão ajustável: uma série de cinco repetições no lado selecionado, com 30 segundos de repouso conforme necessário. Confirmar lado, apoio, amplitude e frequência antes de prescrever. Fazer apenas a seleção individual; não somar os seis por rotina."
+    },
+    {
+      "id": "54c286a2-0cb4-5e27-a9b2-044c49103c95",
+      "phase_id": "9d4081b1-f807-5421-8bfc-4ab8ddad623b",
+      "exercise_id": "4c08209f-752c-5f99-8c0d-6f899d95a094",
+      "sort_order": 4,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 1,
+        "load": null,
+        "reps_min": 5,
+        "reps_max": 5,
+        "reps_fixed": 5,
+        "series": [
+          {
+            "reps": 5,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 30,
+        "rest_next": 30,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 2,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão ajustável: uma série de cinco repetições no lado selecionado, com 30 segundos de repouso conforme necessário. Confirmar lado, apoio, amplitude e frequência antes de prescrever. Fazer apenas a seleção individual; não somar os seis por rotina."
+    },
+    {
+      "id": "b9170048-d2a0-545d-9357-bf0a137c0082",
+      "phase_id": "9d4081b1-f807-5421-8bfc-4ab8ddad623b",
+      "exercise_id": "dff811d0-0dec-5088-b31e-2549f0619bd5",
+      "sort_order": 5,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 1,
+        "load": null,
+        "reps_min": 5,
+        "reps_max": 5,
+        "reps_fixed": 5,
+        "series": [
+          {
+            "reps": 5,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 30,
+        "rest_next": 30,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 2,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão ajustável: uma série de cinco repetições no lado selecionado, com 30 segundos de repouso conforme necessário. Nos círculos, cinco em cada sentido; pausar entre sentidos. Confirmar lado, apoio, amplitude e frequência antes de prescrever. Fazer apenas a seleção individual; não somar os seis por rotina."
+    },
+    {
+      "id": "c0f9effc-fdfb-5c33-82b0-e24291dc857a",
+      "phase_id": "9d4081b1-f807-5421-8bfc-4ab8ddad623b",
+      "exercise_id": "2d94e172-afbd-58c6-af0a-a8255c97e7d0",
+      "sort_order": 6,
+      "context": "indiferente",
+      "is_optional": true,
+      "prescription_defaults": {
+        "sets": 1,
+        "load": null,
+        "reps_min": 5,
+        "reps_max": 5,
+        "reps_fixed": 5,
+        "series": [
+          {
+            "reps": 5,
+            "load": null
+          }
+        ],
+        "duration_sec": null,
+        "duration_series": null,
+        "rest_set": 30,
+        "rest_next": 30,
+        "tempo_concentrico_s": 2,
+        "tempo_excentrico_s": 2,
+        "pausa_superior_s": 0,
+        "pausa_inferior_s": 0
+      },
+      "clinical_note": "Sugestão ajustável: uma série de cinco repetições no lado selecionado, com 30 segundos de repouso conforme necessário. Confirmar lado, apoio, amplitude e frequência antes de prescrever. Fazer apenas a seleção individual; não somar os seis por rotina."
+    }
+  ]
+}
