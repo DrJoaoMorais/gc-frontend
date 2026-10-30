@@ -1,6 +1,38 @@
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const positive = n => typeof n === 'number' && Number.isFinite(n) && n > 0;
 
+// Só para novas seleções do catálogo. Nunca recalcula planos ou doses de protocolos.
+export function doseInicialGenerica(ex = {}) {
+  const normalizar = v => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const nome = normalizar(ex.name);
+  const objetivos = normalizar((ex.objetivos_exercicio || []).join(' '));
+  let tipo = 'reforco', sets = 3, amount = 12, timed = false;
+  if (/bicicleta/.test(nome)) {
+    tipo = 'bicicleta'; sets = 1; amount = 600; timed = true;
+  } else if (/isometric|prancha|plank|wall sit|cadeira na parede/.test(nome)) {
+    tipo = 'isometrico'; sets = 5; amount = 10; timed = true;
+  } else if (/alongamento|estiramento|stretch/.test(nome)) {
+    tipo = 'alongamento'; amount = 20; timed = true;
+  } else if (/equilibrio|apoio (?:numa perna|em uma perna|na perna|unipodal)/.test(nome) ||
+    (/propriocepcao|equilibrio/.test(objetivos) && !/toques|passos|transferencia|subida|descida|inclinacao|agachamento/.test(nome))) {
+    tipo = 'equilibrio'; amount = 20; timed = true;
+  } else if (/mobilidade|mobilizacao|autoassist|ativa.assist|aarom|prom|pendular|pendulares|deslizamento|deslizar|circulos/.test(nome) ||
+    (/mobilidade/.test(objetivos) && !/fortalecimento/.test(objetivos))) {
+    tipo = 'mobilidade'; sets = 1; amount = 10;
+  }
+  return {
+    sets, load:null, reps_min:timed ? null : amount, reps_max:timed ? null : amount,
+    reps_fixed:timed ? null : amount,
+    series:timed ? null : Array.from({length:sets}, () => ({reps:amount,load:null})),
+    duration_sec:tipo === 'bicicleta' ? amount : null,
+    duration_series:timed ? Array.from({length:sets}, () => ({duration_sec:amount})) : null,
+    rest_set:timed ? 15 : 60, rest_next:90,
+    tempo_excentrico_s:timed ? null : (ex.tempo_excentrico_s ?? 2),
+    tempo_concentrico_s:timed ? null : (ex.tempo_concentrico_s ?? 1),
+    pausa_inferior_s:0, pausa_superior_s:0,
+  };
+}
+
 // A presença de uma chave não significa que exista uma dose utilizável.
 export function doseProtocoloCompleta(dose) {
   if (!Number.isInteger(dose?.sets) || dose.sets < 1 || typeof dose.rest_set !== 'number' || !Number.isFinite(dose.rest_set) || dose.rest_set < 0) return false;

@@ -1,4 +1,4 @@
-import { doseProtocoloCompleta, pedirDosesIndividuais } from './dose-protocolo.js?v=2026-10-28-ciencia-2';
+import { doseProtocoloCompleta, pedirDosesIndividuais, doseInicialGenerica } from './dose-protocolo.js?v=2026-10-30-doses-genericas-1';
 import { requireExerciseAccess } from '../permissoes.js';
 import { abrirEditorProtocolo } from './protocolo-editor.js?v=2026-10-28-ciencia-1';
 import { renderRecomendacoesFase, recomendacoesParaSessao, orientacaoParaSessao, textoParaDoente, conteudoParaDoente } from './recomendacoes.js?v=2026-10-28-ciencia-1';
@@ -3674,10 +3674,9 @@ function renderItemCardSeriesFields(it) {
       </div>`;
 }
 
-// Item de exercício no formato da prescrição, com os valores por defeito de sempre.
+// Item novo do catálogo com a dose generalista editável por tipo de exercício.
 // Partilhado pelo painel de sessão e pelo "Criar treino" (mesmo formato de item).
 function novoItemDeExercicio(ex) {
-  const usaTempo = exercicioUsaTempoPorDefeito(ex);
   return {
     exercise_id: ex.id,
     name: ex.name,
@@ -3691,25 +3690,8 @@ function novoItemDeExercicio(ex) {
       : [],
     prescription_note: null,
     categoria: ex.categoria || [],
-    sets: usaTempo ? (ex.name.toLowerCase().includes('bicicleta') ? 1 : 3) : 3,
-    reps_min: usaTempo ? null : 8,
-    reps_max: usaTempo ? null : 12,
-    reps_fixed: null,
-    load: null,
+    ...doseInicialGenerica(ex),
     incremento: ex.incremento_default ?? null,
-    rest_set: usaTempo ? 15 : 60,
-    rest_next: 90,
-    tempo_excentrico_s: ex.tempo_excentrico_s ?? 2,
-    pausa_inferior_s: 0,
-    tempo_concentrico_s: ex.tempo_concentrico_s ?? 1,
-    pausa_superior_s: 0,
-    duration_sec: usaTempo && ex.name.toLowerCase().includes('bicicleta') ? 600 : null,
-    duration_series: usaTempo ? (ex.name.toLowerCase().includes('bicicleta') ? [{ duration_sec: 600 }] : [{ duration_sec: 30 }, { duration_sec: 30 }, { duration_sec: 30 }]) : null,
-    series: usaTempo ? null : [
-      { reps: 12, load: null },
-      { reps: 12, load: null },
-      { reps: 12, load: null },
-    ],
   };
 }
 
@@ -5900,14 +5882,14 @@ function alternarSelecaoExercicioPatologia(exId) {
     const row = _patologia.exercicios.find(r => r.exercise_id === exId);
     _patologia.selecionados.set(exId, row
       ? { origem: 'protocolo', context: row.context, is_optional: row.is_optional, prescription_defaults: row.prescription_defaults || {}, clinical_note: row.clinical_note }
-      : { origem: 'catalogo', context: null, is_optional: false, prescription_defaults: {}, clinical_note: null });
+      : { origem: 'catalogo', context: null, is_optional: false, prescription_defaults: doseInicialGenerica(_state.exercisesCatalog.find(e => e.id === exId) || {}), clinical_note: null });
   }
   renderPatologiaBody();
 }
 
 function adicionarExercicioCatalogoPatologia(exId) {
   if (_patologia.selecionados.has(exId)) return; // já está seleccionado (era sugestão do protocolo, p.ex.)
-  _patologia.selecionados.set(exId, { origem: 'catalogo', context: null, is_optional: false, prescription_defaults: {}, clinical_note: null });
+  _patologia.selecionados.set(exId, { origem: 'catalogo', context: null, is_optional: false, prescription_defaults: doseInicialGenerica(_state.exercisesCatalog.find(e => e.id === exId) || {}), clinical_note: null });
   if (!_patologia.adicionadosCatalogo.includes(exId)) _patologia.adicionadosCatalogo.push(exId);
   renderPatologiaBody();
 }
