@@ -6111,7 +6111,7 @@ const CATALOGO_VISUAL_PATOLOGIA = [
       { nome: 'Artroscopia do Punho', img: 'punho-artroscopia' },
     ] },
     { area: 'Anca', itens: [
-      { nome: 'Artroplastia Total da Anca (Prótese Total)', img: 'anca-artroplastia' },
+      { nome: 'Artroplastia Total da Anca (Prótese Total)', img: 'anca-artroplastia', match: ['artroplastia total da anca', 'protese total da anca'] },
       { nome: 'Osteossíntese de Fratura do Fémur Proximal', img: 'anca-femur-proximal' },
       { nome: 'Artroscopia da Anca', img: 'anca-artroscopia' },
     ] },
