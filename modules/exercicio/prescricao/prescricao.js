@@ -6179,7 +6179,7 @@ const CATALOGO_VISUAL_PATOLOGIA = [
     { area: 'Tornozelo / Pé', itens: [
       { nome: 'Tendinopatia do Aquiles', img: 'c-pe-aquiles' },
       { nome: 'Tenossinovite dos Peroneais', img: 'c-pe-peroneais' },
-      { nome: 'Entorse do Tornozelo', img: 'c-pe-entorse' },
+      { nome: 'Entorse do Tornozelo', img: 'c-pe-entorse', match: ['entorse do tornozelo', 'entorse tibiotarsica'] },
     ] },
     { area: 'Coluna / Outros', itens: [
       { nome: 'Lombalgia', img: 'c-coluna-lombalgia' },
