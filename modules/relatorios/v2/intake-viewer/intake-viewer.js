@@ -193,7 +193,7 @@ export async function openIntakeResponseModal({ patientId, clinicId, tokenRow, o
   const tipo = tokenRow.questionnaire_type;
   let cfgMod;
   try {
-    cfgMod = await import('../../../intake/configs/' + tipo + '.js');
+    cfgMod = await import('../../../intake/configs/' + tipo + '.js?v=2026-10-31-disponibilidade');
   } catch (e) {
     alert('Tipo de questionário desconhecido: ' + tipo);
     return;

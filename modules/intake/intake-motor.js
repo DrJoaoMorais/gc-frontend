@@ -132,7 +132,7 @@ async function _iniciarQuestionario(root) {
   const tipo = _ctx.questionnaire_type;
   let mod;
   try {
-    mod = await import('./configs/' + tipo + '.js');
+    mod = await import('./configs/' + tipo + '.js?v=2026-10-31-disponibilidade');
   } catch (e) {
     root.innerHTML = '<div class="gate"><h2>Tipo de questionário desconhecido</h2><p>' + tipo + '</p></div>';
     return;
@@ -328,6 +328,7 @@ function _renderNumero(p) {
     '<input type="number" inputmode="decimal" id="q_' + p.id + '" class="q-input"' +
     (p.min != null ? ' min="' + p.min + '"' : '') +
     (p.max != null ? ' max="' + p.max + '"' : '') +
+    (p.inteiro ? ' step="1"' : '') +
     ' value="' + (val != null ? val : '') + '">' +
     '</div>';
 }
@@ -417,6 +418,15 @@ function _wirePergunta(p) {
   if (p.tipo === 'numero') {
     const input = el.querySelector('.q-input');
     input.addEventListener('blur', function () {
+      if (p.inteiro) {
+        input.setCustomValidity('');
+        const n = Number(input.value);
+        if (input.validity.badInput || (input.value !== '' && (!Number.isInteger(n) || (p.min != null && n < p.min) || (p.max != null && n > p.max)))) {
+          input.setCustomValidity('Indique um número inteiro de minutos entre ' + p.min + ' e ' + p.max + ', ou deixe em branco.');
+          input.reportValidity();
+          return;
+        }
+      }
       _gravarResposta(p.id, input.value === '' ? null : parseFloat(input.value));
     });
     return;

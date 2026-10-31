@@ -1,3 +1,4 @@
+import { lerDisponibilidadeQuestionario, normalizarDisponibilidade, disponibilidadeInicial, capturarDisponibilidade, minutosDisponiveis } from './disponibilidade-treino.js?v=2026-10-31-disponibilidade';
 import { doseProtocoloCompleta, pedirDosesIndividuais, doseInicialGenerica } from './dose-protocolo.js?v=2026-10-30-doses-genericas-1';
 import { requireExerciseAccess } from '../permissoes.js';
 import { abrirEditorProtocolo } from './protocolo-editor.js?v=2026-10-28-ciencia-1';
@@ -30,7 +31,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-10-27-recomendacoes-v1';
+const PRESCRICAO_CSS_VERSION = '2026-10-31-disponibilidade';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -244,6 +245,7 @@ function freshState() {
     dataRevisao: null,
     duracaoSessaoPadrao: 30,
     diasPorSemanaHabitual: null,
+    disponibilidadeTreino: null,
     savedLink: null,
     savedExpiresAt: null,
     // Plano activo carregado para edição directa (9 ago 2026) — ver carregarPlanoActivoSeExistir().
@@ -259,6 +261,7 @@ function freshState() {
   };
 }
 let _state = freshState();
+let _disponibilidadeQuestionario = null;
 let _embeddedCare = null;
 let _step1Destination = 'prescription'; // 'acompanhamento' quando a entrada deve abrir o cérebro do doente
 let _loadingPlanoActivo = false;        // a verificar/carregar o plano activo do doente escolhido (9 ago 2026)
@@ -600,6 +603,13 @@ async function carregarZonaPerfis() {
   });
 }
 
+// Only read a completed questionnaire belonging to the current patient and clinic.
+async function carregarDisponibilidadeQuestionario() {
+  const patientId = _state.patient?.id, clinicId = _state.clinicId;
+  const result = await lerDisponibilidadeQuestionario(window.sb, patientId, clinicId);
+  if (_state.patient?.id === patientId && _state.clinicId === clinicId) _disponibilidadeQuestionario = result;
+}
+
 // Ao escolher um doente (landing ou pesquisa), verifica se já tem um plano activo e, se
 // tiver, carrega-o tal como está — sessões reais nas datas reais, prontas a editar (9 ago
 // 2026). Antes disto o ecrã começava sempre vazio e só se fundia com o plano activo ao
@@ -647,6 +657,7 @@ async function carregarPlanoActivoSeExistir() {
   _state.dataRevisao = data.data?.dataRevisao || null;
   _state.duracaoSessaoPadrao = data.data?.duracaoSessaoPadrao || 30;
   _state.diasPorSemanaHabitual = data.data?.diasPorSemanaHabitual ?? null;
+  _state.disponibilidadeTreino = normalizarDisponibilidade(data.data?.disponibilidadeTreino);
   const restricoesGuardadas = Array.isArray(data.data?.restricoes) ? data.data.restricoes : [];
   _state.restricoesPredefinidas = restricoesGuardadas.filter(r => RESTRICOES_PREDEFINIDAS.includes(r));
   _state.restricoesTexto = restricoesGuardadas.filter(r => !RESTRICOES_PREDEFINIDAS.includes(r)).join('; ');
@@ -668,6 +679,7 @@ export async function initPrescricao(options = {}) {
   ensurePrescricaoCss();
   _embeddedCare = options.embeddedCare || null;
   _state = freshState();
+  _disponibilidadeQuestionario = null;
   _landing = options.restoreList && _landingReturnContext
     ? { ...freshLanding(), clinicIds: _landingReturnContext.clinicIds, search: _landingReturnContext.search, tab: _landingReturnContext.tab }
     : null;
@@ -714,7 +726,7 @@ export async function initPrescricao(options = {}) {
   }
   _state.patient = patient;
   _loadingPlanoActivo = true;
-  await Promise.all([carregarPlanoActivoSeExistir(), carregarZonaPerfis()]);
+  await Promise.all([carregarPlanoActivoSeExistir(), carregarZonaPerfis(), carregarDisponibilidadeQuestionario()]);
   _loadingPlanoActivo = false;
   if (options.mode === 'pathology') abrirPatologia();
   else if (options.mode === 'previous') { renderStep2(); openHistoryModal(); }
@@ -1531,10 +1543,12 @@ function wirePatientPicker({ focus = false } = {}) {
         }
         _state.patient = p;
         _state.clinicId = selectedClinicId;
+        _state.disponibilidadeTreino = null;
+        _disponibilidadeQuestionario = null;
         _panelDraft = null; _panelIsNovo = false; _pendingSlot = null; // doente novo — nunca herdar edição do doente anterior
         _loadingPlanoActivo = true;
         renderStep2();
-        Promise.all([carregarPlanoActivoSeExistir(), carregarZonaPerfis()]).finally(() => {
+        Promise.all([carregarPlanoActivoSeExistir(), carregarZonaPerfis(), carregarDisponibilidadeQuestionario()]).finally(() => {
           _loadingPlanoActivo = false;
           // Só depois do plano activo (se existir) já ter resolvido startDate/sessions — a(s)
           // sessão(ões) vinda(s) de "Patologias/Protocolos" (EX-07) caem na janela certa.
@@ -1828,7 +1842,11 @@ function ctAjustarSemanas() {
   const ct = _criarTreino;
   if (ct.fim < ct.inicio) ct.fim = ct.inicio;
   const n = Math.max(1, Math.ceil(diasEntreInclusivo(segundaFeiraDeIso(ct.inicio), ct.fim) / 7));
-  while (ct.semanas.length < n) ct.semanas.push(ctSemanaVazia());
+  while (ct.semanas.length < n) {
+    const w = ct.semanas.length, semana = ctSemanaVazia();
+    semana.disp = semana.disp.map((dia, d) => ct.disponibilidadeBase?.porData?.[ctDataDoDia(d, w)] ? { ...ct.disponibilidadeBase.porData[ctDataDoDia(d, w)] } : null);
+    ct.semanas.push(semana);
+  }
   ct.semanas.length = n;
   if (ct.editar?.alvo === 'slot' && ct.editar.w >= n) ctFecharEditorSemGuardar();
 }
@@ -1948,10 +1966,13 @@ function abrirCriarTreino() {
   const temCalendario = Boolean((_state.sessions || []).length || _state.activePrescriptionId);
   const inicio = temCalendario && _state.startDate ? _state.startDate : (_state.startDate && _state.startDate > hoje ? _state.startDate : hoje);
   const fim = temCalendario && _state.endDate && _state.endDate >= inicio ? _state.endDate : inicio;
+  const disponibilidade = disponibilidadeInicial(_state.disponibilidadeTreino, _disponibilidadeQuestionario);
   const semana1 = ctSemanaVazia();
-  semana1.disp = Array.from({ length: 7 }, () => ({ ativo: true, min: 30, local: 'Casa' }));
+  semana1.disp = disponibilidade ? disponibilidade.semanal.map(d => ({ ...d })) : Array.from({ length: 7 }, () => ({ ativo: true, min: 30, local: 'Casa' }));
   _criarTreino = {
     inicio, fim, mostrarFim: false,
+    disponibilidadeBase: disponibilidade,
+    origemDisponibilidade: disponibilidade?.origem || null,
     semanas: [semana1],   // por semana: { disp[7] (null = herda), dias[7]: [{ id, nome, sessao }] }
     semanaFoco: 0,        // semana onde "Aplicar aos dias disponíveis" coloca o treino escolhido
     tipo: 'exercicios', grupo: 'Todos', personalizado: null,
@@ -1965,6 +1986,10 @@ function abrirCriarTreino() {
     ctCarregarCalendarioExistente();
   } else {
     ctDefinirSemanas(1); // começa na semana da data de início; cresce com "+ Adicionar semana" / "Copiar"
+  }
+  for (let d = 0; d < 7; d++) {
+    const exception = disponibilidade?.porData?.[ctDataDoDia(d, 0)];
+    if (exception) _criarTreino.semanas[0].disp[d] = { ...exception };
   }
   ctRender();
   root.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2057,6 +2082,7 @@ function ctAdicionarAPrescricao() {
   });
   _state.sessions = [...foraDoIntervalo, ...calendarioConfirmado]
     .sort((a, b) => a.date.localeCompare(b.date) || (Number(a.order) || 0) - (Number(b.order) || 0));
+  _state.disponibilidadeTreino = capturarDisponibilidade(ct, ctDisp, ctDataDoDia, _state.disponibilidadeTreino);
   const fimAntigo = _state.endDate;
   if (ct.inicio < _state.startDate) _state.startDate = ct.inicio;
   if (ct.fim > _state.endDate) _state.endDate = ct.fim;
@@ -2202,12 +2228,14 @@ function ctRenderColuna(w, i) {
   const herdado = w > 0 && !ct.semanas[w].disp[i];
   const compat = !slots.length || !noPlano ? '' : !d.ativo
     ? `<span class="gcwo-ct-compat aviso" title="Treino num dia sem tempo disponível">⚠ ${total} min / sem tempo</span>`
+    : d.min === null
+      ? `<span class="gcwo-ct-compat aviso">≈ ${total} min · disponibilidade por definir</span>`
     : total > d.min
       ? `<span class="gcwo-ct-compat aviso" title="${total} min de treino para ${d.min} min disponíveis">⚠ ${total} / ${d.min} min</span>`
       : `<span class="gcwo-ct-compat ok" title="${total} min de treino para ${d.min} min disponíveis">✓ ${total} / ${d.min} min</span>`;
   const disp = !noPlano ? `<small class="gcwo-ct-fora">Fora do plano</small>` : `
     <span class="gcwo-ct-col-disp${herdado ? ' herdado' : ''}" title="${herdado ? 'Herdado da semana anterior — altere para mudar só a partir desta semana' : 'Tempo disponível e local'}">
-      <select data-ct-col-min="${w}:${i}" aria-label="Tempo disponível" ${d.ativo ? '' : 'disabled'}>${CT_MINUTOS.map(m => [String(m), `${m} min`]).map(([v, l]) => `<option value="${v}"${String(d.min) === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
+      <label class="gcwo-ct-tempo"><input type="number" inputmode="numeric" min="0" max="1440" step="1" data-ct-col-min="${w}:${i}" aria-label="Tempo disponível em minutos" placeholder="A definir" value="${d.min ?? ''}" ${d.ativo ? '' : 'disabled'}><span>min</span></label>
       <select data-ct-col-local="${w}:${i}" aria-label="Local" ${d.ativo ? '' : 'disabled'}>${LOCAIS_SESSAO.map(l => `<option${d.local === l ? ' selected' : ''}>${escHtml(l)}</option>`).join('')}</select>
     </span>`;
   return `
@@ -2241,13 +2269,15 @@ function ctRenderCalendario() {
   const semanas = ct.semanas.map((sem, w) => {
     const diasPlano = [0, 1, 2, 3, 4, 5, 6].filter(i => ctNoPlano(ctDataDoDia(i, w)));
     const disponivel = diasPlano.reduce((t, i) => t + (ctDisp(w, i).ativo ? ctDisp(w, i).min : 0), 0);
+    const disponibilidadeIncompleta = diasPlano.some(i => ctDisp(w, i).ativo && ctDisp(w, i).min === null);
+    const disponivelTexto = disponibilidadeIncompleta ? `a completar (${disponivel} min indicados)` : `${disponivel} min`;
     const prescrito = diasPlano.reduce((t, i) => t + sem.dias[i].reduce((x, slot) => x + ctMinutosSessao(slot.sessao), 0), 0);
     const temTreinos = sem.dias.some(l => l.length);
     return `
       <div class="gcwo-ct-semana-bloco">
         <div class="gcwo-ct-semana-head">
           <div class="gcwo-ct-semana-tit"><strong>Semana ${w + 1}</strong><span>${escHtml(ctFmtDia(ctDataDoDia(0, w)))} – ${escHtml(ctFmtDia(ctDomingoDaSemana(w)))}</span>
-            <small>Total disponível: <b>${disponivel} min</b> · Total prescrito: <b class="${prescrito > disponivel ? 'aviso' : ''}">${prescrito} min</b></small></div>
+            <small>Total disponível: <b>${disponivelTexto}</b> · Total prescrito: <b class="${prescrito > disponivel ? 'aviso' : ''}">${prescrito} min</b></small></div>
           <div class="gcwo-ct-semana-acoes">
             <button type="button" class="gcBtnGhost" data-ct-copiar-semana="${w}" ${temTreinos ? '' : 'disabled'}>Copiar para semana seguinte ↓</button>
             <button type="button" class="gcBtnGhost" data-ct-limpar-semana="${w}" ${temTreinos ? '' : 'disabled'}>Limpar semana</button>
@@ -2267,13 +2297,27 @@ function ctRenderCalendario() {
       </div>`;
   }).join('');
   return ctBloco(2, 'Calendário do plano', 'Assinale os dias disponíveis, defina o tempo e o local, e coloque o treino escolhido. As semanas seguintes herdam a disponibilidade da anterior.',
-    semanas);
+    ctResumoDisponibilidade() + semanas);
+}
+
+function ctResumoDisponibilidade() {
+  const origem = _criarTreino.origemDisponibilidade;
+  const minutos = n => n === null ? 'não indicado' : `${n} min/dia`;
+  let texto;
+  if (origem) {
+    const data = origem.concluidoEm ? new Date(origem.concluidoEm).toLocaleDateString('pt-PT') : 'data não indicada';
+    texto = `Referido no questionário de ${data}: dias úteis ${minutos(origem.uteis)} · fim de semana ${minutos(origem.fimSemana)}. Valores editáveis; os ajustes guardados no plano têm prioridade.`;
+  } else if (_state.disponibilidadeTreino) texto = 'Disponibilidade ajustada e guardada neste plano. Pode editar cada dia.';
+  else if (_disponibilidadeQuestionario?.status === 'indisponivel') texto = 'Não foi possível ler a disponibilidade do questionário. Confirme os valores iniciais de cada dia.';
+  else if (_disponibilidadeQuestionario?.intervaloAnterior) texto = `Questionário anterior: ${_disponibilidadeQuestionario.intervaloAnterior} por sessão, sem distribuição diária. Confirme os valores iniciais; não foi convertido automaticamente.`;
+  else texto = 'Sem disponibilidade diária indicada no questionário. Confirme os valores iniciais de cada dia.';
+  return `<small class="gcwo-ct-nota" role="status">${escHtml(texto)}</small>`;
 }
 
 function ctRenderDetalhe() {
   const ct = _criarTreino;
   let titulo = '';
-  if (ct.editar?.alvo === 'slot') { const iso = ctDataDoDia(ct.editar.dia, ct.editar.w); const d = ctDisp(ct.editar.w, ct.editar.dia); titulo = `Semana ${ct.editar.w + 1} · ${diaSemanaDeIso(iso).full}, ${ctFmtDia(iso)} · ${d.ativo ? `${d.min} min disponíveis` : 'sem tempo disponível'}`; }
+  if (ct.editar?.alvo === 'slot') { const iso = ctDataDoDia(ct.editar.dia, ct.editar.w); const d = ctDisp(ct.editar.w, ct.editar.dia); titulo = `Semana ${ct.editar.w + 1} · ${diaSemanaDeIso(iso).full}, ${ctFmtDia(iso)} · ${d.ativo ? (d.min === null ? 'disponibilidade por definir' : `${d.min} min disponíveis`) : 'sem tempo disponível'}`; }
   else if (ct.editar?.alvo === 'atual') titulo = 'Treino escolhido (antes de o colocar nos dias)';
   return ctBloco(4, 'Detalhe do treino selecionado', 'Ajuste exercícios e parâmetros. As alterações aplicam-se só ao treino selecionado.', `
     <div class="gcwo-ct-det" id="gcwoCtDetalhe">
@@ -2416,7 +2460,12 @@ function ctWire() {
     const ds = e.target.dataset;
     const wd = (v) => { const [w, d] = v.split(':').map(Number); return { w, d }; };
     if (ds.ctColAtivo) { const { w, d } = wd(ds.ctColAtivo); ctSetDisp(w, d, { ativo: e.target.checked }); }
-    else if (ds.ctColMin) { const { w, d } = wd(ds.ctColMin); const v = Number(e.target.value); ctSetDisp(w, d, v ? { ativo: true, min: v } : { ativo: false }); }
+    else if (ds.ctColMin) {
+      const { w, d } = wd(ds.ctColMin), raw = e.target.value;
+      const v = raw === '' ? null : minutosDisponiveis(Number(raw));
+      if (e.target.validity?.badInput || (raw !== '' && v === null)) { e.target.reportValidity(); return; }
+      ctSetDisp(w, d, { ativo: v !== 0, min: v });
+    }
     else if (ds.ctColLocal) { const { w, d } = wd(ds.ctColLocal); ctSetDisp(w, d, { local: e.target.value }); }
     else if ('ctInicio' in ds) {
       if (!e.target.value) return;
@@ -5368,6 +5417,7 @@ function buildFinalData() {
     dataRevisao: _state.dataRevisao,
     duracaoSessaoPadrao: _state.duracaoSessaoPadrao,
     diasPorSemanaHabitual: _state.diasPorSemanaHabitual,
+    ...(_state.disponibilidadeTreino ? { disponibilidadeTreino: normalizarDisponibilidade(_state.disponibilidadeTreino) } : {}),
     restricoes: restricoesAtuais(),
     sessions: _state.sessions.map(sessaoParaGravar),
     zone_snapshots: buildZoneSnapshots(),
@@ -5503,6 +5553,7 @@ async function handleGerar() {
             dataRevisao: activaExistente.data?.dataRevisao ?? novaData.dataRevisao,
             duracaoSessaoPadrao: activaExistente.data?.duracaoSessaoPadrao ?? novaData.duracaoSessaoPadrao,
             diasPorSemanaHabitual: activaExistente.data?.diasPorSemanaHabitual ?? novaData.diasPorSemanaHabitual,
+            ...(activaExistente.data?.disponibilidadeTreino ? { disponibilidadeTreino: activaExistente.data.disponibilidadeTreino } : {}),
             sessions: sessoesFinais,
           };
 
@@ -5545,6 +5596,7 @@ async function handleGerar() {
       _state.savedLink = null;
       _state.activePrescriptionId = savedPrescription.id;
       _state.sessions = structuredClone(savedPrescription.data.sessions || []);
+      _state.disponibilidadeTreino = normalizarDisponibilidade(savedPrescription.data.disponibilidadeTreino);
       _state.__ultimoSnapshotGravado = JSON.stringify(_state.sessions);
       _embeddedCare.savedFingerprint = JSON.stringify(buildFinalData());
       renderStep2();

@@ -352,8 +352,8 @@
 .gcwo-ct-confirmar > span { flex:1 1 260px; }
 .gcwo-ct-confirmar small { display:block; color:#708197; font-size:11px; }
 .gcwo-ct-col-disp { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:4px; width:100%; margin-top:0; }
-.gcwo-ct-col-disp select { width:100%; min-width:0; height:26px; border:1px solid #c9d5e4; border-radius:7px; background:#fff; padding:0 4px; font:inherit; font-size:11px; color:#172a43; }
-.gcwo-ct-col-disp.herdado select { color:#708197; background:#f8fafc; }
+.gcwo-ct-col-disp select, .gcwo-ct-col-disp input { width:100%; min-width:0; height:26px; border:1px solid #c9d5e4; border-radius:7px; background:#fff; padding:0 4px; font:inherit; font-size:11px; color:#172a43; }
+.gcwo-ct-col-disp.herdado select, .gcwo-ct-col-disp.herdado input { color:#708197; background:#f8fafc; }
 .gcwo-ct-add-semana { width:100%; margin-top:12px; border:1px dashed #1d5de2; border-radius:10px; background:#f7faff; color:#1d5de2; padding:10px; font:inherit; font-size:13px; font-weight:800; cursor:pointer; }
 .gcwo-ct-add-semana:hover { background:#eef4ff; }
 /* 4. Detalhe + duração */
@@ -1536,3 +1536,6 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-pat-recomendacoes details { margin-top:16px; }
 .gcwo-pat-recomendacoes summary { cursor:pointer; font-weight:600; }
 @media (max-width:600px) { .gcwo-pat-recomendacoes { padding:14px; } }
+
+.gcwo-ct-tempo { display:flex; align-items:center; gap:4px; min-width:0; }
+.gcwo-ct-tempo span { font-size:11px; color:#708197; }
