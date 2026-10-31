@@ -75,7 +75,7 @@ export function openFeedPanel(patientId, sessionClinicId, options = {}) {
   return iframe;
 }
 
-const ACOMPANHAMENTO_URL = "/modules/acompanhamento-clinico.html?v=2026-09-28-care-summary";
+const ACOMPANHAMENTO_URL = "/modules/acompanhamento-clinico.html?v=2026-10-31-care-navigation";
 
 /* ---- openAcompanhamentoPanel ----
    Mesmo iframe/mecanismo do openFeedPanel, mas reabre directamente a área de

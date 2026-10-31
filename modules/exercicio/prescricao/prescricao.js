@@ -735,6 +735,7 @@ export async function initCarePrescription({ patientId, clinicId, onCalendar, on
   renderStep2();
   return {
     refreshCalendar() { if (!step2EmEdicao() && !_patologia) renderCalGrid(); },
+    hasActiveEditor() { return !!_criarTreino || step2EmEdicao(); },
     hasUnsavedChanges() { return haSessoesPorGravar() || !!_panelDraft || !!_pendingSlot; },
     open(mode) {
       if (_embeddedCare.saving) return;
