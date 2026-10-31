@@ -32,6 +32,7 @@
    ======================================================== */
 
 import { G } from "./state.js";
+import { renderRendimentosDashboard, buildReciboMensalHTML } from "./rendimentos-dashboard.js";
 import { escapeHtml } from "./helpers.js";
 
 /* ==== FA — Queries Supabase ==== */
@@ -889,7 +890,7 @@ function buildDetalheClinicaHTML(entId, ctx) {
   if (!e) {
     return `
 <div>
-  <button id="btnVoltarPanorama" class="dc-back">← Voltar ao Panorama Geral</button>
+  <button id="btnVoltarPanorama" class="dc-back">← Voltar aos rendimentos</button>
   <p style="margin-top:16px;color:#94a3b8;font-size:13px;">Clínica não encontrada.</p>
 </div>`;
   }
@@ -1041,7 +1042,7 @@ table.dc-tbl tr:hover td{background:#f8faff;}
 .dc-tbl-empty{padding:24px;text-align:center;font-size:12.5px;color:#94a3b8;}
 </style>
 <div>
-  <button id="btnVoltarPanorama" class="dc-back">← Voltar ao Panorama Geral</button>
+  <button id="btnVoltarPanorama" class="dc-back">← Voltar aos rendimentos</button>
   <div class="dc-header">
     <div>
       <div class="dc-title">${escapeHtml(e.nome)}</div>
@@ -1289,7 +1290,7 @@ function dashComponenteFixaOuTraco(v) {
 function buildDashboardRendimentosHTML(ctx) {
   const {
     entidades, registosFiltrados, entClinicasTodas, clinicPricesByClinicId,
-    controloFaturacao, mes, ano, modoAtivo, navLabel, periodoIni, periodoFim,
+    controloFaturacao, mes, ano, modoAtivo, navLabel, periodoIni, periodoFim, selecaoDashboard,
   } = ctx;
 
   /* ---- Produção por clínica — mesma base do Panorama Geral. Fase 3
@@ -1480,257 +1481,11 @@ function buildDashboardRendimentosHTML(ctx) {
       <input id="finPeriodoFim" type="date" value="${periodoFim}" style="border:none;outline:none;font-size:12px;color:#0f172a;font-family:inherit;width:120px;" />
     </div>` : ""}`;
 
-  return `
-<style>
-.dash-header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;margin-bottom:26px;}
-.dash-eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;margin-bottom:4px;}
-.dash-title{font-size:24px;font-weight:800;color:#0f2d52;letter-spacing:-.01em;}
-.dash-sub{font-size:12px;color:#94a3b8;margin-top:4px;}
-.dash-period{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-
-.dash-topbar{display:flex;flex-wrap:wrap;align-items:stretch;background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 1px 2px rgba(15,45,82,.04), 0 10px 28px -14px rgba(15,45,82,.22);margin-bottom:22px;overflow:hidden;}
-.dash-stat{flex:1 1 0;min-width:96px;padding:16px 20px;border-left:0.5px solid #f1f5f9;display:flex;flex-direction:column;justify-content:center;}
-.dash-stat:first-child{border-left:none;}
-.dash-stat-l{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin-bottom:7px;white-space:nowrap;}
-.dash-stat-v{font-size:26px;font-weight:800;color:#0f172a;letter-spacing:-.01em;}
-.dash-stat-primary{flex:1.7 1 0;background:#f8fafc;}
-.dash-stat-primary .dash-stat-v{font-size:32px;color:#0f2d52;}
-.dash-stat-sm .dash-stat-v{font-size:19px;}
-.dash-stat-bad .dash-stat-v{color:#DC2626;}
-.dash-stat-info .dash-stat-v{color:#0f2d52;}
-.dash-stat-op{flex:0 0 auto;display:flex;align-items:center;justify-content:center;padding:0 2px;color:#cbd5e1;font-size:15px;font-weight:700;}
-@media(max-width:900px){.dash-topbar{flex-wrap:wrap;} .dash-stat{flex:1 1 33%;border-top:0.5px solid #f1f5f9;} .dash-stat-op{display:none;}}
-
-.dash-section-label{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin:22px 0 10px;}
-
-.dash-layout{display:block;}
-.dash-main{min-width:0;}
-.dash-side{min-width:0;margin-top:22px;}
-
-.dash-ranking{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;}
-.dash-rank-row{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:11px 16px;box-shadow:0 1px 2px rgba(15,45,82,.04), 0 8px 24px -12px rgba(15,45,82,.18);}
-.dash-rank-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px;}
-.dash-rank-name{font-size:13.5px;font-weight:800;color:#0f172a;}
-.dash-rank-value{font-size:15px;font-weight:800;color:#0f2d52;white-space:nowrap;}
-.dash-rank-bar-track{height:4px;background:#f1f5f9;border-radius:3px;overflow:hidden;margin-bottom:7px;}
-.dash-rank-bar-fill{height:100%;background:linear-gradient(90deg,#0f2d52,#1a56db);border-radius:3px;}
-.dash-rank-detail{display:block;font-size:11.5px;color:#94a3b8;}
-.dash-rank-detail b{color:#0f172a;font-weight:700;}
-.dash-rank-detail .sep{margin:0 6px;color:#e2e8f0;}
-.dash-rank-sub{font-size:10.5px;color:#cbd5e1;font-weight:600;margin-top:3px;}
-.dash-empty{padding:20px 16px;font-size:12px;color:#94a3b8;background:#fff;border:1px solid #e2e8f0;border-radius:14px;text-align:center;}
-@media(max-width:760px){.dash-ranking{grid-template-columns:1fr;}}
-@media(min-width:761px) and (max-width:1100px){.dash-ranking{grid-template-columns:repeat(2,minmax(0,1fr));}}
-
-.dash-fat-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:10px;overflow:hidden;}
-.dash-fat-count{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 14px;border-left:.5px solid #e2e8f0;font-size:11.5px;color:#64748b;}
-.dash-fat-count:first-child{border-left:none;}
-.dash-fat-count b{font-size:17px;color:#0f2d52;}
-.dash-fat-wrap{overflow-x:auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 1px 2px rgba(15,45,82,.04),0 8px 24px -12px rgba(15,45,82,.18);}
-.dash-fat-table{width:100%;border-collapse:collapse;min-width:900px;font-size:12px;}
-.dash-fat-table th{background:#f8fafc;text-align:left;padding:9px 12px;border-bottom:1px solid #e2e8f0;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;}
-.dash-fat-table td{padding:9px 12px;border-bottom:.5px solid #f1f5f9;color:#334155;vertical-align:middle;}
-.dash-fat-table tr:last-child td{border-bottom:none;}
-.dash-fat-table td.valor{text-align:right;font-weight:800;color:#0f172a;white-space:nowrap;}
-.dash-fat-status{display:inline-block;border-radius:8px;padding:3px 8px;font-size:10.5px;font-weight:700;white-space:nowrap;}
-.dash-fat-status.por_enviar{background:#fef3c7;color:#92400e;}
-.dash-fat-status.enviado_contabilista{background:#dbeafe;color:#1e40af;}
-.dash-fat-status.recibo_emitido{background:#ede9fe;color:#5b21b6;}
-.dash-fat-status.pago{background:#d1fae5;color:#065f46;}
-.dash-fat-actions{display:flex;align-items:center;gap:6px;white-space:nowrap;}
-.dash-fat-pdf{border:1px solid #cbd5e1;background:#fff;color:#0f2d52;border-radius:7px;padding:4px 8px;font:600 10.5px inherit;cursor:pointer;}
-.dash-fat-btn{border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:7px;padding:4px 8px;font:600 10.5px inherit;cursor:pointer;}
-@media(max-width:760px){.dash-fat-summary{grid-template-columns:repeat(2,minmax(0,1fr));}.dash-fat-count:nth-child(3){border-left:none;border-top:.5px solid #e2e8f0;}.dash-fat-count:nth-child(4){border-top:.5px solid #e2e8f0;}}
-.dash-lower{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start;margin-top:22px;}
-@media(max-width:760px){.dash-lower{grid-template-columns:1fr;}}
-
-.dash-tipo-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:6px 16px 12px;box-shadow:0 1px 2px rgba(15,45,82,.04), 0 8px 24px -12px rgba(15,45,82,.18);margin-bottom:26px;}
-.dash-tipo-group-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;padding-top:10px;}
-.dash-tipo-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid #f1f5f9;}
-.dash-tipo-row:last-child{border-bottom:none;}
-.dash-tipo-row.empty{opacity:.5;}
-.dash-tipo-nome{font-size:12.5px;color:#334155;}
-.dash-tipo-nums{display:flex;align-items:center;gap:8px;}
-.dash-tipo-n{font-size:11px;color:#94a3b8;min-width:14px;text-align:right;}
-.dash-tipo-val{font-size:12.5px;font-weight:700;color:#0f172a;min-width:64px;text-align:right;}
-
-.dash-atencao{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:4px 16px;box-shadow:0 1px 2px rgba(15,45,82,.04), 0 8px 24px -12px rgba(15,45,82,.18);}
-.dash-atencao-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:0.5px solid #f1f5f9;}
-.dash-atencao-item:last-child{border-bottom:none;}
-.dash-atencao-item .l{font-size:12px;color:#64748b;font-weight:500;}
-.dash-atencao-item .n{font-size:16px;font-weight:800;}
-.dash-atencao-item.bad .n{color:#DC2626;}
-.dash-atencao-item.warn .n{color:#D97706;}
-.dash-atencao-item.info .n{color:#0f2d52;}
-
-.dash-atividade-filtros{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
-.dash-chip-row{display:flex;flex-wrap:wrap;gap:6px;}
-.dash-chip{font-family:inherit;font-size:11.5px;font-weight:600;padding:5px 12px;border-radius:20px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;}
-.dash-chip:hover{border-color:#cbd5e1;color:#0f2d52;}
-.dash-chip.active{background:#0f2d52;border-color:#0f2d52;color:#fff;}
-
-.dash-cron-wrap{overflow-x:auto;border:1px solid #e2e8f0;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(15,45,82,.04), 0 8px 24px -12px rgba(15,45,82,.18);}
-table.dash-cron{width:100%;border-collapse:collapse;font-size:12.5px;min-width:640px;}
-table.dash-cron thead th{background:#f8fafc;text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;padding:9px 14px;border-bottom:1px solid #e2e8f0;}
-table.dash-cron td{padding:8px 14px;border-bottom:0.5px solid #f1f5f9;color:#334155;white-space:nowrap;}
-table.dash-cron tr:last-child td{border-bottom:none;}
-table.dash-cron td.num{text-align:right;font-weight:700;color:#0f172a;}
-table.dash-cron tr:hover td{background:#f8faff;}
-.dash-cron-empty-msg{padding:20px 16px;text-align:center;color:#94a3b8;font-size:12px;}
-.dash-cron-footer{padding:12px 16px;text-align:center;border-top:0.5px solid #f1f5f9;}
-.dash-link-btn{font-family:inherit;font-size:12px;font-weight:700;color:#1a56db;background:none;border:none;cursor:pointer;padding:4px 8px;}
-.dash-link-btn:hover{text-decoration:underline;}
-</style>
-
-<div class="dash-header">
-  <div>
-    <div class="dash-eyebrow">Rendimentos</div>
-    <div class="dash-title">Dashboard</div>
-    <div class="dash-sub">${mesLabel(ano, mes)} · Dr. João Morais</div>
-  </div>
-  <div class="dash-period">${periodBarHTML}</div>
-</div>
-
-<div class="dash-topbar">
-  <div class="dash-stat dash-stat-primary">
-    <div class="dash-stat-l">Rendimento total</div>
-    <div class="dash-stat-v">${pgEur(rendimentoTotal)}</div>
-  </div>
-  <div class="dash-stat dash-stat-sm">
-    <div class="dash-stat-l">Honorários clínicos</div>
-    <div class="dash-stat-v">${dashComponenteFixaOuTraco(honorariosClinicosTotal)}</div>
-  </div>
-  <div class="dash-stat-op">+</div>
-  <div class="dash-stat dash-stat-sm">
-    <div class="dash-stat-l">Componentes fixas</div>
-    <div class="dash-stat-v">${dashComponenteFixaOuTraco(componentesFixasTotal)}</div>
-  </div>
-  <div class="dash-stat dash-stat-sm">
-    <div class="dash-stat-l">Consultas</div>
-    <div class="dash-stat-v">${consultasTotal}</div>
-  </div>
-  <div class="dash-stat dash-stat-sm dash-stat-bad">
-    <div class="dash-stat-l">Faltas</div>
-    <div class="dash-stat-v">${faltasTotal}</div>
-  </div>
-  <div class="dash-stat dash-stat-sm dash-stat-info">
-    <div class="dash-stat-l">Dispensas</div>
-    <div class="dash-stat-v">${dispensasTotal}</div>
-  </div>
-</div>
-
-<div class="dash-layout">
-  <div class="dash-main">
-    <div class="dash-section-label" style="margin-top:0;">Produção por clínica</div>
-    <div class="dash-ranking">
-      ${porClinicaOrdenada.length === 0
-        ? `<div class="dash-empty">Sem clínicas neste período.</div>`
-        : porClinicaOrdenada.map(c => {
-            const pct = Math.round((Math.max(0, c.hon) / maxHonClinica) * 100);
-            return `
-      <div class="dash-rank-row">
-        <div class="dash-rank-top">
-          <span class="dash-rank-name">${escapeHtml(c.entidade.nome)}</span>
-          <span class="dash-rank-value">${pgEur(c.hon)}</span>
-        </div>
-        <div class="dash-rank-bar-track"><div class="dash-rank-bar-fill" style="width:${pct}%;"></div></div>
-        <span class="dash-rank-detail">Honorários clínicos <b>${dashComponenteFixaOuTraco(c.honorariosClinicos)}</b><span class="sep">|</span>${c.componentesFixasLabel ? escapeHtml(c.componentesFixasLabel) : "Componentes fixas"} <b>${dashComponenteFixaOuTraco(c.componentesFixas)}</b></span>
-        <div class="dash-rank-sub">${c.done} consulta${c.done === 1 ? "" : "s"}</div>
-      </div>`;
-          }).join("")}
-    </div>
-  </div>
-
-  <div class="dash-side">
-    <div class="dash-section-label" style="margin-top:0;">Faturação / Recibos</div>
-    <div class="dash-fat-summary">
-      <div class="dash-fat-count"><span>Por enviar</span><b>${fatContagens.por_enviar}</b></div>
-      <div class="dash-fat-count"><span>Enviado à contabilista</span><b>${fatContagens.enviado_contabilista}</b></div>
-      <div class="dash-fat-count"><span>Recibos emitidos</span><b>${fatContagens.recibo_emitido}</b></div>
-      <div class="dash-fat-count"><span>Pagos</span><b>${fatContagens.pago}</b></div>
-    </div>
-    <div class="dash-fat-wrap">
-      <table class="dash-fat-table">
-        <thead><tr><th>Data</th><th>Entidade</th><th>Documento</th><th style="text-align:right;">Valor</th><th>Estado</th><th>Ações</th></tr></thead>
-        <tbody>
-          ${tarefasFaturacao.length === 0
-            ? `<tr><td colspan="6" style="padding:20px;text-align:center;color:#94a3b8;">Sem tarefas de faturação neste período.</td></tr>`
-            : tarefasFaturacao.map(t => {
-                const dataFmt = new Date(t.data + "T00:00:00").toLocaleDateString("pt-PT");
-                const documento = t.granularidade === "mensal" ? "Mensal"
-                  : t.granularidade === "dia" ? `${t.linhas.length} consulta${t.linhas.length === 1 ? "" : "s"}`
-                  : (t.linhas[0]?.tipo_acto || "Consulta individual");
-                const next = fatNext[t.estado];
-                return `<tr>
-                  <td>${dataFmt}</td>
-                  <td style="font-weight:700;color:#0f172a;">${escapeHtml(t.entidade.nome)}</td>
-                  <td>${escapeHtml(documento)}</td>
-                  <td class="valor">${pgEur(t.valorFaturado)}</td>
-                  <td><span class="dash-fat-status ${t.estado}">${fatEstadoLabel[t.estado]}</span></td>
-                  <td><div class="dash-fat-actions">
-                    <button class="dash-fat-pdf" data-entidade="${t.entidade.id}" data-granularidade="${t.granularidade}" data-chave="${escapeHtml(t.chave)}" data-data="${t.data}" data-registo="${t.registoId || ""}">Gerar PDF</button>
-                    ${next ? `<button class="dash-fat-btn" data-entidade="${t.entidade.id}" data-granularidade="${t.granularidade}" data-chave="${escapeHtml(t.chave)}" data-data="${t.data}" data-registo="${t.registoId || ""}" data-estado="${next}">${fatNextLabel[t.estado]}</button>` : ""}
-                  </div></td>
-                </tr>`;
-              }).join("")}
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<div class="dash-lower">
-  <div>
-    <div class="dash-section-label" style="margin-top:0;">Produção por tipo</div>
-    <div class="dash-tipo-card">
-      <div class="dash-tipo-group-label">Consultas</div>
-      ${grupoConsultasTipos.map(tipoRowHTML).join("")}
-      <div class="dash-tipo-group-label">Procedimentos</div>
-      ${grupoProcedimentosTipos.map(tipoRowHTML).join("")}
-    </div>
-  </div>
-  <div>
-    <div class="dash-section-label" style="margin-top:0;">Atenção</div>
-    <div class="dash-atencao">
-      <div class="dash-atencao-item bad"><span class="l">Faltas no período</span><span class="n">${faltasTotal}</span></div>
-      <div class="dash-atencao-item info"><span class="l">Dispensas de honorários</span><span class="n">${dispensasTotal}</span></div>
-      <div class="dash-atencao-item warn"><span class="l">Actos sem preço definido</span><span class="n">${semPrecoTotal}</span></div>
-    </div>
-  </div>
-</div>
-
-<div class="dash-section-label">Atividade recente</div>
-<div class="dash-atividade-filtros">
-  <div class="dash-chip-row">
-    <button class="dash-chip dash-chip-clinica active" data-clinica="Todas">Todas</button>
-    ${porClinicaOrdenada.map(c => `<button class="dash-chip dash-chip-clinica" data-clinica="${escapeHtml(c.entidade.nome)}" title="${escapeHtml(c.entidade.nome)}">${escapeHtml(c.entidade.nome)}</button>`).join("")}
-  </div>
-  <div class="dash-chip-row">
-    <button class="dash-chip dash-chip-periodo active" data-periodo="7d">Últimos 7 dias</button>
-    <button class="dash-chip dash-chip-periodo" data-periodo="mes">Este mês</button>
-  </div>
-</div>
-${listaCronologica.length === 0 ? `<div class="dash-empty">Sem registos neste período.</div>` : `
-<div class="dash-cron-wrap">
-  <table class="dash-cron">
-    <thead><tr><th>Data</th><th>Clínica</th><th>Acto</th><th style="text-align:right;">Honorário</th><th>Estado</th></tr></thead>
-    <tbody id="dashAtividadeBody">
-      ${listaCronologica.map(r => {
-        const dataFmt = r.data ? new Date(r.data + "T00:00:00").toLocaleDateString("pt-PT") : "—";
-        return `<tr class="dash-cron-row" data-clinica="${escapeHtml(r._clinica)}" data-data="${r.data}">
-          <td>${dataFmt}</td>
-          <td>${escapeHtml(r._clinica)}</td>
-          <td>${badgeTipo(r.tipo_acto)}</td>
-          <td class="num">${pgEur(Number(r.valor || 0))}</td>
-          <td>${badgeStatus(r.appt_status, r.financial_status)}</td>
-        </tr>`;
-      }).join("")}
-    </tbody>
-  </table>
-  <div id="dashAtividadeVazia" class="dash-cron-empty-msg" style="display:none;">Sem movimentos para este filtro.</div>
-</div>
-<div class="dash-cron-footer"><button id="btnDashVerMes" class="dash-link-btn">Ver todos os movimentos do mês</button></div>`}
-`;
+  return renderRendimentosDashboard({
+    clinicas: porClinica, entidades, registos: registosFiltrados,
+    tarefas: tarefasFaturacao, periodoHTML: periodBarHTML, periodoLabel: navLabel,
+    eur: pgEur, escape: escapeHtml, contaParaTotal, selecao: selecaoDashboard, mes, ano,
+  });
 }
 
 /* ==== FC — Render principal ==== */
@@ -1770,6 +1525,7 @@ export async function renderFinancas() {
      continua a ter prioridade sempre que === "detalhe" (Detalhe da Clínica).
      "dashboard" é a vista inicial, como pedido. */
   let vistaDashboard = "dashboard"; // dashboard | panorama
+  let selecaoDashboard = { entidadeId: null, dia: null };
 
   async function render() {
     let entidades = [], registos = [], presencas = [], controloFaturacao = [];
@@ -2382,7 +2138,7 @@ ${pendVencidos.length > 0 ? `
     const dashboardHTML = vistaGeral === "novo"
       ? buildDashboardRendimentosHTML({
           entidades, registosFiltrados: registos, entClinicasTodas, clinicPricesByClinicId,
-          controloFaturacao, mes, ano, modoAtivo, navLabel, periodoIni, periodoFim,
+          controloFaturacao, mes, ano, modoAtivo, navLabel, periodoIni, periodoFim, selecaoDashboard,
         })
       : "";
 
@@ -2438,6 +2194,37 @@ ${pendVencidos.length > 0 ? `
     document.getElementById("btnVistaPanoramaGeral")?.addEventListener("click", () => {
       vistaDashboard = "panorama";
       render();
+    });
+
+    // A navegação reproduz clínica -> dias -> doentes.
+    content.querySelectorAll("[data-rd-entidade]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        selecaoDashboard = { entidadeId: btn.dataset.rdEntidade || null, dia: btn.dataset.rdDia || null };
+        render();
+      });
+    });
+    content.querySelectorAll(".rd-recibo-mensal").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const ent = entidades.find(e => e.id === btn.dataset.entidade);
+        if (!ent) return;
+        const [anoDoc, mesDoc] = btn.dataset.mes.split("-").map(Number);
+        // O documento mensal usa sempre o mês completo, mesmo na vista diária.
+        const w = window.open("", "_blank");
+        if (!w) { alert("Permite a abertura do documento neste navegador."); return; }
+        w.document.body.textContent = "A preparar o resumo mensal...";
+        try {
+          const todos = await loadRegistos({ mes: mesDoc, ano: anoDoc });
+          const ids = new Set([ent.id, ...entidades.filter(e => e.tipo === "avenca" && ent.clinic_id && e.clinic_id === ent.clinic_id).map(e => e.id)]);
+          const html = buildReciboMensalHTML({
+            entidade: ent, registos: todos.filter(r => ids.has(r.entidade_id)),
+            mes: mesLabel(anoDoc, mesDoc), eur: pgEur, escape: escapeHtml, contaParaTotal,
+          });
+          w.document.open(); w.document.write(html); w.document.close();
+        } catch (e) {
+          console.error("Falha no resumo mensal:", e);
+          w.document.body.textContent = "Não foi possível carregar o mês completo. Fecha este documento e tenta novamente.";
+        }
+      });
     });
 
     /* PDF da linha: diário para Athletix, individual para Web e mensal
@@ -2552,10 +2339,7 @@ ${pendVencidos.length > 0 ? `
     });
     document.getElementById("btnVoltarPanorama")?.addEventListener("click", () => {
       vistaRendimentos = "panorama";
-      /* FASE 3.2 — "Voltar" regressa sempre ao Panorama Geral (nunca ao
-         Dashboard), como pedido, independentemente de onde o Detalhe
-         tenha sido aberto. */
-      vistaDashboard = "panorama";
+      // Regressa à vista que abriu o detalhe, preservando o período.
       clinicaDetalheId = null;
       render();
     });
