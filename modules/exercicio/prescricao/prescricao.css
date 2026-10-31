@@ -1539,3 +1539,29 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 
 .gcwo-ct-tempo { display:flex; align-items:center; gap:4px; min-width:0; }
 .gcwo-ct-tempo span { font-size:11px; color:#708197; }
+
+/* Calendar → choose for a day → edit that session, without stacked views. */
+.gcwo-ct-flow .gcwo-ct-num { display:none; }
+.gcwo-ct-flow .gcwo-ct-top { align-items:center; }
+.gcwo-ct-periodo { border:1px solid #dce5f0; border-radius:10px; background:#fff; }
+.gcwo-ct-periodo>summary { padding:10px 14px; color:#10345d; font-size:13px; font-weight:700; cursor:pointer; }
+.gcwo-ct-periodo>.gcwo-ct-bloco { margin:0; border:0; border-top:1px solid #e6edf5; border-radius:0 0 10px 10px; }
+.gcwo-ct-week-nav { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.gcwo-ct-week-nav strong { color:#10345d; font-size:13px; }
+.gcwo-ct-flow .gcwo-ct-semana-head { align-items:flex-start; }
+.gcwo-ct-flow .gcwo-ct-semana-acoes { flex:1 1 100%; }
+.gcwo-ct-flow .gcwo-ct-semana { grid-template-columns:repeat(7,minmax(0,1fr)); }
+.gcwo-ct-flow .gcwo-ct-slot-acoes { flex-wrap:wrap; }
+.gcwo-ct-flow .gcwo-ct-slot-acoes button { min-width:54px; }
+.gcwo-ct-flow .gcwo-ct-slot-acoes button+button { color:#1d5de2; }
+.gcwo-ct-flow .gcwo-ct-slot-acoes [data-ct-slot-remover] { color:#bf3f3f; }
+.gcwo-ct-edicao-duracao { margin:10px 0; color:#10345d; font-size:14px; font-weight:750; }
+.gcwo-ct-edicao-duracao.aviso { color:#b45309; }
+.gcwo-ct-feedback { padding:10px 14px; border:1px solid #b8dfce; border-radius:9px; background:#f1faf5; color:#146844; font-size:13px; margin:0; }
+.gcwo-ct-flow .gcwo-panel-footer { position:sticky; bottom:0; z-index:3; background:#fff; border-top:1px solid #dce5f0; padding:12px; }
+@media(max-width:1000px) { .gcwo-ct-flow .gcwo-ct-semana { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@media(max-width:600px) { .gcwo-ct-flow .gcwo-ct-semana { grid-template-columns:repeat(2,minmax(0,1fr)); } .gcwo-ct-flow .gcwo-ct-top { align-items:flex-start; } }
+
+.gcwo-ct-week-tools { width:100%; color:#10345d; font-size:12px; }
+.gcwo-ct-week-tools>summary { cursor:pointer; padding:5px 0; font-weight:700; }
+.gcwo-ct-week-tools .gcwo-ct-semana-acoes { padding:6px 0; }
