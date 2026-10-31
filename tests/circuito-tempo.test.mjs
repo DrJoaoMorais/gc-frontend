@@ -32,7 +32,7 @@ const el={innerHTML:'',textContent:'',value:'',disabled:false};
 const sandbox={...pure,...recomendacoes,...disponibilidade,console,Date,Intl,URL,structuredClone,crypto:webcrypto,G:{},document:{getElementById:()=>null,querySelectorAll:()=>[]},window:{},setTimeout};
 vm.createContext(sandbox);
 const code=fs.readFileSync(root+'prescricao.js','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'').replaceAll('import.meta.url', JSON.stringify('file://'+root+'prescricao.js'));
-vm.runInContext(code+`\n globalThis.api={calcularTempoTotalCircuito,flattenBlocosCircuitoParaGravar,sessaoParaGravar,renderPanelCircuito,propostaCircuito,carregarDisponibilidadeCircuito,renderDisponibilidadeCircuito,setState(v){_state=v},getState(){return _state},setDraft(v){_panelDraft=v}};`,sandbox);
+vm.runInContext(code+`\n globalThis.api={ctRenderEscolha,ctEditarEscolhido,getDraft(){return _panelDraft},getDestino(){return _panelDestino},setCt(v){_criarTreino=v;ctRender=()=>{};ctMostrarInicio=()=>{}},calcularTempoTotalCircuito,flattenBlocosCircuitoParaGravar,sessaoParaGravar,renderPanelCircuito,propostaCircuito,carregarDisponibilidadeCircuito,renderDisponibilidadeCircuito,setState(v){_state=v},getState(){return _state},setDraft(v){_panelDraft=v}};`,sandbox);
 const a=sandbox.api;
 const exs=Array.from({length:6},(_,i)=>({id:'ex'+i,exercise_id:'cat'+i,name:'Exercício '+i,measure:'time',value:30,rest_after_s:20}));
 const blocks=[{block_id:'a',tipo:'fixed',name:'Aquecimento',duration_sec:180},{block_id:'b',tipo:'voltas',name:'Circuito',rounds:2,rest_between_rounds_s:180,exercicios:exs},{block_id:'c',tipo:'fixed',name:'Marcha',duration_sec:120},{block_id:'d',tipo:'fixed',name:'Retorno à calma',duration_sec:120}];
@@ -92,4 +92,12 @@ a.setState({patient:{id:'diario'},clinicId:'c1',exercisesCatalog:[],circuitoDisp
 a.setDraft({date:'2026-11-02',kind:'circuit'});assert.equal(a.propostaCircuito({blocks,circuit_config:{...config,minutos:45}}).limiteMin,20);
 a.setDraft({date:'2026-11-01',kind:'circuit'});assert.equal(a.propostaCircuito({blocks,circuit_config:{...config,minutos:45}}).limiteMin,45);
 a.getState().circuitoDisponibilidade.fimSemana=0;assert(a.propostaCircuito({blocks,circuit_config:config}).erro);
+
+const dia='2026-11-01';
+a.setState({patient:{id:'route'},clinicId:'c1',exercisesCatalog:[],sessions:[{session_id:'intocada',date:'2026-11-02'}]});
+const ct={inicio:dia,fim:dia,tipo:'circuito',atual:{nome:'Circuito',sessao:{kind:'circuit',modality:'Circuito',blocks:[]}},treinosPorTipo:{},destinoEscolha:{w:0,dia:6},semanas:[{disp:Array.from({length:7},()=>({ativo:true,min:30,local:'Casa'})),dias:Array.from({length:7},()=>[])}]};
+a.setCt(ct);
+const escolha=a.ctRenderEscolha();assert(escolha.includes('data-ct-tipo="circuito"'));assert(escolha.includes('Configurar Circuito'));assert(!escolha.includes('Circuito · em preparação'));
+a.ctEditarEscolhido();assert.equal(a.getDraft().kind,'circuit');assert.equal(a.getDraft().date,dia);assert.equal(a.getDraft().local,'Casa');
+a.getDestino().onGuardar({...a.getDraft(),blocks});assert.equal(ct.semanas[0].dias[6].length,1);assert.equal(ct.semanas[0].dias[6][0].sessao.date,dia);assert.equal(a.getState().sessions.length,1);assert.equal(a.getState().sessions[0].session_id,'intocada');
 console.log('PASS: disponibilidade, 20/30/45 min, limite inferior, pausas, reabertura sem perdas, sequências variáveis, isolamento entre doentes e consultas apenas de leitura.');

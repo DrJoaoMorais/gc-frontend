@@ -33,7 +33,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-10-31-circuito-tempo-v1';
+const PRESCRICAO_CSS_VERSION = '2026-10-31-circuito-acesso-v2';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -1802,6 +1802,7 @@ const CT_TIPOS = [
   { value: 'corrida', label: 'Corrida', modality: 'Corrida', kind: 'card' },
   { value: 'ciclismo', label: 'Ciclismo', modality: 'Ciclismo', kind: 'card' },
   { value: 'natacao', label: 'Natação', modality: 'Natação', kind: 'card' },
+  { value: 'circuito', label: 'Circuito', modality: 'Circuito', kind: 'circuit' },
 ];
 const CT_GRUPOS = ['Todos', 'Criar hábitos', 'Força', 'Mobilidade', 'Recuperação', 'Corpo inteiro'];
 const CT_ZONAS = ['Membro Superior', 'Membro Inferior', 'Core', 'Corpo Inteiro'];
@@ -2228,7 +2229,7 @@ function ctRenderEscolha() {
     corpo = `
       <div class="gcwo-ct-cardio">
         <span class="gcwo-ct-cardio-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
-        <div><strong>Sessão de ${escHtml(tipo.label)}</strong><span>Configure a sessão no editor habitual${tipo.kind === 'card' ? ' (blocos, zonas' + (tipo.modality === 'Natação' ? ', piscina e estilo' : '') + ')' : ' (caminhadas e escadas)'}.</span>
+        <div><strong>Sessão de ${escHtml(tipo.label)}</strong><span>Configure a sessão no editor habitual${tipo.kind === 'card' ? ' (blocos, zonas' + (tipo.modality === 'Natação' ? ', piscina e estilo' : '') + ')' : tipo.kind === 'circuit' ? ' (exercícios, voltas, pausas e duração)' : ' (caminhadas e escadas)'}.</span>
           ${atualDoTipo ? `<span>${sessaoTemConteudo(atualDoTipo.sessao) ? `≈ ${ctMinutosSessao(atualDoTipo.sessao)} min · ${sessaoContagem(atualDoTipo.sessao).n} ${sessaoContagem(atualDoTipo.sessao).label}` : 'Ainda sem conteúdo'}</span>` : ''}</div>
         <button type="button" class="gcwo-ct-primario" data-ct="cardio">${atualDoTipoPronto ? 'Editar sessão' : `Configurar ${escHtml(tipo.label)}`}</button>
       </div>`;
@@ -2238,7 +2239,7 @@ function ctRenderEscolha() {
   const titulo = data ? `${diaSemanaDeIso(data).full}, ${ctFmtDia(data)}` : 'Escolher treino';
   const disp = destino ? ctDisp(destino.w, destino.dia) : null;
   const tempo = disp ? (disp.min === null ? 'Disponibilidade por definir.' : `Disponível: ${disp.ativo ? disp.min : 0} min.`) : '';
-  return ctBloco(3, titulo, `${tempo} Escolha os exercícios ou uma modalidade. A edição seguinte aplica-se apenas a este dia.`, `${tipos}<div class="gcwo-ct-future" aria-label="Funcionalidades futuras"><span>Circuito · em preparação</span><span>HIIT · em preparação</span></div>${corpo}`);
+  return ctBloco(3, titulo, `${tempo} Escolha os exercícios ou uma modalidade. A edição seguinte aplica-se apenas a este dia.`, `${tipos}<div class="gcwo-ct-future" aria-label="Funcionalidades futuras"><span>HIIT · em preparação</span></div>${corpo}`);
 }
 
 function ctRenderModelos() {
