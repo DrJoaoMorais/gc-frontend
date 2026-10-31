@@ -21,7 +21,7 @@ test('the first action on a scheduled walk edits that day instead of the reusabl
 });
 test('editing Monday from 60 to 20 minutes updates that card and weekly total, preserving the template and other days',async()=>{
  const x=await setup(),before=x.run('JSON.stringify(_state.sessions)');x.click('.gcwo-ct-slot-acoes button');
- assert.match(x.get('.gcwo-ct-det-titulo').textContent,/Segunda-feira.*2 Nov/);assert.equal(x.get('[data-ct-view]').dataset.ctView,'editor');assert.equal(x.get('.gcwo-ct-semana'),null);assert.equal(x.get('[data-ct="adicionar"]'),null);
+ assert.match(x.get('.gcwo-ct-det-titulo').textContent,/Segunda-feira.*2 Nov/);assert.equal(x.get('[data-ct-view]').dataset.ctView,'editor');assert.ok(x.get('.gcwo-ct-sidebar .gcwo-ct-semana'));assert.ok(x.get('[data-ct="adicionar"]'));
  x.click('[data-walk-minutes="20"]');assert.match(x.get('#gcwoCtDuracaoEdicao').textContent,/≈ 20 min/);assert.equal(x.get('#gcwoPGuardar').textContent,'Atualizar treino deste dia');
  x.click('#gcwoPGuardar');assert.equal(x.get('[data-ct-view]').dataset.ctView,'calendario');assert.match(x.get('.gcwo-ct-slot-main').textContent,/≈ 20 min/);assert.match(x.get('.gcwo-ct-semana-tit').textContent,/100 min/);
  assert.equal(x.run('_criarTreino.semanas[0].dias[0][0].sessao.walks[0].duration_sec'),1200);assert.equal(x.run('_criarTreino.semanas[0].dias[2][0].sessao.walks[0].duration_sec'),1200);assert.equal(x.run('_criarTreino.semanas[0].dias[6][0].sessao.walks[0].duration_sec'),3600);assert.equal(x.run('_criarTreino.atual.sessao.walks[0].duration_sec'),3600);assert.equal(x.run('JSON.stringify(_state.sessions)'),before);
@@ -30,7 +30,7 @@ test('cancel discards only the session draft and returns to the same calendar we
  const x=await setup();x.click('.gcwo-ct-slot-acoes button');x.click('[data-walk-minutes="20"]');x.click('#gcwoPCancelar');assert.equal(x.run('_criarTreino.semanas[0].dias[0][0].sessao.walks[0].duration_sec'),3600);assert.equal(x.get('[data-ct-view]').dataset.ctView,'calendario');assert.equal(x.run('_panelDraft'),null);
 });
 test('adding a walk starts with an explicit day and the editor uses that date',async()=>{
- const x=await setup();x.click('[data-ct-add="0:1"]');assert.equal(x.get('[data-ct-view]').dataset.ctView,'biblioteca');assert.match(x.get('.gcwo-ct-bloco-head').textContent,/Terça-feira.*3 Nov/);assert.equal(x.get('.gcwo-ct-semana'),null);
+ const x=await setup();x.click('[data-ct-add="0:1"]');assert.equal(x.get('[data-ct-view]').dataset.ctView,'biblioteca');assert.match(x.get('.gcwo-ct-main .gcwo-ct-bloco-head').textContent,/Terça-feira.*3 Nov/);assert.ok(x.get('.gcwo-ct-sidebar .gcwo-ct-semana'));
  x.click('[data-ct-tipo="caminhada"]');x.click('[data-ct="cardio"]');assert.equal(x.run('_panelDraft.date'),'2026-11-03');x.click('[data-walk-minutes="30"]');x.click('#gcwoPGuardar');assert.equal(x.run('_criarTreino.semanas[0].dias[1].length'),1);assert.equal(x.run('_criarTreino.semanas[0].dias[1][0].sessao.walks[0].duration_sec'),1800);
 });
 test('Substituir is a separate explicit selection; no replacement happens before confirmation',async()=>{
@@ -69,5 +69,42 @@ test('an invalid empty draft is not sent to the existing save',async()=>{
  const x=await setup();x.run('_criarTreino.semanas.forEach(s=>s.dias=s.dias.map(()=>[]));globalThis.saveCalls=0;handleGerar=async()=>{saveCalls++};ctRender()');x.click('[data-ct="adicionar"]');assert.equal(x.run('saveCalls'),0);assert.ok(x.get('[role="alert"]'));assert.equal(x.run('_state.sessions.length'),3);
 });
 test('saved questionnaire availability remains editable and is visible when choosing and editing a day',async()=>{
- const x=await setup();x.run(`_state.disponibilidadeTreino=disponibilidadeDasRespostas([{question_id:'exercicio_minutos_dias_uteis',answer:20},{question_id:'exercicio_minutos_fim_semana',answer:60}],{id:'q-demo'}).disponibilidade;abrirCriarTreino()`);assert.equal(x.get('[data-ct-col-min="0:0"]').value,'20');assert.equal(x.get('[data-ct-col-min="0:5"]').value,'60');x.click('[data-ct-add="0:1"]');assert.match(x.get('.gcwo-ct-bloco-head').textContent,/Disponível: 20 min/);x.click('[data-ct-tipo="caminhada"]');x.click('[data-ct="cardio"]');assert.match(x.get('#gcwoCtDuracaoEdicao').textContent,/20 min disponíveis/);
+ const x=await setup();x.run(`_state.disponibilidadeTreino=disponibilidadeDasRespostas([{question_id:'exercicio_minutos_dias_uteis',answer:20},{question_id:'exercicio_minutos_fim_semana',answer:60}],{id:'q-demo'}).disponibilidade;abrirCriarTreino()`);assert.equal(x.get('[data-ct-col-min="0:0"]').value,'20');assert.equal(x.get('[data-ct-col-min="0:5"]').value,'60');x.click('[data-ct-add="0:1"]');assert.match(x.get('.gcwo-ct-main .gcwo-ct-bloco-head').textContent,/Disponível: 20 min/);x.click('[data-ct-tipo="caminhada"]');x.click('[data-ct="cardio"]');assert.match(x.get('#gcwoCtDuracaoEdicao').textContent,/20 min disponíveis/);
+});
+
+test('live sidebar shows the draft duration and weekly total before applying; cancel restores original',async()=>{
+ const x=await setup();x.click('.gcwo-ct-slot-main');x.click('[data-walk-minutes="20"]');
+ assert.match(x.get('.gcwo-ct-sidebar .gcwo-ct-slot-main').textContent,/≈ 20 min/);assert.match(x.get('.gcwo-ct-semana-tit').textContent,/100 min/);
+ assert.equal(x.run('_criarTreino.semanas[0].dias[0][0].sessao.walks[0].duration_sec'),3600);
+ x.click('#gcwoPCancelar');assert.match(x.get('.gcwo-ct-slot-main').textContent,/≈ 60 min/);assert.match(x.get('.gcwo-ct-semana-tit').textContent,/140 min/);
+});
+test('single Guardar plano applies the open day draft and sends its value through existing save',async()=>{
+ const x=await setup();x.run('globalThis.saveCalls=0;globalThis.savedPayload=null;handleGerar=async()=>{saveCalls++;savedPayload=buildFinalData()}');
+ x.click('.gcwo-ct-slot-main');x.click('[data-walk-minutes="20"]');x.click('[data-ct="adicionar"]');
+ assert.equal(x.run('saveCalls'),1);assert.equal(x.run('savedPayload.sessions[0].walks[0].duration_sec'),1200);assert.equal(x.run('savedPayload.sessions[0].session_id'),'monday');
+});
+test('switching day applies the valid draft without losing it',async()=>{
+ const x=await setup();x.click('.gcwo-ct-slot-main');x.click('[data-walk-minutes="20"]');const ref=x.run("'0:2:'+_criarTreino.semanas[0].dias[2][0].id");x.click('[data-ct-slot-editar="'+ref+'"]');
+ assert.equal(x.run('_panelDraft.date'),'2026-11-04');assert.equal(x.run('_criarTreino.semanas[0].dias[0][0].sessao.walks[0].duration_sec'),1200);
+});
+test('empty open session blocks global save and retains the current editor',async()=>{
+ const x=await setup();x.run('globalThis.saveCalls=0;handleGerar=async()=>saveCalls++');x.click('[data-ct-add="0:1"]');x.click('[data-ct-tipo="corrida"]');x.click('[data-ct="cardio"]');x.click('[data-ct="adicionar"]');assert.equal(x.run('saveCalls'),0);assert.ok(x.get('#gcwoPanel'));assert.match(x.get('#gcwoPErro').textContent,/bloco/);
+});
+test('catalogue with 200 exercises paginates and filters without dropping chosen series and notes',async()=>{
+ const x=await setup();x.run(`_state.exercisesCatalog=Array.from({length:200},(_,i)=>({id:'e'+i,name:'Exercício '+String(i).padStart(3,'0'),categoria:['Membro Inferior'],equipamento:['Peso Corporal'],objetivos_exercicio:['Fortalecimento'],locais:['Casa'],is_active:true}));`);
+ x.click('[data-ct-add="0:1"]');x.click('[data-ct-tipo="exercicios"]');x.click('[data-ct-modelo="comecar"]');
+ assert.equal(x.document.querySelectorAll('#gcwoPCatGrid .gcwo-catpick-card').length,12);assert.match(x.get('.gcwo-catalog-pages').textContent,/200 exercícios/);assert.equal(x.get('.gcwo-gym-catalog').hasAttribute('open'),false);
+ const before=x.run('JSON.stringify(_panelDraft.items)');x.click('[data-catalog-page="1"]');assert.match(x.get('.gcwo-catalog-pages').textContent,/2\/17/);assert.equal(x.run('JSON.stringify(_panelDraft.items)'),before);
+ const input=x.get('#gcwoPCatBusca');input.value='199';input.dispatchEvent(new x.window.Event('input',{bubbles:true}));assert.equal(x.document.querySelectorAll('#gcwoPCatGrid .gcwo-catpick-card').length,1);assert.match(x.get('#gcwoPCatGrid').textContent,/199/);assert.equal(x.run('JSON.stringify(_panelDraft.items)'),before);
+ assert.ok(x.get('details.gcwo-exercicio-expand'));assert.ok(x.get('.gcwo-serie-reps'));assert.ok(x.get('.gcwo-serie-load'));assert.ok(x.get('.gcwo-it-restset'));
+});
+test('real cardio controls remain editable inside the broad editor and calendar context stays mounted',async()=>{
+ for(const [tipo,modality] of [['corrida','Corrida'],['ciclismo','Ciclismo'],['natacao','Natação']]){
+  const x=await setup();x.click('[data-ct-add="0:1"]');x.click(`[data-ct-tipo="${tipo}"]`);x.click('[data-ct="cardio"]');x.click(tipo==='natacao'?'[data-add-zone="A2"]':'[data-add-zone="Z2"]');
+  assert.equal(x.run('_panelDraft.blocks.length'),1);assert.ok(x.get('.gcwo-ct-sidebar'));assert.ok(x.get('.gcwo-ct-main #gcwoPCardioOverview'));
+  const input=x.get('.gcwo-int-fc');input.value='123';input.dispatchEvent(new x.window.Event('input',{bubbles:true}));assert.equal(x.run('_panelDraft.blocks[0].intensity.heart_rate_bpm'),123);
+  if(tipo==='ciclismo')assert.ok(x.get('.gcwo-int-power'));
+  if(tipo==='natacao'){assert.ok(x.get('#gcwoPPiscina'));assert.ok(x.get('#gcwoPEstilo'));assert.ok(x.get('.gcwo-int-pace100'));assert.match(x.get('#gcwoCtDuracaoEdicao').textContent,/por calcular/)}
+  x.click('#gcwoPGuardar');assert.equal(x.run('_criarTreino.semanas[0].dias[1][0].sessao.modality'),modality);
+ }
 });

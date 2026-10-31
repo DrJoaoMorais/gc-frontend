@@ -1565,3 +1565,59 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-ct-week-tools { width:100%; color:#10345d; font-size:12px; }
 .gcwo-ct-week-tools>summary { cursor:pointer; padding:5px 0; font-weight:700; }
 .gcwo-ct-week-tools .gcwo-ct-semana-acoes { padding:6px 0; }
+
+/* Prescrição: semana de contexto à esquerda, editor real como área principal. */
+.gcwo-ct-workspace { display:grid; grid-template-columns:minmax(220px,27%) minmax(0,1fr); gap:16px; align-items:start; }
+.gcwo-ct-sidebar,.gcwo-ct-main { min-width:0; }
+.gcwo-ct-sidebar .gcwo-ct-bloco { margin:0; }
+.gcwo-ct-sidebar .gcwo-ct-bloco-head { padding:12px; }
+.gcwo-ct-sidebar .gcwo-ct-bloco-head p { display:none; }
+.gcwo-ct-sidebar .gcwo-ct-semana { grid-template-columns:minmax(0,1fr); gap:0; }
+.gcwo-ct-sidebar .gcwo-ct-col { border:0; border-top:1px solid #dce5ef; border-radius:0; padding:10px; min-height:0; }
+.gcwo-ct-sidebar .gcwo-ct-col-head { flex-wrap:wrap; gap:5px; }
+.gcwo-ct-sidebar .gcwo-ct-col-date { display:flex; align-items:center; gap:7px; }
+.gcwo-ct-sidebar .gcwo-ct-slot { padding:5px 0; border:0; background:transparent; }
+.gcwo-ct-sidebar .gcwo-ct-slot-main { min-width:0; padding:5px; width:100%; }
+.gcwo-ct-sidebar .gcwo-ct-slot-main img,.gcwo-ct-sidebar .gcwo-ct-slot-icon { display:none; }
+.gcwo-ct-sidebar .gcwo-ct-slot-main strong { font-size:12px; }
+.gcwo-ct-sidebar .gcwo-ct-slot-main small { font-size:11px; }
+.gcwo-ct-sidebar .gcwo-ct-add { padding:4px; font-size:11px; }
+.gcwo-ct-day-availability { width:100%; font-size:11px; color:#60758b; }
+.gcwo-ct-day-availability .gcwo-ct-col-disp { display:flex; gap:5px; flex-wrap:wrap; margin-top:6px; }
+.gcwo-ct-slot-tools { font-size:11px; color:#60758b; }
+.gcwo-ct-slot-tools>summary,.gcwo-ct-day-availability>summary,.gcwo-ct-source>summary { cursor:pointer; }
+.gcwo-ct-source { font-size:12px; padding:8px 0; }
+.gcwo-ct-source small { display:block; margin-top:6px; }
+.gcwo-ct-sidebar .gcwo-ct-week-nav { gap:4px; }
+.gcwo-ct-sidebar .gcwo-ct-week-nav button { padding:4px; font-size:11px; }
+.gcwo-ct-sidebar .gcwo-ct-semana-tit small { line-height:1.5; }
+.gcwo-ct-sidebar .gcwo-ct-semana-tit small b { white-space:nowrap; }
+.gcwo-ct-main .gcwo-ct-bloco { margin:0; }
+.gcwo-ct-main .gcwo-panel { width:100%; max-width:none; }
+.gcwo-ct-main .gcwo-ct-det { min-width:0; }
+.gcwo-ct-main .gcwo-gym-workspace { display:flex; flex-direction:column; height:auto; }
+.gcwo-ct-main .gcwo-gym-catalog,.gcwo-ct-main .gcwo-gym-plan { overflow:visible; min-width:0; padding:12px; }
+.gcwo-gym-catalog>summary { font-size:13px; font-weight:700; color:#10345d; cursor:pointer; }
+.gcwo-gym-catalog[open]>summary { margin-bottom:12px; }
+.gcwo-ct-main .gcwo-gym-catalog .gcwo-catpick-grid { max-height:none; overflow:visible; flex:none; grid-template-columns:repeat(3,minmax(0,1fr)); }
+.gcwo-catalog-pages { grid-column:1/-1; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px; font-size:12px; padding:8px 0; }
+.gcwo-catalog-pages button { padding:5px 9px; border:1px solid #dce5ef; border-radius:7px; background:#fff; color:#10345d; cursor:pointer; }
+.gcwo-exercicio-expand>summary { cursor:pointer; }
+.gcwo-exercicio-expand:not([open]) { padding-bottom:10px; }
+.gcwo-ct-main .gcwo-cardio-compact-workspace { grid-template-columns:minmax(0,1fr); }
+.gcwo-ct-main .gcwo-cardio-compact-workspace .gcwo-cardio-zone-tray { display:flex; flex-wrap:wrap; overflow:visible; }
+.gcwo-ct-main .gcwo-cardio-compact-workspace .gcwo-cardio-zone { flex:1 1 65px; min-width:0; min-height:60px; }
+.gcwo-ct-main .gcwo-cardio-timeline { height:150px; }
+.gcwo-ct-main .gcwo-cardio-timeline>div { flex:1 1 var(--block-width,128px); min-width:70px; }
+.gcwo-ct-main .gcwo-cardio-timeline>.gcwo-timeline-series-group { min-width:130px; }
+.gcwo-ct-main .gcwo-panel-footer { position:static; }
+@media(max-width:850px) { .gcwo-ct-workspace { grid-template-columns:minmax(190px,27%) minmax(0,1fr); gap:10px; } .gcwo-ct-main .gcwo-series-split { grid-template-columns:1fr; } .gcwo-ct-main .gcwo-gym-catalog .gcwo-catpick-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:620px) { .gcwo-ct-workspace { grid-template-columns:minmax(0,1fr); } .gcwo-ct-sidebar .gcwo-ct-semana { grid-template-columns:repeat(2,minmax(0,1fr)); } .gcwo-ct-main .gcwo-cardio-timeline { overflow-x:auto; } }
+.gcwo-ct-sidebar .gcwo-ct-slot-main { grid-template-columns:minmax(0,1fr); }
+.gcwo-ct-sidebar .gcwo-ct-bloco { padding:10px; }
+.gcwo-ct-sidebar .gcwo-ct-bloco-head { padding:0; margin-bottom:6px; }
+.gcwo-ct-future { display:flex; flex-wrap:wrap; gap:8px; color:#708197; font-size:11px; margin-bottom:10px; }
+.gcwo-ct-future span { border:1px dashed #c9d5e4; border-radius:7px; padding:4px 8px; }
+.gcwo-gym-catalog:not([open])>:not(summary),.gcwo-exercicio-expand:not([open])>:not(summary) { display:none; }
+.gcwo-gym-workspace { height:auto; grid-template-columns:minmax(0,1fr); }
+.gcwo-gym-catalog,.gcwo-gym-plan { overflow:visible; }
