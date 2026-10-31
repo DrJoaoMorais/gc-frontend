@@ -1,0 +1,95 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import { fileURLToPath } from 'node:url';
+import assert from 'node:assert/strict';
+import { webcrypto } from 'node:crypto';
+const root=fileURLToPath(new URL('../modules/exercicio/prescricao/',import.meta.url));
+const pure=await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync(root+'circuito-tempo.js','utf8')).toString('base64'));
+const recomendacoes=await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync(root+'recomendacoes.js','utf8')).toString('base64'));
+const disponibilidade=await import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync(root+'disponibilidade-treino.js','utf8')).toString('base64'));
+const config={nivel:'leve',minutos:20,trabalho:30,transicao:20,pausa:180,aquecimento:3,retorno:2,voltas:2};
+for (const [text,min,max] of [['10–15 min',10,15],['15-30 min',15,30],['30–45 min',30,45],['45–60 min',45,60]]) {
+ assert.deepEqual(pure.disponibilidadeCircuito({v:text}),{texto:text,min,max});
+}
+assert.equal(pure.disponibilidadeCircuito('desconhecido'),null);
+assert.equal(pure.disponibilidadeCircuito({v:'Mais de 60 min'}).min,60);
+assert.equal(pure.disponibilidadeCircuito({v:'Menos de 15 min'}).min,null);
+assert.equal(pure.disponibilidadeCircuito('30–15 min'),null);
+for(const minutos of [20,30,45]){
+ const p=pure.proporComposicaoCircuito({...config,minutos},6,{min:60});
+ assert.equal(p.total,minutos*60);
+ assert.equal(p.aquecimento+p.circuito+p.recuperacao+p.marcha+p.retorno,p.total);
+}
+const p20=pure.proporComposicaoCircuito(config,6,{min:30});
+assert.equal(p20.circuito,600);assert.equal(p20.recuperacao,180);assert.equal(p20.marcha,120);
+const p15=pure.proporComposicaoCircuito({...config,minutos:45},6,{min:15});
+assert.equal(p15.total,900);assert.equal(p15.voltas,1);assert.equal(p15.recuperacao,0);assert(p15.ajustado&&p15.reduzido);
+assert(pure.proporComposicaoCircuito(config,6,{min:5}).erro);
+assert(pure.proporComposicaoCircuito(config,0,{min:30}).erro);
+assert(pure.proporComposicaoCircuito({...config,pausa:-1},6,{min:30}).erro);
+assert(pure.proporComposicaoCircuito({...config,voltas:2.5},6,{min:30}).erro);
+const el={innerHTML:'',textContent:'',value:'',disabled:false};
+const sandbox={...pure,...recomendacoes,...disponibilidade,console,Date,Intl,URL,structuredClone,crypto:webcrypto,G:{},document:{getElementById:()=>null,querySelectorAll:()=>[]},window:{},setTimeout};
+vm.createContext(sandbox);
+const code=fs.readFileSync(root+'prescricao.js','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'').replaceAll('import.meta.url', JSON.stringify('file://'+root+'prescricao.js'));
+vm.runInContext(code+`\n globalThis.api={calcularTempoTotalCircuito,flattenBlocosCircuitoParaGravar,sessaoParaGravar,renderPanelCircuito,propostaCircuito,carregarDisponibilidadeCircuito,renderDisponibilidadeCircuito,setState(v){_state=v},getState(){return _state},setDraft(v){_panelDraft=v}};`,sandbox);
+const a=sandbox.api;
+const exs=Array.from({length:6},(_,i)=>({id:'ex'+i,exercise_id:'cat'+i,name:'Exercício '+i,measure:'time',value:30,rest_after_s:20}));
+const blocks=[{block_id:'a',tipo:'fixed',name:'Aquecimento',duration_sec:180},{block_id:'b',tipo:'voltas',name:'Circuito',rounds:2,rest_between_rounds_s:180,exercicios:exs},{block_id:'c',tipo:'fixed',name:'Marcha',duration_sec:120},{block_id:'d',tipo:'fixed',name:'Retorno à calma',duration_sec:120}];
+a.setState({patient:{id:'p1'},clinicId:'c1',exercisesCatalog:[],circuitoDisponibilidade:{key:'p1:c1',status:'ready',valor:{texto:'30–45 min',min:30,max:45}}});
+assert.equal(a.calcularTempoTotalCircuito({blocks}).total,1200);
+const saved=a.sessaoParaGravar({kind:'circuit',blocks,circuit_config:config,_limiteMin:20});
+assert.equal(saved.circuit_time_limit_min,20);
+assert.equal(saved.blocks.flatMap(b=>b.intervals).reduce((n,i)=>n+i.duration_sec,0),1200);
+const serial=JSON.stringify(saved.blocks);
+const rehydrated=pure.editarBlocosCircuito(saved.blocks,()=>webcrypto.randomUUID());
+assert.equal(rehydrated[1].rounds,2);
+assert.equal(rehydrated[1].exercicios.length,6);
+assert.equal(a.calcularTempoTotalCircuito({blocks:rehydrated}).total,1200);
+assert.equal(JSON.stringify(a.flattenBlocosCircuitoParaGravar(rehydrated)),serial);
+rehydrated[1].rounds=3;
+assert.equal(a.calcularTempoTotalCircuito({blocks:rehydrated}).total,1680);
+assert.equal(a.flattenBlocosCircuitoParaGravar(rehydrated)[1].intervals.filter(i=>i.type==='trabalho').length,18);
+const atypical={block_id:'z',name:'Sequência variável',intervals:[{type:'trabalho',duration_sec:19,exercise_id:'x'}]};
+assert.equal(JSON.stringify(pure.editarBlocosCircuito([atypical],()=>'')),JSON.stringify([atypical]));
+assert.equal(JSON.stringify(a.flattenBlocosCircuitoParaGravar([atypical])),JSON.stringify([atypical]));
+assert.equal(a.calcularTempoTotalCircuito({blocks:[atypical]}).total,19);
+assert(!a.propostaCircuito({blocks,circuit_config:config}).erro);
+a.getState().patient={id:'p2'};
+assert(a.propostaCircuito({blocks,circuit_config:config}).erro);
+assert(!a.renderDisponibilidadeCircuito().includes('30–45'));
+// Query contract: read latest completed relevant intake, scoped by patient and clinic.
+const calls=[];let responses=[{data:[{id:'token',completed_at:'2026-10-31',questionnaire_type:'pre_consulta_v2'}],error:null},{data:[{question_id:'s4_tempo_realista_sessao',answer:{v:'15–30 min'}}],error:null}];
+sandbox.window.sb={from(table){calls.push(['from',table]);const q={};for(const method of ['select','eq','in','order','limit'])q[method]=(...args)=>{calls.push([method,...args]);return q};q.then=(resolve,reject)=>Promise.resolve(responses.shift()).then(resolve,reject);return q}};
+a.setState({patient:{id:'p1'},clinicId:'c1'});a.setDraft(null);
+await a.carregarDisponibilidadeCircuito({});
+assert.equal(a.getState().circuitoDisponibilidade.valor.min,15);
+assert(calls.some(c=>c[0]==='eq'&&c[1]==='patient_id'&&c[2]==='p1'));
+assert(calls.some(c=>c[0]==='eq'&&c[1]==='clinic_id'&&c[2]==='c1'));
+assert(calls.some(c=>c[0]==='eq'&&c[1]==='status'&&c[2]==='completed'));
+assert(calls.some(c=>c[0]==='in'&&c[1]==='question_id'&&c[2].includes('s4_tempo_realista_sessao')));
+responses=[{data:[],error:null}];a.setState({patient:{id:'p3'},clinicId:'c1'});await a.carregarDisponibilidadeCircuito({});assert.equal(a.getState().circuitoDisponibilidade.status,'missing');
+
+responses=[{data:[{id:'legacy',questionnaire_type:'pre_consulta',completed_at:'2026-10-30'}],error:null},{data:[{question_id:'s6_duracao_sessao',answer:'30-45 min'}],error:null}];
+a.setState({patient:{id:'p4'},clinicId:'c1'});await a.carregarDisponibilidadeCircuito({});
+assert.equal(a.getState().circuitoDisponibilidade.valor.min,30);
+assert(calls.some(c=>c[0]==='in'&&c[1]==='question_id'&&c[2].includes('s6_duracao_sessao')));
+const originalConsole=sandbox.console;sandbox.console={...console,error:()=>{}};
+responses=[{data:null,error:{message:'Sem acesso'}}];a.setState({patient:{id:'p5'},clinicId:'c1'});
+await a.carregarDisponibilidadeCircuito({});assert.equal(a.getState().circuitoDisponibilidade.status,'error');
+sandbox.console=originalConsole;
+// A delayed answer for the previous patient must not overwrite the current context.
+let liberar;
+sandbox.window.sb={from(){const q={};for(const method of ['select','eq','in','order','limit'])q[method]=()=>q;q.then=resolve=>new Promise(r=>{liberar=r}).then(resolve);return q}};
+a.setState({patient:{id:'anterior'},clinicId:'c1'});
+const pending=a.carregarDisponibilidadeCircuito({});
+await Promise.resolve();
+a.setState({patient:{id:'atual'},clinicId:'c2'});
+liberar({data:[],error:null});await pending;
+assert.equal(a.getState().patient.id,'atual');assert.equal(a.getState().circuitoDisponibilidade,undefined);
+
+a.setState({patient:{id:'diario'},clinicId:'c1',exercisesCatalog:[],circuitoDisponibilidade:{key:'diario:c1',status:'ready',uteis:20,fimSemana:45,valor:{min:15,max:30,texto:'15–30 min'}}});
+a.setDraft({date:'2026-11-02',kind:'circuit'});assert.equal(a.propostaCircuito({blocks,circuit_config:{...config,minutos:45}}).limiteMin,20);
+a.setDraft({date:'2026-11-01',kind:'circuit'});assert.equal(a.propostaCircuito({blocks,circuit_config:{...config,minutos:45}}).limiteMin,45);
+a.getState().circuitoDisponibilidade.fimSemana=0;assert(a.propostaCircuito({blocks,circuit_config:config}).erro);
+console.log('PASS: disponibilidade, 20/30/45 min, limite inferior, pausas, reabertura sem perdas, sequências variáveis, isolamento entre doentes e consultas apenas de leitura.');

@@ -17,6 +17,7 @@ import { mountClinicPicker, normalizeClinicIds } from '../../clinic-picker.js';
    ================================================================= */
 
 import { G } from '../../state.js';
+import { disponibilidadeCircuito, proporComposicaoCircuito, tempoCircuitoGuardado, editarBlocosCircuito, assinaturaBlocoCircuito } from './circuito-tempo.js?v=2026-10-31-1';
 import { initCatalogo } from '../catalogo/catalogo.js';
 import { fmtPaceEditavel, parsePaceParaSegundos } from '../shared/pace.js';
 import { abrirZonasTreino } from '../shared/zonas-treino.js?v=2026-08-12-5';
@@ -32,7 +33,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-10-31-catalogo-organizado-v1';
+const PRESCRICAO_CSS_VERSION = '2026-10-31-circuito-tempo-v1';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -5103,6 +5104,7 @@ function duracaoTrabalhoExercicioCircuito(ex) {
 function calcularTempoTotalCircuito(s) {
   let total = 0, aproximado = false;
   (s.blocks || []).forEach(b => {
+    if (Array.isArray(b.intervals)) { total += tempoCircuitoGuardado(b); return; }
     if (b.tipo === 'fixed') { total += b.duration_sec || 0; return; }
     const R = b.rounds || 1;
     const exs = b.exercicios || [];
@@ -5120,15 +5122,23 @@ function calcularTempoTotalCircuito(s) {
 }
 function renderTempoTotalCircuitoHtml(s) {
   const { total, aproximado } = calcularTempoTotalCircuito(s);
-  const excedeu = s._limiteMin != null && total > s._limiteMin * 60;
+  const disponibilidade = disponibilidadeActualCircuito()?.valor;
+  const limites = [s._limiteMin, configCircuito(s).minutos, disponibilidade?.min].filter(v => Number(v) > 0).map(Number);
+  const limite = limites.length ? Math.min(...limites) : null;
+  const excedeu = limite != null && total > limite * 60;
   return `
-    <div class="gcwo-progressao-nota"${excedeu ? ' style="background:#fef2f2;color:#b91c1c;"' : ''}>Tempo total previsto: ${fmtDuracaoTotal(total)}${aproximado ? ' *' : ''}${excedeu ? ' — acima do limite definido' : ''}</div>
+    <div class="gcwo-progressao-nota"${excedeu ? ' style="background:#fef2f2;color:#b91c1c;"' : ''}>Tempo total previsto: ${fmtDuracaoTotal(total)}${aproximado ? ' *' : ''}${excedeu ? ` — acima do limite de ${limite} min; reveja a sessão` : ''}</div>
     ${aproximado ? `<div class="gcwo-muted">* algum exercício sem tempo de execução no catálogo — usa 2s+2s aproximado</div>` : ''}
   `;
 }
 function refreshTempoTotalCircuito(s) {
   const host = document.getElementById('gcwoPTempoTotal');
   if (host) host.innerHTML = renderTempoTotalCircuitoHtml(s);
+  const composicao = document.getElementById('gcwoCircComposicao');
+  if (composicao) composicao.innerHTML = renderComposicaoCircuito(s);
+  const aplicar = document.getElementById('gcwoCircAplicar');
+  if (aplicar) aplicar.disabled = !!propostaCircuito(s).erro;
+  refreshReviewCount(s);
 }
 
 // Grelha de fotos para escolher o exercício do circuito (bug #4 — era dropdown de texto).
@@ -5197,6 +5207,7 @@ function renderCircBlocoFixo(b) {
     </div>`;
 }
 function renderCircBloco(b) {
+  if (Array.isArray(b.intervals)) return `<div class="gcwo-exercicio" data-bid="${escAttr(b.block_id)}"><div class="gcwo-exercicio-head"><input class="gcwo-circ-nome" value="${escAttr(b.name || 'Circuito guardado')}" aria-label="Nome do bloco"><button type="button" class="gcwo-exercicio-remove" data-remove-cbid="${escAttr(b.block_id)}" title="Remover bloco">✕</button></div><p class="gcwo-muted">Sequência guardada · ${fmtDuracaoTotal(tempoCircuitoGuardado(b))}. Os intervalos originais são preservados.</p><details><summary>Ver sequência</summary>${b.intervals.map(i => `<div class="gcwo-circ-summary-row"><span>${escHtml(i.label || i.type)}</span><span>${fmtDuracaoTotal(i.duration_sec || 0)}</span></div>`).join('')}</details></div>`;
   return b.tipo === 'fixed' ? renderCircBlocoFixo(b) : renderCircBlocoVoltas(b);
 }
 function renderCircBlocosListInner(s) {
@@ -5204,9 +5215,135 @@ function renderCircBlocosListInner(s) {
   return s.blocks.map(renderCircBloco).join('');
 }
 
+// Disponibilidade lida apenas para o doente e clínica que estão em edição.
+async function carregarDisponibilidadeCircuito(s) {
+  const patientId = _state.patient?.id, clinicId = _state.clinicId;
+  if (!patientId || !clinicId) return;
+  const key = `${patientId}:${clinicId}`;
+  if (_state.circuitoDisponibilidade?.key === key) return;
+  const state = { key, status: 'loading', valor: null };
+  _state.circuitoDisponibilidade = state;
+  try {
+    const tokens = await window.sb.from('intake_tokens')
+      .select('id,completed_at,questionnaire_type').eq('patient_id', patientId).eq('clinic_id', clinicId)
+      .eq('status', 'completed').in('questionnaire_type', ['pre_consulta_v2', 'pre_consulta'])
+      .order('completed_at', { ascending: false }).limit(1);
+    if (tokens.error) throw tokens.error;
+    const token = tokens.data?.[0];
+    if (token) {
+      const questionId = token.questionnaire_type === 'pre_consulta_v2' ? 's4_tempo_realista_sessao' : 's6_duracao_sessao';
+      const answers = await window.sb.from('intake_responses').select('question_id,answer')
+        .eq('token_id', token.id).in('question_id', [questionId, 'exercicio_minutos_dias_uteis', 'exercicio_minutos_fim_semana']);
+      if (answers.error) throw answers.error;
+      const respostas = new Map((answers.data || []).map(r => [r.question_id, r.answer]));
+      state.valor = disponibilidadeCircuito(respostas.get(questionId));
+      state.uteis = minutosDisponiveis(respostas.get('exercicio_minutos_dias_uteis'));
+      state.fimSemana = minutosDisponiveis(respostas.get('exercicio_minutos_fim_semana'));
+      state.data = token.completed_at;
+    }
+    state.status = state.valor || state.uteis != null || state.fimSemana != null ? 'ready' : 'missing';
+  } catch (error) {
+    state.status = 'error';
+    console.error('[prescricao] falha ao ler disponibilidade do circuito:', error);
+  }
+  // Uma resposta tardia nunca se aplica a outro doente ou a outra sessão.
+  if (_state.circuitoDisponibilidade !== state || _state.patient?.id !== patientId || _state.clinicId !== clinicId) return;
+  if (_panelDraft?.kind === 'circuit') {
+    const host = document.getElementById('gcwoCircDisponibilidade');
+    if (host) host.innerHTML = renderDisponibilidadeCircuito();
+    refreshTempoTotalCircuito(_panelDraft);
+  }
+}
+function disponibilidadeActualCircuito() {
+  const d = _state.circuitoDisponibilidade;
+  if (d?.key !== `${_state.patient?.id}:${_state.clinicId}`) return null;
+  const dia = _panelDraft?.date ? new Date(_panelDraft.date + 'T12:00:00Z').getUTCDay() : null;
+  const fimSemana = dia === 0 || dia === 6;
+  const min = dia == null ? null : (fimSemana ? d.fimSemana : d.uteis);
+  return min != null ? { ...d, valor: { texto: `${min} min · ${fimSemana ? 'fim de semana' : 'dias úteis'}`, min, max: min } } : d;
+}
+function renderDisponibilidadeCircuito() {
+  const d = disponibilidadeActualCircuito();
+  if (!d || d.status === 'loading') return 'A consultar o tempo disponível no questionário…';
+  if (d.status === 'error') return 'Não foi possível ler o questionário. Volte a tentar antes de aplicar a composição.';
+  if (d.status === 'missing') return 'Sem resposta de disponibilidade no último questionário concluído. A composição automática aguarda essa informação.';
+  if (d.valor?.min === 0) return '<strong>O doente declarou não ter tempo disponível para exercício neste dia.</strong>';
+  if (!d.valor) return 'Sem tempo declarado no questionário para este dia da semana.';
+  const data = d.data ? ` · ${fmtDataHoraClinica(d.data)}` : '';
+  return `<strong>Disponibilidade declarada: ${escHtml(d.valor.texto)}</strong>${escHtml(data)}<br>${d.valor.min ? `O cálculo respeita ${d.valor.min === d.valor.max ? 'o tempo declarado' : 'o valor mais baixo do intervalo'}: até ${d.valor.min} min.` : 'Esta resposta não define um limite exato. Confirme o tempo disponível antes de usar a composição automática.'}`;
+}
+function configCircuito(s) {
+  return s.circuit_config || { nivel: 'leve', minutos: 20, trabalho: 30, transicao: 20, pausa: 180, aquecimento: 3, retorno: 2, voltas: 2 };
+}
+function exerciciosPlaneadorCircuito(s) {
+  return (s.blocks || []).filter(b => b.tipo === 'voltas').flatMap(b => b.exercicios || []);
+}
+function propostaCircuito(s) {
+  const d = disponibilidadeActualCircuito();
+  if (!d || d.status === 'loading') return { erro: 'A aguardar a disponibilidade do questionário.' };
+  if (d.valor?.min === 0) return { erro: 'O doente declarou 0 minutos disponíveis neste dia. Reveja o dia da sessão.' };
+  if (d.status !== 'ready' || !d.valor?.min) return { erro: 'É necessária uma resposta do questionário com um intervalo de tempo definido.' };
+  if ((s.blocks || []).some(b => Array.isArray(b.intervals))) return { erro: 'Esta sessão contém intervalos já guardados. Estão preservados; prepare a composição numa nova sessão.' };
+  const exs = exerciciosPlaneadorCircuito(s);
+  if (exs.some(ex => !ex.exercise_id)) return { erro: 'Escolha no catálogo todos os exercícios do circuito antes de calcular.' };
+  return proporComposicaoCircuito(configCircuito(s), exs.length, d.valor);
+}
+function renderComposicaoCircuito(s) {
+  const p = propostaCircuito(s);
+  if (p.erro) return `<p class="gcwo-muted" role="status">${escHtml(p.erro)}</p>`;
+  const exs = exerciciosPlaneadorCircuito(s);
+  const linhas = [['Aquecimento', p.aquecimento], [`Circuito — ${exs.length} exercícios · ${p.voltas} ${p.voltas === 1 ? 'volta' : 'voltas'} (inclui transições)`, p.circuito], ['Recuperação entre voltas', p.recuperacao], ['Marcha', p.marcha], ['Retorno à calma', p.retorno]];
+  return `<h4>Composição calculada da sessão</h4>${linhas.map(([nome, sec]) => `<div class="gcwo-circ-summary-row"><span>${escHtml(nome)}</span><strong>${fmtDuracaoTotal(sec)}</strong></div>`).join('')}<div class="gcwo-circ-summary-row total"><strong>Total</strong><strong>${fmtDuracaoTotal(p.total)}</strong></div>${p.ajustado ? `<p class="gcwo-circ-warning">Ajustado de ${escHtml(configCircuito(s).minutos)} para ${p.limiteMin} minutos, de acordo com a disponibilidade declarada.</p>` : ''}${p.reduzido ? `<p class="gcwo-circ-warning">${p.voltas === 1 ? 'Cabe 1 volta completa' : `Cabem ${p.voltas} voltas completas`}. Os exercícios e os tempos de pausa mantêm-se.</p>` : ''}<p class="gcwo-muted">A marcha ocupa o tempo restante. Reveja esta distribuição e a dose antes de aplicar.</p>`;
+}
+function renderPlaneadorCircuito(s) {
+  const c = configCircuito(s);
+  const campo = (key, label, min, step = 1) => `<label class="gcwo-field"><span>${label}</span><input type="number" min="${min}" step="${step}" data-circ-config="${key}" value="${escAttr(c[key])}"></label>`;
+  return `<section class="gcwo-circ-planner" aria-label="Composição da sessão de circuito"><h3>Preparar a sessão</h3><div class="gcwo-circ-availability" id="gcwoCircDisponibilidade" aria-live="polite">${renderDisponibilidadeCircuito()}</div><span class="gcwo-field-label">Nível inicial</span><div class="gcwo-chips">${[['leve','Leve'],['moderado','Moderado'],['exigente','Exigente']].map(([v,l]) => `<button type="button" class="gcwo-chip${c.nivel === v ? ' on' : ''}" data-circ-nivel="${v}" aria-pressed="${c.nivel === v}">${l}</button>`).join('')}</div><p class="gcwo-muted">O nível é registado pelo prescritor. Os tempos abaixo são editáveis e não mudam automaticamente com o nível.</p><span class="gcwo-field-label">Duração máxima da sessão</span><div class="gcwo-chips">${[20,30,45].map(m => `<button type="button" class="gcwo-chip${Number(c.minutos) === m ? ' on' : ''}" data-circ-minutos="${m}" aria-pressed="${Number(c.minutos) === m}">${m} minutos</button>`).join('')}</div><div class="gcwo-circ-config-grid">${campo('minutos','Outra duração (min)',1)}${campo('voltas','Voltas pretendidas',1)}${campo('trabalho','Trabalho por exercício (s)',1)}${campo('transicao','Transição após exercício (s)',0)}${campo('pausa','Pausa entre voltas (s)',0)}${campo('aquecimento','Aquecimento (min)',0,0.5)}${campo('retorno','Retorno à calma (min)',0,0.5)}</div><div id="gcwoCircComposicao" aria-live="polite">${renderComposicaoCircuito(s)}</div><button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCircAtualizar">Atualizar resposta do questionário</button><button type="button" class="gcBtnGhost" id="gcwoCircAplicar" ${propostaCircuito(s).erro ? 'disabled' : ''}>Aplicar composição aos blocos desta sessão</button><p class="gcwo-muted">Escolha os exercícios nos blocos abaixo. Aplicar substitui os blocos desta sessão pela composição apresentada. O plano só é gravado no botão habitual.</p><span class="gcwo-erro" id="gcwoCircErro" role="status"></span></section>`;
+}
+function wirePlaneadorCircuito(s) {
+  document.getElementById('gcwoCircAtualizar').addEventListener('click', () => {
+    _state.circuitoDisponibilidade = null;
+    document.getElementById('gcwoCircDisponibilidade').innerHTML = renderDisponibilidadeCircuito();
+    carregarDisponibilidadeCircuito(s);
+    refreshTempoTotalCircuito(s);
+  });
+  const editar = (key, value) => { s.circuit_config = { ...configCircuito(s), [key]: value }; refreshTempoTotalCircuito(s); };
+  document.querySelectorAll('[data-circ-config]').forEach(input => input.addEventListener('input', () => {
+    editar(input.dataset.circConfig, input.value === '' ? '' : Number(input.value));
+    document.querySelectorAll('[data-circ-minutos]').forEach(btn => {
+      const selected = Number(btn.dataset.circMinutos) === Number(configCircuito(s).minutos);
+      btn.classList.toggle('on', selected); btn.setAttribute('aria-pressed', String(selected));
+    });
+  }));
+  document.querySelectorAll('[data-circ-minutos]').forEach(btn => btn.addEventListener('click', () => {
+    editar('minutos', Number(btn.dataset.circMinutos));
+    document.querySelector('[data-circ-config="minutos"]').value = configCircuito(s).minutos;
+    document.querySelectorAll('[data-circ-minutos]').forEach(b => { b.classList.toggle('on', b === btn); b.setAttribute('aria-pressed', String(b === btn)); });
+  }));
+  document.querySelectorAll('[data-circ-nivel]').forEach(btn => btn.addEventListener('click', () => {
+    editar('nivel', btn.dataset.circNivel);
+    document.querySelectorAll('[data-circ-nivel]').forEach(b => { b.classList.toggle('on', b === btn); b.setAttribute('aria-pressed', String(b === btn)); });
+  }));
+  document.getElementById('gcwoCircAplicar').addEventListener('click', () => {
+    const p = propostaCircuito(s), erro = document.getElementById('gcwoCircErro');
+    erro.textContent = p.erro || '';
+    if (p.erro) return;
+    const exercicios = exerciciosPlaneadorCircuito(s).map(ex => ({ ...structuredClone(ex), id: uuid(), measure: 'time', value: p.trabalho, rest_after_s: p.transicao }));
+    const fixo = (name, sec) => ({ ...novoBlocoCircuitoFixo(), name, duration_sec: sec });
+    s.blocks = [fixo('Aquecimento', p.aquecimento), { ...novoBlocoCircuitoVoltas(), name: 'Circuito', rounds: p.voltas, rest_between_rounds_s: p.pausa, exercicios }, fixo('Marcha', p.marcha), fixo('Retorno à calma', p.retorno)].filter(b => b.tipo !== 'fixed' || b.duration_sec > 0);
+    s.circuit_config = { ...configCircuito(s) };
+    s._limiteMin = p.limiteMin;
+    document.getElementById('gcwoPCircLimite').value = p.limiteMin;
+    refreshCircBlocosListDom(s);
+  });
+}
+
 function renderPanelCircuito(s) {
+  s.blocks = editarBlocosCircuito(s.blocks, uuid);
+  if (s._limiteMin == null && s.circuit_time_limit_min > 0) s._limiteMin = s.circuit_time_limit_min;
   return `
-    <label class="gcwo-field gcwo-field-sm"><span>Limite de tempo (min, opcional)</span><input type="number" min="0" id="gcwoPCircLimite" value="${s._limiteMin ?? ''}"></label>
+    ${renderPlaneadorCircuito(s)}
+    <label class="gcwo-field gcwo-field-sm"><span>Limite de tempo da sessão (min, opcional)</span><input type="number" min="1" id="gcwoPCircLimite" value="${s._limiteMin ?? ''}"></label>
     <div id="gcwoPTempoTotal">${renderTempoTotalCircuitoHtml(s)}</div>
     <span class="gcwo-field-label" style="margin-top:14px;">Blocos</span>
     <div class="gcwo-exercicios" id="gcwoPCircBlocosList">${renderCircBlocosListInner(s)}</div>
@@ -5306,6 +5443,8 @@ function wireCircBlocosList(s) {
 }
 
 function wirePanelCircuito(s) {
+  wirePlaneadorCircuito(s);
+  carregarDisponibilidadeCircuito(s);
   document.getElementById('gcwoPAddBlocoVoltas').addEventListener('click', () => { s.blocks.push(novoBlocoCircuitoVoltas()); refreshCircBlocosListDom(s); });
   document.getElementById('gcwoPAddBlocoFixo').addEventListener('click', () => { s.blocks.push(novoBlocoCircuitoFixo()); refreshCircBlocosListDom(s); });
   document.getElementById('gcwoPCircLimite').addEventListener('input', (e) => {
@@ -5324,6 +5463,8 @@ function wirePanelCircuito(s) {
 // "Descanso" sozinho.
 function flattenBlocosCircuitoParaGravar(blocks) {
   return (blocks || []).map(b => {
+    if (b._originalBlock && assinaturaBlocoCircuito(b) === b._originalSignature) return structuredClone(b._originalBlock);
+    if (Array.isArray(b.intervals)) return structuredClone(b);
     if (b.tipo === 'fixed') {
       return {
         block_id: b.block_id,
@@ -5491,7 +5632,7 @@ function sessaoParaGravarBase(s) {
     ...(Array.isArray(s.recommendations) ? { recommendations_scope: s.recommendations_scope || null, recommendations: s.recommendations, recommendations_image: s.recommendations_image || null, recommendations_image_alt: s.recommendations_image_alt || null } : {}),
   };
   if (s.kind === 'walk') return { ...base, walks: s.walks, stairs_flights: s.stairs_flights };
-  if (s.kind === 'circuit') return { ...base, blocks: flattenBlocosCircuitoParaGravar(s.blocks) };
+  if (s.kind === 'circuit') return { ...base, circuit_config: s.circuit_config || null, circuit_time_limit_min: s._limiteMin ?? s.circuit_time_limit_min ?? null, blocks: flattenBlocosCircuitoParaGravar(s.blocks) };
   if (s.kind === 'card' && s.modality === 'Natação') {
     return { ...base, blocks: s.blocks, pool_length_m: s.pool_length_m ?? 25, stroke: s.stroke ?? 'crol' };
   }

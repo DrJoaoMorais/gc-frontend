@@ -1625,3 +1625,19 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-ct-pesquisa input { width:100%; min-width:0; box-sizing:border-box; padding:10px 12px; border:1px solid #c9d5e4; border-radius:9px; font:inherit; color:#10345d; background:#fff; }
 .gcwo-ct-finalidades { display:flex; flex-wrap:wrap; gap:7px; margin:8px 0; }
 .gcwo-dose-definir { padding:9px 11px; border-radius:8px; background:#fff5e2; color:#835b14; font-size:12px; }
+
+
+/* Composição de circuitos — apenas no editor do prescritor. */
+.gcwo-circ-planner{border:1px solid #dbe4ee;border-radius:16px;padding:20px;margin-bottom:18px;background:#f8fafc;min-width:0}
+.gcwo-circ-planner h3{margin:0 0 14px;font-size:18px;color:#16324f}
+.gcwo-circ-planner h4{margin:20px 0 8px;font-size:15px}
+.gcwo-circ-planner .gcwo-field-label{display:block;margin:16px 0 8px}
+.gcwo-circ-availability{background:#eaf2fb;border-radius:10px;padding:12px;line-height:1.6;font-size:13px;color:#24466b}
+.gcwo-circ-config-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}
+.gcwo-circ-config-grid input{width:100%;min-width:0;box-sizing:border-box}
+.gcwo-circ-summary-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid #e2e8f0;font-size:14px}
+.gcwo-circ-summary-row strong{flex-shrink:0}
+.gcwo-circ-summary-row.total{font-size:16px;border-bottom:0;margin-bottom:12px}
+.gcwo-circ-warning{background:#fff7e6;color:#854d0e;border-radius:8px;padding:10px;font-size:13px}
+.gcwo-circ-planner .gcwo-muted{line-height:1.5;font-size:12px}
+@media(max-width:600px){.gcwo-circ-planner{padding:14px}.gcwo-circ-config-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.gcwo-circ-summary-row{font-size:13px;gap:10px}.gcwo-circ-planner .gcwo-chips{flex-wrap:wrap}}
