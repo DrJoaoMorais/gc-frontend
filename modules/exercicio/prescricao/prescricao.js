@@ -31,7 +31,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-10-31-editor-amplo-v1';
+const PRESCRICAO_CSS_VERSION = '2026-10-31-pesquisa-personalizado-v1';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -2263,20 +2263,19 @@ function ctRenderModelos() {
   }).join('')}</div>`;
 }
 
+function ctNormalizarPesquisa(value) { return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-PT').trim(); }
 function ctPersonalizadoCompativeis() {
   const p = _criarTreino.personalizado;
   return _state.exercisesCatalog
     .filter(e => ctTemValor(e.categoria, [...p.zonas]) && ctTemValor(e.objetivos_exercicio, [...p.objetivos])
-      && ctTemValor(e.locais, [p.local]) && ctTemValor(e.equipamento, [...p.equip]))
+      && ctTemValor(e.locais, [p.local]) && ctTemValor(e.equipamento, [...p.equip])
+      && ctNormalizarPesquisa(e.name).includes(ctNormalizarPesquisa(p.busca)))
     .sort((a, b) => a.name.localeCompare(b.name, 'pt'));
 }
 function ctRenderPersonalizado() {
   const p = _criarTreino.personalizado;
   const equipReais = [...new Set(_state.exercisesCatalog.flatMap(e => e.equipamento || []))].sort((a, b) => a.localeCompare(b, 'pt'));
   const chips = (lista, set, attr) => lista.map(v => `<button type="button" class="gcwo-chip${set.has(v) ? ' on' : ''}" ${attr}="${escAttr(v)}">${escHtml(v)}</button>`).join('');
-  const compat = _state.catalogLoaded ? ctPersonalizadoCompativeis() : [];
-  const escolhidos = p.escolhidos.map(id => _state.exercisesCatalog.find(e => e.id === id)).filter(Boolean);
-  const est = escolhidos.length ? ctMinutosSessao({ kind: 'list', items: escolhidos.map(novoItemDeExercicio) }) : 0;
   return `
     <div class="gcwo-ct-pers">
       <div class="gcwo-ct-pers-filtros">
@@ -2286,17 +2285,26 @@ function ctRenderPersonalizado() {
         <div><span class="gcwo-settings-label">Local</span><div class="gcwo-chips">${LOCAIS_SESSAO.map(l => `<button type="button" class="gcwo-chip${p.local === l ? ' on' : ''}" data-ct-p-local="${escAttr(l)}">${escHtml(l)}</button>`).join('')}</div></div>
         <div><span class="gcwo-settings-label">Equipamento</span><div class="gcwo-chips">${chips(equipReais, p.equip, 'data-ct-p-equip')}</div></div>
       </div>
-      <div class="gcwo-ct-pers-head"><strong>${compat.length} exercícios compatíveis</strong><span>${escolhidos.length} escolhido${escolhidos.length === 1 ? '' : 's'} · ≈ ${est} min estimado / ${p.min} min</span>
+      <label class="gcwo-field gcwo-ct-pesquisa"><span>Pesquisar exercícios</span><input type="search" data-ct-p-busca placeholder="Pesquisar pelo nome do exercício…" aria-label="Pesquisar exercícios compatíveis" autocomplete="off" value="${escAttr(p.busca || '')}"></label>
+      <div id="gcwoCtPersResultados" aria-live="polite">${ctRenderResultadosPersonalizado()}</div>
+    </div>`;
+}
+
+// Resultados da pesquisa sem reconstruir o campo em que o médico está a escrever.
+function ctRenderResultadosPersonalizado() {
+  const p = _criarTreino.personalizado;
+  const compat = _state.catalogLoaded ? ctPersonalizadoCompativeis() : [];
+  const escolhidos = p.escolhidos.map(id => _state.exercisesCatalog.find(e => e.id === id)).filter(Boolean);
+  const est = escolhidos.length ? ctMinutosSessao({ kind: 'list', items: escolhidos.map(novoItemDeExercicio) }) : 0;
+  return `      <div class="gcwo-ct-pers-head"><strong>${compat.length} exercícios compatíveis</strong><span>${escolhidos.length} escolhido${escolhidos.length === 1 ? '' : 's'} · ≈ ${est} min estimado / ${p.min} min</span>
         <button type="button" class="gcwo-ct-primario" data-ct="usar-pers" ${escolhidos.length ? '' : 'disabled'}>Usar este treino</button></div>
       <div class="gcwo-ct-pers-lista">${compat.map(e => `
         <button type="button" class="gcwo-ct-ex${p.escolhidos.includes(e.id) ? ' on' : ''}" data-ct-p-ex="${escAttr(e.id)}">
           ${e.photo_url ? `<img src="${escAttr(e.photo_url)}" alt="" loading="lazy">` : '<span class="gcwo-ct-ex-img"></span>'}
           <span>${escHtml(e.name)}</span>${p.escolhidos.includes(e.id) ? '<b>✓</b>' : ''}
-        </button>`).join('') || '<div class="gcwo-muted">Nenhum exercício com estes critérios.</div>'}</div>
-    </div>`;
+        </button>`).join('') || '<div class="gcwo-muted">Nenhum exercício com estes critérios.</div>'}</div>`;
 }
 
-// Um dia do Calendário do plano: disponibilidade (editável aqui), treinos, compatibilidade.
 function ctRenderColuna(w, i) {
   const ct = _criarTreino;
   const iso = ctDataDoDia(i, w), d = ctDisp(w, i), noPlano = ctNoPlano(iso);
@@ -2529,13 +2537,18 @@ function ctWire() {
       ct.personalizado.min = Number(ds.ctPMin);
     } else if (ct.personalizado && ds.ctPLocal) {
       ct.personalizado.local = ds.ctPLocal;
-    } else if (ct.personalizado && ds.ctPEx) {
-      const lista = ct.personalizado.escolhidos;
-      const i = lista.indexOf(ds.ctPEx);
-      if (i >= 0) lista.splice(i, 1); else lista.push(ds.ctPEx);
+    } else if (ct.personalizado && el.hasAttribute('data-ct-p-ex')) {
+      const lista = ct.personalizado.escolhidos, exerciseId = el.getAttribute('data-ct-p-ex');
+      const i = lista.indexOf(exerciseId);
+      if (i >= 0) lista.splice(i, 1); else lista.push(exerciseId);
     }
     if (['calendario', undefined].includes(ct.vista)) ct.dirty = true;
     ctRender();
+  });
+  host.addEventListener('input', event => {
+    if (!event.target.matches('[data-ct-p-busca]') || !ct.personalizado) return;
+    ct.personalizado.busca = event.target.value;
+    document.getElementById('gcwoCtPersResultados').innerHTML = ctRenderResultadosPersonalizado();
   });
   host.addEventListener('change', (e) => {
     if (e.target.closest('#gcwoPanel')) return;

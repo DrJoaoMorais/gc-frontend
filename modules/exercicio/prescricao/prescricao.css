@@ -1621,3 +1621,5 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-gym-catalog:not([open])>:not(summary),.gcwo-exercicio-expand:not([open])>:not(summary) { display:none; }
 .gcwo-gym-workspace { height:auto; grid-template-columns:minmax(0,1fr); }
 .gcwo-gym-catalog,.gcwo-gym-plan { overflow:visible; }
+.gcwo-ct-pesquisa { display:flex; flex-direction:column; gap:5px; margin:12px 0; }
+.gcwo-ct-pesquisa input { width:100%; min-width:0; box-sizing:border-box; padding:10px 12px; border:1px solid #c9d5e4; border-radius:9px; font:inherit; color:#10345d; background:#fff; }

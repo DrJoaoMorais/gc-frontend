@@ -108,3 +108,10 @@ test('real cardio controls remain editable inside the broad editor and calendar 
   x.click('#gcwoPGuardar');assert.equal(x.run('_criarTreino.semanas[0].dias[1][0].sessao.modality'),modality);
  }
 });
+test('custom workout search ignores accents and case, preserves filters, selection and focused input',async()=>{
+ const x=await setup();x.run(`_state.exercisesCatalog=[{id:'a',name:'Elevação de gémeos',categoria:['Membro Inferior'],objetivos_exercicio:['Fortalecimento'],equipamento:['Peso Corporal'],locais:['Casa'],is_active:true},{id:'b',name:'Agachamento',categoria:['Membro Inferior'],objetivos_exercicio:['Fortalecimento'],equipamento:['Peso Corporal'],locais:['Casa'],is_active:true},{id:'c',name:'Elevação com halteres',categoria:['Membro Superior'],objetivos_exercicio:['Fortalecimento'],equipamento:['Halteres'],locais:['Ginásio'],is_active:true}];`);
+ x.click('[data-ct-add="0:1"]');x.click('[data-ct-tipo="exercicios"]');x.click('[data-ct="personalizado"]');x.click('[data-ct-p-ex="b"]');
+ const input=x.get('[data-ct-p-busca]');input.value='ELEVACAO';input.dispatchEvent(new x.window.Event('input',{bubbles:true}));assert.equal(x.get('[data-ct-p-busca]'),input);assert.equal(x.document.querySelectorAll('[data-ct-p-ex]').length,1);assert.equal(x.get('[data-ct-p-ex]').getAttribute('data-ct-p-ex'),'a');assert.equal(x.run('_criarTreino.personalizado.escolhidos[0]'),'b');assert.match(x.get('#gcwoCtPersResultados').textContent,/1 escolhido/);
+ input.value='sem correspondência';input.dispatchEvent(new x.window.Event('input',{bubbles:true}));assert.equal(x.document.querySelectorAll('[data-ct-p-ex]').length,0);assert.match(x.get('#gcwoCtPersResultados').textContent,/Nenhum exercício/);
+ input.value='';input.dispatchEvent(new x.window.Event('input',{bubbles:true}));assert.equal(x.document.querySelectorAll('[data-ct-p-ex]').length,2);assert.ok(x.get('[data-ct-p-ex="b"]').classList.contains('on'));x.click('[data-ct="usar-pers"]');assert.equal(x.run('_panelDraft.items[0].exercise_id'),'b');
+});
