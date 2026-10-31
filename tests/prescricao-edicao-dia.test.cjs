@@ -3,10 +3,10 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const vm=require('node:vm');const path=require('node:path');
 const {parseHTML}=require('linkedom');
 async function setup(){
- const helpers=await import('../modules/exercicio/prescricao/disponibilidade-treino.js');const recommendations=await import('../modules/exercicio/prescricao/recomendacoes.js');const doses=await import('../modules/exercicio/prescricao/dose-protocolo.js');const pace=await import('../modules/exercicio/shared/pace.js');
+ const catalog=await import('../modules/exercicio/prescricao/catalogo-organizacao.js');const helpers=await import('../modules/exercicio/prescricao/disponibilidade-treino.js');const recommendations=await import('../modules/exercicio/prescricao/recomendacoes.js');const doses=await import('../modules/exercicio/prescricao/dose-protocolo.js');const pace=await import('../modules/exercicio/shared/pace.js');
  const {window}=parseHTML('<html><body><div id="gcwoPrescricaoRoot"></div></body></html>');const document=window.document;
  window.HTMLElement.prototype.scrollIntoView=function(){};window.HTMLElement.prototype.focus=function(){};
- const ctx={window,document,console,CSS:{escape:value=>String(value)},structuredClone,URL,Intl,Date,setTimeout,clearTimeout,crypto:require('node:crypto').webcrypto,G:{clinics:[],sessionUser:{id:'medico-demo'}},...helpers,...recommendations,...doses,...pace,confirm:()=>true};
+ const ctx={window,document,console,CSS:{escape:value=>String(value)},structuredClone,URL,Intl,Date,setTimeout,clearTimeout,crypto:require('node:crypto').webcrypto,G:{clinics:[],sessionUser:{id:'medico-demo'}},...catalog,...helpers,...recommendations,...doses,...pace,confirm:()=>true};
  window.sb=new Proxy({}, {get(){throw Error('Unexpected database access during local editing')}});
  const c=vm.createContext(ctx);
  const source=fs.readFileSync(path.join(__dirname,'../modules/exercicio/prescricao/prescricao.js'),'utf8').replace(/^import .*;\s*$/gm,'').replace(/^export /gm,'').replaceAll('import.meta.url',JSON.stringify('file:///prescricao.js'));
@@ -57,7 +57,7 @@ test('running, cycling and swimming keep their existing block editors in the day
 });
 test('exercise templates still use catalogue exercises and open the correct day editor',async()=>{
  const x=await setup();x.run(`_state.exercisesCatalog=[{id:'exercise-demo',name:'Exercício de demonstração',categoria:['Membro Inferior'],objetivos_exercicio:['Fortalecimento'],equipamento:['Peso Corporal'],locais:['Casa'],is_active:true}];`);
- x.click('[data-ct-add="0:1"]');x.click('[data-ct-tipo="exercicios"]');x.click('[data-ct-modelo="comecar"]');assert.equal(x.run('_panelDraft.kind'),'list');assert.equal(x.run('_panelDraft.date'),'2026-11-03');assert.ok(x.run('_panelDraft.items.length')>0);x.click('#gcwoPGuardar');assert.equal(x.run('_criarTreino.semanas[0].dias[1].length'),1);
+ x.click('[data-ct-add="0:1"]');x.click('[data-ct-tipo="exercicios"]');x.click('[data-ct-p-ex]');x.click('[data-ct="usar-pers"]');assert.equal(x.run('_panelDraft.kind'),'list');assert.equal(x.run('_panelDraft.date'),'2026-11-03');assert.ok(x.run('_panelDraft.items.length')>0);x.run('_panelDraft.items.forEach(it=>{it.series=[{reps:10,load:null}];it.rest_set=30;it.rest_next=30})');x.click('#gcwoPGuardar');assert.equal(x.run('_criarTreino.semanas[0].dias[1].length'),1);
 });
 test('week copying and removal keep unrelated weeks and the existing sessions intact',async()=>{
  const x=await setup();x.click('[data-ct-copiar-semana="0"]');assert.equal(x.run('_criarTreino.semanaFoco'),1);assert.equal(x.run('_criarTreino.semanas[1].dias[0][0].sessao.walks[0].duration_sec'),3600);x.click('[data-ct="semana-anterior"]');const id=x.get('[data-ct-slot-remover]').dataset.ctSlotRemover;x.click(`[data-ct-slot-remover="${id}"]`);assert.equal(x.run('_criarTreino.semanas[0].dias[0].length'),0);assert.equal(x.run('_criarTreino.semanas[1].dias[0].length'),1);assert.equal(x.run('_state.sessions.length'),3);
@@ -92,7 +92,7 @@ test('empty open session blocks global save and retains the current editor',asyn
 });
 test('catalogue with 200 exercises paginates and filters without dropping chosen series and notes',async()=>{
  const x=await setup();x.run(`_state.exercisesCatalog=Array.from({length:200},(_,i)=>({id:'e'+i,name:'Exercício '+String(i).padStart(3,'0'),categoria:['Membro Inferior'],equipamento:['Peso Corporal'],objetivos_exercicio:['Fortalecimento'],locais:['Casa'],is_active:true}));`);
- x.click('[data-ct-add="0:1"]');x.click('[data-ct-tipo="exercicios"]');x.click('[data-ct-modelo="comecar"]');
+ x.click('[data-ct-add="0:1"]');x.click('[data-ct-tipo="exercicios"]');x.click('[data-ct-p-ex]');x.click('[data-ct="usar-pers"]');
  assert.equal(x.document.querySelectorAll('#gcwoPCatGrid .gcwo-catpick-card').length,12);assert.match(x.get('.gcwo-catalog-pages').textContent,/200 exercícios/);assert.equal(x.get('.gcwo-gym-catalog').hasAttribute('open'),false);
  const before=x.run('JSON.stringify(_panelDraft.items)');x.click('[data-catalog-page="1"]');assert.match(x.get('.gcwo-catalog-pages').textContent,/2\/17/);assert.equal(x.run('JSON.stringify(_panelDraft.items)'),before);
  const input=x.get('#gcwoPCatBusca');input.value='199';input.dispatchEvent(new x.window.Event('input',{bubbles:true}));assert.equal(x.document.querySelectorAll('#gcwoPCatGrid .gcwo-catpick-card').length,1);assert.match(x.get('#gcwoPCatGrid').textContent,/199/);assert.equal(x.run('JSON.stringify(_panelDraft.items)'),before);
@@ -110,8 +110,21 @@ test('real cardio controls remain editable inside the broad editor and calendar 
 });
 test('custom workout search ignores accents and case, preserves filters, selection and focused input',async()=>{
  const x=await setup();x.run(`_state.exercisesCatalog=[{id:'a',name:'Elevação de gémeos',categoria:['Membro Inferior'],objetivos_exercicio:['Fortalecimento'],equipamento:['Peso Corporal'],locais:['Casa'],is_active:true},{id:'b',name:'Agachamento',categoria:['Membro Inferior'],objetivos_exercicio:['Fortalecimento'],equipamento:['Peso Corporal'],locais:['Casa'],is_active:true},{id:'c',name:'Elevação com halteres',categoria:['Membro Superior'],objetivos_exercicio:['Fortalecimento'],equipamento:['Halteres'],locais:['Ginásio'],is_active:true}];`);
- x.click('[data-ct-add="0:1"]');x.click('[data-ct-tipo="exercicios"]');x.click('[data-ct="personalizado"]');x.click('[data-ct-p-ex="b"]');
+ x.click('[data-ct-add="0:1"]');x.click('[data-ct-tipo="exercicios"]');x.click('[data-ct-p-local="Casa"]');x.click('[data-ct-p-ex="b"]');
  const input=x.get('[data-ct-p-busca]');input.value='ELEVACAO';input.dispatchEvent(new x.window.Event('input',{bubbles:true}));assert.equal(x.get('[data-ct-p-busca]'),input);assert.equal(x.document.querySelectorAll('[data-ct-p-ex]').length,1);assert.equal(x.get('[data-ct-p-ex]').getAttribute('data-ct-p-ex'),'a');assert.equal(x.run('_criarTreino.personalizado.escolhidos[0]'),'b');assert.match(x.get('#gcwoCtPersResultados').textContent,/1 escolhido/);
  input.value='sem correspondência';input.dispatchEvent(new x.window.Event('input',{bubbles:true}));assert.equal(x.document.querySelectorAll('[data-ct-p-ex]').length,0);assert.match(x.get('#gcwoCtPersResultados').textContent,/Nenhum exercício/);
  input.value='';input.dispatchEvent(new x.window.Event('input',{bubbles:true}));assert.equal(x.document.querySelectorAll('[data-ct-p-ex]').length,2);assert.ok(x.get('[data-ct-p-ex="b"]').classList.contains('on'));x.click('[data-ct="usar-pers"]');assert.equal(x.run('_panelDraft.items[0].exercise_id'),'b');
+});
+test('new exercise selection opens searchable catalogue directly without the six automatic models',async()=>{
+ const x=await setup();x.click('[data-ct-add="0:1"]');x.click('[data-ct-tipo="exercicios"]');assert.ok(x.get('[data-ct-p-busca]'));assert.equal(x.get('[data-ct-modelo]'),null);assert.equal(x.get('.gcwo-ct-modelo'),null);assert.equal(x.document.querySelectorAll('[data-ct-finalidade]').length,3);
+});
+test('manual dose is enforced, uses real input controls and preserves other days on save',async()=>{
+ const x=await setup();x.run(`_state.exercisesCatalog=[{id:'new-item',name:'Agachamento',contextos_exercicio:['Treino'],categoria:['Membro Inferior'],objetivos_exercicio:['Fortalecimento'],equipamento:['Peso Corporal'],locais:['Casa']}];`);
+ x.click('[data-ct-add="0:1"]');x.click('[data-ct-tipo="exercicios"]');x.click('[data-ct-p-ex="new-item"]');x.click('[data-ct="usar-pers"]');assert.equal(x.get('.gcwo-serie-reps').value,'');assert.equal(x.get('.gcwo-it-restset').value,'');x.click('#gcwoPGuardar');assert.ok(x.get('#gcwoPanel'));assert.match(x.get('#gcwoPErro').textContent,/Agachamento/);
+ for(const [selector,value] of [['.gcwo-serie-reps','10'],['.gcwo-it-restset','30'],['.gcwo-it-restnext','30']]){const el=x.get(selector);el.value=value;el.dispatchEvent(new x.window.Event('input',{bubbles:true}))}
+ x.click('#gcwoPGuardar');assert.equal(x.run('_criarTreino.semanas[0].dias[1][0].sessao.items[0].series[0].reps'),10);assert.equal(x.run('_criarTreino.semanas[0].dias[1][0].sessao.items[0]._dosePorDefinir'),undefined);assert.equal(x.run('_criarTreino.semanas[0].dias[0][0].sessao.walks[0].duration_sec'),3600);
+});
+test('context filters overlap and retain selected items when hidden by another context',async()=>{
+ const x=await setup();x.run(`_state.exercisesCatalog=[{id:'both',name:'Remada',contextos_exercicio:['Treino','Reabilitação'],categoria:['Core'],objetivos_exercicio:['Fortalecimento'],equipamento:['Elásticos'],locais:['Casa']},{id:'therapy',name:'Mobilidade',contextos_exercicio:['Reabilitação'],categoria:['Core'],objetivos_exercicio:['Mobilidade / Alongamento'],equipamento:['Sem equipamento'],locais:['Casa']},{id:'train',name:'Agachamento',contextos_exercicio:['Treino'],categoria:['Membro Inferior'],objetivos_exercicio:['Fortalecimento'],equipamento:['Peso Corporal'],locais:['Ginásio']}];`);
+ x.click('[data-ct-add="0:1"]');x.click('[data-ct-tipo="exercicios"]');assert.equal(x.document.querySelectorAll('[data-ct-p-ex]').length,3);x.click('[data-ct-p-ex="therapy"]');x.click('[data-ct-finalidade="treino"]');assert.equal(x.document.querySelectorAll('[data-ct-p-ex]').length,2);assert.equal(x.run('_criarTreino.personalizado.escolhidos[0]'),'therapy');x.click('[data-ct-finalidade="terapeutico"]');assert.equal(x.document.querySelectorAll('[data-ct-p-ex]').length,2);assert.ok(x.get('[data-ct-p-ex="therapy"]').classList.contains('on'));
 });

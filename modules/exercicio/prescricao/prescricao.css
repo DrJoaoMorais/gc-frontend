@@ -1623,3 +1623,5 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-gym-catalog,.gcwo-gym-plan { overflow:visible; }
 .gcwo-ct-pesquisa { display:flex; flex-direction:column; gap:5px; margin:12px 0; }
 .gcwo-ct-pesquisa input { width:100%; min-width:0; box-sizing:border-box; padding:10px 12px; border:1px solid #c9d5e4; border-radius:9px; font:inherit; color:#10345d; background:#fff; }
+.gcwo-ct-finalidades { display:flex; flex-wrap:wrap; gap:7px; margin:8px 0; }
+.gcwo-dose-definir { padding:9px 11px; border-radius:8px; background:#fff5e2; color:#835b14; font-size:12px; }

@@ -1,0 +1,3561 @@
+[
+  {
+    "id": "908f3e36-a9f4-4401-9072-a81bc3a7fe6b",
+    "name": "AAROM flexão do ombro com bastão",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Bastão"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "9d2aa349-56f3-4b64-acd4-d6ed0a497fa9",
+    "name": "Abdução Anca com elastico",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "ea1e2f8a-e0b7-50b5-986a-072c912f672f",
+    "name": "Abdução da anca com elástico",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "3d52a6d4-0ed0-5d2f-b9a7-0e77c0f9dd1f",
+    "name": "Abdução da anca em pé com apoio",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "6c66428f-337d-4cc8-8db5-3b2c523f2973",
+    "name": "Abdução de ombro com elástico",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "6c4026d1-2fad-4ec7-8723-92ab49780749",
+    "name": "Abdução do Ombro – Mobilização Ativa-Assistida com Bastão em pé",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Bastão"
+    ],
+    "locais": [
+      "Clínica",
+      "Casa"
+    ]
+  },
+  {
+    "id": "b5c6794e-2643-4cbe-8dab-e569e7c7e62f",
+    "name": "Abdução do ombro com deslizamento na mesa",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "ce2fdc99-38e5-40aa-b3c7-19b96dbb086d",
+    "name": "Abdução horizontal do ombro em decúbito ventral Prone T",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "20b3cf02-9dc4-5c72-87fa-2621f5e6c4aa",
+    "name": "Abdução isométrica da anca deitado com elástico",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "7f4156ae-b6a0-5b2e-804a-4e041ecb6650",
+    "name": "Abdução isométrica da anca sentado com elástico",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "38d20eeb-ac26-5dc7-8346-88e191c9e7a5",
+    "name": "Abdução radial ativa do polegar com mão apoiada",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "4e9c7412-9568-5bc2-9b33-49214f2c6642",
+    "name": "Abdução radial do polegar com elástico leve",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "6ac326bc-427d-4fe9-83f1-90ccb8c11cd2",
+    "name": "Abdutor",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Máquina"
+    ],
+    "locais": [
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "00e23ba2-c2c0-564e-aab3-47e5e43c7521",
+    "name": "Abertura da anca com pé num degrau baixo",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "e3c6d889-b7f4-5ffd-b060-8772fd06a8d4",
+    "name": "Abertura dos dedos contra elástico leve",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "d0afe97a-bace-4e48-8b01-d42465f378e5",
+    "name": "Adução horizontal do ombro autoassistida",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "6db92c66-acb2-4f62-aff7-52dcc1531d9c",
+    "name": "Adutor",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Máquina"
+    ],
+    "locais": [
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "6e0f7ba4-f02f-4c1e-beda-02b42da7aa67",
+    "name": "Agachamento",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa"
+    ]
+  },
+  {
+    "id": "44ded999-34a9-5225-9423-0211358b2431",
+    "name": "Agachamento — progressão funcional da anca",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "632e8a79-7022-409e-8360-f21a9483340b",
+    "name": "Agachamento sumo",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Halteres"
+    ],
+    "locais": [
+      "Casa"
+    ]
+  },
+  {
+    "id": "c901259d-eb3c-44dc-897e-f9fd124f07b3",
+    "name": "Alongamento ajoelhado de elevação e rotação externa com bastão",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Bastão"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "c6c3efb0-6220-4d4e-b41f-52c836e24bd9",
+    "name": "Alongamento de elevação do ombro ajoelhado com apoio",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "a96f1e1b-2803-42c9-b0d5-a904aaa44cd3",
+    "name": "Alongamento de flexão do ombro com apoio na parede",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "723425b9-b485-4219-a749-31d8fb687431",
+    "name": "Apoio na parede com transferência de peso",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "43eded0f-e4e4-4908-889d-21d30a01b262",
+    "name": "Apoio quadrúpede com transferências de peso",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "3cf98e49-ce1c-4032-b6cd-4ca447512baa",
+    "name": "Back Extension",
+    "categoria": [
+      "Core"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Máquina"
+    ],
+    "locais": [
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "923f014c-3d4a-4663-8a56-0c82ab325fde",
+    "name": "Bíceps",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Halteres"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "21eb4c19-43b3-4c92-984f-39cb62cb27ab",
+    "name": "Bicicleta estática",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Treino",
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Cardiovascular"
+    ],
+    "equipamento": [
+      "Máquina"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "f0c8accd-aac1-4630-87fa-f7954b0d27b3",
+    "name": "Bulgarian Split",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal",
+      "Halteres"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "78f8f906-2cbb-59f0-b356-489994340764",
+    "name": "Calcanhares e pontas dos pés sentado",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "66f15958-4911-55f0-9ca9-5170c36fe821",
+    "name": "Caminhada em plano",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Cardiovascular"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "099a88b4-af54-4d2a-9e8e-47ab47ba6038",
+    "name": "Chest Press",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Máquina"
+    ],
+    "locais": [
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "dff811d0-0dec-5088-b31e-2549f0619bd5",
+    "name": "Círculos pequenos da anca em pé com apoio",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "caa5c960-a77b-4d79-af82-d12c135caead",
+    "name": "Clamshell com elástico",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "eed5f836-cfd4-5e09-9b0e-64b20418815b",
+    "name": "Controlo do punho com bola giroscópica (Powerball)",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Bola"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "2f00a062-5d66-4dda-93c1-01285753d24d",
+    "name": "Controlo escapular — posicionamento e movimento",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "009cd4f4-3b44-4ab9-95d5-d5095937159b",
+    "name": "Controlo escapular com movimento ativo do ombro",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento",
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "0bba9a10-6de5-5552-89bb-0d59714f148c",
+    "name": "Descida lateral de degrau — controlo da anca",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "b2d076af-2d15-55ed-8d10-9b66be02cdab",
+    "name": "Deslizamento do calcanhar deitado",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "69881129-eda2-5a57-a09d-dc6dd57b9016",
+    "name": "Deslizamento em gancho parcial sem ressalto",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "ecf4d1b7-ac58-5b13-ac4d-d4dc355a59a6",
+    "name": "Deslizamento lateral da perna deitado",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "0b57b298-ea72-57d8-b0da-94fd5bc62958",
+    "name": "Desvio radial do punho com carga leve e alavanca curta",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Halteres"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "ab5a61b7-82a0-42e5-a765-cf2f54486160",
+    "name": "Diagonal D2 do ombro com elástico",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "58395a75-d012-5133-9056-a5480e093009",
+    "name": "Dobradiça da anca com halteres — progressão funcional",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Halteres"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "7faf2a94-03cc-468d-aff0-7849e2683e47",
+    "name": "Elevação assistida no plano escapular em supino",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "cd8e917c-de32-56e7-9bfd-7c6ba3c1b6ba",
+    "name": "Elevação bilateral dos calcanhares com apoio",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "15ef932e-9776-5ed2-905e-ea3d6adb3cc2",
+    "name": "Elevação da perna estendida",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "8b7abe37-fdf6-5ff7-8a6c-4e648007baa8",
+    "name": "Elevação de objeto leve com duas mãos e apoio palmar",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "4792ce62-8eae-45c3-bcbb-518439ac6a34",
+    "name": "Elevação do braço no plano escapular (polegar para cima)",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento",
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "9ccd29f5-18be-594a-9089-58be8f9e76cb",
+    "name": "Elevação do calcanhar numa perna com apoio",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "a5dbc425-d7f7-434c-87bd-f6bb37df7849",
+    "name": "Elevação dos braços junto à parede Wall Angel",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "0973ca2d-842b-59c6-9d90-3277ba757a54",
+    "name": "Elevação dos calcanhares com apoio — tornozelo",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "bcb3f879-0244-4771-a693-f7855b41ed06",
+    "name": "Elevação em Y em decúbito ventral",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento",
+      "Halteres"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "e8d063b9-a260-494b-b91f-976125b5b84d",
+    "name": "Elevação Frontal com Halters",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Halteres"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "4192b6ce-3979-42d8-af91-5d30961688ce",
+    "name": "Elevação Gemos Unilateral.png",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "a0afddf3-e700-4f9c-acf1-c6803efbf55a",
+    "name": "Elevação Lateral Polia",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Máquina"
+    ],
+    "locais": [
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "95a11dd8-7181-5aad-871c-49d73c318084",
+    "name": "Equilíbrio numa perna com apoio",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "66ea09b0-ae9b-5e69-b34d-bae341f1bbfb",
+    "name": "Equilíbrio numa perna com apoio — tornozelo",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "23635f06-663e-4bf7-85c9-96e02b47f13a",
+    "name": "Estabilização do ombro com bola na parede",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento",
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Bola"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "255a47d9-157f-48dc-a684-a46c9d7d9b55",
+    "name": "Estabilização rítmica do ombro em apoio na parede",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "093dba41-4883-5c2a-99a8-d59556a57b1e",
+    "name": "Extensão ativa suave dos dedos",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "159d38dd-5e5e-5b41-af59-8355c7df3c93",
+    "name": "Extensão da anca em pé com apoio",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "2c17afd9-49a3-5c35-a715-4ba34448edfc",
+    "name": "Extensão da anca em pé com elástico",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "6376c4ff-c79f-45e8-a1f3-945ee18a684d",
+    "name": "Extensão de joelho na máquina",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Treino",
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Máquina"
+    ],
+    "locais": [
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "7be2e054-effe-54e7-baca-e554aa3ea920",
+    "name": "Extensão do polegar com elástico leve",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "afe0cf6a-22ab-51a7-812a-69af76b0674f",
+    "name": "Extensão do punho com elástico e antebraço apoiado",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "a0c6785a-2c67-59d3-b9c6-3bcf2ce3335b",
+    "name": "Extensão do punho com halter e antebraço apoiado",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Halteres"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "994e3b08-a875-4fab-95e0-4733c6934304",
+    "name": "Extensão Terminal de Joelho com elástico (TKE)",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "2941dff1-2a25-52ff-83d0-eb5759140092",
+    "name": "Figura 4 na cadeira — mobilidade dinâmica",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "4502ed0f-2916-48b6-a96c-4424689454e0",
+    "name": "Flexão de braços inclinada com apoio numa bancada",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "fba32cd7-956f-4236-a43b-3ae9e3103ff2",
+    "name": "Flexão de braços na parede com protração final",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "e109e17a-e4d3-4b2b-ab43-b45677d8858d",
+    "name": "Flexão de braços no solo",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "6edc07d1-d5bd-43c9-9ac6-b1f79cb53af9",
+    "name": "Flexão de joelho na máquina",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Treino",
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Máquina"
+    ],
+    "locais": [
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "e533d0ad-660d-475c-9dd0-23c8942a439f",
+    "name": "Flexão de ombro com elástico",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "e7e1ba5d-2c00-4905-9e64-9ebbba95c985",
+    "name": "Flexão do Ombro – Mobilização Ativa-Assistida com Bastão em pé",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Bastão"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "5887a003-d5f9-4cfc-a475-bbff3b3b0750",
+    "name": "Flexão do ombro autoassistida em supino com a mão contralateral",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "47b85a6e-02b5-4b93-9d95-39965cc8052e",
+    "name": "Flexão do ombro com apoio e recuo do tronco",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "d62e86a6-f614-4a2a-8ef3-4213a38b9224",
+    "name": "Flexão do ombro com deslizamento na mesa",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "8b4f8992-654f-46be-a4d0-98b9953d2d20",
+    "name": "Flexão dos braços na parede",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "c009e5f9-6099-5bae-95a1-6cce9e8ccdd8",
+    "name": "Flexão e extensão ativas do punho com polegar relaxado",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "3eb1a9fa-e078-4a56-9c32-84c90837900a",
+    "name": "Flexão/extensão do cotovelo",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "9726d8b9-64eb-4910-99dd-b49c8bffb57c",
+    "name": "Hip Thrust com Halteres",
+    "categoria": [
+      "Membro Inferior",
+      "Core"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Halteres",
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "0021c09b-c515-5586-8068-e0a119977125",
+    "name": "Inclinação à frente numa perna com apoio",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "264f1672-300f-49a6-aa1f-aa0690c3c737",
+    "name": "Isométrico de abdução do ombro",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "1e0c8f31-8b32-47a4-92c4-a8385ac6a11e",
+    "name": "Isométrico de extensão do ombro na parede",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "58c1a095-f0bd-5423-a1e3-42b0baa4b864",
+    "name": "Isométrico de extensão do punho com antebraço apoiado",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "54e6aeb8-3d41-5f7e-b94c-111d708b00fc",
+    "name": "Isométrico de extensão do punho com antebraço em posição neutra",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "657aa112-f405-41c9-94d7-2d3e1ba1a88a",
+    "name": "Isométrico de flexão do ombro",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "e28170cb-bcc6-54d7-bb7e-12a24a3a7a25",
+    "name": "Isométrico de quadricípite com toalha",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "7988f5aa-407d-4dc1-a5f4-6eda23e9f3f0",
+    "name": "Isométrico de rotação externa do ombro",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "35662c2b-3640-4540-bc3b-9f742e63781a",
+    "name": "Isométrico de rotação interna do ombro",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "21ec509f-445a-5261-8c84-5f4255f455cd",
+    "name": "Isométrico glúteo deitado — após PTA",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "f474e829-5a2c-5c1d-bc06-75f5115143b1",
+    "name": "Isométrico suave de extensão do polegar",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "f1dfde4b-79f7-5cd0-8153-f415e3fcbeef",
+    "name": "Joelho à parede — mobilidade do tornozelo",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "99ebc398-081b-47d1-befc-3044e5b7edbf",
+    "name": "Lat Pulldown",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Máquina"
+    ],
+    "locais": [
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "86dc4451-a392-4a3a-9d6e-bfe452b8c15e",
+    "name": "Lateral band walk - Monster walk",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "f891a081-cc41-4074-8010-72267a3f6dd6",
+    "name": "Leg press horizontal",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Treino",
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Máquina"
+    ],
+    "locais": [
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "34dc3e0c-45f7-45bc-8683-d0b6d3448e63",
+    "name": "Leg Raises Horizontal",
+    "categoria": [
+      "Membro Inferior",
+      "Core"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "d5943b95-ec8d-4c30-b950-58c0db5b6ca0",
+    "name": "Low Row",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Máquina"
+    ],
+    "locais": [
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "e862ace8-c582-4781-9dec-c399a0972ca1",
+    "name": "Lunge",
+    "categoria": [
+      "Membro Superior",
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Halteres",
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "2ff7680f-100b-53be-b3e2-c18d02c8c219",
+    "name": "Marcha com duas canadianas — após PTA",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Cardiovascular"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "c41588d5-3490-5ed1-a29a-8629873dec71",
+    "name": "Marcha em plano — recuperação do tornozelo",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Cardiovascular"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "3d0b208a-3f92-4320-b60e-97e382b3acee",
+    "name": "Mobilidade ativa de mão/punho",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "bc36ebf4-49f3-4143-9ec0-421310b6b679",
+    "name": "Mobilidade Cervical",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "88ee59b8-d780-4ab3-8e22-942f755a1299",
+    "name": "Mobilidade cervical com membro superior apoiado",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "09e5c080-7b46-4174-b355-ded65d0b0dca",
+    "name": "Mobilidade de mão e punho com membro superior apoiado",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "70305859-567a-59a6-8cc3-4ba3621b1d64",
+    "name": "Mobilidade de pronação e supinação com cotovelo apoiado",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Bastão"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "d612b25c-09a3-4b12-90ec-a4f822ba9643",
+    "name": "Mobilidade escapular circular",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "9a513574-46ab-59ce-bcbd-dcefdcbba77e",
+    "name": "Mobilidade isolada suave da ponta do dedo",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "eed20690-3fff-44ab-a190-d860e151163a",
+    "name": "Mountain Climber",
+    "categoria": [
+      "Membro Superior",
+      "Membro Inferior",
+      "Core"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "7fa97c11-b7b1-54f3-98f9-d5febfe99e3c",
+    "name": "Oposição suave do polegar, sem pinça",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "4c08209f-752c-5f99-8c0d-6f899d95a094",
+    "name": "Passada curta com apoio na bancada — mobilidade da anca",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "f9ecc876-b099-59e8-a24c-9b05142042dd",
+    "name": "Passos laterais com elástico — controlo da anca",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "9ffb13b6-2346-5240-a76e-a2cdae2475e7",
+    "name": "Passos laterais controlados junto da bancada",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "06ecd5c5-8e5d-5363-8d27-cf1b8ee81f30",
+    "name": "Pé para cima com elástico — dorsiflexão",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "8ee1fffd-45c5-543c-8532-d9dc287d0365",
+    "name": "Pé para fora com elástico — eversão",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "7b3e8df2-0afc-48c3-b13a-74e3f7d574a7",
+    "name": "Pêndulares de Codman",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "04bfe54b-33c3-4386-93ce-657441aa04e6",
+    "name": "Polia assistida para elevação do ombro",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Polia"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "0196d42b-7e6d-5dc4-9a34-6d055664925c",
+    "name": "Ponte glútea — recuperação do tornozelo",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "1424fa17-5c85-59d3-b946-182ed113461e",
+    "name": "Ponte glútea bilateral",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "11a70293-9990-4df2-8025-ed9c28f994ec",
+    "name": "Ponte unipodal",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento",
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "8809542f-7cb6-5df9-9581-258873b3975b",
+    "name": "Ponte unipodal — progressão funcional da anca",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "b4bd0a2e-fc2c-43b6-ab15-56cd7b5bdfc9",
+    "name": "Prancha Abdominal",
+    "categoria": [
+      "Membro Superior",
+      "Core",
+      "Corpo Inteiro",
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "38f9dce8-c8b1-4a71-81da-ecddb832881a",
+    "name": "Preensão de bola de espuma com braço apoiado",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Bola"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "0137e01f-ecdd-5df6-b645-98cc49f3e8f3",
+    "name": "Pressão suave do pé para fora — isométrico",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "e62a352c-ea41-4fe2-ab52-0db7f30aca4d",
+    "name": "PROM em supino (assistido)",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Clínica"
+    ]
+  },
+  {
+    "id": "4bfc0377-39dd-5caf-8963-97cee81fb251",
+    "name": "Pronação e supinação resistidas com alavanca curta",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Halteres",
+      "Bastão"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "f108b933-6577-4f35-9a7c-1a08044f8485",
+    "name": "Punch do serrátil anterior",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "56a02254-5f02-4000-b7cd-182d14bbabd6",
+    "name": "Push-up plus com apoio nos joelhos",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento",
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "39d7f803-bad0-4915-a1f5-2b163bdea4a9",
+    "name": "Push-up plus na parede/bancada",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "2d94e172-afbd-58c6-af0a-a8255c97e7d0",
+    "name": "Recuo da bacia com mãos na bancada",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "b8baad08-8b05-46b5-8e8e-55473ed0358d",
+    "name": "Remada com elástico",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "6feb7567-eabe-4c13-bbf7-f82e38de7685",
+    "name": "Remada com Halteres",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Halteres"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "f49d08a3-197c-41c1-9f4d-9be751f27a2b",
+    "name": "Remada TRX",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "TRX"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "3fe4abac-ccab-4540-9514-4be7dda1b7b2",
+    "name": "Remada unilateral",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Halteres"
+    ],
+    "locais": [
+      "Ginásio",
+      "Casa"
+    ]
+  },
+  {
+    "id": "1c2f17e0-3434-454f-9ffe-888ab344d09b",
+    "name": "Reverse Lunge",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento",
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Peso Corporal",
+      "Halteres"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "cd2d3adf-cb13-477c-b1ea-5b4b6c73c45f",
+    "name": "Romanian Deadlift",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Halteres"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "e6b7bf62-26bf-4fa3-9ed0-d23d667968d3",
+    "name": "Rotação externa de ombro com elástico",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "37456953-6f3b-4071-bfdf-7f7e21360d95",
+    "name": "Rotação Externa do Ombro – Mobilização Ativa-Assistida com Bastão",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Bastão"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "c5c1c721-70fd-44eb-94ab-7761253f611c",
+    "name": "Rotação externa do ombro a 90° de abdução com elástico",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "afb3cec5-955d-4121-8749-901f3cc15a20",
+    "name": "Rotação externa do ombro autoassistida em supino com bastão",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Bastão"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "ed70fdab-995e-46f1-9645-c24270296541",
+    "name": "Rotação externa do ombro com apoio no vão da porta",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "f0b013d3-7542-48d6-b93d-5a849fd4d92d",
+    "name": "Rotação externa do ombro em decúbito lateral",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento",
+      "Halteres"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "ec1134a2-523c-42e8-9bb4-48ff667a9495",
+    "name": "Rotação interna de ombro com elástico",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "7ff08c12-f5aa-48a1-bd6c-ab07db3d4de4",
+    "name": "Rotação Interna do Ombro – Alongamento Ativo-Assistido com Bastão",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Bastão"
+    ],
+    "locais": [
+      "Clínica",
+      "Casa"
+    ]
+  },
+  {
+    "id": "ea3e4dab-8d27-4913-99d1-ba978c05cc38",
+    "name": "Rotação interna do ombro a 90 graus de abdução com elástico",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "3a01f07d-8a8c-4084-aa6c-182055d10064",
+    "name": "Rotação interna do ombro autoassistida com toalha atrás das costas",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "e84c8789-82e1-463e-b414-f3feb09caa52",
+    "name": "Rotação interna do ombro autoassistida em supino a 45 graus",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Bastão"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "89d285c4-6e71-4e45-8d36-56ac2c2322da",
+    "name": "Scaption com halteres leves",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Halteres"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "05b8122d-a8b1-5afc-ac75-1b272a6dfcda",
+    "name": "Sentar e levantar — recuperação do tornozelo",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "6da72c45-3ec1-5f36-b3ea-f7f6ff2afa7b",
+    "name": "Sentar e levantar com braços da cadeira — após PTA",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "2390babe-f755-5163-9135-b0baf70d1e5d",
+    "name": "Sentar e levantar de cadeira",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "dcaee938-1b91-49a5-a1a7-cd98310af552",
+    "name": "Shoulder Press",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Máquina"
+    ],
+    "locais": [
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "f7822c7a-c70a-46a7-a7c4-c533248a9f53",
+    "name": "Step-down frontal",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento",
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "21e0a814-794a-4c77-85d1-a92a34ae2ace",
+    "name": "Step-down lateral",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento",
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "1ba475e5-d6b1-574f-af42-0e8af5e480ef",
+    "name": "Subida de degrau baixo com apoio",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "ef3b2232-96dc-5c82-a799-58c4d74ff137",
+    "name": "Subir e descer um degrau baixo com apoio — tornozelo",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "bc3b1c37-7b01-4d05-991c-44111529ebcb",
+    "name": "Supino plano com Halteres",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Halteres"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "76a85b9e-6b1a-4521-9e38-725e18fff4ee",
+    "name": "Thruster Dumbbel",
+    "categoria": [
+      "Membro Superior",
+      "Membro Inferior",
+      "Core",
+      "Corpo Inteiro"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Halteres"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "1e61202e-380d-54a9-b35c-101562acf0a0",
+    "name": "Toques em três direções com apoio",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "5cca12ee-036a-5baa-984f-825c45cf4106",
+    "name": "Torção controlada de toalha com resistência leve",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "2dcdbf1a-7310-5675-ad95-78c91601f4be",
+    "name": "Tornozelo para cima e para baixo",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "1da52705-c100-506a-817a-6812ae9a670e",
+    "name": "Transferência de peso com apoio — tornozelo",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "075634b8-38e8-5a60-9ca9-8c7dca2b77f3",
+    "name": "Transferência lateral de peso com apoio das mãos",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Propriocepção / Equilíbrio"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "144adb7e-da93-5091-a07b-1c8f97e86e3c",
+    "name": "Transição em passada — frente e parte posterior da coxa",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica",
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "f50200cc-d85b-5cd9-988f-facd8f136ca3",
+    "name": "Transporte de carga leve com punho alinhado",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Halteres"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "3c745c7f-d2a3-434d-b9a3-7e66bcb99e24",
+    "name": "Tricep Kick Back Polia",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Máquina"
+    ],
+    "locais": [
+      "Ginásio"
+    ]
+  },
+  {
+    "id": "709320bf-d00a-4e6f-b1df-44a9dd2dfee9",
+    "name": "Wall Sit",
+    "categoria": [
+      "Membro Inferior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação",
+      "Treino"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Peso Corporal"
+    ],
+    "locais": [
+      "Casa",
+      "Ginásio",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "bfc3ed06-2fc6-41cd-b41f-73e0f2c6eae8",
+    "name": "Wall slide com apoio dos antebraços",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento",
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "3bfc1665-5d73-4a77-8959-d684a96e0c95",
+    "name": "Wall slide com elástico e afastamento final",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Elásticos"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "c48275e5-61c9-42d1-a30b-5eda2bb05d09",
+    "name": "Wall slide com rolo de espuma",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento",
+      "Fortalecimento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "207047ea-7287-40fd-b9ad-4afd77054775",
+    "name": "Wall slides",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  },
+  {
+    "id": "232cb135-7d2b-47fe-971b-f7908e3c3d13",
+    "name": "Wall slides multidirecionais",
+    "categoria": [
+      "Membro Superior"
+    ],
+    "contextos_exercicio": [
+      "Reabilitação"
+    ],
+    "objetivos_exercicio": [
+      "Mobilidade / Alongamento"
+    ],
+    "equipamento": [
+      "Sem equipamento"
+    ],
+    "locais": [
+      "Casa",
+      "Clínica"
+    ]
+  }
+]
