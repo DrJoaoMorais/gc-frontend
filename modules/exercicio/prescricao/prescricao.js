@@ -1,3 +1,5 @@
+import { PLANOS_CASA, configuracaoPlanoCasa, preverPlanoCasa, tempoPlanoCasa } from './planos-casa.js?v=2026-11-01-1';
+import { PADROES_CASA, catalogoCasa, sugerirVariantesCasa, semanaCasa, proporProgramaCasa } from './programa-casa.js?v=2026-11-01-1';
 import { organizarExercicio, pertenceFinalidade, doseInicialDoCatalogo, doseCatalogoDefinida } from './catalogo-organizacao.js?v=2026-10-31-organizacao';
 import { lerDisponibilidadeQuestionario, normalizarDisponibilidade, disponibilidadeInicial, capturarDisponibilidade, minutosDisponiveis } from './disponibilidade-treino.js?v=2026-10-31-disponibilidade';
 import { doseProtocoloCompleta, pedirDosesIndividuais } from './dose-protocolo.js?v=2026-10-30-doses-genericas-1';
@@ -17,7 +19,7 @@ import { mountClinicPicker, normalizeClinicIds } from '../../clinic-picker.js';
    ================================================================= */
 
 import { G } from '../../state.js';
-import { disponibilidadeCircuito, proporComposicaoCircuito, tempoCircuitoGuardado, editarBlocosCircuito, assinaturaBlocoCircuito } from './circuito-tempo.js?v=2026-10-31-1';
+import { disponibilidadeCircuito, proporComposicaoCircuito, tempoCircuitoGuardado, editarBlocosCircuito, assinaturaBlocoCircuito } from './circuito-tempo.js?v=2026-11-01-repeticoes-v2';
 import { initCatalogo } from '../catalogo/catalogo.js';
 import { fmtPaceEditavel, parsePaceParaSegundos } from '../shared/pace.js';
 import { abrirZonasTreino } from '../shared/zonas-treino.js?v=2026-08-12-5';
@@ -33,7 +35,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-10-31-circuito-acesso-v2';
+const PRESCRICAO_CSS_VERSION = '2026-11-01-programa-casa-v1';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -2154,6 +2156,7 @@ function ctAdicionarAPrescricao() {
   _state.sessions = [...foraDoIntervalo, ...calendarioConfirmado]
     .sort((a, b) => a.date.localeCompare(b.date) || (Number(a.order) || 0) - (Number(b.order) || 0));
   _state.disponibilidadeTreino = capturarDisponibilidade(ct, ctDisp, ctDataDoDia, _state.disponibilidadeTreino);
+  if (ct.programReviewDate) _state.dataRevisao=ct.programReviewDate;
   const fimAntigo = _state.endDate;
   if (ct.inicio < _state.startDate) _state.startDate = ct.inicio;
   if (ct.fim > _state.endDate) _state.endDate = ct.fim;
@@ -2186,7 +2189,7 @@ function ctRender() {
   const back = editar ? 'Cancelar edição e voltar ao plano' : biblioteca ? 'Voltar ao plano' : 'Voltar à prescrição';
   root.innerHTML = `
     <section class="gcwo-ct gcwo-ct-flow" id="gcwoCt" data-ct-view="${editar ? 'editor' : biblioteca ? 'biblioteca' : 'calendario'}">
-      <div class="gcwo-ct-top"><div><button type="button" class="gcwo-backlink" id="gcwoVoltarPrescricao">← ${back}</button><h2>${titulo}</h2></div><span class="gcwo-ct-nota">${escHtml(ctFmtIntervalo(ct.inicio, ct.fim))}</span></div>
+      <div class="gcwo-ct-top"><div><button type="button" class="gcwo-backlink" id="gcwoVoltarPrescricao">← ${back}</button><h2>${titulo}</h2></div>${!editar ? '<button type="button" class="gcBtnOutline" data-ct="programa-casa">Planos pré-feitos · Casa</button>' : ''}<span class="gcwo-ct-nota">${escHtml(ctFmtIntervalo(ct.inicio, ct.fim))}</span></div>
       <details class="gcwo-ct-periodo" id="gcwoCtPeriodo" ${ct.definicoesAbertas ? 'open' : ''}><summary>Período do plano · ${escHtml(ctFmtIntervalo(ct.inicio, ct.fim))}</summary>${ctRenderDefinicoes()}</details>
       <div class="gcwo-ct-workspace">
         <aside class="gcwo-ct-sidebar" id="gcwoCtSidebar" aria-label="Semana e disponibilidade">${ctRenderCalendario()}</aside>
@@ -2420,6 +2423,89 @@ function ctRenderDetalhe() {
     </div>`);
 }
 
+function abrirPlanosCasa() {
+  if (!_criarTreino) return;
+  document.getElementById('gcwoPlanosCasa')?.remove();
+  const overlay=document.createElement('div');overlay.id='gcwoPlanosCasa';overlay.className='gcwo-modal-overlay';
+  let escolhido=null,semana=1,sessaoIndex=0,filtro='todos';
+  const fechar=()=>overlay.remove();
+  const lista=()=>{
+    escolhido=null;
+    const planos=PLANOS_CASA.filter(p=>filtro==='todos'||String(p.minutos)===filtro);
+    overlay.innerHTML=`<section class="gcwo-modal gcwo-planos-modal" role="dialog" aria-modal="true" aria-labelledby="gcwoPlanosTitulo"><div class="gcwo-modal-head"><h3 id="gcwoPlanosTitulo">Planos pré-feitos · Casa</h3><button type="button" data-plano-fechar aria-label="Fechar planos">✕</button></div><div class="gcwo-modal-body"><p class="gcwo-planos-lead">Escolha um plano com exercícios, doses e semana já preenchidos.</p><div class="gcwo-chips" aria-label="Duração dos planos">${[['todos','Todos'],['20','20 minutos'],['30','30 minutos'],['45','45 minutos']].map(([v,l])=>`<button type="button" class="gcwo-chip${filtro===v?' on':''}" data-plano-filtro="${v}">${l}</button>`).join('')}</div><div class="gcwo-planos-grid">${planos.map(p=>`<article class="gcwo-plano-card ${p.nivel==='leve'?'iniciacao':'moderado'}"><span class="gcwo-plano-nivel">${p.nivel==='leve'?'Iniciação':'Moderado'}</span><h4>${escHtml(p.nome)}</h4><p>${escHtml(p.resumo)}</p><div class="gcwo-plano-factos"><strong>${p.minutos} min/sessão</strong><strong>${p.frequencia} sessões/semana</strong><span>4 semanas · Casa · Peso corporal</span></div><button type="button" class="gcBtnPrimary" data-plano-ver="${p.id}">Ver plano preenchido</button></article>`).join('')}</div><p class="gcwo-muted">Planos-base para revisão individual pelo prescritor. Podem incluir chão, cadeira e bancada; sem saltos por defeito. Nenhum plano é atribuído ao abrir a pré-visualização.</p></div></section>`;
+  };
+  const detalhe=()=>{
+    const p=escolhido,modelo=preverPlanoCasa(p,_state.exercisesCatalog,ex=>tempoPorRepeticaoCatalogo(ex).segundos);
+    const linhas=modelo.sessoes.filter(r=>r.sessao.training_program.week===semana);
+    sessaoIndex=Math.min(sessaoIndex,Math.max(0,linhas.length-1));const ativa=linhas[sessaoIndex];
+    const exById=new Map(_state.exercisesCatalog.map(e=>[e.id,e]));
+    const ficha=ativa?ativa.sessao.blocks.map((b,i)=>{
+      if(b.tipo==='fixed')return `<section class="gcwo-plano-bloco fixo"><div><span class="gcwo-plano-num">${i+1}</span><h4>${escHtml(b.name)}</h4><strong>${tempoPlanoCasa(b.duration_sec)}</strong></div></section>`;
+      return `<section class="gcwo-plano-bloco"><div><span class="gcwo-plano-num">${i+1}</span><h4>${escHtml(b.name)}</h4></div><p>${b.rounds} rondas · pausa após exercício: ${tempoPlanoCasa(b.exercicios[0]?.rest_after_s)} · entre rondas: ${tempoPlanoCasa(b.rest_between_rounds_s)}</p><div class="gcwo-plano-exercicios">${b.exercicios.map((e,j)=>{const ex=exById.get(e.exercise_id);return `<article>${ex?.photo_url?`<img src="${escAttr(ex.photo_url)}" alt="${escAttr(e.name)}" loading="lazy">`:`<span class="gcwo-plano-exnumero">${j+1}</span>`}<div><strong>${escHtml(e.name)}</strong><span>${e.measure==='reps'?`${e.value} repetições no total`:`${e.value} segundos`} · ${b.rounds} rondas</span><small>Pausa: ${tempoPlanoCasa(e.rest_after_s)}</small></div></article>`;}).join('')}</div></section>`;
+    }).join(''):'';
+    overlay.innerHTML=`<section class="gcwo-modal gcwo-planos-modal" role="dialog" aria-modal="true" aria-labelledby="gcwoPlanosTitulo"><div class="gcwo-modal-head"><button type="button" data-plano-voltar aria-label="Voltar aos planos">←</button><h3 id="gcwoPlanosTitulo">${escHtml(p.nome)}</h3><button type="button" data-plano-fechar aria-label="Fechar planos">✕</button></div><div class="gcwo-modal-body"><div class="gcwo-plano-resumo"><span>${p.nivel==='leve'?'Iniciação · esforço aeróbio 3–4/10':'Moderado · esforço aeróbio 5–6/10'}</span><strong>${p.minutos} min · ${p.frequencia} sessões/semana · 4 semanas</strong><p>Plano-base já preenchido. Atribuir cria uma cópia editável para o doente e ajusta a duração ao tempo disponível.</p></div>${modelo.erros.length?`<p class="gcwo-circ-warning">Não foi possível completar o modelo com o catálogo carregado: ${escHtml(modelo.erros[0])}</p>`:`<div class="gcwo-chips" aria-label="Semanas do plano">${[1,2,3,4].map(w=>`<button type="button" class="gcwo-chip${semana===w?' on':''}" data-plano-semana="${w}">Semana ${w}</button>`).join('')}</div><div class="gcwo-plano-sessoes" aria-label="Sessões da semana">${linhas.map((r,i)=>`<button type="button" class="${i===sessaoIndex?'on':''}" data-plano-sessao="${i}"><strong>${escHtml(r.nome)}</strong><span>${diaSemanaDeIso(r.date).label} · ${r.minutos} min</span></button>`).join('')}</div><p class="gcwo-muted">Nos restantes dias: recuperação ou atividade ligeira. Semanas 3–4: manter a dose até reavaliação; não há aumento automático.</p><div class="gcwo-plano-ficha"><h3>${escHtml(ativa.nome)} · ${p.minutos} minutos</h3>${ficha}<p class="gcwo-circ-warning">${escHtml(ativa.sessao.notes).replace(/\n/g,'<br>')}</p></div>`}</div><div class="gcwo-casa-footer"><button type="button" class="gcBtnOutline" data-plano-voltar>Ver outros planos</button><button type="button" class="gcBtnSuccess" data-plano-usar ${modelo.erros.length?'disabled':''}>Usar este plano no doente</button></div></section>`;
+  };
+  overlay.addEventListener('click',e=>{
+    const el=e.target.closest('[data-plano-fechar],[data-plano-voltar],[data-plano-filtro],[data-plano-ver],[data-plano-semana],[data-plano-sessao],[data-plano-usar]');if(!el||el.disabled)return;
+    if(el.hasAttribute('data-plano-fechar'))return fechar();
+    if(el.hasAttribute('data-plano-voltar'))return lista();
+    if(el.dataset.planoFiltro){filtro=el.dataset.planoFiltro;return lista();}
+    if(el.dataset.planoVer){escolhido=PLANOS_CASA.find(p=>p.id===el.dataset.planoVer);semana=1;sessaoIndex=0;return detalhe();}
+    if(el.dataset.planoSemana){semana=Number(el.dataset.planoSemana);sessaoIndex=0;return detalhe();}
+    if(el.dataset.planoSessao!=null){sessaoIndex=Number(el.dataset.planoSessao);return detalhe();}
+    if(el.hasAttribute('data-plano-usar')){
+      if(_criarTreino.editar){
+        if(_panelDraft&&sessaoTemConteudo(_panelDraft)){const aviso=document.createElement('p');aviso.className='gcwo-circ-warning';aviso.textContent='Há uma sessão em edição. Confirme-a ou cancele-a antes de atribuir um programa, para preservar o trabalho.';overlay.querySelector('.gcwo-modal-body').prepend(aviso);return;}
+        ctFecharEditorSemGuardar();_criarTreino.vista='calendario';_criarTreino.destinoEscolha=null;ctRender();
+      }
+      const plano=escolhido;fechar();abrirProgramaCasa(plano);
+    }
+  });
+  overlay.addEventListener('keydown',e=>{if(e.key==='Escape')fechar();});lista();document.body.appendChild(overlay);
+}
+
+function abrirProgramaCasa(preset = null) {
+  if (!_criarTreino || _criarTreino.editar) return;
+  const anterior = document.getElementById('gcwoProgramaCasa'); if (anterior) anterior.remove();
+  const variantes = sugerirVariantesCasa(_state.exercisesCatalog), elegiveis = catalogoCasa(_state.exercisesCatalog);
+  const overlay = document.createElement('div'); overlay.id='gcwoProgramaCasa'; overlay.className='gcwo-modal-overlay';
+  const dias=['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
+  const opcoes = value => `<option value="">Escolher no catálogo…</option>${elegiveis.map(e=>`<option value="${escAttr(e.id)}" ${value===e.id?'selected':''}>${escHtml(e.name)}</option>`).join('')}`;
+  const inputs = (key,label,value,min=0,max=1440) => `<label class="gcwo-field"><span>${label}</span><input type="number" min="${min}" max="${max}" step="1" data-casa="${key}" value="${value}"></label>`;
+  overlay.innerHTML=`<section class="gcwo-modal gcwo-homeprogram-modal" role="dialog" aria-modal="true" aria-labelledby="gcwoCasaTitulo"><div class="gcwo-modal-head"><h3 id="gcwoCasaTitulo">${preset ? `Atribuir: ${escHtml(preset.nome)}` : 'Programa de 4 semanas · Casa'}</h3><button type="button" id="gcwoCasaFechar" aria-label="Fechar programa">✕</button></div><div class="gcwo-modal-body"><p class="gcwo-readonly-note">${preset ? `<strong>${escHtml(preset.nome)} · ${preset.minutos} min · ${preset.frequencia} sessões/semana</strong><br>` : ''}Proposta editável para rever individualmente. Preserva os treinos existentes. Os dias sem sessão ficam para recuperação ou atividade ligeira. Não existe progressão automática.</p><details class="gcwo-casa-personalizar" ${preset ? '' : 'open'}><summary>Personalizar datas, dias e dose</summary><div class="gcwo-circ-config-grid"><label class="gcwo-field"><span>Início</span><input type="date" data-casa="inicio" value="${escAttr(_criarTreino.inicio)}"></label><label class="gcwo-field"><span>Sessões por semana</span><select data-casa="frequencia"><option value="3">3 · duas de força e uma de cardio</option><option value="4">4 · duas de força e duas de cardio</option><option value="5">5 · duas de força, duas de cardio e uma mista</option></select></label><label class="gcwo-field"><span>Duração máxima</span><select data-casa="minutos">${[20,30,45].map(m=>`<option value="${m}">${m} minutos</option>`).join('')}</select></label><label class="gcwo-field"><span>Intensidade aeróbia inicial</span><select data-casa="nivel"><option value="leve">Adaptação · esforço 3–4/10</option><option value="moderado">Moderado · esforço 5–6/10</option></select></label>${inputs('voltas','Voltas de força pretendidas',2,1,5)}${inputs('reps','Repetições totais por exercício',8,1,30)}${inputs('pausa','Pausa após exercício (s)',45)}${inputs('entreVoltas','Pausa entre voltas (s)',60)}</div><h4>Distribuição semanal</h4><div id="gcwoCasaSemana" class="gcwo-casa-semana"></div><p class="gcwo-muted">Pelo menos um dia entre força ou misto. A/B alternam entre semanas; o cardio varia por blocos sem saltos. Dias e exercícios podem ser ajustados.</p></details><h4>Tempo disponível do doente</h4><label class="gcwo-casa-check"><input type="checkbox" id="gcwoCasaUsarCalendario" ${_criarTreino.origemDisponibilidade?'checked':''}> Usar os tempos e dias disponíveis do calendário; confirmo a informação apresentada.</label>${inputs('tempoConfirmado','Se não usar o calendário: minutos disponíveis, confirmados em consulta','',1,1440)}<p class="gcwo-muted">A sessão usa o menor valor entre a duração escolhida e o tempo confirmado. Não considera uma resposta ausente como 30 minutos.</p><details class="gcwo-casa-personalizar"><summary>Personalizar exercícios das sessões A/B</summary><h4>Variantes A e B · apenas catálogo existente</h4><p class="gcwo-muted">Reveja a adequação ao chão, cadeira e bancada. Os apoios têm de ser estáveis. Não há saltos nem burpees por defeito. Nos unilaterais, o valor é o total dos dois lados: 8 significa 4 + 4. Pranchas, isométricos e equilíbrio estático usam inicialmente 20 s; os restantes exercícios usam as repetições indicadas.</p><div class="gcwo-casa-variantes">${['A','B'].map(t=>`<section><h4>Força ${t}</h4>${PADROES_CASA.map((p,i)=>`<label class="gcwo-field"><span>${p.nome}</span><select data-casa-variante="${t}:${i}">${opcoes(variantes[t][i])}</select></label>`).join('')}</section>`).join('')}</div></details><p class="gcwo-circ-warning">Reavaliação após 2 semanas. Nas semanas 3–4, a dose mantém-se até ser revista. Não há um plano universal para todas as pessoas com excesso de peso.</p><label class="gcwo-casa-check"><input type="checkbox" id="gcwoCasaRevisto"> Revi os exercícios, a dose, os apoios e o esforço para este doente.</label><div id="gcwoCasaPreview" role="status" aria-live="polite"><p>Calcule a proposta para ver as quatro semanas antes de aplicar.</p></div></div><div class="gcwo-casa-footer"><button type="button" class="gcBtnOutline" id="gcwoCasaCalcular">Ver calendário do doente</button><button type="button" class="gcBtnSuccess" id="gcwoCasaAplicar" disabled>Atribuir cópia ao calendário</button></div></section>`;
+  document.body.appendChild(overlay);
+  let proposta=null, config=null;
+  const focoAnterior=document.activeElement;const fechar=()=>{overlay.remove();focoAnterior?.focus?.();};overlay.querySelector('#gcwoCasaFechar').onclick=fechar;overlay.addEventListener('keydown',e=>{if(e.key==='Escape')fechar();});overlay.querySelector('#gcwoCasaTitulo').tabIndex=-1;overlay.querySelector('#gcwoCasaTitulo').focus();
+  const semanaDOM=()=>{const sem=semanaCasa(Number(overlay.querySelector('[data-casa="frequencia"]').value));overlay.querySelector('#gcwoCasaSemana').innerHTML=sem.map((d,i)=>`<label class="gcwo-field"><span>${d.tipo==='forca'?'Força '+d.variante:d.tipo==='misto'?'Misto C':'Cardio '+d.variante}</span><select data-casa-dia="${i}">${dias.map((nome,k)=>`<option value="${k}" ${d.dia===k?'selected':''}>${nome}</option>`).join('')}</select></label>`).join('');};
+  if(preset){const c=configuracaoPlanoCasa(preset,_state.exercisesCatalog,_criarTreino.inicio);overlay.querySelectorAll('[data-casa]').forEach(el=>{if(c[el.dataset.casa]!=null)el.value=c[el.dataset.casa];});}
+  semanaDOM();
+  const limpar=()=>{proposta=null;overlay.querySelector('#gcwoCasaAplicar').disabled=true;overlay.querySelector('#gcwoCasaPreview').innerHTML='<p>Os parâmetros mudaram. Volte a calcular a proposta.</p>';};
+  overlay.addEventListener('input',e=>{if(e.target.id==='gcwoCasaRevisto'){overlay.querySelector('#gcwoCasaAplicar').disabled=!proposta||proposta.erros.length>0||!e.target.checked;return;}limpar();});
+  overlay.addEventListener('change',e=>{if(e.target.id==='gcwoCasaRevisto')return;if(e.target.matches('[data-casa="frequencia"]'))semanaDOM();limpar();});
+  const ler=()=>{const c={};overlay.querySelectorAll('[data-casa]').forEach(el=>c[el.dataset.casa]=['inicio','nivel'].includes(el.dataset.casa)?el.value:el.value===''?null:Number(el.value));c.variantes={A:[],B:[]};overlay.querySelectorAll('[data-casa-variante]').forEach(el=>{const[t,i]=el.dataset.casaVariante.split(':');c.variantes[t][Number(i)]=el.value;});if(preset){c.programName=preset.nome;c.programSource=preset.id;}c.semana=semanaCasa(c.frequencia).map((d,i)=>({...d,dia:Number(overlay.querySelector(`[data-casa-dia="${i}"]`).value)}));return c;};
+  const contexto=c=>({catalogo:_state.exercisesCatalog,criarId:uuid,tempoRepeticao:ex=>tempoPorRepeticaoCatalogo(ex).segundos,ocupado:date=>_state.sessions.some(s=>s.date===date)||_criarTreino.semanas.some((sem,w)=>sem.dias.some((slots,d)=>ctDataDoDia(d,w)===date&&slots.length)),disponibilidade:date=>{
+    if(!overlay.querySelector('#gcwoCasaUsarCalendario').checked)return{ativo:c.tempoConfirmado>0,min:c.tempoConfirmado};
+    const offset=Math.round((dataDeIso(date)-dataDeIso(segundaFeiraDeIso(_criarTreino.inicio)))/86400000);if(offset<0)return null;
+    const w=Math.floor(offset/7),d=offset%7,excecao=_criarTreino.disponibilidadeBase?.porData?.[date];
+    return excecao||ctDisp(Math.min(w,_criarTreino.semanas.length-1),d);
+  }});
+  const calcular=()=>{config=ler();proposta=proporProgramaCasa(config,contexto(config));const host=overlay.querySelector('#gcwoCasaPreview');
+    if(proposta.erros.length){host.innerHTML=`<div class="gcwo-circ-warning"><strong>Rever antes de aplicar</strong><ul>${proposta.erros.slice(0,10).map(e=>`<li>${escHtml(e)}</li>`).join('')}</ul>${proposta.erros.length>10?`<p>Mais ${proposta.erros.length-10} dias por resolver.</p>`:''}</div>`;overlay.querySelector('#gcwoCasaAplicar').disabled=true;return;}
+    host.innerHTML=`<h4>${proposta.sessoes.length} sessões · reavaliar em ${escHtml(fmtDataPtIso(proposta.review))}</h4><p>A força inclui as pausas. O cardio ocupa o tempo restante. Os tempos de execução por repetição são aproximados.</p><div class="gcwo-casa-preview-table"><table><thead><tr><th>Data</th><th>Sessão</th><th>Força e pausas</th><th>Cardio</th><th>Total</th></tr></thead><tbody>${proposta.sessoes.map(r=>`<tr><td>${escHtml(fmtDiaMesCurtoIso(r.date))}</td><td>${escHtml(r.nome)}${r.doseReduzida?' · menos voltas':''}</td><td>${fmtDuracaoTotal(r.forca)}</td><td>${fmtDuracaoTotal(r.cardio)}</td><td>${r.minutos} min${r.ajustado?' · ajustado':''}</td></tr>`).join('')}</tbody></table></div><p>Aquecimento e retorno à calma estão incluídos no total. Dias sem treino: recuperação ou atividade ligeira. O plano permanece editável antes de guardar.</p>`;
+    overlay.querySelector('#gcwoCasaAplicar').disabled=!overlay.querySelector('#gcwoCasaRevisto').checked;
+  };
+  overlay.querySelector('#gcwoCasaCalcular').onclick=calcular;
+  overlay.querySelector('#gcwoCasaAplicar').onclick=()=>{
+    if(!proposta||proposta.erros.length||!overlay.querySelector('#gcwoCasaRevisto').checked)return;
+    // Confere de novo o contexto no momento de aplicar; nunca substitui um dia ocupado.
+    const atual=proporProgramaCasa(config,contexto(config));if(atual.erros.length){calcular();return;}
+    const ct=_criarTreino;if(config.inicio<ct.inicio){overlay.querySelector('#gcwoCasaPreview').textContent='O início deve ser igual ou posterior ao início do plano atual.';return;}
+    if(atual.fim>ct.fim){ct.fim=atual.fim;ctAjustarSemanas();}
+    atual.sessoes.forEach(r=>{const offset=Math.round((dataDeIso(r.date)-dataDeIso(segundaFeiraDeIso(ct.inicio)))/86400000),w=Math.floor(offset/7),d=offset%7;r.sessao.circuit_availability_override={source:'consulta',minutes:contexto(config).disponibilidade(r.date).min,date:r.date};ct.semanas[w].dias[d].push({id:uuid(),nome:r.nome,sessao:r.sessao});if(!overlay.querySelector('#gcwoCasaUsarCalendario').checked)ctSetDisp(w,d,{ativo:true,min:config.tempoConfirmado,local:'Casa'});});
+    ct.programReviewDate=atual.review;ct.dirty=true;ct.mensagem=`${atual.sessoes.length} sessões propostas; reavaliar em ${fmtDataPtIso(atual.review)}. Reveja cada treino antes de Guardar plano.`;ct.vista='calendario';ct.destinoEscolha=null;ct.semanaFoco=Math.floor(Math.round((dataDeIso(atual.sessoes[0].date)-dataDeIso(segundaFeiraDeIso(ct.inicio)))/86400000)/7);fechar();ctRender();ctMostrarInicio();
+  };
+}
+
 function ctRenderDefinicoes() {
   const ct = _criarTreino;
   const n = ct.semanas.length;
@@ -2460,6 +2546,7 @@ function ctWire() {
     if (el.hasAttribute('data-ct-finalidade') && ct.personalizado) { ct.personalizado.finalidade = el.getAttribute('data-ct-finalidade'); ctRender(); return; }
     if (ds.ct === 'voltar') return sair();
     if (ds.ct === 'adicionar') return ctGuardarPlano();
+    if (ds.ct === 'programa-casa') return abrirPlanosCasa();
     if (ct.editar && (ds.ct || ds.ctAdd || ds.ctSlotEditar || ds.ctSlotTrocar || ds.ctSlotRemover || ds.ctCopiarSemana !== undefined || ds.ctLimparSemana !== undefined || ds.ctRemoverSemana !== undefined || ds.ctAplicarSemana !== undefined || ds.ctDuracao)) { handleGuardarSessao(); if (_panelDraft) return; }
     if (ds.ct === 'semana-anterior' || ds.ct === 'semana-seguinte') { ct.semanaFoco += ds.ct === 'semana-anterior' ? -1 : 1; ctRender(); return; }
     if (ds.ct === 'personalizado') {
@@ -5256,6 +5343,8 @@ async function carregarDisponibilidadeCircuito(s) {
   }
 }
 function disponibilidadeActualCircuito() {
+  const confirmado = _panelDraft?.circuit_availability_override;
+  if (confirmado?.source === 'consulta' && Number.isInteger(confirmado.minutes) && confirmado.minutes > 0 && confirmado.minutes <= 1440 && confirmado.date === _panelDraft.date) return {status:'ready',manual:true,valor:{texto:`${confirmado.minutes} min · confirmado em consulta`,min:confirmado.minutes,max:confirmado.minutes}};
   const d = _state.circuitoDisponibilidade;
   if (d?.key !== `${_state.patient?.id}:${_state.clinicId}`) return null;
   const dia = _panelDraft?.date ? new Date(_panelDraft.date + 'T12:00:00Z').getUTCDay() : null;
@@ -5265,6 +5354,7 @@ function disponibilidadeActualCircuito() {
 }
 function renderDisponibilidadeCircuito() {
   const d = disponibilidadeActualCircuito();
+  if (d?.manual) return `<strong>${escHtml(d.valor.texto)}</strong> · apenas para esta sessão.`;
   if (!d || d.status === 'loading') return 'A consultar o tempo disponível no questionário…';
   if (d.status === 'error') return 'Não foi possível ler o questionário. Volte a tentar antes de aplicar a composição.';
   if (d.status === 'missing') return 'Sem resposta de disponibilidade no último questionário concluído. A composição automática aguarda essa informação.';
@@ -5299,7 +5389,7 @@ function renderComposicaoCircuito(s) {
 function renderPlaneadorCircuito(s) {
   const c = configCircuito(s);
   const campo = (key, label, min, step = 1) => `<label class="gcwo-field"><span>${label}</span><input type="number" min="${min}" step="${step}" data-circ-config="${key}" value="${escAttr(c[key])}"></label>`;
-  return `<section class="gcwo-circ-planner" aria-label="Composição da sessão de circuito"><h3>Preparar a sessão</h3><div class="gcwo-circ-availability" id="gcwoCircDisponibilidade" aria-live="polite">${renderDisponibilidadeCircuito()}</div><span class="gcwo-field-label">Nível inicial</span><div class="gcwo-chips">${[['leve','Leve'],['moderado','Moderado'],['exigente','Exigente']].map(([v,l]) => `<button type="button" class="gcwo-chip${c.nivel === v ? ' on' : ''}" data-circ-nivel="${v}" aria-pressed="${c.nivel === v}">${l}</button>`).join('')}</div><p class="gcwo-muted">O nível é registado pelo prescritor. Os tempos abaixo são editáveis e não mudam automaticamente com o nível.</p><span class="gcwo-field-label">Duração máxima da sessão</span><div class="gcwo-chips">${[20,30,45].map(m => `<button type="button" class="gcwo-chip${Number(c.minutos) === m ? ' on' : ''}" data-circ-minutos="${m}" aria-pressed="${Number(c.minutos) === m}">${m} minutos</button>`).join('')}</div><div class="gcwo-circ-config-grid">${campo('minutos','Outra duração (min)',1)}${campo('voltas','Voltas pretendidas',1)}${campo('trabalho','Trabalho por exercício (s)',1)}${campo('transicao','Transição após exercício (s)',0)}${campo('pausa','Pausa entre voltas (s)',0)}${campo('aquecimento','Aquecimento (min)',0,0.5)}${campo('retorno','Retorno à calma (min)',0,0.5)}</div><div id="gcwoCircComposicao" aria-live="polite">${renderComposicaoCircuito(s)}</div><button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCircAtualizar">Atualizar resposta do questionário</button><button type="button" class="gcBtnGhost" id="gcwoCircAplicar" ${propostaCircuito(s).erro ? 'disabled' : ''}>Aplicar composição aos blocos desta sessão</button><p class="gcwo-muted">Escolha os exercícios nos blocos abaixo. Aplicar substitui os blocos desta sessão pela composição apresentada. O plano só é gravado no botão habitual.</p><span class="gcwo-erro" id="gcwoCircErro" role="status"></span></section>`;
+  return `<section class="gcwo-circ-planner" aria-label="Composição da sessão de circuito"><h3>Preparar a sessão</h3><label class="gcwo-field"><span>Foco desta sessão</span><select id="gcwoCircFoco">${[['forca','Força'],['cardio','Cardio'],['misto','Misto'],['recuperacao','Recuperação']].map(([v,l])=>`<option value="${v}" ${(s.training_focus || 'misto')===v?'selected':''}>${l}</option>`).join('')}</select></label>${s.training_program ? `<p class="gcwo-muted">Semana ${s.training_program.week} · ${s.training_program.frequency} sessões/semana · revisão em ${escHtml(fmtDataPtIso(s.training_program.review_date))}. Sem progressão automática.</p>` : ''}<div class="gcwo-circ-availability" id="gcwoCircDisponibilidade" aria-live="polite">${renderDisponibilidadeCircuito()}</div><span class="gcwo-field-label">Nível inicial</span><div class="gcwo-chips">${[['leve','Leve'],['moderado','Moderado'],['exigente','Exigente']].map(([v,l]) => `<button type="button" class="gcwo-chip${c.nivel === v ? ' on' : ''}" data-circ-nivel="${v}" aria-pressed="${c.nivel === v}">${l}</button>`).join('')}</div><p class="gcwo-muted">O nível é registado pelo prescritor. Os tempos abaixo são editáveis e não mudam automaticamente com o nível.</p><span class="gcwo-field-label">Duração máxima da sessão</span><div class="gcwo-chips">${[20,30,45].map(m => `<button type="button" class="gcwo-chip${Number(c.minutos) === m ? ' on' : ''}" data-circ-minutos="${m}" aria-pressed="${Number(c.minutos) === m}">${m} minutos</button>`).join('')}</div><div class="gcwo-circ-config-grid">${campo('minutos','Outra duração (min)',1)}${campo('voltas','Voltas pretendidas',1)}${campo('trabalho','Trabalho por exercício (s)',1)}${campo('transicao','Transição após exercício (s)',0)}${campo('pausa','Pausa entre voltas (s)',0)}${campo('aquecimento','Aquecimento (min)',0,0.5)}${campo('retorno','Retorno à calma (min)',0,0.5)}</div><div id="gcwoCircComposicao" aria-live="polite">${renderComposicaoCircuito(s)}</div><button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCircAtualizar">Atualizar resposta do questionário</button><button type="button" class="gcBtnGhost" id="gcwoCircAplicar" ${propostaCircuito(s).erro ? 'disabled' : ''}>Aplicar composição aos blocos desta sessão</button><p class="gcwo-muted">Escolha os exercícios nos blocos abaixo. Aplicar substitui os blocos desta sessão pela composição apresentada. O plano só é gravado no botão habitual.</p><span class="gcwo-erro" id="gcwoCircErro" role="status"></span></section>`;
 }
 function wirePlaneadorCircuito(s) {
   document.getElementById('gcwoCircAtualizar').addEventListener('click', () => {
@@ -5339,12 +5429,30 @@ function wirePlaneadorCircuito(s) {
   });
 }
 
+function renderTempoConfirmadoCircuito(s) {
+  const v=s.circuit_availability_override;
+  return `<label class="gcwo-field gcwo-field-sm"><span>Tempo confirmado em consulta para esta sessão (min, opcional)</span><input type="number" min="1" max="1440" id="gcwoCircTempoConfirmado" value="${v?.date===s.date?v.minutes:''}" placeholder="Usar resposta do questionário"></label><p class="gcwo-muted">Preencha quando faltar a resposta ou quando confirmar um tempo diferente. Limpe para voltar ao questionário. Não altera as respostas do doente.</p>`;
+}
+function wireTempoConfirmadoCircuito(s) {
+  document.getElementById('gcwoCircTempoConfirmado').addEventListener('input',e=>{
+    const n=Number(e.target.value);s.circuit_availability_override=e.target.value!==''&&Number.isInteger(n)&&n>0&&n<=1440?{source:'consulta',minutes:n,date:s.date}:null;
+    const host=document.getElementById('gcwoCircDisponibilidade');if(host)host.innerHTML=renderDisponibilidadeCircuito();refreshTempoTotalCircuito(s);
+  });
+  document.getElementById('gcwoCircFoco')?.addEventListener('change',e=>{s.training_focus=e.target.value;});
+}
+function renderResumoProgramaCasa(s) {
+  const p=s.training_program;
+  return `<section class="gcwo-circ-planner"><h3>${escHtml(p.name)} · semana ${p.week}</h3><p>${p.frequency} sessões por semana · reavaliar em ${escHtml(fmtDataPtIso(p.review_date))}.</p><label class="gcwo-field"><span>Foco desta sessão</span><select id="gcwoCircFoco">${[['forca','Força'],['cardio','Cardio'],['misto','Misto'],['recuperacao','Recuperação']].map(([v,l])=>`<option value="${v}" ${s.training_focus===v?'selected':''}>${l}</option>`).join('')}</select></label><p class="gcwo-muted">Edite os blocos abaixo. A força mantém repetições e pausas próprias; o cardio usa blocos temporizados. Não existe progressão automática.</p><div id="gcwoCircDisponibilidade" class="gcwo-circ-availability">${renderDisponibilidadeCircuito()}</div></section>`;
+}
 function renderPanelCircuito(s) {
+  s.training_focus ||= 'misto';
   s.blocks = editarBlocosCircuito(s.blocks, uuid);
   if (s._limiteMin == null && s.circuit_time_limit_min > 0) s._limiteMin = s.circuit_time_limit_min;
   return `
-    ${renderPlaneadorCircuito(s)}
+    ${!s.blocks.length && _criarTreino ? '<div class="gcwo-plano-empty"><h3>Escolher um plano já preenchido</h3><p>Veja exercícios, rondas, pausas e a semana de treino antes de atribuir ao doente.</p><button type="button" class="gcBtnPrimary" id="gcwoEscolherPlanoPronto">Ver planos pré-feitos para casa</button></div>' : ''}
+    ${s.training_program ? renderResumoProgramaCasa(s) : renderPlaneadorCircuito(s)}
     <label class="gcwo-field gcwo-field-sm"><span>Limite de tempo da sessão (min, opcional)</span><input type="number" min="1" id="gcwoPCircLimite" value="${s._limiteMin ?? ''}"></label>
+    ${renderTempoConfirmadoCircuito(s)}
     <div id="gcwoPTempoTotal">${renderTempoTotalCircuitoHtml(s)}</div>
     <span class="gcwo-field-label" style="margin-top:14px;">Blocos</span>
     <div class="gcwo-exercicios" id="gcwoPCircBlocosList">${renderCircBlocosListInner(s)}</div>
@@ -5444,7 +5552,9 @@ function wireCircBlocosList(s) {
 }
 
 function wirePanelCircuito(s) {
-  wirePlaneadorCircuito(s);
+  document.getElementById('gcwoEscolherPlanoPronto')?.addEventListener('click', abrirPlanosCasa);
+  if (!s.training_program) wirePlaneadorCircuito(s);
+  wireTempoConfirmadoCircuito(s);
   carregarDisponibilidadeCircuito(s);
   document.getElementById('gcwoPAddBlocoVoltas').addEventListener('click', () => { s.blocks.push(novoBlocoCircuitoVoltas()); refreshCircBlocosListDom(s); });
   document.getElementById('gcwoPAddBlocoFixo').addEventListener('click', () => { s.blocks.push(novoBlocoCircuitoFixo()); refreshCircBlocosListDom(s); });
@@ -5485,7 +5595,8 @@ function flattenBlocosCircuitoParaGravar(blocks) {
         const catEx = _state.exercisesCatalog.find(c => c.id === ex.exercise_id);
         const { segundos } = duracaoTrabalhoExercicioCircuito(ex);
         intervals.push({
-          type: 'trabalho', label: ex.name, duration_sec: Math.round(segundos),
+          type: 'trabalho', label: ex.measure === 'reps' ? `${ex.name} · ${ex.value} repetições` : ex.name, duration_sec: Math.round(segundos),
+          ...(ex.measure === 'reps' ? { prescribed_measure: 'reps', prescribed_value: ex.value } : {}),
           exercise_id: ex.exercise_id, exercise_name: ex.name,
           photo_url: catEx?.photo_url || null, video_url: catEx?.video_url || null, tecnica_notas: catEx?.tecnica_notas || null, tecnica_info: catEx?.tecnica_info || null,
           exercise_index: ei + 1, exercise_total: exs.length, round_index: r, round_total: R,
@@ -5630,10 +5741,12 @@ function sessaoParaGravarBase(s) {
     momento: s.momento || null,
     notes: (s.notes || '').trim() || null,
     execution_mode: s.kind === 'list' ? modoExecucaoGinasio(s) : null,
+    ...(s.training_focus ? { training_focus: s.training_focus } : {}),
+    ...(s.training_program ? { training_program: s.training_program } : {}),
     ...(Array.isArray(s.recommendations) ? { recommendations_scope: s.recommendations_scope || null, recommendations: s.recommendations, recommendations_image: s.recommendations_image || null, recommendations_image_alt: s.recommendations_image_alt || null } : {}),
   };
   if (s.kind === 'walk') return { ...base, walks: s.walks, stairs_flights: s.stairs_flights };
-  if (s.kind === 'circuit') return { ...base, circuit_config: s.circuit_config || null, circuit_time_limit_min: s._limiteMin ?? s.circuit_time_limit_min ?? null, blocks: flattenBlocosCircuitoParaGravar(s.blocks) };
+  if (s.kind === 'circuit') return { ...base, circuit_availability_override: s.circuit_availability_override || null, circuit_config: s.circuit_config || null, circuit_time_limit_min: s._limiteMin ?? s.circuit_time_limit_min ?? null, blocks: flattenBlocosCircuitoParaGravar(s.blocks) };
   if (s.kind === 'card' && s.modality === 'Natação') {
     return { ...base, blocks: s.blocks, pool_length_m: s.pool_length_m ?? 25, stroke: s.stroke ?? 'crol' };
   }

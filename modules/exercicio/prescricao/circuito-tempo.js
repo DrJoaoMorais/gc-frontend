@@ -67,12 +67,12 @@ export function editarBlocosCircuito(blocks, criarId) {
       const primeira = trabalhos.filter(i => i.round_index === 1);
       const rounds = trabalhos[0]?.round_total;
       if (!primeira.length || !Number.isInteger(rounds) || rounds < 1 || rounds > 1000) return original;
-      const exercicios = primeira.map(i => ({ id: criarId(), exercise_id: i.exercise_id, name: i.exercise_name || i.label, measure: 'time', value: i.duration_sec, rest_after_s: 0 }));
+      const exercicios = primeira.map(i => ({ id: criarId(), exercise_id: i.exercise_id, name: i.exercise_name || i.label, measure: i.prescribed_measure === 'reps' ? 'reps' : 'time', value: i.prescribed_measure === 'reps' ? i.prescribed_value : i.duration_sec, rest_after_s: 0 }));
       let cursor = 0, pausa = null;
       for (let r = 1; r <= rounds; r++) {
         for (let ei = 0; ei < exercicios.length; ei++) {
           const ex = exercicios[ei], i = lista[cursor++];
-          if (!i || i.type !== 'trabalho' || i.exercise_id !== ex.exercise_id || i.duration_sec !== ex.value
+          if (!i || i.type !== 'trabalho' || i.exercise_id !== ex.exercise_id || i.duration_sec !== primeira[ei].duration_sec || (i.prescribed_measure || 'time') !== ex.measure || (ex.measure === 'reps' && i.prescribed_value !== ex.value)
               || i.round_index !== r || i.exercise_index !== ei + 1 || i.round_total !== rounds
               || i.exercise_total !== exercicios.length || (i.exercise_name || i.label) !== ex.name) return original;
           const seguinte = lista[cursor];

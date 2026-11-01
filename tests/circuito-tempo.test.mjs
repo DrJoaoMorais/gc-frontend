@@ -100,4 +100,16 @@ a.setCt(ct);
 const escolha=a.ctRenderEscolha();assert(escolha.includes('data-ct-tipo="circuito"'));assert(escolha.includes('Configurar Circuito'));assert(!escolha.includes('Circuito · em preparação'));
 a.ctEditarEscolhido();assert.equal(a.getDraft().kind,'circuit');assert.equal(a.getDraft().date,dia);assert.equal(a.getDraft().local,'Casa');
 a.getDestino().onGuardar({...a.getDraft(),blocks});assert.equal(ct.semanas[0].dias[6].length,1);assert.equal(ct.semanas[0].dias[6][0].sessao.date,dia);assert.equal(a.getState().sessions.length,1);assert.equal(a.getState().sessions[0].session_id,'intocada');
+
+// The manually confirmed time belongs only to the selected session date.
+a.setState({patient:{id:'manual'},clinicId:'c1',exercisesCatalog:[],circuitoDisponibilidade:{key:'manual:c1',status:'missing'}});
+const manual={date:'2026-11-02',kind:'circuit',blocks,circuit_config:config,circuit_availability_override:{source:'consulta',minutes:15,date:'2026-11-02'}};a.setDraft(manual);
+assert.equal(a.propostaCircuito(manual).limiteMin,15);assert.equal(a.sessaoParaGravar(manual).circuit_availability_override.minutes,15);
+a.setDraft({...manual,date:'2026-11-03'});assert(a.propostaCircuito(manual).erro);
+// Repetition targets and programme metadata survive serialization and reopening.
+const repsBlock={block_id:'reps',tipo:'voltas',name:'Força A',rounds:2,rest_between_rounds_s:60,exercicios:exs.map(e=>({...e,measure:'reps',value:8,rest_after_s:45}))};
+a.setState({patient:{id:'r'},clinicId:'c',exercisesCatalog:[]});
+const programa=a.sessaoParaGravar({kind:'circuit',blocks:[repsBlock],training_focus:'forca',training_program:{week:1,frequency:3,review_date:'2026-11-15'}});
+assert.equal(programa.training_focus,'forca');assert.equal(programa.training_program.frequency,3);
+const editarReps=pure.editarBlocosCircuito(programa.blocks,()=>webcrypto.randomUUID());assert.equal(editarReps[0].exercicios[0].measure,'reps');assert.equal(editarReps[0].exercicios[0].value,8);assert.equal(JSON.stringify(a.flattenBlocosCircuitoParaGravar(editarReps)),JSON.stringify(programa.blocks));
 console.log('PASS: disponibilidade, 20/30/45 min, limite inferior, pausas, reabertura sem perdas, sequências variáveis, isolamento entre doentes e consultas apenas de leitura.');
