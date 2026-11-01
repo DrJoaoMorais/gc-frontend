@@ -3,10 +3,10 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const vm=require('node:vm');const path=require('node:path');
 const {parseHTML}=require('linkedom');
 async function setup(){
- const catalog=await import('../modules/exercicio/prescricao/catalogo-organizacao.js');const helpers=await import('../modules/exercicio/prescricao/disponibilidade-treino.js');const recommendations=await import('../modules/exercicio/prescricao/recomendacoes.js');const doses=await import('../modules/exercicio/prescricao/dose-protocolo.js');const pace=await import('../modules/exercicio/shared/pace.js');
+ const planos=await import('../modules/exercicio/prescricao/planos-casa.js');const circuito=await import('../modules/exercicio/prescricao/circuito-tempo.js');const biblioteca=await import('../modules/exercicio/prescricao/biblioteca-blocos.js');const catalog=await import('../modules/exercicio/prescricao/catalogo-organizacao.js');const helpers=await import('../modules/exercicio/prescricao/disponibilidade-treino.js');const recommendations=await import('../modules/exercicio/prescricao/recomendacoes.js');const doses=await import('../modules/exercicio/prescricao/dose-protocolo.js');const pace=await import('../modules/exercicio/shared/pace.js');
  const {window}=parseHTML('<html><body><div id="gcwoPrescricaoRoot"></div></body></html>');const document=window.document;
  window.HTMLElement.prototype.scrollIntoView=function(){};window.HTMLElement.prototype.focus=function(){};
- const ctx={window,document,console,CSS:{escape:value=>String(value)},structuredClone,URL,Intl,Date,setTimeout,clearTimeout,crypto:require('node:crypto').webcrypto,G:{clinics:[],sessionUser:{id:'medico-demo'}},...catalog,...helpers,...recommendations,...doses,...pace,confirm:()=>true};
+ const ctx={window,document,console,CSS:{escape:value=>String(value)},structuredClone,URL,Intl,Date,setTimeout,clearTimeout,crypto:require('node:crypto').webcrypto,G:{clinics:[],sessionUser:{id:'medico-demo'}},...planos,...circuito,...biblioteca,...catalog,...helpers,...recommendations,...doses,...pace,confirm:()=>true};
  window.sb=new Proxy({}, {get(){throw Error('Unexpected database access during local editing')}});
  const c=vm.createContext(ctx);
  const source=fs.readFileSync(path.join(__dirname,'../modules/exercicio/prescricao/prescricao.js'),'utf8').replace(/^import .*;\s*$/gm,'').replace(/^export /gm,'').replaceAll('import.meta.url',JSON.stringify('file:///prescricao.js'));
@@ -16,6 +16,48 @@ async function setup(){
  _state.sessions=[caminhada('monday','2026-11-02',60),caminhada('wednesday','2026-11-04',20),caminhada('sunday','2026-11-08',60)];abrirCriarTreino();_criarTreino.tipo='caminhada';_criarTreino.atual={nome:'Caminhada',sessao:caminhada('template','2026-11-01',60)};_criarTreino.treinosPorTipo.caminhada=_criarTreino.atual;ctRender();`,c);
  return {window,document,run:code=>vm.runInContext(code,c),get:selector=>document.querySelector(selector),click(selector){const el=document.querySelector(selector);assert.ok(el,selector);el.click()}};
 }
+test('access expiry can precede the last workout and is not extended by programme changes', async()=>{
+ const x=await setup();x.run("_criarTreino=null;_state.linkExpiryMode='selected_date';_state.linkExpiryDate='2026-11-03';_state.savedFingerprint=JSON.stringify(buildFinalData());renderStep2();");
+ assert.equal(x.run('validarPrescricao()'),null);assert.equal(x.get('#gcwoDataValidadeLink').hasAttribute('min'),false);
+ x.run("document.getElementById('gcwoDataFim').value='2026-12-20';document.getElementById('gcwoDataFim').dispatchEvent(new window.Event('change',{bubbles:true}))");assert.equal(x.run('_state.linkExpiryDate'),'2026-11-03');assert.equal(x.run('haSessoesPorGravar()'),true);
+});
+test('main page has one week, visible exercises and catalogue selection copied into an isolated day draft',async()=>{
+ const x=await setup();x.run(`_criarTreino=null;_state.exercisesCatalog=${fs.readFileSync(path.join(__dirname,'fixtures/catalogo-173.json'),'utf8')};renderStep2();`);
+ assert.equal(x.document.querySelectorAll('.gcwo-calweek').length,1);assert.equal(x.document.querySelectorAll('.gcwo-bib-card').length,4);
+ x.click('[data-bib-bloco="inferiores"]');assert.match(x.get('.gcwo-bib-selecao').textContent,/Sentar e levantar/);
+ const first=x.get('[data-bib-exercicio]');first.checked=false;first.dispatchEvent(new x.window.Event('change',{bubbles:true}));
+ x.run("carregarDisponibilidadeCircuito=async()=>{}");const before=x.run('JSON.stringify(_state.sessions)');x.click('[data-colocar-bloco="2026-11-03"]');assert.equal(x.run('_panelDraft.date'),'2026-11-03');assert.equal(x.run('_panelDraft.blocks.find(b=>b.tipo==="voltas").exercicios.length'),3);assert.equal(x.run('JSON.stringify(_state.sessions)'),before);
+});
+test('copying a week gives sessions new identities while preserving source and expiry',async()=>{
+ const x=await setup();x.run("_criarTreino=null;_state.endDate='2026-11-08';_state.linkExpiryDate='2026-11-03';renderStep2();");
+ x.click('#gcwoCopiarSemana');assert.equal(x.run('_state.sessions.length'),6);assert.equal(x.run('_state.sessions[3].date'),'2026-11-09');assert.notEqual(x.run('_state.sessions[3].session_id'),'monday');assert.equal(x.run('_state.linkExpiryDate'),'2026-11-03');assert.equal(x.run('_state.endDate'),'2026-11-15');
+});
+function mockRenewal(x,{zero=false,revoked=false}={}){
+ x.run(`_criarTreino=null;_state.linkExpiryDate='2026-10-30';_state.savedFingerprint=JSON.stringify(buildFinalData());renderStep2();globalThis.remoteData=structuredClone(buildFinalData());globalThis.writes=[];globalThis.queries=[];window.sb={from(table){const filters=[];let patch=null;const q={select(){return q},eq(k,v){filters.push([k,v]);return q},update(v){patch=v;return q},async single(){queries.push({table,filters,write:!!patch});if(!patch)return {data:${revoked?'null':"{id:'demo-plan',data:remoteData,expires_at:'2026-10-30T23:59:59.000Z'}"},error:null};writes.push(patch);return {data:${zero?'null':"{id:'demo-plan'}"},error:null}}};return q}};document.getElementById('gcwoDataValidadeLink').value='2026-11-16';_state.linkExpiryDate='2026-11-16';`);
+}
+test('renewal of expired access preserves all sessions and uses patient, clinic, status and current expiry filters',async()=>{
+ const x=await setup();mockRenewal(x);const before=x.run('JSON.stringify(remoteData.sessions)');await x.run('renovarApenasAcesso()');assert.equal(x.run('writes.length'),1);assert.equal(x.run('JSON.stringify(writes[0].data.sessions)'),before);assert.equal(x.run('writes[0].data.endDate'),'2026-11-15');assert.equal(x.run('writes[0].data.linkExpiryDate'),'2026-11-16');assert.equal(x.run('JSON.stringify(writes[0]).includes("token")'),false);assert.match(x.get('#gcwoRenovarEstado').textContent,/Mesmo link/);
+ assert.equal(x.run("queries[1].filters.some(([k,v])=>k==='clinic_id'&&v==='demo-clinic')"),true);assert.equal(x.run("queries[1].filters.some(([k,v])=>k==='patient_id'&&v==='demo')"),true);assert.equal(x.run("queries[1].filters.some(([k,v])=>k==='status'&&v==='active')"),true);assert.equal(x.run("queries[1].filters.some(([k,v])=>k==='expires_at'&&v==='2026-10-30T23:59:59.000Z')"),true);
+});
+test('renewal refuses unsaved programme changes and cannot resurrect revoked access',async()=>{
+ const x=await setup();mockRenewal(x);x.run('_state.sessions[0].walks[0].duration_sec=90');await x.run('renovarApenasAcesso()');assert.equal(x.run('writes.length'),0);assert.match(x.get('#gcwoRenovarEstado').textContent,/alterações ao programa/);
+ const y=await setup();mockRenewal(y,{revoked:true});await y.run('renovarApenasAcesso()');assert.equal(y.run('writes.length'),0);assert.match(y.get('#gcwoRenovarEstado').textContent,/Não foi possível/);
+});
+test('renewal reports zero-row updates as failure rather than success',async()=>{
+ const x=await setup();mockRenewal(x,{zero:true});await x.run('renovarApenasAcesso()');assert.match(x.get('#gcwoRenovarEstado').textContent,/Não foi possível renovar/);assert.doesNotMatch(x.get('#gcwoRenovarEstado').textContent,/Mesmo link/);
+});
+test('saved circuit exercise preview reads expanded portal intervals without repeating each round',async()=>{
+ const x=await setup();const html=x.run(`resumoExerciciosSessao({kind:'circuit',blocks:[{name:'Força A',intervals:[{type:'trabalho',exercise_id:'ex1',exercise_name:'Exercício <teste>',duration_sec:30},{type:'descanso',exercise_id:'ex1',exercise_name:'Exercício <teste>',duration_sec:10},{type:'trabalho',exercise_id:'ex1',exercise_name:'Exercício <teste>',duration_sec:30}]}]})`);
+ assert.match(html,/&lt;teste&gt;/);assert.equal((html.match(/<li>/g)||[]).length,1);
+});
+test('the complete programme is saved under its original identity even after its link expired',async()=>{
+ const x=await setup();x.run(`_criarTreino=null;_state.linkExpiryDate='2026-11-03';_state.linkExpiryMode='selected_date';_embeddedCare={savedFingerprint:JSON.stringify(buildFinalData())};renderStep2();globalThis.writes=[];globalThis.readFilters=[];const previous=buildFinalData();window.sb={from(){let patch=null;const q={select(){return q},eq(k,v){readFilters.push([k,v]);return q},gt(){throw new Error('Expired links must remain renewable')},order(){return q},limit(){return q},update(data){patch=data;return q},async maybeSingle(){return {data:{id:'demo-plan',token:'test-secret-link',expires_at:'2026-10-30T23:59:59.000Z',data:previous},error:null}},async single(){writes.push(patch);return {data:{id:'demo-plan',data:patch.data,expires_at:patch.expires_at},error:null}}};return q}};`);
+ const before=x.run('JSON.stringify(buildFinalData().sessions)');await x.run('handleGerar()');assert.equal(x.run('writes.length'),1);assert.equal(x.run('JSON.stringify(writes[0].data.sessions)'),before);assert.equal(x.run('writes[0].data.sessions.length'),3);assert.equal(x.run('writes[0].data.sessions[2].date'),'2026-11-08');assert.equal(x.run('writes[0].data.linkExpiryDate'),'2026-11-03');assert.equal(x.run('_state.activePrescriptionId'),'demo-plan');assert.equal(x.run('haSessoesPorGravar()'),false);
+});
+test('circuit target excludes warm-up and cooldown and every model references a real fixture ID',async()=>{
+ const x=await setup();x.run(`_criarTreino=null;_state.exercisesCatalog=${fs.readFileSync(path.join(__dirname,'fixtures/catalogo-173.json'),'utf8')};_biblioteca.bloco='inferiores';_biblioteca.minutos=20;renderStep2();`);
+ assert.equal(x.run('BLOCOS_EXERCICIO.every(b=>resolverBloco(b,_state.exercisesCatalog).emFalta.length===0)'),true);x.run("carregarDisponibilidadeCircuito=async()=>{}");x.click('[data-colocar-bloco="2026-11-03"]');assert.equal(x.run('calcularTempoTotalCircuito(_panelDraft).total'),30*60);assert.equal(x.run('_panelDraft.training_block.main_target_min'),20);
+});
 test('the first action on a scheduled walk edits that day instead of the reusable template',async()=>{
  const x=await setup();x.click('.gcwo-ct-slot-acoes button');assert.equal(x.run('_criarTreino.editar?.alvo'),'slot');assert.equal(x.run('_panelDraft.date'),'2026-11-02');
 });

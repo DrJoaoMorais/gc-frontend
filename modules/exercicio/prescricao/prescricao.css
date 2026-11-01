@@ -1658,3 +1658,28 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-plano-sessoes{display:flex;gap:10px;margin:16px 0;flex-wrap:wrap}.gcwo-plano-sessoes button{flex:1;min-width:130px;background:white;border:1px solid #ccd9e7;border-radius:12px;padding:14px;cursor:pointer;display:grid;gap:7px;text-align:left}.gcwo-plano-sessoes button.on{border:2px solid #2458af;background:#edf4ff}.gcwo-plano-sessoes span{font-size:12px;color:#61758c}
 .gcwo-plano-bloco{border:1px solid #dce5ef;border-radius:12px;margin:14px 0;padding:16px}.gcwo-plano-bloco>div:first-child{display:flex;gap:12px;align-items:center}.gcwo-plano-bloco h4{font-size:15px;margin:0;flex:1}.gcwo-plano-num{width:28px;height:28px;border-radius:50%;background:#176eab;color:white;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}.gcwo-plano-bloco.fixo{background:#f1f6fb}.gcwo-plano-exercicios{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.gcwo-plano-exercicios article{padding:12px;border:1px solid #e2e8f0;border-radius:10px;display:flex;gap:12px;align-items:center}.gcwo-plano-exercicios article>div{display:grid;gap:6px}.gcwo-plano-exercicios img{width:96px;height:96px;object-fit:contain}.gcwo-plano-exnumero{font-size:25px;color:#92a6bb}.gcwo-plano-exercicios small{color:#63788c}.gcwo-plano-exercicios span{font-size:13px}.gcwo-casa-personalizar{padding:14px 0;border-bottom:1px solid #e1e8f0}.gcwo-casa-personalizar summary{cursor:pointer;color:#2458af;font-weight:600}.gcwo-plano-empty{padding:20px;margin-bottom:20px;background:#eaf6ef;border:1px solid #c5dfcf;border-radius:14px}.gcwo-plano-empty h3{margin-top:0}
 @media(max-width:800px){.gcwo-planos-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:500px){.gcwo-planos-grid,.gcwo-plano-exercicios{grid-template-columns:1fr}.gcwo-plano-bloco{padding:12px}.gcwo-plano-bloco.fixo>div{flex-wrap:wrap}}
+
+/* Prescrição integrada: calendário + biblioteca; conteúdo sempre consultável. */
+.gcwo-biblioteca{margin-top:22px;padding:20px;border:1px solid #dce5ef;border-radius:14px;background:#fff;color:#172f51}
+.gcwo-bib-filtros{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin:16px 0}
+.gcwo-bib-filtros .gcwo-field{flex:1;min-width:145px}
+.gcwo-bib-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.gcwo-bib-card{min-width:0;border:1px solid #dce5ef;border-radius:10px;padding:16px;background:#f8fafc}
+.gcwo-bib-card.on{border:2px solid #396d9f;padding:15px;background:#edf4fc}
+.gcwo-bib-card h3,.gcwo-bib-selecao h3{font-size:15px;margin:0 0 8px;color:#172f51}
+.gcwo-bib-card ol{padding-left:22px;margin:10px 0;font-size:13px;line-height:1.7}
+.gcwo-bib-card small,.gcwo-bib-nota{font-size:12px;color:#566b83}
+.gcwo-bib-selecao{margin-top:16px;border-top:1px solid #dce5ef;padding-top:16px}
+.gcwo-bib-check{display:flex;align-items:center;gap:10px;min-height:36px;font-size:14px}
+.gcwo-bib-check input{width:17px;height:17px;flex-shrink:0}
+.gcwo-bib-nota{margin:12px 0 0;line-height:1.5}
+.gcwo-bloco-exercicios{grid-column:1/-1;min-width:0;padding:4px 7px;font-size:12px;text-align:left}
+.gcwo-bloco-exercicios summary{cursor:pointer;min-height:32px;padding:5px 0;overflow-wrap:anywhere;color:#244d79}
+.gcwo-bloco-exercicios ol,.gcwo-bloco-exercicios ul{padding-left:18px;white-space:normal;overflow-wrap:anywhere;line-height:1.5}
+.gcwo-bloco-exercicios small{display:block;color:#566b83;white-space:normal}
+.gcwo-calsession-row:has(.gcwo-bloco-exercicios){flex-wrap:wrap}
+.gcwo-calsession-row>.gcwo-bloco-exercicios{order:5;width:100%;flex-basis:100%}
+.gcwo-colocar-bloco{width:100%;border:1px solid #b8cee6;background:#edf4fc;color:#244d79;border-radius:7px;padding:8px 4px;margin:6px 0;font:inherit;font-size:12px;cursor:pointer}
+.gcwo-calday{min-width:0}.gcwo-calsession-name{white-space:normal;overflow-wrap:anywhere}
+.gcwo-biblioteca [hidden]{display:none!important}
+@media(max-width:680px){.gcwo-bib-grid{grid-template-columns:1fr}.gcwo-biblioteca{padding:14px}.gcwo-bib-filtros .gcwo-field{min-width:120px}.gcwo-bib-filtros input,.gcwo-bib-filtros select{font-size:16px}}

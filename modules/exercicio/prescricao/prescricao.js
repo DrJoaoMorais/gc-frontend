@@ -1,3 +1,4 @@
+import { BLOCOS_EXERCICIO, resolverBloco, exerciciosDaSessao, distribuicaoRegional } from './biblioteca-blocos.js?v=2026-11-01-integrada-1';
 import { PLANOS_CASA, configuracaoPlanoCasa, preverPlanoCasa, tempoPlanoCasa } from './planos-casa.js?v=2026-11-01-1';
 import { PADROES_CASA, catalogoCasa, sugerirVariantesCasa, semanaCasa, proporProgramaCasa } from './programa-casa.js?v=2026-11-01-1';
 import { organizarExercicio, pertenceFinalidade, doseInicialDoCatalogo, doseCatalogoDefinida } from './catalogo-organizacao.js?v=2026-10-31-organizacao';
@@ -35,7 +36,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-01-programa-casa-v1';
+const PRESCRICAO_CSS_VERSION = '2026-11-01-integrada-1';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -244,8 +245,8 @@ function freshState() {
     restricoesEditing: false,
     startDate: inicio,
     endDate: addDiasIso(inicio, 27), // 4 semanas por omissão — ajustável nos campos de data
-    linkExpiryMode: 'last_session',
-    linkExpiryDate: null,
+    linkExpiryMode: 'selected_date',
+    linkExpiryDate: addDiasIso(inicio, 14),
     dataRevisao: null,
     duracaoSessaoPadrao: 30,
     diasPorSemanaHabitual: null,
@@ -267,6 +268,8 @@ function freshState() {
 let _state = freshState();
 let _disponibilidadeQuestionario = null;
 let _embeddedCare = null;
+let _savingPrescription = false;
+let _renewingAccess = false;
 let _step1Destination = 'prescription'; // 'acompanhamento' quando a entrada deve abrir o cérebro do doente
 let _loadingPlanoActivo = false;        // a verificar/carregar o plano activo do doente escolhido (9 ago 2026)
 let _expandedCardIds = new Set();       // sessões expandidas na lista principal (leitura)
@@ -630,21 +633,18 @@ async function carregarPlanoActivoSeExistir() {
 
   const { data, error } = await window.sb
     .from('wo_prescriptions')
-    .select('id,data')
+    .select('id,data,expires_at')
     .eq('patient_id', _state.patient.id)
     .eq('clinic_id', _state.clinicId)
     .eq('status', 'active')
-    .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (error) {
-    // Falhar a verificação não deve impedir a prescrição — fica como plano novo (o
-    // comportamento de sempre); é mais seguro do que bloquear o médico a meio de uma consulta.
+    // Falhar a leitura não pode converter um plano existente numa prescrição vazia.
     console.error('[prescricao] falha a verificar plano activo:', error);
-    if (_embeddedCare) throw new Error('Não foi possível carregar o plano. Tente novamente.');
-    return;
+    throw new Error('Não foi possível carregar o plano. Tente novamente antes de criar ou alterar uma prescrição.');
   }
   if (!data) return; // sem plano activo — quadro em branco, como sempre foi para doentes novos
 
@@ -658,8 +658,8 @@ async function carregarPlanoActivoSeExistir() {
   refreshPatientFeedbackDot();
   _state.startDate = data.data?.startDate || _state.startDate;
   _state.endDate = data.data?.endDate || _state.endDate;
-  _state.linkExpiryMode = data.data?.linkExpiryMode || 'selected_date';
-  _state.linkExpiryDate = data.data?.linkExpiryDate || data.data?.endDate || null;
+  _state.linkExpiryMode = 'selected_date';
+  _state.linkExpiryDate = isoLisboa(data.expires_at) || data.data?.linkExpiryDate || data.data?.endDate || null;
   _state.dataRevisao = data.data?.dataRevisao || null;
   _state.duracaoSessaoPadrao = data.data?.duracaoSessaoPadrao || 30;
   _state.diasPorSemanaHabitual = data.data?.diasPorSemanaHabitual ?? null;
@@ -671,6 +671,7 @@ async function carregarPlanoActivoSeExistir() {
   // Isto veio da base de dados — não é trabalho por gravar. Sem isto, o aviso de "vais
   // perder sessões" apareceria logo ao abrir um plano já existente, mesmo sem tocar em nada.
   _state.__ultimoSnapshotGravado = JSON.stringify(_state.sessions);
+  _state.savedFingerprint = JSON.stringify(buildFinalData());
 }
 
 /* ── Entry point ─────────────────────────────────────────── */
@@ -685,6 +686,7 @@ export async function initPrescricao(options = {}) {
   ensurePrescricaoCss();
   _embeddedCare = options.embeddedCare || null;
   _state = freshState();
+  _biblioteca = bibliotecaVazia();
   _disponibilidadeQuestionario = null;
   _landing = options.restoreList && _landingReturnContext
     ? { ...freshLanding(), clinicIds: _landingReturnContext.clinicIds, search: _landingReturnContext.search, tab: _landingReturnContext.tab }
@@ -783,6 +785,7 @@ export async function initCarePrescription({ patientId, clinicId, onCalendar, on
 // trabalho sem aviso nenhum.
 function haSessoesPorGravar() {
   if (_embeddedCare?.savedFingerprint) return JSON.stringify(buildFinalData()) !== _embeddedCare.savedFingerprint;
+  if (_state.savedFingerprint) return JSON.stringify(buildFinalData()) !== _state.savedFingerprint;
   if (!_state.sessions.length) return false;
   const actual = JSON.stringify(_state.sessions);
   return actual !== _state.__ultimoSnapshotGravado;
@@ -822,6 +825,7 @@ async function loadExercisesCatalog() {
   // Se o painel de ginásio já está aberto, refresca para o select ganhar opções
   if (_panelDraft) renderPanel();
   if (_criarTreino) ctRender();
+  else if (document.getElementById('gcwoBiblioteca')) renderStep2Body();
 }
 
 // "dos"/"do"/"da"/"das"/"e" nunca ajudam a identificar a clínica — ficam de fora tanto
@@ -1626,7 +1630,6 @@ function wirePatientBanner() {
    O calendário passa a mostrar-se sempre (ver renderCalendarMode) — escolher datas
    aqui só ajusta a janela, nunca é uma condição para o calendário aparecer. */
 function renderDatasPlanoSection() {
-  const ultimoTreino = ultimoDiaPrescrito();
   return `
     <div class="gcwo-plan-settings">
       <div class="gcwo-settings-head">
@@ -1645,13 +1648,11 @@ function renderDatasPlanoSection() {
         <div class="gcwo-settings-group gcwo-link-settings">
           <span class="gcwo-settings-label">Acesso do doente</span>
           <div class="gcwo-datasplano-row">
-            <label class="gcwo-field gcwo-link-mode"><span>Validade do link</span><select id="gcwoValidadeLink">
-              <option value="last_session"${_state.linkExpiryMode === 'last_session' ? ' selected' : ''}>Até ao último treino</option>
-              <option value="selected_date"${_state.linkExpiryMode === 'selected_date' ? ' selected' : ''}>Escolher outra data</option>
-            </select></label>
-            ${_state.linkExpiryMode === 'selected_date' ? `<label class="gcwo-field"><span>Link válido até</span><input type="date" id="gcwoDataValidadeLink" value="${_state.linkExpiryDate || _state.endDate}" min="${ultimoTreino || _state.startDate}"></label>` : ''}
+            <label class="gcwo-field"><span>Link válido até · inclusive</span><input type="date" id="gcwoDataValidadeLink" value="${_state.linkExpiryDate || ''}"></label>
+            ${_state.activePrescriptionId ? '<button type="button" class="gcBtnGhost" id="gcwoRenovarAcesso">Renovar apenas o acesso</button>' : ''}
           </div>
-          <div class="gcwo-link-hint">${_state.linkExpiryMode === 'last_session' ? (ultimoTreino ? `Termina em ${escHtml(fmtDataPtIso(ultimoTreino))}.` : 'Será calculada ao adicionar o primeiro treino.') : 'Nunca pode terminar antes do último treino.'}</div>
+          <div class="gcwo-link-hint">Validade independente das datas dos treinos. Às 23:59 desta data (Lisboa), o acesso termina; o programa completo mantém-se guardado.</div>
+          <span id="gcwoRenovarEstado" class="gcwo-link-hint" role="status"></span>
         </div>
         ${renderEstadoPlanoGroup()}
       </div>
@@ -1674,17 +1675,15 @@ function renderEstadoPlanoGroup() {
           <span id="gcwoPorGravarAviso" class="gcwo-porgravar-aviso" style="display:${haSessoesPorGravar() ? '' : 'none'}">⚠ As sessões do calendário só ficam realmente gravadas depois de guardar o plano.</span>
         </div>`;
 }
-// Alargar o fim do plano não pode encurtar o acesso: numa prescrição carregada a validade fica
-// em "Escolher outra data" = fim antigo (ver carregarPlanoActivoSeExistir). Se essa validade
-// cobria o plano antigo, acompanha o novo fim; e nunca fica antes do último treino (senão a
-// gravação era recusada e/ou o link do doente terminava antes dos novos treinos).
-function acompanharValidadeLinkAoAlargar(fimAntigo) {
-  if (_state.linkExpiryMode !== 'selected_date' || !_state.linkExpiryDate) return;
-  if (_state.linkExpiryDate >= fimAntigo && _state.linkExpiryDate < _state.endDate) _state.linkExpiryDate = _state.endDate;
-  const ultimoTreino = ultimoDiaPrescrito();
-  if (ultimoTreino && _state.linkExpiryDate < ultimoTreino) _state.linkExpiryDate = ultimoTreino;
+// Datas do programa e validade do acesso são independentes.
+function isoLisboa(timestamp) {
+  if (!timestamp) return null;
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(timestamp));
+  const v = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return `${v.year}-${v.month}-${v.day}`;
 }
 function wireDatasPlanoSection() {
+  document.getElementById('gcwoRenovarAcesso')?.addEventListener('click', renovarApenasAcesso);
   document.getElementById('gcwoDataInicio').addEventListener('change', (e) => {
     if (!e.target.value) return;
     _state.startDate = e.target.value;
@@ -1695,21 +1694,15 @@ function wireDatasPlanoSection() {
   });
   document.getElementById('gcwoDataFim').addEventListener('change', (e) => {
     if (!e.target.value || e.target.value < _state.startDate) { renderStep2Body(); return; }
-    const fimAntigo = _state.endDate;
     _state.endDate = e.target.value;
-    if (_state.endDate > fimAntigo) acompanharValidadeLinkAoAlargar(fimAntigo);
     renderStep2Body();
   });
   document.getElementById('gcwoDataRevisao').addEventListener('change', (e) => {
     _state.dataRevisao = e.target.value || null;
     updateGerarButtonState();
   });
-  document.getElementById('gcwoValidadeLink').addEventListener('change', (e) => {
-    _state.linkExpiryMode = e.target.value;
-    if (_state.linkExpiryMode === 'selected_date' && !_state.linkExpiryDate) _state.linkExpiryDate = _state.endDate;
-    renderStep2Body();
-  });
   document.getElementById('gcwoDataValidadeLink')?.addEventListener('change', (e) => {
+    _state.linkExpiryMode = 'selected_date';
     _state.linkExpiryDate = e.target.value || null;
     updateGerarButtonState();
   });
@@ -2157,10 +2150,8 @@ function ctAdicionarAPrescricao() {
     .sort((a, b) => a.date.localeCompare(b.date) || (Number(a.order) || 0) - (Number(b.order) || 0));
   _state.disponibilidadeTreino = capturarDisponibilidade(ct, ctDisp, ctDataDoDia, _state.disponibilidadeTreino);
   if (ct.programReviewDate) _state.dataRevisao=ct.programReviewDate;
-  const fimAntigo = _state.endDate;
   if (ct.inicio < _state.startDate) _state.startDate = ct.inicio;
   if (ct.fim > _state.endDate) _state.endDate = ct.fim;
-  acompanharValidadeLinkAoAlargar(fimAntigo);
   _criarTreino = null;
   renderStep2();
   updateGerarButtonState();
@@ -2261,6 +2252,7 @@ function ctRenderModelos() {
         <div class="gcwo-ct-modelo-txt">
           <strong>${escHtml(m.nome)}</strong>
           <span>${ctDuracaoCumpre(m.min, est) ? m.min : est} min · ${escHtml(m.resumo)}${exs.length && !ctDuracaoCumpre(m.min, est) ? ' · poucos exercícios compatíveis no catálogo' : ''}</span>
+          <div class="gcwo-bib-nota">${escHtml(resumoRegioes(exs))}</div><ol>${exs.map(ex => `<li>${escHtml(ex.name)}</li>`).join('')}</ol>
           <span>${exs.length ? `${exs.length} exercícios do catálogo · ${exs[0].sets} séries · ≈ ${est} min estimado` : 'Sem exercícios compatíveis no catálogo'}</span>
           <button type="button" class="${on ? 'gcBtnGhost' : 'gcwo-ct-primario'}" data-ct-modelo="${m.id}" ${exs.length ? '' : 'disabled'}>Configurar para este dia</button>
         </div>
@@ -2346,6 +2338,7 @@ function ctRenderColuna(w, i) {
               ${foto ? `<img src="${escAttr(foto)}" alt="">` : `<span class="gcwo-ct-slot-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>`}
               <span><strong>${escHtml(slot.nome)}</strong><small>${sessaoTemConteudo(slot.sessao) ? (ctTempoPorCalcular(slot.sessao) ? 'Tempo por calcular' : `≈ ${ctMinutosSessao(slot.sessao)} min`) : 'Sem conteúdo'} · ${escHtml(slot.sessao.local || '')}</small></span>
             </button>
+            ${resumoExerciciosSessao(slot.sessao)}
             <details class="gcwo-ct-slot-tools" ${slot.rascunho ? 'hidden' : ''}><summary>Ações</summary><span class="gcwo-ct-slot-acoes">
               <button type="button" data-ct-slot-editar="${ref}" title="Editar apenas este treino">Editar</button>
               <button type="button" data-ct-slot-trocar="${ref}" title="Escolher outro treino para substituir este">Substituir</button>
@@ -2705,6 +2698,161 @@ function wirePatientMainTabs() {
 /* ================================================================
    MODO 1 — calendário (datas reais, todas as semanas visíveis)
    ================================================================ */
+let _biblioteca = bibliotecaVazia();
+function bibliotecaVazia() { return { categoria: 'Circuitos', minutos: 20, nivel: 'leve', bloco: null, escolhidos: new Map(), aquecimento: 5, retorno: 5 }; }
+
+function bibliotecaSelecionados(bloco) {
+  const resolvido = resolverBloco(bloco, _state.exercisesCatalog);
+  const ids = _biblioteca.escolhidos.get(bloco.id) || bloco.ids;
+  return resolvido.exercicios.filter(ex => ids.includes(ex.id));
+}
+function resumoRegioes(exercicios) {
+  const grupos = distribuicaoRegional(exercicios, organizarExercicio);
+  return grupos.length ? grupos.map(([nome, n]) => `${nome}: ${n}`).join(' · ') : 'Região por confirmar';
+}
+function resumoExerciciosSessao(s) {
+  const exercicios = exerciciosDaSessao(s, _state.exercisesCatalog);
+  const fixos = (s.blocks || []).filter(b => b.tipo === 'fixed' || (b.intervals || []).every(i => i.type === 'mobilizacao'));
+  if (!exercicios.length && !fixos.length) return '';
+  return `<details class="gcwo-bloco-exercicios"><summary>Ver exercícios / blocos (${exercicios.length || fixos.length})</summary>
+    ${exercicios.length ? `<small>${escHtml(resumoRegioes(exercicios))}</small><ol>${exercicios.map(ex => `<li>${escHtml(ex.name)}</li>`).join('')}</ol>` : ''}
+    ${fixos.length ? `<ul>${fixos.map(b => `<li>${escHtml(b.name)} · ${tempoPlanoCasa(b.duration_sec ?? tempoCircuitoGuardado(b))}</li>`).join('')}</ul>` : ''}
+  </details>`;
+}
+function renderBibliotecaBlocos() {
+  const b = _biblioteca;
+  const blocos = BLOCOS_EXERCICIO.filter(x => x.categorias.includes(b.categoria));
+  const escolhido = blocos.find(x => x.id === b.bloco);
+  const circuito = ['Circuitos', 'HIIT'].includes(b.categoria);
+  return `<section class="gcwo-biblioteca" id="gcwoBiblioteca">
+    <h2 class="gcwo-section-title">Biblioteca de blocos</h2>
+    <div class="gcwo-chips">${['Circuitos', 'HIIT', 'Força', 'Mobilidade'].map(c => `<button type="button" class="gcwo-chip${c === b.categoria ? ' on' : ''}" aria-pressed="${c === b.categoria}" data-bib-categoria="${c}">${c}</button>`).join('')}</div>
+    <div class="gcwo-bib-filtros"><label class="gcwo-field"><span>Duração-alvo do bloco principal</span><select id="gcwoBibMinutos">${[10,20,30].map(n => `<option value="${n}"${n === b.minutos ? ' selected' : ''}>${n} minutos</option>`).join('')}</select></label>
+      <label class="gcwo-field"><span>Nível a rever pelo prescritor</span><select id="gcwoBibNivel">${[['leve','Inicial · Leve'],['moderado','Intermédio'],['exigente','Avançado']].map(([v,l]) => `<option value="${v}"${v === b.nivel ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+      ${circuito ? `<label class="gcwo-field"><span>Aquecimento (min)</span><input id="gcwoBibAquecimento" type="number" min="0" max="30" value="${b.aquecimento}"></label><label class="gcwo-field"><span>Retorno à calma (min)</span><input id="gcwoBibRetorno" type="number" min="0" max="30" value="${b.retorno}"></label>` : ''}
+    </div>
+    ${!_state.catalogLoaded ? '<p>A carregar exercícios…</p>' : `<div class="gcwo-bib-grid">${blocos.map(bloco => {
+      const r = resolverBloco(bloco, _state.exercisesCatalog), exs = bibliotecaSelecionados(bloco);
+      return `<article class="gcwo-bib-card${b.bloco === bloco.id ? ' on' : ''}"><h3>${escHtml(bloco.nome)}</h3><small>${escHtml(resumoRegioes(exs))}</small>
+        <ol>${r.exercicios.map(ex => `<li>${escHtml(ex.name)}</li>`).join('')}</ol>
+        ${r.emFalta.length ? `<p class="gcwo-erro">${r.emFalta.length} exercício(s) indisponíveis no catálogo. Modelo incompleto.</p>` : ''}
+        <button type="button" class="gcBtnGhost" data-bib-bloco="${bloco.id}" ${r.emFalta.length ? 'disabled' : ''}>${b.bloco === bloco.id ? 'Selecionado' : 'Selecionar e ajustar'}</button></article>`;
+    }).join('')}</div>`}
+    ${escolhido ? `<div class="gcwo-bib-selecao"><h3>${escHtml(escolhido.nome)} · Exercícios selecionados</h3>
+      ${resolverBloco(escolhido, _state.exercisesCatalog).exercicios.map(ex => `<label class="gcwo-bib-check"><input type="checkbox" data-bib-exercicio="${ex.id}" ${bibliotecaSelecionados(escolhido).some(x => x.id === ex.id) ? 'checked' : ''}>${escHtml(ex.name)}</label>`).join('')}
+      <p>${escHtml(resumoRegioes(bibliotecaSelecionados(escolhido)))} · ${b.minutos} min de bloco principal${circuito ? ` + ${b.aquecimento} min de aquecimento + ${b.retorno} min de retorno à calma` : ' · duração estimada após definir a dose'}</p>
+      <p class="gcwo-muted">Clique em «+ Colocar bloco» no dia pretendido. O editor permite rever dose, pausas, ordem e duração antes de confirmar esse treino.</p></div>` : '<p class="gcwo-muted">Selecione um bloco para o colocar num dia da semana, ou use «+ Adicionar treino» para as outras modalidades.</p>'}
+    <p class="gcwo-bib-nota">Composição inicial com exercícios do catálogo; não corresponde a uma transcrição dos vídeos enviados. O nível e a categoria não determinam automaticamente a intensidade.</p>
+  </section>`;
+}
+function wireBibliotecaBlocos() {
+  const host = document.getElementById('gcwoBiblioteca');
+  if (!host) return;
+  host.addEventListener('click', e => {
+    const button = e.target.closest('button'); if (!button) return;
+    if (button.dataset.bibCategoria) { _biblioteca.categoria = button.dataset.bibCategoria; _biblioteca.bloco = null; }
+    if (button.dataset.bibBloco) _biblioteca.bloco = button.dataset.bibBloco;
+    if (button.dataset.bibCategoria || button.dataset.bibBloco) renderStep2Body();
+  });
+  host.addEventListener('change', e => {
+    if (e.target.dataset.bibExercicio) {
+      const bloco = BLOCOS_EXERCICIO.find(x => x.id === _biblioteca.bloco);
+      const ids = new Set(bibliotecaSelecionados(bloco).map(x => x.id));
+      e.target.checked ? ids.add(e.target.dataset.bibExercicio) : ids.delete(e.target.dataset.bibExercicio);
+      _biblioteca.escolhidos.set(bloco.id, [...ids]);
+    } else {
+      const campos = { gcwoBibMinutos: 'minutos', gcwoBibNivel: 'nivel', gcwoBibAquecimento: 'aquecimento', gcwoBibRetorno: 'retorno' };
+      const campo = campos[e.target.id]; if (!campo) return;
+      const value = campo === 'nivel' ? e.target.value : Number(e.target.value);
+      if (campo !== 'nivel' && (e.target.value === '' || !Number.isFinite(value) || value < 0 || value > 30)) { e.target.reportValidity?.(); return; }
+      _biblioteca[campo] = value;
+    }
+    renderStep2Body();
+  });
+}
+function abrirBlocoParaDia(date) {
+  const bloco = BLOCOS_EXERCICIO.find(x => x.id === _biblioteca.bloco);
+  if (!bloco) return;
+  const exs = bibliotecaSelecionados(bloco);
+  if (!exs.length || resolverBloco(bloco, _state.exercisesCatalog).emFalta.length) return;
+  const b = _biblioteca, circuito = ['Circuitos', 'HIIT'].includes(b.categoria);
+  const s = novaSessaoSkeleton(circuito ? 'Circuito' : 'Ginásio', circuito ? 'circuit' : 'list', date);
+  s.local = 'Casa';
+  s.training_block = { id: bloco.id, name: bloco.nome, category: b.categoria, level: b.nivel, main_target_min: b.minutos };
+  if (circuito) {
+    s.circuit_config = { nivel: b.nivel, minutos: b.minutos + b.aquecimento + b.retorno, aquecimento: b.aquecimento, retorno: b.retorno, voltas: 1, trabalho: 30, transicao: 15, pausa: 60 };
+    s.circuit_config.voltas = Math.max(1, Math.floor((b.minutos * 60 + 60) / (exs.length * 45 + 60)));
+    const proposta = proporComposicaoCircuito(s.circuit_config, exs.length);
+    if (proposta.erro) return;
+    s._limiteMin = s.circuit_config.minutos;
+    const fixo = (name, min) => ({ block_id: uuid(), tipo: 'fixed', name, duration_sec: min * 60 });
+    s.blocks = [
+      ...(b.aquecimento ? [fixo('Aquecimento — definir execução individual', b.aquecimento)] : []),
+      { block_id: uuid(), tipo: 'voltas', name: bloco.nome, rounds: proposta.voltas, rest_between_rounds_s: 60, exercicios: exs.map(ex => ({ id: uuid(), exercise_id: ex.id, name: ex.name, measure: 'time', value: 30, rest_after_s: 15 })) },
+      ...(proposta.marcha > 0 ? [fixo('Complemento do bloco principal — marcha confortável', proposta.marcha / 60)] : []),
+      ...(b.retorno ? [fixo('Retorno à calma — definir execução individual', b.retorno)] : []),
+    ];
+    s.notes = `Duração-alvo do bloco principal: ${b.minutos} min. Rever voltas, execução e pausas antes de prescrever.${b.categoria === 'HIIT' ? ' HIIT: intensidade e recuperação têm de ser individualizadas pelo prescritor.' : ''}`;
+  } else s.items = exs.map(novoItemDeExercicio);
+  _panelDraft = s; _panelIsNovo = true; _pendingSlot = null;
+  renderStep2Body();
+}
+
+async function renovarApenasAcesso() {
+  if (_renewingAccess || _savingPrescription) return;
+  const patientId = _state.patient?.id, clinicId = _state.clinicId, prescriptionId = _state.activePrescriptionId;
+  const date = document.getElementById('gcwoDataValidadeLink')?.value;
+  const status = document.getElementById('gcwoRenovarEstado'), button = document.getElementById('gcwoRenovarAcesso');
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) { status.textContent = 'Escolha a nova data de validade.'; return; }
+  // A renovação só altera a validade. Alterações ao programa precisam do botão Guardar.
+  const current = buildFinalData();
+  const baseline = _embeddedCare?.savedFingerprint || _state.savedFingerprint;
+  if (baseline) {
+    const before = JSON.parse(baseline), after = structuredClone(current);
+    [before, after].forEach(x => { delete x.linkExpiryDate; delete x.linkExpiryMode; });
+    if (JSON.stringify(before) !== JSON.stringify(after)) { status.textContent = 'Existem alterações ao programa. Guarde o plano antes de renovar apenas o acesso.'; return; }
+  }
+  button.disabled = true; _renewingAccess = true;
+  try {
+    const { data: saved, error } = await window.sb.from('wo_prescriptions').select('id,data,expires_at')
+      .eq('id', prescriptionId).eq('patient_id', patientId).eq('clinic_id', clinicId).eq('status', 'active').single();
+    if (error || !saved) throw new Error('Não foi possível confirmar o plano. Reabra a ficha.');
+    if (baseline) {
+      const local = JSON.parse(baseline), remote = { ...saved.data };
+      [local, remote].forEach(x => { delete x.linkExpiryMode; delete x.linkExpiryDate; });
+      if (JSON.stringify(local.sessions) !== JSON.stringify((remote.sessions || []).map(sessaoParaGravar))) throw new Error('O programa foi alterado noutra sessão. Reabra a ficha antes de renovar.');
+    }
+    const data = { ...saved.data, linkExpiryMode: 'selected_date', linkExpiryDate: date };
+    const { data: updated, error: updateError } = await window.sb.from('wo_prescriptions').update({ expires_at: expiresAtDeIso(date).toISOString(), data })
+      .eq('id', saved.id).eq('patient_id', patientId).eq('clinic_id', clinicId).eq('status', 'active').eq('expires_at', saved.expires_at)
+      .select('id').single();
+    if (updateError || !updated) throw new Error('Não foi possível renovar. O plano pode ter sido alterado; reabra a ficha.');
+    if (_state.patient?.id !== patientId || _state.clinicId !== clinicId || _state.activePrescriptionId !== prescriptionId) return;
+    _state.linkExpiryMode = 'selected_date'; _state.linkExpiryDate = date;
+    _state.savedFingerprint = JSON.stringify(buildFinalData());
+    if (_embeddedCare) _embeddedCare.savedFingerprint = _state.savedFingerprint;
+    status.textContent = `Validade atualizada até ${fmtDataPtIso(date)}. Mesmo link; programa preservado.`;
+    updateGerarButtonState();
+    await _embeddedCare?.onSaved?.();
+  } catch (error) { status.textContent = error.message; }
+  finally { _renewingAccess = false; button.disabled = false; }
+}
+
+function copiarSemanaPrincipal() {
+  const segunda = semanasParaMostrar()[0], domingo = addDiasIso(segunda, 6);
+  const originais = _state.sessions.filter(s => s.date >= segunda && s.date <= domingo);
+  if (!originais.length) return;
+  const novasDatas = originais.map(s => addDiasIso(s.date, 7));
+  const ocupado = novasDatas.some(date => _state.sessions.some(s => s.date === date));
+  if (ocupado && !window.confirm('A semana seguinte já tem treinos. Juntar cópias sem substituir os treinos existentes?')) return;
+  originais.forEach(s => copiarSessaoParaData(s, addDiasIso(s.date, 7)));
+  const ultimo = novasDatas.sort().at(-1);
+  if (ultimo > _state.endDate) _state.endDate = ultimo;
+  _calendarFirstMonday = addDiasIso(segunda, 7);
+  renderStep2Body();
+  updateGerarButtonState();
+}
+
 function renderCalendarMode(host) {
   if (_loadingPlanoActivo) {
     host.innerHTML = `<section class="gcwo-card"><span class="gcwo-muted">A verificar se este doente já tem um plano activo…</span></section>`;
@@ -2724,22 +2872,25 @@ function renderCalendarMode(host) {
       <div class="gcwo-cal-head">
         <div><h2 class="gcwo-section-title">${_embeddedCare ? 'Calendário do acompanhamento' : 'Calendário do plano'}</h2><p>Adicione um treino ou arraste-o para mudar de dia.</p></div>
         <div class="gcwo-cal-nav">
-          <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalAnterior">‹ Duas anteriores</button>
-          <span id="gcwoCalIntervalo" class="gcwo-cal-nav-label"></span>
-          <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalSeguinte">Duas seguintes ›</button>
+          <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalAnterior">‹ Semana anterior</button>
+          <span id="gcwoCalIntervalo" class="gcwo-cal-nav-label"></span><button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCopiarSemana">Copiar semana seguinte</button>
+          <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalSeguinte">Semana seguinte ›</button>
         </div>
       </div>
       <div id="gcwoCalGrid"></div>
     </div>
 
+    ${renderBibliotecaBlocos()}
     </section>
   `;
 
   wireDatasPlanoSection();
+  wireBibliotecaBlocos();
   renderCalGrid();
-  document.getElementById('gcwoCalAnterior').addEventListener('click', () => navegarCalendario(-14));
-  document.getElementById('gcwoCalSeguinte').addEventListener('click', () => navegarCalendario(14));
+  document.getElementById('gcwoCalAnterior').addEventListener('click', () => navegarCalendario(-7));
+  document.getElementById('gcwoCalSeguinte').addEventListener('click', () => navegarCalendario(7));
   document.getElementById('gcwoGerar').addEventListener('click', handleGerar);
+  document.getElementById('gcwoCopiarSemana').addEventListener('click', copiarSemanaPrincipal);
   document.getElementById('gcwoCriarTreino').addEventListener('click', abrirCriarTreino);
   document.getElementById('gcwoTerminarPlano')?.addEventListener('click', (e) => terminarPlanoActivo(_state.activePrescriptionId, e.currentTarget));
 }
@@ -2791,18 +2942,14 @@ async function carregarLeituraTreinosDoDoente() {
   }).join('')}</div>`;
 }
 
-// Segundas-feiras (ISO) das semanas a desenhar: sempre pelo menos 4, e nunca menos do
-// que as necessárias para o calendário chegar a endDate — se o plano for mais comprido
-// do que 4 semanas, o calendário estica para mostrar tudo (9 ago 2026). Substitui o
-// antigo "N semanas fixas escolhidas no topo"; usado também pelo day-picker (mover/
-// duplicar), para oferecer sempre exactamente os mesmos dias que estão à vista.
+// Uma semana de cada vez, de segunda a domingo. A navegação mantém as datas reais. Os treinos das restantes semanas continuam no programa guardado.
 function semanasParaMostrar() {
   const segInicio = segundaFeiraDeIso(_state.startDate);
   const segFim = segundaFeiraDeIso(_state.endDate);
   if (!_calendarFirstMonday || (!_embeddedCare && (_calendarFirstMonday < segInicio || _calendarFirstMonday > segFim))) {
     _calendarFirstMonday = segInicio;
   }
-  return [_calendarFirstMonday, addDiasIso(_calendarFirstMonday, 7)];
+  return [_calendarFirstMonday];
 }
 
 function navegarCalendario(dias) {
@@ -2834,7 +2981,7 @@ function renderCalGrid() {
   if (!host) return;
   const semanas = semanasParaMostrar();
   const primeiroDia = semanas[0];
-  const ultimoDia = addDiasIso(semanas[1], 6);
+  const ultimoDia = addDiasIso(semanas.at(-1), 6);
   const intervalo = document.getElementById('gcwoCalIntervalo');
   if (intervalo) intervalo.textContent = `${fmtDiaMesCurtoIso(primeiroDia)} – ${fmtDiaMesCurtoIso(ultimoDia)}`;
   const anterior = document.getElementById('gcwoCalAnterior');
@@ -2863,8 +3010,9 @@ function renderCalGrid() {
           <div class="gcwo-calday${fora ? ' before-start' : ''}" data-calendar-date="${iso}"${fora ? '' : ` data-day="${iso}"`}>
             <div class="gcwo-calday-top">
               <span class="num">${escHtml(fmtDiaMesCurtoIso(iso))}</span>
-              ${!fora ? `<button type="button" class="gcwo-calday-add" data-add-date="${iso}" title="Adicionar sessão">${ICON_MAIS}</button>` : ''}
+              ${!fora ? `<button type="button" class="gcwo-calday-add" data-add-date="${iso}" title="Adicionar sessão" aria-label="Adicionar treino em ${escAttr(fmtDataPtIso(iso))}">${ICON_MAIS}</button>` : ''}
             </div>
+            ${!fora && _biblioteca.bloco ? `<button type="button" class="gcwo-colocar-bloco" data-colocar-bloco="${iso}">+ Colocar bloco</button>` : ''}
             <div class="gcwo-calsessions">
               ${sessions.map(s => {
                 const meta = metaSessao(s);
@@ -2877,6 +3025,7 @@ function renderCalGrid() {
                     <span class="gcwo-calsession-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
                     <span class="gcwo-calsession-name">${escHtml(nomeCurtoSessao(s))}</span>
                   </button>
+                  ${resumoExerciciosSessao(s)}
                   <button type="button" class="gcwo-calsession-menubtn" data-menu-session="${s.session_id}" title="Mais ações">${ICON_DOTS}</button>
                   <div class="gcwo-calsession-menu" id="gcwoCalMenu-${s.session_id}" hidden>
                     <button type="button" data-menu-action="editar" data-sid="${s.session_id}">${ICON_PENCIL}<span>Editar</span></button>
@@ -2893,6 +3042,7 @@ function renderCalGrid() {
     </div>
   `).join('');
 
+  host.querySelectorAll('[data-colocar-bloco]').forEach(btn => btn.addEventListener('click', () => abrirBlocoParaDia(btn.dataset.colocarBloco)));
   host.querySelectorAll('[data-add-date]').forEach(btn => {
     btn.addEventListener('click', () => {
       _pendingSlot = { date: btn.getAttribute('data-add-date') };
@@ -2935,6 +3085,7 @@ function renderCalGrid() {
 
 function nomeCurtoSessao(s) {
   if (tipoKey(s) === 'patologia') return metaSessao(s).label;
+  if (s.training_block?.name) return s.training_block.name;
   const nomes = { list:'Fortal.', ginasio:'Fortal.', corrida:'Corrida', ciclismo:'Cicl.', natacao:'Natação', caminhada:'Caminh.', walk:'Caminh.', circuito:'Circuito', circuit:'Circuito' };
   return nomes[tipoKey(s)] || TIPO_META[tipoKey(s)]?.label || 'Treino';
 }
@@ -3523,6 +3674,7 @@ function renderPanel() {
       <span class="gcwo-panel-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
       <span class="gcwo-panel-titles"><h3>${meta.label}</h3><span class="sub">${dia.full}, ${escHtml(fmtDiaMesCurtoIso(s.date))}</span></span>
       ${cabecalhoCompacto}
+      ${s.training_block ? `<p class="gcwo-bib-nota">${escHtml(s.training_block.name)} · alvo principal: ${s.training_block.main_target_min} min · confirme a dose e a duração calculada.</p>` : ''}
       ${!_panelIsNovo && !_panelDestino ? `<button type="button" class="gcwo-panel-headbtn" id="gcwoPanelApagar" title="Apagar sessão">${ICON_TRASH}</button>` : ''}
       <button type="button" class="gcwo-panel-headbtn close" id="gcwoPanelFechar" title="Fechar">${ICON_CLOSE}</button>
     </div>
@@ -5741,6 +5893,7 @@ function sessaoParaGravarBase(s) {
     momento: s.momento || null,
     notes: (s.notes || '').trim() || null,
     execution_mode: s.kind === 'list' ? modoExecucaoGinasio(s) : null,
+    ...(s.training_block ? { training_block: s.training_block } : {}),
     ...(s.training_focus ? { training_focus: s.training_focus } : {}),
     ...(s.training_program ? { training_program: s.training_program } : {}),
     ...(Array.isArray(s.recommendations) ? { recommendations_scope: s.recommendations_scope || null, recommendations: s.recommendations, recommendations_image: s.recommendations_image || null, recommendations_image_alt: s.recommendations_image_alt || null } : {}),
@@ -5846,7 +5999,7 @@ function validarPrescricao() {
   if (!_state.sessions.length && !_state.activePrescriptionId) return 'Adiciona pelo menos uma sessão.';
   const ultimoTreino = ultimoDiaPrescrito();
   if (_state.linkExpiryMode === 'selected_date' && !_state.linkExpiryDate) return 'Falta escolher a validade do link.';
-  if (_state.linkExpiryMode === 'selected_date' && ultimoTreino && _state.linkExpiryDate < ultimoTreino) return 'A validade do link não pode terminar antes do último treino.';
+  if (!_state.linkExpiryDate || !/^\d{4}-\d{2}-\d{2}$/.test(_state.linkExpiryDate)) return 'Escolha a data de validade do link.';
   for (const s of _state.sessions) {
     if (!s.local) return 'Há uma sessão sem local escolhido.';
   }
@@ -5854,7 +6007,7 @@ function validarPrescricao() {
 }
 
 async function handleGerar() {
-  if (_embeddedCare?.saving) return;
+  if (_embeddedCare?.saving || _savingPrescription || _renewingAccess) return;
   const btn = document.getElementById('gcwoGerar');
   const erroEl = document.getElementById('gcwoGerarErro');
   erroEl.textContent = '';
@@ -5869,6 +6022,7 @@ async function handleGerar() {
     if (!confirmou) return;
   }
 
+  _savingPrescription = true;
   btn.disabled = true;
   btn.textContent = 'A gravar…';
   if (_embeddedCare) { _embeddedCare.saving = true; document.getElementById('gcwoPrescricaoRoot').inert = true; }
@@ -5882,7 +6036,7 @@ async function handleGerar() {
     tokensAEscrubar.push(tokenCandidato);
 
     // Edição de plano activo (secção 5 do briefing): havendo já uma prescrição activa
-    // (não expirada, não revogada) para este doente, actualiza essa linha em vez de criar
+    // (não revogada, mesmo com o link expirado), actualiza a linha em vez de criar
     // outra — o link que o doente já tem continua a funcionar. Só cria linha nova quando
     // não há nenhuma activa, ou depois de o Morais revogar a anterior explicitamente.
     const { data: activaExistente, error: erroActiva } = await window.sb
@@ -5891,15 +6045,15 @@ async function handleGerar() {
       .eq('patient_id', _state.patient.id)
       .eq('clinic_id', _state.clinicId)
       .eq('status', 'active')
-      .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
     if (erroActiva) throw new Error(`Falha ao verificar prescrição activa: ${erroActiva.message || erroActiva}`);
+    if (_state.activePrescriptionId && activaExistente?.id !== _state.activePrescriptionId) throw new Error('O plano foi terminado ou substituído. Reabra a ficha antes de guardar.');
 
     const novaData = buildFinalData();
     const ultimoTreino = ultimoDiaPrescrito();
-    const dataValidade = _state.linkExpiryMode === 'selected_date' ? _state.linkExpiryDate : (ultimoTreino || _state.endDate);
+    const dataValidade = _state.linkExpiryDate;
     const expiresAtNovo = expiresAtDeIso(dataValidade);
     let token, linkExpiresAt, savedPrescription;
 
@@ -5942,9 +6096,9 @@ async function handleGerar() {
           expires_at: expiresAtFinal.toISOString(),
           data: dataFinal,
         })
-        .eq('id', activaExistente.id).eq('patient_id', _state.patient.id).eq('clinic_id', _state.clinicId);
-      const { data: savedRow, error } = await (_embeddedCare ? updateQuery.select('id,data,expires_at').single() : updateQuery);
-      if (_embeddedCare && !error && !savedRow) throw new Error('Não foi possível confirmar a gravação do plano.');
+        .eq('id', activaExistente.id).eq('patient_id', _state.patient.id).eq('clinic_id', _state.clinicId).eq('status', 'active');
+      const { data: savedRow, error } = await updateQuery.select('id,data,expires_at').single();
+      if (!error && !savedRow) throw new Error('Não foi possível confirmar a gravação do plano.');
       savedPrescription = savedRow;
       if (error) throw new Error(`Falha ao actualizar prescrição: ${error.message || error}`);
 
@@ -5960,8 +6114,8 @@ async function handleGerar() {
         expires_at: expiresAtNovo.toISOString(),
         data: novaData,
       });
-      const { data: savedRow, error } = await (_embeddedCare ? insertQuery.select('id,data,expires_at').single() : insertQuery);
-      if (_embeddedCare && !error && !savedRow) throw new Error('Não foi possível confirmar a gravação do plano.');
+      const { data: savedRow, error } = await insertQuery.select('id,data,expires_at').single();
+      if (!error && !savedRow) throw new Error('Não foi possível confirmar a gravação do plano.');
       savedPrescription = savedRow;
       if (error) throw new Error(`Falha ao gravar prescrição: ${error.message || error}`);
       linkExpiresAt = expiresAtNovo;
@@ -5969,6 +6123,8 @@ async function handleGerar() {
 
     _state.savedLink = TREINO_BASE_URL + token;
     _state.savedExpiresAt = linkExpiresAt;
+    _state.activePrescriptionId = savedPrescription.id;
+    _state.savedFingerprint = JSON.stringify(buildFinalData());
     _state.__ultimoSnapshotGravado = JSON.stringify(_state.sessions);
     if (_embeddedCare) {
       _state.savedLink = null;
@@ -5999,6 +6155,7 @@ async function handleGerar() {
     btn.disabled = false;
     btn.textContent = labelBotaoGerar();
   } finally {
+    _savingPrescription = false;
     if (_embeddedCare) { _embeddedCare.saving = false; document.getElementById('gcwoPrescricaoRoot').inert = false; }
   }
 }
