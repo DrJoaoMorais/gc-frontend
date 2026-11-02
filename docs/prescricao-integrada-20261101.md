@@ -36,3 +36,14 @@ NODE_PATH=/private/tmp/gc-care-dom/node_modules node --test tests/circuito-tempo
 - Não foi efetuada publicação, alteração de tabelas/políticas, nem gravação de teste na Supabase real. A integração real com o portal e permissões deverá ser verificada antes da publicação.
 - Os modelos iniciais usam o catálogo revisto, não uma transcrição confirmada dos vídeos do utilizador.
 - A validade aqui tratada é a da prescrição de exercício (`wo_prescriptions.expires_at`). A ligação geral do acompanhamento tem configuração própria que não foi alterada.
+
+
+## Simplificação de 02-11-2026
+
+- A biblioteca de circuitos pré-feitos surge antes do calendário.
+- Cada cartão mostra exercícios, voltas, trabalho de 30 s, transição de 15 s, pausa de 60 s entre voltas e a sessão completa. Duração principal de 10/20/30 min; aquecimento/retorno separados. São composições-base do catálogo para revisão pelo médico, não transcrições dos vídeos.
+- Selecionar circuito → marcar dias (atalhos 2.ª/4.ª/6.ª, 3.ª/5.ª, Sábado/Domingo) → colocar diretamente, sem abrir o editor.
+- Opção de repetir os dias em todas as semanas do programa; a validade do link mantém-se independente.
+- Conflitos são resolvidos na própria página: substituir só circuitos pré-feitos, acrescentar ou cancelar. Treinos específicos e protocolos são preservados.
+- A criação de treino específico mantém-se numa ação secundária; alterações de um circuito colocado não modificam os restantes dias.
+- A pré-visualização autónoma utiliza a implementação real e dados sintéticos. `tests/preview-prescricao.py` fornece a mesma preparação para um servidor loopback quando permitido; neste ambiente a abertura da porta foi bloqueada.

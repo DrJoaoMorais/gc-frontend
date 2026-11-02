@@ -1,4 +1,4 @@
-import { BLOCOS_EXERCICIO, resolverBloco, exerciciosDaSessao, distribuicaoRegional } from './biblioteca-blocos.js?v=2026-11-02-contraste-2';
+import { BLOCOS_EXERCICIO, resolverBloco, exerciciosDaSessao, distribuicaoRegional } from './biblioteca-blocos.js?v=2026-11-02-prefeitos-3';
 import { PLANOS_CASA, configuracaoPlanoCasa, preverPlanoCasa, tempoPlanoCasa } from './planos-casa.js?v=2026-11-01-1';
 import { PADROES_CASA, catalogoCasa, sugerirVariantesCasa, semanaCasa, proporProgramaCasa } from './programa-casa.js?v=2026-11-01-1';
 import { organizarExercicio, pertenceFinalidade, doseInicialDoCatalogo, doseCatalogoDefinida } from './catalogo-organizacao.js?v=2026-10-31-organizacao';
@@ -36,7 +36,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-02-contraste-2';
+const PRESCRICAO_CSS_VERSION = '2026-11-02-prefeitos-3';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -2699,7 +2699,7 @@ function wirePatientMainTabs() {
    MODO 1 — calendário (datas reais, todas as semanas visíveis)
    ================================================================ */
 let _biblioteca = bibliotecaVazia();
-function bibliotecaVazia() { return { categoria: 'Circuitos', minutos: 20, nivel: 'leve', bloco: null, escolhidos: new Map(), aquecimento: 5, retorno: 5 }; }
+function bibliotecaVazia() { return { categoria: 'Circuitos', minutos: 20, nivel: 'leve', bloco: null, escolhidos: new Map(), aquecimento: 5, retorno: 5, dias: new Set(), repetir: false, mensagem: '' }; }
 
 function bibliotecaSelecionados(bloco) {
   const resolvido = resolverBloco(bloco, _state.exercisesCatalog);
@@ -2721,28 +2721,35 @@ function resumoExerciciosSessao(s) {
 }
 function renderBibliotecaBlocos() {
   const b = _biblioteca;
-  const blocos = BLOCOS_EXERCICIO.filter(x => x.categorias.includes(b.categoria));
-  const escolhido = blocos.find(x => x.id === b.bloco);
-  const circuito = ['Circuitos', 'HIIT'].includes(b.categoria);
+  const escolhido = BLOCOS_EXERCICIO.find(x => x.id === b.bloco);
   return `<section class="gcwo-biblioteca" id="gcwoBiblioteca">
-    <h2 class="gcwo-section-title">Biblioteca de blocos</h2>
-    <div class="gcwo-chips">${['Circuitos', 'HIIT', 'Força', 'Mobilidade'].map(c => `<button type="button" class="gcwo-chip${c === b.categoria ? ' on' : ''}" aria-pressed="${c === b.categoria}" data-bib-categoria="${c}">${c}</button>`).join('')}</div>
-    <div class="gcwo-bib-filtros"><label class="gcwo-field"><span>Duração-alvo do bloco principal</span><select id="gcwoBibMinutos">${[10,20,30].map(n => `<option value="${n}"${n === b.minutos ? ' selected' : ''}>${n} minutos</option>`).join('')}</select></label>
-      <label class="gcwo-field"><span>Nível a rever pelo prescritor</span><select id="gcwoBibNivel">${[['leve','Inicial · Leve'],['moderado','Intermédio'],['exigente','Avançado']].map(([v,l]) => `<option value="${v}"${v === b.nivel ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
-      ${circuito ? `<label class="gcwo-field"><span>Aquecimento (min)</span><input id="gcwoBibAquecimento" type="number" min="0" max="30" value="${b.aquecimento}"></label><label class="gcwo-field"><span>Retorno à calma (min)</span><input id="gcwoBibRetorno" type="number" min="0" max="30" value="${b.retorno}"></label>` : ''}
-    </div>
-    ${!_state.catalogLoaded ? '<p>A carregar exercícios…</p>' : `<div class="gcwo-bib-grid">${blocos.map(bloco => {
-      const r = resolverBloco(bloco, _state.exercisesCatalog), exs = bibliotecaSelecionados(bloco);
-      return `<article class="gcwo-bib-card${b.bloco === bloco.id ? ' on' : ''}"><h3>${escHtml(bloco.nome)}</h3><small>${escHtml(resumoRegioes(exs))}</small>
-        <ol>${r.exercicios.map(ex => `<li>${escHtml(ex.name)}</li>`).join('')}</ol>
-        ${r.emFalta.length ? `<p class="gcwo-erro">${r.emFalta.length} exercício(s) indisponíveis no catálogo. Modelo incompleto.</p>` : ''}
-        <button type="button" class="gcBtnGhost" data-bib-bloco="${bloco.id}" ${r.emFalta.length ? 'disabled' : ''}>${b.bloco === bloco.id ? 'Selecionado' : 'Selecionar e ajustar'}</button></article>`;
+    <h2 class="gcwo-section-title">1. Escolher um circuito pré-feito</h2>
+    <p>Os exercícios, tempos e pausas já estão preenchidos. Escolha o circuito e os dias.</p>
+    <div class="gcwo-bib-filtros"><label class="gcwo-field"><span>Tempo de treino principal</span><select id="gcwoBibMinutos">${[10,20,30].map(n => `<option value="${n}"${n === b.minutos ? ' selected' : ''}>${n} minutos</option>`).join('')}</select></label><span class="gcwo-bib-nota">+ ${b.aquecimento} min de aquecimento e ${b.retorno} min de retorno à calma</span></div>
+    ${!_state.catalogLoaded ? '<p>A carregar circuitos…</p>' : `<div class="gcwo-bib-grid">${BLOCOS_EXERCICIO.map(bloco => {
+      const r = resolverBloco(bloco, _state.exercisesCatalog);
+      const exemplo = sessaoBlocoParaDia(_state.startDate, true, bloco);
+      const voltas = exemplo?.blocks.find(x => x.tipo === 'voltas')?.rounds || 0;
+      return `<article class="gcwo-bib-card${b.bloco === bloco.id ? ' on' : ''}"><h3>${escHtml(bloco.nome.replace('Bloco', 'Circuito'))}</h3>
+        <p><strong>${b.minutos} min de treino · ${b.minutos+b.aquecimento+b.retorno} min no total</strong></p>
+        <ol>${bibliotecaSelecionados(bloco).map(ex => `<li>${escHtml(ex.name)}</li>`).join('')}</ol>
+        <div class="gcwo-bib-dose">${voltas} voltas · 30 s por exercício · 15 s de transição · 60 s entre voltas</div>
+        <details><summary>Ver sessão completa</summary>${exemplo ? `<ul>${exemplo.blocks.map(x=>`<li>${escHtml(x.name)}${x.tipo==='fixed'?` · ${tempoPlanoCasa(x.duration_sec)}`:''}</li>`).join('')}</ul>` : ''}</details>
+        ${r.emFalta.length ? `<p class="gcwo-erro">Modelo indisponível: faltam ${r.emFalta.length} exercícios no catálogo.</p>` : ''}
+        <button type="button" class="${b.bloco===bloco.id?'gcBtnSuccess':'gcBtnGhost'}" data-bib-bloco="${bloco.id}" ${r.emFalta.length ? 'disabled' : ''}>${b.bloco === bloco.id ? 'Circuito selecionado' : 'Usar este circuito'}</button></article>`;
     }).join('')}</div>`}
-    ${escolhido ? `<div class="gcwo-bib-selecao"><h3>${escHtml(escolhido.nome)} · Exercícios selecionados</h3>
-      ${resolverBloco(escolhido, _state.exercisesCatalog).exercicios.map(ex => `<label class="gcwo-bib-check"><input type="checkbox" data-bib-exercicio="${ex.id}" ${bibliotecaSelecionados(escolhido).some(x => x.id === ex.id) ? 'checked' : ''}>${escHtml(ex.name)}</label>`).join('')}
-      <p>${escHtml(resumoRegioes(bibliotecaSelecionados(escolhido)))} · ${b.minutos} min de bloco principal${circuito ? ` + ${b.aquecimento} min de aquecimento + ${b.retorno} min de retorno à calma` : ' · duração estimada após definir a dose'}</p>
-      <p class="gcwo-muted">Clique em «+ Colocar bloco» no dia pretendido. O editor permite rever dose, pausas, ordem e duração antes de confirmar esse treino.</p></div>` : '<p class="gcwo-muted">Selecione um bloco para o colocar num dia da semana, ou use «+ Adicionar treino» para as outras modalidades.</p>'}
-    <p class="gcwo-bib-nota">Composição inicial com exercícios do catálogo; não corresponde a uma transcrição dos vídeos enviados. O nível e a categoria não determinam automaticamente a intensidade.</p>
+    ${escolhido ? `<div class="gcwo-bib-selecao"><h3>2. Colocar ${escHtml(escolhido.nome.replace('Bloco','Circuito'))} nos dias</h3>
+      <div class="gcwo-bib-presets"><button type="button" class="gcBtnGhost" data-bib-dias="0,2,4">2.ª / 4.ª / 6.ª</button><button type="button" class="gcBtnGhost" data-bib-dias="1,3">3.ª / 5.ª</button><button type="button" class="gcBtnGhost" data-bib-dias="5,6">Sábado / Domingo</button></div>
+      <div class="gcwo-bib-dias">${DIAS_SEMANA.map((d,i)=>`<label class="gcwo-bib-check"><input type="checkbox" data-bib-dia="${i}" ${b.dias.has(i)?'checked':''}>${d.label}</label>`).join('')}</div>
+      <label class="gcwo-bib-check"><input type="checkbox" id="gcwoBibRepetir" ${b.repetir?'checked':''}>Repetir estes dias em todas as semanas do programa</label>
+      ${b.confirmar ? `<div class="gcwo-bib-conflito" role="alert"><p>Estes dias já têm treino. Como pretende colocar o circuito?</p><button type="button" class="gcBtnGhost" data-bib-confirmacao="substituir">Substituir os circuitos pré-feitos destes dias</button><button type="button" class="gcBtnGhost" data-bib-confirmacao="juntar">Acrescentar sem substituir</button><button type="button" class="gcBtnGhost" data-bib-confirmacao="cancelar">Cancelar</button><p class="gcwo-bib-nota">Treinos específicos e protocolos mantêm-se.</p></div>` : ''}
+      <button type="button" class="gcBtnSuccess" id="gcwoBibAplicar" ${b.dias.size?'':'disabled'}>Colocar circuito nos dias selecionados</button>
+      <p class="gcwo-muted">A colocação é direta. Pode editar um treino depois, se precisar. O programa fica gravado em «Guardar plano».</p>
+      <details class="gcwo-bib-opcional"><summary>Ajustar este circuito · opcional</summary>
+      ${resolverBloco(escolhido, _state.exercisesCatalog).exercicios.map(ex => `<label class="gcwo-bib-check"><input type="checkbox" data-bib-exercicio="${ex.id}" ${bibliotecaSelecionados(escolhido).some(x=>x.id===ex.id)?'checked':''}>${escHtml(ex.name)}</label>`).join('')}
+      <div class="gcwo-bib-filtros"><label class="gcwo-field"><span>Aquecimento (min)</span><input id="gcwoBibAquecimento" type="number" min="0" max="30" value="${b.aquecimento}"></label><label class="gcwo-field"><span>Retorno à calma (min)</span><input id="gcwoBibRetorno" type="number" min="0" max="30" value="${b.retorno}"></label></div></details>
+      </div>` : ''}
+    <p class="gcwo-bib-nota" role="status">${escHtml(b.mensagem || 'Circuitos-base do catálogo para revisão clínica antes de guardar. Os vídeos enviados ainda não foram transcritos para esta biblioteca.')}</p>
   </section>`;
 }
 function wireBibliotecaBlocos() {
@@ -2751,10 +2758,15 @@ function wireBibliotecaBlocos() {
   host.addEventListener('click', e => {
     const button = e.target.closest('button'); if (!button) return;
     if (button.dataset.bibCategoria) { _biblioteca.categoria = button.dataset.bibCategoria; _biblioteca.bloco = null; }
-    if (button.dataset.bibBloco) _biblioteca.bloco = button.dataset.bibBloco;
+    if (button.dataset.bibConfirmacao) { if(button.dataset.bibConfirmacao==='cancelar'){_biblioteca.confirmar=false;renderStep2Body();return;} return aplicarCircuitoPreFeito(button.dataset.bibConfirmacao); }
+    if (button.id === 'gcwoBibAplicar') return aplicarCircuitoPreFeito();
+    if (button.dataset.bibDias) { _biblioteca.dias = new Set(button.dataset.bibDias.split(',').map(Number)); renderStep2Body(); return; }
+    if (button.dataset.bibBloco) { _biblioteca.bloco = button.dataset.bibBloco; _biblioteca.dias = new Set(); _biblioteca.mensagem=''; }
     if (button.dataset.bibCategoria || button.dataset.bibBloco) renderStep2Body();
   });
   host.addEventListener('change', e => {
+    if (e.target.dataset.bibDia !== undefined) { const dia=Number(e.target.dataset.bibDia); e.target.checked ? _biblioteca.dias.add(dia) : _biblioteca.dias.delete(dia); renderStep2Body(); return; }
+    if (e.target.id === 'gcwoBibRepetir') { _biblioteca.repetir=e.target.checked; return; }
     if (e.target.dataset.bibExercicio) {
       const bloco = BLOCOS_EXERCICIO.find(x => x.id === _biblioteca.bloco);
       const ids = new Set(bibliotecaSelecionados(bloco).map(x => x.id));
@@ -2770,15 +2782,14 @@ function wireBibliotecaBlocos() {
     renderStep2Body();
   });
 }
-function abrirBlocoParaDia(date) {
-  const bloco = BLOCOS_EXERCICIO.find(x => x.id === _biblioteca.bloco);
+function sessaoBlocoParaDia(date, predefinido = false, bloco = BLOCOS_EXERCICIO.find(x => x.id === _biblioteca.bloco)) {
   if (!bloco) return;
   const exs = bibliotecaSelecionados(bloco);
   if (!exs.length || resolverBloco(bloco, _state.exercisesCatalog).emFalta.length) return;
-  const b = _biblioteca, circuito = ['Circuitos', 'HIIT'].includes(b.categoria);
+  const b = _biblioteca, circuito = predefinido || ['Circuitos', 'HIIT'].includes(b.categoria);
   const s = novaSessaoSkeleton(circuito ? 'Circuito' : 'Ginásio', circuito ? 'circuit' : 'list', date);
   s.local = 'Casa';
-  s.training_block = { id: bloco.id, name: bloco.nome, category: b.categoria, level: b.nivel, main_target_min: b.minutos };
+  s.training_block = { id: bloco.id, name: predefinido ? bloco.nome.replace('Bloco', 'Circuito') : bloco.nome, category: b.categoria, level: b.nivel, main_target_min: b.minutos };
   if (circuito) {
     s.circuit_config = { nivel: b.nivel, minutos: b.minutos + b.aquecimento + b.retorno, aquecimento: b.aquecimento, retorno: b.retorno, voltas: 1, trabalho: 30, transicao: 15, pausa: 60 };
     s.circuit_config.voltas = Math.max(1, Math.floor((b.minutos * 60 + 60) / (exs.length * 45 + 60)));
@@ -2787,15 +2798,32 @@ function abrirBlocoParaDia(date) {
     s._limiteMin = s.circuit_config.minutos;
     const fixo = (name, min) => ({ block_id: uuid(), tipo: 'fixed', name, duration_sec: min * 60 });
     s.blocks = [
-      ...(b.aquecimento ? [fixo('Aquecimento — definir execução individual', b.aquecimento)] : []),
+      ...(b.aquecimento ? [fixo('Aquecimento — marcha confortável e mobilização suave', b.aquecimento)] : []),
       { block_id: uuid(), tipo: 'voltas', name: bloco.nome, rounds: proposta.voltas, rest_between_rounds_s: 60, exercicios: exs.map(ex => ({ id: uuid(), exercise_id: ex.id, name: ex.name, measure: 'time', value: 30, rest_after_s: 15 })) },
       ...(proposta.marcha > 0 ? [fixo('Complemento do bloco principal — marcha confortável', proposta.marcha / 60)] : []),
-      ...(b.retorno ? [fixo('Retorno à calma — definir execução individual', b.retorno)] : []),
+      ...(b.retorno ? [fixo('Retorno à calma — marcha lenta e respiração confortável', b.retorno)] : []),
     ];
     s.notes = `Duração-alvo do bloco principal: ${b.minutos} min. Rever voltas, execução e pausas antes de prescrever.${b.categoria === 'HIIT' ? ' HIIT: intensidade e recuperação têm de ser individualizadas pelo prescritor.' : ''}`;
   } else s.items = exs.map(novoItemDeExercicio);
-  _panelDraft = s; _panelIsNovo = true; _pendingSlot = null;
-  renderStep2Body();
+  return s;
+}
+function abrirBlocoParaDia(date) {
+  const s = sessaoBlocoParaDia(date); if (!s) return;
+  _panelDraft = s; _panelIsNovo = true; _pendingSlot = null; renderStep2Body();
+}
+function aplicarCircuitoPreFeito(modo = 'perguntar') {
+  const datas=[]; const primeira=_biblioteca.repetir?segundaFeiraDeIso(_state.startDate):semanasParaMostrar()[0];
+  for(let segunda=primeira;segunda<=_state.endDate;segunda=addDiasIso(segunda,7)){
+    for(const dia of [..._biblioteca.dias].sort()) { const date=addDiasIso(segunda,dia); if(date>=_state.startDate&&date<=_state.endDate) datas.push(date); }
+    if(!_biblioteca.repetir)break;
+  }
+  const sessoes=datas.map(date=>sessaoBlocoParaDia(date,true));
+  if(!datas.length||sessoes.some(s=>!s)){_biblioteca.mensagem='Selecione dias dentro do programa e um circuito completo.';renderStep2Body();return;}
+  if(modo==='perguntar'&&datas.some(date=>_state.sessions.some(s=>s.date===date))){_biblioteca.confirmar=true;renderStep2Body();return;}
+  if(modo==='substituir')_state.sessions=_state.sessions.filter(s=>!datas.includes(s.date)||!s.training_block);
+  _biblioteca.confirmar=false;
+  for(const s of sessoes){s.order=_state.sessions.filter(x=>x.date===s.date).length;_state.sessions.push(s);} _biblioteca.mensagem=`Circuito colocado em ${sessoes.length} dia(s). Pode escolher outro circuito e outros dias.`;
+  _biblioteca.dias=new Set();renderStep2Body();updateGerarButtonState();
 }
 
 async function renovarApenasAcesso() {
@@ -2866,8 +2894,9 @@ function renderCalendarMode(host) {
   // mais (pode duplicar para dias de semanas diferentes de uma vez).
   host.innerHTML = `
     <section class="gcwo-prescription-card">
-      <div class="gcwo-prescription-head"><div><h2>Prescrição de exercício</h2><p>Definição do plano e calendário.</p></div><div class="gcwo-prescription-head-right"><button type="button" class="gcwo-criar-treino-btn" id="gcwoCriarTreino">+ Criar treino</button><span>${escHtml(diasEntreInclusivo(_state.startDate, _state.endDate))} dias</span></div></div>
+      <div class="gcwo-prescription-head"><div><h2>Prescrição de exercício</h2><p>Escolher circuitos pré-feitos e distribuir pelos dias.</p></div><div class="gcwo-prescription-head-right"><button type="button" class="gcwo-criar-treino-btn" id="gcwoCriarTreino">Criar treino específico</button><span>${escHtml(diasEntreInclusivo(_state.startDate, _state.endDate))} dias</span></div></div>
       ${renderDatasPlanoSection()}
+      ${renderBibliotecaBlocos()}
     <div class="gcwo-calendar-card">
       <div class="gcwo-cal-head">
         <div><h2 class="gcwo-section-title">${_embeddedCare ? 'Calendário do acompanhamento' : 'Calendário do plano'}</h2><p>Adicione um treino ou arraste-o para mudar de dia.</p></div>
@@ -2880,7 +2909,6 @@ function renderCalendarMode(host) {
       <div id="gcwoCalGrid"></div>
     </div>
 
-    ${renderBibliotecaBlocos()}
     </section>
   `;
 

@@ -21,9 +21,26 @@ test('access expiry can precede the last workout and is not extended by programm
  assert.equal(x.run('validarPrescricao()'),null);assert.equal(x.get('#gcwoDataValidadeLink').hasAttribute('min'),false);
  x.run("document.getElementById('gcwoDataFim').value='2026-12-20';document.getElementById('gcwoDataFim').dispatchEvent(new window.Event('change',{bubbles:true}))");assert.equal(x.run('_state.linkExpiryDate'),'2026-11-03');assert.equal(x.run('haSessoesPorGravar()'),true);
 });
+test('ready-made circuits go directly to Mon/Wed/Fri, Tue/Thu and weekends without opening the custom editor',async()=>{
+ const x=await setup();x.run(`_criarTreino=null;_state.sessions=[];_state.exercisesCatalog=${fs.readFileSync(path.join(__dirname,'fixtures/catalogo-173.json'),'utf8')};_calendarFirstMonday='2026-11-02';renderStep2();`);
+ for(const [bloco,dias] of [['inteiro','0,2,4'],['superiores','1,3'],['core','5,6']]){
+  x.click(`[data-bib-bloco="${bloco}"]`);x.click(`[data-bib-dias="${dias}"]`);x.click('#gcwoBibAplicar');
+  assert.equal(x.run('_panelDraft'),null);assert.equal(x.run('_criarTreino'),null);
+ }
+ assert.equal(x.run('_state.sessions.length'),7);
+ assert.equal(x.run("_state.sessions.filter(s=>['2026-11-02','2026-11-04','2026-11-06'].includes(s.date)).every(s=>s.training_block.id==='inteiro')"),true);
+ assert.equal(x.run("_state.sessions.filter(s=>['2026-11-03','2026-11-05'].includes(s.date)).every(s=>s.training_block.id==='superiores')"),true);
+ assert.equal(x.run("_state.sessions.filter(s=>['2026-11-07','2026-11-08'].includes(s.date)).every(s=>s.training_block.id==='core')"),true);
+ assert.equal(x.run('_state.sessions.every(s=>calcularTempoTotalCircuito(s).total===1800)'),true);
+ const before=x.run('JSON.stringify(_state.sessions[1])');x.run('_state.sessions[0].blocks[1].exercicios[0].value=99');assert.equal(x.run('JSON.stringify(_state.sessions[1])'),before);
+});
+test('ready-made weekday assignment can repeat throughout a month without changing link validity',async()=>{
+ const x=await setup();x.run(`_criarTreino=null;_state.sessions=[];_state.endDate='2026-11-29';_state.linkExpiryDate='2026-11-16';_state.exercisesCatalog=${fs.readFileSync(path.join(__dirname,'fixtures/catalogo-173.json'),'utf8')};_calendarFirstMonday='2026-11-02';renderStep2();`);
+ x.click('[data-bib-bloco="inteiro"]');x.click('[data-bib-dias="0,2,4"]');x.run('_biblioteca.repetir=true');x.click('#gcwoBibAplicar');assert.equal(x.run('_state.sessions.length'),12);assert.equal(x.run('_state.sessions.at(-1).date'),'2026-11-27');assert.equal(x.run('_state.linkExpiryDate'),'2026-11-16');assert.equal(x.run('new Set(_state.sessions.map(s=>s.session_id)).size'),12);
+});
 test('main page has one week, visible exercises and catalogue selection copied into an isolated day draft',async()=>{
  const x=await setup();x.run(`_criarTreino=null;_state.exercisesCatalog=${fs.readFileSync(path.join(__dirname,'fixtures/catalogo-173.json'),'utf8')};renderStep2();`);
- assert.equal(x.document.querySelectorAll('.gcwo-calweek').length,1);assert.equal(x.document.querySelectorAll('.gcwo-bib-card').length,4);
+ assert.equal(x.document.querySelectorAll('.gcwo-calweek').length,1);assert.equal(x.document.querySelectorAll('.gcwo-bib-card').length,5);
  x.click('[data-bib-bloco="inferiores"]');assert.match(x.get('.gcwo-bib-selecao').textContent,/Sentar e levantar/);
  const first=x.get('[data-bib-exercicio]');first.checked=false;first.dispatchEvent(new x.window.Event('change',{bubbles:true}));
  x.run("carregarDisponibilidadeCircuito=async()=>{}");const before=x.run('JSON.stringify(_state.sessions)');x.click('[data-colocar-bloco="2026-11-03"]');assert.equal(x.run('_panelDraft.date'),'2026-11-03');assert.equal(x.run('_panelDraft.blocks.find(b=>b.tipo==="voltas").exercicios.length'),3);assert.equal(x.run('JSON.stringify(_state.sessions)'),before);

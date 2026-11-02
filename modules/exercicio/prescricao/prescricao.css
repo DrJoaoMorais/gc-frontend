@@ -1693,3 +1693,12 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 #gcwoPrescricaoRoot .gcwo-plano-empty{color:#193e30}
 #gcwoPrescricaoRoot .gcwo-plano-empty :is(h3,p){color:#193e30}
 #gcwoPrescricaoRoot .gcwo-plano-empty .gcBtnPrimary{background:#173d65;color:#fff;border:1px solid #173d65;border-radius:8px;padding:10px 14px;min-height:42px;font:inherit;font-weight:600}
+
+/* Percurso principal: circuitos preenchidos e atribuição direta a vários dias. */
+.gcwo-bib-presets,.gcwo-bib-dias{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+.gcwo-bib-dias .gcwo-bib-check{padding:8px 12px;border:1px solid #c9d5e4;border-radius:8px;background:#fff;color:#172f51}
+.gcwo-bib-dose{font-size:13px;line-height:1.5;color:#38536e;padding:8px 0}
+.gcwo-bib-opcional{margin:14px 0;padding-top:12px;border-top:1px solid #dce5ef}
+.gcwo-bib-opcional summary{min-height:36px;color:#38536e}
+#gcwoBibAplicar{min-height:44px;padding:10px 16px;border:1px solid #176647;border-radius:8px;background:#176647;color:#fff;font:inherit;font-weight:600}
+#gcwoBibAplicar:disabled{background:#e5eaf0;color:#53677d;border-color:#cad5e2}
