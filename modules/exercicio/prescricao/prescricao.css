@@ -1683,3 +1683,13 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-calday{min-width:0}.gcwo-calsession-name{white-space:normal;overflow-wrap:anywhere}
 .gcwo-biblioteca [hidden]{display:none!important}
 @media(max-width:680px){.gcwo-bib-grid{grid-template-columns:1fr}.gcwo-biblioteca{padding:14px}.gcwo-bib-filtros .gcwo-field{min-width:120px}.gcwo-bib-filtros input,.gcwo-bib-filtros select{font-size:16px}}
+
+/* O editor tem superfícies claras: os controlos nativos não herdam o tema escuro do host. */
+#gcwoPrescricaoRoot,.gcwo-modal-overlay{color-scheme:light}
+#gcwoPrescricaoRoot :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea),
+.gcwo-modal-overlay :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea){background-color:#fff;color:#172f51;-webkit-text-fill-color:#172f51;border-color:#c9d5e4}
+#gcwoPrescricaoRoot :is(input,textarea)::placeholder,.gcwo-modal-overlay :is(input,textarea)::placeholder{color:#60748c;-webkit-text-fill-color:#60748c;opacity:1}
+#gcwoPrescricaoRoot :is(select option,select optgroup),.gcwo-modal-overlay :is(select option,select optgroup){background-color:#fff;color:#172f51}
+#gcwoPrescricaoRoot .gcwo-plano-empty{color:#193e30}
+#gcwoPrescricaoRoot .gcwo-plano-empty :is(h3,p){color:#193e30}
+#gcwoPrescricaoRoot .gcwo-plano-empty .gcBtnPrimary{background:#173d65;color:#fff;border:1px solid #173d65;border-radius:8px;padding:10px 14px;min-height:42px;font:inherit;font-weight:600}
