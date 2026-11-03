@@ -10,6 +10,9 @@ export function activeMessageClinic() {
   if (Array.isArray(ids) && (ids.length !== 1 || String(ids[0]) !== String(G.activeClinicId))) return null;
   return G.activeClinicId || null;
 }
+function messageScope() {
+  return activeMessageClinic() || G.agendaClinicIds?.map(String).sort().join(',') || '';
+}
 const queryOK = async query => { const { data, error } = await query; if (error) throw error; return data || []; };
 export async function messageMembers(clinicId) {
   return queryOK(window.sb.rpc('agenda_message_members', {p_clinic_id: clinicId}));
@@ -20,7 +23,8 @@ export async function messagePatients(clinicId, term) {
   return queryOK(window.sb.from('patient_clinic').select('patient_id,patients!inner(id,full_name)').eq('clinic_id', clinicId).ilike('patients.full_name', `%${text}%`).order('patient_id').limit(20));
 }
 export async function messageRows(clinicId, offset = 0, count = 3, includeHidden = false) {
-  let query = window.sb.from('agenda_messages').select('id,clinic_id,author_id,recipient_id,patient_id,body,is_task,status,hidden_from_home,created_at,patients(full_name)').eq('clinic_id', clinicId);
+  let query = window.sb.from('agenda_messages').select('id,clinic_id,author_id,recipient_id,patient_id,body,is_task,status,hidden_from_home,created_at,patients(full_name)');
+  query = Array.isArray(clinicId) ? query.in('clinic_id', clinicId) : query.eq('clinic_id', clinicId);
   if (!includeHidden) query = query.eq('hidden_from_home', false);
   return queryOK(query.order('created_at', {ascending:false}).order('id', {ascending:false}).range(offset, offset + count - 1));
 }
@@ -47,31 +51,32 @@ function dialog(title, content) {
   d.showModal();
   return {d, close};
 }
-function openRow(row, clinicId) {
-  if (activeMessageClinic() !== clinicId) return;
+function openRow(row, clinicId, scope) {
+  if (messageScope() !== scope) return;
   if (row.patient_id) {
     if (currentDialog) { currentDialog.close(); currentDialog.remove(); currentDialog = null; }
     if (typeof window.__gc_openFeedPanel === 'function') window.__gc_openFeedPanel(row.patient_id, clinicId);
     else window.open(`/modules/consulta/v2/consulta-completa/feed-doente.html?patientId=${encodeURIComponent(row.patient_id)}&sessionClinicId=${encodeURIComponent(clinicId)}`, '_blank', 'noopener');
-  } else dialog('Mensagem · ' + clinicName(clinicId), `<p class="aw-message-body">${e(row.body)}</p>`);
+  } else dialog('Mensagem · ' + clinicName(clinicId), `<p class="aw-message-body">${e(row.body)}</p>`).d.dataset.clinic = scope;
 }
-function renderRows(host, rows, members, clinicId, home = false) {
+function renderRows(host, rows, members, scope, home = false) {
   host.replaceChildren();
-  if (!rows.length) { host.textContent = 'Sem mensagens nesta clínica.'; return; }
-  const names = new Map(members.map(m => [m.user_id, m.display_name || 'Utilizador da clínica']));
+  if (!rows.length) { host.textContent = 'Sem mensagens na seleção atual.'; return; }
   for (const row of rows) {
+    const clinicId = row.clinic_id;
+    const names = members.get(clinicId);
     const el = document.createElement('div'); el.className = 'aw-message-row';
     const stamp = new Intl.DateTimeFormat('pt-PT', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(row.created_at));
-    el.innerHTML = `<time>${e(stamp)}</time><div class="aw-message-text"><strong>${e(names.get(row.author_id) || 'Utilizador da clínica')}</strong><small>Para ${e(names.get(row.recipient_id) || 'Utilizador da clínica')}${row.is_task?' · Tarefa':''}</small>${row.patient_id?`<strong>${e(row.patients?.full_name || 'Doente associado')}</strong>`:''}<p>${e(row.body)}</p></div><button data-status aria-label="${row.status==='resolved'?'Reabrir':'Resolver'} mensagem">${row.status==='resolved'?'✓ Resolvido':'Por tratar'}</button><button data-open>Abrir</button>${home ? `<button data-retire ${row.status==='resolved'?'':'hidden'} title="Retirar da página inicial">Retirar</button>` : ''}`;
-    el.querySelector('[data-open]').onclick = () => openRow(row, clinicId);
+    el.innerHTML = `<time>${e(stamp)}</time><div class="aw-message-text"><strong>${e(names?.get(row.author_id) || 'Utilizador da clínica')}</strong><small>${scope.includes(',') ? e(clinicName(clinicId)) + ' · ' : ''}Para ${e(names?.get(row.recipient_id) || 'Utilizador da clínica')}${row.is_task?' · Tarefa':''}</small>${row.patient_id?`<strong>${e(row.patients?.full_name || 'Doente associado')}</strong>`:''}<p>${e(row.body)}</p></div><button data-status aria-label="${row.status==='resolved'?'Reabrir':'Resolver'} mensagem">${row.status==='resolved'?'✓ Resolvido':'Por tratar'}</button><button data-open>Abrir</button>${home ? `<button data-retire ${row.status==='resolved'?'':'hidden'} title="Retirar da página inicial">Retirar</button>` : ''}`;
+    el.querySelector('[data-open]').onclick = () => openRow(row, clinicId, scope);
     el.querySelector('[data-status]').onclick = async ev => {
-      if (activeMessageClinic() !== clinicId) return;
+      if (messageScope() !== scope) return;
       const button = ev.currentTarget; button.disabled = true;
       try {
         const status = row.status === 'resolved' ? 'pending' : 'resolved';
         const updated = await queryOK(window.sb.from('agenda_messages').update({status, hidden_from_home:false}).eq('clinic_id', clinicId).eq('id',row.id).select('id'));
         if (!updated.length) throw new Error('Sem permissão para alterar esta mensagem.');
-        if (activeMessageClinic() !== clinicId || !host.isConnected) return;
+        if (messageScope() !== scope || !host.isConnected) return;
         row.status = status; row.hidden_from_home = false;
         if (home) el.querySelector('[data-retire]').hidden = status !== 'resolved';
         else void refreshAgendaMessages();
@@ -81,13 +86,13 @@ function renderRows(host, rows, members, clinicId, home = false) {
       finally { button.disabled = false; }
     };
     el.querySelector('[data-retire]')?.addEventListener('click', async ev => {
-      if (activeMessageClinic() !== clinicId || row.status !== 'resolved') return;
+      if (messageScope() !== scope || row.status !== 'resolved') return;
       const button = ev.currentTarget; button.disabled = true;
       el.querySelector('[data-status]').disabled = true;
       try {
         const updated = await queryOK(window.sb.from('agenda_messages').update({hidden_from_home:true}).eq('clinic_id',clinicId).eq('id',row.id).eq('status','resolved').select('id'));
         if (!updated.length) throw new Error('Mensagem não resolvida ou sem permissão.');
-        if (activeMessageClinic() === clinicId) await refreshAgendaMessages();
+        if (messageScope() === scope) await refreshAgendaMessages();
       } catch { alert('Não foi possível retirar a mensagem da página inicial.'); }
       finally { button.disabled = false; el.querySelector('[data-status]').disabled = false; }
     });
@@ -97,41 +102,49 @@ function renderRows(host, rows, members, clinicId, home = false) {
 export async function refreshAgendaMessages() {
   const ticket = ++request;
   const clinicId = activeMessageClinic();
+  const scope = messageScope();
+  const ids = scope ? scope.split(',') : [];
+  const label = clinicId ? clinicName(clinicId) : ids.length > 1 ? 'Clínicas selecionadas' : 'Selecione uma clínica';
   // Remove old clinic content and any draft before waiting for new requests.
-  if (currentDialog && currentDialog.dataset.clinic !== (clinicId || '')) { currentDialog.close(); currentDialog.remove(); currentDialog = null; }
+  if (currentDialog && currentDialog.dataset.clinic !== scope) { currentDialog.close(); currentDialog.remove(); currentDialog = null; }
   if (currentComposer && (!currentComposer.isConnected || currentComposer.dataset.clinic !== (clinicId || ''))) { currentComposer.remove(); currentComposer = null; }
   const host = document.getElementById('awMessageList'); if (!host) return;
   const title = document.getElementById('awMessageTitle');
-  title.textContent = 'Mensagens e tarefas · ' + (clinicId ? clinicName(clinicId) : 'Selecione uma clínica');
+  title.textContent = 'Mensagens e tarefas · ' + label;
   const create = document.getElementById('awMessageNew'), all = document.getElementById('awMessagesAll');
   create.disabled = all.disabled = true;
   create.setAttribute('aria-expanded', String(!!currentComposer?.isConnected));
-  host.textContent = clinicId ? 'A carregar mensagens…' : 'Selecione uma única clínica para ver ou enviar mensagens.';
-  if (!clinicId) return;
+  host.textContent = ids.length ? 'A carregar mensagens…' : 'Selecione uma clínica para ver mensagens.';
+  if (!ids.length) return;
   try {
-    const [rows, members] = await Promise.all([messageRows(clinicId), messageMembers(clinicId)]);
-    if (ticket !== request || !host.isConnected || activeMessageClinic() !== clinicId) return;
-    renderRows(host, rows, members, clinicId, true);
+    const [rows, entries] = await Promise.all([
+      messageRows(ids),
+      Promise.all(ids.map(async id => [id, await messageMembers(id).catch(() => [])])),
+    ]);
+    const members = new Map(entries.map(([id, list]) => [id, new Map(list.map(m => [m.user_id, m.display_name]))]));
+    if (ticket !== request || !host.isConnected || messageScope() !== scope) return;
+    renderRows(host, rows, members, scope, true);
     all.disabled = false;
-    create.disabled = !!currentComposer?.isConnected;
-    create.onclick = () => newMessage(clinicId, members);
-    all.onclick = () => allMessages(clinicId, members);
+    create.disabled = !clinicId || !!currentComposer?.isConnected;
+    create.title = clinicId ? '' : 'Selecione uma clínica para enviar uma mensagem.';
+    create.onclick = () => newMessage(clinicId, entries[0][1]);
+    all.onclick = () => allMessages(scope, label, members);
   } catch {
-    if (ticket === request && host.isConnected) host.textContent = 'Não foi possível carregar as mensagens desta clínica.';
+    if (ticket === request && host.isConnected) host.textContent = 'Não foi possível carregar as mensagens da seleção atual.';
   }
 }
-async function allMessages(clinicId, members) {
-  if (activeMessageClinic() !== clinicId) return;
-  const {d} = dialog('Mensagens e tarefas · ' + clinicName(clinicId), '<div data-rows></div><p data-error role="status"></p><button data-more>Ver mais</button>');
-  d.dataset.clinic = clinicId;
+async function allMessages(scope, label, members) {
+  if (messageScope() !== scope) return;
+  const {d} = dialog('Mensagens e tarefas · ' + label, '<div data-rows></div><p data-error role="status"></p><button data-more>Ver mais</button>');
+  d.dataset.clinic = scope;
   let offset = 0; const rows = []; const more = d.querySelector('[data-more]');
   const load = async () => {
     more.disabled = true;
     try {
-      const batch = await messageRows(clinicId, offset, 30, true);
-      if (!d.isConnected || activeMessageClinic() !== clinicId) return;
+      const batch = await messageRows(scope.split(','), offset, 30, true);
+      if (!d.isConnected || messageScope() !== scope) return;
       rows.push(...batch); offset += batch.length;
-      renderRows(d.querySelector('[data-rows]'), rows, members, clinicId);
+      renderRows(d.querySelector('[data-rows]'), rows, members, scope);
       more.hidden = batch.length < 30; d.querySelector('[data-error]').textContent = '';
     } catch { if(d.isConnected) d.querySelector('[data-error]').textContent = 'Não foi possível carregar as mensagens.'; }
     finally { more.disabled = false; }
