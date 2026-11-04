@@ -1,5 +1,6 @@
 // Limites de tempo referidos pelo doente. Não criam sessões nem definem doses.
 export const PERGUNTAS_DISPONIBILIDADE = Object.freeze({ uteis: 'exercicio_minutos_dias_uteis', fimSemana: 'exercicio_minutos_fim_semana' });
+const SEMANA_HABITUAL = 'exercicio_semana_habitual';
 const TIPOS = ['pre_consulta', 'pre_consulta_v2'];
 export function minutosDisponiveis(value) {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 1440 ? value : null;
@@ -8,7 +9,8 @@ function diaValido(value) {
   if (!value || !Object.hasOwn(value, 'min')) return null;
   const min = minutosDisponiveis(value.min);
   if (value.min !== null && min === null) return null;
-  return { ativo: value.ativo !== false, min, local: typeof value.local === 'string' ? value.local : 'Casa' };
+  const preferencias = Array.isArray(value.modalidades) ? { estado: value.estado, tempo: value.tempo, modalidades: value.modalidades.filter(m => typeof m === 'string') } : {};
+  return { ...preferencias, ativo: value.ativo !== false, min, local: typeof value.local === 'string' ? value.local : 'Casa' };
 }
 export function normalizarDisponibilidade(value) {
   if (value?.versao !== 1 || !Array.isArray(value.semanal) || value.semanal.length !== 7) return null;
@@ -30,6 +32,18 @@ export function disponibilidadeDasRespostas(rows, token) {
   const fimSemana = minutosDisponiveis(respostas.get(PERGUNTAS_DISPONIBILIDADE.fimSemana));
   const legado = respostas.get(token?.questionnaire_type === 'pre_consulta' ? 's6_duracao_sessao' : 's4_tempo_realista_sessao');
   const intervaloAnterior = typeof legado === 'string' ? legado : null;
+  const semana = respostas.get(SEMANA_HABITUAL);
+  if (Array.isArray(semana) && semana.length === 7 && semana.every(d =>
+    d && (['descanso', 'indisponivel'].includes(d.estado) ||
+      (d.estado === 'treino' && ['curto', '30', '45', '60'].includes(d.tempo))))) {
+    return { status: 'ok', intervaloAnterior, concluidoEm: token?.completed_at || null, disponibilidade: {
+      versao: 1, porData: {}, semanal: semana.map(d => ({
+        ativo: d.estado === 'treino', min: d.estado !== 'treino' ? 0 : d.tempo === 'curto' ? null : Number(d.tempo),
+        local: d.modalidades?.includes('Ginásio') && !d.modalidades.includes('Exercício em casa') ? 'Ginásio' : 'Casa',
+        estado: d.estado, tempo: d.tempo || null, modalidades: Array.isArray(d.modalidades) ? d.modalidades : [],
+      })), origem: { id: token.id, concluidoEm: token.completed_at || null, tipo: token.questionnaire_type, uteis, fimSemana },
+    } };
+  }
   if (uteis === null && fimSemana === null) return { status: 'sem_valores_diarios', intervaloAnterior, disponibilidade: null, concluidoEm: token?.completed_at || null };
   return { status: 'ok', intervaloAnterior, concluidoEm: token?.completed_at || null, disponibilidade: {
     versao: 1, semanal: Array.from({ length: 7 }, (_, d) => { const min = d < 5 ? uteis : fimSemana; return { ativo: min !== 0, min, local: 'Casa' }; }), porData: {},
@@ -48,7 +62,7 @@ export async function lerDisponibilidadeQuestionario(sb, patientId, clinicId) {
     if (token.patient_id !== patientId || token.clinic_id !== clinicId) throw new Error('Contexto de questionário diferente.');
     const { data: rows, error: responseError } = await sb.from('intake_responses')
       .select('question_id,answer').eq('token_id', token.id)
-      .in('question_id', [...Object.values(PERGUNTAS_DISPONIBILIDADE), 's4_tempo_realista_sessao', 's6_duracao_sessao']);
+      .in('question_id', [SEMANA_HABITUAL, ...Object.values(PERGUNTAS_DISPONIBILIDADE), 's4_tempo_realista_sessao', 's6_duracao_sessao']);
     if (responseError) throw responseError;
     return disponibilidadeDasRespostas(rows, token);
   } catch (error) {
