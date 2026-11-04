@@ -132,7 +132,7 @@ async function _iniciarQuestionario(root) {
   const tipo = _ctx.questionnaire_type;
   let mod;
   try {
-    mod = await import('./configs/' + tipo + '.js?v=2026-10-31-disponibilidade');
+    mod = await import('./configs/' + tipo + '.js?v=2026-11-04-semana');
   } catch (e) {
     root.innerHTML = '<div class="gate"><h2>Tipo de questionário desconhecido</h2><p>' + tipo + '</p></div>';
     return;
@@ -262,6 +262,23 @@ function _wireApp() {
     if (_secaoIdx > 0) { _secaoIdx--; _render(); window.scrollTo(0, 0); }
   });
   if (btnSeg) btnSeg.addEventListener('click', async function () {
+    const semana = _cfg.seccoes.flatMap(sec => sec.perguntas).find(p => p.tipo === 'semana_treino');
+    if (semana && (_cfg.seccoes[_secaoIdx].perguntas.includes(semana) || _secaoIdx === _cfg.seccoes.length - 1)) {
+      const dias = _respostas[semana.id];
+      if (!Array.isArray(dias) || dias.length !== 7 || dias.some(d => !d.estado || (d.estado === 'treino' && !d.tempo))) {
+        alert('Indique a disponibilidade dos sete dias e o tempo dos dias em que quer treinar.');
+        return;
+      }
+      btnSeg.disabled = true;
+      try {
+        const saved = await window.sb.rpc('intake_gravar_resposta', { p_token: _token, p_question_id: semana.id, p_answer: dias });
+        if (saved.error || saved.data !== true) throw new Error('Gravação recusada');
+      } catch {
+        _avisarErroGravacao();
+        btnSeg.disabled = false;
+        return;
+      }
+    }
     const ultima = _secaoIdx === _cfg.seccoes.length - 1;
     if (!ultima) {
       _secaoIdx++;
@@ -290,6 +307,7 @@ function _wireApp() {
 function _renderPergunta(p) {
   switch (p.tipo) {
     case 'texto_curto':      return _renderTextoCurto(p);
+    case 'semana_treino':     return _renderSemanaTreino(p);
     case 'numero':           return _renderNumero(p);
     case 'escolha_unica':    return _renderEscolha(p, false);
     case 'escolha_multipla': return _renderEscolha(p, true);
@@ -404,10 +422,57 @@ function _renderGrelha(p) {
   return h + '</div>';
 }
 
+const DIAS_TREINO = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
+const ESTADOS_TREINO = { treino: 'Quero treinar', descanso: 'Prefiro descansar', indisponivel: 'Não posso treinar' };
+const TEMPOS_TREINO = { curto: 'Menos de 20 min', 30: '30 min', 45: '45 min', 60: '60 min' };
+const MODALIDADES_TREINO = ['Corrida', 'Ciclismo', 'Natação', 'Ginásio', 'Exercício em casa', 'Sem preferência'];
+
+function _renderSemanaTreino(p) {
+  const dias = _respostas[p.id] || [];
+  const opcoes = (values, name, checked, type = 'radio') => values.map(([value, label]) =>
+    `<label class="choice-item"><input type="${type}" name="${name}" value="${value}" ${checked.includes(value) ? 'checked' : ''}> <span>${label}</span></label>`).join('');
+  return `<div class="q" data-id="${p.id}"><div class="q-lbl">${p.label}</div>
+    <p>Indique o tempo total disponível em cada dia. Pode escolher várias modalidades.</p>
+    <button type="button" data-todos>Quero treinar todos os dias</button>
+    ${DIAS_TREINO.map((nome, i) => {
+      const d = dias[i] || {};
+      return `<fieldset data-dia><legend>${nome}</legend><div class="choice-list">${opcoes(Object.entries(ESTADOS_TREINO), 'estado-' + i, [d.estado])}</div>
+        <div data-treino ${d.estado === 'treino' ? '' : 'hidden'}><p>Tempo total disponível</p>
+        <div class="choice-list">${opcoes(['curto','30','45','60'].map(t => [t, TEMPOS_TREINO[t]]), 'tempo-' + i, [d.tempo])}</div>
+        <p>Modalidades preferidas</p><div class="choice-list">${opcoes(MODALIDADES_TREINO.map(m => [m,m]), 'modalidade-' + i, d.modalidades || [], 'checkbox')}</div></div></fieldset>`;
+    }).join('')}</div>`;
+}
+
+function _wireSemanaTreino(el, id) {
+  const dias = [...el.querySelectorAll('[data-dia]')];
+  function atualizar() {
+    _respostas[id] = dias.map(d => {
+      const estado = d.querySelector('[name^="estado-"]:checked')?.value || null;
+      d.querySelector('[data-treino]').hidden = estado !== 'treino';
+      if (estado !== 'treino') return { estado };
+      return { estado, tempo: d.querySelector('[name^="tempo-"]:checked')?.value || null,
+        modalidades: [...d.querySelectorAll('input[type="checkbox"]:checked')].map(m => m.value) };
+    });
+  }
+  el.addEventListener('change', e => {
+    if (e.target.type === 'checkbox' && e.target.checked) {
+      for (const input of e.target.closest('[data-dia]').querySelectorAll('input[type="checkbox"]:checked')) {
+        if (input !== e.target && [input.value, e.target.value].includes('Sem preferência')) input.checked = false;
+      }
+    }
+    atualizar();
+  });
+  el.querySelector('[data-todos]').onclick = () => {
+    dias.forEach(d => { d.querySelector('input[value="treino"]').checked = true; });
+    atualizar();
+  };
+}
+
 /* ════════ WIRING PERGUNTAS + GRAVAÇÃO ════════ */
 function _wirePergunta(p) {
   const el = document.querySelector('.q[data-id="' + p.id + '"]');
   if (!el) return;
+  if (p.tipo === 'semana_treino') return _wireSemanaTreino(el, p.id);
 
   if (p.tipo === 'texto_curto') {
     const input = el.querySelector('.q-input, .q-textarea');
