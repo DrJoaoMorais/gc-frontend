@@ -1,4 +1,4 @@
-import { BLOCOS_EXERCICIO, resolverBloco, exerciciosDaSessao, distribuicaoRegional } from './biblioteca-blocos.js?v=2026-11-05-editor-dia';
+import { BLOCOS_EXERCICIO, resolverBloco, exerciciosDaSessao, distribuicaoRegional } from './biblioteca-blocos.js?v=2026-11-05-semana-hoje';
 import { PLANOS_CASA, configuracaoPlanoCasa, preverPlanoCasa, tempoPlanoCasa } from './planos-casa.js?v=2026-11-01-1';
 import { PADROES_CASA, catalogoCasa, sugerirVariantesCasa, semanaCasa, proporProgramaCasa } from './programa-casa.js?v=2026-11-01-1';
 import { organizarExercicio, pertenceFinalidade, doseInicialDoCatalogo, doseCatalogoDefinida } from './catalogo-organizacao.js?v=2026-10-31-organizacao';
@@ -36,7 +36,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-05-editor-dia';
+const PRESCRICAO_CSS_VERSION = '2026-11-05-semana-hoje';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -232,8 +232,8 @@ function ensurePrescricaoCss() {
 // não tem efeito no link do doente nem no aviso automático (esse continua ligado a
 // endDate). duracaoSessaoPadrao/diasPorSemanaHabitual ficam já no modelo de dados;
 // o ecrã para os editar fica para a Fase B — por agora só vão com valores por omissão.
-function freshState() {
-  const inicio = isoAmanha();
+function freshState(embeddedCare = false) {
+  const inicio = embeddedCare ? isoHoje() : isoAmanha();
   return {
     clinicId: null,
     patient: null,
@@ -685,7 +685,7 @@ export async function initPrescricao(options = {}) {
 
   ensurePrescricaoCss();
   _embeddedCare = options.embeddedCare || null;
-  _state = freshState();
+  _state = freshState(Boolean(_embeddedCare));
   _biblioteca = bibliotecaVazia();
   _disponibilidadeQuestionario = null;
   _landing = options.restoreList && _landingReturnContext
@@ -2889,7 +2889,12 @@ function copiarSemanaPrincipal() {
 
 function renderCalendarMode(host) {
   if (_loadingPlanoActivo) {
-    host.innerHTML = `<section class="gcwo-card"><span class="gcwo-muted">A verificar se este doente já tem um plano activo…</span></section>`;
+    const hoje = isoHoje();
+  const temPlano = Boolean(_embeddedCare && _state.activePrescriptionId);
+  const terminado = temPlano && _state.endDate < hoje;
+  const futuro = temPlano && _state.startDate > hoje;
+  const acessoExpirado = temPlano && _state.linkExpiryDate && _state.linkExpiryDate < hoje;
+  host.innerHTML = `<section class="gcwo-card"><span class="gcwo-muted">A verificar se este doente já tem um plano activo…</span></section>`;
     return;
   }
 
@@ -2900,33 +2905,48 @@ function renderCalendarMode(host) {
   // mais (pode duplicar para dias de semanas diferentes de uma vez).
   host.innerHTML = `
     <section class="gcwo-prescription-card">
-      <div class="gcwo-prescription-head"><div><h2>Prescrição de exercício</h2><p>Escolher circuitos pré-feitos e distribuir pelos dias.</p></div><div class="gcwo-prescription-head-right"><button type="button" class="gcwo-criar-treino-btn" id="gcwoCriarTreino">Criar treino específico</button><span>${escHtml(diasEntreInclusivo(_state.startDate, _state.endDate))} dias</span></div></div>
-      ${renderDatasPlanoSection()}
-      ${renderBibliotecaBlocos()}
+      ${terminado ? `<p>Plano anterior terminou a ${escHtml(fmtDataPtIso(_state.endDate))}.</p><button type="button" class="gcBtnGhost" id="gcwoNovoAposTermino">Prescrever novo plano</button>` : ''}
+      ${futuro ? `<p>Plano agendado para ${escHtml(fmtDataPtIso(_state.startDate))}. <button type="button" class="gcBtnGhost" id="gcwoPrimeiraSemana">Ver primeira semana do plano</button></p>` : ''}
+      ${!terminado && acessoExpirado ? '<p><strong>Acesso expirado.</strong> Pode renovar o acesso nas definições do plano abaixo.</p>' : ''}
     <div class="gcwo-calendar-card">
       <div class="gcwo-cal-head">
         <div><h2 class="gcwo-section-title">${_embeddedCare ? 'Calendário do acompanhamento' : 'Calendário do plano'}</h2><p>Adicione um treino ou arraste-o para mudar de dia.</p></div>
         <div class="gcwo-cal-nav">
+          ${_embeddedCare ? '<button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalHoje">Hoje</button>' : ''}
           <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalAnterior">‹ Semana anterior</button>
-          <span id="gcwoCalIntervalo" class="gcwo-cal-nav-label"></span><button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCopiarSemana">Copiar semana seguinte</button>
+          <span id="gcwoCalIntervalo" class="gcwo-cal-nav-label"></span><button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCopiarSemana" ${terminado ? 'disabled' : ''}>Copiar semana seguinte</button>
           <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalSeguinte">Semana seguinte ›</button>
         </div>
       </div>
       <div id="gcwoCalGrid"></div>
     </div>
     <div id="gcwoEditorInline"></div>
+    ${terminado ? '' : `
+      <div class="gcwo-prescription-head"><div><h2>Prescrição de exercício</h2><p>Escolher circuitos pré-feitos e distribuir pelos dias.</p></div><div class="gcwo-prescription-head-right"><button type="button" class="gcwo-criar-treino-btn" id="gcwoCriarTreino">Criar treino específico</button><span>${escHtml(diasEntreInclusivo(_state.startDate, _state.endDate))} dias</span></div></div>
+      ${renderDatasPlanoSection()}
+      ${renderBibliotecaBlocos()}
+    `}
 
     </section>
   `;
 
-  wireDatasPlanoSection();
+  if (!terminado) wireDatasPlanoSection();
+  document.getElementById('gcwoNovoAposTermino')?.addEventListener('click', e => terminarPlanoActivo(_state.activePrescriptionId, e.currentTarget));
+  document.getElementById('gcwoCalHoje')?.addEventListener('click', () => {
+    _calendarFirstMonday = segundaFeiraDeIso(isoHoje());
+    renderCalGrid();
+  });
+  document.getElementById('gcwoPrimeiraSemana')?.addEventListener('click', () => {
+    _calendarFirstMonday = segundaFeiraDeIso(_state.startDate);
+    renderCalGrid();
+  });
   wireBibliotecaBlocos();
   renderCalGrid();
   document.getElementById('gcwoCalAnterior').addEventListener('click', () => navegarCalendario(-7));
   document.getElementById('gcwoCalSeguinte').addEventListener('click', () => navegarCalendario(7));
-  document.getElementById('gcwoGerar').addEventListener('click', handleGerar);
+  document.getElementById('gcwoGerar')?.addEventListener('click', handleGerar);
   document.getElementById('gcwoCopiarSemana').addEventListener('click', copiarSemanaPrincipal);
-  document.getElementById('gcwoCriarTreino').addEventListener('click', abrirCriarTreino);
+  document.getElementById('gcwoCriarTreino')?.addEventListener('click', abrirCriarTreino);
   document.getElementById('gcwoTerminarPlano')?.addEventListener('click', (e) => terminarPlanoActivo(_state.activePrescriptionId, e.currentTarget));
 }
 
@@ -3031,6 +3051,7 @@ function renderCalGrid() {
   const host = document.getElementById('gcwoCalGrid');
   if (!host) return;
   const semanas = semanasParaMostrar();
+  const hoje = isoHoje();
   const primeiroDia = semanas[0];
   const ultimoDia = addDiasIso(semanas.at(-1), 6);
   const intervalo = document.getElementById('gcwoCalIntervalo');
@@ -3055,12 +3076,12 @@ function renderCalGrid() {
           const iso = addDiasIso(segIso, di);
           // "before-start" cobre agora os dois lados fora do plano — antes de startDate
           // ou depois de endDate — reaproveitando o mesmo estilo esbatido dos dois casos.
-          const fora = iso < _state.startDate || iso > _state.endDate;
-          const sessions = _state.sessions.filter(s => s.date === iso).sort((a, b) => a.order - b.order);
+          const fora = iso < _state.startDate || iso > _state.endDate || Boolean(_embeddedCare && _state.activePrescriptionId && _state.endDate < hoje);
+          const sessions = fora ? [] : _state.sessions.filter(s => s.date === iso).sort((a, b) => a.order - b.order);
           return `
-          <div class="gcwo-calday${fora ? ' before-start' : ''}" data-calendar-date="${iso}"${fora ? '' : ` data-day="${iso}"`}>
+          <div class="gcwo-calday${iso === hoje ? ' gcwo-calday-hoje' : ''}${fora ? ' before-start' : ''}" data-calendar-date="${iso}"${fora ? '' : ` data-day="${iso}"`}>
             <div class="gcwo-calday-top">
-              <span class="num">${escHtml(fmtDiaMesCurtoIso(iso))}</span>
+              <span class="num"${iso === hoje ? ' aria-current="date"' : ''}>${escHtml(fmtDiaMesCurtoIso(iso))}${iso === hoje ? ' · Hoje' : ''}</span>
               ${!fora ? `<button type="button" class="gcwo-calday-add" data-add-date="${iso}" title="Prescrever treino" aria-label="Prescrever treino em ${escAttr(fmtDataPtIso(iso))}">${ICON_MAIS} Prescrever</button>` : ''}
             </div>
             ${_embeddedCare ? resumoQuestionarioDia(respostaQuestionarioDia(iso)) : ''}
@@ -3559,6 +3580,10 @@ async function terminarPlanoActivo(prescriptionId, btn) {
   _state.sessions = [];
   _state.__ultimoSnapshotGravado = JSON.stringify([]);
   if (_embeddedCare) {
+    const novo = freshState(true);
+    Object.assign(_state, { startDate: novo.startDate, endDate: novo.endDate, linkExpiryDate: novo.linkExpiryDate,
+      dataRevisao: null, disponibilidadeTreino: null, savedLink: null, savedExpiresAt: null });
+    _calendarFirstMonday = segundaFeiraDeIso(isoHoje());
     _embeddedCare.savedFingerprint = JSON.stringify(buildFinalData());
     renderStep2();
     await _embeddedCare.onSaved?.();

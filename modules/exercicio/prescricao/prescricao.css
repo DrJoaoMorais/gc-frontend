@@ -1708,3 +1708,5 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-cal-prescrito { display:block; margin-top:6px; }
 #gcwoEditorInline:not(:empty) { margin-top:16px; scroll-margin-top:24px; }
 .gcwo-calday-add { width:auto; padding-inline:5px; gap:3px; font-size:11px; }
+
+.gcwo-calday-hoje { outline:2px solid #245ddc; outline-offset:-2px; }
