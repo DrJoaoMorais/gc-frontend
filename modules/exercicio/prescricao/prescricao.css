@@ -1702,3 +1702,9 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-bib-opcional summary{min-height:36px;color:#38536e}
 #gcwoBibAplicar{min-height:44px;padding:10px 16px;border:1px solid #176647;border-radius:8px;background:#176647;color:#fff;font:inherit;font-weight:600}
 #gcwoBibAplicar:disabled{background:#e5eaf0;color:#53677d;border-color:#cad5e2}
+
+.gcwo-questionario-dia { display:grid; gap:3px; margin:6px 0; padding:6px; border-radius:6px; background:#eef3f9; overflow-wrap:anywhere; }
+.gcwo-questionario-dia small,.gcwo-cal-prescrito { color:#465e78; }
+.gcwo-cal-prescrito { display:block; margin-top:6px; }
+#gcwoEditorInline:not(:empty) { margin-top:16px; scroll-margin-top:24px; }
+.gcwo-calday-add { width:auto; padding-inline:5px; gap:3px; font-size:11px; }

@@ -1,4 +1,4 @@
-import { BLOCOS_EXERCICIO, resolverBloco, exerciciosDaSessao, distribuicaoRegional } from './biblioteca-blocos.js?v=2026-11-02-prefeitos-3';
+import { BLOCOS_EXERCICIO, resolverBloco, exerciciosDaSessao, distribuicaoRegional } from './biblioteca-blocos.js?v=2026-11-05-editor-dia';
 import { PLANOS_CASA, configuracaoPlanoCasa, preverPlanoCasa, tempoPlanoCasa } from './planos-casa.js?v=2026-11-01-1';
 import { PADROES_CASA, catalogoCasa, sugerirVariantesCasa, semanaCasa, proporProgramaCasa } from './programa-casa.js?v=2026-11-01-1';
 import { organizarExercicio, pertenceFinalidade, doseInicialDoCatalogo, doseCatalogoDefinida } from './catalogo-organizacao.js?v=2026-10-31-organizacao';
@@ -36,7 +36,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-02-prefeitos-3';
+const PRESCRICAO_CSS_VERSION = '2026-11-05-editor-dia';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -2669,7 +2669,13 @@ function renderStep2Body() {
   if (step2EmEdicao()) {
     _patientMainTab = 'prescription';
     refreshPatientMainTabs();
-    renderEditMode(host);
+    if (_embeddedCare && _panelDraft) {
+      if (!host.querySelector('#gcwoCalGrid')) renderCalendarMode(host);
+      const editor = host.querySelector('#gcwoEditorInline');
+      editor.innerHTML = '<div class="gcwo-panel" id="gcwoPanel"></div>';
+      renderPanel();
+      editor.scrollIntoView({ block: 'start' });
+    } else renderEditMode(host);
   } else if (_patientMainTab === 'followup') {
     host.innerHTML = renderPatientFollowupSection();
     wirePatientFollowupSection();
@@ -2908,6 +2914,7 @@ function renderCalendarMode(host) {
       </div>
       <div id="gcwoCalGrid"></div>
     </div>
+    <div id="gcwoEditorInline"></div>
 
     </section>
   `;
@@ -3004,6 +3011,22 @@ function posicionarMenuFlutuante(btn, menu) {
   menu.style.top = top + 'px';
 }
 
+function respostaQuestionarioDia(date) {
+  const disponibilidade = _disponibilidadeQuestionario?.disponibilidade;
+  const dia = (dataDeIso(date).getUTCDay() + 6) % 7;
+  return disponibilidade?.semanal[dia];
+}
+
+function resumoQuestionarioDia(resposta) {
+  if (!resposta) return '';
+  const tempo = resposta.tempo === 'curto' ? 'Menos de 20 min' : resposta.min == null ? '' : `${resposta.min} min`;
+  const modalidades = (resposta.modalidades || []).map(m => m === 'Exercício em casa' ? 'Exercício / Circuitos' : m);
+  const resumo = resposta.estado === 'descanso' ? 'Prefere descansar'
+    : resposta.estado === 'indisponivel' ? 'Indisponível'
+    : [tempo, ...modalidades].filter(Boolean).join(' · ');
+  return resumo ? `<div class="gcwo-questionario-dia"><small>Questionário do doente</small><span>${escHtml(resumo)}</span></div>` : '';
+}
+
 function renderCalGrid() {
   const host = document.getElementById('gcwoCalGrid');
   if (!host) return;
@@ -3038,8 +3061,10 @@ function renderCalGrid() {
           <div class="gcwo-calday${fora ? ' before-start' : ''}" data-calendar-date="${iso}"${fora ? '' : ` data-day="${iso}"`}>
             <div class="gcwo-calday-top">
               <span class="num">${escHtml(fmtDiaMesCurtoIso(iso))}</span>
-              ${!fora ? `<button type="button" class="gcwo-calday-add" data-add-date="${iso}" title="Adicionar sessão" aria-label="Adicionar treino em ${escAttr(fmtDataPtIso(iso))}">${ICON_MAIS}</button>` : ''}
+              ${!fora ? `<button type="button" class="gcwo-calday-add" data-add-date="${iso}" title="Prescrever treino" aria-label="Prescrever treino em ${escAttr(fmtDataPtIso(iso))}">${ICON_MAIS} Prescrever</button>` : ''}
             </div>
+            ${_embeddedCare ? resumoQuestionarioDia(respostaQuestionarioDia(iso)) : ''}
+            ${_embeddedCare ? '<small class="gcwo-cal-prescrito">Treino prescrito</small>' : ''}
             ${!fora && _biblioteca.bloco ? `<button type="button" class="gcwo-colocar-bloco" data-colocar-bloco="${iso}">+ Colocar bloco</button>` : ''}
             <div class="gcwo-calsessions">
               ${sessions.map(s => {
@@ -3073,8 +3098,16 @@ function renderCalGrid() {
   host.querySelectorAll('[data-colocar-bloco]').forEach(btn => btn.addEventListener('click', () => abrirBlocoParaDia(btn.dataset.colocarBloco)));
   host.querySelectorAll('[data-add-date]').forEach(btn => {
     btn.addEventListener('click', () => {
-      _pendingSlot = { date: btn.getAttribute('data-add-date') };
-      renderStep2Body();
+      const date = btn.getAttribute('data-add-date');
+      const resposta = _embeddedCare ? respostaQuestionarioDia(date) : null;
+      const preferencias = resposta?.estado === 'treino' ? resposta.modalidades : null;
+      const modalidade = preferencias?.length === 1
+        ? SESSAO_MODALIDADES.find(tipo => tipo.enabled && tipo.modality ===
+            (['Exercício em casa', 'Exercício / Circuitos'].includes(preferencias[0]) ? 'Circuito' : preferencias[0]))
+        : null;
+      _pendingSlot = { date };
+      if (modalidade) openPanelNovo(modalidade.modality, modalidade.kind);
+      else renderStep2Body();
     });
   });
   host.querySelectorAll('[data-edit-session]').forEach(btn => {
@@ -3708,12 +3741,12 @@ function renderPanel() {
     </div>
     <div class="gcwo-panel-body">
       ${painelCompacto ? '' : `<div class="gcwo-session-setup-row${s.kind === 'list' ? '' : ' no-objective'}">
-        <div class="gcwo-session-local-top">
+        ${_embeddedCare ? '' : `<div class="gcwo-session-local-top">
           <span class="gcwo-field-label">Local</span>
           <div class="gcwo-chips" id="gcwoPLocalChips">
             ${LOCAIS_SESSAO.map(l => `<button type="button" class="gcwo-chip${s.local === l ? ' on' : ''}" data-local="${escAttr(l)}">${escHtml(l)}</button>`).join('')}
           </div>
-        </div>
+        </div>`}
         ${s.kind === 'list' ? renderObjectiveControls() : ''}
         <button type="button" class="gcBtnGhost gcwo-session-zones" id="gcwoBtnZonasTreino">♥ ⚡ Zonas</button>
       </div>`}
@@ -3774,7 +3807,7 @@ function wirePanel() {
     abrirZonasTreino(_state.patient.id, { onSaved: carregarZonaPerfis });
   });
 
-  document.getElementById('gcwoPLocalChips').querySelectorAll('[data-local]').forEach(chip => {
+  document.getElementById('gcwoPLocalChips')?.querySelectorAll('[data-local]').forEach(chip => {
     chip.addEventListener('click', () => {
       s.local = chip.getAttribute('data-local');
       document.querySelectorAll('#gcwoPLocalChips .gcwo-chip').forEach(c => c.classList.toggle('on', c === chip));
