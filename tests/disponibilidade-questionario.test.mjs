@@ -47,7 +47,7 @@ test('both questionnaire versions include weekly planning and V2 removes redunda
   const all=after.seccoes.flatMap(s=>s.perguntas);
   const newIds=['exercicio_semana_habitual'];
   const legacy=all.filter(q=>!newIds.includes(q.id));
-  const originalHashes={"pre_consulta":"26824c2d69c4a39a1b7dc59da9885f0eec706f6668da00001f34f9d8e9117d83","pre_consulta_v2":"5cb8b6d6101e8df69ffe06c97e5771467887adf0d06896d9684f567c48348676"};
+  const originalHashes={"pre_consulta":"26824c2d69c4a39a1b7dc59da9885f0eec706f6668da00001f34f9d8e9117d83","pre_consulta_v2":"4473ccce37f9985b6d0b24216bbd8bf2ee9c7e5a354301df70cc67befe101f26"};
   assert.equal(createHash('sha256').update(JSON.stringify(legacy)).digest('hex'),originalHashes[name]);
   const added=all.filter(q=>newIds.includes(q.id));assert.equal(added.length,1);assert.equal(added[0].tipo,'semana_treino');
  }

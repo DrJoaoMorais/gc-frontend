@@ -70,7 +70,7 @@ export default {
 
     { id: 'atividade_fisica', titulo: 'Atividade física e sedentarismo',
       perguntas: [
-        { id: 's4_dias_exercicio', grupo: 'O que faz atualmente?', tipo: 'numero', label: 'Numa semana habitual, em quantos dias faz exercício físico?', min: 0, max: 7 },
+        { id: 's4_dias_exercicio', grupo: 'O que faz atualmente?', tipo: 'escolha_unica', label: 'Numa semana habitual, em quantos dias faz exercício físico?', opcoes: ['0 dias', '1 dia', '2–3 dias', '4–5 dias', '6–7 dias'] },
         { id: 's4_duracao_sessao', depende: 's4_dias_exercicio', tipo: 'escolha_unica', label: 'Quanto tempo dura habitualmente uma sessão?',
           opcoes: ['Menos de 20 min', '20–29 min', '30–44 min', '45–59 min', '60 min ou mais'] },
         { id: 's4_tipo_exercicio', depende: 's4_dias_exercicio', tipo: 'escolha_multipla', label: 'Que atividades pratica atualmente?',

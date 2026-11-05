@@ -132,7 +132,7 @@ async function _iniciarQuestionario(root) {
   const tipo = _ctx.questionnaire_type;
   let mod;
   try {
-    mod = await import('./configs/' + tipo + '.js?v=2026-11-05-ponto4');
+    mod = await import('./configs/' + tipo + '.js?v=2026-11-05-copiar-dia');
   } catch (e) {
     root.innerHTML = '<div class="gate"><h2>Tipo de questionário desconhecido</h2><p>' + tipo + '</p></div>';
     return;
@@ -171,7 +171,7 @@ function _perguntaTemAlgumaResposta(p) {
 function _perguntaVisivel(p) {
   if (!p.depende) return true;
   const valor = _respostas[p.depende];
-  return p.depende === 's4_dias_exercicio' ? Number(valor) > 0 : typeof valor === 'string' && valor.startsWith('Sim');
+  return p.depende === 's4_dias_exercicio' ? parseInt(valor, 10) > 0 : typeof valor === 'string' && valor.startsWith('Sim');
 }
 function _perguntaRespondida(p) {
   if (!_perguntaVisivel(p)) return true;
@@ -327,7 +327,12 @@ function _renderPergunta(p) {
   }
 }
 
-function _valorAtual(id) { return Object.prototype.hasOwnProperty.call(_respostas, id) ? _respostas[id] : null; }
+function _valorAtual(id) {
+  if (id === 's4_dias_exercicio' && Number.isInteger(_respostas[id])) {
+    const dias = _respostas[id];
+    return ['0 dias', '1 dia', '2–3 dias', '2–3 dias', '4–5 dias', '4–5 dias', '6–7 dias', '6–7 dias'][dias] ?? null;
+  }
+  return Object.prototype.hasOwnProperty.call(_respostas, id) ? _respostas[id] : null; }
 function _esc(s) { return String(s == null ? '' : s).replace(/"/g, '&quot;'); }
 function _renderApoio(p) { return p.apoio ? '<div class="q-apoio">' + p.apoio + '</div>' : ''; }
 
@@ -437,6 +442,8 @@ const TEMPOS_TREINO = { curto: 'Menos de 20 min', 30: '30 min', 45: '45 min', 60
 const MODALIDADES_FUTURAS = [['Caminhada','Caminhada'],['Corrida','Corrida'],['Ciclismo','Ciclismo'],['Natação','Natação'],['Circuito','Exercícios de força ou em circuito'],['Outra atividade','Outra atividade'],['Sem preferência','Sem preferência']];
 const MODALIDADES_TREINO = ['Corrida', 'Ciclismo', 'Natação', 'Ginásio', 'Exercício em casa', 'Sem preferência'];
 
+const diaTreinoCompleto = d => Boolean(d?.estado && (d.estado !== 'treino' || d.tempo));
+let diaTreinoVisivel = 0;
 function _renderSemanaTreino(p) {
   const dias = _respostas[p.id] || [];
   const tempos = p.disponibilidadeFutura ? ['curto','20','30','45','60','outro'] : ['curto','30','45','60'];
@@ -445,19 +452,43 @@ function _renderSemanaTreino(p) {
     `<label class="choice-item"><input type="${type}" name="${name}" value="${value}" ${checked.includes(value) ? 'checked' : ''}> <span>${label}</span></label>`).join('');
   return `<div class="q" data-id="${p.id}"><div class="q-lbl">${p.label}</div>
     <p>Indique o tempo total disponível em cada dia. Pode escolher várias modalidades.</p>
-    <button type="button" data-todos>Quero treinar todos os dias</button>
+    ${p.disponibilidadeFutura ? `<nav class="training-days" aria-label="Dias da semana">${DIAS_TREINO.map((nome,i)=>`<button type="button" data-ver-dia="${i}" aria-label="${nome}" aria-pressed="${i===diaTreinoVisivel}">${nome.slice(0,3)}<span data-concluido>${diaTreinoCompleto(dias[i])?'✓':''}</span></button>`).join('')}</nav>` : '<button type="button" data-todos>Quero treinar todos os dias</button>'}
     ${DIAS_TREINO.map((nome, i) => {
       const d = dias[i] || {};
-      return `<fieldset data-dia><legend>${nome}</legend><div class="choice-list">${opcoes(Object.entries(ESTADOS_TREINO), 'estado-' + i, [d.estado])}</div>
+      return `<fieldset data-dia ${p.disponibilidadeFutura && i!==diaTreinoVisivel?'hidden':''}><legend>${nome}</legend><div class="choice-list">${opcoes(Object.entries(ESTADOS_TREINO), 'estado-' + i, [d.estado])}</div>
         <div data-treino ${d.estado === 'treino' ? '' : 'hidden'}><p>Tempo total disponível</p>
         <div class="choice-list">${opcoes(tempos.map(t => [t, TEMPOS_TREINO[t] || (t === 'outro' ? 'Outro' : '20 min')]), 'tempo-' + i, [d.tempo && !tempos.includes(d.tempo) ? 'outro' : d.tempo])}</div>
          ${p.disponibilidadeFutura ? `<label data-tempo-outro ${d.tempo && !tempos.includes(d.tempo) ? '' : 'hidden'}>Minutos <input type="number" min="1" max="1440" step="1" value="${/^\d+$/.test(d.tempo) && !tempos.includes(d.tempo) ? d.tempo : ''}"></label>` : ''}
         <p>Que atividade gostaria de fazer?</p><div class="choice-list">${opcoes(modalidades, 'modalidade-' + i, (d.modalidades || []).map(m => p.disponibilidadeFutura && ['Ginásio','Exercício em casa'].includes(m) ? 'Circuito' : m), 'checkbox')}</div></div></fieldset>`;
-    }).join('')}</div>`;
+    }).join('')}
+    ${p.disponibilidadeFutura ? `<div class="training-controls"><button type="button" data-copiar>Copiar este dia</button><button type="button" data-proximo>Próximo dia →</button></div>
+    <fieldset data-destinos hidden><legend>Copiar para…</legend><div class="choice-list">${opcoes(DIAS_TREINO.map((nome,i)=>[i,nome]),'destino',[],'checkbox')}</div>
+    <div class="training-controls"><button type="button" data-cancelar-copia>Cancelar</button><button type="button" data-aplicar-copia>Copiar para os dias selecionados</button></div></fieldset><p data-copia-status role="status"></p>` : ''}
+    </div>`;
 }
 
 function _wireSemanaTreino(el, id) {
   const dias = [...el.querySelectorAll('[data-dia]')];
+  const tabs = [...el.querySelectorAll('[data-ver-dia]')];
+  const destinos = el.querySelector('[data-destinos]');
+  function atualizarBotoes() {
+    const respostas = _respostas[id] || [];
+    tabs.forEach((tab,i)=>{
+      tab.setAttribute('aria-pressed', String(i===diaTreinoVisivel));
+      tab.querySelector('[data-concluido]').textContent=diaTreinoCompleto(respostas[i])?'✓':'';
+    });
+    if (destinos) {
+      el.querySelector('[data-copiar]').disabled=!diaTreinoCompleto(respostas[diaTreinoVisivel]);
+      el.querySelector('[data-proximo]').hidden=diaTreinoVisivel===6;
+    }
+  }
+  function mostrarDia(i) {
+    diaTreinoVisivel=i;
+    dias.forEach((d,j)=>{d.hidden=i!==j});
+    destinos.hidden=true;
+    atualizarBotoes();
+    tabs[i].focus();
+  }
   function atualizar() {
     _respostas[id] = dias.map(d => {
       const estado = d.querySelector('[name^="estado-"]:checked')?.value || null;
@@ -471,8 +502,10 @@ function _wireSemanaTreino(el, id) {
       return { estado, tempo,
         modalidades: [...d.querySelectorAll('input[type="checkbox"]:checked')].map(m => m.value) };
     });
+    atualizarBotoes();
   }
   el.addEventListener('change', e => {
+    if (destinos?.contains(e.target)) return;
     if (e.target.type === 'checkbox' && e.target.checked) {
       for (const input of e.target.closest('[data-dia]').querySelectorAll('input[type="checkbox"]:checked')) {
         if (input !== e.target && [input.value, e.target.value].includes('Sem preferência')) input.checked = false;
@@ -480,10 +513,38 @@ function _wireSemanaTreino(el, id) {
     }
     atualizar();
   });
-  el.querySelector('[data-todos]').onclick = () => {
+  const todos = el.querySelector('[data-todos]');
+  if (todos) todos.onclick = () => {
     dias.forEach(d => { d.querySelector('input[value="treino"]').checked = true; });
     atualizar();
   };
+  if (!destinos) return;
+  tabs.forEach((tab,i)=>{tab.onclick=()=>mostrarDia(i)});
+  el.querySelector('[data-proximo]').onclick=()=>mostrarDia(diaTreinoVisivel+1);
+  el.querySelector('[data-copiar]').onclick=()=>{
+    destinos.hidden=false;
+    for (const input of destinos.querySelectorAll('input')) {
+      input.checked=false;
+      input.closest('label').hidden=Number(input.value)===diaTreinoVisivel;
+    }
+    destinos.querySelector('input:not([disabled])')?.closest('fieldset')?.scrollIntoView({block:'nearest'});
+  };
+  el.querySelector('[data-cancelar-copia]').onclick=()=>{destinos.hidden=true;el.querySelector('[data-copiar]').focus()};
+  el.querySelector('[data-aplicar-copia]').onclick=()=>{
+    const indices=[...destinos.querySelectorAll('input:checked')].map(input=>Number(input.value));
+    if (!indices.length) { alert('Selecione pelo menos um dia.'); return; }
+    const respostas=_respostas[id];
+    const preenchidos=indices.filter(i=>respostas[i]?.estado);
+    if (preenchidos.length && !window.confirm('Substituir as respostas de '+preenchidos.map(i=>DIAS_TREINO[i]).join(', ')+'?')) return;
+    for (const i of indices) respostas[i]=structuredClone(respostas[diaTreinoVisivel]);
+    const p=_cfg.seccoes[_secaoIdx].perguntas.find(pergunta=>pergunta.id===id);
+    el.outerHTML=_renderSemanaTreino(p);
+    _wirePergunta(p);
+    const atualizado=document.querySelector('.q[data-id="'+id+'"]');
+    atualizado.querySelector('[data-copia-status]').textContent=indices.length===1?'Copiado para 1 dia.':'Copiado para '+indices.length+' dias.';
+    atualizado.querySelector('[data-copiar]').focus();
+  };
+  atualizarBotoes();
 }
 
 /* ════════ WIRING PERGUNTAS + GRAVAÇÃO ════════ */
