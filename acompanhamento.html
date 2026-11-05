@@ -25,7 +25,7 @@
     @media(min-width:561px){body{padding:24px}.app{min-height:calc(100vh - 48px);border-radius:20px;overflow:hidden;box-shadow:0 14px 40px rgba(15,45,82,.12)}}
     /* Portal móvel compacto: o conteúdo clínico principal fica visível mais cedo. */
     .head{padding:20px 18px 17px}.head small{font-size:10.5px;margin-bottom:5px}.head h1{font-size:26px}.head p{font-size:12px;margin-top:5px}.content{padding:13px 12px 36px}.episode{min-height:0;flex-direction:row;align-items:center;padding:7px 10px;border-radius:10px;margin-bottom:8px}.episode>div{display:flex;align-items:center;gap:6px}.episode span{display:inline;margin:0;font-size:10px}.day{font-size:10.5px;text-align:right}.home-calendar{border:1px solid #dbe3ee;border-radius:14px;background:#fff;padding:10px;margin-bottom:11px}.home-calendar-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.home-calendar-head button{width:30px;height:30px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--navy);font-weight:800}.home-calendar-head b{color:var(--navy);font-size:12px}.home-weeks{display:flex;flex-direction:column;gap:5px}.home-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}.home-day{min-width:0;height:53px;border:1px solid var(--line);border-radius:9px;background:#fff;padding:4px 1px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;color:var(--ink)}.home-day .dow{font-size:7px;text-transform:uppercase;color:#929dad;font-weight:800}.home-day .num{font-size:12px;font-weight:800;line-height:1.2}.home-day .markers{font-size:9px;line-height:1;white-space:nowrap;overflow:hidden;max-width:100%;margin-top:3px}.home-day.selected{background:var(--navy);border-color:var(--navy);color:#fff}.home-day.selected .dow{color:#dbe5f0}.selected-day{border-top:1px solid #e8edf3;margin-top:9px;padding-top:7px}.selected-day-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}.selected-day-head b{color:var(--navy);font-size:11px}.today-item{grid-template-columns:21px 1fr;gap:6px;padding:6px 0}.today-item strong{font-size:11px}.today-item small{font-size:9px}.section-title{margin:13px 2px 8px}.cards{gap:8px}.card{padding:12px;grid-template-columns:42px 1fr auto}.icon{width:40px;height:40px}.card h2{font-size:14px}.card p{font-size:10.5px}.path-session-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:10px 0}.path-stat{border-radius:9px;background:#f3f6fa;padding:8px;text-align:center}.path-stat b{display:block;color:var(--navy);font-size:15px}.path-stat span{color:var(--muted);font-size:8.5px;text-transform:uppercase}.exercise-row{display:grid;grid-template-columns:38px 1fr;gap:9px;align-items:center}.exercise-thumb{width:38px;height:38px;border-radius:8px;object-fit:cover;background:#eef2f7}.exercise-copy b{display:block}.exercise-copy small{display:block;margin-top:2px}.path-start{width:100%;margin-top:12px;border:0;border-radius:11px;background:var(--navy);color:#fff;padding:12px;font-weight:750;cursor:pointer}
-  .portal-domain{margin:18px 0;padding:14px;border:1px solid #dce5f0;border-radius:16px;background:#f8faff}.portal-domain>h2{font-size:17px;margin:0 0 12px;color:#10345d}</style>
+  .portal-domain{margin:18px 0;padding:14px;border:1px solid #dce5f0;border-radius:16px;background:#f8faff}.portal-domain>h2{font-size:17px;margin:0 0 12px;color:#10345d}.next-actions{margin:0 0 16px}.next-actions h2{margin:0 0 8px;font-size:19px;color:var(--navy)}.next-action{background:#eff5ff;border:1px solid #c6d7f2;border-radius:14px;padding:13px;margin:0 0 8px}.next-action p{margin:5px 0 9px;color:var(--ink)}.next-action a{display:flex;align-items:center;justify-content:center;min-height:44px;padding:8px 12px;border-radius:9px;background:#174b9e;color:#fff;font-weight:750;text-decoration:none}.calendar-help{margin:0 0 8px;color:#4b5f7a;font-size:12px}.inactive-areas{margin:12px 0}.inactive-areas summary{min-height:44px;padding:12px 0;cursor:pointer;color:var(--navy);font-weight:700}</style>
 </head>
 <body>
   <div class="gate" id="loading"><div class="gate-card"><p>A abrir o seu acompanhamento…</p></div></div>
@@ -35,13 +35,15 @@
   <main class="app" id="app">
     <header class="head"><small>ACOMPANHAMENTO DIGITAL</small><h1>Olá, <span id="name"></span></h1><p>O seu espaço de acompanhamento entre consultas.</p></header>
     <div class="content">
+      <section class="next-actions" id="nextActions" aria-label="Próximas ações" hidden></section>
       <div id="planUpdates"></div>
       <div class="episode" id="episode" hidden><div><b>Diário</b><span id="period"></span></div><div class="day" id="day"></div></div>
-      <section class="home-calendar"><div class="home-calendar-head"><button id="homePrev" type="button" aria-label="Ver 14 dias anteriores">‹</button><b id="homeRange"></b><button id="homeNext" type="button" aria-label="Ver 14 dias seguintes">›</button></div><div class="home-weeks" id="homeWeeks"></div><div class="selected-day"><div class="selected-day-head"><b id="selectedDayTitle"></b></div><div id="todayItems"></div></div></section>
-      <div class="section-title">Disponível agora</div>
+      <section class="home-calendar"><p class="calendar-help">Toque num dia para ver o que tem previsto.</p><div class="home-calendar-head"><button id="homePrev" type="button" aria-label="Ver 14 dias anteriores">‹</button><b id="homeRange"></b><button id="homeNext" type="button" aria-label="Ver 14 dias seguintes">›</button></div><div class="home-weeks" id="homeWeeks"></div><div class="selected-day"><div class="selected-day-head"><b id="selectedDayTitle"></b></div><div id="todayItems"></div></div></section>
+      <div class="section-title" id="availableAreas">Disponível agora</div>
       <div class="cards">
 <section class="portal-domain"><h2>🦵 Patologias/Protocolos</h2><article class="card" id="pathologyCard"><div class="icon">🦵</div><div><h2>Patologias/Protocolos</h2><p id="pathologyText">O programa aparecerá aqui quando for prescrito.</p></div><span class="state" id="pathologyState">Não prescritos</span></article></section><section class="portal-domain"><h2>🏃 Reabilitação Metabólica</h2><article class="card" id="diaryCard"><div class="icon">📓</div><div><h2>Diário</h2><p id="diaryText">Alimentação, sono, movimento e como se sente.</p></div><span class="state" id="diaryState">Não ativo</span></article><article class="card" id="exerciseCard"><div class="icon">🏃</div><div><h2>Exercício</h2><p id="exerciseText">O plano aparecerá aqui quando for prescrito.</p></div><span class="state" id="exerciseState">Não prescrita</span></article><article class="card" id="medCard"><div class="icon">💊</div><div><h2>Medicação</h2><p id="medText">Ainda não adicionada ao acompanhamento.</p></div><span class="state" id="medState">Não ativa</span></article><article class="card" id="questionCard"><div class="icon">📋</div><div><h2>Questionários</h2><p id="questionText">Quando existir um questionário pendente, aparecerá aqui.</p></div><span class="state" id="questionState">Sem pedidos</span></article></section>
       </div>
+      <details class="inactive-areas" id="inactiveAreas" hidden><summary>Outras áreas do acompanhamento</summary><div id="inactiveCards"></div></details>
       <div class="notice"><b>Conteúdo clínico pessoal.</b> Não partilhe esta ligação ou imagens deste acompanhamento.<br><br>Isto não é um serviço de emergência. Em caso de urgência, ligue 112.</div>
       <div class="foot">João Morais · Reabilitação Metabólica</div>
     </div>
@@ -102,6 +104,52 @@
     const activityIcon=s=>{if(isPathologySession(s))return pathologyPlace(s)[0];const value=String(s?.modality||s?.title||'').toLowerCase();if(value.includes('corrida'))return'🏃';if(value.includes('cicl'))return'🚴';if(value.includes('nata'))return'🏊';if(value.includes('camin'))return'🚶';if(value.includes('circuit'))return'🔁';return'🏋️'};
     function diaryActiveOn(dateIso){if(!home?.diario?.enabled)return false;const start=localIso(new Date(home.diario.started_at)),end=new Date(home.diario.started_at);end.setDate(end.getDate()+Math.max(1,Number(home.diario.duration_days)||7)-1);return dateIso>=start&&dateIso<=localIso(end)}
     function questionActiveOn(dateIso){if(!home?.questionario?.pending)return false;const today=localIso(new Date()),raw=home.questionario.expires_at||home.questionario.respond_by||home.questionario.due_date||'';const end=raw?localIso(new Date(raw)):today;return dateIso>=today&&dateIso<=end}
+    function exerciseUrl(session){
+      const returnUrl=`https://gc.joaomorais.pt/acompanhamento?t=${encodeURIComponent(token)}`;
+      const query=new URLSearchParams({return:returnUrl,scope:isPathologySession(session)?'pathology':'activity',date:session.date});
+      return `https://treino.joaomorais.pt/t/${encodeURIComponent(exerciseToken)}?${query}`;
+    }
+    function renderNextActions(){
+      const today=localIso(new Date()),question=home?.questionario,actions=[];
+      const due=question?.expires_at||question?.respond_by||question?.due_date;
+      const dateLabel=date=>new Date(date+'T12:00:00').toLocaleDateString('pt-PT',{weekday:'long',day:'numeric',month:'long'});
+      const add=(title,detail,label,url,priority)=>actions.push({title,detail,label,url,priority});
+      if(question?.token&&questionActiveOn(today)){
+        add('Questionário pendente',due?`Disponível até ${new Date(due).toLocaleDateString('pt-PT')}.`:'',
+          question.status==='in_progress'?'Continuar questionário':'Responder ao questionário',`/intake.html?t=${encodeURIComponent(question.token)}`,
+          due&&localIso(new Date(due))===today?0:2);
+      }
+      const sessions=exerciseToken?(plan?.sessions||[]).filter(s=>s.date>=today).sort((a,b)=>a.date.localeCompare(b.date)):[];
+      const firstDay=sessions[0]?.date;
+      if(firstDay){
+        const todayTraining=firstDay===today;
+        const daySessions=sessions.filter(s=>s.date===firstDay);
+        for(const pathology of [false,true]){
+          const group=daySessions.filter(s=>isPathologySession(s)===pathology);
+          if(!group.length)continue;
+          const title=pathology?(todayTraining?'Exercícios de hoje':'Próximos exercícios'):(todayTraining?'Treino de hoje':'Próximo treino');
+          const names=group.map(s=>s.title||s.name||s.modality||'Exercício').join(' · ');
+          add(title,todayTraining?names:`${dateLabel(firstDay)} · ${names}`,`Ver ${title.toLowerCase()}`,exerciseUrl(group[0]),todayTraining?1:4);
+        }
+      }
+      if(diaryActiveOn(today)&&home.diario.episode_token){
+        add('Diário de hoje','','Preencher diário',`/diario?t=${encodeURIComponent(home.diario.episode_token)}&return=${encodeURIComponent(token)}`,3);
+      }
+      const host=document.getElementById('nextActions');
+      host.hidden=!actions.length;
+      host.innerHTML=actions.length?'<h2>O que pode fazer agora</h2>'+ (firstDay>today&&plan?.startDate<=today?'<p>Hoje não tem treino programado.</p>':'') +actions.sort((a,b)=>a.priority-b.priority).map(a=>
+        `<article class="next-action"><strong>${esc(a.title)}</strong>${a.detail?`<p>${esc(a.detail)}</p>`:''}<a href="${esc(a.url)}">${esc(a.label)} →</a></article>`).join(''):'';
+    }
+    function groupInactiveAreas(){
+      const inactive=document.getElementById('inactiveCards');
+      for(const card of document.querySelectorAll('.cards .card')){
+        if(!card.classList.contains('active')&&card.id!=='medCard')inactive.append(card);
+        if(card.id==='medCard'&&!home?.medicacao?.length)inactive.append(card);
+      }
+      for(const group of document.querySelectorAll('.cards .portal-domain'))group.hidden=!group.querySelector('.card');
+      document.getElementById('inactiveAreas').hidden=!inactive.childElementCount;
+      document.getElementById('availableAreas').hidden=!document.querySelector('.cards .card');
+    }
     function itemsForDate(dateIso){const items=[];if(diaryActiveOn(dateIso))items.push(['📓','Diário disponível','Registe o que considerar útil neste dia.']);for(const s of (plan?.sessions||[]).filter(row=>row.date===dateIso)){const pathology=isPathologySession(s),place=pathology?pathologyPlace(s)[1]:'',label=s.title||s.name||s.modality||(pathology?'Patologias/Protocolos':'Atividade programada');items.push([activityIcon(s),pathology?'Patologias/Protocolos':'Atividade programada',[label,place].filter(Boolean).join(' · ')])}for(const event of medicationEvents.filter(row=>row.date===dateIso)){const title={toma:'Tomar medicação',alteracao_dose:'Alterar dose',suspensao:'Suspender medicação',nota:'Indicação sobre a medicação'}[event.type]||'Medicação';items.push(['💊',title,[event.medication,event.dose,event.instructions].filter(Boolean).join(' · ')])}if(questionActiveOn(dateIso))items.push(['📋',home.questionario.status==='in_progress'?'Questionário por completar':'Questionário pendente',`Disponível até ${new Date(home.questionario.expires_at||home.questionario.respond_by||home.questionario.due_date||dateIso).toLocaleDateString('pt-PT')}.`]);return items}
     function renderSelectedDay(){const date=new Date(selectedHomeDate+'T12:00:00'),items=itemsForDate(selectedHomeDate);document.getElementById('selectedDayTitle').textContent=date.toLocaleDateString('pt-PT',{weekday:'long',day:'numeric',month:'long'});document.getElementById('todayItems').innerHTML=items.length?items.map(([icon,title,detail])=>`<div class="today-item"><span>${icon}</span><div><strong>${esc(title)}</strong><small>${esc(detail)}</small></div></div>`).join(''):'<div class="today-empty">Sem ações programadas para este dia.</div>'}
     function renderHomeCalendar(){const start=monday(new Date());start.setDate(start.getDate()+homeCalendarOffset*14);const end=new Date(start);end.setDate(start.getDate()+13);if(!selectedHomeDate||selectedHomeDate<localIso(start)||selectedHomeDate>localIso(end)){const today=localIso(new Date());selectedHomeDate=today>=localIso(start)&&today<=localIso(end)?today:localIso(start)}document.getElementById('homeRange').textContent=`${start.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} – ${end.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}`;const host=document.getElementById('homeWeeks');host.innerHTML='';for(let row=0;row<2;row++){const week=document.createElement('div');week.className='home-week';for(let day=0;day<7;day++){const date=new Date(start);date.setDate(start.getDate()+row*7+day);const dateIso=localIso(date),icons=[...new Set(itemsForDate(dateIso).map(item=>item[0]))],button=document.createElement('button');button.type='button';button.className='home-day'+(dateIso===selectedHomeDate?' selected':'');button.setAttribute('aria-label',`${date.toLocaleDateString('pt-PT',{weekday:'long',day:'numeric',month:'long'})}. ${icons.length?icons.join(' '):'Sem ações'}`);button.innerHTML=`<span class="dow">${date.toLocaleDateString('pt-PT',{weekday:'short'}).replace('.','')}</span><span class="num">${date.getDate()}</span><span class="markers">${icons.slice(0,3).join('')}${icons.length>3?`+${icons.length-3}`:''}</span>`;button.onclick=()=>{selectedHomeDate=dateIso;renderHomeCalendar()};week.appendChild(button)}host.appendChild(week)}renderSelectedDay()}
@@ -133,6 +181,8 @@
         if(home.medicacao?.length){const {data:events}=await window.sb.rpc('get_acompanhamento_medication_events',{p_token:token});medicationEvents=Array.isArray(events)?events:[];const upcoming=medicationEvents.find(event=>event.date>=iso(new Date()));document.getElementById('medText').textContent=upcoming?[upcoming.medication,upcoming.dose,`próxima indicação: ${new Date(upcoming.date+'T12:00:00').toLocaleDateString('pt-PT')}`].filter(Boolean).join(' · '):home.medicacao.map(m=>[m.nome,m.dose,m.freq].filter(Boolean).join(' · ')).join(' | ');const s=document.getElementById('medState');s.textContent='Ativa';s.classList.add('on')}
         if(home.questionario?.pending){document.getElementById('questionText').textContent=home.questionario.status==='in_progress'?'Continue o questionário que começou.':'Tem um questionário para responder.';const s=document.getElementById('questionState');s.textContent=home.questionario.status==='in_progress'?'Em preenchimento':'Pendente';s.classList.add('on');activate(document.getElementById('questionCard'),()=>location.href=`/intake.html?t=${encodeURIComponent(home.questionario.token)}`)}
         // A valid link with no enabled modules remains an empty, valid portal.
+        renderNextActions();
+        groupInactiveAreas();
         renderHomeCalendar();
         if(requestedView==='activity'&&home.exercicio?.enabled)await openPlan('activity');
         document.getElementById('loading').style.display='none';
