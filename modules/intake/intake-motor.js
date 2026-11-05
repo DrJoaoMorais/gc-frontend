@@ -132,7 +132,7 @@ async function _iniciarQuestionario(root) {
   const tipo = _ctx.questionnaire_type;
   let mod;
   try {
-    mod = await import('./configs/' + tipo + '.js?v=2026-11-04-semana');
+    mod = await import('./configs/' + tipo + '.js?v=2026-11-05-ponto4');
   } catch (e) {
     root.innerHTML = '<div class="gate"><h2>Tipo de questionário desconhecido</h2><p>' + tipo + '</p></div>';
     return;
@@ -168,7 +168,13 @@ function _perguntaTemAlgumaResposta(p) {
 }
 
 /* secção completa — usado só para o ✓ no índice de secções */
+function _perguntaVisivel(p) {
+  if (!p.depende) return true;
+  const valor = _respostas[p.depende];
+  return p.depende === 's4_dias_exercicio' ? Number(valor) > 0 : typeof valor === 'string' && valor.startsWith('Sim');
+}
 function _perguntaRespondida(p) {
+  if (!_perguntaVisivel(p)) return true;
   const v = _respostas[p.id];
   if (v == null) return false;
   if (p.tipo === 'grelha') return typeof v === 'object' && Object.keys(v).length >= p.linhas.length;
@@ -203,7 +209,10 @@ function _render() {
   h += '<div class="secao-head"><div class="secao-kicker">SECÇÃO ' + (_secaoIdx + 1) + ' DE ' + total + '</div><h2>' + sec.titulo + '</h2></div>';
 
   h += '<div class="perguntas">';
-  sec.perguntas.forEach(function (p) { h += _renderPergunta(p); });
+  sec.perguntas.forEach(function (p) {
+    if (p.grupo) h += '<h3>' + p.grupo + '</h3>';
+    h += '<div data-pergunta="' + p.id + '"' + (_perguntaVisivel(p) ? '' : ' hidden') + '>' + _renderPergunta(p) + '</div>';
+  });
   h += '</div>';
 
   h += '<div class="navbar">' +
@@ -425,10 +434,13 @@ function _renderGrelha(p) {
 const DIAS_TREINO = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 const ESTADOS_TREINO = { treino: 'Quero treinar', descanso: 'Prefiro descansar', indisponivel: 'Não posso treinar' };
 const TEMPOS_TREINO = { curto: 'Menos de 20 min', 30: '30 min', 45: '45 min', 60: '60 min' };
+const MODALIDADES_FUTURAS = [['Caminhada','Caminhada'],['Corrida','Corrida'],['Ciclismo','Ciclismo'],['Natação','Natação'],['Circuito','Exercícios de força ou em circuito'],['Outra atividade','Outra atividade'],['Sem preferência','Sem preferência']];
 const MODALIDADES_TREINO = ['Corrida', 'Ciclismo', 'Natação', 'Ginásio', 'Exercício em casa', 'Sem preferência'];
 
 function _renderSemanaTreino(p) {
   const dias = _respostas[p.id] || [];
+  const tempos = p.disponibilidadeFutura ? ['curto','20','30','45','60','outro'] : ['curto','30','45','60'];
+  const modalidades = p.disponibilidadeFutura ? MODALIDADES_FUTURAS : MODALIDADES_TREINO.map(m => [m,m]);
   const opcoes = (values, name, checked, type = 'radio') => values.map(([value, label]) =>
     `<label class="choice-item"><input type="${type}" name="${name}" value="${value}" ${checked.includes(value) ? 'checked' : ''}> <span>${label}</span></label>`).join('');
   return `<div class="q" data-id="${p.id}"><div class="q-lbl">${p.label}</div>
@@ -438,8 +450,9 @@ function _renderSemanaTreino(p) {
       const d = dias[i] || {};
       return `<fieldset data-dia><legend>${nome}</legend><div class="choice-list">${opcoes(Object.entries(ESTADOS_TREINO), 'estado-' + i, [d.estado])}</div>
         <div data-treino ${d.estado === 'treino' ? '' : 'hidden'}><p>Tempo total disponível</p>
-        <div class="choice-list">${opcoes(['curto','30','45','60'].map(t => [t, TEMPOS_TREINO[t]]), 'tempo-' + i, [d.tempo])}</div>
-        <p>Modalidades preferidas</p><div class="choice-list">${opcoes(MODALIDADES_TREINO.map(m => [m,m]), 'modalidade-' + i, d.modalidades || [], 'checkbox')}</div></div></fieldset>`;
+        <div class="choice-list">${opcoes(tempos.map(t => [t, TEMPOS_TREINO[t] || (t === 'outro' ? 'Outro' : '20 min')]), 'tempo-' + i, [d.tempo && !tempos.includes(d.tempo) ? 'outro' : d.tempo])}</div>
+         ${p.disponibilidadeFutura ? `<label data-tempo-outro ${d.tempo && !tempos.includes(d.tempo) ? '' : 'hidden'}>Minutos <input type="number" min="1" max="1440" step="1" value="${/^\d+$/.test(d.tempo) && !tempos.includes(d.tempo) ? d.tempo : ''}"></label>` : ''}
+        <p>Que atividade gostaria de fazer?</p><div class="choice-list">${opcoes(modalidades, 'modalidade-' + i, (d.modalidades || []).map(m => p.disponibilidadeFutura && ['Ginásio','Exercício em casa'].includes(m) ? 'Circuito' : m), 'checkbox')}</div></div></fieldset>`;
     }).join('')}</div>`;
 }
 
@@ -450,7 +463,12 @@ function _wireSemanaTreino(el, id) {
       const estado = d.querySelector('[name^="estado-"]:checked')?.value || null;
       d.querySelector('[data-treino]').hidden = estado !== 'treino';
       if (estado !== 'treino') return { estado };
-      return { estado, tempo: d.querySelector('[name^="tempo-"]:checked')?.value || null,
+      const escolha = d.querySelector('[name^="tempo-"]:checked')?.value || null;
+      const outro = d.querySelector('[data-tempo-outro]');
+      if (outro) outro.hidden = escolha !== 'outro';
+      const minutos = outro?.querySelector('input').value;
+      const tempo = escolha === 'outro' ? (/^\d+$/.test(minutos) && Number(minutos) > 0 && Number(minutos) <= 1440 ? String(Number(minutos)) : null) : escolha;
+      return { estado, tempo,
         modalidades: [...d.querySelectorAll('input[type="checkbox"]:checked')].map(m => m.value) };
     });
   }
@@ -572,6 +590,12 @@ function _wirePergunta(p) {
 
 function _gravarResposta(questionId, valor) {
   _respostas[questionId] = valor;
+  for (const pergunta of _cfg.seccoes[_secaoIdx].perguntas) {
+    if (pergunta.depende === questionId) {
+      const campo = document.querySelector('[data-pergunta="' + pergunta.id + '"]');
+      if (campo) campo.hidden = !_perguntaVisivel(pergunta);
+    }
+  }
   const sb = window.sb;
   if (!sb || !_token) return;
   sb.rpc('intake_gravar_resposta', { p_token: _token, p_question_id: questionId, p_answer: valor })

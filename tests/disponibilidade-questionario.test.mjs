@@ -39,7 +39,7 @@ test('missing, inaccessible or mismatched questionnaires do not prevent manual p
  const mismatch=mockSb({row:{...token,patient_id:'outro'}});assert.equal((await lerDisponibilidadeQuestionario(mismatch,'doente-1','clinica-1')).status,'indisponivel');assert.ok(!mismatch.calls.some(c=>c[0]==='from'&&c[1]==='intake_responses'));
  assert.equal((await lerDisponibilidadeQuestionario(mockSb({error:{message:'denied'}}),'doente-1','clinica-1')).status,'indisponivel');
 });
-test('both questionnaire versions preserve every existing question and add a weekly training question',()=>{
+test('both questionnaire versions include weekly planning and V2 removes redundant future questions',()=>{
  for(const name of ['pre_consulta','pre_consulta_v2']){
   const path=`modules/intake/configs/${name}.js`;
   const parse=code=>JSON.parse(JSON.stringify(vm.runInNewContext(code.replace('export default','globalThis.config =')+'; config')));
@@ -47,7 +47,7 @@ test('both questionnaire versions preserve every existing question and add a wee
   const all=after.seccoes.flatMap(s=>s.perguntas);
   const newIds=['exercicio_semana_habitual'];
   const legacy=all.filter(q=>!newIds.includes(q.id));
-  const originalHashes={"pre_consulta":"26824c2d69c4a39a1b7dc59da9885f0eec706f6668da00001f34f9d8e9117d83","pre_consulta_v2":"aa99d3cd0d81e794b77bf96f7811ebdf9fe159acabff5240830d09167f495137"};
+  const originalHashes={"pre_consulta":"26824c2d69c4a39a1b7dc59da9885f0eec706f6668da00001f34f9d8e9117d83","pre_consulta_v2":"5cb8b6d6101e8df69ffe06c97e5771467887adf0d06896d9684f567c48348676"};
   assert.equal(createHash('sha256').update(JSON.stringify(legacy)).digest('hex'),originalHashes[name]);
   const added=all.filter(q=>newIds.includes(q.id));assert.equal(added.length,1);assert.equal(added[0].tipo,'semana_treino');
  }

@@ -2,7 +2,7 @@ import { BLOCOS_EXERCICIO, resolverBloco, exerciciosDaSessao, distribuicaoRegion
 import { PLANOS_CASA, configuracaoPlanoCasa, preverPlanoCasa, tempoPlanoCasa } from './planos-casa.js?v=2026-11-01-1';
 import { PADROES_CASA, catalogoCasa, sugerirVariantesCasa, semanaCasa, proporProgramaCasa } from './programa-casa.js?v=2026-11-01-1';
 import { organizarExercicio, pertenceFinalidade, doseInicialDoCatalogo, doseCatalogoDefinida } from './catalogo-organizacao.js?v=2026-10-31-organizacao';
-import { lerDisponibilidadeQuestionario, normalizarDisponibilidade, disponibilidadeInicial, capturarDisponibilidade, minutosDisponiveis } from './disponibilidade-treino.js?v=2026-10-31-disponibilidade';
+import { lerDisponibilidadeQuestionario, normalizarDisponibilidade, disponibilidadeInicial, capturarDisponibilidade, minutosDisponiveis } from './disponibilidade-treino.js?v=2026-11-05-ponto4';
 import { doseProtocoloCompleta, pedirDosesIndividuais } from './dose-protocolo.js?v=2026-10-30-doses-genericas-1';
 import { requireExerciseAccess } from '../permissoes.js';
 import { abrirEditorProtocolo } from './protocolo-editor.js?v=2026-10-28-ciencia-1';
@@ -3040,7 +3040,7 @@ function respostaQuestionarioDia(date) {
 function resumoQuestionarioDia(resposta) {
   if (!resposta) return '';
   const tempo = resposta.tempo === 'curto' ? 'Menos de 20 min' : resposta.min == null ? '' : `${resposta.min} min`;
-  const modalidades = (resposta.modalidades || []).map(m => m === 'Exercício em casa' ? 'Exercício / Circuitos' : m);
+  const modalidades = (resposta.modalidades || []).map(m => ['Exercício em casa', 'Circuito'].includes(m) ? 'Exercício / Circuitos' : m);
   const resumo = resposta.estado === 'descanso' ? 'Prefere descansar'
     : resposta.estado === 'indisponivel' ? 'Indisponível'
     : [tempo, ...modalidades].filter(Boolean).join(' · ');
@@ -3673,7 +3673,10 @@ function renderTypegrid() {
   const host = document.getElementById('gcwoTypegrid');
   if (!host) return;
 
-  host.innerHTML = SESSAO_MODALIDADES.map(t => {
+  const preferencias = _embeddedCare && _pendingSlot ? respostaQuestionarioDia(_pendingSlot.date)?.modalidades || [] : [];
+  const preferida = tipo => preferencias.includes(tipo.modality) || (tipo.modality === 'Circuito' && preferencias.includes('Exercício em casa'));
+  const modalidades = [...SESSAO_MODALIDADES].sort((a, b) => Number(preferida(b)) - Number(preferida(a)));
+  host.innerHTML = modalidades.map(t => {
     const meta = TIPO_META[tipoKey({ modality: t.modality })];
     return `
       <button type="button" class="gcwo-typecard" data-modality="${escAttr(t.modality)}" data-kind="${t.kind}"

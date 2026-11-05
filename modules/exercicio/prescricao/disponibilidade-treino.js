@@ -35,7 +35,7 @@ export function disponibilidadeDasRespostas(rows, token) {
   const semana = respostas.get(SEMANA_HABITUAL);
   if (Array.isArray(semana) && semana.length === 7 && semana.every(d =>
     d && (['descanso', 'indisponivel'].includes(d.estado) ||
-      (d.estado === 'treino' && ['curto', '30', '45', '60'].includes(d.tempo))))) {
+      (d.estado === 'treino' && (d.tempo === 'curto' || (typeof d.tempo === 'string' && /^\d+$/.test(d.tempo) && Number(d.tempo) > 0 && minutosDisponiveis(Number(d.tempo)) !== null)))))) {
     return { status: 'ok', intervaloAnterior, concluidoEm: token?.completed_at || null, disponibilidade: {
       versao: 1, porData: {}, semanal: semana.map(d => ({
         ativo: d.estado === 'treino', min: d.estado !== 'treino' ? 0 : d.tempo === 'curto' ? null : Number(d.tempo),
