@@ -4176,7 +4176,7 @@ function renderItemCard(it, index) {
         <strong>${escHtml(it.name)}</strong>
         <button type="button" class="gcwo-exercicio-remove" data-remove-exid="${escAttr(it.exercise_id)}" title="Remover exercício">✕</button>
       </summary>
-      ${it._dosePorDefinir && !doseCatalogoDefinida(it) ? '<p class="gcwo-dose-definir">Defina a dose e o descanso. Para uma série, indique apenas a pausa antes do próximo exercício.</p>' : ''}
+      ${it._dosePorDefinir && !doseCatalogoDefinida(it) ? '<p class="gcwo-dose-definir">Preencha a dose de cada série e os descansos visíveis. Indique 0 s se não quiser pausa.</p>' : ''}
       <div class="gcwo-field" style="margin-top:8px;">
         <span>Modo</span>
         <div class="gcwo-modo">
@@ -4213,11 +4213,13 @@ function renderItemCard(it, index) {
           <button type="button" class="gcwo-add-serie">+ Série</button>
         </div>
       `}
-      <label class="gcwo-field gcwo-field-sm"><span>Pausa antes do próximo exercício (s)</span><input type="number" min="0" class="gcwo-it-restnext" value="${doseComDescansoAplicavel(it).rest_next ?? ''}"></label>
+      <div class="gcwo-exercicio-mais-grid">
+        ${!temUmaSerie(it) ? `<label class="gcwo-field gcwo-field-sm"><span>Descanso entre séries (s)</span><input type="number" min="0" class="gcwo-it-restset" value="${it.rest_set ?? ''}"></label>` : ''}
+        <label class="gcwo-field gcwo-field-sm"><span>Descanso entre exercícios (s)</span><input type="number" min="0" class="gcwo-it-restnext" value="${doseComDescansoAplicavel(it).rest_next ?? ''}"></label>
+      </div>
       <details class="gcwo-exercicio-mais">
-        <summary>＋ Opções personalizadas</summary>
+        <summary>＋ Cadência e outras opções</summary>
         <div class="gcwo-exercicio-mais-grid">
-          ${!temUmaSerie(it) ? `<label class="gcwo-field gcwo-field-sm"><span>Descanso entre séries (s)</span><input type="number" min="0" class="gcwo-it-restset" value="${it.rest_set ?? ''}"></label>` : ''}
           <label class="gcwo-field gcwo-field-sm"><span>Incremento (kg)</span><input type="number" min="0" step="0.5" class="gcwo-it-incremento" value="${it.incremento ?? ''}"></label>
           <label class="gcwo-field gcwo-field-sm"><span>Excêntrico (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-tempoexc" value="${it.tempo_excentrico_s ?? ''}"></label>
           <label class="gcwo-field gcwo-field-sm"><span>Pausa em baixo (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-pausainf" value="${it.pausa_inferior_s ?? 0}"></label>
@@ -5981,7 +5983,15 @@ function handleGuardarSessao() {
   if (s.kind === 'walk' && !sessaoTemConteudo(s)) { showPanelErro('Adiciona pelo menos uma caminhada ou lanços de escadas.'); return; }
   if ((s.kind === 'card' || s.kind === 'circuit') && !s.blocks.length) { showPanelErro('Adiciona pelo menos um bloco.'); return; }
 
-  if (s.kind === 'list') { const pendentes = s.items.filter(it=>!doseCatalogoDefinida(it)); if (pendentes.length) { showPanelErro('Defina séries, repetições/segundos e descansos: '+pendentes.map(it=>it.name).join(', ')); return; } s.items = s.items.map(it => { const dose = { ...doseComDescansoAplicavel(it) }; delete dose._dosePorDefinir; return dose; }); }
+  if (s.kind === 'list') { const pendentes = s.items.filter(it=>!doseCatalogoDefinida(it)); if (pendentes.length) { showPanelErro(pendentes.map(it => {
+    const dose=doseComDescansoAplicavel(it);
+    const falta=[];
+    const descansoValido=n=>typeof n==='number'&&Number.isFinite(n)&&n>=0;
+    if(!descansoValido(dose.rest_set))falta.push('descanso entre séries');
+    if(!descansoValido(dose.rest_next))falta.push('descanso entre exercícios');
+    if(!validarDoseCatalogo({...dose,rest_set:0,rest_next:0}))falta.push('repetições ou segundos em cada série');
+    return it.name+' — '+falta.join(' e ');
+  }).join('; ')); return; } s.items = s.items.map(it => { const dose = { ...doseComDescansoAplicavel(it) }; delete dose._dosePorDefinir; return dose; }); }
 
   if (_panelDestino) {
     const destino = _panelDestino;
