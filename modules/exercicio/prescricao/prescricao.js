@@ -36,7 +36,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-05-semana-hoje';
+const PRESCRICAO_CSS_VERSION = '2026-11-06-semana-horizontal';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -2180,7 +2180,7 @@ function ctRender() {
   const back = editar ? 'Cancelar edição e voltar ao plano' : biblioteca ? 'Voltar ao plano' : 'Voltar à prescrição';
   root.innerHTML = `
     <section class="gcwo-ct gcwo-ct-flow" id="gcwoCt" data-ct-view="${editar ? 'editor' : biblioteca ? 'biblioteca' : 'calendario'}">
-      <div class="gcwo-ct-top"><div><button type="button" class="gcwo-backlink" id="gcwoVoltarPrescricao">← ${back}</button><h2>${titulo}</h2></div>${!editar ? '<button type="button" class="gcBtnOutline" data-ct="programa-casa">Planos pré-feitos · Casa</button>' : ''}<span class="gcwo-ct-nota">${escHtml(ctFmtIntervalo(ct.inicio, ct.fim))}</span></div>
+      <div class="gcwo-ct-top"><div><button type="button" class="gcwo-backlink" id="gcwoVoltarPrescricao">← ${back}</button><h2>${titulo}</h2></div>${!editar && !_embeddedCare ? '<button type="button" class="gcBtnOutline" data-ct="programa-casa">Planos pré-feitos · Casa</button>' : ''}<span class="gcwo-ct-nota">${escHtml(ctFmtIntervalo(ct.inicio, ct.fim))}</span></div>
       <details class="gcwo-ct-periodo" id="gcwoCtPeriodo" ${ct.definicoesAbertas ? 'open' : ''}><summary>Período do plano · ${escHtml(ctFmtIntervalo(ct.inicio, ct.fim))}</summary>${ctRenderDefinicoes()}</details>
       <div class="gcwo-ct-workspace">
         <aside class="gcwo-ct-sidebar" id="gcwoCtSidebar" aria-label="Semana e disponibilidade">${ctRenderCalendario()}</aside>
@@ -2669,11 +2669,13 @@ function renderStep2Body() {
   if (step2EmEdicao()) {
     _patientMainTab = 'prescription';
     refreshPatientMainTabs();
-    if (_embeddedCare && _panelDraft) {
+    if (_embeddedCare) {
       if (!host.querySelector('#gcwoCalGrid')) renderCalendarMode(host);
       const editor = host.querySelector('#gcwoEditorInline');
-      editor.innerHTML = '<div class="gcwo-panel" id="gcwoPanel"></div>';
-      renderPanel();
+      if (_panelDraft) {
+        editor.innerHTML = '<div class="gcwo-panel" id="gcwoPanel"></div>';
+        renderPanel();
+      } else renderEditMode(editor);
       editor.scrollIntoView({ block: 'start' });
     } else renderEditMode(host);
   } else if (_patientMainTab === 'followup') {
@@ -2907,7 +2909,7 @@ function renderCalendarMode(host) {
       ${!terminado && acessoExpirado ? '<p><strong>Acesso expirado.</strong> Pode renovar o acesso nas definições do plano abaixo.</p>' : ''}
     <div class="gcwo-calendar-card">
       <div class="gcwo-cal-head">
-        <div><h2 class="gcwo-section-title">${_embeddedCare ? 'Calendário do acompanhamento' : 'Calendário do plano'}</h2><p>Adicione um treino ou arraste-o para mudar de dia.</p></div>
+        <div><h2 class="gcwo-section-title">${_embeddedCare ? 'Planeamento e disponibilidade' : 'Calendário do plano'}</h2><p>Adicione um treino ou arraste-o para mudar de dia.</p></div>
         <div class="gcwo-cal-nav">
           ${_embeddedCare ? '<button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalHoje">Hoje</button>' : ''}
           <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalAnterior">‹ Semana anterior</button>
@@ -2941,7 +2943,18 @@ function renderCalendarMode(host) {
   document.getElementById('gcwoCalSeguinte').addEventListener('click', () => navegarCalendario(7));
   document.getElementById('gcwoGerar')?.addEventListener('click', handleGerar);
   document.getElementById('gcwoCopiarSemana').addEventListener('click', copiarSemanaPrincipal);
-  document.getElementById('gcwoCriarTreino')?.addEventListener('click', abrirCriarTreino);
+  document.getElementById('gcwoCriarTreino')?.addEventListener('click', () => {
+    if (!_embeddedCare) return abrirCriarTreino();
+    const grid = document.getElementById('gcwoCalGrid');
+    if (!grid.querySelector('[data-add-date]')) {
+      const hoje = isoHoje();
+      _calendarFirstMonday = segundaFeiraDeIso(hoje < _state.startDate ? _state.startDate : hoje > _state.endDate ? _state.endDate : hoje);
+      renderCalGrid();
+    }
+    grid.scrollIntoView({ block: 'start' });
+    const primeiroDia = grid.querySelector('.gcwo-calday-hoje [data-add-date]') || grid.querySelector('[data-add-date]');
+    primeiroDia?.focus({ preventScroll: true });
+  });
   document.getElementById('gcwoTerminarPlano')?.addEventListener('click', (e) => terminarPlanoActivo(_state.activePrescriptionId, e.currentTarget));
 }
 
@@ -3059,7 +3072,7 @@ function renderCalGrid() {
   // Cabeçalho dos dias da semana (SEG..DOM) uma única vez no topo — antes cada
   // linha de semana repetia isto por baixo do intervalo de datas, o que o Morais
   // achou poluído. Agora é só isto, sem nenhuma etiqueta de semana a separar as linhas.
-  const cabecalho = `
+  const cabecalho = _embeddedCare ? '' : `
     <div class="gcwo-calweekday-header">
       ${DIAS_SEMANA.map(d => `<span>${d.label}</span>`).join('')}
     </div>`;
@@ -3075,9 +3088,9 @@ function renderCalGrid() {
           const sessions = fora ? [] : _state.sessions.filter(s => s.date === iso).sort((a, b) => a.order - b.order);
           return `
           <div class="gcwo-calday${iso === hoje ? ' gcwo-calday-hoje' : ''}${fora ? ' before-start' : ''}" data-calendar-date="${iso}"${fora ? '' : ` data-day="${iso}"`}>
+            ${_embeddedCare ? `<strong class="gcwo-calday-name">${escHtml(d.full)}</strong>` : ''}
             <div class="gcwo-calday-top">
               <span class="num"${iso === hoje ? ' aria-current="date"' : ''}>${escHtml(fmtDiaMesCurtoIso(iso))}${iso === hoje ? ' · Hoje' : ''}</span>
-              ${!fora ? `<button type="button" class="gcwo-calday-add" data-add-date="${iso}" title="Prescrever treino" aria-label="Prescrever treino em ${escAttr(fmtDataPtIso(iso))}">${ICON_MAIS} Prescrever</button>` : ''}
             </div>
             ${_embeddedCare ? resumoQuestionarioDia(respostaQuestionarioDia(iso)) : ''}
             ${_embeddedCare ? '<small class="gcwo-cal-prescrito">Treino prescrito</small>' : ''}
@@ -3102,8 +3115,9 @@ function renderCalGrid() {
                     <button type="button" class="danger" data-menu-action="apagar" data-sid="${s.session_id}">${ICON_TRASH}<span>Apagar</span></button>
                   </div>
                 </div>`;
-              }).join('')}
+              }).join('') || (_embeddedCare && !fora ? '<small>Sem treino</small>' : '')}
             </div>
+            ${!fora ? `<button type="button" class="gcwo-calday-add" data-add-date="${iso}" title="Prescrever treino" aria-label="Prescrever treino em ${escAttr(fmtDataPtIso(iso))}">${ICON_MAIS} Prescrever</button>` : ''}
           </div>`;
         }).join('')}
       </div>

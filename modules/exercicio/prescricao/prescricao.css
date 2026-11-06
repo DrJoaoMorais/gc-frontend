@@ -1710,3 +1710,9 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-calday-add { width:auto; padding-inline:5px; gap:3px; font-size:11px; }
 
 .gcwo-calday-hoje { outline:2px solid #245ddc; outline-offset:-2px; }
+
+.gcwo-care-editor .gcwo-calday { display:flex; flex-direction:column; gap:5px; min-height:150px; }
+.gcwo-care-editor .gcwo-calday-name { color:#173654; font-size:13px; }
+.gcwo-care-editor .gcwo-calsessions { flex:1; }
+.gcwo-care-editor .gcwo-calday-add { width:100%; min-height:34px; margin-top:5px; justify-content:center; border:1px solid #cbd9ee; background:#fff; color:#18488f; }
+.gcwo-care-editor .gcwo-calday-add:focus-visible { outline:2px solid #245ddc; outline-offset:2px; }
