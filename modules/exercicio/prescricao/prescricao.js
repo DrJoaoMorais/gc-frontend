@@ -3170,7 +3170,7 @@ function renderCalGrid() {
                   <span class="gcwo-calsession-handle" data-drag-sid="${s.session_id}" title="Arrastar para mover">${ICON_GRIP}</span>
                   <button type="button" class="gcwo-calsession-body" data-edit-session="${s.session_id}">
                     <span class="gcwo-calsession-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
-                    <span class="gcwo-calsession-name">${escHtml(nomeCurtoSessao(s))}</span>
+                    <span class="gcwo-calsession-name">${escHtml(nomeCurtoSessao(s))}${s.local === 'Clínica' ? ' · Clínica' : ''}</span>
                   </button>
                   ${resumoExerciciosSessao(s)}
                   <button type="button" class="gcwo-calsession-menubtn" data-menu-session="${s.session_id}" title="Mais ações">${ICON_DOTS}</button>
@@ -3824,13 +3824,16 @@ function renderPanel() {
   const meta = TIPO_META[tipoKey(s)];
   const dia = diaSemanaDeIso(s.date);
   const painelCompacto = s.kind === 'card' || s.kind === 'walk';
+  const locais = _embeddedCare ? ['', ...LOCAIS_SESSAO] : LOCAIS_SESSAO;
+  const seletorLocal = `<span class="gcwo-field-label">Local da sessão${_embeddedCare ? ' (opcional)' : ''}</span>
+    <div class="gcwo-chips" id="gcwoPLocalChips">
+      ${locais.map(l => {
+        const selecionado = (s.local || '') === l;
+        return `<button type="button" class="gcwo-chip${selecionado ? ' on' : ''}" aria-pressed="${selecionado}" data-local="${escAttr(l)}">${escHtml(l || 'Sem local definido')}</button>`;
+      }).join('')}
+    </div>`;
   const cabecalhoCompacto = painelCompacto ? `
-      <div class="gcwo-cardio-head-local">
-        <span class="gcwo-field-label">Local</span>
-        <div class="gcwo-chips" id="gcwoPLocalChips">
-          ${LOCAIS_SESSAO.map(l => `<button type="button" class="gcwo-chip${s.local === l ? ' on' : ''}" data-local="${escAttr(l)}">${escHtml(l)}</button>`).join('')}
-        </div>
-      </div>
+      <div class="gcwo-cardio-head-local">${seletorLocal}</div>
       <button type="button" class="gcBtnGhost gcwo-session-zones" id="gcwoBtnZonasTreino">♥ ⚡ Zonas</button>` : '';
 
   panel.innerHTML = `
@@ -3844,12 +3847,7 @@ function renderPanel() {
     </div>
     <div class="gcwo-panel-body">
       ${painelCompacto ? '' : `<div class="gcwo-session-setup-row${s.kind === 'list' ? '' : ' no-objective'}">
-        ${_embeddedCare ? '' : `<div class="gcwo-session-local-top">
-          <span class="gcwo-field-label">Local</span>
-          <div class="gcwo-chips" id="gcwoPLocalChips">
-            ${LOCAIS_SESSAO.map(l => `<button type="button" class="gcwo-chip${s.local === l ? ' on' : ''}" data-local="${escAttr(l)}">${escHtml(l)}</button>`).join('')}
-          </div>
-        </div>`}
+        <div class="gcwo-session-local-top">${seletorLocal}</div>
         ${s.kind === 'list' ? renderObjectiveControls() : ''}
         <button type="button" class="gcBtnGhost gcwo-session-zones" id="gcwoBtnZonasTreino">♥ ⚡ Zonas</button>
       </div>`}
@@ -3929,8 +3927,8 @@ function wirePanel() {
 
   document.getElementById('gcwoPLocalChips')?.querySelectorAll('[data-local]').forEach(chip => {
     chip.addEventListener('click', () => {
-      s.local = chip.getAttribute('data-local');
-      document.querySelectorAll('#gcwoPLocalChips .gcwo-chip').forEach(c => c.classList.toggle('on', c === chip));
+      s.local = chip.getAttribute('data-local') || null;
+      document.querySelectorAll('#gcwoPLocalChips .gcwo-chip').forEach(c => { c.classList.toggle('on', c === chip); c.setAttribute('aria-pressed', String(c === chip)); });
     });
   });
 
@@ -5967,7 +5965,7 @@ function handleGuardarSessao() {
   const s = _panelDraft;
   showPanelErro('');
 
-  if (!s.local) { showPanelErro('Falta escolher o local desta sessão.'); return; }
+  if (!_embeddedCare && !s.local) { showPanelErro('Falta escolher o local desta sessão.'); return; }
   if (s.kind === 'list' && !s.items.length) { showPanelErro('Adiciona pelo menos um exercício.'); return; }
   if (s.kind === 'walk' && !sessaoTemConteudo(s)) { showPanelErro('Adiciona pelo menos uma caminhada ou lanços de escadas.'); return; }
   if ((s.kind === 'card' || s.kind === 'circuit') && !s.blocks.length) { showPanelErro('Adiciona pelo menos um bloco.'); return; }
@@ -6181,9 +6179,7 @@ function validarPrescricao() {
   const ultimoTreino = ultimoDiaPrescrito();
   if (_state.linkExpiryMode === 'selected_date' && !_state.linkExpiryDate) return 'Falta escolher a validade do link.';
   if (!_state.linkExpiryDate || !/^\d{4}-\d{2}-\d{2}$/.test(_state.linkExpiryDate)) return 'Escolha a data de validade do link.';
-  for (const s of _state.sessions) {
-    if (!s.local) return 'Há uma sessão sem local escolhido.';
-  }
+  if (!_embeddedCare && _state.sessions.some(s => !s.local)) return 'Há uma sessão sem local escolhido.';
   return null;
 }
 
