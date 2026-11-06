@@ -1,7 +1,7 @@
 import { BLOCOS_EXERCICIO, resolverBloco, exerciciosDaSessao, distribuicaoRegional } from './biblioteca-blocos.js?v=2026-11-05-semana-hoje';
 import { PLANOS_CASA, configuracaoPlanoCasa, preverPlanoCasa, tempoPlanoCasa } from './planos-casa.js?v=2026-11-01-1';
 import { PADROES_CASA, catalogoCasa, sugerirVariantesCasa, semanaCasa, proporProgramaCasa } from './programa-casa.js?v=2026-11-01-1';
-import { organizarExercicio, pertenceFinalidade, doseInicialDoCatalogo, doseCatalogoDefinida } from './catalogo-organizacao.js?v=2026-10-31-organizacao';
+import { organizarExercicio, pertenceFinalidade, doseInicialDoCatalogo, doseCatalogoDefinida as validarDoseCatalogo } from './catalogo-organizacao.js?v=2026-10-31-organizacao';
 import { lerDisponibilidadeQuestionario, normalizarDisponibilidade, disponibilidadeInicial, capturarDisponibilidade, minutosDisponiveis } from './disponibilidade-treino.js?v=2026-11-05-ponto4';
 import { doseProtocoloCompleta, pedirDosesIndividuais } from './dose-protocolo.js?v=2026-10-30-doses-genericas-1';
 import { requireExerciseAccess } from '../permissoes.js';
@@ -4113,7 +4113,7 @@ function sincronizarResumoSeries(it) {
 }
 
 function duracaoEstimadaItem(it) {
-  const descansoFinal = Math.max(0, Number(it.rest_next) || 0);
+  const descansoFinal = Math.max(0, Number(doseComDescansoAplicavel(it).rest_next) || 0);
   if (itemDuracaoMode(it) === 'duracao') {
     const series = seriesDuracaoPrescritasItem(it);
     const trabalho = series.reduce((total, serie) => total + Math.max(0, Number(serie.duration_sec) || 0), 0);
@@ -4151,6 +4151,17 @@ function renderPickedListInner(s) {
   return s.items.map((item, index) => renderItemCard(item, index)).join('');
 }
 
+function temUmaSerie(it) {
+  return (it.duration_series?.length ? it.duration_series : it.series)?.length === 1;
+}
+function doseComDescansoAplicavel(it) {
+  if (!temUmaSerie(it)) return it;
+  return { ...it, rest_set: 0, rest_next: it.rest_next ?? it.rest_set ?? null };
+}
+function doseCatalogoDefinida(it) {
+  return validarDoseCatalogo(doseComDescansoAplicavel(it));
+}
+
 function renderItemCard(it, index) {
   const modoDuracao = itemDuracaoMode(it);
   const duracaoRadioName = `gcwo-duracaomode-${it.exercise_id}`;
@@ -4165,7 +4176,7 @@ function renderItemCard(it, index) {
         <strong>${escHtml(it.name)}</strong>
         <button type="button" class="gcwo-exercicio-remove" data-remove-exid="${escAttr(it.exercise_id)}" title="Remover exercício">✕</button>
       </summary>
-      ${it._dosePorDefinir ? '<p class="gcwo-dose-definir">Defina as séries, repetições ou segundos e os dois descansos. Não foi atribuída uma dose automática.</p>' : ''}
+      ${it._dosePorDefinir && !doseCatalogoDefinida(it) ? '<p class="gcwo-dose-definir">Defina a dose e o descanso. Para uma série, indique apenas a pausa antes do próximo exercício.</p>' : ''}
       <div class="gcwo-field" style="margin-top:8px;">
         <span>Modo</span>
         <div class="gcwo-modo">
@@ -4202,11 +4213,11 @@ function renderItemCard(it, index) {
           <button type="button" class="gcwo-add-serie">+ Série</button>
         </div>
       `}
+      <label class="gcwo-field gcwo-field-sm"><span>Pausa antes do próximo exercício (s)</span><input type="number" min="0" class="gcwo-it-restnext" value="${doseComDescansoAplicavel(it).rest_next ?? ''}"></label>
       <details class="gcwo-exercicio-mais">
         <summary>＋ Opções personalizadas</summary>
         <div class="gcwo-exercicio-mais-grid">
-          <label class="gcwo-field gcwo-field-sm"><span>Descanso entre séries (s)</span><input type="number" min="0" class="gcwo-it-restset" value="${it.rest_set ?? ''}"></label>
-          <label class="gcwo-field gcwo-field-sm"><span>Antes do próximo (s)</span><input type="number" min="0" class="gcwo-it-restnext" value="${it.rest_next ?? ''}"></label>
+          ${!temUmaSerie(it) ? `<label class="gcwo-field gcwo-field-sm"><span>Descanso entre séries (s)</span><input type="number" min="0" class="gcwo-it-restset" value="${it.rest_set ?? ''}"></label>` : ''}
           <label class="gcwo-field gcwo-field-sm"><span>Incremento (kg)</span><input type="number" min="0" step="0.5" class="gcwo-it-incremento" value="${it.incremento ?? ''}"></label>
           <label class="gcwo-field gcwo-field-sm"><span>Excêntrico (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-tempoexc" value="${it.tempo_excentrico_s ?? ''}"></label>
           <label class="gcwo-field gcwo-field-sm"><span>Pausa em baixo (s)</span><input type="number" min="0" step="0.5" class="gcwo-it-pausainf" value="${it.pausa_inferior_s ?? 0}"></label>
@@ -5970,7 +5981,7 @@ function handleGuardarSessao() {
   if (s.kind === 'walk' && !sessaoTemConteudo(s)) { showPanelErro('Adiciona pelo menos uma caminhada ou lanços de escadas.'); return; }
   if ((s.kind === 'card' || s.kind === 'circuit') && !s.blocks.length) { showPanelErro('Adiciona pelo menos um bloco.'); return; }
 
-  if (s.kind === 'list') { const pendentes = s.items.filter(it=>!doseCatalogoDefinida(it)); if (pendentes.length) { showPanelErro('Defina séries, repetições/segundos e descansos: '+pendentes.map(it=>it.name).join(', ')); return; } s.items.forEach(it=>delete it._dosePorDefinir); }
+  if (s.kind === 'list') { const pendentes = s.items.filter(it=>!doseCatalogoDefinida(it)); if (pendentes.length) { showPanelErro('Defina séries, repetições/segundos e descansos: '+pendentes.map(it=>it.name).join(', ')); return; } s.items = s.items.map(it => { const dose = { ...doseComDescansoAplicavel(it) }; delete dose._dosePorDefinir; return dose; }); }
 
   if (_panelDestino) {
     const destino = _panelDestino;
