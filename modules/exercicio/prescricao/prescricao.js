@@ -2767,7 +2767,7 @@ function wireBibliotecaBlocos() {
     if (button.dataset.bibConfirmacao) { if(button.dataset.bibConfirmacao==='cancelar'){_biblioteca.confirmar=false;renderStep2Body();return;} return aplicarCircuitoPreFeito(button.dataset.bibConfirmacao); }
     if (button.id === 'gcwoBibAplicar') return aplicarCircuitoPreFeito();
     if (button.dataset.bibDias) { _biblioteca.dias = new Set(button.dataset.bibDias.split(',').map(Number)); renderStep2Body(); return; }
-    if (button.dataset.bibBloco) { _biblioteca.bloco = button.dataset.bibBloco; _biblioteca.dias = new Set(); _biblioteca.mensagem=''; }
+    if (button.dataset.bibBloco) { _biblioteca.bloco = button.dataset.bibBloco; _biblioteca.dias = new Set([(dataDeIso(_panelDraft.date).getUTCDay() + 6) % 7]); _biblioteca.mensagem=''; }
     if (button.dataset.bibCategoria || button.dataset.bibBloco) renderStep2Body();
   });
   host.addEventListener('change', e => {
@@ -2813,12 +2813,8 @@ function sessaoBlocoParaDia(date, predefinido = false, bloco = BLOCOS_EXERCICIO.
   } else s.items = exs.map(novoItemDeExercicio);
   return s;
 }
-function abrirBlocoParaDia(date) {
-  const s = sessaoBlocoParaDia(date); if (!s) return;
-  _panelDraft = s; _panelIsNovo = true; _pendingSlot = null; renderStep2Body();
-}
 function aplicarCircuitoPreFeito(modo = 'perguntar') {
-  const datas=[]; const primeira=_biblioteca.repetir?segundaFeiraDeIso(_state.startDate):semanasParaMostrar()[0];
+  const datas=[]; const primeira=_biblioteca.repetir?segundaFeiraDeIso(_state.startDate):segundaFeiraDeIso(_panelDraft.date);
   for(let segunda=primeira;segunda<=_state.endDate;segunda=addDiasIso(segunda,7)){
     for(const dia of [..._biblioteca.dias].sort()) { const date=addDiasIso(segunda,dia); if(date>=_state.startDate&&date<=_state.endDate) datas.push(date); }
     if(!_biblioteca.repetir)break;
@@ -2829,7 +2825,7 @@ function aplicarCircuitoPreFeito(modo = 'perguntar') {
   if(modo==='substituir')_state.sessions=_state.sessions.filter(s=>!datas.includes(s.date)||!s.training_block);
   _biblioteca.confirmar=false;
   for(const s of sessoes){s.order=_state.sessions.filter(x=>x.date===s.date).length;_state.sessions.push(s);} _biblioteca.mensagem=`Circuito colocado em ${sessoes.length} dia(s). Pode escolher outro circuito e outros dias.`;
-  _biblioteca.dias=new Set();renderStep2Body();updateGerarButtonState();
+  _biblioteca.dias=new Set();renderStep2Body();renderCalGrid();updateGerarButtonState();
 }
 
 async function renovarApenasAcesso() {
@@ -2923,9 +2919,8 @@ function renderCalendarMode(host) {
     </div>
     <div id="gcwoEditorInline"></div>
     ${terminado ? '' : `
-      <div class="gcwo-prescription-head"><div><h2>Prescrição de exercício</h2><p>Escolher circuitos pré-feitos e distribuir pelos dias.</p></div><div class="gcwo-prescription-head-right"><button type="button" class="gcwo-criar-treino-btn" id="gcwoCriarTreino">Criar treino específico</button><span>${escHtml(diasEntreInclusivo(_state.startDate, _state.endDate))} dias</span></div></div>
+      <div class="gcwo-prescription-head"><div><h2>Prescrição de exercício</h2><p>Selecione um dia no calendário para prescrever.</p></div><div class="gcwo-prescription-head-right"><button type="button" class="gcwo-criar-treino-btn" id="gcwoCriarTreino">Criar treino específico</button><span>${escHtml(diasEntreInclusivo(_state.startDate, _state.endDate))} dias</span></div></div>
       ${renderDatasPlanoSection()}
-      ${renderBibliotecaBlocos()}
     `}
 
     </section>
@@ -2941,7 +2936,6 @@ function renderCalendarMode(host) {
     _calendarFirstMonday = segundaFeiraDeIso(_state.startDate);
     renderCalGrid();
   });
-  wireBibliotecaBlocos();
   renderCalGrid();
   document.getElementById('gcwoCalAnterior').addEventListener('click', () => navegarCalendario(-7));
   document.getElementById('gcwoCalSeguinte').addEventListener('click', () => navegarCalendario(7));
@@ -3087,7 +3081,6 @@ function renderCalGrid() {
             </div>
             ${_embeddedCare ? resumoQuestionarioDia(respostaQuestionarioDia(iso)) : ''}
             ${_embeddedCare ? '<small class="gcwo-cal-prescrito">Treino prescrito</small>' : ''}
-            ${!fora && _biblioteca.bloco ? `<button type="button" class="gcwo-colocar-bloco" data-colocar-bloco="${iso}">+ Colocar bloco</button>` : ''}
             <div class="gcwo-calsessions">
               ${sessions.map(s => {
                 const meta = metaSessao(s);
@@ -3117,7 +3110,6 @@ function renderCalGrid() {
     </div>
   `).join('');
 
-  host.querySelectorAll('[data-colocar-bloco]').forEach(btn => btn.addEventListener('click', () => abrirBlocoParaDia(btn.dataset.colocarBloco)));
   host.querySelectorAll('[data-add-date]').forEach(btn => {
     btn.addEventListener('click', () => {
       const date = btn.getAttribute('data-add-date');
@@ -3710,6 +3702,7 @@ function renderTypegrid() {
    ================================================================ */
 function openPanelNovo(modality, kind) {
   if (!_pendingSlot) return;
+  if (kind === 'circuit') _biblioteca = bibliotecaVazia();
   _panelDraft = novaSessaoSkeleton(modality, kind, _pendingSlot.date);
   _panelIsNovo = true;
   _panelCatalogFiltro = 'todos';
@@ -3816,6 +3809,10 @@ function renderPanel() {
     </div>
   `;
 
+  if (_panelIsNovo && s.kind === 'circuit' && !_panelDestino) {
+    panel.insertAdjacentHTML('afterbegin', renderBibliotecaBlocos());
+    wireBibliotecaBlocos();
+  }
   wirePanel();
 }
 
