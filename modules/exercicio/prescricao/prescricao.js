@@ -2889,14 +2889,15 @@ function copiarSemanaPrincipal() {
 
 function renderCalendarMode(host) {
   if (_loadingPlanoActivo) {
-    const hoje = isoHoje();
+    host.innerHTML = `<section class="gcwo-card"><span class="gcwo-muted">A verificar se este doente já tem um plano activo…</span></section>`;
+    return;
+  }
+
+  const hoje = isoHoje();
   const temPlano = Boolean(_embeddedCare && _state.activePrescriptionId);
   const terminado = temPlano && _state.endDate < hoje;
   const futuro = temPlano && _state.startDate > hoje;
   const acessoExpirado = temPlano && _state.linkExpiryDate && _state.linkExpiryDate < hoje;
-  host.innerHTML = `<section class="gcwo-card"><span class="gcwo-muted">A verificar se este doente já tem um plano activo…</span></section>`;
-    return;
-  }
 
   // O calendário já não fica condicionado a "escolher a duração" — startDate/endDate
   // vêm sempre com um valor (novo plano ou carregado), por isso aparece sempre (9 ago
