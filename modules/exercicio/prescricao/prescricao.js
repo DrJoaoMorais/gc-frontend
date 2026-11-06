@@ -687,6 +687,8 @@ export async function initPrescricao(options = {}) {
   _embeddedCare = options.embeddedCare || null;
   _state = freshState(Boolean(_embeddedCare));
   _biblioteca = bibliotecaVazia();
+  modelosEditados.clear();
+  rascunhosModalidades.clear();
   _disponibilidadeQuestionario = null;
   _landing = options.restoreList && _landingReturnContext
     ? { ...freshLanding(), clinicIds: _landingReturnContext.clinicIds, search: _landingReturnContext.search, tab: _landingReturnContext.tab }
@@ -2707,6 +2709,56 @@ function wirePatientMainTabs() {
    MODO 1 — calendário (datas reais, todas as semanas visíveis)
    ================================================================ */
 let _biblioteca = bibliotecaVazia();
+const modelosEditados = new Map();
+const modelosCircuito = () => [...BLOCOS_EXERCICIO.filter(b=>b.categorias.includes('Circuitos')&&!modelosEditados.has(b.id)),...modelosEditados.values()];
+const focoModelo = b => b.foco || ({inferiores:'Membro inferior',superiores:'Membro superior',core:'Core',inteiro:'Corpo todo'})[b.id];
+const modeloCircuito = id => modelosCircuito().find(b=>b.id===id);
+const doseModelo = (b,id) => b.doses?.[id] || {measure:'time',value:30,rest_after_s:15};
+function editarModeloCircuito(modelo) {
+  const dialog=document.createElement('dialog');
+  dialog.style.cssText='width:min(760px,92vw);max-height:85vh;padding:20px;border:1px solid #cbd9ee;border-radius:12px';
+  dialog.innerHTML=`<form><h2>${modelo?'Editar modelo':'Criar novo circuito'}</h2>
+    <label>Nome <input name="nome" required maxlength="80" value="${escAttr(modelo?.nome||'')}"></label>
+    <label>Foco <select name="foco">${['Membro inferior','Membro superior','Core','Corpo todo'].map(f=>`<option ${f=== (modelo && focoModelo(modelo))?'selected':''}>${f}</option>`).join('')}</select></label>
+    <label>Material <input name="material" maxlength="60" value="${escAttr(modelo?.material||'')}"></label>
+    <div data-estacoes></div><p role="status"></p><button type="button" data-adicionar>+ Adicionar exercício</button>
+    <button type="button" data-cancelar>Cancelar</button> <button class="gcBtnSuccess">Guardar modelo</button></form>`;
+  const form=dialog.querySelector('form'),host=form.querySelector('[data-estacoes]');
+  const catalogo=_state.exercisesCatalog.filter(ex=>ex.is_active!==false);
+  function adicionar(id='', dose={measure:'time',value:30,rest_after_s:15}){
+    const row=document.createElement('div');row.className='gcwo-bib-filtros';
+    row.innerHTML=`<img class="gcwo-circ-ex-thumb" alt="" hidden><label>Exercício <select required><option value="">Selecionar do catálogo…</option>${catalogo.map(ex=>`<option value="${escAttr(ex.id)}">${escHtml(ex.name)}</option>`).join('')}</select></label>
+      <label>Dose <select><option value="time">Segundos</option><option value="reps">Repetições</option></select></label>
+      <label>Quantidade <input type="number" min="1" max="3600" required value="${dose.value}"></label>
+      <label>Descanso (s) <input type="number" min="0" max="3600" required value="${dose.rest_after_s}"></label><button type="button">Remover</button>`;
+    const [ex,unidade]=row.querySelectorAll('select'),foto=row.querySelector('img');
+    ex.value=id;unidade.value=dose.measure;
+    ex.onchange=()=>{const url=catalogo.find(item=>item.id===ex.value)?.photo_url;foto.hidden=!url;if(url)foto.src=url};
+    ex.onchange();row.querySelector('button').onclick=()=>row.remove();host.append(row);
+  }
+  for(const id of modelo?.ids||[])adicionar(id,doseModelo(modelo,id));
+  if(!host.children.length)adicionar();
+  form.querySelector('[data-adicionar]').onclick=()=>adicionar();
+  form.querySelector('[data-cancelar]').onclick=()=>dialog.close();
+  form.onsubmit=e=>{
+    e.preventDefault();
+    const nome=form.elements.nome.value.trim(),ids=[],doses={};
+    for(const row of host.children){
+      const [ex,unidade]=row.querySelectorAll('select'),[valor,descanso]=row.querySelectorAll('input');
+      if(ids.includes(ex.value)){form.querySelector('[role=status]').textContent='Escolha cada exercício uma só vez.';return}
+      ids.push(ex.value);doses[ex.value]={measure:unidade.value,value:Number(valor.value),rest_after_s:Number(descanso.value)};
+    }
+    if(!nome||!ids.length){form.querySelector('[role=status]').textContent='Indique o nome e pelo menos um exercício.';return}
+    const id=modelo?.id||uuid();
+    modelosEditados.set(id,{id,nome,ids,doses,foco:form.elements.foco.value,material:form.elements.material.value.trim()});
+    _biblioteca.escolhidos.delete(id);
+    _biblioteca.bloco=id;_biblioteca.confirmar=false;_biblioteca.foco='';_biblioteca.material='';
+    _biblioteca.dias=new Set([(dataDeIso(_panelDraft.date).getUTCDay()+6)%7]);
+    dialog.close();renderStep2Body();
+  };
+  dialog.onclose=()=>dialog.remove();document.body.append(dialog);dialog.showModal();
+}
+const rascunhosModalidades = new Map();
 function bibliotecaVazia() { return { categoria: 'Circuitos', minutos: 20, nivel: 'leve', bloco: null, escolhidos: new Map(), aquecimento: 5, retorno: 5, dias: new Set(), repetir: false, mensagem: '' }; }
 
 function bibliotecaSelecionados(bloco) {
@@ -2729,19 +2781,27 @@ function resumoExerciciosSessao(s) {
 }
 function renderBibliotecaBlocos() {
   const b = _biblioteca;
-  const escolhido = BLOCOS_EXERCICIO.find(x => x.id === b.bloco);
+  const escolhido = modeloCircuito(b.bloco);
+  const modelos=modelosCircuito();
+  const materiais=[...new Set(modelos.map(m=>m.material||'Por classificar'))];
+  const filtrados=modelos.filter(m=>(!b.foco||focoModelo(m)===b.foco)&&(!b.material||(m.material||'Por classificar')===b.material));
   return `<section class="gcwo-biblioteca" id="gcwoBiblioteca">
     <h2 class="gcwo-section-title">1. Escolher um circuito pré-feito</h2>
     <p>Os exercícios, tempos e pausas já estão preenchidos. Escolha o circuito e os dias.</p>
-    <div class="gcwo-bib-filtros"><label class="gcwo-field"><span>Tempo de treino principal</span><select id="gcwoBibMinutos">${[10,20,30].map(n => `<option value="${n}"${n === b.minutos ? ' selected' : ''}>${n} minutos</option>`).join('')}</select></label><span class="gcwo-bib-nota">+ ${b.aquecimento} min de aquecimento e ${b.retorno} min de retorno à calma</span></div>
-    ${!_state.catalogLoaded ? '<p>A carregar circuitos…</p>' : `<div class="gcwo-bib-grid">${BLOCOS_EXERCICIO.map(bloco => {
+    <div class="gcwo-bib-filtros"><label class="gcwo-field"><span>Tempo de treino principal</span><select id="gcwoBibMinutos">${[10,20,30].map(n => `<option value="${n}"${n === b.minutos ? ' selected' : ''}>${n} minutos</option>`).join('')}</select></label><label>Foco <select id="gcwoBibFoco"><option value="">Todos</option>${['Membro inferior','Membro superior','Core','Corpo todo'].map(f=>`<option ${b.foco===f?'selected':''}>${f}</option>`).join('')}</select></label>
+      <label>Material <select id="gcwoBibMaterial"><option value="">Todos</option>${materiais.map(m=>`<option ${b.material===m?'selected':''}>${escHtml(m)}</option>`).join('')}</select></label><button type="button" class="gcBtnGhost" data-novo-circuito>+ Criar novo circuito</button><span class="gcwo-bib-nota">+ ${b.aquecimento} min de aquecimento e ${b.retorno} min de retorno à calma</span></div>
+    ${!_state.catalogLoaded ? '<p>A carregar circuitos…</p>' : `<div class="gcwo-bib-grid">${filtrados.map(bloco => {
       const r = resolverBloco(bloco, _state.exercisesCatalog);
       const exemplo = sessaoBlocoParaDia(_state.startDate, true, bloco);
       const voltas = exemplo?.blocks.find(x => x.tipo === 'voltas')?.rounds || 0;
       return `<article class="gcwo-bib-card${b.bloco === bloco.id ? ' on' : ''}"><h3>${escHtml(bloco.nome.replace('Bloco', 'Circuito'))}</h3>
-        <p><strong>${b.minutos} min de treino · ${b.minutos+b.aquecimento+b.retorno} min no total</strong></p>
-        <ol>${bibliotecaSelecionados(bloco).map(ex => `<li>${escHtml(ex.name)}</li>`).join('')}</ol>
-        <div class="gcwo-bib-dose">${voltas} voltas · 30 s por exercício · 15 s de transição · 60 s entre voltas</div>
+        <p><strong>${b.minutos} min de treino · ${b.minutos+b.aquecimento+b.retorno} min de duração-alvo total</strong></p>
+        <p>${escHtml([focoModelo(bloco),bloco.material].filter(Boolean).join(' · '))}</p>
+        <ol>${bibliotecaSelecionados(bloco).map(ex => {
+          const dose=doseModelo(bloco,ex.id);
+          return `<li>${ex.photo_url?`<img class="gcwo-circ-ex-thumb" src="${escAttr(ex.photo_url)}" alt="">`:''} ${escHtml(ex.name)} · ${dose.value} ${dose.measure==='reps'?'repetições':'s'}</li>`;
+        }).join('')}</ol><button type="button" class="gcBtnGhost" data-editar-circuito="${escAttr(bloco.id)}">Editar modelo</button>
+        <div class="gcwo-bib-dose">${voltas} voltas · 60 s entre voltas</div>
         <details><summary>Ver sessão completa</summary>${exemplo ? `<ul>${exemplo.blocks.map(x=>`<li>${escHtml(x.name)}${x.tipo==='fixed'?` · ${tempoPlanoCasa(x.duration_sec)}`:''}</li>`).join('')}</ul>` : ''}</details>
         ${r.emFalta.length ? `<p class="gcwo-erro">Modelo indisponível: faltam ${r.emFalta.length} exercícios no catálogo.</p>` : ''}
         <button type="button" class="${b.bloco===bloco.id?'gcBtnSuccess':'gcBtnGhost'}" data-bib-bloco="${bloco.id}" ${r.emFalta.length ? 'disabled' : ''}>${b.bloco === bloco.id ? 'Circuito selecionado' : 'Usar este circuito'}</button></article>`;
@@ -2765,6 +2825,8 @@ function wireBibliotecaBlocos() {
   if (!host) return;
   host.addEventListener('click', e => {
     const button = e.target.closest('button'); if (!button) return;
+    if(button.hasAttribute('data-novo-circuito'))return editarModeloCircuito();
+    if(button.dataset.editarCircuito)return editarModeloCircuito(modeloCircuito(button.dataset.editarCircuito));
     if (button.dataset.bibCategoria) { _biblioteca.categoria = button.dataset.bibCategoria; _biblioteca.bloco = null; }
     if (button.dataset.bibConfirmacao) { if(button.dataset.bibConfirmacao==='cancelar'){_biblioteca.confirmar=false;renderStep2Body();return;} return aplicarCircuitoPreFeito(button.dataset.bibConfirmacao); }
     if (button.id === 'gcwoBibAplicar') return aplicarCircuitoPreFeito();
@@ -2773,10 +2835,11 @@ function wireBibliotecaBlocos() {
     if (button.dataset.bibCategoria || button.dataset.bibBloco) renderStep2Body();
   });
   host.addEventListener('change', e => {
+    if (['gcwoBibFoco','gcwoBibMaterial'].includes(e.target.id)) { _biblioteca[e.target.id==='gcwoBibFoco'?'foco':'material']=e.target.value; renderStep2Body(); return; }
     if (e.target.dataset.bibDia !== undefined) { const dia=Number(e.target.dataset.bibDia); e.target.checked ? _biblioteca.dias.add(dia) : _biblioteca.dias.delete(dia); renderStep2Body(); return; }
     if (e.target.id === 'gcwoBibRepetir') { _biblioteca.repetir=e.target.checked; return; }
     if (e.target.dataset.bibExercicio) {
-      const bloco = BLOCOS_EXERCICIO.find(x => x.id === _biblioteca.bloco);
+      const bloco = modeloCircuito(_biblioteca.bloco);
       const ids = new Set(bibliotecaSelecionados(bloco).map(x => x.id));
       e.target.checked ? ids.add(e.target.dataset.bibExercicio) : ids.delete(e.target.dataset.bibExercicio);
       _biblioteca.escolhidos.set(bloco.id, [...ids]);
@@ -2790,7 +2853,7 @@ function wireBibliotecaBlocos() {
     renderStep2Body();
   });
 }
-function sessaoBlocoParaDia(date, predefinido = false, bloco = BLOCOS_EXERCICIO.find(x => x.id === _biblioteca.bloco)) {
+function sessaoBlocoParaDia(date, predefinido = false, bloco = modeloCircuito(_biblioteca.bloco)) {
   if (!bloco) return;
   const exs = bibliotecaSelecionados(bloco);
   if (!exs.length || resolverBloco(bloco, _state.exercisesCatalog).emFalta.length) return;
@@ -2801,13 +2864,16 @@ function sessaoBlocoParaDia(date, predefinido = false, bloco = BLOCOS_EXERCICIO.
   if (circuito) {
     s.circuit_config = { nivel: b.nivel, minutos: b.minutos + b.aquecimento + b.retorno, aquecimento: b.aquecimento, retorno: b.retorno, voltas: 1, trabalho: 30, transicao: 15, pausa: 60 };
     s.circuit_config.voltas = Math.max(1, Math.floor((b.minutos * 60 + 60) / (exs.length * 45 + 60)));
-    const proposta = proporComposicaoCircuito(s.circuit_config, exs.length);
+    const segundosVolta=exs.reduce((total,ex)=>{const dose=doseModelo(bloco,ex.id);return total+duracaoTrabalhoExercicioCircuito(dose).segundos+dose.rest_after_s},0);
+    const voltas=Math.floor((b.minutos*60+60)/(segundosVolta+60));
+    const proposta=bloco.doses?{voltas,marcha:0,erro:voltas<1}:proporComposicaoCircuito(s.circuit_config,exs.length);
+    s.circuit_config.voltas=proposta.voltas;
     if (proposta.erro) return;
     s._limiteMin = s.circuit_config.minutos;
     const fixo = (name, min) => ({ block_id: uuid(), tipo: 'fixed', name, duration_sec: min * 60 });
     s.blocks = [
       ...(b.aquecimento ? [fixo('Aquecimento — marcha confortável e mobilização suave', b.aquecimento)] : []),
-      { block_id: uuid(), tipo: 'voltas', name: bloco.nome, rounds: proposta.voltas, rest_between_rounds_s: 60, exercicios: exs.map(ex => ({ id: uuid(), exercise_id: ex.id, name: ex.name, measure: 'time', value: 30, rest_after_s: 15 })) },
+      { block_id: uuid(), tipo: 'voltas', name: bloco.nome, rounds: proposta.voltas, rest_between_rounds_s: 60, exercicios: exs.map(ex => ({ id: uuid(), exercise_id: ex.id, name: ex.name, ...doseModelo(bloco,ex.id) })) },
       ...(proposta.marcha > 0 ? [fixo('Complemento do bloco principal — marcha confortável', proposta.marcha / 60)] : []),
       ...(b.retorno ? [fixo('Retorno à calma — marcha lenta e respiração confortável', b.retorno)] : []),
     ];
@@ -3716,7 +3782,8 @@ function renderTypegrid() {
    ================================================================ */
 function openPanelNovo(modality, kind) {
   if (!_pendingSlot) return;
-  if (kind === 'circuit') _biblioteca = bibliotecaVazia();
+  _biblioteca = bibliotecaVazia();
+  rascunhosModalidades.clear();
   _panelDraft = novaSessaoSkeleton(modality, kind, _pendingSlot.date);
   _panelIsNovo = true;
   _panelCatalogFiltro = 'todos';
@@ -3823,8 +3890,21 @@ function renderPanel() {
     </div>
   `;
 
+  if (_embeddedCare && _panelIsNovo && !_panelDestino) {
+    const tipos=SESSAO_MODALIDADES.filter(t=>t.enabled);
+    panel.insertAdjacentHTML('afterbegin', `<nav class="gcwo-bib-filtros" aria-label="Modalidades">${tipos.map(t=>`<button type="button" class="${t.modality===s.modality?'gcBtnSuccess':'gcBtnGhost'}" aria-pressed="${t.modality===s.modality}" data-modalidade-editor="${escAttr(t.modality)}">${t.kind==='list'?'Força / exercícios':escHtml(t.modality)}</button>`).join('')}</nav>`);
+    panel.querySelectorAll('[data-modalidade-editor]').forEach(btn=>btn.onclick=()=>{
+      const tipo=tipos.find(t=>t.modality===btn.dataset.modalidadeEditor);
+      if(tipo.modality===s.modality)return;
+      rascunhosModalidades.set(s.modality,s);
+      _panelDraft=rascunhosModalidades.get(tipo.modality)||novaSessaoSkeleton(tipo.modality,tipo.kind,s.date);
+      _panelCatalogFiltro='todos';_panelCatalogBusca='';_panelEquipFiltro=new Set();
+      renderStep2Body();
+    });
+  }
   if (_panelIsNovo && s.kind === 'circuit' && !_panelDestino) {
-    panel.insertAdjacentHTML('afterbegin', renderBibliotecaBlocos());
+    const nav=panel.querySelector('[aria-label=Modalidades]');
+    (nav || panel).insertAdjacentHTML(nav?'afterend':'afterbegin', renderBibliotecaBlocos());
     wireBibliotecaBlocos();
   }
   wirePanel();
