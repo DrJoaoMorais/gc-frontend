@@ -1716,3 +1716,36 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-care-editor .gcwo-calsessions { flex:1; }
 .gcwo-care-editor .gcwo-calday-add { width:100%; min-height:34px; margin-top:5px; justify-content:center; border:1px solid #cbd9ee; background:#fff; color:#18488f; }
 .gcwo-care-editor .gcwo-calday-add:focus-visible { outline:2px solid #245ddc; outline-offset:2px; }
+
+/* Circuito: catálogo e sequência editados na mesma página. */
+.gcwo-circuit-workspace{display:grid;grid-template-columns:minmax(280px,360px) minmax(0,1fr);gap:18px;align-items:start}
+.gcwo-circuit-catalog,.gcwo-circuit-plan{min-width:0;border:1px solid #dce5f0;border-radius:14px;padding:16px;background:#fff}
+.gcwo-circuit-catalog .gcwo-field-label{display:block;margin:12px 0 6px}
+.gcwo-circuit-catalog input[type=search]{width:100%;box-sizing:border-box;margin:14px 0 6px;padding:10px;border:1px solid #cbd9e9;border-radius:8px}
+.gcwo-circuit-catalog .gcwo-catpick-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:650px;overflow:auto}
+.gcwo-circuit-catalog .gcwo-catpick-card{min-width:0;display:flex;flex-direction:column;justify-content:space-between;min-height:190px}
+.gcwo-circuit-catalog .gcwo-catpick-photo{height:110px;width:100%;flex:none}
+.gcwo-circuit-catalog .gcwo-catpick-photo img{width:100%;height:100%;object-fit:contain}
+.gcwo-circuit-catalog .gcwo-catpick-name{font-size:12px}
+.gcwo-circuit-models{margin-bottom:12px}
+.gcwo-circuit-models summary{cursor:pointer;font-weight:700;padding:10px;background:#f1f6fd;border-radius:8px}
+.gcwo-circuit-models .gcwo-bib-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.gcwo-circuit-models .gcwo-bib-card{display:flex;flex-direction:column;min-height:150px}
+.gcwo-circuit-models .gcwo-bib-card button{margin-top:auto}
+.gcwo-circ-settings{display:grid;grid-template-columns:1fr;gap:12px;padding:14px;background:#eef5fd;border-radius:10px;margin:12px 0}
+.gcwo-circ-selector{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.gcwo-circ-selector input{max-width:85px!important;min-width:60px!important}
+.gcwo-circ-selector .gcwo-chips{margin:0}
+.gcwo-circuit-plan .gcwo-circ-exrow{border:1px solid #dce5ef;border-radius:10px;padding:12px;margin:10px 0;background:#fff}
+.gcwo-circuit-plan .gcwo-circ-ex-picked{display:flex;gap:8px;align-items:center}
+.gcwo-circuit-plan .gcwo-circ-ex-thumb{width:54px;height:54px;object-fit:contain;flex:none}
+.gcwo-circuit-plan .gcwo-circ-ex-name{flex:1;min-width:0}
+.gcwo-circ-dose{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:10px}
+.gcwo-circ-dose .gcwo-field{flex:1;min-width:100px}
+.gcwo-circ-empty{padding:24px;border:2px dashed #c8d8e9;border-radius:10px;color:#60758d;text-align:center}
+.gcwo-circuit-preview{width:min(460px,92vw);max-height:85vh;overflow:auto;border:1px solid #cbd9e8;border-radius:14px;padding:24px;color:#173251}
+.gcwo-circuit-preview::backdrop{background:#102e5066}
+.gcwo-circuit-preview img{width:100%;height:180px;object-fit:contain}
+.gcwo-circuit-preview [data-clock]{font-size:36px;text-align:center}
+@media(max-width:1000px){.gcwo-circuit-workspace{grid-template-columns:1fr}.gcwo-circuit-catalog .gcwo-catpick-grid{max-height:350px;grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){.gcwo-circuit-catalog .gcwo-catpick-grid,.gcwo-circuit-models .gcwo-bib-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.gcwo-circuit-plan .gcwo-circ-ex-picked{flex-wrap:wrap}.gcwo-circuit-plan .gcwo-circ-ex-name{flex-basis:60%}}

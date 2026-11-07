@@ -36,7 +36,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-06-semana-horizontal';
+const PRESCRICAO_CSS_VERSION = '2026-11-07-circuito-visual';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -2715,48 +2715,12 @@ const focoModelo = b => b.foco || ({inferiores:'Membro inferior',superiores:'Mem
 const modeloCircuito = id => modelosCircuito().find(b=>b.id===id);
 const doseModelo = (b,id) => b.doses?.[id] || {measure:'time',value:30,rest_after_s:15};
 function editarModeloCircuito(modelo) {
-  const dialog=document.createElement('dialog');
-  dialog.style.cssText='width:min(760px,92vw);max-height:85vh;padding:20px;border:1px solid #cbd9ee;border-radius:12px';
-  dialog.innerHTML=`<form><h2>${modelo?'Editar modelo':'Criar novo circuito'}</h2>
-    <label>Nome <input name="nome" required maxlength="80" value="${escAttr(modelo?.nome||'')}"></label>
-    <label>Foco <select name="foco">${['Membro inferior','Membro superior','Core','Corpo todo'].map(f=>`<option ${f=== (modelo && focoModelo(modelo))?'selected':''}>${f}</option>`).join('')}</select></label>
-    <label>Material <input name="material" maxlength="60" value="${escAttr(modelo?.material||'')}"></label>
-    <div data-estacoes></div><p role="status"></p><button type="button" data-adicionar>+ Adicionar exercício</button>
-    <button type="button" data-cancelar>Cancelar</button> <button class="gcBtnSuccess">Guardar modelo</button></form>`;
-  const form=dialog.querySelector('form'),host=form.querySelector('[data-estacoes]');
-  const catalogo=_state.exercisesCatalog.filter(ex=>ex.is_active!==false);
-  function adicionar(id='', dose={measure:'time',value:30,rest_after_s:15}){
-    const row=document.createElement('div');row.className='gcwo-bib-filtros';
-    row.innerHTML=`<img class="gcwo-circ-ex-thumb" alt="" hidden><label>Exercício <select required><option value="">Selecionar do catálogo…</option>${catalogo.map(ex=>`<option value="${escAttr(ex.id)}">${escHtml(ex.name)}</option>`).join('')}</select></label>
-      <label>Dose <select><option value="time">Segundos</option><option value="reps">Repetições</option></select></label>
-      <label>Quantidade <input type="number" min="1" max="3600" required value="${dose.value}"></label>
-      <label>Descanso (s) <input type="number" min="0" max="3600" required value="${dose.rest_after_s}"></label><button type="button">Remover</button>`;
-    const [ex,unidade]=row.querySelectorAll('select'),foto=row.querySelector('img');
-    ex.value=id;unidade.value=dose.measure;
-    ex.onchange=()=>{const url=catalogo.find(item=>item.id===ex.value)?.photo_url;foto.hidden=!url;if(url)foto.src=url};
-    ex.onchange();row.querySelector('button').onclick=()=>row.remove();host.append(row);
-  }
-  for(const id of modelo?.ids||[])adicionar(id,doseModelo(modelo,id));
-  if(!host.children.length)adicionar();
-  form.querySelector('[data-adicionar]').onclick=()=>adicionar();
-  form.querySelector('[data-cancelar]').onclick=()=>dialog.close();
-  form.onsubmit=e=>{
-    e.preventDefault();
-    const nome=form.elements.nome.value.trim(),ids=[],doses={};
-    for(const row of host.children){
-      const [ex,unidade]=row.querySelectorAll('select'),[valor,descanso]=row.querySelectorAll('input');
-      if(ids.includes(ex.value)){form.querySelector('[role=status]').textContent='Escolha cada exercício uma só vez.';return}
-      ids.push(ex.value);doses[ex.value]={measure:unidade.value,value:Number(valor.value),rest_after_s:Number(descanso.value)};
-    }
-    if(!nome||!ids.length){form.querySelector('[role=status]').textContent='Indique o nome e pelo menos um exercício.';return}
-    const id=modelo?.id||uuid();
-    modelosEditados.set(id,{id,nome,ids,doses,foco:form.elements.foco.value,material:form.elements.material.value.trim()});
-    _biblioteca.escolhidos.delete(id);
-    _biblioteca.bloco=id;_biblioteca.confirmar=false;_biblioteca.foco='';_biblioteca.material='';
-    _biblioteca.dias=new Set([(dataDeIso(_panelDraft.date).getUTCDay()+6)%7]);
-    dialog.close();renderStep2Body();
-  };
-  dialog.onclose=()=>dialog.remove();document.body.append(dialog);dialog.showModal();
+  const sessao = modelo ? sessaoBlocoParaDia(_panelDraft.date, true, modelo) : null;
+  if (modelo && !sessao) { showPanelErro('Este modelo tem exercícios indisponíveis.'); return; }
+  _panelDraft.blocks = sessao?.blocks || [novoBlocoCircuitoVoltas()];
+  _panelDraft.training_block = sessao?.training_block || null;
+  _panelDraft.circuit_config = sessao?.circuit_config || null;
+  renderStep2Body();
 }
 const rascunhosModalidades = new Map();
 function bibliotecaVazia() { return { categoria: 'Circuitos', minutos: 20, nivel: 'leve', bloco: null, escolhidos: new Map(), aquecimento: 5, retorno: 5, dias: new Set(), repetir: false, mensagem: '' }; }
@@ -2866,14 +2830,14 @@ function sessaoBlocoParaDia(date, predefinido = false, bloco = modeloCircuito(_b
     s.circuit_config.voltas = Math.max(1, Math.floor((b.minutos * 60 + 60) / (exs.length * 45 + 60)));
     const segundosVolta=exs.reduce((total,ex)=>{const dose=doseModelo(bloco,ex.id);return total+duracaoTrabalhoExercicioCircuito(dose).segundos+dose.rest_after_s},0);
     const voltas=Math.floor((b.minutos*60+60)/(segundosVolta+60));
-    const proposta=bloco.doses?{voltas,marcha:0,erro:voltas<1}:proporComposicaoCircuito(s.circuit_config,exs.length);
+    const proposta=bloco.doses?{voltas:bloco.rounds??voltas,marcha:0,erro:(bloco.rounds??voltas)<1}:proporComposicaoCircuito(s.circuit_config,exs.length);
     s.circuit_config.voltas=proposta.voltas;
     if (proposta.erro) return;
     s._limiteMin = s.circuit_config.minutos;
     const fixo = (name, min) => ({ block_id: uuid(), tipo: 'fixed', name, duration_sec: min * 60 });
     s.blocks = [
       ...(b.aquecimento ? [fixo('Aquecimento — marcha confortável e mobilização suave', b.aquecimento)] : []),
-      { block_id: uuid(), tipo: 'voltas', name: bloco.nome, rounds: proposta.voltas, rest_between_rounds_s: 60, exercicios: exs.map(ex => ({ id: uuid(), exercise_id: ex.id, name: ex.name, ...doseModelo(bloco,ex.id) })) },
+      { block_id: uuid(), tipo: 'voltas', name: bloco.nome, rounds: proposta.voltas, rest_between_rounds_s: bloco.rest_between_rounds_s ?? 60, exercicios: exs.map(ex => ({ id: uuid(), exercise_id: ex.id, name: ex.name, ...doseModelo(bloco,ex.id) })) },
       ...(proposta.marcha > 0 ? [fixo('Complemento do bloco principal — marcha confortável', proposta.marcha / 60)] : []),
       ...(b.retorno ? [fixo('Retorno à calma — marcha lenta e respiração confortável', b.retorno)] : []),
     ];
@@ -3899,11 +3863,6 @@ function renderPanel() {
       _panelCatalogFiltro='todos';_panelCatalogBusca='';_panelEquipFiltro=new Set();
       renderStep2Body();
     });
-  }
-  if (_panelIsNovo && s.kind === 'circuit' && !_panelDestino) {
-    const nav=panel.querySelector('[aria-label=Modalidades]');
-    (nav || panel).insertAdjacentHTML(nav?'afterend':'afterbegin', renderBibliotecaBlocos());
-    wireBibliotecaBlocos();
   }
   wirePanel();
 }
@@ -5508,7 +5467,7 @@ function wirePanelCardio(s) {
    de 2026): rounds/exercicios é só o modelo do ecrã, nunca o que fica em
    wo_prescriptions.data. flattenBlocosCircuitoParaGravar() faz a conversão. ── */
 function novoBlocoCircuitoVoltas() {
-  return { block_id: uuid(), tipo: 'voltas', name: '', rounds: 3, rest_between_rounds_s: null, exercicios: [] };
+  return { block_id: uuid(), tipo: 'voltas', name: '', rounds: 3, rest_between_rounds_s: 60, default_rest_s: 20, exercicios: [] };
 }
 function novoBlocoCircuitoFixo() {
   return { block_id: uuid(), tipo: 'fixed', name: '', duration_sec: null };
@@ -5586,47 +5545,39 @@ function renderCircExGridHtml(filtro) {
       <span class="gcwo-catpick-name">${escHtml(c.name)}</span>
     </button>`).join('');
 }
-function renderCircExercicioRow(ex) {
+function seletorCircuito(classe, valor, opcoes, unidade = '', minimo = 0) {
+  return `<div class="gcwo-circ-selector"><div class="gcwo-chips">${opcoes.map(n => `<button type="button" class="gcwo-chip${Number(valor) === n && valor != null ? ' on' : ''}" data-circ-valor="${n}" aria-pressed="${Number(valor) === n && valor != null}">${n}${unidade}</button>`).join('')}</div><input type="number" min="${minimo}" step="1" class="${classe}" value="${valor ?? ''}" aria-label="Escrever outro valor"></div>`;
+}
+function renderCircExercicioRow(ex, index, total) {
   const catEx = _state.exercisesCatalog.find(c => c.id === ex.exercise_id);
-  return `
-    <div class="gcwo-circ-exrow" data-exid="${escAttr(ex.id)}" style="border-top:0.5px solid #e2e8f0;padding-top:8px;margin-top:8px;">
-      <div class="gcwo-circ-ex-picked">
-        ${catEx?.photo_url ? `<img class="gcwo-circ-ex-thumb" src="${escAttr(catEx.photo_url)}" alt="">` : `<span class="gcwo-circ-ex-thumb empty"></span>`}
-        <span class="gcwo-circ-ex-name">${escHtml(ex.name || 'Escolher exercício…')}</span>
-        <button type="button" class="gcBtnGhost gcBtnSm gcwo-circ-ex-trocar">${ex.exercise_id ? 'Trocar' : 'Escolher'}</button>
-        <button type="button" class="gcwo-exercicio-remove" data-remove-exid="${escAttr(ex.id)}" title="Remover exercício">✕</button>
-      </div>
-      <div class="gcwo-circ-ex-picker" hidden>
-        <input type="text" class="gcwo-circ-ex-search" placeholder="Pesquisar exercício…" autocomplete="off">
-        <div class="gcwo-catpick-grid gcwo-circ-ex-grid">${renderCircExGridHtml('')}</div>
-      </div>
-      <div class="gcwo-row3" style="margin-top:8px;">
-        <label class="gcwo-field"><span>Modo</span>
-          <select class="gcwo-circ-ex-measure">
-            <option value="reps" ${ex.measure === 'reps' ? 'selected' : ''}>Reps</option>
-            <option value="time" ${ex.measure === 'time' ? 'selected' : ''}>Tempo (s)</option>
-          </select>
-        </label>
-        <label class="gcwo-field"><span>${ex.measure === 'time' ? 'Segundos' : 'Repetições'}</span><input type="number" min="0" class="gcwo-circ-ex-value" value="${ex.value ?? ''}"></label>
-        <label class="gcwo-field"><span>Descanso após (s)</span><input type="number" min="0" class="gcwo-circ-ex-rest" value="${ex.rest_after_s ?? ''}"></label>
-      </div>
-    </div>`;
+  return `<article class="gcwo-circ-exrow" data-exid="${escAttr(ex.id)}" draggable="true">
+    <div class="gcwo-circ-ex-picked"><strong>${index + 1}</strong>
+      ${catEx?.photo_url ? `<img class="gcwo-circ-ex-thumb" src="${escAttr(catEx.photo_url)}" alt="">` : '<span class="gcwo-circ-ex-thumb empty"></span>'}
+      <strong class="gcwo-circ-ex-name">${escHtml(ex.name || 'Escolha um exercício do catálogo')}</strong>
+      <button type="button" class="gcBtnGhost gcBtnSm" data-circ-move="-1" aria-label="Subir exercício" ${index === 0 ? 'disabled' : ''}>↑</button>
+      <button type="button" class="gcBtnGhost gcBtnSm" data-circ-move="1" aria-label="Descer exercício" ${index === total - 1 ? 'disabled' : ''}>↓</button>
+      <button type="button" class="gcwo-exercicio-remove" data-remove-exid="${escAttr(ex.id)}" aria-label="Remover exercício">✕</button>
+    </div>
+    <div class="gcwo-circ-dose"><div class="gcwo-chips">${[['time','Segundos'],['reps','Repetições']].map(([v,l]) => `<button type="button" class="gcwo-chip${ex.measure === v ? ' on' : ''}" data-circ-measure="${v}" aria-pressed="${ex.measure === v}">${l}</button>`).join('')}</div>
+      <label class="gcwo-field"><span>${ex.measure === 'time' ? 'Segundos' : 'Repetições'}</span><input type="number" min="1" step="1" class="gcwo-circ-ex-value" value="${ex.value ?? ''}"></label>
+      <label class="gcwo-field"><span>Descanso após exercício (s)</span><input type="number" min="0" step="1" class="gcwo-circ-ex-rest" value="${ex.rest_after_s ?? ''}"></label>
+    </div></article>`;
 }
 function renderCircBlocoVoltas(b) {
-  return `
-    <div class="gcwo-exercicio" data-bid="${escAttr(b.block_id)}">
-      <div class="gcwo-exercicio-head">
-        <input type="text" class="gcwo-circ-nome" placeholder="Nome do bloco (ex.: Burpees)" value="${escAttr(b.name)}" style="flex:1;">
-        <button type="button" class="gcwo-exercicio-remove" data-remove-cbid="${escAttr(b.block_id)}" title="Remover bloco">✕</button>
-      </div>
-      <div class="gcwo-row2" style="margin-top:8px;">
-        <label class="gcwo-field gcwo-field-sm"><span>Voltas</span><input type="number" min="1" class="gcwo-circ-rounds" value="${b.rounds ?? ''}"></label>
-        <label class="gcwo-field gcwo-field-sm"><span>Descanso entre voltas (s)</span><input type="number" min="0" class="gcwo-circ-restrounds" value="${b.rest_between_rounds_s ?? ''}"></label>
-      </div>
-      <span class="gcwo-field-label" style="margin-top:10px;">Exercícios</span>
-      <div class="gcwo-circ-exlist">${(b.exercicios || []).map(renderCircExercicioRow).join('') || '<div class="gcwo-muted">Nenhum exercício ainda.</div>'}</div>
-      <button type="button" class="gcwo-add-exercicio gcBtnGhost gcBtnSm" data-add-ex-cbid="${escAttr(b.block_id)}">+ Exercício</button>
-    </div>`;
+  const exs = b.exercicios || [];
+  return `<section class="gcwo-exercicio gcwo-circ-round-block" data-bid="${escAttr(b.block_id)}">
+    <div class="gcwo-exercicio-head"><input type="text" class="gcwo-circ-nome" placeholder="Nome do circuito" value="${escAttr(b.name)}" aria-label="Nome do circuito">
+      <button type="button" class="gcwo-exercicio-remove" data-remove-cbid="${escAttr(b.block_id)}" title="Remover bloco">✕</button></div>
+    <div class="gcwo-circ-settings">
+      <label class="gcwo-field"><span>Voltas</span>${seletorCircuito('gcwo-circ-rounds', b.rounds, [1,2,3,4,5], '', 1)}</label>
+      <label class="gcwo-field"><span>Entre exercícios (s)</span>${seletorCircuito('gcwo-circ-default-rest', b.default_rest_s, [10,20,30,45,60], '″')}</label>
+      <label class="gcwo-field"><span>Entre voltas (s)</span>${seletorCircuito('gcwo-circ-restrounds', b.rest_between_rounds_s, [30,45,60], '″')}</label>
+    </div>
+    <p class="gcwo-muted">Uma volta é percorrer esta lista uma vez. Pode escrever qualquer valor nos campos. O descanso entre exercícios aplica-se à lista e pode ser ajustado em cada exercício.</p>
+    <h4>Exercícios de uma volta · ${exs.length}</h4>
+    <div class="gcwo-circ-exlist">${exs.map((ex,i) => renderCircExercicioRow(ex,i,exs.length)).join('') || '<p class="gcwo-circ-empty">Adicione exercícios do catálogo ao lado.</p>'}</div>
+    <button type="button" class="gcBtnGhost gcBtnSm" data-add-ex-cbid="${escAttr(b.block_id)}">Adicionar exercícios a esta volta</button>
+  </section>`;
 }
 function renderCircBlocoFixo(b) {
   return `
@@ -5788,126 +5739,179 @@ function renderResumoProgramaCasa(s) {
   const p=s.training_program;
   return `<section class="gcwo-circ-planner"><h3>${escHtml(p.name)} · semana ${p.week}</h3><p>${p.frequency} sessões por semana · reavaliar em ${escHtml(fmtDataPtIso(p.review_date))}.</p><label class="gcwo-field"><span>Foco desta sessão</span><select id="gcwoCircFoco">${[['forca','Força'],['cardio','Cardio'],['misto','Misto'],['recuperacao','Recuperação']].map(([v,l])=>`<option value="${v}" ${s.training_focus===v?'selected':''}>${l}</option>`).join('')}</select></label><p class="gcwo-muted">Edite os blocos abaixo. A força mantém repetições e pausas próprias; o cardio usa blocos temporizados. Não existe progressão automática.</p><div id="gcwoCircDisponibilidade" class="gcwo-circ-availability">${renderDisponibilidadeCircuito()}</div></section>`;
 }
-function renderPanelCircuito(s) {
-  s.training_focus ||= 'misto';
-  s.blocks = editarBlocosCircuito(s.blocks, uuid);
-  if (s._limiteMin == null && s.circuit_time_limit_min > 0) s._limiteMin = s.circuit_time_limit_min;
-  return `
-    ${!s.blocks.length && _criarTreino ? '<div class="gcwo-plano-empty"><h3>Escolher um plano já preenchido</h3><p>Veja exercícios, rondas, pausas e a semana de treino antes de atribuir ao doente.</p><button type="button" class="gcBtnPrimary" id="gcwoEscolherPlanoPronto">Ver planos pré-feitos para casa</button></div>' : ''}
-    ${s.training_program ? renderResumoProgramaCasa(s) : renderPlaneadorCircuito(s)}
-    <label class="gcwo-field gcwo-field-sm"><span>Limite de tempo da sessão (min, opcional)</span><input type="number" min="1" id="gcwoPCircLimite" value="${s._limiteMin ?? ''}"></label>
-    ${renderTempoConfirmadoCircuito(s)}
-    <div id="gcwoPTempoTotal">${renderTempoTotalCircuitoHtml(s)}</div>
-    <span class="gcwo-field-label" style="margin-top:14px;">Blocos</span>
-    <div class="gcwo-exercicios" id="gcwoPCircBlocosList">${renderCircBlocosListInner(s)}</div>
-    <div class="gcwo-exercicio-add">
-      <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoPAddBlocoVoltas">+ Bloco de voltas</button>
-      <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoPAddBlocoFixo">+ Bloco de duração fixa</button>
-    </div>
-  `;
+let _circTargetBlock = null;
+function alvoCatalogoCircuito(s) {
+  return s.blocks.find(b => b.block_id === _circTargetBlock && b.tipo === 'voltas') || s.blocks.find(b => b.tipo === 'voltas');
 }
-
+function renderCatalogoCircuito(s) {
+  if (!_state.catalogLoaded) return '<p>A carregar catálogo…</p>';
+  const list = filteredCatalogForPanel();
+  const pages = Math.max(1, Math.ceil(list.length / 12));
+  _panelCatalogPage = Math.min(_panelCatalogPage, pages - 1);
+  const target = alvoCatalogoCircuito(s);
+  return list.slice(_panelCatalogPage * 12, (_panelCatalogPage + 1) * 12).map(ex => {
+    const added = target?.exercicios?.some(item => item.exercise_id === ex.id);
+    return `<button type="button" class="gcwo-catpick-card${added ? ' added' : ''}" data-circ-add="${escAttr(ex.id)}" aria-pressed="${!!added}">
+      ${ex.photo_url ? `<span class="gcwo-catpick-photo"><img src="${escAttr(ex.photo_url)}" alt=""></span>` : '<span class="gcwo-catpick-photo empty"></span>'}
+      <span class="gcwo-catpick-name">${escHtml(ex.name)}</span><span>${added ? 'Selecionado · retirar' : 'Adicionar'}</span></button>`;
+  }).join('') + `<div class="gcwo-catalog-pages"><span>${list.length} exercícios · ${_panelCatalogPage+1}/${pages}</span><button type="button" data-circ-page="${_panelCatalogPage-1}" ${!_panelCatalogPage?'disabled':''}>Anterior</button><button type="button" data-circ-page="${_panelCatalogPage+1}" ${_panelCatalogPage>=pages-1?'disabled':''}>Seguinte</button></div>`;
+}
+function renderPanelCircuito(s) {
+  s.blocks = editarBlocosCircuito(s.blocks, uuid);
+  if (!s.blocks.length) s.blocks.push(novoBlocoCircuitoVoltas());
+  if (_panelCatalogFiltro === 'favoritos') _panelCatalogFiltro = 'todos';
+  return `<div class="gcwo-circuit-workspace">
+    <section class="gcwo-circuit-catalog"><h3>Catálogo de exercícios</h3>
+      <span class="gcwo-field-label">Região do corpo</span><div class="gcwo-chips" id="gcwoCircRegion">${CATALOG_FILTROS.filter(f=>f.value!=='favoritos').map(f=>`<button type="button" class="gcwo-chip${_panelCatalogFiltro===f.value?' on':''}" data-circ-region="${escAttr(f.value)}">${escHtml(f.label)}</button>`).join('')}</div>
+      <span class="gcwo-field-label">Material</span><div class="gcwo-chips" id="gcwoCircEquipment">${EQUIPAMENTO_FILTROS.map(eq=>`<button type="button" class="gcwo-chip${_panelEquipFiltro.has(eq)?' on':''}" data-circ-equipment="${escAttr(eq)}">${escHtml(eq)}</button>`).join('')}</div>
+      <input type="search" id="gcwoCircSearch" placeholder="Pesquisar exercício…" value="${escAttr(_panelCatalogBusca)}" aria-label="Pesquisar exercício">
+      <p class="gcwo-muted" id="gcwoCircTarget"></p><div class="gcwo-catpick-grid" id="gcwoCircCatalogGrid">${renderCatalogoCircuito(s)}</div>
+    </section><section class="gcwo-circuit-plan">
+      <details class="gcwo-circuit-models"><summary>Usar ou editar um modelo</summary><div class="gcwo-bib-grid">${modelosCircuito().map(modelo=>`<article class="gcwo-bib-card"><h4>${escHtml(modelo.nome)}</h4><p>${modelo.ids.length} exercícios · ${escHtml(focoModelo(modelo))}</p><button type="button" class="gcBtnGhost" data-circ-model="${escAttr(modelo.id)}">Usar / editar modelo</button></article>`).join('')}</div></details>
+      <div id="gcwoPTempoTotal">${renderTempoTotalCircuitoHtml(s)}</div>
+      <div class="gcwo-exercicios" id="gcwoPCircBlocosList">${renderCircBlocosListInner(s)}</div>
+      <div class="gcwo-chips"><button type="button" class="gcBtnGhost" id="gcwoPAddBlocoVoltas">Adicionar outro circuito</button><button type="button" class="gcBtnGhost" id="gcwoPAddBlocoFixo">Adicionar aquecimento / retorno à calma</button></div>
+      <div class="gcwo-chips"><button type="button" class="gcBtnGhost" id="gcwoCircGuardarModelo">Guardar como modelo</button><button type="button" class="gcBtnGhost" id="gcwoCircPreview">Pré-visualizar como doente</button><button type="button" class="gcBtnGhost" id="gcwoCircNovo">Criar novo circuito</button></div><p class="gcwo-muted" id="gcwoCircModelStatus" role="status"></p>
+    </section></div>`;
+}
+function refreshCatalogoCircuito(s) {
+  const grid = document.getElementById('gcwoCircCatalogGrid');
+  if (grid) grid.innerHTML = renderCatalogoCircuito(s);
+  const target = alvoCatalogoCircuito(s);
+  const label = document.getElementById('gcwoCircTarget');
+  if (label) label.textContent = target ? 'Adicionar a: ' + (target.name || 'Circuito') : 'Adicione um bloco de voltas para escolher exercícios.';
+}
 function refreshCircBlocosListDom(s) {
   const host = document.getElementById('gcwoPCircBlocosList');
   if (host) host.innerHTML = renderCircBlocosListInner(s);
   wireCircBlocosList(s);
+  refreshCatalogoCircuito(s);
   refreshTempoTotalCircuito(s);
 }
-
 function wireCircBlocosList(s) {
-  document.querySelectorAll('#gcwoPCircBlocosList [data-remove-cbid]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const bid = btn.getAttribute('data-remove-cbid');
-      s.blocks = s.blocks.filter(b => b.block_id !== bid);
-      refreshCircBlocosListDom(s);
-    });
+  document.querySelectorAll('#gcwoPCircBlocosList [data-remove-cbid]').forEach(btn => btn.onclick=()=>{
+    s.blocks=s.blocks.filter(b=>b.block_id!==btn.dataset.removeCbid);refreshCircBlocosListDom(s);
   });
-  document.querySelectorAll('#gcwoPCircBlocosList [data-add-ex-cbid]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const bid = btn.getAttribute('data-add-ex-cbid');
-      const b = s.blocks.find(x => x.block_id === bid);
-      if (!b) return;
-      b.exercicios.push(novoExercicioCircuito());
-      refreshCircBlocosListDom(s);
-    });
+  document.querySelectorAll('#gcwoPCircBlocosList [data-add-ex-cbid]').forEach(btn=>btn.onclick=()=>{
+    _circTargetBlock=btn.dataset.addExCbid;refreshCatalogoCircuito(s);document.getElementById('gcwoCircSearch').focus();
   });
-  document.querySelectorAll('#gcwoPCircBlocosList .gcwo-exercicio').forEach(card => {
-    const bid = card.getAttribute('data-bid');
-    const b = s.blocks.find(x => x.block_id === bid);
-    if (!b) return;
-
-    card.querySelector('.gcwo-circ-nome').addEventListener('input', (e) => { b.name = e.target.value; });
-
-    const roundsEl = card.querySelector('.gcwo-circ-rounds');
-    if (roundsEl) roundsEl.addEventListener('input', (e) => { b.rounds = e.target.value === '' ? null : Number(e.target.value); refreshTempoTotalCircuito(s); });
-
-    const restRoundsEl = card.querySelector('.gcwo-circ-restrounds');
-    if (restRoundsEl) restRoundsEl.addEventListener('input', (e) => { b.rest_between_rounds_s = e.target.value === '' ? null : Number(e.target.value); refreshTempoTotalCircuito(s); });
-
-    wireDuracaoMMSS(card, 'gcwo-circ-fixodur', (sec) => { b.duration_sec = sec; refreshTempoTotalCircuito(s); });
-
-    card.querySelectorAll('.gcwo-circ-exrow').forEach(row => {
-      const exid = row.getAttribute('data-exid');
-      const ex = (b.exercicios || []).find(x => x.id === exid);
-      if (!ex) return;
-
-      row.querySelector('[data-remove-exid]')?.addEventListener('click', () => {
-        b.exercicios = b.exercicios.filter(x => x.id !== exid);
-        refreshCircBlocosListDom(s);
-      });
-
-      const picker = row.querySelector('.gcwo-circ-ex-picker');
-      const grid = row.querySelector('.gcwo-circ-ex-grid');
-      const search = row.querySelector('.gcwo-circ-ex-search');
-      const wireGridCards = () => {
-        grid.querySelectorAll('[data-pick-exercise]').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const catEx = _state.exercisesCatalog.find(c => c.id === btn.getAttribute('data-pick-exercise'));
-            ex.exercise_id = catEx ? catEx.id : null;
-            ex.name = catEx ? catEx.name : '';
-            refreshCircBlocosListDom(s);
-          });
+  document.querySelectorAll('#gcwoPCircBlocosList [data-bid]').forEach(card=>{
+    const b=s.blocks.find(block=>block.block_id===card.dataset.bid);
+    if(!b)return;
+    card.querySelector('.gcwo-circ-nome').oninput=e=>{b.name=e.target.value;refreshCatalogoCircuito(s)};
+    for(const [classe,key] of [['gcwo-circ-rounds','rounds'],['gcwo-circ-restrounds','rest_between_rounds_s'],['gcwo-circ-default-rest','default_rest_s']]){
+      const input=card.querySelector('.'+classe);if(!input)continue;
+      const sync=()=>{
+        b[key]=input.value===''?null:Number(input.value);
+        input.closest('.gcwo-circ-selector').querySelectorAll('[data-circ-valor]').forEach(btn=>{
+          const on=input.value!==''&&Number(btn.dataset.circValor)===b[key];btn.classList.toggle('on',on);btn.setAttribute('aria-pressed',String(on));
         });
+        if(key==='default_rest_s'){
+          (b.exercicios||[]).forEach(ex=>ex.rest_after_s=b[key]);
+          card.querySelectorAll('.gcwo-circ-ex-rest').forEach(el=>el.value=input.value);
+        }
+        refreshTempoTotalCircuito(s);
       };
-      row.querySelector('.gcwo-circ-ex-trocar').addEventListener('click', () => {
-        picker.hidden = !picker.hidden;
+      input.oninput=sync;
+      input.closest('.gcwo-circ-selector').querySelectorAll('[data-circ-valor]').forEach(btn=>btn.onclick=()=>{input.value=btn.dataset.circValor;sync()});
+    }
+    wireDuracaoMMSS(card,'gcwo-circ-fixodur',sec=>{b.duration_sec=sec;refreshTempoTotalCircuito(s)});
+    card.querySelectorAll('.gcwo-circ-exrow').forEach(row=>{
+      const index=b.exercicios.findIndex(ex=>ex.id===row.dataset.exid),ex=b.exercicios[index];
+      row.querySelector('[data-remove-exid]').onclick=()=>{b.exercicios.splice(index,1);refreshCircBlocosListDom(s)};
+      row.querySelectorAll('[data-circ-move]').forEach(btn=>btn.onclick=()=>{
+        const next=index+Number(btn.dataset.circMove);if(next<0||next>=b.exercicios.length)return;
+        [b.exercicios[index],b.exercicios[next]]=[b.exercicios[next],b.exercicios[index]];refreshCircBlocosListDom(s);
       });
-      search.addEventListener('input', (e) => {
-        grid.innerHTML = renderCircExGridHtml(e.target.value);
-        wireGridCards();
-      });
-      wireGridCards();
-
-      row.querySelector('.gcwo-circ-ex-measure').addEventListener('change', (e) => {
-        ex.measure = e.target.value;
-        ex.value = null;
-        refreshCircBlocosListDom(s);
-      });
-      row.querySelector('.gcwo-circ-ex-value').addEventListener('input', (e) => {
-        ex.value = e.target.value === '' ? null : Number(e.target.value);
-        refreshTempoTotalCircuito(s);
-      });
-      row.querySelector('.gcwo-circ-ex-rest').addEventListener('input', (e) => {
-        ex.rest_after_s = e.target.value === '' ? null : Number(e.target.value);
-        refreshTempoTotalCircuito(s);
-      });
+      row.querySelectorAll('[data-circ-measure]').forEach(btn=>btn.onclick=()=>{ex.measure=btn.dataset.circMeasure;refreshCircBlocosListDom(s)});
+      row.querySelector('.gcwo-circ-ex-value').oninput=e=>{ex.value=e.target.value===''?null:Number(e.target.value);refreshTempoTotalCircuito(s)};
+      row.querySelector('.gcwo-circ-ex-rest').oninput=e=>{ex.rest_after_s=e.target.value===''?null:Number(e.target.value);refreshTempoTotalCircuito(s)};
+      row.ondragstart=e=>e.dataTransfer.setData('text/plain',JSON.stringify({block:b.block_id,id:ex.id}));
+      row.ondragover=e=>e.preventDefault();
+      row.ondrop=e=>{
+        e.preventDefault();let source;try{source=JSON.parse(e.dataTransfer.getData('text/plain'))}catch{return}
+        if(source.block!==b.block_id)return;
+        const from=b.exercicios.findIndex(item=>item.id===source.id);if(from<0||from===index)return;
+        const [item]=b.exercicios.splice(from,1);b.exercicios.splice(index,0,item);refreshCircBlocosListDom(s);
+      };
     });
   });
 }
-
+function guardarModeloCircuito(s) {
+  const b=alvoCatalogoCircuito(s);
+  if(!b?.exercicios.length){showPanelErro('Adicione exercícios antes de guardar o modelo.');return}
+  if(erroDoseCircuito(s)){showPanelErro(erroDoseCircuito(s));return}
+  const id=uuid(),nome=b.name.trim()||'Circuito personalizado',doses={};
+  b.exercicios.forEach(ex=>doses[ex.exercise_id]={measure:ex.measure,value:ex.value,rest_after_s:ex.rest_after_s});
+  modelosEditados.set(id,{id,nome,ids:b.exercicios.map(ex=>ex.exercise_id),doses,rounds:b.rounds,rest_between_rounds_s:b.rest_between_rounds_s});
+  document.getElementById('gcwoCircModelStatus').textContent='Modelo disponível durante esta sessão. Guarde o plano para conservar a prescrição do doente.';
+}
+function erroDoseCircuito(s) {
+  const numero=(n,min)=>Number.isInteger(n)&&n>=min;
+  for(const b of s.blocks||[]){
+    if(Array.isArray(b.intervals))continue;
+    if(b.tipo==='fixed'){if(!numero(b.duration_sec,1))return 'Defina a duração do bloco.';continue}
+    if(!numero(b.rounds,1)||!numero(b.rest_between_rounds_s,0))return 'Defina voltas e descanso entre voltas (0 para sem descanso).';
+    if(!b.exercicios?.length)return 'Adicione pelo menos um exercício a cada circuito.';
+    for(const ex of b.exercicios)if(!ex.exercise_id||!['time','reps'].includes(ex.measure)||!numero(ex.value,1)||!numero(ex.rest_after_s,0))return 'Defina os segundos ou repetições e o descanso de '+(ex.name||'cada exercício')+'.';
+  }
+  return '';
+}
+function previewCircuito(s) {
+  const erro=erroDoseCircuito(s);if(erro){showPanelErro(erro);return}
+  const sequence=flattenBlocosCircuitoParaGravar(s.blocks).flatMap(b=>b.intervals);
+  if(!sequence.length)return;
+  const dialog=document.createElement('dialog');dialog.className='gcwo-circuit-preview';
+  dialog.innerHTML='<h3>Pré-visualização do doente</h3><div data-preview-step></div><p data-clock role="status"></p><button type="button" class="gcBtnGhost" data-close>Fechar</button> <button type="button" class="gcBtnPrimary" data-next>Começar</button>';
+  document.body.append(dialog);let index=0,timer;
+  const button=dialog.querySelector('[data-next]'),step=dialog.querySelector('[data-preview-step]'),clock=dialog.querySelector('[data-clock]');
+  const close=()=>{clearInterval(timer);dialog.remove()};
+  dialog.querySelector('[data-close]').onclick=close;dialog.oncancel=close;
+  function show(){
+    clearInterval(timer);clock.textContent='';button.disabled=false;
+    const interval=sequence[index];
+    if(!interval){step.textContent='Circuito concluído';button.textContent='Fechar';button.onclick=close;return}
+    step.innerHTML=`<p>${interval.round_index?'Volta '+interval.round_index+' de '+interval.round_total:''}</p>${interval.photo_url?`<img src="${escAttr(interval.photo_url)}" alt="">`:''}<h4>${interval.type==='descanso'?'Descanso · ':''}${escHtml(interval.label||'Bloco')}</h4>`;
+    button.textContent=interval.type==='descanso'?'Iniciar descanso':'Começar';
+    const next=()=>{index++;show()};
+    button.onclick=()=>{
+      if(interval.prescribed_measure==='reps'){button.textContent='Concluir repetições';button.onclick=next;return}
+      let remaining=interval.duration_sec;clock.textContent=remaining+' s';button.disabled=true;
+      timer=setInterval(()=>{clock.textContent=--remaining+' s';if(remaining<=0){clearInterval(timer);button.disabled=false;button.textContent='Continuar';button.onclick=next}},1000);
+    };
+  }
+  show();dialog.showModal();
+}
 function wirePanelCircuito(s) {
-  document.getElementById('gcwoEscolherPlanoPronto')?.addEventListener('click', abrirPlanosCasa);
-  if (!s.training_program) wirePlaneadorCircuito(s);
-  wireTempoConfirmadoCircuito(s);
-  carregarDisponibilidadeCircuito(s);
-  document.getElementById('gcwoPAddBlocoVoltas').addEventListener('click', () => { s.blocks.push(novoBlocoCircuitoVoltas()); refreshCircBlocosListDom(s); });
-  document.getElementById('gcwoPAddBlocoFixo').addEventListener('click', () => { s.blocks.push(novoBlocoCircuitoFixo()); refreshCircBlocosListDom(s); });
-  document.getElementById('gcwoPCircLimite').addEventListener('input', (e) => {
-    s._limiteMin = e.target.value === '' ? null : Number(e.target.value);
-    refreshTempoTotalCircuito(s);
+  _panelFinalidade='todos';
+  const refresh=()=>{_panelCatalogPage=0;refreshCatalogoCircuito(s)};
+  document.getElementById('gcwoCircSearch').oninput=e=>{_panelCatalogBusca=e.target.value;refresh()};
+  document.querySelectorAll('[data-circ-region]').forEach(btn=>btn.onclick=()=>{
+    _panelCatalogFiltro=btn.dataset.circRegion;
+    document.querySelectorAll('[data-circ-region]').forEach(el=>el.classList.toggle('on',el===btn));refresh();
   });
-  wireCircBlocosList(s);
-  refreshTempoTotalCircuito(s);
+  document.querySelectorAll('[data-circ-equipment]').forEach(btn=>btn.onclick=()=>{
+    const eq=btn.dataset.circEquipment;_panelEquipFiltro.has(eq)?_panelEquipFiltro.delete(eq):_panelEquipFiltro.add(eq);
+    btn.classList.toggle('on',_panelEquipFiltro.has(eq));refresh();
+  });
+  document.getElementById('gcwoCircCatalogGrid').onclick=e=>{
+    const page=e.target.closest('[data-circ-page]');
+    if(page&&!page.disabled){_panelCatalogPage=Number(page.dataset.circPage);refreshCatalogoCircuito(s);return}
+    const button=e.target.closest('[data-circ-add]');if(!button)return;
+    const b=alvoCatalogoCircuito(s);if(!b){showPanelErro('Adicione um bloco de voltas.');return}
+    const cat=_state.exercisesCatalog.find(ex=>ex.id===button.dataset.circAdd);if(!cat)return;
+    const i=b.exercicios.findIndex(ex=>ex.exercise_id===cat.id);
+    if(i>=0)b.exercicios.splice(i,1);
+    else b.exercicios.push({...novoExercicioCircuito(),exercise_id:cat.id,name:cat.name,measure:'time',value:30,rest_after_s:b.default_rest_s??20});
+    refreshCircBlocosListDom(s);
+  };
+  document.querySelectorAll('[data-circ-model]').forEach(btn=>btn.onclick=()=>editarModeloCircuito(modeloCircuito(btn.dataset.circModel)));
+  document.getElementById('gcwoCircNovo').onclick=()=>editarModeloCircuito();
+  document.getElementById('gcwoCircGuardarModelo').onclick=()=>guardarModeloCircuito(s);
+  document.getElementById('gcwoCircPreview').onclick=()=>previewCircuito(s);
+  document.getElementById('gcwoPAddBlocoVoltas').onclick=()=>{const b=novoBlocoCircuitoVoltas();s.blocks.push(b);_circTargetBlock=b.block_id;refreshCircBlocosListDom(s)};
+  document.getElementById('gcwoPAddBlocoFixo').onclick=()=>{s.blocks.push(novoBlocoCircuitoFixo());refreshCircBlocosListDom(s)};
+  wireCircBlocosList(s);refreshCatalogoCircuito(s);refreshTempoTotalCircuito(s);
 }
 
 // Converte o modelo de edição (rounds/exercícios) em `intervals` já expandido — o que
@@ -5982,6 +5986,8 @@ function handleGuardarSessao() {
   if (s.kind === 'list' && !s.items.length) { showPanelErro('Adiciona pelo menos um exercício.'); return; }
   if (s.kind === 'walk' && !sessaoTemConteudo(s)) { showPanelErro('Adiciona pelo menos uma caminhada ou lanços de escadas.'); return; }
   if ((s.kind === 'card' || s.kind === 'circuit') && !s.blocks.length) { showPanelErro('Adiciona pelo menos um bloco.'); return; }
+
+  if (s.kind === 'circuit') { const erro=erroDoseCircuito(s); if(erro){showPanelErro(erro);return} }
 
   if (s.kind === 'list') { const pendentes = s.items.filter(it=>!doseCatalogoDefinida(it)); if (pendentes.length) { showPanelErro(pendentes.map(it => {
     const dose=doseComDescansoAplicavel(it);
