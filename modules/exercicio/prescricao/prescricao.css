@@ -1804,3 +1804,15 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-circuit-catalog .gcwo-catalog-search{flex-basis:180px}
 .gcwo-circuit-catalog .gcwo-catalog-favorites{min-height:40px;padding:6px 10px}
 @media(max-width:700px){.gcwo-catalog-filter-panels{grid-template-columns:minmax(0,1fr)}.gcwo-catalog-search-row{flex-wrap:wrap}.gcwo-catalog-search{flex-basis:200px}.gcwo-gym-catalog>summary{font-size:15px}}
+
+/* Os títulos não herdam a largura curta do antigo filtro "Mostrar". */
+.gcwo-catalog-all-filters .gcwo-filter-label{width:auto;flex-basis:auto;white-space:nowrap;padding-top:0}
+.gcwo-catalog-all-filters .gcwo-catalog-purpose{display:block;margin:0 0 12px;padding:14px 16px;border:1px solid #dce7f4;border-radius:12px;background:#f8fafd;min-width:0}
+.gcwo-catalog-all-filters .gcwo-catalog-purpose>.gcwo-filter-label{margin-bottom:8px}
+@media(min-width:1100px){
+  .gcwo-gym-catalog .gcwo-catalog-all-filters{display:grid;grid-template-columns:.95fr 1.1fr 1fr;gap:12px;align-items:stretch;margin-bottom:16px}
+  .gcwo-gym-catalog .gcwo-catalog-all-filters .gcwo-catalog-filter-panels{display:contents}
+  .gcwo-gym-catalog .gcwo-catalog-all-filters .gcwo-catalog-purpose{margin:0}
+  .gcwo-gym-catalog .gcwo-catalog-all-filters .gcwo-chips{flex-wrap:wrap;gap:5px}
+  .gcwo-gym-catalog .gcwo-catalog-all-filters .gcwo-chip{flex:none;white-space:nowrap;font-size:12px;min-height:30px;padding:5px 8px}
+}

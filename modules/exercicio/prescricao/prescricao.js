@@ -36,7 +36,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-07-catalogo-visual';
+const PRESCRICAO_CSS_VERSION = '2026-11-07-filtros-linha';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -3934,6 +3934,7 @@ function renderFiltrosCatalogo(circuito = false) {
     </div>
     <button type="button" class="gcwo-catalog-favorites${_panelCatalogFavoritos ? ' on' : ''}" data-catalog-favorites aria-pressed="${_panelCatalogFavoritos}">☆ Favoritos</button>
   </div>
+  <div class="gcwo-catalog-all-filters">
   <div class="gcwo-catalog-purpose"><span class="gcwo-filter-label">Finalidade</span><div class="gcwo-chips" id="gcwoPFinalidade">
     ${[['todos','Todos'],['terapeutico','Exercício terapêutico'],['treino','Treino e condição física']].map(([value,label])=>`<button type="button" class="gcwo-chip${_panelFinalidade===value?' on':''}" data-finalidade="${value}" aria-pressed="${_panelFinalidade===value}">${label}</button>`).join('')}
   </div></div>
@@ -3948,7 +3949,7 @@ function renderFiltrosCatalogo(circuito = false) {
         ${EQUIPAMENTO_FILTROS.map(eq=>`<button type="button" class="gcwo-chip${_panelEquipFiltro.has(eq)?' on':''}" ${materialAttr}="${escAttr(eq)}" aria-pressed="${_panelEquipFiltro.has(eq)}">${escHtml(eq)}</button>`).join('')}
       </div>
     </section>
-  </div>`;
+  </div></div>`;
 }
 function wireFavoritosCatalogo(refresh) {
   const button = document.querySelector('[data-catalog-favorites]');
