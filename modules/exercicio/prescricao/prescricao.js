@@ -36,7 +36,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-07-circuito-linha';
+const PRESCRICAO_CSS_VERSION = '2026-11-07-catalogo-visual';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -277,6 +277,7 @@ let _panelExpandedTarefaId = null;      // dentro do painel, tarefa expandida (s
 let _panelDraft = null;                 // clone de trabalho da sessão em edição — null = painel fechado
 let _panelIsNovo = false;
 let _panelDestino = null;              // { onGuardar(sessao), onFechar() } — painel a editar uma sessão do "Criar treino" (não toca em _state.sessions)
+let _panelCatalogFavoritos = false;
 let _panelCatalogFiltro = 'todos';  // mostra o catálogo; "Favoritos" continua a um clique
 let _panelCatalogBusca = '';
 let _panelCatalogPage = 0;
@@ -2030,7 +2031,7 @@ function ctMostrarInicio() {
 function ctAbrirEditor(sessao, alvo) {
   const ct = _criarTreino;
   ct.editar = alvo;
-  _panelCatalogFiltro = 'todos'; _panelCatalogBusca = ''; _panelCatalogPage = 0; _panelFinalidade = 'todos'; _panelEquipFiltro = new Set();
+  _panelCatalogFiltro = 'todos'; _panelCatalogFavoritos = false; _panelCatalogBusca = ''; _panelCatalogPage = 0; _panelFinalidade = 'todos'; _panelEquipFiltro = new Set();
   _panelDraft = cloneSession(sessao);
   if (alvo.alvo !== 'atual') _panelDraft.date = ctDataDoDia(alvo.dia, alvo.w);
   _panelIsNovo = false;
@@ -3750,7 +3751,7 @@ function openPanelNovo(modality, kind) {
   rascunhosModalidades.clear();
   _panelDraft = novaSessaoSkeleton(modality, kind, _pendingSlot.date);
   _panelIsNovo = true;
-  _panelCatalogFiltro = 'todos';
+  _panelCatalogFiltro = 'todos'; _panelCatalogFavoritos = false;
   _panelCatalogBusca = '';
   _panelEquipFiltro = new Set();
   _pendingSlot = null;
@@ -3759,7 +3760,7 @@ function openPanelNovo(modality, kind) {
 function openPanelEditar(sessionId) {
   const s = _state.sessions.find(x => x.session_id === sessionId);
   if (!s) return;
-  _panelCatalogFiltro = 'todos';
+  _panelCatalogFiltro = 'todos'; _panelCatalogFavoritos = false;
   _panelCatalogBusca = '';
   _panelEquipFiltro = new Set();
   _panelDraft = cloneSession(s);
@@ -3860,7 +3861,7 @@ function renderPanel() {
       if(tipo.modality===s.modality)return;
       rascunhosModalidades.set(s.modality,s);
       _panelDraft=rascunhosModalidades.get(tipo.modality)||novaSessaoSkeleton(tipo.modality,tipo.kind,s.date);
-      _panelCatalogFiltro='todos';_panelCatalogBusca='';_panelEquipFiltro=new Set();
+      _panelCatalogFiltro='todos';_panelCatalogFavoritos=false;_panelCatalogBusca='';_panelEquipFiltro=new Set();
       renderStep2Body();
     });
   }
@@ -3918,23 +3919,53 @@ function refreshReviewCount(s) {
   el.textContent = `${contagem.n} ${contagem.label} · ${TIPO_META[tipoKey(s)].label}`;
 }
 
-/* ── Painel — catálogo de exercícios (grelha, favoritos por omissão) ── */
+/* ── Painel — catálogo de exercícios (pesquisa e filtros visuais) ── */
+
+function renderFiltrosCatalogo(circuito = false) {
+  const buscaId = circuito ? 'gcwoCircSearch' : 'gcwoPCatBusca';
+  const regiaoId = circuito ? 'gcwoCircRegion' : 'gcwoPCatFiltro';
+  const materialId = circuito ? 'gcwoCircEquipment' : 'gcwoPEquipFiltro';
+  const regiaoAttr = circuito ? 'data-circ-region' : 'data-filtro';
+  const materialAttr = circuito ? 'data-circ-equipment' : 'data-equip';
+  return `<div class="gcwo-catalog-search-row">
+    <div class="gcwo-catalog-search">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.7"/><path d="m15 15 6 6" stroke="currentColor" stroke-width="1.7"/></svg>
+      <input id="${buscaId}" type="search" placeholder="Pesquisar exercício por nome…" autocomplete="off" spellcheck="false" value="${escAttr(_panelCatalogBusca)}" aria-label="Pesquisar exercício">
+    </div>
+    <button type="button" class="gcwo-catalog-favorites${_panelCatalogFavoritos ? ' on' : ''}" data-catalog-favorites aria-pressed="${_panelCatalogFavoritos}">☆ Favoritos</button>
+  </div>
+  <div class="gcwo-catalog-purpose"><span class="gcwo-filter-label">Finalidade</span><div class="gcwo-chips" id="gcwoPFinalidade">
+    ${[['todos','Todos'],['terapeutico','Exercício terapêutico'],['treino','Treino e condição física']].map(([value,label])=>`<button type="button" class="gcwo-chip${_panelFinalidade===value?' on':''}" data-finalidade="${value}" aria-pressed="${_panelFinalidade===value}">${label}</button>`).join('')}
+  </div></div>
+  <div class="gcwo-catalog-filter-panels">
+    <section class="gcwo-catalog-filter-region" aria-label="Região do corpo">
+      <span class="gcwo-filter-label">Região do corpo</span><div class="gcwo-chips" id="${regiaoId}">
+        ${CATALOG_FILTROS.filter(f=>f.value!=='favoritos').map(f=>`<button type="button" class="gcwo-chip${_panelCatalogFiltro===f.value?' on':''}" ${regiaoAttr}="${escAttr(f.value)}" aria-pressed="${_panelCatalogFiltro===f.value}">${escHtml(f.label)}</button>`).join('')}
+      </div>
+    </section>
+    <section class="gcwo-catalog-filter-material" aria-label="Material">
+      <span class="gcwo-filter-label">Material</span><div class="gcwo-chips" id="${materialId}">
+        ${EQUIPAMENTO_FILTROS.map(eq=>`<button type="button" class="gcwo-chip${_panelEquipFiltro.has(eq)?' on':''}" ${materialAttr}="${escAttr(eq)}" aria-pressed="${_panelEquipFiltro.has(eq)}">${escHtml(eq)}</button>`).join('')}
+      </div>
+    </section>
+  </div>`;
+}
+function wireFavoritosCatalogo(refresh) {
+  const button = document.querySelector('[data-catalog-favorites]');
+  if (!button) return;
+  button.addEventListener('click', () => {
+    _panelCatalogFavoritos = !_panelCatalogFavoritos;
+    _panelCatalogPage = 0;
+    button.classList.toggle('on', _panelCatalogFavoritos);
+    button.setAttribute('aria-pressed', String(_panelCatalogFavoritos));
+    refresh();
+  });
+}
 function renderCatalogPickerSection(s) {
   return `
     <div class="gcwo-gym-workspace">
-      <details class="gcwo-gym-catalog"><summary>+ Adicionar exercícios · abrir catálogo</summary>
-        <div class="gcwo-workspace-title"><strong>1. Escolher exercícios</strong><span id="gcwoPPickedCount">${s.items.length} escolhido${s.items.length === 1 ? '' : 's'}</span></div>
-        <div class="gcwo-chips" id="gcwoPFinalidade">${[['todos','Todos'],['terapeutico','Exercício terapêutico'],['treino','Treino e condição física']].map(([value,label])=>`<button type="button" class="gcwo-chip${_panelFinalidade===value?' on':''}" data-finalidade="${value}">${label}</button>`).join('')}</div>
-        <div class="gcwo-filter-line"><span class="gcwo-filter-label">Mostrar</span><div class="gcwo-chips" id="gcwoPCatFiltro">
-          ${CATALOG_FILTROS.map(f => `<button type="button" class="gcwo-chip${_panelCatalogFiltro === f.value ? ' on' : ''}" data-filtro="${escAttr(f.value)}">${escHtml(f.label)}</button>`).join('')}
-        </div></div>
-        <div class="gcwo-filter-line"><span class="gcwo-filter-label">Material</span><div class="gcwo-chips gcwo-equip-chips" id="gcwoPEquipFiltro">
-          ${EQUIPAMENTO_FILTROS.map(eq => `<button type="button" class="gcwo-chip${_panelEquipFiltro.has(eq) ? ' on' : ''}" data-equip="${escAttr(eq)}">${escHtml(eq)}</button>`).join('')}
-        </div></div>
-        <div class="gc-search-bar">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#94a3b8" stroke-width="1.4"/><path d="M11 11l3 3" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/></svg>
-          <input id="gcwoPCatBusca" type="search" class="gc-search-input" placeholder="Pesquisar exercício…" autocomplete="off" spellcheck="false" value="${escAttr(_panelCatalogBusca)}">
-        </div>
+      <details class="gcwo-gym-catalog" open><summary><span>Catálogo de exercícios</span><span id="gcwoPPickedCount">${s.items.length} selecionado${s.items.length === 1 ? '' : 's'}</span></summary>
+        ${renderFiltrosCatalogo()}
         <div class="gcwo-catpick-grid" id="gcwoPCatGrid">${renderCatalogPickerGrid(s)}</div>
       </details>
 
@@ -3962,8 +3993,8 @@ function renderObjectiveControls() {
 function filteredCatalogForPanel() {
   const busca = (_panelCatalogBusca || '').trim().toLowerCase();
   let list = _state.exercisesCatalog;
-  if (_panelCatalogFiltro === 'favoritos') list = list.filter(e => e.is_favorite);
-  else if (_panelCatalogFiltro !== 'todos') list = list.filter(e => Array.isArray(e.categoria) && e.categoria.includes(_panelCatalogFiltro));
+  if (_panelCatalogFavoritos || _panelCatalogFiltro === 'favoritos') list = list.filter(e => e.is_favorite);
+  if (!['todos','favoritos'].includes(_panelCatalogFiltro)) list = list.filter(e => Array.isArray(e.categoria) && e.categoria.includes(_panelCatalogFiltro));
   list = list.filter(e => pertenceFinalidade(e, _panelFinalidade) && exercicioBateFiltroEquipamento(organizarExercicio(e), _panelEquipFiltro));
   if (busca) list = list.filter(e => (e.name || '').toLowerCase().includes(busca));
   return list;
@@ -3973,8 +4004,8 @@ function renderCatalogPickerGrid(s) {
   if (!_state.catalogLoaded) return `<div class="gcwo-muted">A carregar catálogo…</div>`;
   const list = filteredCatalogForPanel();
   if (!list.length) {
-    if (_panelCatalogFiltro === 'favoritos' && !_panelCatalogBusca) {
-      return `<div class="gcwo-muted">Sem favoritos ainda — muda para "Todos", ou marca favoritos no Catálogo.</div>`;
+    if ((_panelCatalogFavoritos || _panelCatalogFiltro === 'favoritos') && !_panelCatalogBusca) {
+      return `<div class="gcwo-muted">Sem resultados nos favoritos com estes filtros. Desative Favoritos ou ajuste a pesquisa.</div>`;
     }
     return `<div class="gcwo-muted">Nenhum exercício encontrado.</div>`;
   }
@@ -4455,6 +4486,10 @@ function wirePickedItems(s) {
 }
 
 function wireCatalogPicker(s) {
+  wireFavoritosCatalogo(() => {
+    document.getElementById('gcwoPCatGrid').innerHTML = renderCatalogPickerGrid(s);
+    wireGridCardClicks(s);
+  });
   document.querySelectorAll('[data-finalidade]').forEach(button=>button.addEventListener('click',()=>{_panelFinalidade=button.dataset.finalidade;_panelCatalogPage=0;document.querySelectorAll('[data-finalidade]').forEach(b=>b.classList.toggle('on',b===button));document.getElementById('gcwoPCatGrid').innerHTML=renderCatalogPickerGrid(s);wireGridCardClicks(s)}));
   document.getElementById('gcwoPCatGrid').addEventListener('click', event => {
     const button = event.target.closest('[data-catalog-page]');
@@ -4493,7 +4528,7 @@ function wireCatalogPicker(s) {
   document.querySelectorAll('#gcwoPCatFiltro [data-filtro]').forEach(chip => {
     chip.addEventListener('click', () => {
       _panelCatalogFiltro = chip.getAttribute('data-filtro'); _panelCatalogPage = 0;
-      document.querySelectorAll('#gcwoPCatFiltro .gcwo-chip').forEach(c => c.classList.toggle('on', c === chip));
+      document.querySelectorAll('#gcwoPCatFiltro .gcwo-chip').forEach(c => { c.classList.toggle('on', c === chip); c.setAttribute('aria-pressed', String(c === chip)); });
       const grid = document.getElementById('gcwoPCatGrid');
       if (grid) grid.innerHTML = renderCatalogPickerGrid(s);
       wireGridCardClicks(s);
@@ -4504,6 +4539,7 @@ function wireCatalogPicker(s) {
       const eq = chip.getAttribute('data-equip'); _panelCatalogPage = 0;
       if (_panelEquipFiltro.has(eq)) _panelEquipFiltro.delete(eq); else _panelEquipFiltro.add(eq);
       chip.classList.toggle('on');
+      chip.setAttribute('aria-pressed', String(_panelEquipFiltro.has(eq)));
       const grid = document.getElementById('gcwoPCatGrid');
       if (grid) grid.innerHTML = renderCatalogPickerGrid(s);
       wireGridCardClicks(s);
@@ -5759,12 +5795,9 @@ function renderCatalogoCircuito(s) {
 function renderPanelCircuito(s) {
   s.blocks = editarBlocosCircuito(s.blocks, uuid);
   if (!s.blocks.length) s.blocks.push(novoBlocoCircuitoVoltas());
-  if (_panelCatalogFiltro === 'favoritos') _panelCatalogFiltro = 'todos';
   return `<div class="gcwo-circuit-workspace">
-    <section class="gcwo-circuit-catalog"><h3>Catálogo de exercícios</h3>
-      <span class="gcwo-field-label">Região do corpo</span><div class="gcwo-chips" id="gcwoCircRegion">${CATALOG_FILTROS.filter(f=>f.value!=='favoritos').map(f=>`<button type="button" class="gcwo-chip${_panelCatalogFiltro===f.value?' on':''}" data-circ-region="${escAttr(f.value)}">${escHtml(f.label)}</button>`).join('')}</div>
-      <span class="gcwo-field-label">Material</span><div class="gcwo-chips" id="gcwoCircEquipment">${EQUIPAMENTO_FILTROS.map(eq=>`<button type="button" class="gcwo-chip${_panelEquipFiltro.has(eq)?' on':''}" data-circ-equipment="${escAttr(eq)}">${escHtml(eq)}</button>`).join('')}</div>
-      <input type="search" id="gcwoCircSearch" placeholder="Pesquisar exercício…" value="${escAttr(_panelCatalogBusca)}" aria-label="Pesquisar exercício">
+    <section class="gcwo-circuit-catalog"><h3 class="gcwo-catalog-heading">Catálogo de exercícios</h3>
+      ${renderFiltrosCatalogo(true)}
       <p class="gcwo-muted" id="gcwoCircTarget"></p><div class="gcwo-catpick-grid" id="gcwoCircCatalogGrid">${renderCatalogoCircuito(s)}</div>
     </section><section class="gcwo-circuit-plan">
       <details class="gcwo-circuit-models"><summary>Usar ou editar um modelo</summary><div class="gcwo-bib-grid">${modelosCircuito().map(modelo=>`<article class="gcwo-bib-card"><h4>${escHtml(modelo.nome)}</h4><p>${modelo.ids.length} exercícios · ${escHtml(focoModelo(modelo))}</p><button type="button" class="gcBtnGhost" data-circ-model="${escAttr(modelo.id)}">Usar / editar modelo</button></article>`).join('')}</div></details>
@@ -5883,16 +5916,24 @@ function previewCircuito(s) {
   show();dialog.showModal();
 }
 function wirePanelCircuito(s) {
-  _panelFinalidade='todos';
   const refresh=()=>{_panelCatalogPage=0;refreshCatalogoCircuito(s)};
+  wireFavoritosCatalogo(refresh);
+  document.querySelectorAll('[data-finalidade]').forEach(button => button.onclick = () => {
+    _panelFinalidade = button.dataset.finalidade;
+    document.querySelectorAll('[data-finalidade]').forEach(el => {
+      el.classList.toggle('on', el === button);
+      el.setAttribute('aria-pressed', String(el === button));
+    });
+    refresh();
+  });
   document.getElementById('gcwoCircSearch').oninput=e=>{_panelCatalogBusca=e.target.value;refresh()};
   document.querySelectorAll('[data-circ-region]').forEach(btn=>btn.onclick=()=>{
     _panelCatalogFiltro=btn.dataset.circRegion;
-    document.querySelectorAll('[data-circ-region]').forEach(el=>el.classList.toggle('on',el===btn));refresh();
+    document.querySelectorAll('[data-circ-region]').forEach(el=>{el.classList.toggle('on',el===btn);el.setAttribute('aria-pressed',String(el===btn))});refresh();
   });
   document.querySelectorAll('[data-circ-equipment]').forEach(btn=>btn.onclick=()=>{
     const eq=btn.dataset.circEquipment;_panelEquipFiltro.has(eq)?_panelEquipFiltro.delete(eq):_panelEquipFiltro.add(eq);
-    btn.classList.toggle('on',_panelEquipFiltro.has(eq));refresh();
+    btn.classList.toggle('on',_panelEquipFiltro.has(eq));btn.setAttribute('aria-pressed',String(_panelEquipFiltro.has(eq)));refresh();
   });
   document.getElementById('gcwoCircCatalogGrid').onclick=e=>{
     const page=e.target.closest('[data-circ-page]');

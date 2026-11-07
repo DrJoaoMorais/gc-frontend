@@ -1771,3 +1771,36 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-circ-settings .gcwo-chip{min-width:30px;padding:5px 7px;font-size:12px;white-space:nowrap}
 .gcwo-circ-settings .gcwo-circ-selector input{flex:1 1 52px;min-width:42px!important;max-width:60px!important;box-sizing:border-box;padding:7px 5px}
 @media(max-width:700px){.gcwo-circ-settings{grid-template-columns:minmax(0,1fr)}}
+
+/* Cabeçalho e filtros partilhados pelos catálogos de força e circuito. */
+.gcwo-gym-catalog>summary,.gcwo-catalog-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;box-sizing:border-box;margin:0 0 14px;padding:12px 16px;border:0;border-radius:11px;background:#123354;color:#fff;font-size:17px;font-weight:750;line-height:1.4}
+.gcwo-gym-catalog>summary{cursor:pointer;list-style:none}
+.gcwo-gym-catalog>summary::-webkit-details-marker{display:none}
+.gcwo-gym-catalog>summary>span:first-child::before{content:'›';display:inline-block;margin-right:10px}
+.gcwo-gym-catalog[open]>summary>span:first-child::before{transform:rotate(90deg)}
+.gcwo-gym-catalog>summary #gcwoPPickedCount{color:#fff;font-size:12px;font-weight:600}
+.gcwo-catalog-search-row{display:flex;align-items:stretch;gap:10px;margin:0 0 14px}
+.gcwo-catalog-search{display:flex;align-items:center;gap:10px;flex:1;min-width:0;padding:0 14px;border:1px solid #b9cce7;border-radius:10px;background:#fff;color:#5c7798;box-shadow:0 2px 5px #15365406}
+.gcwo-catalog-search:focus-within{outline:2px solid #2463d1;outline-offset:1px}
+.gcwo-catalog-search svg{flex:none}
+.gcwo-catalog-search input[type=search]{width:100%;min-width:0;box-sizing:border-box;height:46px;margin:0;padding:0;border:0;border-radius:0;outline:0;background:transparent;color:#173251;font:inherit;font-size:14px}
+.gcwo-catalog-favorites{flex:none;display:flex;align-items:center;justify-content:center;min-height:46px;padding:8px 14px;border:1px solid #cbd9e9;border-radius:10px;background:#fff;color:#173e65;font:inherit;font-size:13px;font-weight:650;cursor:pointer}
+.gcwo-catalog-favorites.on{background:#123354;border-color:#123354;color:#fff}
+.gcwo-catalog-purpose{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:0 0 14px}
+.gcwo-catalog-purpose .gcwo-chips{margin:0}
+.gcwo-catalog-filter-panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.gcwo-catalog-filter-panels>section{padding:14px 16px;border-radius:12px;border:1px solid #dce7f4;min-width:0}
+.gcwo-catalog-filter-region{background:#edf5ff}
+.gcwo-catalog-filter-panels>.gcwo-catalog-filter-material{background:#f7f5f1;border-color:#e9e5dc}
+.gcwo-catalog-filter-panels .gcwo-filter-label,.gcwo-catalog-purpose>.gcwo-filter-label{display:block;margin:0 0 8px;color:#173e65;font-size:11px;letter-spacing:.04em;text-transform:uppercase;font-weight:750}
+.gcwo-catalog-purpose>.gcwo-filter-label{margin:0}
+.gcwo-catalog-filter-panels .gcwo-chips{margin:0;gap:6px}
+.gcwo-catalog-filter-panels .gcwo-chip{min-height:32px;padding:5px 10px;background:#fff}
+.gcwo-catalog-filter-panels .gcwo-chip.on{background:#123354;color:#fff}
+.gcwo-circuit-catalog .gcwo-catalog-filter-panels{grid-template-columns:minmax(0,1fr)}
+.gcwo-circuit-catalog .gcwo-catalog-purpose{gap:8px}
+.gcwo-circuit-catalog .gcwo-catalog-purpose .gcwo-chip{font-size:11px;padding:5px 8px}
+.gcwo-circuit-catalog .gcwo-catalog-search-row{flex-wrap:wrap}
+.gcwo-circuit-catalog .gcwo-catalog-search{flex-basis:180px}
+.gcwo-circuit-catalog .gcwo-catalog-favorites{min-height:40px;padding:6px 10px}
+@media(max-width:700px){.gcwo-catalog-filter-panels{grid-template-columns:minmax(0,1fr)}.gcwo-catalog-search-row{flex-wrap:wrap}.gcwo-catalog-search{flex-basis:200px}.gcwo-gym-catalog>summary{font-size:15px}}

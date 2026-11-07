@@ -84,3 +84,29 @@ test('normal circuit entry renders the inline editor and commits a valid day dra
  x.click('#gcwoPGuardar');
  assert.equal(x.run('_state.sessions.filter(s=>s.kind==="circuit").length'),1);
 });
+test('strength and circuit share visual filters and favorites combine with region and equipment',async()=>{
+ for(const kind of ['list','circuit']){
+  const x=await setup();
+  x.run(`_criarTreino=null;_embeddedCare={onChange(){}};
+  _state.exercisesCatalog=[
+   {id:'favorite',name:'Core favorito',categoria:['Core'],equipamento:['Halteres'],is_favorite:true},
+   {id:'other',name:'Core com halteres',categoria:['Core'],equipamento:['Halteres'],is_favorite:false},
+   {id:'leg',name:'Membro inferior',categoria:['Membro Inferior'],equipamento:['Máquina'],is_favorite:true}
+  ];
+  _panelCatalogFiltro='todos';_panelCatalogFavoritos=false;_panelEquipFiltro=new Set();_panelCatalogBusca='';_panelFinalidade='todos';
+  _panelDraft=novaSessaoSkeleton('${kind==='list'?'Ginásio':'Circuito'}','${kind}','2026-11-06');_panelIsNovo=true;
+  document.getElementById('gcwoPrescricaoRoot').innerHTML='<div id="gcwoPanel"></div>';renderPanel();`);
+  assert.ok(x.get('.gcwo-catalog-search input'));
+  assert.equal(x.document.querySelectorAll('.gcwo-catalog-filter-panels>section').length,2);
+  assert.equal(x.document.querySelectorAll('[data-filtro="favoritos"],[data-circ-region="favoritos"]').length,0);
+  x.click(kind==='list'?'[data-filtro="Core"]':'[data-circ-region="Core"]');
+  x.click(kind==='list'?'[data-equip="Halteres"]':'[data-circ-equipment="Halteres"]');
+  x.click('[data-catalog-favorites]');
+  assert.equal(x.run('_panelCatalogFiltro'),'Core');
+  assert.equal(x.run('_panelEquipFiltro.has("Halteres")'),true);
+  assert.equal(x.run('filteredCatalogForPanel().length'),1);
+  assert.equal(x.run('filteredCatalogForPanel()[0].id'),'favorite');
+  x.click('[data-catalog-favorites]');
+  assert.equal(x.run('filteredCatalogForPanel().length'),2);
+ }
+});
