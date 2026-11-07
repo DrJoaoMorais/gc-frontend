@@ -97,7 +97,7 @@ const dia='2026-11-01';
 a.setState({patient:{id:'route'},clinicId:'c1',exercisesCatalog:[],sessions:[{session_id:'intocada',date:'2026-11-02'}]});
 const ct={inicio:dia,fim:dia,tipo:'circuito',atual:{nome:'Circuito',sessao:{kind:'circuit',modality:'Circuito',blocks:[]}},treinosPorTipo:{},destinoEscolha:{w:0,dia:6},semanas:[{disp:Array.from({length:7},()=>({ativo:true,min:30,local:'Casa'})),dias:Array.from({length:7},()=>[])}]};
 a.setCt(ct);
-const escolha=a.ctRenderEscolha();assert(escolha.includes('data-ct-tipo="circuito"'));assert(escolha.includes('Configurar Circuito'));assert(!escolha.includes('Circuito · em preparação'));
+const escolha=a.ctRenderEscolha();assert(!escolha.includes('data-ct-tipo="circuito"'));assert(escolha.includes('Configurar Circuito'));assert(!escolha.includes('Circuito · em preparação'));
 a.ctEditarEscolhido();assert.equal(a.getDraft().kind,'circuit');assert.equal(a.getDraft().date,dia);assert.equal(a.getDraft().local,'Casa');
 a.getDestino().onGuardar({...a.getDraft(),blocks});assert.equal(ct.semanas[0].dias[6].length,1);assert.equal(ct.semanas[0].dias[6][0].sessao.date,dia);assert.equal(a.getState().sessions.length,1);assert.equal(a.getState().sessions[0].session_id,'intocada');
 

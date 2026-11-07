@@ -1816,3 +1816,45 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
   .gcwo-gym-catalog .gcwo-catalog-all-filters .gcwo-chips{flex-wrap:wrap;gap:5px}
   .gcwo-gym-catalog .gcwo-catalog-all-filters .gcwo-chip{flex:none;white-space:nowrap;font-size:12px;min-height:30px;padding:5px 8px}
 }
+
+/* Editor único: uma tabela de dose por exercício, com blocos por séries ou circuito. */
+.gcwo-strength-editor{min-width:0}
+.gcwo-strength-editor .gcwo-strength-catalog{padding:16px;border:1px solid #dce5ef;border-radius:14px;background:#fff}
+.gcwo-strength-editor .gcwo-catpick-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.gcwo-strength-editor .gcwo-catpick-card{min-width:0;padding:7px}
+.gcwo-strength-editor .gcwo-catpick-photo{width:100%;height:100px;aspect-ratio:auto;background:#fff}
+.gcwo-strength-editor .gcwo-catpick-photo img{width:100%;height:100%;object-fit:contain}
+.gcwo-strength-targets,.gcwo-strength-toolbar,.gcwo-strength-footer,.gcwo-strength-block-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0}
+.gcwo-strength-targets .gcwo-chips{margin:0}
+.gcwo-strength-toolbar h3,.gcwo-strength-footer>strong{margin-right:auto}
+.gcwo-strength-block-foot{justify-content:space-between}
+.gcwo-strength-block{border:1px solid #d6e2ef;border-radius:13px;padding:14px;margin-top:14px;background:#fff}
+.gcwo-strength-block.selected{border-color:#719be0}
+.gcwo-strength-block-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#f1f6fd;border-radius:9px;padding:10px}
+.gcwo-strength-block-head input{flex:1;min-width:120px;max-width:400px;border:1px solid #cfdaea;border-radius:8px;padding:9px;font:inherit}
+.gcwo-strength-block-head .gcwo-chips{margin:0}
+.gcwo-strength-settings{display:flex;gap:24px;flex-wrap:wrap;background:#edf4fe;padding:12px;border-radius:9px;margin-bottom:12px}
+.gcwo-strength-selector>span{display:block;font-size:11px;font-weight:700;margin-bottom:6px}
+.gcwo-strength-selector .gcwo-chips{display:flex;margin:0;align-items:center}
+.gcwo-strength-selector input{width:70px!important;border:1px solid #cad8e9;border-radius:7px;padding:7px}
+.gcwo-strength-item{border:1px solid #dce5ef;border-radius:11px;padding:12px;margin:10px 0}
+.gcwo-strength-item-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gcwo-strength-item-head>strong{flex:1;min-width:140px}
+.gcwo-strength-item-head>.gcwo-chips{margin:0}
+.gcwo-strength-image{border:0;background:#fff;padding:0;cursor:zoom-in}
+.gcwo-strength-image img{width:48px;height:48px;object-fit:contain}
+.gcwo-strength-series{max-width:700px;margin-top:12px}
+.gcwo-strength-series-row{display:grid;grid-template-columns:45px minmax(75px,1fr) minmax(75px,1fr) 80px;gap:10px;align-items:center;margin:6px 0}
+.gcwo-strength-series-row input{width:100%;min-width:0;border:1px solid #cad8e9;border-radius:7px;padding:8px;font:inherit}
+.gcwo-strength-series-head{color:#667f99;font-size:11px;font-weight:700}
+.gcwo-strength-rests{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:12px;margin-top:12px;background:#f1f6fd;border-radius:9px;max-width:700px}
+.gcwo-strength-rests>.gcwo-field{margin:0}
+.gcwo-strength-details{margin-top:10px}
+.gcwo-strength-details>summary{color:#285d9e;font-size:12px;cursor:pointer;font-weight:650}
+.gcwo-strength-details>.gcwo-field{margin-top:10px}
+.gcwo-strength-details .gcwo-row2{max-width:700px;gap:12px}
+.gcwo-strength-models{padding:10px;background:#f4f8fc;border-radius:9px}
+.gcwo-strength-models>summary{cursor:pointer;font-weight:650}
+@media(min-width:1100px){.gcwo-strength-catalog .gcwo-catalog-all-filters{display:grid;grid-template-columns:.95fr 1.1fr 1fr;gap:12px;margin-bottom:16px}.gcwo-strength-catalog .gcwo-catalog-filter-panels{display:contents}.gcwo-strength-catalog .gcwo-catalog-purpose{margin:0}}
+@media(max-width:1250px){.gcwo-strength-editor .gcwo-catpick-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:700px){.gcwo-strength-editor .gcwo-catpick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.gcwo-strength-rests{grid-template-columns:1fr}.gcwo-strength-series-row{grid-template-columns:32px minmax(60px,1fr) minmax(60px,1fr) 65px;gap:6px}}

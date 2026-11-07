@@ -3,10 +3,11 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const vm=require('node:vm');const path=require('node:path');
 const {parseHTML}=require('linkedom');
 async function setup(){
+ const forca=await import('../modules/exercicio/prescricao/forca-blocos.js');const forcaEditor=await import('../modules/exercicio/prescricao/forca-editor.js');
  const planos=await import('../modules/exercicio/prescricao/planos-casa.js');const circuito=await import('../modules/exercicio/prescricao/circuito-tempo.js');const biblioteca=await import('../modules/exercicio/prescricao/biblioteca-blocos.js');const catalog=await import('../modules/exercicio/prescricao/catalogo-organizacao.js');const helpers=await import('../modules/exercicio/prescricao/disponibilidade-treino.js');const recommendations=await import('../modules/exercicio/prescricao/recomendacoes.js');const doses=await import('../modules/exercicio/prescricao/dose-protocolo.js');const pace=await import('../modules/exercicio/shared/pace.js');
  const {window}=parseHTML('<html><body><div id="gcwoPrescricaoRoot"></div></body></html>');const document=window.document;
  window.HTMLElement.prototype.scrollIntoView=function(){};window.HTMLElement.prototype.focus=function(){};
- const ctx={window,document,console,CSS:{escape:value=>String(value)},structuredClone,URL,Intl,Date,setTimeout,clearTimeout,crypto:require('node:crypto').webcrypto,G:{clinics:[],sessionUser:{id:'medico-demo'}},...planos,...circuito,...biblioteca,...catalog,validarDoseCatalogo:catalog.doseCatalogoDefinida,...helpers,...recommendations,...doses,...pace,confirm:()=>true};
+ const ctx={window,document,console,CSS:{escape:value=>String(value)},structuredClone,URL,Intl,Date,setTimeout,clearTimeout,crypto:require('node:crypto').webcrypto,G:{clinics:[],sessionUser:{id:'medico-demo'}},...forca,...forcaEditor,...planos,...circuito,...biblioteca,...catalog,validarDoseCatalogo:catalog.doseCatalogoDefinida,...helpers,...recommendations,...doses,...pace,confirm:()=>true};
  window.sb=new Proxy({}, {get(){throw Error('Unexpected database access during local editing')}});
  const c=vm.createContext(ctx);
  const source=fs.readFileSync(path.join(__dirname,'../modules/exercicio/prescricao/prescricao.js'),'utf8').replace(/^import .*;\s*$/gm,'').replace(/^export /gm,'').replaceAll('import.meta.url',JSON.stringify('file:///prescricao.js'));
@@ -70,19 +71,17 @@ test('equipment and region filters preserve circuit selection and model editing 
  assert.equal(x.document.querySelectorAll('dialog').length,0);
  assert.ok(x.run('_panelDraft.blocks.some(b=>b.exercicios?.length)'));
 });
-test('normal circuit entry renders the inline editor and commits a valid day draft',async()=>{
- const x=await setup();
- x.run(`_state.exercisesCatalog=${fs.readFileSync(path.join(__dirname,'fixtures/catalogo-173.json'),'utf8')};
- _criarTreino=null;_embeddedCare={onChange(){}};
- _panelCatalogFiltro='todos';_panelCatalogBusca='';_panelEquipFiltro=new Set();
- _panelIsNovo=true;_panelDraft=novaSessaoSkeleton('Circuito','circuit','2026-11-06');
- document.getElementById('gcwoPrescricaoRoot').innerHTML='<div id="gcwoPanel"></div>';
- renderPanel();`);
- assert.ok(x.get('#gcwoCircCatalogGrid'));
- assert.equal(x.document.querySelectorAll('.gcwo-circuit-workspace select').length,0);
- x.click('[data-circ-add]');
- x.click('#gcwoPGuardar');
- assert.equal(x.run('_state.sessions.filter(s=>s.kind==="circuit").length'),1);
+test('normal strength and legacy circuit entries use the unified catalogue',async()=>{
+ for(const kind of ['list','circuit']){
+  const x=await setup();
+  x.run(`_criarTreino=null;_embeddedCare={onChange(){}};
+  _panelIsNovo=true;_panelDraft=novaSessaoSkeleton('${kind==='list'?'Ginásio':'Circuito'}','${kind}','2026-11-06');
+  document.getElementById('gcwoPrescricaoRoot').innerHTML='<div id="gcwoPanel"></div>';renderPanel();`);
+  assert.ok(x.get('.gcwo-strength-editor'));
+  assert.ok(x.get('#gcwoPCatGrid'));
+  assert.equal(x.document.querySelectorAll('.gcwo-strength-editor select').length,0);
+  assert.equal(x.document.querySelectorAll('[data-modalidade-editor="Circuito"]').length,0);
+ }
 });
 test('strength and circuit share visual filters and favorites combine with region and equipment',async()=>{
  for(const kind of ['list','circuit']){
@@ -99,8 +98,8 @@ test('strength and circuit share visual filters and favorites combine with regio
   assert.ok(x.get('.gcwo-catalog-search input'));
   assert.equal(x.document.querySelectorAll('.gcwo-catalog-filter-panels>section').length,2);
   assert.equal(x.document.querySelectorAll('[data-filtro="favoritos"],[data-circ-region="favoritos"]').length,0);
-  x.click(kind==='list'?'[data-filtro="Core"]':'[data-circ-region="Core"]');
-  x.click(kind==='list'?'[data-equip="Halteres"]':'[data-circ-equipment="Halteres"]');
+  x.click('[data-filtro="Core"]');
+  x.click('[data-equip="Halteres"]');
   x.click('[data-catalog-favorites]');
   assert.equal(x.run('_panelCatalogFiltro'),'Core');
   assert.equal(x.run('_panelEquipFiltro.has("Halteres")'),true);

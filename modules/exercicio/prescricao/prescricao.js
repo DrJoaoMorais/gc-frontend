@@ -1,3 +1,5 @@
+import { prepararForca, itemForca, novoBlocoForca, cadenciaForca, erroForca, compilarForca, tempoForca, sessaoForcaGuardada } from './forca-blocos.js?v=2026-11-07-unico';
+import { renderBlocosForca, wireBlocosForca } from './forca-editor.js?v=2026-11-07-unico';
 import { BLOCOS_EXERCICIO, resolverBloco, exerciciosDaSessao, distribuicaoRegional } from './biblioteca-blocos.js?v=2026-11-05-semana-hoje';
 import { PLANOS_CASA, configuracaoPlanoCasa, preverPlanoCasa, tempoPlanoCasa } from './planos-casa.js?v=2026-11-01-1';
 import { PADROES_CASA, catalogoCasa, sugerirVariantesCasa, semanaCasa, proporProgramaCasa } from './programa-casa.js?v=2026-11-01-1';
@@ -36,7 +38,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-07-filtros-linha';
+const PRESCRICAO_CSS_VERSION = '2026-11-07-forca-unica';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -95,7 +97,6 @@ const SESSAO_MODALIDADES = [
   { modality: 'Ciclismo',  kind: 'card',    enabled: true },
   { modality: 'Natação',   kind: 'card',    enabled: true },
   { modality: 'Caminhada', kind: 'walk',    enabled: true },
-  { modality: 'Circuito',  kind: 'circuit', enabled: true },
   { modality: 'Outra atividade', kind: 'custom', enabled: false },
 ];
 const LOCAIS_SESSAO = ['Ginásio', 'Casa', 'Clínica'];
@@ -166,6 +167,7 @@ function uuid() { return crypto.randomUUID(); }
 // Contagem de conteúdo por kind — usada onde antes só se olhava para `s.items`
 // (lista do dia, histórico, botão "Gerar", validação ao guardar).
 function sessaoContagem(s) {
+  if(s.strength_blocks){const n=s.strength_blocks.reduce((sum,b)=>sum+(b.type==='legacy'?1:b.items.length),0);return {n,label:n===1?'exercício':'exercícios'};}
   if (s.kind === 'walk') {
     const n = (s.walks || []).filter(w => Number(w.duration_sec) > 0 || String(w.label || '').trim()).length
       + (Number(s.stairs_flights) > 0 ? 1 : 0);
@@ -1800,8 +1802,12 @@ const CT_TIPOS = [
   { value: 'corrida', label: 'Corrida', modality: 'Corrida', kind: 'card' },
   { value: 'ciclismo', label: 'Ciclismo', modality: 'Ciclismo', kind: 'card' },
   { value: 'natacao', label: 'Natação', modality: 'Natação', kind: 'card' },
-  { value: 'circuito', label: 'Circuito', modality: 'Circuito', kind: 'circuit' },
 ];
+function ctTipoAtual(ct) {
+  return CT_TIPOS.find(t=>t.value===ct.tipo) || (ct.tipo==='circuito'
+    ? {value:'circuito',label:'Circuito',modality:'Circuito',kind:'circuit'}
+    : CT_TIPOS[0]);
+}
 const CT_GRUPOS = ['Todos', 'Criar hábitos', 'Força', 'Mobilidade', 'Recuperação', 'Corpo inteiro'];
 const CT_ZONAS = ['Membro Superior', 'Membro Inferior', 'Core', 'Corpo Inteiro'];
 const CT_OBJETIVOS = ['Fortalecimento', 'Mobilidade / Alongamento', 'Cardiovascular', 'Propriocepção / Equilíbrio'];
@@ -1865,6 +1871,7 @@ function ctSetDisp(w, d, alteracao) { _criarTreino.semanas[w].disp[d] = { ...ctD
 // Duração prevista (min), com as funções de cálculo que o editor já usa por modalidade.
 function ctMinutosSessao(s) {
   let seg = 0;
+  if(s.strength_blocks)return Math.round(tempoForca(s.strength_blocks).seconds/60);
   if (s.kind === 'list') seg = duracaoEstimadaSessao(s);
   else if (s.kind === 'walk') seg = (s.walks || []).reduce((t, w) => t + (Number(w.duration_sec) || 0), 0);
   else if (s.kind === 'card') seg = calcularCargaPorZona(s).totalGeral;
@@ -1872,6 +1879,7 @@ function ctMinutosSessao(s) {
   return Math.round(seg / 60);
 }
 function ctTempoPorCalcular(s) {
+  if(s.strength_blocks)return !!erroForca(s.strength_blocks)||tempoForca(s.strength_blocks).incomplete;
   return s.kind === 'list' ? (s.items || []).some(it=>!doseCatalogoDefinida(it)) : s.kind === 'card' && (s.blocks || []).some(b => b.type === 'series'
     ? serieTemDistanciaSemTempo(b, s.modality)
     : b.type === 'continuous' && medidaContinua(b, s.modality) === 'distance' && !tempoBlocoContinuo(b, s.modality));
@@ -2210,7 +2218,7 @@ function ctBloco(n, titulo, sub, corpo, extraHead = '') {
 
 function ctRenderEscolha() {
   const ct = _criarTreino;
-  const tipo = CT_TIPOS.find(t => t.value === ct.tipo);
+  const tipo = ctTipoAtual(ct);
   const tipos = `<div class="gcwo-ct-tipos">${CT_TIPOS.map(t => {
     const meta = TIPO_META[tipoKey({ modality: t.modality })];
     return `<button type="button" class="gcwo-ct-tipo${ct.tipo === t.value ? ' on' : ''}" data-ct-tipo="${t.value}"><span style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>${escHtml(t.label)}</button>`;
@@ -2554,7 +2562,7 @@ function ctWire() {
       ct.treinosPorTipo.exercicios = ct.atual;
       return ctEditarEscolhido();
     } else if (ds.ct === 'cardio') {
-      const tipo = CT_TIPOS.find(t => t.value === ct.tipo);
+      const tipo = ctTipoAtual(ct);
       if (!ct.atual || ct.atual.sessao.modality !== tipo.modality) {
         const sessao = novaSessaoSkeleton(tipo.modality, tipo.kind, ct.inicio);
         sessao.local = ctLocalPorDefeito();
@@ -2584,7 +2592,7 @@ function ctWire() {
       ctDefinirSemanas(ct.semanas.length - 1); ct.mostrarFim = false;
     } else if (ds.ctTipo) {
       ct.tipo = ds.ctTipo;
-      const tipo = CT_TIPOS.find(t => t.value === ct.tipo);
+      const tipo = ctTipoAtual(ct);
       let treino = ct.treinosPorTipo[ct.tipo] || null;
       if (!treino && tipo.kind !== 'list') {
         const sessao = novaSessaoSkeleton(tipo.modality, tipo.kind, ct.inicio);
@@ -3786,7 +3794,7 @@ function renderPanel() {
   if (!panel || !_panelDraft) return;
 
   const s = _panelDraft;
-  const meta = TIPO_META[tipoKey(s)];
+  const meta = usaEditorForca(s)?{...TIPO_META.ginasio,label:'Força / exercícios'}:TIPO_META[tipoKey(s)];
   const dia = diaSemanaDeIso(s.date);
   const painelCompacto = s.kind === 'card' || s.kind === 'walk';
   const locais = _embeddedCare ? ['', ...LOCAIS_SESSAO] : LOCAIS_SESSAO;
@@ -3817,10 +3825,10 @@ function renderPanel() {
         <button type="button" class="gcBtnGhost gcwo-session-zones" id="gcwoBtnZonasTreino">♥ ⚡ Zonas</button>
       </div>`}
 
-      ${s.kind === 'list' ? renderCatalogPickerSection(s) : ''}
+      ${usaEditorForca(s)?renderPanelForca(s):s.kind === 'list' ? renderCatalogPickerSection(s) : ''}
       ${s.kind === 'walk' ? renderPanelCaminhada(s) : ''}
       ${s.kind === 'card' ? renderPanelCardio(s) : ''}
-      ${s.kind === 'circuit' ? renderPanelCircuito(s) : ''}
+      ${s.kind === 'circuit' && !usaEditorForca(s) ? renderPanelCircuito(s) : ''}
 
       <details class="gcwo-session-details">
         <summary>Horário, modo de realização e anotações</summary>
@@ -3830,7 +3838,7 @@ function renderPanel() {
             <button type="button" class="gcwo-chip${!s.momento ? ' on' : ''}" data-momento="">Sem indicar</button>
             ${MOMENTOS_SESSAO.map(m => `<button type="button" class="gcwo-chip${s.momento === m.value ? ' on' : ''}" data-momento="${m.value}">${escHtml(m.label)}</button>`).join('')}
           </div>
-          ${s.kind === 'list' ? `
+          ${s.kind === 'list' && !usaEditorForca(s) ? `
             <span class="gcwo-field-label">Como o doente realizará o treino</span>
             <div class="gcwo-mode-choice" id="gcwoPExecutionMode">
               <button type="button" class="gcwo-mode-card${modoExecucaoGinasio(s) === 'free' ? ' on' : ''}" data-execution-mode="free"><strong>Sem Tempo</strong><span>Regista séries, repetições e cargas ao seu ritmo.</span></button>
@@ -3855,10 +3863,10 @@ function renderPanel() {
 
   if (_embeddedCare && _panelIsNovo && !_panelDestino) {
     const tipos=SESSAO_MODALIDADES.filter(t=>t.enabled);
-    panel.insertAdjacentHTML('afterbegin', `<nav class="gcwo-bib-filtros" aria-label="Modalidades">${tipos.map(t=>`<button type="button" class="${t.modality===s.modality?'gcBtnSuccess':'gcBtnGhost'}" aria-pressed="${t.modality===s.modality}" data-modalidade-editor="${escAttr(t.modality)}">${t.kind==='list'?'Força / exercícios':escHtml(t.modality)}</button>`).join('')}</nav>`);
+    panel.insertAdjacentHTML('afterbegin', `<nav class="gcwo-bib-filtros" aria-label="Modalidades">${tipos.map(t=>`<button type="button" class="${(t.modality===s.modality || (usaEditorForca(s)&&t.modality==='Ginásio'))?'gcBtnSuccess':'gcBtnGhost'}" aria-pressed="${t.modality===s.modality || (usaEditorForca(s)&&t.modality==='Ginásio')}" data-modalidade-editor="${escAttr(t.modality)}">${t.kind==='list'?'Força / exercícios':escHtml(t.modality)}</button>`).join('')}</nav>`);
     panel.querySelectorAll('[data-modalidade-editor]').forEach(btn=>btn.onclick=()=>{
       const tipo=tipos.find(t=>t.modality===btn.dataset.modalidadeEditor);
-      if(tipo.modality===s.modality)return;
+      if(tipo.modality===s.modality || (usaEditorForca(s)&&tipo.modality==='Ginásio'))return;
       rascunhosModalidades.set(s.modality,s);
       _panelDraft=rascunhosModalidades.get(tipo.modality)||novaSessaoSkeleton(tipo.modality,tipo.kind,s.date);
       _panelCatalogFiltro='todos';_panelCatalogFavoritos=false;_panelCatalogBusca='';_panelEquipFiltro=new Set();
@@ -3906,10 +3914,11 @@ function wirePanel() {
     });
   });
 
-  if (s.kind === 'list') wireCatalogPicker(s);
+  if(usaEditorForca(s))wirePanelForca(s);
+  else if (s.kind === 'list') wireCatalogPicker(s);
   if (s.kind === 'walk') wirePanelCaminhada(s);
   if (s.kind === 'card') wirePanelCardio(s);
-  if (s.kind === 'circuit') wirePanelCircuito(s);
+  if (s.kind === 'circuit' && !usaEditorForca(s)) wirePanelCircuito(s);
 }
 
 function refreshReviewCount(s) {
@@ -3962,6 +3971,190 @@ function wireFavoritosCatalogo(refresh) {
     refresh();
   });
 }
+let _strengthTarget = null;
+const _strengthOpenDetails = new Set();
+const modelosForca = new Map();
+function usaEditorForca(s) {
+  return ['list','circuit'].includes(s?.kind) && tipoKey(s) !== 'patologia';
+}
+function alvoForca(s) {
+  return s.strength_blocks.find(b=>b.block_id === _strengthTarget && b.type !== 'legacy')
+    || s.strength_blocks.find(b=>b.type !== 'legacy');
+}
+function renderForcaCatalogo(s) {
+  return renderCatalogPickerGrid({ items: alvoForca(s)?.items || [] });
+}
+function renderAlvosForca(s) {
+  return s.strength_blocks.filter(b=>b.type !== 'legacy').map(b=>
+    '<button type="button" class="gcwo-chip' + (alvoForca(s) === b ? ' on' : '') + '" data-strength-target="' + escAttr(b.block_id) + '">' + escHtml(b.name) + '</button>'
+  ).join('');
+}
+function renderPanelForca(s) {
+  prepararForca(s, _state.exercisesCatalog, uuid);
+  return '<section class="gcwo-strength-editor">' +
+    '<section class="gcwo-gym-catalog gcwo-strength-catalog"><div class="gcwo-catalog-heading">Catálogo de exercícios</div>' +
+    renderFiltrosCatalogo() + '<div class="gcwo-strength-targets"><strong>Adicionar a</strong><div class="gcwo-chips" id="gcwoStrengthTargets">' + renderAlvosForca(s) + '</div></div>' +
+    '<div class="gcwo-catpick-grid" id="gcwoPCatGrid">' + renderForcaCatalogo(s) + '</div></section>' +
+    '<div class="gcwo-strength-toolbar"><h3>Plano da sessão</h3><button type="button" class="gcBtnGhost" data-strength-new="series">Adicionar bloco por séries</button><button type="button" class="gcBtnGhost" data-strength-new="circuit">Adicionar bloco em circuito</button></div>' +
+    '<details class="gcwo-strength-models"><summary>Usar um modelo de circuito</summary><div class="gcwo-bib-grid">' +
+    modelosCircuito().map(modelo=>'<button type="button" class="gcBtnGhost" data-strength-model="' + escAttr(modelo.id) + '">' + escHtml(modelo.nome) + '</button>').join('') +
+    [...modelosForca].map(([id,block])=>'<button type="button" class="gcBtnGhost" data-strength-saved-model="' + escAttr(id) + '">' + escHtml(block.name) + '</button>').join('') +
+    '</div></details><div id="gcwoStrengthBlocks">' + renderBlocosForca(s.strength_blocks, alvoForca(s)?.block_id) + '</div>' +
+    '<div class="gcwo-strength-footer"><strong id="gcwoStrengthTime"></strong><button type="button" class="gcBtnGhost" id="gcwoStrengthSaveModel">Guardar bloco como modelo</button><button type="button" class="gcBtnGhost" id="gcwoStrengthPreview">Pré-visualizar como doente</button></div>' +
+    '<p class="gcwo-muted">A dose é preenchida uma vez, por série. O doente inicia cada exercício e descanso, ou escolhe avanço automático.</p><p class="gcwo-muted" id="gcwoStrengthStatus" role="status"></p></section>';
+}
+function tempoForcaTexto(seconds) { const total=Math.round(seconds);return Math.floor(total/60)+' min '+(total%60)+' s'; }
+function refreshForca(s) {
+  const timing=tempoForca(s.strength_blocks);
+  const label=document.getElementById('gcwoStrengthTime');
+  if(label)label.textContent=erroForca(s.strength_blocks)?'Dose por completar':timing.incomplete?'Tempo parcialmente por calcular · com repetições sem cadência ou em intervalo':'Duração estimada: '+tempoForcaTexto(timing.seconds);
+  const targets=document.getElementById('gcwoStrengthTargets');
+  if(targets)targets.innerHTML=renderAlvosForca(s);
+  const blocks=document.getElementById('gcwoStrengthBlocks');
+  blocks?.querySelectorAll('[data-strength-block]').forEach(card=>{
+    const block=s.strength_blocks.find(b=>b.block_id===card.dataset.strengthBlock);
+    const summary=card.querySelector('[data-strength-block-time]');
+    if(summary){const t=tempoForca([block]);summary.textContent=t.incomplete?'Tempo parcialmente por calcular':tempoForcaTexto(t.seconds);}
+    card.querySelectorAll('[data-strength-item]').forEach(row=>{
+      const item=block.items.find(i=>i.item_id===row.dataset.strengthItem);
+      const title=row.querySelector('[data-details] summary');
+      const seconds=cadenciaForca(item);
+      if(title)title.textContent='Instruções e cadência'+(item.dose_unit==='reps'?(seconds==null?' · tempo por definir':' · '+seconds+' s por repetição'):'');
+    });
+  });
+  refreshReviewCount(s);
+  ctAtualizarResumoEdicao();
+  _embeddedCare?.onChange?.(true);
+}
+function wirePanelForca(s) {
+  const root=document.querySelector('.gcwo-strength-editor');
+  const refreshCatalog=()=>{document.getElementById('gcwoPCatGrid').innerHTML=renderForcaCatalogo(s);};
+  const refreshFilters=()=>{_panelCatalogPage=0;refreshCatalog();};
+  wireFavoritosCatalogo(refreshFilters);
+  document.querySelectorAll('#gcwoPPresets [data-preset]').forEach(button=>button.onclick=()=>{
+    const presets={
+      perda:{reps:[15,15,15],rest:60,next:60,down:2,up:1},
+      hipertrofia:{reps:[10,12,12],rest:90,next:120,down:3,up:1},
+      forca:{reps:[8,8,8],rest:150,next:150,down:2,up:1},
+    };
+    const preset=presets[button.dataset.preset];
+    if(preset)s.strength_blocks.forEach(block=>(block.items||[]).forEach(item=>{
+      item.dose_unit='reps';item.strength_series=preset.reps.map(reps=>({value:reps,load:item.strength_series[0]?.load??null}));
+      item.rest_set=preset.rest;item.rest_next=preset.next;item.tempo_excentrico_s=preset.down;item.tempo_concentrico_s=preset.up;item.pausa_superior_s=0;item.pausa_inferior_s=0;
+    }));
+    if(preset){renderPanel();refreshForca(s);}
+  });
+  root.querySelectorAll('[data-finalidade]').forEach(button=>button.onclick=()=>{
+    _panelFinalidade=button.dataset.finalidade;
+    root.querySelectorAll('[data-finalidade]').forEach(el=>{el.classList.toggle('on',el===button);el.setAttribute('aria-pressed',String(el===button));});
+    refreshFilters();
+  });
+  root.querySelectorAll('[data-filtro]').forEach(button=>button.onclick=()=>{
+    _panelCatalogFiltro=button.dataset.filtro;
+    root.querySelectorAll('[data-filtro]').forEach(el=>{el.classList.toggle('on',el===button);el.setAttribute('aria-pressed',String(el===button));});
+    refreshFilters();
+  });
+  root.querySelectorAll('[data-equip]').forEach(button=>button.onclick=()=>{
+    const eq=button.dataset.equip;
+    _panelEquipFiltro.has(eq)?_panelEquipFiltro.delete(eq):_panelEquipFiltro.add(eq);
+    button.classList.toggle('on',_panelEquipFiltro.has(eq));button.setAttribute('aria-pressed',String(_panelEquipFiltro.has(eq)));refreshFilters();
+  });
+  document.getElementById('gcwoPCatBusca').oninput=event=>{_panelCatalogBusca=event.target.value;refreshFilters();};
+  const chooseTarget=id=>{_strengthTarget=id;renderPanel();document.getElementById('gcwoPCatBusca').focus();};
+  document.getElementById('gcwoStrengthTargets').onclick=event=>{
+    const button=event.target.closest('[data-strength-target]');
+    if(button)chooseTarget(button.dataset.strengthTarget);
+  };
+  const toggleExercise=button=>{
+    const block=alvoForca(s);if(!block){showPanelErro('Adicione um bloco por séries ou em circuito.');return;}
+    const id=button.dataset.exid,cat=_state.exercisesCatalog.find(ex=>ex.id===id);
+    if(!cat)return;
+    const index=block.items.findIndex(item=>item.exercise_id===id);
+    if(index>=0)block.items.splice(index,1);
+    else block.items.push(itemForca({
+      ...cat,exercise_id:cat.id,sets:1,series:[{reps:null,load:null}],rest_set:0,rest_next:null,
+      tempo_concentrico_s:cat.tempo_concentrico_s??null,tempo_excentrico_s:cat.tempo_excentrico_s??null,
+    },uuid));
+    renderPanel();refreshForca(s);
+  };
+  const grid=document.getElementById('gcwoPCatGrid');
+  grid.onclick=event=>{
+    const page=event.target.closest('[data-catalog-page]');
+    if(page&&!page.disabled){_panelCatalogPage=Number(page.dataset.catalogPage);refreshCatalog();return;}
+    const star=event.target.closest('[data-favorite-exid]');
+    if(star){alternarFavoritoCatalogo(star.dataset.favoriteExid,null,refreshCatalog);return;}
+    const card=event.target.closest('[data-exid]');if(card)toggleExercise(card);
+  };
+  grid.onkeydown=event=>{
+    if(event.target.matches('[data-exid]')&&['Enter',' '].includes(event.key)){event.preventDefault();toggleExercise(event.target);}
+  };
+  root.querySelectorAll('[data-strength-new]').forEach(button=>button.onclick=()=>{
+    const block=novoBlocoForca(uuid,button.dataset.strengthNew);s.strength_blocks.push(block);_strengthTarget=block.block_id;renderPanel();refreshForca(s);
+  });
+  const appendModel=blocks=>{
+    const additions=structuredClone(blocks);
+    additions.forEach(block=>{block.block_id=uuid();if(block.items)block.items.forEach(item=>item.item_id=uuid());if(block.type==='legacy')block.original.block_id=block.block_id;else {delete block.original;delete block.original_signature;}});
+    if(s.strength_blocks.length===1&&s.strength_blocks[0].type!=='legacy'&&!s.strength_blocks[0].items.length)s.strength_blocks=[];
+    s.strength_blocks.push(...additions);_strengthTarget=additions.find(b=>b.type!=='legacy')?.block_id;renderPanel();refreshForca(s);
+  };
+  root.querySelectorAll('[data-strength-model]').forEach(button=>button.onclick=()=>{
+    const model=modeloCircuito(button.dataset.strengthModel);
+    const session=sessaoBlocoParaDia(s.date,true,model);
+    if(!session){showPanelErro('O modelo tem exercícios indisponíveis.');return;}
+    appendModel(prepararForca(session,_state.exercisesCatalog,uuid));
+  });
+  root.querySelectorAll('[data-strength-saved-model]').forEach(button=>button.onclick=()=>appendModel([modelosForca.get(button.dataset.strengthSavedModel)]));
+  document.getElementById('gcwoStrengthSaveModel').onclick=()=>{
+    const block=alvoForca(s);
+    if(!block||erroForca([block])){showPanelErro(block?erroForca([block]):'Escolha um bloco.');return;}
+    modelosForca.set(uuid(),structuredClone(block));renderPanel();
+    document.getElementById('gcwoStrengthStatus').textContent='Modelo disponível durante esta sessão. Use Guardar plano para conservar a prescrição do doente.';
+  };
+  wireBlocosForca(root,s.strength_blocks,{
+    render:()=>{renderPanel();refreshForca(s);},change:()=>refreshForca(s),target:chooseTarget,openDetails:_strengthOpenDetails,
+    zoom:item=>{const dialog=document.createElement('dialog');dialog.className='gcwo-circuit-preview';dialog.innerHTML='<h3>'+escHtml(item.name)+'</h3><img src="'+escAttr(item.photo_url)+'" alt=""><button type="button" class="gcBtnGhost">Fechar</button>';dialog.querySelector('button').onclick=()=>dialog.close();dialog.onclose=()=>dialog.remove();document.body.append(dialog);dialog.showModal();},
+  });
+  document.getElementById('gcwoStrengthPreview').onclick=()=>previewForcaSession(s);
+  refreshForca(s);
+}
+function previewForcaSession(s) {
+  const error=erroForca(s.strength_blocks);if(error){showPanelErro(error);return;}
+  const queue=compilarForca(s.strength_blocks).flatMap(b=>b.intervals);
+  const dialog=document.createElement('dialog');dialog.className='gcwo-circuit-preview';
+  dialog.innerHTML='<h3>Pré-visualização do doente</h3><div data-preview></div><p data-clock></p><p data-phase></p><label><input type="checkbox" data-auto> Avançar automaticamente após iniciar</label><div><button type="button" class="gcBtnGhost" data-close>Fechar</button> <button type="button" class="gcBtnGhost" data-pause hidden>Pausar</button> <button type="button" class="gcBtnPrimary" data-start>Iniciar exercício</button></div>';
+  document.body.append(dialog);let cursor=0,timer,remaining=0,paused=false,stamp=0;
+  const button=dialog.querySelector('[data-start]'),pause=dialog.querySelector('[data-pause]');
+  const close=()=>{clearInterval(timer);dialog.remove();};
+  dialog.querySelector('[data-close]').onclick=close;dialog.oncancel=close;
+  function show(){
+    clearInterval(timer);pause.hidden=true;dialog.querySelector('[data-clock]').textContent='';dialog.querySelector('[data-phase]').textContent='';button.disabled=false;
+    const step=queue[cursor];
+    if(!step){dialog.querySelector('[data-preview]').textContent='Sessão concluída';button.textContent='Fechar';button.onclick=close;return;}
+    dialog.querySelector('[data-preview]').innerHTML=(step.photo_url?'<img src="'+escAttr(step.photo_url)+'" alt="">':'')+'<h4>'+escHtml(step.label)+'</h4>'+
+      (step.type==='trabalho'&&step.prescribed_measure?'<p>Série '+step.set_index+'/'+step.set_total+' · Volta '+step.round_index+'/'+step.round_total+' · '+escHtml(step.prescribed_value??(step.prescribed_reps_min+'–'+step.prescribed_reps_max))+' '+(step.prescribed_measure==='time'?'s':'repetições')+' · '+escHtml(step.load??'—')+' kg</p><p>'+escHtml(step.prescription_note||'')+'</p>':'');
+    button.textContent=step.type==='descanso'?'Iniciar descanso':'Iniciar exercício';button.onclick=start;
+  }
+  function next(){clearInterval(timer);cursor++;show();if(dialog.querySelector('[data-auto]').checked&&cursor<queue.length)start();}
+  function start(){
+    const step=queue[cursor];
+    if(step.manual_reps){button.textContent='Concluir repetições';button.onclick=next;return;}
+    remaining=step.duration_sec;stamp=Date.now();paused=false;pause.hidden=false;pause.textContent='Pausar';button.disabled=true;
+    const update=()=>{
+      const now=Date.now();if(!paused)remaining=Math.max(0,remaining-(now-stamp)/1000);stamp=now;
+      dialog.querySelector('[data-clock]').textContent=Math.ceil(remaining)+' s';
+      const phases=step.cadence&&[['tempo_concentrico_s','Concêntrico'],['pausa_superior_s','Pausa superior'],['tempo_excentrico_s','Excêntrico'],['pausa_inferior_s','Pausa inferior']];
+      if(phases&&step.prescribed_measure==='reps'){
+        const cycle=phases.reduce((sum,[key])=>sum+step.cadence[key],0);
+        if(cycle>0){const elapsed=step.duration_sec-remaining;let position=elapsed%cycle;const phase=phases.find(([key])=>{if(position<step.cadence[key])return true;position-=step.cadence[key];return false;});dialog.querySelector('[data-phase]').textContent='Repetição '+(Math.floor(elapsed/cycle)+1)+' · '+(phase?.[1]||'');}
+      }
+      if(remaining<=0&&!paused)next();
+    };
+    update();timer=setInterval(update,100);
+  }
+  pause.onclick=()=>{paused=!paused;stamp=Date.now();pause.textContent=paused?'Retomar':'Pausar';};
+  show();dialog.showModal();
+}
+
 function renderCatalogPickerSection(s) {
   return `
     <div class="gcwo-gym-workspace">
@@ -4026,20 +4219,18 @@ function renderCatalogPickerGrid(s) {
   return cards + `<div class="gcwo-catalog-pages"><span>${list.length} exercícios · página ${_panelCatalogPage + 1}/${pageCount}</span><button type="button" data-catalog-page="${_panelCatalogPage - 1}" ${_panelCatalogPage === 0 ? 'disabled' : ''}>Anterior</button><button type="button" data-catalog-page="${_panelCatalogPage + 1}" ${_panelCatalogPage >= pageCount - 1 ? 'disabled' : ''}>Seguinte</button></div>`;
 }
 
-async function alternarFavoritoCatalogo(exId, s) {
+async function alternarFavoritoCatalogo(exId, s, refresh = null) {
   const ex = _state.exercisesCatalog.find(e => e.id === exId);
   if (!ex) return;
   const anterior = Boolean(ex.is_favorite);
   ex.is_favorite = !anterior;
   const grid = document.getElementById('gcwoPCatGrid');
-  if (grid) grid.innerHTML = renderCatalogPickerGrid(s);
-  wireGridCardClicks(s);
+  if(refresh)refresh();else {if (grid) grid.innerHTML = renderCatalogPickerGrid(s);wireGridCardClicks(s);}
   const { error } = await window.sb.from('wo_exercises').update({ is_favorite: ex.is_favorite }).eq('id', exId);
   if (error) {
     ex.is_favorite = anterior;
     console.error('[prescricao] falha a actualizar favorito:', error);
-    if (grid) grid.innerHTML = renderCatalogPickerGrid(s);
-    wireGridCardClicks(s);
+    if(refresh)refresh();else {if (grid) grid.innerHTML = renderCatalogPickerGrid(s);wireGridCardClicks(s);}
   }
 }
 
@@ -6024,6 +6215,7 @@ function handleGuardarSessao() {
   const s = _panelDraft;
   showPanelErro('');
 
+  if(s.strength_blocks){const error=erroForca(s.strength_blocks);if(error){showPanelErro(error);return;}Object.assign(s,sessaoForcaGuardada(s));}
   if (!_embeddedCare && !s.local) { showPanelErro('Falta escolher o local desta sessão.'); return; }
   if (s.kind === 'list' && !s.items.length) { showPanelErro('Adiciona pelo menos um exercício.'); return; }
   if (s.kind === 'walk' && !sessaoTemConteudo(s)) { showPanelErro('Adiciona pelo menos uma caminhada ou lanços de escadas.'); return; }
@@ -6146,6 +6338,7 @@ function sessaoParaGravarBase(s) {
     ...(s.training_program ? { training_program: s.training_program } : {}),
     ...(Array.isArray(s.recommendations) ? { recommendations_scope: s.recommendations_scope || null, recommendations: s.recommendations, recommendations_image: s.recommendations_image || null, recommendations_image_alt: s.recommendations_image_alt || null } : {}),
   };
+  if(s.strength_blocks){const compiled=sessaoForcaGuardada(s);return {...base,kind:compiled.kind,modality:compiled.modality,execution_mode:'guided',strength_version:1,strength_blocks:compiled.strength_blocks,blocks:compiled.blocks};}
   if (s.kind === 'walk') return { ...base, walks: s.walks, stairs_flights: s.stairs_flights };
   if (s.kind === 'circuit') return { ...base, circuit_availability_override: s.circuit_availability_override || null, circuit_config: s.circuit_config || null, circuit_time_limit_min: s._limiteMin ?? s.circuit_time_limit_min ?? null, blocks: flattenBlocosCircuitoParaGravar(s.blocks) };
   if (s.kind === 'card' && s.modality === 'Natação') {
