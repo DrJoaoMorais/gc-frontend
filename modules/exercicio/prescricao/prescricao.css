@@ -1749,3 +1749,5 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-circuit-preview [data-clock]{font-size:36px;text-align:center}
 @media(max-width:1000px){.gcwo-circuit-workspace{grid-template-columns:1fr}.gcwo-circuit-catalog .gcwo-catpick-grid{max-height:350px;grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:600px){.gcwo-circuit-catalog .gcwo-catpick-grid,.gcwo-circuit-models .gcwo-bib-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.gcwo-circuit-plan .gcwo-circ-ex-picked{flex-wrap:wrap}.gcwo-circuit-plan .gcwo-circ-ex-name{flex-basis:60%}}
+
+.gcwo-circuit-plan #gcwoPCircBlocosList{display:grid;grid-template-columns:minmax(0,1fr)}
