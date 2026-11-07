@@ -36,7 +36,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-07-circuito-visual';
+const PRESCRICAO_CSS_VERSION = '2026-11-07-dose-compacta';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -4136,7 +4136,8 @@ function renderItemCard(it, index) {
         <button type="button" class="gcwo-exercicio-remove" data-remove-exid="${escAttr(it.exercise_id)}" title="Remover exercício">✕</button>
       </summary>
       ${it._dosePorDefinir && !doseCatalogoDefinida(it) ? '<p class="gcwo-dose-definir">Preencha a dose de cada série e os descansos visíveis. Indique 0 s se não quiser pausa.</p>' : ''}
-      <div class="gcwo-field" style="margin-top:8px;">
+      <div class="gcwo-dose-topline">
+      <div class="gcwo-field">
         <span>Modo</span>
         <div class="gcwo-modo">
           <label><input type="radio" name="${duracaoRadioName}" value="series" ${modoDuracao === 'series' ? 'checked' : ''}> Séries/repetições</label>
@@ -4145,31 +4146,30 @@ function renderItemCard(it, index) {
       </div>
       <label class="gcwo-exercicio-nota-clinica">
         <span>Instrução específica para este doente</span>
-        <textarea class="gcwo-it-prescription-note" rows="2" placeholder="Ex.: Executar apenas entre 0–45°. Não completar até 90°.">${escHtml(it.prescription_note || '')}</textarea>
+        <textarea class="gcwo-it-prescription-note" rows="1" placeholder="Ex.: Executar apenas entre 0–45°. Não completar até 90°.">${escHtml(it.prescription_note || '')}</textarea>
       </label>
+      </div>
       ${modoDuracao === 'duracao' ? `
         <div class="gcwo-series-table">
-          <div class="gcwo-series-head gcwo-duration-head"><span>Série</span><span>Tempo (s)</span><span></span></div>
+          <div class="gcwo-series-head gcwo-duration-head"><button type="button" class="gcwo-add-duration-serie">+ Série</button><span>Série</span><span>Tempo (s)</span><span></span></div>
           ${seriesDuracao.map((serie, index) => `<div class="gcwo-series-row gcwo-duration-row" data-duration-series-index="${index}">
-            <b>${index + 1}</b>
+            <span aria-hidden="true"></span><b>${index + 1}</b>
             <input type="number" min="1" class="gcwo-serie-duration" value="${serie.duration_sec ?? ''}" aria-label="Tempo da série ${index + 1} em segundos">
             <button type="button" class="gcwo-duration-delete" title="Remover série" ${seriesDuracao.length <= 1 ? 'disabled' : ''}>✕</button>
           </div>`).join('')}
-          <button type="button" class="gcwo-add-duration-serie">+ Série</button>
         </div>
         ${itemUsaEquipamentoExterno(it) ? `
         <label class="gcwo-field gcwo-field-sm" style="margin-top:8px;"><span>Carga (kg)</span><input type="number" min="0" step="0.5" class="gcwo-it-carga" value="${it.load ?? ''}" aria-label="Carga (kg)"></label>
         ` : ''}
       ` : `
         <div class="gcwo-series-table">
-          <div class="gcwo-series-head"><span>Série</span><span>Repetições</span><span>Carga (kg)</span><span></span></div>
+          <div class="gcwo-series-head"><button type="button" class="gcwo-add-serie">+ Série</button><span>Série</span><span>Repetições</span><span>Carga (kg)</span><span></span></div>
           ${series.map((serie, index) => `<div class="gcwo-series-row" data-series-index="${index}">
-            <b>${index + 1}</b>
+            <span aria-hidden="true"></span><b>${index + 1}</b>
             <input type="number" min="0" class="gcwo-serie-reps" value="${serie.reps ?? ''}" aria-label="Repetições da série ${index + 1}">
             <input type="number" min="0" step="0.5" class="gcwo-serie-load" value="${serie.load ?? ''}" aria-label="Carga da série ${index + 1}">
             <button type="button" class="gcwo-serie-delete" title="Remover série" ${series.length <= 1 ? 'disabled' : ''}>✕</button>
           </div>`).join('')}
-          <button type="button" class="gcwo-add-serie">+ Série</button>
         </div>
       `}
       <div class="gcwo-exercicio-mais-grid">
