@@ -1732,7 +1732,7 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-circuit-models .gcwo-bib-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 .gcwo-circuit-models .gcwo-bib-card{display:flex;flex-direction:column;min-height:150px}
 .gcwo-circuit-models .gcwo-bib-card button{margin-top:auto}
-.gcwo-circ-settings{display:grid;grid-template-columns:1fr;gap:12px;padding:14px;background:#eef5fd;border-radius:10px;margin:12px 0}
+.gcwo-circ-settings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:14px;background:#eef5fd;border-radius:10px;margin:12px 0}
 .gcwo-circ-selector{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .gcwo-circ-selector input{max-width:85px!important;min-width:60px!important}
 .gcwo-circ-selector .gcwo-chips{margin:0}
@@ -1762,3 +1762,12 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-gym-plan .gcwo-duration-head,.gcwo-gym-plan .gcwo-duration-row{grid-template-columns:55px 35px minmax(55px,1fr) 24px}
 .gcwo-series-head .gcwo-add-serie,.gcwo-series-head .gcwo-add-duration-serie{margin:0;white-space:nowrap;min-height:28px}
 @media(max-width:600px){.gcwo-dose-topline{grid-template-columns:minmax(0,1fr);gap:8px}.gcwo-dose-topline .gcwo-modo{max-width:none}}
+
+/* Configuração do circuito numa linha, com escrita livre junto dos atalhos. */
+.gcwo-circuit-plan .gcwo-circ-nome{flex:1;min-width:0;width:100%;box-sizing:border-box;height:42px;padding:10px;border:1px solid #cbd9e9;border-radius:8px;background:#fff;color:inherit;font:inherit}
+.gcwo-circ-settings>.gcwo-field{min-width:0}
+.gcwo-circ-settings .gcwo-circ-selector{flex-wrap:nowrap;gap:6px}
+.gcwo-circ-settings .gcwo-chips{flex-wrap:nowrap;gap:4px}
+.gcwo-circ-settings .gcwo-chip{min-width:30px;padding:5px 7px;font-size:12px;white-space:nowrap}
+.gcwo-circ-settings .gcwo-circ-selector input{flex:1 1 52px;min-width:42px!important;max-width:60px!important;box-sizing:border-box;padding:7px 5px}
+@media(max-width:700px){.gcwo-circ-settings{grid-template-columns:minmax(0,1fr)}}

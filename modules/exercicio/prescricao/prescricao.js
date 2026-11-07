@@ -36,7 +36,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-07-dose-compacta';
+const PRESCRICAO_CSS_VERSION = '2026-11-07-circuito-linha';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -5569,9 +5569,9 @@ function renderCircBlocoVoltas(b) {
     <div class="gcwo-exercicio-head"><input type="text" class="gcwo-circ-nome" placeholder="Nome do circuito" value="${escAttr(b.name)}" aria-label="Nome do circuito">
       <button type="button" class="gcwo-exercicio-remove" data-remove-cbid="${escAttr(b.block_id)}" title="Remover bloco">✕</button></div>
     <div class="gcwo-circ-settings">
-      <label class="gcwo-field"><span>Voltas</span>${seletorCircuito('gcwo-circ-rounds', b.rounds, [1,2,3,4,5], '', 1)}</label>
-      <label class="gcwo-field"><span>Entre exercícios (s)</span>${seletorCircuito('gcwo-circ-default-rest', b.default_rest_s, [10,20,30,45,60], '″')}</label>
-      <label class="gcwo-field"><span>Entre voltas (s)</span>${seletorCircuito('gcwo-circ-restrounds', b.rest_between_rounds_s, [30,45,60], '″')}</label>
+      <label class="gcwo-field"><span>Voltas</span>${seletorCircuito('gcwo-circ-rounds', b.rounds, [1,3,5], '', 1)}</label>
+      <label class="gcwo-field"><span>Entre exercícios (s)</span>${seletorCircuito('gcwo-circ-default-rest', b.default_rest_s, [20,30,45], '″')}</label>
+      <label class="gcwo-field"><span>Entre voltas (s)</span>${seletorCircuito('gcwo-circ-restrounds', b.rest_between_rounds_s, [20,30,45], '″')}</label>
     </div>
     <p class="gcwo-muted">Uma volta é percorrer esta lista uma vez. Pode escrever qualquer valor nos campos. O descanso entre exercícios aplica-se à lista e pode ser ajustado em cada exercício.</p>
     <h4>Exercícios de uma volta · ${exs.length}</h4>
