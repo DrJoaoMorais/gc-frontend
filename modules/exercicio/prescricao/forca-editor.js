@@ -12,7 +12,7 @@ function selector(value, attr, values, label) {
 }
 
 function quickValue(value, attr, presets, label, unit = '') {
-  return '<div class="gcwo-strength-quick"><div class="gcwo-chips">' + presets.map(n =>
+  return '<div class="gcwo-strength-quick' + (unit ? ' gcwo-strength-quick-rest' : '') + '"><div class="gcwo-chips">' + presets.map(n =>
     '<button type="button" class="gcwo-chip' + (value === n ? ' on' : '') + '" data-quick-value="' + n + '" aria-pressed="' + (value === n) + '" aria-label="' + esc(label + ': ' + n + unit) + '">' + n + unit + '</button>').join('') +
     '</div><input ' + attr + ' value="' + esc(value ?? '') + '" aria-label="' + esc(label + ' — valor personalizado') + '"></div>';
 }
@@ -33,17 +33,18 @@ function itemHTML(item, index, block, blockIndex, blocks) {
   return '<article class="gcwo-strength-item" data-strength-item="' + esc(item.item_id) + '">' +
     '<div class="gcwo-strength-identity"><b class="gcwo-strength-order">' + (index + 1) + '</b>' +
     (item.photo_url ? '<button type="button" class="gcwo-strength-image" data-zoom><img src="' + esc(item.photo_url) + '" alt="' + esc(item.name || 'Exercício') + '"></button>' : '<div class="gcwo-strength-no-image">Sem imagem</div>') +
-    '<strong>' + esc(item.name) + '</strong></div><div class="gcwo-strength-prescription"><div class="gcwo-strength-item-head"><div class="gcwo-chips">' +
+    '<strong>' + esc(item.name) + '</strong></div><div class="gcwo-strength-prescription"><div class="gcwo-strength-item-head"><div class="gcwo-chips gcwo-strength-mode">' +
     [['reps','Repetições'],['time','Segundos']].map(([mode,label]) => '<button type="button" class="gcwo-chip' + (item.dose_unit === mode ? ' on' : '') + '" data-dose-unit="' + mode + '">' + label + '</button>').join('') +
     '</div><div class="gcwo-strength-item-actions"><button type="button" class="gcBtnGhost gcBtnSm" data-move="-1" ' + (index === 0 ? 'disabled' : '') + ' aria-label="Subir exercício">↑</button><button type="button" class="gcBtnGhost gcBtnSm" data-move="1" ' + (last ? 'disabled' : '') + ' aria-label="Descer exercício">↓</button><button type="button" class="gcBtnGhost gcBtnSm" data-remove-item aria-label="Remover exercício">×</button></div></div>' +
-    '<div class="gcwo-strength-series"><div class="gcwo-strength-series-row gcwo-strength-series-head"><span>Série</span><span>' + doseLabel + '</span><span>Carga (kg)</span><span>Descanso entre séries</span><button type="button" class="gcBtnGhost gcBtnSm" data-add-set>+ Série</button></div>' +
+    '<div class="gcwo-strength-series-toolbar"><strong>Prescrição por série</strong><button type="button" class="gcBtnGhost gcBtnSm" data-add-set>+ Série</button></div>' +
+    '<div class="gcwo-strength-series"><div class="gcwo-strength-series-row gcwo-strength-series-head"><span>Série</span><span>' + doseLabel + '</span><span>Carga (kg)</span><span>Descanso entre séries</span><span aria-hidden="true"></span></div>' +
     item.strength_series.map((set,i) => {
       const value = set.value ?? (set.reps_min != null ? set.reps_min + '–' + set.reps_max : '');
       const attr = (item.dose_unit === 'time' ? 'type="number" min="0.5" step="0.5"' : 'type="text" inputmode="numeric" placeholder="N.º / intervalo"') + ' data-set="' + i + '" data-set-field="value"';
       const dose = item.dose_unit === 'reps' ? quickValue(value, attr, [8,10,12,15], doseLabel + ' da série ' + (i+1)) : '<input ' + attr + ' value="' + esc(value) + '" aria-label="Segundos da série ' + (i+1) + '">';
-      const restSet = i < item.strength_series.length - 1 ? quickValue(Object.hasOwn(set, 'rest_after_s') ? set.rest_after_s : item.rest_set, 'type="number" min="0" step="0.5" data-set="' + i + '" data-set-field="rest_after_s"', [30,45,60], 'Descanso após a série ' + (i+1), ' s') : '<span class="gcwo-muted">—</span>';
-      return '<div class="gcwo-strength-series-row"><b>' + (i+1) + '</b>' + dose +
-        '<input type="number" min="0" step="0.5" data-set="' + i + '" data-set-field="load" value="' + esc(set.load ?? '') + '" aria-label="Carga da série ' + (i+1) + '">' + restSet +
+      const restSet = i < item.strength_series.length - 1 ? quickValue(Object.hasOwn(set, 'rest_after_s') ? set.rest_after_s : item.rest_set, 'type="number" min="0" step="0.5" data-set="' + i + '" data-set-field="rest_after_s"', [30,45,60], 'Descanso após a série ' + (i+1), ' s') : '<span class="gcwo-strength-no-rest" aria-label="Sem descanso entre séries após a última série">—</span>';
+      return '<div class="gcwo-strength-series-row"><b class="gcwo-strength-set-number">' + (i+1) + '</b>' + dose +
+        '<label class="gcwo-strength-load"><span>Carga (kg)</span><input type="number" min="0" step="0.5" data-set="' + i + '" data-set-field="load" value="' + esc(set.load ?? '') + '" aria-label="Carga da série ' + (i+1) + '"></label>' + restSet +
         '<button type="button" class="gcBtnGhost gcBtnSm" data-delete-set="' + i + '" ' + (item.strength_series.length === 1 ? 'disabled' : '') + ' aria-label="Remover série ' + (i+1) + '">×</button></div>';
     }).join('') +
     '</div><div class="gcwo-strength-rests">' + rest + '</div>' +
@@ -62,7 +63,7 @@ export function renderBlocosForca(blocks, target) {
     const timing = tempoForca([block]);
     return '<section class="gcwo-strength-block' + (block.block_id === target ? ' selected' : '') + '" data-strength-block="' + esc(block.block_id) + '">' +
       '<div class="gcwo-strength-block-head"><span class="gcwo-exercicio-order">' + String.fromCharCode(65+index) + '</span><input data-block-name value="' + esc(block.name) + '" aria-label="Nome do bloco">' +
-      '<div class="gcwo-chips">' + [['series','Por séries'],['circuit','Em circuito']].map(([type,label])=>'<button type="button" class="gcwo-chip' + (block.type === type ? ' on' : '') + '" data-block-type="' + type + '">' + label + '</button>').join('') +
+      '<div class="gcwo-chips gcwo-strength-mode">' + [['series','Por séries'],['circuit','Em circuito']].map(([type,label])=>'<button type="button" class="gcwo-chip' + (block.type === type ? ' on' : '') + '" data-block-type="' + type + '">' + label + '</button>').join('') +
       '</div><button type="button" class="gcBtnGhost gcBtnSm" data-delete-block aria-label="Remover bloco">×</button></div>' +
       '<p class="gcwo-muted">' + (block.type === 'circuit' ? 'Percorrer a lista e repetir por voltas.' : 'Completar as séries de cada exercício antes de avançar.') + '</p>' +
       (block.type === 'circuit' ? '<div class="gcwo-strength-settings">' + selector(block.rounds,'data-preset="rounds"',[1,3,5],'Voltas') + selector(block.rest_between_rounds_s,'data-preset="rest_between_rounds_s"',[20,30,45],'Entre voltas (s)') + '</div>' : '') +
@@ -144,3 +145,4 @@ function syncQuick(input) {
     button.classList.toggle('on',selected);button.setAttribute('aria-pressed',String(selected));
   });
 }
+
