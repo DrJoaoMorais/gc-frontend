@@ -1,5 +1,5 @@
 import { prepararForca, itemForca, novoBlocoForca, cadenciaForca, erroForca, compilarForca, tempoForca, sessaoForcaGuardada } from './forca-blocos.js?v=2026-11-07-unico';
-import { renderBlocosForca, wireBlocosForca } from './forca-editor.js?v=2026-11-08-catalogo-inline';
+import { renderBlocosForca, renderItemsForca, wireBlocosForca } from './forca-editor.js?v=2026-11-08-selecao-estavel';
 import { BLOCOS_EXERCICIO, resolverBloco, exerciciosDaSessao, distribuicaoRegional } from './biblioteca-blocos.js?v=2026-11-05-semana-hoje';
 import { PLANOS_CASA, configuracaoPlanoCasa, preverPlanoCasa, tempoPlanoCasa } from './planos-casa.js?v=2026-11-01-1';
 import { PADROES_CASA, catalogoCasa, sugerirVariantesCasa, semanaCasa, proporProgramaCasa } from './programa-casa.js?v=2026-11-01-1';
@@ -4115,7 +4115,16 @@ function wirePanelForca(s) {
       ...cat,exercise_id:cat.id,sets:1,series:[{reps:null,load:null}],rest_set:0,rest_next:null,
       tempo_concentrico_s:cat.tempo_concentrico_s??null,tempo_excentrico_s:cat.tempo_excentrico_s??null,
     },uuid));
-    renderPanel();refreshForca(s);
+    // Keep the live catalogue and its scroll/focus context mounted. Only the
+    // exercise editor below it changes; selecting a card must not rebuild the panel.
+    const blockCard=[...root.querySelectorAll('[data-strength-block]')].find(el=>el.dataset.strengthBlock===block.block_id);
+    const itemHost=blockCard.querySelector('[data-block-items]');
+    itemHost.innerHTML=renderItemsForca(block,s.strength_blocks.indexOf(block),s.strength_blocks);
+    blockCard.querySelector('[data-block-empty]').hidden=block.items.length>0;
+    wireBlocosForca(root,s.strength_blocks,blockOptions,block.block_id);
+    refreshCatalog();refreshForca(s);
+    const selectedCard=[...grid.querySelectorAll('[data-exid]')].find(el=>el.dataset.exid===id);
+    selectedCard?.focus({preventScroll:true});
   };
   const grid=document.getElementById('gcwoPCatGrid');
   grid.onclick=event=>{
@@ -4150,10 +4159,11 @@ function wirePanelForca(s) {
     modelosForca.set(uuid(),structuredClone(block));renderPanel();
     document.getElementById('gcwoStrengthStatus').textContent='Modelo disponível durante esta sessão. Use Guardar plano para conservar a prescrição do doente.';
   };
-  wireBlocosForca(root,s.strength_blocks,{
+  const blockOptions={
     render:()=>{renderPanel();refreshForca(s);},change:()=>refreshForca(s),target:chooseTarget,openDetails:_strengthOpenDetails,
     zoom:item=>{const dialog=document.createElement('dialog');dialog.className='gcwo-circuit-preview';dialog.innerHTML='<h3>'+escHtml(item.name)+'</h3><img src="'+escAttr(item.photo_url)+'" alt=""><button type="button" class="gcBtnGhost">Fechar</button>';dialog.querySelector('button').onclick=()=>dialog.close();dialog.onclose=()=>dialog.remove();document.body.append(dialog);dialog.showModal();},
-  });
+  };
+  wireBlocosForca(root,s.strength_blocks,blockOptions);
   document.getElementById('gcwoStrengthPreview').onclick=()=>previewForcaSession(s);
   refreshForca(s);
 }

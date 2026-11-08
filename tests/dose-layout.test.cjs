@@ -118,7 +118,11 @@ test('one add button opens the catalogue inside its block and preserves selectio
  assert.equal(x.get('.gcwo-catalog-heading').matches('.gcwo-gym-catalog:not([open])>:not(summary)'),true,'The former selector would reproduce the blank catalogue');
 
  assert.equal(x.run('alvoForca(_panelDraft).block_id'),x.run('_panelDraft.strength_blocks[1].block_id'));
+ const catalogNode=x.get('.gcwo-strength-catalog'),gridNode=x.get('#gcwoPCatGrid'),searchNode=x.get('#gcwoPCatBusca');
+ const previousScrollCalls=x.run('scrolled.length');
  x.click('#gcwoPCatGrid [data-exid="new-ex"]');
+ assert.equal(x.get('.gcwo-strength-catalog'),catalogNode);assert.equal(x.get('#gcwoPCatGrid'),gridNode);assert.equal(x.get('#gcwoPCatBusca'),searchNode);
+ assert.equal(x.run('scrolled.length'),previousScrollCalls);
  assert.equal(x.run('_panelDraft.strength_blocks[0].items.length'),0);
  assert.equal(x.run('_panelDraft.strength_blocks[1].items.length'),1);
  assert.equal(x.get('.gcwo-strength-catalog').hidden,false);
@@ -126,6 +130,16 @@ test('one add button opens the catalogue inside its block and preserves selectio
  assert.equal(x.run('_panelDraft.strength_blocks[1].rounds'),5);
  assert.equal(x.run('_panelDraft.strength_blocks[1].rest_between_rounds_s'),45);
  assert.match(x.get('#gcwoStrengthSelection').textContent,/1 exercício/);
+ const dose=x.get('[data-block-items] [data-set-field="value"]');dose.value='12';dose.dispatchEvent(new x.window.Event('input'));
+ assert.equal(x.run('_panelDraft.strength_blocks[1].items[0].strength_series[0].value'),12);
+ x.click('#gcwoPCatGrid [data-exid="new-ex"]');
+ assert.equal(x.run('_panelDraft.strength_blocks[1].items.length'),0);
+ assert.equal(x.get('.gcwo-strength-catalog'),catalogNode);assert.equal(x.get('#gcwoPCatBusca'),searchNode);
+ assert.equal(x.run('scrolled.length'),previousScrollCalls);
+ x.click('#gcwoPCatGrid [data-exid="new-ex"]');
+ assert.equal(x.run('_panelDraft.strength_blocks[1].items.length'),1);
+ assert.equal(x.get('.gcwo-strength-catalog'),catalogNode);
+ assert.equal(x.run('scrolled.length'),previousScrollCalls);
  x.click('#gcwoStrengthBackToBlock');
  assert.equal(x.get('.gcwo-strength-catalog').hidden,true);
  const block=x.document.querySelectorAll('[data-strength-block]')[1];

@@ -37,6 +37,9 @@ function itemHTML(item, index, block, blockIndex, blocks) {
     (item.dose_unit === 'reps' && seconds == null ? '<p class="gcwo-muted">Sem cadência definida, o doente conclui as repetições manualmente. O tempo de execução fica por calcular.</p>' : '') + '</details></div></article>';
 }
 
+export function renderItemsForca(block, blockIndex, blocks) {
+  return block.items.map((item,index)=>itemHTML(item,index,block,blockIndex,blocks)).join('');
+}
 export function renderBlocosForca(blocks, target) {
   return blocks.map((block, index) => {
     if (block.type === 'legacy') return '<section class="gcwo-strength-block" data-strength-block="' + esc(block.block_id) + '"><h4>' + esc(block.name) + '</h4><p class="gcwo-muted">Sequência guardada preservada.</p><details><summary>Ver sequência</summary>' + (block.original.intervals || []).map(i=>'<p>' + esc(i.label || i.type) + ' · ' + duration(i.duration_sec || 0) + '</p>').join('') + '</details><button type="button" class="gcBtnGhost" data-delete-block>Remover bloco</button></section>';
@@ -47,14 +50,15 @@ export function renderBlocosForca(blocks, target) {
       '</div><button type="button" class="gcBtnGhost gcBtnSm" data-delete-block aria-label="Remover bloco">×</button></div>' +
       '<p class="gcwo-muted">' + (block.type === 'circuit' ? 'Percorrer a lista e repetir por voltas.' : 'Completar as séries de cada exercício antes de avançar.') + '</p>' +
       (block.type === 'circuit' ? '<div class="gcwo-strength-settings">' + selector(block.rounds,'data-preset="rounds"',[1,3,5],'Voltas') + selector(block.rest_between_rounds_s,'data-preset="rest_between_rounds_s"',[20,30,45],'Entre voltas (s)') + '</div>' : '') +
-      block.items.map((item,i)=>itemHTML(item,i,block,index,blocks)).join('') +
-      (!block.items.length ? '<p class="gcwo-muted">Este bloco ainda não tem exercícios.</p>' : '') +
-      '<div class="gcwo-strength-block-foot"><button type="button" class="gcBtnGhost" data-target-block aria-expanded="false" aria-controls="gcwoStrengthCatalog">Adicionar exercícios</button><span data-strength-block-time>' + (timing.incomplete ? 'Tempo parcialmente por calcular' : duration(timing.seconds)) + '</span></div><div data-block-catalog></div></section>';
+      '<div data-block-catalog></div><div data-block-items>' + renderItemsForca(block,index,blocks) + '</div>' +
+      '<p class="gcwo-muted" data-block-empty ' + (block.items.length?'hidden':'') + '>Este bloco ainda não tem exercícios.</p>' +
+      '<div class="gcwo-strength-block-foot"><button type="button" class="gcBtnGhost" data-target-block aria-expanded="false" aria-controls="gcwoStrengthCatalog">Adicionar exercícios</button><span data-strength-block-time>' + (timing.incomplete ? 'Tempo parcialmente por calcular' : duration(timing.seconds)) + '</span></div></section>';
   }).join('');
 }
 
-export function wireBlocosForca(root, blocks, options) {
+export function wireBlocosForca(root, blocks, options, onlyBlockId = null) {
   root.querySelectorAll('[data-strength-block]').forEach(card => {
+    if(onlyBlockId&&card.dataset.strengthBlock!==onlyBlockId)return;
     const block = blocks.find(b=>b.block_id === card.dataset.strengthBlock);
     card.querySelector('[data-delete-block]').onclick = () => { blocks.splice(blocks.indexOf(block),1); options.render(); };
     if (block.type === 'legacy') return;
