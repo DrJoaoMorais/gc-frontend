@@ -1618,7 +1618,7 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-ct-sidebar .gcwo-ct-bloco-head { padding:0; margin-bottom:6px; }
 .gcwo-ct-future { display:flex; flex-wrap:wrap; gap:8px; color:#708197; font-size:11px; margin-bottom:10px; }
 .gcwo-ct-future span { border:1px dashed #c9d5e4; border-radius:7px; padding:4px 8px; }
-.gcwo-gym-catalog:not([open])>:not(summary),.gcwo-exercicio-expand:not([open])>:not(summary) { display:none; }
+details.gcwo-gym-catalog:not([open])>:not(summary),details.gcwo-exercicio-expand:not([open])>:not(summary) { display:none; }
 .gcwo-gym-workspace { height:auto; grid-template-columns:minmax(0,1fr); }
 .gcwo-gym-catalog,.gcwo-gym-plan { overflow:visible; }
 .gcwo-ct-pesquisa { display:flex; flex-direction:column; gap:5px; margin:12px 0; }

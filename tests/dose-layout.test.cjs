@@ -107,6 +107,16 @@ test('one add button opens the catalogue inside its block and preserves selectio
  cards[1].querySelector('[data-target-block]').click();
  assert.equal(x.get('.gcwo-strength-catalog').hidden,false);
  assert.equal(x.get('.gcwo-strength-catalog').closest('[data-strength-block]').dataset.strengthBlock,cards[1].dataset.strengthBlock);
+ // Regression from the recording: an open section was still blank because a legacy
+ // closed-details selector hid every child. Check the real CSS selectors too.
+ const css=require('cssom').parse(fs.readFileSync(path.join(__dirname,'../modules/exercicio/prescricao/prescricao.css'),'utf8'));
+ const hiddenSelectors=[...css.cssRules].filter(rule=>rule.selectorText&&rule.style?.display==='none').flatMap(rule=>rule.selectorText.split(',')).filter(selector=>!selector.includes('::'));
+ const visibleContent=[...x.get('.gcwo-strength-catalog').children];
+ assert.ok(visibleContent.some(el=>el.classList.contains('gcwo-catpick-grid')));
+ assert.ok(visibleContent.some(el=>el.classList.contains('gcwo-catalog-search-row')));
+ for(const el of visibleContent){for(const selector of hiddenSelectors){assert.equal(el.matches(selector),false,'Catalogue child hidden by CSS: '+selector);}}
+ assert.equal(x.get('.gcwo-catalog-heading').matches('.gcwo-gym-catalog:not([open])>:not(summary)'),true,'The former selector would reproduce the blank catalogue');
+
  assert.equal(x.run('alvoForca(_panelDraft).block_id'),x.run('_panelDraft.strength_blocks[1].block_id'));
  x.click('#gcwoPCatGrid [data-exid="new-ex"]');
  assert.equal(x.run('_panelDraft.strength_blocks[0].items.length'),0);
