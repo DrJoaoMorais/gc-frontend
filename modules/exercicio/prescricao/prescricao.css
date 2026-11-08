@@ -2013,3 +2013,6 @@ details.gcwo-gym-catalog:not([open])>:not(summary),details.gcwo-exercicio-expand
  .gcwo-strength-prescription .gcwo-strength-item-head{flex-wrap:wrap}
  .gcwo-strength-prescription .gcwo-strength-item-head>.gcwo-strength-series-toolbar{order:3;flex-basis:100%}
 }
+
+/* Quatro atalhos de duração: o valor livre adapta-se à largura disponível. */
+.gcwo-strength-editor .gcwo-strength-quick-time{flex-wrap:wrap}

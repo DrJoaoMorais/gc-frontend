@@ -11,8 +11,8 @@ function selector(value, attr, values, label) {
     '<input type="number" min="' + (label === 'Voltas' ? 1 : 0) + '" ' + attr.replace('data-preset', 'data-config') + ' value="' + esc(value ?? '') + '" aria-label="' + label + '"></div></div>';
 }
 
-function quickValue(value, attr, presets, label, unit = '') {
-  return '<div class="gcwo-strength-quick' + (unit ? ' gcwo-strength-quick-rest' : '') + '"><div class="gcwo-chips">' + presets.map(n =>
+function quickValue(value, attr, presets, label, unit = '', extraClass = '') {
+  return '<div class="gcwo-strength-quick' + (unit ? ' gcwo-strength-quick-rest' : '') + (extraClass ? ' ' + extraClass : '') + '"><div class="gcwo-chips">' + presets.map(n =>
     '<button type="button" class="gcwo-chip' + (value === n ? ' on' : '') + '" data-quick-value="' + n + '" aria-pressed="' + (value === n) + '" aria-label="' + esc(label + ': ' + n + unit) + '">' + n + unit + '</button>').join('') +
     '</div><input ' + attr + ' value="' + esc(value ?? '') + '" aria-label="' + esc(label + ' — valor personalizado') + '"></div>';
 }
@@ -40,7 +40,7 @@ function itemHTML(item, index, block, blockIndex, blocks) {
     item.strength_series.map((set,i) => {
       const value = set.value ?? (set.reps_min != null ? set.reps_min + '–' + set.reps_max : '');
       const attr = (item.dose_unit === 'time' ? 'type="number" min="0.5" step="0.5"' : 'type="text" inputmode="numeric" placeholder="N.º / intervalo"') + ' data-set="' + i + '" data-set-field="value"';
-      const dose = item.dose_unit === 'reps' ? quickValue(value, attr, [8,10,12,15], doseLabel + ' da série ' + (i+1)) : '<input ' + attr + ' value="' + esc(value) + '" aria-label="Segundos da série ' + (i+1) + '">';
+      const dose = item.dose_unit === 'reps' ? quickValue(value, attr, [8,10,12,15], doseLabel + ' da série ' + (i+1)) : quickValue(value, attr, [20,30,45,60], doseLabel + ' da série ' + (i+1), ' s', 'gcwo-strength-quick-time');
       const restSet = i < item.strength_series.length - 1 ? quickValue(Object.hasOwn(set, 'rest_after_s') ? set.rest_after_s : item.rest_set, 'type="number" min="0" step="0.5" data-set="' + i + '" data-set-field="rest_after_s"', [30,45,60], 'Descanso após a série ' + (i+1), ' s') : '<span class="gcwo-strength-no-rest" aria-label="Sem descanso entre séries após a última série">—</span>';
       return '<div class="gcwo-strength-series-row"><b class="gcwo-strength-set-number">' + (i+1) + '</b>' + dose +
         '<label class="gcwo-strength-load"><span>Carga (kg)</span><input type="number" min="0" step="0.5" data-set="' + i + '" data-set-field="load" value="' + esc(set.load ?? '') + '" aria-label="Carga da série ' + (i+1) + '"></label>' + restSet +
