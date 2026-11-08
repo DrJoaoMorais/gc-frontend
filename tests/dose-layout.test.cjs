@@ -12,6 +12,8 @@ async function setup(){
  const c=vm.createContext(ctx);
  const source=fs.readFileSync(path.join(__dirname,'../modules/exercicio/prescricao/prescricao.js'),'utf8').replace(/^import .*;\s*$/gm,'').replace(/^export /gm,'').replaceAll('import.meta.url',JSON.stringify('file:///prescricao.js'));
  vm.runInContext(source,c);
+ // The editor now saves through the existing plan action; isolate persistence in DOM tests.
+ vm.runInContext("globalThis.planSaves=0;handleGerar=async()=>{planSaves++;globalThis.savedPlan=buildFinalData()}",c);
  vm.runInContext(`_state.patient={id:'demo',full_name:'Demonstração'};_state.clinicId='demo-clinic';_state.startDate='2026-11-02';_state.endDate='2026-11-15';_state.activePrescriptionId='demo-plan';_state.catalogLoaded=true;
  const caminhada=(id,date,min)=>({session_id:id,date,order:0,kind:'walk',modality:'Caminhada',local:'Casa',walks:[{walk_id:'walk-'+id,label:'',duration_sec:min*60,pace:'lento',rpe_local:null}],stairs_flights:null,notes:''});
  _state.sessions=[caminhada('monday','2026-11-02',60),caminhada('wednesday','2026-11-04',20),caminhada('sunday','2026-11-08',60)];abrirCriarTreino();_criarTreino.tipo='caminhada';_criarTreino.atual={nome:'Caminhada',sessao:caminhada('template','2026-11-01',60)};_criarTreino.treinosPorTipo.caminhada=_criarTreino.atual;ctRender();`,c);
@@ -54,15 +56,36 @@ test('editing a new session validates the visible inputs and saves the same cade
  _panelDraft=novaSessaoSkeleton('Ginásio','list','2026-11-06');_panelIsNovo=true;
  document.getElementById('gcwoPrescricaoRoot').innerHTML='<div id="gcwoPanel"></div>';renderPanel();`);
  x.click('#gcwoPCatGrid [data-exid]');
- x.click('#gcwoPGuardar');assert.ok(x.get('#gcwoPErro').textContent);
+ x.click('#gcwoPGuardar');assert.ok(x.get('#gcwoPErro').textContent);assert.equal(x.run('planSaves'),0);
  const edit=(selector,value)=>{const input=x.get(selector);input.value=value;input.dispatchEvent(new x.window.Event('input'))};
  edit('[data-set-field="value"]','10');edit('[data-set-field="load"]','7.5');
  edit('[data-field="tempo_concentrico_s"]','2');edit('[data-field="tempo_excentrico_s"]','3');
  assert.match(x.get('#gcwoStrengthTime').textContent,/50/);
  x.click('#gcwoPGuardar');assert.equal(x.run('_panelDraft'),null);
  const payload=x.run('buildFinalData().sessions.find(s=>s.strength_version===1)');
+ assert.equal(x.run('planSaves'),1);assert.equal(x.run('savedPlan.sessions.find(s=>s.strength_version===1).blocks[0].intervals[0].duration_sec'),50);
  assert.equal(payload.blocks[0].intervals[0].duration_sec,50);
  assert.equal(payload.blocks[0].intervals[0].load,7.5);
  assert.equal(payload.blocks[0].intervals[0].cadence.tempo_concentrico_s,2);
  assert.equal(payload.blocks[0].intervals.at(-1).type,'trabalho');
+});
+
+test('embedded workspace has one settings form and saves an edited day through one action',async()=>{
+ const x=await setup();
+ x.run("_criarTreino=null;_embeddedCare={onChange(){}};_calendarFirstMonday='2026-11-02';renderStep2()");
+ assert.equal(x.document.querySelectorAll('#gcwoDataInicio').length,1);
+ assert.ok(x.get('#gcwoPlanSettings'));assert.equal(x.get('#gcwoCriarTreino'),null);
+ assert.ok(x.get('#gcwoPlanSaveState'));
+ const before=x.run('JSON.stringify(_state.sessions)');
+ x.click('[data-edit-session="monday"]');
+ assert.ok(x.get('.gcwo-care-editor').classList.contains('gcwo-workout-editing'));
+ assert.equal(x.get('#gcwoPGuardar').textContent,'Guardar treino e plano');
+ x.click('#gcwoPCancelar');
+ assert.equal(x.run('JSON.stringify(_state.sessions)'),before);assert.equal(x.run('planSaves'),0);
+ assert.equal(x.get('.gcwo-care-editor').classList.contains('gcwo-workout-editing'),false);
+ x.click('[data-edit-session="monday"]');
+ await x.run('guardarTreinoEPlano()');
+ assert.equal(x.run('planSaves'),1);
+ assert.equal(x.run('savedPlan.sessions.find(s=>s.session_id==="monday").session_id'),'monday');
+ assert.equal(x.document.querySelectorAll('#gcwoGerar').length,1);
 });

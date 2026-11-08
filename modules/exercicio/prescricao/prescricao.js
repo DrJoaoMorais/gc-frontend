@@ -38,7 +38,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-08-duas-colunas';
+const PRESCRICAO_CSS_VERSION = '2026-11-08-workspace';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -285,6 +285,7 @@ let _panelCatalogBusca = '';
 let _panelCatalogPage = 0;
 let _panelFinalidade = 'todos';
 let _panelEquipFiltro = new Set();      // filtro de equipamento (multi-selecção) dentro do painel de ginásio
+let _planSettingsExpanded=false;
 let _pendingSlot = null;                // {date} — dia escolhido na grelha, modalidade por escolher (ecrã de 2 modos, 9 ago 2026)
 let _calMenuDocClickWired = false;      // menu ⋮ por sessão no calendário — fecha ao clicar fora (9 ago 2026)
 let _beforeUnloadWired = false;         // aviso ao sair com sessões só locais, nunca gravadas (9 ago 2026)
@@ -759,6 +760,8 @@ export async function initCarePrescription({ patientId, clinicId, onCalendar, on
   _embeddedCare.savedFingerprint = JSON.stringify(buildFinalData());
   renderStep2();
   return {
+    getPlanSummary() { return { startDate:_state.startDate,endDate:_state.endDate,reviewDate:_state.dataRevisao,expiry:_state.linkExpiryDate,saving:!!_embeddedCare?.saving,editing:step2EmEdicao()||!!_criarTreino?.editar,pending:haSessoesPorGravar()||step2EmEdicao() }; },
+    openSettings() { if(_embeddedCare?.saving||step2EmEdicao())return;const settings=document.getElementById('gcwoPlanSettings');if(!settings)return;settings.open=true;settings.scrollIntoView({block:'start',behavior:'smooth'}); },
     refreshCalendar() { if (!step2EmEdicao() && !_patologia) renderCalGrid(); },
     hasActiveEditor() { return !!_criarTreino?.editar || !!_criarTreino?.destinoEscolha || step2EmEdicao(); },
     hasUnsavedChanges() { return haSessoesPorGravar() || !!_criarTreino?.dirty || !!_panelDraft || !!_pendingSlot; },
@@ -1659,13 +1662,14 @@ function renderDatasPlanoSection() {
           <div class="gcwo-link-hint">Validade independente das datas dos treinos. Às 23:59 desta data (Lisboa), o acesso termina; o programa completo mantém-se guardado.</div>
           <span id="gcwoRenovarEstado" class="gcwo-link-hint" role="status"></span>
         </div>
-        ${renderEstadoPlanoGroup()}
+        ${_embeddedCare ? (_state.activePrescriptionId ? '<button type="button" id="gcwoTerminarPlano" class="gcBtnDanger">Terminar plano</button>' : '') : renderEstadoPlanoGroup()}
       </div>
     </div>`;
 }
 // Estado do plano + Terminar/Guardar, na mesma faixa do período (antes ficava num bloco por
 // baixo do calendário). Mesmos ids e handlers de sempre — só mudou de sítio.
 function renderEstadoPlanoGroup() {
+  if(_embeddedCare)return `<div class="gcwo-plan-savebar"><span id="gcwoPlanSaveState">${haSessoesPorGravar()?'Alterações por guardar':'Todas as alterações guardadas'}</span><button type="button" id="gcwoGerar" class="gcBtnSuccess" ${hasSessionComExercicios()?'':'disabled'}>Guardar plano</button><span id="gcwoGerarErro" class="gcwo-erro" role="alert"></span></div>`;
   return `
         <div class="gcwo-settings-group gcwo-estado-settings">
           <span class="gcwo-settings-label">Estado</span>
@@ -1688,6 +1692,7 @@ function isoLisboa(timestamp) {
   return `${v.year}-${v.month}-${v.day}`;
 }
 function wireDatasPlanoSection() {
+  const disclosure=document.getElementById('gcwoPlanSettings');if(disclosure)disclosure.addEventListener('toggle',()=>{if(disclosure.isConnected)_planSettingsExpanded=disclosure.open;});
   document.getElementById('gcwoRenovarAcesso')?.addEventListener('click', renovarApenasAcesso);
   document.getElementById('gcwoDataInicio').addEventListener('change', (e) => {
     if (!e.target.value) return;
@@ -2677,11 +2682,13 @@ function step2EmEdicao() {
 function renderStep2Body() {
   const host = document.getElementById('gcwoStep2Body');
   if (!host) return;
+  host.closest('.gcwo-care-editor')?.classList.toggle('gcwo-workout-editing',step2EmEdicao());
   if (step2EmEdicao()) {
     _patientMainTab = 'prescription';
     refreshPatientMainTabs();
     if (_embeddedCare) {
       if (!host.querySelector('#gcwoCalGrid')) renderCalendarMode(host);
+      host.closest('.gcwo-care-editor')?.classList.add('gcwo-workout-editing');
       const editor = host.querySelector('#gcwoEditorInline');
       if (_panelDraft) {
         editor.innerHTML = '<div class="gcwo-panel" id="gcwoPanel"></div>';
@@ -2946,9 +2953,10 @@ function renderCalendarMode(host) {
       ${terminado ? `<p>Plano anterior terminou a ${escHtml(fmtDataPtIso(_state.endDate))}.</p><button type="button" class="gcBtnGhost" id="gcwoNovoAposTermino">Prescrever novo plano</button>` : ''}
       ${futuro ? `<p>Plano agendado para ${escHtml(fmtDataPtIso(_state.startDate))}. <button type="button" class="gcBtnGhost" id="gcwoPrimeiraSemana">Ver primeira semana do plano</button></p>` : ''}
       ${!terminado && acessoExpirado ? '<p><strong>Acesso expirado.</strong> Pode renovar o acesso nas definições do plano abaixo.</p>' : ''}
+    ${_embeddedCare ? `<details id="gcwoPlanSettings" class="gcwo-plan-settings-disclosure" ${_planSettingsExpanded?'open':''}><summary>Definições do plano</summary>${renderDatasPlanoSection()}</details>` : ''}
     <div class="gcwo-calendar-card">
       <div class="gcwo-cal-head">
-        <div><h2 class="gcwo-section-title">${_embeddedCare ? 'Planeamento e disponibilidade' : 'Calendário do plano'}</h2><p>Adicione um treino ou arraste-o para mudar de dia.</p></div>
+        <div><h2 class="gcwo-section-title">${_embeddedCare ? 'Planeamento semanal' : 'Calendário do plano'}</h2><p>Adicione um treino ou arraste-o para mudar de dia.</p></div>
         <div class="gcwo-cal-nav">
           ${_embeddedCare ? '<button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalHoje">Hoje</button>' : ''}
           <button type="button" class="gcBtnGhost gcBtnSm" id="gcwoCalAnterior">‹ Semana anterior</button>
@@ -2959,15 +2967,16 @@ function renderCalendarMode(host) {
       <div id="gcwoCalGrid"></div>
     </div>
     <div id="gcwoEditorInline"></div>
-    ${terminado ? '' : `
+    ${terminado || _embeddedCare ? '' : `
       <div class="gcwo-prescription-head"><div><h2>Prescrição de exercício</h2><p>Selecione um dia no calendário para prescrever.</p></div><div class="gcwo-prescription-head-right"><button type="button" class="gcwo-criar-treino-btn" id="gcwoCriarTreino">Criar treino específico</button><span>${escHtml(diasEntreInclusivo(_state.startDate, _state.endDate))} dias</span></div></div>
       ${renderDatasPlanoSection()}
     `}
 
+    ${_embeddedCare ? renderEstadoPlanoGroup() : ''}
     </section>
   `;
 
-  if (!terminado) wireDatasPlanoSection();
+  if (!terminado || _embeddedCare) wireDatasPlanoSection();
   document.getElementById('gcwoNovoAposTermino')?.addEventListener('click', e => terminarPlanoActivo(_state.activePrescriptionId, e.currentTarget));
   document.getElementById('gcwoCalHoje')?.addEventListener('click', () => {
     _calendarFirstMonday = segundaFeiraDeIso(isoHoje());
@@ -3810,6 +3819,7 @@ function renderPanel() {
       <button type="button" class="gcBtnGhost gcwo-session-zones" id="gcwoBtnZonasTreino">♥ ⚡ Zonas</button>` : '';
 
   panel.innerHTML = `
+    ${_embeddedCare ? '<button type="button" class="gcwo-editbar-back" id="gcwoWorkoutBack">← Voltar ao calendário</button>' : ''}
     <div class="gcwo-panel-head${painelCompacto ? ' gcwo-cardio-panel-head' : ''}">
       <span class="gcwo-panel-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
       <span class="gcwo-panel-titles"><h3>${meta.label}</h3><span class="sub">${dia.full}, ${escHtml(fmtDiaMesCurtoIso(s.date))}</span></span>
@@ -3849,15 +3859,16 @@ function renderPanel() {
       </details>
 
       <div class="gcwo-review-strip">
-        <div><strong>Rever antes de colocar no calendário</strong><span id="gcwoPReviewCount">${sessaoContagem(s).n} ${sessaoContagem(s).label} · ${escHtml(meta.label)}</span></div>
-        <span class="gcwo-review-safe">${_criarTreino?.editar ? 'O calendário atualiza ao confirmar. Use Guardar plano para gravar a prescrição.' : 'Nada é gravado antes da confirmação'}</span>
+        <div><strong>${_embeddedCare?'Resumo do treino':'Rever antes de colocar no calendário'}</strong><span id="gcwoPReviewCount">${sessaoContagem(s).n} ${sessaoContagem(s).label} · ${escHtml(meta.label)}</span></div>
+        <span class="gcwo-review-safe">${_embeddedCare ? 'O doente recebe apenas a versão guardada.' : _criarTreino?.editar ? 'O calendário atualiza ao confirmar. Use Guardar plano para gravar a prescrição.' : 'Nada é gravado antes da confirmação'}</span>
       </div>
 
       <span class="gcwo-erro" id="gcwoPErro"></span>
     </div>
     <div class="gcwo-panel-footer">
-      <button type="button" class="gcBtnGhost" id="gcwoPCancelar">Cancelar</button>
-      <button type="button" class="gcBtnSuccess" id="gcwoPGuardar">${_panelDestino ? 'Aplicar alterações' : 'Colocar no calendário'}</button>
+      ${_embeddedCare ? '<span class="gcwo-workout-save-note">Guarda a sessão no dia escolhido e atualiza a ligação do doente.</span>' : ''}
+      <button type="button" class="gcBtnGhost" id="gcwoPCancelar">${_embeddedCare?'Descartar edição':'Cancelar'}</button>
+      <button type="button" class="gcBtnSuccess" id="gcwoPGuardar">${_embeddedCare?'Guardar treino e plano':_panelDestino ? 'Aplicar alterações' : 'Colocar no calendário'}</button>
     </div>
   `;
 
@@ -3882,13 +3893,14 @@ function wirePanel() {
   const s = _panelDraft;
 
   document.getElementById('gcwoPanelFechar').addEventListener('click', fecharPanel);
+  document.getElementById('gcwoWorkoutBack')?.addEventListener('click', fecharPanel);
   document.getElementById('gcwoPCancelar').addEventListener('click', fecharPanel);
   document.getElementById('gcwoPanelApagar')?.addEventListener('click', () => {
     _state.sessions = _state.sessions.filter(x => x.session_id !== s.session_id);
     fecharPanel();
     updateGerarButtonState();
   });
-  document.getElementById('gcwoPGuardar').addEventListener('click', handleGuardarSessao);
+  document.getElementById('gcwoPGuardar').addEventListener('click', _embeddedCare ? guardarTreinoEPlano : handleGuardarSessao);
   document.getElementById('gcwoBtnZonasTreino')?.addEventListener('click', () => {
     abrirZonasTreino(_state.patient.id, { onSaved: carregarZonaPerfis });
   });
@@ -6211,8 +6223,16 @@ function showPanelErro(msg) {
   if (el) el.textContent = msg;
 }
 
+async function guardarTreinoEPlano() {
+  if(_savingPrescription||_embeddedCare?.saving||!_panelDraft)return;
+  if(_criarTreino?.editar)return ctGuardarPlano();
+  handleGuardarSessao();
+  if(_panelDraft)return;
+  await handleGerar();
+}
 function handleGuardarSessao() {
   const s = _panelDraft;
+  if(!s)return;
   showPanelErro('');
 
   if(s.strength_blocks){const error=erroForca(s.strength_blocks);if(error){showPanelErro(error);return;}Object.assign(s,sessaoForcaGuardada(s));}
@@ -6273,6 +6293,7 @@ function updateGerarButtonState() {
   const ok = hasSessionComExercicios();
   btn.disabled = !ok;
   btn.textContent = labelBotaoGerar();
+  const status=document.getElementById('gcwoPlanSaveState');if(status)status.textContent=haSessoesPorGravar()?'Alterações por guardar':'Todas as alterações guardadas';
   btn.title = ok ? '' : 'Adiciona pelo menos uma sessão com conteúdo para criar o plano.';
   // Usa style.display em vez do atributo "hidden" de propósito — já tivemos um bug em
   // que um CSS com a mesma especificidade do que [hidden] anulava o "hidden" (9 ago
