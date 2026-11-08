@@ -1899,3 +1899,7 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-care-editor .gcwo-panel{overflow:visible}.gcwo-care-editor #gcwoWorkoutBack{margin:12px 16px 0}
 
 .gcwo-strength-empty-add{display:block;width:100%;cursor:pointer;background:#f7faff;color:#205a9b;font:inherit;border:1px dashed #b4cae8;border-radius:10px;padding:24px}.gcwo-strength-empty-add:hover{background:#edf4ff;border-color:#2463df}.gcwo-strength-empty-add:focus-visible{outline:2px solid #2463df;outline-offset:3px}#gcwoStrengthSelection{flex-basis:100%;font-size:12px;color:#355979}.gcwo-strength-targets #gcwoStrengthBackToBlock{margin-left:auto}
+
+.gcwo-strength-editor .gcwo-strength-catalog[hidden]{display:none!important}.gcwo-strength-block>[data-block-catalog]>.gcwo-strength-catalog{margin-top:16px;border:1px solid #b8cdeb;background:#fafdff}.gcwo-strength-block-foot>[data-target-block]{font-weight:650;color:#205a9b}
+
+.gcwo-strength-block{overflow-anchor:none}

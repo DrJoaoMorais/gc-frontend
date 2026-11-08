@@ -48,8 +48,8 @@ export function renderBlocosForca(blocks, target) {
       '<p class="gcwo-muted">' + (block.type === 'circuit' ? 'Percorrer a lista e repetir por voltas.' : 'Completar as séries de cada exercício antes de avançar.') + '</p>' +
       (block.type === 'circuit' ? '<div class="gcwo-strength-settings">' + selector(block.rounds,'data-preset="rounds"',[1,3,5],'Voltas') + selector(block.rest_between_rounds_s,'data-preset="rest_between_rounds_s"',[20,30,45],'Entre voltas (s)') + '</div>' : '') +
       block.items.map((item,i)=>itemHTML(item,i,block,index,blocks)).join('') +
-      (!block.items.length ? '<button type="button" class="gcwo-circ-empty gcwo-strength-empty-add" data-target-block>+ Escolher exercícios no catálogo</button>' : '') +
-      '<div class="gcwo-strength-block-foot"><button type="button" class="gcBtnGhost" data-target-block>Adicionar exercícios a este bloco</button><span data-strength-block-time>' + (timing.incomplete ? 'Tempo parcialmente por calcular' : duration(timing.seconds)) + '</span></div></section>';
+      (!block.items.length ? '<p class="gcwo-muted">Este bloco ainda não tem exercícios.</p>' : '') +
+      '<div class="gcwo-strength-block-foot"><button type="button" class="gcBtnGhost" data-target-block aria-expanded="false" aria-controls="gcwoStrengthCatalog">Adicionar exercícios</button><span data-strength-block-time>' + (timing.incomplete ? 'Tempo parcialmente por calcular' : duration(timing.seconds)) + '</span></div><div data-block-catalog></div></section>';
   }).join('');
 }
 
