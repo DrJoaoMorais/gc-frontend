@@ -19,11 +19,11 @@ function itemHTML(item, index, block, blockIndex, blocks) {
     : '<p class="gcwo-muted">' + (block.type === 'circuit' ? 'No fim da volta aplica-se o descanso entre voltas do bloco.' : 'Último exercício: sem descanso final.') + '</p>';
   const seconds = cadenciaForca(item);
   return '<article class="gcwo-strength-item" data-strength-item="' + esc(item.item_id) + '">' +
-    '<div class="gcwo-strength-item-head"><b>' + (index + 1) + '</b>' +
-    (item.photo_url ? '<button type="button" class="gcwo-strength-image" data-zoom><img src="' + esc(item.photo_url) + '" alt="Ampliar imagem"></button>' : '') +
-    '<strong>' + esc(item.name) + '</strong><div class="gcwo-chips">' +
+    '<div class="gcwo-strength-identity"><b class="gcwo-strength-order">' + (index + 1) + '</b>' +
+    (item.photo_url ? '<button type="button" class="gcwo-strength-image" data-zoom><img src="' + esc(item.photo_url) + '" alt="' + esc(item.name || 'Exercício') + '"></button>' : '<div class="gcwo-strength-no-image">Sem imagem</div>') +
+    '<strong>' + esc(item.name) + '</strong></div><div class="gcwo-strength-prescription"><div class="gcwo-strength-item-head"><div class="gcwo-chips">' +
     [['reps','Repetições'],['time','Segundos']].map(([mode,label]) => '<button type="button" class="gcwo-chip' + (item.dose_unit === mode ? ' on' : '') + '" data-dose-unit="' + mode + '">' + label + '</button>').join('') +
-    '</div><button type="button" class="gcBtnGhost gcBtnSm" data-move="-1" ' + (index === 0 ? 'disabled' : '') + ' aria-label="Subir exercício">↑</button><button type="button" class="gcBtnGhost gcBtnSm" data-move="1" ' + (last ? 'disabled' : '') + ' aria-label="Descer exercício">↓</button><button type="button" class="gcBtnGhost gcBtnSm" data-remove-item aria-label="Remover exercício">×</button></div>' +
+    '</div><div class="gcwo-strength-item-actions"><button type="button" class="gcBtnGhost gcBtnSm" data-move="-1" ' + (index === 0 ? 'disabled' : '') + ' aria-label="Subir exercício">↑</button><button type="button" class="gcBtnGhost gcBtnSm" data-move="1" ' + (last ? 'disabled' : '') + ' aria-label="Descer exercício">↓</button><button type="button" class="gcBtnGhost gcBtnSm" data-remove-item aria-label="Remover exercício">×</button></div></div>' +
     '<div class="gcwo-strength-series"><div class="gcwo-strength-series-row gcwo-strength-series-head"><span>Série</span><span>' + doseLabel + '</span><span>Carga (kg)</span><button type="button" class="gcBtnGhost gcBtnSm" data-add-set>+ Série</button></div>' +
     item.strength_series.map((set,i) => '<div class="gcwo-strength-series-row"><b>' + (i+1) + '</b><input ' +
       (item.dose_unit === 'time' ? 'type="number" min="0.5" step="0.5"' : 'type="text" inputmode="numeric" placeholder="10 ou 8–12"') +
@@ -34,7 +34,7 @@ function itemHTML(item, index, block, blockIndex, blocks) {
     '<details class="gcwo-strength-details" data-details><summary>Instruções e cadência' + (item.dose_unit === 'reps' ? seconds == null ? ' · tempo por definir' : ' · ' + seconds + ' s por repetição' : '') + '</summary><label class="gcwo-field"><span>Instrução para o doente</span><input data-field="prescription_note" value="' + esc(item.prescription_note || '') + '"></label>' +
     '<div class="gcwo-row2">' + numberInput(item.tempo_concentrico_s, 'data-field="tempo_concentrico_s"', 'Concêntrico (s)') + numberInput(item.tempo_excentrico_s, 'data-field="tempo_excentrico_s"', 'Excêntrico (s)') +
     numberInput(item.pausa_superior_s, 'data-field="pausa_superior_s"', 'Pausa superior (s)') + numberInput(item.pausa_inferior_s, 'data-field="pausa_inferior_s"', 'Pausa inferior (s)') + '</div>' +
-    (item.dose_unit === 'reps' && seconds == null ? '<p class="gcwo-muted">Sem cadência definida, o doente conclui as repetições manualmente. O tempo de execução fica por calcular.</p>' : '') + '</details></article>';
+    (item.dose_unit === 'reps' && seconds == null ? '<p class="gcwo-muted">Sem cadência definida, o doente conclui as repetições manualmente. O tempo de execução fica por calcular.</p>' : '') + '</details></div></article>';
 }
 
 export function renderBlocosForca(blocks, target) {

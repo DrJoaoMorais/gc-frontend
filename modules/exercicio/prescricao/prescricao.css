@@ -1858,3 +1858,30 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 @media(min-width:1100px){.gcwo-strength-catalog .gcwo-catalog-all-filters{display:grid;grid-template-columns:.95fr 1.1fr 1fr;gap:12px;margin-bottom:16px}.gcwo-strength-catalog .gcwo-catalog-filter-panels{display:contents}.gcwo-strength-catalog .gcwo-catalog-purpose{margin:0}}
 @media(max-width:1250px){.gcwo-strength-editor .gcwo-catpick-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:700px){.gcwo-strength-editor .gcwo-catpick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.gcwo-strength-rests{grid-template-columns:1fr}.gcwo-strength-series-row{grid-template-columns:32px minmax(60px,1fr) minmax(60px,1fr) 65px;gap:6px}}
+
+/* Cartões de prescrição: identidade visual à esquerda, dose à direita. */
+.gcwo-strength-item{display:grid;grid-template-columns:clamp(180px,24%,270px) minmax(0,1fr);gap:24px;padding:18px}
+.gcwo-strength-identity{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:12px;padding:8px 20px 8px 8px;border-right:1px solid #e3ebf4;min-width:0}
+.gcwo-strength-order{position:absolute;top:0;left:0;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#123352;color:#fff;font-size:13px}
+.gcwo-strength-identity>strong{text-align:center;font-size:16px;line-height:1.4;overflow-wrap:anywhere;color:#153452}
+.gcwo-strength-identity .gcwo-strength-image{width:100%;border-radius:8px}
+.gcwo-strength-identity .gcwo-strength-image img{display:block;width:100%;height:150px;object-fit:contain}
+.gcwo-strength-no-image{display:grid;place-items:center;width:100%;height:150px;border-radius:8px;background:#f5f8fc;color:#687e98;font-size:13px}
+.gcwo-strength-prescription{min-width:0}
+.gcwo-strength-prescription .gcwo-strength-item-head{justify-content:space-between;gap:10px}
+.gcwo-strength-item-actions{display:flex;gap:6px;margin-left:auto}
+.gcwo-strength-item-actions>.gcBtnGhost{min-width:32px;padding:6px 9px}
+.gcwo-strength-prescription .gcwo-strength-series{max-width:none;margin-top:10px}
+.gcwo-strength-prescription .gcwo-strength-series-row{grid-template-columns:48px minmax(60px,1fr) minmax(60px,1fr) 82px}
+.gcwo-strength-prescription .gcwo-strength-series-row input{height:40px;box-sizing:border-box}
+.gcwo-strength-prescription .gcwo-strength-rests{max-width:none;margin-top:10px;padding:12px;gap:16px}
+.gcwo-strength-rests input:disabled{background:#e9edf3;color:#8998aa;cursor:default}
+.gcwo-strength-prescription .gcwo-strength-details{margin-top:10px}
+@media(max-width:700px){
+ .gcwo-strength-item{grid-template-columns:1fr;gap:16px;padding:14px}
+ .gcwo-strength-identity{padding:4px 32px 16px;border-right:0;border-bottom:1px solid #e3ebf4}
+ .gcwo-strength-identity .gcwo-strength-image img,.gcwo-strength-no-image{height:130px}
+ .gcwo-strength-prescription .gcwo-strength-series-row{grid-template-columns:30px minmax(52px,1fr) minmax(52px,1fr) 64px;gap:6px}
+ .gcwo-strength-prescription .gcwo-strength-rests{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+}
+@media(max-width:380px){.gcwo-strength-prescription .gcwo-strength-rests{grid-template-columns:1fr}}
