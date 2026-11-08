@@ -86,6 +86,13 @@ export default {
         { id: 's4_indicacao_medica_texto', depende: 's4_indicacao_medica', tipo: 'texto_curto', label: 'Que exercício lhe recomendaram evitar ou adaptar?' },
         { id: 's4_dificuldade_exercicio', tipo: 'escolha_multipla', label: 'O que mais dificulta a prática de exercício?',
           opcoes: ['Nenhuma', 'Falta de tempo', 'Cansaço', 'Dor ou receio de agravar uma lesão', 'Falta de motivação', 'Não sei por onde começar', 'Horários de trabalho', 'Responsabilidades familiares', 'Falta de acesso a equipamento ou espaço'], outro: true },
+      ],
+    },
+
+    { id: 'disponibilidade_treino', titulo: 'A sua disponibilidade para treinar',
+      intro: 'Ajude-nos a adaptar o plano à sua semana. Indique os dias, o tempo disponível e as atividades que prefere.',
+      nota: 'Estas são as suas preferências. O plano será definido pelo médico.',
+      perguntas: [
         { id: 'exercicio_semana_habitual', tipo: 'semana_treino', label: 'Como gostaria de organizar a sua semana de exercício?', disponibilidadeFutura: true },
       ],
     },

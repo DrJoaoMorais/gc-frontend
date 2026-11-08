@@ -52,3 +52,20 @@ test('both questionnaire versions include weekly planning and V2 removes redunda
   const added=all.filter(q=>newIds.includes(q.id));assert.equal(added.length,1);assert.equal(added[0].tipo,'semana_treino');
  }
 });
+
+test('V2 separates weekly availability into section 5 without renaming stored questions',async()=>{
+ const {default:cfg}=await import('../modules/intake/configs/pre_consulta_v2.js');
+ assert.equal(cfg.seccoes.length,11);
+ assert.equal(cfg.seccoes[3].id,'atividade_fisica');
+ assert.equal(cfg.seccoes[3].perguntas.some(p=>p.tipo==='semana_treino'),false);
+ assert.equal(cfg.seccoes[4].id,'disponibilidade_treino');
+ assert.equal(cfg.seccoes[4].perguntas.length,1);
+ assert.equal(cfg.seccoes[4].perguntas[0].id,'exercicio_semana_habitual');
+ assert.equal(cfg.seccoes[5].id,'sono');
+ assert.equal(cfg.seccoes[5].perguntas[0].id,'s5_hora_deitar');
+ const ids=cfg.seccoes.flatMap(s=>s.perguntas.map(p=>p.id));assert.equal(new Set(ids).size,ids.length);
+ const source=fs.readFileSync(new URL('../modules/intake/intake-motor.js',import.meta.url),'utf8');
+ const scope=vm.createContext({_cfg:cfg,_respostas:{exercicio_semana_habitual:[{estado:'treino',tempo:'30',modalidades:['Corrida']}],s5_hora_deitar:'22h00–23h00'},_perguntaTemAlgumaResposta:p=>['exercicio_semana_habitual','s5_hora_deitar'].includes(p.id)});
+ const body=source.slice(source.indexOf('function _calcularMaxAlcancada()'),source.indexOf('/* progresso parcial'));
+ vm.runInContext(body,scope);assert.equal(vm.runInContext('_calcularMaxAlcancada()',scope),5);
+});

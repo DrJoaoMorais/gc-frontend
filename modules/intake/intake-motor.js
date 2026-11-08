@@ -132,7 +132,7 @@ async function _iniciarQuestionario(root) {
   const tipo = _ctx.questionnaire_type;
   let mod;
   try {
-    mod = await import('./configs/' + tipo + '.js?v=2026-11-05-copiar-dia');
+    mod = await import('./configs/' + tipo + '.js?v=2026-11-08-disponibilidade-passo5');
   } catch (e) {
     root.innerHTML = '<div class="gate"><h2>Tipo de questionário desconhecido</h2><p>' + tipo + '</p></div>';
     return;
@@ -208,12 +208,15 @@ function _render() {
 
   h += '<div class="secao-head"><div class="secao-kicker">SECÇÃO ' + (_secaoIdx + 1) + ' DE ' + total + '</div><h2>' + sec.titulo + '</h2></div>';
 
+  if (sec.intro) h += '<p class="secao-intro">' + sec.intro + '</p>';
+
   h += '<div class="perguntas">';
   sec.perguntas.forEach(function (p) {
     if (p.grupo) h += '<h3>' + p.grupo + '</h3>';
     h += '<div data-pergunta="' + p.id + '"' + (_perguntaVisivel(p) ? '' : ' hidden') + '>' + _renderPergunta(p) + '</div>';
   });
   h += '</div>';
+  if (sec.nota) h += '<p class="secao-nota">' + sec.nota + '</p>';
 
   h += '<div class="navbar">' +
     '<button id="btnAnterior" class="nav-btn ghost"' + (_secaoIdx === 0 ? ' disabled' : '') + '>Anterior</button>' +
