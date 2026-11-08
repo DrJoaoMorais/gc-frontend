@@ -1903,3 +1903,36 @@ details.gcwo-gym-catalog:not([open])>:not(summary),details.gcwo-exercicio-expand
 .gcwo-strength-editor .gcwo-strength-catalog[hidden]{display:none!important}.gcwo-strength-block>[data-block-catalog]>.gcwo-strength-catalog{margin-top:16px;border:1px solid #b8cdeb;background:#fafdff}.gcwo-strength-block-foot>[data-target-block]{font-weight:650;color:#205a9b}
 
 .gcwo-strength-block{overflow-anchor:none}
+
+/* Dose compacta, descanso por série e ajustes individuais da máquina. */
+.gcwo-strength-prescription .gcwo-strength-series-row{grid-template-columns:32px minmax(190px,1.1fr) minmax(64px,.4fr) minmax(200px,1fr) 38px;gap:8px}
+.gcwo-strength-quick{display:flex;align-items:center;gap:5px;min-width:0}
+.gcwo-strength-quick>.gcwo-chips{display:flex;gap:3px;flex-wrap:nowrap;margin:0;flex:none}
+.gcwo-strength-quick .gcwo-chip{min-width:27px;min-height:34px;padding:5px;font-size:12px;white-space:nowrap}
+.gcwo-strength-quick>input{flex:1;min-width:48px!important;width:60px!important;max-width:100px;box-sizing:border-box;height:36px;border:1px solid #cad8e9;border-radius:7px;padding:5px!important;font:inherit}
+.gcwo-strength-quick>input[type=text]{min-width:70px!important}
+.gcwo-strength-quick input:focus-visible,.gcwo-strength-quick button:focus-visible{outline:2px solid #2463df;outline-offset:2px}
+.gcwo-strength-prescription .gcwo-strength-rests{display:block}
+.gcwo-strength-rests .gcwo-strength-selector{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.gcwo-strength-machine{border:1px solid #d5e1f0;border-radius:10px;margin:14px 0 0;padding:12px;min-width:0;background:#f3f7fd}
+.gcwo-strength-machine legend{font-size:12px;color:#285d9e;font-weight:650}
+.gcwo-strength-machine>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.gcwo-strength-machine .gcwo-field{margin:0;min-width:0}
+.gcwo-strength-machine input{width:100%;box-sizing:border-box;min-width:0}
+.gcwo-strength-machine .gcwo-muted{margin-bottom:0;font-size:12px}
+.gcwo-strength-model-card{display:flex;align-items:center;flex-wrap:wrap;gap:12px;border:1px solid #d5e1f0;border-radius:8px;padding:10px;margin:8px 0;background:#fff}
+.gcwo-strength-model-card>span{flex:1;color:#617a91;font-size:12px}
+.gcwo-strength-save-model{width:min(520px,90vw);box-sizing:border-box;border:1px solid #c9d8eb;border-radius:14px;padding:24px;color:#173251}
+.gcwo-strength-save-model::backdrop{background:#102e5066}
+.gcwo-strength-save-model [data-error]{color:#b42318}
+.gcwo-strength-save-model select,.gcwo-strength-save-model input{width:100%;box-sizing:border-box}
+@media(max-width:1200px){.gcwo-strength-item{grid-template-columns:1fr;gap:14px}.gcwo-strength-identity{flex-direction:row;justify-content:flex-start;border-right:0;border-bottom:1px solid #e3ebf4;padding:0 0 12px 38px}.gcwo-strength-identity .gcwo-strength-image{width:90px}.gcwo-strength-identity .gcwo-strength-image img,.gcwo-strength-identity .gcwo-strength-no-image{height:90px;width:90px}}
+@media(max-width:760px){
+ .gcwo-strength-prescription .gcwo-strength-series-row{grid-template-columns:24px minmax(0,1fr) 64px 32px;gap:6px;padding:8px 0;border-bottom:1px solid #e3ebf4}
+ .gcwo-strength-series-row>:nth-child(4){grid-column:2/4;grid-row:2}
+ .gcwo-strength-series-row>:nth-child(4)::before{content:'Descanso';font-size:11px;color:#667f99}
+ .gcwo-strength-series-row>:nth-child(5){grid-column:4;grid-row:1}
+ .gcwo-strength-series-head>:nth-child(4){display:none}
+ .gcwo-strength-quick{flex-wrap:wrap}
+ .gcwo-strength-machine>div{grid-template-columns:1fr}
+}

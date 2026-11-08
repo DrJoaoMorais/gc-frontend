@@ -1,5 +1,6 @@
-import { prepararForca, itemForca, novoBlocoForca, cadenciaForca, erroForca, compilarForca, tempoForca, sessaoForcaGuardada } from './forca-blocos.js?v=2026-11-07-unico';
-import { renderBlocosForca, renderItemsForca, wireBlocosForca } from './forca-editor.js?v=2026-11-08-selecao-estavel';
+import { listarModelosForca, guardarModeloForca, aplicarModeloForca } from './forca-modelos.js?v=2026-11-08-modelos-ajustes';
+import { prepararForca, itemForca, novoBlocoForca, cadenciaForca, erroForca, compilarForca, tempoForca, sessaoForcaGuardada } from './forca-blocos.js?v=2026-11-08-modelos-ajustes';
+import { renderBlocosForca, renderItemsForca, wireBlocosForca } from './forca-editor.js?v=2026-11-08-modelos-ajustes';
 import { BLOCOS_EXERCICIO, resolverBloco, exerciciosDaSessao, distribuicaoRegional } from './biblioteca-blocos.js?v=2026-11-05-semana-hoje';
 import { PLANOS_CASA, configuracaoPlanoCasa, preverPlanoCasa, tempoPlanoCasa } from './planos-casa.js?v=2026-11-01-1';
 import { PADROES_CASA, catalogoCasa, sugerirVariantesCasa, semanaCasa, proporProgramaCasa } from './programa-casa.js?v=2026-11-01-1';
@@ -38,7 +39,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-08-catalogo-visivel';
+const PRESCRICAO_CSS_VERSION = '2026-11-08-modelos-ajustes';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -4009,10 +4010,9 @@ function renderPanelForca(s) {
     renderFiltrosCatalogo() + '<div class="gcwo-strength-targets"><strong>Adicionar a</strong><div class="gcwo-chips" id="gcwoStrengthTargets">' + renderAlvosForca(s) + '</div><button type="button" class="gcBtnGhost" id="gcwoStrengthBackToBlock">Concluir seleção</button><span id="gcwoStrengthSelection" role="status"></span></div>' +
     '<div class="gcwo-catpick-grid" id="gcwoPCatGrid">' + renderForcaCatalogo(s) + '</div></section>' +
     '<div class="gcwo-strength-toolbar"><h3>Plano da sessão</h3><button type="button" class="gcBtnGhost" data-strength-new="series">Adicionar bloco por séries</button><button type="button" class="gcBtnGhost" data-strength-new="circuit">Adicionar bloco em circuito</button></div>' +
-    '<details class="gcwo-strength-models"><summary>Usar um modelo de circuito</summary><div class="gcwo-bib-grid">' +
+    '<details class="gcwo-strength-models" id="gcwoStrengthModels"><summary>Adicionar bloco · Biblioteca e Os meus modelos</summary><h4>Biblioteca de circuitos</h4><div class="gcwo-bib-grid">' +
     modelosCircuito().map(modelo=>'<button type="button" class="gcBtnGhost" data-strength-model="' + escAttr(modelo.id) + '">' + escHtml(modelo.nome) + '</button>').join('') +
-    [...modelosForca].map(([id,block])=>'<button type="button" class="gcBtnGhost" data-strength-saved-model="' + escAttr(id) + '">' + escHtml(block.name) + '</button>').join('') +
-    '</div></details><div id="gcwoStrengthBlocks">' + renderBlocosForca(s.strength_blocks, alvoForca(s)?.block_id) + '</div>' +
+    '</div><h4>Os meus modelos</h4><p class="gcwo-muted">Ordem dos exercícios e número de séries. Defina a dose em cada prescrição.</p><div id="gcwoStrengthOwnModels" aria-live="polite">Abra este menu para carregar os seus modelos.</div><button type="button" class="gcBtnGhost" id="gcwoStrengthReloadModels">Atualizar modelos</button></details><div id="gcwoStrengthBlocks">' + renderBlocosForca(s.strength_blocks, alvoForca(s)?.block_id) + '</div>' +
     '<div class="gcwo-strength-footer"><strong id="gcwoStrengthTime"></strong><button type="button" class="gcBtnGhost" id="gcwoStrengthSaveModel">Guardar bloco como modelo</button><button type="button" class="gcBtnGhost" id="gcwoStrengthPreview">Pré-visualizar como doente</button></div>' +
     '<p class="gcwo-muted">A dose é preenchida uma vez, por série. O doente inicia cada exercício e descanso, ou escolhe avanço automático.</p><p class="gcwo-muted" id="gcwoStrengthStatus" role="status"></p></section>';
 }
@@ -4034,7 +4034,7 @@ function refreshForca(s) {
       const item=block.items.find(i=>i.item_id===row.dataset.strengthItem);
       const title=row.querySelector('[data-details] summary');
       const seconds=cadenciaForca(item);
-      if(title)title.textContent='Instruções e cadência'+(item.dose_unit==='reps'?(seconds==null?' · tempo por definir':' · '+seconds+' s por repetição'):'');
+      if(title)title.textContent='Instruções, cadência e ajustes da máquina'+(item.dose_unit==='reps'?(seconds==null?' · tempo por definir':' · '+seconds+' s por repetição'):'');
     });
   });
   refreshReviewCount(s);
@@ -4152,12 +4152,50 @@ function wirePanelForca(s) {
     if(!session){showPanelErro('O modelo tem exercícios indisponíveis.');return;}
     appendModel(prepararForca(session,_state.exercisesCatalog,uuid));
   });
-  root.querySelectorAll('[data-strength-saved-model]').forEach(button=>button.onclick=()=>appendModel([modelosForca.get(button.dataset.strengthSavedModel)]));
+  const modelsHost=document.getElementById('gcwoStrengthOwnModels');
+  let loadingModels=false;
+  const loadModels=async()=>{
+    if(loadingModels)return;
+    loadingModels=true;modelosForca.clear();modelsHost.textContent='A carregar modelos…';
+    try {
+      const result=await listarModelosForca(window.sb);
+      if(!modelsHost.isConnected)return;
+      result.models.forEach(model=>modelosForca.set(model.id,model.data));
+      modelsHost.innerHTML=result.models.length?result.models.map(model=>'<article class="gcwo-strength-model-card"><strong>'+escHtml(model.name)+'</strong><span>'+model.data.items.length+' exercícios · '+model.data.items.map(item=>item.sets).join(' / ')+' séries</span><button type="button" class="gcBtnGhost" data-strength-saved-model="'+escAttr(model.id)+'">Selecionar</button></article>').join(''):'<p class="gcwo-muted">Ainda não guardou modelos. Use «Guardar bloco como modelo».</p>';
+    } catch(error) {if(modelsHost.isConnected)modelsHost.textContent=error.message;}
+    finally {loadingModels=false;}
+  };
+  document.getElementById('gcwoStrengthModels').addEventListener('toggle',event=>{if(event.target.open)loadModels();});
+  document.getElementById('gcwoStrengthReloadModels').onclick=loadModels;
+  modelsHost.onclick=event=>{
+    const button=event.target.closest('[data-strength-saved-model]');if(!button)return;
+    try {appendModel([aplicarModeloForca(modelosForca.get(button.dataset.strengthSavedModel),_state.exercisesCatalog,uuid,itemForca)]);}
+    catch(error){showPanelErro(error.message);}
+  };
   document.getElementById('gcwoStrengthSaveModel').onclick=()=>{
-    const block=alvoForca(s);
-    if(!block||erroForca([block])){showPanelErro(block?erroForca([block]):'Escolha um bloco.');return;}
-    modelosForca.set(uuid(),structuredClone(block));renderPanel();
-    document.getElementById('gcwoStrengthStatus').textContent='Modelo disponível durante esta sessão. Use Guardar plano para conservar a prescrição do doente.';
+    const blocks=s.strength_blocks.filter(block=>block.type!=='legacy'&&block.items.length);
+    if(!blocks.length){showPanelErro('Adicione exercícios antes de guardar o modelo.');return;}
+    const chosen=alvoForca(s);
+    const dialog=document.createElement('dialog');dialog.className='gcwo-strength-save-model';
+    dialog.innerHTML='<form><h3>Guardar bloco como modelo</h3><label class="gcwo-field"><span>Bloco a guardar</span><select name="block">'+blocks.map(block=>'<option value="'+escAttr(block.block_id)+'" '+(block===chosen?'selected':'')+'>'+escHtml(block.name)+'</option>').join('')+'</select></label><label class="gcwo-field"><span>Nome do modelo</span><input name="name" required maxlength="120" value="'+escAttr((chosen?.items.length?chosen:blocks[0]).name)+'"></label><p class="gcwo-muted">Guarda apenas a ordem dos exercícios e o número de séries. Repetições, carga, descansos e ajustes da máquina são definidos em cada prescrição.</p><p data-error role="alert"></p><div class="gcwo-strength-toolbar"><button type="button" class="gcBtnGhost" data-cancel>Cancelar</button><button type="submit" class="gcBtnPrimary">Guardar modelo</button></div></form>';
+    document.body.append(dialog);let saving=false;
+    dialog.onclose=()=>dialog.remove();dialog.oncancel=event=>{if(saving)event.preventDefault();};dialog.querySelector('[data-cancel]').onclick=()=>{if(!saving)dialog.close();};
+    dialog.querySelector('select').onchange=event=>{dialog.querySelector('[name="name"]').value=blocks.find(block=>block.block_id===event.target.value).name;};
+    dialog.querySelector('form').onsubmit=async event=>{
+      event.preventDefault();if(saving)return;
+      const block=blocks.find(block=>block.block_id===dialog.querySelector('select').value);
+      const name=dialog.querySelector('[name="name"]').value.trim();
+      saving=true;dialog.querySelectorAll('button,input,select').forEach(el=>el.disabled=true);
+      try {
+        await guardarModeloForca(window.sb,block,name);
+        saving=false;dialog.close();
+        if(!root.isConnected)return;
+        const disclosure=document.getElementById('gcwoStrengthModels');
+        if(disclosure.open)await loadModels();else disclosure.open=true;
+        document.getElementById('gcwoStrengthStatus').textContent='Modelo «'+name+'» guardado em Adicionar bloco → Os meus modelos.';
+      } catch(error) {saving=false;dialog.querySelector('[data-error]').textContent=error.message;dialog.querySelectorAll('button,input,select').forEach(el=>el.disabled=false);}
+    };
+    dialog.showModal();
   };
   const blockOptions={
     render:()=>{renderPanel();refreshForca(s);},change:()=>refreshForca(s),target:chooseTarget,openDetails:_strengthOpenDetails,
@@ -4181,7 +4219,7 @@ function previewForcaSession(s) {
     const step=queue[cursor];
     if(!step){dialog.querySelector('[data-preview]').textContent='Sessão concluída';button.textContent='Fechar';button.onclick=close;return;}
     dialog.querySelector('[data-preview]').innerHTML=(step.photo_url?'<img src="'+escAttr(step.photo_url)+'" alt="">':'')+'<h4>'+escHtml(step.label)+'</h4>'+
-      (step.type==='trabalho'&&step.prescribed_measure?'<p>Série '+step.set_index+'/'+step.set_total+' · Volta '+step.round_index+'/'+step.round_total+' · '+escHtml(step.prescribed_value??(step.prescribed_reps_min+'–'+step.prescribed_reps_max))+' '+(step.prescribed_measure==='time'?'s':'repetições')+' · '+escHtml(step.load??'—')+' kg</p><p>'+escHtml(step.prescription_note||'')+'</p>':'');
+      (step.type==='trabalho'&&step.prescribed_measure?'<p>Série '+step.set_index+'/'+step.set_total+' · Volta '+step.round_index+'/'+step.round_total+' · '+escHtml(step.prescribed_value??(step.prescribed_reps_min+'–'+step.prescribed_reps_max))+' '+(step.prescribed_measure==='time'?'s':'repetições')+' · '+escHtml(step.load??'—')+' kg</p><p>'+escHtml(step.prescription_note||'')+'</p>'+[['machine_position','Posição da máquina'],['machine_seat_height','Altura do banco'],['machine_other','Outras regulações']].filter(([key])=>step[key]).map(([key,label])=>'<p><b>'+label+':</b> '+escHtml(step[key])+'</p>').join(''):'');
     button.textContent=step.type==='descanso'?'Iniciar descanso':'Iniciar exercício';button.onclick=start;
   }
   function next(){clearInterval(timer);cursor++;show();if(dialog.querySelector('[data-auto]').checked&&cursor<queue.length)start();}

@@ -1,4 +1,4 @@
-import { cadenciaForca, tempoForca } from './forca-blocos.js';
+import { cadenciaForca, tempoForca } from './forca-blocos.js?v=2026-11-08-modelos-ajustes';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 const duration = seconds => Math.floor(seconds / 60) + ' min ' + Math.round(seconds % 60) + ' s';
@@ -11,11 +11,23 @@ function selector(value, attr, values, label) {
     '<input type="number" min="' + (label === 'Voltas' ? 1 : 0) + '" ' + attr.replace('data-preset', 'data-config') + ' value="' + esc(value ?? '') + '" aria-label="' + label + '"></div></div>';
 }
 
+function quickValue(value, attr, presets, label, unit = '') {
+  return '<div class="gcwo-strength-quick"><div class="gcwo-chips">' + presets.map(n =>
+    '<button type="button" class="gcwo-chip' + (value === n ? ' on' : '') + '" data-quick-value="' + n + '" aria-pressed="' + (value === n) + '" aria-label="' + esc(label + ': ' + n + unit) + '">' + n + unit + '</button>').join('') +
+    '</div><input ' + attr + ' value="' + esc(value ?? '') + '" aria-label="' + esc(label + ' — valor personalizado') + '"></div>';
+}
+function restInput(value, field, label) {
+  return '<div class="gcwo-strength-selector"><span>' + esc(label) + '</span>' + quickValue(value, 'type="number" min="0" step="0.5" data-field="' + field + '"', [30,45,60], label, ' s') + '</div>';
+}
+function machineInput(item, key, label, placeholder) {
+  return '<label class="gcwo-field"><span>' + label + '</span><input type="text" maxlength="250" data-field="' + key + '" value="' + esc(item[key] || '') + '" placeholder="' + placeholder + '"></label>';
+}
+
 function itemHTML(item, index, block, blockIndex, blocks) {
   const last = index === block.items.length - 1;
   const doseLabel = item.dose_unit === 'time' ? 'Segundos' : 'Repetições';
-  const rest = !last ? numberInput(item.rest_next, 'data-field="rest_next"', 'Descanso entre exercícios (s)')
-    : blockIndex < blocks.length - 1 ? numberInput(item.rest_next, 'data-field="rest_next"', 'Descanso antes do próximo bloco (s)')
+  const rest = !last ? restInput(item.rest_next, 'rest_next', 'Descanso entre exercícios (s)')
+    : blockIndex < blocks.length - 1 ? restInput(item.rest_next, 'rest_next', 'Descanso antes do próximo bloco (s)')
     : '<p class="gcwo-muted">' + (block.type === 'circuit' ? 'No fim da volta aplica-se o descanso entre voltas do bloco.' : 'Último exercício: sem descanso final.') + '</p>';
   const seconds = cadenciaForca(item);
   return '<article class="gcwo-strength-item" data-strength-item="' + esc(item.item_id) + '">' +
@@ -24,17 +36,21 @@ function itemHTML(item, index, block, blockIndex, blocks) {
     '<strong>' + esc(item.name) + '</strong></div><div class="gcwo-strength-prescription"><div class="gcwo-strength-item-head"><div class="gcwo-chips">' +
     [['reps','Repetições'],['time','Segundos']].map(([mode,label]) => '<button type="button" class="gcwo-chip' + (item.dose_unit === mode ? ' on' : '') + '" data-dose-unit="' + mode + '">' + label + '</button>').join('') +
     '</div><div class="gcwo-strength-item-actions"><button type="button" class="gcBtnGhost gcBtnSm" data-move="-1" ' + (index === 0 ? 'disabled' : '') + ' aria-label="Subir exercício">↑</button><button type="button" class="gcBtnGhost gcBtnSm" data-move="1" ' + (last ? 'disabled' : '') + ' aria-label="Descer exercício">↓</button><button type="button" class="gcBtnGhost gcBtnSm" data-remove-item aria-label="Remover exercício">×</button></div></div>' +
-    '<div class="gcwo-strength-series"><div class="gcwo-strength-series-row gcwo-strength-series-head"><span>Série</span><span>' + doseLabel + '</span><span>Carga (kg)</span><button type="button" class="gcBtnGhost gcBtnSm" data-add-set>+ Série</button></div>' +
-    item.strength_series.map((set,i) => '<div class="gcwo-strength-series-row"><b>' + (i+1) + '</b><input ' +
-      (item.dose_unit === 'time' ? 'type="number" min="0.5" step="0.5"' : 'type="text" inputmode="numeric" placeholder="10 ou 8–12"') +
-      ' data-set="' + i + '" data-set-field="value" value="' + esc(set.value ?? (set.reps_min != null ? set.reps_min + '–' + set.reps_max : '')) + '" aria-label="' + doseLabel + ' da série ' + (i+1) + '">' +
-      '<input type="number" min="0" step="0.5" data-set="' + i + '" data-set-field="load" value="' + esc(set.load ?? '') + '" aria-label="Carga da série ' + (i+1) + '">' +
-      '<button type="button" class="gcBtnGhost gcBtnSm" data-delete-set="' + i + '" ' + (item.strength_series.length === 1 ? 'disabled' : '') + ' aria-label="Remover série ' + (i+1) + '">×</button></div>').join('') +
-    '</div><div class="gcwo-strength-rests">' + numberInput(item.rest_set, 'data-field="rest_set"', 'Descanso entre séries (s)', 0, '0.5', item.strength_series.length === 1) + rest + '</div>' +
-    '<details class="gcwo-strength-details" data-details><summary>Instruções e cadência' + (item.dose_unit === 'reps' ? seconds == null ? ' · tempo por definir' : ' · ' + seconds + ' s por repetição' : '') + '</summary><label class="gcwo-field"><span>Instrução para o doente</span><input data-field="prescription_note" value="' + esc(item.prescription_note || '') + '"></label>' +
+    '<div class="gcwo-strength-series"><div class="gcwo-strength-series-row gcwo-strength-series-head"><span>Série</span><span>' + doseLabel + '</span><span>Carga (kg)</span><span>Descanso entre séries</span><button type="button" class="gcBtnGhost gcBtnSm" data-add-set>+ Série</button></div>' +
+    item.strength_series.map((set,i) => {
+      const value = set.value ?? (set.reps_min != null ? set.reps_min + '–' + set.reps_max : '');
+      const attr = (item.dose_unit === 'time' ? 'type="number" min="0.5" step="0.5"' : 'type="text" inputmode="numeric" placeholder="N.º / intervalo"') + ' data-set="' + i + '" data-set-field="value"';
+      const dose = item.dose_unit === 'reps' ? quickValue(value, attr, [8,10,12,15], doseLabel + ' da série ' + (i+1)) : '<input ' + attr + ' value="' + esc(value) + '" aria-label="Segundos da série ' + (i+1) + '">';
+      const restSet = i < item.strength_series.length - 1 ? quickValue(Object.hasOwn(set, 'rest_after_s') ? set.rest_after_s : item.rest_set, 'type="number" min="0" step="0.5" data-set="' + i + '" data-set-field="rest_after_s"', [30,45,60], 'Descanso após a série ' + (i+1), ' s') : '<span class="gcwo-muted">—</span>';
+      return '<div class="gcwo-strength-series-row"><b>' + (i+1) + '</b>' + dose +
+        '<input type="number" min="0" step="0.5" data-set="' + i + '" data-set-field="load" value="' + esc(set.load ?? '') + '" aria-label="Carga da série ' + (i+1) + '">' + restSet +
+        '<button type="button" class="gcBtnGhost gcBtnSm" data-delete-set="' + i + '" ' + (item.strength_series.length === 1 ? 'disabled' : '') + ' aria-label="Remover série ' + (i+1) + '">×</button></div>';
+    }).join('') +
+    '</div><div class="gcwo-strength-rests">' + rest + '</div>' +
+    '<details class="gcwo-strength-details" data-details><summary>Instruções, cadência e ajustes da máquina' + (item.dose_unit === 'reps' ? seconds == null ? ' · tempo por definir' : ' · ' + seconds + ' s por repetição' : '') + '</summary><label class="gcwo-field"><span>Instrução para o doente</span><input data-field="prescription_note" value="' + esc(item.prescription_note || '') + '"></label>' +
     '<div class="gcwo-row2">' + numberInput(item.tempo_concentrico_s, 'data-field="tempo_concentrico_s"', 'Concêntrico (s)') + numberInput(item.tempo_excentrico_s, 'data-field="tempo_excentrico_s"', 'Excêntrico (s)') +
     numberInput(item.pausa_superior_s, 'data-field="pausa_superior_s"', 'Pausa superior (s)') + numberInput(item.pausa_inferior_s, 'data-field="pausa_inferior_s"', 'Pausa inferior (s)') + '</div>' +
-    (item.dose_unit === 'reps' && seconds == null ? '<p class="gcwo-muted">Sem cadência definida, o doente conclui as repetições manualmente. O tempo de execução fica por calcular.</p>' : '') + '</details></div></article>';
+    (item.dose_unit === 'reps' && seconds == null ? '<p class="gcwo-muted">Sem cadência definida, o doente conclui as repetições manualmente. O tempo de execução fica por calcular.</p>' : '') + '<fieldset class="gcwo-strength-machine"><legend>Ajustes da máquina · opcional</legend><div>' + machineInput(item, 'machine_position', 'Posição da máquina', 'N.º / referência') + machineInput(item, 'machine_seat_height', 'Altura do banco', 'N.º / altura') + machineInput(item, 'machine_other', 'Outras regulações', 'Encosto, apoios, amplitude…') + '</div><p class="gcwo-muted">Preencher apenas quando aplicável. Os ajustes ficam associados à prescrição do doente.</p></fieldset></details></div></article>';
 }
 
 export function renderItemsForca(block, blockIndex, blocks) {
@@ -104,14 +120,27 @@ export function wireBlocosForca(root, blocks, options, onlyBlockId = null) {
           set.value=range?null:input.value.trim()===''?null:Number(input.value);
           set.reps_min=range?Number(range[1]):null;set.reps_max=range?Number(range[2]):null;
         }else set[key]=input.value===''?null:Number(input.value);
+        syncQuick(input);
         options.change();
       });
       row.querySelectorAll('[data-field]').forEach(input=>input.oninput=()=>{
         const key=input.dataset.field;
-        item[key]=key==='prescription_note'?input.value:input.value===''?null:Number(input.value);
+        item[key]=['prescription_note','machine_position','machine_seat_height','machine_other'].includes(key)?input.value:input.value===''?null:Number(input.value);
+        syncQuick(input);
         options.change();
+      });
+      row.querySelectorAll('[data-quick-value]').forEach(button=>button.onclick=()=>{
+        const input=button.closest('.gcwo-strength-quick').querySelector('input');
+        input.value=button.dataset.quickValue;input.oninput();
       });
     });
   });
 }
 function copySet(set) { return structuredClone(set); }
+
+function syncQuick(input) {
+  input.closest('.gcwo-strength-quick')?.querySelectorAll('[data-quick-value]').forEach(button=>{
+    const selected=input.value.trim()!=='' && Number(input.value)===Number(button.dataset.quickValue);
+    button.classList.toggle('on',selected);button.setAttribute('aria-pressed',String(selected));
+  });
+}

@@ -92,7 +92,7 @@ export function erroForca(blocks) {
         if (item.dose_unit === 'reps' && !range && !Number.isInteger(set.value)) return label + ' — use repetições inteiras.';
         if (set.load != null && !finite(set.load)) return label + ' — confirme a carga.';
       }
-      if (item.strength_series.length > 1 && !finite(item.rest_set)) return label + ' — defina o descanso entre séries (0 para sem descanso).';
+      if (item.strength_series.slice(0,-1).some(set => !finite(Object.hasOwn(set, 'rest_after_s') ? set.rest_after_s : item.rest_set))) return label + ' — defina o descanso entre séries (0 para sem descanso).';
       if ((itemIndex < block.items.length - 1 || blockIndex < blocks.length - 1) && !finite(item.rest_next)) return label + ' — defina o descanso entre exercícios (0 para sem descanso).';
       if (cadenceKeys.some(key => item[key] != null && !finite(item[key]))) return label + ' — confirme a cadência.';
     }
@@ -119,6 +119,9 @@ export function compilarForca(blocks) {
           photo_url: item.photo_url || null, video_url: item.video_url || null,
           tecnica_info: copy(item.tecnica_info || null), tecnica_notas: item.tecnica_notas || null,
           prescription_note: item.prescription_note || null,
+          machine_position: item.machine_position || null,
+          machine_seat_height: item.machine_seat_height || null,
+          machine_other: item.machine_other || null,
           exercise_index: exerciseIndex + 1, exercise_total: block.items.length,
           round_index: round, round_total: rounds,
         };
@@ -135,7 +138,7 @@ export function compilarForca(blocks) {
             cadence: Object.fromEntries(cadenceKeys.map(key => [key, item[key] ?? 0])),
             manual_reps: item.dose_unit === 'reps' && (repSeconds == null || set.value == null),
           });
-          if (setIndex < item.strength_series.length - 1) addRest(item.rest_set, 'Descanso entre séries', context, 'set');
+          if (setIndex < item.strength_series.length - 1) addRest(set.rest_after_s ?? item.rest_set, 'Descanso entre séries', context, 'set');
         });
         if (exerciseIndex < block.items.length - 1) addRest(item.rest_next, 'Descanso entre exercícios', common, 'exercise');
       });
