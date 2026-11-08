@@ -1,6 +1,6 @@
 import { listarModelosForca, guardarModeloForca, aplicarModeloForca } from './forca-modelos.js?v=2026-11-08-modelos-ajustes';
-import { prepararForca, itemForca, novoBlocoForca, cadenciaForca, erroForca, compilarForca, tempoForca, sessaoForcaGuardada } from './forca-blocos.js?v=2026-11-08-modelos-ajustes';
-import { renderBlocosForca, renderItemsForca, wireBlocosForca } from './forca-editor.js?v=2026-11-08-forca-tempos';
+import { prepararForca, itemForca, novoBlocoForca, cadenciaForca, erroForca, compilarForca, tempoForca, sessaoForcaGuardada } from './forca-blocos.js?v=2026-11-08-tempo-misto';
+import { renderBlocosForca, renderItemsForca, wireBlocosForca, textoTempoForca, textoTempoExercicioForca } from './forca-editor.js?v=2026-11-08-tempo-misto';
 import { BLOCOS_EXERCICIO, resolverBloco, exerciciosDaSessao, distribuicaoRegional } from './biblioteca-blocos.js?v=2026-11-05-semana-hoje';
 import { PLANOS_CASA, configuracaoPlanoCasa, preverPlanoCasa, tempoPlanoCasa } from './planos-casa.js?v=2026-11-01-1';
 import { PADROES_CASA, catalogoCasa, sugerirVariantesCasa, semanaCasa, proporProgramaCasa } from './programa-casa.js?v=2026-11-01-1';
@@ -39,7 +39,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-08-forca-tempos';
+const PRESCRICAO_CSS_VERSION = '2026-11-08-tempo-misto';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -4020,7 +4020,7 @@ function tempoForcaTexto(seconds) { const total=Math.round(seconds);return Math.
 function refreshForca(s) {
   const timing=tempoForca(s.strength_blocks);
   const label=document.getElementById('gcwoStrengthTime');
-  if(label)label.textContent=erroForca(s.strength_blocks)?'Dose por completar':timing.incomplete?'Tempo parcialmente por calcular · com repetições sem cadência ou em intervalo':'Duração estimada: '+tempoForcaTexto(timing.seconds);
+  if(label)label.textContent='Duração estimada: '+textoTempoForca(timing);
   const selected=alvoForca(s),selection=document.getElementById('gcwoStrengthSelection');
   if(selection)selection.textContent=selected?'Selecionar para '+selected.name+' · '+selected.items.length+' exercício'+(selected.items.length===1?'':'s'):'';
   const targets=document.getElementById('gcwoStrengthTargets');
@@ -4029,9 +4029,11 @@ function refreshForca(s) {
   blocks?.querySelectorAll('[data-strength-block]').forEach(card=>{
     const block=s.strength_blocks.find(b=>b.block_id===card.dataset.strengthBlock);
     const summary=card.querySelector('[data-strength-block-time]');
-    if(summary){const t=tempoForca([block]);summary.textContent=t.incomplete?'Tempo parcialmente por calcular':tempoForcaTexto(t.seconds);}
+    if(summary){const t=tempoForca([block]);summary.textContent=textoTempoForca(t);}
     card.querySelectorAll('[data-strength-item]').forEach(row=>{
       const item=block.items.find(i=>i.item_id===row.dataset.strengthItem);
+      const itemTime=row.querySelector('[data-strength-item-time]');
+      if(itemTime)itemTime.textContent=textoTempoExercicioForca(item,block);
       const title=row.querySelector('[data-details] summary');
       const seconds=cadenciaForca(item);
       if(title)title.textContent='Instruções, cadência e ajustes da máquina'+(item.dose_unit==='reps'?(seconds==null?' · tempo por definir':' · '+seconds+' s por repetição'):'');

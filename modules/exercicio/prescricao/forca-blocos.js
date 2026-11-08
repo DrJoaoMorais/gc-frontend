@@ -133,7 +133,7 @@ export function compilarForca(blocks) {
           intervals.push({
             ...context, type: 'trabalho', label: item.name, duration_sec: seconds,
             prescribed_measure: item.dose_unit, prescribed_value: set.value ?? null,
-            prescribed_reps_min: set.reps_min ?? null, prescribed_reps_max: set.reps_max ?? null,
+            prescribed_reps_min: item.dose_unit === 'reps' ? set.reps_min ?? null : null, prescribed_reps_max: item.dose_unit === 'reps' ? set.reps_max ?? null : null,
             load: set.load ?? null,
             cadence: Object.fromEntries(cadenceKeys.map(key => [key, item[key] ?? 0])),
             manual_reps: item.dose_unit === 'reps' && (repSeconds == null || set.value == null),
@@ -153,10 +153,47 @@ export function compilarForca(blocks) {
 
 export function tempoForca(blocks) {
   const intervals = compilarForca(blocks).flatMap(block => block.intervals || []);
-  return {
-    seconds: intervals.reduce((sum, interval) => sum + (Number(interval.duration_sec) || 0), 0),
-    incomplete: intervals.some(interval => interval.manual_reps || (interval.prescribed_reps_min != null && interval.prescribed_reps_min !== interval.prescribed_reps_max)),
+  const pending = [];
+  const addPending = (name, reason) => {
+    if (!pending.some(entry => entry.name === name && entry.reason === reason)) pending.push({ name, reason });
   };
+  blocks.forEach((block, blockIndex) => {
+    if (block.type === 'legacy') {
+      (block.original?.intervals || []).forEach(interval => {
+        if (interval.manual_reps) addPending(interval.exercise_name || interval.label || block.name, 'repetições sem tempo definido');
+      });
+      return;
+    }
+    if (block.type === 'circuit') {
+      if (!Number.isInteger(block.rounds) || block.rounds < 1) addPending(block.name, 'número de voltas');
+      if (block.rounds > 1 && !finite(block.rest_between_rounds_s)) addPending(block.name, 'descanso entre voltas');
+    }
+    block.items.forEach((item, itemIndex) => {
+      const name = item.name || 'Exercício';
+      item.strength_series.forEach((set, setIndex) => {
+        if (item.dose_unit === 'time') {
+          if (!finite(set.value, Number.MIN_VALUE)) addPending(name, 'segundos por série');
+        } else {
+          const range = Number.isInteger(set.reps_min) && set.reps_min > 0 && Number.isInteger(set.reps_max) && set.reps_max >= set.reps_min;
+          if (!finite(set.value, Number.MIN_VALUE) && !range) addPending(name, 'repetições por série');
+          if (cadenciaForca(item) == null) addPending(name, 'cadência por repetição');
+          if (set.value == null && range && set.reps_min !== set.reps_max) addPending(name, 'intervalo de repetições');
+        }
+        if (setIndex < item.strength_series.length - 1 && !finite(Object.hasOwn(set, 'rest_after_s') ? set.rest_after_s : item.rest_set)) addPending(name, 'descanso entre séries');
+      });
+      if ((itemIndex < block.items.length - 1 || blockIndex < blocks.length - 1) && !finite(item.rest_next)) addPending(name, 'descanso entre exercícios');
+    });
+  });
+  return {
+    seconds: intervals.reduce((sum, interval) => sum + (finite(interval.duration_sec) ? interval.duration_sec : 0), 0),
+    incomplete: pending.length > 0,
+    pending,
+  };
+}
+
+// Por exercício e por volta: inclui as séries e os seus descansos, sem a transição seguinte.
+export function tempoExercicioForca(item) {
+  return tempoForca([{ type: 'series', name: item.name, items: [item] }]);
 }
 
 export function sessaoForcaGuardada(session) {
@@ -166,3 +203,4 @@ export function sessaoForcaGuardada(session) {
     blocks: compilarForca(session.strength_blocks),
   };
 }
+

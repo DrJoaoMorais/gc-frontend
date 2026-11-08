@@ -1,7 +1,14 @@
-import { cadenciaForca, tempoForca } from './forca-blocos.js?v=2026-11-08-modelos-ajustes';
+import { cadenciaForca, tempoForca, tempoExercicioForca } from './forca-blocos.js?v=2026-11-08-tempo-misto';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 const duration = seconds => Math.floor(seconds / 60) + ' min ' + Math.round(seconds % 60) + ' s';
+export function textoTempoForca(timing) {
+  const text = duration(timing.seconds);
+  return timing.incomplete ? text + ' · estimativa parcial; falta: ' + timing.pending.map(entry => entry.name + ' (' + entry.reason + ')').join('; ') : text;
+}
+export function textoTempoExercicioForca(item, block) {
+  return (block.type === 'circuit' ? 'Por volta: ' : 'Duração do exercício: ') + textoTempoForca(tempoExercicioForca(item)) + ' · inclui descanso entre séries';
+}
 const numberInput = (value, attr, label, minimum = 0, step = '0.5', disabled = false) =>
   '<label class="gcwo-field"><span>' + esc(label) + '</span><input type="number" min="' + minimum + '" step="' + step + '" ' + attr + ' value="' + esc(value ?? '') + '" ' + (disabled ? 'disabled' : '') + '></label>';
 
@@ -46,7 +53,7 @@ function itemHTML(item, index, block, blockIndex, blocks) {
         '<label class="gcwo-strength-load"><span>Carga (kg)</span><input type="number" min="0" step="0.5" data-set="' + i + '" data-set-field="load" value="' + esc(set.load ?? '') + '" aria-label="Carga da série ' + (i+1) + '"></label>' + restSet +
         '<button type="button" class="gcBtnGhost gcBtnSm" data-delete-set="' + i + '" ' + (item.strength_series.length === 1 ? 'disabled' : '') + ' aria-label="Remover série ' + (i+1) + '">×</button></div>';
     }).join('') +
-    '</div><div class="gcwo-strength-rests">' + rest + '</div>' +
+    '</div><div class="gcwo-strength-rests">' + rest + '</div><p class="gcwo-muted" data-strength-item-time aria-live="polite">' + esc(textoTempoExercicioForca(item, block)) + '</p>' +
     '<details class="gcwo-strength-details" data-details><summary>Instruções, cadência e ajustes da máquina' + (item.dose_unit === 'reps' ? seconds == null ? ' · tempo por definir' : ' · ' + seconds + ' s por repetição' : '') + '</summary><label class="gcwo-field"><span>Instrução para o doente</span><input data-field="prescription_note" value="' + esc(item.prescription_note || '') + '"></label>' +
     '<div class="gcwo-row2">' + numberInput(item.tempo_concentrico_s, 'data-field="tempo_concentrico_s"', 'Concêntrico (s)') + numberInput(item.tempo_excentrico_s, 'data-field="tempo_excentrico_s"', 'Excêntrico (s)') +
     numberInput(item.pausa_superior_s, 'data-field="pausa_superior_s"', 'Pausa superior (s)') + numberInput(item.pausa_inferior_s, 'data-field="pausa_inferior_s"', 'Pausa inferior (s)') + '</div>' +
@@ -68,7 +75,7 @@ export function renderBlocosForca(blocks, target) {
       (block.type === 'circuit' ? '<div class="gcwo-strength-settings">' + selector(block.rounds,'data-preset="rounds"',[1,3,5],'Voltas') + selector(block.rest_between_rounds_s,'data-preset="rest_between_rounds_s"',[20,30,45],'Entre voltas (s)') + '</div>' : '') +
       '<div data-block-catalog></div><div data-block-items>' + renderItemsForca(block,index,blocks) + '</div>' +
       '<p class="gcwo-muted" data-block-empty ' + (block.items.length?'hidden':'') + '>Este bloco ainda não tem exercícios.</p>' +
-      '<div class="gcwo-strength-block-foot"><button type="button" class="gcBtnGhost" data-target-block aria-expanded="false" aria-controls="gcwoStrengthCatalog">Adicionar exercícios</button><span data-strength-block-time>' + (timing.incomplete ? 'Tempo parcialmente por calcular' : duration(timing.seconds)) + '</span></div></section>';
+      '<div class="gcwo-strength-block-foot"><button type="button" class="gcBtnGhost" data-target-block aria-expanded="false" aria-controls="gcwoStrengthCatalog">Adicionar exercícios</button><span data-strength-block-time>' + esc(textoTempoForca(timing)) + '</span></div></section>';
   }).join('');
 }
 
