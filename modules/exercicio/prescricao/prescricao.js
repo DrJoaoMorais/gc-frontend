@@ -1,5 +1,5 @@
 import { prepararForca, itemForca, novoBlocoForca, cadenciaForca, erroForca, compilarForca, tempoForca, sessaoForcaGuardada } from './forca-blocos.js?v=2026-11-07-unico';
-import { renderBlocosForca, wireBlocosForca } from './forca-editor.js?v=2026-11-08-duas-colunas';
+import { renderBlocosForca, wireBlocosForca } from './forca-editor.js?v=2026-11-08-selecao-bloco';
 import { BLOCOS_EXERCICIO, resolverBloco, exerciciosDaSessao, distribuicaoRegional } from './biblioteca-blocos.js?v=2026-11-05-semana-hoje';
 import { PLANOS_CASA, configuracaoPlanoCasa, preverPlanoCasa, tempoPlanoCasa } from './planos-casa.js?v=2026-11-01-1';
 import { PADROES_CASA, catalogoCasa, sugerirVariantesCasa, semanaCasa, proporProgramaCasa } from './programa-casa.js?v=2026-11-01-1';
@@ -38,7 +38,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-08-workspace';
+const PRESCRICAO_CSS_VERSION = '2026-11-08-selecao-bloco';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -4005,7 +4005,7 @@ function renderPanelForca(s) {
   prepararForca(s, _state.exercisesCatalog, uuid);
   return '<section class="gcwo-strength-editor">' +
     '<section class="gcwo-gym-catalog gcwo-strength-catalog"><div class="gcwo-catalog-heading">Catálogo de exercícios</div>' +
-    renderFiltrosCatalogo() + '<div class="gcwo-strength-targets"><strong>Adicionar a</strong><div class="gcwo-chips" id="gcwoStrengthTargets">' + renderAlvosForca(s) + '</div></div>' +
+    renderFiltrosCatalogo() + '<div class="gcwo-strength-targets"><strong>Adicionar a</strong><div class="gcwo-chips" id="gcwoStrengthTargets">' + renderAlvosForca(s) + '</div><button type="button" class="gcBtnGhost" id="gcwoStrengthBackToBlock">Ver bloco selecionado</button><span id="gcwoStrengthSelection" role="status"></span></div>' +
     '<div class="gcwo-catpick-grid" id="gcwoPCatGrid">' + renderForcaCatalogo(s) + '</div></section>' +
     '<div class="gcwo-strength-toolbar"><h3>Plano da sessão</h3><button type="button" class="gcBtnGhost" data-strength-new="series">Adicionar bloco por séries</button><button type="button" class="gcBtnGhost" data-strength-new="circuit">Adicionar bloco em circuito</button></div>' +
     '<details class="gcwo-strength-models"><summary>Usar um modelo de circuito</summary><div class="gcwo-bib-grid">' +
@@ -4020,6 +4020,8 @@ function refreshForca(s) {
   const timing=tempoForca(s.strength_blocks);
   const label=document.getElementById('gcwoStrengthTime');
   if(label)label.textContent=erroForca(s.strength_blocks)?'Dose por completar':timing.incomplete?'Tempo parcialmente por calcular · com repetições sem cadência ou em intervalo':'Duração estimada: '+tempoForcaTexto(timing.seconds);
+  const selected=alvoForca(s),selection=document.getElementById('gcwoStrengthSelection');
+  if(selection)selection.textContent=selected?'Selecionar para '+selected.name+' · '+selected.items.length+' exercício'+(selected.items.length===1?'':'s'):'';
   const targets=document.getElementById('gcwoStrengthTargets');
   if(targets)targets.innerHTML=renderAlvosForca(s);
   const blocks=document.getElementById('gcwoStrengthBlocks');
@@ -4072,7 +4074,23 @@ function wirePanelForca(s) {
     button.classList.toggle('on',_panelEquipFiltro.has(eq));button.setAttribute('aria-pressed',String(_panelEquipFiltro.has(eq)));refreshFilters();
   });
   document.getElementById('gcwoPCatBusca').oninput=event=>{_panelCatalogBusca=event.target.value;refreshFilters();};
-  const chooseTarget=id=>{_strengthTarget=id;renderPanel();document.getElementById('gcwoPCatBusca').focus();};
+  const scrollTo=element=>{
+    if(!element)return;
+    const header=document.querySelector('.care-workspace-header');
+    element.style.scrollMarginTop=((header?.offsetHeight||0)+24)+'px';
+    element.scrollIntoView({block:'start',behavior:'smooth'});
+  };
+  const chooseTarget=id=>{
+    _strengthTarget=id;renderPanel();
+    const search=document.getElementById('gcwoPCatBusca');
+    search.focus({preventScroll:true});
+    scrollTo(document.querySelector('.gcwo-strength-catalog'));
+  };
+  document.getElementById('gcwoStrengthBackToBlock').onclick=()=>{
+    const block=alvoForca(s);
+    const card=[...document.querySelectorAll('[data-strength-block]')].find(el=>el.dataset.strengthBlock===block?.block_id);
+    scrollTo(card);
+  };
   document.getElementById('gcwoStrengthTargets').onclick=event=>{
     const button=event.target.closest('[data-strength-target]');
     if(button)chooseTarget(button.dataset.strengthTarget);

@@ -89,3 +89,27 @@ test('embedded workspace has one settings form and saves an edited day through o
  assert.equal(x.run('savedPlan.sessions.find(s=>s.session_id==="monday").session_id'),'monday');
  assert.equal(x.document.querySelectorAll('#gcwoGerar').length,1);
 });
+
+test('empty block opens its catalogue and selection goes only into that block without losing rounds or rests',async()=>{
+ const x=await setup();
+ x.run(`_criarTreino=null;_embeddedCare={onChange(){}};
+ _state.exercisesCatalog=[{id:'new-ex',name:'Exercício de demonstração',categoria:['Membro Inferior'],equipamento:['Peso Corporal']}];
+ _panelCatalogFiltro='todos';_panelCatalogBusca='';_panelEquipFiltro=new Set();
+ _panelDraft=novaSessaoSkeleton('Ginásio','list','2026-11-09');_panelIsNovo=true;
+ const a=novoBlocoForca(uuid),b=novoBlocoForca(uuid,'circuit');b.rounds=5;b.rest_between_rounds_s=45;
+ _panelDraft.strength_blocks=[a,b];
+ document.getElementById('gcwoPrescricaoRoot').innerHTML='<div id="gcwoPanel"></div>';renderPanel();
+ globalThis.scrolled=[];window.HTMLElement.prototype.scrollIntoView=function(){scrolled.push(this.className)};`);
+ const cards=x.document.querySelectorAll('[data-strength-block]');
+ cards[1].querySelector('.gcwo-strength-empty-add').click();
+ assert.match(x.run('scrolled.at(-1)'),/gcwo-strength-catalog/);
+ assert.equal(x.run('alvoForca(_panelDraft).block_id'),x.run('_panelDraft.strength_blocks[1].block_id'));
+ x.click('#gcwoPCatGrid [data-exid="new-ex"]');
+ assert.equal(x.run('_panelDraft.strength_blocks[0].items.length'),0);
+ assert.equal(x.run('_panelDraft.strength_blocks[1].items.length'),1);
+ assert.equal(x.run('_panelDraft.strength_blocks[1].rounds'),5);
+ assert.equal(x.run('_panelDraft.strength_blocks[1].rest_between_rounds_s'),45);
+ assert.match(x.get('#gcwoStrengthSelection').textContent,/1 exercício/);
+ x.click('#gcwoStrengthBackToBlock');
+ assert.match(x.run('scrolled.at(-1)'),/gcwo-strength-block/);
+});

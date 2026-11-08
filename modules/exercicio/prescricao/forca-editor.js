@@ -48,7 +48,7 @@ export function renderBlocosForca(blocks, target) {
       '<p class="gcwo-muted">' + (block.type === 'circuit' ? 'Percorrer a lista e repetir por voltas.' : 'Completar as séries de cada exercício antes de avançar.') + '</p>' +
       (block.type === 'circuit' ? '<div class="gcwo-strength-settings">' + selector(block.rounds,'data-preset="rounds"',[1,3,5],'Voltas') + selector(block.rest_between_rounds_s,'data-preset="rest_between_rounds_s"',[20,30,45],'Entre voltas (s)') + '</div>' : '') +
       block.items.map((item,i)=>itemHTML(item,i,block,index,blocks)).join('') +
-      (!block.items.length ? '<p class="gcwo-circ-empty">Adicione exercícios do catálogo a este bloco.</p>' : '') +
+      (!block.items.length ? '<button type="button" class="gcwo-circ-empty gcwo-strength-empty-add" data-target-block>+ Escolher exercícios no catálogo</button>' : '') +
       '<div class="gcwo-strength-block-foot"><button type="button" class="gcBtnGhost" data-target-block>Adicionar exercícios a este bloco</button><span data-strength-block-time>' + (timing.incomplete ? 'Tempo parcialmente por calcular' : duration(timing.seconds)) + '</span></div></section>';
   }).join('');
 }
@@ -60,7 +60,7 @@ export function wireBlocosForca(root, blocks, options) {
     if (block.type === 'legacy') return;
     card.querySelector('[data-block-name]').oninput = event => { block.name = event.target.value; options.change(); };
     card.querySelectorAll('[data-block-type]').forEach(button => button.onclick = () => { block.type = button.dataset.blockType; options.render(); });
-    card.querySelector('[data-target-block]').onclick = () => options.target(block.block_id);
+    card.querySelectorAll('[data-target-block]').forEach(button=>button.onclick = () => options.target(block.block_id));
     card.querySelectorAll('[data-preset]').forEach(button => button.onclick = () => { block[button.dataset.preset] = Number(button.dataset.value); options.render(); });
     card.querySelectorAll('[data-config]').forEach(input => input.oninput = () => {
       const key = input.dataset.config;
