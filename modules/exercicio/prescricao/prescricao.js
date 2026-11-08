@@ -1,6 +1,6 @@
 import { listarModelosForca, guardarModeloForca, aplicarModeloForca } from './forca-modelos.js?v=2026-11-08-modelos-ajustes';
 import { prepararForca, itemForca, novoBlocoForca, cadenciaForca, erroForca, compilarForca, tempoForca, sessaoForcaGuardada } from './forca-blocos.js?v=2026-11-08-modelos-ajustes';
-import { renderBlocosForca, renderItemsForca, wireBlocosForca } from './forca-editor.js?v=2026-11-08-forca-visual';
+import { renderBlocosForca, renderItemsForca, wireBlocosForca } from './forca-editor.js?v=2026-11-08-forca-linha-unica';
 import { BLOCOS_EXERCICIO, resolverBloco, exerciciosDaSessao, distribuicaoRegional } from './biblioteca-blocos.js?v=2026-11-05-semana-hoje';
 import { PLANOS_CASA, configuracaoPlanoCasa, preverPlanoCasa, tempoPlanoCasa } from './planos-casa.js?v=2026-11-01-1';
 import { PADROES_CASA, catalogoCasa, sugerirVariantesCasa, semanaCasa, proporProgramaCasa } from './programa-casa.js?v=2026-11-01-1';
@@ -39,7 +39,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-08-forca-visual';
+const PRESCRICAO_CSS_VERSION = '2026-11-08-forca-linha-unica';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },

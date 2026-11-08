@@ -2002,3 +2002,14 @@ details.gcwo-gym-catalog:not([open])>:not(summary),details.gcwo-exercicio-expand
  .gcwo-strength-editor .gcwo-strength-quick>.gcwo-chips{flex-wrap:wrap;max-width:100%;flex-shrink:1}
  .gcwo-strength-prescription .gcwo-strength-series-row>.gcwo-strength-quick-rest{grid-row:3}
 }
+
+/* A prescrição e a ação de acrescentar série partilham a linha do modo. */
+.gcwo-strength-prescription .gcwo-strength-item-head{flex-wrap:nowrap;gap:12px}
+.gcwo-strength-prescription .gcwo-strength-item-head>.gcwo-strength-mode,.gcwo-strength-prescription .gcwo-strength-item-head>.gcwo-strength-item-actions{flex:none}
+.gcwo-strength-prescription .gcwo-strength-item-head>.gcwo-strength-series-toolbar{flex:1;min-width:0;margin:0;padding:3px 8px 3px 12px;min-height:42px;box-sizing:border-box}
+.gcwo-strength-item-head>.gcwo-strength-series-toolbar>strong{white-space:nowrap}
+.gcwo-strength-prescription .gcwo-strength-series{margin-top:10px}
+@container(max-width:650px){
+ .gcwo-strength-prescription .gcwo-strength-item-head{flex-wrap:wrap}
+ .gcwo-strength-prescription .gcwo-strength-item-head>.gcwo-strength-series-toolbar{order:3;flex-basis:100%}
+}
