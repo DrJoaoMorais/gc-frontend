@@ -2016,3 +2016,39 @@ details.gcwo-gym-catalog:not([open])>:not(summary),details.gcwo-exercicio-expand
 
 /* Quatro atalhos de duração: o valor livre adapta-se à largura disponível. */
 .gcwo-strength-editor .gcwo-strength-quick-time{flex-wrap:wrap}
+
+/* Disponibilidade do questionário ao lado da escolha de modalidade. */
+.gcwo-workout-context {
+  display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;
+  gap:10px 16px; padding:12px 16px 0;
+}
+.gcwo-workout-context > .gcwo-bib-filtros { margin:0; align-items:center; }
+.gcwo-workout-context > .gcwo-editbar { flex:1 1 auto; margin:0; }
+.gcwo-care-editor .gcwo-workout-context > #gcwoWorkoutBack { margin:10px 0 0; }
+.gcwo-workout-week {
+  flex:1 1 290px; min-width:0; padding:8px 12px;
+  border:1px solid #dce6f4; border-radius:9px; background:#eef4fc;
+  color:#193c62; overflow-wrap:anywhere;
+}
+.gcwo-workout-week[open] { flex-basis:100%; }
+.gcwo-workout-week small { display:block; color:#526d8b; font-size:11px; }
+.gcwo-workout-week strong { display:block; font-size:13px; }
+.gcwo-workout-week summary {
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  list-style:none; cursor:pointer;
+}
+.gcwo-workout-week summary::-webkit-details-marker { display:none; }
+.gcwo-workout-week summary:focus-visible { outline:2px solid #1a56db; outline-offset:3px; }
+.gcwo-workout-week-toggle { flex:none; color:#1a56a1; font-size:12px; font-weight:650; }
+.gcwo-workout-week-toggle span:last-child,
+.gcwo-workout-week[open] .gcwo-workout-week-toggle span:first-child { display:none; }
+.gcwo-workout-week[open] .gcwo-workout-week-toggle span:last-child { display:inline; }
+.gcwo-workout-week-grid {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(min(135px,100%),1fr));
+  gap:6px; margin:9px 0 0; padding:0; list-style:none;
+}
+.gcwo-workout-week-grid li {
+  display:grid; align-content:start; gap:3px; padding:7px 8px;
+  border:1px solid #dce6f4; border-radius:6px; background:#fff; font-size:12px;
+}
+.gcwo-workout-week-grid li[aria-current=date] { border-color:#5484d2; background:#e2eeff; }

@@ -39,7 +39,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-08-tempo-misto';
+const PRESCRICAO_CSS_VERSION = '2026-11-09-planeamento-no-editor';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -3094,14 +3094,46 @@ function respostaQuestionarioDia(date) {
   return disponibilidade?.semanal[dia];
 }
 
-function resumoQuestionarioDia(resposta) {
+function textoQuestionarioDia(resposta) {
   if (!resposta) return '';
   const tempo = resposta.tempo === 'curto' ? 'Menos de 20 min' : resposta.min == null ? '' : `${resposta.min} min`;
   const modalidades = (resposta.modalidades || []).map(m => ['Exercício em casa', 'Circuito'].includes(m) ? 'Exercício / Circuitos' : m);
-  const resumo = resposta.estado === 'descanso' ? 'Prefere descansar'
+  return resposta.estado === 'descanso' ? 'Prefere descansar'
     : resposta.estado === 'indisponivel' ? 'Indisponível'
     : [tempo, ...modalidades].filter(Boolean).join(' · ');
+}
+
+function resumoQuestionarioDia(resposta) {
+  const resumo = textoQuestionarioDia(resposta);
   return resumo ? `<div class="gcwo-questionario-dia"><small>Questionário do doente</small><span>${escHtml(resumo)}</span></div>` : '';
+}
+
+function renderPlaneamentoQuestionario(date) {
+  const questionario = _disponibilidadeQuestionario;
+  const dias = questionario?.disponibilidade?.semanal;
+  const rotulo = `Questionário do doente · ${diaSemanaDeIso(date).label}, ${fmtDiaMesCurtoIso(date)}`;
+  if (!dias?.length) {
+    const mensagem = questionario?.status === 'indisponivel'
+      ? 'Não foi possível consultar a disponibilidade.'
+      : 'Sem disponibilidade diária registada.';
+    return `<div class="gcwo-workout-week"><small>${escHtml(rotulo)}</small><strong>${mensagem}</strong></div>`;
+  }
+
+  const inicio = segundaFeiraDeIso(date);
+  const resumo = textoQuestionarioDia(respostaQuestionarioDia(date)) || 'Sem indicação para este dia';
+  const semana = DIAS_SEMANA.map((dia, index) => {
+    const iso = addDiasIso(inicio, index);
+    return `<li${iso === date ? ' aria-current="date"' : ''}>
+      <strong>${escHtml(dia.label)} · ${escHtml(fmtDiaMesCurtoIso(iso))}</strong>
+      <span>${escHtml(textoQuestionarioDia(respostaQuestionarioDia(iso)) || 'Sem indicação')}</span>
+    </li>`;
+  }).join('');
+  return `<details class="gcwo-workout-week">
+    <summary><span class="gcwo-workout-week-day"><small>${escHtml(rotulo)}</small><strong>${escHtml(resumo)}</strong></span>
+      <span class="gcwo-workout-week-toggle"><span>Ver semana</span><span>Recolher semana</span></span>
+    </summary>
+    <ul class="gcwo-workout-week-grid" aria-label="Disponibilidade semanal indicada pelo doente">${semana}</ul>
+  </details>`;
 }
 
 function renderCalGrid() {
@@ -3697,14 +3729,16 @@ function renderEditMode(host) {
   const dia = diaSemanaDeIso(date);
   const modalidadeLabel = _panelDraft ? TIPO_META[tipoKey(_panelDraft)].label : 'Escolher tipo de sessão';
 
-  host.innerHTML = `
+  const barra = `
     <div class="gcwo-editbar">
       <button type="button" class="gcwo-editbar-back" id="gcwoEditBack">← Calendário</button>
       <span class="gcwo-editbar-sep">|</span>
       <span class="gcwo-editbar-day">${dia.full}, ${escHtml(fmtDiaMesCurtoIso(date))}</span>
       <span class="gcwo-editbar-sep">|</span>
       <span class="gcwo-editbar-modalidade">${escHtml(modalidadeLabel)}</span>
-    </div>
+    </div>`;
+  host.innerHTML = `
+    ${_embeddedCare ? `<div class="gcwo-workout-context">${barra}${renderPlaneamentoQuestionario(date)}</div>` : barra}
     <div id="gcwoEditArea"></div>
   `;
 
@@ -3819,8 +3853,18 @@ function renderPanel() {
       <div class="gcwo-cardio-head-local">${seletorLocal}</div>
       <button type="button" class="gcBtnGhost gcwo-session-zones" id="gcwoBtnZonasTreino">♥ ⚡ Zonas</button>` : '';
 
+  const mostrarModalidades = _embeddedCare && _panelIsNovo && !_panelDestino;
+  const tipos = mostrarModalidades ? SESSAO_MODALIDADES.filter(t => t.enabled) : [];
+  const modalidadeAtiva = usaEditorForca(s) ? 'Ginásio' : s.modality;
+  const modalidades = mostrarModalidades ? `<nav class="gcwo-bib-filtros" aria-label="Modalidades">${tipos.map(tipo => {
+    const ativa = tipo.modality === modalidadeAtiva;
+    const nome = tipo.kind === 'list' ? 'Força / exercícios' : tipo.modality;
+    return `<button type="button" class="${ativa ? 'gcBtnSuccess' : 'gcBtnGhost'}" aria-pressed="${ativa}" data-modalidade-editor="${escAttr(tipo.modality)}">${escHtml(nome)}</button>`;
+  }).join('')}</nav>` : '';
+  const voltarCalendario = '<button type="button" class="gcwo-editbar-back" id="gcwoWorkoutBack">← Voltar ao calendário</button>';
+
   panel.innerHTML = `
-    ${_embeddedCare ? '<button type="button" class="gcwo-editbar-back" id="gcwoWorkoutBack">← Voltar ao calendário</button>' : ''}
+    ${_embeddedCare ? `<div class="gcwo-workout-context">${modalidades || voltarCalendario}${renderPlaneamentoQuestionario(s.date)}</div>${mostrarModalidades ? voltarCalendario : ''}` : ''}
     <div class="gcwo-panel-head${painelCompacto ? ' gcwo-cardio-panel-head' : ''}">
       <span class="gcwo-panel-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
       <span class="gcwo-panel-titles"><h3>${meta.label}</h3><span class="sub">${dia.full}, ${escHtml(fmtDiaMesCurtoIso(s.date))}</span></span>
@@ -3873,9 +3917,7 @@ function renderPanel() {
     </div>
   `;
 
-  if (_embeddedCare && _panelIsNovo && !_panelDestino) {
-    const tipos=SESSAO_MODALIDADES.filter(t=>t.enabled);
-    panel.insertAdjacentHTML('afterbegin', `<nav class="gcwo-bib-filtros" aria-label="Modalidades">${tipos.map(t=>`<button type="button" class="${(t.modality===s.modality || (usaEditorForca(s)&&t.modality==='Ginásio'))?'gcBtnSuccess':'gcBtnGhost'}" aria-pressed="${t.modality===s.modality || (usaEditorForca(s)&&t.modality==='Ginásio')}" data-modalidade-editor="${escAttr(t.modality)}">${t.kind==='list'?'Força / exercícios':escHtml(t.modality)}</button>`).join('')}</nav>`);
+  if (mostrarModalidades) {
     panel.querySelectorAll('[data-modalidade-editor]').forEach(btn=>btn.onclick=()=>{
       const tipo=tipos.find(t=>t.modality===btn.dataset.modalidadeEditor);
       if(tipo.modality===s.modality || (usaEditorForca(s)&&tipo.modality==='Ginásio'))return;
