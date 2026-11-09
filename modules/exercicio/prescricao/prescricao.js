@@ -39,7 +39,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-09-grafico-cardio';
+const PRESCRICAO_CSS_VERSION = '2026-11-09-editor-cardio-compacto';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -2695,6 +2695,8 @@ function renderStep2Body() {
         editor.innerHTML = '<div class="gcwo-panel" id="gcwoPanel"></div>';
         renderPanel();
       } else renderEditMode(editor);
+      const header = document.querySelector('.care-workspace-header');
+      editor.style.scrollMarginTop = header ? `${header.offsetHeight + 8}px` : '';
       editor.scrollIntoView({ block: 'start' });
     } else renderEditMode(host);
   } else if (_patientMainTab === 'followup') {
@@ -3841,6 +3843,8 @@ function renderPanel() {
   const meta = usaEditorForca(s)?{...TIPO_META.ginasio,label:'Força / exercícios'}:TIPO_META[tipoKey(s)];
   const dia = diaSemanaDeIso(s.date);
   const painelCompacto = s.kind === 'card' || s.kind === 'walk';
+  const cardioCare = _embeddedCare && s.kind === 'card' && modalidadeTemZona(s.modality);
+  panel.classList.toggle('gcwo-care-cardio-panel', !!cardioCare);
   const locais = _embeddedCare ? ['', ...LOCAIS_SESSAO] : LOCAIS_SESSAO;
   const seletorLocal = `<span class="gcwo-field-label">Local da sessão${_embeddedCare ? ' (opcional)' : ''}</span>
     <div class="gcwo-chips" id="gcwoPLocalChips">
@@ -3851,6 +3855,7 @@ function renderPanel() {
     </div>`;
   const cabecalhoCompacto = painelCompacto ? `
       <div class="gcwo-cardio-head-local">${seletorLocal}</div>
+      ${cardioCare && s.modality === 'Natação' ? renderPainelNatacaoTopo(s) : ''}
       <button type="button" class="gcBtnGhost gcwo-session-zones" id="gcwoBtnZonasTreino">♥ ⚡ Zonas</button>` : '';
 
   const mostrarModalidades = _embeddedCare && _panelIsNovo && !_panelDestino;
@@ -3864,7 +3869,8 @@ function renderPanel() {
   const voltarCalendario = '<button type="button" class="gcwo-editbar-back" id="gcwoWorkoutBack">← Voltar ao calendário</button>';
 
   panel.innerHTML = `
-    ${_embeddedCare ? `<div class="gcwo-workout-context">${modalidades || voltarCalendario}${renderPlaneamentoQuestionario(s.date)}</div>${mostrarModalidades ? voltarCalendario : ''}` : ''}
+    ${cardioCare ? `<div class="gcwo-cardio-navigation">${modalidades}${voltarCalendario}</div>`
+      : _embeddedCare ? `<div class="gcwo-workout-context">${modalidades || voltarCalendario}${renderPlaneamentoQuestionario(s.date)}</div>${mostrarModalidades ? voltarCalendario : ''}` : ''}
     <div class="gcwo-panel-head${painelCompacto ? ' gcwo-cardio-panel-head' : ''}">
       <span class="gcwo-panel-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
       <span class="gcwo-panel-titles"><h3>${meta.label}</h3><span class="sub">${dia.full}, ${escHtml(fmtDiaMesCurtoIso(s.date))}</span></span>
@@ -5315,7 +5321,7 @@ function renderEditorRapidoCardio(s) {
     <span class="gcwo-cardio-quick-range">${escHtml(intervalosZonaCardio(bloco.intensity?.zone, s.modality).join(' · '))}</span>
   </div>`;
 }
-function renderPaletaCardio(s, grafico) {
+function renderPaletaCardio(s, grafico, questionario) {
   const seleccionado = blocoSelecionadoCardio(s);
   const zonaSeleccionada = seleccionado?.type === 'series' ? seleccionado.work?.intensity?.zone : seleccionado?.intensity?.zone;
   return `<section class="gcwo-cardio-builder" aria-label="Adicionar bloco por zona">
@@ -5325,6 +5331,7 @@ function renderPaletaCardio(s, grafico) {
         <button type="button" class="gcwo-cardio-zone gcwo-cardio-series${seleccionado?.type === 'series' ? ' is-current' : ''}" data-add-series="true" title="Adicionar séries com descanso"><strong>${modalidadeCanonica(s.modality) === 'natacao' ? '4×' : '3×'}</strong><span>Séries</span><small>${modalidadeCanonica(s.modality) === 'natacao' ? '100 m · 30 s' : '3 min · 1:30'}</small></button>
       </div>
       <div class="gcwo-cardio-editor-column">
+        ${questionario}
         <div id="gcwoPCardioQuickEdit">${renderEditorRapidoCardio(s)}</div>
         ${grafico}
       </div>
@@ -5371,10 +5378,10 @@ function renderResumoVisualCardio(s) {
       const padrao = Array.from({ length:repeticoes }, () => `<i class="gcwo-series-effort" title="${escAttr(intervaloTrabalho)}" style="--series-flex:${trabalhoFlex};--series-height:${altura}%;background:${cardioZoneMeta(b.zona).cor}"><em>${escHtml(b.zona || 'TR')}</em></i><i class="gcwo-series-recovery" title="${escAttr(intervaloRecuperacao)}" style="--series-flex:${recuperacaoFlex};--series-height:${alturaRec}%;background:${cardioZoneMeta(b.zonaRecuperacao).cor}"><em>${escHtml(zonaRec)}</em></i>`).join('');
       const trabalhoTexto = medidaParteSeries(b.bloco.work, s.modality) === 'distance' ? `${distanciaParteSeries(b.bloco.work)} m` : fmtTempoCalculado(trabalhoSec);
       const recuperacaoTexto = medidaParteSeries(b.bloco.recovery, s.modality) === 'distance' ? `${distanciaParteSeries(b.bloco.recovery)} m` : fmtTempoCalculado(recuperacaoSec);
-      return `<div class="gcwo-timeline-block gcwo-timeline-series-group${activa ? ' is-selected' : ''}" data-timeline-bid="${escAttr(b.bloco.block_id)}" title="${repeticoes} séries: trabalho e recuperação" style="--block-width:${largura}px"><button type="button" class="gcwo-timeline-select gcwo-timeline-series" data-select-bid="${escAttr(b.bloco.block_id)}"><span class="gcwo-series-pattern">${padrao}</span><strong class="gcwo-series-count">${repeticoes}×</strong><small class="gcwo-series-caption">${trabalhoTexto} + ${recuperacaoTexto}</small></button></div>`;
+      return `<div class="gcwo-timeline-block gcwo-timeline-series-group${activa ? ' is-selected' : ''}" data-timeline-bid="${escAttr(b.bloco.block_id)}" title="${repeticoes} séries: trabalho e recuperação" style="--block-width:${largura}px;--block-weight:${largura}"><button type="button" class="gcwo-timeline-select gcwo-timeline-series" data-select-bid="${escAttr(b.bloco.block_id)}"><span class="gcwo-series-pattern">${padrao}</span><strong class="gcwo-series-count">${repeticoes}×</strong><small class="gcwo-series-caption">${trabalhoTexto} + ${recuperacaoTexto}</small></button></div>`;
     }
     const duracaoTexto = b.porCalcular ? `${Number(b.bloco.distance_m) || 0} m` : fmtDuracaoTotal(b.segundos);
-    return `<div class="gcwo-timeline-block${activa ? ' is-selected' : ''}" data-timeline-bid="${escAttr(b.bloco.block_id)}" title="Arraste para mudar a ordem" style="--block-width:${largura}px;--block-height:${altura}%;background:${cardioZoneMeta(b.zona).cor}"><button type="button" class="gcwo-timeline-select" data-select-bid="${escAttr(b.bloco.block_id)}"><strong>${escHtml(b.zona || b.label)}</strong><span>${duracaoTexto}</span><small>${escHtml(b.metrica || b.label)}</small></button></div>`;
+    return `<div class="gcwo-timeline-block${activa ? ' is-selected' : ''}" data-timeline-bid="${escAttr(b.bloco.block_id)}" title="Arraste para mudar a ordem" style="--block-width:${largura}px;--block-weight:${largura};--block-height:${altura}%;background:${cardioZoneMeta(b.zona).cor}"><button type="button" class="gcwo-timeline-select" data-select-bid="${escAttr(b.bloco.block_id)}"><strong>${escHtml(b.zona || b.label)}</strong><span>${duracaoTexto}</span><small>${escHtml(b.metrica || b.label)}</small></button></div>`;
   }).join('')}</div></div><div class="gcwo-timeline-help">Largura = duração · Altura = velocidade/intensidade · Arraste para ordenar · Clique para editar</div></div>`;
 }
 function refreshZonaResumo(s) {
@@ -5563,23 +5570,23 @@ const ESTILOS_NATACAO = [
 function renderPainelNatacaoTopo(s) {
   const pool = s.pool_length_m ?? 25;
   const stroke = s.stroke ?? 'crol';
-  return `
+  return `<div class="gcwo-cardio-swim-settings">
     <span class="gcwo-field-label">Piscina</span>
     <div class="gcwo-chips" id="gcwoPPiscina">
       <button type="button" class="gcwo-chip${pool === 25 ? ' on' : ''}" data-pool="25">25 m</button>
       <button type="button" class="gcwo-chip${pool === 50 ? ' on' : ''}" data-pool="50">50 m</button>
     </div>
-    <label class="gcwo-field gcwo-field-sm" style="margin-top:10px;"><span>Estilo</span>
+    <label class="gcwo-field gcwo-field-sm"><span>Estilo</span>
       <select id="gcwoPEstilo">${ESTILOS_NATACAO.map(e => `<option value="${e.value}" ${stroke === e.value ? 'selected' : ''}>${e.label}</option>`).join('')}</select>
     </label>
-  `;
+  </div>`;
 }
 function renderPanelCardio(s) {
   const usaZonas = modalidadeTemZona(s.modality);
   const grafico = usaZonas ? `<div id="gcwoPCardioOverview">${renderResumoVisualCardio(s)}</div>` : '';
   return `
-    ${s.modality === 'Natação' ? renderPainelNatacaoTopo(s) : ''}
-    ${usaZonas ? renderPaletaCardio(s, _embeddedCare ? grafico : '') : ''}
+    ${s.modality === 'Natação' && !_embeddedCare ? renderPainelNatacaoTopo(s) : ''}
+    ${usaZonas ? renderPaletaCardio(s, _embeddedCare ? grafico : '', _embeddedCare ? renderPlaneamentoQuestionario(s.date) : '') : ''}
     ${_embeddedCare ? '' : grafico}
     ${usaZonas ? `<div id="gcwoPZonaResumo">${renderIndicadorZonaHtml(s)}</div>` : ''}
     <div class="gcwo-exercicios" id="gcwoPBlocosList">${renderBlocosListInner(s)}</div>
