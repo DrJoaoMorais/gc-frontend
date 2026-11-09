@@ -2017,7 +2017,9 @@ details.gcwo-gym-catalog:not([open])>:not(summary),details.gcwo-exercicio-expand
 /* Quatro atalhos de duração: o valor livre adapta-se à largura disponível. */
 .gcwo-strength-editor .gcwo-strength-quick-time{flex-wrap:wrap}
 
-/* Disponibilidade do questionário ao lado da escolha de modalidade. */
+/* Disponibilidade do questionário no seletor de modalidade ou no editor de zonas. */
+.gcwo-cardio-editor-column { min-width:0; }
+.gcwo-cardio-editor-column > .gcwo-workout-week { margin-top:10px; }
 .gcwo-workout-context {
   display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;
   gap:10px 16px; padding:12px 16px 0;
