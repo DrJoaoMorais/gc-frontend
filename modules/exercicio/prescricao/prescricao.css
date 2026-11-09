@@ -1477,6 +1477,17 @@ button.gcwo-pat-card:hover, .gcwo-pat-card.multi:hover { border-color:#1d5de2; b
 .gcwo-cardio-compact-workspace { grid-template-columns:minmax(180px,1fr) minmax(0,3fr); align-items:start; }
 .gcwo-cardio-compact-workspace .gcwo-cardio-zone-tray { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
 .gcwo-cardio-compact-workspace .gcwo-cardio-zone { width:100%; min-width:0; }
+.gcwo-cardio-editor-column { min-width:0; }
+.gcwo-cardio-editor-column .gcwo-cardio-overview,
+.gcwo-cardio-editor-column .gcwo-cardio-empty { margin:10px 0 0; padding:8px 10px; border-radius:10px; }
+.gcwo-cardio-editor-column .gcwo-cardio-total strong { font-size:18px; }
+.gcwo-cardio-editor-column .gcwo-cardio-chart { margin-top:6px; }
+.gcwo-cardio-editor-column .gcwo-cardio-axis { padding:2px 0; }
+.gcwo-cardio-editor-column .gcwo-cardio-timeline { height:108px; }
+.gcwo-cardio-editor-column .gcwo-timeline-select:not(.gcwo-timeline-series) { padding:2px 4px; line-height:1.1; }
+.gcwo-cardio-editor-column .gcwo-timeline-select:not(.gcwo-timeline-series) strong { font-size:13px; }
+.gcwo-cardio-editor-column .gcwo-timeline-select:not(.gcwo-timeline-series) span { margin-top:2px; font-size:11px; }
+.gcwo-cardio-editor-column .gcwo-timeline-select:not(.gcwo-timeline-series) small { margin-top:2px; font-size:9px; }
 #gcwoPCardioQuickEdit { min-width:0; }
 #gcwoPCardioQuickEdit > .gcwo-exercicio { margin:0; padding:10px; }
 #gcwoPCardioQuickEdit .gcwo-series-general { margin-top:0; }
@@ -2017,9 +2028,7 @@ details.gcwo-gym-catalog:not([open])>:not(summary),details.gcwo-exercicio-expand
 /* Quatro atalhos de duração: o valor livre adapta-se à largura disponível. */
 .gcwo-strength-editor .gcwo-strength-quick-time{flex-wrap:wrap}
 
-/* Disponibilidade do questionário no seletor de modalidade ou no editor de zonas. */
-.gcwo-cardio-editor-column { min-width:0; }
-.gcwo-cardio-editor-column > .gcwo-workout-week { margin-top:10px; }
+/* Disponibilidade do questionário ao lado da escolha de modalidade. */
 .gcwo-workout-context {
   display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;
   gap:10px 16px; padding:12px 16px 0;

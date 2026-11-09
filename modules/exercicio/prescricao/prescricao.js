@@ -39,7 +39,7 @@ const TREINO_BASE_URL = 'https://treino.joaomorais.pt/t/';
 // <link> é injectado sempre com o mesmo URL e o browser (ou o CDN) pode continuar a
 // servir a folha de estilo antiga depois de um deploy — foi o que aconteceu a 9 ago
 // 2026 com o ecrã de 2 modos: HTML novo, CSS velho, tudo sem estilo nenhum.
-const PRESCRICAO_CSS_VERSION = '2026-11-09-planeamento-cardio';
+const PRESCRICAO_CSS_VERSION = '2026-11-09-grafico-cardio';
 
 const DIAS_SEMANA = [
   { value: 'seg', label: 'Seg', full: 'Segunda-feira' },
@@ -3840,8 +3840,6 @@ function renderPanel() {
   const s = _panelDraft;
   const meta = usaEditorForca(s)?{...TIPO_META.ginasio,label:'Força / exercícios'}:TIPO_META[tipoKey(s)];
   const dia = diaSemanaDeIso(s.date);
-  const planeamentoNaPaleta = s.kind === 'card' && modalidadeTemZona(s.modality);
-  const planeamento = _embeddedCare ? renderPlaneamentoQuestionario(s.date) : '';
   const painelCompacto = s.kind === 'card' || s.kind === 'walk';
   const locais = _embeddedCare ? ['', ...LOCAIS_SESSAO] : LOCAIS_SESSAO;
   const seletorLocal = `<span class="gcwo-field-label">Local da sessão${_embeddedCare ? ' (opcional)' : ''}</span>
@@ -3866,7 +3864,7 @@ function renderPanel() {
   const voltarCalendario = '<button type="button" class="gcwo-editbar-back" id="gcwoWorkoutBack">← Voltar ao calendário</button>';
 
   panel.innerHTML = `
-    ${_embeddedCare ? `<div class="gcwo-workout-context">${modalidades || voltarCalendario}${planeamentoNaPaleta ? '' : planeamento}</div>${mostrarModalidades ? voltarCalendario : ''}` : ''}
+    ${_embeddedCare ? `<div class="gcwo-workout-context">${modalidades || voltarCalendario}${renderPlaneamentoQuestionario(s.date)}</div>${mostrarModalidades ? voltarCalendario : ''}` : ''}
     <div class="gcwo-panel-head${painelCompacto ? ' gcwo-cardio-panel-head' : ''}">
       <span class="gcwo-panel-icon" style="background:${meta.bg};color:${meta.fg}">${meta.icon}</span>
       <span class="gcwo-panel-titles"><h3>${meta.label}</h3><span class="sub">${dia.full}, ${escHtml(fmtDiaMesCurtoIso(s.date))}</span></span>
@@ -3884,7 +3882,7 @@ function renderPanel() {
 
       ${usaEditorForca(s)?renderPanelForca(s):s.kind === 'list' ? renderCatalogPickerSection(s) : ''}
       ${s.kind === 'walk' ? renderPanelCaminhada(s) : ''}
-      ${s.kind === 'card' ? renderPanelCardio(s, planeamentoNaPaleta ? planeamento : '') : ''}
+      ${s.kind === 'card' ? renderPanelCardio(s) : ''}
       ${s.kind === 'circuit' && !usaEditorForca(s) ? renderPanelCircuito(s) : ''}
 
       <details class="gcwo-session-details">
@@ -5317,7 +5315,7 @@ function renderEditorRapidoCardio(s) {
     <span class="gcwo-cardio-quick-range">${escHtml(intervalosZonaCardio(bloco.intensity?.zone, s.modality).join(' · '))}</span>
   </div>`;
 }
-function renderPaletaCardio(s, planeamento = '') {
+function renderPaletaCardio(s, grafico) {
   const seleccionado = blocoSelecionadoCardio(s);
   const zonaSeleccionada = seleccionado?.type === 'series' ? seleccionado.work?.intensity?.zone : seleccionado?.intensity?.zone;
   return `<section class="gcwo-cardio-builder" aria-label="Adicionar bloco por zona">
@@ -5328,7 +5326,7 @@ function renderPaletaCardio(s, planeamento = '') {
       </div>
       <div class="gcwo-cardio-editor-column">
         <div id="gcwoPCardioQuickEdit">${renderEditorRapidoCardio(s)}</div>
-        ${planeamento}
+        ${grafico}
       </div>
     </div>
   </section>`;
@@ -5576,12 +5574,14 @@ function renderPainelNatacaoTopo(s) {
     </label>
   `;
 }
-function renderPanelCardio(s, planeamento = '') {
+function renderPanelCardio(s) {
+  const usaZonas = modalidadeTemZona(s.modality);
+  const grafico = usaZonas ? `<div id="gcwoPCardioOverview">${renderResumoVisualCardio(s)}</div>` : '';
   return `
     ${s.modality === 'Natação' ? renderPainelNatacaoTopo(s) : ''}
-    ${modalidadeTemZona(s.modality) ? renderPaletaCardio(s, planeamento) : ''}
-    ${modalidadeTemZona(s.modality) ? `<div id="gcwoPCardioOverview">${renderResumoVisualCardio(s)}</div>` : ''}
-    ${modalidadeTemZona(s.modality) ? `<div id="gcwoPZonaResumo">${renderIndicadorZonaHtml(s)}</div>` : ''}
+    ${usaZonas ? renderPaletaCardio(s, _embeddedCare ? grafico : '') : ''}
+    ${_embeddedCare ? '' : grafico}
+    ${usaZonas ? `<div id="gcwoPZonaResumo">${renderIndicadorZonaHtml(s)}</div>` : ''}
     <div class="gcwo-exercicios" id="gcwoPBlocosList">${renderBlocosListInner(s)}</div>
   `;
 }
