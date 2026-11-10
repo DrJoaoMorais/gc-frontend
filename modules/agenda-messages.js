@@ -1,8 +1,25 @@
 import { G } from './state.js';
 import { escapeHtml as e } from './helpers.js';
+import { icon } from './agenda-icons.js';
 
 export function messagesHTML() {
-  return `<section class="aw-messages" aria-label="Mensagens e tarefas"><div><strong id="awMessageTitle">Mensagens e tarefas</strong><div><button id="awMessagesAll" disabled>Ver todas</button><button id="awMessageNew" aria-expanded="false" aria-controls="awMessageComposer" disabled>+ Nova mensagem</button></div></div><div id="awMessageComposer"></div><div id="awMessageList" aria-live="polite"></div></section>`;
+  return `<section class="aw-messages" aria-labelledby="awMessageTitle">
+    <header class="aw-messages-header">
+      <div class="aw-messages-heading">
+        <span class="aw-messages-icon">${icon('mail')}</span>
+        <div>
+          <h2 id="awMessageTitle">Mensagens e tarefas</h2>
+          <div id="awMessageScope"></div>
+        </div>
+      </div>
+      <div class="aw-message-actions">
+        <button type="button" id="awMessagesAll" disabled>Ver todas</button>
+        <button type="button" id="awMessageNew" class="aw-primary" aria-expanded="false" aria-controls="awMessageComposer" disabled>+ Nova mensagem</button>
+      </div>
+    </header>
+    <div id="awMessageComposer"></div>
+    <div id="awMessageList" aria-live="polite"></div>
+  </section>`;
 }
 export function activeMessageClinic() {
   // Multi-clinic appointment views never become message channels.
@@ -67,7 +84,26 @@ function renderRows(host, rows, members, scope, home = false) {
     const names = members.get(clinicId);
     const el = document.createElement('div'); el.className = 'aw-message-row';
     const stamp = new Intl.DateTimeFormat('pt-PT', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(row.created_at));
-    el.innerHTML = `<time>${e(stamp)}</time><div class="aw-message-text"><strong>${e(names?.get(row.author_id) || 'Utilizador da clínica')}</strong><small>${scope.includes(',') ? e(clinicName(clinicId)) + ' · ' : ''}Para ${e(names?.get(row.recipient_id) || 'Utilizador da clínica')}${row.is_task?' · Tarefa':''}</small>${row.patient_id?`<strong>${e(row.patients?.full_name || 'Doente associado')}</strong>`:''}<p>${e(row.body)}</p></div><button data-status aria-label="${row.status==='resolved'?'Reabrir':'Resolver'} mensagem">${row.status==='resolved'?'✓ Resolvido':'Por tratar'}</button><button data-open>Abrir</button>${home ? `<button data-retire ${row.status==='resolved'?'':'hidden'} title="Retirar da página inicial">Retirar</button>` : ''}`;
+    const author = names?.get(row.author_id) || 'Utilizador da clínica';
+    const recipient = names?.get(row.recipient_id) || 'Utilizador da clínica';
+    const resolved = row.status === 'resolved';
+    el.innerHTML = `<div class="aw-message-text">
+      <div class="aw-message-heading">
+        <strong>${e(row.patient_id ? row.patients?.full_name || 'Doente associado' : author)}</strong>
+        ${scope.includes(',') ? `<span class="aw-message-tag aw-message-clinic">${e(clinicName(clinicId))}</span>` : ''}
+        ${row.is_task ? '<span class="aw-message-tag">Tarefa</span>' : ''}
+      </div>
+      <div class="aw-message-meta">
+        <span>${row.patient_id ? `${e(author)} · ` : ''}Para ${e(recipient)}</span>
+        <time datetime="${e(row.created_at)}">${e(stamp)}</time>
+      </div>
+      <p>${e(row.body)}</p>
+    </div>
+    <div class="aw-message-actions">
+      <button type="button" data-status data-resolved="${resolved}" aria-label="${resolved ? 'Reabrir' : 'Resolver'} mensagem">${resolved ? '✓ Resolvido' : 'Por tratar'}</button>
+      <button type="button" data-open>Abrir</button>
+      ${home ? `<button type="button" data-retire ${resolved ? '' : 'hidden'} title="Retirar da página inicial">Retirar</button>` : ''}
+    </div>`;
     el.querySelector('[data-open]').onclick = () => openRow(row, clinicId, scope);
     el.querySelector('[data-status]').onclick = async ev => {
       if (messageScope() !== scope) return;
@@ -81,6 +117,7 @@ function renderRows(host, rows, members, scope, home = false) {
         if (home) el.querySelector('[data-retire]').hidden = status !== 'resolved';
         else void refreshAgendaMessages();
         button.textContent = status==='resolved'?'✓ Resolvido':'Por tratar';
+        button.dataset.resolved = String(status === 'resolved');
         button.setAttribute('aria-label',status==='resolved'?'Reabrir mensagem':'Resolver mensagem');
       } catch { alert('Não foi possível alterar o estado da mensagem.'); }
       finally { button.disabled = false; }
@@ -109,8 +146,7 @@ export async function refreshAgendaMessages() {
   if (currentDialog && currentDialog.dataset.clinic !== scope) { currentDialog.close(); currentDialog.remove(); currentDialog = null; }
   if (currentComposer && (!currentComposer.isConnected || currentComposer.dataset.clinic !== (clinicId || ''))) { currentComposer.remove(); currentComposer = null; }
   const host = document.getElementById('awMessageList'); if (!host) return;
-  const title = document.getElementById('awMessageTitle');
-  title.textContent = 'Mensagens e tarefas · ' + label;
+  document.getElementById('awMessageScope').textContent = label;
   const create = document.getElementById('awMessageNew'), all = document.getElementById('awMessagesAll');
   create.disabled = all.disabled = true;
   create.setAttribute('aria-expanded', String(!!currentComposer?.isConnected));
