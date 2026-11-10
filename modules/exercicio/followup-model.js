@@ -51,9 +51,9 @@ function buildLegacyFollowup({prescriptions=[],questionnaires=[],logs=[],readine
 
 // Cada contexto representa um episódio; as fontes nunca são reescritas.
 export function buildFollowup(input, now=new Date()) {
- const {episodeEvents=[],prescriptions=[],questionnaires=[],events=[],logs=[],readiness=[],diary=[],alerts=[]}=input;
+ const {episodeEvents=[],prescriptions=[],questionnaires=[],events=[],logs=[],readiness=[],diary=[],alerts=[],seed=[]}=input;
  const latest=latestEpisodeEvents(episodeEvents), pairs=new Map();
- for(const r of [...prescriptions,...questionnaires.filter(q=>/^pre_consulta_v\d+$/.test(q.questionnaire_type||'')),...events.filter(e=>e.kind==='state'),...latest]) {
+ for(const r of [...seed,...prescriptions,...questionnaires.filter(q=>/^pre_consulta_v\d+$/.test(q.questionnaire_type||'')),...events.filter(e=>e.kind==='state'),...latest]) {
   if(!r.patient_id||!r.clinic_id)continue;
   const key=r.patient_id+':'+r.clinic_id;
   if(!pairs.has(key))pairs.set(key,{patientId:r.patient_id,clinicId:r.clinic_id,name:r.patients?.full_name||'Doente'});
@@ -100,7 +100,7 @@ export function buildFollowup(input, now=new Date()) {
    // Encerrar um episódio não elimina respostas clínicas por rever.
    if(episode.state!=='active')legacy.signals=legacy.signals.filter(s=>s.kind==='clinical'||s.pendingDecision);
    const c={...legacy,...g,key:pair+':'+(episode.episode_id||'legacy'),pairKey:pair,name:g.name,episode,episodeState:episode.state,reason:episode.reason||'',state:episode.state==='active'?legacy.state:episode.interruption_kind==='abandonment'?'abandoned':episode.state==='interrupted'?'paused':episode.state};
-   if(episode.state==='active'&&!rx.length&&!qs.length&&!c.signals.some(s=>s.key==='episode:prepare')&&!reviews.some(e=>e.source_key==='episode:prepare'&&e.source_version===episode.episode_id&&e.decision==='closed'))c.signals.push({key:'episode:prepare',version:episode.episode_id,label:'Novo episódio · preparar acompanhamento',at:episode.started_at,kind:'plan'});
+   if(episode.episode_id&&episode.state==='active'&&!rx.length&&!qs.length&&!c.signals.some(s=>s.key==='episode:prepare')&&!reviews.some(e=>e.source_key==='episode:prepare'&&e.source_version===episode.episode_id&&e.decision==='closed'))c.signals.push({key:'episode:prepare',version:episode.episode_id,label:'Novo episódio · preparar acompanhamento',at:episode.started_at,kind:'plan'});
    contexts.push(c);
   }
  }

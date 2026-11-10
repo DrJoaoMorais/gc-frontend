@@ -1,5 +1,5 @@
 import { canAccessExercise } from './exercicio/permissoes.js';
-import { loadExerciseHome } from './exercicio/followup-home.js?v=20261009-listas';
+import { loadExerciseHome } from './exercicio/followup-home.js?v=20261110-clinico';
 import { normalizeClinicIds } from './clinic-picker.js';
 import { wireAgendaWorkspace } from './agenda-workspace.js?v=2026-10-06-agenda-messages-v1';
 /**
@@ -17,7 +17,7 @@ import { fetchProcedureTypes, loadAppointmentsForRange } from "./db.js";
 import {
   renderAppShell,
   hydrateShellHeader
-}                                          from "./shell.js?v=20261024-iphone";
+}                                          from "./shell.js?v=20261110-clinico";
 import {
   setHomeDashboardConsultasHoje,
   setHomeDashboardPedidosOnline,
@@ -31,7 +31,7 @@ import {
   setHomeAcompanhamentoUnificadoStats,
   wireHomeAcompanhamentoUnificado,
   renderHomeAcompanhamentoUnificado,
-}                                          from "./home-dashboard.js?v=20261009-listas";
+}                                          from "./home-dashboard.js?v=20261110-clinico";
 import {
   setAgendaSubtitleForSelectedDay,
   refreshAgenda,
@@ -260,7 +260,7 @@ async function renderCurrentView() {
         loadHomePedidosOnlinePendentes(),
         loadHomeAlerts(),
         loadHomeAcompanhamentoAtivo(),
-        loadExerciseHome({clinics:G.clinics,clinicIds:homeSelectedClinicIds(),onOpen:openHomeFollowup,onOwnership:setFollowupAlertOwnership}),
+        loadExerciseHome({clinics:G.clinics,clinicIds:homeSelectedClinicIds(),onOpen:openHomeFollowup,onOwnership:setFollowupAlertOwnership,summary:true,onNavigate:openClinicalWorkspace}),
       ]);
       /* Painel de Pedidos online: só recarrega a lista se já estiver
          aberto (sem o atributo "hidden"); fechado, não faz query extra. */
@@ -286,8 +286,13 @@ async function renderCurrentView() {
       loadHomePedidosOnlinePendentes(),
       loadHomeAlerts(),
       loadHomeAcompanhamentoAtivo(),
-      loadExerciseHome({clinics:G.clinics,clinicIds:homeSelectedClinicIds(),onOpen:openHomeFollowup,onOwnership:setFollowupAlertOwnership}),
+      loadExerciseHome({clinics:G.clinics,clinicIds:homeSelectedClinicIds(),onOpen:openHomeFollowup,onOwnership:setFollowupAlertOwnership,summary:true,onNavigate:openClinicalWorkspace}),
     ]);
+    return;
+  }
+
+  if (view === "exercicio-clinico") {
+    await loadExerciseHome({clinics:G.clinics,clinicIds:(G.clinics||[]).map(c=>c.id),onOpen:openHomeFollowup});
     return;
   }
 
@@ -836,6 +841,11 @@ async function stopHomeFollowup(item) {
     console.warn("Home: falha ao retirar doente do acompanhamento:", error);
     window.alert("Não foi possível retirar o doente do acompanhamento. Atualize a página e tente novamente.");
   }
+}
+
+function openClinicalWorkspace() {
+  G.currentView="exercicio-clinico";
+  return renderCurrentView();
 }
 
 function openHomeFollowup(item) {

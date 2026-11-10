@@ -1,3 +1,4 @@
+import { canLeaveFollowup } from './exercicio/followup-drafts.js?v=20261110-clinico';
 import { G } from './state.js';
 import { fmtDateISO } from './helpers.js';
 
@@ -14,6 +15,7 @@ export function installMobileStyles() {
 
 // Ask the embedded clinical editor before destroying its DOM.
 export function canLeaveClinicalPanel() {
+  if(!canLeaveFollowup())return false;
   const frame = document.getElementById('gcFeedPanelIframe');
   if (!frame) return true;
   try {

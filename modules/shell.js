@@ -1,4 +1,4 @@
-import { installMobileStyles, wireMobileNavigation, canLeaveClinicalPanel } from './mobile.js';
+import { installMobileStyles, wireMobileNavigation, canLeaveClinicalPanel } from './mobile.js?v=20261110-clinico';
 import { canAccessExercise } from './exercicio/permissoes.js';
 /* ========================================================
    SHELL.JS — Render HTML + CSS principal da aplicação
@@ -14,7 +14,7 @@ import { agendaWorkspaceHTML } from './agenda-workspace.js?v=2026-10-06-agenda-m
 import { G } from "./state.js";
 import { UI } from "./config.js";
 import { injectDesignSystem } from "./ui.js";
-import { homeDashboardHtml, homeDashboardStyles, wireHomeDashboard } from "./home-dashboard.js";
+import { homeDashboardHtml, homeDashboardStyles, wireHomeDashboard } from "./home-dashboard.js?v=20261110-clinico";
 
 /* ==== 03F — Render shell (HTML + CSS) ==== */
 
@@ -43,7 +43,7 @@ export function renderAppShell() {
     { id: "gestaoagenda",  icon: iconGestaAgenda,  label: "Gestão de agenda" },
     { id: "doentes",       icon: iconDoentes,      label: "Doentes" },
     { id: "historico",     icon: iconHistorico,    label: "Histórico" },
-    ...(canAccessExercise() ? [{ id: "exercicio", icon: iconExercicio, label: "Exercício" }] : []),
+    ...(canAccessExercise() ? [{ id: "exercicio-clinico", icon: iconHistorico, label: "Acompanhamento Clínico" }, { id: "exercicio", icon: iconExercicio, label: "Exercício" }] : []),
     ...(canSeeManagement ? [{ id: "financas",   icon: iconFinancas,  label: "Rendimentos" }] : []),
     ...(canSeeManagement ? [{ id: "management", icon: iconGestao,    label: "Gestão" }] : []),
   ];
@@ -53,6 +53,8 @@ export function renderAppShell() {
 
   if (currentView === "home") {
     mainHtml = `<style>${homeDashboardStyles()}</style>${homeDashboardHtml()}`;
+  } else if (currentView === "exercicio-clinico") {
+    mainHtml = `<style>${homeDashboardStyles()}</style><section class="gc-home"><section id="gcExerciseHome" class="gc-fh" aria-label="Acompanhamento Clínico"></section></section>`;
   } else if (currentView === "financas") {
     mainHtml = `<div id="gcFinancasRoot"></div>`;
   } else if (currentView === "management") {

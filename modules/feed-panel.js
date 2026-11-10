@@ -1,4 +1,4 @@
-import { canLeaveClinicalPanel } from './mobile.js';
+import { canLeaveClinicalPanel } from './mobile.js?v=20261110-clinico';
 import { G } from './state.js';
 import { canAccessExercise } from './exercicio/permissoes.js';
 
@@ -27,7 +27,7 @@ function selectPanelNavigation(view) {
 export async function openAcompanhamentoList() {
   if (!allowCareNavigation()) return false;
   if (typeof window.__gc_renderCurrentView !== 'function') return false;
-  const view = canAccessExercise() ? 'home' : 'doentes';
+  const view = canAccessExercise() ? 'exercicio-clinico' : 'doentes';
   G._exerciseLaunch = null;
   selectPanelNavigation(view);
   await window.__gc_renderCurrentView();
@@ -104,7 +104,7 @@ export function openAcompanhamentoPanel(patientId, clinicId, options = {}) {
   if (clinicId)  params.set("clinicId", clinicId);
 
   if (['blank', 'pathology', 'previous', 'catalog'].includes(options.mode)) params.set('mode', options.mode);
-  selectPanelNavigation(canAccessExercise() ? 'home' : 'doentes');
+  selectPanelNavigation(canAccessExercise() ? 'exercicio-clinico' : 'doentes');
   content.scrollTop = 0;
   iframe.src = `${ACOMPANHAMENTO_URL}&${params.toString()}`;
   return iframe;

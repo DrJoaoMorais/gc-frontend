@@ -36,7 +36,7 @@ export function homeDashboardHtml() {
       </div>
       <div id="gcHomePedidosExpand" class="gc-home-pedidos-expand" hidden></div>
 
-      ${canAccessExercise() ? '<section id="gcExerciseHome" class="gc-fh" aria-label="Acompanhamento de exercício"></section>' : ""}
+      ${canAccessExercise() ? '<section id="gcExerciseHome" class="gc-fh" aria-label="Acompanhamento Clínico"></section>' : ""}
 
       <div class="gc-home-alertbar" id="gcHomeAlertBar">
         <button type="button" class="gc-home-alertbar-item on" data-alert-filter="all"><span>Todos</span><strong id="gcHomeStatTodos">—</strong></button>
@@ -46,7 +46,7 @@ export function homeDashboardHtml() {
         <button type="button" class="gc-home-alertbar-item resolved" data-alert-filter="resolved"><span>Resolvidos hoje</span><strong id="gcHomeStatResolvidos">—</strong></button>
       </div>
 
-      <div class="gc-home-section-head"><div><h2>Outros avisos do GC</h2><p>Avisos que não estão na lista de acompanhamento acima</p></div><button type="button" id="gcHomeAlertsToggle" style="display:none;">Ver todos</button></div>
+      <div class="gc-home-section-head"><div><h2>Outros avisos do GC</h2><p>Avisos independentes do Acompanhamento Clínico</p></div><button type="button" id="gcHomeAlertsToggle" style="display:none;">Ver todos</button></div>
       <div id="gcHomeAlertsList">
         <div class="gc-home-empty">
           <div class="gc-home-empty-icon">${ICON.inbox}</div>

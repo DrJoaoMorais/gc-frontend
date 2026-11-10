@@ -427,7 +427,7 @@ function renderAttentionBlock(readiness, log, effectiveEntry) {
    4) wo_session_readiness
    Nunca agrupa por data — há legitimamente duas sessões no mesmo dia.
    Inalterado nesta passagem. */
-function buildTimelineSessions(prescription, snapshots, readinessRows, logRows) {
+export function buildTimelineSessions(prescription, snapshots, readinessRows, logRows) {
   const bySessionId = new Map();
   const ensure = (sessionId) => {
     if (!sessionId) return null;
@@ -472,14 +472,14 @@ function buildTimelineSessions(prescription, snapshots, readinessRows, logRows) 
 
 /* resolveSessionDate — prioridade: snapshot.session_date > session.date do
    array atual > null (nunca inventar). Inalterado. */
-function resolveSessionDate(entry) {
+export function resolveSessionDate(entry) {
   return entry?.snapshot?.session_date || entry?.planDate || null;
 }
 
 /* classifySession — ordem obrigatória exata (log tem sempre prioridade
    máxima: uma sessão com log nunca é classificada como removida, mesmo
    com removed_at preenchido). Inalterado — nenhum threshold novo. */
-function classifySession(entry, todayISO) {
+export function classifySession(entry, todayISO) {
   const hasLog = !!entry.log;
   const hasReadiness = !!entry.readiness;
   const frozenAt = entry.snapshot?.frozen_at || null;
