@@ -39,3 +39,11 @@ Publicação autorizada pelo utilizador em 12/11/2026. A implementação não ex
 - Imagens em `validation/compacto-lista-desktop.png`, `compacto-painel-desktop.png` e `compacto-mobile.png`; inspecionadas visualmente. A pasta `validation/` já existia sem controlo de versão.
 - `tests/fixtures/clinical-compact.html` é uma demonstração fictícia para os testes de navegador com os módulos reais, sem credenciais nem acesso à base de dados real. As gravações estão desativadas.
 - Nenhuma escrita Supabase realizada na validação. A consulta remota desta implementação limitou-se aos metadados de chaves estrangeiras.
+
+## Correção de leitura — janela central
+
+- Substituída a coluna lateral por uma janela central nativa, também em histórico, revisão e gestão do episódio. A tabela não perde largura. Fecho por botão ou Escape, com confirmação para notas por guardar e foco contido na janela.
+- Retiradas repetições do resumo e das instruções de revisão. Datas apresentadas em linhas; fontes e decisões preservadas.
+- Histórico organizado em cinco grupos inicialmente fechados: planos, treinos, questionários, situações por rever e decisões. Os planos conservam fim clínico e validade de acesso em colunas distintas.
+- Aviso de associações divergentes resumido, com explicação disponível ao expandir. Não altera os registos excluídos nem a regra de exclusão.
+- Verificação com nome fictício comprido, histórico, revisão, Escape com nota por guardar e larguras 1440/1024/768/375/320. As imagens da correção são `compacto-janela-desktop.png`, `compacto-janela-mobile.png` e `compacto-historico-central.png`, locais em `validation/`.

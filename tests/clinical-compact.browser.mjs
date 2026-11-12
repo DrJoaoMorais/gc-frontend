@@ -21,27 +21,40 @@ assert.match(await page.locator('[data-list]').innerText(),/Mal-estar antes do t
 assert.match(await page.locator('[data-list]').innerText(),/Fim da medicação/);
 await page.locator('[data-clinical-view=patients]').click();assert.equal(await page.locator('.gc-cc-row').count(),5);
 await page.screenshot({path:root+'/validation/compacto-lista-desktop.png',fullPage:true});
+const tableWidth=await page.locator('.gc-cc-table').evaluate(el=>el.getBoundingClientRect().width);
 await page.locator('[data-clinical-profile="ana:a:legacy"]').first().click();
-assert.equal(await page.locator('.gc-cc-layout').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),2);
+assert.equal(await page.locator('[data-editor]').evaluate(el=>el.matches(':modal')),true);
+assert.equal(await page.locator('.gc-cc-table').evaluate(el=>el.getBoundingClientRect().width),tableWidth);
+assert((await page.locator('[data-editor]').boundingBox()).width>=900);
+await page.keyboard.press('Tab');assert.equal(await page.locator('[data-editor]').evaluate(el=>el.contains(document.activeElement)),true);
 assert.match(await page.locator('[data-editor]').innerText(),/Transição de fase por confirmar/);
-await page.screenshot({path:root+'/validation/compacto-painel-desktop.png',fullPage:true});
+await page.screenshot({path:root+'/validation/compacto-janela-desktop.png',fullPage:false});
+await page.locator('[data-clinical-tab=history]').click();
+assert.equal(await page.locator('[data-editor]').evaluate(el=>el.matches(':modal')),true);
+assert.equal(await page.locator('[data-editor] .gc-history-group[open]').count(),0);
+assert.equal(await page.locator('[data-editor] .gc-history-group').count(),5);
+await page.screenshot({path:root+'/validation/compacto-historico-central.png',fullPage:false});
+await page.locator('[data-editor] .gc-history-group').first().locator('summary').first().click();
+assert.match(await page.locator('[data-editor] .gc-history-group').first().innerText(),/Fim do plano/);
+await page.locator('[data-editor] [data-clinical-profile]').click();
 await page.locator('[data-review="ana:a:legacy"]').first().click();assert.match(await page.locator('[data-source]').innerText(),/Dias civis consecutivos/);
-await page.locator('[name=reason]').fill('Nota fictícia por guardar');page.once('dialog',d=>d.dismiss());await page.locator('[data-clinical-clinic]').selectOption('b');assert.equal(await page.locator('[name=reason]').inputValue(),'Nota fictícia por guardar');
-page.once('dialog',d=>d.accept());await page.locator('[data-refresh]').click();await page.waitForSelector('.gc-cc-table');
+await page.locator('[name=reason]').fill('Nota fictícia por guardar');page.once('dialog',d=>d.dismiss());await page.keyboard.press('Escape');assert.equal(await page.locator('[name=reason]').inputValue(),'Nota fictícia por guardar');assert.equal(await page.locator('[data-editor]').evaluate(el=>el.open),true);
+page.once('dialog',d=>d.accept());await page.keyboard.press('Escape');assert.equal(await page.locator('[data-editor]').evaluate(el=>el.open),false);await page.locator('[data-refresh]').click();await page.waitForSelector('.gc-cc-table');
 await page.locator('[data-clinical-view=patients]').click();
 await page.locator('[data-clinical-profile="rita:a:legacy"]').first().click();
-assert.match(await page.locator('[data-editor]').innerText(),/Medicação de demonstração/);
+assert.match(await page.locator('[data-editor]').innerText(),/Medicação de demonstração/);await page.keyboard.press('Escape');
 await page.locator('[data-clinical-clinic]').selectOption('b');assert.doesNotMatch(await page.locator('[data-list]').innerText(),/Rita Santos|Ana Martins/);assert.equal(await page.locator('[data-editor]').innerText(),'');
 await page.locator('[data-clinical-clinic]').selectOption('');
 for(const width of [1024,768,375,320]){
  await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'overflow at '+width);
  await page.locator('[data-clinical-profile="ana:a:legacy"]').first().click();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'drawer overflow at '+width);
- if(width===375)await page.screenshot({path:root+'/validation/compacto-mobile.png',fullPage:true});
+ const bounds=await page.locator('[data-editor]').boundingBox();assert(bounds.x>=0&&bounds.x+bounds.width<=width);assert.equal(await page.locator('[data-editor]').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
+ if(width===375)await page.screenshot({path:root+'/validation/compacto-janela-mobile.png',fullPage:false});
  await page.locator('[data-close-editor]').click();
 }
 // Divergent sources are excluded before creating summaries or clinical alerts.
 await page.evaluate(async()=>{previewTables.wo_session_readiness.push({...previewTables.wo_session_readiness[0],id:'bad',clinic_id:'b',feeling:1});await reloadPreview();});
 assert.match(await page.locator('.gc-cc-warning').innerText(),/1 registo/);
 assert.deepEqual(errors,[]);
-console.log('Lista compacta: alertas, medicação, painel lateral, notas, clínicas, associações divergentes e larguras 1440/1024/768/375/320 verificados.');
+console.log('Lista compacta: alertas, medicação, janela central sem comprimir a lista, foco, Escape, notas, clínicas, associações divergentes e larguras 1440/1024/768/375/320 verificados.');
 await browser.close();
