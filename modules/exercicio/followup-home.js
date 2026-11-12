@@ -1,5 +1,6 @@
+import { mountAnalysisPage } from './clinical-analysis.js?v=20261112-analise';
 import { enrichClinicalContexts } from './clinical-context.js?v=20261112-compacto';
-import { createClinicalWorkspace, clinicalWorkspaceHTML, clinicalWorkspaceCSS } from './clinical-workspace.js?v=20261112-janela';
+import { createClinicalWorkspace, clinicalWorkspaceHTML, clinicalWorkspaceCSS } from './clinical-workspace.js?v=20261112-analise';
 import { canLeaveFollowup, installFollowupDraftGuard } from './followup-drafts.js?v=20261110-clinico';
 import { canAccessExercise } from './permissoes.js';
 import { buildFollowup } from './followup-model.js?v=20261112-compacto';
@@ -143,6 +144,7 @@ export async function loadExerciseHome({clinics=[],clinicIds=[],onOpen,onOwnersh
   }
   root.onclick=e=>{
    const b=e.target.closest('button');if(!b||!root.contains(b))return;
+   if(b.dataset.analysis){const c=context(b.dataset.analysis);if(c&&workspace.visibleContexts({contexts:[c]}).length){workspace.closeEditor();mountAnalysisPage({root,c,clinicName:clinicName(c.clinicId),onOpen:()=>onOpen?.({patientId:c.patientId,clinicId:c.clinicId})});}return;}
    if(workspace.handle(b))return;
    if(b.hasAttribute('data-refresh'))return reload();
    if(b.hasAttribute('data-close-editor')){workspace.closeEditor();return;}
