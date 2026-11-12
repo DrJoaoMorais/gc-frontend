@@ -11,16 +11,16 @@ await page.evaluate(async()=>{
  const ui=await import('/modules/home-dashboard.js');document.body.innerHTML='<style>'+ui.homeDashboardStyles()+'</style>'+ui.homeDashboardHtml();window.m=await import('/modules/exercicio/followup-home.js');window.options={clinics:[{id:'c1',name:'Clínica A'},{id:'c2',name:'Clínica B'}],clinicIds:['c1'],onOpen:item=>window.opened=item};await m.loadExerciseHome(options);
 });
 await mkdir(root+'/validation',{recursive:true});
-assert.equal(await page.locator('[data-clinical-view]').count(),3);
-assert.equal(await page.locator('[data-list] .gc-fh-row').count(),3);
+assert.equal(await page.locator('[data-clinical-view]').count(),5);
+assert.equal(await page.locator('[data-list] .gc-fh-row, [data-list] .gc-cc-row').count(),3);
 assert.equal(await page.evaluate(()=>writes.length),0);
-await page.locator('[data-clinical-profile="l:c1:legacy"]').click();
+await page.locator('[data-clinical-profile="l:c1:legacy"]').first().click();
 await page.locator('[data-clinical-tab=plan]').click();
 await page.locator('[data-open="l:c1:legacy"]').click();
 assert.deepEqual(await page.evaluate(()=>opened),{patientId:'l',clinicId:'c1'});
 assert.equal(await page.evaluate(()=>writes.length),0);
 // A draft cannot be lost through a list filter or global navigation.
-await page.locator('[data-clinical-view=tasks]').click();
+await page.locator('.gc-cc-more').evaluate(el=>el.open=true);await page.locator('[data-clinical-view=tasks]').click();
 await page.locator('[data-review="l:c1:legacy"]').first().click();
 assert.match(await page.locator('[data-source]').innerText(),/Nota de teste/);
 await page.locator('[name=decision]').selectOption('contact');
@@ -36,15 +36,15 @@ await page.locator('[data-review="l:c1:legacy"]').first().click();
 await page.locator('[name=decision]').selectOption('defer');
 const due=new Date(Date.now()+5*86400000).toISOString().slice(0,10);
 await page.locator('[name=review_date]').fill(due);await page.locator('[name=reason]').fill('Rever após contacto.');
-await page.locator('form [type=submit]').click();await page.waitForFunction(()=>writes.length===2);await page.waitForSelector('[data-list] .gc-fh-row');
+await page.locator('form [type=submit]').click();await page.waitForFunction(()=>writes.length===2);await page.waitForSelector('[data-list] .gc-fh-row, [data-list] .gc-cc-row');
 assert.match(await page.locator('[data-list]').innerText(),/Rever em/);assert.match(await page.evaluate(()=>writes[1].reason),new RegExp(due));
 // Episode decisions preserve every original prescription and response.
 const sources=await page.evaluate(()=>JSON.stringify([tables.wo_prescriptions,tables.intake_tokens,tables.wo_session_logs]));
-await page.locator('[data-clinical-view=patients]').click();await page.locator('[data-clinical-profile="l:c1:legacy"]').click();
+await page.locator('[data-clinical-view=patients]').click();await page.locator('[data-clinical-profile="l:c1:legacy"]').first().click();
 await page.locator('[data-manage="l:c1:legacy"]').click();await page.locator('[data-episode-action=completed]').click();await page.locator('[name=reason]').fill('Conclusão clínica confirmada.');
-await page.locator('form [type=submit]').click();await page.waitForFunction(()=>writes.length===3);await page.waitForSelector('[data-list] .gc-fh-row');
+await page.locator('form [type=submit]').click();await page.waitForFunction(()=>writes.length===3);await page.waitForSelector('[data-list] .gc-fh-row, [data-list] .gc-cc-row');
 assert.equal(await page.evaluate(()=>JSON.stringify([tables.wo_prescriptions,tables.intake_tokens,tables.wo_session_logs])),sources);
-await page.locator('[data-clinical-episode]').selectOption('all');await page.locator('[data-clinical-view=tasks]').click();
+await page.locator('[data-clinical-episode]').selectOption('all');await page.locator('.gc-cc-more').evaluate(el=>el.open=true);await page.locator('[data-clinical-view=tasks]').click();
 assert.match(await page.locator('[data-list]').innerText(),/Origem histórica/);
 // Same patient in two clinics, plus a diary-only patient and measured sessions.
 await page.evaluate(async()=>{
@@ -57,24 +57,24 @@ await page.evaluate(async()=>{
 });
 await page.locator('[data-clinical-view=patients]').click();await page.locator('[data-clinical-episode]').selectOption('active');
 assert.match(await page.locator('[data-list]').innerText(),/Doente só com diário/);
-await page.locator('[data-clinical-profile="t:c1:legacy"]').click();await page.locator('[data-clinical-context]').selectOption('t:c2:legacy');await page.locator('[data-clinical-tab=evolution]').click();
+await page.locator('[data-clinical-profile="t:c1:legacy"]').first().click();await page.locator('[data-clinical-context]').selectOption('t:c2:legacy');await page.locator('[data-clinical-tab=evolution]').click();
 assert.match(await page.locator('[data-clinical-profile-body]').innerText(),/Nota exclusiva da clínica B/);
-await page.locator('[data-clinical-view=evolution]').click();assert.equal(await page.locator('[data-list] table').count()>0,true);await page.locator('[data-clinical-view=patients]').click();
+await page.locator('.gc-cc-more').evaluate(el=>el.open=true);await page.locator('[data-clinical-view=evolution]').click();assert.equal(await page.locator('[data-list] table').count()>0,true);await page.locator('[data-clinical-view=patients]').click();
 await page.locator('[data-clinical-clinic]').selectOption('c1');assert.equal(await page.locator('[data-editor]').innerText(),'');
-await page.locator('[data-clinical-profile="t:c1:legacy"]').click();await page.locator('[data-clinical-tab=evolution]').click();
+await page.locator('[data-clinical-profile="t:c1:legacy"]').first().click();await page.locator('[data-clinical-tab=evolution]').click();
 assert.doesNotMatch(await page.locator('[data-clinical-profile-body]').innerText(),/Nota exclusiva/);
 assert.equal(await page.locator('[data-clinical-context] option').count(),1);
-await page.locator('[data-clinical-profile="d:c1:legacy"]').click();await page.locator('[data-clinical-tab=sources]').click();assert.match(await page.locator('[data-editor]').innerText(),/Nota original do diário/);
+await page.locator('[data-clinical-profile="d:c1:legacy"]').first().click();await page.locator('[data-clinical-tab=sources]').click();assert.match(await page.locator('[data-editor]').innerText(),/Nota original do diário/);
 await page.evaluate(async()=>{const shell=await import('/modules/shell.js');G.currentView='exercicio-clinico';G.clinics=options.clinics;G.role='super_admin';document.body.removeAttribute('style');shell.renderAppShell();await m.loadExerciseHome(options)});
 assert.equal(await page.locator('[data-nav=exercicio-clinico]').count(),2);
-assert.equal(await page.locator('[data-clinical-view]').count(),3);
+assert.equal(await page.locator('[data-clinical-view]').count(),5);
 await page.screenshot({path:root+'/validation/acompanhamento-clinico-desktop.png'});
 await page.setViewportSize({width:375,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
 await page.evaluate(()=>document.querySelector('.gc-content').scrollTop=0);await page.screenshot({path:root+'/validation/acompanhamento-clinico-mobile.png'});
 await page.setViewportSize({width:320,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
 // Pagination and search remain bounded with a larger population.
 await page.evaluate(async()=>{window.savedTables=structuredClone(tables);for(let i=0;i<1000;i++)tables.patient_diary_tokens.push({id:'volume-'+i,patient_id:'volume-'+i,clinic_id:'c1',created_at:'2026-11-01',status:'active',patients:{full_name:'Volume '+String(i).padStart(4,'0')}});await m.loadExerciseHome(options)});
-await page.locator('[data-clinical-search]').fill('Volume');assert.equal(await page.locator('[data-list] .gc-fh-row').count(),10);assert.match(await page.locator('[data-pages]').innerText(),/1000 doentes · 1 \/ 100/);await page.locator('[data-clinical-next]').click();assert.match(await page.locator('[data-list]').innerText(),/Volume 0010/);
+await page.locator('[data-clinical-view=patients]').click();await page.locator('[data-clinical-search]').fill('Volume');assert.equal(await page.locator('[data-list] .gc-fh-row, [data-list] .gc-cc-row').count(),10);assert.match(await page.locator('[data-pages]').innerText(),/1000 doentes · 1 \/ 100/);await page.locator('[data-clinical-next]').click();assert.match(await page.locator('[data-list]').innerText(),/Volume 0010/);
 await page.evaluate(()=>tables=window.savedTables);await page.locator('[data-clinical-search]').fill('');
 // Failures are explicit, not interpreted as an empty list; retry recovers.
 await page.evaluate(async()=>{window.fail=true;await m.loadExerciseHome(options)});assert.match(await page.locator('#gcExerciseHome').innerText(),/Não foi possível carregar/);

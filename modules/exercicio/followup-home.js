@@ -1,7 +1,8 @@
-import { createClinicalWorkspace, clinicalWorkspaceHTML, clinicalWorkspaceCSS } from './clinical-workspace.js?v=20261110-clinico';
+import { enrichClinicalContexts } from './clinical-context.js?v=20261112-compacto';
+import { createClinicalWorkspace, clinicalWorkspaceHTML, clinicalWorkspaceCSS } from './clinical-workspace.js?v=20261112-compacto';
 import { canLeaveFollowup, installFollowupDraftGuard } from './followup-drafts.js?v=20261110-clinico';
 import { canAccessExercise } from './permissoes.js';
-import { buildFollowup } from './followup-model.js?v=20261110-clinico';
+import { buildFollowup } from './followup-model.js?v=20261112-compacto';
 import { EPISODE_STATES, currentSignals, historicalSignals, withinEpisode } from './followup-episodes.js?v=20261009-listas';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const date=v=>v?new Date(v.length===10?v+'T12:00:00Z':v).toLocaleDateString('pt-PT',{timeZone:'Europe/Lisbon'}):'Por confirmar';
@@ -21,28 +22,37 @@ export async function loadExerciseHome({clinics=[],clinicIds=[],onOpen,onOwnersh
  const chunked=async(table,columns,key,ids)=>{const out=[];for(let i=0;i<ids.length;i+=100)out.push(...await all(()=>window.sb.from(table).select(columns).in(key,ids.slice(i,i+100)).in('clinic_id',clinicIds).order('id')));return out;};
  try {
   if(!clinicIds.length){root.innerHTML='<div class="gc-home-empty">Selecione uma clínica para ver o acompanhamento.</div>';return;}
-  const [prescriptions,questionnaires,events,episodeEvents,diaryTokens]=await Promise.all([
+  const [prescriptions,questionnaires,events,episodeEvents,diaryTokens,portalLinks,medications,medicationEvents]=await Promise.all([
    all(scoped('wo_prescriptions','id,patient_id,clinic_id,status,created_at,expires_at,content_version,data,patients(full_name)')),
    all(()=>scoped('intake_tokens','id,patient_id,clinic_id,questionnaire_type,status,created_at,expires_at,completed_at,patients(full_name)')().like('questionnaire_type','pre_consulta_v%')),
    all(scoped('wo_followup_events','id,patient_id,clinic_id,kind,state,reason,decision,source_key,source_version,episode_id,created_at,patients(full_name)')),
    all(scoped('wo_followup_episode_events','id,episode_id,patient_id,clinic_id,state,interruption_kind,is_test,reason,started_at,closed_at,prescription_ids,questionnaire_ids,created_at,patients(full_name)')),
-   all(scoped('patient_diary_tokens','id,patient_id,clinic_id,status,created_at,expires_at,patients(full_name)'))
+   all(scoped('patient_diary_tokens','id,patient_id,clinic_id,status,created_at,starts_at,expires_at,patients(full_name)')),
+   all(()=>window.sb.from('patient_portal_links').select('id,patient_id,created_clinic_id,revoked_at,access_expires_at,access_modules,patients(full_name)').in('created_clinic_id',clinicIds).order('id')),
+   all(scoped('patient_medication','id,link_id,clinic_id,nome,dose,data_inicio,data_fim,enabled')),
+   all(scoped('patient_medication_events','id,medication_id,clinic_id,event_date,event_type,dose,instructions,status'))
   ]);
-  const rxIds=prescriptions.map(r=>r.id),patientIds=[...new Set([...prescriptions,...questionnaires,...events,...episodeEvents,...diaryTokens].map(r=>r.patient_id))];
-  const [logs,readiness,diary,alerts,snapshots]=await Promise.all([
-   chunked('wo_session_logs','id,prescription_id,session_id,clinic_id,logged_at,rpe,feel,sets,note','prescription_id',rxIds),
-   chunked('wo_session_readiness','id,prescription_id,session_id,patient_id,clinic_id,feeling,has_symptoms,symptom_note,answered_at','prescription_id',rxIds),
+  const medicationLinks=portalLinks.filter(l=>!l.revoked_at&&medications.some(m=>m.link_id===l.id&&m.clinic_id===l.created_clinic_id&&m.enabled)).map(l=>({...l,clinic_id:l.created_clinic_id}));
+  const rxIds=prescriptions.map(r=>r.id),patientIds=[...new Set([...prescriptions,...questionnaires,...events,...episodeEvents,...diaryTokens,...medicationLinks].map(r=>r.patient_id))];
+  const [rawLogs,rawReadiness,diary,alerts,rawSnapshots]=await Promise.all([
+   chunked('wo_session_logs','id,prescription_id,patient_id,session_id,clinic_id,logged_at,rpe,feel,sets,note','prescription_id',rxIds),
+   chunked('wo_session_readiness','id,prescription_id,session_id,patient_id,clinic_id,session_date,feeling,has_symptoms,symptom_note,answered_at','prescription_id',rxIds),
    chunked('patient_diary_entries','id,patient_id,clinic_id,entered_at,raw_text,images','patient_id',patientIds),
    chunked('alerts','id,patient_id,clinic_id,source,title,message,metadata,event_type,created_at,resolved_at','patient_id',patientIds),
-   summary?Promise.resolve([]):chunked('wo_session_prescription_snapshots','id,prescription_id,clinic_id,session_id,session_date,frozen_at,removed_at','prescription_id',rxIds)
+   summary?Promise.resolve([]):chunked('wo_session_prescription_snapshots','id,prescription_id,patient_id,clinic_id,session_id,session_date,frozen_at,removed_at','prescription_id',rxIds)
   ]);
   if(!current())return;
-  const rows=buildFollowup({prescriptions,questionnaires,events,episodeEvents,logs,readiness,diary,alerts,seed:diaryTokens});
+  // Registos com associação divergente não alimentam o resumo de outra clínica/doente.
+  const byRx=new Map(prescriptions.map(r=>[r.id,r]));
+  const consistent=r=>{const rx=byRx.get(r.prescription_id);return rx&&r.clinic_id===rx.clinic_id&&(!r.patient_id||r.patient_id===rx.patient_id);};
+  const logs=rawLogs.filter(consistent),readiness=rawReadiness.filter(consistent),snapshots=rawSnapshots.filter(consistent);
+  const inconsistentCount=rawLogs.length+rawReadiness.length+rawSnapshots.length-logs.length-readiness.length-snapshots.length;
+  const rows=enrichClinicalContexts(buildFollowup({prescriptions,questionnaires,events,episodeEvents,logs,readiness,diary,alerts,seed:[...diaryTokens,...medicationLinks]}),{medications,medicationEvents,portalLinks,diaryTokens,diary,logs,readiness,snapshots,events});
   const clinicName=id=>clinics.find(c=>c.id===id)?.name||'Clínica';
   const owned=alerts.filter(a=>['exercise','diary','questionnaire'].includes(a.source)&&rows.some(p=>p.contexts.some(c=>c.patientId===a.patient_id&&c.clinicId===a.clinic_id&&withinEpisode(a.created_at,c.episode))));
   onOwnership?.(owned.map(a=>a.id));
   const reload=()=>loadExerciseHome({clinics,clinicIds,onOpen,onOwnership,summary,onNavigate});
-  root.innerHTML='<style>'+clinicalWorkspaceCSS+'</style>'+clinicalWorkspaceHTML({clinics,clinicIds,summary});
+  root.innerHTML='<style>'+clinicalWorkspaceCSS+'</style>'+clinicalWorkspaceHTML({clinics,clinicIds,summary,inconsistentCount});
   const list=root.querySelector('[data-list]'),pages=root.querySelector('[data-pages]'),editor=root.querySelector('[data-editor]');
   const context=key=>rows.flatMap(p=>p.contexts).find(c=>c.key===key);
   const signalHtml=c=>c.signals.length?`<details><summary>${c.signals.length} situação(ões) por rever · ${esc(c.signals[0].label)}</summary>${c.signals.map((s,i)=>`<div class="gc-fh-signal"><span>${esc(s.label)}<small>${date(s.at)}</small></span>${s.informational?'':`<button type="button" data-review="${esc(c.key)}" data-index="${s.reviewIndex??i}">${s.pendingDecision==='contact'?'Registar contacto':s.pendingDecision==='prepare'?'Preparar continuidade':'Rever'}</button>`}</div>`).join('')}</details>`:'<span class="gc-fh-clear">Sem pendências por tratar</span>';
@@ -50,7 +60,7 @@ export async function loadExerciseHome({clinics=[],clinicIds=[],onOpen,onOwnersh
   const render=()=>workspace.render();
   installFollowupDraftGuard(root);
   function showHistory(patientId){
-   root.appendChild(editor);
+   workspace.mountEditor();
    const original=rows.find(p=>p.patientId===patientId);if(!original)return;const patient={...original,contexts:workspace.visibleContexts(original)};
    editor.innerHTML=`<section class="gc-fh-editor"><div class="gc-fh-heading"><h3>Histórico de episódios · ${esc(patient.name)}</h3><button type="button" data-clinical-profile="${esc(patient.contexts[0]?.key||'')}">Voltar à ficha</button><button type="button" data-close-editor>Fechar</button></div>${patient.contexts.map(c=>{
     const ids=new Set(c.rx.map(r=>r.id)),episodeLogs=logs.filter(l=>ids.has(l.prescription_id));
@@ -60,10 +70,10 @@ export async function loadExerciseHome({clinics=[],clinicIds=[],onOpen,onOwnersh
    editor.scrollIntoView({block:'nearest'});
   }
   async function showReview(c,signal){
-   root.appendChild(editor);
+   workspace.mountEditor();
    const source=signal.source||{}, text=source.note||source.symptom_note||source.raw_text||source.message||'';
    const clinical=signal.kind==='clinical', contact=signal.pendingDecision==='contact', prepare=signal.pendingDecision==='prepare';
-   let choices=contact?[['closed','Contacto realizado e registado'],['contact','Contacto ainda por realizar']]:prepare?[['closed','Continuidade preparada e registada na ficha'],['prepare','Ainda por preparar']]:clinical?[['closed','Revisto — sem alteração'],['contact','É necessário contactar o doente'],['closed','Orientação / alteração registada na ficha']]:signal.kind==='plan'?[['prepare','Continuar — preparar acompanhamento'],['complete_episode','Terminar por decisão médica'],['defer','Decidir mais tarde']]:[['contact','Contactar o doente'],['closed','Situação revista e resolvida'],['defer','Manter por resolver']];
+   let choices=contact?[['closed','Contacto realizado e registado'],['contact','Contacto ainda por realizar']]:prepare?[['closed','Continuidade preparada e registada na ficha'],['prepare','Ainda por preparar']]:clinical?[['closed','Revisto — sem alteração'],['contact','É necessário contactar o doente'],['closed','Orientação / alteração registada na ficha']]:signal.key.startsWith('deadline:')?[['closed','Prazo revisto — decisão registada na ficha'],['prepare','Preparar continuidade'],['defer','Rever noutra data']]:signal.kind==='plan'?[['prepare','Continuar — preparar acompanhamento'],['complete_episode','Terminar por decisão médica'],['defer','Decidir mais tarde']]:[['contact','Contactar o doente'],['closed','Situação revista e resolvida'],['defer','Manter por resolver']];
    if(!choices.some(([key])=>key==='defer'))choices.push(['defer','Adiar para uma data']);
    editor.innerHTML=`<form class="gc-fh-editor"><h3>${contact?'Registar contacto':prepare?'Preparar continuidade':'Rever situação'} · ${esc(c.name)}</h3><p>${esc(clinicName(c.clinicId))} · ${esc(stateLabel(c))}</p><p><b>1. Consultar registo → 2. Decidir → 3. Registar</b></p><div data-source class="gc-fh-source"><strong>${esc(signal.label)}</strong><small>${date(signal.at)}</small>${text?`<p style="white-space:pre-wrap">${esc(text)}</p>`:''}${source.rpe!=null?`<p>Esforço: ${esc(source.rpe)} / 10</p>`:''}${source.feel!=null||source.feeling!=null?`<p>Bem-estar: ${esc(source.feel??source.feeling)}</p>`:''}${source.sets?.length?`<details><summary>Execução registada</summary>${source.sets.map((set,i)=>`<p>Série ${i+1} · ${esc(({as_prescribed:'Conforme prescrito',modified:'Alterada',skipped:'Não realizada',not_done:'Não realizada'})[set.status]||set.status||'Registada')}${set.note?' · '+esc(set.note):''}</p>`).join('')}</details>`:''}${signal.kind==='plan'?`<p>${c.endDate?'Treinos previstos até '+date(c.endDate):'Sem próximos treinos previstos'} · ${c.valid.length} prescrição(ões) ativa(s).</p>`:''}${signal.kind==='questionnaire'?`<p>Estado: ${esc(c.q?.status==='expired'?'Expirado':'Prazo ultrapassado')} · Prazo: ${date(c.q?.expires_at)}</p>`:''}${source.images?.length?`<p>${source.images.length} imagem(ns) no registo. Consulte-as na ficha do acompanhamento.</p>`:''}${signal.decisionNote?`<p>Decisão anterior: ${esc(signal.decisionNote)}</p>`:''}</div><p>Consulte a ficha para ver respostas completas, imagens e planos. Abrir a ficha mantém esta tarefa pendente.</p><label>Decisão<select name="decision" required><option value="">Escolher decisão…</option>${choices.map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select></label><label data-defer-date hidden>Rever em<input type="date" name="review_date" min="${new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Lisbon'})}"></label><label>Nota da decisão<textarea name="reason" required rows="3"></textarea></label><div class="gc-fh-actions"><button type="button" data-inspect>Abrir ficha do acompanhamento</button><button type="submit">Registar decisão</button><button type="button" data-close-editor>Cancelar</button></div><p role="alert" data-error></p></form>`;
    const form=editor.querySelector('form');
@@ -98,8 +108,7 @@ export async function loadExerciseHome({clinics=[],clinicIds=[],onOpen,onOwnersh
    };editor.scrollIntoView({block:'nearest'});form.elements.decision.focus();
   }
   function showDecision(c,{start=false}={}){
-   const anchor=[...list.querySelectorAll('[data-manage],[data-reactivate]')].find(b=>(b.dataset.manage||b.dataset.reactivate)===c.key)?.closest('.gc-fh-context');
-   if(anchor)anchor.appendChild(editor);
+   workspace.mountEditor();
    const today=new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Lisbon'});
    editor.innerHTML=`<form class="gc-fh-editor gc-fh-compact"><h3>${start?'Reativar — novo episódio':'Alterar situação'} · ${esc(c.name)}</h3>${start?'<p>O novo episódio começa hoje. O anterior permanece no histórico, sem copiar o plano.</p>':`<p>Como terminou este episódio?</p><div class="gc-fh-actions" aria-label="Situação do episódio"><button type="button" data-episode-action="completed" aria-pressed="false">Terminado por decisão médica</button><button type="button" data-episode-action="interrupted" aria-pressed="false">Interrompido antes do previsto</button><button type="button" data-episode-action="archived" aria-pressed="false">Registo de teste</button></div>`}<input type="hidden" name="action" value=""><input type="hidden" name="interruption" value=""><div data-fields ${start?'':'hidden'}><p data-explanation aria-live="polite"></p><div class="gc-fh-actions" data-interruption hidden aria-label="Razão da interrupção"><button type="button" data-interruption-choice="abandonment" aria-pressed="false">Doente desistiu</button><button type="button" data-interruption-choice="medical" aria-pressed="false">Suspensão médica</button><button type="button" data-interruption-choice="agreed" aria-pressed="false">Pausa acordada</button></div><div class="gc-fh-compact-fields">${!start&&!c.episode.closed_at?`<label data-closed-date>Data de fim<input type="date" name="closed_date" max="${today}" value="${today}"></label>`:''}<label>${start?'Motivo da retoma':'Nota curta'}<input type="text" name="reason" placeholder="Registar o motivo" ${start?'required':''}></label></div><div class="gc-fh-actions"><button type="submit" class="gc-fh-open">${start?'Iniciar novo episódio':'Guardar'}</button><button type="button" data-close-editor>Cancelar</button></div></div>${start?'':'<div data-initial-cancel><button type="button" data-close-editor>Cancelar</button></div>'}<p role="alert" data-error></p></form>`;
    const form=editor.querySelector('form');let interruptionLabel='';
@@ -133,7 +142,7 @@ export async function loadExerciseHome({clinics=[],clinicIds=[],onOpen,onOwnersh
    const b=e.target.closest('button');if(!b||!root.contains(b))return;
    if(workspace.handle(b))return;
    if(b.hasAttribute('data-refresh'))return reload();
-   if(b.hasAttribute('data-close-editor')){editor.innerHTML='';return;}
+   if(b.hasAttribute('data-close-editor')){workspace.closeEditor();return;}
    if(b.dataset.history)return showHistory(b.dataset.history);
    const c=context(b.dataset.open||b.dataset.manage||b.dataset.review||b.dataset.reactivate||b.dataset.archive);if(!c||!workspace.visibleContexts({contexts:[c]}).length)return;
    if(b.dataset.open)return onOpen?.({patientId:c.patientId,clinicId:c.clinicId});

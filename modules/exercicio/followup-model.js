@@ -38,7 +38,7 @@ function buildLegacyFollowup({prescriptions=[],questionnaires=[],logs=[],readine
   record.logCount=allLogs.filter(l=>validIds.has(l.prescription_id)).length;
   if(valid.length){if(!future.length)add('plan:none',valid.map(r=>r.id+':'+(r.content_version||r.created_at)).sort().join(','),'Sem próximos treinos · rever plano',now.toISOString(),'plan');else if(record.endDate&&stamp(record.endDate+'T12:00:00Z')-stamp(today+'T12:00:00Z')<=5*86400000)add('plan:ending',record.endDate,'Treinos a terminar · preparar continuidade',record.endDate,'plan');
    const logged=new Set(allLogs.map(l=>l.prescription_id+':'+l.session_id));const missed=sessions.filter(s=>s.date&&s.date<today&&!logged.has(s.prescriptionId+':'+s.session_id));if(missed.length)add('missed',missed.map(s=>s.prescriptionId+':'+s.session_id).sort().join(','),`${missed.length} sessão(ões) prevista(s) sem registo`,missed.map(s=>s.date).sort().at(-1),'adherence');
-  }else if(lastRx)add('plan:expired',lastRx.id+':'+lastRx.expires_at,'Plano terminado · decidir continuidade',lastRx.expires_at,'plan');
+  }else if(lastRx)add('plan:expired',lastRx.id+':'+lastRx.expires_at,'Acesso ao plano expirado · rever disponibilidade',lastRx.expires_at,'plan');
   const signalOrder={clinical:0,plan:1,adherence:2,questionnaire:3};
   record.signals.sort((a,b)=>signalOrder[a.kind]-signalOrder[b.kind]||stamp(b.at)-stamp(a.at));
   result.push(record);

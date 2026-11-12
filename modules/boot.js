@@ -1,5 +1,5 @@
 import { canAccessExercise } from './exercicio/permissoes.js';
-import { loadExerciseHome } from './exercicio/followup-home.js?v=20261110-clinico';
+import { loadExerciseHome } from './exercicio/followup-home.js?v=20261112-compacto';
 import { normalizeClinicIds } from './clinic-picker.js';
 import { wireAgendaWorkspace } from './agenda-workspace.js?v=2026-10-06-agenda-messages-v1';
 /**
