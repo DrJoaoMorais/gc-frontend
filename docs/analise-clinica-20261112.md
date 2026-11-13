@@ -60,3 +60,11 @@ As avaliações funcionais passam pelo acesso existente `therapist_scale_list(p_
 A fundação separada `clinical_scale_*` não tem API de leitura de equipa disponível. Deixa de gerar uma tentativa falhada em cada abertura; a limitação é indicada no separador das avaliações. **Esta parte permanece sem integração**, não é apresentada como ausência confirmada de respostas. Os questionários de pré-consulta e avaliações funcionais mantêm a integração.
 
 Verificação: testes de limites/viragem do ano, datas inválidas, consultas autorizadas, dose/foto histórica, seleção de medida, intervalo de um dia, semana anterior/seguinte, ausência de texto técnico e apresentação 1440/768/375/320. Validação na sessão autenticada do utilizador continua necessária; não se declarou testada.
+
+## Prioridade ao texto do doente — 13/11/2026
+
+- Selecionar o dia mostra diretamente os exercícios e solicita logo as imagens históricas disponíveis, sem abrir um acordeão. Uma imagem em falta/falhada não é substituída por outra de um treino diferente.
+- Resumo de bem-estar/esforço em linha; grelha de três exercícios por linha em espaço suficiente.
+- Área «O que o doente escreveu» sempre aberta: sintomas pré-treino, comentário pós-treino, notas individuais de execução/série e diário. Conteúdo original integral, escapado e com quebras de linha preservadas. Sessões múltiplas identificadas.
+- Texto ao lado dos exercícios em contentores largos; primeiro, acima dos exercícios, em contentores estreitos. Sem altura limitada, texto cortado ou scroll interno. Notas extensas podem requerer scroll da página.
+- Teste de visibilidade em 1440/768/375/320, imagens sem clique adicional, texto longo e caracteres HTML. Capturas com dados e imagens fictícios.

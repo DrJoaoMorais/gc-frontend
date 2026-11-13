@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 globalThis.window={};
-const {loadAnalysisData,analysisSessions,pairedSummary,comparableOutcomes,monday,shiftDay,validRange,exerciseHTML}=await import('../modules/exercicio/clinical-analysis.js');
+const {loadAnalysisData,analysisSessions,pairedSummary,comparableOutcomes,monday,shiftDay,validRange,exerciseHTML,patientNotesHTML}=await import('../modules/exercicio/clinical-analysis.js');
 
 test('Resumo pré/pós só compara respostas da mesma sessão; sem resposta não é zero',()=>{
  assert.deepEqual(pairedSummary([{readiness:{feeling:1},log:{feel:3}},{readiness:{feeling:5},log:null},{log:{feel:1}}]),{n:1,pre:1,post:3});
@@ -37,4 +37,11 @@ test('Cartões mostram foto e dose histórica, sem despejar identificadores ou t
 test('Avaliações usam exclusivamente as consultas autorizadas e o acesso existente',async()=>{
  const calls=[];const sb={from(table){assert.notEqual(table,'therapist_scale_requests');assert.notEqual(table,'clinical_scale_requests');const filters=[];return {select(){return this},in(k,ids){filters.push(r=>ids.includes(r[k]));return this},order(){return this},async range(){return {data:(table==='consultations'?[{id:'allowed',patient_id:'p',clinic_id:'c'},{id:'foreign',patient_id:'p',clinic_id:'other'}]:[]).filter(r=>filters.every(f=>f(r)))}}}},async rpc(name,args){calls.push([name,args]);return {data:[{id:'assessment',status:'completed'}]}}};
  const d=await loadAnalysisData(sb,'p','c');assert.equal(d.therapist.length,1);assert.deepEqual(calls,[['therapist_scale_list',{p_consultation:'allowed'}]]);assert.deepEqual(d.failures,[]);
+});
+
+test('Texto integral de cada fonte do doente fica fora de elementos recolhidos',()=>{
+ const long='Texto longo. '.repeat(100)+'FIM DA NOTA';
+ const html=patientNotesHTML([{readiness:{symptom_note:'Antes <script>alert(1)</script>'},log:{note:long,sets:[{exercise_id:'x',note:'Comentário individual',series:[{note:'Nota da série'}]}]},prescribed:{items:[{exercise_id:'x',name:'Exercício X'}]}}],[{raw_text:'Entrada no diário'}]);
+ for(const text of ['FIM DA NOTA','Comentário individual','Nota da série','Entrada no diário'])assert.ok(html.includes(text));
+ assert.doesNotMatch(html,/<details|<script/);assert.match(html,/&lt;script&gt;/);
 });

@@ -50,8 +50,10 @@ await page.locator(`button[data-ca-day="${latestDay}"]`).click();
 await page.locator('.ca-day-detail').getByText('Medicação neste dia',{exact:true}).click();
 assert.match(await page.locator('.ca-day-detail').innerText(),/Medicação exemplo/);
 assert.doesNotMatch(await page.locator('.gc-analysis').innerText(),/NUNCA MOSTRAR/);
-await page.locator('.ca-day-detail').getByText('Exercícios e notas',{exact:true}).click();
-assert.equal(await page.locator('.ca-exercise img').count(),6);assert.equal(await page.locator('.ca-original img').count(),0);
+assert.equal(await page.locator('.ca-patient-notes').isVisible(),true);
+assert.match(await page.locator('.ca-patient-notes').innerText(),/Sintoma fictício|Registo de teste/);
+assert.equal(await page.locator('.ca-exercise img').first().isVisible(),true);
+assert.equal(await page.locator('.ca-exercise img').count(),6);assert.equal(await page.locator('.ca-patient-notes img').count(),0);
 assert.doesNotMatch(await page.locator('.ca-day-detail').innerText(),/DUMP-TECNICO|Prescrição original/);
 await page.screenshot({path:root+'/validation/analise-semanal-exercicios.png',fullPage:true});
 assert.equal(await page.locator('button[data-ca-day]').count(),7);
@@ -68,6 +70,9 @@ assert.match(await page.locator('.gc-analysis').innerText(),/Objetivos e limita�
 await page.locator('[data-ca-tab=overview]').click();
 for(const width of [1440,768,375,320]){
  await page.setViewportSize({width,height:1000});
+ await page.locator(`button[data-ca-day="${latestDay}"]`).click();
+ assert.equal(await page.locator('.ca-patient-notes').isVisible(),true);
+ assert.match(await page.locator('.ca-patient-notes').innerText(),/Registo de teste/);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'overflow '+width);
  assert.equal(await page.locator('.gc-analysis').count(),1);
  if(width===375)await page.screenshot({path:root+'/validation/analise-clinica-mobile.png',fullPage:false});
