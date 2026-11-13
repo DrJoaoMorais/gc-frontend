@@ -1,6 +1,6 @@
-import { mountAnalysisPage } from './clinical-analysis.js?v=20261112-analise';
+import { mountAnalysisPage } from './clinical-analysis.js?v=20261113-semanas';
 import { enrichClinicalContexts } from './clinical-context.js?v=20261112-compacto';
-import { createClinicalWorkspace, clinicalWorkspaceHTML, clinicalWorkspaceCSS } from './clinical-workspace.js?v=20261112-analise';
+import { createClinicalWorkspace, clinicalWorkspaceHTML, clinicalWorkspaceCSS } from './clinical-workspace.js?v=20261113-semanas';
 import { canLeaveFollowup, installFollowupDraftGuard } from './followup-drafts.js?v=20261110-clinico';
 import { canAccessExercise } from './permissoes.js';
 import { buildFollowup } from './followup-model.js?v=20261112-compacto';

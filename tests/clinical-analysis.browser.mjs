@@ -15,6 +15,7 @@ await page.route('http://clinical.test/**',async route=>{
  try {await route.fulfill({contentType:path==='/'?'text/html':extname(path)==='.css'?'text/css':'text/javascript',body:await readFile(file,'utf8')});}
  catch {await route.fulfill({status:404,body:''});}
 });
+await page.route('https://exercise.test/**',r=>r.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90"><rect width="90" height="90" fill="#e8f1f8"/><circle cx="45" cy="20" r="8" fill="#537da3"/><path d="M45 30L45 53L25 75M45 53L65 75M25 42L65 42" stroke="#537da3" stroke-width="6" fill="none"/></svg>'}));
 await page.goto('http://clinical.test/');await page.waitForSelector('.gc-cc-table');
 
 await page.evaluate(async()=>{
@@ -27,6 +28,7 @@ await page.evaluate(async()=>{
   previewTables.wo_session_logs.push({...base,id:'post-'+i,session_id,prescription_id:rx.id,logged_at:date+'T11:00:00Z',feel:3+i%2,rpe:4+i%5,sets:[],note:'Registo de teste'});
  }
  const person={patient_id:base.patient_id,clinic_id:base.clinic_id};
+ previewTables.wo_session_prescription_snapshots=[{...person,id:'snapshot-demo',prescription_id:rx.id,session_id:'demo-0',session_date:day(0),snapshot:{kind:'list',modality:'Força',items:Array.from({length:6},(_,i)=>({exercise_id:'ex-'+i,name:['Exercício de agachamento','Elevação da bacia','Passada atrás','Subida de degrau','Elevação dos braços','Prancha'][i],photo_url:'https://exercise.test/photo.svg',series:[{reps:12,load:5},{reps:12,load:5},{reps:12,load:5}],tecnica_notas:'DUMP-TECNICO'}))}}];
  previewTables.intake_tokens.push({...person,id:'qa',questionnaire_type:'pre_consulta_v2',status:'completed',created_at:day(20),completed_at:day(19)});
  previewTables.intake_responses=[{id:'answer1',token_id:'qa',question_id:'s1_6meses',answer:'Voltar a caminhar confortavelmente'},{id:'answer2',token_id:'qa',question_id:'s4_dor_lesao',answer:'Sim, ligeiramente'}];
  previewTables.patient_diary_entries.push({...person,id:'diary-a',entered_at:day(0)+'T14:00:00Z',raw_text:'Registo fictício <img src=x onerror=alert(1)>'});
@@ -42,11 +44,22 @@ assert.equal(await page.locator('dialog:modal').count(),0);
 assert.equal(await page.locator('.ca-stat').count(),3);
 assert.match(await page.locator('.ca-stats').innerText(),/8 sessões/);
 await page.screenshot({path:root+'/validation/analise-clinica-desktop.png',fullPage:true});
-await page.locator('[data-ca-metric]').selectOption('effort');assert.match(await page.locator('svg').getAttribute('aria-label'),/Esforço/);await page.locator('[data-ca-metric]').selectOption('wellbeing');
-await page.locator('button[data-ca-day]').first().click();
+await page.locator('[data-ca-metric=effort]').click();assert.match(await page.locator('svg').getAttribute('aria-label'),/Esforço/);await page.locator('[data-ca-metric=wellbeing]').click();
+const latestDay=await page.evaluate(()=>new Date().toLocaleDateString('en-CA'));
+await page.locator(`button[data-ca-day="${latestDay}"]`).click();
+await page.locator('.ca-day-detail').getByText('Medicação neste dia',{exact:true}).click();
 assert.match(await page.locator('.ca-day-detail').innerText(),/Medicação exemplo/);
 assert.doesNotMatch(await page.locator('.gc-analysis').innerText(),/NUNCA MOSTRAR/);
-assert.equal(await page.locator('.ca-day-detail img').count(),0);
+await page.locator('.ca-day-detail').getByText('Exercícios e notas',{exact:true}).click();
+assert.equal(await page.locator('.ca-exercise img').count(),6);assert.equal(await page.locator('.ca-original img').count(),0);
+assert.doesNotMatch(await page.locator('.ca-day-detail').innerText(),/DUMP-TECNICO|Prescrição original/);
+await page.screenshot({path:root+'/validation/analise-semanal-exercicios.png',fullPage:true});
+assert.equal(await page.locator('button[data-ca-day]').count(),7);
+const weekBefore=await page.locator('.ca-week b').innerText();await page.locator('[data-ca-week="-1"]').click();assert.notEqual(await page.locator('.ca-week b').innerText(),weekBefore);assert.equal(await page.locator('button[data-ca-day]').count(),7);await page.locator('[data-ca-week="1"]').click();
+await page.locator('[data-ca-period=custom]').click();
+await page.locator('[name=from]').fill(latestDay);await page.locator('[name=to]').fill(latestDay);await page.getByRole('button',{name:'Aplicar',exact:true}).click();
+assert.match(await page.locator('.ca-stats').innerText(),/1 sessões datadas/);
+await page.locator('[data-ca-period="30"]').click();
 await page.locator('[data-ca-tab=questions]').click();
 await page.getByText('Objetivos e Expectativas',{exact:true}).click();
 assert.match(await page.locator('.gc-analysis').innerText(),/Voltar a caminhar confortavelmente/);

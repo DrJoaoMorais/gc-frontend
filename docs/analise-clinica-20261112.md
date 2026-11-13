@@ -43,3 +43,20 @@ Sem novos RPCs, políticas, migrações, chaves, alterações de dados ou infer�
 - Navegador com dados fictícios: página inteira, retorno, questionários, diário escapado, fontes de outra clínica excluídas, gráfico de esforço, falhas explícitas e larguras 1440/768/375/320.
 - Regressão dos detalhes, histórico, decisões e filtros existentes.
 - Capturas de revisão em validation/analise-clinica-desktop.png e analise-clinica-mobile.png usam exclusivamente dados fictícios; não integram a publicação.
+
+## Ajustes de leitura — 13/11/2026
+
+- Período em botões: 14, 30, 90 dias, tudo e intervalo personalizado inclusivo, validado até à data atual. O gráfico, os indicadores, o diário e o calendário respeitam ambas as datas.
+- Bem-estar/esforço em botões visíveis.
+- Calendário de sete dias, segunda a domingo, com semana anterior/seguinte; começa na semana do registo mais recente do período. Dias fora do período ficam desativados. A mesma navegação substitui a lista longa de sessões no separador do tratamento.
+- Exercícios em grelha compacta, duas colunas no computador e uma no telemóvel. Foto exclusivamente do snapshot histórico, nunca substituída pelo catálogo atual. Doses por séries, repetições, duração e carga; estado da execução e notas mantidos. Blocos de atividade contínua/intervalada apresentados com campos legíveis.
+- Removida a serialização integral da prescrição/execução na interface. Dados originais intactos.
+
+### Correção do acesso às avaliações
+A captura real revelou um erro que os testes anteriores com tabelas simuladas não detetaram. `authenticated` não tem SELECT direto em `therapist_scale_requests` nem `clinical_scale_requests`.
+
+As avaliações funcionais passam pelo acesso existente `therapist_scale_list(p_consultation)`, depois de carregar consultas filtradas por doente e clínica. O corpo atual desta função foi inspecionado: exige autenticação, verifica `gc_scale_private.allowed` e apenas lê resultados. Não se alteraram permissões/RLS nem se criaram funções. O teste impede novas leituras diretas às duas tabelas protegidas e verifica que só se consulta a consulta autorizada.
+
+A fundação separada `clinical_scale_*` não tem API de leitura de equipa disponível. Deixa de gerar uma tentativa falhada em cada abertura; a limitação é indicada no separador das avaliações. **Esta parte permanece sem integração**, não é apresentada como ausência confirmada de respostas. Os questionários de pré-consulta e avaliações funcionais mantêm a integração.
+
+Verificação: testes de limites/viragem do ano, datas inválidas, consultas autorizadas, dose/foto histórica, seleção de medida, intervalo de um dia, semana anterior/seguinte, ausência de texto técnico e apresentação 1440/768/375/320. Validação na sessão autenticada do utilizador continua necessária; não se declarou testada.
