@@ -23,3 +23,9 @@ A revisão automática rejeitou a primeira migração por associar em bloco os r
 Contagem agregada, sem dados identificáveis: 29 prescrições (14 com um portal, 11 com vários, 4 sem portal) e 23 questionários (14 com um portal, 9 com vários). A correspondência dos 20 registos com vários portais deve ser validada antes da migração; não se deve assumir silenciosamente o portal mais recente. O SQL de associação neste ramo é uma proposta pendente de revisão, não uma autorização para execução nem uma migração aplicada.
 
 Commits e ramo de preparação preservam o trabalho para revisão. Publicação da página dependente e activação da proteção aguardam resolução desta associação histórica.
+
+## Correspondência histórica validada após autorização expressa
+
+O utilizador autorizou a migração e a publicação. A associação deixou de escolher o portal mais recente. Usa o intervalo da criação do registo; os registos anteriores ao primeiro portal são associados a esse primeiro. Só acompanha substituições com criação exactamente igual à revogação do predecessor; reinícios posteriores não são confundidos com substituições. A migração aborta perante intervalos ambíguos ou sem correspondência.
+
+Verificação agregada: 25 prescrições com portal e 23 questionários encontram correspondência; 4 prescrições sem portal mantêm o acesso autónomo histórico. Inclui os 20 registos inicialmente ambíguos. Nenhum registo actualmente activo e dentro da validade passa a portal revogado. Prescrições e respostas históricas permanecem intactas.
