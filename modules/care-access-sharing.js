@@ -42,6 +42,13 @@
  const oldShareRefresh=refreshExerciseShare;refreshExerciseShare=function(){oldShareRefresh();if(el('exerciseShare'))el('exerciseShare').hidden=true};
  const oldQuestionLink=questionnaireDirectLink;questionnaireDirectLink=()=>portalLink();
  const oldRenderQuestions=renderQuestionnaires;renderQuestionnaires=function(){oldRenderQuestions();document.querySelectorAll('[data-copy-questionnaire]').forEach(b=>b.textContent='Copiar ligação do acompanhamento')};
+ // Acesso na grelha do resumo e na mesma linha da navegação clínica.
+ const shareToggle=el('careShareToggle'),tabs=document.querySelector('.care-area-tabs');
+ const navRow=document.createElement('div');navRow.className='as-navigation-row';tabs.before(navRow);navRow.append(tabs,shareToggle);
+ const shareCard=document.createElement('article');shareCard.className='access-card as-share-card';shareCard.id='asShareCard';
+ shareCard.innerHTML='<button type="button" class="open-module" id="asOpenFromSummary" aria-controls="patientLinkPanel"><span class="icon" aria-hidden="true">🔗</span><span><strong>Acesso e partilha <span aria-hidden="true">›</span></strong><small>Enviar a ligação, gerir o período e o dispositivo.</small></span></button>';
+ document.querySelector('.care-module-summary').append(shareCard);
+ el('asOpenFromSummary').onclick=()=>{panel.hidden=false;shareToggle.setAttribute('aria-expanded','true');panel.scrollIntoView({block:'start',behavior:'smooth'});};
  const oldShow=showAccessEditor;showAccessEditor=function(key){oldShow(key);if(previewReturn)back.hidden=key==='summary'};
  refresh();
  // Contactos são metadados da ficha, nunca inferidos da mensagem.

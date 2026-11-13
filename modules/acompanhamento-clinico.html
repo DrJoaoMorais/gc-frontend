@@ -87,7 +87,7 @@ body[data-care-area="activity"] .gcwo-plan-settings-disclosure:not([open]),body[
 @media(max-width:520px){.exercise-share-row{flex-wrap:wrap}.exercise-share-row input{flex-basis:100%}.exercise-share-row .exercise-share-actions{width:100%}.exercise-share-row .exercise-share-actions .btn{flex:1}}
 </style>
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="/modules/care-access-sharing.css?v=20261113-access">
+<link rel="stylesheet" href="/modules/care-access-sharing.css?v=20261113-position">
 </head><body><main class="page"><nav class="care-navigation" aria-label="Localização e destinos"><button type="button" class="back" id="backToCareList">← Lista de acompanhamento</button><span aria-hidden="true">›</span><strong id="careCurrentPatient">Doente</strong><span aria-current="page">Acompanhamento</span><button type="button" class="btn" id="back">Processo clínico</button></nav>
 <div class="top"><div class="title"><h1>Acompanhamento do doente</h1><p>Configure o que o doente recebe na mesma ligação.</p></div><div class="patient"><div class="avatar" id="initials">—</div><div><strong id="patientName">A carregar…</strong><small>Acompanhamento digital</small></div></div></div>
 <section class="linkbar" id="accessBar"><span class="linkstate waiting" id="linkState">Aguardando ativação</span><div class="linkbar-main"><b id="accessTitle">Ligação por ativar</b><span id="securityInfo">A mesma ligação recebe todas as alterações guardadas.</span></div></section>
@@ -925,5 +925,5 @@ function refreshAccessCards(){
  for(const [id,on] of [['pathologyGroupStatus',path],['metabolicGroupStatus',met]]){$(id).textContent=on?'Ativo':'Não ativo';$(id).classList.toggle('on',on)}
 }
 mountAccessOverview();
-</script><script src="/modules/care-access-sharing.js?v=20261113-access"></script></body></html>
+</script><script src="/modules/care-access-sharing.js?v=20261113-position"></script></body></html>
 
