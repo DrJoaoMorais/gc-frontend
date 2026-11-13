@@ -26,3 +26,16 @@
 
 /modules/*
   Cache-Control: no-cache, must-revalidate
+
+# Patient access must use the current authorization client.
+/acompanhamento*
+  Cache-Control: no-store
+  Referrer-Policy: no-referrer
+/diario*
+  Cache-Control: no-store
+  Referrer-Policy: no-referrer
+/intake.html
+  Cache-Control: no-store
+  Referrer-Policy: no-referrer
+/patient-access.js
+  Cache-Control: no-store

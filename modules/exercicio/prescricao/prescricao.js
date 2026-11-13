@@ -631,14 +631,15 @@ async function carregarDisponibilidadeQuestionario() {
 // parecer avariado (o doente via "não tenho nada", mesmo já tendo um plano a decorrer).
 // Desde a Fase A (datas reais em vez de week+day), startDate/endDate/etc. vêm gravados
 // tal e qual em `data` — já não é preciso derivar nada de created_at.
+function scopeCarePrescription(query){return _embeddedCare?.portalLinkId?query.eq('portal_link_id',_embeddedCare.portalLinkId):query;}
 async function carregarPlanoActivoSeExistir() {
   _state.activePrescriptionId = null;
   _patientHasFeedback = false;
   if (!_state.patient) return;
 
-  const { data, error } = await window.sb
+  const { data, error } = await scopeCarePrescription(window.sb
     .from('wo_prescriptions')
-    .select('id,data,expires_at')
+    .select('id,data,expires_at'))
     .eq('patient_id', _state.patient.id)
     .eq('clinic_id', _state.clinicId)
     .eq('status', 'active')
@@ -751,12 +752,12 @@ export async function initPrescricao(options = {}) {
 
 
 // Mantém o editor junto dos formulários do acompanhamento, incluindo os rascunhos.
-export async function initCarePrescription({ patientId, clinicId, onCalendar, onSaved, onChange }) {
+export async function initCarePrescription({ patientId, clinicId, portalLinkId, onCalendar, onSaved, onChange }) {
   const { data, error } = await window.sb.auth.getUser();
   if (error || !data?.user) throw new Error('Não foi possível confirmar a sessão.');
   G.sessionUser = data.user;
   G.clinics = [{ id: clinicId }];
-  await initPrescricao({ patientId, clinicId, embeddedCare: { onCalendar, onSaved, onChange } });
+  await initPrescricao({ patientId, clinicId, embeddedCare: { portalLinkId, onCalendar, onSaved, onChange } });
   _calendarFirstMonday = segundaFeiraDeIso(isoHoje());
   _embeddedCare.savedFingerprint = JSON.stringify(buildFinalData());
   renderStep2();
@@ -6631,9 +6632,9 @@ async function handleGerar() {
     // (não revogada, mesmo com o link expirado), actualiza a linha em vez de criar
     // outra — o link que o doente já tem continua a funcionar. Só cria linha nova quando
     // não há nenhuma activa, ou depois de o Morais revogar a anterior explicitamente.
-    const { data: activaExistente, error: erroActiva } = await window.sb
+    const { data: activaExistente, error: erroActiva } = await scopeCarePrescription(window.sb
       .from('wo_prescriptions')
-      .select('id, token, data, expires_at')
+      .select('id, token, data, expires_at'))
       .eq('patient_id', _state.patient.id)
       .eq('clinic_id', _state.clinicId)
       .eq('status', 'active')
@@ -6700,6 +6701,7 @@ async function handleGerar() {
       token = tokenCandidato;
       const insertQuery = window.sb.from('wo_prescriptions').insert({
         token,
+        portal_link_id: _embeddedCare?.portalLinkId||null,
         patient_id: _state.patient.id,
         clinic_id: _state.clinicId,
         created_by: G.sessionUser.id,
