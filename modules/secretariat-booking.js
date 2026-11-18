@@ -44,7 +44,7 @@ export async function bookingAccess() {
 }
 
 export async function openSecretariatAgenda(clinics) {
-  const root = document.getElementById('appRoot');
+  const root = document.getElementById('appRoot') || document.body;
   const defaultClinic = clinics.find(clinic => clinic.name.trim().toLocaleLowerCase('pt-PT') === 'novo cuidar');
   if (defaultClinic) clinics = [defaultClinic, ...clinics.filter(clinic => clinic !== defaultClinic)];
   root.innerHTML = `<main class="gc-secretariat-agenda" style="padding:16px">

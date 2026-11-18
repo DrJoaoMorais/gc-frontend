@@ -9,11 +9,12 @@ async function main() {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   try {
     const page = await browser.newPage({ timezoneId: 'America/New_York' });
+    page.setDefaultTimeout(6000);
     const errors = [];
     page.on('pageerror', error => errors.push(error));
     await page.route('https://gc-agenda.test/**', async route => {
       const path = new URL(route.request().url()).pathname;
-      if (path === '/') return route.fulfill({ contentType: 'text/html', body: '<div id="appRoot"></div>' });
+      if (path === '/') return route.fulfill({ contentType: 'text/html', body: readFileSync(resolve(root, 'app.html'), 'utf8').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '') });
       if (!/^\/modules\/[a-z0-9_./-]+\.(m?js|css)$/i.test(path)) return route.abort();
       const file = resolve(root, '.' + path);
       if (!file.startsWith(resolve(root, 'modules') + '/')) return route.abort();
@@ -26,7 +27,13 @@ async function main() {
       const row = { id: 'booking', status: 'scheduled', mode: 'presencial', patient_name: 'Doente Teste',
         start_at: '2026-07-17T09:00:00Z', end_at: '2026-07-17T09:20:00Z', updated_at: '2026-07-01T10:30:00Z' };
       window.calls = [];
-      window.sb = { rpc: async (name, { p_action, p_args }) => {
+      window.sb = {
+        auth: {
+          getSession: async () => ({ data: { session: { user: { id: 'secretary' } } } }),
+          onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+          mfa: { getAuthenticatorAssuranceLevel: async () => ({ data: { currentLevel: 'aal2' } }) }
+        },
+        rpc: async (name, { p_action, p_args }) => {
         window.calls.push([p_action, p_args]);
         let data = [];
         if (p_action === 'scope') data = { clinics, report_clinics: [] };
@@ -40,8 +47,9 @@ async function main() {
         return { data, error: null };
       }};
       window.module = await import('/modules/secretariat-booking.js');
-      const scope = await window.module.bookingAccess();
-      await window.module.openSecretariatAgenda(scope.clinics);
+      const { boot } = await import('/modules/boot.js');
+      await boot();
+      if (document.body.textContent.includes('Erro ao iniciar a app.')) throw new Error('O arranque do secretariado falhou');
     });
     await page.getByRole('button', { name: 'Agendar consulta' }).click();
     const editor = page.getByRole('dialog');
@@ -79,7 +87,7 @@ async function main() {
     assert.equal(Object.hasOwn(edit, 'patient_id'), false);
 
     await page.evaluate(() => {
-      const host = document.getElementById('appRoot');
+      const host = document.getElementById('appRoot') || document.body;
       host.replaceChildren();
       window.module.mountBookingReport(host, [{ id: 'novo', name: 'Novo Cuidar' }]);
     });

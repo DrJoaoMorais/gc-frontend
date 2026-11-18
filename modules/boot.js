@@ -1,4 +1,4 @@
-import { bookingAccess, openSecretariatAgenda, mountBookingReport } from './secretariat-booking.js?v=20261118-clinica-marcacao';
+import { bookingAccess, openSecretariatAgenda, mountBookingReport } from './secretariat-booking.js?v=20261118-arranque-secretariado';
 import { canAccessExercise } from './exercicio/permissoes.js';
 import { loadExerciseHome } from './exercicio/followup-home.js?v=20261113-notas';
 import { normalizeClinicIds } from './clinic-picker.js';
