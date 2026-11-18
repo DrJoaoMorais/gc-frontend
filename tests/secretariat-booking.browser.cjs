@@ -14,14 +14,15 @@ async function main() {
     await page.route('https://gc-agenda.test/**', async route => {
       const path = new URL(route.request().url()).pathname;
       if (path === '/') return route.fulfill({ contentType: 'text/html', body: '<div id="appRoot"></div>' });
-      const files = new Set(['secretariat-booking.js', 'helpers.js', 'state.js', 'session.js']);
-      const name = path.slice(1);
-      if (!files.has(name)) return route.abort();
-      return route.fulfill({ contentType: 'application/javascript', body: readFileSync(resolve(root, 'modules', name)) });
+      if (!/^\/modules\/[a-z0-9_./-]+\.(m?js|css)$/i.test(path)) return route.abort();
+      const file = resolve(root, '.' + path);
+      if (!file.startsWith(resolve(root, 'modules') + '/')) return route.abort();
+      const contentType = path.endsWith('.css') ? 'text/css' : 'application/javascript';
+      return route.fulfill({ contentType, body: readFileSync(file) });
     });
     await page.goto('https://gc-agenda.test/');
     await page.evaluate(async () => {
-      const clinics = [{ id: 'novo', name: 'Novo Cuidar' }, { id: 'web', name: 'João Morais Web', duration: 30 }];
+      const clinics = [{ id: 'web', name: 'João Morais Web', duration: 30 }, { id: 'novo', name: 'Novo Cuidar' }];
       const row = { id: 'booking', status: 'scheduled', mode: 'presencial', patient_name: 'Doente Teste',
         start_at: '2026-07-17T09:00:00Z', end_at: '2026-07-17T09:20:00Z', updated_at: '2026-07-01T10:30:00Z' };
       window.calls = [];
@@ -38,20 +39,27 @@ async function main() {
         ];
         return { data, error: null };
       }};
-      window.module = await import('/secretariat-booking.js');
+      window.module = await import('/modules/secretariat-booking.js');
       const scope = await window.module.bookingAccess();
       await window.module.openSecretariatAgenda(scope.clinics);
     });
-    await page.getByRole('button', { name: 'Nova marcação' }).click();
+    await page.getByRole('button', { name: 'Agendar consulta' }).click();
     const editor = page.getByRole('dialog');
-    await editor.getByLabel('Clínica').selectOption('web');
-    await editor.getByLabel('Pesquisar doente pelo nome').fill('Doente');
-    await editor.getByRole('button', { name: 'Pesquisar', exact: true }).click();
-    await editor.getByRole('option', { name: 'Doente Teste · 02/01/1980' }).waitFor({ state: 'attached' });
-    await editor.getByLabel('Dia', { exact: true }).fill('2026-07-17');
-    await editor.getByLabel('Hora de Lisboa').fill('10:00');
-    await editor.getByLabel('Tipo de consulta').selectOption('Primeira Consulta');
-    await editor.getByRole('button', { name: 'Guardar' }).click();
+    const clinics = editor.getByRole('group', { name: 'Clínica' });
+    assert.deepEqual(await clinics.getByRole('button').allTextContents(), ['Novo Cuidar', 'João Morais Web']);
+    assert.equal(await clinics.getByRole('button', { name: 'Novo Cuidar' }).getAttribute('aria-pressed'), 'true');
+    await clinics.getByRole('button', { name: 'João Morais Web' }).click();
+    assert.equal(await clinics.getByRole('button', { name: 'João Morais Web' }).getAttribute('aria-pressed'), 'true');
+    assert.match(await editor.locator('.gm-header').textContent(), /João Morais Web/);
+    await editor.getByLabel('Nome do doente').fill('Doente');
+    await editor.getByRole('button', { name: 'Doente Teste · 02/01/1980' }).click();
+    await editor.getByLabel('Data', { exact: true }).fill('2026-07-17');
+    await editor.getByLabel('Hora de início').fill('10:00');
+    await editor.getByRole('button', { name: 'Primeira Consulta' }).click();
+    if (process.env.GC_BOOKING_SCREENSHOT) {
+      await page.locator('.gm-panel').screenshot({ path: process.env.GC_BOOKING_SCREENSHOT });
+    }
+    await editor.getByRole('button', { name: 'Agendar consulta' }).click();
     await editor.waitFor({ state: 'hidden' });
     const create = await page.evaluate(() => window.calls.find(([action]) => action === 'save')[1]);
     assert.equal(create.clinic_id, 'web');
@@ -60,7 +68,7 @@ async function main() {
     assert.equal(create.start_at, '2026-07-17T09:00:00.000Z');
     assert.match(create.request_id, /^[0-9a-f-]{36}$/);
     await page.getByRole('button', { name: 'Editar' }).click();
-    assert.equal(await editor.getByLabel('Clínica').isDisabled(), true);
+    assert.equal(await clinics.getByRole('button', { name: 'João Morais Web' }).isDisabled(), true);
     await editor.getByLabel('Estado').selectOption('cancelled');
     await editor.getByRole('button', { name: 'Guardar' }).click();
     await editor.waitFor({ state: 'hidden' });

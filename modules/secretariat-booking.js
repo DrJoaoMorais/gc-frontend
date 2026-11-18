@@ -1,5 +1,7 @@
 import { escapeHtml as escape } from './helpers.js';
-import { DURATION_OPTIONS, PROCEDURE_OPTIONS, statusMeta } from './state.js';
+import { statusMeta } from './state.js';
+import { openApptModal } from './agenda.js?v=20261118-clinica-marcacao';
+import { agendaWorkspaceHTML } from './agenda-workspace.js?v=2026-10-06-agenda-messages-v1';
 import { wireLogout } from './session.js';
 
 const timeZone = 'Europe/Lisbon';
@@ -43,69 +45,42 @@ export async function bookingAccess() {
 
 export async function openSecretariatAgenda(clinics) {
   const root = document.getElementById('appRoot');
-  root.innerHTML = `
-    <main style="max-width:900px;margin:auto;padding:1rem">
-      <header><h1>Agenda do secretariado</h1><button type="button" id="btnLogout">Sair</button></header>
-      <p>
-        <label>Clínica <select id="secretariatClinic">${clinicOptions(clinics)}</select></label>
-        <label>Dia <input id="secretariatDay" type="date" value="${today()}"></label>
-        <button type="button" id="secretariatNew">Nova marcação</button>
-      </p>
-      <p id="secretariatMessage" role="status"></p>
-      <ul id="secretariatBookings"></ul>
-      <dialog id="secretariatEditor" aria-labelledby="secretariatTitle" style="max-width:min(92vw,36rem)">
-        <form>
-          <h2 id="secretariatTitle"></h2>
-          <p><label>Clínica <select name="clinic" required>${clinicOptions(clinics)}</select></label></p>
-          <div id="secretariatPatient">
-            <label>Pesquisar doente pelo nome <input type="search" name="query" minlength="3" autocomplete="off"></label>
-            <button type="button" id="secretariatSearch">Pesquisar</button>
-            <p><label>Doente <select name="patient" required></select></label></p>
-            <p><label>Tipo de consulta <select name="procedure" required>${option('', 'Seleciona o tipo')}${PROCEDURE_OPTIONS.map(item => {
-              const name = item.replace(/^[^\p{L}]+/u, '');
-              return option(name, name);
-            }).join('')}</select></label></p>
-          </div>
-          <p><label>Dia <input type="date" name="day" required></label>
-          <label>Hora de Lisboa <input type="time" name="hour" required></label></p>
-          <p><label>Duração em minutos <input type="number" name="duration" list="secretariatDurations" min="5" max="480" required></label>
-          <datalist id="secretariatDurations">${DURATION_OPTIONS.map(value => option(value, value)).join('')}</datalist></p>
-          <p id="secretariatState"><label>Estado <select name="status"></select></label></p>
-          <p id="secretariatEditorMessage" role="status"></p>
-          <button type="button" id="secretariatClose">Fechar</button>
-          <button type="submit">Guardar</button>
-        </form>
-      </dialog>
-    </main>`;
+  const defaultClinic = clinics.find(clinic => clinic.name.trim().toLocaleLowerCase('pt-PT') === 'novo cuidar');
+  if (defaultClinic) clinics = [defaultClinic, ...clinics.filter(clinic => clinic !== defaultClinic)];
+  root.innerHTML = `<main class="gc-secretariat-agenda" style="padding:16px">
+    <button type="button" id="btnLogout" class="gcBtnGhost">Sair</button>
+    ${agendaWorkspaceHTML()}
+  </main><div id="modalRoot"></div>`;
 
-  const viewClinic = root.querySelector('#secretariatClinic');
-  const viewDay = root.querySelector('#secretariatDay');
-  const message = root.querySelector('#secretariatMessage');
-  const list = root.querySelector('#secretariatBookings');
-  const dialog = root.querySelector('#secretariatEditor');
-  const form = dialog.querySelector('form');
-  const fields = form.elements;
-  const save = form.querySelector('[type=submit]');
-  const search = root.querySelector('#secretariatSearch');
-  const close = root.querySelector('#secretariatClose');
-  const editorMessage = root.querySelector('#secretariatEditorMessage');
+  const viewClinic = root.querySelector('#selClinic');
+  viewClinic.hidden = false;
+  viewClinic.className = 'gcSelect';
+  viewClinic.setAttribute('aria-label', 'Clínica');
+  viewClinic.innerHTML = clinicOptions(clinics);
+  root.querySelector('#awClinicPicker').replaceWith(viewClinic);
+  for (const selector of ['.aw-search-group', '#btnNewPatientMain', '#awFinance', '.aw-schedule-actions',
+    '#btnWeek', '#btnCal', '#awDay', '.aw-pending', '#awDocuments', '.aw-messages']) {
+    root.querySelector(selector)?.remove();
+  }
+  const viewDay = root.querySelector('#awDate');
+  viewDay.value = today();
+  const message = root.querySelector('#agendaStatus');
+  const list = root.querySelector('#agendaList');
+  const subtitle = root.querySelector('#agendaSubtitle');
   let rendering = 0;
-  let searching = 0;
-  let editing = null;
-  let creationRequest = null;
-  let saving = false;
-  const defaultDuration = clinicId => clinics.find(clinic => clinic.id === clinicId)?.duration || 20;
 
   async function loadDay() {
     const revision = ++rendering;
     list.replaceChildren();
     if (!viewDay.value) { message.textContent = 'Escolhe um dia.'; return; }
+    subtitle.textContent = new Date(viewDay.value + 'T12:00:00').toLocaleDateString('pt-PT', { dateStyle: 'full' });
     message.textContent = 'A carregar marcações…';
     try {
       const rows = await request('day', { clinic_id: viewClinic.value, from: viewDay.value });
       if (revision !== rendering) return;
       for (const row of rows) {
         const item = document.createElement('li');
+        item.className = 'aw-row';
         const period = `${time.format(new Date(row.start_at))}–${time.format(new Date(row.end_at))}`;
         item.textContent = row.mode === 'bloqueio' ? `${period} · Bloqueio` :
           [period, row.patient_name || 'Doente', row.procedure_type, label(row.status)].filter(Boolean).join(' · ');
@@ -124,100 +99,51 @@ export async function openSecretariatAgenda(clinics) {
     }
   }
 
-  function clearSearch() {
-    ++searching;
-    fields.patient.innerHTML = option('', 'Seleciona um doente');
-    editorMessage.textContent = '';
-    search.disabled = false;
-  }
-
   function openEditor(row = null) {
-    editing = row;
-    creationRequest = null;
-    form.reset();
-    clearSearch();
-    const localStart = row ? dateParts.format(new Date(row.start_at)) : `${viewDay.value || today()} 09:00`;
-    fields.clinic.disabled = Boolean(row);
-    fields.clinic.value = viewClinic.value;
-    fields.day.value = localStart.slice(0, 10);
-    fields.hour.value = localStart.slice(11, 16);
-    fields.duration.value = row ? Math.round((Date.parse(row.end_at) - Date.parse(row.start_at)) / 60000) : defaultDuration(fields.clinic.value);
-    fields.query.disabled = Boolean(row);
-    fields.patient.disabled = Boolean(row);
-    fields.procedure.disabled = Boolean(row);
-    fields.status.disabled = !row;
-    fields.status.innerHTML = states.filter(state => state !== 'confirmed' || row?.status === state)
-      .map(state => option(state, label(state))).join('');
-    fields.status.value = row?.status || 'scheduled';
-    root.querySelector('#secretariatPatient').hidden = Boolean(row);
-    root.querySelector('#secretariatState').hidden = !row;
-    root.querySelector('#secretariatTitle').textContent = row ? `Editar marcação de ${row.patient_name}` : 'Nova marcação';
-    dialog.showModal();
+    const clinicId = row ? viewClinic.value : defaultClinic?.id || viewClinic.value;
+    let creationRequest;
+    openApptModal({
+      mode: row ? 'edit' : 'new',
+      row: row ? { ...row, clinic_id: clinicId } : undefined,
+      prefillClinicId: clinicId,
+      bookingOnly: {
+        clinics,
+        start: (row ? dateParts.format(new Date(row.start_at)) : `${viewDay.value || today()} 09:00`).replace(' ', 'T'),
+        duration: row ? Math.round((Date.parse(row.end_at) - Date.parse(row.start_at)) / 60000) :
+          clinics.find(clinic => clinic.id === clinicId)?.duration || 20,
+        states: states.filter(state => state !== 'confirmed' || row?.status === state)
+          .map(state => ({ value: state, label: label(state) })),
+        search: (clinic, query) => request('patients', { clinic_id: clinic, query }),
+        async save({ clinic, start, duration, patient, procedure, status }) {
+          const [day, hour] = start.split('T');
+          if (!day || !hour) throw new Error('Indica a data e a hora.');
+          const args = { clinic_id: clinic, start_at: lisbonInstant(day, hour), duration };
+          if (row) Object.assign(args, { id: row.id, updated_at: row.updated_at, status });
+          else {
+            Object.assign(args, { patient_id: patient, procedure_type: procedure.replace(/^[^\p{L}]+/u, '').trim() });
+            const signature = JSON.stringify(args);
+            if (creationRequest?.signature !== signature) creationRequest = { signature, id: crypto.randomUUID() };
+            args.request_id = creationRequest.id;
+          }
+          await request('save', args);
+          viewClinic.value = clinic;
+          viewDay.value = day;
+          await loadDay();
+        }
+      }
+    });
   }
-
-  dialog.onclose = () => { ++searching; };
-  dialog.oncancel = event => { if (saving) event.preventDefault(); };
-  close.onclick = () => dialog.close();
-  fields.clinic.onchange = () => {
-    fields.query.value = '';
-    fields.duration.value = defaultDuration(fields.clinic.value);
-    clearSearch();
-  };
-  fields.query.oninput = clearSearch;
-  fields.query.onkeydown = event => {
-    if (event.key === 'Enter') { event.preventDefault(); search.click(); }
-  };
-  search.onclick = async () => {
-    clearSearch();
-    const query = fields.query.value.trim();
-    if (query.length < 3) { editorMessage.textContent = 'Escreve pelo menos três caracteres.'; return; }
-    const revision = searching;
-    search.disabled = true;
-    try {
-      const patients = await request('patients', { clinic_id: fields.clinic.value, query });
-      if (revision !== searching) return;
-      for (const patient of patients) {
-        const dob = patient.dob ? ` · ${patient.dob.split('-').reverse().join('/')}` : '';
-        fields.patient.add(new Option(patient.full_name + dob, patient.id));
-      }
-      if (patients.length === 1) fields.patient.value = patients[0].id;
-      editorMessage.textContent = patients.length ? '' : 'Nenhum doente ativo com esse nome nesta clínica.';
-    } catch (error) {
-      if (revision === searching) editorMessage.textContent = error.message;
-    } finally {
-      if (revision === searching) search.disabled = false;
-    }
-  };
-
-  form.onsubmit = async event => {
-    event.preventDefault();
-    if (saving) return;
-    saving = save.disabled = close.disabled = true;
-    editorMessage.textContent = 'A guardar…';
-    const clinic = fields.clinic.value;
-    const day = fields.day.value;
-    try {
-      const args = { clinic_id: clinic, start_at: lisbonInstant(day, fields.hour.value), duration: Number(fields.duration.value) };
-      if (editing) Object.assign(args, { id: editing.id, updated_at: editing.updated_at, status: fields.status.value });
-      else {
-        Object.assign(args, { patient_id: fields.patient.value, procedure_type: fields.procedure.value });
-        const signature = JSON.stringify(args);
-        if (creationRequest?.signature !== signature) creationRequest = { signature, id: crypto.randomUUID() };
-        args.request_id = creationRequest.id;
-      }
-      await request('save', args);
-      dialog.close();
-      viewClinic.value = clinic;
-      viewDay.value = day;
-      await loadDay();
-    } catch (error) {
-      editorMessage.textContent = error.message;
-    } finally {
-      saving = save.disabled = close.disabled = false;
-    }
-  };
+  function changeDay(offset) {
+    const day = new Date((viewDay.value || today()) + 'T12:00:00Z');
+    day.setUTCDate(day.getUTCDate() + offset);
+    viewDay.value = day.toISOString().slice(0, 10);
+    return loadDay();
+  }
   viewClinic.onchange = viewDay.onchange = loadDay;
-  root.querySelector('#secretariatNew').onclick = () => openEditor();
+  root.querySelector('#btnPrevDay').onclick = () => changeDay(-1);
+  root.querySelector('#btnNextDay').onclick = () => changeDay(1);
+  root.querySelector('#btnToday').onclick = () => { viewDay.value = today(); return loadDay(); };
+  root.querySelector('#btnNewAppt').onclick = () => openEditor();
   await wireLogout({ checkPending: false });
   await loadDay();
 }
