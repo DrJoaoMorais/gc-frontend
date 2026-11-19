@@ -239,13 +239,13 @@ function showPendentesLogoutWarning(pendentes) {
  * Liga o botão #btnLogout ao logout do Supabase.
  * Antes de sair, verifica se há consultas pendentes vencidas.
  */
-export async function wireLogout() {
+export async function wireLogout({ checkPending = true } = {}) {
   const btn = document.getElementById("btnLogout");
   if (!btn) return;
 
   btn.addEventListener("click", async () => {
     // Verificar pendentes antes de sair
-    const pendentes = await checkPendentesVencidos();
+    const pendentes = checkPending ? await checkPendentesVencidos() : [];
 
     if (pendentes.length > 0) {
       const continuar = await showPendentesLogoutWarning(pendentes);
