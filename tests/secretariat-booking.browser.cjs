@@ -102,6 +102,16 @@ async function main() {
     await date.click();
     await page.locator('.aw-row').getByText('Doente Teste', { exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Dia', exact: true }).getAttribute('aria-pressed'), 'true');
+    const quickSearch = page.getByRole('searchbox', { name: 'Pesquisar doente por nome' });
+    await quickSearch.fill('Doente');
+    await page.locator('#pQuickResults').getByRole('button', { name: 'Doente Teste · 02/01/1980' }).click();
+    assert.equal(await editor.getByLabel('Nome do doente').inputValue(), 'Doente Teste');
+    assert.equal(await clinics.getByRole('button', { name: 'João Morais Web' }).getAttribute('aria-pressed'), 'true');
+    const lastSearch = await page.evaluate(() => window.calls.filter(([action]) => action === 'patients').at(-1)[1]);
+    assert.equal(lastSearch.clinic_id, 'web');
+    await clinics.getByRole('button', { name: 'Novo Cuidar' }).click();
+    assert.equal(await editor.getByLabel('Nome do doente').inputValue(), '');
+    await editor.getByRole('button', { name: 'Cancelar', exact: true }).click();
     assert.deepEqual(errors, []);
     console.log('Secretariado no Chrome: seleção da clínica, pesquisa, marcação, edição, hora de Lisboa e interface habitual validados.');
   } finally {

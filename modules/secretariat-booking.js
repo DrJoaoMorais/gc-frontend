@@ -1,6 +1,6 @@
 import { escapeHtml as escape } from './helpers.js';
 import { statusMeta } from './state.js';
-import { openApptModal } from './agenda.js?v=20261118-clinica-marcacao';
+import { openApptModal } from './agenda.js?v=20261119-pesquisa-agenda';
 import { appointmentCard } from './agenda-workspace.js?v=2026-10-06-agenda-messages-v1';
 import { wireLogout } from './session.js';
 
@@ -54,7 +54,7 @@ export async function openSecretariatAgenda(clinics) {
   viewClinic.setAttribute('aria-label', 'Clínica da agenda');
   viewClinic.innerHTML = clinicOptions(clinics);
   root.querySelector('#awClinicPicker').append(viewClinic);
-  for (const selector of ['.aw-search-group', '#btnNewPatientMain', '#awFinance', '.aw-schedule-actions',
+  for (const selector of ['#btnNewPatientMain', '#awFinance', '.aw-schedule-actions',
     '.aw-pending', '#awDocuments', '.aw-messages']) {
     root.querySelector(selector)?.remove();
   }
@@ -183,13 +183,68 @@ export async function openSecretariatAgenda(clinics) {
     }
   }
 
-  function openEditor(row = null) {
-    const clinicId = row ? viewClinic.value : defaultClinic?.id || viewClinic.value;
+  const query = root.querySelector('#pQuickQuery');
+  const results = root.querySelector('#pQuickResults');
+  query.placeholder = 'Pesquisar doente por nome…';
+  query.setAttribute('aria-label', 'Pesquisar doente por nome');
+  results.setAttribute('aria-live', 'polite');
+  let searchRevision = 0;
+  let searchTimer;
+
+  function clearResults() {
+    ++searchRevision;
+    clearTimeout(searchTimer);
+    results.replaceChildren();
+    results.style.display = 'none';
+  }
+
+  function searchPatients(clinic, term) {
+    return request('patients', { clinic_id: clinic, query: term });
+  }
+
+  query.onkeydown = event => {
+    if (event.key === 'Escape') clearResults();
+  };
+  query.oninput = () => {
+    clearResults();
+    const term = query.value.trim();
+    if (term.length < 3) return;
+    const revision = searchRevision;
+    const clinic = viewClinic.value;
+    searchTimer = setTimeout(async () => {
+      try {
+        const matches = await searchPatients(clinic, term);
+        if (revision !== searchRevision || !root.isConnected) return;
+        results.style.display = 'block';
+        if (!matches.length) results.textContent = 'Sem resultados nesta clínica.';
+        for (const patient of matches) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.textContent = [patient.full_name, patient.dob?.split('-').reverse().join('/')].filter(Boolean).join(' · ');
+          button.onclick = () => {
+            query.value = '';
+            clearResults();
+            openEditor(null, patient);
+          };
+          results.append(button);
+        }
+      } catch {
+        if (revision !== searchRevision || !root.isConnected) return;
+        results.style.display = 'block';
+        results.textContent = 'Não foi possível pesquisar. Tenta novamente.';
+      }
+    }, 250);
+  };
+
+  function openEditor(row = null, patient = null) {
+    const clinicId = row || patient ? viewClinic.value : defaultClinic?.id || viewClinic.value;
     let creationRequest;
     openApptModal({
       mode: row ? 'edit' : 'new',
       row: row ? { ...row, clinic_id: clinicId } : undefined,
       prefillClinicId: clinicId,
+      prefillPatientId: patient?.id,
+      prefillPatientName: patient?.full_name,
       bookingOnly: {
         clinics,
         start: (row ? dateParts.format(new Date(row.start_at)) : `${viewDay.value || today()} 09:00`).replace(' ', 'T'),
@@ -197,7 +252,7 @@ export async function openSecretariatAgenda(clinics) {
           clinics.find(clinic => clinic.id === clinicId)?.duration || 20,
         states: states.filter(state => state !== 'confirmed' || row?.status === state)
           .map(state => ({ value: state, label: label(state) })),
-        search: (clinic, query) => request('patients', { clinic_id: clinic, query }),
+        search: searchPatients,
         async save({ clinic, start, duration, patient, procedure, status }) {
           const [day, hour] = start.split('T');
           if (!day || !hour) throw new Error('Indica a data e a hora.');
@@ -226,7 +281,12 @@ export async function openSecretariatAgenda(clinics) {
     viewDay.value = day.toISOString().slice(0, 10);
     return loadDay();
   }
-  viewClinic.onchange = viewDay.onchange = loadDay;
+  viewDay.onchange = loadDay;
+  viewClinic.onchange = () => {
+    query.value = '';
+    clearResults();
+    return loadDay();
+  };
   root.querySelector('#btnPrevDay').onclick = () => changeDay(-1);
   root.querySelector('#btnNextDay').onclick = () => changeDay(1);
   root.querySelector('#btnToday').onclick = () => { viewDay.value = today(); return loadDay(); };

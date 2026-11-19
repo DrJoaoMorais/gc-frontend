@@ -1696,14 +1696,14 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
     setDuration(duration);
     mPatientQuery.placeholder = 'Nome do doente';
     mPatientQuery.setAttribute('aria-label', 'Nome do doente');
-    mPatientQuery.value = row?.patient_name || '';
+    mPatientQuery.value = row?.patient_name || prefillPatientName || '';
     mPatientQuery.readOnly = isEdit;
     btnNewPatient.hidden = true;
     document.getElementById('mProvider').parentElement.hidden = true;
     mStatus.replaceChildren(...states.map(({ value, label }) => new Option(label, value)));
     mStatus.value = row?.status || 'scheduled';
     styleAppointment(overlay, '', { showClinic: true, editing: isEdit });
-    let patient;
+    let patient = prefillPatientId;
     let pending;
     let revision = 0;
     let saving = false;

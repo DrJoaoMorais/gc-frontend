@@ -1,4 +1,4 @@
-import { bookingAccess, openSecretariatAgenda, mountBookingReport } from './secretariat-booking.js?v=20261119-agenda-vistas';
+import { bookingAccess, openSecretariatAgenda, mountBookingReport } from './secretariat-booking.js?v=20261119-pesquisa-agenda';
 import { canAccessExercise } from './exercicio/permissoes.js';
 import { loadExerciseHome } from './exercicio/followup-home.js?v=20261113-notas';
 import { normalizeClinicIds } from './clinic-picker.js';
@@ -37,12 +37,12 @@ import {
   setAgendaSubtitleForSelectedDay,
   refreshAgenda,
   renderClinicsSelect
-}                                          from "./agenda.js?v=20261118-clinica-marcacao";
-import { openApptModal }                   from "./agenda.js?v=20261118-clinica-marcacao";
+}                                          from "./agenda.js?v=20261119-pesquisa-agenda";
+import { openApptModal }                   from "./agenda.js?v=20261119-pesquisa-agenda";
 import { openNewPatientMainModal }         from "./novo-doente.js";
 import { openClinicalDiary }               from "./diario-clinico.js";
 import { wireQuickPatientSearch }                      from "./pesquisa.js";
-import { openCalendarOverlay, openWeekView }           from "./agenda.js?v=20261118-clinica-marcacao";
+import { openCalendarOverlay, openWeekView }           from "./agenda.js?v=20261119-pesquisa-agenda";
 import { wireLogout, ensureAAL2, __gcForceSessionLock, __gcIsAuthError, __gcSessionLockActive } from "./session.js";
 import { fmtDateISO, isoLocalDayRangeFromISODate } from "./helpers.js";
 import { renderDoentePanorama } from "./doente-admin.js";
