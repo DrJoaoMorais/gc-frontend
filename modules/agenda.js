@@ -2,7 +2,7 @@ import { isMobileGC } from './mobile.js';
 import { refreshAgendaMessages } from './agenda-messages.js?v=2026-10-06-agenda-messages-v1';
 import { mountClinicPicker, normalizeClinicIds } from './clinic-picker.js';
 import { assertNoBlock } from './agenda-disponibilidade.js';
-import { styleAppointment } from './marcacao-visual.js?v=20261119-agenda-gc';
+import { styleAppointment } from './marcacao-visual.js';
 import { appointmentCard, enhanceAgendaRows, selectAgendaRow } from './agenda-workspace.js?v=2026-10-06-agenda-messages-v1';
 /* ========================================================
    AGENDA.JS — Agenda, Marcações, Calendário e Google Calendar
@@ -1476,7 +1476,7 @@ async function maybeTransferPatientToClinic({ patientId, targetClinicId }) {
 /* ==== 09C/D/E — Modal marcação ==== */
 
 /* ---- openApptModal ---- */
-export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, prefillPatientName, prefillClinicId, rescheduledFromId, onlineRequestId, bookingOnly }) {
+export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, prefillPatientName, prefillClinicId, rescheduledFromId, onlineRequestId }) {
   const root = document.getElementById("modalRoot");
   if (!root) return;
 
@@ -1535,7 +1535,7 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
     return;
   }
 
-  const canDeleteAppt    = !!(!bookingOnly && isEdit && row?.id && !["rescheduled","no_show","cancelled"].includes(row?.status));
+  const canDeleteAppt    = !!(isEdit && row?.id && !["rescheduled","no_show","cancelled"].includes(row?.status));
 
   function optLabel(s) { const m = statusMeta(s); return `${m.icon} ${m.label}`; }
 
@@ -1680,96 +1680,6 @@ export function openApptModal({ mode, row, prefillDatetime, prefillPatientId, pr
   const mPatientResults  = document.getElementById("mPatientResults");
   const mPatientId       = document.getElementById("mPatientId");
   const mPatientName     = document.getElementById("mPatientName");
-
-  if (bookingOnly) {
-    const { clinics, start, duration, search, save, states } = bookingOnly;
-    mClinic.innerHTML = clinics.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join('');
-    mClinic.value = defaultClinicId;
-    mClinic.disabled = isEdit;
-    mStart.value = start;
-    const setDuration = value => {
-      if (![...mDuration.options].some(option => Number(option.value) === value)) {
-        mDuration.add(new Option(String(value), String(value)));
-      }
-      mDuration.value = String(value);
-    };
-    setDuration(duration);
-    mPatientQuery.placeholder = 'Nome do doente';
-    mPatientQuery.setAttribute('aria-label', 'Nome do doente');
-    mPatientQuery.value = row?.patient_name || '';
-    mPatientQuery.readOnly = isEdit;
-    btnNewPatient.hidden = true;
-    document.getElementById('mProvider').parentElement.hidden = true;
-    mStatus.replaceChildren(...states.map(({ value, label }) => new Option(label, value)));
-    mStatus.value = row?.status || 'scheduled';
-    styleAppointment(overlay, '', { showClinic: true, editing: isEdit });
-    let patient;
-    let pending;
-    let revision = 0;
-    let saving = false;
-    function clearSearch() {
-      clearTimeout(pending);
-      ++revision;
-      patient = undefined;
-      mPatientResults.replaceChildren();
-      mPatientResults.style.display = 'none';
-    }
-    mClinic.onchange = () => {
-      clearSearch();
-      mPatientQuery.value = '';
-      setDuration(clinics.find(c => c.id === mClinic.value)?.duration || 20);
-    };
-    mPatientQuery.oninput = () => {
-      clearSearch();
-      const query = mPatientQuery.value.trim();
-      if (query.length < 3) return;
-      const request = revision;
-      pending = setTimeout(async () => {
-        try {
-          const matches = await search(mClinic.value, query);
-          if (request !== revision || !overlay.isConnected) return;
-          mPatientResults.style.display = 'block';
-          if (!matches.length) mPatientResults.textContent = 'Sem resultados nesta clínica.';
-          for (const match of matches) {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'gcBtnGhost';
-            button.textContent = [match.full_name, match.dob?.split('-').reverse().join('/')].filter(Boolean).join(' · ');
-            button.onclick = () => {
-              clearSearch();
-              patient = match.id;
-              mPatientQuery.value = match.full_name;
-            };
-            mPatientResults.append(button);
-          }
-        } catch (error) {
-          if (request === revision && overlay.isConnected) mMsg.textContent = error.message;
-        }
-      }, 250);
-    };
-    btnCancel.onclick = btnClose.onclick = () => { if (!saving) { clearSearch(); closeModal(); } };
-    btnSave.onclick = async () => {
-      if (saving) return;
-      if (!isEdit && (!patient || !mProc.value)) {
-        mMsg.textContent = 'Seleciona o doente e o tipo de consulta.';
-        return;
-      }
-      saving = btnSave.disabled = true;
-      mMsg.textContent = 'A guardar…';
-      try {
-        await save({
-          clinic: mClinic.value, start: mStart.value, duration: Number(mDuration.value),
-          patient, procedure: mProc.value, status: mStatus.value
-        });
-        closeModal();
-      } catch (error) {
-        mMsg.textContent = error.message;
-      } finally {
-        saving = btnSave.disabled = false;
-      }
-    };
-    return;
-  }
 
   let _cleanupFns = [];
   function addCleanup(fn) { if (typeof fn === "function") _cleanupFns.push(fn); }
