@@ -1,4 +1,4 @@
-import { bookingAccess, openSecretariatAgenda, mountBookingReport } from './secretariat-booking.js?v=20261118-arranque-secretariado';
+import { bookingAccess, openSecretariatAgenda, mountBookingReport } from './secretariat-booking.js?v=20261119-agenda-vistas';
 import { canAccessExercise } from './exercicio/permissoes.js';
 import { loadExerciseHome } from './exercicio/followup-home.js?v=20261113-notas';
 import { normalizeClinicIds } from './clinic-picker.js';
@@ -18,7 +18,7 @@ import { fetchProcedureTypes, loadAppointmentsForRange } from "./db.js";
 import {
   renderAppShell,
   hydrateShellHeader
-}                                          from "./shell.js?v=20261110-clinico";
+}                                          from "./shell.js?v=20261119-agenda-vistas";
 import {
   setHomeDashboardConsultasHoje,
   setHomeDashboardPedidosOnline,
@@ -150,9 +150,12 @@ export async function boot() {
     const bookingScope = await bookingAccess();
     reportClinics = bookingScope.report_clinics;
     if (bookingScope.clinics.length) {
-      await openSecretariatAgenda(bookingScope.clinics);
+      secretariatClinics = bookingScope.clinics;
+      await renderCurrentView();
       return;
     }
+
+    secretariatClinics = [];
 
     /* Role */
     try {
@@ -240,7 +243,18 @@ export async function boot() {
    renderCurrentView — wiring completo da view atual
    ==================================================================== */
 
+let secretariatClinics = [];
+
 async function renderCurrentView() {
+  if (secretariatClinics.length) {
+    G.currentView = 'agenda';
+    renderAppShell({ bookingOnly: true });
+    hydrateShellHeader();
+    document.getElementById('hdrClinicCount').textContent = String(secretariatClinics.length);
+    await openSecretariatAgenda(secretariatClinics);
+    return;
+  }
+
   renderAppShell();
   hydrateShellHeader();
 

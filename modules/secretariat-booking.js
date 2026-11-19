@@ -1,7 +1,7 @@
 import { escapeHtml as escape } from './helpers.js';
 import { statusMeta } from './state.js';
 import { openApptModal } from './agenda.js?v=20261118-clinica-marcacao';
-import { agendaWorkspaceHTML } from './agenda-workspace.js?v=2026-10-06-agenda-messages-v1';
+import { appointmentCard } from './agenda-workspace.js?v=2026-10-06-agenda-messages-v1';
 import { wireLogout } from './session.js';
 
 const timeZone = 'Europe/Lisbon';
@@ -44,22 +44,18 @@ export async function bookingAccess() {
 }
 
 export async function openSecretariatAgenda(clinics) {
-  const root = document.getElementById('appRoot') || document.body;
+  const root = document.getElementById('gcAgendaWorkspace');
   const defaultClinic = clinics.find(clinic => clinic.name.trim().toLocaleLowerCase('pt-PT') === 'novo cuidar');
   if (defaultClinic) clinics = [defaultClinic, ...clinics.filter(clinic => clinic !== defaultClinic)];
-  root.innerHTML = `<main class="gc-secretariat-agenda" style="padding:16px">
-    <button type="button" id="btnLogout" class="gcBtnGhost">Sair</button>
-    ${agendaWorkspaceHTML()}
-  </main><div id="modalRoot"></div>`;
 
   const viewClinic = root.querySelector('#selClinic');
   viewClinic.hidden = false;
-  viewClinic.className = 'gcSelect';
-  viewClinic.setAttribute('aria-label', 'Clínica');
+  viewClinic.className = 'gc-select';
+  viewClinic.setAttribute('aria-label', 'Clínica da agenda');
   viewClinic.innerHTML = clinicOptions(clinics);
-  root.querySelector('#awClinicPicker').replaceWith(viewClinic);
+  root.querySelector('#awClinicPicker').append(viewClinic);
   for (const selector of ['.aw-search-group', '#btnNewPatientMain', '#awFinance', '.aw-schedule-actions',
-    '#btnWeek', '#btnCal', '#awDay', '.aw-pending', '#awDocuments', '.aw-messages']) {
+    '.aw-pending', '#awDocuments', '.aw-messages']) {
     root.querySelector(selector)?.remove();
   }
   const viewDay = root.querySelector('#awDate');
@@ -67,33 +63,121 @@ export async function openSecretariatAgenda(clinics) {
   const message = root.querySelector('#agendaStatus');
   const list = root.querySelector('#agendaList');
   const subtitle = root.querySelector('#agendaSubtitle');
+  root.classList.add('aw-booking-only');
+  const buttons = { day: '#awDay', week: '#btnWeek', month: '#btnCal' };
+  const calendar = document.createElement('div');
+  calendar.className = 'aw-booking-calendar';
+  list.parentElement.before(calendar);
+  let view = 'day';
   let rendering = 0;
+
+  async function renderPeriod(revision) {
+    const selected = new Date(viewDay.value + 'T12:00:00Z');
+    const first = new Date(selected);
+    const month = view === 'month';
+    if (month) first.setUTCDate(1);
+    else first.setUTCDate(first.getUTCDate() - (first.getUTCDay() + 6) % 7);
+    const length = month ? new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate() : 7;
+    const days = Array.from({ length }, (_, offset) => {
+      const date = new Date(first);
+      date.setUTCDate(date.getUTCDate() + offset);
+      return date.toISOString().slice(0, 10);
+    });
+    const clinicId = viewClinic.value;
+    const captions = new Intl.DateTimeFormat('pt-PT', { weekday: 'short', day: 'numeric', month: 'short', timeZone });
+    calendar.style.setProperty('--first-day', String(month ? (first.getUTCDay() + 6) % 7 + 1 : 1));
+    const cells = days.map(day => {
+      const cell = document.createElement('button');
+      cell.type = 'button';
+      cell.dataset.agendaDate = day;
+      cell.setAttribute('aria-current', day === viewDay.value ? 'date' : 'false');
+      const label = document.createElement('strong');
+      label.textContent = captions.format(new Date(day + 'T12:00:00Z'));
+      cell.append(label);
+      cell.onclick = () => { viewDay.value = day; return show('day'); };
+      return cell;
+    });
+    calendar.replaceChildren(...cells);
+    for (let offset = 0; offset < days.length; offset += 5) {
+      if (revision !== rendering) return;
+      const batch = await Promise.all(days.slice(offset, offset + 5).map(day =>
+        request('day', { clinic_id: clinicId, from: day })));
+      if (revision !== rendering) return;
+      batch.forEach((rows, index) => {
+        const cell = cells[offset + index];
+        const summary = document.createElement('span');
+        const bookings = rows.filter(row => row.mode !== 'bloqueio');
+        summary.textContent = bookings.length === 1 ? '1 marcação' : `${bookings.length} marcações`;
+        cell.append(summary);
+        if (!month) {
+          for (const row of rows) {
+            const detail = document.createElement('span');
+            detail.textContent = `${time.format(new Date(row.start_at))} · ${row.mode === 'bloqueio' ? 'Bloqueio' : row.patient_name || 'Doente'}`;
+            cell.append(detail);
+          }
+        }
+      });
+    }
+    if (revision === rendering) message.textContent = '';
+  }
+
+  function show(nextView) {
+    view = nextView;
+    for (const [mode, selector] of Object.entries(buttons)) {
+      const button = root.querySelector(selector);
+      button.classList.toggle('is-active', mode === view);
+      button.setAttribute('aria-pressed', String(mode === view));
+    }
+    return loadDay();
+  }
 
   async function loadDay() {
     const revision = ++rendering;
     list.replaceChildren();
+    list.parentElement.hidden = view !== 'day';
+    calendar.hidden = view === 'day';
+    calendar.replaceChildren();
     if (!viewDay.value) { message.textContent = 'Escolhe um dia.'; return; }
     subtitle.textContent = new Date(viewDay.value + 'T12:00:00').toLocaleDateString('pt-PT', { dateStyle: 'full' });
     message.textContent = 'A carregar marcações…';
     try {
+      if (view !== 'day') {
+        await renderPeriod(revision);
+        return;
+      }
       const rows = await request('day', { clinic_id: viewClinic.value, from: viewDay.value });
       if (revision !== rendering) return;
+      if (rows.length) {
+        const headings = document.createElement('li');
+        headings.className = 'aw-table-head';
+        headings.innerHTML = '<span>Hora</span><span>Doente</span><span>Clínica</span><span>Estado</span><span></span>';
+        list.append(headings);
+      }
+      const clinic = clinics.find(clinic => clinic.id === viewClinic.value);
       for (const row of rows) {
-        const item = document.createElement('li');
-        item.className = 'aw-row';
         const period = `${time.format(new Date(row.start_at))}–${time.format(new Date(row.end_at))}`;
-        item.textContent = row.mode === 'bloqueio' ? `${period} · Bloqueio` :
-          [period, row.patient_name || 'Doente', row.procedure_type, label(row.status)].filter(Boolean).join(' · ');
-        if (editable(row)) {
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.textContent = 'Editar';
-          button.onclick = () => openEditor(row);
-          item.append(' ', button);
+        const card = document.createElement('template');
+        card.innerHTML = appointmentCard(row, {
+          patient: { full_name: row.patient_name },
+          time: period,
+          clinic: clinic?.name,
+          procedure: row.procedure_type,
+          statusHTML: `<span class="aw-status">${escape(label(row.status))}</span>`
+        });
+        const item = card.content.firstElementChild;
+        const patient = item.querySelector('[data-patient-open]');
+        if (patient) {
+          const name = document.createElement('strong');
+          name.textContent = patient.textContent;
+          patient.replaceWith(name);
         }
+        item.querySelectorAll('[data-aw-rgpd], [data-aw-ft], [data-aw-docs]').forEach(button => button.remove());
+        const edit = item.querySelector('[data-aw-edit]');
+        if (editable(row)) edit.onclick = () => openEditor(row);
+        else edit.remove();
         list.append(item);
       }
-      message.textContent = rows.length ? '' : 'Sem marcações para este dia.';
+      message.textContent = rows.length ? `${rows.length} marcação(ões).` : 'Sem marcações para este dia.';
     } catch (error) {
       if (revision === rendering) message.textContent = error.message;
     }
@@ -135,7 +219,10 @@ export async function openSecretariatAgenda(clinics) {
   }
   function changeDay(offset) {
     const day = new Date((viewDay.value || today()) + 'T12:00:00Z');
-    day.setUTCDate(day.getUTCDate() + offset);
+    if (view === 'month') {
+      day.setUTCDate(1);
+      day.setUTCMonth(day.getUTCMonth() + offset);
+    } else day.setUTCDate(day.getUTCDate() + offset * (view === 'week' ? 7 : 1));
     viewDay.value = day.toISOString().slice(0, 10);
     return loadDay();
   }
@@ -145,7 +232,10 @@ export async function openSecretariatAgenda(clinics) {
   root.querySelector('#btnToday').onclick = () => { viewDay.value = today(); return loadDay(); };
   root.querySelector('#btnNewAppt').onclick = () => openEditor();
   await wireLogout({ checkPending: false });
-  await loadDay();
+  for (const [mode, selector] of Object.entries(buttons)) {
+    root.querySelector(selector).onclick = () => show(mode);
+  }
+  await show('day');
 }
 
 export function mountBookingReport(host, clinics) {

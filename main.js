@@ -106,7 +106,7 @@ window.__gc_openAcompanhamentoList = openAcompanhamentoList;
 import "./modules/relatorio-v2-bridge.js?v=2026-10-08-pdf-nomes";
 
 // Boot
-import { boot }                             from "./modules/boot.js?v=20261118-arranque-secretariado";
+import { boot }                             from "./modules/boot.js?v=20261119-agenda-vistas";
 
 /* ── pontes window.__gc_* ────────────────────────────────────────────── */
 /*

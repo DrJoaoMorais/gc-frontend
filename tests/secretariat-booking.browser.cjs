@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
-const { chromium } = require('playwright-core');
+const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright-core');
 
 const root = resolve(__dirname, '..');
 
@@ -27,7 +27,13 @@ async function main() {
       const row = { id: 'booking', status: 'scheduled', mode: 'presencial', patient_name: 'Doente Teste',
         start_at: '2026-07-17T09:00:00Z', end_at: '2026-07-17T09:20:00Z', updated_at: '2026-07-01T10:30:00Z' };
       window.calls = [];
+      function assertMembershipTable(table) { if (table !== 'clinic_members') throw new Error('Consulta inesperada: ' + table); }
       window.sb = {
+        from(table) {
+          assertMembershipTable(table);
+          const query = { select: () => query, eq: () => query, then: resolve => resolve({ data: [] }) };
+          return query;
+        },
         auth: {
           getSession: async () => ({ data: { session: { user: { id: 'secretary' } } } }),
           onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
@@ -37,20 +43,20 @@ async function main() {
         window.calls.push([p_action, p_args]);
         let data = [];
         if (p_action === 'scope') data = { clinics, report_clinics: [] };
-        if (p_action === 'day' && p_args.clinic_id === 'web') data = [row];
+        if (p_action === 'day' && p_args.clinic_id === 'web' && p_args.from === '2026-07-17') data = [row];
         if (p_action === 'patients') data = [{ id: 'patient', full_name: 'Doente Teste', dob: '1980-01-02' }];
         if (p_action === 'save') data = { id: row.id };
-        if (p_action === 'report') data = [
-          { secretary: 'Secretária A', user_id: 'a', clinic_name: 'Novo Cuidar', status: 'scheduled', total: 1 },
-          { secretary: 'Secretária B', user_id: 'b', clinic_name: 'João Morais Web', status: 'cancelled', total: 2 }
-        ];
         return { data, error: null };
       }};
-      window.module = await import('/modules/secretariat-booking.js');
       const { boot } = await import('/modules/boot.js');
       await boot();
       if (document.body.textContent.includes('Erro ao iniciar a app.')) throw new Error('O arranque do secretariado falhou');
     });
+    assert.equal(await page.locator('.gc-sidebar').count(), 1);
+    assert.equal(await page.locator('#hdrClinicCount').textContent(), '2');
+    assert.deepEqual(await page.locator('#selClinic option').allTextContents(), ['Novo Cuidar', 'João Morais Web']);
+    assert.equal(await page.locator('#selClinic').inputValue(), 'novo');
+    assert.equal(await page.locator('[data-nav="doentes"]').count(), 0);
     await page.getByRole('button', { name: 'Agendar consulta' }).click();
     const editor = page.getByRole('dialog');
     const clinics = editor.getByRole('group', { name: 'Clínica' });
@@ -75,7 +81,7 @@ async function main() {
     assert.equal(create.patient_id, 'patient');
     assert.equal(create.start_at, '2026-07-17T09:00:00.000Z');
     assert.match(create.request_id, /^[0-9a-f-]{36}$/);
-    await page.getByRole('button', { name: 'Editar' }).click();
+    await page.getByRole('button', { name: 'Editar marcação' }).click();
     assert.equal(await clinics.getByRole('button', { name: 'João Morais Web' }).isDisabled(), true);
     await editor.getByLabel('Estado').selectOption('cancelled');
     await editor.getByRole('button', { name: 'Guardar' }).click();
@@ -86,19 +92,18 @@ async function main() {
     assert.equal(edit.updated_at, '2026-07-01T10:30:00Z');
     assert.equal(Object.hasOwn(edit, 'patient_id'), false);
 
-    await page.evaluate(() => {
-      const host = document.getElementById('appRoot') || document.body;
-      host.replaceChildren();
-      window.module.mountBookingReport(host, [{ id: 'novo', name: 'Novo Cuidar' }]);
-    });
-    await page.getByText('Estatísticas de marcações', { exact: true }).click();
-    await page.getByLabel('Clínica').selectOption('novo');
-    await page.getByRole('button', { name: 'Consultar' }).click();
-    await page.getByLabel('Secretária').selectOption('b');
-    assert.equal(await page.getByRole('listitem').count(), 1);
-    assert.match(await page.getByRole('listitem').textContent(), /Secretária B.*Cancelada.*2/);
+    await page.getByRole('button', { name: 'Semana', exact: true }).click();
+    const date = page.locator('[data-agenda-date="2026-07-17"]');
+    await date.getByText('1 marcação', { exact: true }).waitFor();
+    assert.equal(await page.locator('[data-agenda-date]').count(), 7);
+    await page.getByRole('button', { name: 'Mês', exact: true }).click();
+    await date.getByText('1 marcação', { exact: true }).waitFor();
+    assert.equal(await page.locator('[data-agenda-date]').count(), 31);
+    await date.click();
+    await page.locator('.aw-row').getByText('Doente Teste', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Dia', exact: true }).getAttribute('aria-pressed'), 'true');
     assert.deepEqual(errors, []);
-    console.log('Secretariado no Chrome: seleção da clínica, pesquisa, marcação, edição, hora de Lisboa e filtro de estatísticas validados.');
+    console.log('Secretariado no Chrome: seleção da clínica, pesquisa, marcação, edição, hora de Lisboa e interface habitual validados.');
   } finally {
     await browser.close();
   }
