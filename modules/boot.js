@@ -1,3 +1,4 @@
+import { mountMinhasMarcacoes } from './minhas-marcacoes.js?v=20261119-minhas-marcacoes';
 import { canAccessExercise } from './exercicio/permissoes.js';
 import { loadExerciseHome } from './exercicio/followup-home.js?v=20261113-notas';
 import { normalizeClinicIds } from './clinic-picker.js';
@@ -375,6 +376,7 @@ async function renderCurrentView() {
 
   /* ---- View de Agenda ---- */
   wireAgendaWorkspace(refreshAgenda, setAgendaSubtitleForSelectedDay);
+  mountMinhasMarcacoes(document.querySelector("#gcAgendaWorkspace .aw-central"), G);
   renderClinicsSelect(G.clinics);
   setAgendaSubtitleForSelectedDay();
   await wireQuickPatientSearch();
