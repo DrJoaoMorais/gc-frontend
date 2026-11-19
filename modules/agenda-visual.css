@@ -236,34 +236,3 @@ body:has(#gcAgendaWorkspace) .gc-content{padding:14px 16px;background:linear-gra
 .aw-message-composer [data-patients],.aw-message-composer [data-selected],.aw-message-composer label:has(textarea),.aw-message-composer .aw-message-task,.aw-message-composer [data-error],.aw-message-composer footer{grid-column:1/-1}
 .aw-message-composer [data-selected]:empty,.aw-message-composer [data-error]:empty{display:none}
 @media(max-width:550px){.aw-message-composer form{grid-template-columns:1fr}}
-
-#gcAgendaWorkspace.aw-booking-only #awClinicPicker select {
-  width: 100%;
-  min-height: 40px;
-}
-#gcAgendaWorkspace.aw-booking-only .aw-row-main,
-#gcAgendaWorkspace.aw-booking-only .aw-table-head {
-  grid-template-columns: 110px minmax(160px, 1fr) minmax(110px, 0.35fr) minmax(110px, 0.35fr) 34px;
-  min-width: 560px;
-}
-#gcAgendaWorkspace.aw-booking-only .aw-row-main > span:empty { display: none; }
-#gcAgendaWorkspace.aw-booking-only .aw-list { overflow-x: auto; }
-#gcAgendaWorkspace .aw-booking-calendar {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(100px, 1fr));
-  gap: 6px;
-  overflow-x: auto;
-  padding: 6px 0;
-}
-#gcAgendaWorkspace .aw-booking-calendar > button {
-  display: grid;
-  align-content: start;
-  gap: 6px;
-  min-height: 85px;
-  text-align: left;
-}
-#gcAgendaWorkspace .aw-booking-calendar > button:first-child { grid-column-start: var(--first-day, 1); }
-#gcAgendaWorkspace .aw-booking-calendar > button[aria-current="date"] {
-  border-color: #6498ff;
-  background: #eaf2ff;
-}
