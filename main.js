@@ -46,7 +46,7 @@ import {
   refreshAgenda,
   openApptModal,
   renderClinicsSelect
-}                                           from "./modules/agenda.js?v=20261024-iphone";
+}                                           from "./modules/agenda.js?v=20261119-agenda-gc";
 
 // Doente
 import { abrirFichaDoente } from "./modules/abrir-doente.js?v=2026-10-08-pdf-nomes";
@@ -106,7 +106,7 @@ window.__gc_openAcompanhamentoList = openAcompanhamentoList;
 import "./modules/relatorio-v2-bridge.js?v=2026-10-08-pdf-nomes";
 
 // Boot
-import { boot }                             from "./modules/boot.js?v=20261113-notas";
+import { boot }                             from "./modules/boot.js?v=20261119-agenda-gc";
 
 /* ── pontes window.__gc_* ────────────────────────────────────────────── */
 /*

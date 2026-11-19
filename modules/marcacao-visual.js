@@ -42,11 +42,11 @@ function prepare(overlay, title) {
 function labelFields(panel) {
   panel.querySelectorAll('input,select,textarea').forEach(input => {
     const label = input.parentElement.querySelector('label');
-    if (label && input.id) label.htmlFor = input.id;
+    if (label && !label.htmlFor && input.id) label.htmlFor = input.id;
   });
 }
-export function styleAppointment(overlay, clinicName) {
-  const panel = prepare(overlay, 'Nova marcação');
+export function styleAppointment(overlay, clinicName, { showClinic = false, editing = false } = {}) {
+  const panel = prepare(overlay, editing ? 'Editar marcação' : 'Nova marcação');
   const [header, body, footer] = panel.children;
   header.classList.add('gm-header'); body.classList.add('gm-body'); footer.classList.add('gm-footer');
   header.firstElementChild.firstElementChild.classList.add('gm-title');
@@ -84,7 +84,7 @@ export function styleAppointment(overlay, clinicName) {
   let editingDateTime = false;
   function updateSubtitle() {
     const d = date.value ? new Date(date.value+'T12:00:00') : null;
-    subtitle.textContent = [d?.toLocaleDateString('pt-PT',{weekday:'short',day:'numeric',month:'short',year:'numeric'}),time.value,clinicName].filter(Boolean).join(' · ');
+    subtitle.textContent = [d?.toLocaleDateString('pt-PT',{weekday:'short',day:'numeric',month:'short',year:'numeric'}),time.value,showClinic ? $('mClinic').selectedOptions[0]?.textContent : clinicName].filter(Boolean).join(' · ');
   }
   function fromStart() {
     // Não reescrever campos durante uma edição parcial: apagar a hora
@@ -110,7 +110,7 @@ export function styleAppointment(overlay, clinicName) {
     input.addEventListener('input',toStart);
     input.addEventListener('change',toStart);
   }
-  start.addEventListener('change',fromStart); fromStart();
+  start.addEventListener('change',fromStart); $('mClinic').addEventListener('change',updateSubtitle); fromStart();
   const duration = $('mDuration').parentElement;
   const provider = $('mProvider').parentElement;
   const when = section('3. Quando','clock',grid(dateField,timeField,duration),start,provider,$('mAvisoTurno'));
@@ -118,8 +118,42 @@ export function styleAppointment(overlay, clinicName) {
   const noteSection = section('4. Nota','file',notes);
   noteSection.firstElementChild.id = 'gmNoteTitle'; notes.setAttribute('aria-labelledby','gmNoteTitle');
   const clinic = $('mClinic'), status = $('mStatus'); clinic.hidden = true; status.hidden = true;
-  body.replaceChildren(patientSection,procedureSection,when,noteSection,clinic,status);
-  $('btnSave').textContent = 'Agendar consulta'; $('btnSave').classList.add('gm-primary');
+  if (showClinic) {
+    const choices = document.createElement('div');
+    choices.className = 'gs-options';
+    choices.setAttribute('role', 'group');
+    choices.setAttribute('aria-label', 'Clínica');
+    const buttons = [...clinic.options].map(option => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = option.textContent;
+      button.disabled = editing;
+      button.addEventListener('click', () => {
+        if (clinic.value === option.value) return;
+        clinic.value = option.value;
+        clinic.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      return { button, value: option.value };
+    });
+    const refreshChoices = () => {
+      for (const { button, value } of buttons) {
+        button.setAttribute('aria-pressed', String(clinic.value === value));
+      }
+    };
+    clinic.addEventListener('change', refreshChoices);
+    refreshChoices();
+    choices.append(...buttons.map(({ button }) => button));
+    patientSection.prepend(choices, clinic);
+    const statusLabel = document.createElement('label');
+    statusLabel.htmlFor = status.id;
+    statusLabel.textContent = 'Estado';
+    status.hidden = !editing;
+    statusLabel.hidden = !editing;
+    body.replaceChildren(patientSection, ...(editing ? [] : [procedureSection]), when, statusLabel, status);
+  } else {
+    body.replaceChildren(patientSection,procedureSection,when,noteSection,clinic,status);
+  }
+  $('btnSave').textContent = editing ? 'Guardar' : 'Agendar consulta'; $('btnSave').classList.add('gm-primary');
   labelFields(panel);
   queueMicrotask(() => { if (panel.isConnected) panel.querySelector('input:not([hidden])')?.focus(); });
 }

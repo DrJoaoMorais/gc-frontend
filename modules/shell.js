@@ -19,7 +19,7 @@ import { homeDashboardHtml, homeDashboardStyles, wireHomeDashboard } from "./hom
 /* ==== 03F — Render shell (HTML + CSS) ==== */
 
 /* ---- 03F.1 — renderAppShell ---- */
-export function renderAppShell() {
+export function renderAppShell({ bookingOnly = false } = {}) {
   injectDesignSystem();
   installMobileStyles();
   const canSeeManagement = ["super_admin", "admin"].includes(String(G.role || "").toLowerCase());
@@ -46,7 +46,7 @@ export function renderAppShell() {
     ...(canAccessExercise() ? [{ id: "exercicio-clinico", icon: iconHistorico, label: "Acompanhamento Clínico" }, { id: "exercicio", icon: iconExercicio, label: "Exercício" }] : []),
     ...(canSeeManagement ? [{ id: "financas",   icon: iconFinancas,  label: "Rendimentos" }] : []),
     ...(canSeeManagement ? [{ id: "management", icon: iconGestao,    label: "Gestão" }] : []),
-  ];
+  ].filter(item => !bookingOnly || item.id === "agenda");
 
   /* ── Conteúdo por vista ─────────────────────────── */
   let mainHtml = "";
@@ -234,7 +234,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
 
   <nav class="gc-mobile-nav" aria-label="Navegação principal">
     <button type="button" data-mobile-today class="${currentView === 'agenda' ? 'active' : ''}">Hoje</button>
-    <button type="button" data-nav="doentes" class="${['doentes','doente-panorama'].includes(currentView) ? 'active' : ''}">Doentes</button>
+    ${bookingOnly ? '' : `<button type="button" data-nav="doentes" class="${['doentes','doente-panorama'].includes(currentView) ? 'active' : ''}">Doentes</button>`}
     <button type="button" id="gcMobileMoreButton" aria-haspopup="dialog" aria-controls="gcMobileMore" aria-expanded="false">Mais</button>
   </nav>
   <dialog id="gcMobileMore" class="gc-mobile-more" aria-labelledby="gcMobileMoreTitle">
@@ -259,7 +259,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Ari
         await window.__gc_renderCurrentView();
       } else {
         // Fallback se boot ainda não registou
-        renderAppShell();
+        renderAppShell({ bookingOnly });
         hydrateShellHeader();
       }
     });
