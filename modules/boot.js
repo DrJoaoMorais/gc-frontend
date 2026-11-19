@@ -1,4 +1,3 @@
-import { bookingAccess, openSecretariatAgenda, mountBookingReport } from './secretariat-booking.js?v=20261118-arranque-secretariado';
 import { canAccessExercise } from './exercicio/permissoes.js';
 import { loadExerciseHome } from './exercicio/followup-home.js?v=20261113-notas';
 import { normalizeClinicIds } from './clinic-picker.js';
@@ -37,12 +36,12 @@ import {
   setAgendaSubtitleForSelectedDay,
   refreshAgenda,
   renderClinicsSelect
-}                                          from "./agenda.js?v=20261118-clinica-marcacao";
-import { openApptModal }                   from "./agenda.js?v=20261118-clinica-marcacao";
+}                                          from "./agenda.js?v=20261024-iphone";
+import { openApptModal }                   from "./agenda.js?v=20261024-iphone";
 import { openNewPatientMainModal }         from "./novo-doente.js";
 import { openClinicalDiary }               from "./diario-clinico.js";
 import { wireQuickPatientSearch }                      from "./pesquisa.js";
-import { openCalendarOverlay, openWeekView }           from "./agenda.js?v=20261118-clinica-marcacao";
+import { openCalendarOverlay, openWeekView }           from "./agenda.js?v=20261024-iphone";
 import { wireLogout, ensureAAL2, __gcForceSessionLock, __gcIsAuthError, __gcSessionLockActive } from "./session.js";
 import { fmtDateISO, isoLocalDayRangeFromISODate } from "./helpers.js";
 import { renderDoentePanorama } from "./doente-admin.js";
@@ -60,7 +59,6 @@ const PRESCRICAO_JS_VERSION = '2026-11-09-editor-cardio-compacto';
    vista Home é aberta na sessão; depois disso é controlado só pelo seletor
    do Home. Nunca escrito automaticamente de volta em G.activeClinicId — só
    é copiado para lá no momento explícito de abrir a Agenda. */
-let reportClinics = [];
 let homeClinicIds = null;
 let homeClinicRevision = 0;
 const homeSelectedClinicIds = () => normalizeClinicIds(G.clinics, homeClinicIds);
@@ -146,13 +144,6 @@ export async function boot() {
     /* MFA gate */
     await ensureAAL2();
     if (__gcSessionLockActive) return;
-
-    const bookingScope = await bookingAccess();
-    reportClinics = bookingScope.report_clinics;
-    if (bookingScope.clinics.length) {
-      await openSecretariatAgenda(bookingScope.clinics);
-      return;
-    }
 
     /* Role */
     try {
@@ -384,7 +375,6 @@ async function renderCurrentView() {
 
   /* ---- View de Agenda ---- */
   wireAgendaWorkspace(refreshAgenda, setAgendaSubtitleForSelectedDay);
-  mountBookingReport(document.querySelector('#gcAgendaWorkspace .aw-central'), reportClinics);
   renderClinicsSelect(G.clinics);
   setAgendaSubtitleForSelectedDay();
   await wireQuickPatientSearch();
