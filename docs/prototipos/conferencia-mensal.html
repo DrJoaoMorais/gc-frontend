@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="pt-PT">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finanças · Gestão Clínica</title>
+<style>
+:root{color-scheme:light;--ink:#142d3a;--muted:#526573;--line:#dbe4e7;--paper:#fff;--accent:#146456;--pale:#e9f5f0}
+*{box-sizing:border-box}body{margin:0;background:#f2f6f6;color:var(--ink);font:15px/1.5 system-ui,sans-serif}
+button,input{font:inherit}button{cursor:pointer;color:inherit}button:focus-visible,input:focus-visible{outline:3px solid #318c79;outline-offset:3px}
+.top{background:#14333c;color:#fff}.top div{max-width:1280px;padding:17px 28px;margin:auto;display:flex;align-items:center;gap:12px}.top strong{letter-spacing:.01em}.top small{margin-left:auto;color:#d4e6e7}.ident{background:#d5eee5;color:#16443b;border-radius:8px;padding:4px 8px;font-weight:750}
+main{max-width:1280px;margin:auto;padding:34px 28px 60px}.heading{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:23px;flex-wrap:wrap}
+h1,h2,p{margin:0}h1{font-size:clamp(2rem,5vw,2.85rem);letter-spacing:-.055em;line-height:1.05}.period-caption{color:var(--muted);margin-top:9px}
+.period{display:flex;flex-wrap:wrap;gap:12px;align-items:center}.switch,.dates{display:flex;border:1px solid var(--line);background:white;border-radius:10px;padding:4px;gap:4px}.switch button,.dates button{background:none;border:0;border-radius:7px;padding:8px 13px;font-weight:650}.switch button[aria-pressed=true]{background:#14333c;color:white}.dates button{padding:8px 11px}.dates button:hover,.switch button:not([aria-pressed=true]):hover{background:var(--pale)}
+.layout{display:grid;grid-template-columns:minmax(240px,285px) minmax(0,1fr);align-items:start;gap:20px}.pane{background:var(--paper);border:1px solid var(--line);border-radius:16px;overflow:hidden}.pane-title{padding:17px 19px;border-bottom:1px solid var(--line)}.pane-title h2{font-size:16px}.pane-title p{color:var(--muted);font-size:13px;margin-top:3px}
+#clinics{display:grid;padding:7px;gap:4px}.clinic{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;text-align:left;gap:3px 8px;border:1px solid transparent;background:#fff;border-radius:9px;padding:12px 10px;width:100%}.clinic:hover,.clinic[aria-pressed=true]{background:var(--pale)}.clinic[aria-pressed=true]{border-color:#a7d3c2}.clinic strong{font-size:14px}.clinic span{font-size:12px;color:var(--muted)}.clinic b{grid-column:2;grid-row:1/3;white-space:nowrap;font-size:14px;font-variant-numeric:tabular-nums}
+.detail-head{padding:20px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:start}.detail-head h2{font-size:23px;letter-spacing:-.035em}.detail-head p{font-size:13px;color:var(--muted)}.metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;padding:0 20px 20px}.metric{background:#eff6f4;border-radius:12px;padding:13px 15px}.metric:nth-child(2){background:#f1f4f6}.metric span{font-size:13px;color:var(--muted)}.metric strong{display:block;font-size:clamp(1.35rem,5vw,1.85rem);letter-spacing:-.045em}
+table{border-collapse:collapse;width:100%;font-size:14px;text-align:left}th{font-size:12px;color:var(--muted);background:#f4f7f8}th,td{padding:11px 15px;border-top:1px solid var(--line)}th:first-child,td:first-child{padding-left:20px}.numeric{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}td small{display:block;color:var(--muted)}.price{color:#125747;background:#fff;border:1px solid #b8d6cd;border-radius:7px;padding:5px 9px;font-weight:700;white-space:nowrap}.price:hover{background:var(--pale)}.price svg{width:13px;height:13px;margin-left:5px;vertical-align:-1px}.missing{color:#805519;background:#fff5e4;border-color:#e5cda8}.editor{padding:13px 20px;background:#f2f9f6}.edit-form{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}.edit-form label{font-weight:600;margin-right:auto}.edit-form input{width:90px;padding:7px;border:1px solid #90b8ab;border-radius:7px;color:var(--ink);background:#fff}.save,.cancel{border:1px solid #b5c9c5;border-radius:7px;padding:7px 10px;background:white}.save{background:var(--accent);color:white;border-color:var(--accent)}.error{color:#912527;text-align:right}.empty{padding:22px;color:var(--muted)}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+@media(max-width:960px){.layout{grid-template-columns:1fr}#clinics{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}}
+@media(max-width:520px){main{padding:24px 12px}.top div{padding:13px 12px}#clinics{grid-template-columns:1fr 1fr}.clinic{grid-template-columns:1fr}.clinic b{grid-column:auto;grid-row:auto}.metrics,.detail-head{padding-left:12px;padding-right:12px}td,th{padding:9px 6px}td:first-child,th:first-child{padding-left:12px}.date-cell{font-size:11px}.price{padding:4px 5px}table{font-size:12px}}
+body{--accent:#12385b;--pale:#edf4fa;--ink:#152d48;background:#f1f5f9}.top{background:white;color:#163552;border-bottom:1px solid var(--line)}.top small{color:#597081}.ident{color:white;background:#123455}.tabs,.tools{display:flex;gap:6px;margin-bottom:20px}.tabs button,.tools button,.action{cursor:pointer;border:1px solid var(--line);border-radius:8px;background:white;padding:8px 13px;font-weight:620}.tabs .selected,.tools .active,.action.primary{background:#143656;color:white}.tools{margin-bottom:13px}.detail-head{border-top:3px solid #19476b}.metric{background:#edf4fa}.metric:nth-child(2){background:#eff6f3}.group th{background:#f7f9fb;color:#3e5872}.tag{font-size:12px;color:#5d6a79}.pending{color:#97601a}.issued{color:#177454}.foot{padding:13px 18px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}.scroll{overflow:auto}.scroll table{min-width:590px}dialog{border:1px solid var(--line);border-radius:14px;padding:23px;max-width:min(94vw,550px);color:var(--ink)}dialog::backdrop{background:#11263966}dialog pre{white-space:pre-wrap;font:inherit}.gridall{grid-column:1/-1}.sectionhead{padding:15px 18px}.num{font-variant-numeric:tabular-nums}.clinic[aria-pressed=true]{border-color:#aec9df}.tabs button:focus-visible{outline:2px solid #146456}.task-card{text-align:left;color:var(--ink);border:1px solid transparent}.task-card:hover,.task-card[aria-pressed=true]{border-color:#37769a}.task-card small{color:var(--muted)}.invoice-issued{display:inline-flex;align-items:center;gap:.45em;background:#135e41;color:white;border-radius:6px;padding:5px 11px;font-size:14px;font-weight:750;letter-spacing:.045em;white-space:nowrap}.invoice-issued span{font-size:17px;line-height:1}.correct-issued{background:transparent;border:0;color:#465b67;text-decoration:underline;text-underline-offset:3px;font-size:13px;padding:7px 5px}.correct-issued:hover{color:#142d3a}.overview{border:0;background:transparent;overflow:visible}.ledger{display:grid;grid-template-columns:repeat(3,1fr);background:#15384a;color:white;border-radius:15px;padding:21px 8px;margin-bottom:18px}.ledger>div{padding:0 22px;border-right:1px solid #54707b}.ledger>div:last-child{border:0}.ledger small{color:#d0e1e4}.ledger b{display:block;font-size:clamp(19px,2.6vw,36px);letter-spacing:-.045em}.workgrid{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;margin-bottom:16px}.sheet{background:white;border:1px solid #d9e3e7;border-radius:14px;overflow:hidden}.sheet header,.retainer,.batch,.waitlist{padding:14px 18px}.sheet header,.retainer>div,.batch-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.sheet header{border-bottom:1px solid #dbe4e7}.sheet h2{font-size:18px;letter-spacing:-.025em}.sheet small{color:#516673}.counts{display:flex;gap:26px;padding:14px 18px;background:#f1f7f8}.counts strong{font-size:29px;line-height:1.2;display:block}.counts span{font-size:13px}.origin,.todo{display:inline-block;font-size:12px;padding:3px 8px;background:#edf2f9;border-radius:5px;margin:5px 0}.todo{background:#fff1d6;color:#764c13}.batch-actions{justify-content:start}.batch-actions button:first-child{margin:0!important;background:#174f54;color:white}.waitlist,.retainer+.retainer{border-top:1px solid #e1e8eb}.waitlist summary{cursor:pointer}.retainer-action{margin-top:8px}.tools{flex-wrap:wrap}.sheet th,.sheet td{padding:8px 16px}@media(max-width:740px){.workgrid{grid-template-columns:1fr}.ledger>div{padding:0 7px}.ledger small{font-size:11px}}body:has(.overview){background:#f1f5f9;color:#152d48;color-scheme:light}.top:has(~main .overview){background:#ffffff;color:#163552;border-color:#d6e0e8}body:has(.overview) .top small,body:has(.overview) .period-caption{color:#496176}body:has(.overview) main{max-width:1150px;padding-top:18px}body:has(.overview) h1{font-size:31px}body:has(.overview) .tabs,body:has(.overview) .heading,body:has(.overview) .tools{margin-bottom:14px}body:has(.overview) :is(.tools button,.tabs button,.dates,.dates button,.action){background:#ffffff;border-color:#cad7df;color:#19364d}body:has(.overview) :is(.selected,.tools .active,.action.primary){background:#143656;color:white}body:has(.overview) dialog{background:#fff;color:#193343;color-scheme:light}.kpis,.clinic-grid,.pipeline{display:grid;gap:10px}.kpis,.clinic-grid{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:12px}.kpi,.clinic-card,.nc-card{background:#ffffff;border:1px solid #d6e0e8;border-radius:12px;padding:14px 16px}.overview small,.overview .meta,.pair{color:#4a6070}.kpi strong{display:block;font-size:28px;letter-spacing:-.04em}.kpi.attention,.kpi.due{border-color:currentColor}.due{color:#95342f}.attention{color:#795009}.ok{color:#11593a}.neutral{color:#364f64}.card-top,.sendbar{display:flex;align-items:center;justify-content:space-between;gap:7px;flex-wrap:wrap}.card-top h3,.nc-card h2{margin:0}.card-top h3{font-size:16px}.stamp{font-size:12px;font-weight:650;border-radius:6px;padding:3px 8px;background:#edf2f6;white-space:nowrap}.stamp.ok,.pipeline .ok{background:#dbf2e6}.stamp.attention,.pipeline .attention{background:#fff0cc}.stamp.due{background:#fce7e6}.clinic-card{display:flex;flex-direction:column;gap:6px}.clinic-card progress{width:100%;height:5px;accent-color:#166c55;margin:3px 0}.clinic-card .action{margin-top:auto}.pair b{color:#152d48}.pipeline{grid-template-columns:repeat(3,1fr);margin:12px 0}.pipeline div{text-align:center;background:#edf2f6;border-radius:7px;padding:6px}.pipeline strong,.pipeline span{display:block}.pipeline strong{font-size:21px}.queue-row{display:grid;grid-template-columns:1.1fr 1fr .6fr auto;align-items:center;gap:10px;border-top:1px solid #d6e0e8;padding:7px 0;font-size:14px}.queue-row label{display:flex;align-items:center;gap:8px}.spacer{width:19px}.sendbar{justify-content:flex-end;margin-top:12px}.sendbar button{margin:0!important}.overview button:disabled{opacity:.45}@media(max-width:900px){.clinic-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:650px){.kpis{grid-template-columns:repeat(2,1fr)}.queue-row{grid-template-columns:1fr auto}.clinic-card{padding:10px}.queue-row .meta{font-size:11px}.nc-card{padding:12px}}.queue-row .stamp.ok{background:#135e41;color:white;font-weight:750}</style>
+<header class="top"><div><span class="ident">GC</span><strong>Gestão Clínica &nbsp; / &nbsp; Rendimentos</strong><small>Demonstração · Dados fictícios</small></div></header>
+<main><nav class="tabs" aria-label="Rendimentos"><button>Dashboard</button><button>Panorama Geral</button><button class="selected">Faturação</button></nav>
+<header class="heading">
+<div><h1>Faturação</h1><p class="period-caption" id="period-label"></p></div>
+<div class="period">
+<div class="switch" role="group" aria-label="Período de faturação">
+<button type="button" data-period="day" aria-pressed="true">Dia</button>
+<button type="button" data-period="week" aria-pressed="false">Semana</button>
+<button type="button" data-period="month" aria-pressed="false">Mês</button>
+</div>
+<div class="dates" role="group" aria-label="Navegar no calendário">
+<button type="button" id="prev" aria-label="Período anterior">‹</button>
+<button type="button" id="today">Hoje</button>
+<button type="button" id="next" aria-label="Período seguinte">›</button>
+</div></div>
+</header>
+<div class="tools"><button id="summary">Conferência mensal</button><button id="list" class="active">Por entidade</button><button id="reconcile">Acerto Novo Cuidar</button></div><div class="layout">
+<section class="pane" aria-labelledby="clinics-title"><header class="pane-title"><h2 id="clinics-title">Clínicas e avenças</h2><p id="sidebar-period">Totais do mês selecionado</p></header><div id="clinics"></div></section>
+<section class="pane" id="detail" aria-label="Consultas da clínica selecionada"></section>
+</div><div class="sr" id="status" role="status"></div>
+</main>
+<script>
+const clinics = [
+  {id:'web',name:'João Morais Web',subtitle:'Faturação pela Novo Cuidar'},
+  {id:'novo',name:'Novo Cuidar',subtitle:'Atividade própria'},
+  {id:'athletix',name:'Athletix'},
+  {id:'alfra',name:'AlfraClinic'},
+  {id:'filipe',name:'Filipe Cachopas'},
+  {id:'liga',name:'Liga dos Amigos'},
+];
+const records = [
+  ['web','25','Ana Ribeiro','Primeira consulta',6500,6500],
+  ['web','25','Miguel Lopes','Teleconsulta',5000,5000],
+  ['web','25','Inês Almeida','Reavaliação',null,null],
+  ['web','23','Rita Martins','Reavaliação',6000,6000],
+  ['web','18','Tomás Cardoso','Primeira consulta',4500,4500],
+  ['novo','25','Catarina Silva','Primeira consulta',5200,4000],
+  ['novo','25','Francisco Dias','Reavaliação',5200,4000],
+  ['novo','24','Laura Pinto','Reavaliação',5200,4000],
+  ['novo','11','Duarte Rocha','Primeira consulta',5200,4000],
+  ['athletix','25','Leonor Costa','Primeira consulta',6500,6500],
+  ['athletix','23','Simão Gomes','Reavaliação',6500,6500],
+  ['athletix','16','Matilde Alves','Primeira consulta',6500,6500],
+  ['alfra','25','Rodrigo Freitas','Reavaliação',6000,5000],
+  ['alfra','24','Mariana Nunes','Primeira consulta',8500,6500],
+  ['filipe','23','Sara Sousa','Primeira consulta',6500,5000],
+  ['liga','18','Gonçalo Melo','Consulta',5000,4000],
+].map(([clinic,date,name,type,price,fee],id)=>({id,clinic,date:'2026-11-'+date,name,type,price,fee}));
+const baseDate = '2026-11-26';
+let date = baseDate;
+let period = 'month';
+let active = 'web';
+let editing = null;
+const euro = cents => new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR'}).format(cents/100);
+const parseDate = value => new Date(value+'T12:00:00Z');
+const iso = value => value.toISOString().slice(0,10);
+const addDays = (value,days) => new Date(value.getTime()+days*864e5);
+const fmt = (value,options) => new Intl.DateTimeFormat('pt-PT',{timeZone:'UTC',...options}).format(value);
+const $ = selector => document.querySelector(selector);
+
+function bounds(){
+  const current = parseDate(date);
+  if(period==='day') return [current,current];
+  if(period==='week'){
+    const start = addDays(current,-((current.getUTCDay()+6)%7));
+    return [start,addDays(start,6)];
+  }
+  const [year,month] = [current.getUTCFullYear(),current.getUTCMonth()];
+  return [new Date(Date.UTC(year,month,1,12)),new Date(Date.UTC(year,month+1,0,12))];
+}
+function label(start,end){
+  if(period==='day') return fmt(start,{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  if(period==='month') return fmt(start,{month:'long',year:'numeric'});
+  return fmt(start,{day:'numeric',month:'short'})+' a '+fmt(end,{day:'numeric',month:'short',year:'numeric'});
+}
+const pencil = '<svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 13.5 13.5 4a1.8 1.8 0 0 1 2.5 2.5L6.5 16l-3.5 1zM12 5.5 14.5 8"/></svg>';
+function sum(rows,field){return rows.reduce((amount,row)=>amount+(row[field]??0),0);}
+clinics.push({id:'hba',name:'Hospital Beatriz Ângelo'});
+const allowances={hba:300000,liga:75000};
+const monthlyStates=new Map();
+let screen='Resumo', tab='Faturação', taskFilter=null;
+const dest=id=>['athletix','web'].includes(id);
+const control=['Por pedir','Aguarda emissão','Emitida'];
+records.forEach(row=>{
+  row.state=0;row.visit='Realizada';row.collected=false;row.transferred=false;row.paid=false;
+  if(row.clinic==='liga'){row.price=0;row.fee=0;}
+  if(dest(row.clinic)&&row.date<'2026-11-25'){row.state=row.date<'2026-11-23'?2:1;row.collected=true;row.transferred=row.state===2;row.paid=row.state===2;}
+});
+records.push({...records[0],id:99,name:'Joana Ramos',visit:'Faltou',price:null,fee:null});
+const rowsOf=(id,month)=>records.filter(r=>r.clinic===id&&r.date.startsWith(month));
+const done=rows=>rows.filter(r=>r.visit==='Realizada');
+const displayMoney=n=>n==null?'—':euro(n);
+const monthName=()=>fmt(parseDate(date),{month:'long',year:'numeric'});
+const selected=new Set();
+function dialog(title,body,confirmLabel,callback){
+ const d=document.createElement('dialog');d.innerHTML='<h2></h2><div class="body"></div><div class="foot"><button class="action" data-close>Fechar</button></div>';
+ d.querySelector('h2').textContent=title;d.querySelector('.body').append(body);
+ if(callback){const b=document.createElement('button');b.className='action primary';b.textContent=confirmLabel;b.onclick=()=>{if(callback()!==false){d.close();render();}};d.querySelector('.foot').append(b);}
+ d.querySelector('[data-close]').onclick=()=>d.close();d.onclose=()=>d.remove();document.body.append(d);d.showModal();
+}
+function pendingOnDay(day){
+ return records.filter(r=>r.date===day && dest(r.clinic) && r.visit==='Realizada' && !r.waived && r.state===0);
+}
+function dayRequestButton(day){
+ const count=pendingOnDay(day).filter(r=>r.price>0).length;
+ return count?'<button class="action" style="margin-left:12px" data-day-request="'+day+'">Preparar email do dia · '+count+(count===1?' consulta':' consultas')+'</button>':'';
+}
+function render(){
+ const month=date.slice(0,7),[start,end]=bounds();
+ $('#period-label').textContent=label(start,end);
+ const overview=tab==='Faturação'&&screen==='Resumo';
+ $('h1').textContent=overview?'Conferência mensal':tab;
+ $('.switch').style.display=overview?'none':'flex';
+ $('#summary').classList.toggle('active',overview);
+ $('#detail').classList.toggle('overview',overview);
+ document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('selected',b.textContent===tab));
+ document.querySelectorAll('[data-period]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.period===period)));
+ $('.tools').hidden=tab!=='Faturação';$('.tools').style.display=tab==='Faturação'?'flex':'none';
+ $('#list').classList.toggle('active',screen==='Por entidade');$('#reconcile').classList.toggle('active',screen==='Acerto');
+ const listing=tab==='Faturação'&&screen==='Por entidade';
+ $('#clinics').closest('section').hidden=!listing;$('#detail').classList.toggle('gridall',!listing);
+ const amount=(c,rs)=>allowances[c.id]??sum(done(rs),dest(c.id)?'price':'fee');
+ $('#sidebar-period').textContent={day:'Totais do dia selecionado',week:'Totais da semana selecionada',month:'Totais do mês selecionado'}[period];
+ $('#clinics').innerHTML=clinics.map(c=>{
+ const rs=records.filter(r=>r.clinic===c.id && r.date>=iso(start) && r.date<=iso(end));
+ const value=allowances[c.id] && period!=='month' ? '—' : euro(amount(c,rs));
+ return `<button class="clinic" data-clinic="${c.id}" aria-pressed="${active===c.id}"><strong>${c.name}</strong><span>${allowances[c.id]?'Avença mensal':dest(c.id)?'Faturas pela Novo Cuidar':'Honorários'}</span><b>${value}</b></button>`;
+ }).join('');
+ if(tab!=='Faturação'){
+ $('#detail').innerHTML='<div class="detail-head"><h2>'+tab+'</h2></div><div class="scroll"><table><tr><th>Entidade</th><th>Realizadas no período</th><th>Faltas</th><th>Honorários dos atos</th></tr>'+clinics.map(c=>{const rs=records.filter(r=>r.clinic===c.id&&r.date>=iso(start)&&r.date<=iso(end));return '<tr><td>'+c.name+'</td><td>'+done(rs).length+'</td><td>'+rs.filter(r=>r.visit==='Faltou').length+'</td><td>'+euro(sum(done(rs),'fee'))+'</td></tr>';}).join('')+'</table></div>';return;}
+ if(overview){renderOverview(month);return;}
+ if(!listing){
+ const cell=rs=>rs.length+' · '+euro(sum(rs,'price'));
+ $('#detail').innerHTML='<div class="detail-head"><div><h2>Acerto com a Novo Cuidar</h2><p>'+monthName()+'</p></div></div><h3 class="sectionhead">Pedidos de fatura ao doente</h3><div class="scroll"><table><tr><th>Origem</th><th>Por pedir</th><th>Aguarda emissão</th><th>Emitidas</th></tr>'+['athletix','web'].map(id=>{let rs=done(rowsOf(id,month));return '<tr><td>'+clinics.find(c=>c.id===id).name+'</td>'+[0,1,2].map(k=>'<td>'+cell(rs.filter(r=>!r.waived && r.price>0 && r.state===k))+'</td>').join('')+'</tr>';}).join('')+'</table></div><h3 class="sectionhead">Movimentos confirmados</h3><div class="scroll"><table><tr><th>Origem</th><th>Recebido dos doentes</th><th>Transferido</th><th>Honorários recebidos</th><th>Honorários por receber</th></tr>'+['novo','athletix','web'].map(id=>{let rs=done(rowsOf(id,month));return '<tr><td>'+clinics.find(c=>c.id===id).name+'</td><td>'+(dest(id)?euro(sum(rs.filter(r=>r.collected),'price')):'—')+'</td><td>'+(dest(id)?euro(sum(rs.filter(r=>r.transferred),'price')):'—')+'</td><td>'+euro(sum(rs.filter(r=>r.paid),'fee'))+'</td><td>'+euro(sum(rs.filter(r=>!r.paid),'fee'))+'</td></tr>';}).join('')+'</table></div>';return;}
+ const c=clinics.find(c=>c.id===active),monthly=rowsOf(active,month),key=active+month;
+ let rows=records.filter(r=>r.clinic===active&&r.date>=iso(start)&&r.date<=iso(end)).sort((a,b)=>b.date.localeCompare(a.date));
+ const closed=monthlyStates.get(key)||0;
+ const headers='<div class="detail-head"><div><h2>'+c.name+'</h2><p>'+(dest(active)?'Faturas ao doente pela Novo Cuidar':allowances[active]?'Avença mensal':'Faturação de honorários à entidade')+'</p></div></div>';
+ const amountMonth=amount(c,monthly),emitted=dest(active)?sum(done(monthly).filter(r=>r.state===2),'price'):closed?amountMonth:0;
+ let html=headers+'<div class="metrics"><div class="metric"><span>'+ (dest(active)?'Preço das consultas':'Honorários a faturar')+' · '+monthName()+'</span><strong>'+euro(amountMonth)+'</strong></div><div class="metric"><span>Com fatura emitida · '+monthName()+'</span><strong>'+euro(emitted)+'</strong></div></div>';
+ if(dest(active)){
+   const billable=done(rows).filter(r=>!r.waived);
+   const withoutRequest=billable.filter(r=>r.state===0);
+   const missing=withoutRequest.filter(r=>r.price==null).length;
+   const awaiting=billable.filter(r=>r.state===1);
+   const issued=billable.filter(r=>r.state===2).length;
+   const count=n=>n+(n===1?' consulta':' consultas');
+   const card=(key,title,items,note)=>`<button type="button" class="metric task-card" data-task="${key}" aria-pressed="${taskFilter===key}"><span>${title}</span><strong>${count(items.length)}</strong><small>${note}</small></button>`;
+   html=headers+'<div class="metrics">'+card('request','Realizadas sem pedido de fatura',withoutRequest,
+     missing?'Falta confirmar o preço em '+count(missing):'Ver consultas sem pedido')+
+     card('issued','Pedido enviado · falta confirmar a emissão',awaiting,'Ver consultas a aguardar confirmação')+
+     '</div><div class="foot">'+count(issued)+' com emissão confirmada'+(taskFilter?' <button class="action" data-clear-task>Mostrar todas as consultas</button>':'')+'</div>';
+   if(taskFilter) rows=taskFilter==='request'?withoutRequest:awaiting;
+ }
+ if(!dest(active)){html+='<div class="foot"><strong>'+['Fatura mensal por emitir','Fatura mensal emitida','Pagamento recebido'][closed]+'</strong>'+(closed<2?'<button class="action" data-monthly>'+['Confirmar emissão','Confirmar recebimento'][closed]+'</button>':'')+(closed?'<button class="action" data-undo-month>'+(['','Corrigir emissão','Corrigir recebimento'][closed])+'</button>':'')+'</div>';}
+ if(active!=='hba'){
+ let previous='';html+='<div class="scroll"><table><thead><tr><th>Doente / ato</th><th>Consulta</th><th>Preço ao doente</th><th>Honorários</th><th>Faturação</th></tr></thead><tbody>';
+ for(const r of rows){if(previous!==r.date){previous=r.date;html+='<tr class="group"><th colspan="5">'+fmt(parseDate(r.date),{weekday:'long',day:'numeric',month:'long'})+(dest(active)?dayRequestButton(r.date):'')+'</th></tr>';}
+ const eligible=r.visit==='Realizada',editable=eligible&&!allowances[active]&&!r.state&&!closed&&!r.collected;
+ html+='<tr><td><strong>'+r.name+'</strong><small>'+r.type+'</small></td><td>'+r.visit+'</td><td>'+(editable?'<button class="price" data-price="'+r.id+'">'+(r.price===null?'Por confirmar':euro(r.price))+pencil+'</button>':displayMoney(r.price))+'</td><td>'+displayMoney(r.fee)+'</td><td>'+(!eligible?'—':r.waived?'Dispensa de honorários':allowances[active]?'Na avença':!dest(active)?(closed?'Emitida':'No fecho mensal'):r.price==null?'Falta preço':r.state===0?'<label><input type="checkbox" data-select="'+r.id+'" '+(selected.has(r.id)?'checked':'')+'> Por pedir</label>':r.state===1?'<button class="action" data-issued="'+r.id+'">Confirmar emissão</button> <button class="action" data-undo="'+r.id+'">Corrigir envio</button>':'<span class="invoice-issued"><span aria-hidden="true">✓</span> EMITIDA</span> <button class="correct-issued" data-undo="'+r.id+'">Corrigir emissão</button>')+'</td></tr>';}
+ html+='</tbody></table></div>'+(!rows.length?'<p class="empty">Sem consultas neste período.</p>':'');
+ if(dest(active))html+='<div class="foot"><button class="action primary" data-request '+(!selected.size?'disabled':'')+'>Preparar pedido · '+selected.size+'</button></div>';
+ }
+ $('#detail').innerHTML=html;
+}
+function reset(){selected.clear();render();}
+document.addEventListener('click',event=>{
+ const b=event.target.closest('button');if(!b)return;
+ if(b.id==='summary'){screen='Resumo';period='month';reset();}
+ else if(b.dataset.jump){active=b.dataset.jump;screen='Por entidade';taskFilter=b.dataset.scope||null;period='month';reset();}
+ else if(b.closest('.tabs')){tab=b.textContent;reset();}
+ else if(b.id==='list'||b.id==='reconcile'){screen=b.id==='list'?'Por entidade':'Acerto';if(b.id==='reconcile')period='month';reset();}
+ else if(b.dataset.clinic){active=b.dataset.clinic;taskFilter=null;reset();}
+ else if(b.dataset.period){period=b.dataset.period;reset();}
+ else if(['prev','next','today'].includes(b.id)){const dir=b.id==='prev'?-1:1,d=parseDate(date);date=b.id==='today'?baseDate:period==='month'?iso(new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+dir,1,12))):iso(addDays(d,dir*(period==='week'?7:1)));reset();}
+ else if(b.dataset.task){taskFilter=taskFilter===b.dataset.task?null:b.dataset.task;reset();}
+ else if(b.hasAttribute('data-clear-task')){taskFilter=null;reset();}
+ else if(b.hasAttribute('data-price')){
+ const r=records.find(r=>r.id===Number(b.dataset.price)),box=document.createElement('div');
+ box.innerHTML='<p>'+r.name+'</p><label>Preço ao doente (€) <input inputmode="decimal" aria-label="Preço ao doente" value="'+(r.price==null?'':(r.price/100).toFixed(2).replace('.',','))+'"></label><p data-fee></p>';
+ const input=box.querySelector('input'),update=()=>{const v=input.value.replace(',','.').trim();const n=/^\d{1,6}(\.\d{1,2})?$/.test(v)?Math.round(Number(v)*100):0;const fee=dest(active)?n:r.price?Math.round(n*r.fee/r.price):0;box.querySelector('[data-fee]').textContent=n?'Honorários após a alteração · '+euro(fee):'Indica um preço positivo.';return [n,fee];};input.oninput=update;update();
+ let waiver;
+ if(r.clinic==='web'){
+   const label=document.createElement('label');label.style.display='block';
+   waiver=document.createElement('input');waiver.type='checkbox';waiver.checked=Boolean(r.waived);
+   label.append(waiver,' Dispensa de honorários · consulta gratuita');
+   box.append(label);
+   waiver.onchange=()=>{input.disabled=waiver.checked;if(waiver.checked)box.querySelector('[data-fee]').textContent='Preço ao doente: 0 € · Honorários: 0 €';else update();};
+   waiver.onchange();
+ }
+ dialog('Alterar valor da consulta',box,'Guardar',()=>{if(waiver?.checked){r.waived=true;r.price=0;r.fee=0;selected.delete(r.id);return;}
+ const [n,f]=update();if(!n)return false;r.waived=false;r.price=n;r.fee=f;});input.select();}
+ else if(b.hasAttribute('data-request')||b.hasAttribute('data-day-request')){
+ const day=b.dataset.dayRequest;
+ const rs=day?pendingOnDay(day).filter(r=>r.price>0):records.filter(r=>selected.has(r.id)&&!r.waived&&r.price>0&&r.visit==='Realizada'&&r.state===0);const pre=document.createElement('pre');pre.textContent='Bom dia,\n\nPeço a emissão das seguintes faturas.\n\n'+rs.map(r=>'Nome: '+r.name+'\nNIF: 000000000\nMorada: Rua de Exemplo, 1, 0000-000 Lisboa\nValor da consulta: '+euro(r.price)).join('\n\n');const preview=document.createElement('div');
+ if(day){
+   const summary=document.createElement('p');
+   const missing=pendingOnDay(day).filter(r=>r.price==null).length;
+   summary.textContent='Um email à Novo Cuidar · '+fmt(parseDate(day),{day:'numeric',month:'long'})+
+     ' · '+rs.length+' consulta(s)'+(missing?' · '+missing+' com preço por confirmar, fora deste pedido.':'');
+   preview.append(summary);
+ }
+ preview.append(pre);
+ dialog('Pedido de faturação',preview,'Simular pedido enviado',()=>{
+   const batch=crypto.randomUUID();
+   rs.forEach(r=>{r.state=1;r.requestId=batch;});selected.clear();
+ });}
+ else if(b.hasAttribute('data-undo')){
+   const row=records.find(item=>item.id===Number(b.dataset.undo));
+   const sent=row.state===1;
+   const note=document.createElement('p');
+   note.textContent=row.name+' · '+(sent?'O pedido volta a «Por pedir». Esta correção altera apenas o registo no GC.':'A fatura volta a «Aguarda emissão». O envio continua registado.');
+   dialog(sent?'Corrigir registo de envio?':'Corrigir confirmação de emissão?',note,'Guardar correção',()=>{row.state=sent?0:1;selected.delete(row.id);});
+ }
+ else if(b.hasAttribute('data-undo-month')){
+   const key=active+date.slice(0,7),state=monthlyStates.get(key);
+   const note=document.createElement('p');
+   note.textContent=clinics.find(c=>c.id===active).name+' · '+monthName()+' · '+(state===2?'O mês volta a «Fatura mensal emitida».':'O mês volta a «Fatura mensal por emitir».');
+   dialog('Corrigir estado do mês?',note,'Guardar correção',()=>{monthlyStates.set(key,state-1);if(state===2)rowsOf(active,date.slice(0,7)).forEach(r=>r.paid=false);});
+ }
+ else if(b.hasAttribute('data-issued')){records.find(r=>r.id===Number(b.dataset.issued)).state=2;render();}
+ else if(b.hasAttribute('data-monthly')){let k=active+date.slice(0,7),n=(monthlyStates.get(k)||0)+1;monthlyStates.set(k,n);if(n===2)rowsOf(active,date.slice(0,7)).forEach(r=>r.paid=true);render();}
+});
+document.addEventListener('change',e=>{if(e.target.hasAttribute('data-select')){const id=Number(e.target.dataset.select);if(e.target.checked)selected.add(id);else selected.delete(id);render();}});
+monthlyStates.set('hba2026-11',1);
+monthlyStates.set('filipe2026-11',2);
+for(const row of records){
+ if(row.clinic==='filipe'||(row.clinic==='alfra'&&row.date==='2026-11-24'))row.paid=true;
+}
+function renderOverview(month){
+ const visits=done(records.filter(r=>r.date.startsWith(month)));
+ const external=visits.filter(r=>dest(r.clinic)&&!r.waived);
+ const pending=external.filter(r=>r.state===0);
+ const waiting=external.filter(r=>r.state===1);
+ const dashboard=clinics.map(c=>{
+   const rs=visits.filter(r=>r.clinic===c.id),stage=monthlyStates.get(c.id+month)||0;
+   const expected=allowances[c.id]??sum(rs,'fee');
+   const paid=allowances[c.id]?(stage===2?expected:0):sum(rs.filter(r=>r.paid),'fee');
+   return {c,rs,expected,paid,stage};
+ });
+ const totals=dashboard.reduce((t,d)=>[t[0]+d.expected,t[1]+d.paid],[0,0]);
+ const badges=rows=>['web','athletix'].map(id=>{const n=rows.filter(r=>r.clinic===id).length;return n?'<span class="origin">'+clinics.find(c=>c.id===id).name+' · '+n+'</span>':'';}).join(' ');
+ const dates=[...new Set(pending.map(r=>r.date))].sort().reverse();
+ const jump=(id,title,scope='')=>'<button class="action" data-jump="'+id+'" data-scope="'+scope+'">'+title+'</button>';
+ const retainers=dashboard.filter(d=>allowances[d.c.id]);
+ const clinicName=id=>clinics.find(c=>c.id===id).name;
+ const kpi=(title,value,type='')=>`<div class="kpi ${type}"><small>${title}</small><strong>${value}</strong></div>`;
+ const cards=dashboard.filter(d=>['alfra','filipe','liga','hba'].includes(d.c.id)).map(d=>{
+   const fixed=!!allowances[d.c.id], diff=d.expected-d.paid;
+   const status=fixed?(d.stage?'✓ EMITIDA':'Por emitir'):(diff?'Por receber':'✓ Confere');
+   const tone=fixed?(d.stage?'ok':'attention'):(diff?'due':'ok');
+   return `<article class="clinic-card"><div class="card-top"><h3>${d.c.name}</h3><span class="stamp ${tone}">${status}</span></div>
+   <small>${fixed?(d.c.id==='liga'?'Avença · '+d.rs.length+' consulta(s) a 0 €':'Avença fixa mensal'):'Por ato · '+d.rs.length+' consulta(s)'}</small>
+   <progress aria-label="Honorários recebidos" max="${d.expected||1}" value="${d.paid}"></progress>
+   <div class="pair"><b>${euro(d.paid)}</b> / ${euro(d.expected)}</div>
+   ${jump(d.c.id,fixed?(d.stage?'Consultar avença':'Tratar emissão'):(diff?'Conferir diferença':'Consultar atos'))}</article>`;
+ }).join('');
+ const own=dashboard.find(d=>d.c.id==='novo');
+ const counts=[['Sem pedido',pending.length,'neutral'],['Aguarda emissão',waiting.length,'attention'],['✓ Emitida',external.filter(r=>r.state===2).length,'ok']];
+ const queue=[...external].sort((a,b)=>a.state-b.state||b.date.localeCompare(a.date));
+ const row=r=>`<div class="queue-row"><label>${r.state===0&&r.price>0?`<input type="checkbox" data-select="${r.id}" ${selected.has(r.id)?'checked':''}>`:'<span class="spacer"></span>'}<b>${r.name}</b></label>
+ <span class="meta">${clinicName(r.clinic)} · ${fmt(parseDate(r.date),{day:'2-digit',month:'2-digit'})}</span>
+ <span>${r.price==null?jump(r.clinic,'Rever preço','request'):euro(r.price)}</span>
+ <span class="stamp ${r.state===2?'ok':r.state===1?'attention':'neutral'}">${r.state===2?'✓ EMITIDA':r.state===1?'Pedido enviado':r.price==null?'Falta preço':'Por pedir'}</span></div>`;
+ $('#detail').innerHTML=`<div class="kpis">${kpi('Honorários previstos',euro(totals[0]))}${kpi('Recebido',euro(totals[1]))}${kpi('Por receber',euro(totals[0]-totals[1]),'due')}${kpi('Consultas sem pedido',pending.length,'attention')}</div>
+ <div class="clinic-grid">${cards}</div><article class="nc-card"><div class="card-top"><h2>Novo Cuidar</h2>${jump('novo','Atividade própria · '+own.rs.length+' consultas · '+euro(own.expected))}</div>
+ <small>Pedidos de faturação · João Morais Web e Athletix</small>
+ <div class="pipeline">${counts.map(([name,n,tone])=>`<div class="${tone}"><strong>${n}</strong><span>${name}</span></div>`).join('')}</div>
+ ${queue.map(row).join('')||'<p>Sem consultas neste mês.</p>'}
+ <div class="sendbar">${dates.map(d=>dayRequestButton(d).replace('Preparar email do dia','Email de '+fmt(parseDate(d),{day:'2-digit',month:'2-digit'}))).join('')}
+ <button class="action primary" data-request ${selected.size?'':'disabled'}>Preparar email · ${selected.size} selecionadas</button></div></article>`;
+
+}
+render();
+</script></html>
