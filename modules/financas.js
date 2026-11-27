@@ -34,6 +34,7 @@
 import { G } from "./state.js";
 import { renderRendimentosDashboard, buildReciboMensalHTML } from "./rendimentos-dashboard.js";
 import { escapeHtml } from "./helpers.js";
+import { canViewAgendaFinance } from "./agenda-permissoes.js";
 
 /* ==== FA — Queries Supabase ==== */
 
@@ -315,6 +316,8 @@ function normalizarActo(texto) {
    clinicPricesByProc — objecto { chaveNormalizada: { preco_doente, price } } */
 function resolveFaturado(registo, entidade, clinicPricesByProc) {
   const honorario = Number(registo?.valor || 0);
+
+  if (registo?.web_preco_pendente) return { valor: null, honorario, origem: "indisponivel" };
 
   if (registo?.valor_faturado != null) {
     return { valor: Number(registo.valor_faturado), honorario, origem: "historico" };
@@ -1405,7 +1408,8 @@ function buildDashboardRendimentosHTML(ctx) {
       if (e.faturacao_granularidade === "mensal") {
         return r.tipo_acto === "Avença mensal" && String(r.appt_status || "").toLowerCase() === "done";
       }
-      return contaParaTotal(r.appt_status, r.financial_status) && Number(r.valor || 0) > 0;
+      return !r.web_preco_pendente && !r.web_preco_confirmado_at &&
+        contaParaTotal(r.appt_status, r.financial_status) && Number(r.valor || 0) > 0;
     });
     const adicionar = ({ chave, data, linhas }) => {
       const lookup = `${e.id}|${e.faturacao_granularidade}|${chave}`;
@@ -1481,10 +1485,28 @@ function buildDashboardRendimentosHTML(ctx) {
       <input id="finPeriodoFim" type="date" value="${periodoFim}" style="border:none;outline:none;font-size:12px;color:#0f172a;font-family:inherit;width:120px;" />
     </div>` : ""}`;
 
+  if (ctx.conferencia) {
+    const cards = porClinica.map(({entidade, hon, done, falta, disp}) => `
+      <article class="gc-conf-card">
+        <h3>${escapeHtml(entidade.nome)}</h3>
+        <p>${done} realizadas · ${falta} faltas · ${disp} dispensas</p>
+        <strong>${pgEur(hon)}</strong> de honorários
+        <p><button class="gc-btn" data-conf-entidade="${escapeHtml(entidade.id)}">Ver atos do período</button></p>
+      </article>`).join("");
+    return `<section aria-label="Conferência de faturação"><style>
+      .gc-conf-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+      .gc-conf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:16px 0}
+      .gc-conf-card{padding:14px 18px;border:1px solid #d6e0e8;background:white;color:#152d48;border-radius:12px}
+      .gc-conf-card h3,.gc-conf-card p:last-child{margin:0}.gc-conf-card p{color:#496176}
+      </style><div class="gc-conf-head"><h2>Faturação</h2><div class="gc-conf-head">${periodBarHTML}</div></div>
+      <article class="gc-conf-card"><h3>Pedidos à Novo Cuidar</h3><p>João Morais Web e Athletix</p>
+        <button class="gc-btn" data-rd-faturacao="${modoAtivo === "dia" ? escapeHtml(periodoIni) : ""}" aria-expanded="false">Preparar pedido do dia</button>
+        <div data-rd-faturacao-host hidden></div></article><div class="gc-conf-grid">${cards}</div>${ctx.entidadesExternasHTML}</section>`;
+  }
   return renderRendimentosDashboard({
     clinicas: porClinica, entidades, registos: registosFiltrados,
     tarefas: tarefasFaturacao, periodoHTML: periodBarHTML, periodoLabel: navLabel,
-    eur: pgEur, escape: escapeHtml, contaParaTotal, selecao: selecaoDashboard, mes, ano,
+    eur: pgEur, escape: escapeHtml, contaParaTotal, selecao: selecaoDashboard, mes, ano, faturacaoWeb: canViewAgendaFinance(G.role),
   });
 }
 
@@ -2139,6 +2161,7 @@ ${pendVencidos.length > 0 ? `
       ? buildDashboardRendimentosHTML({
           entidades, registosFiltrados: registos, entClinicasTodas, clinicPricesByClinicId,
           controloFaturacao, mes, ano, modoAtivo, navLabel, periodoIni, periodoFim, selecaoDashboard,
+          conferencia: vistaDashboard === "faturacao", entidadesExternasHTML,
         })
       : "";
 
@@ -2150,6 +2173,7 @@ ${pendVencidos.length > 0 ? `
 <div style="display:flex;gap:6px;margin-bottom:14px;">
   <button id="btnVistaDashboard" style="font-family:inherit;font-size:12px;font-weight:600;padding:6px 14px;border-radius:8px;border:0.5px solid #e2e8f0;cursor:pointer;${vistaDashboard === "dashboard" ? "background:#0f2d52;color:#fff;border-color:#0f2d52;" : "background:#fff;color:#0f2d52;"}">Dashboard</button>
   <button id="btnVistaPanoramaGeral" style="font-family:inherit;font-size:12px;font-weight:600;padding:6px 14px;border-radius:8px;border:0.5px solid #e2e8f0;cursor:pointer;${vistaDashboard === "panorama" ? "background:#0f2d52;color:#fff;border-color:#0f2d52;" : "background:#fff;color:#0f2d52;"}">Panorama Geral</button>
+  ${canViewAgendaFinance(G.role) ? `<button id="btnVistaFaturacao" class="gc-btn" aria-pressed="${vistaDashboard === "faturacao"}" style="${vistaDashboard === "faturacao" ? "background:#0f2d52;color:#fff" : ""}">Faturação</button>` : ""}
 </div>`;
 
     /* FASE 2A.1 — barra de alternância construída mas NÃO incluída no
@@ -2168,8 +2192,32 @@ ${pendVencidos.length > 0 ? `
             entidades, registosFiltrados: registos, clinicPricesByClinicId, navLabel,
           })
         : (vistaGeral === "novo"
-            ? vistaPrincipalToggleHTML + (vistaDashboard === "dashboard" ? dashboardHTML : panoramaGeralHTML)
+            ? vistaPrincipalToggleHTML + (vistaDashboard === "panorama" ? panoramaGeralHTML : dashboardHTML)
             : classicoHTML);
+
+    const faturacao = content.querySelector("[data-rd-faturacao]");
+    if (faturacao) {
+      faturacao.onclick = async () => {
+        const host = content.querySelector("[data-rd-faturacao-host]");
+        if (!host.hidden) {
+          host.hidden = true;
+          faturacao.setAttribute("aria-expanded", "false");
+          return;
+        }
+        const { renderFaturacao } = await import("./faturacao-web.js");
+        if (!faturacao.isConnected) return;
+        host.hidden = false;
+        faturacao.setAttribute("aria-expanded", "true");
+        if (!host.firstElementChild) renderFaturacao(host, null, {
+          day: faturacao.dataset.rdFaturacao,
+          onChange: async () => {
+            if (!faturacao.isConnected) return;
+            await render();
+            if (!faturacao.isConnected) content.querySelector("[data-rd-faturacao]")?.click();
+          },
+        });
+      };
+    }
 
     /* ══════ WIRING ══════ */
 
@@ -2196,6 +2244,17 @@ ${pendVencidos.length > 0 ? `
       render();
     });
 
+    document.getElementById("btnVistaFaturacao")?.addEventListener("click", () => {
+      vistaDashboard = "faturacao";
+      render();
+    });
+    content.querySelectorAll("[data-conf-entidade]").forEach(button => {
+      button.onclick = () => {
+        selecaoDashboard = { entidadeId: button.dataset.confEntidade, dia: null };
+        vistaDashboard = "dashboard";
+        render();
+      };
+    });
     // A navegação reproduz clínica -> dias -> doentes.
     content.querySelectorAll("[data-rd-entidade]").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -3192,6 +3251,11 @@ function openModalEditarRegisto(registo, entidades, onSave) {
   overlay.querySelector("#gcFinEditClose").addEventListener("click", close);
   overlay.addEventListener("click", ev => { if (ev.target === overlay) close(); });
 
+  if (registo.web_preco_pendente || registo.web_preco_confirmado_at) {
+    overlay.querySelector("#finEditValor").disabled = true;
+    overlay.querySelector("#finEditMsg").textContent = "O preço é gerido em Financeiro > Faturação.";
+  }
+
   overlay.querySelector("#finEditBtnGuardar").addEventListener("click", async () => {
     const msg        = overlay.querySelector("#finEditMsg");
     const data       = overlay.querySelector("#finEditData").value;
@@ -3208,8 +3272,10 @@ function openModalEditarRegisto(registo, entidades, onSave) {
       await updateRegisto(registo.id, {
         data,
         periodo:          periodoFromDate(data),
-        valor:            finStatus === "honorarios_dispensados" ? 0 : valor,
-        valor_manual:     finStatus === "honorarios_dispensados" ? null : valor,
+        ...(registo.web_preco_pendente || registo.web_preco_confirmado_at ? {} : {
+          valor:        finStatus === "honorarios_dispensados" ? 0 : valor,
+          valor_manual: finStatus === "honorarios_dispensados" ? null : valor,
+        }),
         financial_status: finStatus,
         appt_status:      apptStatus,
         notas:            notas || null,
@@ -3234,7 +3300,7 @@ function openModalEditarRegisto(registo, entidades, onSave) {
       await onSave();
     } catch (e) {
       console.error("updateRegisto falhou:", e);
-      msg.textContent = "Erro ao guardar. Vê a consola.";
+      msg.textContent = e.message || "Não foi possível guardar.";
       overlay.querySelector("#finEditBtnGuardar").disabled = false;
     }
   });
@@ -3680,6 +3746,7 @@ async function openModalPresenca({ ent, presenca, onSave }) {
 /* ---- FD.4b — openPdfContabilista ---- */
 function openPdfContabilista(registos, nomeClinica, labelPeriodo, { usarValorFaturado = false } = {}) {
   const linhas = registos.filter(r =>
+    !r.web_preco_pendente && !r.web_preco_confirmado_at &&
     contaParaTotal(r.appt_status, r.financial_status) && r.patients
   );
 

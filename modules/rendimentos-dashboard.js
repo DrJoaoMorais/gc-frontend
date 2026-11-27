@@ -1,5 +1,5 @@
 /* Interface clínica -> dias -> doentes. Só usa os dados já carregados. */
-export function renderRendimentosDashboard({ clinicas, entidades, registos, tarefas, periodoHTML, periodoLabel, eur, escape, contaParaTotal, selecao = {}, mes, ano }) {
+export function renderRendimentosDashboard({ clinicas, entidades, registos, tarefas, periodoHTML, periodoLabel, eur, escape, contaParaTotal, selecao = {}, mes, ano, faturacaoWeb = false }) {
   const rows = clinicas.map(c => ({ entidade: c.entidade, regs: c.regs, hon: c.hon }));
   const abrangidas = new Set(rows.flatMap(c => c.regs.map(r => r.id)));
   entidades.forEach(e => {
@@ -21,7 +21,7 @@ export function renderRendimentosDashboard({ clinicas, entidades, registos, tare
   const acoes = t => `<div class="rd-actions">${t.granularidade==='dia'?`<button class="dash-fat-pdf rd-primary" ${attrs(t)}>PDF conjunto para faturação</button>`:t.granularidade==='mensal'?`<button class="dash-fat-pdf" ${attrs(t)}>PDF da avença</button>`:''}${t.estado !== 'pago' ? `<button class="dash-fat-btn" ${attrs(t)} data-estado="pago">Marcar como recebido</button>` : `<span class="rd-badge pago">Recebido</span>`}${t.estado==='por_enviar'?`<button class="dash-fat-btn" ${attrs(t)} data-estado="enviado_contabilista">Marcar enviado</button>`:t.estado==='enviado_contabilista'?`<button class="dash-fat-btn" ${attrs(t)} data-estado="recibo_emitido">Marcar recibo emitido</button>`:''}</div>`;
   const metric = (label,val,note) => `<div class="rd-metric"><span>${label}</span><strong>${eur(val)}</strong><small>${note}</small></div>`;
   const estado = r => r.financial_status === 'honorarios_dispensados' ? 'Dispensa de honorários' : String(r.appt_status||'').toLowerCase()==='no_show' ? 'Falta' : contaParaTotal(r.appt_status,r.financial_status) ? 'Realizada' : 'Pendente';
-  const tabelaDoentes = regs => `<div class="rd-table-wrap"><table><thead><tr><th>Doente</th><th>Ato</th><th>Estado</th><th class="rd-num">Honorários</th></tr></thead><tbody>${regs.map(r=>`<tr><td>${escape(r.patients?.full_name || 'Nome não disponível')}</td><td>${escape(r.tipo_acto || 'Ato não identificado')}</td><td><span class="rd-badge ${contaParaTotal(r.appt_status,r.financial_status)?'pago':''}">${estado(r)}</span></td><td class="rd-num">${eur(honorario(r))}</td></tr>`).join('')}</tbody></table></div>`;
+  const tabelaDoentes = (regs, web = false) => `<div class="rd-table-wrap"><table><thead><tr><th>Doente</th><th>Ato</th><th>Estado</th><th class="rd-num">Honorários</th></tr></thead><tbody>${regs.map(r=>`<tr><td>${escape(r.patients?.full_name || 'Nome não disponível')}</td><td>${escape(r.tipo_acto || 'Ato não identificado')}</td><td><span class="rd-badge ${contaParaTotal(r.appt_status,r.financial_status)?'pago':''}">${estado(r)}</span></td><td class="rd-num">${web && r.web_preco_pendente ? '<span class="rd-badge">Por confirmar</span>' : eur(honorario(r))}${web && contaParaTotal(r.appt_status,r.financial_status) && r.valor_faturado == null && r.valor_manual == null && !r.web_preco_pendente ? '<br><small>Preço ao doente por confirmar</small>' : ''}</td></tr>`).join('')}</tbody></table></div>`;
   const c = rows.find(c => c.entidade.id === selecao.entidadeId);
   let body;
   let title = 'Os teus rendimentos';
@@ -41,7 +41,11 @@ export function renderRendimentosDashboard({ clinicas, entidades, registos, tare
     if (dia) {
       title += ' · ' + dataFmt(dia);
       const regs=acts.filter(r=>r.data===dia),ts=tsDaLinha(c).filter(t=>t.data===dia&&t.granularidade!=='mensal');
-      body=`<div class="rd-metrics">${metric('Honorários do dia',regs.reduce((s,r)=>s+honorario(r),0),`${regs.length} registo(s)`)}</div><section class="rd-panel"><div class="rd-panel-head"><h2>Doentes deste dia</h2><div class="rd-actions">${ts.map(acoes).join('')}</div></div>${regs.length?tabelaDoentes(regs):'<div class="rd-empty">Sem consultas neste dia.</div>'}</section>${documentoMensal}`;
+      const web = faturacaoWeb && c.entidade.nome === 'João Morais Web';
+      const actions = web
+        ? `<button type="button" class="rd-primary" data-rd-faturacao="${escape(dia)}" aria-expanded="false">Faturação deste dia</button>${ts.length ? `<details><summary>Controlo anterior</summary>${ts.map(acoes).join('')}</details>` : ''}`
+        : ts.map(acoes).join('');
+      body=`<div class="rd-metrics">${metric(web ? 'Honorários registados' : 'Honorários do dia' ,regs.reduce((s,r)=>s+honorario(r),0),`${regs.length} registo(s)`)}</div><section class="rd-panel"><div class="rd-panel-head"><h2>Doentes deste dia</h2><div class="rd-actions">${actions}</div></div>${regs.length?tabelaDoentes(regs, web):'<div class="rd-empty">Sem consultas neste dia.</div>'}${web ? '<div class="rd-detail" data-rd-faturacao-host hidden></div>' : ''}</section>${documentoMensal}`;
     } else {
       const days=[...new Set(acts.map(r=>r.data).filter(Boolean))].sort().reverse();
       const avencas=c.regs.filter(r=>r.tipo_acto==='Avença mensal');

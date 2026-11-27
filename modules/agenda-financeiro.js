@@ -15,14 +15,14 @@ async function allRows(query) {
     if ((data||[]).length < 500) return rows;
   }
 }
-async function appointmentsFor(start,end,clinicIds) {
+export async function appointmentsFor(start,end,clinicIds) {
   if (!clinicIds.length) return [];
   const lower = new Date(start+'T00:00:00Z'); lower.setUTCDate(lower.getUTCDate()-1);
   const upper = new Date(end+'T00:00:00Z'); upper.setUTCDate(upper.getUTCDate()+1);
-  const rows = await allRows(()=>window.sb.from('appointments').select('id,clinic_id,patient_id,start_at,status,mode,procedure_type').in('clinic_id',clinicIds).gte('start_at',lower.toISOString()).lt('start_at',upper.toISOString()).order('start_at').order('id'));
+  const rows = await allRows(()=>window.sb.from('appointments').select('id,clinic_id,patient_id,start_at,status,mode,procedure_type,financial_status').in('clinic_id',clinicIds).gte('start_at',lower.toISOString()).lt('start_at',upper.toISOString()).order('start_at').order('id'));
   return rows.filter(a=>a.mode!=='bloqueio' && lisbonDay(a.start_at)>=start && lisbonDay(a.start_at)<=end);
 }
-async function historyFor(entities) {
+export async function historyFor(entities) {
   if (!entities.length) return [];
   const rows=await allRows(()=>window.sb.from('controlo_faturacao').select('*, envio:agenda_envios_faturacao(snapshot)').in('entidade_id',entities.map(x=>x.id)).order('id'));
   return rows.map(r=>({...r,envio_snapshot:r.envio?.snapshot||null}));
@@ -63,6 +63,21 @@ export async function renderAgendaFinance(host,{day,clinicId}) {
         ({start,end}=monthBounds(start));
       }
       const ownEntities=entities.filter(x=>x.clinic_id===id);
+      let webStart;
+      if (['joao-morais-web','athletix'].includes(G.clinicsById?.[id]?.slug) ||
+          ownEntities.some(entity => ['João Morais Web','Athletix'].includes(entity.nome))) {
+        const {data,error} = await window.sb.from('clinics').select('extra_fields').eq('slug','joao-morais-web').maybeSingle();
+        if (error) throw error;
+        webStart = data?.extra_fields?.faturacao_web_desde;
+      }
+      if (webStart && start >= webStart) {
+        if (current()) target.textContent = 'Para os pedidos à Novo Cuidar deste período, abra Financeiro > Faturação.';
+        return;
+      }
+      if (webStart && end >= webStart) {
+        if (current()) target.textContent = 'Escolha um período anterior à ativação do novo circuito Web. Para as consultas posteriores, abra Financeiro > Faturação.';
+        return;
+      }
       const [finance,appointments,history]=await Promise.all([loadFinanceForAgenda({day,start,end,clinicId:id}),appointmentsFor(start,end,[id]),historyFor(ownEntities)]);
       if (!current()) return;
       let rows=billableRows(finance.records,appointments,history).filter(r=>ownEntities.some(ent=>ent.id===r.entidade_id&&ent.tipo!=='avenca'));
