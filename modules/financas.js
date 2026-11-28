@@ -1486,22 +1486,22 @@ function buildDashboardRendimentosHTML(ctx) {
     </div>` : ""}`;
 
   if (ctx.conferencia) {
-    const cards = porClinica.map(({entidade, hon, done, falta, disp}) => `
-      <article class="gc-conf-card">
-        <h3>${escapeHtml(entidade.nome)}</h3>
-        <p>${done} realizadas · ${falta} faltas · ${disp} dispensas</p>
-        <strong>${pgEur(hon)}</strong> de honorários
-        <p><button class="gc-btn" data-conf-entidade="${escapeHtml(entidade.id)}">Ver atos do período</button></p>
-      </article>`).join("");
-    return `<section aria-label="Conferência de faturação"><style>
-      .gc-conf-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-      .gc-conf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:16px 0}
-      .gc-conf-card{padding:14px 18px;border:1px solid #d6e0e8;background:white;color:#152d48;border-radius:12px}
-      .gc-conf-card h3,.gc-conf-card p:last-child{margin:0}.gc-conf-card p{color:#496176}
-      </style><div class="gc-conf-head"><h2>Faturação</h2><div class="gc-conf-head">${periodBarHTML}</div></div>
-      <article class="gc-conf-card"><h3>Pedidos à Novo Cuidar</h3><p>João Morais Web e Athletix</p>
-        <button class="gc-btn" data-rd-faturacao="${modoAtivo === "dia" ? escapeHtml(periodoIni) : ""}" aria-expanded="false">Preparar pedido do dia</button>
-        <div data-rd-faturacao-host hidden></div></article><div class="gc-conf-grid">${cards}</div>${ctx.entidadesExternasHTML}</section>`;
+    const cards = porClinica.map(({entidade, hon, done, falta, disp}) => {
+      const counts = [done + (done === 1 ? " realizada" : " realizadas")];
+      if (falta) counts.push(falta + (falta === 1 ? " falta" : " faltas"));
+      if (disp) counts.push(disp + (disp === 1 ? " dispensa" : " dispensas"));
+      return `<button type="button" class="gc-clinic" data-conf-entidade="${escapeHtml(entidade.id)}" aria-label="Ver atos de ${escapeHtml(entidade.nome)}">
+        <span class="gc-clinic-name">${escapeHtml(entidade.nome)} <span aria-hidden="true">→</span></span>
+        <span class="gc-clinic-fee"><b>${pgEur(hon)}</b> honorários</span>
+        <span class="gc-clinic-counts">${counts.join(" · ")}</span></button>`;
+    }).join("");
+    return `<section class="gc-conf" aria-label="Conferência de faturação">
+      <link rel="stylesheet" href="/modules/faturacao-visual.css">
+      <div class="gc-conf-head"><h2>Faturação</h2><div class="gc-conf-head">${periodBarHTML}</div></div>
+      <article class="gc-nc"><div class="gc-nc-head"><div><h3>Pedir faturas à Novo Cuidar</h3>
+      <p>Um email por dia para as consultas João Morais Web e Athletix.</p></div>
+      <button class="gc-btn" data-rd-faturacao="${modoAtivo === "dia" ? escapeHtml(periodoIni) : ""}" aria-expanded="false">Preparar pedido do dia</button></div>
+      <div data-rd-faturacao-host hidden></div></article><h3 style="margin-top:20px">Atividade por clínica</h3><div class="gc-conf-grid">${cards}</div>${ctx.entidadesExternasHTML}</section>`;
   }
   return renderRendimentosDashboard({
     clinicas: porClinica, entidades, registos: registosFiltrados,
@@ -1689,6 +1689,9 @@ export async function renderFinancas() {
         const btnPago = fs === "pago"
           ? `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="pago" style="flex:1;font-size:11px;border-color:#9FE1CB;background:#E1F5EE;color:#085041;">✓ Pago</button>`
           : `<button class="btnAvencaEstado gc-btn-sm" data-id="${reg?.id||""}" data-fs="${fs}" data-campo="pago" style="flex:1;font-size:11px;">Pagamento recebido</button>`;
+        if (vistaDashboard === "faturacao") return `<div class="gc-hba">
+          <div class="gc-hba-info"><strong>${escapeHtml(e.nome)}</strong><small>Avença mensal</small></div>
+          <strong>${pgEur(e.avenca_valor || 0)}</strong><div class="gc-hba-actions">${btnRecibo}${btnPago}</div></div>`;
         return `<div style="padding:10px 14px;border-bottom:0.5px solid #f1f5f9;">
           <div style="display:flex;justify-content:space-between;align-items:baseline;">
             <span style="font-size:13px;font-weight:500;color:#0f172a;">${escapeHtml(e.nome)} <span style="font-size:10px;background:#CECBF6;color:#26215C;padding:2px 7px;border-radius:8px;">mensal fixo</span></span>
@@ -2197,17 +2200,20 @@ ${pendVencidos.length > 0 ? `
 
     const faturacao = content.querySelector("[data-rd-faturacao]");
     if (faturacao) {
+      const openLabel = faturacao.textContent;
       faturacao.onclick = async () => {
         const host = content.querySelector("[data-rd-faturacao-host]");
         if (!host.hidden) {
           host.hidden = true;
           faturacao.setAttribute("aria-expanded", "false");
+          faturacao.textContent = openLabel;
           return;
         }
         const { renderFaturacao } = await import("./faturacao-web.js");
         if (!faturacao.isConnected) return;
         host.hidden = false;
         faturacao.setAttribute("aria-expanded", "true");
+        faturacao.textContent = "Fechar painel";
         if (!host.firstElementChild) renderFaturacao(host, null, {
           day: faturacao.dataset.rdFaturacao,
           onChange: async () => {

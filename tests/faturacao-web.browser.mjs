@@ -13,6 +13,7 @@ try {
     const {pathname} = new URL(route.request().url());
     if (pathname === '/') return route.fulfill({contentType:'text/html',
       body:'<!doctype html><html lang="pt"><meta name="viewport" content="width=device-width,initial-scale=1"><main class="gc-content"></main></html>'});
+    if (pathname === '/modules/faturacao-visual.css') return route.fulfill({contentType:'text/css',body:await readFile(new URL('..'+pathname,import.meta.url),'utf8')});
     if (!/^\/modules\/[\w./-]+\.js$/.test(pathname)) return route.abort();
     const body = await readFile(new URL('..'+pathname,import.meta.url),'utf8');
     return route.fulfill({contentType:'text/javascript',body});
@@ -122,8 +123,10 @@ try {
   assert.equal(await first.getByRole('button',{name:'Confirmar preço'}).count(),0);
   page.on('dialog', dialog => dialog.accept());
   for (const action of ['doente','transferencia','honorarios']) {
+    await first.locator('.gc-fat-moves:not([open]) summary').click();
     await first.locator(`[data-action="${action}"]`).click();
   }
+  await first.locator('.gc-fat-moves:not([open]) summary').click();
   await first.getByText(/Honorários recebidos · \d/).waitFor();
   await page.getByRole('button',{name:'Histórico',exact:true}).click();
   assert.equal(await second.isVisible(),false);

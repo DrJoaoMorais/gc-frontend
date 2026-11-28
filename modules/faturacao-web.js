@@ -37,9 +37,10 @@ export function renderFaturacao(content, back, {day, onChange} = {}) {
   const today = lisbonDay(new Date());
   const initialDay = day && day <= today ? day : today;
   content.innerHTML = `<section class="gc-faturacao" aria-label="Faturação">
-    ${back ? '<button type="button" class="gc-btn" data-back>Voltar a Finanças</button><h1>Faturação</h1>' : '<h2>Faturação pela Novo Cuidar</h2>'}
+    ${content.closest('.gc-conf') ? '' : '<link rel="stylesheet" href="/modules/faturacao-visual.css">'}
+    ${back ? '<button type="button" class="gc-btn" data-back>Voltar a Finanças</button><h1>Faturação</h1>' : ''}
     ${back ? '<p>Consultas João Morais Web e Athletix · Faturação pela Novo Cuidar</p>' : ''}
-    <form data-period style="display:flex;flex-wrap:wrap;align-items:end;gap:12px">
+    <form data-period class="gc-fat-period">
       <label>De <input type="date" name="inicio" value="${initialDay}" max="${today}" required></label>
       <label>Até <input type="date" name="fim" value="${initialDay}" max="${today}" required></label>
       <button class="gc-btn-primary">Consultar</button>
@@ -114,54 +115,58 @@ export function renderFaturacao(content, back, {day, onChange} = {}) {
     const sum = rows => euro(rows.reduce((total, row) => total + Math.round(Number(price(row)) * 100), 0) / 100);
     status.textContent = !activation ? 'Circuito por ativar. O histórico está em consulta.' :
       !billingEmailURL(email) ? 'Configure o email de faturação da Novo Cuidar para preparar pedidos.' : '';
+    const preparedCount = visible.filter(row => ownHistory.has(row.id) && !isSent(ownHistory.get(row.id))).length;
     result.innerHTML = `
-      <p>Preço confirmado ${e(sum(confirmed))} · Recebido do doente ${e(sum(confirmed.filter(r => r.web_recebido_doente_at)))}
-        · Transferido ${e(sum(confirmed.filter(r => r.web_transferido_at)))}
-        · Honorários recebidos ${e(sum(confirmed.filter(r => r.web_honorarios_recebidos_at)))}</p>
+      <div class="gc-fat-counts" aria-label="Consultas neste período">
+        <div><b>${visible.filter(available).length}</b><span>Sem pedido</span></div>
+        ${preparedCount ? `<div><b>${preparedCount}</b><span>Por confirmar envio</span></div>` : ''}
+        <div class="gc-fat-waiting"><b>${visible.filter(row => isSent(ownHistory.get(row.id)) && !ownHistory.get(row.id)?.recibo_emitido_at).length}</b><span>A aguardar fatura</span></div>
+        <div><b>${visible.filter(row => ownHistory.get(row.id)?.recibo_emitido_at).length}</b><span>✓ Emitidas</span></div>
+      </div>
       ${missing ? `<p>${missing} consulta(s) realizada(s) sem registo financeiro neste período.</p>` : ''}
-      <p><strong>${visible.filter(available).length}</strong> consultas elegíveis sem pedido ·
-        <strong>${visible.map(row => ownHistory.get(row.id)).filter(item => item && isSent(item) && !item.recibo_emitido_at).length}</strong> a aguardar emissão ·
-        <strong>${visible.filter(row => ownHistory.get(row.id)?.recibo_emitido_at).length}</strong> com emissão confirmada</p>
-      <div role="group" aria-label="Mostrar consultas">
+      <div class="gc-fat-filter" role="group" aria-label="Mostrar consultas">
         ${[['all','Todas'],['pending','Pendentes'],['history','Histórico']].map(([value,label]) =>
           `<button class="gc-btn" data-filter="${value}" aria-pressed="${value === 'all'}">${label}</button>`).join('')}
       </div>
-      <div style="overflow-x:auto;margin-top:12px"><table class="gc-table" style="min-width:690px">
+      <div class="gc-fat-scroll"><table class="gc-table" style="min-width:690px">
         <thead><tr><th scope="col">Selecionar</th><th scope="col">Consulta</th><th scope="col">Preço</th>
-        <th scope="col">Pedido</th><th scope="col">Movimentos confirmados</th></tr></thead>
+        <th scope="col">Pedido</th><th scope="col">Recebimentos e transferências</th></tr></thead>
         <tbody>${visible.map(row => {
           const sent = ownHistory.get(row.id);
           const label = row.patients?.full_name || 'Doente por confirmar';
           const editable = row.agendaClinicId === webId && /(?:^|[^\p{L}])(?:primeira consulta|consulta de reavaliação|teleconsulta|consulta referenciada por ft|consulta|reavaliação)$/iu.test(appts.get(row.appointment_id)?.procedure_type || row.tipo_acto) && available(row) && !row.web_recebido_doente_at;
           const pendingMovement = movements.findIndex(([,field]) => !row[field]);
+          const beforeStart = activation && row.data < activation;
           const rowStatus = row.financial_status === 'honorarios_dispensados' ? 'Honorários dispensados' :
             sent ? (sent.recibo_emitido_at ? '✓ EMITIDA' : isSent(sent) ? 'Envio confirmado' : 'Pedido preparado') :
-              historical(row) ? 'Histórico anterior' : !eligible(row) ? 'Por conciliar ou fora do circuito' :
+              historical(row) ? 'Pedido anterior' : beforeStart ? 'Anterior ao início do circuito' : !eligible(row) ? 'Rever registo' :
                 price(row) == null ? 'Preço por confirmar' : 'Por preparar';
-          return `<tr data-row="${e(row.id)}" data-history="${Boolean(sent || historical(row))}"
-            data-pending="${Boolean(eligible(row) && (!isSent(sent) || pendingMovement !== -1) && (available(row) || sent))}">
+          return `<tr data-row="${e(row.id)}" data-history="${Boolean(sent || historical(row) || beforeStart)}"
+            data-pending="${Boolean(eligible(row) && (!sent?.recibo_emitido_at || (row.agendaClinicId === webId && pendingMovement !== -1)) && (available(row) || sent))}">
             <td>${available(row) && price(row) > 0 ? `<input type="checkbox" data-select aria-label="Selecionar ${e(label)}">` : '—'}</td>
-            <td><strong>${e(label)}</strong><br>${e(row.agendaEntityName || '')} · ${e(row.data)} · ${e(row.tipo_acto || '')}</td>
-            <td>${!editable ? e(euro(price(row))) : `<form data-price style="display:flex;gap:6px;flex-wrap:wrap">
+            <td><strong>${e(label)}</strong><small>${e(row.agendaEntityName || '')} · ${e(row.data.split('-').reverse().join('/'))}</small><small>${e(row.tipo_acto || '')}</small></td>
+            <td>${!editable ? (beforeStart && price(row) == null ? '—' : e(euro(price(row)))) : `<form data-price style="display:flex;gap:6px;flex-wrap:wrap">
               <span role="group" aria-label="Preço de ${e(label)}">${[45,50,60,65,'outro'].map(value =>
                 `<label><input type="radio" name="preset" value="${value}">${value === 'outro' ? 'Outro' : value+' €'}</label>`).join(' ')}</span>
               <input data-custom hidden inputmode="decimal" aria-label="Outro preço em euros" placeholder="€" size="7">
               <button class="gc-btn">Confirmar preço</button>
               <small>${e(euro(price(row)))}</small></form>`}</td>
-            <td>${sent?.recibo_emitido_at ? '<strong style="background:#135e41;color:white;padding:4px 8px;border-radius:5px">✓ EMITIDA</strong>' : e(rowStatus)}
+            <td>${sent?.recibo_emitido_at ? '<strong style="background:#135e41;color:white;padding:4px 8px;border-radius:5px">✓ EMITIDA</strong>' : `<span class="gc-fat-tag">${e(rowStatus)}</span>`}${beforeStart && !sent && !historical(row) ? `<small>Início em ${e(activation.split('-').reverse().join('/'))}</small>` : ''}
               ${isSent(sent) ? `<button class="gc-btn" data-issue="${sent.recibo_emitido_at ? 'corrigir_emissao' : 'emitida'}">${sent.recibo_emitido_at ? 'Corrigir emissão' : 'Confirmar emissão'}</button>` : ''}
               ${sent ? '<br><button class="gc-btn" data-open>Ver pedido</button>' : ''}</td>
-            <td>${movements.map(([action,field,label], index) => row[field]
+            <td>${row.agendaClinicId !== webId || (!eligible(row) && !sent && !movements.some(([,field]) => row[field])) ? '—' : `<details class="gc-fat-moves"><summary>Movimentos · ${movements.filter(([,field]) => row[field]).length}/3</summary>${movements.map(([action,field,label], index) => row[field]
               ? `<div>${e(label)} · ${e(lisbonDay(row[field]))}</div>`
               : row.agendaClinicId === webId && eligible(row) && (available(row) || sent) && price(row) > 0 && index === pendingMovement
                 ? `<button class="gc-btn" data-action="${action}">Confirmar: ${e(label.toLowerCase())}</button>`
-                : `<div>${e(label)} · Por confirmar</div>`).join('')}</td></tr>`;
+                : `<div>${e(label)} · Por confirmar</div>`).join('')}</details>`}</td></tr>`;
         }).join('')}</tbody>
       </table></div>
       ${visible.length ? '' : '<p>Sem consultas neste período.</p>'}
       ${start === end && visible.some(row => available(row) && price(row) > 0) ? '<button type="button" class="gc-btn" data-select-day>Selecionar consultas do dia</button>' : ''}
-      <p data-selection>0 consultas selecionadas</p>
-      <button class="gc-btn-primary" data-preview disabled>Pré-visualizar pedido</button><div data-draft></div>`;
+      <div class="gc-fat-footer"><span data-selection>0 consultas selecionadas</span>
+      <button class="gc-btn-primary" data-preview disabled>Pré-visualizar pedido</button></div><details class="gc-fat-ledger"><summary>Ver totais financeiros do período</summary><p>Preço confirmado ${e(sum(confirmed))} · Recebido do doente ${e(sum(confirmed.filter(r => r.web_recebido_doente_at)))}
+        · Transferido ${e(sum(confirmed.filter(r => r.web_transferido_at)))}
+        · Honorários recebidos ${e(sum(confirmed.filter(r => r.web_honorarios_recebidos_at)))}</p></details><div data-draft></div>`;
     const selection = new Set();
     const draft = result.querySelector('[data-draft]');
     const preview = result.querySelector('[data-preview]');
