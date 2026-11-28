@@ -1,0 +1,35 @@
+name: Conferência com sessão autenticada
+on:
+  push:
+    branches: [test/conferencia-sessao-isolada]
+permissions:
+  contents: read
+jobs:
+  conferir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.72.7
+      - name: Iniciar Supabase isolado
+        run: |
+          mkdir "$RUNNER_TEMP/conferencia"
+          cd "$RUNNER_TEMP/conferencia"
+          supabase init
+          supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api,supavisor,inbucket
+          supabase status -o env > "$RUNNER_TEMP/conferencia.env"
+      - name: Testar autenticação e pedido com duas origens
+        run: |
+          set -a
+          source "$RUNNER_TEMP/conferencia.env"
+          set +a
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f tests/conferencia-auth/base.sql
+          for migration in 20260824150000_add_controlo_faturacao 20260914131129_agenda_fecho_contabilidade 20261125212621_faturacao_web; do
+            psql "$DB_URL" -v ON_ERROR_STOP=1 -f "supabase/migrations/$migration.sql"
+          done
+          psql "$DB_URL" -c "notify pgrst, 'reload schema'"
+          node tests/conferencia-auth/sessao.mjs
