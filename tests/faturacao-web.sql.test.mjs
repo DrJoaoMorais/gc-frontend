@@ -71,6 +71,11 @@ test('circuito Web em PostgreSQL isolado', async () => {
     await seed(24,web,entity,'2026-06-02T12:00Z','done','honorarios_dispensados',0);
     await seed(25,web,entity,'2026-06-03T12:00Z','scheduled');
     await seed(26,web,entity,'2026-06-04T12:00Z');
+    await db.exec(`insert into appointments values ('${id(146)}','${web}','${patient}','2026-06-08T12:00Z','done','normal','presencial','Viscossuplementação');
+      insert into registos_financeiros(id,entidade_id,appointment_id,patient_id,data,periodo,tipo_acto,valor,valor_faturado,appt_status,financial_status)
+      values ('${id(46)}','${entity}','${id(146)}','${patient}','2026-06-08','2026-06','Viscossuplementação',80,105,'done','normal');`);
+    assert.deepEqual((await db.query('select valor::int,valor_faturado::int,web_preco_pendente from registos_financeiros where id=$1',[id(46)])).rows[0],{valor:80,valor_faturado:105,web_preco_pendente:false});
+    await db.query('delete from registos_financeiros where id=$1',[id(46)]);
     const row = async n => (await db.query('select * from registos_financeiros where id=$1',[id(n)])).rows[0];
     assert.equal((await row(23)).data.toISOString().slice(0,10),'2026-06-01');
     assert.equal((await row(23)).valor,'0');

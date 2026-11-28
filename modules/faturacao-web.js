@@ -132,7 +132,7 @@ export function renderFaturacao(content, back, {day, onChange} = {}) {
         <tbody>${visible.map(row => {
           const sent = ownHistory.get(row.id);
           const label = row.patients?.full_name || 'Doente por confirmar';
-          const editable = row.agendaClinicId === webId && available(row) && !row.web_recebido_doente_at;
+          const editable = row.agendaClinicId === webId && /(?:^|[^\p{L}])(?:primeira consulta|consulta de reavaliação|teleconsulta|consulta referenciada por ft|consulta|reavaliação)$/iu.test(appts.get(row.appointment_id)?.procedure_type || row.tipo_acto) && available(row) && !row.web_recebido_doente_at;
           const pendingMovement = movements.findIndex(([,field]) => !row[field]);
           const rowStatus = row.financial_status === 'honorarios_dispensados' ? 'Honorários dispensados' :
             sent ? (sent.recibo_emitido_at ? '✓ EMITIDA' : isSent(sent) ? 'Envio confirmado' : 'Pedido preparado') :
