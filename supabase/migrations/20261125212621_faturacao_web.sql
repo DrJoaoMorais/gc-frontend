@@ -50,7 +50,7 @@ begin
     join public.entidades_financeiras e on e.clinic_id=c.id
     where a.id=new.appointment_id and a.patient_id=new.patient_id
       and c.slug='joao-morais-web' and c.is_active and e.id=new.entidade_id and e.tipo='acto'
-      and a.mode::text<>'bloqueio' and a.procedure_type is not null
+      and a.mode::text<>'bloqueio' and (a.procedure_type ~* '(^|[^[:alpha:]])(primeira consulta|consulta de reavaliação|teleconsulta|consulta referenciada por ft|consulta|reavaliação)$')
       and (a.start_at at time zone 'Europe/Lisbon')::date >= nullif(c.extra_fields->>'faturacao_web_desde','')::date
       and not exists (select 1 from public.registos_financeiros r where r.appointment_id=a.id);
     if dia is not null then
@@ -305,6 +305,7 @@ begin
     )) then raise exception 'Este ato já tem histórico de faturação.'; end if;
 
     if p_acao='preco' then
+      if not coalesce((ato.procedure_type ~* '(^|[^[:alpha:]])(primeira consulta|consulta de reavaliação|teleconsulta|consulta referenciada por ft|consulta|reavaliação)$'),false) then raise exception 'A edição do preço aplica-se apenas a consultas.'; end if;
       preco := (item->>'preco')::numeric;
       if preco is null or not (preco > 0 and preco <= 999999.99) or preco <> round(preco,2) then
         raise exception 'Introduza um preço positivo com até duas casas decimais.';
